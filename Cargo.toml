@@ -1,0 +1,138 @@
+[package]
+name = "bevy_zeroverse"
+description = "bevy zeroverse synthetic dataset generator"
+version = "0.1.0"
+edition = "2021"
+authors = ["mosure <mitchell@mosure.me>"]
+license = "MIT"
+keywords = [
+  "bevy",
+  "zeroverse",
+  "machine-learning",
+  "synthetic-data",
+]
+categories = [
+  "computer-vision",
+  "graphics",
+  "rendering",
+]
+homepage = "https://github.com/mosure/bevy_zeroverse"
+repository = "https://github.com/mosure/bevy_zeroverse"
+readme = "README.md"
+exclude = [
+  ".devcontainer",
+  ".github",
+  "docs",
+  "dist",
+  "build",
+  "assets",
+  "credits",
+]
+default-run = "viewer"
+
+
+# TODO: resolve one-hot feature flags through runtime configuration
+[features]
+default = [
+  "asset_pipeline",
+  "viewer",
+]
+
+asset_pipeline = [
+  "bevy/asset_processor",
+  "bevy/file_watcher",
+  "bevy/multi-threaded",
+]
+
+perftest = []
+
+viewer = [
+  "bevy_args",
+  "bevy-inspector-egui",
+  "bevy_panorbit_camera",
+  # "bevy_transform_gizmo",
+  "clap",
+  "bevy/bevy_ui",
+]
+
+web = [
+  "viewer",
+  "webgl2",
+]
+
+webgl2 = ["bevy/webgl2"]
+webgpu = ["bevy/webgpu"]
+
+
+[dependencies]
+bevy_args = { version = "1.4", optional = true }
+bevy-inspector-egui = { version = "0.24", optional = true }
+bevy_panorbit_camera = { version = "0.18", optional = true }
+bevy_transform_gizmo = { version = "0.11", optional = true }
+clap = { version = "4.4", features = ["derive"], optional = true }
+noise = { version = "0.9.0", optional = true }
+rand = "0.8"
+rayon = { version = "1.10", optional = true }
+serde = "1.0"
+
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+console_error_panic_hook = "0.1"
+wasm-bindgen = "0.2"
+
+
+[dependencies.bevy]
+version = "0.13"
+default-features = false
+features = [
+  "bevy_asset",
+  "bevy_core_pipeline",
+  "bevy_render",
+  "bevy_winit",
+  "tonemapping_luts",
+  "x11",
+]
+
+
+[dependencies.web-sys]
+version = "0.3"
+features = [
+  'Document',
+  'Element',
+  'HtmlElement',
+  'Location',
+  'Node',
+  'Window',
+]
+
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+futures-intrusive = { version = "0.5.0" }
+pollster = { version = "0.3.0" }
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.dev]
+opt-level = 1
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+opt-level = 3
+
+[profile.wasm-release]
+inherits = "release"
+opt-level = "z"
+lto = "fat"
+codegen-units = 1
+
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "viewer"
+path = "tools/viewer.rs"
+required-features = ["viewer"]
