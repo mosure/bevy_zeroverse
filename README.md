@@ -14,13 +14,16 @@ bevy zeroverse synthetic dataset generator plugin. view the [live demo](https://
 ## capabilities
 
 - [ ] generate parameteric zeroverse primitives
-- [ ] depth/normal rendering modes
+- [X] depth/normal rendering modes
 - [ ] procedural zeroverse environments
+- [X] material basecolor grid view (`cargo run -- --material-grid`)
+
 
 ## mat-synth
 
 - download the mat-synth dataset [here](https://huggingface.co/datasets/gvecchio/MatSynth/blob/main/scripts/download_dataset.py)
 - crop the mat-synth dataset (4k is heavy) using `python tools/mat_synth_resize.py --source_dir <path-to-mat-synth> --dest_dir <path-to-cropped-mat-synth>`
+- copy the cropped mat-synth dataset to `assets/materials`
 - generate manifolds using `python tools/generate_manifolds.py`
 
 

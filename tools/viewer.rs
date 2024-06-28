@@ -15,7 +15,10 @@ use bevy_panorbit_camera::{
     PanOrbitCameraPlugin,
 };
 
-use bevy_zeroverse::BevyZeroversePlugin;
+use bevy_zeroverse::{
+    BevyZeroversePlugin,
+    ZeroverseMaterials,
+};
 
 
 #[derive(
@@ -26,27 +29,32 @@ use bevy_zeroverse::BevyZeroversePlugin;
     Parser,
 )]
 #[command(about = "bevy_zeroverse viewer", version, long_about = None)]
-pub struct BevyZeroverseViewer {
+struct BevyZeroverseViewer {
     #[arg(long, default_value = "true")]
-    pub editor: bool,
+    editor: bool,
+
+    /// view available material basecolor textures in a grid
+    #[arg(long, default_value = "false")]
+    material_grid: bool,
 
     #[arg(long, default_value = "true")]
-    pub press_esc_close: bool,
+    press_esc_close: bool,
 
     #[arg(long, default_value = "1920.0")]
-    pub width: f32,
+    width: f32,
 
     #[arg(long, default_value = "1080.0")]
-    pub height: f32,
+    height: f32,
 
     #[arg(long, default_value = "bevy_zeroverse")]
-    pub name: String,
+    name: String,
 }
 
 impl Default for BevyZeroverseViewer {
     fn default() -> BevyZeroverseViewer {
         BevyZeroverseViewer {
             editor: true,
+            material_grid: false,
             press_esc_close: true,
             width: 1920.0,
             height: 1080.0,
@@ -99,10 +107,6 @@ fn viewer_app() {
         .set(WindowPlugin {
             primary_window,
             ..default()
-        })
-        .set(AssetPlugin {
-            mode: AssetMode::Processed,
-            ..default()
         });
 
     app.add_plugins(default_plugins);
@@ -123,10 +127,13 @@ fn viewer_app() {
     app.run();
 }
 
-pub fn setup_camera(
+fn setup_camera(
     mut commands: Commands,
+    args: Res<BevyZeroverseViewer>,
+    standard_materials: Res<Assets<StandardMaterial>>,
+    zeroverse_materials: Res<ZeroverseMaterials>,
 ) {
-    commands.spawn((
+    let camera = commands.spawn((
         Camera3dBundle {
             transform: Transform::from_translation(Vec3::new(0.0, 1.5, 5.0)),
             ..default()
@@ -138,10 +145,55 @@ pub fn setup_camera(
             zoom_smoothness: 0.0,
             ..default()
         },
-    ));
+    )).id();
+
+
+    if args.material_grid {
+        let material_count = zeroverse_materials.materials.len();
+        let rows = (material_count as f32).sqrt().ceil() as u16;
+        let cols = (material_count as f32 / rows as f32).ceil() as u16;
+
+        commands.spawn(NodeBundle {
+            style: Style {
+                display: Display::Grid,
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                grid_template_columns: RepeatedGridTrack::flex(cols, 1.0),
+                grid_template_rows: RepeatedGridTrack::flex(rows, 1.0),
+                ..default()
+            },
+            background_color: BackgroundColor(Color::BLACK),
+            ..default()
+        })
+        .with_children(|builder| {
+            for material in &zeroverse_materials.materials {
+                let base_color_texture = standard_materials
+                    .get(material)
+                    .unwrap()
+                    .base_color_texture
+                    .clone()
+                    .unwrap();
+
+                builder.spawn(ImageBundle {
+                    style: Style {
+                        width: Val::Percent(100.0),
+                        height: Val::Percent(100.0),
+                        ..default()
+                    },
+                    image: UiImage {
+                        texture: base_color_texture,
+                        ..default()
+                    },
+                    ..default()
+                });
+            }
+        })
+        .insert(TargetCamera(camera));
+    }
 }
 
-pub fn press_esc_close(
+
+fn press_esc_close(
     keys: Res<ButtonInput<KeyCode>>,
     mut exit: EventWriter<AppExit>
 ) {
