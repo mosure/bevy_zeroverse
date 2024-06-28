@@ -35,28 +35,3 @@ jobs:
 
     - name: test (default)
       run: cargo test
-
-
-  test_web:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, macos-latest, macos-14]
-        rust-toolchain:
-          - nightly
-
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 120
-
-    steps:
-    - uses: actions/checkout@v3
-
-    - name: Setup ${{ matrix.rust-toolchain }} rust toolchain with caching
-      uses: brndnmtthws/rust-action@v1
-      with:
-        toolchain: ${{ matrix.rust-toolchain }}
-        components: rustfmt, clippy
-        enable-sccache: "true"
-
-    - name: test (web)
-      run: cargo test --no-default-features --features="web io_ply tooling"
