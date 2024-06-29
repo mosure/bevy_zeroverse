@@ -35,12 +35,15 @@ default-run = "viewer"
 [features]
 default = [
   "asset_pipeline",
+  "development",
   "viewer",
 ]
 
 asset_pipeline = [
   "bevy/multi-threaded",
 ]
+
+development = ["bevy/dynamic_linking"]
 
 perftest = []
 
@@ -117,6 +120,7 @@ opt-level = 3
 
 [profile.dev]
 opt-level = 1
+incremental = true
 
 [profile.release]
 lto = "thin"
