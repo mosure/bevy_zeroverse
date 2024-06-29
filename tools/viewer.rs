@@ -17,7 +17,7 @@ use bevy_panorbit_camera::{
 
 use bevy_zeroverse::{
     BevyZeroversePlugin,
-    ZeroverseMaterials,
+    material::ZeroverseMaterials,
 };
 
 
