@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use bevy::prelude::*;
 
@@ -20,7 +20,17 @@ impl Plugin for ZeroverseMaterialPlugin {
     }
 }
 
+#[cfg(target_family = "wasm")]
+fn get_material_roots() -> Vec<PathBuf> {
+    vec![
+        PathBuf::from("materials/subset/Ceramic/0557_brick_uneven_stones"),
+        PathBuf::from("materials/subset/Ground/acg_rocks_023"),
+        PathBuf::from("materials/subset/Marble/st_marble_038"),
+        PathBuf::from("materials/subset/Wood/acg_planks_003"),
+    ]
+}
 
+#[cfg(not(target_family = "wasm"))]
 fn get_material_roots() -> Vec<PathBuf> {
     // TODO: use asset_server scanning: https://github.com/bevyengine/bevy/issues/2291
 
@@ -36,7 +46,7 @@ fn get_material_roots() -> Vec<PathBuf> {
         .filter_map(|path| {
             path.parent()
                 .and_then(|parent| parent.strip_prefix(&asset_server_path).ok())
-                .map(Path::to_path_buf)
+                .map(std::path::Path::to_path_buf)
         })
         .collect()
 }
