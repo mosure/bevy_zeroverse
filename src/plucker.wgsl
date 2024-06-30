@@ -2,7 +2,10 @@
 
 
 @group(0) @binding(0) var<uniform> view: View;
-@group(1) @binding(0) var<storage, write> output_texture : texture_storage_2d<rgba32float, write>;
+
+@group(1) @binding(0) var<storage, write> plucker_u_texture : texture_storage_2d<rgba32float, write>;
+@group(1) @binding(1) var<storage, write> plucker_v_texture : texture_storage_2d<rgba32float, write>;
+@group(1) @binding(2) var<storage, write> plucker_visual_texture : texture_storage_2d<rgba32float, write>;
 
 
 fn get_st(global_invocation_id: vec3<u32>) -> vec2<f32> {
@@ -38,6 +41,19 @@ fn plucker_kernel(@builtin(global_invocation_id) gid : vec3<u32>) {
     let plucker_u = cross(rays_o, normalized_rays_d);
     let plucker_v = normalized_rays_d;
 
-    let output_color = vec4<f32>(plucker_u, 1.0);
-    textureStore(output_texture, gid.xy, output_color);
+    textureStore(
+        plucker_u_texture,
+        gid.xy,
+        vec4<f32>(plucker_u, 1.0),
+    );
+    textureStore(
+        plucker_v_texture,
+        gid.xy,
+        vec4<f32>(plucker_v, 1.0),
+    );
+    textureStore(
+        plucker_visual_texture,
+        gid.xy,
+        vec4<f32>(plucker_v * 0.5 + 0.5, 1.0),
+    );
 }

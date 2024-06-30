@@ -1,9 +1,8 @@
 use bevy::prelude::*;
 
-use material::ZeroverseMaterialPlugin;
-
 pub mod manifold;
 pub mod material;
+pub mod plucker;
 
 
 pub struct BevyZeroversePlugin;
@@ -12,6 +11,9 @@ impl Plugin for BevyZeroversePlugin {
     fn build(&self, app: &mut App) {
         info!("initializing BevyZeroversePlugin...");
 
-        app.add_plugins(ZeroverseMaterialPlugin);
+        app.add_plugins((
+            material::ZeroverseMaterialPlugin,
+            plucker::PluckerPlugin,
+        ));
     }
 }
