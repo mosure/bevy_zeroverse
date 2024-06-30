@@ -12,4 +12,4 @@ to generate bindings:
 > `wasm-bindgen --out-dir ./www/out/ --target web ./target/wasm32-unknown-unknown/release/viewer.wasm`
 
 
-open a live server of `index.html` and append args: `?arg1=[n | *.gcloud]`
+open a live server of `www/index.html`
