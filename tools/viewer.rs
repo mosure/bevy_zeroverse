@@ -1,6 +1,15 @@
 use bevy::{
     prelude::*,
     app::AppExit,
+    core_pipeline::{
+        bloom::BloomSettings,
+        core_3d::ScreenSpaceTransmissionQuality,
+        tonemapping::Tonemapping,
+    },
+    render::{
+        camera::Exposure,
+        view::ColorGrading,
+    },
 };
 use bevy_args::{
     parse_args,
@@ -13,6 +22,11 @@ use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_panorbit_camera::{
     PanOrbitCamera,
     PanOrbitCameraPlugin,
+};
+
+#[cfg(not(all(feature = "webgl2", target_arch = "wasm32")))]
+use bevy::core_pipeline::experimental::taa::{
+    TemporalAntiAliasBundle, TemporalAntiAliasPlugin,
 };
 
 use bevy_zeroverse::{
@@ -28,8 +42,10 @@ use bevy_zeroverse::{
     Serialize,
     Deserialize,
     Parser,
+    Reflect,
 )]
 #[command(about = "bevy_zeroverse viewer", version, long_about = None)]
+#[reflect(Resource)]
 struct BevyZeroverseViewer {
     #[arg(long, default_value = "true")]
     editor: bool,
@@ -118,7 +134,12 @@ fn viewer_app() {
     app.add_plugins(BevyArgsPlugin::<BevyZeroverseViewer>::default());
     app.add_plugins(PanOrbitCameraPlugin);
 
+    #[cfg(not(all(feature = "webgl2", target_arch = "wasm32")))]
+    app.insert_resource(Msaa::Off)
+        .add_plugins(TemporalAntiAliasPlugin);
+
     if config.editor {
+        app.register_type::<BevyZeroverseViewer>();
         app.add_plugins(WorldInspectorPlugin::new());
     }
 
@@ -136,13 +157,29 @@ fn viewer_app() {
 
 fn setup_camera(
     mut commands: Commands,
+    asset_server: Res<AssetServer>,
     args: Res<BevyZeroverseViewer>,
     standard_materials: Res<Assets<StandardMaterial>>,
     zeroverse_materials: Res<ZeroverseMaterials>,
 ) {
-    let camera = commands.spawn((
+    #[allow(unused_mut)]
+    let mut camera = commands.spawn((
         Camera3dBundle {
+            camera: Camera {
+                hdr: true,
+                ..default()
+            },
+            camera_3d: Camera3d {
+                screen_space_specular_transmission_quality: ScreenSpaceTransmissionQuality::High,
+                ..default()
+            },
+            color_grading: ColorGrading {
+                post_saturation: 1.2,
+                ..default()
+            },
+            exposure: Exposure::INDOOR,
             transform: Transform::from_translation(Vec3::new(0.0, 1.5, 5.0)),
+            tonemapping: Tonemapping::TonyMcMapface,
             ..default()
         },
         PanOrbitCamera {
@@ -152,7 +189,22 @@ fn setup_camera(
             zoom_smoothness: 0.0,
             ..default()
         },
-    )).id();
+        // TODO: generate environment maps
+        EnvironmentMapLight {
+            diffuse_map: asset_server.load("environment_maps/pisa_diffuse_rgb9e5_zstd.ktx2"),
+            specular_map: asset_server.load("environment_maps/pisa_specular_rgb9e5_zstd.ktx2"),
+            intensity: 900.0,
+        },
+        BloomSettings::default(),
+    ));
+
+    // note: disable TAA in headless output mode
+    #[cfg(not(all(feature = "webgl2", target_arch = "wasm32")))]
+    camera.insert((
+        TemporalAntiAliasBundle::default(),
+    ));
+
+    let camera = camera.id();
 
 
     // TODO: move lighting to procedural scene plugin

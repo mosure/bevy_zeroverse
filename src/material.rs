@@ -1,7 +1,6 @@
 use std::path::PathBuf;
 
 use bevy::prelude::*;
-use rand::seq::IteratorRandom;
 
 
 #[derive(Resource, Default, Debug)]
@@ -33,6 +32,8 @@ fn get_material_roots() -> Vec<PathBuf> {
 
 #[cfg(not(target_family = "wasm"))]
 fn get_material_roots() -> Vec<PathBuf> {
+    use rand::seq::IteratorRandom;
+
     // TODO: use asset_server scanning: https://github.com/bevyengine/bevy/issues/2291
 
     let cwd = std::env::current_dir().expect("failed to get current working directory");
@@ -78,6 +79,8 @@ fn load_materials(
             metallic_roughness_texture: metallic_roughness_handle.into(),
             normal_map_texture: normal_map_handle.into(),
             depth_map: depth_map_handle.into(),
+            double_sided: true,
+            cull_mode: None,
             ..Default::default()
         });
 

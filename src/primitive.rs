@@ -8,10 +8,12 @@ use bevy::{
         Sphere,
         Torus,
     },
-    pbr::wireframe::{
-        Wireframe,
-        WireframeColor,
-        WireframePlugin,
+    pbr::{
+        TransmittedShadowReceiver,
+        wireframe::{
+            Wireframe,
+            WireframeColor,
+        },
     },
     render::{
         mesh::PrimitiveTopology,
@@ -35,7 +37,8 @@ use crate::{
 pub struct ZeroversePrimitivePlugin;
 impl Plugin for ZeroversePrimitivePlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(WireframePlugin);
+        #[cfg(not(target_family = "wasm"))]  // note: web does not handle `POLYGON_MODE_LINE`, so we skip wireframes
+        app.add_plugins(bevy::pbr::wireframe::WireframePlugin);
 
         app.add_systems(Update, process_primitives);
     }
@@ -44,12 +47,14 @@ impl Plugin for ZeroversePrimitivePlugin {
 
 #[derive(Clone, Debug, EnumIter, Reflect)]
 pub enum ZeroversePrimitives {
+    // CanonicalFrustum,
     Capsule,
     // Cone,
     Cuboid,
     Cylinder,
     Plane,
     Sphere,
+    // Tetrahedron,
     Torus,
 }
 
@@ -171,8 +176,10 @@ fn process_primitives(
                         .build(),
                     ZeroversePrimitives::Sphere => Sphere::new(scale.x)
                         .mesh()
-                        .ico(rng.gen_range(3..7))
-                        .unwrap(),
+                        .uv(
+                            rng.gen_range(24..64),
+                            rng.gen_range(12..32),
+                        ),
                     ZeroversePrimitives::Torus => Torus::new(scale.x, scale.y)
                         .mesh()
                         .major_resolution(rng.gen_range(4..64))
@@ -192,6 +199,7 @@ fn process_primitives(
                         material: zeroverse_materials.materials.choose(rng).unwrap().clone(),
                         ..Default::default()
                     },
+                    TransmittedShadowReceiver,
                 ));
 
                 if rng.gen_bool(settings.wireframe_probability as f64) {
