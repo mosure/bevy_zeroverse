@@ -3,6 +3,7 @@ use bevy::prelude::*;
 pub mod manifold;
 pub mod material;
 pub mod plucker;
+pub mod primitive;
 
 
 pub struct BevyZeroversePlugin;
@@ -14,6 +15,7 @@ impl Plugin for BevyZeroversePlugin {
         app.add_plugins((
             material::ZeroverseMaterialPlugin,
             plucker::PluckerPlugin,
+            primitive::ZeroversePrimitivePlugin,
         ));
     }
 }
