@@ -8,7 +8,7 @@
 [![Average time to resolve an issue](https://isitmaintained.com/badge/resolution/mosure/bevy_zeroverse.svg)](http://isitmaintained.com/project/mosure/bevy_zeroverse)
 [![crates.io](https://img.shields.io/crates/v/bevy_zeroverse.svg)](https://crates.io/crates/bevy_zeroverse)
 
-bevy zeroverse synthetic dataset generator plugin. view the [live demo](https://mosure.github.io/bevy_zeroverse?material_grid=true)
+bevy zeroverse synthetic dataset generator plugin. view the [live demo](https://mosure.github.io/bevy_zeroverse), press `r` to regenerate the scene.
 
 
 ## capabilities
@@ -23,7 +23,7 @@ bevy zeroverse synthetic dataset generator plugin. view the [live demo](https://
 - download the mat-synth dataset [here](https://huggingface.co/datasets/gvecchio/MatSynth/blob/main/scripts/download_dataset.py)
 - crop the mat-synth dataset (4k is heavy) using `python tools/mat_synth_resize.py --source_dir <path-to-mat-synth> --dest_dir <path-to-cropped-mat-synth>`
 - copy the cropped mat-synth dataset to `assets/materials`
-- material basecolor grid view (`cargo run -- --material-grid`)
+- material basecolor grid view (`cargo run -- --material-grid` or [live demo](https://mosure.github.io/bevy_zeroverse?material_grid=true))
 
 ![Alt text](docs/bevy_zeroverse_material_grid.webp)
 
