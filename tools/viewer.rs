@@ -18,6 +18,7 @@ use bevy_panorbit_camera::{
 use bevy_zeroverse::{
     BevyZeroversePlugin,
     material::ZeroverseMaterials,
+    primitive::PrimitiveSettings,
 };
 
 
@@ -48,6 +49,9 @@ struct BevyZeroverseViewer {
 
     #[arg(long, default_value = "bevy_zeroverse")]
     name: String,
+
+    #[arg(long, default_value = "10")]
+    primitive_count: usize,
 }
 
 impl Default for BevyZeroverseViewer {
@@ -59,6 +63,7 @@ impl Default for BevyZeroverseViewer {
             width: 1920.0,
             height: 1080.0,
             name: "bevy_zeroverse".to_string(),
+            primitive_count: 10,
         }
     }
 }
@@ -123,6 +128,8 @@ fn viewer_app() {
 
     app.add_plugins(BevyZeroversePlugin);
     app.add_systems(Startup, setup_camera);
+    app.add_systems(Startup, setup_primitives);
+    app.add_systems(Update, press_r_to_reset);
 
     app.run();
 }
@@ -146,6 +153,17 @@ fn setup_camera(
             ..default()
         },
     )).id();
+
+
+    // TODO: move lighting to procedural scene plugin
+    commands.spawn(DirectionalLightBundle {
+        transform: Transform::from_xyz(50.0, 50.0, 50.0).looking_at(Vec3::ZERO, Vec3::Y),
+        directional_light: DirectionalLight {
+            illuminance: 1_500.,
+            ..default()
+        },
+        ..default()
+    });
 
 
     if args.material_grid {
@@ -193,6 +211,34 @@ fn setup_camera(
 }
 
 
+fn setup_primitives(
+    mut commands: Commands,
+    args: Res<BevyZeroverseViewer>,
+) {
+    commands.spawn(PrimitiveSettings::count(args.primitive_count));
+}
+
+fn press_r_to_reset(
+    mut commands: Commands,
+    args: Res<BevyZeroverseViewer>,
+    keys: Res<ButtonInput<KeyCode>>,
+    clear_meshes: Query<Entity, With<Handle<Mesh>>>,
+    clear_zeroverse_primitives: Query<Entity, With<PrimitiveSettings>>,
+) {
+    if keys.just_pressed(KeyCode::KeyR) {
+        for entity in clear_meshes.iter() {
+            commands.entity(entity).despawn_recursive();
+        }
+
+        for entity in clear_zeroverse_primitives.iter() {
+            commands.entity(entity).despawn_recursive();
+        }
+
+        setup_primitives(commands, args);
+    }
+}
+
+
 fn press_esc_close(
     keys: Res<ButtonInput<KeyCode>>,
     mut exit: EventWriter<AppExit>
@@ -201,6 +247,7 @@ fn press_esc_close(
         exit.send(AppExit);
     }
 }
+
 
 pub fn main() {
     viewer_app();

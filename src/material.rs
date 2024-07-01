@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use bevy::prelude::*;
+use rand::seq::IteratorRandom;
 
 
 #[derive(Resource, Default, Debug)]
@@ -48,7 +49,7 @@ fn get_material_roots() -> Vec<PathBuf> {
                 .and_then(|parent| parent.strip_prefix(&asset_server_path).ok())
                 .map(std::path::Path::to_path_buf)
         })
-        .collect()
+        .choose_multiple(&mut rand::thread_rng(), 100)
 }
 
 // TODO: support batched loading to avoid GPU RAM exhaustion
@@ -69,7 +70,7 @@ fn load_materials(
         let normal_map_path = root.join("normal.jpg");
         let normal_map_handle = asset_server.load(normal_map_path);
 
-        let depth_map_path = root.join("height.jpg");
+        let depth_map_path = root.join("displacement.jpg");
         let depth_map_handle = asset_server.load(depth_map_path);
 
         let material = materials.add(StandardMaterial {
