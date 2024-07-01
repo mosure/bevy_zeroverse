@@ -10,6 +10,7 @@ use bevy::{
         camera::Exposure,
         view::ColorGrading,
     },
+    time::Stopwatch,
 };
 use bevy_args::{
     parse_args,
@@ -66,6 +67,10 @@ struct BevyZeroverseViewer {
     #[arg(long, default_value = "bevy_zeroverse")]
     name: String,
 
+    /// move to the next scene after `regenerate_ms` milliseconds
+    #[arg(long, default_value = "0")]
+    regenerate_ms: u32,
+
     #[arg(long, default_value = "10")]
     primitive_count: usize,
 }
@@ -79,6 +84,7 @@ impl Default for BevyZeroverseViewer {
             width: 1920.0,
             height: 1080.0,
             name: "bevy_zeroverse".to_string(),
+            regenerate_ms: 0,
             primitive_count: 10,
         }
     }
@@ -150,7 +156,7 @@ fn viewer_app() {
     app.add_plugins(BevyZeroversePlugin);
     app.add_systems(Startup, setup_camera);
     app.add_systems(Startup, setup_primitives);
-    app.add_systems(Update, press_r_to_reset);
+    app.add_systems(PostUpdate, regenerate_scene_system);
 
     app.run();
 }
@@ -267,17 +273,27 @@ fn setup_primitives(
     mut commands: Commands,
     args: Res<BevyZeroverseViewer>,
 ) {
+    // TODO: spawn primitive settings from the global resource template
     commands.spawn(PrimitiveSettings::count(args.primitive_count));
 }
 
-fn press_r_to_reset(
+fn regenerate_scene_system(
     mut commands: Commands,
     args: Res<BevyZeroverseViewer>,
     keys: Res<ButtonInput<KeyCode>>,
     clear_meshes: Query<Entity, With<Handle<Mesh>>>,
     clear_zeroverse_primitives: Query<Entity, With<PrimitiveSettings>>,
+    time: Res<Time>,
+    mut regenerate_stopwatch: Local<Stopwatch>,
 ) {
-    if keys.just_pressed(KeyCode::KeyR) {
+    if args.regenerate_ms > 0 {
+        regenerate_stopwatch.tick(time.delta());
+    }
+
+    let mut regenerate_scene = regenerate_stopwatch.elapsed().as_millis() > args.regenerate_ms as u128;
+    regenerate_scene |= keys.just_pressed(KeyCode::KeyR);
+
+    if regenerate_scene {
         for entity in clear_meshes.iter() {
             commands.entity(entity).despawn_recursive();
         }
@@ -287,6 +303,7 @@ fn press_r_to_reset(
         }
 
         setup_primitives(commands, args);
+        regenerate_stopwatch.reset();
     }
 }
 
