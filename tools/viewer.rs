@@ -70,9 +70,6 @@ struct BevyZeroverseViewer {
     /// move to the next scene after `regenerate_ms` milliseconds
     #[arg(long, default_value = "0")]
     regenerate_ms: u32,
-
-    #[arg(long, default_value = "10")]
-    primitive_count: usize,
 }
 
 impl Default for BevyZeroverseViewer {
@@ -85,15 +82,14 @@ impl Default for BevyZeroverseViewer {
             height: 1080.0,
             name: "bevy_zeroverse".to_string(),
             regenerate_ms: 0,
-            primitive_count: 10,
         }
     }
 }
 
 
 fn viewer_app() {
-    let config = parse_args::<BevyZeroverseViewer>();
-    info!("{:?}", config);
+    let args = parse_args::<BevyZeroverseViewer>();
+    info!("{:?}", args);
 
     let mut app = App::new();
 
@@ -103,7 +99,7 @@ fn viewer_app() {
         canvas: Some("#bevy".to_string()),
         mode: bevy::window::WindowMode::Windowed,
         prevent_default_event_handling: true,
-        title: config.name.clone(),
+        title: args.name.clone(),
 
         #[cfg(feature = "perftest")]
         present_mode: bevy::window::PresentMode::AutoNoVsync,
@@ -117,8 +113,8 @@ fn viewer_app() {
     let primary_window = Some(Window {
         mode: bevy::window::WindowMode::Windowed,
         prevent_default_event_handling: false,
-        resolution: (config.width, config.height).into(),
-        title: config.name.clone(),
+        resolution: (args.width, args.height).into(),
+        title: args.name.clone(),
 
         #[cfg(feature = "perftest")]
         present_mode: bevy::window::PresentMode::AutoNoVsync,
@@ -144,16 +140,18 @@ fn viewer_app() {
     app.insert_resource(Msaa::Off)
         .add_plugins(TemporalAntiAliasPlugin);
 
-    if config.editor {
+    if args.editor {
         app.register_type::<BevyZeroverseViewer>();
         app.add_plugins(WorldInspectorPlugin::new());
     }
 
-    if config.press_esc_close {
+    if args.press_esc_close {
         app.add_systems(Update, press_esc_close);
     }
 
     app.add_plugins(BevyZeroversePlugin);
+    app.init_resource::<PrimitiveSettings>();
+
     app.add_systems(Startup, setup_camera);
     app.add_systems(Startup, setup_primitives);
     app.add_systems(PostUpdate, regenerate_scene_system);
@@ -271,10 +269,9 @@ fn setup_camera(
 
 fn setup_primitives(
     mut commands: Commands,
-    args: Res<BevyZeroverseViewer>,
+    primitive_settings: Res<PrimitiveSettings>,
 ) {
-    // TODO: spawn primitive settings from the global resource template
-    commands.spawn(PrimitiveSettings::count(args.primitive_count));
+    commands.spawn(primitive_settings.clone());
 }
 
 fn regenerate_scene_system(
@@ -283,6 +280,7 @@ fn regenerate_scene_system(
     keys: Res<ButtonInput<KeyCode>>,
     clear_meshes: Query<Entity, With<Handle<Mesh>>>,
     clear_zeroverse_primitives: Query<Entity, With<PrimitiveSettings>>,
+    primitive_settings: Res<PrimitiveSettings>,
     time: Res<Time>,
     mut regenerate_stopwatch: Local<Stopwatch>,
 ) {
@@ -302,7 +300,7 @@ fn regenerate_scene_system(
             commands.entity(entity).despawn_recursive();
         }
 
-        setup_primitives(commands, args);
+        setup_primitives(commands, primitive_settings);
         regenerate_stopwatch.reset();
     }
 }

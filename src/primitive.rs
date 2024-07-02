@@ -37,6 +37,8 @@ use crate::{
 pub struct ZeroversePrimitivePlugin;
 impl Plugin for ZeroversePrimitivePlugin {
     fn build(&self, app: &mut App) {
+        app.register_type::<PrimitiveSettings>();
+
         #[cfg(not(target_family = "wasm"))]  // note: web does not handle `POLYGON_MODE_LINE`, so we skip wireframes
         app.add_plugins(bevy::pbr::wireframe::WireframePlugin);
 
@@ -58,13 +60,17 @@ pub enum ZeroversePrimitives {
     Torus,
 }
 
-#[derive(Clone, Component, Debug, Reflect)]
+#[derive(Clone, Component, Debug, Reflect, Resource)]
+#[reflect(Resource)]
 pub struct PrimitiveSettings {
     pub components: usize,
     pub available_types: Vec<ZeroversePrimitives>,
     pub available_operations: Vec<ManifoldOperations>,
     pub wireframe_probability: f32,
-    pub scale_bound: Vec3,
+    pub rotation_lower_bound: Vec3,
+    pub rotation_upper_bound: Vec3,
+    pub scale_lower_bound: Vec3,
+    pub scale_upper_bound: Vec3,
     pub position_bound: Vec3,
 }
 
@@ -80,12 +86,15 @@ impl PrimitiveSettings {
 impl Default for PrimitiveSettings {
     fn default() -> PrimitiveSettings {
         PrimitiveSettings {
-            components: 1,
+            components: 25,
             available_types: ZeroversePrimitives::iter().collect(),
             available_operations: ManifoldOperations::iter().collect(),
-            wireframe_probability: 0.2,
-            scale_bound: Vec3::splat(1.0),
-            position_bound: Vec3::splat(2.0),
+            wireframe_probability: 0.1,
+            rotation_lower_bound: Vec3::splat(0.0),
+            rotation_upper_bound: Vec3::splat(std::f32::consts::PI),
+            scale_lower_bound: Vec3::splat(0.05),
+            scale_upper_bound: Vec3::splat(1.0),
+            position_bound: Vec3::splat(1.5),
         }
     }
 }
@@ -122,9 +131,9 @@ fn process_primitives(
 
         let scales = (0..settings.components)
             .map(|_| Vec3::new(
-                rng.gen_range(0.0..settings.scale_bound.x),
-                rng.gen_range(0.0..settings.scale_bound.y),
-                rng.gen_range(0.0..settings.scale_bound.z),
+                rng.gen_range(settings.scale_lower_bound.x..settings.scale_upper_bound.x),
+                rng.gen_range(settings.scale_lower_bound.y..settings.scale_upper_bound.y),
+                rng.gen_range(settings.scale_lower_bound.z..settings.scale_upper_bound.z),
             ))
             .collect::<Vec<_>>();
 
@@ -138,9 +147,9 @@ fn process_primitives(
 
         let rotations = (0..settings.components)
             .map(|_| Quat::from_scaled_axis(Vec3::new(
-                rng.gen_range(0.0..std::f32::consts::PI),
-                rng.gen_range(0.0..std::f32::consts::PI),
-                rng.gen_range(0.0..std::f32::consts::PI),
+                rng.gen_range(settings.rotation_lower_bound.x..settings.rotation_upper_bound.x),
+                rng.gen_range(settings.rotation_lower_bound.y..settings.rotation_upper_bound.y),
+                rng.gen_range(settings.rotation_lower_bound.z..settings.rotation_upper_bound.z),
             )))
             .collect::<Vec<_>>();
 
@@ -157,15 +166,15 @@ fn process_primitives(
                 rotation,
             )| {
                 let mesh = match primitive_type {
-                    ZeroversePrimitives::Capsule => Capsule3d::new(scale.x, scale.y)
+                    ZeroversePrimitives::Capsule => Capsule3d::default()
                         .mesh()
                         .latitudes(rng.gen_range(4..64))
                         .longitudes(rng.gen_range(4..64))
                         .rings(rng.gen_range(4..32))
                         .build(),
-                    ZeroversePrimitives::Cuboid => Cuboid::from_size(scale)
+                    ZeroversePrimitives::Cuboid => Cuboid::default()
                         .mesh(),
-                    ZeroversePrimitives::Cylinder => Cylinder::new(scale.x, scale.y)
+                    ZeroversePrimitives::Cylinder => Cylinder::default()
                         .mesh()
                         .resolution(rng.gen_range(4..64))
                         .segments(rng.gen_range(3..64))
@@ -174,22 +183,29 @@ fn process_primitives(
                         .mesh()
                         .size(scale.x, scale.y)
                         .build(),
-                    ZeroversePrimitives::Sphere => Sphere::new(scale.x)
+                    ZeroversePrimitives::Sphere => Sphere::default()
                         .mesh()
                         .uv(
                             rng.gen_range(24..64),
                             rng.gen_range(12..32),
                         ),
-                    ZeroversePrimitives::Torus => Torus::new(scale.x, scale.y)
-                        .mesh()
-                        .major_resolution(rng.gen_range(4..64))
-                        .minor_resolution(rng.gen_range(4..64))
-                        .build(),
+                    ZeroversePrimitives::Torus => {
+                        let inner_radius = rng.gen_range(0.01..1.0);
+                        let outer_radius = inner_radius + rng.gen_range(0.01..1.0);
+
+                        Torus::new(inner_radius, outer_radius)
+                            .mesh()
+                            .major_resolution(rng.gen_range(3..64))
+                            .minor_resolution(rng.gen_range(3..64))
+                            .build()
+                    },
                 };
 
-                let transform = Transform::from_translation(position).with_rotation(rotation);
-                let mut mesh = mesh.transformed_by(transform);
-                mesh.generate_tangents().unwrap();
+                let transform = Transform::from_translation(position)
+                    .with_rotation(rotation)
+                    .with_scale(scale);
+
+                let mesh = mesh.transformed_by(transform);
 
                 // TODO: optionally spawn the base primitive (no manifold operations) for debugging
 

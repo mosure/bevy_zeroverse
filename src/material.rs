@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use rand::Rng;
 
 use bevy::prelude::*;
 
@@ -17,6 +18,8 @@ impl Plugin for ZeroverseMaterialPlugin {
         app.init_resource::<ZeroverseMaterials>();
 
         app.add_systems(PreStartup, load_materials);
+
+        // TODO: add event to load next material batch
     }
 }
 
@@ -59,6 +62,8 @@ fn load_materials(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut zeroverse_materials: ResMut<ZeroverseMaterials>,
 ) {
+    let rng = &mut rand::thread_rng();
+
     let roots = get_material_roots();
 
     for root in roots {
@@ -81,6 +86,10 @@ fn load_materials(
             depth_map: depth_map_handle.into(),
             double_sided: true,
             cull_mode: None,
+            // specular_transmission: (rng.gen_range(0.0..1.0) as f32).powf(2.0),
+            // ior: rng.gen_range(1.0..2.0),
+            perceptual_roughness: rng.gen_range(0.3..0.7),
+            reflectance: rng.gen_range(0.3..0.7),
             ..Default::default()
         });
 
@@ -89,4 +98,3 @@ fn load_materials(
 
     info!("loaded {} materials", zeroverse_materials.materials.len());
 }
-
