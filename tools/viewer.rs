@@ -274,6 +274,7 @@ fn setup_primitives(
     commands.spawn(primitive_settings.clone());
 }
 
+#[allow(clippy::too_many_arguments)]
 fn regenerate_scene_system(
     mut commands: Commands,
     args: Res<BevyZeroverseViewer>,
