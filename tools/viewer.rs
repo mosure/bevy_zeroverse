@@ -32,7 +32,11 @@ use bevy::core_pipeline::experimental::taa::{
 
 use bevy_zeroverse::{
     BevyZeroversePlugin,
-    material::ZeroverseMaterials,
+    material::{
+        MaterialsLoadedEvent,
+        ShuffleMaterialsEvent,
+        ZeroverseMaterials,
+    },
     primitive::PrimitiveSettings,
 };
 
@@ -154,6 +158,9 @@ fn viewer_app() {
 
     app.add_systems(Startup, setup_camera);
     app.add_systems(Startup, setup_primitives);
+
+    app.add_systems(PreUpdate, press_m_shuffle_materials);
+    app.add_systems(PreUpdate, setup_material_grid);
     app.add_systems(PostUpdate, regenerate_scene_system);
 
     app.run();
@@ -162,9 +169,6 @@ fn viewer_app() {
 fn setup_camera(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    args: Res<BevyZeroverseViewer>,
-    standard_materials: Res<Assets<StandardMaterial>>,
-    zeroverse_materials: Res<ZeroverseMaterials>,
 ) {
     #[allow(unused_mut)]
     let mut camera = commands.spawn((
@@ -208,8 +212,6 @@ fn setup_camera(
         TemporalAntiAliasBundle::default(),
     ));
 
-    let camera = camera.id();
-
 
     // TODO: move lighting to procedural scene plugin
     commands.spawn(DirectionalLightBundle {
@@ -220,7 +222,28 @@ fn setup_camera(
         },
         ..default()
     });
+}
 
+
+#[derive(Component)]
+struct MaterialGrid;
+
+fn setup_material_grid(
+    mut commands: Commands,
+    args: Res<BevyZeroverseViewer>,
+    standard_materials: Res<Assets<StandardMaterial>>,
+    zeroverse_materials: Res<ZeroverseMaterials>,
+    material_grids: Query<Entity, With<MaterialGrid>>,
+    mut materials_loaded: EventReader<MaterialsLoadedEvent>,
+) {
+    if materials_loaded.is_empty() {
+        return;
+    }
+    materials_loaded.clear();
+
+    if !material_grids.is_empty() {
+        commands.entity(material_grids.single()).despawn_recursive();
+    }
 
     if args.material_grid {
         let material_count = zeroverse_materials.materials.len();
@@ -261,8 +284,7 @@ fn setup_camera(
                     ..default()
                 });
             }
-        })
-        .insert(TargetCamera(camera));
+        }).insert(MaterialGrid);
     }
 }
 
@@ -303,6 +325,16 @@ fn regenerate_scene_system(
 
         setup_primitives(commands, primitive_settings);
         regenerate_stopwatch.reset();
+    }
+}
+
+
+fn press_m_shuffle_materials(
+    keys: Res<ButtonInput<KeyCode>>,
+    mut shuffle_events: EventWriter<ShuffleMaterialsEvent>,
+) {
+    if keys.just_pressed(KeyCode::KeyM) {
+        shuffle_events.send(ShuffleMaterialsEvent);
     }
 }
 

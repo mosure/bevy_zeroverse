@@ -36,5 +36,6 @@ bevy zeroverse synthetic dataset generator plugin. view the [live demo](https://
 
 ## credits
 
+- [lgm](https://github.com/3DTopia/LGM)
 - [mat-synth](https://huggingface.co/datasets/gvecchio/MatSynth)
 - [zeroverse](https://github.com/desaixie/zeroverse)

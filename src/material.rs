@@ -11,15 +11,24 @@ pub struct ZeroverseMaterials {
 }
 
 
+#[derive(Event)]
+pub struct ShuffleMaterialsEvent;
+
+#[derive(Event)]
+pub struct MaterialsLoadedEvent;
+
+
 pub struct ZeroverseMaterialPlugin;
 
 impl Plugin for ZeroverseMaterialPlugin {
     fn build(&self, app: &mut App) {
+        app.add_event::<MaterialsLoadedEvent>();
+        app.add_event::<ShuffleMaterialsEvent>();
+
         app.init_resource::<ZeroverseMaterials>();
 
         app.add_systems(PreStartup, load_materials);
-
-        // TODO: add event to load next material batch
+        app.add_systems(PostUpdate, reload_materials);
     }
 }
 
@@ -45,7 +54,7 @@ fn get_material_roots() -> Vec<PathBuf> {
     let asset_server_path = cwd.join("./assets");
     let pattern = format!("{}/**/**/basecolor.jpg", asset_server_path.to_string_lossy());
 
-    glob::glob(&pattern)
+    let available: Vec<PathBuf> = glob::glob(&pattern)
         .expect("failed to read glob pattern")
         .filter_map(Result::ok)
         .filter_map(|path| {
@@ -53,14 +62,21 @@ fn get_material_roots() -> Vec<PathBuf> {
                 .and_then(|parent| parent.strip_prefix(&asset_server_path).ok())
                 .map(std::path::Path::to_path_buf)
         })
+        .collect::<Vec<_>>();
+
+    info!("found {} materials", available.len());
+
+    available.into_iter()
         .choose_multiple(&mut rand::thread_rng(), 100)
 }
+
 
 // TODO: support batched loading to avoid GPU RAM exhaustion
 fn load_materials(
     asset_server: Res<AssetServer>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut zeroverse_materials: ResMut<ZeroverseMaterials>,
+    mut load_event: EventWriter<MaterialsLoadedEvent>,
 ) {
     let rng = &mut rand::thread_rng();
 
@@ -97,4 +113,33 @@ fn load_materials(
     }
 
     info!("loaded {} materials", zeroverse_materials.materials.len());
+
+    load_event.send(MaterialsLoadedEvent);
+}
+
+
+fn reload_materials(
+    asset_server: Res<AssetServer>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut zeroverse_materials: ResMut<ZeroverseMaterials>,
+    mut shuffle_events: EventReader<ShuffleMaterialsEvent>,
+    load_event: EventWriter<MaterialsLoadedEvent>,
+) {
+    if shuffle_events.is_empty() {
+        return;
+    }
+
+    shuffle_events.clear();
+
+    for material in zeroverse_materials.materials.iter() {
+        materials.remove(material);
+    }
+    zeroverse_materials.materials.clear();
+
+    load_materials(
+        asset_server,
+        materials,
+        zeroverse_materials,
+        load_event,
+    );
 }
