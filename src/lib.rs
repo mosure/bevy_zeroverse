@@ -4,6 +4,7 @@ pub mod manifold;
 pub mod material;
 pub mod plucker;
 pub mod primitive;
+pub mod render;
 
 
 pub struct BevyZeroversePlugin;
@@ -16,6 +17,7 @@ impl Plugin for BevyZeroversePlugin {
             material::ZeroverseMaterialPlugin,
             plucker::PluckerPlugin,
             primitive::ZeroversePrimitivePlugin,
+            render::RenderPlugin,
         ));
     }
 }
