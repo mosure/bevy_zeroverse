@@ -91,27 +91,36 @@ fn apply_render_modes(
     mut commands: Commands,
     render_mode: Res<RenderMode>,
     meshes: Query<Entity, With<Handle<Mesh>>>,
+    new_meshes: Query<Entity, Added<Handle<Mesh>>>,
 ) {
+    let insert_render_mode_flag = |commands: &mut Commands, entity: Entity| {
+        match *render_mode {
+            RenderMode::Color => {
+                commands.entity(entity)
+                    .insert(EnablePbrMaterial);
+            }
+            RenderMode::Depth => {
+                commands.entity(entity)
+                    .insert(depth::Depth);
+            }
+            RenderMode::Normal => {
+                commands.entity(entity)
+                    .insert(normal::Normal);
+            }
+        }
+    };
+
     if render_mode.is_changed() {
         for entity in meshes.iter() {
             commands.entity(entity)
                 .remove::<depth::Depth>()
                 .remove::<normal::Normal>();
 
-            match *render_mode {
-                RenderMode::Color => {
-                    commands.entity(entity)
-                        .insert(EnablePbrMaterial);
-                }
-                RenderMode::Depth => {
-                    commands.entity(entity)
-                        .insert(depth::Depth);
-                }
-                RenderMode::Normal => {
-                    commands.entity(entity)
-                        .insert(normal::Normal);
-                }
-            }
+            insert_render_mode_flag(&mut commands, entity);
         }
+    }
+
+    for entity in new_meshes.iter() {
+        insert_render_mode_flag(&mut commands, entity);
     }
 }
