@@ -12,8 +12,9 @@ bevy zeroverse synthetic dataset generator plugin. view the [live demo](https://
 
 ## capabilities
 
-- [ ] generate parameteric zeroverse primitives
 - [X] depth/normal rendering modes
+- [ ] plücker camera labels
+- [ ] generate parameteric zeroverse primitives
 - [ ] procedural zeroverse environments
 
 
