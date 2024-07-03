@@ -26,14 +26,32 @@ impl Plugin for ZeroverseMaterialPlugin {
         app.add_event::<ShuffleMaterialsEvent>();
 
         app.init_resource::<ZeroverseMaterials>();
+        app.init_resource::<MaterialLoaderSettings>();
+
+        app.register_type::<MaterialLoaderSettings>();
 
         app.add_systems(PreStartup, load_materials);
         app.add_systems(PostUpdate, reload_materials);
     }
 }
 
+#[derive(Resource, Reflect, Debug)]
+#[reflect(Resource)]
+pub struct MaterialLoaderSettings {
+    pub batch_size: usize,
+}
+
+impl Default for MaterialLoaderSettings {
+    fn default() -> Self {
+        Self {
+            batch_size: 100,
+        }
+    }
+}
+
+
 #[cfg(target_family = "wasm")]
-fn get_material_roots() -> Vec<PathBuf> {
+fn get_material_roots(_batch_size: usize) -> Vec<PathBuf> {
     vec![
         PathBuf::from("materials/subset/Ceramic/0557_brick_uneven_stones"),
         PathBuf::from("materials/subset/Ground/acg_rocks_023"),
@@ -43,7 +61,7 @@ fn get_material_roots() -> Vec<PathBuf> {
 }
 
 #[cfg(not(target_family = "wasm"))]
-fn get_material_roots() -> Vec<PathBuf> {
+fn get_material_roots(batch_size: usize) -> Vec<PathBuf> {
     use rand::seq::IteratorRandom;
 
     // TODO: use asset_server scanning: https://github.com/bevyengine/bevy/issues/2291
@@ -67,7 +85,7 @@ fn get_material_roots() -> Vec<PathBuf> {
     info!("found {} materials", available.len());
 
     available.into_iter()
-        .choose_multiple(&mut rand::thread_rng(), 100)
+        .choose_multiple(&mut rand::thread_rng(), batch_size)
 }
 
 
@@ -77,10 +95,11 @@ fn load_materials(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut zeroverse_materials: ResMut<ZeroverseMaterials>,
     mut load_event: EventWriter<MaterialsLoadedEvent>,
+    material_loader_settings: Res<MaterialLoaderSettings>,
 ) {
     let rng = &mut rand::thread_rng();
 
-    let roots = get_material_roots();
+    let roots = get_material_roots(material_loader_settings.batch_size);
 
     for root in roots {
         let basecolor_path = root.join("basecolor.jpg");
@@ -120,20 +139,17 @@ fn load_materials(
 
 fn reload_materials(
     asset_server: Res<AssetServer>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    materials: ResMut<Assets<StandardMaterial>>,
     mut zeroverse_materials: ResMut<ZeroverseMaterials>,
     mut shuffle_events: EventReader<ShuffleMaterialsEvent>,
     load_event: EventWriter<MaterialsLoadedEvent>,
+    material_loader_settings: Res<MaterialLoaderSettings>,
 ) {
     if shuffle_events.is_empty() {
         return;
     }
-
     shuffle_events.clear();
 
-    for material in zeroverse_materials.materials.iter() {
-        materials.remove(material);
-    }
     zeroverse_materials.materials.clear();
 
     load_materials(
@@ -141,5 +157,6 @@ fn reload_materials(
         materials,
         zeroverse_materials,
         load_event,
+        material_loader_settings,
     );
 }
