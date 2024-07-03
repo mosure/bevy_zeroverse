@@ -52,8 +52,8 @@ def combine_metallic_roughness(metallic_path, roughness_path, dest_dir):
         output_path = dest_dir / "metallic_roughness.jpg"
 
         # Check if output file already exists
-        # if output_path.exists():
-        #     return
+        if output_path.exists():
+            return
 
         metallic = cv2.imread(str(metallic_path), cv2.IMREAD_GRAYSCALE)
         roughness = cv2.imread(str(roughness_path), cv2.IMREAD_GRAYSCALE)
@@ -69,7 +69,7 @@ def combine_metallic_roughness(metallic_path, roughness_path, dest_dir):
         
         # Create combined image
         combined = np.zeros((1024, 1024, 3), dtype=np.uint8)
-        combined[:, :, 2] = metallic  # Red channel
+        combined[:, :, 0] = metallic  # Blue channel
         combined[:, :, 1] = roughness  # Green channel
         
         # Save combined image as JPG
