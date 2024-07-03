@@ -44,6 +44,7 @@ pub struct DisabledPbrMaterial {
 pub struct EnablePbrMaterial;
 
 
+#[allow(clippy::type_complexity)]
 pub fn auto_disable_pbr_material<T: Component>(
     mut commands: Commands,
     mut disabled_materials: Query<
