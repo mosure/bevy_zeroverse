@@ -37,7 +37,7 @@ def process_map(map_path, dest_dir):
 
         # Resize to 1024x1024
         img_resized = cv2.resize(img, (1024, 1024), interpolation=cv2.INTER_AREA)
-        
+
         # Convert back to BGR for saving as JPEG
         if len(img_resized.shape) == 3 and img_resized.shape[2] == 3:
             img_resized = cv2.cvtColor(img_resized, cv2.COLOR_RGB2BGR)
@@ -57,21 +57,21 @@ def combine_metallic_roughness(metallic_path, roughness_path, dest_dir):
 
         metallic = cv2.imread(str(metallic_path), cv2.IMREAD_GRAYSCALE)
         roughness = cv2.imread(str(roughness_path), cv2.IMREAD_GRAYSCALE)
-        
+
         if metallic is None:
             raise ValueError(f"Metallic image at {metallic_path} could not be read.")
         if roughness is None:
             raise ValueError(f"Roughness image at {roughness_path} could not be read.")
-        
+
         # Resize images to 1024x1024
         metallic = cv2.resize(metallic, (1024, 1024), interpolation=cv2.INTER_AREA)
         roughness = cv2.resize(roughness, (1024, 1024), interpolation=cv2.INTER_AREA)
-        
+
         # Create combined image
         combined = np.zeros((1024, 1024, 3), dtype=np.uint8)
         combined[:, :, 0] = metallic  # Blue channel
         combined[:, :, 1] = roughness  # Green channel
-        
+
         # Save combined image as JPG
         cv2.imwrite(str(output_path), combined, [int(cv2.IMWRITE_JPEG_QUALITY), 95])
     except Exception as e:
