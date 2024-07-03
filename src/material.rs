@@ -25,12 +25,14 @@ impl Plugin for ZeroverseMaterialPlugin {
         app.add_event::<MaterialsLoadedEvent>();
         app.add_event::<ShuffleMaterialsEvent>();
 
-        app.init_resource::<ZeroverseMaterials>();
         app.init_resource::<MaterialLoaderSettings>();
+        app.init_resource::<MaterialRoots>();
+        app.init_resource::<ZeroverseMaterials>();
 
         app.register_type::<MaterialLoaderSettings>();
 
-        app.add_systems(PreStartup, load_materials);
+        app.add_systems(PreStartup, find_materials);
+        app.add_systems(Startup, load_materials);
         app.add_systems(PostUpdate, reload_materials);
     }
 }
@@ -50,56 +52,64 @@ impl Default for MaterialLoaderSettings {
 }
 
 
-#[cfg(target_family = "wasm")]
-fn get_material_roots(_batch_size: usize) -> Vec<PathBuf> {
-    vec![
-        PathBuf::from("materials/subset/Ceramic/0557_brick_uneven_stones"),
-        PathBuf::from("materials/subset/Ground/acg_rocks_023"),
-        PathBuf::from("materials/subset/Marble/st_marble_038"),
-        PathBuf::from("materials/subset/Wood/acg_planks_003"),
-    ]
-}
-
-#[cfg(not(target_family = "wasm"))]
-fn get_material_roots(batch_size: usize) -> Vec<PathBuf> {
-    use rand::seq::IteratorRandom;
-
-    // TODO: use asset_server scanning: https://github.com/bevyengine/bevy/issues/2291
-
-    let cwd = std::env::current_dir().expect("failed to get current working directory");
-    info!("current working directory: {}", cwd.to_string_lossy());
-
-    let asset_server_path = cwd.join("./assets");
-    let pattern = format!("{}/**/**/basecolor.jpg", asset_server_path.to_string_lossy());
-
-    let available: Vec<PathBuf> = glob::glob(&pattern)
-        .expect("failed to read glob pattern")
-        .filter_map(Result::ok)
-        .filter_map(|path| {
-            path.parent()
-                .and_then(|parent| parent.strip_prefix(&asset_server_path).ok())
-                .map(std::path::Path::to_path_buf)
-        })
-        .collect::<Vec<_>>();
-
-    info!("found {} materials", available.len());
-
-    available.into_iter()
-        .choose_multiple(&mut rand::thread_rng(), batch_size)
+#[derive(Resource, Default, Debug)]
+pub struct MaterialRoots {
+    pub roots: Vec<PathBuf>,
 }
 
 
-// TODO: support batched loading to avoid GPU RAM exhaustion
+fn find_materials(
+    mut found_materials: ResMut<MaterialRoots>,
+) {
+    #[cfg(target_family = "wasm")]
+    {
+        found_materials.roots = vec![
+            PathBuf::from("materials/subset/Ceramic/0557_brick_uneven_stones"),
+            PathBuf::from("materials/subset/Ground/acg_rocks_023"),
+            PathBuf::from("materials/subset/Marble/st_marble_038"),
+            PathBuf::from("materials/subset/Wood/acg_planks_003"),
+        ];
+        return;
+    }
+
+    // TODO: add manifest file caching to improve load times
+    #[cfg(not(target_family = "wasm"))]
+    {
+        let cwd = std::env::current_dir().expect("failed to get current working directory");
+        info!("current working directory: {}", cwd.to_string_lossy());
+
+        let asset_server_path = cwd.join("./assets");
+        let pattern = format!("{}/**/**/basecolor.jpg", asset_server_path.to_string_lossy());
+
+        found_materials.roots = glob::glob(&pattern)
+            .expect("failed to read glob pattern")
+            .filter_map(Result::ok)
+            .filter_map(|path| {
+                path.parent()
+                    .and_then(|parent| parent.strip_prefix(&asset_server_path).ok())
+                    .map(std::path::Path::to_path_buf)
+            })
+            .collect();
+
+        info!("found {} materials", found_materials.roots.len());
+    }
+}
+
+
 fn load_materials(
     asset_server: Res<AssetServer>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut zeroverse_materials: ResMut<ZeroverseMaterials>,
     mut load_event: EventWriter<MaterialsLoadedEvent>,
     material_loader_settings: Res<MaterialLoaderSettings>,
+    found_materials: Res<MaterialRoots>,
 ) {
+    use rand::seq::IteratorRandom;
+
     let rng = &mut rand::thread_rng();
 
-    let roots = get_material_roots(material_loader_settings.batch_size);
+    let roots = found_materials.roots.iter()
+        .choose_multiple(&mut rand::thread_rng(), material_loader_settings.batch_size);
 
     for root in roots {
         let basecolor_path = root.join("basecolor.jpg");
@@ -111,7 +121,7 @@ fn load_materials(
         let normal_map_path = root.join("normal.jpg");
         let normal_map_handle = asset_server.load(normal_map_path);
 
-        let depth_map_path = root.join("displacement.jpg");
+        let depth_map_path = root.join("height.jpg");
         let depth_map_handle = asset_server.load(depth_map_path);
 
         let material = materials.add(StandardMaterial {
@@ -124,7 +134,7 @@ fn load_materials(
             // specular_transmission: (rng.gen_range(0.0..1.0) as f32).powf(2.0),
             // ior: rng.gen_range(1.0..2.0),
             perceptual_roughness: rng.gen_range(0.3..0.7),
-            reflectance: rng.gen_range(0.3..0.7),
+            reflectance: (rng.gen_range(0.0..0.8) as f32).powf(1.8),
             ..Default::default()
         });
 
@@ -144,6 +154,7 @@ fn reload_materials(
     mut shuffle_events: EventReader<ShuffleMaterialsEvent>,
     load_event: EventWriter<MaterialsLoadedEvent>,
     material_loader_settings: Res<MaterialLoaderSettings>,
+    found_materials: Res<MaterialRoots>,
 ) {
     if shuffle_events.is_empty() {
         return;
@@ -158,5 +169,6 @@ fn reload_materials(
         zeroverse_materials,
         load_event,
         material_loader_settings,
+        found_materials,
     );
 }
