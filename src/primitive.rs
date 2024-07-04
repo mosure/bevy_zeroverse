@@ -15,10 +15,6 @@ use bevy::{
             WireframeColor,
         },
     },
-    render::{
-        mesh::PrimitiveTopology,
-        render_asset::RenderAssetUsages,
-    }
 };
 use itertools::izip;
 use rand::{
@@ -100,9 +96,135 @@ impl Default for PrimitiveSettings {
 }
 
 
+#[derive(Bundle, Default, Debug)]
+pub struct PrimitiveBundle {
+    pub settings: PrimitiveSettings,
+    pub spatial: SpatialBundle,
+}
+
+
 #[derive(Clone, Component, Debug, Reflect)]
-pub struct ZeroversePrimitive {
-    pub composite: Mesh,
+pub struct ZeroversePrimitive;
+
+
+fn build_primitive(
+    commands: &mut ChildBuilder,
+    settings: &PrimitiveSettings,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    zeroverse_materials: &Res<ZeroverseMaterials>,
+) {
+    let rng = &mut rand::thread_rng();
+
+    let primitive_types = choose_multiple_with_replacement(
+        &settings.available_types,
+        settings.components,
+    );
+
+    let scales = (0..settings.components)
+        .map(|_| Vec3::new(
+            rng.gen_range(settings.scale_lower_bound.x..settings.scale_upper_bound.x),
+            rng.gen_range(settings.scale_lower_bound.y..settings.scale_upper_bound.y),
+            rng.gen_range(settings.scale_lower_bound.z..settings.scale_upper_bound.z),
+        ))
+        .collect::<Vec<_>>();
+
+    let positions = (0..settings.components)
+        .map(|_| Vec3::new(
+            rng.gen_range(-settings.position_bound.x..settings.position_bound.x),
+            rng.gen_range(-settings.position_bound.y..settings.position_bound.y),
+            rng.gen_range(-settings.position_bound.z..settings.position_bound.z),
+        ))
+        .collect::<Vec<_>>();
+
+    let rotations = (0..settings.components)
+        .map(|_| Quat::from_scaled_axis(Vec3::new(
+            rng.gen_range(settings.rotation_lower_bound.x..settings.rotation_upper_bound.x),
+            rng.gen_range(settings.rotation_lower_bound.y..settings.rotation_upper_bound.y),
+            rng.gen_range(settings.rotation_lower_bound.z..settings.rotation_upper_bound.z),
+        )))
+        .collect::<Vec<_>>();
+
+    izip!(
+        primitive_types,
+        scales,
+        positions,
+        rotations,
+    ).for_each(
+        |(
+            primitive_type,
+            scale,
+            position,
+            rotation,
+        )| {
+            let mesh = match primitive_type {
+                ZeroversePrimitives::Capsule => Capsule3d::default()
+                    .mesh()
+                    .latitudes(rng.gen_range(4..64))
+                    .longitudes(rng.gen_range(4..64))
+                    .rings(rng.gen_range(4..32))
+                    .build(),
+                ZeroversePrimitives::Cuboid => Cuboid::default()
+                    .mesh(),
+                ZeroversePrimitives::Cylinder => Cylinder::default()
+                    .mesh()
+                    .resolution(rng.gen_range(4..64))
+                    .segments(rng.gen_range(3..64))
+                    .build(),
+                ZeroversePrimitives::Plane => Plane3d::new(Vec3::Y)
+                    .mesh()
+                    .size(scale.x, scale.y)
+                    .build(),
+                ZeroversePrimitives::Sphere => Sphere::default()
+                    .mesh()
+                    .uv(
+                        rng.gen_range(24..64),
+                        rng.gen_range(12..32),
+                    ),
+                ZeroversePrimitives::Torus => {
+                    let inner_radius = rng.gen_range(0.01..1.0);
+                    let outer_radius = inner_radius + rng.gen_range(0.01..1.0);
+
+                    Torus::new(inner_radius, outer_radius)
+                        .mesh()
+                        .major_resolution(rng.gen_range(3..64))
+                        .minor_resolution(rng.gen_range(3..64))
+                        .build()
+                },
+            };
+
+            let transform = Transform::from_translation(position)
+                .with_rotation(rotation)
+                .with_scale(scale);
+
+            let mesh = mesh.transformed_by(transform);
+
+            // TODO: optionally spawn the base primitive (no manifold operations) for debugging
+
+            let mut primitive = commands.spawn((
+                PbrBundle {
+                    mesh: meshes.add(mesh),
+                    material: zeroverse_materials.materials.choose(rng).unwrap().clone(),
+                    ..Default::default()
+                },
+                TransmittedShadowReceiver,
+            ));
+
+            if rng.gen_bool(settings.wireframe_probability as f64) {
+                // TODO: support textured wireframes
+                primitive.insert((
+                    Wireframe,
+                    WireframeColor {
+                        color: Color::rgba(
+                            rng.gen_range(0.0..1.0),
+                            rng.gen_range(0.0..1.0),
+                            rng.gen_range(0.0..1.0),
+                            rng.gen_range(0.0..1.0),
+                        ),
+                    },
+                ));
+            }
+        }
+    );
 }
 
 
@@ -118,126 +240,17 @@ fn process_primitives(
         Without<ZeroversePrimitive>,
     >,
 ) {
-    let rng = &mut rand::thread_rng();
-
-    // TODO: break this up into smaller functions
     for (entity, settings) in primitives.iter() {
-        let composite = Mesh::new(PrimitiveTopology::TriangleList, RenderAssetUsages::default());
-
-        let primitive_types = choose_multiple_with_replacement(
-            &settings.available_types,
-            settings.components,
-        );
-
-        let scales = (0..settings.components)
-            .map(|_| Vec3::new(
-                rng.gen_range(settings.scale_lower_bound.x..settings.scale_upper_bound.x),
-                rng.gen_range(settings.scale_lower_bound.y..settings.scale_upper_bound.y),
-                rng.gen_range(settings.scale_lower_bound.z..settings.scale_upper_bound.z),
-            ))
-            .collect::<Vec<_>>();
-
-        let positions = (0..settings.components)
-            .map(|_| Vec3::new(
-                rng.gen_range(-settings.position_bound.x..settings.position_bound.x),
-                rng.gen_range(-settings.position_bound.y..settings.position_bound.y),
-                rng.gen_range(-settings.position_bound.z..settings.position_bound.z),
-            ))
-            .collect::<Vec<_>>();
-
-        let rotations = (0..settings.components)
-            .map(|_| Quat::from_scaled_axis(Vec3::new(
-                rng.gen_range(settings.rotation_lower_bound.x..settings.rotation_upper_bound.x),
-                rng.gen_range(settings.rotation_lower_bound.y..settings.rotation_upper_bound.y),
-                rng.gen_range(settings.rotation_lower_bound.z..settings.rotation_upper_bound.z),
-            )))
-            .collect::<Vec<_>>();
-
-        izip!(
-            primitive_types,
-            scales,
-            positions,
-            rotations,
-        ).for_each(
-            |(
-                primitive_type,
-                scale,
-                position,
-                rotation,
-            )| {
-                let mesh = match primitive_type {
-                    ZeroversePrimitives::Capsule => Capsule3d::default()
-                        .mesh()
-                        .latitudes(rng.gen_range(4..64))
-                        .longitudes(rng.gen_range(4..64))
-                        .rings(rng.gen_range(4..32))
-                        .build(),
-                    ZeroversePrimitives::Cuboid => Cuboid::default()
-                        .mesh(),
-                    ZeroversePrimitives::Cylinder => Cylinder::default()
-                        .mesh()
-                        .resolution(rng.gen_range(4..64))
-                        .segments(rng.gen_range(3..64))
-                        .build(),
-                    ZeroversePrimitives::Plane => Plane3d::new(Vec3::Y)
-                        .mesh()
-                        .size(scale.x, scale.y)
-                        .build(),
-                    ZeroversePrimitives::Sphere => Sphere::default()
-                        .mesh()
-                        .uv(
-                            rng.gen_range(24..64),
-                            rng.gen_range(12..32),
-                        ),
-                    ZeroversePrimitives::Torus => {
-                        let inner_radius = rng.gen_range(0.01..1.0);
-                        let outer_radius = inner_radius + rng.gen_range(0.01..1.0);
-
-                        Torus::new(inner_radius, outer_radius)
-                            .mesh()
-                            .major_resolution(rng.gen_range(3..64))
-                            .minor_resolution(rng.gen_range(3..64))
-                            .build()
-                    },
-                };
-
-                let transform = Transform::from_translation(position)
-                    .with_rotation(rotation)
-                    .with_scale(scale);
-
-                let mesh = mesh.transformed_by(transform);
-
-                // TODO: optionally spawn the base primitive (no manifold operations) for debugging
-
-                let mut primitive = commands.spawn((
-                    PbrBundle {
-                        mesh: meshes.add(mesh),
-                        material: zeroverse_materials.materials.choose(rng).unwrap().clone(),
-                        ..Default::default()
-                    },
-                    TransmittedShadowReceiver,
-                ));
-
-                if rng.gen_bool(settings.wireframe_probability as f64) {
-                    // TODO: support textured wireframes
-                    primitive.insert((
-                        Wireframe,
-                        WireframeColor {
-                            color: Color::rgba(
-                                rng.gen_range(0.0..1.0),
-                                rng.gen_range(0.0..1.0),
-                                rng.gen_range(0.0..1.0),
-                                rng.gen_range(0.0..1.0),
-                            ),
-                        },
-                    ));
-                }
-            }
-        );
-
-        commands.entity(entity).insert(ZeroversePrimitive {
-            composite,
-        });
+        commands.entity(entity)
+            .insert(ZeroversePrimitive)
+            .with_children(|subcommands| {
+                build_primitive(
+                    subcommands,
+                    settings,
+                    &mut meshes,
+                    &zeroverse_materials,
+                );
+            });
     }
 }
 

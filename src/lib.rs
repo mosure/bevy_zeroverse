@@ -5,6 +5,7 @@ pub mod material;
 pub mod plucker;
 pub mod primitive;
 pub mod render;
+pub mod scene;
 
 
 pub struct BevyZeroversePlugin;

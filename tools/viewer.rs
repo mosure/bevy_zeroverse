@@ -37,7 +37,10 @@ use bevy_zeroverse::{
         ShuffleMaterialsEvent,
         ZeroverseMaterials,
     },
-    primitive::PrimitiveSettings,
+    primitive::{
+        PrimitiveBundle,
+        PrimitiveSettings,
+    },
 };
 
 
@@ -293,7 +296,10 @@ fn setup_primitives(
     mut commands: Commands,
     primitive_settings: Res<PrimitiveSettings>,
 ) {
-    commands.spawn(primitive_settings.clone());
+    commands.spawn(PrimitiveBundle {
+        settings: primitive_settings.clone(),
+        ..default()
+    });
 }
 
 #[allow(clippy::too_many_arguments)]
