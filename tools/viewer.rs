@@ -6,10 +6,7 @@ use bevy::{
         core_3d::ScreenSpaceTransmissionQuality,
         tonemapping::Tonemapping,
     },
-    render::{
-        camera::Exposure,
-        render_asset::RenderAssetBytesPerFrame,
-    },
+    render::camera::Exposure,
     time::Stopwatch,
 };
 use bevy_args::{
@@ -141,8 +138,6 @@ fn viewer_app() {
 
     app.add_plugins(default_plugins);
 
-    app.insert_resource(RenderAssetBytesPerFrame::new(10_000_000_000));
-
     app.add_plugins(BevyArgsPlugin::<BevyZeroverseViewer>::default());
     app.add_plugins(PanOrbitCameraPlugin);
 
@@ -176,7 +171,7 @@ fn setup_camera(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
 ) {
-    #[allow(unused_mut)]
+    #[allow(unused_mut, unused_variables)]
     let mut camera = commands.spawn((
         Camera3dBundle {
             camera: Camera {
