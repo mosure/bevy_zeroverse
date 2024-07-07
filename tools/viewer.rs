@@ -8,7 +8,7 @@ use bevy::{
     },
     render::{
         camera::Exposure,
-        view::ColorGrading,
+        render_asset::RenderAssetBytesPerFrame,
     },
     time::Stopwatch,
 };
@@ -131,7 +131,7 @@ fn viewer_app() {
         ..default()
     });
 
-    app.insert_resource(ClearColor(Color::rgb_u8(0, 0, 0)));
+    app.insert_resource(ClearColor(Color::srgb(0.0, 0.0, 0.0)));
     let default_plugins = DefaultPlugins
         .set(ImagePlugin::default_nearest())
         .set(WindowPlugin {
@@ -140,6 +140,9 @@ fn viewer_app() {
         });
 
     app.add_plugins(default_plugins);
+
+    app.insert_resource(RenderAssetBytesPerFrame::new(10_000_000_000));
+
     app.add_plugins(BevyArgsPlugin::<BevyZeroverseViewer>::default());
     app.add_plugins(PanOrbitCameraPlugin);
 
@@ -182,10 +185,6 @@ fn setup_camera(
             },
             camera_3d: Camera3d {
                 screen_space_specular_transmission_quality: ScreenSpaceTransmissionQuality::High,
-                ..default()
-            },
-            color_grading: ColorGrading {
-                post_saturation: 1.2,
                 ..default()
             },
             exposure: Exposure::INDOOR,
@@ -350,7 +349,7 @@ fn press_esc_close(
     mut exit: EventWriter<AppExit>
 ) {
     if keys.just_pressed(KeyCode::Escape) {
-        exit.send(AppExit);
+        exit.send(AppExit::Success);
     }
 }
 
