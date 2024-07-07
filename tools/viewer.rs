@@ -34,6 +34,10 @@ use bevy_zeroverse::{
         ShuffleMaterialsEvent,
         ZeroverseMaterials,
     },
+    plucker::{
+        PluckerCamera,
+        PluckerOutput,
+    },
     primitive::{
         PrimitiveBundle,
         PrimitiveSettings,
@@ -59,6 +63,10 @@ struct BevyZeroverseViewer {
     #[arg(long, default_value = "false")]
     material_grid: bool,
 
+    /// view plücker embeddings
+    #[arg(long, default_value = "false")]
+    plucker_visualization: bool,
+
     #[arg(long, default_value = "true")]
     press_esc_close: bool,
 
@@ -81,6 +89,7 @@ impl Default for BevyZeroverseViewer {
         BevyZeroverseViewer {
             editor: true,
             material_grid: false,
+            plucker_visualization: false,
             press_esc_close: true,
             width: 1920.0,
             height: 1080.0,
@@ -163,12 +172,14 @@ fn viewer_app() {
     app.add_systems(PreUpdate, press_m_shuffle_materials);
     app.add_systems(PreUpdate, setup_material_grid);
     app.add_systems(PostUpdate, regenerate_scene_system);
+    app.add_systems(PostUpdate, setup_plucker_visualization);
 
     app.run();
 }
 
 fn setup_camera(
     mut commands: Commands,
+    args: Res<BevyZeroverseViewer>,
     asset_server: Res<AssetServer>,
 ) {
     #[allow(unused_mut, unused_variables)]
@@ -201,6 +212,9 @@ fn setup_camera(
             intensity: 900.0,
         },
         BloomSettings::default(),
+        PluckerCamera {
+            size: UVec2::new(args.width as u32, args.height as u32),
+        },
     ));
 
     // note: disable TAA in headless output mode
@@ -283,6 +297,55 @@ fn setup_material_grid(
             }
         }).insert(MaterialGrid);
     }
+}
+
+#[derive(Component)]
+struct PluckerVisualization;
+
+fn setup_plucker_visualization(
+    mut commands: Commands,
+    args: Res<BevyZeroverseViewer>,
+    plucker_output: Query<&PluckerOutput>,
+    plucker_visualization: Query<
+        Entity,
+        With<PluckerVisualization>,
+    >,
+) {
+    let visualization_active = !plucker_visualization.is_empty();
+
+    if !args.plucker_visualization {
+        if visualization_active {
+            commands.entity(plucker_visualization.single()).despawn_recursive();
+        }
+        return;
+    }
+
+    if visualization_active {
+        return;
+    }
+
+    if plucker_output.is_empty() {
+        return;
+    }
+
+    let plucker_output = plucker_output.single();
+    let plucker_texture = plucker_output.visualization.clone();
+
+    commands.spawn(ImageBundle {
+        style: Style {
+            position_type: PositionType::Absolute,
+            bottom: Val::Px(0.0),
+            right: Val::Px(0.0),
+            width: Val::Px(256.0),
+            height: Val::Px(256.0),
+            ..default()
+        },
+        image: UiImage {
+            texture: plucker_texture,
+            ..default()
+        },
+        ..default()
+    }).insert(PluckerVisualization);
 }
 
 
