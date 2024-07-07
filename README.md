@@ -7,7 +7,9 @@
 [![Average time to resolve an issue](https://isitmaintained.com/badge/resolution/mosure/bevy_zeroverse.svg)](http://isitmaintained.com/project/mosure/bevy_zeroverse)
 [![crates.io](https://img.shields.io/crates/v/bevy_zeroverse.svg)](https://crates.io/crates/bevy_zeroverse)
 
-bevy zeroverse synthetic dataset generator plugin. view the [live demo](https://mosure.github.io/bevy_zeroverse), press `r` to regenerate the scene.
+### [project page](https://mosure.github.io/bevy_zeroverse/project/index.html) | [arXiv](https://arxiv.org/abs/)</a>
+
+bevy zeroverse synthetic reconstruction dataset generator. view the [live demo](https://mosure.github.io/bevy_zeroverse), press `r` to regenerate the scene.
 
 
 ## capabilities
