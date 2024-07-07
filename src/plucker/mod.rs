@@ -244,7 +244,7 @@ impl FromWorld for PluckerPipeline {
             label: Some("plucker_kernel".into()),
             layout: vec![
                 view_layout.clone(),
-                PluckerOutput::bind_group_layout(&render_device),
+                PluckerOutput::bind_group_layout(render_device),
             ],
             push_constant_ranges: vec![],
             shader: PLUCKER_SHADER_HANDLE.clone(),
