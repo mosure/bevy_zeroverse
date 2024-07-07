@@ -31,7 +31,6 @@ exclude = [
 default-run = "viewer"
 
 
-# TODO: resolve one-hot feature flags through runtime configuration
 [features]
 default = [
   "asset_pipeline",
@@ -40,7 +39,7 @@ default = [
 ]
 
 asset_pipeline = [
-  "bevy/multi-threaded",
+  "bevy/multi_threaded",
 ]
 
 development = ["bevy/dynamic_linking"]
@@ -51,7 +50,6 @@ viewer = [
   "bevy_args",
   "bevy-inspector-egui",
   "bevy_panorbit_camera",
-  # "bevy_transform_gizmo",
   "clap",
   "bevy/bevy_ui",
 ]
@@ -66,10 +64,9 @@ webgpu = ["bevy/webgpu"]
 
 
 [dependencies]
-bevy_args = { version = "1.4", optional = true }
-bevy-inspector-egui = { version = "0.24", optional = true }
-bevy_panorbit_camera = { version = "0.18", optional = true }
-bevy_transform_gizmo = { version = "0.11", optional = true }
+bevy_args = { version = "1.5", optional = true }
+bevy-inspector-egui = { version = "0.25", optional = true }
+bevy_panorbit_camera = { version = "0.19", optional = true, features = ["bevy_egui"] }
 clap = { version = "4.4", features = ["derive"], optional = true }
 glob = "0.3"
 itertools = "0.13"
@@ -87,7 +84,7 @@ wasm-bindgen = "0.2"
 
 
 [dependencies.bevy]
-version = "0.13"
+version = "0.14"
 default-features = false
 features = [
   "bevy_asset",

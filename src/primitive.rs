@@ -2,10 +2,13 @@ use bevy::{
     prelude::*,
     math::primitives::{
         Capsule3d,
+        Cone,
+        ConicalFrustum,
         Cuboid,
         Cylinder,
         Plane3d,
         Sphere,
+        Tetrahedron,
         Torus,
     },
     pbr::{
@@ -45,14 +48,14 @@ impl Plugin for ZeroversePrimitivePlugin {
 
 #[derive(Clone, Debug, EnumIter, Reflect)]
 pub enum ZeroversePrimitives {
-    // CanonicalFrustum,
     Capsule,
-    // Cone,
+    Cone,
+    ConicalFrustum,
     Cuboid,
     Cylinder,
     Plane,
     Sphere,
-    // Tetrahedron,
+    Tetrahedron,
     Torus,
 }
 
@@ -163,16 +166,30 @@ fn build_primitive(
                     .longitudes(rng.gen_range(4..64))
                     .rings(rng.gen_range(4..32))
                     .build(),
+                ZeroversePrimitives::Cone => Cone {
+                        height: rng.gen_range(0.3..1.5),
+                        radius: rng.gen_range(0.3..1.5),
+                    }.mesh()
+                    .resolution(rng.gen_range(3..64))
+                    .build(),
+                ZeroversePrimitives::ConicalFrustum => ConicalFrustum {
+                        radius_bottom: rng.gen_range(0.3..1.5),
+                        radius_top: rng.gen_range(0.3..1.5),
+                        height: rng.gen_range(0.3..1.5),
+                    }.mesh()
+                    .resolution(rng.gen_range(3..64))
+                    .build(),
                 ZeroversePrimitives::Cuboid => Cuboid::default()
-                    .mesh(),
+                    .mesh()
+                    .build(),
                 ZeroversePrimitives::Cylinder => Cylinder::default()
                     .mesh()
                     .resolution(rng.gen_range(4..64))
                     .segments(rng.gen_range(3..64))
                     .build(),
-                ZeroversePrimitives::Plane => Plane3d::new(Vec3::Y)
+                ZeroversePrimitives::Plane => Plane3d::new(Vec3::Y, Vec2::ONE)
                     .mesh()
-                    .size(scale.x, scale.y)
+                    .subdivisions(rng.gen_range(0..16))
                     .build(),
                 ZeroversePrimitives::Sphere => Sphere::default()
                     .mesh()
@@ -180,6 +197,9 @@ fn build_primitive(
                         rng.gen_range(24..64),
                         rng.gen_range(12..32),
                     ),
+                ZeroversePrimitives::Tetrahedron => Tetrahedron::default()
+                    .mesh()
+                    .build(),
                 ZeroversePrimitives::Torus => {
                     let inner_radius = rng.gen_range(0.01..1.0);
                     let outer_radius = inner_radius + rng.gen_range(0.01..1.0);
@@ -214,7 +234,7 @@ fn build_primitive(
                 primitive.insert((
                     Wireframe,
                     WireframeColor {
-                        color: Color::rgba(
+                        color: Color::srgba(
                             rng.gen_range(0.0..1.0),
                             rng.gen_range(0.0..1.0),
                             rng.gen_range(0.0..1.0),
