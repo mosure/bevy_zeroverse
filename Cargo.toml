@@ -35,6 +35,7 @@ default-run = "viewer"
 default = [
   "asset_pipeline",
   "development",
+  "plucker",
   "viewer",
 ]
 
@@ -45,6 +46,7 @@ asset_pipeline = [
 development = ["bevy/dynamic_linking"]
 
 perftest = []
+plucker = []
 
 viewer = [
   "bevy_args",
@@ -56,11 +58,14 @@ viewer = [
 
 web = [
   "viewer",
-  "webgl2",
+  "webgpu",
 ]
 
 webgl2 = ["bevy/webgl2"]
-webgpu = ["bevy/webgpu"]
+webgpu = [
+  "bevy/webgpu",
+  "plucker",
+]
 
 
 [dependencies]

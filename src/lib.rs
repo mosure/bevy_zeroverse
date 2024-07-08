@@ -16,9 +16,11 @@ impl Plugin for BevyZeroversePlugin {
 
         app.add_plugins((
             material::ZeroverseMaterialPlugin,
-            plucker::PluckerPlugin,
             primitive::ZeroversePrimitivePlugin,
             render::RenderPlugin,
         ));
+
+        #[cfg(feature = "plucker")]
+        app.add_plugins(plucker::PluckerPlugin);
     }
 }
