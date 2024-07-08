@@ -15,9 +15,13 @@ bevy zeroverse synthetic reconstruction dataset generator. view the [live demo](
 ## capabilities
 
 - [X] depth/normal rendering modes
-- [ ] plücker camera labels
-- [ ] generate parameteric zeroverse primitives
-- [ ] procedural zeroverse environments
+- [X] plücker camera labels
+- [X] generate parameteric zeroverse primitives
+- [ ] primitive normal deformation noise
+- [ ] primitive boolean operations
+- [ ] primitive pbr wireframe
+- [ ] procedural zeroverse composite environments
+- [ ] torch distributed dataloader
 
 
 ## mat-synth
@@ -34,6 +38,7 @@ bevy zeroverse synthetic reconstruction dataset generator. view the [live demo](
 
 | `bevy_zeroverse` | `bevy` |
 | :--                       | :--    |
+| `0.2`                     | `0.14` |
 | `0.1`                     | `0.13` |
 
 

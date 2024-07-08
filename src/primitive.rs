@@ -6,7 +6,6 @@ use bevy::{
         ConicalFrustum,
         Cuboid,
         Cylinder,
-        Plane3d,
         Sphere,
         Tetrahedron,
         Torus,
@@ -53,7 +52,7 @@ pub enum ZeroversePrimitives {
     ConicalFrustum,
     Cuboid,
     Cylinder,
-    Plane,
+    // Plane,
     Sphere,
     Tetrahedron,
     Torus,
@@ -187,10 +186,10 @@ fn build_primitive(
                     .resolution(rng.gen_range(4..64))
                     .segments(rng.gen_range(3..64))
                     .build(),
-                ZeroversePrimitives::Plane => Plane3d::new(Vec3::Y, Vec2::ONE)
-                    .mesh()
-                    .subdivisions(rng.gen_range(0..16))
-                    .build(),
+                // ZeroversePrimitives::Plane => Plane3d::new(Vec3::Y, Vec2::ONE)
+                //     .mesh()
+                //     .subdivisions(rng.gen_range(0..16))
+                //     .build(),
                 ZeroversePrimitives::Sphere => Sphere::default()
                     .mesh()
                     .uv(
