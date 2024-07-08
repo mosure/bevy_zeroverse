@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: checkout
         uses: actions/checkout@v4
 
       - uses: wtfjoke/setup-tectonic@v3
@@ -19,10 +19,10 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           biber-version: 'latest'
 
-      - name: Run Tectonic
+      - name: run tectonic
         run: tectonic tex/bevy_zeroverse.tex
 
-      - name: Upload pdf
+      - name: upload pdf
         uses: actions/upload-artifact@v4
         with:
           name: bevy_zeroverse
