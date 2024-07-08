@@ -325,6 +325,7 @@ fn setup_plucker_visualization(
     }
 
     if plucker_output.is_empty() {
+        warn_once!("PluckerOutput is not attached - enable the `plucker` feature");
         return;
     }
 
@@ -336,8 +337,8 @@ fn setup_plucker_visualization(
             position_type: PositionType::Absolute,
             bottom: Val::Px(0.0),
             right: Val::Px(0.0),
-            width: Val::Px(256.0),
-            height: Val::Px(256.0),
+            width: Val::Px(512.0),
+            height: Val::Px(512.0),
             ..default()
         },
         image: UiImage {
