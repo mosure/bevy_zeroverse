@@ -29,6 +29,7 @@ use strum_macros::EnumIter;
 use crate::{
     material::ZeroverseMaterials,
     manifold::ManifoldOperations,
+    mesh::displace_vertices_with_noise,
 };
 
 
@@ -65,6 +66,9 @@ pub struct PrimitiveSettings {
     pub available_types: Vec<ZeroversePrimitives>,
     pub available_operations: Vec<ManifoldOperations>,
     pub wireframe_probability: f32,
+    pub noise_probability: f32,
+    pub noise_scale_lower_bound: f32,
+    pub noise_scale_upper_bound: f32,
     pub rotation_lower_bound: Vec3,
     pub rotation_upper_bound: Vec3,
     pub scale_lower_bound: Vec3,
@@ -87,7 +91,10 @@ impl Default for PrimitiveSettings {
             components: 25,
             available_types: ZeroversePrimitives::iter().collect(),
             available_operations: ManifoldOperations::iter().collect(),
-            wireframe_probability: 0.1,
+            wireframe_probability: 0.0,
+            noise_probability: 0.3,
+            noise_scale_lower_bound: 0.0,
+            noise_scale_upper_bound: 1.0,
             rotation_lower_bound: Vec3::splat(0.0),
             rotation_upper_bound: Vec3::splat(std::f32::consts::PI),
             scale_lower_bound: Vec3::splat(0.05),
@@ -158,7 +165,7 @@ fn build_primitive(
             position,
             rotation,
         )| {
-            let mesh = match primitive_type {
+            let mut mesh = match primitive_type {
                 ZeroversePrimitives::Capsule => Capsule3d::default()
                     .mesh()
                     .latitudes(rng.gen_range(4..64))
@@ -211,13 +218,16 @@ fn build_primitive(
                 },
             };
 
+            if rng.gen_bool(settings.noise_probability as f64) {
+                let noise_scale = rng.gen_range(settings.noise_scale_lower_bound..settings.noise_scale_upper_bound);
+                displace_vertices_with_noise(&mut mesh, noise_scale);
+            }
+
             let transform = Transform::from_translation(position)
                 .with_rotation(rotation)
                 .with_scale(scale);
 
             let mesh = mesh.transformed_by(transform);
-
-            // TODO: optionally spawn the base primitive (no manifold operations) for debugging
 
             let mut primitive = commands.spawn((
                 PbrBundle {
@@ -229,6 +239,8 @@ fn build_primitive(
             ));
 
             if rng.gen_bool(settings.wireframe_probability as f64) {
+                primitive.remove::<Handle<StandardMaterial>>();
+
                 // TODO: support textured wireframes
                 primitive.insert((
                     Wireframe,
