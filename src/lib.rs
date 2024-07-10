@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 pub mod manifold;
 pub mod material;
+pub mod mesh;
 pub mod plucker;
 pub mod primitive;
 pub mod render;
