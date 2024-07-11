@@ -7,7 +7,7 @@ pub mod mesh;
 pub mod plucker;
 pub mod primitive;
 pub mod render;
-pub mod scene;
+// pub mod scene;
 
 
 pub struct BevyZeroversePlugin;
@@ -20,7 +20,7 @@ impl Plugin for BevyZeroversePlugin {
             material::ZeroverseMaterialPlugin,
             primitive::ZeroversePrimitivePlugin,
             render::RenderPlugin,
-            scene::ZeroverseScenePlugin,
+            // scene::ZeroverseScenePlugin,
         ));
 
         #[cfg(feature = "plucker")]

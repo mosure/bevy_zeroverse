@@ -202,7 +202,7 @@ fn get_viewports(
         .flat_map(|y| {
             (0..cameras_x).map(move |x| {
                 Viewport {
-                    physical_position: UVec2::new(x as u32 * camera_width, y as u32 * camera_height),
+                    physical_position: UVec2::new(x * camera_width, y * camera_height),
                     physical_size: UVec2::new(camera_width, camera_height),
                     ..default()
                 }
