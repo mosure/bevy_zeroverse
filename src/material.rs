@@ -65,8 +65,10 @@ fn find_materials(
     {
         found_materials.roots = vec![
             PathBuf::from("materials/subset/Ceramic/0557_brick_uneven_stones"),
+            PathBuf::from("materials/subset/Fabric/acg_fabric_009"),
             PathBuf::from("materials/subset/Ground/acg_rocks_023"),
             PathBuf::from("materials/subset/Marble/st_marble_038"),
+            PathBuf::from("materials/subset/Terracotta/acg_painted_bricks_002"),
             PathBuf::from("materials/subset/Wood/acg_planks_003"),
         ];
         return;
