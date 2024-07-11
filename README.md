@@ -9,7 +9,7 @@
 
 ### [project page](https://mosure.github.io/bevy_zeroverse/project/index.html) | [arXiv](https://arxiv.org/abs/)</a>
 
-bevy zeroverse synthetic reconstruction dataset generator. view the [live demo](https://mosure.github.io/bevy_zeroverse), press `r` to regenerate the scene.
+bevy zeroverse synthetic reconstruction dataset generator. view the [live demo](https://mosure.github.io/bevy_zeroverse?yaw_speed=0.7&cameras_x=2&cameras_y=2&regenerate_ms=8000&plucker_visualization=true).
 
 
 ## capabilities
