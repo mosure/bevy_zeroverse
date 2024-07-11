@@ -349,11 +349,11 @@ impl Node for PluckerNode {
             )),
         );
 
-        if let Some((
+        for (
             plucker_bindings,
             view_offset,
             view,
-        )) = self.prepared_plucker.iter_manual(world).next() {
+        ) in self.prepared_plucker.iter_manual(world) {
             let pipeline = pipeline_cache.get_compute_pipeline(pipeline.pipeline_id).unwrap();
 
             {

@@ -1,14 +1,17 @@
 use bevy::{
     prelude::*,
-    math::primitives::{
-        Capsule3d,
-        Cone,
-        ConicalFrustum,
-        Cuboid,
-        Cylinder,
-        Sphere,
-        Tetrahedron,
-        Torus,
+    math::{
+        primitives::{
+            Capsule3d,
+            Cone,
+            ConicalFrustum,
+            Cuboid,
+            Cylinder,
+            Sphere,
+            Tetrahedron,
+            Torus,
+        },
+        sampling::ShapeSample,
     },
     pbr::{
         TransmittedShadowReceiver,
@@ -59,6 +62,7 @@ pub enum ZeroversePrimitives {
     Torus,
 }
 
+// TODO: support scale and rotation pdfs via https://github.com/villor/bevy_lookup_curve
 #[derive(Clone, Component, Debug, Reflect, Resource)]
 #[reflect(Resource)]
 pub struct PrimitiveSettings {
@@ -73,22 +77,13 @@ pub struct PrimitiveSettings {
     pub rotation_upper_bound: Vec3,
     pub scale_lower_bound: Vec3,
     pub scale_upper_bound: Vec3,
-    pub position_bound: Vec3,
-}
-
-impl PrimitiveSettings {
-    pub fn count(n: usize) -> PrimitiveSettings {
-        PrimitiveSettings {
-            components: n,
-            ..Default::default()
-        }
-    }
+    pub position_sampler: PositionSampler,
 }
 
 impl Default for PrimitiveSettings {
     fn default() -> PrimitiveSettings {
         PrimitiveSettings {
-            components: 25,
+            components: 5,
             available_types: ZeroversePrimitives::iter().collect(),
             available_operations: ManifoldOperations::iter().collect(),
             wireframe_probability: 0.0,
@@ -99,7 +94,26 @@ impl Default for PrimitiveSettings {
             rotation_upper_bound: Vec3::splat(std::f32::consts::PI),
             scale_lower_bound: Vec3::splat(0.05),
             scale_upper_bound: Vec3::splat(1.0),
-            position_bound: Vec3::splat(1.5),
+            position_sampler: PositionSampler::Cube(Vec3::splat(0.5)),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Reflect)]
+pub enum PositionSampler {
+    Capsule(f32, f32),
+    Cube(Vec3),
+    Cylinder(f32, f32),
+    Sphere(f32),
+}
+
+impl PositionSampler {
+    pub fn sample(&self, rng: &mut impl Rng) -> Vec3 {
+        match *self {
+            PositionSampler::Capsule(radius, length) => Capsule3d::new(radius, length).sample_interior(rng),
+            PositionSampler::Cube(extents) => Cuboid::from_size(extents).sample_interior(rng),
+            PositionSampler::Cylinder(radius, height) => Cylinder::new(radius, height).sample_interior(rng),
+            PositionSampler::Sphere(radius) => Sphere::new(radius).sample_interior(rng),
         }
     }
 }
@@ -138,11 +152,7 @@ fn build_primitive(
         .collect::<Vec<_>>();
 
     let positions = (0..settings.components)
-        .map(|_| Vec3::new(
-            rng.gen_range(-settings.position_bound.x..settings.position_bound.x),
-            rng.gen_range(-settings.position_bound.y..settings.position_bound.y),
-            rng.gen_range(-settings.position_bound.z..settings.position_bound.z),
-        ))
+        .map(|_| settings.position_sampler.sample(rng))
         .collect::<Vec<_>>();
 
     let rotations = (0..settings.components)
