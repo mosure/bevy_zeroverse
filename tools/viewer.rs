@@ -8,11 +8,15 @@ use bevy::{
         core_3d::ScreenSpaceTransmissionQuality,
         tonemapping::Tonemapping,
     },
-    render::camera::{
-        Exposure,
-        Viewport,
+    render::{
+        camera::{
+            Exposure,
+            Viewport,
+        },
+        render_resource::Extent3d,
     },
     time::Stopwatch,
+    window::WindowResized,
 };
 use bevy_args::{
     parse_args,
@@ -185,7 +189,7 @@ fn viewer_app() {
 
     app.add_systems(PreUpdate, press_m_shuffle_materials);
     app.add_systems(PreUpdate, setup_material_grid);
-    app.add_systems(Update, auto_yaw_camera);
+    app.add_systems(Update, (auto_yaw_camera, set_camera_viewports));
     app.add_systems(PostUpdate, regenerate_scene_system);
     app.add_systems(PostUpdate, setup_plucker_visualization);
 
@@ -211,34 +215,16 @@ fn get_viewports(
         .collect::<Vec<_>>()
 }
 
+#[derive(Component)]
+struct CameraPosition {
+    pos: UVec2,
+}
+
 fn setup_camera(
     mut commands: Commands,
     args: Res<BevyZeroverseViewer>,
     asset_server: Res<AssetServer>,
 ) {
-    // TODO: set camera viewports to cell size on window resize
-    // fn set_camera_viewports(
-    //     windows: Query<&Window>,
-    //     mut resize_events: EventReader<WindowResized>,
-    //     mut query: Query<(&CameraPosition, &mut Camera)>,
-    // ) {
-    //     // We need to dynamically resize the camera's viewports whenever the window size changes
-    //     // so then each camera always takes up half the screen.
-    //     // A resize_event is sent when the window is first created, allowing us to reuse this system for initial setup.
-    //     for resize_event in resize_events.read() {
-    //         let window = windows.get(resize_event.window).unwrap();
-    //         let size = window.physical_size() / 2;
-
-    //         for (camera_position, mut camera) in &mut query {
-    //             camera.viewport = Some(Viewport {
-    //                 physical_position: camera_position.pos * size,
-    //                 physical_size: size,
-    //                 ..default()
-    //             });
-    //         }
-    //     }
-    // }
-
     let camera_width = args.width as u32 / args.cameras_x as u32;
     let camera_height = args.height as u32 / args.cameras_y as u32;
 
@@ -288,6 +274,9 @@ fn setup_camera(
                 size: UVec2::new(camera_width, camera_height),
             },
             environment_map.clone(),
+            CameraPosition {
+                pos: UVec2::new(column, row),
+            },
         ));
     }
 
@@ -300,6 +289,46 @@ fn setup_camera(
         },
         ..default()
     });
+}
+
+fn set_camera_viewports(
+    args: Res<BevyZeroverseViewer>,
+    mut images: ResMut<Assets<Image>>,
+    windows: Query<&Window>,
+    mut resize_events: EventReader<WindowResized>,
+    mut query: Query<(&CameraPosition, &mut Camera, &PluckerOutput)>,
+) {
+    for resize_event in resize_events.read() {
+        let window = windows.get(resize_event.window).unwrap();
+        let size = window.physical_size() / UVec2::new(args.cameras_x as u32, args.cameras_y as u32);
+
+        for (
+            camera_position,
+            mut camera,
+            plucker_output,
+        ) in &mut query {
+            camera.viewport = Some(Viewport {
+                physical_position: camera_position.pos * size,
+                physical_size: size,
+                ..default()
+            });
+
+            let new_plucker_size = Extent3d {
+                width: size.x,
+                height: size.y,
+                ..default()
+            };
+
+            let plucker_u = images.get_mut(&plucker_output.plucker_u).unwrap();
+            plucker_u.resize(new_plucker_size);
+
+            let plucker_v = images.get_mut(&plucker_output.plucker_v).unwrap();
+            plucker_v.resize(new_plucker_size);
+
+            let plucker_visualization = images.get_mut(&plucker_output.visualization).unwrap();
+            plucker_visualization.resize(new_plucker_size);
+        }
+    }
 }
 
 fn auto_yaw_camera(
