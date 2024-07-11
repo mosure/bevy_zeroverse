@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+pub mod camera;
 pub mod manifold;
 pub mod material;
 pub mod mesh;
@@ -19,6 +20,7 @@ impl Plugin for BevyZeroversePlugin {
             material::ZeroverseMaterialPlugin,
             primitive::ZeroversePrimitivePlugin,
             render::RenderPlugin,
+            scene::ZeroverseScenePlugin,
         ));
 
         #[cfg(feature = "plucker")]
