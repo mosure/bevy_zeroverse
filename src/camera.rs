@@ -32,7 +32,7 @@ pub struct ZeroverseCameraPlugin;
 impl Plugin for ZeroverseCameraPlugin {
     fn build(&self, app: &mut App) {
         app.insert_gizmo_config(
-            EditorCameraGizmoConfigGroup::default(),
+            EditorCameraGizmoConfigGroup,
             GizmoConfig {
                 render_layers: EDITOR_CAMERA_RENDER_LAYER,
                 ..default()
@@ -219,6 +219,7 @@ fn setup_editor_camera(
 }
 
 
+#[allow(clippy::type_complexity)]
 pub fn draw_camera_gizmo(
     mut gizmos: Gizmos<EditorCameraGizmoConfigGroup>,
     cameras: Query<

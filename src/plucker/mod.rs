@@ -131,6 +131,7 @@ impl Plugin for PluckerPlugin {
 }
 
 
+#[allow(clippy::type_complexity)]
 fn create_plucker_output(
     mut commands: Commands,
     mut images: ResMut<Assets<Image>>,

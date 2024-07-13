@@ -61,6 +61,7 @@ struct BevyZeroverseViewer {
     #[arg(long, default_value = "1080.0")]
     height: f32,
 
+    // TODO: change to just `num_cameras`
     /// number of cameras to spawn in the grid x direction
     #[arg(long, default_value = "1")]
     cameras_x: u16,
@@ -76,6 +77,7 @@ struct BevyZeroverseViewer {
     #[arg(long, default_value = "0")]
     regenerate_ms: u32,
 
+    // TODO: figure out an abstraction for this (e.g. move along sampled surface)
     /// automatically rotate the camera yaw
     #[arg(long, default_value = "0.0")]
     yaw_speed: f32,

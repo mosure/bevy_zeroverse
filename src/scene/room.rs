@@ -16,18 +16,10 @@ impl Plugin for ZeroverseRoomPlugin {
 }
 
 
-#[derive(Clone, Component, Debug, Reflect, Resource)]
+#[derive(Clone, Component, Debug, Default, Reflect, Resource)]
 #[reflect(Resource)]
 pub struct RoomSettings {
     pub base_settings: PrimitiveSettings,
-}
-
-impl Default for RoomSettings {
-    fn default() -> RoomSettings {
-        RoomSettings {
-            base_settings: PrimitiveSettings::default(),
-        }
-    }
 }
 
 
