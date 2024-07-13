@@ -43,13 +43,12 @@ pub struct ZeroverseRoom;
 
 
 fn build_room(
-    commands: &mut ChildBuilder,
-    settings: &RoomSettings,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    zeroverse_materials: &Res<ZeroverseMaterials>,
+    _commands: &mut ChildBuilder,
+    _settings: &RoomSettings,
+    _meshes: &mut ResMut<Assets<Mesh>>,
+    _zeroverse_materials: &Res<ZeroverseMaterials>,
 ) {
-    let rng = &mut rand::thread_rng();
-
+    let _rng = &mut rand::thread_rng();
 }
 
 

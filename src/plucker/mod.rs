@@ -61,9 +61,7 @@ use bevy::{
 
 
 #[derive(Component, Debug, Reflect)]
-pub struct PluckerCamera {
-    pub size: UVec2,
-}
+pub struct PluckerCamera;
 
 #[derive(AsBindGroup, Clone, Component, Debug, ExtractComponent, Reflect)]
 pub struct PluckerOutput {
@@ -139,15 +137,19 @@ fn create_plucker_output(
     plucker_cameras: Query<
         (
             Entity,
-            &PluckerCamera,
+            &Camera,
         ),
-        Without<PluckerOutput>,
+        (
+            With<PluckerCamera>,
+            Without<PluckerOutput>,
+        ),
     >,
 ) {
-    for (entity, plucker_settings) in plucker_cameras.iter() {
+    for (entity, camera) in plucker_cameras.iter() {
+        let size = camera.physical_viewport_size().unwrap();
         let size = Extent3d {
-            width: plucker_settings.size.x,
-            height: plucker_settings.size.y,
+            width: size.x,
+            height: size.y,
             depth_or_array_layers: 1,
         };
 

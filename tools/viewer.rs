@@ -1,22 +1,7 @@
-use std::f32::consts::PI;
-
 use bevy::{
     prelude::*,
     app::AppExit,
-    core_pipeline::{
-        bloom::BloomSettings,
-        core_3d::ScreenSpaceTransmissionQuality,
-        tonemapping::Tonemapping,
-    },
-    render::{
-        camera::{
-            Exposure,
-            Viewport,
-        },
-        render_resource::Extent3d,
-    },
     time::Stopwatch,
-    window::WindowResized,
 };
 use bevy_args::{
     parse_args,
@@ -33,19 +18,15 @@ use bevy_panorbit_camera::{
 
 use bevy_zeroverse::{
     BevyZeroversePlugin,
+    camera::EditorCameraMarker,
     material::{
         MaterialsLoadedEvent,
         ShuffleMaterialsEvent,
         ZeroverseMaterials,
     },
-    plucker::{
-        PluckerCamera,
-        PluckerOutput,
-    },
-    primitive::{
-        PrimitiveBundle,
-        PrimitiveSettings,
-    },
+    plucker::PluckerOutput,
+    primitive::PrimitiveSettings,
+    scene::RegenerateSceneEvent,
 };
 
 
@@ -185,161 +166,34 @@ fn viewer_app() {
     app.init_resource::<PrimitiveSettings>();
 
     app.add_systems(Startup, setup_camera);
-    app.add_systems(Startup, setup_primitives);
 
     app.add_systems(PreUpdate, press_m_shuffle_materials);
     app.add_systems(PreUpdate, setup_material_grid);
-    app.add_systems(Update, (auto_yaw_camera, set_camera_viewports));
-    app.add_systems(PostUpdate, regenerate_scene_system);
+    app.add_systems(PreUpdate, regenerate_scene_system);
+
     app.add_systems(PostUpdate, setup_plucker_visualization);
 
     app.run();
 }
 
-fn get_viewports(
-    camera_width: u32,
-    camera_height: u32,
-    cameras_x: u32,
-    cameras_y: u32,
-) -> Vec<Viewport> {
-    (0..cameras_y)
-        .flat_map(|y| {
-            (0..cameras_x).map(move |x| {
-                Viewport {
-                    physical_position: UVec2::new(x * camera_width, y * camera_height),
-                    physical_size: UVec2::new(camera_width, camera_height),
-                    ..default()
-                }
-            })
-        })
-        .collect::<Vec<_>>()
-}
-
-#[derive(Component)]
-struct CameraPosition {
-    pos: UVec2,
-}
 
 fn setup_camera(
     mut commands: Commands,
-    args: Res<BevyZeroverseViewer>,
-    asset_server: Res<AssetServer>,
 ) {
-    let camera_width = args.width as u32 / args.cameras_x as u32;
-    let camera_height = args.height as u32 / args.cameras_y as u32;
-
-    let viewports = get_viewports(camera_width, camera_height, args.cameras_x as u32, args.cameras_y as u32);
-
-    let environment_map = EnvironmentMapLight {
-        diffuse_map: asset_server.load("environment_maps/pisa_diffuse_rgb9e5_zstd.ktx2"),
-        specular_map: asset_server.load("environment_maps/pisa_specular_rgb9e5_zstd.ktx2"),
-        intensity: 900.0,
-    };
-
-    for (i, viewport) in viewports.iter().enumerate() {
-        let column = viewport.physical_position.x / camera_width;
-        let row = viewport.physical_position.y / camera_height;
-        let index = row * args.cameras_x as u32 + column;
-
-        let angle = index as f32 * 2.0 * PI / viewports.len() as f32;
-
-        commands.spawn((
-            Camera3dBundle {
-                camera: Camera {
-                    hdr: true,
-                    order: i as isize,
-                    viewport: viewport.clone().into(),
-                    ..default()
-                },
-                camera_3d: Camera3d {
-                    screen_space_specular_transmission_quality: ScreenSpaceTransmissionQuality::High,
-                    ..default()
-                },
-                exposure: Exposure::BLENDER,
-                transform: Transform::default(),
-                tonemapping: Tonemapping::None,
-                ..default()
-            },
-            PanOrbitCamera {
-                allow_upside_down: true,
-                orbit_smoothness: 0.0,
-                pan_smoothness: 0.0,
-                zoom_smoothness: 0.0,
-                radius: Some(3.0),
-                yaw: Some(angle),
-                ..default()
-            },
-            BloomSettings::default(),
-            PluckerCamera {
-                size: UVec2::new(camera_width, camera_height),
-            },
-            environment_map.clone(),
-            CameraPosition {
-                pos: UVec2::new(column, row),
-            },
-        ));
-    }
-
-    // TODO: move lighting to procedural scene plugin
-    commands.spawn(DirectionalLightBundle {
-        transform: Transform::from_xyz(50.0, 50.0, 50.0).looking_at(Vec3::ZERO, Vec3::Y),
-        directional_light: DirectionalLight {
-            illuminance: 1_500.,
+    commands.spawn((
+        EditorCameraMarker,
+        PanOrbitCamera {
+            allow_upside_down: true,
+            orbit_smoothness: 0.0,
+            pan_smoothness: 0.0,
+            zoom_smoothness: 0.0,
+            radius: Some(3.0),
             ..default()
         },
-        ..default()
-    });
+    ));
 }
 
-fn set_camera_viewports(
-    args: Res<BevyZeroverseViewer>,
-    mut images: ResMut<Assets<Image>>,
-    windows: Query<&Window>,
-    mut resize_events: EventReader<WindowResized>,
-    mut query: Query<(&CameraPosition, &mut Camera, &PluckerOutput)>,
-) {
-    for resize_event in resize_events.read() {
-        let window = windows.get(resize_event.window).unwrap();
-        let size = window.physical_size() / UVec2::new(args.cameras_x as u32, args.cameras_y as u32);
-
-        for (
-            camera_position,
-            mut camera,
-            plucker_output,
-        ) in &mut query {
-            camera.viewport = Some(Viewport {
-                physical_position: camera_position.pos * size,
-                physical_size: size,
-                ..default()
-            });
-
-            let new_plucker_size = Extent3d {
-                width: size.x,
-                height: size.y,
-                ..default()
-            };
-
-            let plucker_u = images.get_mut(&plucker_output.plucker_u).unwrap();
-            plucker_u.resize(new_plucker_size);
-
-            let plucker_v = images.get_mut(&plucker_output.plucker_v).unwrap();
-            plucker_v.resize(new_plucker_size);
-
-            let plucker_visualization = images.get_mut(&plucker_output.visualization).unwrap();
-            plucker_visualization.resize(new_plucker_size);
-        }
-    }
-}
-
-fn auto_yaw_camera(
-    args: Res<BevyZeroverseViewer>,
-    time: Res<Time>,
-    mut cameras: Query<(&mut PanOrbitCamera, &Camera)>,
-) {
-    for (mut camera, _) in cameras.iter_mut() {
-        camera.target_yaw += args.yaw_speed * time.delta_seconds();
-    }
-}
+// TODO: setup grid view of sampled cameras
 
 
 #[derive(Component)]
@@ -474,16 +328,6 @@ fn setup_plucker_visualization(
 }
 
 
-fn setup_primitives(
-    mut commands: Commands,
-    primitive_settings: Res<PrimitiveSettings>,
-) {
-    commands.spawn(PrimitiveBundle {
-        settings: primitive_settings.clone(),
-        ..default()
-    });
-}
-
 #[allow(clippy::too_many_arguments)]
 fn regenerate_scene_system(
     mut commands: Commands,
@@ -491,9 +335,9 @@ fn regenerate_scene_system(
     keys: Res<ButtonInput<KeyCode>>,
     clear_meshes: Query<Entity, With<Handle<Mesh>>>,
     clear_zeroverse_primitives: Query<Entity, With<PrimitiveSettings>>,
-    primitive_settings: Res<PrimitiveSettings>,
     time: Res<Time>,
     mut regenerate_stopwatch: Local<Stopwatch>,
+    mut regenerate_event: EventWriter<RegenerateSceneEvent>,
 ) {
     if args.regenerate_ms > 0 {
         regenerate_stopwatch.tick(time.delta());
@@ -511,7 +355,7 @@ fn regenerate_scene_system(
             commands.entity(entity).despawn_recursive();
         }
 
-        setup_primitives(commands, primitive_settings);
+        regenerate_event.send(RegenerateSceneEvent);
         regenerate_stopwatch.reset();
     }
 }
