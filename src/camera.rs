@@ -22,7 +22,7 @@ use bevy::{
             TextureUsages,
         },
         view::RenderLayers,
-    },
+    }
 };
 
 use crate::plucker::PluckerCamera;
@@ -39,11 +39,12 @@ impl Plugin for ZeroverseCameraPlugin {
             },
         );
 
+        app.init_resource::<DefaultZeroverseCamera>();
         app.init_resource::<EnvironmentMapResource>();
 
         app.add_systems(PreStartup, load_environment_map);
         app.add_systems(
-            PreUpdate,
+            Update,
             (
                 setup_editor_camera,
                 insert_cameras,
@@ -96,7 +97,12 @@ impl Default for CameraPositionSampler {
 #[derive(Component, Debug, Default, Reflect)]
 pub struct ZeroverseCamera {
     pub sampler: CameraPositionSampler,
-    pub resolution: UVec2,
+    pub resolution: Option<UVec2>,
+}
+
+#[derive(Resource, Debug, Default, Reflect)]
+pub struct DefaultZeroverseCamera {
+    pub resolution: Option<UVec2>,
 }
 
 
@@ -111,13 +117,15 @@ fn insert_cameras(
         Without<Camera>,
     >,
     environment_map: Res<EnvironmentMapResource>,
+    default_zeroverse_camera: Res<DefaultZeroverseCamera>,
 ) {
-    // TODO: perform sampling
-
     for (entity, zeroverse_camera) in zeroverse_cameras.iter() {
+        let resolution = zeroverse_camera.resolution
+            .unwrap_or(default_zeroverse_camera.resolution.expect("DefaultZeroverseCamera resolution must be set if ZeroverseCamera resolution is not set"));
+
         let size = Extent3d {
-            width: zeroverse_camera.resolution.x,
-            height: zeroverse_camera.resolution.y,
+            width: resolution.x,
+            height: resolution.y,
             depth_or_array_layers: 1,
         };
 
@@ -140,6 +148,12 @@ fn insert_cameras(
         let render_target = images.add(render_target);
         let target = RenderTarget::Image(render_target);
 
+        // TODO: perform sampling
+        let transform = match zeroverse_camera.sampler {
+            CameraPositionSampler::Transform(transform) => transform,
+            _ => Transform::default(),
+        };
+
         commands.entity(entity).insert((
             Camera3dBundle {
                 camera: Camera {
@@ -152,7 +166,7 @@ fn insert_cameras(
                     ..default()
                 },
                 exposure: Exposure::BLENDER,
-                transform: Transform::default(),
+                transform,
                 tonemapping: Tonemapping::None,
                 ..default()
             },
@@ -232,48 +246,55 @@ pub fn draw_camera_gizmo(
 ) {
     let color = Color::srgb(1.0, 0.0, 1.0);
 
-    for (transform, _projection) in cameras.iter() {
-        let transform = transform.compute_transform();
-        let cuboid_transform = transform.with_scale(Vec3::new(1.0, 1.0, 2.0));
-        gizmos.cuboid(cuboid_transform, color);
+    for (global_transform, projection) in cameras.iter() {
+        let transform = global_transform.compute_transform();
+
+        // let cuboid_transform = transform.with_scale(Vec3::new(0.5, 0.5, 1.0));
+        // gizmos.cuboid(cuboid_transform, color);
+
+        let (aspect_ratio, fov_y) = match projection {
+            Projection::Perspective(persp) => (persp.aspect_ratio, persp.fov),
+            Projection::Orthographic(_) => {
+                (1.0, 0.0)
+            }
+        };
+
+        let tan_half_fov_y = (fov_y * 0.5).tan();
+        let tan_half_fov_x = tan_half_fov_y * aspect_ratio;
 
         let scale = 1.5;
 
+        let forward = transform.forward() * scale;
+        let up = transform.up() * tan_half_fov_y * scale;
+        let right = transform.right() * tan_half_fov_x * scale;
+
         gizmos.line(
             transform.translation,
-            transform.translation
-                + transform.forward() * scale
-                + transform.up() * scale
-                + transform.right() * scale,
+            transform.translation + forward + up + right,
             color,
         );
         gizmos.line(
             transform.translation,
-            transform.translation + transform.forward() * scale - transform.up() * scale
-                + transform.right() * scale,
+            transform.translation + forward - up + right,
             color,
         );
         gizmos.line(
             transform.translation,
-            transform.translation + transform.forward() * scale + transform.up() * scale
-                - transform.right() * scale,
+            transform.translation + forward + up - right,
             color,
         );
         gizmos.line(
             transform.translation,
-            transform.translation + transform.forward() * scale
-                - transform.up() * scale
-                - transform.right() * scale,
+            transform.translation + forward - up - right,
             color,
         );
 
-        let rect_transform = Transform::from_xyz(0.0, 0.0, -scale);
-        let rect_transform = transform.mul_transform(rect_transform);
-
+        let rect_transform = Transform::from_translation(transform.translation + forward);
+        let rect_transform = rect_transform.mul_transform(Transform::from_rotation(transform.rotation));
         gizmos.rect(
             rect_transform.translation,
             rect_transform.rotation,
-            Vec2::splat(scale * 2.0),
+            Vec2::new(tan_half_fov_x * 2.0 * scale, tan_half_fov_y * 2.0 * scale),
             color,
         );
     }

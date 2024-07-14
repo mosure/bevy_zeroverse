@@ -2,6 +2,7 @@ use bevy::{
     prelude::*,
     app::AppExit,
     time::Stopwatch,
+    render::camera::RenderTarget,
 };
 use bevy_args::{
     parse_args,
@@ -18,7 +19,11 @@ use bevy_panorbit_camera::{
 
 use bevy_zeroverse::{
     BevyZeroversePlugin,
-    camera::EditorCameraMarker,
+    camera::{
+        DefaultZeroverseCamera,
+        EditorCameraMarker,
+        ZeroverseCamera,
+    },
     material::{
         MaterialsLoadedEvent,
         ShuffleMaterialsEvent,
@@ -26,7 +31,11 @@ use bevy_zeroverse::{
     },
     plucker::PluckerOutput,
     primitive::PrimitiveSettings,
-    scene::RegenerateSceneEvent,
+    scene::{
+        RegenerateSceneEvent,
+        SceneLoadedEvent,
+        ZeroverseSceneSettings,
+    },
 };
 
 
@@ -61,14 +70,12 @@ struct BevyZeroverseViewer {
     #[arg(long, default_value = "1080.0")]
     height: f32,
 
-    // TODO: change to just `num_cameras`
-    /// number of cameras to spawn in the grid x direction
-    #[arg(long, default_value = "1")]
-    cameras_x: u16,
+    #[arg(long, default_value = "4")]
+    num_cameras: usize,
 
-    /// number of cameras to spawn in the grid y direction
-    #[arg(long, default_value = "1")]
-    cameras_y: u16,
+    /// display a grid of Zeroverse cameras
+    #[arg(long, default_value = "false")]
+    camera_grid: bool,
 
     #[arg(long, default_value = "bevy_zeroverse")]
     name: String,
@@ -92,8 +99,8 @@ impl Default for BevyZeroverseViewer {
             press_esc_close: true,
             width: 1920.0,
             height: 1080.0,
-            cameras_x: 1,
-            cameras_y: 1,
+            num_cameras: 4,
+            camera_grid: false,
             name: "bevy_zeroverse".to_string(),
             regenerate_ms: 0,
             yaw_speed: 0.0,
@@ -165,15 +172,29 @@ fn viewer_app() {
     }
 
     app.add_plugins(BevyZeroversePlugin);
+
+    app.insert_resource(DefaultZeroverseCamera {
+        resolution: UVec2::new(args.width as u32, args.height as u32).into(),
+    });
+
+    app.insert_resource(ZeroverseSceneSettings {
+        num_cameras: args.num_cameras,
+    });
+
     app.init_resource::<PrimitiveSettings>();
 
     app.add_systems(Startup, setup_camera);
 
-    app.add_systems(PreUpdate, press_m_shuffle_materials);
-    app.add_systems(PreUpdate, setup_material_grid);
-    app.add_systems(PreUpdate, regenerate_scene_system);
+    app.add_systems(PreUpdate, (
+        press_m_shuffle_materials,
+        regenerate_scene_system,
+        setup_material_grid,
+    ));
 
-    app.add_systems(PostUpdate, setup_plucker_visualization);
+    app.add_systems(PostUpdate, (
+        setup_camera_grid,
+        setup_plucker_visualization,
+    ));
 
     app.run();
 }
@@ -195,7 +216,68 @@ fn setup_camera(
     ));
 }
 
-// TODO: setup grid view of sampled cameras
+#[derive(Component)]
+struct CameraGrid;
+
+fn setup_camera_grid(
+    mut commands: Commands,
+    args: Res<BevyZeroverseViewer>,
+    camera_grids: Query<Entity, With<CameraGrid>>,
+    zeroverse_cameras: Query<
+        &Camera,
+        With<ZeroverseCamera>,
+    >,
+    mut scene_loaded: EventReader<SceneLoadedEvent>,
+) {
+    if scene_loaded.is_empty() {
+        return;
+    }
+    scene_loaded.clear();
+
+    if !camera_grids.is_empty() {
+        commands.entity(camera_grids.single()).despawn_recursive();
+    }
+
+    if args.camera_grid {
+        let camera_count = zeroverse_cameras.iter().count();
+        let rows = (camera_count as f32).sqrt().ceil() as u16;
+        let cols = (camera_count as f32 / rows as f32).ceil() as u16;
+
+        commands.spawn(NodeBundle {
+            style: Style {
+                display: Display::Grid,
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                grid_template_columns: RepeatedGridTrack::flex(cols, 1.0),
+                grid_template_rows: RepeatedGridTrack::flex(rows, 1.0),
+                ..default()
+            },
+            background_color: BackgroundColor(Color::BLACK),
+            ..default()
+        })
+        .with_children(|builder| {
+            for camera in zeroverse_cameras.iter() {
+                let texture = match camera.target.clone() {
+                    RenderTarget::Image(texture) => texture,
+                    _ => continue,
+                };
+
+                builder.spawn(ImageBundle {
+                    style: Style {
+                        width: Val::Percent(100.0),
+                        height: Val::Percent(100.0),
+                        ..default()
+                    },
+                    image: UiImage {
+                        texture,
+                        ..default()
+                    },
+                    ..default()
+                });
+            }
+        }).insert(CameraGrid);
+    }
+}
 
 
 #[derive(Component)]
@@ -299,9 +381,6 @@ fn setup_plucker_visualization(
             camera_a.order.cmp(&camera_b.order)
         });
 
-    let plucker_width: f32 = 256.0 / args.cameras_x as f32;
-    let plucker_height = 256.0 / args.cameras_y as f32;
-
     for (
         entity,
         _,
@@ -313,8 +392,6 @@ fn setup_plucker_visualization(
                     position_type: PositionType::Absolute,
                     bottom: Val::Px(0.0),
                     right: Val::Px(0.0),
-                    width: Val::Px(plucker_width),
-                    height: Val::Px(plucker_height),
                     ..default()
                 },
                 image: UiImage {
@@ -332,11 +409,8 @@ fn setup_plucker_visualization(
 
 #[allow(clippy::too_many_arguments)]
 fn regenerate_scene_system(
-    mut commands: Commands,
     args: Res<BevyZeroverseViewer>,
     keys: Res<ButtonInput<KeyCode>>,
-    clear_meshes: Query<Entity, With<Handle<Mesh>>>,
-    clear_zeroverse_primitives: Query<Entity, With<PrimitiveSettings>>,
     time: Res<Time>,
     mut regenerate_stopwatch: Local<Stopwatch>,
     mut regenerate_event: EventWriter<RegenerateSceneEvent>,
@@ -349,14 +423,6 @@ fn regenerate_scene_system(
     regenerate_scene |= keys.just_pressed(KeyCode::KeyR);
 
     if regenerate_scene {
-        for entity in clear_meshes.iter() {
-            commands.entity(entity).despawn_recursive();
-        }
-
-        for entity in clear_zeroverse_primitives.iter() {
-            commands.entity(entity).despawn_recursive();
-        }
-
         regenerate_event.send(RegenerateSceneEvent);
         regenerate_stopwatch.reset();
     }

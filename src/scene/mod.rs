@@ -9,13 +9,18 @@ pub struct ZeroverseScenePlugin;
 impl Plugin for ZeroverseScenePlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<RegenerateSceneEvent>();
+        app.add_event::<SceneLoadedEvent>();
+
+        app.insert_resource(ZeroverseSceneSettings {
+            num_cameras: 4,
+        });
 
         app.add_plugins((
             object::ZeroverseObjectPlugin,
             room::ZeroverseRoomPlugin,
         ));
 
-        app.add_systems(PostUpdate, regenerate_scene);
+        app.add_systems(PreUpdate, regenerate_scene);
     }
 }
 
@@ -24,8 +29,18 @@ impl Plugin for ZeroverseScenePlugin {
 pub struct ZeroverseScene;
 
 
+#[derive(Resource, Debug, Reflect)]
+pub struct ZeroverseSceneSettings {
+    pub num_cameras: usize,
+}
+
+
 #[derive(Event)]
 pub struct RegenerateSceneEvent;
+
+
+#[derive(Event)]
+pub struct SceneLoadedEvent;
 
 
 fn regenerate_scene(
