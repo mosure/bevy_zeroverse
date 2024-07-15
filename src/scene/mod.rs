@@ -5,6 +5,7 @@ use bevy_args::{
 };
 use clap::ValueEnum;
 
+pub mod lighting;
 pub mod object;
 pub mod room;
 
@@ -20,6 +21,7 @@ impl Plugin for ZeroverseScenePlugin {
         app.register_type::<ZeroverseSceneSettings>();
 
         app.add_plugins((
+            lighting::ZeroverseLightingPlugin,
             object::ZeroverseObjectPlugin,
             room::ZeroverseRoomPlugin,
         ));

@@ -30,7 +30,6 @@ use bevy_zeroverse::{
         ZeroverseMaterials,
     },
     plucker::PluckerOutput,
-    primitive::ZeroversePrimitiveSettings,
     scene::{
         RegenerateSceneEvent,
         SceneLoadedEvent,
@@ -52,6 +51,7 @@ use bevy_zeroverse::{
 #[command(about = "bevy_zeroverse viewer", version, long_about = None)]
 #[reflect(Resource)]
 struct BevyZeroverseViewer {
+    /// enable the bevy inspector
     #[arg(long, default_value = "true")]
     editor: bool,
 
@@ -63,6 +63,7 @@ struct BevyZeroverseViewer {
     #[arg(long, default_value = "false")]
     plucker_visualization: bool,
 
+    /// enable closing the window with the escape key (doesn't work in web)
     #[arg(long, default_value = "true")]
     press_esc_close: bool,
 
@@ -79,6 +80,7 @@ struct BevyZeroverseViewer {
     #[arg(long, default_value = "false")]
     camera_grid: bool,
 
+    /// window title
     #[arg(long, default_value = "bevy_zeroverse")]
     name: String,
 
@@ -86,8 +88,7 @@ struct BevyZeroverseViewer {
     #[arg(long, default_value = "0")]
     regenerate_ms: u32,
 
-    // TODO: figure out an abstraction for this (e.g. move along sampled surface)
-    /// automatically rotate the camera yaw
+    /// automatically rotate the root scene object in the y axis
     #[arg(long, default_value = "0.0")]
     yaw_speed: f32,
 
@@ -370,6 +371,7 @@ fn setup_material_grid(
 #[derive(Component)]
 struct PluckerVisualization;
 
+// TODO: move this to plucker.rs, attach UI elements directly to individual cameras (no entity sort required)
 fn setup_plucker_visualization(
     mut commands: Commands,
     args: Res<BevyZeroverseViewer>,

@@ -6,6 +6,10 @@ use crate::{
         ZeroverseCamera,
     },
     scene::{
+        lighting::{
+            setup_lighting,
+            ZeroverseLightingSettings,
+        },
         RegenerateSceneEvent,
         SceneLoadedEvent,
         ZeroverseScene,
@@ -57,27 +61,13 @@ fn setup_cameras(
 }
 
 
-fn setup_lighting(
-    mut commands: Commands,
-) {
-    // TODO: noisy lighting
-    commands.spawn(DirectionalLightBundle {
-        transform: Transform::from_xyz(50.0, 50.0, 50.0).looking_at(Vec3::ZERO, Vec3::Y),
-        directional_light: DirectionalLight {
-            illuminance: 1_500.,
-            ..default()
-        },
-        ..default()
-    }).insert(ZeroverseScene);
-}
-
-
 fn regenerate_scene(
     mut commands: Commands,
     primitive_settings: Res<ZeroversePrimitiveSettings>,
     mut regenerate_events: EventReader<RegenerateSceneEvent>,
     scene_settings: Res<ZeroverseSceneSettings>,
     load_event: EventWriter<SceneLoadedEvent>,
+    lighting_settings: Res<ZeroverseLightingSettings>,
 ) {
     if scene_settings.scene_type != ZeroverseSceneType::Object {
         return;
@@ -93,7 +83,10 @@ fn regenerate_scene(
         scene_settings,
     );
 
-    setup_lighting(commands.reborrow());
+    setup_lighting(
+        commands.reborrow(),
+        lighting_settings,
+    );
 
     setup_scene(
         commands,
