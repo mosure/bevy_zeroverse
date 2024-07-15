@@ -47,9 +47,7 @@ impl Plugin for ZeroverseCameraPlugin {
         );
 
         app.init_resource::<DefaultZeroverseCamera>();
-        app.init_resource::<EnvironmentMapResource>();
 
-        app.add_systems(PreStartup, load_environment_map);
         app.add_systems(
             Update,
             (
@@ -59,22 +57,6 @@ impl Plugin for ZeroverseCameraPlugin {
         );
         app.add_systems(Update, draw_camera_gizmo);
     }
-}
-
-
-#[derive(Resource, Default, Debug, Reflect)]
-pub struct EnvironmentMapResource {
-    diffuse_map: Handle<Image>,
-    specular_map: Handle<Image>,
-}
-
-// TODO: support multiple environment maps
-fn load_environment_map(
-    asset_server: Res<AssetServer>,
-    mut environment_map: ResMut<EnvironmentMapResource>,
-) {
-    environment_map.diffuse_map = asset_server.load("environment_maps/pisa_diffuse_rgb9e5_zstd.ktx2");
-    environment_map.specular_map = asset_server.load("environment_maps/pisa_specular_rgb9e5_zstd.ktx2");
 }
 
 
@@ -157,7 +139,6 @@ fn insert_cameras(
         ),
         Without<Camera>,
     >,
-    environment_map: Res<EnvironmentMapResource>,
     default_zeroverse_camera: Res<DefaultZeroverseCamera>,
 ) {
     for (entity, zeroverse_camera) in zeroverse_cameras.iter() {
@@ -200,17 +181,12 @@ fn insert_cameras(
                     screen_space_specular_transmission_quality: ScreenSpaceTransmissionQuality::High,
                     ..default()
                 },
-                exposure: Exposure::BLENDER,
+                exposure: Exposure::INDOOR,
                 transform: zeroverse_camera.sampler.sample(),
                 tonemapping: Tonemapping::None,
                 ..default()
             },
             BloomSettings::default(),
-            EnvironmentMapLight {
-                diffuse_map: environment_map.diffuse_map.clone(),
-                specular_map: environment_map.specular_map.clone(),
-                intensity: 900.0,
-            },
         ));
     }
 }
@@ -233,7 +209,6 @@ fn setup_editor_camera(
         Entity,
         (With<EditorCameraMarker>, Without<ProcessedEditorCameraMarker>),
     >,
-    environment_map: Res<EnvironmentMapResource>,
 ) {
     for entity in editor_cameras.iter() {
         let render_layer = RenderLayers::default().union(&EDITOR_CAMERA_RENDER_LAYER);
@@ -248,18 +223,13 @@ fn setup_editor_camera(
                         screen_space_specular_transmission_quality: ScreenSpaceTransmissionQuality::High,
                         ..default()
                     },
-                    exposure: Exposure::BLENDER,
+                    exposure: Exposure::INDOOR,
                     transform: Transform::default(),
                     tonemapping: Tonemapping::None,
                     ..default()
                 },
                 BloomSettings::default(),
                 PluckerCamera,
-                EnvironmentMapLight {
-                    diffuse_map: environment_map.diffuse_map.clone(),
-                    specular_map: environment_map.specular_map.clone(),
-                    intensity: 900.0,
-                },
             ))
             .insert(render_layer)
             .insert(ProcessedEditorCameraMarker);

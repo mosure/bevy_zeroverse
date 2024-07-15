@@ -14,8 +14,8 @@ impl Plugin for ZeroverseLightingPlugin {
         app.register_type::<ZeroverseLightingSettings>();
 
         app.insert_resource(AmbientLight {
-            color: Color::WHITE,
-            brightness: 0.01,
+            brightness: 120.0,
+            ..default()
         });
     }
 }
@@ -36,7 +36,7 @@ impl Default for ZeroverseLightingSettings {
             directional_lights: 1,
             position_range: (-100.0, 100.0),
             height_range: (10.0, 100.0),
-            illuminance_range: (1_000.0, 2_000.0),
+            illuminance_range: (500.0, 1_250.0),
         }
     }
 }
