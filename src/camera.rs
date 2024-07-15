@@ -111,7 +111,7 @@ impl Default for CameraPositionSampler {
 impl CameraPositionSampler {
     pub fn sample(&self) -> Transform {
         match *self {
-            CameraPositionSampler::Transform(transform) => transform.clone(),
+            CameraPositionSampler::Transform(transform) => transform,
             CameraPositionSampler::Circle { radius, rotation } => {
                 let rng = &mut rand::thread_rng();
 

@@ -265,7 +265,7 @@ fn setup_camera_grid(
         let zeroverse_cameras = zeroverse_cameras
             .iter()
             .sort_by::<(Entity, &Camera)>(|(entity_a, _), (entity_b, _)| {
-                entity_a.cmp(&entity_b)
+                entity_a.cmp(entity_b)
             });
 
         commands.spawn(NodeBundle {
