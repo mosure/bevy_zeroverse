@@ -2,13 +2,10 @@ use bevy::{
     prelude::*,
     asset::load_internal_asset,
     pbr::{
-        MaterialPipeline,
-        MaterialPipelineKey,
+        ExtendedMaterial,
+        MaterialExtension,
     },
-    render::{
-        mesh::MeshVertexBufferLayoutRef,
-        render_resource::*,
-    },
+    render::render_resource::*,
 };
 
 
@@ -43,7 +40,16 @@ fn setup_global_normal_material(
     mut commands: Commands,
     mut materials: ResMut<Assets<NormalMaterial>>,
 ) {
-    let normal_material = materials.add(NormalMaterial::default());
+    let normal_material = materials.add(
+        ExtendedMaterial {
+            base: StandardMaterial {
+                double_sided: true,
+                cull_mode: None,
+                ..default()
+            },
+            extension: NormalExtension::default(),
+        },
+    );
     commands.insert_resource(GlobalNormalMaterial(normal_material));
 }
 
@@ -69,23 +75,16 @@ fn apply_normal_material(
 
 
 #[derive(Default, AsBindGroup, TypePath, Debug, Clone, Asset)]
-pub struct NormalMaterial { }
+pub struct NormalExtension { }
+
+pub type NormalMaterial = ExtendedMaterial<StandardMaterial, NormalExtension>;
+
 
 #[derive(Default, Resource, Debug, Clone)]
 pub struct GlobalNormalMaterial(pub Handle<NormalMaterial>);
 
-impl Material for NormalMaterial {
+impl MaterialExtension for NormalExtension {
     fn fragment_shader() -> ShaderRef {
         NORMAL_SHADER_HANDLE.into()
-    }
-
-    fn specialize(
-        _pipeline: &MaterialPipeline<Self>,
-        descriptor: &mut RenderPipelineDescriptor,
-        _layout: &MeshVertexBufferLayoutRef,
-        _key: MaterialPipelineKey<Self>,
-    ) -> Result<(), SpecializedMeshPipelineError> {
-        descriptor.primitive.cull_mode = None;
-        Ok(())
     }
 }

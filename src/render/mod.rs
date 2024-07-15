@@ -26,11 +26,11 @@ impl Plugin for RenderPlugin {
         app.add_plugins(normal::NormalPlugin);
 
         // TODO: add wireframe pbr disable
-        app.add_systems(PreUpdate, auto_disable_pbr_material::<depth::Depth>);
-        app.add_systems(PreUpdate, auto_disable_pbr_material::<normal::Normal>);
+        app.add_systems(PostUpdate, auto_disable_pbr_material::<depth::Depth>);
+        app.add_systems(PostUpdate, auto_disable_pbr_material::<normal::Normal>);
 
-        app.add_systems(PreUpdate, apply_render_modes);
-        app.add_systems(PreUpdate, enable_pbr_material);
+        app.add_systems(PostUpdate, apply_render_modes);
+        app.add_systems(PostUpdate, enable_pbr_material);
     }
 }
 

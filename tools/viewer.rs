@@ -34,6 +34,7 @@ use bevy_zeroverse::{
     scene::{
         RegenerateSceneEvent,
         SceneLoadedEvent,
+        ZeroverseSceneRoot,
         ZeroverseSceneSettings,
     },
 };
@@ -70,7 +71,7 @@ struct BevyZeroverseViewer {
     #[arg(long, default_value = "1080.0")]
     height: f32,
 
-    #[arg(long, default_value = "4")]
+    #[arg(long, default_value = "0")]
     num_cameras: usize,
 
     /// display a grid of Zeroverse cameras
@@ -99,7 +100,7 @@ impl Default for BevyZeroverseViewer {
             press_esc_close: true,
             width: 1920.0,
             height: 1080.0,
-            num_cameras: 4,
+            num_cameras: 0,
             camera_grid: false,
             name: "bevy_zeroverse".to_string(),
             regenerate_ms: 0,
@@ -187,11 +188,13 @@ fn viewer_app() {
 
     app.add_systems(PreUpdate, (
         press_m_shuffle_materials,
-        regenerate_scene_system,
         setup_material_grid,
     ));
 
+    app.add_systems(Update, rotate_scene);
+
     app.add_systems(PostUpdate, (
+        regenerate_scene_system,
         setup_camera_grid,
         setup_plucker_visualization,
     ));
@@ -201,8 +204,16 @@ fn viewer_app() {
 
 
 fn setup_camera(
+    args: Res<BevyZeroverseViewer>,
     mut commands: Commands,
 ) {
+    // TODO: add a check for dataloader/headless mode
+    // TODO: allow inspector toggling of camera-grid
+    if args.camera_grid {
+        commands.spawn(Camera2dBundle::default());
+        return;
+    }
+
     commands.spawn((
         EditorCameraMarker,
         PanOrbitCamera {
@@ -224,7 +235,7 @@ fn setup_camera_grid(
     args: Res<BevyZeroverseViewer>,
     camera_grids: Query<Entity, With<CameraGrid>>,
     zeroverse_cameras: Query<
-        &Camera,
+        (Entity, &Camera),
         With<ZeroverseCamera>,
     >,
     mut scene_loaded: EventReader<SceneLoadedEvent>,
@@ -243,6 +254,12 @@ fn setup_camera_grid(
         let rows = (camera_count as f32).sqrt().ceil() as u16;
         let cols = (camera_count as f32 / rows as f32).ceil() as u16;
 
+        let zeroverse_cameras = zeroverse_cameras
+            .iter()
+            .sort_by::<(Entity, &Camera)>(|(entity_a, _), (entity_b, _)| {
+                entity_a.cmp(&entity_b)
+            });
+
         commands.spawn(NodeBundle {
             style: Style {
                 display: Display::Grid,
@@ -256,7 +273,7 @@ fn setup_camera_grid(
             ..default()
         })
         .with_children(|builder| {
-            for camera in zeroverse_cameras.iter() {
+            for (_, camera) in zeroverse_cameras {
                 let texture = match camera.target.clone() {
                     RenderTarget::Image(texture) => texture,
                     _ => continue,
@@ -349,7 +366,7 @@ struct PluckerVisualization;
 fn setup_plucker_visualization(
     mut commands: Commands,
     args: Res<BevyZeroverseViewer>,
-    plucker_output: Query<(Entity, &Camera, &PluckerOutput)>,
+    plucker_outputs: Query<&PluckerOutput>,
     plucker_visualization: Query<
         Entity,
         With<PluckerVisualization>,
@@ -370,28 +387,19 @@ fn setup_plucker_visualization(
         return;
     }
 
-    if plucker_output.is_empty() {
-        warn_once!("PluckerOutput is not attached - enable the `plucker` feature");
+    if plucker_outputs.is_empty() {
         return;
     }
 
-    let plucker_output = plucker_output
-        .iter()
-        .sort_by::<(&Camera, &PluckerOutput)>(|(camera_a, _), (camera_b, _)| {
-            camera_a.order.cmp(&camera_b.order)
-        });
-
-    for (
-        entity,
-        _,
-        plucker_output,
-    ) in plucker_output {
+    for plucker_output in plucker_outputs.iter() {
         commands.spawn((
             ImageBundle {
                 style: Style {
                     position_type: PositionType::Absolute,
                     bottom: Val::Px(0.0),
                     right: Val::Px(0.0),
+                    width: Val::Px(256.0),
+                    height: Val::Px(256.0),
                     ..default()
                 },
                 image: UiImage {
@@ -401,7 +409,6 @@ fn setup_plucker_visualization(
                 ..default()
             },
             PluckerVisualization,
-            TargetCamera(entity),
         ));
     }
 }
@@ -425,6 +432,18 @@ fn regenerate_scene_system(
     if regenerate_scene {
         regenerate_event.send(RegenerateSceneEvent);
         regenerate_stopwatch.reset();
+    }
+}
+
+
+fn rotate_scene(
+    time: Res<Time>,
+    args: Res<BevyZeroverseViewer>,
+    mut scene_roots: Query<&mut Transform, With<ZeroverseSceneRoot>>,
+) {
+    for mut transform in scene_roots.iter_mut() {
+        let delta_rot = args.yaw_speed * time.delta_seconds();
+        transform.rotate(Quat::from_rotation_y(delta_rot));
     }
 }
 

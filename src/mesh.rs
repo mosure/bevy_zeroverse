@@ -6,7 +6,7 @@ use noise::{NoiseFn, Perlin};
 use rand::Rng;
 
 
-pub fn displace_vertices_with_noise(mesh: &mut Mesh, scale: f32) {
+pub fn displace_vertices_with_noise(mesh: &mut Mesh, frequency: f32, scale: f32) {
     let rng = &mut rand::thread_rng();
 
     let perlin_x = Perlin::new(rng.gen());
@@ -22,9 +22,9 @@ pub fn displace_vertices_with_noise(mesh: &mut Mesh, scale: f32) {
 
     for position in positions_attr.iter_mut() {
         let coords = [
-            position[0] as f64,
-            position[1] as f64,
-            position[2] as f64,
+            (position[0] * frequency) as f64,
+            (position[1] * frequency) as f64,
+            (position[2] * frequency) as f64,
         ];
 
         let n_x = perlin_x.get(coords) * scale as f64;
@@ -38,6 +38,4 @@ pub fn displace_vertices_with_noise(mesh: &mut Mesh, scale: f32) {
     }
 
     mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, VertexAttributeValues::Float32x3(positions_attr));
-
-    mesh.compute_smooth_normals();
 }

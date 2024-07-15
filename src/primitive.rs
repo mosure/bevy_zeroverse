@@ -71,6 +71,9 @@ pub struct PrimitiveSettings {
     pub available_operations: Vec<ManifoldOperations>,
     pub wireframe_probability: f32,
     pub noise_probability: f32,
+    pub smooth_normals_probability: f32,
+    pub noise_frequency_lower_bound: f32,
+    pub noise_frequency_upper_bound: f32,
     pub noise_scale_lower_bound: f32,
     pub noise_scale_upper_bound: f32,
     pub rotation_lower_bound: Vec3,
@@ -88,8 +91,11 @@ impl Default for PrimitiveSettings {
             available_operations: ManifoldOperations::iter().collect(),
             wireframe_probability: 0.0,
             noise_probability: 0.3,
+            smooth_normals_probability: 1.0,
+            noise_frequency_lower_bound: 0.5,
+            noise_frequency_upper_bound: 2.0,
             noise_scale_lower_bound: 0.0,
-            noise_scale_upper_bound: 1.0,
+            noise_scale_upper_bound: 0.6,
             rotation_lower_bound: Vec3::splat(0.0),
             rotation_upper_bound: Vec3::splat(std::f32::consts::PI),
             scale_lower_bound: Vec3::splat(0.05),
@@ -229,15 +235,25 @@ fn build_primitive(
             };
 
             if rng.gen_bool(settings.noise_probability as f64) {
+                let noise_frequency = rng.gen_range(settings.noise_frequency_lower_bound..settings.noise_frequency_upper_bound);
                 let noise_scale = rng.gen_range(settings.noise_scale_lower_bound..settings.noise_scale_upper_bound);
-                displace_vertices_with_noise(&mut mesh, noise_scale);
+                displace_vertices_with_noise(&mut mesh, noise_frequency, noise_scale);
             }
 
             let transform = Transform::from_translation(position)
                 .with_rotation(rotation)
                 .with_scale(scale);
 
-            let mesh = mesh.transformed_by(transform);
+            let mut mesh = mesh.transformed_by(transform);
+
+            if rng.gen_bool(settings.smooth_normals_probability as f64) {
+                mesh.compute_smooth_normals();
+            } else {
+                mesh.duplicate_vertices();
+                mesh.compute_flat_normals();
+            }
+            // with the current texture resolution, generating tangents produces too much noise
+            // mesh.generate_tangents().unwrap();
 
             let mut primitive = commands.spawn((
                 PbrBundle {

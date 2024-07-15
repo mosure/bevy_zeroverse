@@ -9,6 +9,7 @@ use crate::{
         RegenerateSceneEvent,
         SceneLoadedEvent,
         ZeroverseScene,
+        ZeroverseSceneRoot,
         ZeroverseSceneSettings,
     },
     primitive::{
@@ -40,7 +41,7 @@ fn setup_scene(
     commands.spawn(PrimitiveBundle {
         settings: primitive_settings.clone(),
         ..default()
-    }).insert(ZeroverseScene);
+    }).insert((ZeroverseScene, ZeroverseSceneRoot));
 
     load_event.send(SceneLoadedEvent);
 }
@@ -48,26 +49,28 @@ fn setup_scene(
 
 fn setup_cameras(
     mut commands: Commands,
-    _scene_settings: Res<ZeroverseSceneSettings>,
+    scene_settings: Res<ZeroverseSceneSettings>,
 ) {
-    // TODO: insert cameras (circular for object-scale)
+    // let rotation = Quat::from_rng(&mut rand::thread_rng());
+
     // for _ in 0..scene_settings.num_cameras {
     //     commands.spawn(ZeroverseCamera {
     //         sampler: CameraPositionSampler::Circle {
     //             radius: 3.0,
-    //             rotation: Quat::from_rotation_z(0.0),
+    //             rotation,
     //         },
     //         ..default()
     //     }).insert(ZeroverseScene);
     // }
 
-    commands.spawn(ZeroverseCamera {
-        sampler: CameraPositionSampler::Transform(
-            Transform::from_xyz(0.0, 0.0, 3.0)
-                .looking_at(Vec3::ZERO, Vec3::Y),
-        ),
-        ..default()
-    }).insert(ZeroverseScene);
+    for _ in 0..scene_settings.num_cameras {
+        commands.spawn(ZeroverseCamera {
+            sampler: CameraPositionSampler::Sphere {
+                radius: 3.25,
+            },
+            ..default()
+        }).insert(ZeroverseScene);
+    }
 }
 
 
@@ -111,13 +114,3 @@ fn regenerate_scene(
         load_event,
     );
 }
-
-// fn auto_yaw_camera(
-//     args: Res<BevyZeroverseViewer>,
-//     time: Res<Time>,
-//     mut cameras: Query<(&mut PanOrbitCamera, &Camera)>,
-// ) {
-//     for (mut camera, _) in cameras.iter_mut() {
-//         camera.target_yaw += args.yaw_speed * time.delta_seconds();
-//     }
-// }

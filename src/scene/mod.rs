@@ -12,8 +12,9 @@ impl Plugin for ZeroverseScenePlugin {
         app.add_event::<SceneLoadedEvent>();
 
         app.insert_resource(ZeroverseSceneSettings {
-            num_cameras: 4,
+            num_cameras: 0,
         });
+        app.register_type::<ZeroverseSceneSettings>();
 
         app.add_plugins((
             object::ZeroverseObjectPlugin,
@@ -28,8 +29,12 @@ impl Plugin for ZeroverseScenePlugin {
 #[derive(Component, Debug, Reflect)]
 pub struct ZeroverseScene;
 
+#[derive(Component, Debug, Reflect)]
+pub struct ZeroverseSceneRoot;
+
 
 #[derive(Resource, Debug, Reflect)]
+#[reflect(Resource)]
 pub struct ZeroverseSceneSettings {
     pub num_cameras: usize,
 }

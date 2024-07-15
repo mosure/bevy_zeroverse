@@ -9,6 +9,13 @@ use bevy::{
         GizmoConfig,
         GizmoConfigGroup,
     },
+    math::{
+        primitives::{
+            Circle,
+            Sphere,
+        },
+        sampling::ShapeSample,
+    },
     render::{
         camera::{
             Exposure,
@@ -73,9 +80,16 @@ fn load_environment_map(
 
 #[derive(Debug, Reflect)]
 pub enum CameraPositionSampler {
+    Band {
+        size: Vec3,
+        rotation: Quat,
+    },
     Circle {
         radius: f32,
         rotation: Quat,
+    },
+    Sphere {
+        radius: f32,
     },
     Cuboid {
         size: Vec3,
@@ -93,6 +107,33 @@ impl Default for CameraPositionSampler {
         Self::Transform(Transform::default())
     }
 }
+
+impl CameraPositionSampler {
+    pub fn sample(&self) -> Transform {
+        match *self {
+            CameraPositionSampler::Transform(transform) => transform.clone(),
+            CameraPositionSampler::Circle { radius, rotation } => {
+                let rng = &mut rand::thread_rng();
+
+                let xz = Circle::new(radius).sample_boundary(rng);
+                let pos = rotation.mul_vec3(Vec3::new(xz.x, 0.0, xz.y));
+
+                Transform::from_translation(pos)
+                    .looking_at(Vec3::ZERO, Vec3::Y)
+            },
+            CameraPositionSampler::Sphere { radius } => {
+                let rng = &mut rand::thread_rng();
+
+                let pos = Sphere::new(radius).sample_boundary(rng);
+
+                Transform::from_translation(pos)
+                    .looking_at(Vec3::ZERO, Vec3::Y)
+            },
+            _ => Transform::default(),
+        }
+    }
+}
+
 
 #[derive(Component, Debug, Default, Reflect)]
 pub struct ZeroverseCamera {
@@ -148,12 +189,6 @@ fn insert_cameras(
         let render_target = images.add(render_target);
         let target = RenderTarget::Image(render_target);
 
-        // TODO: perform sampling
-        let transform = match zeroverse_camera.sampler {
-            CameraPositionSampler::Transform(transform) => transform,
-            _ => Transform::default(),
-        };
-
         commands.entity(entity).insert((
             Camera3dBundle {
                 camera: Camera {
@@ -166,12 +201,11 @@ fn insert_cameras(
                     ..default()
                 },
                 exposure: Exposure::BLENDER,
-                transform,
+                transform: zeroverse_camera.sampler.sample(),
                 tonemapping: Tonemapping::None,
                 ..default()
             },
             BloomSettings::default(),
-            PluckerCamera,
             EnvironmentMapLight {
                 diffuse_map: environment_map.diffuse_map.clone(),
                 specular_map: environment_map.specular_map.clone(),
