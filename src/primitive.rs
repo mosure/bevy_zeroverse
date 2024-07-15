@@ -39,7 +39,8 @@ use crate::{
 pub struct ZeroversePrimitivePlugin;
 impl Plugin for ZeroversePrimitivePlugin {
     fn build(&self, app: &mut App) {
-        app.register_type::<PrimitiveSettings>();
+        app.init_resource::<ZeroversePrimitiveSettings>();
+        app.register_type::<ZeroversePrimitiveSettings>();
 
         #[cfg(not(target_family = "wasm"))]  // note: web does not handle `POLYGON_MODE_LINE`, so we skip wireframes
         app.add_plugins(bevy::pbr::wireframe::WireframePlugin);
@@ -65,7 +66,7 @@ pub enum ZeroversePrimitives {
 // TODO: support scale and rotation pdfs via https://github.com/villor/bevy_lookup_curve
 #[derive(Clone, Component, Debug, Reflect, Resource)]
 #[reflect(Resource)]
-pub struct PrimitiveSettings {
+pub struct ZeroversePrimitiveSettings {
     pub components: usize,
     pub available_types: Vec<ZeroversePrimitives>,
     pub available_operations: Vec<ManifoldOperations>,
@@ -83,9 +84,9 @@ pub struct PrimitiveSettings {
     pub position_sampler: PositionSampler,
 }
 
-impl Default for PrimitiveSettings {
-    fn default() -> PrimitiveSettings {
-        PrimitiveSettings {
+impl Default for ZeroversePrimitiveSettings {
+    fn default() -> ZeroversePrimitiveSettings {
+        ZeroversePrimitiveSettings {
             components: 5,
             available_types: ZeroversePrimitives::iter().collect(),
             available_operations: ManifoldOperations::iter().collect(),
@@ -127,7 +128,7 @@ impl PositionSampler {
 
 #[derive(Bundle, Default, Debug)]
 pub struct PrimitiveBundle {
-    pub settings: PrimitiveSettings,
+    pub settings: ZeroversePrimitiveSettings,
     pub spatial: SpatialBundle,
 }
 
@@ -138,7 +139,7 @@ pub struct ZeroversePrimitive;
 
 fn build_primitive(
     commands: &mut ChildBuilder,
-    settings: &PrimitiveSettings,
+    settings: &ZeroversePrimitiveSettings,
     meshes: &mut ResMut<Assets<Mesh>>,
     zeroverse_materials: &Res<ZeroverseMaterials>,
 ) {
@@ -292,7 +293,7 @@ fn process_primitives(
     primitives: Query<
         (
             Entity,
-            &PrimitiveSettings
+            &ZeroversePrimitiveSettings
         ),
         Without<ZeroversePrimitive>,
     >,

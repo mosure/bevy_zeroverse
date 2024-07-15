@@ -11,10 +11,11 @@ use crate::{
         ZeroverseScene,
         ZeroverseSceneRoot,
         ZeroverseSceneSettings,
+        ZeroverseSceneType,
     },
     primitive::{
         PrimitiveBundle,
-        PrimitiveSettings,
+        ZeroversePrimitiveSettings,
     },
 };
 
@@ -22,12 +23,6 @@ use crate::{
 pub struct ZeroverseObjectPlugin;
 impl Plugin for ZeroverseObjectPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, (
-            setup_cameras,
-            setup_lighting,
-            setup_scene,
-        ));
-
         app.add_systems(PreUpdate, regenerate_scene);
     }
 }
@@ -35,7 +30,7 @@ impl Plugin for ZeroverseObjectPlugin {
 
 fn setup_scene(
     mut commands: Commands,
-    primitive_settings: Res<PrimitiveSettings>,
+    primitive_settings: Res<ZeroversePrimitiveSettings>,
     mut load_event: EventWriter<SceneLoadedEvent>,
 ) {
     commands.spawn(PrimitiveBundle {
@@ -51,18 +46,6 @@ fn setup_cameras(
     mut commands: Commands,
     scene_settings: Res<ZeroverseSceneSettings>,
 ) {
-    // let rotation = Quat::from_rng(&mut rand::thread_rng());
-
-    // for _ in 0..scene_settings.num_cameras {
-    //     commands.spawn(ZeroverseCamera {
-    //         sampler: CameraPositionSampler::Circle {
-    //             radius: 3.0,
-    //             rotation,
-    //         },
-    //         ..default()
-    //     }).insert(ZeroverseScene);
-    // }
-
     for _ in 0..scene_settings.num_cameras {
         commands.spawn(ZeroverseCamera {
             sampler: CameraPositionSampler::Sphere {
@@ -91,11 +74,15 @@ fn setup_lighting(
 
 fn regenerate_scene(
     mut commands: Commands,
-    primitive_settings: Res<PrimitiveSettings>,
+    primitive_settings: Res<ZeroversePrimitiveSettings>,
     mut regenerate_events: EventReader<RegenerateSceneEvent>,
     scene_settings: Res<ZeroverseSceneSettings>,
     load_event: EventWriter<SceneLoadedEvent>,
 ) {
+    if scene_settings.scene_type != ZeroverseSceneType::Object {
+        return;
+    }
+
     if regenerate_events.is_empty() {
         return;
     }

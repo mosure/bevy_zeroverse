@@ -30,12 +30,13 @@ use bevy_zeroverse::{
         ZeroverseMaterials,
     },
     plucker::PluckerOutput,
-    primitive::PrimitiveSettings,
+    primitive::ZeroversePrimitiveSettings,
     scene::{
         RegenerateSceneEvent,
         SceneLoadedEvent,
         ZeroverseSceneRoot,
         ZeroverseSceneSettings,
+        ZeroverseSceneType,
     },
 };
 
@@ -89,6 +90,9 @@ struct BevyZeroverseViewer {
     /// automatically rotate the camera yaw
     #[arg(long, default_value = "0.0")]
     yaw_speed: f32,
+
+    #[arg(long, value_enum, default_value_t = ZeroverseSceneType::Object)]
+    scene_type: ZeroverseSceneType,
 }
 
 impl Default for BevyZeroverseViewer {
@@ -105,6 +109,7 @@ impl Default for BevyZeroverseViewer {
             name: "bevy_zeroverse".to_string(),
             regenerate_ms: 0,
             yaw_speed: 0.0,
+            scene_type: Default::default(),
         }
     }
 }
@@ -180,11 +185,13 @@ fn viewer_app() {
 
     app.insert_resource(ZeroverseSceneSettings {
         num_cameras: args.num_cameras,
+        scene_type: args.scene_type,
     });
 
-    app.init_resource::<PrimitiveSettings>();
-
-    app.add_systems(Startup, setup_camera);
+    app.add_systems(Startup, (
+        setup_camera,
+        setup_scene,
+    ));
 
     app.add_systems(PreUpdate, (
         press_m_shuffle_materials,
@@ -413,6 +420,12 @@ fn setup_plucker_visualization(
     }
 }
 
+
+fn setup_scene(
+    mut regenerate_event: EventWriter<RegenerateSceneEvent>,
+) {
+    regenerate_event.send(RegenerateSceneEvent);
+}
 
 #[allow(clippy::too_many_arguments)]
 fn regenerate_scene_system(

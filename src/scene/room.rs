@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::{
     material::ZeroverseMaterials,
-    primitive::PrimitiveSettings,
+    primitive::ZeroversePrimitiveSettings,
 };
 
 
@@ -19,7 +19,7 @@ impl Plugin for ZeroverseRoomPlugin {
 #[derive(Clone, Component, Debug, Default, Reflect, Resource)]
 #[reflect(Resource)]
 pub struct RoomSettings {
-    pub base_settings: PrimitiveSettings,
+    pub base_settings: ZeroversePrimitiveSettings,
 }
 
 

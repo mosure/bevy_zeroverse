@@ -1,4 +1,9 @@
 use bevy::prelude::*;
+use bevy_args::{
+    Deserialize,
+    Serialize,
+};
+use clap::ValueEnum;
 
 pub mod object;
 pub mod room;
@@ -11,9 +16,7 @@ impl Plugin for ZeroverseScenePlugin {
         app.add_event::<RegenerateSceneEvent>();
         app.add_event::<SceneLoadedEvent>();
 
-        app.insert_resource(ZeroverseSceneSettings {
-            num_cameras: 0,
-        });
+        app.init_resource::<ZeroverseSceneSettings>();
         app.register_type::<ZeroverseSceneSettings>();
 
         app.add_plugins((
@@ -33,10 +36,27 @@ pub struct ZeroverseScene;
 pub struct ZeroverseSceneRoot;
 
 
-#[derive(Resource, Debug, Reflect)]
+#[derive(
+    Debug,
+    Default,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    Reflect,
+    ValueEnum,
+)]
+pub enum ZeroverseSceneType {
+    #[default]
+    Object,
+    Room,
+}
+
+#[derive(Resource, Debug, Default, Reflect)]
 #[reflect(Resource)]
 pub struct ZeroverseSceneSettings {
     pub num_cameras: usize,
+    pub scene_type: ZeroverseSceneType,
 }
 
 
