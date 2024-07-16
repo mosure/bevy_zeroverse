@@ -46,7 +46,7 @@ pub struct MaterialLoaderSettings {
 impl Default for MaterialLoaderSettings {
     fn default() -> Self {
         Self {
-            batch_size: 200,
+            batch_size: 150,
         }
     }
 }

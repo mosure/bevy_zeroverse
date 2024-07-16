@@ -186,6 +186,7 @@ fn insert_cameras(
                 tonemapping: Tonemapping::None,
                 ..default()
             },
+            PluckerCamera,
             BloomSettings::default(),
         ));
     }

@@ -29,7 +29,7 @@ use bevy_zeroverse::{
         ShuffleMaterialsEvent,
         ZeroverseMaterials,
     },
-    plucker::PluckerOutput,
+    plucker::ZeroversePluckerSettings,
     scene::{
         RegenerateSceneEvent,
         SceneLoadedEvent,
@@ -184,12 +184,8 @@ fn viewer_app() {
         resolution: UVec2::new(args.width as u32, args.height as u32).into(),
     });
 
-    app.insert_resource(ZeroverseSceneSettings {
-        num_cameras: args.num_cameras,
-        scene_type: args.scene_type,
-    });
-
     app.add_systems(Startup, (
+        propagate_cli_settings,
         setup_camera,
         setup_scene,
     ));
@@ -202,9 +198,9 @@ fn viewer_app() {
     app.add_systems(Update, rotate_scene);
 
     app.add_systems(PostUpdate, (
+        propagate_cli_settings,
         regenerate_scene_system,
         setup_camera_grid,
-        setup_plucker_visualization,
     ));
 
     app.run();
@@ -248,6 +244,10 @@ fn setup_camera_grid(
     >,
     mut scene_loaded: EventReader<SceneLoadedEvent>,
 ) {
+    if zeroverse_cameras.is_empty() {
+        return;
+    }
+
     if scene_loaded.is_empty() {
         return;
     }
@@ -262,12 +262,6 @@ fn setup_camera_grid(
         let rows = (camera_count as f32).sqrt().ceil() as u16;
         let cols = (camera_count as f32 / rows as f32).ceil() as u16;
 
-        let zeroverse_cameras = zeroverse_cameras
-            .iter()
-            .sort_by::<(Entity, &Camera)>(|(entity_a, _), (entity_b, _)| {
-                entity_a.cmp(entity_b)
-            });
-
         commands.spawn(NodeBundle {
             style: Style {
                 display: Display::Grid,
@@ -281,7 +275,7 @@ fn setup_camera_grid(
             ..default()
         })
         .with_children(|builder| {
-            for (_, camera) in zeroverse_cameras {
+            for (_, camera) in zeroverse_cameras.iter() {
                 let texture = match camera.target.clone() {
                     RenderTarget::Image(texture) => texture,
                     _ => continue,
@@ -368,60 +362,6 @@ fn setup_material_grid(
     }
 }
 
-#[derive(Component)]
-struct PluckerVisualization;
-
-// TODO: move this to plucker.rs, attach UI elements directly to individual cameras (no entity sort required)
-fn setup_plucker_visualization(
-    mut commands: Commands,
-    args: Res<BevyZeroverseViewer>,
-    plucker_outputs: Query<&PluckerOutput>,
-    plucker_visualization: Query<
-        Entity,
-        With<PluckerVisualization>,
-    >,
-) {
-    let visualization_active = !plucker_visualization.is_empty();
-
-    if !args.plucker_visualization {
-        if visualization_active {
-            for entity in plucker_visualization.iter() {
-                commands.entity(entity).despawn_recursive();
-            }
-        }
-        return;
-    }
-
-    if visualization_active {
-        return;
-    }
-
-    if plucker_outputs.is_empty() {
-        return;
-    }
-
-    for plucker_output in plucker_outputs.iter() {
-        commands.spawn((
-            ImageBundle {
-                style: Style {
-                    position_type: PositionType::Absolute,
-                    bottom: Val::Px(0.0),
-                    right: Val::Px(0.0),
-                    width: Val::Px(256.0),
-                    height: Val::Px(256.0),
-                    ..default()
-                },
-                image: UiImage {
-                    texture: plucker_output.visualization.clone(),
-                    ..default()
-                },
-                ..default()
-            },
-            PluckerVisualization,
-        ));
-    }
-}
-
 
 fn setup_scene(
     mut regenerate_event: EventWriter<RegenerateSceneEvent>,
@@ -459,6 +399,20 @@ fn rotate_scene(
     for mut transform in scene_roots.iter_mut() {
         let delta_rot = args.yaw_speed * time.delta_seconds();
         transform.rotate(Quat::from_rotation_y(delta_rot));
+    }
+}
+
+
+fn propagate_cli_settings(
+    args: Res<BevyZeroverseViewer>,
+    mut plucker_settings: ResMut<ZeroversePluckerSettings>,
+    mut scene_settings: ResMut<ZeroverseSceneSettings>,
+) {
+    if args.is_changed() {
+        plucker_settings.enabled = args.plucker_visualization;
+
+        scene_settings.num_cameras = args.num_cameras;
+        scene_settings.scene_type = args.scene_type.clone();
     }
 }
 
