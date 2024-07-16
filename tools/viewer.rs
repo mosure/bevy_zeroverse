@@ -294,7 +294,9 @@ fn setup_camera_grid(
                     ..default()
                 });
             }
-        }).insert(CameraGrid);
+        })
+        .insert(CameraGrid)
+        .insert(Name::new("camera_grid"));
     }
 }
 
@@ -358,7 +360,9 @@ fn setup_material_grid(
                     ..default()
                 });
             }
-        }).insert(MaterialGrid);
+        })
+        .insert(MaterialGrid)
+        .insert(Name::new("material_grid"));
     }
 }
 

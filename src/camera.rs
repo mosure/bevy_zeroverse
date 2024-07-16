@@ -31,6 +31,7 @@ use bevy::{
         view::RenderLayers,
     }
 };
+use rand::Rng;
 
 use crate::plucker::PluckerCamera;
 
@@ -65,6 +66,7 @@ pub enum CameraPositionSampler {
     Band {
         size: Vec3,
         rotation: Quat,
+        translate: Vec3,
     },
     Circle {
         radius: f32,
@@ -93,7 +95,26 @@ impl Default for CameraPositionSampler {
 impl CameraPositionSampler {
     pub fn sample(&self) -> Transform {
         match *self {
-            CameraPositionSampler::Transform(transform) => transform,
+            CameraPositionSampler::Band { size, rotation, translate } => {
+                let rng = &mut rand::thread_rng();
+
+                let face = rng.gen_range(0..4);
+
+                let (x, z) = match face {
+                    0 => (-size.x / 2.0, rng.gen_range(-size.z / 2.0..size.z / 2.0)),
+                    1 => (size.x / 2.0, rng.gen_range(-size.z / 2.0..size.z / 2.0)),
+                    2 => (rng.gen_range(-size.x / 2.0..size.x / 2.0), -size.z / 2.0),
+                    3 => (rng.gen_range(-size.x / 2.0..size.x / 2.0), size.z / 2.0),
+                    _ => unreachable!(),
+                };
+
+                let y = rng.gen_range(-size.y / 2.0..size.y / 2.0);
+                let pos = Vec3::new(x, y, z) + translate;
+                let pos = rotation.mul_vec3(pos);
+
+                Transform::from_translation(pos)
+                    .looking_at(Vec3::ZERO, Vec3::Y)
+            },
             CameraPositionSampler::Circle { radius, rotation } => {
                 let rng = &mut rand::thread_rng();
 
@@ -101,7 +122,7 @@ impl CameraPositionSampler {
                 let pos = rotation.mul_vec3(Vec3::new(xz.x, 0.0, xz.y));
 
                 Transform::from_translation(pos)
-                    .looking_at(Vec3::ZERO, Vec3::Y)
+                .looking_at(Vec3::ZERO, Vec3::Y)
             },
             CameraPositionSampler::Sphere { radius } => {
                 let rng = &mut rand::thread_rng();
@@ -109,8 +130,9 @@ impl CameraPositionSampler {
                 let pos = Sphere::new(radius).sample_boundary(rng);
 
                 Transform::from_translation(pos)
-                    .looking_at(Vec3::ZERO, Vec3::Y)
+                .looking_at(Vec3::ZERO, Vec3::Y)
             },
+            CameraPositionSampler::Transform(transform) => transform,
             _ => Transform::default(),
         }
     }
@@ -188,6 +210,7 @@ fn insert_cameras(
             },
             PluckerCamera,
             BloomSettings::default(),
+            Name::new("zeroverse_camera"),
         ));
     }
 }
@@ -233,7 +256,8 @@ fn setup_editor_camera(
                 PluckerCamera,
             ))
             .insert(render_layer)
-            .insert(ProcessedEditorCameraMarker);
+            .insert(ProcessedEditorCameraMarker)
+            .insert(Name::new("editor_camera"));
     }
 }
 

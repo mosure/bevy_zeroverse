@@ -18,7 +18,7 @@ bevy zeroverse synthetic reconstruction dataset generator. view the [live demo](
 - [X] plücker camera labels
 - [X] generate parameteric zeroverse primitives
 - [X] primitive deformation
-- [ ] procedural zeroverse composite environments
+- [x] procedural zeroverse composite environments
 - [ ] primitive boolean operations
 - [ ] primitive pbr wireframe
 - [ ] online dataloader

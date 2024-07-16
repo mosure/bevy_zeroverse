@@ -271,6 +271,7 @@ fn create_plucker_output(
             },
             PluckerVisualization,
             TargetCamera(entity),
+            Name::new("plucker_visualization"),
         )).id();
 
         commands

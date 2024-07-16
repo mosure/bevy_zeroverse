@@ -54,20 +54,24 @@ pub fn setup_lighting(
         let z = rng.gen_range(lighting_settings.position_range.0..lighting_settings.position_range.1);
         let illuminance = rng.gen_range(lighting_settings.illuminance_range.0..lighting_settings.illuminance_range.1);
 
-        commands.spawn(DirectionalLightBundle {
-            transform: Transform::from_xyz(x, y, z).looking_at(Vec3::ZERO, Vec3::Y),
-            directional_light: DirectionalLight {
-                illuminance,
-                shadows_enabled: true,
+        commands.spawn((
+            DirectionalLightBundle {
+                transform: Transform::from_xyz(x, y, z).looking_at(Vec3::ZERO, Vec3::Y),
+                directional_light: DirectionalLight {
+                    illuminance,
+                    shadows_enabled: true,
+                    ..default()
+                },
+                cascade_shadow_config: CascadeShadowConfigBuilder {
+                    first_cascade_far_bound: 4.0,
+                    maximum_distance: 10.0,
+                    ..default()
+                }
+                .into(),
                 ..default()
             },
-            cascade_shadow_config: CascadeShadowConfigBuilder {
-                first_cascade_far_bound: 4.0,
-                maximum_distance: 10.0,
-                ..default()
-            }
-            .into(),
-            ..default()
-        }).insert(ZeroverseScene);
+            ZeroverseScene,
+            Name::new("directional_light"),
+        ));
     }
 }

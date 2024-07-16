@@ -14,12 +14,14 @@ use bevy::{
         sampling::ShapeSample,
     },
     pbr::{
+        NotShadowCaster,
         TransmittedShadowReceiver,
         wireframe::{
             Wireframe,
             WireframeColor,
         },
     },
+    render::mesh::VertexAttributeValues,
 };
 use itertools::izip;
 use rand::{
@@ -79,9 +81,11 @@ pub struct ZeroversePrimitiveSettings {
     pub noise_scale_upper_bound: f32,
     pub rotation_lower_bound: Vec3,
     pub rotation_upper_bound: Vec3,
-    pub scale_lower_bound: Vec3,
-    pub scale_upper_bound: Vec3,
     pub position_sampler: PositionSampler,
+    pub scale_sampler: ScaleSampler,
+    pub invert_normals: bool,
+    pub cast_shadows: bool,
+    pub receive_shadows: bool,
 }
 
 impl Default for ZeroversePrimitiveSettings {
@@ -99,28 +103,67 @@ impl Default for ZeroversePrimitiveSettings {
             noise_scale_upper_bound: 0.6,
             rotation_lower_bound: Vec3::splat(0.0),
             rotation_upper_bound: Vec3::splat(std::f32::consts::PI),
-            scale_lower_bound: Vec3::splat(0.05),
-            scale_upper_bound: Vec3::splat(1.0),
-            position_sampler: PositionSampler::Cube(Vec3::splat(0.5)),
+            position_sampler: PositionSampler::Cube { extents: Vec3::splat(0.5) },
+            scale_sampler: ScaleSampler::Bounded(Vec3::splat(0.05), Vec3::splat(1.0)),
+            invert_normals: false,
+            cast_shadows: true,
+            receive_shadows: true,
         }
     }
 }
 
+
+#[derive(Clone, Debug, Reflect)]
+pub enum ScaleSampler {
+    Bounded(Vec3, Vec3),
+    Exact(Vec3),
+}
+
+impl ScaleSampler {
+    pub fn sample(&self, rng: &mut impl Rng) -> Vec3 {
+        match *self {
+            ScaleSampler::Bounded(lower_bound, upper_bound) => Vec3::new(
+                rng.gen_range(lower_bound.x..upper_bound.x),
+                rng.gen_range(lower_bound.y..upper_bound.y),
+                rng.gen_range(lower_bound.z..upper_bound.z),
+            ),
+            ScaleSampler::Exact(scale) => scale,
+        }
+    }
+}
+
+
 #[derive(Clone, Debug, Reflect)]
 pub enum PositionSampler {
-    Capsule(f32, f32),
-    Cube(Vec3),
-    Cylinder(f32, f32),
-    Sphere(f32),
+    Capsule {
+        radius: f32,
+        length: f32,
+    },
+    Cube {
+        extents: Vec3,
+    },
+    Cylinder {
+        radius: f32,
+        height: f32,
+    },
+    Exact {
+        position: Vec3,
+    },
+    Origin,
+    Sphere {
+        radius: f32,
+    },
 }
 
 impl PositionSampler {
     pub fn sample(&self, rng: &mut impl Rng) -> Vec3 {
         match *self {
-            PositionSampler::Capsule(radius, length) => Capsule3d::new(radius, length).sample_interior(rng),
-            PositionSampler::Cube(extents) => Cuboid::from_size(extents).sample_interior(rng),
-            PositionSampler::Cylinder(radius, height) => Cylinder::new(radius, height).sample_interior(rng),
-            PositionSampler::Sphere(radius) => Sphere::new(radius).sample_interior(rng),
+            PositionSampler::Capsule { radius, length } => Capsule3d::new(radius, length).sample_interior(rng),
+            PositionSampler::Cube { extents } => Cuboid::from_size(extents).sample_interior(rng),
+            PositionSampler::Cylinder { radius, height } => Cylinder::new(radius, height).sample_interior(rng),
+            PositionSampler::Exact { position } => position,
+            PositionSampler::Origin => Vec3::ZERO,
+            PositionSampler::Sphere { radius } => Sphere::new(radius).sample_interior(rng),
         }
     }
 }
@@ -151,11 +194,7 @@ fn build_primitive(
     );
 
     let scales = (0..settings.components)
-        .map(|_| Vec3::new(
-            rng.gen_range(settings.scale_lower_bound.x..settings.scale_upper_bound.x),
-            rng.gen_range(settings.scale_lower_bound.y..settings.scale_upper_bound.y),
-            rng.gen_range(settings.scale_lower_bound.z..settings.scale_upper_bound.z),
-        ))
+        .map(|_| settings.scale_sampler.sample(rng))
         .collect::<Vec<_>>();
 
     let positions = (0..settings.components)
@@ -163,11 +202,17 @@ fn build_primitive(
         .collect::<Vec<_>>();
 
     let rotations = (0..settings.components)
-        .map(|_| Quat::from_scaled_axis(Vec3::new(
-            rng.gen_range(settings.rotation_lower_bound.x..settings.rotation_upper_bound.x),
-            rng.gen_range(settings.rotation_lower_bound.y..settings.rotation_upper_bound.y),
-            rng.gen_range(settings.rotation_lower_bound.z..settings.rotation_upper_bound.z),
-        )))
+        .map(|_| {
+            if settings.rotation_lower_bound == settings.rotation_upper_bound {
+                return Quat::IDENTITY;
+            }
+
+            Quat::from_scaled_axis(Vec3::new(
+                rng.gen_range(settings.rotation_lower_bound.x..settings.rotation_upper_bound.x),
+                rng.gen_range(settings.rotation_lower_bound.y..settings.rotation_upper_bound.y),
+                rng.gen_range(settings.rotation_lower_bound.z..settings.rotation_upper_bound.z),
+            ))
+        })
         .collect::<Vec<_>>();
 
     izip!(
@@ -256,6 +301,20 @@ fn build_primitive(
             // with the current texture resolution, generating tangents produces too much noise
             // mesh.generate_tangents().unwrap();
 
+            if settings.invert_normals {
+                if let Some(VertexAttributeValues::Float32x3(ref mut normals)) =
+                    mesh.attribute_mut(Mesh::ATTRIBUTE_NORMAL)
+                {
+                    normals
+                        .iter_mut()
+                        .for_each(|normal| {
+                            normal[0] = -normal[0];
+                            normal[1] = -normal[1];
+                            normal[2] = -normal[2];
+                        });
+                }
+            }
+
             let mut primitive = commands.spawn((
                 PbrBundle {
                     mesh: meshes.add(mesh),
@@ -264,6 +323,14 @@ fn build_primitive(
                 },
                 TransmittedShadowReceiver,
             ));
+
+            if !settings.cast_shadows {
+                primitive.insert(NotShadowCaster);
+            }
+
+            if !settings.receive_shadows {
+                primitive.insert(TransmittedShadowReceiver);
+            }
 
             if rng.gen_bool(settings.wireframe_probability as f64) {
                 primitive.remove::<Handle<StandardMaterial>>();
@@ -301,6 +368,7 @@ fn process_primitives(
     for (entity, settings) in primitives.iter() {
         commands.entity(entity)
             .insert(ZeroversePrimitive)
+            .insert(Name::new("zeroverse_primitive"))
             .with_children(|subcommands| {
                 build_primitive(
                     subcommands,
