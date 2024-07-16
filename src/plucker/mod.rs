@@ -278,7 +278,7 @@ fn create_plucker_output(
             .insert(PluckerOutput {
                 plucker_u,
                 plucker_v,
-                visualization: visualization,
+                visualization,
             })
             .observe(move |
                 _: Trigger<OnRemove, PluckerOutput>,
