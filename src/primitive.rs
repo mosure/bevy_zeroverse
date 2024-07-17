@@ -62,7 +62,7 @@ pub enum ZeroversePrimitives {
     ConicalFrustum,
     Cuboid,
     Cylinder,
-    // Plane,
+    Plane,
     Sphere,
     Tetrahedron,
     Torus,
@@ -73,8 +73,9 @@ pub enum ZeroversePrimitives {
 #[reflect(Resource)]
 pub struct ZeroversePrimitiveSettings {
     pub components: usize,
-    pub available_types: Vec<ZeroversePrimitives>,
+    pub available_materials: Option<Vec<Handle<StandardMaterial>>>,
     pub available_operations: Vec<ManifoldOperations>,
+    pub available_types: Vec<ZeroversePrimitives>,
     pub wireframe_probability: f32,
     pub noise_probability: f32,
     pub smooth_normals_probability: f32,
@@ -82,11 +83,12 @@ pub struct ZeroversePrimitiveSettings {
     pub noise_frequency_upper_bound: f32,
     pub noise_scale_lower_bound: f32,
     pub noise_scale_upper_bound: f32,
-    pub rotation_lower_bound: Vec3,
-    pub rotation_upper_bound: Vec3,
+    pub rotation_sampler: RotationSampler,
     pub position_sampler: PositionSampler,
     pub scale_sampler: ScaleSampler,
     pub invert_normals: bool,
+    #[reflect(ignore)]
+    pub cull_mode: Option<Face>,
     pub cast_shadows: bool,
     pub receive_shadows: bool,
 }
@@ -95,8 +97,18 @@ impl Default for ZeroversePrimitiveSettings {
     fn default() -> ZeroversePrimitiveSettings {
         ZeroversePrimitiveSettings {
             components: 5,
-            available_types: ZeroversePrimitives::iter().collect(),
+            available_materials: None,
             available_operations: ManifoldOperations::iter().collect(),
+            available_types: vec![
+                ZeroversePrimitives::Capsule,
+                ZeroversePrimitives::Cone,
+                ZeroversePrimitives::ConicalFrustum,
+                ZeroversePrimitives::Cuboid,
+                ZeroversePrimitives::Cylinder,
+                ZeroversePrimitives::Sphere,
+                ZeroversePrimitives::Tetrahedron,
+                ZeroversePrimitives::Torus,
+            ],
             wireframe_probability: 0.0,
             noise_probability: 0.3,
             smooth_normals_probability: 1.0,
@@ -104,13 +116,48 @@ impl Default for ZeroversePrimitiveSettings {
             noise_frequency_upper_bound: 2.0,
             noise_scale_lower_bound: 0.0,
             noise_scale_upper_bound: 0.6,
-            rotation_lower_bound: Vec3::splat(0.0),
-            rotation_upper_bound: Vec3::splat(std::f32::consts::PI),
-            position_sampler: PositionSampler::Cube { extents: Vec3::splat(0.5) },
+            rotation_sampler: RotationSampler::Random,
+            position_sampler: PositionSampler::default(),
             scale_sampler: ScaleSampler::Bounded(Vec3::splat(0.05), Vec3::splat(1.0)),
             invert_normals: false,
+            cull_mode: None,
             cast_shadows: true,
             receive_shadows: true,
+        }
+    }
+}
+
+
+#[derive(Clone, Debug, Reflect)]
+pub enum RotationSampler {
+    Bounded {
+        max: Vec3,
+        min: Vec3,
+    },
+    Exact(Quat),
+    Identity,
+    Random,
+}
+
+impl RotationSampler {
+    pub fn sample(&self) -> Quat {
+        let rng = &mut rand::thread_rng();
+
+        match *self {
+            RotationSampler::Bounded { min, max } => {
+                if min == max {
+                    Quat::IDENTITY
+                } else {
+                    Quat::from_scaled_axis(Vec3::new(
+                        rng.gen_range(min.x..max.x),
+                        rng.gen_range(min.y..max.y),
+                        rng.gen_range(min.z..max.z),
+                    ))
+                }
+            },
+            RotationSampler::Exact(rotation) => rotation,
+            RotationSampler::Identity => Quat::IDENTITY,
+            RotationSampler::Random => Quat::from_rng(rng),
         }
     }
 }
@@ -123,7 +170,9 @@ pub enum ScaleSampler {
 }
 
 impl ScaleSampler {
-    pub fn sample(&self, rng: &mut impl Rng) -> Vec3 {
+    pub fn sample(&self) -> Vec3 {
+        let rng = &mut rand::thread_rng();
+
         match *self {
             ScaleSampler::Bounded(lower_bound, upper_bound) => Vec3::new(
                 rng.gen_range(lower_bound.x..upper_bound.x),
@@ -158,8 +207,16 @@ pub enum PositionSampler {
     },
 }
 
+impl Default for PositionSampler {
+    fn default() -> PositionSampler {
+        PositionSampler::Cube { extents: Vec3::splat(0.5) }
+    }
+}
+
 impl PositionSampler {
-    pub fn sample(&self, rng: &mut impl Rng) -> Vec3 {
+    pub fn sample(&self) -> Vec3 {
+        let rng = &mut rand::thread_rng();
+
         match *self {
             PositionSampler::Capsule { radius, length } => Capsule3d::new(radius, length).sample_interior(rng),
             PositionSampler::Cube { extents } => Cuboid::from_size(extents).sample_interior(rng),
@@ -198,25 +255,15 @@ fn build_primitive(
     );
 
     let scales = (0..settings.components)
-        .map(|_| settings.scale_sampler.sample(rng))
+        .map(|_| settings.scale_sampler.sample())
         .collect::<Vec<_>>();
 
     let positions = (0..settings.components)
-        .map(|_| settings.position_sampler.sample(rng))
+        .map(|_| settings.position_sampler.sample())
         .collect::<Vec<_>>();
 
     let rotations = (0..settings.components)
-        .map(|_| {
-            if settings.rotation_lower_bound == settings.rotation_upper_bound {
-                return Quat::IDENTITY;
-            }
-
-            Quat::from_scaled_axis(Vec3::new(
-                rng.gen_range(settings.rotation_lower_bound.x..settings.rotation_upper_bound.x),
-                rng.gen_range(settings.rotation_lower_bound.y..settings.rotation_upper_bound.y),
-                rng.gen_range(settings.rotation_lower_bound.z..settings.rotation_upper_bound.z),
-            ))
-        })
+        .map(|_| settings.rotation_sampler.sample())
         .collect::<Vec<_>>();
 
     izip!(
@@ -236,11 +283,11 @@ fn build_primitive(
                 .unwrap()
                 .clone();
 
-            if settings.invert_normals {
+            if settings.cull_mode.is_some() {
                 let mut new_material = standard_materials.get(&material).unwrap().clone();
 
                 new_material.double_sided = false;
-                new_material.cull_mode = Some(Face::Front);
+                new_material.cull_mode = settings.cull_mode;
 
                 material = standard_materials.add(new_material);
             }
@@ -273,10 +320,10 @@ fn build_primitive(
                     .resolution(rng.gen_range(4..64))
                     .segments(rng.gen_range(3..64))
                     .build(),
-                // ZeroversePrimitives::Plane => Plane3d::new(Vec3::Y, Vec2::ONE)
-                //     .mesh()
-                //     .subdivisions(rng.gen_range(0..16))
-                //     .build(),
+                ZeroversePrimitives::Plane => Plane3d::new(Vec3::Y, Vec2::ONE)
+                    .mesh()
+                    .subdivisions(rng.gen_range(0..16))
+                    .build(),
                 ZeroversePrimitives::Sphere => Sphere::default()
                     .mesh()
                     .uv(
@@ -387,7 +434,6 @@ fn process_primitives(
     for (entity, settings) in primitives.iter() {
         commands.entity(entity)
             .insert(ZeroversePrimitive)
-            .insert(Name::new("zeroverse_primitive"))
             .with_children(|subcommands| {
                 build_primitive(
                     subcommands,
