@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use crate::{
     camera::{
         CameraPositionSampler,
+        CameraPositionSamplerType,
         ZeroverseCamera,
     },
     scene::{
@@ -52,8 +53,11 @@ fn setup_cameras(
 ) {
     for _ in 0..scene_settings.num_cameras {
         commands.spawn(ZeroverseCamera {
-            sampler: CameraPositionSampler::Sphere {
-                radius: 3.25,
+            sampler: CameraPositionSampler {
+                sampler_type: CameraPositionSamplerType::Sphere {
+                    radius: 3.25,
+                },
+                ..default()
             },
             ..default()
         }).insert(ZeroverseScene);

@@ -3,6 +3,8 @@ use bevy::prelude::*;
 use crate::{
     camera::{
         CameraPositionSampler,
+        CameraPositionSamplerType,
+        LookingAtSampler,
         ZeroverseCamera,
     },
     scene::{
@@ -44,6 +46,7 @@ pub struct ZeroverseRoomSettings {
     pub camera_wall_padding: f32,
     pub center_primitive_count: usize,
     pub center_primitive_settings: ZeroversePrimitiveSettings,
+    pub looking_at_sampler: LookingAtSampler,
     pub room_size: ScaleSampler,
     pub wall_primitive_settings: ZeroversePrimitiveSettings,
 }
@@ -60,6 +63,10 @@ impl Default for ZeroverseRoomSettings {
                     Vec3::new(2.0, 1.0, 2.0),
                 ),
                 ..default()
+            },
+            looking_at_sampler: LookingAtSampler::Sphere {
+                geometry: Sphere::new(4.0),
+                transform: Transform::from_translation(Vec3::new(0.0, 1.0, 0.0)),
             },
             room_size: ScaleSampler::Bounded(
                 Vec3::new(12.0, 8.0, 12.0),
@@ -89,12 +96,14 @@ fn setup_scene(
             { // outer walls
                 let outer_walls_settings = ZeroversePrimitiveSettings {
                     invert_normals: true,
-                    available_types: vec![ZeroversePrimitives::Cuboid],  // TODO: change to plane to support multi-material hull
+                    available_types: vec![ZeroversePrimitives::Cuboid],  // TODO: change to plane, support multi-material hull
                     components: 1,
                     wireframe_probability: 0.0,
                     noise_probability: 0.0,
                     cast_shadows: false,
-                    position_sampler: PositionSampler::Origin,  // TODO: make y=0 the floor
+                    position_sampler: PositionSampler::Exact {
+                        position: Vec3::new(0.0, scale.y / 2.0, 0.0),
+                    },
                     rotation_lower_bound: Vec3::ZERO,
                     rotation_upper_bound: Vec3::ZERO,
                     scale_sampler: ScaleSampler::Exact(scale),
@@ -107,7 +116,7 @@ fn setup_scene(
                 });
             }
 
-            // TODO: add abstraction for table, chair
+            // TODO: add abstraction for furniture, walls, doors...
             { // center objects
                 let center_object_height = 6.0;
                 let center_object_sampler = PositionSampler::Cube {
@@ -129,7 +138,7 @@ fn setup_scene(
                         spatial: SpatialBundle {
                             transform: Transform::from_translation(Vec3::new(
                                 0.0,
-                                -scale.y / 2.0 + center_object_height / 2.0,
+                                center_object_height / 2.0,
                                 0.0,
                             )),
                             ..default()
@@ -144,15 +153,20 @@ fn setup_scene(
         });
 
     for _ in 0..scene_settings.num_cameras {
+        let size = Vec3::new(
+            scale.x - room_settings.camera_wall_padding,
+            scale.y / 2.0,
+            scale.z - room_settings.camera_wall_padding,
+        );
+
         commands.spawn(ZeroverseCamera {
-            sampler: CameraPositionSampler::Band {
-                size: Vec3::new(
-                    scale.x - room_settings.camera_wall_padding,
-                    scale.y / 2.0,
-                    scale.z - room_settings.camera_wall_padding,
-                ),
-                rotation: Quat::IDENTITY,
-                translate: Vec3::new(0.0, scale.y / 4.0, 0.0),
+            sampler: CameraPositionSampler {
+                sampler_type: CameraPositionSamplerType::Band {
+                    size,
+                    rotation: Quat::IDENTITY,
+                    translate: Vec3::new(0.0, scale.y / 2.0 + size.y / 2.0, 0.0),
+                },
+                looking_at: room_settings.looking_at_sampler.clone(),
             },
             ..default()
         }).insert(ZeroverseScene);

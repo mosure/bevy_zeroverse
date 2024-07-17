@@ -21,7 +21,10 @@ use bevy::{
             WireframeColor,
         },
     },
-    render::mesh::VertexAttributeValues,
+    render::{
+        mesh::VertexAttributeValues,
+        render_resource::Face,
+    },
 };
 use itertools::izip;
 use rand::{
@@ -184,6 +187,7 @@ fn build_primitive(
     commands: &mut ChildBuilder,
     settings: &ZeroversePrimitiveSettings,
     meshes: &mut ResMut<Assets<Mesh>>,
+    standard_materials: &mut ResMut<Assets<StandardMaterial>>,
     zeroverse_materials: &Res<ZeroverseMaterials>,
 ) {
     let rng = &mut rand::thread_rng();
@@ -227,6 +231,20 @@ fn build_primitive(
             position,
             rotation,
         )| {
+            let mut material = zeroverse_materials.materials
+                .choose(rng)
+                .unwrap()
+                .clone();
+
+            if settings.invert_normals {
+                let mut new_material = standard_materials.get(&material).unwrap().clone();
+
+                new_material.double_sided = false;
+                new_material.cull_mode = Some(Face::Front);
+
+                material = standard_materials.add(new_material);
+            }
+
             let mut mesh = match primitive_type {
                 ZeroversePrimitives::Capsule => Capsule3d::default()
                     .mesh()
@@ -318,7 +336,7 @@ fn build_primitive(
             let mut primitive = commands.spawn((
                 PbrBundle {
                     mesh: meshes.add(mesh),
-                    material: zeroverse_materials.materials.choose(rng).unwrap().clone(),
+                    material,
                     ..Default::default()
                 },
                 TransmittedShadowReceiver,
@@ -356,6 +374,7 @@ fn build_primitive(
 fn process_primitives(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
+    mut standard_materials: ResMut<Assets<StandardMaterial>>,
     zeroverse_materials: Res<ZeroverseMaterials>,
     primitives: Query<
         (
@@ -374,6 +393,7 @@ fn process_primitives(
                     subcommands,
                     settings,
                     &mut meshes,
+                    &mut standard_materials,
                     &zeroverse_materials,
                 );
             });

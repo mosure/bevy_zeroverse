@@ -61,8 +61,41 @@ impl Plugin for ZeroverseCameraPlugin {
 }
 
 
+#[derive(Clone, Debug, Reflect)]
+pub enum LookingAtSampler {
+    Exact(Vec3),
+    Sphere{
+        geometry: Sphere,
+        transform: Transform,
+    },
+}
+
+impl Default for LookingAtSampler {
+    fn default() -> Self {
+        Self::Exact(Vec3::ZERO)
+    }
+}
+
+impl LookingAtSampler {
+    pub fn sample(&self) -> Vec3 {
+        match *self {
+            LookingAtSampler::Exact(pos) => pos,
+            LookingAtSampler::Sphere { geometry, transform } => {
+                let rng = &mut rand::thread_rng();
+                transform * geometry.sample_interior(rng)
+            },
+        }
+    }
+
+    pub fn look_at(&self, mut transform: Transform) -> Transform {
+        transform.look_at(self.sample(), Vec3::Y);
+        transform
+    }
+}
+
+// TODO: add gizmos for sampler types
 #[derive(Debug, Reflect)]
-pub enum CameraPositionSampler {
+pub enum CameraPositionSamplerType {
     Band {
         size: Vec3,
         rotation: Quat,
@@ -86,7 +119,13 @@ pub enum CameraPositionSampler {
     Transform(Transform),
 }
 
-impl Default for CameraPositionSampler {
+#[derive(Debug, Reflect, Default)]
+pub struct CameraPositionSampler {
+    pub looking_at: LookingAtSampler,
+    pub sampler_type: CameraPositionSamplerType,
+}
+
+impl Default for CameraPositionSamplerType {
     fn default() -> Self {
         Self::Transform(Transform::default())
     }
@@ -94,8 +133,8 @@ impl Default for CameraPositionSampler {
 
 impl CameraPositionSampler {
     pub fn sample(&self) -> Transform {
-        match *self {
-            CameraPositionSampler::Band { size, rotation, translate } => {
+        let transform = match self.sampler_type {
+            CameraPositionSamplerType::Band { size, rotation, translate } => {
                 let rng = &mut rand::thread_rng();
 
                 let face = rng.gen_range(0..4);
@@ -113,34 +152,34 @@ impl CameraPositionSampler {
                 let pos = rotation.mul_vec3(pos);
 
                 Transform::from_translation(pos)
-                    .looking_at(Vec3::ZERO, Vec3::Y)
             },
-            CameraPositionSampler::Circle { radius, rotation } => {
+            CameraPositionSamplerType::Circle { radius, rotation } => {
                 let rng = &mut rand::thread_rng();
 
                 let xz = Circle::new(radius).sample_boundary(rng);
                 let pos = rotation.mul_vec3(Vec3::new(xz.x, 0.0, xz.y));
 
                 Transform::from_translation(pos)
-                .looking_at(Vec3::ZERO, Vec3::Y)
             },
-            CameraPositionSampler::Sphere { radius } => {
+            CameraPositionSamplerType::Sphere { radius } => {
                 let rng = &mut rand::thread_rng();
 
                 let pos = Sphere::new(radius).sample_boundary(rng);
 
                 Transform::from_translation(pos)
-                .looking_at(Vec3::ZERO, Vec3::Y)
             },
-            CameraPositionSampler::Transform(transform) => transform,
+            CameraPositionSamplerType::Transform(transform) => transform,
             _ => Transform::default(),
-        }
+        };
+
+        self.looking_at.look_at(transform)
     }
 }
 
 
 #[derive(Component, Debug, Default, Reflect)]
 pub struct ZeroverseCamera {
+    pub looking_at: LookingAtSampler,
     pub sampler: CameraPositionSampler,
     pub resolution: Option<UVec2>,
 }
