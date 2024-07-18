@@ -2,14 +2,14 @@ use bevy::{
     prelude::*,
     asset::load_internal_asset,
     pbr::{
-        MaterialPipeline,
-        MaterialPipelineKey,
+        ExtendedMaterial,
+        MaterialExtension,
     },
-    render::{
-        mesh::MeshVertexBufferLayoutRef,
-        render_resource::*,
-    },
+    render::render_resource::*,
 };
+
+use crate::render::DisabledPbrMaterial;
+
 
 pub const DEPTH_SHADER_HANDLE: Handle<Shader> = Handle::weak_from_u128(63456234534534);
 
@@ -33,27 +33,23 @@ impl Plugin for DepthPlugin {
 
         app.add_plugins(MaterialPlugin::<DepthMaterial>::default());
 
-        app.add_systems(Startup, setup_global_depth_material);
         app.add_systems(Update, apply_depth_material);
     }
 }
 
-fn setup_global_depth_material(
-    mut commands: Commands,
-    mut materials: ResMut<Assets<DepthMaterial>>,
-) {
-    let depth_material = materials.add(DepthMaterial::default());
-    commands.insert_resource(GlobalDepthMaterial(depth_material));
-}
 
+#[allow(clippy::type_complexity)]
 fn apply_depth_material(
     mut commands: Commands,
     depths: Query<
-        Entity,
+        (
+            Entity,
+            &DisabledPbrMaterial,
+        ),
         (With<Depth>, Without<Handle<DepthMaterial>>),
     >,
     mut removed_depths: RemovedComponents<Depth>,
-    global_material: Res<GlobalDepthMaterial>,
+    mut materials: ResMut<Assets<DepthMaterial>>,
 ) {
     for e in removed_depths.read() {
         if let Some(mut commands) = commands.get_entity(e) {
@@ -61,30 +57,31 @@ fn apply_depth_material(
         }
     }
 
-    for e in &depths {
-        commands.entity(e).insert(global_material.0.clone());
+    for (e, pbr_material) in &depths {
+        let depth_material = materials.add(
+            ExtendedMaterial {
+                base: StandardMaterial {
+                    double_sided: pbr_material.double_sided,
+                    cull_mode: pbr_material.cull_mode,
+                    ..default()
+                },
+                extension: DepthExtension::default(),
+            },
+        );
+
+
+        commands.entity(e).insert(depth_material);
     }
 }
 
 
+pub type DepthMaterial = ExtendedMaterial<StandardMaterial, DepthExtension>;
+
 #[derive(Default, AsBindGroup, TypePath, Debug, Clone, Asset)]
-pub struct DepthMaterial { }
+pub struct DepthExtension { }
 
-#[derive(Default, Resource, Debug, Clone)]
-pub struct GlobalDepthMaterial(pub Handle<DepthMaterial>);
-
-impl Material for DepthMaterial {
+impl MaterialExtension for DepthExtension {
     fn fragment_shader() -> ShaderRef {
         DEPTH_SHADER_HANDLE.into()
-    }
-
-    fn specialize(
-        _pipeline: &MaterialPipeline<Self>,
-        descriptor: &mut RenderPipelineDescriptor,
-        _layout: &MeshVertexBufferLayoutRef,
-        _key: MaterialPipelineKey<Self>,
-    ) -> Result<(), SpecializedMeshPipelineError> {
-        descriptor.primitive.cull_mode = None;
-        Ok(())
     }
 }
