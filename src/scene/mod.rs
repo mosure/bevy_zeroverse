@@ -2,8 +2,8 @@ use bevy::prelude::*;
 use bevy_args::{
     Deserialize,
     Serialize,
+    ValueEnum,
 };
-use clap::ValueEnum;
 
 pub mod lighting;
 pub mod object;
