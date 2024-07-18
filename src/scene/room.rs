@@ -11,6 +11,7 @@ use crate::{
         ZeroverseCamera,
     },
     scene::{
+        clear_old_scenes,
         lighting::{
             setup_lighting,
             ZeroverseLightingSettings,
@@ -23,6 +24,7 @@ use crate::{
         ZeroverseSceneType,
     },
     primitive::{
+        CountSampler,
         PositionSampler,
         PrimitiveBundle,
         RotationSampler,
@@ -39,7 +41,10 @@ impl Plugin for ZeroverseRoomPlugin {
         app.init_resource::<ZeroverseRoomSettings>();
         app.register_type::<ZeroverseRoomSettings>();
 
-        app.add_systems(PreUpdate, regenerate_scene);
+        app.add_systems(
+            PreUpdate,
+            regenerate_scene.after(clear_old_scenes),
+        );
     }
 }
 
@@ -48,7 +53,7 @@ impl Plugin for ZeroverseRoomPlugin {
 #[reflect(Resource)]
 pub struct ZeroverseRoomSettings {
     pub camera_wall_padding: f32,
-    pub center_primitive_count: usize,
+    pub center_primitive_count: CountSampler,
     pub center_primitive_scale_sampler: ScaleSampler,
     pub center_primitive_settings: ZeroversePrimitiveSettings,
     pub looking_at_sampler: LookingAtSampler,
@@ -65,7 +70,7 @@ impl Default for ZeroverseRoomSettings {
 
         Self {
             camera_wall_padding: 1.0,
-            center_primitive_count: 8,
+            center_primitive_count: CountSampler::Bounded(4, 10),
             center_primitive_scale_sampler: ScaleSampler::Bounded(
                 Vec3::new(0.5, 0.5, 0.5),
                 Vec3::new(3.0, 3.0, 3.0),
@@ -124,7 +129,7 @@ fn setup_scene(
                 let base_plane_settings = ZeroversePrimitiveSettings {
                     cull_mode: Some(Face::Front),
                     available_types: vec![ZeroversePrimitives::Plane],
-                    components: 1,
+                    components: CountSampler::Exact(1),
                     wireframe_probability: 0.0,
                     noise_probability: 0.0,
                     cast_shadows: false,
@@ -260,7 +265,7 @@ fn setup_scene(
                     ),
                 };
 
-                for _ in 0..room_settings.center_primitive_count {
+                for _ in 0..room_settings.center_primitive_count.sample() {
                     let height_offset = Vec3::new(
                         0.0,
                         center_object_height / 4.0,

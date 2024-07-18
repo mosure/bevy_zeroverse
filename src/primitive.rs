@@ -72,7 +72,7 @@ pub enum ZeroversePrimitives {
 #[derive(Clone, Component, Debug, Reflect, Resource)]
 #[reflect(Resource)]
 pub struct ZeroversePrimitiveSettings {
-    pub components: usize,
+    pub components: CountSampler,
     pub available_materials: Option<Vec<Handle<StandardMaterial>>>,
     pub available_operations: Vec<ManifoldOperations>,
     pub available_types: Vec<ZeroversePrimitives>,
@@ -96,7 +96,7 @@ pub struct ZeroversePrimitiveSettings {
 impl Default for ZeroversePrimitiveSettings {
     fn default() -> ZeroversePrimitiveSettings {
         ZeroversePrimitiveSettings {
-            components: 5,
+            components: CountSampler::Bounded(4, 6),
             available_materials: None,
             available_operations: ManifoldOperations::iter().collect(),
             available_types: vec![
@@ -123,6 +123,24 @@ impl Default for ZeroversePrimitiveSettings {
             cull_mode: None,
             cast_shadows: true,
             receive_shadows: true,
+        }
+    }
+}
+
+
+#[derive(Clone, Debug, Reflect)]
+pub enum CountSampler {
+    Bounded(usize, usize),
+    Exact(usize),
+}
+
+impl CountSampler {
+    pub fn sample(&self) -> usize {
+        let rng = &mut rand::thread_rng();
+
+        match *self {
+            CountSampler::Bounded(lower_bound, upper_bound) => rng.gen_range(lower_bound..upper_bound),
+            CountSampler::Exact(count) => count,
         }
     }
 }
@@ -249,20 +267,22 @@ fn build_primitive(
 ) {
     let rng = &mut rand::thread_rng();
 
+    let components = settings.components.sample();
+
     let primitive_types = choose_multiple_with_replacement(
         &settings.available_types,
-        settings.components,
+        components,
     );
 
-    let scales = (0..settings.components)
+    let scales = (0..components)
         .map(|_| settings.scale_sampler.sample())
         .collect::<Vec<_>>();
 
-    let positions = (0..settings.components)
+    let positions = (0..components)
         .map(|_| settings.position_sampler.sample())
         .collect::<Vec<_>>();
 
-    let rotations = (0..settings.components)
+    let rotations = (0..components)
         .map(|_| settings.rotation_sampler.sample())
         .collect::<Vec<_>>();
 

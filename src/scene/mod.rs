@@ -26,7 +26,7 @@ impl Plugin for ZeroverseScenePlugin {
             room::ZeroverseRoomPlugin,
         ));
 
-        app.add_systems(PreUpdate, regenerate_scene);
+        app.add_systems(PreUpdate, clear_old_scenes);
     }
 }
 
@@ -70,7 +70,7 @@ pub struct RegenerateSceneEvent;
 pub struct SceneLoadedEvent;
 
 
-fn regenerate_scene(
+pub fn clear_old_scenes(
     mut commands: Commands,
     clear_zeroverse_scenes: Query<Entity, With<ZeroverseScene>>,
     mut regenerate_events: EventReader<RegenerateSceneEvent>,

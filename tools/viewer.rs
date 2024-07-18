@@ -170,7 +170,6 @@ fn viewer_app() {
 
     if args.editor {
         app.register_type::<BevyZeroverseViewer>();
-        app.register_type::<Image>();
         app.add_plugins(WorldInspectorPlugin::new());
     }
 
@@ -184,7 +183,7 @@ fn viewer_app() {
         resolution: UVec2::new(args.width as u32, args.height as u32).into(),
     });
 
-    app.add_systems(Startup, (
+    app.add_systems(PostStartup, (
         propagate_cli_settings,
         setup_scene,
     ));
