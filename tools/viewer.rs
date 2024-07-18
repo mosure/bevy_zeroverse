@@ -186,7 +186,6 @@ fn viewer_app() {
 
     app.add_systems(Startup, (
         propagate_cli_settings,
-        setup_camera,
         setup_scene,
     ));
 
@@ -200,6 +199,7 @@ fn viewer_app() {
     app.add_systems(PostUpdate, (
         propagate_cli_settings,
         regenerate_scene_system,
+        setup_camera,
         setup_camera_grid,
     ));
 
@@ -207,14 +207,31 @@ fn viewer_app() {
 }
 
 
+#[derive(Component, Debug, Reflect)]
+struct MaterialGridCameraMarker;
+
 fn setup_camera(
     args: Res<BevyZeroverseViewer>,
     mut commands: Commands,
+    material_grid_cameras: Query<Entity, With<MaterialGridCameraMarker>>,
+    editor_cameras: Query<Entity, With<EditorCameraMarker>>,
 ) {
+    if !args.is_changed() {
+        return;
+    }
+
+    material_grid_cameras.iter().for_each(|entity| {
+        commands.entity(entity).despawn_recursive();
+    });
+
+    editor_cameras.iter().for_each(|entity| {
+        commands.entity(entity).despawn_recursive();
+    });
+
     // TODO: add a check for dataloader/headless mode
-    // TODO: allow inspector toggling of camera-grid
     if args.camera_grid {
-        commands.spawn(Camera2dBundle::default());
+        commands.spawn(Camera2dBundle::default())
+            .insert(MaterialGridCameraMarker);
         return;
     }
 
@@ -248,7 +265,7 @@ fn setup_camera_grid(
         return;
     }
 
-    if scene_loaded.is_empty() {
+    if scene_loaded.is_empty() && !args.is_changed() {
         return;
     }
     scene_loaded.clear();
