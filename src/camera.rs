@@ -255,8 +255,11 @@ fn insert_cameras(
 }
 
 
-#[derive(Component, Debug, Reflect)]
-pub struct EditorCameraMarker;
+#[derive(Component, Debug, Default, Reflect)]
+pub struct EditorCameraMarker {
+    pub transform: Option<Transform>,
+}
+
 
 #[derive(Component, Debug, Reflect)]
 pub struct ProcessedEditorCameraMarker;
@@ -269,11 +272,11 @@ pub const EDITOR_CAMERA_RENDER_LAYER: RenderLayers = RenderLayers::layer(1);
 fn setup_editor_camera(
     mut commands: Commands,
     editor_cameras: Query<
-        Entity,
-        (With<EditorCameraMarker>, Without<ProcessedEditorCameraMarker>),
+        (Entity, &EditorCameraMarker),
+        Without<ProcessedEditorCameraMarker>,
     >,
 ) {
-    for entity in editor_cameras.iter() {
+    for (entity, marker) in editor_cameras.iter() {
         let render_layer = RenderLayers::default().union(&EDITOR_CAMERA_RENDER_LAYER);
         commands.entity(entity)
             .insert((
@@ -287,7 +290,7 @@ fn setup_editor_camera(
                         ..default()
                     },
                     exposure: Exposure::INDOOR,
-                    transform: Transform::default(),
+                    transform: marker.transform.unwrap_or_default(),
                     tonemapping: Tonemapping::None,
                     ..default()
                 },

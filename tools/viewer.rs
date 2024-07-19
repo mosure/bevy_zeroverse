@@ -30,7 +30,9 @@ use bevy_zeroverse::{
         ZeroverseMaterials,
     },
     plucker::ZeroversePluckerSettings,
+    primitive::ScaleSampler,
     scene::{
+        room::ZeroverseRoomSettings,
         RegenerateSceneEvent,
         SceneLoadedEvent,
         ZeroverseSceneRoot,
@@ -214,6 +216,7 @@ fn setup_camera(
     mut commands: Commands,
     material_grid_cameras: Query<Entity, With<MaterialGridCameraMarker>>,
     editor_cameras: Query<Entity, With<EditorCameraMarker>>,
+    room_settings: Res<ZeroverseRoomSettings>,
 ) {
     if !args.is_changed() {
         return;
@@ -234,14 +237,29 @@ fn setup_camera(
         return;
     }
 
+    let camera_offset = Vec3::new(0.0, 0.0, 3.5);
+    let camera_offset = match args.scene_type {
+        ZeroverseSceneType::Object => camera_offset,
+        ZeroverseSceneType::Room => {
+            let max_room_size = match room_settings.room_size {
+                ScaleSampler::Bounded(_min, max) => max * Vec3::new(1.0, 2.0, 1.0),
+                ScaleSampler::Exact(size) => size,
+            };
+            max_room_size + camera_offset
+        },
+    };
+
     commands.spawn((
-        EditorCameraMarker,
+        EditorCameraMarker {
+            transform: Transform::from_translation(camera_offset)
+                .looking_at(Vec3::ZERO, Vec3::Y)
+                .into(),
+        },
         PanOrbitCamera {
             allow_upside_down: true,
             orbit_smoothness: 0.0,
             pan_smoothness: 0.0,
             zoom_smoothness: 0.0,
-            radius: Some(3.0),
             ..default()
         },
     ));
