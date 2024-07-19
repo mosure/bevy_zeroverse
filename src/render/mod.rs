@@ -1,4 +1,7 @@
-use bevy::prelude::*;
+use bevy::{
+    prelude::*,
+    render::render_resource::Face,
+};
 
 pub mod depth;
 pub mod normal;
@@ -25,18 +28,21 @@ impl Plugin for RenderPlugin {
         app.add_plugins(depth::DepthPlugin);
         app.add_plugins(normal::NormalPlugin);
 
-        // TODO: add wireframe pbr disable
-        app.add_systems(PreUpdate, auto_disable_pbr_material::<depth::Depth>);
-        app.add_systems(PreUpdate, auto_disable_pbr_material::<normal::Normal>);
+        // TODO: add wireframe depth, pbr disable, normals
+        app.add_systems(PostUpdate, auto_disable_pbr_material::<depth::Depth>);
+        app.add_systems(PostUpdate, auto_disable_pbr_material::<normal::Normal>);
 
-        app.add_systems(PreUpdate, apply_render_modes);
-        app.add_systems(PreUpdate, enable_pbr_material);
+        app.add_systems(PostUpdate, apply_render_modes);
+        app.add_systems(PostUpdate, enable_pbr_material);
     }
 }
 
 
 #[derive(Component, Default, Debug, Reflect)]
 pub struct DisabledPbrMaterial {
+    #[reflect(ignore)]
+    pub cull_mode: Option<Face>,
+    pub double_sided: bool,
     pub material: Handle<StandardMaterial>,
 }
 
@@ -54,14 +60,19 @@ pub fn auto_disable_pbr_material<T: Component>(
         ),
         (With<T>, Without<DisabledPbrMaterial>),
     >,
+    standard_materials: Res<Assets<StandardMaterial>>,
 ) {
     for (
         entity,
-        disabled_material,
+        disabled_material_handle,
     ) in disabled_materials.iter_mut() {
+        let disabled_material = standard_materials.get(disabled_material_handle).unwrap();
+
         commands.entity(entity)
             .insert(DisabledPbrMaterial {
-                material: disabled_material.clone(),
+                cull_mode: disabled_material.cull_mode,
+                double_sided: disabled_material.double_sided,
+                material: disabled_material_handle.clone(),
             })
             .remove::<EnablePbrMaterial>()
             .remove::<Handle<StandardMaterial>>();

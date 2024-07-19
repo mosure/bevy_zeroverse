@@ -2,14 +2,13 @@ use bevy::{
     prelude::*,
     asset::load_internal_asset,
     pbr::{
-        MaterialPipeline,
-        MaterialPipelineKey,
+        ExtendedMaterial,
+        MaterialExtension,
     },
-    render::{
-        mesh::MeshVertexBufferLayoutRef,
-        render_resource::*,
-    },
+    render::render_resource::*,
 };
+
+use crate::render::DisabledPbrMaterial;
 
 
 pub const NORMAL_SHADER_HANDLE: Handle<Shader> = Handle::weak_from_u128(234253434561);
@@ -34,27 +33,23 @@ impl Plugin for NormalPlugin {
 
         app.add_plugins(MaterialPlugin::<NormalMaterial>::default());
 
-        app.add_systems(Startup, setup_global_normal_material);
         app.add_systems(Update, apply_normal_material);
     }
 }
 
-fn setup_global_normal_material(
-    mut commands: Commands,
-    mut materials: ResMut<Assets<NormalMaterial>>,
-) {
-    let normal_material = materials.add(NormalMaterial::default());
-    commands.insert_resource(GlobalNormalMaterial(normal_material));
-}
 
+#[allow(clippy::type_complexity)]
 fn apply_normal_material(
     mut commands: Commands,
     normals: Query<
-        Entity,
+        (
+            Entity,
+            &DisabledPbrMaterial,
+        ),
         (With<Normal>, Without<Handle<NormalMaterial>>),
     >,
     mut removed_normals: RemovedComponents<Normal>,
-    global_material: Res<GlobalNormalMaterial>,
+    mut materials: ResMut<Assets<NormalMaterial>>,
 ) {
     for e in removed_normals.read() {
         if let Some(mut commands) = commands.get_entity(e) {
@@ -62,30 +57,30 @@ fn apply_normal_material(
         }
     }
 
-    for e in &normals {
-        commands.entity(e).insert(global_material.0.clone());
+    for (e, pbr_material) in &normals {
+        let normal_material = materials.add(
+            ExtendedMaterial {
+                base: StandardMaterial {
+                    double_sided: pbr_material.double_sided,
+                    cull_mode: pbr_material.cull_mode,
+                    ..default()
+                },
+                extension: NormalExtension::default(),
+            },
+        );
+
+        commands.entity(e).insert(normal_material);
     }
 }
 
 
+pub type NormalMaterial = ExtendedMaterial<StandardMaterial, NormalExtension>;
+
 #[derive(Default, AsBindGroup, TypePath, Debug, Clone, Asset)]
-pub struct NormalMaterial { }
+pub struct NormalExtension { }
 
-#[derive(Default, Resource, Debug, Clone)]
-pub struct GlobalNormalMaterial(pub Handle<NormalMaterial>);
-
-impl Material for NormalMaterial {
+impl MaterialExtension for NormalExtension {
     fn fragment_shader() -> ShaderRef {
         NORMAL_SHADER_HANDLE.into()
-    }
-
-    fn specialize(
-        _pipeline: &MaterialPipeline<Self>,
-        descriptor: &mut RenderPipelineDescriptor,
-        _layout: &MeshVertexBufferLayoutRef,
-        _key: MaterialPipelineKey<Self>,
-    ) -> Result<(), SpecializedMeshPipelineError> {
-        descriptor.primitive.cull_mode = None;
-        Ok(())
     }
 }

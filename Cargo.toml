@@ -49,10 +49,8 @@ perftest = []
 plucker = []
 
 viewer = [
-  "bevy_args",
   "bevy-inspector-egui",
   "bevy_panorbit_camera",
-  "clap",
   "bevy/bevy_ui",
 ]
 
@@ -69,10 +67,10 @@ webgpu = [
 
 
 [dependencies]
-bevy_args = { version = "1.5", optional = true }
+bevy_args = "1.6"
 bevy-inspector-egui = { version = "0.25", optional = true }
 bevy_panorbit_camera = { version = "0.19", optional = true, features = ["bevy_egui"] }
-clap = { version = "4.4", features = ["derive"], optional = true }
+clap = { version = "4.4", features = ["derive"] }
 glob = "0.3"
 itertools = "0.13"
 noise = { version = "0.9" }
@@ -94,6 +92,7 @@ default-features = false
 features = [
   "bevy_asset",
   "bevy_core_pipeline",
+  "bevy_gizmos",
   "bevy_pbr",
   "bevy_render",
   "bevy_winit",

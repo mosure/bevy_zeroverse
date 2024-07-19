@@ -18,7 +18,7 @@ bevy zeroverse synthetic reconstruction dataset generator. view the [live demo](
 - [X] plücker camera labels
 - [X] generate parameteric zeroverse primitives
 - [X] primitive deformation
-- [ ] procedural zeroverse composite environments
+- [x] procedural zeroverse composite environments
 - [ ] primitive boolean operations
 - [ ] primitive pbr wireframe
 - [ ] online dataloader
@@ -27,7 +27,7 @@ bevy zeroverse synthetic reconstruction dataset generator. view the [live demo](
 ## mat-synth
 
 - download the mat-synth dataset [here](https://huggingface.co/datasets/gvecchio/MatSynth/blob/main/scripts/download_dataset.py)
-- crop the mat-synth dataset (4k is heavy) using `python mat-synth/resize.py --source_dir <path-to-mat-synth> --dest_dir assets/materials`
+- resize the mat-synth dataset (4k is heavy) using `python mat-synth/resize.py --source_dir <path-to-mat-synth> --dest_dir assets/materials`
 - material basecolor grid view (`cargo run -- --material-grid` or [live demo](https://mosure.github.io/bevy_zeroverse?material_grid=true))
 
 ![Alt text](docs/bevy_zeroverse_material_grid.webp)

@@ -61,9 +61,7 @@ use bevy::{
 
 
 #[derive(Component, Debug, Reflect)]
-pub struct PluckerCamera {
-    pub size: UVec2,
-}
+pub struct PluckerCamera;
 
 #[derive(AsBindGroup, Clone, Component, Debug, ExtractComponent, Reflect)]
 pub struct PluckerOutput {
@@ -104,7 +102,13 @@ impl Plugin for PluckerPlugin {
         app.add_plugins(ExtractComponentPlugin::<PluckerOutput>::default());
         app.register_type::<PluckerOutput>();
 
-        app.add_systems(PreUpdate, create_plucker_output);
+        app.init_resource::<ZeroversePluckerSettings>();
+        app.register_type::<ZeroversePluckerSettings>();
+
+        app.add_systems(PreUpdate, (
+            create_plucker_output,
+            disable_plucker,
+        ));
 
         if let Some(render_app) = app.get_sub_app_mut(RenderApp) {
             render_app
@@ -133,21 +137,62 @@ impl Plugin for PluckerPlugin {
 }
 
 
+#[derive(Resource, Debug, Default, Reflect)]
+#[reflect(Resource)]
+pub struct ZeroversePluckerSettings {
+    pub enabled: bool,
+}
+
+fn disable_plucker(
+    mut commands: Commands,
+    plucker_settings: Res<ZeroversePluckerSettings>,
+    existing_plucker_output: Query<
+        Entity,
+        With<PluckerOutput>,
+    >,
+) {
+    if !plucker_settings.enabled {
+        for entity in existing_plucker_output.iter() {
+            commands.entity(entity).remove::<PluckerOutput>();
+        }
+    }
+}
+
+
+#[derive(Component)]
+pub struct PluckerVisualization;
+
+#[allow(clippy::type_complexity)]
 fn create_plucker_output(
     mut commands: Commands,
     mut images: ResMut<Assets<Image>>,
+    plucker_settings: Res<ZeroversePluckerSettings>,
     plucker_cameras: Query<
         (
             Entity,
-            &PluckerCamera,
+            &Camera,
         ),
-        Without<PluckerOutput>,
+        (
+            With<PluckerCamera>,
+            Without<PluckerOutput>,
+        ),
     >,
 ) {
-    for (entity, plucker_settings) in plucker_cameras.iter() {
+    if !plucker_settings.enabled {
+        return;
+    }
+
+    for (entity, camera) in plucker_cameras.iter() {
+        let size = camera.physical_viewport_size().unwrap();
+
+        // if size.is_none() {
+        //     continue;
+        // }
+        // let size = size.unwrap();
+
         let size = Extent3d {
-            width: plucker_settings.size.x,
-            height: plucker_settings.size.y,
+            width: size.x,
+            height: size.y,
             depth_or_array_layers: 1,
         };
 
@@ -208,12 +253,45 @@ fn create_plucker_output(
         visualization.resize(size);
         let visualization = images.add(visualization);
 
+        let visualization_entity = commands.spawn((
+            ImageBundle {
+                style: Style {
+                    position_type: PositionType::Absolute,
+                    bottom: Val::Px(0.0),
+                    right: Val::Px(0.0),
+                    width: Val::Px(256.0),
+                    height: Val::Px(256.0),
+                    ..default()
+                },
+                image: UiImage {
+                    texture: visualization.clone(),
+                    ..default()
+                },
+                ..default()
+            },
+            PluckerVisualization,
+            TargetCamera(entity),
+            Name::new("plucker_visualization"),
+        )).id();
+
         commands
             .entity(entity)
             .insert(PluckerOutput {
                 plucker_u,
                 plucker_v,
                 visualization,
+            })
+            .observe(move |
+                _: Trigger<OnRemove, PluckerOutput>,
+                mut commands: Commands,
+                plucker_visualization: Query<
+                    Entity,
+                    With<PluckerVisualization>,
+                >,
+            | {
+                if plucker_visualization.get(visualization_entity).is_ok() {
+                    commands.entity(visualization_entity).despawn_recursive();
+                }
             });
     }
 }
