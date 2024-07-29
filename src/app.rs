@@ -17,7 +17,7 @@ use bevy_panorbit_camera::{
     PanOrbitCameraPlugin,
 };
 
-use bevy_zeroverse::{
+use crate::{
     BevyZeroversePlugin,
     camera::{
         DefaultZeroverseCamera,
@@ -43,6 +43,7 @@ use bevy_zeroverse::{
 };
 
 
+// TODO: register as a python class
 #[derive(
     Debug,
     Resource,
@@ -53,59 +54,64 @@ use bevy_zeroverse::{
 )]
 #[command(about = "bevy_zeroverse viewer", version, long_about = None)]
 #[reflect(Resource)]
-struct BevyZeroverseViewer {
+pub struct BevyZeroverseViewer {
     /// enable the bevy inspector
     #[arg(long, default_value = "true")]
-    editor: bool,
+    pub editor: bool,
+
+    /// no window will be shown
+    #[arg(long, default_value = "true")]
+    pub headless: bool,
 
     /// view available material basecolor textures in a grid
     #[arg(long, default_value = "false")]
-    material_grid: bool,
+    pub material_grid: bool,
 
     /// view plücker embeddings
     #[arg(long, default_value = "false")]
-    plucker_visualization: bool,
+    pub plucker_visualization: bool,
 
     /// enable closing the window with the escape key (doesn't work in web)
     #[arg(long, default_value = "true")]
-    press_esc_close: bool,
+    pub press_esc_close: bool,
 
     #[arg(long, default_value = "1920.0")]
-    width: f32,
+    pub width: f32,
 
     #[arg(long, default_value = "1080.0")]
-    height: f32,
+    pub height: f32,
 
     #[arg(long, default_value = "0")]
-    num_cameras: usize,
+    pub num_cameras: usize,
 
     /// display a grid of Zeroverse cameras
     #[arg(long, default_value = "false")]
-    camera_grid: bool,
+    pub camera_grid: bool,
 
     /// window title
     #[arg(long, default_value = "bevy_zeroverse")]
-    name: String,
+    pub name: String,
 
     /// move to the next scene after `regenerate_ms` milliseconds
     #[arg(long, default_value = "0")]
-    regenerate_ms: u32,
+    pub regenerate_ms: u32,
 
     /// automatically rotate the root scene object in the y axis
     #[arg(long, default_value = "0.0")]
-    yaw_speed: f32,
+    pub yaw_speed: f32,
 
     #[arg(long, value_enum, default_value_t = RenderMode::Color)]
-    render_mode: RenderMode,
+    pub render_mode: RenderMode,
 
     #[arg(long, value_enum, default_value_t = ZeroverseSceneType::Object)]
-    scene_type: ZeroverseSceneType,
+    pub scene_type: ZeroverseSceneType,
 }
 
 impl Default for BevyZeroverseViewer {
     fn default() -> BevyZeroverseViewer {
         BevyZeroverseViewer {
             editor: true,
+            headless: false,
             material_grid: false,
             plucker_visualization: false,
             press_esc_close: true,
@@ -123,9 +129,16 @@ impl Default for BevyZeroverseViewer {
 }
 
 
-fn viewer_app() {
-    let args = parse_args::<BevyZeroverseViewer>();
-    info!("{:?}", args);
+pub fn viewer_app(
+    override_args: Option<BevyZeroverseViewer>,
+) -> App {
+    let args = if override_args.is_some() {
+        override_args.unwrap()
+    } else {
+        parse_args::<BevyZeroverseViewer>()
+    };
+
+    info!("args: {:?}", args);
 
     let mut app = App::new();
 
@@ -211,7 +224,7 @@ fn viewer_app() {
         setup_camera_grid,
     ));
 
-    app.run();
+    app
 }
 
 
@@ -479,9 +492,4 @@ fn press_esc_close(
     if keys.just_pressed(KeyCode::Escape) {
         exit.send(AppExit::Success);
     }
-}
-
-
-pub fn main() {
-    viewer_app();
 }

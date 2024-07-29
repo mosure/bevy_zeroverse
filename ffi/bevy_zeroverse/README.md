@@ -1,6 +1,6 @@
 # bevy_zeroverse python bindings
 
-install to your python environment with `pip install .`
+install to your python environment with `pip install ./ffi/bevy_zeroverse` (from repository root)
 
 
 ## dataloader
