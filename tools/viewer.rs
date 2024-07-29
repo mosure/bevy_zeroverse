@@ -31,6 +31,7 @@ use bevy_zeroverse::{
     },
     plucker::ZeroversePluckerSettings,
     primitive::ScaleSampler,
+    render::RenderMode,
     scene::{
         room::ZeroverseRoomSettings,
         RegenerateSceneEvent,
@@ -94,6 +95,9 @@ struct BevyZeroverseViewer {
     #[arg(long, default_value = "0.0")]
     yaw_speed: f32,
 
+    #[arg(long, value_enum, default_value_t = RenderMode::Color)]
+    render_mode: RenderMode,
+
     #[arg(long, value_enum, default_value_t = ZeroverseSceneType::Object)]
     scene_type: ZeroverseSceneType,
 }
@@ -112,6 +116,7 @@ impl Default for BevyZeroverseViewer {
             name: "bevy_zeroverse".to_string(),
             regenerate_ms: 0,
             yaw_speed: 0.0,
+            render_mode: Default::default(),
             scene_type: Default::default(),
         }
     }
@@ -180,6 +185,8 @@ fn viewer_app() {
     }
 
     app.add_plugins(BevyZeroversePlugin);
+
+    app.insert_resource(args.render_mode);
 
     app.insert_resource(DefaultZeroverseCamera {
         resolution: UVec2::new(args.width as u32, args.height as u32).into(),

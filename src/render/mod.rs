@@ -2,12 +2,29 @@ use bevy::{
     prelude::*,
     render::render_resource::Face,
 };
+use bevy_args::{
+    Deserialize,
+    Serialize,
+    ValueEnum,
+};
+
+use crate::primitive::process_primitives;
 
 pub mod depth;
 pub mod normal;
 
 
-#[derive(Default, Debug, Resource, Reflect)]
+#[derive(
+    Debug,
+    Default,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    Reflect,
+    Resource,
+    ValueEnum,
+)]
 #[reflect(Resource)]
 pub enum RenderMode {
     #[default]
@@ -29,11 +46,20 @@ impl Plugin for RenderPlugin {
         app.add_plugins(normal::NormalPlugin);
 
         // TODO: add wireframe depth, pbr disable, normals
-        app.add_systems(PostUpdate, auto_disable_pbr_material::<depth::Depth>);
-        app.add_systems(PostUpdate, auto_disable_pbr_material::<normal::Normal>);
-
-        app.add_systems(PostUpdate, apply_render_modes);
-        app.add_systems(PostUpdate, enable_pbr_material);
+        app.add_systems(
+            Update,
+            apply_render_modes.after(process_primitives),
+        );
+        app.add_systems(
+            Update,
+            (
+                    auto_disable_pbr_material::<depth::Depth>,
+                    auto_disable_pbr_material::<normal::Normal>,
+                    enable_pbr_material,
+                )
+                .after(apply_render_modes)
+                .after(process_primitives)
+        );
     }
 }
 

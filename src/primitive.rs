@@ -438,7 +438,7 @@ fn build_primitive(
 }
 
 
-fn process_primitives(
+pub fn process_primitives(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut standard_materials: ResMut<Assets<StandardMaterial>>,
