@@ -132,10 +132,9 @@ impl Default for BevyZeroverseViewer {
 pub fn viewer_app(
     override_args: Option<BevyZeroverseViewer>,
 ) -> App {
-    let args = if override_args.is_some() {
-        override_args.unwrap()
-    } else {
-        parse_args::<BevyZeroverseViewer>()
+    let args = match override_args {
+        Some(args) => args,
+        None => parse_args::<BevyZeroverseViewer>(),
     };
 
     info!("args: {:?}", args);
