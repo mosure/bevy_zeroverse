@@ -6,7 +6,6 @@ use bevy::{
 };
 use bevy_args::{
     parse_args,
-    BevyArgsPlugin,
     Deserialize,
     Parser,
     Serialize,
@@ -45,6 +44,7 @@ use crate::{
 
 // TODO: register as a python class
 #[derive(
+    Clone,
     Debug,
     Resource,
     Serialize,
@@ -137,9 +137,11 @@ pub fn viewer_app(
         None => parse_args::<BevyZeroverseViewer>(),
     };
 
-    info!("args: {:?}", args);
-
     let mut app = App::new();
+
+    info!("args: {:?}", args);
+    app.insert_resource(args.clone());
+
 
     #[cfg(target_arch = "wasm32")]
     let primary_window = Some(Window {
@@ -182,7 +184,6 @@ pub fn viewer_app(
 
     app.add_plugins(default_plugins);
 
-    app.add_plugins(BevyArgsPlugin::<BevyZeroverseViewer>::default());
     app.add_plugins(PanOrbitCameraPlugin);
 
     app.insert_resource(Msaa::Sample8);

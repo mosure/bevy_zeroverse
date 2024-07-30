@@ -3,13 +3,11 @@ name = "bevy_zeroverse_ffi"
 version = "0.1.0"
 edition = "2021"
 
-[toolchain]
-channel = "nightly"
-
 
 [dependencies]
-pyo3 = { version = "0.22" }
 bevy_zeroverse = { path = "../../" }
+pyo3 = { version = "0.22", features = ["extension-module"] }
+pyo3-log = "0.11"
 
 
 [dependencies.bevy]
@@ -21,25 +19,6 @@ features = [
   "bevy_ui",
   "bevy_winit",
 ]
-
-
-[profile.dev.package."*"]
-opt-level = 3
-
-[profile.dev]
-opt-level = 1
-
-[profile.release]
-lto = "thin"
-codegen-units = 1
-opt-level = 3
-
-[profile.wasm-release]
-inherits = "release"
-opt-level = "z"
-lto = "fat"
-codegen-units = 1
-
 
 
 [lib]
