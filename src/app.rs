@@ -3,6 +3,7 @@ use bevy::{
     app::AppExit,
     time::Stopwatch,
     render::camera::RenderTarget,
+    winit::WinitPlugin,
 };
 use bevy_args::{
     parse_args,
@@ -15,6 +16,7 @@ use bevy_panorbit_camera::{
     PanOrbitCamera,
     PanOrbitCameraPlugin,
 };
+use pyo3::prelude::*;
 
 use crate::{
     BevyZeroversePlugin,
@@ -54,62 +56,93 @@ use crate::{
 )]
 #[command(about = "bevy_zeroverse viewer", version, long_about = None)]
 #[reflect(Resource)]
-pub struct BevyZeroverseViewer {
+#[pyclass]
+pub struct BevyZeroverseConfig {
     /// enable the bevy inspector
+    #[pyo3(get, set)]
     #[arg(long, default_value = "true")]
     pub editor: bool,
 
     /// no window will be shown
-    #[arg(long, default_value = "true")]
+    #[pyo3(get, set)]
+    #[arg(long, default_value = "false")]
     pub headless: bool,
 
     /// view available material basecolor textures in a grid
+    #[pyo3(get, set)]
     #[arg(long, default_value = "false")]
     pub material_grid: bool,
 
     /// view plücker embeddings
+    #[pyo3(get, set)]
     #[arg(long, default_value = "false")]
     pub plucker_visualization: bool,
 
     /// enable closing the window with the escape key (doesn't work in web)
+    #[pyo3(get, set)]
     #[arg(long, default_value = "true")]
     pub press_esc_close: bool,
 
+    #[pyo3(get, set)]
     #[arg(long, default_value = "1920.0")]
     pub width: f32,
 
+    #[pyo3(get, set)]
     #[arg(long, default_value = "1080.0")]
     pub height: f32,
 
+    #[pyo3(get, set)]
     #[arg(long, default_value = "0")]
     pub num_cameras: usize,
 
     /// display a grid of Zeroverse cameras
+    #[pyo3(get, set)]
     #[arg(long, default_value = "false")]
     pub camera_grid: bool,
 
     /// window title
+    #[pyo3(get, set)]
     #[arg(long, default_value = "bevy_zeroverse")]
     pub name: String,
 
     /// move to the next scene after `regenerate_ms` milliseconds
+    #[pyo3(get, set)]
     #[arg(long, default_value = "0")]
     pub regenerate_ms: u32,
 
     /// automatically rotate the root scene object in the y axis
+    #[pyo3(get, set)]
     #[arg(long, default_value = "0.0")]
     pub yaw_speed: f32,
 
+    #[pyo3(get, set)]
     #[arg(long, value_enum, default_value_t = RenderMode::Color)]
     pub render_mode: RenderMode,
 
+    #[pyo3(get, set)]
     #[arg(long, value_enum, default_value_t = ZeroverseSceneType::Object)]
     pub scene_type: ZeroverseSceneType,
 }
 
-impl Default for BevyZeroverseViewer {
-    fn default() -> BevyZeroverseViewer {
-        BevyZeroverseViewer {
+#[pymethods]
+impl BevyZeroverseConfig {
+    #[new]
+    pub fn new() -> Self {
+        Default::default()
+    }
+
+    fn __str__(&self) -> PyResult<String> {
+        Ok(format!("{:?}", self))
+    }
+
+    fn __repr__(&self) -> PyResult<String> {
+        Ok(format!("{:?}", self))
+    }
+}
+
+impl Default for BevyZeroverseConfig {
+    fn default() -> BevyZeroverseConfig {
+        BevyZeroverseConfig {
             editor: true,
             headless: false,
             material_grid: false,
@@ -130,11 +163,11 @@ impl Default for BevyZeroverseViewer {
 
 
 pub fn viewer_app(
-    override_args: Option<BevyZeroverseViewer>,
+    override_args: Option<BevyZeroverseConfig>,
 ) -> App {
     let args = match override_args {
         Some(args) => args,
-        None => parse_args::<BevyZeroverseViewer>(),
+        None => parse_args::<BevyZeroverseConfig>(),
     };
 
     let mut app = App::new();
@@ -175,12 +208,19 @@ pub fn viewer_app(
     });
 
     app.insert_resource(ClearColor(Color::srgba(0.0, 0.0, 0.0, 0.0)));
+
     let default_plugins = DefaultPlugins
-        .set(ImagePlugin::default_nearest())
-        .set(WindowPlugin {
+        .set(ImagePlugin::default_nearest());
+
+    let default_plugins = if args.headless {
+        default_plugins
+            .disable::<WinitPlugin>()
+    } else {
+        default_plugins.set(WindowPlugin {
             primary_window,
             ..default()
-        });
+        })
+    };
 
     app.add_plugins(default_plugins);
 
@@ -189,7 +229,7 @@ pub fn viewer_app(
     app.insert_resource(Msaa::Sample8);
 
     if args.editor {
-        app.register_type::<BevyZeroverseViewer>();
+        app.register_type::<BevyZeroverseConfig>();
         app.add_plugins(WorldInspectorPlugin::new());
     }
 
@@ -232,7 +272,7 @@ pub fn viewer_app(
 struct MaterialGridCameraMarker;
 
 fn setup_camera(
-    args: Res<BevyZeroverseViewer>,
+    args: Res<BevyZeroverseConfig>,
     mut commands: Commands,
     material_grid_cameras: Query<Entity, With<MaterialGridCameraMarker>>,
     editor_cameras: Query<Entity, With<EditorCameraMarker>>,
@@ -290,7 +330,7 @@ struct CameraGrid;
 
 fn setup_camera_grid(
     mut commands: Commands,
-    args: Res<BevyZeroverseViewer>,
+    args: Res<BevyZeroverseConfig>,
     camera_grids: Query<Entity, With<CameraGrid>>,
     zeroverse_cameras: Query<
         (Entity, &Camera),
@@ -360,7 +400,7 @@ struct MaterialGrid;
 
 fn setup_material_grid(
     mut commands: Commands,
-    args: Res<BevyZeroverseViewer>,
+    args: Res<BevyZeroverseConfig>,
     standard_materials: Res<Assets<StandardMaterial>>,
     zeroverse_materials: Res<ZeroverseMaterials>,
     material_grids: Query<Entity, With<MaterialGrid>>,
@@ -429,7 +469,7 @@ fn setup_scene(
 
 #[allow(clippy::too_many_arguments)]
 fn regenerate_scene_system(
-    args: Res<BevyZeroverseViewer>,
+    args: Res<BevyZeroverseConfig>,
     keys: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
     mut regenerate_stopwatch: Local<Stopwatch>,
@@ -451,7 +491,7 @@ fn regenerate_scene_system(
 
 fn rotate_scene(
     time: Res<Time>,
-    args: Res<BevyZeroverseViewer>,
+    args: Res<BevyZeroverseConfig>,
     mut scene_roots: Query<&mut Transform, With<ZeroverseSceneRoot>>,
 ) {
     for mut transform in scene_roots.iter_mut() {
@@ -462,7 +502,7 @@ fn rotate_scene(
 
 
 fn propagate_cli_settings(
-    args: Res<BevyZeroverseViewer>,
+    args: Res<BevyZeroverseConfig>,
     mut plucker_settings: ResMut<ZeroversePluckerSettings>,
     mut scene_settings: ResMut<ZeroverseSceneSettings>,
 ) {

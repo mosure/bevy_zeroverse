@@ -4,6 +4,7 @@ use bevy_args::{
     Serialize,
     ValueEnum,
 };
+use pyo3::prelude::*;
 
 pub mod lighting;
 pub mod object;
@@ -48,6 +49,7 @@ pub struct ZeroverseSceneRoot;
     Reflect,
     ValueEnum,
 )]
+#[pyclass(eq, eq_int)]
 pub enum ZeroverseSceneType {
     #[default]
     Object,

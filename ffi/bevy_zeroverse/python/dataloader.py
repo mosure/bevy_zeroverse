@@ -1,20 +1,13 @@
 import bevy_zeroverse
 
 
-print('initializing bevy zeroverse...')
-bevy_zeroverse.initialize()
-print('bevy zeroverse initialized!')
+config = bevy_zeroverse.BevyZeroverseConfig()
+
+config.headless = True
+config.num_cameras = 4
+
+bevy_zeroverse.initialize(config)
 
 
-# dataloader = bevy_zeroverse.ZeroverseDataloader(
-#     width=256,
-#     height=144,
-#     num_cameras=4,
-#     render_modes=['color', 'depth', 'normal'],
-#     seed=0,
-#     scene_type='room',
-# )
-
-# for batch in dataloader:
-#     print(batch)
-#     break
+sample = bevy_zeroverse.next()
+print(sample)

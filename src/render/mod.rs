@@ -7,6 +7,7 @@ use bevy_args::{
     Serialize,
     ValueEnum,
 };
+use pyo3::prelude::*;
 
 use crate::primitive::process_primitives;
 
@@ -26,6 +27,7 @@ pub mod normal;
     ValueEnum,
 )]
 #[reflect(Resource)]
+#[pyclass(eq, eq_int)]
 pub enum RenderMode {
     #[default]
     Color,
