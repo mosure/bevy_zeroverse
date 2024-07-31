@@ -5,6 +5,8 @@ config = bevy_zeroverse.BevyZeroverseConfig()
 
 config.headless = True
 config.num_cameras = 4
+config.width = 640
+config.height = 360
 
 bevy_zeroverse.initialize(config)
 

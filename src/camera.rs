@@ -238,8 +238,6 @@ fn insert_cameras(
         let render_target = images.add(render_target);
         let target = RenderTarget::Image(render_target.clone());
 
-        // TODO: add headless io ImageCopier and CpuImage
-
         let mut camera = commands.entity(entity);
         camera
             .insert((

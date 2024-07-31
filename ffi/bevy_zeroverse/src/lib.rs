@@ -145,13 +145,17 @@ pub fn setup_and_run_app(
 
 
 #[pyfunction]
-#[pyo3(signature = (override_args=None))]
+#[pyo3(signature = (override_args=None, asset_root=None))]
 fn initialize(
     py: Python<'_>,
     override_args: Option<BevyZeroverseConfig>,
+    asset_root: Option<String>,
 ) {
-    // TODO: allow custom asset folder
-    std::env::set_var("BEVY_ASSET_ROOT", std::env::current_dir().unwrap());
+    if let Some(asset_root) = asset_root {
+        std::env::set_var("BEVY_ASSET_ROOT", asset_root);
+    } else {
+        std::env::set_var("BEVY_ASSET_ROOT", std::env::current_dir().unwrap());
+    }
 
     let (
         sender,
