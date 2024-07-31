@@ -7,6 +7,7 @@ use std::{
             Ordering,
         },
         mpsc::{
+            self,
             Sender,
             Receiver,
             RecvTimeoutError,
@@ -33,9 +34,10 @@ use ::bevy_zeroverse::app::{
 
 type ColorImage = Array3<u8>;
 type DepthImage = Array2<f32>;
-type NormalImage = Array2<[f32; 3]>;
+type NormalImage = Array3<f32>;
 
 
+#[derive(Debug)]
 #[derive(Clone)]
 #[pyclass]
 struct View {
@@ -70,8 +72,17 @@ impl View {
         let normal_list: Vec<_> = self.normal.iter().map(|&v| v.into_py(py)).collect();
         PyList::new_bound(py, normal_list)
     }
+
+    fn __str__(&self) -> PyResult<String> {
+        Ok(format!("{:?}", self))
+    }
+
+    fn __repr__(&self) -> PyResult<String> {
+        Ok(format!("{:?}", self))
+    }
 }
 
+#[derive(Debug)]
 #[pyclass]
 struct Sample {
     views: Vec<View>,
@@ -84,10 +95,18 @@ impl Sample {
         let views_list: Vec<_> = self.views.iter().map(|v| v.clone().into_py(py)).collect();
         PyList::new_bound(py, views_list)
     }
+
+    fn __str__(&self) -> PyResult<String> {
+        Ok(format!("{:?}", self))
+    }
+
+    fn __repr__(&self) -> PyResult<String> {
+        Ok(format!("{:?}", self))
+    }
 }
 
 static SAMPLE_RECEIVER: OnceCell<Arc<Mutex<Receiver<Sample>>>> = OnceCell::new();
-// static SAMPLE_SENDER: OnceCell<Sender<Sample>> = OnceCell::new();
+static SAMPLE_SENDER: OnceCell<Sender<Sample>> = OnceCell::new();
 
 
 // TODO: create Dataloader torch class (or a render `n` frames and return capture fn, used within a python wrapper dataloader, wrapper requires setup.py to include the python module)
@@ -131,6 +150,42 @@ fn initialize(
     py: Python<'_>,
     override_args: Option<BevyZeroverseConfig>,
 ) {
+    // TODO: allow custom asset folder
+    std::env::set_var("BEVY_ASSET_ROOT", std::env::current_dir().unwrap());
+
+    let (
+        sender,
+        receiver,
+    ) = mpsc::channel();
+
+    SAMPLE_RECEIVER.set(Arc::new(Mutex::new(receiver))).unwrap();
+    SAMPLE_SENDER.set(sender).unwrap();
+
+    let mut views = Vec::new();
+
+    for _ in 0..9 {
+        let color = Array3::<u8>::zeros((1080, 1920, 4));
+        let depth = Array2::<f32>::zeros((1080, 1920));
+        let normal = Array3::<f32>::zeros((1080, 1920, 3));
+
+        let view = View {
+            color,
+            depth,
+            normal,
+            view_from_world: [[0.0; 4]; 4],
+            fovy: 60.0,
+        };
+
+        views.push(view);
+    }
+
+    let sample = Sample {
+        views,
+    };
+
+    let sender = SAMPLE_SENDER.get().unwrap();
+    sender.send(sample).unwrap();
+
     py.allow_threads(|| {
         setup_and_run_app(true, override_args);
     });

@@ -1,8 +1,32 @@
+use std::{
+    env,
+    path::Path,
+};
+
 use bevy::{
     prelude::*,
     app::AppExit,
     time::Stopwatch,
-    render::camera::RenderTarget,
+    render::{
+        camera::RenderTarget,
+        // render_resource::{
+        //     Extent3d,
+        //     TextureDescriptor,
+        //     TextureDimension,
+        //     TextureUsages,
+        // },
+        // renderer::RenderDevice,
+        settings::{
+            RenderCreation,
+            WgpuFeatures,
+            WgpuSettings,
+        },
+        // texture::{
+        //     ImageLoaderSettings,
+        //     ImageSampler,
+        // },
+        RenderPlugin,
+    },
     winit::WinitPlugin,
 };
 use bevy_args::{
@@ -25,6 +49,7 @@ use crate::{
         EditorCameraMarker,
         ZeroverseCamera,
     },
+    io,
     material::{
         MaterialsLoadedEvent,
         ShuffleMaterialsEvent,
@@ -210,7 +235,15 @@ pub fn viewer_app(
     app.insert_resource(ClearColor(Color::srgba(0.0, 0.0, 0.0, 0.0)));
 
     let default_plugins = DefaultPlugins
-        .set(ImagePlugin::default_nearest());
+        .set(ImagePlugin::default_nearest())
+        .set(RenderPlugin {
+            render_creation: RenderCreation::Automatic(WgpuSettings {
+                features: WgpuFeatures::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES
+                        | WgpuFeatures::SHADER_F16,
+                ..Default::default()
+            }),
+            ..Default::default()
+        });
 
     let default_plugins = if args.headless {
         default_plugins
@@ -224,9 +257,14 @@ pub fn viewer_app(
 
     app.add_plugins(default_plugins);
 
+    if args.headless {
+        app.add_plugins(io::image_copy::ImageCopyPlugin);
+        app.add_plugins(io::scene::CaptureFramePlugin);
+    }
+
     app.add_plugins(PanOrbitCameraPlugin);
 
-    app.insert_resource(Msaa::Sample8);
+    app.insert_resource(Msaa::Sample4);
 
     if args.editor {
         app.register_type::<BevyZeroverseConfig>();

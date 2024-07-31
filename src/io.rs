@@ -184,6 +184,7 @@ pub mod image_copy {
     }
 }
 
+// TODO: gut scene controller, replace with camera -> Res<Sample> view writer (based on camera idx + render mode)
 pub mod scene {
     use std::path::PathBuf;
 
@@ -202,6 +203,9 @@ pub mod scene {
 
     #[derive(Component, Deref, DerefMut)]
     struct ImageToSave(Handle<Image>);
+
+    #[derive(Component, Deref, DerefMut)]
+    pub struct CpuImage(pub Handle<Image>);
 
     pub struct CaptureFramePlugin;
     impl Plugin for CaptureFramePlugin {
@@ -331,6 +335,7 @@ pub mod scene {
                         panic!("failed to save image: {}", e);
                     };
                 }
+
                 if scene_controller.single_image {
                     app_exit_writer.send(AppExit::Success);
                 }

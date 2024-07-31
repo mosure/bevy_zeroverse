@@ -10,4 +10,17 @@ bevy_zeroverse.initialize(config)
 
 
 sample = bevy_zeroverse.next()
-print(sample)
+
+print(len(sample.views))
+
+print(len(sample.views[0].color))
+
+
+import time
+start_time = time.time()
+
+for i in range(9 * 4):
+    sample.views[0].color
+
+period = (time.time() - start_time) / (9 * 4)
+print("--- %s seconds ---" % period)
