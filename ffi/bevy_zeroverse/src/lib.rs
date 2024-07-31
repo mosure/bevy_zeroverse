@@ -18,7 +18,12 @@ use std::{
 };
 
 use bevy::prelude::*;
-use ndarray::{Array2, Array3};
+use image::{
+    DynamicImage,
+    ImageBuffer,
+    Luma,
+};
+use ndarray::Array3;
 use once_cell::sync::OnceCell;
 use pyo3::{
     prelude::*,
@@ -26,19 +31,22 @@ use pyo3::{
     types::PyList,
 };
 
-use ::bevy_zeroverse::app::{
-    viewer_app,
-    BevyZeroverseConfig,
+use ::bevy_zeroverse::{
+    app::{
+        viewer_app,
+        BevyZeroverseConfig,
+    },
+    io::image_copy::ImageCopier,
+    render::RenderMode,
 };
 
 
-type ColorImage = Array3<u8>;
-type DepthImage = Array2<f32>;
+type ColorImage = Array3<f32>;
+type DepthImage = Array3<f32>;
 type NormalImage = Array3<f32>;
 
 
-#[derive(Debug)]
-#[derive(Clone)]
+#[derive(Clone, Debug, Default)]
 #[pyclass]
 struct View {
     color: ColorImage,
@@ -82,7 +90,7 @@ impl View {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default, Resource)]
 #[pyclass]
 struct Sample {
     views: Vec<View>,
@@ -105,6 +113,14 @@ impl Sample {
     }
 }
 
+
+#[derive(Debug, Default, Resource, Reflect)]
+struct SamplerState {
+    frames: u32,
+    render_modes: Vec<RenderMode>,
+}
+
+
 static SAMPLE_RECEIVER: OnceCell<Arc<Mutex<Receiver<Sample>>>> = OnceCell::new();
 static SAMPLE_SENDER: OnceCell<Sender<Sample>> = OnceCell::new();
 
@@ -123,6 +139,10 @@ pub fn setup_and_run_app(
 
         move || {
             let mut app = viewer_app(override_args);
+
+            app.init_resource::<Sample>();
+            app.init_resource::<SamplerState>();
+            app.add_systems(PreUpdate, sample_stream);
 
             ready.store(true, Ordering::Release);
 
@@ -168,8 +188,8 @@ fn initialize(
     let mut views = Vec::new();
 
     for _ in 0..9 {
-        let color = Array3::<u8>::zeros((1080, 1920, 4));
-        let depth = Array2::<f32>::zeros((1080, 1920));
+        let color = Array3::<f32>::zeros((1080, 1920, 3));
+        let depth = Array3::<f32>::zeros((1080, 1920, 1));
         let normal = Array3::<f32>::zeros((1080, 1920, 3));
 
         let view = View {
@@ -196,19 +216,116 @@ fn initialize(
 }
 
 
+// TODO: keep a global sample before sending over mpsc (when sending, clear the resource to avoid copy)
+// TODO: update the global sample depending on rendering mode
+// TODO: update SamplerState -> SamplerState to include render_mode cycling
+
+fn sample_stream(
+    mut buffered_sample: ResMut<Sample>,
+    mut state: ResMut<SamplerState>,
+    cameras: Query<(
+        &GlobalTransform,
+        &Projection,
+        &ImageCopier,
+    )>,
+    images: Res<Assets<Image>>,
+    render_mode: Res<RenderMode>,
+) {
+    if state.frames > 0 {
+        state.frames -= 1;
+        return;
+    }
+
+    if buffered_sample.views.len() != cameras.iter().count() {
+        buffered_sample.views.clear();
+
+        for _ in cameras.iter() {
+            buffered_sample.views.push(View::default());
+        }
+    }
+
+    for (i, (camera_transform, projection, image_copier)) in cameras.iter().enumerate() {
+        let view = &mut buffered_sample.views[i];
+
+        view.fovy = match projection {
+            Projection::Perspective(perspective) => perspective.fov,
+            Projection::Orthographic(_) => panic!("orthographic projection not supported"),
+        };
+
+        let view_from_world = camera_transform.compute_matrix().to_cols_array_2d();
+        view.view_from_world = view_from_world;
+
+        let cpu_image = images.get(&image_copier.dst_image).unwrap();
+        let size = cpu_image.size();
+
+        let dynamic_cpu_image = cpu_image
+            .clone()
+            .try_into_dynamic()
+            .unwrap();
+
+        match *render_mode {
+            RenderMode::Color => {
+                let color_image = dynamic_cpu_image
+                    .as_rgb32f()
+                    .unwrap();
+
+                view.color = Array3::<f32>::from_shape_vec(
+                    (size.y as usize, size.x as usize, 3),
+                    color_image.to_vec(),
+                ).unwrap();
+            },
+            RenderMode::Depth => {
+                fn rgba16f_to_r32f(image: &DynamicImage) -> ImageBuffer<Luma<f32>, Vec<f32>> {
+                    let img = image.as_rgb16().unwrap();
+                    let (width, height) = img.dimensions();
+                    let buffer: Vec<f32> = img.pixels().map(|p| p.0[0] as f32).collect();
+                    ImageBuffer::from_raw(width, height, buffer).unwrap()
+                }
+
+                let depth_image = rgba16f_to_r32f(&dynamic_cpu_image);
+
+                view.depth = Array3::<f32>::from_shape_vec(
+                    (size.y as usize, size.x as usize, 1),
+                    depth_image.to_vec(),
+                ).unwrap();
+            },
+            RenderMode::Normal => {
+                let normal_image = dynamic_cpu_image
+                    .as_rgb32f()
+                    .unwrap();
+
+                view.normal = Array3::<f32>::from_shape_vec(
+                    (size.y as usize, size.x as usize, 3),
+                    normal_image.to_vec(),
+                ).unwrap();
+            },
+        }
+    }
+
+
+    // TODO: progress to next render_mode, reset frame counter (add a frame count reset to SamplerState)
+
+
+    if state.render_modes.is_empty() {
+        let views = std::mem::take(&mut buffered_sample.views);
+        let sample = Sample {
+            views,
+        };
+
+        let sender = SAMPLE_SENDER.get().unwrap();
+        sender.send(sample).unwrap();
+    }
+}
+
+
 // TODO: support batch dimension (e.g. single array allocation for multiple samples)
-// TODO: add systems for pushing and receiving camera outputs + metadata to python
-// TODO: add options to bevy_zeroverse.next (e.g. render_modes, scene parameters, etc.)
+// TODO: add options to bevy_zeroverse.next (e.g. render_mode, scene parameters, etc.)
 #[pyfunction]
 fn next() -> PyResult<Sample> {
-    // TODO: advance 'n' frames - requires app reference
-    // TODO: capture frame - requires app system registration to write to textures and readback, triggered by app event after 'n' frames
-    // TODO: send frame
-
     let receiver = SAMPLE_RECEIVER.get().unwrap();
     let receiver = receiver.lock().unwrap();
 
-    let timeout = Duration::from_secs(5);
+    let timeout = Duration::from_secs(10);
 
     match receiver.recv_timeout(timeout) {
         Ok(sample) => Ok(sample),

@@ -26,10 +26,12 @@ use bevy::{
             Extent3d,
             TextureDescriptor,
             TextureDimension,
-            TextureFormat,
             TextureUsages,
         },
-        view::RenderLayers,
+        view::{
+            RenderLayers,
+            ViewTarget,
+        },
     }
 };
 use rand::Rng;
@@ -219,15 +221,17 @@ fn insert_cameras(
             depth_or_array_layers: 1,
         };
 
+        // TODO: support float32 rendering for depth and normal outputs
         let mut render_target = Image {
             texture_descriptor: TextureDescriptor {
                 label: None,
                 size,
                 dimension: TextureDimension::D2,
-                format: TextureFormat::Bgra8UnormSrgb,
+                format: ViewTarget::TEXTURE_FORMAT_HDR,
                 mip_level_count: 1,
                 sample_count: 1,
                 usage: TextureUsages::TEXTURE_BINDING
+                    | TextureUsages::COPY_SRC
                     | TextureUsages::COPY_DST
                     | TextureUsages::RENDER_ATTACHMENT,
                 view_formats: &[],
@@ -267,7 +271,7 @@ fn insert_cameras(
                     label: None,
                     size,
                     dimension: TextureDimension::D2,
-                    format: TextureFormat::Rgba8UnormSrgb,
+                    format: ViewTarget::TEXTURE_FORMAT_HDR,
                     mip_level_count: 1,
                     sample_count: 1,
                     usage: TextureUsages::COPY_DST | TextureUsages::TEXTURE_BINDING,
@@ -278,7 +282,6 @@ fn insert_cameras(
             cpu_image.resize(size);
             let cpu_image_handle = images.add(cpu_image);
 
-            camera.insert(io::scene::CpuImage(cpu_image_handle.clone()));
             camera.insert(io::image_copy::ImageCopier::new(
                 render_target,
                 cpu_image_handle,

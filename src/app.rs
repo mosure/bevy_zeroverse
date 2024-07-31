@@ -1,8 +1,3 @@
-use std::{
-    env,
-    path::Path,
-};
-
 use bevy::{
     prelude::*,
     app::AppExit,
@@ -259,7 +254,6 @@ pub fn viewer_app(
 
     if args.headless {
         app.add_plugins(io::image_copy::ImageCopyPlugin);
-        app.add_plugins(io::scene::CaptureFramePlugin);
     }
 
     app.add_plugins(PanOrbitCameraPlugin);
