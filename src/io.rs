@@ -138,6 +138,7 @@ pub mod image_copy {
                     continue;
                 }
 
+                // TODO: add check for src_image existing
                 let src_image = gpu_images.get(&image_copier.src_image).unwrap();
 
                 let mut encoder = render_context

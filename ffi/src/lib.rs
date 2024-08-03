@@ -41,6 +41,7 @@ use ::bevy_zeroverse::{
 };
 
 
+// TODO: move to src/sample.rs to support torch (python) and burn dataloaders
 type ColorImage = Array3<f32>;
 type DepthImage = Array3<f32>;
 type NormalImage = Array3<f32>;

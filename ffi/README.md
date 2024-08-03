@@ -1,13 +1,13 @@
 # bevy_zeroverse python bindings
 
-install to your python environment with `pip install ffi/bevy_zeroverse` (from repository root)
+install to your python environment with `pip install ffi` (from repository root)
 
 
 ## dataloader
 
 torch dataloader API for online bevy_zeroverse batch generation.
 
-run the test script with `python ffi/bevy_zeroverse/python/dataloader.py` to see the dataloader in action.
+run the test script with `python ffi/python/test.py` to see the dataloader in action.
 
 ```python
 from bevy_zeroverse.dataloader import ZeroverseDataloader
