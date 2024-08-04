@@ -11,7 +11,6 @@ use crate::{
         ZeroverseCamera,
     },
     scene::{
-        clear_old_scenes,
         lighting::{
             setup_lighting,
             ZeroverseLightingSettings,
@@ -43,7 +42,7 @@ impl Plugin for ZeroverseRoomPlugin {
 
         app.add_systems(
             PreUpdate,
-            regenerate_scene.after(clear_old_scenes),
+            regenerate_scene,
         );
     }
 }
@@ -52,6 +51,7 @@ impl Plugin for ZeroverseRoomPlugin {
 #[derive(Clone, Debug, Reflect, Resource)]
 #[reflect(Resource)]
 pub struct ZeroverseRoomSettings {
+    pub camera_floor_padding: f32,
     pub camera_wall_padding: f32,
     pub center_primitive_count: CountSampler,
     pub center_primitive_scale_sampler: ScaleSampler,
@@ -69,6 +69,7 @@ impl Default for ZeroverseRoomSettings {
         // };
 
         Self {
+            camera_floor_padding: 3.0,
             camera_wall_padding: 1.0,
             center_primitive_count: CountSampler::Bounded(4, 10),
             center_primitive_scale_sampler: ScaleSampler::Bounded(
@@ -78,7 +79,7 @@ impl Default for ZeroverseRoomSettings {
             center_primitive_settings: ZeroversePrimitiveSettings::default(),
             looking_at_sampler: LookingAtSampler::Sphere {
                 geometry: Sphere::new(4.0),
-                transform: Transform::from_translation(Vec3::new(0.0, 1.0, 0.0)),
+                transform: Transform::from_translation(Vec3::new(0.0, 3.0, 0.0)),
             },
             room_size: ScaleSampler::Bounded(
                 Vec3::new(12.0, 8.0, 12.0),
@@ -105,27 +106,6 @@ fn setup_scene(
         .insert(SpatialBundle::default())
         .with_children(|commands| {
             {// outer walls
-                // // bounding box
-                // let outer_walls_settings = ZeroversePrimitiveSettings {
-                //     invert_normals: true,
-                //     available_types: vec![ZeroversePrimitives::Cuboid],  // TODO: change to plane, support multi-material hull
-                //     components: 1,
-                //     wireframe_probability: 1.0,
-                //     noise_probability: 0.0,
-                //     cast_shadows: false,
-                //     position_sampler: PositionSampler::Exact {
-                //         position: Vec3::new(0.0, scale.y / 2.0, 0.0),
-                //     },
-                //     rotation_sampler: RotationSampler::Identity,
-                //     scale_sampler: ScaleSampler::Exact(scale),
-                //     ..default()
-                // };
-
-                // commands.spawn(PrimitiveBundle {
-                //     settings: outer_walls_settings,
-                //     ..default()
-                // });
-
                 let base_plane_settings = ZeroversePrimitiveSettings {
                     cull_mode: Some(Face::Front),
                     available_types: vec![ZeroversePrimitives::Plane],
@@ -259,9 +239,9 @@ fn setup_scene(
                 let center_object_height = 8.0;
                 let center_object_sampler = PositionSampler::Cube {
                     extents: Vec3::new(
-                        scale.x / 2.0,
+                        scale.x / 1.5,
                         center_object_height / 2.0,
-                        scale.z / 2.0,
+                        scale.z / 1.5,
                     ),
                 };
 
@@ -293,10 +273,10 @@ fn setup_scene(
         });
 
     for _ in 0..scene_settings.num_cameras {
-        let size = Vec3::new(
-            scale.x - room_settings.camera_wall_padding,
-            scale.y / 2.0,
-            scale.z - room_settings.camera_wall_padding,
+        let size: Vec3 = Vec3::new(
+            scale.x - room_settings.camera_wall_padding * 2.0,
+            scale.y - room_settings.camera_floor_padding,
+            scale.z - room_settings.camera_wall_padding * 2.0,
         );
 
         commands.spawn(ZeroverseCamera {
@@ -304,7 +284,11 @@ fn setup_scene(
                 sampler_type: CameraPositionSamplerType::Band {
                     size,
                     rotation: Quat::IDENTITY,
-                    translate: Vec3::new(0.0, scale.y / 2.0 + size.y / 2.0, 0.0),
+                    translate: Vec3::new(
+                        0.0,
+                        room_settings.camera_floor_padding + size.y / 2.0,
+                        0.0,
+                    ),
                 },
                 looking_at: room_settings.looking_at_sampler.clone(),
             },
@@ -319,6 +303,7 @@ fn setup_scene(
 fn regenerate_scene(
     mut commands: Commands,
     room_settings: Res<ZeroverseRoomSettings>,
+    clear_zeroverse_scenes: Query<Entity, With<ZeroverseScene>>,
     mut regenerate_events: EventReader<RegenerateSceneEvent>,
     scene_settings: Res<ZeroverseSceneSettings>,
     load_event: EventWriter<SceneLoadedEvent>,
@@ -332,6 +317,10 @@ fn regenerate_scene(
         return;
     }
     regenerate_events.clear();
+
+    for entity in clear_zeroverse_scenes.iter() {
+        commands.entity(entity).despawn_recursive();
+    }
 
     setup_lighting(
         commands.reborrow(),

@@ -7,7 +7,6 @@ use crate::{
         ZeroverseCamera,
     },
     scene::{
-        clear_old_scenes,
         lighting::{
             setup_lighting,
             ZeroverseLightingSettings,
@@ -31,7 +30,7 @@ impl Plugin for ZeroverseObjectPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             PreUpdate,
-            regenerate_scene.after(clear_old_scenes),
+            regenerate_scene,
         );
     }
 }
@@ -75,6 +74,7 @@ fn setup_cameras(
 fn regenerate_scene(
     mut commands: Commands,
     primitive_settings: Res<ZeroversePrimitiveSettings>,
+    clear_zeroverse_scenes: Query<Entity, With<ZeroverseScene>>,
     mut regenerate_events: EventReader<RegenerateSceneEvent>,
     scene_settings: Res<ZeroverseSceneSettings>,
     load_event: EventWriter<SceneLoadedEvent>,
@@ -88,6 +88,10 @@ fn regenerate_scene(
         return;
     }
     regenerate_events.clear();
+
+    for entity in clear_zeroverse_scenes.iter() {
+        commands.entity(entity).despawn_recursive();
+    }
 
     setup_cameras(
         commands.reborrow(),

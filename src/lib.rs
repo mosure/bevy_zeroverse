@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 
+pub mod app;
 pub mod camera;
+pub mod io;
 pub mod manifold;
 pub mod material;
 pub mod mesh;

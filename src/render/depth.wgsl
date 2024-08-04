@@ -13,5 +13,5 @@ fn depth_to_rgb(depth: f32) -> vec3<f32> {
 
 @fragment
 fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
-    return vec4<f32>(depth_to_rgb(in.position.w), 1.0);
+    return vec4<f32>(vec3<f32>(in.position.w), 1.0);
 }

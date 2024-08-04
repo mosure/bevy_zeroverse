@@ -21,6 +21,7 @@ use bevy::{
             Exposure,
             RenderTarget,
         },
+        renderer::RenderDevice,
         render_resource::{
             Extent3d,
             TextureDescriptor,
@@ -28,12 +29,17 @@ use bevy::{
             TextureFormat,
             TextureUsages,
         },
+        texture::BevyDefault,
         view::RenderLayers,
     }
 };
 use rand::Rng;
 
-use crate::plucker::PluckerCamera;
+use crate::{
+    app::BevyZeroverseConfig,
+    io,
+    plucker::PluckerCamera,
+};
 
 
 pub struct ZeroverseCameraPlugin;
@@ -201,6 +207,8 @@ fn insert_cameras(
         Without<Camera>,
     >,
     default_zeroverse_camera: Res<DefaultZeroverseCamera>,
+    args: Res<BevyZeroverseConfig>,
+    render_device: Res<RenderDevice>,
 ) {
     for (entity, zeroverse_camera) in zeroverse_cameras.iter() {
         let resolution = zeroverse_camera.resolution
@@ -214,13 +222,14 @@ fn insert_cameras(
 
         let mut render_target = Image {
             texture_descriptor: TextureDescriptor {
-                label: None,
+                label: "bevy_zeroverse_camera_target".into(),
                 size,
                 dimension: TextureDimension::D2,
-                format: TextureFormat::Bgra8UnormSrgb,
+                format: TextureFormat::bevy_default(), //ViewTarget::TEXTURE_FORMAT_HDR,
                 mip_level_count: 1,
                 sample_count: 1,
                 usage: TextureUsages::TEXTURE_BINDING
+                    | TextureUsages::COPY_SRC
                     | TextureUsages::COPY_DST
                     | TextureUsages::RENDER_ATTACHMENT,
                 view_formats: &[],
@@ -229,28 +238,56 @@ fn insert_cameras(
         };
         render_target.resize(size);
         let render_target = images.add(render_target);
-        let target = RenderTarget::Image(render_target);
+        let target = RenderTarget::Image(render_target.clone());
 
-        commands.entity(entity).insert((
-            Camera3dBundle {
-                camera: Camera {
-                    hdr: true,
-                    target,
+        let mut camera = commands.entity(entity);
+        camera
+            .insert((
+                Camera3dBundle {
+                    camera: Camera {
+                        hdr: true,
+                        target,
+                        ..default()
+                    },
+                    camera_3d: Camera3d {
+                        screen_space_specular_transmission_quality: ScreenSpaceTransmissionQuality::High,
+                        ..default()
+                    },
+                    exposure: Exposure::INDOOR,
+                    transform: zeroverse_camera.sampler.sample(),
+                    tonemapping: Tonemapping::None,
                     ..default()
                 },
-                camera_3d: Camera3d {
-                    screen_space_specular_transmission_quality: ScreenSpaceTransmissionQuality::High,
-                    ..default()
+                PluckerCamera,
+                BloomSettings::default(),
+                Name::new("zeroverse_camera"),
+            ));
+
+        if args.headless {
+            let mut cpu_image = Image {
+                texture_descriptor: TextureDescriptor {
+                    label: "bevy_zeroverse_camera_cpu_image".into(),
+                    size,
+                    dimension: TextureDimension::D2,
+                    format: TextureFormat::bevy_default(), //ViewTarget::TEXTURE_FORMAT_HDR,
+                    mip_level_count: 1,
+                    sample_count: 1,
+                    usage: TextureUsages::COPY_DST | TextureUsages::TEXTURE_BINDING,
+                    view_formats: &[],
                 },
-                exposure: Exposure::INDOOR,
-                transform: zeroverse_camera.sampler.sample(),
-                tonemapping: Tonemapping::None,
-                ..default()
-            },
-            PluckerCamera,
-            BloomSettings::default(),
-            Name::new("zeroverse_camera"),
-        ));
+                ..Default::default()
+            };
+            cpu_image.resize(size);
+            let cpu_image_handle = images.add(cpu_image);
+
+            camera.insert(io::image_copy::ImageCopier::new(
+                render_target,
+                cpu_image_handle,
+                size,
+                TextureFormat::bevy_default(), //ViewTarget::TEXTURE_FORMAT_HDR,
+                &render_device,
+            ));
+        }
     }
 }
 

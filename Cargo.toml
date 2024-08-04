@@ -31,22 +31,33 @@ exclude = [
 default-run = "viewer"
 
 
+[workspace]
+members = [
+  ".",
+  "ffi",
+]
+
+
 [features]
 default = [
-  "asset_pipeline",
   "development",
+  "extension-module",
+  "multi_threaded",
   "plucker",
   "viewer",
 ]
 
-asset_pipeline = [
+multi_threaded = [
   "bevy/multi_threaded",
 ]
 
 development = ["bevy/dynamic_linking"]
 
+extension-module = ["pyo3/extension-module"]
+
 perftest = []
 plucker = []
+python = ["extension-module", "webgpu"]
 
 viewer = [
   "bevy-inspector-egui",
@@ -71,14 +82,19 @@ bevy_args = "1.6"
 bevy-inspector-egui = { version = "0.25", optional = true }
 bevy_panorbit_camera = { version = "0.19", optional = true, features = ["bevy_egui"] }
 clap = { version = "4.4", features = ["derive"] }
+futures-intrusive = "0.5"
 glob = "0.3"
 itertools = "0.13"
 noise = { version = "0.9" }
+pollster = "0.3"
+# TODO: conditional pyo3 based on python feature
+pyo3 = { version = "0.22", features = ["macros"] }
 rand = "0.8"
 rayon = { version = "1.10", optional = true }
 serde = "1.0"
 strum = "0.26"
 strum_macros = "0.26"
+wgpu = "0.20.0"
 
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
@@ -143,5 +159,5 @@ path = "src/lib.rs"
 
 [[bin]]
 name = "viewer"
-path = "tools/viewer.rs"
+path = "src/viewer.rs"
 required-features = ["viewer"]
