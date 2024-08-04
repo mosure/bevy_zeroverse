@@ -85,12 +85,12 @@ def test():
         editor=False, headless=True, num_cameras=6,
         width=640, height=360, num_samples=1e6,
     )
-    dataloader = DataLoader(dataset, batch_size=4, shuffle=True, num_workers=1)
+    dataloader = DataLoader(dataset, batch_size=32, shuffle=True, num_workers=4)
 
-    # benchmark(dataloader)
+    benchmark(dataloader)
 
-    for batch in dataloader:
-        visualize(batch)
+    # for batch in dataloader:
+    #     visualize(batch)
 
 
 class TestChunkedDataset(unittest.TestCase):

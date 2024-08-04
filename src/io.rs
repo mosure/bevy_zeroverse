@@ -1,3 +1,5 @@
+// TODO: bevy/multi_threaded support - see: https://github.com/bevyengine/bevy/pull/13006/files
+
 /// Derived from: https://github.com/bevyengine/bevy/pull/5550
 pub mod image_copy {
     use std::sync::Arc;

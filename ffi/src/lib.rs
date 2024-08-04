@@ -133,7 +133,7 @@ impl Default for SamplerState {
 
 impl SamplerState {
     const FRAME_DELAY: u32 = 3;
-    const WARMUP_FRAME_DELAY: u32 = 5;
+    const WARMUP_FRAME_DELAY: u32 = 3;
 
     fn cycle_render_mode(
         &mut self,
@@ -168,6 +168,15 @@ static SAMPLE_SENDER: OnceCell<Sender<Sample>> = OnceCell::new();
 fn signaled_runner(mut app: App) -> AppExit {
     app.finish();
     app.cleanup();
+
+    // prime update schedule at initialization
+    for _ in 0..4 {
+        app.update();
+    }
+
+    if let Some(exit) = app.should_exit() {
+        return exit;
+    }
 
     loop {
         if let Some(receiver) = APP_FRAME_RECEIVER.get() {
@@ -204,7 +213,13 @@ pub fn setup_and_run_app(
             let mut app = viewer_app(override_args);
 
             app.init_resource::<Sample>();
-            app.init_resource::<SamplerState>();
+
+            // initialize to disabled state
+            app.insert_resource(SamplerState {
+                enabled: false,
+                ..Default::default()
+            });
+
             app.add_systems(PreUpdate, sample_stream);
 
             ready.store(true, Ordering::Release);
@@ -325,6 +340,8 @@ fn sample_stream(
     }
 
     if state.is_complete() {
+        regenerate_event.send(RegenerateSceneEvent);
+
         let views = std::mem::take(&mut buffered_sample.views);
         let sample = Sample {
             views,
@@ -332,8 +349,6 @@ fn sample_stream(
 
         let sender = SAMPLE_SENDER.get().unwrap();
         sender.send(sample).unwrap();
-
-        regenerate_event.send(RegenerateSceneEvent);
     }
 
     state.cycle_render_mode(render_mode);
