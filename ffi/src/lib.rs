@@ -249,6 +249,10 @@ fn initialize(
     override_args: Option<BevyZeroverseConfig>,
     asset_root: Option<String>,
 ) {
+    if APP_FRAME_RECEIVER.get().is_some() {
+        return;
+    }
+
     if let Some(asset_root) = asset_root {
         std::env::set_var("BEVY_ASSET_ROOT", asset_root);
     } else {

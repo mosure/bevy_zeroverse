@@ -72,7 +72,7 @@ def benchmark(dataloader):
     start = time.time()
     count = 0
     for batch in dataloader:
-        print('batch...')
+        print('batch shape:', batch['color'].shape)
         count += 1
         if count == 100:
             break
@@ -85,23 +85,24 @@ def test():
         editor=False, headless=True, num_cameras=6,
         width=640, height=360, num_samples=1e6,
     )
-    dataloader = DataLoader(dataset, batch_size=32, shuffle=True, num_workers=4)
+    dataloader = DataLoader(dataset, batch_size=2, shuffle=True, num_workers=1)
 
-    benchmark(dataloader)
+    # benchmark(dataloader)
 
-    # for batch in dataloader:
-    #     visualize(batch)
+    for batch in dataloader:
+        visualize(batch)
 
 
+generated = False
 class TestChunkedDataset(unittest.TestCase):
     def setUp(self):
         self.editor = True
         self.headless = True
-        self.num_cameras = 3
-        self.width = 256
-        self.height = 256
-        self.num_samples = 10  # small number of samples for testing
-        self.bytes_per_chunk = int(1e7)  # smaller chunk size for testing
+        self.num_cameras = 9
+        self.width = 640
+        self.height = 360
+        self.num_samples = 100
+        self.bytes_per_chunk = int(1e8)
         self.stage = "test"
         self.output_dir = Path("./data/zeroverse") / self.stage
 
@@ -135,7 +136,14 @@ class TestChunkedDataset(unittest.TestCase):
 
         self.assertEqual(total_loaded_samples, len(self.original_samples))
 
+    def test_benchmark_chunked_dataloader(self):
+        chunked_dataset = ChunkedDataset(self.output_dir)
+        dataloader = DataLoader(chunked_dataset, batch_size=1, shuffle=False)
+
+        print("\nBenchmarking chunks:")
+        benchmark(dataloader)
+
 
 if __name__ == "__main__":
-    # unittest.main()
-    test()
+    unittest.main()
+    # test()
