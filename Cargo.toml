@@ -40,20 +40,24 @@ members = [
 
 [features]
 default = [
-  "asset_pipeline",
   "development",
+  "extension-module",
+  "multi_threaded",
   "plucker",
   "viewer",
 ]
 
-asset_pipeline = [
+multi_threaded = [
   "bevy/multi_threaded",
 ]
 
 development = ["bevy/dynamic_linking"]
 
+extension-module = ["pyo3/extension-module"]
+
 perftest = []
 plucker = []
+python = ["extension-module", "webgpu"]
 
 viewer = [
   "bevy-inspector-egui",
@@ -83,7 +87,8 @@ glob = "0.3"
 itertools = "0.13"
 noise = { version = "0.9" }
 pollster = "0.3"
-pyo3 = { version = "0.22", features = ["extension-module"] }
+# TODO: conditional pyo3 based on python feature
+pyo3 = { version = "0.22", features = ["macros"] }
 rand = "0.8"
 rayon = { version = "1.10", optional = true }
 serde = "1.0"

@@ -26,8 +26,10 @@ use bevy::{
             Extent3d,
             TextureDescriptor,
             TextureDimension,
+            TextureFormat,
             TextureUsages,
         },
+        texture::BevyDefault,
         view::{
             RenderLayers,
             ViewTarget,
@@ -221,13 +223,12 @@ fn insert_cameras(
             depth_or_array_layers: 1,
         };
 
-        // TODO: support float32 rendering for depth and normal outputs
         let mut render_target = Image {
             texture_descriptor: TextureDescriptor {
-                label: None,
+                label: "bevy_zeroverse_camera_target".into(),
                 size,
                 dimension: TextureDimension::D2,
-                format: ViewTarget::TEXTURE_FORMAT_HDR,
+                format: TextureFormat::bevy_default(), //ViewTarget::TEXTURE_FORMAT_HDR,
                 mip_level_count: 1,
                 sample_count: 1,
                 usage: TextureUsages::TEXTURE_BINDING
@@ -268,10 +269,10 @@ fn insert_cameras(
         if args.headless {
             let mut cpu_image = Image {
                 texture_descriptor: TextureDescriptor {
-                    label: None,
+                    label: "bevy_zeroverse_camera_cpu_image".into(),
                     size,
                     dimension: TextureDimension::D2,
-                    format: ViewTarget::TEXTURE_FORMAT_HDR,
+                    format: TextureFormat::bevy_default(), //ViewTarget::TEXTURE_FORMAT_HDR,
                     mip_level_count: 1,
                     sample_count: 1,
                     usage: TextureUsages::COPY_DST | TextureUsages::TEXTURE_BINDING,
@@ -286,6 +287,7 @@ fn insert_cameras(
                 render_target,
                 cpu_image_handle,
                 size,
+                TextureFormat::bevy_default(), //ViewTarget::TEXTURE_FORMAT_HDR,
                 &render_device,
             ));
         }

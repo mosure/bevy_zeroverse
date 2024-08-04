@@ -18,17 +18,14 @@ use std::{
 };
 
 use bevy::prelude::*;
-use image::{
-    DynamicImage,
-    ImageBuffer,
-    Luma,
-};
-use ndarray::Array3;
 use once_cell::sync::OnceCell;
 use pyo3::{
     prelude::*,
     exceptions::PyTimeoutError,
-    types::PyList,
+    types::{
+        PyBytes,
+        PyList,
+    },
 };
 
 use ::bevy_zeroverse::{
@@ -38,21 +35,21 @@ use ::bevy_zeroverse::{
     },
     io::image_copy::ImageCopier,
     render::RenderMode,
+    scene::{
+        RegenerateSceneEvent,
+        ZeroverseSceneType,
+    },
 };
 
 
-// TODO: move to src/sample.rs to support torch (python) and burn dataloaders
-type ColorImage = Array3<f32>;
-type DepthImage = Array3<f32>;
-type NormalImage = Array3<f32>;
-
+// TODO: move to src/sample.rs (or src/dataloader.rs) to support torch (python) and burn dataloaders
 
 #[derive(Clone, Debug, Default)]
 #[pyclass]
 struct View {
-    color: ColorImage,
-    depth: DepthImage,
-    normal: NormalImage,
+    color: Vec<u8>,
+    depth: Vec<u8>,
+    normal: Vec<u8>,
 
     #[pyo3(get, set)]
     view_from_world: [[f32; 4]; 4],
@@ -65,21 +62,18 @@ struct View {
 impl View {
     // TODO: upgrade rust-numpy to latest once pyo3 0.22 support is available
     #[getter]
-    fn color<'py>(&self, py: Python<'py>) -> Bound<'py, PyList> {
-        let color_list: Vec<_> = self.color.iter().map(|&v| v.into_py(py)).collect();
-        PyList::new_bound(py, color_list)
+    fn color<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
+        PyBytes::new_bound(py, &self.color)
     }
 
     #[getter]
-    fn depth<'py>(&self, py: Python<'py>) -> Bound<'py, PyList> {
-        let depth_list: Vec<_> = self.depth.iter().map(|&v| v.into_py(py)).collect();
-        PyList::new_bound(py, depth_list)
+    fn depth<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
+        PyBytes::new_bound(py, &self.depth)
     }
 
     #[getter]
-    fn normal<'py>(&self, py: Python<'py>) -> Bound<'py, PyList> {
-        let normal_list: Vec<_> = self.normal.iter().map(|&v| v.into_py(py)).collect();
-        PyList::new_bound(py, normal_list)
+    fn normal<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
+        PyBytes::new_bound(py, &self.normal)
     }
 
     fn __str__(&self) -> PyResult<String> {
@@ -115,18 +109,87 @@ impl Sample {
 }
 
 
-#[derive(Debug, Default, Resource, Reflect)]
+#[derive(Debug, Resource, Reflect)]
 struct SamplerState {
+    enabled: bool,
     frames: u32,
     render_modes: Vec<RenderMode>,
+    warmup_frames: u32,
 }
 
+impl Default for SamplerState {
+    fn default() -> Self {
+        SamplerState {
+            enabled: true,
+            frames: SamplerState::FRAME_DELAY,
+            render_modes: vec![
+                RenderMode::Color,
+                RenderMode::Depth,
+                RenderMode::Normal,
+            ],
+            warmup_frames: SamplerState::WARMUP_FRAME_DELAY,
+        }
+    }
+}
+
+impl SamplerState {
+    const FRAME_DELAY: u32 = 3;
+    const WARMUP_FRAME_DELAY: u32 = 5;
+
+    fn cycle_render_mode(
+        &mut self,
+        mut render_mode: ResMut<RenderMode>,
+    ) {
+        self.render_modes.retain(|mode| *mode != *render_mode);
+
+        if self.render_modes.is_empty() {
+            *render_mode = RenderMode::Color;
+            self.enabled = false;
+        } else {
+            *render_mode = self.render_modes.pop().unwrap();
+            self.enabled = true;
+        }
+
+        self.frames = SamplerState::FRAME_DELAY;
+    }
+
+    fn is_complete(&self) -> bool {
+        self.render_modes.is_empty()
+    }
+}
+
+
+static APP_FRAME_RECEIVER: OnceCell<Arc<Mutex<Receiver<()>>>> = OnceCell::new();
+static APP_FRAME_SENDER: OnceCell<Sender<()>> = OnceCell::new();
 
 static SAMPLE_RECEIVER: OnceCell<Arc<Mutex<Receiver<Sample>>>> = OnceCell::new();
 static SAMPLE_SENDER: OnceCell<Sender<Sample>> = OnceCell::new();
 
 
-// TODO: create Dataloader torch class (or a render `n` frames and return capture fn, used within a python wrapper dataloader, wrapper requires setup.py to include the python module)
+fn signaled_runner(mut app: App) -> AppExit {
+    app.finish();
+    app.cleanup();
+
+    loop {
+        if let Some(receiver) = APP_FRAME_RECEIVER.get() {
+            let receiver = receiver.lock().unwrap();
+            if receiver.try_recv().is_ok() {
+                app.insert_resource(SamplerState::default());
+
+                loop {
+                    app.update();
+                    if let Some(exit) = app.should_exit() {
+                        return exit;
+                    }
+
+                    if !app.world().resource::<SamplerState>().enabled {
+                        break;
+                    }
+                }
+            }
+        }
+    }
+}
 
 
 pub fn setup_and_run_app(
@@ -147,13 +210,12 @@ pub fn setup_and_run_app(
 
             ready.store(true, Ordering::Release);
 
+            app.set_runner(signaled_runner);
             app.run();
         }
     };
 
     if new_thread {
-        info!("starting bevy_zeroverse in a new thread");
-
         thread::spawn(startup);
 
         while !ready.load(Ordering::Acquire) {
@@ -165,6 +227,7 @@ pub fn setup_and_run_app(
 }
 
 
+// TODO: add process idx, disable logging on worker idx > 0
 #[pyfunction]
 #[pyo3(signature = (override_args=None, asset_root=None))]
 fn initialize(
@@ -179,37 +242,20 @@ fn initialize(
     }
 
     let (
-        sender,
-        receiver,
+        app_sender,
+        app_receiver,
     ) = mpsc::channel();
 
-    SAMPLE_RECEIVER.set(Arc::new(Mutex::new(receiver))).unwrap();
-    SAMPLE_SENDER.set(sender).unwrap();
+    APP_FRAME_RECEIVER.set(Arc::new(Mutex::new(app_receiver))).unwrap();
+    APP_FRAME_SENDER.set(app_sender).unwrap();
 
-    let mut views = Vec::new();
+    let (
+        sample_sender,
+        sample_receiver,
+    ) = mpsc::channel();
 
-    for _ in 0..9 {
-        let color = Array3::<f32>::zeros((1080, 1920, 3));
-        let depth = Array3::<f32>::zeros((1080, 1920, 1));
-        let normal = Array3::<f32>::zeros((1080, 1920, 3));
-
-        let view = View {
-            color,
-            depth,
-            normal,
-            view_from_world: [[0.0; 4]; 4],
-            fovy: 60.0,
-        };
-
-        views.push(view);
-    }
-
-    let sample = Sample {
-        views,
-    };
-
-    let sender = SAMPLE_SENDER.get().unwrap();
-    sender.send(sample).unwrap();
+    SAMPLE_RECEIVER.set(Arc::new(Mutex::new(sample_receiver))).unwrap();
+    SAMPLE_SENDER.set(sample_sender).unwrap();
 
     py.allow_threads(|| {
         setup_and_run_app(true, override_args);
@@ -230,8 +276,22 @@ fn sample_stream(
         &ImageCopier,
     )>,
     images: Res<Assets<Image>>,
-    render_mode: Res<RenderMode>,
+    render_mode: ResMut<RenderMode>,
+    mut regenerate_event: EventWriter<RegenerateSceneEvent>,
 ) {
+    if !state.enabled {
+        return;
+    }
+
+    if cameras.iter().count() == 0 {
+        return;
+    }
+
+    if state.warmup_frames > 0 {
+        state.warmup_frames -= 1;
+        return;
+    }
+
     if state.frames > 0 {
         state.frames -= 1;
         return;
@@ -256,58 +316,20 @@ fn sample_stream(
         let view_from_world = camera_transform.compute_matrix().to_cols_array_2d();
         view.view_from_world = view_from_world;
 
-        let cpu_image = images.get(&image_copier.dst_image).unwrap();
-        let size = cpu_image.size();
-
-        let dynamic_cpu_image = cpu_image
+        let image_data = images
+            .get(&image_copier.dst_image)
+            .unwrap()
             .clone()
-            .try_into_dynamic()
-            .unwrap();
+            .data;
 
         match *render_mode {
-            RenderMode::Color => {
-                let color_image = dynamic_cpu_image
-                    .as_rgb32f()
-                    .unwrap();
-
-                view.color = Array3::<f32>::from_shape_vec(
-                    (size.y as usize, size.x as usize, 3),
-                    color_image.to_vec(),
-                ).unwrap();
-            },
-            RenderMode::Depth => {
-                fn rgba16f_to_r32f(image: &DynamicImage) -> ImageBuffer<Luma<f32>, Vec<f32>> {
-                    let img = image.as_rgb16().unwrap();
-                    let (width, height) = img.dimensions();
-                    let buffer: Vec<f32> = img.pixels().map(|p| p.0[0] as f32).collect();
-                    ImageBuffer::from_raw(width, height, buffer).unwrap()
-                }
-
-                let depth_image = rgba16f_to_r32f(&dynamic_cpu_image);
-
-                view.depth = Array3::<f32>::from_shape_vec(
-                    (size.y as usize, size.x as usize, 1),
-                    depth_image.to_vec(),
-                ).unwrap();
-            },
-            RenderMode::Normal => {
-                let normal_image = dynamic_cpu_image
-                    .as_rgb32f()
-                    .unwrap();
-
-                view.normal = Array3::<f32>::from_shape_vec(
-                    (size.y as usize, size.x as usize, 3),
-                    normal_image.to_vec(),
-                ).unwrap();
-            },
+            RenderMode::Color => view.color = image_data,
+            RenderMode::Depth => view.depth = image_data,
+            RenderMode::Normal => view.normal = image_data,
         }
     }
 
-
-    // TODO: progress to next render_mode, reset frame counter (add a frame count reset to SamplerState)
-
-
-    if state.render_modes.is_empty() {
+    if state.is_complete() {
         let views = std::mem::take(&mut buffered_sample.views);
         let sample = Sample {
             views,
@@ -315,28 +337,41 @@ fn sample_stream(
 
         let sender = SAMPLE_SENDER.get().unwrap();
         sender.send(sample).unwrap();
+
+        regenerate_event.send(RegenerateSceneEvent);
     }
+
+    state.cycle_render_mode(render_mode);
 }
 
 
 // TODO: support batch dimension (e.g. single array allocation for multiple samples)
 // TODO: add options to bevy_zeroverse.next (e.g. render_mode, scene parameters, etc.)
 #[pyfunction]
-fn next() -> PyResult<Sample> {
-    let receiver = SAMPLE_RECEIVER.get().unwrap();
-    let receiver = receiver.lock().unwrap();
-
-    let timeout = Duration::from_secs(10);
-
-    match receiver.recv_timeout(timeout) {
-        Ok(sample) => Ok(sample),
-        Err(RecvTimeoutError::Timeout) => {
-            Err(PyTimeoutError::new_err("receive operation timed out"))
-        }
-        Err(RecvTimeoutError::Disconnected) => {
-            Err(PyTimeoutError::new_err("channel disconnected"))
-        }
+fn next(
+    py: Python<'_>,
+) -> PyResult<Sample> {
+    {
+        let app_frame_sender = APP_FRAME_SENDER.get().unwrap();
+        app_frame_sender.send(()).unwrap();
     }
+
+    py.allow_threads(|| {
+        let sample_receiver = SAMPLE_RECEIVER.get().unwrap();
+        let sample_receiver = sample_receiver.lock().unwrap();
+
+        let timeout = Duration::from_secs(10);
+
+        match sample_receiver.recv_timeout(timeout) {
+            Ok(sample) => Ok(sample),
+            Err(RecvTimeoutError::Timeout) => {
+                Err(PyTimeoutError::new_err("receive operation timed out"))
+            }
+            Err(RecvTimeoutError::Disconnected) => {
+                Err(PyTimeoutError::new_err("channel disconnected"))
+            }
+        }
+    })
 }
 
 
@@ -345,6 +380,8 @@ fn bevy_zeroverse(m: &Bound<'_, PyModule>) -> PyResult<()> {
     pyo3_log::init();
 
     m.add_class::<BevyZeroverseConfig>()?;
+    m.add_class::<ZeroverseSceneType>()?;
+
     m.add_class::<Sample>()?;
     m.add_class::<View>()?;
 

@@ -22,7 +22,10 @@ use bevy::{
         // },
         RenderPlugin,
     },
-    winit::WinitPlugin,
+    winit::{
+        WakeUp,
+        WinitPlugin,
+    },
 };
 use bevy_args::{
     parse_args,
@@ -30,7 +33,9 @@ use bevy_args::{
     Parser,
     Serialize,
 };
+#[cfg(feature = "viewer")]
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
+#[cfg(feature = "viewer")]
 use bevy_panorbit_camera::{
     PanOrbitCamera,
     PanOrbitCameraPlugin,
@@ -64,7 +69,7 @@ use crate::{
 };
 
 
-// TODO: register as a python class
+// TODO: add meta-derive macro to populate get/set methods
 #[derive(
     Clone,
     Debug,
@@ -74,9 +79,9 @@ use crate::{
     Parser,
     Reflect,
 )]
+#[pyclass]
 #[command(about = "bevy_zeroverse viewer", version, long_about = None)]
 #[reflect(Resource)]
-#[pyclass]
 pub struct BevyZeroverseConfig {
     /// enable the bevy inspector
     #[pyo3(get, set)]
@@ -241,13 +246,22 @@ pub fn viewer_app(
         });
 
     let default_plugins = if args.headless {
+        let mut winit_plugin = WinitPlugin::<WakeUp>::default();
+        winit_plugin.run_on_any_thread = true;
+
         default_plugins
-            .disable::<WinitPlugin>()
+            .set(winit_plugin)
+            .set(WindowPlugin {
+                primary_window: None,
+                exit_condition: bevy::window::ExitCondition::DontExit,
+                close_when_requested: false,
+            })
     } else {
-        default_plugins.set(WindowPlugin {
-            primary_window,
-            ..default()
-        })
+        default_plugins
+            .set(WindowPlugin {
+                primary_window,
+                ..default()
+            })
     };
 
     app.add_plugins(default_plugins);
@@ -256,10 +270,12 @@ pub fn viewer_app(
         app.add_plugins(io::image_copy::ImageCopyPlugin);
     }
 
+    #[cfg(feature = "viewer")]
     app.add_plugins(PanOrbitCameraPlugin);
 
     app.insert_resource(Msaa::Sample4);
 
+    #[cfg(feature = "viewer")]
     if args.editor {
         app.register_type::<BevyZeroverseConfig>();
         app.add_plugins(WorldInspectorPlugin::new());
@@ -347,6 +363,7 @@ fn setup_camera(
                 .looking_at(Vec3::ZERO, Vec3::Y)
                 .into(),
         },
+        #[cfg(feature = "viewer")]
         PanOrbitCamera {
             allow_upside_down: true,
             orbit_smoothness: 0.0,

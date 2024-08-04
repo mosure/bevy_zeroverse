@@ -3,6 +3,11 @@
 install to your python environment with `pip install ffi` (from repository root)
 
 
+## test
+
+`cargo test -p bevy_zeroverse_ffi --no-default-features`
+
+
 ## dataloader
 
 torch dataloader API for online bevy_zeroverse batch generation.
@@ -29,9 +34,30 @@ for batch in dataloader:
 ```
 
 
-### macos setup
+<!-- ### macos setup -->
 
-```bash
+<!-- ```bash
 LIBTORCH_PATH=$(python3 -c "import site; print(site.getsitepackages()[0] + '/torch/lib')")
 export DYLD_LIBRARY_PATH=$LIBTORCH_PATH:$DYLD_LIBRARY_PATH
+``` -->
+
+
+### windows setup
+
+```bash
+export PYO3_PYTHON="/c/Users/{user}/.pyenv/pyenv-win/versions/3.11.7/python.exe"
+export PATH="/c/Users/{user}/.pyenv/pyenv-win/versions/3.11.7/libs:$PATH"
+```
+
+#### rust-analyzer
+
+
+```json
+...
+    "rust-analyzer.server.extraEnv": {
+        "CARGO_TARGET_DIR": "target/analyzer",
+        "PYO3_PYTHON": "C:\\Users\\{user}\\.pyenv\\pyenv-win\\versions\\3.11.7\\python.exe",
+        "LIB": "C:\\Users\\{user}\\.pyenv\\pyenv-win\\versions\\3.11.7\\libs"
+    },
+...
 ```

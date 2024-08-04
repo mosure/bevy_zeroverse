@@ -8,6 +8,7 @@ pub mod image_copy {
     use bevy::render::renderer::{RenderContext, RenderDevice, RenderQueue};
     use bevy::render::{Extract, RenderApp};
     use bevy::render::texture::GpuImage;
+    use bevy::render::render_resource::TextureFormat;
 
     use bevy::render::render_resource::{
         Buffer, BufferDescriptor, BufferUsages, CommandEncoderDescriptor, Extent3d,
@@ -27,6 +28,7 @@ pub mod image_copy {
             if !image_copier.enabled() {
                 continue;
             }
+
             // Derived from: https://sotrh.github.io/learn-wgpu/showcase/windowless/#a-triangle-without-a-window
             // We need to scope the mapping variables so that we can
             // unmap the buffer
@@ -63,9 +65,11 @@ pub mod image_copy {
 
             render_app.add_systems(ExtractSchedule, image_copy_extract);
 
+            let image_copy_node = ImageCopyDriver::from_world(render_app.world_mut());
+
             let mut graph = render_app.world_mut().get_resource_mut::<RenderGraph>().unwrap();
 
-            graph.add_node(ImageCopyLabel, ImageCopyDriver);
+            graph.add_node(ImageCopyLabel, image_copy_node);
             graph.add_node_edge(ImageCopyLabel, bevy::render::graph::CameraDriverLabel);
         }
     }
@@ -73,6 +77,7 @@ pub mod image_copy {
     #[derive(Clone, Default, Resource, Deref, DerefMut)]
     pub struct ImageCopiers(pub Vec<ImageCopier>);
 
+    // TODO: struct GpuImageCopier to avoid optional buffer
     #[derive(Clone, Component)]
     pub struct ImageCopier {
         buffer: Buffer,
@@ -86,14 +91,21 @@ pub mod image_copy {
             src_image: Handle<Image>,
             dst_image: Handle<Image>,
             size: Extent3d,
+            texture_format: TextureFormat,
             render_device: &RenderDevice,
         ) -> ImageCopier {
-            let padded_bytes_per_row =
-                RenderDevice::align_copy_bytes_per_row((size.width) as usize) * 4;
+            let block_dimensions = texture_format.block_dimensions();
+            let block_size = texture_format.block_copy_size(None).unwrap();
+
+            let padded_bytes_per_row = RenderDevice::align_copy_bytes_per_row(
+                (size.width as usize / block_dimensions.0 as usize)
+                    * block_size as usize,
+            );
+            let buffer_size = padded_bytes_per_row as u64 * size.height as u64;
 
             let cpu_buffer = render_device.create_buffer(&BufferDescriptor {
-                label: None,
-                size: padded_bytes_per_row as u64 * size.height as u64,
+                label: "image_copier_cpu_buffer".into(),
+                size: buffer_size,
                 usage: BufferUsages::MAP_READ | BufferUsages::COPY_DST,
                 mapped_at_creation: false,
             });
@@ -138,7 +150,6 @@ pub mod image_copy {
                     continue;
                 }
 
-                // TODO: add check for src_image existing
                 let src_image = gpu_images.get(&image_copier.src_image).unwrap();
 
                 let mut encoder = render_context
@@ -154,8 +165,8 @@ pub mod image_copy {
                 );
 
                 let texture_extent = Extent3d {
-                    width: src_image.size.x,
-                    height: src_image.size.y,
+                    width: src_image.size.x as u32,
+                    height: src_image.size.y as u32,
                     depth_or_array_layers: 1,
                 };
 
