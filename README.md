@@ -26,6 +26,24 @@ bevy zeroverse synthetic reconstruction dataset generator. view the [live demo](
 - [ ] primitive 4d augmentation
 
 
+## dataloader
+
+![Alt text](docs/bevy_zeroverse_dataloader_grid.webp)
+
+```python
+dataset = BevyZeroverseDataset(
+    editor=False, headless=True, num_cameras=6,
+    width=640, height=360, num_samples=1e6,
+)
+dataloader = DataLoader(
+    dataset, batch_size=4, shuffle=True, num_workers=1,
+)
+
+for batch in dataloader:
+    visualize(batch)
+```
+
+
 ## mat-synth
 
 - download the mat-synth dataset [here](https://huggingface.co/datasets/gvecchio/MatSynth/blob/main/scripts/download_dataset.py)

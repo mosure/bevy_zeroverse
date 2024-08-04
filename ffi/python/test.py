@@ -35,19 +35,19 @@ def visualize(batch):
             color_image = color_images[batch_idx, cam_idx]
             axes[index].imshow(color_image)
             axes[index].axis('off')
-            if batch_size <= 4:
+            if batch_size <= 2:
                 axes[index].set_title(f'({batch_idx + 1}, {cam_idx + 1})_color')
 
             depth_image = depth_images[batch_idx, cam_idx]
             axes[index + 1].imshow(depth_image, cmap='gray')
             axes[index + 1].axis('off')
-            if batch_size <= 4:
+            if batch_size <= 2:
                 axes[index + 1].set_title(f'({batch_idx + 1}, {cam_idx + 1})_depth')
 
             normal_image = normal_images[batch_idx, cam_idx]
             axes[index + 2].imshow(normal_image)
             axes[index + 2].axis('off')
-            if batch_size <= 4:
+            if batch_size <= 2:
                 axes[index + 2].set_title(f'({batch_idx + 1}, {cam_idx + 1})_normal')
 
     for ax in axes[total_images:]:
@@ -82,15 +82,15 @@ def benchmark(dataloader):
 
 def test():
     dataset = BevyZeroverseDataset(
-        editor=False, headless=True, num_cameras=5,
+        editor=False, headless=True, num_cameras=6,
         width=640, height=360, num_samples=1e6,
     )
-    dataloader = DataLoader(dataset, batch_size=32, shuffle=True, num_workers=6)
+    dataloader = DataLoader(dataset, batch_size=4, shuffle=True, num_workers=1)
 
-    benchmark(dataloader)
+    # benchmark(dataloader)
 
-    # for batch in dataloader:
-    #     visualize(batch)
+    for batch in dataloader:
+        visualize(batch)
 
 
 class TestChunkedDataset(unittest.TestCase):
@@ -137,5 +137,5 @@ class TestChunkedDataset(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
-    # test()
+    # unittest.main()
+    test()
