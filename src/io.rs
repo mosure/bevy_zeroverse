@@ -165,8 +165,8 @@ pub mod image_copy {
                 );
 
                 let texture_extent = Extent3d {
-                    width: src_image.size.x as u32,
-                    height: src_image.size.y as u32,
+                    width: src_image.size.x,
+                    height: src_image.size.y,
                     depth_or_array_layers: 1,
                 };
 

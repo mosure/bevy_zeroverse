@@ -60,7 +60,6 @@ struct View {
 
 #[pymethods]
 impl View {
-    // TODO: upgrade rust-numpy to latest once pyo3 0.22 support is available
     #[getter]
     fn color<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
         PyBytes::new_bound(py, &self.color)
@@ -263,10 +262,6 @@ fn initialize(
 }
 
 
-// TODO: keep a global sample before sending over mpsc (when sending, clear the resource to avoid copy)
-// TODO: update the global sample depending on rendering mode
-// TODO: update SamplerState -> SamplerState to include render_mode cycling
-
 fn sample_stream(
     mut buffered_sample: ResMut<Sample>,
     mut state: ResMut<SamplerState>,
@@ -345,7 +340,6 @@ fn sample_stream(
 }
 
 
-// TODO: support batch dimension (e.g. single array allocation for multiple samples)
 // TODO: add options to bevy_zeroverse.next (e.g. render_mode, scene parameters, etc.)
 #[pyfunction]
 fn next(
@@ -360,7 +354,7 @@ fn next(
         let sample_receiver = SAMPLE_RECEIVER.get().unwrap();
         let sample_receiver = sample_receiver.lock().unwrap();
 
-        let timeout = Duration::from_secs(10);
+        let timeout = Duration::from_secs(30);
 
         match sample_receiver.recv_timeout(timeout) {
             Ok(sample) => Ok(sample),

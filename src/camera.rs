@@ -30,10 +30,7 @@ use bevy::{
             TextureUsages,
         },
         texture::BevyDefault,
-        view::{
-            RenderLayers,
-            ViewTarget,
-        },
+        view::RenderLayers,
     }
 };
 use rand::Rng;

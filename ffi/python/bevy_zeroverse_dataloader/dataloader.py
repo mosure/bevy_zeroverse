@@ -118,6 +118,8 @@ class BevyZeroverseDataset(Dataset):
         return self.num_samples
 
     def __getitem__(self, idx):
+        # TODO: deterministic idx (key of sample)
+
         if not self.initialized:
             self.initialize()
 

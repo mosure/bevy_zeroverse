@@ -2,7 +2,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 from torch.utils.data import DataLoader
 
-import bevy_zeroverse
 from bevy_zeroverse_dataloader.dataloader import BevyZeroverseDataset
 
 
@@ -20,7 +19,7 @@ def visualize(batch):
     total_images = batch_size * num_cameras * num_image_types
 
     # Calculate number of columns as a multiple of 3 and close to the square root of total images
-    cols = int(np.ceil(np.sqrt(total_images / num_image_types))) * num_image_types
+    cols = 9
     rows = (total_images + cols - 1) // cols
 
     fig, axes = plt.subplots(rows, cols, figsize=(20, 20))
@@ -53,6 +52,7 @@ def visualize(batch):
         ax.axis('off')
 
     plt.tight_layout()
+    plt.subplots_adjust(wspace=0, hspace=0)
 
     def on_key(event):
         plt.close(fig)
@@ -79,10 +79,10 @@ def benchmark(dataloader):
 
 def test():
     dataset = BevyZeroverseDataset(
-        editor=False, headless=True, num_cameras=4,
+        editor=False, headless=True, num_cameras=5,
         width=640, height=360, num_samples=1e6,
     )
-    dataloader = DataLoader(dataset, batch_size=16, shuffle=True, num_workers=2)
+    dataloader = DataLoader(dataset, batch_size=8, shuffle=True, num_workers=2)
 
     # benchmark(dataloader)
 
