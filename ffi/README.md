@@ -1,6 +1,8 @@
 # bevy_zeroverse python bindings
 
-install to your python environment with `pip install ffi` (from repository root)
+install `bevy_zeroverse` to your python environment with `pip install ffi` (from repository root)
+
+install `bevy_zeroverse_dataloader` to your python environment with `pip install ffi/python`
 
 
 ## test
@@ -15,22 +17,19 @@ torch dataloader API for online bevy_zeroverse batch generation.
 run the test script with `python ffi/python/test.py` to see the dataloader in action.
 
 ```python
-from bevy_zeroverse.dataloader import ZeroverseDataloader
+from bevy_zeroverse_dataloader.dataloader import BevyZeroverseDataset
+from torch.utils.data import DataLoader
 
-# create a torch compatible dataloader
-dataloader = ZeroverseDataloader(
-    width=256,
-    height=144,
-    num_cameras=4,
-    render_modes=['color', 'depth', 'normal'],
-    seed=0,
-    scene_type='room',
+
+dataset = BevyZeroverseDataset(
+    editor=False, headless=True, num_cameras=6,
+    width=640, height=360, num_samples=1e6,
 )
+dataloader = DataLoader(dataset, batch_size=2, shuffle=True, num_workers=1)
+
 
 for batch in dataloader:
-    print(batch)
-    break
-
+    visualize(batch)
 ```
 
 

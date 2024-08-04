@@ -1,8 +1,6 @@
 import matplotlib.pyplot as plt
-import numpy as np
 from pathlib import Path
 import shutil
-import torch
 from torch.utils.data import DataLoader
 import unittest
 
@@ -144,6 +142,9 @@ class TestChunkedDataset(unittest.TestCase):
         benchmark(dataloader)
 
 
-if __name__ == "__main__":
+def main():
     unittest.main()
     # test()
+
+if __name__ == "__main__":
+    main()

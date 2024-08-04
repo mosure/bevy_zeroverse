@@ -31,6 +31,9 @@ bevy zeroverse synthetic reconstruction dataset generator. view the [live demo](
 ![Alt text](docs/bevy_zeroverse_dataloader_grid.webp)
 
 ```python
+from bevy_zeroverse_dataloader.dataloader import BevyZeroverseDataset
+from torch.utils.data import DataLoader
+
 dataset = BevyZeroverseDataset(
     editor=False, headless=True, num_cameras=6,
     width=640, height=360, num_samples=1e6,

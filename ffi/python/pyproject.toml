@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bevy_zeroverse_dataloader"
+version = "0.1.0"
+description = "A torch data loader module for the bevy_zeroverse project"
+authors = [
+    { name = "mosure", email = "mitchell@mosure.me" }
+]
+license = { file = "LICENSE" }
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3.8",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+dependencies = [
+    "numpy",
+    "torch",
+    "safetensors",
+]
+
+[project.optional-dependencies]
+dev = []
+
+[project.scripts]
+run_tests = "test:main"
