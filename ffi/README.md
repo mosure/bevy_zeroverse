@@ -17,7 +17,7 @@ torch dataloader API for online bevy_zeroverse batch generation.
 run the test script with `python ffi/python/test.py` to see the dataloader in action.
 
 ```python
-from bevy_zeroverse_dataloader.dataloader import BevyZeroverseDataset
+from bevy_zeroverse_dataloader import BevyZeroverseDataset
 from torch.utils.data import DataLoader
 
 

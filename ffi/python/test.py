@@ -4,7 +4,7 @@ import shutil
 from torch.utils.data import DataLoader
 import unittest
 
-from bevy_zeroverse_dataloader.dataloader import BevyZeroverseDataset, ChunkedDataset
+from bevy_zeroverse_dataloader import BevyZeroverseDataset, ChunkedDataset
 
 
 
