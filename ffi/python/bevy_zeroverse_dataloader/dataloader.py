@@ -5,6 +5,7 @@ from torch.utils.data import Dataset
 import bevy_zeroverse
 
 
+# TODO: add sample-level world rotation augment
 class View:
     def __init__(self, color, depth, normal, view_from_world, fovy, width, height):
         self.color = color
