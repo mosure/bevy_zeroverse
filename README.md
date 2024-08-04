@@ -19,7 +19,8 @@ bevy zeroverse synthetic reconstruction dataset generator. view the [live demo](
 - [X] generate parameteric zeroverse primitives
 - [X] primitive deformation
 - [x] procedural zeroverse composite environments
-- [x] online dataloader
+- [x] online torch dataloader
+- [x] safetensor chunking
 - [ ] primitive boolean operations
 - [ ] primitive pbr wireframe
 - [ ] primitive 4d augmentation

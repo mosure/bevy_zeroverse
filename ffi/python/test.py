@@ -1,8 +1,12 @@
 import matplotlib.pyplot as plt
 import numpy as np
+from pathlib import Path
+import shutil
+import torch
 from torch.utils.data import DataLoader
+import unittest
 
-from bevy_zeroverse_dataloader.dataloader import BevyZeroverseDataset
+from bevy_zeroverse_dataloader.dataloader import BevyZeroverseDataset, ChunkedDataset
 
 
 
@@ -18,7 +22,6 @@ def visualize(batch):
     num_image_types = 3  # color, depth, normal
     total_images = batch_size * num_cameras * num_image_types
 
-    # Calculate number of columns as a multiple of 3 and close to the square root of total images
     cols = 9
     rows = (total_images + cols - 1) // cols
 
@@ -27,7 +30,6 @@ def visualize(batch):
 
     for batch_idx in range(batch_size):
         for cam_idx in range(num_cameras):
-            # Calculate the index for the current camera's images in the batch
             index = (batch_idx * num_cameras + cam_idx) * num_image_types
 
             color_image = color_images[batch_idx, cam_idx]
@@ -70,8 +72,9 @@ def benchmark(dataloader):
     start = time.time()
     count = 0
     for batch in dataloader:
+        print('batch...')
         count += 1
-        if count == 10:
+        if count == 100:
             break
     end = time.time()
     print('seconds per batch:', (end - start) / count)
@@ -82,13 +85,57 @@ def test():
         editor=False, headless=True, num_cameras=5,
         width=640, height=360, num_samples=1e6,
     )
-    dataloader = DataLoader(dataset, batch_size=8, shuffle=True, num_workers=2)
+    dataloader = DataLoader(dataset, batch_size=32, shuffle=True, num_workers=6)
 
-    # benchmark(dataloader)
+    benchmark(dataloader)
 
-    for batch in dataloader:
-        visualize(batch)
+    # for batch in dataloader:
+    #     visualize(batch)
+
+
+class TestChunkedDataset(unittest.TestCase):
+    def setUp(self):
+        self.editor = True
+        self.headless = True
+        self.num_cameras = 3
+        self.width = 256
+        self.height = 256
+        self.num_samples = 10  # small number of samples for testing
+        self.bytes_per_chunk = int(1e7)  # smaller chunk size for testing
+        self.stage = "test"
+        self.output_dir = Path("./data/zeroverse") / self.stage
+
+        if self.output_dir.exists():
+            shutil.rmtree(self.output_dir)
+
+        self.dataset = BevyZeroverseDataset(self.editor, self.headless, self.num_cameras, self.width, self.height, self.num_samples)
+        self.original_samples = self.dataset.chunk_and_save(self.output_dir, self.bytes_per_chunk)
+
+    def test_chunked_dataset_loading(self):
+        chunked_dataset = ChunkedDataset(self.output_dir)
+        dataloader = DataLoader(chunked_dataset, batch_size=1, shuffle=False)
+
+        num_chunks = 0
+        total_loaded_samples = 0
+
+        expected_shapes = {key: tensor.shape for key, tensor in self.original_samples[0].items()}
+
+        for batch in dataloader:
+            num_chunks += 1
+
+            for key, tensor in batch.items():
+                tensor = tensor.squeeze(0)
+                expected_shape = (tensor.shape[0],) + expected_shapes[key]
+                self.assertEqual(tensor.shape, expected_shape, f"Mismatch in tensor shape for key {key}")
+
+            total_loaded_samples += batch['color'].squeeze(0).shape[0]
+
+        expected_num_chunks = len(chunked_dataset)
+        self.assertEqual(num_chunks, expected_num_chunks, "Mismatch in number of chunks")
+
+        self.assertEqual(total_loaded_samples, len(self.original_samples))
 
 
 if __name__ == "__main__":
-    test()
+    unittest.main()
+    # test()

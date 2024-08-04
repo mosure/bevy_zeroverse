@@ -1,4 +1,7 @@
 import numpy as np
+from pathlib import Path
+from safetensors import safe_open
+from safetensors.torch import save_file
 import torch
 from torch.utils.data import Dataset
 
@@ -119,11 +122,77 @@ class BevyZeroverseDataset(Dataset):
         return self.num_samples
 
     def __getitem__(self, idx):
-        # TODO: deterministic idx (key of sample)
-
         if not self.initialized:
             self.initialize()
 
         rust_sample = bevy_zeroverse.next()
         sample = Sample.from_rust(rust_sample, self.width, self.height)
         return sample.to_tensors()
+
+
+    def chunk_and_save(self, output_dir: Path, bytes_per_chunk: int):
+        chunk_size = 0
+        chunk_index = 0
+        chunk = []
+        original_samples = []
+
+        def save_chunk():
+            nonlocal chunk_size, chunk_index, chunk, original_samples
+            chunk_key = f"{chunk_index:0>6}"
+            print(f"saving chunk {chunk_key} of {self.num_samples} ({chunk_size / 1e6:.2f} MB).")
+            output_dir.mkdir(exist_ok=True, parents=True)
+            file_path = output_dir / f"{chunk_key}.safetensors"
+
+            # Flatten the tensors dictionary
+            flat_tensors = {f"{i}_{key}": tensor for i, sample in enumerate(chunk) for key, tensor in sample.items()}
+            save_file(flat_tensors, str(file_path))
+
+            chunk_size = 0
+            chunk_index += 1
+            chunk = []
+
+        for idx in range(self.num_samples):
+            sample = self[idx]
+            sample_size = sum(tensor.numel() * tensor.element_size() for tensor in sample.values())
+            chunk.append(sample)
+            original_samples.append(sample)
+            chunk_size += sample_size
+
+            print(f"    added sample {idx} to chunk ({sample_size / 1e6:.2f} MB).")
+            if chunk_size >= bytes_per_chunk:
+                save_chunk()
+
+        if chunk_size > 0:
+            save_chunk()
+
+        return original_samples
+
+
+class ChunkedDataset(Dataset):
+    def __init__(self, output_dir: Path):
+        self.output_dir = output_dir
+        self.chunk_files = sorted(output_dir.glob("*.safetensors"))
+        self.chunks = [self.load_chunk(chunk_file) for chunk_file in self.chunk_files]
+
+    def load_chunk(self, file_path: Path):
+        with safe_open(str(file_path), framework="pt", device="cpu") as f:
+            return {key: f.get_tensor(key) for key in f.keys()}
+
+    def __len__(self):
+        return len(self.chunk_files)
+
+    def __getitem__(self, idx):
+        chunk = self.chunks[idx]
+
+        # Restructure the keys to remove sample indices
+        batch = {}
+        for key, tensor in chunk.items():
+            _, base_key = key.split('_', 1)
+            if base_key not in batch:
+                batch[base_key] = []
+
+            batch[base_key].append(tensor)
+
+        # Stack the tensors for each key
+        batch = {key: torch.stack(tensors, dim=0) for key, tensors in batch.items()}
+        return batch
