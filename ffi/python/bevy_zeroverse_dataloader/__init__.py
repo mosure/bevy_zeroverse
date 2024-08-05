@@ -50,7 +50,7 @@ class View:
         normal_tensor = torch.tensor(self.normal, dtype=torch.uint8)
 
         color_tensor[..., 3] = 255
-        depth_tensor[..., 3] = 255
+        depth_tensor[..., 3] = 255  # TODO: convert to single channel float tensor
         normal_tensor[..., 3] = 255
 
         view_from_world_tensor = torch.tensor(self.view_from_world, dtype=torch.float32)
@@ -143,8 +143,15 @@ class BevyZeroverseDataset(Dataset):
             output_dir.mkdir(exist_ok=True, parents=True)
             file_path = output_dir / f"{chunk_key}.safetensors"
 
-            # Flatten the tensors dictionary
-            flat_tensors = {f"{i}_{key}": tensor for i, sample in enumerate(chunk) for key, tensor in sample.items()}
+            batch = {}
+            for sample in chunk:
+                for key, tensor in sample.items():
+                    if key not in batch:
+                        batch[key] = []
+                    batch[key].append(tensor)
+
+            # Stack the tensors for each key
+            flat_tensors = {key: torch.stack(tensors, dim=0) for key, tensors in batch.items()}
             save_file(flat_tensors, str(file_path))
 
             chunk_size = 0
@@ -182,17 +189,4 @@ class ChunkedDataset(Dataset):
         return len(self.chunk_files)
 
     def __getitem__(self, idx):
-        chunk = self.chunks[idx]
-
-        # Restructure the keys to remove sample indices
-        batch = {}
-        for key, tensor in chunk.items():
-            _, base_key = key.split('_', 1)
-            if base_key not in batch:
-                batch[base_key] = []
-
-            batch[base_key].append(tensor)
-
-        # Stack the tensors for each key
-        batch = {key: torch.stack(tensors, dim=0) for key, tensors in batch.items()}
-        return batch
+        return self.chunks[idx]
