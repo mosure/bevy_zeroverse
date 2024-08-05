@@ -40,6 +40,8 @@ use bevy_panorbit_camera::{
     PanOrbitCamera,
     PanOrbitCameraPlugin,
 };
+
+#[cfg(feature = "python")]
 use pyo3::prelude::*;
 
 use crate::{
@@ -70,6 +72,7 @@ use crate::{
 
 
 // TODO: add meta-derive macro to populate get/set methods
+#[cfg(feature = "python")]
 #[derive(
     Clone,
     Debug,
@@ -149,6 +152,7 @@ pub struct BevyZeroverseConfig {
     pub scene_type: ZeroverseSceneType,
 }
 
+#[cfg(feature = "python")]
 #[pymethods]
 impl BevyZeroverseConfig {
     #[new]
@@ -163,6 +167,71 @@ impl BevyZeroverseConfig {
     fn __repr__(&self) -> PyResult<String> {
         Ok(format!("{:?}", self))
     }
+}
+
+#[cfg(not(feature = "python"))]
+#[derive(
+    Clone,
+    Debug,
+    Resource,
+    Serialize,
+    Deserialize,
+    Parser,
+    Reflect,
+)]
+#[command(about = "bevy_zeroverse viewer", version, long_about = None)]
+#[reflect(Resource)]
+pub struct BevyZeroverseConfig {
+    /// enable the bevy inspector
+    #[arg(long, default_value = "true")]
+    pub editor: bool,
+
+    /// no window will be shown
+    #[arg(long, default_value = "false")]
+    pub headless: bool,
+
+    /// view available material basecolor textures in a grid
+    #[arg(long, default_value = "false")]
+    pub material_grid: bool,
+
+    /// view plücker embeddings
+    #[arg(long, default_value = "false")]
+    pub plucker_visualization: bool,
+
+    /// enable closing the window with the escape key (doesn't work in web)
+    #[arg(long, default_value = "true")]
+    pub press_esc_close: bool,
+
+    #[arg(long, default_value = "1920.0")]
+    pub width: f32,
+
+    #[arg(long, default_value = "1080.0")]
+    pub height: f32,
+
+    #[arg(long, default_value = "0")]
+    pub num_cameras: usize,
+
+    /// display a grid of Zeroverse cameras
+    #[arg(long, default_value = "false")]
+    pub camera_grid: bool,
+
+    /// window title
+    #[arg(long, default_value = "bevy_zeroverse")]
+    pub name: String,
+
+    /// move to the next scene after `regenerate_ms` milliseconds
+    #[arg(long, default_value = "0")]
+    pub regenerate_ms: u32,
+
+    /// automatically rotate the root scene object in the y axis
+    #[arg(long, default_value = "0.0")]
+    pub yaw_speed: f32,
+
+    #[arg(long, value_enum, default_value_t = RenderMode::Color)]
+    pub render_mode: RenderMode,
+
+    #[arg(long, value_enum, default_value_t = ZeroverseSceneType::Object)]
+    pub scene_type: ZeroverseSceneType,
 }
 
 impl Default for BevyZeroverseConfig {

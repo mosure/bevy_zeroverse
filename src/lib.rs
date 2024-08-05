@@ -1,3 +1,5 @@
+#![feature(cfg_eval)]
+
 use bevy::prelude::*;
 
 pub mod app;
