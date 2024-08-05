@@ -36,22 +36,22 @@ class View:
         if len(rust_view.normal) == 0:
             print("empty normal buffer")
 
-        color = reshape_data(rust_view.color, np.uint8)
-        depth = reshape_data(rust_view.depth, np.uint8)
-        normal = reshape_data(rust_view.normal, np.uint8)
+        color = reshape_data(rust_view.color, np.float32)
+        depth = reshape_data(rust_view.depth, np.float32)
+        normal = reshape_data(rust_view.normal, np.float32)
 
         view_from_world = np.array(rust_view.view_from_world)
         fovy = rust_view.fovy
         return cls(color, depth, normal, view_from_world, fovy, width, height)
 
     def to_tensors(self):
-        color_tensor = torch.tensor(self.color, dtype=torch.uint8)
-        depth_tensor = torch.tensor(self.depth, dtype=torch.uint8)
-        normal_tensor = torch.tensor(self.normal, dtype=torch.uint8)
+        color_tensor = torch.tensor(self.color, dtype=torch.float32)
+        depth_tensor = torch.tensor(self.depth, dtype=torch.float32)
+        normal_tensor = torch.tensor(self.normal, dtype=torch.float32)
 
-        color_tensor[..., 3] = 255
-        depth_tensor[..., 3] = 255  # TODO: convert to single channel float tensor
-        normal_tensor[..., 3] = 255
+        color_tensor = color_tensor[..., :3]
+        depth_tensor = depth_tensor[..., 0]
+        normal_tensor = normal_tensor[..., :3]
 
         view_from_world_tensor = torch.tensor(self.view_from_world, dtype=torch.float32)
         fovy_tensor = torch.tensor(self.fovy, dtype=torch.float32)

@@ -29,7 +29,6 @@ use bevy::{
             TextureFormat,
             TextureUsages,
         },
-        texture::BevyDefault,
         view::RenderLayers,
     }
 };
@@ -225,7 +224,7 @@ fn insert_cameras(
                 label: "bevy_zeroverse_camera_target".into(),
                 size,
                 dimension: TextureDimension::D2,
-                format: TextureFormat::bevy_default(), //ViewTarget::TEXTURE_FORMAT_HDR,
+                format: TextureFormat::Rgba32Float,
                 mip_level_count: 1,
                 sample_count: 1,
                 usage: TextureUsages::TEXTURE_BINDING
@@ -269,7 +268,7 @@ fn insert_cameras(
                     label: "bevy_zeroverse_camera_cpu_image".into(),
                     size,
                     dimension: TextureDimension::D2,
-                    format: TextureFormat::bevy_default(), //ViewTarget::TEXTURE_FORMAT_HDR,
+                    format: TextureFormat::Rgba32Float,
                     mip_level_count: 1,
                     sample_count: 1,
                     usage: TextureUsages::COPY_DST | TextureUsages::TEXTURE_BINDING,
@@ -284,7 +283,7 @@ fn insert_cameras(
                 render_target,
                 cpu_image_handle,
                 size,
-                TextureFormat::bevy_default(), //ViewTarget::TEXTURE_FORMAT_HDR,
+                TextureFormat::Rgba32Float,
                 &render_device,
             ));
         }
