@@ -143,8 +143,8 @@ class TestChunkedDataset(unittest.TestCase):
 
 
 def main():
-    unittest.main()
-    # test()
+    # unittest.main()
+    test()
 
 if __name__ == "__main__":
     main()

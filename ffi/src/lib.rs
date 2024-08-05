@@ -133,7 +133,7 @@ impl Default for SamplerState {
 
 impl SamplerState {
     const FRAME_DELAY: u32 = 3;
-    const WARMUP_FRAME_DELAY: u32 = 3;
+    const WARMUP_FRAME_DELAY: u32 = 2;
 
     fn cycle_render_mode(
         &mut self,
