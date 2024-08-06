@@ -3,6 +3,11 @@ use rand::Rng;
 
 use bevy::prelude::*;
 
+use crate::{
+    app::BevyZeroverseConfig,
+    scene::RegenerateSceneEvent,
+};
+
 
 #[derive(Resource, Default, Debug)]
 pub struct ZeroverseMaterials {
@@ -33,6 +38,7 @@ impl Plugin for ZeroverseMaterialPlugin {
 
         app.add_systems(PreStartup, find_materials);
         app.add_systems(Startup, load_materials);
+        app.add_systems(Update, material_exchange);
         app.add_systems(PostUpdate, reload_materials);
     }
 }
@@ -173,4 +179,26 @@ fn reload_materials(
         material_loader_settings,
         found_materials,
     );
+}
+
+
+fn material_exchange(
+    args: Res<BevyZeroverseConfig>,
+    mut regenerate_events: EventReader<RegenerateSceneEvent>,
+    mut shuffle_events: EventWriter<ShuffleMaterialsEvent>,
+    mut scene_counter: Local<u32>,
+) {
+    if args.regenerate_scene_material_shuffle_period == 0 {
+        return;
+    }
+
+    for _ in regenerate_events.read() {
+        *scene_counter += 1;
+    }
+
+    if *scene_counter >= args.regenerate_scene_material_shuffle_period {
+        *scene_counter = 0;
+
+        shuffle_events.send(ShuffleMaterialsEvent);
+    }
 }

@@ -138,6 +138,11 @@ pub struct BevyZeroverseConfig {
     #[arg(long, default_value = "0")]
     pub regenerate_ms: u32,
 
+    /// afer this many scene regenerations, shuffle the materials
+    #[pyo3(get, set)]
+    #[arg(long, default_value = "0")]
+    pub regenerate_scene_material_shuffle_period: u32,
+
     /// automatically rotate the root scene object in the y axis
     #[pyo3(get, set)]
     #[arg(long, default_value = "0.0")]
@@ -223,6 +228,10 @@ pub struct BevyZeroverseConfig {
     #[arg(long, default_value = "0")]
     pub regenerate_ms: u32,
 
+    /// afer this many scene regenerations, shuffle the materials
+    #[arg(long, default_value = "0")]
+    pub regenerate_scene_material_shuffle_period: u32,
+
     /// automatically rotate the root scene object in the y axis
     #[arg(long, default_value = "0.0")]
     pub yaw_speed: f32,
@@ -248,6 +257,7 @@ impl Default for BevyZeroverseConfig {
             camera_grid: false,
             name: "bevy_zeroverse".to_string(),
             regenerate_ms: 0,
+            regenerate_scene_material_shuffle_period: 0,
             yaw_speed: 0.0,
             render_mode: Default::default(),
             scene_type: Default::default(),

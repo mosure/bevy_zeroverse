@@ -181,7 +181,7 @@ fn signaled_runner(mut app: App) -> AppExit {
     loop {
         if let Some(receiver) = APP_FRAME_RECEIVER.get() {
             let receiver = receiver.lock().unwrap();
-            if receiver.try_recv().is_ok() {
+            if receiver.recv().is_ok() {
                 app.insert_resource(SamplerState::default());
 
                 loop {
@@ -238,46 +238,6 @@ pub fn setup_and_run_app(
     } else {
         startup();
     }
-}
-
-
-// TODO: add process idx, disable logging on worker idx > 0
-#[pyfunction]
-#[pyo3(signature = (override_args=None, asset_root=None))]
-fn initialize(
-    py: Python<'_>,
-    override_args: Option<BevyZeroverseConfig>,
-    asset_root: Option<String>,
-) {
-    if APP_FRAME_RECEIVER.get().is_some() {
-        return;
-    }
-
-    if let Some(asset_root) = asset_root {
-        std::env::set_var("BEVY_ASSET_ROOT", asset_root);
-    } else {
-        std::env::set_var("BEVY_ASSET_ROOT", std::env::current_dir().unwrap());
-    }
-
-    let (
-        app_sender,
-        app_receiver,
-    ) = mpsc::channel();
-
-    APP_FRAME_RECEIVER.set(Arc::new(Mutex::new(app_receiver))).unwrap();
-    APP_FRAME_SENDER.set(app_sender).unwrap();
-
-    let (
-        sample_sender,
-        sample_receiver,
-    ) = mpsc::channel();
-
-    SAMPLE_RECEIVER.set(Arc::new(Mutex::new(sample_receiver))).unwrap();
-    SAMPLE_SENDER.set(sample_sender).unwrap();
-
-    py.allow_threads(|| {
-        setup_and_run_app(true, override_args);
-    });
 }
 
 
@@ -356,6 +316,46 @@ fn sample_stream(
     }
 
     state.cycle_render_mode(render_mode);
+}
+
+
+// TODO: add process idx, disable logging on worker idx > 0
+#[pyfunction]
+#[pyo3(signature = (override_args=None, asset_root=None))]
+fn initialize(
+    py: Python<'_>,
+    override_args: Option<BevyZeroverseConfig>,
+    asset_root: Option<String>,
+) {
+    if APP_FRAME_RECEIVER.get().is_some() {
+        return;
+    }
+
+    if let Some(asset_root) = asset_root {
+        std::env::set_var("BEVY_ASSET_ROOT", asset_root);
+    } else {
+        std::env::set_var("BEVY_ASSET_ROOT", std::env::current_dir().unwrap());
+    }
+
+    let (
+        app_sender,
+        app_receiver,
+    ) = mpsc::channel();
+
+    APP_FRAME_RECEIVER.set(Arc::new(Mutex::new(app_receiver))).unwrap();
+    APP_FRAME_SENDER.set(app_sender).unwrap();
+
+    let (
+        sample_sender,
+        sample_receiver,
+    ) = mpsc::channel();
+
+    SAMPLE_RECEIVER.set(Arc::new(Mutex::new(sample_receiver))).unwrap();
+    SAMPLE_SENDER.set(sample_sender).unwrap();
+
+    py.allow_threads(|| {
+        setup_and_run_app(true, override_args);
+    });
 }
 
 

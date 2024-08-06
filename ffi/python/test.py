@@ -84,7 +84,7 @@ def test():
         editor=False, headless=True, num_cameras=6,
         width=640, height=360, num_samples=1e6,
     )
-    dataloader = DataLoader(dataset, batch_size=2, shuffle=True, num_workers=1)
+    dataloader = DataLoader(dataset, batch_size=5, shuffle=True, num_workers=2)
 
     # benchmark(dataloader)
 

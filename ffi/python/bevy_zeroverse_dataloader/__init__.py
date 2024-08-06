@@ -115,6 +115,7 @@ class BevyZeroverseDataset(Dataset):
         config.width = self.width
         config.height = self.height
         config.scene_type = bevy_zeroverse.ZeroverseSceneType.Room
+        config.regenerate_scene_material_shuffle_period = 256
         bevy_zeroverse.initialize(config)
         self.initialized = True
 
