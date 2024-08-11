@@ -3,7 +3,7 @@ from pathlib import Path
 from safetensors import safe_open
 from safetensors.torch import save_file
 import torch
-from torch.utils.data import Dataset
+from torch.utils.data import DataLoader, Dataset
 
 import bevy_zeroverse
 
@@ -130,15 +130,20 @@ class BevyZeroverseDataset(Dataset):
         sample = Sample.from_rust(rust_sample, self.width, self.height)
         return sample.to_tensors()
 
-
-    def chunk_and_save(self, output_dir: Path, bytes_per_chunk: int):
+    def chunk_and_save(
+        self,
+        output_dir: Path,
+        bytes_per_chunk: int,
+        n_workers: int = 1,
+    ):
         chunk_size = 0
         chunk_index = 0
         chunk = []
         original_samples = []
+        chunk_file_paths = []
 
         def save_chunk():
-            nonlocal chunk_size, chunk_index, chunk, original_samples
+            nonlocal chunk_size, chunk_index, chunk, original_samples, chunk_file_paths
             chunk_key = f"{chunk_index:0>6}"
             print(f"saving chunk {chunk_key} of {self.num_samples} ({chunk_size / 1e6:.2f} MB).")
             output_dir.mkdir(exist_ok=True, parents=True)
@@ -155,12 +160,15 @@ class BevyZeroverseDataset(Dataset):
             flat_tensors = {key: torch.stack(tensors, dim=0) for key, tensors in batch.items()}
             save_file(flat_tensors, str(file_path))
 
+            chunk_file_paths.append(file_path)
             chunk_size = 0
             chunk_index += 1
             chunk = []
 
-        for idx in range(self.num_samples):
-            sample = self[idx]
+        dataloader = DataLoader(self, batch_size=1, num_workers=n_workers, shuffle=False)
+
+        for idx, sample in enumerate(dataloader):
+            sample = {k: v.squeeze(0) for k, v in sample.items()}
             sample_size = sum(tensor.numel() * tensor.element_size() for tensor in sample.values())
             chunk.append(sample)
             original_samples.append(sample)
@@ -173,7 +181,7 @@ class BevyZeroverseDataset(Dataset):
         if chunk_size > 0:
             save_chunk()
 
-        return original_samples
+        return original_samples, chunk_file_paths
 
 
 class ChunkedDataset(Dataset):

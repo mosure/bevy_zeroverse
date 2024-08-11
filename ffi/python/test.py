@@ -97,7 +97,7 @@ class TestChunkedDataset(unittest.TestCase):
     def setUp(self):
         self.editor = True
         self.headless = True
-        self.num_cameras = 9
+        self.num_cameras = 4
         self.width = 640
         self.height = 360
         self.num_samples = 100
@@ -144,8 +144,8 @@ class TestChunkedDataset(unittest.TestCase):
 
 
 def main():
-    # unittest.main()
-    test()
+    unittest.main()
+    # test()
 
 if __name__ == "__main__":
     main()
