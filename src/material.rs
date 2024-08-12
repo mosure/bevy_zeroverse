@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use rand::Rng;
 
 use bevy::prelude::*;
@@ -64,6 +64,19 @@ pub struct MaterialRoots {
 }
 
 
+fn strip_extended_length_prefix(path: &PathBuf) -> PathBuf {
+    if cfg!(windows) {
+        let prefix = r"\\?\";
+        if let Some(path_str) = path.to_str() {
+            if path_str.starts_with(prefix) {
+                return PathBuf::from(&path_str[prefix.len()..]);
+            }
+        }
+    }
+    path.clone()
+}
+
+
 fn find_materials(
     mut found_materials: ResMut<MaterialRoots>,
 ) {
@@ -83,7 +96,18 @@ fn find_materials(
     // TODO: add manifest file caching to improve load times
     #[cfg(not(target_family = "wasm"))]
     {
-        let cwd = std::env::current_dir().expect("failed to get current working directory");
+        let cwd = match std::env::var("BEVY_ASSET_ROOT") {
+            Ok(asset_root) => {
+                info!("BEVY_ASSET_ROOT: `{}`", asset_root);
+                let abs_path = PathBuf::from(asset_root).canonicalize().expect("failed to canonicalize asset root");
+
+                strip_extended_length_prefix(&abs_path)
+            }
+            Err(_) => {
+                std::env::current_dir().expect("failed to get current working directory")
+            }
+        };
+
         info!("current working directory: {}", cwd.to_string_lossy());
 
         let asset_server_path = cwd.join("./assets");

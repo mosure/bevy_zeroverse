@@ -115,6 +115,7 @@ class BevyZeroverseDataset(Dataset):
         self.height = height
         self.num_samples = int(num_samples)
         self.initialized = False
+        self.root_asset_folder = root_asset_folder
 
     def initialize(self):
         config = bevy_zeroverse.BevyZeroverseConfig()
