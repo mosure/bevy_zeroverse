@@ -64,16 +64,16 @@ pub struct MaterialRoots {
 }
 
 
-fn strip_extended_length_prefix(path: &PathBuf) -> PathBuf {
+fn strip_extended_length_prefix(path: &Path) -> PathBuf {
     if cfg!(windows) {
         let prefix = r"\\?\";
         if let Some(path_str) = path.to_str() {
-            if path_str.starts_with(prefix) {
-                return PathBuf::from(&path_str[prefix.len()..]);
+            if let Some(stripped) = path_str.strip_prefix(prefix) {
+                return PathBuf::from(stripped);
             }
         }
     }
-    path.clone()
+    path.to_path_buf()
 }
 
 
