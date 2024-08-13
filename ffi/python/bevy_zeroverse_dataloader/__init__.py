@@ -143,65 +143,66 @@ class BevyZeroverseDataset(Dataset):
         sample = Sample.from_rust(rust_sample, self.width, self.height)
         return sample.to_tensors()
 
-    def chunk_and_save(
-        self,
-        output_dir: Path,
-        bytes_per_chunk: int,
-        n_workers: int = 1,
-    ):
+
+def chunk_and_save(
+    dataset,
+    output_dir: Path,
+    bytes_per_chunk: int = int(256 * 1024 * 1024),
+    n_workers: int = 1,
+):
+    chunk_size = 0
+    chunk_index = 0
+    chunk = []
+    original_samples = []
+    chunk_file_paths = []
+
+    def save_chunk():
+        nonlocal chunk_size, chunk_index, chunk, original_samples, chunk_file_paths
+
+        chunk_key = f"{chunk_index:0>6}"
+        print(f"saving chunk {chunk_key} of {len(dataset)} ({chunk_size / 1e6:.2f} MB).")
+        output_dir.mkdir(exist_ok=True, parents=True)
+        file_path = output_dir / f"{chunk_key}.safetensors"
+
+        batch = {}
+        for sample in chunk:
+            for key, tensor in sample.items():
+                if key not in batch:
+                    batch[key] = []
+                batch[key].append(tensor)
+
+        # Stack the tensors for each key
+        flat_tensors = {key: torch.stack(tensors, dim=0) for key, tensors in batch.items()}
+        save_file(flat_tensors, str(file_path))
+
+        chunk_file_paths.append(file_path)
         chunk_size = 0
-        chunk_index = 0
+        chunk_index += 1
         chunk = []
-        original_samples = []
-        chunk_file_paths = []
 
-        def save_chunk():
-            nonlocal chunk_size, chunk_index, chunk, original_samples, chunk_file_paths
-            chunk_key = f"{chunk_index:0>6}"
-            print(f"saving chunk {chunk_key} of {self.num_samples} ({chunk_size / 1e6:.2f} MB).")
-            output_dir.mkdir(exist_ok=True, parents=True)
-            file_path = output_dir / f"{chunk_key}.safetensors"
+    dataloader = DataLoader(dataset, batch_size=1, num_workers=n_workers, shuffle=False)
 
-            batch = {}
-            for sample in chunk:
-                for key, tensor in sample.items():
-                    if key not in batch:
-                        batch[key] = []
-                    batch[key].append(tensor)
+    for idx, sample in enumerate(dataloader):
+        sample = {k: v.squeeze(0) for k, v in sample.items()}
+        sample_size = sum(tensor.numel() * tensor.element_size() for tensor in sample.values())
+        chunk.append(sample)
+        original_samples.append(sample)
+        chunk_size += sample_size
 
-            # Stack the tensors for each key
-            flat_tensors = {key: torch.stack(tensors, dim=0) for key, tensors in batch.items()}
-            save_file(flat_tensors, str(file_path))
-
-            chunk_file_paths.append(file_path)
-            chunk_size = 0
-            chunk_index += 1
-            chunk = []
-
-        dataloader = DataLoader(self, batch_size=1, num_workers=n_workers, shuffle=False)
-
-        for idx, sample in enumerate(dataloader):
-            sample = {k: v.squeeze(0) for k, v in sample.items()}
-            sample_size = sum(tensor.numel() * tensor.element_size() for tensor in sample.values())
-            chunk.append(sample)
-            original_samples.append(sample)
-            chunk_size += sample_size
-
-            print(f"    added sample {idx} to chunk ({sample_size / 1e6:.2f} MB).")
-            if chunk_size >= bytes_per_chunk:
-                save_chunk()
-
-        if chunk_size > 0:
+        print(f"    added sample {idx} to chunk ({sample_size / 1e6:.2f} MB).")
+        if chunk_size >= bytes_per_chunk:
             save_chunk()
 
-        return original_samples, chunk_file_paths
+    if chunk_size > 0:
+        save_chunk()
+
+    return original_samples, chunk_file_paths
 
 
 class ChunkedDataset(Dataset):
     def __init__(self, output_dir: Path):
         self.output_dir = output_dir
         self.chunk_files = sorted(output_dir.glob("*.safetensors"))
-        self.chunks = [self.load_chunk(chunk_file) for chunk_file in self.chunk_files]
 
     def load_chunk(self, file_path: Path):
         with safe_open(str(file_path), framework="pt", device="cpu") as f:
@@ -211,4 +212,5 @@ class ChunkedDataset(Dataset):
         return len(self.chunk_files)
 
     def __getitem__(self, idx):
-        return self.chunks[idx]
+        chunk_file = self.chunk_files[idx]
+        return self.load_chunk(chunk_file)

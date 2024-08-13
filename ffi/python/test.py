@@ -5,7 +5,7 @@ import shutil
 from torch.utils.data import DataLoader
 import unittest
 
-from bevy_zeroverse_dataloader import BevyZeroverseDataset, ChunkedDataset
+from bevy_zeroverse_dataloader import BevyZeroverseDataset, ChunkedDataset, chunk_and_save
 
 
 
@@ -101,7 +101,7 @@ class TestChunkedDataset(unittest.TestCase):
         self.width = 640
         self.height = 360
         self.num_samples = 100
-        self.bytes_per_chunk = int(1e8)
+        self.bytes_per_chunk = int(256 * 1024 * 1024)
         self.stage = "test"
         self.output_dir = Path("./data/zeroverse") / self.stage
 
@@ -109,7 +109,7 @@ class TestChunkedDataset(unittest.TestCase):
             shutil.rmtree(self.output_dir)
 
         self.dataset = BevyZeroverseDataset(self.editor, self.headless, self.num_cameras, self.width, self.height, self.num_samples)
-        self.original_samples = self.dataset.chunk_and_save(self.output_dir, self.bytes_per_chunk)
+        self.original_samples = chunk_and_save(self.dataset, self.output_dir, self.bytes_per_chunk)
 
     def test_chunked_dataset_loading(self):
         chunked_dataset = ChunkedDataset(self.output_dir)
@@ -118,7 +118,7 @@ class TestChunkedDataset(unittest.TestCase):
         num_chunks = 0
         total_loaded_samples = 0
 
-        expected_shapes = {key: tensor.shape for key, tensor in self.original_samples[0].items()}
+        expected_shapes = {key: tensor.shape for key, tensor in self.original_samples[0][0].items()}
 
         for batch in dataloader:
             num_chunks += 1
@@ -133,7 +133,7 @@ class TestChunkedDataset(unittest.TestCase):
         expected_num_chunks = len(chunked_dataset)
         self.assertEqual(num_chunks, expected_num_chunks, "Mismatch in number of chunks")
 
-        self.assertEqual(total_loaded_samples, len(self.original_samples))
+        self.assertEqual(total_loaded_samples, len(self.original_samples[0]))
 
     def test_benchmark_chunked_dataloader(self):
         chunked_dataset = ChunkedDataset(self.output_dir)

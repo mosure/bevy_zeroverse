@@ -1,27 +1,27 @@
 from pathlib import Path
 import shutil
 
-from bevy_zeroverse_dataloader import BevyZeroverseDataset
+from bevy_zeroverse_dataloader import BevyZeroverseDataset, chunk_and_save
 
 
 def generate_chunked_dataset(
-        stage = "test",
-        output_dir = Path("./data/zeroverse"),
-        bytes_per_chunk = int(1e8),
-        dataset = BevyZeroverseDataset(
-            editor=False,
-            headless=True,
-            num_cameras=4,
-            width=640,
-            height=360,
-            num_samples=10,
-        )
-    ) -> list:
+    output_dir = Path("./data/zeroverse/cli"),
+    bytes_per_chunk = int(256 * 1024 * 1024),
+    dataset = BevyZeroverseDataset(
+        editor=False,
+        headless=True,
+        num_cameras=4,
+        width=640,
+        height=360,
+        num_samples=100,
+    )
+) -> list:
     if output_dir.exists():
-        shutil.rmtree(output_dir / stage)
+        shutil.rmtree(output_dir)
 
-    return dataset.chunk_and_save(
-        output_dir / stage,
+    return chunk_and_save(
+        dataset,
+        output_dir,
         bytes_per_chunk,
         n_workers=4,
     )
