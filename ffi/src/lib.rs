@@ -56,6 +56,8 @@ struct View {
 
     #[pyo3(get, set)]
     fovy: f32,
+
+    // TODO: add projection near/far
 }
 
 #[pymethods]
