@@ -10,11 +10,11 @@ import bevy_zeroverse
 
 # TODO: add sample-level world rotation augment
 class View:
-    def __init__(self, color, depth, normal, view_from_world, fovy, width, height):
+    def __init__(self, color, depth, normal, world_from_view, fovy, width, height):
         self.color = color
         self.depth = depth
         self.normal = normal
-        self.view_from_world = view_from_world
+        self.world_from_view = world_from_view
         self.fovy = fovy
         self.width = width
         self.height = height
@@ -40,9 +40,9 @@ class View:
         depth = reshape_data(rust_view.depth, np.float32)
         normal = reshape_data(rust_view.normal, np.float32)
 
-        view_from_world = np.array(rust_view.view_from_world)
+        world_from_view = np.array(rust_view.world_from_view)
         fovy = rust_view.fovy
-        return cls(color, depth, normal, view_from_world, fovy, width, height)
+        return cls(color, depth, normal, world_from_view, fovy, width, height)
 
     def to_tensors(self):
         color_tensor = torch.tensor(self.color, dtype=torch.float32)
@@ -53,13 +53,13 @@ class View:
         depth_tensor = depth_tensor[..., 0]
         normal_tensor = normal_tensor[..., :3]
 
-        view_from_world_tensor = torch.tensor(self.view_from_world, dtype=torch.float32)
+        world_from_view_tensor = torch.tensor(self.world_from_view, dtype=torch.float32)
         fovy_tensor = torch.tensor(self.fovy, dtype=torch.float32)
         return {
             'color': color_tensor,
             'depth': depth_tensor,
             'normal': normal_tensor,
-            'view_from_world': view_from_world_tensor,
+            'world_from_view': world_from_view_tensor,
             'fovy': fovy_tensor
         }
 
@@ -77,7 +77,7 @@ class Sample:
             'color': [],
             'depth': [],
             'normal': [],
-            'view_from_world': [],
+            'world_from_view': [],
             'fovy': []
         }
 

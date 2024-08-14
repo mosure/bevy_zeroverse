@@ -52,7 +52,7 @@ struct View {
     normal: Vec<u8>,
 
     #[pyo3(get, set)]
-    view_from_world: [[f32; 4]; 4],
+    world_from_view: [[f32; 4]; 4],
 
     #[pyo3(get, set)]
     fovy: f32,
@@ -287,8 +287,8 @@ fn sample_stream(
             Projection::Orthographic(_) => panic!("orthographic projection not supported"),
         };
 
-        let view_from_world = camera_transform.compute_matrix().to_cols_array_2d();
-        view.view_from_world = view_from_world;
+        let world_from_view = camera_transform.compute_matrix().to_cols_array_2d();
+        view.world_from_view = world_from_view;
 
         let image_data = images
             .get(&image_copier.dst_image)

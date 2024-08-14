@@ -43,8 +43,8 @@ fn plucker_kernel(@builtin(global_invocation_id) gid : vec3<u32>) {
     let f = (st.xy - 0.5) * wh;
 
     let frag_dir = vec3<f32>(f.xy / focal, -1.0);
-    let rays_d = (view.view_from_world * vec4<f32>(frag_dir, 0.0)).xyz;
-    let rays_o = view.view_from_world[3].xyz;
+    let rays_d = (view.world_from_view * vec4<f32>(frag_dir, 0.0)).xyz;
+    let rays_o = view.world_from_view[3].xyz;
 
     let normalized_rays_d = safe_normalize(rays_d);
 
