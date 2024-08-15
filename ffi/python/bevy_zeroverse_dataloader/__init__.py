@@ -98,6 +98,11 @@ class Sample:
 
 # TODO: add dataset seed parameter to config
 class BevyZeroverseDataset(Dataset):
+    scene_map = {
+        'object': bevy_zeroverse.ZeroverseSceneType.Object,
+        'room': bevy_zeroverse.ZeroverseSceneType.Room,
+    }
+
     def __init__(
         self,
         editor,
@@ -107,6 +112,7 @@ class BevyZeroverseDataset(Dataset):
         height,
         num_samples,
         root_asset_folder=None,
+        scene_type='object',
     ):
         self.editor = editor
         self.headless = headless
@@ -116,6 +122,7 @@ class BevyZeroverseDataset(Dataset):
         self.num_samples = int(num_samples)
         self.initialized = False
         self.root_asset_folder = root_asset_folder
+        self.scene_type = scene_type
 
     def initialize(self):
         config = bevy_zeroverse.BevyZeroverseConfig()
@@ -124,7 +131,7 @@ class BevyZeroverseDataset(Dataset):
         config.num_cameras = self.num_cameras
         config.width = self.width
         config.height = self.height
-        config.scene_type = bevy_zeroverse.ZeroverseSceneType.Room
+        config.scene_type = BevyZeroverseDataset.scene_map[self.scene_type]
         config.regenerate_scene_material_shuffle_period = 256
         bevy_zeroverse.initialize(
             config,

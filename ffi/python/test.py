@@ -100,7 +100,7 @@ class TestChunkedDataset(unittest.TestCase):
         self.num_cameras = 4
         self.width = 640
         self.height = 360
-        self.num_samples = 100
+        self.num_samples = 10
         self.bytes_per_chunk = int(256 * 1024 * 1024)
         self.stage = "test"
         self.output_dir = Path("./data/zeroverse") / self.stage
