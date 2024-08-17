@@ -4,7 +4,7 @@ from setuptools_rust import RustExtension
 
 setup(
     name="bevy_zeroverse_ffi",
-    version="0.1",
+    version="0.3",
     packages=find_packages(where="python"),
     package_dir={"": "python"},
     rust_extensions=[
