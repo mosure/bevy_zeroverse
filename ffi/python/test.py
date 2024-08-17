@@ -12,9 +12,16 @@ from bevy_zeroverse_dataloader import BevyZeroverseDataset, ChunkedDataset, chun
 def visualize(batch):
     print(batch['color'].shape)
 
+    is_chunked = len(batch['color'].shape) == 6
+
     color_images = batch['color'].numpy()
     depth_images = batch['depth'].numpy()
     normal_images = batch['normal'].numpy()
+
+    if is_chunked:
+        color_images = color_images.squeeze(0)
+        depth_images = depth_images.squeeze(0)
+        normal_images = normal_images.squeeze(0)
 
     batch_size = color_images.shape[0]
     num_cameras = color_images.shape[1]

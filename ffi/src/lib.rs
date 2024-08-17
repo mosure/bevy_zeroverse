@@ -405,7 +405,7 @@ fn next(
 
 
 #[pymodule]
-fn bevy_zeroverse(m: &Bound<'_, PyModule>) -> PyResult<()> {
+fn bevy_zeroverse_ffi(m: &Bound<'_, PyModule>) -> PyResult<()> {
     pyo3_log::init();
 
     m.add_class::<BevyZeroverseConfig>()?;

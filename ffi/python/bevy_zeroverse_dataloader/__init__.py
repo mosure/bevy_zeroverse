@@ -208,8 +208,8 @@ def chunk_and_save(
 
 class ChunkedDataset(Dataset):
     def __init__(self, output_dir: Path):
-        self.output_dir = output_dir
-        self.chunk_files = sorted(output_dir.glob("*.safetensors"))
+        self.output_dir = Path(output_dir)
+        self.chunk_files = sorted(self.output_dir.glob("*.safetensors"))
 
     def load_chunk(self, file_path: Path):
         with safe_open(str(file_path), framework="pt", device="cpu") as f:
