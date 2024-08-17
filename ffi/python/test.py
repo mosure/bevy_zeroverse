@@ -82,7 +82,7 @@ def benchmark(dataloader):
 def test():
     dataset = BevyZeroverseDataset(
         editor=False, headless=True, num_cameras=6,
-        width=640, height=360, num_samples=1e6,
+        width=640, height=480, num_samples=1e6,
     )
     dataloader = DataLoader(dataset, batch_size=5, shuffle=True, num_workers=2)
 
@@ -99,7 +99,7 @@ class TestChunkedDataset(unittest.TestCase):
         self.headless = True
         self.num_cameras = 4
         self.width = 640
-        self.height = 360
+        self.height = 480
         self.num_samples = 10
         self.bytes_per_chunk = int(256 * 1024 * 1024)
         self.stage = "test"

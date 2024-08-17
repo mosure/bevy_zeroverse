@@ -12,7 +12,7 @@ def generate_chunked_dataset(
         headless=True,
         num_cameras=4,
         width=640,
-        height=360,
+        height=480,
         num_samples=100,
     )
 ) -> list:

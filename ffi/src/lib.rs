@@ -86,7 +86,7 @@ impl View {
     }
 }
 
-#[derive(Debug, Default, Resource)]
+#[derive(Clone, Debug, Default, Resource)]
 #[pyclass]
 pub struct Sample {
     pub views: Vec<View>,
