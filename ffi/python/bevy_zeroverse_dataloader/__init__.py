@@ -54,7 +54,7 @@ class View:
         normal_tensor = normal_tensor[..., :3]
 
         world_from_view_tensor = torch.tensor(self.world_from_view, dtype=torch.float32)
-        fovy_tensor = torch.tensor(self.fovy, dtype=torch.float32)
+        fovy_tensor = torch.tensor(self.fovy, dtype=torch.float32).unsqueeze(-1)
         return {
             'color': color_tensor,
             'depth': depth_tensor,
