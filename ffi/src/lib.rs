@@ -57,7 +57,11 @@ pub struct View {
     #[pyo3(get, set)]
     pub fovy: f32,
 
-    // TODO: add projection near/far
+    #[pyo3(get, set)]
+    pub near: f32,
+
+    #[pyo3(get, set)]
+    pub far: f32,
 }
 
 #[pymethods]
@@ -291,8 +295,12 @@ fn sample_stream(
     for (i, (camera_transform, projection, image_copier)) in cameras.iter().enumerate() {
         let view = &mut buffered_sample.views[i];
 
-        view.fovy = match projection {
-            Projection::Perspective(perspective) => perspective.fov,
+        match projection {
+            Projection::Perspective(perspective) => {
+                view.fovy = perspective.fov;
+                view.near = perspective.near;
+                view.far = perspective.far;
+            }
             Projection::Orthographic(_) => panic!("orthographic projection not supported"),
         };
 

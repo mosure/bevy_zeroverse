@@ -10,12 +10,14 @@ import bevy_zeroverse_ffi
 
 # TODO: add sample-level world rotation augment
 class View:
-    def __init__(self, color, depth, normal, world_from_view, fovy, width, height):
+    def __init__(self, color, depth, normal, world_from_view, fovy, near, far, width, height):
         self.color = color
         self.depth = depth
         self.normal = normal
         self.world_from_view = world_from_view
         self.fovy = fovy
+        self.near = near
+        self.far = far
         self.width = width
         self.height = height
 
@@ -42,7 +44,9 @@ class View:
 
         world_from_view = np.array(rust_view.world_from_view)
         fovy = rust_view.fovy
-        return cls(color, depth, normal, world_from_view, fovy, width, height)
+        near = rust_view.near
+        far = rust_view.far
+        return cls(color, depth, normal, world_from_view, fovy, near, far, width, height)
 
     def to_tensors(self):
         color_tensor = torch.tensor(self.color, dtype=torch.float32)
@@ -54,13 +58,19 @@ class View:
         normal_tensor = normal_tensor[..., :3]
 
         world_from_view_tensor = torch.tensor(self.world_from_view, dtype=torch.float32)
+
         fovy_tensor = torch.tensor(self.fovy, dtype=torch.float32).unsqueeze(-1)
+        near_tensor = torch.tensor(self.near, dtype=torch.float32).unsqueeze(-1)
+        far_tensor = torch.tensor(self.far, dtype=torch.float32).unsqueeze(-1)
+
         return {
             'color': color_tensor,
             'depth': depth_tensor,
             'normal': normal_tensor,
             'world_from_view': world_from_view_tensor,
-            'fovy': fovy_tensor
+            'fovy': fovy_tensor,
+            'near': near_tensor,
+            'far': far_tensor,
         }
 
 class Sample:
@@ -78,7 +88,9 @@ class Sample:
             'depth': [],
             'normal': [],
             'world_from_view': [],
-            'fovy': []
+            'fovy': [],
+            'near': [],
+            'far': [],
         }
 
         if len(self.views) == 0:

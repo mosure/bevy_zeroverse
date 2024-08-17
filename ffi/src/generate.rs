@@ -39,6 +39,8 @@ pub struct StackedViews {
     pub normal: Array5<f32>,           // Shape: (batch_size, num_views, height, width, channels)
     pub world_from_view: Array4<f32>, // Shape: (batch_size, num_views, 4, 4)
     pub fovy: Array3<f32>,            // Shape: (batch_size, num_views)
+    pub near: Array3<f32>,            // Shape: (batch_size, num_views)
+    pub far: Array3<f32>,            // Shape: (batch_size, num_views)
 }
 
 struct Wrapper<A, D>(ArrayBase<OwnedRepr<A>, D>);
@@ -83,6 +85,8 @@ fn stack_samples(
     let mut normal_stacks = Vec::new();
     let mut world_from_view_stacks = Vec::new();
     let mut fovy_stacks = Vec::new();
+    let mut near_stacks = Vec::new();
+    let mut far_stacks = Vec::new();
 
     for sample in samples {
         let mut color_views = Vec::new();
@@ -90,6 +94,8 @@ fn stack_samples(
         let mut normal_views = Vec::new();
         let mut world_from_view_views = Vec::new();
         let mut fovy_views = Vec::new();
+        let mut near_views = Vec::new();
+        let mut far_views = Vec::new();
 
         for view in sample.views {
             let color_f32: &[f32] = cast_slice(&view.color);
@@ -102,6 +108,8 @@ fn stack_samples(
 
             let world_from_view = Array2::from_shape_vec((4, 4), view.world_from_view.concat()).unwrap();
             let fovy = Array1::from_elem(1, view.fovy);
+            let near = Array1::from_elem(1, view.near);
+            let far = Array1::from_elem(1, view.far);
 
             let color = color.slice(s![.., .., 0..3]).to_owned();       // rgb
             let depth = depth.slice(s![.., .., 0..1]).to_owned();       // x
@@ -112,6 +120,8 @@ fn stack_samples(
             normal_views.push(normal);
             world_from_view_views.push(world_from_view);
             fovy_views.push(fovy);
+            near_views.push(near);
+            far_views.push(far);
         }
 
         let color_views_stacked = ndarray::stack(Axis(0), &color_views.iter().map(|a| a.view()).collect::<Vec<_>>()).unwrap();
@@ -119,12 +129,16 @@ fn stack_samples(
         let normal_views_stacked = ndarray::stack(Axis(0), &normal_views.iter().map(|a| a.view()).collect::<Vec<_>>()).unwrap();
         let world_from_view_views_stacked = ndarray::stack(Axis(0), &world_from_view_views.iter().map(|a| a.view()).collect::<Vec<_>>()).unwrap();
         let fovy_views_stacked = ndarray::stack(Axis(0), &fovy_views.iter().map(|a| a.view()).collect::<Vec<_>>()).unwrap();
+        let near_views_stacked = ndarray::stack(Axis(0), &near_views.iter().map(|a| a.view()).collect::<Vec<_>>()).unwrap();
+        let far_views_stacked = ndarray::stack(Axis(0), &far_views.iter().map(|a| a.view()).collect::<Vec<_>>()).unwrap();
 
         color_stacks.push(color_views_stacked);
         depth_stacks.push(depth_views_stacked);
         normal_stacks.push(normal_views_stacked);
         world_from_view_stacks.push(world_from_view_views_stacked);
         fovy_stacks.push(fovy_views_stacked);
+        near_stacks.push(near_views_stacked);
+        far_stacks.push(far_views_stacked);
     }
 
     let color_stacked = ndarray::stack(Axis(0), &color_stacks.iter().map(|a| a.view()).collect::<Vec<_>>()).unwrap();
@@ -132,6 +146,8 @@ fn stack_samples(
     let normal_stacked = ndarray::stack(Axis(0), &normal_stacks.iter().map(|a| a.view()).collect::<Vec<_>>()).unwrap();
     let world_from_view_stacked = ndarray::stack(Axis(0), &world_from_view_stacks.iter().map(|a| a.view()).collect::<Vec<_>>()).unwrap();
     let fovy_stacked = ndarray::stack(Axis(0), &fovy_stacks.iter().map(|a| a.view()).collect::<Vec<_>>()).unwrap();
+    let near_stacked = ndarray::stack(Axis(0), &near_stacks.iter().map(|a| a.view()).collect::<Vec<_>>()).unwrap();
+    let far_stacked = ndarray::stack(Axis(0), &far_stacks.iter().map(|a| a.view()).collect::<Vec<_>>()).unwrap();
 
     StackedViews {
         color: color_stacked,            // Shape: (batch_size, num_views, height, width, 3)
@@ -139,6 +155,8 @@ fn stack_samples(
         normal: normal_stacked,          // Shape: (batch_size, num_views, height, width, 3)
         world_from_view: world_from_view_stacked,  // Shape: (batch_size, num_views, 4, 4)
         fovy: fovy_stacked,              // Shape: (batch_size, num_views)
+        near: near_stacked,              // Shape: (batch_size, num_views)
+        far: far_stacked,                // Shape: (batch_size, num_views)
     }
 }
 
