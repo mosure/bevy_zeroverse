@@ -46,16 +46,16 @@ use ::bevy_zeroverse::{
 
 #[derive(Clone, Debug, Default)]
 #[pyclass]
-struct View {
-    color: Vec<u8>,
-    depth: Vec<u8>,
-    normal: Vec<u8>,
+pub struct View {
+    pub color: Vec<u8>,
+    pub depth: Vec<u8>,
+    pub normal: Vec<u8>,
 
     #[pyo3(get, set)]
-    world_from_view: [[f32; 4]; 4],
+    pub world_from_view: [[f32; 4]; 4],
 
     #[pyo3(get, set)]
-    fovy: f32,
+    pub fovy: f32,
 
     // TODO: add projection near/far
 }
@@ -88,8 +88,8 @@ impl View {
 
 #[derive(Debug, Default, Resource)]
 #[pyclass]
-struct Sample {
-    views: Vec<View>,
+pub struct Sample {
+    pub views: Vec<View>,
 }
 
 #[pymethods]
@@ -160,11 +160,11 @@ impl SamplerState {
 }
 
 
-static APP_FRAME_RECEIVER: OnceCell<Arc<Mutex<Receiver<()>>>> = OnceCell::new();
-static APP_FRAME_SENDER: OnceCell<Sender<()>> = OnceCell::new();
+pub static APP_FRAME_RECEIVER: OnceCell<Arc<Mutex<Receiver<()>>>> = OnceCell::new();
+pub static APP_FRAME_SENDER: OnceCell<Sender<()>> = OnceCell::new();
 
-static SAMPLE_RECEIVER: OnceCell<Arc<Mutex<Receiver<Sample>>>> = OnceCell::new();
-static SAMPLE_SENDER: OnceCell<Sender<Sample>> = OnceCell::new();
+pub static SAMPLE_RECEIVER: OnceCell<Arc<Mutex<Receiver<Sample>>>> = OnceCell::new();
+pub static SAMPLE_SENDER: OnceCell<Sender<Sample>> = OnceCell::new();
 
 
 fn signaled_runner(mut app: App) -> AppExit {
@@ -202,6 +202,26 @@ fn signaled_runner(mut app: App) -> AppExit {
 }
 
 
+pub fn create_app(
+    override_args: Option<BevyZeroverseConfig>,
+) -> App {
+    let mut app = viewer_app(override_args);
+
+    app.init_resource::<Sample>();
+
+    // initialize to disabled state
+    app.insert_resource(SamplerState {
+        enabled: false,
+        ..Default::default()
+    });
+
+    app.add_systems(PreUpdate, sample_stream);
+    app.set_runner(signaled_runner);
+
+    return app;
+}
+
+
 pub fn setup_and_run_app(
     new_thread: bool,
     override_args: Option<BevyZeroverseConfig>,
@@ -212,21 +232,8 @@ pub fn setup_and_run_app(
         let ready = Arc::clone(&ready);
 
         move || {
-            let mut app = viewer_app(override_args);
-
-            app.init_resource::<Sample>();
-
-            // initialize to disabled state
-            app.insert_resource(SamplerState {
-                enabled: false,
-                ..Default::default()
-            });
-
-            app.add_systems(PreUpdate, sample_stream);
-
+            let mut app = create_app(override_args);
             ready.store(true, Ordering::Release);
-
-            app.set_runner(signaled_runner);
             app.run();
         }
     };
@@ -321,12 +328,7 @@ fn sample_stream(
 }
 
 
-// TODO: add process idx, disable logging on worker idx > 0
-#[pyfunction]
-#[pyo3(signature = (override_args=None, asset_root=None))]
-fn initialize(
-    py: Python<'_>,
-    override_args: Option<BevyZeroverseConfig>,
+pub fn setup_globals(
     asset_root: Option<String>,
 ) {
     if APP_FRAME_RECEIVER.get().is_some() {
@@ -354,6 +356,18 @@ fn initialize(
 
     SAMPLE_RECEIVER.set(Arc::new(Mutex::new(sample_receiver))).unwrap();
     SAMPLE_SENDER.set(sample_sender).unwrap();
+}
+
+
+// TODO: add process idx, disable logging on worker idx > 0
+#[pyfunction]
+#[pyo3(signature = (override_args=None, asset_root=None))]
+fn initialize(
+    py: Python<'_>,
+    override_args: Option<BevyZeroverseConfig>,
+    asset_root: Option<String>,
+) {
+    setup_globals(asset_root);
 
     py.allow_threads(|| {
         setup_and_run_app(true, override_args);

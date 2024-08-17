@@ -5,7 +5,7 @@ from safetensors.torch import save_file
 import torch
 from torch.utils.data import DataLoader, Dataset
 
-import bevy_zeroverse
+import bevy_zeroverse_ffi
 
 
 # TODO: add sample-level world rotation augment
@@ -50,7 +50,7 @@ class View:
         normal_tensor = torch.tensor(self.normal, dtype=torch.float32)
 
         color_tensor = color_tensor[..., :3]
-        depth_tensor = depth_tensor[..., 0]
+        depth_tensor = depth_tensor[..., 0:1]
         normal_tensor = normal_tensor[..., :3]
 
         world_from_view_tensor = torch.tensor(self.world_from_view, dtype=torch.float32)
@@ -99,8 +99,8 @@ class Sample:
 # TODO: add dataset seed parameter to config
 class BevyZeroverseDataset(Dataset):
     scene_map = {
-        'object': bevy_zeroverse.ZeroverseSceneType.Object,
-        'room': bevy_zeroverse.ZeroverseSceneType.Room,
+        'object': bevy_zeroverse_ffi.ZeroverseSceneType.Object,
+        'room': bevy_zeroverse_ffi.ZeroverseSceneType.Room,
     }
 
     def __init__(
@@ -125,7 +125,7 @@ class BevyZeroverseDataset(Dataset):
         self.scene_type = scene_type
 
     def initialize(self):
-        config = bevy_zeroverse.BevyZeroverseConfig()
+        config = bevy_zeroverse_ffi.BevyZeroverseConfig()
         config.editor = self.editor
         config.headless = self.headless
         config.num_cameras = self.num_cameras
@@ -133,7 +133,7 @@ class BevyZeroverseDataset(Dataset):
         config.height = self.height
         config.scene_type = BevyZeroverseDataset.scene_map[self.scene_type]
         config.regenerate_scene_material_shuffle_period = 256
-        bevy_zeroverse.initialize(
+        bevy_zeroverse_ffi.initialize(
             config,
             self.root_asset_folder,
         )
@@ -146,7 +146,7 @@ class BevyZeroverseDataset(Dataset):
         if not self.initialized:
             self.initialize()
 
-        rust_sample = bevy_zeroverse.next()
+        rust_sample = bevy_zeroverse_ffi.next()
         sample = Sample.from_rust(rust_sample, self.width, self.height)
         return sample.to_tensors()
 

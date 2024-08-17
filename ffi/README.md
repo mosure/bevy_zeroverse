@@ -33,7 +33,13 @@ for batch in dataloader:
 ```
 
 
-<!-- ### macos setup -->
+### macos setup
+
+macos does not support running the generator off main thread. right now, the only way to generate on mac is from rust. e.g.
+
+```bash
+cargo run -p bevy_zeroverse_ffi --bin generate -- --help
+```
 
 <!-- ```bash
 LIBTORCH_PATH=$(python3 -c "import site; print(site.getsitepackages()[0] + '/torch/lib')")
