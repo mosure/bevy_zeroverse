@@ -48,9 +48,8 @@ struct Wrapper<A, D>(ArrayBase<OwnedRepr<A>, D>);
 impl<D: Dimension> Wrapper<f32, D> {
     fn buffer(&self) -> &[u8] {
         let slice = self.0.as_slice().expect("Non-contiguous tensors");
-        let num_bytes = std::mem::size_of::<f32>();
         let new_slice: &[u8] = unsafe {
-            std::slice::from_raw_parts(slice.as_ptr() as *const u8, slice.len() * num_bytes)
+            std::slice::from_raw_parts(slice.as_ptr() as *const u8, std::mem::size_of_val(slice))
         };
         new_slice
     }
@@ -281,7 +280,7 @@ fn receive_samples(
             Ok(sample) => {
                 chunk_samples.push(sample);
 
-                let sample_size = estimate_sample_size(&chunk_samples.last().unwrap());
+                let sample_size = estimate_sample_size(chunk_samples.last().unwrap());
                 chunk_size += sample_size;
 
                 info!(
@@ -349,7 +348,7 @@ fn save_chunk(
 
     let output_path = output_dir.join(file_name);
 
-    let chunk_size = chunk_samples.iter().map(|sample| estimate_sample_size(sample)).sum::<usize>();
+    let chunk_size = chunk_samples.iter().map(estimate_sample_size).sum::<usize>();
     info!(
         "saving chunk {} of {} ({:.2} MB).",
         chunk_index,

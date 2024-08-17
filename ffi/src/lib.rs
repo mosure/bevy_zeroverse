@@ -222,7 +222,7 @@ pub fn create_app(
     app.add_systems(PreUpdate, sample_stream);
     app.set_runner(signaled_runner);
 
-    return app;
+    app
 }
 
 
