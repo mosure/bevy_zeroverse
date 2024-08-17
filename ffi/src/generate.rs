@@ -165,7 +165,7 @@ enum TensorView {
     Depth(Wrapper<f32, ndarray::Ix5>),
     Normal(Wrapper<f32, ndarray::Ix5>),
     WorldFromView(Wrapper<f32, ndarray::Ix4>),
-    Fovy(Wrapper<f32, ndarray::Ix3>),
+    Singular(Wrapper<f32, ndarray::Ix3>),
 }
 
 impl View for TensorView {
@@ -175,7 +175,7 @@ impl View for TensorView {
             TensorView::Depth(t) => t.dtype(),
             TensorView::Normal(t) => t.dtype(),
             TensorView::WorldFromView(t) => t.dtype(),
-            TensorView::Fovy(t) => t.dtype(),
+            TensorView::Singular(t) => t.dtype(),
         }
     }
 
@@ -185,7 +185,7 @@ impl View for TensorView {
             TensorView::Depth(t) => t.shape(),
             TensorView::Normal(t) => t.shape(),
             TensorView::WorldFromView(t) => t.shape(),
-            TensorView::Fovy(t) => t.shape(),
+            TensorView::Singular(t) => t.shape(),
         }
     }
 
@@ -195,7 +195,7 @@ impl View for TensorView {
             TensorView::Depth(t) => t.data(),
             TensorView::Normal(t) => t.data(),
             TensorView::WorldFromView(t) => t.data(),
-            TensorView::Fovy(t) => t.data(),
+            TensorView::Singular(t) => t.data(),
         }
     }
 
@@ -205,7 +205,7 @@ impl View for TensorView {
             TensorView::Depth(t) => t.data_len(),
             TensorView::Normal(t) => t.data_len(),
             TensorView::WorldFromView(t) => t.data_len(),
-            TensorView::Fovy(t) => t.data_len(),
+            TensorView::Singular(t) => t.data_len(),
         }
     }
 }
@@ -217,7 +217,9 @@ fn save_stacked_views_to_safetensors(stacked_views: StackedViews, output_path: &
         ("depth", TensorView::Depth(Wrapper(stacked_views.depth))),
         ("normal", TensorView::Normal(Wrapper(stacked_views.normal))),
         ("world_from_view", TensorView::WorldFromView(Wrapper(stacked_views.world_from_view))),
-        ("fovy", TensorView::Fovy(Wrapper(stacked_views.fovy))),
+        ("fovy", TensorView::Singular(Wrapper(stacked_views.fovy))),
+        ("near", TensorView::Singular(Wrapper(stacked_views.near))),
+        ("far", TensorView::Singular(Wrapper(stacked_views.far))),
     ];
 
     serialize_to_file(data, &None, output_path)
