@@ -74,13 +74,15 @@ class View:
         }
 
 class Sample:
-    def __init__(self, views):
+    def __init__(self, views, aabb):
         self.views = views
+        self.aabb = aabb
 
     @classmethod
     def from_rust(cls, rust_sample, width, height):
         views = [View.from_rust(view, width, height) for view in rust_sample.views]
-        return cls(views)
+        aabb = np.array(rust_sample.aabb)
+        return cls(views, aabb)
 
     def to_tensors(self):
         tensor_dict = {
@@ -104,6 +106,8 @@ class Sample:
 
         for key in tensor_dict:
             tensor_dict[key] = torch.stack(tensor_dict[key], dim=0)
+
+        tensor_dict['aabb'] = torch.tensor(self.aabb, dtype=torch.float32)
 
         return tensor_dict
 

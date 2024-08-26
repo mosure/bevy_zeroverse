@@ -34,13 +34,14 @@ use safetensors::{
 
 
 pub struct StackedViews {
-    pub color: Array5<f32>,            // Shape: (batch_size, num_views, height, width, channels)
-    pub depth: Array5<f32>,            // Shape: (batch_size, num_views, height, width, 1)
-    pub normal: Array5<f32>,           // Shape: (batch_size, num_views, height, width, channels)
-    pub world_from_view: Array4<f32>, // Shape: (batch_size, num_views, 4, 4)
-    pub fovy: Array3<f32>,            // Shape: (batch_size, num_views)
-    pub near: Array3<f32>,            // Shape: (batch_size, num_views)
-    pub far: Array3<f32>,            // Shape: (batch_size, num_views)
+    pub color: Array5<f32>,             // Shape: (batch_size, num_views, height, width, channels)
+    pub depth: Array5<f32>,             // Shape: (batch_size, num_views, height, width, 1)
+    pub normal: Array5<f32>,            // Shape: (batch_size, num_views, height, width, channels)
+    pub world_from_view: Array4<f32>,   // Shape: (batch_size, num_views, 4, 4)
+    pub fovy: Array3<f32>,              // Shape: (batch_size, num_views, 1)
+    pub near: Array3<f32>,              // Shape: (batch_size, num_views, 1)
+    pub far: Array3<f32>,               // Shape: (batch_size, num_views, 1)
+    pub aabb: Array3<f32>,              // Shape: (batch_size, 2, 3) - min and max
 }
 
 struct Wrapper<A, D>(ArrayBase<OwnedRepr<A>, D>);
@@ -86,6 +87,7 @@ fn stack_samples(
     let mut fovy_stacks = Vec::new();
     let mut near_stacks = Vec::new();
     let mut far_stacks = Vec::new();
+    let mut aabb_stacks = Vec::new();
 
     for sample in samples {
         let mut color_views = Vec::new();
@@ -138,6 +140,9 @@ fn stack_samples(
         fovy_stacks.push(fovy_views_stacked);
         near_stacks.push(near_views_stacked);
         far_stacks.push(far_views_stacked);
+
+        let sample_aabb = Array2::from_shape_vec((2, 3), sample.aabb.concat()).unwrap();
+        aabb_stacks.push(sample_aabb);
     }
 
     let color_stacked = ndarray::stack(Axis(0), &color_stacks.iter().map(|a| a.view()).collect::<Vec<_>>()).unwrap();
@@ -147,15 +152,17 @@ fn stack_samples(
     let fovy_stacked = ndarray::stack(Axis(0), &fovy_stacks.iter().map(|a| a.view()).collect::<Vec<_>>()).unwrap();
     let near_stacked = ndarray::stack(Axis(0), &near_stacks.iter().map(|a| a.view()).collect::<Vec<_>>()).unwrap();
     let far_stacked = ndarray::stack(Axis(0), &far_stacks.iter().map(|a| a.view()).collect::<Vec<_>>()).unwrap();
+    let aabb_stacked = ndarray::stack(Axis(0), &aabb_stacks.iter().map(|a| a.view()).collect::<Vec<_>>()).unwrap();
 
     StackedViews {
-        color: color_stacked,            // Shape: (batch_size, num_views, height, width, 3)
-        depth: depth_stacked,            // Shape: (batch_size, num_views, height, width, 1)
-        normal: normal_stacked,          // Shape: (batch_size, num_views, height, width, 3)
-        world_from_view: world_from_view_stacked,  // Shape: (batch_size, num_views, 4, 4)
-        fovy: fovy_stacked,              // Shape: (batch_size, num_views)
-        near: near_stacked,              // Shape: (batch_size, num_views)
-        far: far_stacked,                // Shape: (batch_size, num_views)
+        color: color_stacked,                       // Shape: (batch_size, num_views, height, width, 3)
+        depth: depth_stacked,                       // Shape: (batch_size, num_views, height, width, 1)
+        normal: normal_stacked,                     // Shape: (batch_size, num_views, height, width, 3)
+        world_from_view: world_from_view_stacked,   // Shape: (batch_size, num_views, 4, 4)
+        fovy: fovy_stacked,                         // Shape: (batch_size, num_views)
+        near: near_stacked,                         // Shape: (batch_size, num_views)
+        far: far_stacked,                           // Shape: (batch_size, num_views)
+        aabb: aabb_stacked,                         // Shape: (batch_size, 2, 3)
     }
 }
 
@@ -165,6 +172,7 @@ enum TensorView {
     Depth(Wrapper<f32, ndarray::Ix5>),
     Normal(Wrapper<f32, ndarray::Ix5>),
     WorldFromView(Wrapper<f32, ndarray::Ix4>),
+    Aabb(Wrapper<f32, ndarray::Ix3>),
     Singular(Wrapper<f32, ndarray::Ix3>),
 }
 
@@ -175,6 +183,7 @@ impl View for TensorView {
             TensorView::Depth(t) => t.dtype(),
             TensorView::Normal(t) => t.dtype(),
             TensorView::WorldFromView(t) => t.dtype(),
+            TensorView::Aabb(t) => t.dtype(),
             TensorView::Singular(t) => t.dtype(),
         }
     }
@@ -185,6 +194,7 @@ impl View for TensorView {
             TensorView::Depth(t) => t.shape(),
             TensorView::Normal(t) => t.shape(),
             TensorView::WorldFromView(t) => t.shape(),
+            TensorView::Aabb(t) => t.shape(),
             TensorView::Singular(t) => t.shape(),
         }
     }
@@ -195,6 +205,7 @@ impl View for TensorView {
             TensorView::Depth(t) => t.data(),
             TensorView::Normal(t) => t.data(),
             TensorView::WorldFromView(t) => t.data(),
+            TensorView::Aabb(t) => t.data(),
             TensorView::Singular(t) => t.data(),
         }
     }
@@ -205,6 +216,7 @@ impl View for TensorView {
             TensorView::Depth(t) => t.data_len(),
             TensorView::Normal(t) => t.data_len(),
             TensorView::WorldFromView(t) => t.data_len(),
+            TensorView::Aabb(t) => t.data_len(),
             TensorView::Singular(t) => t.data_len(),
         }
     }
@@ -220,6 +232,7 @@ fn save_stacked_views_to_safetensors(stacked_views: StackedViews, output_path: &
         ("fovy", TensorView::Singular(Wrapper(stacked_views.fovy))),
         ("near", TensorView::Singular(Wrapper(stacked_views.near))),
         ("far", TensorView::Singular(Wrapper(stacked_views.far))),
+        ("aabb", TensorView::Aabb(Wrapper(stacked_views.aabb))),
     ];
 
     serialize_to_file(data, &None, output_path)
@@ -328,7 +341,11 @@ fn estimate_sample_size(sample: &Sample) -> usize {
         size += view.normal.len() * 3 / 4;
         size += view.world_from_view.len();
         size += 1;  // fovy
+        size += 1;  // near
+        size += 1;  // far
     }
+
+    size += sample.aabb.len();
 
     size
 }

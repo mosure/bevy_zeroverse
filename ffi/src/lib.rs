@@ -37,6 +37,8 @@ use ::bevy_zeroverse::{
     render::RenderMode,
     scene::{
         RegenerateSceneEvent,
+        SceneAabb,
+        ZeroverseSceneRoot,
         ZeroverseSceneType,
     },
 };
@@ -94,6 +96,10 @@ impl View {
 #[pyclass]
 pub struct Sample {
     pub views: Vec<View>,
+
+    /// min and max corners of the axis-aligned bounding box
+    #[pyo3(get, set)]
+    pub aabb: [[f32; 3]; 2],
 }
 
 #[pymethods]
@@ -262,6 +268,7 @@ fn sample_stream(
         &Projection,
         &ImageCopier,
     )>,
+    scene: Query<(&ZeroverseSceneRoot, &SceneAabb)>,
     images: Res<Assets<Image>>,
     render_mode: ResMut<RenderMode>,
     mut regenerate_event: EventWriter<RegenerateSceneEvent>,
@@ -291,6 +298,12 @@ fn sample_stream(
             buffered_sample.views.push(View::default());
         }
     }
+
+    let scene_aabb = scene.single().1;
+    buffered_sample.aabb = [
+        scene_aabb.min.into(),
+        scene_aabb.max.into(),
+    ];
 
     for (i, (camera_transform, projection, image_copier)) in cameras.iter().enumerate() {
         let view = &mut buffered_sample.views[i];
@@ -326,6 +339,7 @@ fn sample_stream(
         let views = std::mem::take(&mut buffered_sample.views);
         let sample = Sample {
             views,
+            aabb: buffered_sample.aabb,
         };
 
         let sender = SAMPLE_SENDER.get().unwrap();
