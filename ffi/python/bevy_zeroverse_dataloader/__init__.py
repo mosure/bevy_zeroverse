@@ -184,11 +184,10 @@ def chunk_and_save(
 
     chunk_size = 0
     chunk = []
-    original_samples = []
     chunk_file_paths = [output_dir / f"{int(chunk.stem):0>6}.safetensors" for chunk in existing_chunks]
 
     def save_chunk():
-        nonlocal chunk_size, chunk_index, chunk, original_samples, chunk_file_paths
+        nonlocal chunk_size, chunk_index, chunk, chunk_file_paths
 
         chunk_key = f"{chunk_index:0>6}"
         print(f"saving chunk {chunk_key} of {len(dataset)} ({chunk_size / 1e6:.2f} MB).")
@@ -210,13 +209,17 @@ def chunk_and_save(
         chunk_index += 1
         chunk = []
 
+        del batch
+        torch.cuda.empty_cache()
+        import gc
+        gc.collect()
+
     dataloader = DataLoader(dataset, batch_size=1, num_workers=n_workers, shuffle=False)
 
     for idx, sample in enumerate(dataloader):
         sample = {k: v.squeeze(0) for k, v in sample.items()}
         sample_size = sum(tensor.numel() * tensor.element_size() for tensor in sample.values())
         chunk.append(sample)
-        original_samples.append(sample)
         chunk_size += sample_size
 
         print(f"    added sample {idx} to chunk ({sample_size / 1e6:.2f} MB).")
@@ -226,7 +229,7 @@ def chunk_and_save(
     if chunk_size > 0:
         save_chunk()
 
-    return original_samples, chunk_file_paths
+    return chunk_file_paths
 
 
 class ChunkedDataset(Dataset):

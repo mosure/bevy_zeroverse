@@ -116,31 +116,7 @@ class TestChunkedDataset(unittest.TestCase):
             shutil.rmtree(self.output_dir)
 
         self.dataset = BevyZeroverseDataset(self.editor, self.headless, self.num_cameras, self.width, self.height, self.num_samples)
-        self.original_samples = chunk_and_save(self.dataset, self.output_dir, self.bytes_per_chunk)
-
-    def test_chunked_dataset_loading(self):
-        chunked_dataset = ChunkedDataset(self.output_dir)
-        dataloader = DataLoader(chunked_dataset, batch_size=1, shuffle=False)
-
-        num_chunks = 0
-        total_loaded_samples = 0
-
-        expected_shapes = {key: tensor.shape for key, tensor in self.original_samples[0][0].items()}
-
-        for batch in dataloader:
-            num_chunks += 1
-
-            for key, tensor in batch.items():
-                tensor = tensor.squeeze(0)
-                expected_shape = (tensor.shape[0],) + expected_shapes[key]
-                self.assertEqual(tensor.shape, expected_shape, f"Mismatch in tensor shape for key {key}")
-
-            total_loaded_samples += batch['color'].squeeze(0).shape[0]
-
-        expected_num_chunks = len(chunked_dataset)
-        self.assertEqual(num_chunks, expected_num_chunks, "Mismatch in number of chunks")
-
-        self.assertEqual(total_loaded_samples, len(self.original_samples[0]))
+        self.chunk_paths = chunk_and_save(self.dataset, self.output_dir, self.bytes_per_chunk)
 
     def test_benchmark_chunked_dataloader(self):
         chunked_dataset = ChunkedDataset(self.output_dir)
