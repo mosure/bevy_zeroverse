@@ -173,18 +173,25 @@ def chunk_and_save(
     bytes_per_chunk: int = int(256 * 1024 * 1024),
     n_workers: int = 1,
 ):
+    output_dir.mkdir(exist_ok=True, parents=True)
+    existing_chunks = sorted(output_dir.glob("*.safetensors"))
+    if existing_chunks:
+        latest_chunk = existing_chunks[-1]
+        chunk_index = int(latest_chunk.stem)
+        print(f"resuming from chunk {chunk_index}.")
+    else:
+        chunk_index = 0
+
     chunk_size = 0
-    chunk_index = 0
     chunk = []
     original_samples = []
-    chunk_file_paths = []
+    chunk_file_paths = [output_dir / f"{int(chunk.stem):0>6}.safetensors" for chunk in existing_chunks]
 
     def save_chunk():
         nonlocal chunk_size, chunk_index, chunk, original_samples, chunk_file_paths
 
         chunk_key = f"{chunk_index:0>6}"
         print(f"saving chunk {chunk_key} of {len(dataset)} ({chunk_size / 1e6:.2f} MB).")
-        output_dir.mkdir(exist_ok=True, parents=True)
         file_path = output_dir / f"{chunk_key}.safetensors"
 
         batch = {}
