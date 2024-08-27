@@ -402,7 +402,6 @@ fn main() {
         receive_samples(&generator_args, &zeroverse_args);
     });
 
-    // TODO: set to headless mode
     app.run();
 }
 
