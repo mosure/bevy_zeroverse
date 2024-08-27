@@ -16,9 +16,6 @@ def generate_chunked_dataset(
         num_samples=100,
     )
 ) -> list:
-    if output_dir.exists():
-        shutil.rmtree(output_dir)
-
     return chunk_and_save(
         dataset,
         output_dir,
