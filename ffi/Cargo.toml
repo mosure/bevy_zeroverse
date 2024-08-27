@@ -1,7 +1,8 @@
 [package]
 name = "bevy_zeroverse_ffi"
-version = "0.1.0"
+version = "0.3.0"
 edition = "2021"
+default-run = "generate"
 
 
 [features]
@@ -14,12 +15,17 @@ extension-module = [
 
 
 [dependencies]
+bevy_args = "1.6"
 bevy_zeroverse = { path = "../", default-features = false, features = ["python"] }
+bytemuck = "1.17"
+clap = { version = "4.4", features = ["derive"] }
 image = "0.25"
 ndarray = { version = "0.15", features = ["blas"] }
 once_cell = "1.19"
 pyo3 = { version = "0.22", features = ["macros"] }
 pyo3-log = "0.11"
+safetensors = "0.4"
+serde = "1.0"
 
 
 [dependencies.bevy]
@@ -34,5 +40,10 @@ features = [
 
 
 [lib]
-name = "bevy_zeroverse"
+name = "bevy_zeroverse_ffi"
 path = "src/lib.rs"
+
+
+[[bin]]
+name = "generate"
+path = "src/generate.rs"

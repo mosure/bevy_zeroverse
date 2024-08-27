@@ -23,7 +23,7 @@ from torch.utils.data import DataLoader
 
 dataset = BevyZeroverseDataset(
     editor=False, headless=True, num_cameras=6,
-    width=640, height=360, num_samples=1e6,
+    width=640, height=480, num_samples=1e6,
 )
 dataloader = DataLoader(dataset, batch_size=2, shuffle=True, num_workers=1)
 
@@ -33,7 +33,13 @@ for batch in dataloader:
 ```
 
 
-<!-- ### macos setup -->
+### macos setup
+
+macos does not support running the generator off main thread. right now, the only way to generate on mac is from rust. e.g.
+
+```bash
+cargo run -p bevy_zeroverse_ffi --bin generate -- --help
+```
 
 <!-- ```bash
 LIBTORCH_PATH=$(python3 -c "import site; print(site.getsitepackages()[0] + '/torch/lib')")

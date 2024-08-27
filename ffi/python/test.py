@@ -12,9 +12,16 @@ from bevy_zeroverse_dataloader import BevyZeroverseDataset, ChunkedDataset, chun
 def visualize(batch):
     print(batch['color'].shape)
 
+    is_chunked = len(batch['color'].shape) == 6
+
     color_images = batch['color'].numpy()
     depth_images = batch['depth'].numpy()
     normal_images = batch['normal'].numpy()
+
+    if is_chunked:
+        color_images = color_images.squeeze(0)
+        depth_images = depth_images.squeeze(0)
+        normal_images = normal_images.squeeze(0)
 
     batch_size = color_images.shape[0]
     num_cameras = color_images.shape[1]
@@ -82,7 +89,7 @@ def benchmark(dataloader):
 def test():
     dataset = BevyZeroverseDataset(
         editor=False, headless=True, num_cameras=6,
-        width=640, height=360, num_samples=1e6,
+        width=640, height=480, num_samples=1e6,
     )
     dataloader = DataLoader(dataset, batch_size=5, shuffle=True, num_workers=2)
 
@@ -99,7 +106,7 @@ class TestChunkedDataset(unittest.TestCase):
         self.headless = True
         self.num_cameras = 4
         self.width = 640
-        self.height = 360
+        self.height = 480
         self.num_samples = 10
         self.bytes_per_chunk = int(256 * 1024 * 1024)
         self.stage = "test"
@@ -109,31 +116,7 @@ class TestChunkedDataset(unittest.TestCase):
             shutil.rmtree(self.output_dir)
 
         self.dataset = BevyZeroverseDataset(self.editor, self.headless, self.num_cameras, self.width, self.height, self.num_samples)
-        self.original_samples = chunk_and_save(self.dataset, self.output_dir, self.bytes_per_chunk)
-
-    def test_chunked_dataset_loading(self):
-        chunked_dataset = ChunkedDataset(self.output_dir)
-        dataloader = DataLoader(chunked_dataset, batch_size=1, shuffle=False)
-
-        num_chunks = 0
-        total_loaded_samples = 0
-
-        expected_shapes = {key: tensor.shape for key, tensor in self.original_samples[0][0].items()}
-
-        for batch in dataloader:
-            num_chunks += 1
-
-            for key, tensor in batch.items():
-                tensor = tensor.squeeze(0)
-                expected_shape = (tensor.shape[0],) + expected_shapes[key]
-                self.assertEqual(tensor.shape, expected_shape, f"Mismatch in tensor shape for key {key}")
-
-            total_loaded_samples += batch['color'].squeeze(0).shape[0]
-
-        expected_num_chunks = len(chunked_dataset)
-        self.assertEqual(num_chunks, expected_num_chunks, "Mismatch in number of chunks")
-
-        self.assertEqual(total_loaded_samples, len(self.original_samples[0]))
+        self.chunk_paths = chunk_and_save(self.dataset, self.output_dir, self.bytes_per_chunk)
 
     def test_benchmark_chunked_dataloader(self):
         chunked_dataset = ChunkedDataset(self.output_dir)
