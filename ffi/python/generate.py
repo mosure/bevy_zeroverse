@@ -26,6 +26,6 @@ def generate_chunked_dataset(
 
 if __name__ == "__main__":
     # TODO: add cli arguments
-    _data, chunk_paths = generate_chunked_dataset()
+    chunk_paths = generate_chunked_dataset()
 
     print(f"chunks:\n{chunk_paths}")
