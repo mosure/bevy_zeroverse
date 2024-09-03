@@ -16,6 +16,8 @@ use crate::{
     camera::EditorCameraGizmoConfigGroup,
 };
 
+// TODO: light_field scene
+// TODO: cornell_box scene + light_field scene
 pub mod lighting;
 pub mod object;
 pub mod room;
