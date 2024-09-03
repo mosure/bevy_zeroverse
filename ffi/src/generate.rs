@@ -392,7 +392,7 @@ fn main() {
     zeroverse_args.width = 640.0;
     zeroverse_args.height = 480.0;
     zeroverse_args.regenerate_scene_material_shuffle_period = 256;
-    zeroverse_args.scene_type = ZeroverseSceneType::Object;
+    zeroverse_args.scene_type = ZeroverseSceneType::Room;
 
     setup_globals(None);
 
