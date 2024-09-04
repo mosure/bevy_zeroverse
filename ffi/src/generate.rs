@@ -258,6 +258,9 @@ pub struct GeneratorConfig {
     #[arg(long, default_value = "268435456")]  // 256 MB
     pub bytes_per_chunk: usize,
 
+    #[arg(long)]  // overrides bytes_per_chunk
+    pub samples_per_chunk: Option<usize>,
+
     #[arg(long, default_value = "data/zeroverse/rust")]
     pub output_dir: String,
 }
@@ -267,6 +270,7 @@ impl Default for GeneratorConfig {
         GeneratorConfig {
             num_samples: 10,
             bytes_per_chunk: 268435456,
+            samples_per_chunk: None,
             output_dir: "data/zeroverse/rust".to_string(),
         }
     }
@@ -303,6 +307,17 @@ fn receive_samples(
                     sample_index,
                     sample_size as f64 / 1e6
                 );
+
+                if let Some(samples_per_chunk) = generator_config.samples_per_chunk {
+                    if chunk_samples.len() >= samples_per_chunk {
+                        save_chunk(&chunk_samples, chunk_index, generator_config, zeroverse_config);
+
+                        chunk_samples.clear();
+                        chunk_size = 0;
+                        chunk_index += 1;
+                    }
+                    continue;
+                }
 
                 if chunk_size >= generator_config.bytes_per_chunk {
                     save_chunk(&chunk_samples, chunk_index, generator_config, zeroverse_config);
