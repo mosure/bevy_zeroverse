@@ -1,7 +1,11 @@
 use bevy::{
     prelude::*,
-    math::primitives::Plane3d,
+    math::primitives::{
+        Plane3d,
+        Sphere,
+    },
     pbr::{
+        CascadeShadowConfigBuilder,
         NotShadowCaster,
         TransmittedShadowReceiver,
     },
@@ -189,7 +193,51 @@ fn setup_scene(
                     ));
                 }
             }
+
+            {// sphere on bottom
+                let mut mesh = Sphere::new(0.25)
+                    .mesh()
+                    .build();
+
+                mesh.compute_smooth_normals();
+
+                let material = standard_materials.add(StandardMaterial {
+                    base_color: Color::srgb(0.8, 0.6, 0.2),
+                    ..Default::default()
+                });
+
+                commands.spawn((
+                    PbrBundle {
+                        mesh: meshes.add(mesh),
+                        material,
+                        transform: Transform::from_translation(Vec3::new(0.0, -0.3, 0.0)),
+                        ..Default::default()
+                    },
+                    TransmittedShadowReceiver,
+                ));
+            }
         });
+
+    commands.spawn((
+        DirectionalLightBundle {
+            transform: Transform::from_xyz(1.0, -3.0, 2.0)
+                .looking_at(Vec3::ZERO, Vec3::Y),
+            directional_light: DirectionalLight {
+                illuminance: 800.0,
+                shadows_enabled: true,
+                ..default()
+            },
+            cascade_shadow_config: CascadeShadowConfigBuilder {
+                first_cascade_far_bound: 4.0,
+                maximum_distance: 10.0,
+                ..default()
+            }
+            .into(),
+            ..default()
+        },
+        ZeroverseScene,
+        Name::new("directional_light"),
+    ));
 
     for _ in 0..scene_settings.num_cameras {
         commands.spawn(ZeroverseCamera {
