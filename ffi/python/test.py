@@ -109,6 +109,7 @@ class TestChunkedDataset(unittest.TestCase):
         self.height = 480
         self.num_samples = 10
         self.bytes_per_chunk = int(256 * 1024 * 1024)
+        self.samples_per_chunk = 3  #None
         self.stage = "test"
         self.output_dir = Path("./data/zeroverse") / self.stage
 
@@ -116,7 +117,12 @@ class TestChunkedDataset(unittest.TestCase):
             shutil.rmtree(self.output_dir)
 
         self.dataset = BevyZeroverseDataset(self.editor, self.headless, self.num_cameras, self.width, self.height, self.num_samples)
-        self.chunk_paths = chunk_and_save(self.dataset, self.output_dir, self.bytes_per_chunk)
+        self.chunk_paths = chunk_and_save(
+            self.dataset,
+            self.output_dir,
+            bytes_per_chunk=self.bytes_per_chunk,
+            samples_per_chunk=self.samples_per_chunk,
+        )
 
     def test_benchmark_chunked_dataloader(self):
         chunked_dataset = ChunkedDataset(self.output_dir)

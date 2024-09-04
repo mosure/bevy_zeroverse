@@ -191,7 +191,6 @@ def chunk_and_save(
         chunk_index = 0
 
     chunk_size = 0
-    chunk_samples = 0
     chunk = []
     chunk_file_paths = [output_dir / f"{int(chunk.stem):0>6}.safetensors" for chunk in existing_chunks]
 
@@ -215,7 +214,6 @@ def chunk_and_save(
 
         chunk_file_paths.append(file_path)
         chunk_size = 0
-        chunk_samples = 0
         chunk_index += 1
         chunk = []
 
@@ -231,12 +229,11 @@ def chunk_and_save(
         sample_size = sum(tensor.numel() * tensor.element_size() for tensor in sample.values())
         chunk.append(sample)
         chunk_size += sample_size
-        chunk_samples += 1
 
         print(f"    added sample {idx} to chunk ({sample_size / 1e6:.2f} MB).")
 
         if samples_per_chunk is not None:
-            if chunk_samples >= samples_per_chunk:
+            if len(chunk) >= samples_per_chunk:
                 save_chunk()
             continue
 
