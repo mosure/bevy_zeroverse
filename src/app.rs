@@ -426,6 +426,7 @@ fn setup_camera(
 
     let camera_offset = Vec3::new(0.0, 0.0, 3.5);
     let camera_offset = match args.scene_type {
+        ZeroverseSceneType::CornellCube => camera_offset,
         ZeroverseSceneType::Object => camera_offset,
         ZeroverseSceneType::Room => {
             let max_room_size = match room_settings.room_size {

@@ -1,5 +1,7 @@
-import numpy as np
 from pathlib import Path
+from typing import Optional
+
+import numpy as np
 from safetensors import safe_open
 from safetensors.torch import save_file
 import torch
@@ -115,6 +117,7 @@ class Sample:
 # TODO: add dataset seed parameter to config
 class BevyZeroverseDataset(Dataset):
     scene_map = {
+        'cornell_cube': bevy_zeroverse_ffi.ZeroverseSceneType.CornellCube,
         'object': bevy_zeroverse_ffi.ZeroverseSceneType.Object,
         'room': bevy_zeroverse_ffi.ZeroverseSceneType.Room,
     }
@@ -170,9 +173,14 @@ class BevyZeroverseDataset(Dataset):
 def chunk_and_save(
     dataset,
     output_dir: Path,
-    bytes_per_chunk: int = int(256 * 1024 * 1024),
+    bytes_per_chunk: Optional[int] = int(256 * 1024 * 1024),
+    samples_per_chunk: Optional[int] = None,
     n_workers: int = 1,
 ):
+    """
+    if samples_per_chunk is not None, the dataset will be chunked into chunks of size samples_per_chunk, regardless of bytes_per_chunk.
+    """
+
     output_dir.mkdir(exist_ok=True, parents=True)
     existing_chunks = sorted(output_dir.glob("*.safetensors"))
     if existing_chunks:
@@ -223,6 +231,12 @@ def chunk_and_save(
         chunk_size += sample_size
 
         print(f"    added sample {idx} to chunk ({sample_size / 1e6:.2f} MB).")
+
+        if samples_per_chunk is not None:
+            if chunk_size >= samples_per_chunk:
+                save_chunk()
+            continue
+
         if chunk_size >= bytes_per_chunk:
             save_chunk()
 
