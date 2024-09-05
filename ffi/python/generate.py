@@ -13,7 +13,7 @@ def generate_chunked_dataset(
         num_cameras=4,
         width=640,
         height=480,
-        num_samples=100,
+        num_samples=10,
     )
 ) -> list:
     return chunk_and_save(

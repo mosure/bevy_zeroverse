@@ -10,6 +10,29 @@ from torch.utils.data import DataLoader, Dataset
 import bevy_zeroverse_ffi
 
 
+def normalize_hdr_image_tonemap(hdr_image: torch.Tensor) -> torch.Tensor:
+    """
+    normalizes an HDR image using reinhard tone mapping to handle high dynamic range values.
+
+    Args:
+        hdr_image (torch.Tensor): the input HDR image with shape (view, height, width, channel).
+
+    Returns:
+        torch.Tensor: normalized HDR image with values in [0, 1].
+    """
+    assert hdr_image.dim() == 4, "expected input shape to be (view, height, width, channel)."
+
+    # apply reinhard tone mapping: L/(1 + L), where L is the luminance value
+    tonemapped_image = hdr_image / (hdr_image + 1.0)
+
+    min_val = torch.amin(tonemapped_image, dim=(1, 2, 3), keepdim=True)
+    max_val = torch.amax(tonemapped_image, dim=(1, 2, 3), keepdim=True)
+
+    normalized_image = (tonemapped_image - min_val) / (max_val - min_val + 1e-8)
+
+    return normalized_image.clamp(0.0, 1.0)
+
+
 # TODO: add sample-level world rotation augment
 class View:
     def __init__(self, color, depth, normal, world_from_view, fovy, near, far, width, height):
@@ -110,6 +133,10 @@ class Sample:
             tensor_dict[key] = torch.stack(tensor_dict[key], dim=0)
 
         tensor_dict['aabb'] = torch.tensor(self.aabb, dtype=torch.float32)
+
+        tensor_dict['color'] = normalize_hdr_image_tonemap(tensor_dict['color'])
+        tensor_dict['depth'] = normalize_hdr_image_tonemap(tensor_dict['depth'])
+        tensor_dict['normal'] = normalize_hdr_image_tonemap(tensor_dict['normal'])
 
         return tensor_dict
 

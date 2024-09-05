@@ -6,7 +6,7 @@ from test import visualize
 
 
 def main():
-    chunked_dataset = ChunkedDataset("data/zeroverse/rust")
+    chunked_dataset = ChunkedDataset("data/zeroverse/cli")
     dataloader = DataLoader(chunked_dataset, batch_size=1, shuffle=False)
 
     for batch in dataloader:
