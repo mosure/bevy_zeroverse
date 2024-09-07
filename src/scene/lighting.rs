@@ -4,7 +4,10 @@ use bevy::{
 };
 use rand::Rng;
 
-use crate::scene::ZeroverseScene;
+use crate::scene::{
+    RotationAugment,
+    ZeroverseScene,
+};
 
 
 pub struct ZeroverseLightingPlugin;
@@ -70,6 +73,7 @@ pub fn setup_lighting(
                 .into(),
                 ..default()
             },
+            RotationAugment,
             ZeroverseScene,
             Name::new("directional_light"),
         ));

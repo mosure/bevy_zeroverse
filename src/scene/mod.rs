@@ -7,6 +7,7 @@ use bevy_args::{
     Serialize,
     ValueEnum,
 };
+use rand::Rng;
 
 #[cfg(feature = "python")]
 use pyo3::prelude::*;
@@ -30,8 +31,12 @@ impl Plugin for ZeroverseScenePlugin {
         app.add_event::<RegenerateSceneEvent>();
         app.add_event::<SceneLoadedEvent>();
 
+        app.init_resource::<GlobalRotationAugment>();
+        app.register_type::<GlobalRotationAugment>();
+
         app.init_resource::<ZeroverseSceneSettings>();
         app.register_type::<ZeroverseSceneSettings>();
+
         app.register_type::<SceneAabb>();
 
         app.add_plugins((
@@ -42,7 +47,14 @@ impl Plugin for ZeroverseScenePlugin {
         ));
 
         app.add_systems(PreUpdate, create_scene_aabb);
-        app.add_systems(Update, draw_scene_aabb);
+        app.add_systems(
+            Update,
+            (
+                draw_scene_aabb,
+                regenerate_rotation_augment,
+            ),
+        );
+        app.add_systems(PostUpdate, rotation_augment);
     }
 }
 
@@ -76,6 +88,7 @@ pub enum ZeroverseSceneType {
 #[reflect(Resource)]
 pub struct ZeroverseSceneSettings {
     pub num_cameras: usize,
+    pub rotation_augmentation: bool,
     pub scene_type: ZeroverseSceneType,
 }
 
@@ -198,5 +211,59 @@ fn draw_scene_aabb(
     for aabb in &scene_instances {
         let color = Color::srgb(0.0, 1.0, 1.0);
         gizmos.cuboid(Transform::from(aabb), color);
+    }
+}
+
+
+#[derive(Debug, Component, Clone, Reflect)]
+pub struct RotationAugment;
+
+#[derive(Debug, Component, Clone, Reflect)]
+pub struct RotationAugmented;
+
+#[derive(Resource, Debug, Default, Reflect)]
+pub struct GlobalRotationAugment {
+    pub rotation: Quat,
+}
+
+fn rotation_augment(
+    mut commands: Commands,
+    mut to_augment: Query<
+        (
+            Entity,
+            &mut Transform,
+        ),
+        (
+            With<RotationAugment>,
+            Without<RotationAugmented>
+        ),
+    >,
+    global_rotation: Res<GlobalRotationAugment>,
+) {
+    for (entity, mut transform) in to_augment.iter_mut() {
+        commands.entity(entity)
+            .remove::<RotationAugment>()
+            .insert(RotationAugmented);
+
+        transform.rotation *= global_rotation.rotation;
+    }
+}
+
+fn regenerate_rotation_augment(
+    mut global_rotation: ResMut<GlobalRotationAugment>,
+    mut regenerate_events: EventReader<RegenerateSceneEvent>,
+    scene_settings: Res<ZeroverseSceneSettings>,
+) {
+    if regenerate_events.is_empty() {
+        return;
+    }
+    regenerate_events.clear();
+
+    if scene_settings.rotation_augmentation {
+        let mut rng = rand::thread_rng();
+        let random_rotation = Quat::from_rotation_y(rng.gen_range(0.0..std::f32::consts::PI * 2.0));
+        global_rotation.rotation = random_rotation;
+    } else {
+        global_rotation.rotation = Quat::IDENTITY;
     }
 }

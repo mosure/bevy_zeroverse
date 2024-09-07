@@ -12,6 +12,7 @@ use crate::{
             ZeroverseLightingSettings,
         },
         RegenerateSceneEvent,
+        RotationAugment,
         SceneLoadedEvent,
         ZeroverseScene,
         ZeroverseSceneRoot,
@@ -40,34 +41,31 @@ fn setup_scene(
     mut commands: Commands,
     primitive_settings: Res<ZeroversePrimitiveSettings>,
     mut load_event: EventWriter<SceneLoadedEvent>,
+    scene_settings: Res<ZeroverseSceneSettings>,
 ) {
     commands
         .spawn(PrimitiveBundle {
             settings: primitive_settings.clone(),
             ..default()
         })
+        .insert(RotationAugment)
         .insert((ZeroverseScene, ZeroverseSceneRoot))
-        .insert(Name::new("zeroverse_object"));
+        .insert(Name::new("zeroverse_object"))
+        .with_children(|commands| {
+            for _ in 0..scene_settings.num_cameras {
+                commands.spawn(ZeroverseCamera {
+                        sampler: CameraPositionSampler {
+                            sampler_type: CameraPositionSamplerType::Sphere {
+                                radius: 3.25,
+                            },
+                            ..default()
+                        },
+                        ..default()
+                    });
+            }
+        });
 
     load_event.send(SceneLoadedEvent);
-}
-
-
-fn setup_cameras(
-    mut commands: Commands,
-    scene_settings: Res<ZeroverseSceneSettings>,
-) {
-    for _ in 0..scene_settings.num_cameras {
-        commands.spawn(ZeroverseCamera {
-            sampler: CameraPositionSampler {
-                sampler_type: CameraPositionSamplerType::Sphere {
-                    radius: 3.25,
-                },
-                ..default()
-            },
-            ..default()
-        }).insert(ZeroverseScene);
-    }
 }
 
 
@@ -93,11 +91,6 @@ fn regenerate_scene(
         commands.entity(entity).despawn_recursive();
     }
 
-    setup_cameras(
-        commands.reborrow(),
-        scene_settings,
-    );
-
     setup_lighting(
         commands.reborrow(),
         lighting_settings,
@@ -107,5 +100,6 @@ fn regenerate_scene(
         commands,
         primitive_settings,
         load_event,
+        scene_settings,
     );
 }

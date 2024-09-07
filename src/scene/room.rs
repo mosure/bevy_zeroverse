@@ -16,6 +16,7 @@ use crate::{
             ZeroverseLightingSettings,
         },
         RegenerateSceneEvent,
+        RotationAugment,
         SceneLoadedEvent,
         ZeroverseScene,
         ZeroverseSceneRoot,
@@ -103,6 +104,7 @@ fn setup_scene(
 
     commands.spawn((ZeroverseSceneRoot, ZeroverseScene))
         .insert(Name::new("room"))
+        .insert(RotationAugment)
         .insert(SpatialBundle::default())
         .with_children(|commands| {
             {// outer walls
@@ -270,31 +272,33 @@ fn setup_scene(
             { // wall objects
 
             }
+
+            { // cameras
+                for _ in 0..scene_settings.num_cameras {
+                    let size: Vec3 = Vec3::new(
+                        scale.x - room_settings.camera_wall_padding * 2.0,
+                        scale.y - room_settings.camera_floor_padding,
+                        scale.z - room_settings.camera_wall_padding * 2.0,
+                    );
+
+                    commands.spawn(ZeroverseCamera {
+                            sampler: CameraPositionSampler {
+                                sampler_type: CameraPositionSamplerType::Band {
+                                    size,
+                                    rotation: Quat::IDENTITY,
+                                    translate: Vec3::new(
+                                        0.0,
+                                        room_settings.camera_floor_padding + size.y / 2.0,
+                                        0.0,
+                                    ),
+                                },
+                                looking_at: room_settings.looking_at_sampler.clone(),
+                            },
+                            ..default()
+                        });
+                }
+            }
         });
-
-    for _ in 0..scene_settings.num_cameras {
-        let size: Vec3 = Vec3::new(
-            scale.x - room_settings.camera_wall_padding * 2.0,
-            scale.y - room_settings.camera_floor_padding,
-            scale.z - room_settings.camera_wall_padding * 2.0,
-        );
-
-        commands.spawn(ZeroverseCamera {
-            sampler: CameraPositionSampler {
-                sampler_type: CameraPositionSamplerType::Band {
-                    size,
-                    rotation: Quat::IDENTITY,
-                    translate: Vec3::new(
-                        0.0,
-                        room_settings.camera_floor_padding + size.y / 2.0,
-                        0.0,
-                    ),
-                },
-                looking_at: room_settings.looking_at_sampler.clone(),
-            },
-            ..default()
-        }).insert(ZeroverseScene);
-    }
 
     load_event.send(SceneLoadedEvent);
 }

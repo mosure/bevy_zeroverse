@@ -155,6 +155,10 @@ pub struct BevyZeroverseConfig {
     #[pyo3(get, set)]
     #[arg(long, value_enum, default_value_t = ZeroverseSceneType::Object)]
     pub scene_type: ZeroverseSceneType,
+
+    #[pyo3(get, set)]
+    #[arg(long, default_value = "true")]
+    pub rotation_augmentation: bool,
 }
 
 #[cfg(feature = "python")]
@@ -241,6 +245,9 @@ pub struct BevyZeroverseConfig {
 
     #[arg(long, value_enum, default_value_t = ZeroverseSceneType::Object)]
     pub scene_type: ZeroverseSceneType,
+
+    #[arg(long, default_value = "true")]
+    pub rotation_augmentation: bool,
 }
 
 impl Default for BevyZeroverseConfig {
@@ -261,6 +268,7 @@ impl Default for BevyZeroverseConfig {
             yaw_speed: 0.0,
             render_mode: Default::default(),
             scene_type: Default::default(),
+            rotation_augmentation: true,
         }
     }
 }
@@ -639,6 +647,7 @@ fn propagate_cli_settings(
         plucker_settings.enabled = args.plucker_visualization;
 
         scene_settings.num_cameras = args.num_cameras;
+        scene_settings.rotation_augmentation = args.rotation_augmentation;
         scene_settings.scene_type = args.scene_type.clone();
     }
 }

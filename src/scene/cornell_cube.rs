@@ -5,7 +5,7 @@ use bevy::{
         Sphere,
     },
     pbr::{
-        CascadeShadowConfigBuilder,
+        // CascadeShadowConfigBuilder,
         NotShadowCaster,
         TransmittedShadowReceiver,
     },
@@ -23,6 +23,7 @@ use crate::{
     },
     scene::{
         RegenerateSceneEvent,
+        RotationAugment,
         SceneLoadedEvent,
         ZeroverseScene,
         ZeroverseSceneRoot,
@@ -134,6 +135,7 @@ fn setup_scene(
 
     commands.spawn((ZeroverseSceneRoot, ZeroverseScene))
         .insert(Name::new("cornell_cube"))
+        .insert(RotationAugment)
         .insert(SpatialBundle::default())
         .with_children(|commands| {
             {//cornell cube walls
@@ -194,7 +196,7 @@ fn setup_scene(
                 }
             }
 
-            {// sphere on bottom
+            {// sphere on left
                 let mut mesh = Sphere::new(0.25)
                     .mesh()
                     .build();
@@ -210,7 +212,7 @@ fn setup_scene(
                     PbrBundle {
                         mesh: meshes.add(mesh),
                         material,
-                        transform: Transform::from_translation(Vec3::new(0.0, -0.3, 0.0)),
+                        transform: Transform::from_translation(Vec3::new(-0.8, 0.5, 0.0)),
                         ..Default::default()
                     },
                     TransmittedShadowReceiver,
@@ -218,26 +220,26 @@ fn setup_scene(
             }
         });
 
-    commands.spawn((
-        DirectionalLightBundle {
-            transform: Transform::from_xyz(1.0, -3.0, 2.0)
-                .looking_at(Vec3::ZERO, Vec3::Y),
-            directional_light: DirectionalLight {
-                illuminance: 800.0,
-                shadows_enabled: true,
-                ..default()
-            },
-            cascade_shadow_config: CascadeShadowConfigBuilder {
-                first_cascade_far_bound: 4.0,
-                maximum_distance: 10.0,
-                ..default()
-            }
-            .into(),
-            ..default()
-        },
-        ZeroverseScene,
-        Name::new("directional_light"),
-    ));
+    // commands.spawn((
+    //     DirectionalLightBundle {
+    //         transform: Transform::from_xyz(1.0, -3.0, 2.0)
+    //             .looking_at(Vec3::ZERO, Vec3::Y),
+    //         directional_light: DirectionalLight {
+    //             illuminance: 800.0,
+    //             shadows_enabled: true,
+    //             ..default()
+    //         },
+    //         cascade_shadow_config: CascadeShadowConfigBuilder {
+    //             first_cascade_far_bound: 4.0,
+    //             maximum_distance: 10.0,
+    //             ..default()
+    //         }
+    //         .into(),
+    //         ..default()
+    //     },
+    //     ZeroverseScene,
+    //     Name::new("directional_light"),
+    // ));
 
     for _ in 0..scene_settings.num_cameras {
         commands.spawn(ZeroverseCamera {
@@ -261,14 +263,16 @@ fn setup_cameras(
 ) {
     for _ in 0..scene_settings.num_cameras {
         commands.spawn(ZeroverseCamera {
-            sampler: CameraPositionSampler {
-                sampler_type: CameraPositionSamplerType::Sphere {
-                    radius: 3.25,
+                sampler: CameraPositionSampler {
+                    sampler_type: CameraPositionSamplerType::Sphere {
+                        radius: 3.25,
+                    },
+                    ..default()
                 },
                 ..default()
-            },
-            ..default()
-        }).insert(ZeroverseScene);
+            })
+            .insert(ZeroverseScene)
+            .insert(RotationAugment);
     }
 }
 
