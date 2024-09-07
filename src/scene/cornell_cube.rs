@@ -5,7 +5,7 @@ use bevy::{
         Sphere,
     },
     pbr::{
-        // CascadeShadowConfigBuilder,
+        CascadeShadowConfigBuilder,
         NotShadowCaster,
         TransmittedShadowReceiver,
     },
@@ -220,26 +220,26 @@ fn setup_scene(
             }
         });
 
-    // commands.spawn((
-    //     DirectionalLightBundle {
-    //         transform: Transform::from_xyz(1.0, -3.0, 2.0)
-    //             .looking_at(Vec3::ZERO, Vec3::Y),
-    //         directional_light: DirectionalLight {
-    //             illuminance: 800.0,
-    //             shadows_enabled: true,
-    //             ..default()
-    //         },
-    //         cascade_shadow_config: CascadeShadowConfigBuilder {
-    //             first_cascade_far_bound: 4.0,
-    //             maximum_distance: 10.0,
-    //             ..default()
-    //         }
-    //         .into(),
-    //         ..default()
-    //     },
-    //     ZeroverseScene,
-    //     Name::new("directional_light"),
-    // ));
+    commands.spawn((
+        DirectionalLightBundle {
+            transform: Transform::from_xyz(1.0, -3.0, 2.0)
+                .looking_at(Vec3::ZERO, Vec3::Y),
+            directional_light: DirectionalLight {
+                illuminance: 800.0,
+                shadows_enabled: true,
+                ..default()
+            },
+            cascade_shadow_config: CascadeShadowConfigBuilder {
+                first_cascade_far_bound: 4.0,
+                maximum_distance: 10.0,
+                ..default()
+            }
+            .into(),
+            ..default()
+        },
+        ZeroverseScene,
+        Name::new("directional_light"),
+    ));
 
     for _ in 0..scene_settings.num_cameras {
         commands.spawn(ZeroverseCamera {
@@ -254,26 +254,6 @@ fn setup_scene(
     }
 
     load_event.send(SceneLoadedEvent);
-}
-
-
-fn setup_cameras(
-    mut commands: Commands,
-    scene_settings: &ZeroverseSceneSettings,
-) {
-    for _ in 0..scene_settings.num_cameras {
-        commands.spawn(ZeroverseCamera {
-                sampler: CameraPositionSampler {
-                    sampler_type: CameraPositionSamplerType::Sphere {
-                        radius: 3.25,
-                    },
-                    ..default()
-                },
-                ..default()
-            })
-            .insert(ZeroverseScene)
-            .insert(RotationAugment);
-    }
 }
 
 
@@ -300,11 +280,6 @@ fn regenerate_scene(
     for entity in clear_zeroverse_scenes.iter() {
         commands.entity(entity).despawn_recursive();
     }
-
-    setup_cameras(
-        commands.reborrow(),
-        &scene_settings,
-    );
 
     setup_scene(
         commands,

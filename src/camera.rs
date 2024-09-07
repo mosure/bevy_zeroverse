@@ -253,6 +253,12 @@ fn insert_cameras(
                         ..default()
                     },
                     exposure: Exposure::INDOOR,
+                    projection: Projection::Perspective(
+                        PerspectiveProjection {
+                            fov: 60.0 * std::f32::consts::PI / 180.0,
+                            ..default()
+                        },
+                    ),
                     transform: zeroverse_camera.sampler.sample(),
                     tonemapping: Tonemapping::None,
                     ..default()
