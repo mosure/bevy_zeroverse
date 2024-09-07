@@ -226,6 +226,7 @@ pub struct GlobalRotationAugment {
     pub rotation: Quat,
 }
 
+#[allow(clippy::type_complexity)]
 fn rotation_augment(
     mut commands: Commands,
     mut to_augment: Query<
