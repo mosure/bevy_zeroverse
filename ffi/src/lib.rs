@@ -411,7 +411,7 @@ fn next(
         let sample_receiver = SAMPLE_RECEIVER.get().unwrap();
         let sample_receiver = sample_receiver.lock().unwrap();
 
-        let timeout = Duration::from_secs(30);
+        let timeout = Duration::from_secs(120);
 
         match sample_receiver.recv_timeout(timeout) {
             Ok(sample) => Ok(sample),
