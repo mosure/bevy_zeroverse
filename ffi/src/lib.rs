@@ -121,11 +121,11 @@ impl Sample {
 
 
 #[derive(Debug, Resource, Reflect)]
-struct SamplerState {
-    enabled: bool,
-    frames: u32,
-    render_modes: Vec<RenderMode>,
-    warmup_frames: u32,
+pub struct SamplerState {
+    pub enabled: bool,
+    pub frames: u32,
+    pub render_modes: Vec<RenderMode>,
+    pub warmup_frames: u32,
 }
 
 impl Default for SamplerState {
