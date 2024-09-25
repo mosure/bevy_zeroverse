@@ -147,6 +147,17 @@ impl SamplerState {
     const FRAME_DELAY: u32 = 3;
     const WARMUP_FRAME_DELAY: u32 = 2;
 
+    pub fn inference_only() -> Self {
+        SamplerState {
+            enabled: true,
+            frames: 1,
+            render_modes: vec![
+                RenderMode::Color,
+            ],
+            warmup_frames: 0,
+        }
+    }
+
     fn cycle_render_mode(
         &mut self,
         mut render_mode: ResMut<RenderMode>,
