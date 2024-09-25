@@ -384,7 +384,7 @@ pub fn setup_globals(
 // TODO: add process idx, disable logging on worker idx > 0
 #[pyfunction]
 #[pyo3(signature = (override_args=None, asset_root=None))]
-fn initialize(
+pub fn initialize(
     py: Python<'_>,
     override_args: Option<BevyZeroverseConfig>,
     asset_root: Option<String>,
@@ -399,7 +399,7 @@ fn initialize(
 
 // TODO: add options to bevy_zeroverse.next (e.g. render_mode, scene parameters, etc.)
 #[pyfunction]
-fn next(
+pub fn next(
     py: Python<'_>,
 ) -> PyResult<Sample> {
     {
@@ -427,7 +427,7 @@ fn next(
 
 
 #[pymodule]
-fn bevy_zeroverse_ffi(m: &Bound<'_, PyModule>) -> PyResult<()> {
+pub fn bevy_zeroverse_ffi(m: &Bound<'_, PyModule>) -> PyResult<()> {
     pyo3_log::init();
 
     m.add_class::<BevyZeroverseConfig>()?;
