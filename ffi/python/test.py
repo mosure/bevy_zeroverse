@@ -5,7 +5,7 @@ import shutil
 from torch.utils.data import DataLoader
 import unittest
 
-from bevy_zeroverse_dataloader import BevyZeroverseDataset, ChunkedDataset, chunk_and_save
+from bevy_zeroverse_dataloader import BevyZeroverseDataset, ChunkedDataset, FolderDataset, chunk_and_save, save_to_folders
 
 
 
@@ -15,17 +15,17 @@ def visualize(batch):
     is_chunked = len(batch['color'].shape) == 6
 
     color_images = batch['color'].numpy()
-    depth_images = batch['depth'].numpy()
-    normal_images = batch['normal'].numpy()
+    # depth_images = batch['depth'].numpy()
+    # normal_images = batch['normal'].numpy()
 
     if is_chunked:
         color_images = color_images.squeeze(0)
-        depth_images = depth_images.squeeze(0)
-        normal_images = normal_images.squeeze(0)
+        # depth_images = depth_images.squeeze(0)
+        # normal_images = normal_images.squeeze(0)
 
     batch_size = color_images.shape[0]
     num_cameras = color_images.shape[1]
-    num_image_types = 3  # color, depth, normal
+    num_image_types = 1  # color, depth, normal
     total_images = batch_size * num_cameras * num_image_types
 
     cols = 9
@@ -44,17 +44,17 @@ def visualize(batch):
             if batch_size <= 2:
                 axes[index].set_title(f'({batch_idx + 1}, {cam_idx + 1})_color')
 
-            depth_image = depth_images[batch_idx, cam_idx]
-            axes[index + 1].imshow(depth_image, cmap='gray')
-            axes[index + 1].axis('off')
-            if batch_size <= 2:
-                axes[index + 1].set_title(f'({batch_idx + 1}, {cam_idx + 1})_depth')
+            # depth_image = depth_images[batch_idx, cam_idx]
+            # axes[index + 1].imshow(depth_image, cmap='gray')
+            # axes[index + 1].axis('off')
+            # if batch_size <= 2:
+            #     axes[index + 1].set_title(f'({batch_idx + 1}, {cam_idx + 1})_depth')
 
-            normal_image = normal_images[batch_idx, cam_idx]
-            axes[index + 2].imshow(normal_image)
-            axes[index + 2].axis('off')
-            if batch_size <= 2:
-                axes[index + 2].set_title(f'({batch_idx + 1}, {cam_idx + 1})_normal')
+            # normal_image = normal_images[batch_idx, cam_idx]
+            # axes[index + 2].imshow(normal_image)
+            # axes[index + 2].axis('off')
+            # if batch_size <= 2:
+            #     axes[index + 2].set_title(f'({batch_idx + 1}, {cam_idx + 1})_normal')
 
     for ax in axes[total_images:]:
         ax.axis('off')
@@ -90,6 +90,7 @@ def test():
     dataset = BevyZeroverseDataset(
         editor=False, headless=True, num_cameras=6,
         width=640, height=480, num_samples=1e6,
+        scene_type='room',
     )
     dataloader = DataLoader(dataset, batch_size=5, shuffle=True, num_workers=2)
 
@@ -116,19 +117,36 @@ class TestChunkedDataset(unittest.TestCase):
         if self.output_dir.exists():
             shutil.rmtree(self.output_dir)
 
-        self.dataset = BevyZeroverseDataset(self.editor, self.headless, self.num_cameras, self.width, self.height, self.num_samples)
+        self.dataset = BevyZeroverseDataset(
+            self.editor, self.headless, self.num_cameras,
+            self.width, self.height, self.num_samples,
+            scene_type='room',
+        )
+
         self.chunk_paths = chunk_and_save(
             self.dataset,
-            self.output_dir,
+            self.output_dir / 'chunk',
             bytes_per_chunk=self.bytes_per_chunk,
             samples_per_chunk=self.samples_per_chunk,
         )
 
+        save_to_folders(
+            self.dataset,
+            self.output_dir / 'fs',
+        )
+
     def test_benchmark_chunked_dataloader(self):
-        chunked_dataset = ChunkedDataset(self.output_dir)
+        chunked_dataset = ChunkedDataset(self.output_dir / 'chunk')
         dataloader = DataLoader(chunked_dataset, batch_size=1, shuffle=False)
 
         print("\nBenchmarking chunks:")
+        benchmark(dataloader)
+
+    def test_benchmark_folder_dataloader(self):
+        chunked_dataset = FolderDataset(self.output_dir / 'fs')
+        dataloader = DataLoader(chunked_dataset, batch_size=1, shuffle=False)
+
+        print("\nBenchmarking folder:")
         benchmark(dataloader)
 
 

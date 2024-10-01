@@ -155,27 +155,6 @@ impl SamplerState {
             warmup_frames: 0,
         }
     }
-
-    fn cycle_render_mode(
-        &mut self,
-        mut render_mode: ResMut<RenderMode>,
-    ) {
-        self.render_modes.retain(|mode| *mode != *render_mode);
-
-        if self.render_modes.is_empty() {
-            *render_mode = RenderMode::Color;
-            self.enabled = false;
-        } else {
-            *render_mode = self.render_modes.pop().unwrap();
-            self.enabled = true;
-        }
-
-        self.frames = SamplerState::FRAME_DELAY;
-    }
-
-    fn is_complete(&self) -> bool {
-        self.render_modes.is_empty()
-    }
 }
 
 
@@ -342,20 +321,18 @@ fn sample_stream(
         }
     }
 
-    if state.is_complete() {
-        regenerate_event.send(RegenerateSceneEvent);
+    regenerate_event.send(RegenerateSceneEvent);
 
-        let views = std::mem::take(&mut buffered_sample.views);
-        let sample = Sample {
-            views,
-            aabb: buffered_sample.aabb,
-        };
+    let views = std::mem::take(&mut buffered_sample.views);
+    let sample: Sample = Sample {
+        views,
+        aabb: buffered_sample.aabb,
+    };
 
-        let sender = SAMPLE_SENDER.get().unwrap();
-        sender.send(sample).unwrap();
-    }
+    let sender = SAMPLE_SENDER.get().unwrap();
+    sender.send(sample).unwrap();
 
-    state.cycle_render_mode(render_mode);
+    state.enabled = false;
 }
 
 

@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Optional
 
+import cv2
 import numpy as np
 from safetensors import safe_open
 from safetensors.torch import save_file
@@ -35,10 +36,8 @@ def normalize_hdr_image_tonemap(hdr_image: torch.Tensor) -> torch.Tensor:
 
 # TODO: add sample-level world rotation augment
 class View:
-    def __init__(self, color, depth, normal, world_from_view, fovy, near, far, width, height):
+    def __init__(self, color, world_from_view, fovy, near, far, width, height):
         self.color = color
-        self.depth = depth
-        self.normal = normal
         self.world_from_view = world_from_view
         self.fovy = fovy
         self.near = near
@@ -57,30 +56,17 @@ class View:
         if len(rust_view.color) == 0:
             print("empty color buffer")
 
-        if len(rust_view.depth) == 0:
-            print("empty depth buffer")
-
-        if len(rust_view.normal) == 0:
-            print("empty normal buffer")
-
         color = reshape_data(rust_view.color, np.float32)
-        depth = reshape_data(rust_view.depth, np.float32)
-        normal = reshape_data(rust_view.normal, np.float32)
 
         world_from_view = np.array(rust_view.world_from_view)
         fovy = rust_view.fovy
         near = rust_view.near
         far = rust_view.far
-        return cls(color, depth, normal, world_from_view, fovy, near, far, width, height)
+        return cls(color, world_from_view, fovy, near, far, width, height)
 
     def to_tensors(self):
         color_tensor = torch.tensor(self.color, dtype=torch.float32)
-        depth_tensor = torch.tensor(self.depth, dtype=torch.float32)
-        normal_tensor = torch.tensor(self.normal, dtype=torch.float32)
-
         color_tensor = color_tensor[..., :3]
-        depth_tensor = depth_tensor[..., 0:1]
-        normal_tensor = normal_tensor[..., :3]
 
         world_from_view_tensor = torch.tensor(self.world_from_view, dtype=torch.float32)
 
@@ -90,8 +76,6 @@ class View:
 
         return {
             'color': color_tensor,
-            'depth': depth_tensor,
-            'normal': normal_tensor,
             'world_from_view': world_from_view_tensor,
             'fovy': fovy_tensor,
             'near': near_tensor,
@@ -112,8 +96,6 @@ class Sample:
     def to_tensors(self):
         tensor_dict = {
             'color': [],
-            'depth': [],
-            'normal': [],
             'world_from_view': [],
             'fovy': [],
             'near': [],
@@ -135,9 +117,6 @@ class Sample:
         tensor_dict['aabb'] = torch.tensor(self.aabb, dtype=torch.float32)
 
         tensor_dict['color'] = normalize_hdr_image_tonemap(tensor_dict['color'])
-        tensor_dict['depth'] = normalize_hdr_image_tonemap(tensor_dict['depth'])
-        tensor_dict['normal'] = normalize_hdr_image_tonemap(tensor_dict['normal'])
-
         return tensor_dict
 
 
@@ -288,3 +267,77 @@ class ChunkedDataset(Dataset):
     def __getitem__(self, idx):
         chunk_file = self.chunk_files[idx]
         return self.load_chunk(chunk_file)
+
+
+
+def save_to_folders(dataset, output_dir: Path, n_workers: int = 1):
+    """
+    Saves each sample from the dataset into a folder structure.
+
+    Args:
+        dataset (Dataset): The dataset to save.
+        output_dir (Path): The directory where the dataset will be saved.
+        n_workers (int): Number of worker processes for data loading.
+    """
+    output_dir = Path(output_dir)
+    output_dir.mkdir(exist_ok=True, parents=True)
+
+    dataloader = DataLoader(dataset, batch_size=1, num_workers=n_workers, shuffle=False)
+
+    for idx, sample in enumerate(dataloader):
+        sample = {k: v.squeeze(0) for k, v in sample.items()}  # Remove batch dimension
+
+        scene_dir = output_dir / f"{idx:06d}"
+        scene_dir.mkdir(exist_ok=True)
+
+        color_tensor = sample['color']
+        views = color_tensor.shape[0]
+        for view_idx in range(views):
+            view_color = color_tensor[view_idx]
+            view_color_np = view_color.numpy()
+            view_color_np = (view_color_np * 255).astype(np.uint8)
+            view_color_bgr = cv2.cvtColor(view_color_np, cv2.COLOR_RGB2BGR)
+            image_filename = scene_dir / f"color_{view_idx:02d}.jpg"
+            cv2.imwrite(str(image_filename), view_color_bgr)
+
+        meta_tensors = {
+            'world_from_view': sample['world_from_view'],
+            'fovy': sample['fovy'],
+            'near': sample['near'],
+            'far': sample['far'],
+            'aabb': sample['aabb'],
+        }
+        meta_filename = scene_dir / "meta.safetensors"
+        save_file(meta_tensors, str(meta_filename))
+
+        print(f"Saved sample {idx} to {scene_dir}")
+
+
+class FolderDataset(Dataset):
+    def __init__(self, output_dir: Path):
+        self.output_dir = Path(output_dir)
+        self.scene_dirs = sorted([d for d in self.output_dir.iterdir() if d.is_dir()])
+
+    def __len__(self):
+        return len(self.scene_dirs)
+
+    def __getitem__(self, idx):
+        scene_dir = self.scene_dirs[idx]
+        meta_filename = scene_dir / "meta.safetensors"
+        with safe_open(str(meta_filename), framework="pt", device="cpu") as f:
+            meta_tensors = {key: f.get_tensor(key) for key in f.keys()}
+
+        color_images = sorted(scene_dir.glob("color_*.jpg"))
+        color_tensors = []
+        for image_file in color_images:
+            color_image_bgr = cv2.imread(str(image_file))
+            if color_image_bgr is None:
+                raise FileNotFoundError(f"Image file {image_file} not found or could not be read.")
+            color_image_rgb = cv2.cvtColor(color_image_bgr, cv2.COLOR_BGR2RGB)
+            color_tensor = torch.from_numpy(color_image_rgb).float() / 255.0
+            color_tensors.append(color_tensor)
+
+        color_tensor = torch.stack(color_tensors, dim=0)
+
+        meta_tensors['color'] = color_tensor
+        return meta_tensors
