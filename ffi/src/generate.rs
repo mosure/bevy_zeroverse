@@ -411,7 +411,7 @@ fn main() {
 
     setup_globals(None);
 
-    let mut app = create_app(zeroverse_args.clone().into());
+    let mut app = create_app(zeroverse_args.clone().into(), true);
 
     std::thread::spawn(move || {
         receive_samples(&generator_args, &zeroverse_args);

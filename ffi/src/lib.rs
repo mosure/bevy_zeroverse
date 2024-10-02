@@ -202,6 +202,7 @@ fn signaled_runner(mut app: App) -> AppExit {
 
 pub fn create_app(
     override_args: Option<BevyZeroverseConfig>,
+    set_runner: bool,
 ) -> App {
     let mut app = viewer_app(override_args);
 
@@ -214,7 +215,10 @@ pub fn create_app(
     });
 
     app.add_systems(PreUpdate, sample_stream);
-    app.set_runner(signaled_runner);
+
+    if set_runner {
+        app.set_runner(signaled_runner);
+    }
 
     app
 }
@@ -230,7 +234,7 @@ pub fn setup_and_run_app(
         let ready = Arc::clone(&ready);
 
         move || {
-            let mut app = create_app(override_args);
+            let mut app = create_app(override_args, true);
             ready.store(true, Ordering::Release);
             app.run();
         }
