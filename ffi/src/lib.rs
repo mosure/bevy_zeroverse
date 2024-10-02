@@ -94,6 +94,7 @@ impl View {
 
 #[derive(Clone, Debug, Default, Resource)]
 #[pyclass]
+#[reflect(Resource)]
 pub struct Sample {
     pub views: Vec<View>,
 
@@ -121,6 +122,7 @@ impl Sample {
 
 
 #[derive(Debug, Resource, Reflect)]
+#[reflect(Resource)]
 pub struct SamplerState {
     pub enabled: bool,
     pub frames: u32,
