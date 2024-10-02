@@ -213,6 +213,7 @@ pub fn create_app(
         enabled: false,
         ..Default::default()
     });
+    app.register_type::<SamplerState>();
 
     app.add_systems(PreUpdate, sample_stream);
 
