@@ -321,6 +321,9 @@ pub fn viewer_app(
 
     app.insert_resource(ClearColor(Color::srgba(0.0, 0.0, 0.0, 0.0)));
 
+    let mut winit_plugin = WinitPlugin::<WakeUp>::default();
+    winit_plugin.run_on_any_thread = true;
+
     let default_plugins = DefaultPlugins
         .set(ImagePlugin::default_nearest())
         .set(RenderPlugin {
@@ -330,14 +333,11 @@ pub fn viewer_app(
                 ..Default::default()
             }),
             ..Default::default()
-        });
+        })
+        .set(winit_plugin);
 
     let default_plugins = if args.headless {
-        let mut winit_plugin = WinitPlugin::<WakeUp>::default();
-        winit_plugin.run_on_any_thread = true;
-
         default_plugins
-            .set(winit_plugin)
             .set(WindowPlugin {
                 primary_window: None,
                 exit_condition: bevy::window::ExitCondition::DontExit,
