@@ -268,7 +268,7 @@ fn insert_cameras(
                 Name::new("zeroverse_camera"),
             ));
 
-        if args.headless {
+        if args.image_copiers {
             let mut cpu_image = Image {
                 texture_descriptor: TextureDescriptor {
                     label: "bevy_zeroverse_camera_cpu_image".into(),

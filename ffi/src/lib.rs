@@ -94,7 +94,6 @@ impl View {
 
 #[derive(Clone, Debug, Default, Resource)]
 #[pyclass]
-#[reflect(Resource)]
 pub struct Sample {
     pub views: Vec<View>,
 
@@ -125,6 +124,7 @@ impl Sample {
 #[reflect(Resource)]
 pub struct SamplerState {
     pub enabled: bool,
+    pub regenerate_scene: bool,
     pub frames: u32,
     pub render_modes: Vec<RenderMode>,
     pub warmup_frames: u32,
@@ -134,6 +134,7 @@ impl Default for SamplerState {
     fn default() -> Self {
         SamplerState {
             enabled: true,
+            regenerate_scene: true,
             frames: SamplerState::FRAME_DELAY,
             render_modes: vec![
                 RenderMode::Color,
@@ -150,6 +151,7 @@ impl SamplerState {
     pub fn inference_only() -> Self {
         SamplerState {
             enabled: true,
+            regenerate_scene: false,
             frames: 1,
             render_modes: vec![
                 RenderMode::Color,
@@ -328,7 +330,9 @@ fn sample_stream(
         }
     }
 
-    regenerate_event.send(RegenerateSceneEvent);
+    if state.regenerate_scene {
+        regenerate_event.send(RegenerateSceneEvent);
+    }
 
     let views = std::mem::take(&mut buffered_sample.views);
     let sample: Sample = Sample {

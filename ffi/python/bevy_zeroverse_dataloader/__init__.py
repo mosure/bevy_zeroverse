@@ -153,6 +153,7 @@ class BevyZeroverseDataset(Dataset):
         config = bevy_zeroverse_ffi.BevyZeroverseConfig()
         config.editor = self.editor
         config.headless = self.headless
+        config.image_copiers = True
         config.num_cameras = self.num_cameras
         config.width = self.width
         config.height = self.height

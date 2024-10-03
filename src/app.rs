@@ -96,6 +96,11 @@ pub struct BevyZeroverseConfig {
     #[arg(long, default_value = "false")]
     pub headless: bool,
 
+    /// whether or not zeroverse cameras receive image copiers
+    #[pyo3(get, set)]
+    #[arg(long, default_value = "false")]
+    pub image_copiers: bool,
+
     /// view available material basecolor textures in a grid
     #[pyo3(get, set)]
     #[arg(long, default_value = "false")]
@@ -199,6 +204,10 @@ pub struct BevyZeroverseConfig {
     #[arg(long, default_value = "false")]
     pub headless: bool,
 
+    /// whether or not zeroverse cameras receive image copiers
+    #[arg(long, default_value = "false")]
+    pub image_copiers: bool,
+
     /// view available material basecolor textures in a grid
     #[arg(long, default_value = "false")]
     pub material_grid: bool,
@@ -255,6 +264,7 @@ impl Default for BevyZeroverseConfig {
         BevyZeroverseConfig {
             editor: true,
             headless: false,
+            image_copiers: false,
             material_grid: false,
             plucker_visualization: false,
             press_esc_close: true,
@@ -353,7 +363,7 @@ pub fn viewer_app(
 
     app.add_plugins(default_plugins);
 
-    if args.headless {
+    if args.image_copiers {
         app.add_plugins(io::image_copy::ImageCopyPlugin);
     }
 
