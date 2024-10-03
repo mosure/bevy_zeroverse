@@ -116,7 +116,7 @@ class Sample:
 
         tensor_dict['aabb'] = torch.tensor(self.aabb, dtype=torch.float32)
 
-        tensor_dict['color'] = normalize_hdr_image_tonemap(tensor_dict['color'])
+        # tensor_dict['color'] = normalize_hdr_image_tonemap(tensor_dict['color'])
         return tensor_dict
 
 

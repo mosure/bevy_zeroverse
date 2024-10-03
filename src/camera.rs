@@ -244,7 +244,7 @@ fn insert_cameras(
             .insert((
                 Camera3dBundle {
                     camera: Camera {
-                        hdr: true,
+                        hdr: false,
                         target,
                         ..default()
                     },
@@ -324,7 +324,7 @@ fn setup_editor_camera(
             .insert((
                 Camera3dBundle {
                     camera: Camera {
-                        hdr: true,
+                        hdr: false,
                         ..default()
                     },
                     camera_3d: Camera3d {
