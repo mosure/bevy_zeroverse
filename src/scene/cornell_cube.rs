@@ -14,6 +14,7 @@ use bevy::{
         render_resource::Face,
     },
 };
+use rand::seq::SliceRandom;
 
 use crate::{
     camera::{
@@ -21,6 +22,7 @@ use crate::{
         CameraPositionSamplerType,
         ZeroverseCamera,
     },
+    material::ZeroverseMaterials,
     scene::{
         RegenerateSceneEvent,
         RotationAugment,
@@ -130,6 +132,7 @@ fn setup_scene(
     mut standard_materials: ResMut<Assets<StandardMaterial>>,
     scene_settings: Res<ZeroverseSceneSettings>,
     mut ambient_lighting: ResMut<AmbientLight>,
+    zeroverse_materials: Res<ZeroverseMaterials>,
 ) {
     ambient_lighting.brightness = 120.0;
 
@@ -158,12 +161,27 @@ fn setup_scene(
                     let cull_mode = wall_cull_mode(wall);
                     let transform = wall_transform(wall, Vec3::ONE);
 
-                    let material = standard_materials.add(StandardMaterial {
-                        base_color: color,
-                        double_sided: false,
-                        cull_mode: Some(cull_mode),
-                        ..Default::default()
-                    });
+                    let material = if wall == Dir3::Z {
+                        let mut rng = rand::thread_rng();
+                        let base_material = zeroverse_materials.materials
+                            .choose(&mut rng)
+                            .unwrap()
+                            .clone();
+
+                        let mut new_material = standard_materials.get(&base_material).unwrap().clone();
+
+                        new_material.double_sided = false;
+                        new_material.cull_mode = cull_mode.into();
+
+                        standard_materials.add(new_material)
+                    } else {
+                        standard_materials.add(StandardMaterial {
+                            base_color: color,
+                            double_sided: false,
+                            cull_mode: Some(cull_mode),
+                            ..Default::default()
+                        })
+                    };
 
                     let mut mesh = mesh.transformed_by(transform);
 
@@ -267,6 +285,7 @@ fn regenerate_scene(
     meshes: ResMut<Assets<Mesh>>,
     standard_materials: ResMut<Assets<StandardMaterial>>,
     ambient_lighting: ResMut<AmbientLight>,
+    zeroverse_materials: Res<ZeroverseMaterials>,
 ) {
     if scene_settings.scene_type != ZeroverseSceneType::CornellCube {
         return;
@@ -288,5 +307,6 @@ fn regenerate_scene(
         standard_materials,
         scene_settings,
         ambient_lighting,
+        zeroverse_materials,
     );
 }
