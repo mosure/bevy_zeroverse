@@ -46,10 +46,10 @@ impl Plugin for ZeroverseScenePlugin {
             room::ZeroverseRoomPlugin,
         ));
 
-        app.add_systems(PreUpdate, create_scene_aabb);
         app.add_systems(
             Update,
             (
+                create_scene_aabb,
                 draw_scene_aabb,
                 regenerate_rotation_augment,
             ),
@@ -177,7 +177,6 @@ fn create_scene_aabb(
             &ZeroverseSceneRoot,
             &GlobalTransform,
         ),
-        Without<SceneAabb>,
     >,
     children: Query<&Children>,
     bounding_boxes: Query<(&Aabb, &GlobalTransform)>,
