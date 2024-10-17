@@ -91,6 +91,11 @@ pub struct BevyZeroverseConfig {
     #[arg(long, default_value = "true")]
     pub editor: bool,
 
+    /// enable gizmo drawing on editor camera
+    #[pyo3(get, set)]
+    #[arg(long, default_value = "true")]
+    pub gizmos: bool,
+
     /// no window will be shown
     #[pyo3(get, set)]
     #[arg(long, default_value = "false")]
@@ -200,6 +205,10 @@ pub struct BevyZeroverseConfig {
     #[arg(long, default_value = "true")]
     pub editor: bool,
 
+    /// enable gizmo drawing on editor camera
+    #[arg(long, default_value = "true")]
+    pub gizmos: bool,
+
     /// no window will be shown
     #[arg(long, default_value = "false")]
     pub headless: bool,
@@ -263,6 +272,7 @@ impl Default for BevyZeroverseConfig {
     fn default() -> BevyZeroverseConfig {
         BevyZeroverseConfig {
             editor: true,
+            gizmos: true,
             headless: false,
             image_copiers: false,
             material_grid: false,

@@ -348,6 +348,7 @@ fn setup_editor_camera(
 
 #[allow(clippy::type_complexity)]
 pub fn draw_camera_gizmo(
+    args: Res<BevyZeroverseConfig>,
     mut gizmos: Gizmos<EditorCameraGizmoConfigGroup>,
     cameras: Query<
         (&GlobalTransform, &Projection),
@@ -357,6 +358,10 @@ pub fn draw_camera_gizmo(
         ),
     >,
 ) {
+    if !args.gizmos {
+        return;
+    }
+
     let color = Color::srgb(1.0, 0.0, 1.0);
 
     for (global_transform, projection) in cameras.iter() {

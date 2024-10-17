@@ -203,7 +203,7 @@ fn draw_scene_aabb(
     scene_instances: Query<&SceneAabb>,
     mut gizmos: Gizmos<EditorCameraGizmoConfigGroup>,
 ) {
-    if !args.editor {
+    if !args.gizmos {
         return;
     }
 
