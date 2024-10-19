@@ -297,7 +297,8 @@ def save_to_folders(dataset, output_dir: Path, n_workers: int = 1):
             view_color = color_tensor[view_idx]
             view_color_np = view_color.numpy()
             view_color_np = (view_color_np * 255).astype(np.uint8)
-            view_color_bgr = cv2.cvtColor(view_color_np, cv2.COLOR_RGB2BGR)
+            view_color_umat = cv2.UMat(view_color_np)
+            view_color_bgr = cv2.cvtColor(view_color_umat, cv2.COLOR_RGB2BGR)
             image_filename = scene_dir / f"color_{view_idx:02d}.jpg"
             cv2.imwrite(str(image_filename), view_color_bgr)
 
