@@ -187,6 +187,7 @@ pub struct ZeroverseCamera {
     pub looking_at: LookingAtSampler,
     pub sampler: CameraPositionSampler,
     pub resolution: Option<UVec2>,
+    pub override_transform: Option<Transform>,
 }
 
 #[derive(Resource, Debug, Default, Reflect)]
@@ -259,7 +260,7 @@ fn insert_cameras(
                             ..default()
                         },
                     ),
-                    transform: zeroverse_camera.sampler.sample(),
+                    transform: zeroverse_camera.override_transform.unwrap_or(zeroverse_camera.sampler.sample()),
                     tonemapping: Tonemapping::None,
                     ..default()
                 },
