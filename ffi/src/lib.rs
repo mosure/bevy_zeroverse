@@ -138,6 +138,7 @@ impl Default for SamplerState {
             frames: SamplerState::FRAME_DELAY,
             render_modes: vec![
                 RenderMode::Color,
+                RenderMode::Depth,
             ],
             warmup_frames: SamplerState::WARMUP_FRAME_DELAY,
         }

@@ -38,8 +38,9 @@ def normalize_hdr_image_tonemap(hdr_image: torch.Tensor) -> torch.Tensor:
 
 # TODO: add sample-level world rotation augment
 class View:
-    def __init__(self, color, world_from_view, fovy, near, far, width, height):
+    def __init__(self, color, depth, world_from_view, fovy, near, far, width, height):
         self.color = color
+        self.depth = depth
         self.world_from_view = world_from_view
         self.fovy = fovy
         self.near = near
@@ -59,16 +60,20 @@ class View:
             print("empty color buffer")
 
         color = reshape_data(rust_view.color, np.float32)
+        depth = reshape_data(rust_view.depth, np.float32)
 
         world_from_view = np.array(rust_view.world_from_view)
         fovy = rust_view.fovy
         near = rust_view.near
         far = rust_view.far
-        return cls(color, world_from_view, fovy, near, far, width, height)
+        return cls(color, depth, world_from_view, fovy, near, far, width, height)
 
     def to_tensors(self):
         color_tensor = torch.tensor(self.color, dtype=torch.float32)
         color_tensor = color_tensor[..., :3]
+
+        depth_tensor = torch.tensor(self.depth, dtype=torch.float32)
+        depth_tensor = depth_tensor[..., 0:1]
 
         world_from_view_tensor = torch.tensor(self.world_from_view, dtype=torch.float32)
 
@@ -78,6 +83,7 @@ class View:
 
         return {
             'color': color_tensor,
+            'depth': depth_tensor,
             'world_from_view': world_from_view_tensor,
             'fovy': fovy_tensor,
             'near': near_tensor,
@@ -98,6 +104,7 @@ class Sample:
     def to_tensors(self):
         tensor_dict = {
             'color': [],
+            'depth': [],
             'world_from_view': [],
             'fovy': [],
             'near': [],
@@ -119,6 +126,8 @@ class Sample:
         tensor_dict['aabb'] = torch.tensor(self.aabb, dtype=torch.float32)
 
         # tensor_dict['color'] = normalize_hdr_image_tonemap(tensor_dict['color'])
+        # TODO: RGB to depth conversion
+
         return tensor_dict
 
 
@@ -297,11 +306,17 @@ def save_to_folders(dataset, output_dir: Path, n_workers: int = 1):
         scene_dir.mkdir(exist_ok=True)
 
         color_tensor = sample['color']
+        depth_tensor = sample['depth']
+
         views = color_tensor.shape[0]
         for view_idx in range(views):
             view_color = color_tensor[view_idx].permute(2, 0, 1)
             image_filename = scene_dir / f"color_{view_idx:02d}.jpg"
             save_image(view_color, str(image_filename))
+
+            view_depth = depth_tensor[view_idx].permute(2, 0, 1)
+            depth_filename = scene_dir / f"depth_{view_idx:02d}.jpg"
+            save_image(view_depth, str(depth_filename))
 
         meta_tensors = {
             'world_from_view': sample['world_from_view'],
