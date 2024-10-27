@@ -1,4 +1,5 @@
 from pathlib import Path
+from PIL import Image
 from typing import Optional
 
 import cv2
@@ -7,6 +8,7 @@ from safetensors import safe_open
 from safetensors.torch import save_file
 import torch
 from torch.utils.data import DataLoader, Dataset
+import torchvision.transforms as transforms
 
 import bevy_zeroverse_ffi
 
@@ -124,6 +126,7 @@ class Sample:
 class BevyZeroverseDataset(Dataset):
     scene_map = {
         'cornell_cube': bevy_zeroverse_ffi.ZeroverseSceneType.CornellCube,
+        'gaussian_cloud': bevy_zeroverse_ffi.ZeroverseSceneType.GaussianCloud,
         'object': bevy_zeroverse_ffi.ZeroverseSceneType.Object,
         'room': bevy_zeroverse_ffi.ZeroverseSceneType.Room,
     }
@@ -320,6 +323,10 @@ class FolderDataset(Dataset):
         self.output_dir = Path(output_dir)
         self.scene_dirs = sorted([d for d in self.output_dir.iterdir() if d.is_dir()])
 
+        self.transform = transforms.Compose([
+            transforms.ToTensor(),
+        ])
+
     def __len__(self):
         return len(self.scene_dirs)
 
@@ -332,11 +339,8 @@ class FolderDataset(Dataset):
         color_images = sorted(scene_dir.glob("color_*.jpg"))
         color_tensors = []
         for image_file in color_images:
-            color_image_bgr = cv2.imread(str(image_file))
-            if color_image_bgr is None:
-                raise FileNotFoundError(f"Image file {image_file} not found or could not be read.")
-            color_image_rgb = cv2.cvtColor(color_image_bgr, cv2.COLOR_BGR2RGB)
-            color_tensor = torch.from_numpy(color_image_rgb).float() / 255.0
+            image = Image.open(image_file).convert("RGB")
+            color_tensor = self.transform(image).permute(1, 2, 0)
             color_tensors.append(color_tensor)
 
         color_tensor = torch.stack(color_tensors, dim=0)
