@@ -12,6 +12,7 @@ pub mod plucker;
 pub mod primitive;
 pub mod render;
 pub mod scene;
+pub mod util;
 
 
 pub struct BevyZeroversePlugin;

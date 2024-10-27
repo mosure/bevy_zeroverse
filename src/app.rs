@@ -14,6 +14,7 @@ use bevy::{
         settings::{
             RenderCreation,
             WgpuFeatures,
+            WgpuLimits,
             WgpuSettings,
         },
         // texture::{
@@ -350,6 +351,10 @@ pub fn viewer_app(
             render_creation: RenderCreation::Automatic(WgpuSettings {
                 features: WgpuFeatures::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES
                         | WgpuFeatures::SHADER_F16,
+                limits: WgpuLimits {
+                    min_storage_buffer_offset_alignment: 8,
+                    ..default()
+                },
                 ..Default::default()
             }),
             ..Default::default()
@@ -455,6 +460,7 @@ fn setup_camera(
     let camera_offset = Vec3::new(0.0, 0.0, 3.5);
     let camera_offset = match args.scene_type {
         ZeroverseSceneType::CornellCube => camera_offset,
+        ZeroverseSceneType::GaussianCloud => camera_offset,
         ZeroverseSceneType::Object => camera_offset,
         ZeroverseSceneType::Room => {
             let max_room_size = match room_settings.room_size {

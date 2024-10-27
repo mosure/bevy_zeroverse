@@ -1,10 +1,10 @@
 [package]
 name = "bevy_zeroverse"
 description = "bevy zeroverse synthetic dataset generator"
-version = "0.3.3"
+version = "0.4.0"
 edition = "2021"
 authors = ["mosure <mitchell@mosure.me>"]
-license = "MIT"
+license = "MIT OR Apache-2.0"
 keywords = [
   "bevy",
   "zeroverse",
@@ -79,9 +79,12 @@ webgpu = [
 
 [dependencies]
 bevy_args = "1.6"
-bevy-inspector-egui = { version = "0.26", optional = true }
-bevy_panorbit_camera = { version = "0.19", optional = true, features = ["bevy_egui"] }
-clap = { version = "4.4", features = ["derive"] }
+bevy_gaussian_splatting = { path = "../bevy_gaussian_splatting", default-features = false, features = ["buffer_storage", "f32", "sh1", "io_flexbuffers", "io_ply", "planar", "sort_rayon"] }
+# bevy_gaussian_splatting = { version = "2.7.1", default-features = false, features = ["buffer_storage", "f32", "sh1", "io_flexbuffers", "io_ply", "planar", "sort_rayon"] }
+bevy-inspector-egui = { version = "0.27", optional = true }
+bevy_panorbit_camera = { git = "https://github.com/mosure/bevy_panorbit_camera.git", optional = true, features = ["bevy_egui"] }
+# bevy_panorbit_camera = { version = "0.19.4", optional = true, features = ["bevy_egui"] }
+clap = { version = "4.5", features = ["derive"] }
 futures-intrusive = "0.5"
 glob = "0.3"
 itertools = "0.13"

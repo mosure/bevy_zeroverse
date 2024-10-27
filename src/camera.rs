@@ -1,3 +1,5 @@
+use rand::Rng;
+
 use bevy::{
     prelude::*,
     core_pipeline::{
@@ -32,7 +34,7 @@ use bevy::{
         view::RenderLayers,
     }
 };
-use rand::Rng;
+use bevy_gaussian_splatting::camera::GaussianCamera;
 
 use crate::{
     app::BevyZeroverseConfig,
@@ -55,7 +57,7 @@ impl Plugin for ZeroverseCameraPlugin {
         app.init_resource::<DefaultZeroverseCamera>();
 
         app.add_systems(
-            Update,
+            PreUpdate,
             (
                 setup_editor_camera,
                 insert_cameras,
@@ -188,6 +190,7 @@ pub struct ZeroverseCamera {
     pub sampler: CameraPositionSampler,
     pub resolution: Option<UVec2>,
     pub override_transform: Option<Transform>,
+    pub camera_order: isize,
 }
 
 #[derive(Resource, Debug, Default, Reflect)]
@@ -246,6 +249,7 @@ fn insert_cameras(
                 Camera3dBundle {
                     camera: Camera {
                         hdr: false,
+                        order: zeroverse_camera.camera_order,
                         target,
                         ..default()
                     },
@@ -338,6 +342,7 @@ fn setup_editor_camera(
                     ..default()
                 },
                 BloomSettings::default(),
+                GaussianCamera,
                 PluckerCamera,
             ))
             .insert(render_layer)

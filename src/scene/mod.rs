@@ -19,6 +19,7 @@ use crate::{
 
 // TODO: cornell box room scene
 pub mod cornell_cube;
+pub mod gaussians;
 pub mod lighting;
 pub mod object;
 pub mod room;
@@ -41,6 +42,7 @@ impl Plugin for ZeroverseScenePlugin {
 
         app.add_plugins((
             cornell_cube::ZeroverseCornellCubePlugin,
+            gaussians::ZeroverseGaussianCloudPlugin,
             lighting::ZeroverseLightingPlugin,
             object::ZeroverseObjectPlugin,
             room::ZeroverseRoomPlugin,
@@ -79,6 +81,7 @@ pub struct ZeroverseSceneRoot;
 #[cfg_attr(feature = "python", pyclass(eq, eq_int))]
 pub enum ZeroverseSceneType {
     CornellCube,
+    GaussianCloud,
     #[default]
     Object,
     Room,
