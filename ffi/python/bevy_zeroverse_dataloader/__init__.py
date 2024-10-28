@@ -140,6 +140,7 @@ class BevyZeroverseDataset(Dataset):
         num_samples,
         root_asset_folder=None,
         scene_type='object',
+        max_camera_radius=0.0,
     ):
         self.editor = editor
         self.headless = headless
@@ -150,6 +151,7 @@ class BevyZeroverseDataset(Dataset):
         self.initialized = False
         self.root_asset_folder = root_asset_folder
         self.scene_type = scene_type
+        self.max_camera_radius = max_camera_radius
 
     def initialize(self):
         config = bevy_zeroverse_ffi.BevyZeroverseConfig()
@@ -160,6 +162,7 @@ class BevyZeroverseDataset(Dataset):
         config.width = self.width
         config.height = self.height
         config.scene_type = BevyZeroverseDataset.scene_map[self.scene_type]
+        config.max_camera_radius = self.max_camera_radius
         config.regenerate_scene_material_shuffle_period = 256
         bevy_zeroverse_ffi.initialize(
             config,
