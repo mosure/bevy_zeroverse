@@ -90,6 +90,7 @@ pub struct ZeroverseSceneSettings {
     pub num_cameras: usize,
     pub rotation_augmentation: bool,
     pub scene_type: ZeroverseSceneType,
+    pub max_camera_radius: f32,
 }
 
 

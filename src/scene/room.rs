@@ -274,28 +274,66 @@ fn setup_scene(
             }
 
             { // cameras
-                for _ in 0..scene_settings.num_cameras {
-                    let size: Vec3 = Vec3::new(
-                        scale.x - room_settings.camera_wall_padding * 2.0,
-                        scale.y - room_settings.camera_floor_padding,
-                        scale.z - room_settings.camera_wall_padding * 2.0,
-                    );
+                let size: Vec3 = Vec3::new(
+                    scale.x - (room_settings.camera_wall_padding + scene_settings.max_camera_radius) * 2.0,
+                    scale.y - (room_settings.camera_floor_padding + scene_settings.max_camera_radius),
+                    scale.z - (room_settings.camera_wall_padding + scene_settings.max_camera_radius) * 2.0,
+                );
+                let origin_camera_sampler = CameraPositionSampler {
+                    sampler_type: CameraPositionSamplerType::Band {
+                        size,
+                        rotation: Quat::IDENTITY,
+                        translate: Vec3::new(
+                            0.0,
+                            room_settings.camera_floor_padding + size.y / 2.0,
+                            0.0,
+                        ),
+                    },
+                    looking_at: room_settings.looking_at_sampler.clone(),
+                };
+                let origin_camera_center = origin_camera_sampler.sample();
+                let mut rng = rand::thread_rng();
 
-                    commands.spawn(ZeroverseCamera {
-                            sampler: CameraPositionSampler {
-                                sampler_type: CameraPositionSamplerType::Band {
-                                    size,
-                                    rotation: Quat::IDENTITY,
-                                    translate: Vec3::new(
-                                        0.0,
-                                        room_settings.camera_floor_padding + size.y / 2.0,
-                                        0.0,
-                                    ),
-                                },
-                                looking_at: room_settings.looking_at_sampler.clone(),
+                for _ in 0..scene_settings.num_cameras {
+                    if scene_settings.max_camera_radius <= 0.0 {
+                        let size: Vec3 = Vec3::new(
+                            scale.x - room_settings.camera_wall_padding * 2.0,
+                            scale.y - room_settings.camera_floor_padding,
+                            scale.z - room_settings.camera_wall_padding * 2.0,
+                        );
+
+                        let camera_sampler = CameraPositionSampler {
+                            sampler_type: CameraPositionSamplerType::Band {
+                                size,
+                                rotation: Quat::IDENTITY,
+                                translate: Vec3::new(
+                                    0.0,
+                                    room_settings.camera_floor_padding + size.y / 2.0,
+                                    0.0,
+                                ),
                             },
+                            looking_at: room_settings.looking_at_sampler.clone(),
+                        };
+
+                        commands.spawn(ZeroverseCamera {
+                            sampler: camera_sampler,
                             ..default()
                         });
+                    } else {
+                        let circular_sampler = CameraPositionSampler {
+                            sampler_type: CameraPositionSamplerType::Circle {
+                                radius: scene_settings.max_camera_radius,
+                                rotation: Quat::from_rng(&mut rng),
+                                translate: origin_camera_center.translation,
+                            },
+                            looking_at: room_settings.looking_at_sampler.clone(),
+                        };
+
+                        commands.spawn(ZeroverseCamera {
+                            sampler: circular_sampler,
+                            ..default()
+                        });
+                    }
                 }
             }
         });

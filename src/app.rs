@@ -169,6 +169,10 @@ pub struct BevyZeroverseConfig {
     #[pyo3(get, set)]
     #[arg(long, default_value = "true")]
     pub rotation_augmentation: bool,
+
+    #[pyo3(get, set)]
+    #[arg(long, default_value = "0.0")]
+    pub max_camera_radius: f32,
 }
 
 #[cfg(feature = "python")]
@@ -266,6 +270,9 @@ pub struct BevyZeroverseConfig {
 
     #[arg(long, default_value = "true")]
     pub rotation_augmentation: bool,
+
+    #[arg(long, default_value = "0.0")]
+    pub max_camera_radius: f32,
 }
 
 impl Default for BevyZeroverseConfig {
@@ -289,6 +296,7 @@ impl Default for BevyZeroverseConfig {
             render_mode: Default::default(),
             scene_type: Default::default(),
             rotation_augmentation: true,
+            max_camera_radius: 0.0,
         }
     }
 }
@@ -669,6 +677,7 @@ fn propagate_cli_settings(
         scene_settings.num_cameras = args.num_cameras;
         scene_settings.rotation_augmentation = args.rotation_augmentation;
         scene_settings.scene_type = args.scene_type.clone();
+        scene_settings.max_camera_radius = args.max_camera_radius;
     }
 }
 

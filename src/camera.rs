@@ -109,6 +109,7 @@ pub enum CameraPositionSamplerType {
     Circle {
         radius: f32,
         rotation: Quat,
+        translate: Vec3,
     },
     Sphere {
         radius: f32,
@@ -158,11 +159,11 @@ impl CameraPositionSampler {
 
                 Transform::from_translation(pos)
             },
-            CameraPositionSamplerType::Circle { radius, rotation } => {
+            CameraPositionSamplerType::Circle { radius, rotation, translate } => {
                 let rng = &mut rand::thread_rng();
 
                 let xz = Circle::new(radius).sample_boundary(rng);
-                let pos = rotation.mul_vec3(Vec3::new(xz.x, 0.0, xz.y));
+                let pos = rotation.mul_vec3(Vec3::new(xz.x, 0.0, xz.y)) + translate;
 
                 Transform::from_translation(pos)
             },
