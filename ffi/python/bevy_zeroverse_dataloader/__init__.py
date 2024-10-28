@@ -126,7 +126,6 @@ class Sample:
 class BevyZeroverseDataset(Dataset):
     scene_map = {
         'cornell_cube': bevy_zeroverse_ffi.ZeroverseSceneType.CornellCube,
-        'gaussian_cloud': bevy_zeroverse_ffi.ZeroverseSceneType.GaussianCloud,
         'object': bevy_zeroverse_ffi.ZeroverseSceneType.Object,
         'room': bevy_zeroverse_ffi.ZeroverseSceneType.Room,
     }
