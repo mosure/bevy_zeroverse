@@ -2,13 +2,13 @@ from pathlib import Path
 from PIL import Image
 from typing import Optional
 
-import cv2
 import numpy as np
 from safetensors import safe_open
 from safetensors.torch import save_file
 import torch
 from torch.utils.data import DataLoader, Dataset
 import torchvision.transforms as transforms
+from torchvision.utils import save_image
 
 import bevy_zeroverse_ffi
 
@@ -299,13 +299,9 @@ def save_to_folders(dataset, output_dir: Path, n_workers: int = 1):
         color_tensor = sample['color']
         views = color_tensor.shape[0]
         for view_idx in range(views):
-            view_color = color_tensor[view_idx]
-            view_color_np = view_color.numpy()
-            view_color_np = (view_color_np * 255).astype(np.uint8)
-            view_color_umat = cv2.UMat(view_color_np)
-            view_color_bgr = cv2.cvtColor(view_color_umat, cv2.COLOR_RGB2BGR)
+            view_color = color_tensor[view_idx].permute(2, 0, 1)
             image_filename = scene_dir / f"color_{view_idx:02d}.jpg"
-            cv2.imwrite(str(image_filename), view_color_bgr)
+            save_image(view_color, str(image_filename))
 
         meta_tensors = {
             'world_from_view': sample['world_from_view'],
