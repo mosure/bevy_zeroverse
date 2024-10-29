@@ -17,7 +17,7 @@ impl Plugin for ZeroverseLightingPlugin {
         app.register_type::<ZeroverseLightingSettings>();
 
         app.insert_resource(AmbientLight {
-            brightness: 120.0,
+            brightness: 180.0,
             ..default()
         });
     }

@@ -15,17 +15,17 @@ def visualize(batch):
     is_chunked = len(batch['color'].shape) == 6
 
     color_images = batch['color'].numpy()
-    # depth_images = batch['depth'].numpy()
+    depth_images = batch['depth'].numpy()
     # normal_images = batch['normal'].numpy()
 
     if is_chunked:
         color_images = color_images.squeeze(0)
-        # depth_images = depth_images.squeeze(0)
+        depth_images = depth_images.squeeze(0)
         # normal_images = normal_images.squeeze(0)
 
     batch_size = color_images.shape[0]
     num_cameras = color_images.shape[1]
-    num_image_types = 1  # color, depth, normal
+    num_image_types = 2  # color, depth, normal
     total_images = batch_size * num_cameras * num_image_types
 
     cols = 9
@@ -44,11 +44,11 @@ def visualize(batch):
             if batch_size <= 2:
                 axes[index].set_title(f'({batch_idx + 1}, {cam_idx + 1})_color')
 
-            # depth_image = depth_images[batch_idx, cam_idx]
-            # axes[index + 1].imshow(depth_image, cmap='gray')
-            # axes[index + 1].axis('off')
-            # if batch_size <= 2:
-            #     axes[index + 1].set_title(f'({batch_idx + 1}, {cam_idx + 1})_depth')
+            depth_image = depth_images[batch_idx, cam_idx]
+            axes[index + 1].imshow(depth_image, cmap='gray')
+            axes[index + 1].axis('off')
+            if batch_size <= 2:
+                axes[index + 1].set_title(f'({batch_idx + 1}, {cam_idx + 1})_depth')
 
             # normal_image = normal_images[batch_idx, cam_idx]
             # axes[index + 2].imshow(normal_image)
