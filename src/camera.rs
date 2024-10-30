@@ -57,11 +57,11 @@ impl Plugin for ZeroverseCameraPlugin {
         app.add_systems(
             Update,
             (
-                setup_editor_camera,
+                draw_camera_gizmo,
                 insert_cameras,
+                setup_editor_camera,
             )
         );
-        app.add_systems(Update, draw_camera_gizmo);
     }
 }
 
@@ -246,7 +246,7 @@ fn insert_cameras(
             .insert((
                 Camera3dBundle {
                     camera: Camera {
-                        hdr: false,
+                        hdr: true,
                         target,
                         ..default()
                     },
@@ -262,7 +262,7 @@ fn insert_cameras(
                         },
                     ),
                     transform: zeroverse_camera.override_transform.unwrap_or(zeroverse_camera.sampler.sample()),
-                    tonemapping: Tonemapping::None,
+                    tonemapping: Tonemapping::TonyMcMapface,
                     ..default()
                 },
                 PluckerCamera,
@@ -326,7 +326,7 @@ fn setup_editor_camera(
             .insert((
                 Camera3dBundle {
                     camera: Camera {
-                        hdr: false,
+                        hdr: true,
                         ..default()
                     },
                     camera_3d: Camera3d {
@@ -335,7 +335,7 @@ fn setup_editor_camera(
                     },
                     exposure: Exposure::INDOOR,
                     transform: marker.transform.unwrap_or_default(),
-                    tonemapping: Tonemapping::None,
+                    tonemapping: Tonemapping::TonyMcMapface,
                     ..default()
                 },
                 BloomSettings::default(),

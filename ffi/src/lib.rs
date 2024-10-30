@@ -160,6 +160,10 @@ impl SamplerState {
             warmup_frames: 0,
         }
     }
+
+    pub fn reset(&mut self) {
+        self.frames = SamplerState::FRAME_DELAY;
+    }
 }
 
 
@@ -268,7 +272,7 @@ fn sample_stream(
     )>,
     scene: Query<(&ZeroverseSceneRoot, &SceneAabb)>,
     images: Res<Assets<Image>>,
-    render_mode: ResMut<RenderMode>,
+    mut render_mode: ResMut<RenderMode>,
     mut regenerate_event: EventWriter<RegenerateSceneEvent>,
 ) {
     if !state.enabled {
@@ -303,6 +307,8 @@ fn sample_stream(
         scene_aabb.max.into(),
     ];
 
+    let write_to = state.render_modes.remove(0);
+
     for (i, (camera_transform, projection, image_copier)) in cameras.iter().enumerate() {
         let view = &mut buffered_sample.views[i];
 
@@ -324,11 +330,19 @@ fn sample_stream(
             .clone()
             .data;
 
-        match *render_mode {
+        match write_to {
             RenderMode::Color => view.color = image_data,
             RenderMode::Depth => view.depth = image_data,
             RenderMode::Normal => view.normal = image_data,
         }
+    }
+
+    if !state.render_modes.is_empty() {
+        *render_mode = state.render_modes[0].clone();
+        state.reset();
+        return;
+    } else {
+        *render_mode = RenderMode::Color;
     }
 
     if state.regenerate_scene {

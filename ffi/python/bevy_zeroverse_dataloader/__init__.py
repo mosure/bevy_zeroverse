@@ -125,8 +125,8 @@ class Sample:
 
         tensor_dict['aabb'] = torch.tensor(self.aabb, dtype=torch.float32)
 
-        # tensor_dict['color'] = normalize_hdr_image_tonemap(tensor_dict['color'])
-        # TODO: RGB to depth conversion
+        tensor_dict['color'] = normalize_hdr_image_tonemap(tensor_dict['color'])
+        tensor_dict['depth'] = normalize_hdr_image_tonemap(tensor_dict['depth'])
 
         return tensor_dict
 
@@ -351,12 +351,21 @@ class FolderDataset(Dataset):
 
         color_images = sorted(scene_dir.glob("color_*.jpg"))
         color_tensors = []
+        depth_tensors = []
         for image_file in color_images:
             image = Image.open(image_file).convert("RGB")
             color_tensor = self.transform(image).permute(1, 2, 0)
             color_tensors.append(color_tensor)
 
+            depth_image_file = image_file.with_name(image_file.name.replace("color", "depth"))
+            depth = Image.open(depth_image_file).convert("RGB")
+            depth_tensor = self.transform(depth).permute(1, 2, 0)
+            depth_tensors.append(depth_tensor)
+
         color_tensor = torch.stack(color_tensors, dim=0)
+        depth_tensor = torch.stack(depth_tensors, dim=0)
 
         meta_tensors['color'] = color_tensor
+        meta_tensors['depth'] = depth_tensor
+
         return meta_tensors

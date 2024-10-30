@@ -35,7 +35,7 @@ use safetensors::{
 
 pub struct StackedViews {
     pub color: Array5<f32>,             // Shape: (batch_size, num_views, height, width, channels)
-    // pub depth: Array5<f32>,             // Shape: (batch_size, num_views, height, width, 1)
+    pub depth: Array5<f32>,             // Shape: (batch_size, num_views, height, width, channels)
     // pub normal: Array5<f32>,            // Shape: (batch_size, num_views, height, width, channels)
     pub world_from_view: Array4<f32>,   // Shape: (batch_size, num_views, 4, 4)
     pub fovy: Array3<f32>,              // Shape: (batch_size, num_views, 1)
@@ -81,7 +81,7 @@ fn stack_samples(
     let width = zeroverse_config.width as usize;
 
     let mut color_stacks = Vec::new();
-    // let mut depth_stacks = Vec::new();
+    let mut depth_stacks = Vec::new();
     // let mut normal_stacks = Vec::new();
     let mut world_from_view_stacks = Vec::new();
     let mut fovy_stacks = Vec::new();
@@ -91,7 +91,7 @@ fn stack_samples(
 
     for sample in samples {
         let mut color_views = Vec::new();
-        // let mut depth_views = Vec::new();
+        let mut depth_views = Vec::new();
         // let mut normal_views = Vec::new();
         let mut world_from_view_views = Vec::new();
         let mut fovy_views = Vec::new();
@@ -100,11 +100,11 @@ fn stack_samples(
 
         for view in sample.views {
             let color_f32: &[f32] = cast_slice(&view.color);
-            // let depth_f32: &[f32] = cast_slice(&view.depth);
+            let depth_f32: &[f32] = cast_slice(&view.depth);
             // let normal_f32: &[f32] = cast_slice(&view.normal);
 
             let color = Array3::from_shape_vec((height, width, 4), color_f32.to_vec()).unwrap();
-            // let depth = Array3::from_shape_vec((height, width, 4), depth_f32.to_vec()).unwrap();
+            let depth = Array3::from_shape_vec((height, width, 4), depth_f32.to_vec()).unwrap();
             // let normal = Array3::from_shape_vec((height, width, 4), normal_f32.to_vec()).unwrap();
 
             let world_from_view = Array2::from_shape_vec((4, 4), view.world_from_view.concat()).unwrap();
@@ -113,11 +113,11 @@ fn stack_samples(
             let far = Array1::from_elem(1, view.far);
 
             let color = color.slice(s![.., .., 0..3]).to_owned();       // rgb
-            // let depth = depth.slice(s![.., .., 0..1]).to_owned();       // x
+            let depth = depth.slice(s![.., .., 0..3]).to_owned();       // rgb
             // let normal = normal.slice(s![.., .., 0..3]).to_owned();     // xyz
 
             color_views.push(color);
-            // depth_views.push(depth);
+            depth_views.push(depth);
             // normal_views.push(normal);
             world_from_view_views.push(world_from_view);
             fovy_views.push(fovy);
@@ -126,7 +126,7 @@ fn stack_samples(
         }
 
         let color_views_stacked = ndarray::stack(Axis(0), &color_views.iter().map(|a| a.view()).collect::<Vec<_>>()).unwrap();
-        // let depth_views_stacked = ndarray::stack(Axis(0), &depth_views.iter().map(|a| a.view()).collect::<Vec<_>>()).unwrap();
+        let depth_views_stacked = ndarray::stack(Axis(0), &depth_views.iter().map(|a| a.view()).collect::<Vec<_>>()).unwrap();
         // let normal_views_stacked = ndarray::stack(Axis(0), &normal_views.iter().map(|a| a.view()).collect::<Vec<_>>()).unwrap();
         let world_from_view_views_stacked = ndarray::stack(Axis(0), &world_from_view_views.iter().map(|a| a.view()).collect::<Vec<_>>()).unwrap();
         let fovy_views_stacked = ndarray::stack(Axis(0), &fovy_views.iter().map(|a| a.view()).collect::<Vec<_>>()).unwrap();
@@ -134,7 +134,7 @@ fn stack_samples(
         let far_views_stacked = ndarray::stack(Axis(0), &far_views.iter().map(|a| a.view()).collect::<Vec<_>>()).unwrap();
 
         color_stacks.push(color_views_stacked);
-        // depth_stacks.push(depth_views_stacked);
+        depth_stacks.push(depth_views_stacked);
         // normal_stacks.push(normal_views_stacked);
         world_from_view_stacks.push(world_from_view_views_stacked);
         fovy_stacks.push(fovy_views_stacked);
@@ -146,7 +146,7 @@ fn stack_samples(
     }
 
     let color_stacked = ndarray::stack(Axis(0), &color_stacks.iter().map(|a| a.view()).collect::<Vec<_>>()).unwrap();
-    // let depth_stacked = ndarray::stack(Axis(0), &depth_stacks.iter().map(|a| a.view()).collect::<Vec<_>>()).unwrap();
+    let depth_stacked = ndarray::stack(Axis(0), &depth_stacks.iter().map(|a| a.view()).collect::<Vec<_>>()).unwrap();
     // let normal_stacked = ndarray::stack(Axis(0), &normal_stacks.iter().map(|a| a.view()).collect::<Vec<_>>()).unwrap();
     let world_from_view_stacked = ndarray::stack(Axis(0), &world_from_view_stacks.iter().map(|a| a.view()).collect::<Vec<_>>()).unwrap();
     let fovy_stacked = ndarray::stack(Axis(0), &fovy_stacks.iter().map(|a| a.view()).collect::<Vec<_>>()).unwrap();
@@ -156,7 +156,7 @@ fn stack_samples(
 
     StackedViews {
         color: color_stacked,                       // Shape: (batch_size, num_views, height, width, 3)
-        // depth: depth_stacked,                       // Shape: (batch_size, num_views, height, width, 1)
+        depth: depth_stacked,                       // Shape: (batch_size, num_views, height, width, 3)
         // normal: normal_stacked,                     // Shape: (batch_size, num_views, height, width, 3)
         world_from_view: world_from_view_stacked,   // Shape: (batch_size, num_views, 4, 4)
         fovy: fovy_stacked,                         // Shape: (batch_size, num_views)
@@ -169,7 +169,7 @@ fn stack_samples(
 
 enum TensorView {
     Color(Wrapper<f32, ndarray::Ix5>),
-    // Depth(Wrapper<f32, ndarray::Ix5>),
+    Depth(Wrapper<f32, ndarray::Ix5>),
     // Normal(Wrapper<f32, ndarray::Ix5>),
     WorldFromView(Wrapper<f32, ndarray::Ix4>),
     Aabb(Wrapper<f32, ndarray::Ix3>),
@@ -180,7 +180,7 @@ impl View for TensorView {
     fn dtype(&self) -> Dtype {
         match self {
             TensorView::Color(t) => t.dtype(),
-            // TensorView::Depth(t) => t.dtype(),
+            TensorView::Depth(t) => t.dtype(),
             // TensorView::Normal(t) => t.dtype(),
             TensorView::WorldFromView(t) => t.dtype(),
             TensorView::Aabb(t) => t.dtype(),
@@ -191,7 +191,7 @@ impl View for TensorView {
     fn shape(&self) -> &[usize] {
         match self {
             TensorView::Color(t) => t.shape(),
-            // TensorView::Depth(t) => t.shape(),
+            TensorView::Depth(t) => t.shape(),
             // TensorView::Normal(t) => t.shape(),
             TensorView::WorldFromView(t) => t.shape(),
             TensorView::Aabb(t) => t.shape(),
@@ -202,7 +202,7 @@ impl View for TensorView {
     fn data(&self) -> Cow<[u8]> {
         match self {
             TensorView::Color(t) => t.data(),
-            // TensorView::Depth(t) => t.data(),
+            TensorView::Depth(t) => t.data(),
             // TensorView::Normal(t) => t.data(),
             TensorView::WorldFromView(t) => t.data(),
             TensorView::Aabb(t) => t.data(),
@@ -213,7 +213,7 @@ impl View for TensorView {
     fn data_len(&self) -> usize {
         match self {
             TensorView::Color(t) => t.data_len(),
-            // TensorView::Depth(t) => t.data_len(),
+            TensorView::Depth(t) => t.data_len(),
             // TensorView::Normal(t) => t.data_len(),
             TensorView::WorldFromView(t) => t.data_len(),
             TensorView::Aabb(t) => t.data_len(),
@@ -226,7 +226,7 @@ impl View for TensorView {
 fn save_stacked_views_to_safetensors(stacked_views: StackedViews, output_path: &Path) -> Result<(), safetensors::SafeTensorError> {
     let data: Vec<(&str, TensorView)> = vec![
         ("color", TensorView::Color(Wrapper(stacked_views.color))),
-        // ("depth", TensorView::Depth(Wrapper(stacked_views.depth))),
+        ("depth", TensorView::Depth(Wrapper(stacked_views.depth))),
         // ("normal", TensorView::Normal(Wrapper(stacked_views.normal))),
         ("world_from_view", TensorView::WorldFromView(Wrapper(stacked_views.world_from_view))),
         ("fovy", TensorView::Singular(Wrapper(stacked_views.fovy))),
@@ -352,7 +352,7 @@ fn estimate_sample_size(sample: &Sample) -> usize {
 
     for view in &sample.views {
         size += view.color.len() * 3 / 4;
-        // size += view.depth.len() / 4;
+        size += view.depth.len() * 3 / 4;
         // size += view.normal.len() * 3 / 4;
         size += view.world_from_view.len();
         size += 1;  // fovy
