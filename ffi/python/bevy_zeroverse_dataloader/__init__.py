@@ -366,7 +366,11 @@ class FolderDataset(Dataset):
                 depth_tensors.append(depth_tensor)
 
         color_tensor = torch.stack(color_tensors, dim=0)
-        depth_tensor = torch.stack(depth_tensors, dim=0)
+
+        if len(depth_tensors) == 0:
+            depth_tensor = torch.zeros_like(color_tensor)
+        else:
+            depth_tensor = torch.stack(depth_tensors, dim=0)
 
         meta_tensors['color'] = color_tensor
         meta_tensors['depth'] = depth_tensor
