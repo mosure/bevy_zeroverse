@@ -3,6 +3,7 @@ from PIL import Image
 from typing import Optional
 
 import numpy as np
+import os
 from safetensors import safe_open
 from safetensors.torch import save_file
 import torch
@@ -357,10 +358,12 @@ class FolderDataset(Dataset):
             color_tensor = self.transform(image).permute(1, 2, 0)
             color_tensors.append(color_tensor)
 
-            depth_image_file = image_file.with_name(image_file.name.replace("color", "depth"))
-            depth = Image.open(depth_image_file).convert("RGB")
-            depth_tensor = self.transform(depth).permute(1, 2, 0)
-            depth_tensors.append(depth_tensor)
+            depth_file = image_file.name.replace("color", "depth")
+            if os.path.exists(depth_file):
+                depth_image_file = image_file.with_name()
+                depth = Image.open(depth_image_file).convert("RGB")
+                depth_tensor = self.transform(depth).permute(1, 2, 0)
+                depth_tensors.append(depth_tensor)
 
         color_tensor = torch.stack(color_tensors, dim=0)
         depth_tensor = torch.stack(depth_tensors, dim=0)
