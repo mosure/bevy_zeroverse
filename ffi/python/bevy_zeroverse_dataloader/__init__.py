@@ -358,17 +358,16 @@ class FolderDataset(Dataset):
             color_tensor = self.transform(image).permute(1, 2, 0)
             color_tensors.append(color_tensor)
 
-            depth_file = image_file.name.replace("color", "depth")
-            if os.path.exists(depth_file):
-                depth_image_file = image_file.with_name()
-                depth = Image.open(depth_image_file).convert("RGB")
+            depth_file = image_file.with_name(image_file.name.replace("color", "depth"))
+            if depth_file.exists():
+                depth = Image.open(depth_file).convert("L")
                 depth_tensor = self.transform(depth).permute(1, 2, 0)
                 depth_tensors.append(depth_tensor)
 
         color_tensor = torch.stack(color_tensors, dim=0)
 
         if len(depth_tensors) == 0:
-            depth_tensor = torch.zeros_like(color_tensor)
+            depth_tensor = torch.zeros_like(color_tensor)[..., 0:1]
         else:
             depth_tensor = torch.stack(depth_tensors, dim=0)
 
