@@ -1,7 +1,7 @@
 [package]
 name = "bevy_zeroverse"
 description = "bevy zeroverse synthetic dataset generator"
-version = "0.5.0"
+version = "0.5.1"
 edition = "2021"
 authors = ["mosure <mitchell@mosure.me>"]
 license = "MIT"
@@ -80,13 +80,13 @@ webgpu = [
 [dependencies]
 bevy_args = "1.6"
 bevy-inspector-egui = { version = "0.27", optional = true }
-bevy_panorbit_camera = { version = "0.19", optional = true, features = ["bevy_egui"] }
+bevy_panorbit_camera = { version = "0.20", optional = true, features = ["bevy_egui"] }
 clap = { version = "4.5", features = ["derive"] }
 futures-intrusive = "0.5"
 glob = "0.3"
 itertools = "0.13"
 noise = { version = "0.9" }
-pollster = "0.3"
+pollster = "0.4"
 pyo3 = { version = "0.22", features = ["macros"], optional = true }
 rand = "0.8"
 rayon = { version = "1.10", optional = true }
