@@ -2,6 +2,7 @@ use bevy::{
     prelude::*,
     render::render_resource::Face,
 };
+use rand::Rng;
 
 use crate::{
     camera::{
@@ -62,6 +63,7 @@ pub struct ZeroverseSemanticRoomSettings {
     pub chair_count: CountSampler,
     pub chair_settings: ZeroversePrimitiveSettings,
     pub table_settings: ZeroversePrimitiveSettings,  // TODO: table scale relative to room scale
+    pub door_settings: ZeroversePrimitiveSettings,
 }
 
 impl Default for ZeroverseSemanticRoomSettings {
@@ -114,6 +116,21 @@ impl Default for ZeroverseSemanticRoomSettings {
                 smooth_normals_probability: 0.0,
                 ..default()
             },
+            door_settings: ZeroversePrimitiveSettings {
+                cull_mode: Some(Face::Back),
+                available_types: vec![ZeroversePrimitives::Cuboid],  // TODO: use plane
+                components: CountSampler::Exact(1),
+                wireframe_probability: 0.0,
+                noise_probability: 0.0,
+                cast_shadows: false,
+                rotation_sampler: RotationSampler::Identity,
+                scale_sampler: ScaleSampler::Bounded(
+                    Vec3::new(3.5, 7.0, 0.0001),
+                    Vec3::new(4.5, 12.0, 0.001),
+                ),
+                smooth_normals_probability: 0.0,
+                ..default()
+            },
         }
     }
 }
@@ -158,6 +175,8 @@ fn setup_scene(
     room_settings: Res<ZeroverseSemanticRoomSettings>,
     scene_settings: Res<ZeroverseSceneSettings>,
 ) {
+    let mut rng = rand::thread_rng();
+
     let room_scale = room_settings.room_size.sample();
 
     // TODO: set global Y rotation to prevent wall aligned plucker embeddings
@@ -420,8 +439,61 @@ fn setup_scene(
                 }
             }
 
-            { // flat objects
-                // TODO: tv, whiteboard, door, rug
+            // TODO: tv, whiteboard, door, rug
+            { // door
+                let face = rng.gen_range(0..4);
+                let mut door_scale = room_settings.door_settings.scale_sampler.sample();
+
+                let hw = door_scale.x / 2.0;
+                let (x_offset, z_offset) = match face {
+                    0 => (0.0, hw),
+                    1 => (0.0, hw),
+                    2 => (hw, 0.0),
+                    3 => (hw, 0.0),
+                    _ => unreachable!(),
+                };
+
+                let perimeter = Vec3::new(
+                    room_scale.x / 2.0 - 0.001 - x_offset,
+                    0.0,
+                    room_scale.z / 2.0 - 0.001 - z_offset,
+                );
+
+                let (x, z) = match face {
+                    0 => (-perimeter.x / 2.0, rng.gen_range(-perimeter.z / 2.0..perimeter.z / 2.0)),
+                    1 => (perimeter.x / 2.0, rng.gen_range(-perimeter.z / 2.0..perimeter.z / 2.0)),
+                    2 => (rng.gen_range(-perimeter.x / 2.0..perimeter.x / 2.0), -perimeter.z / 2.0),
+                    3 => (rng.gen_range(-perimeter.x / 2.0..perimeter.x / 2.0), perimeter.z / 2.0),
+                    _ => unreachable!(),
+                };
+                door_scale.y = door_scale.y.min(room_scale.y);
+                let door_position = Vec3::new(x, door_scale.y / 4.0, z);
+                let door_rotation = match face {
+                    0 => Quat::from_rotation_y(90.0_f32.to_radians()),
+                    1 => Quat::from_rotation_y(-90.0_f32.to_radians()),
+                    2 => Quat::from_rotation_y(180.0_f32.to_radians()),
+                    3 => Quat::IDENTITY,
+                    _ => unreachable!(),
+                };
+
+                commands.spawn((
+                    PrimitiveBundle {
+                        settings: ZeroversePrimitiveSettings {
+                            position_sampler: PositionSampler::Exact {
+                                position: door_position,
+                            },
+                            scale_sampler: ScaleSampler::Exact(door_scale),
+                            rotation_sampler: RotationSampler::Exact(door_rotation),
+                            ..room_settings.door_settings.clone()
+                        },
+                        spatial: SpatialBundle {
+                            transform: Transform::from_translation(door_position),
+                            ..default()
+                        },
+                    },
+                    Name::new("door"),
+                    SemanticLabel::Door,
+                ));
             }
 
             { // cameras

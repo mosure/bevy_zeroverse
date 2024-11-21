@@ -205,6 +205,9 @@ impl ScaleSampler {
 
 #[derive(Clone, Debug, Reflect)]
 pub enum PositionSampler {
+    Band {
+        size: Vec3,
+    },
     Capsule {
         radius: f32,
         length: f32,
@@ -236,6 +239,20 @@ impl PositionSampler {
         let rng = &mut rand::thread_rng();
 
         match *self {
+            PositionSampler::Band { size } => {
+                let face = rng.gen_range(0..4);
+
+                let (x, z) = match face {
+                    0 => (-size.x / 2.0, rng.gen_range(-size.z / 2.0..size.z / 2.0)),
+                    1 => (size.x / 2.0, rng.gen_range(-size.z / 2.0..size.z / 2.0)),
+                    2 => (rng.gen_range(-size.x / 2.0..size.x / 2.0), -size.z / 2.0),
+                    3 => (rng.gen_range(-size.x / 2.0..size.x / 2.0), size.z / 2.0),
+                    _ => unreachable!(),
+                };
+
+                let y = rng.gen_range(-size.y / 2.0..size.y / 2.0);
+                Vec3::new(x, y, z)
+            },
             PositionSampler::Capsule { radius, length } => Capsule3d::new(radius, length).sample_interior(rng),
             PositionSampler::Cube { extents } => Cuboid::from_size(extents).sample_interior(rng),
             PositionSampler::Cylinder { radius, height } => Cylinder::new(radius, height).sample_interior(rng),
