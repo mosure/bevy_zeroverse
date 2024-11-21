@@ -15,6 +15,7 @@ use crate::primitive::process_primitives;
 
 pub mod depth;
 pub mod normal;
+pub mod semantic;
 
 
 #[derive(
@@ -35,6 +36,7 @@ pub enum RenderMode {
     Color,
     Depth,
     Normal,
+    Semantic,
 }
 
 
@@ -48,6 +50,7 @@ impl Plugin for RenderPlugin {
 
         app.add_plugins(depth::DepthPlugin);
         app.add_plugins(normal::NormalPlugin);
+        app.add_plugins(semantic::SemanticPlugin);
 
         // TODO: add wireframe depth, pbr disable, normals
         app.add_systems(
@@ -59,6 +62,7 @@ impl Plugin for RenderPlugin {
             (
                     auto_disable_pbr_material::<depth::Depth>,
                     auto_disable_pbr_material::<normal::Normal>,
+                    auto_disable_pbr_material::<semantic::Semantic>,
                     enable_pbr_material,
                 )
                 .after(apply_render_modes)
@@ -148,6 +152,10 @@ fn apply_render_modes(
                 commands.entity(entity)
                     .insert(normal::Normal);
             }
+            RenderMode::Semantic => {
+                commands.entity(entity)
+                    .insert(semantic::Semantic);
+            }
         }
     };
 
@@ -155,7 +163,8 @@ fn apply_render_modes(
         for entity in meshes.iter() {
             commands.entity(entity)
                 .remove::<depth::Depth>()
-                .remove::<normal::Normal>();
+                .remove::<normal::Normal>()
+                .remove::<semantic::Semantic>();
 
             insert_render_mode_flag(&mut commands, entity);
         }

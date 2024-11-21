@@ -295,7 +295,7 @@ impl Default for BevyZeroverseConfig {
             yaw_speed: 0.0,
             render_mode: Default::default(),
             scene_type: Default::default(),
-            rotation_augmentation: true,
+            rotation_augmentation: false,
             max_camera_radius: 0.0,
         }
     }
@@ -402,7 +402,7 @@ pub fn viewer_app(
 
     app.add_plugins(BevyZeroversePlugin);
 
-    app.insert_resource(args.render_mode);
+    app.insert_resource(args.render_mode);  // TODO: replicate on args changed
 
     app.insert_resource(DefaultZeroverseCamera {
         resolution: UVec2::new(args.width as u32, args.height as u32).into(),
@@ -462,6 +462,13 @@ fn setup_camera(
 
     let camera_offset = Vec3::new(0.0, 0.0, 3.5);
     let camera_offset = match args.scene_type {
+        ZeroverseSceneType::SemanticRoom => {
+            let max_room_size = match room_settings.room_size {
+                ScaleSampler::Bounded(_min, max) => max * Vec3::new(1.0, 2.0, 1.0),
+                ScaleSampler::Exact(size) => size,
+            };
+            max_room_size + camera_offset
+        },
         ZeroverseSceneType::CornellCube => camera_offset,
         ZeroverseSceneType::Object => camera_offset,
         ZeroverseSceneType::Room => {

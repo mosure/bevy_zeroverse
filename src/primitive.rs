@@ -167,9 +167,9 @@ impl RotationSampler {
                     Quat::IDENTITY
                 } else {
                     Quat::from_scaled_axis(Vec3::new(
-                        rng.gen_range(min.x..max.x),
-                        rng.gen_range(min.y..max.y),
-                        rng.gen_range(min.z..max.z),
+                        if min.x != max.x { rng.gen_range(min.x..max.x) } else { 0.0 },
+                        if min.y != max.y { rng.gen_range(min.y..max.y) } else { 0.0 },
+                        if min.z != max.z { rng.gen_range(min.z..max.z) } else { 0.0 },
                     ))
                 }
             },

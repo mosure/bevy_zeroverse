@@ -61,7 +61,11 @@ class View:
             print("empty color buffer")
 
         color = reshape_data(rust_view.color, np.float32)
-        depth = reshape_data(rust_view.depth, np.float32)
+
+        if len(rust_view.depth) != 0:
+            depth = reshape_data(rust_view.depth, np.float32)
+        else:
+            depth = np.zeros(color.shape, dtype=np.float32)
 
         world_from_view = np.array(rust_view.world_from_view)
         fovy = rust_view.fovy
