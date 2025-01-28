@@ -19,10 +19,7 @@ use crate::{
         ZeroverseSceneSettings,
         ZeroverseSceneType,
     },
-    primitive::{
-        PrimitiveBundle,
-        ZeroversePrimitiveSettings,
-    },
+    primitive::ZeroversePrimitiveSettings,
 };
 
 
@@ -44,17 +41,17 @@ fn setup_scene(
     scene_settings: Res<ZeroverseSceneSettings>,
 ) {
     commands
-        .spawn(PrimitiveBundle {
-            settings: primitive_settings.clone(),
-            ..default()
-        })
-        .insert(RotationAugment)
-        .insert((ZeroverseScene, ZeroverseSceneRoot))
-        .insert(Name::new("zeroverse_object"))
+        .spawn((
+            Name::new("zeroverse_object"),
+            primitive_settings.clone(),
+            RotationAugment,
+            ZeroverseScene,
+            ZeroverseSceneRoot,
+        ))
         .with_children(|commands| {
             for _ in 0..scene_settings.num_cameras {
                 commands.spawn(ZeroverseCamera {
-                        sampler: CameraPositionSampler {
+                    position_sampler: CameraPositionSampler {
                             sampler_type: CameraPositionSamplerType::Sphere {
                                 radius: 3.25,
                             },

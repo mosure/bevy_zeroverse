@@ -11,7 +11,7 @@ use bevy::{
             ExtractComponent,
             ExtractComponentPlugin,
         },
-        render_asset::RenderAssets,
+        // render_asset::RenderAssets,
         render_graph::{
             Node,
             RenderGraphApp,
@@ -43,20 +43,22 @@ use bevy::{
             RenderContext,
             RenderDevice,
         },
-        texture::{
-            FallbackImage,
-            GpuImage,
-        },
+        // storage::GpuShaderStorageBuffer,
+        // texture::{
+        //     FallbackImage,
+        //     GpuImage,
+        // },
         view::{
             ExtractedView,
             ViewUniformOffset,
             ViewUniform,
             ViewUniforms,
         },
-        Render,
+        // Render,
         RenderApp,
-        RenderSet,
-    }
+        // RenderSet,
+    },
+    ui::Node as UiNode,
 };
 
 
@@ -121,11 +123,11 @@ impl Plugin for PluckerPlugin {
                     Node3d::EndMainPass,
                 );
 
-            render_app
-                .add_systems(
-                    Render,
-                    prepare_plucker_bind_groups.in_set(RenderSet::PrepareBindGroups),
-                );
+            // render_app
+            //     .add_systems(
+            //         Render,
+            //         prepare_plucker_bind_groups.in_set(RenderSet::PrepareBindGroups),
+            //     );
         }
     }
 
@@ -254,25 +256,23 @@ fn create_plucker_output(
         let visualization = images.add(visualization);
 
         let visualization_entity = commands.spawn((
-            ImageBundle {
-                style: Style {
-                    position_type: PositionType::Absolute,
-                    bottom: Val::Px(0.0),
-                    right: Val::Px(0.0),
-                    width: Val::Px(256.0),
-                    height: Val::Px(256.0),
-                    ..default()
-                },
-                image: UiImage {
-                    texture: visualization.clone(),
-                    ..default()
-                },
+            UiNode {
+                position_type: PositionType::Absolute,
+                bottom: Val::Px(0.0),
+                right: Val::Px(0.0),
+                width: Val::Px(256.0),
+                height: Val::Px(256.0),
                 ..default()
             },
             PluckerVisualization,
             TargetCamera(entity),
             Name::new("plucker_visualization"),
-        )).id();
+        )).with_children(|builder| {
+            builder.spawn(ImageNode {
+                image: visualization.clone(),
+                ..default()
+            });
+        }).id();
 
         commands
             .entity(entity)
@@ -328,6 +328,7 @@ impl FromWorld for PluckerPipeline {
             shader: PLUCKER_SHADER_HANDLE.clone(),
             shader_defs: vec![],
             entry_point: "plucker_kernel".into(),
+            zero_initialize_workgroup_memory: true,
         });
 
         Self {
@@ -344,34 +345,40 @@ struct PluckerBindGroup {
 }
 
 
-fn prepare_plucker_bind_groups(
-    mut commands: Commands,
-    images: Res<RenderAssets<GpuImage>>,
-    fallback: Res<FallbackImage>,
-    plucker_output: Query<(
-        Entity,
-        &PluckerOutput,
-    )>,
-    render_device: Res<RenderDevice>,
-) {
-    for (entity, plucker_output) in plucker_output.iter() {
-        let output = plucker_output
-            .as_bind_group(
-                &PluckerOutput::bind_group_layout(&render_device),
-                &render_device,
-                &images,
-                &fallback,
-            )
-            .map(|bg| bg.bind_group)
-            .unwrap();
+// TODO: figure this out
+// fn prepare_plucker_bind_groups(
+//     mut commands: Commands,
+//     gpu_images: Res<RenderAssets<GpuImage>>,
+//     fallback_image: Res<FallbackImage>,
+//     storage_buffer: Res<RenderAssets<GpuShaderStorageBuffer>>,
+//     param: &mut SystemParamItem<'_, '_, (
+//         ,
+//         SRes<FallbackImage>,
+//         SRes<RenderAssets<GpuShaderStorageBuffer>>,
+//     )>,
+//     plucker_output: Query<(
+//         Entity,
+//         &PluckerOutput,
+//     )>,
+//     render_device: Res<RenderDevice>,
+// ) {
+//     for (entity, plucker_output) in plucker_output.iter() {
+//         let output = plucker_output
+//             .as_bind_group(
+//                 &PluckerOutput::bind_group_layout(&render_device),
+//                 &render_device,
+//                 SystemParamItem::from,
+//             )
+//             .map(|bg| bg.bind_group)
+//             .unwrap();
 
-        commands
-            .entity(entity)
-            .insert(PluckerBindGroup {
-                output,
-            });
-    }
-}
+//         commands
+//             .entity(entity)
+//             .insert(PluckerBindGroup {
+//                 output,
+//             });
+//     }
+// }
 
 
 struct PluckerNode {

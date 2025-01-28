@@ -65,6 +65,7 @@ impl Plugin for ZeroverseScenePlugin {
 pub struct ZeroverseScene;
 
 #[derive(Component, Debug, Reflect)]
+#[require(Transform, Visibility)]
 pub struct ZeroverseSceneRoot;
 
 

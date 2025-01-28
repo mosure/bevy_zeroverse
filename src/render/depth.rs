@@ -46,14 +46,14 @@ fn apply_depth_material(
             Entity,
             &DisabledPbrMaterial,
         ),
-        (With<Depth>, Without<Handle<DepthMaterial>>),
+        (With<Depth>, Without<DepthMaterialHandle>),
     >,
     mut removed_depths: RemovedComponents<Depth>,
     mut materials: ResMut<Assets<DepthMaterial>>,
 ) {
     for e in removed_depths.read() {
         if let Some(mut commands) = commands.get_entity(e) {
-            commands.remove::<Handle<DepthMaterial>>();
+            commands.remove::<DepthMaterialHandle>();
         }
     }
 
@@ -70,12 +70,15 @@ fn apply_depth_material(
         );
 
 
-        commands.entity(e).insert(depth_material);
+        commands.entity(e).insert(DepthMaterialHandle(depth_material));
     }
 }
 
 
 pub type DepthMaterial = ExtendedMaterial<StandardMaterial, DepthExtension>;
+
+#[derive(Component, Debug, Default, Clone, Reflect)]
+pub struct DepthMaterialHandle(pub Handle<DepthMaterial>);
 
 #[derive(Default, AsBindGroup, TypePath, Debug, Clone, Asset)]
 pub struct DepthExtension { }

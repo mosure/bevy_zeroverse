@@ -46,14 +46,14 @@ fn apply_normal_material(
             Entity,
             &DisabledPbrMaterial,
         ),
-        (With<Normal>, Without<Handle<NormalMaterial>>),
+        (With<Normal>, Without<NormalMaterialHandle>),
     >,
     mut removed_normals: RemovedComponents<Normal>,
     mut materials: ResMut<Assets<NormalMaterial>>,
 ) {
     for e in removed_normals.read() {
         if let Some(mut commands) = commands.get_entity(e) {
-            commands.remove::<Handle<NormalMaterial>>();
+            commands.remove::<NormalMaterialHandle>();
         }
     }
 
@@ -69,12 +69,15 @@ fn apply_normal_material(
             },
         );
 
-        commands.entity(e).insert(normal_material);
+        commands.entity(e).insert(NormalMaterialHandle(normal_material));
     }
 }
 
 
 pub type NormalMaterial = ExtendedMaterial<StandardMaterial, NormalExtension>;
+
+#[derive(Component, Debug, Default, Clone, Reflect)]
+pub struct NormalMaterialHandle(pub Handle<NormalMaterial>);
 
 #[derive(Default, AsBindGroup, TypePath, Debug, Clone, Asset)]
 pub struct NormalExtension { }

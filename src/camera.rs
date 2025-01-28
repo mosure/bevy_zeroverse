@@ -1,7 +1,7 @@
 use bevy::{
     prelude::*,
     core_pipeline::{
-        bloom::BloomSettings,
+        bloom::Bloom,
         core_3d::ScreenSpaceTransmissionQuality,
         tonemapping::Tonemapping,
     },
@@ -183,10 +183,39 @@ impl CameraPositionSampler {
 }
 
 
+#[derive(Component, Debug, Reflect)]
+pub struct PerspectiveSampler {
+    pub min_fov_deg: f32,
+    pub max_fov_deg: f32,
+}
+
+impl Default for PerspectiveSampler {
+    fn default() -> Self {
+        Self {
+            min_fov_deg: 20.0,
+            max_fov_deg: 90.0,
+        }
+    }
+}
+
+impl PerspectiveSampler {
+    pub fn sample(&self) -> PerspectiveProjection {
+        let rng = &mut rand::thread_rng();
+        let fov_deg = rng.gen_range(self.min_fov_deg..self.max_fov_deg);
+        let fov = fov_deg * std::f32::consts::PI / 180.0;
+        PerspectiveProjection {
+            fov,
+            ..default()
+        }
+    }
+}
+
+
 #[derive(Component, Debug, Default, Reflect)]
 pub struct ZeroverseCamera {
     pub looking_at: LookingAtSampler,
-    pub sampler: CameraPositionSampler,
+    pub perspective_sampler: PerspectiveSampler,
+    pub position_sampler: CameraPositionSampler,
     pub resolution: Option<UVec2>,
     pub override_transform: Option<Transform>,
 }
@@ -241,32 +270,25 @@ fn insert_cameras(
         let render_target = images.add(render_target);
         let target = RenderTarget::Image(render_target.clone());
 
+        // TODO: modulate fov
         let mut camera = commands.entity(entity);
         camera
             .insert((
-                Camera3dBundle {
-                    camera: Camera {
-                        hdr: true,
-                        target,
-                        ..default()
-                    },
-                    camera_3d: Camera3d {
-                        screen_space_specular_transmission_quality: ScreenSpaceTransmissionQuality::High,
-                        ..default()
-                    },
-                    exposure: Exposure::INDOOR,
-                    projection: Projection::Perspective(
-                        PerspectiveProjection {
-                            fov: 60.0 * std::f32::consts::PI / 180.0,
-                            ..default()
-                        },
-                    ),
-                    transform: zeroverse_camera.override_transform.unwrap_or(zeroverse_camera.sampler.sample()),
-                    tonemapping: Tonemapping::TonyMcMapface,
+                Camera3d {
+                    screen_space_specular_transmission_quality: ScreenSpaceTransmissionQuality::High,
                     ..default()
                 },
+                Camera {
+                    hdr: true,
+                    target,
+                    ..default()
+                },
+                Exposure::INDOOR,
+                Projection::Perspective(zeroverse_camera.perspective_sampler.sample()),
+                zeroverse_camera.override_transform.unwrap_or(zeroverse_camera.position_sampler.sample()),
+                Tonemapping::TonyMcMapface,
                 PluckerCamera,
-                BloomSettings::default(),
+                Bloom::default(),
                 Name::new("zeroverse_camera"),
             ));
 
@@ -324,21 +346,18 @@ fn setup_editor_camera(
         let render_layer = RenderLayers::default().union(&EDITOR_CAMERA_RENDER_LAYER);
         commands.entity(entity)
             .insert((
-                Camera3dBundle {
-                    camera: Camera {
-                        hdr: true,
-                        ..default()
-                    },
-                    camera_3d: Camera3d {
-                        screen_space_specular_transmission_quality: ScreenSpaceTransmissionQuality::High,
-                        ..default()
-                    },
-                    exposure: Exposure::INDOOR,
-                    transform: marker.transform.unwrap_or_default(),
-                    tonemapping: Tonemapping::TonyMcMapface,
+                Camera3d {
+                    screen_space_specular_transmission_quality: ScreenSpaceTransmissionQuality::High,
                     ..default()
                 },
-                BloomSettings::default(),
+                Camera {
+                    hdr: true,
+                    ..default()
+                },
+                Exposure::INDOOR,
+                marker.transform.unwrap_or_default(),
+                Tonemapping::TonyMcMapface,
+                Bloom::default(),
                 PluckerCamera,
             ))
             .insert(render_layer)
@@ -412,8 +431,7 @@ pub fn draw_camera_gizmo(
         let rect_transform = Transform::from_translation(transform.translation + forward);
         let rect_transform = rect_transform.mul_transform(Transform::from_rotation(transform.rotation));
         gizmos.rect(
-            rect_transform.translation,
-            rect_transform.rotation,
+            rect_transform.to_isometry(),
             Vec2::new(tan_half_fov_x * 2.0 * scale, tan_half_fov_y * 2.0 * scale),
             color,
         );

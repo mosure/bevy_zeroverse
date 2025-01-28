@@ -162,14 +162,14 @@ fn apply_semantic_material(
             &DisabledPbrMaterial,
             &SemanticLabel,
         ),
-        (With<Semantic>, Without<Handle<SemanticMaterial>>),
+        (With<Semantic>, Without<SemanticMaterialHandle>),
     >,
     mut removed_semantics: RemovedComponents<Semantic>,
     mut materials: ResMut<Assets<SemanticMaterial>>,
 ) {
     for e in removed_semantics.read() {
         if let Some(mut commands) = commands.get_entity(e) {
-            commands.remove::<Handle<SemanticMaterial>>();
+            commands.remove::<SemanticMaterialHandle>();
         }
     }
 
@@ -188,12 +188,15 @@ fn apply_semantic_material(
             },
         );
 
-        commands.entity(e).insert(semantic_material);
+        commands.entity(e).insert(SemanticMaterialHandle(semantic_material));
     }
 }
 
 
 pub type SemanticMaterial = ExtendedMaterial<StandardMaterial, SemanticExtension>;
+
+#[derive(Component, Debug, Default, Clone, Reflect)]
+pub struct SemanticMaterialHandle(pub Handle<SemanticMaterial>);
 
 #[derive(Default, AsBindGroup, TypePath, Debug, Clone, Asset)]
 pub struct SemanticExtension {

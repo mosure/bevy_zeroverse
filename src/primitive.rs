@@ -71,6 +71,7 @@ pub enum ZeroversePrimitives {
 // TODO: support scale and rotation pdfs via https://github.com/villor/bevy_lookup_curve
 #[derive(Clone, Component, Debug, Reflect, Resource)]
 #[reflect(Resource)]
+#[require(Transform, Visibility)]
 pub struct ZeroversePrimitiveSettings {
     pub components: CountSampler,
     pub available_materials: Option<Vec<Handle<StandardMaterial>>>,
@@ -264,13 +265,6 @@ impl PositionSampler {
 }
 
 
-#[derive(Bundle, Default, Debug)]
-pub struct PrimitiveBundle {
-    pub settings: ZeroversePrimitiveSettings,
-    pub spatial: SpatialBundle,
-}
-
-
 #[derive(Clone, Component, Debug, Reflect)]
 pub struct ZeroversePrimitive;
 
@@ -418,11 +412,8 @@ fn build_primitive(
             }
 
             let mut primitive = commands.spawn((
-                PbrBundle {
-                    mesh: meshes.add(mesh),
-                    material,
-                    ..Default::default()
-                },
+                Mesh3d(meshes.add(mesh)),
+                MeshMaterial3d(material),
                 TransmittedShadowReceiver,
             ));
 
@@ -435,7 +426,7 @@ fn build_primitive(
             }
 
             if rng.gen_bool(settings.wireframe_probability as f64) {
-                primitive.remove::<Handle<StandardMaterial>>();
+                primitive.remove::<MeshMaterial3d<StandardMaterial>>();
 
                 // TODO: support textured wireframes
                 primitive.insert((
