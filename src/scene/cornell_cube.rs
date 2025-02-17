@@ -136,132 +136,127 @@ fn setup_scene(
 ) {
     ambient_lighting.brightness = 120.0;
 
-    commands.spawn((ZeroverseSceneRoot, ZeroverseScene))
-        .insert(Name::new("cornell_cube"))
-        .insert(RotationAugment)
-        .insert(SpatialBundle::default())
-        .with_children(|commands| {
-            {//cornell cube walls
-                let walls = [
-                    Dir3::X,
-                    Dir3::NEG_X,
-                    Dir3::Y,
-                    Dir3::NEG_Y,
-                    Dir3::Z,
-                    Dir3::NEG_Z,
-                ];
+    commands.spawn((
+        Name::new("cornell_cube"),
+        RotationAugment,
+        Transform::default(),
+        Visibility::default(),
+        ZeroverseSceneRoot,
+        ZeroverseScene,
+    ))
+    .with_children(|commands| {
+        {//cornell cube walls
+            let walls = [
+                Dir3::X,
+                Dir3::NEG_X,
+                Dir3::Y,
+                Dir3::NEG_Y,
+                Dir3::Z,
+                Dir3::NEG_Z,
+            ];
 
-                for wall in walls {
-                    let color = wall_color(wall);
-                    let mesh = Plane3d::new(Vec3::Y, Vec2::ONE)
-                        .mesh()
-                        .build();
-
-                    let invert_normals = wall_invert_normal(wall);
-                    let cull_mode = wall_cull_mode(wall);
-                    let transform = wall_transform(wall, Vec3::ONE);
-
-                    let material = if wall == Dir3::Z {
-                        let mut rng = rand::thread_rng();
-                        let base_material = zeroverse_materials.materials
-                            .choose(&mut rng)
-                            .unwrap()
-                            .clone();
-
-                        let mut new_material = standard_materials.get(&base_material).unwrap().clone();
-
-                        new_material.double_sided = false;
-                        new_material.cull_mode = cull_mode.into();
-
-                        standard_materials.add(new_material)
-                    } else {
-                        standard_materials.add(StandardMaterial {
-                            base_color: color,
-                            double_sided: false,
-                            cull_mode: Some(cull_mode),
-                            ..Default::default()
-                        })
-                    };
-
-                    let mut mesh = mesh.transformed_by(transform);
-
-                    mesh.duplicate_vertices();
-                    mesh.compute_flat_normals();
-
-                    if invert_normals {
-                        if let Some(VertexAttributeValues::Float32x3(ref mut normals)) =
-                            mesh.attribute_mut(Mesh::ATTRIBUTE_NORMAL)
-                        {
-                            normals
-                                .iter_mut()
-                                .for_each(|normal| {
-                                    normal[0] = -normal[0];
-                                    normal[1] = -normal[1];
-                                    normal[2] = -normal[2];
-                                });
-                        }
-                    }
-
-                    commands.spawn((
-                        PbrBundle {
-                            mesh: meshes.add(mesh),
-                            material,
-                            ..Default::default()
-                        },
-                        NotShadowCaster,
-                        TransmittedShadowReceiver,
-                    ));
-                }
-            }
-
-            {// sphere on left
-                let mut mesh = Sphere::new(0.25)
+            for wall in walls {
+                let color = wall_color(wall);
+                let mesh = Plane3d::new(Vec3::Y, Vec2::ONE)
                     .mesh()
                     .build();
 
-                mesh.compute_smooth_normals();
+                let invert_normals = wall_invert_normal(wall);
+                let cull_mode = wall_cull_mode(wall);
+                let transform = wall_transform(wall, Vec3::ONE);
 
-                let material = standard_materials.add(StandardMaterial {
-                    base_color: Color::srgb(0.8, 0.6, 0.2),
-                    ..Default::default()
-                });
+                let material = if wall == Dir3::Z {
+                    let mut rng = rand::thread_rng();
+                    let base_material = zeroverse_materials.materials
+                        .choose(&mut rng)
+                        .unwrap()
+                        .clone();
+
+                    let mut new_material = standard_materials.get(&base_material).unwrap().clone();
+
+                    new_material.double_sided = false;
+                    new_material.cull_mode = cull_mode.into();
+
+                    standard_materials.add(new_material)
+                } else {
+                    standard_materials.add(StandardMaterial {
+                        base_color: color,
+                        double_sided: false,
+                        cull_mode: Some(cull_mode),
+                        ..Default::default()
+                    })
+                };
+
+                let mut mesh = mesh.transformed_by(transform);
+
+                mesh.duplicate_vertices();
+                mesh.compute_flat_normals();
+
+                if invert_normals {
+                    if let Some(VertexAttributeValues::Float32x3(ref mut normals)) =
+                        mesh.attribute_mut(Mesh::ATTRIBUTE_NORMAL)
+                    {
+                        normals
+                            .iter_mut()
+                            .for_each(|normal| {
+                                normal[0] = -normal[0];
+                                normal[1] = -normal[1];
+                                normal[2] = -normal[2];
+                            });
+                    }
+                }
 
                 commands.spawn((
-                    PbrBundle {
-                        mesh: meshes.add(mesh),
-                        material,
-                        transform: Transform::from_translation(Vec3::new(-0.8, 0.5, 0.0)),
-                        ..Default::default()
-                    },
+                    Mesh3d(meshes.add(mesh)),
+                    MeshMaterial3d(material),
+                    NotShadowCaster,
                     TransmittedShadowReceiver,
                 ));
             }
-        });
+        }
+
+        {// sphere on left
+            let mut mesh = Sphere::new(0.25)
+                .mesh()
+                .build();
+
+            mesh.compute_smooth_normals();
+
+            let material = standard_materials.add(StandardMaterial {
+                base_color: Color::srgb(0.8, 0.6, 0.2),
+                ..Default::default()
+            });
+
+            commands.spawn((
+                Mesh3d(meshes.add(mesh)),
+                MeshMaterial3d(material),
+                NotShadowCaster,
+                Transform::from_translation(Vec3::new(-0.8, 0.5, 0.0)),
+                TransmittedShadowReceiver,
+            ));
+        }
+    });
 
     commands.spawn((
-        DirectionalLightBundle {
-            transform: Transform::from_xyz(1.0, -3.0, 2.0)
-                .looking_at(Vec3::ZERO, Vec3::Y),
-            directional_light: DirectionalLight {
-                illuminance: 800.0,
-                shadows_enabled: true,
-                ..default()
-            },
-            cascade_shadow_config: CascadeShadowConfigBuilder {
-                first_cascade_far_bound: 4.0,
-                maximum_distance: 10.0,
-                ..default()
-            }
-            .into(),
+        DirectionalLight {
+            illuminance: 800.0,
+            shadows_enabled: true,
             ..default()
         },
+        Transform::from_xyz(1.0, -3.0, 2.0)
+            .looking_at(Vec3::ZERO, Vec3::Y),
+        CascadeShadowConfigBuilder {
+            first_cascade_far_bound: 4.0,
+            maximum_distance: 10.0,
+            ..default()
+        }.build(),
         ZeroverseScene,
         Name::new("directional_light"),
     ));
 
     for _ in 0..scene_settings.num_cameras {
         commands.spawn(ZeroverseCamera {
-            sampler: CameraPositionSampler {
+            position_sampler: CameraPositionSampler {
                 sampler_type: CameraPositionSamplerType::Sphere {
                     radius: 3.25,
                 },

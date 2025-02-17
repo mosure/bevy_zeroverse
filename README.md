@@ -21,6 +21,7 @@ bevy zeroverse synthetic reconstruction dataset generator. view the [live demo](
 - [x] procedural zeroverse composite environments
 - [x] online torch dataloader
 - [x] safetensor chunking
+- [x] hypersim semantic labels
 - [ ] primitive boolean operations
 - [ ] primitive pbr wireframe
 - [ ] primitive 4d augmentation
@@ -60,6 +61,7 @@ for batch in dataloader:
 
 | `bevy_zeroverse` | `bevy` |
 | :--                       | :--    |
+| `0.6`                     | `0.15` |
 | `0.2`                     | `0.14` |
 | `0.1`                     | `0.13` |
 

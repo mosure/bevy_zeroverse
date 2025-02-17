@@ -71,6 +71,7 @@ pub enum ZeroversePrimitives {
 // TODO: support scale and rotation pdfs via https://github.com/villor/bevy_lookup_curve
 #[derive(Clone, Component, Debug, Reflect, Resource)]
 #[reflect(Resource)]
+#[require(Transform, Visibility)]
 pub struct ZeroversePrimitiveSettings {
     pub components: CountSampler,
     pub available_materials: Option<Vec<Handle<StandardMaterial>>>,
@@ -167,9 +168,9 @@ impl RotationSampler {
                     Quat::IDENTITY
                 } else {
                     Quat::from_scaled_axis(Vec3::new(
-                        rng.gen_range(min.x..max.x),
-                        rng.gen_range(min.y..max.y),
-                        rng.gen_range(min.z..max.z),
+                        if min.x != max.x { rng.gen_range(min.x..max.x) } else { 0.0 },
+                        if min.y != max.y { rng.gen_range(min.y..max.y) } else { 0.0 },
+                        if min.z != max.z { rng.gen_range(min.z..max.z) } else { 0.0 },
                     ))
                 }
             },
@@ -205,6 +206,9 @@ impl ScaleSampler {
 
 #[derive(Clone, Debug, Reflect)]
 pub enum PositionSampler {
+    Band {
+        size: Vec3,
+    },
     Capsule {
         radius: f32,
         length: f32,
@@ -236,6 +240,20 @@ impl PositionSampler {
         let rng = &mut rand::thread_rng();
 
         match *self {
+            PositionSampler::Band { size } => {
+                let face = rng.gen_range(0..4);
+
+                let (x, z) = match face {
+                    0 => (-size.x / 2.0, rng.gen_range(-size.z / 2.0..size.z / 2.0)),
+                    1 => (size.x / 2.0, rng.gen_range(-size.z / 2.0..size.z / 2.0)),
+                    2 => (rng.gen_range(-size.x / 2.0..size.x / 2.0), -size.z / 2.0),
+                    3 => (rng.gen_range(-size.x / 2.0..size.x / 2.0), size.z / 2.0),
+                    _ => unreachable!(),
+                };
+
+                let y = rng.gen_range(-size.y / 2.0..size.y / 2.0);
+                Vec3::new(x, y, z)
+            },
             PositionSampler::Capsule { radius, length } => Capsule3d::new(radius, length).sample_interior(rng),
             PositionSampler::Cube { extents } => Cuboid::from_size(extents).sample_interior(rng),
             PositionSampler::Cylinder { radius, height } => Cylinder::new(radius, height).sample_interior(rng),
@@ -244,13 +262,6 @@ impl PositionSampler {
             PositionSampler::Sphere { radius } => Sphere::new(radius).sample_interior(rng),
         }
     }
-}
-
-
-#[derive(Bundle, Default, Debug)]
-pub struct PrimitiveBundle {
-    pub settings: ZeroversePrimitiveSettings,
-    pub spatial: SpatialBundle,
 }
 
 
@@ -401,11 +412,8 @@ fn build_primitive(
             }
 
             let mut primitive = commands.spawn((
-                PbrBundle {
-                    mesh: meshes.add(mesh),
-                    material,
-                    ..Default::default()
-                },
+                Mesh3d(meshes.add(mesh)),
+                MeshMaterial3d(material),
                 TransmittedShadowReceiver,
             ));
 
@@ -418,7 +426,7 @@ fn build_primitive(
             }
 
             if rng.gen_bool(settings.wireframe_probability as f64) {
-                primitive.remove::<Handle<StandardMaterial>>();
+                primitive.remove::<MeshMaterial3d<StandardMaterial>>();
 
                 // TODO: support textured wireframes
                 primitive.insert((

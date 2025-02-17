@@ -15,6 +15,8 @@ use crate::primitive::process_primitives;
 
 pub mod depth;
 pub mod normal;
+pub mod optical_flow;
+pub mod semantic;
 
 
 #[derive(
@@ -35,6 +37,8 @@ pub enum RenderMode {
     Color,
     Depth,
     Normal,
+    OpticalFlow,
+    Semantic,
 }
 
 
@@ -48,6 +52,8 @@ impl Plugin for RenderPlugin {
 
         app.add_plugins(depth::DepthPlugin);
         app.add_plugins(normal::NormalPlugin);
+        app.add_plugins(optical_flow::OpticalFlowPlugin);
+        app.add_plugins(semantic::SemanticPlugin);
 
         // TODO: add wireframe depth, pbr disable, normals
         app.add_systems(
@@ -59,6 +65,8 @@ impl Plugin for RenderPlugin {
             (
                     auto_disable_pbr_material::<depth::Depth>,
                     auto_disable_pbr_material::<normal::Normal>,
+                    auto_disable_pbr_material::<optical_flow::OpticalFlow>,
+                    auto_disable_pbr_material::<semantic::Semantic>,
                     enable_pbr_material,
                 )
                 .after(apply_render_modes)
@@ -86,7 +94,7 @@ pub fn auto_disable_pbr_material<T: Component>(
     mut disabled_materials: Query<
         (
             Entity,
-            &Handle<StandardMaterial>,
+            &MeshMaterial3d<StandardMaterial>,
         ),
         (With<T>, Without<DisabledPbrMaterial>),
     >,
@@ -96,16 +104,16 @@ pub fn auto_disable_pbr_material<T: Component>(
         entity,
         disabled_material_handle,
     ) in disabled_materials.iter_mut() {
-        let disabled_material = standard_materials.get(disabled_material_handle).unwrap();
+        let disabled_material = standard_materials.get(&disabled_material_handle.0).unwrap();
 
         commands.entity(entity)
             .insert(DisabledPbrMaterial {
                 cull_mode: disabled_material.cull_mode,
                 double_sided: disabled_material.double_sided,
-                material: disabled_material_handle.clone(),
+                material: disabled_material_handle.0.clone(),
             })
             .remove::<EnablePbrMaterial>()
-            .remove::<Handle<StandardMaterial>>();
+            .remove::<MeshMaterial3d<StandardMaterial>>();
     }
 }
 
@@ -121,7 +129,7 @@ fn enable_pbr_material(
 ) {
     for (entity, disabled_material) in enabled_materials.iter_mut() {
         commands.entity(entity)
-            .insert(disabled_material.material.clone())
+            .insert(MeshMaterial3d(disabled_material.material.clone()))
             .remove::<DisabledPbrMaterial>()
             .remove::<EnablePbrMaterial>();
     }
@@ -131,8 +139,8 @@ fn enable_pbr_material(
 fn apply_render_modes(
     mut commands: Commands,
     render_mode: Res<RenderMode>,
-    meshes: Query<Entity, With<Handle<Mesh>>>,
-    new_meshes: Query<Entity, Added<Handle<Mesh>>>,
+    meshes: Query<Entity, With<Mesh3d>>,
+    new_meshes: Query<Entity, Added<Mesh3d>>,
 ) {
     let insert_render_mode_flag = |commands: &mut Commands, entity: Entity| {
         match *render_mode {
@@ -148,6 +156,14 @@ fn apply_render_modes(
                 commands.entity(entity)
                     .insert(normal::Normal);
             }
+            RenderMode::OpticalFlow => {
+                commands.entity(entity)
+                    .insert(optical_flow::OpticalFlow);
+            }
+            RenderMode::Semantic => {
+                commands.entity(entity)
+                    .insert(semantic::Semantic);
+            }
         }
     };
 
@@ -155,7 +171,9 @@ fn apply_render_modes(
         for entity in meshes.iter() {
             commands.entity(entity)
                 .remove::<depth::Depth>()
-                .remove::<normal::Normal>();
+                .remove::<normal::Normal>()
+                .remove::<optical_flow::OpticalFlow>()
+                .remove::<semantic::Semantic>();
 
             insert_render_mode_flag(&mut commands, entity);
         }

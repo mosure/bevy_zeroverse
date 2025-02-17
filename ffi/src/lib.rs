@@ -70,17 +70,17 @@ pub struct View {
 impl View {
     #[getter]
     fn color<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
-        PyBytes::new_bound(py, &self.color)
+        PyBytes::new(py, &self.color)
     }
 
     #[getter]
     fn depth<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
-        PyBytes::new_bound(py, &self.depth)
+        PyBytes::new(py, &self.depth)
     }
 
     #[getter]
     fn normal<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
-        PyBytes::new_bound(py, &self.normal)
+        PyBytes::new(py, &self.normal)
     }
 
     fn __str__(&self) -> PyResult<String> {
@@ -107,7 +107,7 @@ impl Sample {
     #[getter]
     fn views<'py>(&self, py: Python<'py>) -> Bound<'py, PyList> {
         let views_list: Vec<_> = self.views.iter().map(|v| v.clone().into_py(py)).collect();
-        PyList::new_bound(py, views_list)
+        PyList::new(py, views_list).unwrap()
     }
 
     fn __str__(&self) -> PyResult<String> {
@@ -334,6 +334,8 @@ fn sample_stream(
             RenderMode::Color => view.color = image_data,
             RenderMode::Depth => view.depth = image_data,
             RenderMode::Normal => view.normal = image_data,
+            RenderMode::OpticalFlow => panic!("optical flow rendering not supported"),
+            RenderMode::Semantic => panic!("semantic rendering not supported"),
         }
     }
 

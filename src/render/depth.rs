@@ -46,14 +46,14 @@ fn apply_depth_material(
             Entity,
             &DisabledPbrMaterial,
         ),
-        (With<Depth>, Without<Handle<DepthMaterial>>),
+        (With<Depth>, Without<MeshMaterial3d<DepthMaterial>>),
     >,
     mut removed_depths: RemovedComponents<Depth>,
     mut materials: ResMut<Assets<DepthMaterial>>,
 ) {
     for e in removed_depths.read() {
         if let Some(mut commands) = commands.get_entity(e) {
-            commands.remove::<Handle<DepthMaterial>>();
+            commands.remove::<MeshMaterial3d<DepthMaterial>>();
         }
     }
 
@@ -70,12 +70,13 @@ fn apply_depth_material(
         );
 
 
-        commands.entity(e).insert(depth_material);
+        commands.entity(e).insert(MeshMaterial3d(depth_material));
     }
 }
 
 
 pub type DepthMaterial = ExtendedMaterial<StandardMaterial, DepthExtension>;
+
 
 #[derive(Default, AsBindGroup, TypePath, Debug, Clone, Asset)]
 pub struct DepthExtension { }

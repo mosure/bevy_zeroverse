@@ -18,6 +18,7 @@ use crate::{
 };
 
 // TODO: cornell box room scene
+pub mod semantic_room;
 pub mod cornell_cube;
 pub mod lighting;
 pub mod object;
@@ -40,6 +41,7 @@ impl Plugin for ZeroverseScenePlugin {
         app.register_type::<SceneAabb>();
 
         app.add_plugins((
+            semantic_room::ZeroverseSemanticRoomPlugin,
             cornell_cube::ZeroverseCornellCubePlugin,
             lighting::ZeroverseLightingPlugin,
             object::ZeroverseObjectPlugin,
@@ -63,6 +65,7 @@ impl Plugin for ZeroverseScenePlugin {
 pub struct ZeroverseScene;
 
 #[derive(Component, Debug, Reflect)]
+#[require(Transform, Visibility)]
 pub struct ZeroverseSceneRoot;
 
 
@@ -81,6 +84,7 @@ pub enum ZeroverseSceneType {
     CornellCube,
     #[default]
     Object,
+    SemanticRoom,
     Room,
 }
 

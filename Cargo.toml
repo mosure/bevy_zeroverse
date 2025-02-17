@@ -1,7 +1,7 @@
 [package]
 name = "bevy_zeroverse"
 description = "bevy zeroverse synthetic dataset generator"
-version = "0.5.1"
+version = "0.6.0"
 edition = "2021"
 authors = ["mosure <mitchell@mosure.me>"]
 license = "MIT"
@@ -43,7 +43,6 @@ default = [
   "development",
   "extension-module",
   "multi_threaded",
-  "plucker",
   "viewer",
 ]
 
@@ -73,27 +72,26 @@ web = [
 webgl2 = ["bevy/webgl2"]
 webgpu = [
   "bevy/webgpu",
-  "plucker",
 ]
 
 
 [dependencies]
-bevy_args = "1.6"
-bevy-inspector-egui = { version = "0.27", optional = true }
-bevy_panorbit_camera = { version = "0.20", optional = true, features = ["bevy_egui"] }
+bevy_args = "1.7.1"
+bevy-inspector-egui = { version = "0.28", optional = true }
+bevy_panorbit_camera = { version = "0.21", optional = true, features = ["bevy_egui"] }
 clap = { version = "4.5", features = ["derive"] }
 futures-intrusive = "0.5"
 glob = "0.3"
-itertools = "0.13"
+itertools = "0.14"
 noise = { version = "0.9" }
 pollster = "0.4"
-pyo3 = { version = "0.22", features = ["macros"], optional = true }
+pyo3 = { version = "0.23", features = ["macros"], optional = true }
 rand = "0.8"
 rayon = { version = "1.10", optional = true }
 serde = "1.0"
-strum = "0.26"
-strum_macros = "0.26"
-wgpu = "0.20.0"
+strum = "0.27"
+strum_macros = "0.27"
+wgpu = "23.0.1"
 
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
@@ -102,7 +100,7 @@ wasm-bindgen = "0.2"
 
 
 [dependencies.bevy]
-version = "0.14"
+version = "0.15"
 default-features = false
 features = [
   "bevy_asset",
@@ -132,7 +130,7 @@ features = [
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
 futures-intrusive = { version = "0.5.0" }
-pollster = { version = "0.3.0" }
+pollster = { version = "0.4" }
 
 [profile.dev.package."*"]
 opt-level = 3

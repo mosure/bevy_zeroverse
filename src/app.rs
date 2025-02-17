@@ -57,7 +57,7 @@ use crate::{
         ShuffleMaterialsEvent,
         ZeroverseMaterials,
     },
-    plucker::ZeroversePluckerSettings,
+    // plucker::ZeroversePluckerSettings,
     primitive::ScaleSampler,
     render::RenderMode,
     scene::{
@@ -167,7 +167,7 @@ pub struct BevyZeroverseConfig {
     pub scene_type: ZeroverseSceneType,
 
     #[pyo3(get, set)]
-    #[arg(long, default_value = "true")]
+    #[arg(long, default_value = "false")]
     pub rotation_augmentation: bool,
 
     #[pyo3(get, set)]
@@ -388,8 +388,6 @@ pub fn viewer_app(
     #[cfg(feature = "viewer")]
     app.add_plugins(PanOrbitCameraPlugin);
 
-    app.insert_resource(Msaa::Sample4);
-
     #[cfg(feature = "viewer")]
     if args.editor {
         app.register_type::<BevyZeroverseConfig>();
@@ -402,7 +400,7 @@ pub fn viewer_app(
 
     app.add_plugins(BevyZeroversePlugin);
 
-    app.insert_resource(args.render_mode);
+    app.insert_resource(args.render_mode);  // TODO: replicate on args changed
 
     app.insert_resource(DefaultZeroverseCamera {
         resolution: UVec2::new(args.width as u32, args.height as u32).into(),
@@ -455,13 +453,20 @@ fn setup_camera(
 
     // TODO: add a check for dataloader/headless mode
     if args.camera_grid {
-        commands.spawn(Camera2dBundle::default())
+        commands.spawn(Camera2d)
             .insert(MaterialGridCameraMarker);
         return;
     }
 
     let camera_offset = Vec3::new(0.0, 0.0, 3.5);
     let camera_offset = match args.scene_type {
+        ZeroverseSceneType::SemanticRoom => {
+            let max_room_size = match room_settings.room_size {
+                ScaleSampler::Bounded(_min, max) => max * Vec3::new(1.0, 2.0, 1.0),
+                ScaleSampler::Exact(size) => size,
+            };
+            max_room_size + camera_offset
+        },
         ZeroverseSceneType::CornellCube => camera_offset,
         ZeroverseSceneType::Object => camera_offset,
         ZeroverseSceneType::Room => {
@@ -482,9 +487,9 @@ fn setup_camera(
         #[cfg(feature = "viewer")]
         PanOrbitCamera {
             allow_upside_down: true,
-            orbit_smoothness: 0.0,
-            pan_smoothness: 0.0,
-            zoom_smoothness: 0.0,
+            orbit_smoothness: 0.8,
+            pan_smoothness: 0.6,
+            zoom_smoothness: 0.8,
             ..default()
         },
     ));
@@ -521,8 +526,10 @@ fn setup_camera_grid(
         let rows = (camera_count as f32).sqrt().ceil() as u16;
         let cols = (camera_count as f32 / rows as f32).ceil() as u16;
 
-        commands.spawn(NodeBundle {
-            style: Style {
+        commands.spawn((
+            CameraGrid,
+            Name::new("camera_grid"),
+            Node {
                 display: Display::Grid,
                 width: Val::Percent(100.0),
                 height: Val::Percent(100.0),
@@ -530,32 +537,20 @@ fn setup_camera_grid(
                 grid_template_rows: RepeatedGridTrack::flex(rows, 1.0),
                 ..default()
             },
-            background_color: BackgroundColor(Color::BLACK),
-            ..default()
-        })
-        .with_children(|builder| {
+            BackgroundColor(Color::BLACK),
+        )).with_children(|builder| {
             for (_, camera) in zeroverse_cameras.iter() {
                 let texture = match camera.target.clone() {
                     RenderTarget::Image(texture) => texture,
                     _ => continue,
                 };
 
-                builder.spawn(ImageBundle {
-                    style: Style {
-                        width: Val::Percent(100.0),
-                        height: Val::Percent(100.0),
-                        ..default()
-                    },
-                    image: UiImage {
-                        texture,
-                        ..default()
-                    },
+                builder.spawn(ImageNode {
+                    image: texture,
                     ..default()
                 });
             }
-        })
-        .insert(CameraGrid)
-        .insert(Name::new("camera_grid"));
+        });
     }
 }
 
@@ -585,18 +580,18 @@ fn setup_material_grid(
         let rows = (material_count as f32).sqrt().ceil() as u16;
         let cols = (material_count as f32 / rows as f32).ceil() as u16;
 
-        commands.spawn(NodeBundle {
-            style: Style {
+        commands.spawn((
+            MaterialGrid,
+            Name::new("material_grid"),
+            Node {
                 display: Display::Grid,
                 width: Val::Percent(100.0),
                 height: Val::Percent(100.0),
                 grid_template_columns: RepeatedGridTrack::flex(cols, 1.0),
                 grid_template_rows: RepeatedGridTrack::flex(rows, 1.0),
                 ..default()
-            },
-            background_color: BackgroundColor(Color::BLACK),
-            ..default()
-        })
+            }
+        ))
         .with_children(|builder| {
             for material in &zeroverse_materials.materials {
                 let base_color_texture = standard_materials
@@ -606,22 +601,12 @@ fn setup_material_grid(
                     .clone()
                     .unwrap();
 
-                builder.spawn(ImageBundle {
-                    style: Style {
-                        width: Val::Percent(100.0),
-                        height: Val::Percent(100.0),
-                        ..default()
-                    },
-                    image: UiImage {
-                        texture: base_color_texture,
-                        ..default()
-                    },
+                builder.spawn(ImageNode {
+                    image: base_color_texture,
                     ..default()
                 });
             }
-        })
-        .insert(MaterialGrid)
-        .insert(Name::new("material_grid"));
+        });
     }
 }
 
@@ -660,7 +645,7 @@ fn rotate_scene(
     mut scene_roots: Query<&mut Transform, With<ZeroverseSceneRoot>>,
 ) {
     for mut transform in scene_roots.iter_mut() {
-        let delta_rot = args.yaw_speed * time.delta_seconds();
+        let delta_rot = args.yaw_speed * time.delta_secs();
         transform.rotate(Quat::from_rotation_y(delta_rot));
     }
 }
@@ -668,11 +653,11 @@ fn rotate_scene(
 
 fn propagate_cli_settings(
     args: Res<BevyZeroverseConfig>,
-    mut plucker_settings: ResMut<ZeroversePluckerSettings>,
+    // mut plucker_settings: ResMut<ZeroversePluckerSettings>,
     mut scene_settings: ResMut<ZeroverseSceneSettings>,
 ) {
     if args.is_changed() {
-        plucker_settings.enabled = args.plucker_visualization;
+        // plucker_settings.enabled = args.plucker_visualization;
 
         scene_settings.num_cameras = args.num_cameras;
         scene_settings.rotation_augmentation = args.rotation_augmentation;

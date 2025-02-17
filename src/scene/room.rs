@@ -26,12 +26,12 @@ use crate::{
     primitive::{
         CountSampler,
         PositionSampler,
-        PrimitiveBundle,
         RotationSampler,
         ScaleSampler,
         ZeroversePrimitives,
         ZeroversePrimitiveSettings,
     },
+    render::semantic::SemanticLabel,
 };
 
 
@@ -92,6 +92,7 @@ impl Default for ZeroverseRoomSettings {
 }
 
 
+// TODO: abstract base room (walls, floor, ceiling)
 fn setup_scene(
     mut commands: Commands,
     mut load_event: EventWriter<SceneLoadedEvent>,
@@ -102,241 +103,226 @@ fn setup_scene(
 
     // TODO: set global Y rotation to prevent wall aligned plucker embeddings
 
-    commands.spawn((ZeroverseSceneRoot, ZeroverseScene))
-        .insert(Name::new("room"))
-        .insert(RotationAugment)
-        .insert(SpatialBundle::default())
-        .with_children(|commands| {
-            {// outer walls
-                let base_plane_settings = ZeroversePrimitiveSettings {
-                    cull_mode: Some(Face::Front),
-                    available_types: vec![ZeroversePrimitives::Plane],
-                    components: CountSampler::Exact(1),
-                    wireframe_probability: 0.0,
-                    noise_probability: 0.0,
-                    cast_shadows: false,
-                    position_sampler: PositionSampler::Exact {
-                        position: Vec3::ZERO,
-                    },
-                    rotation_sampler: RotationSampler::Identity,
-                    scale_sampler: ScaleSampler::Exact(Vec3::ONE),
-                    ..default()
-                };
+    commands.spawn((
+        Name::new("room"),
+        RotationAugment,
+        ZeroverseSceneRoot,
+        ZeroverseScene,
+    ))
+    .with_children(|commands| {
+        {// outer walls
+            let base_plane_settings = ZeroversePrimitiveSettings {
+                cull_mode: Some(Face::Front),
+                available_types: vec![ZeroversePrimitives::Plane],
+                components: CountSampler::Exact(1),
+                wireframe_probability: 0.0,
+                noise_probability: 0.0,
+                cast_shadows: false,
+                position_sampler: PositionSampler::Exact {
+                    position: Vec3::ZERO,
+                },
+                rotation_sampler: RotationSampler::Identity,
+                scale_sampler: ScaleSampler::Exact(Vec3::ONE),
+                ..default()
+            };
 
-                // top plane
-                let top_plane_settings = ZeroversePrimitiveSettings {
-                    invert_normals: true,
-                    position_sampler: PositionSampler::Exact {
-                        position: Vec3::new(0.0, scale.y, 0.0),
-                    },
-                    scale_sampler: ScaleSampler::Exact(Vec3::new(scale.x / 2.0, 1.0, scale.z / 2.0)),
-                    ..base_plane_settings.clone()
-                };
+            // top plane
+            let top_plane_settings = ZeroversePrimitiveSettings {
+                invert_normals: true,
+                position_sampler: PositionSampler::Exact {
+                    position: Vec3::new(0.0, scale.y, 0.0),
+                },
+                scale_sampler: ScaleSampler::Exact(Vec3::new(scale.x / 2.0, 1.0, scale.z / 2.0)),
+                ..base_plane_settings.clone()
+            };
 
-                // bottom plane
-                let bottom_plane_settings = ZeroversePrimitiveSettings {
-                    cull_mode: Some(Face::Back),
-                    position_sampler: PositionSampler::Exact {
-                        position: Vec3::new(0.0, 0.0, 0.0),
-                    },
-                    scale_sampler: ScaleSampler::Exact(Vec3::new(scale.x / 2.0, 1.0, scale.z / 2.0)),
-                    ..base_plane_settings.clone()
-                };
+            // bottom plane
+            let bottom_plane_settings = ZeroversePrimitiveSettings {
+                cull_mode: Some(Face::Back),
+                position_sampler: PositionSampler::Exact {
+                    position: Vec3::new(0.0, 0.0, 0.0),
+                },
+                scale_sampler: ScaleSampler::Exact(Vec3::new(scale.x / 2.0, 1.0, scale.z / 2.0)),
+                ..base_plane_settings.clone()
+            };
 
-                // front plane
-                let front_plane_settings = ZeroversePrimitiveSettings {
-                    invert_normals: true,
-                    position_sampler: PositionSampler::Exact {
-                        position: Vec3::new(0.0, scale.y / 2.0, scale.z / 2.0),
-                    },
-                    rotation_sampler: RotationSampler::Exact(Quat::from_rotation_x(90.0_f32.to_radians())),
-                    scale_sampler: ScaleSampler::Exact(Vec3::new(scale.x / 2.0, 1.0, scale.y / 2.0)),
-                    ..base_plane_settings.clone()
-                };
+            // front plane
+            let front_plane_settings = ZeroversePrimitiveSettings {
+                invert_normals: true,
+                position_sampler: PositionSampler::Exact {
+                    position: Vec3::new(0.0, scale.y / 2.0, scale.z / 2.0),
+                },
+                rotation_sampler: RotationSampler::Exact(Quat::from_rotation_x(90.0_f32.to_radians())),
+                scale_sampler: ScaleSampler::Exact(Vec3::new(scale.x / 2.0, 1.0, scale.y / 2.0)),
+                ..base_plane_settings.clone()
+            };
 
-                // back plane
-                let back_plane_settings = ZeroversePrimitiveSettings {
-                    cull_mode: Some(Face::Back),
-                    position_sampler: PositionSampler::Exact {
-                        position: Vec3::new(0.0, scale.y / 2.0, -scale.z / 2.0),
-                    },
-                    rotation_sampler: RotationSampler::Exact(Quat::from_rotation_x(90.0_f32.to_radians())),
-                    scale_sampler: ScaleSampler::Exact(Vec3::new(scale.x / 2.0, 1.0, scale.y / 2.0)),
-                    ..base_plane_settings.clone()
-                };
+            // back plane
+            let back_plane_settings = ZeroversePrimitiveSettings {
+                cull_mode: Some(Face::Back),
+                position_sampler: PositionSampler::Exact {
+                    position: Vec3::new(0.0, scale.y / 2.0, -scale.z / 2.0),
+                },
+                rotation_sampler: RotationSampler::Exact(Quat::from_rotation_x(90.0_f32.to_radians())),
+                scale_sampler: ScaleSampler::Exact(Vec3::new(scale.x / 2.0, 1.0, scale.y / 2.0)),
+                ..base_plane_settings.clone()
+            };
 
-                // left plane
-                let left_plane_settings = ZeroversePrimitiveSettings {
-                    invert_normals: true,
-                    position_sampler: PositionSampler::Exact {
-                        position: Vec3::new(-scale.x / 2.0, scale.y / 2.0, 0.0),
-                    },
-                    rotation_sampler: RotationSampler::Exact(Quat::from_rotation_z(90.0_f32.to_radians())),
-                    scale_sampler: ScaleSampler::Exact(Vec3::new(scale.y / 2.0, 1.0, scale.z / 2.0)),
-                    ..base_plane_settings.clone()
-                };
+            // left plane
+            let left_plane_settings = ZeroversePrimitiveSettings {
+                invert_normals: true,
+                position_sampler: PositionSampler::Exact {
+                    position: Vec3::new(-scale.x / 2.0, scale.y / 2.0, 0.0),
+                },
+                rotation_sampler: RotationSampler::Exact(Quat::from_rotation_z(90.0_f32.to_radians())),
+                scale_sampler: ScaleSampler::Exact(Vec3::new(scale.y / 2.0, 1.0, scale.z / 2.0)),
+                ..base_plane_settings.clone()
+            };
 
-                // right plane
-                let right_plane_settings = ZeroversePrimitiveSettings {
-                    cull_mode: Some(Face::Back),
-                    position_sampler: PositionSampler::Exact {
-                        position: Vec3::new(scale.x / 2.0, scale.y / 2.0, 0.0),
-                    },
-                    rotation_sampler: RotationSampler::Exact(Quat::from_rotation_z(90.0_f32.to_radians())),
-                    scale_sampler: ScaleSampler::Exact(Vec3::new(scale.y / 2.0, 1.0, scale.z / 2.0)),
-                    ..base_plane_settings.clone()
-                };
+            // right plane
+            let right_plane_settings = ZeroversePrimitiveSettings {
+                cull_mode: Some(Face::Back),
+                position_sampler: PositionSampler::Exact {
+                    position: Vec3::new(scale.x / 2.0, scale.y / 2.0, 0.0),
+                },
+                rotation_sampler: RotationSampler::Exact(Quat::from_rotation_z(90.0_f32.to_radians())),
+                scale_sampler: ScaleSampler::Exact(Vec3::new(scale.y / 2.0, 1.0, scale.z / 2.0)),
+                ..base_plane_settings.clone()
+            };
 
-                commands.spawn((
-                    PrimitiveBundle {
-                        settings: top_plane_settings,
-                        ..default()
-                    },
-                    Name::new("room_top_plane"),
-                ));
+            commands.spawn((
+                top_plane_settings,
+                Name::new("room_top_plane"),
+                SemanticLabel::Ceiling,
+            ));
 
-                commands.spawn((
-                    PrimitiveBundle {
-                        settings: bottom_plane_settings,
-                        ..default()
-                    },
-                    Name::new("room_bottom_plane"),
-                ));
+            commands.spawn((
+                bottom_plane_settings,
+                Name::new("room_bottom_plane"),
+                SemanticLabel::Floor,
+            ));
 
-                commands.spawn((
-                    PrimitiveBundle {
-                        settings: front_plane_settings,
-                        ..default()
-                    },
-                    Name::new("room_front_plane"),
-                ));
+            commands.spawn((
+                front_plane_settings,
+                Name::new("room_front_plane"),
+                SemanticLabel::Wall,
+            ));
 
-                commands.spawn((
-                    PrimitiveBundle {
-                        settings: back_plane_settings,
-                        ..default()
-                    },
-                    Name::new("room_back_plane"),
-                ));
+            commands.spawn((
+                back_plane_settings,
+                Name::new("room_back_plane"),
+                SemanticLabel::Wall,
+            ));
 
-                commands.spawn((
-                    PrimitiveBundle {
-                        settings: left_plane_settings,
-                        ..default()
-                    },
-                    Name::new("room_left_plane"),
-                ));
+            commands.spawn((
+                left_plane_settings,
+                Name::new("room_left_plane"),
+                SemanticLabel::Wall,
+            ));
 
-                commands.spawn((
-                    PrimitiveBundle {
-                        settings: right_plane_settings,
-                        ..default()
-                    },
-                    Name::new("room_right_plane"),
-                ));
-            }
+            commands.spawn((
+                right_plane_settings,
+                Name::new("room_right_plane"),
+                SemanticLabel::Wall,
+            ));
+        }
 
-            // TODO: add abstraction for furniture, walls, doors...
-            { // center objects
-                let center_object_height = 8.0;
-                let center_object_sampler = PositionSampler::Cube {
-                    extents: Vec3::new(
-                        scale.x / 1.5,
-                        center_object_height / 2.0,
-                        scale.z / 1.5,
-                    ),
-                };
+        // TODO: add abstraction for furniture, walls, doors...
+        { // center objects
+            let center_object_height = 8.0;
+            let center_object_sampler = PositionSampler::Cube {
+                extents: Vec3::new(
+                    scale.x / 1.5,
+                    center_object_height / 2.0,
+                    scale.z / 1.5,
+                ),
+            };
 
-                for _ in 0..room_settings.center_primitive_count.sample() {
-                    let height_offset = Vec3::new(
-                        0.0,
-                        center_object_height / 4.0,
-                        0.0,
-                    );
-                    let position = center_object_sampler.sample() + height_offset;
-                    let scale = room_settings.center_primitive_scale_sampler.sample();
-
-                    commands.spawn((
-                        PrimitiveBundle {
-                            settings: room_settings.center_primitive_settings.clone(),
-                            spatial: SpatialBundle {
-                                transform: Transform::from_translation(position).with_scale(scale),
-                                ..default()
-                            },
-                        },
-                        Name::new("center_object"),
-                    ));
-                }
-            }
-
-            { // wall objects
-
-            }
-
-            { // cameras
-                let size: Vec3 = Vec3::new(
-                    scale.x - (room_settings.camera_wall_padding + scene_settings.max_camera_radius) * 2.0,
-                    scale.y - (room_settings.camera_floor_padding + scene_settings.max_camera_radius),
-                    scale.z - (room_settings.camera_wall_padding + scene_settings.max_camera_radius) * 2.0,
+            for _ in 0..room_settings.center_primitive_count.sample() {
+                let height_offset = Vec3::new(
+                    0.0,
+                    center_object_height / 4.0,
+                    0.0,
                 );
-                let origin_camera_sampler = CameraPositionSampler {
-                    sampler_type: CameraPositionSamplerType::Band {
-                        size,
-                        rotation: Quat::IDENTITY,
-                        translate: Vec3::new(
-                            0.0,
-                            room_settings.camera_floor_padding + size.y / 2.0,
-                            0.0,
-                        ),
-                    },
-                    looking_at: room_settings.looking_at_sampler.clone(),
-                };
-                let origin_camera_center = origin_camera_sampler.sample();
-                let mut rng = rand::thread_rng();
+                let position = center_object_sampler.sample() + height_offset;
+                let scale = room_settings.center_primitive_scale_sampler.sample();
 
-                for _ in 0..scene_settings.num_cameras {
-                    if scene_settings.max_camera_radius <= 0.0 {
-                        let size: Vec3 = Vec3::new(
-                            scale.x - room_settings.camera_wall_padding * 2.0,
-                            scale.y - room_settings.camera_floor_padding,
-                            scale.z - room_settings.camera_wall_padding * 2.0,
-                        );
+                commands.spawn((
+                    room_settings.center_primitive_settings.clone(),
+                    Transform::from_translation(position).with_scale(scale),
+                    Name::new("center_object"),
+                ));
+            }
+        }
 
-                        let camera_sampler = CameraPositionSampler {
-                            sampler_type: CameraPositionSamplerType::Band {
-                                size,
-                                rotation: Quat::IDENTITY,
-                                translate: Vec3::new(
-                                    0.0,
-                                    room_settings.camera_floor_padding + size.y / 2.0,
-                                    0.0,
-                                ),
-                            },
-                            looking_at: room_settings.looking_at_sampler.clone(),
-                        };
+        { // wall objects
 
-                        commands.spawn(ZeroverseCamera {
-                            sampler: camera_sampler,
-                            ..default()
-                        });
-                    } else {
-                        let circular_sampler = CameraPositionSampler {
-                            sampler_type: CameraPositionSamplerType::Circle {
-                                radius: scene_settings.max_camera_radius,
-                                rotation: Quat::from_rng(&mut rng),
-                                translate: origin_camera_center.translation,
-                            },
-                            looking_at: room_settings.looking_at_sampler.clone(),
-                        };
+        }
 
-                        commands.spawn(ZeroverseCamera {
-                            sampler: circular_sampler,
-                            ..default()
-                        });
-                    }
+        { // cameras
+            let size: Vec3 = Vec3::new(
+                scale.x - (room_settings.camera_wall_padding + scene_settings.max_camera_radius) * 2.0,
+                scale.y - (room_settings.camera_floor_padding + scene_settings.max_camera_radius),
+                scale.z - (room_settings.camera_wall_padding + scene_settings.max_camera_radius) * 2.0,
+            );
+            let origin_camera_sampler = CameraPositionSampler {
+                sampler_type: CameraPositionSamplerType::Band {
+                    size,
+                    rotation: Quat::IDENTITY,
+                    translate: Vec3::new(
+                        0.0,
+                        room_settings.camera_floor_padding + size.y / 2.0,
+                        0.0,
+                    ),
+                },
+                looking_at: room_settings.looking_at_sampler.clone(),
+            };
+            let origin_camera_center = origin_camera_sampler.sample();
+            let mut rng = rand::thread_rng();
+
+            for _ in 0..scene_settings.num_cameras {
+                if scene_settings.max_camera_radius <= 0.0 {
+                    let size: Vec3 = Vec3::new(
+                        scale.x - room_settings.camera_wall_padding * 2.0,
+                        scale.y - room_settings.camera_floor_padding,
+                        scale.z - room_settings.camera_wall_padding * 2.0,
+                    );
+
+                    let camera_sampler = CameraPositionSampler {
+                        sampler_type: CameraPositionSamplerType::Band {
+                            size,
+                            rotation: Quat::IDENTITY,
+                            translate: Vec3::new(
+                                0.0,
+                                room_settings.camera_floor_padding + size.y / 2.0,
+                                0.0,
+                            ),
+                        },
+                        looking_at: room_settings.looking_at_sampler.clone(),
+                    };
+
+                    commands.spawn(ZeroverseCamera {
+                        position_sampler: camera_sampler,
+                        ..default()
+                    });
+                } else {
+                    let circular_sampler = CameraPositionSampler {
+                        sampler_type: CameraPositionSamplerType::Circle {
+                            radius: scene_settings.max_camera_radius,
+                            rotation: Quat::from_rng(&mut rng),
+                            translate: origin_camera_center.translation,
+                        },
+                        looking_at: room_settings.looking_at_sampler.clone(),
+                    };
+
+                    commands.spawn(ZeroverseCamera {
+                        position_sampler: circular_sampler,
+                        ..default()
+                    });
                 }
             }
-        });
+        }
+    });
 
     load_event.send(SceneLoadedEvent);
 }
