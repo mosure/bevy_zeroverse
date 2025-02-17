@@ -1,5 +1,6 @@
 use bevy::{
     prelude::*,
+    core_pipeline::tonemapping::Tonemapping,
     render::render_resource::Face,
 };
 use bevy_args::{
@@ -39,6 +40,15 @@ pub enum RenderMode {
     Normal,
     OpticalFlow,
     Semantic,
+}
+
+impl RenderMode {
+    pub fn tonemapping(&self) -> Tonemapping {
+        match self {
+            RenderMode::OpticalFlow => Tonemapping::None,
+            _ => Tonemapping::TonyMcMapface,
+        }
+    }
 }
 
 

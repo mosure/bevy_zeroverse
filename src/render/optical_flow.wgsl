@@ -24,7 +24,7 @@ fn fragment(
         in.position,
         sample_index,
     );
-    let flow = motion_vector / globals.delta_time;
+    let flow = motion_vector / globals.delta_time;  // TODO: immediate vs. export mode
 
     let radius = length(flow);
     var angle = atan2(flow.y, flow.x);
@@ -33,7 +33,7 @@ fn fragment(
     }
 
     // let sigma: f32 = 0.15;
-    // let norm_factor = sigma * length(view.viewport.zw);
+    // let norm_factor = sigma * 2.0;
     // let m = clamp(radius / norm_factor, 0.0, 1.0);
     let m = clamp(radius, 0.0, 1.0);
 

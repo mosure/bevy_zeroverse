@@ -4,7 +4,6 @@ use bevy::{
         bloom::Bloom,
         core_3d::ScreenSpaceTransmissionQuality,
         prepass::MotionVectorPrepass,
-        tonemapping::Tonemapping,
     },
     gizmos::config::{
         GizmoConfig,
@@ -39,12 +38,12 @@ use crate::{
     app::BevyZeroverseConfig,
     io,
     plucker::PluckerCamera,
+    render::RenderMode,
 };
 
 
 
 // TODO: support camera trajectories, requires custom motion vector prepass during capture
-// TODO: disable tonemapping for optical flow render mode
 pub struct ZeroverseCameraPlugin;
 impl Plugin for ZeroverseCameraPlugin {
     fn build(&self, app: &mut App) {
@@ -64,6 +63,7 @@ impl Plugin for ZeroverseCameraPlugin {
                 draw_camera_gizmo,
                 insert_cameras,
                 setup_editor_camera,
+                update_tonemapping,
             )
         );
     }
@@ -242,6 +242,7 @@ fn insert_cameras(
     >,
     default_zeroverse_camera: Res<DefaultZeroverseCamera>,
     args: Res<BevyZeroverseConfig>,
+    render_mode: Res<RenderMode>,
     render_device: Res<RenderDevice>,
 ) {
     for (entity, zeroverse_camera) in zeroverse_cameras.iter() {
@@ -292,7 +293,7 @@ fn insert_cameras(
                 zeroverse_camera.override_transform.unwrap_or(zeroverse_camera.position_sampler.sample()),
                 Bloom::default(),
                 MotionVectorPrepass,
-                Tonemapping::TonyMcMapface,
+                render_mode.tonemapping(),
                 PluckerCamera,
                 Name::new("zeroverse_camera"),
             ));
@@ -346,6 +347,7 @@ fn setup_editor_camera(
         (Entity, &EditorCameraMarker),
         Without<ProcessedEditorCameraMarker>,
     >,
+    render_mode: Res<RenderMode>,
 ) {
     for (entity, marker) in editor_cameras.iter() {
         let render_layer = RenderLayers::default().union(&EDITOR_CAMERA_RENDER_LAYER);
@@ -361,7 +363,7 @@ fn setup_editor_camera(
                 },
                 Exposure::INDOOR,
                 marker.transform.unwrap_or_default(),
-                Tonemapping::TonyMcMapface,
+                render_mode.tonemapping(),
                 Bloom::default(),
                 MotionVectorPrepass,
                 PluckerCamera,
@@ -369,6 +371,33 @@ fn setup_editor_camera(
             .insert(render_layer)
             .insert(ProcessedEditorCameraMarker)
             .insert(Name::new("editor_camera"));
+    }
+}
+
+
+pub fn update_tonemapping(
+    mut commands: Commands,
+    editor_cameras: Query<
+        Entity,
+        With<ProcessedEditorCameraMarker>,
+    >,
+    zeroverse_cameras: Query<
+        Entity,
+        With<ZeroverseCamera>,
+    >,
+    render_mode: Res<RenderMode>,
+) {
+    if !render_mode.is_changed() {
+        return;
+    }
+
+    for camera_entity in editor_cameras
+        .iter()
+        .chain(zeroverse_cameras.iter())
+    {
+        commands
+            .entity(camera_entity)
+            .insert(render_mode.tonemapping());
     }
 }
 
