@@ -15,6 +15,7 @@ use crate::primitive::process_primitives;
 
 pub mod depth;
 pub mod normal;
+pub mod optical_flow;
 pub mod semantic;
 
 
@@ -36,6 +37,7 @@ pub enum RenderMode {
     Color,
     Depth,
     Normal,
+    OpticalFlow,
     Semantic,
 }
 
@@ -50,6 +52,7 @@ impl Plugin for RenderPlugin {
 
         app.add_plugins(depth::DepthPlugin);
         app.add_plugins(normal::NormalPlugin);
+        app.add_plugins(optical_flow::OpticalFlowPlugin);
         app.add_plugins(semantic::SemanticPlugin);
 
         // TODO: add wireframe depth, pbr disable, normals
@@ -62,6 +65,7 @@ impl Plugin for RenderPlugin {
             (
                     auto_disable_pbr_material::<depth::Depth>,
                     auto_disable_pbr_material::<normal::Normal>,
+                    auto_disable_pbr_material::<optical_flow::OpticalFlow>,
                     auto_disable_pbr_material::<semantic::Semantic>,
                     enable_pbr_material,
                 )
@@ -152,6 +156,10 @@ fn apply_render_modes(
                 commands.entity(entity)
                     .insert(normal::Normal);
             }
+            RenderMode::OpticalFlow => {
+                commands.entity(entity)
+                    .insert(optical_flow::OpticalFlow);
+            }
             RenderMode::Semantic => {
                 commands.entity(entity)
                     .insert(semantic::Semantic);
@@ -164,6 +172,7 @@ fn apply_render_modes(
             commands.entity(entity)
                 .remove::<depth::Depth>()
                 .remove::<normal::Normal>()
+                .remove::<optical_flow::OpticalFlow>()
                 .remove::<semantic::Semantic>();
 
             insert_render_mode_flag(&mut commands, entity);

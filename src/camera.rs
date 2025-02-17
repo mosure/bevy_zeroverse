@@ -3,6 +3,7 @@ use bevy::{
     core_pipeline::{
         bloom::Bloom,
         core_3d::ScreenSpaceTransmissionQuality,
+        prepass::MotionVectorPrepass,
         tonemapping::Tonemapping,
     },
     gizmos::config::{
@@ -286,9 +287,10 @@ fn insert_cameras(
                 Exposure::INDOOR,
                 Projection::Perspective(zeroverse_camera.perspective_sampler.sample()),
                 zeroverse_camera.override_transform.unwrap_or(zeroverse_camera.position_sampler.sample()),
+                Bloom::default(),
+                MotionVectorPrepass,
                 Tonemapping::TonyMcMapface,
                 PluckerCamera,
-                Bloom::default(),
                 Name::new("zeroverse_camera"),
             ));
 
@@ -358,6 +360,7 @@ fn setup_editor_camera(
                 marker.transform.unwrap_or_default(),
                 Tonemapping::TonyMcMapface,
                 Bloom::default(),
+                MotionVectorPrepass,
                 PluckerCamera,
             ))
             .insert(render_layer)
