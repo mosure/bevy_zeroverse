@@ -42,6 +42,9 @@ use crate::{
 };
 
 
+
+// TODO: support camera trajectories, requires custom motion vector prepass during capture
+// TODO: disable tonemapping for optical flow render mode
 pub struct ZeroverseCameraPlugin;
 impl Plugin for ZeroverseCameraPlugin {
     fn build(&self, app: &mut App) {

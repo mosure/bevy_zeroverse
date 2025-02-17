@@ -487,9 +487,9 @@ fn setup_camera(
         #[cfg(feature = "viewer")]
         PanOrbitCamera {
             allow_upside_down: true,
-            orbit_smoothness: 0.0,
-            pan_smoothness: 0.0,
-            zoom_smoothness: 0.0,
+            orbit_smoothness: 0.8,
+            pan_smoothness: 0.6,
+            zoom_smoothness: 0.8,
             ..default()
         },
     ));
