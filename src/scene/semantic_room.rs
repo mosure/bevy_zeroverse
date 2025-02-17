@@ -138,7 +138,7 @@ impl Default for ZeroverseSemanticRoomSettings {
 fn check_aabb_collision(
     center: Vec3,
     scale: Vec3,
-    aabb_colliders: &Vec<(Vec3, Vec3)>,
+    aabb_colliders: &[(Vec3, Vec3)],
 ) -> bool {
     let half_scale: Vec3 = scale * 0.3;
     let min_a = center - half_scale;
