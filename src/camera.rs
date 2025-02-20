@@ -32,6 +32,12 @@ use bevy::{
         view::RenderLayers,
     }
 };
+use bevy_args::{
+    Deserialize,
+    Parser,
+    Serialize,
+    ValueEnum,
+};
 use rand::Rng;
 
 use crate::{
@@ -239,6 +245,10 @@ impl PerspectiveSampler {
     Hash,
     PartialEq,
     Reflect,
+    Deserialize,
+    Parser,
+    Serialize,
+    ValueEnum,
 )]
 pub enum PlaybackMode {
     Loop,
@@ -256,6 +266,9 @@ pub enum PlaybackMode {
     Debug,
     PartialEq,
     Reflect,
+    Deserialize,
+    Parser,
+    Serialize,
 )]
 #[reflect(Resource)]
 pub struct Playback {

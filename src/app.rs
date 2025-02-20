@@ -49,6 +49,8 @@ use crate::{
     camera::{
         DefaultZeroverseCamera,
         EditorCameraMarker,
+        Playback,
+        PlaybackMode,
         ZeroverseCamera,
     },
     io,
@@ -173,6 +175,14 @@ pub struct BevyZeroverseConfig {
     #[pyo3(get, set)]
     #[arg(long, default_value = "0.0")]
     pub max_camera_radius: f32,
+
+    #[pyo3(get, set)]
+    #[arg(long, value_enum, default_value_t = PlaybackMode::Still)]
+    pub playback_mode: PlaybackMode,
+
+    #[pyo3(get, set)]
+    #[arg(long, default_value = "0.2")]
+    pub playback_speed: f32,
 }
 
 #[cfg(feature = "python")]
@@ -273,6 +283,12 @@ pub struct BevyZeroverseConfig {
 
     #[arg(long, default_value = "0.0")]
     pub max_camera_radius: f32,
+
+    #[arg(long, value_enum, default_value_t = PlaybackMode::PingPong)]
+    pub playback_mode: PlaybackMode,
+
+    #[arg(long, default_value = "0.2")]
+    pub playback_speed: f32,
 }
 
 impl Default for BevyZeroverseConfig {
@@ -297,6 +313,8 @@ impl Default for BevyZeroverseConfig {
             scene_type: Default::default(),
             rotation_augmentation: true,
             max_camera_radius: 0.0,
+            playback_mode: PlaybackMode::PingPong,
+            playback_speed: 0.2,
         }
     }
 }
@@ -654,11 +672,15 @@ fn rotate_scene(
 fn propagate_cli_settings(
     args: Res<BevyZeroverseConfig>,
     // mut plucker_settings: ResMut<ZeroversePluckerSettings>,
+    mut playback: ResMut<Playback>,
     mut render_mode: ResMut<RenderMode>,
     mut scene_settings: ResMut<ZeroverseSceneSettings>,
 ) {
     if args.is_changed() {
         // plucker_settings.enabled = args.plucker_visualization;
+
+        playback.mode = args.playback_mode;
+        playback.speed = args.playback_speed;
 
         *render_mode = args.render_mode.clone();
 
