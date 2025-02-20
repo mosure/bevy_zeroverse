@@ -40,6 +40,9 @@ use bevy_args::{
 };
 use rand::Rng;
 
+#[cfg(feature = "python")]
+use pyo3::prelude::*;
+
 use crate::{
     app::BevyZeroverseConfig,
     io,
@@ -236,6 +239,32 @@ impl PerspectiveSampler {
 }
 
 
+#[cfg(feature = "python")]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    Reflect,
+    Deserialize,
+    Parser,
+    Serialize,
+    ValueEnum,
+)]
+#[pyclass(eq, eq_int)]
+pub enum PlaybackMode {
+    Loop,
+    Once,
+    PingPong,
+    Sin,
+    #[default]
+    Still,
+}
+
+#[cfg(not(feature = "python"))]
 #[derive(
     Clone,
     Copy,
@@ -259,6 +288,28 @@ pub enum PlaybackMode {
     Still,
 }
 
+#[cfg(feature = "python")]
+#[derive(
+    Resource,
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Reflect,
+    Deserialize,
+    Parser,
+    Serialize,
+)]
+#[pyclass]
+#[reflect(Resource)]
+pub struct Playback {
+    pub mode: PlaybackMode,
+    pub progress: f32,
+    pub direction: f32,
+    pub speed: f32,
+}
+
+#[cfg(not(feature = "python"))]
 #[derive(
     Resource,
     Clone,

@@ -33,7 +33,7 @@ fn fragment(
     }
 
     // let sigma: f32 = 0.15;
-    // let norm_factor = sigma * 2.0;
+    // let norm_factor = sigma * length(view.viewport.zw);
     // let m = clamp(radius / norm_factor, 0.0, 1.0);
     let m = clamp(radius, 0.0, 1.0);
 
