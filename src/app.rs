@@ -654,10 +654,13 @@ fn rotate_scene(
 fn propagate_cli_settings(
     args: Res<BevyZeroverseConfig>,
     // mut plucker_settings: ResMut<ZeroversePluckerSettings>,
+    mut render_mode: ResMut<RenderMode>,
     mut scene_settings: ResMut<ZeroverseSceneSettings>,
 ) {
     if args.is_changed() {
         // plucker_settings.enabled = args.plucker_visualization;
+
+        *render_mode = args.render_mode.clone();
 
         scene_settings.num_cameras = args.num_cameras;
         scene_settings.rotation_augmentation = args.rotation_augmentation;

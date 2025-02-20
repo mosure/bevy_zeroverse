@@ -2,8 +2,9 @@ use bevy::prelude::*;
 
 use crate::{
     camera::{
-        CameraPositionSampler,
-        CameraPositionSamplerType,
+        ExtrinsicsSampler,
+        ExtrinsicsSamplerType,
+        TrajectorySampler,
         ZeroverseCamera,
     },
     scene::{
@@ -51,14 +52,16 @@ fn setup_scene(
         .with_children(|commands| {
             for _ in 0..scene_settings.num_cameras {
                 commands.spawn(ZeroverseCamera {
-                    position_sampler: CameraPositionSampler {
-                            sampler_type: CameraPositionSamplerType::Sphere {
+                    trajectory: TrajectorySampler::Static {
+                        start: ExtrinsicsSampler {
+                            position: ExtrinsicsSamplerType::Sphere {
                                 radius: 3.25,
                             },
                             ..default()
                         },
-                        ..default()
-                    });
+                    },
+                    ..default()
+                });
             }
         });
 

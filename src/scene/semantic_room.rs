@@ -6,9 +6,10 @@ use rand::Rng;
 
 use crate::{
     camera::{
-        CameraPositionSampler,
-        CameraPositionSamplerType,
+        ExtrinsicsSampler,
+        ExtrinsicsSamplerType,
         LookingAtSampler,
+        TrajectorySampler,
         ZeroverseCamera,
     },
     scene::{
@@ -470,8 +471,8 @@ fn setup_scene(
                 room_scale.y - (room_settings.camera_floor_padding + scene_settings.max_camera_radius),
                 room_scale.z - (room_settings.camera_wall_padding + scene_settings.max_camera_radius) * 2.0,
             );
-            let origin_camera_sampler = CameraPositionSampler {
-                sampler_type: CameraPositionSamplerType::Band {
+            let origin_camera_sampler = ExtrinsicsSampler {
+                position: ExtrinsicsSamplerType::Band {
                     size,
                     rotation: Quat::IDENTITY,
                     translate: Vec3::new(
@@ -481,6 +482,7 @@ fn setup_scene(
                     ),
                 },
                 looking_at: room_settings.looking_at_sampler.clone(),
+                ..default()
             };
             let origin_camera_center = origin_camera_sampler.sample();
             let mut rng = rand::thread_rng();
@@ -493,8 +495,8 @@ fn setup_scene(
                         room_scale.z - room_settings.camera_wall_padding * 2.0,
                     );
 
-                    let camera_sampler = CameraPositionSampler {
-                        sampler_type: CameraPositionSamplerType::Band {
+                    let camera_sampler = ExtrinsicsSampler {
+                        position: ExtrinsicsSamplerType::Band {
                             size,
                             rotation: Quat::IDENTITY,
                             translate: Vec3::new(
@@ -504,24 +506,30 @@ fn setup_scene(
                             ),
                         },
                         looking_at: room_settings.looking_at_sampler.clone(),
+                        ..default()
                     };
 
                     commands.spawn(ZeroverseCamera {
-                        position_sampler: camera_sampler,
+                        trajectory: TrajectorySampler::Static {
+                            start: camera_sampler,
+                        },
                         ..default()
                     });
                 } else {
-                    let circular_sampler = CameraPositionSampler {
-                        sampler_type: CameraPositionSamplerType::Circle {
+                    let circular_sampler = ExtrinsicsSampler {
+                        position: ExtrinsicsSamplerType::Circle {
                             radius: scene_settings.max_camera_radius,
                             rotation: Quat::from_rng(&mut rng),
                             translate: origin_camera_center.translation,
                         },
                         looking_at: room_settings.looking_at_sampler.clone(),
+                        ..default()
                     };
 
                     commands.spawn(ZeroverseCamera {
-                        position_sampler: circular_sampler,
+                        trajectory: TrajectorySampler::Static {
+                            start: circular_sampler,
+                        },
                         ..default()
                     });
                 }

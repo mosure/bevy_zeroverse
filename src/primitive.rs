@@ -123,7 +123,7 @@ impl Default for ZeroversePrimitiveSettings {
             invert_normals: false,
             cull_mode: None,
             cast_shadows: true,
-            receive_shadows: true,
+            receive_shadows: true,  // TODO: fix shadows + camera trajectories clipping
         }
     }
 }
