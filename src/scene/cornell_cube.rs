@@ -18,8 +18,9 @@ use rand::seq::SliceRandom;
 
 use crate::{
     camera::{
-        CameraPositionSampler,
-        CameraPositionSamplerType,
+        ExtrinsicsSampler,
+        ExtrinsicsSamplerType,
+        TrajectorySampler,
         ZeroverseCamera,
     },
     material::ZeroverseMaterials,
@@ -256,11 +257,13 @@ fn setup_scene(
 
     for _ in 0..scene_settings.num_cameras {
         commands.spawn(ZeroverseCamera {
-            position_sampler: CameraPositionSampler {
-                sampler_type: CameraPositionSamplerType::Sphere {
-                    radius: 3.25,
+            trajectory: TrajectorySampler::Static {
+                start: ExtrinsicsSampler {
+                    position: ExtrinsicsSamplerType::Sphere {
+                        radius: 3.25,
+                    },
+                    ..default()
                 },
-                ..default()
             },
             ..default()
         }).insert(ZeroverseScene);

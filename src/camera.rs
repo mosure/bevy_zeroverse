@@ -57,12 +57,16 @@ impl Plugin for ZeroverseCameraPlugin {
 
         app.init_resource::<DefaultZeroverseCamera>();
 
+        app.init_resource::<Playback>();
+        app.register_type::<Playback>();
+
         app.add_systems(
             Update,
             (
                 draw_camera_gizmo,
                 insert_cameras,
                 setup_editor_camera,
+                update_camera_trajectory,
                 update_tonemapping,
             )
         );
@@ -103,8 +107,8 @@ impl LookingAtSampler {
 }
 
 // TODO: add gizmos for sampler types
-#[derive(Debug, Reflect)]
-pub enum CameraPositionSamplerType {
+#[derive(Clone, Debug, Reflect)]
+pub enum ExtrinsicsSamplerType {
     Band {
         size: Vec3,
         rotation: Quat,
@@ -129,22 +133,33 @@ pub enum CameraPositionSamplerType {
     Transform(Transform),
 }
 
-#[derive(Debug, Reflect, Default)]
-pub struct CameraPositionSampler {
+#[derive(Clone, Debug, Reflect, Default)]
+pub struct ExtrinsicsSampler {
+    pub cache: Option<Transform>,
     pub looking_at: LookingAtSampler,
-    pub sampler_type: CameraPositionSamplerType,
+    pub position: ExtrinsicsSamplerType,  // TODO: use position sampler here
 }
 
-impl Default for CameraPositionSamplerType {
+impl Default for ExtrinsicsSamplerType {
     fn default() -> Self {
         Self::Transform(Transform::default())
     }
 }
 
-impl CameraPositionSampler {
+impl ExtrinsicsSampler {
+    pub fn sample_cache(&mut self) -> Transform {
+        if let Some(transform) = self.cache {
+            return transform;
+        }
+
+        let transform = self.sample();
+        self.cache = Some(transform);
+        transform
+    }
+
     pub fn sample(&self) -> Transform {
-        let transform = match self.sampler_type {
-            CameraPositionSamplerType::Band { size, rotation, translate } => {
+        let transform: Transform = match self.position {
+            ExtrinsicsSamplerType::Band { size, rotation, translate } => {
                 let rng = &mut rand::thread_rng();
 
                 let face = rng.gen_range(0..4);
@@ -163,7 +178,7 @@ impl CameraPositionSampler {
 
                 Transform::from_translation(pos)
             },
-            CameraPositionSamplerType::Circle { radius, rotation, translate } => {
+            ExtrinsicsSamplerType::Circle { radius, rotation, translate } => {
                 let rng = &mut rand::thread_rng();
 
                 let xz = Circle::new(radius).sample_boundary(rng);
@@ -171,14 +186,14 @@ impl CameraPositionSampler {
 
                 Transform::from_translation(pos)
             },
-            CameraPositionSamplerType::Sphere { radius } => {
+            ExtrinsicsSamplerType::Sphere { radius } => {
                 let rng = &mut rand::thread_rng();
 
                 let pos = Sphere::new(radius).sample_boundary(rng);
 
                 Transform::from_translation(pos)
             },
-            CameraPositionSamplerType::Transform(transform) => transform,
+            ExtrinsicsSamplerType::Transform(transform) => transform,
             _ => Transform::default(),
         };
 
@@ -215,13 +230,157 @@ impl PerspectiveSampler {
 }
 
 
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    Reflect,
+)]
+pub enum PlaybackMode {
+    Loop,
+    Once,
+    PingPong,
+    Sin,
+    #[default]
+    Still,
+}
+
+#[derive(
+    Resource,
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Reflect,
+)]
+#[reflect(Resource)]
+pub struct Playback {
+    pub mode: PlaybackMode,
+    pub progress: f32,
+    pub direction: f32,
+    pub speed: f32,
+}
+
+impl Default for Playback {
+    fn default() -> Self {
+        Self {
+            mode: PlaybackMode::default(),
+            progress: 0.0,
+            direction: 1.0,
+            speed: 1.0,
+        }
+    }
+}
+
+impl Playback {
+    pub fn step(&mut self, time: &Res<Time>) {
+        if self.speed == 0.0 {
+            return;
+        }
+
+        // bail condition
+        match self.mode {
+            PlaybackMode::Loop => {}
+            PlaybackMode::Once => {
+                if self.progress >= 1.0 {
+                    return;
+                }
+            }
+            PlaybackMode::PingPong => {}
+            PlaybackMode::Sin => {}
+            PlaybackMode::Still => {
+                return;
+            }
+        }
+
+        // forward condition
+        match self.mode {
+            PlaybackMode::Loop | PlaybackMode::Once | PlaybackMode::PingPong => {
+                self.progress += time.delta_secs() * self.direction * self.speed;
+            }
+            PlaybackMode::Sin => {
+                let theta = self.direction * self.speed * time.elapsed_secs();
+                let y = (theta * 2.0 * std::f32::consts::PI).sin();
+                self.progress = (y + 1.0) / 2.0;
+            }
+            PlaybackMode::Still => {}
+        }
+
+        // reset condition
+        match self.mode {
+            PlaybackMode::Loop => {
+                if self.progress > 1.0 {
+                    self.progress = 0.0;
+                }
+            }
+            PlaybackMode::Once => {}
+            PlaybackMode::PingPong => {
+                if self.progress > 1.0 {
+                    self.progress = 1.0;
+                    self.direction = -self.direction;
+                } else if self.progress < 0.0 {
+                    self.progress = 0.0;
+                    self.direction = -self.direction;
+                }
+            }
+            PlaybackMode::Sin => {}
+            PlaybackMode::Still => {}
+        }
+    }
+}
+
+
+
+#[derive(Debug, Reflect)]
+pub enum TrajectorySampler {
+    Static {
+        start: ExtrinsicsSampler,
+    },
+    Linear {
+        start: ExtrinsicsSampler,
+        end: ExtrinsicsSampler,
+    },
+    // TODO: add arc, spline, etc.
+}
+
+impl Default for TrajectorySampler {
+    fn default() -> Self {
+        Self::Static {
+            start: ExtrinsicsSampler::default(),
+        }
+    }
+}
+
+impl TrajectorySampler {
+    pub fn sample(&mut self, progress: f32) -> Transform {
+        match self {
+            TrajectorySampler::Static { start } => {
+                start.sample_cache()
+            },
+            TrajectorySampler::Linear { start, end } => {
+                let progress = progress.clamp(0.0, 1.0);
+                let start = start.sample_cache();
+                let end = end.sample_cache();
+                let pos = start.translation.lerp(end.translation, progress);
+                let rot = start.rotation.slerp(end.rotation, progress);
+                Transform::from_translation(pos).mul_transform(Transform::from_rotation(rot))
+            },
+        }
+    }
+}
+
+
 #[derive(Component, Debug, Default, Reflect)]
 pub struct ZeroverseCamera {
-    pub looking_at: LookingAtSampler,
     pub perspective_sampler: PerspectiveSampler,
-    pub position_sampler: CameraPositionSampler,
     pub resolution: Option<UVec2>,
     pub override_transform: Option<Transform>,
+    pub trajectory: TrajectorySampler,
+    pub playback: Playback,
 }
 
 #[derive(Resource, Debug, Default, Reflect)]
@@ -230,13 +389,40 @@ pub struct DefaultZeroverseCamera {
 }
 
 
+fn update_camera_trajectory(
+    mut cameras: Query<(
+        &mut Transform,
+        &mut ZeroverseCamera,
+    )>,
+    mut global_playback: ResMut<Playback>,
+    time: Res<Time>,
+) {
+    let update_camera_playbacks = global_playback.is_changed() || global_playback.mode != PlaybackMode::Still;
+    global_playback.step(&time);
+
+    for (
+        mut transform,
+        mut camera,
+    ) in cameras.iter_mut() {
+        if update_camera_playbacks {
+            camera.playback = *global_playback;
+        } else {
+            camera.playback.step(&time);
+        }
+
+        let playback = camera.playback;
+        *transform = camera.trajectory.sample(playback.progress);
+    }
+}
+
+
 fn insert_cameras(
     mut commands: Commands,
     mut images: ResMut<Assets<Image>>,
-    zeroverse_cameras: Query<
+    mut zeroverse_cameras: Query<
         (
             Entity,
-            &ZeroverseCamera,
+            &mut ZeroverseCamera,
         ),
         Without<Camera>,
     >,
@@ -245,7 +431,10 @@ fn insert_cameras(
     render_mode: Res<RenderMode>,
     render_device: Res<RenderDevice>,
 ) {
-    for (entity, zeroverse_camera) in zeroverse_cameras.iter() {
+    for (
+        entity,
+        mut zeroverse_camera,
+    ) in zeroverse_cameras.iter_mut() {
         let resolution = zeroverse_camera.resolution
             .unwrap_or(default_zeroverse_camera.resolution.expect("DefaultZeroverseCamera resolution must be set if ZeroverseCamera resolution is not set"));
 
@@ -290,7 +479,7 @@ fn insert_cameras(
                 },
                 Exposure::INDOOR,
                 Projection::Perspective(zeroverse_camera.perspective_sampler.sample()),
-                zeroverse_camera.override_transform.unwrap_or(zeroverse_camera.position_sampler.sample()),
+                zeroverse_camera.override_transform.unwrap_or(zeroverse_camera.trajectory.sample(0.0)),
                 Bloom::default(),
                 MotionVectorPrepass,
                 render_mode.tonemapping(),
