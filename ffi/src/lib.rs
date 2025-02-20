@@ -106,6 +106,7 @@ pub struct Sample {
 impl Sample {
     #[getter]
     fn views<'py>(&self, py: Python<'py>) -> Bound<'py, PyList> {
+        #[allow(deprecated)]
         let views_list: Vec<_> = self.views.iter().map(|v| v.clone().into_py(py)).collect();
         PyList::new(py, views_list).unwrap()
     }
