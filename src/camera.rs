@@ -3,7 +3,7 @@ use bevy::{
     core_pipeline::{
         bloom::Bloom,
         core_3d::ScreenSpaceTransmissionQuality,
-        prepass::MotionVectorPrepass,
+        prepass::MotionVectorPrepass, // MOTION_VECTOR_PREPASS_FORMAT,
     },
     gizmos::config::{
         GizmoConfig,
@@ -43,10 +43,20 @@ use rand::Rng;
 #[cfg(feature = "python")]
 use pyo3::prelude::*;
 
+#[cfg(not(feature = "web"))]
+use bevy::core_pipeline::{
+    // core_3d::CORE_3D_DEPTH_FORMAT,
+    prepass::{
+        // NORMAL_PREPASS_FORMAT,
+        DepthPrepass,
+        NormalPrepass,
+    },
+};
+
 use crate::{
     app::BevyZeroverseConfig,
     io,
-    plucker::PluckerCamera,
+    // plucker::PluckerCamera,
     render::RenderMode,
 };
 
@@ -233,6 +243,8 @@ impl PerspectiveSampler {
         let fov = fov_deg * std::f32::consts::PI / 180.0;
         PerspectiveProjection {
             fov,
+            near: 0.1,
+            far: 25.0,
             ..default()
         }
     }
@@ -547,34 +559,129 @@ fn insert_cameras(
                 Bloom::default(),
                 MotionVectorPrepass,
                 render_mode.tonemapping(),
-                PluckerCamera,
+                render_mode.msaa(),
+                // PluckerCamera,
                 Name::new("zeroverse_camera"),
             ));
 
-        if args.image_copiers {
-            let mut cpu_image = Image {
-                texture_descriptor: TextureDescriptor {
-                    label: "bevy_zeroverse_camera_cpu_image".into(),
-                    size,
-                    dimension: TextureDimension::D2,
-                    format: TextureFormat::Rgba32Float,
-                    mip_level_count: 1,
-                    sample_count: 1,
-                    usage: TextureUsages::COPY_DST | TextureUsages::TEXTURE_BINDING,
-                    view_formats: &[],
-                },
-                ..Default::default()
-            };
-            cpu_image.resize(size);
-            let cpu_image_handle = images.add(cpu_image);
-
-            camera.insert(io::image_copy::ImageCopier::new(
-                render_target,
-                cpu_image_handle,
-                size,
-                TextureFormat::Rgba32Float,
-                &render_device,
+        #[cfg(not(feature = "web"))]
+        camera
+            .insert((
+                DepthPrepass,
+                NormalPrepass,
             ));
+
+        if args.image_copiers {
+            // TODO: use pipeline color format
+            {  // color
+                let mut color_cpu_image = Image {
+                    texture_descriptor: TextureDescriptor {
+                        label: "bevy_zeroverse_camera_cpu_image".into(),
+                        size,
+                        dimension: TextureDimension::D2,
+                        format: TextureFormat::Rgba32Float,
+                        mip_level_count: 1,
+                        sample_count: 1,
+                        usage: TextureUsages::COPY_DST | TextureUsages::TEXTURE_BINDING,
+                        view_formats: &[],
+                    },
+                    ..Default::default()
+                };
+                color_cpu_image.resize(size);
+                let color_cpu_image_handle = images.add(color_cpu_image);
+
+                camera.insert(io::image_copy::ImageCopier::new(
+                    render_target,
+                    color_cpu_image_handle,
+                    size,
+                    TextureFormat::Rgba32Float,
+                    &render_device,
+                ));
+            }
+
+            // let mut copiers = Vec::new();
+
+            // #[cfg(not(feature = "web"))]
+            // { // depth
+            //     let mut depth_cpu_image = Image {
+            //         texture_descriptor: TextureDescriptor {
+            //             label: "bevy_zeroverse_camera_depth_cpu_image".into(),
+            //             size,
+            //             dimension: TextureDimension::D2,
+            //             format: CORE_3D_DEPTH_FORMAT,
+            //             mip_level_count: 1,
+            //             sample_count: 1,
+            //             usage: TextureUsages::COPY_DST | TextureUsages::TEXTURE_BINDING,
+            //             view_formats: &[],
+            //         },
+            //         ..Default::default()
+            //     };
+            //     depth_cpu_image.resize(size);
+            //     let depth_cpu_image_handle = images.add(depth_cpu_image);
+
+            //     copiers.push(io::prepass_copy::PrepassCopier::new(
+            //         RenderMode::Depth,
+            //         depth_cpu_image_handle,
+            //         size,
+            //         CORE_3D_DEPTH_FORMAT,
+            //         &render_device,
+            //     ));
+            // }
+
+            // { // motion vector
+            //     let mut motion_vectors_cpu_image = Image {
+            //         texture_descriptor: TextureDescriptor {
+            //             label: "bevy_zeroverse_camera_motion_vectors_cpu_image".into(),
+            //             size,
+            //             dimension: TextureDimension::D2,
+            //             format: MOTION_VECTOR_PREPASS_FORMAT,
+            //             mip_level_count: 1,
+            //             sample_count: 1,
+            //             usage: TextureUsages::COPY_DST | TextureUsages::TEXTURE_BINDING,
+            //             view_formats: &[],
+            //         },
+            //         ..Default::default()
+            //     };
+            //     motion_vectors_cpu_image.resize(size);
+            //     let motion_vectors_cpu_image_handle = images.add(motion_vectors_cpu_image);
+
+            //     copiers.push(io::prepass_copy::PrepassCopier::new(
+            //         RenderMode::MotionVectors,
+            //         motion_vectors_cpu_image_handle,
+            //         size,
+            //         MOTION_VECTOR_PREPASS_FORMAT,
+            //         &render_device,
+            //     ));
+            // }
+
+            // #[cfg(not(feature = "web"))]
+            // { // normal
+            //     let mut normal_cpu_image = Image {
+            //         texture_descriptor: TextureDescriptor {
+            //             label: "bevy_zeroverse_camera_normal_cpu_image".into(),
+            //             size,
+            //             dimension: TextureDimension::D2,
+            //             format: NORMAL_PREPASS_FORMAT,
+            //             mip_level_count: 1,
+            //             sample_count: 1,
+            //             usage: TextureUsages::COPY_DST | TextureUsages::TEXTURE_BINDING,
+            //             view_formats: &[],
+            //         },
+            //         ..Default::default()
+            //     };
+            //     normal_cpu_image.resize(size);
+            //     let normal_cpu_image_handle = images.add(normal_cpu_image);
+
+            //     copiers.push(io::prepass_copy::PrepassCopier::new(
+            //         RenderMode::Normal,
+            //         normal_cpu_image_handle,
+            //         size,
+            //         NORMAL_PREPASS_FORMAT,
+            //         &render_device,
+            //     ));
+            // }
+
+            // camera.insert(io::prepass_copy::PrepassCopiers(copiers));
         }
     }
 }
@@ -614,16 +721,30 @@ fn setup_editor_camera(
                     hdr: true,
                     ..default()
                 },
+                Projection::Perspective(PerspectiveProjection {
+                    far: 25.0,
+                    ..default()
+                }),
                 Exposure::INDOOR,
                 marker.transform.unwrap_or_default(),
                 render_mode.tonemapping(),
+                render_mode.msaa(),
                 Bloom::default(),
+                DepthPrepass,
                 MotionVectorPrepass,
-                PluckerCamera,
+                NormalPrepass,
+                // PluckerCamera,
             ))
             .insert(render_layer)
             .insert(ProcessedEditorCameraMarker)
             .insert(Name::new("editor_camera"));
+
+        #[cfg(not(feature = "web"))]
+        commands.entity(entity)
+            .insert((
+                DepthPrepass,
+                NormalPrepass,
+            ));
     }
 }
 
@@ -650,7 +771,15 @@ pub fn update_tonemapping(
     {
         commands
             .entity(camera_entity)
-            .insert(render_mode.tonemapping());
+            .insert(render_mode.tonemapping())
+            .insert(render_mode.msaa());
+    }
+
+    for camera_entity in zeroverse_cameras.iter() {
+        commands
+            .entity(camera_entity)
+            .insert(render_mode.tonemapping())
+            .insert(render_mode.msaa());
     }
 }
 

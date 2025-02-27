@@ -131,7 +131,7 @@ class Sample:
         tensor_dict['aabb'] = torch.tensor(self.aabb, dtype=torch.float32)
 
         tensor_dict['color'] = normalize_hdr_image_tonemap(tensor_dict['color'])
-        tensor_dict['depth'] = normalize_hdr_image_tonemap(tensor_dict['depth'])
+        tensor_dict['depth'] = tensor_dict['depth']
 
         return tensor_dict
 
@@ -319,9 +319,13 @@ def save_to_folders(dataset, output_dir: Path, n_workers: int = 1):
             image_filename = scene_dir / f"color_{view_idx:02d}.jpg"
             save_image(view_color, str(image_filename))
 
-            view_depth = depth_tensor[view_idx].permute(2, 0, 1)
+            view_depth = normalize_hdr_image_tonemap(depth_tensor)[view_idx].permute(2, 0, 1)
             depth_filename = scene_dir / f"depth_{view_idx:02d}.jpg"
             save_image(view_depth, str(depth_filename))
+
+            view_depth_flat = view_depth[0]
+            depth_npz_filename = scene_dir / f"depth_{view_idx:02d}.npz"
+            np.savez(depth_npz_filename, depth=view_depth_flat.cpu().numpy())
 
         meta_tensors = {
             'world_from_view': sample['world_from_view'],
@@ -362,11 +366,17 @@ class FolderDataset(Dataset):
             color_tensor = self.transform(image).permute(1, 2, 0)
             color_tensors.append(color_tensor)
 
-            depth_file = image_file.with_name(image_file.name.replace("color", "depth"))
+            depth_file = image_file.with_name(image_file.name.replace("color", "depth").replace("jpg", "npz"))
             if depth_file.exists():
-                depth = Image.open(depth_file).convert("L")
-                depth_tensor = self.transform(depth).permute(1, 2, 0)
-                depth_tensors.append(depth_tensor)
+                # depth = Image.open(depth_file).convert("L")
+                # depth_tensor = self.transform(depth).permute(1, 2, 0)
+
+                data = np.load(depth_file)
+                depth_np = data['depth']
+                loaded_depth = torch.from_numpy(depth_np).to(torch.float32)
+                loaded_depth = loaded_depth.unsqueeze(-1)
+
+                depth_tensors.append(loaded_depth)
 
         color_tensor = torch.stack(color_tensors, dim=0)
 

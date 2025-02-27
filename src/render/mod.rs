@@ -37,6 +37,7 @@ pub enum RenderMode {
     #[default]
     Color,
     Depth,
+    MotionVectors,
     Normal,
     OpticalFlow,
     Semantic,
@@ -45,8 +46,15 @@ pub enum RenderMode {
 impl RenderMode {
     pub fn tonemapping(&self) -> Tonemapping {
         match self {
-            RenderMode::OpticalFlow => Tonemapping::None,
+            RenderMode::Depth | RenderMode::OpticalFlow => Tonemapping::None,
             _ => Tonemapping::TonyMcMapface,
+        }
+    }
+
+    pub fn msaa(&self) -> Msaa {
+        match self {
+            RenderMode::Depth => Msaa::Off,
+            _ => Msaa::default(),
         }
     }
 }
@@ -174,6 +182,7 @@ fn apply_render_modes(
                 commands.entity(entity)
                     .insert(semantic::Semantic);
             }
+            _ => {}
         }
     };
 

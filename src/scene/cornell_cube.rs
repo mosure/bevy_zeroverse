@@ -20,6 +20,7 @@ use crate::{
     camera::{
         ExtrinsicsSampler,
         ExtrinsicsSamplerType,
+        PerspectiveSampler,
         TrajectorySampler,
         ZeroverseCamera,
     },
@@ -260,10 +261,14 @@ fn setup_scene(
             trajectory: TrajectorySampler::Static {
                 start: ExtrinsicsSampler {
                     position: ExtrinsicsSamplerType::Sphere {
-                        radius: 3.25,
+                        radius: 3.5,
                     },
                     ..default()
                 },
+            },
+            perspective_sampler: PerspectiveSampler {
+                min_fov_deg: 40.0,
+                max_fov_deg: 70.0,
             },
             ..default()
         }).insert(ZeroverseScene);

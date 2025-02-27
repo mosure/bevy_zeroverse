@@ -1,7 +1,7 @@
 from pathlib import Path
 import shutil
 
-from bevy_zeroverse_dataloader import BevyZeroverseDataset, chunk_and_save
+from bevy_zeroverse_dataloader import BevyZeroverseDataset, chunk_and_save, save_to_folders
 
 
 def generate_chunked_dataset(
@@ -16,6 +16,12 @@ def generate_chunked_dataset(
         num_samples=10,
     )
 ) -> list:
+    save_to_folders(
+        dataset,
+        output_dir,
+        n_workers=4,
+    )
+
     return chunk_and_save(
         dataset,
         output_dir,

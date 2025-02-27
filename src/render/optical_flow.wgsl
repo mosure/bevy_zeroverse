@@ -35,7 +35,7 @@ fn fragment(
     // let sigma: f32 = 0.15;
     // let norm_factor = sigma * length(view.viewport.zw);
     // let m = clamp(radius / norm_factor, 0.0, 1.0);
-    let m = clamp(radius, 0.0, 1.0);
+    let m = clamp(radius * 0.8, 0.0, 1.0);
 
     let rgb = hsv_to_rgb(vec3<f32>(angle, m, 1.0));
     return vec4<f32>(rgb, 1.0);

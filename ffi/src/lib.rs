@@ -334,6 +334,7 @@ fn sample_stream(
         match write_to {
             RenderMode::Color => view.color = image_data,
             RenderMode::Depth => view.depth = image_data,
+            RenderMode::MotionVectors => panic!("motion vectors rendering not supported"),
             RenderMode::Normal => view.normal = image_data,
             RenderMode::OpticalFlow => panic!("optical flow rendering not supported"),
             RenderMode::Semantic => panic!("semantic rendering not supported"),

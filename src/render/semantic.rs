@@ -174,6 +174,7 @@ fn apply_semantic_material(
     }
 
     for (e, pbr_material, label) in &semantic {
+        // TODO: support instance coloring (e.g. saturation/lightness shift)
         let color = label.color().to_linear();
         let semantic_material = materials.add(
             ExtendedMaterial {

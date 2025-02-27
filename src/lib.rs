@@ -8,7 +8,7 @@ pub mod io;
 pub mod manifold;
 pub mod material;
 pub mod mesh;
-pub mod plucker;
+// pub mod plucker;
 pub mod primitive;
 pub mod render;
 pub mod scene;

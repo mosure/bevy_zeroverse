@@ -401,6 +401,7 @@ pub fn viewer_app(
 
     if args.image_copiers {
         app.add_plugins(io::image_copy::ImageCopyPlugin);
+        app.add_plugins(io::prepass_copy::PrepassCopyPlugin);
     }
 
     #[cfg(feature = "viewer")]
@@ -429,10 +430,13 @@ pub fn viewer_app(
         setup_scene,
     ));
 
-    app.add_systems(PreUpdate, (
-        press_m_shuffle_materials,
-        setup_material_grid,
-    ));
+    app.add_systems(PreUpdate, press_m_shuffle_materials);
+
+    #[cfg(feature = "viewer")]
+    {
+        app.add_systems(PreUpdate, setup_material_grid);
+        app.add_systems(PostUpdate, setup_camera_grid);
+    }
 
     app.add_systems(Update, rotate_scene);
 
@@ -440,7 +444,6 @@ pub fn viewer_app(
         propagate_cli_settings,
         regenerate_scene_system,
         setup_camera,
-        setup_camera_grid,
     ));
 
     app
@@ -514,8 +517,9 @@ fn setup_camera(
 }
 
 #[derive(Component)]
-struct CameraGrid;
+pub struct CameraGrid;
 
+#[cfg(feature = "viewer")]
 fn setup_camera_grid(
     mut commands: Commands,
     args: Res<BevyZeroverseConfig>,
@@ -574,8 +578,9 @@ fn setup_camera_grid(
 
 
 #[derive(Component)]
-struct MaterialGrid;
+pub struct MaterialGrid;
 
+#[cfg(feature = "viewer")]
 fn setup_material_grid(
     mut commands: Commands,
     args: Res<BevyZeroverseConfig>,

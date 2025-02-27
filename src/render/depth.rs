@@ -57,7 +57,17 @@ fn apply_depth_material(
         }
     }
 
-    for (e, pbr_material) in &depths {
+    for (
+        e,
+        pbr_material,
+    ) in &depths {
+        // TODO: support this config at runtime
+        #[cfg(feature = "viewer")]
+        let linear_depth = Vec4::new(0.0, 0.0, 0.0, 0.0);
+
+        #[cfg(not(feature = "viewer"))]
+        let linear_depth = Vec4::new(1.0, 0.0, 0.0, 0.0);
+
         let depth_material = materials.add(
             ExtendedMaterial {
                 base: StandardMaterial {
@@ -65,10 +75,13 @@ fn apply_depth_material(
                     cull_mode: pbr_material.cull_mode,
                     ..default()
                 },
-                extension: DepthExtension::default(),
+                extension: DepthExtension {
+                    settings: DepthSettings {
+                        linear_depth,
+                    },
+                },
             },
         );
-
 
         commands.entity(e).insert(MeshMaterial3d(depth_material));
     }
@@ -78,8 +91,16 @@ fn apply_depth_material(
 pub type DepthMaterial = ExtendedMaterial<StandardMaterial, DepthExtension>;
 
 
+#[derive(Default, ShaderType, Debug, Clone)]
+pub struct DepthSettings {
+    pub linear_depth: Vec4,
+}
+
 #[derive(Default, AsBindGroup, TypePath, Debug, Clone, Asset)]
-pub struct DepthExtension { }
+pub struct DepthExtension {
+    #[uniform(102)]
+    pub settings: DepthSettings,
+}
 
 impl MaterialExtension for DepthExtension {
     fn fragment_shader() -> ShaderRef {
