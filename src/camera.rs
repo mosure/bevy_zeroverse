@@ -86,7 +86,7 @@ impl Plugin for ZeroverseCameraPlugin {
                 insert_cameras,
                 setup_editor_camera,
                 update_camera_trajectory,
-                update_tonemapping,
+                update_render_pipeline,
             )
         );
     }
@@ -556,13 +556,16 @@ fn insert_cameras(
                 Exposure::INDOOR,
                 Projection::Perspective(zeroverse_camera.perspective_sampler.sample()),
                 zeroverse_camera.override_transform.unwrap_or(zeroverse_camera.trajectory.sample(0.0)),
-                Bloom::default(),
                 MotionVectorPrepass,
-                render_mode.tonemapping(),
                 render_mode.msaa(),
+                render_mode.tonemapping(),
                 // PluckerCamera,
                 Name::new("zeroverse_camera"),
             ));
+
+        if let Some(bloom) = render_mode.bloom() {
+            camera.insert(bloom);
+        }
 
         #[cfg(not(feature = "web"))]
         camera
@@ -711,7 +714,8 @@ fn setup_editor_camera(
 ) {
     for (entity, marker) in editor_cameras.iter() {
         let render_layer = RenderLayers::default().union(&EDITOR_CAMERA_RENDER_LAYER);
-        commands.entity(entity)
+        let mut entity = commands.entity(entity);
+        entity
             .insert((
                 Camera3d {
                     screen_space_specular_transmission_quality: ScreenSpaceTransmissionQuality::High,
@@ -727,8 +731,8 @@ fn setup_editor_camera(
                 }),
                 Exposure::INDOOR,
                 marker.transform.unwrap_or_default(),
-                render_mode.tonemapping(),
                 render_mode.msaa(),
+                render_mode.tonemapping(),
                 Bloom::default(),
                 DepthPrepass,
                 MotionVectorPrepass,
@@ -739,9 +743,12 @@ fn setup_editor_camera(
             .insert(ProcessedEditorCameraMarker)
             .insert(Name::new("editor_camera"));
 
+        if let Some(bloom) = render_mode.bloom() {
+            entity.insert(bloom);
+        }
+
         #[cfg(not(feature = "web"))]
-        commands.entity(entity)
-            .insert((
+        entity.insert((
                 DepthPrepass,
                 NormalPrepass,
             ));
@@ -749,7 +756,7 @@ fn setup_editor_camera(
 }
 
 
-pub fn update_tonemapping(
+pub fn update_render_pipeline(
     mut commands: Commands,
     editor_cameras: Query<
         Entity,
@@ -769,17 +776,25 @@ pub fn update_tonemapping(
         .iter()
         .chain(zeroverse_cameras.iter())
     {
-        commands
-            .entity(camera_entity)
-            .insert(render_mode.tonemapping())
-            .insert(render_mode.msaa());
+        let mut entity = commands.entity(camera_entity);
+        entity
+            .insert(render_mode.msaa())
+            .insert(render_mode.tonemapping());
+
+        if let Some(bloom) = render_mode.bloom() {
+            entity.insert(bloom);
+        }
     }
 
     for camera_entity in zeroverse_cameras.iter() {
-        commands
-            .entity(camera_entity)
-            .insert(render_mode.tonemapping())
-            .insert(render_mode.msaa());
+        let mut entity = commands.entity(camera_entity);
+        entity
+            .insert(render_mode.msaa())
+            .insert(render_mode.tonemapping());
+
+        if let Some(bloom) = render_mode.bloom() {
+            entity.insert(bloom);
+        }
     }
 }
 

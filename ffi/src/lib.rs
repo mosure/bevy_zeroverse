@@ -52,6 +52,8 @@ pub struct View {
     pub color: Vec<u8>,
     pub depth: Vec<u8>,
     pub normal: Vec<u8>,
+    pub optical_flow: Vec<u8>,
+    pub position: Vec<u8>,
 
     #[pyo3(get, set)]
     pub world_from_view: [[f32; 4]; 4],
@@ -81,6 +83,16 @@ impl View {
     #[getter]
     fn normal<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
         PyBytes::new(py, &self.normal)
+    }
+
+    #[getter]
+    fn optical_flow<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
+        PyBytes::new(py, &self.optical_flow)
+    }
+
+    #[getter]
+    fn position<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
+        PyBytes::new(py, &self.position)
     }
 
     fn __str__(&self) -> PyResult<String> {
@@ -140,6 +152,9 @@ impl Default for SamplerState {
             render_modes: vec![
                 RenderMode::Color,
                 RenderMode::Depth,
+                RenderMode::Normal,
+                RenderMode::OpticalFlow,
+                RenderMode::Position,
             ],
             warmup_frames: SamplerState::WARMUP_FRAME_DELAY,
         }
@@ -336,7 +351,8 @@ fn sample_stream(
             RenderMode::Depth => view.depth = image_data,
             RenderMode::MotionVectors => panic!("motion vectors rendering not supported"),
             RenderMode::Normal => view.normal = image_data,
-            RenderMode::OpticalFlow => panic!("optical flow rendering not supported"),
+            RenderMode::OpticalFlow => view.optical_flow = image_data,
+            RenderMode::Position => view.position = image_data,
             RenderMode::Semantic => panic!("semantic rendering not supported"),
         }
     }

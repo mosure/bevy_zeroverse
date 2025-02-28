@@ -1,6 +1,9 @@
 use bevy::{
     prelude::*,
-    core_pipeline::tonemapping::Tonemapping,
+    core_pipeline::{
+        bloom::Bloom,
+        tonemapping::Tonemapping,
+    },
     render::render_resource::Face,
 };
 use bevy_args::{
@@ -17,6 +20,7 @@ use crate::primitive::process_primitives;
 pub mod depth;
 pub mod normal;
 pub mod optical_flow;
+pub mod position;
 pub mod semantic;
 
 
@@ -40,21 +44,29 @@ pub enum RenderMode {
     MotionVectors,
     Normal,
     OpticalFlow,
+    Position,
     Semantic,
 }
 
 impl RenderMode {
-    pub fn tonemapping(&self) -> Tonemapping {
+    pub fn bloom(&self) -> Option<Bloom> {
         match self {
-            RenderMode::Depth | RenderMode::OpticalFlow => Tonemapping::None,
-            _ => Tonemapping::TonyMcMapface,
+            RenderMode::Color => Bloom::default().into(),
+            _ => None,
         }
     }
 
     pub fn msaa(&self) -> Msaa {
         match self {
-            RenderMode::Depth => Msaa::Off,
-            _ => Msaa::default(),
+            RenderMode::Color => Msaa::default(),
+            _ => Msaa::Off,
+        }
+    }
+
+    pub fn tonemapping(&self) -> Tonemapping {
+        match self {
+            RenderMode::Color => Tonemapping::TonyMcMapface,
+            _ => Tonemapping::None,
         }
     }
 }
@@ -71,6 +83,7 @@ impl Plugin for RenderPlugin {
         app.add_plugins(depth::DepthPlugin);
         app.add_plugins(normal::NormalPlugin);
         app.add_plugins(optical_flow::OpticalFlowPlugin);
+        app.add_plugins(position::PositionPlugin);
         app.add_plugins(semantic::SemanticPlugin);
 
         // TODO: add wireframe depth, pbr disable, normals
@@ -84,6 +97,7 @@ impl Plugin for RenderPlugin {
                     auto_disable_pbr_material::<depth::Depth>,
                     auto_disable_pbr_material::<normal::Normal>,
                     auto_disable_pbr_material::<optical_flow::OpticalFlow>,
+                    auto_disable_pbr_material::<position::Position>,
                     auto_disable_pbr_material::<semantic::Semantic>,
                     enable_pbr_material,
                 )
@@ -178,6 +192,10 @@ fn apply_render_modes(
                 commands.entity(entity)
                     .insert(optical_flow::OpticalFlow);
             }
+            RenderMode::Position => {
+                commands.entity(entity)
+                    .insert(position::Position);
+            }
             RenderMode::Semantic => {
                 commands.entity(entity)
                     .insert(semantic::Semantic);
@@ -192,6 +210,7 @@ fn apply_render_modes(
                 .remove::<depth::Depth>()
                 .remove::<normal::Normal>()
                 .remove::<optical_flow::OpticalFlow>()
+                .remove::<position::Position>()
                 .remove::<semantic::Semantic>();
 
             insert_render_mode_flag(&mut commands, entity);
