@@ -2,7 +2,10 @@ use bevy::{
     prelude::*,
     core_pipeline::{
         bloom::Bloom,
-        tonemapping::Tonemapping,
+        tonemapping::{
+            DebandDither,
+            Tonemapping,
+        },
     },
     render::render_resource::Face,
 };
@@ -53,6 +56,13 @@ impl RenderMode {
         match self {
             RenderMode::Color => Bloom::default().into(),
             _ => None,
+        }
+    }
+
+    pub fn dither(&self) -> DebandDither {
+        match self {
+            RenderMode::Color => DebandDither::default(),
+            _ => DebandDither::Disabled,
         }
     }
 

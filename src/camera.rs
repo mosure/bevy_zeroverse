@@ -557,6 +557,7 @@ fn insert_cameras(
                 Projection::Perspective(zeroverse_camera.perspective_sampler.sample()),
                 zeroverse_camera.override_transform.unwrap_or(zeroverse_camera.trajectory.sample(0.0)),
                 MotionVectorPrepass,
+                render_mode.dither(),
                 render_mode.msaa(),
                 render_mode.tonemapping(),
                 // PluckerCamera,
@@ -731,9 +732,9 @@ fn setup_editor_camera(
                 }),
                 Exposure::INDOOR,
                 marker.transform.unwrap_or_default(),
+                render_mode.dither(),
                 render_mode.msaa(),
                 render_mode.tonemapping(),
-                Bloom::default(),
                 DepthPrepass,
                 MotionVectorPrepass,
                 NormalPrepass,
@@ -778,22 +779,28 @@ pub fn update_render_pipeline(
     {
         let mut entity = commands.entity(camera_entity);
         entity
+            .insert(render_mode.dither())
             .insert(render_mode.msaa())
             .insert(render_mode.tonemapping());
 
         if let Some(bloom) = render_mode.bloom() {
             entity.insert(bloom);
+        } else {
+            entity.remove::<Bloom>();
         }
     }
 
     for camera_entity in zeroverse_cameras.iter() {
         let mut entity = commands.entity(camera_entity);
         entity
+            .insert(render_mode.dither())
             .insert(render_mode.msaa())
             .insert(render_mode.tonemapping());
 
         if let Some(bloom) = render_mode.bloom() {
             entity.insert(bloom);
+        } else {
+            entity.remove::<Bloom>();
         }
     }
 }
