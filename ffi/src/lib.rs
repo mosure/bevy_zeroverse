@@ -33,6 +33,7 @@ use ::bevy_zeroverse::{
         viewer_app,
         BevyZeroverseConfig,
     },
+    camera::PlaybackMode,
     io::image_copy::ImageCopier,
     render::RenderMode,
     scene::{
@@ -463,6 +464,7 @@ pub fn bevy_zeroverse_ffi(m: &Bound<'_, PyModule>) -> PyResult<()> {
     pyo3_log::init();
 
     m.add_class::<BevyZeroverseConfig>()?;
+    m.add_class::<PlaybackMode>()?;
     m.add_class::<ZeroverseSceneType>()?;
 
     m.add_class::<Sample>()?;

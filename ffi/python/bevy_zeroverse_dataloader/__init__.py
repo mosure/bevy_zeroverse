@@ -237,6 +237,7 @@ class BevyZeroverseDataset(Dataset):
         config.width = self.width
         config.height = self.height
         config.scene_type = BevyZeroverseDataset.scene_map[self.scene_type]
+        config.playback_mode = bevy_zeroverse_ffi.PlaybackMode.Still
         config.max_camera_radius = self.max_camera_radius
         config.regenerate_scene_material_shuffle_period = 256
         bevy_zeroverse_ffi.initialize(
