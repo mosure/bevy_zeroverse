@@ -33,7 +33,10 @@ use ::bevy_zeroverse::{
         viewer_app,
         BevyZeroverseConfig,
     },
-    camera::PlaybackMode,
+    camera::{
+        Playback,
+        PlaybackMode,
+    },
     io::image_copy::ImageCopier,
     render::RenderMode,
     scene::{
@@ -67,6 +70,9 @@ pub struct View {
 
     #[pyo3(get, set)]
     pub far: f32,
+
+    #[pyo3(get, set)]
+    pub time: f32,
 }
 
 #[pymethods]
@@ -110,6 +116,9 @@ impl View {
 pub struct Sample {
     pub views: Vec<View>,
 
+    #[pyo3(get, set)]
+    pub view_dim: u32,
+
     /// min and max corners of the axis-aligned bounding box
     #[pyo3(get, set)]
     pub aabb: [[f32; 3]; 2],
@@ -141,6 +150,8 @@ pub struct SamplerState {
     pub regenerate_scene: bool,
     pub frames: u32,
     pub render_modes: Vec<RenderMode>,
+    pub step: u32,
+    pub timesteps: Vec<f32>,
     pub warmup_frames: u32,
 }
 
@@ -152,11 +163,13 @@ impl Default for SamplerState {
             frames: SamplerState::FRAME_DELAY,
             render_modes: vec![
                 RenderMode::Color,
-                RenderMode::Depth,
-                RenderMode::Normal,
-                RenderMode::OpticalFlow,
+                // RenderMode::Depth,
+                // RenderMode::Normal,
+                // RenderMode::OpticalFlow,
                 RenderMode::Position,
             ],
+            step: 0,
+            timesteps: vec![0.125],
             warmup_frames: SamplerState::WARMUP_FRAME_DELAY,
         }
     }
@@ -174,6 +187,8 @@ impl SamplerState {
             render_modes: vec![
                 RenderMode::Color,
             ],
+            step: 0,
+            timesteps: vec![0.125],
             warmup_frames: 0,
         }
     }
@@ -208,7 +223,22 @@ fn signaled_runner(mut app: App) -> AppExit {
         if let Some(receiver) = APP_FRAME_RECEIVER.get() {
             let receiver = receiver.lock().unwrap();
             if receiver.recv().is_ok() {
-                app.insert_resource(SamplerState::default());
+                let args = app.world().resource::<BevyZeroverseConfig>();
+
+                let timesteps = (1..args.playback_steps)
+                    .map(|i| {
+                        let x = i as f32 * args.playback_step;
+                        if x > 1.0 {
+                            panic!("timestep value {} has range [0.0, 1.0]", x);
+                        }
+                        x
+                    })
+                    .collect();
+
+                app.insert_resource(SamplerState {
+                    timesteps,
+                    ..default()
+                });
 
                 loop {
                     app.update();
@@ -280,6 +310,7 @@ pub fn setup_and_run_app(
 
 
 fn sample_stream(
+    args: Res<BevyZeroverseConfig>,
     mut buffered_sample: ResMut<Sample>,
     mut state: ResMut<SamplerState>,
     cameras: Query<(
@@ -290,6 +321,7 @@ fn sample_stream(
     scene: Query<(&ZeroverseSceneRoot, &SceneAabb)>,
     images: Res<Assets<Image>>,
     mut render_mode: ResMut<RenderMode>,
+    mut playback: ResMut<Playback>,
     mut regenerate_event: EventWriter<RegenerateSceneEvent>,
 ) {
     if !state.enabled {
@@ -310,10 +342,12 @@ fn sample_stream(
         return;
     }
 
-    if buffered_sample.views.len() != cameras.iter().count() {
+    let camera_count = cameras.iter().count();
+    let view_count = camera_count * args.playback_steps as usize;
+    if buffered_sample.views.len() != view_count {
         buffered_sample.views.clear();
 
-        for _ in cameras.iter() {
+        for _ in 0..view_count {
             buffered_sample.views.push(View::default());
         }
     }
@@ -326,8 +360,18 @@ fn sample_stream(
 
     let write_to = state.render_modes.remove(0);
 
-    for (i, (camera_transform, projection, image_copier)) in cameras.iter().enumerate() {
-        let view = &mut buffered_sample.views[i];
+    for (
+        i,
+        (
+            camera_transform,
+            projection,
+            image_copier
+        )
+    ) in cameras.iter().enumerate() {
+        let view_idx = i + camera_count * state.step as usize;
+        let view = &mut buffered_sample.views[view_idx];
+
+        view.time = playback.progress;
 
         match projection {
             Projection::Perspective(perspective) => {
@@ -362,22 +406,31 @@ fn sample_stream(
         *render_mode = state.render_modes[0].clone();
         state.reset();
         return;
-    } else {
-        *render_mode = RenderMode::Color;
     }
+    *render_mode = RenderMode::Color;
 
-    if state.regenerate_scene {
-        regenerate_event.send(RegenerateSceneEvent);
+    if !state.timesteps.is_empty() {
+        playback.progress = state.timesteps.remove(0);
+        state.step = state.step + 1;
+        state.render_modes = SamplerState::default().render_modes;
+        state.reset();
+        // TODO: set fixed previous cameras for optical flow across timesteps
+        return;
     }
 
     let views = std::mem::take(&mut buffered_sample.views);
     let sample: Sample = Sample {
         views,
+        view_dim: camera_count as u32,
         aabb: buffered_sample.aabb,
     };
 
     let sender = SAMPLE_SENDER.get().unwrap();
     sender.send(sample).unwrap();
+
+    if state.regenerate_scene {
+        regenerate_event.send(RegenerateSceneEvent);
+    }
 
     state.enabled = false;
 }
@@ -464,6 +517,7 @@ pub fn bevy_zeroverse_ffi(m: &Bound<'_, PyModule>) -> PyResult<()> {
     pyo3_log::init();
 
     m.add_class::<BevyZeroverseConfig>()?;
+    m.add_class::<Playback>()?;
     m.add_class::<PlaybackMode>()?;
     m.add_class::<ZeroverseSceneType>()?;
 

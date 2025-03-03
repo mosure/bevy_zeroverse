@@ -13,7 +13,8 @@ def generate_chunked_dataset(
         num_cameras=4,
         width=640,
         height=480,
-        num_samples=10,
+        num_samples=4,
+        scene_type='room',
     )
 ) -> list:
     save_to_folders(

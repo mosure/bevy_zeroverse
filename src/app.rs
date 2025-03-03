@@ -183,6 +183,14 @@ pub struct BevyZeroverseConfig {
     #[pyo3(get, set)]
     #[arg(long, default_value = "0.2")]
     pub playback_speed: f32,
+
+    #[pyo3(get, set)]
+    #[arg(long, default_value = "0.05")]
+    pub playback_step: f32,
+
+    #[pyo3(get, set)]
+    #[arg(long, default_value = "5")]
+    pub playback_steps: u32,
 }
 
 #[cfg(feature = "python")]
@@ -289,6 +297,12 @@ pub struct BevyZeroverseConfig {
 
     #[arg(long, default_value = "0.2")]
     pub playback_speed: f32,
+
+    #[arg(long, default_value = "0.05")]
+    pub playback_step: f32,
+
+    #[arg(long, default_value = "5")]
+    pub playback_steps: u32,
 }
 
 impl Default for BevyZeroverseConfig {
@@ -315,6 +329,8 @@ impl Default for BevyZeroverseConfig {
             max_camera_radius: 0.0,
             playback_mode: PlaybackMode::PingPong,
             playback_speed: 0.2,
+            playback_step: 0.05,
+            playback_steps: 5,
         }
     }
 }

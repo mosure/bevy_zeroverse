@@ -58,6 +58,7 @@ use crate::{
     io,
     // plucker::PluckerCamera,
     render::RenderMode,
+    scene::RegenerateSceneEvent,
 };
 
 
@@ -465,6 +466,7 @@ pub struct DefaultZeroverseCamera {
 }
 
 
+
 fn update_camera_trajectory(
     mut cameras: Query<(
         &mut Transform,
@@ -472,9 +474,16 @@ fn update_camera_trajectory(
     )>,
     mut global_playback: ResMut<Playback>,
     time: Res<Time>,
+    mut regenerate_events: EventReader<RegenerateSceneEvent>,
 ) {
-    let update_camera_playbacks = global_playback.is_changed() || global_playback.mode != PlaybackMode::Still;
+    let mut update_camera_playbacks = global_playback.is_changed() || global_playback.mode != PlaybackMode::Still;
     global_playback.step(&time);
+
+    if !regenerate_events.is_empty() {
+        regenerate_events.clear();
+        global_playback.progress = 0.0;
+        update_camera_playbacks = true;
+    }
 
     for (
         mut transform,
