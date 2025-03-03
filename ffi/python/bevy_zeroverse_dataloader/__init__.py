@@ -436,8 +436,6 @@ def save_to_folders(dataset, output_dir: Path, n_workers: int = 1):
                 position_npz_filename = scene_dir / f"position_{timestep:03d}_{view_idx:02d}.npz"
                 np.savez(position_npz_filename, position=view_position_flat.cpu().numpy())
 
-        print('time', sample['time'])
-
         meta_tensors = {
             'world_from_view': sample['world_from_view'],
             'fovy': sample['fovy'],
@@ -524,7 +522,5 @@ class FolderDataset(Dataset):
         # meta_tensors['normal'] = torch.stack(normal_tensors, dim=0)
         # meta_tensors['optical_flow'] = torch.stack(optical_flow_tensors, dim=0)
         meta_tensors['position'] = torch.stack(position_tensors, dim=0)
-
-        print(meta_tensors['time'])
 
         return meta_tensors

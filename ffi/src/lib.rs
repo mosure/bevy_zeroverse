@@ -418,6 +418,8 @@ fn sample_stream(
         return;
     }
 
+    playback.progress = 0.0;
+
     let views = std::mem::take(&mut buffered_sample.views);
     let sample: Sample = Sample {
         views,
