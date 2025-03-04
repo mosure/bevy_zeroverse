@@ -165,6 +165,9 @@ pub struct BevyZeroverseConfig {
     pub render_mode: RenderMode,
 
     #[pyo3(get, set)]
+    pub render_modes: Vec<RenderMode>,
+
+    #[pyo3(get, set)]
     #[arg(long, value_enum, default_value_t = ZeroverseSceneType::Object)]
     pub scene_type: ZeroverseSceneType,
 
@@ -283,6 +286,8 @@ pub struct BevyZeroverseConfig {
     #[arg(long, value_enum, default_value_t = RenderMode::Color)]
     pub render_mode: RenderMode,
 
+    pub render_modes: Vec<RenderMode>,
+
     #[arg(long, value_enum, default_value_t = ZeroverseSceneType::Object)]
     pub scene_type: ZeroverseSceneType,
 
@@ -324,6 +329,7 @@ impl Default for BevyZeroverseConfig {
             regenerate_scene_material_shuffle_period: 0,
             yaw_speed: 0.0,
             render_mode: Default::default(),
+            render_modes: vec![],
             scene_type: Default::default(),
             rotation_augmentation: true,
             max_camera_radius: 0.0,

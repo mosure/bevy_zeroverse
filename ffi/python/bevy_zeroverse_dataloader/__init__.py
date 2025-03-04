@@ -211,6 +211,15 @@ class Sample:
 
 # TODO: add dataset seed parameter to config
 class BevyZeroverseDataset(Dataset):
+    render_mode_map = {
+        'color': bevy_zeroverse_ffi.RenderMode.Color,
+        'depth': bevy_zeroverse_ffi.RenderMode.Depth,
+        'normal': bevy_zeroverse_ffi.RenderMode.Normal,
+        'optical_flow': bevy_zeroverse_ffi.RenderMode.OpticalFlow,
+        'position': bevy_zeroverse_ffi.RenderMode.Position,
+        'semantic': bevy_zeroverse_ffi.RenderMode.Semantic,
+    }
+
     scene_map = {
         'cornell_cube': bevy_zeroverse_ffi.ZeroverseSceneType.CornellCube,
         'object': bevy_zeroverse_ffi.ZeroverseSceneType.Object,
@@ -230,6 +239,7 @@ class BevyZeroverseDataset(Dataset):
         max_camera_radius=0.0,
         playback_step=0.1,
         playback_steps=5,
+        render_modes=['color'],
     ):
         self.editor = editor
         self.headless = headless
@@ -243,6 +253,7 @@ class BevyZeroverseDataset(Dataset):
         self.max_camera_radius = max_camera_radius
         self.playback_step = playback_step
         self.playback_steps = playback_steps
+        self.render_modes = render_modes
 
     def initialize(self):
         config = bevy_zeroverse_ffi.BevyZeroverseConfig()
@@ -258,6 +269,7 @@ class BevyZeroverseDataset(Dataset):
         config.regenerate_scene_material_shuffle_period = 256
         config.playback_step = self.playback_step
         config.playback_steps = self.playback_steps
+        config.render_modes = [BevyZeroverseDataset.render_mode_map[mode] for mode in self.render_modes]
         bevy_zeroverse_ffi.initialize(
             config,
             self.root_asset_folder,
@@ -390,51 +402,64 @@ def save_to_folders(dataset, output_dir: Path, n_workers: int = 1):
         scene_dir = output_dir / f"{idx:06d}"
         scene_dir.mkdir(exist_ok=True)
 
-        color_tensor = sample['color']
-        # depth_tensor = sample['depth']
-        # normal_tensor = sample['normal']
-        # optical_flow_tensor = sample['optical_flow']
-        position_tensor = sample['position']
+        if 'color' in dataset.render_modes:
+            color_tensor = sample['color']
+
+        if 'depth' in dataset.render_modes:
+            depth_tensor = sample['depth']
+
+        if 'normal' in dataset.render_modes:
+            normal_tensor = sample['normal']
+
+        if 'optical_flow' in dataset.render_modes:
+            optical_flow_tensor = sample['optical_flow']
+
+        if 'position' in dataset.render_modes:
+            position_tensor = sample['position']
 
         for timestep in range(color_tensor.shape[0]):
             for view_idx in range(color_tensor.shape[1]):
-                view_color = color_tensor[timestep, view_idx].permute(2, 0, 1)
-                image_filename = scene_dir / f"color_{timestep:03d}_{view_idx:02d}.jpg"
-                save_image(view_color, str(image_filename))
+                if 'color' in dataset.render_modes:
+                    view_color = color_tensor[timestep, view_idx].permute(2, 0, 1)
+                    image_filename = scene_dir / f"color_{timestep:03d}_{view_idx:02d}.jpg"
+                    save_image(view_color, str(image_filename))
 
-                # view_depth = normalize_hdr_image_tonemap(depth_tensor)[timestep, view_idx].permute(2, 0, 1)
-                # depth_filename = scene_dir / f"depth_{timestep:03d}_{view_idx:02d}.jpg"
-                # save_image(view_depth, str(depth_filename))
+                if 'depth' in dataset.render_modes:
+                    view_depth = normalize_hdr_image_tonemap(depth_tensor)[timestep, view_idx].permute(2, 0, 1)
+                    depth_filename = scene_dir / f"depth_{timestep:03d}_{view_idx:02d}.jpg"
+                    save_image(view_depth, str(depth_filename))
 
-                # view_depth_flat = depth_tensor[timestep, view_idx][0]
-                # depth_npz_filename = scene_dir / f"depth_{timestep:03d}_{view_idx:02d}.npz"
-                # np.savez(depth_npz_filename, depth=view_depth_flat.cpu().numpy())
+                    view_depth_flat = depth_tensor[timestep, view_idx][0]
+                    depth_npz_filename = scene_dir / f"depth_{timestep:03d}_{view_idx:02d}.npz"
+                    np.savez(depth_npz_filename, depth=view_depth_flat.cpu().numpy())
 
-                # view_normal = normalize_hdr_image_tonemap(normal_tensor)[timestep, view_idx].permute(2, 0, 1)
-                # normal_filename = scene_dir / f"normal_{timestep:03d}_{view_idx:02d}.jpg"
-                # save_image(view_normal, str(normal_filename))
+                if 'normal' in dataset.render_modes:
+                    view_normal = normalize_hdr_image_tonemap(normal_tensor)[timestep, view_idx].permute(2, 0, 1)
+                    normal_filename = scene_dir / f"normal_{timestep:03d}_{view_idx:02d}.jpg"
+                    save_image(view_normal, str(normal_filename))
 
-                # view_normal_flat = normal_tensor[timestep, view_idx][0]
-                # normal_npz_filename = scene_dir / f"normal_{timestep:03d}_{view_idx:02d}.npz"
-                # np.savez(normal_npz_filename, normal=view_normal_flat.cpu().numpy())
+                    view_normal_flat = normal_tensor[timestep, view_idx][0]
+                    normal_npz_filename = scene_dir / f"normal_{timestep:03d}_{view_idx:02d}.npz"
+                    np.savez(normal_npz_filename, normal=view_normal_flat.cpu().numpy())
 
-                # view_optical_flow = normalize_hdr_image_tonemap(optical_flow_tensor)[timestep, view_idx].permute(2, 0, 1)
-                # optical_flow_filename = scene_dir / f"optical_flow_{timestep:03d}_{view_idx:02d}.jpg"
-                # save_image(view_optical_flow, str(optical_flow_filename))
+                if 'optical_flow' in dataset.render_modes:
+                    view_optical_flow = normalize_hdr_image_tonemap(optical_flow_tensor)[timestep, view_idx].permute(2, 0, 1)
+                    optical_flow_filename = scene_dir / f"optical_flow_{timestep:03d}_{view_idx:02d}.jpg"
+                    save_image(view_optical_flow, str(optical_flow_filename))
 
                 # TODO: save motion vectors as npz, not optical flow rgb
                 # view_optical_flow_flat = view_optical_flow[0]
                 # optical_flow_npz_filename = scene_dir / f"optical_flow_{timestep:03d}_{view_idx:02d}.npz"
                 # np.savez(optical_flow_npz_filename, optical_flow=view_optical_flow_flat.cpu().numpy())
 
-                # TODO: without tonemapping
-                view_position = normalize_hdr_image_tonemap(position_tensor)[timestep, view_idx].permute(2, 0, 1)
-                position_filename = scene_dir / f"position_{timestep:03d}_{view_idx:02d}.jpg"
-                save_image(view_position, str(position_filename))
+                if 'position' in dataset.render_modes:
+                    view_position = normalize_hdr_image_tonemap(position_tensor)[timestep, view_idx].permute(2, 0, 1)
+                    position_filename = scene_dir / f"position_{timestep:03d}_{view_idx:02d}.jpg"
+                    save_image(view_position, str(position_filename))
 
-                view_position_flat = position_tensor[timestep, view_idx][0]
-                position_npz_filename = scene_dir / f"position_{timestep:03d}_{view_idx:02d}.npz"
-                np.savez(position_npz_filename, position=view_position_flat.cpu().numpy())
+                    view_position_flat = position_tensor[timestep, view_idx][0]
+                    position_npz_filename = scene_dir / f"position_{timestep:03d}_{view_idx:02d}.npz"
+                    np.savez(position_npz_filename, position=view_position_flat.cpu().numpy())
 
         meta_tensors = {
             'world_from_view': sample['world_from_view'],
@@ -473,9 +498,9 @@ class FolderDataset(Dataset):
         views = sorted({int(p.stem.split('_')[2]) for p in color_images})
 
         color_tensors = []
-        # depth_tensors = []
-        # normal_tensors = []
-        # optical_flow_tensors = []
+        depth_tensors = []
+        normal_tensors = []
+        optical_flow_tensors = []
         position_tensors = []
 
         for timestep in timesteps:
@@ -488,22 +513,22 @@ class FolderDataset(Dataset):
                 color_tensor = self.transform(Image.open(color_file).convert("RGB")).permute(1, 2, 0)
                 timestep_colors.append(color_tensor)
 
-                # depth_file = scene_dir / f"depth_{base_name}.npz"
-                # if depth_file.exists():
-                #     depth_np = np.load(depth_file)['depth']
-                #     depth_tensor = torch.from_numpy(depth_np).unsqueeze(-1).float()
-                #     timestep_depths.append(depth_tensor)
+                depth_file = scene_dir / f"depth_{base_name}.npz"
+                if depth_file.exists():
+                    depth_np = np.load(depth_file)['depth']
+                    depth_tensor = torch.from_numpy(depth_np).unsqueeze(-1).float()
+                    timestep_depths.append(depth_tensor)
 
-                # normal_file = scene_dir / f"normal_{base_name}.npz"
-                # if normal_file.exists():
-                #     normal_np = np.load(normal_file)['normal']
-                #     normal_tensor = torch.from_numpy(normal_np).unsqueeze(-1).float()
-                #     timestep_normals.append(normal_tensor)
+                normal_file = scene_dir / f"normal_{base_name}.npz"
+                if normal_file.exists():
+                    normal_np = np.load(normal_file)['normal']
+                    normal_tensor = torch.from_numpy(normal_np).unsqueeze(-1).float()
+                    timestep_normals.append(normal_tensor)
 
-                # optical_flow_file = scene_dir / f"optical_flow_{base_name}.jpg"
-                # if optical_flow_file.exists():
-                #     flow_tensor = self.transform(Image.open(optical_flow_file).convert("RGB")).permute(1, 2, 0)
-                #     timestep_flows.append(flow_tensor)
+                optical_flow_file = scene_dir / f"optical_flow_{base_name}.jpg"
+                if optical_flow_file.exists():
+                    flow_tensor = self.transform(Image.open(optical_flow_file).convert("RGB")).permute(1, 2, 0)
+                    timestep_flows.append(flow_tensor)
 
                 position_file = scene_dir / f"position_{base_name}.npz"
                 if position_file.exists():
@@ -512,15 +537,15 @@ class FolderDataset(Dataset):
                     timestep_positions.append(position_tensor)
 
             color_tensors.append(torch.stack(timestep_colors, dim=0))
-            # depth_tensors.append(torch.stack(timestep_depths, dim=0) if timestep_depths else torch.zeros_like(timestep_colors[0])[..., :1].unsqueeze(0))
-            # normal_tensors.append(torch.stack(timestep_normals, dim=0) if timestep_normals else torch.zeros_like(timestep_colors[0])[..., :1].unsqueeze(0))
-            # optical_flow_tensors.append(torch.stack(timestep_flows, dim=0) if timestep_flows else torch.zeros_like(timestep_colors[0])[..., :1].unsqueeze(0))
+            depth_tensors.append(torch.stack(timestep_depths, dim=0) if timestep_depths else torch.zeros_like(timestep_colors[0])[..., :1].unsqueeze(0))
+            normal_tensors.append(torch.stack(timestep_normals, dim=0) if timestep_normals else torch.zeros_like(timestep_colors[0])[..., :1].unsqueeze(0))
+            optical_flow_tensors.append(torch.stack(timestep_flows, dim=0) if timestep_flows else torch.zeros_like(timestep_colors[0])[..., :1].unsqueeze(0))
             position_tensors.append(torch.stack(timestep_positions, dim=0) if timestep_positions else torch.zeros_like(timestep_colors[0])[..., :1].unsqueeze(0))
 
         meta_tensors['color'] = torch.stack(color_tensors, dim=0)
-        # meta_tensors['depth'] = torch.stack(depth_tensors, dim=0)
-        # meta_tensors['normal'] = torch.stack(normal_tensors, dim=0)
-        # meta_tensors['optical_flow'] = torch.stack(optical_flow_tensors, dim=0)
+        meta_tensors['depth'] = torch.stack(depth_tensors, dim=0)
+        meta_tensors['normal'] = torch.stack(normal_tensors, dim=0)
+        meta_tensors['optical_flow'] = torch.stack(optical_flow_tensors, dim=0)
         meta_tensors['position'] = torch.stack(position_tensors, dim=0)
 
         return meta_tensors

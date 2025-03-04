@@ -225,6 +225,8 @@ fn signaled_runner(mut app: App) -> AppExit {
             if receiver.recv().is_ok() {
                 let args = app.world().resource::<BevyZeroverseConfig>();
 
+                let render_modes = args.render_modes.clone();
+
                 let timesteps = (1..args.playback_steps)
                     .map(|i| {
                         let x = i as f32 * args.playback_step;
@@ -237,6 +239,7 @@ fn signaled_runner(mut app: App) -> AppExit {
 
                 app.insert_resource(SamplerState {
                     timesteps,
+                    render_modes,
                     ..default()
                 });
 
@@ -309,6 +312,7 @@ pub fn setup_and_run_app(
 }
 
 
+#[allow(clippy::too_many_arguments)]
 fn sample_stream(
     args: Res<BevyZeroverseConfig>,
     mut buffered_sample: ResMut<Sample>,
@@ -394,7 +398,7 @@ fn sample_stream(
         match write_to {
             RenderMode::Color => view.color = image_data,
             RenderMode::Depth => view.depth = image_data,
-            RenderMode::MotionVectors => panic!("motion vectors rendering not supported"),
+            RenderMode::MotionVectors => panic!("motion vector rendering not supported"),
             RenderMode::Normal => view.normal = image_data,
             RenderMode::OpticalFlow => view.optical_flow = image_data,
             RenderMode::Position => view.position = image_data,
@@ -407,11 +411,11 @@ fn sample_stream(
         state.reset();
         return;
     }
-    *render_mode = RenderMode::Color;
+    *render_mode = args.render_modes[0].clone();
 
     if !state.timesteps.is_empty() {
         playback.progress = state.timesteps.remove(0);
-        state.step = state.step + 1;
+        state.step += 1;
         state.render_modes = SamplerState::default().render_modes;
         state.reset();
         // TODO: set fixed previous cameras for optical flow across timesteps
@@ -521,6 +525,7 @@ pub fn bevy_zeroverse_ffi(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<BevyZeroverseConfig>()?;
     m.add_class::<Playback>()?;
     m.add_class::<PlaybackMode>()?;
+    m.add_class::<RenderMode>()?;
     m.add_class::<ZeroverseSceneType>()?;
 
     m.add_class::<Sample>()?;
