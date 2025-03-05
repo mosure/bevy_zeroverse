@@ -312,11 +312,15 @@ def chunk_and_save(
     chunk = []
     chunk_file_paths = [output_dir / f"{int(chunk.stem):0>6}.safetensors" for chunk in existing_chunks]
 
+    total_chunks = len(dataset)
+    if samples_per_chunk is not None:
+        total_chunks = len(dataset) // samples_per_chunk
+
     def save_chunk():
         nonlocal chunk_size, chunk_index, chunk, chunk_file_paths
 
         chunk_key = f"{chunk_index:0>6}"
-        print(f"saving chunk {chunk_key} of {len(dataset)} ({chunk_size / 1e6:.2f} MB).")
+        print(f"saving chunk {chunk_key} of {total_chunks} ({chunk_size / 1e6:.2f} MB).")
         file_path = output_dir / f"{chunk_key}.safetensors"
 
         B = len(chunk)
