@@ -166,7 +166,7 @@ impl Default for SamplerState {
                 // RenderMode::Depth,
                 // RenderMode::Normal,
                 // RenderMode::OpticalFlow,
-                RenderMode::Position,
+                // RenderMode::Position,
             ],
             step: 0,
             timesteps: vec![0.125],

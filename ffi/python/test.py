@@ -5,7 +5,7 @@ import shutil
 from torch.utils.data import DataLoader
 import unittest
 
-from bevy_zeroverse_dataloader import BevyZeroverseDataset, ChunkedDataset, FolderDataset, chunk_and_save, save_to_folders
+from bevy_zeroverse_dataloader import BevyZeroverseDataset, ChunkedIteratorDataset, FolderDataset, chunk_and_save, save_to_folders
 
 
 
@@ -15,12 +15,12 @@ def visualize(batch):
     is_chunked = len(batch['color'].shape) == 6
 
     color_images = batch['color'].numpy()
-    depth_images = batch['depth'].numpy()
+    # depth_images = batch['depth'].numpy()
     # normal_images = batch['normal'].numpy()
 
     if is_chunked:
         color_images = color_images.squeeze(0)
-        depth_images = depth_images.squeeze(0)
+        # depth_images = depth_images.squeeze(0)
         # normal_images = normal_images.squeeze(0)
 
     batch_size = color_images.shape[0]
@@ -44,11 +44,11 @@ def visualize(batch):
             if batch_size <= 2:
                 axes[index].set_title(f'({batch_idx + 1}, {cam_idx + 1})_color')
 
-            depth_image = depth_images[batch_idx, cam_idx]
-            axes[index + 1].imshow(depth_image, cmap='gray')
-            axes[index + 1].axis('off')
-            if batch_size <= 2:
-                axes[index + 1].set_title(f'({batch_idx + 1}, {cam_idx + 1})_depth')
+            # depth_image = depth_images[batch_idx, cam_idx]
+            # axes[index + 1].imshow(depth_image, cmap='gray')
+            # axes[index + 1].axis('off')
+            # if batch_size <= 2:
+            #     axes[index + 1].set_title(f'({batch_idx + 1}, {cam_idx + 1})_depth')
 
             # normal_image = normal_images[batch_idx, cam_idx]
             # axes[index + 2].imshow(normal_image)
@@ -136,7 +136,7 @@ class TestChunkedDataset(unittest.TestCase):
         )
 
     def test_benchmark_chunked_dataloader(self):
-        chunked_dataset = ChunkedDataset(self.output_dir / 'chunk')
+        chunked_dataset = ChunkedIteratorDataset(self.output_dir / 'chunk')
         dataloader = DataLoader(chunked_dataset, batch_size=1, shuffle=False)
 
         print("\nBenchmarking chunks:")

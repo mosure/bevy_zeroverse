@@ -1,14 +1,17 @@
+from io import BytesIO
+import os
 from pathlib import Path
 from PIL import Image
+import random
 from typing import Optional
 
 import numpy as np
-import os
 from safetensors import safe_open
-from safetensors.torch import save_file
+from safetensors.torch import load_file, save_file
 import torch
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset, IterableDataset, get_worker_info
 import torchvision.transforms as transforms
+from torchvision.transforms.functional import to_pil_image, to_tensor
 from torchvision.utils import save_image
 
 import bevy_zeroverse_ffi
@@ -42,9 +45,9 @@ class View:
     def __init__(
         self,
         color,
-        # depth,
-        # normal,
-        # optical_flow,
+        depth,
+        normal,
+        optical_flow,
         position,
         world_from_view,
         fovy,
@@ -55,9 +58,9 @@ class View:
         height,
     ):
         self.color = color
-        # self.depth = depth
-        # self.normal = normal
-        # self.optical_flow = optical_flow
+        self.depth = depth
+        self.normal = normal
+        self.optical_flow = optical_flow
         self.position = position
         self.world_from_view = world_from_view
         self.fovy = fovy
@@ -80,25 +83,25 @@ class View:
 
         color = reshape_data(rust_view.color, np.float32)
 
-        # if len(rust_view.depth) != 0:
-        #     depth = reshape_data(rust_view.depth, np.float32)
-        # else:
-        #     depth = np.zeros(color.shape, dtype=np.float32)
+        if len(rust_view.depth) != 0:
+            depth = reshape_data(rust_view.depth, np.float32)
+        else:
+            depth = None
 
-        # if len(rust_view.normal) != 0:
-        #     normal = reshape_data(rust_view.normal, np.float32)
-        # else:
-        #     normal = np.zeros(color.shape, dtype=np.float32)
+        if len(rust_view.normal) != 0:
+            normal = reshape_data(rust_view.normal, np.float32)
+        else:
+            normal = None
 
-        # if len(rust_view.optical_flow) != 0:
-        #     optical_flow = reshape_data(rust_view.optical_flow, np.float32)
-        # else:
-        #     optical_flow = np.zeros(color.shape, dtype=np.float32)
+        if len(rust_view.optical_flow) != 0:
+            optical_flow = reshape_data(rust_view.optical_flow, np.float32)
+        else:
+            optical_flow = None
 
         if len(rust_view.position) != 0:
             position = reshape_data(rust_view.position, np.float32)
         else:
-            position = np.zeros(color.shape, dtype=np.float32)
+            position = None
 
         world_from_view = np.array(rust_view.world_from_view)
         fovy = rust_view.fovy
@@ -107,9 +110,9 @@ class View:
         time = rust_view.time
         return cls(
             color,
-            # depth,
-            # normal,
-            # optical_flow,
+            depth,
+            normal,
+            optical_flow,
             position,
             world_from_view,
             fovy,
@@ -121,40 +124,34 @@ class View:
         )
 
     def to_tensors(self):
+        batch = {}
+
         color_tensor = torch.tensor(self.color, dtype=torch.float32)
-        color_tensor = color_tensor[..., :3]
+        batch['color'] = color_tensor[..., :3]
 
-        # depth_tensor = torch.tensor(self.depth, dtype=torch.float32)
-        # depth_tensor = depth_tensor[..., 0:1]
+        if self.depth is not None:
+            depth_tensor = torch.tensor(self.depth, dtype=torch.float32)
+            batch['depth'] = depth_tensor[..., 0:1]
 
-        # normal_tensor = torch.tensor(self.normal, dtype=torch.float32)
-        # normal_tensor = normal_tensor[..., :3]
+        if self.normal is not None:
+            normal_tensor = torch.tensor(self.normal, dtype=torch.float32)
+            batch['normal'] = normal_tensor[..., :3]
 
-        # optical_flow_tensor = torch.tensor(self.optical_flow, dtype=torch.float32)
-        # optical_flow_tensor = optical_flow_tensor[..., :3]
+        if self.optical_flow is not None:
+            optical_flow_tensor = torch.tensor(self.optical_flow, dtype=torch.float32)
+            batch['optical_flow'] = optical_flow_tensor[..., :3]
 
-        position_tensor = torch.tensor(self.position, dtype=torch.float32)
-        position_tensor = position_tensor[..., :3]
+        if self.position is not None:
+            position_tensor = torch.tensor(self.position, dtype=torch.float32)
+            batch['position'] = position_tensor[..., :3]
 
-        world_from_view_tensor = torch.tensor(self.world_from_view, dtype=torch.float32)
+        batch['far'] = torch.tensor(self.far, dtype=torch.float32).unsqueeze(-1)
+        batch['fovy'] = torch.tensor(self.fovy, dtype=torch.float32).unsqueeze(-1)
+        batch['near'] = torch.tensor(self.near, dtype=torch.float32).unsqueeze(-1)
+        batch['time'] = torch.tensor(self.time, dtype=torch.float32).unsqueeze(-1)
+        batch['world_from_view'] = torch.tensor(self.world_from_view, dtype=torch.float32)
 
-        fovy_tensor = torch.tensor(self.fovy, dtype=torch.float32).unsqueeze(-1)
-        near_tensor = torch.tensor(self.near, dtype=torch.float32).unsqueeze(-1)
-        far_tensor = torch.tensor(self.far, dtype=torch.float32).unsqueeze(-1)
-        time_tensor = torch.tensor(self.time, dtype=torch.float32).unsqueeze(-1)
-
-        return {
-            'color': color_tensor,
-            # 'depth': depth_tensor,
-            # 'normal': normal_tensor,
-            # 'optical_flow': optical_flow_tensor,
-            'position': position_tensor,
-            'world_from_view': world_from_view_tensor,
-            'fovy': fovy_tensor,
-            'near': near_tensor,
-            'far': far_tensor,
-            'time': time_tensor,
-        }
+        return batch
 
 class Sample:
     def __init__(self, views, view_dim, aabb):
@@ -170,43 +167,33 @@ class Sample:
         return cls(views, view_dim, aabb)
 
     def to_tensors(self):
-        tensor_dict = {
-            'color': [],
-            # 'depth': [],
-            # 'normal': [],
-            # 'optical_flow': [],
-            'position': [],
-            'world_from_view': [],
-            'fovy': [],
-            'near': [],
-            'far': [],
-            'time': [],
-        }
+        sample = {}
 
         if len(self.views) == 0:
             print("empty views")
-            return tensor_dict
+            return sample
 
         for view in self.views:
             tensors = view.to_tensors()
-            for key in tensor_dict:
-                tensor_dict[key].append(tensors[key])
+            for key in tensors.keys():
+                if key not in sample:
+                    sample[key] = []
+                sample[key].append(tensors[key])
 
-        for key in tensor_dict:
-            tensor_dict[key] = torch.stack(tensor_dict[key], dim=0)
+        for key in sample:
+            sample[key] = torch.stack(sample[key], dim=0)
 
-            new_shape = (-1, self.view_dim, *tensor_dict[key].shape[1:])
-            tensor_dict[key] = tensor_dict[key].reshape(new_shape)
+            new_shape = (-1, self.view_dim, *sample[key].shape[1:])
+            sample[key] = sample[key].reshape(new_shape)
 
-        tensor_dict['aabb'] = torch.tensor(self.aabb, dtype=torch.float32)
+        sample['aabb'] = torch.tensor(self.aabb, dtype=torch.float32)
 
-        tensor_dict['color'] = normalize_hdr_image_tonemap(tensor_dict['color'])
-        # tensor_dict['depth'] = tensor_dict['depth']
-        # tensor_dict['normal'] = tensor_dict['normal']
-        # tensor_dict['optical_flow'] = tensor_dict['optical_flow']
-        tensor_dict['position'] = tensor_dict['position']
+        normalize_keys = ['color', 'optical_flow']
+        for key in normalize_keys:
+            if key in sample:
+                sample[key] = normalize_hdr_image_tonemap(sample[key])
 
-        return tensor_dict
+        return sample
 
 
 # TODO: add dataset seed parameter to config
@@ -288,12 +275,25 @@ class BevyZeroverseDataset(Dataset):
         return sample.to_tensors()
 
 
+def decode_jpg_tensor(jpg_tensor: torch.Tensor) -> torch.Tensor:
+    buffer = BytesIO(jpg_tensor.numpy().tobytes())
+    img = Image.open(buffer).convert("RGB")
+    return to_tensor(img).permute(1, 2, 0)
+
+def encode_tensor_to_jpg(tensor: torch.Tensor, quality: int = 75) -> torch.Tensor:
+    buffer = BytesIO()
+    img = to_pil_image(tensor.permute(2, 0, 1))
+    img.save(buffer, format="JPEG", quality=quality)
+    return torch.frombuffer(bytearray(buffer.getvalue()), dtype=torch.uint8)
+
+
 def chunk_and_save(
     dataset,
     output_dir: Path,
     bytes_per_chunk: Optional[int] = int(256 * 1024 * 1024),
     samples_per_chunk: Optional[int] = None,
     n_workers: int = 1,
+    jpg_quality: int = 75,
 ):
     """
     if samples_per_chunk is not None, the dataset will be chunked into chunks of size samples_per_chunk, regardless of bytes_per_chunk.
@@ -319,15 +319,29 @@ def chunk_and_save(
         print(f"saving chunk {chunk_key} of {len(dataset)} ({chunk_size / 1e6:.2f} MB).")
         file_path = output_dir / f"{chunk_key}.safetensors"
 
+        B = len(chunk)
         batch = {}
+        offset = 0
         for sample in chunk:
             for key, tensor in sample.items():
-                if key not in batch:
-                    batch[key] = []
-                batch[key].append(tensor)
+                if key in ['color']:
+                    T, V, H, W, C = tensor.shape
+                    num_views = T * V
+                    for i, view in enumerate(tensor.view(-1, H, W, C)):
+                        view = encode_tensor_to_jpg(view, quality=jpg_quality)
+                        batch[f'{key}_jpg_{offset + i}'] = view
 
-        # Stack the tensors for each key
-        flat_tensors = {key: torch.stack(tensors, dim=0) for key, tensors in batch.items()}
+                    if f'{key}_shape' not in batch:
+                        batch[f'{key}_shape'] = torch.tensor([B, T, V, H, W, C])
+                    offset += num_views
+                else:
+                    if key not in batch:
+                        batch[key] = []
+                    batch[key].append(tensor)
+
+        flat_tensors = {
+            key: torch.stack(tensors, dim=0) if '_jpg' not in key and '_shape' not in key else tensors for key, tensors in batch.items()
+        }
         save_file(flat_tensors, str(file_path))
 
         chunk_file_paths.append(file_path)
@@ -359,26 +373,60 @@ def chunk_and_save(
             save_chunk()
 
     if chunk_size > 0:
-        save_chunk()
+        # save_chunk()
+        pass  # ignore chunks that do not have full size
 
     return chunk_file_paths
 
 
-class ChunkedDataset(Dataset):
-    def __init__(self, output_dir: Path):
+def load_chunk(file_path: Path):
+    tensors = load_file(str(file_path))
+    batch = {}
+
+    for key, tensor in tensors.items():
+        if '_jpg_' in key:
+            parent = key.rsplit('_jpg_', 1)[0]
+            if parent in batch:
+                continue
+            shape = tensors[f'{parent}_shape'].tolist()
+            images = shape[0] * shape[1] * shape[2]
+            decoded_images = [decode_jpg_tensor(
+                    tensors[f'{parent}_jpg_{i}']
+                ) for i in range(images)]
+            batch[parent] = torch.stack(decoded_images).reshape(shape)
+        elif '_shape' in key:
+            continue
+        else:
+            batch[key] = tensor
+
+    return batch
+
+class ChunkedIteratorDataset(IterableDataset):
+    def __init__(self, output_dir: Path, shuffle: bool = False):
         self.output_dir = Path(output_dir)
         self.chunk_files = sorted(self.output_dir.glob("*.safetensors"))
+        self.shuffle = shuffle
 
-    def load_chunk(self, file_path: Path):
-        with safe_open(str(file_path), framework="pt", device="cpu") as f:
-            return {key: f.get_tensor(key) for key in f.keys()}
+    def __iter__(self):
+        worker_info = get_worker_info()
+        if worker_info is None:
+            chunk_files = self.chunk_files
+        else:
+            chunk_files = self.chunk_files[worker_info.id::worker_info.num_workers]
 
-    def __len__(self):
-        return len(self.chunk_files)
+        if self.shuffle:
+            random.shuffle(chunk_files)
 
-    def __getitem__(self, idx):
-        chunk_file = self.chunk_files[idx]
-        return self.load_chunk(chunk_file)
+        for chunk_file in chunk_files:
+            chunk_data = load_chunk(chunk_file)
+            num_samples = next(iter(chunk_data.values())).shape[0]
+            sample_indices = list(range(num_samples))
+
+            if self.shuffle:
+                random.shuffle(sample_indices)
+
+            for sample_idx in sample_indices:
+                yield {key: tensor[sample_idx] for key, tensor in chunk_data.items()}
 
 
 
@@ -402,48 +450,35 @@ def save_to_folders(dataset, output_dir: Path, n_workers: int = 1):
         scene_dir = output_dir / f"{idx:06d}"
         scene_dir.mkdir(exist_ok=True)
 
-        if 'color' in dataset.render_modes:
-            color_tensor = sample['color']
-
-        if 'depth' in dataset.render_modes:
-            depth_tensor = sample['depth']
-
-        if 'normal' in dataset.render_modes:
-            normal_tensor = sample['normal']
-
-        if 'optical_flow' in dataset.render_modes:
-            optical_flow_tensor = sample['optical_flow']
-
-        if 'position' in dataset.render_modes:
-            position_tensor = sample['position']
+        color_tensor = sample['color']
 
         for timestep in range(color_tensor.shape[0]):
             for view_idx in range(color_tensor.shape[1]):
-                if 'color' in dataset.render_modes:
-                    view_color = color_tensor[timestep, view_idx].permute(2, 0, 1)
+                if 'color' in sample:
+                    view_color = sample['color'][timestep, view_idx].permute(2, 0, 1)
                     image_filename = scene_dir / f"color_{timestep:03d}_{view_idx:02d}.jpg"
                     save_image(view_color, str(image_filename))
 
-                if 'depth' in dataset.render_modes:
-                    view_depth = normalize_hdr_image_tonemap(depth_tensor)[timestep, view_idx].permute(2, 0, 1)
+                if 'depth' in sample:
+                    view_depth = normalize_hdr_image_tonemap(sample['depth'])[timestep, view_idx].permute(2, 0, 1)
                     depth_filename = scene_dir / f"depth_{timestep:03d}_{view_idx:02d}.jpg"
                     save_image(view_depth, str(depth_filename))
 
-                    view_depth_flat = depth_tensor[timestep, view_idx][0]
+                    view_depth_flat = sample['depth'][timestep, view_idx][0]
                     depth_npz_filename = scene_dir / f"depth_{timestep:03d}_{view_idx:02d}.npz"
                     np.savez(depth_npz_filename, depth=view_depth_flat.cpu().numpy())
 
-                if 'normal' in dataset.render_modes:
-                    view_normal = normalize_hdr_image_tonemap(normal_tensor)[timestep, view_idx].permute(2, 0, 1)
+                if 'normal' in sample:
+                    view_normal = normalize_hdr_image_tonemap(sample['normal'])[timestep, view_idx].permute(2, 0, 1)
                     normal_filename = scene_dir / f"normal_{timestep:03d}_{view_idx:02d}.jpg"
                     save_image(view_normal, str(normal_filename))
 
-                    view_normal_flat = normal_tensor[timestep, view_idx][0]
+                    view_normal_flat = sample['normal'][timestep, view_idx][0]
                     normal_npz_filename = scene_dir / f"normal_{timestep:03d}_{view_idx:02d}.npz"
                     np.savez(normal_npz_filename, normal=view_normal_flat.cpu().numpy())
 
-                if 'optical_flow' in dataset.render_modes:
-                    view_optical_flow = normalize_hdr_image_tonemap(optical_flow_tensor)[timestep, view_idx].permute(2, 0, 1)
+                if 'optical_flow' in sample:
+                    view_optical_flow = normalize_hdr_image_tonemap(sample['optical_flow'])[timestep, view_idx].permute(2, 0, 1)
                     optical_flow_filename = scene_dir / f"optical_flow_{timestep:03d}_{view_idx:02d}.jpg"
                     save_image(view_optical_flow, str(optical_flow_filename))
 
@@ -452,12 +487,14 @@ def save_to_folders(dataset, output_dir: Path, n_workers: int = 1):
                 # optical_flow_npz_filename = scene_dir / f"optical_flow_{timestep:03d}_{view_idx:02d}.npz"
                 # np.savez(optical_flow_npz_filename, optical_flow=view_optical_flow_flat.cpu().numpy())
 
-                if 'position' in dataset.render_modes:
-                    view_position = normalize_hdr_image_tonemap(position_tensor)[timestep, view_idx].permute(2, 0, 1)
+                if 'position' in sample:
+                    print('position shape', sample['position'].shape)
+
+                    view_position = normalize_hdr_image_tonemap(sample['position'])[timestep, view_idx].permute(2, 0, 1)
                     position_filename = scene_dir / f"position_{timestep:03d}_{view_idx:02d}.jpg"
                     save_image(view_position, str(position_filename))
 
-                    view_position_flat = position_tensor[timestep, view_idx][0]
+                    view_position_flat = sample['position'][timestep, view_idx][0]
                     position_npz_filename = scene_dir / f"position_{timestep:03d}_{view_idx:02d}.npz"
                     np.savez(position_npz_filename, position=view_position_flat.cpu().numpy())
 

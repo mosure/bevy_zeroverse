@@ -6,7 +6,6 @@ from bevy_zeroverse_dataloader import BevyZeroverseDataset, chunk_and_save, save
 
 def generate_chunked_dataset(
     output_dir = Path("./data/zeroverse/cli"),
-    bytes_per_chunk = int(256 * 1024 * 1024),
     dataset = BevyZeroverseDataset(
         editor=False,
         headless=True,
@@ -26,7 +25,7 @@ def generate_chunked_dataset(
     return chunk_and_save(
         dataset,
         output_dir,
-        bytes_per_chunk,
+        samples_per_chunk=2,
         n_workers=4,
     )
 
