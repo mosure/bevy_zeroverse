@@ -411,6 +411,14 @@ class ChunkedIteratorDataset(IterableDataset):
         self.chunk_files = sorted(self.output_dir.glob("*.safetensors"))
         self.shuffle = shuffle
 
+        if self.chunk_files:
+            last_chunk = self.chunk_files[-1]
+            tensors = load_chunk(last_chunk)
+            self.samples_per_chunk_estimate = next(iter(tensors.values())).shape[0]
+
+    def __len__(self):
+        return len(self.chunk_files) * self.samples_per_chunk_estimate
+
     def __iter__(self):
         worker_info = get_worker_info()
         if worker_info is None:
