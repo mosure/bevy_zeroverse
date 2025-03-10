@@ -412,7 +412,7 @@ class ChunkedIteratorDataset(IterableDataset):
         self.shuffle = shuffle
 
         if self.chunk_files:
-            last_chunk = self.chunk_files[-1]
+            last_chunk = self.chunk_files[0]
             tensors = load_chunk(last_chunk)
             self.samples_per_chunk_estimate = next(iter(tensors.values())).shape[0]
 
