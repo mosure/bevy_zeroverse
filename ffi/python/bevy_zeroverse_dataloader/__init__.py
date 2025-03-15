@@ -436,8 +436,12 @@ def load_chunk(file_path: Path):
 
             height = min(image.shape[0] for image in decoded_images)
             width = min(image.shape[1] for image in decoded_images)
+
             perform_crop = any(image.shape[0] != height or image.shape[1] != width for image in decoded_images)
             decoded_images = [crop(image, (height, width)) for image in decoded_images] if perform_crop else decoded_images
+
+            shape[3] = height
+            shape[4] = width
 
             batch[parent] = torch.stack(decoded_images).reshape(shape)
         elif '_shape' in key:
