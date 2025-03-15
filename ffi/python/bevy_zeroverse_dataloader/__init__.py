@@ -385,7 +385,9 @@ def chunk_and_save(
 
 def crop(tensor, shape, channels_last=True):
     if channels_last:
-        if tensor.ndim == 4:
+        if tensor.ndim == 3:
+            tensor = tensor.permute(2, 0, 1)
+        elif tensor.ndim == 4:
             tensor = tensor.permute(0, 3, 1, 2)
         elif tensor.ndim == 5:
             tensor = tensor.permute(0, 1, 4, 2, 3)  # (B, V, C, H, W)
@@ -403,7 +405,9 @@ def crop(tensor, shape, channels_last=True):
     tensor_cropped = tensor[..., row:row + h_out, col:col + w_out]
 
     if channels_last:
-        if tensor.ndim == 4:
+        if tensor.ndim == 3:
+            tensor_cropped = tensor_cropped.permute(1, 2, 0)
+        elif tensor.ndim == 4:
             tensor_cropped = tensor_cropped.permute(0, 2, 3, 1)
         elif tensor.ndim == 5:
             tensor_cropped = tensor_cropped.permute(0, 1, 3, 4, 2)
