@@ -383,10 +383,42 @@ def chunk_and_save(
     return chunk_file_paths
 
 
+def crop(tensor, shape, channels_last=True):
+    if channels_last:
+        if tensor.ndim == 4:
+            tensor = tensor.permute(0, 3, 1, 2)
+        elif tensor.ndim == 5:
+            tensor = tensor.permute(0, 1, 4, 2, 3)  # (B, V, C, H, W)
+        elif tensor.ndim == 6:
+            tensor = tensor.permute(0, 1, 2, 5, 3, 4)  # (B, T, V, C, H, W)
+        else:
+            raise ValueError(f"invalid number of dimensions: {tensor.ndim}")
+
+    *_, H, W = tensor.shape
+    h_out, w_out = shape
+
+    row = (H - h_out) // 2
+    col = (W - w_out) // 2
+
+    tensor_cropped = tensor[..., row:row + h_out, col:col + w_out]
+
+    if channels_last:
+        if tensor.ndim == 4:
+            tensor_cropped = tensor_cropped.permute(0, 2, 3, 1)
+        elif tensor.ndim == 5:
+            tensor_cropped = tensor_cropped.permute(0, 1, 3, 4, 2)
+        elif tensor.ndim == 6:
+            tensor_cropped = tensor_cropped.permute(0, 1, 2, 4, 5, 3)
+
+    return tensor_cropped
+
+
 def load_chunk(file_path: Path):
     tensors = load_file(str(file_path))
     batch = {}
 
+    # TODO: aggregate list of jpg data and call torchvision.io.decode_jpeg /w 'cuda' device
+    #       note, the resulting tensor needs to be on CPU for multiprocessed dataloaders to function. it would be most efficient to decode jpeg at the batch level
     for key, tensor in tensors.items():
         if '_jpg_' in key:
             parent = key.rsplit('_jpg_', 1)[0]
@@ -397,6 +429,12 @@ def load_chunk(file_path: Path):
             decoded_images = [decode_jpg_tensor(
                     tensors[f'{parent}_jpg_{i}']
                 ) for i in range(images)]
+
+            height = min(image.shape[0] for image in decoded_images)
+            width = min(image.shape[1] for image in decoded_images)
+            perform_crop = any(image.shape[0] != height or image.shape[1] != width for image in decoded_images)
+            decoded_images = [crop(image, (height, width)) for image in decoded_images] if perform_crop else decoded_images
+
             batch[parent] = torch.stack(decoded_images).reshape(shape)
         elif '_shape' in key:
             continue
@@ -416,8 +454,8 @@ class ChunkedIteratorDataset(IterableDataset):
             tensors = load_chunk(last_chunk)
             self.samples_per_chunk_estimate = next(iter(tensors.values())).shape[0]
 
-    def __len__(self):
-        return len(self.chunk_files) * self.samples_per_chunk_estimate
+    # def __len__(self):
+    #     return len(self.chunk_files) * self.samples_per_chunk_estimate
 
     def __iter__(self):
         worker_info = get_worker_info()
