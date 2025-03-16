@@ -9,6 +9,7 @@ import numpy as np
 from safetensors import safe_open
 from safetensors.torch import load_file, save_file
 import torch
+import torch.distributed as dist
 from torch.utils.data import DataLoader, Dataset, IterableDataset, get_worker_info
 import torchvision.transforms as transforms
 from torchvision.transforms.functional import to_pil_image, to_tensor
@@ -436,12 +437,11 @@ def load_chunk(file_path: Path):
 
             height = min(image.shape[0] for image in decoded_images)
             width = min(image.shape[1] for image in decoded_images)
+            shape[3] = height
+            shape[4] = width
 
             perform_crop = any(image.shape[0] != height or image.shape[1] != width for image in decoded_images)
             decoded_images = [crop(image, (height, width)) for image in decoded_images] if perform_crop else decoded_images
-
-            shape[3] = height
-            shape[4] = width
 
             batch[parent] = torch.stack(decoded_images).reshape(shape)
         elif '_shape' in key:
@@ -462,15 +462,15 @@ class ChunkedIteratorDataset(IterableDataset):
             tensors = load_chunk(last_chunk)
             self.samples_per_chunk_estimate = next(iter(tensors.values())).shape[0]
 
-    # def __len__(self):
-    #     return len(self.chunk_files) * self.samples_per_chunk_estimate
-
     def __iter__(self):
         worker_info = get_worker_info()
-        if worker_info is None:
-            chunk_files = self.chunk_files
-        else:
-            chunk_files = self.chunk_files[worker_info.id::worker_info.num_workers]
+        num_workers = worker_info.num_workers if worker_info else 1
+        worker_id = worker_info.id if worker_info else 0
+
+        world_size = dist.get_world_size() if dist.is_initialized() else 1
+        rank = dist.get_rank() if dist.is_initialized() else 0
+
+        chunk_files = self.chunk_files[rank * num_workers + worker_id::world_size * num_workers]
 
         if self.shuffle:
             random.shuffle(chunk_files)
