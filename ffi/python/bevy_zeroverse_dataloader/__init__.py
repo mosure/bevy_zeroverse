@@ -458,9 +458,13 @@ class ChunkedIteratorDataset(IterableDataset):
         self.shuffle = shuffle
 
         if self.chunk_files:
-            last_chunk = self.chunk_files[0]
-            tensors = load_chunk(last_chunk)
-            self.samples_per_chunk_estimate = next(iter(tensors.values())).shape[0]
+            self.chunk_sizes = []
+            self.total_samples = 0
+            for chunk_file in self.chunk_files:
+                tensors = load_chunk(chunk_file)
+                samples = next(iter(tensors.values())).shape[0]
+                self.chunk_sizes.append(samples)
+                self.total_samples += samples
 
     def __iter__(self):
         worker_info = get_worker_info()
@@ -470,21 +474,44 @@ class ChunkedIteratorDataset(IterableDataset):
         world_size = dist.get_world_size() if dist.is_initialized() else 1
         rank = dist.get_rank() if dist.is_initialized() else 0
 
-        chunk_files = self.chunk_files[rank * num_workers + worker_id::world_size * num_workers]
+        total_workers = world_size * num_workers
+        worker_global_id = rank * num_workers + worker_id
+
+        ideal_samples_per_worker = self.total_samples // total_workers
+
+        worker_chunks = [[] for _ in range(total_workers)]
+        worker_samples = [0] * total_workers
+
+        current_worker = 0
+        for idx, chunk_size in enumerate(self.chunk_sizes):
+            if worker_samples[current_worker] + chunk_size > ideal_samples_per_worker:
+                current_worker += 1
+                if current_worker >= total_workers:
+                    break
+
+            worker_chunks[current_worker].append(idx)
+            worker_samples[current_worker] += chunk_size
+
+        min_assigned_samples = min(worker_samples)
+        chunk_files = worker_chunks[worker_global_id]
 
         if self.shuffle:
             random.shuffle(chunk_files)
 
-        for chunk_file in chunk_files:
-            chunk_data = load_chunk(chunk_file)
-            num_samples = next(iter(chunk_data.values())).shape[0]
-            sample_indices = list(range(num_samples))
+        emitted_samples = 0
+
+        for chunk_idx in chunk_files:
+            chunk_data = load_chunk(self.chunk_files[chunk_idx])
+            local_indices = list(range(self.chunk_sizes[chunk_idx]))
 
             if self.shuffle:
-                random.shuffle(sample_indices)
+                random.shuffle(local_indices)
 
-            for sample_idx in sample_indices:
+            for sample_idx in local_indices:
+                if emitted_samples >= min_assigned_samples:
+                    return
                 yield {key: tensor[sample_idx] for key, tensor in chunk_data.items()}
+                emitted_samples += 1
 
 
 
