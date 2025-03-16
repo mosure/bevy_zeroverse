@@ -448,8 +448,14 @@ def load_chunk(file_path: Path):
             continue
         else:
             batch[key] = tensor
-
     return batch
+
+def get_chunk_sample_count(file_path: Path):
+    with safe_open(str(file_path), framework="pt") as f:
+        if "color_shape" in f.keys():
+            return f.get_tensor("color_shape")[0].item()
+        else:
+            raise ValueError("no shape key found in chunk file")
 
 class ChunkedIteratorDataset(IterableDataset):
     def __init__(self, output_dir: Path, shuffle: bool = False):
@@ -461,8 +467,7 @@ class ChunkedIteratorDataset(IterableDataset):
             self.chunk_sizes = []
             self.total_samples = 0
             for chunk_file in self.chunk_files:
-                tensors = load_chunk(chunk_file)
-                samples = next(iter(tensors.values())).shape[0]
+                samples = get_chunk_sample_count(chunk_file)
                 self.chunk_sizes.append(samples)
                 self.total_samples += samples
 
