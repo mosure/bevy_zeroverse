@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use rand::Rng;
 
 use bevy::prelude::*;
@@ -7,6 +7,9 @@ use crate::{
     app::BevyZeroverseConfig,
     scene::RegenerateSceneEvent,
 };
+
+#[cfg(not(target_family = "wasm"))]
+use crate::util::strip_extended_length_prefix;
 
 
 #[derive(Resource, Default, Debug)]
@@ -61,19 +64,6 @@ impl Default for MaterialLoaderSettings {
 #[derive(Resource, Default, Debug)]
 pub struct MaterialRoots {
     pub roots: Vec<PathBuf>,
-}
-
-
-fn strip_extended_length_prefix(path: &Path) -> PathBuf {
-    if cfg!(windows) {
-        let prefix = r"\\?\";
-        if let Some(path_str) = path.to_str() {
-            if let Some(stripped) = path_str.strip_prefix(prefix) {
-                return PathBuf::from(stripped);
-            }
-        }
-    }
-    path.to_path_buf()
 }
 
 

@@ -1,21 +1,26 @@
 use std::{
     collections::HashMap,
-    path::{Path, PathBuf},
+    path::PathBuf,
 };
 
 use bevy::{
     prelude::*,
     render::mesh::VertexAttributeValues,
 };
-use itertools::Itertools;
 use noise::{NoiseFn, Perlin};
 use rand::Rng;
+
+#[cfg(not(target_family = "wasm"))]
+use itertools::Itertools;
 
 use crate::{
     app::BevyZeroverseConfig,
     asset::WaitForAssets,
     scene::RegenerateSceneEvent,
 };
+
+#[cfg(not(target_family = "wasm"))]
+use crate::util::strip_extended_length_prefix;
 
 
 pub type MeshCategory = String;
@@ -81,27 +86,14 @@ pub struct MeshRoots {
 }
 
 
-fn strip_extended_length_prefix(path: &Path) -> PathBuf {
-    if cfg!(windows) {
-        let prefix = r"\\?\";
-        if let Some(path_str) = path.to_str() {
-            if let Some(stripped) = path_str.strip_prefix(prefix) {
-                return PathBuf::from(stripped);
-            }
-        }
-    }
-    path.to_path_buf()
-}
-
-
 fn find_meshes(
     mut found_meshes: ResMut<MeshRoots>,
 ) {
     #[cfg(target_family = "wasm")]
     {
-        found_meshes.roots = vec![
-            PathBuf::from("meshes/subset/chair/0.glb"),
-        ];
+        found_meshes.categories = HashMap::from([
+            ("chair".into(), vec![PathBuf::from("meshes/subset/chair/0.glb")]),
+        ]);
         return;
     }
 

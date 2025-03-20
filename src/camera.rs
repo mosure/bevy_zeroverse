@@ -966,9 +966,7 @@ fn setup_editor_camera(
                 render_mode.dither(),
                 render_mode.msaa(),
                 render_mode.tonemapping(),
-                DepthPrepass,
                 MotionVectorPrepass,
-                NormalPrepass,
                 // PluckerCamera,
             ))
             .insert(render_layer)
