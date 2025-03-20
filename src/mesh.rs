@@ -92,7 +92,14 @@ fn find_meshes(
     #[cfg(target_family = "wasm")]
     {
         found_meshes.categories = HashMap::from([
-            ("chair".into(), vec![PathBuf::from("meshes/subset/chair/0.glb")]),
+            ("chair".into(), vec![PathBuf::from("models/subset/chair/0.glb")]),
+            (
+                "human".into(),
+                vec![
+                    PathBuf::from("models/subset/human/female.glb"),
+                    PathBuf::from("models/subset/human/male.glb"),
+                ]
+            ),
         ]);
         return;
     }
