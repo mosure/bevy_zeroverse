@@ -137,11 +137,10 @@ fn load_materials(
     found_materials: Res<MaterialRoots>,
 ) {
     use rand::seq::IteratorRandom;
-
     let rng = &mut rand::thread_rng();
 
     let roots = found_materials.roots.iter()
-        .choose_multiple(&mut rand::thread_rng(), material_loader_settings.batch_size);
+        .choose_multiple(rng, material_loader_settings.batch_size);
 
     for root in roots {
         let basecolor_path = root.join("basecolor.jpg");

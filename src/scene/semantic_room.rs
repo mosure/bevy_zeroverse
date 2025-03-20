@@ -5,6 +5,7 @@ use bevy::{
 use rand::Rng;
 
 use crate::{
+    asset::WaitForAssets,
     camera::{
         ExtrinsicsSampler,
         ExtrinsicsSamplerType,
@@ -57,13 +58,16 @@ pub struct ZeroverseSemanticRoomSettings {
     pub camera_floor_padding: f32,
     pub camera_wall_padding: f32,
     pub chair_wall_padding: f32,
+    pub human_wall_padding: f32,
     pub table_wall_padding: f32,
     pub looking_at_sampler: LookingAtSampler,
     pub room_size: ScaleSampler,
     pub chair_count: CountSampler,
     pub chair_settings: ZeroversePrimitiveSettings,
-    pub table_settings: ZeroversePrimitiveSettings,  // TODO: table scale relative to room scale
     pub door_settings: ZeroversePrimitiveSettings,
+    pub human_count: CountSampler,
+    pub human_settings: ZeroversePrimitiveSettings,  // TODO: support parametric SMPL morphing
+    pub table_settings: ZeroversePrimitiveSettings,  // TODO: table scale relative to room scale
 }
 
 impl Default for ZeroverseSemanticRoomSettings {
@@ -72,6 +76,7 @@ impl Default for ZeroverseSemanticRoomSettings {
             camera_floor_padding: 3.0,
             camera_wall_padding: 1.0,
             chair_wall_padding: 0.5,
+            human_wall_padding: 0.25,
             table_wall_padding: 2.0,
             looking_at_sampler: LookingAtSampler::Sphere {
                 geometry: Sphere::new(4.0),
@@ -79,12 +84,12 @@ impl Default for ZeroverseSemanticRoomSettings {
             },
             room_size: ScaleSampler::Bounded(
                 Vec3::new(12.0, 8.0, 12.0),
-                Vec3::new(25.0, 15.0, 25.0),
+                Vec3::new(35.0, 15.0, 35.0),
             ),
             chair_count: CountSampler::Bounded(3, 8),
             chair_settings: ZeroversePrimitiveSettings {
                 cull_mode: Some(Face::Back),
-                available_types: vec![ZeroversePrimitives::Cuboid],
+                available_types: vec![ZeroversePrimitives::Mesh("chair".into())],
                 components: CountSampler::Exact(1),
                 wireframe_probability: 0.0,
                 noise_probability: 0.0,
@@ -95,30 +100,14 @@ impl Default for ZeroverseSemanticRoomSettings {
                 },
                 scale_sampler: ScaleSampler::Bounded(
                     Vec3::new(2.0, 3.0, 2.0),
-                    Vec3::new(3.0, 5.0, 3.0),
-                ),
-                // scale_sampler: ScaleSampler::Exact(Vec3::new(1.0, 4.0, 1.0)),
-                smooth_normals_probability: 0.0,
-                ..default()
-            },
-            table_settings: ZeroversePrimitiveSettings {
-                cull_mode: Some(Face::Back),
-                available_types: vec![ZeroversePrimitives::Cuboid],
-                components: CountSampler::Exact(1),
-                wireframe_probability: 0.0,
-                noise_probability: 0.0,
-                cast_shadows: false,
-                rotation_sampler: RotationSampler::Identity,
-                scale_sampler: ScaleSampler::Bounded(
-                    Vec3::new(4.0, 2.0, 4.0),
-                    Vec3::new(12.0, 4.0, 12.0),
+                    Vec3::new(4.0, 5.0, 4.0),
                 ),
                 smooth_normals_probability: 0.0,
                 ..default()
             },
             door_settings: ZeroversePrimitiveSettings {
                 cull_mode: Some(Face::Back),
-                available_types: vec![ZeroversePrimitives::Cuboid],  // TODO: use plane
+                available_types: vec![ZeroversePrimitives::Mesh("door".into())],
                 components: CountSampler::Exact(1),
                 wireframe_probability: 0.0,
                 noise_probability: 0.0,
@@ -127,6 +116,40 @@ impl Default for ZeroverseSemanticRoomSettings {
                 scale_sampler: ScaleSampler::Bounded(
                     Vec3::new(3.5, 7.0, 0.0001),
                     Vec3::new(4.5, 12.0, 0.001),
+                ),
+                smooth_normals_probability: 0.0,
+                ..default()
+            },
+            human_count: CountSampler::Bounded(1, 3),
+            human_settings: ZeroversePrimitiveSettings {
+                cull_mode: Some(Face::Back),
+                available_types: vec![ZeroversePrimitives::Mesh("human".into())],
+                components: CountSampler::Exact(1),
+                wireframe_probability: 0.0,
+                noise_probability: 0.0,
+                cast_shadows: false,
+                rotation_sampler: RotationSampler::Bounded {
+                    min: Vec3::new(0.0, 0.0, 0.0),
+                    max: Vec3::new(0.0, std::f32::consts::PI, 0.0),
+                },
+                scale_sampler: ScaleSampler::Bounded(
+                    Vec3::new(0.8, 0.8, 0.8),
+                    Vec3::new(1.2, 1.2, 1.2),
+                ),
+                smooth_normals_probability: 0.0,
+                ..default()
+            },
+            table_settings: ZeroversePrimitiveSettings {
+                cull_mode: Some(Face::Back),
+                available_types: vec![ZeroversePrimitives::Mesh("table".into())],
+                components: CountSampler::Exact(1),
+                wireframe_probability: 0.0,
+                noise_probability: 0.0,
+                cast_shadows: false,
+                rotation_sampler: RotationSampler::Identity,
+                scale_sampler: ScaleSampler::Bounded(
+                    Vec3::new(4.0, 2.0, 4.0),
+                    Vec3::new(12.0, 4.0, 12.0),
                 ),
                 smooth_normals_probability: 0.0,
                 ..default()
@@ -465,6 +488,54 @@ fn setup_scene(
             ));
         }
 
+        { // humans
+            for _ in 0..room_settings.human_count.sample() {
+                let human_scale = room_settings.human_settings.scale_sampler.sample();
+                let human_scale = Vec3::new(human_scale.x, human_scale.y, human_scale.x);
+                let center_sampler = PositionSampler::Cube {
+                    extents: Vec3::new(
+                        room_scale.x / 2.0 - room_settings.human_wall_padding - human_scale.x / 2.0,
+                        0.00001,
+                        room_scale.z / 2.0 - room_settings.human_wall_padding - human_scale.z / 2.0,
+                    ),
+                };
+                let human_scale_sampler = ScaleSampler::Exact(human_scale);
+
+                let height_offset = Vec3::new(
+                    0.0,
+                    0.0,
+                    0.0,
+                );
+
+                let mut position = center_sampler.sample() + height_offset;
+
+                let mut max_attempts = 100;
+                while check_aabb_collision(position, human_scale, &aabb_colliders) && max_attempts > 0 {
+                    position = center_sampler.sample() + height_offset;
+                    max_attempts -= 1;
+                }
+
+                if max_attempts == 0 {
+                    continue;
+                }
+
+                aabb_colliders.push((position, human_scale));
+
+                commands.spawn((
+                    ZeroversePrimitiveSettings {
+                        position_sampler: PositionSampler::Exact {
+                            position,
+                        },
+                        scale_sampler: human_scale_sampler.clone(),
+                        ..room_settings.human_settings.clone()
+                    },
+                    Transform::from_translation(position),
+                    Name::new("human"),
+                    SemanticLabel::Human,
+                ));
+            }
+        }
+
         { // cameras
             let size: Vec3 = Vec3::new(
                 room_scale.x - (room_settings.camera_wall_padding + scene_settings.max_camera_radius) * 2.0,
@@ -541,6 +612,7 @@ fn setup_scene(
 }
 
 
+#[allow(clippy::too_many_arguments)]
 fn regenerate_scene(
     mut commands: Commands,
     room_settings: Res<ZeroverseSemanticRoomSettings>,
@@ -549,15 +621,24 @@ fn regenerate_scene(
     scene_settings: Res<ZeroverseSceneSettings>,
     load_event: EventWriter<SceneLoadedEvent>,
     lighting_settings: Res<ZeroverseLightingSettings>,
+    wait_for: Res<WaitForAssets>,
+    mut recover_from_wait: Local<bool>,
 ) {
     if scene_settings.scene_type != ZeroverseSceneType::SemanticRoom {
         return;
     }
 
-    if regenerate_events.is_empty() {
+    if regenerate_events.is_empty() && !*recover_from_wait {
         return;
     }
     regenerate_events.clear();
+
+    if wait_for.is_waiting() {
+        // TODO: send out a regenerate event when asset wait is complete (and the current scene is waiting) (works better across scenes)
+        *recover_from_wait = true;
+        return;
+    }
+    *recover_from_wait = false;
 
     for entity in clear_zeroverse_scenes.iter() {
         commands.entity(entity).despawn_recursive();

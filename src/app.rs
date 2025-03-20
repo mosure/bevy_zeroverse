@@ -59,6 +59,7 @@ use crate::{
         ShuffleMaterialsEvent,
         ZeroverseMaterials,
     },
+    mesh::ShuffleMeshesEvent,
     // plucker::ZeroversePluckerSettings,
     primitive::ScaleSampler,
     render::RenderMode,
@@ -154,6 +155,11 @@ pub struct BevyZeroverseConfig {
     #[pyo3(get, set)]
     #[arg(long, default_value = "0")]
     pub regenerate_scene_material_shuffle_period: u32,
+
+    /// afer this many scene regenerations, shuffle the meshes
+    #[pyo3(get, set)]
+    #[arg(long, default_value = "0")]
+    pub regenerate_scene_mesh_shuffle_period: u32,
 
     /// automatically rotate the root scene object in the y axis
     #[pyo3(get, set)]
@@ -279,6 +285,10 @@ pub struct BevyZeroverseConfig {
     #[arg(long, default_value = "0")]
     pub regenerate_scene_material_shuffle_period: u32,
 
+    /// afer this many scene regenerations, shuffle the materials
+    #[arg(long, default_value = "0")]
+    pub regenerate_scene_mesh_shuffle_period: u32,
+
     /// automatically rotate the root scene object in the y axis
     #[arg(long, default_value = "0.0")]
     pub yaw_speed: f32,
@@ -327,6 +337,7 @@ impl Default for BevyZeroverseConfig {
             name: "bevy_zeroverse".to_string(),
             regenerate_ms: 0,
             regenerate_scene_material_shuffle_period: 0,
+            regenerate_scene_mesh_shuffle_period: 0,
             yaw_speed: 0.0,
             render_mode: Default::default(),
             render_modes: vec![],
@@ -452,7 +463,7 @@ pub fn viewer_app(
         setup_scene,
     ));
 
-    app.add_systems(PreUpdate, press_m_shuffle_materials);
+    app.add_systems(PreUpdate, press_m_shuffle_materials_and_meshes);
 
     #[cfg(feature = "viewer")]
     {
@@ -511,6 +522,8 @@ fn setup_camera(
             max_room_size + camera_offset
         },
         ZeroverseSceneType::CornellCube => camera_offset,
+        ZeroverseSceneType::Custom => camera_offset,
+        ZeroverseSceneType::Human => camera_offset,
         ZeroverseSceneType::Object => camera_offset,
         ZeroverseSceneType::Room => {
             let max_room_size = match room_settings.room_size {
@@ -719,12 +732,14 @@ fn propagate_cli_settings(
 }
 
 
-fn press_m_shuffle_materials(
+fn press_m_shuffle_materials_and_meshes(
     keys: Res<ButtonInput<KeyCode>>,
-    mut shuffle_events: EventWriter<ShuffleMaterialsEvent>,
+    mut shuffle_material_events: EventWriter<ShuffleMaterialsEvent>,
+    mut shuffle_meshes_events: EventWriter<ShuffleMeshesEvent>,
 ) {
     if keys.just_pressed(KeyCode::KeyM) {
-        shuffle_events.send(ShuffleMaterialsEvent);
+        shuffle_material_events.send(ShuffleMaterialsEvent);
+        shuffle_meshes_events.send(ShuffleMeshesEvent);
     }
 }
 

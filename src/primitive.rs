@@ -37,14 +37,17 @@ use strum_macros::EnumIter;
 use crate::{
     material::ZeroverseMaterials,
     manifold::ManifoldOperations,
-    mesh::displace_vertices_with_noise,
+    mesh::{
+        displace_vertices_with_noise,
+        MeshCategory,
+        ZeroverseMeshes,
+    },
 };
 
 
 pub struct ZeroversePrimitivePlugin;
 impl Plugin for ZeroversePrimitivePlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<ZeroversePrimitiveSettings>();
         app.register_type::<ZeroversePrimitiveSettings>();
 
         #[cfg(not(target_family = "wasm"))]  // note: web does not handle `POLYGON_MODE_LINE`, so we skip wireframes
@@ -62,6 +65,7 @@ pub enum ZeroversePrimitives {
     ConicalFrustum,
     Cuboid,
     Cylinder,
+    Mesh(MeshCategory),
     Plane,
     Sphere,
     Tetrahedron,
@@ -69,8 +73,7 @@ pub enum ZeroversePrimitives {
 }
 
 // TODO: support scale and rotation pdfs via https://github.com/villor/bevy_lookup_curve
-#[derive(Clone, Component, Debug, Reflect, Resource)]
-#[reflect(Resource)]
+#[derive(Clone, Component, Debug, Reflect)]
 #[require(Transform, Visibility)]
 pub struct ZeroversePrimitiveSettings {
     pub components: CountSampler,
@@ -194,9 +197,9 @@ impl ScaleSampler {
 
         match *self {
             ScaleSampler::Bounded(lower_bound, upper_bound) => Vec3::new(
-                rng.gen_range(lower_bound.x..upper_bound.x),
-                rng.gen_range(lower_bound.y..upper_bound.y),
-                rng.gen_range(lower_bound.z..upper_bound.z),
+                rng.gen_range(lower_bound.x..=upper_bound.x),
+                rng.gen_range(lower_bound.y..=upper_bound.y),
+                rng.gen_range(lower_bound.z..=upper_bound.z),
             ),
             ScaleSampler::Exact(scale) => scale,
         }
@@ -275,6 +278,7 @@ fn build_primitive(
     meshes: &mut ResMut<Assets<Mesh>>,
     standard_materials: &mut ResMut<Assets<StandardMaterial>>,
     zeroverse_materials: &Res<ZeroverseMaterials>,
+    zeroverse_meshes: &Res<ZeroverseMeshes>,
 ) {
     let rng = &mut rand::thread_rng();
 
@@ -374,6 +378,17 @@ fn build_primitive(
                         .minor_resolution(rng.gen_range(3..64))
                         .build()
                 },
+                ZeroversePrimitives::Mesh(category) => {
+                    let mesh_handle = zeroverse_meshes
+                        .meshes
+                        .get(&category)
+                        .and_then(|mesh_vec| mesh_vec.choose(rng));
+
+                    match mesh_handle {
+                        Some(mesh) => meshes.get(&mesh.handle).unwrap().clone(),
+                        None => Cuboid::default().mesh().build(),
+                    }
+                },
             };
 
             if rng.gen_bool(settings.noise_probability as f64) {
@@ -451,6 +466,7 @@ pub fn process_primitives(
     mut meshes: ResMut<Assets<Mesh>>,
     mut standard_materials: ResMut<Assets<StandardMaterial>>,
     zeroverse_materials: Res<ZeroverseMaterials>,
+    zeroverse_meshes: Res<ZeroverseMeshes>,
     primitives: Query<
         (
             Entity,
@@ -469,6 +485,7 @@ pub fn process_primitives(
                     &mut meshes,
                     &mut standard_materials,
                     &zeroverse_materials,
+                    &zeroverse_meshes,
                 );
             });
     }

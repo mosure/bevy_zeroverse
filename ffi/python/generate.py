@@ -1,11 +1,11 @@
 from pathlib import Path
 import shutil
 
-from bevy_zeroverse_dataloader import BevyZeroverseDataset, chunk_and_save, save_to_folders
+from bevy_zeroverse_dataloader import BevyZeroverseDataset, chunk_and_save, save_to_folders, save_to_mp4
 
 
 def generate_chunked_dataset(
-    output_dir = Path("./data/zeroverse/cli"),
+    output_dir = Path("./data/zeroverse/cli/chunk"),
     dataset = BevyZeroverseDataset(
         editor=False,
         headless=True,
@@ -30,8 +30,32 @@ def generate_chunked_dataset(
     )
 
 
+def video_dataset(
+    output_dir = Path("./data/zeroverse/cli/video"),
+    dataset = BevyZeroverseDataset(
+        editor=False,
+        headless=True,
+        num_cameras=9,
+        width=640,
+        height=480,
+        num_samples=1,
+        scene_type='human',
+        playback_step = 1.0 / 120.0,
+        playback_steps = 120,
+        render_modes = ['normal']
+    )
+):
+    save_to_mp4(
+        dataset,
+        output_dir,
+        n_workers=4,
+    )
+
+
 if __name__ == "__main__":
     # TODO: add cli arguments
-    chunk_paths = generate_chunked_dataset()
+    # chunk_paths = generate_chunked_dataset()
 
-    print(f"chunks:\n{chunk_paths}")
+    # print(f"chunks:\n{chunk_paths}")
+
+    video_dataset()

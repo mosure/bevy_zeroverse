@@ -263,13 +263,14 @@ pub fn create_app(
     override_args: Option<BevyZeroverseConfig>,
     set_runner: bool,
 ) -> App {
-    let mut app = viewer_app(override_args);
+    let mut app = viewer_app(override_args.clone());
 
     app.init_resource::<Sample>();
 
     // initialize to disabled state
     app.insert_resource(SamplerState {
         enabled: false,
+        render_modes: override_args.unwrap_or_default().render_modes,
         ..Default::default()
     });
     app.register_type::<SamplerState>();
@@ -416,7 +417,7 @@ fn sample_stream(
     if !state.timesteps.is_empty() {
         playback.progress = state.timesteps.remove(0);
         state.step += 1;
-        state.render_modes = SamplerState::default().render_modes;
+        state.render_modes = args.render_modes.clone();
         state.reset();
         // TODO: set fixed previous cameras for optical flow across timesteps
         return;

@@ -3,6 +3,7 @@
 use bevy::prelude::*;
 
 pub mod app;
+pub mod asset;
 pub mod camera;
 pub mod io;
 pub mod manifold;
@@ -21,8 +22,10 @@ impl Plugin for BevyZeroversePlugin {
         info!("initializing BevyZeroversePlugin...");
 
         app.add_plugins((
+            asset::ZeroverseAssetPlugin,
             camera::ZeroverseCameraPlugin,
             material::ZeroverseMaterialPlugin,
+            mesh::ZeroverseMeshPlugin,
             primitive::ZeroversePrimitivePlugin,
             render::RenderPlugin,
             scene::ZeroverseScenePlugin,

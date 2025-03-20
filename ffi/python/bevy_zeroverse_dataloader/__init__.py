@@ -5,6 +5,7 @@ from PIL import Image
 import random
 from typing import Optional
 
+import imageio
 import numpy as np
 from safetensors import safe_open
 from safetensors.torch import load_file, save_file
@@ -79,10 +80,10 @@ class View:
         def reshape_data(data, dtype):
             return np.frombuffer(data, dtype=dtype).reshape(height, width, 4)
 
-        if len(rust_view.color) == 0:
-            print("empty color buffer")
-
-        color = reshape_data(rust_view.color, np.float32)
+        if len(rust_view.color) != 0:
+            color = reshape_data(rust_view.color, np.float32)
+        else:
+            color = None
 
         if len(rust_view.depth) != 0:
             depth = reshape_data(rust_view.depth, np.float32)
@@ -127,8 +128,9 @@ class View:
     def to_tensors(self):
         batch = {}
 
-        color_tensor = torch.tensor(self.color, dtype=torch.float32)
-        batch['color'] = color_tensor[..., :3]
+        if self.color is not None:
+            color_tensor = torch.tensor(self.color, dtype=torch.float32)
+            batch['color'] = color_tensor[..., :3]
 
         if self.depth is not None:
             depth_tensor = torch.tensor(self.depth, dtype=torch.float32)
@@ -210,8 +212,10 @@ class BevyZeroverseDataset(Dataset):
 
     scene_map = {
         'cornell_cube': bevy_zeroverse_ffi.ZeroverseSceneType.CornellCube,
+        'human': bevy_zeroverse_ffi.ZeroverseSceneType.Human,
         'object': bevy_zeroverse_ffi.ZeroverseSceneType.Object,
         'room': bevy_zeroverse_ffi.ZeroverseSceneType.Room,
+        'semantic_room': bevy_zeroverse_ffi.ZeroverseSceneType.SemanticRoom,
     }
 
     def __init__(
@@ -258,6 +262,7 @@ class BevyZeroverseDataset(Dataset):
         config.playback_step = self.playback_step
         config.playback_steps = self.playback_steps
         config.render_modes = [BevyZeroverseDataset.render_mode_map[mode] for mode in self.render_modes]
+        config.render_mode = config.render_modes[0]
         bevy_zeroverse_ffi.initialize(
             config,
             self.root_asset_folder,
@@ -674,5 +679,101 @@ class FolderDataset(Dataset):
         meta_tensors['normal'] = torch.stack(normal_tensors, dim=0)
         meta_tensors['optical_flow'] = torch.stack(optical_flow_tensors, dim=0)
         meta_tensors['position'] = torch.stack(position_tensors, dim=0)
+
+        return meta_tensors
+
+
+def prepare_video_frames(tensor: torch.Tensor) -> np.ndarray:
+    if tensor.dim() == 3:
+        if tensor.shape[0] in [1, 3, 4]:
+            tensor = tensor.permute(1, 2, 0)
+        elif tensor.shape[2] not in [1, 3, 4]:
+            raise ValueError(f"Unexpected channel size: {tensor.shape[2]}")
+    else:
+        raise ValueError(f"Unexpected tensor dimensions: {tensor.dim()}")
+
+    tensor = tensor.numpy()
+
+    if tensor.shape[2] == 1:
+        tensor = np.repeat(tensor, 3, axis=2)
+    elif tensor.shape[2] > 3:
+        tensor = tensor[:, :, :3]
+
+    if tensor.dtype != np.uint8:
+        tensor = (tensor * 255).astype(np.uint8)
+
+    return tensor
+
+def save_to_mp4(dataset, output_dir: Path, fps: int = 24, n_workers: int = 1):
+    output_dir.mkdir(exist_ok=True, parents=True)
+    dataloader = DataLoader(dataset, batch_size=1, num_workers=n_workers, shuffle=False)
+
+    for idx, sample in enumerate(dataloader):
+        sample = {k: v.squeeze(0) for k, v in sample.items()}
+
+        scene_dir = output_dir / f"{idx:06d}"
+        scene_dir.mkdir(exist_ok=True)
+
+        planes = ['color', 'depth', 'normal', 'optical_flow', 'position']
+
+        for plane in planes:
+            if plane in sample:
+                plane_tensor = sample[plane]  # (T, V, H, W, C)
+                plane_tensor_normalized = normalize_hdr_image_tonemap(plane_tensor)
+                num_views = plane_tensor.shape[1]
+
+                for view_idx in range(num_views):
+                    plane_video = [
+                        prepare_video_frames(plane_tensor_normalized[t, view_idx])
+                        for t in range(plane_tensor.shape[0])
+                    ]
+
+                    video_path = scene_dir / f"{plane}_view_{view_idx:02d}.mp4"
+                    imageio.mimwrite(video_path, plane_video, fps=fps, codec='libx264')
+
+        meta_tensors = {
+            'world_from_view': sample['world_from_view'],
+            'fovy': sample['fovy'],
+            'near': sample['near'],
+            'far': sample['far'],
+            'time': sample['time'],
+            'aabb': sample['aabb'],
+        }
+        meta_filename = scene_dir / "meta.safetensors"
+        save_file(meta_tensors, str(meta_filename))
+
+        print(f"Saved sample {idx} to {scene_dir}")
+
+
+class MP4Dataset(Dataset):
+    def __init__(self, output_dir: Path):
+        self.output_dir = Path(output_dir)
+        self.scene_dirs = sorted([d for d in self.output_dir.iterdir() if d.is_dir()])
+
+    def __len__(self):
+        return len(self.scene_dirs)
+
+    def __getitem__(self, idx):
+        scene_dir = self.scene_dirs[idx]
+        meta_filename = scene_dir / "meta.safetensors"
+        with safe_open(str(meta_filename), framework="pt", device="cpu") as f:
+            meta_tensors = {key: f.get_tensor(key) for key in f.keys()}
+
+        planes = ['color', 'depth', 'normal', 'optical_flow', 'position']
+
+        for plane in planes:
+            video_files = sorted(scene_dir.glob(f"{plane}_view_*.mp4"))
+
+            if not video_files:
+                continue
+
+            plane_tensors = []
+            for video_file in video_files:
+                reader = imageio.get_reader(video_file, 'ffmpeg')
+                frames = [to_tensor(frame) for frame in reader]
+                plane_tensors.append(torch.stack(frames, dim=0))
+                reader.close()
+
+            meta_tensors[plane] = torch.stack(plane_tensors, dim=1)  # [T, V, C, H, W]
 
         return meta_tensors

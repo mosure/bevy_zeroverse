@@ -5,7 +5,9 @@ import shutil
 from torch.utils.data import DataLoader
 import unittest
 
-from bevy_zeroverse_dataloader import BevyZeroverseDataset, ChunkedIteratorDataset, FolderDataset, chunk_and_save, save_to_folders
+from bevy_zeroverse_dataloader import BevyZeroverseDataset, \
+    ChunkedIteratorDataset, FolderDataset, MP4Dataset, \
+    chunk_and_save, save_to_folders, save_to_mp4
 
 
 
@@ -123,6 +125,7 @@ class TestChunkedDataset(unittest.TestCase):
             scene_type='room',
         )
 
+        # TODO: perform this only once
         self.chunk_paths = chunk_and_save(
             self.dataset,
             self.output_dir / 'chunk',
@@ -133,6 +136,11 @@ class TestChunkedDataset(unittest.TestCase):
         save_to_folders(
             self.dataset,
             self.output_dir / 'fs',
+        )
+
+        save_to_mp4(
+            self.dataset,
+            self.output_dir / 'mp4',
         )
 
     def test_benchmark_chunked_dataloader(self):
@@ -147,6 +155,13 @@ class TestChunkedDataset(unittest.TestCase):
         dataloader = DataLoader(chunked_dataset, batch_size=1, shuffle=False)
 
         print("\nBenchmarking folder:")
+        benchmark(dataloader)
+
+    def test_benchmark_mp4_dataloader(self):
+        chunked_dataset = MP4Dataset(self.output_dir / 'mp4')
+        dataloader = DataLoader(chunked_dataset, batch_size=1, shuffle=False)
+
+        print("\nBenchmarking mp4:")
         benchmark(dataloader)
 
 

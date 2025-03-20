@@ -262,6 +262,7 @@ fn setup_scene(
                 start: ExtrinsicsSampler {
                     position: ExtrinsicsSamplerType::Sphere {
                         radius: 3.5,
+                        translate: Vec3::new(0.0, 0.0, 0.0),
                     },
                     ..default()
                 },

@@ -58,7 +58,10 @@ use crate::{
     io,
     // plucker::PluckerCamera,
     render::RenderMode,
-    scene::RegenerateSceneEvent,
+    scene::{
+        RegenerateSceneEvent,
+        ZeroverseSceneRoot,
+    },
 };
 
 
@@ -94,6 +97,7 @@ impl Plugin for ZeroverseCameraPlugin {
 }
 
 
+// TODO: convert to position sampler
 #[derive(Clone, Debug, Reflect)]
 pub enum LookingAtSampler {
     Exact(Vec3),
@@ -134,6 +138,12 @@ pub enum ExtrinsicsSamplerType {
         rotation: Quat,
         translate: Vec3,
     },
+    BandShell {
+        inner_size: Vec3,
+        outer_size: Vec3,
+        rotation: Quat,
+        translate: Vec3,
+    },
     Circle {
         radius: f32,
         rotation: Quat,
@@ -141,6 +151,12 @@ pub enum ExtrinsicsSamplerType {
     },
     Sphere {
         radius: f32,
+        translate: Vec3,
+    },
+    SphereShell {
+        inner_radius: f32,
+        outer_radius: f32,
+        translate: Vec3,
     },
     Cuboid {
         size: Vec3,
@@ -195,23 +211,70 @@ impl ExtrinsicsSampler {
                 let y = rng.gen_range(-size.y / 2.0..size.y / 2.0);
                 let pos = Vec3::new(x, y, z) + translate;
                 let pos = rotation.mul_vec3(pos);
-
                 Transform::from_translation(pos)
             },
+            ExtrinsicsSamplerType::BandShell {
+                inner_size,
+                outer_size,
+                rotation,
+                translate
+            } => {
+                let rng = &mut rand::thread_rng();
+
+                let face = rng.gen_range(0..4);
+
+                let (x, z) = match face {
+                    0 => (
+                        if rng.gen_bool(0.5) { outer_size.x / 2.0 } else { -outer_size.x / 2.0 },
+                        rng.gen_range(-outer_size.z / 2.0..outer_size.z / 2.0),
+                    ),
+                    1 => (
+                        if rng.gen_bool(0.5) { inner_size.x / 2.0 } else { -inner_size.x / 2.0 },
+                        rng.gen_range(-inner_size.z / 2.0..inner_size.z / 2.0),
+                    ),
+                    2 => (
+                        rng.gen_range(-outer_size.x / 2.0..outer_size.x / 2.0),
+                        if rng.gen_bool(0.5) { outer_size.z / 2.0 } else { -outer_size.z / 2.0 },
+                    ),
+                    3 => (
+                        rng.gen_range(-inner_size.x / 2.0..inner_size.x / 2.0),
+                        if rng.gen_bool(0.5) { inner_size.z / 2.0 } else { -inner_size.z / 2.0 },
+                    ),
+                    _ => unreachable!(),
+                };
+
+                let y = rng.gen_range(-outer_size.y / 2.0..outer_size.y / 2.0);
+                let pos = Vec3::new(x, y, z) + translate;
+                let pos = rotation.mul_vec3(pos);
+                Transform::from_translation(pos)
+            }
             ExtrinsicsSamplerType::Circle { radius, rotation, translate } => {
                 let rng = &mut rand::thread_rng();
 
                 let xz = Circle::new(radius).sample_boundary(rng);
                 let pos = rotation.mul_vec3(Vec3::new(xz.x, 0.0, xz.y)) + translate;
-
                 Transform::from_translation(pos)
             },
-            ExtrinsicsSamplerType::Sphere { radius } => {
+            ExtrinsicsSamplerType::Sphere { radius, translate } => {
                 let rng = &mut rand::thread_rng();
 
                 let pos = Sphere::new(radius).sample_boundary(rng);
+                Transform::from_translation(pos + translate)
+            },
+            ExtrinsicsSamplerType::SphereShell { inner_radius, outer_radius, translate } => {
+                let rng = &mut rand::thread_rng();
 
-                Transform::from_translation(pos)
+                let radius = rng.gen_range(
+                        inner_radius.powi(3)..outer_radius.powi(3)
+                    ).powf(1.0 / 3.0);
+                let direction = Vec3::new(
+                        rng.gen_range(-1.0..1.0),
+                        rng.gen_range(-1.0..1.0),
+                        rng.gen_range(-1.0..1.0),
+                    ).normalize();
+
+                let pos = direction * radius;
+                Transform::from_translation(pos + translate)
             },
             ExtrinsicsSamplerType::Transform(transform) => transform,
             _ => Transform::default(),
@@ -412,7 +475,7 @@ impl Playback {
 
 
 
-#[derive(Debug, Reflect)]
+#[derive(Clone, Debug, Reflect)]
 pub enum TrajectorySampler {
     Static {
         start: ExtrinsicsSampler,
@@ -421,7 +484,20 @@ pub enum TrajectorySampler {
         start: ExtrinsicsSampler,
         end: ExtrinsicsSampler,
     },
-    // TODO: add arc, spline, etc.
+    Avoidant {
+        start: ExtrinsicsSampler,
+        end: ExtrinsicsSampler,
+        bend_away_from: Vec3,
+        radius: f32,
+    },
+    AvoidantXZ {
+        start: ExtrinsicsSampler,
+        end: ExtrinsicsSampler,
+        bend_away_from: Vec3,
+        radius: f32,
+    },
+    // TODO: formal curve support /w composition
+    // TODO: support varying intrinsics across trajectory
 }
 
 impl Default for TrajectorySampler {
@@ -446,6 +522,153 @@ impl TrajectorySampler {
                 let rot = start.rotation.slerp(end.rotation, progress);
                 Transform::from_translation(pos).mul_transform(Transform::from_rotation(rot))
             },
+            TrajectorySampler::Avoidant { start, end, bend_away_from, radius } => {
+                let progress = progress.clamp(0.0, 1.0);
+                let start_transform = start.sample_cache();
+                let end_transform = end.sample_cache();
+
+                let mid_point = start_transform.translation.lerp(end_transform.translation, 0.5);
+
+                let path_dir = end_transform.translation - start_transform.translation;
+                let path_length = path_dir.length();
+
+                let avoidance_dir = (mid_point - *bend_away_from).normalize();
+                let perpendicular_dir = avoidance_dir - path_dir.normalize() * avoidance_dir.dot(path_dir.normalize());
+                let perpendicular_dir = perpendicular_dir.normalize();
+
+                let effective_radius = radius.min(path_length * 0.5);
+                let control_point = mid_point + perpendicular_dir * effective_radius;
+
+                let t = progress;
+                let pos = (1.0 - t).powi(2) * start_transform.translation
+                    + 2.0 * (1.0 - t) * t * control_point
+                    + t.powi(2) * end_transform.translation;
+
+                let rot = start_transform.rotation.slerp(end_transform.rotation, progress);
+
+                Transform::from_translation(pos).mul_transform(Transform::from_rotation(rot))
+            },
+            TrajectorySampler::AvoidantXZ { start, end, bend_away_from, radius } => {
+                let progress = progress.clamp(0.0, 1.0);
+                let start_transform = start.sample_cache();
+                let end_transform = end.sample_cache();
+
+                let mid_point = start_transform.translation.lerp(end_transform.translation, 0.5);
+
+                let path_dir = (end_transform.translation - start_transform.translation).with_y(0.0);
+                let path_length = path_dir.length();
+
+                let avoidance_vec = (mid_point - *bend_away_from).with_y(0.0);
+
+                let perpendicular_dir = if avoidance_vec.length_squared() < 1e-6 {
+                    Vec3::new(-path_dir.z, 0.0, path_dir.x).normalize()
+                } else {
+                    let avoidance_dir = avoidance_vec.normalize();
+                    let projected = avoidance_dir - path_dir.normalize() * avoidance_dir.dot(path_dir.normalize());
+                    projected.normalize()
+                };
+
+                let effective_radius = radius.min(path_length * 0.5);
+                let control_point = mid_point + perpendicular_dir * effective_radius;
+
+                let t = progress;
+                let pos = (1.0 - t).powi(2) * start_transform.translation
+                    + 2.0 * (1.0 - t) * t * control_point
+                    + t.powi(2) * end_transform.translation;
+
+                let rot = start_transform.rotation.slerp(end_transform.rotation, progress);
+
+                Transform::from_translation(pos).mul_transform(Transform::from_rotation(rot))
+            },
+        }
+    }
+
+    pub fn draw_gizmos(
+        &mut self,
+        gizmos: &mut Gizmos<EditorCameraGizmoConfigGroup>,
+        transform: Transform,
+    ) {
+        match self {
+            TrajectorySampler::Linear { start, end } => {
+                let start = transform.transform_point(start.sample_cache().translation);
+                let end = transform.transform_point(end.sample_cache().translation);
+                gizmos.line(start, end, Color::WHITE);
+            },
+            TrajectorySampler::Avoidant { start, end, bend_away_from, radius } => {
+                let start_transform = start.sample_cache();
+                let end_transform = end.sample_cache();
+                let mid_point = start_transform.translation.lerp(end_transform.translation, 0.5);
+
+                let path_dir = end_transform.translation - start_transform.translation;
+                let path_length = path_dir.length();
+
+                let avoidance_vec = mid_point - *bend_away_from;
+
+                let perpendicular_dir = if avoidance_vec.length_squared() < 1e-6 {
+                    path_dir.any_orthonormal_vector().normalize()
+                } else {
+                    let avoidance_dir = avoidance_vec.normalize();
+                    let projected = avoidance_dir - path_dir.normalize() * avoidance_dir.dot(path_dir.normalize());
+                    projected.normalize()
+                };
+
+                let effective_radius = radius.min(path_length * 0.5);
+                let control_point = mid_point + perpendicular_dir * effective_radius;
+
+                let curve_length = start_transform.translation.distance(control_point)
+                    + control_point.distance(end_transform.translation);
+                let segments = (curve_length * 10.0).ceil().max(10.0) as usize;
+
+                let step = 1.0 / segments as f32;
+                let mut prev_point = transform.transform_point(start_transform.translation);
+                for i in 1..=segments {
+                    let t = step * i as f32;
+                    let point = (1.0 - t).powi(2) * start_transform.translation
+                        + 2.0 * (1.0 - t) * t * control_point
+                        + t.powi(2) * end_transform.translation;
+                    let transformed_point = transform.transform_point(point);
+                    gizmos.line(prev_point, transformed_point, Color::WHITE);
+                    prev_point = transformed_point;
+                }
+            },
+            TrajectorySampler::AvoidantXZ { start, end, bend_away_from, radius } => {
+                let start_transform = start.sample_cache();
+                let end_transform = end.sample_cache();
+                let mid_point = start_transform.translation.lerp(end_transform.translation, 0.5);
+
+                let path_dir = (end_transform.translation - start_transform.translation).with_y(0.0);
+                let path_length = path_dir.length();
+
+                let avoidance_vec = (mid_point - *bend_away_from).with_y(0.0);
+
+                let perpendicular_dir = if avoidance_vec.length_squared() < 1e-6 {
+                    Vec3::new(-path_dir.z, 0.0, path_dir.x).normalize()
+                } else {
+                    let avoidance_dir = avoidance_vec.normalize();
+                    let projected = avoidance_dir - path_dir.normalize() * avoidance_dir.dot(path_dir.normalize());
+                    projected.normalize()
+                };
+
+                let effective_radius = radius.min(path_length * 0.5);
+                let control_point = (mid_point + perpendicular_dir * effective_radius).with_y(mid_point.y);
+
+                let curve_length = start_transform.translation.distance(control_point)
+                    + control_point.distance(end_transform.translation);
+                let segments = (curve_length * 10.0).ceil().max(10.0) as usize;
+
+                let step = 1.0 / segments as f32;
+                let mut prev_point = transform.transform_point(start_transform.translation);
+                for i in 1..=segments {
+                    let t = step * i as f32;
+                    let point = (1.0 - t).powi(2) * start_transform.translation
+                        + 2.0 * (1.0 - t) * t * control_point
+                        + t.powi(2) * end_transform.translation;
+                    let transformed_point = transform.transform_point(point);
+                    gizmos.line(prev_point, transformed_point, Color::WHITE);
+                    prev_point = transformed_point;
+                }
+            },
+            _ => {},
         }
     }
 }
@@ -464,7 +687,6 @@ pub struct ZeroverseCamera {
 pub struct DefaultZeroverseCamera {
     pub resolution: Option<UVec2>,
 }
-
 
 
 fn update_camera_trajectory(
@@ -819,13 +1041,18 @@ pub fn update_render_pipeline(
 pub fn draw_camera_gizmo(
     args: Res<BevyZeroverseConfig>,
     mut gizmos: Gizmos<EditorCameraGizmoConfigGroup>,
-    cameras: Query<
-        (&GlobalTransform, &Projection),
+    mut cameras: Query<
+        (
+            &GlobalTransform,
+            &Projection,
+            &mut ZeroverseCamera,
+        ),
         (
             With<Camera>,
             Without<EditorCameraMarker>,
         ),
     >,
+    scene: Query<&GlobalTransform, With<ZeroverseSceneRoot>>,
 ) {
     if !args.gizmos {
         return;
@@ -833,11 +1060,17 @@ pub fn draw_camera_gizmo(
 
     let color = Color::srgb(1.0, 0.0, 1.0);
 
-    for (global_transform, projection) in cameras.iter() {
-        let transform = global_transform.compute_transform();
+    let scene_transform = match scene.get_single() {
+        Ok(scene_transform) => scene_transform.compute_transform(),
+        Err(_) => Transform::default(),
+    };
 
-        // let cuboid_transform = transform.with_scale(Vec3::new(0.5, 0.5, 1.0));
-        // gizmos.cuboid(cuboid_transform, color);
+    for (
+        global_transform,
+        projection,
+        mut zeroverse_camera,
+    ) in cameras.iter_mut() {
+        let transform = global_transform.compute_transform();
 
         let (aspect_ratio, fov_y) = match projection {
             Projection::Perspective(persp) => (persp.aspect_ratio, persp.fov),
@@ -875,6 +1108,7 @@ pub fn draw_camera_gizmo(
             transform.translation + forward - up - right,
             color,
         );
+        gizmos.sphere(transform.translation, 0.1, color);
 
         let rect_transform = Transform::from_translation(transform.translation + forward);
         let rect_transform = rect_transform.mul_transform(Transform::from_rotation(transform.rotation));
@@ -883,5 +1117,7 @@ pub fn draw_camera_gizmo(
             Vec2::new(tan_half_fov_x * 2.0 * scale, tan_half_fov_y * 2.0 * scale),
             color,
         );
+
+        zeroverse_camera.trajectory.draw_gizmos(&mut gizmos, scene_transform);
     }
 }
