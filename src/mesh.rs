@@ -29,6 +29,7 @@ pub type MeshCategory = String;
 pub struct ZeroverseMesh {
     pub category: MeshCategory,
     pub handle: Handle<Mesh>,
+    pub material: Handle<StandardMaterial>,
     // pub path: String,
     // pub subset: String,
 }
@@ -159,11 +160,17 @@ fn load_meshes(
 
         for path in &selected_paths {
             let path_str = path.to_string_lossy();
+
             let glb_path = format!("{}#Mesh0/Primitive0", path_str);
+            let material_path = format!("{}#Material0", path_str);
+
             let mesh_handle = asset_server.load(glb_path);
+            let material_handle = asset_server.load(material_path);
+
             let zeroverse_mesh = ZeroverseMesh {
                 category: category.clone(),
                 handle: mesh_handle.clone(),
+                material: material_handle,
             };
 
             wait_for.handles.push(mesh_handle.untyped());

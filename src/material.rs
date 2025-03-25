@@ -100,7 +100,7 @@ fn find_materials(
 
         info!("current working directory: {}", cwd.to_string_lossy());
 
-        let asset_server_path = cwd.join("./assets");
+        let asset_server_path = cwd.join("./assets/materials");
         let pattern = format!("{}/**/**/basecolor.jpg", asset_server_path.to_string_lossy());
 
         found_materials.roots = glob::glob(&pattern)

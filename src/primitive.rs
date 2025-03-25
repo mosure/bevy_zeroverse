@@ -385,7 +385,10 @@ fn build_primitive(
                         .and_then(|mesh_vec| mesh_vec.choose(rng));
 
                     match mesh_handle {
-                        Some(mesh) => meshes.get(&mesh.handle).unwrap().clone(),
+                        Some(mesh) => {
+                            material = mesh.material.clone();
+                            meshes.get(&mesh.handle).unwrap().clone()
+                        },
                         None => Cuboid::default().mesh().build(),
                     }
                 },

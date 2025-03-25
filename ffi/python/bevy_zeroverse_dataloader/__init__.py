@@ -476,6 +476,7 @@ class ChunkedIteratorDataset(IterableDataset):
                 self.chunk_sizes.append(samples)
                 self.total_samples += samples
 
+
     def __iter__(self):
         worker_info = get_worker_info()
         num_workers = worker_info.num_workers if worker_info else 1
