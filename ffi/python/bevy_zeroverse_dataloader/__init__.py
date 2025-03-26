@@ -441,7 +441,7 @@ def load_chunk(file_path: Path):
 
         jpeg_data = [data for _, data in indexed_jpegs[:images_count]]
         decoded_images = decode_jpeg(jpeg_data, device='cuda')
-        decoded_images = [img.to('cpu') for img in decoded_images]
+        decoded_images = [img.to('cpu').float().div(255.0) for img in decoded_images]
 
         height = min(img.shape[1] for img in decoded_images)
         width = min(img.shape[2] for img in decoded_images)
