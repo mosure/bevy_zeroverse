@@ -1,4 +1,5 @@
 from io import BytesIO
+import json
 import os
 from pathlib import Path
 from PIL import Image
@@ -307,6 +308,11 @@ def chunk_and_save(
     """
 
     output_dir.mkdir(exist_ok=True, parents=True)
+
+    cache_file = output_dir / "chunk_sizes_cache.json"
+    if cache_file.exists():
+        os.remove(cache_file)
+
     existing_chunks = sorted(output_dir.glob("*.safetensors"))
     if existing_chunks:
         latest_chunk = existing_chunks[-1]
@@ -440,15 +446,19 @@ def load_chunk(file_path: Path):
         images_count = shape[0] * shape[1] * shape[2]
 
         jpeg_data = [data for _, data in indexed_jpegs[:images_count]]
-        decoded_images = decode_jpeg(jpeg_data, device='cuda')
-        decoded_images = [img.to('cpu').float().div(255.0) for img in decoded_images]
+        decoded_images = decode_jpeg(jpeg_data, device='cuda', mode='RGB')
+        decoded_images = [
+            img.to('cpu').float().div(255.0).permute(1, 2, 0) for img in decoded_images
+        ]
 
-        height = min(img.shape[1] for img in decoded_images)
-        width = min(img.shape[2] for img in decoded_images)
-        perform_crop = any(img.shape[1] != height or img.shape[2] != width for img in decoded_images)
+        height = min(img.shape[0] for img in decoded_images)
+        width = min(img.shape[1] for img in decoded_images)
+        perform_crop = any(img.shape[0] != height or img.shape[1] != width for img in decoded_images)
 
         if perform_crop:
-            decoded_images = [img[:, :height, :width] for img in decoded_images]
+            decoded_images = [
+                crop(img, (height, width)) for img in decoded_images
+            ]
 
         shape[3] = height
         shape[4] = width
@@ -474,13 +484,43 @@ class ChunkedIteratorDataset(IterableDataset):
         self.chunk_files = sorted(self.output_dir.glob("*.safetensors"))
         self.shuffle = shuffle
 
-        if self.chunk_files:
-            self.chunk_sizes = []
-            self.total_samples = 0
-            for chunk_file in self.chunk_files:
-                samples = get_chunk_sample_count(chunk_file)
-                self.chunk_sizes.append(samples)
-                self.total_samples += samples
+        self.cache_file = self.output_dir / "chunk_sizes_cache.json"
+
+        self.chunk_sizes = []
+        self.total_samples = 0
+
+        if self.cache_file.exists():
+            try:
+                with open(self.cache_file, "r") as f:
+                    cache = json.load(f)
+                cached_files = cache.get("files", [])
+                current_files = [str(f.resolve()) for f in self.chunk_files]
+
+                if cached_files == current_files:
+                    self.chunk_sizes = cache.get("chunk_sizes", [])
+                    self.total_samples = sum(self.chunk_sizes)
+                else:
+                    self._refresh_cache()
+            except Exception as e:
+                self._refresh_cache()
+        else:
+            self._refresh_cache()
+
+
+    def _refresh_cache(self):
+        self.chunk_sizes = []
+        self.total_samples = 0
+        for chunk_file in self.chunk_files:
+            samples = get_chunk_sample_count(chunk_file)
+            self.chunk_sizes.append(samples)
+            self.total_samples += samples
+
+        cache_data = {
+            "files": [str(f.resolve()) for f in self.chunk_files],
+            "chunk_sizes": self.chunk_sizes,
+        }
+        with open(self.cache_file, "w") as f:
+            json.dump(cache_data, f)
 
 
     def __iter__(self):
