@@ -47,6 +47,10 @@ for batch in dataloader:
     visualize(batch)
 ```
 
+### chunked dataloader
+
+requires nvjpeg: https://developer.nvidia.com/nvjpeg
+
 
 ## mat-synth
 

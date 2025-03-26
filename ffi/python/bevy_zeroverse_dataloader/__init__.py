@@ -12,6 +12,7 @@ from safetensors.torch import load_file, save_file
 import torch
 import torch.distributed as dist
 from torch.utils.data import DataLoader, Dataset, IterableDataset, get_worker_info
+from torchvision.io import decode_jpeg
 import torchvision.transforms as transforms
 from torchvision.transforms.functional import to_pil_image, to_tensor
 from torchvision.utils import save_image
@@ -427,32 +428,37 @@ def load_chunk(file_path: Path):
     tensors = load_file(str(file_path))
     batch = {}
 
-    # TODO: aggregate list of jpg data and call torchvision.io.decode_jpeg /w 'cuda' device
-    #       note, the resulting tensor needs to be on CPU for multiprocessed dataloaders to function. it would be most efficient to decode jpeg at the batch level
-    for key, tensor in tensors.items():
+    jpeg_groups = {}
+    for key in tensors:
         if '_jpg_' in key:
-            parent = key.rsplit('_jpg_', 1)[0]
-            if parent in batch:
-                continue
-            shape = tensors[f'{parent}_shape'].tolist()
-            images = shape[0] * shape[1] * shape[2]
-            decoded_images = [decode_jpg_tensor(
-                    tensors[f'{parent}_jpg_{i}']
-                ) for i in range(images)]
+            parent, idx = key.rsplit('_jpg_', 1)
+            jpeg_groups.setdefault(parent, []).append((int(idx), tensors[key]))
 
-            height = min(image.shape[0] for image in decoded_images)
-            width = min(image.shape[1] for image in decoded_images)
-            shape[3] = height
-            shape[4] = width
+    for parent, indexed_jpegs in jpeg_groups.items():
+        indexed_jpegs.sort()
+        shape = tensors[f'{parent}_shape'].tolist()
+        images_count = shape[0] * shape[1] * shape[2]
 
-            perform_crop = any(image.shape[0] != height or image.shape[1] != width for image in decoded_images)
-            decoded_images = [crop(image, (height, width)) for image in decoded_images] if perform_crop else decoded_images
+        jpeg_data = [data for _, data in indexed_jpegs[:images_count]]
+        decoded_images = decode_jpeg(jpeg_data, device='cuda')
+        decoded_images = [img.to('cpu') for img in decoded_images]
 
-            batch[parent] = torch.stack(decoded_images).reshape(shape)
-        elif '_shape' in key:
-            continue
-        else:
+        height = min(img.shape[1] for img in decoded_images)
+        width = min(img.shape[2] for img in decoded_images)
+        perform_crop = any(img.shape[1] != height or img.shape[2] != width for img in decoded_images)
+
+        if perform_crop:
+            decoded_images = [img[:, :height, :width] for img in decoded_images]
+
+        shape[3] = height
+        shape[4] = width
+
+        batch[parent] = torch.stack(decoded_images).reshape(shape)
+
+    for key, tensor in tensors.items():
+        if '_jpg_' not in key and '_shape' not in key:
             batch[key] = tensor
+
     return batch
 
 def get_chunk_sample_count(file_path: Path):
