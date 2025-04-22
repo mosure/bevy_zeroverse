@@ -234,6 +234,7 @@ class BevyZeroverseDataset(Dataset):
         playback_step=0.1,
         playback_steps=5,
         render_modes=['color'],
+        rotation_augmentation=True,
     ):
         self.editor = editor
         self.headless = headless
@@ -248,6 +249,7 @@ class BevyZeroverseDataset(Dataset):
         self.playback_step = playback_step
         self.playback_steps = playback_steps
         self.render_modes = render_modes
+        self.rotation_augmentation = rotation_augmentation
 
     def initialize(self):
         config = bevy_zeroverse_ffi.BevyZeroverseConfig()
@@ -265,6 +267,7 @@ class BevyZeroverseDataset(Dataset):
         config.playback_steps = self.playback_steps
         config.render_modes = [BevyZeroverseDataset.render_mode_map[mode] for mode in self.render_modes]
         config.render_mode = config.render_modes[0]
+        config.rotation_augmentation = self.rotation_augmentation
         bevy_zeroverse_ffi.initialize(
             config,
             self.root_asset_folder,
