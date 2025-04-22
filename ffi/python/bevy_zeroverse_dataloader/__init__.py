@@ -478,6 +478,8 @@ def get_chunk_sample_count(file_path: Path):
     with safe_open(str(file_path), framework="pt") as f:
         if "color_shape" in f.keys():
             return f.get_tensor("color_shape")[0].item()
+        elif "near" in f.keys():
+            return f.get_tensor("near").shape[0]
         else:
             raise ValueError("no shape key found in chunk file")
 
