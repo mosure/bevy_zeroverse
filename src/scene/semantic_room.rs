@@ -691,7 +691,6 @@ fn spawn_room_neighborhood(
 
     let mut rooms: HashMap<(i32, i32), (Vec3, Vec3)> = HashMap::new();
     rooms.insert((0, 0), (Vec3::ZERO, *base_scale));
-    let mut rng = rand::thread_rng();
 
     for &(dx, dz) in &[(1, 0), (-1, 0), (0, 1), (0, -1)] {
         spawn_room_rec(
@@ -702,7 +701,6 @@ fn spawn_room_neighborhood(
             settings.neighborhood_depth as i32 - 1,
             *base_scale,
             &mut rooms,
-            &mut rng,
             settings,
         );
     }
