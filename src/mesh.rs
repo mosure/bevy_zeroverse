@@ -161,8 +161,8 @@ fn load_meshes(
         for path in &selected_paths {
             let path_str = path.to_string_lossy();
 
-            let glb_path = format!("{}#Mesh0/Primitive0", path_str);
-            let material_path = format!("{}#Material0", path_str);
+            let glb_path = format!("{path_str}#Mesh0/Primitive0");
+            let material_path = format!("{path_str}#Material0");
 
             let mesh_handle = asset_server.load(glb_path);
             let material_handle = asset_server.load(material_path);
@@ -185,7 +185,7 @@ fn load_meshes(
 
     info!("loaded total of {} meshes", zeroverse_meshes.meshes.len());
 
-    load_event.send(MeshesLoadedEvent);
+    load_event.write(MeshesLoadedEvent);
 }
 
 
@@ -233,7 +233,7 @@ fn mesh_exchange(
     if *scene_counter >= args.regenerate_scene_mesh_shuffle_period {
         *scene_counter = 0;
 
-        shuffle_events.send(ShuffleMeshesEvent);
+        shuffle_events.write(ShuffleMeshesEvent);
     }
 }
 

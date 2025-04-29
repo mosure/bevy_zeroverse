@@ -1,6 +1,9 @@
 use bevy::{
     prelude::*,
-    asset::load_internal_asset,
+    asset::{
+        load_internal_asset,
+        weak_handle,
+    },
     core_pipeline::core_3d::graph::{
         Core3d,
         Node3d,
@@ -78,7 +81,7 @@ pub struct PluckerOutput {
 }
 
 
-const PLUCKER_SHADER_HANDLE: Handle<Shader> = Handle::weak_from_u128(793429261847);
+const PLUCKER_SHADER_HANDLE: Handle<Shader> = weak_handle!("1347c9b1-c46a-4515-6782-023a354b7cac");
 
 #[derive(
     Debug,
@@ -290,7 +293,7 @@ fn create_plucker_output(
                 >,
             | {
                 if plucker_visualization.get(visualization_entity).is_ok() {
-                    commands.entity(visualization_entity).despawn_recursive();
+                    commands.entity(visualization_entity).despawn();
                 }
             });
     }

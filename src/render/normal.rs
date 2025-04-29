@@ -1,6 +1,9 @@
 use bevy::{
     prelude::*,
-    asset::load_internal_asset,
+    asset::{
+        load_internal_asset,
+        weak_handle,
+    },
     pbr::{
         ExtendedMaterial,
         MaterialExtension,
@@ -11,7 +14,7 @@ use bevy::{
 use crate::render::DisabledPbrMaterial;
 
 
-pub const NORMAL_SHADER_HANDLE: Handle<Shader> = Handle::weak_from_u128(234253434561);
+pub const NORMAL_SHADER_HANDLE: Handle<Shader> = weak_handle!("93f535c9-7353-4160-920b-9493b0a2c1ee");
 
 #[derive(Component, Debug, Clone, Default, Reflect, Eq, PartialEq)]
 #[reflect(Component, Default)]
@@ -52,7 +55,7 @@ fn apply_normal_material(
     mut materials: ResMut<Assets<NormalMaterial>>,
 ) {
     for e in removed_normals.read() {
-        if let Some(mut commands) = commands.get_entity(e) {
+        if let Ok(mut commands) = commands.get_entity(e) {
             commands.remove::<MeshMaterial3d<NormalMaterial>>();
         }
     }

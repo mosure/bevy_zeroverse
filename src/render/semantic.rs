@@ -1,6 +1,9 @@
 use bevy::{
     prelude::*,
-    asset::load_internal_asset,
+    asset::{
+        load_internal_asset,
+        weak_handle,
+    },
     pbr::{
         ExtendedMaterial,
         MaterialExtension,
@@ -11,7 +14,7 @@ use bevy::{
 use crate::render::DisabledPbrMaterial;
 
 
-pub const SEMANTIC_SHADER_HANDLE: Handle<Shader> = Handle::weak_from_u128(5639572395);
+pub const SEMANTIC_SHADER_HANDLE: Handle<Shader> = weak_handle!("e1b272d1-bae5-48ed-8214-2adbafa43cad");
 
 #[derive(Component, Debug, Clone, Default, Reflect, Eq, PartialEq)]
 #[reflect(Component)]
@@ -148,7 +151,7 @@ fn propagate_semantic_labels(
 ) {
     // TODO: capture frame delay based on hierarchy propagation, determine delay from hierarchy depth or apply full-tree update
     for (label, children) in semantic_parents.iter() {
-        for &child in children.iter() {
+        for child in children.iter() {
             commands.entity(child).insert(label.clone());
         }
     }
@@ -170,7 +173,7 @@ fn apply_semantic_material(
     mut materials: ResMut<Assets<SemanticMaterial>>,
 ) {
     for e in removed_semantics.read() {
-        if let Some(mut commands) = commands.get_entity(e) {
+        if let Ok(mut commands) = commands.get_entity(e) {
             commands.remove::<MeshMaterial3d<SemanticMaterial>>();
         }
     }

@@ -373,7 +373,7 @@ fn save_chunk(
 ) {
     let stacked_views = stack_samples(chunk_samples.to_vec(), zeroverse_config);
 
-    let file_name = format!("{:06}.safetensors", chunk_index);
+    let file_name = format!("{chunk_index:06}.safetensors");
     let output_dir = Path::new(generator_config.output_dir.as_str());
 
     if !output_dir.exists() {

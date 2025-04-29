@@ -103,11 +103,11 @@ impl View {
     }
 
     fn __str__(&self) -> PyResult<String> {
-        Ok(format!("{:?}", self))
+        Ok(format!("{self:?}"))
     }
 
     fn __repr__(&self) -> PyResult<String> {
-        Ok(format!("{:?}", self))
+        Ok(format!("{self:?}"))
     }
 }
 
@@ -134,11 +134,11 @@ impl Sample {
     }
 
     fn __str__(&self) -> PyResult<String> {
-        Ok(format!("{:?}", self))
+        Ok(format!("{self:?}"))
     }
 
     fn __repr__(&self) -> PyResult<String> {
-        Ok(format!("{:?}", self))
+        Ok(format!("{self:?}"))
     }
 }
 
@@ -231,7 +231,7 @@ fn signaled_runner(mut app: App) -> AppExit {
                     .map(|i| {
                         let x = i as f32 * args.playback_step;
                         if x > 1.0 {
-                            panic!("timestep value {} has range [0.0, 1.0]", x);
+                            panic!("timestep value {x} has range [0.0, 1.0]");
                         }
                         x
                     })
@@ -357,7 +357,7 @@ fn sample_stream(
         }
     }
 
-    let scene_aabb = scene.single().1;
+    let scene_aabb = scene.single().unwrap().1;
     buffered_sample.aabb = [
         scene_aabb.min.into(),
         scene_aabb.max.into(),
@@ -385,6 +385,7 @@ fn sample_stream(
                 view.far = perspective.far;
             }
             Projection::Orthographic(_) => panic!("orthographic projection not supported"),
+            Projection::Custom(_) => panic!("custom projection not supported"),
         };
 
         let world_from_view = camera_transform.compute_matrix().to_cols_array_2d();
@@ -394,7 +395,8 @@ fn sample_stream(
             .get(&image_copier.dst_image)
             .unwrap()
             .clone()
-            .data;
+            .data
+            .unwrap();
 
         match write_to {
             RenderMode::Color => view.color = image_data,
@@ -436,7 +438,7 @@ fn sample_stream(
     sender.send(sample).unwrap();
 
     if state.regenerate_scene {
-        regenerate_event.send(RegenerateSceneEvent);
+        regenerate_event.write(RegenerateSceneEvent);
     }
 
     state.enabled = false;

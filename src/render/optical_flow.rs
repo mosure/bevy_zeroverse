@@ -1,6 +1,9 @@
 use bevy::{
     prelude::*,
-    asset::load_internal_asset,
+    asset::{
+        load_internal_asset,
+        weak_handle,
+    },
     pbr::{
         ExtendedMaterial,
         MaterialExtension,
@@ -11,7 +14,7 @@ use bevy::{
 use crate::render::DisabledPbrMaterial;
 
 
-pub const OPTICAL_FLOW_SHADER_HANDLE: Handle<Shader> = Handle::weak_from_u128(67489367583);
+pub const OPTICAL_FLOW_SHADER_HANDLE: Handle<Shader> = weak_handle!("3f3f9390-7b0d-483e-b197-a8b79123205d");
 
 #[derive(Component, Debug, Clone, Default, Reflect, Eq, PartialEq)]
 #[reflect(Component, Default)]
@@ -52,7 +55,7 @@ fn apply_optical_flow_material(
     mut materials: ResMut<Assets<OpticalFlowMaterial>>,
 ) {
     for e in removed_optical_flows.read() {
-        if let Some(mut commands) = commands.get_entity(e) {
+        if let Ok(mut commands) = commands.get_entity(e) {
             commands.remove::<MeshMaterial3d<OpticalFlowMaterial>>();
         }
     }

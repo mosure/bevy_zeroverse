@@ -1,6 +1,9 @@
 use bevy::{
     prelude::*,
-    asset::load_internal_asset,
+    asset::{
+        load_internal_asset,
+        weak_handle,
+    },
     pbr::{
         ExtendedMaterial,
         MaterialExtension,
@@ -14,7 +17,7 @@ use crate::{
 };
 
 
-pub const POSITION_SHADER_HANDLE: Handle<Shader> = Handle::weak_from_u128(612356441234);
+pub const POSITION_SHADER_HANDLE: Handle<Shader> = weak_handle!("ade99152-1098-445a-9174-e9f60406a582");
 
 #[derive(Component, Debug, Clone, Default, Reflect, Eq, PartialEq)]
 #[reflect(Component, Default)]
@@ -56,12 +59,12 @@ fn apply_position_material(
     mut materials: ResMut<Assets<PositionMaterial>>,
 ) {
     for e in removed_positions.read() {
-        if let Some(mut commands) = commands.get_entity(e) {
+        if let Ok(mut commands) = commands.get_entity(e) {
             commands.remove::<MeshMaterial3d<PositionMaterial>>();
         }
     }
 
-    let Ok(aabb) = aabb.get_single() else { return };
+    let Ok(aabb) = aabb.single() else { return };
 
     for (
         e,
