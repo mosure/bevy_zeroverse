@@ -40,6 +40,7 @@ impl Plugin for ZeroverseScenePlugin {
         app.register_type::<ZeroverseSceneSettings>();
 
         app.register_type::<SceneAabb>();
+        app.register_type::<SceneAabbNode>();
 
         app.add_plugins((
             semantic_room::ZeroverseSemanticRoomPlugin,
@@ -110,6 +111,8 @@ pub struct RegenerateSceneEvent;
 pub struct SceneLoadedEvent;
 
 
+#[derive(Component, Debug, Reflect)]
+pub struct SceneAabbNode;
 
 #[derive(Component, Debug, Reflect)]
 pub struct SceneAabb {
@@ -190,19 +193,20 @@ fn create_scene_aabb(
     children: Query<&Children>,
     bounding_boxes: Query<(&Aabb, &GlobalTransform)>,
 ) {
-    for (entity, _instance, global_transform) in scene_instances.iter() {
-        let mut scene_aabb = SceneAabb::new(global_transform.translation());
+    for (entity, _root_tag, root_tf) in &scene_instances {
+        let mut scene_aabb = SceneAabb::new(root_tf.translation());
 
-        if children.iter_descendants(entity).count() == 0 {
-            continue;
+        let merged_any = children
+            .iter_descendants(entity)
+            .filter_map(|child| bounding_boxes.get(child).ok())
+            .any(|(bb, tf)| {
+                scene_aabb.merge_aabb(bb, tf);
+                true
+            });
+
+        if merged_any {
+            commands.entity(entity).insert(scene_aabb);
         }
-
-        for child in children.iter_descendants(entity) {
-            let Ok((bb, transform)) = bounding_boxes.get(child) else { continue };
-            scene_aabb.merge_aabb(bb, transform);
-        }
-
-        commands.entity(entity).insert(scene_aabb);
     }
 }
 

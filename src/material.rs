@@ -164,7 +164,7 @@ fn load_materials(
 
     info!("loaded {} materials", zeroverse_materials.materials.len());
 
-    load_event.send(MaterialsLoadedEvent);
+    load_event.write(MaterialsLoadedEvent);
 }
 
 
@@ -212,6 +212,6 @@ fn material_exchange(
     if *scene_counter >= args.regenerate_scene_material_shuffle_period {
         *scene_counter = 0;
 
-        shuffle_events.send(ShuffleMaterialsEvent);
+        shuffle_events.write(ShuffleMaterialsEvent);
     }
 }

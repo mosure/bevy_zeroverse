@@ -185,7 +185,7 @@ fn load_meshes(
 
     info!("loaded total of {} meshes", zeroverse_meshes.meshes.len());
 
-    load_event.send(MeshesLoadedEvent);
+    load_event.write(MeshesLoadedEvent);
 }
 
 
@@ -233,7 +233,7 @@ fn mesh_exchange(
     if *scene_counter >= args.regenerate_scene_mesh_shuffle_period {
         *scene_counter = 0;
 
-        shuffle_events.send(ShuffleMeshesEvent);
+        shuffle_events.write(ShuffleMeshesEvent);
     }
 }
 

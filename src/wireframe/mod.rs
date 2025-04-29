@@ -1,6 +1,6 @@
 use crate::{Material, MaterialPipeline, MaterialPipelineKey, MaterialPlugin};
 use bevy_app::{Plugin, Startup, Update};
-use bevy_asset::{load_internal_asset, Asset, Assets, Handle};
+use bevy_asset::{load_internal_asset, weak_handle, Asset, Assets, Handle};
 use bevy_ecs::prelude::*;
 use bevy_reflect::{std_traits::ReflectDefault, Reflect, TypePath};
 use bevy_render::{
@@ -15,7 +15,7 @@ use bevy_render::{
 // TODO: strip out global wireframe config
 
 
-pub const WIREFRAME_SHADER_HANDLE: Handle<Shader> = Handle::weak_from_u128(571204738553);
+pub const WIREFRAME_SHADER_HANDLE: Handle<Shader> = weak_handle!("ab62b4af-d81b-40e8-855d-af1b2f669b2c");
 
 /// A [`Plugin`] that draws wireframes.
 ///
@@ -156,7 +156,7 @@ fn apply_wireframe_material(
     global_material: Res<GlobalWireframeMaterial>,
 ) {
     for e in removed_wireframes.read().chain(no_wireframes.iter()) {
-        if let Some(mut commands) = commands.get_entity(e) {
+        if let Ok(mut commands) = commands.get_entity(e) {
             commands.remove::<Handle<WireframeMaterial>>();
         }
     }

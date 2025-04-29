@@ -59,6 +59,7 @@ plucker = []
 python = ["extension-module", "pyo3", "webgpu"]
 
 viewer = [
+  "bevy_egui",
   "bevy-inspector-egui",
   "bevy_panorbit_camera",
   "bevy/bevy_ui",
@@ -76,9 +77,10 @@ webgpu = [
 
 
 [dependencies]
-bevy_args = "1.7.1"
-bevy-inspector-egui = { version = "0.28", optional = true }
-bevy_panorbit_camera = { version = "0.21", optional = true, features = ["bevy_egui"] }
+bevy_args = "1.8"
+bevy_egui = { version = "0.34", optional = true }
+bevy-inspector-egui = { version = "0.31", optional = true }
+bevy_panorbit_camera = { version = "0.26", optional = true, features = ["bevy_egui"] }
 clap = { version = "4.5", features = ["derive"] }
 futures-intrusive = "0.5"
 glob = "0.3"
@@ -91,7 +93,7 @@ rayon = { version = "1.10", optional = true }
 serde = "1.0"
 strum = "0.27"
 strum_macros = "0.27"
-wgpu = "23.0.1"
+wgpu = "24"
 
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
@@ -100,13 +102,14 @@ wasm-bindgen = "0.2"
 
 
 [dependencies.bevy]
-version = "0.15"
+version = "0.16"
 default-features = false
 features = [
   "bevy_asset",
   "bevy_core_pipeline",
   "bevy_gizmos",
   "bevy_gltf",
+  "bevy_log",
   "bevy_pbr",
   "bevy_render",
   "bevy_winit",

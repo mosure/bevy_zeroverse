@@ -33,6 +33,9 @@ use bevy_args::{
     Parser,
     Serialize,
 };
+
+#[cfg(feature = "viewer")]
+use bevy_egui::EguiPlugin;
 #[cfg(feature = "viewer")]
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 #[cfg(feature = "viewer")]
@@ -443,6 +446,7 @@ pub fn viewer_app(
     #[cfg(feature = "viewer")]
     if args.editor {
         app.register_type::<BevyZeroverseConfig>();
+        app.add_plugins(EguiPlugin { enable_multipass_for_primary_context: true });
         app.add_plugins(WorldInspectorPlugin::new());
     }
 
@@ -452,7 +456,7 @@ pub fn viewer_app(
 
     app.add_plugins(BevyZeroversePlugin);
 
-    app.insert_resource(args.render_mode);  // TODO: replicate on args changed
+    app.insert_resource(args.render_mode);
 
     app.insert_resource(DefaultZeroverseCamera {
         resolution: UVec2::new(args.width as u32, args.height as u32).into(),
@@ -498,11 +502,11 @@ fn setup_camera(
     }
 
     material_grid_cameras.iter().for_each(|entity| {
-        commands.entity(entity).despawn_recursive();
+        commands.entity(entity).despawn();
     });
 
     editor_cameras.iter().for_each(|entity| {
-        commands.entity(entity).despawn_recursive();
+        commands.entity(entity).despawn();
     });
 
     // TODO: add a check for dataloader/headless mode
@@ -575,7 +579,7 @@ fn setup_camera_grid(
     scene_loaded.clear();
 
     if !camera_grids.is_empty() {
-        commands.entity(camera_grids.single()).despawn_recursive();
+        commands.entity(camera_grids.single().unwrap()).despawn();
     }
 
     if args.camera_grid {
@@ -603,7 +607,7 @@ fn setup_camera_grid(
                 };
 
                 builder.spawn(ImageNode {
-                    image: texture,
+                    image: texture.handle,
                     ..default()
                 });
             }
@@ -630,7 +634,7 @@ fn setup_material_grid(
     materials_loaded.clear();
 
     if !material_grids.is_empty() {
-        commands.entity(material_grids.single()).despawn_recursive();
+        commands.entity(material_grids.single().unwrap()).despawn();
     }
 
     if args.material_grid {
@@ -672,7 +676,7 @@ fn setup_material_grid(
 fn setup_scene(
     mut regenerate_event: EventWriter<RegenerateSceneEvent>,
 ) {
-    regenerate_event.send(RegenerateSceneEvent);
+    regenerate_event.write(RegenerateSceneEvent);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -691,7 +695,7 @@ fn regenerate_scene_system(
     regenerate_scene |= keys.just_pressed(KeyCode::KeyR);
 
     if regenerate_scene {
-        regenerate_event.send(RegenerateSceneEvent);
+        regenerate_event.write(RegenerateSceneEvent);
         regenerate_stopwatch.reset();
     }
 }
@@ -738,8 +742,8 @@ fn press_m_shuffle_materials_and_meshes(
     mut shuffle_meshes_events: EventWriter<ShuffleMeshesEvent>,
 ) {
     if keys.just_pressed(KeyCode::KeyM) {
-        shuffle_material_events.send(ShuffleMaterialsEvent);
-        shuffle_meshes_events.send(ShuffleMeshesEvent);
+        shuffle_material_events.write(ShuffleMaterialsEvent);
+        shuffle_meshes_events.write(ShuffleMeshesEvent);
     }
 }
 
@@ -749,6 +753,6 @@ fn press_esc_close(
     mut exit: EventWriter<AppExit>
 ) {
     if keys.just_pressed(KeyCode::Escape) {
-        exit.send(AppExit::Success);
+        exit.write(AppExit::Success);
     }
 }

@@ -4,12 +4,12 @@ import os
 from pathlib import Path
 from PIL import Image
 import random
-from typing import Optional
+from typing import Literal, Optional
 
 import imageio
 import numpy as np
 from safetensors import safe_open
-from safetensors.torch import load_file, save_file
+from safetensors.torch import load as load_bytes, load_file, save as serialize, save_file
 import torch
 import torch.distributed as dist
 from torch.utils.data import DataLoader, Dataset, IterableDataset, get_worker_info
@@ -17,6 +17,9 @@ from torchvision.io import decode_jpeg
 import torchvision.transforms as transforms
 from torchvision.transforms.functional import to_pil_image, to_tensor
 from torchvision.utils import save_image
+
+import lz4.frame as lz4
+import zstandard as zstd
 
 import bevy_zeroverse_ffi
 
@@ -44,7 +47,6 @@ def normalize_hdr_image_tonemap(hdr_image: torch.Tensor) -> torch.Tensor:
     return normalized_image.clamp(0.0, 1.0)
 
 
-# TODO: add sample-level world rotation augment
 class View:
     def __init__(
         self,
@@ -286,6 +288,24 @@ class BevyZeroverseDataset(Dataset):
         return sample.to_tensors()
 
 
+def _compress(data: bytes, codec: str, level: int = 0) -> bytes:
+    if codec == "lz4":
+        return lz4.compress(data, compression_level=level)
+    if codec == "zstd":
+        c = zstd.ZstdCompressor(level=level)
+        return c.compress(data)
+    return data
+
+def _decompress_bytes(path: Path) -> bytes:
+    raw = path.read_bytes()
+    if path.suffix == ".lz4":
+        return lz4.decompress(raw)
+    if path.suffix == ".zst":
+        d = zstd.ZstdDecompressor()
+        return d.decompress(raw)
+    return raw
+
+
 def decode_jpg_tensor(jpg_tensor: torch.Tensor) -> torch.Tensor:
     buffer = BytesIO(jpg_tensor.numpy().tobytes())
     img = Image.open(buffer).convert("RGB")
@@ -305,6 +325,7 @@ def chunk_and_save(
     samples_per_chunk: Optional[int] = None,
     n_workers: int = 1,
     jpg_quality: int = 75,
+    compression: Optional[Literal["lz4", "zstd"]] = "zstd",
 ):
     """
     if samples_per_chunk is not None, the dataset will be chunked into chunks of size samples_per_chunk, regardless of bytes_per_chunk.
@@ -335,9 +356,9 @@ def chunk_and_save(
     def save_chunk():
         nonlocal chunk_size, chunk_index, chunk, chunk_file_paths
 
-        chunk_key = f"{chunk_index:0>6}"
-        print(f"saving chunk {chunk_key} of {total_chunks} ({chunk_size / 1e6:.2f} MB).")
-        file_path = output_dir / f"{chunk_key}.safetensors"
+        key = f"{chunk_index:0>6}"
+        print(f"saving chunk {key} of {total_chunks} ({chunk_size / 1e6:.2f} MB).")
+        base_name = f"{key}.safetensors"
 
         B = len(chunk)
         batch = {}
@@ -362,9 +383,18 @@ def chunk_and_save(
         flat_tensors = {
             key: torch.stack(tensors, dim=0) if '_jpg' not in key and '_shape' not in key else tensors for key, tensors in batch.items()
         }
-        save_file(flat_tensors, str(file_path))
 
-        chunk_file_paths.append(file_path)
+        if compression is None:
+            final_path = output_dir / base_name
+            save_file(flat_tensors, str(final_path))
+        else:
+            blob = serialize(flat_tensors)
+            encoded = _compress(blob, compression)
+            ext = ".lz4" if compression == "lz4" else ".zst"
+            final_path = output_dir / (base_name + ext)
+            final_path.write_bytes(encoded)
+
+        chunk_file_paths.append(final_path)
         chunk_size = 0
         chunk_index += 1
         chunk = []
@@ -433,8 +463,9 @@ def crop(tensor, shape, channels_last=True):
     return tensor_cropped
 
 
-def load_chunk(file_path: Path):
-    tensors = load_file(str(file_path))
+# TODO: support optional compression of chunks
+def load_chunk(path: Path):
+    tensors = load_bytes(_decompress_bytes(path))
     batch = {}
 
     jpeg_groups = {}
@@ -474,19 +505,27 @@ def load_chunk(file_path: Path):
 
     return batch
 
-def get_chunk_sample_count(file_path: Path):
-    with safe_open(str(file_path), framework="pt") as f:
-        if "color_shape" in f.keys():
-            return f.get_tensor("color_shape")[0].item()
-        elif "near" in f.keys():
-            return f.get_tensor("near").shape[0]
-        else:
-            raise ValueError("no shape key found in chunk file")
+
+
+def get_chunk_sample_count(path: Path):
+    if path.suffix in {".lz4", ".zst"}:
+        tensors = load_bytes(_decompress_bytes(path))
+    else:
+        tensors = load_file(str(path))
+
+    if "color_shape" in tensors:
+        return tensors["color_shape"][0].item()
+    if "near" in tensors:
+        return tensors["near"].shape[0]
+
+    raise ValueError("no shape key found in chunk file")
+
+
 
 class ChunkedIteratorDataset(IterableDataset):
     def __init__(self, output_dir: Path, shuffle: bool = False):
         self.output_dir = Path(output_dir)
-        self.chunk_files = sorted(self.output_dir.glob("*.safetensors"))
+        self.chunk_files = sorted(self.output_dir.glob("*.safetensors*"))
         self.shuffle = shuffle
 
         self.cache_file = self.output_dir / "chunk_sizes_cache.json"

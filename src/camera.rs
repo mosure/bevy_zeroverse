@@ -19,6 +19,7 @@ use bevy::{
     render::{
         camera::{
             Exposure,
+            ImageRenderTarget,
             RenderTarget,
         },
         renderer::RenderDevice,
@@ -769,7 +770,9 @@ fn insert_cameras(
         };
         render_target.resize(size);
         let render_target = images.add(render_target);
-        let target = RenderTarget::Image(render_target.clone());
+        let target = RenderTarget::Image(
+            ImageRenderTarget::from(render_target.clone())
+        );
 
         // TODO: modulate fov
         let mut camera = commands.entity(entity);
@@ -1058,7 +1061,7 @@ pub fn draw_camera_gizmo(
 
     let color = Color::srgb(1.0, 0.0, 1.0);
 
-    let scene_transform = match scene.get_single() {
+    let scene_transform = match scene.single() {
         Ok(scene_transform) => scene_transform.compute_transform(),
         Err(_) => Transform::default(),
     };
@@ -1075,6 +1078,7 @@ pub fn draw_camera_gizmo(
             Projection::Orthographic(_) => {
                 (1.0, 0.0)
             }
+            Projection::Custom(_) => todo!(),
         };
 
         let tan_half_fov_y = (fov_y * 0.5).tan();

@@ -14,10 +14,14 @@ pub mod image_copy {
 
     use bevy::render::render_resource::{
         Buffer, BufferDescriptor, BufferUsages, CommandEncoderDescriptor, Extent3d,
-        ImageCopyBuffer, ImageDataLayout, MapMode,
+        MapMode,
     };
     use pollster::FutureExt;
-    use wgpu::Maintain;
+    use wgpu::{
+        Maintain,
+        TexelCopyBufferInfo,
+        TexelCopyBufferLayout,
+    };
 
     use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -46,7 +50,10 @@ pub mod image_copy {
                 render_device.poll(Maintain::Wait);
                 rx.receive().await.unwrap().unwrap();
                 if let Some(image) = images.get_mut(&image_copier.dst_image) {
-                    image.data = buffer_slice.get_mapped_range().to_vec();
+                    image.data = buffer_slice
+                        .get_mapped_range()
+                        .to_vec()
+                        .into();
                 }
 
                 image_copier.buffer.unmap();
@@ -163,21 +170,21 @@ pub mod image_copy {
                 let block_size = src_image.texture_format.block_copy_size(None).unwrap();
 
                 let padded_bytes_per_row = RenderDevice::align_copy_bytes_per_row(
-                    (src_image.size.x as usize / block_dimensions.0 as usize)
+                    (src_image.size.width as usize / block_dimensions.0 as usize)
                         * block_size as usize,
                 );
 
                 let texture_extent = Extent3d {
-                    width: src_image.size.x,
-                    height: src_image.size.y,
+                    width: src_image.size.width,
+                    height: src_image.size.height,
                     depth_or_array_layers: 1,
                 };
 
                 encoder.copy_texture_to_buffer(
                     src_image.texture.as_image_copy(),
-                    ImageCopyBuffer {
+                    TexelCopyBufferInfo {
                         buffer: &image_copier.buffer,
-                        layout: ImageDataLayout {
+                        layout: TexelCopyBufferLayout {
                             offset: 0,
                             bytes_per_row: Some(
                                 std::num::NonZeroU32::new(padded_bytes_per_row as u32)
@@ -215,10 +222,14 @@ pub mod prepass_copy {
 
     use bevy::render::render_resource::{
         Buffer, BufferDescriptor, BufferUsages, CommandEncoderDescriptor, Extent3d,
-        ImageCopyBuffer, ImageDataLayout, MapMode,
+        MapMode,
     };
     use pollster::FutureExt;
-    use wgpu::Maintain;
+    use wgpu::{
+        Maintain,
+        TexelCopyBufferInfo,
+        TexelCopyBufferLayout,
+    };
 
     use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -249,7 +260,10 @@ pub mod prepass_copy {
                 render_device.poll(Maintain::Wait);
                 rx.receive().await.unwrap().unwrap();
                 if let Some(image) = images.get_mut(&prepass_copier.dst_image) {
-                    image.data = buffer_slice.get_mapped_range().to_vec();
+                    image.data = buffer_slice
+                        .get_mapped_range()
+                        .to_vec()
+                        .into();
                 }
 
                 prepass_copier.buffer.unmap();
@@ -399,9 +413,9 @@ pub mod prepass_copy {
                 // TODO: image as a compute node target, single sample
                 encoder.copy_texture_to_buffer(
                     src_texture.texture.as_image_copy(),
-                    ImageCopyBuffer {
+                    TexelCopyBufferInfo {
                         buffer: &prepass_copier.buffer,
-                        layout: ImageDataLayout {
+                        layout: TexelCopyBufferLayout {
                             offset: 0,
                             bytes_per_row: Some(
                                 std::num::NonZeroU32::new(padded_bytes_per_row as u32)

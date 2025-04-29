@@ -51,7 +51,7 @@ impl Plugin for ZeroversePrimitivePlugin {
         app.register_type::<ZeroversePrimitiveSettings>();
 
         #[cfg(not(target_family = "wasm"))]  // note: web does not handle `POLYGON_MODE_LINE`, so we skip wireframes
-        app.add_plugins(bevy::pbr::wireframe::WireframePlugin);
+        app.add_plugins(bevy::pbr::wireframe::WireframePlugin::default());
 
         app.add_systems(Update, process_primitives);
     }
@@ -239,6 +239,18 @@ impl Default for PositionSampler {
 }
 
 impl PositionSampler {
+    pub fn is_valid(&self) -> bool {
+        match *self {
+            PositionSampler::Band { size } => size.x > 0.0 && size.y > 0.0 && size.z > 0.0,
+            PositionSampler::Capsule { radius, length } => radius > 0.0 && length > 0.0,
+            PositionSampler::Cube { extents } => extents.x > 0.0 && extents.y > 0.0 && extents.z > 0.0,
+            PositionSampler::Cylinder { radius, height } => radius > 0.0 && height > 0.0,
+            PositionSampler::Exact { position: _ } => true,
+            PositionSampler::Origin => true,
+            PositionSampler::Sphere { radius } => radius > 0.0,
+        }
+    }
+
     pub fn sample(&self) -> Vec3 {
         let rng = &mut rand::thread_rng();
 
@@ -273,7 +285,7 @@ pub struct ZeroversePrimitive;
 
 
 fn build_primitive(
-    commands: &mut ChildBuilder,
+    commands: &mut ChildSpawnerCommands,
     settings: &ZeroversePrimitiveSettings,
     meshes: &mut ResMut<Assets<Mesh>>,
     standard_materials: &mut ResMut<Assets<StandardMaterial>>,

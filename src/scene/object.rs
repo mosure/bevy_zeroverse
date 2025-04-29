@@ -86,7 +86,7 @@ fn setup_scene(
             }
         });
 
-    load_event.send(SceneLoadedEvent);
+    load_event.write(SceneLoadedEvent);
 }
 
 
@@ -109,7 +109,7 @@ fn regenerate_scene(
     regenerate_events.clear();
 
     for entity in clear_zeroverse_scenes.iter() {
-        commands.entity(entity).despawn_recursive();
+        commands.entity(entity).despawn();
     }
 
     setup_lighting(

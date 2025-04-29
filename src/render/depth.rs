@@ -1,6 +1,9 @@
 use bevy::{
     prelude::*,
-    asset::load_internal_asset,
+    asset::{
+        load_internal_asset,
+        weak_handle,
+    },
     pbr::{
         ExtendedMaterial,
         MaterialExtension,
@@ -11,7 +14,7 @@ use bevy::{
 use crate::render::DisabledPbrMaterial;
 
 
-pub const DEPTH_SHADER_HANDLE: Handle<Shader> = Handle::weak_from_u128(63456234534534);
+pub const DEPTH_SHADER_HANDLE: Handle<Shader> = weak_handle!("2e8b51ab-6faf-4b40-b342-0250d5b75323");
 
 #[derive(Component, Debug, Clone, Default, Reflect, Eq, PartialEq)]
 #[reflect(Component, Default)]
@@ -52,7 +55,7 @@ fn apply_depth_material(
     mut materials: ResMut<Assets<DepthMaterial>>,
 ) {
     for e in removed_depths.read() {
-        if let Some(mut commands) = commands.get_entity(e) {
+        if let Ok(mut commands) = commands.get_entity(e) {
             commands.remove::<MeshMaterial3d<DepthMaterial>>();
         }
     }

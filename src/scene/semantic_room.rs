@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use bevy::{
     prelude::*,
     render::render_resource::Face,
@@ -20,6 +22,7 @@ use crate::{
         },
         RegenerateSceneEvent,
         RotationAugment,
+        SceneAabbNode,
         SceneLoadedEvent,
         ZeroverseScene,
         ZeroverseSceneRoot,
@@ -68,6 +71,10 @@ pub struct ZeroverseSemanticRoomSettings {
     pub human_count: CountSampler,
     pub human_settings: ZeroversePrimitiveSettings,  // TODO: support parametric SMPL morphing
     pub table_settings: ZeroversePrimitiveSettings,  // TODO: table scale relative to room scale
+    pub window_probability: f32,
+    pub window_size_min: Vec2,
+    pub window_size_max: Vec2,
+    pub neighborhood_depth: usize,
 }
 
 impl Default for ZeroverseSemanticRoomSettings {
@@ -154,6 +161,10 @@ impl Default for ZeroverseSemanticRoomSettings {
                 smooth_normals_probability: 0.0,
                 ..default()
             },
+            window_probability: 0.25,
+            window_size_min: Vec2::new(0.25, 0.25),
+            window_size_max: Vec2::new(0.75, 0.75),
+            neighborhood_depth: 2,
         }
     }
 }
@@ -192,182 +203,196 @@ fn check_aabb_collision(
 }
 
 
-fn setup_scene(
-    mut commands: Commands,
-    mut load_event: EventWriter<SceneLoadedEvent>,
-    room_settings: Res<ZeroverseSemanticRoomSettings>,
-    scene_settings: Res<ZeroverseSceneSettings>,
+const CLEARANCE: f32 = 1e-4;
+
+fn spawn_face(
+    commands: &mut ChildSpawnerCommands,
+    room_settings: &ZeroverseSemanticRoomSettings,
+    origin: Vec3,
+    basis: Quat,
+    half_extents: Vec3,
+    cull_mode: Option<Face>,
+    invert_normals: bool,
+    label: SemanticLabel,
+    name: &str,
+    wall: bool,
 ) {
     let mut rng = rand::thread_rng();
 
-    let room_scale = room_settings.room_size.sample();
+    let base = ZeroversePrimitiveSettings {
+        cull_mode,
+        invert_normals,
+        available_types: vec![ZeroversePrimitives::Plane],
+        components: CountSampler::Exact(1),
+        wireframe_probability: 0.0,
+        noise_probability: 0.0,
+        cast_shadows: false,
+        rotation_sampler: RotationSampler::Exact(basis),
+        ..default()
+    };
 
-    // TODO: set global Y rotation to prevent wall aligned plucker embeddings
+    let mut spawn_segment = |pos: Vec3, half_size: Vec3, suffix: &str| {
+        commands.spawn((
+            ZeroversePrimitiveSettings {
+                position_sampler: PositionSampler::Exact { position: origin + basis * pos },
+                scale_sampler: ScaleSampler::Exact(half_size),
+                ..base.clone()
+            },
+            Name::new(format!("{name}{suffix}")),
+            label.clone(),
+        ));
+    };
 
-    commands.spawn((
-        Name::new("room"),
-        RotationAugment,
-        ZeroverseSceneRoot,
-        ZeroverseScene,
-    ))
-    .with_children(|commands| {
-        {// outer walls
-            let base_plane_settings = ZeroversePrimitiveSettings {
-                cull_mode: Some(Face::Front),
-                available_types: vec![ZeroversePrimitives::Plane],
-                components: CountSampler::Exact(1),
-                wireframe_probability: 0.0,
-                noise_probability: 0.0,
-                cast_shadows: false,
-                position_sampler: PositionSampler::Exact {
-                    position: Vec3::ZERO,
-                },
-                rotation_sampler: RotationSampler::Identity,
-                scale_sampler: ScaleSampler::Exact(Vec3::ONE),
-                ..default()
-            };
+    let make_window = wall && rng.gen_bool(room_settings.window_probability as f64);
 
-            // top plane
-            let top_plane_settings = ZeroversePrimitiveSettings {
-                invert_normals: true,
-                position_sampler: PositionSampler::Exact {
-                    position: Vec3::new(0.0, room_scale.y, 0.0),
-                },
-                scale_sampler: ScaleSampler::Exact(Vec3::new(room_scale.x / 2.0, 1.0, room_scale.z / 2.0)),
-                ..base_plane_settings.clone()
-            };
+    if !make_window {
+        spawn_segment(Vec3::ZERO, half_extents, "");
+        return;
+    }
 
-            // bottom plane
-            let bottom_plane_settings = ZeroversePrimitiveSettings {
-                cull_mode: Some(Face::Back),
-                position_sampler: PositionSampler::Exact {
-                    position: Vec3::new(0.0, 0.0, 0.0),
-                },
-                scale_sampler: ScaleSampler::Exact(Vec3::new(room_scale.x / 2.0, 1.0, room_scale.z / 2.0)),
-                ..base_plane_settings.clone()
-            };
 
-            // front plane
-            let front_plane_settings = ZeroversePrimitiveSettings {
-                invert_normals: true,
-                position_sampler: PositionSampler::Exact {
-                    position: Vec3::new(0.0, room_scale.y / 2.0, room_scale.z / 2.0),
-                },
-                rotation_sampler: RotationSampler::Exact(Quat::from_rotation_x(90.0_f32.to_radians())),
-                scale_sampler: ScaleSampler::Exact(Vec3::new(room_scale.x / 2.0, 1.0, room_scale.y / 2.0)),
-                ..base_plane_settings.clone()
-            };
+    let hx = half_extents.x;
+    let hz = half_extents.z;
 
-            // back plane
-            let back_plane_settings = ZeroversePrimitiveSettings {
-                cull_mode: Some(Face::Back),
-                position_sampler: PositionSampler::Exact {
-                    position: Vec3::new(0.0, room_scale.y / 2.0, -room_scale.z / 2.0),
-                },
-                rotation_sampler: RotationSampler::Exact(Quat::from_rotation_x(90.0_f32.to_radians())),
-                scale_sampler: ScaleSampler::Exact(Vec3::new(room_scale.x / 2.0, 1.0, room_scale.y / 2.0)),
-                ..base_plane_settings.clone()
-            };
+    let max_w_frac = 1.0 - CLEARANCE / hx;
+    let max_h_frac = 1.0 - CLEARANCE / hz;
 
-            // left plane
-            let left_plane_settings = ZeroversePrimitiveSettings {
-                invert_normals: true,
-                position_sampler: PositionSampler::Exact {
-                    position: Vec3::new(-room_scale.x / 2.0, room_scale.y / 2.0, 0.0),
-                },
-                rotation_sampler: RotationSampler::Exact(Quat::from_rotation_z(90.0_f32.to_radians())),
-                scale_sampler: ScaleSampler::Exact(Vec3::new(room_scale.y / 2.0, 1.0, room_scale.z / 2.0)),
-                ..base_plane_settings.clone()
-            };
+    let min_w_frac = room_settings.window_size_min.x.clamp(0.0, max_w_frac);
+    let max_w_frac = room_settings.window_size_max.x.clamp(min_w_frac, max_w_frac);
+    let min_h_frac = room_settings.window_size_min.y.clamp(0.0, max_h_frac);
+    let max_h_frac = room_settings.window_size_max.y.clamp(min_h_frac, max_h_frac);
 
-            // right plane
-            let right_plane_settings = ZeroversePrimitiveSettings {
-                cull_mode: Some(Face::Back),
-                position_sampler: PositionSampler::Exact {
-                    position: Vec3::new(room_scale.x / 2.0, room_scale.y / 2.0, 0.0),
-                },
-                rotation_sampler: RotationSampler::Exact(Quat::from_rotation_z(90.0_f32.to_radians())),
-                scale_sampler: ScaleSampler::Exact(Vec3::new(room_scale.y / 2.0, 1.0, room_scale.z / 2.0)),
-                ..base_plane_settings.clone()
-            };
+    let w_frac = rng.gen_range(min_w_frac..=max_w_frac);
+    let h_frac = rng.gen_range(min_h_frac..=max_h_frac);
 
-            commands.spawn((
-                top_plane_settings,
-                Name::new("room_top_plane"),
-                SemanticLabel::Ceiling,
-            ));
+    let half_win_w = hx * w_frac;
+    let half_win_h = hz * h_frac;
 
-            commands.spawn((
-                bottom_plane_settings,
-                Name::new("room_bottom_plane"),
-                SemanticLabel::Floor,
-            ));
+    let win_cx = rng.gen_range((-hx + half_win_w + CLEARANCE)..=(hx - half_win_w - CLEARANCE));
+    let win_cz = rng.gen_range((-hz + half_win_h + CLEARANCE)..=(hz - half_win_h - CLEARANCE));
 
-            commands.spawn((
-                front_plane_settings,
-                Name::new("room_front_plane"),
-                SemanticLabel::Wall,
-            ));
 
-            commands.spawn((
-                back_plane_settings,
-                Name::new("room_back_plane"),
-                SemanticLabel::Wall,
-            ));
+    let top_half_h = (hz - (win_cz + half_win_h)) / 2.0;
+    spawn_segment(
+        Vec3::new(0.0, 0.0, win_cz + half_win_h + top_half_h),
+        Vec3::new(hx, half_extents.y, top_half_h),
+        "_top",
+    );
 
-            commands.spawn((
-                left_plane_settings,
-                Name::new("room_left_plane"),
-                SemanticLabel::Wall,
-            ));
+    let bottom_half_h = (win_cz - half_win_h + hz) / 2.0;
+    spawn_segment(
+        Vec3::new(0.0, 0.0, win_cz - half_win_h - bottom_half_h),
+        Vec3::new(hx, half_extents.y, bottom_half_h),
+        "_bottom",
+    );
 
-            commands.spawn((
-                right_plane_settings,
-                Name::new("room_right_plane"),
-                SemanticLabel::Wall,
-            ));
-        }
 
-        let mut aabb_colliders: Vec<(Vec3, Vec3)> = Vec::new();
+    let left_half_w = (win_cx - half_win_w + hx) / 2.0;
+    spawn_segment(
+        Vec3::new(-hx + left_half_w, 0.0, win_cz),
+        Vec3::new(left_half_w, half_extents.y, half_win_h),
+        "_left",
+    );
 
-        { // table
-            let mut table_scale = room_settings.table_settings.scale_sampler.sample();
+    let right_half_w = (hx - (win_cx + half_win_w)) / 2.0;
+    spawn_segment(
+        Vec3::new(hx - right_half_w, 0.0, win_cz),
+        Vec3::new(right_half_w, half_extents.y, half_win_h),
+        "_right",
+    );
+}
 
-            let room_half_x = room_scale.x / 2.0;
-            let room_half_z = room_scale.z / 2.0;
 
-            let max_half_table_scale_x = room_half_x - room_settings.table_wall_padding;
-            let max_half_table_scale_z = room_half_z - room_settings.table_wall_padding;
+// TODO: support bailing on room spawn if required room features are too large (e.g. no door)
+fn spawn_room(
+    commands: &mut ChildSpawnerCommands,
+    room_scale: &Vec3,
+    room_settings: &ZeroverseSemanticRoomSettings,
+) {
+    let mut rng = rand::thread_rng();
 
-            let max_half_table_scale_x = if max_half_table_scale_x > 0.0 {
-                max_half_table_scale_x
-            } else {
-                0.1
-            };
+    {// outer walls
+        let hx = room_scale.x / 2.0;
+        let hy = room_scale.y;
+        let hz = room_scale.z / 2.0;
 
-            let max_half_table_scale_z = if max_half_table_scale_z > 0.0 {
-                max_half_table_scale_z
-            } else {
-                0.1
-            };
+        let faces = [
+            (Vec3::new(0.0, hy, 0.0), Quat::IDENTITY, Vec3::new(hx, 1.0, hz), Some(Face::Front), true, SemanticLabel::Ceiling, "top", false),
+            (Vec3::new(0.0, 0.0, 0.0), Quat::IDENTITY, Vec3::new(hx, 1.0, hz), Some(Face::Back), false, SemanticLabel::Floor, "bottom", false),
+            (Vec3::new(0.0, hy / 2.0, hz), Quat::from_rotation_x(90_f32.to_radians()), Vec3::new(hx, 1.0, hy / 2.0), Some(Face::Front), true, SemanticLabel::Wall, "front", true),
+            (Vec3::new(0.0, hy / 2.0, -hz),Quat::from_rotation_x(90_f32.to_radians()), Vec3::new(hx, 1.0, hy / 2.0), Some(Face::Back), false, SemanticLabel::Wall, "back", true),
+            (Vec3::new(-hx, hy / 2.0, 0.0),Quat::from_rotation_z(90_f32.to_radians()), Vec3::new(hy / 2.0, 1.0, hz), Some(Face::Front), true, SemanticLabel::Wall, "left", true),
+            (Vec3::new(hx, hy / 2.0, 0.0), Quat::from_rotation_z(90_f32.to_radians()), Vec3::new(hy / 2.0, 1.0, hz), Some(Face::Back), false, SemanticLabel::Wall, "right", true),
+        ];
 
-            table_scale.x = table_scale.x.min(max_half_table_scale_x * 2.0);
-            table_scale.z = table_scale.z.min(max_half_table_scale_z * 2.0);
-
-            let half_table_scale = table_scale * 0.5;
-            let height_offset = Vec3::new(
-                0.0,
-                table_scale.y / 4.0,
-                0.0,
+        faces.iter().for_each(|(
+            origin,
+            basis,
+            half,
+            cull,
+            invert,
+            label,
+            name,
+            wall,
+        )| {
+            // TODO: if spawning adjacent room, use the same wall
+            spawn_face(
+                commands,
+                room_settings,
+                *origin,
+                *basis,
+                *half,
+                *cull,
+                *invert,
+                label.clone(),
+                *name,
+                *wall,
             );
+        });
+    }
 
-            let center_sampler = PositionSampler::Cube {
-                extents: Vec3::new(
-                    room_half_x - room_settings.table_wall_padding - half_table_scale.x,
-                    0.00001,
-                    room_half_z - room_settings.table_wall_padding - half_table_scale.z,
-                ),
-            };
+    let mut aabb_colliders: Vec<(Vec3, Vec3)> = Vec::new();
+
+    { // table
+        let mut table_scale = room_settings.table_settings.scale_sampler.sample();
+
+        let room_half_x = room_scale.x / 2.0;
+        let room_half_z = room_scale.z / 2.0;
+
+        let max_half_table_scale_x = room_half_x - room_settings.table_wall_padding;
+        let max_half_table_scale_z = room_half_z - room_settings.table_wall_padding;
+
+        let max_half_table_scale_x = if max_half_table_scale_x > 0.0 {
+            max_half_table_scale_x
+        } else {
+            0.1
+        };
+
+        let max_half_table_scale_z = if max_half_table_scale_z > 0.0 {
+            max_half_table_scale_z
+        } else {
+            0.1
+        };
+
+        table_scale.x = table_scale.x.min(max_half_table_scale_x * 2.0);
+        table_scale.z = table_scale.z.min(max_half_table_scale_z * 2.0);
+
+        let half_table_scale = table_scale * 0.5;
+        let height_offset = Vec3::new(
+            0.0,
+            table_scale.y / 4.0,
+            0.0,
+        );
+
+        let center_sampler = PositionSampler::Cube {
+            extents: Vec3::new(
+                room_half_x - room_settings.table_wall_padding - half_table_scale.x,
+                0.00001,
+                room_half_z - room_settings.table_wall_padding - half_table_scale.z,
+            ),
+        };
+
+        if center_sampler.is_valid() {
             let position = center_sampler.sample() + height_offset;
 
             aabb_colliders.push((position, table_scale));
@@ -386,25 +411,27 @@ fn setup_scene(
                 SemanticLabel::Table,
             ));
         }
+    }
 
-        { // chairs
-            let chair_scale = room_settings.chair_settings.scale_sampler.sample();
-            let chair_scale = Vec3::new(chair_scale.x, chair_scale.y, chair_scale.x);
-            let center_sampler = PositionSampler::Cube {
-                extents: Vec3::new(
-                    room_scale.x / 2.0 - room_settings.chair_wall_padding - chair_scale.x / 2.0,
-                    0.00001,
-                    room_scale.z / 2.0 - room_settings.chair_wall_padding - chair_scale.z / 2.0,
-                ),
-            };
-            let chair_scale_sampler = ScaleSampler::Exact(chair_scale);
+    { // chairs
+        let chair_scale = room_settings.chair_settings.scale_sampler.sample();
+        let chair_scale = Vec3::new(chair_scale.x, chair_scale.y, chair_scale.x);
+        let center_sampler = PositionSampler::Cube {
+            extents: Vec3::new(
+                room_scale.x / 2.0 - room_settings.chair_wall_padding - chair_scale.x / 2.0,
+                0.00001,
+                room_scale.z / 2.0 - room_settings.chair_wall_padding - chair_scale.z / 2.0,
+            ),
+        };
+        let chair_scale_sampler = ScaleSampler::Exact(chair_scale);
 
-            let height_offset = Vec3::new(
-                0.0,
-                chair_scale.y / 4.0,
-                0.0,
-            );
+        let height_offset = Vec3::new(
+            0.0,
+            chair_scale.y / 4.0,
+            0.0,
+        );
 
+        if center_sampler.is_valid() {
             for _ in 0..room_settings.chair_count.sample() {
                 let mut position = center_sampler.sample() + height_offset;
 
@@ -435,27 +462,30 @@ fn setup_scene(
                 ));
             }
         }
+    }
 
-        // TODO: tv, whiteboard, door, rug
-        { // door
-            let face = rng.gen_range(0..4);
-            let mut door_scale = room_settings.door_settings.scale_sampler.sample();
+    // TODO: tv, whiteboard, door, rug
+    { // door
+        let face = rng.gen_range(0..4);
+        let mut door_scale = room_settings.door_settings.scale_sampler.sample();
 
-            let hw = door_scale.x / 2.0;
-            let (x_offset, z_offset) = match face {
-                0 => (0.0, hw),
-                1 => (0.0, hw),
-                2 => (hw, 0.0),
-                3 => (hw, 0.0),
-                _ => unreachable!(),
-            };
+        let hw = door_scale.x / 2.0;
+        let (x_offset, z_offset) = match face {
+            0 => (0.0, hw),
+            1 => (0.0, hw),
+            2 => (hw, 0.0),
+            3 => (hw, 0.0),
+            _ => unreachable!(),
+        };
 
-            let perimeter = Vec3::new(
-                room_scale.x / 2.0 - 0.001 - x_offset,
-                0.0,
-                room_scale.z / 2.0 - 0.001 - z_offset,
-            );
+        let perimeter = Vec3::new(
+            room_scale.x / 2.0 - 0.001 - x_offset,
+            0.0,
+            room_scale.z / 2.0 - 0.001 - z_offset,
+        );
 
+        let perimeter_is_valid = perimeter.x > 0.0 && perimeter.z > 0.0;
+        if perimeter_is_valid {
             let (x, z) = match face {
                 0 => (-perimeter.x / 2.0, rng.gen_range(-perimeter.z / 2.0..perimeter.z / 2.0)),
                 1 => (perimeter.x / 2.0, rng.gen_range(-perimeter.z / 2.0..perimeter.z / 2.0)),
@@ -487,54 +517,232 @@ fn setup_scene(
                 SemanticLabel::Door,
             ));
         }
+    }
 
-        { // humans
-            for _ in 0..room_settings.human_count.sample() {
-                let human_scale = room_settings.human_settings.scale_sampler.sample();
-                let human_scale = Vec3::new(human_scale.x, human_scale.y, human_scale.x);
-                let center_sampler = PositionSampler::Cube {
-                    extents: Vec3::new(
-                        room_scale.x / 2.0 - room_settings.human_wall_padding - human_scale.x / 2.0,
-                        0.00001,
-                        room_scale.z / 2.0 - room_settings.human_wall_padding - human_scale.z / 2.0,
-                    ),
-                };
-                let human_scale_sampler = ScaleSampler::Exact(human_scale);
+    { // humans
+        for _ in 0..room_settings.human_count.sample() {
+            let human_scale = room_settings.human_settings.scale_sampler.sample();
+            let human_scale = Vec3::new(human_scale.x, human_scale.y, human_scale.x);
+            let center_sampler = PositionSampler::Cube {
+                extents: Vec3::new(
+                    room_scale.x / 2.0 - room_settings.human_wall_padding - human_scale.x / 2.0,
+                    0.00001,
+                    room_scale.z / 2.0 - room_settings.human_wall_padding - human_scale.z / 2.0,
+                ),
+            };
 
-                let height_offset = Vec3::new(
-                    0.0,
-                    0.0,
-                    0.0,
-                );
+            if !center_sampler.is_valid() {
+                continue;
+            }
 
-                let mut position = center_sampler.sample() + height_offset;
+            let human_scale_sampler = ScaleSampler::Exact(human_scale);
 
-                let mut max_attempts = 100;
-                while check_aabb_collision(position, human_scale, &aabb_colliders) && max_attempts > 0 {
-                    position = center_sampler.sample() + height_offset;
-                    max_attempts -= 1;
-                }
+            let height_offset = Vec3::new(
+                0.0,
+                0.0,
+                0.0,
+            );
 
-                if max_attempts == 0 {
-                    continue;
-                }
+            let mut position = center_sampler.sample() + height_offset;
 
-                aabb_colliders.push((position, human_scale));
+            let mut max_attempts = 100;
+            while check_aabb_collision(position, human_scale, &aabb_colliders) && max_attempts > 0 {
+                position = center_sampler.sample() + height_offset;
+                max_attempts -= 1;
+            }
 
-                commands.spawn((
-                    ZeroversePrimitiveSettings {
-                        position_sampler: PositionSampler::Exact {
-                            position,
-                        },
-                        scale_sampler: human_scale_sampler.clone(),
-                        ..room_settings.human_settings.clone()
+            if max_attempts == 0 {
+                continue;
+            }
+
+            aabb_colliders.push((position, human_scale));
+
+            commands.spawn((
+                ZeroversePrimitiveSettings {
+                    position_sampler: PositionSampler::Exact {
+                        position,
                     },
-                    Transform::from_translation(position),
-                    Name::new("human"),
-                    SemanticLabel::Human,
-                ));
+                    scale_sampler: human_scale_sampler.clone(),
+                    ..room_settings.human_settings.clone()
+                },
+                Transform::from_translation(position),
+                Name::new("human"),
+                SemanticLabel::Human,
+            ));
+        }
+    }
+}
+
+
+
+#[inline]
+fn overlaps(a_pos: Vec3, a_scale: Vec3, b_pos: Vec3, b_scale: Vec3) -> bool {
+    let dx = (a_pos.x - b_pos.x).abs();
+    let dz = (a_pos.z - b_pos.z).abs();
+    dx < (a_scale.x + b_scale.x) * 0.5 && dz < (a_scale.z + b_scale.z) * 0.5
+}
+
+fn spawn_room_rec(
+    commands: &mut ChildSpawnerCommands,
+    coord: (i32, i32),
+    parent_coord: (i32, i32),
+    dir: (i32, i32),
+    depth_left: i32,
+    base_scale: Vec3,
+    rooms: &mut HashMap<(i32, i32), (Vec3, Vec3)>,
+    rng: &mut impl Rng,
+    settings: &ZeroverseSemanticRoomSettings,
+) {
+    let mut my_scale = settings.room_size.sample();
+    my_scale.y = base_scale.y;
+
+    let (parent_pos, parent_scale) = rooms[&parent_coord];
+    let mut my_pos = Vec3::new(parent_pos.x, parent_pos.y, parent_pos.z);
+    if dir.0 != 0 {
+        my_pos.x += dir.0 as f32 * (parent_scale.x + my_scale.x) * 0.5;
+    }
+    if dir.1 != 0 {
+        my_pos.z += dir.1 as f32 * (parent_scale.z + my_scale.z) * 0.5;
+    }
+
+    const MAX_SHRINK_ITERS: usize = 8;
+    const MIN_FRACTION: f32 = 0.20;
+
+    let mut iter: usize = 0;
+    loop {
+        let mut collided  = false;
+        let mut shrink_x  = 0.0_f32;
+        let mut shrink_z  = 0.0_f32;
+
+        for &(other_pos, other_scale) in rooms.values() {
+            if overlaps(my_pos, my_scale, other_pos, other_scale) {
+                collided = true;
+
+                let dx = (my_pos.x - other_pos.x).abs();
+                let dz = (my_pos.z - other_pos.z).abs();
+
+                shrink_x = shrink_x.max((my_scale.x + other_scale.x) * 0.5 - dx);
+                shrink_z = shrink_z.max((my_scale.z + other_scale.z) * 0.5 - dz);
             }
         }
+
+        if !collided || iter >= MAX_SHRINK_ITERS {
+            break;
+        }
+        iter += 1;
+
+        if shrink_x > 0.0 {
+            my_scale.x = (my_scale.x - shrink_x - 0.01_f32)
+                .max(base_scale.x * MIN_FRACTION);
+        }
+        if shrink_z > 0.0 {
+            my_scale.z = (my_scale.z - shrink_z - 0.01_f32)
+                .max(base_scale.z * MIN_FRACTION);
+        }
+
+        if dir.0 != 0 {
+            my_pos.x = parent_pos.x
+                + dir.0 as f32 * (parent_scale.x + my_scale.x) * 0.5;
+        }
+        if dir.1 != 0 {
+            my_pos.z = parent_pos.z
+                + dir.1 as f32 * (parent_scale.z + my_scale.z) * 0.5;
+        }
+    }
+
+    rooms.insert(coord, (my_pos, my_scale));
+    commands
+        .spawn((
+            Name::new(format!("room_{}_{}", coord.0, coord.1)),
+            Transform::from_translation(my_pos),
+            InheritedVisibility::default(),
+            Visibility::default(),
+        ))
+        .with_children(|c| spawn_room(c, &my_scale, settings));
+
+    if depth_left == 0 {
+        return;
+    }
+
+    for &(sx, sz) in &[(1, 0), (-1, 0), (0, 1), (0, -1)] {
+        let next = (coord.0 + sx, coord.1 + sz);
+        if rooms.contains_key(&next) {
+            continue;
+        }
+        spawn_room_rec(
+            commands,
+            next,
+            coord,
+            (sx, sz),
+            depth_left - 1,
+            base_scale,
+            rooms,
+            rng,
+            settings,
+        );
+    }
+}
+
+// TODO: support similar windows across adjacent room faces
+fn spawn_room_neighborhood(
+    commands: &mut ChildSpawnerCommands,
+    base_scale: &Vec3,
+    settings: &ZeroverseSemanticRoomSettings,
+) {
+    commands
+        .spawn((
+            InheritedVisibility::default(),
+            Name::new("room"),
+            SceneAabbNode,
+            Transform::default(),
+            Visibility::default(),
+        ))
+        .with_children(|commands| {
+            spawn_room(commands, &base_scale, settings);
+        });
+
+    let mut rooms: HashMap<(i32, i32), (Vec3, Vec3)> = HashMap::new();
+    rooms.insert((0, 0), (Vec3::ZERO, *base_scale));
+    let mut rng = rand::thread_rng();
+
+    for &(dx, dz) in &[(1, 0), (-1, 0), (0, 1), (0, -1)] {
+        spawn_room_rec(
+            commands,
+            (dx, dz),
+            (0, 0),
+            (dx, dz),
+            settings.neighborhood_depth as i32 - 1,
+            *base_scale,
+            &mut rooms,
+            &mut rng,
+            settings,
+        );
+    }
+}
+
+
+fn setup_scene(
+    mut commands: Commands,
+    mut load_event: EventWriter<SceneLoadedEvent>,
+    room_settings: Res<ZeroverseSemanticRoomSettings>,
+    scene_settings: Res<ZeroverseSceneSettings>,
+) {
+    let room_scale = room_settings.room_size.sample();
+
+    // TODO: set global Y rotation to prevent wall aligned plucker embeddings
+
+    commands.spawn((
+        Name::new("rooms"),
+        RotationAugment,
+        ZeroverseSceneRoot,
+        ZeroverseScene,
+    ))
+    .with_children(|commands| {
+        spawn_room_neighborhood(
+            commands,
+            &room_scale,
+            &room_settings,
+        );
 
         { // cameras
             let size: Vec3 = Vec3::new(
@@ -608,7 +816,7 @@ fn setup_scene(
         }
     });
 
-    load_event.send(SceneLoadedEvent);
+    load_event.write(SceneLoadedEvent);
 }
 
 
@@ -641,7 +849,7 @@ fn regenerate_scene(
     *recover_from_wait = false;
 
     for entity in clear_zeroverse_scenes.iter() {
-        commands.entity(entity).despawn_recursive();
+        commands.entity(entity).despawn();
     }
 
     setup_lighting(
