@@ -161,8 +161,8 @@ fn load_meshes(
         for path in &selected_paths {
             let path_str = path.to_string_lossy();
 
-            let glb_path = format!("{}#Mesh0/Primitive0", path_str);
-            let material_path = format!("{}#Material0", path_str);
+            let glb_path = format!("{path_str}#Mesh0/Primitive0");
+            let material_path = format!("{path_str}#Material0");
 
             let mesh_handle = asset_server.load(glb_path);
             let material_handle = asset_server.load(material_path);

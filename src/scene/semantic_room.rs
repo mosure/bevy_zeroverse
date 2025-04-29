@@ -587,6 +587,7 @@ fn overlaps(a_pos: Vec3, a_scale: Vec3, b_pos: Vec3, b_scale: Vec3) -> bool {
     dz + ROOM_GAP < (a_scale.z + b_scale.z) * 0.5
 }
 
+#[allow(clippy::too_many_arguments)]
 fn spawn_room_rec(
     commands: &mut ChildSpawnerCommands,
     coord: (i32, i32),
