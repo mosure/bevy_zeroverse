@@ -103,11 +103,11 @@ impl View {
     }
 
     fn __str__(&self) -> PyResult<String> {
-        Ok(format!("{:?}", self))
+        Ok(format!("{self:?}"))
     }
 
     fn __repr__(&self) -> PyResult<String> {
-        Ok(format!("{:?}", self))
+        Ok(format!("{self:?}"))
     }
 }
 
@@ -134,11 +134,11 @@ impl Sample {
     }
 
     fn __str__(&self) -> PyResult<String> {
-        Ok(format!("{:?}", self))
+        Ok(format!("{self:?}"))
     }
 
     fn __repr__(&self) -> PyResult<String> {
-        Ok(format!("{:?}", self))
+        Ok(format!("{self:?}"))
     }
 }
 
@@ -231,7 +231,7 @@ fn signaled_runner(mut app: App) -> AppExit {
                     .map(|i| {
                         let x = i as f32 * args.playback_step;
                         if x > 1.0 {
-                            panic!("timestep value {} has range [0.0, 1.0]", x);
+                            panic!("timestep value {x} has range [0.0, 1.0]");
                         }
                         x
                     })
