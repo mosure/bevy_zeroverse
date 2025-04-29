@@ -574,12 +574,16 @@ fn spawn_room(
 }
 
 
+const MAX_SHRINK_ITERS: usize = 8;
+const MIN_FRACTION: f32 = 0.20;
+const ROOM_GAP: f32 = 0.05;
 
 #[inline]
 fn overlaps(a_pos: Vec3, a_scale: Vec3, b_pos: Vec3, b_scale: Vec3) -> bool {
     let dx = (a_pos.x - b_pos.x).abs();
     let dz = (a_pos.z - b_pos.z).abs();
-    dx < (a_scale.x + b_scale.x) * 0.5 && dz < (a_scale.z + b_scale.z) * 0.5
+    dx + ROOM_GAP < (a_scale.x + b_scale.x) * 0.5 &&
+    dz + ROOM_GAP < (a_scale.z + b_scale.z) * 0.5
 }
 
 fn spawn_room_rec(
@@ -596,58 +600,46 @@ fn spawn_room_rec(
     let mut my_scale = settings.room_size.sample();
     my_scale.y = base_scale.y;
 
-    let (parent_pos, parent_scale) = rooms[&parent_coord];
-    let mut my_pos = Vec3::new(parent_pos.x, parent_pos.y, parent_pos.z);
-    if dir.0 != 0 {
-        my_pos.x += dir.0 as f32 * (parent_scale.x + my_scale.x) * 0.5;
-    }
-    if dir.1 != 0 {
-        my_pos.z += dir.1 as f32 * (parent_scale.z + my_scale.z) * 0.5;
-    }
+    let update_pos = |scale: Vec3| {
+        let (parent_pos, parent_scale) = rooms[&parent_coord];
+        let mut p = parent_pos;
 
-    const MAX_SHRINK_ITERS: usize = 8;
-    const MIN_FRACTION: f32 = 0.20;
+        if dir.0 != 0 {
+            p.x += dir.0 as f32 * ((parent_scale.x + scale.x) * 0.5 + ROOM_GAP);
+        }
+        if dir.1 != 0 {
+            p.z += dir.1 as f32 * ((parent_scale.z + scale.z) * 0.5 + ROOM_GAP);
+        }
+        p
+    };
+    let mut my_pos = update_pos(my_scale);
 
-    let mut iter: usize = 0;
-    loop {
-        let mut collided  = false;
-        let mut shrink_x  = 0.0_f32;
-        let mut shrink_z  = 0.0_f32;
+    // TODO: fix overlaps (at depth >2, rooms overlap more frequently)
+    for _ in 0..MAX_SHRINK_ITERS {
+        let mut shrink_x: f32 = 0.0;
+        let mut shrink_z: f32 = 0.0;
 
         for &(other_pos, other_scale) in rooms.values() {
             if overlaps(my_pos, my_scale, other_pos, other_scale) {
-                collided = true;
-
                 let dx = (my_pos.x - other_pos.x).abs();
                 let dz = (my_pos.z - other_pos.z).abs();
-
-                shrink_x = shrink_x.max((my_scale.x + other_scale.x) * 0.5 - dx);
-                shrink_z = shrink_z.max((my_scale.z + other_scale.z) * 0.5 - dz);
+                shrink_x = shrink_x.max((my_scale.x + other_scale.x) * 0.5 - dx + ROOM_GAP);
+                shrink_z = shrink_z.max((my_scale.z + other_scale.z) * 0.5 - dz + ROOM_GAP);
             }
         }
 
-        if !collided || iter >= MAX_SHRINK_ITERS {
+        if shrink_x == 0.0 && shrink_z == 0.0 {
             break;
         }
-        iter += 1;
 
         if shrink_x > 0.0 {
-            my_scale.x = (my_scale.x - shrink_x - 0.01_f32)
-                .max(base_scale.x * MIN_FRACTION);
+            my_scale.x = (my_scale.x - shrink_x).max(base_scale.x * MIN_FRACTION);
         }
         if shrink_z > 0.0 {
-            my_scale.z = (my_scale.z - shrink_z - 0.01_f32)
-                .max(base_scale.z * MIN_FRACTION);
+            my_scale.z = (my_scale.z - shrink_z).max(base_scale.z * MIN_FRACTION);
         }
 
-        if dir.0 != 0 {
-            my_pos.x = parent_pos.x
-                + dir.0 as f32 * (parent_scale.x + my_scale.x) * 0.5;
-        }
-        if dir.1 != 0 {
-            my_pos.z = parent_pos.z
-                + dir.1 as f32 * (parent_scale.z + my_scale.z) * 0.5;
-        }
+        my_pos = update_pos(my_scale);
     }
 
     rooms.insert(coord, (my_pos, my_scale));
@@ -660,26 +652,23 @@ fn spawn_room_rec(
         ))
         .with_children(|c| spawn_room(c, &my_scale, settings));
 
-    if depth_left == 0 {
-        return;
-    }
-
-    for &(sx, sz) in &[(1, 0), (-1, 0), (0, 1), (0, -1)] {
-        let next = (coord.0 + sx, coord.1 + sz);
-        if rooms.contains_key(&next) {
-            continue;
+    if depth_left > 0 {
+        for &(sx, sz) in &[(1, 0), (-1, 0), (0, 1), (0, -1)] {
+            let next = (coord.0 + sx, coord.1 + sz);
+            if !rooms.contains_key(&next) {
+                spawn_room_rec(
+                    commands,
+                    next,
+                    coord,
+                    (sx, sz),
+                    depth_left - 1,
+                    base_scale,
+                    rooms,
+                    rng,
+                    settings,
+                );
+            }
         }
-        spawn_room_rec(
-            commands,
-            next,
-            coord,
-            (sx, sz),
-            depth_left - 1,
-            base_scale,
-            rooms,
-            rng,
-            settings,
-        );
     }
 }
 

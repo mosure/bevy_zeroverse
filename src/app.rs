@@ -304,7 +304,7 @@ pub struct BevyZeroverseConfig {
     #[arg(long, value_enum, default_value_t = ZeroverseSceneType::Object)]
     pub scene_type: ZeroverseSceneType,
 
-    #[arg(long, default_value = "true")]
+    #[arg(long, default_value = "false")]
     pub rotation_augmentation: bool,
 
     #[arg(long, default_value = "0.0")]
@@ -345,7 +345,7 @@ impl Default for BevyZeroverseConfig {
             render_mode: Default::default(),
             render_modes: vec![],
             scene_type: Default::default(),
-            rotation_augmentation: true,
+            rotation_augmentation: false,
             max_camera_radius: 0.0,
             playback_mode: PlaybackMode::PingPong,
             playback_speed: 0.2,
