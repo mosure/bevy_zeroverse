@@ -325,7 +325,7 @@ def chunk_and_save(
     samples_per_chunk: Optional[int] = None,
     n_workers: int = 1,
     jpg_quality: int = 75,
-    compression: Optional[Literal["lz4", "zstd"]] = "zstd",
+    compression: Optional[Literal["lz4", "zstd"]] = "lz4",
 ):
     """
     if samples_per_chunk is not None, the dataset will be chunked into chunks of size samples_per_chunk, regardless of bytes_per_chunk.
