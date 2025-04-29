@@ -205,6 +205,7 @@ fn check_aabb_collision(
 
 const CLEARANCE: f32 = 1e-4;
 
+#[allow(clippy::too_many_arguments)]
 fn spawn_face(
     commands: &mut ChildSpawnerCommands,
     room_settings: &ZeroverseSemanticRoomSettings,
@@ -345,7 +346,7 @@ fn spawn_room(
                 *cull,
                 *invert,
                 label.clone(),
-                *name,
+                name,
                 *wall,
             );
         });
@@ -594,7 +595,6 @@ fn spawn_room_rec(
     depth_left: i32,
     base_scale: Vec3,
     rooms: &mut HashMap<(i32, i32), (Vec3, Vec3)>,
-    rng: &mut impl Rng,
     settings: &ZeroverseSemanticRoomSettings,
 ) {
     let mut my_scale = settings.room_size.sample();
@@ -664,7 +664,6 @@ fn spawn_room_rec(
                     depth_left - 1,
                     base_scale,
                     rooms,
-                    rng,
                     settings,
                 );
             }
@@ -687,7 +686,7 @@ fn spawn_room_neighborhood(
             Visibility::default(),
         ))
         .with_children(|commands| {
-            spawn_room(commands, &base_scale, settings);
+            spawn_room(commands, base_scale, settings);
         });
 
     let mut rooms: HashMap<(i32, i32), (Vec3, Vec3)> = HashMap::new();
