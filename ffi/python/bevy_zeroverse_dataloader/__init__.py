@@ -353,7 +353,7 @@ def chunk_and_save(
 
     chunk_size = 0
     chunk = []
-    chunk_file_paths = [output_dir / f"{int(chunk.stem):0>6}.safetensors" for chunk in existing_chunks]
+    chunk_file_paths = list(existing_chunks)
 
     total_chunks = len(dataset)
     if samples_per_chunk is not None:
