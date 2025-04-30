@@ -17,6 +17,7 @@ from torchvision.io import decode_jpeg
 import torchvision.transforms as transforms
 from torchvision.transforms.functional import to_pil_image, to_tensor
 from torchvision.utils import save_image
+from tqdm.auto import tqdm
 
 import lz4.frame as lz4
 import zstandard as zstd
@@ -405,14 +406,15 @@ def chunk_and_save(
         gc.collect()
 
     dataloader = DataLoader(dataset, batch_size=1, num_workers=n_workers, shuffle=False)
+    pbar = tqdm(dataloader, total=len(dataloader), unit='sample', desc='processing')
 
-    for idx, sample in enumerate(dataloader):
+    for idx, sample in enumerate(pbar):
         sample = {k: v.squeeze(0) for k, v in sample.items()}
         sample_size = sum(tensor.numel() * tensor.element_size() for tensor in sample.values())
         chunk.append(sample)
         chunk_size += sample_size
 
-        print(f"    added sample {idx} to chunk ({sample_size / 1e6:.2f} MB).")
+        pbar.set_postfix(chunk_mb=f'{chunk_size/1e6:,.1f}', idx=idx)
 
         if samples_per_chunk is not None:
             if len(chunk) >= samples_per_chunk:
