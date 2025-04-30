@@ -320,8 +320,8 @@ def encode_tensor_to_jpg(tensor: torch.Tensor, quality: int = 75) -> torch.Tenso
     return torch.frombuffer(bytearray(buffer.getvalue()), dtype=torch.uint8)
 
 
-def numeric_prefix(p: str) -> int | None:
-    digits = ''.join(takewhile(str.isdigit, p.stem))
+def numeric_prefix(s: str) -> int | None:
+    digits = ''.join(takewhile(str.isdigit, s))
     return int(digits) if digits else None
 
 def chunk_and_save(
