@@ -161,7 +161,7 @@ impl Default for ZeroverseSemanticRoomSettings {
                 smooth_normals_probability: 0.0,
                 ..default()
             },
-            window_probability: 0.25,
+            window_probability: 0.6,
             window_size_min: Vec2::new(0.25, 0.25),
             window_size_max: Vec2::new(0.75, 0.75),
             neighborhood_depth: 2,
@@ -205,6 +205,11 @@ fn check_aabb_collision(
 
 const CLEARANCE: f32 = 1e-4;
 
+#[inline]
+fn depth_scaled_prob(base: f32, depth: i32) -> f32 {
+    base * 0.5_f32.powi(depth)
+}
+
 #[allow(clippy::too_many_arguments)]
 fn spawn_face(
     commands: &mut ChildSpawnerCommands,
@@ -216,8 +221,9 @@ fn spawn_face(
     invert_normals: bool,
     label: SemanticLabel,
     name: &str,
-    wall: bool,
-) {
+    window: bool,
+    depth: i32,
+) -> bool {
     let mut rng = rand::thread_rng();
 
     let base = ZeroversePrimitiveSettings {
@@ -244,11 +250,12 @@ fn spawn_face(
         ));
     };
 
-    let make_window = wall && rng.gen_bool(room_settings.window_probability as f64);
+    let depth_scaled_window_prob = depth_scaled_prob(room_settings.window_probability, depth);
+    let make_window = window && rng.gen_bool(depth_scaled_window_prob as f64);
 
     if !make_window {
         spawn_segment(Vec3::ZERO, half_extents, "");
-        return;
+        return false;
     }
 
 
@@ -301,6 +308,8 @@ fn spawn_face(
         Vec3::new(right_half_w, half_extents.y, half_win_h),
         "_right",
     );
+
+    true
 }
 
 
@@ -309,7 +318,10 @@ fn spawn_room(
     commands: &mut ChildSpawnerCommands,
     room_scale: &Vec3,
     room_settings: &ZeroverseSemanticRoomSettings,
-) {
+    depth: i32,
+    leaf: bool,
+) -> [bool; 4] {
+    let mut windows = [false; 4];
     let mut rng = rand::thread_rng();
 
     {// outer walls
@@ -317,16 +329,12 @@ fn spawn_room(
         let hy = room_scale.y;
         let hz = room_scale.z / 2.0;
 
-        let faces = [
+        let ceiling_floor = [
             (Vec3::new(0.0, hy, 0.0), Quat::IDENTITY, Vec3::new(hx, 1.0, hz), Some(Face::Front), true, SemanticLabel::Ceiling, "top", false),
             (Vec3::new(0.0, 0.0, 0.0), Quat::IDENTITY, Vec3::new(hx, 1.0, hz), Some(Face::Back), false, SemanticLabel::Floor, "bottom", false),
-            (Vec3::new(0.0, hy / 2.0, hz), Quat::from_rotation_x(90_f32.to_radians()), Vec3::new(hx, 1.0, hy / 2.0), Some(Face::Front), true, SemanticLabel::Wall, "front", true),
-            (Vec3::new(0.0, hy / 2.0, -hz),Quat::from_rotation_x(90_f32.to_radians()), Vec3::new(hx, 1.0, hy / 2.0), Some(Face::Back), false, SemanticLabel::Wall, "back", true),
-            (Vec3::new(-hx, hy / 2.0, 0.0),Quat::from_rotation_z(90_f32.to_radians()), Vec3::new(hy / 2.0, 1.0, hz), Some(Face::Front), true, SemanticLabel::Wall, "left", true),
-            (Vec3::new(hx, hy / 2.0, 0.0), Quat::from_rotation_z(90_f32.to_radians()), Vec3::new(hy / 2.0, 1.0, hz), Some(Face::Back), false, SemanticLabel::Wall, "right", true),
         ];
 
-        faces.iter().for_each(|(
+        ceiling_floor.iter().for_each(|(
             origin,
             basis,
             half,
@@ -336,7 +344,6 @@ fn spawn_room(
             name,
             wall,
         )| {
-            // TODO: if spawning adjacent room, use the same wall
             spawn_face(
                 commands,
                 room_settings,
@@ -347,8 +354,43 @@ fn spawn_room(
                 *invert,
                 label.clone(),
                 name,
-                *wall,
+                *wall && !leaf,
+                depth,
             );
+        });
+
+        let walls = [
+            (Vec3::new(0.0, hy / 2.0, hz), Quat::from_rotation_x(90_f32.to_radians()), Vec3::new(hx, 1.0, hy / 2.0), Some(Face::Front), true, SemanticLabel::Wall, "front", true),
+            (Vec3::new(0.0, hy / 2.0, -hz),Quat::from_rotation_x(90_f32.to_radians()), Vec3::new(hx, 1.0, hy / 2.0), Some(Face::Back), false, SemanticLabel::Wall, "back", true),
+            (Vec3::new(-hx, hy / 2.0, 0.0),Quat::from_rotation_z(90_f32.to_radians()), Vec3::new(hy / 2.0, 1.0, hz), Some(Face::Front), true, SemanticLabel::Wall, "left", true),
+            (Vec3::new(hx, hy / 2.0, 0.0), Quat::from_rotation_z(90_f32.to_radians()), Vec3::new(hy / 2.0, 1.0, hz), Some(Face::Back), false, SemanticLabel::Wall, "right", true),
+        ];
+
+        walls.iter().enumerate().for_each(|(i, (
+            origin,
+            basis,
+            half,
+            cull,
+            invert,
+            label,
+            name,
+            wall,
+        ))| {
+            // TODO: if spawning adjacent room, use the same wall
+            let has_window = spawn_face(
+                commands,
+                room_settings,
+                *origin,
+                *basis,
+                *half,
+                *cull,
+                *invert,
+                label.clone(),
+                name,
+                *wall,
+                depth,
+            );
+            windows[i] = has_window;
         });
     }
 
@@ -572,9 +614,12 @@ fn spawn_room(
             ));
         }
     }
+
+    windows
 }
 
 
+const DIRS: [(i32, i32); 4] = [(0, 1), (0, -1), (-1, 0), (1, 0)];
 const MAX_SHRINK_ITERS: usize = 8;
 const MIN_FRACTION: f32 = 0.20;
 const ROOM_GAP: f32 = 0.05;
@@ -593,6 +638,7 @@ fn spawn_room_rec(
     coord: (i32, i32),
     parent_coord: (i32, i32),
     dir: (i32, i32),
+    depth: i32,
     depth_left: i32,
     base_scale: Vec3,
     rooms: &mut HashMap<(i32, i32), (Vec3, Vec3)>,
@@ -615,7 +661,6 @@ fn spawn_room_rec(
     };
     let mut my_pos = update_pos(my_scale);
 
-    // TODO: fix overlaps (at depth >2, rooms overlap more frequently)
     for _ in 0..MAX_SHRINK_ITERS {
         let mut shrink_x: f32 = 0.0;
         let mut shrink_z: f32 = 0.0;
@@ -644,6 +689,8 @@ fn spawn_room_rec(
     }
 
     rooms.insert(coord, (my_pos, my_scale));
+
+    let mut windows = [false; 4];
     commands
         .spawn((
             Name::new(format!("room_{}_{}", coord.0, coord.1)),
@@ -651,10 +698,19 @@ fn spawn_room_rec(
             InheritedVisibility::default(),
             Visibility::default(),
         ))
-        .with_children(|c| spawn_room(c, &my_scale, settings));
+        .with_children(|c| {
+            windows = spawn_room(
+                c,
+                &my_scale,
+                settings,
+                depth,
+                depth_left == 0,
+            );
+        });
 
     if depth_left > 0 {
-        for &(sx, sz) in &[(1, 0), (-1, 0), (0, 1), (0, -1)] {
+        for (idx, &(sx, sz)) in DIRS.iter().enumerate() {
+            if !windows[idx] { continue }
             let next = (coord.0 + sx, coord.1 + sz);
             if !rooms.contains_key(&next) {
                 spawn_room_rec(
@@ -662,6 +718,7 @@ fn spawn_room_rec(
                     next,
                     coord,
                     (sx, sz),
+                    depth + 1,
                     depth_left - 1,
                     base_scale,
                     rooms,
@@ -686,25 +743,33 @@ fn spawn_room_neighborhood(
             Transform::default(),
             Visibility::default(),
         ))
-        .with_children(|commands| {
-            spawn_room(commands, base_scale, settings);
+        .with_children(|root| {
+            let windows_root = spawn_room(
+                root,
+                base_scale,
+                settings,
+                0,
+                false,
+            );
+
+            let mut rooms: HashMap<(i32, i32), (Vec3, Vec3)> = HashMap::new();
+            rooms.insert((0, 0), (Vec3::ZERO, *base_scale));
+
+            for (idx, &(dx, dz)) in DIRS.iter().enumerate() {
+                if !windows_root[idx] { continue; }
+                spawn_room_rec(
+                    root,
+                    (dx, dz),
+                    (0, 0),
+                    (dx, dz),
+                    1,
+                    settings.neighborhood_depth as i32 - 1,
+                    *base_scale,
+                    &mut rooms,
+                    settings,
+                );
+            }
         });
-
-    let mut rooms: HashMap<(i32, i32), (Vec3, Vec3)> = HashMap::new();
-    rooms.insert((0, 0), (Vec3::ZERO, *base_scale));
-
-    for &(dx, dz) in &[(1, 0), (-1, 0), (0, 1), (0, -1)] {
-        spawn_room_rec(
-            commands,
-            (dx, dz),
-            (0, 0),
-            (dx, dz),
-            settings.neighborhood_depth as i32 - 1,
-            *base_scale,
-            &mut rooms,
-            settings,
-        );
-    }
 }
 
 
