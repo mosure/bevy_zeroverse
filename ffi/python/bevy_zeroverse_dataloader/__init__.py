@@ -1,4 +1,5 @@
 from io import BytesIO
+from itertools import takewhile
 import json
 import os
 from pathlib import Path
@@ -319,6 +320,10 @@ def encode_tensor_to_jpg(tensor: torch.Tensor, quality: int = 75) -> torch.Tenso
     return torch.frombuffer(bytearray(buffer.getvalue()), dtype=torch.uint8)
 
 
+def numeric_prefix(p: str) -> int | None:
+    digits = ''.join(takewhile(str.isdigit, p.stem))
+    return int(digits) if digits else None
+
 def chunk_and_save(
     dataset,
     output_dir: Path,
@@ -341,7 +346,7 @@ def chunk_and_save(
     existing_chunks = sorted(output_dir.glob("*.safetensors*"))
     if existing_chunks:
         latest_chunk = existing_chunks[-1]
-        chunk_index = int(latest_chunk.stem)
+        chunk_index = numeric_prefix(latest_chunk.stem)
         print(f"resuming from chunk {chunk_index}.")
     else:
         chunk_index = 0
