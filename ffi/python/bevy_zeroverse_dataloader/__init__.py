@@ -338,7 +338,7 @@ def chunk_and_save(
     if cache_file.exists():
         os.remove(cache_file)
 
-    existing_chunks = sorted(output_dir.glob("*.safetensors"))
+    existing_chunks = sorted(output_dir.glob("*.safetensors*"))
     if existing_chunks:
         latest_chunk = existing_chunks[-1]
         chunk_index = int(latest_chunk.stem)
