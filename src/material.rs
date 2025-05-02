@@ -55,7 +55,7 @@ pub struct MaterialLoaderSettings {
 impl Default for MaterialLoaderSettings {
     fn default() -> Self {
         Self {
-            batch_size: 100,
+            batch_size: 25,
         }
     }
 }
@@ -133,7 +133,7 @@ fn load_materials(
         .choose_multiple(rng, material_loader_settings.batch_size);
 
     for root in roots {
-        let basecolor_path = root.join("basecolor.jpg");
+        let basecolor_path: PathBuf = root.join("basecolor.jpg");
         let basecolor_handle = asset_server.load(basecolor_path);
 
         let metallic_roughness_path = root.join("metallic_roughness.jpg");

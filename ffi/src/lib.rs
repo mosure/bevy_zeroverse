@@ -176,7 +176,7 @@ impl Default for SamplerState {
 }
 
 impl SamplerState {
-    const FRAME_DELAY: u32 = 3;
+    const FRAME_DELAY: u32 = 2;
     const WARMUP_FRAME_DELAY: u32 = 2;
 
     pub fn inference_only() -> Self {

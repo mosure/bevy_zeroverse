@@ -1,6 +1,7 @@
 from io import BytesIO
 from itertools import takewhile
 import json
+import math
 import os
 from pathlib import Path
 from PIL import Image
@@ -410,24 +411,31 @@ def chunk_and_save(
         import gc
         gc.collect()
 
-    dataloader = DataLoader(dataset, batch_size=1, num_workers=n_workers, shuffle=False)
-    pbar = tqdm(dataloader, total=len(dataloader), unit='sample', desc='processing')
+    dl_bs = samples_per_chunk if samples_per_chunk else 1
+    dataloader = DataLoader(
+        dataset,
+        batch_size=dl_bs,
+        num_workers=n_workers,
+        shuffle=False,
+    )
+    pbar = tqdm(total=len(dataset), unit="sample", desc="processing", smoothing=0.9)
 
-    for idx, sample in enumerate(pbar):
-        sample = {k: v.squeeze(0) for k, v in sample.items()}
-        sample_size = sum(tensor.numel() * tensor.element_size() for tensor in sample.values())
-        chunk.append(sample)
-        chunk_size += sample_size
+    for idx, batch in enumerate(dataloader):
+        bsz = next(iter(batch.values())).shape[0]
+        pbar.update(bsz)
+        for i in range(bsz):
+            sample = {k: v[i] for k, v in batch.items()}
+            sample_size = sum(t.numel() * t.element_size() for t in sample.values())
+            chunk.append(sample)
+            chunk_size += sample_size
 
-        pbar.set_postfix(chunk_mb=f'{chunk_size/1e6:,.1f}', idx=idx)
-
-        if samples_per_chunk is not None:
-            if len(chunk) >= samples_per_chunk:
+            if samples_per_chunk and len(chunk) >= samples_per_chunk:
                 save_chunk()
-            continue
+                continue
+            if not samples_per_chunk and chunk_size >= bytes_per_chunk:
+                save_chunk()
 
-        if chunk_size >= bytes_per_chunk:
-            save_chunk()
+        pbar.set_postfix(chunk_mb=f"{chunk_size/1e6:,.1f}", idx=idx)
 
     if chunk_size > 0:
         # save_chunk()
