@@ -240,6 +240,7 @@ class BevyZeroverseDataset(Dataset):
         playback_steps=5,
         render_modes=['color'],
         rotation_augmentation=True,
+        regenerate_scene_material_shuffle_period=256,
     ):
         self.editor = editor
         self.headless = headless
@@ -267,7 +268,7 @@ class BevyZeroverseDataset(Dataset):
         config.scene_type = BevyZeroverseDataset.scene_map[self.scene_type]
         config.playback_mode = bevy_zeroverse_ffi.PlaybackMode.Still
         config.max_camera_radius = self.max_camera_radius
-        config.regenerate_scene_material_shuffle_period = 256
+        config.regenerate_scene_material_shuffle_period = regenerate_scene_material_shuffle_period
         config.playback_step = self.playback_step
         config.playback_steps = self.playback_steps
         config.render_modes = [BevyZeroverseDataset.render_mode_map[mode] for mode in self.render_modes]
