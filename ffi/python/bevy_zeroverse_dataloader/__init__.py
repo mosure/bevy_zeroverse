@@ -418,7 +418,7 @@ def chunk_and_save(
         num_workers=n_workers,
         shuffle=False,
     )
-    pbar = tqdm(total=len(dataset), unit="sample", desc="processing", smoothing=0.9)
+    pbar = tqdm(total=len(dataset), unit="sample", desc="processing", smoothing=0.99)
 
     for idx, batch in enumerate(dataloader):
         bsz = next(iter(batch.values())).shape[0]
