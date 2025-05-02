@@ -256,6 +256,7 @@ class BevyZeroverseDataset(Dataset):
         self.playback_steps = playback_steps
         self.render_modes = render_modes
         self.rotation_augmentation = rotation_augmentation
+        self.regenerate_scene_material_shuffle_period = regenerate_scene_material_shuffle_period
 
     def initialize(self):
         config = bevy_zeroverse_ffi.BevyZeroverseConfig()
@@ -268,7 +269,7 @@ class BevyZeroverseDataset(Dataset):
         config.scene_type = BevyZeroverseDataset.scene_map[self.scene_type]
         config.playback_mode = bevy_zeroverse_ffi.PlaybackMode.Still
         config.max_camera_radius = self.max_camera_radius
-        config.regenerate_scene_material_shuffle_period = regenerate_scene_material_shuffle_period
+        config.regenerate_scene_material_shuffle_period = self.regenerate_scene_material_shuffle_period
         config.playback_step = self.playback_step
         config.playback_steps = self.playback_steps
         config.render_modes = [BevyZeroverseDataset.render_mode_map[mode] for mode in self.render_modes]
