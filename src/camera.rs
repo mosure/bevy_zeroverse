@@ -517,11 +517,21 @@ impl TrajectorySampler {
             },
             TrajectorySampler::Linear { start, end } => {
                 let progress = progress.clamp(0.0, 1.0);
-                let start = start.sample_cache();
-                let end = end.sample_cache();
+                let start    = start.sample_cache();
+                let end      = end.sample_cache();
+
                 let pos = start.translation.lerp(end.translation, progress);
-                let rot = start.rotation.slerp(end.rotation, progress);
-                Transform::from_translation(pos).mul_transform(Transform::from_rotation(rot))
+
+                let mut rot = start.rotation.slerp(end.rotation, progress);
+                let (yaw, pitch, _roll) = rot.to_euler(EulerRot::YXZ);      // extract yaw-pitch-roll
+                rot = Quat::from_euler(EulerRot::YXZ, yaw, pitch, 0.0)      // roll = 0 → y-up
+                    .normalize();
+
+                Transform {
+                    translation: pos,
+                    rotation: rot,
+                    ..Default::default()
+                }
             },
             TrajectorySampler::Avoidant { start, end, bend_away_from, radius } => {
                 let progress = progress.clamp(0.0, 1.0);

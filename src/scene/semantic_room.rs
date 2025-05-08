@@ -841,8 +841,9 @@ fn setup_scene(
                     };
 
                     commands.spawn(ZeroverseCamera {
-                        trajectory: TrajectorySampler::Static {
-                            start: camera_sampler,
+                        trajectory: TrajectorySampler::Linear {
+                            start: camera_sampler.clone(),
+                            end: camera_sampler,
                         },
                         ..default()
                     });
