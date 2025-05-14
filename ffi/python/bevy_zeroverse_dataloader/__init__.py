@@ -542,33 +542,38 @@ def get_chunk_sample_count(path: Path):
 class ChunkedIteratorDataset(IterableDataset):
     def __init__(self, output_dir: Path, shuffle: bool = False):
         self.output_dir = Path(output_dir)
-        self.chunk_files = sorted(self.output_dir.glob("*.safetensors*"))
         self.shuffle = shuffle
-
         self.cache_file = self.output_dir / "chunk_sizes_cache.json"
 
-        self.chunk_sizes = []
-        self.total_samples = 0
+        self.chunk_files: list[Path] = []
+        self.chunk_sizes: list[int] = []
+        self.total_samples: int = 0
 
         if self.cache_file.exists():
             try:
                 with open(self.cache_file, "r") as f:
                     cache = json.load(f)
-                cached_files = cache.get("files", [])
-                current_files = [str(f.resolve()) for f in self.chunk_files]
 
-                if cached_files == current_files:
-                    self.chunk_sizes = cache.get("chunk_sizes", [])
-                    self.total_samples = sum(self.chunk_sizes)
-                else:
+                self.chunk_files = [Path(p) for p in cache.get("files", [])]
+                self.chunk_sizes = cache.get("chunk_sizes", [])
+
+                if (
+                    not self.chunk_files
+                    or not self.chunk_sizes
+                    or len(self.chunk_files) != len(self.chunk_sizes)
+                    or any(not p.exists() for p in self.chunk_files)
+                ):
                     self._refresh_cache()
-            except Exception as e:
+                else:
+                    self.total_samples = sum(self.chunk_sizes)
+            except Exception:
                 self._refresh_cache()
         else:
             self._refresh_cache()
 
 
     def _refresh_cache(self):
+        self.chunk_files = sorted(self.output_dir.glob("*.safetensors*"))
         self.chunk_sizes = []
         self.total_samples = 0
         for chunk_file in self.chunk_files:
