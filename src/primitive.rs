@@ -327,8 +327,8 @@ fn build_primitive(
         )| {
             let mut material = zeroverse_materials.materials
                 .choose(rng)
-                .unwrap()
-                .clone();
+                .cloned()
+                .unwrap_or(standard_materials.add(StandardMaterial::default()));
 
             if settings.cull_mode.is_some() {
                 let mut new_material = standard_materials.get(&material).unwrap().clone();
