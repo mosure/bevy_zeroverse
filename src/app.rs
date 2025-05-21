@@ -412,6 +412,10 @@ pub fn viewer_app(
     winit_plugin.run_on_any_thread = true;
 
     let default_plugins = DefaultPlugins
+        .set(AssetPlugin {
+            meta_check: bevy::asset::AssetMetaCheck::Never,
+            ..default()
+        })
         .set(ImagePlugin::default_nearest())
         .set(RenderPlugin {
             render_creation: RenderCreation::Automatic(WgpuSettings {
