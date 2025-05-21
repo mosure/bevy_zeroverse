@@ -296,7 +296,7 @@ pub fn setup_and_run_app(
         let ready = Arc::clone(&ready);
 
         move || {
-            let mut app = create_app(override_args, true);
+            let mut app = create_app(None, override_args, true);
             ready.store(true, Ordering::Release);
             app.run();
         }
