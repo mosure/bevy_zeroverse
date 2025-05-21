@@ -414,6 +414,7 @@ pub fn viewer_app(
     let default_plugins = DefaultPlugins
         .set(AssetPlugin {
             meta_check: bevy::asset::AssetMetaCheck::Never,
+            unapproved_path_mode: bevy::asset::UnapprovedPathMode::Allow,
             ..default()
         })
         .set(ImagePlugin::default_nearest())
