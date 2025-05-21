@@ -260,10 +260,11 @@ fn signaled_runner(mut app: App) -> AppExit {
 
 
 pub fn create_app(
+    app: Option<App>,
     override_args: Option<BevyZeroverseConfig>,
     set_runner: bool,
 ) -> App {
-    let mut app = viewer_app(override_args.clone());
+    let mut app = viewer_app(app, override_args.clone());
 
     app.init_resource::<Sample>();
 

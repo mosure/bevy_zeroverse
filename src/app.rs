@@ -357,6 +357,7 @@ impl Default for BevyZeroverseConfig {
 
 
 pub fn viewer_app(
+    app: Option<App>,
     override_args: Option<BevyZeroverseConfig>,
 ) -> App {
     let args = match override_args {
@@ -364,7 +365,11 @@ pub fn viewer_app(
         None => parse_args::<BevyZeroverseConfig>(),
     };
 
-    let mut app = App::new();
+    let mut app = if let Some(original_app) = app {
+        original_app
+    } else {
+        App::new()
+    };
 
     info!("args: {:?}", args);
     app.insert_resource(args.clone());
