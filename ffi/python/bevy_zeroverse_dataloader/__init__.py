@@ -335,6 +335,7 @@ def chunk_and_save(
     n_workers: int = 1,
     jpg_quality: int = 75,
     compression: Optional[Literal["lz4", "zstd"]] = "lz4",
+    full_size_only: bool = True,
 ):
     """
     if samples_per_chunk is not None, the dataset will be chunked into chunks of size samples_per_chunk, regardless of bytes_per_chunk.
@@ -439,9 +440,8 @@ def chunk_and_save(
 
         pbar.set_postfix(chunk_mb=f"{chunk_size/1e6:,.1f}", idx=idx)
 
-    if chunk_size > 0:
-        # save_chunk()
-        pass  # ignore chunks that do not have full size
+    if chunk_size > 0 and not full_size_only:
+        save_chunk()
 
     return chunk_file_paths
 
