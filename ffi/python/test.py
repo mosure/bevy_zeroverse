@@ -1,13 +1,14 @@
-import matplotlib.pyplot as plt
-import numpy as np
 from pathlib import Path
 import shutil
+
+import matplotlib.pyplot as plt
+import torch
 from torch.utils.data import DataLoader
 import unittest
 
 from bevy_zeroverse_dataloader import BevyZeroverseDataset, \
     ChunkedIteratorDataset, FolderDataset, MP4Dataset, \
-    chunk_and_save, save_to_folders, save_to_mp4
+    chunk_and_save, load_chunk, save_to_folders, save_to_mp4, write_sample
 
 
 
@@ -163,6 +164,52 @@ class TestChunkedDataset(unittest.TestCase):
 
         print("\nBenchmarking mp4:")
         benchmark(dataloader)
+
+    def test_update_sample_in_chunk(self):
+        """
+        ensure `write_sample` edits exactly one sample in-place, including jpeg
+        payloads, without disturbing its neighbours.
+        """
+        chunked_ds = ChunkedIteratorDataset(self.output_dir / 'chunk', shuffle=False)
+        sample = next(iter(chunked_ds))
+
+        chunk_path = Path(sample["_chunk_path"])
+        sample_idx = sample["_sample_idx"]
+
+        chunk_before = load_chunk(chunk_path)
+        B = chunk_before["color"].shape[0]
+
+        self.assertGreaterEqual(B, 1, "chunk unexpectedly empty")
+
+        other_idx = (sample_idx + 1) % B if B > 1 else None
+        if other_idx is not None:
+            other_color_before = chunk_before["color"][other_idx].clone()
+
+        new_color = torch.zeros_like(sample["color"])
+        mod_sample = {
+            **{k: v for k, v in sample.items() if k[0] != "_"},
+            "color": new_color,
+            "_chunk_path": str(chunk_path),
+            "_sample_idx": sample_idx,
+        }
+
+        write_sample(mod_sample)
+
+        chunk_after = load_chunk(chunk_path)
+        updated_color = chunk_after["color"][sample_idx]
+
+        self.assertLess(
+            updated_color.mean().item(),
+            0.05,
+            "updated sample did not change as expected",
+        )
+
+        if other_idx is not None:
+            other_color_after = chunk_after["color"][other_idx]
+            self.assertTrue(
+                torch.equal(other_color_before, other_color_after),
+                "neighbouring sample was unintentionally modified",
+            )
 
 
 def main():

@@ -624,7 +624,8 @@ class ChunkedIteratorDataset(IterableDataset):
         emitted_samples = 0
 
         for chunk_idx in chunk_files:
-            chunk_data = load_chunk(self.chunk_files[chunk_idx])
+            chunk_path = self.chunk_files[chunk_idx]
+            chunk_data = load_chunk(chunk_path)
             local_indices = list(range(self.chunk_sizes[chunk_idx]))
 
             if self.shuffle:
@@ -633,8 +634,69 @@ class ChunkedIteratorDataset(IterableDataset):
             for sample_idx in local_indices:
                 if emitted_samples >= min_assigned_samples:
                     return
-                yield {key: tensor[sample_idx] for key, tensor in chunk_data.items()}
+                sample = {key: tensor[sample_idx] for key, tensor in chunk_data.items()}
+                sample["_chunk_path"] = str(chunk_path)
+                sample["_sample_idx"] = sample_idx
+                yield sample
                 emitted_samples += 1
+
+
+
+def write_sample(sample: dict, *, jpg_quality: int = 75) -> None:
+    """
+    overwrite *one* sample inside its original chunk.
+
+    required keys (they are removed before saving):
+        sample["_chunk_path"] : Path to the chunk file
+        sample["_sample_idx"]  : integer position of the sample in that chunk
+    any remaining (key, tensor) pairs are written back.
+
+    jpeg-backed groups (e.g. `color`) touch ONLY the views that belong to
+    `_sample_idx`; the rest of the chunk stays byte-for-byte identical.
+    """
+
+    assert {"_chunk_path", "_sample_idx"} <= sample.keys(), \
+        "`_chunk_path` and `_sample_idx` must be present"
+
+    chunk_path = Path(sample.pop("_chunk_path"))
+    idx = int(sample.pop("_sample_idx"))
+
+    codec = (
+        "lz4" if chunk_path.suffix == ".lz4" else
+        "zstd" if chunk_path.suffix == ".zst" else
+        None
+    )
+
+    tensors = load_bytes(_decompress_bytes(chunk_path))
+
+    def _update_jpeg_group(parent: str, tensor: torch.Tensor) -> None:
+        shape = tensors[f"{parent}_shape"].tolist()  # [B,T,V,H,W,C]
+        B, T, V, H, W, C = shape
+        assert idx < B, f"idx {idx} >= batch {B}"
+
+        n_views = T * V
+        offset = idx * n_views
+        views = tensor.view(n_views, H, W, C)
+
+        for v_i, view in enumerate(views):
+            key = f"{parent}_jpg_{offset + v_i}"
+            tensors[key] = encode_tensor_to_jpg(view, quality=jpg_quality)
+
+    for key, val in sample.items():
+        if key in tensors:
+            tensors[key][idx] = val.to(tensors[key].dtype)
+            continue
+
+        shape_key = f"{key}_shape"
+        if shape_key in tensors:
+            _update_jpeg_group(key, val)
+            continue
+
+        raise KeyError(f"unrecognised tensor key: {key}")
+
+    blob = serialize(tensors)
+    data_out = _compress(blob, codec) if codec else blob
+    chunk_path.write_bytes(data_out)
 
 
 
