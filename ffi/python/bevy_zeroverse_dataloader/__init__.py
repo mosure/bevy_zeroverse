@@ -332,7 +332,7 @@ def chunk_and_save(
     output_dir: Path,
     bytes_per_chunk: Optional[int] = int(256 * 1024 * 1024),
     samples_per_chunk: Optional[int] = None,
-    n_workers: int = 1,
+    n_workers: int = 0,
     jpg_quality: int = 75,
     compression: Optional[Literal["lz4", "zstd"]] = "lz4",
     full_size_only: bool = True,
@@ -427,7 +427,10 @@ def chunk_and_save(
         bsz = next(iter(batch.values())).shape[0]
         pbar.update(bsz)
         for i in range(bsz):
-            sample = {k: v[i] for k, v in batch.items()}
+            sample = {
+                k: v[i]
+                for k, v in batch.items()
+            }
             sample_size = sum(t.numel() * t.element_size() for t in sample.values())
             chunk.append(sample)
             chunk_size += sample_size
