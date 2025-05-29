@@ -94,12 +94,12 @@ use crate::{
 pub struct BevyZeroverseConfig {
     /// enable the bevy inspector
     #[pyo3(get, set)]
-    #[arg(long, default_value = "true")]
+    #[arg(long, action = clap::ArgAction::Set, default_value = "true")]
     pub editor: bool,
 
     /// enable gizmo drawing on editor camera
     #[pyo3(get, set)]
-    #[arg(long, default_value = "true")]
+    #[arg(long, action = clap::ArgAction::Set, default_value = "true")]
     pub gizmos: bool,
 
     /// no window will be shown
@@ -124,7 +124,7 @@ pub struct BevyZeroverseConfig {
 
     /// enable closing the window with the escape key (doesn't work in web)
     #[pyo3(get, set)]
-    #[arg(long, default_value = "true")]
+    #[arg(long, action = clap::ArgAction::Set, default_value = "true")]
     pub press_esc_close: bool,
 
     #[pyo3(get, set)]
@@ -203,6 +203,14 @@ pub struct BevyZeroverseConfig {
     #[pyo3(get, set)]
     #[arg(long, default_value = "5")]
     pub playback_steps: u32,
+
+    #[pyo3(get, set)]
+    #[arg(long, action = clap::ArgAction::Set, default_value = "true")]
+    pub keybinds: bool,
+
+    #[pyo3(get, set)]
+    #[arg(long, action = clap::ArgAction::Set, default_value = "true")]
+    pub initialize_scene: bool,
 }
 
 #[cfg(feature = "python")]
@@ -236,11 +244,11 @@ impl BevyZeroverseConfig {
 #[reflect(Resource)]
 pub struct BevyZeroverseConfig {
     /// enable the bevy inspector
-    #[arg(long, default_value = "true")]
+    #[arg(long, action = clap::ArgAction::Set, default_value = "true")]
     pub editor: bool,
 
     /// enable gizmo drawing on editor camera
-    #[arg(long, default_value = "true")]
+    #[arg(long, action = clap::ArgAction::Set, default_value = "true")]
     pub gizmos: bool,
 
     /// no window will be shown
@@ -260,7 +268,7 @@ pub struct BevyZeroverseConfig {
     pub plucker_visualization: bool,
 
     /// enable closing the window with the escape key (doesn't work in web)
-    #[arg(long, default_value = "true")]
+    #[arg(long, action = clap::ArgAction::Set, default_value = "true")]
     pub press_esc_close: bool,
 
     #[arg(long, default_value = "1920.0")]
@@ -321,6 +329,12 @@ pub struct BevyZeroverseConfig {
 
     #[arg(long, default_value = "5")]
     pub playback_steps: u32,
+
+    #[arg(long, action = clap::ArgAction::Set, default_value = "true")]
+    pub keybinds: bool,
+
+    #[arg(long, action = clap::ArgAction::Set, default_value = "true")]
+    pub initialize_scene: bool,
 }
 
 impl Default for BevyZeroverseConfig {
@@ -351,6 +365,8 @@ impl Default for BevyZeroverseConfig {
             playback_speed: 0.2,
             playback_step: 0.05,
             playback_steps: 5,
+            keybinds: true,
+            initialize_scene: true,
         }
     }
 }
@@ -477,7 +493,9 @@ pub fn viewer_app(
         setup_scene,
     ));
 
-    app.add_systems(PreUpdate, press_m_shuffle_materials_and_meshes);
+    if args.keybinds {
+        app.add_systems(PreUpdate, press_m_shuffle_materials_and_meshes);
+    }
 
     #[cfg(feature = "viewer")]
     {
@@ -684,9 +702,14 @@ fn setup_material_grid(
 
 
 fn setup_scene(
+    args: Res<BevyZeroverseConfig>,
     mut regenerate_event: EventWriter<RegenerateSceneEvent>,
 ) {
-    regenerate_event.write(RegenerateSceneEvent);
+    if args.initialize_scene {
+        regenerate_event.write(RegenerateSceneEvent);
+    } else {
+        info!("skipping scene initialization.");
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -702,7 +725,10 @@ fn regenerate_scene_system(
     }
 
     let mut regenerate_scene = regenerate_stopwatch.elapsed().as_millis() > args.regenerate_ms as u128;
-    regenerate_scene |= keys.just_pressed(KeyCode::KeyR);
+
+    if args.keybinds {
+        regenerate_scene |= keys.just_pressed(KeyCode::KeyR);
+    }
 
     if regenerate_scene {
         regenerate_event.write(RegenerateSceneEvent);
