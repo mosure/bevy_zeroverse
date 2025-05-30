@@ -526,6 +526,13 @@ def load_chunk(path: Path):
     return batch
 
 
+def load_single_sample(
+    chunk_path: Path,
+    sample_idx: int,
+):
+    chunk = load_chunk(chunk_path)
+    return {k: v[sample_idx] for k, v in chunk.items()}
+
 
 def get_chunk_sample_count(path: Path):
     if path.suffix in {".lz4", ".zst"}:
