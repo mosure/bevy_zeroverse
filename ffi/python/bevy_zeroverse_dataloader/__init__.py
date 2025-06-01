@@ -531,7 +531,10 @@ def load_single_sample(
     sample_idx: int,
 ):
     chunk = load_chunk(chunk_path)
-    return {k: v[sample_idx] for k, v in chunk.items()}
+    sample = {k: v[sample_idx] for k, v in chunk.items()}
+    sample['_chunk_path'] = str(chunk_path)
+    sample['_sample_idx'] = sample_idx
+    return sample
 
 
 def get_chunk_sample_count(path: Path):
