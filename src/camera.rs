@@ -303,7 +303,7 @@ impl Default for PerspectiveSampler {
 
 impl PerspectiveSampler {
     pub fn sample(&self) -> PerspectiveProjection {
-        let fov_deg = if min_fov_deg == max_fov_deg {
+        let fov_deg = if self.min_fov_deg == self.max_fov_deg {
             self.min_fov_deg
         } else {
             let rng = &mut rand::thread_rng();
