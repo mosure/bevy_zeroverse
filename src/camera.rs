@@ -303,8 +303,13 @@ impl Default for PerspectiveSampler {
 
 impl PerspectiveSampler {
     pub fn sample(&self) -> PerspectiveProjection {
-        let rng = &mut rand::thread_rng();
-        let fov_deg = rng.gen_range(self.min_fov_deg..self.max_fov_deg);
+        let fov_deg = if min_fov_deg == max_fov_deg {
+            self.min_fov_deg
+        } else {
+            let rng = &mut rand::thread_rng();
+            rng.gen_range(self.min_fov_deg..self.max_fov_deg)
+        };
+
         let fov = fov_deg * std::f32::consts::PI / 180.0;
         PerspectiveProjection {
             fov,
