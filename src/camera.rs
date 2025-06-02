@@ -318,6 +318,13 @@ impl PerspectiveSampler {
             ..default()
         }
     }
+
+    pub fn exact(fov_deg: f32) -> Self {
+        Self {
+            min_fov_deg: fov_deg,
+            max_fov_deg: fov_deg,
+        }
+    }
 }
 
 
