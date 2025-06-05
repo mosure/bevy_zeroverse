@@ -211,6 +211,18 @@ pub struct BevyZeroverseConfig {
     #[pyo3(get, set)]
     #[arg(long, action = clap::ArgAction::Set, default_value = "true")]
     pub initialize_scene: bool,
+
+    #[pyo3(get, set)]
+    #[arg(long, default_value = "0.8")]
+    orbit_smoothness: f32,
+
+    #[pyo3(get, set)]
+    #[arg(long, default_value = "0.6")]
+    pan_smoothness: f32,
+
+    #[pyo3(get, set)]
+    #[arg(long, default_value = "0.8")]
+    zoom_smoothness: f32,
 }
 
 #[cfg(feature = "python")]
@@ -335,6 +347,15 @@ pub struct BevyZeroverseConfig {
 
     #[arg(long, action = clap::ArgAction::Set, default_value = "true")]
     pub initialize_scene: bool,
+
+    #[arg(long, default_value = "0.8")]
+    orbit_smoothness: f32,
+
+    #[arg(long, default_value = "0.6")]
+    pan_smoothness: f32,
+
+    #[arg(long, default_value = "0.8")]
+    zoom_smoothness: f32,
 }
 
 impl Default for BevyZeroverseConfig {
@@ -367,6 +388,9 @@ impl Default for BevyZeroverseConfig {
             playback_steps: 5,
             keybinds: true,
             initialize_scene: true,
+            orbit_smoothness: 0.8,
+            pan_smoothness: 0.6,
+            zoom_smoothness: 0.8,
         }
     }
 }
@@ -575,9 +599,9 @@ fn setup_camera(
         #[cfg(feature = "viewer")]
         PanOrbitCamera {
             allow_upside_down: true,
-            orbit_smoothness: 0.8,
-            pan_smoothness: 0.6,
-            zoom_smoothness: 0.8,
+            orbit_smoothness: args.orbit_smoothness,
+            pan_smoothness: args.pan_smoothness,
+            zoom_smoothness: args.zoom_smoothness,
             ..default()
         },
     ));
