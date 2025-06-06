@@ -1470,31 +1470,6 @@ dependencies = [
 
 [[package]]
 name = "bevy_zeroverse"
-version = "0.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "88bee45cef30730de14dfda2d92d157d3690c9f7c6074f640027760832c39b11"
-dependencies = [
- "bevy",
- "bevy_args",
- "clap",
- "console_error_panic_hook",
- "futures-intrusive",
- "glob",
- "itertools 0.14.0",
- "noise",
- "pollster",
- "pyo3",
- "rand",
- "serde",
- "strum 0.27.1",
- "strum_macros 0.27.1",
- "wasm-bindgen",
- "web-sys",
- "wgpu",
-]
-
-[[package]]
-name = "bevy_zeroverse"
 version = "0.13.0"
 dependencies = [
  "bevy",
@@ -1522,12 +1497,37 @@ dependencies = [
 ]
 
 [[package]]
-name = "bevy_zeroverse_ffi"
-version = "0.15.0"
+name = "bevy_zeroverse"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "22ad1353b27eeb8f0b6167bd9a1f30a2cb4c4600274d07f4aa86d82a9f1758c5"
 dependencies = [
  "bevy",
  "bevy_args",
- "bevy_zeroverse 0.12.0",
+ "clap",
+ "console_error_panic_hook",
+ "futures-intrusive",
+ "glob",
+ "itertools 0.14.0",
+ "noise",
+ "pollster",
+ "pyo3",
+ "rand",
+ "serde",
+ "strum 0.27.1",
+ "strum_macros 0.27.1",
+ "wasm-bindgen",
+ "web-sys",
+ "wgpu",
+]
+
+[[package]]
+name = "bevy_zeroverse_ffi"
+version = "0.16.0"
+dependencies = [
+ "bevy",
+ "bevy_args",
+ "bevy_zeroverse 0.13.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "bytemuck",
  "clap",
  "image",
