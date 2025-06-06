@@ -65,7 +65,10 @@ use crate::{
     mesh::ShuffleMeshesEvent,
     // plucker::ZeroversePluckerSettings,
     primitive::ScaleSampler,
-    render::RenderMode,
+    render::{
+        depth::DepthFormat,
+        RenderMode,
+    },
     scene::{
         room::ZeroverseRoomSettings,
         RegenerateSceneEvent,
@@ -223,6 +226,15 @@ pub struct BevyZeroverseConfig {
     #[pyo3(get, set)]
     #[arg(long, default_value = "0.8")]
     pub zoom_smoothness: f32,
+
+    #[pyo3(get, set)]
+    #[arg(long, value_enum, default_value_t = DepthFormat::Normalized)]
+    pub depth_format: DepthFormat,
+
+    /// use z-depth instead of ray depth
+    #[pyo3(get, set)]
+    #[arg(long, action = clap::ArgAction::Set, default_value = "true")]
+    pub z_depth: bool,
 }
 
 #[cfg(feature = "python")]
@@ -356,6 +368,13 @@ pub struct BevyZeroverseConfig {
 
     #[arg(long, default_value = "0.8")]
     pub zoom_smoothness: f32,
+
+    #[arg(long, value_enum, default_value_t = DepthFormat::Normalized)]
+    pub depth_format: DepthFormat,
+
+    /// use z-depth instead of ray depth
+    #[arg(long, action = clap::ArgAction::Set, default_value = "true")]
+    pub z_depth: bool,
 }
 
 impl Default for BevyZeroverseConfig {
@@ -391,6 +410,8 @@ impl Default for BevyZeroverseConfig {
             orbit_smoothness: 0.8,
             pan_smoothness: 0.6,
             zoom_smoothness: 0.8,
+            depth_format: DepthFormat::Normalized,
+            z_depth: true,
         }
     }
 }
@@ -546,7 +567,7 @@ fn setup_camera(
     args: Res<BevyZeroverseConfig>,
     mut commands: Commands,
     material_grid_cameras: Query<Entity, With<MaterialGridCameraMarker>>,
-    editor_cameras: Query<Entity, With<EditorCameraMarker>>,
+    editor_cameras: Query<(Entity, &PanOrbitCamera), With<EditorCameraMarker>>,
     room_settings: Res<ZeroverseRoomSettings>,
 ) {
     if !args.is_changed() {
@@ -557,7 +578,15 @@ fn setup_camera(
         commands.entity(entity).despawn();
     });
 
-    editor_cameras.iter().for_each(|entity| {
+    let existing_editor_cam = if let Ok(
+        editor_camera
+    ) = editor_cameras.single() {
+        Some(editor_camera.1.clone())
+    } else {
+        None
+    };
+
+    editor_cameras.iter().for_each(|(entity, _)| {
         commands.entity(entity).despawn();
     });
 
@@ -568,36 +597,55 @@ fn setup_camera(
         return;
     }
 
-    let camera_offset = Vec3::new(0.0, 0.0, 3.5);
-    let camera_offset = match args.scene_type {
-        ZeroverseSceneType::SemanticRoom => {
-            let max_room_size = match room_settings.room_size {
-                ScaleSampler::Bounded(_min, max) => max * Vec3::new(1.0, 2.0, 1.0),
-                ScaleSampler::Exact(size) => size,
-            };
-            max_room_size + camera_offset
-        },
-        ZeroverseSceneType::CornellCube => camera_offset,
-        ZeroverseSceneType::Custom => camera_offset,
-        ZeroverseSceneType::Human => camera_offset,
-        ZeroverseSceneType::Object => camera_offset,
-        ZeroverseSceneType::Room => {
-            let max_room_size = match room_settings.room_size {
-                ScaleSampler::Bounded(_min, max) => max * Vec3::new(1.0, 2.0, 1.0),
-                ScaleSampler::Exact(size) => size,
-            };
-            max_room_size + camera_offset
-        },
+    // TODO: refactor, do we really need to despawn the editor camera on settings change?
+    let (
+        focus,
+        radius,
+        yaw,
+        pitch,
+    ) = if let Some(existing_editor_cam) = existing_editor_cam {
+        (
+            existing_editor_cam.focus,
+            existing_editor_cam.radius,
+            existing_editor_cam.yaw,
+            existing_editor_cam.pitch,
+        )
+    } else {
+        let radius = match args.scene_type {
+            ZeroverseSceneType::Room | ZeroverseSceneType::SemanticRoom => (
+                match room_settings.room_size {
+                    ScaleSampler::Bounded(_min, max) => max.max_element(),
+                    ScaleSampler::Exact(size) => size.max_element(),
+                }) * 2.0,
+            _ => 3.5,
+        }.into();
+
+        let yaw = match args.scene_type {
+            ZeroverseSceneType::Room | ZeroverseSceneType::SemanticRoom => 0.8,
+            _ => 0.0,
+        }.into();
+
+        let pitch = match args.scene_type {
+            ZeroverseSceneType::Room | ZeroverseSceneType::SemanticRoom => 0.8,
+            _ => 0.0,
+        }.into();
+
+        (
+            Vec3::ZERO.into(),
+            radius,
+            yaw,
+            pitch,
+        )
     };
 
+    // TODO: refactor material grid reset, don't spawn editor camera outside viewer feature
     commands.spawn((
-        EditorCameraMarker {
-            transform: Transform::from_translation(camera_offset)
-                .looking_at(Vec3::ZERO, Vec3::Y)
-                .into(),
-        },
-        #[cfg(feature = "viewer")]
+        EditorCameraMarker::default(),
         PanOrbitCamera {
+            focus,
+            radius,
+            pitch,
+            yaw,
             allow_upside_down: true,
             orbit_smoothness: args.orbit_smoothness,
             pan_smoothness: args.pan_smoothness,

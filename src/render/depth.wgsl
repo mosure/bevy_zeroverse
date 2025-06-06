@@ -5,12 +5,6 @@
 }
 
 
-struct DepthSettings {
-    linear_depth: vec4<f32>,
-}
-@group(2) @binding(102) var<uniform> depth_settings: DepthSettings;
-
-
 fn depth_to_rgb(depth: f32) -> vec3<f32> {
     let normalized_depth = clamp(depth, 0.0, 1.0);
 
@@ -20,6 +14,7 @@ fn depth_to_rgb(depth: f32) -> vec3<f32> {
 
     return vec3<f32>(r, g, b);
 }
+
 
 @fragment
 fn fragment(
@@ -32,19 +27,27 @@ fn fragment(
     let sample_index = 0u;
 #endif
 
-    // if depth_settings.linear_depth.x > 0.5 {
-        // TODO: fetch prepass depth
-        // let depth = bevy_pbr::prepass_utils::prepass_depth(
-        //     in.position,
-        //     sample_index,
-        // );
-        // return vec4<f32>(vec3<f32>(depth), 1.0);
-    // }
+    let n = view.frustum[5].xyz;
+    let d = view.frustum[5].w;
 
-    let far_distance = dot(view.frustum[5].xyz, view.world_position) + view.frustum[5].w;
-    let distance = length(view.world_position - in.world_position.xyz);
-    return vec4<f32>(vec3<f32>(distance / far_distance), 1.0);
+    let far = dot(n, view.world_position) + d;
+    let frag_to_cam = view.world_position - in.world_position.xyz;
 
-    // return vec4<f32>(vec3<f32>(in.position.z), 1.0);
-    // return vec4<f32>(vec3<f32>(in.position.w), 1.0);
+#ifdef RAY_DEPTH
+    let depth = length(frag_to_cam);
+#else ifdef Z_DEPTH
+    let depth = dot(n, frag_to_cam);
+#endif
+
+#ifdef COLORIZED_DEPTH
+    let prepass_depth = bevy_pbr::prepass_utils::prepass_depth(
+        in.position,
+        sample_index,
+    );
+    return vec4<f32>(depth_to_rgb(prepass_depth), 1.0);
+#else ifdef NORMALIZED_DEPTH
+    return vec4<f32>(vec3<f32>(depth / far), 1.0);
+#else ifdef LINEAR_DEPTH
+    return vec4<f32>(vec3<f32>(depth), 1.0);
+#endif
 }
