@@ -545,7 +545,13 @@ pub fn viewer_app(
     #[cfg(feature = "viewer")]
     {
         app.add_systems(PreUpdate, setup_material_grid);
-        app.add_systems(PostUpdate, setup_camera_grid);
+        app.add_systems(
+            PostUpdate,
+            (
+                setup_camera,
+                setup_camera_grid,
+            ),
+        );
     }
 
     app.add_systems(Update, rotate_scene);
@@ -553,7 +559,6 @@ pub fn viewer_app(
     app.add_systems(PostUpdate, (
         propagate_cli_settings,
         regenerate_scene_system,
-        setup_camera,
     ));
 
     app
@@ -563,6 +568,7 @@ pub fn viewer_app(
 #[derive(Component, Debug, Reflect)]
 struct MaterialGridCameraMarker;
 
+#[cfg(feature = "viewer")]
 fn setup_camera(
     args: Res<BevyZeroverseConfig>,
     mut commands: Commands,
@@ -581,7 +587,7 @@ fn setup_camera(
     let existing_editor_cam = if let Ok(
         editor_camera
     ) = editor_cameras.single() {
-        Some(editor_camera.1.clone())
+        Some(*editor_camera.1)
     } else {
         None
     };
@@ -590,7 +596,6 @@ fn setup_camera(
         commands.entity(entity).despawn();
     });
 
-    // TODO: add a check for dataloader/headless mode
     if args.camera_grid {
         commands.spawn(Camera2d)
             .insert(MaterialGridCameraMarker);
@@ -631,14 +636,13 @@ fn setup_camera(
         }.into();
 
         (
-            Vec3::ZERO.into(),
+            Vec3::ZERO,
             radius,
             yaw,
             pitch,
         )
     };
 
-    // TODO: refactor material grid reset, don't spawn editor camera outside viewer feature
     commands.spawn((
         EditorCameraMarker::default(),
         PanOrbitCamera {
