@@ -214,15 +214,15 @@ pub struct BevyZeroverseConfig {
 
     #[pyo3(get, set)]
     #[arg(long, default_value = "0.8")]
-    orbit_smoothness: f32,
+    pub orbit_smoothness: f32,
 
     #[pyo3(get, set)]
     #[arg(long, default_value = "0.6")]
-    pan_smoothness: f32,
+    pub pan_smoothness: f32,
 
     #[pyo3(get, set)]
     #[arg(long, default_value = "0.8")]
-    zoom_smoothness: f32,
+    pub zoom_smoothness: f32,
 }
 
 #[cfg(feature = "python")]
@@ -349,13 +349,13 @@ pub struct BevyZeroverseConfig {
     pub initialize_scene: bool,
 
     #[arg(long, default_value = "0.8")]
-    orbit_smoothness: f32,
+    pub orbit_smoothness: f32,
 
     #[arg(long, default_value = "0.6")]
-    pan_smoothness: f32,
+    pub pan_smoothness: f32,
 
     #[arg(long, default_value = "0.8")]
-    zoom_smoothness: f32,
+    pub zoom_smoothness: f32,
 }
 
 impl Default for BevyZeroverseConfig {
