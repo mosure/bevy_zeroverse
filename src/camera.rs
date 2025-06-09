@@ -734,6 +734,10 @@ fn update_camera_trajectory(
         mut transform,
         mut camera,
     ) in cameras.iter_mut() {
+        if camera.override_transform.is_some() {
+            continue;
+        }
+
         if update_camera_playbacks {
             camera.playback = *global_playback;
         } else {
