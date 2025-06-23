@@ -662,6 +662,9 @@ fn setup_camera(
 #[derive(Component)]
 pub struct CameraGrid;
 
+#[derive(Component)]
+pub struct CameraGridMarker;
+
 #[cfg(feature = "viewer")]
 fn setup_camera_grid(
     mut commands: Commands,
@@ -671,16 +674,24 @@ fn setup_camera_grid(
         (Entity, &Camera),
         With<ZeroverseCamera>,
     >,
+    new_zeroverse_cameras: Query<
+        Entity,
+        (With<ZeroverseCamera>, Without<CameraGridMarker>),
+    >,
     mut scene_loaded: EventReader<SceneLoadedEvent>,
 ) {
     if zeroverse_cameras.is_empty() {
         return;
     }
 
-    if scene_loaded.is_empty() && !args.is_changed() {
+    if scene_loaded.is_empty() && !args.is_changed() && new_zeroverse_cameras.is_empty() {
         return;
     }
     scene_loaded.clear();
+
+    for entity in new_zeroverse_cameras.iter() {
+        commands.entity(entity).insert(CameraGridMarker);
+    }
 
     if !camera_grids.is_empty() {
         commands.entity(camera_grids.single().unwrap()).despawn();
