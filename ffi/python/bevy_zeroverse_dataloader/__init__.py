@@ -500,7 +500,11 @@ def load_chunk(path: Path):
         images_count = shape[0] * shape[1] * shape[2]
 
         jpeg_data = [data for _, data in indexed_jpegs[:images_count]]
-        decoded_images = decode_jpeg(jpeg_data, device='cuda', mode='RGB')
+        decoded_images = decode_jpeg(
+            jpeg_data,
+            device='cuda' if torch.cuda.is_available() else 'cpu',
+            mode='RGB',
+        )
         decoded_images = [
             img.to('cpu').float().div(255.0).permute(1, 2, 0) for img in decoded_images
         ]
