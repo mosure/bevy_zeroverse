@@ -63,7 +63,7 @@ impl<D: Dimension> View for Wrapper<f32, D> {
     fn shape(&self) -> &[usize] {
         self.0.shape()
     }
-    fn data(&self) -> Cow<[u8]> {
+    fn data(&self) -> Cow<'_, [u8]> {
         self.buffer().into()
     }
     fn data_len(&self) -> usize {
@@ -199,7 +199,7 @@ impl View for TensorView {
         }
     }
 
-    fn data(&self) -> Cow<[u8]> {
+    fn data(&self) -> Cow<'_, [u8]> {
         match self {
             TensorView::Color(t) => t.data(),
             TensorView::Depth(t) => t.data(),
