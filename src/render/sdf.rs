@@ -483,6 +483,7 @@ fn upload_sdf(
             .collect();
         let gaussians_handle = planar_gaussian_3d.add(PlanarGaussian3d::from(gaussians));
 
+        // TODO: redraw on PlanarGaussian3dHandle override
         commands
             .entity(scene_root.single().expect("SdfRoot required to attach gaussians"))
             .insert((
