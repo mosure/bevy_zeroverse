@@ -15,6 +15,7 @@ use crate::{
         TrajectorySampler,
         ZeroverseCamera,
     },
+    render::sdf::SdfRoot,
     scene::{
         lighting::{
             setup_lighting,
@@ -735,41 +736,44 @@ fn spawn_room_neighborhood(
     base_scale: &Vec3,
     settings: &ZeroverseSemanticRoomSettings,
 ) {
+    let mut windows_root = [false; 4];
+
     commands
         .spawn((
             InheritedVisibility::default(),
             Name::new("room"),
             SceneAabbNode,
+            SdfRoot,
             Transform::default(),
             Visibility::default(),
         ))
         .with_children(|root| {
-            let windows_root = spawn_room(
+            windows_root = spawn_room(
                 root,
                 base_scale,
                 settings,
                 0,
                 false,
             );
-
-            let mut rooms: HashMap<(i32, i32), (Vec3, Vec3)> = HashMap::new();
-            rooms.insert((0, 0), (Vec3::ZERO, *base_scale));
-
-            for (idx, &(dx, dz)) in DIRS.iter().enumerate() {
-                if !windows_root[idx] { continue; }
-                spawn_room_rec(
-                    root,
-                    (dx, dz),
-                    (0, 0),
-                    (dx, dz),
-                    1,
-                    settings.neighborhood_depth as i32 - 1,
-                    *base_scale,
-                    &mut rooms,
-                    settings,
-                );
-            }
         });
+
+    let mut rooms: HashMap<(i32, i32), (Vec3, Vec3)> = HashMap::new();
+    rooms.insert((0, 0), (Vec3::ZERO, *base_scale));
+
+    for (idx, &(dx, dz)) in DIRS.iter().enumerate() {
+        if !windows_root[idx] { continue; }
+        spawn_room_rec(
+            commands,
+            (dx, dz),
+            (0, 0),
+            (dx, dz),
+            1,
+            settings.neighborhood_depth as i32 - 1,
+            *base_scale,
+            &mut rooms,
+            settings,
+        );
+    }
 }
 
 

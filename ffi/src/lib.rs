@@ -167,6 +167,7 @@ impl Default for SamplerState {
                 // RenderMode::Normal,
                 // RenderMode::OpticalFlow,
                 // RenderMode::Position,
+                // RenderMode::Sdf,
             ],
             step: 0,
             timesteps: vec![0.125],
@@ -406,6 +407,7 @@ fn sample_stream(
             RenderMode::Normal => view.normal = image_data,
             RenderMode::OpticalFlow => view.optical_flow = image_data,
             RenderMode::Position => view.position = image_data,
+            RenderMode::Sdf => panic!("sdf rendering not supported"),
             RenderMode::Semantic => panic!("semantic rendering not supported"),
         }
     }
