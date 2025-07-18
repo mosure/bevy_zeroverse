@@ -2,7 +2,6 @@ use std::collections::HashSet;
 
 use bevy::{
     prelude::*,
-    // asset::{load_internal_asset, weak_handle},
     pbr::{ExtendedMaterial, MaterialExtension},
     render::{
         mesh::{
@@ -10,9 +9,7 @@ use bevy::{
             Mesh,
             VertexAttributeValues,
         },
-        // render_asset::RenderAssetUsages,
         render_resource::*,
-        // storage::ShaderStorageBuffer,
     },
 };
 use bevy_gaussian_splatting::{
@@ -87,49 +84,23 @@ struct LodParams {
     range: Vec4,
 }
 
-// #[derive(Clone, Copy, Debug, Default, Reflect, ShaderType, Pod, Zeroable)]
-// #[repr(C)]
-// pub struct KdNodeGpu {
-//     min_split: Vec4,
-//     max_pad: Vec4,
-//     axis: u32,
-//     left: u32,
-//     right: u32,
-//     _pad: u32,
-// }
-
-// #[derive(Resource, Default, Clone)]
-// pub struct SdfBuffers {
-//     pub pts: Handle<ShaderStorageBuffer>,
-//     pub kd: Handle<ShaderStorageBuffer>,
-// }
-
-
-// pub const SDF_SHADER_HANDLE: Handle<Shader> = weak_handle!("01b0a4af-31b4-4a71-a6bc-045e8778e6d4");
-
 pub type SdfMaterial = ExtendedMaterial<StandardMaterial, SdfExtension>;
 
 
 #[derive(Asset, AsBindGroup, TypePath, Debug, Clone)]
 pub struct SdfExtension {
-//     #[storage(14, read_only)] pts: Handle<ShaderStorageBuffer>,
-//     #[storage(15, read_only)] kd: Handle<ShaderStorageBuffer>,
     #[uniform(16)] lod: LodParams,
 }
 
 impl Default for SdfExtension {
     fn default() -> Self {
         Self {
-            // pts: Handle::default(),
-            // kd: Handle::default(),
             lod: LodParams::default(),
         }
     }
 }
 
-impl MaterialExtension for SdfExtension {
-    // fn fragment_shader() -> ShaderRef { SDF_SHADER_HANDLE.into() }
-}
+impl MaterialExtension for SdfExtension { }
 
 
 #[derive(Component, Debug, Clone, Default, Reflect, Eq, PartialEq)]
@@ -154,7 +125,6 @@ struct MeshSdfCache {
 #[derive(Resource, Default)]
 struct AggregateSdf {
     pts: Vec<GpuPt>,
-    // kd: Vec<KdNodeGpu>,
     dirty: bool,
 }
 
@@ -162,13 +132,6 @@ struct AggregateSdf {
 pub struct SdfPlugin;
 impl Plugin for SdfPlugin {
     fn build(&self, app: &mut App) {
-        // load_internal_asset!(
-        //     app,
-        //     SDF_SHADER_HANDLE,
-        //     "sdf.wgsl",
-        //     Shader::from_wgsl,
-        // );
-
         app
             .register_type::<MeshSdfCache>()
             .register_type::<ComputeSdf>()
@@ -176,7 +139,6 @@ impl Plugin for SdfPlugin {
             .register_type::<SdfRoot>()
             .register_type::<SdfConfig>()
             .init_resource::<SdfConfig>()
-            // .init_resource::<SdfBuffers>()
             .init_resource::<AggregateSdf>()
             .add_plugins((
                 MaterialPlugin::<SdfMaterial>::default(),
@@ -232,6 +194,7 @@ fn cache_mesh_sdf(
             Without<MeshSdfCache>,
         ),
     >,
+    caches: Query<Entity, With<MeshSdfCache>>,
     // time: Res<Time>,
     mut agg: ResMut<AggregateSdf>,
     mut rng: Local<Option<SmallRng>>,
@@ -240,7 +203,12 @@ fn cache_mesh_sdf(
     let rng = rng.as_mut().unwrap();
 
     if cfg.is_changed() {
-        // TODO: clear sdf caches
+        for e in caches.iter() {
+            if let Ok(mut ent) = commands.get_entity(e) {
+                ent.remove::<MeshSdfCache>();
+            }
+        }
+        return;
     }
 
     for (e, mesh_handle, tf, maybe_cache) in &mut q {
@@ -286,7 +254,6 @@ fn apply_sdf_material(
     >,
     mut removed: RemovedComponents<ComputeSdf>,
     mut mats: ResMut<Assets<SdfMaterial>>,
-    // bufs: Res<SdfBuffers>,
     cfg: Res<SdfConfig>,
 ) {
     for e in removed.read() {
@@ -310,8 +277,6 @@ fn apply_sdf_material(
                 ..default()
             },
             extension: SdfExtension {
-                // pts: bufs.pts.clone(),
-                // kd: bufs.kd.clone(),
                 lod,
             },
         });
@@ -454,18 +419,6 @@ fn aggregate_sdf_system(
         c.dirty = false;
     }
 
-    { // note: for gaussian representation, no KD tree is needed
-        // let kd = {
-        //     let mut order = (0..agg.pts.len()).collect::<Vec<_>>();
-        //     let mut kd = Vec::<KdNodeGpu>::new();
-        //     agg.kd.clear();
-        //     build_kd_nodes(&agg.pts, &mut order, &mut kd);
-        //     kd
-        // };
-
-        // agg.kd = kd;
-    }
-
     agg.dirty = true;
 }
 
@@ -473,9 +426,7 @@ fn aggregate_sdf_system(
 fn upload_sdf(
     mut commands: Commands,
     mut planar_gaussian_3d: ResMut<Assets<PlanarGaussian3d>>,
-    // mut ssbos: ResMut<Assets<ShaderStorageBuffer>>,
     mut agg: ResMut<AggregateSdf>,
-    // mut bufs: ResMut<SdfBuffers>,
     scene_root: Query<
         Entity,
         With<SdfRoot>,
@@ -542,141 +493,5 @@ fn upload_sdf(
         // TODO: remove gaussians from scene root when leaving RenderMode::Sdf?
     }
 
-    // {
-    //     debug_assert!(
-    //         !agg.kd.is_empty(),
-    //         "aggregate_sdf: kd-tree is empty while pts are not"
-    //     );
-
-    //     debug_assert_eq!(
-    //         agg.kd.iter().filter(|n| n.axis == 3).count(),
-    //         agg.pts.len(),
-    //         "kd leaves must equal point count"
-    //     );
-
-    //     for (i, n) in agg.kd.iter().enumerate() {
-    //         debug_assert!(
-    //             n.axis <= 3,
-    //             "kd node {i}: axis out of range ({})",
-    //             n.axis
-    //         );
-
-    //         if n.axis < 3 {
-    //             debug_assert!(
-    //                 (n.left == u32::MAX || (n.left as usize) < agg.kd.len())
-    //                     && (n.right == u32::MAX || (n.right as usize) < agg.kd.len()),
-    //                 "kd node {i}: child index out of bounds"
-    //             );
-    //         } else {
-    //             let idx = n.min_split.w as usize;
-    //             debug_assert!(
-    //                 idx < agg.pts.len(),
-    //                 "kd leaf {i}: point index {} out of bounds",
-    //                 idx
-    //             );
-    //         }
-    //     }
-    // }
-
-    // {
-    //     let pts_buf = if let Some(buf) = ssbos.get_mut(&bufs.pts) {
-    //         buf
-    //     } else {
-    //         bufs.pts = ssbos.add(ShaderStorageBuffer::new(&[], RenderAssetUsages::RENDER_WORLD));
-    //         ssbos.get_mut(&bufs.pts).unwrap()
-    //     };
-    //     pts_buf.set_data(&agg.pts);
-    // }
-
-    // {
-    //     let kd_buf = if let Some(buf) = ssbos.get_mut(&bufs.kd) {
-    //         buf
-    //     } else {
-    //         bufs.kd = ssbos.add(ShaderStorageBuffer::new(&[], RenderAssetUsages::RENDER_WORLD));
-    //         ssbos.get_mut(&bufs.kd).unwrap()
-    //     };
-    //     kd_buf.set_data(&agg.kd);
-    // }
-
     agg.dirty = false;
 }
-
-
-
-// trait HasPos {
-//     fn pos(&self) -> Vec3;
-// }
-
-// impl HasPos for GpuPt {
-//     #[inline] fn pos(&self) -> Vec3 {
-//         self.pos_dist.truncate()
-//     }
-// }
-
-// impl HasPos for (Vec3, f32) {
-//     #[inline] fn pos(&self) -> Vec3 {
-//         self.0
-//     }
-// }
-
-
-// fn build_kd_nodes<T: HasPos>(
-//     pts: &[T],
-//     idxs: &mut [usize],
-//     out: &mut Vec<KdNodeGpu>,
-// ) -> u32 {
-//     match idxs.len() {
-//         0 => return u32::MAX,
-//         1 => {
-//             let p = pts[idxs[0]].pos();
-//             let me = out.len() as u32;
-//             out.push(KdNodeGpu {
-//                 min_split: p.extend(idxs[0] as f32),
-//                 max_pad: p.extend(0.0),
-//                 axis: 3,
-//                 left: u32::MAX,
-//                 right: u32::MAX,
-//                 _pad: u32::MAX,
-//             });
-//             return me;
-//         }
-//         _ => {}
-//     }
-
-//     let (mut min, mut max) = {
-//         let p0 = pts[idxs[0]].pos();
-//         (p0, p0)
-//     };
-
-//     for &i in idxs.iter().skip(1) {
-//         let p = pts[i].pos();
-//         min = min.min(p);
-//         max = max.max(p);
-//     }
-
-//     let delta = max - min;
-//     let axis = if delta.x >= delta.y && delta.x >= delta.z { 0 }
-//                 else if delta.y >= delta.z { 1 } else { 2 };
-
-//     idxs.sort_by(|&a, &b| pts[a]
-//         .pos()[axis]
-//         .partial_cmp(&pts[b].pos()[axis])
-//         .unwrap()
-//     );
-//     let mid = idxs.len() / 2;
-
-//     let me = out.len() as u32;
-//     out.push(KdNodeGpu {
-//         min_split: min.extend(pts[idxs[mid]].pos()[axis]),
-//         max_pad: max.extend(0.0),
-//         axis: axis as u32,
-//         left: u32::MAX,
-//         right: u32::MAX,
-//         _pad: u32::MAX,
-//     });
-
-//     let (left, right) = idxs.split_at_mut(mid);
-//     if !left.is_empty() { out[me as usize].left = build_kd_nodes(pts, left,  out); }
-//     if !right.is_empty() { out[me as usize].right = build_kd_nodes(pts, right, out); }
-//     me
-// }
