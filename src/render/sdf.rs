@@ -73,8 +73,8 @@ impl Default for SdfConfig {
 
 #[derive(Clone, Copy, Debug, Default, Reflect, ShaderType, Pod, Zeroable)]
 #[repr(C)]
-struct GpuPt {
-    pos_dist: Vec4,
+pub struct GpuPt {
+    pub pos_dist: Vec4,
 }
 
 #[derive(Clone, Copy, Debug, Default, Reflect, ShaderType, Pod, Zeroable)]
@@ -87,17 +87,9 @@ struct LodParams {
 pub type SdfMaterial = ExtendedMaterial<StandardMaterial, SdfExtension>;
 
 
-#[derive(Asset, AsBindGroup, TypePath, Debug, Clone)]
+#[derive(Asset, AsBindGroup, TypePath, Debug, Default, Clone)]
 pub struct SdfExtension {
     #[uniform(16)] lod: LodParams,
-}
-
-impl Default for SdfExtension {
-    fn default() -> Self {
-        Self {
-            lod: LodParams::default(),
-        }
-    }
 }
 
 impl MaterialExtension for SdfExtension { }
@@ -176,6 +168,7 @@ pub fn propagate_sdf_tags(
 }
 
 
+#[allow(clippy::type_complexity)]
 fn cache_mesh_sdf(
     mut commands: Commands,
     cfg: Res<SdfConfig>,
@@ -465,7 +458,7 @@ fn upload_sdf(
                         visibility: 1.0,
                     },
                     scale_opacity: ScaleOpacity {
-                        scale: [s, s, s].into(),
+                        scale: [s, s, s],
                         opacity,
                     },
                     spherical_harmonic: SphericalHarmonicCoefficients {
