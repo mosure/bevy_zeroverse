@@ -188,7 +188,6 @@ fn cache_mesh_sdf(
         ),
     >,
     caches: Query<Entity, With<MeshSdfCache>>,
-    // time: Res<Time>,
     mut agg: ResMut<AggregateSdf>,
     mut rng: Local<Option<SmallRng>>,
 ) {
@@ -476,7 +475,7 @@ fn upload_sdf(
             .collect();
         let gaussians_handle = planar_gaussian_3d.add(PlanarGaussian3d::from(gaussians));
 
-        // TODO: redraw on PlanarGaussian3dHandle override
+        // TODO: redraw on PlanarGaussian3dHandle override (upstream issue)
         commands
             .entity(scene_root.single().expect("SdfRoot required to attach gaussians"))
             .insert((
