@@ -54,6 +54,7 @@ pub struct SdfConfig {
     pub max_pts: u32,
     pub near_z: f32,
     pub far_z: f32,
+    pub gaussian_visualization: bool,
 }
 
 impl Default for SdfConfig {
@@ -66,6 +67,7 @@ impl Default for SdfConfig {
             max_pts: 1024,
             near_z: 0.1,
             far_z: 25.0,
+            gaussian_visualization: true,
         }
     }
 }
@@ -288,6 +290,7 @@ fn point_budget(area_sum: f32, cfg: &SdfConfig) -> (usize, u32) {
 }
 
 
+// TODO: resolve non-manifold ambiguities
 #[inline]
 pub fn compute_sparse_sdf_for_mesh(
     mesh: &Mesh,
@@ -399,7 +402,7 @@ fn aggregate_sdf_system(
     >,
 ) {
     let any_dirty = caches.iter().any(|c| c.dirty);
-    if !any_dirty && !agg.dirty {
+    if !any_dirty {
         return;
     }
 
@@ -423,7 +426,12 @@ fn upload_sdf(
         Entity,
         With<SdfRoot>,
     >,
+    config: Res<SdfConfig>,
 ) {
+    if !config.gaussian_visualization {
+        return;
+    }
+
     if agg.pts.is_empty() || !agg.dirty {
         return;
     }
