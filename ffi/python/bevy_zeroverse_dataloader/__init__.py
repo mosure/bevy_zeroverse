@@ -214,6 +214,7 @@ class BevyZeroverseDataset(Dataset):
         'normal': bevy_zeroverse_ffi.RenderMode.Normal,
         'optical_flow': bevy_zeroverse_ffi.RenderMode.OpticalFlow,
         'position': bevy_zeroverse_ffi.RenderMode.Position,
+        'sdf': bevy_zeroverse_ffi.RenderMode.Sdf,
         'semantic': bevy_zeroverse_ffi.RenderMode.Semantic,
     }
 

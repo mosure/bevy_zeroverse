@@ -7,6 +7,7 @@ use crate::{
         TrajectorySampler,
         ZeroverseCamera,
     },
+    render::sdf::SdfRoot,
     scene::{
         lighting::{
             setup_lighting,
@@ -14,6 +15,7 @@ use crate::{
         },
         RegenerateSceneEvent,
         RotationAugment,
+        SceneAabbNode,
         SceneLoadedEvent,
         ZeroverseScene,
         ZeroverseSceneRoot,
@@ -74,6 +76,8 @@ fn setup_scene(
             Name::new("zeroverse_object"),
             object_settings.primitive.clone(),
             RotationAugment,
+            SceneAabbNode,
+            SdfRoot,
             ZeroverseScene,
             ZeroverseSceneRoot,
         ))

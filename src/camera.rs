@@ -39,6 +39,7 @@ use bevy_args::{
     Serialize,
     ValueEnum,
 };
+use bevy_gaussian_splatting::GaussianCamera;
 use rand::Rng;
 
 #[cfg(feature = "python")]
@@ -814,6 +815,9 @@ fn insert_cameras(
                     ..default()
                 },
                 Exposure::INDOOR,
+                GaussianCamera {
+                    warmup: true,
+                },
                 Projection::Perspective(zeroverse_camera.perspective_sampler.sample()),
                 zeroverse_camera.override_transform.unwrap_or(zeroverse_camera.trajectory.sample(0.0)),
                 MotionVectorPrepass,
@@ -985,6 +989,9 @@ fn setup_editor_camera(
                 Camera {
                     hdr: true,
                     ..default()
+                },
+                GaussianCamera {
+                    warmup: true,
                 },
                 Projection::Perspective(PerspectiveProjection {
                     far: 25.0,

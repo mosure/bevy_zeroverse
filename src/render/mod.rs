@@ -24,9 +24,11 @@ pub mod depth;
 pub mod normal;
 pub mod optical_flow;
 pub mod position;
+pub mod sdf;
 pub mod semantic;
 
 
+// TODO: render mode should be a per-camera setting
 #[derive(
     Debug,
     Default,
@@ -48,6 +50,7 @@ pub enum RenderMode {
     Normal,
     OpticalFlow,
     Position,
+    Sdf,
     Semantic,
 }
 
@@ -94,6 +97,7 @@ impl Plugin for RenderPlugin {
         app.add_plugins(normal::NormalPlugin);
         app.add_plugins(optical_flow::OpticalFlowPlugin);
         app.add_plugins(position::PositionPlugin);
+        app.add_plugins(sdf::SdfPlugin);
         app.add_plugins(semantic::SemanticPlugin);
 
         // TODO: add wireframe depth, pbr disable, normals
@@ -108,6 +112,7 @@ impl Plugin for RenderPlugin {
                     auto_disable_pbr_material::<normal::Normal>,
                     auto_disable_pbr_material::<optical_flow::OpticalFlow>,
                     auto_disable_pbr_material::<position::Position>,
+                    auto_disable_pbr_material::<sdf::Sdf>,
                     auto_disable_pbr_material::<semantic::Semantic>,
                     enable_pbr_material,
                 )
@@ -206,6 +211,10 @@ fn apply_render_modes(
                 commands.entity(entity)
                     .insert(position::Position);
             }
+            RenderMode::Sdf => {
+                commands.entity(entity)
+                    .insert(sdf::Sdf);
+            }
             RenderMode::Semantic => {
                 commands.entity(entity)
                     .insert(semantic::Semantic);
@@ -221,6 +230,7 @@ fn apply_render_modes(
                 .remove::<normal::Normal>()
                 .remove::<optical_flow::OpticalFlow>()
                 .remove::<position::Position>()
+                .remove::<sdf::Sdf>()
                 .remove::<semantic::Semantic>();
 
             insert_render_mode_flag(&mut commands, entity);

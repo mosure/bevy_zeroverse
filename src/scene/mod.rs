@@ -121,10 +121,10 @@ pub struct SceneAabb {
 }
 
 impl SceneAabb {
-    fn new(center: Vec3) -> Self {
+    fn empty() -> Self {
         Self {
-            min: center,
-            max: center,
+            min: Vec3::splat(f32::MAX),
+            max: Vec3::splat(f32::MIN),
         }
     }
 
@@ -143,26 +143,8 @@ impl SceneAabb {
         ];
 
         for corner in corners {
-            let gt = corner.cmpgt(self.max);
-            let lt = corner.cmplt(self.min);
-
-            if gt.x {
-                self.max.x = corner.x;
-            } else if lt.x {
-                self.min.x = corner.x;
-            }
-
-            if gt.y {
-                self.max.y = corner.y;
-            } else if lt.y {
-                self.min.y = corner.y;
-            }
-
-            if gt.z {
-                self.max.z = corner.z;
-            } else if lt.z {
-                self.min.z = corner.z;
-            }
+            self.min = self.min.min(corner);
+            self.max = self.max.max(corner);
         }
     }
 }
@@ -184,25 +166,20 @@ impl From<&SceneAabb> for Transform {
 fn create_scene_aabb(
     mut commands: Commands,
     scene_instances: Query<
-        (
-            Entity,
-            &ZeroverseSceneRoot,
-            &GlobalTransform,
-        ),
+        Entity,
+        With<SceneAabbNode>,
     >,
     children: Query<&Children>,
     bounding_boxes: Query<(&Aabb, &GlobalTransform)>,
 ) {
-    for (entity, _root_tag, root_tf) in &scene_instances {
-        let mut scene_aabb = SceneAabb::new(root_tf.translation());
+    for entity in &scene_instances {
+        let mut scene_aabb = SceneAabb::empty();
 
         let merged_any = children
             .iter_descendants(entity)
             .filter_map(|child| bounding_boxes.get(child).ok())
-            .any(|(bb, tf)| {
-                scene_aabb.merge_aabb(bb, tf);
-                true
-            });
+            .map(|(bb, tf)| { scene_aabb.merge_aabb(bb, tf); })
+            .count() > 0;
 
         if merged_any {
             commands.entity(entity).insert(scene_aabb);
