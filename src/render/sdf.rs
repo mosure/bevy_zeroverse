@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use bevy::{
     prelude::*,
@@ -44,6 +44,7 @@ use rayon::prelude::*;
 pub struct SdfRoot;
 
 
+// TODO: python api
 #[derive(Resource, Reflect, Debug, Clone)]
 #[reflect(Resource, Default)]
 pub struct SdfConfig {
@@ -55,6 +56,7 @@ pub struct SdfConfig {
     pub near_z: f32,
     pub far_z: f32,
     pub gaussian_visualization: bool,
+    pub dense_sampling: bool,
 }
 
 impl Default for SdfConfig {
@@ -68,6 +70,7 @@ impl Default for SdfConfig {
             near_z: 0.1,
             far_z: 25.0,
             gaussian_visualization: true,
+            dense_sampling: false,
         }
     }
 }
@@ -119,6 +122,7 @@ struct MeshSdfCache {
 #[derive(Resource, Default)]
 struct AggregateSdf {
     pts: Vec<GpuPt>,
+    uniform_start: usize,
     dirty: bool,
 }
 
@@ -395,26 +399,190 @@ pub fn compute_sparse_sdf_for_mesh(
 }
 
 
-fn aggregate_sdf_system(
+pub fn aggregate_sdf_system(
     mut agg: ResMut<AggregateSdf>,
-    mut caches: Query<
-        &mut MeshSdfCache,
-    >,
+    mut caches: Query<&mut MeshSdfCache>,
+    config: Res<SdfConfig>,
 ) {
-    let any_dirty = caches.iter().any(|c| c.dirty);
-    if !any_dirty {
+    if !caches.iter().any(|c| c.dirty) {
         return;
     }
-
-    info!("aggregating SDF points from {} caches", caches.iter().count());
 
     agg.pts.clear();
     for mut c in &mut caches {
         agg.pts.extend(&c.pts);
         c.dirty = false;
     }
-
     agg.dirty = true;
+    agg.uniform_start = agg.pts.len();
+
+    info!("aggregated {} SDF points from mesh caches", agg.pts.len());
+
+    if !config.dense_sampling {
+        return;
+    }
+
+    if agg.pts.is_empty() {
+        return;
+    }
+
+    let (mut min, mut max) =
+        (Vec3::splat(f32::INFINITY), Vec3::splat(f32::NEG_INFINITY));
+
+    for p in &agg.pts {
+        let pos = p.pos_dist.truncate();
+        min = min.min(pos);
+        max = max.max(pos);
+    }
+
+    const CELLS_PER_AXIS: f32 = 64.0;
+    let cell_size = (max - min).max_element() / CELLS_PER_AXIS;
+    if cell_size == 0.0 {
+        return;
+    }
+    let inv_cell = 1.0 / cell_size;
+    let dims = ((max - min) * inv_cell).ceil().as_ivec3();
+
+    #[derive(Default, Clone, Copy)]
+    struct Acc {
+        sum_pos: Vec3,
+        sum_dist: f32,
+        count: u32,
+        has_neg: bool,
+    }
+    let mut acc: HashMap<IVec3, Acc> = HashMap::with_capacity(agg.pts.len());
+
+    const NB6: [IVec3; 6] = [
+        IVec3::new( 1, 0, 0),  IVec3::new(-1, 0, 0),
+        IVec3::new( 0, 1, 0),  IVec3::new( 0,-1, 0),
+        IVec3::new( 0, 0, 1),  IVec3::new( 0, 0,-1),
+    ];
+
+    for p in &agg.pts {
+        let pos   = p.pos_dist.truncate();
+        let key   = ((pos - min) * inv_cell).floor().as_ivec3();
+        let dist  = p.pos_dist.w;
+        let isneg = dist.is_sign_negative();
+
+        let mut bump = |k: IVec3| {
+            let e = acc.entry(k).or_default();
+            e.sum_pos  += pos;
+            e.sum_dist += dist;
+            e.count    += 1;
+            e.has_neg  |= isneg;
+        };
+
+        bump(key);
+
+        for dx in -1..=1 {
+            for dy in -1..=1 {
+                for dz in -1..=1 {
+                    if dx == 0 && dy == 0 && dz == 0 {
+                        continue;
+                    }
+                    bump(key + IVec3::new(dx, dy, dz));
+                }
+            }
+        }
+    }
+
+    #[derive(Clone, Copy)]
+    struct Cell { pos: Vec3, dist: f32, has_neg: bool }
+
+    let occ: HashMap<IVec3, Cell> = acc
+        .into_iter()
+        .map(|(k, a)| {
+            let inv = 1.0 / a.count as f32;
+            (
+                k,
+                Cell {
+                    pos:      a.sum_pos * inv,
+                    dist:     a.sum_dist * inv,
+                    has_neg:  a.has_neg,
+                },
+            )
+        })
+        .collect();
+
+    let mut outside = HashSet::<IVec3>::new();
+    let mut stack   = Vec::<IVec3>::new();
+
+    for x in 0..=dims.x {
+        for y in 0..=dims.y {
+            for z in 0..=dims.z {
+                if x == 0 || y == 0 || z == 0 ||
+                   x == dims.x || y == dims.y || z == dims.z
+                {
+                    let k = IVec3::new(x, y, z);
+                    if !occ.contains_key(&k) && outside.insert(k) {
+                        stack.push(k);
+                    }
+                }
+            }
+        }
+    }
+
+    let is_solid = |k: &IVec3| occ.contains_key(k);
+
+    while let Some(c) = stack.pop() {
+        for d in NB6 {
+            let n = c + d;
+            if n.cmpge(IVec3::ZERO).all() &&
+               n.cmple(dims).all() &&
+               !outside.contains(&n) &&
+               !is_solid(&n)
+            {
+                outside.insert(n);
+                stack.push(n);
+            }
+        }
+    }
+
+    let offsets_26 = || {
+        (-1..=1)
+            .flat_map(|dx| (-1..=1).flat_map(move |dy| (-1..=1).map(move |dz| (dx, dy, dz))))
+            .filter(|&(dx, dy, dz)| dx != 0 || dy != 0 || dz != 0)
+            .map(|(dx, dy, dz)| IVec3::new(dx, dy, dz))
+    };
+
+    for x in 0..=dims.x {
+        for y in 0..=dims.y {
+            for z in 0..=dims.z {
+                let k = IVec3::new(x, y, z);
+                if occ.contains_key(&k) {
+                    continue;
+                }
+
+                let centre = min + (k.as_vec3() + Vec3::splat(0.5)) * cell_size;
+
+                let want_positive = outside.contains(&k);
+
+                let mut best_mag: Option<f32> = None;
+                for off in offsets_26() {
+                    if let Some(c) = occ.get(&(k + off)) {
+                        if c.dist.is_sign_positive() != want_positive {
+                            continue;
+                        }
+
+                        let cand = c.dist.abs() + (centre - c.pos).length();
+                        best_mag = Some(match best_mag {
+                            Some(b) => b.min(cand),
+                            None => cand,
+                        });
+                    }
+                }
+
+                let magnitude = best_mag.unwrap_or(0.5 * cell_size);
+                let signed = if want_positive { magnitude } else { -magnitude };
+
+                agg.pts.push(GpuPt {
+                    pos_dist: centre.extend(signed),
+                });
+            }
+        }
+    }
+
+    info!("SDF aggregate: {} points after uniform sampling", agg.pts.len());
 }
 
 
@@ -443,12 +611,12 @@ fn upload_sdf(
         const MIN_SCALE: f32 = 0.005;
         const MAX_SCALE: f32 = 0.02;
 
-        let max_abs = agg.pts
+        let max_abs = agg.pts[..agg.uniform_start]
             .iter()
             .map(|p| p.pos_dist.w.abs())
             .fold(1e-5f32, f32::max);
 
-        let gaussians: Vec<Gaussian3d> = agg.pts
+        let gaussians: Vec<Gaussian3d> = agg.pts//[..agg.uniform_start]
             .iter()
             .map(|pt| {
                 let dist = pt.pos_dist.w;
@@ -456,7 +624,7 @@ fn upload_sdf(
                 let mag_n = signed_n.abs().sqrt();
 
                 let s = MAX_SCALE - mag_n * (MAX_SCALE - MIN_SCALE);
-                let opacity = 1.0 - mag_n;
+                let opacity = 1.0;// - mag_n;
 
                 Gaussian3d {
                     rotation: [1.0, 0.0, 0.0, 0.0].into(),
