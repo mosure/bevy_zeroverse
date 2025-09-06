@@ -75,6 +75,7 @@ pub struct ZeroverseSemanticRoomSettings {
     pub window_size_min: Vec2,
     pub window_size_max: Vec2,
     pub neighborhood_depth: usize,
+    pub cuboid_only: bool,
 }
 
 impl Default for ZeroverseSemanticRoomSettings {
@@ -165,6 +166,7 @@ impl Default for ZeroverseSemanticRoomSettings {
             window_size_min: Vec2::new(0.25, 0.25),
             window_size_max: Vec2::new(0.75, 0.75),
             neighborhood_depth: 2,
+            cuboid_only: false,
         }
     }
 }
@@ -392,6 +394,10 @@ fn spawn_room(
             );
             windows[i] = has_window;
         });
+    }
+
+    if room_settings.cuboid_only {
+        return windows;
     }
 
     let mut aabb_colliders: Vec<(Vec3, Vec3)> = Vec::new();

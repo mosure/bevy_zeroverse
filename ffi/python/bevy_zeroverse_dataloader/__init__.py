@@ -241,6 +241,7 @@ class BevyZeroverseDataset(Dataset):
         render_modes=['color'],
         rotation_augmentation=True,
         regenerate_scene_material_shuffle_period=256,
+        cuboid_only=False,
     ):
         self.editor = editor
         self.headless = headless
@@ -257,6 +258,7 @@ class BevyZeroverseDataset(Dataset):
         self.render_modes = render_modes
         self.rotation_augmentation = rotation_augmentation
         self.regenerate_scene_material_shuffle_period = regenerate_scene_material_shuffle_period
+        self.cuboid_only = cuboid_only
 
     def initialize(self):
         config = bevy_zeroverse_ffi.BevyZeroverseConfig()
@@ -275,6 +277,7 @@ class BevyZeroverseDataset(Dataset):
         config.render_modes = [BevyZeroverseDataset.render_mode_map[mode] for mode in self.render_modes]
         config.render_mode = config.render_modes[0]
         config.rotation_augmentation = self.rotation_augmentation
+        config.cuboid_only = self.cuboid_only
         bevy_zeroverse_ffi.initialize(
             config,
             self.root_asset_folder,
