@@ -15,6 +15,7 @@ use bevy::{
     },
 };
 use rand::seq::SliceRandom;
+use rand::Rng;
 
 use crate::{
     camera::{
@@ -257,15 +258,35 @@ fn setup_scene(
     ));
 
     for _ in 0..scene_settings.num_cameras {
-        commands.spawn(ZeroverseCamera {
-            trajectory: TrajectorySampler::Static {
-                start: ExtrinsicsSampler {
-                    position: ExtrinsicsSamplerType::Sphere {
-                        radius: 3.5,
-                        translate: Vec3::new(0.0, 0.0, 0.0),
-                    },
-                    ..default()
+        let mut rng = rand::thread_rng();
+
+        let radius = rng.gen_range(2.4..3.2);
+        let base_angle = rng.gen_range(0.0..std::f32::consts::TAU);
+        let base_height = rng.gen_range(0.6..1.1);
+        let angle_step = std::f32::consts::TAU / 4.0;
+
+        let mut control_points = Vec::with_capacity(4);
+        for i in 0..4 {
+            let angle = base_angle + angle_step * i as f32;
+            let wobble = rng.gen_range(-0.2..0.2);
+            let translate = Vec3::new(
+                angle.cos() * radius,
+                base_height + wobble,
+                angle.sin() * radius,
+            );
+
+            control_points.push(ExtrinsicsSampler {
+                position: ExtrinsicsSamplerType::Sphere {
+                    radius: 0.2,
+                    translate,
                 },
+                ..default()
+            });
+        }
+
+        commands.spawn(ZeroverseCamera {
+            trajectory: TrajectorySampler::CubicBSpline {
+                control_points,
             },
             perspective_sampler: PerspectiveSampler {
                 min_fov_deg: 40.0,
