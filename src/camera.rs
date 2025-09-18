@@ -725,12 +725,13 @@ impl TrajectorySampler {
         &mut self,
         gizmos: &mut Gizmos<EditorCameraGizmoConfigGroup>,
         transform: Transform,
+        color: Color,
     ) {
         match self {
             TrajectorySampler::Linear { start, end } => {
                 let start = transform.transform_point(start.sample_cache().translation);
                 let end = transform.transform_point(end.sample_cache().translation);
-                gizmos.line(start, end, Color::WHITE);
+                gizmos.line(start, end, color);
             },
             TrajectorySampler::Avoidant { start, end, bend_away_from, radius } => {
                 let start_transform = start.sample_cache();
@@ -765,7 +766,7 @@ impl TrajectorySampler {
                         + 2.0 * (1.0 - t) * t * control_point
                         + t.powi(2) * end_transform.translation;
                     let transformed_point = transform.transform_point(point);
-                    gizmos.line(prev_point, transformed_point, Color::WHITE);
+                    gizmos.line(prev_point, transformed_point, color);
                     prev_point = transformed_point;
                 }
             },
@@ -802,7 +803,7 @@ impl TrajectorySampler {
                         + 2.0 * (1.0 - t) * t * control_point
                         + t.powi(2) * end_transform.translation;
                     let transformed_point = transform.transform_point(point);
-                    gizmos.line(prev_point, transformed_point, Color::WHITE);
+                    gizmos.line(prev_point, transformed_point, color);
                     prev_point = transformed_point;
                 }
             },
@@ -827,7 +828,7 @@ impl TrajectorySampler {
                     for transform_entry in &transforms {
                         let point = transform.transform_point(transform_entry.translation);
                         if let Some(prev_point) = prev {
-                            gizmos.line(prev_point, point, Color::WHITE);
+                            gizmos.line(prev_point, point, color);
                         }
                         prev = Some(point);
                     }
@@ -847,7 +848,7 @@ impl TrajectorySampler {
                     for position in curve.iter_positions(subdivisions) {
                         let point = transform.transform_point(position);
                         if let Some(prev_point) = prev {
-                            gizmos.line(prev_point, point, Color::WHITE);
+                            gizmos.line(prev_point, point, color);
                         }
                         prev = Some(point);
                     }
@@ -1248,7 +1249,19 @@ pub fn draw_camera_gizmo(
         return;
     }
 
-    let color = Color::srgb(1.0, 0.0, 1.0);
+    let color = Color::srgba(
+        1.0,
+        0.0,
+        1.0,
+        args.gizmos_alpha.clamp(0.0, 1.0),
+    );
+
+    let trajectory_color = Color::srgba(
+        1.0,
+        1.0,
+        1.0,
+        args.gizmos_alpha.clamp(0.0, 1.0),
+    );
 
     let scene_transform = match scene.single() {
         Ok(scene_transform) => scene_transform.compute_transform(),
@@ -1309,6 +1322,10 @@ pub fn draw_camera_gizmo(
             color,
         );
 
-        zeroverse_camera.trajectory.draw_gizmos(&mut gizmos, scene_transform);
+        zeroverse_camera.trajectory.draw_gizmos(
+            &mut gizmos,
+            scene_transform,
+            trajectory_color,
+        );
     }
 }

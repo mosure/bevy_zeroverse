@@ -106,6 +106,11 @@ pub struct BevyZeroverseConfig {
     #[arg(long, action = clap::ArgAction::Set, default_value = "true")]
     pub gizmos: bool,
 
+    /// alpha value for gizmos
+    #[pyo3(get, set)]
+    #[arg(long, default_value = "1.0")]
+    pub gizmos_alpha: f32,
+
     /// no window will be shown
     #[pyo3(get, set)]
     #[arg(long, default_value = "false")]
@@ -281,6 +286,10 @@ pub struct BevyZeroverseConfig {
     #[arg(long, action = clap::ArgAction::Set, default_value = "true")]
     pub gizmos: bool,
 
+    /// alpha value for gizmos
+    #[arg(long, default_value = "1.0")]
+    pub gizmos_alpha: f32,
+
     /// no window will be shown
     #[arg(long, default_value = "false")]
     pub headless: bool,
@@ -392,6 +401,7 @@ impl Default for BevyZeroverseConfig {
         BevyZeroverseConfig {
             editor: true,
             gizmos: true,
+            gizmos_alpha: 1.0,
             headless: false,
             image_copiers: false,
             material_grid: false,

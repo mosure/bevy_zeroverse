@@ -220,8 +220,14 @@ fn draw_scene_aabb(
         return;
     }
 
+    let color = Color::srgba(
+        0.0,
+        1.0,
+        1.0,
+        args.gizmos_alpha,
+    );
+
     for aabb in &scene_instances {
-        let color = Color::srgb(0.0, 1.0, 1.0);
         gizmos.cuboid(Transform::from(aabb), color);
     }
 }
