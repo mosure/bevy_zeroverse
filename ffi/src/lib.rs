@@ -507,7 +507,7 @@ pub fn next(
         let sample_receiver = SAMPLE_RECEIVER.get().unwrap();
         let sample_receiver = sample_receiver.lock().unwrap();
 
-        let timeout = Duration::from_secs(120);
+        let timeout = Duration::from_secs(300);
 
         match sample_receiver.recv_timeout(timeout) {
             Ok(sample) => Ok(sample),
