@@ -1,3 +1,5 @@
+#![allow(dead_code)] // ShaderType derives emit unused check helpers
+
 use bevy::{
     prelude::*,
     asset::{
