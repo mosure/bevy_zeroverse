@@ -71,6 +71,7 @@ use crate::{
     },
     scene::{
         room::ZeroverseRoomSettings,
+        semantic_room::ZeroverseSemanticRoomSettings,
         RegenerateSceneEvent,
         SceneLoadedEvent,
         ZeroverseSceneRoot,
@@ -235,6 +236,11 @@ pub struct BevyZeroverseConfig {
     #[pyo3(get, set)]
     #[arg(long, action = clap::ArgAction::Set, default_value = "true")]
     pub z_depth: bool,
+
+    /// semantic_room no interior objects
+    #[pyo3(get, set)]
+    #[arg(long, default_value = "false")]
+    pub cuboid_only: bool,
 }
 
 #[cfg(feature = "python")]
@@ -375,6 +381,10 @@ pub struct BevyZeroverseConfig {
     /// use z-depth instead of ray depth
     #[arg(long, action = clap::ArgAction::Set, default_value = "true")]
     pub z_depth: bool,
+
+    /// semantic_room no interior objects
+    #[arg(long, default_value = "false")]
+    pub cuboid_only: bool,
 }
 
 impl Default for BevyZeroverseConfig {
@@ -412,6 +422,7 @@ impl Default for BevyZeroverseConfig {
             zoom_smoothness: 0.8,
             depth_format: DepthFormat::Normalized,
             z_depth: true,
+            cuboid_only: false,
         }
     }
 }
@@ -842,6 +853,7 @@ fn propagate_cli_settings(
     mut playback: ResMut<Playback>,
     mut render_mode: ResMut<RenderMode>,
     mut scene_settings: ResMut<ZeroverseSceneSettings>,
+    mut semantic_room_settings: ResMut<ZeroverseSemanticRoomSettings>,
 ) {
     if args.is_changed() {
         // plucker_settings.enabled = args.plucker_visualization;
@@ -855,6 +867,8 @@ fn propagate_cli_settings(
         scene_settings.rotation_augmentation = args.rotation_augmentation;
         scene_settings.scene_type = args.scene_type.clone();
         scene_settings.max_camera_radius = args.max_camera_radius;
+
+        semantic_room_settings.cuboid_only = args.cuboid_only;
     }
 }
 

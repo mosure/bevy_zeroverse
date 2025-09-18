@@ -10,6 +10,7 @@ use bevy::{
         GizmoConfigGroup,
     },
     math::{
+        cubic_splines::CubicBSpline,
         primitives::{
             Circle,
             Sphere,
@@ -349,6 +350,12 @@ pub enum PlaybackMode {
     Once,
     PingPong,
     Sin,
+    EaseIn,
+    EaseOut,
+    EaseInOut,
+    EaseInCubic,
+    EaseOutCubic,
+    EaseInOutCubic,
     #[default]
     Still,
 }
@@ -373,9 +380,47 @@ pub enum PlaybackMode {
     Once,
     PingPong,
     Sin,
+    EaseIn,
+    EaseOut,
+    EaseInOut,
+    EaseInCubic,
+    EaseOutCubic,
+    EaseInOutCubic,
     #[default]
     Still,
 }
+
+impl PlaybackMode {
+    pub fn map_progress(&self, progress: f32) -> f32 {
+        let t = progress.clamp(0.0, 1.0);
+
+        match *self {
+            PlaybackMode::EaseIn => t * t,
+            PlaybackMode::EaseOut => {
+                let inv = 1.0 - t;
+                1.0 - inv * inv
+            },
+            PlaybackMode::EaseInOut => {
+                0.5 - 0.5 * (std::f32::consts::PI * t).cos()
+            },
+            PlaybackMode::EaseInCubic => t * t * t,
+            PlaybackMode::EaseOutCubic => {
+                let inv = 1.0 - t;
+                1.0 - inv * inv * inv
+            },
+            PlaybackMode::EaseInOutCubic => {
+                if t < 0.5 {
+                    4.0 * t * t * t
+                } else {
+                    let f = -2.0 * t + 2.0;
+                    1.0 - (f * f * f) / 2.0
+                }
+            },
+            _ => t,
+        }
+    }
+}
+
 
 #[cfg(feature = "python")]
 #[derive(
@@ -437,7 +482,7 @@ impl Playback {
 
         // bail condition
         match self.mode {
-            PlaybackMode::Loop => {}
+            PlaybackMode::Loop | PlaybackMode::EaseIn | PlaybackMode::EaseOut | PlaybackMode::EaseInOut | PlaybackMode::EaseInCubic | PlaybackMode::EaseOutCubic | PlaybackMode::EaseInOutCubic => {}
             PlaybackMode::Once => {
                 if self.progress >= 1.0 {
                     return;
@@ -452,7 +497,7 @@ impl Playback {
 
         // forward condition
         match self.mode {
-            PlaybackMode::Loop | PlaybackMode::Once | PlaybackMode::PingPong => {
+            PlaybackMode::Loop | PlaybackMode::Once | PlaybackMode::PingPong | PlaybackMode::EaseIn | PlaybackMode::EaseOut | PlaybackMode::EaseInOut | PlaybackMode::EaseInCubic | PlaybackMode::EaseOutCubic | PlaybackMode::EaseInOutCubic => {
                 self.progress += time.delta_secs() * self.direction * self.speed;
             }
             PlaybackMode::Sin => {
@@ -465,7 +510,7 @@ impl Playback {
 
         // reset condition
         match self.mode {
-            PlaybackMode::Loop => {
+            PlaybackMode::Loop | PlaybackMode::EaseIn | PlaybackMode::EaseOut | PlaybackMode::EaseInOut | PlaybackMode::EaseInCubic | PlaybackMode::EaseOutCubic | PlaybackMode::EaseInOutCubic => {
                 if self.progress > 1.0 {
                     self.progress = 0.0;
                 }
@@ -508,6 +553,9 @@ pub enum TrajectorySampler {
         end: ExtrinsicsSampler,
         bend_away_from: Vec3,
         radius: f32,
+    },
+    CubicBSpline {
+        control_points: Vec<ExtrinsicsSampler>,
     },
     // TODO: formal curve support /w composition
     // TODO: support varying intrinsics across trajectory
@@ -603,6 +651,73 @@ impl TrajectorySampler {
 
                 Transform::from_translation(pos).mul_transform(Transform::from_rotation(rot))
             },
+            TrajectorySampler::CubicBSpline { control_points } => {
+                if control_points.is_empty() {
+                    return Transform::default();
+                }
+
+                let mut transforms = Vec::with_capacity(control_points.len());
+                for sampler in control_points.iter_mut() {
+                    transforms.push(sampler.sample_cache());
+                }
+
+                let fallback = transforms.first().cloned().unwrap_or_default();
+                if transforms.len() < 4 {
+                    return fallback;
+                }
+
+                let mut translations = Vec::with_capacity(transforms.len());
+                for transform in &transforms {
+                    translations.push(transform.translation);
+                }
+                let translation_curve = match CubicBSpline::new(translations).to_curve() {
+                    Ok(curve) => curve,
+                    Err(_) => return fallback,
+                };
+
+                let mut quaternion_points = Vec::with_capacity(transforms.len());
+                let mut previous = None;
+                for transform in &transforms {
+                    let quat = transform.rotation.normalize();
+                    let mut vec = Vec4::new(quat.x, quat.y, quat.z, quat.w);
+                    if let Some(prev_vec) = previous {
+                        if vec.dot(prev_vec) < 0.0 {
+                            vec = -vec;
+                        }
+                    }
+                    previous = Some(vec);
+                    quaternion_points.push(vec);
+                }
+
+                let t = progress.clamp(0.0, 1.0);
+                let segment_count = translation_curve.segments().len().max(1) as f32;
+                let curve_t = t * segment_count;
+                let translation = translation_curve.position(curve_t);
+
+                let rotation_curve = match CubicBSpline::new(quaternion_points).to_curve() {
+                    Ok(curve) => curve,
+                    Err(_) => {
+                        let mut output = fallback;
+                        output.translation = translation;
+                        return output;
+                    },
+                };
+
+                let mut quat_vec = rotation_curve.position(curve_t);
+                if quat_vec.length_squared() == 0.0 {
+                    quat_vec = Vec4::new(0.0, 0.0, 0.0, 1.0);
+                } else {
+                    quat_vec = quat_vec.normalize();
+                }
+
+                let rotation = Quat::from_xyzw(quat_vec.x, quat_vec.y, quat_vec.z, quat_vec.w).normalize();
+
+                let mut output = fallback;
+                output.translation = translation;
+                output.rotation = rotation;
+                output
+            },
+
         }
     }
 
@@ -691,6 +806,53 @@ impl TrajectorySampler {
                     prev_point = transformed_point;
                 }
             },
+            TrajectorySampler::CubicBSpline { control_points } => {
+                if control_points.is_empty() {
+                    return;
+                }
+
+                let mut transforms = Vec::with_capacity(control_points.len());
+                for sampler in control_points.iter_mut() {
+                    transforms.push(sampler.sample_cache());
+                }
+
+                let control_color = Color::srgb(1.0, 1.0, 0.0);
+                for transform_entry in &transforms {
+                    let point = transform.transform_point(transform_entry.translation);
+                    gizmos.sphere(point, 0.05, control_color);
+                }
+
+                if transforms.len() < 4 {
+                    let mut prev = None;
+                    for transform_entry in &transforms {
+                        let point = transform.transform_point(transform_entry.translation);
+                        if let Some(prev_point) = prev {
+                            gizmos.line(prev_point, point, Color::WHITE);
+                        }
+                        prev = Some(point);
+                    }
+                    return;
+                }
+
+                let mut translations = Vec::with_capacity(transforms.len());
+                for transform_entry in &transforms {
+                    translations.push(transform_entry.translation);
+                }
+
+                if let Ok(curve) = CubicBSpline::new(translations).to_curve() {
+                    let segments = curve.segments().len();
+                    let subdivisions = (segments * 16).max(16);
+
+                    let mut prev = None;
+                    for position in curve.iter_positions(subdivisions) {
+                        let point = transform.transform_point(position);
+                        if let Some(prev_point) = prev {
+                            gizmos.line(prev_point, point, Color::WHITE);
+                        }
+                        prev = Some(point);
+                    }
+                }
+            },
             _ => {},
         }
     }
@@ -745,7 +907,8 @@ fn update_camera_trajectory(
         }
 
         let playback = camera.playback;
-        *transform = camera.trajectory.sample(playback.progress);
+        let progress = playback.mode.map_progress(playback.progress);
+        *transform = camera.trajectory.sample(progress);
     }
 }
 
