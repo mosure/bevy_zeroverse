@@ -128,6 +128,27 @@ def parse_args() -> argparse.Namespace:
         help="GPU polling interval in seconds when monitoring VRAM/utilisation.",
     )
     parser.add_argument(
+        "--dataloader-prefetch",
+        type=int,
+        default=2,
+        help="Prefetch factor for DataLoader workers (ignored when workers=0).",
+    )
+    parser.add_argument(
+        "--pin-memory",
+        action="store_true",
+        help="Enable pinned host memory for DataLoader batches.",
+    )
+    parser.add_argument(
+        "--no-persistent-workers",
+        action="store_true",
+        help="Disable persistent worker processes for the DataLoader.",
+    )
+    parser.add_argument(
+        "--memory-cleanup",
+        action="store_true",
+        help="Force garbage collection after each chunk save (reduces peak RSS at the cost of throughput).",
+    )
+    parser.add_argument(
         "--json",
         type=Path,
         default=None,
@@ -285,6 +306,10 @@ def run_generation(
         samples_per_chunk=(args.samples_per_chunk or None),
         n_workers=workers,
         full_size_only=False,
+        prefetch_factor=args.dataloader_prefetch,
+        pin_memory=args.pin_memory,
+        persistent_workers=not args.no_persistent_workers,
+        memory_cleanup=args.memory_cleanup,
     )
     duration = max(time.perf_counter() - start, sys.float_info.epsilon)
 

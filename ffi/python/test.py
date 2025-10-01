@@ -1,5 +1,20 @@
 from pathlib import Path
 import shutil
+import time
+
+import matplotlib.pyplot as plt
+import torch
+from torch.utils.data import DataLoader
+import unittest
+
+try:
+    import psutil
+except ImportError:  # pragma: no cover - optional dependency
+    psutil = None
+
+from bevy_zeroverse_dataloader import BevyZeroverseDataset, \
+    ChunkedIteratorDataset, FolderDataset, MP4Dataset, \
+    chunk_and_save, load_chunk, save_to_folders, save_to_mp4, write_sample
 
 import matplotlib.pyplot as plt
 import torch
@@ -227,6 +242,51 @@ class TestChunkedDataset(unittest.TestCase):
                 "neighbouring sample was unintentionally modified",
             )
 
+
+
+class TestMemoryUsage(unittest.TestCase):
+    def test_chunk_generation_memory_stability(self):
+        if psutil is None:
+            self.skipTest("psutil is required for memory checks")
+
+        proc = psutil.Process()
+        baseline = proc.memory_info().rss
+
+        root = Path("./data/zeroverse/memory_test")
+        if root.exists():
+            shutil.rmtree(root)
+        root.mkdir(parents=True, exist_ok=True)
+
+        runs = 3
+        for idx in range(runs):
+            run_dir = root / f"run_{idx}"
+            dataset = BevyZeroverseDataset(
+                editor=False,
+                headless=True,
+                num_cameras=2,
+                width=640,
+                height=480,
+                num_samples=6,
+                scene_type='room',
+            )
+            chunk_and_save(
+                dataset,
+                run_dir,
+                bytes_per_chunk=64 * 1024 * 1024,
+                samples_per_chunk=3,
+                n_workers=0,
+                full_size_only=False,
+                memory_cleanup=True,
+            )
+            time.sleep(0.1)
+
+        final = proc.memory_info().rss
+        max_allowed = 512 * 1024 * 1024
+        self.assertLess(
+            final - baseline,
+            max_allowed,
+            f"RSS increased by {(final - baseline) / 1e6:.2f} MB which exceeds the allowed threshold",
+        )
 
 def main():
     unittest.main()

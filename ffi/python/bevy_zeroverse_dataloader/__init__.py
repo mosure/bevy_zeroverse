@@ -350,6 +350,10 @@ def chunk_and_save(
     jpg_quality: int = 75,
     compression: Optional[Literal["lz4", "zstd"]] = "lz4",
     full_size_only: bool = True,
+    prefetch_factor: int = 2,
+    pin_memory: bool = False,
+    persistent_workers: bool = True,
+    memory_cleanup: bool = False,
 ):
     """Save samples to chunk files, optionally batching by size or sample count."""
 
@@ -375,12 +379,16 @@ def chunk_and_save(
     if samples_per_chunk is not None and samples_per_chunk > 0:
         total_chunks = max(1, len(dataset) // samples_per_chunk)
 
+    def estimate_chunk_bytes(chunk_samples: list[dict[str, torch.Tensor]]) -> int:
+        return sum(t.numel() * t.element_size() for sample in chunk_samples for t in sample.values())
+
     def save_chunk_sync(
         chunk_samples: list[dict[str, torch.Tensor]],
         chunk_idx: int,
     ) -> Path:
         key = f"{chunk_idx:0>6}"
-        print(f"saving chunk {key} of {total_chunks} ({sum(t.numel() * t.element_size() for sample in chunk_samples for t in sample.values()) / 1e6:.2f} MB).")
+        estimate_mb = estimate_chunk_bytes(chunk_samples) / 1e6
+        print(f"saving chunk {key} of {total_chunks} ({estimate_mb:.2f} MB).")
         base_name = f"{key}.safetensors"
 
         batch: dict[str, Any] = {}
@@ -415,20 +423,25 @@ def chunk_and_save(
             final_path = output_dir / (base_name + ext)
             final_path.write_bytes(encoded)
 
-        torch.cuda.empty_cache()
-        gc.collect()
+        if memory_cleanup:
+            torch.cuda.empty_cache()
+            gc.collect()
         return final_path
 
-    max_save_workers = max(1, (os.cpu_count() or 4) // 2)
+    max_save_workers = min(max(1, (os.cpu_count() or 4) // 2), 8)
     pending: list[Any] = []
 
     dl_bs = samples_per_chunk if samples_per_chunk else 1
-    dataloader = DataLoader(
-        dataset,
+    dataloader_kwargs = dict(
         batch_size=dl_bs,
         num_workers=n_workers,
         shuffle=False,
+        pin_memory=pin_memory,
     )
+    if n_workers > 0:
+        dataloader_kwargs["prefetch_factor"] = max(1, prefetch_factor)
+        dataloader_kwargs["persistent_workers"] = persistent_workers
+    dataloader = DataLoader(dataset, **dataloader_kwargs)
     pbar = tqdm(total=len(dataset), unit="sample", desc="processing", smoothing=0.99)
 
     with ThreadPoolExecutor(max_workers=max_save_workers) as executor:
@@ -441,13 +454,10 @@ def chunk_and_save(
                 chunk.append(sample)
                 chunk_size += sample_size
 
-                should_flush = False
-                if samples_per_chunk and len(chunk) >= samples_per_chunk:
-                    should_flush = True
-                elif not samples_per_chunk and chunk_size >= bytes_per_chunk:
-                    should_flush = True
+                flush_by_samples = samples_per_chunk and len(chunk) >= samples_per_chunk
+                flush_by_bytes = not samples_per_chunk and chunk_size >= bytes_per_chunk
 
-                if should_flush:
+                if flush_by_samples or flush_by_bytes:
                     chunk_copy = chunk
                     current_index = chunk_index
                     future = executor.submit(save_chunk_sync, chunk_copy, current_index)
@@ -471,6 +481,7 @@ def chunk_and_save(
             chunk_file_paths.append(final_path)
 
     return chunk_file_paths
+
 
 def crop(tensor, shape, channels_last=True):
     if channels_last:
@@ -992,3 +1003,6 @@ class MP4Dataset(Dataset):
             meta_tensors[plane] = torch.stack(plane_tensors, dim=1)  # [T, V, C, H, W]
 
         return meta_tensors
+
+
+
