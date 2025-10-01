@@ -1,17 +1,8 @@
 use std::{
     sync::{
-        Arc,
-        Mutex,
-        atomic::{
-            AtomicBool,
-            Ordering,
-        },
-        mpsc::{
-            self,
-            Sender,
-            Receiver,
-            RecvTimeoutError,
-        },
+        atomic::{AtomicBool, Ordering},
+        mpsc::{self, Receiver, RecvTimeoutError, Sender},
+        Arc, Mutex,
     },
     thread,
     time::Duration,
@@ -20,33 +11,18 @@ use std::{
 use bevy::prelude::*;
 use once_cell::sync::OnceCell;
 use pyo3::{
+    exceptions::{PyRuntimeError, PyTimeoutError},
     prelude::*,
-    exceptions::PyTimeoutError,
-    types::{
-        PyBytes,
-        PyList,
-    },
+    types::{PyBytes, PyList},
 };
 
 use ::bevy_zeroverse::{
-    app::{
-        viewer_app,
-        BevyZeroverseConfig,
-    },
-    camera::{
-        Playback,
-        PlaybackMode,
-    },
+    app::{viewer_app, BevyZeroverseConfig},
+    camera::{Playback, PlaybackMode},
     io::image_copy::ImageCopier,
     render::RenderMode,
-    scene::{
-        RegenerateSceneEvent,
-        SceneAabb,
-        ZeroverseSceneRoot,
-        ZeroverseSceneType,
-    },
+    scene::{RegenerateSceneEvent, SceneAabb, ZeroverseSceneRoot, ZeroverseSceneType},
 };
-
 
 // TODO: move to src/sample.rs (or src/dataloader.rs) to support torch (python) and burn dataloaders
 
@@ -133,6 +109,12 @@ impl Sample {
         PyList::new(py, views_list).unwrap()
     }
 
+    fn take_views<'py>(&mut self, py: Python<'py>) -> PyResult<Bound<'py, PyList>> {
+        let views = std::mem::take(&mut self.views);
+        let py_views: Vec<_> = views.into_iter().map(|view| view.into_py(py)).collect();
+        PyList::new(py, py_views)
+    }
+
     fn __str__(&self) -> PyResult<String> {
         Ok(format!("{self:?}"))
     }
@@ -141,7 +123,6 @@ impl Sample {
         Ok(format!("{self:?}"))
     }
 }
-
 
 #[derive(Debug, Resource, Reflect)]
 #[reflect(Resource)]
@@ -184,9 +165,7 @@ impl SamplerState {
             enabled: true,
             regenerate_scene: false,
             frames: 1,
-            render_modes: vec![
-                RenderMode::Color,
-            ],
+            render_modes: vec![RenderMode::Color],
             step: 0,
             timesteps: vec![0.125],
             warmup_frames: 0,
@@ -198,13 +177,13 @@ impl SamplerState {
     }
 }
 
-
 pub static APP_FRAME_RECEIVER: OnceCell<Arc<Mutex<Receiver<()>>>> = OnceCell::new();
 pub static APP_FRAME_SENDER: OnceCell<Sender<()>> = OnceCell::new();
 
 pub static SAMPLE_RECEIVER: OnceCell<Arc<Mutex<Receiver<Sample>>>> = OnceCell::new();
 pub static SAMPLE_SENDER: OnceCell<Sender<Sample>> = OnceCell::new();
 
+static INITIALIZED: AtomicBool = AtomicBool::new(false);
 
 fn signaled_runner(mut app: App) -> AppExit {
     app.finish();
@@ -258,7 +237,6 @@ fn signaled_runner(mut app: App) -> AppExit {
     }
 }
 
-
 pub fn create_app(
     app: Option<App>,
     override_args: Option<BevyZeroverseConfig>,
@@ -285,11 +263,7 @@ pub fn create_app(
     app
 }
 
-
-pub fn setup_and_run_app(
-    new_thread: bool,
-    override_args: Option<BevyZeroverseConfig>,
-) {
+pub fn setup_and_run_app(new_thread: bool, override_args: Option<BevyZeroverseConfig>) {
     let ready = Arc::new(AtomicBool::new(false));
 
     let startup = {
@@ -313,17 +287,12 @@ pub fn setup_and_run_app(
     }
 }
 
-
 #[allow(clippy::too_many_arguments)]
 fn sample_stream(
     args: Res<BevyZeroverseConfig>,
     mut buffered_sample: ResMut<Sample>,
     mut state: ResMut<SamplerState>,
-    cameras: Query<(
-        &GlobalTransform,
-        &Projection,
-        &ImageCopier,
-    )>,
+    cameras: Query<(&GlobalTransform, &Projection, &ImageCopier)>,
     scene: Query<(&ZeroverseSceneRoot, &SceneAabb)>,
     images: Res<Assets<Image>>,
     mut render_mode: ResMut<RenderMode>,
@@ -359,21 +328,11 @@ fn sample_stream(
     }
 
     let scene_aabb = scene.single().unwrap().1;
-    buffered_sample.aabb = [
-        scene_aabb.min.into(),
-        scene_aabb.max.into(),
-    ];
+    buffered_sample.aabb = [scene_aabb.min.into(), scene_aabb.max.into()];
 
     let write_to = state.render_modes.remove(0);
 
-    for (
-        i,
-        (
-            camera_transform,
-            projection,
-            image_copier
-        )
-    ) in cameras.iter().enumerate() {
+    for (i, (camera_transform, projection, image_copier)) in cameras.iter().enumerate() {
         let view_idx = i + camera_count * state.step as usize;
         let view = &mut buffered_sample.views[view_idx];
 
@@ -445,10 +404,7 @@ fn sample_stream(
     state.enabled = false;
 }
 
-
-pub fn setup_globals(
-    asset_root: Option<String>,
-) {
+pub fn setup_globals(asset_root: Option<String>) {
     if APP_FRAME_RECEIVER.get().is_some() {
         return;
     }
@@ -459,23 +415,20 @@ pub fn setup_globals(
         std::env::set_var("BEVY_ASSET_ROOT", std::env::current_dir().unwrap());
     }
 
-    let (
-        app_sender,
-        app_receiver,
-    ) = mpsc::channel();
+    let (app_sender, app_receiver) = mpsc::channel();
 
-    APP_FRAME_RECEIVER.set(Arc::new(Mutex::new(app_receiver))).unwrap();
+    APP_FRAME_RECEIVER
+        .set(Arc::new(Mutex::new(app_receiver)))
+        .unwrap();
     APP_FRAME_SENDER.set(app_sender).unwrap();
 
-    let (
-        sample_sender,
-        sample_receiver,
-    ) = mpsc::channel();
+    let (sample_sender, sample_receiver) = mpsc::channel();
 
-    SAMPLE_RECEIVER.set(Arc::new(Mutex::new(sample_receiver))).unwrap();
+    SAMPLE_RECEIVER
+        .set(Arc::new(Mutex::new(sample_receiver)))
+        .unwrap();
     SAMPLE_SENDER.set(sample_sender).unwrap();
 }
-
 
 // TODO: add process idx, disable logging on worker idx > 0
 #[pyfunction]
@@ -485,6 +438,14 @@ pub fn initialize(
     override_args: Option<BevyZeroverseConfig>,
     asset_root: Option<String>,
 ) {
+    if INITIALIZED
+        .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+        .is_err()
+    {
+        warn!("bevy_zeroverse_ffi.initialize called more than once; ignoring duplicate request");
+        return;
+    }
+
     setup_globals(asset_root);
 
     py.allow_threads(|| {
@@ -492,20 +453,26 @@ pub fn initialize(
     });
 }
 
-
 // TODO: add options to bevy_zeroverse.next (e.g. render_mode, scene parameters, etc.)
 #[pyfunction]
-pub fn next(
-    py: Python<'_>,
-) -> PyResult<Sample> {
+pub fn next(py: Python<'_>) -> PyResult<Sample> {
     {
-        let app_frame_sender = APP_FRAME_SENDER.get().unwrap();
-        app_frame_sender.send(()).unwrap();
+        let app_frame_sender = APP_FRAME_SENDER.get().ok_or_else(|| {
+            PyRuntimeError::new_err("bevy_zeroverse_ffi not initialized; call initialize() first")
+        })?;
+
+        app_frame_sender
+            .send(())
+            .map_err(|_| PyRuntimeError::new_err("failed to request next frame from app"))?;
     }
 
     py.allow_threads(|| {
-        let sample_receiver = SAMPLE_RECEIVER.get().unwrap();
-        let sample_receiver = sample_receiver.lock().unwrap();
+        let sample_receiver = SAMPLE_RECEIVER.get().ok_or_else(|| {
+            PyRuntimeError::new_err("bevy_zeroverse_ffi not initialized; call initialize() first")
+        })?;
+        let sample_receiver = sample_receiver
+            .lock()
+            .map_err(|_| PyRuntimeError::new_err("sample receiver lock poisoned"))?;
 
         let timeout = Duration::from_secs(300);
 
@@ -515,12 +482,11 @@ pub fn next(
                 Err(PyTimeoutError::new_err("receive operation timed out"))
             }
             Err(RecvTimeoutError::Disconnected) => {
-                Err(PyTimeoutError::new_err("channel disconnected"))
+                Err(PyRuntimeError::new_err("channel disconnected"))
             }
         }
     })
 }
-
 
 #[pymodule]
 pub fn bevy_zeroverse_ffi(m: &Bound<'_, PyModule>) -> PyResult<()> {

@@ -1,47 +1,22 @@
-use std::{
-    borrow::Cow,
-    path::Path,
-    sync::mpsc::RecvTimeoutError,
-    time::Duration,
-};
+use std::{borrow::Cow, path::Path, sync::mpsc::RecvTimeoutError, time::Duration};
 
 use bevy::prelude::*;
-use bevy_args::{
-    parse_args,
-    Deserialize,
-    Parser,
-    Serialize,
-};
-use bevy_zeroverse::{
-    app::BevyZeroverseConfig,
-    scene::ZeroverseSceneType,
-};
-use bevy_zeroverse_ffi::{
-    create_app,
-    setup_globals,
-    SAMPLE_RECEIVER,
-    APP_FRAME_SENDER,
-    Sample,
-};
+use bevy_args::{parse_args, Deserialize, Parser, Serialize};
+use bevy_zeroverse::{app::BevyZeroverseConfig, scene::ZeroverseSceneType};
+use bevy_zeroverse_ffi::{create_app, setup_globals, Sample, APP_FRAME_SENDER, SAMPLE_RECEIVER};
 use bytemuck::cast_slice;
-use ndarray::{Array5, Array4, Array3, Array2, Array1, ArrayBase, OwnedRepr, Axis, Dimension, s};
-use safetensors::{
-    serialize_to_file,
-    View,
-    Dtype,
-};
-
-
+use ndarray::{s, Array1, Array2, Array3, Array4, Array5, ArrayBase, Axis, Dimension, OwnedRepr};
+use safetensors::{serialize_to_file, Dtype, View};
 
 pub struct StackedViews {
-    pub color: Array5<f32>,             // Shape: (batch_size, num_views, height, width, channels)
-    pub depth: Array5<f32>,             // Shape: (batch_size, num_views, height, width, channels)
+    pub color: Array5<f32>, // Shape: (batch_size, num_views, height, width, channels)
+    pub depth: Array5<f32>, // Shape: (batch_size, num_views, height, width, channels)
     // pub normal: Array5<f32>,            // Shape: (batch_size, num_views, height, width, channels)
-    pub world_from_view: Array4<f32>,   // Shape: (batch_size, num_views, 4, 4)
-    pub fovy: Array3<f32>,              // Shape: (batch_size, num_views, 1)
-    pub near: Array3<f32>,              // Shape: (batch_size, num_views, 1)
-    pub far: Array3<f32>,               // Shape: (batch_size, num_views, 1)
-    pub aabb: Array3<f32>,              // Shape: (batch_size, 2, 3) - min and max
+    pub world_from_view: Array4<f32>, // Shape: (batch_size, num_views, 4, 4)
+    pub fovy: Array3<f32>,            // Shape: (batch_size, num_views, 1)
+    pub near: Array3<f32>,            // Shape: (batch_size, num_views, 1)
+    pub far: Array3<f32>,             // Shape: (batch_size, num_views, 1)
+    pub aabb: Array3<f32>,            // Shape: (batch_size, 2, 3) - min and max
 }
 
 struct Wrapper<A, D>(ArrayBase<OwnedRepr<A>, D>);
@@ -71,10 +46,7 @@ impl<D: Dimension> View for Wrapper<f32, D> {
     }
 }
 
-fn stack_samples(
-    samples: Vec<Sample>,
-    zeroverse_config: &BevyZeroverseConfig,
-) -> StackedViews {
+fn stack_samples(samples: &[Sample], zeroverse_config: &BevyZeroverseConfig) -> StackedViews {
     let _batch_size = samples.len();
     let _num_views = samples.first().map_or(0, |sample| sample.views.len());
     let height = zeroverse_config.height as usize;
@@ -98,23 +70,30 @@ fn stack_samples(
         let mut near_views = Vec::new();
         let mut far_views = Vec::new();
 
-        for view in sample.views {
-            let color_f32: &[f32] = cast_slice(&view.color);
-            let depth_f32: &[f32] = cast_slice(&view.depth);
-            // let normal_f32: &[f32] = cast_slice(&view.normal);
+        for view in &sample.views {
+            let color_f32: &[f32] = cast_slice(view.color.as_slice());
+            let depth_f32: &[f32] = cast_slice(view.depth.as_slice());
+            // let normal_f32: &[f32] = cast_slice(view.normal.as_slice());
 
             let color = Array3::from_shape_vec((height, width, 4), color_f32.to_vec()).unwrap();
             let depth = Array3::from_shape_vec((height, width, 4), depth_f32.to_vec()).unwrap();
             // let normal = Array3::from_shape_vec((height, width, 4), normal_f32.to_vec()).unwrap();
 
-            let world_from_view = Array2::from_shape_vec((4, 4), view.world_from_view.concat()).unwrap();
+            let world_from_view = Array2::from_shape_vec(
+                (4, 4),
+                view.world_from_view
+                    .iter()
+                    .flat_map(|row| row.iter().copied())
+                    .collect(),
+            )
+            .unwrap();
             let fovy = Array1::from_elem(1, view.fovy);
             let near = Array1::from_elem(1, view.near);
             let far = Array1::from_elem(1, view.far);
 
-            let color = color.slice(s![.., .., 0..3]).to_owned();       // rgb
-            let depth = depth.slice(s![.., .., 0..3]).to_owned();       // rgb
-            // let normal = normal.slice(s![.., .., 0..3]).to_owned();     // xyz
+            let color = color.slice(s![.., .., 0..3]).to_owned();
+            let depth = depth.slice(s![.., .., 0..3]).to_owned();
+            // let normal = normal.slice(s![.., .., 0..3]).to_owned();
 
             color_views.push(color);
             depth_views.push(depth);
@@ -125,13 +104,40 @@ fn stack_samples(
             far_views.push(far);
         }
 
-        let color_views_stacked = ndarray::stack(Axis(0), &color_views.iter().map(|a| a.view()).collect::<Vec<_>>()).unwrap();
-        let depth_views_stacked = ndarray::stack(Axis(0), &depth_views.iter().map(|a| a.view()).collect::<Vec<_>>()).unwrap();
+        let color_views_stacked = ndarray::stack(
+            Axis(0),
+            &color_views.iter().map(|a| a.view()).collect::<Vec<_>>(),
+        )
+        .unwrap();
+        let depth_views_stacked = ndarray::stack(
+            Axis(0),
+            &depth_views.iter().map(|a| a.view()).collect::<Vec<_>>(),
+        )
+        .unwrap();
         // let normal_views_stacked = ndarray::stack(Axis(0), &normal_views.iter().map(|a| a.view()).collect::<Vec<_>>()).unwrap();
-        let world_from_view_views_stacked = ndarray::stack(Axis(0), &world_from_view_views.iter().map(|a| a.view()).collect::<Vec<_>>()).unwrap();
-        let fovy_views_stacked = ndarray::stack(Axis(0), &fovy_views.iter().map(|a| a.view()).collect::<Vec<_>>()).unwrap();
-        let near_views_stacked = ndarray::stack(Axis(0), &near_views.iter().map(|a| a.view()).collect::<Vec<_>>()).unwrap();
-        let far_views_stacked = ndarray::stack(Axis(0), &far_views.iter().map(|a| a.view()).collect::<Vec<_>>()).unwrap();
+        let world_from_view_views_stacked = ndarray::stack(
+            Axis(0),
+            &world_from_view_views
+                .iter()
+                .map(|a| a.view())
+                .collect::<Vec<_>>(),
+        )
+        .unwrap();
+        let fovy_views_stacked = ndarray::stack(
+            Axis(0),
+            &fovy_views.iter().map(|a| a.view()).collect::<Vec<_>>(),
+        )
+        .unwrap();
+        let near_views_stacked = ndarray::stack(
+            Axis(0),
+            &near_views.iter().map(|a| a.view()).collect::<Vec<_>>(),
+        )
+        .unwrap();
+        let far_views_stacked = ndarray::stack(
+            Axis(0),
+            &far_views.iter().map(|a| a.view()).collect::<Vec<_>>(),
+        )
+        .unwrap();
 
         color_stacks.push(color_views_stacked);
         depth_stacks.push(depth_views_stacked);
@@ -141,31 +147,69 @@ fn stack_samples(
         near_stacks.push(near_views_stacked);
         far_stacks.push(far_views_stacked);
 
-        let sample_aabb = Array2::from_shape_vec((2, 3), sample.aabb.concat()).unwrap();
+        let sample_aabb = Array2::from_shape_vec(
+            (2, 3),
+            sample
+                .aabb
+                .iter()
+                .flat_map(|row| row.iter().copied())
+                .collect(),
+        )
+        .unwrap();
         aabb_stacks.push(sample_aabb);
     }
 
-    let color_stacked = ndarray::stack(Axis(0), &color_stacks.iter().map(|a| a.view()).collect::<Vec<_>>()).unwrap();
-    let depth_stacked = ndarray::stack(Axis(0), &depth_stacks.iter().map(|a| a.view()).collect::<Vec<_>>()).unwrap();
+    let color_stacked = ndarray::stack(
+        Axis(0),
+        &color_stacks.iter().map(|a| a.view()).collect::<Vec<_>>(),
+    )
+    .unwrap();
+    let depth_stacked = ndarray::stack(
+        Axis(0),
+        &depth_stacks.iter().map(|a| a.view()).collect::<Vec<_>>(),
+    )
+    .unwrap();
     // let normal_stacked = ndarray::stack(Axis(0), &normal_stacks.iter().map(|a| a.view()).collect::<Vec<_>>()).unwrap();
-    let world_from_view_stacked = ndarray::stack(Axis(0), &world_from_view_stacks.iter().map(|a| a.view()).collect::<Vec<_>>()).unwrap();
-    let fovy_stacked = ndarray::stack(Axis(0), &fovy_stacks.iter().map(|a| a.view()).collect::<Vec<_>>()).unwrap();
-    let near_stacked = ndarray::stack(Axis(0), &near_stacks.iter().map(|a| a.view()).collect::<Vec<_>>()).unwrap();
-    let far_stacked = ndarray::stack(Axis(0), &far_stacks.iter().map(|a| a.view()).collect::<Vec<_>>()).unwrap();
-    let aabb_stacked = ndarray::stack(Axis(0), &aabb_stacks.iter().map(|a| a.view()).collect::<Vec<_>>()).unwrap();
+    let world_from_view_stacked = ndarray::stack(
+        Axis(0),
+        &world_from_view_stacks
+            .iter()
+            .map(|a| a.view())
+            .collect::<Vec<_>>(),
+    )
+    .unwrap();
+    let fovy_stacked = ndarray::stack(
+        Axis(0),
+        &fovy_stacks.iter().map(|a| a.view()).collect::<Vec<_>>(),
+    )
+    .unwrap();
+    let near_stacked = ndarray::stack(
+        Axis(0),
+        &near_stacks.iter().map(|a| a.view()).collect::<Vec<_>>(),
+    )
+    .unwrap();
+    let far_stacked = ndarray::stack(
+        Axis(0),
+        &far_stacks.iter().map(|a| a.view()).collect::<Vec<_>>(),
+    )
+    .unwrap();
+    let aabb_stacked = ndarray::stack(
+        Axis(0),
+        &aabb_stacks.iter().map(|a| a.view()).collect::<Vec<_>>(),
+    )
+    .unwrap();
 
     StackedViews {
-        color: color_stacked,                       // Shape: (batch_size, num_views, height, width, 3)
-        depth: depth_stacked,                       // Shape: (batch_size, num_views, height, width, 3)
-        // normal: normal_stacked,                     // Shape: (batch_size, num_views, height, width, 3)
-        world_from_view: world_from_view_stacked,   // Shape: (batch_size, num_views, 4, 4)
-        fovy: fovy_stacked,                         // Shape: (batch_size, num_views)
-        near: near_stacked,                         // Shape: (batch_size, num_views)
-        far: far_stacked,                           // Shape: (batch_size, num_views)
-        aabb: aabb_stacked,                         // Shape: (batch_size, 2, 3)
+        color: color_stacked,
+        depth: depth_stacked,
+        // normal: normal_stacked,
+        world_from_view: world_from_view_stacked,
+        fovy: fovy_stacked,
+        near: near_stacked,
+        far: far_stacked,
+        aabb: aabb_stacked,
     }
 }
-
 
 enum TensorView {
     Color(Wrapper<f32, ndarray::Ix5>),
@@ -222,13 +266,18 @@ impl View for TensorView {
     }
 }
 
-
-fn save_stacked_views_to_safetensors(stacked_views: StackedViews, output_path: &Path) -> Result<(), safetensors::SafeTensorError> {
+fn save_stacked_views_to_safetensors(
+    stacked_views: StackedViews,
+    output_path: &Path,
+) -> Result<(), safetensors::SafeTensorError> {
     let data: Vec<(&str, TensorView)> = vec![
         ("color", TensorView::Color(Wrapper(stacked_views.color))),
         ("depth", TensorView::Depth(Wrapper(stacked_views.depth))),
         // ("normal", TensorView::Normal(Wrapper(stacked_views.normal))),
-        ("world_from_view", TensorView::WorldFromView(Wrapper(stacked_views.world_from_view))),
+        (
+            "world_from_view",
+            TensorView::WorldFromView(Wrapper(stacked_views.world_from_view)),
+        ),
         ("fovy", TensorView::Singular(Wrapper(stacked_views.fovy))),
         ("near", TensorView::Singular(Wrapper(stacked_views.near))),
         ("far", TensorView::Singular(Wrapper(stacked_views.far))),
@@ -238,27 +287,17 @@ fn save_stacked_views_to_safetensors(stacked_views: StackedViews, output_path: &
     serialize_to_file(data, &None, output_path)
 }
 
-
-
-#[derive(
-    Clone,
-    Debug,
-    Resource,
-    Serialize,
-    Deserialize,
-    Parser,
-    Reflect,
-)]
+#[derive(Clone, Debug, Resource, Serialize, Deserialize, Parser, Reflect)]
 #[command(about = "bevy_zeroverse viewer", version, long_about = None)]
 #[reflect(Resource)]
 pub struct GeneratorConfig {
     #[arg(long, default_value = "10")]
     pub num_samples: usize,
 
-    #[arg(long, default_value = "268435456")]  // 256 MB
+    #[arg(long, default_value = "268435456")] // 256 MB
     pub bytes_per_chunk: usize,
 
-    #[arg(long)]  // overrides bytes_per_chunk
+    #[arg(long)] // overrides bytes_per_chunk
     pub samples_per_chunk: Option<usize>,
 
     #[arg(long, default_value = "data/zeroverse/rust")]
@@ -276,11 +315,7 @@ impl Default for GeneratorConfig {
     }
 }
 
-
-fn receive_samples(
-    generator_config: &GeneratorConfig,
-    zeroverse_config: &BevyZeroverseConfig,
-) {
+fn receive_samples(generator_config: &GeneratorConfig, zeroverse_config: &BevyZeroverseConfig) {
     let receiver = SAMPLE_RECEIVER.get().unwrap();
     let receiver = receiver.lock().unwrap();
 
@@ -310,7 +345,12 @@ fn receive_samples(
 
                 if let Some(samples_per_chunk) = generator_config.samples_per_chunk {
                     if chunk_samples.len() >= samples_per_chunk {
-                        save_chunk(&chunk_samples, chunk_index, generator_config, zeroverse_config);
+                        save_chunk(
+                            &chunk_samples,
+                            chunk_index,
+                            generator_config,
+                            zeroverse_config,
+                        );
 
                         chunk_samples.clear();
                         chunk_size = 0;
@@ -320,13 +360,18 @@ fn receive_samples(
                 }
 
                 if chunk_size >= generator_config.bytes_per_chunk {
-                    save_chunk(&chunk_samples, chunk_index, generator_config, zeroverse_config);
+                    save_chunk(
+                        &chunk_samples,
+                        chunk_index,
+                        generator_config,
+                        zeroverse_config,
+                    );
 
                     chunk_samples.clear();
                     chunk_size = 0;
                     chunk_index += 1;
                 }
-            },
+            }
             Err(RecvTimeoutError::Timeout) => {
                 error!("receive operation timed out");
                 std::process::exit(1);
@@ -339,13 +384,17 @@ fn receive_samples(
     }
 
     if !chunk_samples.is_empty() {
-        save_chunk(&chunk_samples, chunk_index, generator_config, zeroverse_config);
+        save_chunk(
+            &chunk_samples,
+            chunk_index,
+            generator_config,
+            zeroverse_config,
+        );
     }
 
     info!("finished generating samples");
     std::process::exit(0);
 }
-
 
 fn estimate_sample_size(sample: &Sample) -> usize {
     let mut size = 0;
@@ -355,9 +404,9 @@ fn estimate_sample_size(sample: &Sample) -> usize {
         size += view.depth.len() * 3 / 4;
         // size += view.normal.len() * 3 / 4;
         size += view.world_from_view.len();
-        size += 1;  // fovy
-        size += 1;  // near
-        size += 1;  // far
+        size += 1; // fovy
+        size += 1; // near
+        size += 1; // far
     }
 
     size += sample.aabb.len();
@@ -371,7 +420,7 @@ fn save_chunk(
     generator_config: &GeneratorConfig,
     zeroverse_config: &BevyZeroverseConfig,
 ) {
-    let stacked_views = stack_samples(chunk_samples.to_vec(), zeroverse_config);
+    let stacked_views = stack_samples(chunk_samples, zeroverse_config);
 
     let file_name = format!("{chunk_index:06}.safetensors");
     let output_dir = Path::new(generator_config.output_dir.as_str());
@@ -382,7 +431,10 @@ fn save_chunk(
 
     let output_path = output_dir.join(file_name);
 
-    let chunk_size = chunk_samples.iter().map(estimate_sample_size).sum::<usize>();
+    let chunk_size = chunk_samples
+        .iter()
+        .map(estimate_sample_size)
+        .sum::<usize>();
     info!(
         "saving chunk {} of {} ({:.2} MB).",
         chunk_index,
@@ -395,7 +447,6 @@ fn save_chunk(
         Err(e) => warn!("failed to save chunk {}: {:?}", chunk_index, e),
     }
 }
-
 
 fn main() {
     let generator_args = parse_args::<GeneratorConfig>();
@@ -419,6 +470,5 @@ fn main() {
 
     app.run();
 }
-
 
 // TODO: add test comparing safetensors from python vs rust

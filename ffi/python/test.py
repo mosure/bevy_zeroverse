@@ -105,44 +105,60 @@ def test():
 
 generated = False
 class TestChunkedDataset(unittest.TestCase):
-    def setUp(self):
-        self.editor = True
-        self.headless = True
-        self.num_cameras = 4
-        self.width = 640
-        self.height = 480
-        self.num_samples = 10
-        self.bytes_per_chunk = int(256 * 1024 * 1024)
-        self.samples_per_chunk = 3  #None
-        self.stage = "test"
-        self.output_dir = Path("./data/zeroverse") / self.stage
+    @classmethod
+    def setUpClass(cls):
+        cls.editor = True
+        cls.headless = True
+        cls.num_cameras = 4
+        cls.width = 640
+        cls.height = 480
+        cls.num_samples = 10
+        cls.bytes_per_chunk = int(256 * 1024 * 1024)
+        cls.samples_per_chunk = 3
+        cls.stage = "test"
+        cls.output_dir = Path("./data/zeroverse") / cls.stage
 
-        if self.output_dir.exists():
-            shutil.rmtree(self.output_dir)
+        if cls.output_dir.exists():
+            shutil.rmtree(cls.output_dir)
 
-        self.dataset = BevyZeroverseDataset(
-            self.editor, self.headless, self.num_cameras,
-            self.width, self.height, self.num_samples,
+        cls.dataset = BevyZeroverseDataset(
+            cls.editor,
+            cls.headless,
+            cls.num_cameras,
+            cls.width,
+            cls.height,
+            cls.num_samples,
             scene_type='room',
         )
 
-        # TODO: perform this only once
-        self.chunk_paths = chunk_and_save(
-            self.dataset,
-            self.output_dir / 'chunk',
-            bytes_per_chunk=self.bytes_per_chunk,
-            samples_per_chunk=self.samples_per_chunk,
+        cls.chunk_paths = chunk_and_save(
+            cls.dataset,
+            cls.output_dir / 'chunk',
+            bytes_per_chunk=cls.bytes_per_chunk,
+            samples_per_chunk=cls.samples_per_chunk,
+            n_workers=0,
         )
 
         save_to_folders(
-            self.dataset,
-            self.output_dir / 'fs',
+            cls.dataset,
+            cls.output_dir / 'fs',
+            n_workers=0,
         )
 
         save_to_mp4(
-            self.dataset,
-            self.output_dir / 'mp4',
+            cls.dataset,
+            cls.output_dir / 'mp4',
+            n_workers=0,
         )
+
+    @classmethod
+    def tearDownClass(cls):
+        if cls.output_dir.exists():
+            shutil.rmtree(cls.output_dir)
+
+    def setUp(self):
+        self.output_dir = type(self).output_dir
+        self.chunk_paths = type(self).chunk_paths
 
     def test_benchmark_chunked_dataloader(self):
         chunked_dataset = ChunkedIteratorDataset(self.output_dir / 'chunk')
@@ -218,3 +234,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

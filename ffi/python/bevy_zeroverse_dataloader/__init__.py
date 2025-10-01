@@ -1,12 +1,14 @@
+from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
 from itertools import takewhile
+import gc
 import json
 import math
 import os
 from pathlib import Path
 from PIL import Image
 import random
-from typing import Literal, Optional
+from typing import Any, Literal, Optional
 
 import imageio
 import numpy as np
@@ -171,9 +173,15 @@ class Sample:
 
     @classmethod
     def from_rust(cls, rust_sample, width, height):
-        views = [View.from_rust(view, width, height) for view in rust_sample.views]
+        if hasattr(rust_sample, "take_views"):
+            rust_views = rust_sample.take_views()
+        else:
+            rust_views = rust_sample.views
+
+        views = [View.from_rust(view, width, height) for view in rust_views]
         view_dim = rust_sample.view_dim
         aabb = np.array(rust_sample.aabb)
+        del rust_views
         return cls(views, view_dim, aabb)
 
     def to_tensors(self):
@@ -202,6 +210,8 @@ class Sample:
         for key in normalize_keys:
             if key in sample:
                 sample[key] = normalize_hdr_image_tonemap(sample[key])
+
+        self.views.clear()
 
         return sample
 
@@ -293,6 +303,7 @@ class BevyZeroverseDataset(Dataset):
 
         rust_sample = bevy_zeroverse_ffi.next()
         sample = Sample.from_rust(rust_sample, self.width, self.height)
+        del rust_sample
         return sample.to_tensors()
 
 
@@ -340,9 +351,7 @@ def chunk_and_save(
     compression: Optional[Literal["lz4", "zstd"]] = "lz4",
     full_size_only: bool = True,
 ):
-    """
-    if samples_per_chunk is not None, the dataset will be chunked into chunks of size samples_per_chunk, regardless of bytes_per_chunk.
-    """
+    """Save samples to chunk files, optionally batching by size or sample count."""
 
     output_dir.mkdir(exist_ok=True, parents=True)
 
@@ -359,42 +368,41 @@ def chunk_and_save(
         chunk_index = 0
 
     chunk_size = 0
-    chunk = []
+    chunk: list[dict[str, torch.Tensor]] = []
     chunk_file_paths = list(existing_chunks)
 
     total_chunks = len(dataset)
-    if samples_per_chunk is not None:
-        total_chunks = len(dataset) // samples_per_chunk
+    if samples_per_chunk is not None and samples_per_chunk > 0:
+        total_chunks = max(1, len(dataset) // samples_per_chunk)
 
-    def save_chunk():
-        nonlocal chunk_size, chunk_index, chunk, chunk_file_paths
-
-        key = f"{chunk_index:0>6}"
-        print(f"saving chunk {key} of {total_chunks} ({chunk_size / 1e6:.2f} MB).")
+    def save_chunk_sync(
+        chunk_samples: list[dict[str, torch.Tensor]],
+        chunk_idx: int,
+    ) -> Path:
+        key = f"{chunk_idx:0>6}"
+        print(f"saving chunk {key} of {total_chunks} ({sum(t.numel() * t.element_size() for sample in chunk_samples for t in sample.values()) / 1e6:.2f} MB).")
         base_name = f"{key}.safetensors"
 
-        B = len(chunk)
-        batch = {}
+        batch: dict[str, Any] = {}
         offset = 0
-        for sample in chunk:
-            for key, tensor in sample.items():
-                if key in ['color']:
+        for sample in chunk_samples:
+            for name, tensor in sample.items():
+                if name in ["color"]:
                     T, V, H, W, C = tensor.shape
-                    num_views = T * V
-                    for i, view in enumerate(tensor.view(-1, H, W, C)):
-                        view = encode_tensor_to_jpg(view, quality=jpg_quality)
-                        batch[f'{key}_jpg_{offset + i}'] = view
+                    flat_views = tensor.view(-1, H, W, C)
+                    for idx, view in enumerate(flat_views):
+                        view_jpg = encode_tensor_to_jpg(view, quality=jpg_quality)
+                        batch[f"{name}_jpg_{offset + idx}"] = view_jpg
 
-                    if f'{key}_shape' not in batch:
-                        batch[f'{key}_shape'] = torch.tensor([B, T, V, H, W, C])
-                    offset += num_views
+                    if f"{name}_shape" not in batch:
+                        batch[f"{name}_shape"] = torch.tensor([len(chunk_samples), T, V, H, W, C])
+                    offset += flat_views.shape[0]
                 else:
-                    if key not in batch:
-                        batch[key] = []
-                    batch[key].append(tensor)
+                    batch.setdefault(name, []).append(tensor)
 
         flat_tensors = {
-            key: torch.stack(tensors, dim=0) if '_jpg' not in key and '_shape' not in key else tensors for key, tensors in batch.items()
+            key: torch.stack(value, dim=0) if not key.endswith("_shape") and "_jpg_" not in key else value
+            for key, value in batch.items()
         }
 
         if compression is None:
@@ -407,15 +415,12 @@ def chunk_and_save(
             final_path = output_dir / (base_name + ext)
             final_path.write_bytes(encoded)
 
-        chunk_file_paths.append(final_path)
-        chunk_size = 0
-        chunk_index += 1
-        chunk = []
-
-        del batch
         torch.cuda.empty_cache()
-        import gc
         gc.collect()
+        return final_path
+
+    max_save_workers = max(1, (os.cpu_count() or 4) // 2)
+    pending: list[Any] = []
 
     dl_bs = samples_per_chunk if samples_per_chunk else 1
     dataloader = DataLoader(
@@ -426,31 +431,46 @@ def chunk_and_save(
     )
     pbar = tqdm(total=len(dataset), unit="sample", desc="processing", smoothing=0.99)
 
-    for idx, batch in enumerate(dataloader):
-        bsz = next(iter(batch.values())).shape[0]
-        pbar.update(bsz)
-        for i in range(bsz):
-            sample = {
-                k: v[i]
-                for k, v in batch.items()
-            }
-            sample_size = sum(t.numel() * t.element_size() for t in sample.values())
-            chunk.append(sample)
-            chunk_size += sample_size
+    with ThreadPoolExecutor(max_workers=max_save_workers) as executor:
+        for idx, batch in enumerate(dataloader):
+            bsz = next(iter(batch.values())).shape[0]
+            pbar.update(bsz)
+            for i in range(bsz):
+                sample = {name: tensor[i] for name, tensor in batch.items()}
+                sample_size = sum(t.numel() * t.element_size() for t in sample.values())
+                chunk.append(sample)
+                chunk_size += sample_size
 
-            if samples_per_chunk and len(chunk) >= samples_per_chunk:
-                save_chunk()
-                continue
-            if not samples_per_chunk and chunk_size >= bytes_per_chunk:
-                save_chunk()
+                should_flush = False
+                if samples_per_chunk and len(chunk) >= samples_per_chunk:
+                    should_flush = True
+                elif not samples_per_chunk and chunk_size >= bytes_per_chunk:
+                    should_flush = True
 
-        pbar.set_postfix(chunk_mb=f"{chunk_size/1e6:,.1f}", idx=idx)
+                if should_flush:
+                    chunk_copy = chunk
+                    current_index = chunk_index
+                    future = executor.submit(save_chunk_sync, chunk_copy, current_index)
+                    pending.append(future)
+                    chunk = []
+                    chunk_size = 0
+                    chunk_index += 1
 
-    if chunk_size > 0 and not full_size_only:
-        save_chunk()
+            pbar.set_postfix(chunk_mb=f"{chunk_size/1e6:,.1f}", idx=idx)
+
+        if chunk_size > 0 and not full_size_only:
+            chunk_copy = chunk
+            current_index = chunk_index
+            future = executor.submit(save_chunk_sync, chunk_copy, current_index)
+            pending.append(future)
+            chunk = []
+            chunk_index += 1
+
+        for future in pending:
+            final_path = future.result()
+            chunk_file_paths.append(final_path)
 
     return chunk_file_paths
-
 
 def crop(tensor, shape, channels_last=True):
     if channels_last:
