@@ -284,7 +284,7 @@ fn save_stacked_views_to_safetensors(
         ("aabb", TensorView::Aabb(Wrapper(stacked_views.aabb))),
     ];
 
-    serialize_to_file(data, &None, output_path)
+    serialize_to_file(data, None, output_path)
 }
 
 #[derive(Clone, Debug, Resource, Serialize, Deserialize, Parser, Reflect)]

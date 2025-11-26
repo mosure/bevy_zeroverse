@@ -157,23 +157,24 @@ impl Default for SamplerState {
 }
 
 impl SamplerState {
-    const FRAME_DELAY: u32 = 2;
-    const WARMUP_FRAME_DELAY: u32 = 2;
+    const FRAME_DELAY: u32 = 4;
+    const WARMUP_FRAME_DELAY: u32 = 4;
 
     pub fn inference_only() -> Self {
         SamplerState {
             enabled: true,
             regenerate_scene: false,
-            frames: 1,
+            frames: SamplerState::FRAME_DELAY,
             render_modes: vec![RenderMode::Color],
             step: 0,
             timesteps: vec![0.125],
-            warmup_frames: 0,
+            warmup_frames: SamplerState::WARMUP_FRAME_DELAY,
         }
     }
 
     pub fn reset(&mut self) {
         self.frames = SamplerState::FRAME_DELAY;
+        self.warmup_frames = SamplerState::WARMUP_FRAME_DELAY;
     }
 }
 
@@ -254,7 +255,10 @@ pub fn create_app(
     });
     app.register_type::<SamplerState>();
 
-    app.add_systems(PreUpdate, sample_stream);
+    app.add_systems(
+        PostUpdate,
+        sample_stream.after(::bevy_zeroverse::io::image_copy::receive_images),
+    );
 
     if set_runner {
         app.set_runner(signaled_runner);
@@ -374,7 +378,6 @@ fn sample_stream(
         state.reset();
         return;
     }
-    *render_mode = args.render_modes[0].clone();
 
     if !state.timesteps.is_empty() {
         playback.progress = state.timesteps.remove(0);
@@ -396,6 +399,13 @@ fn sample_stream(
 
     let sender = SAMPLE_SENDER.get().unwrap();
     sender.send(sample).unwrap();
+
+    // restore primary render mode for subsequent captures
+    *render_mode = args
+        .render_modes
+        .first()
+        .cloned()
+        .unwrap_or_else(|| args.render_mode.clone());
 
     if state.regenerate_scene {
         regenerate_event.write(RegenerateSceneEvent);
