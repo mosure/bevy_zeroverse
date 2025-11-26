@@ -185,7 +185,7 @@ fn apply_config(app: &mut App, cfg: &BevyZeroverseConfig) {
             .unwrap_or(cfg.render_mode.clone());
     }
 
-    app.world_mut().send_event(RegenerateSceneEvent);
+    app.world_mut().write_message(RegenerateSceneEvent);
 }
 
 fn collect_sample(app: &mut App, cfg: &BevyZeroverseConfig) -> Result<Sample, Box<dyn Error>> {

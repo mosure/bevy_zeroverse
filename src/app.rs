@@ -527,16 +527,40 @@ pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) 
 struct MaterialGridCameraMarker;
 
 #[cfg(feature = "viewer")]
+#[derive(Clone, PartialEq)]
+struct CameraSettingsSnapshot {
+    camera_grid: bool,
+    scene_type: ZeroverseSceneType,
+    orbit_smoothness: f32,
+    pan_smoothness: f32,
+    zoom_smoothness: f32,
+}
+
+#[cfg(feature = "viewer")]
 fn setup_camera(
     args: Res<BevyZeroverseConfig>,
     mut commands: Commands,
     material_grid_cameras: Query<Entity, With<MaterialGridCameraMarker>>,
     editor_cameras: Query<(Entity, &PanOrbitCamera), With<EditorCameraMarker>>,
     room_settings: Res<ZeroverseRoomSettings>,
+    mut previous_settings: Local<Option<CameraSettingsSnapshot>>,
 ) {
     if !args.is_changed() {
         return;
     }
+
+    let current_settings = CameraSettingsSnapshot {
+        camera_grid: args.camera_grid,
+        scene_type: args.scene_type.clone(),
+        orbit_smoothness: args.orbit_smoothness,
+        pan_smoothness: args.pan_smoothness,
+        zoom_smoothness: args.zoom_smoothness,
+    };
+
+    if previous_settings.as_ref() == Some(&current_settings) {
+        return;
+    }
+    *previous_settings = Some(current_settings);
 
     material_grid_cameras.iter().for_each(|entity| {
         commands.entity(entity).despawn();
@@ -622,15 +646,21 @@ fn setup_camera_grid(
     zeroverse_cameras: Query<(Entity, &Camera), With<ZeroverseCamera>>,
     new_zeroverse_cameras: Query<Entity, (With<ZeroverseCamera>, Without<CameraGridMarker>)>,
     mut scene_loaded: MessageReader<SceneLoadedEvent>,
+    mut previous_camera_grid: Local<Option<bool>>,
 ) {
     if zeroverse_cameras.is_empty() {
         return;
     }
 
-    if scene_loaded.is_empty() && !args.is_changed() && new_zeroverse_cameras.is_empty() {
+    let camera_grid_changed = previous_camera_grid
+        .map(|prev| prev != args.camera_grid)
+        .unwrap_or(true);
+
+    if scene_loaded.is_empty() && !camera_grid_changed && new_zeroverse_cameras.is_empty() {
         return;
     }
     scene_loaded.clear();
+    *previous_camera_grid = Some(args.camera_grid);
 
     for entity in new_zeroverse_cameras.iter() {
         commands.entity(entity).insert(CameraGridMarker);
