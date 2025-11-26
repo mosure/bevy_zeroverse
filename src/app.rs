@@ -1,9 +1,8 @@
 use bevy::{
-    prelude::*,
     app::AppExit,
-    time::Stopwatch,
+    camera::RenderTarget,
+    prelude::*,
     render::{
-        camera::RenderTarget,
         // render_resource::{
         //     Extent3d,
         //     TextureDescriptor,
@@ -11,87 +10,47 @@ use bevy::{
         //     TextureUsages,
         // },
         // renderer::RenderDevice,
-        settings::{
-            RenderCreation,
-            WgpuFeatures,
-            WgpuSettings,
-        },
+        settings::{RenderCreation, WgpuFeatures, WgpuSettings},
         // texture::{
         //     ImageLoaderSettings,
         //     ImageSampler,
         // },
         RenderPlugin,
     },
-    winit::{
-        WakeUp,
-        WinitPlugin,
-    },
+    time::Stopwatch,
+    winit::{WakeUp, WinitPlugin},
 };
-use bevy_args::{
-    parse_args,
-    Deserialize,
-    Parser,
-    Serialize,
-};
+use bevy_args::{parse_args, Deserialize, Parser, Serialize};
 
 #[cfg(feature = "viewer")]
 use bevy_egui::EguiPlugin;
 #[cfg(feature = "viewer")]
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 #[cfg(feature = "viewer")]
-use bevy_panorbit_camera::{
-    PanOrbitCamera,
-    PanOrbitCameraPlugin,
-};
+use bevy_panorbit_camera::{PanOrbitCamera, PanOrbitCameraPlugin};
 
 #[cfg(feature = "python")]
 use pyo3::prelude::*;
 
 use crate::{
-    BevyZeroversePlugin,
-    camera::{
-        DefaultZeroverseCamera,
-        EditorCameraMarker,
-        Playback,
-        PlaybackMode,
-        ZeroverseCamera,
-    },
+    camera::{DefaultZeroverseCamera, EditorCameraMarker, Playback, PlaybackMode, ZeroverseCamera},
     io,
-    material::{
-        MaterialsLoadedEvent,
-        ShuffleMaterialsEvent,
-        ZeroverseMaterials,
-    },
+    material::{MaterialsLoadedEvent, ShuffleMaterialsEvent, ZeroverseMaterials},
     mesh::ShuffleMeshesEvent,
     // plucker::ZeroversePluckerSettings,
     primitive::ScaleSampler,
-    render::{
-        depth::DepthFormat,
-        RenderMode,
-    },
+    render::{depth::DepthFormat, RenderMode},
     scene::{
-        room::ZeroverseRoomSettings,
-        semantic_room::ZeroverseSemanticRoomSettings,
-        RegenerateSceneEvent,
-        SceneLoadedEvent,
-        ZeroverseSceneRoot,
-        ZeroverseSceneSettings,
+        room::ZeroverseRoomSettings, semantic_room::ZeroverseSemanticRoomSettings,
+        RegenerateSceneEvent, SceneLoadedEvent, ZeroverseSceneRoot, ZeroverseSceneSettings,
         ZeroverseSceneType,
     },
+    BevyZeroversePlugin,
 };
-
 
 // TODO: add meta-derive macro to populate get/set methods
 #[cfg(feature = "python")]
-#[derive(
-    Clone,
-    Debug,
-    Resource,
-    Serialize,
-    Deserialize,
-    Parser,
-    Reflect,
-)]
+#[derive(Clone, Debug, Resource, Serialize, Deserialize, Parser, Reflect)]
 #[pyclass]
 #[command(about = "bevy_zeroverse viewer", version, long_about = None)]
 #[reflect(Resource)]
@@ -266,15 +225,7 @@ impl BevyZeroverseConfig {
 }
 
 #[cfg(not(feature = "python"))]
-#[derive(
-    Clone,
-    Debug,
-    Resource,
-    Serialize,
-    Deserialize,
-    Parser,
-    Reflect,
-)]
+#[derive(Clone, Debug, Resource, Serialize, Deserialize, Parser, Reflect)]
 #[command(about = "bevy_zeroverse viewer", version, long_about = None)]
 #[reflect(Resource)]
 pub struct BevyZeroverseConfig {
@@ -437,11 +388,7 @@ impl Default for BevyZeroverseConfig {
     }
 }
 
-
-pub fn viewer_app(
-    app: Option<App>,
-    override_args: Option<BevyZeroverseConfig>,
-) -> App {
+pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) -> App {
     let args = match override_args {
         Some(args) => args,
         None => parse_args::<BevyZeroverseConfig>(),
@@ -455,7 +402,6 @@ pub fn viewer_app(
 
     info!("args: {:?}", args);
     app.insert_resource(args.clone());
-
 
     #[cfg(target_arch = "wasm32")]
     let primary_window = Some(Window {
@@ -477,7 +423,10 @@ pub fn viewer_app(
     let primary_window = Some(Window {
         mode: bevy::window::WindowMode::Windowed,
         prevent_default_event_handling: false,
-        resolution: (args.width, args.height).into(),
+        resolution: bevy::window::WindowResolution::new(
+            args.width.round() as u32,
+            args.height.round() as u32,
+        ),
         title: args.name.clone(),
 
         #[cfg(feature = "perftest")]
@@ -502,8 +451,7 @@ pub fn viewer_app(
         .set(ImagePlugin::default_nearest())
         .set(RenderPlugin {
             render_creation: RenderCreation::Automatic(WgpuSettings {
-                features: WgpuFeatures::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES
-                        | WgpuFeatures::SHADER_F16,
+                features: WgpuFeatures::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES,
                 ..Default::default()
             }),
             ..Default::default()
@@ -511,18 +459,17 @@ pub fn viewer_app(
         .set(winit_plugin);
 
     let default_plugins = if args.headless {
-        default_plugins
-            .set(WindowPlugin {
-                primary_window: None,
-                exit_condition: bevy::window::ExitCondition::DontExit,
-                close_when_requested: false,
-            })
+        default_plugins.set(WindowPlugin {
+            primary_window: None,
+            primary_cursor_options: None,
+            exit_condition: bevy::window::ExitCondition::DontExit,
+            close_when_requested: false,
+        })
     } else {
-        default_plugins
-            .set(WindowPlugin {
-                primary_window,
-                ..default()
-            })
+        default_plugins.set(WindowPlugin {
+            primary_window,
+            ..default()
+        })
     };
 
     app.add_plugins(default_plugins);
@@ -538,7 +485,7 @@ pub fn viewer_app(
     #[cfg(feature = "viewer")]
     if args.editor {
         app.register_type::<BevyZeroverseConfig>();
-        app.add_plugins(EguiPlugin { enable_multipass_for_primary_context: true });
+        app.add_plugins(EguiPlugin::default());
         app.add_plugins(WorldInspectorPlugin::new());
     }
 
@@ -554,10 +501,7 @@ pub fn viewer_app(
         resolution: UVec2::new(args.width as u32, args.height as u32).into(),
     });
 
-    app.add_systems(PostStartup, (
-        propagate_cli_settings,
-        setup_scene,
-    ));
+    app.add_systems(PostStartup, (propagate_cli_settings, setup_scene));
 
     if args.keybinds {
         app.add_systems(PreUpdate, press_m_shuffle_materials_and_meshes);
@@ -566,25 +510,18 @@ pub fn viewer_app(
     #[cfg(feature = "viewer")]
     {
         app.add_systems(PreUpdate, setup_material_grid);
-        app.add_systems(
-            PostUpdate,
-            (
-                setup_camera,
-                setup_camera_grid,
-            ),
-        );
+        app.add_systems(PostUpdate, (setup_camera, setup_camera_grid));
     }
 
     app.add_systems(Update, rotate_scene);
 
-    app.add_systems(PostUpdate, (
-        propagate_cli_settings,
-        regenerate_scene_system,
-    ));
+    app.add_systems(
+        PostUpdate,
+        (propagate_cli_settings, regenerate_scene_system),
+    );
 
     app
 }
-
 
 #[derive(Component, Debug, Reflect)]
 struct MaterialGridCameraMarker;
@@ -605,9 +542,7 @@ fn setup_camera(
         commands.entity(entity).despawn();
     });
 
-    let existing_editor_cam = if let Ok(
-        editor_camera
-    ) = editor_cameras.single() {
+    let existing_editor_cam = if let Ok(editor_camera) = editor_cameras.single() {
         Some(*editor_camera.1)
     } else {
         None
@@ -618,18 +553,12 @@ fn setup_camera(
     });
 
     if args.camera_grid {
-        commands.spawn(Camera2d)
-            .insert(MaterialGridCameraMarker);
+        commands.spawn(Camera2d).insert(MaterialGridCameraMarker);
         return;
     }
 
     // TODO: refactor, do we really need to despawn the editor camera on settings change?
-    let (
-        focus,
-        radius,
-        yaw,
-        pitch,
-    ) = if let Some(existing_editor_cam) = existing_editor_cam {
+    let (focus, radius, yaw, pitch) = if let Some(existing_editor_cam) = existing_editor_cam {
         (
             existing_editor_cam.focus,
             existing_editor_cam.radius,
@@ -638,30 +567,29 @@ fn setup_camera(
         )
     } else {
         let radius = match args.scene_type {
-            ZeroverseSceneType::Room | ZeroverseSceneType::SemanticRoom => (
-                match room_settings.room_size {
+            ZeroverseSceneType::Room | ZeroverseSceneType::SemanticRoom => {
+                (match room_settings.room_size {
                     ScaleSampler::Bounded(_min, max) => max.max_element(),
                     ScaleSampler::Exact(size) => size.max_element(),
-                }) * 2.0,
+                }) * 2.0
+            }
             _ => 3.5,
-        }.into();
+        }
+        .into();
 
         let yaw = match args.scene_type {
             ZeroverseSceneType::Room | ZeroverseSceneType::SemanticRoom => 0.8,
             _ => 0.0,
-        }.into();
+        }
+        .into();
 
         let pitch = match args.scene_type {
             ZeroverseSceneType::Room | ZeroverseSceneType::SemanticRoom => 0.8,
             _ => 0.0,
-        }.into();
+        }
+        .into();
 
-        (
-            Vec3::ZERO,
-            radius,
-            yaw,
-            pitch,
-        )
+        (Vec3::ZERO, radius, yaw, pitch)
     };
 
     commands.spawn((
@@ -691,15 +619,9 @@ fn setup_camera_grid(
     mut commands: Commands,
     args: Res<BevyZeroverseConfig>,
     camera_grids: Query<Entity, With<CameraGrid>>,
-    zeroverse_cameras: Query<
-        (Entity, &Camera),
-        With<ZeroverseCamera>,
-    >,
-    new_zeroverse_cameras: Query<
-        Entity,
-        (With<ZeroverseCamera>, Without<CameraGridMarker>),
-    >,
-    mut scene_loaded: EventReader<SceneLoadedEvent>,
+    zeroverse_cameras: Query<(Entity, &Camera), With<ZeroverseCamera>>,
+    new_zeroverse_cameras: Query<Entity, (With<ZeroverseCamera>, Without<CameraGridMarker>)>,
+    mut scene_loaded: MessageReader<SceneLoadedEvent>,
 ) {
     if zeroverse_cameras.is_empty() {
         return;
@@ -723,34 +645,35 @@ fn setup_camera_grid(
         let rows = (camera_count as f32).sqrt().ceil() as u16;
         let cols = (camera_count as f32 / rows as f32).ceil() as u16;
 
-        commands.spawn((
-            CameraGrid,
-            Name::new("camera_grid"),
-            Node {
-                display: Display::Grid,
-                width: Val::Percent(100.0),
-                height: Val::Percent(100.0),
-                grid_template_columns: RepeatedGridTrack::flex(cols, 1.0),
-                grid_template_rows: RepeatedGridTrack::flex(rows, 1.0),
-                ..default()
-            },
-            BackgroundColor(Color::BLACK),
-        )).with_children(|builder| {
-            for (_, camera) in zeroverse_cameras.iter() {
-                let texture = match camera.target.clone() {
-                    RenderTarget::Image(texture) => texture,
-                    _ => continue,
-                };
-
-                builder.spawn(ImageNode {
-                    image: texture.handle,
+        commands
+            .spawn((
+                CameraGrid,
+                Name::new("camera_grid"),
+                Node {
+                    display: Display::Grid,
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
+                    grid_template_columns: RepeatedGridTrack::flex(cols, 1.0),
+                    grid_template_rows: RepeatedGridTrack::flex(rows, 1.0),
                     ..default()
-                });
-            }
-        });
+                },
+                BackgroundColor(Color::BLACK),
+            ))
+            .with_children(|builder| {
+                for (_, camera) in zeroverse_cameras.iter() {
+                    let texture = match camera.target.clone() {
+                        RenderTarget::Image(texture) => texture,
+                        _ => continue,
+                    };
+
+                    builder.spawn(ImageNode {
+                        image: texture.handle,
+                        ..default()
+                    });
+                }
+            });
     }
 }
-
 
 #[derive(Component)]
 pub struct MaterialGrid;
@@ -762,7 +685,7 @@ fn setup_material_grid(
     standard_materials: Res<Assets<StandardMaterial>>,
     zeroverse_materials: Res<ZeroverseMaterials>,
     material_grids: Query<Entity, With<MaterialGrid>>,
-    mut materials_loaded: EventReader<MaterialsLoadedEvent>,
+    mut materials_loaded: MessageReader<MaterialsLoadedEvent>,
 ) {
     if materials_loaded.is_empty() {
         return;
@@ -778,40 +701,40 @@ fn setup_material_grid(
         let rows = (material_count as f32).sqrt().ceil() as u16;
         let cols = (material_count as f32 / rows as f32).ceil() as u16;
 
-        commands.spawn((
-            MaterialGrid,
-            Name::new("material_grid"),
-            Node {
-                display: Display::Grid,
-                width: Val::Percent(100.0),
-                height: Val::Percent(100.0),
-                grid_template_columns: RepeatedGridTrack::flex(cols, 1.0),
-                grid_template_rows: RepeatedGridTrack::flex(rows, 1.0),
-                ..default()
-            }
-        ))
-        .with_children(|builder| {
-            for material in &zeroverse_materials.materials {
-                let base_color_texture = standard_materials
-                    .get(material)
-                    .unwrap()
-                    .base_color_texture
-                    .clone()
-                    .unwrap();
-
-                builder.spawn(ImageNode {
-                    image: base_color_texture,
+        commands
+            .spawn((
+                MaterialGrid,
+                Name::new("material_grid"),
+                Node {
+                    display: Display::Grid,
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
+                    grid_template_columns: RepeatedGridTrack::flex(cols, 1.0),
+                    grid_template_rows: RepeatedGridTrack::flex(rows, 1.0),
                     ..default()
-                });
-            }
-        });
+                },
+            ))
+            .with_children(|builder| {
+                for material in &zeroverse_materials.materials {
+                    let base_color_texture = standard_materials
+                        .get(material)
+                        .unwrap()
+                        .base_color_texture
+                        .clone()
+                        .unwrap();
+
+                    builder.spawn(ImageNode {
+                        image: base_color_texture,
+                        ..default()
+                    });
+                }
+            });
     }
 }
 
-
 fn setup_scene(
     args: Res<BevyZeroverseConfig>,
-    mut regenerate_event: EventWriter<RegenerateSceneEvent>,
+    mut regenerate_event: MessageWriter<RegenerateSceneEvent>,
 ) {
     if args.initialize_scene {
         regenerate_event.write(RegenerateSceneEvent);
@@ -826,13 +749,14 @@ fn regenerate_scene_system(
     keys: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
     mut regenerate_stopwatch: Local<Stopwatch>,
-    mut regenerate_event: EventWriter<RegenerateSceneEvent>,
+    mut regenerate_event: MessageWriter<RegenerateSceneEvent>,
 ) {
     if args.regenerate_ms > 0 {
         regenerate_stopwatch.tick(time.delta());
     }
 
-    let mut regenerate_scene = regenerate_stopwatch.elapsed().as_millis() > args.regenerate_ms as u128;
+    let mut regenerate_scene =
+        regenerate_stopwatch.elapsed().as_millis() > args.regenerate_ms as u128;
 
     if args.keybinds {
         regenerate_scene |= keys.just_pressed(KeyCode::KeyR);
@@ -844,7 +768,6 @@ fn regenerate_scene_system(
     }
 }
 
-
 fn rotate_scene(
     time: Res<Time>,
     args: Res<BevyZeroverseConfig>,
@@ -855,7 +778,6 @@ fn rotate_scene(
         transform.rotate(Quat::from_rotation_y(delta_rot));
     }
 }
-
 
 fn propagate_cli_settings(
     args: Res<BevyZeroverseConfig>,
@@ -882,11 +804,10 @@ fn propagate_cli_settings(
     }
 }
 
-
 fn press_m_shuffle_materials_and_meshes(
     keys: Res<ButtonInput<KeyCode>>,
-    mut shuffle_material_events: EventWriter<ShuffleMaterialsEvent>,
-    mut shuffle_meshes_events: EventWriter<ShuffleMeshesEvent>,
+    mut shuffle_material_events: MessageWriter<ShuffleMaterialsEvent>,
+    mut shuffle_meshes_events: MessageWriter<ShuffleMeshesEvent>,
 ) {
     if keys.just_pressed(KeyCode::KeyM) {
         shuffle_material_events.write(ShuffleMaterialsEvent);
@@ -894,11 +815,7 @@ fn press_m_shuffle_materials_and_meshes(
     }
 }
 
-
-fn press_esc_close(
-    keys: Res<ButtonInput<KeyCode>>,
-    mut exit: EventWriter<AppExit>
-) {
+fn press_esc_close(keys: Res<ButtonInput<KeyCode>>, mut exit: MessageWriter<AppExit>) {
     if keys.just_pressed(KeyCode::Escape) {
         exit.write(AppExit::Success);
     }

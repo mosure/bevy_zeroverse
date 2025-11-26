@@ -1,28 +1,14 @@
 use bevy::prelude::*;
 
 use crate::{
-    camera::{
-        ExtrinsicsSampler,
-        ExtrinsicsSamplerType,
-        TrajectorySampler,
-        ZeroverseCamera,
-    },
-    scene::{
-        lighting::{
-            setup_lighting,
-            ZeroverseLightingSettings,
-        },
-        RegenerateSceneEvent,
-        RotationAugment,
-        SceneLoadedEvent,
-        ZeroverseScene,
-        ZeroverseSceneRoot,
-        ZeroverseSceneSettings,
-        ZeroverseSceneType,
-    },
+    camera::{ExtrinsicsSampler, ExtrinsicsSamplerType, TrajectorySampler, ZeroverseCamera},
     primitive::ZeroversePrimitiveSettings,
+    scene::{
+        lighting::{setup_lighting, ZeroverseLightingSettings},
+        RegenerateSceneEvent, RotationAugment, SceneLoadedEvent, ZeroverseScene,
+        ZeroverseSceneRoot, ZeroverseSceneSettings, ZeroverseSceneType,
+    },
 };
-
 
 pub struct ZeroverseObjectPlugin;
 impl Plugin for ZeroverseObjectPlugin {
@@ -30,13 +16,9 @@ impl Plugin for ZeroverseObjectPlugin {
         app.init_resource::<ZeroverseObjectSceneSettings>();
         app.register_type::<ZeroverseObjectSceneSettings>();
 
-        app.add_systems(
-            PreUpdate,
-            regenerate_scene,
-        );
+        app.add_systems(PreUpdate, regenerate_scene);
     }
 }
-
 
 #[derive(Clone, Debug, Reflect, Resource)]
 #[reflect(Resource)]
@@ -62,10 +44,9 @@ impl Default for ZeroverseObjectSceneSettings {
     }
 }
 
-
 fn setup_scene(
     mut commands: Commands,
-    mut load_event: EventWriter<SceneLoadedEvent>,
+    mut load_event: MessageWriter<SceneLoadedEvent>,
     scene_settings: Res<ZeroverseSceneSettings>,
     object_settings: Res<ZeroverseObjectSceneSettings>,
 ) {
@@ -89,13 +70,12 @@ fn setup_scene(
     load_event.write(SceneLoadedEvent);
 }
 
-
 fn regenerate_scene(
     mut commands: Commands,
     clear_zeroverse_scenes: Query<Entity, With<ZeroverseScene>>,
-    mut regenerate_events: EventReader<RegenerateSceneEvent>,
+    mut regenerate_events: MessageReader<RegenerateSceneEvent>,
     scene_settings: Res<ZeroverseSceneSettings>,
-    load_event: EventWriter<SceneLoadedEvent>,
+    load_event: MessageWriter<SceneLoadedEvent>,
     lighting_settings: Res<ZeroverseLightingSettings>,
     object_settings: Res<ZeroverseObjectSceneSettings>,
 ) {
@@ -112,15 +92,7 @@ fn regenerate_scene(
         commands.entity(entity).despawn();
     }
 
-    setup_lighting(
-        commands.reborrow(),
-        lighting_settings,
-    );
+    setup_lighting(commands.reborrow(), lighting_settings);
 
-    setup_scene(
-        commands,
-        load_event,
-        scene_settings,
-        object_settings,
-    );
+    setup_scene(commands, load_event, scene_settings, object_settings);
 }

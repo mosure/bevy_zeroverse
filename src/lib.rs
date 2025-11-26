@@ -17,7 +17,6 @@ pub mod scene;
 #[cfg(not(target_family = "wasm"))]
 pub mod util;
 
-
 pub struct BevyZeroversePlugin;
 
 impl Plugin for BevyZeroversePlugin {

@@ -297,7 +297,7 @@ fn sample_stream(
     images: Res<Assets<Image>>,
     mut render_mode: ResMut<RenderMode>,
     mut playback: ResMut<Playback>,
-    mut regenerate_event: EventWriter<RegenerateSceneEvent>,
+    mut regenerate_event: MessageWriter<RegenerateSceneEvent>,
 ) {
     if !state.enabled {
         return;
@@ -348,7 +348,7 @@ fn sample_stream(
             Projection::Custom(_) => panic!("custom projection not supported"),
         };
 
-        let world_from_view = camera_transform.compute_matrix().to_cols_array_2d();
+        let world_from_view = camera_transform.to_matrix().to_cols_array_2d();
         view.world_from_view = world_from_view;
 
         let image_data = images

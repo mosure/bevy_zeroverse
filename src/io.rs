@@ -6,22 +6,19 @@ pub mod image_copy {
 
     use bevy::prelude::*;
     use bevy::render::render_asset::RenderAssets;
-    use bevy::render::render_graph::{self, NodeRunError, RenderGraph, RenderGraphContext, RenderLabel};
-    use bevy::render::renderer::{RenderContext, RenderDevice, RenderQueue};
-    use bevy::render::{Extract, RenderApp};
-    use bevy::render::texture::GpuImage;
+    use bevy::render::render_graph::{
+        self, NodeRunError, RenderGraph, RenderGraphContext, RenderLabel,
+    };
     use bevy::render::render_resource::TextureFormat;
+    use bevy::render::renderer::{RenderContext, RenderDevice, RenderQueue};
+    use bevy::render::texture::GpuImage;
+    use bevy::render::{Extract, RenderApp};
 
     use bevy::render::render_resource::{
-        Buffer, BufferDescriptor, BufferUsages, CommandEncoderDescriptor, Extent3d,
-        MapMode,
+        Buffer, BufferDescriptor, BufferUsages, CommandEncoderDescriptor, Extent3d, MapMode,
     };
     use pollster::FutureExt;
-    use wgpu::{
-        Maintain,
-        TexelCopyBufferInfo,
-        TexelCopyBufferLayout,
-    };
+    use wgpu::{PollType, TexelCopyBufferInfo, TexelCopyBufferLayout};
 
     use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -47,13 +44,10 @@ pub mod image_copy {
                 buffer_slice.map_async(MapMode::Read, move |result| {
                     tx.send(result).unwrap();
                 });
-                render_device.poll(Maintain::Wait);
+                let _ = render_device.poll(PollType::Wait);
                 rx.receive().await.unwrap().unwrap();
                 if let Some(image) = images.get_mut(&image_copier.dst_image) {
-                    image.data = buffer_slice
-                        .get_mapped_range()
-                        .to_vec()
-                        .into();
+                    image.data = buffer_slice.get_mapped_range().to_vec().into();
                 }
 
                 image_copier.buffer.unmap();
@@ -76,7 +70,10 @@ pub mod image_copy {
 
             let image_copy_node = ImageCopyDriver::from_world(render_app.world_mut());
 
-            let mut graph = render_app.world_mut().get_resource_mut::<RenderGraph>().unwrap();
+            let mut graph = render_app
+                .world_mut()
+                .get_resource_mut::<RenderGraph>()
+                .unwrap();
 
             graph.add_node(ImageCopyLabel, image_copy_node);
             graph.add_node_edge(ImageCopyLabel, bevy::render::graph::CameraDriverLabel);
@@ -106,8 +103,7 @@ pub mod image_copy {
             let block_size = texture_format.block_copy_size(None).unwrap();
 
             let padded_bytes_per_row = RenderDevice::align_copy_bytes_per_row(
-                (size.width as usize / block_dimensions.0 as usize)
-                    * block_size as usize,
+                (size.width as usize / block_dimensions.0 as usize) * block_size as usize,
             );
             let buffer_size = padded_bytes_per_row as u64 * size.height as u64;
 
@@ -206,30 +202,26 @@ pub mod image_copy {
     }
 }
 
-
 pub mod prepass_copy {
     use std::sync::Arc;
 
-    use bevy::prelude::*;
     use bevy::core_pipeline::core_3d::graph::{Core3d, Node3d};
     use bevy::core_pipeline::prepass::ViewPrepassTextures;
     use bevy::ecs::query::QueryItem;
-    use bevy::render::render_graph::{NodeRunError, RenderGraphApp, RenderGraphContext, RenderLabel, ViewNode, ViewNodeRunner};
-    use bevy::render::renderer::{RenderContext, RenderDevice, RenderQueue};
-    use bevy::render::{Extract, RenderApp};
+    use bevy::prelude::*;
+    use bevy::render::render_graph::{
+        NodeRunError, RenderGraphContext, RenderGraphExt, RenderLabel, ViewNode, ViewNodeRunner,
+    };
     use bevy::render::render_resource::TextureFormat;
+    use bevy::render::renderer::{RenderContext, RenderDevice, RenderQueue};
     use bevy::render::sync_world::RenderEntity;
+    use bevy::render::{Extract, RenderApp};
 
     use bevy::render::render_resource::{
-        Buffer, BufferDescriptor, BufferUsages, CommandEncoderDescriptor, Extent3d,
-        MapMode,
+        Buffer, BufferDescriptor, BufferUsages, CommandEncoderDescriptor, Extent3d, MapMode,
     };
     use pollster::FutureExt;
-    use wgpu::{
-        Maintain,
-        TexelCopyBufferInfo,
-        TexelCopyBufferLayout,
-    };
+    use wgpu::{PollType, TexelCopyBufferInfo, TexelCopyBufferLayout};
 
     use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -257,13 +249,10 @@ pub mod prepass_copy {
                 buffer_slice.map_async(MapMode::Read, move |result| {
                     tx.send(result).unwrap();
                 });
-                render_device.poll(Maintain::Wait);
+                let _ = render_device.poll(PollType::Wait);
                 rx.receive().await.unwrap().unwrap();
                 if let Some(image) = images.get_mut(&prepass_copier.dst_image) {
-                    image.data = buffer_slice
-                        .get_mapped_range()
-                        .to_vec()
-                        .into();
+                    image.data = buffer_slice.get_mapped_range().to_vec().into();
                 }
 
                 prepass_copier.buffer.unmap();
@@ -288,11 +277,7 @@ pub mod prepass_copy {
                 Core3d,
                 PrepassCopyLabel,
             );
-            render_app.add_render_graph_edge(
-                Core3d,
-                Node3d::EndMainPass,
-                PrepassCopyLabel,
-            );
+            render_app.add_render_graph_edge(Core3d, Node3d::EndMainPass, PrepassCopyLabel);
         }
     }
 
@@ -319,8 +304,7 @@ pub mod prepass_copy {
             let block_size = texture_format.block_copy_size(None).unwrap();
 
             let padded_bytes_per_row = RenderDevice::align_copy_bytes_per_row(
-                (size.width as usize / block_dimensions.0 as usize)
-                    * block_size as usize,
+                (size.width as usize / block_dimensions.0 as usize) * block_size as usize,
             );
             let buffer_size = padded_bytes_per_row as u64 * size.height as u64;
 
@@ -346,18 +330,10 @@ pub mod prepass_copy {
 
     pub fn prepass_copy_extract(
         mut commands: Commands,
-        prepass_copier_bundles: Extract<Query<(
-            RenderEntity,
-            &PrepassCopiers,
-        )>>,
+        prepass_copier_bundles: Extract<Query<(RenderEntity, &PrepassCopiers)>>,
     ) {
-        for (
-            entity,
-            prepass_copiers,
-        ) in prepass_copier_bundles.iter() {
-            commands
-                .entity(entity)
-                .insert(prepass_copiers.clone());
+        for (entity, prepass_copiers) in prepass_copier_bundles.iter() {
+            commands.entity(entity).insert(prepass_copiers.clone());
         }
     }
 
@@ -365,21 +341,13 @@ pub mod prepass_copy {
     pub struct PrepassCopyDriver;
 
     impl ViewNode for PrepassCopyDriver {
-        type ViewQuery = (
-            &'static PrepassCopiers,
-            &'static ViewPrepassTextures,
-        );
+        type ViewQuery = (&'static PrepassCopiers, &'static ViewPrepassTextures);
 
         fn run(
             &self,
             _graph: &mut RenderGraphContext,
             render_context: &mut RenderContext,
-            (
-                prepass_copiers,
-                prepass_texture,
-            ): QueryItem<
-                Self::ViewQuery,
-            >,
+            (prepass_copiers, prepass_texture): QueryItem<Self::ViewQuery>,
             world: &World,
         ) -> Result<(), NodeRunError> {
             let render_queue = world.get_resource::<RenderQueue>().unwrap();
@@ -395,7 +363,9 @@ pub mod prepass_copy {
                 let src_texture = match &prepass_copier.src_mode {
                     RenderMode::Depth => &prepass_texture.depth.as_ref().unwrap().texture,
                     RenderMode::Normal => &prepass_texture.normal.as_ref().unwrap().texture,
-                    RenderMode::MotionVectors => &prepass_texture.motion_vectors.as_ref().unwrap().texture,
+                    RenderMode::MotionVectors => {
+                        &prepass_texture.motion_vectors.as_ref().unwrap().texture
+                    }
                     _ => panic!("unsupported prepass src_mode"),
                 };
 
@@ -406,8 +376,7 @@ pub mod prepass_copy {
                 let block_size = format.block_copy_size(None).unwrap();
 
                 let padded_bytes_per_row = RenderDevice::align_copy_bytes_per_row(
-                    (size.width as usize / block_dimensions.0 as usize)
-                        * block_size as usize,
+                    (size.width as usize / block_dimensions.0 as usize) * block_size as usize,
                 );
 
                 // TODO: image as a compute node target, single sample

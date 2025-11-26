@@ -1,27 +1,16 @@
-use std::{
-    collections::HashMap,
-    path::PathBuf,
-};
+use std::{collections::HashMap, path::PathBuf};
 
-use bevy::{
-    prelude::*,
-    render::mesh::VertexAttributeValues,
-};
+use bevy::{mesh::VertexAttributeValues, prelude::*};
 use noise::{NoiseFn, Perlin};
-use rand::Rng;
+use rand::{seq::IteratorRandom, Rng};
 
 #[cfg(not(target_family = "wasm"))]
 use itertools::Itertools;
 
-use crate::{
-    app::BevyZeroverseConfig,
-    asset::WaitForAssets,
-    scene::RegenerateSceneEvent,
-};
+use crate::{app::BevyZeroverseConfig, asset::WaitForAssets, scene::RegenerateSceneEvent};
 
 #[cfg(not(target_family = "wasm"))]
 use crate::util::strip_extended_length_prefix;
-
 
 pub type MeshCategory = String;
 
@@ -39,20 +28,18 @@ pub struct ZeroverseMeshes {
     pub meshes: HashMap<MeshCategory, Vec<ZeroverseMesh>>,
 }
 
-
-#[derive(Event)]
+#[derive(Event, Message)]
 pub struct ShuffleMeshesEvent;
 
-#[derive(Event)]
+#[derive(Event, Message)]
 pub struct MeshesLoadedEvent;
-
 
 pub struct ZeroverseMeshPlugin;
 
 impl Plugin for ZeroverseMeshPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<MeshesLoadedEvent>();
-        app.add_event::<ShuffleMeshesEvent>();
+        app.add_message::<MeshesLoadedEvent>();
+        app.add_message::<ShuffleMeshesEvent>();
 
         app.init_resource::<MeshLoaderSettings>();
         app.init_resource::<MeshRoots>();
@@ -86,20 +73,20 @@ pub struct MeshRoots {
     pub categories: HashMap<MeshCategory, Vec<PathBuf>>,
 }
 
-
-fn find_meshes(
-    mut found_meshes: ResMut<MeshRoots>,
-) {
+fn find_meshes(mut found_meshes: ResMut<MeshRoots>) {
     #[cfg(target_family = "wasm")]
     {
         found_meshes.categories = HashMap::from([
-            ("chair".into(), vec![PathBuf::from("models/subset/chair/0.glb")]),
+            (
+                "chair".into(),
+                vec![PathBuf::from("models/subset/chair/0.glb")],
+            ),
             (
                 "human".into(),
                 vec![
                     PathBuf::from("models/subset/human/female.glb"),
                     PathBuf::from("models/subset/human/male.glb"),
-                ]
+                ],
             ),
         ]);
         return;
@@ -111,13 +98,13 @@ fn find_meshes(
         let cwd = match std::env::var("BEVY_ASSET_ROOT") {
             Ok(asset_root) => {
                 info!("BEVY_ASSET_ROOT: `{}`", asset_root);
-                let abs_path = PathBuf::from(asset_root).canonicalize().expect("failed to canonicalize asset root");
+                let abs_path = PathBuf::from(asset_root)
+                    .canonicalize()
+                    .expect("failed to canonicalize asset root");
 
                 strip_extended_length_prefix(&abs_path)
             }
-            Err(_) => {
-                std::env::current_dir().expect("failed to get current working directory")
-            }
+            Err(_) => std::env::current_dir().expect("failed to get current working directory"),
         };
 
         let asset_server_path = cwd.join("./assets");
@@ -127,11 +114,9 @@ fn find_meshes(
             .expect("failed to read glob pattern")
             .filter_map(Result::ok)
             .filter_map(|path| {
-                let category = path.parent()?
-                    .file_name()?
-                    .to_str()?
-                    .to_string();
-                path.strip_prefix(&asset_server_path).ok()
+                let category = path.parent()?.file_name()?.to_str()?.to_string();
+                path.strip_prefix(&asset_server_path)
+                    .ok()
                     .map(|p| (category, p.to_path_buf()))
             })
             .into_group_map();
@@ -142,21 +127,20 @@ fn find_meshes(
     }
 }
 
-
 fn load_meshes(
     asset_server: Res<AssetServer>,
     mut zeroverse_meshes: ResMut<ZeroverseMeshes>,
-    mut load_event: EventWriter<MeshesLoadedEvent>,
+    mut load_event: MessageWriter<MeshesLoadedEvent>,
     mesh_loader_settings: Res<MeshLoaderSettings>,
     found_meshes: Res<MeshRoots>,
     mut wait_for: ResMut<WaitForAssets>,
 ) {
-    use rand::seq::IteratorRandom;
-    let rng = &mut rand::thread_rng();
+    let mut rng = rand::rng();
 
     for (category, paths) in &found_meshes.categories {
-        let selected_paths = paths.iter()
-            .choose_multiple(rng, mesh_loader_settings.category_batch_size);
+        let selected_paths = paths
+            .iter()
+            .choose_multiple(&mut rng, mesh_loader_settings.category_batch_size);
 
         for path in &selected_paths {
             let path_str = path.to_string_lossy();
@@ -174,13 +158,18 @@ fn load_meshes(
             };
 
             wait_for.handles.push(mesh_handle.untyped());
-            zeroverse_meshes.meshes
+            zeroverse_meshes
+                .meshes
                 .entry(category.clone())
                 .or_default()
                 .push(zeroverse_mesh);
         }
 
-        info!("loaded {} meshes for category `{}`", selected_paths.len(), category);
+        info!(
+            "loaded {} meshes for category `{}`",
+            selected_paths.len(),
+            category
+        );
     }
 
     info!("loaded total of {} meshes", zeroverse_meshes.meshes.len());
@@ -188,12 +177,11 @@ fn load_meshes(
     load_event.write(MeshesLoadedEvent);
 }
 
-
 fn reload_meshes(
     asset_server: Res<AssetServer>,
     mut zeroverse_meshes: ResMut<ZeroverseMeshes>,
-    mut shuffle_events: EventReader<ShuffleMeshesEvent>,
-    load_event: EventWriter<MeshesLoadedEvent>,
+    mut shuffle_events: MessageReader<ShuffleMeshesEvent>,
+    load_event: MessageWriter<MeshesLoadedEvent>,
     mesh_loader_settings: Res<MeshLoaderSettings>,
     found_meshes: Res<MeshRoots>,
     wait_for: ResMut<WaitForAssets>,
@@ -215,11 +203,10 @@ fn reload_meshes(
     );
 }
 
-
 fn mesh_exchange(
     args: Res<BevyZeroverseConfig>,
-    mut regenerate_events: EventReader<RegenerateSceneEvent>,
-    mut shuffle_events: EventWriter<ShuffleMeshesEvent>,
+    mut regenerate_events: MessageReader<RegenerateSceneEvent>,
+    mut shuffle_events: MessageWriter<ShuffleMeshesEvent>,
     mut scene_counter: Local<u32>,
 ) {
     if args.regenerate_scene_mesh_shuffle_period == 0 {
@@ -237,14 +224,12 @@ fn mesh_exchange(
     }
 }
 
-
-
 pub fn displace_vertices_with_noise(mesh: &mut Mesh, frequency: f32, scale: f32) {
-    let rng = &mut rand::thread_rng();
+    let mut rng = rand::rng();
 
-    let perlin_x = Perlin::new(rng.gen());
-    let perlin_y = Perlin::new(rng.gen());
-    let perlin_z = Perlin::new(rng.gen());
+    let perlin_x = Perlin::new(rng.random());
+    let perlin_y = Perlin::new(rng.random());
+    let perlin_z = Perlin::new(rng.random());
 
     let mut positions_attr = mesh
         .attribute(Mesh::ATTRIBUTE_POSITION)
@@ -270,5 +255,8 @@ pub fn displace_vertices_with_noise(mesh: &mut Mesh, frequency: f32, scale: f32)
         position[2] += n_z as f32;
     }
 
-    mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, VertexAttributeValues::Float32x3(positions_attr));
+    mesh.insert_attribute(
+        Mesh::ATTRIBUTE_POSITION,
+        VertexAttributeValues::Float32x3(positions_attr),
+    );
 }

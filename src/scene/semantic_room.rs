@@ -1,45 +1,25 @@
 use std::collections::HashMap;
 
-use bevy::{
-    prelude::*,
-    render::render_resource::Face,
-};
+use bevy::{prelude::*, render::render_resource::Face};
 use rand::Rng;
 
 use crate::{
     asset::WaitForAssets,
     camera::{
-        ExtrinsicsSampler,
-        ExtrinsicsSamplerType,
-        LookingAtSampler,
-        TrajectorySampler,
+        ExtrinsicsSampler, ExtrinsicsSamplerType, LookingAtSampler, TrajectorySampler,
         ZeroverseCamera,
     },
-    scene::{
-        lighting::{
-            setup_lighting,
-            ZeroverseLightingSettings,
-        },
-        RegenerateSceneEvent,
-        RotationAugment,
-        SceneAabbNode,
-        SceneLoadedEvent,
-        ZeroverseScene,
-        ZeroverseSceneRoot,
-        ZeroverseSceneSettings,
-        ZeroverseSceneType,
-    },
     primitive::{
-        CountSampler,
-        PositionSampler,
-        RotationSampler,
-        ScaleSampler,
+        CountSampler, PositionSampler, RotationSampler, ScaleSampler, ZeroversePrimitiveSettings,
         ZeroversePrimitives,
-        ZeroversePrimitiveSettings,
     },
     render::semantic::SemanticLabel,
+    scene::{
+        lighting::{setup_lighting, ZeroverseLightingSettings},
+        RegenerateSceneEvent, RotationAugment, SceneAabbNode, SceneLoadedEvent, ZeroverseScene,
+        ZeroverseSceneRoot, ZeroverseSceneSettings, ZeroverseSceneType,
+    },
 };
-
 
 pub struct ZeroverseSemanticRoomPlugin;
 impl Plugin for ZeroverseSemanticRoomPlugin {
@@ -47,13 +27,9 @@ impl Plugin for ZeroverseSemanticRoomPlugin {
         app.init_resource::<ZeroverseSemanticRoomSettings>();
         app.register_type::<ZeroverseSemanticRoomSettings>();
 
-        app.add_systems(
-            PreUpdate,
-            regenerate_scene,
-        );
+        app.add_systems(PreUpdate, regenerate_scene);
     }
 }
-
 
 #[derive(Clone, Debug, Reflect, Resource)]
 #[reflect(Resource)]
@@ -69,8 +45,8 @@ pub struct ZeroverseSemanticRoomSettings {
     pub chair_settings: ZeroversePrimitiveSettings,
     pub door_settings: ZeroversePrimitiveSettings,
     pub human_count: CountSampler,
-    pub human_settings: ZeroversePrimitiveSettings,  // TODO: support parametric SMPL morphing
-    pub table_settings: ZeroversePrimitiveSettings,  // TODO: table scale relative to room scale
+    pub human_settings: ZeroversePrimitiveSettings, // TODO: support parametric SMPL morphing
+    pub table_settings: ZeroversePrimitiveSettings, // TODO: table scale relative to room scale
     pub window_probability: f32,
     pub window_size_min: Vec2,
     pub window_size_max: Vec2,
@@ -171,12 +147,7 @@ impl Default for ZeroverseSemanticRoomSettings {
     }
 }
 
-
-fn check_aabb_collision(
-    center: Vec3,
-    scale: Vec3,
-    aabb_colliders: &[(Vec3, Vec3)],
-) -> bool {
+fn check_aabb_collision(center: Vec3, scale: Vec3, aabb_colliders: &[(Vec3, Vec3)]) -> bool {
     let half_scale: Vec3 = scale * 0.3;
     let min_a = center - half_scale;
     let max_a = center + half_scale;
@@ -204,7 +175,6 @@ fn check_aabb_collision(
     false
 }
 
-
 const CLEARANCE: f32 = 1e-4;
 
 #[inline]
@@ -226,7 +196,7 @@ fn spawn_face(
     window: bool,
     depth: i32,
 ) -> bool {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let base = ZeroversePrimitiveSettings {
         cull_mode,
@@ -243,7 +213,9 @@ fn spawn_face(
     let mut spawn_segment = |pos: Vec3, half_size: Vec3, suffix: &str| {
         commands.spawn((
             ZeroversePrimitiveSettings {
-                position_sampler: PositionSampler::Exact { position: origin + basis * pos },
+                position_sampler: PositionSampler::Exact {
+                    position: origin + basis * pos,
+                },
                 scale_sampler: ScaleSampler::Exact(half_size),
                 ..base.clone()
             },
@@ -253,13 +225,12 @@ fn spawn_face(
     };
 
     let depth_scaled_window_prob = depth_scaled_prob(room_settings.window_probability, depth);
-    let make_window = window && rng.gen_bool(depth_scaled_window_prob as f64);
+    let make_window = window && rng.random_bool(depth_scaled_window_prob as f64);
 
     if !make_window {
         spawn_segment(Vec3::ZERO, half_extents, "");
         return false;
     }
-
 
     let hx = half_extents.x;
     let hz = half_extents.z;
@@ -268,19 +239,24 @@ fn spawn_face(
     let max_h_frac = 1.0 - CLEARANCE / hz;
 
     let min_w_frac = room_settings.window_size_min.x.clamp(0.0, max_w_frac);
-    let max_w_frac = room_settings.window_size_max.x.clamp(min_w_frac, max_w_frac);
+    let max_w_frac = room_settings
+        .window_size_max
+        .x
+        .clamp(min_w_frac, max_w_frac);
     let min_h_frac = room_settings.window_size_min.y.clamp(0.0, max_h_frac);
-    let max_h_frac = room_settings.window_size_max.y.clamp(min_h_frac, max_h_frac);
+    let max_h_frac = room_settings
+        .window_size_max
+        .y
+        .clamp(min_h_frac, max_h_frac);
 
-    let w_frac = rng.gen_range(min_w_frac..=max_w_frac);
-    let h_frac = rng.gen_range(min_h_frac..=max_h_frac);
+    let w_frac = rng.random_range(min_w_frac..=max_w_frac);
+    let h_frac = rng.random_range(min_h_frac..=max_h_frac);
 
     let half_win_w = hx * w_frac;
     let half_win_h = hz * h_frac;
 
-    let win_cx = rng.gen_range((-hx + half_win_w + CLEARANCE)..=(hx - half_win_w - CLEARANCE));
-    let win_cz = rng.gen_range((-hz + half_win_h + CLEARANCE)..=(hz - half_win_h - CLEARANCE));
-
+    let win_cx = rng.random_range((-hx + half_win_w + CLEARANCE)..=(hx - half_win_w - CLEARANCE));
+    let win_cz = rng.random_range((-hz + half_win_h + CLEARANCE)..=(hz - half_win_h - CLEARANCE));
 
     let top_half_h = (hz - (win_cz + half_win_h)) / 2.0;
     spawn_segment(
@@ -295,7 +271,6 @@ fn spawn_face(
         Vec3::new(hx, half_extents.y, bottom_half_h),
         "_bottom",
     );
-
 
     let left_half_w = (win_cx - half_win_w + hx) / 2.0;
     spawn_segment(
@@ -314,7 +289,6 @@ fn spawn_face(
     true
 }
 
-
 // TODO: support bailing on room spawn if required room features are too large (e.g. no door)
 fn spawn_room(
     commands: &mut ChildSpawnerCommands,
@@ -324,76 +298,117 @@ fn spawn_room(
     leaf: bool,
 ) -> [bool; 4] {
     let mut windows = [false; 4];
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
-    {// outer walls
+    {
+        // outer walls
         let hx = room_scale.x / 2.0;
         let hy = room_scale.y;
         let hz = room_scale.z / 2.0;
 
         let ceiling_floor = [
-            (Vec3::new(0.0, hy, 0.0), Quat::IDENTITY, Vec3::new(hx, 1.0, hz), Some(Face::Front), true, SemanticLabel::Ceiling, "top", false),
-            (Vec3::new(0.0, 0.0, 0.0), Quat::IDENTITY, Vec3::new(hx, 1.0, hz), Some(Face::Back), false, SemanticLabel::Floor, "bottom", false),
+            (
+                Vec3::new(0.0, hy, 0.0),
+                Quat::IDENTITY,
+                Vec3::new(hx, 1.0, hz),
+                Some(Face::Front),
+                true,
+                SemanticLabel::Ceiling,
+                "top",
+                false,
+            ),
+            (
+                Vec3::new(0.0, 0.0, 0.0),
+                Quat::IDENTITY,
+                Vec3::new(hx, 1.0, hz),
+                Some(Face::Back),
+                false,
+                SemanticLabel::Floor,
+                "bottom",
+                false,
+            ),
         ];
 
-        ceiling_floor.iter().for_each(|(
-            origin,
-            basis,
-            half,
-            cull,
-            invert,
-            label,
-            name,
-            wall,
-        )| {
-            spawn_face(
-                commands,
-                room_settings,
-                *origin,
-                *basis,
-                *half,
-                *cull,
-                *invert,
-                label.clone(),
-                name,
-                *wall && !leaf,
-                depth,
-            );
-        });
+        ceiling_floor
+            .iter()
+            .for_each(|(origin, basis, half, cull, invert, label, name, wall)| {
+                spawn_face(
+                    commands,
+                    room_settings,
+                    *origin,
+                    *basis,
+                    *half,
+                    *cull,
+                    *invert,
+                    label.clone(),
+                    name,
+                    *wall && !leaf,
+                    depth,
+                );
+            });
 
         let walls = [
-            (Vec3::new(0.0, hy / 2.0, hz), Quat::from_rotation_x(90_f32.to_radians()), Vec3::new(hx, 1.0, hy / 2.0), Some(Face::Front), true, SemanticLabel::Wall, "front", true),
-            (Vec3::new(0.0, hy / 2.0, -hz),Quat::from_rotation_x(90_f32.to_radians()), Vec3::new(hx, 1.0, hy / 2.0), Some(Face::Back), false, SemanticLabel::Wall, "back", true),
-            (Vec3::new(-hx, hy / 2.0, 0.0),Quat::from_rotation_z(90_f32.to_radians()), Vec3::new(hy / 2.0, 1.0, hz), Some(Face::Front), true, SemanticLabel::Wall, "left", true),
-            (Vec3::new(hx, hy / 2.0, 0.0), Quat::from_rotation_z(90_f32.to_radians()), Vec3::new(hy / 2.0, 1.0, hz), Some(Face::Back), false, SemanticLabel::Wall, "right", true),
+            (
+                Vec3::new(0.0, hy / 2.0, hz),
+                Quat::from_rotation_x(90_f32.to_radians()),
+                Vec3::new(hx, 1.0, hy / 2.0),
+                Some(Face::Front),
+                true,
+                SemanticLabel::Wall,
+                "front",
+                true,
+            ),
+            (
+                Vec3::new(0.0, hy / 2.0, -hz),
+                Quat::from_rotation_x(90_f32.to_radians()),
+                Vec3::new(hx, 1.0, hy / 2.0),
+                Some(Face::Back),
+                false,
+                SemanticLabel::Wall,
+                "back",
+                true,
+            ),
+            (
+                Vec3::new(-hx, hy / 2.0, 0.0),
+                Quat::from_rotation_z(90_f32.to_radians()),
+                Vec3::new(hy / 2.0, 1.0, hz),
+                Some(Face::Front),
+                true,
+                SemanticLabel::Wall,
+                "left",
+                true,
+            ),
+            (
+                Vec3::new(hx, hy / 2.0, 0.0),
+                Quat::from_rotation_z(90_f32.to_radians()),
+                Vec3::new(hy / 2.0, 1.0, hz),
+                Some(Face::Back),
+                false,
+                SemanticLabel::Wall,
+                "right",
+                true,
+            ),
         ];
 
-        walls.iter().enumerate().for_each(|(i, (
-            origin,
-            basis,
-            half,
-            cull,
-            invert,
-            label,
-            name,
-            wall,
-        ))| {
-            // TODO: if spawning adjacent room, use the same wall
-            let has_window = spawn_face(
-                commands,
-                room_settings,
-                *origin,
-                *basis,
-                *half,
-                *cull,
-                *invert,
-                label.clone(),
-                name,
-                *wall,
-                depth,
-            );
-            windows[i] = has_window;
-        });
+        walls.iter().enumerate().for_each(
+            |(i, (origin, basis, half, cull, invert, label, name, wall))| {
+                // TODO: if spawning adjacent room, use the same wall
+                let has_window = spawn_face(
+                    commands,
+                    room_settings,
+                    *origin,
+                    *basis,
+                    *half,
+                    *cull,
+                    *invert,
+                    label.clone(),
+                    name,
+                    *wall,
+                    depth,
+                );
+                windows[i] = has_window;
+            },
+        );
     }
 
     if room_settings.cuboid_only {
@@ -402,7 +417,8 @@ fn spawn_room(
 
     let mut aabb_colliders: Vec<(Vec3, Vec3)> = Vec::new();
 
-    { // table
+    {
+        // table
         let mut table_scale = room_settings.table_settings.scale_sampler.sample();
 
         let room_half_x = room_scale.x / 2.0;
@@ -427,11 +443,7 @@ fn spawn_room(
         table_scale.z = table_scale.z.min(max_half_table_scale_z * 2.0);
 
         let half_table_scale = table_scale * 0.5;
-        let height_offset = Vec3::new(
-            0.0,
-            table_scale.y / 4.0,
-            0.0,
-        );
+        let height_offset = Vec3::new(0.0, table_scale.y / 4.0, 0.0);
 
         let center_sampler = PositionSampler::Cube {
             extents: Vec3::new(
@@ -448,9 +460,7 @@ fn spawn_room(
 
             commands.spawn((
                 ZeroversePrimitiveSettings {
-                    position_sampler: PositionSampler::Exact {
-                        position,
-                    },
+                    position_sampler: PositionSampler::Exact { position },
                     scale_sampler: ScaleSampler::Exact(table_scale),
                     rotation_sampler: RotationSampler::Identity,
                     ..room_settings.table_settings.clone()
@@ -462,7 +472,8 @@ fn spawn_room(
         }
     }
 
-    { // chairs
+    {
+        // chairs
         let chair_scale = room_settings.chair_settings.scale_sampler.sample();
         let chair_scale = Vec3::new(chair_scale.x, chair_scale.y, chair_scale.x);
         let center_sampler = PositionSampler::Cube {
@@ -474,18 +485,16 @@ fn spawn_room(
         };
         let chair_scale_sampler = ScaleSampler::Exact(chair_scale);
 
-        let height_offset = Vec3::new(
-            0.0,
-            chair_scale.y / 4.0,
-            0.0,
-        );
+        let height_offset = Vec3::new(0.0, chair_scale.y / 4.0, 0.0);
 
         if center_sampler.is_valid() {
             for _ in 0..room_settings.chair_count.sample() {
                 let mut position = center_sampler.sample() + height_offset;
 
                 let mut max_attempts = 100;
-                while check_aabb_collision(position, chair_scale, &aabb_colliders) && max_attempts > 0 {
+                while check_aabb_collision(position, chair_scale, &aabb_colliders)
+                    && max_attempts > 0
+                {
                     position = center_sampler.sample() + height_offset;
                     max_attempts -= 1;
                 }
@@ -498,9 +507,7 @@ fn spawn_room(
 
                 commands.spawn((
                     ZeroversePrimitiveSettings {
-                        position_sampler: PositionSampler::Exact {
-                            position,
-                        },
+                        position_sampler: PositionSampler::Exact { position },
                         scale_sampler: chair_scale_sampler.clone(),
                         // rotation_sampler: RotationSampler::Identity,
                         ..room_settings.chair_settings.clone()
@@ -514,8 +521,9 @@ fn spawn_room(
     }
 
     // TODO: tv, whiteboard, door, rug
-    { // door
-        let face = rng.gen_range(0..4);
+    {
+        // door
+        let face = rng.random_range(0..4);
         let mut door_scale = room_settings.door_settings.scale_sampler.sample();
 
         let hw = door_scale.x / 2.0;
@@ -536,10 +544,22 @@ fn spawn_room(
         let perimeter_is_valid = perimeter.x > 0.0 && perimeter.z > 0.0;
         if perimeter_is_valid {
             let (x, z) = match face {
-                0 => (-perimeter.x / 2.0, rng.gen_range(-perimeter.z / 2.0..perimeter.z / 2.0)),
-                1 => (perimeter.x / 2.0, rng.gen_range(-perimeter.z / 2.0..perimeter.z / 2.0)),
-                2 => (rng.gen_range(-perimeter.x / 2.0..perimeter.x / 2.0), -perimeter.z / 2.0),
-                3 => (rng.gen_range(-perimeter.x / 2.0..perimeter.x / 2.0), perimeter.z / 2.0),
+                0 => (
+                    -perimeter.x / 2.0,
+                    rng.random_range(-perimeter.z / 2.0..perimeter.z / 2.0),
+                ),
+                1 => (
+                    perimeter.x / 2.0,
+                    rng.random_range(-perimeter.z / 2.0..perimeter.z / 2.0),
+                ),
+                2 => (
+                    rng.random_range(-perimeter.x / 2.0..perimeter.x / 2.0),
+                    -perimeter.z / 2.0,
+                ),
+                3 => (
+                    rng.random_range(-perimeter.x / 2.0..perimeter.x / 2.0),
+                    perimeter.z / 2.0,
+                ),
                 _ => unreachable!(),
             };
             door_scale.y = door_scale.y.min(room_scale.y);
@@ -568,7 +588,8 @@ fn spawn_room(
         }
     }
 
-    { // humans
+    {
+        // humans
         for _ in 0..room_settings.human_count.sample() {
             let human_scale = room_settings.human_settings.scale_sampler.sample();
             let human_scale = Vec3::new(human_scale.x, human_scale.y, human_scale.x);
@@ -586,11 +607,7 @@ fn spawn_room(
 
             let human_scale_sampler = ScaleSampler::Exact(human_scale);
 
-            let height_offset = Vec3::new(
-                0.0,
-                0.0,
-                0.0,
-            );
+            let height_offset = Vec3::new(0.0, 0.0, 0.0);
 
             let mut position = center_sampler.sample() + height_offset;
 
@@ -608,9 +625,7 @@ fn spawn_room(
 
             commands.spawn((
                 ZeroversePrimitiveSettings {
-                    position_sampler: PositionSampler::Exact {
-                        position,
-                    },
+                    position_sampler: PositionSampler::Exact { position },
                     scale_sampler: human_scale_sampler.clone(),
                     ..room_settings.human_settings.clone()
                 },
@@ -624,7 +639,6 @@ fn spawn_room(
     windows
 }
 
-
 const DIRS: [(i32, i32); 4] = [(0, 1), (0, -1), (-1, 0), (1, 0)];
 const MAX_SHRINK_ITERS: usize = 8;
 const MIN_FRACTION: f32 = 0.20;
@@ -634,8 +648,7 @@ const ROOM_GAP: f32 = 0.05;
 fn overlaps(a_pos: Vec3, a_scale: Vec3, b_pos: Vec3, b_scale: Vec3) -> bool {
     let dx = (a_pos.x - b_pos.x).abs();
     let dz = (a_pos.z - b_pos.z).abs();
-    dx + ROOM_GAP < (a_scale.x + b_scale.x) * 0.5 &&
-    dz + ROOM_GAP < (a_scale.z + b_scale.z) * 0.5
+    dx + ROOM_GAP < (a_scale.x + b_scale.x) * 0.5 && dz + ROOM_GAP < (a_scale.z + b_scale.z) * 0.5
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -705,18 +718,14 @@ fn spawn_room_rec(
             Visibility::default(),
         ))
         .with_children(|c| {
-            windows = spawn_room(
-                c,
-                &my_scale,
-                settings,
-                depth,
-                depth_left == 0,
-            );
+            windows = spawn_room(c, &my_scale, settings, depth, depth_left == 0);
         });
 
     if depth_left > 0 {
         for (idx, &(sx, sz)) in DIRS.iter().enumerate() {
-            if !windows[idx] { continue }
+            if !windows[idx] {
+                continue;
+            }
             let next = (coord.0 + sx, coord.1 + sz);
             if !rooms.contains_key(&next) {
                 spawn_room_rec(
@@ -750,19 +759,15 @@ fn spawn_room_neighborhood(
             Visibility::default(),
         ))
         .with_children(|root| {
-            let windows_root = spawn_room(
-                root,
-                base_scale,
-                settings,
-                0,
-                false,
-            );
+            let windows_root = spawn_room(root, base_scale, settings, 0, false);
 
             let mut rooms: HashMap<(i32, i32), (Vec3, Vec3)> = HashMap::new();
             rooms.insert((0, 0), (Vec3::ZERO, *base_scale));
 
             for (idx, &(dx, dz)) in DIRS.iter().enumerate() {
-                if !windows_root[idx] { continue; }
+                if !windows_root[idx] {
+                    continue;
+                }
                 spawn_room_rec(
                     root,
                     (dx, dz),
@@ -778,10 +783,9 @@ fn spawn_room_neighborhood(
         });
 }
 
-
 fn setup_scene(
     mut commands: Commands,
-    mut load_event: EventWriter<SceneLoadedEvent>,
+    mut load_event: MessageWriter<SceneLoadedEvent>,
     room_settings: Res<ZeroverseSemanticRoomSettings>,
     scene_settings: Res<ZeroverseSceneSettings>,
 ) {
@@ -789,104 +793,106 @@ fn setup_scene(
 
     // TODO: set global Y rotation to prevent wall aligned plucker embeddings
 
-    commands.spawn((
-        Name::new("rooms"),
-        RotationAugment,
-        ZeroverseSceneRoot,
-        ZeroverseScene,
-    ))
-    .with_children(|commands| {
-        spawn_room_neighborhood(
-            commands,
-            &room_scale,
-            &room_settings,
-        );
+    commands
+        .spawn((
+            Name::new("rooms"),
+            RotationAugment,
+            ZeroverseSceneRoot,
+            ZeroverseScene,
+        ))
+        .with_children(|commands| {
+            spawn_room_neighborhood(commands, &room_scale, &room_settings);
 
-        { // cameras
-            let size: Vec3 = Vec3::new(
-                room_scale.x - (room_settings.camera_wall_padding + scene_settings.max_camera_radius) * 2.0,
-                room_scale.y - (room_settings.camera_floor_padding + scene_settings.max_camera_radius),
-                room_scale.z - (room_settings.camera_wall_padding + scene_settings.max_camera_radius) * 2.0,
-            );
-            let origin_camera_sampler = ExtrinsicsSampler {
-                position: ExtrinsicsSamplerType::Band {
-                    size,
-                    rotation: Quat::IDENTITY,
-                    translate: Vec3::new(
-                        0.0,
-                        room_settings.camera_floor_padding + size.y / 2.0,
-                        0.0,
-                    ),
-                },
-                looking_at: room_settings.looking_at_sampler.clone(),
-                ..default()
-            };
-            let origin_camera_center = origin_camera_sampler.sample();
-            let mut rng = rand::thread_rng();
+            {
+                // cameras
+                let size: Vec3 = Vec3::new(
+                    room_scale.x
+                        - (room_settings.camera_wall_padding + scene_settings.max_camera_radius)
+                            * 2.0,
+                    room_scale.y
+                        - (room_settings.camera_floor_padding + scene_settings.max_camera_radius),
+                    room_scale.z
+                        - (room_settings.camera_wall_padding + scene_settings.max_camera_radius)
+                            * 2.0,
+                );
+                let origin_camera_sampler = ExtrinsicsSampler {
+                    position: ExtrinsicsSamplerType::Band {
+                        size,
+                        rotation: Quat::IDENTITY,
+                        translate: Vec3::new(
+                            0.0,
+                            room_settings.camera_floor_padding + size.y / 2.0,
+                            0.0,
+                        ),
+                    },
+                    looking_at: room_settings.looking_at_sampler.clone(),
+                    ..default()
+                };
+                let origin_camera_center = origin_camera_sampler.sample();
+                let mut rng = rand::rng();
 
-            for _ in 0..scene_settings.num_cameras {
-                if scene_settings.max_camera_radius <= 0.0 {
-                    let size: Vec3 = Vec3::new(
-                        room_scale.x - room_settings.camera_wall_padding * 2.0,
-                        room_scale.y - room_settings.camera_floor_padding,
-                        room_scale.z - room_settings.camera_wall_padding * 2.0,
-                    );
+                for _ in 0..scene_settings.num_cameras {
+                    if scene_settings.max_camera_radius <= 0.0 {
+                        let size: Vec3 = Vec3::new(
+                            room_scale.x - room_settings.camera_wall_padding * 2.0,
+                            room_scale.y - room_settings.camera_floor_padding,
+                            room_scale.z - room_settings.camera_wall_padding * 2.0,
+                        );
 
-                    let camera_sampler = ExtrinsicsSampler {
-                        position: ExtrinsicsSamplerType::Band {
-                            size,
-                            rotation: Quat::IDENTITY,
-                            translate: Vec3::new(
-                                0.0,
-                                room_settings.camera_floor_padding + size.y / 2.0,
-                                0.0,
-                            ),
-                        },
-                        looking_at: room_settings.looking_at_sampler.clone(),
-                        ..default()
-                    };
+                        let camera_sampler = ExtrinsicsSampler {
+                            position: ExtrinsicsSamplerType::Band {
+                                size,
+                                rotation: Quat::IDENTITY,
+                                translate: Vec3::new(
+                                    0.0,
+                                    room_settings.camera_floor_padding + size.y / 2.0,
+                                    0.0,
+                                ),
+                            },
+                            looking_at: room_settings.looking_at_sampler.clone(),
+                            ..default()
+                        };
 
-                    commands.spawn(ZeroverseCamera {
-                        trajectory: TrajectorySampler::Linear {
-                            start: camera_sampler.clone(),
-                            end: camera_sampler,
-                        },
-                        ..default()
-                    });
-                } else {
-                    let circular_sampler = ExtrinsicsSampler {
-                        position: ExtrinsicsSamplerType::Circle {
-                            radius: scene_settings.max_camera_radius,
-                            rotation: Quat::from_rng(&mut rng),
-                            translate: origin_camera_center.translation,
-                        },
-                        looking_at: room_settings.looking_at_sampler.clone(),
-                        ..default()
-                    };
+                        commands.spawn(ZeroverseCamera {
+                            trajectory: TrajectorySampler::Linear {
+                                start: camera_sampler.clone(),
+                                end: camera_sampler,
+                            },
+                            ..default()
+                        });
+                    } else {
+                        let circular_sampler = ExtrinsicsSampler {
+                            position: ExtrinsicsSamplerType::Circle {
+                                radius: scene_settings.max_camera_radius,
+                                rotation: Quat::from_rng(&mut rng),
+                                translate: origin_camera_center.translation,
+                            },
+                            looking_at: room_settings.looking_at_sampler.clone(),
+                            ..default()
+                        };
 
-                    commands.spawn(ZeroverseCamera {
-                        trajectory: TrajectorySampler::Static {
-                            start: circular_sampler,
-                        },
-                        ..default()
-                    });
+                        commands.spawn(ZeroverseCamera {
+                            trajectory: TrajectorySampler::Static {
+                                start: circular_sampler,
+                            },
+                            ..default()
+                        });
+                    }
                 }
             }
-        }
-    });
+        });
 
     load_event.write(SceneLoadedEvent);
 }
-
 
 #[allow(clippy::too_many_arguments)]
 fn regenerate_scene(
     mut commands: Commands,
     room_settings: Res<ZeroverseSemanticRoomSettings>,
     clear_zeroverse_scenes: Query<Entity, With<ZeroverseScene>>,
-    mut regenerate_events: EventReader<RegenerateSceneEvent>,
+    mut regenerate_events: MessageReader<RegenerateSceneEvent>,
     scene_settings: Res<ZeroverseSceneSettings>,
-    load_event: EventWriter<SceneLoadedEvent>,
+    load_event: MessageWriter<SceneLoadedEvent>,
     lighting_settings: Res<ZeroverseLightingSettings>,
     wait_for: Res<WaitForAssets>,
     mut recover_from_wait: Local<bool>,
@@ -911,15 +917,7 @@ fn regenerate_scene(
         commands.entity(entity).despawn();
     }
 
-    setup_lighting(
-        commands.reborrow(),
-        lighting_settings,
-    );
+    setup_lighting(commands.reborrow(), lighting_settings);
 
-    setup_scene(
-        commands,
-        load_event,
-        room_settings,
-        scene_settings,
-    );
+    setup_scene(commands, load_event, room_settings, scene_settings);
 }

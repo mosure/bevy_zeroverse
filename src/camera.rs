@@ -1,45 +1,26 @@
 use bevy::{
-    prelude::*,
-    core_pipeline::{
-        bloom::Bloom,
-        core_3d::ScreenSpaceTransmissionQuality,
-        prepass::MotionVectorPrepass, // MOTION_VECTOR_PREPASS_FORMAT,
+    camera::{
+        visibility::RenderLayers, Exposure, ImageRenderTarget, RenderTarget,
+        ScreenSpaceTransmissionQuality,
     },
-    gizmos::config::{
-        GizmoConfig,
-        GizmoConfigGroup,
-    },
+    core_pipeline::prepass::MotionVectorPrepass, // MOTION_VECTOR_PREPASS_FORMAT,
+    gizmos::config::{GizmoConfig, GizmoConfigGroup},
     math::{
         cubic_splines::CubicBSpline,
-        primitives::{
-            Circle,
-            Sphere,
-        },
+        primitives::{Circle, Sphere},
         sampling::ShapeSample,
     },
+    post_process::bloom::Bloom,
+    prelude::*,
     render::{
-        camera::{
-            Exposure,
-            ImageRenderTarget,
-            RenderTarget,
+        render_resource::{
+            Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
         },
         renderer::RenderDevice,
-        render_resource::{
-            Extent3d,
-            TextureDescriptor,
-            TextureDimension,
-            TextureFormat,
-            TextureUsages,
-        },
-        view::RenderLayers,
-    }
+        view::Hdr,
+    },
 };
-use bevy_args::{
-    Deserialize,
-    Parser,
-    Serialize,
-    ValueEnum,
-};
+use bevy_args::{Deserialize, Parser, Serialize, ValueEnum};
 use rand::Rng;
 
 #[cfg(feature = "python")]
@@ -60,13 +41,8 @@ use crate::{
     io,
     // plucker::PluckerCamera,
     render::RenderMode,
-    scene::{
-        RegenerateSceneEvent,
-        ZeroverseSceneRoot,
-    },
+    scene::{RegenerateSceneEvent, ZeroverseSceneRoot},
 };
-
-
 
 // TODO: support camera trajectories, requires custom motion vector prepass during capture
 pub struct ZeroverseCameraPlugin;
@@ -93,17 +69,16 @@ impl Plugin for ZeroverseCameraPlugin {
                 setup_editor_camera,
                 update_camera_trajectory,
                 update_render_pipeline,
-            )
+            ),
         );
     }
 }
-
 
 // TODO: convert to position sampler
 #[derive(Clone, Debug, Reflect)]
 pub enum LookingAtSampler {
     Exact(Vec3),
-    Sphere{
+    Sphere {
         geometry: Sphere,
         transform: Transform,
     },
@@ -119,10 +94,13 @@ impl LookingAtSampler {
     pub fn sample(&self) -> Vec3 {
         match *self {
             LookingAtSampler::Exact(pos) => pos,
-            LookingAtSampler::Sphere { geometry, transform } => {
-                let rng = &mut rand::thread_rng();
-                transform * geometry.sample_interior(rng)
-            },
+            LookingAtSampler::Sphere {
+                geometry,
+                transform,
+            } => {
+                let mut rng = rand::rng();
+                transform * geometry.sample_interior(&mut rng)
+            }
         }
     }
 
@@ -175,7 +153,7 @@ pub enum ExtrinsicsSamplerType {
 pub struct ExtrinsicsSampler {
     pub cache: Option<Transform>,
     pub looking_at: LookingAtSampler,
-    pub position: ExtrinsicsSamplerType,  // TODO: use position sampler here
+    pub position: ExtrinsicsSamplerType, // TODO: use position sampler here
 }
 
 impl Default for ExtrinsicsSamplerType {
@@ -197,87 +175,116 @@ impl ExtrinsicsSampler {
 
     pub fn sample(&self) -> Transform {
         let transform: Transform = match self.position {
-            ExtrinsicsSamplerType::Band { size, rotation, translate } => {
-                let rng = &mut rand::thread_rng();
-
-                let face = rng.gen_range(0..4);
-
-                let (x, z) = match face {
-                    0 => (-size.x / 2.0, rng.gen_range(-size.z / 2.0..size.z / 2.0)),
-                    1 => (size.x / 2.0, rng.gen_range(-size.z / 2.0..size.z / 2.0)),
-                    2 => (rng.gen_range(-size.x / 2.0..size.x / 2.0), -size.z / 2.0),
-                    3 => (rng.gen_range(-size.x / 2.0..size.x / 2.0), size.z / 2.0),
-                    _ => unreachable!(),
-                };
-
-                let y = rng.gen_range(-size.y / 2.0..size.y / 2.0);
-                let pos = Vec3::new(x, y, z) + translate;
-                let pos = rotation.mul_vec3(pos);
-                Transform::from_translation(pos)
-            },
-            ExtrinsicsSamplerType::BandShell {
-                inner_size,
-                outer_size,
+            ExtrinsicsSamplerType::Band {
+                size,
                 rotation,
-                translate
+                translate,
             } => {
-                let rng = &mut rand::thread_rng();
+                let mut rng = rand::rng();
 
-                let face = rng.gen_range(0..4);
+                let face = rng.random_range(0..4);
 
                 let (x, z) = match face {
-                    0 => (
-                        if rng.gen_bool(0.5) { outer_size.x / 2.0 } else { -outer_size.x / 2.0 },
-                        rng.gen_range(-outer_size.z / 2.0..outer_size.z / 2.0),
-                    ),
-                    1 => (
-                        if rng.gen_bool(0.5) { inner_size.x / 2.0 } else { -inner_size.x / 2.0 },
-                        rng.gen_range(-inner_size.z / 2.0..inner_size.z / 2.0),
-                    ),
-                    2 => (
-                        rng.gen_range(-outer_size.x / 2.0..outer_size.x / 2.0),
-                        if rng.gen_bool(0.5) { outer_size.z / 2.0 } else { -outer_size.z / 2.0 },
-                    ),
-                    3 => (
-                        rng.gen_range(-inner_size.x / 2.0..inner_size.x / 2.0),
-                        if rng.gen_bool(0.5) { inner_size.z / 2.0 } else { -inner_size.z / 2.0 },
-                    ),
+                    0 => (-size.x / 2.0, rng.random_range(-size.z / 2.0..size.z / 2.0)),
+                    1 => (size.x / 2.0, rng.random_range(-size.z / 2.0..size.z / 2.0)),
+                    2 => (rng.random_range(-size.x / 2.0..size.x / 2.0), -size.z / 2.0),
+                    3 => (rng.random_range(-size.x / 2.0..size.x / 2.0), size.z / 2.0),
                     _ => unreachable!(),
                 };
 
-                let y = rng.gen_range(-outer_size.y / 2.0..outer_size.y / 2.0);
+                let y = rng.random_range(-size.y / 2.0..size.y / 2.0);
                 let pos = Vec3::new(x, y, z) + translate;
                 let pos = rotation.mul_vec3(pos);
                 Transform::from_translation(pos)
             }
-            ExtrinsicsSamplerType::Circle { radius, rotation, translate } => {
-                let rng = &mut rand::thread_rng();
+            ExtrinsicsSamplerType::BandShell {
+                inner_size,
+                outer_size,
+                rotation,
+                translate,
+            } => {
+                let mut rng = rand::rng();
 
-                let xz = Circle::new(radius).sample_boundary(rng);
+                let face = rng.random_range(0..4);
+
+                let (x, z) = match face {
+                    0 => (
+                        if rng.random_bool(0.5) {
+                            outer_size.x / 2.0
+                        } else {
+                            -outer_size.x / 2.0
+                        },
+                        rng.random_range(-outer_size.z / 2.0..outer_size.z / 2.0),
+                    ),
+                    1 => (
+                        if rng.random_bool(0.5) {
+                            inner_size.x / 2.0
+                        } else {
+                            -inner_size.x / 2.0
+                        },
+                        rng.random_range(-inner_size.z / 2.0..inner_size.z / 2.0),
+                    ),
+                    2 => (
+                        rng.random_range(-outer_size.x / 2.0..outer_size.x / 2.0),
+                        if rng.random_bool(0.5) {
+                            outer_size.z / 2.0
+                        } else {
+                            -outer_size.z / 2.0
+                        },
+                    ),
+                    3 => (
+                        rng.random_range(-inner_size.x / 2.0..inner_size.x / 2.0),
+                        if rng.random_bool(0.5) {
+                            inner_size.z / 2.0
+                        } else {
+                            -inner_size.z / 2.0
+                        },
+                    ),
+                    _ => unreachable!(),
+                };
+
+                let y = rng.random_range(-outer_size.y / 2.0..outer_size.y / 2.0);
+                let pos = Vec3::new(x, y, z) + translate;
+                let pos = rotation.mul_vec3(pos);
+                Transform::from_translation(pos)
+            }
+            ExtrinsicsSamplerType::Circle {
+                radius,
+                rotation,
+                translate,
+            } => {
+                let mut rng = rand::rng();
+
+                let xz = Circle::new(radius).sample_boundary(&mut rng);
                 let pos = rotation.mul_vec3(Vec3::new(xz.x, 0.0, xz.y)) + translate;
                 Transform::from_translation(pos)
-            },
+            }
             ExtrinsicsSamplerType::Sphere { radius, translate } => {
-                let rng = &mut rand::thread_rng();
+                let mut rng = rand::rng();
 
-                let pos = Sphere::new(radius).sample_boundary(rng);
+                let pos = Sphere::new(radius).sample_boundary(&mut rng);
                 Transform::from_translation(pos + translate)
-            },
-            ExtrinsicsSamplerType::SphereShell { inner_radius, outer_radius, translate } => {
-                let rng = &mut rand::thread_rng();
+            }
+            ExtrinsicsSamplerType::SphereShell {
+                inner_radius,
+                outer_radius,
+                translate,
+            } => {
+                let mut rng = rand::rng();
 
-                let radius = rng.gen_range(
-                        inner_radius.powi(3)..outer_radius.powi(3)
-                    ).powf(1.0 / 3.0);
+                let radius = rng
+                    .random_range(inner_radius.powi(3)..outer_radius.powi(3))
+                    .powf(1.0 / 3.0);
                 let direction = Vec3::new(
-                        rng.gen_range(-1.0..1.0),
-                        rng.gen_range(-1.0..1.0),
-                        rng.gen_range(-1.0..1.0),
-                    ).normalize();
+                    rng.random_range(-1.0..1.0),
+                    rng.random_range(-1.0..1.0),
+                    rng.random_range(-1.0..1.0),
+                )
+                .normalize();
 
                 let pos = direction * radius;
                 Transform::from_translation(pos + translate)
-            },
+            }
             ExtrinsicsSamplerType::Transform(transform) => transform,
             _ => Transform::default(),
         };
@@ -285,7 +292,6 @@ impl ExtrinsicsSampler {
         self.looking_at.look_at(transform)
     }
 }
-
 
 #[derive(Component, Debug, Reflect)]
 pub struct PerspectiveSampler {
@@ -307,8 +313,8 @@ impl PerspectiveSampler {
         let fov_deg = if self.min_fov_deg == self.max_fov_deg {
             self.min_fov_deg
         } else {
-            let rng = &mut rand::thread_rng();
-            rng.gen_range(self.min_fov_deg..self.max_fov_deg)
+            let mut rng = rand::rng();
+            rng.random_range(self.min_fov_deg..self.max_fov_deg)
         };
 
         let fov = fov_deg * std::f32::consts::PI / 180.0;
@@ -327,7 +333,6 @@ impl PerspectiveSampler {
         }
     }
 }
-
 
 #[cfg(feature = "python")]
 #[derive(
@@ -399,15 +404,13 @@ impl PlaybackMode {
             PlaybackMode::EaseOut => {
                 let inv = 1.0 - t;
                 1.0 - inv * inv
-            },
-            PlaybackMode::EaseInOut => {
-                0.5 - 0.5 * (std::f32::consts::PI * t).cos()
-            },
+            }
+            PlaybackMode::EaseInOut => 0.5 - 0.5 * (std::f32::consts::PI * t).cos(),
             PlaybackMode::EaseInCubic => t * t * t,
             PlaybackMode::EaseOutCubic => {
                 let inv = 1.0 - t;
                 1.0 - inv * inv * inv
-            },
+            }
             PlaybackMode::EaseInOutCubic => {
                 if t < 0.5 {
                     4.0 * t * t * t
@@ -415,25 +418,14 @@ impl PlaybackMode {
                     let f = -2.0 * t + 2.0;
                     1.0 - (f * f * f) / 2.0
                 }
-            },
+            }
             _ => t,
         }
     }
 }
 
-
 #[cfg(feature = "python")]
-#[derive(
-    Resource,
-    Clone,
-    Copy,
-    Debug,
-    PartialEq,
-    Reflect,
-    Deserialize,
-    Parser,
-    Serialize,
-)]
+#[derive(Resource, Clone, Copy, Debug, PartialEq, Reflect, Deserialize, Parser, Serialize)]
 #[pyclass]
 #[reflect(Resource)]
 pub struct Playback {
@@ -444,17 +436,7 @@ pub struct Playback {
 }
 
 #[cfg(not(feature = "python"))]
-#[derive(
-    Resource,
-    Clone,
-    Copy,
-    Debug,
-    PartialEq,
-    Reflect,
-    Deserialize,
-    Parser,
-    Serialize,
-)]
+#[derive(Resource, Clone, Copy, Debug, PartialEq, Reflect, Deserialize, Parser, Serialize)]
 #[reflect(Resource)]
 pub struct Playback {
     pub mode: PlaybackMode,
@@ -482,7 +464,13 @@ impl Playback {
 
         // bail condition
         match self.mode {
-            PlaybackMode::Loop | PlaybackMode::EaseIn | PlaybackMode::EaseOut | PlaybackMode::EaseInOut | PlaybackMode::EaseInCubic | PlaybackMode::EaseOutCubic | PlaybackMode::EaseInOutCubic => {}
+            PlaybackMode::Loop
+            | PlaybackMode::EaseIn
+            | PlaybackMode::EaseOut
+            | PlaybackMode::EaseInOut
+            | PlaybackMode::EaseInCubic
+            | PlaybackMode::EaseOutCubic
+            | PlaybackMode::EaseInOutCubic => {}
             PlaybackMode::Once => {
                 if self.progress >= 1.0 {
                     return;
@@ -497,7 +485,15 @@ impl Playback {
 
         // forward condition
         match self.mode {
-            PlaybackMode::Loop | PlaybackMode::Once | PlaybackMode::PingPong | PlaybackMode::EaseIn | PlaybackMode::EaseOut | PlaybackMode::EaseInOut | PlaybackMode::EaseInCubic | PlaybackMode::EaseOutCubic | PlaybackMode::EaseInOutCubic => {
+            PlaybackMode::Loop
+            | PlaybackMode::Once
+            | PlaybackMode::PingPong
+            | PlaybackMode::EaseIn
+            | PlaybackMode::EaseOut
+            | PlaybackMode::EaseInOut
+            | PlaybackMode::EaseInCubic
+            | PlaybackMode::EaseOutCubic
+            | PlaybackMode::EaseInOutCubic => {
                 self.progress += time.delta_secs() * self.direction * self.speed;
             }
             PlaybackMode::Sin => {
@@ -510,7 +506,13 @@ impl Playback {
 
         // reset condition
         match self.mode {
-            PlaybackMode::Loop | PlaybackMode::EaseIn | PlaybackMode::EaseOut | PlaybackMode::EaseInOut | PlaybackMode::EaseInCubic | PlaybackMode::EaseOutCubic | PlaybackMode::EaseInOutCubic => {
+            PlaybackMode::Loop
+            | PlaybackMode::EaseIn
+            | PlaybackMode::EaseOut
+            | PlaybackMode::EaseInOut
+            | PlaybackMode::EaseInCubic
+            | PlaybackMode::EaseOutCubic
+            | PlaybackMode::EaseInOutCubic => {
                 if self.progress > 1.0 {
                     self.progress = 0.0;
                 }
@@ -530,8 +532,6 @@ impl Playback {
         }
     }
 }
-
-
 
 #[derive(Clone, Debug, Reflect)]
 pub enum TrajectorySampler {
@@ -572,19 +572,17 @@ impl Default for TrajectorySampler {
 impl TrajectorySampler {
     pub fn sample(&mut self, progress: f32) -> Transform {
         match self {
-            TrajectorySampler::Static { start } => {
-                start.sample_cache()
-            },
+            TrajectorySampler::Static { start } => start.sample_cache(),
             TrajectorySampler::Linear { start, end } => {
                 let progress = progress.clamp(0.0, 1.0);
-                let start    = start.sample_cache();
-                let end      = end.sample_cache();
+                let start = start.sample_cache();
+                let end = end.sample_cache();
 
                 let pos = start.translation.lerp(end.translation, progress);
 
                 let mut rot = start.rotation.slerp(end.rotation, progress);
-                let (yaw, pitch, _roll) = rot.to_euler(EulerRot::YXZ);      // extract yaw-pitch-roll
-                rot = Quat::from_euler(EulerRot::YXZ, yaw, pitch, 0.0)      // roll = 0 → y-up
+                let (yaw, pitch, _roll) = rot.to_euler(EulerRot::YXZ); // extract yaw-pitch-roll
+                rot = Quat::from_euler(EulerRot::YXZ, yaw, pitch, 0.0) // roll = 0 → y-up
                     .normalize();
 
                 Transform {
@@ -592,19 +590,27 @@ impl TrajectorySampler {
                     rotation: rot,
                     ..Default::default()
                 }
-            },
-            TrajectorySampler::Avoidant { start, end, bend_away_from, radius } => {
+            }
+            TrajectorySampler::Avoidant {
+                start,
+                end,
+                bend_away_from,
+                radius,
+            } => {
                 let progress = progress.clamp(0.0, 1.0);
                 let start_transform = start.sample_cache();
                 let end_transform = end.sample_cache();
 
-                let mid_point = start_transform.translation.lerp(end_transform.translation, 0.5);
+                let mid_point = start_transform
+                    .translation
+                    .lerp(end_transform.translation, 0.5);
 
                 let path_dir = end_transform.translation - start_transform.translation;
                 let path_length = path_dir.length();
 
                 let avoidance_dir = (mid_point - *bend_away_from).normalize();
-                let perpendicular_dir = avoidance_dir - path_dir.normalize() * avoidance_dir.dot(path_dir.normalize());
+                let perpendicular_dir =
+                    avoidance_dir - path_dir.normalize() * avoidance_dir.dot(path_dir.normalize());
                 let perpendicular_dir = perpendicular_dir.normalize();
 
                 let effective_radius = radius.min(path_length * 0.5);
@@ -615,18 +621,28 @@ impl TrajectorySampler {
                     + 2.0 * (1.0 - t) * t * control_point
                     + t.powi(2) * end_transform.translation;
 
-                let rot = start_transform.rotation.slerp(end_transform.rotation, progress);
+                let rot = start_transform
+                    .rotation
+                    .slerp(end_transform.rotation, progress);
 
                 Transform::from_translation(pos).mul_transform(Transform::from_rotation(rot))
-            },
-            TrajectorySampler::AvoidantXZ { start, end, bend_away_from, radius } => {
+            }
+            TrajectorySampler::AvoidantXZ {
+                start,
+                end,
+                bend_away_from,
+                radius,
+            } => {
                 let progress = progress.clamp(0.0, 1.0);
                 let start_transform = start.sample_cache();
                 let end_transform = end.sample_cache();
 
-                let mid_point = start_transform.translation.lerp(end_transform.translation, 0.5);
+                let mid_point = start_transform
+                    .translation
+                    .lerp(end_transform.translation, 0.5);
 
-                let path_dir = (end_transform.translation - start_transform.translation).with_y(0.0);
+                let path_dir =
+                    (end_transform.translation - start_transform.translation).with_y(0.0);
                 let path_length = path_dir.length();
 
                 let avoidance_vec = (mid_point - *bend_away_from).with_y(0.0);
@@ -635,7 +651,8 @@ impl TrajectorySampler {
                     Vec3::new(-path_dir.z, 0.0, path_dir.x).normalize()
                 } else {
                     let avoidance_dir = avoidance_vec.normalize();
-                    let projected = avoidance_dir - path_dir.normalize() * avoidance_dir.dot(path_dir.normalize());
+                    let projected = avoidance_dir
+                        - path_dir.normalize() * avoidance_dir.dot(path_dir.normalize());
                     projected.normalize()
                 };
 
@@ -647,10 +664,12 @@ impl TrajectorySampler {
                     + 2.0 * (1.0 - t) * t * control_point
                     + t.powi(2) * end_transform.translation;
 
-                let rot = start_transform.rotation.slerp(end_transform.rotation, progress);
+                let rot = start_transform
+                    .rotation
+                    .slerp(end_transform.rotation, progress);
 
                 Transform::from_translation(pos).mul_transform(Transform::from_rotation(rot))
-            },
+            }
             TrajectorySampler::CubicBSpline { control_points } => {
                 if control_points.is_empty() {
                     return Transform::default();
@@ -700,7 +719,7 @@ impl TrajectorySampler {
                         let mut output = fallback;
                         output.translation = translation;
                         return output;
-                    },
+                    }
                 };
 
                 let mut quat_vec = rotation_curve.position(curve_t);
@@ -710,14 +729,14 @@ impl TrajectorySampler {
                     quat_vec = quat_vec.normalize();
                 }
 
-                let rotation = Quat::from_xyzw(quat_vec.x, quat_vec.y, quat_vec.z, quat_vec.w).normalize();
+                let rotation =
+                    Quat::from_xyzw(quat_vec.x, quat_vec.y, quat_vec.z, quat_vec.w).normalize();
 
                 let mut output = fallback;
                 output.translation = translation;
                 output.rotation = rotation;
                 output
-            },
-
+            }
         }
     }
 
@@ -732,11 +751,18 @@ impl TrajectorySampler {
                 let start = transform.transform_point(start.sample_cache().translation);
                 let end = transform.transform_point(end.sample_cache().translation);
                 gizmos.line(start, end, color);
-            },
-            TrajectorySampler::Avoidant { start, end, bend_away_from, radius } => {
+            }
+            TrajectorySampler::Avoidant {
+                start,
+                end,
+                bend_away_from,
+                radius,
+            } => {
                 let start_transform = start.sample_cache();
                 let end_transform = end.sample_cache();
-                let mid_point = start_transform.translation.lerp(end_transform.translation, 0.5);
+                let mid_point = start_transform
+                    .translation
+                    .lerp(end_transform.translation, 0.5);
 
                 let path_dir = end_transform.translation - start_transform.translation;
                 let path_length = path_dir.length();
@@ -747,7 +773,8 @@ impl TrajectorySampler {
                     path_dir.any_orthonormal_vector().normalize()
                 } else {
                     let avoidance_dir = avoidance_vec.normalize();
-                    let projected = avoidance_dir - path_dir.normalize() * avoidance_dir.dot(path_dir.normalize());
+                    let projected = avoidance_dir
+                        - path_dir.normalize() * avoidance_dir.dot(path_dir.normalize());
                     projected.normalize()
                 };
 
@@ -769,13 +796,21 @@ impl TrajectorySampler {
                     gizmos.line(prev_point, transformed_point, color);
                     prev_point = transformed_point;
                 }
-            },
-            TrajectorySampler::AvoidantXZ { start, end, bend_away_from, radius } => {
+            }
+            TrajectorySampler::AvoidantXZ {
+                start,
+                end,
+                bend_away_from,
+                radius,
+            } => {
                 let start_transform = start.sample_cache();
                 let end_transform = end.sample_cache();
-                let mid_point = start_transform.translation.lerp(end_transform.translation, 0.5);
+                let mid_point = start_transform
+                    .translation
+                    .lerp(end_transform.translation, 0.5);
 
-                let path_dir = (end_transform.translation - start_transform.translation).with_y(0.0);
+                let path_dir =
+                    (end_transform.translation - start_transform.translation).with_y(0.0);
                 let path_length = path_dir.length();
 
                 let avoidance_vec = (mid_point - *bend_away_from).with_y(0.0);
@@ -784,12 +819,14 @@ impl TrajectorySampler {
                     Vec3::new(-path_dir.z, 0.0, path_dir.x).normalize()
                 } else {
                     let avoidance_dir = avoidance_vec.normalize();
-                    let projected = avoidance_dir - path_dir.normalize() * avoidance_dir.dot(path_dir.normalize());
+                    let projected = avoidance_dir
+                        - path_dir.normalize() * avoidance_dir.dot(path_dir.normalize());
                     projected.normalize()
                 };
 
                 let effective_radius = radius.min(path_length * 0.5);
-                let control_point = (mid_point + perpendicular_dir * effective_radius).with_y(mid_point.y);
+                let control_point =
+                    (mid_point + perpendicular_dir * effective_radius).with_y(mid_point.y);
 
                 let curve_length = start_transform.translation.distance(control_point)
                     + control_point.distance(end_transform.translation);
@@ -806,7 +843,7 @@ impl TrajectorySampler {
                     gizmos.line(prev_point, transformed_point, color);
                     prev_point = transformed_point;
                 }
-            },
+            }
             TrajectorySampler::CubicBSpline { control_points } => {
                 if control_points.is_empty() {
                     return;
@@ -853,12 +890,11 @@ impl TrajectorySampler {
                         prev = Some(point);
                     }
                 }
-            },
-            _ => {},
+            }
+            _ => {}
         }
     }
 }
-
 
 #[derive(Component, Debug, Default, Reflect)]
 pub struct ZeroverseCamera {
@@ -874,17 +910,14 @@ pub struct DefaultZeroverseCamera {
     pub resolution: Option<UVec2>,
 }
 
-
 fn update_camera_trajectory(
-    mut cameras: Query<(
-        &mut Transform,
-        &mut ZeroverseCamera,
-    )>,
+    mut cameras: Query<(&mut Transform, &mut ZeroverseCamera)>,
     mut global_playback: ResMut<Playback>,
     time: Res<Time>,
-    mut regenerate_events: EventReader<RegenerateSceneEvent>,
+    mut regenerate_events: MessageReader<RegenerateSceneEvent>,
 ) {
-    let mut update_camera_playbacks = global_playback.is_changed() || global_playback.mode != PlaybackMode::Still;
+    let mut update_camera_playbacks =
+        global_playback.is_changed() || global_playback.mode != PlaybackMode::Still;
     global_playback.step(&time);
 
     if !regenerate_events.is_empty() {
@@ -893,10 +926,7 @@ fn update_camera_trajectory(
         update_camera_playbacks = true;
     }
 
-    for (
-        mut transform,
-        mut camera,
-    ) in cameras.iter_mut() {
+    for (mut transform, mut camera) in cameras.iter_mut() {
         if camera.override_transform.is_some() {
             continue;
         }
@@ -913,26 +943,16 @@ fn update_camera_trajectory(
     }
 }
 
-
 fn insert_cameras(
     mut commands: Commands,
     mut images: ResMut<Assets<Image>>,
-    mut zeroverse_cameras: Query<
-        (
-            Entity,
-            &mut ZeroverseCamera,
-        ),
-        Without<Camera>,
-    >,
+    mut zeroverse_cameras: Query<(Entity, &mut ZeroverseCamera), Without<Camera>>,
     default_zeroverse_camera: Res<DefaultZeroverseCamera>,
     args: Res<BevyZeroverseConfig>,
     render_mode: Res<RenderMode>,
     render_device: Res<RenderDevice>,
 ) {
-    for (
-        entity,
-        mut zeroverse_camera,
-    ) in zeroverse_cameras.iter_mut() {
+    for (entity, mut zeroverse_camera) in zeroverse_cameras.iter_mut() {
         let resolution = zeroverse_camera.resolution
             .unwrap_or(default_zeroverse_camera.resolution.expect("DefaultZeroverseCamera resolution must be set if ZeroverseCamera resolution is not set"));
 
@@ -960,48 +980,59 @@ fn insert_cameras(
         };
         render_target.resize(size);
         let render_target = images.add(render_target);
-        let target = RenderTarget::Image(
-            ImageRenderTarget::from(render_target.clone())
-        );
+        let target = RenderTarget::Image(ImageRenderTarget::from(render_target.clone()));
 
         // TODO: modulate fov
         let mut camera = commands.entity(entity);
-        camera
-            .insert((
-                Camera3d {
-                    screen_space_specular_transmission_quality: ScreenSpaceTransmissionQuality::High,
-                    ..default()
-                },
-                Camera {
-                    hdr: true,
-                    target,
-                    ..default()
-                },
-                Exposure::INDOOR,
-                Projection::Perspective(zeroverse_camera.perspective_sampler.sample()),
-                zeroverse_camera.override_transform.unwrap_or(zeroverse_camera.trajectory.sample(0.0)),
-                MotionVectorPrepass,
-                render_mode.dither(),
-                render_mode.msaa(),
-                render_mode.tonemapping(),
-                // PluckerCamera,
-                Name::new("zeroverse_camera"),
-            ));
+        camera.insert((
+            Camera3d {
+                screen_space_specular_transmission_quality: ScreenSpaceTransmissionQuality::High,
+                ..default()
+            },
+            Camera {
+                target,
+                ..default()
+            },
+            Hdr,
+            Exposure::INDOOR,
+            Projection::Perspective(zeroverse_camera.perspective_sampler.sample()),
+            zeroverse_camera
+                .override_transform
+                .unwrap_or(zeroverse_camera.trajectory.sample(0.0)),
+            render_mode.dither(),
+            render_mode.msaa(),
+            render_mode.tonemapping(),
+            // PluckerCamera,
+            Name::new("zeroverse_camera"),
+        ));
+
+        if matches!(
+            *render_mode,
+            RenderMode::Color | RenderMode::MotionVectors | RenderMode::OpticalFlow
+        ) {
+            camera.insert(MotionVectorPrepass);
+        } else {
+            camera.remove::<MotionVectorPrepass>();
+        }
 
         if let Some(bloom) = render_mode.bloom() {
             camera.insert(bloom);
         }
 
         #[cfg(not(feature = "web"))]
-        camera
-            .insert((
-                DepthPrepass,
-                NormalPrepass,
-            ));
+        match *render_mode {
+            RenderMode::Color | RenderMode::OpticalFlow => {
+                camera.insert((DepthPrepass, NormalPrepass));
+            }
+            _ => {
+                camera.remove::<(DepthPrepass, NormalPrepass)>();
+            }
+        }
 
         if args.image_copiers {
             // TODO: use pipeline color format
-            {  // color
+            {
+                // color
                 let mut color_cpu_image = Image {
                     texture_descriptor: TextureDescriptor {
                         label: "bevy_zeroverse_camera_cpu_image".into(),
@@ -1114,12 +1145,10 @@ fn insert_cameras(
     }
 }
 
-
 #[derive(Component, Debug, Default, Reflect)]
 pub struct EditorCameraMarker {
     pub transform: Option<Transform>,
 }
-
 
 #[derive(Component, Debug, Reflect)]
 pub struct ProcessedEditorCameraMarker;
@@ -1131,10 +1160,7 @@ pub const EDITOR_CAMERA_RENDER_LAYER: RenderLayers = RenderLayers::layer(1);
 
 fn setup_editor_camera(
     mut commands: Commands,
-    editor_cameras: Query<
-        (Entity, &EditorCameraMarker),
-        Without<ProcessedEditorCameraMarker>,
-    >,
+    editor_cameras: Query<(Entity, &EditorCameraMarker), Without<ProcessedEditorCameraMarker>>,
     render_mode: Res<RenderMode>,
 ) {
     for (entity, marker) in editor_cameras.iter() {
@@ -1143,13 +1169,12 @@ fn setup_editor_camera(
         entity
             .insert((
                 Camera3d {
-                    screen_space_specular_transmission_quality: ScreenSpaceTransmissionQuality::High,
+                    screen_space_specular_transmission_quality:
+                        ScreenSpaceTransmissionQuality::High,
                     ..default()
                 },
-                Camera {
-                    hdr: true,
-                    ..default()
-                },
+                Hdr,
+                Camera { ..default() },
                 Projection::Perspective(PerspectiveProjection {
                     far: 25.0,
                     ..default()
@@ -1159,46 +1184,48 @@ fn setup_editor_camera(
                 render_mode.dither(),
                 render_mode.msaa(),
                 render_mode.tonemapping(),
-                MotionVectorPrepass,
                 // PluckerCamera,
             ))
             .insert(render_layer)
             .insert(ProcessedEditorCameraMarker)
             .insert(Name::new("editor_camera"));
 
+        if matches!(
+            *render_mode,
+            RenderMode::Color | RenderMode::MotionVectors | RenderMode::OpticalFlow
+        ) {
+            entity.insert(MotionVectorPrepass);
+        } else {
+            entity.remove::<MotionVectorPrepass>();
+        }
+
         if let Some(bloom) = render_mode.bloom() {
             entity.insert(bloom);
         }
 
         #[cfg(not(feature = "web"))]
-        entity.insert((
-                DepthPrepass,
-                NormalPrepass,
-            ));
+        match *render_mode {
+            RenderMode::Color | RenderMode::OpticalFlow => {
+                entity.insert((DepthPrepass, NormalPrepass));
+            }
+            _ => {
+                entity.remove::<(DepthPrepass, NormalPrepass)>();
+            }
+        }
     }
 }
 
-
 pub fn update_render_pipeline(
     mut commands: Commands,
-    editor_cameras: Query<
-        Entity,
-        With<ProcessedEditorCameraMarker>,
-    >,
-    zeroverse_cameras: Query<
-        Entity,
-        With<ZeroverseCamera>,
-    >,
+    editor_cameras: Query<Entity, With<ProcessedEditorCameraMarker>>,
+    zeroverse_cameras: Query<Entity, With<ZeroverseCamera>>,
     render_mode: Res<RenderMode>,
 ) {
     if !render_mode.is_changed() {
         return;
     }
 
-    for camera_entity in editor_cameras
-        .iter()
-        .chain(zeroverse_cameras.iter())
-    {
+    for camera_entity in editor_cameras.iter().chain(zeroverse_cameras.iter()) {
         let mut entity = commands.entity(camera_entity);
         entity
             .insert(render_mode.dither())
@@ -1209,6 +1236,25 @@ pub fn update_render_pipeline(
             entity.insert(bloom);
         } else {
             entity.remove::<Bloom>();
+        }
+
+        #[cfg(not(feature = "web"))]
+        match *render_mode {
+            RenderMode::Color | RenderMode::OpticalFlow => {
+                entity.insert((DepthPrepass, NormalPrepass));
+            }
+            _ => {
+                entity.remove::<(DepthPrepass, NormalPrepass)>();
+            }
+        }
+
+        match *render_mode {
+            RenderMode::Color | RenderMode::MotionVectors | RenderMode::OpticalFlow => {
+                entity.insert(MotionVectorPrepass);
+            }
+            _ => {
+                entity.remove::<MotionVectorPrepass>();
+            }
         }
     }
 
@@ -1224,24 +1270,35 @@ pub fn update_render_pipeline(
         } else {
             entity.remove::<Bloom>();
         }
+
+        #[cfg(not(feature = "web"))]
+        match *render_mode {
+            RenderMode::Color | RenderMode::OpticalFlow => {
+                entity.insert((DepthPrepass, NormalPrepass));
+            }
+            _ => {
+                entity.remove::<(DepthPrepass, NormalPrepass)>();
+            }
+        }
+
+        match *render_mode {
+            RenderMode::Color | RenderMode::MotionVectors | RenderMode::OpticalFlow => {
+                entity.insert(MotionVectorPrepass);
+            }
+            _ => {
+                entity.remove::<MotionVectorPrepass>();
+            }
+        }
     }
 }
-
 
 #[allow(clippy::type_complexity)]
 pub fn draw_camera_gizmo(
     args: Res<BevyZeroverseConfig>,
     mut gizmos: Gizmos<EditorCameraGizmoConfigGroup>,
     mut cameras: Query<
-        (
-            &GlobalTransform,
-            &Projection,
-            &mut ZeroverseCamera,
-        ),
-        (
-            With<Camera>,
-            Without<EditorCameraMarker>,
-        ),
+        (&GlobalTransform, &Projection, &mut ZeroverseCamera),
+        (With<Camera>, Without<EditorCameraMarker>),
     >,
     scene: Query<&GlobalTransform, With<ZeroverseSceneRoot>>,
 ) {
@@ -1249,37 +1306,21 @@ pub fn draw_camera_gizmo(
         return;
     }
 
-    let color = Color::srgba(
-        1.0,
-        0.0,
-        1.0,
-        args.gizmos_alpha.clamp(0.0, 1.0),
-    );
+    let color = Color::srgba(1.0, 0.0, 1.0, args.gizmos_alpha.clamp(0.0, 1.0));
 
-    let trajectory_color = Color::srgba(
-        1.0,
-        1.0,
-        1.0,
-        args.gizmos_alpha.clamp(0.0, 1.0),
-    );
+    let trajectory_color = Color::srgba(1.0, 1.0, 1.0, args.gizmos_alpha.clamp(0.0, 1.0));
 
     let scene_transform = match scene.single() {
         Ok(scene_transform) => scene_transform.compute_transform(),
         Err(_) => Transform::default(),
     };
 
-    for (
-        global_transform,
-        projection,
-        mut zeroverse_camera,
-    ) in cameras.iter_mut() {
+    for (global_transform, projection, mut zeroverse_camera) in cameras.iter_mut() {
         let transform = global_transform.compute_transform();
 
         let (aspect_ratio, fov_y) = match projection {
             Projection::Perspective(persp) => (persp.aspect_ratio, persp.fov),
-            Projection::Orthographic(_) => {
-                (1.0, 0.0)
-            }
+            Projection::Orthographic(_) => (1.0, 0.0),
             Projection::Custom(_) => todo!(),
         };
 
@@ -1315,17 +1356,87 @@ pub fn draw_camera_gizmo(
         gizmos.sphere(transform.translation, 0.1, color);
 
         let rect_transform = Transform::from_translation(transform.translation + forward);
-        let rect_transform = rect_transform.mul_transform(Transform::from_rotation(transform.rotation));
+        let rect_transform =
+            rect_transform.mul_transform(Transform::from_rotation(transform.rotation));
         gizmos.rect(
             rect_transform.to_isometry(),
             Vec2::new(tan_half_fov_x * 2.0 * scale, tan_half_fov_y * 2.0 * scale),
             color,
         );
 
-        zeroverse_camera.trajectory.draw_gizmos(
-            &mut gizmos,
-            scene_transform,
-            trajectory_color,
+        zeroverse_camera
+            .trajectory
+            .draw_gizmos(&mut gizmos, scene_transform, trajectory_color);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bevy::ecs::system::RunSystemOnce;
+    use bevy::render::view::Msaa;
+    use bevy::MinimalPlugins;
+
+    #[test]
+    fn optical_flow_transition_preserves_prepass_targets() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.insert_resource(BevyZeroverseConfig::default());
+        app.insert_resource(RenderMode::Color);
+
+        let editor_camera = app
+            .world_mut()
+            .spawn((
+                Camera::default(),
+                ProcessedEditorCameraMarker,
+                DepthPrepass,
+                NormalPrepass,
+                MotionVectorPrepass,
+            ))
+            .id();
+
+        let zeroverse_camera = app
+            .world_mut()
+            .spawn((
+                ZeroverseCamera::default(),
+                Camera::default(),
+                DepthPrepass,
+                NormalPrepass,
+                MotionVectorPrepass,
+            ))
+            .id();
+
+        let _ = app.world_mut().run_system_once(update_render_pipeline);
+
+        {
+            let mut mode = app.world_mut().resource_mut::<RenderMode>();
+            *mode = RenderMode::OpticalFlow;
+        }
+        app.update();
+
+        let _ = app.world_mut().run_system_once(update_render_pipeline);
+
+        let world = app.world();
+
+        let editor = world.entity(editor_camera);
+        assert!(editor.contains::<DepthPrepass>());
+        assert!(
+            editor.contains::<NormalPrepass>(),
+            "editor camera should retain normal prepass for optical flow"
+        );
+        assert!(editor.contains::<MotionVectorPrepass>());
+        let zeroverse = world.entity(zeroverse_camera);
+        assert!(zeroverse.contains::<DepthPrepass>());
+        assert!(
+            zeroverse.contains::<NormalPrepass>(),
+            "zeroverse camera should retain normal prepass for optical flow"
+        );
+        assert!(zeroverse.contains::<MotionVectorPrepass>());
+
+        assert_eq!(world.entity(editor_camera).get::<Msaa>(), Some(&Msaa::Off));
+        assert_eq!(
+            world.entity(zeroverse_camera).get::<Msaa>(),
+            Some(&Msaa::Off)
         );
     }
 }
