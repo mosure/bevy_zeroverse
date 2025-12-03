@@ -71,9 +71,6 @@ pub enum ZeroverseSceneType {
     Room,
 }
 
-#[derive(Component, Debug, Reflect)]
-pub struct ZeroverseObb;
-
 #[derive(Resource, Debug, Default, Reflect)]
 #[reflect(Resource)]
 pub struct ZeroverseSceneSettings {
@@ -159,7 +156,7 @@ impl From<&SceneAabb> for Transform {
 
 fn create_scene_aabb(
     mut commands: Commands,
-    scene_instances: Query<(Entity, &ZeroverseSceneRoot, &GlobalTransform)>,
+    scene_instances: Query<(Entity, &SceneAabbNode, &GlobalTransform)>,
     children: Query<&Children>,
     bounding_boxes: Query<(&Aabb, &GlobalTransform)>,
 ) {

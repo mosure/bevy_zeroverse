@@ -5,7 +5,7 @@ use crate::{
     primitive::ZeroversePrimitiveSettings,
     scene::{
         lighting::{setup_lighting, ZeroverseLightingSettings},
-        RegenerateSceneEvent, RotationAugment, SceneLoadedEvent, ZeroverseScene,
+        RegenerateSceneEvent, RotationAugment, SceneAabbNode, SceneLoadedEvent, ZeroverseScene,
         ZeroverseSceneRoot, ZeroverseSceneSettings, ZeroverseSceneType,
     },
 };
@@ -55,6 +55,7 @@ fn setup_scene(
             Name::new("zeroverse_object"),
             object_settings.primitive.clone(),
             RotationAugment,
+            SceneAabbNode,
             ZeroverseScene,
             ZeroverseSceneRoot,
         ))

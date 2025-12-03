@@ -12,7 +12,7 @@ use crate::{
     render::semantic::SemanticLabel,
     scene::{
         lighting::{setup_lighting, ZeroverseLightingSettings},
-        RegenerateSceneEvent, RotationAugment, SceneLoadedEvent, ZeroverseScene,
+        RegenerateSceneEvent, RotationAugment, SceneAabbNode, SceneLoadedEvent, ZeroverseScene,
         ZeroverseSceneRoot, ZeroverseSceneSettings, ZeroverseSceneType,
     },
 };
@@ -84,6 +84,7 @@ fn setup_scene(
         .spawn((
             Name::new("room"),
             RotationAugment,
+            SceneAabbNode,
             ZeroverseSceneRoot,
             ZeroverseScene,
         ))

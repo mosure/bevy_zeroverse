@@ -754,12 +754,15 @@ fn spawn_room_neighborhood(
         .spawn((
             InheritedVisibility::default(),
             Name::new("room"),
-            SceneAabbNode,
             Transform::default(),
             Visibility::default(),
         ))
         .with_children(|root| {
-            let windows_root = spawn_room(root, base_scale, settings, 0, false);
+            let mut windows_root = [false; 4];
+            root.spawn(SceneAabbNode)
+                .with_children(|base_room| {
+                    windows_root = spawn_room(base_room, base_scale, settings, 0, false);
+                });
 
             let mut rooms: HashMap<(i32, i32), (Vec3, Vec3)> = HashMap::new();
             rooms.insert((0, 0), (Vec3::ZERO, *base_scale));

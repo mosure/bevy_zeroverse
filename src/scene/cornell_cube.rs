@@ -15,7 +15,7 @@ use crate::{
     },
     material::ZeroverseMaterials,
     scene::{
-        RegenerateSceneEvent, RotationAugment, SceneLoadedEvent, ZeroverseScene,
+        RegenerateSceneEvent, RotationAugment, SceneAabbNode, SceneLoadedEvent, ZeroverseScene,
         ZeroverseSceneRoot, ZeroverseSceneSettings, ZeroverseSceneType,
     },
 };
@@ -106,6 +106,7 @@ fn setup_scene(
         .spawn((
             Name::new("cornell_cube"),
             RotationAugment,
+            SceneAabbNode,
             Transform::default(),
             Visibility::default(),
             ZeroverseSceneRoot,

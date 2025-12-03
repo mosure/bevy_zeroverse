@@ -21,7 +21,7 @@ use ::bevy_zeroverse::{
     camera::{Playback, PlaybackMode},
     io::image_copy::ImageCopier,
     render::RenderMode,
-    scene::{RegenerateSceneEvent, SceneAabb, ZeroverseSceneRoot, ZeroverseSceneType},
+    scene::{RegenerateSceneEvent, SceneAabb, SceneAabbNode, ZeroverseSceneType},
 };
 
 // TODO: move to src/sample.rs (or src/dataloader.rs) to support torch (python) and burn dataloaders
@@ -297,7 +297,7 @@ fn sample_stream(
     mut buffered_sample: ResMut<Sample>,
     mut state: ResMut<SamplerState>,
     cameras: Query<(&GlobalTransform, &Projection, &ImageCopier)>,
-    scene: Query<(&ZeroverseSceneRoot, &SceneAabb)>,
+    scene: Query<(&SceneAabbNode, &SceneAabb)>,
     images: Res<Assets<Image>>,
     mut render_mode: ResMut<RenderMode>,
     mut playback: ResMut<Playback>,
