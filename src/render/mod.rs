@@ -75,10 +75,10 @@ impl Plugin for RenderPlugin {
         app.add_plugins(semantic::SemanticPlugin);
 
         // TODO: add wireframe depth, pbr disable, normals
-        app.add_systems(Update, apply_render_modes.after(process_primitives));
         app.add_systems(
             Update,
             (
+                apply_render_modes,
                 auto_disable_pbr_material::<depth::Depth>,
                 auto_disable_pbr_material::<normal::Normal>,
                 auto_disable_pbr_material::<optical_flow::OpticalFlow>,
@@ -86,7 +86,7 @@ impl Plugin for RenderPlugin {
                 auto_disable_pbr_material::<semantic::Semantic>,
                 enable_pbr_material,
             )
-                .after(apply_render_modes)
+                .chain()
                 .after(process_primitives),
         );
     }
@@ -184,5 +184,77 @@ pub(crate) fn apply_render_modes(
 
     for entity in new_meshes.iter() {
         insert_render_mode_flag(&mut commands, entity);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bevy::{math::primitives::Sphere, MinimalPlugins};
+
+    #[test]
+    fn color_to_normal_back_to_color_restores_materials_same_frame() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+
+        app.insert_resource(RenderMode::Color);
+        app.insert_resource(Assets::<Mesh>::default());
+        app.insert_resource(Assets::<StandardMaterial>::default());
+        app.insert_resource(Assets::<normal::NormalMaterial>::default());
+
+        app.add_systems(
+            Update,
+            (
+                apply_render_modes,
+                auto_disable_pbr_material::<normal::Normal>,
+                enable_pbr_material,
+            )
+                .chain(),
+        );
+        app.add_systems(PostUpdate, normal::apply_normal_material);
+
+        let mesh_handle = {
+            let mut meshes = app.world_mut().resource_mut::<Assets<Mesh>>();
+            meshes.add(Mesh::from(Sphere::default()))
+        };
+        let material_handle = {
+            let mut materials = app.world_mut().resource_mut::<Assets<StandardMaterial>>();
+            materials.add(StandardMaterial::default())
+        };
+
+        let entity = app
+            .world_mut()
+            .spawn((Mesh3d(mesh_handle), MeshMaterial3d(material_handle)))
+            .id();
+
+        // Enter normal render mode.
+        {
+            let mut mode = app.world_mut().resource_mut::<RenderMode>();
+            *mode = RenderMode::Normal;
+        }
+        app.update();
+
+        {
+            let world = app.world();
+            let entity_ref = world.entity(entity);
+            assert!(entity_ref.contains::<normal::Normal>());
+            assert!(entity_ref.contains::<DisabledPbrMaterial>());
+            assert!(entity_ref.contains::<MeshMaterial3d<normal::NormalMaterial>>());
+            assert!(!entity_ref.contains::<MeshMaterial3d<StandardMaterial>>());
+        }
+
+        // Return to color render mode and ensure the standard material comes back immediately.
+        {
+            let mut mode = app.world_mut().resource_mut::<RenderMode>();
+            *mode = RenderMode::Color;
+        }
+        app.update();
+
+        let world = app.world();
+        let entity_ref = world.entity(entity);
+        assert!(!entity_ref.contains::<normal::Normal>());
+        assert!(!entity_ref.contains::<DisabledPbrMaterial>());
+        assert!(entity_ref.contains::<MeshMaterial3d<StandardMaterial>>());
+        assert!(!entity_ref.contains::<MeshMaterial3d<normal::NormalMaterial>>());
     }
 }

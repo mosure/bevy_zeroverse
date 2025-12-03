@@ -41,7 +41,7 @@ impl Plugin for DepthPlugin {
 
         app.add_plugins(MaterialPlugin::<DepthMaterial>::default());
 
-        app.add_systems(Update, apply_depth_material);
+        app.add_systems(PostUpdate, apply_depth_material);
     }
 }
 

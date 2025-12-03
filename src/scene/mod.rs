@@ -71,6 +71,9 @@ pub enum ZeroverseSceneType {
     Room,
 }
 
+#[derive(Component, Debug, Reflect)]
+pub struct ZeroverseObb;
+
 #[derive(Resource, Debug, Default, Reflect)]
 #[reflect(Resource)]
 pub struct ZeroverseSceneSettings {

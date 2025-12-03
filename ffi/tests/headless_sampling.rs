@@ -11,9 +11,12 @@ use std::{
 use bevy::prelude::App;
 use bevy_zeroverse::{
     app::BevyZeroverseConfig,
-    camera::PlaybackMode,
+    camera::{Playback, PlaybackMode},
     render::{depth::DepthMaterial, RenderMode},
-    scene::{RegenerateSceneEvent, ZeroverseSceneType},
+    scene::{
+        semantic_room::ZeroverseSemanticRoomSettings, RegenerateSceneEvent, ZeroverseSceneSettings,
+        ZeroverseSceneType,
+    },
 };
 use bevy_zeroverse_ffi::{create_app, setup_globals, Sample, SamplerState, SAMPLE_RECEIVER};
 use bytemuck::cast_slice;
@@ -183,6 +186,27 @@ fn apply_config(app: &mut App, cfg: &BevyZeroverseConfig) {
             .first()
             .cloned()
             .unwrap_or(cfg.render_mode.clone());
+    }
+
+    {
+        let mut scene_settings = app.world_mut().resource_mut::<ZeroverseSceneSettings>();
+        scene_settings.num_cameras = cfg.num_cameras;
+        scene_settings.rotation_augmentation = cfg.rotation_augmentation;
+        scene_settings.scene_type = cfg.scene_type.clone();
+        scene_settings.max_camera_radius = cfg.max_camera_radius;
+    }
+
+    {
+        let mut playback = app.world_mut().resource_mut::<Playback>();
+        playback.mode = cfg.playback_mode;
+        playback.speed = cfg.playback_speed;
+    }
+
+    {
+        let mut semantic_room_settings = app
+            .world_mut()
+            .resource_mut::<ZeroverseSemanticRoomSettings>();
+        semantic_room_settings.cuboid_only = cfg.cuboid_only;
     }
 
     app.world_mut().write_message(RegenerateSceneEvent);

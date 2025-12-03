@@ -128,7 +128,7 @@ impl Plugin for SemanticPlugin {
         app.add_plugins(MaterialPlugin::<SemanticMaterial>::default());
 
         app.add_systems(Update, propagate_semantic_labels);
-        app.add_systems(Update, apply_semantic_material);
+        app.add_systems(PostUpdate, apply_semantic_material);
 
         // TODO: add system for bounding box render toggle
     }

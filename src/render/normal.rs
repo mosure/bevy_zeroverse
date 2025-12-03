@@ -25,7 +25,7 @@ impl Plugin for NormalPlugin {
 
         app.add_plugins(MaterialPlugin::<NormalMaterial>::default());
 
-        app.add_systems(Update, apply_normal_material);
+        app.add_systems(PostUpdate, apply_normal_material);
     }
 }
 

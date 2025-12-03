@@ -33,7 +33,7 @@ impl Plugin for PositionPlugin {
 
         app.add_plugins(MaterialPlugin::<PositionMaterial>::default());
 
-        app.add_systems(Update, apply_position_material);
+        app.add_systems(PostUpdate, apply_position_material);
     }
 }
 

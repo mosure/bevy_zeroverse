@@ -30,7 +30,7 @@ impl Plugin for OpticalFlowPlugin {
 
         app.add_plugins(MaterialPlugin::<OpticalFlowMaterial>::default());
 
-        app.add_systems(Update, apply_optical_flow_material);
+        app.add_systems(PostUpdate, apply_optical_flow_material);
     }
 }
 
