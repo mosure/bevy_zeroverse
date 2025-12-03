@@ -484,7 +484,14 @@ pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) 
 
     #[cfg(feature = "viewer")]
     if args.editor {
+        // Register config and the enum fields it exposes so the inspector keeps working
+        // when the config definition changes.
         app.register_type::<BevyZeroverseConfig>();
+        app.register_type::<DepthFormat>();
+        app.register_type::<PlaybackMode>();
+        app.register_type::<RenderMode>();
+        app.register_type::<ZeroverseSceneType>();
+
         app.add_plugins(EguiPlugin::default());
         app.add_plugins(WorldInspectorPlugin::new());
     }
@@ -541,14 +548,10 @@ fn setup_camera(
     args: Res<BevyZeroverseConfig>,
     mut commands: Commands,
     material_grid_cameras: Query<Entity, With<MaterialGridCameraMarker>>,
-    editor_cameras: Query<(Entity, &PanOrbitCamera), With<EditorCameraMarker>>,
+    mut editor_cameras: Query<(Entity, &mut PanOrbitCamera, Option<&mut Camera>), With<EditorCameraMarker>>,
     room_settings: Res<ZeroverseRoomSettings>,
     mut previous_settings: Local<Option<CameraSettingsSnapshot>>,
 ) {
-    if !args.is_changed() {
-        return;
-    }
-
     let current_settings = CameraSettingsSnapshot {
         camera_grid: args.camera_grid,
         scene_type: args.scene_type.clone(),
@@ -562,33 +565,33 @@ fn setup_camera(
     }
     *previous_settings = Some(current_settings);
 
-    material_grid_cameras.iter().for_each(|entity| {
-        commands.entity(entity).despawn();
-    });
-
-    let existing_editor_cam = if let Ok(editor_camera) = editor_cameras.single() {
-        Some(*editor_camera.1)
-    } else {
-        None
-    };
-
-    editor_cameras.iter().for_each(|(entity, _)| {
-        commands.entity(entity).despawn();
-    });
-
     if args.camera_grid {
-        commands.spawn(Camera2d).insert(MaterialGridCameraMarker);
+        // Ensure a grid camera exists while keeping the editor camera entity alive.
+        if material_grid_cameras.is_empty() {
+            commands.spawn(Camera2d).insert(MaterialGridCameraMarker);
+        }
+
+        if let Ok((_entity, _pan, maybe_camera)) = editor_cameras.single_mut() {
+            if let Some(mut camera) = maybe_camera {
+                camera.is_active = false;
+            }
+        }
         return;
     }
 
-    // TODO: refactor, do we really need to despawn the editor camera on settings change?
-    let (focus, radius, yaw, pitch) = if let Some(existing_editor_cam) = existing_editor_cam {
-        (
-            existing_editor_cam.focus,
-            existing_editor_cam.radius,
-            existing_editor_cam.yaw,
-            existing_editor_cam.pitch,
-        )
+    // No grid: remove any grid cameras and make sure the editor camera is active and updated.
+    for entity in material_grid_cameras.iter() {
+        commands.entity(entity).despawn();
+    }
+
+    if let Ok((_, mut pan, maybe_camera)) = editor_cameras.single_mut() {
+        if let Some(mut camera) = maybe_camera {
+            camera.is_active = true;
+        }
+
+        pan.orbit_smoothness = args.orbit_smoothness;
+        pan.pan_smoothness = args.pan_smoothness;
+        pan.zoom_smoothness = args.zoom_smoothness;
     } else {
         let radius = match args.scene_type {
             ZeroverseSceneType::Room | ZeroverseSceneType::SemanticRoom => {
@@ -613,23 +616,21 @@ fn setup_camera(
         }
         .into();
 
-        (Vec3::ZERO, radius, yaw, pitch)
-    };
-
-    commands.spawn((
-        EditorCameraMarker::default(),
-        PanOrbitCamera {
-            focus,
-            radius,
-            pitch,
-            yaw,
-            allow_upside_down: true,
-            orbit_smoothness: args.orbit_smoothness,
-            pan_smoothness: args.pan_smoothness,
-            zoom_smoothness: args.zoom_smoothness,
-            ..default()
-        },
-    ));
+        commands.spawn((
+            EditorCameraMarker::default(),
+            PanOrbitCamera {
+                focus: Vec3::ZERO,
+                radius,
+                pitch,
+                yaw,
+                allow_upside_down: true,
+                orbit_smoothness: args.orbit_smoothness,
+                pan_smoothness: args.pan_smoothness,
+                zoom_smoothness: args.zoom_smoothness,
+                ..default()
+            },
+        ));
+    }
 }
 
 #[derive(Component)]

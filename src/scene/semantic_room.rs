@@ -759,7 +759,12 @@ fn spawn_room_neighborhood(
         ))
         .with_children(|root| {
             let mut windows_root = [false; 4];
-            root.spawn(SceneAabbNode)
+            root.spawn((
+                InheritedVisibility::default(),
+                SceneAabbNode,
+                Transform::default(),
+                Visibility::default(),
+            ))
                 .with_children(|base_room| {
                     windows_root = spawn_room(base_room, base_scale, settings, 0, false);
                 });
