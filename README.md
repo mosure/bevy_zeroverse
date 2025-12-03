@@ -65,6 +65,7 @@ requires nvjpeg: https://developer.nvidia.com/nvjpeg
 
 | `bevy_zeroverse` | `bevy` |
 | :--                       | :--    |
+| `0.17`                    | `0.17` |
 | `0.8`                     | `0.16` |
 | `0.6`                     | `0.15` |
 | `0.2`                     | `0.14` |
