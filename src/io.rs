@@ -1,5 +1,62 @@
 // TODO: bevy/multi_threaded support - see: https://github.com/bevyengine/bevy/pull/13006/files
 
+pub mod channels {
+    use std::sync::{
+        mpsc::{self, Receiver, Sender},
+        Arc, Mutex,
+    };
+
+    use once_cell::sync::OnceCell;
+
+    use crate::sample::Sample;
+
+    pub static APP_FRAME_RECEIVER: OnceCell<Arc<Mutex<Receiver<()>>>> = OnceCell::new();
+    pub static APP_FRAME_SENDER: OnceCell<Sender<()>> = OnceCell::new();
+
+    pub static SAMPLE_RECEIVER: OnceCell<Arc<Mutex<Receiver<Sample>>>> = OnceCell::new();
+    pub static SAMPLE_SENDER: OnceCell<Sender<Sample>> = OnceCell::new();
+
+    pub fn channels_initialized() -> bool {
+        APP_FRAME_RECEIVER.get().is_some()
+    }
+
+    pub fn init_channels() {
+        if channels_initialized() {
+            return;
+        }
+
+        let (app_sender, app_receiver) = mpsc::channel();
+        APP_FRAME_RECEIVER
+            .set(Arc::new(Mutex::new(app_receiver)))
+            .unwrap();
+        APP_FRAME_SENDER.set(app_sender).unwrap();
+
+        let (sample_sender, sample_receiver) = mpsc::channel();
+        SAMPLE_RECEIVER
+            .set(Arc::new(Mutex::new(sample_receiver)))
+            .unwrap();
+        SAMPLE_SENDER.set(sample_sender).unwrap();
+    }
+
+    pub fn app_frame_sender() -> &'static Sender<()> {
+        APP_FRAME_SENDER
+            .get()
+            .expect("app frame sender not initialized")
+    }
+
+    pub fn app_frame_receiver() -> Option<&'static Arc<Mutex<Receiver<()>>>> {
+        APP_FRAME_RECEIVER.get()
+    }
+
+    pub fn sample_sender() -> &'static Sender<Sample> {
+        SAMPLE_SENDER.get().expect("sample sender not initialized")
+    }
+
+    pub fn sample_receiver() -> Option<&'static Arc<Mutex<Receiver<Sample>>>> {
+        SAMPLE_RECEIVER.get()
+    }
+}
+
 /// Derived from: https://github.com/bevyengine/bevy/pull/5550
 pub mod image_copy {
     use std::sync::Arc;

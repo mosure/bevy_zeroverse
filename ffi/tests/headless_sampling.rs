@@ -12,13 +12,15 @@ use bevy::prelude::App;
 use bevy_zeroverse::{
     app::BevyZeroverseConfig,
     camera::{Playback, PlaybackMode},
+    headless::{create_app, setup_globals},
+    io::channels,
     render::{depth::DepthMaterial, RenderMode},
+    sample::{Sample, SamplerState, View},
     scene::{
         semantic_room::ZeroverseSemanticRoomSettings, RegenerateSceneEvent, ZeroverseSceneSettings,
         ZeroverseSceneType,
     },
 };
-use bevy_zeroverse_ffi::{create_app, setup_globals, Sample, SamplerState, SAMPLE_RECEIVER};
 use bytemuck::cast_slice;
 use image::{ImageBuffer, Rgba};
 
@@ -33,7 +35,7 @@ fn init_globals() {
             .into_owned();
         setup_globals(Some(asset_root));
 
-        if let Some(receiver) = SAMPLE_RECEIVER.get() {
+        if let Some(receiver) = channels::sample_receiver() {
             if let Ok(receiver) = receiver.lock() {
                 while receiver.try_recv().is_ok() {}
             }
@@ -120,7 +122,7 @@ fn base_config(
     cfg.playback_speed = 0.6;
     cfg.playback_step = 0.1;
     cfg.playback_steps = 1;
-    cfg.depth_format = bevy_zeroverse::render::depth::DepthFormat::Colorized;
+    cfg.depth_format = bevy_zeroverse::render::depth::DepthFormat::Normalized;
     cfg.z_depth = true;
     cfg
 }
@@ -213,7 +215,7 @@ fn apply_config(app: &mut App, cfg: &BevyZeroverseConfig) {
 }
 
 fn collect_sample(app: &mut App, cfg: &BevyZeroverseConfig) -> Result<Sample, Box<dyn Error>> {
-    if let Some(receiver) = SAMPLE_RECEIVER.get() {
+    if let Some(receiver) = channels::sample_receiver() {
         if let Ok(receiver) = receiver.lock() {
             while receiver.try_recv().is_ok() {}
         }
@@ -232,9 +234,8 @@ fn collect_sample(app: &mut App, cfg: &BevyZeroverseConfig) -> Result<Sample, Bo
     }
 
     let expected_views = cfg.num_cameras.max(1) * cfg.playback_steps as usize;
-    let receiver = SAMPLE_RECEIVER
-        .get()
-        .expect("SAMPLE_RECEIVER was not initialized")
+    let receiver = channels::sample_receiver()
+        .expect("sample receiver was not initialized")
         .clone();
 
     let start = Instant::now();
@@ -405,7 +406,7 @@ fn save_position_like_image(floats: &[f32], width: u32, height: u32, output: &Pa
     stats
 }
 
-fn select_buffer<'a>(view: &'a bevy_zeroverse_ffi::View, mode: &RenderMode) -> &'a [u8] {
+fn select_buffer<'a>(view: &'a View, mode: &RenderMode) -> &'a [u8] {
     match mode {
         RenderMode::Color => &view.color,
         RenderMode::Depth => &view.depth,

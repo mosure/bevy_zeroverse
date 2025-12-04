@@ -995,6 +995,7 @@ fn insert_cameras(
             },
             Hdr,
             Exposure::INDOOR,
+            MotionVectorPrepass,
             Projection::Perspective(zeroverse_camera.perspective_sampler.sample()),
             zeroverse_camera
                 .override_transform
@@ -1006,28 +1007,16 @@ fn insert_cameras(
             Name::new("zeroverse_camera"),
         ));
 
-        if matches!(
-            *render_mode,
-            RenderMode::Color | RenderMode::MotionVectors | RenderMode::OpticalFlow
-        ) {
-            camera.insert(MotionVectorPrepass);
-        } else {
-            camera.remove::<MotionVectorPrepass>();
-        }
-
         if let Some(bloom) = render_mode.bloom() {
             camera.insert(bloom);
         }
 
         #[cfg(not(feature = "web"))]
-        match *render_mode {
-            RenderMode::Color | RenderMode::OpticalFlow => {
-                camera.insert((DepthPrepass, NormalPrepass));
-            }
-            _ => {
-                camera.remove::<(DepthPrepass, NormalPrepass)>();
-            }
-        }
+        camera
+            .insert((
+                DepthPrepass,
+                NormalPrepass,
+            ));
 
         if args.image_copiers {
             // TODO: use pipeline color format
@@ -1175,6 +1164,7 @@ fn setup_editor_camera(
                 },
                 Hdr,
                 Camera { ..default() },
+                MotionVectorPrepass,
                 Projection::Perspective(PerspectiveProjection {
                     far: 25.0,
                     ..default()
@@ -1190,28 +1180,15 @@ fn setup_editor_camera(
             .insert(ProcessedEditorCameraMarker)
             .insert(Name::new("editor_camera"));
 
-        if matches!(
-            *render_mode,
-            RenderMode::Color | RenderMode::MotionVectors | RenderMode::OpticalFlow
-        ) {
-            entity.insert(MotionVectorPrepass);
-        } else {
-            entity.remove::<MotionVectorPrepass>();
-        }
-
         if let Some(bloom) = render_mode.bloom() {
             entity.insert(bloom);
         }
 
         #[cfg(not(feature = "web"))]
-        match *render_mode {
-            RenderMode::Color | RenderMode::OpticalFlow => {
-                entity.insert((DepthPrepass, NormalPrepass));
-            }
-            _ => {
-                entity.remove::<(DepthPrepass, NormalPrepass)>();
-            }
-        }
+        entity.insert((
+            DepthPrepass,
+            NormalPrepass,
+        ));
     }
 }
 
@@ -1237,25 +1214,6 @@ pub fn update_render_pipeline(
         } else {
             entity.remove::<Bloom>();
         }
-
-        #[cfg(not(feature = "web"))]
-        match *render_mode {
-            RenderMode::Color | RenderMode::OpticalFlow => {
-                entity.insert((DepthPrepass, NormalPrepass));
-            }
-            _ => {
-                entity.remove::<(DepthPrepass, NormalPrepass)>();
-            }
-        }
-
-        match *render_mode {
-            RenderMode::Color | RenderMode::MotionVectors | RenderMode::OpticalFlow => {
-                entity.insert(MotionVectorPrepass);
-            }
-            _ => {
-                entity.remove::<MotionVectorPrepass>();
-            }
-        }
     }
 
     for camera_entity in zeroverse_cameras.iter() {
@@ -1271,24 +1229,7 @@ pub fn update_render_pipeline(
             entity.remove::<Bloom>();
         }
 
-        #[cfg(not(feature = "web"))]
-        match *render_mode {
-            RenderMode::Color | RenderMode::OpticalFlow => {
-                entity.insert((DepthPrepass, NormalPrepass));
-            }
-            _ => {
-                entity.remove::<(DepthPrepass, NormalPrepass)>();
-            }
-        }
-
-        match *render_mode {
-            RenderMode::Color | RenderMode::MotionVectors | RenderMode::OpticalFlow => {
-                entity.insert(MotionVectorPrepass);
-            }
-            _ => {
-                entity.remove::<MotionVectorPrepass>();
-            }
-        }
+        // TODO: dynamic prepass camera components
     }
 }
 

@@ -765,9 +765,9 @@ fn spawn_room_neighborhood(
                 Transform::default(),
                 Visibility::default(),
             ))
-                .with_children(|base_room| {
-                    windows_root = spawn_room(base_room, base_scale, settings, 0, false);
-                });
+            .with_children(|base_room| {
+                windows_root = spawn_room(base_room, base_scale, settings, 0, false);
+            });
 
             let mut rooms: HashMap<(i32, i32), (Vec3, Vec3)> = HashMap::new();
             rooms.insert((0, 0), (Vec3::ZERO, *base_scale));

@@ -548,7 +548,10 @@ fn setup_camera(
     args: Res<BevyZeroverseConfig>,
     mut commands: Commands,
     material_grid_cameras: Query<Entity, With<MaterialGridCameraMarker>>,
-    mut editor_cameras: Query<(Entity, &mut PanOrbitCamera, Option<&mut Camera>), With<EditorCameraMarker>>,
+    mut editor_cameras: Query<
+        (Entity, &mut PanOrbitCamera, Option<&mut Camera>),
+        With<EditorCameraMarker>,
+    >,
     room_settings: Res<ZeroverseRoomSettings>,
     mut previous_settings: Local<Option<CameraSettingsSnapshot>>,
 ) {
