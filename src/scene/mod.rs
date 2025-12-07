@@ -258,6 +258,7 @@ mod tests {
             .world_mut()
             .spawn((
                 ZeroverseSceneRoot,
+                SceneAabbNode,
                 Transform::IDENTITY,
                 GlobalTransform::IDENTITY,
             ))

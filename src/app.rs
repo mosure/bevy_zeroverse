@@ -574,10 +574,8 @@ fn setup_camera(
             commands.spawn(Camera2d).insert(MaterialGridCameraMarker);
         }
 
-        if let Ok((_entity, _pan, maybe_camera)) = editor_cameras.single_mut() {
-            if let Some(mut camera) = maybe_camera {
-                camera.is_active = false;
-            }
+        if let Ok((_entity, _pan, Some(mut camera))) = editor_cameras.single_mut() {
+            camera.is_active = false;
         }
         return;
     }
@@ -587,10 +585,8 @@ fn setup_camera(
         commands.entity(entity).despawn();
     }
 
-    if let Ok((_, mut pan, maybe_camera)) = editor_cameras.single_mut() {
-        if let Some(mut camera) = maybe_camera {
-            camera.is_active = true;
-        }
+    if let Ok((_, mut pan, Some(mut camera))) = editor_cameras.single_mut() {
+        camera.is_active = true;
 
         pan.orbit_smoothness = args.orbit_smoothness;
         pan.pan_smoothness = args.pan_smoothness;
