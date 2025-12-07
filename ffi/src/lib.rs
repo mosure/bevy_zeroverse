@@ -130,15 +130,22 @@ impl From<core_sample::Sample> for Sample {
 #[pymethods]
 impl Sample {
     #[getter]
-    fn views<'py>(&self, py: Python<'py>) -> Bound<'py, PyList> {
-        #[allow(deprecated)]
-        let views_list: Vec<_> = self.views.iter().map(|v| v.clone().into_py(py)).collect();
-        PyList::new(py, views_list).unwrap()
+    fn views<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyList>> {
+        let views_list: Vec<_> = self
+            .views
+            .iter()
+            .cloned()
+            .map(|v| Py::new(py, v))
+            .collect::<PyResult<_>>()?;
+        PyList::new(py, views_list)
     }
 
     fn take_views<'py>(&mut self, py: Python<'py>) -> PyResult<Bound<'py, PyList>> {
         let views = std::mem::take(&mut self.views);
-        let py_views: Vec<_> = views.into_iter().map(|view| view.into_py(py)).collect();
+        let py_views: Vec<_> = views
+            .into_iter()
+            .map(|view| Py::new(py, view))
+            .collect::<PyResult<_>>()?;
         PyList::new(py, py_views)
     }
 
@@ -168,7 +175,7 @@ pub fn initialize(
 
     setup_globals(asset_root);
 
-    py.allow_threads(|| {
+    py.detach(move || {
         setup_and_run_app(true, override_args);
     });
 }
@@ -183,7 +190,7 @@ pub fn next(py: Python<'_>) -> PyResult<Sample> {
             .map_err(|_| PyRuntimeError::new_err("failed to request next frame from app"))?;
     }
 
-    py.allow_threads(|| {
+    py.detach(|| {
         let sample_receiver = channels::sample_receiver().ok_or_else(|| {
             PyRuntimeError::new_err("bevy_zeroverse_ffi not initialized; call initialize() first")
         })?;
