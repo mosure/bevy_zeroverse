@@ -17,7 +17,7 @@ use bevy::{
         // render_asset::RenderAssets,
         render_graph::{
             Node,
-            RenderGraphApp,
+            RenderGraphExt,
             RenderGraphContext,
             RenderLabel,
         },

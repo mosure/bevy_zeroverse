@@ -1,20 +1,15 @@
 use bevy::{
+    asset::{load_internal_asset, uuid_handle},
+    pbr::{ExtendedMaterial, MaterialExtension},
     prelude::*,
-    asset::{
-        load_internal_asset,
-        weak_handle,
-    },
-    pbr::{
-        ExtendedMaterial,
-        MaterialExtension,
-    },
-    render::render_resource::*,
+    render::render_resource::AsBindGroup,
+    shader::ShaderRef,
 };
 
 use crate::render::DisabledPbrMaterial;
 
-
-pub const SEMANTIC_SHADER_HANDLE: Handle<Shader> = weak_handle!("e1b272d1-bae5-48ed-8214-2adbafa43cad");
+pub const SEMANTIC_SHADER_HANDLE: Handle<Shader> =
+    uuid_handle!("e1b272d1-bae5-48ed-8214-2adbafa43cad");
 
 #[derive(Component, Debug, Clone, Default, Reflect, Eq, PartialEq)]
 #[reflect(Component)]
@@ -112,11 +107,9 @@ impl SemanticLabel {
     }
 }
 
-
 #[derive(Component, Debug, Clone, Default, Reflect, Eq, PartialEq)]
 #[reflect(Component, Default)]
 pub struct Semantic;
-
 
 #[derive(Debug, Default)]
 pub struct SemanticPlugin;
@@ -135,19 +128,15 @@ impl Plugin for SemanticPlugin {
         app.add_plugins(MaterialPlugin::<SemanticMaterial>::default());
 
         app.add_systems(Update, propagate_semantic_labels);
-        app.add_systems(Update, apply_semantic_material);
+        app.add_systems(PostUpdate, apply_semantic_material);
 
         // TODO: add system for bounding box render toggle
     }
 }
 
-
 fn propagate_semantic_labels(
     mut commands: Commands,
-    semantic_parents: Query<(
-        &SemanticLabel,
-        &Children,
-    )>,
+    semantic_parents: Query<(&SemanticLabel, &Children)>,
 ) {
     // TODO: capture frame delay based on hierarchy propagation, determine delay from hierarchy depth or apply full-tree update
     for (label, children) in semantic_parents.iter() {
@@ -157,16 +146,11 @@ fn propagate_semantic_labels(
     }
 }
 
-
 #[allow(clippy::type_complexity)]
-fn apply_semantic_material(
+pub(crate) fn apply_semantic_material(
     mut commands: Commands,
     semantic: Query<
-        (
-            Entity,
-            &DisabledPbrMaterial,
-            &SemanticLabel,
-        ),
+        (Entity, &DisabledPbrMaterial, &SemanticLabel),
         (With<Semantic>, Without<MeshMaterial3d<SemanticMaterial>>),
     >,
     mut removed_semantics: RemovedComponents<Semantic>,
@@ -179,34 +163,26 @@ fn apply_semantic_material(
     }
 
     for (e, pbr_material, label) in &semantic {
-        // TODO: support instance coloring (e.g. saturation/lightness shift)
-        let color = label.color().to_linear();
-        let semantic_material = materials.add(
-            ExtendedMaterial {
-                base: StandardMaterial {
-                    double_sided: pbr_material.double_sided,
-                    cull_mode: pbr_material.cull_mode,
-                    ..default()
-                },
-                extension: SemanticExtension {
-                    color,
-                },
+        let base_color = label.color();
+        let semantic_material = materials.add(ExtendedMaterial {
+            base: StandardMaterial {
+                double_sided: pbr_material.double_sided,
+                cull_mode: pbr_material.cull_mode,
+                base_color,
+                unlit: true,
+                ..default()
             },
-        );
+            extension: SemanticExtension {},
+        });
 
         commands.entity(e).insert(MeshMaterial3d(semantic_material));
     }
 }
 
-
 pub type SemanticMaterial = ExtendedMaterial<StandardMaterial, SemanticExtension>;
 
-
 #[derive(Default, AsBindGroup, TypePath, Debug, Clone, Asset)]
-pub struct SemanticExtension {
-    #[uniform(100)]
-    pub color: LinearRgba,
-}
+pub struct SemanticExtension {}
 
 impl MaterialExtension for SemanticExtension {
     fn fragment_shader() -> ShaderRef {

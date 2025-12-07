@@ -1,16 +1,12 @@
+use rand::{seq::IteratorRandom, Rng};
 use std::path::PathBuf;
-use rand::Rng;
 
 use bevy::prelude::*;
 
-use crate::{
-    app::BevyZeroverseConfig,
-    scene::RegenerateSceneEvent,
-};
+use crate::{app::BevyZeroverseConfig, scene::RegenerateSceneEvent};
 
 #[cfg(not(target_family = "wasm"))]
 use crate::util::strip_extended_length_prefix;
-
 
 #[derive(Resource, Default, Debug)]
 pub struct ZeroverseMaterials {
@@ -18,20 +14,18 @@ pub struct ZeroverseMaterials {
     pub materials: Vec<Handle<StandardMaterial>>,
 }
 
-
-#[derive(Event)]
+#[derive(Event, Message)]
 pub struct ShuffleMaterialsEvent;
 
-#[derive(Event)]
+#[derive(Event, Message)]
 pub struct MaterialsLoadedEvent;
-
 
 pub struct ZeroverseMaterialPlugin;
 
 impl Plugin for ZeroverseMaterialPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<MaterialsLoadedEvent>();
-        app.add_event::<ShuffleMaterialsEvent>();
+        app.add_message::<MaterialsLoadedEvent>();
+        app.add_message::<ShuffleMaterialsEvent>();
 
         app.init_resource::<MaterialLoaderSettings>();
         app.init_resource::<MaterialRoots>();
@@ -54,22 +48,16 @@ pub struct MaterialLoaderSettings {
 
 impl Default for MaterialLoaderSettings {
     fn default() -> Self {
-        Self {
-            batch_size: 25,
-        }
+        Self { batch_size: 25 }
     }
 }
-
 
 #[derive(Resource, Default, Debug)]
 pub struct MaterialRoots {
     pub roots: Vec<PathBuf>,
 }
 
-
-fn find_materials(
-    mut found_materials: ResMut<MaterialRoots>,
-) {
+fn find_materials(mut found_materials: ResMut<MaterialRoots>) {
     #[cfg(target_family = "wasm")]
     {
         found_materials.roots = vec![
@@ -89,19 +77,22 @@ fn find_materials(
         let cwd = match std::env::var("BEVY_ASSET_ROOT") {
             Ok(asset_root) => {
                 info!("BEVY_ASSET_ROOT: `{}`", asset_root);
-                let abs_path = PathBuf::from(asset_root).canonicalize().expect("failed to canonicalize asset root");
+                let abs_path = PathBuf::from(asset_root)
+                    .canonicalize()
+                    .expect("failed to canonicalize asset root");
 
                 strip_extended_length_prefix(&abs_path)
             }
-            Err(_) => {
-                std::env::current_dir().expect("failed to get current working directory")
-            }
+            Err(_) => std::env::current_dir().expect("failed to get current working directory"),
         };
 
         info!("current working directory: {}", cwd.to_string_lossy());
 
         let asset_server_path = cwd.join("./assets");
-        let pattern = format!("{}/**/**/basecolor.jpg", asset_server_path.to_string_lossy());
+        let pattern = format!(
+            "{}/**/**/basecolor.jpg",
+            asset_server_path.to_string_lossy()
+        );
 
         found_materials.roots = glob::glob(&pattern)
             .expect("failed to read glob pattern")
@@ -117,20 +108,20 @@ fn find_materials(
     }
 }
 
-
 fn load_materials(
     asset_server: Res<AssetServer>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut zeroverse_materials: ResMut<ZeroverseMaterials>,
-    mut load_event: EventWriter<MaterialsLoadedEvent>,
+    mut load_event: MessageWriter<MaterialsLoadedEvent>,
     material_loader_settings: Res<MaterialLoaderSettings>,
     found_materials: Res<MaterialRoots>,
 ) {
-    use rand::seq::IteratorRandom;
-    let rng = &mut rand::thread_rng();
+    let mut rng = rand::rng();
 
-    let roots = found_materials.roots.iter()
-        .choose_multiple(rng, material_loader_settings.batch_size);
+    let roots = found_materials
+        .roots
+        .iter()
+        .choose_multiple(&mut rng, material_loader_settings.batch_size);
 
     for root in roots {
         let basecolor_path: PathBuf = root.join("basecolor.jpg");
@@ -152,10 +143,10 @@ fn load_materials(
             depth_map: depth_map_handle.into(),
             double_sided: true,
             cull_mode: None,
-            // specular_transmission: (rng.gen_range(0.0..1.0) as f32).powf(2.0),
-            // ior: rng.gen_range(1.0..2.0),
-            perceptual_roughness: rng.gen_range(0.3..0.7),
-            reflectance: (rng.gen_range(0.0..0.8) as f32).powf(1.8),
+            // specular_transmission: (rng.random_range(0.0..1.0) as f32).powf(2.0),
+            // ior: rng.random_range(1.0..2.0),
+            perceptual_roughness: rng.random_range(0.3..0.7),
+            reflectance: (rng.random_range(0.0..0.8) as f32).powf(1.8),
             ..Default::default()
         });
 
@@ -167,13 +158,12 @@ fn load_materials(
     load_event.write(MaterialsLoadedEvent);
 }
 
-
 fn reload_materials(
     asset_server: Res<AssetServer>,
     materials: ResMut<Assets<StandardMaterial>>,
     mut zeroverse_materials: ResMut<ZeroverseMaterials>,
-    mut shuffle_events: EventReader<ShuffleMaterialsEvent>,
-    load_event: EventWriter<MaterialsLoadedEvent>,
+    mut shuffle_events: MessageReader<ShuffleMaterialsEvent>,
+    load_event: MessageWriter<MaterialsLoadedEvent>,
     material_loader_settings: Res<MaterialLoaderSettings>,
     found_materials: Res<MaterialRoots>,
 ) {
@@ -194,11 +184,10 @@ fn reload_materials(
     );
 }
 
-
 fn material_exchange(
     args: Res<BevyZeroverseConfig>,
-    mut regenerate_events: EventReader<RegenerateSceneEvent>,
-    mut shuffle_events: EventWriter<ShuffleMaterialsEvent>,
+    mut regenerate_events: MessageReader<RegenerateSceneEvent>,
+    mut shuffle_events: MessageWriter<ShuffleMaterialsEvent>,
     mut scene_counter: Local<u32>,
 ) {
     if args.regenerate_scene_material_shuffle_period == 0 {

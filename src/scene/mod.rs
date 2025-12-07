@@ -1,37 +1,26 @@
-use bevy::{
-    prelude::*,
-    render::primitives::Aabb,
-};
-use bevy_args::{
-    Deserialize,
-    Serialize,
-    ValueEnum,
-};
+use bevy::{camera::primitives::Aabb, prelude::*};
+use bevy_args::{Deserialize, Serialize, ValueEnum};
 use rand::Rng;
 
 #[cfg(feature = "python")]
 use pyo3::prelude::*;
 
-use crate::{
-    app::BevyZeroverseConfig,
-    camera::EditorCameraGizmoConfigGroup,
-};
+use crate::{app::BevyZeroverseConfig, camera::EditorCameraGizmoConfigGroup};
 
 // TODO: cornell box room scene
-pub mod semantic_room;
 pub mod cornell_cube;
 pub mod human;
 pub mod lighting;
 pub mod object;
 pub mod room;
-
+pub mod semantic_room;
 
 pub struct ZeroverseScenePlugin;
 
 impl Plugin for ZeroverseScenePlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<RegenerateSceneEvent>();
-        app.add_event::<SceneLoadedEvent>();
+        app.add_message::<RegenerateSceneEvent>();
+        app.add_message::<SceneLoadedEvent>();
 
         app.init_resource::<GlobalRotationAugment>();
         app.register_type::<GlobalRotationAugment>();
@@ -63,7 +52,6 @@ impl Plugin for ZeroverseScenePlugin {
     }
 }
 
-
 #[derive(Component, Debug, Reflect)]
 pub struct ZeroverseScene;
 
@@ -71,17 +59,7 @@ pub struct ZeroverseScene;
 #[require(Transform, Visibility)]
 pub struct ZeroverseSceneRoot;
 
-
-#[derive(
-    Debug,
-    Default,
-    Clone,
-    PartialEq,
-    Serialize,
-    Deserialize,
-    Reflect,
-    ValueEnum,
-)]
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize, Reflect, ValueEnum)]
 #[cfg_attr(feature = "python", pyclass(eq, eq_int))]
 pub enum ZeroverseSceneType {
     CornellCube,
@@ -102,14 +80,11 @@ pub struct ZeroverseSceneSettings {
     pub max_camera_radius: f32,
 }
 
-
-#[derive(Event)]
+#[derive(Event, Message)]
 pub struct RegenerateSceneEvent;
 
-
-#[derive(Event)]
+#[derive(Event, Message)]
 pub struct SceneLoadedEvent;
-
 
 #[derive(Component, Debug, Reflect)]
 pub struct SceneAabbNode;
@@ -121,10 +96,10 @@ pub struct SceneAabb {
 }
 
 impl SceneAabb {
-    fn new(center: Vec3) -> Self {
+    fn new() -> Self {
         Self {
-            min: center,
-            max: center,
+            min: Vec3::splat(f32::INFINITY),
+            max: Vec3::splat(f32::NEG_INFINITY),
         }
     }
 
@@ -175,41 +150,33 @@ impl From<&SceneAabb> for Transform {
         let center = (min + max) / 2.0;
         let size = max - min;
 
-        Transform::from_translation(center)
-            * Transform::from_scale(size)
+        Transform::from_translation(center) * Transform::from_scale(size)
     }
 }
 
-
 fn create_scene_aabb(
     mut commands: Commands,
-    scene_instances: Query<
-        (
-            Entity,
-            &ZeroverseSceneRoot,
-            &GlobalTransform,
-        ),
-    >,
+    scene_instances: Query<(Entity, &SceneAabbNode, &GlobalTransform)>,
     children: Query<&Children>,
     bounding_boxes: Query<(&Aabb, &GlobalTransform)>,
 ) {
-    for (entity, _root_tag, root_tf) in &scene_instances {
-        let mut scene_aabb = SceneAabb::new(root_tf.translation());
+    for (entity, _root_tag, _root_tf) in &scene_instances {
+        let mut scene_aabb = SceneAabb::new();
 
-        let merged_any = children
+        let mut merged_any = false;
+        for (bb, tf) in children
             .iter_descendants(entity)
             .filter_map(|child| bounding_boxes.get(child).ok())
-            .any(|(bb, tf)| {
-                scene_aabb.merge_aabb(bb, tf);
-                true
-            });
+        {
+            scene_aabb.merge_aabb(bb, tf);
+            merged_any = true;
+        }
 
         if merged_any {
             commands.entity(entity).insert(scene_aabb);
         }
     }
 }
-
 
 fn draw_scene_aabb(
     args: Res<BevyZeroverseConfig>,
@@ -220,18 +187,12 @@ fn draw_scene_aabb(
         return;
     }
 
-    let color = Color::srgba(
-        0.0,
-        1.0,
-        1.0,
-        args.gizmos_alpha,
-    );
+    let color = Color::srgba(0.0, 1.0, 1.0, args.gizmos_alpha);
 
     for aabb in &scene_instances {
         gizmos.cuboid(Transform::from(aabb), color);
     }
 }
-
 
 #[derive(Debug, Component, Clone, Reflect)]
 pub struct RotationAugment;
@@ -248,19 +209,14 @@ pub struct GlobalRotationAugment {
 fn rotation_augment(
     mut commands: Commands,
     mut to_augment: Query<
-        (
-            Entity,
-            &mut Transform,
-        ),
-        (
-            With<RotationAugment>,
-            Without<RotationAugmented>
-        ),
+        (Entity, &mut Transform),
+        (With<RotationAugment>, Without<RotationAugmented>),
     >,
     global_rotation: Res<GlobalRotationAugment>,
 ) {
     for (entity, mut transform) in to_augment.iter_mut() {
-        commands.entity(entity)
+        commands
+            .entity(entity)
             .remove::<RotationAugment>()
             .insert(RotationAugmented);
 
@@ -270,7 +226,7 @@ fn rotation_augment(
 
 fn regenerate_rotation_augment(
     mut global_rotation: ResMut<GlobalRotationAugment>,
-    mut regenerate_events: EventReader<RegenerateSceneEvent>,
+    mut regenerate_events: MessageReader<RegenerateSceneEvent>,
     scene_settings: Res<ZeroverseSceneSettings>,
 ) {
     if regenerate_events.is_empty() {
@@ -279,10 +235,54 @@ fn regenerate_rotation_augment(
     regenerate_events.clear();
 
     if scene_settings.rotation_augmentation {
-        let mut rng = rand::thread_rng();
-        let random_rotation = Quat::from_rotation_y(rng.gen_range(0.0..std::f32::consts::PI * 2.0));
+        let mut rng = rand::rng();
+        let random_rotation =
+            Quat::from_rotation_y(rng.random_range(0.0..std::f32::consts::PI * 2.0));
         global_rotation.rotation = random_rotation;
     } else {
         global_rotation.rotation = Quat::IDENTITY;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bevy::{ecs::system::RunSystemOnce, MinimalPlugins};
+
+    #[test]
+    fn create_scene_aabb_merges_child_bounds() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+
+        let root = app
+            .world_mut()
+            .spawn((
+                ZeroverseSceneRoot,
+                SceneAabbNode,
+                Transform::IDENTITY,
+                GlobalTransform::IDENTITY,
+            ))
+            .id();
+
+        let child = app
+            .world_mut()
+            .spawn((
+                Aabb::from_min_max(Vec3::new(-1.0, -2.0, -3.0), Vec3::new(4.0, 5.0, 6.0)),
+                GlobalTransform::from_translation(Vec3::new(2.0, 0.0, -1.0)),
+            ))
+            .id();
+
+        app.world_mut().entity_mut(root).add_child(child);
+
+        let _ = app.world_mut().run_system_once(super::create_scene_aabb);
+
+        let scene_aabb = app
+            .world()
+            .entity(root)
+            .get::<SceneAabb>()
+            .expect("SceneAabb should be computed for root");
+
+        assert_eq!(scene_aabb.min, Vec3::new(1.0, -2.0, -4.0));
+        assert_eq!(scene_aabb.max, Vec3::new(6.0, 5.0, 5.0));
     }
 }

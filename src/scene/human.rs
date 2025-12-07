@@ -1,40 +1,21 @@
-use bevy::{
-    prelude::*,
-    render::render_resource::Face,
-};
+use bevy::{prelude::*, render::render_resource::Face};
 
 use crate::{
     asset::WaitForAssets,
     camera::{
-        ExtrinsicsSampler,
-        ExtrinsicsSamplerType,
-        LookingAtSampler,
-        TrajectorySampler,
+        ExtrinsicsSampler, ExtrinsicsSamplerType, LookingAtSampler, TrajectorySampler,
         ZeroverseCamera,
     },
-    scene::{
-        lighting::{
-            setup_lighting,
-            ZeroverseLightingSettings,
-        },
-        RegenerateSceneEvent,
-        RotationAugment,
-        SceneLoadedEvent,
-        ZeroverseScene,
-        ZeroverseSceneRoot,
-        ZeroverseSceneSettings,
-        ZeroverseSceneType,
-    },
     primitive::{
-        CountSampler,
-        PositionSampler,
-        RotationSampler,
-        ScaleSampler,
+        CountSampler, PositionSampler, RotationSampler, ScaleSampler, ZeroversePrimitiveSettings,
         ZeroversePrimitives,
-        ZeroversePrimitiveSettings,
+    },
+    scene::{
+        lighting::{setup_lighting, ZeroverseLightingSettings},
+        RegenerateSceneEvent, RotationAugment, SceneAabbNode, SceneLoadedEvent, ZeroverseScene,
+        ZeroverseSceneRoot, ZeroverseSceneSettings, ZeroverseSceneType,
     },
 };
-
 
 pub struct ZeroverseHumanPlugin;
 impl Plugin for ZeroverseHumanPlugin {
@@ -42,13 +23,9 @@ impl Plugin for ZeroverseHumanPlugin {
         app.init_resource::<ZeroverseHumanSceneSettings>();
         app.register_type::<ZeroverseHumanSceneSettings>();
 
-        app.add_systems(
-            PreUpdate,
-            regenerate_scene,
-        );
+        app.add_systems(PreUpdate, regenerate_scene);
     }
 }
-
 
 #[derive(Clone, Debug, Reflect, Resource)]
 #[reflect(Resource)]
@@ -105,10 +82,9 @@ impl Default for ZeroverseHumanSceneSettings {
     }
 }
 
-
 fn setup_scene(
     mut commands: Commands,
-    mut load_event: EventWriter<SceneLoadedEvent>,
+    mut load_event: MessageWriter<SceneLoadedEvent>,
     scene_settings: Res<ZeroverseSceneSettings>,
     human_settings: Res<ZeroverseHumanSceneSettings>,
 ) {
@@ -117,6 +93,7 @@ fn setup_scene(
             Name::new("zeroverse_human"),
             human_settings.primitive.clone(),
             RotationAugment,
+            SceneAabbNode,
             ZeroverseScene,
             ZeroverseSceneRoot,
         ))
@@ -132,14 +109,13 @@ fn setup_scene(
     load_event.write(SceneLoadedEvent);
 }
 
-
 #[allow(clippy::too_many_arguments)]
 fn regenerate_scene(
     mut commands: Commands,
     clear_zeroverse_scenes: Query<Entity, With<ZeroverseScene>>,
-    mut regenerate_events: EventReader<RegenerateSceneEvent>,
+    mut regenerate_events: MessageReader<RegenerateSceneEvent>,
     scene_settings: Res<ZeroverseSceneSettings>,
-    load_event: EventWriter<SceneLoadedEvent>,
+    load_event: MessageWriter<SceneLoadedEvent>,
     lighting_settings: Res<ZeroverseLightingSettings>,
     human_settings: Res<ZeroverseHumanSceneSettings>,
     wait_for: Res<WaitForAssets>,
@@ -164,15 +140,7 @@ fn regenerate_scene(
         commands.entity(entity).despawn();
     }
 
-    setup_lighting(
-        commands.reborrow(),
-        lighting_settings,
-    );
+    setup_lighting(commands.reborrow(), lighting_settings);
 
-    setup_scene(
-        commands,
-        load_event,
-        scene_settings,
-        human_settings,
-    );
+    setup_scene(commands, load_event, scene_settings, human_settings);
 }

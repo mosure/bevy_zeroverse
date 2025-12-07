@@ -5,6 +5,7 @@ use bevy::prelude::*;
 pub mod app;
 pub mod asset;
 pub mod camera;
+pub mod headless;
 pub mod io;
 pub mod manifold;
 pub mod material;
@@ -12,11 +13,11 @@ pub mod mesh;
 // pub mod plucker;
 pub mod primitive;
 pub mod render;
+pub mod sample;
 pub mod scene;
 
 #[cfg(not(target_family = "wasm"))]
 pub mod util;
-
 
 pub struct BevyZeroversePlugin;
 

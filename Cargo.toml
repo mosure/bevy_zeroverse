@@ -1,7 +1,7 @@
 [package]
 name = "bevy_zeroverse"
 description = "bevy zeroverse synthetic dataset generator"
-version = "0.15.1"
+version = "0.17.0"
 edition = "2021"
 authors = ["mosure <mitchell@mosure.me>"]
 license = "MIT"
@@ -77,23 +77,24 @@ webgpu = [
 
 
 [dependencies]
-bevy_args = "1.8"
-bevy_egui = { version = "0.34", optional = true }
-bevy-inspector-egui = { version = "0.31", optional = true }
-bevy_panorbit_camera = { version = "0.26", optional = true, features = ["bevy_egui"] }
+bevy_args = "2.0"
+bevy_egui = { version = "0.38", optional = true }
+bevy-inspector-egui = { version = "0.35", optional = true }
+bevy_panorbit_camera = { version = "0.32", optional = true, features = ["bevy_egui"] }
 clap = { version = "4.5", features = ["derive"] }
 futures-intrusive = "0.5"
 glob = "0.3"
 itertools = "0.14"
 noise = { version = "0.9" }
+once_cell = "1.19"
 pollster = "0.4"
-pyo3 = { version = "0.23", features = ["macros"], optional = true }
-rand = "0.8"
-rayon = { version = "1.10", optional = true }
+pyo3 = { version = "0.27.2", features = ["macros"], optional = true }
+rand = "0.9"
+rayon = { version = "1.11", optional = true }
 serde = "1.0"
 strum = "0.27"
 strum_macros = "0.27"
-wgpu = "24"
+wgpu = "26"
 
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
@@ -102,21 +103,34 @@ wasm-bindgen = "0.2"
 
 
 [dependencies.bevy]
-version = "0.16"
+version = "0.17"
 default-features = false
 features = [
   "bevy_asset",
+  "bevy_camera",
   "bevy_core_pipeline",
   "bevy_gizmos",
   "bevy_gltf",
+  "bevy_image",
   "bevy_log",
+  "bevy_light",
+  "bevy_mesh",
   "bevy_pbr",
   "bevy_render",
+  "bevy_post_process",
+  "bevy_sprite",
+  "bevy_text",
+  "bevy_ui",
+  "bevy_ui_render",
+  "bevy_window",
   "bevy_winit",
   "jpeg",
   "png",
+  "std",
   "tonemapping_luts",
+  "webgpu",
   "x11",
+  "zstd_rust",
 ]
 
 
@@ -133,7 +147,7 @@ features = [
 
 
 [dev-dependencies]
-criterion = { version = "0.5", features = ["html_reports"] }
+criterion = { version = "0.7", features = ["html_reports"] }
 futures-intrusive = { version = "0.5.0" }
 pollster = { version = "0.4" }
 

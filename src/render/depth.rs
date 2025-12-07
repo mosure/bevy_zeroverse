@@ -1,43 +1,20 @@
+use bevy::mesh::MeshVertexBufferLayoutRef;
 use bevy::{
+    asset::{load_internal_asset, uuid_handle},
+    pbr::{ExtendedMaterial, MaterialExtension},
     prelude::*,
-    asset::{
-        load_internal_asset,
-        weak_handle,
-    },
-    pbr::{
-        ExtendedMaterial,
-        MaterialExtension,
-    },
     render::render_resource::*,
+    shader::ShaderRef,
 };
-use bevy_args::{
-    Deserialize,
-    Serialize,
-    ValueEnum,
-};
+use bevy_args::{Deserialize, Serialize, ValueEnum};
 
 #[cfg(feature = "python")]
 use pyo3::prelude::*;
 
-use crate::{
-    app::BevyZeroverseConfig,
-    render::DisabledPbrMaterial,
-};
-
-
+use crate::{app::BevyZeroverseConfig, render::DisabledPbrMaterial};
 
 #[derive(
-    Clone,
-    Copy,
-    Debug,
-    Default,
-    Eq,
-    Hash,
-    PartialEq,
-    Serialize,
-    Deserialize,
-    Reflect,
-    ValueEnum,
+    Clone, Copy, Debug, Default, Eq, Hash, PartialEq, Serialize, Deserialize, Reflect, ValueEnum,
 )]
 #[cfg_attr(feature = "python", pyclass(eq, eq_int))]
 pub enum DepthFormat {
@@ -47,43 +24,33 @@ pub enum DepthFormat {
     Normalized,
 }
 
-
-pub const DEPTH_SHADER_HANDLE: Handle<Shader> = weak_handle!("2e8b51ab-6faf-4b40-b342-0250d5b75323");
+pub const DEPTH_SHADER_HANDLE: Handle<Shader> =
+    uuid_handle!("2e8b51ab-6faf-4b40-b342-0250d5b75323");
 
 #[derive(Component, Debug, Clone, Default, Reflect, Eq, PartialEq)]
 #[reflect(Component, Default)]
 pub struct Depth;
 
-
 #[derive(Debug, Default)]
 pub struct DepthPlugin;
 impl Plugin for DepthPlugin {
     fn build(&self, app: &mut App) {
-        load_internal_asset!(
-            app,
-            DEPTH_SHADER_HANDLE,
-            "depth.wgsl",
-            Shader::from_wgsl
-        );
+        load_internal_asset!(app, DEPTH_SHADER_HANDLE, "depth.wgsl", Shader::from_wgsl);
 
         app.register_type::<Depth>();
 
         app.add_plugins(MaterialPlugin::<DepthMaterial>::default());
 
-        app.add_systems(Update, apply_depth_material);
+        app.add_systems(PostUpdate, apply_depth_material);
     }
 }
 
-
 #[allow(clippy::type_complexity)]
-fn apply_depth_material(
+pub(crate) fn apply_depth_material(
     args: Res<BevyZeroverseConfig>,
     mut commands: Commands,
     depths: Query<
-        (
-            Entity,
-            &DisabledPbrMaterial,
-        ),
+        (Entity, &DisabledPbrMaterial),
         (With<Depth>, Without<MeshMaterial3d<DepthMaterial>>),
     >,
     mut removed_depths: RemovedComponents<Depth>,
@@ -95,33 +62,24 @@ fn apply_depth_material(
         }
     }
 
-    for (
-        e,
-        pbr_material,
-    ) in &depths {
-        let depth_material = materials.add(
-            ExtendedMaterial {
-                base: StandardMaterial {
-                    double_sided: pbr_material.double_sided,
-                    cull_mode: pbr_material.cull_mode,
-                    ..default()
-                },
-                extension: DepthExtension {
-                    format: args.depth_format,
-                    z_depth: args.z_depth,
-                },
+    for (e, pbr_material) in &depths {
+        let depth_material = materials.add(ExtendedMaterial {
+            base: StandardMaterial {
+                double_sided: pbr_material.double_sided,
+                cull_mode: pbr_material.cull_mode,
+                ..default()
             },
-        );
+            extension: DepthExtension {
+                format: args.depth_format,
+                z_depth: args.z_depth,
+            },
+        });
 
-        commands
-            .entity(e)
-            .insert(MeshMaterial3d(depth_material));
+        commands.entity(e).insert(MeshMaterial3d(depth_material));
     }
 }
 
-
 pub type DepthMaterial = ExtendedMaterial<StandardMaterial, DepthExtension>;
-
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct DepthSettingsData {
@@ -156,7 +114,7 @@ impl MaterialExtension for DepthExtension {
     fn specialize(
         _pipeline: &bevy::pbr::MaterialExtensionPipeline,
         descriptor: &mut RenderPipelineDescriptor,
-        _layout: &bevy::render::mesh::MeshVertexBufferLayoutRef,
+        _layout: &MeshVertexBufferLayoutRef,
         key: bevy::pbr::MaterialExtensionKey<Self>,
     ) -> std::result::Result<(), SpecializedMeshPipelineError> {
         let depth_format = match key.bind_group_data.format {
@@ -174,10 +132,7 @@ impl MaterialExtension for DepthExtension {
         if let Some(fragment) = &mut descriptor.fragment {
             fragment
                 .shader_defs
-                .extend([
-                    depth_format.into(),
-                    depth_type.into(),
-                ]);
+                .extend([depth_format.into(), depth_type.into()]);
         }
 
         Ok(())

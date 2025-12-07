@@ -2,8 +2,13 @@ use std::{borrow::Cow, path::Path, sync::mpsc::RecvTimeoutError, time::Duration}
 
 use bevy::prelude::*;
 use bevy_args::{parse_args, Deserialize, Parser, Serialize};
-use bevy_zeroverse::{app::BevyZeroverseConfig, scene::ZeroverseSceneType};
-use bevy_zeroverse_ffi::{create_app, setup_globals, Sample, APP_FRAME_SENDER, SAMPLE_RECEIVER};
+use bevy_zeroverse::{
+    app::BevyZeroverseConfig,
+    headless::{create_app, setup_globals},
+    io::channels,
+    sample::Sample,
+    scene::ZeroverseSceneType,
+};
 use bytemuck::cast_slice;
 use ndarray::{s, Array1, Array2, Array3, Array4, Array5, ArrayBase, Axis, Dimension, OwnedRepr};
 use safetensors::{serialize_to_file, Dtype, View};
@@ -284,7 +289,7 @@ fn save_stacked_views_to_safetensors(
         ("aabb", TensorView::Aabb(Wrapper(stacked_views.aabb))),
     ];
 
-    serialize_to_file(data, &None, output_path)
+    serialize_to_file(data, None, output_path)
 }
 
 #[derive(Clone, Debug, Resource, Serialize, Deserialize, Parser, Reflect)]
@@ -316,7 +321,7 @@ impl Default for GeneratorConfig {
 }
 
 fn receive_samples(generator_config: &GeneratorConfig, zeroverse_config: &BevyZeroverseConfig) {
-    let receiver = SAMPLE_RECEIVER.get().unwrap();
+    let receiver = channels::sample_receiver().expect("sample receiver not initialized");
     let receiver = receiver.lock().unwrap();
 
     let mut chunk_size = 0;
@@ -325,7 +330,7 @@ fn receive_samples(generator_config: &GeneratorConfig, zeroverse_config: &BevyZe
 
     for sample_index in 0..generator_config.num_samples {
         {
-            let app_frame_sender = APP_FRAME_SENDER.get().unwrap();
+            let app_frame_sender = channels::app_frame_sender();
             app_frame_sender.send(()).unwrap();
         }
 
