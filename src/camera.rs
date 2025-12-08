@@ -1012,11 +1012,7 @@ fn insert_cameras(
         }
 
         #[cfg(not(feature = "web"))]
-        camera
-            .insert((
-                DepthPrepass,
-                NormalPrepass,
-            ));
+        camera.insert((DepthPrepass, NormalPrepass));
 
         if args.image_copiers {
             // TODO: use pipeline color format
@@ -1185,10 +1181,7 @@ fn setup_editor_camera(
         }
 
         #[cfg(not(feature = "web"))]
-        entity.insert((
-            DepthPrepass,
-            NormalPrepass,
-        ));
+        entity.insert((DepthPrepass, NormalPrepass));
     }
 }
 

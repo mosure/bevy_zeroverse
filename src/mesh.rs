@@ -107,7 +107,11 @@ fn find_meshes(mut found_meshes: ResMut<MeshRoots>) {
             Err(_) => std::env::current_dir().expect("failed to get current working directory"),
         };
 
-        let asset_server_path = cwd.join("./assets");
+        let asset_server_path = if cwd.ends_with("assets") {
+            cwd.clone()
+        } else {
+            cwd.join("assets")
+        };
         let pattern: String = format!("{}/**/*.glb", asset_server_path.to_string_lossy());
 
         found_meshes.categories = glob::glob(&pattern)

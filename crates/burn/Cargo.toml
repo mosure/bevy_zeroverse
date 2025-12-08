@@ -1,0 +1,38 @@
+[package]
+name = "bevy_zeroverse_burn"
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[[bin]]
+name = "zeroverse_gen"
+path = "src/bin/zeroverse_gen.rs"
+
+[[bench]]
+name = "chunk_gen"
+harness = false
+
+[dependencies]
+anyhow = "1.0"
+bincode = { version = "2.0", features = ["serde"] }
+burn = { version = "0.19", default-features = false, features = ["std", "dataset"] }
+clap = { version = "4.5", features = ["derive"] }
+lz4_flex = { version = "0.12", default-features = false, features = ["frame"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+safetensors = "0.7"
+zstd = "0.13"
+image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
+bytemuck = "1.17"
+rand = "0.9"
+ratatui = "0.29"
+crossterm = "0.29"
+ndarray = { version = "0.16", default-features = false, features = ["std"] }
+ndarray-npy = { version = "0.9", features = ["npz"] }
+
+bevy_zeroverse = { path = "../..", default-features = true }
+
+[dev-dependencies]
+criterion = { version = "0.8", features = ["html_reports"] }
+tempfile = "3.13"

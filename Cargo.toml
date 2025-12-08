@@ -34,14 +34,13 @@ default-run = "viewer"
 [workspace]
 members = [
   ".",
-  "ffi",
+  "crates/ffi",
+  "crates/burn",
 ]
 
 
 [features]
 default = [
-  "development",
-  "extension-module",
   "multi_threaded",
   "viewer",
 ]
@@ -99,6 +98,7 @@ wgpu = "26"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = "0.1"
+getrandom = { version = "0.3", default-features = false, features = ["wasm_js"] }
 wasm-bindgen = "0.2"
 
 
