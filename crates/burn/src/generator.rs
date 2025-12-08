@@ -10,7 +10,7 @@ use std::{
 };
 
 use anyhow::{Context, Result, anyhow};
-use bevy_zeroverse::{app::BevyZeroverseConfig, render::RenderMode};
+use bevy_zeroverse::{app::BevyZeroverseConfig, render::RenderMode, scene::ZeroverseSceneType};
 use burn::data::dataset::Dataset;
 use rand::{SeedableRng, rngs::StdRng};
 
@@ -35,6 +35,9 @@ pub struct GenConfig {
     pub samples: usize,
     pub sample_offset: usize,
     pub chunk_offset: usize,
+    pub playback_step: f32,
+    pub playback_steps: u32,
+    pub scene_type: ZeroverseSceneType,
     pub asset_root: Option<PathBuf>,
     pub compression: Compression,
     pub render_modes: Vec<RenderMode>,
@@ -56,6 +59,9 @@ impl Default for GenConfig {
             samples: 0,
             sample_offset: 0,
             chunk_offset: 0,
+            playback_step: 0.05,
+            playback_steps: 5,
+            scene_type: ZeroverseSceneType::Object,
             asset_root: None,
             compression: Compression::Lz4 { level: 0 },
             render_modes: vec![RenderMode::Color],
@@ -124,6 +130,34 @@ pub fn resume_offsets(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
+pub fn zeroverse_config_from_gen(
+    render_modes: Vec<RenderMode>,
+    cameras: usize,
+    width: u32,
+    height: u32,
+    playback_step: f32,
+    playback_steps: u32,
+    scene_type: ZeroverseSceneType,
+) -> BevyZeroverseConfig {
+    BevyZeroverseConfig {
+        headless: true,
+        image_copiers: true,
+        editor: false,
+        keybinds: false,
+        press_esc_close: false,
+        num_cameras: cameras.max(1),
+        render_mode: render_modes.first().cloned().unwrap_or(RenderMode::Color),
+        render_modes,
+        width: width as f32,
+        height: height as f32,
+        playback_step,
+        playback_steps,
+        scene_type,
+        ..Default::default()
+    }
+}
+
 /// Run headless generation with persistent workers in the current process.
 pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
     let GenConfig {
@@ -133,6 +167,8 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
         samples,
         sample_offset,
         chunk_offset,
+        playback_step,
+        playback_steps,
         asset_root,
         compression,
         render_modes,
@@ -143,6 +179,7 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
         cameras,
         enable_ui: _enable_ui,
         write_mode,
+        scene_type,
     } = config;
 
     let asset_root = asset_root
@@ -155,19 +192,15 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
             }
         });
 
-    let zeroverse_config = BevyZeroverseConfig {
-        headless: true,
-        image_copiers: true,
-        editor: false,
-        keybinds: false,
-        press_esc_close: false,
-        num_cameras: cameras.max(1),
-        render_mode: render_modes.first().cloned().unwrap_or(RenderMode::Color),
-        render_modes: render_modes.clone(),
-        width: width as f32,
-        height: height as f32,
-        ..Default::default()
-    };
+    let zeroverse_config = zeroverse_config_from_gen(
+        render_modes.clone(),
+        cameras,
+        width,
+        height,
+        playback_step,
+        playback_steps,
+        scene_type,
+    );
 
     let dataset = Arc::new(LiveDataset::new(LiveDatasetConfig {
         asset_root: asset_root.clone(),

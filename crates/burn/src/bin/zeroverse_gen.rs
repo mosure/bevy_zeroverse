@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use anyhow::Result;
 use clap::{Parser, ValueEnum};
 
-use bevy_zeroverse::render::RenderMode;
+use bevy_zeroverse::{render::RenderMode, scene::ZeroverseSceneType};
 use bevy_zeroverse_burn::{
     compression::Compression,
     generator::{GenConfig, WriteMode, run_chunk_generation},
@@ -62,9 +62,21 @@ struct Cli {
     #[arg(long, default_value_t = 0, hide = true)]
     chunk_offset: usize,
 
+    /// Playback timestep delta (seconds)
+    #[arg(long, default_value_t = 0.05)]
+    playback_step: f32,
+
+    /// Number of playback steps per sample
+    #[arg(long, default_value_t = 1)]
+    playback_steps: u32,
+
     /// Resume from existing outputs in the target directory (continue indices)
     #[arg(long, default_value_t = false)]
     resume: bool,
+
+    /// Scene type to render
+    #[arg(long, value_enum, default_value_t = ZeroverseSceneType::SemanticRoom)]
+    scene_type: ZeroverseSceneType,
 
     /// Whether to write chunked safetensors or folder-per-sample
     #[arg(long, value_enum, default_value_t = OutputModeArg::Chunk)]
@@ -135,6 +147,17 @@ fn main() -> Result<()> {
         OutputModeArg::Fs => WriteMode::Fs,
     };
 
+    fn scene_type_cli_name(scene_type: &ZeroverseSceneType) -> &'static str {
+        match scene_type {
+            ZeroverseSceneType::CornellCube => "cornell-cube",
+            ZeroverseSceneType::Custom => "custom",
+            ZeroverseSceneType::Human => "human",
+            ZeroverseSceneType::Object => "object",
+            ZeroverseSceneType::SemanticRoom => "semantic-room",
+            ZeroverseSceneType::Room => "room",
+        }
+    }
+
     let (base_sample_offset, base_chunk_offset) = if cli.resume {
         bevy_zeroverse_burn::generator::resume_offsets(&cli.output, write_mode, cli.chunk_size)?
     } else {
@@ -187,6 +210,12 @@ fn main() -> Result<()> {
                 .arg(start_index.to_string())
                 .arg("--chunk-offset")
                 .arg(worker_chunk_offset.to_string())
+                .arg("--playback-step")
+                .arg(cli.playback_step.to_string())
+                .arg("--playback-steps")
+                .arg(cli.playback_steps.to_string())
+                .arg("--scene-type")
+                .arg(scene_type_cli_name(&cli.scene_type))
                 .arg("--compression")
                 .arg(format!("{:?}", cli.compression).to_lowercase())
                 .arg("--output-mode")
@@ -234,6 +263,9 @@ fn main() -> Result<()> {
         samples: cli.samples,
         sample_offset: base_sample_offset,
         chunk_offset: base_chunk_offset,
+        playback_step: cli.playback_step,
+        playback_steps: cli.playback_steps,
+        scene_type: cli.scene_type,
         asset_root: cli.asset_root.clone(),
         compression: cli.compression.into_compression(),
         render_modes: cli.render_modes.clone(),
