@@ -18,6 +18,7 @@ use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
 use crate::{
+    annotation::obb::ObbTracked,
     manifold::ManifoldOperations,
     material::ZeroverseMaterials,
     mesh::{displace_vertices_with_noise, MeshCategory, ZeroverseMeshes},
@@ -69,6 +70,7 @@ pub struct ZeroversePrimitiveSettings {
     pub position_sampler: PositionSampler,
     pub scale_sampler: ScaleSampler,
     pub invert_normals: bool,
+    pub track_obb: bool,
     #[reflect(ignore)]
     pub cull_mode: Option<Face>,
     pub cast_shadows: bool,
@@ -102,6 +104,7 @@ impl Default for ZeroversePrimitiveSettings {
             position_sampler: PositionSampler::default(),
             scale_sampler: ScaleSampler::Bounded(Vec3::splat(0.05), Vec3::splat(1.0)),
             invert_normals: false,
+            track_obb: true,
             cull_mode: None,
             cast_shadows: true,
             receive_shadows: true, // TODO: fix shadows + camera trajectories clipping
@@ -382,8 +385,6 @@ fn build_primitive(
                 .with_rotation(rotation)
                 .with_scale(scale);
 
-            let mut mesh = mesh.transformed_by(transform);
-
             if rng.random_bool(settings.smooth_normals_probability as f64) {
                 mesh.compute_smooth_normals();
             } else {
@@ -406,10 +407,17 @@ fn build_primitive(
             }
 
             let mut primitive = commands.spawn((
+                transform,
+                GlobalTransform::default(),
+                InheritedVisibility::default(),
+                Visibility::default(),
                 Mesh3d(meshes.add(mesh)),
                 MeshMaterial3d(material),
                 TransmittedShadowReceiver,
             ));
+            if settings.track_obb {
+                primitive.insert(ObbTracked);
+            }
 
             if !settings.cast_shadows {
                 primitive.insert(NotShadowCaster);

@@ -104,6 +104,30 @@ impl View {
 }
 
 #[pyclass]
+#[derive(Clone, Debug, Default)]
+pub struct ObjectObb {
+    #[pyo3(get, set)]
+    pub center: [f32; 3],
+    #[pyo3(get, set)]
+    pub scale: [f32; 3],
+    #[pyo3(get, set)]
+    pub rotation: [f32; 4],
+    #[pyo3(get, set)]
+    pub class_name: String,
+}
+
+impl From<core_sample::ObjectObbSample> for ObjectObb {
+    fn from(value: core_sample::ObjectObbSample) -> Self {
+        ObjectObb {
+            center: value.center,
+            scale: value.scale,
+            rotation: value.rotation,
+            class_name: value.class_name,
+        }
+    }
+}
+
+#[pyclass]
 #[derive(Clone, Debug, Default, Resource)]
 pub struct Sample {
     pub views: Vec<View>,
@@ -114,6 +138,9 @@ pub struct Sample {
     /// min and max corners of the axis-aligned bounding box
     #[pyo3(get, set)]
     pub aabb: [[f32; 3]; 2],
+
+    #[pyo3(get, set)]
+    pub object_obbs: Vec<ObjectObb>,
 }
 
 impl From<core_sample::Sample> for Sample {
@@ -123,6 +150,11 @@ impl From<core_sample::Sample> for Sample {
             views,
             view_dim: value.view_dim,
             aabb: value.aabb,
+            object_obbs: value
+                .object_obbs
+                .into_iter()
+                .map(ObjectObb::from)
+                .collect(),
         }
     }
 }

@@ -166,10 +166,11 @@ class View:
         return batch
 
 class Sample:
-    def __init__(self, views, view_dim, aabb):
+    def __init__(self, views, view_dim, aabb, object_obbs):
         self.views = views
         self.view_dim = view_dim
         self.aabb = aabb
+        self.object_obbs = object_obbs
 
     @classmethod
     def from_rust(cls, rust_sample, width, height):
@@ -181,8 +182,20 @@ class Sample:
         views = [View.from_rust(view, width, height) for view in rust_views]
         view_dim = rust_sample.view_dim
         aabb = np.array(rust_sample.aabb)
+        object_obbs = []
+        if hasattr(rust_sample, "object_obbs"):
+            for obb in rust_sample.object_obbs:
+                object_obbs.append(
+                    {
+                        'center': np.array(obb.center, dtype=np.float32),
+                        'scale': np.array(obb.scale, dtype=np.float32),
+                        'rotation': np.array(obb.rotation, dtype=np.float32),
+                        'class_name': obb.class_name,
+                    }
+                )
+        # drop rust_views to release lock earlier
         del rust_views
-        return cls(views, view_dim, aabb)
+        return cls(views, view_dim, aabb, object_obbs)
 
     def to_tensors(self):
         sample = {}
@@ -206,12 +219,33 @@ class Sample:
 
         sample['aabb'] = torch.tensor(self.aabb, dtype=torch.float32)
 
+        if len(self.object_obbs) > 0:
+            class_to_idx = {}
+            centers = []
+            scales = []
+            rotations = []
+            class_idxs = []
+            for obb in self.object_obbs:
+                cls_idx = class_to_idx.setdefault(obb['class_name'], len(class_to_idx))
+                centers.append(obb['center'])
+                scales.append(obb['scale'])
+                rotations.append(obb['rotation'])
+                class_idxs.append(cls_idx)
+
+            sample['object_obb_center'] = torch.tensor(np.stack(centers, axis=0), dtype=torch.float32)
+            sample['object_obb_scale'] = torch.tensor(np.stack(scales, axis=0), dtype=torch.float32)
+            sample['object_obb_rotation'] = torch.tensor(np.stack(rotations, axis=0), dtype=torch.float32)
+            sample['object_obb_class_idx'] = torch.tensor(class_idxs, dtype=torch.int64)
+            names_bytes = json.dumps(list(class_to_idx.keys())).encode("utf-8")
+            sample['object_obb_class_names'] = torch.tensor(list(names_bytes), dtype=torch.uint8)
+
         normalize_keys = ['color', 'optical_flow']
         for key in normalize_keys:
             if key in sample:
                 sample[key] = normalize_hdr_image_tonemap(sample[key])
 
         self.views.clear()
+        self.object_obbs.clear()
 
         return sample
 
@@ -519,7 +553,14 @@ def crop(tensor, shape, channels_last=True):
 
 # TODO: support optional compression of chunks
 def load_chunk(path: Path):
-    tensors = load_bytes(_decompress_bytes(path))
+    raw = _decompress_bytes(path)
+    meta = {}
+    try:
+        with safe_open(BytesIO(raw), framework="pt", device="cpu") as f:
+            meta = f.metadata() or {}
+    except Exception:
+        meta = {}
+    tensors = load_bytes(raw)
     batch = {}
 
     jpeg_groups = {}
@@ -560,6 +601,13 @@ def load_chunk(path: Path):
     for key, tensor in tensors.items():
         if '_jpg_' not in key and '_shape' not in key:
             batch[key] = tensor
+
+    if "object_obb_class_names" in meta:
+        try:
+            names_bytes = meta["object_obb_class_names"].encode("utf-8")
+            batch["object_obb_class_names"] = torch.tensor(list(names_bytes), dtype=torch.uint8)
+        except Exception:
+            pass
 
     return batch
 
@@ -827,6 +875,12 @@ def save_to_folders(dataset, output_dir: Path, n_workers: int = 1):
             'time': sample['time'],
             'aabb': sample['aabb'],
         }
+        for key in ['object_obb_center', 'object_obb_scale', 'object_obb_rotation', 'object_obb_class_idx']:
+            if key in sample:
+                meta_tensors[key] = sample[key]
+        if 'object_obb_class_names' in sample:
+            names_bytes = json.dumps(sample['object_obb_class_names']).encode('utf-8')
+            meta_tensors['object_obb_class_names'] = torch.tensor(list(names_bytes), dtype=torch.uint8)
         meta_filename = scene_dir / "meta.safetensors"
         save_file(meta_tensors, str(meta_filename))
 
@@ -1003,6 +1057,3 @@ class MP4Dataset(Dataset):
             meta_tensors[plane] = torch.stack(plane_tensors, dim=1)  # [T, V, C, H, W]
 
         return meta_tensors
-
-
-

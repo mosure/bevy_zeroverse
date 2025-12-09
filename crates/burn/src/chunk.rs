@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     fs,
     path::{Path, PathBuf},
 };
@@ -6,8 +7,10 @@ use std::{
 use anyhow::{Context, Result, anyhow};
 use bytemuck::cast_slice;
 use safetensors::{Dtype, SafeTensors, serialize, tensor::TensorView};
+use serde_json;
 
 use crate::{compression::Compression, dataset::ZeroverseSample};
+
 
 pub(crate) fn decode_rgba_bytes(bytes: &[u8], width: u32, height: u32) -> Result<Vec<f32>> {
     if bytes.is_empty() {
@@ -71,6 +74,7 @@ pub(crate) fn decode_rgba_bytes(bytes: &[u8], width: u32, height: u32) -> Result
     ))
 }
 
+
 pub(crate) fn encode_jpeg_from_rgba_f32(rgba: &[f32], width: u32, height: u32) -> Result<Vec<u8>> {
     let mut rgb = Vec::with_capacity((width * height * 3) as usize);
     for chunk in rgba.chunks_exact(4) {
@@ -87,6 +91,7 @@ pub(crate) fn encode_jpeg_from_rgba_f32(rgba: &[f32], width: u32, height: u32) -
     Ok(buf)
 }
 
+
 pub(crate) fn decode_jpeg_to_rgba_f32(bytes: &[u8]) -> Result<(u32, u32, Vec<f32>)> {
     let dyn_img = image::load_from_memory(bytes)?;
     let rgb = dyn_img.to_rgb8();
@@ -101,9 +106,11 @@ pub(crate) fn decode_jpeg_to_rgba_f32(bytes: &[u8]) -> Result<(u32, u32, Vec<f32
     Ok((width, height, out))
 }
 
+
 pub(crate) fn leak_bytes(buf: Vec<u8>) -> &'static [u8] {
     Box::leak(buf.into_boxed_slice())
 }
+
 
 pub(crate) fn normalize_hdr_image_tonemap(
     data: &mut [f32],
@@ -162,6 +169,7 @@ pub(crate) fn normalize_hdr_image_tonemap(
     }
 }
 
+
 pub fn save_chunk(
     samples: &[ZeroverseSample],
     output_dir: impl AsRef<Path>,
@@ -203,6 +211,26 @@ pub fn save_chunk(
     let mut far = Vec::new();
     let mut time = Vec::new();
     let mut aabb: Vec<f32> = Vec::new();
+
+    // Object OBB accumulation
+    let mut class_to_idx: HashMap<String, i64> = HashMap::new();
+    let mut class_names: Vec<String> = Vec::new();
+    let mut max_obbs = 0usize;
+    for sample in samples.iter() {
+        max_obbs = max_obbs.max(sample.object_obbs.len());
+        for obb in &sample.object_obbs {
+            if !class_to_idx.contains_key(&obb.class_name) {
+                let idx = class_to_idx.len() as i64;
+                class_to_idx.insert(obb.class_name.clone(), idx);
+                class_names.push(obb.class_name.clone());
+            }
+        }
+    }
+
+    let mut obb_center: Vec<f32> = vec![0.0; b * max_obbs * 3];
+    let mut obb_scale: Vec<f32> = vec![0.0; b * max_obbs * 3];
+    let mut obb_rotation: Vec<f32> = vec![0.0; b * max_obbs * 4];
+    let mut obb_class_idx: Vec<i64> = vec![-1; b * max_obbs];
 
     for (sample_idx, sample) in samples.iter().enumerate() {
         assert_eq!(
@@ -321,6 +349,22 @@ pub fn save_chunk(
         }
 
         aabb.extend_from_slice(cast_slice(&sample.aabb));
+
+        if max_obbs > 0 {
+            for (local_idx, obb) in sample.object_obbs.iter().take(max_obbs).enumerate() {
+                let base = sample_idx * max_obbs + local_idx;
+                let c_base = base * 3;
+                let r_base = base * 4;
+
+                obb_center[c_base..c_base + 3].copy_from_slice(&obb.center);
+                obb_scale[c_base..c_base + 3].copy_from_slice(&obb.scale);
+                obb_rotation[r_base..r_base + 4].copy_from_slice(&obb.rotation);
+
+                if let Some(idx) = class_to_idx.get(&obb.class_name) {
+                    obb_class_idx[base] = *idx;
+                }
+            }
+        }
     }
 
     let color_shape_ref = leak_bytes(cast_slice(&color_shape).to_vec());
@@ -363,6 +407,36 @@ pub fn save_chunk(
         ));
     }
 
+    if max_obbs > 0 {
+        let center_ref = leak_bytes(cast_slice(&obb_center).to_vec());
+        let scale_ref = leak_bytes(cast_slice(&obb_scale).to_vec());
+        let rotation_ref = leak_bytes(cast_slice(&obb_rotation).to_vec());
+        let class_ref = leak_bytes(cast_slice(&obb_class_idx).to_vec());
+        let class_bytes = serde_json::to_vec(&class_names)?;
+        let class_bytes_ref = leak_bytes(class_bytes);
+
+        tensors.push((
+            "object_obb_center",
+            TensorView::new(Dtype::F32, vec![b, max_obbs, 3], center_ref)?,
+        ));
+        tensors.push((
+            "object_obb_scale",
+            TensorView::new(Dtype::F32, vec![b, max_obbs, 3], scale_ref)?,
+        ));
+        tensors.push((
+            "object_obb_rotation",
+            TensorView::new(Dtype::F32, vec![b, max_obbs, 4], rotation_ref)?,
+        ));
+        tensors.push((
+            "object_obb_class_idx",
+            TensorView::new(Dtype::I64, vec![b, max_obbs], class_ref)?,
+        ));
+        tensors.push((
+            "object_obb_class_names",
+            TensorView::new(Dtype::U8, vec![class_bytes_ref.len()], class_bytes_ref)?,
+        ));
+    }
+
     if !world_from_view.is_empty() {
         let shape = [b, steps, view_dim, 4, 4].to_vec();
         let data_ref = leak_bytes(cast_slice(&world_from_view).to_vec());
@@ -397,6 +471,7 @@ pub fn save_chunk(
     Ok(path)
 }
 
+
 pub fn load_chunk(path: impl AsRef<Path>) -> Result<Vec<ZeroverseSample>> {
     let path = path.as_ref();
     let data = fs::read(path).with_context(|| format!("failed to read chunk {:?}", path))?;
@@ -412,6 +487,14 @@ pub fn load_chunk(path: impl AsRef<Path>) -> Result<Vec<ZeroverseSample>> {
         .with_context(|| format!("failed to decompress chunk {:?}", path))?;
 
     let tensors = SafeTensors::deserialize(&decompressed)?;
+
+    let mut class_names: Vec<String> = Vec::new();
+    if let Ok(class_tensor) = tensors.tensor("object_obb_class_names") {
+        let bytes: Vec<u8> = cast_slice(class_tensor.data()).to_vec();
+        if let Ok(names) = serde_json::from_slice::<Vec<String>>(&bytes) {
+            class_names = names;
+        }
+    }
 
     let color_shape_tensor = tensors.tensor("color_shape")?;
     let color_shape: [i64; 6] = {
@@ -433,6 +516,7 @@ pub fn load_chunk(path: impl AsRef<Path>) -> Result<Vec<ZeroverseSample>> {
             views: vec![bevy_zeroverse::sample::View::default(); view_dim * steps],
             view_dim: view_dim as u32,
             aabb: [[0.0; 3]; 2],
+            object_obbs: Vec::new(),
         };
         b
     ];
@@ -539,6 +623,57 @@ pub fn load_chunk(path: impl AsRef<Path>) -> Result<Vec<ZeroverseSample>> {
         }
     }
 
+    if let (Ok(center), Ok(scale), Ok(rotation), Ok(class_idx)) = (
+        tensors.tensor("object_obb_center"),
+        tensors.tensor("object_obb_scale"),
+        tensors.tensor("object_obb_rotation"),
+        tensors.tensor("object_obb_class_idx"),
+    ) {
+        let centers: &[f32] = cast_slice(center.data());
+        let scales: &[f32] = cast_slice(scale.data());
+        let rotations: &[f32] = cast_slice(rotation.data());
+        let class_ids: &[i64] = cast_slice(class_idx.data());
+
+        let max_obbs = center.shape().get(1).copied().unwrap_or(0) as usize;
+
+        for (b_idx, sample) in samples.iter_mut().enumerate().take(b) {
+            let base_center = b_idx * max_obbs * 3;
+            let base_rot = b_idx * max_obbs * 4;
+            let base_class = b_idx * max_obbs;
+
+            for i in 0..max_obbs {
+                let cls = class_ids[base_class + i];
+                if cls < 0 {
+                    continue;
+                }
+
+                let c_idx = base_center + i * 3;
+                let r_idx = base_rot + i * 4;
+
+                let class_name = class_names
+                    .get(cls as usize)
+                    .cloned()
+                    .unwrap_or_else(|| "unknown".to_string());
+
+                sample.object_obbs.push(bevy_zeroverse::sample::ObjectObbSample {
+                    center: [
+                        centers[c_idx],
+                        centers[c_idx + 1],
+                        centers[c_idx + 2],
+                    ],
+                    scale: [scales[c_idx], scales[c_idx + 1], scales[c_idx + 2]],
+                    rotation: [
+                        rotations[r_idx],
+                        rotations[r_idx + 1],
+                        rotations[r_idx + 2],
+                        rotations[r_idx + 3],
+                    ],
+                    class_name,
+                });
+            }
+        }
+    }
+
     fn set_fovy(v: &mut bevy_zeroverse::sample::View, x: f32) {
         v.fovy = x;
     }
@@ -592,4 +727,55 @@ pub fn discover_chunks(root: impl AsRef<Path>) -> Result<Vec<PathBuf>> {
         .collect();
     files.sort();
     Ok(files)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bevy_zeroverse::sample::ObjectObbSample;
+    use tempfile::tempdir;
+
+    fn sample_with_obb(class_name: &str) -> ZeroverseSample {
+        ZeroverseSample {
+            views: vec![bevy_zeroverse::sample::View::default()],
+            view_dim: 1,
+            aabb: [[0.0; 3]; 2],
+            object_obbs: vec![ObjectObbSample {
+                center: [1.0, 2.0, 3.0],
+                scale: [4.0, 5.0, 6.0],
+                rotation: [0.0, 0.0, 0.0, 1.0],
+                class_name: class_name.to_string(),
+            }],
+        }
+    }
+
+    #[test]
+    fn chunk_roundtrips_object_obbs_without_metadata() {
+        let tmp = tempdir().unwrap();
+        let path = save_chunk(
+            &[sample_with_obb("chair")],
+            tmp.path(),
+            0,
+            Compression::None,
+            1,
+            1,
+        )
+        .unwrap();
+
+        // Ensure class names are stored as a tensor
+        let raw = std::fs::read(&path).unwrap();
+        let tensors = SafeTensors::deserialize(&raw).unwrap();
+        assert!(tensors.tensor("object_obb_class_names").is_ok());
+
+        let loaded = load_chunk(&path).unwrap();
+        assert_eq!(loaded.len(), 1);
+        let obb = loaded[0]
+            .object_obbs
+            .first()
+            .expect("obb should roundtrip");
+        assert_eq!(obb.class_name, "chair");
+        assert_eq!(obb.center, [1.0, 2.0, 3.0]);
+        assert_eq!(obb.scale, [4.0, 5.0, 6.0]);
+        assert_eq!(obb.rotation, [0.0, 0.0, 0.0, 1.0]);
+    }
 }

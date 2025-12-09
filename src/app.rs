@@ -70,6 +70,11 @@ pub struct BevyZeroverseConfig {
     #[arg(long, default_value = "1.0")]
     pub gizmos_alpha: f32,
 
+    /// draw oriented bounding box gizmos
+    #[pyo3(get, set)]
+    #[arg(long, action = clap::ArgAction::Set, default_value = "false")]
+    pub draw_obb_gizmo: bool,
+
     /// no window will be shown
     #[pyo3(get, set)]
     #[arg(long, default_value = "false")]
@@ -241,6 +246,10 @@ pub struct BevyZeroverseConfig {
     #[arg(long, default_value = "1.0")]
     pub gizmos_alpha: f32,
 
+    /// draw oriented bounding box gizmos
+    #[arg(long, action = clap::ArgAction::Set, default_value = "false")]
+    pub draw_obb_gizmo: bool,
+
     /// no window will be shown
     #[arg(long, default_value = "false")]
     pub headless: bool,
@@ -353,6 +362,7 @@ impl Default for BevyZeroverseConfig {
             editor: true,
             gizmos: true,
             gizmos_alpha: 1.0,
+            draw_obb_gizmo: false,
             headless: false,
             image_copiers: false,
             material_grid: false,

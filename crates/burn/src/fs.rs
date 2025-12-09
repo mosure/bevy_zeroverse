@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, BTreeSet},
+    collections::{BTreeMap, BTreeSet, HashMap},
     fs,
     path::{Path, PathBuf},
 };
@@ -9,6 +9,7 @@ use burn::data::dataset::Dataset;
 use ndarray::{Array2, Array3, ArrayD};
 use ndarray_npy::NpzReader;
 use safetensors::{Dtype, SafeTensors, serialize, tensor::TensorView};
+use serde_json;
 
 use crate::{
     chunk::{
@@ -285,12 +286,20 @@ struct MetaFields {
     far: Vec<f32>,
     time: Vec<f32>,
     aabb: [[f32; 3]; 2],
+    object_obbs: Vec<bevy_zeroverse::sample::ObjectObbSample>,
 }
 
 fn load_meta(dir: &Path, steps: usize, view_dim: usize) -> Result<MetaFields> {
     let meta_path = dir.join(META_FILE);
     let data = fs::read(&meta_path).with_context(|| format!("failed to read {:?}", meta_path))?;
     let tensors = SafeTensors::deserialize(&data)?;
+    let mut class_names: Vec<String> = Vec::new();
+    if let Ok(class_tensor) = tensors.tensor("object_obb_class_names") {
+        let bytes: Vec<u8> = bytemuck::cast_slice(class_tensor.data()).to_vec();
+        if let Ok(names) = serde_json::from_slice::<Vec<String>>(&bytes) {
+            class_names = names;
+        }
+    }
 
     let default_len = steps * view_dim;
     let mut world_from_view = vec![[[0.0; 4]; 4]; default_len];
@@ -299,6 +308,7 @@ fn load_meta(dir: &Path, steps: usize, view_dim: usize) -> Result<MetaFields> {
     let mut far = vec![0.0; default_len];
     let mut time = vec![0.0; default_len];
     let mut aabb = [[0.0; 3]; 2];
+    let mut object_obbs = Vec::new();
 
     if let Ok(tensor) = tensors.tensor("world_from_view") {
         let data: &[f32] = bytemuck::cast_slice(tensor.data());
@@ -372,6 +382,44 @@ fn load_meta(dir: &Path, steps: usize, view_dim: usize) -> Result<MetaFields> {
         }
     }
 
+    if let (Ok(center), Ok(scale), Ok(rotation), Ok(class_idx)) = (
+        tensors.tensor("object_obb_center"),
+        tensors.tensor("object_obb_scale"),
+        tensors.tensor("object_obb_rotation"),
+        tensors.tensor("object_obb_class_idx"),
+    ) {
+        let centers: &[f32] = bytemuck::cast_slice(center.data());
+        let scales: &[f32] = bytemuck::cast_slice(scale.data());
+        let rotations: &[f32] = bytemuck::cast_slice(rotation.data());
+        let class_ids: &[i64] = bytemuck::cast_slice(class_idx.data());
+
+        let count = center.shape().get(0).copied().unwrap_or(0) as usize;
+        for i in 0..count {
+            let cls = class_ids.get(i).copied().unwrap_or(-1);
+            if cls < 0 {
+                continue;
+            }
+            let c_idx = i * 3;
+            let r_idx = i * 4;
+            let class_name = class_names
+                .get(cls as usize)
+                .cloned()
+                .unwrap_or_else(|| "unknown".to_string());
+
+            object_obbs.push(bevy_zeroverse::sample::ObjectObbSample {
+                center: [centers[c_idx], centers[c_idx + 1], centers[c_idx + 2]],
+                scale: [scales[c_idx], scales[c_idx + 1], scales[c_idx + 2]],
+                rotation: [
+                    rotations[r_idx],
+                    rotations[r_idx + 1],
+                    rotations[r_idx + 2],
+                    rotations[r_idx + 3],
+                ],
+                class_name,
+            });
+        }
+    }
+
     Ok(MetaFields {
         world_from_view,
         fovy,
@@ -379,6 +427,7 @@ fn load_meta(dir: &Path, steps: usize, view_dim: usize) -> Result<MetaFields> {
         far,
         time,
         aabb,
+        object_obbs,
     })
 }
 
@@ -409,10 +458,11 @@ pub fn load_sample_dir(dir: impl AsRef<Path>) -> Result<ZeroverseSample> {
     let meta = load_meta(dir, steps, view_dim)?;
 
     let mut sample = ZeroverseSample {
-        views: vec![Default::default(); steps * view_dim],
-        view_dim: view_dim as u32,
-        aabb: meta.aabb,
-    };
+    views: vec![Default::default(); steps * view_dim],
+    view_dim: view_dim as u32,
+    aabb: meta.aabb,
+    object_obbs: meta.object_obbs,
+};
 
     let timestep_list: Vec<usize> = timesteps.into_iter().collect();
     let view_list: Vec<usize> = views.into_iter().collect();
@@ -689,6 +739,28 @@ pub fn save_sample_to_fs(
         }
     }
 
+    // Object OBB tensors (unpadded per-sample).
+    let mut class_to_idx: HashMap<String, i64> = HashMap::new();
+    let mut class_names: Vec<String> = Vec::new();
+    for obb in &sample.object_obbs {
+        if !class_to_idx.contains_key(&obb.class_name) {
+            let idx = class_to_idx.len() as i64;
+            class_to_idx.insert(obb.class_name.clone(), idx);
+            class_names.push(obb.class_name.clone());
+        }
+    }
+    let obb_count = sample.object_obbs.len();
+    let mut obb_center = Vec::with_capacity(obb_count * 3);
+    let mut obb_scale = Vec::with_capacity(obb_count * 3);
+    let mut obb_rotation = Vec::with_capacity(obb_count * 4);
+    let mut obb_class_idx = Vec::with_capacity(obb_count);
+    for obb in &sample.object_obbs {
+        obb_center.extend_from_slice(&obb.center);
+        obb_scale.extend_from_slice(&obb.scale);
+        obb_rotation.extend_from_slice(&obb.rotation);
+        obb_class_idx.push(*class_to_idx.get(&obb.class_name).unwrap_or(&-1));
+    }
+
     let mut tensors: Vec<(&str, TensorView<'static>)> = Vec::new();
 
     let mut world_from_view = Vec::with_capacity(steps * view_dim * 16);
@@ -738,8 +810,85 @@ pub fn save_sample_to_fs(
     let aabb_buf = leak_bytes(bytemuck::cast_slice(&sample.aabb).to_vec());
     tensors.push(("aabb", TensorView::new(Dtype::F32, vec![2, 3], aabb_buf)?));
 
+    if !obb_center.is_empty() {
+        let center_buf = leak_bytes(bytemuck::cast_slice(&obb_center).to_vec());
+        let scale_buf = leak_bytes(bytemuck::cast_slice(&obb_scale).to_vec());
+        let rotation_buf = leak_bytes(bytemuck::cast_slice(&obb_rotation).to_vec());
+        let class_buf = leak_bytes(bytemuck::cast_slice(&obb_class_idx).to_vec());
+        let class_bytes = serde_json::to_vec(&class_names)?;
+        let class_bytes_ref = leak_bytes(class_bytes);
+
+        tensors.push((
+            "object_obb_center",
+            TensorView::new(Dtype::F32, vec![obb_count, 3], center_buf)?,
+        ));
+        tensors.push((
+            "object_obb_scale",
+            TensorView::new(Dtype::F32, vec![obb_count, 3], scale_buf)?,
+        ));
+        tensors.push((
+            "object_obb_rotation",
+            TensorView::new(Dtype::F32, vec![obb_count, 4], rotation_buf)?,
+        ));
+        tensors.push((
+            "object_obb_class_idx",
+            TensorView::new(Dtype::I64, vec![obb_count], class_buf)?,
+        ));
+        tensors.push((
+            "object_obb_class_names",
+            TensorView::new(Dtype::U8, vec![class_bytes_ref.len()], class_bytes_ref)?,
+        ));
+    }
+
     let meta = serialize(tensors, None)?;
     fs::write(scene_dir.join(META_FILE), meta)?;
 
     Ok(scene_dir)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bevy_zeroverse::sample::{ObjectObbSample, View};
+    use tempfile::tempdir;
+
+    fn sample_with_color_and_obb() -> ZeroverseSample {
+        let color: Vec<u8> =
+            bytemuck::cast_slice(&[1.0f32, 0.5f32, 0.25f32, 1.0f32]).to_vec();
+        ZeroverseSample {
+            views: vec![View {
+                color,
+                ..Default::default()
+            }],
+            view_dim: 1,
+            aabb: [[0.0; 3]; 2],
+            object_obbs: vec![ObjectObbSample {
+                center: [0.0, 1.0, 2.0],
+                scale: [1.0, 2.0, 3.0],
+                rotation: [0.0, 0.0, 0.0, 1.0],
+                class_name: "table".to_string(),
+            }],
+        }
+    }
+
+    #[test]
+    fn fs_roundtrips_object_obbs_without_metadata() {
+        let tmp = tempdir().unwrap();
+        let sample = sample_with_color_and_obb();
+        let scene_dir =
+            save_sample_to_fs(&sample, tmp.path(), 0, 1, 1).expect("save should succeed");
+
+        let meta_path = scene_dir.join("meta.safetensors");
+        let meta_bytes = std::fs::read(&meta_path).unwrap();
+        let tensors = SafeTensors::deserialize(&meta_bytes).unwrap();
+        assert!(tensors.tensor("object_obb_class_names").is_ok());
+
+        let loaded = load_sample_dir(scene_dir).expect("load should succeed");
+        assert_eq!(loaded.object_obbs.len(), 1);
+        let obb = &loaded.object_obbs[0];
+        assert_eq!(obb.class_name, "table");
+        assert_eq!(obb.center, [0.0, 1.0, 2.0]);
+        assert_eq!(obb.scale, [1.0, 2.0, 3.0]);
+        assert_eq!(obb.rotation, [0.0, 0.0, 0.0, 1.0]);
+    }
 }

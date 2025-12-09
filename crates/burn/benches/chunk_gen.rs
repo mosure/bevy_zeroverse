@@ -25,6 +25,7 @@ fn sample_with_id(id: u8) -> ZeroverseSample {
         }],
         view_dim: 1,
         aabb: [[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]],
+        object_obbs: Vec::new(),
     }
 }
 
@@ -69,67 +70,6 @@ fn zeroverse_gen_bin() -> PathBuf {
     )
 }
 
-fn headless_multiprocess_chunk_benchmark(c: &mut Criterion) {
-    let bin = zeroverse_gen_bin();
-    let total_samples = 48usize;
-    let chunk_size = 8usize;
-    let worker_counts = [1usize, 2, 4, 8, 16];
-
-    let mut group = c.benchmark_group("headless_chunk_pipeline_multiprocess");
-    group.sample_size(10);
-    group.throughput(Throughput::Elements(total_samples as u64));
-
-    for &workers in &worker_counts {
-        group.bench_function(format!("workers_{workers}"), |b| {
-            b.iter(|| {
-                let tmp = TempDir::new().expect("failed to create temp dir");
-                let per_worker = (total_samples + workers - 1) / workers;
-
-                let mut children = Vec::with_capacity(workers);
-                for worker_idx in 0..workers {
-                    let output = tmp.path().join(format!("worker_{worker_idx}"));
-                    let mut cmd = Command::new(&bin);
-                    cmd.arg("--output")
-                        .arg(&output)
-                        .arg("--workers")
-                        .arg("1")
-                        .arg("--no-ui")
-                        .arg("--chunk-size")
-                        .arg(chunk_size.to_string())
-                        .arg("--samples")
-                        .arg(per_worker.to_string())
-                        .arg("--compression")
-                        .arg("none")
-                        .arg("--render-modes")
-                        .arg("color")
-                        .arg("depth")
-                        .arg("--width")
-                        .arg("96")
-                        .arg("--height")
-                        .arg("72");
-
-                    if let Ok(asset_root) = std::env::current_dir() {
-                        cmd.arg("--asset-root").arg(asset_root);
-                    }
-
-                    children.push(
-                        cmd.spawn()
-                            .expect("failed to spawn zeroverse_gen child process"),
-                    );
-                }
-
-                for mut child in children {
-                    let status = child
-                        .wait()
-                        .expect("failed to wait for zeroverse_gen child process");
-                    assert!(status.success(), "child process exited with failure");
-                }
-            });
-        });
-    }
-
-    group.finish();
-}
 
 fn headless_persistent_chunk_benchmark(c: &mut Criterion) {
     let bin = zeroverse_gen_bin();
@@ -187,7 +127,6 @@ fn headless_persistent_chunk_benchmark(c: &mut Criterion) {
 criterion_group!(
     benches,
     chunk_generation_benchmark,
-    headless_multiprocess_chunk_benchmark,
     headless_persistent_chunk_benchmark
 );
 criterion_main!(benches);

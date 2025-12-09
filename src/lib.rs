@@ -11,6 +11,7 @@ pub mod manifold;
 pub mod material;
 pub mod mesh;
 // pub mod plucker;
+pub mod annotation;
 pub mod primitive;
 pub mod render;
 pub mod sample;
@@ -32,6 +33,7 @@ impl Plugin for BevyZeroversePlugin {
             mesh::ZeroverseMeshPlugin,
             primitive::ZeroversePrimitivePlugin,
             render::RenderPlugin,
+            annotation::obb::ZeroverseObbPlugin,
             scene::ZeroverseScenePlugin,
         ));
 

@@ -6,6 +6,7 @@ use crate::{
     io::{channels, image_copy::ImageCopier},
     render::RenderMode,
     scene::{RegenerateSceneEvent, SceneAabb, SceneAabbNode},
+    annotation::obb::ObjectObb,
 };
 use serde::{Deserialize, Serialize};
 
@@ -23,6 +24,14 @@ pub struct View {
     pub time: f32,
 }
 
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+pub struct ObjectObbSample {
+    pub center: [f32; 3],
+    pub scale: [f32; 3],
+    pub rotation: [f32; 4],
+    pub class_name: String,
+}
+
 #[derive(Clone, Debug, Default, Resource, Serialize, Deserialize, PartialEq)]
 pub struct Sample {
     pub views: Vec<View>,
@@ -31,6 +40,8 @@ pub struct Sample {
 
     /// min and max corners of the axis-aligned bounding box
     pub aabb: [[f32; 3]; 2],
+
+    pub object_obbs: Vec<ObjectObbSample>,
 }
 
 #[derive(Debug, Resource, Reflect)]
@@ -122,6 +133,7 @@ pub fn sample_stream(
     mut startup_delay: ResMut<StartupDelay>,
     cameras: Query<(&GlobalTransform, &Projection, &ImageCopier)>,
     scene: Query<(&SceneAabbNode, &SceneAabb)>,
+    object_obbs: Query<&ObjectObb>,
     images: Res<Assets<Image>>,
     mut render_mode: ResMut<RenderMode>,
     mut playback: ResMut<Playback>,
@@ -165,6 +177,15 @@ pub fn sample_stream(
 
     let scene_aabb = scene.single().unwrap().1;
     buffered_sample.aabb = [scene_aabb.min.into(), scene_aabb.max.into()];
+    buffered_sample.object_obbs.clear();
+    for obb in object_obbs.iter() {
+        buffered_sample.object_obbs.push(ObjectObbSample {
+            center: obb.center.into(),
+            scale: obb.scale.into(),
+            rotation: [obb.rotation.x, obb.rotation.y, obb.rotation.z, obb.rotation.w],
+            class_name: obb.class_name.clone(),
+        });
+    }
 
     let write_to = state.render_modes.remove(0);
 
@@ -254,6 +275,7 @@ pub fn sample_stream(
         views,
         view_dim: camera_count as u32,
         aabb: buffered_sample.aabb,
+        object_obbs: buffered_sample.object_obbs.clone(),
     };
 
     let sender = channels::sample_sender();

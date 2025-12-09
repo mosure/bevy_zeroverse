@@ -195,6 +195,7 @@ fn spawn_face(
     name: &str,
     window: bool,
     depth: i32,
+    track_obb: bool,
 ) -> bool {
     let mut rng = rand::rng();
 
@@ -207,6 +208,7 @@ fn spawn_face(
         noise_probability: 0.0,
         cast_shadows: false,
         rotation_sampler: RotationSampler::Exact(basis),
+        track_obb,
         ..default()
     };
 
@@ -296,6 +298,7 @@ fn spawn_room(
     room_settings: &ZeroverseSemanticRoomSettings,
     depth: i32,
     leaf: bool,
+    track_obb: bool,
 ) -> [bool; 4] {
     let mut windows = [false; 4];
     let mut rng = rand::rng();
@@ -344,6 +347,7 @@ fn spawn_room(
                     name,
                     *wall && !leaf,
                     depth,
+                    track_obb,
                 );
             });
 
@@ -405,6 +409,7 @@ fn spawn_room(
                     name,
                     *wall,
                     depth,
+                    track_obb,
                 );
                 windows[i] = has_window;
             },
@@ -463,6 +468,7 @@ fn spawn_room(
                     position_sampler: PositionSampler::Exact { position },
                     scale_sampler: ScaleSampler::Exact(table_scale),
                     rotation_sampler: RotationSampler::Identity,
+                    track_obb,
                     ..room_settings.table_settings.clone()
                 },
                 Transform::from_translation(position),
@@ -510,6 +516,7 @@ fn spawn_room(
                         position_sampler: PositionSampler::Exact { position },
                         scale_sampler: chair_scale_sampler.clone(),
                         // rotation_sampler: RotationSampler::Identity,
+                        track_obb,
                         ..room_settings.chair_settings.clone()
                     },
                     Transform::from_translation(position),
@@ -579,6 +586,7 @@ fn spawn_room(
                     },
                     scale_sampler: ScaleSampler::Exact(door_scale),
                     rotation_sampler: RotationSampler::Exact(door_rotation),
+                    track_obb,
                     ..room_settings.door_settings.clone()
                 },
                 Transform::from_translation(door_position),
@@ -623,15 +631,16 @@ fn spawn_room(
 
             aabb_colliders.push((position, human_scale));
 
-            commands.spawn((
-                ZeroversePrimitiveSettings {
-                    position_sampler: PositionSampler::Exact { position },
-                    scale_sampler: human_scale_sampler.clone(),
-                    ..room_settings.human_settings.clone()
-                },
-                Transform::from_translation(position),
-                Name::new("human"),
-                SemanticLabel::Human,
+                commands.spawn((
+                    ZeroversePrimitiveSettings {
+                        position_sampler: PositionSampler::Exact { position },
+                        scale_sampler: human_scale_sampler.clone(),
+                        track_obb,
+                        ..room_settings.human_settings.clone()
+                    },
+                    Transform::from_translation(position),
+                    Name::new("human"),
+                    SemanticLabel::Human,
             ));
         }
     }
@@ -662,6 +671,7 @@ fn spawn_room_rec(
     base_scale: Vec3,
     rooms: &mut HashMap<(i32, i32), (Vec3, Vec3)>,
     settings: &ZeroverseSemanticRoomSettings,
+    track_obb: bool,
 ) {
     let mut my_scale = settings.room_size.sample();
     my_scale.y = base_scale.y;
@@ -718,7 +728,14 @@ fn spawn_room_rec(
             Visibility::default(),
         ))
         .with_children(|c| {
-            windows = spawn_room(c, &my_scale, settings, depth, depth_left == 0);
+            windows = spawn_room(
+                c,
+                &my_scale,
+                settings,
+                depth,
+                depth_left == 0,
+                track_obb,
+            );
         });
 
     if depth_left > 0 {
@@ -738,6 +755,7 @@ fn spawn_room_rec(
                     base_scale,
                     rooms,
                     settings,
+                    track_obb,
                 );
             }
         }
@@ -766,7 +784,7 @@ fn spawn_room_neighborhood(
                 Visibility::default(),
             ))
             .with_children(|base_room| {
-                windows_root = spawn_room(base_room, base_scale, settings, 0, false);
+                windows_root = spawn_room(base_room, base_scale, settings, 0, false, true);
             });
 
             let mut rooms: HashMap<(i32, i32), (Vec3, Vec3)> = HashMap::new();
@@ -786,6 +804,7 @@ fn spawn_room_neighborhood(
                     *base_scale,
                     &mut rooms,
                     settings,
+                    false,
                 );
             }
         });
