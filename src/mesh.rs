@@ -188,7 +188,7 @@ fn load_meshes(
         );
     }
 
-    info!("loaded total of {} meshes", zeroverse_meshes.meshes.len());
+    info!("loaded total of {} categories", zeroverse_meshes.meshes.len());
 
     load_event.write(MeshesLoadedEvent);
 }

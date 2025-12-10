@@ -565,6 +565,10 @@ fn setup_camera(
     room_settings: Res<ZeroverseRoomSettings>,
     mut previous_settings: Local<Option<CameraSettingsSnapshot>>,
 ) {
+    if args.headless {
+        return;
+    }
+
     let current_settings = CameraSettingsSnapshot {
         camera_grid: args.camera_grid,
         scene_type: args.scene_type.clone(),
@@ -579,13 +583,9 @@ fn setup_camera(
     *previous_settings = Some(current_settings);
 
     if args.camera_grid {
-        // Ensure a grid camera exists while keeping the editor camera entity alive.
-        if material_grid_cameras.is_empty() {
-            commands.spawn(Camera2d).insert(MaterialGridCameraMarker);
-        }
-
         if let Ok((_entity, _pan, Some(mut camera))) = editor_cameras.single_mut() {
-            camera.is_active = false;
+            // Keep the editor camera entity (and its settings) intact and let it render UI.
+            camera.is_active = true;
         }
         return;
     }
