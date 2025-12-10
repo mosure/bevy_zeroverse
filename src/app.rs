@@ -697,7 +697,7 @@ fn setup_camera_grid(
                     grid_template_rows: RepeatedGridTrack::flex(rows, 1.0),
                     ..default()
                 },
-                BackgroundColor(Color::BLACK),
+                BackgroundColor(Color::NONE),
             ))
             .with_children(|builder| {
                 for (_, camera) in zeroverse_cameras.iter() {

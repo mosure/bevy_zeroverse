@@ -76,11 +76,12 @@ fn headless_persistent_chunk_benchmark(c: &mut Criterion) {
     let base_samples = 256usize;
     let sample_mult = 3usize;
     let chunk_size = 8usize;
+    let samples_per_iter = base_samples * sample_mult;
     let worker_counts = [1usize, 2, 4, 8, 16];
 
     let mut group = c.benchmark_group("headless_chunk_pipeline_persistent");
     group.sample_size(10);
-    group.throughput(Throughput::Elements((base_samples * sample_mult) as u64));
+    group.throughput(Throughput::Elements(samples_per_iter as u64));
 
     for &workers in &worker_counts {
         group.bench_function(format!("workers_{workers}"), |b| {
@@ -95,7 +96,7 @@ fn headless_persistent_chunk_benchmark(c: &mut Criterion) {
                     .arg("--chunk-size")
                     .arg(chunk_size.to_string())
                     .arg("--samples")
-                    .arg((base_samples * sample_mult * iters as usize).to_string())
+                    .arg((samples_per_iter * iters as usize).to_string())
                     .arg("--compression")
                     .arg("none")
                     .arg("--render-modes")
