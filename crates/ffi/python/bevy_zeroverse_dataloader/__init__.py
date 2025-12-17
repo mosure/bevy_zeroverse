@@ -166,11 +166,12 @@ class View:
         return batch
 
 class Sample:
-    def __init__(self, views, view_dim, aabb, object_obbs):
+    def __init__(self, views, view_dim, aabb, object_obbs, ovoxel=None):
         self.views = views
         self.view_dim = view_dim
         self.aabb = aabb
         self.object_obbs = object_obbs
+        self.ovoxel = ovoxel
 
     @classmethod
     def from_rust(cls, rust_sample, width, height):
@@ -182,6 +183,21 @@ class Sample:
         views = [View.from_rust(view, width, height) for view in rust_views]
         view_dim = rust_sample.view_dim
         aabb = np.array(rust_sample.aabb)
+        ovoxel = None
+        if hasattr(rust_sample, "ovoxel") and rust_sample.ovoxel is not None:
+            ov = rust_sample.ovoxel
+            # Ensure numpy arrays for consistent tensor creation.
+            ovoxel = {
+                "coords": np.array(ov.coords, dtype=np.uint32),
+                "dual_vertices": np.array(ov.dual_vertices, dtype=np.uint8),
+                "intersected": np.array(ov.intersected, dtype=np.uint8),
+                "base_color": np.array(ov.base_color, dtype=np.uint8),
+                "semantic": np.array(ov.semantics, dtype=np.uint16),
+                "semantic_labels": list(ov.semantic_labels),
+                "offsets": np.array([[0, len(ov.coords)]], dtype=np.int64),
+                "resolution": np.array([ov.resolution], dtype=np.uint32),
+                "aabb": np.array([ov.aabb], dtype=np.float32),
+            }
         object_obbs = []
         if hasattr(rust_sample, "object_obbs"):
             for obb in rust_sample.object_obbs:
@@ -195,7 +211,7 @@ class Sample:
                 )
         # drop rust_views to release lock earlier
         del rust_views
-        return cls(views, view_dim, aabb, object_obbs)
+        return cls(views, view_dim, aabb, object_obbs, ovoxel)
 
     def to_tensors(self):
         sample = {}
@@ -218,6 +234,17 @@ class Sample:
             sample[key] = sample[key].reshape(new_shape)
 
         sample['aabb'] = torch.tensor(self.aabb, dtype=torch.float32)
+        if self.ovoxel is not None:
+            sample['ovoxel_coords'] = torch.tensor(self.ovoxel["coords"], dtype=torch.int32)
+            sample['ovoxel_dual_vertices'] = torch.tensor(self.ovoxel["dual_vertices"], dtype=torch.uint8)
+            sample['ovoxel_intersected'] = torch.tensor(self.ovoxel["intersected"], dtype=torch.uint8)
+            sample['ovoxel_base_color'] = torch.tensor(self.ovoxel["base_color"], dtype=torch.uint8)
+            sample['ovoxel_semantic'] = torch.tensor(self.ovoxel["semantic"], dtype=torch.int32)
+            sample['ovoxel_semantic_labels'] = self.ovoxel["semantic_labels"]
+            sample['ovoxel_offsets'] = torch.tensor(self.ovoxel["offsets"], dtype=torch.int64)
+            sample['ovoxel_resolution'] = torch.tensor(self.ovoxel["resolution"], dtype=torch.int32)
+            sample['ovoxel_aabb'] = torch.tensor(self.ovoxel["aabb"], dtype=torch.float32)
+            self.ovoxel = None
 
         if len(self.object_obbs) > 0:
             class_to_idx = {}

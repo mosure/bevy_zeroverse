@@ -6,9 +6,7 @@ use bevy::{
     transform::TransformSystems,
 };
 
-use crate::{
-    app::BevyZeroverseConfig, camera::EditorCameraGizmoConfigGroup, scene::SceneAabbNode,
-};
+use crate::{app::BevyZeroverseConfig, camera::EditorCameraGizmoConfigGroup, scene::SceneAabbNode};
 
 type TrackedObbQuery<'w, 's> = Query<
     'w,
@@ -77,8 +75,7 @@ fn compute_object_obbs(
         let local_center = (min + max) * 0.5;
         let local_size = max - min;
 
-        let (scale, rotation, _translation) =
-            global_transform.to_scale_rotation_translation();
+        let (scale, rotation, _translation) = global_transform.to_scale_rotation_translation();
         let world_center = global_transform.transform_point(local_center);
         let world_scale = Vec3::new(
             scale.x.abs() * local_size.x,
@@ -165,17 +162,20 @@ mod tests {
 
         let scope = app
             .world_mut()
-            .spawn((SceneAabbNode, Transform::IDENTITY, GlobalTransform::IDENTITY))
+            .spawn((
+                SceneAabbNode,
+                Transform::IDENTITY,
+                GlobalTransform::IDENTITY,
+            ))
             .id();
 
-        app.world_mut()
-            .spawn((
-                ObbTracked,
-                Aabb::from_min_max(Vec3::new(-0.5, -0.5, -0.5), Vec3::new(0.5, 0.5, 0.5)),
-                Transform::from_rotation(rotation).with_scale(scale),
-                GlobalTransform::default(),
-                ChildOf(scope),
-            ));
+        app.world_mut().spawn((
+            ObbTracked,
+            Aabb::from_min_max(Vec3::new(-0.5, -0.5, -0.5), Vec3::new(0.5, 0.5, 0.5)),
+            Transform::from_rotation(rotation).with_scale(scale),
+            GlobalTransform::default(),
+            ChildOf(scope),
+        ));
 
         app.update(); // propagate transforms
         let _ = app.world_mut().run_system_once(super::compute_object_obbs);
@@ -186,7 +186,9 @@ mod tests {
         };
 
         // rotation should be preserved
-        assert!((obb.rotation.to_euler(EulerRot::YXZ).0 - std::f32::consts::FRAC_PI_4).abs() < 1e-3);
+        assert!(
+            (obb.rotation.to_euler(EulerRot::YXZ).0 - std::f32::consts::FRAC_PI_4).abs() < 1e-3
+        );
         // scale should reflect local extents (unit cube scaled by provided scale)
         assert_eq!(obb.scale, scale);
     }
@@ -210,11 +212,7 @@ mod tests {
 
         let has_obb = {
             let world = app.world_mut();
-            world
-                .query::<&ObjectObb>()
-                .iter(&world)
-                .next()
-                .is_some()
+            world.query::<&ObjectObb>().iter(&world).next().is_some()
         };
 
         assert!(

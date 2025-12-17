@@ -20,6 +20,7 @@ use ::bevy_zeroverse::{
     io::channels,
     render::RenderMode,
     sample as core_sample,
+    sample::OvoxelSample,
     scene::ZeroverseSceneType,
 };
 
@@ -105,6 +106,53 @@ impl View {
 
 #[pyclass]
 #[derive(Clone, Debug, Default)]
+pub struct Ovoxel {
+    #[pyo3(get, set)]
+    pub coords: Vec<[u32; 3]>,
+    #[pyo3(get, set)]
+    pub dual_vertices: Vec<[u8; 3]>,
+    #[pyo3(get, set)]
+    pub intersected: Vec<u8>,
+    #[pyo3(get, set)]
+    pub base_color: Vec<[u8; 4]>,
+    #[pyo3(get, set)]
+    pub semantics: Vec<u16>,
+    #[pyo3(get, set)]
+    pub semantic_labels: Vec<String>,
+    #[pyo3(get, set)]
+    pub resolution: u32,
+    #[pyo3(get, set)]
+    pub aabb: [[f32; 3]; 2],
+}
+
+impl From<OvoxelSample> for Ovoxel {
+    fn from(value: OvoxelSample) -> Self {
+        Ovoxel {
+            coords: value.coords,
+            dual_vertices: value.dual_vertices,
+            intersected: value.intersected,
+            base_color: value.base_color,
+            semantics: value.semantics,
+            semantic_labels: value.semantic_labels,
+            resolution: value.resolution,
+            aabb: value.aabb,
+        }
+    }
+}
+
+#[pymethods]
+impl Ovoxel {
+    fn __str__(&self) -> PyResult<String> {
+        Ok(format!("{self:?}"))
+    }
+
+    fn __repr__(&self) -> PyResult<String> {
+        Ok(format!("{self:?}"))
+    }
+}
+
+#[pyclass]
+#[derive(Clone, Debug, Default)]
 pub struct ObjectObb {
     #[pyo3(get, set)]
     pub center: [f32; 3],
@@ -141,6 +189,9 @@ pub struct Sample {
 
     #[pyo3(get, set)]
     pub object_obbs: Vec<ObjectObb>,
+
+    #[pyo3(get, set)]
+    pub ovoxel: Option<Ovoxel>,
 }
 
 impl From<core_sample::Sample> for Sample {
@@ -150,11 +201,8 @@ impl From<core_sample::Sample> for Sample {
             views,
             view_dim: value.view_dim,
             aabb: value.aabb,
-            object_obbs: value
-                .object_obbs
-                .into_iter()
-                .map(ObjectObb::from)
-                .collect(),
+            object_obbs: value.object_obbs.into_iter().map(ObjectObb::from).collect(),
+            ovoxel: value.ovoxel.map(Ovoxel::from),
         }
     }
 }
@@ -254,6 +302,7 @@ pub fn bevy_zeroverse_ffi(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<RenderMode>()?;
     m.add_class::<ZeroverseSceneType>()?;
 
+    m.add_class::<Ovoxel>()?;
     m.add_class::<Sample>()?;
     m.add_class::<View>()?;
 

@@ -77,10 +77,7 @@ pub mod image_copy {
 
     use std::sync::atomic::{AtomicBool, Ordering};
 
-    pub fn receive_images(
-        image_copiers: Res<ImageCopiers>,
-        images: Option<ResMut<Assets<Image>>>,
-    ) {
+    pub fn receive_images(image_copiers: Res<ImageCopiers>, images: Option<ResMut<Assets<Image>>>) {
         let mut images = images;
         for image_copier in image_copiers.iter() {
             if !image_copier.enabled() {

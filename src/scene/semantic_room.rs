@@ -679,7 +679,6 @@ fn spawn_room(
         }
     }
 
-
     {
         // plants
         for _ in 0..room_settings.plant_count.sample() {
@@ -873,8 +872,15 @@ fn spawn_room_neighborhood(
                 Visibility::default(),
             ))
             .with_children(|base_room| {
-                windows_root =
-                    spawn_room(base_room, base_scale, settings, 0, false, true, zeroverse_meshes);
+                windows_root = spawn_room(
+                    base_room,
+                    base_scale,
+                    settings,
+                    0,
+                    false,
+                    true,
+                    zeroverse_meshes,
+                );
             });
 
             let mut rooms: HashMap<(i32, i32), (Vec3, Vec3)> = HashMap::new();
@@ -1039,5 +1045,11 @@ fn regenerate_scene(
 
     setup_lighting(commands.reborrow(), lighting_settings);
 
-    setup_scene(commands, load_event, room_settings, scene_settings, zeroverse_meshes);
+    setup_scene(
+        commands,
+        load_event,
+        room_settings,
+        scene_settings,
+        zeroverse_meshes,
+    );
 }

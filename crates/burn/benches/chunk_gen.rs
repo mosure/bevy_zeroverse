@@ -70,7 +70,6 @@ fn zeroverse_gen_bin() -> PathBuf {
     )
 }
 
-
 fn headless_persistent_chunk_benchmark(c: &mut Criterion) {
     let bin = zeroverse_gen_bin();
     let base_samples = 256usize;

@@ -210,6 +210,11 @@ pub struct BevyZeroverseConfig {
     #[pyo3(get, set)]
     #[arg(long, default_value = "false")]
     pub cuboid_only: bool,
+
+    /// override O-Voxel export resolution (0 = default)
+    #[pyo3(get, set)]
+    #[arg(long, default_value = "128")]
+    pub ovoxel_resolution: u32,
 }
 
 #[cfg(feature = "python")]
@@ -354,6 +359,10 @@ pub struct BevyZeroverseConfig {
     /// semantic_room no interior objects
     #[arg(long, default_value = "false")]
     pub cuboid_only: bool,
+
+    /// override O-Voxel export resolution (0 = default)
+    #[arg(long, default_value = "128")]
+    pub ovoxel_resolution: u32,
 }
 
 impl Default for BevyZeroverseConfig {
@@ -394,6 +403,7 @@ impl Default for BevyZeroverseConfig {
             depth_format: DepthFormat::Normalized,
             z_depth: true,
             cuboid_only: false,
+            ovoxel_resolution: 128,
         }
     }
 }
@@ -438,6 +448,8 @@ pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) 
             args.height.round() as u32,
         ),
         title: args.name.clone(),
+        // In headless mode keep the window hidden but present to allow the render backend to create a device.
+        visible: !args.headless,
 
         #[cfg(feature = "perftest")]
         present_mode: bevy::window::PresentMode::AutoNoVsync,
@@ -468,19 +480,12 @@ pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) 
         })
         .set(winit_plugin);
 
-    let default_plugins = if args.headless {
-        default_plugins.set(WindowPlugin {
-            primary_window: None,
-            primary_cursor_options: None,
-            exit_condition: bevy::window::ExitCondition::DontExit,
-            close_when_requested: false,
-        })
-    } else {
-        default_plugins.set(WindowPlugin {
-            primary_window,
-            ..default()
-        })
-    };
+    let default_plugins = default_plugins.set(WindowPlugin {
+        primary_window,
+        primary_cursor_options: None,
+        exit_condition: bevy::window::ExitCondition::DontExit,
+        close_when_requested: false,
+    });
 
     app.add_plugins(default_plugins);
 

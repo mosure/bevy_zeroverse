@@ -11,6 +11,81 @@ use serde_json;
 
 use crate::{compression::Compression, dataset::ZeroverseSample};
 
+fn push_ovoxel_tensors(
+    tensors: &mut Vec<(&'static str, TensorView<'static>)>,
+    coords: Vec<u32>,
+    dual: Vec<u8>,
+    intersected: Vec<u8>,
+    base_color: Vec<u8>,
+    semantic: Vec<u16>,
+    semantic_label_offsets: Vec<i64>,
+    semantic_labels: Vec<u8>,
+    offsets: Vec<i64>,
+    resolution: Vec<u32>,
+    aabb: Vec<f32>,
+    batch: usize,
+) -> Result<()> {
+    if coords.is_empty() {
+        return Ok(());
+    }
+    let coords_ref = leak_bytes(cast_slice(&coords).to_vec());
+    let dual_len = dual.len();
+    let dual_ref = leak_bytes(dual);
+    let intersect_ref = leak_bytes(intersected);
+    let base_ref = leak_bytes(base_color);
+    let semantic_ref = leak_bytes(cast_slice(&semantic).to_vec());
+    let semantic_offset_ref = leak_bytes(cast_slice(&semantic_label_offsets).to_vec());
+    let semantic_labels_ref = leak_bytes(semantic_labels);
+    let offsets_ref = leak_bytes(cast_slice(&offsets).to_vec());
+    let res_ref = leak_bytes(cast_slice(&resolution).to_vec());
+    let aabb_ref = leak_bytes(cast_slice(&aabb).to_vec());
+
+    tensors.push((
+        "ovoxel_coords",
+        TensorView::new(Dtype::U32, vec![coords.len() / 3, 3], coords_ref)?,
+    ));
+    tensors.push((
+        "ovoxel_dual_vertices",
+        TensorView::new(Dtype::U8, vec![dual_len / 3, 3], dual_ref)?,
+    ));
+    tensors.push((
+        "ovoxel_intersected",
+        TensorView::new(Dtype::U8, vec![intersect_ref.len()], intersect_ref)?,
+    ));
+    tensors.push((
+        "ovoxel_base_color",
+        TensorView::new(Dtype::U8, vec![base_ref.len() / 4, 4], base_ref)?,
+    ));
+    tensors.push((
+        "ovoxel_semantic",
+        TensorView::new(Dtype::U16, vec![semantic_ref.len() / 2], semantic_ref)?,
+    ));
+    tensors.push((
+        "ovoxel_semantic_label_offsets",
+        TensorView::new(Dtype::I64, vec![batch, 2], semantic_offset_ref)?,
+    ));
+    tensors.push((
+        "ovoxel_semantic_labels",
+        TensorView::new(
+            Dtype::U8,
+            vec![semantic_labels_ref.len()],
+            semantic_labels_ref,
+        )?,
+    ));
+    tensors.push((
+        "ovoxel_offsets",
+        TensorView::new(Dtype::I64, vec![batch, 2], offsets_ref)?,
+    ));
+    tensors.push((
+        "ovoxel_resolution",
+        TensorView::new(Dtype::U32, vec![batch], res_ref)?,
+    ));
+    tensors.push((
+        "ovoxel_aabb",
+        TensorView::new(Dtype::F32, vec![batch, 2, 3], aabb_ref)?,
+    ));
+    Ok(())
+}
 
 pub(crate) fn decode_rgba_bytes(bytes: &[u8], width: u32, height: u32) -> Result<Vec<f32>> {
     if bytes.is_empty() {
@@ -74,7 +149,6 @@ pub(crate) fn decode_rgba_bytes(bytes: &[u8], width: u32, height: u32) -> Result
     ))
 }
 
-
 pub(crate) fn encode_jpeg_from_rgba_f32(rgba: &[f32], width: u32, height: u32) -> Result<Vec<u8>> {
     let mut rgb = Vec::with_capacity((width * height * 3) as usize);
     for chunk in rgba.chunks_exact(4) {
@@ -91,7 +165,6 @@ pub(crate) fn encode_jpeg_from_rgba_f32(rgba: &[f32], width: u32, height: u32) -
     Ok(buf)
 }
 
-
 pub(crate) fn decode_jpeg_to_rgba_f32(bytes: &[u8]) -> Result<(u32, u32, Vec<f32>)> {
     let dyn_img = image::load_from_memory(bytes)?;
     let rgb = dyn_img.to_rgb8();
@@ -106,11 +179,9 @@ pub(crate) fn decode_jpeg_to_rgba_f32(bytes: &[u8]) -> Result<(u32, u32, Vec<f32
     Ok((width, height, out))
 }
 
-
 pub(crate) fn leak_bytes(buf: Vec<u8>) -> &'static [u8] {
     Box::leak(buf.into_boxed_slice())
 }
-
 
 pub(crate) fn normalize_hdr_image_tonemap(
     data: &mut [f32],
@@ -169,7 +240,6 @@ pub(crate) fn normalize_hdr_image_tonemap(
     }
 }
 
-
 pub fn save_chunk(
     samples: &[ZeroverseSample],
     output_dir: impl AsRef<Path>,
@@ -196,7 +266,14 @@ pub fn save_chunk(
         .unwrap_or(0)
         .max(1);
 
-    let color_shape: [i64; 6] = [b as i64, steps as i64, view_dim as i64, height as i64, width as i64, 3];
+    let color_shape: [i64; 6] = [
+        b as i64,
+        steps as i64,
+        view_dim as i64,
+        height as i64,
+        width as i64,
+        3,
+    ];
 
     let mut tensors: Vec<(&'static str, TensorView<'static>)> = Vec::new();
     let mut color_entries: Vec<(String, TensorView<'static>)> = Vec::new();
@@ -211,6 +288,16 @@ pub fn save_chunk(
     let mut far = Vec::new();
     let mut time = Vec::new();
     let mut aabb: Vec<f32> = Vec::new();
+    let mut ov_coords: Vec<u32> = Vec::new();
+    let mut ov_dual: Vec<u8> = Vec::new();
+    let mut ov_intersect: Vec<u8> = Vec::new();
+    let mut ov_base: Vec<u8> = Vec::new();
+    let mut ov_semantic: Vec<u16> = Vec::new();
+    let mut ov_semantic_label_offsets: Vec<i64> = Vec::with_capacity(samples.len() * 2);
+    let mut ov_semantic_labels: Vec<u8> = Vec::new();
+    let mut ov_offsets: Vec<i64> = Vec::with_capacity(samples.len() * 2);
+    let mut ov_resolution: Vec<u32> = Vec::with_capacity(samples.len());
+    let mut ov_aabb: Vec<f32> = Vec::with_capacity(samples.len() * 6);
 
     // Object OBB accumulation
     let mut class_to_idx: HashMap<String, i64> = HashMap::new();
@@ -350,6 +437,45 @@ pub fn save_chunk(
 
         aabb.extend_from_slice(cast_slice(&sample.aabb));
 
+        if let Some(ref ov) = sample.ovoxel {
+            let mut zipped: Vec<([u32; 3], [u8; 3], u8, [u8; 4], u16)> = ov
+                .coords
+                .iter()
+                .zip(ov.dual_vertices.iter())
+                .zip(ov.intersected.iter())
+                .zip(ov.base_color.iter())
+                .zip(ov.semantics.iter())
+                .map(|((((c, d), i), bc), s)| (*c, *d, *i, *bc, *s))
+                .collect();
+            zipped.sort_by(|a, b| a.0.cmp(&b.0));
+            let start = ov_coords.len() as i64;
+            let len = zipped.len() as i64;
+            ov_offsets.push(start);
+            ov_offsets.push(len);
+            for (c, d, i, bc, s) in zipped {
+                ov_coords.extend_from_slice(&c);
+                ov_dual.extend_from_slice(&d);
+                ov_intersect.push(i);
+                ov_base.extend_from_slice(&bc);
+                ov_semantic.push(s);
+            }
+            ov_resolution.push(ov.resolution);
+            for row in ov.aabb {
+                ov_aabb.extend_from_slice(&row);
+            }
+            let label_bytes = serde_json::to_vec(&ov.semantic_labels).unwrap_or_default();
+            ov_semantic_label_offsets.push(ov_semantic_labels.len() as i64);
+            ov_semantic_label_offsets.push(label_bytes.len() as i64);
+            ov_semantic_labels.extend(label_bytes);
+        } else {
+            ov_offsets.push(ov_coords.len() as i64);
+            ov_offsets.push(0);
+            ov_resolution.push(0);
+            ov_aabb.extend_from_slice(&[0.0; 6]);
+            ov_semantic_label_offsets.push(ov_semantic_labels.len() as i64);
+            ov_semantic_label_offsets.push(0);
+        }
+
         if max_obbs > 0 {
             for (local_idx, obb) in sample.object_obbs.iter().take(max_obbs).enumerate() {
                 let base = sample_idx * max_obbs + local_idx;
@@ -460,6 +586,21 @@ pub fn save_chunk(
         tensors.push((name, TensorView::new(Dtype::F32, shape, data_ref)?));
     }
 
+    push_ovoxel_tensors(
+        &mut tensors,
+        ov_coords,
+        ov_dual,
+        ov_intersect,
+        ov_base,
+        ov_semantic,
+        ov_semantic_label_offsets,
+        ov_semantic_labels,
+        ov_offsets,
+        ov_resolution,
+        ov_aabb,
+        b,
+    )?;
+
     for (name, view) in color_entries {
         let leaked: &'static str = Box::leak(name.into_boxed_str());
         tensors.push((leaked, view));
@@ -470,7 +611,6 @@ pub fn save_chunk(
     fs::write(&path, compressed)?;
     Ok(path)
 }
-
 
 pub fn load_chunk(path: impl AsRef<Path>) -> Result<Vec<ZeroverseSample>> {
     let path = path.as_ref();
@@ -517,6 +657,7 @@ pub fn load_chunk(path: impl AsRef<Path>) -> Result<Vec<ZeroverseSample>> {
             view_dim: view_dim as u32,
             aabb: [[0.0; 3]; 2],
             object_obbs: Vec::new(),
+            ovoxel: None,
         };
         b
     ];
@@ -618,8 +759,100 @@ pub fn load_chunk(path: impl AsRef<Path>) -> Result<Vec<ZeroverseSample>> {
         for (b_idx, sample) in samples.iter_mut().enumerate().take(b) {
             let start = b_idx * 6;
             let slice = &data[start..start + 6];
-            sample.aabb =
-                [[slice[0], slice[1], slice[2]], [slice[3], slice[4], slice[5]]];
+            sample.aabb = [
+                [slice[0], slice[1], slice[2]],
+                [slice[3], slice[4], slice[5]],
+            ];
+        }
+    }
+
+    if let (
+        Ok(coords),
+        Ok(dual),
+        Ok(intersected),
+        Ok(base),
+        Ok(semantic),
+        Ok(semantic_offsets),
+        Ok(semantic_labels),
+        Ok(offsets),
+        Ok(res),
+        Ok(aabb),
+    ) = (
+        tensors.tensor("ovoxel_coords"),
+        tensors.tensor("ovoxel_dual_vertices"),
+        tensors.tensor("ovoxel_intersected"),
+        tensors.tensor("ovoxel_base_color"),
+        tensors.tensor("ovoxel_semantic"),
+        tensors.tensor("ovoxel_semantic_label_offsets"),
+        tensors.tensor("ovoxel_semantic_labels"),
+        tensors.tensor("ovoxel_offsets"),
+        tensors.tensor("ovoxel_resolution"),
+        tensors.tensor("ovoxel_aabb"),
+    ) {
+        let coords: &[[u32; 3]] = cast_slice(coords.data());
+        let dual: &[[u8; 3]] = cast_slice(dual.data());
+        let base: &[[u8; 4]] = cast_slice(base.data());
+        let semantic_data: &[u16] = cast_slice(semantic.data());
+        let offsets: &[[i64; 2]] = cast_slice(offsets.data());
+        let res: &[u32] = cast_slice(res.data());
+        let aabb_data: &[[[f32; 3]; 2]] = cast_slice(aabb.data());
+        let intersect_data: &[u8] = cast_slice(intersected.data());
+        let semantic_label_offsets: &[[i64; 2]] = cast_slice(semantic_offsets.data());
+        let semantic_label_blob: &[u8] = semantic_labels.data();
+
+        for (idx, sample) in samples.iter_mut().enumerate().take(b) {
+            let off = offsets.get(idx).cloned().unwrap_or([0, 0]);
+            let start = off[0].max(0) as usize;
+            let len = off[1].max(0) as usize;
+            if start >= coords.len() || len == 0 {
+                continue;
+            }
+            let end = (start + len).min(coords.len());
+            let mut slice: Vec<([u32; 3], [u8; 3], u8, [u8; 4], u16)> =
+                Vec::with_capacity(end - start);
+            for i in start..end {
+                slice.push((
+                    coords[i],
+                    dual.get(i).copied().unwrap_or([0, 0, 0]),
+                    intersect_data.get(i).copied().unwrap_or(0),
+                    base.get(i).copied().unwrap_or([0, 0, 0, 0]),
+                    semantic_data.get(i).copied().unwrap_or(0),
+                ));
+            }
+            slice.sort_by(|a, b| a.0.cmp(&b.0));
+
+            let label_off = semantic_label_offsets.get(idx).cloned().unwrap_or([0, 0]);
+            let lbl_start = label_off[0].max(0) as usize;
+            let lbl_len = label_off[1].max(0) as usize;
+            let end_lbl = (lbl_start + lbl_len).min(semantic_label_blob.len());
+            let mut palette: Vec<String> = if lbl_start >= semantic_label_blob.len() || lbl_len == 0
+            {
+                Vec::new()
+            } else {
+                serde_json::from_slice(&semantic_label_blob[lbl_start..end_lbl]).unwrap_or_default()
+            };
+            if palette.is_empty() {
+                palette.push("unlabeled".to_string());
+            }
+
+            let mut ov = bevy_zeroverse::sample::OvoxelSample {
+                coords: Vec::with_capacity(slice.len()),
+                dual_vertices: Vec::with_capacity(slice.len()),
+                intersected: Vec::with_capacity(slice.len()),
+                base_color: Vec::with_capacity(slice.len()),
+                semantics: Vec::with_capacity(slice.len()),
+                semantic_labels: palette,
+                resolution: *res.get(idx).unwrap_or(&0),
+                aabb: *aabb_data.get(idx).unwrap_or(&[[0.0; 3]; 2]),
+            };
+            for (c, d, inter, bc, s) in slice.into_iter() {
+                ov.coords.push(c);
+                ov.dual_vertices.push(d);
+                ov.intersected.push(inter);
+                ov.base_color.push(bc);
+                ov.semantics.push(s);
+            }
+            sample.ovoxel = Some(ov);
         }
     }
 
@@ -655,21 +888,19 @@ pub fn load_chunk(path: impl AsRef<Path>) -> Result<Vec<ZeroverseSample>> {
                     .cloned()
                     .unwrap_or_else(|| "unknown".to_string());
 
-                sample.object_obbs.push(bevy_zeroverse::sample::ObjectObbSample {
-                    center: [
-                        centers[c_idx],
-                        centers[c_idx + 1],
-                        centers[c_idx + 2],
-                    ],
-                    scale: [scales[c_idx], scales[c_idx + 1], scales[c_idx + 2]],
-                    rotation: [
-                        rotations[r_idx],
-                        rotations[r_idx + 1],
-                        rotations[r_idx + 2],
-                        rotations[r_idx + 3],
-                    ],
-                    class_name,
-                });
+                sample
+                    .object_obbs
+                    .push(bevy_zeroverse::sample::ObjectObbSample {
+                        center: [centers[c_idx], centers[c_idx + 1], centers[c_idx + 2]],
+                        scale: [scales[c_idx], scales[c_idx + 1], scales[c_idx + 2]],
+                        rotation: [
+                            rotations[r_idx],
+                            rotations[r_idx + 1],
+                            rotations[r_idx + 2],
+                            rotations[r_idx + 3],
+                        ],
+                        class_name,
+                    });
             }
         }
     }
@@ -746,6 +977,30 @@ mod tests {
                 rotation: [0.0, 0.0, 0.0, 1.0],
                 class_name: class_name.to_string(),
             }],
+            ovoxel: None,
+        }
+    }
+
+    fn sample_with_ovoxel() -> ZeroverseSample {
+        ZeroverseSample {
+            views: vec![bevy_zeroverse::sample::View::default()],
+            view_dim: 1,
+            aabb: [[-1.0, -1.0, -1.0], [1.0, 1.0, 1.0]],
+            object_obbs: vec![],
+            ovoxel: Some(bevy_zeroverse::sample::OvoxelSample {
+                coords: vec![[2, 0, 0], [1, 0, 0]],
+                dual_vertices: vec![[1, 2, 3], [4, 5, 6]],
+                intersected: vec![3, 1],
+                base_color: vec![[10, 20, 30, 40], [50, 60, 70, 80]],
+                semantics: vec![2, 1],
+                semantic_labels: vec![
+                    "unlabeled".to_string(),
+                    "chair".to_string(),
+                    "table".to_string(),
+                ],
+                resolution: 16,
+                aabb: [[-0.5, -0.5, -0.5], [0.5, 0.5, 0.5]],
+            }),
         }
     }
 
@@ -769,13 +1024,36 @@ mod tests {
 
         let loaded = load_chunk(&path).unwrap();
         assert_eq!(loaded.len(), 1);
-        let obb = loaded[0]
-            .object_obbs
-            .first()
-            .expect("obb should roundtrip");
+        let obb = loaded[0].object_obbs.first().expect("obb should roundtrip");
         assert_eq!(obb.class_name, "chair");
         assert_eq!(obb.center, [1.0, 2.0, 3.0]);
         assert_eq!(obb.scale, [4.0, 5.0, 6.0]);
         assert_eq!(obb.rotation, [0.0, 0.0, 0.0, 1.0]);
+    }
+
+    #[test]
+    fn chunk_roundtrips_ovoxel_sorted() {
+        let tmp = tempdir().unwrap();
+        let path = save_chunk(
+            &[sample_with_ovoxel()],
+            tmp.path(),
+            0,
+            Compression::None,
+            1,
+            1,
+        )
+        .unwrap();
+
+        let loaded = load_chunk(&path).unwrap();
+        let ov = loaded[0].ovoxel.as_ref().expect("ovoxel should roundtrip");
+        // should be sorted by coords (1 before 2)
+        assert_eq!(ov.coords, vec![[1, 0, 0], [2, 0, 0]]);
+        assert_eq!(ov.dual_vertices.len(), 2);
+        assert_eq!(ov.intersected, vec![1, 3]);
+        assert_eq!(ov.base_color[0], [50, 60, 70, 80]); // corresponding to sorted order
+        assert_eq!(ov.semantics, vec![1, 2]);
+        assert!(ov.semantic_labels.contains(&"chair".to_string()));
+        assert_eq!(ov.resolution, 16);
+        assert_eq!(ov.aabb, [[-0.5, -0.5, -0.5], [0.5, 0.5, 0.5]]);
     }
 }

@@ -2,7 +2,6 @@ use bevy::{
     asset::LoadState,
     ecs::system::SystemParam,
     gltf::{Gltf, GltfMesh},
-    mesh::VertexAttributeValues,
     light::{NotShadowCaster, TransmittedShadowReceiver},
     math::{
         primitives::{
@@ -10,6 +9,7 @@ use bevy::{
         },
         sampling::ShapeSample,
     },
+    mesh::VertexAttributeValues,
     pbr::wireframe::{Wireframe, WireframeColor},
     prelude::*,
     render::render_resource::Face,
@@ -321,14 +321,14 @@ fn build_primitive(
                 .materials
                 .choose(&mut rng)
                 .cloned()
-                .unwrap_or(resources.standard_materials.add(StandardMaterial::default()));
+                .unwrap_or(
+                    resources
+                        .standard_materials
+                        .add(StandardMaterial::default()),
+                );
 
             if settings.cull_mode.is_some() {
-                let mut new_material = resources
-                    .standard_materials
-                    .get(&material)
-                    .unwrap()
-                    .clone();
+                let mut new_material = resources.standard_materials.get(&material).unwrap().clone();
 
                 new_material.double_sided = false;
                 new_material.cull_mode = settings.cull_mode;
@@ -385,25 +385,22 @@ fn build_primitive(
                         .build()
                 }
                 ZeroversePrimitives::Mesh(ref category) => {
-                    let mesh_choice = settings
-                        .preferred_mesh
-                        .as_ref()
-                        .and_then(|preferred| {
-                            resources
-                                .zeroverse_meshes
-                                .meshes
-                                .get(category)
-                                .and_then(|mesh_vec| {
-                                    mesh_vec.iter().find(|m| m.handle == *preferred)
-                                })
-                        })
-                        .or_else(|| {
-                            resources
-                                .zeroverse_meshes
-                                .meshes
-                                .get(category)
-                                .and_then(|mesh_vec| mesh_vec.choose(&mut rng))
-                        });
+                    let mesh_choice =
+                        settings
+                            .preferred_mesh
+                            .as_ref()
+                            .and_then(|preferred| {
+                                resources.zeroverse_meshes.meshes.get(category).and_then(
+                                    |mesh_vec| mesh_vec.iter().find(|m| m.handle == *preferred),
+                                )
+                            })
+                            .or_else(|| {
+                                resources
+                                    .zeroverse_meshes
+                                    .meshes
+                                    .get(category)
+                                    .and_then(|mesh_vec| mesh_vec.choose(&mut rng))
+                            });
 
                     let mesh_choice = mesh_choice.map(|mesh| {
                         (
@@ -450,11 +447,7 @@ fn build_primitive(
                                 );
                             }
 
-                            if !resources
-                                .zeroverse_meshes
-                                .normalized
-                                .contains(&mesh_handle)
-                            {
+                            if !resources.zeroverse_meshes.normalized.contains(&mesh_handle) {
                                 if let Some(mesh_asset) = resources.meshes.get_mut(&mesh_handle) {
                                     if let Some(size) = normalize_mesh_to_unit_cube(mesh_asset) {
                                         resources

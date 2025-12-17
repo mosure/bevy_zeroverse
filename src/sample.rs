@@ -1,12 +1,13 @@
 use bevy::prelude::*;
 
 use crate::{
+    annotation::obb::ObjectObb,
     app::BevyZeroverseConfig,
     camera::Playback,
     io::{channels, image_copy::ImageCopier},
+    ovoxel::{OvoxelExport, OvoxelVolume},
     render::RenderMode,
     scene::{RegenerateSceneEvent, SceneAabb, SceneAabbNode},
-    annotation::obb::ObjectObb,
 };
 use serde::{Deserialize, Serialize};
 
@@ -32,6 +33,18 @@ pub struct ObjectObbSample {
     pub class_name: String,
 }
 
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+pub struct OvoxelSample {
+    pub coords: Vec<[u32; 3]>,
+    pub dual_vertices: Vec<[u8; 3]>,
+    pub intersected: Vec<u8>,
+    pub base_color: Vec<[u8; 4]>,
+    pub semantics: Vec<u16>,
+    pub semantic_labels: Vec<String>,
+    pub resolution: u32,
+    pub aabb: [[f32; 3]; 2],
+}
+
 #[derive(Clone, Debug, Default, Resource, Serialize, Deserialize, PartialEq)]
 pub struct Sample {
     pub views: Vec<View>,
@@ -42,6 +55,9 @@ pub struct Sample {
     pub aabb: [[f32; 3]; 2],
 
     pub object_obbs: Vec<ObjectObbSample>,
+
+    /// Optional O-Voxel representation of the scene.
+    pub ovoxel: Option<OvoxelSample>,
 }
 
 #[derive(Debug, Resource, Reflect)]
@@ -138,6 +154,7 @@ pub fn sample_stream(
     mut render_mode: ResMut<RenderMode>,
     mut playback: ResMut<Playback>,
     mut regenerate_event: MessageWriter<RegenerateSceneEvent>,
+    ovoxels: Query<&OvoxelVolume, With<OvoxelExport>>,
 ) {
     if !state.enabled {
         return;
@@ -182,7 +199,12 @@ pub fn sample_stream(
         buffered_sample.object_obbs.push(ObjectObbSample {
             center: obb.center.into(),
             scale: obb.scale.into(),
-            rotation: [obb.rotation.x, obb.rotation.y, obb.rotation.z, obb.rotation.w],
+            rotation: [
+                obb.rotation.x,
+                obb.rotation.y,
+                obb.rotation.z,
+                obb.rotation.w,
+            ],
             class_name: obb.class_name.clone(),
         });
     }
@@ -271,11 +293,50 @@ pub fn sample_stream(
     playback.progress = 0.0;
 
     let views = std::mem::take(&mut buffered_sample.views);
+
+    let ovoxel = ovoxels.iter().next().map(|v| {
+        #[allow(clippy::type_complexity)]
+        let mut zipped: Vec<([u32; 3], [u8; 3], u8, [u8; 4], u16)> = v
+            .coords
+            .iter()
+            .zip(v.dual_vertices.iter())
+            .zip(v.intersected.iter())
+            .zip(v.base_color.iter())
+            .zip(v.semantics.iter())
+            .map(|((((c, d), i), bc), s)| (*c, *d, *i, *bc, *s))
+            .collect();
+        // ensure lexicographic order on coords
+        zipped.sort_by(|a, b| a.0.cmp(&b.0));
+        let mut coords = Vec::with_capacity(zipped.len());
+        let mut dual_vertices = Vec::with_capacity(zipped.len());
+        let mut intersected = Vec::with_capacity(zipped.len());
+        let mut base_color = Vec::with_capacity(zipped.len());
+        let mut semantics = Vec::with_capacity(zipped.len());
+        for (c, d, i, bc, s) in zipped {
+            coords.push(c);
+            dual_vertices.push(d);
+            intersected.push(i);
+            base_color.push(bc);
+            semantics.push(s);
+        }
+        OvoxelSample {
+            coords,
+            dual_vertices,
+            intersected,
+            base_color,
+            semantics,
+            semantic_labels: v.semantic_labels.clone(),
+            resolution: v.resolution,
+            aabb: v.aabb,
+        }
+    });
+
     let sample: Sample = Sample {
         views,
         view_dim: camera_count as u32,
         aabb: buffered_sample.aabb,
         object_obbs: buffered_sample.object_obbs.clone(),
+        ovoxel,
     };
 
     let sender = channels::sample_sender();

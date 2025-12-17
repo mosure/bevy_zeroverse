@@ -1,5 +1,5 @@
-use bevy_zeroverse::render::RenderMode;
 use bevy_zeroverse::io::channels;
+use bevy_zeroverse::render::RenderMode;
 use bevy_zeroverse_burn::{
     chunk::discover_chunks,
     compression::Compression,
@@ -272,7 +272,10 @@ fn headless_fs_render_mode_resets_between_timesteps() {
 
     if !verify(tmp.path()) {
         let retry = run_headless_generation(WriteMode::Fs, render_modes, samples);
-        assert!(verify(retry.path()), "render-mode reset check should succeed");
+        assert!(
+            verify(retry.path()),
+            "render-mode reset check should succeed"
+        );
     }
 }
 
@@ -298,22 +301,8 @@ fn fs_generation_respects_playback_steps() {
 fn fs_generation_uses_flat_indices_across_offsets() {
     let _guard = test_lock();
     let tmp = TempDir::new().expect("tempdir should be creatable");
-    run_generation_with_offsets(
-        tmp.path(),
-        WriteMode::Fs,
-        vec![RenderMode::Color],
-        2,
-        0,
-        0,
-    );
-    run_generation_with_offsets(
-        tmp.path(),
-        WriteMode::Fs,
-        vec![RenderMode::Color],
-        2,
-        2,
-        0,
-    );
+    run_generation_with_offsets(tmp.path(), WriteMode::Fs, vec![RenderMode::Color], 2, 0, 0);
+    run_generation_with_offsets(tmp.path(), WriteMode::Fs, vec![RenderMode::Color], 2, 2, 0);
 
     let mut dirs: Vec<_> = std::fs::read_dir(tmp.path())
         .expect("fs output should be readable")
@@ -324,7 +313,12 @@ fn fs_generation_uses_flat_indices_across_offsets() {
     dirs.sort();
     assert_eq!(
         dirs,
-        vec!["000000".to_string(), "000001".to_string(), "000002".to_string(), "000003".to_string()],
+        vec![
+            "000000".to_string(),
+            "000001".to_string(),
+            "000002".to_string(),
+            "000003".to_string()
+        ],
         "fs output should stay flat and sequential across runs"
     );
 

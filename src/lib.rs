@@ -10,6 +10,8 @@ pub mod io;
 pub mod manifold;
 pub mod material;
 pub mod mesh;
+pub mod ovoxel;
+pub mod ovoxel_mesh;
 // pub mod plucker;
 pub mod annotation;
 pub mod primitive;
@@ -35,6 +37,7 @@ impl Plugin for BevyZeroversePlugin {
             render::RenderPlugin,
             annotation::obb::ZeroverseObbPlugin,
             scene::ZeroverseScenePlugin,
+            ovoxel::OvoxelPlugin,
         ));
 
         #[cfg(feature = "plucker")]

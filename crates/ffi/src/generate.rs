@@ -12,6 +12,7 @@ use bevy_zeroverse::{
 use bytemuck::cast_slice;
 use ndarray::{s, Array1, Array2, Array3, Array4, Array5, ArrayBase, Axis, Dimension, OwnedRepr};
 use safetensors::{serialize_to_file, Dtype, View};
+use serde_json;
 
 pub struct StackedViews {
     pub color: Array5<f32>, // Shape: (batch_size, num_views, height, width, channels)
@@ -48,6 +49,28 @@ impl<D: Dimension> View for Wrapper<f32, D> {
     }
     fn data_len(&self) -> usize {
         self.buffer().len()
+    }
+}
+
+#[derive(Clone)]
+struct RawTensor {
+    dtype: Dtype,
+    shape: Vec<usize>,
+    data: Vec<u8>,
+}
+
+impl View for RawTensor {
+    fn dtype(&self) -> Dtype {
+        self.dtype
+    }
+    fn shape(&self) -> &[usize] {
+        &self.shape
+    }
+    fn data(&self) -> Cow<'_, [u8]> {
+        Cow::Owned(self.data.clone())
+    }
+    fn data_len(&self) -> usize {
+        self.data.len()
     }
 }
 
@@ -223,6 +246,7 @@ enum TensorView {
     WorldFromView(Wrapper<f32, ndarray::Ix4>),
     Aabb(Wrapper<f32, ndarray::Ix3>),
     Singular(Wrapper<f32, ndarray::Ix3>),
+    Raw(RawTensor),
 }
 
 impl View for TensorView {
@@ -234,6 +258,7 @@ impl View for TensorView {
             TensorView::WorldFromView(t) => t.dtype(),
             TensorView::Aabb(t) => t.dtype(),
             TensorView::Singular(t) => t.dtype(),
+            TensorView::Raw(t) => t.dtype(),
         }
     }
 
@@ -245,6 +270,7 @@ impl View for TensorView {
             TensorView::WorldFromView(t) => t.shape(),
             TensorView::Aabb(t) => t.shape(),
             TensorView::Singular(t) => t.shape(),
+            TensorView::Raw(t) => t.shape(),
         }
     }
 
@@ -256,6 +282,7 @@ impl View for TensorView {
             TensorView::WorldFromView(t) => t.data(),
             TensorView::Aabb(t) => t.data(),
             TensorView::Singular(t) => t.data(),
+            TensorView::Raw(t) => t.data(),
         }
     }
 
@@ -267,12 +294,14 @@ impl View for TensorView {
             TensorView::WorldFromView(t) => t.data_len(),
             TensorView::Aabb(t) => t.data_len(),
             TensorView::Singular(t) => t.data_len(),
+            TensorView::Raw(t) => t.data_len(),
         }
     }
 }
 
 fn save_stacked_views_to_safetensors(
     stacked_views: StackedViews,
+    chunk_samples: &[Sample],
     output_path: &Path,
 ) -> Result<(), safetensors::SafeTensorError> {
     let data: Vec<(&str, TensorView)> = vec![
@@ -289,7 +318,153 @@ fn save_stacked_views_to_safetensors(
         ("aabb", TensorView::Aabb(Wrapper(stacked_views.aabb))),
     ];
 
-    serialize_to_file(data, None, output_path)
+    let mut tensors = data;
+
+    // Flatten O-Voxel fields across the batch, tracking per-sample offsets.
+    let mut coords: Vec<u32> = Vec::new();
+    let mut dual: Vec<u8> = Vec::new();
+    let mut intersected: Vec<u8> = Vec::new();
+    let mut base_color: Vec<u8> = Vec::new();
+    let mut semantic: Vec<u16> = Vec::new();
+    let mut semantic_label_offsets: Vec<i64> = Vec::with_capacity(chunk_samples.len() * 2);
+    let mut semantic_labels_bytes: Vec<u8> = Vec::new();
+    let mut offsets: Vec<i64> = Vec::with_capacity(chunk_samples.len() * 2);
+    let mut resolution: Vec<u32> = Vec::with_capacity(chunk_samples.len());
+    let mut aabb: Vec<f32> = Vec::with_capacity(chunk_samples.len() * 6);
+
+    for sample in chunk_samples {
+        if let Some(ref ov) = sample.ovoxel {
+            // Ensure coords sorted for determinism.
+            let mut zipped: Vec<([u32; 3], [u8; 3], u8, [u8; 4], u16)> = ov
+                .coords
+                .iter()
+                .zip(ov.dual_vertices.iter())
+                .zip(ov.intersected.iter())
+                .zip(ov.base_color.iter())
+                .zip(ov.semantics.iter())
+                .map(|((((c, d), i), bc), s)| (*c, *d, *i, *bc, *s))
+                .collect();
+            zipped.sort_by(|a, b| a.0.cmp(&b.0));
+
+            let start = coords.len() as i64;
+            let len = zipped.len() as i64;
+            offsets.push(start);
+            offsets.push(len);
+
+            for (c, d, i, bc, s) in zipped {
+                coords.extend_from_slice(&c);
+                dual.extend_from_slice(&d);
+                intersected.push(i);
+                base_color.extend_from_slice(&bc);
+                semantic.push(s);
+            }
+
+            resolution.push(ov.resolution);
+            for row in ov.aabb {
+                aabb.extend_from_slice(&row);
+            }
+
+            let label_bytes = serde_json::to_vec(&ov.semantic_labels).unwrap_or_default();
+            let lbl_start = semantic_labels_bytes.len() as i64;
+            let lbl_len = label_bytes.len() as i64;
+            semantic_label_offsets.push(lbl_start);
+            semantic_label_offsets.push(lbl_len);
+            semantic_labels_bytes.extend(label_bytes);
+        } else {
+            // Still append placeholders to keep alignment.
+            offsets.push(coords.len() as i64);
+            offsets.push(0);
+            resolution.push(0);
+            aabb.extend_from_slice(&[0.0; 6]);
+            semantic_label_offsets.push(semantic_labels_bytes.len() as i64);
+            semantic_label_offsets.push(0);
+        }
+    }
+
+    if !coords.is_empty() {
+        tensors.push((
+            "ovoxel_coords",
+            TensorView::Raw(RawTensor {
+                dtype: Dtype::U32,
+                shape: vec![coords.len() / 3, 3],
+                data: bytemuck::cast_slice(&coords).to_vec(),
+            }),
+        ));
+        tensors.push((
+            "ovoxel_dual_vertices",
+            TensorView::Raw(RawTensor {
+                dtype: Dtype::U8,
+                shape: vec![dual.len() / 3, 3],
+                data: dual,
+            }),
+        ));
+        tensors.push((
+            "ovoxel_intersected",
+            TensorView::Raw(RawTensor {
+                dtype: Dtype::U8,
+                shape: vec![intersected.len()],
+                data: intersected,
+            }),
+        ));
+        tensors.push((
+            "ovoxel_base_color",
+            TensorView::Raw(RawTensor {
+                dtype: Dtype::U8,
+                shape: vec![base_color.len() / 4, 4],
+                data: base_color,
+            }),
+        ));
+        tensors.push((
+            "ovoxel_semantic",
+            TensorView::Raw(RawTensor {
+                dtype: Dtype::U16,
+                shape: vec![semantic.len()],
+                data: bytemuck::cast_slice(&semantic).to_vec(),
+            }),
+        ));
+        tensors.push((
+            "ovoxel_semantic_label_offsets",
+            TensorView::Raw(RawTensor {
+                dtype: Dtype::I64,
+                shape: vec![chunk_samples.len(), 2],
+                data: bytemuck::cast_slice(&semantic_label_offsets).to_vec(),
+            }),
+        ));
+        tensors.push((
+            "ovoxel_semantic_labels",
+            TensorView::Raw(RawTensor {
+                dtype: Dtype::U8,
+                shape: vec![semantic_labels_bytes.len()],
+                data: semantic_labels_bytes,
+            }),
+        ));
+        tensors.push((
+            "ovoxel_offsets",
+            TensorView::Raw(RawTensor {
+                dtype: Dtype::I64,
+                shape: vec![chunk_samples.len(), 2],
+                data: bytemuck::cast_slice(&offsets).to_vec(),
+            }),
+        ));
+        tensors.push((
+            "ovoxel_resolution",
+            TensorView::Raw(RawTensor {
+                dtype: Dtype::U32,
+                shape: vec![chunk_samples.len()],
+                data: bytemuck::cast_slice(&resolution).to_vec(),
+            }),
+        ));
+        tensors.push((
+            "ovoxel_aabb",
+            TensorView::Raw(RawTensor {
+                dtype: Dtype::F32,
+                shape: vec![chunk_samples.len(), 2, 3],
+                data: bytemuck::cast_slice(&aabb).to_vec(),
+            }),
+        ));
+    }
+
+    serialize_to_file(tensors, None, output_path)
 }
 
 #[derive(Clone, Debug, Resource, Serialize, Deserialize, Parser, Reflect)]
@@ -416,6 +591,14 @@ fn estimate_sample_size(sample: &Sample) -> usize {
 
     size += sample.aabb.len();
 
+    if let Some(ref ov) = sample.ovoxel {
+        size += ov.coords.len() * (3 * 4 + 3 + 1 + 4 * 4 + 2);
+        size += 6; // aabb
+        size += 1; // res
+        size += ov.semantic_labels.iter().map(|s| s.len()).sum::<usize>(); // palette payload
+        size += 16; // semantic label offsets
+    }
+
     size
 }
 
@@ -447,7 +630,7 @@ fn save_chunk(
         chunk_size as f64 / 1e6
     );
 
-    match save_stacked_views_to_safetensors(stacked_views, &output_path) {
+    match save_stacked_views_to_safetensors(stacked_views, chunk_samples, &output_path) {
         Ok(_) => info!("successfully saved chunk {}", chunk_index),
         Err(e) => warn!("failed to save chunk {}: {:?}", chunk_index, e),
     }

@@ -950,8 +950,11 @@ fn insert_cameras(
     default_zeroverse_camera: Res<DefaultZeroverseCamera>,
     args: Res<BevyZeroverseConfig>,
     render_mode: Res<RenderMode>,
-    render_device: Res<RenderDevice>,
+    render_device: Option<Res<RenderDevice>>,
 ) {
+    let Some(render_device) = render_device.as_ref() else {
+        return;
+    };
     for (entity, mut zeroverse_camera) in zeroverse_cameras.iter_mut() {
         let resolution = zeroverse_camera.resolution
             .unwrap_or(default_zeroverse_camera.resolution.expect("DefaultZeroverseCamera resolution must be set if ZeroverseCamera resolution is not set"));
@@ -1039,7 +1042,7 @@ fn insert_cameras(
                     color_cpu_image_handle,
                     size,
                     TextureFormat::Rgba32Float,
-                    &render_device,
+                    render_device.as_ref(),
                 ));
             }
 
