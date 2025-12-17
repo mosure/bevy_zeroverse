@@ -393,7 +393,7 @@ fn load_meta(dir: &Path, steps: usize, view_dim: usize) -> Result<MetaFields> {
         let rotations: &[f32] = bytemuck::cast_slice(rotation.data());
         let class_ids: &[i64] = bytemuck::cast_slice(class_idx.data());
 
-        let count = center.shape().get(0).copied().unwrap_or(0) as usize;
+        let count = center.shape().first().copied().unwrap_or(0);
         for i in 0..count {
             let cls = class_ids.get(i).copied().unwrap_or(-1);
             if cls < 0 {

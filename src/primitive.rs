@@ -1,5 +1,6 @@
 use bevy::{
     asset::LoadState,
+    ecs::system::SystemParam,
     gltf::{Gltf, GltfMesh},
     mesh::VertexAttributeValues,
     light::{NotShadowCaster, TransmittedShadowReceiver},
@@ -279,16 +280,21 @@ impl PositionSampler {
 #[derive(Clone, Component, Debug, Reflect)]
 pub struct ZeroversePrimitive;
 
+#[derive(SystemParam)]
+pub struct PrimitiveResources<'w> {
+    meshes: ResMut<'w, Assets<Mesh>>,
+    standard_materials: ResMut<'w, Assets<StandardMaterial>>,
+    zeroverse_materials: Res<'w, ZeroverseMaterials>,
+    zeroverse_meshes: ResMut<'w, ZeroverseMeshes>,
+    gltfs: Res<'w, Assets<Gltf>>,
+    gltf_meshes: Res<'w, Assets<GltfMesh>>,
+    asset_server: Res<'w, AssetServer>,
+}
+
 fn build_primitive(
     commands: &mut ChildSpawnerCommands,
     settings: &ZeroversePrimitiveSettings,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    standard_materials: &mut ResMut<Assets<StandardMaterial>>,
-    zeroverse_materials: &Res<ZeroverseMaterials>,
-    zeroverse_meshes: &mut ResMut<ZeroverseMeshes>,
-    gltfs: &Assets<Gltf>,
-    gltf_meshes: &Assets<GltfMesh>,
-    asset_server: &AssetServer,
+    resources: &mut PrimitiveResources,
 ) {
     let mut rng = rand::rng();
 
@@ -310,19 +316,24 @@ fn build_primitive(
 
     izip!(primitive_types, scales, positions, rotations,).for_each(
         |(primitive_type, scale, position, rotation)| {
-            let mut material = zeroverse_materials
+            let mut material = resources
+                .zeroverse_materials
                 .materials
                 .choose(&mut rng)
                 .cloned()
-                .unwrap_or(standard_materials.add(StandardMaterial::default()));
+                .unwrap_or(resources.standard_materials.add(StandardMaterial::default()));
 
             if settings.cull_mode.is_some() {
-                let mut new_material = standard_materials.get(&material).unwrap().clone();
+                let mut new_material = resources
+                    .standard_materials
+                    .get(&material)
+                    .unwrap()
+                    .clone();
 
                 new_material.double_sided = false;
                 new_material.cull_mode = settings.cull_mode;
 
-                material = standard_materials.add(new_material);
+                material = resources.standard_materials.add(new_material);
             }
 
             let mut chosen_mesh_meta: Option<(Handle<Mesh>, Vec3)> = None;
@@ -378,7 +389,8 @@ fn build_primitive(
                         .preferred_mesh
                         .as_ref()
                         .and_then(|preferred| {
-                            zeroverse_meshes
+                            resources
+                                .zeroverse_meshes
                                 .meshes
                                 .get(category)
                                 .and_then(|mesh_vec| {
@@ -386,7 +398,8 @@ fn build_primitive(
                                 })
                         })
                         .or_else(|| {
-                            zeroverse_meshes
+                            resources
+                                .zeroverse_meshes
                                 .meshes
                                 .get(category)
                                 .and_then(|mesh_vec| mesh_vec.choose(&mut rng))
@@ -406,13 +419,13 @@ fn build_primitive(
                                 chosen_material = resolve_mesh_material(
                                     &mesh_handle,
                                     &mesh_gltf,
-                                    gltfs,
-                                    gltf_meshes,
+                                    &resources.gltfs,
+                                    &resources.gltf_meshes,
                                 );
                             }
 
                             if let Some(mesh_material) = chosen_material.as_ref() {
-                                match asset_server.get_load_state(mesh_material) {
+                                match resources.asset_server.get_load_state(mesh_material) {
                                     Some(LoadState::Loaded) => {
                                         material = mesh_material.clone();
                                     }
@@ -437,22 +450,33 @@ fn build_primitive(
                                 );
                             }
 
-                            if !zeroverse_meshes.normalized.contains(&mesh_handle) {
-                                if let Some(mesh_asset) = meshes.get_mut(&mesh_handle) {
+                            if !resources
+                                .zeroverse_meshes
+                                .normalized
+                                .contains(&mesh_handle)
+                            {
+                                if let Some(mesh_asset) = resources.meshes.get_mut(&mesh_handle) {
                                     if let Some(size) = normalize_mesh_to_unit_cube(mesh_asset) {
-                                        zeroverse_meshes
+                                        resources
+                                            .zeroverse_meshes
                                             .original_sizes
                                             .insert(mesh_handle.clone(), size);
-                                        zeroverse_meshes.normalized.insert(mesh_handle.clone());
+                                        resources
+                                            .zeroverse_meshes
+                                            .normalized
+                                            .insert(mesh_handle.clone());
                                     }
                                 }
                             }
 
-                            if let Some(size) = zeroverse_meshes.original_sizes.get(&mesh_handle) {
+                            if let Some(size) =
+                                resources.zeroverse_meshes.original_sizes.get(&mesh_handle)
+                            {
                                 chosen_mesh_meta = Some((mesh_handle.clone(), *size));
                             }
 
-                            meshes
+                            resources
+                                .meshes
                                 .get(&mesh_handle)
                                 .cloned()
                                 .unwrap_or_else(|| Cuboid::default().mesh().build())
@@ -551,7 +575,7 @@ fn build_primitive(
                 GlobalTransform::default(),
                 InheritedVisibility::default(),
                 Visibility::default(),
-                Mesh3d(meshes.add(mesh)),
+                Mesh3d(resources.meshes.add(mesh)),
                 MeshMaterial3d(material),
                 TransmittedShadowReceiver,
             ));
@@ -589,13 +613,7 @@ fn build_primitive(
 
 pub fn process_primitives(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut standard_materials: ResMut<Assets<StandardMaterial>>,
-    zeroverse_materials: Res<ZeroverseMaterials>,
-    mut zeroverse_meshes: ResMut<ZeroverseMeshes>,
-    gltfs: Res<Assets<Gltf>>,
-    gltf_meshes: Res<Assets<GltfMesh>>,
-    asset_server: Res<AssetServer>,
+    mut resources: PrimitiveResources,
     primitives: Query<(Entity, &ZeroversePrimitiveSettings), Without<ZeroversePrimitive>>,
 ) {
     for (entity, settings) in primitives.iter() {
@@ -603,17 +621,7 @@ pub fn process_primitives(
             .entity(entity)
             .insert(ZeroversePrimitive)
             .with_children(|subcommands| {
-                build_primitive(
-                    subcommands,
-                    settings,
-                    &mut meshes,
-                    &mut standard_materials,
-                    &zeroverse_materials,
-                    &mut zeroverse_meshes,
-                    &gltfs,
-                    &gltf_meshes,
-                    &asset_server,
-                );
+                build_primitive(subcommands, settings, &mut resources);
             });
     }
 }

@@ -10,6 +10,19 @@ use crate::{
     app::BevyZeroverseConfig, camera::EditorCameraGizmoConfigGroup, scene::SceneAabbNode,
 };
 
+type TrackedObbQuery<'w, 's> = Query<
+    'w,
+    's,
+    (
+        Entity,
+        &'static Aabb,
+        &'static GlobalTransform,
+        Option<&'static Name>,
+        Option<&'static ObbClass>,
+    ),
+    With<ObbTracked>,
+>;
+
 /// Marker for entities that should emit an oriented bounding box.
 #[derive(Component, Debug, Default, Reflect)]
 #[reflect(Component, Default)]
@@ -53,16 +66,7 @@ fn compute_object_obbs(
     mut commands: Commands,
     parents: Query<&ChildOf>,
     scoped: Query<(), With<SceneAabbNode>>,
-    tracked: Query<
-        (
-            Entity,
-            &Aabb,
-            &GlobalTransform,
-            Option<&Name>,
-            Option<&ObbClass>,
-        ),
-        With<ObbTracked>,
-    >,
+    tracked: TrackedObbQuery<'_, '_>,
 ) {
     for (entity, aabb, global_transform, name, class_override) in tracked.iter() {
         if !has_scene_scope(entity, &parents, &scoped) {

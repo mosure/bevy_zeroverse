@@ -634,7 +634,7 @@ pub fn load_chunk(path: impl AsRef<Path>) -> Result<Vec<ZeroverseSample>> {
         let rotations: &[f32] = cast_slice(rotation.data());
         let class_ids: &[i64] = cast_slice(class_idx.data());
 
-        let max_obbs = center.shape().get(1).copied().unwrap_or(0) as usize;
+        let max_obbs = center.shape().get(1).copied().unwrap_or(0);
 
         for (b_idx, sample) in samples.iter_mut().enumerate().take(b) {
             let base_center = b_idx * max_obbs * 3;
