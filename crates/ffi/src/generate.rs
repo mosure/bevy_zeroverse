@@ -12,7 +12,6 @@ use bevy_zeroverse::{
 use bytemuck::cast_slice;
 use ndarray::{s, Array1, Array2, Array3, Array4, Array5, ArrayBase, Axis, Dimension, OwnedRepr};
 use safetensors::{serialize_to_file, Dtype, View};
-use serde_json;
 
 pub struct StackedViews {
     pub color: Array5<f32>, // Shape: (batch_size, num_views, height, width, channels)
