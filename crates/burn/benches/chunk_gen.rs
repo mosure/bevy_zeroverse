@@ -26,6 +26,7 @@ fn sample_with_id(id: u8) -> ZeroverseSample {
         view_dim: 1,
         aabb: [[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]],
         object_obbs: Vec::new(),
+        ovoxel: None,
     }
 }
 
@@ -64,10 +65,7 @@ fn chunk_generation_benchmark(c: &mut Criterion) {
 }
 
 fn zeroverse_gen_bin() -> PathBuf {
-    PathBuf::from(
-        option_env!("CARGO_BIN_EXE_zeroverse_gen")
-            .expect("zeroverse_gen binary should be built alongside benches"),
-    )
+    PathBuf::from(env!("CARGO_BIN_EXE_zeroverse_gen"))
 }
 
 fn headless_persistent_chunk_benchmark(c: &mut Criterion) {

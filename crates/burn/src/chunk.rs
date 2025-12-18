@@ -11,8 +11,10 @@ use serde_json;
 
 use crate::{compression::Compression, dataset::ZeroverseSample};
 
-fn push_ovoxel_tensors(
-    tensors: &mut Vec<(&'static str, TensorView<'static>)>,
+#[allow(clippy::type_complexity)]
+type OvoxelTuple = ([u32; 3], [u8; 3], u8, [u8; 4], u16);
+
+struct OvoxelTensorData {
     coords: Vec<u32>,
     dual: Vec<u8>,
     intersected: Vec<u8>,
@@ -24,7 +26,26 @@ fn push_ovoxel_tensors(
     resolution: Vec<u32>,
     aabb: Vec<f32>,
     batch: usize,
+}
+
+fn push_ovoxel_tensors(
+    tensors: &mut Vec<(&'static str, TensorView<'static>)>,
+    data: OvoxelTensorData,
 ) -> Result<()> {
+    let OvoxelTensorData {
+        coords,
+        dual,
+        intersected,
+        base_color,
+        semantic,
+        semantic_label_offsets,
+        semantic_labels,
+        offsets,
+        resolution,
+        aabb,
+        batch,
+    } = data;
+
     if coords.is_empty() {
         return Ok(());
     }
@@ -438,7 +459,7 @@ pub fn save_chunk(
         aabb.extend_from_slice(cast_slice(&sample.aabb));
 
         if let Some(ref ov) = sample.ovoxel {
-            let mut zipped: Vec<([u32; 3], [u8; 3], u8, [u8; 4], u16)> = ov
+            let mut zipped: Vec<OvoxelTuple> = ov
                 .coords
                 .iter()
                 .zip(ov.dual_vertices.iter())
@@ -588,17 +609,19 @@ pub fn save_chunk(
 
     push_ovoxel_tensors(
         &mut tensors,
-        ov_coords,
-        ov_dual,
-        ov_intersect,
-        ov_base,
-        ov_semantic,
-        ov_semantic_label_offsets,
-        ov_semantic_labels,
-        ov_offsets,
-        ov_resolution,
-        ov_aabb,
-        b,
+        OvoxelTensorData {
+            coords: ov_coords,
+            dual: ov_dual,
+            intersected: ov_intersect,
+            base_color: ov_base,
+            semantic: ov_semantic,
+            semantic_label_offsets: ov_semantic_label_offsets,
+            semantic_labels: ov_semantic_labels,
+            offsets: ov_offsets,
+            resolution: ov_resolution,
+            aabb: ov_aabb,
+            batch: b,
+        },
     )?;
 
     for (name, view) in color_entries {
@@ -808,11 +831,11 @@ pub fn load_chunk(path: impl AsRef<Path>) -> Result<Vec<ZeroverseSample>> {
                 continue;
             }
             let end = (start + len).min(coords.len());
-            let mut slice: Vec<([u32; 3], [u8; 3], u8, [u8; 4], u16)> =
-                Vec::with_capacity(end - start);
-            for i in start..end {
+            let mut slice: Vec<OvoxelTuple> = Vec::with_capacity(end - start);
+            for (local_idx, coord) in coords.iter().enumerate().skip(start).take(end - start) {
+                let i = start + local_idx;
                 slice.push((
-                    coords[i],
+                    *coord,
                     dual.get(i).copied().unwrap_or([0, 0, 0]),
                     intersect_data.get(i).copied().unwrap_or(0),
                     base.get(i).copied().unwrap_or([0, 0, 0, 0]),

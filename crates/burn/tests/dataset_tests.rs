@@ -26,10 +26,10 @@ fn test_lock() -> std::sync::MutexGuard<'static, ()> {
         Err(poisoned) => poisoned.into_inner(),
     };
 
-    if let Some(rx) = channels::sample_receiver() {
-        if let Ok(locked) = rx.lock() {
-            while locked.try_recv().is_ok() {}
-        }
+    if let Some(rx) = channels::sample_receiver()
+        && let Ok(locked) = rx.lock()
+    {
+        while locked.try_recv().is_ok() {}
     }
 
     guard
@@ -65,12 +65,11 @@ fn npz_has_signal(path: &std::path::Path, key: &str) -> bool {
     if !path.exists() {
         return false;
     }
-    if let Ok(file) = std::fs::File::open(path) {
-        if let Ok(mut reader) = NpzReader::new(file) {
-            if let Ok(array) = reader.by_name::<OwnedRepr<f32>, IxDyn>(key) {
-                return array.iter().any(|v| *v != 0.0);
-            }
-        }
+    if let Ok(file) = std::fs::File::open(path)
+        && let Ok(mut reader) = NpzReader::new(file)
+        && let Ok(array) = reader.by_name::<OwnedRepr<f32>, IxDyn>(key)
+    {
+        return array.iter().any(|v| *v != 0.0);
     }
     false
 }

@@ -303,6 +303,9 @@ fn save_stacked_views_to_safetensors(
     chunk_samples: &[Sample],
     output_path: &Path,
 ) -> Result<(), safetensors::SafeTensorError> {
+    #[allow(clippy::type_complexity)]
+    type OvoxelTuple = ([u32; 3], [u8; 3], u8, [u8; 4], u16);
+
     let data: Vec<(&str, TensorView)> = vec![
         ("color", TensorView::Color(Wrapper(stacked_views.color))),
         ("depth", TensorView::Depth(Wrapper(stacked_views.depth))),
@@ -334,7 +337,7 @@ fn save_stacked_views_to_safetensors(
     for sample in chunk_samples {
         if let Some(ref ov) = sample.ovoxel {
             // Ensure coords sorted for determinism.
-            let mut zipped: Vec<([u32; 3], [u8; 3], u8, [u8; 4], u16)> = ov
+            let mut zipped: Vec<OvoxelTuple> = ov
                 .coords
                 .iter()
                 .zip(ov.dual_vertices.iter())
