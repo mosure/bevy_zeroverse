@@ -199,8 +199,8 @@ fn subtree_dirty(
 fn extract_triangles(
     mesh: &Mesh,
     transform: &GlobalTransform,
-    material: Option<&MeshMaterial3d<StandardMaterial>>,
-    materials: &Assets<StandardMaterial>,
+    _material: Option<&MeshMaterial3d<StandardMaterial>>,
+    _materials: &Assets<StandardMaterial>,
     palette: &mut SemanticPalette,
     semantic: Option<&SemanticLabel>,
     obb_class: Option<&ObbClass>,
@@ -219,17 +219,23 @@ fn extract_triangles(
         return Vec::new();
     };
 
-    let color = {
-        let c = material
-            .and_then(|mat| materials.get(&mat.0))
-            .map(|mat| mat.base_color)
-            .unwrap_or(Color::WHITE)
-            .to_linear();
-        Vec4::new(c.red, c.green, c.blue, c.alpha)
-    };
-
     let semantic_id =
         palette.id_for_label(label_from_components(semantic, obb_class, name).as_deref());
+
+    let semantic_color = label_from_components(semantic, obb_class, name)
+        .as_deref()
+        .and_then(SemanticLabel::from_label)
+        .map(|l| l.color().to_linear());
+
+    // Unknown semantic → fallback pink checkerboard based on centroid hash.
+    let fallback = |p: Vec3| -> Vec4 {
+        let h = ((p.x.to_bits() ^ p.y.to_bits() ^ p.z.to_bits()) & 1) as f32;
+        if h > 0.0 {
+            Vec4::new(1.0, 0.2, 0.8, 1.0)
+        } else {
+            Vec4::new(0.8, 0.1, 0.6, 1.0)
+        }
+    };
 
     let affine = transform.affine();
     let indices: Vec<u32> = mesh
@@ -243,11 +249,16 @@ fn extract_triangles(
         let b = affine.transform_point3(Vec3::from(positions[chunk[1] as usize]));
         let c = affine.transform_point3(Vec3::from(positions[chunk[2] as usize]));
 
+        let centroid = (a + b + c) / 3.0;
+        let tri_color = semantic_color
+            .map(|col| Vec4::new(col.red, col.green, col.blue, col.alpha))
+            .unwrap_or_else(|| fallback(centroid));
+
         tris.push(Triangle {
             a,
             b,
             c,
-            color,
+            color: tri_color,
             semantic_id,
         });
     }

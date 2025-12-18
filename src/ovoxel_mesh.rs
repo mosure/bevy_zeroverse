@@ -442,13 +442,13 @@ mod tests {
     use tempfile::tempdir;
 
     #[test]
-    fn builds_mesh_from_single_voxel() {
+    fn builds_mesh_from_single_quad() {
         let volume = OvoxelVolume {
-            coords: vec![[0, 0, 0]],
-            dual_vertices: vec![[0, 0, 0]],
-            intersected: vec![1],
-            base_color: vec![[255, 0, 0, 255]],
-            semantics: vec![7],
+            coords: vec![[0, 0, 0], [0, 1, 0], [0, 0, 1], [0, 1, 1]],
+            dual_vertices: vec![[0, 0, 0]; 4],
+            intersected: vec![1; 4],
+            base_color: vec![[255, 0, 0, 255]; 4],
+            semantics: vec![7; 4],
             semantic_labels: vec!["unlabeled".into(), "chair".into()],
             resolution: 2,
             aabb: [[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]],
@@ -463,20 +463,20 @@ mod tests {
             Some(VertexAttributeValues::Uint32(v)) => v.clone(),
             _ => Vec::new(),
         };
-        assert!(!positions.is_empty());
+        assert!(!positions.is_empty(), "mesh should contain vertices");
         assert!(semantics.iter().all(|s| *s == 7));
     }
 
     #[test]
     fn writes_glb() {
         let volume = OvoxelVolume {
-            coords: vec![[0, 0, 0]],
-            dual_vertices: vec![[0, 0, 0]],
-            intersected: vec![1],
-            base_color: vec![[0, 0, 0, 255]],
-            semantics: vec![0],
+            coords: vec![[0, 0, 0], [0, 1, 0], [0, 0, 1], [0, 1, 1]],
+            dual_vertices: vec![[0, 0, 0]; 4],
+            intersected: vec![1; 4],
+            base_color: vec![[0, 0, 0, 255]; 4],
+            semantics: vec![0; 4],
             semantic_labels: vec!["unlabeled".into()],
-            resolution: 1,
+            resolution: 2,
             aabb: [[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]],
         };
         let mesh = ovoxel_to_mesh(&volume);
@@ -490,13 +490,13 @@ mod tests {
     #[test]
     fn semantic_mesh_uses_palette_colors() {
         let volume = OvoxelVolume {
-            coords: vec![[0, 0, 0]],
-            dual_vertices: vec![[0, 0, 0]],
-            intersected: vec![1],
-            base_color: vec![[0, 0, 0, 255]],
-            semantics: vec![1],
+            coords: vec![[0, 0, 0], [0, 1, 0], [0, 0, 1], [0, 1, 1]],
+            dual_vertices: vec![[0, 0, 0]; 4],
+            intersected: vec![1; 4],
+            base_color: vec![[0, 0, 0, 255]; 4],
+            semantics: vec![1, 1, 1, 1],
             semantic_labels: vec!["unlabeled".into(), "chair".into()],
-            resolution: 1,
+            resolution: 2,
             aabb: [[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]],
         };
 
@@ -510,5 +510,41 @@ mod tests {
         assert!((first[0] - chair.red).abs() < 1e-5);
         assert!((first[1] - chair.green).abs() < 1e-5);
         assert!((first[2] - chair.blue).abs() < 1e-5);
+    }
+
+    #[test]
+    fn semantic_labels_export_to_glb_with_colors() {
+        let volume = OvoxelVolume {
+            coords: vec![[0, 0, 0], [0, 1, 0], [0, 0, 1], [0, 1, 1]],
+            dual_vertices: vec![[0, 0, 0]; 4],
+            intersected: vec![1; 4],
+            base_color: vec![[0, 0, 0, 255]; 4],
+            semantics: vec![1, 2, 1, 2],
+            semantic_labels: vec!["unlabeled".into(), "chair".into(), "table".into()],
+            resolution: 2,
+            aabb: [[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]],
+        };
+
+        let mesh = ovoxel_to_semantic_mesh(&volume);
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("semantic.glb");
+        write_mesh_as_glb(&mesh, &path).expect("glb written");
+
+        let data = fs::read(&path).expect("glb exists");
+        assert!(data.starts_with(b"glTF"));
+
+        // parse JSON chunk to ensure COLOR_0 and _SEMANTIC_ID are present
+        let json_length = u32::from_le_bytes(data[12..16].try_into().unwrap()) as usize;
+        let json_bytes = &data[20..20 + json_length];
+        let parsed: serde_json::Value = serde_json::from_slice(json_bytes).unwrap();
+        let attrs = &parsed["meshes"][0]["primitives"][0]["attributes"];
+        assert!(
+            attrs.get("COLOR_0").is_some(),
+            "COLOR_0 attribute should be present"
+        );
+        assert!(
+            attrs.get("_SEMANTIC_ID").is_some(),
+            "semantic id attribute should be present"
+        );
     }
 }
