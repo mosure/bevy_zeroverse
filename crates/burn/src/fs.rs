@@ -290,6 +290,75 @@ struct MetaFields {
     time: Vec<f32>,
     aabb: [[f32; 3]; 2],
     object_obbs: Vec<bevy_zeroverse::sample::ObjectObbSample>,
+    ovoxel: Option<bevy_zeroverse::sample::OvoxelSample>,
+}
+
+fn parse_ovoxel_from_tensors(
+    tensors: &SafeTensors,
+) -> Option<bevy_zeroverse::sample::OvoxelSample> {
+    let (Ok(coords), Ok(dual), Ok(intersected), Ok(base), Ok(res), Ok(aabb), Ok(semantic_labels)) = (
+        tensors.tensor("ovoxel_coords"),
+        tensors.tensor("ovoxel_dual_vertices"),
+        tensors.tensor("ovoxel_intersected"),
+        tensors.tensor("ovoxel_base_color"),
+        tensors.tensor("ovoxel_resolution"),
+        tensors.tensor("ovoxel_aabb"),
+        tensors.tensor("ovoxel_semantic_labels"),
+    ) else {
+        return None;
+    };
+
+    let coords: &[[u32; 3]] = bytemuck::cast_slice(coords.data());
+    let dual: &[[u8; 3]] = bytemuck::cast_slice(dual.data());
+    let base: &[[u8; 4]] = bytemuck::cast_slice(base.data());
+    let res: &[u32] = bytemuck::cast_slice(res.data());
+    let aabb_data: &[[[f32; 3]; 2]] = bytemuck::cast_slice(aabb.data());
+    let intersect_data: &[u8] = bytemuck::cast_slice(intersected.data());
+    let semantics: Vec<u16> = tensors
+        .tensor("ovoxel_semantic")
+        .ok()
+        .map(|t| bytemuck::cast_slice(t.data()).to_vec())
+        .unwrap_or_else(|| vec![0; coords.len()]);
+    let semantic_labels: Vec<String> =
+        serde_json::from_slice(semantic_labels.data()).unwrap_or_else(|_| vec!["unlabeled".into()]);
+
+    if coords.is_empty() {
+        return None;
+    }
+
+    let mut zipped: Vec<OvoxelTuple> = coords
+        .iter()
+        .enumerate()
+        .map(|(i, c)| {
+            (
+                *c,
+                dual.get(i).copied().unwrap_or([0, 0, 0]),
+                intersect_data.get(i).copied().unwrap_or(0),
+                base.get(i).copied().unwrap_or([0, 0, 0, 0]),
+                semantics.get(i).copied().unwrap_or(0),
+            )
+        })
+        .collect();
+    zipped.sort_by(|a, b| a.0.cmp(&b.0));
+
+    let mut ov = bevy_zeroverse::sample::OvoxelSample {
+        coords: Vec::with_capacity(zipped.len()),
+        dual_vertices: Vec::with_capacity(zipped.len()),
+        intersected: Vec::with_capacity(zipped.len()),
+        base_color: Vec::with_capacity(zipped.len()),
+        semantics: Vec::with_capacity(zipped.len()),
+        semantic_labels: semantic_labels,
+        resolution: *res.first().unwrap_or(&0),
+        aabb: *aabb_data.first().unwrap_or(&[[0.0; 3]; 2]),
+    };
+    for (c, d, inter, bc, s) in zipped.into_iter() {
+        ov.coords.push(c);
+        ov.dual_vertices.push(d);
+        ov.intersected.push(inter);
+        ov.base_color.push(bc);
+        ov.semantics.push(s);
+    }
+    Some(ov)
 }
 
 fn load_meta(dir: &Path, steps: usize, view_dim: usize) -> Result<MetaFields> {
@@ -431,7 +500,7 @@ fn load_meta(dir: &Path, steps: usize, view_dim: usize) -> Result<MetaFields> {
         time,
         aabb,
         object_obbs,
-        // O-Voxel is loaded separately from ovxel.vxz if present.
+        ovoxel: parse_ovoxel_from_tensors(&tensors),
     })
 }
 
@@ -466,7 +535,7 @@ pub fn load_sample_dir(dir: impl AsRef<Path>) -> Result<ZeroverseSample> {
         view_dim: view_dim as u32,
         aabb: meta.aabb,
         object_obbs: meta.object_obbs,
-        ovoxel: None,
+        ovoxel: meta.ovoxel.clone(),
     };
 
     let timestep_list: Vec<usize> = timesteps.into_iter().collect();
@@ -556,108 +625,113 @@ pub fn load_sample_dir(dir: impl AsRef<Path>) -> Result<ZeroverseSample> {
     }
 
     // Optional O-Voxel payload from ovxel.vxz
-    let ov_path = dir.join("ovoxel.vxz");
-    if ov_path.exists()
-        && let Ok(bytes) = fs::read(&ov_path)
-        && let Ok(tensors) = SafeTensors::deserialize(&bytes)
-        && let (
-            Ok(coords),
-            Ok(dual),
-            Ok(intersected),
-            Ok(base),
-            Ok(offsets),
-            Ok(res),
-            Ok(aabb),
-        ) = (
-            tensors.tensor("ovoxel_coords"),
-            tensors.tensor("ovoxel_dual_vertices"),
-            tensors.tensor("ovoxel_intersected"),
-            tensors.tensor("ovoxel_base_color"),
-            tensors.tensor("ovoxel_offsets"),
-            tensors.tensor("ovoxel_resolution"),
-            tensors.tensor("ovoxel_aabb"),
-        )
-    {
-        let coords: &[[u32; 3]] = bytemuck::cast_slice(coords.data());
-        let dual: &[[u8; 3]] = bytemuck::cast_slice(dual.data());
-        let base: &[[u8; 4]] = bytemuck::cast_slice(base.data());
-        let offsets: &[[i64; 2]] = bytemuck::cast_slice(offsets.data());
-        let res: &[u32] = bytemuck::cast_slice(res.data());
-        let aabb_data: &[[[f32; 3]; 2]] = bytemuck::cast_slice(aabb.data());
-        let intersect_data: &[u8] = bytemuck::cast_slice(intersected.data());
-        let semantic_data: Vec<u16> = tensors
-            .tensor("ovoxel_semantic")
-            .ok()
-            .map(|t| bytemuck::cast_slice(t.data()).to_vec())
-            .unwrap_or_else(|| vec![0; coords.len()]);
-        let semantic_label_offsets: Vec<[i64; 2]> = tensors
-            .tensor("ovoxel_semantic_label_offsets")
-            .ok()
-            .map(|t| bytemuck::cast_slice(t.data()).to_vec())
-            .unwrap_or_default();
-        let semantic_label_blob: Vec<u8> = tensors
-            .tensor("ovoxel_semantic_labels")
-            .ok()
-            .map(|t| t.data().to_vec())
-            .unwrap_or_default();
-
-        if let Some(off) = offsets.first() {
-            let start = off[0].max(0) as usize;
-            let len = off[1].max(0) as usize;
-            if start < coords.len() && len > 0 {
-                let end = (start + len).min(coords.len());
-                let mut slice: Vec<OvoxelTuple> = Vec::with_capacity(end - start);
-                for (local_idx, coord) in coords.iter().enumerate().skip(start).take(end - start) {
-                    let i = start + local_idx;
-                    slice.push((
-                        *coord,
-                        dual.get(i).copied().unwrap_or([0, 0, 0]),
-                        intersect_data.get(i).copied().unwrap_or(0),
-                        base.get(i).copied().unwrap_or([0, 0, 0, 0]),
-                        semantic_data.get(i).copied().unwrap_or(0),
-                    ));
-                }
-                slice.sort_by(|a, b| a.0.cmp(&b.0));
-
-                let label_off = semantic_label_offsets.first().copied().unwrap_or([0, 0]);
-                let lbl_start = label_off[0].max(0) as usize;
-                let lbl_len = label_off[1].max(0) as usize;
-                let end_lbl = (lbl_start + lbl_len).min(semantic_label_blob.len());
-                let mut palette: Vec<String> = if lbl_start >= semantic_label_blob.len()
-                    || lbl_len == 0
-                {
-                    Vec::new()
-                } else {
-                    serde_json::from_slice(&semantic_label_blob[lbl_start..end_lbl])
-                        .unwrap_or_default()
-                };
-                if palette.is_empty() {
-                    palette.push("unlabeled".to_string());
-                }
-
-                let mut ov = bevy_zeroverse::sample::OvoxelSample {
-                    coords: Vec::with_capacity(slice.len()),
-                    dual_vertices: Vec::with_capacity(slice.len()),
-                    intersected: Vec::with_capacity(slice.len()),
-                    base_color: Vec::with_capacity(slice.len()),
-                    semantics: Vec::with_capacity(slice.len()),
-                    semantic_labels: palette,
-                    resolution: *res.first().unwrap_or(&0),
-                    aabb: *aabb_data.first().unwrap_or(&[[0.0; 3]; 2]),
-                };
-                for (c, d, inter, bc, s) in slice.into_iter() {
-                    ov.coords.push(c);
-                    ov.dual_vertices.push(d);
-                    ov.intersected.push(inter);
-                    ov.base_color.push(bc);
-                    ov.semantics.push(s);
-                }
-                sample.ovoxel = Some(ov);
-            }
+    if sample.ovoxel.is_none() {
+        let ov_path = dir.join("ovoxel.vxz");
+        if ov_path.exists()
+            && let Ok(bytes) = fs::read(&ov_path)
+            && let Ok(tensors) = SafeTensors::deserialize(&bytes)
+        {
+            sample.ovoxel = parse_ovoxel_from_tensors(&tensors);
         }
     }
 
     Ok(sample)
+}
+
+fn build_ovoxel_tensor_views(
+    ov: &bevy_zeroverse::sample::OvoxelSample,
+) -> Result<Vec<(&'static str, TensorView<'static>)>> {
+    let semantics: Vec<u16> = if ov.semantics.len() == ov.coords.len() {
+        ov.semantics.clone()
+    } else {
+        vec![0; ov.coords.len()]
+    };
+
+    let mut zipped: Vec<OvoxelTuple> = ov
+        .coords
+        .iter()
+        .zip(ov.dual_vertices.iter())
+        .zip(ov.intersected.iter())
+        .zip(ov.base_color.iter())
+        .zip(semantics.iter())
+        .map(|((((c, d), i), bc), s)| (*c, *d, *i, *bc, *s))
+        .collect();
+    zipped.sort_by(|a, b| a.0.cmp(&b.0));
+
+    let mut coords: Vec<u32> = Vec::with_capacity(zipped.len() * 3);
+    let mut dual: Vec<u8> = Vec::with_capacity(zipped.len() * 3);
+    let mut intersected: Vec<u8> = Vec::with_capacity(zipped.len());
+    let mut base_color: Vec<u8> = Vec::with_capacity(zipped.len() * 4);
+    let mut semantic: Vec<u16> = Vec::with_capacity(zipped.len());
+    for (c, d, i, bc, s) in zipped {
+        coords.extend_from_slice(&c);
+        dual.extend_from_slice(&d);
+        intersected.push(i);
+        base_color.extend_from_slice(&bc);
+        semantic.push(s);
+    }
+
+    let semantic_bytes = serde_json::to_vec(&ov.semantic_labels)?;
+    let tensors = vec![
+        (
+            "ovoxel_coords",
+            TensorView::new(
+                Dtype::U32,
+                vec![coords.len() / 3, 3],
+                leak_bytes(bytemuck::cast_slice(&coords).to_vec()),
+            )?,
+        ),
+        (
+            "ovoxel_dual_vertices",
+            TensorView::new(Dtype::U8, vec![dual.len() / 3, 3], leak_bytes(dual))?,
+        ),
+        (
+            "ovoxel_intersected",
+            TensorView::new(Dtype::U8, vec![intersected.len()], leak_bytes(intersected))?,
+        ),
+        (
+            "ovoxel_base_color",
+            TensorView::new(
+                Dtype::U8,
+                vec![base_color.len() / 4, 4],
+                leak_bytes(base_color),
+            )?,
+        ),
+        (
+            "ovoxel_semantic",
+            TensorView::new(
+                Dtype::U16,
+                vec![semantic.len()],
+                leak_bytes(bytemuck::cast_slice(&semantic).to_vec()),
+            )?,
+        ),
+        (
+            "ovoxel_semantic_labels",
+            TensorView::new(
+                Dtype::U8,
+                vec![semantic_bytes.len()],
+                leak_bytes(semantic_bytes),
+            )?,
+        ),
+        (
+            "ovoxel_resolution",
+            TensorView::new(
+                Dtype::U32,
+                vec![1],
+                leak_bytes(bytemuck::cast_slice(&[ov.resolution]).to_vec()),
+            )?,
+        ),
+        (
+            "ovoxel_aabb",
+            TensorView::new(
+                Dtype::F32,
+                vec![1, 2, 3],
+                leak_bytes(bytemuck::cast_slice(&ov.aabb).to_vec()),
+            )?,
+        ),
+    ];
+
+    Ok(tensors)
 }
 
 pub fn save_sample_to_fs(
@@ -666,6 +740,7 @@ pub fn save_sample_to_fs(
     sample_idx: usize,
     width: u32,
     height: u32,
+    export_ovoxel: bool,
 ) -> Result<PathBuf> {
     let output_dir = output_dir.as_ref();
     fs::create_dir_all(output_dir)?;
@@ -947,120 +1022,18 @@ pub fn save_sample_to_fs(
         ));
     }
 
+    if export_ovoxel {
+        if let Some(ref ov) = sample.ovoxel {
+            tensors.extend(build_ovoxel_tensor_views(ov)?);
+        }
+    }
+
     let meta = serialize(tensors, None)?;
     fs::write(scene_dir.join(META_FILE), meta)?;
 
     // Optional O-Voxel export
     if let Some(ref ov) = sample.ovoxel {
-        let semantics: Vec<u16> = if ov.semantics.len() == ov.coords.len() {
-            ov.semantics.clone()
-        } else {
-            vec![0; ov.coords.len()]
-        };
-        let mut zipped: Vec<OvoxelTuple> = ov
-            .coords
-            .iter()
-            .enumerate()
-            .map(|(idx, c)| {
-                let d = *ov.dual_vertices.get(idx).unwrap_or(&[0, 0, 0]);
-                let i = *ov.intersected.get(idx).unwrap_or(&0);
-                let bc = *ov.base_color.get(idx).unwrap_or(&[0, 0, 0, 0]);
-                let s = *semantics.get(idx).unwrap_or(&0);
-                (*c, d, i, bc, s)
-            })
-            .collect();
-        zipped.sort_by(|a, b| a.0.cmp(&b.0));
-
-        let mut coords: Vec<u32> = Vec::with_capacity(zipped.len() * 3);
-        let mut dual: Vec<u8> = Vec::with_capacity(zipped.len() * 3);
-        let mut intersected: Vec<u8> = Vec::with_capacity(zipped.len());
-        let mut base_color: Vec<u8> = Vec::with_capacity(zipped.len() * 4);
-        let mut semantic: Vec<u16> = Vec::with_capacity(zipped.len());
-        for (c, d, i, bc, s) in zipped {
-            coords.extend_from_slice(&c);
-            dual.extend_from_slice(&d);
-            intersected.push(i);
-            base_color.extend_from_slice(&bc);
-            semantic.push(s);
-        }
-
-        let semantic_labels = serde_json::to_vec(&ov.semantic_labels).unwrap_or_default();
-        let tensors: Vec<(&str, TensorView<'static>)> = vec![
-            (
-                "ovoxel_coords",
-                TensorView::new(
-                    Dtype::U32,
-                    vec![coords.len() / 3, 3],
-                    leak_bytes(bytemuck::cast_slice(&coords).to_vec()),
-                )?,
-            ),
-            (
-                "ovoxel_dual_vertices",
-                TensorView::new(Dtype::U8, vec![dual.len() / 3, 3], leak_bytes(dual))?,
-            ),
-            (
-                "ovoxel_intersected",
-                TensorView::new(Dtype::U8, vec![intersected.len()], leak_bytes(intersected))?,
-            ),
-            (
-                "ovoxel_base_color",
-                TensorView::new(
-                    Dtype::U8,
-                    vec![base_color.len() / 4, 4],
-                    leak_bytes(base_color),
-                )?,
-            ),
-            (
-                "ovoxel_semantic",
-                TensorView::new(
-                    Dtype::U16,
-                    vec![semantic.len()],
-                    leak_bytes(bytemuck::cast_slice(&semantic).to_vec()),
-                )?,
-            ),
-            (
-                "ovoxel_semantic_label_offsets",
-                TensorView::new(
-                    Dtype::I64,
-                    vec![1, 2],
-                    leak_bytes(
-                        bytemuck::cast_slice(&[0i64, semantic_labels.len() as i64]).to_vec(),
-                    ),
-                )?,
-            ),
-            (
-                "ovoxel_semantic_labels",
-                TensorView::new(
-                    Dtype::U8,
-                    vec![semantic_labels.len()],
-                    leak_bytes(semantic_labels),
-                )?,
-            ),
-            (
-                "ovoxel_offsets",
-                TensorView::new(
-                    Dtype::I64,
-                    vec![1, 2],
-                    leak_bytes(bytemuck::cast_slice(&[0i64, coords.len() as i64]).to_vec()),
-                )?,
-            ),
-            (
-                "ovoxel_resolution",
-                TensorView::new(
-                    Dtype::U32,
-                    vec![1],
-                    leak_bytes(bytemuck::cast_slice(&[ov.resolution]).to_vec()),
-                )?,
-            ),
-            (
-                "ovoxel_aabb",
-                TensorView::new(
-                    Dtype::F32,
-                    vec![1, 2, 3],
-                    leak_bytes(bytemuck::cast_slice(&ov.aabb).to_vec()),
-                )?,
-            ),
-        ];
+        let tensors = build_ovoxel_tensor_views(ov)?;
         let blob = serialize(tensors, None)?;
         fs::write(scene_dir.join("ovoxel.vxz"), blob)?;
     }
@@ -1125,7 +1098,7 @@ mod tests {
         let tmp = tempdir().unwrap();
         let sample = sample_with_color_and_obb();
         let scene_dir =
-            save_sample_to_fs(&sample, tmp.path(), 0, 1, 1).expect("save should succeed");
+            save_sample_to_fs(&sample, tmp.path(), 0, 1, 1, false).expect("save should succeed");
 
         let meta_path = scene_dir.join("meta.safetensors");
         let meta_bytes = std::fs::read(&meta_path).unwrap();
@@ -1146,7 +1119,7 @@ mod tests {
         let tmp = tempdir().unwrap();
         let sample = sample_with_ovoxel();
         let scene_dir =
-            save_sample_to_fs(&sample, tmp.path(), 0, 1, 1).expect("save should succeed");
+            save_sample_to_fs(&sample, tmp.path(), 0, 1, 1, true).expect("save should succeed");
 
         let loaded = load_sample_dir(scene_dir).expect("load should succeed");
         let ov = loaded.ovoxel.expect("ovoxel should roundtrip");

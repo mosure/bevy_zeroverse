@@ -70,6 +70,7 @@ pub struct SamplerState {
     pub step: u32,
     pub timesteps: Vec<f32>,
     pub warmup_frames: u32,
+    pub ovoxel_wait_frames: u32,
 }
 
 #[derive(Resource, Debug)]
@@ -103,6 +104,7 @@ impl Default for SamplerState {
             step: 0,
             timesteps: vec![0.125],
             warmup_frames: SamplerState::WARMUP_FRAME_DELAY,
+            ovoxel_wait_frames: 0,
         }
     }
 }
@@ -110,6 +112,7 @@ impl Default for SamplerState {
 impl SamplerState {
     const FRAME_DELAY: u32 = 1;
     const WARMUP_FRAME_DELAY: u32 = 3;
+    const MAX_OVOXEL_WAIT_FRAMES: u32 = 240;
 
     pub fn inference_only() -> Self {
         SamplerState {
@@ -120,6 +123,7 @@ impl SamplerState {
             step: 0,
             timesteps: vec![0.125],
             warmup_frames: SamplerState::WARMUP_FRAME_DELAY,
+            ovoxel_wait_frames: 0,
         }
     }
 
@@ -180,6 +184,13 @@ pub fn sample_stream(
     if state.frames > 0 {
         state.frames -= 1;
         return;
+    }
+
+    if state.render_modes.is_empty() {
+        state.render_modes = args.render_modes.clone();
+        if state.render_modes.is_empty() {
+            state.render_modes.push(args.render_mode.clone());
+        }
     }
 
     let camera_count = cameras.iter().count();
@@ -294,42 +305,72 @@ pub fn sample_stream(
 
     let views = std::mem::take(&mut buffered_sample.views);
 
-    let ovoxel = ovoxels.iter().next().map(|v| {
-        #[allow(clippy::type_complexity)]
-        let mut zipped: Vec<([u32; 3], [u8; 3], u8, [u8; 4], u16)> = v
-            .coords
-            .iter()
-            .zip(v.dual_vertices.iter())
-            .zip(v.intersected.iter())
-            .zip(v.base_color.iter())
-            .zip(v.semantics.iter())
-            .map(|((((c, d), i), bc), s)| (*c, *d, *i, *bc, *s))
-            .collect();
-        // ensure lexicographic order on coords
-        zipped.sort_by(|a, b| a.0.cmp(&b.0));
-        let mut coords = Vec::with_capacity(zipped.len());
-        let mut dual_vertices = Vec::with_capacity(zipped.len());
-        let mut intersected = Vec::with_capacity(zipped.len());
-        let mut base_color = Vec::with_capacity(zipped.len());
-        let mut semantics = Vec::with_capacity(zipped.len());
-        for (c, d, i, bc, s) in zipped {
-            coords.push(c);
-            dual_vertices.push(d);
-            intersected.push(i);
-            base_color.push(bc);
-            semantics.push(s);
+    let include_ovoxel = matches!(
+        args.ovoxel_mode,
+        crate::app::OvoxelMode::CpuAsync | crate::app::OvoxelMode::GpuCompute
+    );
+    if !include_ovoxel {
+        state.ovoxel_wait_frames = 0;
+    }
+    let ovoxel = if !include_ovoxel {
+        None
+    } else {
+        match ovoxels.iter().next() {
+            Some(v) => {
+                #[allow(clippy::type_complexity)]
+                let mut zipped: Vec<([u32; 3], [u8; 3], u8, [u8; 4], u16)> = v
+                    .coords
+                    .iter()
+                    .zip(v.dual_vertices.iter())
+                    .zip(v.intersected.iter())
+                    .zip(v.base_color.iter())
+                    .zip(v.semantics.iter())
+                    .map(|((((c, d), i), bc), s)| (*c, *d, *i, *bc, *s))
+                    .collect();
+                // ensure lexicographic order on coords
+                zipped.sort_by(|a, b| a.0.cmp(&b.0));
+                let mut coords = Vec::with_capacity(zipped.len());
+                let mut dual_vertices = Vec::with_capacity(zipped.len());
+                let mut intersected = Vec::with_capacity(zipped.len());
+                let mut base_color = Vec::with_capacity(zipped.len());
+                let mut semantics = Vec::with_capacity(zipped.len());
+                for (c, d, i, bc, s) in zipped {
+                    coords.push(c);
+                    dual_vertices.push(d);
+                    intersected.push(i);
+                    base_color.push(bc);
+                    semantics.push(s);
+                }
+                let volume = OvoxelSample {
+                    coords,
+                    dual_vertices,
+                    intersected,
+                    base_color,
+                    semantics,
+                    semantic_labels: v.semantic_labels.clone(),
+                    resolution: v.resolution,
+                    aabb: v.aabb,
+                };
+                state.ovoxel_wait_frames = 0;
+                Some(volume)
+            }
+            None => {
+                state.ovoxel_wait_frames = state.ovoxel_wait_frames.saturating_add(1);
+                if state.ovoxel_wait_frames < SamplerState::MAX_OVOXEL_WAIT_FRAMES {
+                    // O-Voxel generation still in flight; wait until available before emitting a sample.
+                    state.render_modes.insert(0, write_to);
+                    state.reset();
+                    return;
+                }
+                warn!(
+                    "ovoxel volume unavailable after {} frames; emitting sample without ovoxel",
+                    state.ovoxel_wait_frames
+                );
+                state.ovoxel_wait_frames = 0;
+                None
+            }
         }
-        OvoxelSample {
-            coords,
-            dual_vertices,
-            intersected,
-            base_color,
-            semantics,
-            semantic_labels: v.semantic_labels.clone(),
-            resolution: v.resolution,
-            aabb: v.aabb,
-        }
-    });
+    };
 
     let sample: Sample = Sample {
         views,
@@ -353,5 +394,6 @@ pub fn sample_stream(
         regenerate_event.write(RegenerateSceneEvent);
     }
 
+    state.ovoxel_wait_frames = 0;
     state.enabled = false;
 }

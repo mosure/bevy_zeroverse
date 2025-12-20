@@ -13,7 +13,7 @@ use ndarray::{IxDyn, OwnedRepr};
 use ndarray_npy::NpzReader;
 use tempfile::TempDir;
 
-use bevy_zeroverse::scene::ZeroverseSceneType;
+use bevy_zeroverse::{app::OvoxelMode, scene::ZeroverseSceneType};
 use std::sync::{Mutex, OnceLock};
 
 const TEST_PLAYBACK_STEPS: u32 = 3;
@@ -113,6 +113,9 @@ fn run_headless_generation(
         cameras: 1,
         enable_ui: false,
         write_mode,
+        export_ovoxel: true,
+        ov_mode: OvoxelMode::CpuAsync,
+        ov_resolution: 128,
     })
     .expect("headless generation should succeed");
 
@@ -147,6 +150,9 @@ fn run_generation_with_offsets(
         cameras: 1,
         enable_ui: false,
         write_mode,
+        export_ovoxel: true,
+        ov_mode: OvoxelMode::CpuAsync,
+        ov_resolution: 128,
     })
     .expect("headless generation should succeed with offsets");
 }
@@ -177,6 +183,10 @@ fn headless_chunk_generation_smoke() {
             .iter()
             .any(|view| contains_non_zero(&view.color)),
         "chunk dataset color should contain non-zero signal"
+    );
+    assert!(
+        sample.ovoxel.is_some(),
+        "chunk dataset should include ovoxel payload when export is enabled"
     );
 }
 
@@ -215,6 +225,10 @@ fn headless_fs_generation_smoke() {
                 .iter()
                 .any(|view| contains_non_zero(&view.color)),
             "fs dataset color should contain non-zero signal"
+        );
+        assert!(
+            sample.ovoxel.is_some(),
+            "fs dataset should include ovoxel payload when export is enabled"
         );
 
         let first_dir = std::fs::read_dir(dir)
@@ -396,6 +410,9 @@ fn resume_offsets_continue_fs_indices() {
         cameras: 1,
         enable_ui: false,
         write_mode: WriteMode::Fs,
+        export_ovoxel: true,
+        ov_mode: OvoxelMode::CpuAsync,
+        ov_resolution: 128,
     })
     .expect("initial fs generation should succeed");
 
@@ -424,6 +441,9 @@ fn resume_offsets_continue_fs_indices() {
         cameras: 1,
         enable_ui: false,
         write_mode: WriteMode::Fs,
+        export_ovoxel: true,
+        ov_mode: OvoxelMode::CpuAsync,
+        ov_resolution: 128,
     })
     .expect("fs resume generation should succeed");
 
@@ -461,6 +481,9 @@ fn resume_offsets_continue_chunk_indices() {
         cameras: 1,
         enable_ui: false,
         write_mode: WriteMode::Chunk,
+        export_ovoxel: true,
+        ov_mode: OvoxelMode::CpuAsync,
+        ov_resolution: 128,
     })
     .expect("initial chunk generation should succeed");
 
@@ -489,6 +512,9 @@ fn resume_offsets_continue_chunk_indices() {
         cameras: 1,
         enable_ui: false,
         write_mode: WriteMode::Chunk,
+        export_ovoxel: true,
+        ov_mode: OvoxelMode::CpuAsync,
+        ov_resolution: 128,
     })
     .expect("resumed chunk generation should succeed");
 
@@ -501,4 +527,51 @@ fn resume_offsets_continue_chunk_indices() {
         .collect();
     names.sort();
     assert_eq!(names, vec!["000000", "000001", "000002"]);
+}
+
+#[test]
+fn chunk_dataset_loads_generated_samples() {
+    let _guard = test_lock();
+    let samples = 2usize;
+    let tmp = run_headless_generation(WriteMode::Chunk, vec![RenderMode::Color], samples);
+
+    let dataset = ChunkDataset::from_dir(tmp.path()).expect("chunk dataset should load");
+    assert_eq!(Dataset::len(&dataset), samples, "all chunk samples load");
+
+    let sample = Dataset::get(&dataset, 0).expect("sample should exist");
+    assert!(
+        sample
+            .views
+            .iter()
+            .any(|view| contains_non_zero(&view.color)),
+        "chunk dataset color should contain non-zero signal"
+    );
+    assert!(
+        sample.ovoxel.is_some(),
+        "chunk sample should include ovoxel"
+    );
+}
+
+#[test]
+fn fs_dataset_loads_generated_samples() {
+    let _guard = test_lock();
+    let samples = 2usize;
+    let tmp = run_headless_generation(
+        WriteMode::Fs,
+        vec![RenderMode::Color, RenderMode::Depth],
+        samples,
+    );
+
+    let dataset = FsDataset::from_dir(tmp.path()).expect("fs dataset should load");
+    assert_eq!(Dataset::len(&dataset), samples, "all fs samples load");
+
+    let sample = Dataset::get(&dataset, 0).expect("sample should exist");
+    assert!(
+        sample
+            .views
+            .iter()
+            .any(|view| contains_non_zero(&view.color)),
+        "fs dataset color should contain non-zero signal"
+    );
+    assert!(sample.ovoxel.is_some(), "fs sample should include ovoxel");
 }

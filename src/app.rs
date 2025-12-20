@@ -20,7 +20,7 @@ use bevy::{
     time::Stopwatch,
     winit::{WakeUp, WinitPlugin},
 };
-use bevy_args::{parse_args, Deserialize, Parser, Serialize};
+use bevy_args::{parse_args, Deserialize, Parser, Serialize, ValueEnum};
 
 #[cfg(feature = "viewer")]
 use bevy_egui::EguiPlugin;
@@ -31,6 +31,14 @@ use bevy_panorbit_camera::{PanOrbitCamera, PanOrbitCameraPlugin};
 
 #[cfg(feature = "python")]
 use pyo3::prelude::*;
+
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, ValueEnum, Reflect)]
+#[cfg_attr(feature = "python", pyclass(eq, eq_int))]
+pub enum OvoxelMode {
+    Disabled,
+    CpuAsync,
+    GpuCompute,
+}
 
 use crate::{
     camera::{DefaultZeroverseCamera, EditorCameraMarker, Playback, PlaybackMode, ZeroverseCamera},
@@ -215,6 +223,11 @@ pub struct BevyZeroverseConfig {
     #[pyo3(get, set)]
     #[arg(long, default_value = "128")]
     pub ovoxel_resolution: u32,
+
+    /// O-Voxel generation mode
+    #[pyo3(get, set)]
+    #[arg(long, value_enum, default_value_t = OvoxelMode::CpuAsync)]
+    pub ovoxel_mode: OvoxelMode,
 }
 
 #[cfg(feature = "python")]
@@ -363,6 +376,10 @@ pub struct BevyZeroverseConfig {
     /// override O-Voxel export resolution (0 = default)
     #[arg(long, default_value = "128")]
     pub ovoxel_resolution: u32,
+
+    /// O-Voxel generation mode
+    #[arg(long, value_enum, default_value_t = OvoxelMode::CpuAsync)]
+    pub ovoxel_mode: OvoxelMode,
 }
 
 impl Default for BevyZeroverseConfig {
@@ -404,6 +421,7 @@ impl Default for BevyZeroverseConfig {
             z_depth: true,
             cuboid_only: false,
             ovoxel_resolution: 128,
+            ovoxel_mode: OvoxelMode::CpuAsync,
         }
     }
 }

@@ -182,7 +182,7 @@ mod tests {
 
         let obb = {
             let world = app.world_mut();
-            world.query::<&ObjectObb>().single(&world).cloned().unwrap()
+            world.query::<&ObjectObb>().single(world).cloned().unwrap()
         };
 
         // rotation should be preserved
@@ -212,7 +212,7 @@ mod tests {
 
         let has_obb = {
             let world = app.world_mut();
-            world.query::<&ObjectObb>().iter(&world).next().is_some()
+            world.query::<&ObjectObb>().iter(world).next().is_some()
         };
 
         assert!(

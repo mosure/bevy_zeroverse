@@ -54,8 +54,16 @@ fn chunk_generation_benchmark(c: &mut Criterion) {
         group.bench_function(name, |b| {
             let mut chunk_idx = 0usize;
             b.iter(|| {
-                save_chunk(&samples, &output_dir, chunk_idx, compression, width, height)
-                    .expect("chunk save should succeed");
+                save_chunk(
+                    &samples,
+                    &output_dir,
+                    chunk_idx,
+                    compression,
+                    width,
+                    height,
+                    true,
+                )
+                .expect("chunk save should succeed");
                 chunk_idx = chunk_idx.wrapping_add(1);
             });
         });
@@ -122,9 +130,141 @@ fn headless_persistent_chunk_benchmark(c: &mut Criterion) {
     group.finish();
 }
 
+fn ovxel_toggle_benchmark(c: &mut Criterion) {
+    let bin = zeroverse_gen_bin();
+    let samples_per_iter = 64usize;
+    let chunk_size = 16usize;
+    let workers = 2usize;
+
+    let mut group = c.benchmark_group("headless_chunk_pipeline_ovoxel_toggle");
+    group.sample_size(10);
+    group.throughput(Throughput::Elements(samples_per_iter as u64));
+
+    let bench_run = |with_ovoxel: bool, iters: u64| {
+        let tmp = TempDir::new().expect("failed to create temp dir");
+        let start = std::time::Instant::now();
+        let mut cmd = Command::new(&bin);
+        cmd.arg("--output")
+            .arg(tmp.path())
+            .arg("--workers")
+            .arg(workers.to_string())
+            .arg("--chunk-size")
+            .arg(chunk_size.to_string())
+            .arg("--samples")
+            .arg((samples_per_iter * iters as usize).to_string())
+            .arg("--compression")
+            .arg("none")
+            .arg("--render-modes")
+            .arg("color")
+            .arg("--width")
+            .arg("96")
+            .arg("--height")
+            .arg("72")
+            .arg("--timeout-secs")
+            .arg("45")
+            .arg("--no-ui")
+            .arg("--per-process");
+
+        let ov_mode = if with_ovoxel { "cpu-async" } else { "disabled" };
+        cmd.arg("--ov-mode").arg(ov_mode);
+
+        if let Ok(asset_root) = std::env::current_dir() {
+            cmd.arg("--asset-root").arg(asset_root);
+        }
+
+        let status = cmd
+            .status()
+            .expect("failed to spawn per-process zeroverse_gen run");
+        assert!(status.success(), "child process exited with failure");
+
+        start.elapsed()
+    };
+
+    group.bench_function("no_ovoxel", |b| {
+        b.iter_custom(|iters| bench_run(false, iters))
+    });
+    group.bench_function("with_ovoxel", |b| {
+        b.iter_custom(|iters| bench_run(true, iters))
+    });
+
+    group.finish();
+}
+
+fn ovxel_gpu_benchmark(c: &mut Criterion) {
+    let bin = zeroverse_gen_bin();
+    let chunk_size = 16usize;
+    let workers = 2usize;
+    let resolutions: &[u32] = &[128, 192, 256];
+
+    let mut group = c.benchmark_group("headless_chunk_pipeline_ovoxel_gpu");
+    group.sample_size(10);
+
+    let bench_run = |ov_mode: &str, resolution: u32, samples_per_iter: usize, iters: u64| {
+        let tmp = TempDir::new().expect("failed to create temp dir");
+        let start = std::time::Instant::now();
+        let mut cmd = Command::new(&bin);
+        cmd.arg("--output")
+            .arg(tmp.path())
+            .arg("--workers")
+            .arg(workers.to_string())
+            .arg("--chunk-size")
+            .arg(chunk_size.to_string())
+            .arg("--samples")
+            .arg((samples_per_iter * iters as usize).to_string())
+            .arg("--compression")
+            .arg("none")
+            .arg("--render-modes")
+            .arg("color")
+            .arg("--width")
+            .arg("96")
+            .arg("--height")
+            .arg("72")
+            .arg("--timeout-secs")
+            .arg("45")
+            .arg("--ov-resolution")
+            .arg(resolution.to_string())
+            .arg("--no-ui")
+            .arg("--per-process")
+            .arg("--ov-mode")
+            .arg(ov_mode);
+
+        if let Ok(asset_root) = std::env::current_dir() {
+            cmd.arg("--asset-root").arg(asset_root);
+        }
+
+        let status = cmd
+            .status()
+            .expect("failed to spawn per-process zeroverse_gen run");
+        assert!(status.success(), "child process exited with failure");
+
+        start.elapsed()
+    };
+
+    for &res in resolutions {
+        let samples_per_iter = if res >= 256 {
+            8
+        } else if res >= 192 {
+            16
+        } else {
+            32
+        };
+        group.throughput(Throughput::Elements(samples_per_iter as u64));
+        group.bench_function(format!("disabled_res{res}"), |b| {
+            b.iter_custom(|iters| bench_run("disabled", res, samples_per_iter, iters))
+        });
+        group.bench_function(format!("gpu_compute_res{res}"), |b| {
+            b.iter_custom(|iters| bench_run("gpu-compute", res, samples_per_iter, iters))
+        });
+    }
+
+    group.finish();
+}
+
 criterion_group!(
     benches,
     chunk_generation_benchmark,
-    headless_persistent_chunk_benchmark
+    headless_persistent_chunk_benchmark,
+    ovxel_toggle_benchmark,
+    ovxel_gpu_benchmark
 );
 criterion_main!(benches);

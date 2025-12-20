@@ -16,7 +16,7 @@ from safetensors import safe_open
 from safetensors.torch import load as load_bytes, load_file, save as serialize, save_file
 import torch
 import torch.distributed as dist
-from torch.utils.data import DataLoader, Dataset, IterableDataset, get_worker_info
+from torch.utils.data import DataLoader, Dataset, IterableDataset, get_worker_info, default_collate
 from torchvision.io import decode_jpeg
 import torchvision.transforms as transforms
 from torchvision.transforms.functional import to_pil_image, to_tensor
@@ -27,6 +27,36 @@ import lz4.frame as lz4
 import zstandard as zstd
 
 import bevy_zeroverse_ffi
+
+
+def _as_numpy_array(data, dtype, width: Optional[int] = None) -> np.ndarray:
+    """
+    Coerce python/ffi payloads (lists, bytes, tensors) into a predictable numpy array.
+    Handles ragged ovoxel fields that may arrive as bytes objects.
+    """
+    if data is None:
+        if width is None:
+            return np.zeros((0,), dtype=dtype)
+        return np.zeros((0, width), dtype=dtype)
+
+    if isinstance(data, (bytes, bytearray, memoryview)):
+        arr = np.frombuffer(data, dtype=dtype).copy()
+        if width:
+            arr = arr.reshape(-1, width)
+        return arr
+
+    if isinstance(data, (list, tuple)) and len(data) > 0 and isinstance(data[0], (bytes, bytearray, memoryview)):
+        inferred = width or len(data[0])
+        blob = b"".join(data)
+        arr = np.frombuffer(blob, dtype=dtype).copy()
+        if inferred:
+            arr = arr.reshape(len(data), inferred)
+        return arr
+
+    arr = np.asarray(data, dtype=dtype)
+    if width:
+        arr = arr.reshape(-1, width)
+    return arr
 
 
 def normalize_hdr_image_tonemap(hdr_image: torch.Tensor) -> torch.Tensor:
@@ -186,17 +216,31 @@ class Sample:
         ovoxel = None
         if hasattr(rust_sample, "ovoxel") and rust_sample.ovoxel is not None:
             ov = rust_sample.ovoxel
-            # Ensure numpy arrays for consistent tensor creation.
+            coords = _as_numpy_array(getattr(ov, "coords", None), np.uint32, width=3)
+            dual_vertices = _as_numpy_array(getattr(ov, "dual_vertices", None), np.uint8, width=3)
+            intersected = _as_numpy_array(getattr(ov, "intersected", None), np.uint8).reshape(-1)
+            base_color = _as_numpy_array(getattr(ov, "base_color", None), np.uint8, width=4)
+            semantic = _as_numpy_array(getattr(ov, "semantics", None), np.uint16).reshape(-1)
+
+            semantic_labels = list(getattr(ov, "semantic_labels", []))
+            semantic_label_bytes = json.dumps(semantic_labels).encode("utf-8") if semantic_labels else b""
+            semantic_label_tensor = (
+                np.frombuffer(semantic_label_bytes, dtype=np.uint8)
+                if len(semantic_label_bytes) > 0
+                else np.zeros((0,), dtype=np.uint8)
+            )
+
             ovoxel = {
-                "coords": np.array(ov.coords, dtype=np.uint32),
-                "dual_vertices": np.array(ov.dual_vertices, dtype=np.uint8),
-                "intersected": np.array(ov.intersected, dtype=np.uint8),
-                "base_color": np.array(ov.base_color, dtype=np.uint8),
-                "semantic": np.array(ov.semantics, dtype=np.uint16),
-                "semantic_labels": list(ov.semantic_labels),
-                "offsets": np.array([[0, len(ov.coords)]], dtype=np.int64),
-                "resolution": np.array([ov.resolution], dtype=np.uint32),
-                "aabb": np.array([ov.aabb], dtype=np.float32),
+                "coords": coords,
+                "dual_vertices": dual_vertices,
+                "intersected": intersected,
+                "base_color": base_color,
+                "semantic": semantic,
+                "semantic_labels": semantic_label_tensor,
+                "semantic_label_offsets": np.array([[0, semantic_label_tensor.shape[0]]], dtype=np.int64),
+                "offsets": np.array([[0, coords.shape[0]]], dtype=np.int64),
+                "resolution": np.array([getattr(ov, "resolution", 0)], dtype=np.uint32),
+                "aabb": np.array([getattr(ov, "aabb", [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]])], dtype=np.float32),
             }
         object_obbs = []
         if hasattr(rust_sample, "object_obbs"):
@@ -235,15 +279,17 @@ class Sample:
 
         sample['aabb'] = torch.tensor(self.aabb, dtype=torch.float32)
         if self.ovoxel is not None:
-            sample['ovoxel_coords'] = torch.tensor(self.ovoxel["coords"], dtype=torch.int32)
-            sample['ovoxel_dual_vertices'] = torch.tensor(self.ovoxel["dual_vertices"], dtype=torch.uint8)
-            sample['ovoxel_intersected'] = torch.tensor(self.ovoxel["intersected"], dtype=torch.uint8)
-            sample['ovoxel_base_color'] = torch.tensor(self.ovoxel["base_color"], dtype=torch.uint8)
-            sample['ovoxel_semantic'] = torch.tensor(self.ovoxel["semantic"], dtype=torch.int32)
-            sample['ovoxel_semantic_labels'] = self.ovoxel["semantic_labels"]
-            sample['ovoxel_offsets'] = torch.tensor(self.ovoxel["offsets"], dtype=torch.int64)
-            sample['ovoxel_resolution'] = torch.tensor(self.ovoxel["resolution"], dtype=torch.int32)
-            sample['ovoxel_aabb'] = torch.tensor(self.ovoxel["aabb"], dtype=torch.float32)
+            sample['ovoxel_coords'] = torch.as_tensor(self.ovoxel["coords"], dtype=torch.int32)
+            sample['ovoxel_dual_vertices'] = torch.as_tensor(self.ovoxel["dual_vertices"], dtype=torch.uint8)
+            sample['ovoxel_intersected'] = torch.as_tensor(self.ovoxel["intersected"], dtype=torch.uint8)
+            sample['ovoxel_base_color'] = torch.as_tensor(self.ovoxel["base_color"], dtype=torch.uint8)
+            sample['ovoxel_semantic'] = torch.as_tensor(self.ovoxel["semantic"], dtype=torch.int32)
+            labels_np = np.array(self.ovoxel["semantic_labels"], copy=True)
+            sample['ovoxel_semantic_labels'] = torch.tensor(labels_np, dtype=torch.uint8)
+            sample['ovoxel_semantic_label_offsets'] = torch.as_tensor(self.ovoxel["semantic_label_offsets"], dtype=torch.int64)
+            sample['ovoxel_offsets'] = torch.as_tensor(self.ovoxel["offsets"], dtype=torch.int64)
+            sample['ovoxel_resolution'] = torch.as_tensor(self.ovoxel["resolution"], dtype=torch.int32)
+            sample['ovoxel_aabb'] = torch.as_tensor(self.ovoxel["aabb"], dtype=torch.float32)
             self.ovoxel = None
 
         if len(self.object_obbs) > 0:
@@ -296,6 +342,12 @@ class BevyZeroverseDataset(Dataset):
         'semantic_room': bevy_zeroverse_ffi.ZeroverseSceneType.SemanticRoom,
     }
 
+    ov_mode_map = {
+        "disabled": bevy_zeroverse_ffi.OvoxelMode.Disabled,
+        "cpu_async": bevy_zeroverse_ffi.OvoxelMode.CpuAsync,
+        "gpu_compute": bevy_zeroverse_ffi.OvoxelMode.GpuCompute,
+    }
+
     def __init__(
         self,
         editor,
@@ -313,6 +365,7 @@ class BevyZeroverseDataset(Dataset):
         rotation_augmentation=True,
         regenerate_scene_material_shuffle_period=256,
         cuboid_only=False,
+        ovoxel_mode: str = "cpu_async",
     ):
         self.editor = editor
         self.headless = headless
@@ -330,6 +383,7 @@ class BevyZeroverseDataset(Dataset):
         self.rotation_augmentation = rotation_augmentation
         self.regenerate_scene_material_shuffle_period = regenerate_scene_material_shuffle_period
         self.cuboid_only = cuboid_only
+        self.ovoxel_mode = ovoxel_mode
 
     def initialize(self):
         config = bevy_zeroverse_ffi.BevyZeroverseConfig()
@@ -349,6 +403,7 @@ class BevyZeroverseDataset(Dataset):
         config.render_mode = config.render_modes[0]
         config.rotation_augmentation = self.rotation_augmentation
         config.cuboid_only = self.cuboid_only
+        config.ovoxel_mode = BevyZeroverseDataset.ov_mode_map[self.ovoxel_mode]
         bevy_zeroverse_ffi.initialize(
             config,
             self.root_asset_folder,
@@ -454,6 +509,35 @@ def chunk_and_save(
 
         batch: dict[str, Any] = {}
         offset = 0
+        has_ovoxel = any(any(key.startswith("ovoxel_") for key in sample.keys()) for sample in chunk_samples)
+        max_obbs = 0
+        for sample in chunk_samples:
+            center = sample.get("object_obb_center")
+            if center is not None:
+                max_obbs = max(max_obbs, int(center.shape[0]))
+
+        ov_coords: list[torch.Tensor] = []
+        ov_dual: list[torch.Tensor] = []
+        ov_intersected: list[torch.Tensor] = []
+        ov_base: list[torch.Tensor] = []
+        ov_semantic: list[torch.Tensor] = []
+        ov_offsets: list[torch.Tensor] = []
+        ov_resolutions: list[torch.Tensor] = []
+        ov_aabb: list[torch.Tensor] = []
+        ov_label_offsets: list[torch.Tensor] = []
+        ov_label_blob: bytearray = bytearray()
+        ov_cursor = 0
+        obb_class_names_tensor: torch.Tensor | None = None
+
+        def pad_obb_tensor(tensor: torch.Tensor, target: int, fill: float | int = 0) -> torch.Tensor:
+            if target <= 0:
+                return tensor.new_zeros((0, *tensor.shape[1:]), dtype=tensor.dtype)
+            if tensor.shape[0] == target:
+                return tensor
+            pad_shape = (target - tensor.shape[0], *tensor.shape[1:])
+            pad = torch.full(pad_shape, fill, dtype=tensor.dtype, device=tensor.device)
+            return torch.cat([tensor, pad], dim=0)
+
         for sample in chunk_samples:
             for name, tensor in sample.items():
                 if name in ["color"]:
@@ -466,13 +550,89 @@ def chunk_and_save(
                     if f"{name}_shape" not in batch:
                         batch[f"{name}_shape"] = torch.tensor([len(chunk_samples), T, V, H, W, C])
                     offset += flat_views.shape[0]
+                elif name.startswith("object_obb_"):
+                    if max_obbs == 0:
+                        continue
+                    if name == "object_obb_class_names":
+                        if obb_class_names_tensor is None:
+                            obb_class_names_tensor = tensor.cpu()
+                        continue
+                    tensor = tensor.cpu()
+                    fill = -1 if name == "object_obb_class_idx" else 0
+                    padded = pad_obb_tensor(tensor, max_obbs, fill=fill)
+                    batch.setdefault(name, []).append(padded)
+                    continue
+                elif name.startswith("ovoxel_"):
+                    continue
                 else:
                     batch.setdefault(name, []).append(tensor)
 
-        flat_tensors = {
-            key: torch.stack(value, dim=0) if not key.endswith("_shape") and "_jpg_" not in key else value
-            for key, value in batch.items()
-        }
+            if has_ovoxel:
+                coords = sample.get("ovoxel_coords")
+                coords = coords.reshape(-1, 3).cpu() if coords is not None else None
+                num_vox = int(coords.shape[0]) if coords is not None else 0
+                ov_offsets.append(torch.tensor([ov_cursor, num_vox], dtype=torch.int64))
+                ov_cursor += num_vox
+
+                if coords is not None and num_vox > 0:
+                    ov_coords.append(coords)
+                    dual = sample.get("ovoxel_dual_vertices")
+                    if dual is not None:
+                        ov_dual.append(dual.reshape(num_vox, 3).cpu())
+                    intersect = sample.get("ovoxel_intersected")
+                    if intersect is not None:
+                        ov_intersected.append(intersect.reshape(-1).cpu())
+                    base = sample.get("ovoxel_base_color")
+                    if base is not None:
+                        ov_base.append(base.reshape(num_vox, 4).cpu())
+                    semantic = sample.get("ovoxel_semantic")
+                    if semantic is not None:
+                        ov_semantic.append(semantic.reshape(-1).cpu())
+
+                res = sample.get("ovoxel_resolution")
+                res_tensor = res.reshape(-1)[0].cpu() if res is not None else torch.tensor(0, dtype=torch.int32)
+                ov_resolutions.append(res_tensor)
+
+                aabb = sample.get("ovoxel_aabb")
+                aabb_tensor = aabb.reshape(1, 2, 3).cpu() if aabb is not None else torch.zeros((1, 2, 3), dtype=torch.float32)
+                ov_aabb.append(aabb_tensor)
+
+                labels = sample.get("ovoxel_semantic_labels")
+                labels_tensor = labels.reshape(-1).to(torch.uint8).cpu() if labels is not None else None
+                label_len = int(labels_tensor.numel()) if labels_tensor is not None else 0
+                ov_label_offsets.append(torch.tensor([len(ov_label_blob), label_len], dtype=torch.int64))
+                if labels_tensor is not None and label_len > 0:
+                    ov_label_blob.extend(labels_tensor.numpy().tobytes())
+
+        if has_ovoxel:
+            batch["ovoxel_offsets"] = torch.stack(ov_offsets, dim=0)
+            batch["ovoxel_resolution"] = torch.stack(ov_resolutions, dim=0)
+            batch["ovoxel_aabb"] = torch.cat(ov_aabb, dim=0)
+            batch["ovoxel_semantic_label_offsets"] = torch.stack(ov_label_offsets, dim=0)
+            batch["ovoxel_semantic_labels"] = (
+                torch.tensor(list(ov_label_blob), dtype=torch.uint8)
+                if len(ov_label_blob) > 0
+                else torch.zeros((0,), dtype=torch.uint8)
+            )
+            if len(ov_coords) > 0:
+                batch["ovoxel_coords"] = torch.cat(ov_coords, dim=0)
+            if len(ov_dual) > 0:
+                batch["ovoxel_dual_vertices"] = torch.cat(ov_dual, dim=0)
+            if len(ov_intersected) > 0:
+                batch["ovoxel_intersected"] = torch.cat(ov_intersected, dim=0)
+            if len(ov_base) > 0:
+                batch["ovoxel_base_color"] = torch.cat(ov_base, dim=0)
+            if len(ov_semantic) > 0:
+                batch["ovoxel_semantic"] = torch.cat(ov_semantic, dim=0)
+        if max_obbs > 0 and obb_class_names_tensor is not None:
+            batch["object_obb_class_names"] = obb_class_names_tensor
+
+        flat_tensors: dict[str, Any] = {}
+        for key, value in batch.items():
+            if isinstance(value, list):
+                flat_tensors[key] = torch.stack(value, dim=0)
+            else:
+                flat_tensors[key] = value
 
         if compression is None:
             final_path = output_dir / base_name
@@ -492,12 +652,26 @@ def chunk_and_save(
     max_save_workers = min(max(1, (os.cpu_count() or 4) // 2), 8)
     pending: list[Any] = []
 
+    def collate_fn(samples: list[dict[str, Any]]) -> dict[str, Any]:
+        if not samples:
+            return {}
+        collated: dict[str, Any] = {}
+        ragged_prefixes = ("ovoxel_", "object_obb_")
+        for key in samples[0].keys():
+            values = [s[key] for s in samples]
+            if key.startswith(ragged_prefixes):
+                collated[key] = values
+            else:
+                collated[key] = default_collate(values)
+        return collated
+
     dl_bs = samples_per_chunk if samples_per_chunk else 1
     dataloader_kwargs = dict(
         batch_size=dl_bs,
         num_workers=n_workers,
         shuffle=False,
         pin_memory=pin_memory,
+        collate_fn=collate_fn,
     )
     if n_workers > 0:
         dataloader_kwargs["prefetch_factor"] = max(1, prefetch_factor)
@@ -507,10 +681,14 @@ def chunk_and_save(
 
     with ThreadPoolExecutor(max_workers=max_save_workers) as executor:
         for idx, batch in enumerate(dataloader):
-            bsz = next(iter(batch.values())).shape[0]
+            first_val = next(iter(batch.values()))
+            bsz = len(first_val) if isinstance(first_val, list) else first_val.shape[0]
             pbar.update(bsz)
             for i in range(bsz):
-                sample = {name: tensor[i] for name, tensor in batch.items()}
+                sample = {
+                    name: (tensor[i] if not isinstance(tensor, list) else tensor[i])
+                    for name, tensor in batch.items()
+                }
                 sample_size = sum(t.numel() * t.element_size() for t in sample.values())
                 chunk.append(sample)
                 chunk_size += sample_size
@@ -635,6 +813,30 @@ def load_chunk(path: Path):
             batch["object_obb_class_names"] = torch.tensor(list(names_bytes), dtype=torch.uint8)
         except Exception:
             pass
+    elif "object_obb_class_names" in tensors:
+        batch["object_obb_class_names"] = tensors["object_obb_class_names"]
+
+    # Optional batched O-Voxel tensors (parity with Rust generator).
+    if "ovoxel_coords" in tensors:
+        batch["ovoxel_coords"] = tensors["ovoxel_coords"]
+        if "ovoxel_dual_vertices" in tensors:
+            batch["ovoxel_dual_vertices"] = tensors["ovoxel_dual_vertices"]
+        if "ovoxel_intersected" in tensors:
+            batch["ovoxel_intersected"] = tensors["ovoxel_intersected"]
+        if "ovoxel_base_color" in tensors:
+            batch["ovoxel_base_color"] = tensors["ovoxel_base_color"]
+        if "ovoxel_semantic" in tensors:
+            batch["ovoxel_semantic"] = tensors["ovoxel_semantic"]
+        if "ovoxel_offsets" in tensors:
+            batch["ovoxel_offsets"] = tensors["ovoxel_offsets"]
+        if "ovoxel_resolution" in tensors:
+            batch["ovoxel_resolution"] = tensors["ovoxel_resolution"]
+        if "ovoxel_aabb" in tensors:
+            batch["ovoxel_aabb"] = tensors["ovoxel_aabb"]
+        if "ovoxel_semantic_labels" in tensors:
+            batch["ovoxel_semantic_labels"] = tensors["ovoxel_semantic_labels"]
+        if "ovoxel_semantic_label_offsets" in tensors:
+            batch["ovoxel_semantic_label_offsets"] = tensors["ovoxel_semantic_label_offsets"]
 
     return batch
 
@@ -752,6 +954,16 @@ class ChunkedIteratorDataset(IterableDataset):
         for chunk_idx in chunk_files:
             chunk_path = self.chunk_files[chunk_idx]
             chunk_data = load_chunk(chunk_path)
+            ov_offsets = chunk_data.get("ovoxel_offsets")
+            ov_label_offsets = chunk_data.get("ovoxel_semantic_label_offsets")
+            ov_labels = chunk_data.get("ovoxel_semantic_labels")
+            ov_coords = chunk_data.get("ovoxel_coords")
+            ov_dual = chunk_data.get("ovoxel_dual_vertices")
+            ov_intersected = chunk_data.get("ovoxel_intersected")
+            ov_base = chunk_data.get("ovoxel_base_color")
+            ov_semantic = chunk_data.get("ovoxel_semantic")
+            ov_resolution = chunk_data.get("ovoxel_resolution")
+            ov_aabb = chunk_data.get("ovoxel_aabb")
             local_indices = list(range(self.chunk_sizes[chunk_idx]))
 
             if self.shuffle:
@@ -760,7 +972,39 @@ class ChunkedIteratorDataset(IterableDataset):
             for sample_idx in local_indices:
                 if emitted_samples >= min_assigned_samples:
                     return
-                sample = {key: tensor[sample_idx] for key, tensor in chunk_data.items()}
+                sample = {
+                    key: tensor[sample_idx]
+                    for key, tensor in chunk_data.items()
+                    if not key.startswith("ovoxel_")
+                }
+
+                if ov_offsets is not None and sample_idx < len(ov_offsets):
+                    start, length = ov_offsets[sample_idx].tolist()
+                    start = int(start)
+                    length = int(length)
+
+                    sample["ovoxel_offsets"] = ov_offsets[sample_idx]
+                    if ov_resolution is not None:
+                        sample["ovoxel_resolution"] = ov_resolution[sample_idx]
+                    if ov_aabb is not None:
+                        sample["ovoxel_aabb"] = ov_aabb[sample_idx]
+                    if ov_coords is not None and length > 0:
+                        sample["ovoxel_coords"] = ov_coords[start:start + length]
+                    if ov_dual is not None and length > 0:
+                        sample["ovoxel_dual_vertices"] = ov_dual[start:start + length]
+                    if ov_intersected is not None and length > 0:
+                        sample["ovoxel_intersected"] = ov_intersected[start:start + length]
+                    if ov_base is not None and length > 0:
+                        sample["ovoxel_base_color"] = ov_base[start:start + length]
+                    if ov_semantic is not None and length > 0:
+                        sample["ovoxel_semantic"] = ov_semantic[start:start + length]
+                    if ov_label_offsets is not None and ov_labels is not None:
+                        l_start, l_len = ov_label_offsets[sample_idx].tolist()
+                        l_start = int(l_start)
+                        l_len = int(l_len)
+                        sample["ovoxel_semantic_label_offsets"] = ov_label_offsets[sample_idx]
+                        sample["ovoxel_semantic_labels"] = ov_labels[l_start:l_start + l_len]
+
                 sample["_chunk_path"] = str(chunk_path)
                 sample["_sample_idx"] = sample_idx
                 yield sample
@@ -783,6 +1027,9 @@ def write_sample(sample: dict, *, jpg_quality: int = 75) -> None:
 
     assert {"_chunk_path", "_sample_idx"} <= sample.keys(), \
         "`_chunk_path` and `_sample_idx` must be present"
+    for key in list(sample.keys()):
+        if key.startswith("ovoxel_"):
+            sample.pop(key)
 
     chunk_path = Path(sample.pop("_chunk_path"))
     idx = int(sample.pop("_sample_idx"))
@@ -906,7 +1153,14 @@ def save_to_folders(dataset, output_dir: Path, n_workers: int = 1):
             if key in sample:
                 meta_tensors[key] = sample[key]
         if 'object_obb_class_names' in sample:
-            names_bytes = json.dumps(sample['object_obb_class_names']).encode('utf-8')
+            names_val = sample['object_obb_class_names']
+            if isinstance(names_val, torch.Tensor):
+                decoded = []
+                if names_val.numel() > 0:
+                    decoded = json.loads(bytes(names_val.cpu().tolist()).decode("utf-8"))
+            else:
+                decoded = names_val
+            names_bytes = json.dumps(decoded).encode('utf-8')
             meta_tensors['object_obb_class_names'] = torch.tensor(list(names_bytes), dtype=torch.uint8)
         meta_filename = scene_dir / "meta.safetensors"
         save_file(meta_tensors, str(meta_filename))

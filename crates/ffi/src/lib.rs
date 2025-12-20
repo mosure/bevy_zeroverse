@@ -14,7 +14,7 @@ use pyo3::{
 };
 
 use ::bevy_zeroverse::{
-    app::BevyZeroverseConfig,
+    app::{BevyZeroverseConfig, OvoxelMode},
     camera::{Playback, PlaybackMode},
     headless::{setup_and_run_app, setup_globals},
     io::channels,
@@ -299,6 +299,7 @@ pub fn bevy_zeroverse_ffi(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<BevyZeroverseConfig>()?;
     m.add_class::<Playback>()?;
     m.add_class::<PlaybackMode>()?;
+    m.add_class::<OvoxelMode>()?;
     m.add_class::<RenderMode>()?;
     m.add_class::<ZeroverseSceneType>()?;
 

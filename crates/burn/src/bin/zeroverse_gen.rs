@@ -125,6 +125,14 @@ struct Cli {
     /// Internal flag set for spawned worker processes to avoid recursive spawning.
     #[arg(long, default_value_t = false, hide = true)]
     child_worker: bool,
+
+    /// Export O-Voxel tensors into the written safetensors outputs.
+    #[arg(long, value_enum, default_value_t = bevy_zeroverse::app::OvoxelMode::CpuAsync)]
+    ov_mode: bevy_zeroverse::app::OvoxelMode,
+
+    /// Override O-Voxel resolution (0 = default)
+    #[arg(long, default_value_t = 128)]
+    ov_resolution: u32,
 }
 
 fn main() -> Result<()> {
@@ -155,6 +163,13 @@ fn main() -> Result<()> {
             ZeroverseSceneType::Object => "object",
             ZeroverseSceneType::SemanticRoom => "semantic-room",
             ZeroverseSceneType::Room => "room",
+        }
+    }
+    fn ovoxel_mode_cli_name(mode: &bevy_zeroverse::app::OvoxelMode) -> &'static str {
+        match mode {
+            bevy_zeroverse::app::OvoxelMode::Disabled => "disabled",
+            bevy_zeroverse::app::OvoxelMode::CpuAsync => "cpu-async",
+            bevy_zeroverse::app::OvoxelMode::GpuCompute => "gpu-compute",
         }
     }
 
@@ -202,6 +217,10 @@ fn main() -> Result<()> {
                 .arg(&cli.output)
                 .arg("--workers")
                 .arg("1")
+                .arg("--ov-mode")
+                .arg(ovoxel_mode_cli_name(&cli.ov_mode))
+                .arg("--ov-resolution")
+                .arg(cli.ov_resolution.to_string())
                 .arg("--chunk-size")
                 .arg(cli.chunk_size.to_string())
                 .arg("--samples")
@@ -276,5 +295,8 @@ fn main() -> Result<()> {
         cameras: cli.cameras,
         enable_ui: !cli.no_ui,
         write_mode,
+        export_ovoxel: !matches!(cli.ov_mode, bevy_zeroverse::app::OvoxelMode::Disabled),
+        ov_mode: cli.ov_mode,
+        ov_resolution: cli.ov_resolution,
     })
 }

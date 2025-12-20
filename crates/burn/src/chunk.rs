@@ -14,6 +14,7 @@ use crate::{compression::Compression, dataset::ZeroverseSample};
 #[allow(clippy::type_complexity)]
 type OvoxelTuple = ([u32; 3], [u8; 3], u8, [u8; 4], u16);
 
+#[allow(dead_code)]
 struct OvoxelTensorData {
     coords: Vec<u32>,
     dual: Vec<u8>,
@@ -28,6 +29,7 @@ struct OvoxelTensorData {
     batch: usize,
 }
 
+#[allow(dead_code)]
 fn push_ovoxel_tensors(
     tensors: &mut Vec<(&'static str, TensorView<'static>)>,
     data: OvoxelTensorData,
@@ -268,6 +270,7 @@ pub fn save_chunk(
     compression: Compression,
     width: u32,
     height: u32,
+    export_ovoxel: bool,
 ) -> Result<PathBuf> {
     let output_dir = output_dir.as_ref();
     fs::create_dir_all(output_dir)?;
@@ -309,6 +312,7 @@ pub fn save_chunk(
     let mut far = Vec::new();
     let mut time = Vec::new();
     let mut aabb: Vec<f32> = Vec::new();
+    // O-Voxel accumulation (batched with offsets)
     let mut ov_coords: Vec<u32> = Vec::new();
     let mut ov_dual: Vec<u8> = Vec::new();
     let mut ov_intersect: Vec<u8> = Vec::new();
@@ -319,7 +323,6 @@ pub fn save_chunk(
     let mut ov_offsets: Vec<i64> = Vec::with_capacity(samples.len() * 2);
     let mut ov_resolution: Vec<u32> = Vec::with_capacity(samples.len());
     let mut ov_aabb: Vec<f32> = Vec::with_capacity(samples.len() * 6);
-
     // Object OBB accumulation
     let mut class_to_idx: HashMap<String, i64> = HashMap::new();
     let mut class_names: Vec<String> = Vec::new();
@@ -458,43 +461,47 @@ pub fn save_chunk(
 
         aabb.extend_from_slice(cast_slice(&sample.aabb));
 
-        if let Some(ref ov) = sample.ovoxel {
-            let mut zipped: Vec<OvoxelTuple> = ov
-                .coords
-                .iter()
-                .zip(ov.dual_vertices.iter())
-                .zip(ov.intersected.iter())
-                .zip(ov.base_color.iter())
-                .zip(ov.semantics.iter())
-                .map(|((((c, d), i), bc), s)| (*c, *d, *i, *bc, *s))
-                .collect();
-            zipped.sort_by(|a, b| a.0.cmp(&b.0));
-            let start = ov_coords.len() as i64;
-            let len = zipped.len() as i64;
-            ov_offsets.push(start);
-            ov_offsets.push(len);
-            for (c, d, i, bc, s) in zipped {
-                ov_coords.extend_from_slice(&c);
-                ov_dual.extend_from_slice(&d);
-                ov_intersect.push(i);
-                ov_base.extend_from_slice(&bc);
-                ov_semantic.push(s);
+        if export_ovoxel {
+            if let Some(ref ov) = sample.ovoxel {
+                let mut zipped: Vec<OvoxelTuple> = ov
+                    .coords
+                    .iter()
+                    .zip(ov.dual_vertices.iter())
+                    .zip(ov.intersected.iter())
+                    .zip(ov.base_color.iter())
+                    .zip(ov.semantics.iter())
+                    .map(|((((c, d), i), bc), s)| (*c, *d, *i, *bc, *s))
+                    .collect();
+                zipped.sort_by(|a, b| a.0.cmp(&b.0));
+                let start = ov_coords.len() as i64;
+                let len = zipped.len() as i64;
+                ov_offsets.extend_from_slice(&[start, len]);
+
+                for (c, d, i, bc, s) in zipped {
+                    ov_coords.extend_from_slice(&c);
+                    ov_dual.extend_from_slice(&d);
+                    ov_intersect.push(i);
+                    ov_base.extend_from_slice(&bc);
+                    ov_semantic.push(s);
+                }
+
+                ov_resolution.push(ov.resolution);
+                for row in ov.aabb {
+                    ov_aabb.extend_from_slice(&row);
+                }
+
+                let label_bytes = serde_json::to_vec(&ov.semantic_labels).unwrap_or_default();
+                let lbl_start = ov_semantic_labels.len() as i64;
+                let lbl_len = label_bytes.len() as i64;
+                ov_semantic_label_offsets.extend_from_slice(&[lbl_start, lbl_len]);
+                ov_semantic_labels.extend(label_bytes);
+            } else {
+                // Keep alignment with placeholder offsets and metadata.
+                ov_offsets.extend_from_slice(&[ov_coords.len() as i64, 0]);
+                ov_resolution.push(0);
+                ov_aabb.extend_from_slice(&[0.0; 6]);
+                ov_semantic_label_offsets.extend_from_slice(&[ov_semantic_labels.len() as i64, 0]);
             }
-            ov_resolution.push(ov.resolution);
-            for row in ov.aabb {
-                ov_aabb.extend_from_slice(&row);
-            }
-            let label_bytes = serde_json::to_vec(&ov.semantic_labels).unwrap_or_default();
-            ov_semantic_label_offsets.push(ov_semantic_labels.len() as i64);
-            ov_semantic_label_offsets.push(label_bytes.len() as i64);
-            ov_semantic_labels.extend(label_bytes);
-        } else {
-            ov_offsets.push(ov_coords.len() as i64);
-            ov_offsets.push(0);
-            ov_resolution.push(0);
-            ov_aabb.extend_from_slice(&[0.0; 6]);
-            ov_semantic_label_offsets.push(ov_semantic_labels.len() as i64);
-            ov_semantic_label_offsets.push(0);
         }
 
         if max_obbs > 0 {
@@ -607,22 +614,24 @@ pub fn save_chunk(
         tensors.push((name, TensorView::new(Dtype::F32, shape, data_ref)?));
     }
 
-    push_ovoxel_tensors(
-        &mut tensors,
-        OvoxelTensorData {
-            coords: ov_coords,
-            dual: ov_dual,
-            intersected: ov_intersect,
-            base_color: ov_base,
-            semantic: ov_semantic,
-            semantic_label_offsets: ov_semantic_label_offsets,
-            semantic_labels: ov_semantic_labels,
-            offsets: ov_offsets,
-            resolution: ov_resolution,
-            aabb: ov_aabb,
-            batch: b,
-        },
-    )?;
+    if export_ovoxel {
+        push_ovoxel_tensors(
+            &mut tensors,
+            OvoxelTensorData {
+                coords: ov_coords,
+                dual: ov_dual,
+                intersected: ov_intersect,
+                base_color: ov_base,
+                semantic: ov_semantic,
+                semantic_label_offsets: ov_semantic_label_offsets,
+                semantic_labels: ov_semantic_labels,
+                offsets: ov_offsets,
+                resolution: ov_resolution,
+                aabb: ov_aabb,
+                batch: b,
+            },
+        )?;
+    }
 
     for (name, view) in color_entries {
         let leaked: &'static str = Box::leak(name.into_boxed_str());
@@ -789,7 +798,103 @@ pub fn load_chunk(path: impl AsRef<Path>) -> Result<Vec<ZeroverseSample>> {
         }
     }
 
-    if let (
+    let has_per_sample_ovoxel = tensors
+        .names()
+        .iter()
+        .any(|n| n.starts_with("ovoxel_coords_"));
+    if has_per_sample_ovoxel {
+        for (idx, sample) in samples.iter_mut().enumerate().take(b) {
+            let suffix = format!("{idx:06}");
+            let names = |prefix: &str| format!("{prefix}{suffix}");
+            let coords = if let Ok(t) = tensors.tensor(&names("ovoxel_coords_")) {
+                t
+            } else {
+                continue;
+            };
+            let dual = if let Ok(t) = tensors.tensor(&names("ovoxel_dual_vertices_")) {
+                t
+            } else {
+                continue;
+            };
+            let intersected = if let Ok(t) = tensors.tensor(&names("ovoxel_intersected_")) {
+                t
+            } else {
+                continue;
+            };
+            let base = if let Ok(t) = tensors.tensor(&names("ovoxel_base_color_")) {
+                t
+            } else {
+                continue;
+            };
+            let semantic = if let Ok(t) = tensors.tensor(&names("ovoxel_semantic_")) {
+                t
+            } else {
+                continue;
+            };
+            let semantic_labels = if let Ok(t) = tensors.tensor(&names("ovoxel_semantic_labels_")) {
+                t
+            } else {
+                continue;
+            };
+            let res = if let Ok(t) = tensors.tensor(&names("ovoxel_resolution_")) {
+                t
+            } else {
+                continue;
+            };
+            let aabb = if let Ok(t) = tensors.tensor(&names("ovoxel_aabb_")) {
+                t
+            } else {
+                continue;
+            };
+
+            let coords: &[[u32; 3]] = cast_slice(coords.data());
+            let dual: &[[u8; 3]] = cast_slice(dual.data());
+            let base: &[[u8; 4]] = cast_slice(base.data());
+            let intersect_data: &[u8] = cast_slice(intersected.data());
+            let semantic_data: &[u16] = cast_slice(semantic.data());
+            let res: &[u32] = cast_slice(res.data());
+            let aabb_data: &[[[f32; 3]; 2]] = cast_slice(aabb.data());
+            if coords.is_empty() {
+                continue;
+            }
+            let mut slice: Vec<OvoxelTuple> = coords
+                .iter()
+                .enumerate()
+                .map(|(i, c)| {
+                    (
+                        *c,
+                        dual.get(i).copied().unwrap_or([0, 0, 0]),
+                        intersect_data.get(i).copied().unwrap_or(0),
+                        base.get(i).copied().unwrap_or([0, 0, 0, 0]),
+                        semantic_data.get(i).copied().unwrap_or(0),
+                    )
+                })
+                .collect();
+            slice.sort_by(|a, b| a.0.cmp(&b.0));
+
+            let palette: Vec<String> = serde_json::from_slice(semantic_labels.data())
+                .unwrap_or_else(|_| vec!["unlabeled".into()]);
+
+            let mut ov = bevy_zeroverse::sample::OvoxelSample {
+                coords: Vec::with_capacity(slice.len()),
+                dual_vertices: Vec::with_capacity(slice.len()),
+                intersected: Vec::with_capacity(slice.len()),
+                base_color: Vec::with_capacity(slice.len()),
+                semantics: Vec::with_capacity(slice.len()),
+                semantic_labels: palette,
+                resolution: *res.first().unwrap_or(&0),
+                aabb: *aabb_data.first().unwrap_or(&[[0.0; 3]; 2]),
+            };
+            for (c, d, inter, bc, s) in slice.into_iter() {
+                ov.coords.push(c);
+                ov.dual_vertices.push(d);
+                ov.intersected.push(inter);
+                ov.base_color.push(bc);
+                ov.semantics.push(s);
+            }
+            sample.ovoxel = Some(ov);
+        }
+    } else if let (
         Ok(coords),
         Ok(dual),
         Ok(intersected),
@@ -1037,6 +1142,7 @@ mod tests {
             Compression::None,
             1,
             1,
+            true,
         )
         .unwrap();
 
@@ -1064,6 +1170,7 @@ mod tests {
             Compression::None,
             1,
             1,
+            true,
         )
         .unwrap();
 

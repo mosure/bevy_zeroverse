@@ -48,6 +48,9 @@ pub struct GenConfig {
     pub cameras: usize,
     pub enable_ui: bool,
     pub write_mode: WriteMode,
+    pub export_ovoxel: bool,
+    pub ov_mode: bevy_zeroverse::app::OvoxelMode,
+    pub ov_resolution: u32,
 }
 
 impl Default for GenConfig {
@@ -61,9 +64,9 @@ impl Default for GenConfig {
             chunk_offset: 0,
             playback_step: 0.05,
             playback_steps: 5,
-            scene_type: ZeroverseSceneType::Object,
+            scene_type: ZeroverseSceneType::SemanticRoom,
             asset_root: None,
-            compression: Compression::Lz4 { level: 0 },
+            compression: Compression::default(),
             render_modes: vec![RenderMode::Color],
             timeout_secs: 120,
             width: 256,
@@ -72,6 +75,9 @@ impl Default for GenConfig {
             cameras: 1,
             enable_ui: false,
             write_mode: WriteMode::Chunk,
+            export_ovoxel: false,
+            ov_mode: bevy_zeroverse::app::OvoxelMode::CpuAsync,
+            ov_resolution: 128,
         }
     }
 }
@@ -139,6 +145,8 @@ pub fn zeroverse_config_from_gen(
     playback_step: f32,
     playback_steps: u32,
     scene_type: ZeroverseSceneType,
+    ov_mode: bevy_zeroverse::app::OvoxelMode,
+    ov_resolution: u32,
 ) -> BevyZeroverseConfig {
     BevyZeroverseConfig {
         headless: true,
@@ -154,6 +162,8 @@ pub fn zeroverse_config_from_gen(
         playback_step,
         playback_steps,
         scene_type,
+        ovoxel_mode: ov_mode,
+        ovoxel_resolution: ov_resolution,
         ..Default::default()
     }
 }
@@ -180,6 +190,9 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
         enable_ui: _enable_ui,
         write_mode,
         scene_type,
+        export_ovoxel,
+        ov_mode,
+        ov_resolution,
     } = config;
 
     let asset_root = asset_root
@@ -200,6 +213,8 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
         playback_step,
         playback_steps,
         scene_type,
+        ov_mode,
+        ov_resolution,
     );
 
     let dataset = Arc::new(LiveDataset::new(LiveDatasetConfig {
@@ -281,14 +296,29 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
                         local.push(sample);
                         if local.len() >= chunk_size {
                             let chunk_idx = chunk_counter.fetch_add(1, Ordering::SeqCst);
-                            save_chunk(&local, &*output_dir, chunk_idx, compression, width, height)
+                            save_chunk(
+                                &local,
+                                &*output_dir,
+                                chunk_idx,
+                                compression,
+                                width,
+                                height,
+                                export_ovoxel,
+                            )
                                 .with_context(|| format!("failed to save chunk {chunk_idx}"))?;
                             samples_done.fetch_add(local.len(), Ordering::SeqCst);
                             local.clear();
                         }
                     }
                     WriteMode::Fs => {
-                        save_sample_to_fs(&sample, &*output_dir, idx, width, height)
+                        save_sample_to_fs(
+                            &sample,
+                            &*output_dir,
+                            idx,
+                            width,
+                            height,
+                            export_ovoxel,
+                        )
                             .with_context(|| format!("failed to save sample {idx} to fs output"))?;
                         samples_done.fetch_add(1, Ordering::SeqCst);
                         chunk_counter.fetch_add(1, Ordering::SeqCst);
@@ -298,7 +328,15 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
 
             if write_mode == WriteMode::Chunk && !local.is_empty() {
                 let chunk_idx = chunk_counter.fetch_add(1, Ordering::SeqCst);
-                save_chunk(&local, &*output_dir, chunk_idx, compression, width, height)
+                save_chunk(
+                    &local,
+                    &*output_dir,
+                    chunk_idx,
+                    compression,
+                    width,
+                    height,
+                    export_ovoxel,
+                )
                     .with_context(|| format!("failed to save final chunk {chunk_idx}"))?;
                 samples_done.fetch_add(local.len(), Ordering::SeqCst);
             }
