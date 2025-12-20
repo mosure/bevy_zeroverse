@@ -88,6 +88,7 @@ struct DispatchArgs {
 
 const TILE_SIZE: u32 = 4u;
 const GPU_SCATTER_WG: u32 = 256u;
+const TRI_CHUNK: u32 = 32u;
 
 var<workgroup> sh_counts: array<u32, 64>;
 var<workgroup> sh_masks: array<u32, 64>;
@@ -95,6 +96,7 @@ var<workgroup> sh_dual: array<vec3<f32>, 64>;
 var<workgroup> sh_color: array<vec4<f32>, 64>;
 var<workgroup> sh_sem: array<u32, 64>;
 var<workgroup> sh_origin: vec3<u32>;
+var<workgroup> sh_tris: array<Triangle, TRI_CHUNK>;
 
 fn total_tiles() -> u32 {
     return params.tile_dims.x * params.tile_dims.y * params.tile_dims.z;
@@ -325,37 +327,53 @@ fn voxel_main(
         var semantic: u32 = 0u;
 
         if all(voxel_coord < vec3<u32>(params.resolution)) {
-            let voxel_min = params.min.xyz + vec3<f32>(voxel_coord) * params.voxel.xyz;
-            let center = voxel_min + params.voxel.xyz * 0.5;
+            let voxel_extent = params.voxel.xyz;
+            let voxel_min = params.min.xyz + vec3<f32>(voxel_coord) * voxel_extent;
+            let center = voxel_min + voxel_extent * 0.5;
 
             let range_end = at.start + at.len;
-            for (var i: u32 = at.start; i < range_end; i = i + 1u) {
-                let tri_idx = tile_indices[i];
-                let tri = tris[tri_idx];
-                let tri_min = tri.min.xyz;
-                let tri_max = tri.max.xyz;
-                if any(tri_min > voxel_min + params.voxel.xyz) || any(tri_max < voxel_min) {
-                    continue;
+            var chunk_start: u32 = at.start;
+            loop {
+                if chunk_start >= range_end {
+                    break;
                 }
-                let closest = closest_point_on_triangle(center, tri);
-                let dist = distance(center, closest);
-                if dist > params.half_diag {
-                    continue;
+                let chunk_count = min(TRI_CHUNK, range_end - chunk_start);
+                if lid.x < chunk_count {
+                    let tri_idx = tile_indices[chunk_start + lid.x];
+                    sh_tris[lid.x] = tris[tri_idx];
                 }
-                let offset = clamp(
-                    (closest - voxel_min) / params.voxel.xyz,
-                    vec3<f32>(0.0),
-                    vec3<f32>(1.0),
-                );
-                if tri_min.x < voxel_min.x && tri_max.x > voxel_min.x { mask = mask | 1u; }
-                if tri_min.y < voxel_min.y && tri_max.y > voxel_min.y { mask = mask | 2u; }
-                if tri_min.z < voxel_min.z && tri_max.z > voxel_min.z { mask = mask | 4u; }
-                dual_sum = dual_sum + offset;
-                color_sum = color_sum + tri.color;
-                if count == 0u {
-                    semantic = tri.semantic;
+                workgroupBarrier();
+
+                for (var j: u32 = 0u; j < chunk_count; j = j + 1u) {
+                    let tri = sh_tris[j];
+                    let tri_min = tri.min.xyz;
+                    let tri_max = tri.max.xyz;
+                    if any(tri_min > voxel_min + voxel_extent) || any(tri_max < voxel_min) {
+                        continue;
+                    }
+                    let closest = closest_point_on_triangle(center, tri);
+                    let dist = distance(center, closest);
+                    if dist > params.half_diag {
+                        continue;
+                    }
+                    let offset = clamp(
+                        (closest - voxel_min) / voxel_extent,
+                        vec3<f32>(0.0),
+                        vec3<f32>(1.0),
+                    );
+                    if tri_min.x < voxel_min.x && tri_max.x > voxel_min.x { mask = mask | 1u; }
+                    if tri_min.y < voxel_min.y && tri_max.y > voxel_min.y { mask = mask | 2u; }
+                    if tri_min.z < voxel_min.z && tri_max.z > voxel_min.z { mask = mask | 4u; }
+                    dual_sum = dual_sum + offset;
+                    color_sum = color_sum + tri.color;
+                    if count == 0u {
+                        semantic = tri.semantic;
+                    }
+                    count = count + 1u;
                 }
-                count = count + 1u;
+
+                workgroupBarrier();
+                chunk_start = chunk_start + chunk_count;
             }
         }
 

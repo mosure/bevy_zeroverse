@@ -1,7 +1,7 @@
 use std::{
     borrow::Cow,
     collections::HashMap,
-    sync::{OnceLock, mpsc},
+    sync::{Mutex, OnceLock, mpsc},
 };
 
 use bevy::{
@@ -104,13 +104,21 @@ fn is_ovoxel_enabled(config: Option<Res<crate::app::BevyZeroverseConfig>>) -> bo
 
 impl Plugin for OvoxelPlugin {
     fn build(&self, app: &mut App) {
+        app.add_message::<RegenerateSceneEvent>();
         app.register_type::<OvoxelExport>();
         app.register_type::<OvoxelVolume>();
         app.register_type::<OvoxelCache>();
-        app.add_systems(Update, tag_scene_roots.run_if(is_ovoxel_enabled));
-        app.add_systems(Update, process_ovoxel_exports.run_if(is_ovoxel_enabled));
-        app.add_systems(Update, collect_ovoxel_tasks.run_if(is_ovoxel_enabled));
-        app.add_systems(Update, reset_ovoxel_on_regen.run_if(is_ovoxel_enabled));
+        app.add_systems(
+            Update,
+            (
+                tag_scene_roots,
+                process_ovoxel_exports,
+                collect_ovoxel_tasks,
+                reset_ovoxel_on_regen,
+            )
+                .chain()
+                .run_if(is_ovoxel_enabled),
+        );
     }
 }
 
@@ -227,6 +235,20 @@ pub(crate) fn process_ovoxel_exports(
             .as_ref()
             .map(|c| c.ovoxel_mode)
             .unwrap_or(OvoxelMode::CpuAsync);
+        #[cfg(test)]
+        {
+            if !matches!(mode, OvoxelMode::GpuCompute) {
+                let volume = voxelize_triangles(&triangles, resolution, aabb, labels.clone());
+                let version = cache
+                    .map(|c| c.version.saturating_add(1))
+                    .unwrap_or(1);
+                commands
+                    .entity(root)
+                    .insert((volume, OvoxelCache { version }))
+                    .remove::<OvoxelTask>();
+                continue;
+            }
+        }
         let task = match mode {
             OvoxelMode::CpuAsync | OvoxelMode::Disabled => task_pool
                 .spawn(async move { voxelize_triangles(&triangles, resolution, aabb, labels) }),
@@ -610,6 +632,28 @@ struct GpuActiveCounter {
     _pad: u32,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+struct BufferKey {
+    device_id: usize,
+    tile_count: u64,
+    pair_cap: u32,
+    max_output: u32,
+}
+
+#[derive(Clone)]
+struct GpuBuffers {
+    key: BufferKey,
+    tile_meta: wgpu::Buffer,
+    tile_pairs: wgpu::Buffer,
+    active_counter: wgpu::Buffer,
+    scatter_indirect: wgpu::Buffer,
+    voxel_indirect: wgpu::Buffer,
+    active_tiles: wgpu::Buffer,
+    tile_indices: wgpu::Buffer,
+    output: wgpu::Buffer,
+    readback: wgpu::Buffer,
+}
+
 struct GpuPipeline {
     shared_bind_group_layout: wgpu::BindGroupLayout,
     state_bind_group_layout: wgpu::BindGroupLayout,
@@ -623,6 +667,134 @@ struct GpuPipeline {
 }
 
 static GPU_PIPELINE: OnceLock<GpuPipeline> = OnceLock::new();
+static GPU_BUFFER_POOL: OnceLock<Mutex<Vec<GpuBuffers>>> = OnceLock::new();
+
+fn buffer_pool() -> &'static Mutex<Vec<GpuBuffers>> {
+    GPU_BUFFER_POOL.get_or_init(|| Mutex::new(Vec::new()))
+}
+
+fn make_buffer_key(
+    device: &wgpu::Device,
+    tile_count: u64,
+    pair_cap: u32,
+    max_output: u32,
+) -> BufferKey {
+    BufferKey {
+        device_id: device as *const _ as usize,
+        tile_count,
+        pair_cap,
+        max_output,
+    }
+}
+
+fn acquire_buffers(
+    wgpu_device: &wgpu::Device,
+    tile_count: u64,
+    pair_cap: u32,
+    max_output_voxels: u32,
+) -> GpuBuffers {
+    let key = make_buffer_key(wgpu_device, tile_count, pair_cap, max_output_voxels);
+    let mut pool = buffer_pool().lock().expect("gpu buffer pool poisoned");
+    if let Some(entry) = pool.iter().position(|b| b.key == key) {
+        return pool.swap_remove(entry);
+    }
+    drop(pool);
+
+    let tile_meta_size = tile_count * std::mem::size_of::<u32>() as u64 * 3;
+    let pair_bytes = pair_cap as u64 * std::mem::size_of::<GpuTilePair>() as u64;
+    let active_tiles_bytes = tile_count * std::mem::size_of::<GpuActiveTile>() as u64;
+    let tile_indices_bytes = pair_cap as u64 * std::mem::size_of::<u32>() as u64;
+    let meta_bytes = std::mem::size_of::<GpuOutputMeta>() as u64;
+    let voxel_bytes = (max_output_voxels as usize * std::mem::size_of::<GpuVoxel>()) as u64;
+    let output_bytes = meta_bytes + voxel_bytes;
+
+    let tile_meta = wgpu_device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some("ovoxel_tile_meta"),
+        size: tile_meta_size,
+        usage: wgpu::BufferUsages::STORAGE
+            | wgpu::BufferUsages::COPY_DST
+            | wgpu::BufferUsages::COPY_SRC,
+        mapped_at_creation: false,
+    });
+    let tile_pairs = wgpu_device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some("ovoxel_tile_pairs"),
+        size: pair_bytes,
+        usage: wgpu::BufferUsages::STORAGE
+            | wgpu::BufferUsages::COPY_DST
+            | wgpu::BufferUsages::COPY_SRC,
+        mapped_at_creation: false,
+    });
+    let active_counter = wgpu_device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some("ovoxel_active_counter"),
+        size: std::mem::size_of::<GpuActiveCounter>() as u64,
+        usage: wgpu::BufferUsages::STORAGE
+            | wgpu::BufferUsages::COPY_DST
+            | wgpu::BufferUsages::COPY_SRC,
+        mapped_at_creation: false,
+    });
+    let scatter_indirect = wgpu_device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some("ovoxel_scatter_indirect"),
+        size: 3 * std::mem::size_of::<u32>() as u64,
+        usage: wgpu::BufferUsages::INDIRECT
+            | wgpu::BufferUsages::STORAGE
+            | wgpu::BufferUsages::COPY_DST,
+        mapped_at_creation: false,
+    });
+    let voxel_indirect = wgpu_device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some("ovoxel_voxel_indirect"),
+        size: 3 * std::mem::size_of::<u32>() as u64,
+        usage: wgpu::BufferUsages::INDIRECT
+            | wgpu::BufferUsages::STORAGE
+            | wgpu::BufferUsages::COPY_DST,
+        mapped_at_creation: false,
+    });
+    let active_tiles = wgpu_device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some("ovoxel_active_tiles"),
+        size: active_tiles_bytes,
+        usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+        mapped_at_creation: false,
+    });
+    let tile_indices = wgpu_device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some("ovoxel_tile_indices"),
+        size: tile_indices_bytes,
+        usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+        mapped_at_creation: false,
+    });
+    let output = wgpu_device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some("ovoxel_voxels"),
+        size: output_bytes,
+        usage: wgpu::BufferUsages::STORAGE
+            | wgpu::BufferUsages::COPY_SRC
+            | wgpu::BufferUsages::COPY_DST,
+        mapped_at_creation: false,
+    });
+    let readback = wgpu_device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some("ovoxel_readback"),
+        size: output_bytes,
+        usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
+        mapped_at_creation: false,
+    });
+
+    GpuBuffers {
+        key,
+        tile_meta,
+        tile_pairs,
+        active_counter,
+        scatter_indirect,
+        voxel_indirect,
+        active_tiles,
+        tile_indices,
+        output,
+        readback,
+    }
+}
+
+fn release_buffers(buffers: GpuBuffers) {
+    buffer_pool()
+        .lock()
+        .expect("gpu buffer pool poisoned")
+        .push(buffers);
+}
 
 fn voxelize_triangles_gpu(
     triangles: &[Triangle],
@@ -748,59 +920,6 @@ fn voxelize_triangles_gpu(
         usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
     });
 
-    let tile_meta_buffer = wgpu_device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("ovoxel_tile_meta"),
-        size: tile_count * std::mem::size_of::<u32>() as u64 * 3,
-        usage: wgpu::BufferUsages::STORAGE
-            | wgpu::BufferUsages::COPY_DST
-            | wgpu::BufferUsages::COPY_SRC,
-        mapped_at_creation: false,
-    });
-    let tile_pairs_buffer = wgpu_device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("ovoxel_tile_pairs"),
-        size: pair_cap as u64 * std::mem::size_of::<GpuTilePair>() as u64,
-        usage: wgpu::BufferUsages::STORAGE
-            | wgpu::BufferUsages::COPY_DST
-            | wgpu::BufferUsages::COPY_SRC,
-        mapped_at_creation: false,
-    });
-    let active_counter_buffer = wgpu_device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("ovoxel_active_counter"),
-        size: std::mem::size_of::<GpuActiveCounter>() as u64,
-        usage: wgpu::BufferUsages::STORAGE
-            | wgpu::BufferUsages::COPY_DST
-            | wgpu::BufferUsages::COPY_SRC,
-        mapped_at_creation: false,
-    });
-    let scatter_indirect_buffer = wgpu_device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("ovoxel_scatter_indirect"),
-        size: 3 * std::mem::size_of::<u32>() as u64,
-        usage: wgpu::BufferUsages::INDIRECT
-            | wgpu::BufferUsages::STORAGE
-            | wgpu::BufferUsages::COPY_DST,
-        mapped_at_creation: false,
-    });
-    let voxel_indirect_buffer = wgpu_device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("ovoxel_voxel_indirect"),
-        size: 3 * std::mem::size_of::<u32>() as u64,
-        usage: wgpu::BufferUsages::INDIRECT
-            | wgpu::BufferUsages::STORAGE
-            | wgpu::BufferUsages::COPY_DST,
-        mapped_at_creation: false,
-    });
-    let active_tiles_buffer = wgpu_device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("ovoxel_active_tiles"),
-        size: tile_count * std::mem::size_of::<GpuActiveTile>() as u64,
-        usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
-        mapped_at_creation: false,
-    });
-    let tile_indices_buffer = wgpu_device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("ovoxel_tile_indices"),
-        size: pair_cap as u64 * std::mem::size_of::<u32>() as u64,
-        usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
-        mapped_at_creation: false,
-    });
-
     let params_buffer = wgpu_device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("ovoxel_params"),
         size: GPU_PARAMS_SIZE,
@@ -812,20 +931,9 @@ fn voxelize_triangles_gpu(
     let meta_bytes = std::mem::size_of::<GpuOutputMeta>() as u64;
     let voxel_bytes = (max_output_voxels as usize * std::mem::size_of::<GpuVoxel>()) as u64;
     let output_bytes = meta_bytes + voxel_bytes;
-    let output_buffer = wgpu_device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("ovoxel_voxels"),
-        size: output_bytes,
-        usage: wgpu::BufferUsages::STORAGE
-            | wgpu::BufferUsages::COPY_SRC
-            | wgpu::BufferUsages::COPY_DST,
-        mapped_at_creation: false,
-    });
-    let readback = wgpu_device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("ovoxel_readback"),
-        size: output_bytes,
-        usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
-        mapped_at_creation: false,
-    });
+
+    let buffers = acquire_buffers(wgpu_device, tile_count, pair_cap, max_output_voxels);
+
     let pipeline = GPU_PIPELINE.get_or_init(|| {
         let shader = wgpu_device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("ovoxel_gpu"),
@@ -1071,15 +1179,15 @@ fn voxelize_triangles_gpu(
         entries: &[
             wgpu::BindGroupEntry {
                 binding: 0,
-                resource: tile_meta_buffer.as_entire_binding(),
+                resource: buffers.tile_meta.as_entire_binding(),
             },
             wgpu::BindGroupEntry {
                 binding: 1,
-                resource: tile_pairs_buffer.as_entire_binding(),
+                resource: buffers.tile_pairs.as_entire_binding(),
             },
             wgpu::BindGroupEntry {
                 binding: 2,
-                resource: active_counter_buffer.as_entire_binding(),
+                resource: buffers.active_counter.as_entire_binding(),
             },
         ],
     });
@@ -1090,11 +1198,11 @@ fn voxelize_triangles_gpu(
         entries: &[
             wgpu::BindGroupEntry {
                 binding: 0,
-                resource: scatter_indirect_buffer.as_entire_binding(),
+                resource: buffers.scatter_indirect.as_entire_binding(),
             },
             wgpu::BindGroupEntry {
                 binding: 1,
-                resource: voxel_indirect_buffer.as_entire_binding(),
+                resource: buffers.voxel_indirect.as_entire_binding(),
             },
         ],
     });
@@ -1105,15 +1213,15 @@ fn voxelize_triangles_gpu(
         entries: &[
             wgpu::BindGroupEntry {
                 binding: 0,
-                resource: active_tiles_buffer.as_entire_binding(),
+                resource: buffers.active_tiles.as_entire_binding(),
             },
             wgpu::BindGroupEntry {
                 binding: 1,
-                resource: tile_indices_buffer.as_entire_binding(),
+                resource: buffers.tile_indices.as_entire_binding(),
             },
             wgpu::BindGroupEntry {
                 binding: 2,
-                resource: output_buffer.as_entire_binding(),
+                resource: buffers.output.as_entire_binding(),
             },
         ],
     });
@@ -1122,11 +1230,11 @@ fn voxelize_triangles_gpu(
     let mut encoder = wgpu_device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
         label: Some("ovoxel_gpu_classify_encoder"),
     });
-    encoder.clear_buffer(&tile_meta_buffer, 0, None);
-    encoder.clear_buffer(&active_counter_buffer, 0, None);
-    encoder.clear_buffer(&scatter_indirect_buffer, 0, None);
-    encoder.clear_buffer(&voxel_indirect_buffer, 0, None);
-    encoder.clear_buffer(&output_buffer, 0, Some(meta_bytes));
+    encoder.clear_buffer(&buffers.tile_meta, 0, None);
+    encoder.clear_buffer(&buffers.active_counter, 0, None);
+    encoder.clear_buffer(&buffers.scatter_indirect, 0, None);
+    encoder.clear_buffer(&buffers.voxel_indirect, 0, None);
+    encoder.clear_buffer(&buffers.output, 0, Some(meta_bytes));
 
     {
         let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
@@ -1184,7 +1292,7 @@ fn voxelize_triangles_gpu(
         pass.set_bind_group(0, &shared_bind_group, &[]);
         pass.set_bind_group(1, &state_bind_group, &[]);
         pass.set_bind_group(2, &voxel_bind_group, &[]);
-        pass.dispatch_workgroups_indirect(&scatter_indirect_buffer, 0);
+        pass.dispatch_workgroups_indirect(&buffers.scatter_indirect, 0);
     }
 
     {
@@ -1196,16 +1304,16 @@ fn voxelize_triangles_gpu(
         pass.set_bind_group(0, &shared_bind_group, &[]);
         pass.set_bind_group(1, &state_bind_group, &[]);
         pass.set_bind_group(2, &voxel_bind_group, &[]);
-        pass.dispatch_workgroups_indirect(&voxel_indirect_buffer, 0);
+        pass.dispatch_workgroups_indirect(&buffers.voxel_indirect, 0);
     }
 
-    voxel_encoder.copy_buffer_to_buffer(&output_buffer, 0, &readback, 0, output_bytes);
+    voxel_encoder.copy_buffer_to_buffer(&buffers.output, 0, &buffers.readback, 0, output_bytes);
 
     wgpu_queue.submit(Some(voxel_encoder.finish()));
     // Ensure GPU completes before readback.
     let _ = wgpu_device.poll(wgpu::PollType::Wait);
 
-    let slice = readback.slice(..);
+    let slice = buffers.readback.slice(..);
     type BufferAsync = Result<(), wgpu::BufferAsyncError>;
     let (tx, rx): (mpsc::Sender<BufferAsync>, mpsc::Receiver<BufferAsync>) = mpsc::channel();
     slice.map_async(wgpu::MapMode::Read, move |res| {
@@ -1223,14 +1331,15 @@ fn voxelize_triangles_gpu(
 
     if overflowed {
         drop(data);
-        readback.unmap();
+        buffers.readback.unmap();
+        release_buffers(buffers);
         gpu_bail!("ovoxel GPU path overflowed sparse buffer");
     }
 
     if used == 0 {
         drop(data);
-        readback.unmap();
-        return Some(OvoxelVolume {
+        buffers.readback.unmap();
+        let volume = OvoxelVolume {
             coords: Vec::new(),
             dual_vertices: Vec::new(),
             intersected: Vec::new(),
@@ -1239,7 +1348,9 @@ fn voxelize_triangles_gpu(
             semantic_labels,
             resolution,
             aabb,
-        });
+        };
+        release_buffers(buffers);
+        return Some(volume);
     }
 
     type Packed = ([u32; 3], [u8; 3], u8, [u8; 4], u16);
@@ -1287,12 +1398,13 @@ fn voxelize_triangles_gpu(
         semantics.push(semantic);
     }
     drop(data);
-    readback.unmap();
+    buffers.readback.unmap();
     if coords.len() as u32 != used as u32 {
+        release_buffers(buffers);
         gpu_bail!("ovoxel GPU path returned mismatched voxel counts");
     }
 
-    Some(OvoxelVolume {
+    let volume = OvoxelVolume {
         coords,
         dual_vertices,
         intersected,
@@ -1301,7 +1413,9 @@ fn voxelize_triangles_gpu(
         semantic_labels,
         resolution,
         aabb,
-    })
+    };
+    release_buffers(buffers);
+    Some(volume)
 }
 
 const GPU_WGSL: &str = include_str!("../assets/shaders/ovoxel.wgsl");
