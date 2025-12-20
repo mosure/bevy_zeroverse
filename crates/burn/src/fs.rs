@@ -347,7 +347,7 @@ fn parse_ovoxel_from_tensors(
         intersected: Vec::with_capacity(zipped.len()),
         base_color: Vec::with_capacity(zipped.len()),
         semantics: Vec::with_capacity(zipped.len()),
-        semantic_labels: semantic_labels,
+        semantic_labels,
         resolution: *res.first().unwrap_or(&0),
         aabb: *aabb_data.first().unwrap_or(&[[0.0; 3]; 2]),
     };
@@ -1022,10 +1022,8 @@ pub fn save_sample_to_fs(
         ));
     }
 
-    if export_ovoxel {
-        if let Some(ref ov) = sample.ovoxel {
-            tensors.extend(build_ovoxel_tensor_views(ov)?);
-        }
+    if export_ovoxel && let Some(ref ov) = sample.ovoxel {
+        tensors.extend(build_ovoxel_tensor_views(ov)?);
     }
 
     let meta = serialize(tensors, None)?;

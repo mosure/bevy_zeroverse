@@ -78,23 +78,29 @@ fn zeroverse_gen_bin() -> PathBuf {
 
 fn headless_persistent_chunk_benchmark(c: &mut Criterion) {
     let bin = zeroverse_gen_bin();
-    let base_samples = 256usize;
-    let sample_mult = 3usize;
+    let base_samples = 96usize;
+    let sample_mult = 1usize;
     let chunk_size = 8usize;
     let samples_per_iter = base_samples * sample_mult;
-    let worker_counts = [1usize, 2, 4, 8, 16];
+    let worker_counts = [1usize, 2, 4, 8];
+    let ov_modes: &[Option<&str>] = &[None, Some("cpu-async"), Some("gpu-compute")];
 
     let mut group = c.benchmark_group("headless_chunk_pipeline_persistent");
-    group.sample_size(10);
+    group.sample_size(6);
     group.throughput(Throughput::Elements(samples_per_iter as u64));
 
     for &workers in &worker_counts {
-        group.bench_function(format!("workers_{workers}"), |b| {
-            b.iter_custom(|iters| {
-                let tmp = TempDir::new().expect("failed to create temp dir");
-                let start = std::time::Instant::now();
-                let mut cmd = Command::new(&bin);
-                cmd.arg("--output")
+        for &ov_mode in ov_modes {
+            let label = match ov_mode {
+                None => format!("workers_{workers}_ov_none"),
+                Some(mode) => format!("workers_{workers}_ov_{mode}"),
+            };
+            group.bench_function(label, |b| {
+                b.iter_custom(|iters| {
+                    let tmp = TempDir::new().expect("failed to create temp dir");
+                    let start = std::time::Instant::now();
+                    let mut cmd = Command::new(&bin);
+                    cmd.arg("--output")
                     .arg(tmp.path())
                     .arg("--workers")
                     .arg(workers.to_string())
@@ -110,21 +116,28 @@ fn headless_persistent_chunk_benchmark(c: &mut Criterion) {
                     .arg("96")
                     .arg("--height")
                     .arg("72")
+                    .arg("--timeout-secs")
+                    .arg("45")
                     .arg("--no-ui")
                     .arg("--per-process");
 
-                if let Ok(asset_root) = std::env::current_dir() {
-                    cmd.arg("--asset-root").arg(asset_root);
-                }
+                    if let Some(mode) = ov_mode {
+                        cmd.arg("--ov-mode").arg(mode);
+                    }
 
-                let status = cmd
+                    if let Ok(asset_root) = std::env::current_dir() {
+                        cmd.arg("--asset-root").arg(asset_root);
+                    }
+
+                    let status = cmd
                     .status()
                     .expect("failed to spawn per-process zeroverse_gen run");
                 assert!(status.success(), "child process exited with failure");
 
-                start.elapsed()
+                    start.elapsed()
+                });
             });
-        });
+        }
     }
 
     group.finish();
