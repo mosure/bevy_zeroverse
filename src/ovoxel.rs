@@ -1,10 +1,11 @@
 use std::{
     borrow::Cow,
     collections::HashMap,
-    sync::{Mutex, OnceLock, mpsc},
+    sync::{mpsc, Arc, Mutex, OnceLock},
 };
 
 use bevy::{
+    asset::{load_internal_asset, uuid_handle},
     prelude::*,
     render::{
         render_resource::*,
@@ -77,6 +78,9 @@ pub(crate) struct OvoxelTask(Task<OvoxelVolume>);
 
 pub struct OvoxelPlugin;
 
+pub const OVOXEL_SHADER_HANDLE: Handle<Shader> =
+    uuid_handle!("2c8cc5c9-a774-4e4c-b3a7-219894c3d2f2");
+
 const GPU_TILE_SIZE: u32 = 4;
 const GPU_MAX_OUTPUT_VOXELS: u32 = 2_000_000;
 const GPU_PARAMS_SIZE: u64 = 256;
@@ -101,8 +105,17 @@ fn is_ovoxel_enabled(config: Option<Res<crate::app::BevyZeroverseConfig>>) -> bo
     config.is_none_or(|c| !matches!(c.ovoxel_mode, crate::app::OvoxelMode::Disabled))
 }
 
+fn gpu_shader_source(shaders: &Assets<Shader>) -> Option<Arc<str>> {
+    shaders
+        .get(&OVOXEL_SHADER_HANDLE)
+        .map(|shader| Arc::<str>::from(shader.source.as_str()))
+}
+
 impl Plugin for OvoxelPlugin {
     fn build(&self, app: &mut App) {
+        app.init_resource::<Assets<Shader>>();
+        load_internal_asset!(app, OVOXEL_SHADER_HANDLE, "ovoxel.wgsl", Shader::from_wgsl);
+
         app.add_message::<RegenerateSceneEvent>();
         app.register_type::<OvoxelExport>();
         app.register_type::<OvoxelVolume>();
@@ -147,6 +160,7 @@ pub(crate) fn process_ovoxel_exports(
     )>,
     meshes: Res<Assets<Mesh>>,
     materials: Res<Assets<StandardMaterial>>,
+    shaders: Res<Assets<Shader>>,
     mesh_query: Query<(
         &Mesh3d,
         Option<&MeshMaterial3d<StandardMaterial>>,
@@ -246,14 +260,28 @@ pub(crate) fn process_ovoxel_exports(
                 if let (Some(device), Some(queue)) =
                     (render_device_owned.clone(), render_queue_owned.clone())
                 {
-                    task_pool.spawn(async move {
-                        voxelize_triangles_gpu(
-                            &triangles, resolution, aabb, labels, &device, &queue, true,
-                        )
-                        .unwrap_or_else(|| {
-                            panic!("GPU ovoxel requested but GPU path failed; aborting")
+                    if let Some(shader_source) = gpu_shader_source(&shaders) {
+                        task_pool.spawn(async move {
+                            voxelize_triangles_gpu(
+                                &triangles,
+                                resolution,
+                                aabb,
+                                labels,
+                                shader_source,
+                                &device,
+                                &queue,
+                                true,
+                            )
+                            .unwrap_or_else(|| {
+                                panic!("GPU ovoxel requested but GPU path failed; aborting")
+                            })
                         })
-                    })
+                    } else {
+                        warn!("ovoxel shader missing; falling back to CPU voxelization");
+                        task_pool.spawn(async move {
+                            voxelize_triangles(&triangles, resolution, aabb, labels)
+                        })
+                    }
                 } else {
                     panic!("GPU ovoxel requested but RenderDevice/RenderQueue unavailable");
                 }
@@ -792,6 +820,7 @@ fn voxelize_triangles_gpu(
     resolution: u32,
     aabb: [[f32; 3]; 2],
     semantic_labels: Vec<String>,
+    shader_source: Arc<str>,
     device: &RenderDevice,
     queue: &RenderQueue,
     strict: bool,
@@ -925,10 +954,11 @@ fn voxelize_triangles_gpu(
 
     let buffers = acquire_buffers(wgpu_device, tile_count, pair_cap, max_output_voxels);
 
-    let pipeline = GPU_PIPELINE.get_or_init(|| {
+    let shader_source = shader_source.clone();
+    let pipeline = GPU_PIPELINE.get_or_init(move || {
         let shader = wgpu_device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("ovoxel_gpu"),
-            source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(GPU_WGSL)),
+            source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(shader_source.as_ref())),
         });
 
         let shared_bind_group_layout =
@@ -1409,8 +1439,6 @@ fn voxelize_triangles_gpu(
     Some(volume)
 }
 
-const GPU_WGSL: &str = include_str!("../assets/shaders/ovoxel.wgsl");
-
 fn tag_scene_roots(
     mut commands: Commands,
     config: Option<Res<BevyZeroverseConfig>>,
@@ -1619,11 +1647,29 @@ mod tests {
         let labels = vec!["unlabeled".to_string(), "test".to_string()];
         let cpu = voxelize_triangles(&triangles, 8, aabb, labels.clone());
 
+        let shader_source = {
+            let mut shader_app = App::new();
+            shader_app.init_resource::<Assets<Shader>>();
+            load_internal_asset!(
+                shader_app,
+                OVOXEL_SHADER_HANDLE,
+                "ovoxel.wgsl",
+                Shader::from_wgsl
+            );
+            let shaders = shader_app
+                .world()
+                .get_resource::<Assets<Shader>>()
+                .expect("Assets<Shader> missing in shader test app");
+            gpu_shader_source(shaders)
+                .expect("ovoxel shader asset should be available for GPU test")
+        };
+
         let gpu = voxelize_triangles_gpu(
             &triangles,
             8,
             aabb,
             labels,
+            shader_source,
             &RenderDevice::from(device),
             &RenderQueue(WgpuWrapper::new(queue).into()),
             false,
