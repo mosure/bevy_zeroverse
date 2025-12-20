@@ -9,7 +9,7 @@ use bevy_zeroverse::{
     app::{BevyZeroverseConfig, OvoxelMode},
     headless,
     io::channels,
-    ovoxel::OvoxelVolume,
+    ovoxel::{OvoxelVolume, GPU_DEFAULT_MAX_OUTPUT_VOXELS},
     ovoxel_mesh::{ovoxel_to_mesh, ovoxel_to_semantic_mesh, write_mesh_as_glb},
     render::RenderMode,
     sample::Sample,
@@ -21,6 +21,10 @@ struct Args {
     /// Grid resolution used for voxelization.
     #[arg(long, default_value = "128")]
     resolution: u32,
+
+    /// Maximum number of voxels to read back from the GPU path.
+    #[arg(long, default_value_t = GPU_DEFAULT_MAX_OUTPUT_VOXELS)]
+    max_output_voxels: u32,
 
     /// Output directory for GLB exports.
     #[arg(long, default_value = "data/ovoxel_autoencode")]
@@ -61,6 +65,7 @@ fn main() -> Result<()> {
         scene_type: ZeroverseSceneType::SemanticRoom,
         ovoxel_resolution: args.resolution,
         ovoxel_mode: OvoxelMode::GpuCompute,
+        ovoxel_max_output_voxels: args.max_output_voxels,
         ..Default::default()
     };
 

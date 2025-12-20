@@ -51,6 +51,7 @@ pub struct GenConfig {
     pub export_ovoxel: bool,
     pub ov_mode: bevy_zeroverse::app::OvoxelMode,
     pub ov_resolution: u32,
+    pub ov_max_output_voxels: u32,
 }
 
 impl Default for GenConfig {
@@ -78,6 +79,7 @@ impl Default for GenConfig {
             export_ovoxel: false,
             ov_mode: bevy_zeroverse::app::OvoxelMode::CpuAsync,
             ov_resolution: 128,
+            ov_max_output_voxels: bevy_zeroverse::ovoxel::GPU_DEFAULT_MAX_OUTPUT_VOXELS,
         }
     }
 }
@@ -147,6 +149,7 @@ pub fn zeroverse_config_from_gen(
     scene_type: ZeroverseSceneType,
     ov_mode: bevy_zeroverse::app::OvoxelMode,
     ov_resolution: u32,
+    ov_max_output_voxels: u32,
 ) -> BevyZeroverseConfig {
     BevyZeroverseConfig {
         headless: true,
@@ -164,6 +167,7 @@ pub fn zeroverse_config_from_gen(
         scene_type,
         ovoxel_mode: ov_mode,
         ovoxel_resolution: ov_resolution,
+        ovoxel_max_output_voxels: ov_max_output_voxels,
         ..Default::default()
     }
 }
@@ -193,6 +197,7 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
         export_ovoxel,
         ov_mode,
         ov_resolution,
+        ov_max_output_voxels,
     } = config;
 
     let asset_root = asset_root
@@ -215,6 +220,7 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
         scene_type,
         ov_mode,
         ov_resolution,
+        ov_max_output_voxels,
     );
 
     let dataset = Arc::new(LiveDataset::new(LiveDatasetConfig {

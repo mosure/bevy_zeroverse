@@ -29,6 +29,10 @@ struct OvoxelTensorData {
     batch: usize,
 }
 
+fn coords_sorted(coords: &[[u32; 3]]) -> bool {
+    coords.windows(2).all(|w| w[0] <= w[1])
+}
+
 #[allow(dead_code)]
 fn push_ovoxel_tensors(
     tensors: &mut Vec<(&'static str, TensorView<'static>)>,
@@ -463,26 +467,61 @@ pub fn save_chunk(
 
         if export_ovoxel {
             if let Some(ref ov) = sample.ovoxel {
-                let mut zipped: Vec<OvoxelTuple> = ov
-                    .coords
-                    .iter()
-                    .zip(ov.dual_vertices.iter())
-                    .zip(ov.intersected.iter())
-                    .zip(ov.base_color.iter())
-                    .zip(ov.semantics.iter())
-                    .map(|((((c, d), i), bc), s)| (*c, *d, *i, *bc, *s))
-                    .collect();
-                zipped.sort_by(|a, b| a.0.cmp(&b.0));
                 let start = ov_coords.len() as i64;
-                let len = zipped.len() as i64;
-                ov_offsets.extend_from_slice(&[start, len]);
+                debug_assert_eq!(ov.coords.len(), ov.dual_vertices.len());
+                debug_assert_eq!(ov.coords.len(), ov.intersected.len());
+                debug_assert_eq!(ov.coords.len(), ov.base_color.len());
+                debug_assert_eq!(ov.coords.len(), ov.semantics.len());
 
-                for (c, d, i, bc, s) in zipped {
-                    ov_coords.extend_from_slice(&c);
-                    ov_dual.extend_from_slice(&d);
-                    ov_intersect.push(i);
-                    ov_base.extend_from_slice(&bc);
-                    ov_semantic.push(s);
+                if coords_sorted(&ov.coords) {
+                    let len = ov.coords.len() as i64;
+                    ov_offsets.extend_from_slice(&[start, len]);
+
+                    ov_coords.reserve(ov.coords.len() * 3);
+                    ov_dual.reserve(ov.dual_vertices.len() * 3);
+                    ov_intersect.reserve(ov.intersected.len());
+                    ov_base.reserve(ov.base_color.len() * 4);
+                    ov_semantic.reserve(ov.semantics.len());
+
+                    for c in &ov.coords {
+                        ov_coords.extend_from_slice(c);
+                    }
+                    for d in &ov.dual_vertices {
+                        ov_dual.extend_from_slice(d);
+                    }
+                    ov_intersect.extend_from_slice(&ov.intersected);
+                    for bc in &ov.base_color {
+                        ov_base.extend_from_slice(bc);
+                    }
+                    ov_semantic.extend_from_slice(&ov.semantics);
+                } else {
+                    let mut zipped: Vec<OvoxelTuple> = ov
+                        .coords
+                        .iter()
+                        .zip(ov.dual_vertices.iter())
+                        .zip(ov.intersected.iter())
+                        .zip(ov.base_color.iter())
+                        .zip(ov.semantics.iter())
+                        .map(|((((c, d), i), bc), s)| (*c, *d, *i, *bc, *s))
+                        .collect();
+                    zipped.sort_unstable_by(|a, b| a.0.cmp(&b.0));
+
+                    let len = zipped.len() as i64;
+                    ov_offsets.extend_from_slice(&[start, len]);
+
+                    ov_coords.reserve(zipped.len() * 3);
+                    ov_dual.reserve(zipped.len() * 3);
+                    ov_intersect.reserve(zipped.len());
+                    ov_base.reserve(zipped.len() * 4);
+                    ov_semantic.reserve(zipped.len());
+
+                    for (c, d, i, bc, s) in zipped {
+                        ov_coords.extend_from_slice(&c);
+                        ov_dual.extend_from_slice(&d);
+                        ov_intersect.push(i);
+                        ov_base.extend_from_slice(&bc);
+                        ov_semantic.push(s);
+                    }
                 }
 
                 ov_resolution.push(ov.resolution);

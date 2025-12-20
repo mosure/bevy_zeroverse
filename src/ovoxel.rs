@@ -82,24 +82,11 @@ pub const OVOXEL_SHADER_HANDLE: Handle<Shader> =
     uuid_handle!("2c8cc5c9-a774-4e4c-b3a7-219894c3d2f2");
 
 const GPU_TILE_SIZE: u32 = 4;
-const GPU_MAX_OUTPUT_VOXELS: u32 = 2_000_000;
+pub const GPU_DEFAULT_MAX_OUTPUT_VOXELS: u32 = 2_000_000;
+const GPU_BUFFER_POOL_LIMIT: usize = 4;
 const GPU_PARAMS_SIZE: u64 = 256;
 const GPU_PREFIX_WG: u32 = 256;
 const GPU_CLASSIFY_WG: u32 = 256;
-
-fn expand_bits(mut v: u32) -> u32 {
-    // Interleave lower 10 bits of v so the result fits in 30 bits.
-    v &= 0x3ff;
-    v = (v | (v << 16)) & 0x30000ff;
-    v = (v | (v << 8)) & 0x300f00f;
-    v = (v | (v << 4)) & 0x30c30c3;
-    v = (v | (v << 2)) & 0x9249249;
-    v
-}
-
-fn morton3(x: u32, y: u32, z: u32) -> u32 {
-    expand_bits(x) | (expand_bits(y) << 1) | (expand_bits(z) << 2)
-}
 
 fn is_ovoxel_enabled(config: Option<Res<crate::app::BevyZeroverseConfig>>) -> bool {
     config.is_none_or(|c| !matches!(c.ovoxel_mode, crate::app::OvoxelMode::Disabled))
@@ -248,6 +235,10 @@ pub(crate) fn process_ovoxel_exports(
             .as_ref()
             .map(|c| c.ovoxel_mode)
             .unwrap_or(OvoxelMode::CpuAsync);
+        let max_output_voxels = config
+            .as_ref()
+            .map(|c| c.ovoxel_max_output_voxels)
+            .unwrap_or(GPU_DEFAULT_MAX_OUTPUT_VOXELS);
 
         if matches!(mode, OvoxelMode::Disabled) {
             continue;
@@ -270,6 +261,7 @@ pub(crate) fn process_ovoxel_exports(
                                 shader_source,
                                 &device,
                                 &queue,
+                                max_output_voxels,
                                 true,
                             )
                             .unwrap_or_else(|| {
@@ -532,7 +524,8 @@ fn voxelize_triangles(
     }
 
     let mut keys: Vec<(u32, u32, u32)> = voxels.keys().cloned().collect();
-    keys.sort_unstable_by_key(|&(x, y, z)| morton3(x, y, z));
+    // Keep coords lexicographically ordered so downstream consumers can skip resorting.
+    keys.sort_unstable();
 
     let mut coords = Vec::with_capacity(keys.len());
     let mut dual_vertices = Vec::with_capacity(keys.len());
@@ -714,7 +707,16 @@ fn acquire_buffers(
 ) -> GpuBuffers {
     let key = make_buffer_key(wgpu_device, tile_count, pair_cap, max_output_voxels);
     let mut pool = buffer_pool().lock().expect("gpu buffer pool poisoned");
+    // Prefer exact match; otherwise reuse a superset (bigger buffers) for the same device/tile grid.
     if let Some(entry) = pool.iter().position(|b| b.key == key) {
+        return pool.swap_remove(entry);
+    }
+    if let Some(entry) = pool.iter().position(|b| {
+        b.key.device_id == key.device_id
+            && b.key.tile_count == key.tile_count
+            && b.key.pair_cap >= key.pair_cap
+            && b.key.max_output >= key.max_output
+    }) {
         return pool.swap_remove(entry);
     }
     drop(pool);
@@ -809,10 +811,30 @@ fn acquire_buffers(
 }
 
 fn release_buffers(buffers: GpuBuffers) {
+    let mut pool = buffer_pool()
+        .lock()
+        .expect("gpu buffer pool poisoned");
+    pool.push(buffers);
+    if pool.len() > GPU_BUFFER_POOL_LIMIT {
+        let to_remove = pool.len().saturating_sub(GPU_BUFFER_POOL_LIMIT);
+        pool.drain(0..to_remove);
+    }
+}
+
+/// Clears pooled GPU buffers; useful to avoid holding VRAM across long runs/tests.
+pub fn clear_gpu_buffer_pool() {
     buffer_pool()
         .lock()
         .expect("gpu buffer pool poisoned")
-        .push(buffers);
+        .clear();
+}
+
+#[cfg(test)]
+fn gpu_buffer_pool_len() -> usize {
+    buffer_pool()
+        .lock()
+        .expect("gpu buffer pool poisoned")
+        .len()
 }
 
 fn voxelize_triangles_gpu(
@@ -823,6 +845,7 @@ fn voxelize_triangles_gpu(
     shader_source: Arc<str>,
     device: &RenderDevice,
     queue: &RenderQueue,
+    max_output_voxels: u32,
     strict: bool,
 ) -> Option<OvoxelVolume> {
     macro_rules! gpu_bail {
@@ -850,7 +873,7 @@ fn voxelize_triangles_gpu(
     let aabb = [min.to_array(), max.to_array()];
     let voxel_size = extent / resolution as f32;
     let half_diag = voxel_size.length() * 0.5;
-    let max_output_voxels = GPU_MAX_OUTPUT_VOXELS.min(voxel_count as u32).max(1);
+    let max_output_voxels = max_output_voxels.max(1).min(voxel_count as u32);
 
     // Tile grid dimensions.
     let tile_dim = |d: u32| d.div_ceil(GPU_TILE_SIZE);
@@ -1402,9 +1425,8 @@ fn voxelize_triangles_gpu(
             )
         })
         .collect();
-    packed.sort_unstable_by(|a, b| {
-        morton3(a.0[0], a.0[1], a.0[2]).cmp(&morton3(b.0[0], b.0[1], b.0[2]))
-    });
+    // Keep coords lexicographically ordered so CPU-side chunking can avoid extra sorts.
+    packed.sort_unstable_by(|a, b| a.0.cmp(&b.0));
 
     let mut coords = Vec::with_capacity(packed.len());
     let mut dual_vertices = Vec::with_capacity(packed.len());
@@ -1672,6 +1694,7 @@ mod tests {
             shader_source,
             &RenderDevice::from(device),
             &RenderQueue(WgpuWrapper::new(queue).into()),
+            GPU_DEFAULT_MAX_OUTPUT_VOXELS,
             false,
         )
         .unwrap_or_else(|| {
@@ -1693,6 +1716,96 @@ mod tests {
         assert_eq!(cpu.semantics, gpu.semantics);
         assert_eq!(cpu.base_color, gpu.base_color);
         assert_eq!(cpu.resolution, gpu.resolution);
+    }
+
+    #[test]
+    fn gpu_buffer_pool_trims() {
+        clear_gpu_buffer_pool();
+
+        let instance = wgpu::Instance::default();
+        let adapter = match futures_lite::future::block_on(instance.request_adapter(
+            &wgpu::RequestAdapterOptions {
+                power_preference: wgpu::PowerPreference::LowPower,
+                compatible_surface: None,
+                force_fallback_adapter: false,
+            },
+        )) {
+            Ok(adapter) => adapter,
+            Err(err) => {
+                eprintln!("Skipping buffer pool trim test: request_adapter failed: {err:?}");
+                return;
+            }
+        };
+        let device_desc = wgpu::DeviceDescriptor {
+            label: Some("ovoxel_pool_test_device"),
+            required_features: wgpu::Features::empty(),
+            required_limits: wgpu::Limits::downlevel_defaults(),
+            memory_hints: wgpu::MemoryHints::Performance,
+            trace: wgpu::Trace::default(),
+        };
+        let Ok((device, _queue)) =
+            futures_lite::future::block_on(adapter.request_device(&device_desc))
+        else {
+            eprintln!("Skipping buffer pool trim test: request_device failed");
+            return;
+        };
+
+        // Push more buffers than the cap and ensure we trim back down.
+        for i in 0..(GPU_BUFFER_POOL_LIMIT as u64 + 2) {
+            let buffers = acquire_buffers(&device, 1 + i, 16, 16);
+            release_buffers(buffers);
+        }
+        assert!(
+            gpu_buffer_pool_len() <= GPU_BUFFER_POOL_LIMIT,
+            "pool should trim to limit after releases"
+        );
+
+        clear_gpu_buffer_pool();
+    }
+
+    #[test]
+    fn gpu_buffer_pool_reuses_supersets() {
+        clear_gpu_buffer_pool();
+
+        let instance = wgpu::Instance::default();
+        let adapter = match futures_lite::future::block_on(instance.request_adapter(
+            &wgpu::RequestAdapterOptions {
+                power_preference: wgpu::PowerPreference::LowPower,
+                compatible_surface: None,
+                force_fallback_adapter: false,
+            },
+        )) {
+            Ok(adapter) => adapter,
+            Err(err) => {
+                eprintln!("Skipping buffer pool reuse test: request_adapter failed: {err:?}");
+                return;
+            }
+        };
+        let device_desc = wgpu::DeviceDescriptor {
+            label: Some("ovoxel_pool_reuse_device"),
+            required_features: wgpu::Features::empty(),
+            required_limits: wgpu::Limits::downlevel_defaults(),
+            memory_hints: wgpu::MemoryHints::Performance,
+            trace: wgpu::Trace::default(),
+        };
+        let Ok((device, _queue)) =
+            futures_lite::future::block_on(adapter.request_device(&device_desc))
+        else {
+            eprintln!("Skipping buffer pool reuse test: request_device failed");
+            return;
+        };
+
+        let big = acquire_buffers(&device, 64, 128, 256);
+        release_buffers(big);
+        assert_eq!(gpu_buffer_pool_len(), 1);
+
+        // Smaller requirements should reuse the stored (larger) buffers.
+        let small = acquire_buffers(&device, 64, 64, 128);
+        assert_eq!(gpu_buffer_pool_len(), 0, "should pop from pool");
+        release_buffers(small);
+        assert_eq!(gpu_buffer_pool_len(), 1, "after release pool holds one entry");
+
+        clear_gpu_buffer_pool();
     }
 
     #[test]

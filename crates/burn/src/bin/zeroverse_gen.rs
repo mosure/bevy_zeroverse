@@ -131,8 +131,16 @@ struct Cli {
     ov_mode: bevy_zeroverse::app::OvoxelMode,
 
     /// Override O-Voxel resolution (0 = default)
-    #[arg(long, default_value_t = 128)]
+    #[arg(long, default_value_t = 256)]
     ov_resolution: u32,
+
+    /// Maximum number of voxels to read back from GPU path (upper bound on buffer size)
+    #[arg(
+        long = "ov-max-output-voxels",
+        alias = "ov-max-output",
+        default_value_t = bevy_zeroverse::ovoxel::GPU_DEFAULT_MAX_OUTPUT_VOXELS
+    )]
+    ov_max_output_voxels: u32,
 }
 
 fn main() -> Result<()> {
@@ -221,6 +229,8 @@ fn main() -> Result<()> {
                 .arg(ovoxel_mode_cli_name(&cli.ov_mode))
                 .arg("--ov-resolution")
                 .arg(cli.ov_resolution.to_string())
+                .arg("--ov-max-output")
+                .arg(cli.ov_max_output_voxels.to_string())
                 .arg("--chunk-size")
                 .arg(cli.chunk_size.to_string())
                 .arg("--samples")
@@ -298,5 +308,6 @@ fn main() -> Result<()> {
         export_ovoxel: !matches!(cli.ov_mode, bevy_zeroverse::app::OvoxelMode::Disabled),
         ov_mode: cli.ov_mode,
         ov_resolution: cli.ov_resolution,
+        ov_max_output_voxels: cli.ov_max_output_voxels,
     })
 }

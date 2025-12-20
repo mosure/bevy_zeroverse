@@ -45,6 +45,10 @@ pub struct OvoxelSample {
     pub aabb: [[f32; 3]; 2],
 }
 
+fn coords_sorted(coords: &[[u32; 3]]) -> bool {
+    coords.windows(2).all(|w| w[0] <= w[1])
+}
+
 #[derive(Clone, Debug, Default, Resource, Serialize, Deserialize, PartialEq)]
 pub struct Sample {
     pub views: Vec<View>,
@@ -317,30 +321,45 @@ pub fn sample_stream(
     } else {
         match ovoxels.iter().next() {
             Some(v) => {
-                #[allow(clippy::type_complexity)]
-                let mut zipped: Vec<([u32; 3], [u8; 3], u8, [u8; 4], u16)> = v
-                    .coords
-                    .iter()
-                    .zip(v.dual_vertices.iter())
-                    .zip(v.intersected.iter())
-                    .zip(v.base_color.iter())
-                    .zip(v.semantics.iter())
-                    .map(|((((c, d), i), bc), s)| (*c, *d, *i, *bc, *s))
-                    .collect();
-                // ensure lexicographic order on coords
-                zipped.sort_by(|a, b| a.0.cmp(&b.0));
-                let mut coords = Vec::with_capacity(zipped.len());
-                let mut dual_vertices = Vec::with_capacity(zipped.len());
-                let mut intersected = Vec::with_capacity(zipped.len());
-                let mut base_color = Vec::with_capacity(zipped.len());
-                let mut semantics = Vec::with_capacity(zipped.len());
-                for (c, d, i, bc, s) in zipped {
-                    coords.push(c);
-                    dual_vertices.push(d);
-                    intersected.push(i);
-                    base_color.push(bc);
-                    semantics.push(s);
+                let mut coords = v.coords.clone();
+                let mut dual_vertices = v.dual_vertices.clone();
+                let mut intersected = v.intersected.clone();
+                let mut base_color = v.base_color.clone();
+                let mut semantics = v.semantics.clone();
+
+                debug_assert_eq!(coords.len(), dual_vertices.len());
+                debug_assert_eq!(coords.len(), intersected.len());
+                debug_assert_eq!(coords.len(), base_color.len());
+                debug_assert_eq!(coords.len(), semantics.len());
+
+                if !coords_sorted(&coords) {
+                    #[allow(clippy::type_complexity)]
+                    let mut zipped: Vec<([u32; 3], [u8; 3], u8, [u8; 4], u16)> = coords
+                        .into_iter()
+                        .zip(dual_vertices.into_iter())
+                        .zip(intersected.into_iter())
+                        .zip(base_color.into_iter())
+                        .zip(semantics.into_iter())
+                        .map(|((((c, d), i), bc), s)| (c, d, i, bc, s))
+                        .collect();
+                    zipped.sort_unstable_by(|a, b| a.0.cmp(&b.0));
+
+                    let len = zipped.len();
+                    coords = Vec::with_capacity(len);
+                    dual_vertices = Vec::with_capacity(len);
+                    intersected = Vec::with_capacity(len);
+                    base_color = Vec::with_capacity(len);
+                    semantics = Vec::with_capacity(len);
+
+                    for (c, d, i, bc, s) in zipped {
+                        coords.push(c);
+                        dual_vertices.push(d);
+                        intersected.push(i);
+                        base_color.push(bc);
+                        semantics.push(s);
+                    }
                 }
+
                 let volume = OvoxelSample {
                     coords,
                     dual_vertices,

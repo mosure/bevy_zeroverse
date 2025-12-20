@@ -98,36 +98,36 @@ fn headless_persistent_chunk_benchmark(c: &mut Criterion) {
                     let start = std::time::Instant::now();
                     let mut cmd = Command::new(&bin);
                     cmd.arg("--output")
-                    .arg(tmp.path())
-                    .arg("--workers")
-                    .arg(workers.to_string())
-                    .arg("--chunk-size")
-                    .arg(chunk_size.to_string())
-                    .arg("--samples")
-                    .arg((samples_per_iter * iters as usize).to_string())
-                    .arg("--compression")
-                    .arg("none")
-                    .arg("--render-modes")
-                    .arg("color")
-                    .arg("--width")
-                    .arg("96")
-                    .arg("--height")
-                    .arg("72")
-                    .arg("--timeout-secs")
-                    .arg("45")
-                    .arg("--no-ui")
-                    .arg("--per-process")
-                    .arg("--ov-mode")
-                    .arg(ov_mode);
+                        .arg(tmp.path())
+                        .arg("--workers")
+                        .arg(workers.to_string())
+                        .arg("--chunk-size")
+                        .arg(chunk_size.to_string())
+                        .arg("--samples")
+                        .arg((samples_per_iter * iters as usize).to_string())
+                        .arg("--compression")
+                        .arg("none")
+                        .arg("--render-modes")
+                        .arg("color")
+                        .arg("--width")
+                        .arg("96")
+                        .arg("--height")
+                        .arg("72")
+                        .arg("--timeout-secs")
+                        .arg("45")
+                        .arg("--no-ui")
+                        .arg("--per-process")
+                        .arg("--ov-mode")
+                        .arg(ov_mode);
 
                     if let Ok(asset_root) = std::env::current_dir() {
                         cmd.arg("--asset-root").arg(asset_root);
                     }
 
                     let status = cmd
-                    .status()
-                    .expect("failed to spawn per-process zeroverse_gen run");
-                assert!(status.success(), "child process exited with failure");
+                        .status()
+                        .expect("failed to spawn per-process zeroverse_gen run");
+                    assert!(status.success(), "child process exited with failure");
 
                     start.elapsed()
                 });

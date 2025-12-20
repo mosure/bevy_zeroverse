@@ -47,6 +47,7 @@ use crate::{
     mesh::ShuffleMeshesEvent,
     // plucker::ZeroversePluckerSettings,
     primitive::ScaleSampler,
+    ovoxel::GPU_DEFAULT_MAX_OUTPUT_VOXELS,
     render::{depth::DepthFormat, RenderMode},
     scene::{
         room::ZeroverseRoomSettings, semantic_room::ZeroverseSemanticRoomSettings,
@@ -224,6 +225,11 @@ pub struct BevyZeroverseConfig {
     #[arg(long, default_value = "128")]
     pub ovoxel_resolution: u32,
 
+    /// Maximum number of voxels retained from the GPU path (upper bound on buffer size)
+    #[pyo3(get, set)]
+    #[arg(long, default_value = "2000000")]
+    pub ovoxel_max_output_voxels: u32,
+
     /// O-Voxel generation mode
     #[pyo3(get, set)]
     #[arg(long, value_enum, default_value_t = OvoxelMode::CpuAsync)]
@@ -377,6 +383,10 @@ pub struct BevyZeroverseConfig {
     #[arg(long, default_value = "128")]
     pub ovoxel_resolution: u32,
 
+    /// Maximum number of voxels retained from the GPU path (upper bound on buffer size)
+    #[arg(long, default_value = "2000000")]
+    pub ovoxel_max_output_voxels: u32,
+
     /// O-Voxel generation mode
     #[arg(long, value_enum, default_value_t = OvoxelMode::CpuAsync)]
     pub ovoxel_mode: OvoxelMode,
@@ -421,6 +431,7 @@ impl Default for BevyZeroverseConfig {
             z_depth: true,
             cuboid_only: false,
             ovoxel_resolution: 128,
+            ovoxel_max_output_voxels: GPU_DEFAULT_MAX_OUTPUT_VOXELS,
             ovoxel_mode: OvoxelMode::CpuAsync,
         }
     }
