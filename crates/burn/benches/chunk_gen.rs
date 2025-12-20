@@ -83,18 +83,15 @@ fn headless_persistent_chunk_benchmark(c: &mut Criterion) {
     let chunk_size = 8usize;
     let samples_per_iter = base_samples * sample_mult;
     let worker_counts = [1usize, 2, 4, 8];
-    let ov_modes: &[Option<&str>] = &[None, Some("cpu-async"), Some("gpu-compute")];
+    let ov_modes: &[(&str, &str)] = &[("ov_none", "disabled"), ("ov_cpu-async", "cpu-async"), ("ov_gpu-compute", "gpu-compute")];
 
     let mut group = c.benchmark_group("headless_chunk_pipeline_persistent");
-    group.sample_size(6);
+    group.sample_size(10);
     group.throughput(Throughput::Elements(samples_per_iter as u64));
 
     for &workers in &worker_counts {
-        for &ov_mode in ov_modes {
-            let label = match ov_mode {
-                None => format!("workers_{workers}_ov_none"),
-                Some(mode) => format!("workers_{workers}_ov_{mode}"),
-            };
+        for &(label_suffix, ov_mode) in ov_modes {
+            let label = format!("workers_{workers}_{label_suffix}");
             group.bench_function(label, |b| {
                 b.iter_custom(|iters| {
                     let tmp = TempDir::new().expect("failed to create temp dir");
@@ -119,11 +116,9 @@ fn headless_persistent_chunk_benchmark(c: &mut Criterion) {
                     .arg("--timeout-secs")
                     .arg("45")
                     .arg("--no-ui")
-                    .arg("--per-process");
-
-                    if let Some(mode) = ov_mode {
-                        cmd.arg("--ov-mode").arg(mode);
-                    }
+                    .arg("--per-process")
+                    .arg("--ov-mode")
+                    .arg(ov_mode);
 
                     if let Ok(asset_root) = std::env::current_dir() {
                         cmd.arg("--asset-root").arg(asset_root);

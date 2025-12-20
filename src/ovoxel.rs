@@ -234,22 +234,13 @@ pub(crate) fn process_ovoxel_exports(
             .as_ref()
             .map(|c| c.ovoxel_mode)
             .unwrap_or(OvoxelMode::CpuAsync);
-        #[cfg(test)]
-        {
-            if !matches!(mode, OvoxelMode::GpuCompute) {
-                let volume = voxelize_triangles(&triangles, resolution, aabb, labels.clone());
-                let version = cache
-                    .map(|c| c.version.saturating_add(1))
-                    .unwrap_or(1);
-                commands
-                    .entity(root)
-                    .insert((volume, OvoxelCache { version }))
-                    .remove::<OvoxelTask>();
-                continue;
-            }
+
+        if matches!(mode, OvoxelMode::Disabled) {
+            continue;
         }
+
         let task = match mode {
-            OvoxelMode::CpuAsync | OvoxelMode::Disabled => task_pool
+            OvoxelMode::CpuAsync => task_pool
                 .spawn(async move { voxelize_triangles(&triangles, resolution, aabb, labels) }),
             OvoxelMode::GpuCompute => {
                 if let (Some(device), Some(queue)) =
@@ -267,6 +258,7 @@ pub(crate) fn process_ovoxel_exports(
                     panic!("GPU ovoxel requested but RenderDevice/RenderQueue unavailable");
                 }
             }
+            OvoxelMode::Disabled => continue,
         };
 
         // Store the task so it can be polled to completion later.
@@ -1488,6 +1480,7 @@ mod tests {
     use super::*;
     use bevy::render::renderer::WgpuWrapper;
     use bevy::{MinimalPlugins, render::render_resource::PrimitiveTopology};
+    use std::thread;
 
     fn simple_triangle_mesh() -> Mesh {
         let mut mesh = Mesh::new(
@@ -1499,6 +1492,34 @@ mod tests {
             vec![[0.0, 0.0, 0.0], [0.5, 0.0, 0.0], [0.0, 0.5, 0.0]],
         );
         mesh
+    }
+
+    fn wait_for_volume(app: &mut App, root: Entity) -> OvoxelVolume {
+        wait_for_volume_with_limit(app, root, 300)
+    }
+
+    fn wait_for_volume_with_limit(app: &mut App, root: Entity, limit: usize) -> OvoxelVolume {
+        for _ in 0..limit {
+            app.update();
+            if let Some(v) = app.world().entity(root).get::<OvoxelVolume>() {
+                return v.clone();
+            }
+            thread::yield_now();
+        }
+        panic!("volume should be attached after {limit} updates");
+    }
+
+    fn wait_for_cache_version(app: &mut App, root: Entity, min_version: u64) -> OvoxelCache {
+        for _ in 0..300 {
+            app.update();
+            if let Some(cache) = app.world().entity(root).get::<OvoxelCache>() {
+                if cache.version >= min_version {
+                    return cache.clone();
+                }
+            }
+            thread::yield_now();
+        }
+        panic!("cache version did not reach {min_version}");
     }
 
     #[test]
@@ -1543,14 +1564,7 @@ mod tests {
 
         app.world_mut().entity_mut(root).add_child(child);
 
-        app.update();
-
-        let volume = app
-            .world()
-            .entity(root)
-            .get::<OvoxelVolume>()
-            .cloned()
-            .expect("volume should be attached");
+        let volume = wait_for_volume(&mut app, root);
 
         assert!(
             !volume.coords.is_empty(),
@@ -1671,14 +1685,7 @@ mod tests {
 
         app.world_mut().entity_mut(root).add_child(child);
 
-        app.update();
-
-        let volume = app
-            .world()
-            .entity(root)
-            .get::<OvoxelVolume>()
-            .cloned()
-            .expect("volume should be attached");
+        let volume = wait_for_volume(&mut app, root);
 
         assert_eq!(volume.resolution, 16);
         assert_eq!(volume.aabb, [[-1.0, -1.0, -1.0], [1.0, 1.0, 1.0]]);
@@ -1722,15 +1729,17 @@ mod tests {
 
         app.world_mut().entity_mut(root).add_child(child);
 
+        wait_for_volume(&mut app, root);
+        let cache = wait_for_cache_version(&mut app, root, 1);
+        // Extra ticks should not bump the cache if nothing changed.
         app.update();
         app.update();
-
-        let cache = app
+        let cache_after = app
             .world()
             .entity(root)
             .get::<OvoxelCache>()
-            .expect("cache should exist");
-        assert_eq!(cache.version, 1, "second update should be cached");
+            .expect("cache should exist after idle updates");
+        assert_eq!(cache_after.version, cache.version, "idle updates should be cached");
     }
 
     #[test]
@@ -1766,7 +1775,7 @@ mod tests {
 
         app.world_mut().entity_mut(root).add_child(child);
 
-        app.update();
+        wait_for_volume(&mut app, root);
 
         {
             let mut child_entity = app.world_mut().entity_mut(child);
@@ -1774,18 +1783,10 @@ mod tests {
             transform.translation = Vec3::new(1.0, 0.0, 0.0);
         }
 
+        // allow transform propagation to mark GlobalTransform changed
         app.update();
-        app.update(); // allow transform propagation to mark GlobalTransform changed
-
-        let cache = app
-            .world()
-            .entity(root)
-            .get::<OvoxelCache>()
-            .expect("cache should exist");
-        assert_eq!(
-            cache.version, 2,
-            "transform change should trigger recompute"
-        );
+        let cache = wait_for_cache_version(&mut app, root, 2);
+        assert_eq!(cache.version, 2, "transform change should trigger recompute");
     }
 
     #[test]
@@ -1839,16 +1840,7 @@ mod tests {
 
         app.world_mut().entity_mut(root).add_child(child);
 
-        for _ in 0..4 {
-            app.update();
-        }
-
-        let volume = app
-            .world()
-            .entity(root)
-            .get::<OvoxelVolume>()
-            .cloned()
-            .expect("volume should be attached");
+        let volume = wait_for_volume_with_limit(&mut app, root, 500);
 
         assert!(!volume.coords.is_empty());
         assert_eq!(volume.coords.len(), volume.semantics.len());

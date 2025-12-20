@@ -6,7 +6,7 @@ use image::{ImageBuffer, Rgba};
 use wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
 
 use bevy_zeroverse::{
-    app::BevyZeroverseConfig,
+    app::{BevyZeroverseConfig, OvoxelMode},
     headless,
     io::channels,
     ovoxel::OvoxelVolume,
@@ -60,6 +60,7 @@ fn main() -> Result<()> {
         num_cameras: 1,
         scene_type: ZeroverseSceneType::SemanticRoom,
         ovoxel_resolution: args.resolution,
+        ovoxel_mode: OvoxelMode::GpuCompute,
         ..Default::default()
     };
 
