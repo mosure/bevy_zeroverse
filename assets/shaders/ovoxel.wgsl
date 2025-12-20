@@ -87,8 +87,8 @@ struct DispatchArgs {
 @group(2) @binding(2) var<storage, read_write> voxel_buffer: VoxelBuffer;
 
 const TILE_SIZE: u32 = 4u;
-const GPU_SCATTER_WG: u32 = 256u;
-const TRI_CHUNK: u32 = 32u;
+const GPU_SCATTER_WG: u32 = 128u;
+const TRI_CHUNK: u32 = 64u;
 
 var<workgroup> sh_counts: array<u32, 64>;
 var<workgroup> sh_masks: array<u32, 64>;
@@ -163,7 +163,7 @@ fn closest_point_on_triangle(p: vec3<f32>, tri: Triangle) -> vec3<f32> {
     return a + ab * v + ac * w;
 }
 
-@compute @workgroup_size(64, 1, 1)
+@compute @workgroup_size(256, 1, 1)
 fn classify_tiles(@builtin(global_invocation_id) gid: vec3<u32>) {
     let tri_idx = gid.x;
     if tri_idx >= params.tri_count {
@@ -264,7 +264,7 @@ fn prepare_dispatch(@builtin(global_invocation_id) gid: vec3<u32>) {
     voxel_indirect.z = 1u;
 }
 
-@compute @workgroup_size(256, 1, 1)
+@compute @workgroup_size(128, 1, 1)
 fn scatter_pairs(@builtin(global_invocation_id) gid: vec3<u32>) {
     let pair_idx = gid.x;
     let total = min(atomicLoad(&active_counter.pair_cursor), params.pair_cap);

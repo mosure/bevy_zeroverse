@@ -81,8 +81,7 @@ const GPU_TILE_SIZE: u32 = 4;
 const GPU_MAX_OUTPUT_VOXELS: u32 = 2_000_000;
 const GPU_PARAMS_SIZE: u64 = 256;
 const GPU_PREFIX_WG: u32 = 256;
-#[allow(dead_code)]
-const GPU_SCATTER_WG: u32 = 256;
+const GPU_CLASSIFY_WG: u32 = 256;
 
 fn expand_bits(mut v: u32) -> u32 {
     // Interleave lower 10 bits of v so the result fits in 30 bits.
@@ -1244,7 +1243,7 @@ fn voxelize_triangles_gpu(
         pass.set_pipeline(&pipeline.classify_pipeline);
         pass.set_bind_group(0, &shared_bind_group, &[]);
         pass.set_bind_group(1, &state_bind_group, &[]);
-        let tri_dispatch = (triangles.len() as u32).div_ceil(64);
+        let tri_dispatch = (triangles.len() as u32).div_ceil(GPU_CLASSIFY_WG);
         pass.dispatch_workgroups(tri_dispatch.max(1), 1, 1);
     }
 
