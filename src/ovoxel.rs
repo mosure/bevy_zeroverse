@@ -663,6 +663,7 @@ struct GpuBuffers {
     active_tiles: wgpu::Buffer,
     tile_indices: wgpu::Buffer,
     output: wgpu::Buffer,
+    meta_readback: wgpu::Buffer,
     readback: wgpu::Buffer,
 }
 
@@ -714,8 +715,8 @@ fn acquire_buffers(
     if let Some(entry) = pool.iter().position(|b| {
         b.key.device_id == key.device_id
             && b.key.tile_count == key.tile_count
+            && b.key.max_output == key.max_output
             && b.key.pair_cap >= key.pair_cap
-            && b.key.max_output >= key.max_output
     }) {
         return pool.swap_remove(entry);
     }
@@ -728,6 +729,8 @@ fn acquire_buffers(
     let meta_bytes = std::mem::size_of::<GpuOutputMeta>() as u64;
     let voxel_bytes = (max_output_voxels as usize * std::mem::size_of::<GpuVoxel>()) as u64;
     let output_bytes = meta_bytes + voxel_bytes;
+    // output_bytes would be meta + voxel bytes here if we needed the full span.
+    // meta_bytes is reused below for readback sizing.
 
     let tile_meta = wgpu_device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("ovoxel_tile_meta"),
@@ -789,6 +792,12 @@ fn acquire_buffers(
             | wgpu::BufferUsages::COPY_DST,
         mapped_at_creation: false,
     });
+    let meta_readback = wgpu_device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some("ovoxel_meta_readback"),
+        size: meta_bytes,
+        usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
+        mapped_at_creation: false,
+    });
     let readback = wgpu_device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("ovoxel_readback"),
         size: output_bytes,
@@ -806,6 +815,7 @@ fn acquire_buffers(
         active_tiles,
         tile_indices,
         output,
+        meta_readback,
         readback,
     }
 }
@@ -936,6 +946,7 @@ fn voxelize_triangles_gpu(
     let pair_cap = pair_cap_estimate
         .saturating_add(pair_cap_estimate / 4 + tile_count)
         .clamp(1, 10_000_000) as u32;
+    let max_output_voxels = max_output_voxels.min(pair_cap).max(1);
 
     let params = GpuParams {
         min: [min.x, min.y, min.z, 0.0],
@@ -972,8 +983,6 @@ fn voxelize_triangles_gpu(
     wgpu_queue.write_buffer(&params_buffer, 0, bytemuck::bytes_of(&params));
 
     let meta_bytes = std::mem::size_of::<GpuOutputMeta>() as u64;
-    let voxel_bytes = (max_output_voxels as usize * std::mem::size_of::<GpuVoxel>()) as u64;
-    let output_bytes = meta_bytes + voxel_bytes;
 
     let buffers = acquire_buffers(wgpu_device, tile_count, pair_cap, max_output_voxels);
 
@@ -1351,14 +1360,73 @@ fn voxelize_triangles_gpu(
         pass.dispatch_workgroups_indirect(&buffers.voxel_indirect, 0);
     }
 
-    voxel_encoder.copy_buffer_to_buffer(&buffers.output, 0, &buffers.readback, 0, output_bytes);
+    // Copy out just the metadata first to discover how many voxels we need to read back.
+    voxel_encoder.copy_buffer_to_buffer(&buffers.output, 0, &buffers.meta_readback, 0, meta_bytes);
 
     wgpu_queue.submit(Some(voxel_encoder.finish()));
     // Ensure GPU completes before readback.
     let _ = wgpu_device.poll(wgpu::PollType::Wait);
 
-    let slice = buffers.readback.slice(..);
+    // Map metadata slice.
+    let meta_slice = buffers.meta_readback.slice(0..meta_bytes);
     type BufferAsync = Result<(), wgpu::BufferAsyncError>;
+    let (tx_meta, rx_meta): (mpsc::Sender<BufferAsync>, mpsc::Receiver<BufferAsync>) =
+        mpsc::channel();
+    meta_slice.map_async(wgpu::MapMode::Read, move |res| {
+        let _ = tx_meta.send(res);
+    });
+    let _ = wgpu_device.poll(wgpu::PollType::Wait);
+    rx_meta.recv().ok().and_then(Result::ok)?;
+    let meta_view = meta_slice.get_mapped_range();
+    debug_assert_eq!(meta_view.len() as u64, meta_bytes);
+    let meta: GpuOutputMeta = bytemuck::from_bytes::<GpuOutputMeta>(&meta_view).to_owned();
+    let used = meta.count.min(max_output_voxels);
+    let overflowed = meta.overflow > 0 || meta.count > max_output_voxels;
+    static LOG_COUNTS: OnceLock<bool> = OnceLock::new();
+    if *LOG_COUNTS.get_or_init(|| std::env::var("OVOXEL_LOG_COUNTS").is_ok()) {
+        static LOGGED: OnceLock<()> = OnceLock::new();
+        LOGGED.get_or_init(|| {
+            eprintln!(
+                "ovoxel gpu used={} overflow={} cap={}",
+                used, meta.overflow, max_output_voxels
+            );
+        });
+    }
+    drop(meta_view);
+    buffers.meta_readback.unmap();
+
+    if used == 0 {
+        let volume = OvoxelVolume {
+            coords: Vec::new(),
+            dual_vertices: Vec::new(),
+            intersected: Vec::new(),
+            base_color: Vec::new(),
+            semantics: Vec::new(),
+            semantic_labels,
+            resolution,
+            aabb,
+        };
+        release_buffers(buffers);
+        return Some(volume);
+    }
+
+    // Copy only the voxel payload actually produced.
+    let used_bytes = (used as u64).saturating_mul(std::mem::size_of::<GpuVoxel>() as u64);
+    let voxel_range = meta_bytes..(meta_bytes + used_bytes);
+    let mut copy_encoder = wgpu_device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+        label: Some("ovoxel_gpu_readback_copy_encoder"),
+    });
+    copy_encoder.copy_buffer_to_buffer(
+        &buffers.output,
+        meta_bytes,
+        &buffers.readback,
+        meta_bytes,
+        used_bytes,
+    );
+    wgpu_queue.submit(Some(copy_encoder.finish()));
+    let _ = wgpu_device.poll(wgpu::PollType::Wait);
+
+    let slice = buffers.readback.slice(voxel_range.clone());
     let (tx, rx): (mpsc::Sender<BufferAsync>, mpsc::Receiver<BufferAsync>) = mpsc::channel();
     slice.map_async(wgpu::MapMode::Read, move |res| {
         let _ = tx.send(res);
@@ -1366,16 +1434,17 @@ fn voxelize_triangles_gpu(
     let _ = wgpu_device.poll(wgpu::PollType::Wait);
     rx.recv().ok().and_then(Result::ok)?;
     let data = slice.get_mapped_range();
-    let meta: GpuOutputMeta =
-        bytemuck::from_bytes::<GpuOutputMeta>(&data[..meta_bytes as usize]).to_owned();
-    let used = meta.count.min(max_output_voxels);
-    let overflowed = meta.overflow > 0 || meta.count > max_output_voxels;
-    let voxels: &[GpuVoxel] = bytemuck::cast_slice(&data[meta_bytes as usize..]);
+    debug_assert_eq!(data.len() as u64, used_bytes);
+    let voxels: &[GpuVoxel] = bytemuck::cast_slice(&data);
     let used = used.min(voxels.len() as u32) as usize;
 
     if overflowed {
         drop(data);
         buffers.readback.unmap();
+        warn!(
+            "ovoxel GPU overflow: produced {} voxels, cap {} (overflow flag {})",
+            meta.count, max_output_voxels, meta.overflow
+        );
         release_buffers(buffers);
         gpu_bail!("ovoxel GPU path overflowed sparse buffer");
     }
@@ -1799,8 +1868,8 @@ mod tests {
         release_buffers(big);
         assert_eq!(gpu_buffer_pool_len(), 1);
 
-        // Smaller requirements should reuse the stored (larger) buffers.
-        let small = acquire_buffers(&device, 64, 64, 128);
+        // Smaller pair_cap with same max_output should reuse the stored buffers.
+        let small = acquire_buffers(&device, 64, 64, 256);
         assert_eq!(gpu_buffer_pool_len(), 0, "should pop from pool");
         release_buffers(small);
         assert_eq!(gpu_buffer_pool_len(), 1, "after release pool holds one entry");
