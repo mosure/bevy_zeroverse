@@ -385,15 +385,13 @@ fn main() -> Result<()> {
 
     let mut tui_handle = None;
     let tui_stop = Arc::new(AtomicBool::new(false));
-    if enable_ui {
-        if let Some(tracker) = progress_tracker.clone() {
-            tui_handle = Some(spawn_tui(
-                ui_config.clone(),
-                ProgressSource::Tracker(tracker),
-                tui_stop.clone(),
-                ui_refresh,
-            ));
-        }
+    if enable_ui && let Some(tracker) = progress_tracker.clone() {
+        tui_handle = Some(spawn_tui(
+            ui_config.clone(),
+            ProgressSource::Tracker(tracker),
+            tui_stop.clone(),
+            ui_refresh,
+        ));
     }
 
     let result = run_chunk_generation(GenConfig {
