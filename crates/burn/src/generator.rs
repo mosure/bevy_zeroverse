@@ -19,6 +19,7 @@ use crate::{
     compression::Compression,
     dataset::{LiveDataset, LiveDatasetConfig},
     fs::save_sample_to_fs,
+    progress::ProgressTracker,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -52,6 +53,7 @@ pub struct GenConfig {
     pub ov_mode: bevy_zeroverse::app::OvoxelMode,
     pub ov_resolution: u32,
     pub ov_max_output_voxels: u32,
+    pub progress: Option<Arc<ProgressTracker>>,
 }
 
 impl Default for GenConfig {
@@ -80,6 +82,7 @@ impl Default for GenConfig {
             ov_mode: bevy_zeroverse::app::OvoxelMode::CpuAsync,
             ov_resolution: 128,
             ov_max_output_voxels: bevy_zeroverse::ovoxel::GPU_DEFAULT_MAX_OUTPUT_VOXELS,
+            progress: None,
         }
     }
 }
@@ -172,6 +175,32 @@ pub fn zeroverse_config_from_gen(
     }
 }
 
+fn sample_has_signal(
+    sample: &crate::dataset::ZeroverseSample,
+    render_modes: &[RenderMode],
+    width: u32,
+    height: u32,
+) -> bool {
+    sample.views.iter().any(|view| {
+        render_modes.iter().any(|mode| {
+            let bytes: &[u8] = match mode {
+                RenderMode::Color => view.color.as_slice(),
+                RenderMode::Depth => view.depth.as_slice(),
+                RenderMode::Normal => view.normal.as_slice(),
+                RenderMode::OpticalFlow => view.optical_flow.as_slice(),
+                RenderMode::Position => view.position.as_slice(),
+                RenderMode::MotionVectors | RenderMode::Semantic => &[],
+            };
+            if bytes.is_empty() {
+                return false;
+            }
+            decode_rgba_bytes(bytes, width, height)
+                .map(|rgba| rgba.iter().any(|v| v.is_finite() && *v != 0.0))
+                .unwrap_or(false)
+        })
+    })
+}
+
 /// Run headless generation with persistent workers in the current process.
 pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
     let GenConfig {
@@ -198,6 +227,7 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
         ov_mode,
         ov_resolution,
         ov_max_output_voxels,
+        progress,
     } = config;
 
     let asset_root = asset_root
@@ -248,15 +278,10 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
 
     let mut handles = Vec::with_capacity(workers);
 
-    let sample_has_signal = move |sample: &crate::dataset::ZeroverseSample| -> bool {
-        sample.views.iter().any(|view| {
-            if view.color.is_empty() {
-                return false;
-            }
-            decode_rgba_bytes(&view.color, width, height)
-                .map(|rgba| rgba.iter().any(|v| v.is_finite() && *v != 0.0))
-                .unwrap_or(false)
-        })
+    let render_modes_for_signal = if render_modes.is_empty() {
+        vec![RenderMode::Color]
+    } else {
+        render_modes.clone()
     };
 
     const MAX_SAMPLE_RETRIES: usize = 32;
@@ -267,7 +292,9 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
         let sample_counter = Arc::clone(&sample_counter);
         let chunk_counter = Arc::clone(&chunk_counter);
         let samples_done = Arc::clone(&samples_done);
+        let progress = progress.clone();
         let worker_seed = base_seed.wrapping_add(worker_id as u64 + 1);
+        let render_modes_for_signal = render_modes_for_signal.clone();
         handles.push(thread::spawn(move || -> Result<()> {
             let mut _rng = StdRng::seed_from_u64(worker_seed);
 
@@ -281,7 +308,7 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
                 let mut attempts = 0usize;
                 let sample = loop {
                     let Some(sample) = dataset.get(idx) else { break None };
-                    if sample_has_signal(&sample) {
+                    if sample_has_signal(&sample, &render_modes_for_signal, width, height) {
                         break Some(sample);
                     }
                     attempts += 1;
@@ -291,10 +318,14 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
                 };
 
                 let Some(sample) = sample else { break };
-                if !sample_has_signal(&sample) {
+                if !sample_has_signal(&sample, &render_modes_for_signal, width, height) {
                     return Err(anyhow!(
                         "failed to capture non-empty sample {idx} after {MAX_SAMPLE_RETRIES} attempts"
                     ));
+                }
+
+                if let Some(progress) = progress.as_ref() {
+                    progress.record_samples(1);
                 }
 
                 match write_mode {
@@ -312,7 +343,11 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
                                 export_ovoxel,
                             )
                                 .with_context(|| format!("failed to save chunk {chunk_idx}"))?;
-                            samples_done.fetch_add(local.len(), Ordering::SeqCst);
+                            let saved = local.len();
+                            samples_done.fetch_add(saved, Ordering::SeqCst);
+                            if let Some(progress) = progress.as_ref() {
+                                progress.record_chunks(1);
+                            }
                             local.clear();
                         }
                     }
@@ -328,6 +363,9 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
                             .with_context(|| format!("failed to save sample {idx} to fs output"))?;
                         samples_done.fetch_add(1, Ordering::SeqCst);
                         chunk_counter.fetch_add(1, Ordering::SeqCst);
+                        if let Some(progress) = progress.as_ref() {
+                            progress.record_chunks(1);
+                        }
                     }
                 }
             }
@@ -344,7 +382,11 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
                     export_ovoxel,
                 )
                     .with_context(|| format!("failed to save final chunk {chunk_idx}"))?;
-                samples_done.fetch_add(local.len(), Ordering::SeqCst);
+                let saved = local.len();
+                samples_done.fetch_add(saved, Ordering::SeqCst);
+                if let Some(progress) = progress.as_ref() {
+                    progress.record_chunks(1);
+                }
             }
 
             Ok(())

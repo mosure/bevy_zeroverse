@@ -1,12 +1,24 @@
-use std::path::PathBuf;
+use std::{
+    io::IsTerminal,
+    net::{SocketAddr, UdpSocket},
+    path::PathBuf,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
+    thread,
+    time::Duration,
+};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::{Parser, ValueEnum};
 
 use bevy_zeroverse::{render::RenderMode, scene::ZeroverseSceneType};
 use bevy_zeroverse_burn::{
     compression::Compression,
     generator::{GenConfig, WriteMode, run_chunk_generation},
+    progress::{ProgressAggregator, ProgressMessage, ProgressTracker},
+    tui::{ProgressSource, UiConfig, spawn_tui},
 };
 
 #[derive(Copy, Clone, Debug, ValueEnum)]
@@ -114,9 +126,13 @@ struct Cli {
     #[arg(long)]
     seed: Option<u64>,
 
-    /// Disable the interactive TUI for non-interactive environments (no-op placeholder)
+    /// Disable the interactive TUI for non-interactive environments
     #[arg(long, default_value_t = false)]
     no_ui: bool,
+
+    /// TUI refresh interval in milliseconds
+    #[arg(long, default_value_t = 250)]
+    ui_refresh_ms: u64,
 
     /// Spawn one headless app per worker (multi-process). Otherwise workers share one app.
     #[arg(long, default_value_t = true)]
@@ -125,6 +141,14 @@ struct Cli {
     /// Internal flag set for spawned worker processes to avoid recursive spawning.
     #[arg(long, default_value_t = false, hide = true)]
     child_worker: bool,
+
+    /// Internal socket address for progress aggregation.
+    #[arg(long, hide = true)]
+    progress_addr: Option<SocketAddr>,
+
+    /// Internal worker id used by progress reporting.
+    #[arg(long, default_value_t = 0, hide = true)]
+    worker_id: usize,
 
     /// Export O-Voxel tensors into the written safetensors outputs.
     #[arg(long, value_enum, default_value_t = bevy_zeroverse::app::OvoxelMode::CpuAsync)]
@@ -145,6 +169,8 @@ struct Cli {
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
+    let enable_ui = !cli.no_ui && std::io::stdout().is_terminal();
+    let ui_refresh = Duration::from_millis(cli.ui_refresh_ms.max(50));
 
     fn render_mode_cli_name(mode: &RenderMode) -> &'static str {
         match mode {
@@ -162,6 +188,7 @@ fn main() -> Result<()> {
         OutputModeArg::Chunk => WriteMode::Chunk,
         OutputModeArg::Fs => WriteMode::Fs,
     };
+    let compression = cli.compression.into_compression();
 
     fn scene_type_cli_name(scene_type: &ZeroverseSceneType) -> &'static str {
         match scene_type {
@@ -186,6 +213,13 @@ fn main() -> Result<()> {
     } else {
         (cli.sample_offset, cli.chunk_offset)
     };
+    let ui_config = build_ui_config(
+        &cli,
+        write_mode,
+        base_sample_offset,
+        base_chunk_offset,
+        compression,
+    );
 
     // Spawn one process per worker if requested (outer orchestrator only).
     if cli.per_process && !cli.child_worker {
@@ -194,13 +228,37 @@ fn main() -> Result<()> {
         }
         let exe = std::env::current_exe()?;
         let base_seed = cli.seed.unwrap_or_else(rand::random);
-        let per_worker_samples = if cli.samples == 0 {
-            0
-        } else {
-            cli.samples.div_ceil(cli.workers)
-        };
+        let per_worker_samples = cli.samples.div_ceil(cli.workers.max(1));
 
         std::fs::create_dir_all(&cli.output)?;
+
+        let mut progress_listener = None;
+        let mut progress_addr = None;
+        let aggregator = if enable_ui {
+            Some(Arc::new(ProgressAggregator::new()))
+        } else {
+            None
+        };
+        if let Some(aggregator) = aggregator.clone() {
+            let socket = UdpSocket::bind("127.0.0.1:0").context("bind progress socket")?;
+            let addr = socket.local_addr().context("progress socket addr")?;
+            let stop = Arc::new(AtomicBool::new(false));
+            let handle = spawn_progress_listener(socket, aggregator, stop.clone());
+            progress_listener = Some((stop, handle));
+            progress_addr = Some(addr);
+        }
+
+        let mut tui_handle = None;
+        if let Some(aggregator) = aggregator {
+            let stop = Arc::new(AtomicBool::new(false));
+            let handle = spawn_tui(
+                ui_config.clone(),
+                ProgressSource::Aggregator(aggregator),
+                stop.clone(),
+                ui_refresh,
+            );
+            tui_handle = Some((stop, handle));
+        }
 
         let mut children = Vec::with_capacity(cli.workers);
         let mut start_index = base_sample_offset;
@@ -216,7 +274,7 @@ fn main() -> Result<()> {
                 .saturating_add(base_sample_offset)
                 .saturating_sub(start_index);
             let worker_samples = remaining.min(per_worker_samples);
-            let worker_chunk_span = worker_samples.div_ceil(cli.chunk_size);
+            let worker_chunk_span = worker_samples.div_ceil(cli.chunk_size.max(1));
             let worker_chunk_offset = next_chunk_offset;
             next_chunk_offset = next_chunk_offset.saturating_add(worker_chunk_span);
 
@@ -261,12 +319,21 @@ fn main() -> Result<()> {
                 .arg(cli.cameras.to_string())
                 .arg("--timeout-secs")
                 .arg(cli.timeout_secs.to_string())
+                .arg("--ui-refresh-ms")
+                .arg(cli.ui_refresh_ms.to_string())
                 .arg("--no-ui")
                 .arg("--child-worker")
                 .arg("--per-process");
 
             if let Some(asset_root) = &cli.asset_root {
                 cmd.arg("--asset-root").arg(asset_root);
+            }
+
+            if let Some(progress_addr) = progress_addr {
+                cmd.arg("--progress-addr")
+                    .arg(progress_addr.to_string())
+                    .arg("--worker-id")
+                    .arg(worker_idx.to_string());
             }
 
             cmd.arg("--seed")
@@ -276,16 +343,60 @@ fn main() -> Result<()> {
             start_index = start_index.saturating_add(worker_samples);
         }
 
+        let mut first_err = None;
         for mut child in children {
             let status = child.wait()?;
-            if !status.success() {
-                anyhow::bail!("worker process exited with failure: {status}");
+            if !status.success() && first_err.is_none() {
+                first_err = Some(anyhow::anyhow!("worker process exited with failure: {status}"));
             }
+        }
+
+        if let Some((stop, handle)) = progress_listener {
+            stop.store(true, Ordering::Release);
+            let _ = handle.join();
+        }
+        if let Some((stop, handle)) = tui_handle {
+            stop.store(true, Ordering::Release);
+            let _ = handle.join();
+        }
+
+        if let Some(err) = first_err {
+            return Err(err);
         }
         return Ok(());
     }
 
-    run_chunk_generation(GenConfig {
+    let progress_tracker = if enable_ui || cli.progress_addr.is_some() {
+        Some(Arc::new(ProgressTracker::new()))
+    } else {
+        None
+    };
+    let mut reporter_handle = None;
+    let reporter_stop = Arc::new(AtomicBool::new(false));
+    if let (Some(addr), Some(tracker)) = (cli.progress_addr, progress_tracker.clone()) {
+        reporter_handle = Some(spawn_progress_reporter(
+            addr,
+            tracker,
+            cli.worker_id,
+            reporter_stop.clone(),
+            ui_refresh,
+        ));
+    }
+
+    let mut tui_handle = None;
+    let tui_stop = Arc::new(AtomicBool::new(false));
+    if enable_ui {
+        if let Some(tracker) = progress_tracker.clone() {
+            tui_handle = Some(spawn_tui(
+                ui_config.clone(),
+                ProgressSource::Tracker(tracker),
+                tui_stop.clone(),
+                ui_refresh,
+            ));
+        }
+    }
+
+    let result = run_chunk_generation(GenConfig {
         output: cli.output.clone(),
         workers: cli.workers,
         chunk_size: cli.chunk_size,
@@ -294,20 +405,133 @@ fn main() -> Result<()> {
         chunk_offset: base_chunk_offset,
         playback_step: cli.playback_step,
         playback_steps: cli.playback_steps,
-        scene_type: cli.scene_type,
+        scene_type: cli.scene_type.clone(),
         asset_root: cli.asset_root.clone(),
-        compression: cli.compression.into_compression(),
+        compression,
         render_modes: cli.render_modes.clone(),
         timeout_secs: cli.timeout_secs,
         width: cli.width,
         height: cli.height,
         seed: cli.seed,
         cameras: cli.cameras,
-        enable_ui: !cli.no_ui,
+        enable_ui,
         write_mode,
         export_ovoxel: !matches!(cli.ov_mode, bevy_zeroverse::app::OvoxelMode::Disabled),
         ov_mode: cli.ov_mode,
         ov_resolution: cli.ov_resolution,
         ov_max_output_voxels: cli.ov_max_output_voxels,
+        progress: progress_tracker,
+    });
+
+    reporter_stop.store(true, Ordering::Release);
+    if let Some(handle) = reporter_handle {
+        let _ = handle.join();
+    }
+    tui_stop.store(true, Ordering::Release);
+    if let Some(handle) = tui_handle {
+        let _ = handle.join();
+    }
+
+    result
+}
+
+fn build_ui_config(
+    cli: &Cli,
+    write_mode: WriteMode,
+    sample_offset: usize,
+    chunk_offset: usize,
+    compression: Compression,
+) -> UiConfig {
+    UiConfig {
+        output: cli.output.clone(),
+        output_mode: write_mode,
+        chunk_size: cli.chunk_size,
+        samples: cli.samples,
+        sample_offset,
+        chunk_offset,
+        playback_step: cli.playback_step,
+        playback_steps: cli.playback_steps,
+        scene_type: cli.scene_type.clone(),
+        render_modes: cli.render_modes.clone(),
+        timeout_secs: cli.timeout_secs,
+        width: cli.width,
+        height: cli.height,
+        cameras: cli.cameras,
+        workers: cli.workers,
+        per_process: cli.per_process && !cli.child_worker,
+        compression,
+        asset_root: cli.asset_root.clone(),
+        ov_mode: cli.ov_mode,
+        ov_resolution: cli.ov_resolution,
+        ov_max_output_voxels: cli.ov_max_output_voxels,
+        seed: cli.seed,
+    }
+}
+
+fn spawn_progress_listener(
+    socket: UdpSocket,
+    aggregator: Arc<ProgressAggregator>,
+    stop: Arc<AtomicBool>,
+) -> thread::JoinHandle<()> {
+    thread::spawn(move || {
+        let mut buf = vec![0u8; 2048];
+        let _ = socket.set_nonblocking(true);
+        while !stop.load(Ordering::Acquire) {
+            match socket.recv_from(&mut buf) {
+                Ok((len, _addr)) => {
+                    if let Ok(message) = serde_json::from_slice::<ProgressMessage>(&buf[..len]) {
+                        aggregator.apply_message(message);
+                    }
+                }
+                Err(err) if err.kind() == std::io::ErrorKind::WouldBlock => {
+                    thread::sleep(Duration::from_millis(50));
+                }
+                Err(_) => {
+                    thread::sleep(Duration::from_millis(50));
+                }
+            }
+        }
     })
+}
+
+fn spawn_progress_reporter(
+    addr: SocketAddr,
+    tracker: Arc<ProgressTracker>,
+    worker_id: usize,
+    stop: Arc<AtomicBool>,
+    interval: Duration,
+) -> thread::JoinHandle<()> {
+    thread::spawn(move || {
+        let socket = match UdpSocket::bind("0.0.0.0:0") {
+            Ok(socket) => socket,
+            Err(err) => {
+                eprintln!("progress reporter bind failed: {err}");
+                return;
+            }
+        };
+
+        let interval = interval.max(Duration::from_millis(50));
+        loop {
+            let done = stop.load(Ordering::Acquire);
+            send_progress(&socket, addr, worker_id, &tracker, done);
+            if done {
+                break;
+            }
+            thread::sleep(interval);
+        }
+    })
+}
+
+fn send_progress(
+    socket: &UdpSocket,
+    addr: SocketAddr,
+    worker_id: usize,
+    tracker: &ProgressTracker,
+    done: bool,
+) {
+    let snapshot = tracker.snapshot();
+    let message = ProgressMessage::from_snapshot(worker_id, &snapshot, done);
+    if let Ok(payload) = serde_json::to_vec(&message) {
+        let _ = socket.send_to(&payload, addr);
+    }
 }
