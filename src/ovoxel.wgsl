@@ -88,16 +88,6 @@ struct DispatchArgs {
 
 const TILE_SIZE: u32 = 4u;
 const GPU_SCATTER_WG: u32 = 128u;
-const TRI_CHUNK: u32 = 64u;
-
-var<workgroup> sh_counts: array<u32, 64>;
-var<workgroup> sh_masks: array<u32, 64>;
-var<workgroup> sh_dual: array<vec3<f32>, 64>;
-var<workgroup> sh_color: array<vec4<f32>, 64>;
-var<workgroup> sh_sem: array<u32, 64>;
-var<workgroup> sh_origin: vec3<u32>;
-var<workgroup> sh_active_max: u32;
-var<workgroup> sh_tris: array<Triangle, TRI_CHUNK>;
 
 fn total_tiles() -> u32 {
     return params.tile_dims.x * params.tile_dims.y * params.tile_dims.z;
@@ -128,40 +118,50 @@ fn closest_point_on_triangle(p: vec3<f32>, tri: Triangle) -> vec3<f32> {
     let ap = p - a;
     let d1 = dot(ab, ap);
     let d2 = dot(ac, ap);
+    var result = a;
+
     if d1 <= 0.0 && d2 <= 0.0 {
-        return a;
+        result = a;
+    } else {
+        let bp = p - b;
+        let d3 = dot(ab, bp);
+        let d4 = dot(ac, bp);
+        if d3 >= 0.0 && d4 <= d3 {
+            result = b;
+        } else {
+            let vc = d1 * d4 - d3 * d2;
+            if vc <= 0.0 && d1 >= 0.0 && d3 <= 0.0 {
+                let v = d1 / (d1 - d3);
+                result = a + v * ab;
+            } else {
+                let cp = p - c;
+                let d5 = dot(ab, cp);
+                let d6 = dot(ac, cp);
+                if d6 >= 0.0 && d5 <= d6 {
+                    result = c;
+                } else {
+                    let vb = d5 * d2 - d1 * d6;
+                    if vb <= 0.0 && d2 >= 0.0 && d6 <= 0.0 {
+                        let w = d2 / (d2 - d6);
+                        result = a + w * ac;
+                    } else {
+                        let va = d3 * d6 - d5 * d4;
+                        if va <= 0.0 && (d4 - d3) >= 0.0 && (d5 - d6) >= 0.0 {
+                            let w = (d4 - d3) / ((d4 - d3) + (d5 - d6));
+                            result = b + w * (c - b);
+                        } else {
+                            let denom = 1.0 / (va + vb + vc);
+                            let v = vb * denom;
+                            let w = vc * denom;
+                            result = a + ab * v + ac * w;
+                        }
+                    }
+                }
+            }
+        }
     }
-    let bp = p - b;
-    let d3 = dot(ab, bp);
-    let d4 = dot(ac, bp);
-    if d3 >= 0.0 && d4 <= d3 {
-        return b;
-    }
-    let vc = d1 * d4 - d3 * d2;
-    if vc <= 0.0 && d1 >= 0.0 && d3 <= 0.0 {
-        let v = d1 / (d1 - d3);
-        return a + v * ab;
-    }
-    let cp = p - c;
-    let d5 = dot(ab, cp);
-    let d6 = dot(ac, cp);
-    if d6 >= 0.0 && d5 <= d6 {
-        return c;
-    }
-    let vb = d5 * d2 - d1 * d6;
-    if vb <= 0.0 && d2 >= 0.0 && d6 <= 0.0 {
-        let w = d2 / (d2 - d6);
-        return a + w * ac;
-    }
-    let va = d3 * d6 - d5 * d4;
-    if va <= 0.0 && (d4 - d3) >= 0.0 && (d5 - d6) >= 0.0 {
-        let w = (d4 - d3) / ((d4 - d3) + (d5 - d6));
-        return b + w * (c - b);
-    }
-    let denom = 1.0 / (va + vb + vc);
-    let v = vb * denom;
-    let w = vc * denom;
-    return a + ab * v + ac * w;
+
+    return result;
 }
 
 @compute @workgroup_size(256, 1, 1)
@@ -298,132 +298,83 @@ fn voxel_main(
     @builtin(local_invocation_id) lid: vec3<u32>,
 ) {
     let tile_idx = wid.x;
-    if lid.x == 0u {
-        sh_active_max = atomicLoad(&active_counter.active_count);
-    }
-    workgroupBarrier();
-    if tile_idx >= sh_active_max {
+    let active_max = atomicLoad(&active_counter.active_count);
+    if tile_idx >= active_max {
         return;
     }
+
     let at = active_tiles[tile_idx];
     if at.len == 0u {
         return;
     }
 
-    if lid.x == 0u {
-        let tiles_xy = params.tile_dims.x * params.tile_dims.y;
-        let tz = at.tile_id / tiles_xy;
-        let rem = at.tile_id - tz * tiles_xy;
-        let ty = rem / params.tile_dims.x;
-        let tx = rem - ty * params.tile_dims.x;
-        sh_origin = vec3<u32>(tx * TILE_SIZE, ty * TILE_SIZE, tz * TILE_SIZE);
-    }
-    workgroupBarrier();
+    let tiles_xy = params.tile_dims.x * params.tile_dims.y;
+    let tz = at.tile_id / tiles_xy;
+    let rem = at.tile_id - tz * tiles_xy;
+    let ty = rem / params.tile_dims.x;
+    let tx = rem - ty * params.tile_dims.x;
+    let origin = vec3<u32>(tx * TILE_SIZE, ty * TILE_SIZE, tz * TILE_SIZE);
 
-    let local_idx = lid.x;
-    if local_idx < 64u {
-        let local_coord = decode_morton_local(local_idx);
-        let voxel_coord = sh_origin + local_coord;
-        var count: u32 = 0u;
-        var dual_sum: vec3<f32> = vec3<f32>(0.0);
-        var color_sum: vec4<f32> = vec4<f32>(0.0);
-        var mask: u32 = 0u;
-        var semantic: u32 = 0u;
-
-        if all(voxel_coord < vec3<u32>(params.resolution)) {
-            let voxel_extent = params.voxel.xyz;
-            let voxel_min = params.min.xyz + vec3<f32>(voxel_coord) * voxel_extent;
-            let center = voxel_min + voxel_extent * 0.5;
-
-            let range_end = at.start + at.len;
-            var chunk_start: u32 = at.start;
-            loop {
-                if chunk_start >= range_end {
-                    break;
-                }
-                let chunk_count = min(TRI_CHUNK, range_end - chunk_start);
-                if lid.x < chunk_count {
-                    let tri_idx = tile_indices[chunk_start + lid.x];
-                    sh_tris[lid.x] = tris[tri_idx];
-                }
-                workgroupBarrier();
-
-                for (var j: u32 = 0u; j < chunk_count; j = j + 1u) {
-                    let tri = sh_tris[j];
-                    let tri_min = tri.min.xyz;
-                    let tri_max = tri.max.xyz;
-                    if any(tri_min > voxel_min + voxel_extent) || any(tri_max < voxel_min) {
-                        continue;
-                    }
-                    let closest = closest_point_on_triangle(center, tri);
-                    let dist = distance(center, closest);
-                    if dist > params.half_diag {
-                        continue;
-                    }
-                    let offset = clamp(
-                        (closest - voxel_min) / voxel_extent,
-                        vec3<f32>(0.0),
-                        vec3<f32>(1.0),
-                    );
-                    if tri_min.x < voxel_min.x && tri_max.x > voxel_min.x { mask = mask | 1u; }
-                    if tri_min.y < voxel_min.y && tri_max.y > voxel_min.y { mask = mask | 2u; }
-                    if tri_min.z < voxel_min.z && tri_max.z > voxel_min.z { mask = mask | 4u; }
-                    dual_sum = dual_sum + offset;
-                    color_sum = color_sum + tri.color;
-                    if count == 0u {
-                        semantic = tri.semantic;
-                    }
-                    count = count + 1u;
-                }
-
-                workgroupBarrier();
-                chunk_start = chunk_start + chunk_count;
-            }
-        }
-
-        sh_counts[local_idx] = count;
-        sh_masks[local_idx] = mask;
-        sh_dual[local_idx] = dual_sum;
-        sh_color[local_idx] = color_sum;
-        sh_sem[local_idx] = semantic;
+    let local_coord = decode_morton_local(lid.x);
+    let voxel_coord = origin + local_coord;
+    if any(voxel_coord >= vec3<u32>(params.resolution)) {
+        return;
     }
 
-    workgroupBarrier();
+    let voxel_extent = params.voxel.xyz;
+    let voxel_min = params.min.xyz + vec3<f32>(voxel_coord) * voxel_extent;
+    let center = voxel_min + voxel_extent * 0.5;
 
-    if lid.x == 0u {
-        var active_voxels: u32 = 0u;
-        for (var i: u32 = 0u; i < 64u; i = i + 1u) {
-            if sh_counts[i] > 0u {
-                active_voxels = active_voxels + 1u;
-            }
+    var count: u32 = 0u;
+    var dual_sum: vec3<f32> = vec3<f32>(0.0);
+    var color_sum: vec4<f32> = vec4<f32>(0.0);
+    var mask: u32 = 0u;
+    var semantic: u32 = 0u;
+
+    let range_end = at.start + at.len;
+    for (var idx: u32 = at.start; idx < range_end; idx = idx + 1u) {
+        let tri_idx = tile_indices[idx];
+        let tri = tris[tri_idx];
+        let tri_min = tri.min.xyz;
+        let tri_max = tri.max.xyz;
+        if any(tri_min > voxel_min + voxel_extent) || any(tri_max < voxel_min) {
+            continue;
         }
-        if active_voxels == 0u {
-            return;
+        let closest = closest_point_on_triangle(center, tri);
+        let dist = distance(center, closest);
+        if dist > params.half_diag {
+            continue;
         }
-        let base = atomicAdd(&voxel_buffer.header.count, active_voxels);
-        if base >= params.max_output {
-            _ = atomicAdd(&voxel_buffer.header.overflow, 1u);
-            return;
+        let offset = clamp(
+            (closest - voxel_min) / voxel_extent,
+            vec3<f32>(0.0),
+            vec3<f32>(1.0),
+        );
+        if tri_min.x < voxel_min.x && tri_max.x > voxel_min.x { mask = mask | 1u; }
+        if tri_min.y < voxel_min.y && tri_max.y > voxel_min.y { mask = mask | 2u; }
+        if tri_min.z < voxel_min.z && tri_max.z > voxel_min.z { mask = mask | 4u; }
+        dual_sum = dual_sum + offset;
+        color_sum = color_sum + tri.color;
+        if count == 0u {
+            semantic = tri.semantic;
         }
-        var cursor: u32 = 0u;
-        for (var i: u32 = 0u; i < 64u; i = i + 1u) {
-            if sh_counts[i] == 0u {
-                continue;
-            }
-            let write_idx = base + cursor;
-            if write_idx < params.max_output {
-                let local_coord = decode_morton_local(i);
-                let voxel_coord = sh_origin + local_coord;
-                voxel_buffer.voxels[write_idx].coord = voxel_coord;
-                voxel_buffer.voxels[write_idx].mask = sh_masks[i];
-                voxel_buffer.voxels[write_idx].dual_sum = sh_dual[i];
-                voxel_buffer.voxels[write_idx].color_sum = sh_color[i];
-                voxel_buffer.voxels[write_idx].semantic = sh_sem[i];
-                voxel_buffer.voxels[write_idx].count = sh_counts[i];
-            } else {
-                _ = atomicAdd(&voxel_buffer.header.overflow, 1u);
-            }
-            cursor = cursor + 1u;
-        }
+        count = count + 1u;
     }
+
+    if count == 0u {
+        return;
+    }
+
+    let write_idx = atomicAdd(&voxel_buffer.header.count, 1u);
+    if write_idx >= params.max_output {
+        _ = atomicAdd(&voxel_buffer.header.overflow, 1u);
+        return;
+    }
+
+    voxel_buffer.voxels[write_idx].coord = voxel_coord;
+    voxel_buffer.voxels[write_idx].mask = mask;
+    voxel_buffer.voxels[write_idx].dual_sum = dual_sum;
+    voxel_buffer.voxels[write_idx].color_sum = color_sum;
+    voxel_buffer.voxels[write_idx].semantic = semantic;
+    voxel_buffer.voxels[write_idx].count = count;
 }

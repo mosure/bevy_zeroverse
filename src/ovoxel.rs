@@ -713,7 +713,8 @@ fn acquire_buffers(
         return pool.swap_remove(entry);
     }
     if let Some(entry) = pool.iter().position(|b| {
-        b.key.tile_count == key.tile_count
+        b.key.device_id == key.device_id
+            && b.key.tile_count == key.tile_count
             && b.key.max_output >= key.max_output
             && b.key.pair_cap >= key.pair_cap
     }) {
@@ -1600,7 +1601,16 @@ mod tests {
     use super::*;
     use bevy::render::renderer::WgpuWrapper;
     use bevy::{MinimalPlugins, render::render_resource::PrimitiveTopology};
-    use std::thread;
+    use std::{
+        sync::{Mutex, OnceLock},
+        thread,
+    };
+
+    static GPU_TEST_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+
+    fn gpu_test_lock() -> &'static Mutex<()> {
+        GPU_TEST_LOCK.get_or_init(|| Mutex::new(()))
+    }
 
     fn simple_triangle_mesh() -> Mesh {
         let mut mesh = Mesh::new(
@@ -1700,6 +1710,9 @@ mod tests {
 
     #[test]
     fn gpu_matches_cpu_for_simple_triangle() {
+        let _guard = gpu_test_lock()
+            .lock()
+            .expect("gpu test lock poisoned");
         let instance = wgpu::Instance::default();
         let adapter = match futures_lite::future::block_on(instance.request_adapter(
             &wgpu::RequestAdapterOptions {
@@ -1790,6 +1803,9 @@ mod tests {
 
     #[test]
     fn gpu_buffer_pool_trims() {
+        let _guard = gpu_test_lock()
+            .lock()
+            .expect("gpu test lock poisoned");
         clear_gpu_buffer_pool();
 
         let instance = wgpu::Instance::default();
@@ -1835,6 +1851,9 @@ mod tests {
 
     #[test]
     fn gpu_buffer_pool_reuses_supersets() {
+        let _guard = gpu_test_lock()
+            .lock()
+            .expect("gpu test lock poisoned");
         clear_gpu_buffer_pool();
 
         let instance = wgpu::Instance::default();
