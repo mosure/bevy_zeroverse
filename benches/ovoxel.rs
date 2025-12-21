@@ -14,8 +14,6 @@ use bevy_zeroverse::{
 };
 use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
 use tempfile::TempDir;
-use wgpu;
-
 const MAX_FRAMES_PER_ITER: usize = 50_000;
 
 fn cube_mesh() -> Mesh {

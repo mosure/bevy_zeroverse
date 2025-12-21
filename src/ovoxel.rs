@@ -715,7 +715,7 @@ fn acquire_buffers(
     if let Some(entry) = pool.iter().position(|b| {
         b.key.device_id == key.device_id
             && b.key.tile_count == key.tile_count
-            && b.key.max_output == key.max_output
+            && b.key.max_output >= key.max_output
             && b.key.pair_cap >= key.pair_cap
     }) {
         return pool.swap_remove(entry);
@@ -847,6 +847,7 @@ fn gpu_buffer_pool_len() -> usize {
         .len()
 }
 
+#[allow(clippy::too_many_arguments)]
 fn voxelize_triangles_gpu(
     triangles: &[Triangle],
     resolution: u32,
@@ -987,14 +988,15 @@ fn voxelize_triangles_gpu(
     let buffers = acquire_buffers(wgpu_device, tile_count, pair_cap, max_output_voxels);
 
     let shader_source = shader_source.clone();
+    let device = wgpu_device.clone();
     let pipeline = GPU_PIPELINE.get_or_init(move || {
-        let shader = wgpu_device.create_shader_module(wgpu::ShaderModuleDescriptor {
+        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("ovoxel_gpu"),
             source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(shader_source.as_ref())),
         });
 
         let shared_bind_group_layout =
-            wgpu_device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: Some("ovoxel_gpu_shared_bgl"),
                 entries: &[
                     wgpu::BindGroupLayoutEntry {
@@ -1021,7 +1023,7 @@ fn voxelize_triangles_gpu(
             });
 
         let state_bind_group_layout =
-            wgpu_device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: Some("ovoxel_gpu_state_bgl"),
                 entries: &[
                     // packed tile metadata (counts, offsets, heads)
@@ -1061,7 +1063,7 @@ fn voxelize_triangles_gpu(
             });
 
         let dispatch_bind_group_layout =
-            wgpu_device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: Some("ovoxel_gpu_dispatch_bgl"),
                 entries: &[
                     wgpu::BindGroupLayoutEntry {
@@ -1088,7 +1090,7 @@ fn voxelize_triangles_gpu(
             });
 
         let voxel_bind_group_layout =
-            wgpu_device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: Some("ovoxel_gpu_voxel_bgl"),
                 entries: &[
                     wgpu::BindGroupLayoutEntry {
@@ -1125,13 +1127,13 @@ fn voxelize_triangles_gpu(
             });
 
         let classify_pipeline_layout =
-            wgpu_device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("ovoxel_gpu_classify_pl"),
                 bind_group_layouts: &[&shared_bind_group_layout, &state_bind_group_layout],
                 push_constant_ranges: &[],
             });
         let work_pipeline_layout =
-            wgpu_device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("ovoxel_gpu_work_pl"),
                 bind_group_layouts: &[
                     &shared_bind_group_layout,
@@ -1141,7 +1143,7 @@ fn voxelize_triangles_gpu(
                 push_constant_ranges: &[],
             });
         let prepare_pipeline_layout =
-            wgpu_device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("ovoxel_gpu_prepare_pl"),
                 bind_group_layouts: &[
                     &shared_bind_group_layout,
@@ -1153,7 +1155,7 @@ fn voxelize_triangles_gpu(
             });
 
         let classify_pipeline =
-            wgpu_device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+            device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
                 label: Some("ovoxel_gpu_classify_pipeline"),
                 layout: Some(&classify_pipeline_layout),
                 module: &shader,
@@ -1162,7 +1164,7 @@ fn voxelize_triangles_gpu(
                 cache: None,
             });
         let prefix_pipeline =
-            wgpu_device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+            device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
                 label: Some("ovoxel_gpu_prefix_pipeline"),
                 layout: Some(&work_pipeline_layout),
                 module: &shader,
@@ -1171,7 +1173,7 @@ fn voxelize_triangles_gpu(
                 cache: None,
             });
         let prepare_pipeline =
-            wgpu_device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+            device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
                 label: Some("ovoxel_gpu_prepare_pipeline"),
                 layout: Some(&prepare_pipeline_layout),
                 module: &shader,
@@ -1180,7 +1182,7 @@ fn voxelize_triangles_gpu(
                 cache: None,
             });
         let scatter_pipeline =
-            wgpu_device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+            device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
                 label: Some("ovoxel_gpu_scatter_pipeline"),
                 layout: Some(&work_pipeline_layout),
                 module: &shader,
@@ -1189,7 +1191,7 @@ fn voxelize_triangles_gpu(
                 cache: None,
             });
         let voxel_pipeline =
-            wgpu_device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+            device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
                 label: Some("ovoxel_gpu_pipeline"),
                 layout: Some(&work_pipeline_layout),
                 module: &shader,

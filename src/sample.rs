@@ -336,10 +336,10 @@ pub fn sample_stream(
                     #[allow(clippy::type_complexity)]
                     let mut zipped: Vec<([u32; 3], [u8; 3], u8, [u8; 4], u16)> = coords
                         .into_iter()
-                        .zip(dual_vertices.into_iter())
-                        .zip(intersected.into_iter())
-                        .zip(base_color.into_iter())
-                        .zip(semantics.into_iter())
+                        .zip(dual_vertices)
+                        .zip(intersected)
+                        .zip(base_color)
+                        .zip(semantics)
                         .map(|((((c, d), i), bc), s)| (c, d, i, bc, s))
                         .collect();
                     zipped.sort_unstable_by(|a, b| a.0.cmp(&b.0));

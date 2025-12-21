@@ -104,27 +104,28 @@ fn base_config(
     modes: &[RenderMode],
     playback_mode: PlaybackMode,
 ) -> BevyZeroverseConfig {
-    let mut cfg = BevyZeroverseConfig::default();
-    cfg.editor = false;
-    cfg.gizmos = false;
-    cfg.headless = true;
-    cfg.image_copiers = true;
-    cfg.press_esc_close = false;
-    cfg.keybinds = false;
-    cfg.width = 320.0;
-    cfg.height = 240.0;
-    cfg.num_cameras = 2;
-    cfg.camera_grid = false;
-    cfg.render_mode = modes[0].clone();
-    cfg.render_modes = modes.to_vec();
-    cfg.scene_type = scene;
-    cfg.playback_mode = playback_mode;
-    cfg.playback_speed = 0.6;
-    cfg.playback_step = 0.1;
-    cfg.playback_steps = 1;
-    cfg.depth_format = bevy_zeroverse::render::depth::DepthFormat::Normalized;
-    cfg.z_depth = true;
-    cfg
+    BevyZeroverseConfig {
+        editor: false,
+        gizmos: false,
+        headless: true,
+        image_copiers: true,
+        press_esc_close: false,
+        keybinds: false,
+        width: 320.0,
+        height: 240.0,
+        num_cameras: 2,
+        camera_grid: false,
+        render_mode: modes[0].clone(),
+        render_modes: modes.to_vec(),
+        scene_type: scene,
+        playback_mode,
+        playback_speed: 0.6,
+        playback_step: 0.1,
+        playback_steps: 1,
+        depth_format: bevy_zeroverse::render::depth::DepthFormat::Normalized,
+        z_depth: true,
+        ..Default::default()
+    }
 }
 
 fn scene_name(scene: &ZeroverseSceneType) -> &'static str {
@@ -167,12 +168,13 @@ fn sampler_state_for_config(cfg: &BevyZeroverseConfig) -> SamplerState {
         })
         .collect();
 
-    let mut state = SamplerState::default();
-    state.render_modes = render_modes;
-    state.timesteps = timesteps;
-    state.frames = 4;
-    state.warmup_frames = 4;
-    state
+    SamplerState {
+        render_modes,
+        timesteps,
+        frames: 4,
+        warmup_frames: 4,
+        ..Default::default()
+    }
 }
 
 fn apply_config(app: &mut App, cfg: &BevyZeroverseConfig) {
@@ -248,26 +250,26 @@ fn collect_sample(app: &mut App, cfg: &BevyZeroverseConfig) -> Result<Sample, Bo
                 let mut material_query = world.query::<&bevy::pbr::MeshMaterial3d<DepthMaterial>>();
                 let mut tag_query = world.query::<&bevy_zeroverse::render::depth::Depth>();
 
-                let mats = material_query.iter(&world).count();
-                let tags = tag_query.iter(&world).count();
+                let mats = material_query.iter(world).count();
+                let tags = tag_query.iter(world).count();
                 (mats, tags)
             };
             let normal_tag_count = {
                 let world = app.world_mut();
                 let mut normal_query = world.query::<&bevy_zeroverse::render::normal::Normal>();
-                normal_query.iter(&world).count()
+                normal_query.iter(world).count()
             };
             let position_tag_count = {
                 let world = app.world_mut();
                 let mut position_query =
                     world.query::<&bevy_zeroverse::render::position::Position>();
-                position_query.iter(&world).count()
+                position_query.iter(world).count()
             };
             let optical_flow_tag_count = {
                 let world = app.world_mut();
                 let mut flow_query =
                     world.query::<&bevy_zeroverse::render::optical_flow::OpticalFlow>();
-                flow_query.iter(&world).count()
+                flow_query.iter(world).count()
             };
 
             println!(

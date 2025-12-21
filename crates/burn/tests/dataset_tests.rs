@@ -116,6 +116,7 @@ fn run_headless_generation(
         export_ovoxel: true,
         ov_mode: OvoxelMode::CpuAsync,
         ov_resolution: 128,
+        ov_max_output_voxels: bevy_zeroverse::ovoxel::GPU_DEFAULT_MAX_OUTPUT_VOXELS,
     })
     .expect("headless generation should succeed");
 
@@ -153,6 +154,7 @@ fn run_generation_with_offsets(
         export_ovoxel: true,
         ov_mode: OvoxelMode::CpuAsync,
         ov_resolution: 128,
+        ov_max_output_voxels: bevy_zeroverse::ovoxel::GPU_DEFAULT_MAX_OUTPUT_VOXELS,
     })
     .expect("headless generation should succeed with offsets");
 }
@@ -413,6 +415,7 @@ fn resume_offsets_continue_fs_indices() {
         export_ovoxel: true,
         ov_mode: OvoxelMode::CpuAsync,
         ov_resolution: 128,
+        ov_max_output_voxels: bevy_zeroverse::ovoxel::GPU_DEFAULT_MAX_OUTPUT_VOXELS,
     })
     .expect("initial fs generation should succeed");
 
@@ -444,6 +447,7 @@ fn resume_offsets_continue_fs_indices() {
         export_ovoxel: true,
         ov_mode: OvoxelMode::CpuAsync,
         ov_resolution: 128,
+        ov_max_output_voxels: bevy_zeroverse::ovoxel::GPU_DEFAULT_MAX_OUTPUT_VOXELS,
     })
     .expect("fs resume generation should succeed");
 
@@ -484,6 +488,7 @@ fn resume_offsets_continue_chunk_indices() {
         export_ovoxel: true,
         ov_mode: OvoxelMode::CpuAsync,
         ov_resolution: 128,
+        ov_max_output_voxels: bevy_zeroverse::ovoxel::GPU_DEFAULT_MAX_OUTPUT_VOXELS,
     })
     .expect("initial chunk generation should succeed");
 
@@ -515,6 +520,7 @@ fn resume_offsets_continue_chunk_indices() {
         export_ovoxel: true,
         ov_mode: OvoxelMode::CpuAsync,
         ov_resolution: 128,
+        ov_max_output_voxels: bevy_zeroverse::ovoxel::GPU_DEFAULT_MAX_OUTPUT_VOXELS,
     })
     .expect("resumed chunk generation should succeed");
 
