@@ -687,13 +687,13 @@ fn buffer_pool() -> &'static Mutex<Vec<GpuBuffers>> {
 }
 
 fn make_buffer_key(
+    device: &wgpu::Device,
     tile_count: u64,
     pair_cap: u32,
     max_output: u32,
 ) -> BufferKey {
     BufferKey {
-        // Device pointer addresses are not stable across calls; we only pool per-tile-grid.
-        device_id: 0,
+        device_id: device as *const _ as usize,
         tile_count,
         pair_cap,
         max_output,
@@ -706,7 +706,7 @@ fn acquire_buffers(
     pair_cap: u32,
     max_output_voxels: u32,
 ) -> GpuBuffers {
-    let key = make_buffer_key(tile_count, pair_cap, max_output_voxels);
+    let key = make_buffer_key(wgpu_device, tile_count, pair_cap, max_output_voxels);
     let mut pool = buffer_pool().lock().expect("gpu buffer pool poisoned");
     // Prefer exact match; otherwise reuse a superset (bigger buffers) for the same device/tile grid.
     if let Some(entry) = pool.iter().position(|b| b.key == key) {
