@@ -52,9 +52,6 @@ fn push_ovoxel_tensors(
         batch,
     } = data;
 
-    if coords.is_empty() {
-        return Ok(());
-    }
     let coords_ref = leak_bytes(cast_slice(&coords).to_vec());
     let dual_len = dual.len();
     let dual_ref = leak_bytes(dual);
@@ -467,7 +464,7 @@ pub fn save_chunk(
 
         if export_ovoxel {
             if let Some(ref ov) = sample.ovoxel {
-                let start = ov_coords.len() as i64;
+                let start = (ov_coords.len() / 3) as i64;
                 debug_assert_eq!(ov.coords.len(), ov.dual_vertices.len());
                 debug_assert_eq!(ov.coords.len(), ov.intersected.len());
                 debug_assert_eq!(ov.coords.len(), ov.base_color.len());
@@ -536,7 +533,7 @@ pub fn save_chunk(
                 ov_semantic_labels.extend(label_bytes);
             } else {
                 // Keep alignment with placeholder offsets and metadata.
-                ov_offsets.extend_from_slice(&[ov_coords.len() as i64, 0]);
+                ov_offsets.extend_from_slice(&[(ov_coords.len() / 3) as i64, 0]);
                 ov_resolution.push(0);
                 ov_aabb.extend_from_slice(&[0.0; 6]);
                 ov_semantic_label_offsets.extend_from_slice(&[ov_semantic_labels.len() as i64, 0]);
@@ -976,8 +973,7 @@ pub fn load_chunk(path: impl AsRef<Path>) -> Result<Vec<ZeroverseSample>> {
             }
             let end = (start + len).min(coords.len());
             let mut slice: Vec<OvoxelTuple> = Vec::with_capacity(end - start);
-            for (local_idx, coord) in coords.iter().enumerate().skip(start).take(end - start) {
-                let i = start + local_idx;
+            for (i, coord) in coords.iter().enumerate().skip(start).take(end - start) {
                 slice.push((
                     *coord,
                     dual.get(i).copied().unwrap_or([0, 0, 0]),
@@ -1171,6 +1167,25 @@ mod tests {
         }
     }
 
+    fn sample_with_single_ovoxel() -> ZeroverseSample {
+        ZeroverseSample {
+            views: vec![bevy_zeroverse::sample::View::default()],
+            view_dim: 1,
+            aabb: [[-2.0, -2.0, -2.0], [2.0, 2.0, 2.0]],
+            object_obbs: vec![],
+            ovoxel: Some(bevy_zeroverse::sample::OvoxelSample {
+                coords: vec![[5, 0, 0]],
+                dual_vertices: vec![[7, 8, 9]],
+                intersected: vec![4],
+                base_color: vec![[90, 100, 110, 120]],
+                semantics: vec![9],
+                semantic_labels: vec!["unlabeled".to_string(), "lamp".to_string()],
+                resolution: 32,
+                aabb: [[-0.75, -0.75, -0.75], [0.75, 0.75, 0.75]],
+            }),
+        }
+    }
+
     #[test]
     fn chunk_roundtrips_object_obbs_without_metadata() {
         let tmp = tempdir().unwrap();
@@ -1224,5 +1239,42 @@ mod tests {
         assert!(ov.semantic_labels.contains(&"chair".to_string()));
         assert_eq!(ov.resolution, 16);
         assert_eq!(ov.aabb, [[-0.5, -0.5, -0.5], [0.5, 0.5, 0.5]]);
+    }
+
+    #[test]
+    fn chunk_writes_ovoxel_tensors_with_offsets() {
+        let tmp = tempdir().unwrap();
+        let path = save_chunk(
+            &[sample_with_ovoxel(), sample_with_single_ovoxel()],
+            tmp.path(),
+            0,
+            Compression::None,
+            1,
+            1,
+            true,
+        )
+        .unwrap();
+
+        let raw = std::fs::read(&path).unwrap();
+        let tensors = SafeTensors::deserialize(&raw).unwrap();
+        assert!(tensors.tensor("ovoxel_coords").is_ok());
+        assert!(tensors.tensor("ovoxel_offsets").is_ok());
+        assert!(tensors.tensor("ovoxel_resolution").is_ok());
+        assert!(tensors.tensor("ovoxel_aabb").is_ok());
+
+        let offsets: &[[i64; 2]] = cast_slice(tensors.tensor("ovoxel_offsets").unwrap().data());
+        assert_eq!(offsets, &[[0, 2], [2, 1]]);
+
+        let loaded = load_chunk(&path).unwrap();
+        assert_eq!(loaded.len(), 2);
+        let ov = loaded[1].ovoxel.as_ref().expect("second ov should roundtrip");
+        assert_eq!(ov.coords, vec![[5, 0, 0]]);
+        assert_eq!(ov.dual_vertices, vec![[7, 8, 9]]);
+        assert_eq!(ov.intersected, vec![4]);
+        assert_eq!(ov.base_color, vec![[90, 100, 110, 120]]);
+        assert_eq!(ov.semantics, vec![9]);
+        assert_eq!(ov.semantic_labels, vec!["unlabeled".to_string(), "lamp".to_string()]);
+        assert_eq!(ov.resolution, 32);
+        assert_eq!(ov.aabb, [[-0.75, -0.75, -0.75], [0.75, 0.75, 0.75]]);
     }
 }

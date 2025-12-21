@@ -1115,6 +1115,11 @@ mod tests {
             !scene_dir.join("ovoxel.vxz").exists(),
             "fs output should store ovoxel data in meta.safetensors"
         );
+        let meta_bytes = std::fs::read(scene_dir.join("meta.safetensors")).unwrap();
+        let tensors = SafeTensors::deserialize(&meta_bytes).unwrap();
+        assert!(tensors.tensor("ovoxel_coords").is_ok());
+        assert!(tensors.tensor("ovoxel_dual_vertices").is_ok());
+        assert!(tensors.tensor("ovoxel_semantic_labels").is_ok());
 
         let loaded = load_sample_dir(scene_dir).expect("load should succeed");
         let ov = loaded.ovoxel.expect("ovoxel should roundtrip");
