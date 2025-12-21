@@ -691,7 +691,7 @@ fn render_throughput_chart(
         .block(
             Block::default()
                 .title(Span::styled(
-                    "Throughput (samples/s)",
+                    "throughput (samples/s)",
                     palette.block_title,
                 ))
                 .borders(Borders::ALL)

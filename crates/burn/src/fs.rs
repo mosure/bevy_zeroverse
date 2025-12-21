@@ -624,7 +624,7 @@ pub fn load_sample_dir(dir: impl AsRef<Path>) -> Result<ZeroverseSample> {
         }
     }
 
-    // Optional O-Voxel payload from ovxel.vxz
+    // Legacy O-Voxel payload from ovxel.vxz
     if sample.ovoxel.is_none() {
         let ov_path = dir.join("ovoxel.vxz");
         if ov_path.exists()
@@ -1029,13 +1029,6 @@ pub fn save_sample_to_fs(
     let meta = serialize(tensors, None)?;
     fs::write(scene_dir.join(META_FILE), meta)?;
 
-    // Optional O-Voxel export
-    if let Some(ref ov) = sample.ovoxel {
-        let tensors = build_ovoxel_tensor_views(ov)?;
-        let blob = serialize(tensors, None)?;
-        fs::write(scene_dir.join("ovoxel.vxz"), blob)?;
-    }
-
     Ok(scene_dir)
 }
 
@@ -1118,6 +1111,10 @@ mod tests {
         let sample = sample_with_ovoxel();
         let scene_dir =
             save_sample_to_fs(&sample, tmp.path(), 0, 1, 1, true).expect("save should succeed");
+        assert!(
+            !scene_dir.join("ovoxel.vxz").exists(),
+            "fs output should store ovoxel data in meta.safetensors"
+        );
 
         let loaded = load_sample_dir(scene_dir).expect("load should succeed");
         let ov = loaded.ovoxel.expect("ovoxel should roundtrip");
