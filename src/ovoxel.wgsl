@@ -96,6 +96,7 @@ var<workgroup> sh_dual: array<vec3<f32>, 64>;
 var<workgroup> sh_color: array<vec4<f32>, 64>;
 var<workgroup> sh_sem: array<u32, 64>;
 var<workgroup> sh_origin: vec3<u32>;
+var<workgroup> sh_active_max: u32;
 var<workgroup> sh_tris: array<Triangle, TRI_CHUNK>;
 
 fn total_tiles() -> u32 {
@@ -297,8 +298,11 @@ fn voxel_main(
     @builtin(local_invocation_id) lid: vec3<u32>,
 ) {
     let tile_idx = wid.x;
-    let active_max = atomicLoad(&active_counter.active_count);
-    if tile_idx >= active_max {
+    if lid.x == 0u {
+        sh_active_max = atomicLoad(&active_counter.active_count);
+    }
+    workgroupBarrier();
+    if tile_idx >= sh_active_max {
         return;
     }
     let at = active_tiles[tile_idx];
