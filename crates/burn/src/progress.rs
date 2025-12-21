@@ -65,6 +65,12 @@ impl ProgressTracker {
     }
 }
 
+impl Default for ProgressTracker {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct ProgressSnapshot {
     pub samples_done: usize,
@@ -145,6 +151,12 @@ impl ProgressAggregator {
             elapsed: self.start.elapsed(),
             workers: entries,
         }
+    }
+}
+
+impl Default for ProgressAggregator {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
