@@ -201,6 +201,41 @@ fn sample_has_signal(
     })
 }
 
+fn sample_has_required_modes(
+    sample: &crate::dataset::ZeroverseSample,
+    render_modes: &[RenderMode],
+) -> bool {
+    let modes = if render_modes.is_empty() {
+        &[RenderMode::Color][..]
+    } else {
+        render_modes
+    };
+
+    let has_color = modes.iter().any(|m| matches!(m, RenderMode::Color));
+    let has_position = modes.iter().any(|m| matches!(m, RenderMode::Position));
+
+    for view in &sample.views {
+        for mode in modes {
+            let buf: &[u8] = match mode {
+                RenderMode::Color => view.color.as_slice(),
+                RenderMode::Depth => view.depth.as_slice(),
+                RenderMode::Normal => view.normal.as_slice(),
+                RenderMode::OpticalFlow => view.optical_flow.as_slice(),
+                RenderMode::Position => view.position.as_slice(),
+                RenderMode::MotionVectors | RenderMode::Semantic => &[],
+            };
+            if buf.is_empty() || buf.iter().all(|b| *b == 0) {
+                return false;
+            }
+        }
+        if has_color && has_position && view.color == view.position {
+            return false;
+        }
+    }
+
+    true
+}
+
 /// Run headless generation with persistent workers in the current process.
 pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
     let GenConfig {
@@ -308,7 +343,11 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
                 let mut attempts = 0usize;
                 let sample = loop {
                     let Some(sample) = dataset.get(idx) else { break None };
-                    if sample_has_signal(&sample, &render_modes_for_signal, width, height) {
+                    let has_signal =
+                        sample_has_signal(&sample, &render_modes_for_signal, width, height);
+                    let has_required = has_signal
+                        && sample_has_required_modes(&sample, &render_modes_for_signal);
+                    if has_required {
                         break Some(sample);
                     }
                     attempts += 1;
@@ -318,9 +357,11 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
                 };
 
                 let Some(sample) = sample else { break };
-                if !sample_has_signal(&sample, &render_modes_for_signal, width, height) {
+                if !sample_has_signal(&sample, &render_modes_for_signal, width, height)
+                    || !sample_has_required_modes(&sample, &render_modes_for_signal)
+                {
                     return Err(anyhow!(
-                        "failed to capture non-empty sample {idx} after {MAX_SAMPLE_RETRIES} attempts"
+                        "failed to capture required render modes for sample {idx} after {MAX_SAMPLE_RETRIES} attempts"
                     ));
                 }
 

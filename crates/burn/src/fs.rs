@@ -8,7 +8,7 @@ use anyhow::{Context, Result};
 use burn::data::dataset::Dataset;
 use ndarray::{Array2, Array3, ArrayD};
 use ndarray_npy::NpzReader;
-use safetensors::{Dtype, SafeTensors, serialize, tensor::TensorView};
+use safetensors::{Dtype, SafeTensors, serialize};
 use serde_json;
 
 #[allow(clippy::type_complexity)]
@@ -16,8 +16,8 @@ type OvoxelTuple = ([u32; 3], [u8; 3], u8, [u8; 4], u16);
 
 use crate::{
     chunk::{
-        decode_jpeg_to_rgba_f32, decode_rgba_bytes, encode_jpeg_from_rgba_f32, leak_bytes,
-        normalize_hdr_image_tonemap,
+        build_tensor_views, decode_jpeg_to_rgba_f32, decode_rgba_bytes,
+        encode_jpeg_from_rgba_f32, normalize_hdr_image_tonemap, TensorData,
     },
     dataset::ZeroverseSample,
 };
@@ -640,7 +640,8 @@ pub fn load_sample_dir(dir: impl AsRef<Path>) -> Result<ZeroverseSample> {
 
 fn build_ovoxel_tensor_views(
     ov: &bevy_zeroverse::sample::OvoxelSample,
-) -> Result<Vec<(&'static str, TensorView<'static>)>> {
+    tensors: &mut Vec<TensorData>,
+) -> Result<()> {
     let semantics: Vec<u16> = if ov.semantics.len() == ov.coords.len() {
         ov.semantics.clone()
     } else {
@@ -672,66 +673,58 @@ fn build_ovoxel_tensor_views(
     }
 
     let semantic_bytes = serde_json::to_vec(&ov.semantic_labels)?;
-    let tensors = vec![
-        (
-            "ovoxel_coords",
-            TensorView::new(
-                Dtype::U32,
-                vec![coords.len() / 3, 3],
-                leak_bytes(bytemuck::cast_slice(&coords).to_vec()),
-            )?,
-        ),
-        (
-            "ovoxel_dual_vertices",
-            TensorView::new(Dtype::U8, vec![dual.len() / 3, 3], leak_bytes(dual))?,
-        ),
-        (
-            "ovoxel_intersected",
-            TensorView::new(Dtype::U8, vec![intersected.len()], leak_bytes(intersected))?,
-        ),
-        (
-            "ovoxel_base_color",
-            TensorView::new(
-                Dtype::U8,
-                vec![base_color.len() / 4, 4],
-                leak_bytes(base_color),
-            )?,
-        ),
-        (
-            "ovoxel_semantic",
-            TensorView::new(
-                Dtype::U16,
-                vec![semantic.len()],
-                leak_bytes(bytemuck::cast_slice(&semantic).to_vec()),
-            )?,
-        ),
-        (
-            "ovoxel_semantic_labels",
-            TensorView::new(
-                Dtype::U8,
-                vec![semantic_bytes.len()],
-                leak_bytes(semantic_bytes),
-            )?,
-        ),
-        (
-            "ovoxel_resolution",
-            TensorView::new(
-                Dtype::U32,
-                vec![1],
-                leak_bytes(bytemuck::cast_slice(&[ov.resolution]).to_vec()),
-            )?,
-        ),
-        (
-            "ovoxel_aabb",
-            TensorView::new(
-                Dtype::F32,
-                vec![1, 2, 3],
-                leak_bytes(bytemuck::cast_slice(&ov.aabb).to_vec()),
-            )?,
-        ),
-    ];
+    let dual_len = dual.len();
 
-    Ok(tensors)
+    tensors.push(TensorData::new(
+        "ovoxel_coords",
+        Dtype::U32,
+        vec![coords.len() / 3, 3],
+        bytemuck::cast_slice(&coords).to_vec(),
+    ));
+    tensors.push(TensorData::new(
+        "ovoxel_dual_vertices",
+        Dtype::U8,
+        vec![dual_len / 3, 3],
+        dual,
+    ));
+    tensors.push(TensorData::new(
+        "ovoxel_intersected",
+        Dtype::U8,
+        vec![intersected.len()],
+        intersected,
+    ));
+    tensors.push(TensorData::new(
+        "ovoxel_base_color",
+        Dtype::U8,
+        vec![base_color.len() / 4, 4],
+        base_color,
+    ));
+    tensors.push(TensorData::new(
+        "ovoxel_semantic",
+        Dtype::U16,
+        vec![semantic.len()],
+        bytemuck::cast_slice(&semantic).to_vec(),
+    ));
+    tensors.push(TensorData::new(
+        "ovoxel_semantic_labels",
+        Dtype::U8,
+        vec![semantic_bytes.len()],
+        semantic_bytes,
+    ));
+    tensors.push(TensorData::new(
+        "ovoxel_resolution",
+        Dtype::U32,
+        vec![1],
+        bytemuck::cast_slice(&[ov.resolution]).to_vec(),
+    ));
+    tensors.push(TensorData::new(
+        "ovoxel_aabb",
+        Dtype::F32,
+        vec![1, 2, 3],
+        bytemuck::cast_slice(&ov.aabb).to_vec(),
+    ));
+
+    Ok(())
 }
 
 pub fn save_sample_to_fs(
@@ -943,7 +936,7 @@ pub fn save_sample_to_fs(
         obb_class_idx.push(*class_to_idx.get(&obb.class_name).unwrap_or(&-1));
     }
 
-    let mut tensors: Vec<(&str, TensorView<'static>)> = Vec::new();
+    let mut tensors: Vec<TensorData> = Vec::new();
 
     let mut world_from_view = Vec::with_capacity(steps * view_dim * 16);
     let mut fovy = Vec::with_capacity(steps * view_dim);
@@ -968,13 +961,17 @@ pub fn save_sample_to_fs(
     let leak_tensor = |name: &'static str,
                        shape: Vec<usize>,
                        data: Vec<f32>,
-                       tensors: &mut Vec<(&'static str, TensorView<'static>)>|
+                       tensors: &mut Vec<TensorData>|
      -> Result<()> {
         if data.is_empty() {
             return Ok(());
         }
-        let buf = leak_bytes(bytemuck::cast_slice(&data).to_vec());
-        tensors.push((name, TensorView::new(Dtype::F32, shape, buf)?));
+        tensors.push(TensorData::new(
+            name,
+            Dtype::F32,
+            shape,
+            bytemuck::cast_slice(&data).to_vec(),
+        ));
         Ok(())
     };
 
@@ -989,44 +986,54 @@ pub fn save_sample_to_fs(
     leak_tensor("far", vec![steps, view_dim, 1], far, &mut tensors)?;
     leak_tensor("time", vec![steps, view_dim, 1], time, &mut tensors)?;
 
-    let aabb_buf = leak_bytes(bytemuck::cast_slice(&sample.aabb).to_vec());
-    tensors.push(("aabb", TensorView::new(Dtype::F32, vec![2, 3], aabb_buf)?));
+    tensors.push(TensorData::new(
+        "aabb",
+        Dtype::F32,
+        vec![2, 3],
+        bytemuck::cast_slice(&sample.aabb).to_vec(),
+    ));
 
     if !obb_center.is_empty() {
-        let center_buf = leak_bytes(bytemuck::cast_slice(&obb_center).to_vec());
-        let scale_buf = leak_bytes(bytemuck::cast_slice(&obb_scale).to_vec());
-        let rotation_buf = leak_bytes(bytemuck::cast_slice(&obb_rotation).to_vec());
-        let class_buf = leak_bytes(bytemuck::cast_slice(&obb_class_idx).to_vec());
         let class_bytes = serde_json::to_vec(&class_names)?;
-        let class_bytes_ref = leak_bytes(class_bytes);
 
-        tensors.push((
+        tensors.push(TensorData::new(
             "object_obb_center",
-            TensorView::new(Dtype::F32, vec![obb_count, 3], center_buf)?,
+            Dtype::F32,
+            vec![obb_count, 3],
+            bytemuck::cast_slice(&obb_center).to_vec(),
         ));
-        tensors.push((
+        tensors.push(TensorData::new(
             "object_obb_scale",
-            TensorView::new(Dtype::F32, vec![obb_count, 3], scale_buf)?,
+            Dtype::F32,
+            vec![obb_count, 3],
+            bytemuck::cast_slice(&obb_scale).to_vec(),
         ));
-        tensors.push((
+        tensors.push(TensorData::new(
             "object_obb_rotation",
-            TensorView::new(Dtype::F32, vec![obb_count, 4], rotation_buf)?,
+            Dtype::F32,
+            vec![obb_count, 4],
+            bytemuck::cast_slice(&obb_rotation).to_vec(),
         ));
-        tensors.push((
+        tensors.push(TensorData::new(
             "object_obb_class_idx",
-            TensorView::new(Dtype::I64, vec![obb_count], class_buf)?,
+            Dtype::I64,
+            vec![obb_count],
+            bytemuck::cast_slice(&obb_class_idx).to_vec(),
         ));
-        tensors.push((
+        tensors.push(TensorData::new(
             "object_obb_class_names",
-            TensorView::new(Dtype::U8, vec![class_bytes_ref.len()], class_bytes_ref)?,
+            Dtype::U8,
+            vec![class_bytes.len()],
+            class_bytes,
         ));
     }
 
     if export_ovoxel && let Some(ref ov) = sample.ovoxel {
-        tensors.extend(build_ovoxel_tensor_views(ov)?);
+        build_ovoxel_tensor_views(ov, &mut tensors)?;
     }
 
-    let meta = serialize(tensors, None)?;
+    let views = build_tensor_views(&tensors)?;
+    let meta = serialize(views, None)?;
     fs::write(scene_dir.join(META_FILE), meta)?;
 
     Ok(scene_dir)

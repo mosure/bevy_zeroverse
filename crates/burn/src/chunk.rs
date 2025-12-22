@@ -14,6 +14,29 @@ use crate::{compression::Compression, dataset::ZeroverseSample};
 #[allow(clippy::type_complexity)]
 type OvoxelTuple = ([u32; 3], [u8; 3], u8, [u8; 4], u16);
 
+pub(crate) struct TensorData {
+    name: String,
+    dtype: Dtype,
+    shape: Vec<usize>,
+    data: Vec<u8>,
+}
+
+impl TensorData {
+    pub(crate) fn new(
+        name: impl Into<String>,
+        dtype: Dtype,
+        shape: Vec<usize>,
+        data: Vec<u8>,
+    ) -> Self {
+        Self {
+            name: name.into(),
+            dtype,
+            shape,
+            data,
+        }
+    }
+}
+
 #[allow(dead_code)]
 struct OvoxelTensorData {
     coords: Vec<u32>,
@@ -33,9 +56,20 @@ fn coords_sorted(coords: &[[u32; 3]]) -> bool {
     coords.windows(2).all(|w| w[0] <= w[1])
 }
 
+pub(crate) fn build_tensor_views<'a>(
+    tensors: &'a [TensorData],
+) -> Result<Vec<(&'a str, TensorView<'a>)>> {
+    let mut views = Vec::with_capacity(tensors.len());
+    for tensor in tensors {
+        let view = TensorView::new(tensor.dtype, tensor.shape.clone(), &tensor.data)?;
+        views.push((tensor.name.as_str(), view));
+    }
+    Ok(views)
+}
+
 #[allow(dead_code)]
 fn push_ovoxel_tensors(
-    tensors: &mut Vec<(&'static str, TensorView<'static>)>,
+    tensors: &mut Vec<TensorData>,
     data: OvoxelTensorData,
 ) -> Result<()> {
     let OvoxelTensorData {
@@ -52,62 +86,67 @@ fn push_ovoxel_tensors(
         batch,
     } = data;
 
-    let coords_ref = leak_bytes(cast_slice(&coords).to_vec());
     let dual_len = dual.len();
-    let dual_ref = leak_bytes(dual);
-    let intersect_ref = leak_bytes(intersected);
-    let base_ref = leak_bytes(base_color);
-    let semantic_ref = leak_bytes(cast_slice(&semantic).to_vec());
-    let semantic_offset_ref = leak_bytes(cast_slice(&semantic_label_offsets).to_vec());
-    let semantic_labels_ref = leak_bytes(semantic_labels);
-    let offsets_ref = leak_bytes(cast_slice(&offsets).to_vec());
-    let res_ref = leak_bytes(cast_slice(&resolution).to_vec());
-    let aabb_ref = leak_bytes(cast_slice(&aabb).to_vec());
-
-    tensors.push((
-        "ovoxel_coords",
-        TensorView::new(Dtype::U32, vec![coords.len() / 3, 3], coords_ref)?,
-    ));
-    tensors.push((
-        "ovoxel_dual_vertices",
-        TensorView::new(Dtype::U8, vec![dual_len / 3, 3], dual_ref)?,
-    ));
-    tensors.push((
-        "ovoxel_intersected",
-        TensorView::new(Dtype::U8, vec![intersect_ref.len()], intersect_ref)?,
-    ));
-    tensors.push((
-        "ovoxel_base_color",
-        TensorView::new(Dtype::U8, vec![base_ref.len() / 4, 4], base_ref)?,
-    ));
-    tensors.push((
-        "ovoxel_semantic",
-        TensorView::new(Dtype::U16, vec![semantic_ref.len() / 2], semantic_ref)?,
-    ));
-    tensors.push((
-        "ovoxel_semantic_label_offsets",
-        TensorView::new(Dtype::I64, vec![batch, 2], semantic_offset_ref)?,
-    ));
-    tensors.push((
-        "ovoxel_semantic_labels",
-        TensorView::new(
-            Dtype::U8,
-            vec![semantic_labels_ref.len()],
-            semantic_labels_ref,
-        )?,
-    ));
-    tensors.push((
-        "ovoxel_offsets",
-        TensorView::new(Dtype::I64, vec![batch, 2], offsets_ref)?,
-    ));
-    tensors.push((
-        "ovoxel_resolution",
-        TensorView::new(Dtype::U32, vec![batch], res_ref)?,
-    ));
-    tensors.push((
-        "ovoxel_aabb",
-        TensorView::new(Dtype::F32, vec![batch, 2, 3], aabb_ref)?,
-    ));
+    tensors.push(TensorData {
+        name: "ovoxel_coords".to_string(),
+        dtype: Dtype::U32,
+        shape: vec![coords.len() / 3, 3],
+        data: cast_slice(&coords).to_vec(),
+    });
+    tensors.push(TensorData {
+        name: "ovoxel_dual_vertices".to_string(),
+        dtype: Dtype::U8,
+        shape: vec![dual_len / 3, 3],
+        data: dual,
+    });
+    tensors.push(TensorData {
+        name: "ovoxel_intersected".to_string(),
+        dtype: Dtype::U8,
+        shape: vec![intersected.len()],
+        data: intersected,
+    });
+    tensors.push(TensorData {
+        name: "ovoxel_base_color".to_string(),
+        dtype: Dtype::U8,
+        shape: vec![base_color.len() / 4, 4],
+        data: base_color,
+    });
+    tensors.push(TensorData {
+        name: "ovoxel_semantic".to_string(),
+        dtype: Dtype::U16,
+        shape: vec![semantic.len()],
+        data: cast_slice(&semantic).to_vec(),
+    });
+    tensors.push(TensorData {
+        name: "ovoxel_semantic_label_offsets".to_string(),
+        dtype: Dtype::I64,
+        shape: vec![batch, 2],
+        data: cast_slice(&semantic_label_offsets).to_vec(),
+    });
+    tensors.push(TensorData {
+        name: "ovoxel_semantic_labels".to_string(),
+        dtype: Dtype::U8,
+        shape: vec![semantic_labels.len()],
+        data: semantic_labels,
+    });
+    tensors.push(TensorData {
+        name: "ovoxel_offsets".to_string(),
+        dtype: Dtype::I64,
+        shape: vec![batch, 2],
+        data: cast_slice(&offsets).to_vec(),
+    });
+    tensors.push(TensorData {
+        name: "ovoxel_resolution".to_string(),
+        dtype: Dtype::U32,
+        shape: vec![batch],
+        data: cast_slice(&resolution).to_vec(),
+    });
+    tensors.push(TensorData {
+        name: "ovoxel_aabb".to_string(),
+        dtype: Dtype::F32,
+        shape: vec![batch, 2, 3],
+        data: cast_slice(&aabb).to_vec(),
+    });
     Ok(())
 }
 
@@ -203,10 +242,6 @@ pub(crate) fn decode_jpeg_to_rgba_f32(bytes: &[u8]) -> Result<(u32, u32, Vec<f32
     Ok((width, height, out))
 }
 
-pub(crate) fn leak_bytes(buf: Vec<u8>) -> &'static [u8] {
-    Box::leak(buf.into_boxed_slice())
-}
-
 pub(crate) fn normalize_hdr_image_tonemap(
     data: &mut [f32],
     steps: usize,
@@ -300,13 +335,16 @@ pub fn save_chunk(
         3,
     ];
 
-    let mut tensors: Vec<(&'static str, TensorView<'static>)> = Vec::new();
-    let mut color_entries: Vec<(String, TensorView<'static>)> = Vec::new();
+    let mut tensors: Vec<TensorData> = Vec::new();
+    let mut color_entries: Vec<(String, Vec<u8>)> = Vec::new();
 
-    let mut depth = Vec::new();
-    let mut normal = Vec::new();
-    let mut optical_flow = Vec::new();
-    let mut position = Vec::new();
+    let view_count = steps * view_dim;
+    let pixel_count = (height * width) as usize;
+    let total_views = b * view_count;
+    let mut depth: Option<Vec<f32>> = None;
+    let mut normal: Option<Vec<f32>> = None;
+    let mut optical_flow: Option<Vec<f32>> = None;
+    let mut position: Option<Vec<f32>> = None;
     let mut world_from_view: Vec<f32> = Vec::new();
     let mut fovy = Vec::new();
     let mut near = Vec::new();
@@ -377,21 +415,30 @@ pub fn save_chunk(
             if !view.depth.is_empty() {
                 let rgba = decode_rgba_bytes(&view.depth, width, height)
                     .context("failed to parse depth")?;
-                depth.extend(rgba.chunks_exact(4).map(|c| c[0]));
+                let depth_buf = depth.get_or_insert_with(|| vec![0.0; total_views * pixel_count]);
+                let base = (sample_idx * view_count + t * view_dim + v) * pixel_count;
+                for (i, chunk) in rgba.chunks_exact(4).enumerate() {
+                    depth_buf[base + i] = chunk[0];
+                }
             }
 
             if !view.normal.is_empty() {
                 let rgba = decode_rgba_bytes(&view.normal, width, height)
                     .context("failed to parse normal")?;
-                for chunk in rgba.chunks_exact(4) {
-                    normal.extend_from_slice(&chunk[..3]);
+                let normal_buf =
+                    normal.get_or_insert_with(|| vec![0.0; total_views * pixel_count * 3]);
+                let base = (sample_idx * view_count + t * view_dim + v) * pixel_count * 3;
+                for (i, chunk) in rgba.chunks_exact(4).enumerate() {
+                    let dst = base + i * 3;
+                    normal_buf[dst] = chunk[0];
+                    normal_buf[dst + 1] = chunk[1];
+                    normal_buf[dst + 2] = chunk[2];
                 }
             }
 
             if !view.optical_flow.is_empty() {
                 let rgba = decode_rgba_bytes(&view.optical_flow, width, height)
                     .context("failed to parse optical flow")?;
-                let pixel_count = (height * width) as usize;
                 let flow_buf = sample_optical_flow
                     .get_or_insert_with(|| vec![0.0; steps * view_dim * pixel_count * 3]);
                 let base = (t * view_dim + v) * pixel_count * 3;
@@ -407,8 +454,14 @@ pub fn save_chunk(
             if !view.position.is_empty() {
                 let rgba = decode_rgba_bytes(&view.position, width, height)
                     .context("failed to parse position")?;
-                for chunk in rgba.chunks_exact(4) {
-                    position.extend_from_slice(&chunk[..3]);
+                let position_buf =
+                    position.get_or_insert_with(|| vec![0.0; total_views * pixel_count * 3]);
+                let base = (sample_idx * view_count + t * view_dim + v) * pixel_count * 3;
+                for (i, chunk) in rgba.chunks_exact(4).enumerate() {
+                    let dst = base + i * 3;
+                    position_buf[dst] = chunk[0];
+                    position_buf[dst + 1] = chunk[1];
+                    position_buf[dst + 2] = chunk[2];
                 }
             }
 
@@ -440,11 +493,7 @@ pub fn save_chunk(
 
                 let global_idx = sample_idx * view_dim * steps + local_idx;
                 let jpg = encode_jpeg_from_rgba_f32(&rgba, width, height)?;
-                let data_ref = leak_bytes(jpg);
-                color_entries.push((
-                    format!("color_jpg_{global_idx}"),
-                    TensorView::new(Dtype::U8, vec![data_ref.len()], data_ref)?,
-                ));
+                color_entries.push((format!("color_jpg_{global_idx}"), jpg));
             }
         }
 
@@ -457,7 +506,10 @@ pub fn save_chunk(
                 width as usize,
                 3,
             );
-            optical_flow.extend_from_slice(&flow);
+            let flow_buf =
+                optical_flow.get_or_insert_with(|| vec![0.0; total_views * pixel_count * 3]);
+            let base = sample_idx * view_count * pixel_count * 3;
+            flow_buf[base..base + flow.len()].copy_from_slice(&flow);
         }
 
         aabb.extend_from_slice(cast_slice(&sample.aabb));
@@ -557,16 +609,17 @@ pub fn save_chunk(
         }
     }
 
-    let color_shape_ref = leak_bytes(cast_slice(&color_shape).to_vec());
-    tensors.push((
-        "color_shape",
-        TensorView::new(Dtype::I64, vec![6], color_shape_ref)?,
-    ));
+    tensors.push(TensorData {
+        name: "color_shape".to_string(),
+        dtype: Dtype::I64,
+        shape: vec![6],
+        data: cast_slice(&color_shape).to_vec(),
+    });
 
     let push_tensor = |name: &'static str,
                        data: Vec<f32>,
                        channels: usize,
-                       tensors: &mut Vec<(&'static str, TensorView<'static>)>|
+                       tensors: &mut Vec<TensorData>|
      -> Result<()> {
         if data.is_empty() {
             return Ok(());
@@ -580,60 +633,79 @@ pub fn save_chunk(
             channels,
         ]
         .to_vec();
-        let data_ref = leak_bytes(cast_slice(&data).to_vec());
-        tensors.push((name, TensorView::new(Dtype::F32, shape, data_ref)?));
+        tensors.push(TensorData {
+            name: name.to_string(),
+            dtype: Dtype::F32,
+            shape,
+            data: cast_slice(&data).to_vec(),
+        });
         Ok(())
     };
 
-    push_tensor("depth", depth, 1, &mut tensors)?;
-    push_tensor("normal", normal, 3, &mut tensors)?;
-    push_tensor("optical_flow", optical_flow, 3, &mut tensors)?;
-    push_tensor("position", position, 3, &mut tensors)?;
+    if let Some(depth) = depth {
+        push_tensor("depth", depth, 1, &mut tensors)?;
+    }
+    if let Some(normal) = normal {
+        push_tensor("normal", normal, 3, &mut tensors)?;
+    }
+    if let Some(optical_flow) = optical_flow {
+        push_tensor("optical_flow", optical_flow, 3, &mut tensors)?;
+    }
+    if let Some(position) = position {
+        push_tensor("position", position, 3, &mut tensors)?;
+    }
     if !aabb.is_empty() {
-        let data_ref = leak_bytes(cast_slice(&aabb).to_vec());
-        tensors.push((
-            "aabb",
-            TensorView::new(Dtype::F32, vec![b, 2, 3], data_ref)?,
-        ));
+        tensors.push(TensorData {
+            name: "aabb".to_string(),
+            dtype: Dtype::F32,
+            shape: vec![b, 2, 3],
+            data: cast_slice(&aabb).to_vec(),
+        });
     }
 
     if max_obbs > 0 {
-        let center_ref = leak_bytes(cast_slice(&obb_center).to_vec());
-        let scale_ref = leak_bytes(cast_slice(&obb_scale).to_vec());
-        let rotation_ref = leak_bytes(cast_slice(&obb_rotation).to_vec());
-        let class_ref = leak_bytes(cast_slice(&obb_class_idx).to_vec());
         let class_bytes = serde_json::to_vec(&class_names)?;
-        let class_bytes_ref = leak_bytes(class_bytes);
 
-        tensors.push((
-            "object_obb_center",
-            TensorView::new(Dtype::F32, vec![b, max_obbs, 3], center_ref)?,
-        ));
-        tensors.push((
-            "object_obb_scale",
-            TensorView::new(Dtype::F32, vec![b, max_obbs, 3], scale_ref)?,
-        ));
-        tensors.push((
-            "object_obb_rotation",
-            TensorView::new(Dtype::F32, vec![b, max_obbs, 4], rotation_ref)?,
-        ));
-        tensors.push((
-            "object_obb_class_idx",
-            TensorView::new(Dtype::I64, vec![b, max_obbs], class_ref)?,
-        ));
-        tensors.push((
-            "object_obb_class_names",
-            TensorView::new(Dtype::U8, vec![class_bytes_ref.len()], class_bytes_ref)?,
-        ));
+        tensors.push(TensorData {
+            name: "object_obb_center".to_string(),
+            dtype: Dtype::F32,
+            shape: vec![b, max_obbs, 3],
+            data: cast_slice(&obb_center).to_vec(),
+        });
+        tensors.push(TensorData {
+            name: "object_obb_scale".to_string(),
+            dtype: Dtype::F32,
+            shape: vec![b, max_obbs, 3],
+            data: cast_slice(&obb_scale).to_vec(),
+        });
+        tensors.push(TensorData {
+            name: "object_obb_rotation".to_string(),
+            dtype: Dtype::F32,
+            shape: vec![b, max_obbs, 4],
+            data: cast_slice(&obb_rotation).to_vec(),
+        });
+        tensors.push(TensorData {
+            name: "object_obb_class_idx".to_string(),
+            dtype: Dtype::I64,
+            shape: vec![b, max_obbs],
+            data: cast_slice(&obb_class_idx).to_vec(),
+        });
+        tensors.push(TensorData {
+            name: "object_obb_class_names".to_string(),
+            dtype: Dtype::U8,
+            shape: vec![class_bytes.len()],
+            data: class_bytes,
+        });
     }
 
     if !world_from_view.is_empty() {
         let shape = [b, steps, view_dim, 4, 4].to_vec();
-        let data_ref = leak_bytes(cast_slice(&world_from_view).to_vec());
-        tensors.push((
-            "world_from_view",
-            TensorView::new(Dtype::F32, shape, data_ref)?,
-        ));
+        tensors.push(TensorData {
+            name: "world_from_view".to_string(),
+            dtype: Dtype::F32,
+            shape,
+            data: cast_slice(&world_from_view).to_vec(),
+        });
     }
 
     for (name, data) in [
@@ -646,8 +718,12 @@ pub fn save_chunk(
             continue;
         }
         let shape = [b, steps, view_dim, 1].to_vec();
-        let data_ref = leak_bytes(cast_slice(data).to_vec());
-        tensors.push((name, TensorView::new(Dtype::F32, shape, data_ref)?));
+        tensors.push(TensorData {
+            name: name.to_string(),
+            dtype: Dtype::F32,
+            shape,
+            data: cast_slice(data).to_vec(),
+        });
     }
 
     if export_ovoxel {
@@ -669,12 +745,17 @@ pub fn save_chunk(
         )?;
     }
 
-    for (name, view) in color_entries {
-        let leaked: &'static str = Box::leak(name.into_boxed_str());
-        tensors.push((leaked, view));
+    for (name, data) in color_entries {
+        tensors.push(TensorData {
+            name,
+            dtype: Dtype::U8,
+            shape: vec![data.len()],
+            data,
+        });
     }
 
-    let serialized = serialize(tensors, None)?;
+    let views = build_tensor_views(&tensors)?;
+    let serialized = serialize(views, None)?;
     let compressed = compression.compress(&serialized)?;
     fs::write(&path, compressed)?;
     Ok(path)
