@@ -232,7 +232,7 @@ pub struct BevyZeroverseConfig {
 
     /// O-Voxel generation mode
     #[pyo3(get, set)]
-    #[arg(long, value_enum, default_value_t = OvoxelMode::CpuAsync)]
+    #[arg(long, value_enum, default_value_t = OvoxelMode::Disabled)]
     pub ovoxel_mode: OvoxelMode,
 }
 
@@ -388,7 +388,7 @@ pub struct BevyZeroverseConfig {
     pub ovoxel_max_output_voxels: u32,
 
     /// O-Voxel generation mode
-    #[arg(long, value_enum, default_value_t = OvoxelMode::CpuAsync)]
+    #[arg(long, value_enum, default_value_t = OvoxelMode::Disabled)]
     pub ovoxel_mode: OvoxelMode,
 }
 
@@ -432,7 +432,7 @@ impl Default for BevyZeroverseConfig {
             cuboid_only: false,
             ovoxel_resolution: 128,
             ovoxel_max_output_voxels: GPU_DEFAULT_MAX_OUTPUT_VOXELS,
-            ovoxel_mode: OvoxelMode::CpuAsync,
+            ovoxel_mode: OvoxelMode::Disabled,
         }
     }
 }
@@ -847,8 +847,15 @@ fn rotate_scene(
     args: Res<BevyZeroverseConfig>,
     mut scene_roots: Query<&mut Transform, With<ZeroverseSceneRoot>>,
 ) {
+    if args.yaw_speed == 0.0 {
+        return;
+    }
+
     for mut transform in scene_roots.iter_mut() {
         let delta_rot = args.yaw_speed * time.delta_secs();
+        if delta_rot == 0.0 {
+            continue;
+        }
         transform.rotate(Quat::from_rotation_y(delta_rot));
     }
 }
