@@ -82,7 +82,7 @@ pub const OVOXEL_SHADER_HANDLE: Handle<Shader> =
     uuid_handle!("2c8cc5c9-a774-4e4c-b3a7-219894c3d2f2");
 
 const GPU_TILE_SIZE: u32 = 4;
-pub const GPU_DEFAULT_MAX_OUTPUT_VOXELS: u32 = 2_000_000;
+pub const GPU_DEFAULT_MAX_OUTPUT_VOXELS: u32 = 16_000_000;
 const GPU_BUFFER_POOL_LIMIT: usize = 4;
 const GPU_PARAMS_SIZE: u64 = 256;
 const GPU_PREFIX_WG: u32 = 256;
