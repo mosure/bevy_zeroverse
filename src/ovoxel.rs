@@ -1441,14 +1441,10 @@ fn voxelize_triangles_gpu(
     let used = used.min(voxels.len() as u32) as usize;
 
     if overflowed {
-        drop(data);
-        buffers.readback.unmap();
         warn!(
-            "ovoxel GPU overflow: produced {} voxels, cap {} (overflow flag {})",
-            meta.count, max_output_voxels, meta.overflow
+            "ovoxel GPU overflow: produced {} voxels, cap {} (overflow flag {}); clamping to {}",
+            meta.count, max_output_voxels, meta.overflow, used
         );
-        release_buffers(buffers);
-        gpu_bail!("ovoxel GPU path overflowed sparse buffer");
     }
 
     if used == 0 {
