@@ -533,7 +533,7 @@ fn metrics_widget(
     };
     lines.push(metric_line("throughput", throughput_label, palette));
     lines.push(metric_line(
-        "Per worker",
+        "per worker",
         format!("{} samples/s", format_rate(per_worker)),
         palette,
     ));
@@ -542,7 +542,7 @@ fn metrics_widget(
         eta.map(format_duration).unwrap_or_else(|| "-".to_string()),
         palette,
     ));
-    lines.push(metric_line("Last update", last_update, palette));
+    lines.push(metric_line("last update", last_update, palette));
 
     Paragraph::new(lines)
         .wrap(Wrap { trim: true })

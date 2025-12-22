@@ -227,7 +227,7 @@ pub struct BevyZeroverseConfig {
 
     /// Maximum number of voxels retained from the GPU path (upper bound on buffer size)
     #[pyo3(get, set)]
-    #[arg(long, default_value = "2000000")]
+    #[arg(long, default_value = "16000000")]
     pub ovoxel_max_output_voxels: u32,
 
     /// O-Voxel generation mode
@@ -384,7 +384,7 @@ pub struct BevyZeroverseConfig {
     pub ovoxel_resolution: u32,
 
     /// Maximum number of voxels retained from the GPU path (upper bound on buffer size)
-    #[arg(long, default_value = "2000000")]
+    #[arg(long, default_value = "16000000")]
     pub ovoxel_max_output_voxels: u32,
 
     /// O-Voxel generation mode
