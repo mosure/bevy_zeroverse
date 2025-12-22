@@ -56,6 +56,52 @@ fn coords_sorted(coords: &[[u32; 3]]) -> bool {
     coords.windows(2).all(|w| w[0] <= w[1])
 }
 
+fn decode_ovoxel_coords(tensor: &TensorView<'_>) -> Option<Vec<[u32; 3]>> {
+    match tensor.dtype() {
+        Dtype::U8 => {
+            let raw: &[[u8; 3]] = cast_slice(tensor.data());
+            let mut out = Vec::with_capacity(raw.len());
+            for coord in raw {
+                out.push([coord[0] as u32, coord[1] as u32, coord[2] as u32]);
+            }
+            Some(out)
+        }
+        Dtype::U16 => {
+            let raw: &[[u16; 3]] = cast_slice(tensor.data());
+            let mut out = Vec::with_capacity(raw.len());
+            for coord in raw {
+                out.push([coord[0] as u32, coord[1] as u32, coord[2] as u32]);
+            }
+            Some(out)
+        }
+        Dtype::U32 => {
+            let raw: &[[u32; 3]] = cast_slice(tensor.data());
+            Some(raw.to_vec())
+        }
+        _ => None,
+    }
+}
+
+fn decode_ovoxel_semantics(
+    tensor: Option<&TensorView<'_>>,
+    default_len: usize,
+) -> Vec<u16> {
+    let Some(tensor) = tensor else {
+        return vec![0; default_len];
+    };
+    match tensor.dtype() {
+        Dtype::U8 => {
+            let raw: &[u8] = cast_slice(tensor.data());
+            raw.iter().map(|v| *v as u16).collect()
+        }
+        Dtype::U16 => {
+            let raw: &[u16] = cast_slice(tensor.data());
+            raw.to_vec()
+        }
+        _ => vec![0; default_len],
+    }
+}
+
 pub(crate) fn build_tensor_views<'a>(
     tensors: &'a [TensorData],
 ) -> Result<Vec<(&'a str, TensorView<'a>)>> {
@@ -87,11 +133,37 @@ fn push_ovoxel_tensors(
     } = data;
 
     let dual_len = dual.len();
+    let coords_len = coords.len();
+    let max_coord = coords.iter().copied().max().unwrap_or(0);
+    let coord_dtype = if max_coord <= u8::MAX as u32 {
+        Dtype::U8
+    } else if max_coord <= u16::MAX as u32 {
+        Dtype::U16
+    } else {
+        Dtype::U32
+    };
+    let coord_bytes = match coord_dtype {
+        Dtype::U8 => coords.iter().map(|v| *v as u8).collect(),
+        Dtype::U16 => {
+            let coords_u16: Vec<u16> = coords.iter().map(|v| *v as u16).collect();
+            cast_slice(&coords_u16).to_vec()
+        }
+        Dtype::U32 => cast_slice(&coords).to_vec(),
+        _ => Vec::new(),
+    };
+    let max_semantic = semantic.iter().copied().max().unwrap_or(0);
+    anyhow::ensure!(
+        max_semantic < 256,
+        "ovoxel semantic id {} exceeds u8 range",
+        max_semantic
+    );
+    let semantic_u8: Vec<u8> = semantic.iter().map(|s| *s as u8).collect();
+
     tensors.push(TensorData {
         name: "ovoxel_coords".to_string(),
-        dtype: Dtype::U32,
-        shape: vec![coords.len() / 3, 3],
-        data: cast_slice(&coords).to_vec(),
+        dtype: coord_dtype,
+        shape: vec![coords_len / 3, 3],
+        data: coord_bytes,
     });
     tensors.push(TensorData {
         name: "ovoxel_dual_vertices".to_string(),
@@ -113,9 +185,9 @@ fn push_ovoxel_tensors(
     });
     tensors.push(TensorData {
         name: "ovoxel_semantic".to_string(),
-        dtype: Dtype::U16,
-        shape: vec![semantic.len()],
-        data: cast_slice(&semantic).to_vec(),
+        dtype: Dtype::U8,
+        shape: vec![semantic_u8.len()],
+        data: semantic_u8,
     });
     tensors.push(TensorData {
         name: "ovoxel_semantic_label_offsets".to_string(),
@@ -521,6 +593,17 @@ pub fn save_chunk(
                 debug_assert_eq!(ov.coords.len(), ov.intersected.len());
                 debug_assert_eq!(ov.coords.len(), ov.base_color.len());
                 debug_assert_eq!(ov.coords.len(), ov.semantics.len());
+                anyhow::ensure!(
+                    ov.semantic_labels.len() < 256,
+                    "ovoxel semantic label count {} exceeds u8 range",
+                    ov.semantic_labels.len()
+                );
+                let max_semantic = ov.semantics.iter().copied().max().unwrap_or(0);
+                anyhow::ensure!(
+                    max_semantic < 256,
+                    "ovoxel semantic id {} exceeds u8 range",
+                    max_semantic
+                );
 
                 if coords_sorted(&ov.coords) {
                     let len = ov.coords.len() as i64;
@@ -964,11 +1047,14 @@ pub fn load_chunk(path: impl AsRef<Path>) -> Result<Vec<ZeroverseSample>> {
                 continue;
             };
 
-            let coords: &[[u32; 3]] = cast_slice(coords.data());
+            let coords = match decode_ovoxel_coords(&coords) {
+                Some(coords) => coords,
+                None => continue,
+            };
             let dual: &[[u8; 3]] = cast_slice(dual.data());
             let base: &[[u8; 4]] = cast_slice(base.data());
             let intersect_data: &[u8] = cast_slice(intersected.data());
-            let semantic_data: &[u16] = cast_slice(semantic.data());
+            let semantic_data = decode_ovoxel_semantics(Some(&semantic), coords.len());
             let res: &[u32] = cast_slice(res.data());
             let aabb_data: &[[[f32; 3]; 2]] = cast_slice(aabb.data());
             if coords.is_empty() {
@@ -1033,11 +1119,10 @@ pub fn load_chunk(path: impl AsRef<Path>) -> Result<Vec<ZeroverseSample>> {
         tensors.tensor("ovoxel_offsets"),
         tensors.tensor("ovoxel_resolution"),
         tensors.tensor("ovoxel_aabb"),
-    ) {
-        let coords: &[[u32; 3]] = cast_slice(coords.data());
+    ) && let Some(coords) = decode_ovoxel_coords(&coords) {
         let dual: &[[u8; 3]] = cast_slice(dual.data());
         let base: &[[u8; 4]] = cast_slice(base.data());
-        let semantic_data: &[u16] = cast_slice(semantic.data());
+        let semantic_data = decode_ovoxel_semantics(Some(&semantic), coords.len());
         let offsets: &[[i64; 2]] = cast_slice(offsets.data());
         let res: &[u32] = cast_slice(res.data());
         let aabb_data: &[[[f32; 3]; 2]] = cast_slice(aabb.data());
@@ -1069,12 +1154,13 @@ pub fn load_chunk(path: impl AsRef<Path>) -> Result<Vec<ZeroverseSample>> {
             let lbl_start = label_off[0].max(0) as usize;
             let lbl_len = label_off[1].max(0) as usize;
             let end_lbl = (lbl_start + lbl_len).min(semantic_label_blob.len());
-            let mut palette: Vec<String> = if lbl_start >= semantic_label_blob.len() || lbl_len == 0
-            {
-                Vec::new()
-            } else {
-                serde_json::from_slice(&semantic_label_blob[lbl_start..end_lbl]).unwrap_or_default()
-            };
+            let mut palette: Vec<String> =
+                if lbl_start >= semantic_label_blob.len() || lbl_len == 0 {
+                    Vec::new()
+                } else {
+                    serde_json::from_slice(&semantic_label_blob[lbl_start..end_lbl])
+                        .unwrap_or_default()
+                };
             if palette.is_empty() {
                 palette.push("unlabeled".to_string());
             }

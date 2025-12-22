@@ -8,7 +8,7 @@ use anyhow::{Context, Result};
 use burn::data::dataset::Dataset;
 use ndarray::{Array2, Array3, ArrayD};
 use ndarray_npy::NpzReader;
-use safetensors::{Dtype, SafeTensors, serialize};
+use safetensors::{Dtype, SafeTensors, serialize, tensor::TensorView};
 use serde_json;
 
 #[allow(clippy::type_complexity)]
@@ -293,6 +293,52 @@ struct MetaFields {
     ovoxel: Option<bevy_zeroverse::sample::OvoxelSample>,
 }
 
+fn decode_ovoxel_coords(tensor: &TensorView<'_>) -> Option<Vec<[u32; 3]>> {
+    match tensor.dtype() {
+        Dtype::U8 => {
+            let raw: &[[u8; 3]] = bytemuck::cast_slice(tensor.data());
+            let mut out = Vec::with_capacity(raw.len());
+            for coord in raw {
+                out.push([coord[0] as u32, coord[1] as u32, coord[2] as u32]);
+            }
+            Some(out)
+        }
+        Dtype::U16 => {
+            let raw: &[[u16; 3]] = bytemuck::cast_slice(tensor.data());
+            let mut out = Vec::with_capacity(raw.len());
+            for coord in raw {
+                out.push([coord[0] as u32, coord[1] as u32, coord[2] as u32]);
+            }
+            Some(out)
+        }
+        Dtype::U32 => {
+            let raw: &[[u32; 3]] = bytemuck::cast_slice(tensor.data());
+            Some(raw.to_vec())
+        }
+        _ => None,
+    }
+}
+
+fn decode_ovoxel_semantics(
+    tensor: Option<&TensorView<'_>>,
+    default_len: usize,
+) -> Vec<u16> {
+    let Some(tensor) = tensor else {
+        return vec![0; default_len];
+    };
+    match tensor.dtype() {
+        Dtype::U8 => {
+            let raw: &[u8] = bytemuck::cast_slice(tensor.data());
+            raw.iter().map(|v| *v as u16).collect()
+        }
+        Dtype::U16 => {
+            let raw: &[u16] = bytemuck::cast_slice(tensor.data());
+            raw.to_vec()
+        }
+        _ => vec![0; default_len],
+    }
+}
+
 fn parse_ovoxel_from_tensors(
     tensors: &SafeTensors,
 ) -> Option<bevy_zeroverse::sample::OvoxelSample> {
@@ -308,17 +354,14 @@ fn parse_ovoxel_from_tensors(
         return None;
     };
 
-    let coords: &[[u32; 3]] = bytemuck::cast_slice(coords.data());
+    let coords = decode_ovoxel_coords(&coords)?;
     let dual: &[[u8; 3]] = bytemuck::cast_slice(dual.data());
     let base: &[[u8; 4]] = bytemuck::cast_slice(base.data());
     let res: &[u32] = bytemuck::cast_slice(res.data());
     let aabb_data: &[[[f32; 3]; 2]] = bytemuck::cast_slice(aabb.data());
     let intersect_data: &[u8] = bytemuck::cast_slice(intersected.data());
-    let semantics: Vec<u16> = tensors
-        .tensor("ovoxel_semantic")
-        .ok()
-        .map(|t| bytemuck::cast_slice(t.data()).to_vec())
-        .unwrap_or_else(|| vec![0; coords.len()]);
+    let semantic_tensor = tensors.tensor("ovoxel_semantic").ok();
+    let semantics = decode_ovoxel_semantics(semantic_tensor.as_ref(), coords.len());
     let semantic_labels: Vec<String> =
         serde_json::from_slice(semantic_labels.data()).unwrap_or_else(|_| vec!["unlabeled".into()]);
 
@@ -674,12 +717,42 @@ fn build_ovoxel_tensor_views(
 
     let semantic_bytes = serde_json::to_vec(&ov.semantic_labels)?;
     let dual_len = dual.len();
+    let coords_len = coords.len();
+    let max_coord = coords.iter().copied().max().unwrap_or(0);
+    let coord_dtype = if max_coord <= u8::MAX as u32 {
+        Dtype::U8
+    } else if max_coord <= u16::MAX as u32 {
+        Dtype::U16
+    } else {
+        Dtype::U32
+    };
+    let coord_bytes = match coord_dtype {
+        Dtype::U8 => coords.iter().map(|v| *v as u8).collect(),
+        Dtype::U16 => {
+            let coords_u16: Vec<u16> = coords.iter().map(|v| *v as u16).collect();
+            bytemuck::cast_slice(&coords_u16).to_vec()
+        }
+        Dtype::U32 => bytemuck::cast_slice(&coords).to_vec(),
+        _ => Vec::new(),
+    };
+    let max_semantic = semantic.iter().copied().max().unwrap_or(0);
+    anyhow::ensure!(
+        ov.semantic_labels.len() < 256,
+        "ovoxel semantic label count {} exceeds u8 range",
+        ov.semantic_labels.len()
+    );
+    anyhow::ensure!(
+        max_semantic < 256,
+        "ovoxel semantic id {} exceeds u8 range",
+        max_semantic
+    );
+    let semantic_u8: Vec<u8> = semantic.iter().map(|s| *s as u8).collect();
 
     tensors.push(TensorData::new(
         "ovoxel_coords",
-        Dtype::U32,
-        vec![coords.len() / 3, 3],
-        bytemuck::cast_slice(&coords).to_vec(),
+        coord_dtype,
+        vec![coords_len / 3, 3],
+        coord_bytes,
     ));
     tensors.push(TensorData::new(
         "ovoxel_dual_vertices",
@@ -701,9 +774,9 @@ fn build_ovoxel_tensor_views(
     ));
     tensors.push(TensorData::new(
         "ovoxel_semantic",
-        Dtype::U16,
-        vec![semantic.len()],
-        bytemuck::cast_slice(&semantic).to_vec(),
+        Dtype::U8,
+        vec![semantic_u8.len()],
+        semantic_u8,
     ));
     tensors.push(TensorData::new(
         "ovoxel_semantic_labels",
