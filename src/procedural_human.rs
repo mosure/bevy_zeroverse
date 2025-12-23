@@ -1,6 +1,7 @@
 use std::hash::{Hash, Hasher};
 
 use bevy::camera::primitives::Aabb;
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use bevy_burn_human::{BurnHumanAssets, BurnHumanInput, BurnHumanMeshMode, BurnHumanPlugin};
 use burn_human::data::reference::TensorData;
@@ -326,24 +327,39 @@ fn refresh_burn_human_pool(
     }
 }
 
-fn update_burn_human_inputs(
-    mut commands: Commands,
-    assets: Res<BurnHumanAssets>,
-    playback: Res<Playback>,
-    time: Res<Time>,
-    noise_settings: Res<BurnHumanPoseNoiseSettings>,
-    settings: Res<BurnHumanSettings>,
-    mut regen_events: MessageReader<RegenerateSceneEvent>,
-    mut humans: Query<(
-        Entity,
-        &mut BurnHumanInstance,
-        &BurnHumanPlacement,
-        &mut Transform,
-        &mut BurnHumanInput,
-        Option<&BurnHumanPoseNoise>,
-        Option<&mut Aabb>,
-    )>,
-) {
+type BurnHumanQuery = (
+    Entity,
+    &'static mut BurnHumanInstance,
+    &'static BurnHumanPlacement,
+    &'static mut Transform,
+    &'static mut BurnHumanInput,
+    Option<&'static BurnHumanPoseNoise>,
+    Option<&'static mut Aabb>,
+);
+
+#[derive(SystemParam)]
+struct BurnHumanInputParams<'w, 's> {
+    commands: Commands<'w, 's>,
+    assets: Res<'w, BurnHumanAssets>,
+    playback: Res<'w, Playback>,
+    time: Res<'w, Time>,
+    noise_settings: Res<'w, BurnHumanPoseNoiseSettings>,
+    settings: Res<'w, BurnHumanSettings>,
+    regen_events: MessageReader<'w, 's, RegenerateSceneEvent>,
+    humans: Query<'w, 's, BurnHumanQuery>,
+}
+
+fn update_burn_human_inputs(params: BurnHumanInputParams) {
+    let BurnHumanInputParams {
+        mut commands,
+        assets,
+        playback,
+        time,
+        noise_settings,
+        settings,
+        mut regen_events,
+        mut humans,
+    } = params;
     let mut predicted = *playback;
     if !regen_events.is_empty() {
         regen_events.clear();

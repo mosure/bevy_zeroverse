@@ -352,19 +352,31 @@ fn spawn_face(
     true
 }
 
-// TODO: support bailing on room spawn if required room features are too large (e.g. no door)
-fn spawn_room(
-    commands: &mut ChildSpawnerCommands,
-    room_scale: &Vec3,
-    room_settings: &ZeroverseSemanticRoomSettings,
+struct SpawnRoomParams<'a> {
+    room_scale: &'a Vec3,
+    room_settings: &'a ZeroverseSemanticRoomSettings,
     depth: i32,
     leaf: bool,
     is_base_room: bool,
     track_obb: bool,
     animate_humans: bool,
+    zeroverse_meshes: &'a ZeroverseMeshes,
+}
+
+// TODO: support bailing on room spawn if required room features are too large (e.g. no door)
+fn spawn_room(
+    commands: &mut ChildSpawnerCommands,
+    params: &SpawnRoomParams<'_>,
     burn_human: &mut Option<BurnHumanSpawnContext<'_>>,
-    zeroverse_meshes: &ZeroverseMeshes,
 ) -> [bool; 4] {
+    let room_scale = params.room_scale;
+    let room_settings = params.room_settings;
+    let depth = params.depth;
+    let leaf = params.leaf;
+    let is_base_room = params.is_base_room;
+    let track_obb = params.track_obb;
+    let animate_humans = params.animate_humans;
+    let zeroverse_meshes = params.zeroverse_meshes;
     let mut windows = [false; 4];
     let mut rng = rand::rng();
 
@@ -952,18 +964,17 @@ fn spawn_room_rec(
             Visibility::default(),
         ))
         .with_children(|c| {
-            windows = spawn_room(
-                c,
-                &my_scale,
-                settings,
+            let params = SpawnRoomParams {
+                room_scale: &my_scale,
+                room_settings: settings,
                 depth,
-                depth_left == 0,
-                false,
+                leaf: depth_left == 0,
+                is_base_room: false,
                 track_obb,
-                false,
-                burn_human,
+                animate_humans: false,
                 zeroverse_meshes,
-            );
+            };
+            windows = spawn_room(c, &params, burn_human);
         });
 
     if depth_left > 0 {
@@ -1018,18 +1029,17 @@ fn spawn_room_neighborhood(
                 Visibility::default(),
             ))
             .with_children(|base_room| {
-                windows_root = spawn_room(
-                    base_room,
-                    base_scale,
-                    settings,
-                    0,
-                    false,
-                    true,
-                    true,
-                    animate_base_humans,
-                    burn_human,
+                let params = SpawnRoomParams {
+                    room_scale: base_scale,
+                    room_settings: settings,
+                    depth: 0,
+                    leaf: false,
+                    is_base_room: true,
+                    track_obb: true,
+                    animate_humans: animate_base_humans,
                     zeroverse_meshes,
-                );
+                };
+                windows_root = spawn_room(base_room, &params, burn_human);
             });
 
             let mut rooms: HashMap<(i32, i32), (Vec3, Vec3)> = HashMap::new();
