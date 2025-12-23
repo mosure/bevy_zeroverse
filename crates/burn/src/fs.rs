@@ -290,6 +290,9 @@ struct MetaFields {
     time: Vec<f32>,
     aabb: [[f32; 3]; 2],
     object_obbs: Vec<bevy_zeroverse::sample::ObjectObbSample>,
+    human_poses: Vec<bevy_zeroverse::sample::HumanPoseSample>,
+    human_bone_names: Vec<String>,
+    human_bone_parents: Vec<i64>,
     ovoxel: Option<bevy_zeroverse::sample::OvoxelSample>,
 }
 
@@ -415,6 +418,18 @@ fn load_meta(dir: &Path, steps: usize, view_dim: usize) -> Result<MetaFields> {
             class_names = names;
         }
     }
+    let mut human_bone_names: Vec<String> = Vec::new();
+    if let Ok(name_tensor) = tensors.tensor("human_pose_bone_names") {
+        let bytes: Vec<u8> = bytemuck::cast_slice(name_tensor.data()).to_vec();
+        if let Ok(names) = serde_json::from_slice::<Vec<String>>(&bytes) {
+            human_bone_names = names;
+        }
+    }
+    let mut human_bone_parents: Vec<i64> = Vec::new();
+    if let Ok(parent_tensor) = tensors.tensor("human_pose_bone_parents") {
+        let parents: &[i64] = bytemuck::cast_slice(parent_tensor.data());
+        human_bone_parents = parents.to_vec();
+    }
 
     let default_len = steps * view_dim;
     let mut world_from_view = vec![[[0.0; 4]; 4]; default_len];
@@ -424,6 +439,7 @@ fn load_meta(dir: &Path, steps: usize, view_dim: usize) -> Result<MetaFields> {
     let mut time = vec![0.0; default_len];
     let mut aabb = [[0.0; 3]; 2];
     let mut object_obbs = Vec::new();
+    let mut human_poses = Vec::new();
 
     if let Ok(tensor) = tensors.tensor("world_from_view") {
         let data: &[f32] = bytemuck::cast_slice(tensor.data());
@@ -535,6 +551,51 @@ fn load_meta(dir: &Path, steps: usize, view_dim: usize) -> Result<MetaFields> {
         }
     }
 
+    if let (Ok(position), Ok(rotation)) = (
+        tensors.tensor("human_pose_position"),
+        tensors.tensor("human_pose_rotation"),
+    ) {
+        let positions: &[f32] = bytemuck::cast_slice(position.data());
+        let rotations: &[f32] = bytemuck::cast_slice(rotation.data());
+
+        let shape = position.shape();
+        let human_count = shape.first().copied().unwrap_or(0);
+        let bone_count = shape.get(1).copied().unwrap_or(0);
+
+        for human_idx in 0..human_count {
+            let mut bone_positions = Vec::with_capacity(bone_count);
+            let mut bone_rotations = Vec::with_capacity(bone_count);
+
+            for bone_idx in 0..bone_count {
+                let base = (human_idx * bone_count + bone_idx) * 3;
+                let pos = if base + 2 < positions.len() {
+                    [positions[base], positions[base + 1], positions[base + 2]]
+                } else {
+                    [0.0; 3]
+                };
+                bone_positions.push(pos);
+
+                let r_base = (human_idx * bone_count + bone_idx) * 4;
+                let rot = if r_base + 3 < rotations.len() {
+                    [
+                        rotations[r_base],
+                        rotations[r_base + 1],
+                        rotations[r_base + 2],
+                        rotations[r_base + 3],
+                    ]
+                } else {
+                    [0.0; 4]
+                };
+                bone_rotations.push(rot);
+            }
+
+            human_poses.push(bevy_zeroverse::sample::HumanPoseSample {
+                bone_positions,
+                bone_rotations,
+            });
+        }
+    }
+
     Ok(MetaFields {
         world_from_view,
         fovy,
@@ -543,6 +604,9 @@ fn load_meta(dir: &Path, steps: usize, view_dim: usize) -> Result<MetaFields> {
         time,
         aabb,
         object_obbs,
+        human_poses,
+        human_bone_names,
+        human_bone_parents,
         ovoxel: parse_ovoxel_from_tensors(&tensors),
     })
 }
@@ -578,6 +642,9 @@ pub fn load_sample_dir(dir: impl AsRef<Path>) -> Result<ZeroverseSample> {
         view_dim: view_dim as u32,
         aabb: meta.aabb,
         object_obbs: meta.object_obbs,
+        human_poses: meta.human_poses,
+        human_bone_names: meta.human_bone_names,
+        human_bone_parents: meta.human_bone_parents,
         ovoxel: meta.ovoxel.clone(),
     };
 
@@ -1101,6 +1168,67 @@ pub fn save_sample_to_fs(
         ));
     }
 
+    if !sample.human_poses.is_empty() {
+        let human_count = sample.human_poses.len();
+        let mut bone_count = sample.human_bone_names.len();
+        for pose in &sample.human_poses {
+            bone_count = bone_count.max(pose.bone_positions.len());
+            bone_count = bone_count.max(pose.bone_rotations.len());
+        }
+
+        if bone_count > 0 {
+            let mut pose_positions = Vec::with_capacity(human_count * bone_count * 3);
+            let mut pose_rotations = Vec::with_capacity(human_count * bone_count * 4);
+
+            for pose in &sample.human_poses {
+                for bone_idx in 0..bone_count {
+                    if let Some(pos) = pose.bone_positions.get(bone_idx) {
+                        pose_positions.extend_from_slice(pos);
+                    } else {
+                        pose_positions.extend_from_slice(&[0.0; 3]);
+                    }
+
+                    if let Some(rot) = pose.bone_rotations.get(bone_idx) {
+                        pose_rotations.extend_from_slice(rot);
+                    } else {
+                        pose_rotations.extend_from_slice(&[0.0; 4]);
+                    }
+                }
+            }
+
+            tensors.push(TensorData::new(
+                "human_pose_position",
+                Dtype::F32,
+                vec![human_count, bone_count, 3],
+                bytemuck::cast_slice(&pose_positions).to_vec(),
+            ));
+            tensors.push(TensorData::new(
+                "human_pose_rotation",
+                Dtype::F32,
+                vec![human_count, bone_count, 4],
+                bytemuck::cast_slice(&pose_rotations).to_vec(),
+            ));
+
+            if !sample.human_bone_names.is_empty() {
+                let name_bytes = serde_json::to_vec(&sample.human_bone_names)?;
+                tensors.push(TensorData::new(
+                    "human_pose_bone_names",
+                    Dtype::U8,
+                    vec![name_bytes.len()],
+                    name_bytes,
+                ));
+            }
+            if !sample.human_bone_parents.is_empty() {
+                tensors.push(TensorData::new(
+                    "human_pose_bone_parents",
+                    Dtype::I64,
+                    vec![sample.human_bone_parents.len()],
+                    bytemuck::cast_slice(&sample.human_bone_parents).to_vec(),
+                ));
+            }
+        }
+    }
+
     if export_ovoxel && let Some(ref ov) = sample.ovoxel {
         build_ovoxel_tensor_views(ov, &mut tensors)?;
     }
@@ -1133,6 +1261,9 @@ mod tests {
                 rotation: [0.0, 0.0, 0.0, 1.0],
                 class_name: "table".to_string(),
             }],
+            human_poses: Vec::new(),
+            human_bone_names: Vec::new(),
+            human_bone_parents: Vec::new(),
             ovoxel: None,
         }
     }
@@ -1147,6 +1278,9 @@ mod tests {
             view_dim: 1,
             aabb: [[-1.0, -1.0, -1.0], [1.0, 1.0, 1.0]],
             object_obbs: vec![],
+            human_poses: Vec::new(),
+            human_bone_names: Vec::new(),
+            human_bone_parents: Vec::new(),
             ovoxel: Some(bevy_zeroverse::sample::OvoxelSample {
                 coords: vec![[3, 0, 0], [1, 0, 0]],
                 dual_vertices: vec![[9, 9, 9], [1, 2, 3]],

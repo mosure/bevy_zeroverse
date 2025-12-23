@@ -454,6 +454,31 @@ pub fn save_chunk(
     let mut obb_rotation: Vec<f32> = vec![0.0; b * max_obbs * 4];
     let mut obb_class_idx: Vec<i64> = vec![-1; b * max_obbs];
 
+    // Human pose accumulation
+    let mut max_humans = 0usize;
+    let mut bone_count = 0usize;
+    let mut bone_names: Vec<String> = Vec::new();
+    let mut bone_parents: Vec<i64> = Vec::new();
+    for sample in samples.iter() {
+        max_humans = max_humans.max(sample.human_poses.len());
+        bone_count = bone_count.max(sample.human_bone_names.len());
+        for pose in &sample.human_poses {
+            bone_count = bone_count.max(pose.bone_positions.len());
+            bone_count = bone_count.max(pose.bone_rotations.len());
+        }
+        if bone_names.is_empty() && !sample.human_bone_names.is_empty() {
+            bone_names = sample.human_bone_names.clone();
+            bone_parents = sample.human_bone_parents.clone();
+        }
+    }
+    if bone_count < bone_names.len() {
+        bone_count = bone_names.len();
+    }
+
+    let mut pose_positions: Vec<f32> = vec![0.0; b * max_humans * bone_count * 3];
+    let mut pose_rotations: Vec<f32> = vec![0.0; b * max_humans * bone_count * 4];
+    let mut pose_counts: Vec<i64> = vec![0; b];
+
     for (sample_idx, sample) in samples.iter().enumerate() {
         assert_eq!(
             sample.views.len(),
@@ -690,6 +715,24 @@ pub fn save_chunk(
                 }
             }
         }
+
+        if max_humans > 0 && bone_count > 0 {
+            pose_counts[sample_idx] = sample.human_poses.len() as i64;
+            for (human_idx, pose) in sample.human_poses.iter().take(max_humans).enumerate() {
+                for (bone_idx, position) in pose.bone_positions.iter().take(bone_count).enumerate()
+                {
+                    let base =
+                        ((sample_idx * max_humans + human_idx) * bone_count + bone_idx) * 3;
+                    pose_positions[base..base + 3].copy_from_slice(position);
+                }
+                for (bone_idx, rotation) in pose.bone_rotations.iter().take(bone_count).enumerate()
+                {
+                    let base =
+                        ((sample_idx * max_humans + human_idx) * bone_count + bone_idx) * 4;
+                    pose_rotations[base..base + 4].copy_from_slice(rotation);
+                }
+            }
+        }
     }
 
     tensors.push(TensorData {
@@ -781,6 +824,45 @@ pub fn save_chunk(
         });
     }
 
+    if max_humans > 0 && bone_count > 0 {
+        tensors.push(TensorData {
+            name: "human_pose_position".to_string(),
+            dtype: Dtype::F32,
+            shape: vec![b, max_humans, bone_count, 3],
+            data: cast_slice(&pose_positions).to_vec(),
+        });
+        tensors.push(TensorData {
+            name: "human_pose_rotation".to_string(),
+            dtype: Dtype::F32,
+            shape: vec![b, max_humans, bone_count, 4],
+            data: cast_slice(&pose_rotations).to_vec(),
+        });
+        tensors.push(TensorData {
+            name: "human_pose_count".to_string(),
+            dtype: Dtype::I64,
+            shape: vec![b],
+            data: cast_slice(&pose_counts).to_vec(),
+        });
+
+        if !bone_names.is_empty() {
+            let name_bytes = serde_json::to_vec(&bone_names)?;
+            tensors.push(TensorData {
+                name: "human_pose_bone_names".to_string(),
+                dtype: Dtype::U8,
+                shape: vec![name_bytes.len()],
+                data: name_bytes,
+            });
+        }
+        if !bone_parents.is_empty() {
+            tensors.push(TensorData {
+                name: "human_pose_bone_parents".to_string(),
+                dtype: Dtype::I64,
+                shape: vec![bone_parents.len()],
+                data: cast_slice(&bone_parents).to_vec(),
+            });
+        }
+    }
+
     if !world_from_view.is_empty() {
         let shape = [b, steps, view_dim, 4, 4].to_vec();
         tensors.push(TensorData {
@@ -867,6 +949,18 @@ pub fn load_chunk(path: impl AsRef<Path>) -> Result<Vec<ZeroverseSample>> {
             class_names = names;
         }
     }
+    let mut bone_names: Vec<String> = Vec::new();
+    if let Ok(name_tensor) = tensors.tensor("human_pose_bone_names") {
+        let bytes: Vec<u8> = cast_slice(name_tensor.data()).to_vec();
+        if let Ok(names) = serde_json::from_slice::<Vec<String>>(&bytes) {
+            bone_names = names;
+        }
+    }
+    let mut bone_parents: Vec<i64> = Vec::new();
+    if let Ok(parent_tensor) = tensors.tensor("human_pose_bone_parents") {
+        let parents: &[i64] = cast_slice(parent_tensor.data());
+        bone_parents = parents.to_vec();
+    }
 
     let color_shape_tensor = tensors.tensor("color_shape")?;
     let color_shape: [i64; 6] = {
@@ -889,6 +983,9 @@ pub fn load_chunk(path: impl AsRef<Path>) -> Result<Vec<ZeroverseSample>> {
             view_dim: view_dim as u32,
             aabb: [[0.0; 3]; 2],
             object_obbs: Vec::new(),
+            human_poses: Vec::new(),
+            human_bone_names: bone_names.clone(),
+            human_bone_parents: bone_parents.clone(),
             ovoxel: None,
         };
         b
@@ -1235,6 +1332,67 @@ pub fn load_chunk(path: impl AsRef<Path>) -> Result<Vec<ZeroverseSample>> {
         }
     }
 
+    if let (Ok(position), Ok(rotation), Ok(counts)) = (
+        tensors.tensor("human_pose_position"),
+        tensors.tensor("human_pose_rotation"),
+        tensors.tensor("human_pose_count"),
+    ) {
+        let positions: &[f32] = cast_slice(position.data());
+        let rotations: &[f32] = cast_slice(rotation.data());
+        let counts: &[i64] = cast_slice(counts.data());
+
+        let shape = position.shape();
+        let max_humans = shape.get(1).copied().unwrap_or(0);
+        let bone_count = shape.get(2).copied().unwrap_or(0);
+
+        for (sample_idx, sample) in samples.iter_mut().enumerate().take(b) {
+            let count = counts.get(sample_idx).copied().unwrap_or(0).max(0) as usize;
+            let human_count = count.min(max_humans);
+            let mut poses = Vec::with_capacity(human_count);
+
+            for human_idx in 0..human_count {
+                let mut bone_positions = Vec::with_capacity(bone_count);
+                let mut bone_rotations = Vec::with_capacity(bone_count);
+
+                for bone_idx in 0..bone_count {
+                    let base =
+                        ((sample_idx * max_humans + human_idx) * bone_count + bone_idx) * 3;
+                    let pos = if base + 2 < positions.len() {
+                        [
+                            positions[base],
+                            positions[base + 1],
+                            positions[base + 2],
+                        ]
+                    } else {
+                        [0.0; 3]
+                    };
+                    bone_positions.push(pos);
+
+                    let r_base =
+                        ((sample_idx * max_humans + human_idx) * bone_count + bone_idx) * 4;
+                    let rot = if r_base + 3 < rotations.len() {
+                        [
+                            rotations[r_base],
+                            rotations[r_base + 1],
+                            rotations[r_base + 2],
+                            rotations[r_base + 3],
+                        ]
+                    } else {
+                        [0.0; 4]
+                    };
+                    bone_rotations.push(rot);
+                }
+
+                poses.push(bevy_zeroverse::sample::HumanPoseSample {
+                    bone_positions,
+                    bone_rotations,
+                });
+            }
+
+            sample.human_poses = poses;
+        }
+    }
+
     fn set_fovy(v: &mut bevy_zeroverse::sample::View, x: f32) {
         v.fovy = x;
     }
@@ -1307,6 +1465,9 @@ mod tests {
                 rotation: [0.0, 0.0, 0.0, 1.0],
                 class_name: class_name.to_string(),
             }],
+            human_poses: Vec::new(),
+            human_bone_names: Vec::new(),
+            human_bone_parents: Vec::new(),
             ovoxel: None,
         }
     }
@@ -1317,6 +1478,9 @@ mod tests {
             view_dim: 1,
             aabb: [[-1.0, -1.0, -1.0], [1.0, 1.0, 1.0]],
             object_obbs: vec![],
+            human_poses: Vec::new(),
+            human_bone_names: Vec::new(),
+            human_bone_parents: Vec::new(),
             ovoxel: Some(bevy_zeroverse::sample::OvoxelSample {
                 coords: vec![[2, 0, 0], [1, 0, 0]],
                 dual_vertices: vec![[1, 2, 3], [4, 5, 6]],
@@ -1340,6 +1504,9 @@ mod tests {
             view_dim: 1,
             aabb: [[-2.0, -2.0, -2.0], [2.0, 2.0, 2.0]],
             object_obbs: vec![],
+            human_poses: Vec::new(),
+            human_bone_names: Vec::new(),
+            human_bone_parents: Vec::new(),
             ovoxel: Some(bevy_zeroverse::sample::OvoxelSample {
                 coords: vec![[5, 0, 0]],
                 dual_vertices: vec![[7, 8, 9]],

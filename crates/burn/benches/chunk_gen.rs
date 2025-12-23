@@ -26,6 +26,9 @@ fn sample_with_id(id: u8) -> ZeroverseSample {
         view_dim: 1,
         aabb: [[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]],
         object_obbs: Vec::new(),
+        human_poses: Vec::new(),
+        human_bone_names: Vec::new(),
+        human_bone_parents: Vec::new(),
         ovoxel: None,
     }
 }

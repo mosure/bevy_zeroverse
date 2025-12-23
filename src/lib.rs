@@ -38,6 +38,7 @@ impl Plugin for BevyZeroversePlugin {
             primitive::ZeroversePrimitivePlugin,
             render::RenderPlugin,
             annotation::obb::ZeroverseObbPlugin,
+            annotation::pose::ZeroversePosePlugin,
             scene::ZeroverseScenePlugin,
             ovoxel::OvoxelPlugin,
         ));

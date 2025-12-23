@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::{
-    annotation::obb::ObjectObb,
+    annotation::{obb::ObjectObb, pose::HumanPose},
     app::BevyZeroverseConfig,
     camera::Playback,
     io::{channels, image_copy::ImageCopier},
@@ -9,6 +9,7 @@ use crate::{
     render::RenderMode,
     scene::{RegenerateSceneEvent, SceneAabb, SceneAabbNode},
 };
+use bevy_burn_human::BurnHumanAssets;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
@@ -31,6 +32,12 @@ pub struct ObjectObbSample {
     pub scale: [f32; 3],
     pub rotation: [f32; 4],
     pub class_name: String,
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+pub struct HumanPoseSample {
+    pub bone_positions: Vec<[f32; 3]>,
+    pub bone_rotations: Vec<[f32; 4]>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
@@ -59,6 +66,12 @@ pub struct Sample {
     pub aabb: [[f32; 3]; 2],
 
     pub object_obbs: Vec<ObjectObbSample>,
+
+    pub human_poses: Vec<HumanPoseSample>,
+
+    pub human_bone_names: Vec<String>,
+
+    pub human_bone_parents: Vec<i64>,
 
     /// Optional O-Voxel representation of the scene.
     pub ovoxel: Option<OvoxelSample>,
@@ -158,11 +171,13 @@ pub fn sample_stream(
     cameras: Query<(&GlobalTransform, &Projection, &ImageCopier)>,
     scene: Query<(&SceneAabbNode, &SceneAabb)>,
     object_obbs: Query<&ObjectObb>,
+    human_poses: Query<&HumanPose>,
     images: Res<Assets<Image>>,
     mut render_mode: ResMut<RenderMode>,
     mut playback: ResMut<Playback>,
     mut regenerate_event: MessageWriter<RegenerateSceneEvent>,
     ovoxels: Query<&OvoxelVolume, With<OvoxelExport>>,
+    burn_human_assets: Option<Res<BurnHumanAssets>>,
 ) {
     if !state.enabled {
         return;
@@ -222,6 +237,26 @@ pub fn sample_stream(
             ],
             class_name: obb.class_name.clone(),
         });
+    }
+
+    buffered_sample.human_poses.clear();
+    for pose in human_poses.iter() {
+        buffered_sample.human_poses.push(HumanPoseSample {
+            bone_positions: pose.bone_positions.iter().map(|p| (*p).into()).collect(),
+            bone_rotations: pose
+                .bone_rotations
+                .iter()
+                .map(|r| [r.x, r.y, r.z, r.w])
+                .collect(),
+        });
+    }
+
+    if let Some(assets) = burn_human_assets.as_ref() {
+        buffered_sample.human_bone_names = assets.body.metadata().metadata.bone_labels.clone();
+        buffered_sample.human_bone_parents = assets.body.metadata().metadata.bone_parents.clone();
+    } else {
+        buffered_sample.human_bone_names.clear();
+        buffered_sample.human_bone_parents.clear();
     }
 
     let write_to = state.render_modes.remove(0);
@@ -396,6 +431,9 @@ pub fn sample_stream(
         view_dim: camera_count as u32,
         aabb: buffered_sample.aabb,
         object_obbs: buffered_sample.object_obbs.clone(),
+        human_poses: buffered_sample.human_poses.clone(),
+        human_bone_names: buffered_sample.human_bone_names.clone(),
+        human_bone_parents: buffered_sample.human_bone_parents.clone(),
         ovoxel,
     };
 

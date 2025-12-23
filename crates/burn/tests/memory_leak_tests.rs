@@ -113,6 +113,9 @@ fn make_sample(width: u32, height: u32) -> Sample {
         view_dim: 1,
         aabb: [[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]],
         object_obbs: Vec::new(),
+        human_poses: Vec::new(),
+        human_bone_names: Vec::new(),
+        human_bone_parents: Vec::new(),
         ovoxel: Some(ov),
     }
 }

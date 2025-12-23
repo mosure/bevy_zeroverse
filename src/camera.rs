@@ -55,6 +55,14 @@ impl Plugin for ZeroverseCameraPlugin {
                 ..default()
             },
         );
+        app.insert_gizmo_config(
+            PoseGizmoConfigGroup,
+            GizmoConfig {
+                render_layers: EDITOR_CAMERA_RENDER_LAYER,
+                depth_bias: -1.0,
+                ..default()
+            },
+        );
 
         app.init_resource::<DefaultZeroverseCamera>();
 
@@ -1143,6 +1151,9 @@ pub struct ProcessedEditorCameraMarker;
 
 #[derive(Default, Reflect, GizmoConfigGroup)]
 pub struct EditorCameraGizmoConfigGroup;
+
+#[derive(Default, Reflect, GizmoConfigGroup)]
+pub struct PoseGizmoConfigGroup;
 
 pub const EDITOR_CAMERA_RENDER_LAYER: RenderLayers = RenderLayers::layer(1);
 

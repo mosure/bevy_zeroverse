@@ -196,11 +196,24 @@ class View:
         return batch
 
 class Sample:
-    def __init__(self, views, view_dim, aabb, object_obbs, ovoxel=None):
+    def __init__(
+        self,
+        views,
+        view_dim,
+        aabb,
+        object_obbs,
+        human_poses,
+        human_bone_names,
+        human_bone_parents,
+        ovoxel=None,
+    ):
         self.views = views
         self.view_dim = view_dim
         self.aabb = aabb
         self.object_obbs = object_obbs
+        self.human_poses = human_poses
+        self.human_bone_names = human_bone_names
+        self.human_bone_parents = human_bone_parents
         self.ovoxel = ovoxel
 
     @classmethod
@@ -253,9 +266,37 @@ class Sample:
                         'class_name': obb.class_name,
                     }
                 )
+        human_poses = []
+        if hasattr(rust_sample, "human_poses"):
+            for pose in rust_sample.human_poses:
+                human_poses.append(
+                    {
+                        "bone_positions": np.array(pose.bone_positions, dtype=np.float32),
+                        "bone_rotations": np.array(pose.bone_rotations, dtype=np.float32),
+                    }
+                )
+        human_bone_names = (
+            list(getattr(rust_sample, "human_bone_names", []))
+            if hasattr(rust_sample, "human_bone_names")
+            else []
+        )
+        human_bone_parents = (
+            list(getattr(rust_sample, "human_bone_parents", []))
+            if hasattr(rust_sample, "human_bone_parents")
+            else []
+        )
         # drop rust_views to release lock earlier
         del rust_views
-        return cls(views, view_dim, aabb, object_obbs, ovoxel)
+        return cls(
+            views,
+            view_dim,
+            aabb,
+            object_obbs,
+            human_poses,
+            human_bone_names,
+            human_bone_parents,
+            ovoxel,
+        )
 
     def to_tensors(self):
         sample = {}
@@ -312,6 +353,43 @@ class Sample:
             names_bytes = json.dumps(list(class_to_idx.keys())).encode("utf-8")
             sample['object_obb_class_names'] = torch.tensor(list(names_bytes), dtype=torch.uint8)
 
+        if self.human_poses or self.human_bone_names or self.human_bone_parents:
+            bone_count = len(self.human_bone_names)
+            for pose in self.human_poses:
+                bone_count = max(bone_count, pose["bone_positions"].shape[0])
+                bone_count = max(bone_count, pose["bone_rotations"].shape[0])
+
+            positions = []
+            rotations = []
+            for pose in self.human_poses:
+                pos = _as_numpy_array(pose["bone_positions"], np.float32, width=3)
+                rot = _as_numpy_array(pose["bone_rotations"], np.float32, width=4)
+                if pos.shape[0] < bone_count:
+                    pad = np.zeros((bone_count - pos.shape[0], 3), dtype=np.float32)
+                    pos = np.concatenate([pos, pad], axis=0)
+                if rot.shape[0] < bone_count:
+                    pad = np.zeros((bone_count - rot.shape[0], 4), dtype=np.float32)
+                    rot = np.concatenate([rot, pad], axis=0)
+                positions.append(pos)
+                rotations.append(rot)
+
+            if positions:
+                pose_positions = np.stack(positions, axis=0)
+                pose_rotations = np.stack(rotations, axis=0)
+            else:
+                pose_positions = np.zeros((0, bone_count, 3), dtype=np.float32)
+                pose_rotations = np.zeros((0, bone_count, 4), dtype=np.float32)
+
+            sample['human_pose_position'] = torch.tensor(pose_positions, dtype=torch.float32)
+            sample['human_pose_rotation'] = torch.tensor(pose_rotations, dtype=torch.float32)
+            sample['human_pose_count'] = torch.tensor(len(self.human_poses), dtype=torch.int64)
+
+            if len(self.human_bone_names) > 0:
+                names_bytes = json.dumps(self.human_bone_names).encode("utf-8")
+                sample['human_pose_bone_names'] = torch.tensor(list(names_bytes), dtype=torch.uint8)
+            if len(self.human_bone_parents) > 0:
+                sample['human_pose_bone_parents'] = torch.tensor(self.human_bone_parents, dtype=torch.int64)
+
         normalize_keys = ['color', 'optical_flow']
         for key in normalize_keys:
             if key in sample:
@@ -319,6 +397,7 @@ class Sample:
 
         self.views.clear()
         self.object_obbs.clear()
+        self.human_poses.clear()
 
         return sample
 
@@ -515,6 +594,11 @@ def chunk_and_save(
             center = sample.get("object_obb_center")
             if center is not None:
                 max_obbs = max(max_obbs, int(center.shape[0]))
+        max_humans = 0
+        for sample in chunk_samples:
+            pose = sample.get("human_pose_position")
+            if pose is not None:
+                max_humans = max(max_humans, int(pose.shape[0]))
 
         ov_coords: list[torch.Tensor] = []
         ov_dual: list[torch.Tensor] = []
@@ -528,6 +612,8 @@ def chunk_and_save(
         ov_label_blob: bytearray = bytearray()
         ov_cursor = 0
         obb_class_names_tensor: torch.Tensor | None = None
+        human_bone_names_tensor: torch.Tensor | None = None
+        human_bone_parents_tensor: torch.Tensor | None = None
 
         def pad_obb_tensor(tensor: torch.Tensor, target: int, fill: float | int = 0) -> torch.Tensor:
             if target <= 0:
@@ -536,6 +622,15 @@ def chunk_and_save(
                 return tensor
             pad_shape = (target - tensor.shape[0], *tensor.shape[1:])
             pad = torch.full(pad_shape, fill, dtype=tensor.dtype, device=tensor.device)
+            return torch.cat([tensor, pad], dim=0)
+
+        def pad_pose_tensor(tensor: torch.Tensor, target: int) -> torch.Tensor:
+            if target <= 0:
+                return tensor.new_zeros((0, *tensor.shape[1:]), dtype=tensor.dtype)
+            if tensor.shape[0] == target:
+                return tensor
+            pad_shape = (target - tensor.shape[0], *tensor.shape[1:])
+            pad = torch.zeros(pad_shape, dtype=tensor.dtype, device=tensor.device)
             return torch.cat([tensor, pad], dim=0)
 
         for sample in chunk_samples:
@@ -560,6 +655,24 @@ def chunk_and_save(
                     tensor = tensor.cpu()
                     fill = -1 if name == "object_obb_class_idx" else 0
                     padded = pad_obb_tensor(tensor, max_obbs, fill=fill)
+                    batch.setdefault(name, []).append(padded)
+                    continue
+                elif name.startswith("human_pose_"):
+                    if max_humans == 0:
+                        continue
+                    if name == "human_pose_bone_names":
+                        if human_bone_names_tensor is None:
+                            human_bone_names_tensor = tensor.cpu()
+                        continue
+                    if name == "human_pose_bone_parents":
+                        if human_bone_parents_tensor is None:
+                            human_bone_parents_tensor = tensor.cpu()
+                        continue
+                    if name == "human_pose_count":
+                        batch.setdefault(name, []).append(tensor.cpu())
+                        continue
+                    tensor = tensor.cpu()
+                    padded = pad_pose_tensor(tensor, max_humans)
                     batch.setdefault(name, []).append(padded)
                     continue
                 elif name.startswith("ovoxel_"):
@@ -626,6 +739,10 @@ def chunk_and_save(
                 batch["ovoxel_semantic"] = torch.cat(ov_semantic, dim=0)
         if max_obbs > 0 and obb_class_names_tensor is not None:
             batch["object_obb_class_names"] = obb_class_names_tensor
+        if max_humans > 0 and human_bone_names_tensor is not None:
+            batch["human_pose_bone_names"] = human_bone_names_tensor
+        if max_humans > 0 and human_bone_parents_tensor is not None:
+            batch["human_pose_bone_parents"] = human_bone_parents_tensor
 
         flat_tensors: dict[str, Any] = {}
         for key, value in batch.items():
@@ -656,7 +773,7 @@ def chunk_and_save(
         if not samples:
             return {}
         collated: dict[str, Any] = {}
-        ragged_prefixes = ("ovoxel_", "object_obb_")
+        ragged_prefixes = ("ovoxel_", "object_obb_", "human_pose_")
         for key in samples[0].keys():
             values = [s[key] for s in samples]
             if key.startswith(ragged_prefixes):
@@ -846,7 +963,19 @@ def load_single_sample(
     sample_idx: int,
 ):
     chunk = load_chunk(chunk_path)
-    sample = {k: v[sample_idx] for k, v in chunk.items()}
+    meta_keys = {
+        "object_obb_class_names",
+        "human_pose_bone_names",
+        "human_pose_bone_parents",
+    }
+    sample = {
+        k: v[sample_idx]
+        for k, v in chunk.items()
+        if k not in meta_keys
+    }
+    for key in meta_keys:
+        if key in chunk:
+            sample[key] = chunk[key]
     sample['_chunk_path'] = str(chunk_path)
     sample['_sample_idx'] = sample_idx
     return sample
@@ -972,11 +1101,19 @@ class ChunkedIteratorDataset(IterableDataset):
             for sample_idx in local_indices:
                 if emitted_samples >= min_assigned_samples:
                     return
+                meta_keys = {
+                    "object_obb_class_names",
+                    "human_pose_bone_names",
+                    "human_pose_bone_parents",
+                }
                 sample = {
                     key: tensor[sample_idx]
                     for key, tensor in chunk_data.items()
-                    if not key.startswith("ovoxel_")
+                    if not key.startswith("ovoxel_") and key not in meta_keys
                 }
+                for key in meta_keys:
+                    if key in chunk_data:
+                        sample[key] = chunk_data[key]
 
                 if ov_offsets is not None and sample_idx < len(ov_offsets):
                     start, length = ov_offsets[sample_idx].tolist()
@@ -1027,8 +1164,13 @@ def write_sample(sample: dict, *, jpg_quality: int = 75) -> None:
 
     assert {"_chunk_path", "_sample_idx"} <= sample.keys(), \
         "`_chunk_path` and `_sample_idx` must be present"
+    meta_keys = {
+        "object_obb_class_names",
+        "human_pose_bone_names",
+        "human_pose_bone_parents",
+    }
     for key in list(sample.keys()):
-        if key.startswith("ovoxel_"):
+        if key.startswith("ovoxel_") or key in meta_keys:
             sample.pop(key)
 
     chunk_path = Path(sample.pop("_chunk_path"))
@@ -1162,6 +1304,19 @@ def save_to_folders(dataset, output_dir: Path, n_workers: int = 1):
                 decoded = names_val
             names_bytes = json.dumps(decoded).encode('utf-8')
             meta_tensors['object_obb_class_names'] = torch.tensor(list(names_bytes), dtype=torch.uint8)
+        for key in ['human_pose_position', 'human_pose_rotation', 'human_pose_count', 'human_pose_bone_parents']:
+            if key in sample:
+                meta_tensors[key] = sample[key]
+        if 'human_pose_bone_names' in sample:
+            names_val = sample['human_pose_bone_names']
+            if isinstance(names_val, torch.Tensor):
+                decoded = []
+                if names_val.numel() > 0:
+                    decoded = json.loads(bytes(names_val.cpu().tolist()).decode("utf-8"))
+            else:
+                decoded = names_val
+            names_bytes = json.dumps(decoded).encode('utf-8')
+            meta_tensors['human_pose_bone_names'] = torch.tensor(list(names_bytes), dtype=torch.uint8)
         meta_filename = scene_dir / "meta.safetensors"
         save_file(meta_tensors, str(meta_filename))
 

@@ -25,7 +25,7 @@ use bevy_burn_human::{
 };
 
 use crate::{
-    annotation::obb::ObbTracked,
+    annotation::{obb::ObbTracked, pose::PoseTracked},
     manifold::ManifoldOperations,
     material::ZeroverseMaterials,
     mesh::{
@@ -413,6 +413,7 @@ fn build_primitive(
                                 render_mode,
                                 TransmittedShadowReceiver,
                             ));
+                            primitive.insert(PoseTracked);
                             if settings.human_pose_noise {
                                 primitive.insert(BurnHumanPoseNoise);
                             }

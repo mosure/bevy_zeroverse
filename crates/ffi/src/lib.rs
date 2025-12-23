@@ -176,6 +176,24 @@ impl From<core_sample::ObjectObbSample> for ObjectObb {
 }
 
 #[pyclass]
+#[derive(Clone, Debug, Default)]
+pub struct HumanPose {
+    #[pyo3(get, set)]
+    pub bone_positions: Vec<[f32; 3]>,
+    #[pyo3(get, set)]
+    pub bone_rotations: Vec<[f32; 4]>,
+}
+
+impl From<core_sample::HumanPoseSample> for HumanPose {
+    fn from(value: core_sample::HumanPoseSample) -> Self {
+        HumanPose {
+            bone_positions: value.bone_positions,
+            bone_rotations: value.bone_rotations,
+        }
+    }
+}
+
+#[pyclass]
 #[derive(Clone, Debug, Default, Resource)]
 pub struct Sample {
     pub views: Vec<View>,
@@ -191,6 +209,15 @@ pub struct Sample {
     pub object_obbs: Vec<ObjectObb>,
 
     #[pyo3(get, set)]
+    pub human_poses: Vec<HumanPose>,
+
+    #[pyo3(get, set)]
+    pub human_bone_names: Vec<String>,
+
+    #[pyo3(get, set)]
+    pub human_bone_parents: Vec<i64>,
+
+    #[pyo3(get, set)]
     pub ovoxel: Option<Ovoxel>,
 }
 
@@ -202,6 +229,9 @@ impl From<core_sample::Sample> for Sample {
             view_dim: value.view_dim,
             aabb: value.aabb,
             object_obbs: value.object_obbs.into_iter().map(ObjectObb::from).collect(),
+            human_poses: value.human_poses.into_iter().map(HumanPose::from).collect(),
+            human_bone_names: value.human_bone_names,
+            human_bone_parents: value.human_bone_parents,
             ovoxel: value.ovoxel.map(Ovoxel::from),
         }
     }
