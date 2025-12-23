@@ -15,6 +15,7 @@ pub mod ovoxel_mesh;
 // pub mod plucker;
 pub mod annotation;
 pub mod primitive;
+pub mod procedural_human;
 pub mod render;
 pub mod sample;
 pub mod scene;
@@ -33,6 +34,7 @@ impl Plugin for BevyZeroversePlugin {
             camera::ZeroverseCameraPlugin,
             material::ZeroverseMaterialPlugin,
             mesh::ZeroverseMeshPlugin,
+            procedural_human::ZeroverseBurnHumanPlugin,
             primitive::ZeroversePrimitivePlugin,
             render::RenderPlugin,
             annotation::obb::ZeroverseObbPlugin,

@@ -323,6 +323,7 @@ fn spawn_room(
     depth: i32,
     leaf: bool,
     track_obb: bool,
+    animate_humans: bool,
     zeroverse_meshes: &ZeroverseMeshes,
 ) -> [bool; 4] {
     let mut windows = [false; 4];
@@ -665,12 +666,14 @@ fn spawn_room(
 
             aabb_colliders.push((position, human_scale));
 
+            let mut human_settings = room_settings.human_settings.clone();
+            human_settings.human_pose_noise = animate_humans;
             commands.spawn((
                 ZeroversePrimitiveSettings {
                     position_sampler: PositionSampler::Exact { position },
                     scale_sampler: human_scale_sampler.clone(),
                     track_obb,
-                    ..room_settings.human_settings.clone()
+                    ..human_settings
                 },
                 Transform::from_translation(position),
                 Name::new("human"),
@@ -819,6 +822,7 @@ fn spawn_room_rec(
                 depth,
                 depth_left == 0,
                 track_obb,
+                false,
                 zeroverse_meshes,
             );
         });
@@ -878,6 +882,7 @@ fn spawn_room_neighborhood(
                     settings,
                     0,
                     false,
+                    true,
                     true,
                     zeroverse_meshes,
                 );
@@ -1052,4 +1057,34 @@ fn regenerate_scene(
         scene_settings,
         zeroverse_meshes,
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::primitive::ZeroversePrimitives;
+
+    #[test]
+    fn semantic_room_defaults_include_human_mesh() {
+        let settings = ZeroverseSemanticRoomSettings::default();
+        let has_human = settings
+            .human_settings
+            .available_types
+            .iter()
+            .any(|primitive| matches!(primitive, ZeroversePrimitives::Mesh(name) if name == "human"));
+        assert!(has_human, "expected human mesh primitive in defaults");
+    }
+
+    #[test]
+    fn semantic_room_defaults_freeze_humans() {
+        let settings = ZeroverseSemanticRoomSettings::default();
+        assert!(
+            !settings.human_settings.human_pose_noise,
+            "expected human pose noise disabled by default"
+        );
+        assert!(
+            settings.human_settings.height_preserve_scale,
+            "expected human height-preserve scale enabled"
+        );
+    }
 }

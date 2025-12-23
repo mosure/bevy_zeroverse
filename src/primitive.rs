@@ -19,6 +19,10 @@ use rand::seq::IndexedRandom;
 use rand::Rng;
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
+use bevy_burn_human::{
+    BurnHumanAssets, BurnHumanInput, BurnHumanMeshMode, BurnHumanMeshSettings,
+    BurnHumanRenderMode,
+};
 
 use crate::{
     annotation::obb::ObbTracked,
@@ -27,6 +31,11 @@ use crate::{
     mesh::{
         displace_vertices_with_noise, mesh_bounds, normalize_mesh_to_unit_cube, MeshCategory,
         NormalizeMeshesSet, ZeroverseMeshes,
+    },
+    procedural_human::{
+        base_pose_from_assets, sample_burn_human_descriptor, BurnHumanDescriptorPool,
+        BurnHumanInstance, BurnHumanPhenotypeSampler, BurnHumanPlacement, BurnHumanPoseNoise,
+        BurnHumanSettings,
     },
 };
 
@@ -86,6 +95,8 @@ pub struct ZeroversePrimitiveSettings {
     pub height_preserve_scale: bool,
     /// When true, scale to exactly match the sampled bounds on all axes (per-axis fit).
     pub fit_to_sampled_box: bool,
+    /// When true, burn_human meshes animate pose over time.
+    pub human_pose_noise: bool,
 }
 
 impl Default for ZeroversePrimitiveSettings {
@@ -122,6 +133,7 @@ impl Default for ZeroversePrimitiveSettings {
             preferred_mesh: None,
             height_preserve_scale: false,
             fit_to_sampled_box: true,
+            human_pose_noise: false,
         }
     }
 }
@@ -289,6 +301,10 @@ pub struct PrimitiveResources<'w> {
     gltfs: Res<'w, Assets<Gltf>>,
     gltf_meshes: Res<'w, Assets<GltfMesh>>,
     asset_server: Res<'w, AssetServer>,
+    burn_human_assets: Option<Res<'w, BurnHumanAssets>>,
+    burn_human_settings: Option<Res<'w, BurnHumanSettings>>,
+    burn_human_sampler: Option<Res<'w, BurnHumanPhenotypeSampler>>,
+    burn_human_pool: Option<ResMut<'w, BurnHumanDescriptorPool>>,
 }
 
 fn build_primitive(
@@ -334,6 +350,79 @@ fn build_primitive(
                 new_material.cull_mode = settings.cull_mode;
 
                 material = resources.standard_materials.add(new_material);
+            }
+
+            if let ZeroversePrimitives::Mesh(ref category) = primitive_type {
+                // Procedural burn_human meshes bypass the normal mesh pipeline.
+                if category == "human" {
+                    if let (Some(burn_assets), Some(burn_settings), Some(burn_sampler)) = (
+                        resources.burn_human_assets.as_ref(),
+                        resources.burn_human_settings.as_ref(),
+                        resources.burn_human_sampler.as_ref(),
+                    ) {
+                        if let Some(burn_pool) = resources.burn_human_pool.as_mut() {
+                            let descriptor = sample_burn_human_descriptor(
+                                burn_assets,
+                                burn_sampler,
+                                burn_settings,
+                                &mut *burn_pool,
+                                &mut rng,
+                            );
+                            let base_pose = base_pose_from_assets(burn_assets);
+                            let bone_count =
+                                burn_assets.body.metadata().metadata.bone_labels.len();
+                            let instance =
+                                BurnHumanInstance::new(descriptor, base_pose.clone(), bone_count);
+                            let input = BurnHumanInput {
+                                phenotype_inputs: Some(instance.phenotype.clone()),
+                                pose_parameters: Some(base_pose),
+                                ..Default::default()
+                            };
+                            let mesh_settings = BurnHumanMeshSettings {
+                                compute_normals: burn_settings.compute_normals,
+                            };
+                            let render_mode =
+                                BurnHumanRenderMode(BurnHumanMeshMode::SkinnedMesh);
+                            let placement = BurnHumanPlacement {
+                                base_translation: position,
+                                base_rotation: rotation,
+                                sampled_scale: scale,
+                                height_preserve_scale: settings.height_preserve_scale,
+                                fit_to_sampled_box: settings.fit_to_sampled_box,
+                            };
+                            let transform =
+                                Transform::from_translation(position).with_rotation(rotation);
+
+                            let mut primitive = commands.spawn((
+                                transform,
+                                GlobalTransform::default(),
+                                InheritedVisibility::default(),
+                                Visibility::default(),
+                                Mesh3d(Handle::<Mesh>::default()),
+                                MeshMaterial3d(material),
+                                placement,
+                                instance,
+                                input,
+                                mesh_settings,
+                                render_mode,
+                                TransmittedShadowReceiver,
+                            ));
+                            if settings.human_pose_noise {
+                                primitive.insert(BurnHumanPoseNoise);
+                            }
+                            if settings.track_obb {
+                                primitive.insert(ObbTracked);
+                            }
+                            if !settings.cast_shadows {
+                                primitive.insert(NotShadowCaster);
+                            }
+                            if !settings.receive_shadows {
+                                primitive.insert(TransmittedShadowReceiver);
+                            }
+                            return;
+                        }
+                    }
+                }
             }
 
             let mut chosen_mesh_meta: Option<(Handle<Mesh>, Vec3)> = None;

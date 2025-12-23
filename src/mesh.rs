@@ -93,13 +93,6 @@ fn find_meshes(mut found_meshes: ResMut<MeshRoots>) {
                 "chair".into(),
                 vec![PathBuf::from("models/subset/chair/0.glb")],
             ),
-            (
-                "human".into(),
-                vec![
-                    PathBuf::from("models/subset/human/female.glb"),
-                    PathBuf::from("models/subset/human/male.glb"),
-                ],
-            ),
         ]);
         return;
     }

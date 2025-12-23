@@ -684,6 +684,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "bevy_burn_human"
+version = "0.3.0"
+source = "git+https://github.com/mosure/burn_human?rev=050903c59bf5d7b28176490175f12946074498d9#050903c59bf5d7b28176490175f12946074498d9"
+dependencies = [
+ "anyhow",
+ "bevy",
+ "bevy_egui",
+ "bevy_panorbit_camera 0.33.0",
+ "burn_human",
+ "console_error_panic_hook",
+ "fastrand",
+ "noise",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "bevy_camera"
 version = "0.17.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1184,6 +1200,15 @@ checksum = "92e849d17f84a6bac380ae2e358a3f1c40891b256beb1b474859b6ab5f35d16d"
 dependencies = [
  "bevy",
  "bevy_egui",
+]
+
+[[package]]
+name = "bevy_panorbit_camera"
+version = "0.33.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "096f90f6da63218827d94f13a65c5e3db7ad612ce56043fdbaba03923724e060"
+dependencies = [
+ "bevy",
 ]
 
 [[package]]
@@ -1732,9 +1757,11 @@ dependencies = [
  "bevy",
  "bevy-inspector-egui",
  "bevy_args",
+ "bevy_burn_human",
  "bevy_egui",
  "bevy_mesh",
- "bevy_panorbit_camera",
+ "bevy_panorbit_camera 0.32.0",
+ "burn_human",
  "bytemuck",
  "clap",
  "console_error_panic_hook",
@@ -2307,6 +2334,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "burn_human"
+version = "0.3.0"
+source = "git+https://github.com/mosure/burn_human?rev=050903c59bf5d7b28176490175f12946074498d9#050903c59bf5d7b28176490175f12946074498d9"
+dependencies = [
+ "anyhow",
+ "bytemuck",
+ "half",
+ "safetensors 0.7.0",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "bytemuck"
 version = "1.24.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2553,7 +2593,7 @@ checksum = "fe6d2e5af09e8c8ad56c969f2157a3d4238cebc7c55f0a517728c38f7b200f81"
 dependencies = [
  "serde",
  "termcolor",
- "unicode-width 0.2.0",
+ "unicode-width 0.1.14",
 ]
 
 [[package]]
