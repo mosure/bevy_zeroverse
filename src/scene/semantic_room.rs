@@ -1,9 +1,11 @@
 use std::collections::HashMap;
 
 use bevy::{prelude::*, render::render_resource::Face};
+use bevy_burn_human::BurnHumanAssets;
 use rand::{seq::IteratorRandom, Rng};
 
 use crate::{
+    app::BevyZeroverseConfig,
     asset::WaitForAssets,
     camera::{
         ExtrinsicsSampler, ExtrinsicsSamplerType, LookingAtSampler, TrajectorySampler,
@@ -19,6 +21,11 @@ use crate::{
         lighting::{setup_lighting, ZeroverseLightingSettings},
         RegenerateSceneEvent, RotationAugment, SceneAabbNode, SceneLoadedEvent, ZeroverseScene,
         ZeroverseSceneRoot, ZeroverseSceneSettings, ZeroverseSceneType,
+    },
+    procedural_human::{
+        base_pose_from_assets, burn_human_bounds_for_pose, sample_burn_human_descriptor,
+        BurnHumanDescriptor, BurnHumanDescriptorOverride, BurnHumanDescriptorPool,
+        BurnHumanPhenotypeSampler, BurnHumanSettings,
     },
 };
 
@@ -107,7 +114,7 @@ impl Default for ZeroverseSemanticRoomSettings {
                 smooth_normals_probability: 0.0,
                 ..default()
             },
-            human_count: CountSampler::Bounded(1, 3),
+            human_count: CountSampler::Bounded(0, 4),
             human_settings: ZeroversePrimitiveSettings {
                 cull_mode: Some(Face::Back),
                 available_types: vec![ZeroversePrimitives::Mesh("human".into())],
@@ -169,6 +176,36 @@ impl Default for ZeroverseSemanticRoomSettings {
             cuboid_only: false,
         }
     }
+}
+
+struct BurnHumanSpawnContext<'a> {
+    assets: Res<'a, BurnHumanAssets>,
+    settings: Res<'a, BurnHumanSettings>,
+    sampler: Res<'a, BurnHumanPhenotypeSampler>,
+    pool: ResMut<'a, BurnHumanDescriptorPool>,
+    base_pose: Vec<f64>,
+    shared_descriptor: Option<BurnHumanDescriptor>,
+    shared_base_bounds: Option<(Vec3, Vec3)>,
+}
+
+const HUMAN_POSE_MARGIN: f32 = 0.2;
+
+fn aabb_half_extents_for_rotation(half_extents: Vec3, rotation: Quat) -> Vec3 {
+    let right = rotation * Vec3::X;
+    let up = rotation * Vec3::Y;
+    let forward = rotation * Vec3::Z;
+
+    Vec3::new(
+        right.x.abs() * half_extents.x
+            + up.x.abs() * half_extents.y
+            + forward.x.abs() * half_extents.z,
+        right.y.abs() * half_extents.x
+            + up.y.abs() * half_extents.y
+            + forward.y.abs() * half_extents.z,
+        right.z.abs() * half_extents.x
+            + up.z.abs() * half_extents.y
+            + forward.z.abs() * half_extents.z,
+    )
 }
 
 fn check_aabb_collision(center: Vec3, scale: Vec3, aabb_colliders: &[(Vec3, Vec3)]) -> bool {
@@ -322,8 +359,10 @@ fn spawn_room(
     room_settings: &ZeroverseSemanticRoomSettings,
     depth: i32,
     leaf: bool,
+    is_base_room: bool,
     track_obb: bool,
     animate_humans: bool,
+    burn_human: &mut Option<BurnHumanSpawnContext<'_>>,
     zeroverse_meshes: &ZeroverseMeshes,
 ) -> [bool; 4] {
     let mut windows = [false; 4];
@@ -488,20 +527,169 @@ fn spawn_room(
             let mut position = center_sampler.sample() + height_offset;
             position.y = 0.0;
 
-            aabb_colliders.push((position, table_scale));
+            let mut max_attempts = 100;
+            while check_aabb_collision(position, table_scale, &aabb_colliders)
+                && max_attempts > 0
+            {
+                position = center_sampler.sample() + height_offset;
+                position.y = 0.0;
+                max_attempts -= 1;
+            }
 
-            commands.spawn((
+            if max_attempts > 0 {
+                aabb_colliders.push((position, table_scale));
+
+                commands.spawn((
+                    ZeroversePrimitiveSettings {
+                        position_sampler: PositionSampler::Exact { position },
+                        scale_sampler: ScaleSampler::Exact(table_scale),
+                        rotation_sampler: RotationSampler::Identity,
+                        track_obb,
+                        ..room_settings.table_settings.clone()
+                    },
+                    Transform::from_translation(position),
+                    Name::new("table"),
+                    SemanticLabel::Table,
+                ));
+            }
+        }
+    }
+
+    {
+        // humans
+        let mut human_count = room_settings.human_count.sample();
+        if !is_base_room {
+            human_count = human_count.saturating_sub(1);
+        }
+        for _ in 0..human_count {
+            let sampled_scale = room_settings.human_settings.scale_sampler.sample();
+            let sampled_scale = Vec3::new(sampled_scale.x, sampled_scale.y, sampled_scale.x);
+            let desired_height = sampled_scale.y;
+            let rotation = room_settings.human_settings.rotation_sampler.sample();
+            let mut descriptor_override = None;
+            let mut human_half_extents = Vec3::new(
+                sampled_scale.x * 0.5,
+                sampled_scale.y * 0.5,
+                sampled_scale.z * 0.5,
+            );
+            let mut human_collision_scale = sampled_scale;
+
+            if let Some(context) = burn_human.as_mut() {
+                let descriptor = if is_base_room {
+                    sample_burn_human_descriptor(
+                        &context.assets,
+                        &context.sampler,
+                        &context.settings,
+                        &mut context.pool,
+                        &mut rng,
+                    )
+                } else {
+                    if context.shared_descriptor.is_none() {
+                        context.shared_descriptor = Some(sample_burn_human_descriptor(
+                            &context.assets,
+                            &context.sampler,
+                            &context.settings,
+                            &mut context.pool,
+                            &mut rng,
+                        ));
+                    }
+                    context
+                        .shared_descriptor
+                        .clone()
+                        .expect("shared descriptor missing")
+                };
+
+                let bounds = if is_base_room {
+                    burn_human_bounds_for_pose(
+                        &context.assets,
+                        &context.settings,
+                        &descriptor.phenotype,
+                        &context.base_pose,
+                        true,
+                    )
+                } else {
+                    if context.shared_base_bounds.is_none() {
+                        if let Some(bounds) = burn_human_bounds_for_pose(
+                            &context.assets,
+                            &context.settings,
+                            &descriptor.phenotype,
+                            &context.base_pose,
+                            true,
+                        ) {
+                            context.shared_base_bounds = Some(bounds);
+                        }
+                    }
+                    context.shared_base_bounds
+                };
+
+                if let Some((min, max)) = bounds {
+                    let size = max - min;
+                    if size.y > f32::EPSILON {
+                        let height_scale = desired_height / size.y;
+                        let mut local_half_extents = size * height_scale * 0.5;
+                        if animate_humans {
+                            let pose_margin = desired_height * HUMAN_POSE_MARGIN;
+                            local_half_extents.x += pose_margin;
+                            local_half_extents.z += pose_margin;
+                        }
+                        human_half_extents =
+                            aabb_half_extents_for_rotation(local_half_extents, rotation);
+                        human_collision_scale = human_half_extents / 0.25;
+                    }
+                }
+                descriptor_override = Some(descriptor);
+            }
+
+            let center_sampler = PositionSampler::Cube {
+                extents: Vec3::new(
+                    room_scale.x / 2.0 - room_settings.human_wall_padding - human_half_extents.x,
+                    0.00001,
+                    room_scale.z / 2.0 - room_settings.human_wall_padding - human_half_extents.z,
+                ),
+            };
+
+            if !center_sampler.is_valid() {
+                continue;
+            }
+
+            let human_scale_sampler = ScaleSampler::Exact(sampled_scale);
+
+            let height_offset = Vec3::ZERO;
+
+            let mut position = center_sampler.sample() + height_offset;
+            position.y = 0.0;
+
+            let mut max_attempts = 100;
+            while check_aabb_collision(position, human_collision_scale, &aabb_colliders)
+                && max_attempts > 0
+            {
+                position = center_sampler.sample() + height_offset;
+                max_attempts -= 1;
+            }
+
+            if max_attempts == 0 {
+                continue;
+            }
+
+            aabb_colliders.push((position, human_collision_scale));
+
+            let mut human_settings = room_settings.human_settings.clone();
+            human_settings.human_pose_noise = animate_humans;
+            human_settings.rotation_sampler = RotationSampler::Exact(rotation);
+            let mut entity = commands.spawn((
                 ZeroversePrimitiveSettings {
                     position_sampler: PositionSampler::Exact { position },
-                    scale_sampler: ScaleSampler::Exact(table_scale),
-                    rotation_sampler: RotationSampler::Identity,
+                    scale_sampler: human_scale_sampler.clone(),
                     track_obb,
-                    ..room_settings.table_settings.clone()
+                    ..human_settings
                 },
                 Transform::from_translation(position),
-                Name::new("table"),
-                SemanticLabel::Table,
+                Name::new("human"),
+                SemanticLabel::Human,
             ));
+            if let Some(descriptor) = descriptor_override {
+                entity.insert(BurnHumanDescriptorOverride(descriptor));
+            }
         }
     }
 
@@ -631,58 +819,6 @@ fn spawn_room(
     }
 
     {
-        // humans
-        for _ in 0..room_settings.human_count.sample() {
-            let human_scale = room_settings.human_settings.scale_sampler.sample();
-            let human_scale = Vec3::new(human_scale.x, human_scale.y, human_scale.x);
-            let center_sampler = PositionSampler::Cube {
-                extents: Vec3::new(
-                    room_scale.x / 2.0 - room_settings.human_wall_padding - human_scale.x / 2.0,
-                    0.00001,
-                    room_scale.z / 2.0 - room_settings.human_wall_padding - human_scale.z / 2.0,
-                ),
-            };
-
-            if !center_sampler.is_valid() {
-                continue;
-            }
-
-            let human_scale_sampler = ScaleSampler::Exact(human_scale);
-
-            let height_offset = Vec3::ZERO;
-
-            let mut position = center_sampler.sample() + height_offset;
-            position.y = 0.0;
-
-            let mut max_attempts = 100;
-            while check_aabb_collision(position, human_scale, &aabb_colliders) && max_attempts > 0 {
-                position = center_sampler.sample() + height_offset;
-                max_attempts -= 1;
-            }
-
-            if max_attempts == 0 {
-                continue;
-            }
-
-            aabb_colliders.push((position, human_scale));
-
-            let mut human_settings = room_settings.human_settings.clone();
-            human_settings.human_pose_noise = animate_humans;
-            commands.spawn((
-                ZeroversePrimitiveSettings {
-                    position_sampler: PositionSampler::Exact { position },
-                    scale_sampler: human_scale_sampler.clone(),
-                    track_obb,
-                    ..human_settings
-                },
-                Transform::from_translation(position),
-                Name::new("human"),
-                SemanticLabel::Human,
-            ));
-        }
-    }
-
-    {
         // plants
         for _ in 0..room_settings.plant_count.sample() {
             let plant_scale = room_settings.plant_settings.scale_sampler.sample();
@@ -758,6 +894,7 @@ fn spawn_room_rec(
     rooms: &mut HashMap<(i32, i32), (Vec3, Vec3)>,
     settings: &ZeroverseSemanticRoomSettings,
     track_obb: bool,
+    burn_human: &mut Option<BurnHumanSpawnContext<'_>>,
     zeroverse_meshes: &ZeroverseMeshes,
 ) {
     let mut my_scale = settings.room_size.sample();
@@ -821,8 +958,10 @@ fn spawn_room_rec(
                 settings,
                 depth,
                 depth_left == 0,
+                false,
                 track_obb,
                 false,
+                burn_human,
                 zeroverse_meshes,
             );
         });
@@ -845,6 +984,7 @@ fn spawn_room_rec(
                     rooms,
                     settings,
                     track_obb,
+                    burn_human,
                     zeroverse_meshes,
                 );
             }
@@ -857,6 +997,8 @@ fn spawn_room_neighborhood(
     commands: &mut ChildSpawnerCommands,
     base_scale: &Vec3,
     settings: &ZeroverseSemanticRoomSettings,
+    animate_base_humans: bool,
+    burn_human: &mut Option<BurnHumanSpawnContext<'_>>,
     zeroverse_meshes: &ZeroverseMeshes,
 ) {
     commands
@@ -884,6 +1026,8 @@ fn spawn_room_neighborhood(
                     false,
                     true,
                     true,
+                    animate_base_humans,
+                    burn_human,
                     zeroverse_meshes,
                 );
             });
@@ -906,6 +1050,7 @@ fn spawn_room_neighborhood(
                     &mut rooms,
                     settings,
                     false,
+                    burn_human,
                     zeroverse_meshes,
                 );
             }
@@ -918,6 +1063,8 @@ fn setup_scene(
     room_settings: Res<ZeroverseSemanticRoomSettings>,
     scene_settings: Res<ZeroverseSceneSettings>,
     zeroverse_meshes: Res<ZeroverseMeshes>,
+    animate_base_humans: bool,
+    burn_human: &mut Option<BurnHumanSpawnContext<'_>>,
 ) {
     let room_scale = room_settings.room_size.sample();
 
@@ -931,7 +1078,14 @@ fn setup_scene(
             ZeroverseScene,
         ))
         .with_children(|commands| {
-            spawn_room_neighborhood(commands, &room_scale, &room_settings, &zeroverse_meshes);
+            spawn_room_neighborhood(
+                commands,
+                &room_scale,
+                &room_settings,
+                animate_base_humans,
+                burn_human,
+                &zeroverse_meshes,
+            );
 
             {
                 // cameras
@@ -1018,6 +1172,7 @@ fn setup_scene(
 #[allow(clippy::too_many_arguments)]
 fn regenerate_scene(
     mut commands: Commands,
+    args: Res<BevyZeroverseConfig>,
     room_settings: Res<ZeroverseSemanticRoomSettings>,
     clear_zeroverse_scenes: Query<Entity, With<ZeroverseScene>>,
     mut regenerate_events: MessageReader<RegenerateSceneEvent>,
@@ -1027,6 +1182,10 @@ fn regenerate_scene(
     wait_for: Res<WaitForAssets>,
     mut recover_from_wait: Local<bool>,
     zeroverse_meshes: Res<ZeroverseMeshes>,
+    burn_human_assets: Option<Res<BurnHumanAssets>>,
+    burn_human_settings: Option<Res<BurnHumanSettings>>,
+    burn_human_sampler: Option<Res<BurnHumanPhenotypeSampler>>,
+    burn_human_pool: Option<ResMut<BurnHumanDescriptorPool>>,
 ) {
     if scene_settings.scene_type != ZeroverseSceneType::SemanticRoom {
         return;
@@ -1050,12 +1209,32 @@ fn regenerate_scene(
 
     setup_lighting(commands.reborrow(), lighting_settings);
 
+    let mut burn_human_context = match (
+        burn_human_assets,
+        burn_human_settings,
+        burn_human_sampler,
+        burn_human_pool,
+    ) {
+        (Some(assets), Some(settings), Some(sampler), Some(pool)) => Some(BurnHumanSpawnContext {
+            base_pose: base_pose_from_assets(&assets),
+            assets,
+            settings,
+            sampler,
+            pool,
+            shared_descriptor: None,
+            shared_base_bounds: None,
+        }),
+        _ => None,
+    };
+
     setup_scene(
         commands,
         load_event,
         room_settings,
         scene_settings,
         zeroverse_meshes,
+        args.animated,
+        &mut burn_human_context,
     );
 }
 

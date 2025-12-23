@@ -100,8 +100,8 @@ anyhow = "1.0"
 bytemuck = "1.19"
 image = "0.25"
 futures-lite = "2.3"
-bevy_burn_human = { git = "https://github.com/mosure/burn_human", rev = "050903c59bf5d7b28176490175f12946074498d9", package = "bevy_burn_human", default-features = false, features = ["native"] }
-burn_human = { git = "https://github.com/mosure/burn_human", rev = "050903c59bf5d7b28176490175f12946074498d9", package = "burn_human" }
+bevy_burn_human = { version = "0.3", default-features = false }
+burn_human = "0.3"
 
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]

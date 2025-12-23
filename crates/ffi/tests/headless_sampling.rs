@@ -520,7 +520,7 @@ fn headless_sampling_exports_pngs() -> Result<(), Box<dyn Error>> {
         ScenarioConfig {
             scene: ZeroverseSceneType::CornellCube,
             render_modes: vec![RenderMode::Color, RenderMode::OpticalFlow],
-            playback_mode: PlaybackMode::PingPong,
+            playback_mode: PlaybackMode::Sin,
             label: "color_optical_flow",
         },
     ];

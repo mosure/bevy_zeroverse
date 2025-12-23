@@ -1,11 +1,13 @@
 use std::hash::{Hash, Hasher};
 
+use bevy::camera::primitives::Aabb;
 use bevy::prelude::*;
 use bevy_burn_human::{BurnHumanAssets, BurnHumanInput, BurnHumanMeshMode, BurnHumanPlugin};
 use burn_human::data::reference::TensorData;
 use burn_human::AnnyInput;
 use noise::{NoiseFn, OpenSimplex};
-use rand::Rng;
+use rand::rngs::StdRng;
+use rand::{Rng, SeedableRng};
 
 use crate::app::BevyZeroverseConfig;
 use crate::camera::Playback;
@@ -78,20 +80,20 @@ pub struct BurnHumanPhenotypeSampler {
 impl Default for BurnHumanPhenotypeSampler {
     fn default() -> Self {
         Self {
-            default_min: 0.15,
-            default_max: 0.9,
+            default_min: 0.0,
+            default_max: 1.0,
             gender_min: 0.0,
             gender_max: 1.0,
             age_min: 0.3,
             age_max: 1.0,
-            muscle_min: 0.2,
-            muscle_max: 0.9,
-            weight_min: 0.2,
-            weight_max: 0.9,
-            height_min: 0.2,
-            height_max: 0.9,
-            proportions_min: 0.2,
-            proportions_max: 0.9,
+            muscle_min: 0.0,
+            muscle_max: 1.0,
+            weight_min: 0.0,
+            weight_max: 1.0,
+            height_min: 0.0,
+            height_max: 1.0,
+            proportions_min: 0.0,
+            proportions_max: 1.0,
         }
     }
 }
@@ -136,16 +138,16 @@ pub struct BurnHumanPoseNoiseSettings {
 impl Default for BurnHumanPoseNoiseSettings {
     fn default() -> Self {
         Self {
-            noise_amp: 1.0,
+            noise_amp: 1.5,
             upper_leg_amp: 15.0,
             lower_leg_amp: 15.0,
             upper_arm_amp: 15.0,
             lower_arm_amp: 15.0,
-            wrist_amp: 8.0,
+            wrist_amp: 10.0,
             hand_amp: 5.0,
-            spine_amp: 8.0,
+            spine_amp: 10.0,
             other_amp: 2.0,
-            time_scale: 1.0,
+            time_scale: 4.0,
         }
     }
 }
@@ -155,6 +157,9 @@ pub struct BurnHumanDescriptor {
     pub phenotype: Vec<f64>,
     pub pose_seed: u32,
 }
+
+#[derive(Component, Debug, Clone)]
+pub struct BurnHumanDescriptorOverride(pub BurnHumanDescriptor);
 
 #[derive(Resource, Debug, Default)]
 pub struct BurnHumanDescriptorPool {
@@ -172,7 +177,14 @@ pub struct BurnHumanInstance {
     pub base_min: Vec3,
     pub base_max: Vec3,
     pub base_bounds_ready: bool,
+    pub base_aabb_min: Vec3,
+    pub base_aabb_max: Vec3,
+    pub base_aabb_ready: bool,
     pub last_pose_key: u64,
+    pub envelope_min: Vec3,
+    pub envelope_max: Vec3,
+    pub envelope_ready: bool,
+    pub envelope_noise_key: u64,
 }
 
 #[derive(Component, Debug, Clone)]
@@ -194,7 +206,14 @@ impl BurnHumanInstance {
             base_min: Vec3::ZERO,
             base_max: Vec3::ZERO,
             base_bounds_ready: false,
+            base_aabb_min: Vec3::ZERO,
+            base_aabb_max: Vec3::ZERO,
+            base_aabb_ready: false,
             last_pose_key: u64::MAX,
+            envelope_min: Vec3::ZERO,
+            envelope_max: Vec3::ZERO,
+            envelope_ready: false,
+            envelope_noise_key: u64::MAX,
         }
     }
 }
@@ -308,6 +327,7 @@ fn refresh_burn_human_pool(
 }
 
 fn update_burn_human_inputs(
+    mut commands: Commands,
     assets: Res<BurnHumanAssets>,
     playback: Res<Playback>,
     time: Res<Time>,
@@ -315,11 +335,13 @@ fn update_burn_human_inputs(
     settings: Res<BurnHumanSettings>,
     mut regen_events: MessageReader<RegenerateSceneEvent>,
     mut humans: Query<(
+        Entity,
         &mut BurnHumanInstance,
         &BurnHumanPlacement,
         &mut Transform,
         &mut BurnHumanInput,
         Option<&BurnHumanPoseNoise>,
+        Option<&mut Aabb>,
     )>,
 ) {
     let mut predicted = *playback;
@@ -331,7 +353,9 @@ fn update_burn_human_inputs(
     }
     let predicted_time = predicted.progress;
 
-    for (mut instance, placement, mut transform, mut input, animated) in humans.iter_mut() {
+    for (entity, mut instance, placement, mut transform, mut input, animated, aabb) in
+        humans.iter_mut()
+    {
         ensure_base_bounds(&assets, &settings, &mut instance);
 
         let time_key = if animated.is_some() {
@@ -348,11 +372,13 @@ fn update_burn_human_inputs(
             .unwrap_or(true);
         if phenotype_changed {
             input.phenotype_inputs = Some(instance.phenotype.clone());
+            instance.base_aabb_ready = false;
+            instance.envelope_ready = false;
         }
-        if instance.last_pose_key != pose_key {
-            let pose_parameters =
-                build_pose_parameters(&assets, &instance, &noise_settings, time_key);
-            input.pose_parameters = Some(pose_parameters);
+        let pose_changed = instance.last_pose_key != pose_key;
+        if pose_changed {
+            let pose = build_pose_parameters(&assets, &instance, &noise_settings, time_key);
+            input.pose_parameters = Some(pose);
             instance.last_pose_key = pose_key;
         }
 
@@ -375,6 +401,60 @@ fn update_burn_human_inputs(
         transform.translation = translation;
         transform.rotation = placement.base_rotation * settings.mesh_rotation;
         transform.scale = final_scale;
+
+        if animated.is_some() {
+            let noise_key = compute_noise_key(&instance, &noise_settings);
+            if instance.envelope_noise_key != noise_key {
+                instance.envelope_noise_key = noise_key;
+                instance.envelope_ready = false;
+            }
+
+            if !instance.envelope_ready || aabb.is_none() {
+                if let Some((min, max)) = build_pose_envelope(
+                    &assets,
+                    &settings,
+                    &instance,
+                    &noise_settings,
+                    true,
+                ) {
+                    instance.envelope_min = min;
+                    instance.envelope_max = max;
+                    instance.envelope_ready = true;
+                }
+            }
+
+            if instance.envelope_ready {
+                let bounds = Aabb::from_min_max(instance.envelope_min, instance.envelope_max);
+                if let Some(mut current) = aabb {
+                    *current = bounds;
+                } else {
+                    commands.entity(entity).insert(bounds);
+                }
+            }
+        } else {
+            if !instance.base_aabb_ready || aabb.is_none() {
+                if let Some((min, max)) = burn_human_bounds_for_pose(
+                    &assets,
+                    &settings,
+                    &instance.phenotype,
+                    &instance.base_pose,
+                    false,
+                ) {
+                    instance.base_aabb_min = min;
+                    instance.base_aabb_max = max;
+                    instance.base_aabb_ready = true;
+                }
+            }
+
+            if instance.base_aabb_ready {
+                let bounds = Aabb::from_min_max(instance.base_aabb_min, instance.base_aabb_max);
+                if let Some(mut current) = aabb {
+                    *current = bounds;
+                } else {
+                    commands.entity(entity).insert(bounds);
+                }
+            }
+        }
     }
 }
 
@@ -397,6 +477,82 @@ fn compute_pose_key(
     noise.other_amp.to_bits().hash(&mut hasher);
     noise.time_scale.to_bits().hash(&mut hasher);
     hasher.finish()
+}
+
+fn compute_noise_key(instance: &BurnHumanInstance, noise: &BurnHumanPoseNoiseSettings) -> u64 {
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    instance.pose_seed.hash(&mut hasher);
+    noise.noise_amp.to_bits().hash(&mut hasher);
+    noise.upper_leg_amp.to_bits().hash(&mut hasher);
+    noise.lower_leg_amp.to_bits().hash(&mut hasher);
+    noise.upper_arm_amp.to_bits().hash(&mut hasher);
+    noise.lower_arm_amp.to_bits().hash(&mut hasher);
+    noise.wrist_amp.to_bits().hash(&mut hasher);
+    noise.hand_amp.to_bits().hash(&mut hasher);
+    noise.spine_amp.to_bits().hash(&mut hasher);
+    noise.other_amp.to_bits().hash(&mut hasher);
+    noise.time_scale.to_bits().hash(&mut hasher);
+    hasher.finish()
+}
+
+const POSE_ENVELOPE_SAMPLES: usize = 6;
+const POSE_ENVELOPE_PADDING_FRACTION: f32 = 0.02;
+const POSE_ENVELOPE_TIME_RANGE: f32 = 1.0;
+
+fn build_pose_envelope(
+    assets: &BurnHumanAssets,
+    settings: &BurnHumanSettings,
+    instance: &BurnHumanInstance,
+    noise_settings: &BurnHumanPoseNoiseSettings,
+    animated: bool,
+) -> Option<(Vec3, Vec3)> {
+    let mut min = Vec3::splat(f32::MAX);
+    let mut max = Vec3::splat(f32::MIN);
+    let mut merged_any = false;
+
+    if let Some((base_min, base_max)) = burn_human_bounds_for_pose(
+        assets,
+        settings,
+        &instance.phenotype,
+        &instance.base_pose,
+        false,
+    ) {
+        min = min.min(base_min);
+        max = max.max(base_max);
+        merged_any = true;
+    }
+
+    if animated {
+        let mut rng = StdRng::seed_from_u64(instance.pose_seed as u64);
+        for _ in 0..POSE_ENVELOPE_SAMPLES {
+            let time_key =
+                rng.random_range(0.0..POSE_ENVELOPE_TIME_RANGE) * noise_settings.time_scale;
+            let pose = build_pose_parameters(assets, instance, noise_settings, time_key);
+            if let Some((pose_min, pose_max)) = burn_human_bounds_for_pose(
+                assets,
+                settings,
+                &instance.phenotype,
+                &pose,
+                false,
+            ) {
+                min = min.min(pose_min);
+                max = max.max(pose_max);
+                merged_any = true;
+            }
+        }
+    }
+
+    if !merged_any {
+        return None;
+    }
+
+    if animated {
+        let padding = (max - min) * POSE_ENVELOPE_PADDING_FRACTION;
+        min -= padding;
+        max += padding;
+    }
+
+    Some((min, max))
 }
 
 fn build_pose_parameters(
@@ -589,6 +745,33 @@ fn compute_final_scale(
     final_scale
 }
 
+pub fn burn_human_bounds_for_pose(
+    assets: &BurnHumanAssets,
+    settings: &BurnHumanSettings,
+    phenotype: &[f64],
+    pose_parameters: &[f64],
+    apply_mesh_rotation: bool,
+) -> Option<(Vec3, Vec3)> {
+    let output = {
+        let input = AnnyInput {
+            case_name: None,
+            phenotype_inputs: Some(phenotype),
+            blendshape_weights: None,
+            blendshape_delta: None,
+            pose_parameters: Some(pose_parameters),
+            pose_parameters_delta: None,
+            root_translation_delta: None,
+        };
+        assets.body.forward(input).expect("burn_human forward")
+    };
+
+    let mut positions = tensor_to_vec3(&output.posed_vertices);
+    if apply_mesh_rotation {
+        apply_rotation(&mut positions, settings.mesh_rotation);
+    }
+    bounds_from_positions(&positions)
+}
+
 fn ensure_base_bounds(
     assets: &BurnHumanAssets,
     settings: &BurnHumanSettings,
@@ -598,22 +781,14 @@ fn ensure_base_bounds(
         return;
     }
 
-    let output = {
-        let input = AnnyInput {
-            case_name: None,
-            phenotype_inputs: Some(&instance.phenotype),
-            blendshape_weights: None,
-            blendshape_delta: None,
-            pose_parameters: Some(&instance.base_pose),
-            pose_parameters_delta: None,
-            root_translation_delta: None,
-        };
-        assets.body.forward(input).expect("burn_human forward")
-    };
-
-    let mut positions = tensor_to_vec3(&output.posed_vertices);
-    apply_rotation(&mut positions, settings.mesh_rotation);
-    let (min, max) = bounds_from_positions(&positions).unwrap_or((Vec3::ZERO, Vec3::ZERO));
+    let (min, max) = burn_human_bounds_for_pose(
+        assets,
+        settings,
+        &instance.phenotype,
+        &instance.base_pose,
+        true,
+    )
+    .unwrap_or((Vec3::ZERO, Vec3::ZERO));
     instance.base_min = min;
     instance.base_max = max;
     instance.base_bounds_ready = true;

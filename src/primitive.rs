@@ -33,9 +33,9 @@ use crate::{
         NormalizeMeshesSet, ZeroverseMeshes,
     },
     procedural_human::{
-        base_pose_from_assets, sample_burn_human_descriptor, BurnHumanDescriptorPool,
-        BurnHumanInstance, BurnHumanPhenotypeSampler, BurnHumanPlacement, BurnHumanPoseNoise,
-        BurnHumanSettings,
+        base_pose_from_assets, sample_burn_human_descriptor, BurnHumanDescriptor,
+        BurnHumanDescriptorOverride, BurnHumanDescriptorPool, BurnHumanInstance,
+        BurnHumanPhenotypeSampler, BurnHumanPlacement, BurnHumanPoseNoise, BurnHumanSettings,
     },
 };
 
@@ -311,6 +311,7 @@ fn build_primitive(
     commands: &mut ChildSpawnerCommands,
     settings: &ZeroversePrimitiveSettings,
     resources: &mut PrimitiveResources,
+    descriptor_override: Option<BurnHumanDescriptor>,
 ) {
     let mut rng = rand::rng();
 
@@ -330,6 +331,7 @@ fn build_primitive(
         .map(|_| settings.rotation_sampler.sample())
         .collect::<Vec<_>>();
 
+    let mut descriptor_override = descriptor_override;
     izip!(primitive_types, scales, positions, rotations,).for_each(
         |(primitive_type, scale, position, rotation)| {
             let mut material = resources
@@ -361,13 +363,17 @@ fn build_primitive(
                         resources.burn_human_sampler.as_ref(),
                     ) {
                         if let Some(burn_pool) = resources.burn_human_pool.as_mut() {
-                            let descriptor = sample_burn_human_descriptor(
-                                burn_assets,
-                                burn_sampler,
-                                burn_settings,
-                                &mut *burn_pool,
-                                &mut rng,
-                            );
+                            let descriptor = descriptor_override
+                                .take()
+                                .unwrap_or_else(|| {
+                                    sample_burn_human_descriptor(
+                                        burn_assets,
+                                        burn_sampler,
+                                        burn_settings,
+                                        &mut *burn_pool,
+                                        &mut rng,
+                                    )
+                                });
                             let base_pose = base_pose_from_assets(burn_assets);
                             let bone_count =
                                 burn_assets.body.metadata().metadata.bone_labels.len();
@@ -696,14 +702,22 @@ fn build_primitive(
 pub fn process_primitives(
     mut commands: Commands,
     mut resources: PrimitiveResources,
-    primitives: Query<(Entity, &ZeroversePrimitiveSettings), Without<ZeroversePrimitive>>,
+    primitives: Query<
+        (
+            Entity,
+            &ZeroversePrimitiveSettings,
+            Option<&BurnHumanDescriptorOverride>,
+        ),
+        Without<ZeroversePrimitive>,
+    >,
 ) {
-    for (entity, settings) in primitives.iter() {
+    for (entity, settings, descriptor_override) in primitives.iter() {
+        let descriptor_override = descriptor_override.map(|descriptor| descriptor.0.clone());
         commands
             .entity(entity)
             .insert(ZeroversePrimitive)
             .with_children(|subcommands| {
-                build_primitive(subcommands, settings, &mut resources);
+                build_primitive(subcommands, settings, &mut resources, descriptor_override);
             });
     }
 }

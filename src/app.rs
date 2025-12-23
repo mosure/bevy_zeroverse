@@ -186,6 +186,11 @@ pub struct BevyZeroverseConfig {
     #[arg(long, default_value = "5")]
     pub playback_steps: u32,
 
+    /// enable animation for animated scene elements (e.g. base room humans)
+    #[pyo3(get, set)]
+    #[arg(long, default_value = "false")]
+    pub animated: bool,
+
     #[pyo3(get, set)]
     #[arg(long, action = clap::ArgAction::Set, default_value = "true")]
     pub keybinds: bool,
@@ -341,7 +346,7 @@ pub struct BevyZeroverseConfig {
     #[arg(long, default_value = "0.0")]
     pub max_camera_radius: f32,
 
-    #[arg(long, value_enum, default_value_t = PlaybackMode::PingPong)]
+    #[arg(long, value_enum, default_value_t = PlaybackMode::Sin)]
     pub playback_mode: PlaybackMode,
 
     #[arg(long, default_value = "0.2")]
@@ -352,6 +357,10 @@ pub struct BevyZeroverseConfig {
 
     #[arg(long, default_value = "5")]
     pub playback_steps: u32,
+
+    /// enable animation for animated scene elements (e.g. base room humans)
+    #[arg(long, default_value = "false")]
+    pub animated: bool,
 
     #[arg(long, action = clap::ArgAction::Set, default_value = "true")]
     pub keybinds: bool,
@@ -418,10 +427,11 @@ impl Default for BevyZeroverseConfig {
             scene_type: Default::default(),
             rotation_augmentation: false,
             max_camera_radius: 0.0,
-            playback_mode: PlaybackMode::PingPong,
+            playback_mode: PlaybackMode::Sin,
             playback_speed: 0.2,
             playback_step: 0.05,
             playback_steps: 5,
+            animated: false,
             keybinds: true,
             initialize_scene: true,
             orbit_smoothness: 0.8,
