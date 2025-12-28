@@ -329,7 +329,7 @@ impl PerspectiveSampler {
         PerspectiveProjection {
             fov,
             near: 0.1,
-            far: 25.0,
+            far: 50.0,
             ..default()
         }
     }
@@ -1176,7 +1176,7 @@ fn setup_editor_camera(
                 Camera { ..default() },
                 MotionVectorPrepass,
                 Projection::Perspective(PerspectiveProjection {
-                    far: 25.0,
+                    far: 50.0,
                     ..default()
                 }),
                 Exposure::INDOOR,
