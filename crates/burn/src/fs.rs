@@ -291,6 +291,7 @@ struct MetaFields {
     aabb: [[f32; 3]; 2],
     object_obbs: Vec<bevy_zeroverse::sample::ObjectObbSample>,
     human_poses: Vec<bevy_zeroverse::sample::HumanPoseSample>,
+    human_pose_steps: Vec<Vec<bevy_zeroverse::sample::HumanPoseSample>>,
     human_bone_names: Vec<String>,
     human_bone_parents: Vec<i64>,
     ovoxel: Option<bevy_zeroverse::sample::OvoxelSample>,
@@ -440,6 +441,7 @@ fn load_meta(dir: &Path, steps: usize, view_dim: usize) -> Result<MetaFields> {
     let mut aabb = [[0.0; 3]; 2];
     let mut object_obbs = Vec::new();
     let mut human_poses = Vec::new();
+    let mut human_pose_steps = Vec::new();
 
     if let Ok(tensor) = tensors.tensor("world_from_view") {
         let data: &[f32] = bytemuck::cast_slice(tensor.data());
@@ -559,41 +561,69 @@ fn load_meta(dir: &Path, steps: usize, view_dim: usize) -> Result<MetaFields> {
         let rotations: &[f32] = bytemuck::cast_slice(rotation.data());
 
         let shape = position.shape();
-        let human_count = shape.first().copied().unwrap_or(0);
-        let bone_count = shape.get(1).copied().unwrap_or(0);
+        let (pose_steps, human_count, bone_count, has_steps) = match shape.len() {
+            4 => (
+                shape.get(0).copied().unwrap_or(1),
+                shape.get(1).copied().unwrap_or(0),
+                shape.get(2).copied().unwrap_or(0),
+                true,
+            ),
+            3 => (
+                1,
+                shape.get(0).copied().unwrap_or(0),
+                shape.get(1).copied().unwrap_or(0),
+                false,
+            ),
+            _ => (0, 0, 0, false),
+        };
 
-        for human_idx in 0..human_count {
-            let mut bone_positions = Vec::with_capacity(bone_count);
-            let mut bone_rotations = Vec::with_capacity(bone_count);
+        for step in 0..pose_steps {
+            let mut step_poses = Vec::with_capacity(human_count);
+            for human_idx in 0..human_count {
+                let mut bone_positions = Vec::with_capacity(bone_count);
+                let mut bone_rotations = Vec::with_capacity(bone_count);
 
-            for bone_idx in 0..bone_count {
-                let base = (human_idx * bone_count + bone_idx) * 3;
-                let pos = if base + 2 < positions.len() {
-                    [positions[base], positions[base + 1], positions[base + 2]]
-                } else {
-                    [0.0; 3]
-                };
-                bone_positions.push(pos);
+                for bone_idx in 0..bone_count {
+                    let base = if has_steps {
+                        ((step * human_count + human_idx) * bone_count + bone_idx) * 3
+                    } else {
+                        (human_idx * bone_count + bone_idx) * 3
+                    };
+                    let pos = if base + 2 < positions.len() {
+                        [positions[base], positions[base + 1], positions[base + 2]]
+                    } else {
+                        [0.0; 3]
+                    };
+                    bone_positions.push(pos);
 
-                let r_base = (human_idx * bone_count + bone_idx) * 4;
-                let rot = if r_base + 3 < rotations.len() {
-                    [
-                        rotations[r_base],
-                        rotations[r_base + 1],
-                        rotations[r_base + 2],
-                        rotations[r_base + 3],
-                    ]
-                } else {
-                    [0.0; 4]
-                };
-                bone_rotations.push(rot);
+                    let r_base = if has_steps {
+                        ((step * human_count + human_idx) * bone_count + bone_idx) * 4
+                    } else {
+                        (human_idx * bone_count + bone_idx) * 4
+                    };
+                    let rot = if r_base + 3 < rotations.len() {
+                        [
+                            rotations[r_base],
+                            rotations[r_base + 1],
+                            rotations[r_base + 2],
+                            rotations[r_base + 3],
+                        ]
+                    } else {
+                        [0.0; 4]
+                    };
+                    bone_rotations.push(rot);
+                }
+
+                step_poses.push(bevy_zeroverse::sample::HumanPoseSample {
+                    bone_positions,
+                    bone_rotations,
+                });
             }
 
-            human_poses.push(bevy_zeroverse::sample::HumanPoseSample {
-                bone_positions,
-                bone_rotations,
-            });
+            human_pose_steps.push(step_poses);
         }
+
+        human_poses = human_pose_steps.first().cloned().unwrap_or_default();
     }
 
     Ok(MetaFields {
@@ -605,6 +635,7 @@ fn load_meta(dir: &Path, steps: usize, view_dim: usize) -> Result<MetaFields> {
         aabb,
         object_obbs,
         human_poses,
+        human_pose_steps,
         human_bone_names,
         human_bone_parents,
         ovoxel: parse_ovoxel_from_tensors(&tensors),
@@ -643,6 +674,7 @@ pub fn load_sample_dir(dir: impl AsRef<Path>) -> Result<ZeroverseSample> {
         aabb: meta.aabb,
         object_obbs: meta.object_obbs,
         human_poses: meta.human_poses,
+        human_pose_steps: meta.human_pose_steps,
         human_bone_names: meta.human_bone_names,
         human_bone_parents: meta.human_bone_parents,
         ovoxel: meta.ovoxel.clone(),
@@ -1168,30 +1200,42 @@ pub fn save_sample_to_fs(
         ));
     }
 
-    if !sample.human_poses.is_empty() {
-        let human_count = sample.human_poses.len();
+    if !sample.human_pose_steps.is_empty() {
+        let pose_steps = steps;
+        let mut max_humans = 0usize;
         let mut bone_count = sample.human_bone_names.len();
-        for pose in &sample.human_poses {
-            bone_count = bone_count.max(pose.bone_positions.len());
-            bone_count = bone_count.max(pose.bone_rotations.len());
+        for step in &sample.human_pose_steps {
+            max_humans = max_humans.max(step.len());
+            for pose in step {
+                bone_count = bone_count.max(pose.bone_positions.len());
+                bone_count = bone_count.max(pose.bone_rotations.len());
+            }
         }
 
-        if bone_count > 0 {
-            let mut pose_positions = Vec::with_capacity(human_count * bone_count * 3);
-            let mut pose_rotations = Vec::with_capacity(human_count * bone_count * 4);
+        if bone_count > 0 && max_humans > 0 {
+            let mut pose_positions =
+                vec![0.0; pose_steps * max_humans * bone_count * 3];
+            let mut pose_rotations =
+                vec![0.0; pose_steps * max_humans * bone_count * 4];
+            for step in 0..pose_steps {
+                let step_poses = sample
+                    .human_pose_steps
+                    .get(step)
+                    .map(|poses| poses.as_slice())
+                    .unwrap_or(&[]);
+                for (human_idx, pose) in step_poses.iter().take(max_humans).enumerate() {
+                    for bone_idx in 0..bone_count {
+                        let base =
+                            ((step * max_humans + human_idx) * bone_count + bone_idx) * 3;
+                        if let Some(pos) = pose.bone_positions.get(bone_idx) {
+                            pose_positions[base..base + 3].copy_from_slice(pos);
+                        }
 
-            for pose in &sample.human_poses {
-                for bone_idx in 0..bone_count {
-                    if let Some(pos) = pose.bone_positions.get(bone_idx) {
-                        pose_positions.extend_from_slice(pos);
-                    } else {
-                        pose_positions.extend_from_slice(&[0.0; 3]);
-                    }
-
-                    if let Some(rot) = pose.bone_rotations.get(bone_idx) {
-                        pose_rotations.extend_from_slice(rot);
-                    } else {
-                        pose_rotations.extend_from_slice(&[0.0; 4]);
+                        let r_base =
+                            ((step * max_humans + human_idx) * bone_count + bone_idx) * 4;
+                        if let Some(rot) = pose.bone_rotations.get(bone_idx) {
+                            pose_rotations[r_base..r_base + 4].copy_from_slice(rot);
+                        }
                     }
                 }
             }
@@ -1199,13 +1243,13 @@ pub fn save_sample_to_fs(
             tensors.push(TensorData::new(
                 "human_pose_position",
                 Dtype::F32,
-                vec![human_count, bone_count, 3],
+                vec![pose_steps, max_humans, bone_count, 3],
                 bytemuck::cast_slice(&pose_positions).to_vec(),
             ));
             tensors.push(TensorData::new(
                 "human_pose_rotation",
                 Dtype::F32,
-                vec![human_count, bone_count, 4],
+                vec![pose_steps, max_humans, bone_count, 4],
                 bytemuck::cast_slice(&pose_rotations).to_vec(),
             ));
 
@@ -1262,6 +1306,7 @@ mod tests {
                 class_name: "table".to_string(),
             }],
             human_poses: Vec::new(),
+            human_pose_steps: Vec::new(),
             human_bone_names: Vec::new(),
             human_bone_parents: Vec::new(),
             ovoxel: None,
@@ -1279,6 +1324,7 @@ mod tests {
             aabb: [[-1.0, -1.0, -1.0], [1.0, 1.0, 1.0]],
             object_obbs: vec![],
             human_poses: Vec::new(),
+            human_pose_steps: Vec::new(),
             human_bone_names: Vec::new(),
             human_bone_parents: Vec::new(),
             ovoxel: Some(bevy_zeroverse::sample::OvoxelSample {
@@ -1345,5 +1391,63 @@ mod tests {
         assert_eq!(ov.semantics, vec![1, 5]);
         assert!(ov.semantic_labels.contains(&"chair".to_string()));
         assert_eq!(ov.aabb, [[-0.25, -0.25, -0.25], [0.25, 0.25, 0.25]]);
+    }
+
+    #[test]
+    fn fs_roundtrips_multistep_pose() {
+        let tmp = tempdir().unwrap();
+        let color: Vec<u8> = bytemuck::cast_slice(&[0.1f32, 0.2f32, 0.3f32, 1.0f32]).to_vec();
+        let views = vec![
+            View {
+                color: color.clone(),
+                ..Default::default()
+            },
+            View {
+                color,
+                ..Default::default()
+            },
+        ];
+        let pose_step0_a = bevy_zeroverse::sample::HumanPoseSample {
+            bone_positions: vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]],
+            bone_rotations: vec![[0.0, 0.0, 0.0, 1.0], [0.0, 0.0, 0.0, 1.0]],
+        };
+        let pose_step0_b = bevy_zeroverse::sample::HumanPoseSample {
+            bone_positions: vec![[0.5, 0.0, 0.0], [1.5, 0.0, 0.0]],
+            bone_rotations: vec![[0.0, 0.0, 0.0, 1.0], [0.0, 0.0, 0.0, 1.0]],
+        };
+        let pose_step1 = bevy_zeroverse::sample::HumanPoseSample {
+            bone_positions: vec![[2.0, 0.0, 0.0]],
+            bone_rotations: vec![[0.0, 0.0, 0.0, 1.0]],
+        };
+        let sample = ZeroverseSample {
+            views,
+            view_dim: 1,
+            aabb: [[0.0; 3]; 2],
+            object_obbs: Vec::new(),
+            human_poses: Vec::new(),
+            human_pose_steps: vec![
+                vec![pose_step0_a, pose_step0_b],
+                vec![pose_step1.clone(), pose_step1],
+            ],
+            human_bone_names: vec!["root".to_string(), "spine".to_string()],
+            human_bone_parents: vec![-1, 0],
+            ovoxel: None,
+        };
+
+        let scene_dir = save_sample_to_fs(&sample, tmp.path(), 0, 1, 1, false)
+            .expect("save should succeed");
+        let meta_bytes = std::fs::read(scene_dir.join("meta.safetensors")).unwrap();
+        let tensors = SafeTensors::deserialize(&meta_bytes).unwrap();
+        let pose_shape = tensors
+            .tensor("human_pose_position")
+            .expect("pose position tensor missing")
+            .shape()
+            .to_vec();
+        assert_eq!(pose_shape, vec![2, 2, 2, 3]);
+
+        let loaded = load_sample_dir(scene_dir).expect("load should succeed");
+        assert_eq!(loaded.human_pose_steps.len(), 2);
+        assert_eq!(loaded.human_pose_steps[0].len(), 2);
+        assert_eq!(loaded.human_pose_steps[1].len(), 2);
     }
 }

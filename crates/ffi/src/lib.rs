@@ -212,6 +212,9 @@ pub struct Sample {
     pub human_poses: Vec<HumanPose>,
 
     #[pyo3(get, set)]
+    pub human_pose_steps: Vec<Vec<HumanPose>>,
+
+    #[pyo3(get, set)]
     pub human_bone_names: Vec<String>,
 
     #[pyo3(get, set)]
@@ -230,6 +233,11 @@ impl From<core_sample::Sample> for Sample {
             aabb: value.aabb,
             object_obbs: value.object_obbs.into_iter().map(ObjectObb::from).collect(),
             human_poses: value.human_poses.into_iter().map(HumanPose::from).collect(),
+            human_pose_steps: value
+                .human_pose_steps
+                .into_iter()
+                .map(|step| step.into_iter().map(HumanPose::from).collect())
+                .collect(),
             human_bone_names: value.human_bone_names,
             human_bone_parents: value.human_bone_parents,
             ovoxel: value.ovoxel.map(Ovoxel::from),

@@ -69,6 +69,9 @@ pub struct Sample {
 
     pub human_poses: Vec<HumanPoseSample>,
 
+    /// Human pose samples per playback step (outer index aligns with timestep).
+    pub human_pose_steps: Vec<Vec<HumanPoseSample>>,
+
     pub human_bone_names: Vec<String>,
 
     pub human_bone_parents: Vec<i64>,
@@ -239,9 +242,13 @@ pub fn sample_stream(
         });
     }
 
-    buffered_sample.human_poses.clear();
+    let pose_steps = args.playback_steps.max(1) as usize;
+    if buffered_sample.human_pose_steps.len() != pose_steps {
+        buffered_sample.human_pose_steps = vec![Vec::new(); pose_steps];
+    }
+    let mut current_poses = Vec::new();
     for pose in human_poses.iter() {
-        buffered_sample.human_poses.push(HumanPoseSample {
+        current_poses.push(HumanPoseSample {
             bone_positions: pose.bone_positions.iter().map(|p| (*p).into()).collect(),
             bone_rotations: pose
                 .bone_rotations
@@ -249,6 +256,11 @@ pub fn sample_stream(
                 .map(|r| [r.x, r.y, r.z, r.w])
                 .collect(),
         });
+    }
+    buffered_sample.human_poses = current_poses.clone();
+    let step_idx = state.step as usize;
+    if let Some(slot) = buffered_sample.human_pose_steps.get_mut(step_idx) {
+        *slot = current_poses;
     }
 
     if let Some(assets) = burn_human_assets.as_ref() {
@@ -426,12 +438,14 @@ pub fn sample_stream(
         }
     };
 
+    let human_pose_steps = std::mem::take(&mut buffered_sample.human_pose_steps);
     let sample: Sample = Sample {
         views,
         view_dim: camera_count as u32,
         aabb: buffered_sample.aabb,
         object_obbs: buffered_sample.object_obbs.clone(),
         human_poses: buffered_sample.human_poses.clone(),
+        human_pose_steps,
         human_bone_names: buffered_sample.human_bone_names.clone(),
         human_bone_parents: buffered_sample.human_bone_parents.clone(),
         ovoxel,

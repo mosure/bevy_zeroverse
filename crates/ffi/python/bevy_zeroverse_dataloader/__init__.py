@@ -203,6 +203,7 @@ class Sample:
         aabb,
         object_obbs,
         human_poses,
+        human_pose_steps,
         human_bone_names,
         human_bone_parents,
         ovoxel=None,
@@ -212,6 +213,7 @@ class Sample:
         self.aabb = aabb
         self.object_obbs = object_obbs
         self.human_poses = human_poses
+        self.human_pose_steps = human_pose_steps or []
         self.human_bone_names = human_bone_names
         self.human_bone_parents = human_bone_parents
         self.ovoxel = ovoxel
@@ -275,6 +277,18 @@ class Sample:
                         "bone_rotations": np.array(pose.bone_rotations, dtype=np.float32),
                     }
                 )
+        human_pose_steps = []
+        if hasattr(rust_sample, "human_pose_steps"):
+            for step in rust_sample.human_pose_steps:
+                step_poses = []
+                for pose in step:
+                    step_poses.append(
+                        {
+                            "bone_positions": np.array(pose.bone_positions, dtype=np.float32),
+                            "bone_rotations": np.array(pose.bone_rotations, dtype=np.float32),
+                        }
+                    )
+                human_pose_steps.append(step_poses)
         human_bone_names = (
             list(getattr(rust_sample, "human_bone_names", []))
             if hasattr(rust_sample, "human_bone_names")
@@ -293,6 +307,7 @@ class Sample:
             aabb,
             object_obbs,
             human_poses,
+            human_pose_steps,
             human_bone_names,
             human_bone_parents,
             ovoxel,
@@ -353,42 +368,55 @@ class Sample:
             names_bytes = json.dumps(list(class_to_idx.keys())).encode("utf-8")
             sample['object_obb_class_names'] = torch.tensor(list(names_bytes), dtype=torch.uint8)
 
-        if self.human_poses or self.human_bone_names or self.human_bone_parents:
+        if self.human_pose_steps:
+            steps = 1
+            if 'time' in sample:
+                steps = int(sample['time'].shape[0])
+            elif self.view_dim:
+                steps = max(1, len(self.views) // int(self.view_dim))
+
+            pose_steps = list(self.human_pose_steps)
+
+            if len(pose_steps) < steps:
+                pad_step = pose_steps[-1] if pose_steps else []
+                pose_steps.extend([pad_step for _ in range(steps - len(pose_steps))])
+            elif len(pose_steps) > steps:
+                pose_steps = pose_steps[:steps]
+
             bone_count = len(self.human_bone_names)
-            for pose in self.human_poses:
-                bone_count = max(bone_count, pose["bone_positions"].shape[0])
-                bone_count = max(bone_count, pose["bone_rotations"].shape[0])
+            max_humans = 0
+            for step in pose_steps:
+                max_humans = max(max_humans, len(step))
+                for pose in step:
+                    pos = _as_numpy_array(pose["bone_positions"], np.float32, width=3)
+                    rot = _as_numpy_array(pose["bone_rotations"], np.float32, width=4)
+                    bone_count = max(bone_count, pos.shape[0], rot.shape[0])
 
-            positions = []
-            rotations = []
-            for pose in self.human_poses:
-                pos = _as_numpy_array(pose["bone_positions"], np.float32, width=3)
-                rot = _as_numpy_array(pose["bone_rotations"], np.float32, width=4)
-                if pos.shape[0] < bone_count:
-                    pad = np.zeros((bone_count - pos.shape[0], 3), dtype=np.float32)
-                    pos = np.concatenate([pos, pad], axis=0)
-                if rot.shape[0] < bone_count:
-                    pad = np.zeros((bone_count - rot.shape[0], 4), dtype=np.float32)
-                    rot = np.concatenate([rot, pad], axis=0)
-                positions.append(pos)
-                rotations.append(rot)
+            if max_humans > 0 and bone_count > 0:
+                pose_positions = np.zeros((steps, max_humans, bone_count, 3), dtype=np.float32)
+                pose_rotations = np.zeros((steps, max_humans, bone_count, 4), dtype=np.float32)
 
-            if positions:
-                pose_positions = np.stack(positions, axis=0)
-                pose_rotations = np.stack(rotations, axis=0)
-            else:
-                pose_positions = np.zeros((0, bone_count, 3), dtype=np.float32)
-                pose_rotations = np.zeros((0, bone_count, 4), dtype=np.float32)
+                for step_idx, step in enumerate(pose_steps):
+                    for human_idx, pose in enumerate(step[:max_humans]):
+                        pos = _as_numpy_array(pose["bone_positions"], np.float32, width=3)
+                        rot = _as_numpy_array(pose["bone_rotations"], np.float32, width=4)
+                        if pos.shape[0] < bone_count:
+                            pad = np.zeros((bone_count - pos.shape[0], 3), dtype=np.float32)
+                            pos = np.concatenate([pos, pad], axis=0)
+                        if rot.shape[0] < bone_count:
+                            pad = np.zeros((bone_count - rot.shape[0], 4), dtype=np.float32)
+                            rot = np.concatenate([rot, pad], axis=0)
+                        pose_positions[step_idx, human_idx, :, :] = pos
+                        pose_rotations[step_idx, human_idx, :, :] = rot
 
-            sample['human_pose_position'] = torch.tensor(pose_positions, dtype=torch.float32)
-            sample['human_pose_rotation'] = torch.tensor(pose_rotations, dtype=torch.float32)
-            sample['human_pose_count'] = torch.tensor(len(self.human_poses), dtype=torch.int64)
+                sample['human_pose_position'] = torch.tensor(pose_positions, dtype=torch.float32)
+                sample['human_pose_rotation'] = torch.tensor(pose_rotations, dtype=torch.float32)
 
-            if len(self.human_bone_names) > 0:
-                names_bytes = json.dumps(self.human_bone_names).encode("utf-8")
-                sample['human_pose_bone_names'] = torch.tensor(list(names_bytes), dtype=torch.uint8)
-            if len(self.human_bone_parents) > 0:
-                sample['human_pose_bone_parents'] = torch.tensor(self.human_bone_parents, dtype=torch.int64)
+                if len(self.human_bone_names) > 0:
+                    names_bytes = json.dumps(self.human_bone_names).encode("utf-8")
+                    sample['human_pose_bone_names'] = torch.tensor(list(names_bytes), dtype=torch.uint8)
+                if len(self.human_bone_parents) > 0:
+                    sample['human_pose_bone_parents'] = torch.tensor(self.human_bone_parents, dtype=torch.int64)
 
         normalize_keys = ['color', 'optical_flow']
         for key in normalize_keys:
@@ -398,6 +426,7 @@ class Sample:
         self.views.clear()
         self.object_obbs.clear()
         self.human_poses.clear()
+        self.human_pose_steps.clear()
 
         return sample
 
@@ -598,7 +627,10 @@ def chunk_and_save(
         for sample in chunk_samples:
             pose = sample.get("human_pose_position")
             if pose is not None:
-                max_humans = max(max_humans, int(pose.shape[0]))
+                if pose.dim() >= 4:
+                    max_humans = max(max_humans, int(pose.shape[1]))
+                else:
+                    max_humans = max(max_humans, int(pose.shape[0]))
 
         ov_coords: list[torch.Tensor] = []
         ov_dual: list[torch.Tensor] = []
@@ -626,7 +658,15 @@ def chunk_and_save(
 
         def pad_pose_tensor(tensor: torch.Tensor, target: int) -> torch.Tensor:
             if target <= 0:
+                if tensor.dim() >= 4:
+                    return tensor.new_zeros((tensor.shape[0], 0, *tensor.shape[2:]), dtype=tensor.dtype)
                 return tensor.new_zeros((0, *tensor.shape[1:]), dtype=tensor.dtype)
+            if tensor.dim() >= 4:
+                if tensor.shape[1] == target:
+                    return tensor
+                pad_shape = (tensor.shape[0], target - tensor.shape[1], *tensor.shape[2:])
+                pad = torch.zeros(pad_shape, dtype=tensor.dtype, device=tensor.device)
+                return torch.cat([tensor, pad], dim=1)
             if tensor.shape[0] == target:
                 return tensor
             pad_shape = (target - tensor.shape[0], *tensor.shape[1:])
@@ -667,9 +707,6 @@ def chunk_and_save(
                     if name == "human_pose_bone_parents":
                         if human_bone_parents_tensor is None:
                             human_bone_parents_tensor = tensor.cpu()
-                        continue
-                    if name == "human_pose_count":
-                        batch.setdefault(name, []).append(tensor.cpu())
                         continue
                     tensor = tensor.cpu()
                     padded = pad_pose_tensor(tensor, max_humans)
@@ -1304,7 +1341,7 @@ def save_to_folders(dataset, output_dir: Path, n_workers: int = 1):
                 decoded = names_val
             names_bytes = json.dumps(decoded).encode('utf-8')
             meta_tensors['object_obb_class_names'] = torch.tensor(list(names_bytes), dtype=torch.uint8)
-        for key in ['human_pose_position', 'human_pose_rotation', 'human_pose_count', 'human_pose_bone_parents']:
+        for key in ['human_pose_position', 'human_pose_rotation', 'human_pose_bone_parents']:
             if key in sample:
                 meta_tensors[key] = sample[key]
         if 'human_pose_bone_names' in sample:

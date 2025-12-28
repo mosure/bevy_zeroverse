@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import torch
 from torch.utils.data import DataLoader
 import unittest
+import numpy as np
 
 try:
     import psutil
@@ -14,16 +15,17 @@ except ImportError:  # pragma: no cover - optional dependency
 
 from bevy_zeroverse_dataloader import BevyZeroverseDataset, \
     ChunkedIteratorDataset, FolderDataset, MP4Dataset, \
-    chunk_and_save, load_chunk, save_to_folders, save_to_mp4, write_sample
+    chunk_and_save, load_chunk, save_to_folders, save_to_mp4, write_sample, Sample, View
 
 import matplotlib.pyplot as plt
 import torch
 from torch.utils.data import DataLoader
 import unittest
+import numpy as np
 
 from bevy_zeroverse_dataloader import BevyZeroverseDataset, \
     ChunkedIteratorDataset, FolderDataset, MP4Dataset, \
-    chunk_and_save, load_chunk, save_to_folders, save_to_mp4, write_sample
+    chunk_and_save, load_chunk, save_to_folders, save_to_mp4, write_sample, Sample, View
 
 
 
@@ -244,6 +246,77 @@ class TestChunkedDataset(unittest.TestCase):
 
 
 
+class TestPoseTensorization(unittest.TestCase):
+    def test_multistep_pose_shapes(self):
+        world = np.eye(4, dtype=np.float32)
+        views = [
+            View(
+                None,
+                None,
+                None,
+                None,
+                None,
+                world,
+                fovy=1.0,
+                near=0.1,
+                far=10.0,
+                time=0.0,
+                width=1,
+                height=1,
+            ),
+            View(
+                None,
+                None,
+                None,
+                None,
+                None,
+                world,
+                fovy=1.0,
+                near=0.1,
+                far=10.0,
+                time=0.5,
+                width=1,
+                height=1,
+            ),
+        ]
+        human_pose_steps = [
+            [
+                {
+                    "bone_positions": np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]], dtype=np.float32),
+                    "bone_rotations": np.array([[0.0, 0.0, 0.0, 1.0], [0.0, 0.0, 0.0, 1.0]], dtype=np.float32),
+                },
+                {
+                    "bone_positions": np.array([[0.5, 0.0, 0.0], [1.5, 0.0, 0.0]], dtype=np.float32),
+                    "bone_rotations": np.array([[0.0, 0.0, 0.0, 1.0], [0.0, 0.0, 0.0, 1.0]], dtype=np.float32),
+                },
+            ],
+            [
+                {
+                    "bone_positions": np.array([[2.0, 0.0, 0.0]], dtype=np.float32),
+                    "bone_rotations": np.array([[0.0, 0.0, 0.0, 1.0]], dtype=np.float32),
+                },
+                {
+                    "bone_positions": np.array([[3.0, 0.0, 0.0]], dtype=np.float32),
+                    "bone_rotations": np.array([[0.0, 0.0, 0.0, 1.0]], dtype=np.float32),
+                },
+            ],
+        ]
+        sample = Sample(
+            views,
+            view_dim=1,
+            aabb=np.zeros((2, 3), dtype=np.float32),
+            object_obbs=[],
+            human_poses=[],
+            human_pose_steps=human_pose_steps,
+            human_bone_names=["root", "spine"],
+            human_bone_parents=[-1, 0],
+            ovoxel=None,
+        )
+        tensors = sample.to_tensors()
+        self.assertEqual(tuple(tensors["human_pose_position"].shape), (2, 2, 2, 3))
+        self.assertEqual(tuple(tensors["human_pose_rotation"].shape), (2, 2, 2, 4))
+
+
 class TestMemoryUsage(unittest.TestCase):
     def test_chunk_generation_memory_stability(self):
         if psutil is None:
@@ -294,4 +367,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
