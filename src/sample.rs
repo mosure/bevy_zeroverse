@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::{
-    annotation::{obb::ObjectObb, pose::HumanPose},
+    annotation::{obb::{ObbTracked, ObjectObb}, pose::HumanPose},
     app::BevyZeroverseConfig,
     camera::Playback,
     io::{channels, image_copy::ImageCopier},
@@ -173,7 +173,7 @@ pub fn sample_stream(
     mut startup_delay: ResMut<StartupDelay>,
     cameras: Query<(&GlobalTransform, &Projection, &ImageCopier)>,
     scene: Query<(&SceneAabbNode, &SceneAabb)>,
-    object_obbs: Query<&ObjectObb>,
+    object_obbs: Query<&ObjectObb, With<ObbTracked>>,
     human_poses: Query<&HumanPose>,
     images: Res<Assets<Image>>,
     mut render_mode: ResMut<RenderMode>,

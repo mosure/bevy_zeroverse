@@ -256,7 +256,6 @@ fn spawn_face(
     name: &str,
     window: bool,
     depth: i32,
-    track_obb: bool,
 ) -> bool {
     let mut rng = rand::rng();
 
@@ -269,7 +268,7 @@ fn spawn_face(
         noise_probability: 0.0,
         cast_shadows: false,
         rotation_sampler: RotationSampler::Exact(basis),
-        track_obb,
+        track_obb: false,
         ..default()
     };
 
@@ -424,7 +423,6 @@ fn spawn_room(
                     name,
                     *wall && !leaf,
                     depth,
-                    track_obb,
                 );
             });
 
@@ -486,7 +484,6 @@ fn spawn_room(
                     name,
                     *wall,
                     depth,
-                    track_obb,
                 );
                 windows[i] = has_window;
             },
@@ -820,7 +817,7 @@ fn spawn_room(
                     },
                     scale_sampler: ScaleSampler::Exact(door_scale),
                     rotation_sampler: RotationSampler::Exact(door_rotation),
-                    track_obb,
+                    track_obb: false,
                     ..room_settings.door_settings.clone()
                 },
                 Transform::from_translation(door_position),

@@ -21,7 +21,7 @@ type TrackedObbQuery<'w, 's> = Query<
     With<ObbTracked>,
 >;
 
-/// Marker for entities that should emit an oriented bounding box.
+/// Marker for entities that should emit an oriented bounding box (gizmos + sampling).
 #[derive(Component, Debug, Default, Reflect)]
 #[reflect(Component, Default)]
 pub struct ObbTracked;
@@ -130,6 +130,7 @@ fn draw_object_obbs(
             .with_rotation(obb.rotation)
             .with_scale(obb.scale);
         gizmos.cuboid(transform, color);
+        gizmos.axes(transform, 0.5);
     }
 }
 
