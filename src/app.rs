@@ -20,7 +20,7 @@ use bevy::{
     time::Stopwatch,
     winit::{WakeUp, WinitPlugin},
 };
-use bevy_args::{parse_args, Deserialize, Parser, Serialize};
+use bevy_args::{parse_args, Deserialize, Parser, Serialize, ValueEnum};
 
 #[cfg(feature = "viewer")]
 use bevy_egui::EguiPlugin;
@@ -32,6 +32,14 @@ use bevy_panorbit_camera::{PanOrbitCamera, PanOrbitCameraPlugin};
 #[cfg(feature = "python")]
 use pyo3::prelude::*;
 
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, ValueEnum, Reflect)]
+#[cfg_attr(feature = "python", pyclass(eq, eq_int))]
+pub enum OvoxelMode {
+    Disabled,
+    CpuAsync,
+    GpuCompute,
+}
+
 use crate::{
     camera::{DefaultZeroverseCamera, EditorCameraMarker, Playback, PlaybackMode, ZeroverseCamera},
     io,
@@ -39,6 +47,7 @@ use crate::{
     mesh::ShuffleMeshesEvent,
     // plucker::ZeroversePluckerSettings,
     primitive::ScaleSampler,
+    ovoxel::GPU_DEFAULT_MAX_OUTPUT_VOXELS,
     render::{depth::DepthFormat, RenderMode},
     scene::{
         room::ZeroverseRoomSettings, semantic_room::ZeroverseSemanticRoomSettings,
@@ -69,6 +78,16 @@ pub struct BevyZeroverseConfig {
     #[pyo3(get, set)]
     #[arg(long, default_value = "1.0")]
     pub gizmos_alpha: f32,
+
+    /// draw oriented bounding box gizmos
+    #[pyo3(get, set)]
+    #[arg(long, action = clap::ArgAction::Set, default_value = "false")]
+    pub draw_obb_gizmo: bool,
+
+    /// draw burn_human pose gizmos
+    #[pyo3(get, set)]
+    #[arg(long, action = clap::ArgAction::Set, default_value = "false")]
+    pub draw_pose_gizmos: bool,
 
     /// no window will be shown
     #[pyo3(get, set)]
@@ -172,6 +191,11 @@ pub struct BevyZeroverseConfig {
     #[arg(long, default_value = "5")]
     pub playback_steps: u32,
 
+    /// enable animation for animated scene elements (e.g. base room humans)
+    #[pyo3(get, set)]
+    #[arg(long, default_value = "false")]
+    pub animated: bool,
+
     #[pyo3(get, set)]
     #[arg(long, action = clap::ArgAction::Set, default_value = "true")]
     pub keybinds: bool,
@@ -205,6 +229,21 @@ pub struct BevyZeroverseConfig {
     #[pyo3(get, set)]
     #[arg(long, default_value = "false")]
     pub cuboid_only: bool,
+
+    /// override O-Voxel export resolution (0 = default)
+    #[pyo3(get, set)]
+    #[arg(long, default_value = "128")]
+    pub ovoxel_resolution: u32,
+
+    /// Maximum number of voxels retained from the GPU path (upper bound on buffer size)
+    #[pyo3(get, set)]
+    #[arg(long, default_value_t = GPU_DEFAULT_MAX_OUTPUT_VOXELS)]
+    pub ovoxel_max_output_voxels: u32,
+
+    /// O-Voxel generation mode
+    #[pyo3(get, set)]
+    #[arg(long, value_enum, default_value_t = OvoxelMode::Disabled)]
+    pub ovoxel_mode: OvoxelMode,
 }
 
 #[cfg(feature = "python")]
@@ -240,6 +279,14 @@ pub struct BevyZeroverseConfig {
     /// alpha value for gizmos
     #[arg(long, default_value = "1.0")]
     pub gizmos_alpha: f32,
+
+    /// draw oriented bounding box gizmos
+    #[arg(long, action = clap::ArgAction::Set, default_value = "false")]
+    pub draw_obb_gizmo: bool,
+
+    /// draw burn_human pose gizmos
+    #[arg(long, action = clap::ArgAction::Set, default_value = "false")]
+    pub draw_pose_gizmos: bool,
 
     /// no window will be shown
     #[arg(long, default_value = "false")]
@@ -308,7 +355,7 @@ pub struct BevyZeroverseConfig {
     #[arg(long, default_value = "0.0")]
     pub max_camera_radius: f32,
 
-    #[arg(long, value_enum, default_value_t = PlaybackMode::PingPong)]
+    #[arg(long, value_enum, default_value_t = PlaybackMode::Sin)]
     pub playback_mode: PlaybackMode,
 
     #[arg(long, default_value = "0.2")]
@@ -319,6 +366,10 @@ pub struct BevyZeroverseConfig {
 
     #[arg(long, default_value = "5")]
     pub playback_steps: u32,
+
+    /// enable animation for animated scene elements (e.g. base room humans)
+    #[arg(long, default_value = "false")]
+    pub animated: bool,
 
     #[arg(long, action = clap::ArgAction::Set, default_value = "true")]
     pub keybinds: bool,
@@ -345,6 +396,18 @@ pub struct BevyZeroverseConfig {
     /// semantic_room no interior objects
     #[arg(long, default_value = "false")]
     pub cuboid_only: bool,
+
+    /// override O-Voxel export resolution (0 = default)
+    #[arg(long, default_value = "128")]
+    pub ovoxel_resolution: u32,
+
+    /// Maximum number of voxels retained from the GPU path (upper bound on buffer size)
+    #[arg(long, default_value_t = GPU_DEFAULT_MAX_OUTPUT_VOXELS)]
+    pub ovoxel_max_output_voxels: u32,
+
+    /// O-Voxel generation mode
+    #[arg(long, value_enum, default_value_t = OvoxelMode::Disabled)]
+    pub ovoxel_mode: OvoxelMode,
 }
 
 impl Default for BevyZeroverseConfig {
@@ -353,6 +416,8 @@ impl Default for BevyZeroverseConfig {
             editor: true,
             gizmos: true,
             gizmos_alpha: 1.0,
+            draw_obb_gizmo: false,
+            draw_pose_gizmos: false,
             headless: false,
             image_copiers: false,
             material_grid: false,
@@ -372,10 +437,11 @@ impl Default for BevyZeroverseConfig {
             scene_type: Default::default(),
             rotation_augmentation: false,
             max_camera_radius: 0.0,
-            playback_mode: PlaybackMode::PingPong,
+            playback_mode: PlaybackMode::Sin,
             playback_speed: 0.2,
             playback_step: 0.05,
             playback_steps: 5,
+            animated: false,
             keybinds: true,
             initialize_scene: true,
             orbit_smoothness: 0.8,
@@ -384,6 +450,9 @@ impl Default for BevyZeroverseConfig {
             depth_format: DepthFormat::Normalized,
             z_depth: true,
             cuboid_only: false,
+            ovoxel_resolution: 128,
+            ovoxel_max_output_voxels: GPU_DEFAULT_MAX_OUTPUT_VOXELS,
+            ovoxel_mode: OvoxelMode::Disabled,
         }
     }
 }
@@ -428,6 +497,8 @@ pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) 
             args.height.round() as u32,
         ),
         title: args.name.clone(),
+        // In headless mode keep the window hidden but present to allow the render backend to create a device.
+        visible: !args.headless,
 
         #[cfg(feature = "perftest")]
         present_mode: bevy::window::PresentMode::AutoNoVsync,
@@ -458,19 +529,12 @@ pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) 
         })
         .set(winit_plugin);
 
-    let default_plugins = if args.headless {
-        default_plugins.set(WindowPlugin {
-            primary_window: None,
-            primary_cursor_options: None,
-            exit_condition: bevy::window::ExitCondition::DontExit,
-            close_when_requested: false,
-        })
-    } else {
-        default_plugins.set(WindowPlugin {
-            primary_window,
-            ..default()
-        })
-    };
+    let default_plugins = default_plugins.set(WindowPlugin {
+        primary_window,
+        primary_cursor_options: None,
+        exit_condition: bevy::window::ExitCondition::DontExit,
+        close_when_requested: false,
+    });
 
     app.add_plugins(default_plugins);
 
@@ -555,6 +619,10 @@ fn setup_camera(
     room_settings: Res<ZeroverseRoomSettings>,
     mut previous_settings: Local<Option<CameraSettingsSnapshot>>,
 ) {
+    if args.headless {
+        return;
+    }
+
     let current_settings = CameraSettingsSnapshot {
         camera_grid: args.camera_grid,
         scene_type: args.scene_type.clone(),
@@ -569,13 +637,9 @@ fn setup_camera(
     *previous_settings = Some(current_settings);
 
     if args.camera_grid {
-        // Ensure a grid camera exists while keeping the editor camera entity alive.
-        if material_grid_cameras.is_empty() {
-            commands.spawn(Camera2d).insert(MaterialGridCameraMarker);
-        }
-
         if let Ok((_entity, _pan, Some(mut camera))) = editor_cameras.single_mut() {
-            camera.is_active = false;
+            // Keep the editor camera entity (and its settings) intact and let it render UI.
+            camera.is_active = true;
         }
         return;
     }
@@ -687,7 +751,7 @@ fn setup_camera_grid(
                     grid_template_rows: RepeatedGridTrack::flex(rows, 1.0),
                     ..default()
                 },
-                BackgroundColor(Color::BLACK),
+                BackgroundColor(Color::NONE),
             ))
             .with_children(|builder| {
                 for (_, camera) in zeroverse_cameras.iter() {
@@ -803,8 +867,15 @@ fn rotate_scene(
     args: Res<BevyZeroverseConfig>,
     mut scene_roots: Query<&mut Transform, With<ZeroverseSceneRoot>>,
 ) {
+    if args.yaw_speed == 0.0 {
+        return;
+    }
+
     for mut transform in scene_roots.iter_mut() {
         let delta_rot = args.yaw_speed * time.delta_secs();
+        if delta_rot == 0.0 {
+            continue;
+        }
         transform.rotate(Quat::from_rotation_y(delta_rot));
     }
 }

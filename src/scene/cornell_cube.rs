@@ -14,6 +14,7 @@ use crate::{
         ZeroverseCamera,
     },
     material::ZeroverseMaterials,
+    ovoxel::OvoxelTracked,
     scene::{
         RegenerateSceneEvent, RotationAugment, SceneAabbNode, SceneLoadedEvent, ZeroverseScene,
         ZeroverseSceneRoot, ZeroverseSceneSettings, ZeroverseSceneType,
@@ -107,6 +108,7 @@ fn setup_scene(
             Name::new("cornell_cube"),
             RotationAugment,
             SceneAabbNode,
+            OvoxelTracked,
             Transform::default(),
             Visibility::default(),
             ZeroverseSceneRoot,

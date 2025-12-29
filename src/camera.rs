@@ -55,6 +55,14 @@ impl Plugin for ZeroverseCameraPlugin {
                 ..default()
             },
         );
+        app.insert_gizmo_config(
+            PoseGizmoConfigGroup,
+            GizmoConfig {
+                render_layers: EDITOR_CAMERA_RENDER_LAYER,
+                depth_bias: -1.0,
+                ..default()
+            },
+        );
 
         app.init_resource::<DefaultZeroverseCamera>();
 
@@ -321,7 +329,7 @@ impl PerspectiveSampler {
         PerspectiveProjection {
             fov,
             near: 0.1,
-            far: 25.0,
+            far: 50.0,
             ..default()
         }
     }
@@ -950,8 +958,11 @@ fn insert_cameras(
     default_zeroverse_camera: Res<DefaultZeroverseCamera>,
     args: Res<BevyZeroverseConfig>,
     render_mode: Res<RenderMode>,
-    render_device: Res<RenderDevice>,
+    render_device: Option<Res<RenderDevice>>,
 ) {
+    let Some(render_device) = render_device.as_ref() else {
+        return;
+    };
     for (entity, mut zeroverse_camera) in zeroverse_cameras.iter_mut() {
         let resolution = zeroverse_camera.resolution
             .unwrap_or(default_zeroverse_camera.resolution.expect("DefaultZeroverseCamera resolution must be set if ZeroverseCamera resolution is not set"));
@@ -1012,11 +1023,7 @@ fn insert_cameras(
         }
 
         #[cfg(not(feature = "web"))]
-        camera
-            .insert((
-                DepthPrepass,
-                NormalPrepass,
-            ));
+        camera.insert((DepthPrepass, NormalPrepass));
 
         if args.image_copiers {
             // TODO: use pipeline color format
@@ -1043,7 +1050,7 @@ fn insert_cameras(
                     color_cpu_image_handle,
                     size,
                     TextureFormat::Rgba32Float,
-                    &render_device,
+                    render_device.as_ref(),
                 ));
             }
 
@@ -1145,6 +1152,9 @@ pub struct ProcessedEditorCameraMarker;
 #[derive(Default, Reflect, GizmoConfigGroup)]
 pub struct EditorCameraGizmoConfigGroup;
 
+#[derive(Default, Reflect, GizmoConfigGroup)]
+pub struct PoseGizmoConfigGroup;
+
 pub const EDITOR_CAMERA_RENDER_LAYER: RenderLayers = RenderLayers::layer(1);
 
 fn setup_editor_camera(
@@ -1166,7 +1176,7 @@ fn setup_editor_camera(
                 Camera { ..default() },
                 MotionVectorPrepass,
                 Projection::Perspective(PerspectiveProjection {
-                    far: 25.0,
+                    far: 50.0,
                     ..default()
                 }),
                 Exposure::INDOOR,
@@ -1185,10 +1195,7 @@ fn setup_editor_camera(
         }
 
         #[cfg(not(feature = "web"))]
-        entity.insert((
-            DepthPrepass,
-            NormalPrepass,
-        ));
+        entity.insert((DepthPrepass, NormalPrepass));
     }
 }
 

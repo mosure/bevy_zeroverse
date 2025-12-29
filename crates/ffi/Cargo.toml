@@ -1,0 +1,75 @@
+[package]
+name = "bevy_zeroverse_ffi"
+description = "bevy zeroverse ffi library"
+version = "0.18.1"
+edition = "2021"
+license = "MIT"
+default-run = "generate"
+
+
+[features]
+default = ["extension-module"]
+
+extension-module = [
+  "bevy_zeroverse/extension-module",
+  "pyo3/extension-module",
+]
+
+
+[dependencies]
+bevy_args = "2.0"
+bevy_zeroverse = { path = "../..", default-features = false, features = ["python"] }
+# bevy_zeroverse = { version = "0.15", default-features = false, features = ["python"] }
+bytemuck = "1.17"
+clap = { version = "4.4", features = ["derive"] }
+image = "0.25"
+ndarray = { version = "0.17", features = ["blas"] }
+once_cell = "1.19"
+pyo3 = { version = "0.27.2", features = ["macros"] }
+pyo3-log = "0.13.2"
+safetensors = "0.7"
+serde = "1.0"
+serde_json = "1.0"
+
+
+[dependencies.bevy]
+version = "0.17"
+default-features = false
+features = [
+  "bevy_asset",
+  "bevy_camera",
+  "bevy_core_pipeline",
+  "bevy_gizmos",
+  "bevy_gltf",
+  "bevy_image",
+  "bevy_log",
+  "bevy_light",
+  "bevy_mesh",
+  "bevy_pbr",
+  "bevy_render",
+  "bevy_post_process",
+  "bevy_sprite",
+  "bevy_text",
+  "bevy_ui",
+  "bevy_ui_render",
+  "bevy_window",
+  "bevy_winit",
+  "jpeg",
+  "png",
+  "std",
+  "tonemapping_luts",
+  "webgpu",
+  "x11",
+  "zstd_rust",
+]
+
+
+[lib]
+name = "bevy_zeroverse_ffi"
+path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
+
+
+[[bin]]
+name = "generate"
+path = "src/generate.rs"

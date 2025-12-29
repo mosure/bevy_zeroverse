@@ -6,6 +6,7 @@ use crate::{
         ExtrinsicsSampler, ExtrinsicsSamplerType, LookingAtSampler, TrajectorySampler,
         ZeroverseCamera,
     },
+    ovoxel::OvoxelTracked,
     primitive::{
         CountSampler, PositionSampler, RotationSampler, ScaleSampler, ZeroversePrimitiveSettings,
         ZeroversePrimitives,
@@ -59,7 +60,7 @@ impl Default for ZeroverseHumanSceneSettings {
                 noise_probability: 0.0,
                 cast_shadows: false,
                 position_sampler: PositionSampler::Exact {
-                    position: Vec3::new(0.0, -4.0, 0.0),
+                    position: Vec3::ZERO,
                 },
                 rotation_sampler: RotationSampler::Bounded {
                     min: Vec3::ZERO,
@@ -70,6 +71,8 @@ impl Default for ZeroverseHumanSceneSettings {
                     Vec3::new(1.2, 1.0, 1.2),
                 ),
                 smooth_normals_probability: 0.0,
+                height_preserve_scale: true,
+                human_pose_noise: true,
                 ..default()
             },
             trajectory: TrajectorySampler::AvoidantXZ {
@@ -94,6 +97,7 @@ fn setup_scene(
             human_settings.primitive.clone(),
             RotationAugment,
             SceneAabbNode,
+            OvoxelTracked,
             ZeroverseScene,
             ZeroverseSceneRoot,
         ))

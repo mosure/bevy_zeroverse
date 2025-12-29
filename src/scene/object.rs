@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 use crate::{
     camera::{ExtrinsicsSampler, ExtrinsicsSamplerType, TrajectorySampler, ZeroverseCamera},
+    ovoxel::OvoxelTracked,
     primitive::ZeroversePrimitiveSettings,
     scene::{
         lighting::{setup_lighting, ZeroverseLightingSettings},
@@ -56,6 +57,7 @@ fn setup_scene(
             object_settings.primitive.clone(),
             RotationAugment,
             SceneAabbNode,
+            OvoxelTracked,
             ZeroverseScene,
             ZeroverseSceneRoot,
         ))

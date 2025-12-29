@@ -7,13 +7,12 @@ use std::{
     thread,
 };
 
-use bevy::prelude::*;
-
 use crate::{
     app::{viewer_app, BevyZeroverseConfig},
     io::channels,
     sample::{configure_sampler, SamplerState},
 };
+use bevy::prelude::*;
 
 fn signaled_runner(mut app: App) -> AppExit {
     app.finish();

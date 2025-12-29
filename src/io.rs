@@ -26,16 +26,14 @@ pub mod channels {
         }
 
         let (app_sender, app_receiver) = mpsc::channel();
-        APP_FRAME_RECEIVER
-            .set(Arc::new(Mutex::new(app_receiver)))
-            .unwrap();
-        APP_FRAME_SENDER.set(app_sender).unwrap();
+        let receiver = Arc::new(Mutex::new(app_receiver));
+        let _ = APP_FRAME_RECEIVER.set(receiver);
+        let _ = APP_FRAME_SENDER.set(app_sender);
 
         let (sample_sender, sample_receiver) = mpsc::channel();
-        SAMPLE_RECEIVER
-            .set(Arc::new(Mutex::new(sample_receiver)))
-            .unwrap();
-        SAMPLE_SENDER.set(sample_sender).unwrap();
+        let sample_receiver = Arc::new(Mutex::new(sample_receiver));
+        let _ = SAMPLE_RECEIVER.set(sample_receiver);
+        let _ = SAMPLE_SENDER.set(sample_sender);
     }
 
     pub fn app_frame_sender() -> &'static Sender<()> {
@@ -59,7 +57,7 @@ pub mod channels {
 
 /// Derived from: https://github.com/bevyengine/bevy/pull/5550
 pub mod image_copy {
-    use std::sync::Arc;
+    use std::sync::{Arc, Mutex};
 
     use bevy::prelude::*;
     use bevy::render::render_asset::RenderAssets;
@@ -69,7 +67,7 @@ pub mod image_copy {
     use bevy::render::render_resource::TextureFormat;
     use bevy::render::renderer::{RenderContext, RenderDevice, RenderQueue};
     use bevy::render::texture::GpuImage;
-    use bevy::render::{Extract, RenderApp};
+    use bevy::render::{Extract, Render, RenderApp, RenderSystems};
 
     use bevy::render::render_resource::{
         Buffer, BufferDescriptor, BufferUsages, CommandEncoderDescriptor, Extent3d, MapMode,
@@ -79,37 +77,22 @@ pub mod image_copy {
 
     use std::sync::atomic::{AtomicBool, Ordering};
 
-    pub fn receive_images(
-        image_copiers: Query<&ImageCopier>,
-        mut images: ResMut<Assets<Image>>,
-        render_device: Res<RenderDevice>,
-    ) {
+    pub fn receive_images(image_copiers: Res<ImageCopiers>, images: Option<ResMut<Assets<Image>>>) {
+        let mut images = images;
         for image_copier in image_copiers.iter() {
             if !image_copier.enabled() {
                 continue;
             }
-
-            // Derived from: https://sotrh.github.io/learn-wgpu/showcase/windowless/#a-triangle-without-a-window
-            // We need to scope the mapping variables so that we can
-            // unmap the buffer
-            async {
-                let buffer_slice = image_copier.buffer.slice(..);
-
-                // NOTE: We have to create the mapping THEN device.poll() before await
-                // the future. Otherwise the application will freeze.
-                let (tx, rx) = futures_intrusive::channel::shared::oneshot_channel();
-                buffer_slice.map_async(MapMode::Read, move |result| {
-                    tx.send(result).unwrap();
-                });
-                let _ = render_device.poll(PollType::Wait);
-                rx.receive().await.unwrap().unwrap();
-                if let Some(image) = images.get_mut(&image_copier.dst_image) {
-                    image.data = buffer_slice.get_mapped_range().to_vec().into();
+            if let Some(images) = images.as_mut() {
+                if let Ok(cpu_data) = image_copier.cpu_data.lock() {
+                    if cpu_data.is_empty() {
+                        continue;
+                    }
+                    if let Some(image) = images.get_mut(&image_copier.dst_image) {
+                        image.data = cpu_data.clone().into();
+                    }
                 }
-
-                image_copier.buffer.unmap();
             }
-            .block_on();
         }
     }
 
@@ -119,9 +102,8 @@ pub mod image_copy {
     pub struct ImageCopyPlugin;
     impl Plugin for ImageCopyPlugin {
         fn build(&self, app: &mut App) {
-            let render_app = app
-                .add_systems(Update, receive_images)
-                .sub_app_mut(RenderApp);
+            let render_app = app.sub_app_mut(RenderApp);
+            render_app.add_systems(Render, receive_images.in_set(RenderSystems::Cleanup));
 
             render_app.add_systems(ExtractSchedule, image_copy_extract);
 
@@ -133,7 +115,7 @@ pub mod image_copy {
                 .unwrap();
 
             graph.add_node(ImageCopyLabel, image_copy_node);
-            graph.add_node_edge(ImageCopyLabel, bevy::render::graph::CameraDriverLabel);
+            graph.add_node_edge(bevy::render::graph::CameraDriverLabel, ImageCopyLabel);
         }
     }
 
@@ -144,6 +126,8 @@ pub mod image_copy {
     pub struct ImageCopier {
         buffer: Buffer,
         enabled: Arc<AtomicBool>,
+        mapped: Arc<AtomicBool>,
+        pub cpu_data: Arc<Mutex<Vec<u8>>>,
         pub src_image: Handle<Image>,
         pub dst_image: Handle<Image>,
     }
@@ -176,11 +160,27 @@ pub mod image_copy {
                 src_image,
                 dst_image,
                 enabled: Arc::new(AtomicBool::new(true)),
+                mapped: Arc::new(AtomicBool::new(false)),
+                cpu_data: Arc::new(Mutex::new(Vec::new())),
             }
         }
 
         pub fn enabled(&self) -> bool {
             self.enabled.load(Ordering::Relaxed)
+        }
+
+        pub fn try_begin_read(&self) -> bool {
+            self.mapped
+                .compare_exchange(false, true, Ordering::AcqRel, Ordering::Relaxed)
+                .is_ok()
+        }
+
+        pub fn finish_read(&self) {
+            self.mapped.store(false, Ordering::Release);
+        }
+
+        pub fn is_mapped(&self) -> bool {
+            self.mapped.load(Ordering::Acquire)
         }
     }
 
@@ -210,6 +210,12 @@ pub mod image_copy {
 
             for image_copier in image_copiers.iter() {
                 if !image_copier.enabled() {
+                    continue;
+                }
+                if image_copier.is_mapped() {
+                    continue;
+                }
+                if !image_copier.try_begin_read() {
                     continue;
                 }
 
@@ -252,6 +258,25 @@ pub mod image_copy {
 
                 let render_queue = world.get_resource::<RenderQueue>().unwrap();
                 render_queue.submit(std::iter::once(encoder.finish()));
+
+                // Map the buffer immediately so main-world consumers can read the latest frame.
+                async {
+                    let buffer_slice = image_copier.buffer.slice(..);
+                    let (tx, rx) = futures_intrusive::channel::shared::oneshot_channel();
+                    buffer_slice.map_async(MapMode::Read, move |result| {
+                        tx.send(result).unwrap();
+                    });
+                    let _ = render_context.render_device().poll(PollType::Wait);
+                    rx.receive().await.unwrap().unwrap();
+                    let mapped = buffer_slice.get_mapped_range().to_vec();
+                    if let Ok(mut cpu_data) = image_copier.cpu_data.lock() {
+                        *cpu_data = mapped;
+                    }
+                    image_copier.buffer.unmap();
+                }
+                .block_on();
+
+                image_copier.finish_read();
             }
 
             Ok(())
@@ -272,7 +297,7 @@ pub mod prepass_copy {
     use bevy::render::render_resource::TextureFormat;
     use bevy::render::renderer::{RenderContext, RenderDevice, RenderQueue};
     use bevy::render::sync_world::RenderEntity;
-    use bevy::render::{Extract, RenderApp};
+    use bevy::render::{Extract, Render, RenderApp, RenderSystems};
 
     use bevy::render::render_resource::{
         Buffer, BufferDescriptor, BufferUsages, CommandEncoderDescriptor, Extent3d, MapMode,
@@ -286,11 +311,17 @@ pub mod prepass_copy {
 
     pub fn receive_images(
         prepass_copiers: Query<&PrepassCopier>,
-        mut images: ResMut<Assets<Image>>,
+        images: Option<ResMut<Assets<Image>>>,
         render_device: Res<RenderDevice>,
     ) {
+        let Some(mut images) = images else {
+            return;
+        };
         for prepass_copier in prepass_copiers.iter() {
             if !prepass_copier.enabled() {
+                continue;
+            }
+            if !prepass_copier.try_begin_read() {
                 continue;
             }
 
@@ -315,6 +346,8 @@ pub mod prepass_copy {
                 prepass_copier.buffer.unmap();
             }
             .block_on();
+
+            prepass_copier.finish_read();
         }
     }
 
@@ -324,9 +357,8 @@ pub mod prepass_copy {
     pub struct PrepassCopyPlugin;
     impl Plugin for PrepassCopyPlugin {
         fn build(&self, app: &mut App) {
-            let render_app = app
-                .add_systems(Update, receive_images)
-                .sub_app_mut(RenderApp);
+            let render_app = app.sub_app_mut(RenderApp);
+            render_app.add_systems(Render, receive_images.in_set(RenderSystems::Cleanup));
 
             render_app.add_systems(ExtractSchedule, prepass_copy_extract);
 
@@ -345,6 +377,7 @@ pub mod prepass_copy {
     pub struct PrepassCopier {
         buffer: Buffer,
         enabled: Arc<AtomicBool>,
+        mapped: Arc<AtomicBool>,
         pub src_mode: RenderMode,
         pub dst_image: Handle<Image>,
     }
@@ -377,11 +410,26 @@ pub mod prepass_copy {
                 src_mode,
                 dst_image,
                 enabled: Arc::new(AtomicBool::new(true)),
+                mapped: Arc::new(AtomicBool::new(false)),
             }
         }
 
         pub fn enabled(&self) -> bool {
             self.enabled.load(Ordering::Relaxed)
+        }
+
+        pub fn try_begin_read(&self) -> bool {
+            self.mapped
+                .compare_exchange(false, true, Ordering::AcqRel, Ordering::Relaxed)
+                .is_ok()
+        }
+
+        pub fn finish_read(&self) {
+            self.mapped.store(false, Ordering::Release);
+        }
+
+        pub fn is_mapped(&self) -> bool {
+            self.mapped.load(Ordering::Acquire)
         }
     }
 
@@ -414,6 +462,9 @@ pub mod prepass_copy {
 
             for prepass_copier in prepass_copiers.iter() {
                 if !prepass_copier.enabled() {
+                    continue;
+                }
+                if prepass_copier.is_mapped() {
                     continue;
                 }
 

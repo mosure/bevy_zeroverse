@@ -88,7 +88,11 @@ fn find_materials(mut found_materials: ResMut<MaterialRoots>) {
 
         info!("current working directory: {}", cwd.to_string_lossy());
 
-        let asset_server_path = cwd.join("./assets");
+        let asset_server_path = if cwd.ends_with("assets") {
+            cwd.clone()
+        } else {
+            cwd.join("assets")
+        };
         let pattern = format!(
             "{}/**/**/basecolor.jpg",
             asset_server_path.to_string_lossy()

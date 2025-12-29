@@ -1,5 +1,7 @@
-use bevy::mesh::VertexAttributeValues;
 use bevy::{
+    asset::LoadState,
+    ecs::system::SystemParam,
+    gltf::{Gltf, GltfMesh},
     light::{NotShadowCaster, TransmittedShadowReceiver},
     math::{
         primitives::{
@@ -7,6 +9,7 @@ use bevy::{
         },
         sampling::ShapeSample,
     },
+    mesh::VertexAttributeValues,
     pbr::wireframe::{Wireframe, WireframeColor},
     prelude::*,
     render::render_resource::Face,
@@ -16,11 +19,24 @@ use rand::seq::IndexedRandom;
 use rand::Rng;
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
+use bevy_burn_human::{
+    BurnHumanAssets, BurnHumanInput, BurnHumanMeshMode, BurnHumanMeshSettings,
+    BurnHumanRenderMode,
+};
 
 use crate::{
+    annotation::{obb::ObbTracked, pose::PoseTracked},
     manifold::ManifoldOperations,
     material::ZeroverseMaterials,
-    mesh::{displace_vertices_with_noise, MeshCategory, ZeroverseMeshes},
+    mesh::{
+        displace_vertices_with_noise, mesh_bounds, normalize_mesh_to_unit_cube, MeshCategory,
+        NormalizeMeshesSet, ZeroverseMeshes,
+    },
+    procedural_human::{
+        base_pose_from_assets, sample_burn_human_descriptor, BurnHumanDescriptor,
+        BurnHumanDescriptorOverride, BurnHumanDescriptorPool, BurnHumanInstance,
+        BurnHumanPhenotypeSampler, BurnHumanPlacement, BurnHumanPoseNoise, BurnHumanSettings,
+    },
 };
 
 pub struct ZeroversePrimitivePlugin;
@@ -32,7 +48,7 @@ impl Plugin for ZeroversePrimitivePlugin {
         // note: web does not handle `POLYGON_MODE_LINE`, so we skip wireframes
         app.add_plugins(bevy::pbr::wireframe::WireframePlugin::default());
 
-        app.add_systems(Update, process_primitives);
+        app.add_systems(Update, process_primitives.after(NormalizeMeshesSet));
     }
 }
 
@@ -69,10 +85,18 @@ pub struct ZeroversePrimitiveSettings {
     pub position_sampler: PositionSampler,
     pub scale_sampler: ScaleSampler,
     pub invert_normals: bool,
+    pub track_obb: bool,
     #[reflect(ignore)]
     pub cull_mode: Option<Face>,
     pub cast_shadows: bool,
     pub receive_shadows: bool,
+    pub preferred_mesh: Option<Handle<Mesh>>,
+    /// When true, scale.y is treated as the target height and x/z are treated as aspect multipliers.
+    pub height_preserve_scale: bool,
+    /// When true, scale to exactly match the sampled bounds on all axes (per-axis fit).
+    pub fit_to_sampled_box: bool,
+    /// When true, burn_human meshes animate pose over time.
+    pub human_pose_noise: bool,
 }
 
 impl Default for ZeroversePrimitiveSettings {
@@ -102,9 +126,14 @@ impl Default for ZeroversePrimitiveSettings {
             position_sampler: PositionSampler::default(),
             scale_sampler: ScaleSampler::Bounded(Vec3::splat(0.05), Vec3::splat(1.0)),
             invert_normals: false,
+            track_obb: true,
             cull_mode: None,
             cast_shadows: true,
             receive_shadows: true, // TODO: fix shadows + camera trajectories clipping
+            preferred_mesh: None,
+            height_preserve_scale: false,
+            fit_to_sampled_box: true,
+            human_pose_noise: false,
         }
     }
 }
@@ -263,13 +292,26 @@ impl PositionSampler {
 #[derive(Clone, Component, Debug, Reflect)]
 pub struct ZeroversePrimitive;
 
+#[derive(SystemParam)]
+pub struct PrimitiveResources<'w> {
+    meshes: ResMut<'w, Assets<Mesh>>,
+    standard_materials: ResMut<'w, Assets<StandardMaterial>>,
+    zeroverse_materials: Res<'w, ZeroverseMaterials>,
+    zeroverse_meshes: ResMut<'w, ZeroverseMeshes>,
+    gltfs: Res<'w, Assets<Gltf>>,
+    gltf_meshes: Res<'w, Assets<GltfMesh>>,
+    asset_server: Res<'w, AssetServer>,
+    burn_human_assets: Option<Res<'w, BurnHumanAssets>>,
+    burn_human_settings: Option<Res<'w, BurnHumanSettings>>,
+    burn_human_sampler: Option<Res<'w, BurnHumanPhenotypeSampler>>,
+    burn_human_pool: Option<ResMut<'w, BurnHumanDescriptorPool>>,
+}
+
 fn build_primitive(
     commands: &mut ChildSpawnerCommands,
     settings: &ZeroversePrimitiveSettings,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    standard_materials: &mut ResMut<Assets<StandardMaterial>>,
-    zeroverse_materials: &Res<ZeroverseMaterials>,
-    zeroverse_meshes: &Res<ZeroverseMeshes>,
+    resources: &mut PrimitiveResources,
+    descriptor_override: Option<BurnHumanDescriptor>,
 ) {
     let mut rng = rand::rng();
 
@@ -289,22 +331,108 @@ fn build_primitive(
         .map(|_| settings.rotation_sampler.sample())
         .collect::<Vec<_>>();
 
+    let mut descriptor_override = descriptor_override;
     izip!(primitive_types, scales, positions, rotations,).for_each(
         |(primitive_type, scale, position, rotation)| {
-            let mut material = zeroverse_materials
+            let mut material = resources
+                .zeroverse_materials
                 .materials
                 .choose(&mut rng)
                 .cloned()
-                .unwrap_or(standard_materials.add(StandardMaterial::default()));
+                .unwrap_or(
+                    resources
+                        .standard_materials
+                        .add(StandardMaterial::default()),
+                );
 
             if settings.cull_mode.is_some() {
-                let mut new_material = standard_materials.get(&material).unwrap().clone();
+                let mut new_material = resources.standard_materials.get(&material).unwrap().clone();
 
                 new_material.double_sided = false;
                 new_material.cull_mode = settings.cull_mode;
 
-                material = standard_materials.add(new_material);
+                material = resources.standard_materials.add(new_material);
             }
+
+            if let ZeroversePrimitives::Mesh(ref category) = primitive_type {
+                // Procedural burn_human meshes bypass the normal mesh pipeline.
+                if category == "human" {
+                    if let (Some(burn_assets), Some(burn_settings), Some(burn_sampler)) = (
+                        resources.burn_human_assets.as_ref(),
+                        resources.burn_human_settings.as_ref(),
+                        resources.burn_human_sampler.as_ref(),
+                    ) {
+                        if let Some(burn_pool) = resources.burn_human_pool.as_mut() {
+                            let descriptor = descriptor_override
+                                .take()
+                                .unwrap_or_else(|| {
+                                    sample_burn_human_descriptor(
+                                        burn_assets,
+                                        burn_sampler,
+                                        burn_settings,
+                                        &mut *burn_pool,
+                                        &mut rng,
+                                    )
+                                });
+                            let base_pose = base_pose_from_assets(burn_assets);
+                            let bone_count =
+                                burn_assets.body.metadata().metadata.bone_labels.len();
+                            let instance =
+                                BurnHumanInstance::new(descriptor, base_pose.clone(), bone_count);
+                            let input = BurnHumanInput {
+                                phenotype_inputs: Some(instance.phenotype.clone()),
+                                pose_parameters: Some(base_pose),
+                                ..Default::default()
+                            };
+                            let mesh_settings = BurnHumanMeshSettings {
+                                compute_normals: burn_settings.compute_normals,
+                            };
+                            let render_mode =
+                                BurnHumanRenderMode(BurnHumanMeshMode::SkinnedMesh);
+                            let placement = BurnHumanPlacement {
+                                base_translation: position,
+                                base_rotation: rotation,
+                                sampled_scale: scale,
+                                height_preserve_scale: settings.height_preserve_scale,
+                                fit_to_sampled_box: settings.fit_to_sampled_box,
+                            };
+                            let transform =
+                                Transform::from_translation(position).with_rotation(rotation);
+
+                            let mut primitive = commands.spawn((
+                                transform,
+                                GlobalTransform::default(),
+                                InheritedVisibility::default(),
+                                Visibility::default(),
+                                Mesh3d(Handle::<Mesh>::default()),
+                                MeshMaterial3d(material),
+                                placement,
+                                instance,
+                                input,
+                                mesh_settings,
+                                render_mode,
+                                TransmittedShadowReceiver,
+                            ));
+                            primitive.insert(PoseTracked);
+                            if settings.human_pose_noise {
+                                primitive.insert(BurnHumanPoseNoise);
+                            }
+                            if settings.track_obb {
+                                primitive.insert(ObbTracked);
+                            }
+                            if !settings.cast_shadows {
+                                primitive.insert(NotShadowCaster);
+                            }
+                            if !settings.receive_shadows {
+                                primitive.insert(TransmittedShadowReceiver);
+                            }
+                            return;
+                        }
+                    }
+                }
+            }
+
+            let mut chosen_mesh_meta: Option<(Handle<Mesh>, Vec3)> = None;
 
             let mut mesh = match primitive_type {
                 ZeroversePrimitives::Capsule => Capsule3d::default()
@@ -352,21 +480,104 @@ fn build_primitive(
                         .minor_resolution(rng.random_range(3..64))
                         .build()
                 }
-                ZeroversePrimitives::Mesh(category) => {
-                    let mesh_handle = zeroverse_meshes
-                        .meshes
-                        .get(&category)
-                        .and_then(|mesh_vec| mesh_vec.choose(&mut rng));
+                ZeroversePrimitives::Mesh(ref category) => {
+                    let mesh_choice =
+                        settings
+                            .preferred_mesh
+                            .as_ref()
+                            .and_then(|preferred| {
+                                resources.zeroverse_meshes.meshes.get(category).and_then(
+                                    |mesh_vec| mesh_vec.iter().find(|m| m.handle == *preferred),
+                                )
+                            })
+                            .or_else(|| {
+                                resources
+                                    .zeroverse_meshes
+                                    .meshes
+                                    .get(category)
+                                    .and_then(|mesh_vec| mesh_vec.choose(&mut rng))
+                            });
 
-                    match mesh_handle {
-                        Some(mesh) => {
-                            material = mesh.material.clone();
-                            meshes.get(&mesh.handle).unwrap().clone()
+                    let mesh_choice = mesh_choice.map(|mesh| {
+                        (
+                            mesh.handle.clone(),
+                            mesh.material.clone(),
+                            mesh.gltf.clone(),
+                        )
+                    });
+
+                    match mesh_choice {
+                        Some((mesh_handle, mut chosen_material, mesh_gltf)) => {
+                            if chosen_material.is_none() {
+                                chosen_material = resolve_mesh_material(
+                                    &mesh_handle,
+                                    &mesh_gltf,
+                                    &resources.gltfs,
+                                    &resources.gltf_meshes,
+                                );
+                            }
+
+                            if let Some(mesh_material) = chosen_material.as_ref() {
+                                match resources.asset_server.get_load_state(mesh_material) {
+                                    Some(LoadState::Loaded) => {
+                                        material = mesh_material.clone();
+                                    }
+                                    Some(LoadState::Failed(err)) => {
+                                        debug!(
+                                            "material load failed for mesh {:?}: {err}",
+                                            mesh_handle
+                                        );
+                                    }
+                                    None => {
+                                        debug!(
+                                            "material handle missing load state for mesh {:?}",
+                                            mesh_handle
+                                        );
+                                    }
+                                    _ => {}
+                                }
+                            } else {
+                                debug!(
+                                    "no material found for mesh {:?}, keeping random material",
+                                    mesh_handle
+                                );
+                            }
+
+                            if !resources.zeroverse_meshes.normalized.contains(&mesh_handle) {
+                                if let Some(mesh_asset) = resources.meshes.get_mut(&mesh_handle) {
+                                    if let Some(size) = normalize_mesh_to_unit_cube(mesh_asset) {
+                                        resources
+                                            .zeroverse_meshes
+                                            .original_sizes
+                                            .insert(mesh_handle.clone(), size);
+                                        resources
+                                            .zeroverse_meshes
+                                            .normalized
+                                            .insert(mesh_handle.clone());
+                                    }
+                                }
+                            }
+
+                            if let Some(size) =
+                                resources.zeroverse_meshes.original_sizes.get(&mesh_handle)
+                            {
+                                chosen_mesh_meta = Some((mesh_handle.clone(), *size));
+                            }
+
+                            resources
+                                .meshes
+                                .get(&mesh_handle)
+                                .cloned()
+                                .unwrap_or_else(|| Cuboid::default().mesh().build())
                         }
                         None => Cuboid::default().mesh().build(),
                     }
                 }
             };
+
+            if matches!(primitive_type, ZeroversePrimitives::Mesh(_)) {
+                normalize_mesh_to_unit_cube(&mut mesh);
+            }
 
             if rng.random_bool(settings.noise_probability as f64) {
                 let noise_frequency = rng.random_range(
@@ -378,11 +589,54 @@ fn build_primitive(
                 displace_vertices_with_noise(&mut mesh, noise_frequency, noise_scale);
             }
 
+            let mut position = position;
+            let mut final_scale = scale;
+
+            if let Some((min, max)) = mesh_bounds(&mesh) {
+                let orig_size = if let Some((_, original_size)) = chosen_mesh_meta.as_ref() {
+                    *original_size
+                } else {
+                    max - min
+                };
+                let safe_size = Vec3::new(
+                    orig_size.x.max(f32::EPSILON),
+                    orig_size.y.max(f32::EPSILON),
+                    orig_size.z.max(f32::EPSILON),
+                );
+                let max_extent = safe_size.max_element();
+
+                if settings.height_preserve_scale {
+                    // Preserve the original mesh aspect: target height comes from scale.y,
+                    // width/depth are derived from original aspect and modulated by scale.x/scale.z.
+                    let desired_height = scale.y;
+                    let desired_width = desired_height * (safe_size.x / safe_size.y) * scale.x;
+                    let desired_depth = desired_height * (safe_size.z / safe_size.y) * scale.z;
+
+                    final_scale = Vec3::new(
+                        desired_width * max_extent / safe_size.x,
+                        desired_height * max_extent / safe_size.y,
+                        desired_depth * max_extent / safe_size.z,
+                    );
+                } else if settings.fit_to_sampled_box {
+                    // Exact per-axis fit: hit the sampled width/height/depth.
+                    final_scale = Vec3::new(
+                        scale.x * max_extent / safe_size.x,
+                        scale.y * max_extent / safe_size.y,
+                        scale.z * max_extent / safe_size.z,
+                    );
+                }
+
+                if min.y != 0.0 {
+                    position.y -= min.y * final_scale.y;
+                }
+                if position.y < 0.0 {
+                    position.y = 0.0;
+                }
+            }
+
             let transform = Transform::from_translation(position)
                 .with_rotation(rotation)
-                .with_scale(scale);
-
-            let mut mesh = mesh.transformed_by(transform);
+                .with_scale(final_scale);
 
             if rng.random_bool(settings.smooth_normals_probability as f64) {
                 mesh.compute_smooth_normals();
@@ -406,10 +660,17 @@ fn build_primitive(
             }
 
             let mut primitive = commands.spawn((
-                Mesh3d(meshes.add(mesh)),
+                transform,
+                GlobalTransform::default(),
+                InheritedVisibility::default(),
+                Visibility::default(),
+                Mesh3d(resources.meshes.add(mesh)),
                 MeshMaterial3d(material),
                 TransmittedShadowReceiver,
             ));
+            if settings.track_obb {
+                primitive.insert(ObbTracked);
+            }
 
             if !settings.cast_shadows {
                 primitive.insert(NotShadowCaster);
@@ -441,25 +702,23 @@ fn build_primitive(
 
 pub fn process_primitives(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut standard_materials: ResMut<Assets<StandardMaterial>>,
-    zeroverse_materials: Res<ZeroverseMaterials>,
-    zeroverse_meshes: Res<ZeroverseMeshes>,
-    primitives: Query<(Entity, &ZeroversePrimitiveSettings), Without<ZeroversePrimitive>>,
+    mut resources: PrimitiveResources,
+    primitives: Query<
+        (
+            Entity,
+            &ZeroversePrimitiveSettings,
+            Option<&BurnHumanDescriptorOverride>,
+        ),
+        Without<ZeroversePrimitive>,
+    >,
 ) {
-    for (entity, settings) in primitives.iter() {
+    for (entity, settings, descriptor_override) in primitives.iter() {
+        let descriptor_override = descriptor_override.map(|descriptor| descriptor.0.clone());
         commands
             .entity(entity)
             .insert(ZeroversePrimitive)
             .with_children(|subcommands| {
-                build_primitive(
-                    subcommands,
-                    settings,
-                    &mut meshes,
-                    &mut standard_materials,
-                    &zeroverse_materials,
-                    &zeroverse_meshes,
-                );
+                build_primitive(subcommands, settings, &mut resources, descriptor_override);
             });
     }
 }
@@ -469,4 +728,27 @@ pub fn choose_multiple_with_replacement<T: Clone>(collection: &[T], n: usize) ->
     (0..n)
         .map(|_| collection.choose(&mut rng).unwrap().clone())
         .collect()
+}
+
+fn resolve_mesh_material(
+    mesh_handle: &Handle<Mesh>,
+    mesh_gltf: &Handle<Gltf>,
+    gltfs: &Assets<Gltf>,
+    gltf_meshes: &Assets<GltfMesh>,
+) -> Option<Handle<StandardMaterial>> {
+    let gltf = gltfs.get(mesh_gltf)?;
+    if gltf.materials.is_empty() {
+        return None;
+    }
+
+    for gltf_mesh_handle in &gltf.meshes {
+        if let Some(gltf_mesh) = gltf_meshes.get(gltf_mesh_handle) {
+            for primitive in &gltf_mesh.primitives {
+                if primitive.mesh == *mesh_handle {
+                    return primitive.material.clone();
+                }
+            }
+        }
+    }
+    None
 }

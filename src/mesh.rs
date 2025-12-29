@@ -1,6 +1,9 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::{
+    collections::{HashMap, HashSet},
+    path::PathBuf,
+};
 
-use bevy::{mesh::VertexAttributeValues, prelude::*};
+use bevy::{gltf::Gltf, mesh::VertexAttributeValues, prelude::*};
 use noise::{NoiseFn, Perlin};
 use rand::{seq::IteratorRandom, Rng};
 
@@ -18,7 +21,8 @@ pub type MeshCategory = String;
 pub struct ZeroverseMesh {
     pub category: MeshCategory,
     pub handle: Handle<Mesh>,
-    pub material: Handle<StandardMaterial>,
+    pub material: Option<Handle<StandardMaterial>>,
+    pub gltf: Handle<Gltf>,
     // pub path: String,
     // pub subset: String,
 }
@@ -26,7 +30,12 @@ pub struct ZeroverseMesh {
 #[derive(Resource, Default, Debug)]
 pub struct ZeroverseMeshes {
     pub meshes: HashMap<MeshCategory, Vec<ZeroverseMesh>>,
+    pub normalized: HashSet<Handle<Mesh>>,
+    pub original_sizes: HashMap<Handle<Mesh>, Vec3>,
 }
+
+#[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
+pub struct NormalizeMeshesSet;
 
 #[derive(Event, Message)]
 pub struct ShuffleMeshesEvent;
@@ -49,7 +58,10 @@ impl Plugin for ZeroverseMeshPlugin {
 
         app.add_systems(PreStartup, find_meshes);
         app.add_systems(Startup, load_meshes);
-        app.add_systems(Update, mesh_exchange);
+        app.add_systems(
+            Update,
+            (mesh_exchange, normalize_meshes.in_set(NormalizeMeshesSet)),
+        );
         app.add_systems(PostUpdate, reload_meshes);
     }
 }
@@ -81,13 +93,6 @@ fn find_meshes(mut found_meshes: ResMut<MeshRoots>) {
                 "chair".into(),
                 vec![PathBuf::from("models/subset/chair/0.glb")],
             ),
-            (
-                "human".into(),
-                vec![
-                    PathBuf::from("models/subset/human/female.glb"),
-                    PathBuf::from("models/subset/human/male.glb"),
-                ],
-            ),
         ]);
         return;
     }
@@ -107,7 +112,11 @@ fn find_meshes(mut found_meshes: ResMut<MeshRoots>) {
             Err(_) => std::env::current_dir().expect("failed to get current working directory"),
         };
 
-        let asset_server_path = cwd.join("./assets");
+        let asset_server_path = if cwd.ends_with("assets") {
+            cwd.clone()
+        } else {
+            cwd.join("assets")
+        };
         let pattern: String = format!("{}/**/*.glb", asset_server_path.to_string_lossy());
 
         found_meshes.categories = glob::glob(&pattern)
@@ -145,16 +154,16 @@ fn load_meshes(
         for path in &selected_paths {
             let path_str = path.to_string_lossy();
 
+            let gltf_handle: Handle<Gltf> = asset_server.load(path_str.to_string());
             let glb_path = format!("{path_str}#Mesh0/Primitive0");
-            let material_path = format!("{path_str}#Material0");
 
             let mesh_handle = asset_server.load(glb_path);
-            let material_handle = asset_server.load(material_path);
 
             let zeroverse_mesh = ZeroverseMesh {
                 category: category.clone(),
                 handle: mesh_handle.clone(),
-                material: material_handle,
+                material: None,
+                gltf: gltf_handle,
             };
 
             wait_for.handles.push(mesh_handle.untyped());
@@ -172,7 +181,10 @@ fn load_meshes(
         );
     }
 
-    info!("loaded total of {} meshes", zeroverse_meshes.meshes.len());
+    info!(
+        "loaded total of {} categories",
+        zeroverse_meshes.meshes.len()
+    );
 
     load_event.write(MeshesLoadedEvent);
 }
@@ -192,6 +204,8 @@ fn reload_meshes(
     shuffle_events.clear();
 
     zeroverse_meshes.meshes.clear();
+    zeroverse_meshes.normalized.clear();
+    zeroverse_meshes.original_sizes.clear();
 
     load_meshes(
         asset_server,
@@ -222,6 +236,95 @@ fn mesh_exchange(
 
         shuffle_events.write(ShuffleMeshesEvent);
     }
+}
+
+fn normalize_meshes(
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut zeroverse_meshes: ResMut<ZeroverseMeshes>,
+) {
+    let handles: Vec<Handle<Mesh>> = zeroverse_meshes
+        .meshes
+        .values()
+        .flatten()
+        .map(|mesh| mesh.handle.clone())
+        .collect();
+
+    for handle in handles {
+        if zeroverse_meshes.normalized.contains(&handle) {
+            continue;
+        }
+
+        if let Some(mesh_asset) = meshes.get_mut(&handle) {
+            match normalize_mesh_to_unit_cube(mesh_asset) {
+                Some(size) => {
+                    zeroverse_meshes.original_sizes.insert(handle.clone(), size);
+                    zeroverse_meshes.normalized.insert(handle);
+                }
+                None => {
+                    debug!(
+                        "unable to normalize mesh {:?}; missing positions or zero extents",
+                        handle
+                    );
+                }
+            }
+        }
+    }
+}
+
+pub fn normalize_mesh_to_unit_cube(mesh: &mut Mesh) -> Option<Vec3> {
+    if let Some(VertexAttributeValues::Float32x3(positions)) =
+        mesh.attribute_mut(Mesh::ATTRIBUTE_POSITION)
+    {
+        let (min, max) = mesh_bounds_from_positions(positions);
+
+        let size = max - min;
+        let max_extent = size.max_element();
+
+        if max_extent <= f32::EPSILON {
+            return None;
+        }
+
+        let center_x = (max.x + min.x) * 0.5;
+        let center_z = (max.z + min.z) * 0.5;
+        let floor = min.y;
+
+        for position in positions.iter_mut() {
+            position[0] = (position[0] - center_x) / max_extent;
+            position[1] = (position[1] - floor) / max_extent;
+            position[2] = (position[2] - center_z) / max_extent;
+        }
+
+        return Some(size);
+    }
+
+    None
+}
+
+pub fn mesh_bounds(mesh: &Mesh) -> Option<(Vec3, Vec3)> {
+    if let Some(VertexAttributeValues::Float32x3(positions)) =
+        mesh.attribute(Mesh::ATTRIBUTE_POSITION)
+    {
+        return Some(mesh_bounds_from_positions(positions));
+    }
+
+    None
+}
+
+fn mesh_bounds_from_positions(positions: &[[f32; 3]]) -> (Vec3, Vec3) {
+    let mut min = Vec3::splat(f32::MAX);
+    let mut max = Vec3::splat(f32::MIN);
+
+    for position in positions.iter() {
+        min.x = min.x.min(position[0]);
+        min.y = min.y.min(position[1]);
+        min.z = min.z.min(position[2]);
+
+        max.x = max.x.max(position[0]);
+        max.y = max.y.max(position[1]);
+        max.z = max.z.max(position[2]);
+    }
+
+    (min, max)
 }
 
 pub fn displace_vertices_with_noise(mesh: &mut Mesh, frequency: f32, scale: f32) {
