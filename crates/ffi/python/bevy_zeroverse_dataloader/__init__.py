@@ -29,6 +29,20 @@ import zstandard as zstd
 import bevy_zeroverse_ffi
 
 
+def _chunk_collate(samples: list[dict[str, Any]]) -> dict[str, Any]:
+    if not samples:
+        return {}
+    collated: dict[str, Any] = {}
+    ragged_prefixes = ("ovoxel_", "object_obb_", "human_pose_")
+    for key in samples[0].keys():
+        values = [s[key] for s in samples]
+        if key.startswith(ragged_prefixes):
+            collated[key] = values
+        else:
+            collated[key] = default_collate(values)
+    return collated
+
+
 def _as_numpy_array(data, dtype, width: Optional[int] = None) -> np.ndarray:
     """
     Coerce python/ffi payloads (lists, bytes, tensors) into a predictable numpy array.
@@ -806,26 +820,13 @@ def chunk_and_save(
     max_save_workers = min(max(1, (os.cpu_count() or 4) // 2), 8)
     pending: list[Any] = []
 
-    def collate_fn(samples: list[dict[str, Any]]) -> dict[str, Any]:
-        if not samples:
-            return {}
-        collated: dict[str, Any] = {}
-        ragged_prefixes = ("ovoxel_", "object_obb_", "human_pose_")
-        for key in samples[0].keys():
-            values = [s[key] for s in samples]
-            if key.startswith(ragged_prefixes):
-                collated[key] = values
-            else:
-                collated[key] = default_collate(values)
-        return collated
-
     dl_bs = samples_per_chunk if samples_per_chunk else 1
     dataloader_kwargs = dict(
         batch_size=dl_bs,
         num_workers=n_workers,
         shuffle=False,
         pin_memory=pin_memory,
-        collate_fn=collate_fn,
+        collate_fn=_chunk_collate,
     )
     if n_workers > 0:
         dataloader_kwargs["prefetch_factor"] = max(1, prefetch_factor)
