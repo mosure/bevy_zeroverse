@@ -1,5 +1,6 @@
 /* tslint:disable */
 /* eslint-disable */
+
 /**
  * Chroma subsampling format
  */
@@ -27,22 +28,25 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 export interface InitOutput {
   readonly memory: WebAssembly.Memory;
   readonly main: (a: number, b: number) => number;
-  readonly __externref_table_alloc: () => number;
-  readonly __wbindgen_export_1: WebAssembly.Table;
-  readonly __wbindgen_exn_store: (a: number) => void;
-  readonly __wbindgen_malloc: (a: number, b: number) => number;
-  readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
-  readonly __wbindgen_free: (a: number, b: number, c: number) => void;
-  readonly __wbindgen_export_6: WebAssembly.Table;
-  readonly closure8105_externref_shim: (a: number, b: number, c: any) => void;
-  readonly closure73869_externref_shim: (a: number, b: number, c: any) => void;
-  readonly closure73924_externref_shim: (a: number, b: number, c: any) => void;
-  readonly _dyn_core__ops__function__FnMut_____Output___R_as_wasm_bindgen__closure__WasmClosure___describe__invoke__h56ca99ebe870395b: (a: number, b: number) => void;
-  readonly closure73935_externref_shim: (a: number, b: number, c: any, d: any) => void;
+  readonly wasm_bindgen_dcd4420bdd5bacd___convert__closures_____invoke___js_sys_efecb1b7fcfa8350___Array_____: (a: number, b: number, c: any) => void;
+  readonly wasm_bindgen_dcd4420bdd5bacd___closure__destroy___dyn_core_3cd24c61823388c3___ops__function__FnMut__js_sys_efecb1b7fcfa8350___Array____Output_______: (a: number, b: number) => void;
+  readonly wasm_bindgen_dcd4420bdd5bacd___convert__closures_____invoke___web_sys_4f9f7477cbeecf75___features__gen_InputEvent__InputEvent_____: (a: number, b: number, c: any) => void;
+  readonly wasm_bindgen_dcd4420bdd5bacd___closure__destroy___dyn_core_3cd24c61823388c3___ops__function__FnMut__web_sys_4f9f7477cbeecf75___features__gen_InputEvent__InputEvent____Output_______: (a: number, b: number) => void;
+  readonly wasm_bindgen_dcd4420bdd5bacd___convert__closures_____invoke___js_sys_efecb1b7fcfa8350___Array__web_sys_4f9f7477cbeecf75___features__gen_ResizeObserver__ResizeObserver_____: (a: number, b: number, c: any, d: any) => void;
+  readonly wasm_bindgen_dcd4420bdd5bacd___convert__closures_____invoke______: (a: number, b: number) => void;
+  readonly wasm_bindgen_dcd4420bdd5bacd___convert__closures_____invoke___wasm_bindgen_dcd4420bdd5bacd___JsValue_____: (a: number, b: number, c: any) => void;
+  readonly wasm_bindgen_dcd4420bdd5bacd___closure__destroy___dyn_core_3cd24c61823388c3___ops__function__FnMut__wasm_bindgen_dcd4420bdd5bacd___JsValue____Output_______: (a: number, b: number) => void;
+  readonly __wbindgen_malloc_command_export: (a: number, b: number) => number;
+  readonly __wbindgen_realloc_command_export: (a: number, b: number, c: number, d: number) => number;
+  readonly __externref_table_alloc_command_export: () => number;
+  readonly __wbindgen_externrefs: WebAssembly.Table;
+  readonly __wbindgen_exn_store_command_export: (a: number) => void;
+  readonly __wbindgen_free_command_export: (a: number, b: number, c: number) => void;
   readonly __wbindgen_start: () => void;
 }
 
 export type SyncInitInput = BufferSource | WebAssembly.Module;
+
 /**
 * Instantiates the given `module`, which can either be bytes or
 * a precompiled `WebAssembly.Module`.
