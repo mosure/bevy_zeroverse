@@ -32,10 +32,10 @@ export interface InitOutput {
   readonly wasm_bindgen_dcd4420bdd5bacd___closure__destroy___dyn_core_3cd24c61823388c3___ops__function__FnMut__js_sys_efecb1b7fcfa8350___Array____Output_______: (a: number, b: number) => void;
   readonly wasm_bindgen_dcd4420bdd5bacd___convert__closures_____invoke___web_sys_4f9f7477cbeecf75___features__gen_InputEvent__InputEvent_____: (a: number, b: number, c: any) => void;
   readonly wasm_bindgen_dcd4420bdd5bacd___closure__destroy___dyn_core_3cd24c61823388c3___ops__function__FnMut__web_sys_4f9f7477cbeecf75___features__gen_InputEvent__InputEvent____Output_______: (a: number, b: number) => void;
-  readonly wasm_bindgen_dcd4420bdd5bacd___convert__closures_____invoke___js_sys_efecb1b7fcfa8350___Array__web_sys_4f9f7477cbeecf75___features__gen_ResizeObserver__ResizeObserver_____: (a: number, b: number, c: any, d: any) => void;
   readonly wasm_bindgen_dcd4420bdd5bacd___convert__closures_____invoke______: (a: number, b: number) => void;
   readonly wasm_bindgen_dcd4420bdd5bacd___convert__closures_____invoke___wasm_bindgen_dcd4420bdd5bacd___JsValue_____: (a: number, b: number, c: any) => void;
   readonly wasm_bindgen_dcd4420bdd5bacd___closure__destroy___dyn_core_3cd24c61823388c3___ops__function__FnMut__wasm_bindgen_dcd4420bdd5bacd___JsValue____Output_______: (a: number, b: number) => void;
+  readonly wasm_bindgen_dcd4420bdd5bacd___convert__closures_____invoke___js_sys_efecb1b7fcfa8350___Array__web_sys_4f9f7477cbeecf75___features__gen_ResizeObserver__ResizeObserver_____: (a: number, b: number, c: any, d: any) => void;
   readonly __wbindgen_malloc_command_export: (a: number, b: number) => number;
   readonly __wbindgen_realloc_command_export: (a: number, b: number, c: number, d: number) => number;
   readonly __externref_table_alloc_command_export: () => number;

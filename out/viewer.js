@@ -229,16 +229,16 @@ function wasm_bindgen_dcd4420bdd5bacd___convert__closures_____invoke___web_sys_4
     wasm.wasm_bindgen_dcd4420bdd5bacd___convert__closures_____invoke___web_sys_4f9f7477cbeecf75___features__gen_InputEvent__InputEvent_____(arg0, arg1, arg2);
 }
 
-function wasm_bindgen_dcd4420bdd5bacd___convert__closures_____invoke___js_sys_efecb1b7fcfa8350___Array__web_sys_4f9f7477cbeecf75___features__gen_ResizeObserver__ResizeObserver_____(arg0, arg1, arg2, arg3) {
-    wasm.wasm_bindgen_dcd4420bdd5bacd___convert__closures_____invoke___js_sys_efecb1b7fcfa8350___Array__web_sys_4f9f7477cbeecf75___features__gen_ResizeObserver__ResizeObserver_____(arg0, arg1, arg2, arg3);
-}
-
 function wasm_bindgen_dcd4420bdd5bacd___convert__closures_____invoke______(arg0, arg1) {
     wasm.wasm_bindgen_dcd4420bdd5bacd___convert__closures_____invoke______(arg0, arg1);
 }
 
 function wasm_bindgen_dcd4420bdd5bacd___convert__closures_____invoke___wasm_bindgen_dcd4420bdd5bacd___JsValue_____(arg0, arg1, arg2) {
     wasm.wasm_bindgen_dcd4420bdd5bacd___convert__closures_____invoke___wasm_bindgen_dcd4420bdd5bacd___JsValue_____(arg0, arg1, arg2);
+}
+
+function wasm_bindgen_dcd4420bdd5bacd___convert__closures_____invoke___js_sys_efecb1b7fcfa8350___Array__web_sys_4f9f7477cbeecf75___features__gen_ResizeObserver__ResizeObserver_____(arg0, arg1, arg2, arg3) {
+    wasm.wasm_bindgen_dcd4420bdd5bacd___convert__closures_____invoke___js_sys_efecb1b7fcfa8350___Array__web_sys_4f9f7477cbeecf75___features__gen_ResizeObserver__ResizeObserver_____(arg0, arg1, arg2, arg3);
 }
 
 const __wbindgen_enum_GpuAddressMode = ["clamp-to-edge", "repeat", "mirror-repeat"];
