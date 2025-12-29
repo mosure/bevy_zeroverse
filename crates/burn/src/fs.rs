@@ -563,14 +563,14 @@ fn load_meta(dir: &Path, steps: usize, view_dim: usize) -> Result<MetaFields> {
         let shape = position.shape();
         let (pose_steps, human_count, bone_count, has_steps) = match shape.len() {
             4 => (
-                shape.get(0).copied().unwrap_or(1),
+                shape.first().copied().unwrap_or(1),
                 shape.get(1).copied().unwrap_or(0),
                 shape.get(2).copied().unwrap_or(0),
                 true,
             ),
             3 => (
                 1,
-                shape.get(0).copied().unwrap_or(0),
+                shape.first().copied().unwrap_or(0),
                 shape.get(1).copied().unwrap_or(0),
                 false,
             ),
