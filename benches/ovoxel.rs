@@ -8,7 +8,7 @@ use bevy::{
 };
 use bevy_zeroverse::{
     app::{BevyZeroverseConfig, OvoxelMode},
-    ovoxel::{OvoxelExport, OvoxelPlugin, OvoxelVolume},
+    ovoxel::{OvoxelExport, OvoxelPlugin, OvoxelTracked, OvoxelVolume},
     ovoxel_mesh::{ovoxel_to_mesh, write_mesh_as_glb},
     scene::RegenerateSceneEvent,
 };
@@ -204,6 +204,7 @@ fn ovoxel_creation_benchmark(c: &mut Criterion) {
                                 MeshMaterial3d(mat_handle),
                                 Transform::IDENTITY,
                                 GlobalTransform::IDENTITY,
+                                OvoxelTracked,
                             ))
                             .id();
                         app.world_mut().entity_mut(root).add_child(child);

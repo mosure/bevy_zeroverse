@@ -12,13 +12,16 @@ use bevy::{
         renderer::{RenderDevice, RenderQueue},
     },
     tasks::{AsyncComputeTaskPool, Task, block_on},
+    transform::TransformSystems,
 };
+use bevy_burn_human::{BurnHumanInput, BurnHumanMeshMode, BurnHumanRenderMode};
 use wgpu::{self, util::DeviceExt};
 
 use crate::{
     annotation::obb::ObbClass,
     app::{BevyZeroverseConfig, OvoxelMode},
     render::semantic::SemanticLabel,
+    sample::{SamplerState, StartupDelay},
     scene::{RegenerateSceneEvent, SceneAabbNode},
 };
 
@@ -43,6 +46,11 @@ impl Default for OvoxelExport {
         }
     }
 }
+
+/// Marker for entities whose meshes should be included in O-Voxel exports.
+#[derive(Component, Debug, Default, Reflect)]
+#[reflect(Component, Default)]
+pub struct OvoxelTracked;
 
 /// Minimal O-Voxel-like payload mirroring the TRELLIS fields we can compute on CPU.
 #[derive(Component, Debug, Default, Clone, Reflect)]
@@ -105,10 +113,11 @@ impl Plugin for OvoxelPlugin {
 
         app.add_message::<RegenerateSceneEvent>();
         app.register_type::<OvoxelExport>();
+        app.register_type::<OvoxelTracked>();
         app.register_type::<OvoxelVolume>();
         app.register_type::<OvoxelCache>();
         app.add_systems(
-            Update,
+            PostUpdate,
             (
                 tag_scene_roots,
                 process_ovoxel_exports,
@@ -116,8 +125,10 @@ impl Plugin for OvoxelPlugin {
                 reset_ovoxel_on_regen,
             )
                 .chain()
+                .after(TransformSystems::Propagate)
                 .run_if(is_ovoxel_enabled),
         );
+        app.add_systems(PreUpdate, sync_burn_human_render_mode);
     }
 }
 
@@ -130,14 +141,17 @@ struct Triangle {
     semantic_id: u16,
 }
 
-/// System: finds entities tagged with `OvoxelExport`, gathers meshes under them,
-/// voxelizes, and stores the result on the same entity as `OvoxelVolume`.
+/// System: finds entities tagged with `OvoxelExport`, gathers meshes under
+/// `OvoxelTracked` subtrees, voxelizes, and stores the result on the same entity
+/// as `OvoxelVolume`.
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
 pub(crate) fn process_ovoxel_exports(
     mut commands: Commands,
     config: Option<Res<BevyZeroverseConfig>>,
     render_device: Option<Res<RenderDevice>>,
     render_queue: Option<Res<RenderQueue>>,
+    sampler_state: Option<Res<SamplerState>>,
+    startup_delay: Option<Res<StartupDelay>>,
     roots: Query<(
         Entity,
         &OvoxelExport,
@@ -165,8 +179,15 @@ pub(crate) fn process_ovoxel_exports(
             Changed<GlobalTransform>,
         )>,
     >,
+    tracked: Query<(), With<OvoxelTracked>>,
     children: Query<&Children>,
 ) {
+    if let (Some(state), Some(startup)) = (sampler_state.as_ref(), startup_delay.as_ref()) {
+        if !state.enabled || !startup.done || state.warmup_frames > 0 || state.frames > 0 {
+            return;
+        }
+    }
+
     let render_device_owned: Option<RenderDevice> = render_device.map(|r| r.clone());
     let render_queue_owned: Option<RenderQueue> = render_queue.map(|r| r.clone());
     for (root, settings, existing_volume, cache, task) in roots.iter() {
@@ -185,28 +206,33 @@ pub(crate) fn process_ovoxel_exports(
 
         let mut triangles = Vec::new();
 
-        let mut stack = vec![root];
-        while let Some(entity) = stack.pop() {
-            if let Ok((mesh3d, material, transform, semantic, obb_class, name)) =
-                mesh_query.get(entity)
-            {
-                if let Some(mesh) = meshes.get(&mesh3d.0) {
-                    triangles.extend(extract_triangles(
-                        mesh,
-                        transform,
-                        material,
-                        &materials,
-                        &mut palette,
-                        semantic,
-                        obb_class,
-                        name,
-                    ));
+        let mut stack = vec![(root, false)];
+        while let Some((entity, parent_tracked)) = stack.pop() {
+            let is_tracked = tracked.contains(entity);
+            let include = parent_tracked || is_tracked;
+
+            if include {
+                if let Ok((mesh3d, material, transform, semantic, obb_class, name)) =
+                    mesh_query.get(entity)
+                {
+                    if let Some(mesh) = meshes.get(&mesh3d.0) {
+                        triangles.extend(extract_triangles(
+                            mesh,
+                            transform,
+                            material,
+                            &materials,
+                            &mut palette,
+                            semantic,
+                            obb_class,
+                            name,
+                        ));
+                    }
                 }
             }
 
             if let Ok(child_list) = children.get(entity) {
                 for child in child_list.iter() {
-                    stack.push(child);
+                    stack.push((child, include));
                 }
             }
         }
@@ -1685,6 +1711,7 @@ mod tests {
                 MeshMaterial3d(mat_handle),
                 Transform::IDENTITY,
                 GlobalTransform::IDENTITY,
+                OvoxelTracked,
             ))
             .id();
 
@@ -1924,6 +1951,7 @@ mod tests {
                 Mesh3d(mesh_handle),
                 Transform::from_translation(Vec3::new(0.25, 0.25, 0.25)),
                 GlobalTransform::from(Transform::from_translation(Vec3::new(0.25, 0.25, 0.25))),
+                OvoxelTracked,
             ))
             .id();
 
@@ -1968,6 +1996,7 @@ mod tests {
                 Mesh3d(mesh_handle),
                 Transform::IDENTITY,
                 GlobalTransform::IDENTITY,
+                OvoxelTracked,
             ))
             .id();
 
@@ -2014,6 +2043,7 @@ mod tests {
                 Mesh3d(mesh_handle),
                 Transform::IDENTITY,
                 GlobalTransform::IDENTITY,
+                OvoxelTracked,
             ))
             .id();
 
@@ -2079,6 +2109,7 @@ mod tests {
                 Mesh3d(mesh_handle),
                 Transform::IDENTITY,
                 GlobalTransform::IDENTITY,
+                OvoxelTracked,
             ))
             .id();
 
@@ -2143,4 +2174,49 @@ fn label_from_components(
         }
     }
     name.map(|n| n.to_string())
+}
+
+fn sync_burn_human_render_mode(
+    mut commands: Commands,
+    config: Option<Res<BevyZeroverseConfig>>,
+    parents: Query<&ChildOf>,
+    tracked: Query<(), With<OvoxelTracked>>,
+    humans: Query<(Entity, Option<&BurnHumanRenderMode>), With<BurnHumanInput>>,
+) {
+    let enabled = config.is_some_and(|c| !matches!(c.ovoxel_mode, OvoxelMode::Disabled));
+    let target = if enabled {
+        BurnHumanMeshMode::BakedMesh
+    } else {
+        BurnHumanMeshMode::SkinnedMesh
+    };
+
+    for (entity, current) in humans.iter() {
+        if !has_ovoxel_scope(entity, &parents, &tracked) {
+            continue;
+        }
+
+        let needs_update = current.is_none_or(|mode| mode.0 != target);
+        if needs_update {
+            commands
+                .entity(entity)
+                .insert(BurnHumanRenderMode(target));
+        }
+    }
+}
+
+fn has_ovoxel_scope(
+    mut entity: Entity,
+    parents: &Query<&ChildOf>,
+    tracked: &Query<(), With<OvoxelTracked>>,
+) -> bool {
+    loop {
+        if tracked.contains(entity) {
+            return true;
+        }
+
+        let Ok(parent) = parents.get(entity) else {
+            return false;
+        };
+        entity = parent.parent();
+    }
 }

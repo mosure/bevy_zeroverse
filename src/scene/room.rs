@@ -5,6 +5,7 @@ use crate::{
         ExtrinsicsSampler, ExtrinsicsSamplerType, LookingAtSampler, TrajectorySampler,
         ZeroverseCamera,
     },
+    ovoxel::OvoxelTracked,
     primitive::{
         CountSampler, PositionSampler, RotationSampler, ScaleSampler, ZeroversePrimitiveSettings,
         ZeroversePrimitives,
@@ -85,6 +86,7 @@ fn setup_scene(
             Name::new("room"),
             RotationAugment,
             SceneAabbNode,
+            OvoxelTracked,
             ZeroverseSceneRoot,
             ZeroverseScene,
         ))

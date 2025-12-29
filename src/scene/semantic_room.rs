@@ -12,6 +12,7 @@ use crate::{
         ZeroverseCamera,
     },
     mesh::ZeroverseMeshes,
+    ovoxel::OvoxelTracked,
     primitive::{
         CountSampler, PositionSampler, RotationSampler, ScaleSampler, ZeroversePrimitiveSettings,
         ZeroversePrimitives,
@@ -559,6 +560,7 @@ fn spawn_room(
                     Transform::from_translation(position),
                     Name::new("table"),
                     SemanticLabel::Table,
+                    OvoxelTracked,
                 ));
             }
         }
@@ -695,6 +697,7 @@ fn spawn_room(
                 Transform::from_translation(position),
                 Name::new("human"),
                 SemanticLabel::Human,
+                OvoxelTracked,
             ));
             if let Some(descriptor) = descriptor_override {
                 entity.insert(BurnHumanDescriptorOverride(descriptor));
@@ -753,6 +756,7 @@ fn spawn_room(
                     Transform::from_translation(position),
                     Name::new("chair"),
                     SemanticLabel::Chair,
+                    OvoxelTracked,
                 ));
             }
         }
@@ -872,6 +876,7 @@ fn spawn_room(
                 Transform::from_translation(position),
                 Name::new("plant"),
                 SemanticLabel::OtherFurniture,
+                OvoxelTracked,
             ));
         }
     }
