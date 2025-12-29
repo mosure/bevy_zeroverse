@@ -22,6 +22,9 @@ bevy zeroverse synthetic reconstruction dataset generator. view the [live demo](
 - [x] online torch dataloader
 - [x] safetensor chunking
 - [x] hypersim semantic labels
+- [x] [ovoxel](https://arxiv.org/abs/2512.14692) annotation
+- [x] obb annotation
+- [x] [procedural humans](https://arxiv.org/abs/2511.03589)
 - [ ] primitive boolean operations
 - [ ] primitive pbr wireframe
 - [ ] primitive 4d augmentation
