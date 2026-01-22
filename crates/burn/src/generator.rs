@@ -4,6 +4,7 @@ use std::{
     sync::{
         Arc,
         atomic::{AtomicBool, AtomicUsize, Ordering},
+        mpsc,
     },
     thread,
     time::Duration,
@@ -53,6 +54,7 @@ pub struct GenConfig {
     pub ov_mode: bevy_zeroverse::app::OvoxelMode,
     pub ov_resolution: u32,
     pub ov_max_output_voxels: u32,
+    pub main_thread_app: bool,
     pub progress: Option<Arc<ProgressTracker>>,
 }
 
@@ -82,6 +84,7 @@ impl Default for GenConfig {
             ov_mode: bevy_zeroverse::app::OvoxelMode::CpuAsync,
             ov_resolution: 128,
             ov_max_output_voxels: bevy_zeroverse::ovoxel::GPU_DEFAULT_MAX_OUTPUT_VOXELS,
+            main_thread_app: false,
             progress: None,
         }
     }
@@ -236,6 +239,33 @@ fn sample_has_required_modes(
     true
 }
 
+fn join_worker_handles(
+    handles: Vec<thread::JoinHandle<Result<()>>>,
+) -> Result<()> {
+    let mut first_err: Option<anyhow::Error> = None;
+    for handle in handles {
+        match handle.join() {
+            Ok(Ok(())) => {}
+            Ok(Err(err)) => {
+                if first_err.is_none() {
+                    first_err = Some(err);
+                }
+            }
+            Err(err) => {
+                if first_err.is_none() {
+                    first_err = Some(anyhow!("worker thread panicked: {err:?}"));
+                }
+            }
+        }
+    }
+
+    if let Some(err) = first_err {
+        Err(err)
+    } else {
+        Ok(())
+    }
+}
+
 /// Run headless generation with persistent workers in the current process.
 pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
     let GenConfig {
@@ -262,6 +292,7 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
         ov_mode,
         ov_resolution,
         ov_max_output_voxels,
+        main_thread_app,
         progress,
     } = config;
 
@@ -288,11 +319,19 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
         ov_max_output_voxels,
     );
 
+    let app_ready = if main_thread_app {
+        Some(Arc::new(AtomicBool::new(false)))
+    } else {
+        None
+    };
+
     let dataset = Arc::new(LiveDataset::new(LiveDatasetConfig {
         asset_root: asset_root.clone(),
         num_samples: samples,
         timeout: Duration::from_secs(timeout_secs),
-        zeroverse_config,
+        zeroverse_config: zeroverse_config.clone(),
+        app_on_main_thread: main_thread_app,
+        app_ready: app_ready.clone(),
     }));
 
     let target_samples = if samples == 0 {
@@ -434,28 +473,32 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
         }));
     }
 
-    let mut first_err: Option<anyhow::Error> = None;
-    for handle in handles {
-        match handle.join() {
-            Ok(Ok(())) => {}
-            Ok(Err(err)) => {
-                if first_err.is_none() {
-                    first_err = Some(err);
-                }
-            }
-            Err(err) => {
-                if first_err.is_none() {
-                    first_err = Some(anyhow!("worker thread panicked: {err:?}"));
-                }
-            }
-        }
+    if main_thread_app {
+        let (result_tx, result_rx) = mpsc::channel();
+        let monitor = thread::spawn(move || {
+            let result = join_worker_handles(handles);
+            let _ = result_tx.send(result);
+            bevy_zeroverse::headless::request_exit();
+        });
+
+        let asset_root_str = asset_root
+            .as_ref()
+            .map(|root| root.display().to_string());
+        bevy_zeroverse::headless::setup_globals(asset_root_str);
+        bevy_zeroverse::headless::run_app_on_current_thread(
+            Some(zeroverse_config.clone()),
+            app_ready,
+        );
+
+        let result = result_rx
+            .recv()
+            .map_err(|err| anyhow!("worker monitor dropped: {err}"))?;
+        let _ = monitor.join();
+        finished.store(true, Ordering::Release);
+        return result;
     }
 
+    let result = join_worker_handles(handles);
     finished.store(true, Ordering::Release);
-
-    if let Some(err) = first_err {
-        Err(err)
-    } else {
-        Ok(())
-    }
+    result
 }

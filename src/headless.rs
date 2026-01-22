@@ -5,6 +5,7 @@ use std::{
         Arc,
     },
     thread,
+    time::Duration,
 };
 
 use crate::{
@@ -13,6 +14,8 @@ use crate::{
     sample::{configure_sampler, SamplerState},
 };
 use bevy::prelude::*;
+
+static EXIT_REQUESTED: AtomicBool = AtomicBool::new(false);
 
 fn signaled_runner(mut app: App) -> AppExit {
     app.finish();
@@ -28,9 +31,20 @@ fn signaled_runner(mut app: App) -> AppExit {
     }
 
     loop {
-        if let Some(receiver) = channels::app_frame_receiver() {
+        if EXIT_REQUESTED.load(Ordering::Acquire) {
+            return AppExit::Success;
+        }
+
+        let recv_result = if let Some(receiver) = channels::app_frame_receiver() {
             let receiver = receiver.lock().unwrap();
-            if receiver.recv().is_ok() {
+            receiver.recv_timeout(Duration::from_millis(50))
+        } else {
+            thread::sleep(Duration::from_millis(50));
+            continue;
+        };
+
+        match recv_result {
+            Ok(()) => {
                 let args = app.world().resource::<BevyZeroverseConfig>();
 
                 let render_modes = args.render_modes.clone();
@@ -52,6 +66,10 @@ fn signaled_runner(mut app: App) -> AppExit {
                 });
 
                 loop {
+                    if EXIT_REQUESTED.load(Ordering::Acquire) {
+                        return AppExit::Success;
+                    }
+
                     app.update();
                     if let Some(exit) = app.should_exit() {
                         return exit;
@@ -61,6 +79,13 @@ fn signaled_runner(mut app: App) -> AppExit {
                         break;
                     }
                 }
+            }
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {}
+            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                if EXIT_REQUESTED.load(Ordering::Acquire) {
+                    return AppExit::Success;
+                }
+                thread::sleep(Duration::from_millis(50));
             }
         }
     }
@@ -90,6 +115,7 @@ pub fn create_app(
 }
 
 pub fn setup_and_run_app(new_thread: bool, override_args: Option<BevyZeroverseConfig>) {
+    EXIT_REQUESTED.store(false, Ordering::Release);
     let ready = Arc::new(AtomicBool::new(false));
 
     let startup = {
@@ -111,6 +137,22 @@ pub fn setup_and_run_app(new_thread: bool, override_args: Option<BevyZeroverseCo
     } else {
         startup();
     }
+}
+
+pub fn run_app_on_current_thread(
+    override_args: Option<BevyZeroverseConfig>,
+    ready: Option<Arc<AtomicBool>>,
+) {
+    EXIT_REQUESTED.store(false, Ordering::Release);
+    let mut app = create_app(None, override_args, true);
+    if let Some(ready) = ready {
+        ready.store(true, Ordering::Release);
+    }
+    app.run();
+}
+
+pub fn request_exit() {
+    EXIT_REQUESTED.store(true, Ordering::Release);
 }
 
 pub fn setup_globals(asset_root: Option<String>) {

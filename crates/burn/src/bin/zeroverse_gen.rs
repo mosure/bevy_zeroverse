@@ -58,6 +58,10 @@ struct Cli {
     #[arg(short = 'w', long, default_value_t = 16)]
     workers: usize,
 
+    /// Run the headless app on the main thread (auto-enabled on macOS with --workers=1)
+    #[arg(long, default_value_t = false)]
+    main_thread_app: bool,
+
     /// Number of samples per saved chunk (ignored for fs mode)
     #[arg(long, default_value_t = 512)]
     chunk_size: usize,
@@ -171,6 +175,8 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
     let enable_ui = !cli.no_ui && std::io::stdout().is_terminal();
     let ui_refresh = Duration::from_millis(cli.ui_refresh_ms.max(50));
+    let main_thread_app =
+        cli.main_thread_app || (cfg!(target_os = "macos") && cli.workers.max(1) == 1);
 
     fn render_mode_cli_name(mode: &RenderMode) -> &'static str {
         match mode {
@@ -336,6 +342,10 @@ fn main() -> Result<()> {
                     .arg(worker_idx.to_string());
             }
 
+            if cli.main_thread_app {
+                cmd.arg("--main-thread-app");
+            }
+
             cmd.arg("--seed")
                 .arg(base_seed.wrapping_add(worker_idx as u64 + 1).to_string());
 
@@ -418,6 +428,7 @@ fn main() -> Result<()> {
         ov_mode: cli.ov_mode,
         ov_resolution: cli.ov_resolution,
         ov_max_output_voxels: cli.ov_max_output_voxels,
+        main_thread_app,
         progress: progress_tracker,
     });
 

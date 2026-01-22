@@ -5,6 +5,7 @@ use std::{
         Arc, Mutex, OnceLock,
         atomic::{AtomicBool, Ordering},
     },
+    thread,
     time::Duration,
 };
 
@@ -20,6 +21,8 @@ pub struct LiveDatasetConfig {
     pub num_samples: usize,
     pub timeout: Duration,
     pub zeroverse_config: bevy_zeroverse::app::BevyZeroverseConfig,
+    pub app_on_main_thread: bool,
+    pub app_ready: Option<Arc<AtomicBool>>,
 }
 
 impl Default for LiveDatasetConfig {
@@ -36,6 +39,8 @@ impl Default for LiveDatasetConfig {
                 keybinds: false,
                 ..Default::default()
             },
+            app_on_main_thread: false,
+            app_ready: None,
         }
     }
 }
@@ -91,11 +96,20 @@ impl LiveDataset {
         if started
             .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
             .is_ok()
+            && !self.config.app_on_main_thread
         {
             bevy_zeroverse::headless::setup_and_run_app(
                 true,
                 Some(self.config.zeroverse_config.clone()),
             );
+        }
+
+        if self.config.app_on_main_thread
+            && let Some(ready) = self.config.app_ready.as_ref()
+        {
+            while !ready.load(Ordering::Acquire) {
+                thread::sleep(Duration::from_millis(10));
+            }
         }
     }
 
