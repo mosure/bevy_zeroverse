@@ -63,6 +63,7 @@ impl Plugin for ZeroverseObbPlugin {
 fn compute_object_obbs(
     mut commands: Commands,
     parents: Query<&ChildOf>,
+    class_sources: Query<(Option<&Name>, Option<&ObbClass>)>,
     scoped: Query<(), With<SceneAabbNode>>,
     tracked: TrackedObbQuery<'_, '_>,
 ) {
@@ -86,6 +87,7 @@ fn compute_object_obbs(
         let class_name = class_override
             .map(|c| c.0.clone())
             .or_else(|| name.map(|n| n.as_str().to_owned()))
+            .or_else(|| find_class_in_ancestors(entity, &parents, &class_sources))
             .unwrap_or_else(|| "unknown".to_string());
 
         commands.entity(entity).insert(ObjectObb {
@@ -110,6 +112,28 @@ fn has_scene_scope(
 
         let Ok(parent) = parents.get(entity) else {
             return false;
+        };
+        entity = parent.parent();
+    }
+}
+
+fn find_class_in_ancestors(
+    mut entity: Entity,
+    parents: &Query<&ChildOf>,
+    class_sources: &Query<(Option<&Name>, Option<&ObbClass>)>,
+) -> Option<String> {
+    loop {
+        if let Ok((name, class_override)) = class_sources.get(entity) {
+            if let Some(class_override) = class_override {
+                return Some(class_override.0.clone());
+            }
+            if let Some(name) = name {
+                return Some(name.as_str().to_owned());
+            }
+        }
+
+        let Ok(parent) = parents.get(entity) else {
+            return None;
         };
         entity = parent.parent();
     }
@@ -220,5 +244,49 @@ mod tests {
             !has_obb,
             "Object outside SceneAabbNode should not produce an OBB"
         );
+    }
+
+    #[test]
+    fn obb_inherits_parent_class_name() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, TransformPlugin, ZeroverseObbPlugin));
+        app.insert_resource(BevyZeroverseConfig::default());
+
+        let scope = app
+            .world_mut()
+            .spawn((
+                SceneAabbNode,
+                Transform::IDENTITY,
+                GlobalTransform::IDENTITY,
+            ))
+            .id();
+
+        let parent = app
+            .world_mut()
+            .spawn((
+                Name::new("chair"),
+                Transform::IDENTITY,
+                GlobalTransform::IDENTITY,
+                ChildOf(scope),
+            ))
+            .id();
+
+        app.world_mut().spawn((
+            ObbTracked,
+            Aabb::from_min_max(Vec3::new(-0.5, -0.5, -0.5), Vec3::new(0.5, 0.5, 0.5)),
+            Transform::IDENTITY,
+            GlobalTransform::default(),
+            ChildOf(parent),
+        ));
+
+        app.update();
+        let _ = app.world_mut().run_system_once(super::compute_object_obbs);
+
+        let obb = {
+            let world = app.world_mut();
+            world.query::<&ObjectObb>().single(world).cloned().unwrap()
+        };
+
+        assert_eq!(obb.class_name, "chair");
     }
 }

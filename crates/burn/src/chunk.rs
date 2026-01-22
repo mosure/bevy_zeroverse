@@ -1575,6 +1575,9 @@ mod tests {
         let raw = std::fs::read(&path).unwrap();
         let tensors = SafeTensors::deserialize(&raw).unwrap();
         assert!(tensors.tensor("object_obb_class_names").is_ok());
+        let class_bytes: &[u8] = cast_slice(tensors.tensor("object_obb_class_names").unwrap().data());
+        let class_names: Vec<String> = serde_json::from_slice(class_bytes).unwrap();
+        assert!(class_names.contains(&"chair".to_string()));
 
         let loaded = load_chunk(&path).unwrap();
         assert_eq!(loaded.len(), 1);
