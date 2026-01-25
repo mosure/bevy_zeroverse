@@ -163,6 +163,7 @@ pub fn zeroverse_config_from_gen(
         editor: false,
         keybinds: false,
         press_esc_close: false,
+        playback_mode: bevy_zeroverse::camera::PlaybackMode::Still,
         num_cameras: cameras.max(1),
         render_mode: render_modes.first().cloned().unwrap_or(RenderMode::Color),
         render_modes,
