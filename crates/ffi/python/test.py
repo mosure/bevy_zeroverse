@@ -15,7 +15,7 @@ except ImportError:  # pragma: no cover - optional dependency
 
 from bevy_zeroverse_dataloader import BevyZeroverseDataset, \
     ChunkedIteratorDataset, FolderDataset, MP4Dataset, \
-    chunk_and_save, load_chunk, save_to_folders, save_to_mp4, write_sample, Sample, View
+    chunk_and_save, load_chunk, save_to_folders, save_to_mp4, write_sample, Sample, View, chunk_collate
 
 import matplotlib.pyplot as plt
 import torch
@@ -25,7 +25,7 @@ import numpy as np
 
 from bevy_zeroverse_dataloader import BevyZeroverseDataset, \
     ChunkedIteratorDataset, FolderDataset, MP4Dataset, \
-    chunk_and_save, load_chunk, save_to_folders, save_to_mp4, write_sample, Sample, View
+    chunk_and_save, load_chunk, save_to_folders, save_to_mp4, write_sample, Sample, View, chunk_collate
 
 
 
@@ -302,6 +302,37 @@ class TestChunkedDataset(unittest.TestCase):
         sample = next(iter(chunked_ds))
         cached_path = cache_dir / Path(sample["_chunk_path"]).name
         self.assertTrue(cached_path.exists(), "chunk was not cached locally")
+
+    def test_chunked_default_collate_cpu(self):
+        chunked_dataset = ChunkedIteratorDataset(self.output_dir / 'chunk')
+        dataloader = DataLoader(chunked_dataset, batch_size=1, shuffle=False)
+        batch = next(iter(dataloader))
+        self.assertFalse(
+            batch["color"].is_cuda,
+            "default collate should keep decoded JPEG batches on CPU",
+        )
+
+    def test_chunked_gpu_collate_keeps_jpeg_on_gpu(self):
+        if not torch.cuda.is_available():
+            self.skipTest("CUDA not available for GPU collate test")
+
+        chunked_dataset = ChunkedIteratorDataset(
+            self.output_dir / 'chunk',
+            jpeg_device="cuda",
+            keep_jpeg_on_device=True,
+        )
+        dataloader = DataLoader(
+            chunked_dataset,
+            batch_size=2,
+            shuffle=False,
+            num_workers=0,
+            collate_fn=lambda samples: chunk_collate(samples, device="cuda", non_blocking=True),
+        )
+        batch = next(iter(dataloader))
+        self.assertTrue(
+            batch["color"].is_cuda,
+            "GPU collate should keep decoded JPEG batches on CUDA",
+        )
 
 
 

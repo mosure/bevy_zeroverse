@@ -32,6 +32,45 @@ for batch in dataloader:
     visualize(batch)
 ```
 
+### chunked dataloader collate options
+
+Default collate keeps decoded JPEG batches on CPU (GPU decode still occurs, but tensors are moved back):
+
+```python
+from bevy_zeroverse_dataloader import ChunkedIteratorDataset
+from torch.utils.data import DataLoader
+
+chunked = ChunkedIteratorDataset("data/zeroverse/cli")
+dataloader = DataLoader(chunked, batch_size=2, shuffle=False)
+
+for batch in dataloader:
+    assert batch["color"].device.type == "cpu"
+```
+
+Recommended best practice for CPU→GPU only: keep JPEG decode outputs on GPU and collate directly to CUDA.
+This avoids the extra GPU→CPU hop for batched JPEGs (use `num_workers=0` to keep GPU tensors in-process):
+
+```python
+from bevy_zeroverse_dataloader import ChunkedIteratorDataset, chunk_collate
+from torch.utils.data import DataLoader
+
+chunked = ChunkedIteratorDataset(
+    "data/zeroverse/cli",
+    jpeg_device="cuda",
+    keep_jpeg_on_device=True,
+)
+dataloader = DataLoader(
+    chunked,
+    batch_size=2,
+    shuffle=False,
+    num_workers=0,
+    collate_fn=lambda samples: chunk_collate(samples, device="cuda", non_blocking=True),
+)
+
+for batch in dataloader:
+    assert batch["color"].is_cuda
+```
+
 
 ### macos setup
 

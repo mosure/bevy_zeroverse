@@ -1,4 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 from io import BytesIO
 from itertools import takewhile
 import gc
@@ -42,6 +43,34 @@ def _chunk_collate(samples: list[dict[str, Any]]) -> dict[str, Any]:
         else:
             collated[key] = default_collate(values)
     return collated
+
+
+def _move_to_device(value: Any, device: str, non_blocking: bool = False) -> Any:
+    if torch.is_tensor(value):
+        return value.to(device, non_blocking=non_blocking)
+    if isinstance(value, dict):
+        return {k: _move_to_device(v, device, non_blocking) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_move_to_device(v, device, non_blocking) for v in value]
+    if isinstance(value, tuple):
+        return tuple(_move_to_device(v, device, non_blocking) for v in value)
+    return value
+
+
+def chunk_collate(
+    samples: list[dict[str, Any]],
+    *,
+    device: Optional[str] = None,
+    non_blocking: bool = False,
+) -> dict[str, Any]:
+    """
+    Collate chunked samples with ragged field support.
+    Optionally moves tensors to a target device (e.g. "cuda").
+    """
+    batch = _chunk_collate(samples)
+    if device is None:
+        return batch
+    return _move_to_device(batch, device, non_blocking)
 
 
 def _as_numpy_array(data, dtype, width: Optional[int] = None) -> np.ndarray:
@@ -913,7 +942,12 @@ def crop(tensor, shape, channels_last=True):
 
 
 # TODO: support optional compression of chunks
-def load_chunk(path: Path):
+def load_chunk(
+    path: Path,
+    *,
+    jpeg_device: Optional[str] = None,
+    keep_jpeg_on_device: bool = False,
+):
     raw = _decompress_bytes(path)
     meta = {}
     try:
@@ -936,13 +970,16 @@ def load_chunk(path: Path):
         images_count = shape[0] * shape[1] * shape[2]
 
         jpeg_data = [data for _, data in indexed_jpegs[:images_count]]
+        if jpeg_device is None:
+            jpeg_device = 'cuda' if torch.cuda.is_available() else 'cpu'
         decoded_images = decode_jpeg(
             jpeg_data,
-            device='cuda' if torch.cuda.is_available() else 'cpu',
+            device=jpeg_device,
             mode='RGB',
         )
+        target_device = jpeg_device if keep_jpeg_on_device else 'cpu'
         decoded_images = [
-            img.to('cpu').float().div(255.0).permute(1, 2, 0) for img in decoded_images
+            img.to(target_device).float().div(255.0).permute(1, 2, 0) for img in decoded_images
         ]
 
         height = min(img.shape[0] for img in decoded_images)
@@ -1043,11 +1080,20 @@ class ChunkedIteratorDataset(IterableDataset):
         prefetch_chunks: int = 1,
         load_chunk_fn=None,
         cache_dir: Optional[Path] = None,
+        jpeg_device: Optional[str] = None,
+        keep_jpeg_on_device: bool = False,
     ):
         self.output_dir = Path(output_dir)
         self.shuffle = shuffle
         self.prefetch_chunks = max(0, int(prefetch_chunks))
-        self._load_chunk_fn = load_chunk_fn or load_chunk
+        if load_chunk_fn is None:
+            self._load_chunk_fn = partial(
+                load_chunk,
+                jpeg_device=jpeg_device,
+                keep_jpeg_on_device=keep_jpeg_on_device,
+            )
+        else:
+            self._load_chunk_fn = load_chunk_fn
         self.cache_dir = Path(cache_dir).resolve() if cache_dir else None
         self.cache_file = self.output_dir / "chunk_sizes_cache.json"
 
