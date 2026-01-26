@@ -244,6 +244,65 @@ class TestChunkedDataset(unittest.TestCase):
                 "neighbouring sample was unintentionally modified",
             )
 
+    def test_chunk_prefetch_overlap(self):
+        if len(self.chunk_paths) < 2:
+            self.skipTest("need at least two chunks to test prefetch")
+
+        load_starts = {}
+
+        def delayed_load(path: Path):
+            load_starts[str(path)] = time.time()
+            time.sleep(0.05)
+            return load_chunk(path)
+
+        chunked_ds = ChunkedIteratorDataset(
+            self.output_dir / 'chunk',
+            shuffle=False,
+            prefetch_chunks=1,
+            load_chunk_fn=delayed_load,
+        )
+
+        first_chunk = None
+        first_chunk_end_time = None
+        second_chunk = None
+
+        for sample in chunked_ds:
+            if first_chunk is None:
+                first_chunk = sample["_chunk_path"]
+            elif sample["_chunk_path"] != first_chunk:
+                second_chunk = sample["_chunk_path"]
+                first_chunk_end_time = time.time()
+                break
+
+        self.assertIsNotNone(second_chunk, "did not advance to a second chunk")
+        self.assertIn(second_chunk, load_starts, "prefetch did not start next chunk load")
+        self.assertLess(
+            load_starts[second_chunk],
+            first_chunk_end_time,
+            "next chunk load did not start before finishing current chunk iteration",
+        )
+
+    def test_chunk_cache_local(self):
+        cache_dir = self.output_dir / "chunk_cache"
+        if cache_dir.exists():
+            shutil.rmtree(cache_dir)
+
+        def load_from_cache(path: Path):
+            self.assertEqual(path.parent.resolve(), cache_dir.resolve())
+            return load_chunk(path)
+
+        chunked_ds = ChunkedIteratorDataset(
+            self.output_dir / 'chunk',
+            shuffle=False,
+            prefetch_chunks=0,
+            load_chunk_fn=load_from_cache,
+            cache_dir=cache_dir,
+        )
+
+        sample = next(iter(chunked_ds))
+        cached_path = cache_dir / Path(sample["_chunk_path"]).name
+        self.assertTrue(cached_path.exists(), "chunk was not cached locally")
+
 
 
 class TestPoseTensorization(unittest.TestCase):

@@ -5,6 +5,7 @@ import gc
 import json
 import math
 import os
+import shutil
 from pathlib import Path
 from PIL import Image
 import random
@@ -1035,9 +1036,19 @@ def get_chunk_sample_count(path: Path):
 
 
 class ChunkedIteratorDataset(IterableDataset):
-    def __init__(self, output_dir: Path, shuffle: bool = False):
+    def __init__(
+        self,
+        output_dir: Path,
+        shuffle: bool = False,
+        prefetch_chunks: int = 1,
+        load_chunk_fn=None,
+        cache_dir: Optional[Path] = None,
+    ):
         self.output_dir = Path(output_dir)
         self.shuffle = shuffle
+        self.prefetch_chunks = max(0, int(prefetch_chunks))
+        self._load_chunk_fn = load_chunk_fn or load_chunk
+        self.cache_dir = Path(cache_dir).resolve() if cache_dir else None
         self.cache_file = self.output_dir / "chunk_sizes_cache.json"
 
         self.chunk_files: list[Path] = []
@@ -1067,6 +1078,38 @@ class ChunkedIteratorDataset(IterableDataset):
             self._refresh_cache()
 
 
+    def _resolve_cached_path(self, chunk_path: Path) -> Path:
+        if self.cache_dir is None:
+            return chunk_path
+
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        cached_path = self.cache_dir / chunk_path.name
+
+        if cached_path.exists():
+            try:
+                if cached_path.stat().st_size == chunk_path.stat().st_size:
+                    return cached_path
+            except OSError:
+                pass
+
+        tmp_path = cached_path.with_suffix(cached_path.suffix + f".tmp.{os.getpid()}")
+        try:
+            shutil.copy2(chunk_path, tmp_path)
+            os.replace(tmp_path, cached_path)
+        finally:
+            if tmp_path.exists():
+                try:
+                    tmp_path.unlink()
+                except OSError:
+                    pass
+        return cached_path
+
+
+    def _load_chunk(self, chunk_path: Path):
+        target_path = self._resolve_cached_path(chunk_path)
+        return self._load_chunk_fn(target_path)
+
+
     def _refresh_cache(self):
         self.chunk_files = sorted(self.output_dir.glob("*.safetensors*"))
         self.chunk_sizes = []
@@ -1082,6 +1125,36 @@ class ChunkedIteratorDataset(IterableDataset):
         }
         with open(self.cache_file, "w") as f:
             json.dump(cache_data, f)
+
+
+    def _iter_chunks(self, chunk_indices: list[int]):
+        if self.prefetch_chunks <= 0 or len(chunk_indices) <= 1:
+            for idx in chunk_indices:
+                yield idx, self._load_chunk(self.chunk_files[idx])
+            return
+
+        max_workers = min(self.prefetch_chunks, len(chunk_indices))
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            iterator = iter(chunk_indices)
+            pending = []
+            for _ in range(max_workers):
+                try:
+                    idx = next(iterator)
+                except StopIteration:
+                    break
+                pending.append((idx, executor.submit(self._load_chunk, self.chunk_files[idx])))
+
+            while pending:
+                idx, future = pending.pop(0)
+                chunk_data = future.result()
+                try:
+                    next_idx = next(iterator)
+                    pending.append(
+                        (next_idx, executor.submit(self._load_chunk, self.chunk_files[next_idx]))
+                    )
+                except StopIteration:
+                    pass
+                yield idx, chunk_data
 
 
     def __iter__(self):
@@ -1118,9 +1191,8 @@ class ChunkedIteratorDataset(IterableDataset):
 
         emitted_samples = 0
 
-        for chunk_idx in chunk_files:
+        for chunk_idx, chunk_data in self._iter_chunks(chunk_files):
             chunk_path = self.chunk_files[chunk_idx]
-            chunk_data = load_chunk(chunk_path)
             ov_offsets = chunk_data.get("ovoxel_offsets")
             ov_label_offsets = chunk_data.get("ovoxel_semantic_label_offsets")
             ov_labels = chunk_data.get("ovoxel_semantic_labels")
