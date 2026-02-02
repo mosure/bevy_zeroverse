@@ -7,6 +7,7 @@ import json
 import math
 import os
 import shutil
+import warnings
 from pathlib import Path
 from PIL import Image
 import random
@@ -583,13 +584,46 @@ def _compress(data: bytes, codec: str, level: int = 0) -> bytes:
         return c.compress(data)
     return data
 
+
+class ChunkDataError(RuntimeError):
+    def __init__(self, path: Path, message: str):
+        super().__init__(f"{path}: {message}")
+        self.path = path
+
+
+def _warn_chunk_error(path: Path, exc: Exception, context: str) -> None:
+    warnings.warn(
+        f"skipping chunk {path} while {context}: {exc}",
+        RuntimeWarning,
+    )
+
+
 def _decompress_bytes(path: Path) -> bytes:
-    raw = path.read_bytes()
+    try:
+        raw = path.read_bytes()
+    except Exception as exc:
+        raise ChunkDataError(path, f"failed to read chunk bytes ({exc})") from exc
+
+    if not raw:
+        raise ChunkDataError(path, "chunk file is empty")
+
     if path.suffix == ".lz4":
-        return lz4.decompress(raw)
+        try:
+            decompressed = lz4.decompress(raw)
+        except Exception as exc:
+            raise ChunkDataError(path, f"failed to decompress lz4 ({exc})") from exc
+        if not decompressed:
+            raise ChunkDataError(path, "lz4 decompressed to empty payload")
+        return decompressed
     if path.suffix == ".zst":
-        d = zstd.ZstdDecompressor()
-        return d.decompress(raw)
+        try:
+            d = zstd.ZstdDecompressor()
+            decompressed = d.decompress(raw)
+        except Exception as exc:
+            raise ChunkDataError(path, f"failed to decompress zstd ({exc})") from exc
+        if not decompressed:
+            raise ChunkDataError(path, "zstd decompressed to empty payload")
+        return decompressed
     return raw
 
 
@@ -955,83 +989,91 @@ def load_chunk(
             meta = f.metadata() or {}
     except Exception:
         meta = {}
-    tensors = load_bytes(raw)
+    try:
+        tensors = load_bytes(raw)
+    except Exception as exc:
+        raise ChunkDataError(path, f"failed to load safetensors ({exc})") from exc
     batch = {}
 
-    jpeg_groups = {}
-    for key in tensors:
-        if '_jpg_' in key:
-            parent, idx = key.rsplit('_jpg_', 1)
-            jpeg_groups.setdefault(parent, []).append((int(idx), tensors[key]))
+    try:
+        jpeg_groups = {}
+        for key in tensors:
+            if '_jpg_' in key:
+                parent, idx = key.rsplit('_jpg_', 1)
+                jpeg_groups.setdefault(parent, []).append((int(idx), tensors[key]))
 
-    for parent, indexed_jpegs in jpeg_groups.items():
-        indexed_jpegs.sort()
-        shape = tensors[f'{parent}_shape'].tolist()
-        images_count = shape[0] * shape[1] * shape[2]
+        for parent, indexed_jpegs in jpeg_groups.items():
+            indexed_jpegs.sort()
+            shape = tensors[f'{parent}_shape'].tolist()
+            images_count = shape[0] * shape[1] * shape[2]
 
-        jpeg_data = [data for _, data in indexed_jpegs[:images_count]]
-        if jpeg_device is None:
-            jpeg_device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        decoded_images = decode_jpeg(
-            jpeg_data,
-            device=jpeg_device,
-            mode='RGB',
-        )
-        target_device = jpeg_device if keep_jpeg_on_device else 'cpu'
-        decoded_images = [
-            img.to(target_device).float().div(255.0).permute(1, 2, 0) for img in decoded_images
-        ]
-
-        height = min(img.shape[0] for img in decoded_images)
-        width = min(img.shape[1] for img in decoded_images)
-        perform_crop = any(img.shape[0] != height or img.shape[1] != width for img in decoded_images)
-
-        if perform_crop:
+            jpeg_data = [data for _, data in indexed_jpegs[:images_count]]
+            if jpeg_device is None:
+                jpeg_device = 'cuda' if torch.cuda.is_available() else 'cpu'
+            decoded_images = decode_jpeg(
+                jpeg_data,
+                device=jpeg_device,
+                mode='RGB',
+            )
+            target_device = jpeg_device if keep_jpeg_on_device else 'cpu'
             decoded_images = [
-                crop(img, (height, width)) for img in decoded_images
+                img.to(target_device).float().div(255.0).permute(1, 2, 0) for img in decoded_images
             ]
 
-        shape[3] = height
-        shape[4] = width
+            height = min(img.shape[0] for img in decoded_images)
+            width = min(img.shape[1] for img in decoded_images)
+            perform_crop = any(img.shape[0] != height or img.shape[1] != width for img in decoded_images)
 
-        batch[parent] = torch.stack(decoded_images).reshape(shape)
+            if perform_crop:
+                decoded_images = [
+                    crop(img, (height, width)) for img in decoded_images
+                ]
 
-    for key, tensor in tensors.items():
-        if '_jpg_' not in key and '_shape' not in key:
-            batch[key] = tensor
+            shape[3] = height
+            shape[4] = width
 
-    if "object_obb_class_names" in meta:
-        try:
-            names_bytes = meta["object_obb_class_names"].encode("utf-8")
-            batch["object_obb_class_names"] = torch.tensor(list(names_bytes), dtype=torch.uint8)
-        except Exception:
-            pass
-    elif "object_obb_class_names" in tensors:
-        batch["object_obb_class_names"] = tensors["object_obb_class_names"]
+            batch[parent] = torch.stack(decoded_images).reshape(shape)
 
-    # Optional batched O-Voxel tensors (parity with Rust generator).
-    if "ovoxel_coords" in tensors:
-        batch["ovoxel_coords"] = tensors["ovoxel_coords"]
-        if "ovoxel_dual_vertices" in tensors:
-            batch["ovoxel_dual_vertices"] = tensors["ovoxel_dual_vertices"]
-        if "ovoxel_intersected" in tensors:
-            batch["ovoxel_intersected"] = tensors["ovoxel_intersected"]
-        if "ovoxel_base_color" in tensors:
-            batch["ovoxel_base_color"] = tensors["ovoxel_base_color"]
-        if "ovoxel_semantic" in tensors:
-            batch["ovoxel_semantic"] = tensors["ovoxel_semantic"]
-        if "ovoxel_offsets" in tensors:
-            batch["ovoxel_offsets"] = tensors["ovoxel_offsets"]
-        if "ovoxel_resolution" in tensors:
-            batch["ovoxel_resolution"] = tensors["ovoxel_resolution"]
-        if "ovoxel_aabb" in tensors:
-            batch["ovoxel_aabb"] = tensors["ovoxel_aabb"]
-        if "ovoxel_semantic_labels" in tensors:
-            batch["ovoxel_semantic_labels"] = tensors["ovoxel_semantic_labels"]
-        if "ovoxel_semantic_label_offsets" in tensors:
-            batch["ovoxel_semantic_label_offsets"] = tensors["ovoxel_semantic_label_offsets"]
+        for key, tensor in tensors.items():
+            if '_jpg_' not in key and '_shape' not in key:
+                batch[key] = tensor
 
-    return batch
+        if "object_obb_class_names" in meta:
+            try:
+                names_bytes = meta["object_obb_class_names"].encode("utf-8")
+                batch["object_obb_class_names"] = torch.tensor(list(names_bytes), dtype=torch.uint8)
+            except Exception:
+                pass
+        elif "object_obb_class_names" in tensors:
+            batch["object_obb_class_names"] = tensors["object_obb_class_names"]
+
+        # Optional batched O-Voxel tensors (parity with Rust generator).
+        if "ovoxel_coords" in tensors:
+            batch["ovoxel_coords"] = tensors["ovoxel_coords"]
+            if "ovoxel_dual_vertices" in tensors:
+                batch["ovoxel_dual_vertices"] = tensors["ovoxel_dual_vertices"]
+            if "ovoxel_intersected" in tensors:
+                batch["ovoxel_intersected"] = tensors["ovoxel_intersected"]
+            if "ovoxel_base_color" in tensors:
+                batch["ovoxel_base_color"] = tensors["ovoxel_base_color"]
+            if "ovoxel_semantic" in tensors:
+                batch["ovoxel_semantic"] = tensors["ovoxel_semantic"]
+            if "ovoxel_offsets" in tensors:
+                batch["ovoxel_offsets"] = tensors["ovoxel_offsets"]
+            if "ovoxel_resolution" in tensors:
+                batch["ovoxel_resolution"] = tensors["ovoxel_resolution"]
+            if "ovoxel_aabb" in tensors:
+                batch["ovoxel_aabb"] = tensors["ovoxel_aabb"]
+            if "ovoxel_semantic_labels" in tensors:
+                batch["ovoxel_semantic_labels"] = tensors["ovoxel_semantic_labels"]
+            if "ovoxel_semantic_label_offsets" in tensors:
+                batch["ovoxel_semantic_label_offsets"] = tensors["ovoxel_semantic_label_offsets"]
+
+        return batch
+    except Exception as exc:
+        if isinstance(exc, ChunkDataError):
+            raise
+        raise ChunkDataError(path, f"failed to decode chunk ({exc})") from exc
 
 
 def load_single_sample(
@@ -1057,18 +1099,26 @@ def load_single_sample(
     return sample
 
 
-def get_chunk_sample_count(path: Path):
-    if path.suffix in {".lz4", ".zst"}:
-        tensors = load_bytes(_decompress_bytes(path))
-    else:
-        tensors = load_file(str(path))
+def get_chunk_sample_count(path: Path, *, strict: bool = False) -> int:
+    try:
+        if path.suffix in {".lz4", ".zst"}:
+            tensors = load_bytes(_decompress_bytes(path))
+        else:
+            if path.stat().st_size == 0:
+                raise ChunkDataError(path, "chunk file is empty")
+            tensors = load_file(str(path))
 
-    if "color_shape" in tensors:
-        return tensors["color_shape"][0].item()
-    if "near" in tensors:
-        return tensors["near"].shape[0]
+        if "color_shape" in tensors:
+            return int(tensors["color_shape"][0].item())
+        if "near" in tensors:
+            return int(tensors["near"].shape[0])
 
-    raise ValueError("no shape key found in chunk file")
+        raise ChunkDataError(path, "no shape key found in chunk file")
+    except Exception as exc:
+        if strict:
+            raise
+        _warn_chunk_error(path, exc, "reading sample count")
+        return 0
 
 
 
@@ -1100,6 +1150,7 @@ class ChunkedIteratorDataset(IterableDataset):
         self.chunk_files: list[Path] = []
         self.chunk_sizes: list[int] = []
         self.total_samples: int = 0
+        self._bad_chunk_indices: set[int] = set()
 
         if self.cache_file.exists():
             try:
@@ -1107,7 +1158,7 @@ class ChunkedIteratorDataset(IterableDataset):
                     cache = json.load(f)
 
                 self.chunk_files = [Path(p) for p in cache.get("files", [])]
-                self.chunk_sizes = cache.get("chunk_sizes", [])
+                self.chunk_sizes = [max(0, int(s)) for s in cache.get("chunk_sizes", [])]
 
                 if (
                     not self.chunk_files
@@ -1117,7 +1168,7 @@ class ChunkedIteratorDataset(IterableDataset):
                 ):
                     self._refresh_cache()
                 else:
-                    self.total_samples = sum(self.chunk_sizes)
+                    self.total_samples = sum(s for s in self.chunk_sizes if s > 0)
             except Exception:
                 self._refresh_cache()
         else:
@@ -1153,7 +1204,53 @@ class ChunkedIteratorDataset(IterableDataset):
 
     def _load_chunk(self, chunk_path: Path):
         target_path = self._resolve_cached_path(chunk_path)
-        return self._load_chunk_fn(target_path)
+        try:
+            return self._load_chunk_fn(target_path)
+        except Exception:
+            if target_path != chunk_path:
+                return self._load_chunk_fn(chunk_path)
+            raise
+
+
+    def _write_cache(self) -> None:
+        cache_data = {
+            "files": [str(f.resolve()) for f in self.chunk_files],
+            "chunk_sizes": self.chunk_sizes,
+        }
+        invalid_files = [
+            str(f.resolve())
+            for f, size in zip(self.chunk_files, self.chunk_sizes)
+            if size <= 0
+        ]
+        if invalid_files:
+            cache_data["invalid_files"] = invalid_files
+        tmp_path = self.cache_file.with_suffix(self.cache_file.suffix + f".tmp.{os.getpid()}")
+        try:
+            with open(tmp_path, "w") as f:
+                json.dump(cache_data, f)
+            os.replace(tmp_path, self.cache_file)
+        except Exception:
+            pass
+        finally:
+            if tmp_path.exists():
+                try:
+                    tmp_path.unlink()
+                except OSError:
+                    pass
+
+
+    def _mark_bad_chunk(self, chunk_idx: int, exc: Exception) -> None:
+        if chunk_idx in self._bad_chunk_indices:
+            return
+        self._bad_chunk_indices.add(chunk_idx)
+        if 0 <= chunk_idx < len(self.chunk_sizes):
+            old_size = self.chunk_sizes[chunk_idx]
+            if old_size > 0:
+                self.total_samples = max(0, self.total_samples - old_size)
+            self.chunk_sizes[chunk_idx] = 0
+        if 0 <= chunk_idx < len(self.chunk_files):
+            _warn_chunk_error(self.chunk_files[chunk_idx], exc, "loading chunk")
+        self._write_cache()
 
 
     def _refresh_cache(self):
@@ -1161,22 +1258,30 @@ class ChunkedIteratorDataset(IterableDataset):
         self.chunk_sizes = []
         self.total_samples = 0
         for chunk_file in self.chunk_files:
-            samples = get_chunk_sample_count(chunk_file)
+            samples = get_chunk_sample_count(chunk_file, strict=False)
+            if samples < 0:
+                samples = 0
             self.chunk_sizes.append(samples)
-            self.total_samples += samples
+            if samples > 0:
+                self.total_samples += samples
 
-        cache_data = {
-            "files": [str(f.resolve()) for f in self.chunk_files],
-            "chunk_sizes": self.chunk_sizes,
-        }
-        with open(self.cache_file, "w") as f:
-            json.dump(cache_data, f)
+        self._write_cache()
 
 
     def _iter_chunks(self, chunk_indices: list[int]):
+        def _load_or_skip(idx: int):
+            try:
+                return self._load_chunk(self.chunk_files[idx])
+            except Exception as exc:
+                self._mark_bad_chunk(idx, exc)
+                return None
+
         if self.prefetch_chunks <= 0 or len(chunk_indices) <= 1:
             for idx in chunk_indices:
-                yield idx, self._load_chunk(self.chunk_files[idx])
+                chunk_data = _load_or_skip(idx)
+                if chunk_data is None:
+                    continue
+                yield idx, chunk_data
             return
 
         max_workers = min(self.prefetch_chunks, len(chunk_indices))
@@ -1188,7 +1293,7 @@ class ChunkedIteratorDataset(IterableDataset):
                     idx = next(iterator)
                 except StopIteration:
                     break
-                pending.append((idx, executor.submit(self._load_chunk, self.chunk_files[idx])))
+                pending.append((idx, executor.submit(_load_or_skip, idx)))
 
             while pending:
                 idx, future = pending.pop(0)
@@ -1196,10 +1301,12 @@ class ChunkedIteratorDataset(IterableDataset):
                 try:
                     next_idx = next(iterator)
                     pending.append(
-                        (next_idx, executor.submit(self._load_chunk, self.chunk_files[next_idx]))
+                        (next_idx, executor.submit(_load_or_skip, next_idx))
                     )
                 except StopIteration:
                     pass
+                if chunk_data is None:
+                    continue
                 yield idx, chunk_data
 
 
@@ -1221,6 +1328,8 @@ class ChunkedIteratorDataset(IterableDataset):
 
         current_worker = 0
         for idx, chunk_size in enumerate(self.chunk_sizes):
+            if chunk_size <= 0:
+                continue
             if worker_samples[current_worker] + chunk_size > ideal_samples_per_worker:
                 current_worker += 1
                 if current_worker >= total_workers:
