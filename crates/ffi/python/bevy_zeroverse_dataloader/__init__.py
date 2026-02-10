@@ -639,6 +639,20 @@ def encode_tensor_to_jpg(tensor: torch.Tensor, quality: int = 75) -> torch.Tenso
     return torch.frombuffer(bytearray(buffer.getvalue()), dtype=torch.uint8)
 
 
+def normalize_color_float01(tensor: torch.Tensor) -> torch.Tensor:
+    """Convert color tensor to float32 in [0, 1] for raw chunk storage."""
+    if tensor.is_floating_point():
+        color = tensor.to(torch.float32)
+    elif tensor.dtype == torch.bool:
+        color = tensor.to(torch.float32)
+    else:
+        info = torch.iinfo(tensor.dtype)
+        scale = float(max(1, info.max))
+        color = tensor.to(torch.float32) / scale
+    color = torch.nan_to_num(color, nan=0.0, posinf=1.0, neginf=0.0)
+    return color.clamp_(0.0, 1.0)
+
+
 def numeric_prefix(s: str) -> int | None:
     digits = ''.join(takewhile(str.isdigit, s))
     return int(digits) if digits else None
@@ -650,6 +664,7 @@ def chunk_and_save(
     samples_per_chunk: Optional[int] = None,
     n_workers: int = 0,
     jpg_quality: int = 75,
+    color_codec: Literal["jpeg", "raw"] = "jpeg",
     compression: Optional[Literal["lz4", "zstd"]] = "lz4",
     full_size_only: bool = True,
     prefetch_factor: int = 2,
@@ -660,6 +675,10 @@ def chunk_and_save(
     """Save samples to chunk files, optionally batching by size or sample count."""
 
     output_dir.mkdir(exist_ok=True, parents=True)
+    if color_codec not in {"jpeg", "raw", "jpg"}:
+        raise ValueError(f"color_codec must be 'jpeg' or 'raw', got {color_codec!r}")
+    if color_codec == "jpg":
+        color_codec = "jpeg"
 
     cache_file = output_dir / "chunk_sizes_cache.json"
     if cache_file.exists():
@@ -753,7 +772,11 @@ def chunk_and_save(
 
         for sample in chunk_samples:
             for name, tensor in sample.items():
-                if name in ["color"]:
+                if name == "color":
+                    if color_codec == "raw":
+                        # Raw storage path: enforce float32 [0, 1].
+                        batch.setdefault(name, []).append(normalize_color_float01(tensor).cpu())
+                        continue
                     T, V, H, W, C = tensor.shape
                     flat_views = tensor.view(-1, H, W, C)
                     for idx, view in enumerate(flat_views):
@@ -1464,6 +1487,8 @@ def write_sample(sample: dict, *, jpg_quality: int = 75) -> None:
 
     for key, val in sample.items():
         if key in tensors:
+            if key == "color":
+                val = normalize_color_float01(val)
             tensors[key][idx] = val.to(tensors[key].dtype)
             continue
 
