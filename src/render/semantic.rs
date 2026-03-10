@@ -55,7 +55,6 @@ pub enum SemanticLabel {
     OtherStructure,
     OtherFurniture,
     OtherProp,
-    Human,
 }
 
 impl SemanticLabel {
@@ -102,7 +101,6 @@ impl SemanticLabel {
             SemanticLabel::OtherStructure => Color::srgb_u8(94, 106, 211),
             SemanticLabel::OtherFurniture => Color::srgb_u8(82, 84, 163),
             SemanticLabel::OtherProp => Color::srgb_u8(100, 85, 144),
-            SemanticLabel::Human => Color::srgb_u8(100, 85, 144),
         }
     }
 
@@ -148,7 +146,7 @@ impl SemanticLabel {
             "other_structure" => Some(SemanticLabel::OtherStructure),
             "other_furniture" => Some(SemanticLabel::OtherFurniture),
             "other_prop" => Some(SemanticLabel::OtherProp),
-            "human" => Some(SemanticLabel::Human),
+            "human" => Some(SemanticLabel::Person),
             _ => None,
         }
     }
@@ -195,7 +193,6 @@ impl SemanticLabel {
             SemanticLabel::OtherStructure => "other_structure",
             SemanticLabel::OtherFurniture => "other_furniture",
             SemanticLabel::OtherProp => "other_prop",
-            SemanticLabel::Human => "human",
         }
     }
 }

@@ -696,7 +696,7 @@ fn spawn_room(
                 },
                 Transform::from_translation(position),
                 Name::new("human"),
-                SemanticLabel::Human,
+                SemanticLabel::Person,
                 OvoxelTracked,
             ));
             if let Some(descriptor) = descriptor_override {
