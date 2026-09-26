@@ -42,7 +42,10 @@ fn editor_engine_types_and_picking_are_available() {
             (TypeId::of::<AmbientLight>(), "AmbientLight"),
             (TypeId::of::<PointLight>(), "PointLight"),
             (TypeId::of::<DirectionalLight>(), "DirectionalLight"),
-            (TypeId::of::<bevy::light::ClusterConfig>(), "ClusterConfig"),
+            (
+                TypeId::of::<bevy::light::cluster::ClusterConfig>(),
+                "ClusterConfig",
+            ),
             (
                 TypeId::of::<bevy::camera::Camera3dDepthLoadOp>(),
                 "Camera3dDepthLoadOp",
