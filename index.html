@@ -14,7 +14,30 @@
   </head>
   <script type="module">
     import init from './out/viewer.js'
-    init()
+    const status = document.getElementById('status');
+    try {
+      const params = new URLSearchParams(location.search);
+      if ((params.get('image_copiers') ?? params.get('image-copiers')) === 'true') {
+        throw new Error('Browser dataset readback is unavailable. Set image_copiers=false and use native indoor_validate or zeroverse_gen for capture.');
+      }
+      if (!navigator.gpu) {
+        throw new Error('This viewer requires WebGPU. Use a supported browser over HTTPS or localhost.');
+      }
+      // Some browser/driver combinations briefly return no adapter while the GPU
+      // process starts. Check before entering Rust, where missing adapters panic.
+      let adapter = null;
+      for (let attempt = 0; attempt < 4 && !adapter; attempt++) {
+        adapter = await navigator.gpu.requestAdapter();
+        if (!adapter) await new Promise(resolve => setTimeout(resolve, 200));
+      }
+      if (!adapter) throw new Error('No WebGPU adapter is available. Check browser graphics settings.');
+      status.hidden = true;
+      await init();
+    } catch (error) {
+      status.hidden = false;
+      status.textContent = error.message ?? String(error);
+      console.error(error);
+    }
   </script>
   <script>
     // disable right-click context menu
@@ -35,6 +58,7 @@
     }
   </style>
   <body>
+    <div id="status" style="position:absolute;inset:1rem auto auto 1rem;font:16px sans-serif;color:#333">Starting WebGPU viewer…</div>
     <canvas id="bevy" class="full-size"></canvas>
   </body>
 </html>
