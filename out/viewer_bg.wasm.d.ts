@@ -20,6 +20,7 @@ export const wasm_bindgen_e16e91df24b803f9___convert__closures_____invoke___web_
 export const wasm_bindgen_e16e91df24b803f9___convert__closures_____invoke___web_sys_74dda96df7ba7141___features__gen_InputEvent__InputEvent______true__15: (a: number, b: number, c: any) => void;
 export const wasm_bindgen_e16e91df24b803f9___convert__closures_____invoke___web_sys_74dda96df7ba7141___features__gen_InputEvent__InputEvent______true__7: (a: number, b: number, c: any) => void;
 export const wasm_bindgen_e16e91df24b803f9___convert__closures_____invoke_______true_: (a: number, b: number) => void;
+export const wasm_bindgen_e16e91df24b803f9___convert__closures_____invoke_______true__1_: (a: number, b: number) => void;
 export const __wbindgen_malloc: (a: number, b: number) => number;
 export const __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
 export const __externref_table_alloc: () => number;
