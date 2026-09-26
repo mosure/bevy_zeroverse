@@ -6,7 +6,7 @@ use bevy::{
 };
 use std::f32::consts::TAU;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Geometry {
     pub positions: Vec<[f32; 3]>,
     pub normals: Vec<[f32; 3]>,
@@ -201,14 +201,29 @@ impl Geometry {
 
     /// Ergonomic chair shell, curved horizontally and reclined vertically.
     pub fn chair_back(&mut self, width: f32, height: f32, tf: Transform) {
+        self.chair_back_profile(width, height, [0.065, 0.09, 0.13, 0.035], tf);
+    }
+
+    /// Curvature, taper, rake and shell thickness are independent metric inputs.
+    pub fn chair_back_profile(
+        &mut self,
+        width: f32,
+        height: f32,
+        profile: [f32; 4],
+        tf: Transform,
+    ) {
+        let [curvature, taper, rake, thickness] = profile;
         let offset = self.positions.len() as u32;
         for row in 0..=8 {
             let y = height * row as f32 / 8.0;
             for col in 0..=12 {
                 let t = col as f32 / 12.0 * 2.0 - 1.0;
-                let x = width * 0.5 * t * (1.0 - 0.09 * (y / height));
-                let z = 0.065 * (1.0 - t * t) + y * 0.13;
-                let n = Vec3::new(-0.26 * t / width, 0.13, -1.0).normalize();
+                let x = width * 0.5 * t * (1.0 - taper * (y / height));
+                let z = curvature * (1.0 - t * t) + y * rake;
+                let dx = -4.0 * curvature * t / (width * (1.0 - taper * y / height));
+                let dy =
+                    rake - 2.0 * curvature * t * t * taper / (height * (1.0 - taper * y / height));
+                let n = Vec3::new(dx, dy, -1.0).normalize();
                 self.vertex(Vec3::new(x, y, z), n, Vec2::new(x + width * 0.5, y), &tf);
             }
         }
@@ -224,7 +239,7 @@ impl Geometry {
         for i in offset..offset + count {
             let p = Vec3::from_array(self.positions[i as usize]);
             let n = Vec3::from_array(self.normals[i as usize]);
-            self.positions.push((p - n * 0.035).to_array());
+            self.positions.push((p - n * thickness).to_array());
             self.normals.push((-n).to_array());
             self.uvs.push(self.uvs[i as usize]);
         }

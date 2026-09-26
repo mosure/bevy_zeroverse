@@ -546,6 +546,11 @@ impl Playback {
 
 #[derive(Clone, Debug, Reflect)]
 pub enum TrajectorySampler {
+    /// Deterministic metric path with independently aimed endpoint orientations.
+    CubicBezier {
+        positions: [Vec3; 4],
+        rotations: [Quat; 2],
+    },
     Static {
         start: ExtrinsicsSampler,
     },
@@ -583,6 +588,15 @@ impl Default for TrajectorySampler {
 impl TrajectorySampler {
     pub fn sample(&mut self, progress: f32) -> Transform {
         match self {
+            TrajectorySampler::CubicBezier {
+                positions: p,
+                rotations: r,
+            } => {
+                let t = progress.clamp(0.0, 1.0);
+                let a = p[0].lerp(p[1], t).lerp(p[1].lerp(p[2], t), t);
+                let b = p[1].lerp(p[2], t).lerp(p[2].lerp(p[3], t), t);
+                Transform::from_translation(a.lerp(b, t)).with_rotation(r[0].slerp(r[1], t))
+            }
             TrajectorySampler::Static { start } => start.sample_cache(),
             TrajectorySampler::Linear { start, end } => {
                 let progress = progress.clamp(0.0, 1.0);
@@ -758,6 +772,14 @@ impl TrajectorySampler {
         color: Color,
     ) {
         match self {
+            TrajectorySampler::CubicBezier { .. } => {
+                let mut last = transform.transform_point(self.sample(0.0).translation);
+                for i in 1..=32 {
+                    let next = transform.transform_point(self.sample(i as f32 / 32.0).translation);
+                    gizmos.line(last, next, color);
+                    last = next;
+                }
+            }
             TrajectorySampler::Linear { start, end } => {
                 let start = transform.transform_point(start.sample_cache().translation);
                 let end = transform.transform_point(end.sample_cache().translation);
@@ -1027,7 +1049,8 @@ fn insert_cameras(
 
         // Bevy 0.19 shares local-light shadow LOD across views. Use dataset
         // camera zero explicitly; entity allocation order can vary across jobs.
-        if args.headless && !args.editor && capture_index.is_none_or(|index| index.0 == 0) {
+        // Headless disables the editor even if its CLI flag remains at default.
+        if args.headless && capture_index.is_none_or(|index| index.0 == 0) {
             camera.insert(bevy::camera::ShadowLodOrigin);
         }
 

@@ -2,8 +2,7 @@
 
 Upstream source: https://crates.io/crates/wgpu-hal/29.0.4 (MIT/Apache-2.0).
 Bevy and Burn remain on their published releases. No shader or rendering equation
-is changed by this patch. All non-Vulkan backends and `MemoryHints::Performance`
-retain upstream behavior.
+is changed by this patch. All non-Vulkan backends retain upstream behavior.
 
 Heaptrack on NVIDIA 610.43.02 found nearly 1 GB of live host allocations from
 `vkAllocateCommandBuffers` after 128 regenerated indoor scenes. Upstream allocates
@@ -35,6 +34,18 @@ Runtime evidence and limitations are recorded in the indoor qualification report
 The accompanying wgpu-core patch caps the outer cache at 64 idle encoders under
 MemoryUsage. Retiring an encoder's native pool alone does not bound the number
 of idle encoder objects and their temporary arrays.
+
+Vulkan transient upload buffers also prefer host-cached coherent memory instead
+of device-local BAR memory, under both memory hints. A native debug-build stack
+sample caught glibc `rep movsb` inside `Queue::write_texture`, copying a 4 MiB
+texture into `/dev/nvidia0`. A 32 MiB preparation batch took 2.84 seconds;
+disabling ERMS/FSRM for that diagnostic process reduced it to 29 ms. Queue
+staging buffers now request gpu-allocator's `GpuToCpu` cache policy (the enum
+selects memory properties, not buffer usage or transfer direction). Only
+write-only `MemoryFlags::TRANSIENT` buffers change; persistent mappings, usage
+flags, synchronization, and the allocator's coherent-memory fallback are intact.
+This avoids depending on libc tunables or architecture-specific copy assembly.
+See `docs/local_scene_quality_review.md` for normal-environment validation.
 
 Root Cargo patches are not inherited by downstream published-crate consumers;
 consumers need both patches until equivalent upstream fixes are available.

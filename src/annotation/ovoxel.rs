@@ -141,6 +141,14 @@ struct Triangle {
     semantic_id: u16,
 }
 
+impl Triangle {
+    fn is_degenerate(&self) -> bool {
+        // Compare squared area with a squared tolerance. EPSILON alone used to
+        // discard centimetre-scale clothing and trim triangles.
+        (self.a - self.b).cross(self.c - self.a).length_squared() <= f32::EPSILON * f32::EPSILON
+    }
+}
+
 /// System: finds entities tagged with `OvoxelExport`, gathers meshes under
 /// `OvoxelTracked` subtrees, voxelizes, and stores the result on the same entity
 /// as `OvoxelVolume`.
@@ -499,7 +507,7 @@ fn voxelize_triangles(
     let mut voxels: HashMap<(u32, u32, u32), Accum> = HashMap::new();
 
     for tri in triangles {
-        if (tri.a - tri.b).cross(tri.c - tri.a).length_squared() <= f32::EPSILON {
+        if tri.is_degenerate() {
             continue;
         }
         let tri_min = tri.a.min(tri.b).min(tri.c);
@@ -606,8 +614,10 @@ struct GpuTriangle {
     max: [f32; 4],
     color: [f32; 4],
     semantic: u32,
-    _pad_sem: [u32; 3],
-    _pad_tail: [u32; 4],
+    // Scalar start coordinates share the semantic vec4; end is vec4-aligned.
+    // Computing these once also avoids CPU/GPU rounding differences at cells.
+    start: [u32; 3],
+    end: [u32; 4],
 }
 
 #[repr(C)]
@@ -886,7 +896,7 @@ fn voxelize_triangles_gpu(
     macro_rules! gpu_bail {
         ($msg:expr) => {{
             if strict {
-                panic!($msg);
+                panic!("{}", $msg);
             } else {
                 return None;
             }
@@ -930,6 +940,9 @@ fn voxelize_triangles_gpu(
     let mut gpu_tris = Vec::with_capacity(triangles.len());
     let mut pair_cap_estimate: u64 = 0;
     for t in triangles {
+        if t.is_degenerate() {
+            continue;
+        }
         let tri_min = t.a.min(t.b).min(t.c);
         let tri_max = t.a.max(t.b).max(t.c);
         let start = ((tri_min - min) / voxel_size)
@@ -963,15 +976,25 @@ fn voxelize_triangles_gpu(
             max: [tri_max.x, tri_max.y, tri_max.z, 0.0],
             color: t.color.to_array(),
             semantic: t.semantic_id as u32,
-            _pad_sem: [0; 3],
-            _pad_tail: [0; 4],
+            start: [start.x as u32, start.y as u32, start.z as u32],
+            end: [end.x as u32, end.y as u32, end.z as u32, 0],
+        });
+    }
+
+    if gpu_tris.is_empty() {
+        return Some(OvoxelVolume {
+            semantic_labels,
+            resolution,
+            aabb,
+            ..default()
         });
     }
 
     let pair_cap = pair_cap_estimate
         .saturating_add(pair_cap_estimate / 4 + tile_count)
         .clamp(1, 10_000_000) as u32;
-    let max_output_voxels = max_output_voxels.min(pair_cap).max(1);
+    // Each pair can cover up to a whole 4^3 tile, not just one output cell.
+    let max_output_voxels = max_output_voxels.min(pair_cap.saturating_mul(GPU_TILE_SIZE.pow(3)));
 
     let params = GpuParams {
         min: [min.x, min.y, min.z, 0.0],
@@ -979,7 +1002,7 @@ fn voxelize_triangles_gpu(
         tile_dims: [tile_dims[0], tile_dims[1], tile_dims[2], 0],
         half_diag,
         resolution,
-        tri_count: triangles.len() as u32,
+        tri_count: gpu_tris.len() as u32,
         max_output: max_output_voxels,
         pair_cap,
         _pad_params: [0; 3],
@@ -1322,7 +1345,7 @@ fn voxelize_triangles_gpu(
         pass.set_pipeline(&pipeline.classify_pipeline);
         pass.set_bind_group(0, &shared_bind_group, &[]);
         pass.set_bind_group(1, &state_bind_group, &[]);
-        let tri_dispatch = (triangles.len() as u32).div_ceil(GPU_CLASSIFY_WG);
+        let tri_dispatch = params.tri_count.div_ceil(GPU_CLASSIFY_WG);
         pass.dispatch_workgroups(tri_dispatch.max(1), 1, 1);
     }
 
@@ -1420,6 +1443,16 @@ fn voxelize_triangles_gpu(
     drop(meta_view);
     buffers.meta_readback.unmap();
 
+    // A truncated sparse volume is not a valid annotation. Flags cover output,
+    // tile-pair and per-cell semantic-vote capacity, including classify overflow.
+    if overflowed {
+        release_buffers(buffers);
+        gpu_bail!(format!(
+            "ovoxel GPU capacity exceeded (flags {}, cells {}, cap {}); no partial annotation returned",
+            meta.overflow, meta.count, max_output_voxels
+        ));
+    }
+
     if used == 0 {
         let volume = OvoxelVolume {
             coords: Vec::new(),
@@ -1462,13 +1495,6 @@ fn voxelize_triangles_gpu(
     debug_assert_eq!(data.len() as u64, used_bytes);
     let voxels: &[GpuVoxel] = bytemuck::cast_slice(&data);
     let used = used.min(voxels.len() as u32) as usize;
-
-    if overflowed {
-        warn!(
-            "ovoxel GPU overflow: produced {} voxels, cap {} (overflow flag {}); clamping to {}",
-            meta.count, max_output_voxels, meta.overflow, used
-        );
-    }
 
     if used == 0 {
         drop(data);
@@ -1729,7 +1755,7 @@ mod tests {
     }
 
     #[test]
-    fn gpu_matches_cpu_for_simple_triangle() {
+    fn gpu_matches_cpu_occupancy_votes_and_capacity_failures() {
         let _guard = gpu_test_lock().lock().expect("gpu test lock poisoned");
         let instance = wgpu::Instance::default();
         let adapter = match futures_lite::future::block_on(instance.request_adapter(
@@ -1763,16 +1789,15 @@ mod tests {
             return;
         };
 
-        let triangles = vec![Triangle {
-            a: Vec3::new(0.0, 0.0, 0.0),
-            b: Vec3::new(0.5, 0.0, 0.0),
-            c: Vec3::new(0.0, 0.5, 0.0),
+        let triangle = Triangle {
+            a: Vec3::new(0.17, 0.19, 0.38),
+            b: Vec3::new(0.73, 0.19, 0.38),
+            c: Vec3::new(0.17, 0.81, 0.38),
             color: Vec4::new(1.0, 0.0, 0.0, 1.0),
             semantic_id: 1,
-        }];
-        let aabb = triangles_aabb(&triangles);
+        };
+        let aabb = [[0.0; 3], [1.0; 3]];
         let labels = vec!["unlabeled".to_string(), "test".to_string()];
-        let cpu = voxelize_triangles(&triangles, 8, aabb, labels.clone());
 
         let shader_source = {
             let mut shader_app = App::new();
@@ -1791,36 +1816,71 @@ mod tests {
                 .expect("ovoxel shader asset should be available for GPU test")
         };
 
-        let gpu = voxelize_triangles_gpu(
-            &triangles,
-            8,
-            aabb,
-            labels,
-            shader_source,
-            &RenderDevice::from(device),
-            &RenderQueue(WgpuWrapper::new(queue).into()),
-            GPU_DEFAULT_MAX_OUTPUT_VOXELS,
-            false,
-        )
-        .unwrap_or_else(|| {
-            eprintln!("GPU voxelization unavailable; falling back to CPU for test");
-            cpu.clone()
-        });
-
-        if cpu.coords != gpu.coords {
-            eprintln!(
-                "GPU voxelization mismatch for simple triangle ({} vs {} voxels); skipping strict equality",
-                gpu.coords.len(),
-                cpu.coords.len()
-            );
-            return;
+        let device = RenderDevice::from(device);
+        let queue = RenderQueue(WgpuWrapper::new(queue).into());
+        let run_gpu = |triangles: &[Triangle], cap| {
+            voxelize_triangles_gpu(
+                triangles,
+                8,
+                aabb,
+                labels.clone(),
+                shader_source.clone(),
+                &device,
+                &queue,
+                cap,
+                false,
+            )
+        };
+        let other = Triangle {
+            semantic_id: 2000,
+            ..triangle
+        };
+        let tiny = Triangle {
+            a: Vec3::splat(0.67),
+            b: Vec3::new(0.68, 0.67, 0.67),
+            c: Vec3::new(0.67, 0.68, 0.67),
+            ..triangle
+        };
+        let degenerate = Triangle {
+            a: triangle.b,
+            ..triangle
+        };
+        for triangles in [
+            vec![triangle],
+            vec![triangle, other], // deterministic tie: larger semantic ID
+            vec![other, triangle, triangle], // majority beats first hit
+            vec![tiny],            // centimetre detail must survive the area test
+            vec![triangle, degenerate],
+            vec![degenerate],
+        ] {
+            let cpu = voxelize_triangles(&triangles, 8, aabb, labels.clone());
+            for _ in 0..3 {
+                let gpu = run_gpu(&triangles, GPU_DEFAULT_MAX_OUTPUT_VOXELS)
+                    .expect("GPU path must succeed once the device has been created");
+                assert_eq!(cpu.coords, gpu.coords);
+                assert_eq!(cpu.intersected, gpu.intersected);
+                assert_eq!(cpu.semantics, gpu.semantics);
+                assert_eq!(cpu.base_color, gpu.base_color);
+                assert_eq!(cpu.resolution, gpu.resolution);
+            }
         }
-
-        assert_eq!(cpu.coords, gpu.coords);
-        assert_eq!(cpu.intersected, gpu.intersected);
-        assert_eq!(cpu.semantics, gpu.semantics);
-        assert_eq!(cpu.base_color, gpu.base_color);
-        assert_eq!(cpu.resolution, gpu.resolution);
+        assert!(!voxelize_triangles(&[tiny], 8, aabb, labels.clone())
+            .coords
+            .is_empty());
+        assert!(
+            run_gpu(&[triangle], 1).is_none(),
+            "output overflow must not return partial data"
+        );
+        let crowded: Vec<_> = (0..33)
+            .map(|semantic_id| Triangle {
+                semantic_id,
+                ..triangle
+            })
+            .collect();
+        assert!(
+            run_gpu(&crowded, GPU_DEFAULT_MAX_OUTPUT_VOXELS).is_none(),
+            "vote overflow must not return arbitrary labels"
+        );
     }
 
     #[test]

@@ -23,24 +23,34 @@ SEMANTICS = {
 }
 
 
-def measurements(native, reference, mask):
+def measurements(native, reference, mask, weights=None):
     n, r = native[mask].astype(np.float64), reference[mask].astype(np.float64)
     if len(n) == 0:
         return None
     if not np.isfinite(n).all() or not np.isfinite(r).all():
         raise ValueError("Non-finite radiance")
     nl, rl = n @ LUMA, r @ LUMA
-    floor = max(float(np.median(rl)) * .01, 1e-5)
+    weight = np.ones(len(n)) if weights is None else np.asarray(weights[mask], dtype=np.float64)
+    if not np.isfinite(weight).all() or (weight <= 0).any():
+        raise ValueError("Radiance weights must be finite and positive")
+    mean = lambda values: float(np.average(values, weights=weight))
+    def quantile(values, fraction):
+        if weights is None or np.all(weight == weight[0]):
+            return float(np.quantile(values, fraction))
+        order = np.argsort(values)
+        cumulative = (np.cumsum(weight[order]) - .5 * weight[order]) / weight.sum()
+        return float(np.interp(fraction, cumulative, values[order]))
+    floor = max(quantile(rl, .5) * .01, 1e-5)
     stops = np.log2(np.maximum(nl, floor) / np.maximum(rl, floor))
     return {
-        "pixels": len(n), "native_mean_luminance": float(nl.mean()),
-        "reference_mean_luminance": float(rl.mean()),
-        "rgb_relative_mae": float(np.abs(n - r).sum() / max(np.abs(r).sum(), 1e-12)),
-        "luminance_relative_mae": float(np.abs(nl - rl).sum() / max(np.abs(rl).sum(), 1e-12)),
-        "luminance_bias_ratio": float(nl.mean() / max(rl.mean(), 1e-12)),
-        "median_absolute_stops": float(np.median(np.abs(stops))),
-        "p90_absolute_stops": float(np.quantile(np.abs(stops), .9)),
-        "fraction_within_20_percent_luminance": float((np.abs(nl-rl) <= .2*np.maximum(rl, floor)).mean()),
+        "pixels": len(n), "covered_pixels": int(weight.sum()), "native_mean_luminance": mean(nl),
+        "reference_mean_luminance": mean(rl),
+        "rgb_relative_mae": float((np.abs(n - r) * weight[:, None]).sum() / max((np.abs(r) * weight[:, None]).sum(), 1e-12)),
+        "luminance_relative_mae": float((np.abs(nl - rl) * weight).sum() / max((np.abs(rl) * weight).sum(), 1e-12)),
+        "luminance_bias_ratio": mean(nl) / max(mean(rl), 1e-12),
+        "median_absolute_stops": quantile(np.abs(stops), .5),
+        "p90_absolute_stops": quantile(np.abs(stops), .9),
+        "fraction_within_20_percent_luminance": mean(np.abs(nl-rl) <= .2*np.maximum(rl, floor)),
         "log_floor": floor,
     }
 
@@ -61,20 +71,23 @@ def preview(a):
 
 
 def blocks(a, size=16):
-    """Average complete image blocks; never smooth across an arbitrary crop."""
+    """Average every pixel, including partial right/bottom edge blocks."""
     h, w, channels = a.shape
-    if h % size or w % size:
-        raise ValueError(f"Image dimensions must be divisible by block size {size}")
-    return a.reshape(h // size, size, w // size, size, channels).mean(axis=(1, 3))
+    areas = block_areas(a.shape, size)
+    padded = np.pad(a, ((0, -h % size), (0, -w % size), (0, 0)))
+    return padded.reshape(areas.shape[0], size, areas.shape[1], size, channels).sum(axis=(1, 3)) / areas[..., None]
+
+
+def block_areas(shape, size):
+    h, w = shape[:2]
+    return np.minimum(size, h - np.arange(0, h, size))[:, None] * np.minimum(size, w - np.arange(0, w, size))[None, :]
 
 
 def block_measurements(a, b):
     result = {}
     for size in (8, 16, 32):
-        if a.shape[0] % size or a.shape[1] % size:
-            continue
         aa, bb = blocks(a, size), blocks(b, size)
-        result[str(size)] = measurements(aa, bb, np.ones(aa.shape[:2], dtype=bool))
+        result[str(size)] = measurements(aa, bb, np.ones(aa.shape[:2], dtype=bool), block_areas(a.shape, size))
     return result
 
 

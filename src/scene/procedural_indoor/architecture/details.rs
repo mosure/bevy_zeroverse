@@ -4,6 +4,100 @@ use super::super::{
     objects::Assembly,
 };
 use bevy::prelude::*;
+use rand::Rng;
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct FinishParameters {
+    pub ceiling_pitch: Vec2,
+    pub panel_pitch: f32,
+    pub panel_height: f32,
+    pub reveal: f32,
+}
+impl FinishParameters {
+    pub fn sample(seed: u64) -> Self {
+        let mut rng = super::super::layout::stream(seed, 162);
+        Self {
+            ceiling_pitch: Vec2::new(rng.random_range(0.50..1.25), rng.random_range(0.50..1.25)),
+            panel_pitch: rng.random_range(0.45..1.65),
+            panel_height: rng.random_range(0.42..0.80),
+            reveal: rng.random_range(0.015..0.045),
+        }
+    }
+    pub fn for_scene(scene: &IndoorManifest) -> Self {
+        scene
+            .program
+            .as_ref()
+            .and_then(|p| p.finishes.clone())
+            .unwrap_or_else(|| Self::sample(scene.seed))
+    }
+}
+
+/// Dropped acoustic rafts articulate each functional zone. Fixtures hang below
+/// their underside; the same drop bounds camera sampling and collision checks.
+pub(super) fn zone_ceilings(a: &mut Assembly, scene: &IndoorManifest) {
+    let Some(domain) = scene.domain() else {
+        return;
+    };
+    if domain.ceiling_relief < 0.08 {
+        return;
+    }
+    for zone in &scene.program.as_ref().unwrap().zones {
+        let center = (zone.min + zone.max) * 0.5;
+        let size = (zone.max - zone.min - Vec2::splat(0.65)) * domain.ceiling_coverage.sqrt();
+        a.box_part(
+            Surface::Ceiling,
+            "ceiling",
+            Vec3::new(
+                center.x,
+                scene.room_size.y - domain.ceiling_relief + 0.025,
+                center.y,
+            ),
+            Vec3::new(size.x, 0.05, size.y),
+            0.008,
+        );
+    }
+}
+
+/// Cross rails terminate at main rails. Their undersides never overlap; this is
+/// the same butt joint used by suspended ceilings, rather than a depth bias.
+pub(super) fn crossed_beams(
+    a: &mut Assembly,
+    scene: &IndoorManifest,
+    pitch: Vec2,
+    width: f32,
+    height: f32,
+    y: f32,
+    surface: Surface,
+) {
+    let half = Vec2::new(scene.room_size.x, scene.room_size.z) * 0.5 - Vec2::splat(0.36);
+    let nx = ((half.x * 2.0) / pitch.x).ceil() as usize;
+    let nz = ((half.y * 2.0) / pitch.y).ceil() as usize;
+    let dx = half.x * 2.0 / nx as f32;
+    for i in 1..nx {
+        a.box_part(
+            surface,
+            "ceiling",
+            Vec3::new(-half.x + dx * i as f32, y, 0.0),
+            Vec3::new(width, height, half.y * 2.0),
+            0.0,
+        );
+    }
+    for j in 1..nz {
+        let z = -half.y + half.y * 2.0 * j as f32 / nz as f32;
+        for i in 0..nx {
+            let lo = -half.x + dx * i as f32 + if i == 0 { 0.0 } else { width * 0.5 };
+            let hi = -half.x + dx * (i + 1) as f32 - if i + 1 == nx { 0.0 } else { width * 0.5 };
+            a.box_part(
+                surface,
+                "ceiling",
+                Vec3::new((lo + hi) * 0.5, y, z),
+                Vec3::new(hi - lo, height, width),
+                0.0,
+            );
+        }
+    }
+}
 
 /// A real recessed bay, with a back, reveals and shelves; no intact wall behind
 /// the opening. Its entire recess lies outside the camera/furniture envelope.
@@ -50,7 +144,7 @@ pub(super) fn rear_niche(a: &mut Assembly, scene: &IndoorManifest) {
             Surface::Wood,
             "wall",
             Vec3::new((left + right) * 0.5, y, z - 0.07),
-            Vec3::new(right - left, 0.035, 0.20),
+            Vec3::new(right - left - 0.048, 0.035, 0.20),
             0.003,
         );
     }
@@ -59,9 +153,12 @@ pub(super) fn rear_niche(a: &mut Assembly, scene: &IndoorManifest) {
 pub(super) fn feature_wall(a: &mut Assembly, scene: &IndoorManifest) {
     let Vec3 { x: w, y: h, z: d } = scene.room_size;
     let back = -d * 0.5;
+    let finishes = FinishParameters::for_scene(scene);
     match scene.architecture_style {
         ArchitectureStyle::Contemporary => {
-            for i in 0..7 {
+            let count = (w / finishes.panel_pitch).ceil() as usize;
+            let pitch = w * 0.82 / count as f32;
+            for i in 0..count {
                 a.box_part(
                     if i % 3 == 0 {
                         Surface::FabricAlt
@@ -69,8 +166,8 @@ pub(super) fn feature_wall(a: &mut Assembly, scene: &IndoorManifest) {
                         Surface::Accent
                     },
                     "wall",
-                    Vec3::new(-w * 0.38 + i as f32 * w * 0.11, h * 0.52, back + 0.035),
-                    Vec3::new(w * 0.105, h * 0.78, 0.055),
+                    Vec3::new(-w * 0.41 + (i as f32 + 0.5) * pitch, h * 0.52, back + 0.035),
+                    Vec3::new(pitch - finishes.reveal, h * finishes.panel_height, 0.055),
                     0.008,
                 );
             }
@@ -159,24 +256,16 @@ pub(super) fn feature_wall(a: &mut Assembly, scene: &IndoorManifest) {
 pub(super) fn ceiling(a: &mut Assembly, scene: &IndoorManifest) {
     let Vec3 { x: w, y: h, z: d } = scene.room_size;
     if scene.ceiling_style == 3 {
-        for i in 1..4 {
-            let x = -w * 0.5 + w * i as f32 / 4.0;
-            let z = -d * 0.5 + d * i as f32 / 4.0;
-            a.box_part(
-                Surface::Paint,
-                "ceiling",
-                Vec3::new(x, h - 0.065, 0.0),
-                Vec3::new(0.18, 0.13, d),
-                0.008,
-            );
-            a.box_part(
-                Surface::Paint,
-                "ceiling",
-                Vec3::new(0.0, h - 0.065, z),
-                Vec3::new(w, 0.13, 0.18),
-                0.008,
-            );
-        }
+        let f = FinishParameters::for_scene(scene);
+        crossed_beams(
+            a,
+            scene,
+            f.ceiling_pitch * 3.8,
+            0.18,
+            0.13,
+            h - 0.065,
+            Surface::Paint,
+        );
     }
     if scene.architecture_style == ArchitectureStyle::Industrial {
         for x in [-w * 0.43, w * 0.43] {

@@ -315,21 +315,14 @@ fn neighboring_room_furniture_and_conference_seats_fit() {
                 );
             }
         }
+        // Programs sample occupancy, dimensions and multiple work zones; a fixed
+        // legacy table-length -> eight seats formula is no longer the contract.
+        validate_layout(&scene).unwrap();
         let table = scene
             .objects
             .iter()
-            .find(|o| o.kind == ObjectKind::Table)
+            .find(|o| matches!(o.kind, ObjectKind::Table | ObjectKind::Desk) && !o.neighbor)
             .unwrap();
-        let expected = (((table.size.z - 0.65) / 0.85).floor() as usize + 1) * 2 + 2;
-        let seats = scene
-            .objects
-            .iter()
-            .filter(|o| !o.neighbor && o.kind == ObjectKind::Chair)
-            .count();
-        assert_eq!(
-            seats, expected,
-            "seed {seed}: unintentionally rejected conference seats"
-        );
         for prop in scene.objects.iter().filter(|o| o.support.is_some()) {
             assert!(scene.prop_clear(prop, &scene.objects[prop.support.unwrap()], 0.0));
         }
@@ -339,16 +332,11 @@ fn neighboring_room_furniture_and_conference_seats_fit() {
             .filter(|o| o.kind == ObjectKind::Laptop && o.support == Some(table.id))
         {
             let facing = Quat::from_rotation_y(laptop.yaw) * Vec3::Z;
-            let seat = scene
-                .objects
-                .iter()
-                .filter(|o| !o.neighbor && o.kind == ObjectKind::Chair)
-                .min_by(|a, b| {
-                    a.position
-                        .distance_squared(laptop.position)
-                        .total_cmp(&b.position.distance_squared(laptop.position))
-                })
-                .unwrap();
+            let Some(seat_id) = laptop.interaction_target else {
+                continue;
+            };
+            let seat = &scene.objects[seat_id];
+            assert_eq!(seat.interaction_target, laptop.support);
             let direction = (seat.position - laptop.position).with_y(0.0).normalize();
             assert!(
                 facing.dot(direction) > 0.95,
@@ -413,6 +401,9 @@ fn loaded_manifests_reject_pillars_neighbor_overlaps_and_bad_supports() {
 #[test]
 fn trajectory_rejects_supported_props_and_midpath_view_obstruction() {
     let mut scene = IndoorManifest::generate(0, IndoorLayout::Conference, 0.5, 0).unwrap();
+    scene.humans.clear();
+    scene.program = None;
+    scene.floor_plan = super::floorplan::FloorPlan::OpenHall;
     let mut obstacle = scene.objects[0].clone();
     obstacle.id = 0;
     obstacle.kind = ObjectKind::Monitor;
@@ -439,9 +430,6 @@ fn trajectory_rejects_supported_props_and_midpath_view_obstruction() {
 
 #[test]
 fn trajectory_validation_matches_runtime_poses_and_covers_metric_baselines() {
-    use crate::camera::{
-        ExtrinsicsSampler, ExtrinsicsSamplerType, LookingAtSampler, TrajectorySampler,
-    };
     let mut range = [f32::INFINITY, 0.0_f32];
     for seed in 0..96 {
         let scene = IndoorManifest::generate(seed, IndoorLayout::Mixed, 0.8, 4).unwrap();
@@ -449,15 +437,7 @@ fn trajectory_validation_matches_runtime_poses_and_covers_metric_baselines() {
             let length = camera.start.distance(camera.end);
             range[0] = range[0].min(length);
             range[1] = range[1].max(length);
-            let extrinsics = |p| ExtrinsicsSampler {
-                position: ExtrinsicsSamplerType::Transform(Transform::from_translation(p)),
-                looking_at: LookingAtSampler::Exact(camera.target),
-                ..default()
-            };
-            let mut runtime = TrajectorySampler::Linear {
-                start: extrinsics(camera.start),
-                end: extrinsics(camera.end),
-            };
+            let mut runtime = camera.runtime_trajectory();
             for step in 0..=16 {
                 let t = step as f32 / 16.0;
                 let actual = runtime.sample(t);
@@ -470,8 +450,8 @@ fn trajectory_validation_matches_runtime_poses_and_covers_metric_baselines() {
                     actual.translation + actual.rotation * Vec3::NEG_Z * 2.0
                 ));
                 assert!(
-                    (actual.rotation * Vec3::X).y.abs() < 1e-5,
-                    "camera horizon has roll"
+                    (actual.rotation * Vec3::X).y.abs() < 0.14001,
+                    "camera roll exceeds sampled handheld bounds"
                 );
             }
         }
@@ -570,7 +550,7 @@ fn dataset_metrics_preserve_denominators_heatmap_mass_and_camera_calibration() {
         &directory,
     )
     .unwrap();
-    assert_eq!(report.object_counts_per_scene.len(), 50);
+    assert_eq!(report.object_counts_per_scene.len(), 58);
     for counts in report.object_counts_per_scene.values() {
         assert_eq!(
             counts.values().sum::<usize>(),
@@ -722,7 +702,7 @@ fn actual_architecture_preserves_door_opening_and_camera_clearance() {
             }
         }
         let luminaire = super::architecture::fixture_positions(&scene)[0];
-        let unsafe_position = luminaire.with_y(scene.room_size.y - 0.45);
+        let unsafe_position = luminaire - Vec3::Y * 0.15;
         assert!(!clear(unsafe_position, CAMERA_CLEARANCE));
         assert!(
             !scene.camera_clear(unsafe_position),
@@ -783,7 +763,7 @@ fn people_are_deterministic_diverse_supported_and_inside_collision_envelopes() {
         counts[1] > 128 && counts[2] > counts[1],
         "human population collapsed: {counts:?}"
     );
-    assert_eq!(poses.len(), 5, "{poses:?}");
+    assert_eq!(poses.len(), 8, "{poses:?}");
     assert_eq!(outfits.len(), 3);
     assert_eq!(skin.len(), 8);
     assert_eq!(hair.len(), 6);
@@ -878,11 +858,64 @@ fn broad_full_human_occupancy_preserves_geometry_and_layout() {
             "full human density=1 furniture_density={density}: scenes=1024 cameras=4096 people={people} neighbor_people={neighbors} per_scene_min={min_people} per_scene_max={max_people} layouts={layouts:?}"
         );
     }
-    assert_eq!(poses.len(), 5);
+    assert_eq!(poses.len(), 8);
     assert_eq!(outfits.len(), 3);
     assert_eq!(skin.len(), 8);
     assert_eq!(hair.len(), 6);
     println!(
         "full occupancy geometry: vertices={total_vertices} triangles={total_triangles}; poses={poses:?}, outfits={outfits:?}, skin_tones={skin:?}, hairstyles={hair:?}"
     );
+}
+
+#[test]
+fn furniture_programs_have_bounded_geometry_and_varied_parameters() {
+    use std::collections::BTreeSet;
+    let mut plans = BTreeSet::new();
+    let mut designs = BTreeSet::new();
+    let mut chairs = BTreeSet::new();
+    let mut laptops = BTreeSet::new();
+    let mut angles = Vec::new();
+    for seed in 0..128 {
+        let scene =
+            IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.8, 2, 0.0).unwrap();
+        validate_layout(&scene).unwrap();
+        let program = scene.program.as_ref().unwrap();
+        plans.insert(program.partitions.len());
+        designs.insert((
+            (program.fixture_size.x * 10.0) as u32,
+            (program.fixture_size.y * 10.0) as u32,
+        ));
+        for o in scene
+            .objects
+            .iter()
+            .filter(|o| matches!(o.kind, ObjectKind::Chair | ObjectKind::Laptop))
+        {
+            if o.kind == ObjectKind::Chair {
+                chairs.insert(o.variant);
+            } else {
+                laptops.insert(o.variant);
+                angles.push(super::objects::computers::lid_angle(o));
+            }
+            let (lo, hi) = super::objects::build_object(o).bounds();
+            assert!(
+                lo.x >= -o.size.x * 0.5 - 0.005 && hi.x <= o.size.x * 0.5 + 0.005,
+                "width envelope seed={seed} kind={:?} variant={} {lo:?} {hi:?}",
+                o.kind,
+                o.variant
+            );
+            assert!(
+                lo.z >= -o.size.z * 0.5 - 0.005 && hi.z <= o.size.z * 0.5 + 0.005,
+                "depth envelope seed={seed} kind={:?} variant={} {lo:?} {hi:?}",
+                o.kind,
+                o.variant
+            );
+            assert!(lo.y >= -0.001 && hi.y <= o.size.y + 0.025);
+        }
+    }
+    assert!(plans.len() >= 4);
+    assert!(designs.len() >= 24);
+    assert_eq!(chairs.len(), 6);
+    assert_eq!(laptops.len(), 4);
+    assert!(angles.iter().copied().fold(f32::INFINITY, f32::min) < 1.6);
+    assert!(angles.iter().copied().fold(f32::NEG_INFINITY, f32::max) > 2.15);
 }

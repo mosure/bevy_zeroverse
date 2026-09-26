@@ -71,7 +71,7 @@ pub enum ZeroverseSceneType {
     Object,
     SemanticRoom,
     Room,
-    /// Metric, asset-free furnished interiors with reproducible generation.
+    /// Metric furnished interiors with reproducible generation and AnnyBody people.
     #[value(alias = "procedural_indoor")]
     ProceduralIndoor,
 }

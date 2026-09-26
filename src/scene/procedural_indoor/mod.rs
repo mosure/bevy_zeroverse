@@ -1,26 +1,31 @@
-//! Asset-free procedural interiors. Layout, surface synthesis and rendering are separate
+//! Procedural interiors with optional AnnyBody people. Layout, surfaces and rendering are separate
 //! so datasets can audit the sampled distribution without creating a GPU device.
 pub mod architecture;
+pub mod cameras;
 mod clutter;
+pub mod domain;
+pub mod floorplan;
 pub mod geometry;
 pub mod gi;
 pub mod humans;
 pub mod layout;
+#[cfg(not(target_arch = "wasm32"))]
+mod lighting;
 pub mod materials;
 pub mod metrics;
 mod metrics_sort;
 pub mod objects;
 mod plants;
+pub mod preparation;
+pub mod program;
+mod program_coverage;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod reference;
 pub mod validation;
 
 use crate::{
     app::BevyZeroverseConfig,
-    camera::{
-        ExtrinsicsSampler, ExtrinsicsSamplerType, LookingAtSampler, PerspectiveSampler,
-        TrajectorySampler, ZeroverseCamera,
-    },
+    camera::{PerspectiveSampler, ZeroverseCamera},
     ovoxel::OvoxelTracked,
     render::RenderMode,
     scene::{
@@ -37,8 +42,7 @@ use bevy::{
     post_process::bloom::Bloom,
     prelude::*,
 };
-use layout::{IndoorManifest, LightingMood};
-use materials::IndoorMaterials;
+use layout::IndoorManifest;
 use rand::Rng;
 
 /// Explicit feature budget. WebGPU Auto retains PBR, shadow maps and refraction;
@@ -93,6 +97,7 @@ pub struct ProceduralIndoorPlugin;
 impl Plugin for ProceduralIndoorPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<IndoorSequence>();
+        app.init_resource::<IndoorGenerationStatus>();
         if !app.world().contains_resource::<gi::IndoorGiSettings>() {
             let mut settings = gi::IndoorGiSettings::default();
             if let Some(config) = app.world().get_resource::<BevyZeroverseConfig>() {
@@ -109,6 +114,8 @@ impl Plugin for ProceduralIndoorPlugin {
         #[cfg(not(target_arch = "wasm32"))]
         app.add_plugins(gi::gpu::GpuGiPlugin);
         app.add_systems(PreUpdate, regenerate);
+        #[cfg(not(target_arch = "wasm32"))]
+        app.add_systems(PreUpdate, lighting::finish.after(regenerate));
         app.add_systems(
             Update,
             configure_cameras.after(crate::camera::update_render_pipeline),
@@ -149,6 +156,44 @@ struct IndoorEnvironment {
 #[derive(Component)]
 struct IndoorCameraConfigured;
 
+#[derive(PartialEq, Clone, Copy)]
+struct IndoorLayoutKey {
+    layout: layout::IndoorLayout,
+    density: u32,
+    humans: u32,
+    cameras: usize,
+    rotation: bool,
+    quality: IndoorQuality,
+    gi: gi::BakeSettings,
+    gi_enabled: bool,
+    gi_gpu: bool,
+}
+
+#[derive(Resource, Default)]
+pub(crate) struct IndoorGenerationStatus {
+    pub pending: bool,
+    pub lighting_pending: bool,
+}
+impl IndoorGenerationStatus {
+    pub fn busy(&self) -> bool {
+        self.pending || self.lighting_pending
+    }
+}
+
+/// Readiness for callers that previously assumed generation finished in N ticks.
+pub fn indoor_generation_pending(world: &World) -> bool {
+    world
+        .get_resource::<IndoorGenerationStatus>()
+        .is_some_and(IndoorGenerationStatus::busy)
+}
+
+#[derive(Default)]
+struct PendingIndoor {
+    key: Option<(u64, IndoorLayoutKey)>,
+    requested: bool,
+    task: Option<bevy::tasks::Task<Result<preparation::PreparedIndoor, String>>>,
+}
+
 #[allow(clippy::too_many_arguments)]
 fn regenerate(
     mut commands: Commands,
@@ -162,69 +207,126 @@ fn regenerate(
     mut images: ResMut<Assets<Image>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     gi_settings: Res<gi::IndoorGiSettings>,
-    #[cfg(not(target_arch = "wasm32"))] mut gi_prefetch: ResMut<gi::GiPrefetch>,
+    human_assets: Option<Res<bevy_burn_human::BurnHumanAssets>>,
+    mut pending: Local<PendingIndoor>,
+    mut generation: ResMut<IndoorGenerationStatus>,
 ) {
     if settings.scene_type != ZeroverseSceneType::ProceduralIndoor {
+        *pending = PendingIndoor::default();
+        generation.pending = false;
+        generation.lighting_pending = false;
         #[cfg(not(target_arch = "wasm32"))]
         {
             commands.remove_resource::<gi::gpu::GpuBakeRequest>();
             commands.remove_resource::<gi::gpu::GiGpuReadiness>();
+            commands.remove_resource::<lighting::PendingLighting>();
         }
         commands.remove_resource::<gi::BakeStatistics>();
         return;
     }
-    if events.is_empty() {
+    if !events.is_empty() {
+        events.clear();
+        pending.requested = true;
+        generation.pending = true;
+    }
+    if !pending.requested {
         return;
     }
-    events.clear();
+    // Keep the old scene responsive while the model and phenotype surfaces load.
+    if args.indoor_human_density > 0.0 && human_assets.is_none() {
+        return;
+    }
     if sequence.base_seed.is_none() || sequence.configured_seed != args.indoor_seed {
         sequence.configured_seed = args.indoor_seed;
         sequence.base_seed = Some(args.indoor_seed.unwrap_or_else(|| rand::rng().random()));
         sequence.index = 0;
+        pending.task = None;
     }
     let seed = sequence.base_seed.unwrap().wrapping_add(sequence.index);
-    let mut manifest = match IndoorManifest::generate_with_humans(
+    let key = (
         seed,
-        args.indoor_layout,
-        args.indoor_density,
-        settings.num_cameras.max(1),
-        args.indoor_human_density,
-    ) {
+        IndoorLayoutKey {
+            layout: args.indoor_layout,
+            density: args.indoor_density.to_bits(),
+            humans: args.indoor_human_density.to_bits(),
+            cameras: settings.num_cameras.max(1),
+            rotation: settings.rotation_augmentation,
+            quality: args.indoor_quality,
+            gi: gi_settings.bake,
+            gi_enabled: gi_settings.enabled,
+            gi_gpu: gi_settings.gpu && args.headless,
+        },
+    );
+    if pending.key != Some(key) {
+        pending.key = Some(key);
+        pending.task = None;
+    }
+    if pending.task.is_none() {
+        let (layout, density, cameras, humans) = (
+            args.indoor_layout,
+            args.indoor_density,
+            settings.num_cameras.max(1),
+            args.indoor_human_density,
+        );
+        let image_stage = preparation::StagedAssets::new(&images);
+        let material_stage = preparation::StagedAssets::new(&materials);
+        let mesh_stage = preparation::StagedAssets::new(&meshes);
+        let quality = args.indoor_quality;
+        let mut gi = *gi_settings;
+        // Full GPU bakes maximize headless generation throughput, but monopolize
+        // the presentation queue during interactive regeneration. The CPU oracle
+        // runs inside this background job while the GPU keeps drawing the old room.
+        if !args.headless {
+            gi.gpu = false;
+        }
+        let rotation = settings.rotation_augmentation;
+        pending.task = Some(bevy::tasks::AsyncComputeTaskPool::get().spawn(async move {
+            let mut scene =
+                IndoorManifest::generate_with_humans(seed, layout, density, cameras, humans)?;
+            validation::validate_layout(&scene)?;
+            if rotation {
+                scene.world_yaw = layout::stream(seed, 11).random_range(0.0..std::f32::consts::TAU);
+            }
+            Ok(preparation::PreparedIndoor::build(
+                scene,
+                quality,
+                gi,
+                image_stage,
+                material_stage,
+                mesh_stage,
+            )
+            .await)
+        }));
+    }
+    let Some(result) =
+        bevy::tasks::block_on(bevy::tasks::poll_once(pending.task.as_mut().unwrap()))
+    else {
+        return;
+    };
+    pending.task = None;
+    pending.requested = false;
+    generation.pending = false;
+    let mut prepared = match result {
         Ok(scene) => scene,
         Err(error) => {
             error!("procedural_indoor generation rejected: {error}");
+            commands.insert_resource(crate::sample::CaptureFailure(Some(error)));
             return;
         }
     };
-    if let Err(error) = validation::validate_layout(&manifest) {
-        error!("procedural_indoor layout validation failed: {error}");
-        return;
-    }
-    if settings.rotation_augmentation {
-        manifest.world_yaw = layout::stream(seed, 11).random_range(0.0..std::f32::consts::TAU);
-    }
     sequence.index = sequence.index.wrapping_add(1);
     for entity in &old {
         commands.entity(entity).despawn();
     }
-    let mut material_set = IndoorMaterials::build_with_quality(
-        &manifest,
-        args.indoor_quality,
-        &mut images,
-        &mut materials,
-    );
-    material_set.environment.rotation = Quat::from_rotation_y(manifest.world_yaw);
+    let manifest = &prepared.manifest;
+    let material_set = &prepared.material_set;
     commands.insert_resource(DirectionalLightShadowMap {
         size: args.indoor_quality.shadow_map_size(),
     });
     commands.insert_resource(IndoorEnvironment {
         map: material_set.environment.clone(),
-        has_gi: args.indoor_quality.diffuse_gi() && gi_settings.enabled,
-        ev100: match manifest.lighting {
-            LightingMood::Daylight => 6.7,
-            LightingMood::Overcast => 6.0,
-            LightingMood::Evening => 5.6,
-        },
+        has_gi: prepared.probes.is_some(),
+        ev100: manifest.ev100(),
     });
     let root = commands
         .spawn((
@@ -238,118 +340,50 @@ fn regenerate(
         .id();
     #[cfg(not(target_arch = "wasm32"))]
     {
+        generation.lighting_pending = prepared.cpu_bake.is_some();
+        if let Some(task) = prepared.cpu_bake.take() {
+            commands.insert_resource(lighting::PendingLighting { root, task });
+        } else {
+            commands.remove_resource::<lighting::PendingLighting>();
+        }
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
         commands.remove_resource::<gi::gpu::GpuBakeRequest>();
         commands.remove_resource::<gi::gpu::GiGpuReadiness>();
     }
-    if args.indoor_quality.diffuse_gi() && gi_settings.enabled {
-        #[cfg(not(target_arch = "wasm32"))]
-        if gi_settings.gpu {
-            let transport =
-                gi::BakeScene::from_manifest(&manifest, &material_set, &materials, &images);
-            let (request, transform, statistics) =
-                gi::gpu::prepare(&transport, gi_settings.bake, seed, &mut images);
-            commands.spawn((
-                Name::new("indoor_diffuse_irradiance"),
-                bevy::light::IrradianceVolume {
-                    voxels: request.image.clone(),
-                    intensity: 1.0,
-                    ..default()
-                },
-                transform,
-                ChildOf(root),
-            ));
-            info!(
-                "indoor diffuse GI GPU: {} probes, {} triangles, {:.1} ms preparation, {} bytes",
-                statistics.probes,
-                statistics.triangles,
-                statistics.preparation_ms,
-                statistics.texture_bytes
-            );
-            commands.insert_resource(request.readiness.clone());
-            commands.insert_resource(request);
-            commands.insert_resource(statistics);
-        }
-        if !gi_settings.gpu {
-            let bake = || {
-                let transport =
-                    gi::BakeScene::from_manifest(&manifest, &material_set, &materials, &images);
-                transport.bake(gi_settings.bake, seed)
-            };
-            #[cfg(not(target_arch = "wasm32"))]
-            let probes = {
-                let key = gi::PrefetchKey {
-                    seed,
-                    layout: args.indoor_layout,
-                    density_bits: args.indoor_density.to_bits(),
-                    human_density_bits: args.indoor_human_density.to_bits(),
-                    cameras: settings.num_cameras.max(1),
-                    rotation_augmentation: settings.rotation_augmentation,
-                    settings: gi_settings.bake,
-                };
-                let data = gi_prefetch.take(&key).unwrap_or_else(bake);
-                gi_prefetch.prepare(gi::PrefetchKey {
-                    seed: seed.wrapping_add(1),
-                    ..key
-                });
-                data
-            };
-            #[cfg(target_arch = "wasm32")]
-            let probes = bake();
-            info!(
-            "indoor diffuse GI: {} probes, {} triangles, {:.1} ms preparation + {:.1} ms bake, {} bytes",
-            probes.statistics.probes,
-            probes.statistics.triangles,
-            probes.statistics.preparation_ms,
-            probes.statistics.bake_ms.unwrap_or_default(),
-            probes.statistics.texture_bytes
-        );
-            commands.spawn((
-                Name::new("indoor_diffuse_irradiance"),
-                bevy::light::IrradianceVolume {
-                    voxels: images.add(probes.image()),
-                    intensity: 1.0,
-                    ..default()
-                },
-                probes.transform(),
-                ChildOf(root),
-            ));
-            commands.insert_resource(probes.statistics);
-        }
+    if let Some((image, transform, statistics)) = prepared.probes.take() {
+        commands.spawn((
+            Name::new("indoor_diffuse_irradiance"),
+            bevy::light::IrradianceVolume {
+                voxels: image,
+                intensity: 1.0,
+                ..default()
+            },
+            transform,
+            ChildOf(root),
+        ));
+        commands.insert_resource(statistics);
     } else {
         commands.remove_resource::<gi::BakeStatistics>();
     }
-    architecture::architecture(&manifest).spawn(root, &mut commands, &mut meshes, &material_set);
-    for object in &manifest.objects {
-        objects::spawn_object(object, root, &mut commands, &mut meshes, &material_set);
+    #[cfg(not(target_arch = "wasm32"))]
+    if let Some(request) = prepared.gpu_request.take() {
+        commands.insert_resource(request.readiness.clone());
+        commands.insert_resource(request);
     }
-    humans::spawn_people(
-        &manifest,
-        root,
-        &mut commands,
-        &mut meshes,
-        &mut materials,
-        &material_set,
-    );
-    architecture::spawn_lights(&manifest, args.indoor_quality, root, &mut commands);
+    architecture::spawn_lights(manifest, args.indoor_quality, root, &mut commands);
     for (index, camera) in manifest
         .cameras
         .iter()
         .take(settings.num_cameras)
         .enumerate()
     {
-        let sampler = |p| ExtrinsicsSampler {
-            position: ExtrinsicsSamplerType::Transform(Transform::from_translation(p)),
-            looking_at: LookingAtSampler::Exact(camera.target),
-            ..default()
-        };
         commands.spawn((
             crate::camera::CaptureCameraIndex(index),
             ZeroverseCamera {
                 perspective_sampler: PerspectiveSampler::exact(camera.fov_degrees),
-                trajectory: TrajectorySampler::Linear {
-                    start: sampler(camera.start),
-                    end: sampler(camera.end),
-                },
+                trajectory: camera.runtime_trajectory(),
                 ..default()
             },
             ChildOf(root),
@@ -364,7 +398,11 @@ fn regenerate(
         manifest.objects.len(),
         settings.num_cameras
     );
-    commands.insert_resource(manifest);
+    prepared.spawn_groups(root, &mut commands);
+    prepared.images.commit(&mut images);
+    prepared.materials.commit(&mut materials);
+    prepared.meshes.commit(&mut meshes);
+    commands.insert_resource(prepared.manifest);
     loaded.write(SceneLoadedEvent);
 }
 
@@ -411,7 +449,11 @@ fn configure_cameras(
             // A camera override leaves legacy scenes' ambient settings intact.
             AmbientLight {
                 color: Color::srgb(0.94, 0.96, 1.0),
-                brightness: if environment.has_gi { 0.0 } else { 12.0 },
+                brightness: if environment.has_gi {
+                    0.0
+                } else {
+                    environment.map.intensity * 0.15
+                },
                 ..default()
             },
         ));

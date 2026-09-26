@@ -1,0 +1,393 @@
+{
+  "browser": "/usr/bin/google-chrome",
+  "headless": false,
+  "software_requested": false,
+  "launch_arguments": [
+    "--enable-unsafe-webgpu",
+    "--ignore-gpu-blocklist",
+    "--enable-features=Vulkan,ForceEnableWebGpuInterop",
+    "--use-angle=vulkan"
+  ],
+  "scope": "viewer and displayed modalities; browser dataset readback is unsupported",
+  "cases": [
+    {
+      "seed": 115,
+      "quality": "auto",
+      "mode": "Color",
+      "url": "http://127.0.0.1:8877/?scene_type=procedural-indoor&indoor_seed=115&indoor_quality=auto&render_mode=Color&editor=true&gizmos=false&width=800&height=600&indoor_human_density=0.25",
+      "startup_submissions": 96,
+      "webgpu": {
+        "submissions": 1020,
+        "adapters": [
+          {
+            "vendor": "nvidia",
+            "architecture": "blackwell",
+            "device": "",
+            "description": "",
+            "maxSampledTexturesPerShaderStage": 48
+          },
+          {
+            "vendor": "nvidia",
+            "architecture": "blackwell",
+            "device": "",
+            "description": "",
+            "maxSampledTexturesPerShaderStage": 48
+          }
+        ],
+        "devices": [
+          {
+            "features": [
+              "float32-blendable",
+              "depth32float-stencil8",
+              "rg11b10ufloat-renderable",
+              "bgra8unorm-storage",
+              "depth-clip-control",
+              "texture-compression-bc",
+              "dual-source-blending",
+              "timestamp-query",
+              "texture-compression-bc-sliced-3d",
+              "core-features-and-limits",
+              "clip-distances",
+              "float32-filterable",
+              "indirect-first-instance"
+            ],
+            "required": {
+              "requiredLimits": {
+                "maxTextureDimension1D": 16384,
+                "maxTextureDimension2D": 16384,
+                "maxTextureDimension3D": 2048,
+                "maxTextureArrayLayers": 2048,
+                "maxBindGroups": 4,
+                "maxBindingsPerBindGroup": 1000,
+                "maxDynamicUniformBuffersPerPipelineLayout": 10,
+                "maxDynamicStorageBuffersPerPipelineLayout": 8,
+                "maxSampledTexturesPerShaderStage": 48,
+                "maxSamplersPerShaderStage": 16,
+                "maxStorageBuffersPerShaderStage": 16,
+                "maxStorageTexturesPerShaderStage": 8,
+                "maxUniformBuffersPerShaderStage": 12,
+                "maxUniformBufferBindingSize": 65536,
+                "maxStorageBufferBindingSize": 2147483644,
+                "minUniformBufferOffsetAlignment": 256,
+                "minStorageBufferOffsetAlignment": 256,
+                "maxVertexBuffers": 8,
+                "maxBufferSize": 4294967292,
+                "maxVertexAttributes": 30,
+                "maxVertexBufferArrayStride": 2048,
+                "maxInterStageShaderVariables": 28,
+                "maxColorAttachments": 8,
+                "maxColorAttachmentBytesPerSample": 128,
+                "maxComputeWorkgroupStorageSize": 49152,
+                "maxComputeInvocationsPerWorkgroup": 1024,
+                "maxComputeWorkgroupSizeX": 1024,
+                "maxComputeWorkgroupSizeY": 1024,
+                "maxComputeWorkgroupSizeZ": 64,
+                "maxComputeWorkgroupsPerDimension": 65535
+              },
+              "requiredFeatures": [
+                "depth-clip-control",
+                "depth32float-stencil8",
+                "texture-compression-bc",
+                "texture-compression-bc-sliced-3d",
+                "timestamp-query",
+                "indirect-first-instance",
+                "rg11b10ufloat-renderable",
+                "bgra8unorm-storage",
+                "float32-filterable",
+                "float32-blendable",
+                "dual-source-blending",
+                "clip-distances"
+              ]
+            }
+          }
+        ],
+        "errors": []
+      },
+      "scene": {
+        "seed": 115,
+        "version": 6,
+        "humans": 3,
+        "instances": 48,
+        "cameras": 0
+      },
+      "user_agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36",
+      "image": {
+        "width": 800,
+        "height": 600,
+        "channel_mean_srgb": [
+          0.4469066830065359,
+          0.4092849019607843,
+          0.3798841666666667
+        ],
+        "channel_std_srgb": [
+          0.1888922252637469,
+          0.16944074791310165,
+          0.15882008243025034
+        ],
+        "unique_thumbnail_colors": 4861,
+        "sha256": "70793571fc96c5b0731cf2553c24f0d7d375efed685f9d425d0124fd1cf5732e"
+      },
+      "regenerated_scene": {
+        "seed": 116,
+        "version": 6,
+        "humans": 1,
+        "instances": 42,
+        "cameras": 0
+      },
+      "regenerated_image": {
+        "width": 800,
+        "height": 600,
+        "channel_mean_srgb": [
+          0.3979476388888889,
+          0.36731596405228756,
+          0.34899540849673205
+        ],
+        "channel_std_srgb": [
+          0.16765145106107518,
+          0.14211416052616063,
+          0.1405136457360052
+        ],
+        "unique_thumbnail_colors": 3952,
+        "sha256": "c3772343499e227c2deb13dfffff378f122414c5a8e5415f1defc3ce219a2f54"
+      },
+      "status": "passed",
+      "wall_seconds": 12.559352374984883,
+      "console": [
+        {
+          "kind": "error",
+          "text": "Failed to load resource: the server responded with a status of 404 (File not found)"
+        },
+        {
+          "kind": "log",
+          "text": "%cINFO%c src/lib.rs:35%c initializing BevyZeroversePlugin... color: whitesmoke; background: #444 color: gray; font-style: italic color: inherit"
+        },
+        {
+          "kind": "log",
+          "text": "%cINFO%c /home/mosure/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bevy_winit-0.19.1/src/system.rs:67%c Creating new window bevy_zeroverse (65v0) color: whitesmoke; background: #444 color: gray; font-style: italic color: inherit"
+        },
+        {
+          "kind": "log",
+          "text": "%cINFO%c /home/mosure/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bevy_render-0.19.1/src/renderer/mod.rs:288%c AdapterInfo { name: \"\", vendor: 0, device: 0, device_type: Other, device_pci_bus_id: \"\", driver: \"\", driver_info: \"\", backend: BrowserWebGpu, subgroup_min_size: 4, subgroup_max_size: 128, transient_saves_memory: false } color: whitesmoke; background: #444 color: gray; font-style: italic color: inherit"
+        },
+        {
+          "kind": "log",
+          "text": "%cINFO%c /home/mosure/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bevy_pbr-0.19.1/src/cluster/mod.rs:87%c GPU clustering is supported on this device. color: whitesmoke; background: #444 color: gray; font-style: italic color: inherit"
+        },
+        {
+          "kind": "log",
+          "text": "%cINFO%c /home/mosure/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bevy_render-0.19.1/src/batching/gpu_preprocessing.rs:1372%c Some GPU preprocessing are limited on this device. color: whitesmoke; background: #444 color: gray; font-style: italic color: inherit"
+        },
+        {
+          "kind": "log",
+          "text": "%cWARN%c /home/mosure/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bevy_egui-0.40.1/src/render/mod.rs:254%c Feature TEXTURE_BINDING_ARRAY is not supported on this device. color: orange; background: #444 color: gray; font-style: italic color: inherit"
+        },
+        {
+          "kind": "info",
+          "text": "Autofocus processing was blocked because a document already has a focused element."
+        },
+        {
+          "kind": "log",
+          "text": "%cWARN%c /home/mosure/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bevy_burn_human-0.4.0/src/lib.rs:863%c burn_human: clamping 8 bone influences to 4 for bevy skinning color: orange; background: #444 color: gray; font-style: italic color: inherit"
+        },
+        {
+          "kind": "log",
+          "text": "%cINFO%c src/scene/procedural_indoor/mod.rs:405%c procedural_indoor seed=115 version=6 humans=3 layout=Training room=Vec3(8.589248, 3.231941, 8.419757) instances=48 cameras=0 color: whitesmoke; background: #444 color: gray; font-style: italic color: inherit"
+        },
+        {
+          "kind": "log",
+          "text": "%cINFO%c src/scene/procedural_indoor/mod.rs:405%c procedural_indoor seed=116 version=6 humans=1 layout=OpenOffice room=Vec3(9.736091, 3.6106803, 7.614142) instances=42 cameras=0 color: whitesmoke; background: #444 color: gray; font-style: italic color: inherit"
+        }
+      ]
+    },
+    {
+      "seed": 115,
+      "quality": "portable",
+      "mode": "Color",
+      "url": "http://127.0.0.1:8877/?scene_type=procedural-indoor&indoor_seed=115&indoor_quality=portable&render_mode=Color&editor=true&gizmos=false&width=800&height=600&indoor_human_density=0.25",
+      "startup_submissions": 92,
+      "webgpu": {
+        "submissions": 930,
+        "adapters": [
+          {
+            "vendor": "nvidia",
+            "architecture": "blackwell",
+            "device": "",
+            "description": "",
+            "maxSampledTexturesPerShaderStage": 48
+          },
+          {
+            "vendor": "nvidia",
+            "architecture": "blackwell",
+            "device": "",
+            "description": "",
+            "maxSampledTexturesPerShaderStage": 48
+          }
+        ],
+        "devices": [
+          {
+            "features": [
+              "float32-blendable",
+              "depth32float-stencil8",
+              "rg11b10ufloat-renderable",
+              "bgra8unorm-storage",
+              "depth-clip-control",
+              "texture-compression-bc-sliced-3d",
+              "dual-source-blending",
+              "clip-distances",
+              "timestamp-query",
+              "core-features-and-limits",
+              "texture-compression-bc",
+              "float32-filterable",
+              "indirect-first-instance"
+            ],
+            "required": {
+              "requiredLimits": {
+                "maxTextureDimension1D": 16384,
+                "maxTextureDimension2D": 16384,
+                "maxTextureDimension3D": 2048,
+                "maxTextureArrayLayers": 2048,
+                "maxBindGroups": 4,
+                "maxBindingsPerBindGroup": 1000,
+                "maxDynamicUniformBuffersPerPipelineLayout": 10,
+                "maxDynamicStorageBuffersPerPipelineLayout": 8,
+                "maxSampledTexturesPerShaderStage": 48,
+                "maxSamplersPerShaderStage": 16,
+                "maxStorageBuffersPerShaderStage": 16,
+                "maxStorageTexturesPerShaderStage": 8,
+                "maxUniformBuffersPerShaderStage": 12,
+                "maxUniformBufferBindingSize": 65536,
+                "maxStorageBufferBindingSize": 2147483644,
+                "minUniformBufferOffsetAlignment": 256,
+                "minStorageBufferOffsetAlignment": 256,
+                "maxVertexBuffers": 8,
+                "maxBufferSize": 4294967292,
+                "maxVertexAttributes": 30,
+                "maxVertexBufferArrayStride": 2048,
+                "maxInterStageShaderVariables": 28,
+                "maxColorAttachments": 8,
+                "maxColorAttachmentBytesPerSample": 128,
+                "maxComputeWorkgroupStorageSize": 49152,
+                "maxComputeInvocationsPerWorkgroup": 1024,
+                "maxComputeWorkgroupSizeX": 1024,
+                "maxComputeWorkgroupSizeY": 1024,
+                "maxComputeWorkgroupSizeZ": 64,
+                "maxComputeWorkgroupsPerDimension": 65535
+              },
+              "requiredFeatures": [
+                "depth-clip-control",
+                "depth32float-stencil8",
+                "texture-compression-bc",
+                "texture-compression-bc-sliced-3d",
+                "timestamp-query",
+                "indirect-first-instance",
+                "rg11b10ufloat-renderable",
+                "bgra8unorm-storage",
+                "float32-filterable",
+                "float32-blendable",
+                "dual-source-blending",
+                "clip-distances"
+              ]
+            }
+          }
+        ],
+        "errors": []
+      },
+      "scene": {
+        "seed": 115,
+        "version": 6,
+        "humans": 3,
+        "instances": 48,
+        "cameras": 0
+      },
+      "user_agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36",
+      "image": {
+        "width": 800,
+        "height": 600,
+        "channel_mean_srgb": [
+          0.44838787581699346,
+          0.40835035947712417,
+          0.3785456290849673
+        ],
+        "channel_std_srgb": [
+          0.18679323215045246,
+          0.1641609152590193,
+          0.15272848632068425
+        ],
+        "unique_thumbnail_colors": 4267,
+        "sha256": "28c2b22aa76d70abc426032ec6f1698cf2ff08051131d75bcafcba4edf68ae30"
+      },
+      "regenerated_scene": {
+        "seed": 116,
+        "version": 6,
+        "humans": 1,
+        "instances": 42,
+        "cameras": 0
+      },
+      "regenerated_image": {
+        "width": 800,
+        "height": 600,
+        "channel_mean_srgb": [
+          0.40992263071895424,
+          0.3785125653594771,
+          0.3612100408496732
+        ],
+        "channel_std_srgb": [
+          0.16496597307431776,
+          0.13885338826286214,
+          0.13945787389421477
+        ],
+        "unique_thumbnail_colors": 3756,
+        "sha256": "f7f2ca84166f74b2f9b2766fb1b289c2415d199a461ac37559fbd3beb6f5f9b9"
+      },
+      "status": "passed",
+      "wall_seconds": 6.782933964044787,
+      "console": [
+        {
+          "kind": "log",
+          "text": "%cINFO%c src/lib.rs:35%c initializing BevyZeroversePlugin... color: whitesmoke; background: #444 color: gray; font-style: italic color: inherit"
+        },
+        {
+          "kind": "log",
+          "text": "%cINFO%c /home/mosure/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bevy_winit-0.19.1/src/system.rs:67%c Creating new window bevy_zeroverse (65v0) color: whitesmoke; background: #444 color: gray; font-style: italic color: inherit"
+        },
+        {
+          "kind": "log",
+          "text": "%cINFO%c /home/mosure/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bevy_render-0.19.1/src/renderer/mod.rs:288%c AdapterInfo { name: \"\", vendor: 0, device: 0, device_type: Other, device_pci_bus_id: \"\", driver: \"\", driver_info: \"\", backend: BrowserWebGpu, subgroup_min_size: 4, subgroup_max_size: 128, transient_saves_memory: false } color: whitesmoke; background: #444 color: gray; font-style: italic color: inherit"
+        },
+        {
+          "kind": "log",
+          "text": "%cINFO%c /home/mosure/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bevy_pbr-0.19.1/src/cluster/mod.rs:87%c GPU clustering is supported on this device. color: whitesmoke; background: #444 color: gray; font-style: italic color: inherit"
+        },
+        {
+          "kind": "log",
+          "text": "%cINFO%c /home/mosure/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bevy_render-0.19.1/src/batching/gpu_preprocessing.rs:1372%c Some GPU preprocessing are limited on this device. color: whitesmoke; background: #444 color: gray; font-style: italic color: inherit"
+        },
+        {
+          "kind": "log",
+          "text": "%cWARN%c /home/mosure/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bevy_egui-0.40.1/src/render/mod.rs:254%c Feature TEXTURE_BINDING_ARRAY is not supported on this device. color: orange; background: #444 color: gray; font-style: italic color: inherit"
+        },
+        {
+          "kind": "info",
+          "text": "Autofocus processing was blocked because a document already has a focused element."
+        },
+        {
+          "kind": "log",
+          "text": "%cWARN%c /home/mosure/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bevy_burn_human-0.4.0/src/lib.rs:863%c burn_human: clamping 8 bone influences to 4 for bevy skinning color: orange; background: #444 color: gray; font-style: italic color: inherit"
+        },
+        {
+          "kind": "log",
+          "text": "%cINFO%c src/scene/procedural_indoor/mod.rs:405%c procedural_indoor seed=115 version=6 humans=3 layout=Training room=Vec3(8.589248, 3.231941, 8.419757) instances=48 cameras=0 color: whitesmoke; background: #444 color: gray; font-style: italic color: inherit"
+        },
+        {
+          "kind": "log",
+          "text": "%cINFO%c src/scene/procedural_indoor/mod.rs:405%c procedural_indoor seed=116 version=6 humans=1 layout=OpenOffice room=Vec3(9.736091, 3.6106803, 7.614142) instances=42 cameras=0 color: whitesmoke; background: #444 color: gray; font-style: italic color: inherit"
+        }
+      ]
+    }
+  ],
+  "wasm_artifact": {
+    "path": "out/program6_web_site/out/viewer_bg.wasm",
+    "sha256": "c5b9070fbb179b4162684b840c26831967ab41d92fa444e509d0322398efc12c",
+    "bytes": 153379718
+  }
+}

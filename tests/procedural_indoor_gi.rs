@@ -25,6 +25,10 @@ fn capture(app: &mut App) -> Sample {
     loop {
         app.update();
         assert!(
+            app.should_exit().is_none(),
+            "renderer exited during GI capture"
+        );
+        assert!(
             app.world()
                 .resource::<bevy_zeroverse::sample::CaptureFailure>()
                 .0
@@ -57,6 +61,7 @@ fn baked_indirect_light_changes_rgb_without_changing_geometry_or_direct_lights()
     let config = BevyZeroverseConfig {
         scene_type: ZeroverseSceneType::ProceduralIndoor,
         indoor_seed: Some(6),
+        indoor_human_density: 0.0,
         headless: true,
         editor: false,
         gizmos: false,
@@ -90,6 +95,17 @@ fn baked_indirect_light_changes_rgb_without_changing_geometry_or_direct_lights()
     let baseline = capture(&mut app);
     let statistics = app.world().resource::<BakeStatistics>().clone();
     validate_gpu_volume(&mut app);
+    // Interactive rooms become visible before their CPU irradiance task finishes.
+    // Capturing that same path must still wait for the complete volume.
+    app.world_mut()
+        .resource_mut::<bevy_zeroverse::scene::procedural_indoor::gi::IndoorGiSettings>()
+        .gpu = false;
+    bevy_zeroverse::scene::procedural_indoor::reset_indoor_sequence(app.world_mut(), 6);
+    app.world_mut().write_message(RegenerateSceneEvent);
+    let interactive = capture(&mut app);
+    let interactive_statistics = app.world().resource::<BakeStatistics>().clone();
+    assert_eq!(app.world().resource::<BakeStatistics>().backend, "cpu_bvh");
+    assert!(!bevy_zeroverse::scene::procedural_indoor::indoor_generation_pending(app.world()));
     let mut count = 0;
     for mut volume in app
         .world_mut()
@@ -104,7 +120,7 @@ fn baked_indirect_light_changes_rgb_without_changing_geometry_or_direct_lights()
     let output = output_directory();
     std::fs::create_dir_all(&output).unwrap();
     let mut metrics = Vec::new();
-    for (index, view) in baseline.views.iter().enumerate() {
+    for (index, view) in interactive.views.iter().enumerate() {
         assert_eq!(
             view.world_from_view, no_gi.views[index].world_from_view,
             "GI ablation cameras must remain fixed"
@@ -155,7 +171,8 @@ fn baked_indirect_light_changes_rgb_without_changing_geometry_or_direct_lights()
         );
     }
     std::fs::write(output.join("render_ablation.json"),serde_json::to_vec_pretty(&serde_json::json!({
-        "seed":6,"width":640,"height":480,"statistics":statistics,"views":metrics,
+        "seed":6,"width":640,"height":480,"statistics":interactive_statistics,"gpu_statistics":statistics,"views":metrics,
+        "gpu_views":baseline.views.len(), "interactive_capture_waited_for_cpu_gi":true,
         "control":"Only IrradianceVolume.intensity changed from 1 to 0; geometry, lights, shadows, exposure unchanged."})).unwrap()).unwrap();
 }
 

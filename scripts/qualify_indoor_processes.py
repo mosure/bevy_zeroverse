@@ -231,7 +231,7 @@ def verify_dataset(directory, args):
     require(isinstance(capture_engine, str) and capture_engine, 'missing capture engine identity')
     for key, expected in [('base_seed', args.seed), ('width', args.width), ('height', args.height),
                           ('cameras', args.cameras), ('quality', args.quality), ('color_codec', 'raw'),
-                          ('playback_steps', 1), ('generator_version', 4)]:
+                          ('playback_steps', 1), ('generator_version', args.generator_version)]:
         require(config.get(key) == expected, f'generation contract mismatch: {key}')
     require(config.get('gi_effective_enabled') is (args.quality == 'auto'), 'GI enablement contract mismatch')
     require(config.get('gi_settings', {}).get('bake', {}).get('rays_per_probe') == 256,
@@ -256,7 +256,7 @@ def verify_dataset(directory, args):
         for index in range(batch):
             manifest = json.loads(small_tensor(path, header, offset, f'indoor_manifest_{index}'))
             require(manifest['seed'] == (args.seed + count + index) % (1 << 64), f'{path}: sample seed/index mismatch')
-            require(manifest['generator_version'] == 4 and len(manifest['cameras']) == args.cameras,
+            require(manifest['generator_version'] == args.generator_version and len(manifest['cameras']) == args.cameras,
                     f'{path}: incorrect scene manifest')
             provenance = json.loads(small_tensor(path, header, offset, f'indoor_render_metadata_{index}'))
             require(provenance.get('capture_engine') == capture_engine, f'{path}: mixed capture engine identity')
@@ -532,7 +532,8 @@ def self_test():
         def test_dataset_indices_and_manifests_are_checked_without_image_loading(self):
             with tempfile.TemporaryDirectory() as directory:
                 directory = Path(directory)
-                args = types.SimpleNamespace(seed=7, width=1, height=1, cameras=1, quality='portable', samples=2, chunk_size=2)
+                args = types.SimpleNamespace(seed=7, width=1, height=1, cameras=1, quality='portable', samples=2,
+                                             chunk_size=2, generator_version=4)
                 config = dict(base_seed=7, width=1, height=1, cameras=1, quality='portable', color_codec='raw', playback_steps=1,
                               generator_version=4, capture_engine='test-engine', gi_effective_enabled=False,
                               gi_settings={'bake': {'rays_per_probe': 256}})
@@ -560,6 +561,10 @@ def self_test():
                     (directory / '000000.safetensors').write_bytes(struct.pack('<Q', len(encoded)) + encoded + payload)
                 write_chunk([7, 8])
                 self.assertEqual(verify_dataset(directory, args)['samples'], 2)
+                args.generator_version = 5
+                with self.assertRaisesRegex(ValueError, 'generator_version'):
+                    verify_dataset(directory, args)
+                args.generator_version = 4
                 (directory / 'generation_config.json').write_text(json.dumps({**config, 'capture_engine': 'different-engine'}))
                 with self.assertRaisesRegex(ValueError, 'mixed capture engine'):
                     verify_dataset(directory, args)
@@ -646,6 +651,8 @@ def main():
     parser.add_argument('--cameras', type=int, default=3)
     parser.add_argument('--seed', type=int, default=23000)
     parser.add_argument('--quality', choices=['auto', 'portable'], default='portable')
+    parser.add_argument('--generator-version', type=int, default=6,
+                        help='required generator identity; use 4 to review historical v4 output')
     parser.add_argument('--interval', type=float, default=.1)
     parser.add_argument('--timeout', type=float, default=1800)
     parser.add_argument('--release-grace', type=float, default=15)
@@ -655,7 +662,8 @@ def main():
         return self_test()
     if args.output is None:
         parser.error('--output is required')
-    for name in ('samples', 'workers', 'chunk_size', 'width', 'height', 'cameras', 'interval', 'timeout', 'release_grace'):
+    for name in ('samples', 'workers', 'chunk_size', 'width', 'height', 'cameras', 'generator_version',
+                 'interval', 'timeout', 'release_grace'):
         value = getattr(args, name)
         if not math.isfinite(value) or value <= 0:
             parser.error(f'{name} must be positive and finite')

@@ -895,6 +895,15 @@ impl crate::Device for super::Device {
         let location = match (is_cpu_read, is_cpu_write) {
             (true, true) => gpu_allocator::MemoryLocation::CpuToGpu,
             (true, false) => gpu_allocator::MemoryLocation::GpuToCpu,
+            // Queue uploads are temporary copy sources, not GPU working data.
+            // CpuToGpu prefers DEVICE_LOCAL BAR memory; glibc's ERMS memcpy can
+            // write that uncached mapping byte-by-byte at ~11 MB/s. Request the
+            // allocator's HOST_CACHED policy for staging instead. Despite its
+            // name, GpuToCpu only selects memory properties: usage and copy
+            // direction remain unchanged, and coherent-memory fallback is kept.
+            (false, true) if desc.memory_flags.contains(crate::MemoryFlags::TRANSIENT) => {
+                gpu_allocator::MemoryLocation::GpuToCpu
+            }
             (false, true) => gpu_allocator::MemoryLocation::CpuToGpu,
             (false, false) => gpu_allocator::MemoryLocation::GpuOnly,
         };

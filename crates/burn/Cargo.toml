@@ -1,6 +1,6 @@
 [package]
 name = "bevy_zeroverse_burn"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 description = "bevy zeroverse synthetic dataset rust generator"
@@ -33,7 +33,7 @@ anyhow = "1.0"
 bincode = { version = "2.0", features = ["serde"] }
 burn = { version = "=0.21.0", default-features = false, features = ["std", "dataset"] }
 clap = { version = "4.5", features = ["derive"] }
-lz4_flex = { version = "0.12", default-features = false, features = ["frame"] }
+lz4_flex = { version = "0.12.2", default-features = false, features = ["frame"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 safetensors = "0.7"
@@ -46,7 +46,7 @@ crossterm = "0.29"
 ndarray = { version = "0.16", default-features = false, features = ["std"] }
 ndarray-npy = { version = "0.9", features = ["npz"] }
 
-bevy_zeroverse = { path = "../..", version = "0.19.0", default-features = true }
+bevy_zeroverse = { path = "../..", version = "0.20.0", default-features = true }
 
 [dev-dependencies]
 criterion = { version = "0.8", features = ["html_reports"] }

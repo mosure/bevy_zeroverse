@@ -13,7 +13,7 @@ use itertools::Itertools;
 use crate::{app::BevyZeroverseConfig, asset::WaitForAssets, scene::RegenerateSceneEvent};
 
 #[cfg(not(target_family = "wasm"))]
-use crate::util::strip_extended_length_prefix;
+use crate::asset::asset_root;
 
 pub type MeshCategory = String;
 
@@ -56,13 +56,17 @@ impl Plugin for ZeroverseMeshPlugin {
 
         app.register_type::<MeshLoaderSettings>();
 
-        app.add_systems(PreStartup, find_meshes);
-        app.add_systems(Startup, load_meshes);
+        app.init_resource::<crate::asset::CatalogTask<HashMap<MeshCategory, Vec<PathBuf>>>>();
+        app.add_systems(
+            First,
+            (discover_meshes, reload_meshes)
+                .chain()
+                .after(crate::asset::AssetDemandSet),
+        );
         app.add_systems(
             Update,
             (mesh_exchange, normalize_meshes.in_set(NormalizeMeshesSet)),
         );
-        app.add_systems(PostUpdate, reload_meshes);
     }
 }
 
@@ -85,48 +89,49 @@ pub struct MeshRoots {
     pub categories: HashMap<MeshCategory, Vec<PathBuf>>,
 }
 
-fn find_meshes(args: Option<Res<BevyZeroverseConfig>>, mut found_meshes: ResMut<MeshRoots>) {
-    // Match the asset-free indoor loader guard before walking the asset tree.
-    // Interactive viewers still discover assets for subsequent scene changes.
-    if args.as_ref().is_some_and(|args| {
-        args.headless
-            && !args.editor
-            && !args.material_grid
-            && args.scene_type == crate::scene::ZeroverseSceneType::ProceduralIndoor
-    }) {
-        return;
+fn discover_meshes(
+    demand: Res<crate::asset::SceneAssetDemand>,
+    mut found: ResMut<MeshRoots>,
+    mut task: ResMut<crate::asset::CatalogTask<HashMap<MeshCategory, Vec<PathBuf>>>>,
+    mut wait: ResMut<WaitForAssets>,
+    mut shuffle: MessageWriter<ShuffleMeshesEvent>,
+    mut complete: Local<bool>,
+    mut active: Local<std::collections::BTreeSet<String>>,
+) {
+    if let Some(job) = task.0.as_mut() {
+        if let Some(categories) = bevy::tasks::block_on(bevy::tasks::poll_once(job)) {
+            found.categories = categories;
+            *complete = true;
+            task.0 = None;
+            wait.pending_catalogs -= 1;
+        }
     }
+    if !demand.mesh_categories.is_empty() && !*complete && task.0.is_none() {
+        wait.pending_catalogs += 1;
+        task.0 = Some(bevy::tasks::IoTaskPool::get().spawn(async { find_meshes() }));
+    }
+    if *complete && *active != demand.mesh_categories {
+        *active = demand.mesh_categories.clone();
+        shuffle.write(ShuffleMeshesEvent);
+    }
+}
+
+fn find_meshes() -> HashMap<MeshCategory, Vec<PathBuf>> {
     #[cfg(target_family = "wasm")]
     {
-        found_meshes.categories = HashMap::from([(
+        HashMap::from([(
             "chair".into(),
             vec![PathBuf::from("models/subset/chair/0.glb")],
-        )]);
+        )])
     }
 
     // TODO: add manifest file caching to improve load times
     #[cfg(not(target_family = "wasm"))]
     {
-        let cwd = match std::env::var("BEVY_ASSET_ROOT") {
-            Ok(asset_root) => {
-                info!("BEVY_ASSET_ROOT: `{}`", asset_root);
-                let abs_path = PathBuf::from(asset_root)
-                    .canonicalize()
-                    .expect("failed to canonicalize asset root");
+        let asset_server_path = asset_root();
+        let pattern: String = format!("{}/models/**/*.glb", asset_server_path.to_string_lossy());
 
-                strip_extended_length_prefix(&abs_path)
-            }
-            Err(_) => std::env::current_dir().expect("failed to get current working directory"),
-        };
-
-        let asset_server_path = if cwd.ends_with("assets") {
-            cwd.clone()
-        } else {
-            cwd.join("assets")
-        };
-        let pattern: String = format!("{}/**/*.glb", asset_server_path.to_string_lossy());
-
-        found_meshes.categories = glob::glob(&pattern)
+        let mut categories = glob::glob(&pattern)
             .expect("failed to read glob pattern")
             .filter_map(Result::ok)
             .filter_map(|path| {
@@ -137,14 +142,18 @@ fn find_meshes(args: Option<Res<BevyZeroverseConfig>>, mut found_meshes: ResMut<
             })
             .into_group_map();
 
-        for (category, paths) in found_meshes.categories.iter() {
+        for paths in categories.values_mut() {
+            paths.sort();
+        }
+        for (category, paths) in &categories {
             info!("found {} meshes for category `{}`", paths.len(), category);
         }
+        categories
     }
 }
 
 fn load_meshes(
-    args: Option<Res<BevyZeroverseConfig>>,
+    demand: Res<crate::asset::SceneAssetDemand>,
     asset_server: Res<AssetServer>,
     mut zeroverse_meshes: ResMut<ZeroverseMeshes>,
     mut load_event: MessageWriter<MeshesLoadedEvent>,
@@ -152,15 +161,12 @@ fn load_meshes(
     found_meshes: Res<MeshRoots>,
     mut wait_for: ResMut<WaitForAssets>,
 ) {
-    if args.as_ref().is_some_and(|args| {
-        args.scene_type == crate::scene::ZeroverseSceneType::ProceduralIndoor && !args.material_grid
-    }) {
-        load_event.write(MeshesLoadedEvent);
-        return;
-    }
     let mut rng = rand::rng();
 
     for (category, paths) in &found_meshes.categories {
+        if !demand.mesh_categories.contains(category) {
+            continue;
+        }
         let selected_paths = paths
             .iter()
             .choose_multiple(&mut rng, mesh_loader_settings.category_batch_size);
@@ -205,7 +211,7 @@ fn load_meshes(
 
 #[allow(clippy::too_many_arguments)]
 fn reload_meshes(
-    args: Option<Res<BevyZeroverseConfig>>,
+    demand: Res<crate::asset::SceneAssetDemand>,
     asset_server: Res<AssetServer>,
     mut zeroverse_meshes: ResMut<ZeroverseMeshes>,
     mut shuffle_events: MessageReader<ShuffleMeshesEvent>,
@@ -224,7 +230,7 @@ fn reload_meshes(
     zeroverse_meshes.original_sizes.clear();
 
     load_meshes(
-        args,
+        demand,
         asset_server,
         zeroverse_meshes,
         load_event,

@@ -26,7 +26,8 @@ use bevy_args::{Deserialize, Parser, Serialize, ValueEnum};
 #[cfg(feature = "viewer")]
 use bevy_egui::EguiPlugin;
 #[cfg(feature = "viewer")]
-use bevy_inspector_egui::quick::WorldInspectorPlugin;
+mod inspector;
+mod settings;
 #[cfg(feature = "viewer")]
 use bevy_panorbit_camera::{PanOrbitCamera, PanOrbitCameraPlugin};
 
@@ -768,7 +769,7 @@ pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) 
     });
 
     #[cfg(not(target_arch = "wasm32"))]
-    let primary_window = Some(Window {
+    let primary_window = (!args.headless).then(|| Window {
         mode: bevy::window::WindowMode::Windowed,
         prevent_default_event_handling: false,
         resolution: bevy::window::WindowResolution::new(
@@ -776,9 +777,6 @@ pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) 
             args.height.round() as u32,
         ),
         title: args.name.clone(),
-        // In headless mode keep the window hidden but present to allow the render backend to create a device.
-        visible: !args.headless,
-
         #[cfg(feature = "perftest")]
         present_mode: bevy::window::PresentMode::AutoNoVsync,
         #[cfg(not(feature = "perftest"))]
@@ -788,6 +786,13 @@ pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) 
     });
 
     app.insert_resource(ClearColor(Color::srgba(0.0, 0.0, 0.0, 0.0)));
+    // Bound interactive asset-upload bursts. Capture workers retain throughput
+    // and explicitly wait for assets/pipelines before accepting a frame.
+    if !args.image_copiers {
+        app.insert_resource(bevy::render::render_asset::RenderAssetBytesPerFrame::new(
+            32 * 1024 * 1024,
+        ));
+    }
 
     let winit_plugin = WinitPlugin {
         run_on_any_thread: true,
@@ -829,7 +834,26 @@ pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) 
         close_when_requested: false,
     });
 
+    // Offscreen capture uses image targets and does not need a hidden window or
+    // winit's process-global event loop. This also permits sequential capture
+    // apps and workers without a display server.
+    #[cfg(not(target_arch = "wasm32"))]
+    let default_plugins = if args.headless {
+        default_plugins.disable::<WinitPlugin>()
+    } else {
+        default_plugins
+    };
+
     app.add_plugins(default_plugins);
+
+    #[cfg(not(target_arch = "wasm32"))]
+    if args.headless {
+        // Preserve App::run() for the standalone headless viewer. Dataset
+        // workers replace this runner with their request-driven runner.
+        app.add_plugins(bevy::app::ScheduleRunnerPlugin::run_loop(
+            std::time::Duration::from_millis(1),
+        ));
+    }
 
     if args.image_copiers {
         app.add_plugins(io::image_copy::ImageCopyPlugin);
@@ -840,7 +864,7 @@ pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) 
     app.add_plugins(PanOrbitCameraPlugin);
 
     #[cfg(feature = "viewer")]
-    if args.editor {
+    if args.editor && !args.headless {
         // Register config and the enum fields it exposes so the inspector keeps working
         // when the config definition changes.
         app.register_type::<BevyZeroverseConfig>();
@@ -852,7 +876,8 @@ pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) 
         app.register_type::<crate::scene::procedural_indoor::IndoorQuality>();
 
         app.add_plugins(EguiPlugin::default());
-        app.add_plugins(WorldInspectorPlugin::new());
+        app.add_plugins(bevy_inspector_egui::DefaultInspectorConfigPlugin);
+        app.add_systems(bevy_egui::EguiPrimaryContextPass, inspector::panel);
     }
 
     if args.press_esc_close {
@@ -867,7 +892,11 @@ pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) 
         resolution: UVec2::new(args.width as u32, args.height as u32).into(),
     });
 
-    app.add_systems(PostStartup, (propagate_cli_settings, setup_scene));
+    app.add_systems(PostStartup, (settings::synchronize, setup_scene).chain());
+    app.add_systems(
+        First,
+        settings::synchronize.before(crate::asset::AssetDemandSet),
+    );
 
     if args.keybinds {
         app.add_systems(PreUpdate, press_m_shuffle_materials_and_meshes);
@@ -884,10 +913,7 @@ pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) 
 
     app.add_systems(Update, rotate_scene);
 
-    app.add_systems(
-        PostUpdate,
-        (propagate_cli_settings, regenerate_scene_system),
-    );
+    app.add_systems(PostUpdate, regenerate_scene_system);
 
     app
 }
@@ -1121,7 +1147,7 @@ fn setup_material_grid(
                         .unwrap()
                         .base_color_texture
                         .clone()
-                        .unwrap();
+                        .unwrap_or_default();
 
                     builder.spawn(ImageNode {
                         image: base_color_texture,
@@ -1147,6 +1173,7 @@ fn setup_scene(
 fn regenerate_scene_system(
     args: Res<BevyZeroverseConfig>,
     sampler: Option<Res<crate::sample::SamplerState>>,
+    indoor: Option<Res<crate::scene::procedural_indoor::IndoorGenerationStatus>>,
     keys: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
     mut regenerate_stopwatch: Local<Stopwatch>,
@@ -1159,8 +1186,9 @@ fn regenerate_scene_system(
         regenerate_stopwatch.tick(time.delta());
     }
 
-    let mut regenerate_scene =
-        regenerate_stopwatch.elapsed().as_millis() > args.regenerate_ms as u128;
+    let mut regenerate_scene = args.regenerate_ms > 0
+        && regenerate_stopwatch.elapsed().as_millis() > args.regenerate_ms as u128
+        && !indoor.is_some_and(|status| status.busy());
 
     if args.keybinds {
         regenerate_scene |= keys.just_pressed(KeyCode::KeyR);
@@ -1188,34 +1216,6 @@ fn rotate_scene(
             continue;
         }
         transform.rotate(Quat::from_rotation_y(delta_rot));
-    }
-}
-
-fn propagate_cli_settings(
-    args: Res<BevyZeroverseConfig>,
-    sampler: Option<Res<crate::sample::SamplerState>>,
-    // mut plucker_settings: ResMut<ZeroversePluckerSettings>,
-    mut playback: ResMut<Playback>,
-    mut render_mode: ResMut<RenderMode>,
-    mut scene_settings: ResMut<ZeroverseSceneSettings>,
-    mut semantic_room_settings: ResMut<ZeroverseSemanticRoomSettings>,
-) {
-    if args.is_changed() {
-        // plucker_settings.enabled = args.plucker_visualization;
-
-        if !sampler.is_some_and(|state| state.enabled) {
-            playback.mode = args.playback_mode;
-            playback.speed = args.playback_speed;
-        }
-
-        *render_mode = args.render_mode.clone();
-
-        scene_settings.num_cameras = args.num_cameras;
-        scene_settings.rotation_augmentation = args.rotation_augmentation;
-        scene_settings.scene_type = args.scene_type.clone();
-        scene_settings.max_camera_radius = args.max_camera_radius;
-
-        semantic_room_settings.cuboid_only = args.cuboid_only;
     }
 }
 

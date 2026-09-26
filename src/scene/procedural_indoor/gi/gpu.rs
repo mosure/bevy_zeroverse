@@ -102,7 +102,7 @@ pub fn prepare(
     scene: &BakeScene,
     settings: BakeSettings,
     seed: u64,
-    images: &mut Assets<Image>,
+    images: &mut impl super::super::preparation::AssetStore<Image>,
 ) -> (GpuBakeRequest, Transform, BakeStatistics) {
     assert!(settings.spacing >= 0.2 && settings.spacing.is_finite());
     assert!(
@@ -208,7 +208,12 @@ pub fn prepare(
         .map(|l| GpuLight {
             position_range: l.position.extend(l.range).to_array(),
             color_candela: l.color.extend(l.candela).to_array(),
-            spot: [u32::from(l.spot), 0, 0, 0],
+            spot: [
+                u32::from(l.spot),
+                l.inner_cos.to_bits(),
+                l.outer_cos.to_bits(),
+                0,
+            ],
         })
         .collect();
     let data = ProbeData {

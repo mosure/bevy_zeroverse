@@ -1,12 +1,14 @@
 # Procedural interiors in WebGPU
 
-The [generator-v4 review](procedural_indoor_review_v4.md) contains the current
+The [generator-v4 review](procedural_indoor_review_v4.md) contains the previous
 native-Chromium Auto/Portable RGB/depth regeneration checks and screenshots.
 The older reports below retain their original generator and dependency versions.
 
-The Wasm viewer constructs the version 4 seeded interior grammar, articulated
-procedural people, and procedural PBR maps in browser memory. It does not require
-the furniture/material catalogs. Browser
+The version 8 viewer constructs the seeded interior grammar, AnnyBody
+people, and procedural PBR maps in browser memory. People require the bundled
+`assets/burn_human` reference; set `indoor_human_density=0` to omit it. It does not
+require the furniture/material catalogs. See the [domain review](procedural_domain_v8.md)
+for current native and browser validation. Browser
 dataset readback is unsupported: `image_copiers=true` fails with an actionable error
 instead of attempting native GPU readback. Use native `indoor_validate`,
 `zeroverse_gen`, or the Python dataloader for datasets.
@@ -76,7 +78,7 @@ python3 -m pip install playwright pillow
 python3 scripts/validate_indoor_web.py --url http://127.0.0.1:8765/ \
   --browser /usr/bin/google-chrome --seeds 0 6 --profiles auto portable \
   --modes Color Depth Normal Semantic Position --wasm-path www/out/viewer_bg.wasm \
-  --generator-version 4 --human-density 0.6 --min-humans 1 \
+  --generator-version 8 --human-density 0.6 --min-humans 1 \
   --regenerate --output out/indoor_web_bevy019
 ```
 

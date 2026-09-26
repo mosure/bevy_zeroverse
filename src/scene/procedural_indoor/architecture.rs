@@ -1,4 +1,4 @@
-mod details;
+pub mod details;
 use super::{
     layout::{stream, IndoorManifest, LightingMood, ObjectKind, NEIGHBOR_DEPTH},
     materials::{kelvin_rgb, Surface},
@@ -9,6 +9,7 @@ use rand::Rng;
 
 pub fn architecture(scene: &IndoorManifest) -> Assembly {
     let mut a = Assembly::default();
+    super::floorplan::build(scene, &mut a);
     let w = scene.room_size.x;
     let h = scene.room_size.y;
     let d = scene.room_size.z;
@@ -100,13 +101,17 @@ pub fn architecture(scene: &IndoorManifest) -> Assembly {
         0.003,
     );
     let bay = d / scene.window_bays as f32;
+    let pier = scene
+        .domain()
+        .map_or(0.15, |v| bay * v.facade_pier_fraction)
+        .clamp(0.12, bay - 0.30);
     for i in 0..=scene.window_bays {
         let z = -hz + i as f32 * bay;
         a.box_part(
             Surface::Paint,
             "wall",
             Vec3::new(-hx - 0.03, (sill + top) * 0.5, z),
-            Vec3::new(t + 0.10, top - sill, 0.15),
+            Vec3::new(t + 0.10, top - sill, pier),
             0.003,
         );
     }
@@ -116,15 +121,15 @@ pub fn architecture(scene: &IndoorManifest) -> Assembly {
             Surface::Glass,
             "window",
             Vec3::new(-hx - 0.055, (sill + top) * 0.5, z),
-            Vec3::new(0.008, top - sill - 0.09, bay - 0.19),
+            Vec3::new(0.008, top - sill - 0.09, bay - pier - 0.04),
             0.0,
         );
-        for dz in [-bay * 0.5 + 0.10, 0.0, bay * 0.5 - 0.10] {
+        for dz in [-(bay - pier) * 0.5 + 0.025, 0.0, (bay - pier) * 0.5 - 0.025] {
             a.box_part(
                 Surface::Metal,
                 "window",
                 Vec3::new(-hx - 0.052, (sill + top) * 0.5, z + dz),
-                Vec3::new(0.070, top - sill, 0.034),
+                Vec3::new(0.070, top - sill - 0.08, 0.034),
                 0.003,
             );
         }
@@ -133,7 +138,7 @@ pub fn architecture(scene: &IndoorManifest) -> Assembly {
                 Surface::Metal,
                 "window",
                 Vec3::new(-hx - 0.052, y, z),
-                Vec3::new(0.075, 0.04, bay - 0.15),
+                Vec3::new(0.075, 0.04, bay - pier),
                 0.003,
             );
         }
@@ -141,7 +146,7 @@ pub fn architecture(scene: &IndoorManifest) -> Assembly {
             Surface::Wood,
             "window",
             Vec3::new(-hx + 0.015, sill - 0.01, z),
-            Vec3::new(0.32, 0.04, bay - 0.12),
+            Vec3::new(0.32, 0.04, bay - pier + 0.03),
             0.007,
         );
         if scene.blinds {
@@ -149,16 +154,19 @@ pub fn architecture(scene: &IndoorManifest) -> Assembly {
                 Surface::Metal,
                 "blinds",
                 Vec3::new(-hx + 0.12, top - 0.055, z),
-                Vec3::new(0.06, 0.08, bay - 0.18),
+                Vec3::new(0.06, 0.08, bay - pier - 0.03),
                 0.004,
             );
-            for j in 0..10 {
+            let coverage = scene.domain().map_or(0.65, |d| d.blind_coverage);
+            let slats = (((top - sill - 0.18) * coverage / 0.065).floor() as usize).clamp(1, 64);
+            for j in 0..slats {
                 let y = top - 0.15 - j as f32 * 0.065;
                 a.part(Surface::WoodEdge, "blinds").cuboid(
-                    Vec3::new(0.072, 0.003, bay - 0.20),
+                    Vec3::new(0.072, 0.003, bay - pier - 0.05),
                     0.0,
-                    Transform::from_xyz(-hx + 0.12, y, z)
-                        .with_rotation(Quat::from_rotation_z(-0.42)),
+                    Transform::from_xyz(-hx + 0.12, y, z).with_rotation(Quat::from_rotation_z(
+                        scene.domain().map_or(-0.42, |d| d.blind_tilt),
+                    )),
                 );
             }
         }
@@ -181,7 +189,7 @@ pub fn architecture(scene: &IndoorManifest) -> Assembly {
         for i in 0..count {
             let x = lo + (i as f32 + 0.5) * segment;
             a.box_part(
-                Surface::Glass,
+                Surface::GlassInterior,
                 "window",
                 Vec3::new(x, partition_h * 0.5, hz),
                 Vec3::new(segment - 0.045, partition_h - 0.06, 0.01),
@@ -201,7 +209,7 @@ pub fn architecture(scene: &IndoorManifest) -> Assembly {
                 Surface::Metal,
                 "window",
                 Vec3::new(lo + i as f32 * segment, partition_h * 0.5, hz),
-                Vec3::new(0.035, partition_h, 0.075),
+                Vec3::new(0.035, partition_h - 0.084, 0.075),
                 0.002,
             );
         }
@@ -219,8 +227,8 @@ pub fn architecture(scene: &IndoorManifest) -> Assembly {
         a.box_part(
             Surface::WoodEdge,
             "door",
-            Vec3::new(x, 1.16, hz),
-            Vec3::new(0.075, 2.32, 0.17),
+            Vec3::new(x, 2.255 * 0.5, hz),
+            Vec3::new(0.075, 2.255, 0.17),
             0.004,
         );
     }
@@ -232,7 +240,7 @@ pub fn architecture(scene: &IndoorManifest) -> Assembly {
         0.004,
     );
     a.box_part(
-        Surface::Glass,
+        Surface::GlassInterior,
         "window",
         Vec3::new(scene.door_x, (partition_h + 2.35) * 0.5, hz),
         Vec3::new(1.05, partition_h - 2.35, 0.01),
@@ -284,32 +292,22 @@ pub fn architecture(scene: &IndoorManifest) -> Assembly {
             Surface::Paint,
             "ceiling",
             Vec3::new(0.0, h - 0.07, z),
-            Vec3::new(w, 0.14, 0.36),
+            Vec3::new(w - 0.72, 0.14, 0.36),
             0.003,
         );
     }
     details::feature_wall(&mut a, scene);
     if scene.ceiling_style == 0 {
-        for i in 1..(w / 0.6) as usize {
-            let x = -hx + i as f32 * 0.6;
-            a.box_part(
-                Surface::Metal,
-                "ceiling",
-                Vec3::new(x, h - 0.004, 0.0),
-                Vec3::new(0.012, 0.008, d),
-                0.0,
-            );
-        }
-        for i in 1..(d / 0.6) as usize {
-            let z = -hz + i as f32 * 0.6;
-            a.box_part(
-                Surface::Metal,
-                "ceiling",
-                Vec3::new(0.0, h - 0.004, z),
-                Vec3::new(w, 0.008, 0.012),
-                0.0,
-            );
-        }
+        let finishes = details::FinishParameters::for_scene(scene);
+        details::crossed_beams(
+            &mut a,
+            scene,
+            finishes.ceiling_pitch,
+            0.012,
+            0.008,
+            h - 0.004,
+            Surface::Metal,
+        );
     } else if scene.ceiling_style == 1 {
         for i in 0..16 {
             let x = -w * 0.34 + i as f32 * w * 0.68 / 15.0;
@@ -323,6 +321,7 @@ pub fn architecture(scene: &IndoorManifest) -> Assembly {
         }
     }
     details::ceiling(&mut a, scene);
+    details::zone_ceilings(&mut a, scene);
     // Supply grilles and recessed luminaire housings.
     for z in [-d * 0.28, d * 0.28] {
         a.box_part(
@@ -342,22 +341,16 @@ pub fn architecture(scene: &IndoorManifest) -> Assembly {
             );
         }
     }
-    for p in fixture_positions(scene) {
-        a.box_part(
-            Surface::Metal,
-            "lamp",
-            p,
-            Vec3::new(1.05, 0.055, 0.27),
-            0.006,
-        );
+    for (i, p) in fixture_positions(scene).into_iter().enumerate() {
+        a.box_part(Surface::Metal, "lamp", p, fixture_size(scene), 0.006);
         a.box_part(
             Surface::Light,
-            "lamp",
+            &format!("lamp#{i}"),
             p - Vec3::Y * 0.030,
-            Vec3::new(0.99, 0.008, 0.215),
+            (fixture_size(scene) - Vec3::new(0.06, 0.0, 0.055)).with_y(0.008),
             0.002,
         );
-        for x in [-0.38, 0.38] {
+        for x in [-fixture_size(scene).x * 0.36, fixture_size(scene).x * 0.36] {
             a.part(Surface::Chrome, "lamp").rod(
                 p + Vec3::new(x, 0.028, 0.0),
                 Vec3::new(p.x + x, h, p.z),
@@ -400,15 +393,59 @@ pub fn architecture(scene: &IndoorManifest) -> Assembly {
     a
 }
 
+pub(crate) fn fixture_size(scene: &IndoorManifest) -> Vec3 {
+    if let Some(program) = &scene.program {
+        return Vec3::new(program.fixture_size.x, 0.055, program.fixture_size.y);
+    }
+    match scene.lighting_design % 3 {
+        0 => Vec3::new(0.60, 0.055, 0.60),
+        1 => Vec3::new(1.45, 0.055, 0.17),
+        _ => Vec3::new(0.22, 0.055, 0.22),
+    }
+}
+
 pub fn fixture_positions(scene: &IndoorManifest) -> Vec<Vec3> {
+    if let Some(program) = &scene.program {
+        let mut positions = Vec::new();
+        for zone in &program.zones {
+            let size = zone.max - zone.min;
+            let counts = (size / program.light_spacing)
+                .ceil()
+                .max(Vec2::ONE)
+                .as_uvec2();
+            for x in 0..counts.x {
+                for z in 0..counts.y {
+                    let p = zone.min
+                        + size * (Vec2::new(x as f32 + 0.5, z as f32 + 0.5) + program.light_phase)
+                            / counts.as_vec2();
+                    positions.push(Vec3::new(p.x, scene.room_size.y - program.light_drop, p.y));
+                }
+            }
+        }
+        positions.push(Vec3::new(
+            0.0,
+            scene.room_size.y - 0.18,
+            scene.room_size.z * 0.5 + 1.5,
+        ));
+        return positions;
+    }
     let mut positions = Vec::new();
-    let columns = (scene.room_size.x / 3.4).ceil().clamp(2.0, 4.0) as usize;
-    let rows = (scene.room_size.z / 3.4).ceil().clamp(2.0, 4.0) as usize;
+    let spacing = [3.4, 4.0, 2.8][scene.lighting_design as usize % 3];
+    let columns = (scene.room_size.x / spacing).ceil().clamp(2.0, 4.0) as usize;
+    let rows = (scene.room_size.z / spacing).ceil().clamp(2.0, 4.0) as usize;
     for column in 0..columns {
         let x = ((column as f32 + 0.5) / columns as f32 - 0.5) * scene.room_size.x;
         for row in 0..rows {
             let z = ((row as f32 + 0.5) / rows as f32 - 0.5) * scene.room_size.z;
-            positions.push(Vec3::new(x, scene.room_size.y - 0.25, z));
+            if scene.floor_plan == super::floorplan::FloorPlan::CornerCore
+                && super::floorplan::obstacles(scene)
+                    .iter()
+                    .any(|(lo, hi)| x > lo.x && x < hi.x && z > lo.z && z < hi.z)
+            {
+                continue;
+            }
+            let drop = [0.10, 0.42, 0.06][scene.lighting_design as usize % 3];
+            positions.push(Vec3::new(x, scene.room_size.y - drop, z));
         }
     }
     positions.push(Vec3::new(
@@ -425,19 +462,20 @@ pub fn spawn_lights(
     root: Entity,
     commands: &mut Commands,
 ) {
-    let c = kelvin_rgb(scene.light_kelvin);
     for (i, p) in fixture_positions(scene).into_iter().enumerate() {
+        let (c, lumens) = fixture_photometry(scene, i);
+        let (inner, outer) = fixture_angles(scene, i);
         commands.spawn((
             Name::new(format!("indoor_luminaire_{i}")),
             SpotLight {
                 color: Color::srgb(c.x, c.y, c.z),
                 // Bevy divides spot intensity by 4π before applying a squared
                 // angular falloff. Normalize that cone so these are fixture lumens.
-                intensity: spot_intensity_for_lumens(fixture_lumens(scene), 0.75, 1.35),
+                intensity: spot_intensity_for_lumens(lumens, inner, outer),
                 range: 13.0,
                 radius: 0.20,
-                inner_angle: 0.75,
-                outer_angle: 1.35,
+                inner_angle: inner,
+                outer_angle: outer,
                 shadow_maps_enabled: quality.shadows() && i < 8,
                 shadow_depth_bias: 0.015,
                 // Bevy expresses normal bias in shadow texels, not metres.
@@ -486,7 +524,7 @@ pub fn spawn_lights(
             Name::new(format!("indoor_floor_lamp_{}", lamp.id)),
             PointLight {
                 color: Color::srgb(1.0, 0.78, 0.57),
-                intensity: 800.0,
+                intensity: floor_lamp_lumens(scene, lamp.seed),
                 range: 5.0,
                 radius: 0.035,
                 shadow_maps_enabled: quality.shadows(),
@@ -505,18 +543,43 @@ pub(crate) fn spot_intensity_for_lumens(lumens: f32, inner: f32, outer: f32) -> 
     lumens * 2.0 / angular_integral
 }
 
+/// Circuit-level dimming and colour temperature vary independently of placement.
+pub(crate) fn fixture_angles(scene: &IndoorManifest, index: usize) -> (f32, f32) {
+    let mut rng = stream(scene.seed, 192 + index as u64);
+    (rng.random_range(0.48..0.90), rng.random_range(1.02..1.40))
+}
+
+pub(crate) fn fixture_photometry(scene: &IndoorManifest, index: usize) -> (Vec3, f32) {
+    let mut rng = stream(scene.seed, 164 + index as u64);
+    let kelvin = (scene.light_kelvin + rng.random_range(-650.0..650.0)).clamp(1800.0, 9000.0);
+    let mut flux = fixture_lumens(scene) * rng.random_range(0.72..1.18);
+    if let Some(d) = scene.domain() {
+        // Independent circuits leave pools of light and unlit areas. Always keep
+        // circuit zero energized; low-light scenes remain intentionally usable.
+        if index > 0 && !rng.random_bool(d.photometry.active_fraction as f64) {
+            flux = 0.0;
+        } else {
+            flux *= 1.0 - d.photometry.circuit_contrast * rng.random_range(0.0..1.0);
+        }
+    }
+    (kelvin_rgb(kelvin), flux)
+}
+
 pub(crate) fn fixture_lumens(scene: &IndoorManifest) -> f32 {
     // Lumen-method design estimate (not a simulated lux measurement): E =
     // N*flux*utilization/area. More fixtures maintain plausible office lighting
     // as room area changes. Evening retains a slightly lower occupied level.
-    let illuminance = if scene.lighting == LightingMood::Evening {
-        300.0
-    } else {
-        450.0
-    };
+    let illuminance = scene.target_lux;
     let area = scene.room_size.x * scene.room_size.z;
     let count = (fixture_positions(scene).len() - 1) as f32;
-    (illuminance * area / (count * 0.70)).clamp(2500.0, 6500.0)
+    (illuminance * area / (count.max(1.0) * 0.70)).clamp(0.1, 16000.0)
+}
+
+pub(crate) fn floor_lamp_lumens(scene: &IndoorManifest, seed: u64) -> f32 {
+    if scene.domain().is_none() {
+        return 800.0;
+    }
+    scene.target_lux * stream(seed, 217).random_range(0.8..2.4)
 }
 
 pub(crate) fn sun_direction(scene: &IndoorManifest) -> Vec3 {
@@ -529,6 +592,10 @@ pub(crate) fn sun_direction(scene: &IndoorManifest) -> Vec3 {
 }
 
 pub(crate) fn sun_color(scene: &IndoorManifest) -> Color {
+    if let Some(d) = scene.domain() {
+        let rgb = kelvin_rgb(d.photometry.sun_kelvin);
+        return Color::srgb(rgb.x, rgb.y, rgb.z);
+    }
     if scene.lighting == LightingMood::Evening {
         Color::srgb(1.0, 0.69, 0.43)
     } else {
@@ -537,10 +604,13 @@ pub(crate) fn sun_color(scene: &IndoorManifest) -> Color {
 }
 
 pub(crate) fn sun_illuminance(scene: &IndoorManifest) -> f32 {
+    if scene.domain().is_some() {
+        return scene.daylight_lux;
+    }
     match scene.lighting {
-        LightingMood::Daylight => 18000.0,
-        LightingMood::Overcast => 4200.0,
-        LightingMood::Evening => 1100.0,
+        LightingMood::Daylight => scene.daylight_lux,
+        LightingMood::Overcast => scene.daylight_lux * 0.23,
+        LightingMood::Evening => scene.daylight_lux * 0.06,
     }
 }
 
@@ -550,22 +620,22 @@ mod lighting_tests {
 
     #[test]
     fn spotlight_cone_integrates_to_declared_lumens() {
-        let inner = 0.75_f32;
-        let outer = 1.35_f32;
-        let intensity = spot_intensity_for_lumens(4200.0, inner, outer);
-        let intervals = 10000;
-        let dx = 2.0 / intervals as f32;
-        let integral = (0..intervals)
-            .map(|i| {
-                let cos_theta = -1.0 + (i as f32 + 0.5) * dx;
-                ((cos_theta - outer.cos()) / (inner.cos() - outer.cos()))
-                    .clamp(0.0, 1.0)
-                    .powi(2)
-                    * dx
-            })
-            .sum::<f32>()
-            * std::f32::consts::TAU;
-        let flux = intensity / (4.0 * std::f32::consts::PI) * integral;
-        assert!((flux - 4200.0).abs() < 1.0);
+        for (inner, outer) in [(0.48_f32, 1.02_f32), (0.75, 1.35), (0.90, 1.40)] {
+            let intensity = spot_intensity_for_lumens(4200.0, inner, outer);
+            let intervals = 10000;
+            let dx = 2.0 / intervals as f32;
+            let integral = (0..intervals)
+                .map(|i| {
+                    let cos_theta = -1.0 + (i as f32 + 0.5) * dx;
+                    ((cos_theta - outer.cos()) / (inner.cos() - outer.cos()))
+                        .clamp(0.0, 1.0)
+                        .powi(2)
+                        * dx
+                })
+                .sum::<f32>()
+                * std::f32::consts::TAU;
+            let flux = intensity / (4.0 * std::f32::consts::PI) * integral;
+            assert!((flux - 4200.0).abs() < 1.0);
+        }
     }
 }

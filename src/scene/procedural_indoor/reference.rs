@@ -157,6 +157,7 @@ pub fn export(world: &mut World, sample: &Sample, size: [u32; 2], directory: &Pa
                 "roughness":m.perceptual_roughness, "metallic":m.metallic, "reflectance":m.reflectance,
                 "specular_transmission":m.specular_transmission,"diffuse_transmission":m.diffuse_transmission,
                 "thickness":m.thickness,"ior":m.ior,
+                "anisotropy_strength":m.anisotropy_strength,"anisotropy_rotation":m.anisotropy_rotation,
                 "attenuation_color":m.attenuation_color.to_linear().to_f32_array(),
                 "attenuation_distance":if m.attenuation_distance.is_finite() {Some(m.attenuation_distance)} else {None},
                 "double_sided":m.double_sided,"alpha_mode":format!("{:?}",m.alpha_mode),

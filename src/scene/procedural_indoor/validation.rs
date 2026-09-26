@@ -8,6 +8,9 @@ use serde::Serialize;
 use std::collections::BTreeMap;
 
 pub fn validate_layout(scene: &IndoorManifest) -> Result<(), String> {
+    if let Some(program) = &scene.program {
+        program.validate(scene)?;
+    }
     super::humans::validate(scene)?;
     let fail = |message: &str| Err(format!("seed {}: {message}", scene.seed));
     if scene.generator_version != GENERATOR_VERSION
@@ -28,6 +31,38 @@ pub fn validate_layout(scene: &IndoorManifest) -> Result<(), String> {
             || !object.yaw.is_finite()
         {
             return fail("invalid instance dimensions, transform or identity");
+        }
+        if let Some(target) = object.interaction_target {
+            let other = scene
+                .objects
+                .get(target)
+                .ok_or_else(|| format!("seed {}: missing interaction target", scene.seed))?;
+            let valid = if object.kind == super::layout::ObjectKind::Chair {
+                matches!(
+                    other.kind,
+                    super::layout::ObjectKind::Desk | super::layout::ObjectKind::Table
+                )
+            } else {
+                matches!(
+                    object.kind,
+                    super::layout::ObjectKind::Laptop | super::layout::ObjectKind::Monitor
+                ) && other.kind == super::layout::ObjectKind::Chair
+                    && other.interaction_target == object.support
+            };
+            if !valid || other.neighbor != object.neighbor {
+                return fail("inconsistent interaction relationship");
+            }
+            if matches!(
+                object.kind,
+                super::layout::ObjectKind::Laptop | super::layout::ObjectKind::Monitor
+            ) {
+                let direction = (other.position - object.position)
+                    .with_y(0.0)
+                    .normalize_or_zero();
+                if (Quat::from_rotation_y(object.yaw) * Vec3::Z).dot(direction) < 0.98 {
+                    return fail("screen faces away from intended user");
+                }
+            }
         }
         if object.solid && !object.neighbor {
             main_furniture += 1;
@@ -127,22 +162,33 @@ pub fn validate_layout(scene: &IndoorManifest) -> Result<(), String> {
             }
         }
     }
-    if main_furniture < 6 {
+    if scene.layout != IndoorLayout::Lounge
+        && !scene.objects.iter().any(|o| {
+            !o.neighbor
+                && matches!(
+                    o.kind,
+                    super::layout::ObjectKind::Desk | super::layout::ObjectKind::Table
+                )
+        })
+    {
+        return fail("missing primary activity furniture");
+    }
+    if main_furniture < scene.minimum_main_objects() {
         return fail("insufficient main room furniture");
     }
     for camera in &scene.cameras {
         if !camera.target.is_finite()
-            || !(48.0..=74.0).contains(&camera.fov_degrees)
+            || !(27.0..=108.0).contains(&camera.fov_degrees)
             || camera.start.distance(camera.target) < 1.5
         {
             return fail("invalid camera intrinsics or target");
         }
-        if !scene.camera_trajectory_clear(camera.start, camera.end, camera.target) {
+        if !scene.camera_curve_clear(camera) {
             return fail("camera path intersects geometry");
         }
         // Explicit samples guard the continuous sweep implementation independently.
         for step in 0..=32 {
-            if !scene.camera_clear(camera.start.lerp(camera.end, step as f32 / 32.0)) {
+            if !scene.camera_clear(camera.transform_at(step as f32 / 32.0).translation) {
                 return fail("unsafe sampled camera path");
             }
         }
@@ -166,6 +212,8 @@ pub fn validate_geometry(scene: &IndoorManifest) -> Result<GeometryStats, String
             super::materials::Surface::Paper,
             super::materials::Surface::Chrome,
             super::materials::Surface::Plastic,
+            super::materials::Surface::WoodEdge,
+            super::materials::Surface::Ink,
         ];
         assemblies.push(super::objects::Assembly {
             parts: human_geometry
@@ -183,7 +231,10 @@ pub fn validate_geometry(scene: &IndoorManifest) -> Result<GeometryStats, String
             stats.batches += 1;
             stats.vertices += g.positions.len();
             stats.triangles += g.indices.len() / 3;
-            *stats.semantic_triangles.entry(label.clone()).or_default() += g.indices.len() / 3;
+            *stats
+                .semantic_triangles
+                .entry(super::objects::part_label(&label).to_owned())
+                .or_default() += g.indices.len() / 3;
             if g.positions.len() != g.normals.len()
                 || g.positions.len() != g.uvs.len()
                 || g.indices.len() % 3 != 0

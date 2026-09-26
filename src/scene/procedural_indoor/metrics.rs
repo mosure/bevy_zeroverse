@@ -10,7 +10,7 @@ use std::{
 };
 
 const GRID: usize = 24;
-const KINDS: [ObjectKind; 24] = [
+const KINDS: [ObjectKind; 28] = [
     ObjectKind::Table,
     ObjectKind::Desk,
     ObjectKind::Chair,
@@ -35,6 +35,10 @@ const KINDS: [ObjectKind; 24] = [
     ObjectKind::Mouse,
     ObjectKind::WaterBottle,
     ObjectKind::PenHolder,
+    ObjectKind::Printer,
+    ObjectKind::StorageBox,
+    ObjectKind::CoatRack,
+    ObjectKind::Bag,
 ];
 
 #[derive(Serialize)]
@@ -96,6 +100,10 @@ pub struct CoverageReport {
     pub object_counts_by_layout: BTreeMap<String, BTreeMap<usize, usize>>,
     pub categories: BTreeMap<String, BTreeMap<String, usize>>,
     pub numeric: BTreeMap<String, NumericDistribution>,
+    pub joint_histograms: BTreeMap<String, Vec<usize>>,
+    pub joint_histogram_policy: &'static str,
+    pub occupancy_signature_estimate: f64,
+    pub occupancy_signature_policy: &'static str,
     pub placement_heatmaps: BTreeMap<String, Vec<usize>>,
     /// First seed observed for each layout x lighting x floor x furniture stratum.
     pub stratified_seeds: BTreeMap<String, u64>,
@@ -103,12 +111,28 @@ pub struct CoverageReport {
 
 pub fn stratum(scene: &IndoorManifest) -> String {
     format!(
-        "{:?}/{:?}/floor{}/furniture{}/{:?}",
+        "{:?}/{:?}/floor{}/furniture{}/{:?}/{}/lights{}/sun{}/electric{}",
         scene.layout,
         scene.lighting,
         scene.floor_style,
         scene.furniture_style,
-        scene.architecture_style
+        scene.architecture_style,
+        scene
+            .program
+            .as_ref()
+            .map_or(format!("{:?}", scene.floor_plan), |p| format!(
+                "zones{}",
+                p.zones.len()
+            )),
+        scene
+            .program
+            .as_ref()
+            .map_or(
+                scene.lighting_design as u32,
+                |p| (p.fixture_size.x / p.fixture_size.y).floor() as u8 as u32
+            ),
+        (super::architecture::sun_illuminance(scene).max(0.1).log10() + 1.0).floor() as u32,
+        scene.target_lux.max(1.0).log10().floor() as u32
     )
 }
 
@@ -123,7 +147,10 @@ pub fn select_strata(strata: &BTreeMap<String, u64>, budget: usize) -> Vec<u64> 
             key.split('/')
                 .enumerate()
                 .map(|(i, value)| {
-                    [3.0, 2.0, 1.0, 1.0, 2.0][i]
+                    [3.0, 2.0, 1.0, 1.0, 2.0, 2.0, 1.0, 3.0, 3.0]
+                        .get(i)
+                        .copied()
+                        .unwrap_or(1.0)
                         / (1 + counts.get(&(i, value.to_owned())).copied().unwrap_or(0)) as f64
                 })
                 .sum::<f64>()
@@ -229,7 +256,7 @@ fn export_inner(
         "seed,layout,density,lighting,palette,floor,furniture,ceiling,width_m,height_m,depth_m,main_instances,neighbor_instances,main_chairs,rejected_placements"
     )?;
     let mut report = CoverageReport {
-        schema_version: 2,
+        schema_version: 5,
         generator_version: GENERATOR_VERSION,
         scenes: seeds,
         image_size: [width, height],
@@ -243,9 +270,14 @@ fn export_inner(
         object_counts_by_layout: BTreeMap::new(),
         categories: BTreeMap::new(),
         numeric: BTreeMap::new(),
+        joint_histograms: BTreeMap::new(),
+        joint_histogram_policy: "16x16 row-major histograms: zones_vs_main_chairs uses X zone count [1,9), Y chairs [0,64); wood_roughness_vs_repeat uses X roughness [0,1), Y repeat metres [0,2). Clamped endpoints. sun_log10_vs_electric_log10 uses X log10 solar lux [-1,5], Y log10 electric target lux [0,3]; room_area_vs_clutter uses X room area [0,300] m2, Y clutter prior [0,1]. Inspect correlations as well as marginals.",
+        occupancy_signature_estimate: 0.0,
+        occupancy_signature_policy: "HyperLogLog 4096 registers, about 1.63 percent relative standard error. Hashes 12x12 normalized object-category occupancy and 10cm partition geometry; ignores random seeds, textures and colours. Diagnostic only; not a proof of perceptual uniqueness or training utility.",
         placement_heatmaps: BTreeMap::new(),
         stratified_seeds: BTreeMap::new(),
     };
+    let mut signatures = super::program_coverage::OccupancySketch::default();
     let mut numeric = super::metrics_sort::NumericCollector::new(directory)?;
     for offset in 0..seeds {
         let scene = IndoorManifest::generate_with_humans(
@@ -256,6 +288,138 @@ fn export_inner(
             human_density,
         )?;
         super::validation::validate_layout(&scene)?;
+        signatures.insert(&scene);
+        if let Some(program) = &scene.program {
+            if let Some(d) = &program.domain {
+                for (key, value) in [
+                    ("exposure_ev100", d.photometry.ev100),
+                    (
+                        "sky_radiance_mean",
+                        d.photometry.sky_radiance.element_sum() / 3.0,
+                    ),
+                    ("fixture_active_fraction", d.photometry.active_fraction),
+                    ("fixture_circuit_contrast", d.photometry.circuit_contrast),
+                    ("facade_pier_fraction", d.facade_pier_fraction),
+                    ("blind_coverage", d.blind_coverage),
+                    ("blind_tilt_radians", d.blind_tilt),
+                    ("ceiling_relief_m", d.ceiling_relief),
+                    ("clutter_prior", d.clutter),
+                    ("service_density", d.service_density),
+                    ("furnishing_disorder", d.disorder),
+                ] {
+                    numeric.push(key, value as f64)?;
+                }
+                joint_histogram(
+                    &mut report,
+                    "sun_log10_vs_electric_log10",
+                    (scene.daylight_lux.log10() + 1.0) / 6.0,
+                    scene.target_lux.log10() / 3.0,
+                );
+                joint_histogram(
+                    &mut report,
+                    "room_area_vs_clutter",
+                    scene.room_size.x * scene.room_size.z / 300.0,
+                    d.clutter,
+                );
+            }
+            numeric.push("program_zone_count", program.zones.len() as f64)?;
+            numeric.push("program_partition_count", program.partitions.len() as f64)?;
+            numeric.push("fixture_spacing_x_m", program.light_spacing.x as f64)?;
+            numeric.push("fixture_spacing_z_m", program.light_spacing.y as f64)?;
+            numeric.push("fixture_drop_m", program.light_drop as f64)?;
+            for surface in [
+                super::materials::Surface::Glass,
+                super::materials::Surface::GlassInterior,
+            ] {
+                let recipe = super::materials::glass::GlassRecipe::sample(scene.seed, surface);
+                for (key, value) in [
+                    ("roughness", recipe.roughness),
+                    ("ior", recipe.ior),
+                    ("attenuation_distance_m", recipe.attenuation_distance_m),
+                ] {
+                    numeric.push(&format!("glazing_{surface:?}_{key}"), value as f64)?;
+                }
+            }
+            if let Some(f) = &program.finishes {
+                numeric.push("ceiling_pitch_x_m", f.ceiling_pitch.x as f64)?;
+                numeric.push("ceiling_pitch_z_m", f.ceiling_pitch.y as f64)?;
+                numeric.push("wall_panel_pitch_m", f.panel_pitch as f64)?;
+            }
+            for i in 0..super::architecture::fixture_positions(&scene).len() {
+                let (_, lumens) = super::architecture::fixture_photometry(&scene, i);
+                let (inner, outer) = super::architecture::fixture_angles(&scene, i);
+                numeric.push("fixture_lumens", lumens as f64)?;
+                numeric.push("fixture_inner_angle", inner as f64)?;
+                numeric.push("fixture_outer_angle", outer as f64)?;
+            }
+            for zone in &program.zones {
+                let size = zone.max - zone.min;
+                for (name, value) in [
+                    ("zone_area_m2", size.x * size.y),
+                    ("zone_aspect", size.x / size.y),
+                    ("zone_orientation_radians", zone.orientation),
+                    ("zone_aisle_m", zone.aisle),
+                    ("zone_desk_width_m", zone.desk_width),
+                    ("zone_occupancy", zone.occupancy),
+                ] {
+                    numeric.push(name, value as f64)?;
+                }
+            }
+            for partition in &program.partitions {
+                for (name, value) in [
+                    ("partition_door_width_m", partition.door_width),
+                    ("partition_glazing_fraction", partition.glazing_fraction),
+                    ("partition_thickness_m", partition.thickness),
+                ] {
+                    numeric.push(name, value as f64)?;
+                }
+            }
+            for material in &program.materials {
+                if let Some(l) = &material.layers {
+                    for (key, value) in [
+                        ("stripe_strength", l.stripe_strength),
+                        ("vein_strength", l.vein_strength),
+                        ("fleck_strength", l.fleck_strength),
+                    ] {
+                        numeric.push(
+                            &format!("material_{:?}_{key}", material.surface),
+                            value as f64,
+                        )?;
+                    }
+                }
+                for (parameter, value) in [
+                    ("roughness", material.roughness),
+                    ("repeat_m", material.period_m),
+                    ("relief_m", material.relief_m),
+                    ("contrast", material.contrast),
+                    ("grain_frequency", material.grain_frequency),
+                    ("weathering", material.weathering),
+                ] {
+                    numeric.push(
+                        &format!("material_{:?}_{parameter}", material.surface),
+                        value as f64,
+                    )?;
+                }
+            }
+            let chairs = scene
+                .objects
+                .iter()
+                .filter(|o| o.kind == ObjectKind::Chair && !o.neighbor)
+                .count();
+            joint_histogram(
+                &mut report,
+                "zones_vs_main_chairs",
+                (program.zones.len() as f32 - 1.0) / 8.0,
+                chairs as f32 / 64.0,
+            );
+            let wood = &program.materials[super::materials::Surface::Wood as usize];
+            joint_histogram(
+                &mut report,
+                "wood_roughness_vs_repeat",
+                wood.roughness,
+                wood.period_m / 2.0,
+            );
+        }
         let layout_name = format!("{:?}", scene.layout);
         for (category, value) in [
             ("layout", layout_name.clone()),
@@ -265,9 +429,23 @@ fn export_inner(
             ("furniture", scene.furniture_style.to_string()),
             ("ceiling", scene.ceiling_style.to_string()),
             ("architecture", format!("{:?}", scene.architecture_style)),
+            ("floor_plan", format!("{:?}", scene.floor_plan)),
+            (
+                "furnishing_quarter_turn",
+                scene.furnishing_quarter_turn.to_string(),
+            ),
+            ("lighting_design", scene.lighting_design.to_string()),
             ("blinds", scene.blinds.to_string()),
             ("window_bays", scene.window_bays.to_string()),
         ] {
+            if scene.program.is_some()
+                && matches!(
+                    category,
+                    "palette" | "floor_plan" | "furnishing_quarter_turn" | "lighting_design"
+                )
+            {
+                continue;
+            }
             *report
                 .categories
                 .entry(category.into())
@@ -325,12 +503,19 @@ fn export_inner(
             scene.rejected_placements
         )?;
         for (name, value) in [
+            ("room_area_m2", scene.room_size.x * scene.room_size.z),
+            ("room_aspect_ratio", scene.room_size.x / scene.room_size.z),
             ("room_width_m", scene.room_size.x),
             ("room_depth_m", scene.room_size.z),
             ("room_height_m", scene.room_size.y),
             ("sun_elevation_radians", scene.sun_elevation),
             ("sun_azimuth_radians", scene.sun_azimuth),
             ("light_kelvin", scene.light_kelvin),
+            ("target_illuminance_lux", scene.target_lux),
+            (
+                "sun_illuminance_lux",
+                super::architecture::sun_illuminance(&scene),
+            ),
             ("main_instances", main_count as f32),
             ("main_chairs", count(ObjectKind::Chair, false) as f32),
             ("rejected_placements", scene.rejected_placements as f32),
@@ -358,10 +543,98 @@ fn export_inner(
                 .or_default() += 1;
         }
         numeric.push("people_per_scene", scene.humans.len() as f64)?;
+        for object in &scene.objects {
+            if matches!(
+                object.kind,
+                ObjectKind::Table | ObjectKind::Desk | ObjectKind::CoffeeTable
+            ) {
+                let p = super::objects::tables::parameters(object);
+                for (key, value) in [
+                    ("table_top_thickness_m", p.top_thickness),
+                    ("table_leg_radius_m", p.leg_radius),
+                    ("table_leg_rake_m", p.leg_rake),
+                    ("table_leg_inset_m", p.leg_inset),
+                ] {
+                    numeric.push(key, value as f64)?;
+                }
+            }
+            let category = match object.kind {
+                ObjectKind::Chair => "chair_family",
+                ObjectKind::Laptop => "laptop_family",
+                _ => continue,
+            };
+            *report
+                .categories
+                .entry(category.into())
+                .or_default()
+                .entry(object.variant.to_string())
+                .or_default() += 1;
+            if object.kind == ObjectKind::Laptop {
+                let p = super::objects::computers::parameters(object);
+                for (name, value) in [
+                    ("laptop_aspect", p.aspect_ratio),
+                    ("laptop_chassis_m", p.chassis_m),
+                    ("laptop_bezel_m", p.bezel_m),
+                    ("laptop_keyboard_fraction", p.keyboard_fraction),
+                ] {
+                    numeric.push(name, value as f64)?;
+                }
+                numeric.push(
+                    "laptop_lid_angle_radians",
+                    super::objects::computers::lid_angle(object) as f64,
+                )?;
+            } else {
+                let p = super::objects::chairs::parameters(object);
+                for (name, value) in [
+                    ("chair_curvature_m", p.curvature),
+                    ("chair_taper", p.taper),
+                    ("chair_shell_m", p.shell_thickness),
+                    ("chair_recline_radians", p.recline),
+                    ("chair_arm_height_m", p.arm_height),
+                ] {
+                    numeric.push(name, value as f64)?;
+                }
+                let yaw = (object.yaw + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU)
+                    - std::f32::consts::PI;
+                numeric.push("chair_yaw_radians", yaw as f64)?;
+            }
+        }
         for human in &scene.humans {
+            if let Some(p) = &human.pose_program {
+                for (name, value) in [
+                    ("pose_lean_x", p.lean.x),
+                    ("pose_lean_z", p.lean.y),
+                    ("pose_twist", p.torso_twist),
+                    ("pose_stance_m", p.stance),
+                    ("pose_stride_m", p.stride),
+                    ("pose_phase", p.phase),
+                ] {
+                    numeric.push(name, value as f64)?;
+                }
+                for i in 0..2 {
+                    for (name, value) in [
+                        ("pose_arm_reach", p.arm_reach[i]),
+                        ("pose_arm_elevation", p.arm_elevation[i]),
+                        ("pose_arm_sweep", p.arm_sweep[i]),
+                    ] {
+                        numeric.push(name, value as f64)?;
+                    }
+                }
+            }
+            if let Some(a) = &human.appearance {
+                for (name, value) in [
+                    ("human_melanin", a.melanin),
+                    ("human_skin_roughness", a.skin_roughness),
+                    ("human_garment_ease_m", a.garment_ease),
+                    ("human_fold_amplitude_m", a.fold_amplitude),
+                ] {
+                    numeric.push(name, value as f64)?;
+                }
+            }
             for (name, value) in [
                 ("human_stature_m", human.stature),
                 ("human_build", human.build),
+                ("human_head_yaw_radians", human.head_yaw),
             ] {
                 numeric.push(name, value as f64)?;
             }
@@ -456,7 +729,22 @@ fn export_inner(
             let direction = (camera.target - camera.start).normalize();
             let yaw = direction.x.atan2(-direction.z).to_degrees();
             let pitch = direction.y.asin().to_degrees();
-            let length = camera.start.distance(camera.end);
+            let length = camera.path_length();
+            if let Some(m) = &camera.motion {
+                numeric.push("camera_roll_start_radians", m.roll[0] as f64)?;
+                numeric.push("camera_roll_end_radians", m.roll[1] as f64)?;
+                numeric.push(
+                    "camera_target_motion_m",
+                    m.target_end.distance(camera.target) as f64,
+                )?;
+                numeric.push(
+                    "camera_curve_bend_m",
+                    camera
+                        .transform_at(0.5)
+                        .translation
+                        .distance(camera.start.lerp(camera.end, 0.5)) as f64,
+                )?;
+            }
             writeln!(
                 camera_rows,
                 "{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},0.1,50,{},{},{}",
@@ -508,7 +796,7 @@ fn export_inner(
                 );
             }
             for step in 0..=32 {
-                let position = camera.start.lerp(camera.end, step as f32 / 32.0);
+                let position = camera.transform_at(step as f32 / 32.0).translation;
                 heat(
                     &mut report,
                     "camera_path",
@@ -518,6 +806,7 @@ fn export_inner(
             }
         }
     }
+    report.occupancy_signature_estimate = signatures.estimate();
     report.numeric = numeric.finish()?;
     humans.flush()?;
     objects.flush()?;
@@ -576,6 +865,14 @@ fn write_svg(report: &CoverageReport, directory: &Path) -> std::io::Result<()> {
     }
     svg.push_str("</g></svg>");
     fs::write(directory.join("placement_heatmaps.svg"), svg)
+}
+
+fn joint_histogram(report: &mut CoverageReport, name: &str, x: f32, y: f32) {
+    let bins = report
+        .joint_histograms
+        .entry(name.into())
+        .or_insert_with(|| vec![0; 256]);
+    bins[(y * 16.0).clamp(0.0, 15.0) as usize * 16 + (x * 16.0).clamp(0.0, 15.0) as usize] += 1;
 }
 
 #[cfg(test)]

@@ -1,4 +1,7 @@
 //! Role-specific PBR textures, generated in memory with repeat sampling and mip chains.
+pub mod glass;
+pub mod layers;
+pub mod program;
 use super::layout::{IndoorManifest, LightingMood};
 use bevy::{
     asset::RenderAssetUsages,
@@ -9,7 +12,9 @@ use bevy::{
     },
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 #[repr(usize)]
 pub enum Surface {
     Paint,
@@ -38,10 +43,15 @@ pub enum Surface {
     LeafVariegated,
     Terracotta,
     Bark,
+    GlassInterior,
 }
 
 pub struct IndoorMaterials {
     handles: Vec<Handle<StandardMaterial>>,
+    pub cloth: Handle<StandardMaterial>,
+    pub skin: Handle<StandardMaterial>,
+    pub hair: Handle<StandardMaterial>,
+    light_variants: Vec<Handle<StandardMaterial>>,
     pub environment: EnvironmentMapLight,
 }
 
@@ -50,10 +60,23 @@ impl IndoorMaterials {
         self.handles[surface as usize].clone()
     }
 
+    pub fn for_part(&self, surface: Surface, label: &str) -> Handle<StandardMaterial> {
+        if surface == Surface::Light {
+            if let Some(material) = label
+                .strip_prefix("lamp#")
+                .and_then(|s| s.parse::<usize>().ok())
+                .and_then(|i| self.light_variants.get(i))
+            {
+                return material.clone();
+            }
+        }
+        self.get(surface)
+    }
+
     pub fn build(
         scene: &IndoorManifest,
-        images: &mut Assets<Image>,
-        materials: &mut Assets<StandardMaterial>,
+        images: &mut impl super::preparation::AssetStore<Image>,
+        materials: &mut impl super::preparation::AssetStore<StandardMaterial>,
     ) -> Self {
         Self::build_with_quality(scene, super::IndoorQuality::Auto, images, materials)
     }
@@ -61,87 +84,13 @@ impl IndoorMaterials {
     pub fn build_with_quality(
         scene: &IndoorManifest,
         quality: super::IndoorQuality,
-        images: &mut Assets<Image>,
-        materials: &mut Assets<StandardMaterial>,
+        images: &mut impl super::preparation::AssetStore<Image>,
+        materials: &mut impl super::preparation::AssetStore<StandardMaterial>,
     ) -> Self {
-        let (wood, fabric, accent) = match scene.palette {
-            0 => ([0.58, 0.37, 0.19], [0.16, 0.25, 0.28], [0.22, 0.34, 0.32]),
-            1 => ([0.76, 0.60, 0.40], [0.31, 0.34, 0.35], [0.42, 0.48, 0.52]),
-            2 => ([0.31, 0.19, 0.11], [0.26, 0.32, 0.40], [0.22, 0.29, 0.40]),
-            3 => ([0.68, 0.50, 0.31], [0.43, 0.24, 0.17], [0.54, 0.32, 0.22]),
-            4 => ([0.72, 0.64, 0.48], [0.27, 0.36, 0.23], [0.39, 0.45, 0.31]),
-            _ => ([0.45, 0.29, 0.18], [0.37, 0.27, 0.33], [0.40, 0.33, 0.39]),
-        };
-        let floor = match scene.floor_style {
-            0 => [wood[0] * 0.82, wood[1] * 0.82, wood[2] * 0.82],
-            1 => [0.36, 0.37, 0.36],
-            _ => [0.65, 0.64, 0.59],
-        };
-        let definitions = [
-            (Surface::Paint, [0.84, 0.83, 0.79], 0.83, 0.0, 0.5),
-            (Surface::Accent, accent, 0.83, 0.0, 0.5),
-            (Surface::Wood, wood, 0.38, 0.0, 0.70),
-            (Surface::WoodEdge, wood, 0.43, 0.0, 0.70),
-            (
-                Surface::Floor,
-                floor,
-                if scene.floor_style == 1 { 0.94 } else { 0.49 },
-                0.0,
-                2.0,
-            ),
-            (Surface::Ceiling, [0.88, 0.88, 0.85], 0.9, 0.0, 0.6),
-            (Surface::Metal, [0.12, 0.135, 0.15], 0.34, 0.72, 1.0),
-            (Surface::Chrome, [0.64, 0.66, 0.68], 0.23, 1.0, 1.0),
-            (Surface::Plastic, [0.065, 0.074, 0.08], 0.48, 0.0, 1.0),
-            (Surface::Fabric, fabric, 0.92, 0.0, 0.12),
-            (Surface::FabricAlt, accent, 0.93, 0.0, 0.12),
-            (Surface::Glass, [0.88, 0.96, 0.96], 0.08, 0.0, 1.0),
-            (Surface::Ceramic, [0.77, 0.75, 0.69], 0.24, 0.0, 1.0),
-            (Surface::Soil, [0.095, 0.055, 0.025], 0.98, 0.0, 0.2),
-            (Surface::Leaf, [0.10, 0.25, 0.055], 0.50, 0.0, 1.0),
-            (Surface::LeafLight, [0.20, 0.34, 0.09], 0.53, 0.0, 1.0),
-            (Surface::Paper, [0.86, 0.86, 0.81], 0.88, 0.0, 1.0),
-            (Surface::Screen, [0.055, 0.09, 0.12], 0.27, 0.0, 1.0),
-            (Surface::Ink, [0.055, 0.12, 0.19], 0.7, 0.0, 1.0),
-            (Surface::Light, [0.90, 0.90, 0.84], 0.4, 0.0, 1.0),
-            (Surface::Concrete, [0.52, 0.51, 0.47], 0.86, 0.0, 0.75),
-            (Surface::Art, accent, 0.83, 0.0, 1.0),
-            (Surface::Rubber, [0.033, 0.035, 0.038], 0.91, 0.0, 1.0),
-            (Surface::LeafVariegated, [0.30, 0.42, 0.13], 0.43, 0.0, 1.0),
-            (Surface::Terracotta, [0.53, 0.27, 0.16], 0.84, 0.0, 0.3),
-            (Surface::Bark, [0.22, 0.16, 0.085], 0.91, 0.0, 0.2),
-        ];
+        let definitions = definitions(scene);
         // Generate immutable maps on a bounded pool; asset insertion remains ordered.
         // Wasm uses the identical serial function and produces the same pixels.
-        let prepare = |definition: &(Surface, [f32; 3], f32, f32, f32)| {
-            let (surface, _, roughness, _, _) = *definition;
-            if !matches!(
-                surface,
-                Surface::Wood
-                    | Surface::WoodEdge
-                    | Surface::Floor
-                    | Surface::Paint
-                    | Surface::Accent
-                    | Surface::Ceiling
-                    | Surface::Fabric
-                    | Surface::FabricAlt
-                    | Surface::Bark
-                    | Surface::Terracotta
-                    | Surface::Soil
-                    | Surface::Concrete
-                    | Surface::Leaf
-                    | Surface::LeafLight
-                    | Surface::LeafVariegated
-            ) {
-                return None;
-            }
-            let maps = texture_maps(surface, scene.floor_style, scene.seed, roughness);
-            Some([
-                mip_image(maps.0, 256, MapType::Color),
-                mip_image(maps.1, 256, MapType::Normal),
-                mip_image(maps.2, 256, MapType::Data),
-            ])
-        };
+        let prepare = |definition: &Definition| prepare_map(scene, definition);
         #[cfg(not(target_arch = "wasm32"))]
         let prepared = {
             static POOL: std::sync::OnceLock<bevy::tasks::TaskPool> = std::sync::OnceLock::new();
@@ -160,6 +109,39 @@ impl IndoorMaterials {
         };
         #[cfg(target_arch = "wasm32")]
         let prepared: Vec<_> = definitions.iter().map(prepare).collect();
+        Self::insert_prepared(scene, quality, images, materials, definitions, prepared)
+    }
+
+    pub async fn build_async(
+        scene: &IndoorManifest,
+        quality: super::IndoorQuality,
+        images: &mut impl super::preparation::AssetStore<Image>,
+        materials: &mut impl super::preparation::AssetStore<StandardMaterial>,
+    ) -> Self {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            Self::build_with_quality(scene, quality, images, materials)
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            let definitions = definitions(scene);
+            let mut maps = Vec::with_capacity(definitions.len());
+            for definition in &definitions {
+                super::preparation::cooperate().await;
+                maps.push(prepare_map(scene, definition));
+            }
+            Self::insert_prepared(scene, quality, images, materials, definitions, maps)
+        }
+    }
+
+    fn insert_prepared(
+        scene: &IndoorManifest,
+        quality: super::IndoorQuality,
+        images: &mut impl super::preparation::AssetStore<Image>,
+        materials: &mut impl super::preparation::AssetStore<StandardMaterial>,
+        definitions: [Definition; 27],
+        prepared: Vec<Option<[Image; 3]>>,
+    ) -> Self {
         let mut handles = Vec::new();
         for ((surface, rgb, roughness, metallic, period), maps) in
             definitions.into_iter().zip(prepared)
@@ -190,19 +172,8 @@ impl IndoorMaterials {
                 mat.double_sided = true;
             }
             match surface {
-                Surface::Glass => {
-                    if quality.specular_transmission() {
-                        mat.specular_transmission = 0.94;
-                    } else {
-                        mat.base_color = Color::srgba(0.88, 0.96, 0.96, 0.10);
-                        mat.alpha_mode = AlphaMode::Blend;
-                    }
-                    mat.thickness = 0.008;
-                    mat.ior = 1.5;
-                    mat.attenuation_color = Color::srgb(0.87, 0.97, 0.95);
-                    mat.attenuation_distance = 2.0;
-                    mat.cull_mode = None;
-                    mat.double_sided = true;
+                Surface::Glass | Surface::GlassInterior => {
+                    glass::GlassRecipe::sample(scene.seed, surface).apply(&mut mat, quality);
                 }
                 Surface::Leaf | Surface::LeafLight | Surface::LeafVariegated => {
                     mat.diffuse_transmission = 0.18
@@ -223,7 +194,9 @@ impl IndoorMaterials {
                     let c = kelvin_rgb(scene.light_kelvin);
                     let c = Color::srgb(c.x, c.y, c.z).to_linear();
                     let luminance = super::architecture::fixture_lumens(scene)
-                        / (std::f32::consts::PI * 0.99 * 0.215);
+                        / (std::f32::consts::PI
+                            * (super::architecture::fixture_size(scene).x - 0.06)
+                            * (super::architecture::fixture_size(scene).z - 0.055));
                     mat.emissive = LinearRgba::new(
                         c.red * luminance,
                         c.green * luminance,
@@ -239,18 +212,205 @@ impl IndoorMaterials {
         let environment = EnvironmentMapLight {
             diffuse_map: images.add(environment_cube(16, true)),
             specular_map: images.add(environment_cube(64, false)),
-            intensity: match scene.lighting {
-                LightingMood::Daylight => 95.0,
-                LightingMood::Overcast => 80.0,
-                LightingMood::Evening => 45.0,
-            },
+            intensity: scene.domain().map_or_else(
+                || match scene.lighting {
+                    LightingMood::Daylight => 95.0,
+                    LightingMood::Overcast => 80.0,
+                    LightingMood::Evening => 45.0,
+                },
+                |d| d.photometry.environment_intensity,
+            ),
             ..default()
         };
+        // Keep the visible emitter/reference export consistent with each direct-light proxy.
+        let area = (super::architecture::fixture_size(scene).x - 0.06)
+            * (super::architecture::fixture_size(scene).z - 0.055);
+        let light_variants = super::architecture::fixture_positions(scene)
+            .iter()
+            .enumerate()
+            .map(|(i, _)| {
+                let (color, lumens) = super::architecture::fixture_photometry(scene, i);
+                let c = Color::srgb(color.x, color.y, color.z).to_linear();
+                let mut material = materials
+                    .get(&handles[Surface::Light as usize])
+                    .unwrap()
+                    .clone();
+                let luminance = lumens / (std::f32::consts::PI * area);
+                material.emissive = LinearRgba::new(
+                    c.red * luminance,
+                    c.green * luminance,
+                    c.blue * luminance,
+                    1.0,
+                );
+                materials.add(material)
+            })
+            .collect();
+        let [cloth, skin, hair] = human_maps(images, materials);
         Self {
             handles,
+            light_variants,
             environment,
+            cloth,
+            skin,
+            hair,
         }
     }
+}
+
+/// Shared, neutral microstructure. Human pigmentation and wardrobe colours are
+/// applied separately, never multiplied by a furniture upholstery palette.
+fn human_maps(
+    images: &mut impl super::preparation::AssetStore<Image>,
+    materials: &mut impl super::preparation::AssetStore<StandardMaterial>,
+) -> [Handle<StandardMaterial>; 3] {
+    [0, 1, 2].map(|kind| {
+        let mut albedo = Vec::with_capacity(256 * 256 * 4);
+        let mut normal = Vec::with_capacity(256 * 256 * 4);
+        for y in 0..256 {
+            for x in 0..256 {
+                let u = x as f32 / 256.0;
+                let v = y as f32 / 256.0;
+                let phase = std::f32::consts::TAU;
+                let (shade, nx, ny) = match kind {
+                    0 => (
+                        0.96 + 0.025 * (u * phase * 32.0).sin() * (v * phase * 32.0).sin(),
+                        0.09 * (u * phase * 32.0).cos(),
+                        0.09 * (v * phase * 32.0).cos(),
+                    ),
+                    1 => (
+                        0.985 + 0.01 * periodic_noise(u, v, 32, 32, 919),
+                        0.025 * (u * phase * 40.0).sin(),
+                        0.025 * (v * phase * 40.0).sin(),
+                    ),
+                    _ => (
+                        0.85 + 0.14 * periodic_noise(u, v, 64, 2, 813),
+                        0.18 * (u * phase * 64.0).sin(),
+                        0.01 * (v * phase * 2.0).cos(),
+                    ),
+                };
+                let n = Vec3::new(nx, ny, 1.0).normalize();
+                let c = (shade * 255.0) as u8;
+                albedo.extend([c, c, c, 255]);
+                normal.extend([
+                    (n.x * 127.0 + 128.0) as u8,
+                    (n.y * 127.0 + 128.0) as u8,
+                    (n.z * 127.0 + 128.0) as u8,
+                    255,
+                ]);
+            }
+        }
+        materials.add(StandardMaterial {
+            base_color_texture: Some(images.add(mip_image(albedo, 256, MapType::Color))),
+            normal_map_texture: Some(images.add(mip_image(normal, 256, MapType::Normal))),
+            // Body UV islands cover several metres; the fibre/pores remain fine.
+            uv_transform: bevy::math::Affine2::from_scale(Vec2::splat(if kind == 2 {
+                10.0
+            } else {
+                24.0
+            })),
+            perceptual_roughness: if kind == 2 { 0.60 } else { 0.85 },
+            anisotropy_strength: if kind == 2 { 0.35 } else { 0.0 },
+            ..default()
+        })
+    })
+}
+
+type Definition = (Surface, [f32; 3], f32, f32, f32);
+fn definitions(scene: &IndoorManifest) -> [Definition; 27] {
+    let (wood, fabric, accent) = match scene.palette {
+        0 => ([0.58, 0.37, 0.19], [0.16, 0.25, 0.28], [0.22, 0.34, 0.32]),
+        1 => ([0.76, 0.60, 0.40], [0.31, 0.34, 0.35], [0.42, 0.48, 0.52]),
+        2 => ([0.31, 0.19, 0.11], [0.26, 0.32, 0.40], [0.22, 0.29, 0.40]),
+        3 => ([0.68, 0.50, 0.31], [0.43, 0.24, 0.17], [0.54, 0.32, 0.22]),
+        4 => ([0.72, 0.64, 0.48], [0.27, 0.36, 0.23], [0.39, 0.45, 0.31]),
+        _ => ([0.45, 0.29, 0.18], [0.37, 0.27, 0.33], [0.40, 0.33, 0.39]),
+    };
+    let floor = match scene.floor_style {
+        0 => [wood[0] * 0.82, wood[1] * 0.82, wood[2] * 0.82],
+        1 => [0.36, 0.37, 0.36],
+        _ => [0.65, 0.64, 0.59],
+    };
+    let mut definitions = [
+        (Surface::Paint, [0.84, 0.83, 0.79], 0.83, 0.0, 0.5),
+        (Surface::Accent, accent, 0.83, 0.0, 0.5),
+        (Surface::Wood, wood, 0.38, 0.0, 0.70),
+        (Surface::WoodEdge, wood, 0.43, 0.0, 0.70),
+        (
+            Surface::Floor,
+            floor,
+            if scene.floor_style == 1 { 0.94 } else { 0.49 },
+            0.0,
+            2.0,
+        ),
+        (Surface::Ceiling, [0.88, 0.88, 0.85], 0.9, 0.0, 0.6),
+        (Surface::Metal, [0.12, 0.135, 0.15], 0.34, 0.72, 1.0),
+        (Surface::Chrome, [0.64, 0.66, 0.68], 0.23, 1.0, 1.0),
+        (Surface::Plastic, [0.065, 0.074, 0.08], 0.48, 0.0, 1.0),
+        (Surface::Fabric, fabric, 0.92, 0.0, 0.12),
+        (Surface::FabricAlt, accent, 0.93, 0.0, 0.12),
+        (Surface::Glass, [0.88, 0.96, 0.96], 0.08, 0.0, 1.0),
+        (Surface::Ceramic, [0.77, 0.75, 0.69], 0.24, 0.0, 1.0),
+        (Surface::Soil, [0.095, 0.055, 0.025], 0.98, 0.0, 0.2),
+        (Surface::Leaf, [0.10, 0.25, 0.055], 0.50, 0.0, 1.0),
+        (Surface::LeafLight, [0.20, 0.34, 0.09], 0.53, 0.0, 1.0),
+        (Surface::Paper, [0.86, 0.86, 0.81], 0.88, 0.0, 1.0),
+        (Surface::Screen, [0.055, 0.09, 0.12], 0.27, 0.0, 1.0),
+        (Surface::Ink, [0.055, 0.12, 0.19], 0.7, 0.0, 1.0),
+        (Surface::Light, [0.90, 0.90, 0.84], 0.4, 0.0, 1.0),
+        (Surface::Concrete, [0.52, 0.51, 0.47], 0.86, 0.0, 0.75),
+        (Surface::Art, accent, 0.83, 0.0, 1.0),
+        (Surface::Rubber, [0.033, 0.035, 0.038], 0.91, 0.0, 1.0),
+        (Surface::LeafVariegated, [0.30, 0.42, 0.13], 0.43, 0.0, 1.0),
+        (Surface::Terracotta, [0.53, 0.27, 0.16], 0.84, 0.0, 0.3),
+        (Surface::Bark, [0.22, 0.16, 0.085], 0.91, 0.0, 0.2),
+        (Surface::GlassInterior, [1.0; 3], 0.06, 0.0, 1.0),
+    ];
+    if let Some(program) = &scene.program {
+        for (surface, rgb, roughness, _, period) in &mut definitions {
+            let Some(recipe) = program.materials.get(*surface as usize) else {
+                continue;
+            };
+            if recipe.color != [1.0; 3] {
+                *rgb = recipe.color;
+            }
+            *roughness = recipe.roughness;
+            *period = recipe.period_m;
+        }
+    }
+    definitions
+}
+fn prepare_map(scene: &IndoorManifest, definition: &Definition) -> Option<[Image; 3]> {
+    let (surface, _, roughness, _, _) = *definition;
+    if !matches!(
+        surface,
+        Surface::Wood
+            | Surface::WoodEdge
+            | Surface::Floor
+            | Surface::Paint
+            | Surface::Accent
+            | Surface::Ceiling
+            | Surface::Fabric
+            | Surface::FabricAlt
+            | Surface::Bark
+            | Surface::Terracotta
+            | Surface::Soil
+            | Surface::Concrete
+            | Surface::Leaf
+            | Surface::LeafLight
+            | Surface::LeafVariegated
+    ) {
+        return None;
+    }
+    let recipe = scene
+        .program
+        .as_ref()
+        .map(|p| &p.materials[surface as usize]);
+    let maps = texture_maps(surface, scene.floor_style, scene.seed, roughness, recipe);
+    Some([
+        mip_image(maps.0, 256, MapType::Color),
+        mip_image(maps.1, 256, MapType::Normal),
+        mip_image(maps.2, 256, MapType::Data),
+    ])
 }
 
 /// Asset-free dashboard/document content. Screen geometry uses normalized UVs;
@@ -330,7 +490,13 @@ fn periodic_noise(u: f32, v: f32, nx: u32, ny: u32, seed: u64) -> f32 {
 }
 
 type TextureMaps = (Vec<u8>, Vec<u8>, Vec<u8>);
-fn texture_maps(surface: Surface, floor_style: u32, seed: u64, roughness: f32) -> TextureMaps {
+fn texture_maps(
+    surface: Surface,
+    floor_style: u32,
+    seed: u64,
+    roughness: f32,
+    recipe: Option<&program::MaterialRecipe>,
+) -> TextureMaps {
     let n = 256usize;
     let mut heights = vec![0.0; n * n];
     let mut colors = Vec::with_capacity(n * n * 4);
@@ -406,12 +572,22 @@ fn texture_maps(surface: Surface, floor_style: u32, seed: u64, roughness: f32) -
                 Surface::Ceiling => (0.94 + noise * 0.04, if noise < 0.1 { -0.018 } else { 0.0 }),
                 _ => (0.95 + noise * 0.04, noise * 0.008),
             };
+            let (shade, h, pixel_roughness) = if let Some(recipe) = recipe.filter(|_| {
+                !matches!(
+                    surface,
+                    Surface::Leaf | Surface::LeafLight | Surface::LeafVariegated | Surface::Soil
+                )
+            }) {
+                recipe.evaluate(u, v, floor_style)
+            } else {
+                (shade, h * 0.001, roughness + (noise - 0.5) * 0.06)
+            };
             heights[y * n + x] = h;
             let byte = (shade.clamp(0.0, 1.0) * 255.0) as u8;
             colors.extend([byte, byte, byte, 255]);
             data.extend([
                 255,
-                ((roughness + (noise - 0.5) * 0.06).clamp(0.05, 1.0) * 255.0) as u8,
+                (pixel_roughness.clamp(0.05, 1.0) * 255.0) as u8,
                 0,
                 255,
             ]);
@@ -424,7 +600,8 @@ fn texture_maps(surface: Surface, floor_style: u32, seed: u64, roughness: f32) -
             let dy = heights[((y + 1) % n) * n + x] - heights[((y + n - 1) % n) * n + x];
             // Tangent space follows increasing mesh U/V. Both slopes oppose the
             // height gradient; flipping only Y would invert relief in one axis.
-            let normal = Vec3::new(-dx * 5.0, -dy * 5.0, 1.0).normalize();
+            let slope = n as f32 / (2.0 * recipe.map_or(1.0, |r| r.period_m));
+            let normal = Vec3::new(-dx * slope, -dy * slope, 1.0).normalize();
             normals.extend([
                 (normal.x * 127.0 + 128.0) as u8,
                 (normal.y * 127.0 + 128.0) as u8,
@@ -585,11 +762,18 @@ fn environment_cube(size: u32, diffuse: bool) -> Image {
 }
 
 pub fn kelvin_rgb(k: f32) -> Vec3 {
-    // A smooth warm-white to neutral-white illuminant range used by the grammar.
-    Vec3::new(1.0, 0.72, 0.48).lerp(
-        Vec3::new(0.88, 0.94, 1.0),
-        ((k - 2700.0) / 3800.0).clamp(0.0, 1.0),
-    )
+    // Smooth warm tungsten through cool sky RGB prior; not a spectral model.
+    if k < 4500.0 {
+        Vec3::new(1.0, 0.46, 0.18).lerp(
+            Vec3::new(1.0, 0.90, 0.78),
+            ((k - 1800.0) / 2700.0).clamp(0.0, 1.0),
+        )
+    } else {
+        Vec3::new(1.0, 0.90, 0.78).lerp(
+            Vec3::new(0.68, 0.82, 1.0),
+            ((k - 4500.0) / 5500.0).clamp(0.0, 1.0),
+        )
+    }
 }
 
 #[cfg(test)]
@@ -605,8 +789,8 @@ mod surface_tests {
             Surface::Leaf,
             Surface::Concrete,
         ] {
-            let (color, normals, data) = texture_maps(surface, 0, 11, 0.7);
-            assert_ne!(color, texture_maps(surface, 0, 12, 0.7).0);
+            let (color, normals, data) = texture_maps(surface, 0, 11, 0.7, None);
+            assert_ne!(color, texture_maps(surface, 0, 12, 0.7, None).0);
             for pixel in normals.as_chunks::<4>().0.iter() {
                 let normal = Vec3::new(pixel[0] as f32, pixel[1] as f32, pixel[2] as f32) / 127.5
                     - Vec3::ONE;
@@ -638,6 +822,39 @@ mod surface_tests {
                     .map(|m| ((256 >> m) as usize).pow(2) * 4)
                     .sum::<usize>()
             );
+        }
+    }
+
+    #[test]
+    fn sampled_metric_recipes_produce_valid_pbr_maps() {
+        for seed in [0, 6, 115] {
+            let recipes = program::sample(seed);
+            for surface in [
+                Surface::Paint,
+                Surface::Wood,
+                Surface::Fabric,
+                Surface::Floor,
+            ] {
+                let recipe = &recipes[surface as usize];
+                let (colors, normals, data) = texture_maps(
+                    surface,
+                    seed as u32 % 3,
+                    seed,
+                    recipe.roughness,
+                    Some(recipe),
+                );
+                assert_eq!(colors.len(), 256 * 256 * 4);
+                for pixel in normals.as_chunks::<4>().0.iter() {
+                    let n = Vec3::new(pixel[0] as f32, pixel[1] as f32, pixel[2] as f32) / 127.5
+                        - Vec3::ONE;
+                    assert!((n.length() - 1.0).abs() < 0.018 && n.z > 0.0);
+                }
+                assert!(data
+                    .as_chunks::<4>()
+                    .0
+                    .iter()
+                    .all(|p| p[1] >= 30 && p[2] == 0));
+            }
         }
     }
 

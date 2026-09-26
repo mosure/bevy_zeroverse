@@ -13,7 +13,7 @@ use crate::{
         ExtrinsicsSampler, ExtrinsicsSamplerType, PerspectiveSampler, TrajectorySampler,
         ZeroverseCamera,
     },
-    material::ZeroverseMaterials,
+    material::{MaterialTextureCatalog, ZeroverseMaterials},
     ovoxel::OvoxelTracked,
     scene::{
         RegenerateSceneEvent, RotationAugment, SceneAabbNode, SceneLoadedEvent, ZeroverseScene,
@@ -99,7 +99,7 @@ fn setup_scene(
     mut standard_materials: ResMut<Assets<StandardMaterial>>,
     scene_settings: Res<ZeroverseSceneSettings>,
     mut ambient_lighting: ResMut<GlobalAmbientLight>,
-    zeroverse_materials: Res<ZeroverseMaterials>,
+    back_material: StandardMaterial,
 ) {
     ambient_lighting.brightness = 120.0;
 
@@ -135,16 +135,7 @@ fn setup_scene(
                     let transform = wall_transform(wall, Vec3::ONE);
 
                     let material = if wall == Dir3::Z {
-                        let mut rng = rand::rng();
-                        let base_material = zeroverse_materials
-                            .materials
-                            .choose(&mut rng)
-                            .unwrap()
-                            .clone();
-
-                        let mut new_material =
-                            standard_materials.get(&base_material).unwrap().clone();
-
+                        let mut new_material = back_material.clone();
                         new_material.double_sided = false;
                         new_material.cull_mode = cull_mode.into();
 
@@ -174,6 +165,11 @@ fn setup_scene(
                             });
                         }
                     }
+
+                    // Activated normal/height maps need a tangent frame, including
+                    // the inward-facing Cornell walls.
+                    mesh.generate_tangents()
+                        .expect("Cornell plane has UVs and normals");
 
                     commands.spawn((
                         Mesh3d(meshes.add(mesh)),
@@ -272,18 +268,40 @@ fn regenerate_scene(
     scene_settings: Res<ZeroverseSceneSettings>,
     load_event: MessageWriter<SceneLoadedEvent>,
     meshes: ResMut<Assets<Mesh>>,
-    standard_materials: ResMut<Assets<StandardMaterial>>,
+    mut standard_materials: ResMut<Assets<StandardMaterial>>,
     ambient_lighting: ResMut<GlobalAmbientLight>,
     zeroverse_materials: Res<ZeroverseMaterials>,
+    server: Res<AssetServer>,
+    mut texture_catalog: ResMut<MaterialTextureCatalog>,
+    mut assets: ResMut<crate::asset::WaitForAssets>,
+    mut pending: Local<bool>,
 ) {
     if scene_settings.scene_type != ZeroverseSceneType::CornellCube {
+        *pending = false;
         return;
     }
-
-    if regenerate_events.is_empty() {
+    if !regenerate_events.is_empty() {
+        *pending = true;
+        regenerate_events.clear();
+    }
+    // Scene selection can arrive before asynchronous catalog discovery finishes.
+    // Retain the request and the visible old scene while that work completes.
+    if !*pending || assets.pending_catalogs > 0 {
         return;
     }
-    regenerate_events.clear();
+    *pending = false;
+    let mut rng = rand::rng();
+    let back_material = zeroverse_materials
+        .materials
+        .choose(&mut rng)
+        .and_then(|handle| {
+            texture_catalog.activate(handle, &server, &mut standard_materials, &mut assets);
+            standard_materials.get(handle).cloned()
+        })
+        .unwrap_or_else(|| StandardMaterial {
+            base_color: wall_color(Dir3::Z),
+            ..default()
+        });
 
     for entity in clear_zeroverse_scenes.iter() {
         commands.entity(entity).despawn();
@@ -296,6 +314,6 @@ fn regenerate_scene(
         standard_materials,
         scene_settings,
         ambient_lighting,
-        zeroverse_materials,
+        back_material,
     );
 }

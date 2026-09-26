@@ -19,7 +19,10 @@ struct Triangle {
     max: vec4<f32>,
     color: vec4<f32>,
     semantic: u32,
-    _pad_sem: vec3<u32>,
+    start_x: u32,
+    start_y: u32,
+    start_z: u32,
+    end: vec4<u32>,
 };
 
 struct Voxel {
@@ -171,21 +174,8 @@ fn classify_tiles(@builtin(global_invocation_id) gid: vec3<u32>) {
         return;
     }
     let tri = tris[tri_idx];
-    let tri_min = tri.min.xyz;
-    let tri_max = tri.max.xyz;
-
-    let min = params.min.xyz;
-    let voxel = params.voxel.xyz;
-    let start = clamp(
-        floor((tri_min - min) / voxel),
-        vec3<f32>(0.0),
-        vec3<f32>(f32(params.resolution - 1u)),
-    );
-    let end = clamp(
-        ceil((tri_max - min) / voxel),
-        vec3<f32>(0.0),
-        vec3<f32>(f32(params.resolution - 1u)),
-    );
+    let start = vec3<f32>(f32(tri.start_x), f32(tri.start_y), f32(tri.start_z));
+    let end = vec3<f32>(tri.end.xyz);
 
     let tile_dim = vec3<u32>(
         (params.resolution + TILE_SIZE - 1u) / TILE_SIZE,
@@ -252,6 +242,9 @@ fn prefix_tiles(@builtin(global_invocation_id) gid: vec3<u32>) {
 fn prepare_dispatch(@builtin(global_invocation_id) gid: vec3<u32>) {
     if gid.x > 0u {
         return;
+    }
+    if atomicLoad(&active_counter.pair_counter) > params.pair_cap {
+        _ = atomicOr(&voxel_buffer.header.overflow, 2u);
     }
     let pairs = atomicLoad(&active_counter.pair_cursor);
     let scatter = (pairs + GPU_SCATTER_WG - 1u) / GPU_SCATTER_WG;
@@ -330,6 +323,13 @@ fn voxel_main(
     var color_sum: vec4<f32> = vec4<f32>(0.0);
     var mask: u32 = 0u;
     var semantic: u32 = 0u;
+    // Sparse votes accept arbitrary u16 palette IDs. Most cells touch one or
+    // two classes; pathological >32-class cells explicitly fail the bake.
+    // First-triangle selection depended on nondeterministic atomic scatter.
+    var semantic_ids: array<u32, 32>;
+    var semantic_votes: array<u32, 32>;
+    var semantic_len: u32 = 0u;
+    var best_votes: u32 = 0u;
 
     let range_end = at.start + at.len;
     for (var idx: u32 = at.start; idx < range_end; idx = idx + 1u) {
@@ -337,7 +337,10 @@ fn voxel_main(
         let tri = tris[tri_idx];
         let tri_min = tri.min.xyz;
         let tri_max = tri.max.xyz;
-        if any(tri_min > voxel_min + voxel_extent) || any(tri_max < voxel_min) {
+        // Match the CPU's conservative floor..ceil candidate range exactly.
+        // A geometric AABB intersection here incorrectly removed surface cells.
+        let start = vec3<u32>(tri.start_x, tri.start_y, tri.start_z);
+        if any(voxel_coord < start) || any(voxel_coord > tri.end.xyz) {
             continue;
         }
         let closest = closest_point_on_triangle(center, tri);
@@ -355,8 +358,24 @@ fn voxel_main(
         if tri_min.z < voxel_min.z && tri_max.z > voxel_min.z { mask = mask | 4u; }
         dual_sum = dual_sum + offset;
         color_sum = color_sum + tri.color;
-        if count == 0u {
+        var slot: u32 = 0u;
+        loop {
+            if slot == semantic_len || semantic_ids[slot] == tri.semantic { break; }
+            slot += 1u;
+        }
+        if slot == semantic_len {
+            if semantic_len == 32u {
+                _ = atomicOr(&voxel_buffer.header.overflow, 4u);
+                return;
+            }
+            semantic_ids[slot] = tri.semantic;
+            semantic_len += 1u;
+        }
+        semantic_votes[slot] += 1u;
+        let votes = semantic_votes[slot];
+        if votes > best_votes || (votes == best_votes && tri.semantic > semantic) {
             semantic = tri.semantic;
+            best_votes = votes;
         }
         count = count + 1u;
     }
@@ -367,7 +386,7 @@ fn voxel_main(
 
     let write_idx = atomicAdd(&voxel_buffer.header.count, 1u);
     if write_idx >= params.max_output {
-        _ = atomicAdd(&voxel_buffer.header.overflow, 1u);
+        _ = atomicOr(&voxel_buffer.header.overflow, 1u);
         return;
     }
 

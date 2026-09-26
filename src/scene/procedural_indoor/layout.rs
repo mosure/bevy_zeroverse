@@ -1,11 +1,14 @@
 //! Seeded, renderer-independent layout grammar. All lengths are metres.
+mod decor;
+mod furnishing;
+mod programs;
 use bevy::prelude::*;
 use clap::ValueEnum;
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 use serde::{Deserialize, Serialize};
 
-pub const GENERATOR_VERSION: u32 = 4;
+pub const GENERATOR_VERSION: u32 = 8;
 pub const CAMERA_CLEARANCE: f32 = 0.28;
 pub const NEIGHBOR_DEPTH: f32 = 3.2;
 
@@ -57,6 +60,10 @@ pub enum ObjectKind {
     Mouse,
     WaterBottle,
     PenHolder,
+    Printer,
+    StorageBox,
+    CoatRack,
+    Bag,
 }
 
 impl ObjectKind {
@@ -102,6 +109,9 @@ pub struct IndoorObject {
     /// Stable instance id of a supporting table/desk/cabinet.
     pub support: Option<usize>,
     pub neighbor: bool,
+    /// Chair -> work surface; display/laptop -> intended seated user (chair id).
+    #[serde(default)]
+    pub interaction_target: Option<usize>,
 }
 
 impl IndoorObject {
@@ -128,20 +138,8 @@ pub struct IndoorCamera {
     pub end: Vec3,
     pub target: Vec3,
     pub fov_degrees: f32,
-}
-
-impl IndoorCamera {
-    /// Local pose at normalized progress, matching the runtime's linear position
-    /// and roll-free spherical orientation interpolation.
-    pub fn transform_at(&self, progress: f32) -> Transform {
-        let progress = progress.clamp(0.0, 1.0);
-        let start = Transform::from_translation(self.start).looking_at(self.target, Vec3::Y);
-        let end = Transform::from_translation(self.end).looking_at(self.target, Vec3::Y);
-        let rotation = start.rotation.slerp(end.rotation, progress);
-        let (yaw, pitch, _) = rotation.to_euler(EulerRot::YXZ);
-        Transform::from_translation(self.start.lerp(self.end, progress))
-            .with_rotation(Quat::from_euler(EulerRot::YXZ, yaw, pitch, 0.0).normalize())
-    }
+    #[serde(default)]
+    pub motion: Option<super::cameras::CameraMotion>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -154,12 +152,18 @@ pub enum LightingMood {
 #[derive(Debug, Clone, Resource, Serialize, Deserialize, PartialEq)]
 pub struct IndoorManifest {
     pub generator_version: u32,
+    #[serde(default)]
+    pub program: Option<super::program::IndoorProgram>,
     pub seed: u64,
     pub layout: IndoorLayout,
     pub world_yaw: f32,
     pub room_size: Vec3,
     pub palette: u32,
     pub furniture_style: u32,
+    #[serde(default)]
+    pub floor_plan: super::floorplan::FloorPlan,
+    #[serde(default)]
+    pub furnishing_quarter_turn: u8,
     pub floor_style: u32,
     pub ceiling_style: u32,
     #[serde(default)]
@@ -174,6 +178,12 @@ pub struct IndoorManifest {
     pub sun_elevation: f32,
     pub sun_azimuth: f32,
     pub light_kelvin: f32,
+    #[serde(default)]
+    pub lighting_design: u8,
+    #[serde(default = "default_target_lux")]
+    pub target_lux: f32,
+    #[serde(default = "default_daylight_lux")]
+    pub daylight_lux: f32,
     pub density: f32,
     pub objects: Vec<IndoorObject>,
     #[serde(default)]
@@ -191,6 +201,13 @@ pub fn stream(seed: u64, domain: u64) -> ChaCha8Rng {
     let mut rng = ChaCha8Rng::seed_from_u64(seed);
     rng.set_stream(domain);
     rng
+}
+
+fn default_target_lux() -> f32 {
+    450.0
+}
+fn default_daylight_lux() -> f32 {
+    18000.0
 }
 
 impl IndoorManifest {
@@ -230,19 +247,25 @@ impl IndoorManifest {
         } else {
             layout
         };
-        let room_size = Vec3::new(
-            rng.random_range(7.0..13.5),
-            rng.random_range(2.8..4.05),
-            rng.random_range(7.2..12.5),
-        );
+        let room_size = super::domain::room_size(seed);
         let mut scene = Self {
             generator_version: GENERATOR_VERSION,
+            program: Some(super::program::IndoorProgram::sample(
+                seed, room_size, layout, density,
+            )),
             seed,
             layout,
             world_yaw: 0.0,
             room_size,
             palette: rng.random_range(0..6),
             furniture_style: rng.random_range(0..3),
+            floor_plan: [
+                super::floorplan::FloorPlan::OpenHall,
+                super::floorplan::FloorPlan::CornerCore,
+                super::floorplan::FloorPlan::WindowGallery,
+                super::floorplan::FloorPlan::DividedSuite,
+            ][stream(seed, 21).random_range(0..4)],
+            furnishing_quarter_turn: stream(seed, 22).random_range(0..4),
             floor_style: rng.random_range(0..3),
             ceiling_style: rng.random_range(0..4),
             architecture_style: [
@@ -251,20 +274,25 @@ impl IndoorManifest {
                 ArchitectureStyle::Industrial,
                 ArchitectureStyle::Classic,
             ][stream(seed, 20).random_range(0..4)],
-            window_bays: rng.random_range(2..7),
-            window_sill: rng.random_range(0.32..0.85),
-            glazing_height: room_size.y - 0.35,
+            window_bays: (room_size.z / rng.random_range(1.15..3.5))
+                .round()
+                .clamp(2.0, 14.0) as u32,
+            window_sill: rng.random_range(0.12..1.4),
+            glazing_height: room_size.y - rng.random_range(0.22..0.85),
             blinds: rng.random_bool(0.4),
             door_x: room_size.x * 0.5 - 1.05,
-            column_width: rng.random_range(0.22..0.42),
+            column_width: rng.random_range(0.18..0.55),
             lighting: [
                 LightingMood::Daylight,
                 LightingMood::Overcast,
                 LightingMood::Evening,
             ][rng.random_range(0..3)],
-            sun_elevation: rng.random_range(0.35..0.82),
-            sun_azimuth: rng.random_range(-0.7..0.7),
-            light_kelvin: rng.random_range(3000.0..4700.0),
+            sun_elevation: rng.random_range(0.08..1.3),
+            sun_azimuth: rng.random_range(-std::f32::consts::PI..std::f32::consts::PI),
+            light_kelvin: stream(seed, 23).random_range(2900.0..5400.0),
+            lighting_design: stream(seed, 24).random_range(0..3),
+            target_lux: stream(seed, 25).random_range(240.0..580.0),
+            daylight_lux: stream(seed, 26).random_range(8000.0..32000.0),
             density,
             objects: Vec::new(),
             human_density,
@@ -273,8 +301,21 @@ impl IndoorManifest {
             cameras: Vec::new(),
             rejected_placements: 0,
         };
+        let domain = scene.domain().unwrap().clone();
+        scene.target_lux = domain.target_lux;
+        scene.daylight_lux = domain.photometry.sun_lux;
+        scene.light_kelvin = domain.fixture_kelvin;
+        scene.lighting = if scene.daylight_lux > 8000.0 {
+            LightingMood::Daylight
+        } else if scene.daylight_lux > 100.0 {
+            LightingMood::Overcast
+        } else {
+            LightingMood::Evening
+        };
         scene.furnish(&mut rng);
+        scene.assign_work_surfaces();
         scene.decorate(&mut rng);
+        scene.scatter_clutter(&mut rng);
         super::humans::populate(&mut scene, human_density);
         scene.sample_cameras(cameras)?;
         Ok(scene)
@@ -295,7 +336,11 @@ impl IndoorManifest {
             size,
             yaw,
             variant: rng.random_range(
-                0..if kind == ObjectKind::Plant {
+                0..if kind == ObjectKind::Chair {
+                    super::objects::chairs::FAMILIES
+                } else if kind == ObjectKind::Laptop {
+                    super::objects::computers::LAPTOP_FAMILIES
+                } else if kind == ObjectKind::Plant {
                     super::plants::SPECIES
                 } else {
                     3
@@ -305,6 +350,7 @@ impl IndoorManifest {
             solid: true,
             support: None,
             neighbor: false,
+            interaction_target: None,
         }
     }
 
@@ -317,10 +363,7 @@ impl IndoorManifest {
         rng: &mut ChaCha8Rng,
     ) -> Option<usize> {
         let mut obj = self.candidate(kind, pos, size, yaw, rng);
-        if matches!(
-            kind,
-            ObjectKind::Chair | ObjectKind::Desk | ObjectKind::Table
-        ) {
+        if matches!(kind, ObjectKind::Desk | ObjectKind::Table) {
             obj.variant = self.furniture_style;
         }
         if !self.placement_clear(&obj, 0.06) {
@@ -348,6 +391,13 @@ impl IndoorManifest {
         {
             return false;
         }
+        if self
+            .program
+            .as_ref()
+            .is_some_and(|p| !p.portal_clear(lo, hi))
+        {
+            return false;
+        }
         // A clear 1.3 m door approach is reserved across every grammar.
         if hi.x > self.door_x - 0.70 && lo.x < self.door_x + 0.70 && hi.z > half.z - 1.45 {
             return false;
@@ -370,230 +420,55 @@ impl IndoorManifest {
             })
     }
 
-    fn furnish(&mut self, rng: &mut ChaCha8Rng) {
-        use std::f32::consts::{FRAC_PI_2, PI};
-        let w = self.room_size.x;
-        let d = self.room_size.z;
-        match self.layout {
-            IndoorLayout::Conference => {
-                let length = d * rng.random_range(0.43..0.52);
-                let width = rng.random_range(1.25..1.60);
-                self.add(
-                    ObjectKind::Table,
-                    Vec3::ZERO,
-                    Vec3::new(width, 0.75, length),
-                    0.0,
-                    rng,
-                );
-                let rows = ((length - 0.65) / 0.85).floor() as usize + 1;
-                for side in [-1.0, 1.0] {
-                    for row in 0..rows {
-                        let z = (row as f32 - (rows - 1) as f32 * 0.5) * (length - 0.65)
-                            / (rows - 1) as f32;
-                        self.chair(
-                            Vec3::new(side * (width * 0.5 + 0.57), 0.0, z),
-                            side * FRAC_PI_2,
-                            rng,
-                        );
+    fn assign_work_surfaces(&mut self) {
+        let surfaces: Vec<_> = self
+            .objects
+            .iter()
+            .filter(|o| matches!(o.kind, ObjectKind::Desk | ObjectKind::Table))
+            .cloned()
+            .collect();
+        let walls = self.columns();
+        for chair in self
+            .objects
+            .iter_mut()
+            .filter(|o| o.kind == ObjectKind::Chair)
+        {
+            let forward = Quat::from_rotation_y(chair.yaw) * Vec3::NEG_Z;
+            chair.interaction_target = surfaces
+                .iter()
+                .filter_map(|surface| {
+                    if surface.neighbor != chair.neighbor {
+                        return None;
                     }
-                }
-                self.chair(Vec3::new(0.0, 0.0, length * 0.5 + 0.60), 0.0, rng);
-                self.chair(Vec3::new(0.0, 0.0, -length * 0.5 - 0.60), PI, rng);
-            }
-            IndoorLayout::OpenOffice => {
-                let rows = if d > 9.0 { 3 } else { 2 };
-                for row in 0..rows {
-                    for side in [-1.0, 1.0] {
-                        let x = side * w * 0.235;
-                        let z = -d * 0.27 + row as f32 * 2.35;
-                        self.add(
-                            ObjectKind::Desk,
-                            Vec3::new(x, 0.0, z),
-                            Vec3::new(rng.random_range(1.35..1.7), 0.74, 0.76),
-                            0.0,
-                            rng,
-                        );
-                        self.chair(
-                            Vec3::new(x + rng.random_range(-0.08..0.08), 0.0, z + 0.94),
-                            rng.random_range(-0.12..0.12),
-                            rng,
-                        );
+                    let local = surface
+                        .transform()
+                        .compute_affine()
+                        .inverse()
+                        .transform_point3(chair.position);
+                    let nearest = local
+                        .clamp(-surface.size * 0.5, surface.size * 0.5)
+                        .with_y(0.0);
+                    let edge = surface.transform().transform_point(nearest).with_y(0.0);
+                    let delta = edge - chair.position;
+                    let distance = delta.length();
+                    if distance > 1.25
+                        || delta.normalize_or_zero().dot(forward) < 0.5
+                        || (!chair.neighbor
+                            && walls.iter().any(|(a, b)| {
+                                segment_hits_box(chair.position + Vec3::Y, edge + Vec3::Y, *a, *b)
+                            }))
+                    {
+                        return None;
                     }
-                }
-            }
-            IndoorLayout::Lounge => {
-                self.add(
-                    ObjectKind::Sofa,
-                    Vec3::new(0.0, 0.0, -1.45),
-                    Vec3::new(rng.random_range(2.2..2.85), 0.88, 0.91),
-                    PI,
-                    rng,
-                );
-                self.add(
-                    ObjectKind::CoffeeTable,
-                    Vec3::ZERO,
-                    Vec3::new(1.7, 0.40, 0.80),
-                    0.0,
-                    rng,
-                );
-                for side in [-1.0, 1.0] {
-                    self.chair(Vec3::new(side * 1.55, 0.0, 0.20), side * FRAC_PI_2, rng);
-                }
-                self.fixture(
-                    ObjectKind::Rug,
-                    Vec3::new(0.0, 0.002, -0.2),
-                    Vec3::new(4.3, 0.008, 3.5),
-                    0.0,
-                    rng,
-                );
-                // A separate collaboration nook provides a second functional zone.
-                self.add(
-                    ObjectKind::Desk,
-                    Vec3::new(-w * 0.24, 0.0, d * 0.27),
-                    Vec3::new(1.40, 0.74, 0.70),
-                    PI,
-                    rng,
-                );
-                self.chair(Vec3::new(-w * 0.24, 0.0, d * 0.27 - 0.95), PI, rng);
-            }
-            IndoorLayout::Training => {
-                let rows = if d > 9.0 { 3 } else { 2 };
-                for row in 0..rows {
-                    for side in [-1.0, 1.0] {
-                        let x = side * w * 0.215;
-                        let z = -d * 0.23 + row as f32 * 2.1;
-                        self.add(
-                            ObjectKind::Desk,
-                            Vec3::new(x, 0.0, z),
-                            Vec3::new(1.8, 0.74, 0.65),
-                            0.0,
-                            rng,
-                        );
-                        for offset in [-0.44, 0.44] {
-                            self.chair(Vec3::new(x + offset, 0.0, z + 0.83), 0.0, rng);
-                        }
-                    }
-                }
-            }
-            IndoorLayout::Mixed => unreachable!(),
+                    Some((surface.id, distance))
+                })
+                .min_by(|a, b| a.1.total_cmp(&b.1))
+                .map(|(id, _)| id);
         }
-        self.add(
-            ObjectKind::Cabinet,
-            Vec3::new(0.0, 0.0, -d * 0.5 + 0.64),
-            Vec3::new(w * 0.29, 0.82, 0.55),
-            0.0,
-            rng,
-        );
-        self.add(
-            ObjectKind::Bookcase,
-            Vec3::new(w * 0.5 - 0.65, 0.0, -d * 0.20),
-            Vec3::new(1.50, 1.85, 0.36),
-            -FRAC_PI_2,
-            rng,
-        );
-        for (x, z) in [
-            (-w * 0.5 + 0.88, -d * 0.5 + 0.92),
-            (-w * 0.5 + 0.95, d * 0.5 - 0.96),
-            (w * 0.5 - 0.90, -d * 0.5 + 0.88),
-        ] {
-            if rng.random_bool((0.65 + self.density * 0.3) as f64) {
-                let h = rng.random_range(1.15..1.95);
-                self.add(
-                    ObjectKind::Plant,
-                    Vec3::new(x, 0.0, z),
-                    Vec3::new(0.9, h, 0.9),
-                    rng.random_range(0.0..std::f32::consts::TAU),
-                    rng,
-                );
-            }
-        }
-        self.add(
-            ObjectKind::TrashCan,
-            Vec3::new(w * 0.5 - 0.62, 0.0, d * 0.5 - 2.0),
-            Vec3::new(0.37, 0.55, 0.37),
-            0.0,
-            rng,
-        );
-        if self.layout == IndoorLayout::Lounge || rng.random_bool(0.4) {
-            self.add(
-                ObjectKind::FloorLamp,
-                Vec3::new(-w * 0.5 + 0.70, 0.0, -d * 0.18),
-                Vec3::new(0.46, 1.65, 0.46),
-                0.0,
-                rng,
-            );
-        }
-        // Furnished neighboring office, visible through a genuine glass partition.
-        for (kind, p, size) in [
-            (
-                ObjectKind::Desk,
-                Vec3::new(-w * 0.22, 0.0, d * 0.5 + 2.0),
-                Vec3::new(1.5, 0.74, 0.75),
-            ),
-            (
-                ObjectKind::Chair,
-                Vec3::new(-w * 0.22, 0.0, d * 0.5 + 1.08),
-                Vec3::new(0.68, 1.02, 0.68),
-            ),
-            (
-                ObjectKind::Cabinet,
-                Vec3::new(w * 0.08, 0.0, d * 0.5 + 2.65),
-                Vec3::new(1.6, 1.2, 0.40),
-            ),
-            (
-                ObjectKind::Plant,
-                Vec3::new(-w * 0.5 + 0.70, 0.0, d * 0.5 + 2.3),
-                Vec3::new(0.8, 1.7, 0.8),
-            ),
-        ] {
-            let mut obj = self.candidate(kind, p, size, PI, rng);
-            obj.neighbor = true;
-            self.objects.push(obj);
-        }
-    }
-
-    fn chair(&mut self, pos: Vec3, yaw: f32, rng: &mut ChaCha8Rng) {
-        let height = rng.random_range(0.92..1.12);
-        self.add(
-            ObjectKind::Chair,
-            pos,
-            Vec3::new(0.68, height, 0.68),
-            yaw + rng.random_range(-0.055..0.055),
-            rng,
-        );
     }
 
     fn decorate(&mut self, rng: &mut ChaCha8Rng) {
-        let w = self.room_size.x;
-        let d = self.room_size.z;
-        self.fixture(
-            ObjectKind::Display,
-            Vec3::new(-0.50, 1.27, -d * 0.5 + 0.17),
-            Vec3::new(1.65, 0.96, 0.07),
-            0.0,
-            rng,
-        );
-        self.fixture(
-            ObjectKind::Whiteboard,
-            Vec3::new(w * 0.5 - 0.16, 1.02, 0.90),
-            Vec3::new(1.65, 1.13, 0.05),
-            -std::f32::consts::FRAC_PI_2,
-            rng,
-        );
-        self.fixture(
-            ObjectKind::WallArt,
-            Vec3::new(w * 0.25, 1.43, -d * 0.5 + 0.15),
-            Vec3::new(0.82, 0.95, 0.045),
-            0.0,
-            rng,
-        );
-        self.fixture(
-            ObjectKind::Clock,
-            Vec3::new(1.4, 2.30, -d * 0.5 + 0.16),
-            Vec3::splat(0.31).with_z(0.045),
-            0.0,
-            rng,
-        );
+        self.wall_decorations(rng);
         let surfaces: Vec<_> = self
             .objects
             .iter()
@@ -632,6 +507,7 @@ impl IndoorManifest {
                 if rng.random_bool((0.35 + self.density * 0.6) as f64) {
                     let kind = if self.layout == IndoorLayout::OpenOffice
                         && surface.kind == ObjectKind::Desk
+                        && rng.random_bool(0.55)
                     {
                         ObjectKind::Monitor
                     } else {
@@ -641,7 +517,7 @@ impl IndoorManifest {
                         &surface,
                         kind,
                         Vec3::new(0.0, 0.0, z - 0.08),
-                        Vec3::new(0.38, 0.28, 0.26),
+                        Vec3::new(rng.random_range(0.30..0.41), 0.28, 0.34),
                         rng.random_range(-0.12..0.12),
                         rng,
                     );
@@ -718,8 +594,14 @@ impl IndoorManifest {
         let seats: Vec<_> = self
             .objects
             .iter()
-            .filter(|o| o.kind == ObjectKind::Chair && !o.neighbor)
-            .map(|o| o.position - surface.position)
+            .filter(|o| o.kind == ObjectKind::Chair && o.interaction_target == Some(surface.id))
+            .map(|o| {
+                surface
+                    .transform()
+                    .compute_affine()
+                    .inverse()
+                    .transform_point3(o.position)
+            })
             .collect();
         if rng.random_bool((0.2 + self.density * 0.65) as f64) {
             for x in [-0.18, 0.18] {
@@ -752,7 +634,7 @@ impl IndoorManifest {
                     surface,
                     ObjectKind::Laptop,
                     centre,
-                    Vec3::new(0.38, 0.28, 0.26),
+                    Vec3::new(rng.random_range(0.30..0.41), 0.28, 0.34),
                     yaw,
                     rng,
                 );
@@ -787,6 +669,11 @@ impl IndoorManifest {
         yaw: f32,
         rng: &mut ChaCha8Rng,
     ) {
+        if let Some(domain) = self.domain() {
+            if !rng.random_bool((0.12 + 0.88 * domain.clutter) as f64) {
+                return;
+            }
+        }
         let pos = support
             .transform()
             .transform_point(offset + Vec3::Y * support.size.y);
@@ -794,6 +681,22 @@ impl IndoorManifest {
         obj.solid = false;
         obj.support = Some(support.id);
         obj.neighbor = support.neighbor;
+        if matches!(kind, ObjectKind::Laptop | ObjectKind::Monitor) {
+            if let Some(chair) = self
+                .objects
+                .iter()
+                .filter(|o| o.kind == ObjectKind::Chair && o.interaction_target == Some(support.id))
+                .min_by(|a, b| {
+                    a.position
+                        .distance_squared(pos)
+                        .total_cmp(&b.position.distance_squared(pos))
+                })
+            {
+                let delta = (chair.position - pos).with_y(0.0);
+                obj.yaw = delta.x.atan2(delta.z);
+                obj.interaction_target = Some(chair.id);
+            }
+        }
         if !self.prop_clear(&obj, support, 0.012) {
             self.rejected_placements += 1;
             return;
@@ -839,13 +742,12 @@ impl IndoorManifest {
             || p.x.abs() > half.x - 0.50
             || p.z.abs() > half.z - 0.50
             || p.y < 0.70
-            // Suspended luminaire housings reach 0.284m below the ceiling.
-            // Reserve their depth as well as the 0.28m lens clearance.
-            || p.y > self.room_size.y - 0.57
+            // Include the deepest sampled fixture and continuous lens clearance.
+            || p.y > self.room_size.y - self.program.as_ref().map_or([0.10, 0.42, 0.06][self.lighting_design as usize % 3], |p| p.light_drop) - 0.04 - CAMERA_CLEARANCE
         {
             return false;
         }
-        if self.columns().iter().any(|(a, b)| {
+        if self.camera_obstacles().iter().any(|(a, b)| {
             p.cmpge(*a - Vec3::splat(CAMERA_CLEARANCE)).all()
                 && p.cmple(*b + Vec3::splat(CAMERA_CLEARANCE)).all()
         }) {
@@ -865,7 +767,7 @@ impl IndoorManifest {
     pub fn camera_path_clear(&self, start: Vec3, end: Vec3) -> bool {
         self.camera_clear(start)
             && self.camera_clear(end)
-            && !self.columns().iter().any(|(a, b)| {
+            && !self.camera_obstacles().iter().any(|(a, b)| {
                 segment_hits_box(
                     start,
                     end,
@@ -900,7 +802,7 @@ impl IndoorManifest {
             .iter()
             .map(IndoorObject::bounds)
             .chain(self.humans.iter().map(super::humans::IndoorHuman::bounds))
-            .chain(self.columns())
+            .chain(self.camera_obstacles())
             .any(|(lo, hi)| {
                 segment_hits_box(
                     position,
@@ -918,6 +820,7 @@ impl IndoorManifest {
             end,
             target,
             fov_degrees: 60.0,
+            motion: None,
         };
         self.camera_path_clear(start, end)
             && (0..=32).all(|step| {
@@ -928,6 +831,19 @@ impl IndoorManifest {
                         pose.translation + pose.rotation * Vec3::NEG_Z * 2.0,
                     )
             })
+    }
+
+    pub(super) fn camera_obstacles(&self) -> Vec<(Vec3, Vec3)> {
+        let mut obstacles = self.columns();
+        if let Some(program) = &self.program {
+            for p in &program.partitions {
+                let a = p.position(p.door_center - p.door_width * 0.5, p.door_height - 0.025);
+                let b = p.position(p.door_center + p.door_width * 0.5, self.room_size.y);
+                let pad = if p.axis == 0 { Vec3::X } else { Vec3::Z } * (p.thickness * 0.5 + 0.02);
+                obstacles.push((a - pad, b + pad));
+            }
+        }
+        obstacles
     }
 
     pub(super) fn columns(&self) -> Vec<(Vec3, Vec3)> {
@@ -944,6 +860,7 @@ impl IndoorManifest {
                 boxes.push((c - r, c + r));
             }
         }
+        boxes.extend(super::floorplan::obstacles(self));
         boxes
     }
 
@@ -958,7 +875,18 @@ impl IndoorManifest {
                     0 | 1 => rng.random_range(1.45..1.80),
                     2 => rng.random_range(1.05..1.35),
                     3 => rng.random_range(0.78..1.02),
-                    _ => rng.random_range(1.85..2.25),
+                    _ => rng.random_range(1.85..3.25),
+                };
+                let upper = (self.room_size.y
+                    - self.program.as_ref().map_or(0.48, |p| p.light_drop)
+                    - 0.04
+                    - CAMERA_CLEARANCE
+                    - 0.04)
+                    .min(3.25);
+                let height = if height > upper {
+                    rng.random_range(0.78..upper)
+                } else {
+                    height
                 };
                 let mut p = Vec3::new(
                     rng.random_range(-half.x + 0.65..half.x - 0.65),
@@ -976,11 +904,43 @@ impl IndoorManifest {
                 if !self.camera_clear(p) {
                     continue;
                 }
-                let target = Vec3::new(
-                    rng.random_range(-half.x * 0.28..half.x * 0.28),
-                    rng.random_range(0.85..1.4),
-                    rng.random_range(-half.z * 0.32..half.z * 0.25),
-                );
+                // Aim at actual content in this room zone as well as broad views.
+                // A central target shared by every camera over-samples glass walls.
+                let zone = self.program.as_ref().and_then(|program| {
+                    program
+                        .zones
+                        .iter()
+                        .find(|z| p.x > z.min.x && p.x < z.max.x && p.z > z.min.y && p.z < z.max.y)
+                });
+                let candidates: Vec<_> = self
+                    .objects
+                    .iter()
+                    .filter(|o| {
+                        o.solid
+                            && !o.neighbor
+                            && zone.is_none_or(|z| {
+                                o.position.x > z.min.x
+                                    && o.position.x < z.max.x
+                                    && o.position.z > z.min.y
+                                    && o.position.z < z.max.y
+                            })
+                    })
+                    .collect();
+                let target = if !candidates.is_empty() && rng.random_bool(0.72) {
+                    let object = candidates[rng.random_range(0..candidates.len())];
+                    object.position
+                        + Vec3::new(
+                            rng.random_range(-0.18..0.18),
+                            (object.size.y * rng.random_range(0.7..1.15)).clamp(0.75, 1.55),
+                            rng.random_range(-0.18..0.18),
+                        )
+                } else {
+                    Vec3::new(
+                        rng.random_range(-half.x * 0.28..half.x * 0.28),
+                        rng.random_range(0.85..1.4),
+                        rng.random_range(-half.z * 0.32..half.z * 0.25),
+                    )
+                };
                 if !self.camera_view_clear(p, target) {
                     continue;
                 }
@@ -988,16 +948,32 @@ impl IndoorManifest {
                 // motion. Every family remains subject to full-path rejection.
                 let forward = (target - p).with_y(0.0).normalize();
                 let right = forward.cross(Vec3::Y);
-                let family = (self.seed / 7).wrapping_add(index as u64) % 3;
-                let (direction, distance) = match family {
-                    0 => (right, rng.random_range(0.18..0.40)),
-                    1 => (forward, rng.random_range(0.40..0.85)),
-                    _ => ((forward + right).normalize(), rng.random_range(0.70..1.20)),
+                let angle = rng.random_range(-std::f32::consts::PI..std::f32::consts::PI);
+                let direction = forward * angle.cos() + right * angle.sin();
+                let distance = rng.random_range(0.03_f32.ln()..3.0_f32.ln()).exp();
+                let end = p + direction * distance + Vec3::Y * rng.random_range(-0.25..0.25);
+                let bend = right * rng.random_range(-0.60..0.60) * distance;
+                let camera = IndoorCamera {
+                    start: p,
+                    end,
+                    target,
+                    // Log-uniform focal length gives useful wide through normal views.
+                    fov_degrees: (0.5 / rng.random_range(0.37_f32.ln()..2.0_f32.ln()).exp())
+                        .atan()
+                        .to_degrees()
+                        * 2.0,
+                    motion: Some(super::cameras::CameraMotion {
+                        control: [p.lerp(end, 0.33) + bend, p.lerp(end, 0.67) + bend],
+                        target_end: target
+                            + Vec3::new(
+                                rng.random_range(-0.25..0.25),
+                                rng.random_range(-0.12..0.12),
+                                rng.random_range(-0.25..0.25),
+                            ),
+                        roll: [rng.random_range(-0.09..0.09), rng.random_range(-0.09..0.09)],
+                    }),
                 };
-                let sign = if rng.random_bool(0.5) { 1.0 } else { -1.0 };
-                let delta = direction * distance * sign + Vec3::Y * rng.random_range(-0.06..0.06);
-                let end = p + delta;
-                if !self.camera_trajectory_clear(p, end, target) {
+                if !self.camera_curve_clear(&camera) {
                     continue;
                 }
                 if self
@@ -1007,12 +983,7 @@ impl IndoorManifest {
                 {
                     continue;
                 }
-                found = Some(IndoorCamera {
-                    start: p,
-                    end,
-                    target,
-                    fov_degrees: rng.random_range(48.0..74.0),
-                });
+                found = Some(camera);
                 break;
             }
             self.cameras

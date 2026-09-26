@@ -5,6 +5,9 @@ SKY_RADIANCE = {"Daylight": (360, 440, 560), "Overcast": (420, 460, 510),
 
 
 def sky_radiance(manifest):
+    domain = (manifest.get("program") or {}).get("domain")
+    if domain:
+        return tuple(domain["photometry"]["sky_radiance"])
     return SKY_RADIANCE[manifest["lighting"]]
 
 

@@ -9,7 +9,7 @@
 pub mod gpu;
 use super::{
     architecture,
-    layout::{IndoorManifest, LightingMood, ObjectKind},
+    layout::{IndoorManifest, ObjectKind},
     materials::{IndoorMaterials, Surface},
     objects::{self, Assembly},
 };
@@ -330,6 +330,8 @@ struct LocalLight {
     candela: f32,
     range: f32,
     spot: bool,
+    inner_cos: f32,
+    outer_cos: f32,
 }
 
 /// Owns only immutable CPU data; safe to send to a preparation worker.
@@ -356,8 +358,8 @@ impl BakeScene {
     pub fn from_manifest(
         scene: &IndoorManifest,
         set: &IndoorMaterials,
-        materials: &Assets<StandardMaterial>,
-        images: &Assets<Image>,
+        materials: &impl super::preparation::AssetStore<StandardMaterial>,
+        images: &impl super::preparation::AssetStore<Image>,
     ) -> Self {
         let started = Instant::now();
         let mut result = Self {
@@ -369,11 +371,7 @@ impl BakeScene {
             sun: linear(architecture::sun_color(scene)) * architecture::sun_illuminance(scene),
             // Isotropic hemispherical sky luminance. Sun is a separate analytic
             // source; its disk must not be integrated a second time here.
-            sky: match scene.lighting {
-                LightingMood::Daylight => Vec3::new(360.0, 440.0, 560.0),
-                LightingMood::Overcast => Vec3::new(420.0, 460.0, 510.0),
-                LightingMood::Evening => Vec3::new(16.0, 21.0, 32.0),
-            },
+            sky: scene.sky_radiance(),
             bounds_min: Vec3::new(
                 -scene.room_size.x * 0.5 - 0.10,
                 -0.10,
@@ -387,34 +385,7 @@ impl BakeScene {
             preparation_ms: 0.0,
             world_rotation: Quat::from_rotation_y(scene.world_yaw),
         };
-        for surface in [
-            Surface::Paint,
-            Surface::Accent,
-            Surface::Wood,
-            Surface::WoodEdge,
-            Surface::Floor,
-            Surface::Ceiling,
-            Surface::Metal,
-            Surface::Chrome,
-            Surface::Plastic,
-            Surface::Fabric,
-            Surface::FabricAlt,
-            Surface::Glass,
-            Surface::Ceramic,
-            Surface::Soil,
-            Surface::Leaf,
-            Surface::LeafLight,
-            Surface::Paper,
-            Surface::Screen,
-            Surface::Ink,
-            Surface::Light,
-            Surface::Concrete,
-            Surface::Art,
-            Surface::Rubber,
-            Surface::LeafVariegated,
-            Surface::Terracotta,
-            Surface::Bark,
-        ] {
+        for surface in super::materials::program::SURFACES {
             let mat = materials
                 .get(&set.get(surface))
                 .expect("indoor material exists");
@@ -479,18 +450,20 @@ impl BakeScene {
                 result.add_geometry(geometry, person.transform(), index);
             }
         }
-        let c = super::materials::kelvin_rgb(scene.light_kelvin);
-        for p in architecture::fixture_positions(scene) {
+        for (i, p) in architecture::fixture_positions(scene)
+            .into_iter()
+            .enumerate()
+        {
+            let (c, lumens) = architecture::fixture_photometry(scene, i);
+            let (inner, outer) = architecture::fixture_angles(scene, i);
             result.lights.push(LocalLight {
                 position: p - Vec3::Y * 0.06,
                 color: linear(Color::srgb(c.x, c.y, c.z)),
-                candela: architecture::spot_intensity_for_lumens(
-                    architecture::fixture_lumens(scene),
-                    0.75,
-                    1.35,
-                ) / (4.0 * PI),
+                candela: architecture::spot_intensity_for_lumens(lumens, inner, outer) / (4.0 * PI),
                 range: 13.0,
                 spot: true,
+                inner_cos: inner.cos(),
+                outer_cos: outer.cos(),
             });
         }
         for lamp in scene
@@ -501,9 +474,11 @@ impl BakeScene {
             result.lights.push(LocalLight {
                 position: lamp.position + Vec3::Y * (lamp.size.y - 0.22),
                 color: linear(Color::srgb(1.0, 0.78, 0.57)),
-                candela: 800.0 / (4.0 * PI),
+                candela: architecture::floor_lamp_lumens(scene, lamp.seed) / (4.0 * PI),
                 range: 5.0,
                 spot: false,
+                inner_cos: 1.0,
+                outer_cos: 0.0,
             });
         }
         result.build_node(0, result.triangles.len());
@@ -515,7 +490,10 @@ impl BakeScene {
         for ((surface, _), geometry) in assembly.parts {
             // Match NotShadowCaster on transparent glazing and analytic-light
             // emitters. No double-counting emissive luminaire geometry + lights.
-            if matches!(surface, Surface::Glass | Surface::Light) {
+            if matches!(
+                surface,
+                Surface::Glass | Surface::GlassInterior | Surface::Light
+            ) {
                 continue;
             }
             self.add_geometry(geometry, transform, surface as usize);
@@ -658,7 +636,7 @@ impl BakeScene {
                 continue;
             }
             let spot = if source.spot {
-                ((direction.y - 1.35_f32.cos()) / (0.75_f32.cos() - 1.35_f32.cos()))
+                ((direction.y - source.outer_cos) / (source.inner_cos - source.outer_cos))
                     .clamp(0.0, 1.0)
                     .powi(2)
             } else {

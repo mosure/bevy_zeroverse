@@ -1,7 +1,7 @@
 [package]
 name = "bevy_zeroverse"
 description = "bevy zeroverse synthetic dataset generator"
-version = "0.19.1"
+version = "0.20.0"
 edition = "2021"
 authors = ["mosure <mitchell@mosure.me>"]
 license = "MIT"
@@ -20,6 +20,7 @@ homepage = "https://github.com/mosure/bevy_zeroverse"
 repository = "https://github.com/mosure/bevy_zeroverse"
 readme = "README.md"
 exclude = [
+  ".cargo",
   ".devcontainer",
   ".github",
   "docs",
@@ -115,7 +116,7 @@ bevy_burn_human = { version = "=0.4.0", default-features = false }
 burn_human = "=0.4.0"
 
 # Published wgpu 29.0.4 with bounded idle-encoder and Vulkan command-pool retention.
-# The patch only changes MemoryHints::MemoryUsage; see the vendor patch notes.
+# Also prefer host-cached Vulkan upload buffers; see the vendor patch notes.
 [patch.crates-io]
 wgpu-core = { path = "third_party/wgpu-core" }
 wgpu-hal = { path = "third_party/wgpu-hal" }

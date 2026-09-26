@@ -1,3 +1,7 @@
+pub mod chairs;
+pub mod computers;
+pub mod tables;
+mod utilities;
 use super::{
     geometry::Geometry,
     layout::{stream, IndoorObject, ObjectKind},
@@ -30,6 +34,11 @@ pub struct IndoorInstance {
 #[derive(Component, Debug)]
 pub struct IndoorSurface(pub Surface);
 
+/// Assembly keys can distinguish material variants while preserving one semantic class.
+pub(super) fn part_label(label: &str) -> &str {
+    label.split('#').next().unwrap_or(label)
+}
+
 impl Assembly {
     pub fn part(&mut self, surface: Surface, label: &str) -> &mut Geometry {
         self.parts.entry((surface, label.to_owned())).or_default()
@@ -61,13 +70,17 @@ impl Assembly {
             let mut entity = commands.spawn((
                 Name::new(format!("{label}/{surface:?}")),
                 Mesh3d(meshes.add(geometry.into_mesh())),
-                MeshMaterial3d(materials.get(surface)),
-                SemanticLabel::from_label(&label).expect("indoor semantic vocabulary is valid"),
+                MeshMaterial3d(materials.for_part(surface, &label)),
+                SemanticLabel::from_label(part_label(&label))
+                    .expect("indoor semantic vocabulary is valid"),
                 IndoorSurface(surface),
                 OvoxelTracked,
                 ChildOf(parent),
             ));
-            if matches!(surface, Surface::Glass | Surface::Light) {
+            if matches!(
+                surface,
+                Surface::Glass | Surface::GlassInterior | Surface::Light
+            ) {
                 entity.insert(NotShadowCaster);
             }
         }
@@ -104,8 +117,11 @@ pub fn spawn_object(
 pub fn build_object(o: &IndoorObject) -> Assembly {
     let mut a = Assembly::default();
     match o.kind {
-        ObjectKind::Table | ObjectKind::Desk | ObjectKind::CoffeeTable => table(&mut a, o),
-        ObjectKind::Chair => chair(&mut a, o),
+        ObjectKind::Printer | ObjectKind::StorageBox | ObjectKind::CoatRack | ObjectKind::Bag => {
+            utilities::build(&mut a, o)
+        }
+        ObjectKind::Table | ObjectKind::Desk | ObjectKind::CoffeeTable => tables::build(&mut a, o),
+        ObjectKind::Chair => chairs::build(&mut a, o),
         ObjectKind::Sofa => sofa(&mut a, o),
         ObjectKind::Cabinet | ObjectKind::Bookcase => cabinet(&mut a, o),
         ObjectKind::Keyboard
@@ -114,7 +130,8 @@ pub fn build_object(o: &IndoorObject) -> Assembly {
         | ObjectKind::PenHolder => super::clutter::build(&mut a, o),
         ObjectKind::Plant => super::plants::build(&mut a, o),
         ObjectKind::TrashCan => bin(&mut a, o),
-        ObjectKind::Display | ObjectKind::Monitor | ObjectKind::Laptop => display(&mut a, o),
+        ObjectKind::Display | ObjectKind::Monitor => display(&mut a, o),
+        ObjectKind::Laptop => computers::laptop(&mut a, o),
         ObjectKind::Whiteboard | ObjectKind::WallArt => wall_panel(&mut a, o),
         ObjectKind::Mug => mug(&mut a, o),
         ObjectKind::Notebook | ObjectKind::Books => books(&mut a, o),
@@ -143,222 +160,24 @@ pub fn build_object(o: &IndoorObject) -> Assembly {
             for uv in &mut geometry.uvs {
                 *uv = ((Vec2::from_array(*uv) - lo) / extent).to_array();
             }
+        } else if matches!(
+            surface,
+            Surface::Wood
+                | Surface::WoodEdge
+                | Surface::Fabric
+                | Surface::FabricAlt
+                | Surface::Plastic
+                | Surface::Metal
+                | Surface::Concrete
+        ) {
+            let mut rng = stream(o.seed, 120 + *surface as u64);
+            let phase = Vec2::new(rng.random_range(0.0..4.0), rng.random_range(0.0..4.0));
+            for uv in &mut geometry.uvs {
+                *uv = (Vec2::from_array(*uv) + phase).to_array();
+            }
         }
     }
     a
-}
-
-fn table(a: &mut Assembly, o: &IndoorObject) {
-    let s = o.size;
-    let label = o.kind.class_name();
-    a.box_part(
-        Surface::Wood,
-        label,
-        Vec3::new(0.0, s.y - 0.020, 0.0),
-        Vec3::new(s.x, 0.04, s.z),
-        0.009,
-    );
-    if s.x > s.z {
-        // The material's fibres run along texture V. Align the tabletop grain
-        // with its long axis while retaining metre-scaled UVs and edge detail.
-        for uv in &mut a.part(Surface::Wood, label).uvs {
-            *uv = [uv[1], -uv[0]];
-        }
-    }
-    a.box_part(
-        Surface::WoodEdge,
-        label,
-        Vec3::new(0.0, s.y - 0.047, 0.0),
-        Vec3::new(s.x - 0.022, 0.014, s.z - 0.022),
-        0.004,
-    );
-    if o.variant == 2 && o.kind == ObjectKind::Table {
-        for z in [-s.z * 0.29, s.z * 0.29] {
-            a.part(Surface::Metal, label).cylinder(
-                0.11,
-                s.y - 0.08,
-                Transform::from_xyz(0.0, (s.y - 0.08) * 0.5 + 0.02, z),
-            );
-            a.box_part(
-                Surface::Metal,
-                label,
-                Vec3::new(0.0, 0.022, z),
-                Vec3::new(s.x * 0.72, 0.044, 0.45),
-                0.015,
-            );
-        }
-    } else {
-        let mat = if o.variant == 1 {
-            Surface::WoodEdge
-        } else {
-            Surface::Metal
-        };
-        for x in [-1.0, 1.0] {
-            for z in [-1.0, 1.0] {
-                let top = Vec3::new(x * (s.x * 0.5 - 0.12), s.y - 0.055, z * (s.z * 0.5 - 0.14));
-                let bottom = Vec3::new(x * (s.x * 0.5 - 0.09), 0.022, z * (s.z * 0.5 - 0.10));
-                a.part(mat, label)
-                    .rod(bottom, top, if o.variant == 1 { 0.035 } else { 0.023 });
-                a.part(Surface::Rubber, label).cylinder(
-                    0.027,
-                    0.012,
-                    Transform::from_translation(bottom.with_y(0.006)),
-                );
-            }
-        }
-        for x in [-s.x * 0.5 + 0.12, s.x * 0.5 - 0.12] {
-            a.box_part(
-                mat,
-                label,
-                Vec3::new(x, s.y - 0.093, 0.0),
-                Vec3::new(0.028, 0.075, s.z - 0.26),
-                0.004,
-            );
-        }
-        for z in [-s.z * 0.5 + 0.14, s.z * 0.5 - 0.14] {
-            a.box_part(
-                mat,
-                label,
-                Vec3::new(0.0, s.y - 0.10, z),
-                Vec3::new(s.x - 0.22, 0.060, 0.035),
-                0.004,
-            );
-        }
-    }
-    if o.kind != ObjectKind::CoffeeTable {
-        a.box_part(
-            Surface::Plastic,
-            label,
-            Vec3::new(0.0, s.y - 0.14, 0.0),
-            Vec3::new(s.x * 0.46, 0.045, 0.16),
-            0.005,
-        );
-        // Flush cable grommet, with a separate dark slot.
-        a.box_part(
-            Surface::Metal,
-            label,
-            Vec3::new(0.0, s.y + 0.0003, -s.z * 0.28),
-            Vec3::new(0.16, 0.001, 0.055),
-            0.0,
-        );
-    }
-}
-
-fn chair(a: &mut Assembly, o: &IndoorObject) {
-    let label = "chair";
-    let s = o.size;
-    let seat_y = 0.47;
-    let fabric = if o.variant == 1 {
-        Surface::FabricAlt
-    } else {
-        Surface::Fabric
-    };
-    a.box_part(
-        Surface::Plastic,
-        label,
-        Vec3::new(0.0, seat_y - 0.055, 0.0),
-        Vec3::new(0.49, 0.037, 0.46),
-        0.012,
-    );
-    a.box_part(
-        fabric,
-        label,
-        Vec3::new(0.0, seat_y - 0.015, -0.025),
-        Vec3::new(0.49, 0.065, 0.47),
-        0.022,
-    );
-    a.part(fabric, label)
-        .chair_back(0.46, s.y - 0.55, Transform::from_xyz(0.0, 0.55, 0.19));
-    // Back frame, lumbar support and two attachment struts.
-    for x in [-0.19, 0.19] {
-        a.part(Surface::Plastic, label).rod(
-            Vec3::new(x, 0.43, 0.21),
-            Vec3::new(x * 0.9, s.y - 0.015, 0.26 + (s.y - 0.55) * 0.12),
-            0.013,
-        );
-    }
-    a.box_part(
-        Surface::Plastic,
-        label,
-        Vec3::new(0.0, 0.65, 0.284),
-        Vec3::new(0.37, 0.046, 0.022),
-        0.008,
-    );
-    if o.variant == 0 {
-        a.part(Surface::Chrome, label)
-            .cylinder(0.025, 0.25, Transform::from_xyz(0.0, 0.29, 0.0));
-        a.part(Surface::Plastic, label)
-            .cylinder(0.045, 0.13, Transform::from_xyz(0.0, 0.385, 0.0));
-        for i in 0..5 {
-            let angle = i as f32 * TAU / 5.0;
-            let p = Vec3::new(angle.sin() * 0.26, 0.077, angle.cos() * 0.26);
-            a.part(Surface::Metal, label)
-                .rod(Vec3::new(0.0, 0.17, 0.0), p, 0.021);
-            for dx in [-0.023, 0.023] {
-                a.part(Surface::Rubber, label).cylinder(
-                    0.033,
-                    0.018,
-                    Transform::from_translation(p + Vec3::new(dx, -0.043, 0.0))
-                        .with_rotation(Quat::from_rotation_z(FRAC_PI_2)),
-                );
-            }
-        }
-    } else {
-        for side in [-1.0, 1.0] {
-            let x = side * 0.225;
-            if o.variant == 1 {
-                for z in [-0.20, 0.20] {
-                    a.part(Surface::Rubber, label).cylinder(
-                        0.022,
-                        0.010,
-                        Transform::from_xyz(x, 0.005, z),
-                    );
-                }
-                a.part(Surface::Chrome, label).rod(
-                    Vec3::new(x, 0.027, 0.25),
-                    Vec3::new(x, 0.027, -0.22),
-                    0.018,
-                );
-                a.part(Surface::Chrome, label).rod(
-                    Vec3::new(x, 0.027, -0.22),
-                    Vec3::new(x, 0.425, -0.16),
-                    0.018,
-                );
-                a.part(Surface::Chrome, label).rod(
-                    Vec3::new(x, 0.425, -0.16),
-                    Vec3::new(x, 0.425, 0.23),
-                    0.018,
-                );
-            } else {
-                for z in [-0.20, 0.20] {
-                    a.part(Surface::Rubber, label).cylinder(
-                        0.024,
-                        0.019,
-                        Transform::from_xyz(x * 1.15, 0.0095, z * 1.15),
-                    );
-                    a.part(Surface::WoodEdge, label).rod(
-                        Vec3::new(x * 1.15, 0.019, z * 1.15),
-                        Vec3::new(x, 0.425, z),
-                        0.021,
-                    );
-                }
-            }
-        }
-    }
-    for x in [-0.295, 0.295] {
-        a.part(Surface::Metal, label).rod(
-            Vec3::new(x * 0.77, 0.43, 0.1),
-            Vec3::new(x, 0.665, 0.09),
-            0.013,
-        );
-        a.box_part(
-            Surface::Plastic,
-            label,
-            Vec3::new(x, 0.676, 0.005),
-            Vec3::new(0.046, 0.026, 0.26),
-            0.011,
-        );
-    }
 }
 
 fn sofa(a: &mut Assembly, o: &IndoorObject) {
@@ -419,6 +238,16 @@ fn sofa(a: &mut Assembly, o: &IndoorObject) {
             Transform::from_xyz(side * s.x * 0.29, 0.59, 0.12)
                 .with_rotation(Quat::from_rotation_z(side * 0.20)),
         );
+    }
+    let scale_y = s.y / 0.88;
+    for geometry in a.parts.values_mut() {
+        for position in &mut geometry.positions {
+            position[1] *= scale_y;
+        }
+        for normal in &mut geometry.normals {
+            let n = Vec3::new(normal[0], normal[1] / scale_y, normal[2]).normalize();
+            *normal = n.to_array();
+        }
     }
 }
 
@@ -565,16 +394,16 @@ fn display(a: &mut Assembly, o: &IndoorObject) {
         }
     } else {
         let label = o.kind.class_name();
-        let laptop = o.kind == ObjectKind::Laptop;
+
         a.box_part(
             Surface::Metal,
             label,
             Vec3::new(0.0, 0.008, 0.01),
-            Vec3::new(s.x, 0.016, if laptop { s.z } else { s.z * 0.55 }),
+            Vec3::new(s.x, 0.016, s.z * 0.55),
             0.006,
         );
-        let bottom = if laptop { 0.018 } else { 0.065 };
-        if !laptop {
+        let bottom = 0.065;
+        {
             a.part(Surface::Metal, label).rod(
                 Vec3::new(0.0, 0.02, 0.0),
                 Vec3::new(0.0, 0.18, -0.07),
@@ -596,30 +425,6 @@ fn display(a: &mut Assembly, o: &IndoorObject) {
             Vec3::new(s.x - 0.023, screen_h - 0.023, 0.001),
             0.0,
         );
-        if laptop {
-            for row in 0..4 {
-                for col in 0..11 {
-                    a.box_part(
-                        Surface::Plastic,
-                        label,
-                        Vec3::new(
-                            (col as f32 - 5.0) * s.x * 0.074,
-                            0.017,
-                            -0.037 + row as f32 * 0.021,
-                        ),
-                        Vec3::new(s.x * 0.064, 0.003, 0.017),
-                        0.001,
-                    );
-                }
-            }
-            a.box_part(
-                Surface::Plastic,
-                label,
-                Vec3::new(0.0, 0.017, 0.087),
-                Vec3::new(0.105, 0.001, 0.05),
-                0.0,
-            );
-        }
     }
 }
 
@@ -641,13 +446,13 @@ fn wall_panel(a: &mut Assembly, o: &IndoorObject) {
     let mut rng = stream(o.seed, 7);
     if o.kind == ObjectKind::Whiteboard {
         for row in 0..7 {
-            let y = s.y * 0.78 - row as f32 * 0.097;
+            let y = s.y * (0.78 - row as f32 * 0.09);
             for segment in 0..rng.random_range(2..6) {
-                let x = -s.x * 0.37 + segment as f32 * 0.16;
+                let x = s.x * (-0.36 + segment as f32 * 0.13);
                 a.part(Surface::Ink, label).rod(
                     Vec3::new(x, y, s.z * 0.5 + 0.006),
                     Vec3::new(
-                        x + rng.random_range(0.06..0.13),
+                        x + s.x * rng.random_range(0.04..0.09),
                         y + rng.random_range(-0.012..0.012),
                         s.z * 0.5 + 0.006,
                     ),
@@ -664,8 +469,8 @@ fn wall_panel(a: &mut Assembly, o: &IndoorObject) {
         );
         for i in 0..3 {
             a.part(Surface::Ink, label).rod(
-                Vec3::new(-0.3 + i as f32 * 0.16, 0.031, 0.06),
-                Vec3::new(-0.20 + i as f32 * 0.16, 0.031, 0.06),
+                Vec3::new(s.x * (-0.18 + i as f32 * 0.10), 0.031, 0.06),
+                Vec3::new(s.x * (-0.12 + i as f32 * 0.10), 0.031, 0.06),
                 0.006,
             );
         }

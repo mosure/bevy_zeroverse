@@ -7,18 +7,37 @@ import unittest
 
 import numpy as np
 
-from compare_indoor_cycles import blocks, compare, measurements, optical_identity
-from indoor_reference_contract import validate_snapshot
+from compare_indoor_cycles import block_areas, block_measurements, blocks, compare, measurements, optical_identity
+from indoor_reference_contract import sky_radiance, validate_snapshot
 
 
 class ReferenceComparisonTests(unittest.TestCase):
+    def test_continuous_sky_uses_manifest_radiance_with_legacy_fallback(self):
+        self.assertEqual(sky_radiance({"lighting": "Evening"}), (16, 21, 32))
+        manifest = {"lighting": "Evening", "program": {"domain": {
+            "photometry": {"sky_radiance": [0.03, 0.04, 0.07]}}}}
+        self.assertEqual(sky_radiance(manifest), (0.03, 0.04, 0.07))
+
     def test_spatial_metrics_preserve_radiant_energy(self):
         rng = np.random.default_rng(39)
         image = rng.exponential(size=(64, 96, 3))
         for size in (8, 16, 32):
             np.testing.assert_allclose(blocks(image, size).mean((0, 1)), image.mean((0, 1)))
-        with self.assertRaises(ValueError):
-            blocks(image[:63], 16)
+        cropped = image[:63, :89]
+        for size in (8, 16, 32):
+            areas = block_areas(cropped.shape, size)
+            np.testing.assert_allclose((blocks(cropped, size) * areas[..., None]).sum((0, 1)), cropped.sum((0, 1)))
+
+    def test_partial_edge_blocks_are_included_with_their_pixel_area(self):
+        reference = np.ones((35, 47, 3))
+        native = reference.copy()
+        native[32:] *= 3
+        native[:, 32:] *= 2
+        raw = measurements(native, reference, np.ones(reference.shape[:2], dtype=bool))
+        for metric in block_measurements(native, reference).values():
+            self.assertEqual(metric["covered_pixels"], 35 * 47)
+            self.assertAlmostEqual(metric["rgb_relative_mae"], raw["rgb_relative_mae"])
+            self.assertAlmostEqual(metric["luminance_bias_ratio"], raw["luminance_bias_ratio"])
 
     def test_fixed_exposure_error_is_not_fitted_away(self):
         image = np.ones((32, 32, 3))

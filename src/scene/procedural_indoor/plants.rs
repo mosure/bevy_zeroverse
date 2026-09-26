@@ -309,6 +309,7 @@ mod tests {
                     solid: true,
                     support: None,
                     neighbor: false,
+                    interaction_target: None,
                 };
                 let mut a = Assembly::default();
                 build(&mut a, &o);

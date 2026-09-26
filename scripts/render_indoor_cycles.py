@@ -46,6 +46,8 @@ def material(definition, directory, index):
     shader.inputs["Base Color"].default_value = definition["base_color"]
     shader.inputs["Roughness"].default_value = definition["roughness"]
     shader.inputs["Metallic"].default_value = definition["metallic"]
+    shader.inputs["Anisotropic"].default_value = definition.get("anisotropy_strength", 0.0)
+    shader.inputs["Anisotropic Rotation"].default_value = definition.get("anisotropy_rotation", 0.0) / (2 * math.pi)
     shader.inputs["IOR"].default_value = definition["ior"]
     f0 = ((definition["ior"] - 1) / (definition["ior"] + 1)) ** 2
     shader.inputs["Specular IOR Level"].default_value = min(

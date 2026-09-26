@@ -67,7 +67,7 @@ fn direct(position:vec3<f32>,normal:vec3<f32>)->vec3<f32> {
         let cosine=max(dot(normal,direction),0.0);
         if cosine<=0.0 || distance>=source.position_range.w {continue;}
         var spot=1.0;
-        if source.spot.x!=0u {let s=clamp((direction.y-cos(1.35))/(cos(0.75)-cos(1.35)),0.0,1.0);spot=s*s;}
+        if source.spot.x!=0u {let s=clamp((direction.y-bitcast<f32>(source.spot.z))/(bitcast<f32>(source.spot.y)-bitcast<f32>(source.spot.z)),0.0,1.0);spot=s*s;}
         if spot<=0.0 || intersect(origin,direction,max(distance-0.01,0.0),true).index!=0xffffffffu {continue;}
         let range2=source.position_range.w*source.position_range.w;let dr=d2/range2;
         let edge=max(1.0-dr*dr,0.0);let attenuation=edge*edge/max(d2,0.0001);

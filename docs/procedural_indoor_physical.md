@@ -55,6 +55,9 @@ independent sampling seeds. It reports 8-, 16- and 32-pixel block averages in
 addition to individual pixels. A 32-pixel block comparison below 5% RGB relative
 MAE and whole-image mean luminance within 2% is labelled **coarse convergence**;
 it does not certify individual pixels. Raw pixel error remains noise-sensitive.
+Partial right/bottom blocks retain every pixel and are weighted by their actual
+pixel area. Image dimensions need not be multiples of 32. This also preserves
+whole-image radiance means in block comparisons without dropping edge content.
 For native transport ablations, `indoor_validate --gi-bounces 6 --gi-rays 512`
 records the additional transport budget explicitly in its selection manifest.
 

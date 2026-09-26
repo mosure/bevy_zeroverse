@@ -25,7 +25,7 @@ bevy zeroverse synthetic reconstruction dataset generator. view the [live demo](
 - [x] [ovoxel](https://arxiv.org/abs/2512.14692) annotation
 - [x] obb annotation
 - [x] [procedural humans](https://arxiv.org/abs/2511.03589)
-- [x] asset-free furnished `procedural_indoor` scenes with seeded layouts and generated PBR surfaces
+- [x] procedural furnished `procedural_indoor` scenes with seeded layouts and generated PBR surfaces
 - [ ] primitive boolean operations
 - [ ] primitive pbr wireframe
 - [ ] primitive 4d augmentation
@@ -40,9 +40,18 @@ cargo run --bin viewer -- --scene-type procedural-indoor --indoor-seed 6
 Conference rooms, open offices, lounges and training rooms use multipart furniture,
 metric texture coordinates, generated PBR textures, shadowed lighting, window recesses
 and a furnished neighboring room behind glass. No downloaded mesh or texture catalog
-is required for this mode. Existing scene types remain available.
+is required for the architecture and furnishings. People use the bundled AnnyBody
+reference in `assets/burn_human`; `--indoor-human-density 0` runs without it. Existing
+scene types remain available.
 
-![Procedural indoor scenes, generator v4](docs/procedural_indoor/contact_generator4.jpg)
+Generator v8 expands continuous room, furnishing, material, camera and
+low-light-to-sunlight distributions. See the [domain review](docs/procedural_domain_v8.md)
+for measured coverage and renders. The [generator-v7 review](docs/scene_quality_v7.md)
+records the controls, human surfaces, glazing and annotation fixes. The generator-v6
+[program review](docs/procedural_program_review.md) retains its historical
+native/browser checks and matched Cycles comparisons. The earlier
+[generator-v5 review](docs/local_scene_quality_review.md) is retained as historical evidence.
+See the [0.20 release notes](docs/release_0_20.md) for API and capture compatibility.
 
 See the [generation, capture and validation guide](docs/procedural_indoor.md) for
 dataset examples, distribution evidence and current rendering limits. The
@@ -98,7 +107,7 @@ wgpu memory patches are not inherited by downstream crates.io consumers.
 
 | `bevy_zeroverse` | `bevy` |
 | :--                       | :--    |
-| `0.19`                    | `0.19.1` |
+| `0.20`, `0.19`            | `0.19.1` |
 | published `0.17`           | `0.17` |
 | `0.8`                     | `0.16` |
 | `0.6`                     | `0.15` |

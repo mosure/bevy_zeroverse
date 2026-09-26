@@ -460,7 +460,18 @@ pub fn configure_sampler(app: &mut App, initial_state: SamplerState) {
 }
 
 #[derive(bevy::ecs::system::SystemParam)]
-pub struct CaptureStatus<'w> {
+pub struct CaptureStatus<'w, 's> {
+    assets: Res<'w, crate::asset::WaitForAssets>,
+    indoor_generation: Option<Res<'w, crate::scene::procedural_indoor::IndoorGenerationStatus>>,
+    unfinished_primitives: Query<
+        'w,
+        's,
+        (),
+        (
+            With<crate::primitive::ZeroversePrimitiveSettings>,
+            Without<crate::primitive::ZeroversePrimitive>,
+        ),
+    >,
     draw_policy: Res<'w, crate::camera::CaptureDrawPolicy>,
     pipeline: Option<Res<'w, crate::io::image_copy::CapturePipelineReadiness>>,
     clustering: Option<Res<'w, bevy::light::cluster::GlobalClusterSettings>>,
@@ -511,6 +522,20 @@ pub fn sample_stream(
     let pipeline_readiness = capture_status.pipeline;
     let mut failure = capture_status.failure;
     if !state.enabled {
+        return;
+    }
+    if failure.0.is_some() {
+        state.enabled = false;
+        return;
+    }
+    if capture_status.assets.is_waiting()
+        || capture_status
+            .indoor_generation
+            .as_ref()
+            .is_some_and(|status| status.busy())
+        || !capture_status.unfinished_primitives.is_empty()
+    {
+        state.warmup_frames = state.warmup_frames.max(3);
         return;
     }
     let mut camera_entities: Vec<_> = cameras
@@ -941,12 +966,12 @@ pub fn sample_stream(
                     state.reset();
                     return;
                 }
-                warn!(
-                    "ovoxel volume unavailable after {} frames; emitting sample without ovoxel",
+                failure.0 = Some(format!(
+                    "required ovoxel volume unavailable after {} capture attempts",
                     state.ovoxel_wait_frames
-                );
-                state.ovoxel_wait_frames = 0;
-                None
+                ));
+                state.enabled = false;
+                return;
             }
         }
     };

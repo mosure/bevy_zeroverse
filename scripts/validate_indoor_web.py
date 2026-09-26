@@ -86,6 +86,20 @@ def check_scene(messages, seed, args):
     return scene
 
 
+async def wait_for_scene(messages, seed, args):
+    # Background/cooperative preparation deliberately keeps the previous scene
+    # rendering. Submission counts therefore cannot establish generation readiness.
+    deadline = time.monotonic() + args.timeout
+    while not any(report.get("seed") == seed for report in scene_reports(messages)):
+        failures = browser_failures(messages)
+        if failures:
+            raise AssertionError("browser error while waiting for scene generation")
+        if time.monotonic() >= deadline:
+            raise AssertionError(f"timed out waiting for generated seed {seed}")
+        await asyncio.sleep(0.05)
+    return check_scene(messages, seed, args)
+
+
 def browser_failures(messages):
     # Inspector registration warnings and missing picking were precursors to a
     # startup panic. Treat them as regressions even if the browser keeps drawing.
@@ -150,7 +164,7 @@ async def run(args):
                         if result["webgpu"]["submissions"] <= result["startup_submissions"]:
                             raise AssertionError("GPU submissions stopped after startup")
                         if not args.url_only:
-                            result["scene"] = check_scene(messages, seed, args)
+                            result["scene"] = await wait_for_scene(messages, seed, args)
                         result["user_agent"] = await page.evaluate("navigator.userAgent")
                         path = args.output / f"{name}.png"
                         await page.locator("#bevy").screenshot(path=str(path), timeout=30000)
@@ -166,12 +180,13 @@ async def run(args):
                             before = result["webgpu"]["submissions"]
                             await page.locator("#bevy").click()
                             await asyncio.wait_for(page.keyboard.press("r"), timeout=15)
+                            if not args.url_only:
+                                result["regenerated_scene"] = await wait_for_scene(messages, seed + 1, args)
+                                before = await page.evaluate("window.indoorWebProbe.submissions")
                             await page.wait_for_function(
                                 "limit => window.indoorWebProbe.submissions >= limit", arg=before + 60,
                                 timeout=args.timeout * 1000)
                             await page.wait_for_timeout(500)
-                            if not args.url_only:
-                                result["regenerated_scene"] = check_scene(messages, seed + 1, args)
                             regenerated = args.output / f"{name}_regenerated.png"
                             await page.locator("#bevy").screenshot(path=str(regenerated), timeout=30000)
                             result["regenerated_image"] = image_metrics(regenerated)

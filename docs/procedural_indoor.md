@@ -2,7 +2,8 @@
 
 `procedural-indoor` (also accepted as `procedural_indoor`) is a separate scene mode.
 It creates geometry and textures in memory; it needs no MatSynth catalog, GLTF
-furniture, human reference model or environment photographs. Cornell, object, room,
+furniture or environment photographs. Occupied scenes use the bundled AnnyBody
+reference (`assets/burn_human`); zero human density omits that model. Cornell, object, room,
 semantic room and human modes remain available.
 
 This is a substantial procedural/PBR baseline, **not a demonstrated state-of-the-art
@@ -26,10 +27,10 @@ cargo run --no-default-features --features multi_threaded --bin indoor_validate 
   --labels --output out/indoor_final
 ```
 
-Use `--asset-root` pointing to an existing empty directory to test independence from
-external assets, and `--rotation-augmentation` to rotate the entire scene and cameras.
-Native capture currently creates a hidden window and needs a working graphics
-adapter/display server. The CPU audit has no such requirement.
+Use `--human-density 0 --asset-root` pointing to an existing empty directory to test
+architecture/furniture independence from external assets, and `--rotation-augmentation` to rotate the entire scene and cameras.
+Native headless capture uses image targets and needs a working graphics adapter,
+but no window or display server. The CPU audit does not require a graphics adapter.
 
 The viewer starts inside the generated room. The existing regeneration control
 advances the scene seed. `--indoor-layout` accepts `mixed`, `conference`, `open-office`,
@@ -50,14 +51,15 @@ architecture, runtime integration and validation. `IndoorManifest` is a versione
 serializable record of the seed, dimensions, layout, styles, lighting, instances,
 support relationships, camera paths and optional world rotation.
 
-- Four furniture grammars share coherent room palettes and furniture families.
-  Room width/depth are 7–13.5 m / 7.2–12.5 m; ceiling height is 2.8–4.05 m.
+- Furniture placement uses four activity priors over continuously sampled room
+  partitions, spacing, object proportions and coordinated finishes.
+  Room dimensions are 5.6–21 m, with logarithmic area/aspect sampling; ceiling height is 2.65–4.8 m.
   The adjoining glazed room is 3.2 m deep.
 - Tables have separate tops, aprons, legs and cable details. Chairs have seats,
   thick curved backs, frames, arms and wheeled, cantilever or wood bases. Other
   builders cover sofas, cabinets, bookcases/books, leafy plants and pots, bins,
   whiteboards, displays, monitors, laptops, mugs, notebooks, keyboards, mice,
-  bottles, pen holders, clocks, lamps and rugs.
+  bottles, pen holders, clocks, lamps, rugs, printers, storage boxes, coat racks and bags.
 - Architecture includes real window openings, inset glazing, sills, mullions,
   optional blinds, pilasters, skirting, ceiling trim, acoustic treatments,
   ventilation grilles, light housings and an open doorway. Adjacent furniture and
@@ -75,8 +77,10 @@ support relationships, camera paths and optional world rotation.
   doorway approach. Props have explicit supporting surfaces. Cameras use continuous
   swept collision tests against furniture/columns, not just clear endpoints.
   Paths maintain a 0.28 m clearance around nominal object envelopes, including supported props, columns and suspended lights; viewing directions are checked throughout motion.
-- Cameras cover seated, low, standing and elevated viewpoints, 0.78–2.25 m heights,
-  48–74° vertical FOV and 0.18–1.20 m requested translation baselines. Even single-camera streams span
+- Cameras cover seated, low, standing and elevated viewpoints, 0.78–3.25 m heights,
+  roughly 28–107° vertical FOV and 0.03–3.0 m requested translation baselines.
+  Cubic Bezier paths vary bend, target and roll; the full curve is clearance checked.
+  Even single-camera streams span
   height strata across seeds. Camera count does not change furniture or earlier views.
 
 An explicit seed produces a reproducible manifest with the same generator version
@@ -173,7 +177,9 @@ Existing scene modes keep their previous color-export convention.
 
 ## Validation evidence
 
-The current implementation is generator v3. See the [v3 evaluation](procedural_indoor_review_v3.md),
+The implementation is generator v8; see the [continuous domain review](procedural_domain_v8.md).
+The [generator-v7 review](scene_quality_v7.md) records earlier annotation and viewer fixes.
+Historical evidence includes the [v3 evaluation](procedural_indoor_review_v3.md),
 [diffuse transport](procedural_indoor_gi.md), [human generation](procedural_indoor_humans.md),
 and [dataset contract](procedural_indoor_dataset.md). The [v2 evaluation](procedural_indoor_review.md)
 and its [qualification](procedural_indoor/qualification.json) are retained as historical evidence.
@@ -254,13 +260,15 @@ alone is not runtime evidence.
 
 ## Remaining qualification and scope
 
-The current architecture grammar is a rectangular main room plus one adjoining
-office. Material/palette and object variation are much broader than the old fitted
+The architecture grammar has a rectangular building envelope and one adjoining
+office, with open, service-core, gallery and divided-suite floor plans.
+Material/palette and object variation are broader than the old fitted
 mesh path, but this is not yet unrestricted building topology or a complete model
 of real indoor clutter. Generator v4 adds four architectural finish families,
 six potted botanical forms and support-aware desk accessories; see the
-[current scene review](procedural_indoor_review_v4.md). New photoreal clothed humans and
-outdoor trees are not implemented in this scene. The existing human mode remains.
+[local generator-v5 scene review](local_scene_quality_review.md). People now use AnnyBody
+with procedural garment surfaces; their appearance remains synthetic. Outdoor
+trees are not implemented in this scene. The existing human mode remains.
 
 Native Auto uses multi-bounce diffuse transport computed from the generated
 triangles on the GPU, with an independent CPU oracle. The filtered probe volume

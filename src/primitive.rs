@@ -298,6 +298,8 @@ pub struct PrimitiveResources<'w> {
     meshes: ResMut<'w, Assets<Mesh>>,
     standard_materials: ResMut<'w, Assets<StandardMaterial>>,
     zeroverse_materials: Res<'w, ZeroverseMaterials>,
+    texture_catalog: ResMut<'w, crate::material::MaterialTextureCatalog>,
+    wait: ResMut<'w, crate::asset::WaitForAssets>,
     zeroverse_meshes: ResMut<'w, ZeroverseMeshes>,
     gltfs: Res<'w, Assets<Gltf>>,
     gltf_meshes: Res<'w, Assets<GltfMesh>>,
@@ -335,17 +337,24 @@ fn build_primitive(
     let mut descriptor_override = descriptor_override;
     izip!(primitive_types, scales, positions, rotations,).for_each(
         |(primitive_type, scale, position, rotation)| {
-            let mut material = resources
-                .zeroverse_materials
-                .materials
+            let mut material = settings
+                .available_materials
+                .as_ref()
+                .unwrap_or(&resources.zeroverse_materials.materials)
                 .choose(&mut rng)
                 .cloned()
-                .unwrap_or(
+                .unwrap_or_else(|| {
                     resources
                         .standard_materials
-                        .add(StandardMaterial::default()),
-                );
+                        .add(StandardMaterial::default())
+                });
 
+            resources.texture_catalog.activate(
+                &material,
+                &resources.asset_server,
+                &mut resources.standard_materials,
+                &mut resources.wait,
+            );
             if settings.cull_mode.is_some() {
                 let mut new_material = resources.standard_materials.get(&material).unwrap().clone();
 
@@ -712,7 +721,17 @@ pub fn process_primitives(
         Without<ZeroversePrimitive>,
     >,
 ) {
+    if resources.wait.is_waiting() || resources.zeroverse_materials.materials.is_empty() {
+        return;
+    }
     for (entity, settings, descriptor_override) in primitives.iter() {
+        if resources.burn_human_assets.is_none()
+            && settings.available_types.iter().any(
+                |kind| matches!(kind, ZeroversePrimitives::Mesh(category) if category == "human"),
+            )
+        {
+            continue;
+        }
         let descriptor_override = descriptor_override.map(|descriptor| descriptor.0.clone());
         commands
             .entity(entity)

@@ -1,5 +1,9 @@
-//! Asset-free clothed adults for room-scale occupancy, with explicit anatomy,
-//! support relationships and a stable skeleton. This is not a scanned-face model.
+//! AnnyBody adults with support-aware poses and procedural garment shells.
+pub mod appearance;
+pub(crate) mod body;
+mod garments;
+mod hair;
+pub mod poses;
 use std::{
     collections::BTreeMap,
     f32::consts::{PI, TAU},
@@ -12,7 +16,7 @@ use serde::{Deserialize, Serialize};
 use super::{
     geometry::Geometry,
     layout::{stream, IndoorManifest, ObjectKind, NEIGHBOR_DEPTH},
-    materials::{IndoorMaterials, Surface},
+    materials::IndoorMaterials,
 };
 use crate::{
     annotation::{
@@ -54,13 +58,19 @@ pub const HUMAN_BONE_PARENTS: [i64; 21] = [
 pub enum HumanPoseKind {
     SeatedWorking,
     SeatedListening,
+    SeatedTalking,
     StandingRelaxed,
     StandingPresenting,
     StandingConversation,
+    StandingReading,
+    StandingWalking,
 }
 impl HumanPoseKind {
     pub fn seated(self) -> bool {
-        matches!(self, Self::SeatedWorking | Self::SeatedListening)
+        matches!(
+            self,
+            Self::SeatedWorking | Self::SeatedListening | Self::SeatedTalking
+        )
     }
 }
 
@@ -81,7 +91,13 @@ pub struct IndoorHuman {
     pub stature: f32,
     pub build: f32,
     pub shoulder_width: f32,
+    #[serde(default)]
+    pub head_yaw: f32,
     pub pose: HumanPoseKind,
+    #[serde(default)]
+    pub pose_program: Option<poses::PoseProgram>,
+    #[serde(default)]
+    pub appearance: Option<appearance::Appearance>,
     pub chair: Option<usize>,
     pub neighbor: bool,
     pub outfit: HumanOutfit,
@@ -118,6 +134,9 @@ impl IndoorHuman {
         (lo, hi)
     }
     pub fn material_color(&self, surface: HumanSurface) -> Color {
+        if let Some(color) = self.appearance.as_ref().and_then(|a| a.color(surface)) {
+            return color;
+        }
         let skin = [
             [0.91, 0.73, 0.60],
             [0.83, 0.61, 0.45],
@@ -168,18 +187,24 @@ impl IndoorHuman {
             HumanSurface::Shirt => [0.84, 0.85, 0.81],
             HumanSurface::Eye => [0.79, 0.77, 0.71],
             HumanSurface::Detail => [0.042, 0.037, 0.032],
+            HumanSurface::Seam => [0.14, 0.14, 0.14],
+            HumanSurface::Iris => [0.18, 0.12, 0.07],
         };
         Color::srgb(rgb[0], rgb[1], rgb[2])
     }
-    fn material_key(&self, surface: HumanSurface) -> u8 {
-        match surface {
+    fn material_key(&self, surface: HumanSurface) -> u64 {
+        if self.appearance.is_some() {
+            return self.seed;
+        }
+        let key = match surface {
             HumanSurface::Skin | HumanSurface::Lip => self.skin_tone,
             HumanSurface::Top => self.top_color,
             HumanSurface::Trousers => self.trouser_color,
             HumanSurface::Hair => self.hair_color,
             HumanSurface::Shoes => self.shoe_color,
             _ => 0,
-        }
+        };
+        key as u64
     }
 }
 
@@ -194,11 +219,14 @@ pub enum HumanSurface {
     Shirt,
     Eye,
     Detail,
+    Seam,
+    Iris,
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct HumanAssembly {
     pub parts: BTreeMap<HumanSurface, Geometry>,
+    pub local_joints: Vec<Vec3>,
 }
 impl HumanAssembly {
     fn part(&mut self, surface: HumanSurface) -> &mut Geometry {
@@ -225,7 +253,60 @@ pub struct IndoorHumanInstance {
 pub struct IndoorHumanSurface(pub HumanSurface);
 
 /// Material variants are deduplicated across every person in this scene and
-/// reuse the same generated cloth maps. No image/mesh files are loaded.
+/// reuse the same generated cloth maps and the shared AnnyBody reference.
+pub(crate) fn person_material(
+    person: &IndoorHuman,
+    surface: HumanSurface,
+    indoor_materials: &IndoorMaterials,
+    materials: &impl super::preparation::AssetStore<StandardMaterial>,
+) -> StandardMaterial {
+    let cloth = matches!(
+        surface,
+        HumanSurface::Top | HumanSurface::Trousers | HumanSurface::Shirt | HumanSurface::Seam
+    );
+    let mut material = if cloth {
+        materials.get(&indoor_materials.cloth).unwrap().clone()
+    } else if surface == HumanSurface::Hair {
+        materials.get(&indoor_materials.hair).unwrap().clone()
+    } else if matches!(surface, HumanSurface::Skin | HumanSurface::Lip) {
+        materials.get(&indoor_materials.skin).unwrap().clone()
+    } else {
+        StandardMaterial::default()
+    };
+    material.base_color = person.material_color(surface);
+    material.perceptual_roughness = if cloth {
+        1.0
+    } else {
+        match surface {
+            HumanSurface::Skin | HumanSurface::Lip => 0.58,
+            HumanSurface::Eye => 0.20,
+            HumanSurface::Iris => 0.23,
+            HumanSurface::Hair => 0.60,
+            HumanSurface::Shoes => 0.52,
+            _ => 0.78,
+        }
+    };
+    material.double_sided = false;
+    material.cull_mode = Some(bevy::render::render_resource::Face::Back);
+    if let Some(appearance) = &person.appearance {
+        if cloth {
+            material.perceptual_roughness = appearance.cloth_roughness;
+        }
+        if matches!(surface, HumanSurface::Skin | HumanSurface::Lip) {
+            material.perceptual_roughness = appearance.skin_roughness;
+            material.reflectance = 0.42;
+        }
+        if surface == HumanSurface::Hair {
+            // The scalp represents many unresolved fibres, not a smooth solid
+            // dielectric cap. Broaden its aggregate lobe to avoid white helmet
+            // highlights under nearby office fixtures.
+            material.perceptual_roughness =
+                0.56 + 0.12 * (appearance.hair_curl / 0.06).clamp(0.0, 1.0);
+        }
+    }
+    material
+}
+
 pub fn spawn_people(
     scene: &IndoorManifest,
     parent: Entity,
@@ -246,7 +327,7 @@ pub fn spawn_people(
                 ChildOf(parent),
                 IndoorHumanInstance {
                     id: person.id,
-                    local_joints: person.joints.clone(),
+                    local_joints: assembly.local_joints.clone(),
                 },
                 ObbTracked,
                 ObbClass("person".into()),
@@ -254,34 +335,13 @@ pub fn spawn_people(
             ))
             .id();
         for (surface, geometry) in assembly.parts {
+            if geometry.indices.is_empty() {
+                continue;
+            }
             let handle = bank
                 .entry((surface, person.material_key(surface)))
                 .or_insert_with(|| {
-                    let cloth = matches!(
-                        surface,
-                        HumanSurface::Top | HumanSurface::Trousers | HumanSurface::Shirt
-                    );
-                    let mut material = if cloth {
-                        materials
-                            .get(&indoor_materials.get(Surface::Fabric))
-                            .unwrap()
-                            .clone()
-                    } else {
-                        StandardMaterial::default()
-                    };
-                    material.base_color = person.material_color(surface);
-                    material.perceptual_roughness = if cloth {
-                        1.0
-                    } else {
-                        match surface {
-                            HumanSurface::Skin | HumanSurface::Lip => 0.58,
-                            HumanSurface::Eye => 0.25,
-                            HumanSurface::Shoes => 0.52,
-                            _ => 0.78,
-                        }
-                    };
-                    material.double_sided = false;
-                    material.cull_mode = Some(bevy::render::render_resource::Face::Back);
+                    let material = person_material(person, surface, indoor_materials, materials);
                     materials.add(material)
                 })
                 .clone();
@@ -348,67 +408,8 @@ fn sample_person(
     let stature = rng.random_range(1.50..1.95);
     let build: f32 = rng.random_range(0.82..1.22);
     let shoulder_width = rng.random_range(0.36..0.47) * build.sqrt();
-    let s = stature / 1.75;
-    let pelvis = if pose.seated() {
-        Vec3::new(0.0, 0.585, 0.015)
-    } else {
-        Vec3::new(0.0, 0.94 * s, 0.0)
-    };
-    let lean = if pose == HumanPoseKind::SeatedWorking {
-        -0.075
-    } else {
-        -0.018
-    };
-    let waist = pelvis + Vec3::new(0.0, 0.15 * s, lean * 0.3);
-    let chest = pelvis + Vec3::new(0.0, 0.43 * s, lean);
-    let neck = pelvis + Vec3::new(0.0, 0.55 * s, lean - 0.005);
-    let head = neck + Vec3::new(0.0, 0.13 * s, -0.006);
-    let mut joints = vec![pelvis, waist, chest, neck, head];
-    for side in [-1.0, 1.0] {
-        let shoulder = chest + Vec3::new(side * shoulder_width * 0.5, -0.005, 0.0);
-        let (elbow, wrist, hand) = if pose.seated() {
-            let elbow = pelvis + Vec3::new(side * 0.225, 0.15 * s, -0.10);
-            let wrist = pelvis + Vec3::new(side * 0.125, 0.15 * s, -0.285);
-            (elbow, wrist, wrist + Vec3::new(0.0, -0.015, -0.065))
-        } else if pose == HumanPoseKind::StandingPresenting && side > 0.0 {
-            let elbow = chest + Vec3::new(0.44, -0.015, -0.06) * s;
-            let wrist = chest + Vec3::new(0.62, 0.14, -0.14) * s;
-            (elbow, wrist, wrist + Vec3::new(0.06, 0.01, -0.025) * s)
-        } else if pose == HumanPoseKind::StandingConversation {
-            let elbow = shoulder + Vec3::new(side * 0.025, -0.25, -0.06) * s;
-            let wrist = elbow + Vec3::new(-side * 0.10, 0.06, -0.19) * s;
-            (
-                elbow,
-                wrist,
-                wrist + Vec3::new(-side * 0.02, 0.015, -0.065) * s,
-            )
-        } else {
-            let elbow = shoulder + Vec3::new(side * 0.025, -0.27, 0.005) * s;
-            let wrist = elbow + Vec3::new(side * 0.012, -0.245, -0.025) * s;
-            (elbow, wrist, wrist + Vec3::new(0.0, -0.065, -0.005) * s)
-        };
-        joints.extend([shoulder, elbow, wrist, hand]);
-    }
-    for side in [-1.0, 1.0] {
-        let hip = pelvis + Vec3::new(side * 0.092 * build, 0.0, 0.0);
-        let (knee, ankle) = if pose.seated() {
-            (
-                Vec3::new(side * 0.12, 0.46, -0.34 * s),
-                Vec3::new(side * 0.135, 0.105, -0.32 * s),
-            )
-        } else {
-            (
-                Vec3::new(side * 0.115, 0.51 * s, side * 0.015),
-                Vec3::new(side * 0.13, 0.105, side * 0.025),
-            )
-        };
-        joints.extend([
-            hip,
-            knee,
-            ankle,
-            Vec3::new(ankle.x, 0.045, ankle.z - 0.17 * s),
-        ]);
-    }
+    let program = poses::PoseProgram::sample(seed, pose);
+    let joints = program.solve(stature, build, shoulder_width, pose.seated());
     let mut human = IndoorHuman {
         id,
         seed,
@@ -417,7 +418,10 @@ fn sample_person(
         stature,
         build,
         shoulder_width,
+        head_yaw: rng.random_range(-0.40..0.40),
         pose,
+        pose_program: Some(program),
+        appearance: Some(appearance::Appearance::sample(seed)),
         chair,
         neighbor,
         outfit: [
@@ -443,8 +447,8 @@ fn sample_person(
         lo = lo.min(a.min(b) - Vec3::splat(r));
         hi = hi.max(a.max(b) + Vec3::splat(r));
     }
-    human.bounds_min = lo.with_y(0.0) - Vec3::new(0.015, 0.0, 0.015);
-    human.bounds_max = hi + Vec3::splat(0.015);
+    human.bounds_min = lo.with_y(0.0) - Vec3::new(0.055, 0.0, 0.055);
+    human.bounds_max = hi + Vec3::splat(0.055);
     human
 }
 
@@ -465,11 +469,21 @@ pub fn populate(scene: &mut IndoorManifest, density: f32) {
             continue;
         }
         let chair = &scene.objects[chair_id];
-        let pose = if rng.random_bool(0.6) {
-            HumanPoseKind::SeatedWorking
+        let working_surface = chair.interaction_target.is_some();
+        let poses = if working_surface {
+            [
+                HumanPoseKind::SeatedWorking,
+                HumanPoseKind::SeatedListening,
+                HumanPoseKind::SeatedTalking,
+            ]
         } else {
-            HumanPoseKind::SeatedListening
+            [
+                HumanPoseKind::SeatedListening,
+                HumanPoseKind::SeatedListening,
+                HumanPoseKind::SeatedTalking,
+            ]
         };
+        let pose = poses[rng.random_range(0..3)];
         let person = sample_person(
             rng.random(),
             scene.objects.len() + scene.humans.len(),
@@ -493,7 +507,9 @@ pub fn populate(scene: &mut IndoorManifest, density: f32) {
                 HumanPoseKind::StandingRelaxed,
                 HumanPoseKind::StandingPresenting,
                 HumanPoseKind::StandingConversation,
-            ][rng.random_range(0..3)];
+                HumanPoseKind::StandingReading,
+                HumanPoseKind::StandingWalking,
+            ][rng.random_range(0..5)];
             let p = if index == 0 && attempt < 4 && pose == HumanPoseKind::StandingPresenting {
                 Vec3::new(scene.room_size.x * 0.18, 0.0, -scene.room_size.z * 0.34)
             } else {
@@ -578,6 +594,14 @@ pub fn placement_clear(scene: &IndoorManifest, person: &IndoorHuman) -> bool {
         || lo.z < zmin
         || hi.z > zmax
         || hi.y > scene.room_size.y - 0.40
+    {
+        return false;
+    }
+    if !person.neighbor
+        && scene
+            .program
+            .as_ref()
+            .is_some_and(|p| !p.portal_clear(lo, hi))
     {
         return false;
     }
@@ -716,540 +740,6 @@ pub fn validate(scene: &IndoorManifest) -> Result<(), String> {
 
 // Geometry implementation follows below; each material retains its own mesh.
 
-fn oval(g: &mut Geometry, radii: Vec3, position: Vec3, rotation: Quat) {
-    g.mesh(
-        Sphere::new(1.0).mesh().uv(16, 10),
-        Transform::from_translation(position)
-            .with_rotation(rotation)
-            .with_scale(radii),
-    );
-}
-
-/// Elliptical cross-sections with smooth normals, metre UVs and closed end caps.
-/// Ring centres may bend to create chest lean and shaped rather than cylindrical limbs.
-fn loft(g: &mut Geometry, rings: &[(Vec3, f32, f32)], segments: usize, tf: Transform, fold: f32) {
-    let start = g.positions.len() as u32;
-    let mut distances = vec![0.0; rings.len()];
-    for i in 1..rings.len() {
-        distances[i] = distances[i - 1] + rings[i].0.distance(rings[i - 1].0);
-    }
-    for (j, (centre, rx, rz)) in rings.iter().enumerate() {
-        let before = rings[j.saturating_sub(1)];
-        let after = rings[(j + 1).min(rings.len() - 1)];
-        let dy = (after.0.y - before.0.y).abs().max(0.0001);
-        for i in 0..=segments {
-            let angle = i as f32 / segments as f32 * TAU;
-            let wrinkle = 1.0 + fold * (angle * 5.0 + j as f32 * 1.8).sin();
-            let p =
-                *centre + Vec3::new(angle.sin() * rx * wrinkle, 0.0, angle.cos() * rz * wrinkle);
-            let tangent = Vec3::new(angle.cos() * rx, 0.0, -angle.sin() * rz);
-            let along = (after.0 - before.0) / dy
-                + Vec3::new(
-                    angle.sin() * (after.1 - before.1) / dy,
-                    0.0,
-                    angle.cos() * (after.2 - before.2) / dy,
-                );
-            let n = tangent.cross(along).normalize_or(Vec3::Y);
-            g.positions.push(tf.transform_point(p).to_array());
-            g.normals.push((tf.rotation * n).to_array());
-            g.uvs.push([angle * (rx + rz) * 0.5, distances[j]]);
-        }
-    }
-    for j in 0..rings.len() - 1 {
-        for i in 0..segments {
-            let a = start + (j * (segments + 1) + i) as u32;
-            let b = a + (segments + 1) as u32;
-            g.indices.extend([a, a + 1, b, a + 1, b + 1, b]);
-        }
-    }
-    for (index, up) in [(0, false), (rings.len() - 1, true)] {
-        let (centre, rx, rz) = rings[index];
-        let c = g.positions.len() as u32;
-        let n = if up { Vec3::Y } else { -Vec3::Y };
-        g.positions.push(tf.transform_point(centre).to_array());
-        g.normals.push((tf.rotation * n).to_array());
-        g.uvs.push([0.0, 0.0]);
-        for i in 0..=segments {
-            let angle = i as f32 / segments as f32 * TAU;
-            let wrinkle = 1.0 + fold * (angle * 5.0 + index as f32 * 1.8).sin();
-            let p = Vec3::new(angle.sin() * rx * wrinkle, 0.0, angle.cos() * rz * wrinkle);
-            g.positions.push(tf.transform_point(centre + p).to_array());
-            g.normals.push((tf.rotation * n).to_array());
-            g.uvs.push([p.x, p.z]);
-        }
-        for i in 0..segments as u32 {
-            if up {
-                g.indices.extend([c, c + i + 1, c + i + 2]);
-            } else {
-                g.indices.extend([c, c + i + 2, c + i + 1]);
-            }
-        }
-    }
-}
-
-fn limb(g: &mut Geometry, a: Vec3, b: Vec3, radii: &[f32], depth_ratio: f32, fold: f32) {
-    let d = b - a;
-    let length = d.length();
-    let rings: Vec<_> = radii
-        .iter()
-        .enumerate()
-        .map(|(i, r)| {
-            (
-                Vec3::Y * (i as f32 / (radii.len() - 1) as f32 - 0.5) * length,
-                *r,
-                *r * depth_ratio,
-            )
-        })
-        .collect();
-    loft(
-        g,
-        &rings,
-        12,
-        Transform::from_translation((a + b) * 0.5)
-            .with_rotation(Quat::from_rotation_arc(Vec3::Y, d.normalize())),
-        fold,
-    );
-}
-
-fn hand(a: &mut HumanAssembly, wrist: Vec3, centre: Vec3, side: f32, s: f32) {
-    let rotation = Quat::from_rotation_arc(Vec3::Y, (centre - wrist).normalize());
-    let tf = Transform::from_translation(centre).with_rotation(rotation);
-    oval(
-        a.part(HumanSurface::Skin),
-        Vec3::new(0.036, 0.046, 0.017) * s,
-        centre,
-        rotation,
-    );
-    for index in 0..4 {
-        let x = (index as f32 - 1.5) * 0.017 * s;
-        let length = [0.061, 0.075, 0.069, 0.054][index] * s;
-        let p0 = tf.transform_point(Vec3::new(x, 0.025 * s, 0.0));
-        let p1 = tf.transform_point(Vec3::new(x, length * 0.65, -0.007 * s));
-        let p2 = tf.transform_point(Vec3::new(x, length, -0.016 * s));
-        limb(
-            a.part(HumanSurface::Skin),
-            p0,
-            p1,
-            &[0.007 * s, 0.008 * s, 0.0068 * s],
-            0.83,
-            0.0,
-        );
-        limb(
-            a.part(HumanSurface::Skin),
-            p1,
-            p2,
-            &[0.0068 * s, 0.006 * s, 0.0045 * s],
-            0.83,
-            0.0,
-        );
-        oval(
-            a.part(HumanSurface::Skin),
-            Vec3::splat(0.0048 * s),
-            p2,
-            rotation,
-        );
-    }
-    let p0 = tf.transform_point(Vec3::new(-side * 0.029 * s, -0.01 * s, 0.0));
-    let p1 = tf.transform_point(Vec3::new(-side * 0.047 * s, 0.017 * s, -0.006 * s));
-    let p2 = tf.transform_point(Vec3::new(-side * 0.047 * s, 0.040 * s, -0.017 * s));
-    limb(
-        a.part(HumanSurface::Skin),
-        p0,
-        p1,
-        &[0.013 * s, 0.011 * s, 0.009 * s],
-        0.85,
-        0.0,
-    );
-    limb(
-        a.part(HumanSurface::Skin),
-        p1,
-        p2,
-        &[0.009 * s, 0.008 * s, 0.005 * s],
-        0.85,
-        0.0,
-    );
-}
-
-fn hair_cap(g: &mut Geometry, head: Vec3, s: f32, style: u8) {
-    if style == 5 {
-        return;
-    }
-    let around = 24;
-    let rows = 10;
-    let start = g.positions.len() as u32;
-    for j in 0..=rows {
-        for i in 0..=around {
-            let theta = i as f32 / around as f32 * TAU;
-            let front = (-theta.cos()).max(0.0);
-            let stop = if style == 2 {
-                2.0 - front * 0.99
-            } else {
-                1.72 - front * 0.70
-            };
-            // A tiny nonzero polar ring avoids degenerate triangles and exposes no scalp.
-            let phi = 0.015 + (stop - 0.015) * j as f32 / rows as f32;
-            let curl = if style == 4 {
-                1.0 + 0.06 * (theta * 9.0 + phi * 7.0).sin()
-            } else {
-                1.0
-            };
-            let radii = Vec3::new(0.090, 0.119, 0.101) * s;
-            let dir = Vec3::new(phi.sin() * theta.sin(), phi.cos(), phi.sin() * theta.cos());
-            let p = head + dir * radii * curl + Vec3::Y * 0.006 * s;
-            let n = (dir / radii).normalize();
-            g.positions.push(p.to_array());
-            g.normals.push(n.to_array());
-            g.uvs.push([theta * radii.x, phi * radii.y]);
-        }
-    }
-    for j in 0..rows {
-        for i in 0..around {
-            let p = start + (j * (around + 1) + i) as u32;
-            let q = p + (around + 1) as u32;
-            g.indices.extend([p, q, p + 1, p + 1, q, q + 1]);
-        }
-    }
-    // Crown and several directional locks prevent a perfectly featureless helmet.
-    oval(
-        g,
-        Vec3::new(0.029, 0.012, 0.030) * s,
-        head + Vec3::Y * 0.121 * s,
-        Quat::IDENTITY,
-    );
-    if style == 3 {
-        oval(
-            g,
-            Vec3::new(0.058, 0.061, 0.055) * s,
-            head + Vec3::new(0.0, 0.045, 0.097) * s,
-            Quat::IDENTITY,
-        );
-    }
-    if style == 1 {
-        oval(
-            g,
-            Vec3::new(0.064, 0.021, 0.044) * s,
-            head + Vec3::new(-0.020, 0.10, -0.018) * s,
-            Quat::from_rotation_z(-0.15),
-        );
-    }
-    if style == 2 {
-        for side in [-1.0, 1.0] {
-            oval(
-                g,
-                Vec3::new(0.027, 0.087, 0.073) * s,
-                head + Vec3::new(side * 0.075, -0.045, 0.022) * s,
-                Quat::IDENTITY,
-            );
-        }
-    }
-}
-
 pub fn build_human(h: &IndoorHuman) -> HumanAssembly {
-    let mut a = HumanAssembly::default();
-    let p = &h.joints;
-    let s = h.stature / 1.75;
-    let width = h.shoulder_width;
-    let build = h.build;
-    let pelvis = p[0];
-    let waist = p[1];
-    let chest = p[2];
-    let neck = p[3];
-    let head = p[4];
-    // Trousers and the torso have anatomical waist/chest/shoulder silhouettes.
-    loft(
-        a.part(HumanSurface::Trousers),
-        &[
-            (pelvis - Vec3::Y * 0.075, 0.145 * build, 0.102 * build),
-            (pelvis + Vec3::Y * 0.04, 0.16 * build, 0.105 * build),
-            (waist - Vec3::Y * 0.025, 0.145 * build, 0.098 * build),
-        ],
-        20,
-        Transform::IDENTITY,
-        0.015,
-    );
-    loft(
-        a.part(HumanSurface::Top),
-        &[
-            (waist - Vec3::Y * 0.02, width * 0.37, 0.107 * build),
-            (waist + Vec3::Y * 0.055, width * 0.39, 0.112 * build),
-            (chest - Vec3::Y * 0.09, width * 0.47, 0.133 * build),
-            (chest + Vec3::Y * 0.012, width * 0.50, 0.124 * build),
-            (chest + Vec3::Y * 0.047, width * 0.43, 0.107 * build),
-            (chest + Vec3::Y * 0.070, width * 0.27, 0.083 * build),
-        ],
-        24,
-        Transform::IDENTITY,
-        0.013,
-    );
-    limb(
-        a.part(HumanSurface::Skin),
-        chest + Vec3::Y * 0.035,
-        head - Vec3::Y * 0.060 * s,
-        &[0.054 * s, 0.041 * s, 0.037 * s],
-        0.95,
-        0.0,
-    );
-    // Tailored collar/neck opening and front placket, with sleeve cuffs and buttons.
-    let front = chest.z - 0.129 * build;
-    if h.outfit == HumanOutfit::Blazer {
-        a.part(HumanSurface::Shirt).cuboid(
-            Vec3::new(0.112, 0.26 * s, 0.014),
-            0.006,
-            Transform::from_xyz(0.0, chest.y - 0.06, front - 0.006),
-        );
-        for side in [-1.0, 1.0] {
-            a.part(HumanSurface::Top).cuboid(
-                Vec3::new(0.060, 0.235 * s, 0.015),
-                0.003,
-                Transform::from_xyz(side * 0.069, chest.y - 0.043, front - 0.014)
-                    .with_rotation(Quat::from_rotation_z(side * 0.24)),
-            );
-        }
-        a.part(HumanSurface::Detail).cuboid(
-            Vec3::new(0.034, 0.18 * s, 0.010),
-            0.005,
-            Transform::from_xyz(0.0, chest.y - 0.035, front - 0.023),
-        );
-    }
-    if h.outfit != HumanOutfit::Knitwear {
-        let collar = if h.outfit == HumanOutfit::Blazer {
-            HumanSurface::Shirt
-        } else {
-            HumanSurface::Top
-        };
-        for side in [-1.0, 1.0] {
-            a.part(collar).cuboid(
-                Vec3::new(0.053, 0.065, 0.018) * s,
-                0.007,
-                Transform::from_translation(neck + Vec3::new(side * 0.043, -0.041, -0.042) * s)
-                    .with_rotation(Quat::from_rotation_z(side * 0.30)),
-            );
-        }
-        for row in 0..5 {
-            oval(
-                a.part(HumanSurface::Detail),
-                Vec3::new(0.004, 0.004, 0.0025) * s,
-                Vec3::new(0.0, waist.y + 0.025 + row as f32 * 0.055 * s, front - 0.006),
-                Quat::IDENTITY,
-            );
-        }
-    }
-    for side in [-1.0, 1.0] {
-        a.part(HumanSurface::Top).cuboid(
-            Vec3::new(0.067, 0.010, 0.010) * s,
-            0.002,
-            Transform::from_xyz(side * width * 0.24, waist.y + 0.05, waist.z - 0.109 * build),
-        );
-    }
-    for (base, side) in [(5, -1.0), (9, 1.0)] {
-        let shoulder = p[base];
-        let elbow = p[base + 1];
-        let wrist = p[base + 2];
-        // Sleeve heads overlap the sloping shoulder seam, avoiding separate
-        // ball-joint silhouettes while retaining a shaped cloth sleeve.
-        limb(
-            a.part(HumanSurface::Top),
-            shoulder + Vec3::new(-side * width * 0.10, 0.025 * s, 0.0),
-            elbow,
-            &[
-                0.066 * build,
-                0.079 * build,
-                0.073 * build,
-                0.059 * build,
-                0.056 * build,
-            ],
-            1.04,
-            0.030,
-        );
-        limb(
-            a.part(HumanSurface::Top),
-            elbow,
-            wrist.lerp(elbow, 0.07),
-            &[0.057 * build, 0.060 * build, 0.044 * build, 0.036 * build],
-            0.94,
-            0.027,
-        );
-        limb(
-            a.part(HumanSurface::Skin),
-            wrist.lerp(elbow, 0.09),
-            p[base + 3],
-            &[0.030 * build, 0.027 * build, 0.025 * build],
-            0.80,
-            0.0,
-        );
-        hand(&mut a, wrist, p[base + 3], side, s);
-    }
-    for base in [13, 17] {
-        let hip = p[base];
-        let knee = p[base + 1];
-        let ankle = p[base + 2];
-        limb(
-            a.part(HumanSurface::Trousers),
-            hip,
-            knee,
-            &[0.096 * build, 0.102 * build, 0.087 * build, 0.074 * build],
-            1.0,
-            0.024,
-        );
-        oval(
-            a.part(HumanSurface::Trousers),
-            Vec3::new(0.075 * build, 0.076 * build, 0.080 * build),
-            knee,
-            Quat::IDENTITY,
-        );
-        limb(
-            a.part(HumanSurface::Trousers),
-            knee,
-            ankle,
-            &[0.075 * build, 0.080 * build, 0.065 * build, 0.052 * build],
-            0.93,
-            0.028,
-        );
-        let centre = Vec3::new(ankle.x, 0.060, ankle.z - 0.045 * s);
-        oval(
-            a.part(HumanSurface::Shoes),
-            Vec3::new(0.059 * build, 0.050, 0.130 * s),
-            centre,
-            Quat::IDENTITY,
-        );
-        a.part(HumanSurface::Detail).cuboid(
-            Vec3::new(0.112 * build, 0.014, 0.242 * s),
-            0.006,
-            Transform::from_xyz(centre.x, 0.007, centre.z),
-        );
-        for row in 0..3 {
-            a.part(HumanSurface::Detail).rod(
-                centre + Vec3::new(-0.025, 0.044, -0.015 - row as f32 * 0.014),
-                centre + Vec3::new(0.025, 0.044, -0.021 - row as f32 * 0.014),
-                0.0018,
-            );
-        }
-    }
-    // A tapering jaw and cheek volumes, not a spherical head.
-    loft(
-        a.part(HumanSurface::Skin),
-        &[
-            (
-                head + Vec3::new(0.0, -0.110, -0.006) * s,
-                0.040 * s,
-                0.053 * s,
-            ),
-            (
-                head + Vec3::new(0.0, -0.079, -0.003) * s,
-                0.064 * s,
-                0.073 * s,
-            ),
-            (head + Vec3::new(0.0, -0.020, 0.0) * s, 0.082 * s, 0.088 * s),
-            (
-                head + Vec3::new(0.0, 0.040, 0.006) * s,
-                0.082 * s,
-                0.087 * s,
-            ),
-            (
-                head + Vec3::new(0.0, 0.086, 0.011) * s,
-                0.061 * s,
-                0.065 * s,
-            ),
-            (
-                head + Vec3::new(0.0, 0.110, 0.014) * s,
-                0.025 * s,
-                0.034 * s,
-            ),
-        ],
-        24,
-        Transform::IDENTITY,
-        0.0,
-    );
-    oval(
-        a.part(HumanSurface::Skin),
-        Vec3::new(0.017, 0.030, 0.018) * s,
-        head + Vec3::new(0.0, -0.003, -0.090) * s,
-        Quat::from_rotation_x(-0.12),
-    );
-    oval(
-        a.part(HumanSurface::Skin),
-        Vec3::new(0.018, 0.010, 0.018) * s,
-        head + Vec3::new(0.0, -0.019, -0.101) * s,
-        Quat::IDENTITY,
-    );
-    oval(
-        a.part(HumanSurface::Lip),
-        Vec3::new(0.023, 0.0045, 0.005) * s,
-        head + Vec3::new(0.0, -0.048, -0.080) * s,
-        Quat::IDENTITY,
-    );
-    oval(
-        a.part(HumanSurface::Detail),
-        Vec3::new(0.018, 0.0016, 0.0055) * s,
-        head + Vec3::new(0.0, -0.049, -0.081) * s,
-        Quat::IDENTITY,
-    );
-    for side in [-1.0, 1.0] {
-        oval(
-            a.part(HumanSurface::Skin),
-            Vec3::new(0.013, 0.026, 0.018) * s,
-            head + Vec3::new(side * 0.081, -0.012, 0.004) * s,
-            Quat::IDENTITY,
-        );
-        oval(
-            a.part(HumanSurface::Lip),
-            Vec3::new(0.006, 0.016, 0.011) * s,
-            head + Vec3::new(side * 0.089, -0.012, -0.001) * s,
-            Quat::IDENTITY,
-        );
-        let eye = head + Vec3::new(side * 0.032, 0.018, -0.084) * s;
-        oval(
-            a.part(HumanSurface::Eye),
-            Vec3::new(0.014, 0.0055, 0.004) * s,
-            eye,
-            Quat::IDENTITY,
-        );
-        oval(
-            a.part(HumanSurface::Hair),
-            Vec3::new(0.0045, 0.0047, 0.003) * s,
-            eye - Vec3::Z * 0.003 * s,
-            Quat::IDENTITY,
-        );
-        oval(
-            a.part(HumanSurface::Detail),
-            Vec3::new(0.002, 0.003, 0.0015) * s,
-            eye - Vec3::Z * 0.006 * s,
-            Quat::IDENTITY,
-        );
-        a.part(HumanSurface::Hair).rod(
-            eye + Vec3::new(-0.014, 0.012, 0.001) * s,
-            eye + Vec3::new(0.014, 0.013, 0.001) * s,
-            0.0025 * s,
-        );
-        if h.glasses {
-            for y in [-0.012, 0.012] {
-                a.part(HumanSurface::Detail).rod(
-                    eye + Vec3::new(-0.020, y, -0.009) * s,
-                    eye + Vec3::new(0.020, y, -0.009) * s,
-                    0.0015 * s,
-                );
-            }
-            for x in [-0.020, 0.020] {
-                a.part(HumanSurface::Detail).rod(
-                    eye + Vec3::new(x, -0.012, -0.009) * s,
-                    eye + Vec3::new(x, 0.012, -0.009) * s,
-                    0.0015 * s,
-                );
-            }
-            a.part(HumanSurface::Detail).rod(
-                eye + Vec3::new(side * 0.020, 0.004, -0.009) * s,
-                head + Vec3::new(side * 0.085, 0.022, 0.027) * s,
-                0.0015 * s,
-            );
-        }
-    }
-    if h.glasses {
-        a.part(HumanSurface::Detail).rod(
-            head + Vec3::new(-0.010, 0.021, -0.096) * s,
-            head + Vec3::new(0.010, 0.021, -0.096) * s,
-            0.0015 * s,
-        );
-    }
-    hair_cap(a.part(HumanSurface::Hair), head, s, h.hairstyle);
-    a
+    body::build(h)
 }

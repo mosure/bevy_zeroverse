@@ -40,34 +40,44 @@ impl Plugin for ZeroverseBurnHumanPlugin {
     }
 }
 
-// Keep the upstream renderer registered, but request its reference only for legacy scenes.
-// This also permits switching back from procedural_indoor in the inspector.
+// Keep the renderer registered without decoding a human model for unrelated scenes.
 fn load_human_reference(
     mut commands: Commands,
-    args: Res<BevyZeroverseConfig>,
+    demand: Res<crate::asset::SceneAssetDemand>,
     server: Res<AssetServer>,
     references: Res<Assets<bevy_burn_human::BurnHumanReferenceAsset>>,
     existing: Option<Res<BurnHumanAssets>>,
     mut handle: Local<Option<Handle<bevy_burn_human::BurnHumanReferenceAsset>>>,
+    mut failed: Local<bool>,
 ) {
-    if existing.is_some() || args.scene_type == crate::scene::ZeroverseSceneType::ProceduralIndoor {
+    if existing.is_some() || !demand.humans {
         return;
     }
-    let handle = handle.get_or_insert_with(|| server.load("burn_human/fullbody_default.meta.json"));
-    if let Some(reference) = references.get(handle) {
-        commands.insert_resource(BurnHumanAssets {
-            body: reference.0.clone(),
-            faces: std::sync::Arc::new(reference.0.faces_quads().clone()),
-            uvs: std::sync::Arc::new(
-                reference
-                    .0
-                    .metadata()
-                    .static_data
-                    .texture_coordinates
-                    .clone(),
-            ),
-        });
-    }
+    let body = if let Some(body) = crate::scene::procedural_indoor::humans::body::installed() {
+        body
+    } else {
+        let handle =
+            handle.get_or_insert_with(|| server.load("burn_human/fullbody_default.meta.json"));
+        if let bevy::asset::LoadState::Failed(error) = server.load_state(handle.id()) {
+            let message = format!("AnnyBody reference failed to load: {error}; install assets/burn_human or set indoor_human_density=0 for an unoccupied indoor scene");
+            if !*failed {
+                error!("{message}");
+            }
+            commands.insert_resource(crate::sample::CaptureFailure(Some(message)));
+            *failed = true;
+            return;
+        }
+        let Some(reference) = references.get(handle) else {
+            return;
+        };
+        reference.0.clone()
+    };
+    crate::scene::procedural_indoor::humans::body::install(body.clone());
+    commands.insert_resource(BurnHumanAssets {
+        faces: std::sync::Arc::new(body.faces_quads().clone()),
+        uvs: std::sync::Arc::new(body.metadata().static_data.texture_coordinates.clone()),
+        body,
+    });
 }
 
 #[derive(Resource, Reflect, Debug, Clone)]

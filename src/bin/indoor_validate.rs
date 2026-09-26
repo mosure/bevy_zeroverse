@@ -82,7 +82,7 @@ struct Args {
     /// Capture uniform trajectory samples including both endpoints (one means start only).
     #[arg(long, default_value_t = 1)]
     playback_steps: u32,
-    /// Use an empty directory to verify the absence of external asset dependencies.
+    /// Asset root; an empty directory is supported with --human-density 0.
     #[arg(long)]
     asset_root: Option<PathBuf>,
     #[arg(long)]
@@ -162,6 +162,12 @@ fn main() -> Result<()> {
         (64..=16384).contains(&args.gi_rays),
         "GI rays must be in [64, 16384]"
     );
+    setup_globals(Some(
+        args.asset_root
+            .as_ref()
+            .map(|p| p.to_string_lossy().into_owned())
+            .unwrap_or_else(|| env!("CARGO_MANIFEST_DIR").to_owned()),
+    ));
     fs::create_dir_all(&args.output)?;
     let audit_start = Instant::now();
     let report = audit_layout_with_humans(
@@ -246,12 +252,6 @@ fn main() -> Result<()> {
     if selected.is_empty() {
         return Ok(());
     }
-    setup_globals(Some(
-        args.asset_root
-            .as_ref()
-            .map(|p| p.to_string_lossy().into_owned())
-            .unwrap_or_else(|| env!("CARGO_MANIFEST_DIR").to_owned()),
-    ));
     let modes = if args.labels {
         vec![
             RenderMode::Color,
@@ -366,8 +366,30 @@ fn main() -> Result<()> {
         // Build and compile RGB pipelines before enabling the sampler; mode transitions
         // get their own settling frames so readback cannot contain the preceding mode.
         *app.world_mut().resource_mut::<RenderMode>() = RenderMode::Color;
-        for _ in 0..4 {
+        loop {
             app.update();
+            ensure!(
+                app.world()
+                    .resource::<bevy_zeroverse::sample::CaptureFailure>()
+                    .0
+                    .is_none(),
+                "scene preparation failed: {:?}",
+                app.world()
+                    .resource::<bevy_zeroverse::sample::CaptureFailure>()
+                    .0
+            );
+            if !bevy_zeroverse::scene::procedural_indoor::indoor_generation_pending(app.world())
+                && app
+                    .world()
+                    .get_resource::<IndoorManifest>()
+                    .is_some_and(|scene| scene.seed == seed)
+            {
+                break;
+            }
+            ensure!(
+                start.elapsed() < Duration::from_secs(60),
+                "scene preparation timeout for seed {seed}"
+            );
         }
         let manifest = app
             .world()
@@ -596,8 +618,11 @@ fn save_sample(
         let std = (luminance.iter().map(|l| (l - mean).powi(2)).sum::<f32>() / n).sqrt();
         let dark = luminance.iter().filter(|&&l| l < 0.002).count() as f32 / n;
         let clipped = luminance.iter().filter(|&&l| l > 0.99).count() as f32 / n;
+        // Low-light and exposure-tail samples belong to the domain. Reject lost
+        // signal, not a dark_fraction chosen for normally lit offices; retain all
+        // brightness/clipping statistics so dataset curation can be explicit.
         ensure!(
-            std > 0.015 && dark < 0.85 && clipped < 0.50,
+            std > 0.0001 && mean > 0.000001 && clipped < 0.995,
             "degenerate RGB image: mean={mean} std={std} dark={dark} clipped={clipped}"
         );
         let focal_length = args.height as f32 / (2.0 * (view.fovy * 0.5).tan());
