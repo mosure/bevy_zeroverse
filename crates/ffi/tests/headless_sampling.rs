@@ -2,7 +2,7 @@ use std::{
     error::Error,
     fmt::Write as FmtWrite,
     fs,
-    path::{Path, PathBuf},
+    path::Path,
     sync::Once,
     thread,
     time::{Duration, Instant},
@@ -26,13 +26,16 @@ use image::{ImageBuffer, Rgba};
 
 static INIT_GLOBALS: Once = Once::new();
 
+fn repository_root() -> &'static Path {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .ancestors()
+        .nth(2)
+        .expect("ffi crate is located under <repository>/crates/ffi")
+}
+
 fn init_globals() {
     INIT_GLOBALS.call_once(|| {
-        let asset_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .parent()
-            .expect("ffi crate has a parent directory")
-            .to_string_lossy()
-            .into_owned();
+        let asset_root = repository_root().to_string_lossy().into_owned();
         setup_globals(Some(asset_root));
 
         if let Some(receiver) = channels::sample_receiver() {
@@ -244,6 +247,14 @@ fn collect_sample(app: &mut App, cfg: &BevyZeroverseConfig) -> Result<Sample, Bo
     let start = Instant::now();
     loop {
         app.update();
+
+        if let Some(error) = &app
+            .world()
+            .resource::<bevy_zeroverse::sample::CaptureFailure>()
+            .0
+        {
+            return Err(format!("headless capture failed: {error}").into());
+        }
 
         if let Ok(sample) = receiver.lock().unwrap().try_recv() {
             let (depth_material_count, depth_tag_count) = {
@@ -503,11 +514,7 @@ fn write_sample_outputs(
 fn headless_sampling_exports_pngs() -> Result<(), Box<dyn Error>> {
     init_globals();
 
-    let output_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .expect("ffi crate has a parent")
-        .join("data")
-        .join("integration_test");
+    let output_root = repository_root().join("out").join("ffi_integration_test");
 
     fs::create_dir_all(&output_root)?;
 
