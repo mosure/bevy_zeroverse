@@ -121,8 +121,18 @@ impl LiveDataset {
         let lock = receiver
             .lock()
             .map_err(|_| anyhow::anyhow!("sample receiver lock poisoned"))?;
-        lock.recv_timeout(self.config.timeout)
-            .map_err(|err| anyhow::anyhow!("failed to recv sample: {err:?}"))
+        let started = std::time::Instant::now();
+        loop {
+            if let Some(error) = bevy_zeroverse::io::channels::take_capture_failure() {
+                anyhow::bail!(error);
+            }
+            match lock.recv_timeout(Duration::from_millis(100)) {
+                Ok(sample) => return Ok(sample),
+                Err(std::sync::mpsc::RecvTimeoutError::Timeout)
+                    if started.elapsed() < self.config.timeout => {}
+                Err(err) => anyhow::bail!("failed to recv sample: {err:?}"),
+            }
+        }
     }
 
     fn request_next(&self) -> Result<()> {
@@ -138,7 +148,7 @@ impl LiveDataset {
 
         let sender = bevy_zeroverse::io::channels::app_frame_sender();
         sender
-            .send(())
+            .send(Default::default())
             .context("failed to signal zeroverse app for next sample")
     }
 

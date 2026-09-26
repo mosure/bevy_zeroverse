@@ -1,7 +1,7 @@
 [package]
 name = "bevy_zeroverse"
 description = "bevy zeroverse synthetic dataset generator"
-version = "0.17.3"
+version = "0.19.0"
 edition = "2021"
 authors = ["mosure <mitchell@mosure.me>"]
 license = "MIT"
@@ -27,11 +27,14 @@ exclude = [
   "build",
   "assets",
   "credits",
+  "third_party",
+  "out",
 ]
 default-run = "viewer"
 
 
 [workspace]
+exclude = ["third_party/wgpu-hal", "third_party/wgpu-core"]
 members = [
   ".",
   "crates/ffi",
@@ -76,11 +79,11 @@ webgpu = [
 
 
 [dependencies]
-bevy_args = "2.0"
-bevy_egui = { version = "0.38", optional = true }
-bevy-inspector-egui = { version = "0.35", optional = true }
-bevy_panorbit_camera = { version = "0.32", optional = true, features = ["bevy_egui"] }
-bevy_mesh = "0.17"
+bevy_args = "4.0.0"
+bevy_egui = { version = "0.40", optional = true }
+bevy-inspector-egui = { version = "0.37.0", optional = true }
+bevy_panorbit_camera = { version = "0.35.1", optional = true, features = ["bevy_egui"] }
+bevy_mesh = "0.19.1"
 clap = { version = "4.5", features = ["derive"] }
 futures-intrusive = "0.5"
 glob = "0.3"
@@ -90,34 +93,47 @@ once_cell = "1.19"
 pollster = "0.4"
 pyo3 = { version = "0.27.2", features = ["macros"], optional = true }
 rand = "0.9"
+# Keep the procedural ChaCha stream independent; Bevy shape sampling uses rand 0.10.
+rand_bevy = { package = "rand", version = "0.10" }
+rand_chacha = "0.9"
 rayon = { version = "1.11", optional = true }
 serde = "1.0"
 serde_json = "1.0"
 strum = "0.27"
 strum_macros = "0.27"
-wgpu = "26"
+wgpu = { version = "29.0.3", features = ["counters"] }
 anyhow = "1.0"
 bytemuck = "1.19"
 image = "0.25"
+half = "2"
 futures-lite = "2.3"
-bevy_burn_human = { version = "0.3", default-features = false }
-burn_human = "0.3"
+bevy_burn_human = { version = "=0.4.0", default-features = false }
+burn_human = "=0.4.0"
+
+# Published wgpu 29.0.4 with bounded idle-encoder and Vulkan command-pool retention.
+# The patch only changes MemoryHints::MemoryUsage; see the vendor patch notes.
+[patch.crates-io]
+wgpu-core = { path = "third_party/wgpu-core" }
+wgpu-hal = { path = "third_party/wgpu-hal" }
 
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = "0.1"
 getrandom = { version = "0.3", default-features = false, features = ["wasm_js"] }
+getrandom04 = { package = "getrandom", version = "0.4", default-features = false, features = ["wasm_js"] }
 wasm-bindgen = "0.2"
 
 
 [dependencies.bevy]
-version = "0.17"
+version = "=0.19.1"
 default-features = false
 features = [
   "bevy_asset",
+  "bevy_anti_alias",
   "bevy_camera",
   "bevy_core_pipeline",
   "bevy_gizmos",
+  "bevy_gizmos_render",
   "bevy_gltf",
   "bevy_image",
   "bevy_log",
@@ -150,6 +166,7 @@ features = [
   'HtmlElement',
   'Location',
   'Node',
+  'UrlSearchParams',
   'Window',
 ]
 

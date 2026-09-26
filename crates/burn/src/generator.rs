@@ -11,15 +11,15 @@ use std::{
 };
 
 use anyhow::{Context, Result, anyhow};
+use bevy_zeroverse::scene::procedural_indoor::layout::IndoorLayout;
 use bevy_zeroverse::{app::BevyZeroverseConfig, render::RenderMode, scene::ZeroverseSceneType};
 use burn::data::dataset::Dataset;
-use rand::{SeedableRng, rngs::StdRng};
 
 use crate::{
-    chunk::{decode_rgba_bytes, discover_chunks, load_chunk, save_chunk},
+    chunk::{ColorCodec, decode_rgba_bytes, discover_chunks, load_chunk, save_chunk_with_codec},
     compression::Compression,
     dataset::{LiveDataset, LiveDatasetConfig},
-    fs::save_sample_to_fs,
+    fs::save_sample_to_fs_with_codec,
     progress::ProgressTracker,
 };
 
@@ -42,11 +42,18 @@ pub struct GenConfig {
     pub scene_type: ZeroverseSceneType,
     pub asset_root: Option<PathBuf>,
     pub compression: Compression,
+    pub color_codec: ColorCodec,
     pub render_modes: Vec<RenderMode>,
     pub timeout_secs: u64,
     pub width: u32,
     pub height: u32,
     pub seed: Option<u64>,
+    pub indoor_layout: IndoorLayout,
+    pub indoor_density: f32,
+    pub indoor_human_density: f32,
+    pub indoor_gi_rays: u32,
+    pub indoor_quality: bevy_zeroverse::scene::procedural_indoor::IndoorQuality,
+    pub rotation_augmentation: bool,
     pub cameras: usize,
     pub enable_ui: bool,
     pub write_mode: WriteMode,
@@ -72,11 +79,18 @@ impl Default for GenConfig {
             scene_type: ZeroverseSceneType::SemanticRoom,
             asset_root: None,
             compression: Compression::default(),
+            color_codec: ColorCodec::Jpeg,
             render_modes: vec![RenderMode::Color],
             timeout_secs: 120,
             width: 256,
             height: 256,
             seed: None,
+            indoor_layout: IndoorLayout::Mixed,
+            indoor_density: 0.65,
+            indoor_human_density: 0.25,
+            indoor_gi_rays: 256,
+            indoor_quality: Default::default(),
+            rotation_augmentation: false,
             cameras: 1,
             enable_ui: false,
             write_mode: WriteMode::Chunk,
@@ -90,10 +104,63 @@ impl Default for GenConfig {
     }
 }
 
+/// Validate the capture contract before starting a GPU process or writing data.
+pub fn validate_gen_config(config: &GenConfig) -> Result<()> {
+    anyhow::ensure!(
+        !config.render_modes.is_empty()
+            && config
+                .render_modes
+                .iter()
+                .enumerate()
+                .all(|(index, mode)| !config.render_modes[..index].contains(mode)),
+        "render_modes must be nonempty and contain no duplicates"
+    );
+    anyhow::ensure!(
+        config.workers > 0 && config.chunk_size > 0,
+        "workers and chunk_size must be positive"
+    );
+    anyhow::ensure!(
+        config.width > 0 && config.height > 0 && config.cameras > 0 && config.playback_steps > 0,
+        "image dimensions, cameras, and playback_steps must be positive"
+    );
+    anyhow::ensure!(
+        config.timeout_secs > 0 && config.playback_step.is_finite() && config.playback_step >= 0.0,
+        "timeout must be positive and playback_step finite and nonnegative"
+    );
+    anyhow::ensure!(
+        !config.render_modes.contains(&RenderMode::MotionVectors),
+        "motion-vectors capture is not implemented"
+    );
+    if config.scene_type == ZeroverseSceneType::ProceduralIndoor {
+        anyhow::ensure!(
+            config.workers == 1,
+            "procedural_indoor requires one capture worker per app to preserve seed/index ordering; use CLI --per-process=true for parallel generation"
+        );
+        anyhow::ensure!(
+            config.cameras <= 256
+                && config.indoor_density.is_finite()
+                && (0.0..=1.0).contains(&config.indoor_density)
+                && config.indoor_human_density.is_finite()
+                && (0.0..=1.0).contains(&config.indoor_human_density)
+                && (64..=16384).contains(&config.indoor_gi_rays),
+            "indoor cameras must be 1..=256 and furniture/human densities finite in [0, 1], GI rays in 64..=16384"
+        );
+        anyhow::ensure!(
+            config.playback_step * config.playback_steps.saturating_sub(1) as f32 <= 1.0,
+            "indoor trajectory progress must stay in [0, 1]: playback_step * (playback_steps - 1) <= 1"
+        );
+        anyhow::ensure!(
+            !config.render_modes.contains(&RenderMode::OpticalFlow),
+            "indoor optical flow is not temporally calibrated across multimodal captures; use depth, position and camera poses until qualified"
+        );
+    }
+    Ok(())
+}
+
 pub fn resume_offsets(
     output: impl AsRef<Path>,
     write_mode: WriteMode,
-    chunk_size: usize,
+    _chunk_size: usize,
 ) -> Result<(usize, usize)> {
     let output = output.as_ref();
     if !output.exists() {
@@ -102,7 +169,7 @@ pub fn resume_offsets(
 
     match write_mode {
         WriteMode::Fs => {
-            let mut max_idx: Option<usize> = None;
+            let mut indices = Vec::new();
             for entry in fs::read_dir(output)? {
                 let entry = entry?;
                 if !entry.file_type()?.is_dir() {
@@ -111,35 +178,51 @@ pub fn resume_offsets(
                 if let Some(stem) = entry.file_name().to_str()
                     && let Ok(idx) = stem.parse::<usize>()
                 {
-                    max_idx = Some(max_idx.map_or(idx, |m| m.max(idx)));
+                    anyhow::ensure!(
+                        entry.path().join("meta.safetensors").is_file(),
+                        "incomplete sample directory {}; recover or remove it before resuming",
+                        entry.path().display()
+                    );
+                    indices.push(idx);
                 }
             }
-            let sample_offset = max_idx.map(|m| m.saturating_add(1)).unwrap_or(0);
+            indices.sort_unstable();
+            anyhow::ensure!(
+                indices.iter().copied().eq(0..indices.len()),
+                "sample directory indices are not contiguous from zero"
+            );
+            let sample_offset = indices.len();
             Ok((sample_offset, sample_offset))
         }
         WriteMode::Chunk => {
-            let chunk_size = chunk_size.max(1);
             let mut chunks = discover_chunks(output)?;
             if chunks.is_empty() {
                 return Ok((0, 0));
             }
             chunks.sort();
-            let last_chunk = chunks.last().unwrap();
-
-            let last_idx = last_chunk
-                .file_stem()
-                .and_then(|s| s.to_str())
-                .and_then(|s| s.parse::<usize>().ok())
-                .unwrap_or(chunks.len() - 1);
-            let chunk_offset = last_idx.saturating_add(1);
-
-            let last_len = load_chunk(last_chunk)?.len();
-            let sample_offset = if chunks.len() <= 1 {
-                last_len
-            } else {
-                (chunks.len() - 1) * chunk_size + last_len
-            };
-            Ok((sample_offset, chunk_offset))
+            let mut sample_offset = 0usize;
+            for (index, path) in chunks.iter().enumerate() {
+                let stored_index = path
+                    .file_name()
+                    .and_then(|s| s.to_str())
+                    .and_then(|s| s.split('.').next())
+                    .and_then(|s| s.parse::<usize>().ok());
+                anyhow::ensure!(
+                    stored_index == Some(index),
+                    "chunk indices must be contiguous from zero: {}",
+                    path.display()
+                );
+                let count = load_chunk(path)?.len();
+                anyhow::ensure!(
+                    count > 0,
+                    "cannot resume from empty chunk {}",
+                    path.display()
+                );
+                sample_offset = sample_offset
+                    .checked_add(count)
+                    .context("sample count overflow")?;
+            }
+            Ok((sample_offset, chunks.len()))
         }
     }
 }
@@ -171,6 +254,11 @@ pub fn zeroverse_config_from_gen(
         height: height as f32,
         playback_step,
         playback_steps,
+        depth_format: if scene_type == ZeroverseSceneType::ProceduralIndoor {
+            bevy_zeroverse::render::depth::DepthFormat::Linear
+        } else {
+            bevy_zeroverse::render::depth::DepthFormat::Normalized
+        },
         scene_type,
         ovoxel_mode: ov_mode,
         ovoxel_resolution: ov_resolution,
@@ -191,9 +279,10 @@ fn sample_has_signal(
                 RenderMode::Color => view.color.as_slice(),
                 RenderMode::Depth => view.depth.as_slice(),
                 RenderMode::Normal => view.normal.as_slice(),
+                RenderMode::Semantic => view.semantic.as_slice(),
                 RenderMode::OpticalFlow => view.optical_flow.as_slice(),
                 RenderMode::Position => view.position.as_slice(),
-                RenderMode::MotionVectors | RenderMode::Semantic => &[],
+                RenderMode::MotionVectors => &[],
             };
             if bytes.is_empty() {
                 return false;
@@ -208,7 +297,12 @@ fn sample_has_signal(
 fn sample_has_required_modes(
     sample: &crate::dataset::ZeroverseSample,
     render_modes: &[RenderMode],
+    width: u32,
+    height: u32,
 ) -> bool {
+    if sample.views.is_empty() {
+        return false;
+    }
     let modes = if render_modes.is_empty() {
         &[RenderMode::Color][..]
     } else {
@@ -224,11 +318,17 @@ fn sample_has_required_modes(
                 RenderMode::Color => view.color.as_slice(),
                 RenderMode::Depth => view.depth.as_slice(),
                 RenderMode::Normal => view.normal.as_slice(),
+                RenderMode::Semantic => view.semantic.as_slice(),
                 RenderMode::OpticalFlow => view.optical_flow.as_slice(),
                 RenderMode::Position => view.position.as_slice(),
-                RenderMode::MotionVectors | RenderMode::Semantic => &[],
+                RenderMode::MotionVectors => &[],
             };
-            if buf.is_empty() || buf.iter().all(|b| *b == 0) {
+            if buf.is_empty()
+                || buf.iter().all(|b| *b == 0)
+                || decode_rgba_bytes(buf, width, height)
+                    .map(|pixels| pixels.iter().any(|v| !v.is_finite()))
+                    .unwrap_or(true)
+            {
                 return false;
             }
         }
@@ -240,9 +340,7 @@ fn sample_has_required_modes(
     true
 }
 
-fn join_worker_handles(
-    handles: Vec<thread::JoinHandle<Result<()>>>,
-) -> Result<()> {
+fn join_worker_handles(handles: Vec<thread::JoinHandle<Result<()>>>) -> Result<()> {
     let mut first_err: Option<anyhow::Error> = None;
     for handle in handles {
         match handle.join() {
@@ -267,8 +365,14 @@ fn join_worker_handles(
     }
 }
 
+enum WriteJob {
+    Chunk(Vec<bevy_zeroverse::sample::Sample>, usize),
+    Fs(Box<bevy_zeroverse::sample::Sample>, usize),
+}
+
 /// Run headless generation with persistent workers in the current process.
 pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
+    validate_gen_config(&config)?;
     let GenConfig {
         output,
         workers,
@@ -280,11 +384,18 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
         playback_steps,
         asset_root,
         compression,
+        color_codec,
         render_modes,
         timeout_secs,
         width,
         height,
         seed,
+        indoor_layout,
+        indoor_density,
+        indoor_human_density,
+        indoor_gi_rays,
+        indoor_quality,
+        rotation_augmentation,
         cameras,
         enable_ui: _enable_ui,
         write_mode,
@@ -307,19 +418,26 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
             }
         });
 
-    let zeroverse_config = zeroverse_config_from_gen(
+    let mut zeroverse_config = zeroverse_config_from_gen(
         render_modes.clone(),
         cameras,
         width,
         height,
         playback_step,
         playback_steps,
-        scene_type,
+        scene_type.clone(),
         ov_mode,
         ov_resolution,
         ov_max_output_voxels,
     );
 
+    zeroverse_config.indoor_seed = seed.map(|base| base.wrapping_add(sample_offset as u64));
+    zeroverse_config.indoor_layout = indoor_layout;
+    zeroverse_config.indoor_density = indoor_density;
+    zeroverse_config.indoor_human_density = indoor_human_density;
+    zeroverse_config.indoor_gi_rays = indoor_gi_rays;
+    zeroverse_config.indoor_quality = indoor_quality;
+    zeroverse_config.rotation_augmentation = rotation_augmentation;
     let app_ready = if main_thread_app {
         Some(Arc::new(AtomicBool::new(false)))
     } else {
@@ -349,8 +467,6 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
     let samples_done = Arc::new(AtomicUsize::new(0));
     let finished = Arc::new(AtomicBool::new(false));
 
-    let base_seed = seed.unwrap_or_else(rand::random);
-
     let mut handles = Vec::with_capacity(workers);
 
     let render_modes_for_signal = if render_modes.is_empty() {
@@ -361,18 +477,40 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
 
     const MAX_SAMPLE_RETRIES: usize = 32;
 
-    for worker_id in 0..workers {
+    for _worker_id in 0..workers {
         let dataset = Arc::clone(&dataset);
         let output_dir = Arc::clone(&output_dir);
         let sample_counter = Arc::clone(&sample_counter);
         let chunk_counter = Arc::clone(&chunk_counter);
         let samples_done = Arc::clone(&samples_done);
         let progress = progress.clone();
-        let worker_seed = base_seed.wrapping_add(worker_id as u64 + 1);
+        let scene_type = scene_type.clone();
         let render_modes_for_signal = render_modes_for_signal.clone();
         handles.push(thread::spawn(move || -> Result<()> {
-            let mut _rng = StdRng::seed_from_u64(worker_seed);
-
+            // A rendezvous channel permits one encoding batch and one capture
+            // batch; backpressure bounds memory while rendering overlaps CPU export.
+            thread::scope(|scope| {
+            let (write_tx, write_rx) = mpsc::sync_channel::<WriteJob>(0);
+            let writer = scope.spawn(|| -> Result<()> {
+                for job in write_rx {
+                    let saved = match job {
+                        WriteJob::Chunk(batch, index) => {
+                            save_chunk_with_codec(&batch, &*output_dir, index, compression, width, height, export_ovoxel, color_codec)
+                                .with_context(|| format!("failed to save chunk {index}"))?;
+                            batch.len()
+                        }
+                        WriteJob::Fs(sample, index) => {
+                            save_sample_to_fs_with_codec(&sample, &*output_dir, index, width, height, export_ovoxel, color_codec)
+                                .with_context(|| format!("failed to save sample {index} to fs output"))?;
+                            1
+                        }
+                    };
+                    samples_done.fetch_add(saved, Ordering::SeqCst);
+                    if let Some(progress) = progress.as_ref() { progress.record_chunks(1); }
+                }
+                Ok(())
+            });
+            let capture_result = (|| -> Result<()> {
             let mut local = Vec::with_capacity(chunk_size);
             loop {
                 let idx = sample_counter.fetch_add(1, Ordering::SeqCst);
@@ -382,14 +520,31 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
 
                 let mut attempts = 0usize;
                 let sample = loop {
-                    let Some(sample) = dataset.get(idx) else { break None };
+                    let sample = dataset.get(idx).with_context(|| format!("capture failed for sample {idx}; generation stopped without skipping it"))?;
                     let has_signal =
                         sample_has_signal(&sample, &render_modes_for_signal, width, height);
                     let has_required = has_signal
-                        && sample_has_required_modes(&sample, &render_modes_for_signal);
+                        && sample_has_required_modes(&sample, &render_modes_for_signal, width, height);
                     if has_required {
+                        if scene_type == ZeroverseSceneType::ProceduralIndoor {
+                            let manifest = sample.indoor.as_ref().context("indoor capture missing manifest")?;
+                            anyhow::ensure!(sample.human_instance_ids == manifest.humans.iter().map(|human| human.id as i64).collect::<Vec<_>>() && sample.human_pose_steps.len() == playback_steps as usize && sample.human_pose_steps.iter().all(|step| step.len() == manifest.humans.len()), "sample {idx} human IDs/counts do not match its manifest and trajectory steps");
+                            if let Some(base) = seed {
+                                anyhow::ensure!(manifest.seed == base.wrapping_add(idx as u64), "sample {idx} has unexpected seed {}; refusing reordered or skipped capture", manifest.seed);
+                            }
+                            anyhow::ensure!(sample.view_dim as usize == cameras && sample.views.len() == cameras * playback_steps as usize,
+                                "sample {idx} has wrong camera/timestep dimensions");
+                            if [RenderMode::Depth, RenderMode::Normal, RenderMode::Position].iter().all(|mode| render_modes_for_signal.contains(mode)) {
+                                for view in &sample.views {
+                                    bevy_zeroverse::scene::procedural_indoor::validation::validate_annotations_with_precision(view, sample.aabb, width, height, sample.annotation_precision)
+                                        .map_err(|error| anyhow!("sample {idx} failed geometric annotation alignment: {error}"))?;
+                                }
+                            }
+                        }
                         break Some(sample);
                     }
+                    anyhow::ensure!(scene_type != ZeroverseSceneType::ProceduralIndoor,
+                        "sample {idx} has missing or invalid render modes; refusing to silently advance its seed");
                     attempts += 1;
                     if attempts >= MAX_SAMPLE_RETRIES {
                         break Some(sample);
@@ -398,7 +553,7 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
 
                 let Some(sample) = sample else { break };
                 if !sample_has_signal(&sample, &render_modes_for_signal, width, height)
-                    || !sample_has_required_modes(&sample, &render_modes_for_signal)
+                    || !sample_has_required_modes(&sample, &render_modes_for_signal, width, height)
                 {
                     return Err(anyhow!(
                         "failed to capture required render modes for sample {idx} after {MAX_SAMPLE_RETRIES} attempts"
@@ -414,63 +569,32 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
                         local.push(sample);
                         if local.len() >= chunk_size {
                             let chunk_idx = chunk_counter.fetch_add(1, Ordering::SeqCst);
-                            save_chunk(
-                                &local,
-                                &*output_dir,
-                                chunk_idx,
-                                compression,
-                                width,
-                                height,
-                                export_ovoxel,
-                            )
-                                .with_context(|| format!("failed to save chunk {chunk_idx}"))?;
-                            let saved = local.len();
-                            samples_done.fetch_add(saved, Ordering::SeqCst);
-                            if let Some(progress) = progress.as_ref() {
-                                progress.record_chunks(1);
-                            }
-                            local.clear();
+                            write_tx.send(WriteJob::Chunk(std::mem::replace(&mut local, Vec::with_capacity(chunk_size)), chunk_idx))
+                                .map_err(|_| anyhow!("CPU dataset writer stopped before chunk {chunk_idx}"))?;
                         }
                     }
                     WriteMode::Fs => {
-                        save_sample_to_fs(
-                            &sample,
-                            &*output_dir,
-                            idx,
-                            width,
-                            height,
-                            export_ovoxel,
-                        )
-                            .with_context(|| format!("failed to save sample {idx} to fs output"))?;
-                        samples_done.fetch_add(1, Ordering::SeqCst);
+                        write_tx.send(WriteJob::Fs(Box::new(sample), idx))
+                            .map_err(|_| anyhow!("CPU dataset writer stopped before sample {idx}"))?;
                         chunk_counter.fetch_add(1, Ordering::SeqCst);
-                        if let Some(progress) = progress.as_ref() {
-                            progress.record_chunks(1);
-                        }
                     }
                 }
             }
 
             if write_mode == WriteMode::Chunk && !local.is_empty() {
                 let chunk_idx = chunk_counter.fetch_add(1, Ordering::SeqCst);
-                save_chunk(
-                    &local,
-                    &*output_dir,
-                    chunk_idx,
-                    compression,
-                    width,
-                    height,
-                    export_ovoxel,
-                )
-                    .with_context(|| format!("failed to save final chunk {chunk_idx}"))?;
-                let saved = local.len();
-                samples_done.fetch_add(saved, Ordering::SeqCst);
-                if let Some(progress) = progress.as_ref() {
-                    progress.record_chunks(1);
-                }
+                write_tx.send(WriteJob::Chunk(local, chunk_idx))
+                    .map_err(|_| anyhow!("CPU dataset writer stopped before final chunk {chunk_idx}"))?;
             }
 
             Ok(())
+            })();
+            drop(write_tx);
+            // Drain/join even after capture errors; preserve the concrete I/O
+            // error instead of reporting only its downstream channel failure.
+            writer.join().map_err(|_| anyhow!("CPU dataset writer panicked"))??;
+            capture_result
+            })
         }));
     }
 
@@ -482,9 +606,7 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
             bevy_zeroverse::headless::request_exit();
         });
 
-        let asset_root_str = asset_root
-            .as_ref()
-            .map(|root| root.display().to_string());
+        let asset_root_str = asset_root.as_ref().map(|root| root.display().to_string());
         bevy_zeroverse::headless::setup_globals(asset_root_str);
         bevy_zeroverse::headless::run_app_on_current_thread(
             Some(zeroverse_config.clone()),

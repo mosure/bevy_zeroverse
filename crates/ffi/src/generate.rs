@@ -346,7 +346,7 @@ fn save_stacked_views_to_safetensors(
                 .zip(ov.semantics.iter())
                 .map(|((((c, d), i), bc), s)| (*c, *d, *i, *bc, *s))
                 .collect();
-            zipped.sort_by(|a, b| a.0.cmp(&b.0));
+            zipped.sort_by_key(|a| a.0);
 
             let start = coords.len() as i64;
             let len = zipped.len() as i64;
@@ -508,7 +508,7 @@ fn receive_samples(generator_config: &GeneratorConfig, zeroverse_config: &BevyZe
     for sample_index in 0..generator_config.num_samples {
         {
             let app_frame_sender = channels::app_frame_sender();
-            app_frame_sender.send(()).unwrap();
+            app_frame_sender.send(Default::default()).unwrap();
         }
 
         let timeout = Duration::from_secs(30);
@@ -641,6 +641,10 @@ fn save_chunk(
 fn main() {
     let generator_args = parse_args::<GeneratorConfig>();
     let mut zeroverse_args = parse_args::<BevyZeroverseConfig>();
+    if zeroverse_args.scene_type == ZeroverseSceneType::ProceduralIndoor {
+        eprintln!("The legacy FFI generate example cannot preserve the indoor multimodal contract. Use cargo run -p bevy_zeroverse_burn --bin zeroverse_gen -- --scene-type procedural-indoor --output <directory> --samples <count> instead.");
+        std::process::exit(2);
+    }
 
     zeroverse_args.editor = false;
     zeroverse_args.headless = true;

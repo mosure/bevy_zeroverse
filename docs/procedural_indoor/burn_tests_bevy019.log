@@ -1,0 +1,32 @@
+   Compiling bevy_zeroverse_burn v0.1.2 (/media/mosure/hyper1/repos/bevy_zeroverse/crates/burn)
+    Finished `test` profile [optimized + debuginfo] target(s) in 30.52s
+warning: the following packages contain code that will be rejected by a future version of Rust: cubecl-common v0.10.0, naga v29.0.4, nix v0.30.1, wgpu v29.0.4, wgpu-core v29.0.4, wgpu-hal v29.0.4, winit v0.30.12
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 5`
+     Running unittests src/bin/zeroverse_gen.rs (target/debug/build/bevy_zeroverse_burn/417ec727836a12eb/out/zeroverse_gen-417ec727836a12eb)
+
+running 8 tests
+test process_pool::tests::failed_child_stops_dispatch_and_kills_and_reaps_siblings ... ok
+test process_limit_tests::renderer_upgrade_rejects_resume_without_changing_readers ... ok
+test process_pool::tests::reuses_bounded_slots_and_drains_all_jobs ... ok
+test process_pool::tests::spawn_and_observer_failures_reap_previously_started_children ... ok
+test process_pool::tests::rejects_unbounded_and_overflowing_assignments_before_spawning ... ok
+test process_pool::tests::partitions_cover_indices_and_partial_chunks_without_cap_rounding ... ok
+test process_pool::tests::actual_spawn_failure_reaps_a_running_cpu_only_child ... ok
+test process_limit_tests::default_cap_only_applies_to_finite_indoor_process_jobs ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/indoor_roundtrip.rs (target/debug/build/bevy_zeroverse_burn/00d144a3af10eade/out/indoor_roundtrip-00d144a3af10eade)
+
+running 8 tests
+test indoor_generation_rejects_unordered_workers_invalid_trajectories_and_flow ... ok
+test mixed_human_counts_roundtrip_without_inventing_padded_people ... ok
+test resume_counts_partial_chunks_and_rejects_gaps_and_overwrites ... ok
+test chunk_preserves_seed_manifest_and_does_not_renormalize_constant_rgb ... ok
+test filesystem_preserves_seed_manifest_and_color_encoding ... ok
+test raw_rgb_is_exact_srgb_once_in_both_export_formats ... ok
+test filesystem_supports_annotation_only_samples_without_lossy_palette_labels ... ok
+test resume_recognizes_compressed_chunk_indices ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

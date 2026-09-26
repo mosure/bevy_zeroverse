@@ -40,7 +40,7 @@ fn request_sample(config: &BevyZeroverseConfig) -> Result<Sample> {
     headless::setup_and_run_app(true, Some(config.clone()));
 
     channels::app_frame_sender()
-        .send(())
+        .send(Default::default())
         .context("signal app for next frame")?;
 
     let receiver = channels::sample_receiver().context("sample receiver missing")?;

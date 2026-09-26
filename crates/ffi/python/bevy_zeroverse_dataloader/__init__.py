@@ -36,9 +36,9 @@ def _chunk_collate(samples: list[dict[str, Any]]) -> dict[str, Any]:
     if not samples:
         return {}
     collated: dict[str, Any] = {}
-    ragged_prefixes = ("ovoxel_", "object_obb_", "human_pose_")
-    for key in samples[0].keys():
-        values = [s[key] for s in samples]
+    ragged_prefixes = ("ovoxel_", "object_obb_", "human_", "indoor_")
+    for key in dict.fromkeys(key for sample in samples for key in sample):
+        values = [s.get(key) for s in samples]
         if key.startswith(ragged_prefixes):
             collated[key] = values
         else:
@@ -142,10 +142,12 @@ class View:
         time,
         width,
         height,
+        semantic=None,
     ):
         self.color = color
         self.depth = depth
         self.normal = normal
+        self.semantic = semantic
         self.optical_flow = optical_flow
         self.position = position
         self.world_from_view = world_from_view
@@ -207,6 +209,7 @@ class View:
             time,
             width,
             height,
+            semantic=reshape_data(rust_view.semantic, np.float32) if getattr(rust_view, "semantic", b"") else None,
         )
 
     def to_tensors(self):
@@ -223,6 +226,9 @@ class View:
         if self.normal is not None:
             normal_tensor = torch.tensor(self.normal, dtype=torch.float32)
             batch['normal'] = normal_tensor[..., :3]
+
+        if self.semantic is not None:
+            batch['semantic'] = torch.tensor(self.semantic[..., :3], dtype=torch.float32)
 
         if self.optical_flow is not None:
             optical_flow_tensor = torch.tensor(self.optical_flow, dtype=torch.float32)
@@ -252,6 +258,11 @@ class Sample:
         human_bone_names,
         human_bone_parents,
         ovoxel=None,
+        indoor_manifest=None,
+        color_encoding="legacy",
+        annotation_precision="float16_hdr",
+        human_instance_ids=None,
+        indoor_render_metadata=None,
     ):
         self.views = views
         self.view_dim = view_dim
@@ -262,6 +273,11 @@ class Sample:
         self.human_bone_names = human_bone_names
         self.human_bone_parents = human_bone_parents
         self.ovoxel = ovoxel
+        self.indoor_manifest = indoor_manifest
+        self.color_encoding = color_encoding
+        self.annotation_precision = annotation_precision
+        self.human_instance_ids = human_instance_ids
+        self.indoor_render_metadata = indoor_render_metadata
 
     @classmethod
     def from_rust(cls, rust_sample, width, height):
@@ -311,6 +327,7 @@ class Sample:
                         'scale': np.array(obb.scale, dtype=np.float32),
                         'rotation': np.array(obb.rotation, dtype=np.float32),
                         'class_name': obb.class_name,
+                        'instance_id': getattr(obb, 'instance_id', None),
                     }
                 )
         human_poses = []
@@ -356,11 +373,16 @@ class Sample:
             human_bone_names,
             human_bone_parents,
             ovoxel,
+            indoor_manifest=getattr(rust_sample, "indoor_manifest", None),
+            color_encoding=getattr(rust_sample, "color_encoding", "legacy"),
+            annotation_precision=getattr(rust_sample, "annotation_precision", "float16_hdr"),
+            human_instance_ids=getattr(rust_sample, "human_instance_ids", None),
+            indoor_render_metadata=getattr(rust_sample, "indoor_render_metadata", None),
         )
 
-    def to_tensors(self):
+    def to_tensors(self, color_encoding=None):
+        color_encoding = color_encoding or self.color_encoding
         sample = {}
-
         if len(self.views) == 0:
             print("empty views")
             return sample
@@ -399,17 +421,20 @@ class Sample:
             scales = []
             rotations = []
             class_idxs = []
+            instance_ids = []
             for obb in self.object_obbs:
                 cls_idx = class_to_idx.setdefault(obb['class_name'], len(class_to_idx))
                 centers.append(obb['center'])
                 scales.append(obb['scale'])
                 rotations.append(obb['rotation'])
                 class_idxs.append(cls_idx)
+                instance_ids.append(obb.get('instance_id') if obb.get('instance_id') is not None else -1)
 
             sample['object_obb_center'] = torch.tensor(np.stack(centers, axis=0), dtype=torch.float32)
             sample['object_obb_scale'] = torch.tensor(np.stack(scales, axis=0), dtype=torch.float32)
             sample['object_obb_rotation'] = torch.tensor(np.stack(rotations, axis=0), dtype=torch.float32)
             sample['object_obb_class_idx'] = torch.tensor(class_idxs, dtype=torch.int64)
+            sample['object_obb_instance_ids'] = torch.tensor(instance_ids, dtype=torch.int64)
             names_bytes = json.dumps(list(class_to_idx.keys())).encode("utf-8")
             sample['object_obb_class_names'] = torch.tensor(list(names_bytes), dtype=torch.uint8)
 
@@ -463,10 +488,28 @@ class Sample:
                 if len(self.human_bone_parents) > 0:
                     sample['human_pose_bone_parents'] = torch.tensor(self.human_bone_parents, dtype=torch.int64)
 
-        normalize_keys = ['color', 'optical_flow']
+        if color_encoding == "tonemapped_linear" and 'color' in sample:
+            linear = sample['color'].clamp(0.0, 1.0)
+            sample['color'] = torch.where(
+                linear <= 0.0031308, linear * 12.92,
+                1.055 * torch.pow(linear, 1.0 / 2.4) - 0.055,
+            )
+        normalize_keys = ['optical_flow'] if color_encoding in ("tonemapped_linear", "srgb") else ['color', 'optical_flow']
         for key in normalize_keys:
             if key in sample:
                 sample[key] = normalize_hdr_image_tonemap(sample[key])
+
+        if self.indoor_manifest is not None:
+            sample['indoor_manifest'] = torch.tensor(list(self.indoor_manifest.encode("utf-8")), dtype=torch.uint8)
+            sample['color_encoding'] = torch.tensor(2, dtype=torch.uint8)  # stored sRGB
+
+        if self.indoor_render_metadata is not None:
+            sample['indoor_render_metadata'] = torch.tensor(list(self.indoor_render_metadata.encode("utf-8")), dtype=torch.uint8)
+        people = len(self.human_pose_steps[0]) if self.human_pose_steps else 0
+        sample['human_count'] = torch.tensor(people, dtype=torch.int64)
+        manifest_people = json.loads(self.indoor_manifest).get('humans', []) if self.indoor_manifest else []
+        sample['human_instance_ids'] = torch.tensor(self.human_instance_ids if self.human_instance_ids is not None else ([p['id'] for p in manifest_people] if manifest_people else list(range(people))), dtype=torch.int64)
+        sample['annotation_precision'] = torch.tensor({"float16_hdr": 0, "float32_geometry": 1}[self.annotation_precision], dtype=torch.uint8)
 
         self.views.clear()
         self.object_obbs.clear()
@@ -493,6 +536,7 @@ class BevyZeroverseDataset(Dataset):
         'object': bevy_zeroverse_ffi.ZeroverseSceneType.Object,
         'room': bevy_zeroverse_ffi.ZeroverseSceneType.Room,
         'semantic_room': bevy_zeroverse_ffi.ZeroverseSceneType.SemanticRoom,
+        'procedural_indoor': bevy_zeroverse_ffi.ZeroverseSceneType.ProceduralIndoor,
     }
 
     ov_mode_map = {
@@ -519,6 +563,13 @@ class BevyZeroverseDataset(Dataset):
         regenerate_scene_material_shuffle_period=256,
         cuboid_only=False,
         ovoxel_mode: str = "cpu_async",
+        indoor_seed=None,
+        indoor_layout="mixed",
+        indoor_density=0.65,
+        indoor_human_density=0.25,
+        indoor_gi_rays=256,
+        indoor_quality="auto",
+        depth_format=None,
     ):
         self.editor = editor
         self.headless = headless
@@ -537,6 +588,40 @@ class BevyZeroverseDataset(Dataset):
         self.regenerate_scene_material_shuffle_period = regenerate_scene_material_shuffle_period
         self.cuboid_only = cuboid_only
         self.ovoxel_mode = ovoxel_mode
+        self.indoor_seed = indoor_seed
+        self.indoor_layout = indoor_layout
+        self.indoor_density = indoor_density
+        self.indoor_human_density = indoor_human_density
+        self.indoor_gi_rays = indoor_gi_rays
+        self.indoor_quality = indoor_quality
+        if indoor_quality not in {"auto", "portable"}:
+            raise ValueError("indoor_quality must be auto or portable")
+        self.depth_format = depth_format or ("linear" if scene_type == "procedural_indoor" else "normalized")
+        if not render_modes or any(mode not in self.render_mode_map for mode in render_modes):
+            raise ValueError("render_modes must contain supported capture modes")
+        if width <= 0 or height <= 0 or int(width) != width or int(height) != height:
+            raise ValueError("width and height must be positive integers")
+        if playback_steps < 1 or not math.isfinite(playback_step) or playback_step < 0 or playback_step * (playback_steps - 1) > 1:
+            raise ValueError("playback progress must be finite and remain in [0, 1]")
+        if scene_type == "procedural_indoor":
+            if indoor_seed is None:
+                # Chosen in the parent before DataLoader forks/spawns; every worker receives the same base.
+                import secrets
+                self.indoor_seed = secrets.randbits(64)
+            if not isinstance(self.indoor_seed, int) or not 0 <= self.indoor_seed < (1 << 64):
+                raise ValueError("indoor_seed must be a uint64")
+            if indoor_layout not in {"mixed", "conference", "open_office", "lounge", "training"}:
+                raise ValueError("unsupported indoor_layout")
+            if "optical_flow" in render_modes:
+                raise ValueError("indoor optical flow is not temporally calibrated; use depth, position and camera poses")
+            if not math.isfinite(indoor_density) or not 0 <= indoor_density <= 1:
+                raise ValueError("indoor_density must be finite and in [0, 1]")
+            if not math.isfinite(indoor_human_density) or not 0 <= indoor_human_density <= 1:
+                raise ValueError("indoor_human_density must be finite and in [0, 1]")
+            if not isinstance(indoor_gi_rays, int) or not 64 <= indoor_gi_rays <= 16384:
+                raise ValueError("indoor_gi_rays must be an integer in [64, 16384]")
+            if not 1 <= num_cameras <= 256:
+                raise ValueError("procedural_indoor requires 1 to 256 cameras")
 
     def initialize(self):
         config = bevy_zeroverse_ffi.BevyZeroverseConfig()
@@ -547,6 +632,26 @@ class BevyZeroverseDataset(Dataset):
         config.width = self.width
         config.height = self.height
         config.scene_type = BevyZeroverseDataset.scene_map[self.scene_type]
+        config.indoor_seed = self.indoor_seed
+        config.indoor_layout = {
+            "mixed": bevy_zeroverse_ffi.IndoorLayout.Mixed,
+            "conference": bevy_zeroverse_ffi.IndoorLayout.Conference,
+            "open_office": bevy_zeroverse_ffi.IndoorLayout.OpenOffice,
+            "lounge": bevy_zeroverse_ffi.IndoorLayout.Lounge,
+            "training": bevy_zeroverse_ffi.IndoorLayout.Training,
+        }[self.indoor_layout]
+        config.indoor_density = self.indoor_density
+        config.indoor_human_density = self.indoor_human_density
+        config.indoor_gi_rays = self.indoor_gi_rays
+        config.indoor_quality = {
+            "auto": bevy_zeroverse_ffi.IndoorQuality.Auto,
+            "portable": bevy_zeroverse_ffi.IndoorQuality.Portable,
+        }[self.indoor_quality]
+        config.depth_format = {
+            "linear": bevy_zeroverse_ffi.DepthFormat.Linear,
+            "normalized": bevy_zeroverse_ffi.DepthFormat.Normalized,
+            "colorized": bevy_zeroverse_ffi.DepthFormat.Colorized,
+        }[self.depth_format]
         config.playback_mode = bevy_zeroverse_ffi.PlaybackMode.Still
         config.max_camera_radius = self.max_camera_radius
         config.regenerate_scene_material_shuffle_period = self.regenerate_scene_material_shuffle_period
@@ -566,12 +671,22 @@ class BevyZeroverseDataset(Dataset):
     def __len__(self):
         return self.num_samples
 
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state['initialized'] = False
+        return state
+
     def __getitem__(self, idx):
+        if not isinstance(idx, int) or not 0 <= idx < self.num_samples:
+            raise IndexError(idx)
         if not self.initialized:
             self.initialize()
 
-        rust_sample = bevy_zeroverse_ffi.next()
+        requested_seed = ((self.indoor_seed + idx) % (1 << 64)) if self.scene_type == "procedural_indoor" else None
+        rust_sample = bevy_zeroverse_ffi.next(indoor_seed=requested_seed)
         sample = Sample.from_rust(rust_sample, self.width, self.height)
+        if requested_seed is not None and (sample.indoor_manifest is None or json.loads(sample.indoor_manifest)["seed"] != requested_seed):
+            raise RuntimeError("capture seed does not match the requested dataset index")
         del rust_sample
         return sample.to_tensors()
 
@@ -641,6 +756,8 @@ def encode_tensor_to_jpg(tensor: torch.Tensor, quality: int = 75) -> torch.Tenso
 
 def normalize_color_float01(tensor: torch.Tensor) -> torch.Tensor:
     """Convert color tensor to float32 in [0, 1] for raw chunk storage."""
+    if not torch.isfinite(tensor).all():
+        raise ValueError("RGB contains non-finite values")
     if tensor.is_floating_point():
         color = tensor.to(torch.float32)
     elif tensor.dtype == torch.bool:
@@ -666,11 +783,12 @@ def chunk_and_save(
     jpg_quality: int = 75,
     color_codec: Literal["jpeg", "raw"] = "jpeg",
     compression: Optional[Literal["lz4", "zstd"]] = "lz4",
-    full_size_only: bool = True,
+    full_size_only: bool = False,
     prefetch_factor: int = 2,
     pin_memory: bool = False,
     persistent_workers: bool = True,
     memory_cleanup: bool = False,
+    append: bool = False,
 ):
     """Save samples to chunk files, optionally batching by size or sample count."""
 
@@ -686,9 +804,10 @@ def chunk_and_save(
 
     existing_chunks = sorted(output_dir.glob("*.safetensors*"))
     if existing_chunks:
+        if not append:
+            raise ValueError("output already contains chunks; use a new directory, or append=True with a dataset containing only additional samples")
         latest_chunk = existing_chunks[-1]
-        chunk_index = numeric_prefix(latest_chunk.stem)
-        print(f"resuming from chunk {chunk_index}.")
+        chunk_index = numeric_prefix(latest_chunk.stem) + 1
     else:
         chunk_index = 0
 
@@ -712,6 +831,40 @@ def chunk_and_save(
         print(f"saving chunk {key} of {total_chunks} ({estimate_mb:.2f} MB).")
         base_name = f"{key}.safetensors"
 
+        # Pose-bearing and empty scenes must retain the same batch dimension.
+        # Missing poses have zero people, never omitted rows in a mixed chunk.
+        chunk_samples = [dict(sample) for sample in chunk_samples]
+        # OBB class IDs are local to each source sample; remap them to a shared
+        # chunk dictionary before padding/stacking, preserving class identity.
+        class_names = []
+        for sample in chunk_samples:
+            if 'object_obb_class_names' in sample:
+                names = json.loads(bytes(sample['object_obb_class_names'].tolist()))
+                remap = []
+                for name in names:
+                    if name not in class_names:
+                        class_names.append(name)
+                    remap.append(class_names.index(name))
+                indices = sample['object_obb_class_idx']
+                sample['object_obb_class_idx'] = torch.tensor([remap[i] if i >= 0 else -1 for i in indices.tolist()], dtype=torch.int64)
+        if class_names:
+            names_tensor = torch.tensor(list(json.dumps(class_names).encode()), dtype=torch.uint8)
+            for sample in chunk_samples:
+                sample['object_obb_class_names'] = names_tensor
+                for name, width in [('object_obb_center', 3), ('object_obb_scale', 3), ('object_obb_rotation', 4)]:
+                    sample.setdefault(name, torch.empty((0, width), dtype=torch.float32))
+                sample.setdefault('object_obb_class_idx', torch.empty(0, dtype=torch.int64))
+                sample.setdefault('object_obb_instance_ids', torch.full((sample['object_obb_class_idx'].numel(),), -1, dtype=torch.int64))
+        pose_reference = next((sample for sample in chunk_samples if 'human_pose_position' in sample), None)
+        if pose_reference is not None:
+            for sample in chunk_samples:
+                if 'human_pose_position' not in sample:
+                    for name in ('human_pose_position', 'human_pose_rotation'):
+                        reference = pose_reference[name]
+                        sample[name] = torch.zeros((reference.shape[0], 0, *reference.shape[2:]), dtype=reference.dtype)
+                for name in ('human_pose_bone_names', 'human_pose_bone_parents'):
+                    if name in pose_reference:
+                        sample[name] = pose_reference[name]
         batch: dict[str, Any] = {}
         offset = 0
         has_ovoxel = any(any(key.startswith("ovoxel_") for key in sample.keys()) for sample in chunk_samples)
@@ -770,10 +923,13 @@ def chunk_and_save(
             pad = torch.zeros(pad_shape, dtype=tensor.dtype, device=tensor.device)
             return torch.cat([tensor, pad], dim=0)
 
-        for sample in chunk_samples:
+        for sample_index, sample in enumerate(chunk_samples):
             for name, tensor in sample.items():
-                if name == "color":
+                if name in {"indoor_manifest", "indoor_render_metadata"}:
+                    batch[f"{name}_{sample_index}"] = tensor.cpu().contiguous()
+                elif name == "color":
                     if color_codec == "raw":
+                        batch.setdefault("color_shape", torch.tensor([len(chunk_samples), *tensor.shape], dtype=torch.int64))
                         # Raw storage path: enforce float32 [0, 1].
                         batch.setdefault(name, []).append(normalize_color_float01(tensor).cpu())
                         continue
@@ -794,8 +950,13 @@ def chunk_and_save(
                             obb_class_names_tensor = tensor.cpu()
                         continue
                     tensor = tensor.cpu()
-                    fill = -1 if name == "object_obb_class_idx" else 0
+                    fill = -1 if name in {"object_obb_class_idx", "object_obb_instance_ids"} else 0
                     padded = pad_obb_tensor(tensor, max_obbs, fill=fill)
+                    batch.setdefault(name, []).append(padded)
+                    continue
+                elif name == "human_instance_ids":
+                    padded = torch.full((max_humans,), -1, dtype=torch.int64)
+                    padded[:tensor.numel()] = tensor.cpu()
                     batch.setdefault(name, []).append(padded)
                     continue
                 elif name.startswith("human_pose_"):
@@ -891,13 +1052,21 @@ def chunk_and_save(
 
         if compression is None:
             final_path = output_dir / base_name
-            save_file(flat_tensors, str(final_path))
+            encoded = serialize(flat_tensors)
         else:
             blob = serialize(flat_tensors)
             encoded = _compress(blob, compression)
             ext = ".lz4" if compression == "lz4" else ".zst"
             final_path = output_dir / (base_name + ext)
-            final_path.write_bytes(encoded)
+        temporary = final_path.with_name(f".{final_path.name}.tmp.{os.getpid()}")
+        try:
+            with temporary.open('xb') as stream:
+                stream.write(encoded)
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.link(temporary, final_path)  # Atomic, refuses overwriting an existing chunk.
+        finally:
+            temporary.unlink(missing_ok=True)
 
         if memory_cleanup:
             torch.cuda.empty_cache()
@@ -929,7 +1098,7 @@ def chunk_and_save(
             for i in range(bsz):
                 sample = {
                     name: (tensor[i] if not isinstance(tensor, list) else tensor[i])
-                    for name, tensor in batch.items()
+                    for name, tensor in batch.items() if tensor[i] is not None
                 }
                 sample_size = sum(t.numel() * t.element_size() for t in sample.values())
                 chunk.append(sample)
@@ -943,6 +1112,8 @@ def chunk_and_save(
                     current_index = chunk_index
                     future = executor.submit(save_chunk_sync, chunk_copy, current_index)
                     pending.append(future)
+                    if len(pending) >= max_save_workers * 2:
+                        chunk_file_paths.append(pending.pop(0).result())
                     chunk = []
                     chunk_size = 0
                     chunk_index += 1
@@ -1058,8 +1229,17 @@ def load_chunk(
             batch[parent] = torch.stack(decoded_images).reshape(shape)
 
         for key, tensor in tensors.items():
-            if '_jpg_' not in key and '_shape' not in key:
+            if '_jpg_' not in key and '_shape' not in key and not key.startswith(('indoor_manifest_', 'indoor_render_metadata_')):
                 batch[key] = tensor
+
+        for name in ('indoor_manifest', 'indoor_render_metadata'):
+            prefix = name + '_'
+            manifests = {int(key.removeprefix(prefix)): value for key, value in tensors.items() if key.startswith(prefix)}
+            if manifests:
+                count = int(tensors['color_shape'][0]) if 'color_shape' in tensors else int(tensors['near'].shape[0])
+                if min(manifests) < 0 or max(manifests) >= count:
+                    raise ValueError(f'{name} index is outside the chunk')
+                batch[name] = [manifests.get(i, torch.empty(0, dtype=torch.uint8)) for i in range(count)]
 
         if "object_obb_class_names" in meta:
             try:
@@ -1155,10 +1335,12 @@ class ChunkedIteratorDataset(IterableDataset):
         cache_dir: Optional[Path] = None,
         jpeg_device: Optional[str] = None,
         keep_jpeg_on_device: bool = False,
+        skip_corrupt_chunks: bool = False,
     ):
         self.output_dir = Path(output_dir)
         self.shuffle = shuffle
         self.prefetch_chunks = max(0, int(prefetch_chunks))
+        self.skip_corrupt_chunks = skip_corrupt_chunks
         if load_chunk_fn is None:
             self._load_chunk_fn = partial(
                 load_chunk,
@@ -1188,6 +1370,9 @@ class ChunkedIteratorDataset(IterableDataset):
                     or not self.chunk_sizes
                     or len(self.chunk_files) != len(self.chunk_sizes)
                     or any(not p.exists() for p in self.chunk_files)
+                    or self.chunk_files != sorted(self.output_dir.glob("*.safetensors*"))
+                    or cache.get("fingerprints") != [[p.stat().st_size, p.stat().st_mtime_ns] for p in self.chunk_files]
+                    or (not self.skip_corrupt_chunks and any(size <= 0 for size in self.chunk_sizes))
                 ):
                     self._refresh_cache()
                 else:
@@ -1247,6 +1432,7 @@ class ChunkedIteratorDataset(IterableDataset):
         ]
         if invalid_files:
             cache_data["invalid_files"] = invalid_files
+        cache_data["fingerprints"] = [[p.stat().st_size, p.stat().st_mtime_ns] for p in self.chunk_files]
         tmp_path = self.cache_file.with_suffix(self.cache_file.suffix + f".tmp.{os.getpid()}")
         try:
             with open(tmp_path, "w") as f:
@@ -1281,7 +1467,7 @@ class ChunkedIteratorDataset(IterableDataset):
         self.chunk_sizes = []
         self.total_samples = 0
         for chunk_file in self.chunk_files:
-            samples = get_chunk_sample_count(chunk_file, strict=False)
+            samples = get_chunk_sample_count(chunk_file, strict=not self.skip_corrupt_chunks)
             if samples < 0:
                 samples = 0
             self.chunk_sizes.append(samples)
@@ -1296,6 +1482,8 @@ class ChunkedIteratorDataset(IterableDataset):
             try:
                 return self._load_chunk(self.chunk_files[idx])
             except Exception as exc:
+                if not self.skip_corrupt_chunks:
+                    raise
                 self._mark_bad_chunk(idx, exc)
                 return None
 
@@ -1344,24 +1532,16 @@ class ChunkedIteratorDataset(IterableDataset):
         total_workers = world_size * num_workers
         worker_global_id = rank * num_workers + worker_id
 
-        ideal_samples_per_worker = self.total_samples // total_workers
-
         worker_chunks = [[] for _ in range(total_workers)]
         worker_samples = [0] * total_workers
 
-        current_worker = 0
         for idx, chunk_size in enumerate(self.chunk_sizes):
             if chunk_size <= 0:
                 continue
-            if worker_samples[current_worker] + chunk_size > ideal_samples_per_worker:
-                current_worker += 1
-                if current_worker >= total_workers:
-                    break
-
+            current_worker = min(range(total_workers), key=worker_samples.__getitem__)
             worker_chunks[current_worker].append(idx)
             worker_samples[current_worker] += chunk_size
 
-        min_assigned_samples = min(worker_samples)
         chunk_files = worker_chunks[worker_global_id]
 
         if self.shuffle:
@@ -1387,8 +1567,6 @@ class ChunkedIteratorDataset(IterableDataset):
                 random.shuffle(local_indices)
 
             for sample_idx in local_indices:
-                if emitted_samples >= min_assigned_samples:
-                    return
                 meta_keys = {
                     "object_obb_class_names",
                     "human_pose_bone_names",
@@ -1506,187 +1684,105 @@ def write_sample(sample: dict, *, jpg_quality: int = 75) -> None:
 
 
 def save_to_folders(dataset, output_dir: Path, n_workers: int = 1):
-    """
-    Saves each sample from the dataset into a folder structure.
+    """Write complete calibrated samples; NPZ geometric labels are lossless.
 
-    Args:
-        dataset (Dataset): The dataset to save.
-        output_dir (Path): The directory where the dataset will be saved.
-        n_workers (int): Number of worker processes for data loading.
+    Folders are published only after every requested plane and metadata is written.
+    Existing sample folders are never overwritten.
     """
     output_dir = Path(output_dir)
     output_dir.mkdir(exist_ok=True, parents=True)
-
-    dataloader = DataLoader(dataset, batch_size=1, num_workers=n_workers, shuffle=False)
-
-    for idx, sample in enumerate(dataloader):
-        sample = {k: v.squeeze(0) for k, v in sample.items()}  # Remove batch dimension
-
-        scene_dir = output_dir / f"{idx:06d}"
-        scene_dir.mkdir(exist_ok=True)
-
-        color_tensor = sample['color']
-
-        for timestep in range(color_tensor.shape[0]):
-            for view_idx in range(color_tensor.shape[1]):
-                if 'color' in sample:
-                    view_color = sample['color'][timestep, view_idx].permute(2, 0, 1)
-                    image_filename = scene_dir / f"color_{timestep:03d}_{view_idx:02d}.jpg"
-                    save_image(view_color, str(image_filename))
-
-                if 'depth' in sample:
-                    view_depth = normalize_hdr_image_tonemap(sample['depth'])[timestep, view_idx].permute(2, 0, 1)
-                    depth_filename = scene_dir / f"depth_{timestep:03d}_{view_idx:02d}.jpg"
-                    save_image(view_depth, str(depth_filename))
-
-                    view_depth_flat = sample['depth'][timestep, view_idx][0]
-                    depth_npz_filename = scene_dir / f"depth_{timestep:03d}_{view_idx:02d}.npz"
-                    np.savez(depth_npz_filename, depth=view_depth_flat.cpu().numpy())
-
-                if 'normal' in sample:
-                    view_normal = normalize_hdr_image_tonemap(sample['normal'])[timestep, view_idx].permute(2, 0, 1)
-                    normal_filename = scene_dir / f"normal_{timestep:03d}_{view_idx:02d}.jpg"
-                    save_image(view_normal, str(normal_filename))
-
-                    view_normal_flat = sample['normal'][timestep, view_idx][0]
-                    normal_npz_filename = scene_dir / f"normal_{timestep:03d}_{view_idx:02d}.npz"
-                    np.savez(normal_npz_filename, normal=view_normal_flat.cpu().numpy())
-
-                if 'optical_flow' in sample:
-                    view_optical_flow = normalize_hdr_image_tonemap(sample['optical_flow'])[timestep, view_idx].permute(2, 0, 1)
-                    optical_flow_filename = scene_dir / f"optical_flow_{timestep:03d}_{view_idx:02d}.jpg"
-                    save_image(view_optical_flow, str(optical_flow_filename))
-
-                # TODO: save motion vectors as npz, not optical flow rgb
-                # view_optical_flow_flat = view_optical_flow[0]
-                # optical_flow_npz_filename = scene_dir / f"optical_flow_{timestep:03d}_{view_idx:02d}.npz"
-                # np.savez(optical_flow_npz_filename, optical_flow=view_optical_flow_flat.cpu().numpy())
-
-                if 'position' in sample:
-                    print('position shape', sample['position'].shape)
-
-                    view_position = normalize_hdr_image_tonemap(sample['position'])[timestep, view_idx].permute(2, 0, 1)
-                    position_filename = scene_dir / f"position_{timestep:03d}_{view_idx:02d}.jpg"
-                    save_image(view_position, str(position_filename))
-
-                    view_position_flat = sample['position'][timestep, view_idx][0]
-                    position_npz_filename = scene_dir / f"position_{timestep:03d}_{view_idx:02d}.npz"
-                    np.savez(position_npz_filename, position=view_position_flat.cpu().numpy())
-
-        meta_tensors = {
-            'world_from_view': sample['world_from_view'],
-            'fovy': sample['fovy'],
-            'near': sample['near'],
-            'far': sample['far'],
-            'time': sample['time'],
-            'aabb': sample['aabb'],
-        }
-        for key in ['object_obb_center', 'object_obb_scale', 'object_obb_rotation', 'object_obb_class_idx']:
-            if key in sample:
-                meta_tensors[key] = sample[key]
-        if 'object_obb_class_names' in sample:
-            names_val = sample['object_obb_class_names']
-            if isinstance(names_val, torch.Tensor):
-                decoded = []
-                if names_val.numel() > 0:
-                    decoded = json.loads(bytes(names_val.cpu().tolist()).decode("utf-8"))
-            else:
-                decoded = names_val
-            names_bytes = json.dumps(decoded).encode('utf-8')
-            meta_tensors['object_obb_class_names'] = torch.tensor(list(names_bytes), dtype=torch.uint8)
-        for key in ['human_pose_position', 'human_pose_rotation', 'human_pose_bone_parents']:
-            if key in sample:
-                meta_tensors[key] = sample[key]
-        if 'human_pose_bone_names' in sample:
-            names_val = sample['human_pose_bone_names']
-            if isinstance(names_val, torch.Tensor):
-                decoded = []
-                if names_val.numel() > 0:
-                    decoded = json.loads(bytes(names_val.cpu().tolist()).decode("utf-8"))
-            else:
-                decoded = names_val
-            names_bytes = json.dumps(decoded).encode('utf-8')
-            meta_tensors['human_pose_bone_names'] = torch.tensor(list(names_bytes), dtype=torch.uint8)
-        meta_filename = scene_dir / "meta.safetensors"
-        save_file(meta_tensors, str(meta_filename))
-
-        print(f"saved sample {idx} to {scene_dir}")
+    dataloader = DataLoader(dataset, batch_size=1, num_workers=n_workers,
+                            shuffle=False, collate_fn=_chunk_collate)
+    planes = {"color", "depth", "normal", "semantic", "position", "optical_flow"}
+    for idx, batch in enumerate(dataloader):
+        sample = {key: value[0] for key, value in batch.items()}
+        final_dir = output_dir / f"{idx:06d}"
+        if final_dir.exists():
+            raise FileExistsError(final_dir)
+        scene_dir = output_dir / f".{idx:06d}.tmp.{os.getpid()}"
+        scene_dir.mkdir()
+        steps, views = sample['fovy'].shape[:2]
+        for name in planes.intersection(sample):
+            tensor = sample[name].detach().cpu()
+            if tuple(tensor.shape[:2]) != (steps, views) or tensor.ndim != 5:
+                raise ValueError(f"invalid {name} capture shape: {tensor.shape}")
+            if not torch.isfinite(tensor).all():
+                raise ValueError(f"non-finite {name} capture")
+            for timestep in range(steps):
+                for camera in range(views):
+                    plane = tensor[timestep, camera]
+                    stem = scene_dir / f"{name}_{timestep:03d}_{camera:02d}"
+                    if name == 'color':
+                        np.savez_compressed(stem.with_suffix('.npz'), color=plane.numpy())
+                        save_image(plane.permute(2, 0, 1), str(stem.with_suffix('.jpg')))
+                    else:
+                        data = plane[..., 0] if name == 'depth' else plane
+                        np.savez_compressed(stem.with_suffix('.npz'), **{name: data.numpy()})
+                        if name == 'semantic':
+                            rgb = plane.clamp(0, 1)
+                            rgb = torch.where(rgb <= 0.0031308, rgb * 12.92, 1.055 * rgb.pow(1 / 2.4) - 0.055)
+                            save_image(rgb.permute(2, 0, 1), str(stem.with_suffix('.png')))
+        metadata = {key: value.cpu().contiguous() for key, value in sample.items() if key not in planes}
+        if 'indoor_manifest' in sample:
+            manifest = json.loads(bytes(sample['indoor_manifest'].tolist()))
+            (scene_dir / 'render_metadata.json').write_text(json.dumps(['Srgb', manifest]))
+        save_file(metadata, str(scene_dir / 'meta.safetensors'))
+        scene_dir.rename(final_dir)
 
 
 class FolderDataset(Dataset):
+    """Read folder samples without inventing missing modalities or dropping image rows."""
     def __init__(self, output_dir: Path):
         self.output_dir = Path(output_dir)
-        self.scene_dirs = sorted([d for d in self.output_dir.iterdir() if d.is_dir()])
-
-        self.transform = transforms.Compose([
-            transforms.ToTensor(),
-        ])
+        for directory in self.output_dir.iterdir():
+            if directory.is_dir() and directory.name.isdecimal() and not (directory / 'meta.safetensors').is_file():
+                raise ValueError(f"incomplete indexed sample directory: {directory}")
+        self.scene_dirs = sorted(d for d in self.output_dir.iterdir()
+                                 if d.is_dir() and not d.name.startswith('.') and (d / 'meta.safetensors').exists())
 
     def __len__(self):
         return len(self.scene_dirs)
 
     def __getitem__(self, idx):
         scene_dir = self.scene_dirs[idx]
-        meta_filename = scene_dir / "meta.safetensors"
-        with safe_open(str(meta_filename), framework="pt", device="cpu") as f:
-            meta_tensors = {key: f.get_tensor(key) for key in f.keys()}
-
-        color_images = sorted(scene_dir.glob("color_*.jpg"))
-        timesteps = sorted({int(p.stem.split('_')[1]) for p in color_images})
-        views = sorted({int(p.stem.split('_')[2]) for p in color_images})
-
-        color_tensors = []
-        depth_tensors = []
-        normal_tensors = []
-        optical_flow_tensors = []
-        position_tensors = []
-
-        for timestep in timesteps:
-            timestep_colors, timestep_depths, timestep_normals, timestep_flows, timestep_positions = [], [], [], [], []
-
-            for view in views:
-                base_name = f"{timestep:03d}_{view:02d}"
-
-                color_file = scene_dir / f"color_{base_name}.jpg"
-                color_tensor = self.transform(Image.open(color_file).convert("RGB")).permute(1, 2, 0)
-                timestep_colors.append(color_tensor)
-
-                depth_file = scene_dir / f"depth_{base_name}.npz"
-                if depth_file.exists():
-                    depth_np = np.load(depth_file)['depth']
-                    depth_tensor = torch.from_numpy(depth_np).unsqueeze(-1).float()
-                    timestep_depths.append(depth_tensor)
-
-                normal_file = scene_dir / f"normal_{base_name}.npz"
-                if normal_file.exists():
-                    normal_np = np.load(normal_file)['normal']
-                    normal_tensor = torch.from_numpy(normal_np).unsqueeze(-1).float()
-                    timestep_normals.append(normal_tensor)
-
-                optical_flow_file = scene_dir / f"optical_flow_{base_name}.jpg"
-                if optical_flow_file.exists():
-                    flow_tensor = self.transform(Image.open(optical_flow_file).convert("RGB")).permute(1, 2, 0)
-                    timestep_flows.append(flow_tensor)
-
-                position_file = scene_dir / f"position_{base_name}.npz"
-                if position_file.exists():
-                    position_np = np.load(position_file)['position']
-                    position_tensor = torch.from_numpy(position_np).unsqueeze(-1).float()
-                    timestep_positions.append(position_tensor)
-
-            color_tensors.append(torch.stack(timestep_colors, dim=0))
-            depth_tensors.append(torch.stack(timestep_depths, dim=0) if timestep_depths else torch.zeros_like(timestep_colors[0])[..., :1].unsqueeze(0))
-            normal_tensors.append(torch.stack(timestep_normals, dim=0) if timestep_normals else torch.zeros_like(timestep_colors[0])[..., :1].unsqueeze(0))
-            optical_flow_tensors.append(torch.stack(timestep_flows, dim=0) if timestep_flows else torch.zeros_like(timestep_colors[0])[..., :1].unsqueeze(0))
-            position_tensors.append(torch.stack(timestep_positions, dim=0) if timestep_positions else torch.zeros_like(timestep_colors[0])[..., :1].unsqueeze(0))
-
-        meta_tensors['color'] = torch.stack(color_tensors, dim=0)
-        meta_tensors['depth'] = torch.stack(depth_tensors, dim=0)
-        meta_tensors['normal'] = torch.stack(normal_tensors, dim=0)
-        meta_tensors['optical_flow'] = torch.stack(optical_flow_tensors, dim=0)
-        meta_tensors['position'] = torch.stack(position_tensors, dim=0)
-
-        return meta_tensors
+        metadata = load_file(str(scene_dir / 'meta.safetensors'))
+        steps, cameras = metadata['fovy'].shape[:2]
+        for name in ['color', 'depth', 'normal', 'semantic', 'position', 'optical_flow']:
+            available = list(scene_dir.glob(f'{name}_*.npz'))
+            extension = '.npz' if available else '.jpg'
+            if not available:
+                available = list(scene_dir.glob(f'{name}_*.jpg'))
+            if not available:
+                continue
+            frames = []
+            for step in range(steps):
+                views = []
+                for camera in range(cameras):
+                    path = scene_dir / f'{name}_{step:03d}_{camera:02d}{extension}'
+                    if extension == '.npz':
+                        with np.load(path) as archive:
+                            data = np.array(archive[name], dtype=np.float32, copy=True)
+                        if name == 'depth' and data.ndim == 2:
+                            data = data[..., None]
+                        view = torch.from_numpy(data)
+                    else:
+                        view = torch.from_numpy(np.array(Image.open(path).convert('RGB'), copy=True)).float() / 255.0
+                    views.append(view)
+                frames.append(torch.stack(views))
+            metadata[name] = torch.stack(frames)
+        path = scene_dir / 'render_metadata.json'
+        if path.exists() and 'indoor_manifest' not in metadata:
+            encoding, manifest = json.loads(path.read_text())
+            metadata['color_encoding'] = torch.tensor({'Legacy': 0, 'TonemappedLinear': 1, 'Srgb': 2}[encoding], dtype=torch.uint8)
+            if manifest is not None:
+                metadata['indoor_manifest'] = torch.tensor(list(json.dumps(manifest).encode()), dtype=torch.uint8)
+        provenance_path = scene_dir / 'indoor_render_metadata.json'
+        if provenance_path.exists():
+            metadata['indoor_render_metadata'] = torch.tensor(list(provenance_path.read_bytes()), dtype=torch.uint8)
+        precision_path = scene_dir / 'annotation_precision.json'
+        if precision_path.exists():
+            metadata['annotation_precision'] = torch.tensor({"float16_hdr": 0, "float32_geometry": 1}[json.loads(precision_path.read_text())], dtype=torch.uint8)
+        return metadata
 
 
 def prepare_video_frames(tensor: torch.Tensor) -> np.ndarray:

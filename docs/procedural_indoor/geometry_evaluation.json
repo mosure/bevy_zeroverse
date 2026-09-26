@@ -1,0 +1,38 @@
+{
+  "generator_version": 2,
+  "qualification": "bounded structural and distribution evaluation; not photographic realism certification",
+  "density_sweep": {
+    "seed_range_inclusive": [0, 9999],
+    "densities": [0.0, 0.35, 0.65, 1.0],
+    "scene_configurations": 40000,
+    "cameras_per_configuration": 4,
+    "camera_trajectories": 160000,
+    "invalid_configurations": 0,
+    "layout_counts_per_density": {
+      "Conference": 2469,
+      "Lounge": 2496,
+      "OpenOffice": 2521,
+      "Training": 2514
+    },
+    "elapsed_test_seconds": 7.95,
+    "log": "density_sweep.log"
+  },
+  "independent_checks": [
+    "actual geometry floor contact across 24 seeds",
+    "neighboring furniture fit and all expected conference seats across 512 seeds",
+    "actual architectural triangle-distance camera and doorway clearance across 32 seeds",
+    "runtime camera trajectory pose equivalence and metric baseline coverage across 96 seeds",
+    "CSV focal calibration versus Bevy projection at odd 641x479 resolution",
+    "object histogram zero counts, layout denominators and heatmap sample conservation",
+    "visible page edges checked using ray-triangle intersections",
+    "tabletop wood grain axis and metre-scaled UV checks",
+    "corrupted loaded-manifest pillar, neighbor and support relationships fail validation"
+  ],
+  "limits": [
+    "Four rectangular room grammars with one furnished neighboring room; no arbitrary building topology.",
+    "Most cameras sample the main-room perimeter and aim toward the room center.",
+    "Conservative whole-object envelopes keep chairs pulled out instead of allowing seats under tables.",
+    "Finite furniture and foliage construction grammars lack broad real-world style and wear coverage.",
+    "Constraint validity and balanced parameter distributions do not establish photographic realism or downstream ML transfer quality."
+  ]
+}

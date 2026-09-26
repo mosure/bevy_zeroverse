@@ -44,26 +44,28 @@ fn signaled_runner(mut app: App) -> AppExit {
         };
 
         match recv_result {
-            Ok(()) => {
+            Ok(request) => {
+                app.world_mut()
+                    .resource_mut::<crate::sample::CaptureFailure>()
+                    .0 = None;
+                if let Some(seed) = request.indoor_seed {
+                    let config = app.world().resource::<BevyZeroverseConfig>();
+                    assert_eq!(
+                        config.scene_type,
+                        crate::scene::ZeroverseSceneType::ProceduralIndoor,
+                        "an indexed indoor capture requires the procedural_indoor scene"
+                    );
+                    crate::scene::procedural_indoor::reset_indoor_sequence(app.world_mut(), seed);
+                    app.world_mut()
+                        .write_message(crate::scene::RegenerateSceneEvent);
+                    // Apply regeneration while the sampler is disabled, before scheduling modalities.
+                    app.update();
+                }
                 let args = app.world().resource::<BevyZeroverseConfig>();
 
-                let render_modes = args.render_modes.clone();
-
-                let timesteps = (1..args.playback_steps)
-                    .map(|i| {
-                        let x = i as f32 * args.playback_step;
-                        if x > 1.0 {
-                            panic!("timestep value {x} has range [0.0, 1.0]");
-                        }
-                        x
-                    })
-                    .collect();
-
-                app.insert_resource(SamplerState {
-                    timesteps,
-                    render_modes,
-                    ..default()
-                });
+                let mut state = SamplerState::from_config(args);
+                state.regenerate_scene = request.indoor_seed.is_none();
+                app.insert_resource(state);
 
                 loop {
                     if EXIT_REQUESTED.load(Ordering::Acquire) {
@@ -76,6 +78,14 @@ fn signaled_runner(mut app: App) -> AppExit {
                     }
 
                     if !app.world().resource::<SamplerState>().enabled {
+                        if let Some(error) = app
+                            .world_mut()
+                            .resource_mut::<crate::sample::CaptureFailure>()
+                            .0
+                            .take()
+                        {
+                            channels::report_capture_failure(error);
+                        }
                         break;
                     }
                 }

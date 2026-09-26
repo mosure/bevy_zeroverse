@@ -1,0 +1,59 @@
+   Compiling bevy_zeroverse v0.17.3 (/media/mosure/hyper1/repos/bevy_zeroverse)
+    Finished `test` profile [optimized + debuginfo] target(s) in 6.78s
+warning: the following packages contain code that will be rejected by a future version of Rust: naga v26.0.0, nix v0.30.1, wgpu v26.0.1, wgpu-core v26.0.1, wgpu-hal v26.0.6, winit v0.30.12
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/lib.rs (target/debug/build/bevy_zeroverse/38c9ce6826e05e73/out/bevy_zeroverse-38c9ce6826e05e73)
+
+running 49 tests
+test app::web_config_tests::typed_url_seed_and_cli_scene_names_are_supported ... ok
+test io::readback_tests::gpu_padding_is_not_exposed_as_pixels ... ok
+test ovoxel_mesh::tests::builds_mesh_from_single_quad ... ok
+test ovoxel_mesh::tests::semantic_labels_export_to_glb_with_colors ... ok
+test render::color::tests::fixed_srgb_transfer_preserves_absolute_exposure_and_neutral_colors ... ok
+test ovoxel_mesh::tests::semantic_mesh_uses_palette_colors ... ok
+test ovoxel_mesh::tests::writes_glb ... ok
+test scene::procedural_indoor::architecture::lighting_tests::spotlight_cone_integrates_to_declared_lumens ... ok
+test scene::procedural_indoor::tests::broad_density_sweep_is_valid ... ignored, bounded 40,000-scene distribution qualification; run explicitly for releases
+test scene::procedural_indoor::metrics::tests::summaries_preserve_counts_and_constant_intrinsics ... ok
+test camera::tests::optical_flow_transition_preserves_prepass_targets ... ok
+test scene::procedural_indoor::tests::books_expose_the_paper_edges_between_the_covers ... ok
+test scene::procedural_indoor::tests::annotation_gate_detects_a_wrong_frame_or_camera ... ok
+test scene::procedural_indoor::tests::continuous_camera_sweeps_detect_thin_obstacles ... ok
+test annotation::obb::tests::obb_respects_rotation_and_scale ... ok
+test render::tests::color_to_normal_back_to_color_restores_materials_same_frame ... ok
+test annotation::ovoxel::tests::voxelizes_high_resolution_scene_without_hanging ... ok
+test scene::procedural_indoor::metrics::tests::small_render_budget_covers_layout_and_style_categories ... ok
+test annotation::ovoxel::tests::recomputes_on_transform_change ... ok
+test scene::procedural_indoor::tests::dataset_metrics_preserve_denominators_heatmap_mass_and_camera_calibration ... ok
+test scene::procedural_indoor::tests::metric_uvs_do_not_stretch_with_box_size ... ok
+test annotation::ovoxel::tests::respects_custom_bounds_and_resolution ... ok
+test annotation::obb::tests::obb_ignored_outside_scene_scope ... ok
+test scene::procedural_indoor::tests::legacy_config_json_does_not_require_new_indoor_fields ... ok
+test scene::procedural_indoor::tests::loaded_manifests_reject_pillars_neighbor_overlaps_and_bad_supports ... ok
+test scene::procedural_indoor::tests::trajectory_rejects_supported_props_and_midpath_view_obstruction ... ok
+test scene::semantic_room::tests::semantic_room_defaults_freeze_humans ... ok
+test scene::procedural_indoor::tests::tabletop_wood_grain_follows_the_long_axis ... ok
+test scene::semantic_room::tests::semantic_room_defaults_include_human_mesh ... ok
+test scene::tests::create_scene_aabb_merges_child_bounds ... ok
+test scene::procedural_indoor::tests::seeded_replay_and_independent_camera_streams ... ok
+test annotation::ovoxel::tests::voxelizes_single_mesh_under_root ... ok
+test annotation::obb::tests::obb_inherits_parent_class_name ... ok
+test render::tests::annotation_materials_are_specialized_in_the_frame_they_are_created ... ok
+test annotation::ovoxel::tests::caches_when_unchanged ... ok
+test scene::procedural_indoor::tests::neighboring_room_furniture_and_conference_seats_fit ... ok
+test scene::procedural_indoor::tests::single_camera_stream_still_covers_camera_heights ... ok
+test scene::procedural_indoor::tests::trajectory_validation_matches_runtime_poses_and_covers_metric_baselines ... ok
+test scene::procedural_indoor::tests::floor_furniture_has_real_geometry_at_the_contact_plane ... ok
+test scene::procedural_indoor::materials::surface_tests::portable_glazing_avoids_screen_space_refraction ... ok
+test scene::procedural_indoor::materials::surface_tests::pbr_maps_have_correct_encodings_mips_and_finite_unit_normals ... ok
+test scene::procedural_indoor::tests::actual_architecture_preserves_door_opening_and_camera_clearance ... ok
+test scene::procedural_indoor::tests::procedural_texture_uploads_have_complete_mips_and_correct_color_spaces ... ok
+test scene::procedural_indoor::tests::all_grammars_and_density_extremes_remain_valid ... ok
+test scene::procedural_indoor::tests::distribution_is_valid_and_covers_all_families ... ok
+test scene::procedural_indoor::tests::procedural_meshes_have_valid_topology_normals_and_tangents ... ok
+test annotation::ovoxel::tests::gpu_buffer_pool_reuses_supersets ... ok
+test annotation::ovoxel::tests::gpu_matches_cpu_for_simple_triangle ... ok
+test annotation::ovoxel::tests::gpu_buffer_pool_trims ... ok
+
+test result: ok. 48 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 2.66s
+

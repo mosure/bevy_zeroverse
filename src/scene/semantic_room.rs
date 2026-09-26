@@ -17,16 +17,16 @@ use crate::{
         CountSampler, PositionSampler, RotationSampler, ScaleSampler, ZeroversePrimitiveSettings,
         ZeroversePrimitives,
     },
+    procedural_human::{
+        base_pose_from_assets, burn_human_bounds_for_pose, sample_burn_human_descriptor,
+        BurnHumanDescriptor, BurnHumanDescriptorOverride, BurnHumanDescriptorPool,
+        BurnHumanPhenotypeSampler, BurnHumanSettings,
+    },
     render::semantic::SemanticLabel,
     scene::{
         lighting::{setup_lighting, ZeroverseLightingSettings},
         RegenerateSceneEvent, RotationAugment, SceneAabbNode, SceneLoadedEvent, ZeroverseScene,
         ZeroverseSceneRoot, ZeroverseSceneSettings, ZeroverseSceneType,
-    },
-    procedural_human::{
-        base_pose_from_assets, burn_human_bounds_for_pose, sample_burn_human_descriptor,
-        BurnHumanDescriptor, BurnHumanDescriptorOverride, BurnHumanDescriptorPool,
-        BurnHumanPhenotypeSampler, BurnHumanSettings,
     },
 };
 
@@ -538,9 +538,7 @@ fn spawn_room(
             position.y = 0.0;
 
             let mut max_attempts = 100;
-            while check_aabb_collision(position, table_scale, &aabb_colliders)
-                && max_attempts > 0
-            {
+            while check_aabb_collision(position, table_scale, &aabb_colliders) && max_attempts > 0 {
                 position = center_sampler.sample() + height_offset;
                 position.y = 0.0;
                 max_attempts -= 1;
@@ -1125,7 +1123,6 @@ fn setup_scene(
                     ..default()
                 };
                 let origin_camera_center = origin_camera_sampler.sample();
-                let mut rng = rand::rng();
 
                 for _ in 0..scene_settings.num_cameras {
                     if scene_settings.max_camera_radius <= 0.0 {
@@ -1160,7 +1157,7 @@ fn setup_scene(
                         let circular_sampler = ExtrinsicsSampler {
                             position: ExtrinsicsSamplerType::Circle {
                                 radius: scene_settings.max_camera_radius,
-                                rotation: Quat::from_rng(&mut rng),
+                                rotation: Quat::from_rng(&mut rand_bevy::rng()),
                                 translate: origin_camera_center.translation,
                             },
                             looking_at: room_settings.looking_at_sampler.clone(),
@@ -1258,11 +1255,9 @@ mod tests {
     #[test]
     fn semantic_room_defaults_include_human_mesh() {
         let settings = ZeroverseSemanticRoomSettings::default();
-        let has_human = settings
-            .human_settings
-            .available_types
-            .iter()
-            .any(|primitive| matches!(primitive, ZeroversePrimitives::Mesh(name) if name == "human"));
+        let has_human = settings.human_settings.available_types.iter().any(
+            |primitive| matches!(primitive, ZeroversePrimitives::Mesh(name) if name == "human"),
+        );
         assert!(has_human, "expected human mesh primitive in defaults");
     }
 

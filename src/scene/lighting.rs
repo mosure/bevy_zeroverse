@@ -1,5 +1,5 @@
 use bevy::{
-    light::{AmbientLight, CascadeShadowConfigBuilder},
+    light::{CascadeShadowConfigBuilder, GlobalAmbientLight},
     prelude::*,
 };
 use rand::Rng;
@@ -12,7 +12,7 @@ impl Plugin for ZeroverseLightingPlugin {
         app.init_resource::<ZeroverseLightingSettings>();
         app.register_type::<ZeroverseLightingSettings>();
 
-        app.insert_resource(AmbientLight {
+        app.insert_resource(GlobalAmbientLight {
             brightness: 180.0,
             ..default()
         });
@@ -62,7 +62,7 @@ pub fn setup_lighting(mut commands: Commands, lighting_settings: Res<ZeroverseLi
             .build(),
             DirectionalLight {
                 illuminance,
-                shadows_enabled: true,
+                shadow_maps_enabled: true,
                 ..default()
             },
             Transform::from_xyz(x, y, z).looking_at(Vec3::ZERO, Vec3::Y),

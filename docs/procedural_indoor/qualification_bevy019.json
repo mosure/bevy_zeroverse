@@ -1,0 +1,125 @@
+{
+  "schema_version": 1,
+  "created_utc": "2026-09-24T14:21:00.426203+00:00",
+  "generator_version": 3,
+  "capture_engine": "capture-v4;bevy=0.19.1;burn=0.21.0;burn_human=0.4.0;bevy_burn_human=0.4.0",
+  "status": "native_web_cli_qualification_passed_bounded_worker_policy_accepted_unbounded_heap_not_accepted",
+  "dependencies": "dependency_releases_v3.json",
+  "source_identity": "source_identity_bevy019.json",
+  "checks": {
+    "native_library": {
+      "passed": 67,
+      "ignored": 3,
+      "evidence": "library_tests_bevy019.log",
+      "limitation": "Optional legacy GPU voxelization equality is skipped after 13 versus 43 voxel disagreement; not parity-qualified."
+    },
+    "strict_workspace_clippy": {
+      "passed": true,
+      "evidence": "clippy_bevy019.log"
+    },
+    "wasm_compile": {
+      "passed": true,
+      "evidence": "wasm_build_bevy019.log"
+    },
+    "native_ground_truth": {
+      "passed": true,
+      "evidence": "ground_truth_precision_bevy019.json",
+      "post_upload_log": "ground_truth_render_bevy019.log"
+    },
+    "shutdown": {
+      "passed_processes": 40,
+      "evidence": "teardown_control_bevy019.json"
+    },
+    "capture_coherence": {
+      "passed": true,
+      "evidence": "capture_coherence_bevy019.log"
+    },
+    "legacy_modes": {
+      "passed": true,
+      "evidence": "render_legacy_bevy019.log"
+    },
+    "residency_and_replay": {
+      "passed": true,
+      "scenes": 64,
+      "evidence": "render_residency_bevy019.json",
+      "post_upload_log": "render_residency_bevy019.log",
+      "live_gpu_bind_groups_final": 184
+    },
+    "native_coverage": {
+      "scenes": 108,
+      "views": 648,
+      "observed_cells": 108,
+      "audit_population": 10000,
+      "evidence": "render_summary_bevy019.json",
+      "selection": "First observed seed per cell; no image-quality filtering; captured before byte-equivalent upload optimization."
+    },
+    "gpu_diffuse_gi": {
+      "passed": true,
+      "reference": "gi_gpu_reference_bevy019.json",
+      "rgb_ablation": "gi_render_ablation_bevy019.json",
+      "post_upload_log": "gi_render_bevy019.log"
+    },
+    "webgpu_viewer": {
+      "passed_cases": 20,
+      "passed_regenerations": 20,
+      "evidence": "web_qualification_bevy019.json",
+      "multi_camera": "web_grid_bevy019.json",
+      "scope": "Headed Chrome153/NVIDIA WebGPU; native float32 browser dataset capture unsupported.",
+      "final_cleanup_requalification": "passed",
+      "passed_grid_profiles": 2
+    },
+    "cli_python": {
+      "passed": true,
+      "evidence": "dataset_qualification_bevy019.json",
+      "rust_cpu_log": "burn_tests_bevy019.log",
+      "python_cpu_log": "python_tests_bevy019.log"
+    },
+    "bounded_process_memory": {
+      "passed": true,
+      "evidence": "process_memory_bevy019.json",
+      "scenes": 128,
+      "views": 384,
+      "child_lifetimes": 8,
+      "tested_cap": 16,
+      "default_cap": 256
+    },
+    "upload_equivalence": {
+      "passed": true,
+      "evidence": "upload_equivalence_bevy019.json",
+      "views": 30,
+      "comparison": "upload_comparison_bevy019.json"
+    },
+    "sustained_generation": {
+      "status": "completed_cleanly_residual_heap_growth_observed",
+      "source": "out/indoor_bevy019_bounded1000",
+      "scenes": 1000,
+      "views": 3000,
+      "warmup_scenes": 64,
+      "measured_views": 2808,
+      "views_per_second": 3.8329489071327836,
+      "live_gpu_bind_groups_max": 344,
+      "tail_live_heap_slope_bytes_per_scene": 1103562.0689913118,
+      "evidence": "generation_performance_bevy019.json",
+      "comparison": "binding_memory_comparison_bevy019.json"
+    },
+    "residency_unit_tests": {
+      "passed": 2,
+      "evidence": "residency_cpu_bevy019.log"
+    },
+    "burn_library": {
+      "passed": 9,
+      "evidence": "burn_library_tests_bevy019.log"
+    }
+  },
+  "state_of_the_art_demonstrated": false,
+  "unbounded_memory_plateau_demonstrated": false,
+  "limits": [
+    "Approximate static diffuse GI; no matched full-image path-traced or photographic baseline.",
+    "Stylized humans, repeated furniture/motifs, limited building topology and foliage.",
+    "Cross-driver exact RGB, mobile/Safari/baseline WebGPU, Windows and macOS are not qualified.",
+    "Raw annotation geometry is float32; RGB/lighting intermediates may retain lower precision.",
+    "Parent exact numeric quantiles retain O(number of scenes/cameras/people) values; disable indoor metrics when inappropriate.",
+    "Child replacement bounds per-process lifetime, not arbitrary scene complexity or unbounded in-process Python generation.",
+    "Final 1000-scene run still has about 1.10 MB/scene tail growth in glibc in-use heap plus mmap; finite worker recycling is required for operationally bounded lifetimes."
+  ]
+}

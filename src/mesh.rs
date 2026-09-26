@@ -85,16 +85,23 @@ pub struct MeshRoots {
     pub categories: HashMap<MeshCategory, Vec<PathBuf>>,
 }
 
-fn find_meshes(mut found_meshes: ResMut<MeshRoots>) {
+fn find_meshes(args: Option<Res<BevyZeroverseConfig>>, mut found_meshes: ResMut<MeshRoots>) {
+    // Match the asset-free indoor loader guard before walking the asset tree.
+    // Interactive viewers still discover assets for subsequent scene changes.
+    if args.as_ref().is_some_and(|args| {
+        args.headless
+            && !args.editor
+            && !args.material_grid
+            && args.scene_type == crate::scene::ZeroverseSceneType::ProceduralIndoor
+    }) {
+        return;
+    }
     #[cfg(target_family = "wasm")]
     {
-        found_meshes.categories = HashMap::from([
-            (
-                "chair".into(),
-                vec![PathBuf::from("models/subset/chair/0.glb")],
-            ),
-        ]);
-        return;
+        found_meshes.categories = HashMap::from([(
+            "chair".into(),
+            vec![PathBuf::from("models/subset/chair/0.glb")],
+        )]);
     }
 
     // TODO: add manifest file caching to improve load times
@@ -137,6 +144,7 @@ fn find_meshes(mut found_meshes: ResMut<MeshRoots>) {
 }
 
 fn load_meshes(
+    args: Option<Res<BevyZeroverseConfig>>,
     asset_server: Res<AssetServer>,
     mut zeroverse_meshes: ResMut<ZeroverseMeshes>,
     mut load_event: MessageWriter<MeshesLoadedEvent>,
@@ -144,6 +152,12 @@ fn load_meshes(
     found_meshes: Res<MeshRoots>,
     mut wait_for: ResMut<WaitForAssets>,
 ) {
+    if args.as_ref().is_some_and(|args| {
+        args.scene_type == crate::scene::ZeroverseSceneType::ProceduralIndoor && !args.material_grid
+    }) {
+        load_event.write(MeshesLoadedEvent);
+        return;
+    }
     let mut rng = rand::rng();
 
     for (category, paths) in &found_meshes.categories {
@@ -189,7 +203,9 @@ fn load_meshes(
     load_event.write(MeshesLoadedEvent);
 }
 
+#[allow(clippy::too_many_arguments)]
 fn reload_meshes(
+    args: Option<Res<BevyZeroverseConfig>>,
     asset_server: Res<AssetServer>,
     mut zeroverse_meshes: ResMut<ZeroverseMeshes>,
     mut shuffle_events: MessageReader<ShuffleMeshesEvent>,
@@ -208,6 +224,7 @@ fn reload_meshes(
     zeroverse_meshes.original_sizes.clear();
 
     load_meshes(
+        args,
         asset_server,
         zeroverse_meshes,
         load_event,
@@ -254,8 +271,8 @@ fn normalize_meshes(
             continue;
         }
 
-        if let Some(mesh_asset) = meshes.get_mut(&handle) {
-            match normalize_mesh_to_unit_cube(mesh_asset) {
+        if let Some(mut mesh_asset) = meshes.get_mut(&handle) {
+            match normalize_mesh_to_unit_cube(&mut mesh_asset) {
                 Some(size) => {
                     zeroverse_meshes.original_sizes.insert(handle.clone(), size);
                     zeroverse_meshes.normalized.insert(handle);

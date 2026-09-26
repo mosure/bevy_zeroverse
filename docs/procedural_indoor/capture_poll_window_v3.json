@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "result": "passed",
+  "observed_start_utc": "2026-09-23T19:31:26.988028Z",
+  "source_sha256": {
+    "src/sample.rs": "f76e511b08b11c30431883948d5ec150f791ac6c97b6d7f6f6613960ea917d30",
+    "tests/capture_coherence.rs": "beb823bdfb53a29ac851d93301a3fb9b302982d5c95b6af569b21574ee00406a"
+  },
+  "log": "capture_poll_window_v3.log",
+  "default_poll_interval_ms": 1,
+  "maximum_poll_interval_ms": 10,
+  "poll_window_deadline_ms": 10,
+  "zero_disables": true,
+  "applies_to": "Native First schedule; headless noneditor active sampler; all current capture copies encoded; some packet incomplete; no errors.",
+  "polling": "Nonblocking RenderDevice.poll(PollType::Poll); readiness/error checks each iteration; sleeps clipped to deadline; resumes normal app schedule when deadline expires.",
+  "cpu_contract_tests": {
+    "passed": 7,
+    "failed": 0,
+    "deterministic_clock_tests": [
+      "deadline with pending map registration",
+      "early packet completion",
+      "zero-disable",
+      "ineligible viewer/unsubmitted paths",
+      "poll failure propagation"
+    ]
+  },
+  "gpu_coherence_test": {
+    "passed": 1,
+    "failed": 0,
+    "seconds": 2.03,
+    "views": 12,
+    "actual_headless_sleeps": 11,
+    "gi_enabled": false,
+    "interactive_capture_extra_sleeps": 0,
+    "idle_warmup_sleeps": 0,
+    "unsupported_unsubmitted_extra_sleeps": 0
+  },
+  "native_annotation_alignment": {
+    "views": 9,
+    "checked_pixels_per_view": 2120,
+    "maximum_view_depth_position_p99_metres": 1.9073486e-06,
+    "maximum_view_reprojection_p99_pixels": 0.0021112028,
+    "maximum_normal_length_error": 1.7881393e-07
+  },
+  "legacy_annotation_alignment": {
+    "views": 3,
+    "maximum_view_depth_position_p99_metres": 0.018033504,
+    "maximum_view_reprojection_p99_pixels": 0.78531915,
+    "precision": "float16_hdr"
+  },
+  "wasm_check": {
+    "passed": true,
+    "log": "wasm_final_v3.log"
+  },
+  "verified": [
+    "Normalized three-step trajectory capture with moving Sin viewer configuration",
+    "Legacy sequential modalities preserved",
+    "Midflight projection changes fail without emitted sample",
+    "Scene regeneration starts coherent native capture",
+    "Interactive no-GI capture never enters headless polling window",
+    "OpticalFlow and MotionVectors fail explicitly without submitting unsupported native requests"
+  ],
+  "performance_claim": null,
+  "limits": [
+    "This is functional validation; CPU savings, memory and throughput require the separate matched benchmark.",
+    "The 10 ms deadline bounds intentional polling/sleep scheduling. OS scheduling and time spent servicing a map callback can extend wall-clock duration.",
+    "Native geometric annotation precision is float32; preserved legacy interactive annotations retain HDR16 intermediates."
+  ]
+}

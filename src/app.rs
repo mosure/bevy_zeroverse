@@ -1,6 +1,5 @@
 use bevy::{
     app::AppExit,
-    camera::RenderTarget,
     prelude::*,
     render::{
         // render_resource::{
@@ -18,9 +17,11 @@ use bevy::{
         RenderPlugin,
     },
     time::Stopwatch,
-    winit::{WakeUp, WinitPlugin},
+    winit::WinitPlugin,
 };
-use bevy_args::{parse_args, Deserialize, Parser, Serialize, ValueEnum};
+#[cfg(not(target_arch = "wasm32"))]
+use bevy_args::parse_args;
+use bevy_args::{Deserialize, Parser, Serialize, ValueEnum};
 
 #[cfg(feature = "viewer")]
 use bevy_egui::EguiPlugin;
@@ -41,21 +42,101 @@ pub enum OvoxelMode {
 }
 
 use crate::{
-    camera::{DefaultZeroverseCamera, EditorCameraMarker, Playback, PlaybackMode, ZeroverseCamera},
+    camera::{DefaultZeroverseCamera, Playback, PlaybackMode},
     io,
-    material::{MaterialsLoadedEvent, ShuffleMaterialsEvent, ZeroverseMaterials},
+    material::ShuffleMaterialsEvent,
     mesh::ShuffleMeshesEvent,
     // plucker::ZeroversePluckerSettings,
-    primitive::ScaleSampler,
     ovoxel::GPU_DEFAULT_MAX_OUTPUT_VOXELS,
     render::{depth::DepthFormat, RenderMode},
     scene::{
-        room::ZeroverseRoomSettings, semantic_room::ZeroverseSemanticRoomSettings,
-        RegenerateSceneEvent, SceneLoadedEvent, ZeroverseSceneRoot, ZeroverseSceneSettings,
-        ZeroverseSceneType,
+        procedural_indoor::layout::IndoorLayout, semantic_room::ZeroverseSemanticRoomSettings,
+        RegenerateSceneEvent, ZeroverseSceneRoot, ZeroverseSceneSettings, ZeroverseSceneType,
     },
     BevyZeroversePlugin,
 };
+
+#[cfg(feature = "viewer")]
+use crate::{
+    camera::{EditorCameraMarker, ZeroverseCamera},
+    material::{MaterialsLoadedEvent, ZeroverseMaterials},
+    primitive::ScaleSampler,
+    scene::{room::ZeroverseRoomSettings, SceneLoadedEvent},
+};
+#[cfg(feature = "viewer")]
+use bevy::camera::RenderTarget;
+
+fn default_indoor_human_density() -> f32 {
+    0.25
+}
+
+fn default_indoor_gi_rays() -> u32 {
+    256
+}
+
+fn deserialize_indoor_gi_rays<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<u32, D::Error> {
+    let rays = <u32 as serde::Deserialize>::deserialize(deserializer)?;
+    if (64..=16384).contains(&rays) {
+        Ok(rays)
+    } else {
+        Err(serde::de::Error::custom(
+            "indoor_gi_rays must be between 64 and 16384",
+        ))
+    }
+}
+
+fn default_indoor_density() -> f32 {
+    0.65
+}
+
+#[cfg(test)]
+mod config_tests {
+    use super::*;
+
+    #[test]
+    fn indoor_gi_budget_has_bounded_cli_and_json_configuration() {
+        assert_eq!(BevyZeroverseConfig::default().indoor_gi_rays, 256);
+        let mut json = serde_json::to_value(BevyZeroverseConfig::default()).unwrap();
+        json.as_object_mut().unwrap().remove("indoor_gi_rays");
+        assert_eq!(
+            serde_json::from_value::<BevyZeroverseConfig>(json.clone())
+                .unwrap()
+                .indoor_gi_rays,
+            256
+        );
+        for rays in [64, 256, 1024, 16384] {
+            json["indoor_gi_rays"] = serde_json::json!(rays);
+            assert_eq!(
+                serde_json::from_value::<BevyZeroverseConfig>(json.clone())
+                    .unwrap()
+                    .indoor_gi_rays,
+                rays
+            );
+            assert_eq!(
+                BevyZeroverseConfig::try_parse_from([
+                    "bevy_zeroverse",
+                    "--indoor-gi-rays",
+                    &rays.to_string(),
+                ])
+                .unwrap()
+                .indoor_gi_rays,
+                rays
+            );
+        }
+        for rays in [0, 63, 16385, u32::MAX] {
+            json["indoor_gi_rays"] = serde_json::json!(rays);
+            assert!(serde_json::from_value::<BevyZeroverseConfig>(json.clone()).is_err());
+            assert!(BevyZeroverseConfig::try_parse_from([
+                "bevy_zeroverse",
+                "--indoor-gi-rays",
+                &rays.to_string(),
+            ])
+            .is_err());
+        }
+    }
+}
 
 // TODO: add meta-derive macro to populate get/set methods
 #[cfg(feature = "python")]
@@ -166,6 +247,45 @@ pub struct BevyZeroverseConfig {
     #[pyo3(get, set)]
     #[arg(long, value_enum, default_value_t = ZeroverseSceneType::Object)]
     pub scene_type: ZeroverseSceneType,
+
+    /// Base seed for procedural_indoor; successive scenes use seed + scene index.
+    #[pyo3(get, set)]
+    #[arg(long)]
+    #[serde(default)]
+    pub indoor_seed: Option<u64>,
+
+    /// Indoor grammar family; mixed samples all four families.
+    #[pyo3(get, set)]
+    #[arg(long, value_enum, default_value_t = IndoorLayout::Mixed)]
+    #[serde(default)]
+    pub indoor_layout: IndoorLayout,
+
+    /// Probability of secondary props and vegetation (0 through 1).
+    #[pyo3(get, set)]
+    #[arg(long, default_value = "0.65")]
+    #[serde(default = "default_indoor_density")]
+    pub indoor_density: f32,
+
+    /// Fraction of chairs occupied, with sparse standing adults (0 disables people).
+    #[pyo3(get, set)]
+    #[arg(long, default_value = "0.25")]
+    #[serde(default = "default_indoor_human_density")]
+    pub indoor_human_density: f32,
+
+    /// Auto enables platform-supported effects; portable reduces GPU requirements.
+    #[pyo3(get, set)]
+    #[arg(long, value_enum, default_value_t = crate::scene::procedural_indoor::IndoorQuality::Auto)]
+    #[serde(default)]
+    pub indoor_quality: crate::scene::procedural_indoor::IndoorQuality,
+
+    /// Native diffuse-GI rays per probe; 1024 reduces noise at higher generation cost.
+    #[pyo3(get, set)]
+    #[arg(long, default_value = "256", value_parser = clap::value_parser!(u32).range(64..=16384))]
+    #[serde(
+        default = "default_indoor_gi_rays",
+        deserialize_with = "deserialize_indoor_gi_rays"
+    )]
+    pub indoor_gi_rays: u32,
 
     #[pyo3(get, set)]
     #[arg(long, default_value = "false")]
@@ -349,6 +469,39 @@ pub struct BevyZeroverseConfig {
     #[arg(long, value_enum, default_value_t = ZeroverseSceneType::Object)]
     pub scene_type: ZeroverseSceneType,
 
+    /// Base seed for procedural_indoor; successive scenes use seed + scene index.
+    #[arg(long)]
+    #[serde(default)]
+    pub indoor_seed: Option<u64>,
+
+    /// Indoor grammar family; mixed samples all four families.
+    #[arg(long, value_enum, default_value_t = IndoorLayout::Mixed)]
+    #[serde(default)]
+    pub indoor_layout: IndoorLayout,
+
+    /// Probability of secondary props and vegetation (0 through 1).
+    #[arg(long, default_value = "0.65")]
+    #[serde(default = "default_indoor_density")]
+    pub indoor_density: f32,
+
+    /// Fraction of chairs occupied, with sparse standing adults (0 disables people).
+    #[arg(long, default_value = "0.25")]
+    #[serde(default = "default_indoor_human_density")]
+    pub indoor_human_density: f32,
+
+    /// Auto enables platform-supported effects; portable reduces GPU requirements.
+    #[arg(long, value_enum, default_value_t = crate::scene::procedural_indoor::IndoorQuality::Auto)]
+    #[serde(default)]
+    pub indoor_quality: crate::scene::procedural_indoor::IndoorQuality,
+
+    /// Native diffuse-GI rays per probe; 1024 reduces noise at higher generation cost.
+    #[arg(long, default_value = "256", value_parser = clap::value_parser!(u32).range(64..=16384))]
+    #[serde(
+        default = "default_indoor_gi_rays",
+        deserialize_with = "deserialize_indoor_gi_rays"
+    )]
+    pub indoor_gi_rays: u32,
+
     #[arg(long, default_value = "false")]
     pub rotation_augmentation: bool,
 
@@ -435,6 +588,12 @@ impl Default for BevyZeroverseConfig {
             render_mode: Default::default(),
             render_modes: vec![],
             scene_type: Default::default(),
+            indoor_seed: None,
+            indoor_layout: IndoorLayout::Mixed,
+            indoor_density: 0.65,
+            indoor_human_density: 0.25,
+            indoor_quality: crate::scene::procedural_indoor::IndoorQuality::Auto,
+            indoor_gi_rays: 256,
             rotation_augmentation: false,
             max_camera_radius: 0.0,
             playback_mode: PlaybackMode::Sin,
@@ -457,11 +616,127 @@ impl Default for BevyZeroverseConfig {
     }
 }
 
+// bevy_args 2.0 treats null Option fields as strings, which breaks ?indoor_seed=6.
+// Decode URL values as JSON scalars first, retaining the established serde enum names
+// and accepting the scene/layout spellings used by the native CLI.
+#[cfg(any(target_arch = "wasm32", test))]
+fn config_with_query(
+    defaults: BevyZeroverseConfig,
+    pairs: impl IntoIterator<Item = (String, String)>,
+) -> Result<BevyZeroverseConfig, String> {
+    let mut json = serde_json::to_value(defaults).map_err(|e| e.to_string())?;
+    for (key, value) in pairs {
+        let key = key.replace('-', "_");
+        let field = json
+            .get_mut(&key)
+            .ok_or_else(|| format!("unknown viewer setting: {key}"))?;
+        let parsed = serde_json::from_str(&value)
+            .unwrap_or_else(|_| serde_json::Value::String(value.clone()));
+        *field = match key.as_str() {
+            "scene_type" => ZeroverseSceneType::from_str(&value, true)
+                .ok()
+                .map(serde_json::to_value)
+                .transpose()
+                .map_err(|e| e.to_string())?
+                .unwrap_or(parsed),
+            "indoor_layout" => IndoorLayout::from_str(&value, true)
+                .ok()
+                .map(serde_json::to_value)
+                .transpose()
+                .map_err(|e| e.to_string())?
+                .unwrap_or(parsed),
+            "indoor_quality" => {
+                crate::scene::procedural_indoor::IndoorQuality::from_str(&value, true)
+                    .ok()
+                    .map(serde_json::to_value)
+                    .transpose()
+                    .map_err(|e| e.to_string())?
+                    .unwrap_or(parsed)
+            }
+            "render_mode" => RenderMode::from_str(&value, true)
+                .ok()
+                .map(serde_json::to_value)
+                .transpose()
+                .map_err(|e| e.to_string())?
+                .unwrap_or(parsed),
+            _ if field.is_string() => serde_json::Value::String(value),
+            _ => parsed,
+        };
+    }
+    serde_json::from_value(json).map_err(|e| e.to_string())
+}
+
+#[cfg(target_arch = "wasm32")]
+fn parse_web_config() -> Result<BevyZeroverseConfig, String> {
+    let defaults = BevyZeroverseConfig::parse_from(["viewer"]);
+    let search = web_sys::window()
+        .ok_or("browser window is unavailable")?
+        .location()
+        .search()
+        .map_err(|e| format!("URL search: {e:?}"))?;
+    let params =
+        web_sys::UrlSearchParams::new_with_str(&search).map_err(|e| format!("URL query: {e:?}"))?;
+    let fields = serde_json::to_value(&defaults).map_err(|e| e.to_string())?;
+    let pairs = fields
+        .as_object()
+        .unwrap()
+        .keys()
+        .filter_map(|key| {
+            params
+                .get(key)
+                .or_else(|| params.get(&key.replace('_', "-")))
+                .map(|value| (key.clone(), value))
+        })
+        .collect::<Vec<_>>();
+    config_with_query(defaults, pairs)
+}
+
+#[cfg(test)]
+mod web_config_tests {
+    use super::*;
+
+    #[test]
+    fn typed_url_seed_and_cli_scene_names_are_supported() {
+        let config = config_with_query(
+            BevyZeroverseConfig::default(),
+            [
+                ("scene-type".into(), "procedural-indoor".into()),
+                ("indoor_seed".into(), u64::MAX.to_string()),
+                ("indoor_layout".into(), "open-office".into()),
+                ("editor".into(), "false".into()),
+                ("width".into(), "641".into()),
+            ],
+        )
+        .unwrap();
+        assert_eq!(config.scene_type, ZeroverseSceneType::ProceduralIndoor);
+        assert_eq!(config.indoor_seed, Some(u64::MAX));
+        assert_eq!(config.indoor_layout, IndoorLayout::OpenOffice);
+        assert!(!config.editor);
+        assert_eq!(config.width, 641.0);
+        assert!(config_with_query(config, [("indoor_seed".into(), "invalid".into())]).is_err());
+    }
+}
+
 pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) -> App {
     let args = match override_args {
         Some(args) => args,
-        None => parse_args::<BevyZeroverseConfig>(),
+        None => {
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                parse_args::<BevyZeroverseConfig>()
+            }
+            #[cfg(target_arch = "wasm32")]
+            {
+                parse_web_config().expect("invalid viewer URL configuration")
+            }
+        }
     };
+
+    #[cfg(target_arch = "wasm32")]
+    assert!(
+        !args.image_copiers,
+        "Browser rendering supports the viewer, not dataset readback. Set image_copiers=false; use the native indoor_validate or zeroverse_gen CLI for dataset capture."
+    );
 
     let mut app = if let Some(original_app) = app {
         original_app
@@ -476,6 +751,10 @@ pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) 
     let primary_window = Some(Window {
         // fit_canvas_to_parent: true,
         canvas: Some("#bevy".to_string()),
+        resolution: bevy::window::WindowResolution::new(
+            args.width.round() as u32,
+            args.height.round() as u32,
+        ),
         mode: bevy::window::WindowMode::Windowed,
         prevent_default_event_handling: true,
         title: args.name.clone(),
@@ -510,8 +789,9 @@ pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) 
 
     app.insert_resource(ClearColor(Color::srgba(0.0, 0.0, 0.0, 0.0)));
 
-    let mut winit_plugin = WinitPlugin::<WakeUp>::default();
-    winit_plugin.run_on_any_thread = true;
+    let winit_plugin = WinitPlugin {
+        run_on_any_thread: true,
+    };
 
     let default_plugins = DefaultPlugins
         .set(AssetPlugin {
@@ -521,10 +801,23 @@ pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) 
         })
         .set(ImagePlugin::default_nearest())
         .set(RenderPlugin {
-            render_creation: RenderCreation::Automatic(WgpuSettings {
-                features: WgpuFeatures::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES,
+            // Dataset workers can exit immediately after their last capture.
+            // Finish compilation on the render thread so asynchronous compiler
+            // tasks cannot retain Vulkan devices beyond application teardown.
+            synchronous_pipeline_compilation: !cfg!(target_arch = "wasm32") && args.image_copiers,
+            render_creation: RenderCreation::Automatic(Box::new(WgpuSettings {
+                memory_hints: if args.image_copiers {
+                    wgpu::MemoryHints::MemoryUsage
+                } else {
+                    wgpu::MemoryHints::Performance
+                },
+                features: if cfg!(target_arch = "wasm32") {
+                    WgpuFeatures::empty()
+                } else {
+                    WgpuFeatures::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES
+                },
                 ..Default::default()
-            }),
+            })),
             ..Default::default()
         })
         .set(winit_plugin);
@@ -555,6 +848,8 @@ pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) 
         app.register_type::<PlaybackMode>();
         app.register_type::<RenderMode>();
         app.register_type::<ZeroverseSceneType>();
+        app.register_type::<IndoorLayout>();
+        app.register_type::<crate::scene::procedural_indoor::IndoorQuality>();
 
         app.add_plugins(EguiPlugin::default());
         app.add_plugins(WorldInspectorPlugin::new());
@@ -581,7 +876,10 @@ pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) 
     #[cfg(feature = "viewer")]
     {
         app.add_systems(PreUpdate, setup_material_grid);
-        app.add_systems(PostUpdate, (setup_camera, setup_camera_grid));
+        app.add_systems(
+            PostUpdate,
+            (setup_camera.in_set(EditorCameraSetup), setup_camera_grid),
+        );
     }
 
     app.add_systems(Update, rotate_scene);
@@ -593,6 +891,10 @@ pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) 
 
     app
 }
+
+#[cfg(feature = "viewer")]
+#[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) struct EditorCameraSetup;
 
 #[derive(Component, Debug, Reflect)]
 struct MaterialGridCameraMarker;
@@ -640,6 +942,10 @@ fn setup_camera(
         if let Ok((_entity, _pan, Some(mut camera))) = editor_cameras.single_mut() {
             // Keep the editor camera entity (and its settings) intact and let it render UI.
             camera.is_active = true;
+        } else if material_grid_cameras.is_empty() {
+            // Starting directly in grid mode has no editor camera yet. A surface
+            // camera is still required to display the offscreen image UI.
+            commands.spawn((Camera2d, MaterialGridCameraMarker));
         }
         return;
     }
@@ -707,7 +1013,7 @@ fn setup_camera_grid(
     mut commands: Commands,
     args: Res<BevyZeroverseConfig>,
     camera_grids: Query<Entity, With<CameraGrid>>,
-    zeroverse_cameras: Query<(Entity, &Camera), With<ZeroverseCamera>>,
+    zeroverse_cameras: Query<(Entity, &RenderTarget), With<ZeroverseCamera>>,
     new_zeroverse_cameras: Query<Entity, (With<ZeroverseCamera>, Without<CameraGridMarker>)>,
     mut scene_loaded: MessageReader<SceneLoadedEvent>,
     mut previous_camera_grid: Local<Option<bool>>,
@@ -754,8 +1060,8 @@ fn setup_camera_grid(
                 BackgroundColor(Color::NONE),
             ))
             .with_children(|builder| {
-                for (_, camera) in zeroverse_cameras.iter() {
-                    let texture = match camera.target.clone() {
+                for (_, target) in zeroverse_cameras.iter() {
+                    let texture = match target.clone() {
                         RenderTarget::Image(texture) => texture,
                         _ => continue,
                     };
@@ -840,11 +1146,15 @@ fn setup_scene(
 #[allow(clippy::too_many_arguments)]
 fn regenerate_scene_system(
     args: Res<BevyZeroverseConfig>,
+    sampler: Option<Res<crate::sample::SamplerState>>,
     keys: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
     mut regenerate_stopwatch: Local<Stopwatch>,
     mut regenerate_event: MessageWriter<RegenerateSceneEvent>,
 ) {
+    if sampler.is_some_and(|state| state.enabled) {
+        return;
+    }
     if args.regenerate_ms > 0 {
         regenerate_stopwatch.tick(time.delta());
     }
@@ -865,9 +1175,10 @@ fn regenerate_scene_system(
 fn rotate_scene(
     time: Res<Time>,
     args: Res<BevyZeroverseConfig>,
+    sampler: Option<Res<crate::sample::SamplerState>>,
     mut scene_roots: Query<&mut Transform, With<ZeroverseSceneRoot>>,
 ) {
-    if args.yaw_speed == 0.0 {
+    if args.yaw_speed == 0.0 || sampler.is_some_and(|state| state.enabled) {
         return;
     }
 
@@ -882,6 +1193,7 @@ fn rotate_scene(
 
 fn propagate_cli_settings(
     args: Res<BevyZeroverseConfig>,
+    sampler: Option<Res<crate::sample::SamplerState>>,
     // mut plucker_settings: ResMut<ZeroversePluckerSettings>,
     mut playback: ResMut<Playback>,
     mut render_mode: ResMut<RenderMode>,
@@ -891,8 +1203,10 @@ fn propagate_cli_settings(
     if args.is_changed() {
         // plucker_settings.enabled = args.plucker_visualization;
 
-        playback.mode = args.playback_mode;
-        playback.speed = args.playback_speed;
+        if !sampler.is_some_and(|state| state.enabled) {
+            playback.mode = args.playback_mode;
+            playback.speed = args.playback_speed;
+        }
 
         *render_mode = args.render_mode.clone();
 

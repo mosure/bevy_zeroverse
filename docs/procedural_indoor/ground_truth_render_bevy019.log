@@ -1,0 +1,16 @@
+
+running 1 test
+test float32_mrt_matches_independent_ray_geometry_and_tracks_changes ... 2026-09-24T13:59:15.328246Z  INFO bevy_render::renderer: AdapterInfo { name: "NVIDIA RTX PRO 6000 Blackwell Workstation Edition", vendor: 4318, device: 11185, device_type: DiscreteGpu, device_pci_bus_id: "0000:01:00.0", driver: "NVIDIA", driver_info: "610.43.02", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: false }
+2026-09-24T13:59:16.121459Z  INFO bevy_zeroverse: initializing BevyZeroversePlugin...
+2026-09-24T13:59:16.132670Z  INFO bevy_pbr::cluster: GPU clustering is supported on this device.
+2026-09-24T13:59:16.132692Z  INFO bevy_render::batching::gpu_preprocessing: GPU preprocessing is fully supported on this device.
+teardown control: synchronous_render=false
+2026-09-24T13:59:16.139571Z  INFO bevy_zeroverse::app: skipping scene initialization.
+request 1: 174 f64 ray-triangle references, worldmax=0.000066109m depthmax=0.000057711m reprojectionmax=0.001979px normalmax=0.00018332 flatnormalmax=0.00000015 beyond_f16_depth=174
+request 2: 175 f64 ray-triangle references, worldmax=0.000059968m depthmax=0.000034179m reprojectionmax=0.002180px normalmax=0.00018332 flatnormalmax=0.00000018 beyond_f16_depth=175
+request 3: 169 f64 ray-triangle references, worldmax=0.000059968m depthmax=0.000012594m reprojectionmax=0.002180px normalmax=0.00000018 flatnormalmax=0.00000018 beyond_f16_depth=169
+request 4: empty scene completed; both annotation planes zero; geometry residency zero
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.46s
+

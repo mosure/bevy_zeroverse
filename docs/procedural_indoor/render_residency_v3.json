@@ -1,0 +1,64 @@
+{
+  "cameras": 2,
+  "fixed_scene_captures": 8,
+  "gi_enabled": false,
+  "native_shadows": true,
+  "pixels_bit_exact_with_cleanup_disabled_and_enabled": true,
+  "regenerated_scenes": 64,
+  "resolution": [
+    161,
+    119
+  ],
+  "same_seed_replay_bit_exact": true,
+  "qualification_utc": "2026-09-23T19:33:07Z",
+  "adapter": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition, Vulkan, NVIDIA 610.43.02",
+  "cpu_tests_passed": 2,
+  "gpu_test_seconds": 16.1,
+  "source_sha256": {
+    "src/render/residency.rs": "3a455b6d6f9b48097849f7180327e6dc6ab306c57b7f5fcdb9e7d3416bfc7e80",
+    "src/render/mod.rs": "c572ce9dfb1aab5dc9567a8190c06e31dda577b67fb1bc27f139ade08c660518",
+    "tests/render_residency.rs": "880caca96860dce84a664a0219138759914b0e01d07689fa9f7ff6354be41802"
+  },
+  "max_main_world_entities": 392,
+  "max_render_world_entities": 59,
+  "cache_bounds": {
+    "light_keys": {
+      "max_after": 22,
+      "max_capacity": 56,
+      "evicted_total": 1458
+    },
+    "light_ticks": {
+      "max_after": 22,
+      "max_capacity": 56,
+      "evicted_total": 1458
+    },
+    "prepass_keys": {
+      "max_after": 2,
+      "max_capacity": 3,
+      "evicted_total": 146
+    },
+    "prepass_ticks": {
+      "max_after": 2,
+      "max_capacity": 3,
+      "evicted_total": 146
+    },
+    "view_keys": {
+      "max_after": 2,
+      "max_capacity": 3,
+      "evicted_total": 146
+    },
+    "view_ticks": {
+      "max_after": 2,
+      "max_capacity": 3,
+      "evicted_total": 146
+    },
+    "wireframe_ticks": {
+      "max_after": 303,
+      "max_capacity": 876,
+      "evicted_total": 12577
+    }
+  },
+  "scope": "Targeted retained view-key/tick maps and dead Mesh3d wireframe ticks. No compiled pipeline cache clearing. Current extracted-view keys retained; inactive views re-specialize upon reactivation. Demonstrates bounded map residency and pixel equivalence for this cohort, not whole-process RSS boundedness.",
+  "command": "cargo test --test render_residency --no-default-features --features multi_threaded -- --ignored --nocapture",
+  "full_records": "out/indoor_render_residency/report.json"
+}

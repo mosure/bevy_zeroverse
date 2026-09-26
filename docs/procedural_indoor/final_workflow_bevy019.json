@@ -1,0 +1,242 @@
+[
+  {
+    "step": "gpu_test_build",
+    "command": [
+      "cargo",
+      "test",
+      "--workspace",
+      "--test",
+      "render_residency",
+      "--test",
+      "ground_truth_render",
+      "--test",
+      "procedural_indoor_gi",
+      "--no-run",
+      "--message-format=json"
+    ],
+    "exit_code": 0,
+    "seconds": 140.433602809906
+  },
+  {
+    "step": "residency_cpu",
+    "command": [
+      "cargo",
+      "test",
+      "--workspace",
+      "--lib",
+      "render::residency::tests",
+      "--",
+      "--nocapture"
+    ],
+    "exit_code": 0,
+    "seconds": 62.09433460235596
+  },
+  {
+    "step": "clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "--workspace",
+      "--all-targets",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit_code": 0,
+    "seconds": 4.889850854873657
+  },
+  {
+    "step": "wasm_build",
+    "command": [
+      "cargo",
+      "build",
+      "-p",
+      "bevy_zeroverse",
+      "--bin",
+      "viewer",
+      "--target",
+      "wasm32-unknown-unknown",
+      "--no-default-features",
+      "--features",
+      "web"
+    ],
+    "exit_code": 0,
+    "seconds": 80.06653308868408
+  },
+  {
+    "step": "wasm_bindgen",
+    "command": [
+      "/tmp/wasm-bindgen-0.2.128-x86_64-unknown-linux-musl/wasm-bindgen",
+      "--out-dir",
+      "www/out",
+      "--target",
+      "web",
+      "target/wasm32-unknown-unknown/debug/viewer.wasm"
+    ],
+    "exit_code": 0,
+    "seconds": 15.487280368804932
+  },
+  {
+    "step": "render_residency",
+    "command": [
+      "/media/mosure/hyper1/repos/bevy_zeroverse/target/debug/build/bevy_zeroverse/a960eae4af24c64a/out/render_residency-a960eae4af24c64a",
+      "--ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "exit_code": 0,
+    "seconds": 20.93791103363037
+  },
+  {
+    "step": "ground_truth_render",
+    "command": [
+      "/media/mosure/hyper1/repos/bevy_zeroverse/target/debug/build/bevy_zeroverse/39880590b223f9e1/out/ground_truth_render-39880590b223f9e1",
+      "--ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "exit_code": 0,
+    "seconds": 2.492042064666748
+  },
+  {
+    "step": "procedural_indoor_gi",
+    "command": [
+      "/media/mosure/hyper1/repos/bevy_zeroverse/target/debug/build/bevy_zeroverse/e3e35a68e560156b/out/procedural_indoor_gi-e3e35a68e560156b",
+      "--ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "exit_code": 0,
+    "seconds": 6.530975818634033
+  },
+  {
+    "step": "dataset",
+    "command": [
+      "/tmp/zeroverse-validation-venv/bin/python",
+      "crates/ffi/python/validate_indoor_dataset.py",
+      "--binary",
+      "target/debug/zeroverse_gen",
+      "--output",
+      "out/indoor_bevy019_bounded_dataset",
+      "--quality",
+      "auto"
+    ],
+    "exit_code": 0,
+    "seconds": 47.19131278991699
+  },
+  {
+    "step": "process_memory",
+    "command": [
+      "/tmp/zeroverse-validation-venv/bin/python",
+      "scripts/qualify_indoor_processes.py",
+      "--quality",
+      "auto",
+      "--output",
+      "out/indoor_bevy019_bounded_process128"
+    ],
+    "exit_code": 0,
+    "seconds": 103.2474353313446
+  },
+  {
+    "step": "long_run",
+    "command": [
+      "/tmp/zeroverse-validation-venv/bin/python",
+      "scripts/indoor_telemetry.py",
+      "--output",
+      "out/indoor_bevy019_bounded1000",
+      "--",
+      "env",
+      "GLIBC_TUNABLES=glibc.cpu.x86_non_temporal_threshold=32768:glibc.cpu.x86_rep_movsb_threshold=1073741824",
+      "target/debug/indoor_bench",
+      "--scenes",
+      "1000",
+      "--warmup-scenes",
+      "64",
+      "--output",
+      "out/indoor_bevy019_bounded1000"
+    ],
+    "exit_code": 0,
+    "seconds": 788.2840068340302
+  },
+  {
+    "step": "long_run_report",
+    "command": [
+      "/tmp/zeroverse-validation-venv/bin/python",
+      "scripts/indoor_bench_report.py",
+      "out/indoor_bevy019_bounded1000",
+      "--output",
+      "out/indoor_bevy019_bounded1000_report"
+    ],
+    "exit_code": 0,
+    "seconds": 0.7087979316711426
+  },
+  {
+    "step": "web",
+    "command": [
+      "/tmp/zeroverse-browser-venv/bin/python",
+      "scripts/validate_indoor_web.py",
+      "--url",
+      "http://127.0.0.1:8765/",
+      "--browser",
+      "/usr/bin/google-chrome",
+      "--seeds",
+      "0",
+      "6",
+      "--profiles",
+      "auto",
+      "portable",
+      "--modes",
+      "Color",
+      "Depth",
+      "Normal",
+      "Semantic",
+      "Position",
+      "--wasm-path",
+      "www/out/viewer_bg.wasm",
+      "--generator-version",
+      "3",
+      "--human-density",
+      "0.6",
+      "--min-humans",
+      "1",
+      "--regenerate",
+      "--output",
+      "out/indoor_web_bevy019_bounded"
+    ],
+    "exit_code": 0,
+    "seconds": 103.9653913974762
+  },
+  {
+    "step": "web_grid",
+    "command": [
+      "/tmp/zeroverse-browser-venv/bin/python",
+      "scripts/validate_indoor_web.py",
+      "--url",
+      "http://127.0.0.1:8765/",
+      "--browser",
+      "/usr/bin/google-chrome",
+      "--seeds",
+      "6",
+      "--profiles",
+      "auto",
+      "portable",
+      "--modes",
+      "Color",
+      "--cameras",
+      "2",
+      "--wasm-path",
+      "www/out/viewer_bg.wasm",
+      "--generator-version",
+      "3",
+      "--human-density",
+      "0.6",
+      "--min-humans",
+      "1",
+      "--regenerate",
+      "--output",
+      "out/indoor_web_bevy019_bounded_grid"
+    ],
+    "exit_code": 0,
+    "seconds": 14.333505153656006
+  }
+]

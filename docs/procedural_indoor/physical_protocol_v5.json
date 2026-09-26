@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "selection": "First 12 greedy stratified seeds from 1024 audited scenes, two cameras; no image quality filtering",
+  "seeds": [
+    0,
+    3,
+    60,
+    4,
+    1,
+    26,
+    2,
+    11,
+    21,
+    7,
+    16,
+    37
+  ],
+  "native": {
+    "width": 640,
+    "height": 480,
+    "linear_rgb": true,
+    "labels": "float32 geometry"
+  },
+  "reference": {
+    "renderer": "Cycles 5.2.2 LTS",
+    "device": "OptiX",
+    "samples": 4096,
+    "denoised": false,
+    "bounces": 12,
+    "optical_calibration_required": true
+  },
+  "independent_convergence": {
+    "seeds": [
+      4,
+      0
+    ],
+    "samples": 65536,
+    "seed_offset": 104729,
+    "maximum_32px_block_relative_mae": 0.05,
+    "maximum_mean_luminance_relative_difference": 0.02,
+    "scope": "Coarse radiance agreement only; no pixel convergence or state-of-the-art claim"
+  },
+  "native_accuracy": "Report absolute radiance errors and semantic strata; no fitted exposure or pass threshold inferred from observations"
+}

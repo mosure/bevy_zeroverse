@@ -1,0 +1,69 @@
+warning: Missing auto-load script at offset 0 in section .debug_gdb_scripts
+of file /media/mosure/hyper1/repos/bevy_zeroverse/target/debug/build/bevy_zeroverse/097a66dec0c8b87a/out/ground_truth_render-097a66dec0c8b87a.
+Use `info auto-load python-scripts [REGEXP]' to list them.
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/usr/lib/x86_64-linux-gnu/libthread_db.so.1".
+
+running 1 test
+test float32_mrt_matches_independent_ray_geometry_and_tracks_changes ... 2026-09-24T02:28:22.978830Z  INFO bevy_render::renderer: AdapterInfo { name: "NVIDIA RTX PRO 6000 Blackwell Workstation Edition", vendor: 4318, device: 11185, device_type: DiscreteGpu, device_pci_bus_id: "0000:01:00.0", driver: "NVIDIA", driver_info: "610.43.02", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: false }
+2026-09-24T02:28:23.801603Z  INFO bevy_zeroverse: initializing BevyZeroversePlugin...
+2026-09-24T02:28:23.813116Z  INFO bevy_pbr::cluster: GPU clustering is supported on this device.
+2026-09-24T02:28:23.813383Z  INFO bevy_render::batching::gpu_preprocessing: GPU preprocessing is fully supported on this device.
+teardown control: synchronous_render=false
+2026-09-24T02:28:23.819962Z  INFO bevy_zeroverse::mesh: BEVY_ASSET_ROOT: `/tmp/.tmpBGf4TW`
+2026-09-24T02:28:23.820007Z  INFO bevy_zeroverse::material: BEVY_ASSET_ROOT: `/tmp/.tmpBGf4TW`
+2026-09-24T02:28:23.820288Z  INFO bevy_zeroverse::material: current working directory: /tmp/.tmpBGf4TW
+2026-09-24T02:28:23.820415Z  INFO bevy_zeroverse::material: found 0 materials
+2026-09-24T02:28:23.820698Z  INFO bevy_zeroverse::app: skipping scene initialization.
+request 1: 174 f64 ray-triangle references, worldmax=0.000066109m depthmax=0.000057711m reprojectionmax=0.001979px normalmax=0.00018332 flatnormalmax=0.00000015 beyond_f16_depth=174
+request 2: 175 f64 ray-triangle references, worldmax=0.000059968m depthmax=0.000034179m reprojectionmax=0.002180px normalmax=0.00018332 flatnormalmax=0.00000018 beyond_f16_depth=175
+request 3: 169 f64 ray-triangle references, worldmax=0.000059968m depthmax=0.000012594m reprojectionmax=0.002180px normalmax=0.00000018 flatnormalmax=0.00000018 beyond_f16_depth=169
+request 4: empty scene completed; both annotation planes zero; geometry residency zero
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.78s
+
+
+Thread 8 "Async Compute T" received signal SIGSEGV, Segmentation fault.
+[Switching to Thread 0x79af6ddf96c0 (LWP 3887546)]
+0x000079aefd82b28c in ?? () from /usr/lib/x86_64-linux-gnu/libnvidia-glcore.so.610.43.02
+#0  0x000079aefd82b28c in ?? () from /usr/lib/x86_64-linux-gnu/libnvidia-glcore.so.610.43.02
+#1  0x000079aefd829e42 in ?? () from /usr/lib/x86_64-linux-gnu/libnvidia-glcore.so.610.43.02
+#2  0x000079aefd8072f9 in ?? () from /usr/lib/x86_64-linux-gnu/libnvidia-glcore.so.610.43.02
+#3  0x000079aefd9d6092 in ?? () from /usr/lib/x86_64-linux-gnu/libnvidia-glcore.so.610.43.02
+#4  0x000079af1ef9b67b in ?? () from /usr/lib/x86_64-linux-gnu/libvulkan.so.1
+#5  0x000079af1efb59c0 in vkDestroyDevice () from /usr/lib/x86_64-linux-gnu/libvulkan.so.1
+#6  0x00005fccedba0814 in core::ptr::drop_glue<wgpu_hal::vulkan::DeviceShared> () at /home/mosure/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:848
+#7  core::ptr::drop_in_place<wgpu_hal::vulkan::DeviceShared> (to_drop=0x79acadbda470) at /home/mosure/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:843
+#8  alloc::sync::Arc<wgpu_hal::vulkan::DeviceShared, alloc::alloc::Global>::drop_slow<wgpu_hal::vulkan::DeviceShared, alloc::alloc::Global> (self=<optimized out>) at /home/mosure/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/alloc/src/sync.rs:2257
+#9  0x00005fcceda91e7c in alloc::sync::{impl#42}::drop<wgpu_hal::vulkan::DeviceShared, alloc::alloc::Global> (self=0x79aeff1e58a0) at /home/mosure/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/alloc/src/sync.rs:3035
+#10 core::ptr::drop_glue<alloc::sync::Arc<wgpu_hal::vulkan::DeviceShared, alloc::alloc::Global>> () at /home/mosure/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:848
+#11 core::ptr::drop_glue<wgpu_hal::vulkan::CommandEncoder> () at /home/mosure/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:848
+#12 0x00005fcced9c4834 in core::ptr::drop_glue<alloc::boxed::Box<(dyn core::ops::function::FnOnce<(), Output=()> + core::marker::Send), alloc::alloc::Global>> () at /home/mosure/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:848
+#13 core::ptr::drop_glue<[alloc::boxed::Box<(dyn core::ops::function::FnOnce<(), Output=()> + core::marker::Send), alloc::alloc::Global>]> () at /home/mosure/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:848
+#14 core::ptr::drop_in_place<[alloc::boxed::Box<(dyn core::ops::function::FnOnce<(), Output=()> + core::marker::Send), alloc::alloc::Global>]> (to_drop=...) at /home/mosure/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:843
+#15 core::ptr::mut_ptr::{impl#0}::drop_in_place<[alloc::boxed::Box<(dyn core::ops::function::FnOnce<(), Output=()> + core::marker::Send), alloc::alloc::Global>]> (self=...) at /home/mosure/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ptr/mut_ptr.rs:1386
+#16 alloc::vec::{impl#27}::drop<alloc::boxed::Box<(dyn core::ops::function::FnOnce<(), Output=()> + core::marker::Send), alloc::alloc::Global>, alloc::alloc::Global> (self=<optimized out>) at /home/mosure/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/alloc/src/vec/mod.rs:4409
+#17 0x00005fcced9a5135 in core::ptr::drop_glue<alloc::vec::Vec<alloc::boxed::Box<dyn wgpu_hal::dynamic::command::DynCommandEncoder, alloc::alloc::Global>, alloc::alloc::Global>> () at /home/mosure/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:848
+#18 core::ptr::drop_glue<core::cell::UnsafeCell<alloc::vec::Vec<alloc::boxed::Box<dyn wgpu_hal::dynamic::command::DynCommandEncoder, alloc::alloc::Global>, alloc::alloc::Global>>> () at /home/mosure/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:848
+#19 core::ptr::drop_glue<lock_api::mutex::Mutex<parking_lot::raw_mutex::RawMutex, alloc::vec::Vec<alloc::boxed::Box<dyn wgpu_hal::dynamic::command::DynCommandEncoder, alloc::alloc::Global>, alloc::alloc::Global>>> () at /home/mosure/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:848
+#20 core::ptr::drop_glue<wgpu_core::lock::vanilla::Mutex<alloc::vec::Vec<alloc::boxed::Box<dyn wgpu_hal::dynamic::command::DynCommandEncoder, alloc::alloc::Global>, alloc::alloc::Global>>> () at /home/mosure/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:848
+#21 core::ptr::drop_glue<wgpu_core::command::allocator::CommandAllocator> () at /home/mosure/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:848
+#22 core::ptr::drop_glue<wgpu_core::device::resource::Device> () at /home/mosure/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:848
+#23 core::ptr::drop_in_place<wgpu_core::device::resource::Device> (to_drop=0x79acade64330) at /home/mosure/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:843
+#24 alloc::sync::Arc<wgpu_core::device::resource::Device, alloc::alloc::Global>::drop_slow<wgpu_core::device::resource::Device, alloc::alloc::Global> (self=<optimized out>) at /home/mosure/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/alloc/src/sync.rs:2257
+#25 0x00005fcced9a31d3 in alloc::sync::{impl#42}::drop<wgpu_core::device::resource::Device, alloc::alloc::Global> (self=0x79aeff1e58a0) at /home/mosure/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/alloc/src/sync.rs:3035
+#26 core::ptr::drop_glue<alloc::sync::Arc<wgpu_core::device::resource::Device, alloc::alloc::Global>> () at /home/mosure/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:848
+#27 core::ptr::drop_glue<wgpu_core::pipeline::ShaderModule> () at /home/mosure/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:848
+#28 core::ptr::drop_in_place<wgpu_core::pipeline::ShaderModule> (to_drop=0x79af54282010) at /home/mosure/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:843
+#29 alloc::sync::Arc<wgpu_core::pipeline::ShaderModule, alloc::alloc::Global>::drop_slow<wgpu_core::pipeline::ShaderModule, alloc::alloc::Global> (self=<optimized out>) at /home/mosure/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/alloc/src/sync.rs:2257
+#30 0x00005fcced9a3492 in alloc::sync::{impl#42}::drop<wgpu_core::pipeline::ShaderModule, alloc::alloc::Global> (self=0x79af5427d910) at /home/mosure/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/alloc/src/sync.rs:3035
+#31 core::ptr::drop_glue<alloc::sync::Arc<wgpu_core::pipeline::ShaderModule, alloc::alloc::Global>> () at /home/mosure/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:848
+#32 core::ptr::drop_glue<[alloc::sync::Arc<wgpu_core::pipeline::ShaderModule, alloc::alloc::Global>]> () at /home/mosure/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:848
+#33 core::ptr::drop_in_place<[alloc::sync::Arc<wgpu_core::pipeline::ShaderModule, alloc::alloc::Global>]> (to_drop=...) at /home/mosure/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:843
+#34 arrayvec::arrayvec_impl::ArrayVecImpl::truncate<arrayvec::arrayvec::ArrayVec<alloc::sync::Arc<wgpu_core::pipeline::ShaderModule, alloc::alloc::Global>, 3>> (self=0x79af5427d900, new_len=0) at /home/mosure/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/arrayvec-0.7.6/src/arrayvec_impl.rs:82
+#35 arrayvec::arrayvec_impl::ArrayVecImpl::clear<arrayvec::arrayvec::ArrayVec<alloc::sync::Arc<wgpu_core::pipeline::ShaderModule, alloc::alloc::Global>, 3>> (self=0x79af5427d900) at /home/mosure/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/arrayvec-0.7.6/src/arrayvec_impl.rs:73
+#36 arrayvec::arrayvec::ArrayVec<alloc::sync::Arc<wgpu_core::pipeline::ShaderModule, alloc::alloc::Global>, 3>::clear<alloc::sync::Arc<wgpu_core::pipeline::ShaderModule, alloc::alloc::Global>, 3> (self=0x79af5427d900) at /home/mosure/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/arrayvec-0.7.6/src/arrayvec.rs:255
+#37 arrayvec::arrayvec::{impl#0}::drop<alloc::sync::Arc<wgpu_core::pipeline::ShaderModule, alloc::alloc::Global>, 3> (self=0x79af5427d900) at /home/mosure/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/arrayvec-0.7.6/src/arrayvec.rs:51
+#38 core::ptr::drop_glue<arrayvec::arrayvec::ArrayVec<alloc::sync::Arc<wgpu_core::pipeline::ShaderModule, alloc::alloc::Global>, 3>> () at /home/mosure/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:848
+#39 core::ptr::drop_glue<wgpu_core::pipeline::RenderPipeline> () at /home/mosure/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:848

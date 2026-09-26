@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "created_utc": "2026-09-24T14:20:59.974505+00:00",
+  "scope": "One continuous 1000-scene run per build; identical seeds/configuration and streaming-copy setting. Late baseline host compilation makes baseline timing diagnostic. Finite workload evidence, not proof of an unbounded memory plateau.",
+  "before": {
+    "source": "out/indoor_bevy019_queued1000",
+    "completed_scenes": 1000,
+    "completed_views": 3000,
+    "live_gpu_bind_groups_first_last_max": [
+      256,
+      112313,
+      112313
+    ],
+    "rss_peak_bytes": 5503352832.0,
+    "tail_rss_slope_bytes_per_scene": 2471395.534048481,
+    "tail_live_heap_slope_bytes_per_scene": 1102794.789927519,
+    "process_gpu_memory_peak_bytes": 1293037568,
+    "source_identity": "source_identity_bevy019_before_bind_cleanup.json"
+  },
+  "after": {
+    "source": "out/indoor_bevy019_bounded1000",
+    "completed_scenes": 1000,
+    "completed_views": 3000,
+    "live_gpu_bind_groups_first_last_max": [
+      184,
+      184,
+      344
+    ],
+    "rss_peak_bytes": 4338286592.0,
+    "tail_rss_slope_bytes_per_scene": 1725168.7312767245,
+    "tail_live_heap_slope_bytes_per_scene": 1103562.0689913118,
+    "process_gpu_memory_peak_bytes": 1565667328,
+    "source_identity": "source_identity_bevy019.json"
+  },
+  "unbounded_memory_plateau_demonstrated": false
+}

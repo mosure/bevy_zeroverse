@@ -80,6 +80,7 @@ fn make_rgba_bytes(width: u32, height: u32, seed: f32) -> Vec<u8> {
 
 fn make_sample(width: u32, height: u32) -> Sample {
     let view = View {
+        semantic: Vec::new(),
         color: make_rgba_bytes(width, height, 0.1),
         depth: make_rgba_bytes(width, height, 0.2),
         normal: make_rgba_bytes(width, height, 0.3),
@@ -109,10 +110,15 @@ fn make_sample(width: u32, height: u32) -> Sample {
     };
 
     Sample {
+        indoor: None,
+        indoor_render_metadata: None,
+        annotation_precision: Default::default(),
+        color_encoding: Default::default(),
         views: vec![view],
         view_dim: 1,
         aabb: [[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]],
         object_obbs: Vec::new(),
+        human_instance_ids: Vec::new(),
         human_poses: Vec::new(),
         human_pose_steps: Vec::new(),
         human_bone_names: Vec::new(),
@@ -134,8 +140,7 @@ fn run_roundtrip(sample: &Sample, width: u32, height: u32) {
         true,
     )
     .expect("chunk save should succeed");
-    save_sample_to_fs(sample, dir.path(), 0, width, height, true)
-        .expect("fs save should succeed");
+    save_sample_to_fs(sample, dir.path(), 0, width, height, true).expect("fs save should succeed");
 }
 
 #[test]

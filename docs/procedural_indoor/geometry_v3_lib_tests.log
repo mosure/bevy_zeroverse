@@ -1,0 +1,12 @@
+Command: cargo test --lib -- --nocapture
+Default features; 59 discovered tests. Final output retained from executed test process:
+test scene::procedural_indoor::tests::distribution_is_valid_and_covers_all_families ... ok
+128-seed human counts at densities 0/.25/1: [0, 361, 1354]; neighbor instances=160
+test scene::procedural_indoor::tests::people_are_deterministic_diverse_supported_and_inside_collision_envelopes ... ok
+test scene::procedural_indoor::tests::procedural_meshes_have_valid_topology_normals_and_tangents ... ok
+test annotation::ovoxel::tests::gpu_buffer_pool_reuses_supersets ... ok
+test annotation::ovoxel::tests::gpu_buffer_pool_trims ... ok
+GPU voxelization mismatch for simple triangle (13 vs 43 voxels); skipping strict equality
+test annotation::ovoxel::tests::gpu_matches_cpu_for_simple_triangle ... ok
+
+test result: ok. 56 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 3.92s

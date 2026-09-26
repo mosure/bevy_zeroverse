@@ -1,0 +1,32 @@
+   Compiling bevy_zeroverse v0.17.3 (/media/mosure/hyper1/repos/bevy_zeroverse)
+    Finished `test` profile [optimized + debuginfo] target(s) in 51.08s
+warning: the following packages contain code that will be rejected by a future version of Rust: naga v26.0.0, nix v0.30.1, wgpu v26.0.1, wgpu-core v26.0.1, wgpu-hal v26.0.6, winit v0.30.12
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running tests/procedural_indoor_viewer.rs (target/debug/build/bevy_zeroverse/a566c3f9869534d6/out/procedural_indoor_viewer-a566c3f9869534d6)
+
+running 1 test
+2026-09-23T17:41:13.274315Z  INFO bevy_render::renderer: AdapterInfo { name: "NVIDIA RTX PRO 6000 Blackwell Workstation Edition", vendor: 4318, device: 11185, device_type: DiscreteGpu, driver: "NVIDIA", driver_info: "610.43.02", backend: Vulkan }
+2026-09-23T17:41:14.064748Z  WARN bevy_egui: The `bevy_egui/picking` feature is enabled, but `PickingPlugin` is not added (if you use Bevy's `DefaultPlugins`, make sure the `bevy/bevy_picking` feature is enabled too)
+2026-09-23T17:41:14.065153Z  WARN bevy_inspector_egui::inspector_options::default_options: Attempting to set default inspector options for bevy_render::view::ColorGradingSection, but it wasn't registered in the type registry.
+2026-09-23T17:41:14.065160Z  WARN bevy_inspector_egui::inspector_options::default_options: Attempting to set default inspector options for bevy_render::view::ColorGradingGlobal, but it wasn't registered in the type registry.
+2026-09-23T17:41:14.065162Z  WARN bevy_inspector_egui::inspector_options::default_options: Attempting to set default inspector options for bevy_light::ambient_light::AmbientLight, but it wasn't registered in the type registry.
+2026-09-23T17:41:14.065164Z  WARN bevy_inspector_egui::inspector_options::default_options: Attempting to set default inspector options for bevy_light::point_light::PointLight, but it wasn't registered in the type registry.
+2026-09-23T17:41:14.065165Z  WARN bevy_inspector_egui::inspector_options::default_options: Attempting to set default inspector options for bevy_light::directional_light::DirectionalLight, but it wasn't registered in the type registry.
+2026-09-23T17:41:14.065167Z  WARN bevy_inspector_egui::inspector_options::default_options: Attempting to set default inspector options for bevy_light::cluster::ClusterConfig, but it wasn't registered in the type registry.
+2026-09-23T17:41:14.065168Z  WARN bevy_inspector_egui::inspector_options::default_options: Attempting to set default inspector options for bevy_camera::components::Camera3dDepthLoadOp, but it wasn't registered in the type registry.
+2026-09-23T17:41:14.065214Z  INFO bevy_zeroverse: initializing BevyZeroversePlugin...
+2026-09-23T17:41:14.096911Z  INFO bevy_render::batching::gpu_preprocessing: GPU preprocessing is fully supported on this device.
+2026-09-23T17:41:14.099216Z  INFO bevy_winit::system: Creating new window bevy_zeroverse (0v0)
+2026-09-23T17:41:14.099298Z  INFO winit::platform_impl::linux::x11::window: Guessed window scale factor: 1
+2026-09-23T17:41:14.101788Z  INFO bevy_zeroverse::material: current working directory: /media/mosure/hyper1/repos/bevy_zeroverse
+2026-09-23T17:41:14.323346Z  INFO bevy_zeroverse::material: found 5795 materials
+2026-09-23T17:41:14.342216Z  INFO bevy_zeroverse::mesh: found 15 meshes for category `plant`
+2026-09-23T17:41:14.342232Z  INFO bevy_zeroverse::mesh: found 21 meshes for category `table`
+2026-09-23T17:41:14.342234Z  INFO bevy_zeroverse::mesh: found 23 meshes for category `chair`
+2026-09-23T17:41:14.490341Z  INFO bevy_zeroverse::scene::procedural_indoor: procedural_indoor seed=6 layout=OpenOffice room=Vec3(8.844214, 3.2474034, 9.035895) instances=40 cameras=0
+2026-09-23T17:41:14.743473Z  WARN bevy_pbr::render::mesh_view_bindings: Too many textures in mesh pipeline view layout, this might cause us to hit `wgpu::Limits::max_sampled_textures_per_shader_stage` in some environments.
+2026-09-23T17:41:15.276791Z  INFO bevy_render::view::window::screenshot: Screenshot saved to out/indoor_viewer/viewer.png
+test editor_starts_at_a_generated_interior_viewpoint ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.48s
+

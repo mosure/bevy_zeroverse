@@ -41,7 +41,14 @@ impl Plugin for DepthPlugin {
 
         app.add_plugins(MaterialPlugin::<DepthMaterial>::default());
 
-        app.add_systems(PostUpdate, apply_depth_material);
+        // Material insertion must precede Bevy's specialization bookkeeping.
+        // Otherwise annotation-mode scene regeneration can extract a material
+        // without its specialization tick (a renderer panic, notably on Wasm).
+        app.add_systems(
+            PostUpdate,
+            apply_depth_material
+                .before(bevy::pbr::check_entities_needing_specialization::<DepthMaterial>),
+        );
     }
 }
 

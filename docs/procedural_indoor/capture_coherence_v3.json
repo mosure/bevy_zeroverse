@@ -1,0 +1,153 @@
+{
+  "schema_version": 1,
+  "observed_at_utc": "2026-09-23T18:55:37Z",
+  "result": "passed",
+  "backend": "Vulkan",
+  "adapter": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+  "driver": "610.43.02",
+  "source_sha256": {
+    "src/sample.rs": "c40460d5a959ff46736848a6571174fb2ec60bf5a6b849e9dd22de01945916e9",
+    "src/app.rs": "b455be271e5bdb4de8d484d392d4617b83847c06db139fce290efa71fb7e0689",
+    "src/procedural_human.rs": "d780fb11de14329f35e58efcdfcbbab73aeadb1acec784ce1907372baf843c7e",
+    "src/annotation/pose.rs": "38f3f8a9474bfc40969d358df121b519365aa66107658fd7e3e7dccba8b98bb6",
+    "tests/capture_coherence.rs": "65fad505b08e473d2feed01fbeb39db040d0099af9dc269a22eda67765ff27c2"
+  },
+  "log": "capture_coherence_v3.log",
+  "configuration": {
+    "width": 161,
+    "height": 123,
+    "seed_sequence": [
+      6,
+      7
+    ],
+    "cameras": 1,
+    "steps": [
+      0.0,
+      0.4,
+      0.8
+    ],
+    "viewer_playback": "Sin",
+    "viewer_playback_speed": 9.0,
+    "scene_yaw_speed": 0.8,
+    "quality": "Portable",
+    "indoor_gi": false
+  },
+  "cpu_contract_tests": {
+    "passed": 3,
+    "failed": 0
+  },
+  "gpu_test": {
+    "passed": 1,
+    "failed": 0,
+    "seconds": 2.06
+  },
+  "verified_contracts": [
+    "Sampler owns normalized trajectory progress while active and freezes interactive playback and scene yaw.",
+    "Prior playback mode, speed, progress, and direction are restored after successful and failed requests.",
+    "Request-time camera pose, projection, time, OBB, and human metadata are retained until asynchronous pixels arrive.",
+    "All nine successful view matrices match the independently evaluated manifest trajectory and actual root transform within 1e-5 per matrix element.",
+    "Native three-plane float32 and preserved one-plane legacy sequential modality captures both complete three trajectory steps.",
+    "Changing the camera projection after request submission fails without emitting a sample.",
+    "Regeneration replaces inactive failed cameras and captures seed 7 using a fresh native request epoch.",
+    "Low-level native three-plane OpticalFlow and MotionVectors mixed-mode requests both fail explicitly without emitting partial samples.",
+    "Headless camera activity gating permits warmup, capture, asynchronous completion, failure recovery, and regeneration."
+  ],
+  "views": [
+    {
+      "precision": "Float32Geometry",
+      "step": 0,
+      "time": 0.0,
+      "checked_pixels": 2120,
+      "depth_position_p99_metres": 1.9073486e-06,
+      "reprojection_p99_pixels": 0.0018663969,
+      "normal_length_max_error": 1.7881393e-07,
+      "position_quantization_budget_p99_ratio": 0.14926592
+    },
+    {
+      "precision": "Float32Geometry",
+      "step": 1,
+      "time": 0.4,
+      "checked_pixels": 2120,
+      "depth_position_p99_metres": 1.9073486e-06,
+      "reprojection_p99_pixels": 0.001913142,
+      "normal_length_max_error": 1.7881393e-07,
+      "position_quantization_budget_p99_ratio": 0.14515029
+    },
+    {
+      "precision": "Float32Geometry",
+      "step": 2,
+      "time": 0.8,
+      "checked_pixels": 2120,
+      "depth_position_p99_metres": 1.9073486e-06,
+      "reprojection_p99_pixels": 0.0021039983,
+      "normal_length_max_error": 1.7881393e-07,
+      "position_quantization_budget_p99_ratio": 0.15259816
+    },
+    {
+      "precision": "Float16Hdr",
+      "step": 0,
+      "time": 0.0,
+      "checked_pixels": 2120,
+      "depth_position_p99_metres": 0.017362595,
+      "reprojection_p99_pixels": 0.7643752,
+      "normal_length_max_error": 0.0011794567,
+      "position_quantization_budget_p99_ratio": 0.81712085
+    },
+    {
+      "precision": "Float16Hdr",
+      "step": 1,
+      "time": 0.4,
+      "checked_pixels": 2120,
+      "depth_position_p99_metres": 0.017409801,
+      "reprojection_p99_pixels": 0.6999635,
+      "normal_length_max_error": 0.0013241172,
+      "position_quantization_budget_p99_ratio": 0.8220189
+    },
+    {
+      "precision": "Float16Hdr",
+      "step": 2,
+      "time": 0.8,
+      "checked_pixels": 2120,
+      "depth_position_p99_metres": 0.016625404,
+      "reprojection_p99_pixels": 0.72803986,
+      "normal_length_max_error": 0.0012930632,
+      "position_quantization_budget_p99_ratio": 0.8265447
+    },
+    {
+      "precision": "Float32Geometry",
+      "step": 0,
+      "time": 0.0,
+      "checked_pixels": 2120,
+      "depth_position_p99_metres": 1.66893e-06,
+      "reprojection_p99_pixels": 0.0019128035,
+      "normal_length_max_error": 2.3841858e-07,
+      "position_quantization_budget_p99_ratio": 0.16037291
+    },
+    {
+      "precision": "Float32Geometry",
+      "step": 1,
+      "time": 0.4,
+      "checked_pixels": 2120,
+      "depth_position_p99_metres": 1.9073486e-06,
+      "reprojection_p99_pixels": 0.0019630278,
+      "normal_length_max_error": 1.7881393e-07,
+      "position_quantization_budget_p99_ratio": 0.15176983
+    },
+    {
+      "precision": "Float32Geometry",
+      "step": 2,
+      "time": 0.8,
+      "checked_pixels": 2120,
+      "depth_position_p99_metres": 1.9073486e-06,
+      "reprojection_p99_pixels": 0.0020505053,
+      "normal_length_max_error": 1.7881393e-07,
+      "position_quantization_budget_p99_ratio": 0.1613814
+    }
+  ],
+  "limits": [
+    "Depth-position/reprojection metrics here are self-consistency checks. The separate ground_truth_precision_v3.json uses an independent float64 geometry/ray oracle.",
+    "Legacy sequential annotations retain float16 HDR intermediates and their documented lower precision; native procedural-indoor capture uses dedicated float32 geometry attachments.",
+    "This is a small functional regression, not a throughput or sustained-memory measurement.",
+    "Final Wasm library and viewer compilation passed; native dataset readback remains unsupported in the browser."
+  ]
+}

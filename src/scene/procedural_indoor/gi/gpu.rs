@@ -1,0 +1,504 @@
+//! One-shot native GPU diffuse transport. No readback is required for rendering.
+use super::*;
+use bevy::render::diagnostic::RecordDiagnostics;
+use bevy::shader::ShaderCacheError;
+use bevy::{
+    asset::{load_internal_asset, uuid_handle, AssetId},
+    render::{
+        render_asset::RenderAssets,
+        render_resource::*,
+        renderer::{RenderContext, RenderDevice, RenderGraph, RenderGraphSystems, RenderQueue},
+        texture::GpuImage,
+        Extract, ExtractSchedule, GpuResourceAppExt, Render, RenderApp, RenderSystems,
+    },
+};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc, Mutex,
+};
+
+const SHADER: Handle<Shader> = uuid_handle!("d7a4f8bd-fb54-4e6f-85ec-6d962c227cc1");
+
+#[derive(Default)]
+struct Status {
+    encoded: AtomicBool,
+    failure: Mutex<Option<String>>,
+}
+
+/// `ready` means GI dispatch was encoded before the camera pass. GPU ordering
+/// then guarantees capture observes that dispatch; no blocking device poll.
+#[derive(Resource, Clone, Default)]
+pub struct GiGpuReadiness(Arc<Status>);
+impl GiGpuReadiness {
+    pub fn ready(&self) -> bool {
+        self.0.encoded.load(Ordering::Acquire)
+    }
+    pub fn failure(&self) -> Option<String> {
+        self.0.failure.lock().unwrap().clone()
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+struct GpuTriangle {
+    a: [f32; 4],
+    ab: [f32; 4],
+    ac: [f32; 4],
+    uv01: [f32; 4],
+    uv2_material: [f32; 4],
+    normal: [f32; 4],
+}
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+struct GpuNode {
+    lo: [f32; 4],
+    hi: [f32; 4],
+    children: [u32; 4],
+}
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+struct GpuMaterial {
+    albedo: [f32; 4],
+    emission: [f32; 4],
+    uv_scale: [f32; 4],
+    texture: [u32; 4],
+}
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+struct GpuLight {
+    position_range: [f32; 4],
+    color_candela: [f32; 4],
+    spot: [u32; 4],
+}
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+struct Params {
+    resolution: [u32; 4],
+    budget: [u32; 4],
+    sun_direction: [f32; 4],
+    sun: [f32; 4],
+    sky: [f32; 4],
+    rotation: [f32; 4],
+}
+
+struct Input {
+    params: Params,
+    triangles: Vec<GpuTriangle>,
+    nodes: Vec<GpuNode>,
+    materials: Vec<GpuMaterial>,
+    texels: Vec<[f32; 4]>,
+    lights: Vec<GpuLight>,
+    origins: Vec<[f32; 4]>,
+}
+
+#[derive(Resource, Clone)]
+pub struct GpuBakeRequest {
+    pub image: Handle<Image>,
+    input: Arc<Input>,
+    pub readiness: GiGpuReadiness,
+}
+
+pub fn prepare(
+    scene: &BakeScene,
+    settings: BakeSettings,
+    seed: u64,
+    images: &mut Assets<Image>,
+) -> (GpuBakeRequest, Transform, BakeStatistics) {
+    assert!(settings.spacing >= 0.2 && settings.spacing.is_finite());
+    assert!(
+        (16..=65536).contains(&settings.rays_per_probe)
+            && (1..=32).contains(&settings.diffuse_bounces)
+    );
+    let started = Instant::now();
+    let resolution = ((scene.bounds_max - scene.bounds_min) / settings.spacing)
+        .ceil()
+        .as_uvec3()
+        .max(UVec3::splat(2));
+    let count = (resolution.x * resolution.y * resolution.z) as usize;
+    assert!(
+        count <= 65535,
+        "GPU GI probe budget exceeds a dispatch dimension"
+    );
+    let points: Vec<Vec3> = (0..count as u32)
+        .map(|i| {
+            let xyz = UVec3::new(
+                i % resolution.x,
+                (i / resolution.x) % resolution.y,
+                i / (resolution.x * resolution.y),
+            );
+            scene.bounds_min
+                + (xyz.as_vec3() + Vec3::splat(0.5)) / resolution.as_vec3()
+                    * (scene.bounds_max - scene.bounds_min)
+        })
+        .collect();
+    let valid: Vec<bool> = points.iter().map(|p| !scene.inside_solid(*p)).collect();
+    let mut relocated = 0;
+    let origins = points
+        .iter()
+        .enumerate()
+        .map(|(i, point)| {
+            let index = if valid[i] {
+                i
+            } else {
+                relocated += 1;
+                (0..count)
+                    .filter(|&j| valid[j])
+                    .min_by(|&a, &b| {
+                        points[a]
+                            .distance_squared(*point)
+                            .total_cmp(&points[b].distance_squared(*point))
+                    })
+                    .unwrap_or(i)
+            };
+            points[index].extend(index as f32).to_array()
+        })
+        .collect();
+    let triangles = scene
+        .triangles
+        .iter()
+        .map(|t| GpuTriangle {
+            a: t.a.extend(0.0).to_array(),
+            ab: t.ab.extend(0.0).to_array(),
+            ac: t.ac.extend(0.0).to_array(),
+            uv01: [t.uv[0].x, t.uv[0].y, t.uv[1].x, t.uv[1].y],
+            uv2_material: [t.uv[2].x, t.uv[2].y, t.material as f32, 0.0],
+            normal: t.normal.extend(0.0).to_array(),
+        })
+        .collect();
+    let nodes = scene
+        .nodes
+        .iter()
+        .map(|n| GpuNode {
+            lo: n.lo.extend(0.0).to_array(),
+            hi: n.hi.extend(0.0).to_array(),
+            children: [
+                n.start as u32,
+                n.count as u32,
+                n.right as u32,
+                n.axis as u32,
+            ],
+        })
+        .collect();
+    let mut texels = Vec::new();
+    let materials = scene
+        .materials
+        .iter()
+        .map(|m| {
+            let offset = texels.len() as u32;
+            let size = if let Some((n, pixels)) = &m.texture {
+                texels.extend(pixels.iter().map(|p| p.extend(1.0).to_array()));
+                *n
+            } else {
+                0
+            };
+            GpuMaterial {
+                albedo: m.albedo.extend(0.0).to_array(),
+                emission: m.emission.extend(0.0).to_array(),
+                uv_scale: [m.uv_scale.x, m.uv_scale.y, 0.0, 0.0],
+                texture: [offset, size, u32::from(m.textured_emission), 0],
+            }
+        })
+        .collect();
+    if texels.is_empty() {
+        texels.push([1.0; 4]);
+    }
+    let lights = scene
+        .lights
+        .iter()
+        .map(|l| GpuLight {
+            position_range: l.position.extend(l.range).to_array(),
+            color_candela: l.color.extend(l.candela).to_array(),
+            spot: [u32::from(l.spot), 0, 0, 0],
+        })
+        .collect();
+    let data = ProbeData {
+        resolution,
+        bounds_min: scene.bounds_min,
+        bounds_max: scene.bounds_max,
+        values: vec![[Vec3::ZERO; 6]; count],
+        statistics: default(),
+    };
+    let mut image = data.image();
+    image.texture_descriptor.usage |= TextureUsages::STORAGE_BINDING | TextureUsages::COPY_SRC;
+    let image = images.add(image);
+    let stats = BakeStatistics {
+        backend: "gpu_bvh_compute".into(),
+        triangles: scene.triangles.len(),
+        probes: count,
+        relocated_probes: relocated,
+        primary_rays: count as u64 * settings.rays_per_probe as u64,
+        diffuse_bounces: settings.diffuse_bounces,
+        texture_bytes: count * 48,
+        preparation_ms: scene.preparation_ms + started.elapsed().as_secs_f64() * 1000.0,
+        // GPU execution is asynchronous. Zero is not a timing measurement;
+        // execution timings come from the explicit GPU validation experiment.
+        bake_ms: None,
+        transport_bytes: scene.triangles.len() * std::mem::size_of::<GpuTriangle>()
+            + scene.nodes.len() * std::mem::size_of::<GpuNode>()
+            + texels.len() * 16
+            + scene.materials.len() * 64
+            + count * 16,
+        ..default()
+    };
+    let input = Input {
+        params: Params {
+            resolution: [resolution.x, resolution.y, resolution.z, count as u32],
+            budget: [
+                settings.rays_per_probe,
+                settings.diffuse_bounces,
+                seed as u32,
+                scene.lights.len() as u32,
+            ],
+            sun_direction: scene.sun_direction.extend(0.0).to_array(),
+            sun: scene.sun.extend(0.0).to_array(),
+            sky: scene.sky.extend(0.0).to_array(),
+            rotation: scene.world_rotation.to_array(),
+        },
+        triangles,
+        nodes,
+        materials,
+        texels,
+        lights,
+        origins,
+    };
+    (
+        GpuBakeRequest {
+            image,
+            input: Arc::new(input),
+            readiness: default(),
+        },
+        data.transform(),
+        stats,
+    )
+}
+
+pub struct GpuGiPlugin;
+impl Plugin for GpuGiPlugin {
+    fn build(&self, app: &mut App) {
+        load_internal_asset!(app, SHADER, "gpu.wgsl", Shader::from_wgsl);
+        let Some(render) = app.get_sub_app_mut(RenderApp) else {
+            return;
+        };
+        render.init_resource::<Prepared>();
+        render.add_systems(ExtractSchedule, extract);
+        render.add_systems(Render, upload.in_set(RenderSystems::PrepareResources));
+        render.init_gpu_resource::<Pipeline>();
+        render.add_systems(
+            RenderGraph,
+            bake_gpu
+                .before(bevy::core_pipeline::schedule::camera_driver)
+                .in_set(RenderGraphSystems::Render),
+        );
+    }
+}
+
+fn extract(mut commands: Commands, request: Extract<Option<Res<GpuBakeRequest>>>) {
+    if let Some(request) = request.as_ref() {
+        if request.is_changed() {
+            commands.insert_resource((**request).clone());
+        }
+    } else {
+        commands.remove_resource::<GpuBakeRequest>();
+    }
+}
+
+#[derive(Resource)]
+struct Pipeline {
+    layout: BindGroupLayout,
+    pipeline: CachedComputePipelineId,
+}
+impl FromWorld for Pipeline {
+    fn from_world(world: &mut World) -> Self {
+        let mut entries = vec![BindGroupLayoutEntry {
+            binding: 0,
+            visibility: ShaderStages::COMPUTE,
+            ty: BindingType::Buffer {
+                ty: BufferBindingType::Uniform,
+                has_dynamic_offset: false,
+                min_binding_size: None,
+            },
+            count: None,
+        }];
+        for binding in 1..7 {
+            entries.push(BindGroupLayoutEntry {
+                binding,
+                visibility: ShaderStages::COMPUTE,
+                ty: BindingType::Buffer {
+                    ty: BufferBindingType::Storage { read_only: true },
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            });
+        }
+        entries.push(BindGroupLayoutEntry {
+            binding: 7,
+            visibility: ShaderStages::COMPUTE,
+            ty: BindingType::StorageTexture {
+                access: StorageTextureAccess::WriteOnly,
+                format: TextureFormat::Rgba16Float,
+                view_dimension: TextureViewDimension::D3,
+            },
+            count: None,
+        });
+        let layout_descriptor = BindGroupLayoutDescriptor::new("indoor_gi_layout", &entries);
+        let layout = world
+            .resource::<PipelineCache>()
+            .get_bind_group_layout(&layout_descriptor);
+        let pipeline =
+            world
+                .resource::<PipelineCache>()
+                .queue_compute_pipeline(ComputePipelineDescriptor {
+                    label: Some("indoor_diffuse_gi".into()),
+                    layout: vec![layout_descriptor],
+                    shader: SHADER,
+                    entry_point: Some("bake".into()),
+                    ..default()
+                });
+        Self { layout, pipeline }
+    }
+}
+
+#[derive(Resource, Default)]
+struct Prepared {
+    image: Option<AssetId<Image>>,
+    bind_group: Option<BindGroup>,
+    _buffers: Vec<Buffer>,
+}
+
+fn upload(
+    request: Option<Res<GpuBakeRequest>>,
+    pipeline: Res<Pipeline>,
+    cache: Res<PipelineCache>,
+    device: Res<RenderDevice>,
+    queue: Res<RenderQueue>,
+    images: Res<RenderAssets<GpuImage>>,
+    mut prepared: ResMut<Prepared>,
+) {
+    let Some(request) = request else {
+        *prepared = default();
+        return;
+    };
+    let failure = pipeline_failure(cache.get_compute_pipeline_state(pipeline.pipeline));
+    *request.readiness.0.failure.lock().unwrap() = failure.clone();
+    if failure.is_some() {
+        return;
+    }
+    if prepared.image == Some(request.image.id()) {
+        return;
+    }
+    let Some(image) = images.get(&request.image) else {
+        return;
+    };
+    let input = &request.input;
+    let bytes: [&[u8]; 7] = [
+        bytemuck::bytes_of(&input.params),
+        bytemuck::cast_slice(&input.triangles),
+        bytemuck::cast_slice(&input.nodes),
+        bytemuck::cast_slice(&input.materials),
+        bytemuck::cast_slice(&input.texels),
+        bytemuck::cast_slice(&input.lights),
+        bytemuck::cast_slice(&input.origins),
+    ];
+    let buffers: Vec<_> = bytes
+        .iter()
+        .enumerate()
+        .map(|(i, data)| {
+            crate::render::upload_buffer(
+                &device,
+                &queue,
+                &BufferInitDescriptor {
+                    label: Some("indoor_gi_transport"),
+                    contents: if data.is_empty() { &[0; 16] } else { data },
+                    usage: if i == 0 {
+                        BufferUsages::UNIFORM
+                    } else {
+                        BufferUsages::STORAGE
+                    },
+                },
+            )
+        })
+        .collect();
+    let mut entries: Vec<_> = buffers
+        .iter()
+        .enumerate()
+        .map(|(i, b)| BindGroupEntry {
+            binding: i as u32,
+            resource: b.as_entire_binding(),
+        })
+        .collect();
+    entries.push(BindGroupEntry {
+        binding: 7,
+        resource: BindingResource::TextureView(&image.texture_view),
+    });
+    let bind_group = device.create_bind_group("indoor_gi_bindings", &pipeline.layout, &entries);
+    *prepared = Prepared {
+        image: Some(request.image.id()),
+        bind_group: Some(bind_group),
+        _buffers: buffers,
+    };
+}
+
+fn pipeline_failure(state: &CachedPipelineState) -> Option<String> {
+    match state {
+        CachedPipelineState::Err(
+            ShaderCacheError::ShaderNotLoaded(_) | ShaderCacheError::ShaderImportNotYetAvailable,
+        ) => None,
+        CachedPipelineState::Err(error) => Some(format!("indoor GI compute pipeline: {error}")),
+        _ => None,
+    }
+}
+
+fn bake_gpu(world: &World, mut context: RenderContext) {
+    let Some(request) = world.get_resource::<GpuBakeRequest>() else {
+        return;
+    };
+    if request.readiness.ready() {
+        return;
+    }
+    let prepared = world.resource::<Prepared>();
+    if prepared.image != Some(request.image.id()) {
+        return;
+    }
+    let Some(bind_group) = &prepared.bind_group else {
+        return;
+    };
+    let pipeline = world.resource::<Pipeline>();
+    let cache = world.resource::<PipelineCache>();
+    let Some(pipeline) = cache.get_compute_pipeline(pipeline.pipeline) else {
+        return;
+    };
+    let diagnostics = context.diagnostic_recorder();
+    let diagnostics = diagnostics.as_deref();
+    let span = diagnostics.time_span(context.command_encoder(), "indoor_diffuse_bake");
+    {
+        let mut pass = context
+            .command_encoder()
+            .begin_compute_pass(&ComputePassDescriptor {
+                label: Some("indoor_gi_bake_once"),
+                timestamp_writes: None,
+            });
+        pass.set_pipeline(pipeline);
+        pass.set_bind_group(0, bind_group, &[]);
+        pass.dispatch_workgroups(request.input.params.resolution[3], 1, 1);
+    }
+    span.end(context.command_encoder());
+    request.readiness.0.encoded.store(true, Ordering::Release);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn delayed_shader_availability_is_not_a_permanent_capture_failure() {
+        assert!(pipeline_failure(&CachedPipelineState::Queued).is_none());
+        assert!(pipeline_failure(&CachedPipelineState::Err(
+            ShaderCacheError::ShaderNotLoaded(SHADER.id())
+        ))
+        .is_none());
+        assert!(pipeline_failure(&CachedPipelineState::Err(
+            ShaderCacheError::ShaderImportNotYetAvailable
+        ))
+        .is_none());
+    }
+}

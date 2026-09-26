@@ -1,4 +1,4 @@
-#![feature(cfg_eval)]
+#![recursion_limit = "256"]
 
 use bevy::prelude::*;
 
@@ -22,6 +22,11 @@ pub mod scene;
 
 #[cfg(not(target_family = "wasm"))]
 pub mod util;
+
+/// Pixel/annotation contract identity. Dependency versions are pinned in Cargo.toml.
+/// Geometry grammar version is independent; renderer upgrades invalidate capture resume.
+pub const CAPTURE_ENGINE_IDENTITY: &str =
+    "capture-v6;bevy=0.19.1;burn=0.21.0;burn_human=0.4.0;bevy_burn_human=0.4.0";
 
 pub struct BevyZeroversePlugin;
 

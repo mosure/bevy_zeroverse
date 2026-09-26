@@ -25,7 +25,14 @@ impl Plugin for NormalPlugin {
 
         app.add_plugins(MaterialPlugin::<NormalMaterial>::default());
 
-        app.add_systems(PostUpdate, apply_normal_material);
+        // Material insertion must precede Bevy's specialization bookkeeping.
+        // Otherwise annotation-mode scene regeneration can extract a material
+        // without its specialization tick (a renderer panic, notably on Wasm).
+        app.add_systems(
+            PostUpdate,
+            apply_normal_material
+                .before(bevy::pbr::check_entities_needing_specialization::<NormalMaterial>),
+        );
     }
 }
 

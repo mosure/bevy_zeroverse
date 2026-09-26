@@ -1,0 +1,453 @@
+{
+  "schema_version": 1,
+  "policy": "Final bounded 10 ms polling window; sequential same-binary 128-scene runs, 16 warmup, timestamps disabled, seven-cache pruning enabled in both. Single matched pair, not a statistical equivalence claim. Throughput excludes output encoding; CPU accounting includes command startup/warmup/cleanup.",
+  "source_identity": "out/indoor_v3_final_source.json",
+  "runs": [
+    {
+      "source": "out/indoor_v3_final_poll_0",
+      "summary": {
+        "adapter": "WgpuWrapper(AdapterInfo { name: \"NVIDIA RTX PRO 6000 Blackwell Workstation Edition\", vendor: 4318, device: 11185, device_type: DiscreteGpu, driver: \"NVIDIA\", driver_info: \"610.43.02\", backend: Vulkan })",
+        "config": {
+          "animated": false,
+          "camera_grid": false,
+          "cuboid_only": false,
+          "depth_format": "Linear",
+          "draw_obb_gizmo": false,
+          "draw_pose_gizmos": false,
+          "editor": false,
+          "gizmos": false,
+          "gizmos_alpha": 1.0,
+          "headless": true,
+          "height": 240.0,
+          "image_copiers": true,
+          "indoor_density": 0.6499999761581421,
+          "indoor_gi_rays": 256,
+          "indoor_human_density": 0.25,
+          "indoor_layout": "Mixed",
+          "indoor_quality": "Auto",
+          "indoor_seed": 400,
+          "initialize_scene": false,
+          "keybinds": false,
+          "material_grid": false,
+          "max_camera_radius": 0.0,
+          "name": "bevy_zeroverse",
+          "num_cameras": 3,
+          "orbit_smoothness": 0.800000011920929,
+          "ovoxel_max_output_voxels": 16000000,
+          "ovoxel_mode": "Disabled",
+          "ovoxel_resolution": 128,
+          "pan_smoothness": 0.6000000238418579,
+          "playback_mode": "Still",
+          "playback_speed": 0.20000000298023224,
+          "playback_step": 0.0,
+          "playback_steps": 1,
+          "plucker_visualization": false,
+          "press_esc_close": false,
+          "regenerate_ms": 0,
+          "regenerate_scene_material_shuffle_period": 0,
+          "regenerate_scene_mesh_shuffle_period": 0,
+          "render_mode": "Color",
+          "render_modes": [
+            "Color",
+            "Depth",
+            "Position",
+            "Normal",
+            "Semantic"
+          ],
+          "rotation_augmentation": false,
+          "scene_type": "ProceduralIndoor",
+          "width": 320.0,
+          "yaw_speed": 0.0,
+          "z_depth": true,
+          "zoom_smoothness": 0.800000011920929
+        },
+        "fixed_scene": false,
+        "generator_version": 3,
+        "gi_enabled": true,
+        "gi_settings": {
+          "bake": {
+            "diffuse_bounces": 3,
+            "rays_per_probe": 256,
+            "spacing": 0.8500000238418579,
+            "workers": 8
+          },
+          "enabled": true,
+          "gpu": true
+        },
+        "gpu_timings_enabled": false,
+        "loop_started_unix_seconds": 1790192319.7101612,
+        "max_assets_mesh_material_image": [
+          279,
+          58,
+          57
+        ],
+        "measured_capture_seconds": 56.162650764,
+        "measured_completed_views": 336,
+        "pid": 3675707,
+        "poll_backoff_ms": 0,
+        "poll_window_ms": 10,
+        "render_cache_pruning": true,
+        "rss_first_quarter_mean_bytes": 2464218697.142857,
+        "rss_last_quarter_mean_bytes": 3372405467.428571,
+        "rss_max_bytes": 3434352640.0,
+        "rss_slope_bytes_per_scene": 10803508.001230057,
+        "run_id": "3675707-1790192318371084958",
+        "scene_seconds_p50_p95": [
+          0.487887577,
+          0.662795722
+        ],
+        "scenes": 128,
+        "scenes_per_second": 1.9942078672645467,
+        "schema_version": 2,
+        "timing_policy": "actual complete RGB/annotation samples; no PNG or dataset file encoding; scene preparation included, validation and JSONL writes excluded; GPU memory/utilization measured separately",
+        "total_wall_seconds": 64.709081649,
+        "views_per_second": 5.98262360179364,
+        "warmup_scenes": 16
+      },
+      "tail_scenes": 112,
+      "run_identity_verification": "matching_row_run_id_and_pid",
+      "tail_rss_slope_bytes_per_scene": 10803508.001230054,
+      "tail_rss_min_max_bytes": [
+        2160787456,
+        3434352640
+      ],
+      "preparation_seconds_mean": 0.2181609049375,
+      "capture_seconds_mean": 0.2832913340267857,
+      "whole_loop_scenes_per_second": 1.9780840144557683,
+      "staging_bytes_min_max": [
+        11059200,
+        11059200
+      ],
+      "annotation_precision": [
+        "float32_geometry"
+      ],
+      "tail_live_heap_slope_bytes_per_scene": 5527479.311511259,
+      "tail_heap_last": {
+        "arena_bytes": 2787303424,
+        "free_heap_bytes": 1013684016,
+        "live_heap_bytes": 1773619408,
+        "mapped_bytes": 6436496
+      },
+      "gpu_timestamp_spans": {},
+      "gpu_timestamp_policy": "Per-invocation elapsed GPU timestamp spans from available measured-scene diagnostic batches. Asynchronous delivery can cross scene boundaries; these are not exact per-seed attributions. Nested spans are not summed, and elapsed spans are not GPU occupancy.",
+      "telemetry": {
+        "available": true,
+        "schema_version": 2,
+        "pid": 3675707,
+        "identity_verification": "matching_pid_and_telemetry_run_id",
+        "adapter": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+        "adapter_uuid": "GPU-343b002b-d5c6-2d9c-9fea-9ab5a52d0879",
+        "interval_seconds": 0.5,
+        "command_timestamp_bounds_available": true,
+        "process_utilization_unavailable_polls": 0,
+        "process_utilization_errors": [],
+        "duplicate_nvml_samples_removed": 0,
+        "nvml_samples_outside_command_bounds_excluded": 0,
+        "whole_command": {
+          "polls": 132,
+          "known_process_memory_polls": 131,
+          "device_gpu_utilization_poll_mean_percent": 73.48484848484848,
+          "other_observed_gpu_pids": [
+            6937,
+            7013,
+            7389,
+            7878,
+            1739192,
+            1988399
+          ],
+          "process_gpu_memory_observed_peak_bytes": 1121136640,
+          "tail_polls": 50,
+          "tail_known_process_memory_polls": 50,
+          "process_gpu_memory_tail_min_max_bytes": [
+            919810048,
+            1121136640
+          ],
+          "process_utilization_reported_samples": 118,
+          "process_sm_utilization_reported_sample_mean_percent": 43.50847457627118,
+          "process_memory_utilization_reported_sample_mean_percent": 0,
+          "process_utilization_reported_timestamp_span_seconds": 63.999561,
+          "process_utilization_timestamp_gap_seconds_min_median_max": [
+            0.197008,
+            0.598774,
+            1.601279
+          ],
+          "observed_wall_seconds": 66.55721454706509,
+          "child_cpu_user_seconds": 117.674824,
+          "child_cpu_system_seconds": 26.645574,
+          "child_cpu_total_seconds": 144.320398,
+          "child_cpu_core_equivalent": 2.168365953745641,
+          "child_cpu_source": "resource.getrusage(RUSAGE_CHILDREN)"
+        },
+        "cpu_accounting_policy": "Optional Unix RUSAGE_CHILDREN delta for the reaped command and OS-accounted waited descendants, excluding collector CPU. Whole-command CPU-seconds divided by monotonic observed command wall-seconds gives CPU-core equivalents and can exceed 1. Includes startup/warmup/cleanup and exit-observation polling delay; no measured-scene-window CPU attribution. Older runs and unsupported platforms remain null.",
+        "measured_scene_window": {
+          "start_unix_seconds": 1790192327.8713942,
+          "end_unix_seconds": 1790192384.4157968,
+          "poll_timestamps_available": true,
+          "polls": 113,
+          "known_process_memory_polls": 113,
+          "device_gpu_utilization_poll_mean_percent": 78.12389380530973,
+          "other_observed_gpu_pids": [
+            6937,
+            7013,
+            7389,
+            7878,
+            1739192,
+            1988399
+          ],
+          "process_gpu_memory_observed_peak_bytes": 1121136640,
+          "tail_polls": 50,
+          "tail_known_process_memory_polls": 50,
+          "process_gpu_memory_tail_min_max_bytes": [
+            919810048,
+            1121136640
+          ],
+          "process_utilization_reported_samples": 102,
+          "process_sm_utilization_reported_sample_mean_percent": 43.51960784313726,
+          "process_memory_utilization_reported_sample_mean_percent": 0,
+          "process_utilization_reported_timestamp_span_seconds": 55.998708,
+          "process_utilization_timestamp_gap_seconds_min_median_max": [
+            0.197008,
+            0.598774,
+            1.601279
+          ]
+        },
+        "policy": "Process utilization is an arithmetic mean of deduplicated matching-PID NVML reported samples; NVML may report only processes with nonzero activity. Missing samples remain unknown: no zero fill, interpolation, time weighting, or occupancy claim. GPU memory peaks are observed polling peaks. Whole-command scope includes startup, warmup, and cleanup. Timestamp-window filters select reported CPU timestamps; an NVML sample can include activity preceding a boundary. Device utilization is not attributed to the process.",
+        "nvml_api_source": "https://docs.nvidia.com/deploy/nvml-api/api/group__nvmlDeviceQueries.html"
+      },
+      "mean_measured_app_updates": 192.13392857142858,
+      "last_backoff_sleeps": 0,
+      "raw_artifact_sha256": {
+        "scenes.jsonl": "81582ef1c464a4f7d57999134acf8ccf470b9f073cdca1cafd63404794a0450c",
+        "summary.json": "338631dabc73ba4bd53352dae824aeff42e1247e41cce500a1cec8cb730bad71",
+        "telemetry.jsonl": "b411702b2f04108ecb2e85448c995a02cdebcdf26f113f3895071aa8be198d3d",
+        "telemetry_summary.json": "7b2bc83c185f0a38ff89f9953829e24e55a578e4da704165c9d838b633f994a7"
+      }
+    },
+    {
+      "source": "out/indoor_v3_final_poll_1",
+      "summary": {
+        "adapter": "WgpuWrapper(AdapterInfo { name: \"NVIDIA RTX PRO 6000 Blackwell Workstation Edition\", vendor: 4318, device: 11185, device_type: DiscreteGpu, driver: \"NVIDIA\", driver_info: \"610.43.02\", backend: Vulkan })",
+        "config": {
+          "animated": false,
+          "camera_grid": false,
+          "cuboid_only": false,
+          "depth_format": "Linear",
+          "draw_obb_gizmo": false,
+          "draw_pose_gizmos": false,
+          "editor": false,
+          "gizmos": false,
+          "gizmos_alpha": 1.0,
+          "headless": true,
+          "height": 240.0,
+          "image_copiers": true,
+          "indoor_density": 0.6499999761581421,
+          "indoor_gi_rays": 256,
+          "indoor_human_density": 0.25,
+          "indoor_layout": "Mixed",
+          "indoor_quality": "Auto",
+          "indoor_seed": 400,
+          "initialize_scene": false,
+          "keybinds": false,
+          "material_grid": false,
+          "max_camera_radius": 0.0,
+          "name": "bevy_zeroverse",
+          "num_cameras": 3,
+          "orbit_smoothness": 0.800000011920929,
+          "ovoxel_max_output_voxels": 16000000,
+          "ovoxel_mode": "Disabled",
+          "ovoxel_resolution": 128,
+          "pan_smoothness": 0.6000000238418579,
+          "playback_mode": "Still",
+          "playback_speed": 0.20000000298023224,
+          "playback_step": 0.0,
+          "playback_steps": 1,
+          "plucker_visualization": false,
+          "press_esc_close": false,
+          "regenerate_ms": 0,
+          "regenerate_scene_material_shuffle_period": 0,
+          "regenerate_scene_mesh_shuffle_period": 0,
+          "render_mode": "Color",
+          "render_modes": [
+            "Color",
+            "Depth",
+            "Position",
+            "Normal",
+            "Semantic"
+          ],
+          "rotation_augmentation": false,
+          "scene_type": "ProceduralIndoor",
+          "width": 320.0,
+          "yaw_speed": 0.0,
+          "z_depth": true,
+          "zoom_smoothness": 0.800000011920929
+        },
+        "fixed_scene": false,
+        "generator_version": 3,
+        "gi_enabled": true,
+        "gi_settings": {
+          "bake": {
+            "diffuse_bounces": 3,
+            "rays_per_probe": 256,
+            "spacing": 0.8500000238418579,
+            "workers": 8
+          },
+          "enabled": true,
+          "gpu": true
+        },
+        "gpu_timings_enabled": false,
+        "loop_started_unix_seconds": 1790192393.9471664,
+        "max_assets_mesh_material_image": [
+          279,
+          58,
+          57
+        ],
+        "measured_capture_seconds": 55.981675939,
+        "measured_completed_views": 336,
+        "pid": 3676377,
+        "poll_backoff_ms": 1,
+        "poll_window_ms": 10,
+        "render_cache_pruning": true,
+        "rss_first_quarter_mean_bytes": 2292469174.857143,
+        "rss_last_quarter_mean_bytes": 2929128301.714286,
+        "rss_max_bytes": 2961141760.0,
+        "rss_slope_bytes_per_scene": 7587014.225714967,
+        "run_id": "3676377-1790192392838565386",
+        "scene_seconds_p50_p95": [
+          0.491653876,
+          0.663748388
+        ],
+        "scenes": 128,
+        "scenes_per_second": 2.000654644959896,
+        "schema_version": 2,
+        "timing_policy": "actual complete RGB/annotation samples; no PNG or dataset file encoding; scene preparation included, validation and JSONL writes excluded; GPU memory/utilization measured separately",
+        "total_wall_seconds": 64.23727957,
+        "views_per_second": 6.001963934879688,
+        "warmup_scenes": 16
+      },
+      "tail_scenes": 112,
+      "run_identity_verification": "matching_row_run_id_and_pid",
+      "tail_rss_slope_bytes_per_scene": 7587014.225714969,
+      "tail_rss_min_max_bytes": [
+        1999736832,
+        2961141760
+      ],
+      "preparation_seconds_mean": 0.2164307450625,
+      "capture_seconds_mean": 0.28340564725,
+      "whole_loop_scenes_per_second": 1.9926124029040977,
+      "staging_bytes_min_max": [
+        11059200,
+        11059200
+      ],
+      "annotation_precision": [
+        "float32_geometry"
+      ],
+      "tail_live_heap_slope_bytes_per_scene": 1686353.4172959307,
+      "tail_heap_last": {
+        "arena_bytes": 2453508096,
+        "free_heap_bytes": 1213817408,
+        "live_heap_bytes": 1239690688,
+        "mapped_bytes": 6436512
+      },
+      "gpu_timestamp_spans": {},
+      "gpu_timestamp_policy": "Per-invocation elapsed GPU timestamp spans from available measured-scene diagnostic batches. Asynchronous delivery can cross scene boundaries; these are not exact per-seed attributions. Nested spans are not summed, and elapsed spans are not GPU occupancy.",
+      "telemetry": {
+        "available": true,
+        "schema_version": 2,
+        "pid": 3676377,
+        "identity_verification": "matching_pid_and_telemetry_run_id",
+        "adapter": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+        "adapter_uuid": "GPU-343b002b-d5c6-2d9c-9fea-9ab5a52d0879",
+        "interval_seconds": 0.5,
+        "command_timestamp_bounds_available": true,
+        "process_utilization_unavailable_polls": 0,
+        "process_utilization_errors": [],
+        "duplicate_nvml_samples_removed": 0,
+        "nvml_samples_outside_command_bounds_excluded": 0,
+        "whole_command": {
+          "polls": 131,
+          "known_process_memory_polls": 129,
+          "device_gpu_utilization_poll_mean_percent": 66.80152671755725,
+          "other_observed_gpu_pids": [
+            6937,
+            7013,
+            7389,
+            7878,
+            1739192,
+            1988399
+          ],
+          "process_gpu_memory_observed_peak_bytes": 1108553728,
+          "tail_polls": 50,
+          "tail_known_process_memory_polls": 49,
+          "process_gpu_memory_tail_min_max_bytes": [
+            705900544,
+            1108553728
+          ],
+          "process_utilization_reported_samples": 114,
+          "process_sm_utilization_reported_sample_mean_percent": 34.86842105263158,
+          "process_memory_utilization_reported_sample_mean_percent": 0,
+          "process_utilization_reported_timestamp_span_seconds": 63.397022,
+          "process_utilization_timestamp_gap_seconds_min_median_max": [
+            0.196963,
+            0.599538,
+            1.002994
+          ],
+          "observed_wall_seconds": 66.0659447069047,
+          "child_cpu_user_seconds": 56.048101,
+          "child_cpu_system_seconds": 10.549849,
+          "child_cpu_total_seconds": 66.59795,
+          "child_cpu_core_equivalent": 1.0080526403649488,
+          "child_cpu_source": "resource.getrusage(RUSAGE_CHILDREN)"
+        },
+        "cpu_accounting_policy": "Optional Unix RUSAGE_CHILDREN delta for the reaped command and OS-accounted waited descendants, excluding collector CPU. Whole-command CPU-seconds divided by monotonic observed command wall-seconds gives CPU-core equivalents and can exceed 1. Includes startup/warmup/cleanup and exit-observation polling delay; no measured-scene-window CPU attribution. Older runs and unsupported platforms remain null.",
+        "measured_scene_window": {
+          "start_unix_seconds": 1790192401.8993974,
+          "end_unix_seconds": 1790192458.1821609,
+          "poll_timestamps_available": true,
+          "polls": 112,
+          "known_process_memory_polls": 112,
+          "device_gpu_utilization_poll_mean_percent": 71.38392857142857,
+          "other_observed_gpu_pids": [
+            6937,
+            7013,
+            7389,
+            7878,
+            1739192,
+            1988399
+          ],
+          "process_gpu_memory_observed_peak_bytes": 1108553728,
+          "tail_polls": 50,
+          "tail_known_process_memory_polls": 50,
+          "process_gpu_memory_tail_min_max_bytes": [
+            705900544,
+            1108553728
+          ],
+          "process_utilization_reported_samples": 101,
+          "process_sm_utilization_reported_sample_mean_percent": 35.24752475247525,
+          "process_memory_utilization_reported_sample_mean_percent": 0,
+          "process_utilization_reported_timestamp_span_seconds": 55.399456,
+          "process_utilization_timestamp_gap_seconds_min_median_max": [
+            0.200097,
+            0.599065,
+            1.001107
+          ]
+        },
+        "policy": "Process utilization is an arithmetic mean of deduplicated matching-PID NVML reported samples; NVML may report only processes with nonzero activity. Missing samples remain unknown: no zero fill, interpolation, time weighting, or occupancy claim. GPU memory peaks are observed polling peaks. Whole-command scope includes startup, warmup, and cleanup. Timestamp-window filters select reported CPU timestamps; an NVML sample can include activity preceding a boundary. Device utilization is not attributed to the process.",
+        "nvml_api_source": "https://docs.nvidia.com/deploy/nvml-api/api/group__nvmlDeviceQueries.html"
+      },
+      "mean_measured_app_updates": 26.526785714285715,
+      "last_backoff_sleeps": 22790,
+      "raw_artifact_sha256": {
+        "scenes.jsonl": "b9f509f01741a8a6223f9299008995ce729de3f393a3100c6761f7330d9d116f",
+        "summary.json": "5c56b897166885d9e01620b9997a2e93f06e868322b07856c87fcf7758a6bf9b",
+        "telemetry.jsonl": "29c3ee28dbb93f1a23e0366e47a8f712c5f5021401fa33467a69a170a9157e6e",
+        "telemetry_summary.json": "0f54e4991df1fcecda2c0ca0b123592177438a58e819d3e0d2fc38aa8d6c3b44"
+      }
+    }
+  ],
+  "relative_change_percent": {
+    "cpu_seconds": -53.85409760302906,
+    "mean_app_updates": -86.19359635670803,
+    "peak_rss": -13.778750454699962,
+    "views_per_second": 0.32327511094378814
+  }
+}

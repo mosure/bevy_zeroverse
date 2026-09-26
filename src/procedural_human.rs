@@ -19,9 +19,10 @@ pub struct ZeroverseBurnHumanPlugin;
 impl Plugin for ZeroverseBurnHumanPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(
-            BurnHumanPlugin::from_asset_path("burn_human/fullbody_default.meta.json")
+            BurnHumanPlugin::from_asset(Handle::default())
                 .with_render_mode(BurnHumanMeshMode::SkinnedMesh),
         );
+        app.add_systems(Update, load_human_reference);
         app.init_resource::<BurnHumanSettings>();
         app.init_resource::<BurnHumanPhenotypeSampler>();
         app.init_resource::<BurnHumanPoseNoiseSettings>();
@@ -36,6 +37,36 @@ impl Plugin for ZeroverseBurnHumanPlugin {
             PreUpdate,
             update_burn_human_inputs.run_if(resource_exists::<BurnHumanAssets>),
         );
+    }
+}
+
+// Keep the upstream renderer registered, but request its reference only for legacy scenes.
+// This also permits switching back from procedural_indoor in the inspector.
+fn load_human_reference(
+    mut commands: Commands,
+    args: Res<BevyZeroverseConfig>,
+    server: Res<AssetServer>,
+    references: Res<Assets<bevy_burn_human::BurnHumanReferenceAsset>>,
+    existing: Option<Res<BurnHumanAssets>>,
+    mut handle: Local<Option<Handle<bevy_burn_human::BurnHumanReferenceAsset>>>,
+) {
+    if existing.is_some() || args.scene_type == crate::scene::ZeroverseSceneType::ProceduralIndoor {
+        return;
+    }
+    let handle = handle.get_or_insert_with(|| server.load("burn_human/fullbody_default.meta.json"));
+    if let Some(reference) = references.get(handle) {
+        commands.insert_resource(BurnHumanAssets {
+            body: reference.0.clone(),
+            faces: std::sync::Arc::new(reference.0.faces_quads().clone()),
+            uvs: std::sync::Arc::new(
+                reference
+                    .0
+                    .metadata()
+                    .static_data
+                    .texture_coordinates
+                    .clone(),
+            ),
+        });
     }
 }
 
@@ -338,7 +369,7 @@ type BurnHumanQuery = (
 );
 
 #[derive(SystemParam)]
-struct BurnHumanInputParams<'w, 's> {
+pub(crate) struct BurnHumanInputParams<'w, 's> {
     commands: Commands<'w, 's>,
     assets: Res<'w, BurnHumanAssets>,
     playback: Res<'w, Playback>,
@@ -349,7 +380,7 @@ struct BurnHumanInputParams<'w, 's> {
     humans: Query<'w, 's, BurnHumanQuery>,
 }
 
-fn update_burn_human_inputs(params: BurnHumanInputParams) {
+pub(crate) fn update_burn_human_inputs(params: BurnHumanInputParams) {
     let BurnHumanInputParams {
         mut commands,
         assets,
@@ -426,13 +457,9 @@ fn update_burn_human_inputs(params: BurnHumanInputParams) {
             }
 
             if !instance.envelope_ready || aabb.is_none() {
-                if let Some((min, max)) = build_pose_envelope(
-                    &assets,
-                    &settings,
-                    &instance,
-                    &noise_settings,
-                    true,
-                ) {
+                if let Some((min, max)) =
+                    build_pose_envelope(&assets, &settings, &instance, &noise_settings, true)
+                {
                     instance.envelope_min = min;
                     instance.envelope_max = max;
                     instance.envelope_ready = true;
@@ -544,13 +571,9 @@ fn build_pose_envelope(
             let time_key =
                 rng.random_range(0.0..POSE_ENVELOPE_TIME_RANGE) * noise_settings.time_scale;
             let pose = build_pose_parameters(assets, instance, noise_settings, time_key);
-            if let Some((pose_min, pose_max)) = burn_human_bounds_for_pose(
-                assets,
-                settings,
-                &instance.phenotype,
-                &pose,
-                false,
-            ) {
+            if let Some((pose_min, pose_max)) =
+                burn_human_bounds_for_pose(assets, settings, &instance.phenotype, &pose, false)
+            {
                 min = min.min(pose_min);
                 max = max.max(pose_max);
                 merged_any = true;
@@ -600,11 +623,7 @@ fn build_pose_parameters(
             [pose[base + 4], pose[base + 5], pose[base + 6]],
             [pose[base + 8], pose[base + 9], pose[base + 10]],
         ];
-        let baseline = instance
-            .pose_baseline
-            .get(idx)
-            .copied()
-            .unwrap_or([0.0; 3]);
+        let baseline = instance.pose_baseline.get(idx).copied().unwrap_or([0.0; 3]);
         let group_amp = pose_noise_scale_for_bone(label, noise_settings);
         let amp = group_amp * noise_settings.noise_amp;
         let rot_deg = if amp <= f32::EPSILON {
@@ -814,13 +833,17 @@ fn tensor_to_vec3(data: &TensorData<f64>) -> Vec<Vec3> {
     match data.shape.as_slice() {
         [n, 3] => data
             .data
-            .chunks_exact(3)
+            .as_chunks::<3>()
+            .0
+            .iter()
             .take(*n)
             .map(|c| Vec3::new(c[0] as f32, c[1] as f32, c[2] as f32))
             .collect(),
         [b, n, 3] if *b >= 1 => data
             .data
-            .chunks_exact(3)
+            .as_chunks::<3>()
+            .0
+            .iter()
             .take(*n)
             .map(|c| Vec3::new(c[0] as f32, c[1] as f32, c[2] as f32))
             .collect(),

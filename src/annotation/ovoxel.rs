@@ -11,7 +11,7 @@ use bevy::{
         render_resource::*,
         renderer::{RenderDevice, RenderQueue},
     },
-    tasks::{AsyncComputeTaskPool, Task, block_on},
+    tasks::{block_on, AsyncComputeTaskPool, Task},
     transform::TransformSystems,
 };
 use bevy_burn_human::{BurnHumanInput, BurnHumanMeshMode, BurnHumanRenderMode};
@@ -434,7 +434,7 @@ fn extract_triangles(
         .unwrap_or_else(|| (0..positions.len() as u32).collect());
 
     let mut tris = Vec::new();
-    for chunk in indices.chunks_exact(3) {
+    for chunk in indices.as_chunks::<3>().0 {
         let a = affine.transform_point3(Vec3::from(positions[chunk[0] as usize]));
         let b = affine.transform_point3(Vec3::from(positions[chunk[1] as usize]));
         let c = affine.transform_point3(Vec3::from(positions[chunk[2] as usize]));
@@ -847,9 +847,7 @@ fn acquire_buffers(
 }
 
 fn release_buffers(buffers: GpuBuffers) {
-    let mut pool = buffer_pool()
-        .lock()
-        .expect("gpu buffer pool poisoned");
+    let mut pool = buffer_pool().lock().expect("gpu buffer pool poisoned");
     pool.push(buffers);
     if pool.len() > GPU_BUFFER_POOL_LIMIT {
         let to_remove = pool.len().saturating_sub(GPU_BUFFER_POOL_LIMIT);
@@ -990,7 +988,9 @@ fn voxelize_triangles_gpu(
     let wgpu_device = device.wgpu_device();
     let wgpu_queue = &*queue.0;
     let max_storage = wgpu_device.limits().max_storage_buffers_per_shader_stage;
-    let required_storage = 4;
+    // The prepare layout declares nine storage buffers even when an
+    // individual entry point uses fewer. wgpu validates the complete layout.
+    let required_storage = 9;
     if max_storage < required_storage {
         gpu_bail!("ovoxel GPU path skipped: device storage buffer limit too low");
     }
@@ -1155,76 +1155,73 @@ fn voxelize_triangles_gpu(
         let classify_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("ovoxel_gpu_classify_pl"),
-                bind_group_layouts: &[&shared_bind_group_layout, &state_bind_group_layout],
-                push_constant_ranges: &[],
-            });
-        let work_pipeline_layout =
-            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("ovoxel_gpu_work_pl"),
                 bind_group_layouts: &[
-                    &shared_bind_group_layout,
-                    &state_bind_group_layout,
-                    &voxel_bind_group_layout,
+                    Some(&shared_bind_group_layout),
+                    Some(&state_bind_group_layout),
                 ],
-                push_constant_ranges: &[],
+                immediate_size: 0,
             });
+        let work_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("ovoxel_gpu_work_pl"),
+            bind_group_layouts: &[
+                Some(&shared_bind_group_layout),
+                Some(&state_bind_group_layout),
+                Some(&voxel_bind_group_layout),
+            ],
+            immediate_size: 0,
+        });
         let prepare_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("ovoxel_gpu_prepare_pl"),
                 bind_group_layouts: &[
-                    &shared_bind_group_layout,
-                    &state_bind_group_layout,
-                    &voxel_bind_group_layout,
-                    &dispatch_bind_group_layout,
+                    Some(&shared_bind_group_layout),
+                    Some(&state_bind_group_layout),
+                    Some(&voxel_bind_group_layout),
+                    Some(&dispatch_bind_group_layout),
                 ],
-                push_constant_ranges: &[],
+                immediate_size: 0,
             });
 
-        let classify_pipeline =
-            device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-                label: Some("ovoxel_gpu_classify_pipeline"),
-                layout: Some(&classify_pipeline_layout),
-                module: &shader,
-                entry_point: Some("classify_tiles"),
-                compilation_options: wgpu::PipelineCompilationOptions::default(),
-                cache: None,
-            });
-        let prefix_pipeline =
-            device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-                label: Some("ovoxel_gpu_prefix_pipeline"),
-                layout: Some(&work_pipeline_layout),
-                module: &shader,
-                entry_point: Some("prefix_tiles"),
-                compilation_options: wgpu::PipelineCompilationOptions::default(),
-                cache: None,
-            });
-        let prepare_pipeline =
-            device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-                label: Some("ovoxel_gpu_prepare_pipeline"),
-                layout: Some(&prepare_pipeline_layout),
-                module: &shader,
-                entry_point: Some("prepare_dispatch"),
-                compilation_options: wgpu::PipelineCompilationOptions::default(),
-                cache: None,
-            });
-        let scatter_pipeline =
-            device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-                label: Some("ovoxel_gpu_scatter_pipeline"),
-                layout: Some(&work_pipeline_layout),
-                module: &shader,
-                entry_point: Some("scatter_pairs"),
-                compilation_options: wgpu::PipelineCompilationOptions::default(),
-                cache: None,
-            });
-        let voxel_pipeline =
-            device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-                label: Some("ovoxel_gpu_pipeline"),
-                layout: Some(&work_pipeline_layout),
-                module: &shader,
-                entry_point: Some("voxel_main"),
-                compilation_options: wgpu::PipelineCompilationOptions::default(),
-                cache: None,
-            });
+        let classify_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+            label: Some("ovoxel_gpu_classify_pipeline"),
+            layout: Some(&classify_pipeline_layout),
+            module: &shader,
+            entry_point: Some("classify_tiles"),
+            compilation_options: wgpu::PipelineCompilationOptions::default(),
+            cache: None,
+        });
+        let prefix_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+            label: Some("ovoxel_gpu_prefix_pipeline"),
+            layout: Some(&work_pipeline_layout),
+            module: &shader,
+            entry_point: Some("prefix_tiles"),
+            compilation_options: wgpu::PipelineCompilationOptions::default(),
+            cache: None,
+        });
+        let prepare_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+            label: Some("ovoxel_gpu_prepare_pipeline"),
+            layout: Some(&prepare_pipeline_layout),
+            module: &shader,
+            entry_point: Some("prepare_dispatch"),
+            compilation_options: wgpu::PipelineCompilationOptions::default(),
+            cache: None,
+        });
+        let scatter_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+            label: Some("ovoxel_gpu_scatter_pipeline"),
+            layout: Some(&work_pipeline_layout),
+            module: &shader,
+            entry_point: Some("scatter_pairs"),
+            compilation_options: wgpu::PipelineCompilationOptions::default(),
+            cache: None,
+        });
+        let voxel_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+            label: Some("ovoxel_gpu_pipeline"),
+            layout: Some(&work_pipeline_layout),
+            module: &shader,
+            entry_point: Some("voxel_main"),
+            compilation_options: wgpu::PipelineCompilationOptions::default(),
+            cache: None,
+        });
 
         GpuPipeline {
             shared_bind_group_layout,
@@ -1357,7 +1354,7 @@ fn voxelize_triangles_gpu(
     }
 
     wgpu_queue.submit(Some(encoder.finish()));
-    let _ = wgpu_device.poll(wgpu::PollType::Wait);
+    let _ = wgpu_device.poll(wgpu::PollType::wait_indefinitely());
 
     // Pass 2: scatter pairs into compact lists, then voxel accumulation (all GPU-side).
     let mut voxel_encoder = wgpu_device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
@@ -1393,7 +1390,7 @@ fn voxelize_triangles_gpu(
 
     wgpu_queue.submit(Some(voxel_encoder.finish()));
     // Ensure GPU completes before readback.
-    let _ = wgpu_device.poll(wgpu::PollType::Wait);
+    let _ = wgpu_device.poll(wgpu::PollType::wait_indefinitely());
 
     // Map metadata slice.
     let meta_slice = buffers.meta_readback.slice(0..meta_bytes);
@@ -1403,7 +1400,7 @@ fn voxelize_triangles_gpu(
     meta_slice.map_async(wgpu::MapMode::Read, move |res| {
         let _ = tx_meta.send(res);
     });
-    let _ = wgpu_device.poll(wgpu::PollType::Wait);
+    let _ = wgpu_device.poll(wgpu::PollType::wait_indefinitely());
     rx_meta.recv().ok().and_then(Result::ok)?;
     let meta_view = meta_slice.get_mapped_range();
     debug_assert_eq!(meta_view.len() as u64, meta_bytes);
@@ -1452,14 +1449,14 @@ fn voxelize_triangles_gpu(
         used_bytes,
     );
     wgpu_queue.submit(Some(copy_encoder.finish()));
-    let _ = wgpu_device.poll(wgpu::PollType::Wait);
+    let _ = wgpu_device.poll(wgpu::PollType::wait_indefinitely());
 
     let slice = buffers.readback.slice(voxel_range.clone());
     let (tx, rx): (mpsc::Sender<BufferAsync>, mpsc::Receiver<BufferAsync>) = mpsc::channel();
     slice.map_async(wgpu::MapMode::Read, move |res| {
         let _ = tx.send(res);
     });
-    let _ = wgpu_device.poll(wgpu::PollType::Wait);
+    let _ = wgpu_device.poll(wgpu::PollType::wait_indefinitely());
     rx.recv().ok().and_then(Result::ok)?;
     let data = slice.get_mapped_range();
     debug_assert_eq!(data.len() as u64, used_bytes);
@@ -1519,7 +1516,7 @@ fn voxelize_triangles_gpu(
         })
         .collect();
     // Keep coords lexicographically ordered so CPU-side chunking can avoid extra sorts.
-    packed.sort_unstable_by(|a, b| a.0.cmp(&b.0));
+    packed.sort_unstable_by_key(|a| a.0);
 
     let mut coords = Vec::with_capacity(packed.len());
     let mut dual_vertices = Vec::with_capacity(packed.len());
@@ -1622,7 +1619,7 @@ fn closest_point_on_triangle(p: Vec3, tri: &Triangle) -> Vec3 {
 mod tests {
     use super::*;
     use bevy::render::renderer::WgpuWrapper;
-    use bevy::{MinimalPlugins, render::render_resource::PrimitiveTopology};
+    use bevy::{render::render_resource::PrimitiveTopology, MinimalPlugins};
     use std::{
         sync::{Mutex, OnceLock},
         thread,
@@ -1733,9 +1730,7 @@ mod tests {
 
     #[test]
     fn gpu_matches_cpu_for_simple_triangle() {
-        let _guard = gpu_test_lock()
-            .lock()
-            .expect("gpu test lock poisoned");
+        let _guard = gpu_test_lock().lock().expect("gpu test lock poisoned");
         let instance = wgpu::Instance::default();
         let adapter = match futures_lite::future::block_on(instance.request_adapter(
             &wgpu::RequestAdapterOptions {
@@ -1753,8 +1748,12 @@ mod tests {
         let device_desc = wgpu::DeviceDescriptor {
             label: Some("ovoxel_test_device"),
             required_features: wgpu::Features::empty(),
-            required_limits: wgpu::Limits::downlevel_defaults(),
+            required_limits: wgpu::Limits {
+                max_storage_buffers_per_shader_stage: 9,
+                ..wgpu::Limits::downlevel_defaults()
+            },
             memory_hints: wgpu::MemoryHints::Performance,
+            experimental_features: wgpu::ExperimentalFeatures::disabled(),
             trace: wgpu::Trace::default(),
         };
         let Ok((device, queue)) =
@@ -1826,9 +1825,7 @@ mod tests {
 
     #[test]
     fn gpu_buffer_pool_trims() {
-        let _guard = gpu_test_lock()
-            .lock()
-            .expect("gpu test lock poisoned");
+        let _guard = gpu_test_lock().lock().expect("gpu test lock poisoned");
         clear_gpu_buffer_pool();
 
         let instance = wgpu::Instance::default();
@@ -1848,8 +1845,12 @@ mod tests {
         let device_desc = wgpu::DeviceDescriptor {
             label: Some("ovoxel_pool_test_device"),
             required_features: wgpu::Features::empty(),
-            required_limits: wgpu::Limits::downlevel_defaults(),
+            required_limits: wgpu::Limits {
+                max_storage_buffers_per_shader_stage: 9,
+                ..wgpu::Limits::downlevel_defaults()
+            },
             memory_hints: wgpu::MemoryHints::Performance,
+            experimental_features: wgpu::ExperimentalFeatures::disabled(),
             trace: wgpu::Trace::default(),
         };
         let Ok((device, _queue)) =
@@ -1874,9 +1875,7 @@ mod tests {
 
     #[test]
     fn gpu_buffer_pool_reuses_supersets() {
-        let _guard = gpu_test_lock()
-            .lock()
-            .expect("gpu test lock poisoned");
+        let _guard = gpu_test_lock().lock().expect("gpu test lock poisoned");
         clear_gpu_buffer_pool();
 
         let instance = wgpu::Instance::default();
@@ -1896,8 +1895,12 @@ mod tests {
         let device_desc = wgpu::DeviceDescriptor {
             label: Some("ovoxel_pool_reuse_device"),
             required_features: wgpu::Features::empty(),
-            required_limits: wgpu::Limits::downlevel_defaults(),
+            required_limits: wgpu::Limits {
+                max_storage_buffers_per_shader_stage: 9,
+                ..wgpu::Limits::downlevel_defaults()
+            },
             memory_hints: wgpu::MemoryHints::Performance,
+            experimental_features: wgpu::ExperimentalFeatures::disabled(),
             trace: wgpu::Trace::default(),
         };
         let Ok((device, _queue)) =
@@ -1915,7 +1918,11 @@ mod tests {
         let small = acquire_buffers(&device, 64, 64, 256);
         assert_eq!(gpu_buffer_pool_len(), 0, "should pop from pool");
         release_buffers(small);
-        assert_eq!(gpu_buffer_pool_len(), 1, "after release pool holds one entry");
+        assert_eq!(
+            gpu_buffer_pool_len(),
+            1,
+            "after release pool holds one entry"
+        );
 
         clear_gpu_buffer_pool();
     }
@@ -2012,7 +2019,10 @@ mod tests {
             .entity(root)
             .get::<OvoxelCache>()
             .expect("cache should exist after idle updates");
-        assert_eq!(cache_after.version, cache.version, "idle updates should be cached");
+        assert_eq!(
+            cache_after.version, cache.version,
+            "idle updates should be cached"
+        );
     }
 
     #[test]
@@ -2060,7 +2070,10 @@ mod tests {
         // allow transform propagation to mark GlobalTransform changed
         app.update();
         let cache = wait_for_cache_version(&mut app, root, 2);
-        assert_eq!(cache.version, 2, "transform change should trigger recompute");
+        assert_eq!(
+            cache.version, 2,
+            "transform change should trigger recompute"
+        );
     }
 
     #[test]
@@ -2119,12 +2132,10 @@ mod tests {
 
         assert!(!volume.coords.is_empty());
         assert_eq!(volume.coords.len(), volume.semantics.len());
-        assert!(
-            volume
-                .coords
-                .iter()
-                .all(|c| c[0] < 128 && c[1] < 128 && c[2] < 128)
-        );
+        assert!(volume
+            .coords
+            .iter()
+            .all(|c| c[0] < 128 && c[1] < 128 && c[2] < 128));
     }
 }
 
@@ -2197,9 +2208,7 @@ fn sync_burn_human_render_mode(
 
         let needs_update = current.is_none_or(|mode| mode.0 != target);
         if needs_update {
-            commands
-                .entity(entity)
-                .insert(BurnHumanRenderMode(target));
+            commands.entity(entity).insert(BurnHumanRenderMode(target));
         }
     }
 }

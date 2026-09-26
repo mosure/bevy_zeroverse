@@ -4,12 +4,19 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result, anyhow, ensure};
 use bytemuck::cast_slice;
 use safetensors::{Dtype, SafeTensors, serialize, tensor::TensorView};
 use serde_json;
 
 use crate::{compression::Compression, dataset::ZeroverseSample};
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, clap::ValueEnum)]
+pub enum ColorCodec {
+    #[default]
+    Jpeg,
+    Raw,
+}
 
 #[allow(clippy::type_complexity)]
 type OvoxelTuple = ([u32; 3], [u8; 3], u8, [u8; 4], u16);
@@ -82,10 +89,7 @@ fn decode_ovoxel_coords(tensor: &TensorView<'_>) -> Option<Vec<[u32; 3]>> {
     }
 }
 
-fn decode_ovoxel_semantics(
-    tensor: Option<&TensorView<'_>>,
-    default_len: usize,
-) -> Vec<u16> {
+fn decode_ovoxel_semantics(tensor: Option<&TensorView<'_>>, default_len: usize) -> Vec<u16> {
     let Some(tensor) = tensor else {
         return vec![0; default_len];
     };
@@ -114,10 +118,7 @@ pub(crate) fn build_tensor_views<'a>(
 }
 
 #[allow(dead_code)]
-fn push_ovoxel_tensors(
-    tensors: &mut Vec<TensorData>,
-    data: OvoxelTensorData,
-) -> Result<()> {
+fn push_ovoxel_tensors(tensors: &mut Vec<TensorData>, data: OvoxelTensorData) -> Result<()> {
     let OvoxelTensorData {
         coords,
         dual,
@@ -286,7 +287,7 @@ pub(crate) fn decode_rgba_bytes(bytes: &[u8], width: u32, height: u32) -> Result
 
 pub(crate) fn encode_jpeg_from_rgba_f32(rgba: &[f32], width: u32, height: u32) -> Result<Vec<u8>> {
     let mut rgb = Vec::with_capacity((width * height * 3) as usize);
-    for chunk in rgba.chunks_exact(4) {
+    for chunk in rgba.as_chunks::<4>().0.iter() {
         for c in chunk.iter().take(3) {
             let v = c.clamp(0.0, 1.0);
             rgb.push((v * 255.0).round().clamp(0.0, 255.0) as u8);
@@ -305,7 +306,7 @@ pub(crate) fn decode_jpeg_to_rgba_f32(bytes: &[u8]) -> Result<(u32, u32, Vec<f32
     let rgb = dyn_img.to_rgb8();
     let (width, height) = rgb.dimensions();
     let mut out = Vec::with_capacity((width * height * 4) as usize);
-    for chunk in rgb.into_raw().chunks_exact(3) {
+    for chunk in rgb.into_raw().as_chunks::<3>().0.iter() {
         for c in chunk {
             out.push(*c as f32 / 255.0);
         }
@@ -380,13 +381,84 @@ pub fn save_chunk(
     height: u32,
     export_ovoxel: bool,
 ) -> Result<PathBuf> {
+    save_chunk_with_codec(
+        samples,
+        output_dir,
+        chunk_index,
+        compression,
+        width,
+        height,
+        export_ovoxel,
+        ColorCodec::Jpeg,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn save_chunk_with_codec(
+    samples: &[ZeroverseSample],
+    output_dir: impl AsRef<Path>,
+    chunk_index: usize,
+    compression: Compression,
+    width: u32,
+    height: u32,
+    export_ovoxel: bool,
+    color_codec: ColorCodec,
+) -> Result<PathBuf> {
     let output_dir = output_dir.as_ref();
     fs::create_dir_all(output_dir)?;
 
     let file_name = format!("{chunk_index:06}.{}", compression.extension());
     let path = output_dir.join(file_name);
+    anyhow::ensure!(
+        !path.exists(),
+        "refusing to overwrite existing chunk {}",
+        path.display()
+    );
 
     let b = samples.len();
+    anyhow::ensure!(b > 0, "cannot write an empty chunk");
+    let first = &samples[0];
+    anyhow::ensure!(
+        first.view_dim > 0
+            && !first.views.is_empty()
+            && first.views.len().is_multiple_of(first.view_dim as usize),
+        "sample views must contain complete camera/timestep groups"
+    );
+    anyhow::ensure!(
+        samples
+            .iter()
+            .all(|sample| sample.view_dim == first.view_dim
+                && sample.views.len() == first.views.len()),
+        "every sample in a chunk must have identical camera/timestep dimensions"
+    );
+    for (name, channel) in [
+        ("color", 0),
+        ("depth", 1),
+        ("normal", 2),
+        ("semantic", 3),
+        ("position", 4),
+        ("optical_flow", 5),
+    ] {
+        let present: Vec<bool> = samples
+            .iter()
+            .flat_map(|sample| &sample.views)
+            .map(|view| {
+                ![
+                    &view.color,
+                    &view.depth,
+                    &view.normal,
+                    &view.semantic,
+                    &view.position,
+                    &view.optical_flow,
+                ][channel]
+                    .is_empty()
+            })
+            .collect();
+        anyhow::ensure!(
+            present.iter().all(|value| *value == present[0]),
+            "{name} must be present for every view or absent for every view"
+        );
+    }
     let view_dim = samples
         .first()
         .map(|s| s.view_dim as usize)
@@ -408,13 +480,64 @@ pub fn save_chunk(
     ];
 
     let mut tensors: Vec<TensorData> = Vec::new();
+    tensors.push(TensorData {
+        name: "annotation_precision".into(),
+        dtype: Dtype::U8,
+        shape: vec![samples.len()],
+        data: samples
+            .iter()
+            .map(|sample| match sample.annotation_precision {
+                bevy_zeroverse::sample::AnnotationPrecision::Float16Hdr => 0,
+                bevy_zeroverse::sample::AnnotationPrecision::Float32Geometry => 1,
+            })
+            .collect(),
+    });
+    for (i, sample) in samples.iter().enumerate() {
+        if let Some(metadata) = &sample.indoor_render_metadata {
+            let data = serde_json::to_vec(metadata)?;
+            tensors.push(TensorData {
+                name: format!("indoor_render_metadata_{i}"),
+                dtype: Dtype::U8,
+                shape: vec![data.len()],
+                data,
+            });
+        }
+        if let Some(manifest) = &sample.indoor {
+            let data = serde_json::to_vec(manifest)?;
+            tensors.push(TensorData {
+                name: format!("indoor_manifest_{i}"),
+                dtype: Dtype::U8,
+                shape: vec![data.len()],
+                data,
+            });
+        }
+    }
+    let encodings: Vec<u8> = samples
+        .iter()
+        .map(|s| {
+            if s.color_encoding == bevy_zeroverse::render::color::ColorEncoding::Legacy {
+                0
+            } else {
+                2
+            }
+        })
+        .collect();
+    tensors.push(TensorData {
+        name: "color_encoding".into(),
+        dtype: Dtype::U8,
+        shape: vec![encodings.len()],
+        data: encodings,
+    });
+
     let mut color_entries: Vec<(String, Vec<u8>)> = Vec::new();
 
     let view_count = steps * view_dim;
     let pixel_count = (height * width) as usize;
     let total_views = b * view_count;
+    let mut raw_color: Option<Vec<f32>> = None;
     let mut depth: Option<Vec<f32>> = None;
     let mut normal: Option<Vec<f32>> = None;
+    let mut semantic: Option<Vec<f32>> = None;
     let mut optical_flow: Option<Vec<f32>> = None;
     let mut position: Option<Vec<f32>> = None;
     let mut world_from_view: Vec<f32> = Vec::new();
@@ -453,6 +576,7 @@ pub fn save_chunk(
     let mut obb_scale: Vec<f32> = vec![0.0; b * max_obbs * 3];
     let mut obb_rotation: Vec<f32> = vec![0.0; b * max_obbs * 4];
     let mut obb_class_idx: Vec<i64> = vec![-1; b * max_obbs];
+    let mut obb_instance_ids: Vec<i64> = vec![-1; b * max_obbs];
 
     // Human pose accumulation
     let mut max_humans = 0usize;
@@ -516,7 +640,7 @@ pub fn save_chunk(
                     .context("failed to parse depth")?;
                 let depth_buf = depth.get_or_insert_with(|| vec![0.0; total_views * pixel_count]);
                 let base = (sample_idx * view_count + t * view_dim + v) * pixel_count;
-                for (i, chunk) in rgba.chunks_exact(4).enumerate() {
+                for (i, chunk) in rgba.as_chunks::<4>().0.iter().enumerate() {
                     depth_buf[base + i] = chunk[0];
                 }
             }
@@ -527,11 +651,25 @@ pub fn save_chunk(
                 let normal_buf =
                     normal.get_or_insert_with(|| vec![0.0; total_views * pixel_count * 3]);
                 let base = (sample_idx * view_count + t * view_dim + v) * pixel_count * 3;
-                for (i, chunk) in rgba.chunks_exact(4).enumerate() {
+                for (i, chunk) in rgba.as_chunks::<4>().0.iter().enumerate() {
                     let dst = base + i * 3;
                     normal_buf[dst] = chunk[0];
                     normal_buf[dst + 1] = chunk[1];
                     normal_buf[dst + 2] = chunk[2];
+                }
+            }
+
+            if !view.semantic.is_empty() {
+                let rgba = decode_rgba_bytes(&view.semantic, width, height)
+                    .context("failed to parse semantic")?;
+                let semantic_buf =
+                    semantic.get_or_insert_with(|| vec![0.0; total_views * pixel_count * 3]);
+                let base = (sample_idx * view_count + t * view_dim + v) * pixel_count * 3;
+                for (i, chunk) in rgba.as_chunks::<4>().0.iter().enumerate() {
+                    let dst = base + i * 3;
+                    semantic_buf[dst] = chunk[0];
+                    semantic_buf[dst + 1] = chunk[1];
+                    semantic_buf[dst + 2] = chunk[2];
                 }
             }
 
@@ -556,7 +694,7 @@ pub fn save_chunk(
                 let position_buf =
                     position.get_or_insert_with(|| vec![0.0; total_views * pixel_count * 3]);
                 let base = (sample_idx * view_count + t * view_dim + v) * pixel_count * 3;
-                for (i, chunk) in rgba.chunks_exact(4).enumerate() {
+                for (i, chunk) in rgba.as_chunks::<4>().0.iter().enumerate() {
                     let dst = base + i * 3;
                     position_buf[dst] = chunk[0];
                     position_buf[dst + 1] = chunk[1];
@@ -572,27 +710,41 @@ pub fn save_chunk(
         }
 
         if let Some(mut color) = sample_color {
-            normalize_hdr_image_tonemap(
-                &mut color,
-                steps,
-                view_dim,
-                height as usize,
-                width as usize,
-                3,
-            );
-
-            let pixel_count = (height * width) as usize;
-            for local_idx in 0..(view_dim * steps) {
-                let base = local_idx * pixel_count * 3;
-                let mut rgba = Vec::with_capacity(pixel_count * 4);
-                for i in 0..pixel_count {
-                    let src = base + i * 3;
-                    rgba.extend_from_slice(&[color[src], color[src + 1], color[src + 2], 1.0]);
+            match sample.color_encoding {
+                bevy_zeroverse::render::color::ColorEncoding::Legacy => {
+                    normalize_hdr_image_tonemap(
+                        &mut color,
+                        steps,
+                        view_dim,
+                        height as usize,
+                        width as usize,
+                        3,
+                    );
                 }
+                bevy_zeroverse::render::color::ColorEncoding::TonemappedLinear => color
+                    .iter_mut()
+                    .for_each(|v| *v = bevy_zeroverse::render::color::linear_to_srgb(*v)),
+                bevy_zeroverse::render::color::ColorEncoding::Srgb => (),
+            }
 
-                let global_idx = sample_idx * view_dim * steps + local_idx;
-                let jpg = encode_jpeg_from_rgba_f32(&rgba, width, height)?;
-                color_entries.push((format!("color_jpg_{global_idx}"), jpg));
+            if color_codec == ColorCodec::Raw {
+                let raw = raw_color.get_or_insert_with(|| vec![0.0; total_views * pixel_count * 3]);
+                let start = sample_idx * view_count * pixel_count * 3;
+                raw[start..start + color.len()].copy_from_slice(&color);
+            } else {
+                let pixel_count = (height * width) as usize;
+                for local_idx in 0..(view_dim * steps) {
+                    let base = local_idx * pixel_count * 3;
+                    let mut rgba = Vec::with_capacity(pixel_count * 4);
+                    for i in 0..pixel_count {
+                        let src = base + i * 3;
+                        rgba.extend_from_slice(&[color[src], color[src + 1], color[src + 2], 1.0]);
+                    }
+
+                    let global_idx = sample_idx * view_dim * steps + local_idx;
+                    let jpg = encode_jpeg_from_rgba_f32(&rgba, width, height)?;
+                    color_entries.push((format!("color_jpg_{global_idx}"), jpg));
+                }
             }
         }
 
@@ -663,7 +815,7 @@ pub fn save_chunk(
                         .zip(ov.semantics.iter())
                         .map(|((((c, d), i), bc), s)| (*c, *d, *i, *bc, *s))
                         .collect();
-                    zipped.sort_unstable_by(|a, b| a.0.cmp(&b.0));
+                    zipped.sort_unstable_by_key(|a| a.0);
 
                     let len = zipped.len() as i64;
                     ov_offsets.extend_from_slice(&[start, len]);
@@ -708,6 +860,7 @@ pub fn save_chunk(
                 let c_base = base * 3;
                 let r_base = base * 4;
 
+                obb_instance_ids[base] = obb.instance_id.unwrap_or(-1);
                 obb_center[c_base..c_base + 3].copy_from_slice(&obb.center);
                 obb_scale[c_base..c_base + 3].copy_from_slice(&obb.scale);
                 obb_rotation[r_base..r_base + 4].copy_from_slice(&obb.rotation);
@@ -782,11 +935,17 @@ pub fn save_chunk(
         Ok(())
     };
 
+    if let Some(color) = raw_color {
+        push_tensor("color", color, 3, &mut tensors)?;
+    }
     if let Some(depth) = depth {
         push_tensor("depth", depth, 1, &mut tensors)?;
     }
     if let Some(normal) = normal {
         push_tensor("normal", normal, 3, &mut tensors)?;
+    }
+    if let Some(semantic) = semantic {
+        push_tensor("semantic", semantic, 3, &mut tensors)?;
     }
     if let Some(optical_flow) = optical_flow {
         push_tensor("optical_flow", optical_flow, 3, &mut tensors)?;
@@ -825,6 +984,12 @@ pub fn save_chunk(
             data: cast_slice(&obb_rotation).to_vec(),
         });
         tensors.push(TensorData {
+            name: "object_obb_instance_ids".into(),
+            dtype: Dtype::I64,
+            shape: vec![b, max_obbs],
+            data: cast_slice(&obb_instance_ids).to_vec(),
+        });
+        tensors.push(TensorData {
             name: "object_obb_class_idx".to_string(),
             dtype: Dtype::I64,
             shape: vec![b, max_obbs],
@@ -835,6 +1000,41 @@ pub fn save_chunk(
             dtype: Dtype::U8,
             shape: vec![class_bytes.len()],
             data: class_bytes,
+        });
+    }
+
+    let human_counts: Vec<i64> = samples
+        .iter()
+        .map(|sample| sample.human_pose_steps.first().map_or(0, Vec::len) as i64)
+        .collect();
+    tensors.push(TensorData {
+        name: "human_count".into(),
+        dtype: Dtype::I64,
+        shape: vec![b],
+        data: cast_slice(&human_counts).to_vec(),
+    });
+    if max_humans > 0 {
+        let mut ids = vec![-1_i64; b * max_humans];
+        for (sample_idx, sample) in samples.iter().enumerate() {
+            for i in 0..human_counts[sample_idx] as usize {
+                ids[sample_idx * max_humans + i] = sample
+                    .human_instance_ids
+                    .get(i)
+                    .copied()
+                    .unwrap_or_else(|| {
+                        sample
+                            .indoor
+                            .as_ref()
+                            .and_then(|scene| scene.humans.get(i))
+                            .map_or(i as i64, |human| human.id as i64)
+                    });
+            }
+        }
+        tensors.push(TensorData {
+            name: "human_instance_ids".into(),
+            dtype: Dtype::I64,
+            shape: vec![b, max_humans],
+            data: cast_slice(&ids).to_vec(),
         });
     }
 
@@ -930,7 +1130,16 @@ pub fn save_chunk(
     let views = build_tensor_views(&tensors)?;
     let serialized = serialize(views, None)?;
     let compressed = compression.compress(&serialized)?;
-    fs::write(&path, compressed)?;
+    let staging = path.with_extension(format!("tmp-{}", std::process::id()));
+    let mut file = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&staging)?;
+    std::io::Write::write_all(&mut file, &compressed)?;
+    file.sync_all()?;
+    // Publishing a hard link is atomic and refuses to overwrite another producer's output.
+    fs::hard_link(&staging, &path)?;
+    fs::remove_file(staging)?;
     Ok(path)
 }
 
@@ -970,20 +1179,52 @@ pub fn load_chunk(path: impl AsRef<Path>) -> Result<Vec<ZeroverseSample>> {
         bone_parents = parents.to_vec();
     }
 
-    let color_shape_tensor = tensors.tensor("color_shape")?;
     let color_shape: [i64; 6] = {
-        let mut out = [0i64; 6];
-        let bytes = color_shape_tensor.data();
-        let ints: &[i64] = cast_slice(bytes);
-        out.copy_from_slice(ints);
-        out
+        if let Ok(tensor) = tensors.tensor("color_shape") {
+            anyhow::ensure!(
+                tensor.dtype() == Dtype::I64 && tensor.data().len() == 48,
+                "invalid color shape metadata"
+            );
+            let mut out = [0i64; 6];
+            out.copy_from_slice(cast_slice(tensor.data()));
+            out
+        } else {
+            let tensor = tensors
+                .tensor("color")
+                .context("chunk needs color_shape metadata or a raw color tensor")?;
+            anyhow::ensure!(
+                tensor.shape().len() == 6,
+                "raw color tensor must be [batch, steps, cameras, height, width, channels]"
+            );
+            std::array::from_fn(|index| tensor.shape()[index] as i64)
+        }
     };
+    anyhow::ensure!(
+        color_shape.iter().all(|dimension| *dimension > 0) && color_shape[5] == 3,
+        "invalid capture shape"
+    );
 
     let b = color_shape[0] as usize;
     let steps = color_shape[1] as usize;
     let view_dim = color_shape[2] as usize;
     let height = color_shape[3] as usize;
     let width = color_shape[4] as usize;
+    for (name, channels) in [
+        ("color", 3),
+        ("depth", 1),
+        ("normal", 3),
+        ("semantic", 3),
+        ("position", 3),
+        ("optical_flow", 3),
+    ] {
+        if let Ok(tensor) = tensors.tensor(name) {
+            anyhow::ensure!(
+                tensor.dtype() == Dtype::F32
+                    && tensor.shape() == [b, steps, view_dim, height, width, channels],
+                "{name} tensor shape or dtype disagrees with capture metadata"
+            );
+        }
+    }
 
     let mut samples = vec![
         ZeroverseSample {
@@ -991,16 +1232,46 @@ pub fn load_chunk(path: impl AsRef<Path>) -> Result<Vec<ZeroverseSample>> {
             view_dim: view_dim as u32,
             aabb: [[0.0; 3]; 2],
             object_obbs: Vec::new(),
+            human_instance_ids: Vec::new(),
             human_poses: Vec::new(),
             human_pose_steps: Vec::new(),
             human_bone_names: bone_names.clone(),
             human_bone_parents: bone_parents.clone(),
             ovoxel: None,
+            indoor: None,
+            indoor_render_metadata: None,
+            annotation_precision: Default::default(),
+            color_encoding: Default::default(),
         };
         b
     ];
 
     for key in tensors.names() {
+        if let Some(index) = key.strip_prefix("indoor_render_metadata_") {
+            let index: usize = index
+                .parse()
+                .context("invalid indoor render metadata index")?;
+            let sample = samples
+                .get_mut(index)
+                .context("indoor render metadata index out of bounds")?;
+            sample.indoor_render_metadata = Some(
+                serde_json::from_slice(tensors.tensor(key)?.data())
+                    .context("invalid indoor render metadata JSON")?,
+            );
+            continue;
+        }
+        if let Some(index) = key.strip_prefix("indoor_manifest_") {
+            let index: usize = index.parse().context("invalid indoor manifest index")?;
+            let sample = samples
+                .get_mut(index)
+                .context("indoor manifest index out of bounds")?;
+            sample.indoor = Some(
+                serde_json::from_slice(tensors.tensor(key)?.data())
+                    .context("invalid indoor manifest JSON")?,
+            );
+            continue;
+        }
+
         if key.starts_with("color_jpg_") {
             let idx: usize = key.trim_start_matches("color_jpg_").parse().unwrap_or(0);
             let tensor = tensors.tensor(key)?;
@@ -1012,6 +1283,32 @@ pub fn load_chunk(path: impl AsRef<Path>) -> Result<Vec<ZeroverseSample>> {
         }
     }
 
+    if let Ok(tensor) = tensors.tensor("annotation_precision") {
+        anyhow::ensure!(
+            tensor.dtype() == Dtype::U8 && tensor.data().len() == samples.len(),
+            "invalid annotation precision metadata"
+        );
+        for (sample, &precision) in samples.iter_mut().zip(tensor.data()) {
+            sample.annotation_precision = match precision {
+                0 => bevy_zeroverse::sample::AnnotationPrecision::Float16Hdr,
+                1 => bevy_zeroverse::sample::AnnotationPrecision::Float32Geometry,
+                _ => anyhow::bail!("unknown annotation precision {precision}"),
+            };
+        }
+    }
+    if let Ok(tensor) = tensors.tensor("color_encoding") {
+        anyhow::ensure!(
+            tensor.data().len() == samples.len(),
+            "invalid color encoding count"
+        );
+        for (sample, &encoding) in samples.iter_mut().zip(tensor.data()) {
+            sample.color_encoding = match encoding {
+                0 => bevy_zeroverse::render::color::ColorEncoding::Legacy,
+                2 => bevy_zeroverse::render::color::ColorEncoding::Srgb,
+                _ => anyhow::bail!("unsupported stored color encoding {encoding}"),
+            };
+        }
+    }
     let mut fill_tensor =
         |name: &str,
          channels: usize,
@@ -1033,6 +1330,16 @@ pub fn load_chunk(path: impl AsRef<Path>) -> Result<Vec<ZeroverseSample>> {
             }
         };
 
+    fill_tensor("color", 3, &mut |view, data| {
+        let rgba: Vec<f32> = data
+            .as_chunks::<3>()
+            .0
+            .iter()
+            .flat_map(|rgb| [rgb[0], rgb[1], rgb[2], 1.0])
+            .collect();
+        view.color = cast_slice(&rgba).to_vec();
+    });
+
     fill_tensor("depth", 1, &mut |view, data| {
         // expand depth to RGBA (store in depth buffer)
         let mut rgba = Vec::with_capacity(data.len() * 4);
@@ -1044,7 +1351,7 @@ pub fn load_chunk(path: impl AsRef<Path>) -> Result<Vec<ZeroverseSample>> {
 
     fill_tensor("normal", 3, &mut |view, data| {
         let mut rgba = Vec::with_capacity(data.len() / 3 * 4);
-        for chunk in data.chunks_exact(3) {
+        for chunk in data.as_chunks::<3>().0.iter() {
             let w = chunk[0];
             rgba.extend_from_slice(chunk);
             rgba.push(w);
@@ -1052,9 +1359,19 @@ pub fn load_chunk(path: impl AsRef<Path>) -> Result<Vec<ZeroverseSample>> {
         view.normal = cast_slice(&rgba).to_vec();
     });
 
+    fill_tensor("semantic", 3, &mut |view, data| {
+        let mut rgba = Vec::with_capacity(data.len() / 3 * 4);
+        for chunk in data.as_chunks::<3>().0.iter() {
+            let w = chunk[0];
+            rgba.extend_from_slice(chunk);
+            rgba.push(w);
+        }
+        view.semantic = cast_slice(&rgba).to_vec();
+    });
+
     fill_tensor("optical_flow", 3, &mut |view, data| {
         let mut rgba = Vec::with_capacity(data.len() / 3 * 4);
-        for chunk in data.chunks_exact(3) {
+        for chunk in data.as_chunks::<3>().0.iter() {
             let w = chunk[0];
             rgba.extend_from_slice(chunk);
             rgba.push(w);
@@ -1064,7 +1381,7 @@ pub fn load_chunk(path: impl AsRef<Path>) -> Result<Vec<ZeroverseSample>> {
 
     fill_tensor("position", 3, &mut |view, data| {
         let mut rgba = Vec::with_capacity(data.len() / 3 * 4);
-        for chunk in data.chunks_exact(3) {
+        for chunk in data.as_chunks::<3>().0.iter() {
             let w = chunk[0];
             rgba.extend_from_slice(chunk);
             rgba.push(w);
@@ -1179,7 +1496,7 @@ pub fn load_chunk(path: impl AsRef<Path>) -> Result<Vec<ZeroverseSample>> {
                     )
                 })
                 .collect();
-            slice.sort_by(|a, b| a.0.cmp(&b.0));
+            slice.sort_by_key(|a| a.0);
 
             let palette: Vec<String> = serde_json::from_slice(semantic_labels.data())
                 .unwrap_or_else(|_| vec!["unlabeled".into()]);
@@ -1225,7 +1542,8 @@ pub fn load_chunk(path: impl AsRef<Path>) -> Result<Vec<ZeroverseSample>> {
         tensors.tensor("ovoxel_offsets"),
         tensors.tensor("ovoxel_resolution"),
         tensors.tensor("ovoxel_aabb"),
-    ) && let Some(coords) = decode_ovoxel_coords(&coords) {
+    ) && let Some(coords) = decode_ovoxel_coords(&coords)
+    {
         let dual: &[[u8; 3]] = cast_slice(dual.data());
         let base: &[[u8; 4]] = cast_slice(base.data());
         let semantic_data = decode_ovoxel_semantics(Some(&semantic), coords.len());
@@ -1254,19 +1572,18 @@ pub fn load_chunk(path: impl AsRef<Path>) -> Result<Vec<ZeroverseSample>> {
                     semantic_data.get(i).copied().unwrap_or(0),
                 ));
             }
-            slice.sort_by(|a, b| a.0.cmp(&b.0));
+            slice.sort_by_key(|a| a.0);
 
             let label_off = semantic_label_offsets.get(idx).cloned().unwrap_or([0, 0]);
             let lbl_start = label_off[0].max(0) as usize;
             let lbl_len = label_off[1].max(0) as usize;
             let end_lbl = (lbl_start + lbl_len).min(semantic_label_blob.len());
-            let mut palette: Vec<String> =
-                if lbl_start >= semantic_label_blob.len() || lbl_len == 0 {
-                    Vec::new()
-                } else {
-                    serde_json::from_slice(&semantic_label_blob[lbl_start..end_lbl])
-                        .unwrap_or_default()
-                };
+            let mut palette: Vec<String> = if lbl_start >= semantic_label_blob.len() || lbl_len == 0
+            {
+                Vec::new()
+            } else {
+                serde_json::from_slice(&semantic_label_blob[lbl_start..end_lbl]).unwrap_or_default()
+            };
             if palette.is_empty() {
                 palette.push("unlabeled".to_string());
             }
@@ -1304,6 +1621,16 @@ pub fn load_chunk(path: impl AsRef<Path>) -> Result<Vec<ZeroverseSample>> {
         let class_ids: &[i64] = cast_slice(class_idx.data());
 
         let max_obbs = center.shape().get(1).copied().unwrap_or(0);
+        let instance_tensor = tensors.tensor("object_obb_instance_ids").ok();
+        let instance_ids: Option<&[i64]> = if let Some(tensor) = instance_tensor.as_ref() {
+            ensure!(
+                tensor.dtype() == Dtype::I64 && tensor.shape() == [b, max_obbs],
+                "invalid OBB instance IDs"
+            );
+            Some(cast_slice(tensor.data()))
+        } else {
+            None
+        };
 
         for (b_idx, sample) in samples.iter_mut().enumerate().take(b) {
             let base_center = b_idx * max_obbs * 3;
@@ -1327,6 +1654,9 @@ pub fn load_chunk(path: impl AsRef<Path>) -> Result<Vec<ZeroverseSample>> {
                 sample
                     .object_obbs
                     .push(bevy_zeroverse::sample::ObjectObbSample {
+                        instance_id: instance_ids
+                            .and_then(|ids| ids.get(base_class + i).copied())
+                            .filter(|id| *id >= 0),
                         center: [centers[c_idx], centers[c_idx + 1], centers[c_idx + 2]],
                         scale: [scales[c_idx], scales[c_idx + 1], scales[c_idx + 2]],
                         rotation: [
@@ -1364,11 +1694,44 @@ pub fn load_chunk(path: impl AsRef<Path>) -> Result<Vec<ZeroverseSample>> {
             _ => (0, 0, 0, false),
         };
 
+        let stored_counts = tensors.tensor("human_count").ok();
+        let human_counts: Option<&[i64]> = if let Some(tensor) = stored_counts.as_ref() {
+            ensure!(
+                tensor.dtype() == Dtype::I64 && tensor.shape() == [b],
+                "invalid human_count metadata"
+            );
+            Some(cast_slice(tensor.data()))
+        } else {
+            None
+        };
         for (sample_idx, sample) in samples.iter_mut().enumerate().take(b) {
+            let count = human_counts.map_or_else(
+                || {
+                    sample
+                        .indoor
+                        .as_ref()
+                        .map_or(max_humans as i64, |scene| scene.humans.len() as i64)
+                },
+                |counts| counts[sample_idx],
+            );
+            ensure!(
+                count >= 0 && count as usize <= max_humans,
+                "human_count exceeds pose tensor"
+            );
+            sample.human_instance_ids = if let Ok(tensor) = tensors.tensor("human_instance_ids") {
+                ensure!(
+                    tensor.dtype() == Dtype::I64 && tensor.shape() == [b, max_humans],
+                    "invalid human_instance_ids metadata"
+                );
+                let ids: &[i64] = cast_slice(tensor.data());
+                ids[sample_idx * max_humans..sample_idx * max_humans + count as usize].to_vec()
+            } else {
+                (0..count).collect()
+            };
             let mut step_poses = Vec::with_capacity(pose_steps);
             for step in 0..pose_steps {
                 let mut poses = Vec::with_capacity(max_humans);
-                for human_idx in 0..max_humans {
+                for human_idx in 0..count as usize {
                     let mut bone_positions = Vec::with_capacity(bone_count);
                     let mut bone_rotations = Vec::with_capacity(bone_count);
 
@@ -1382,11 +1745,7 @@ pub fn load_chunk(path: impl AsRef<Path>) -> Result<Vec<ZeroverseSample>> {
                             ((sample_idx * max_humans + human_idx) * bone_count + bone_idx) * 3
                         };
                         let pos = if base + 2 < positions.len() {
-                            [
-                                positions[base],
-                                positions[base + 1],
-                                positions[base + 2],
-                            ]
+                            [positions[base], positions[base + 1], positions[base + 2]]
                         } else {
                             [0.0; 3]
                         };
@@ -1490,15 +1849,21 @@ mod tests {
 
     fn sample_with_obb(class_name: &str) -> ZeroverseSample {
         ZeroverseSample {
+            indoor: None,
+            indoor_render_metadata: None,
+            annotation_precision: Default::default(),
+            color_encoding: Default::default(),
             views: vec![bevy_zeroverse::sample::View::default()],
             view_dim: 1,
             aabb: [[0.0; 3]; 2],
             object_obbs: vec![ObjectObbSample {
+                instance_id: Some(314),
                 center: [1.0, 2.0, 3.0],
                 scale: [4.0, 5.0, 6.0],
                 rotation: [0.0, 0.0, 0.0, 1.0],
                 class_name: class_name.to_string(),
             }],
+            human_instance_ids: Vec::new(),
             human_poses: Vec::new(),
             human_pose_steps: Vec::new(),
             human_bone_names: Vec::new(),
@@ -1509,10 +1874,15 @@ mod tests {
 
     fn sample_with_ovoxel() -> ZeroverseSample {
         ZeroverseSample {
+            indoor: None,
+            indoor_render_metadata: None,
+            annotation_precision: Default::default(),
+            color_encoding: Default::default(),
             views: vec![bevy_zeroverse::sample::View::default()],
             view_dim: 1,
             aabb: [[-1.0, -1.0, -1.0], [1.0, 1.0, 1.0]],
             object_obbs: vec![],
+            human_instance_ids: Vec::new(),
             human_poses: Vec::new(),
             human_pose_steps: Vec::new(),
             human_bone_names: Vec::new(),
@@ -1536,10 +1906,15 @@ mod tests {
 
     fn sample_with_single_ovoxel() -> ZeroverseSample {
         ZeroverseSample {
+            indoor: None,
+            indoor_render_metadata: None,
+            annotation_precision: Default::default(),
+            color_encoding: Default::default(),
             views: vec![bevy_zeroverse::sample::View::default()],
             view_dim: 1,
             aabb: [[-2.0, -2.0, -2.0], [2.0, 2.0, 2.0]],
             object_obbs: vec![],
+            human_instance_ids: Vec::new(),
             human_poses: Vec::new(),
             human_pose_steps: Vec::new(),
             human_bone_names: Vec::new(),
@@ -1575,13 +1950,15 @@ mod tests {
         let raw = std::fs::read(&path).unwrap();
         let tensors = SafeTensors::deserialize(&raw).unwrap();
         assert!(tensors.tensor("object_obb_class_names").is_ok());
-        let class_bytes: &[u8] = cast_slice(tensors.tensor("object_obb_class_names").unwrap().data());
+        let class_bytes: &[u8] =
+            cast_slice(tensors.tensor("object_obb_class_names").unwrap().data());
         let class_names: Vec<String> = serde_json::from_slice(class_bytes).unwrap();
         assert!(class_names.contains(&"chair".to_string()));
 
         let loaded = load_chunk(&path).unwrap();
         assert_eq!(loaded.len(), 1);
         let obb = loaded[0].object_obbs.first().expect("obb should roundtrip");
+        assert_eq!(obb.instance_id, Some(314));
         assert_eq!(obb.class_name, "chair");
         assert_eq!(obb.center, [1.0, 2.0, 3.0]);
         assert_eq!(obb.scale, [4.0, 5.0, 6.0]);
@@ -1608,10 +1985,15 @@ mod tests {
             bone_rotations: vec![[0.0, 0.0, 0.0, 1.0]],
         };
         let sample = ZeroverseSample {
+            indoor: None,
+            indoor_render_metadata: None,
+            annotation_precision: Default::default(),
+            color_encoding: Default::default(),
             views: vec![bevy_zeroverse::sample::View::default(); 2],
             view_dim: 1,
             aabb: [[0.0; 3]; 2],
             object_obbs: Vec::new(),
+            human_instance_ids: Vec::new(),
             human_poses: Vec::new(),
             human_pose_steps: vec![
                 vec![pose_step0_a, pose_step0_b],
@@ -1695,13 +2077,19 @@ mod tests {
 
         let loaded = load_chunk(&path).unwrap();
         assert_eq!(loaded.len(), 2);
-        let ov = loaded[1].ovoxel.as_ref().expect("second ov should roundtrip");
+        let ov = loaded[1]
+            .ovoxel
+            .as_ref()
+            .expect("second ov should roundtrip");
         assert_eq!(ov.coords, vec![[5, 0, 0]]);
         assert_eq!(ov.dual_vertices, vec![[7, 8, 9]]);
         assert_eq!(ov.intersected, vec![4]);
         assert_eq!(ov.base_color, vec![[90, 100, 110, 120]]);
         assert_eq!(ov.semantics, vec![9]);
-        assert_eq!(ov.semantic_labels, vec!["unlabeled".to_string(), "lamp".to_string()]);
+        assert_eq!(
+            ov.semantic_labels,
+            vec!["unlabeled".to_string(), "lamp".to_string()]
+        );
         assert_eq!(ov.resolution, 32);
         assert_eq!(ov.aabb, [[-0.75, -0.75, -0.75], [0.75, 0.75, 0.75]]);
     }

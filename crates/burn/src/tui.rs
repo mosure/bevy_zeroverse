@@ -22,8 +22,8 @@ use ratatui::{
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{
-        Axis, Block, Borders, Cell, Chart, Dataset, Gauge, GraphType, Paragraph,
-        Row, Table, Tabs, Wrap,
+        Axis, Block, Borders, Cell, Chart, Dataset, Gauge, GraphType, Paragraph, Row, Table, Tabs,
+        Wrap,
     },
 };
 
@@ -40,6 +40,7 @@ pub struct UiConfig {
     pub output: PathBuf,
     pub output_mode: WriteMode,
     pub chunk_size: usize,
+    pub planned_chunks: Option<usize>,
     pub samples: usize,
     pub sample_offset: usize,
     pub chunk_offset: usize,
@@ -148,10 +149,13 @@ impl UiState {
 
         for worker_id in worker_ids {
             let samples = counts.get(&worker_id).copied().unwrap_or(0);
-            let entry = self.history.entry(worker_id).or_insert_with(|| WorkerHistory {
-                last_samples: samples,
-                series: std::collections::VecDeque::with_capacity(self.max_points + 1),
-            });
+            let entry = self
+                .history
+                .entry(worker_id)
+                .or_insert_with(|| WorkerHistory {
+                    last_samples: samples,
+                    series: std::collections::VecDeque::with_capacity(self.max_points + 1),
+                });
 
             let delta = samples.saturating_sub(entry.last_samples);
             let rate = if dt > 0.0 { delta as f64 / dt } else { 0.0 };
@@ -299,12 +303,7 @@ fn tui_loop(
     Ok(())
 }
 
-fn draw_ui(
-    frame: &mut ratatui::Frame,
-    config: &UiConfig,
-    snapshot: &UiSnapshot,
-    state: &UiState,
-) {
+fn draw_ui(frame: &mut ratatui::Frame, config: &UiConfig, snapshot: &UiSnapshot, state: &UiState) {
     let palette = Palette::default();
 
     let layout = Layout::default()
@@ -351,7 +350,11 @@ fn draw_ui(
     render_throughput_chart(frame, footer[1], state, &palette);
 }
 
-fn header_widget(config: &UiConfig, snapshot: &UiSnapshot, palette: &Palette) -> Paragraph<'static> {
+fn header_widget(
+    config: &UiConfig,
+    snapshot: &UiSnapshot,
+    palette: &Palette,
+) -> Paragraph<'static> {
     let elapsed = format_duration(snapshot.elapsed);
     let samples_per_sec = rate_per_sec(snapshot.samples_done, snapshot.elapsed);
     let workers = if config.per_process {
@@ -365,20 +368,14 @@ fn header_widget(config: &UiConfig, snapshot: &UiSnapshot, palette: &Palette) ->
         Span::raw("  "),
         Span::styled(status_label(config, snapshot), palette.status),
         Span::raw("  "),
-        Span::styled(
-            format!("elapsed {elapsed}"),
-            palette.muted,
-        ),
+        Span::styled(format!("elapsed {elapsed}"), palette.muted),
         Span::raw("  "),
         Span::styled(
             format!("samples/s {}", format_rate(samples_per_sec)),
             palette.accent,
         ),
         Span::raw("  "),
-        Span::styled(
-            format!("workers {}", workers),
-            palette.muted,
-        ),
+        Span::styled(format!("workers {}", workers), palette.muted),
         Span::raw("  "),
         Span::styled("tab/1/2: view", palette.muted),
         Span::raw("  "),
@@ -387,7 +384,11 @@ fn header_widget(config: &UiConfig, snapshot: &UiSnapshot, palette: &Palette) ->
 
     Paragraph::new(vec![header])
         .alignment(Alignment::Left)
-        .block(Block::default().borders(Borders::ALL).border_style(palette.border))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(palette.border),
+        )
 }
 
 fn config_widget(config: &UiConfig, palette: &Palette) -> Paragraph<'static> {
@@ -414,10 +415,7 @@ fn config_widget(config: &UiConfig, palette: &Palette) -> Paragraph<'static> {
         "scene",
         scene_type_name(&config.scene_type).to_string(),
     ));
-    lines.push(label(
-        "render",
-        join_render_modes(&config.render_modes),
-    ));
+    lines.push(label("render", join_render_modes(&config.render_modes)));
     lines.push(label(
         "sampler",
         format!(
@@ -435,17 +433,21 @@ fn config_widget(config: &UiConfig, palette: &Palette) -> Paragraph<'static> {
         format!(
             "{} ({})",
             config.workers,
-            if config.per_process { "per-process" } else { "shared" }
+            if config.per_process {
+                "per-process"
+            } else {
+                "shared"
+            }
         ),
     ));
     lines.push(label(
         "offsets",
-        format!("sample {} | chunk {}", config.sample_offset, config.chunk_offset),
+        format!(
+            "sample {} | chunk {}",
+            config.sample_offset, config.chunk_offset
+        ),
     ));
-    lines.push(label(
-        "compression",
-        compression_name(&config.compression),
-    ));
+    lines.push(label("compression", compression_name(&config.compression)));
     lines.push(label(
         "ovoxel",
         format!(
@@ -456,16 +458,17 @@ fn config_widget(config: &UiConfig, palette: &Palette) -> Paragraph<'static> {
         ),
     ));
     lines.push(label("timeout", format!("{}s", config.timeout_secs)));
-    lines.push(label("seed", config.seed.map_or("auto".to_string(), |s| s.to_string())));
+    lines.push(label(
+        "seed",
+        config.seed.map_or("auto".to_string(), |s| s.to_string()),
+    ));
 
-    Paragraph::new(lines)
-        .wrap(Wrap { trim: true })
-        .block(
-            Block::default()
-                .title(Span::styled("run config", palette.block_title))
-                .borders(Borders::ALL)
-                .border_style(palette.border),
-        )
+    Paragraph::new(lines).wrap(Wrap { trim: true }).block(
+        Block::default()
+            .title(Span::styled("run config", palette.block_title))
+            .borders(Borders::ALL)
+            .border_style(palette.border),
+    )
 }
 
 fn metrics_widget(
@@ -544,14 +547,12 @@ fn metrics_widget(
     ));
     lines.push(metric_line("last update", last_update, palette));
 
-    Paragraph::new(lines)
-        .wrap(Wrap { trim: true })
-        .block(
-            Block::default()
-                .title(Span::styled("metrics", palette.block_title))
-                .borders(Borders::ALL)
-                .border_style(palette.border),
-        )
+    Paragraph::new(lines).wrap(Wrap { trim: true }).block(
+        Block::default()
+            .title(Span::styled("metrics", palette.block_title))
+            .borders(Borders::ALL)
+            .border_style(palette.border),
+    )
 }
 
 fn metric_line(label: &str, value: String, palette: &Palette) -> Line<'static> {
@@ -614,8 +615,8 @@ fn workers_table(snapshot: &UiSnapshot, state: &UiState, palette: &Palette) -> T
         "last",
         "state",
     ])
-        .style(palette.header)
-        .bottom_margin(1);
+    .style(palette.header)
+    .bottom_margin(1);
 
     let rows = snapshot.workers.iter().map(|worker| {
         let last = last_update_age(worker)
@@ -643,14 +644,12 @@ fn workers_table(snapshot: &UiSnapshot, state: &UiState, palette: &Palette) -> T
         Constraint::Length(8),
     ];
 
-    Table::new(rows, widths)
-        .header(header)
-        .block(
-            Block::default()
-                .title(Span::styled("workers", palette.block_title))
-                .borders(Borders::ALL)
-                .border_style(palette.border),
-        )
+    Table::new(rows, widths).header(header).block(
+        Block::default()
+            .title(Span::styled("workers", palette.block_title))
+            .borders(Borders::ALL)
+            .border_style(palette.border),
+    )
 }
 
 fn render_throughput_chart(
@@ -667,11 +666,13 @@ fn render_throughput_chart(
         }
     }
 
-    let datasets = vec![Dataset::default()
-        .name("total")
-        .graph_type(GraphType::Line)
-        .style(Style::default().fg(palette.chart))
-        .data(&series)];
+    let datasets = vec![
+        Dataset::default()
+            .name("total")
+            .graph_type(GraphType::Line)
+            .style(Style::default().fg(palette.chart))
+            .data(&series),
+    ];
 
     let x_max = (state.max_points.saturating_sub(1)) as f64 * state.tick_interval.as_secs_f64();
     let y_max = (max_y * 1.1).max(1.0);
@@ -690,10 +691,7 @@ fn render_throughput_chart(
     let chart = Chart::new(datasets)
         .block(
             Block::default()
-                .title(Span::styled(
-                    "throughput (samples/s)",
-                    palette.block_title,
-                ))
+                .title(Span::styled("throughput (samples/s)", palette.block_title))
                 .borders(Borders::ALL)
                 .border_style(palette.border),
         )
@@ -704,6 +702,9 @@ fn render_throughput_chart(
 }
 
 fn target_chunks(config: &UiConfig) -> usize {
+    if let Some(chunks) = config.planned_chunks {
+        return chunks;
+    }
     if config.samples == 0 {
         return 0;
     }
@@ -766,11 +767,7 @@ fn last_update_age(worker: &WorkerSnapshot) -> Option<Duration> {
 }
 
 fn most_recent_update(snapshot: &UiSnapshot) -> Option<Duration> {
-    snapshot
-        .workers
-        .iter()
-        .filter_map(last_update_age)
-        .min()
+    snapshot.workers.iter().filter_map(last_update_age).min()
 }
 
 fn now_millis() -> u64 {
@@ -809,6 +806,7 @@ fn scene_type_name(scene_type: &ZeroverseSceneType) -> &'static str {
         ZeroverseSceneType::Object => "object",
         ZeroverseSceneType::SemanticRoom => "semantic-room",
         ZeroverseSceneType::Room => "room",
+        ZeroverseSceneType::ProceduralIndoor => "procedural-indoor",
     }
 }
 

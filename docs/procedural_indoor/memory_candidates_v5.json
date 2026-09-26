@@ -1,0 +1,42 @@
+[
+  {
+    "run": "out/indoor_v5_continuous4096",
+    "conclusion": "32-reset pool retirement: residual live-heap and RSS growth failed fixed gates",
+    "evidence_sha256": {
+      "baseline.jsonl": "a6bd5396f679f55a217cac1c4bb51a3b0d42a6b89c45851ec06ed7d315697ee4",
+      "scenes.jsonl": "da8917437c2fc512f55e27d11dd9f79540e95a5a814b88ef5b47021ff50eb50f",
+      "stability.json": "0b5a7b21478c40c098c8677b25ef1a291a3ebc5c56c8f3408e5e56cf0ba54815",
+      "summary.json": "328a4b92b04c6bedd36762c85d000d75b8da81dccf0e8c793042d595b6932d21",
+      "telemetry.jsonl": "dc209c08b173cedeef4b53da236f80e68b523e76c0dba18411e6fceac0bade2b",
+      "telemetry_summary.json": "cb3e82592c04b1b4f45510e44152b93189005982286c9435f613c60ec1246c77"
+    }
+  },
+  {
+    "run": "out/indoor_v5_idle_pool4096",
+    "conclusion": "Every-reset retirement: residual indirect validation allocation growth; stopped at 1271 captures",
+    "evidence_sha256": {
+      "baseline.jsonl": "c464e587c34124aadec03bf658acab3b6b4d3808789a36095bf92a5800e7812e",
+      "scenes.jsonl": "561d47c7b040aacb9fd01e00600eb285bba9523bb91045caf2f8392b53ae5aba",
+      "telemetry.jsonl": "8f223119e8d89b159efc3642ca3e5c9d76dd19e81ce804b5bb65fa670f581e51",
+      "telemetry_summary.json": "cde9fac028bb8604f42c280459fa333cc36f730bc667f4eb2937ffbbd99a8c7b"
+    }
+  },
+  {
+    "run": "out/indoor_v5_dynamic_pool512",
+    "conclusion": "Private dynamic descriptor pools: residual growth, patch rejected",
+    "evidence_sha256": {
+      "DIAGNOSTIC_ONLY.json": "b8e8cad90f04ecbfa6d40b0d29701b54f257ed50716636e58f5fbcb63802e0ff",
+      "scenes.jsonl": "6aaf8807597a076a26893f563ef1ed224c52a41c608c765b8da1b4e863c25f81",
+      "summary.json": "9d8c19d47477371a76989161b445c947fbb4a2524898b0d24cc1f6c31e81f248"
+    }
+  },
+  {
+    "run": "out/indoor_v5_no_indirect512",
+    "conclusion": "Causal diagnostic only: validation disabled, never a production acceptance run",
+    "evidence_sha256": {
+      "DIAGNOSTIC_ONLY.json": "63209d96e18bc042660759f3aafac687f3d7298261d704f48710145b4089f24c",
+      "scenes.jsonl": "b894245771883a2ea6b45c5e30f2b3c881fe069f25abb7088f51b6b11cbe496e",
+      "summary.json": "ef59850e3b68e548cf848b5c29bcd0502ba884128dbe380e4ce01a322e2997ee"
+    }
+  }
+]

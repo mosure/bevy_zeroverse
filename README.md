@@ -25,10 +25,31 @@ bevy zeroverse synthetic reconstruction dataset generator. view the [live demo](
 - [x] [ovoxel](https://arxiv.org/abs/2512.14692) annotation
 - [x] obb annotation
 - [x] [procedural humans](https://arxiv.org/abs/2511.03589)
+- [x] asset-free furnished `procedural_indoor` scenes with seeded layouts and generated PBR surfaces
 - [ ] primitive boolean operations
 - [ ] primitive pbr wireframe
 - [ ] primitive 4d augmentation
 
+
+## procedural interiors
+
+```sh
+cargo run --bin viewer -- --scene-type procedural-indoor --indoor-seed 6
+```
+
+Conference rooms, open offices, lounges and training rooms use multipart furniture,
+metric texture coordinates, generated PBR textures, shadowed lighting, window recesses
+and a furnished neighboring room behind glass. No downloaded mesh or texture catalog
+is required for this mode. Existing scene types remain available.
+
+![Procedural indoor scenes, generator v4](docs/procedural_indoor/contact_generator4.jpg)
+
+See the [generation, capture and validation guide](docs/procedural_indoor.md) for
+dataset examples, distribution evidence and current rendering limits. The
+[generator-v4 review](docs/procedural_indoor_review_v4.md) covers architectural
+families, six potted plant forms, desk clutter, render inspections and dataset
+metrics. Native capture includes diffuse GI and float32 geometry annotations;
+the [WebGPU viewer](docs/procedural_indoor_web.md) has explicit quality profiles.
 
 ## dataloader
 
@@ -64,11 +85,21 @@ requires nvjpeg: https://developer.nvidia.com/nvjpeg
 ![Alt text](docs/bevy_zeroverse_material_grid.webp)
 
 
+The current checkout pins Bevy 0.19.1, Burn 0.21.0, `burn_human` 0.4.0 and
+`bevy_burn_human` 0.4.0. Capture metadata includes an engine identity; datasets
+created with the older rendering contract cannot be resumed into a mixed-version
+capture stream. Existing dataset files remain readable. See the
+[physical accuracy and memory review](docs/procedural_indoor_review_v6.md)
+for measured Cycles differences and the failed continuous-process stability gate.
+Production CLI generation should retain its process lifetime limit. The checkout's
+wgpu memory patches are not inherited by downstream crates.io consumers.
+
 ## compatible bevy versions
 
 | `bevy_zeroverse` | `bevy` |
 | :--                       | :--    |
-| `0.17`                    | `0.17` |
+| `0.19`                    | `0.19.1` |
+| published `0.17`           | `0.17` |
 | `0.8`                     | `0.16` |
 | `0.6`                     | `0.15` |
 | `0.2`                     | `0.14` |

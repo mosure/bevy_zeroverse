@@ -1,0 +1,32 @@
+{
+  "recorded_utc": "2026-09-24T18:18:45.588420+00:00",
+  "protocol": {
+    "version": 3,
+    "minimum_scenes": 4096,
+    "minimum_warmup": 512,
+    "tail_scenes": 2048,
+    "block_scenes": 64,
+    "heap_slope_upper_bytes_per_scene": 8192,
+    "rss_slope_upper_bytes_per_scene": 32768,
+    "heap_late_to_early_ratio": 1.08,
+    "rss_late_to_early_ratio": 1.15,
+    "maximum_live_heap_bytes": 2147483648,
+    "maximum_rss_bytes": 4831838208,
+    "maximum_retained_bind_groups": 512,
+    "maximum_retained_textures": 256,
+    "maximum_retained_buffers": 1024,
+    "require_gpu_memory": true,
+    "gpu_memory_slope_upper_bytes_per_scene": 8192,
+    "gpu_memory_late_to_early_ratio": 1.08,
+    "maximum_gpu_memory_bytes": 4294967296,
+    "maximum_command_encoders": 4096
+  },
+  "target": "out/indoor_v6_capped4096",
+  "binary_sha256": "4079f690578dc82fc7e5f4fc9a1f9b7be20a480d5ec65b47650bc50a097ebf90",
+  "capture_engine": "capture-v6",
+  "scope": "Original frozen host/GPU gates. New 4096 live encoder safety budget includes active work, not just the 64-idle cache cap. Continuous direct draws with GPU preprocessing; validation enabled. No concurrent task-launched GPU jobs or compilation; ambient desktop/browser PIDs are recorded by NVML.",
+  "environment": {
+    "WGPU_VALIDATION_INDIRECT_CALL": "1",
+    "GLIBC_TUNABLES": "glibc.cpu.x86_non_temporal_threshold=32768:glibc.cpu.x86_rep_movsb_threshold=1073741824"
+  }
+}

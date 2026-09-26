@@ -43,7 +43,7 @@ impl Plugin for ZeroversePosePlugin {
     }
 }
 
-fn compute_human_poses(
+pub(crate) fn compute_human_poses(
     mut commands: Commands,
     parents: Query<&ChildOf>,
     scoped: Query<(), With<SceneAabbNode>>,
@@ -117,10 +117,7 @@ fn draw_human_poses(
         }
 
         for (idx, position) in pose.bone_positions.iter().enumerate() {
-            let label = bone_labels
-                .get(idx)
-                .map(|s| s.as_str())
-                .unwrap_or("bone");
+            let label = bone_labels.get(idx).map(|s| s.as_str()).unwrap_or("bone");
             let color = bone_color(label, args.gizmos_alpha);
             gizmos.sphere(*position, 0.02, color);
 

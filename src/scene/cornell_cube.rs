@@ -98,7 +98,7 @@ fn setup_scene(
     mut meshes: ResMut<Assets<Mesh>>,
     mut standard_materials: ResMut<Assets<StandardMaterial>>,
     scene_settings: Res<ZeroverseSceneSettings>,
-    mut ambient_lighting: ResMut<AmbientLight>,
+    mut ambient_lighting: ResMut<GlobalAmbientLight>,
     zeroverse_materials: Res<ZeroverseMaterials>,
 ) {
     ambient_lighting.brightness = 120.0;
@@ -208,7 +208,7 @@ fn setup_scene(
     commands.spawn((
         DirectionalLight {
             illuminance: 800.0,
-            shadows_enabled: true,
+            shadow_maps_enabled: true,
             ..default()
         },
         Transform::from_xyz(1.0, -3.0, 2.0).looking_at(Vec3::ZERO, Vec3::Y),
@@ -273,7 +273,7 @@ fn regenerate_scene(
     load_event: MessageWriter<SceneLoadedEvent>,
     meshes: ResMut<Assets<Mesh>>,
     standard_materials: ResMut<Assets<StandardMaterial>>,
-    ambient_lighting: ResMut<AmbientLight>,
+    ambient_lighting: ResMut<GlobalAmbientLight>,
     zeroverse_materials: Res<ZeroverseMaterials>,
 ) {
     if scene_settings.scene_type != ZeroverseSceneType::CornellCube {

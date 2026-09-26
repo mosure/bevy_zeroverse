@@ -1,0 +1,124 @@
+{
+  "schema_version": 1,
+  "result": "passed",
+  "observed_start_utc": "2026-09-23T19:06:55.033498Z",
+  "source_sha256": {
+    "src/sample.rs": "ca26cfa5968e86031b4eef46ab731a547250b5a316fcaf779d47cbcc7723cb8b",
+    "tests/capture_coherence.rs": "65fad505b08e473d2feed01fbeb39db040d0099af9dc269a22eda67765ff27c2"
+  },
+  "log": "capture_backoff_v3.log",
+  "default_backoff_ms": 1,
+  "maximum_backoff_ms": 10,
+  "zero_disables": true,
+  "applies_to": "Native First schedule; headless noneditor active sampler; all requested camera copies encoded for current pending request; no failure; some packet incomplete.",
+  "cpu_contract_tests": {
+    "passed": 5,
+    "failed": 0
+  },
+  "gpu_coherence_test": {
+    "passed": 1,
+    "failed": 0,
+    "seconds": 1.54
+  },
+  "wasm_check": {
+    "passed": true,
+    "log": "wasm_final_v3.log"
+  },
+  "views": [
+    {
+      "precision": "Float32Geometry",
+      "step": 0,
+      "time": 0.0,
+      "checked_pixels": 2120,
+      "depth_position_p99_metres": 1.9073486e-06,
+      "reprojection_p99_pixels": 0.001855763,
+      "normal_length_max_error": 1.7881393e-07,
+      "position_quantization_budget_p99_ratio": 0.14962758
+    },
+    {
+      "precision": "Float32Geometry",
+      "step": 1,
+      "time": 0.4,
+      "checked_pixels": 2120,
+      "depth_position_p99_metres": 2.6226044e-06,
+      "reprojection_p99_pixels": 0.00190773,
+      "normal_length_max_error": 1.7881393e-07,
+      "position_quantization_budget_p99_ratio": 0.1449199
+    },
+    {
+      "precision": "Float32Geometry",
+      "step": 2,
+      "time": 0.8,
+      "checked_pixels": 2120,
+      "depth_position_p99_metres": 1.9073486e-06,
+      "reprojection_p99_pixels": 0.002098517,
+      "normal_length_max_error": 1.7881393e-07,
+      "position_quantization_budget_p99_ratio": 0.15235469
+    },
+    {
+      "precision": "Float16Hdr",
+      "step": 0,
+      "time": 0.0,
+      "checked_pixels": 2120,
+      "depth_position_p99_metres": 0.016980171,
+      "reprojection_p99_pixels": 0.6967445,
+      "normal_length_max_error": 0.0011794567,
+      "position_quantization_budget_p99_ratio": 0.81169695
+    },
+    {
+      "precision": "Float16Hdr",
+      "step": 1,
+      "time": 0.4,
+      "checked_pixels": 2120,
+      "depth_position_p99_metres": 0.01695633,
+      "reprojection_p99_pixels": 0.7324159,
+      "normal_length_max_error": 0.0013241172,
+      "position_quantization_budget_p99_ratio": 0.8128126
+    },
+    {
+      "precision": "Float16Hdr",
+      "step": 2,
+      "time": 0.8,
+      "checked_pixels": 2120,
+      "depth_position_p99_metres": 0.017141342,
+      "reprojection_p99_pixels": 0.78979856,
+      "normal_length_max_error": 0.0012930632,
+      "position_quantization_budget_p99_ratio": 0.81392187
+    },
+    {
+      "precision": "Float32Geometry",
+      "step": 0,
+      "time": 0.0,
+      "checked_pixels": 2120,
+      "depth_position_p99_metres": 1.9073486e-06,
+      "reprojection_p99_pixels": 0.001912773,
+      "normal_length_max_error": 2.3841858e-07,
+      "position_quantization_budget_p99_ratio": 0.1611265
+    },
+    {
+      "precision": "Float32Geometry",
+      "step": 1,
+      "time": 0.4,
+      "checked_pixels": 2120,
+      "depth_position_p99_metres": 1.9073486e-06,
+      "reprojection_p99_pixels": 0.001986062,
+      "normal_length_max_error": 1.7881393e-07,
+      "position_quantization_budget_p99_ratio": 0.15118745
+    },
+    {
+      "precision": "Float32Geometry",
+      "step": 2,
+      "time": 0.8,
+      "checked_pixels": 2120,
+      "depth_position_p99_metres": 1.9073486e-06,
+      "reprojection_p99_pixels": 0.0020379634,
+      "normal_length_max_error": 2.3841858e-07,
+      "position_quantization_budget_p99_ratio": 0.1613814
+    }
+  ],
+  "performance_claim": null,
+  "notes": [
+    "This report verifies bounded scheduling and capture correctness. It does not measure CPU savings or throughput; those require the separate matched benchmark.",
+    "No sleep or new polling loop is added to interactive or Wasm rendering. Existing render cleanup retains device polling."
+  ]
+}

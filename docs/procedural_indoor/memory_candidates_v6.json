@@ -1,0 +1,76 @@
+[
+  {
+    "run": "out/indoor_v5_continuous4096",
+    "conclusion": "32-reset pool retirement: residual live-heap and RSS growth failed fixed gates",
+    "evidence_sha256": {
+      "baseline.jsonl": "a6bd5396f679f55a217cac1c4bb51a3b0d42a6b89c45851ec06ed7d315697ee4",
+      "scenes.jsonl": "da8917437c2fc512f55e27d11dd9f79540e95a5a814b88ef5b47021ff50eb50f",
+      "stability.json": "0b5a7b21478c40c098c8677b25ef1a291a3ebc5c56c8f3408e5e56cf0ba54815",
+      "summary.json": "328a4b92b04c6bedd36762c85d000d75b8da81dccf0e8c793042d595b6932d21",
+      "telemetry.jsonl": "dc209c08b173cedeef4b53da236f80e68b523e76c0dba18411e6fceac0bade2b",
+      "telemetry_summary.json": "cb3e82592c04b1b4f45510e44152b93189005982286c9435f613c60ec1246c77"
+    }
+  },
+  {
+    "run": "out/indoor_v5_idle_pool4096",
+    "conclusion": "Every-reset retirement: residual indirect validation allocation growth; stopped at 1271 captures",
+    "evidence_sha256": {
+      "baseline.jsonl": "c464e587c34124aadec03bf658acab3b6b4d3808789a36095bf92a5800e7812e",
+      "scenes.jsonl": "561d47c7b040aacb9fd01e00600eb285bba9523bb91045caf2f8392b53ae5aba",
+      "telemetry.jsonl": "8f223119e8d89b159efc3642ca3e5c9d76dd19e81ce804b5bb65fa670f581e51",
+      "telemetry_summary.json": "cde9fac028bb8604f42c280459fa333cc36f730bc667f4eb2937ffbbd99a8c7b"
+    }
+  },
+  {
+    "run": "out/indoor_v5_dynamic_pool512",
+    "conclusion": "Private dynamic descriptor pools: residual growth, patch rejected",
+    "evidence_sha256": {
+      "DIAGNOSTIC_ONLY.json": "b8e8cad90f04ecbfa6d40b0d29701b54f257ed50716636e58f5fbcb63802e0ff",
+      "scenes.jsonl": "6aaf8807597a076a26893f563ef1ed224c52a41c608c765b8da1b4e863c25f81",
+      "summary.json": "9d8c19d47477371a76989161b445c947fbb4a2524898b0d24cc1f6c31e81f248"
+    }
+  },
+  {
+    "run": "out/indoor_v5_no_indirect512",
+    "conclusion": "Causal diagnostic only: validation disabled, never a production acceptance run",
+    "evidence_sha256": {
+      "DIAGNOSTIC_ONLY.json": "63209d96e18bc042660759f3aafac687f3d7298261d704f48710145b4089f24c",
+      "scenes.jsonl": "b894245771883a2ea6b45c5e30f2b3c881fe069f25abb7088f51b6b11cbe496e",
+      "summary.json": "ef59850e3b68e548cf848b5c29bcd0502ba884128dbe380e4ce01a322e2997ee"
+    }
+  },
+  {
+    "run": "out/indoor_v6_continuous4096",
+    "conclusion": "Aborted at 2627 captures: unbounded outer encoder cache still grows. Not accepted.",
+    "evidence_sha256": {
+      "ABORTED.json": "1ab2cd48acce6feacab27860004d8d2e35218cd7200f1231019648e9f0daf1a5",
+      "baseline.jsonl": "72f1ebcee527c98a657c462930dc627694ad75df7521de21cb20343fac9373e3",
+      "scenes.jsonl": "a4d98d4e70ba87c16656f4218f5b8348817ce73dfb80c68657ba89ed96e13c98",
+      "telemetry.jsonl": "362d04f26d337596f3b8bd0e06e905e24ada82c06671ef79f3a0102f475ceb73",
+      "telemetry_summary.json": "e623730498fff93b652e42b976b5770ab3130aeb18605e0e8a4a02a68ddeac09"
+    }
+  },
+  {
+    "run": "out/indoor_v6_capped512",
+    "conclusion": "Completed 512-capture diagnostic: idle encoder cap added. Concurrent compilation; not long-run qualification or uncontended timing.",
+    "evidence_sha256": {
+      "baseline.jsonl": "5d8b8b46279ef315767a7f7c9531f0a7df274dab201e4d88c0601163d578510a",
+      "scenes.jsonl": "d4aee21cd09f7005e1723a4e940649189a28c6b1f4783d6369025857277a9ace",
+      "summary.json": "af17106b3000834fd877207eebae3dcd104010b6860b5e3cf941470405098bfb",
+      "telemetry.jsonl": "26a5ef353aaf9cd0db08ff53993bb4cf94b9fb6252f27f5cad3f7b5510337f47",
+      "telemetry_summary.json": "c2fc0b034a40ec943f62402cd0f451b5d9a19200cca2d83529c2af7dcb0ea6d8"
+    }
+  },
+  {
+    "run": "out/indoor_v6_capped4096",
+    "conclusion": "Completed 4096 scenes / 12288 views in one PID. Fixed heap, RSS and GPU-memory upper-slope gates failed; window, absolute budget and resource gates passed. Not accepted.",
+    "evidence_sha256": {
+      "baseline.jsonl": "e23aa05d010baa5245682d671fa086f48d76183841e67a352e007060bb2f09ed",
+      "scenes.jsonl": "1266e3368afab6714ef7bd6571ddc5ae41ec54722d5f4a1abc94adf6dfc30993",
+      "stability.json": "3308de09a604635999541de7f558184d4ff75d87b3a1ba8ababec80c7aada4c6",
+      "summary.json": "5d15f3bc2c07fbfc32d14ee333ec696ae43098f31e9f74aff7660fd018accd16",
+      "telemetry.jsonl": "c2d9f5881771dd3282b85b3dbf1ae4f3bcaada2e33cad40817b696d6bea8c9e5",
+      "telemetry_summary.json": "63f2733351ca9fe03abad7f4d6be5169c49503b3474be21b9905e30a2c0d8e45"
+    }
+  }
+]

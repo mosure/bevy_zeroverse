@@ -1,0 +1,456 @@
+{
+  "schema_version": 1,
+  "run_id": "4159665-1790254447131599828",
+  "generator_version": 3,
+  "capture_engine": "capture-v4;bevy=0.19.1;burn=0.21.0;burn_human=0.4.0;bevy_burn_human=0.4.0",
+  "selection_policy": "first observed seed per layout/lighting/floor/furniture cell; category-balanced order, no image quality filtering",
+  "audit_scenes": 10000,
+  "rendered_scenes": 108,
+  "rendered_views": 648,
+  "playback_steps": 3,
+  "image_size": [
+    320,
+    240
+  ],
+  "observed_strata": 108,
+  "captured_layouts": {
+    "Lounge": 27,
+    "Conference": 27,
+    "OpenOffice": 27,
+    "Training": 27
+  },
+  "captured_lighting": {
+    "Evening": 36,
+    "Daylight": 36,
+    "Overcast": 36
+  },
+  "captured_floors": {
+    "1": 36,
+    "2": 36,
+    "0": 36
+  },
+  "captured_furniture": {
+    "2": 36,
+    "0": 36,
+    "1": 36
+  },
+  "rgb_and_pose": {
+    "mean_luminance": {
+      "count": 648,
+      "min": 0.05322912,
+      "max": 0.35310963,
+      "mean": 0.14717440056944445,
+      "p05_p50_p95": [
+        0.084929064,
+        0.13877632,
+        0.23897304
+      ]
+    },
+    "luminance_std": {
+      "count": 648,
+      "min": 0.065550745,
+      "max": 0.25342986,
+      "mean": 0.1313245212654321,
+      "p05_p50_p95": [
+        0.087808795,
+        0.12069169,
+        0.21401106
+      ]
+    },
+    "dark_fraction": {
+      "count": 648,
+      "min": 0.0,
+      "max": 0.0,
+      "mean": 0.0,
+      "p05_p50_p95": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "clipped_fraction": {
+      "count": 648,
+      "min": 0.0,
+      "max": 0.009023437,
+      "mean": 0.0008336749348981482,
+      "p05_p50_p95": [
+        0.0,
+        0.0,
+        0.004908854
+      ]
+    },
+    "pose_max_absolute_error": {
+      "count": 648,
+      "min": 0.0,
+      "max": 0.0,
+      "mean": 0.0,
+      "p05_p50_p95": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    }
+  },
+  "annotation": {
+    "depth_position_p99_metres": {
+      "count": 648,
+      "min": 1.4305115e-06,
+      "max": 3.33786e-06,
+      "mean": 2.102719399074074e-06,
+      "p05_p50_p95": [
+        1.9073486e-06,
+        1.9073486e-06,
+        2.861023e-06
+      ]
+    },
+    "reprojection_p99_pixels": {
+      "count": 648,
+      "min": 0.0017945303,
+      "max": 0.002759532,
+      "mean": 0.002111671513117284,
+      "p05_p50_p95": [
+        0.0019094989,
+        0.002073231,
+        0.0024773455
+      ]
+    },
+    "normal_length_max_error": {
+      "count": 648,
+      "min": 1.7881393e-07,
+      "max": 2.3841858e-07,
+      "mean": 1.9003579311728395e-07,
+      "p05_p50_p95": [
+        1.7881393e-07,
+        1.7881393e-07,
+        2.3841858e-07
+      ]
+    },
+    "position_quantization_budget_p99_ratio": {
+      "count": 648,
+      "min": 0.1298742,
+      "max": 0.18298838,
+      "mean": 0.15593545089506172,
+      "p05_p50_p95": [
+        0.14122552,
+        0.15509611,
+        0.17244615
+      ]
+    }
+  },
+  "mean_linear_luminance_by_layout": {
+    "Lounge": {
+      "count": 162,
+      "min": 0.06713661,
+      "max": 0.2911664,
+      "mean": 0.15389048120987653,
+      "p05_p50_p95": [
+        0.084929064,
+        0.144339,
+        0.24942599
+      ]
+    },
+    "Conference": {
+      "count": 162,
+      "min": 0.05322912,
+      "max": 0.2755198,
+      "mean": 0.13756506217901235,
+      "p05_p50_p95": [
+        0.07814162,
+        0.12902185,
+        0.21790893
+      ]
+    },
+    "OpenOffice": {
+      "count": 162,
+      "min": 0.086344786,
+      "max": 0.35310963,
+      "mean": 0.15321456888271603,
+      "p05_p50_p95": [
+        0.09474781,
+        0.13850759,
+        0.25746375
+      ]
+    },
+    "Training": {
+      "count": 162,
+      "min": 0.068199225,
+      "max": 0.24116425,
+      "mean": 0.14402749000617285,
+      "p05_p50_p95": [
+        0.07445171,
+        0.1319527,
+        0.22689338
+      ]
+    }
+  },
+  "semantic_pixel_counts": {
+    "books": 223054,
+    "bookshelf": 370478,
+    "cabinet": 580739,
+    "ceiling": 10434424,
+    "chair": 3864399,
+    "desk": 2297894,
+    "floor": 10916573,
+    "floormat": 1573027,
+    "lamp": 677875,
+    "other_prop": 654556,
+    "other_structure": 557451,
+    "paper": 156080,
+    "picture": 183925,
+    "pillow": 34013,
+    "sofa": 769868,
+    "table": 836672,
+    "television": 610964,
+    "wall": 7774720,
+    "whiteboard": 376602,
+    "window": 5176763,
+    "person": 1381789,
+    "door": 153155,
+    "blinds": 161270,
+    "background": 109
+  },
+  "semantic_view_presence_fraction": {
+    "books": 0.7577160493827161,
+    "bookshelf": 0.5138888888888888,
+    "cabinet": 0.7067901234567902,
+    "ceiling": 0.9691358024691358,
+    "chair": 1.0,
+    "desk": 0.6558641975308642,
+    "floor": 1.0,
+    "floormat": 0.24845679012345678,
+    "lamp": 0.9753086419753086,
+    "other_prop": 0.9969135802469136,
+    "other_structure": 0.9969135802469136,
+    "paper": 0.9891975308641975,
+    "picture": 0.5061728395061729,
+    "pillow": 0.21604938271604937,
+    "sofa": 0.25,
+    "table": 0.49691358024691357,
+    "television": 0.7175925925925926,
+    "wall": 1.0,
+    "whiteboard": 0.44135802469135804,
+    "window": 0.7731481481481481,
+    "person": 0.8780864197530864,
+    "door": 0.3148148148148148,
+    "blinds": 0.20987654320987653,
+    "background": 0.046296296296296294
+  },
+  "asset_counts": {
+    "mesh_assets": {
+      "count": 108,
+      "min": 119,
+      "max": 307,
+      "mean": 195.4814814814815,
+      "p05_p50_p95": [
+        135,
+        198,
+        254
+      ]
+    },
+    "material_assets": {
+      "count": 108,
+      "min": 23,
+      "max": 56,
+      "mean": 39.99074074074074,
+      "p05_p50_p95": [
+        24,
+        40,
+        50
+      ]
+    },
+    "image_assets": {
+      "count": 108,
+      "min": 54,
+      "max": 57,
+      "mean": 56.97222222222222,
+      "p05_p50_p95": [
+        57,
+        57,
+        57
+      ]
+    }
+  },
+  "capture_wall_seconds": {
+    "count": 108,
+    "min": 0.567939495,
+    "max": 6.50369335,
+    "mean": 3.119847797787037,
+    "p05_p50_p95": [
+      0.652531452,
+      4.491487245,
+      6.108079723
+    ]
+  },
+  "renderer": [
+    "WgpuWrapper(AdapterInfo { name: \"NVIDIA RTX PRO 6000 Blackwell Workstation Edition\", vendor: 4318, device: 11185, device_type: DiscreteGpu, device_pci_bus_id: \"0000:01:00.0\", driver: \"NVIDIA\", driver_info: \"610.43.02\", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: false })"
+  ],
+  "annotation_precision": [
+    "float32_geometry"
+  ],
+  "capabilities": {
+    "annotation_hdr_format": "RGBA32Float_direct",
+    "bloom": true,
+    "quality": "Auto",
+    "shadow_map_size": 2048,
+    "shadows": true,
+    "specular_transmission": true,
+    "ssao": true
+  },
+  "limits": [
+    "Signal and constraint gates do not measure photographic realism or real-office distribution match.",
+    "Camera paths checked at every captured timestep; geometry sweep is also audited separately.",
+    "Semantic pixel presence differs from scene instance counts; glazing is opaque in annotation passes.",
+    "Annotation precision is recorded explicitly; legacy HDR and native geometry captures have different error budgets.",
+    "Capture wall time includes generation, warmup, requested render work and disk IO; not FPS or isolated throughput."
+  ],
+  "darkest_views": [
+    {
+      "path": "out/indoor_bevy019_broad/seed_000018/view_04_color.png",
+      "seed": 18,
+      "view": 4,
+      "mean_luminance": 0.05322912
+    },
+    {
+      "path": "out/indoor_bevy019_broad/seed_000018/view_02_color.png",
+      "seed": 18,
+      "view": 2,
+      "mean_luminance": 0.056375954
+    },
+    {
+      "path": "out/indoor_bevy019_broad/seed_000018/view_00_color.png",
+      "seed": 18,
+      "view": 0,
+      "mean_luminance": 0.05823609
+    },
+    {
+      "path": "out/indoor_bevy019_broad/seed_000472/view_00_color.png",
+      "seed": 472,
+      "view": 0,
+      "mean_luminance": 0.06713661
+    },
+    {
+      "path": "out/indoor_bevy019_broad/seed_000057/view_04_color.png",
+      "seed": 57,
+      "view": 4,
+      "mean_luminance": 0.06758243
+    },
+    {
+      "path": "out/indoor_bevy019_broad/seed_000472/view_02_color.png",
+      "seed": 472,
+      "view": 2,
+      "mean_luminance": 0.06772894
+    },
+    {
+      "path": "out/indoor_bevy019_broad/seed_000074/view_00_color.png",
+      "seed": 74,
+      "view": 0,
+      "mean_luminance": 0.068199225
+    },
+    {
+      "path": "out/indoor_bevy019_broad/seed_000074/view_02_color.png",
+      "seed": 74,
+      "view": 2,
+      "mean_luminance": 0.068454035
+    }
+  ],
+  "brightest_views": [
+    {
+      "path": "out/indoor_bevy019_broad/seed_000011/view_04_color.png",
+      "seed": 11,
+      "view": 4,
+      "mean_luminance": 0.35310963
+    },
+    {
+      "path": "out/indoor_bevy019_broad/seed_000011/view_02_color.png",
+      "seed": 11,
+      "view": 2,
+      "mean_luminance": 0.334475
+    },
+    {
+      "path": "out/indoor_bevy019_broad/seed_000011/view_00_color.png",
+      "seed": 11,
+      "view": 0,
+      "mean_luminance": 0.3086366
+    },
+    {
+      "path": "out/indoor_bevy019_broad/seed_000240/view_01_color.png",
+      "seed": 240,
+      "view": 1,
+      "mean_luminance": 0.2911664
+    },
+    {
+      "path": "out/indoor_bevy019_broad/seed_000031/view_02_color.png",
+      "seed": 31,
+      "view": 2,
+      "mean_luminance": 0.27878594
+    },
+    {
+      "path": "out/indoor_bevy019_broad/seed_000031/view_00_color.png",
+      "seed": 31,
+      "view": 0,
+      "mean_luminance": 0.27738142
+    },
+    {
+      "path": "out/indoor_bevy019_broad/seed_000240/view_03_color.png",
+      "seed": 240,
+      "view": 3,
+      "mean_luminance": 0.27633864
+    },
+    {
+      "path": "out/indoor_bevy019_broad/seed_000023/view_01_color.png",
+      "seed": 23,
+      "view": 1,
+      "mean_luminance": 0.2755198
+    }
+  ],
+  "largest_position_error_views": [
+    {
+      "path": "out/indoor_bevy019_broad/seed_000032/view_00_color.png",
+      "seed": 32,
+      "view": 0,
+      "mean_luminance": 0.14348122
+    },
+    {
+      "path": "out/indoor_bevy019_broad/seed_000032/view_02_color.png",
+      "seed": 32,
+      "view": 2,
+      "mean_luminance": 0.14153738
+    },
+    {
+      "path": "out/indoor_bevy019_broad/seed_000032/view_04_color.png",
+      "seed": 32,
+      "view": 4,
+      "mean_luminance": 0.14046927
+    },
+    {
+      "path": "out/indoor_bevy019_broad/seed_000004/view_05_color.png",
+      "seed": 4,
+      "view": 5,
+      "mean_luminance": 0.15961432
+    },
+    {
+      "path": "out/indoor_bevy019_broad/seed_000026/view_00_color.png",
+      "seed": 26,
+      "view": 0,
+      "mean_luminance": 0.12346588
+    },
+    {
+      "path": "out/indoor_bevy019_broad/seed_000026/view_02_color.png",
+      "seed": 26,
+      "view": 2,
+      "mean_luminance": 0.12269421
+    },
+    {
+      "path": "out/indoor_bevy019_broad/seed_000026/view_03_color.png",
+      "seed": 26,
+      "view": 3,
+      "mean_luminance": 0.12260518
+    },
+    {
+      "path": "out/indoor_bevy019_broad/seed_000002/view_01_color.png",
+      "seed": 2,
+      "view": 1,
+      "mean_luminance": 0.10080856
+    }
+  ]
+}

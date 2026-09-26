@@ -14,15 +14,14 @@ use bevy::{
     prelude::*,
     render::render_resource::Face,
 };
+use bevy_burn_human::{
+    BurnHumanAssets, BurnHumanInput, BurnHumanMeshMode, BurnHumanMeshSettings, BurnHumanRenderMode,
+};
 use itertools::izip;
 use rand::seq::IndexedRandom;
 use rand::Rng;
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
-use bevy_burn_human::{
-    BurnHumanAssets, BurnHumanInput, BurnHumanMeshMode, BurnHumanMeshSettings,
-    BurnHumanRenderMode,
-};
 
 use crate::{
     annotation::{obb::ObbTracked, pose::PoseTracked},
@@ -195,7 +194,7 @@ impl RotationSampler {
             }
             RotationSampler::Exact(rotation) => rotation,
             RotationSampler::Identity => Quat::IDENTITY,
-            RotationSampler::Random => Quat::from_rng(&mut rng),
+            RotationSampler::Random => Quat::from_rng(&mut rand_bevy::rng()),
         }
     }
 }
@@ -274,17 +273,19 @@ impl PositionSampler {
                 Vec3::new(x, y, z)
             }
             PositionSampler::Capsule { radius, length } => {
-                Capsule3d::new(radius, length).sample_interior(&mut rng)
+                Capsule3d::new(radius, length).sample_interior(&mut rand_bevy::rng())
             }
             PositionSampler::Cube { extents } => {
-                Cuboid::from_size(extents).sample_interior(&mut rng)
+                Cuboid::from_size(extents).sample_interior(&mut rand_bevy::rng())
             }
             PositionSampler::Cylinder { radius, height } => {
-                Cylinder::new(radius, height).sample_interior(&mut rng)
+                Cylinder::new(radius, height).sample_interior(&mut rand_bevy::rng())
             }
             PositionSampler::Exact { position } => position,
             PositionSampler::Origin => Vec3::ZERO,
-            PositionSampler::Sphere { radius } => Sphere::new(radius).sample_interior(&mut rng),
+            PositionSampler::Sphere { radius } => {
+                Sphere::new(radius).sample_interior(&mut rand_bevy::rng())
+            }
         }
     }
 }
@@ -363,20 +364,17 @@ fn build_primitive(
                         resources.burn_human_sampler.as_ref(),
                     ) {
                         if let Some(burn_pool) = resources.burn_human_pool.as_mut() {
-                            let descriptor = descriptor_override
-                                .take()
-                                .unwrap_or_else(|| {
-                                    sample_burn_human_descriptor(
-                                        burn_assets,
-                                        burn_sampler,
-                                        burn_settings,
-                                        &mut *burn_pool,
-                                        &mut rng,
-                                    )
-                                });
+                            let descriptor = descriptor_override.take().unwrap_or_else(|| {
+                                sample_burn_human_descriptor(
+                                    burn_assets,
+                                    burn_sampler,
+                                    burn_settings,
+                                    &mut *burn_pool,
+                                    &mut rng,
+                                )
+                            });
                             let base_pose = base_pose_from_assets(burn_assets);
-                            let bone_count =
-                                burn_assets.body.metadata().metadata.bone_labels.len();
+                            let bone_count = burn_assets.body.metadata().metadata.bone_labels.len();
                             let instance =
                                 BurnHumanInstance::new(descriptor, base_pose.clone(), bone_count);
                             let input = BurnHumanInput {
@@ -387,8 +385,7 @@ fn build_primitive(
                             let mesh_settings = BurnHumanMeshSettings {
                                 compute_normals: burn_settings.compute_normals,
                             };
-                            let render_mode =
-                                BurnHumanRenderMode(BurnHumanMeshMode::SkinnedMesh);
+                            let render_mode = BurnHumanRenderMode(BurnHumanMeshMode::SkinnedMesh);
                             let placement = BurnHumanPlacement {
                                 base_translation: position,
                                 base_rotation: rotation,
@@ -514,6 +511,7 @@ fn build_primitive(
                                     &mesh_gltf,
                                     &resources.gltfs,
                                     &resources.gltf_meshes,
+                                    &resources.asset_server,
                                 );
                             }
 
@@ -544,8 +542,10 @@ fn build_primitive(
                             }
 
                             if !resources.zeroverse_meshes.normalized.contains(&mesh_handle) {
-                                if let Some(mesh_asset) = resources.meshes.get_mut(&mesh_handle) {
-                                    if let Some(size) = normalize_mesh_to_unit_cube(mesh_asset) {
+                                if let Some(mut mesh_asset) = resources.meshes.get_mut(&mesh_handle)
+                                {
+                                    if let Some(size) = normalize_mesh_to_unit_cube(&mut mesh_asset)
+                                    {
                                         resources
                                             .zeroverse_meshes
                                             .original_sizes
@@ -735,6 +735,7 @@ fn resolve_mesh_material(
     mesh_gltf: &Handle<Gltf>,
     gltfs: &Assets<Gltf>,
     gltf_meshes: &Assets<GltfMesh>,
+    asset_server: &AssetServer,
 ) -> Option<Handle<StandardMaterial>> {
     let gltf = gltfs.get(mesh_gltf)?;
     if gltf.materials.is_empty() {
@@ -745,7 +746,12 @@ fn resolve_mesh_material(
         if let Some(gltf_mesh) = gltf_meshes.get(gltf_mesh_handle) {
             for primitive in &gltf_mesh.primitives {
                 if primitive.mesh == *mesh_handle {
-                    return primitive.material.clone();
+                    let material = primitive.material.as_ref()?;
+                    let path = material.path()?;
+                    // Bevy 0.19 keeps the source glTF material separate from its
+                    // PBR conversion. Reuse the loader's converted asset.
+                    let label = format!("{}/std", path.label()?);
+                    return Some(asset_server.load(path.clone().with_label(label)));
                 }
             }
         }

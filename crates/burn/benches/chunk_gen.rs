@@ -11,7 +11,12 @@ fn sample_with_id(id: u8) -> ZeroverseSample {
     let bytes = bytemuck::cast_slice(&rgba).to_vec();
 
     Sample {
+        indoor: None,
+        indoor_render_metadata: None,
+        annotation_precision: Default::default(),
+        color_encoding: Default::default(),
         views: vec![View {
+            semantic: Vec::new(),
             color: bytes.clone(),
             depth: bytes.clone(),
             normal: bytes.clone(),
@@ -26,6 +31,7 @@ fn sample_with_id(id: u8) -> ZeroverseSample {
         view_dim: 1,
         aabb: [[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]],
         object_obbs: Vec::new(),
+        human_instance_ids: Vec::new(),
         human_poses: Vec::new(),
         human_pose_steps: Vec::new(),
         human_bone_names: Vec::new(),
@@ -87,7 +93,11 @@ fn headless_persistent_chunk_benchmark(c: &mut Criterion) {
     let chunk_size = 8usize;
     let samples_per_iter = base_samples * sample_mult;
     let worker_counts = [1usize, 2, 4, 8];
-    let ov_modes: &[(&str, &str)] = &[("ov_none", "disabled"), ("ov_cpu-async", "cpu-async"), ("ov_gpu-compute", "gpu-compute")];
+    let ov_modes: &[(&str, &str)] = &[
+        ("ov_none", "disabled"),
+        ("ov_cpu-async", "cpu-async"),
+        ("ov_gpu-compute", "gpu-compute"),
+    ];
 
     let mut group = c.benchmark_group("headless_chunk_pipeline_persistent");
     group.sample_size(10);

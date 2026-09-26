@@ -1,0 +1,104 @@
+{
+  "generator_version": 3,
+  "date_utc": "2026-09-23",
+  "status": "passed",
+  "library_tests": {
+    "command": "cargo test --lib -- --nocapture",
+    "features": "default (viewer,multi_threaded)",
+    "passed": 56,
+    "failed": 0,
+    "ignored": 3,
+    "important_existing_limit": "The legacy GPU voxelization equality test reported 13 vs43 voxels and skipped strict equality. This passing library result does not qualify GPU voxel parity."
+  },
+  "default_human_density_layout_sweep": {
+    "test": "scene::procedural_indoor::tests::broad_density_sweep_is_valid",
+    "seeds_per_density": 10000,
+    "seed_start": 0,
+    "furniture_densities": [
+      0,
+      0.35,
+      0.65,
+      1
+    ],
+    "human_density": 0.25,
+    "scenes": 40000,
+    "camera_trajectories": 160000,
+    "invalid": 0,
+    "layout_counts_per_density": {
+      "Conference": 2469,
+      "Lounge": 2496,
+      "OpenOffice": 2521,
+      "Training": 2514
+    }
+  },
+  "full_human_occupancy_sweep": {
+    "test": "scene::procedural_indoor::tests::broad_full_human_occupancy_preserves_geometry_and_layout",
+    "seeds_per_density": 1024,
+    "seed_start": 0,
+    "furniture_densities": [
+      0,
+      0.35,
+      0.65,
+      1
+    ],
+    "human_density": 1,
+    "scenes": 4096,
+    "camera_trajectories": 16384,
+    "humans": 42496,
+    "neighbor_humans": 4096,
+    "humans_per_scene_min": 6,
+    "humans_per_scene_max": 17,
+    "layout_counts_per_density": {
+      "Conference": 237,
+      "Lounge": 267,
+      "OpenOffice": 258,
+      "Training": 262
+    },
+    "actual_mesh_vertices_checked": 474409303,
+    "actual_mesh_triangles_checked": 622902168,
+    "checks": [
+      "layout placement and camera trajectories",
+      "actual human mesh inside declared collision envelope",
+      "actual lowest shoe geometry contacts floor",
+      "position/normal/UV attribute lengths",
+      "valid triangle indices",
+      "finite positions",
+      "finite unit normals"
+    ],
+    "pose_families": [
+      "SeatedListening",
+      "SeatedWorking",
+      "StandingConversation",
+      "StandingPresenting",
+      "StandingRelaxed"
+    ],
+    "outfits": [
+      "Blazer",
+      "Knitwear",
+      "Shirt"
+    ],
+    "skin_tones": 8,
+    "hairstyles": 6
+  },
+  "scope": "Finite deterministic CPU qualification, not a proof over all seeds or photorealism. Dense geometry sweep checks humans; library geometry tests cover architectural/furniture meshes and camera clearance. Render/GI/native annotation and browser qualifications are separate.",
+  "source_sha256": {
+    "src/scene/procedural_indoor/layout.rs": "3615a7afa2f2b07168a1fe80b0d113d1ed5832ce5d0bbb2a145fb87e8909f15b",
+    "src/scene/procedural_indoor/tests.rs": "dfb14e9e4087fbdcbd964c895fff6ecec9b4887cc719144da731e8bf473fac1e",
+    "src/scene/procedural_indoor/humans.rs": "a242b3f3d5b9e516c8d5b502b6af6d87e973318b488b66c8a014659cca500046",
+    "src/scene/procedural_indoor/validation.rs": "92299c6639fade3c0b002eafdcf6cdf6ab5c6020ef3159ad27f56d93acd55cf2"
+  },
+  "logs": [
+    {
+      "path": "geometry_v3_lib_tests.log",
+      "sha256": "0bc12b656e10bcc18e6c3021e23c135aea291e2eadf7adc16671e511bf9bfcdb"
+    },
+    {
+      "path": "geometry_v3_broad_density_sweep_is_valid.log",
+      "sha256": "0be98b40313862de230cd0080ab01cba49b481bef70b5599578cf6623526fb1d"
+    },
+    {
+      "path": "geometry_v3_broad_full_human_occupancy_preserves_geometry_and_layout.log",
+      "sha256": "20d7bc7b4845198db3192a48792be94a455752c8ed441740d900173e59e4f626"
+    }
+  ]
+}

@@ -1,3 +1,5 @@
+#![recursion_limit = "256"]
+
 use bevy::{
     asset::RenderAssetUsages,
     pbr::StandardMaterial,
@@ -131,8 +133,12 @@ fn gpu_device_and_queue() -> Option<(RenderDevice, RenderQueue)> {
     let device_desc = wgpu::DeviceDescriptor {
         label: Some("ovoxel_bench_device"),
         required_features: wgpu::Features::empty(),
-        required_limits: wgpu::Limits::downlevel_defaults(),
+        required_limits: wgpu::Limits {
+            max_storage_buffers_per_shader_stage: 9,
+            ..wgpu::Limits::downlevel_defaults()
+        },
         memory_hints: wgpu::MemoryHints::Performance,
+        experimental_features: wgpu::ExperimentalFeatures::disabled(),
         trace: wgpu::Trace::default(),
     };
     let (device, queue) =

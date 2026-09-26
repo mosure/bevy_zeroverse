@@ -1,0 +1,95 @@
+{
+  "test": "tests/ground_truth_render.rs::float32_mrt_matches_independent_ray_geometry_and_tracks_changes",
+  "command": "cargo test --test ground_truth_render --no-default-features --features multi_threaded -- --ignored --nocapture",
+  "status": "passed",
+  "date_utc": "2026-09-23",
+  "adapter": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+  "driver": "610.43.02",
+  "backend": "Vulkan",
+  "resolution": [
+    321,
+    239
+  ],
+  "vertical_fov_degrees": 61,
+  "storage": [
+    "RGBA32Float world XYZ + linear view-Z depth",
+    "RGBA32Float encoded view normal + semantic class ID"
+  ],
+  "reference": "Independent f64 ray/triangle intersections using original source meshes, known transforms and ideal pixel-center camera rays. Reference is not reconstructed from captured annotations.",
+  "cases": [
+    {
+      "request_id": 1,
+      "change": "initial oblique plane, rotated box, transparent glass and nonuniform sphere; hidden foreground excluded",
+      "reference_samples": 174,
+      "world_position_max_m": 6.6109e-05,
+      "depth_max_m": 5.7711e-05,
+      "reprojection_max_px": 0.001979,
+      "normal_vector_max": 0.00018332,
+      "flat_normal_vector_max": 1.5e-07,
+      "depth_values_beyond_f16": 174
+    },
+    {
+      "request_id": 2,
+      "change": "rigid box translation and rotation; no geometry reupload",
+      "reference_samples": 175,
+      "world_position_max_m": 5.9968e-05,
+      "depth_max_m": 3.4179e-05,
+      "reprojection_max_px": 0.00218,
+      "normal_vector_max": 0.00018332,
+      "flat_normal_vector_max": 1.8e-07,
+      "depth_values_beyond_f16": 175
+    },
+    {
+      "request_id": 3,
+      "change": "sphere despawn; resident vertex count decreased",
+      "reference_samples": 169,
+      "world_position_max_m": 5.9968e-05,
+      "depth_max_m": 1.2594e-05,
+      "reprojection_max_px": 0.00218,
+      "normal_vector_max": 1.8e-07,
+      "flat_normal_vector_max": 1.8e-07,
+      "depth_values_beyond_f16": 169
+    },
+    {
+      "request_id": 4,
+      "change": "remove all Mesh3d, including hidden geometry; clear-only render pass completes empty scene",
+      "annotation_targets_all_zero": true,
+      "annotation_bytes_per_target": 1227504,
+      "rendered_frame": 4,
+      "geometry_bytes": 0,
+      "vertices": 0,
+      "triangles": 0,
+      "mesh_instances": 0,
+      "additional_geometry_uploads": 0,
+      "additional_ground_truth_passes": 1
+    }
+  ],
+  "acceptance": {
+    "world_position_max_m": 0.0001,
+    "depth_max_m": 0.0001,
+    "reprojection_max_px": 0.005,
+    "normal_vector_max": 0.0003,
+    "flat_normal_vector_max": 2e-06,
+    "depth_fraction_beyond_f16_min": 0.9,
+    "idle_additional_ground_truth_passes": 0,
+    "idle_additional_geometry_uploads": 0
+  },
+  "precision_note": "Full-f32 storage does not remove raster subpixel triangle-setup discretization; the independent ideal-ray test permits 0.005px and its smooth-normal/depth effects. Flat-normal controls retain a stricter f32 tolerance.",
+  "scope": "Native static Mesh3d geometry including procedural static articulated humans. First geometric surface policy treats glass as opaque for annotations. Legacy interactive and Wasm annotation render modes keep their HDR rendering path; skin/morph meshes fail closed in this dedicated path.",
+  "timing_note": "Accuracy test only; execution wall time is not a performance result.",
+  "source_sha256": {
+    "src/render/ground_truth.rs": "e642a112393f32f4522abde08550274e814d08219d0c188d5d0aaf6decf1ffa3",
+    "src/render/ground_truth.wgsl": "19ea967237624a00bddd6fdb586f2e517f0ef76945bc95533008c221c8dbcb07",
+    "tests/ground_truth_render.rs": "91123d3b9d1d537f9f03fed8966443fb2eaaa7dadc35f9f0c508bd5bd8dd7362"
+  },
+  "cpu_tests": {
+    "command": "cargo test --lib render::ground_truth --no-default-features --features multi_threaded -- --nocapture",
+    "passed": 2,
+    "failed": 0
+  },
+  "final_rerun_utc": "2026-09-23T18:54:14.549674Z",
+  "diagnostic_instrumentation": "Optional stable indoor_ground_truth GPU timestamp span, aggregated across requested cameras only.",
+  "log": "ground_truth_render_v3.log",
+  "test_log_sha256": "83d14f9d061faa04bb958c84b774c8830c4c29d52addf4ae68bde1395dc2ba83",
+  "depth_precision_note": "Beyond f16 means the sampled f32 depth was not exactly representable in f16, not that it exceeded the f16 numeric range."
+}

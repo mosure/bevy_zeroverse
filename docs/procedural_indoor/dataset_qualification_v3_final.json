@@ -1,0 +1,115 @@
+{
+  "cli_seeds": [
+    777,
+    778,
+    779
+  ],
+  "workers_compared": [
+    1,
+    2
+  ],
+  "generator_version": 3,
+  "human_density": 0.75,
+  "quality": "auto",
+  "gi_rays": 256,
+  "annotation_precision": "float32_geometry",
+  "color_codec": "raw",
+  "raw_rgb_exact_between_workers": true,
+  "raw_rgb_exact_folder_chunk": true,
+  "render_provenance_matches_contract": true,
+  "all_obb_instance_ids_match_manifest": true,
+  "exact_manifests_cameras_semantics": true,
+  "resume_seeds": [
+    777,
+    778,
+    779,
+    780,
+    781
+  ],
+  "metrics_scenes": 5,
+  "changed_resume_rejected": true,
+  "overwrite_rejected": true,
+  "rust_folder_python_manifest_camera_semantic_exact": true,
+  "cameras": 2,
+  "timesteps": [
+    0,
+    0.5,
+    1
+  ],
+  "modes": [
+    "color",
+    "depth",
+    "normal",
+    "semantic",
+    "position"
+  ],
+  "resolution": [
+    161,
+    119
+  ],
+  "python_indexed": {
+    "indices": [
+      4,
+      0,
+      4
+    ],
+    "seeds": [
+      904,
+      900,
+      904
+    ],
+    "repeated_manifest_exact": true,
+    "repeated_camera_exact": true,
+    "repeated_semantic_exact": true,
+    "python_precision_provenance_person_and_obb_ids": true,
+    "two_spawn_workers_exact_manifests_cameras_semantics": true,
+    "repeat_rgb_max_error": 0.0,
+    "shape": [
+      3,
+      2,
+      119,
+      161,
+      3
+    ]
+  },
+  "artifact_directory": "out/indoor_dataset_v3_final",
+  "qualification_completed_utc": "2026-09-23T19:38:28.190738+00:00",
+  "renderer": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition, Vulkan, NVIDIA 610.43.02",
+  "gi_settings": {
+    "bake": {
+      "diffuse_bounces": 3,
+      "rays_per_probe": 256,
+      "spacing": 0.8500000238418579,
+      "workers": 8
+    },
+    "enabled": true,
+    "gpu": true
+  },
+  "source_revision": "a6a29ab23f063e45f9639c4fef730cc04791f30a",
+  "source_worktree_dirty": true,
+  "source_tree_sha256": "ab2a1f52495c00d08d3379f9bd46cac645707ea631a8c2765a34115c40513600",
+  "source_file_count": 90,
+  "source_identity_artifact": "out/indoor_dataset_v3_final_identity.json",
+  "binary_identity": {
+    "target/debug/zeroverse_gen": {
+      "sha256": "8dd38dbdbe595382713ac9178e497525efa0d2889eef5c574ad1c491e3a70282",
+      "bytes": 1975705712
+    },
+    "target/debug/libbevy_zeroverse_ffi.so": {
+      "sha256": "c15d9c5709a049a93543fbc1599d469fde6ed8d29b680c04cd26d5c6f5d95840",
+      "bytes": 1649803424
+    }
+  },
+  "build_commands": [
+    "cargo build -p bevy_zeroverse_burn --bin zeroverse_gen",
+    "PYO3_PYTHON=/tmp/zeroverse-validation-venv/bin/python cargo build -p bevy_zeroverse_ffi --lib"
+  ],
+  "qualification_command": "PYTHONPATH=/tmp/zeroverse-python-extension:crates/ffi/python /tmp/zeroverse-validation-venv/bin/python crates/ffi/python/validate_indoor_dataset.py --binary target/debug/zeroverse_gen --output out/indoor_dataset_v3_final --quality auto --gi-rays 256",
+  "final_runtime_changes_exercised": [
+    "bounded nonblocking GPU polling window through signaled native runner",
+    "dead-view and mesh-specialization cache eviction after rendering"
+  ],
+  "source_unchanged_from_build_snapshot": true,
+  "functional_gpu_checks_overlapped_other_qualification": false,
+  "timing_claim": false
+}

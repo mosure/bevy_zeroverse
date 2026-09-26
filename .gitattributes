@@ -12,3 +12,10 @@ tex/* linguist-vendored
 www/** linguist-vendored
 
 *.lock -diff
+
+# Preserve generated evidence and upstream source bytes (including recorded hashes).
+docs/procedural_indoor/*.svg -whitespace linguist-generated
+docs/procedural_indoor/*.log -whitespace linguist-generated
+third_party/** linguist-vendored
+third_party/wgpu-core/src/timestamp_normalization/common.wgsl whitespace=-blank-at-eol
+third_party/wgpu-hal/README.md whitespace=-blank-at-eof

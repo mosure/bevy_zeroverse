@@ -1,0 +1,20 @@
+{
+  "recorded_utc": "2026-09-26T13:37:38.018793+00:00",
+  "generator_version": 4,
+  "scope": "Native scene renders and dataset round trip use the final optical implementation before the equivalent chunks_exact-to-as_chunks lint cleanup. WebGPU contains the cleanup. Commands ran alongside compilation; timings are not isolated throughput measurements.",
+  "binary_sha256": {
+    "target/debug/indoor_validate": "588bd5abea94abe399c6c40799b96bbbc236337bdab78c89748416d7dd66fd18",
+    "target/debug/zeroverse_gen": "03e9029307c45fcf55faa24f948df050c54512034e081e002e8b66c11dea1230",
+    "www/out/viewer_bg.wasm": "e3e2bd1b56e100f562e6ee4775ee44856af9a339d37b9f461eb5c4636dca26d6"
+  },
+  "checks": {
+    "workspace_library_tests": "70 root + 9 Burn passed; 3 ignored root tests",
+    "python_reporting_tests": 40,
+    "clippy": "workspace/all-targets -D warnings passed",
+    "layout_audit": 4096,
+    "native_views": 48,
+    "targeted_tropical_views": 4,
+    "web_cases_with_regeneration": 8,
+    "cli_python_round_trip": "passed"
+  }
+}

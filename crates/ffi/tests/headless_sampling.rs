@@ -136,6 +136,7 @@ fn scene_name(scene: &ZeroverseSceneType) -> &'static str {
         ZeroverseSceneType::Object => "object",
         ZeroverseSceneType::SemanticRoom => "semantic_room",
         ZeroverseSceneType::Room => "room",
+        ZeroverseSceneType::ProceduralIndoor => "procedural-indoor",
     }
 }
 
@@ -309,13 +310,15 @@ fn clamp_to_byte(v: f32) -> u8 {
 
 fn save_color_image(floats: &[f32], width: u32, height: u32, output: &Path) -> BufferStats {
     let mut values = Vec::with_capacity(floats.len());
-    for chunk in floats.chunks_exact(4) {
+    for chunk in floats.as_chunks::<4>().0.iter() {
         values.extend_from_slice(&chunk[0..3]);
     }
 
     let stats = BufferStats::from_values(&values);
     let bytes: Vec<u8> = values
-        .chunks_exact(3)
+        .as_chunks::<3>()
+        .0
+        .iter()
         .flat_map(|px| {
             [
                 clamp_to_byte(px[0]),
@@ -335,7 +338,7 @@ fn save_color_image(floats: &[f32], width: u32, height: u32, output: &Path) -> B
 
 fn save_depth_like_image(floats: &[f32], width: u32, height: u32, output: &Path) -> BufferStats {
     let mut depth_values = Vec::with_capacity(floats.len() / 4);
-    for chunk in floats.chunks_exact(4) {
+    for chunk in floats.as_chunks::<4>().0.iter() {
         depth_values.push(chunk[0]);
     }
 
@@ -364,13 +367,15 @@ fn save_depth_like_image(floats: &[f32], width: u32, height: u32, output: &Path)
 
 fn save_normal_image(floats: &[f32], width: u32, height: u32, output: &Path) -> BufferStats {
     let mut values = Vec::with_capacity(floats.len());
-    for chunk in floats.chunks_exact(4) {
+    for chunk in floats.as_chunks::<4>().0.iter() {
         values.extend_from_slice(&chunk[0..3]);
     }
 
     let stats = BufferStats::from_values(&values);
     let bytes: Vec<u8> = values
-        .chunks_exact(3)
+        .as_chunks::<3>()
+        .0
+        .iter()
         .flat_map(|px| {
             let map = |v: f32| clamp_to_byte(v * 0.5 + 0.5);
             [map(px[0]), map(px[1]), map(px[2]), 255]
@@ -386,7 +391,7 @@ fn save_normal_image(floats: &[f32], width: u32, height: u32, output: &Path) -> 
 
 fn save_position_like_image(floats: &[f32], width: u32, height: u32, output: &Path) -> BufferStats {
     let mut values = Vec::with_capacity(floats.len());
-    for chunk in floats.chunks_exact(4) {
+    for chunk in floats.as_chunks::<4>().0.iter() {
         values.extend_from_slice(&chunk[0..3]);
     }
 
@@ -394,7 +399,9 @@ fn save_position_like_image(floats: &[f32], width: u32, height: u32, output: &Pa
     let span = (stats.max - stats.min).max(1e-6);
 
     let bytes: Vec<u8> = values
-        .chunks_exact(3)
+        .as_chunks::<3>()
+        .0
+        .iter()
         .flat_map(|px| {
             let map = |v: f32| clamp_to_byte(((v - stats.min) / span).clamp(0.0, 1.0));
             [map(px[0]), map(px[1]), map(px[2]), 255]

@@ -57,7 +57,20 @@ pub struct MaterialRoots {
     pub roots: Vec<PathBuf>,
 }
 
-fn find_materials(mut found_materials: ResMut<MaterialRoots>) {
+fn find_materials(
+    args: Option<Res<BevyZeroverseConfig>>,
+    mut found_materials: ResMut<MaterialRoots>,
+) {
+    // Asset-free capture workers do not consume the legacy texture catalog.
+    // Keep discovery for viewers that can switch to legacy scenes or the grid.
+    if args.as_ref().is_some_and(|args| {
+        args.headless
+            && !args.editor
+            && !args.material_grid
+            && args.scene_type == crate::scene::ZeroverseSceneType::ProceduralIndoor
+    }) {
+        return;
+    }
     #[cfg(target_family = "wasm")]
     {
         found_materials.roots = vec![
@@ -68,7 +81,6 @@ fn find_materials(mut found_materials: ResMut<MaterialRoots>) {
             PathBuf::from("materials/subset/Terracotta/acg_painted_bricks_002"),
             PathBuf::from("materials/subset/Wood/acg_planks_003"),
         ];
-        return;
     }
 
     // TODO: add manifest file caching to improve load times
@@ -113,6 +125,7 @@ fn find_materials(mut found_materials: ResMut<MaterialRoots>) {
 }
 
 fn load_materials(
+    args: Option<Res<BevyZeroverseConfig>>,
     asset_server: Res<AssetServer>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut zeroverse_materials: ResMut<ZeroverseMaterials>,
@@ -120,6 +133,12 @@ fn load_materials(
     material_loader_settings: Res<MaterialLoaderSettings>,
     found_materials: Res<MaterialRoots>,
 ) {
+    if args.as_ref().is_some_and(|args| {
+        args.scene_type == crate::scene::ZeroverseSceneType::ProceduralIndoor && !args.material_grid
+    }) {
+        load_event.write(MaterialsLoadedEvent);
+        return;
+    }
     let mut rng = rand::rng();
 
     let roots = found_materials
@@ -157,12 +176,21 @@ fn load_materials(
         zeroverse_materials.materials.push(material);
     }
 
+    // Basic legacy scenes also work without a downloaded texture catalog.
+    if zeroverse_materials.materials.is_empty() {
+        zeroverse_materials
+            .materials
+            .push(materials.add(StandardMaterial::default()));
+    }
+
     info!("loaded {} materials", zeroverse_materials.materials.len());
 
     load_event.write(MaterialsLoadedEvent);
 }
 
+#[allow(clippy::too_many_arguments)]
 fn reload_materials(
+    args: Option<Res<BevyZeroverseConfig>>,
     asset_server: Res<AssetServer>,
     materials: ResMut<Assets<StandardMaterial>>,
     mut zeroverse_materials: ResMut<ZeroverseMaterials>,
@@ -179,6 +207,7 @@ fn reload_materials(
     zeroverse_materials.materials.clear();
 
     load_materials(
+        args,
         asset_server,
         materials,
         zeroverse_materials,

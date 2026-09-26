@@ -12,6 +12,7 @@ pub mod cornell_cube;
 pub mod human;
 pub mod lighting;
 pub mod object;
+pub mod procedural_indoor;
 pub mod room;
 pub mod semantic_room;
 
@@ -38,6 +39,7 @@ impl Plugin for ZeroverseScenePlugin {
             lighting::ZeroverseLightingPlugin,
             object::ZeroverseObjectPlugin,
             room::ZeroverseRoomPlugin,
+            procedural_indoor::ProceduralIndoorPlugin,
         ));
 
         app.add_systems(
@@ -69,6 +71,9 @@ pub enum ZeroverseSceneType {
     Object,
     SemanticRoom,
     Room,
+    /// Metric, asset-free furnished interiors with reproducible generation.
+    #[value(alias = "procedural_indoor")]
+    ProceduralIndoor,
 }
 
 #[derive(Resource, Debug, Default, Reflect)]
@@ -190,7 +195,7 @@ fn draw_scene_aabb(
     let color = Color::srgba(0.0, 1.0, 1.0, args.gizmos_alpha);
 
     for aabb in &scene_instances {
-        gizmos.cuboid(Transform::from(aabb), color);
+        gizmos.cube(Transform::from(aabb), color);
     }
 }
 

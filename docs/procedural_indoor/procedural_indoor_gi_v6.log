@@ -1,0 +1,16 @@
+
+running 1 test
+test baked_indirect_light_changes_rgb_without_changing_geometry_or_direct_lights ... 2026-09-24T18:18:21.303350Z  INFO bevy_render::renderer: AdapterInfo { name: "NVIDIA RTX PRO 6000 Blackwell Workstation Edition", vendor: 4318, device: 11185, device_type: DiscreteGpu, device_pci_bus_id: "0000:01:00.0", driver: "NVIDIA", driver_info: "610.43.02", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: false }
+2026-09-24T18:18:21.959546Z  INFO bevy_zeroverse: initializing BevyZeroversePlugin...
+2026-09-24T18:18:21.970957Z  INFO bevy_pbr::cluster: GPU clustering is supported on this device.
+2026-09-24T18:18:21.970979Z  INFO bevy_render::batching::gpu_preprocessing: GPU preprocessing is fully supported on this device.
+2026-09-24T18:18:21.972048Z  INFO bevy_zeroverse::app: skipping scene initialization.
+2026-09-24T18:18:22.867617Z  INFO bevy_zeroverse::scene::procedural_indoor: indoor diffuse GI GPU: 825 probes, 120464 triangles, 46.3 ms preparation, 39600 bytes
+2026-09-24T18:18:22.980999Z  INFO bevy_zeroverse::scene::procedural_indoor: procedural_indoor seed=6 version=3 humans=3 layout=OpenOffice room=Vec3(8.844214, 3.2474034, 9.035895) instances=40 cameras=2
+GPU GI vs CPU reference relative MAE: 0.17011182
+GI view 0: mean delta 0.027277235, changed 0.7651953
+GI view 1: mean delta 0.024553545, changed 0.65394855
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.58s
+

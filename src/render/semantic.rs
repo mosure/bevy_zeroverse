@@ -218,7 +218,14 @@ impl Plugin for SemanticPlugin {
         app.add_plugins(MaterialPlugin::<SemanticMaterial>::default());
 
         app.add_systems(Update, propagate_semantic_labels);
-        app.add_systems(PostUpdate, apply_semantic_material);
+        // Material insertion must precede Bevy's specialization bookkeeping.
+        // Otherwise annotation-mode scene regeneration can extract a material
+        // without its specialization tick (a renderer panic, notably on Wasm).
+        app.add_systems(
+            PostUpdate,
+            apply_semantic_material
+                .before(bevy::pbr::check_entities_needing_specialization::<SemanticMaterial>),
+        );
 
         // TODO: add system for bounding box render toggle
     }

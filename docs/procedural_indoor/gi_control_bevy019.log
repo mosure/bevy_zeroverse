@@ -1,0 +1,21 @@
+
+running 1 test
+test baked_indirect_light_changes_rgb_without_changing_geometry_or_direct_lights ... 2026-09-24T02:11:30.008829Z  INFO bevy_render::renderer: AdapterInfo { name: "NVIDIA RTX PRO 6000 Blackwell Workstation Edition", vendor: 4318, device: 11185, device_type: DiscreteGpu, device_pci_bus_id: "0000:01:00.0", driver: "NVIDIA", driver_info: "610.43.02", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: false }
+2026-09-24T02:11:31.024383Z  INFO bevy_zeroverse: initializing BevyZeroversePlugin...
+2026-09-24T02:11:31.049973Z  INFO bevy_pbr::cluster: GPU clustering is supported on this device.
+2026-09-24T02:11:31.050026Z  INFO bevy_render::batching::gpu_preprocessing: GPU preprocessing is fully supported on this device.
+2026-09-24T02:11:31.052444Z  INFO bevy_zeroverse::mesh: BEVY_ASSET_ROOT: `/tmp/.tmpws6qhW`
+2026-09-24T02:11:31.052550Z  INFO bevy_zeroverse::material: BEVY_ASSET_ROOT: `/tmp/.tmpws6qhW`
+2026-09-24T02:11:31.052573Z  INFO bevy_zeroverse::material: current working directory: /tmp/.tmpws6qhW
+2026-09-24T02:11:31.052616Z  INFO bevy_zeroverse::material: found 0 materials
+2026-09-24T02:11:31.053029Z  INFO bevy_zeroverse::app: skipping scene initialization.
+2026-09-24T02:11:31.315929Z  INFO bevy_zeroverse::scene::procedural_indoor: indoor diffuse GI GPU: 825 probes, 120464 triangles, 85.7 ms preparation, 39600 bytes
+2026-09-24T02:11:31.525256Z  INFO bevy_zeroverse::scene::procedural_indoor: procedural_indoor seed=6 version=3 humans=3 layout=OpenOffice room=Vec3(8.844214, 3.2474034, 9.035895) instances=40 cameras=2
+2026-09-24T02:11:31.557108Z  WARN bevy_light: Point lights and/or spot lights are present, but no entity has `ShadowLodOrigin`, and no camera that renders to the window has been found. Consider using the `ShadowLodOrigin` component to set a LOD origin.
+GPU GI vs CPU reference relative MAE: 0.17011182
+GI view 0: mean delta 0.027362851, changed 0.7652441
+GI view 1: mean delta 0.024580225, changed 0.6539225
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.92s
+

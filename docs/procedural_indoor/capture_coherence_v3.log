@@ -1,0 +1,37 @@
+$ cargo test --lib --no-default-features --features multi_threaded capture_motion_tests -- --nocapture
+$ cargo test --test capture_coherence --no-default-features --features multi_threaded -- --ignored --nocapture
+$ target/debug/build/bevy_zeroverse/0af332a162f2079c/out/bevy_zeroverse-0af332a162f2079c capture_motion_tests --nocapture
+
+running 3 tests
+test sample::capture_motion_tests::float32_geometry_rejects_unsupported_modes_without_dropping_requested_channels ... ok
+test sample::capture_motion_tests::camera_snapshot_rejects_pose_intrinsics_and_time_drift ... ok
+test sample::capture_motion_tests::capture_owns_normalized_time_and_restores_interactive_playback ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 61 filtered out; finished in 0.00s
+
+$ target/debug/build/bevy_zeroverse/06398873581cb4b9/out/capture_coherence-06398873581cb4b9 --ignored --nocapture
+
+running 1 test
+2026-09-23T18:55:35.789797Z  INFO bevy_render::renderer: AdapterInfo { name: "NVIDIA RTX PRO 6000 Blackwell Workstation Edition", vendor: 4318, device: 11185, device_type: DiscreteGpu, driver: "NVIDIA", driver_info: "610.43.02", backend: Vulkan }
+2026-09-23T18:55:36.625670Z  INFO bevy_zeroverse: initializing BevyZeroversePlugin...
+2026-09-23T18:55:36.658910Z  INFO bevy_render::batching::gpu_preprocessing: GPU preprocessing is fully supported on this device.
+2026-09-23T18:55:36.660929Z  INFO bevy_zeroverse::mesh: BEVY_ASSET_ROOT: `/tmp/.tmpYvRfiE`
+2026-09-23T18:55:36.660967Z  INFO bevy_zeroverse::material: BEVY_ASSET_ROOT: `/tmp/.tmpYvRfiE`
+2026-09-23T18:55:36.661017Z  INFO bevy_zeroverse::material: current working directory: /tmp/.tmpYvRfiE
+2026-09-23T18:55:36.661057Z  INFO bevy_zeroverse::material: found 0 materials
+2026-09-23T18:55:36.803315Z  INFO bevy_zeroverse::scene::procedural_indoor: procedural_indoor seed=6 version=3 humans=3 layout=OpenOffice room=Vec3(8.844214, 3.2474034, 9.035895) instances=40 cameras=1
+2026-09-23T18:55:36.847463Z  WARN bevy_pbr::render::mesh_view_bindings: Too many textures in mesh pipeline view layout, this might cause us to hit `wgpu::Limits::max_sampled_textures_per_shader_stage` in some environments.
+Float32Geometry step=0 time=0: AnnotationAlignment { checked_pixels: 2120, depth_position_p99_metres: 1.9073486e-6, reprojection_p99_pixels: 0.0018663969, normal_length_max_error: 1.7881393e-7, position_quantization_budget_p99_ratio: 0.14926592 }
+Float32Geometry step=1 time=0.4: AnnotationAlignment { checked_pixels: 2120, depth_position_p99_metres: 1.9073486e-6, reprojection_p99_pixels: 0.001913142, normal_length_max_error: 1.7881393e-7, position_quantization_budget_p99_ratio: 0.14515029 }
+Float32Geometry step=2 time=0.8: AnnotationAlignment { checked_pixels: 2120, depth_position_p99_metres: 1.9073486e-6, reprojection_p99_pixels: 0.0021039983, normal_length_max_error: 1.7881393e-7, position_quantization_budget_p99_ratio: 0.15259816 }
+Float16Hdr step=0 time=0: AnnotationAlignment { checked_pixels: 2120, depth_position_p99_metres: 0.017362595, reprojection_p99_pixels: 0.7643752, normal_length_max_error: 0.0011794567, position_quantization_budget_p99_ratio: 0.81712085 }
+Float16Hdr step=1 time=0.4: AnnotationAlignment { checked_pixels: 2120, depth_position_p99_metres: 0.017409801, reprojection_p99_pixels: 0.6999635, normal_length_max_error: 0.0013241172, position_quantization_budget_p99_ratio: 0.8220189 }
+Float16Hdr step=2 time=0.8: AnnotationAlignment { checked_pixels: 2120, depth_position_p99_metres: 0.016625404, reprojection_p99_pixels: 0.72803986, normal_length_max_error: 0.0012930632, position_quantization_budget_p99_ratio: 0.8265447 }
+2026-09-23T18:55:37.474796Z  INFO bevy_zeroverse::scene::procedural_indoor: procedural_indoor seed=7 version=3 humans=4 layout=Conference room=Vec3(7.6943026, 2.9547467, 7.838359) instances=46 cameras=1
+Float32Geometry step=0 time=0: AnnotationAlignment { checked_pixels: 2120, depth_position_p99_metres: 1.66893e-6, reprojection_p99_pixels: 0.0019128035, normal_length_max_error: 2.3841858e-7, position_quantization_budget_p99_ratio: 0.16037291 }
+Float32Geometry step=1 time=0.4: AnnotationAlignment { checked_pixels: 2120, depth_position_p99_metres: 1.9073486e-6, reprojection_p99_pixels: 0.0019630278, normal_length_max_error: 1.7881393e-7, position_quantization_budget_p99_ratio: 0.15176983 }
+Float32Geometry step=2 time=0.8: AnnotationAlignment { checked_pixels: 2120, depth_position_p99_metres: 1.9073486e-6, reprojection_p99_pixels: 0.0020505053, normal_length_max_error: 1.7881393e-7, position_quantization_budget_p99_ratio: 0.1613814 }
+test animated_viewer_settings_capture_fixed_steps_and_reject_midflight_changes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.06s
+

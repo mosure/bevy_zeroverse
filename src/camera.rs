@@ -1,8 +1,5 @@
 use bevy::{
-    camera::{
-        visibility::RenderLayers, Exposure, ImageRenderTarget, RenderTarget,
-        ScreenSpaceTransmissionQuality,
-    },
+    camera::{visibility::RenderLayers, Exposure, Hdr, ImageRenderTarget, RenderTarget},
     core_pipeline::prepass::MotionVectorPrepass, // MOTION_VECTOR_PREPASS_FORMAT,
     gizmos::config::{GizmoConfig, GizmoConfigGroup},
     math::{
@@ -10,6 +7,7 @@ use bevy::{
         primitives::{Circle, Sphere},
         sampling::ShapeSample,
     },
+    pbr::{ScreenSpaceTransmission, ScreenSpaceTransmissionQuality},
     post_process::bloom::Bloom,
     prelude::*,
     render::{
@@ -17,7 +15,6 @@ use bevy::{
             Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
         },
         renderer::RenderDevice,
-        view::Hdr,
     },
 };
 use bevy_args::{Deserialize, Parser, Serialize, ValueEnum};
@@ -45,6 +42,18 @@ use crate::{
 };
 
 // TODO: support camera trajectories, requires custom motion vector prepass during capture
+/// Stable dataset camera index, independent of ECS archetype iteration order.
+#[derive(Component, Clone, Copy, Debug)]
+pub struct CaptureCameraIndex(pub usize);
+
+/// Capture submission policy, applied only when each camera is created.
+/// Direct draws avoid driver retention in indirect validation while preserving
+/// GPU mesh preprocessing. Interactive cameras keep Bevy's default GPU culling.
+#[derive(Resource, Default)]
+pub struct CaptureDrawPolicy {
+    pub indirect: bool,
+}
+
 pub struct ZeroverseCameraPlugin;
 impl Plugin for ZeroverseCameraPlugin {
     fn build(&self, app: &mut App) {
@@ -65,6 +74,7 @@ impl Plugin for ZeroverseCameraPlugin {
         );
 
         app.init_resource::<DefaultZeroverseCamera>();
+        app.init_resource::<CaptureDrawPolicy>();
 
         app.init_resource::<Playback>();
         app.register_type::<Playback>();
@@ -105,10 +115,7 @@ impl LookingAtSampler {
             LookingAtSampler::Sphere {
                 geometry,
                 transform,
-            } => {
-                let mut rng = rand::rng();
-                transform * geometry.sample_interior(&mut rng)
-            }
+            } => transform * geometry.sample_interior(&mut rand_bevy::rng()),
         }
     }
 
@@ -261,16 +268,12 @@ impl ExtrinsicsSampler {
                 rotation,
                 translate,
             } => {
-                let mut rng = rand::rng();
-
-                let xz = Circle::new(radius).sample_boundary(&mut rng);
+                let xz = Circle::new(radius).sample_boundary(&mut rand_bevy::rng());
                 let pos = rotation.mul_vec3(Vec3::new(xz.x, 0.0, xz.y)) + translate;
                 Transform::from_translation(pos)
             }
             ExtrinsicsSamplerType::Sphere { radius, translate } => {
-                let mut rng = rand::rng();
-
-                let pos = Sphere::new(radius).sample_boundary(&mut rng);
+                let pos = Sphere::new(radius).sample_boundary(&mut rand_bevy::rng());
                 Transform::from_translation(pos + translate)
             }
             ExtrinsicsSamplerType::SphereShell {
@@ -951,19 +954,24 @@ fn update_camera_trajectory(
     }
 }
 
+#[allow(clippy::too_many_arguments)] // Bevy system dependencies.
 fn insert_cameras(
     mut commands: Commands,
     mut images: ResMut<Assets<Image>>,
-    mut zeroverse_cameras: Query<(Entity, &mut ZeroverseCamera), Without<Camera>>,
+    mut zeroverse_cameras: Query<
+        (Entity, &mut ZeroverseCamera, Option<&CaptureCameraIndex>),
+        Without<Camera>,
+    >,
     default_zeroverse_camera: Res<DefaultZeroverseCamera>,
     args: Res<BevyZeroverseConfig>,
+    draw_policy: Res<CaptureDrawPolicy>,
     render_mode: Res<RenderMode>,
     render_device: Option<Res<RenderDevice>>,
 ) {
     let Some(render_device) = render_device.as_ref() else {
         return;
     };
-    for (entity, mut zeroverse_camera) in zeroverse_cameras.iter_mut() {
+    for (entity, mut zeroverse_camera, capture_index) in zeroverse_cameras.iter_mut() {
         let resolution = zeroverse_camera.resolution
             .unwrap_or(default_zeroverse_camera.resolution.expect("DefaultZeroverseCamera resolution must be set if ZeroverseCamera resolution is not set"));
 
@@ -996,14 +1004,13 @@ fn insert_cameras(
         // TODO: modulate fov
         let mut camera = commands.entity(entity);
         camera.insert((
-            Camera3d {
-                screen_space_specular_transmission_quality: ScreenSpaceTransmissionQuality::High,
+            Camera3d::default(),
+            ScreenSpaceTransmission {
+                quality: ScreenSpaceTransmissionQuality::High,
                 ..default()
             },
-            Camera {
-                target,
-                ..default()
-            },
+            Camera::default(),
+            target,
             Hdr,
             Exposure::INDOOR,
             MotionVectorPrepass,
@@ -1018,6 +1025,12 @@ fn insert_cameras(
             Name::new("zeroverse_camera"),
         ));
 
+        // Bevy 0.19 shares local-light shadow LOD across views. Use dataset
+        // camera zero explicitly; entity allocation order can vary across jobs.
+        if args.headless && !args.editor && capture_index.is_none_or(|index| index.0 == 0) {
+            camera.insert(bevy::camera::ShadowLodOrigin);
+        }
+
         if let Some(bloom) = render_mode.bloom() {
             camera.insert(bloom);
         }
@@ -1026,33 +1039,42 @@ fn insert_cameras(
         camera.insert((DepthPrepass, NormalPrepass));
 
         if args.image_copiers {
-            // TODO: use pipeline color format
-            {
-                // color
-                let mut color_cpu_image = Image {
-                    texture_descriptor: TextureDescriptor {
-                        label: "bevy_zeroverse_camera_cpu_image".into(),
-                        size,
-                        dimension: TextureDimension::D2,
-                        format: TextureFormat::Rgba32Float,
-                        mip_level_count: 1,
-                        sample_count: 1,
-                        usage: TextureUsages::COPY_DST | TextureUsages::TEXTURE_BINDING,
-                        view_formats: &[],
-                    },
-                    ..Default::default()
-                };
-                color_cpu_image.resize(size);
-                let color_cpu_image_handle = images.add(color_cpu_image);
-
-                camera.insert(io::image_copy::ImageCopier::new(
-                    render_target,
-                    color_cpu_image_handle,
-                    size,
-                    TextureFormat::Rgba32Float,
-                    render_device.as_ref(),
-                ));
+            #[cfg(not(target_arch = "wasm32"))]
+            if !draw_policy.indirect {
+                camera.insert(bevy::render::view::NoIndirectDrawing);
             }
+            #[cfg(target_arch = "wasm32")]
+            let _ = &draw_policy;
+            #[allow(unused_mut)] // Native ground truth adds two attachments.
+            let mut targets = vec![render_target];
+            #[cfg(not(target_arch = "wasm32"))]
+            if args.scene_type == crate::scene::ZeroverseSceneType::ProceduralIndoor
+                && args
+                    .render_modes
+                    .iter()
+                    .chain(std::iter::once(&args.render_mode))
+                    .any(|mode| {
+                        matches!(
+                            mode,
+                            RenderMode::Depth
+                                | RenderMode::Position
+                                | RenderMode::Normal
+                                | RenderMode::Semantic
+                        )
+                    })
+            {
+                let ground_truth =
+                    crate::render::ground_truth::GroundTruthCamera::new(&mut images, resolution);
+                targets.push(ground_truth.world_depth.clone());
+                targets.push(ground_truth.normal_semantic.clone());
+                camera.insert(ground_truth);
+            }
+            camera.insert(io::image_copy::ImageCopier::for_targets(
+                targets,
+                size,
+                TextureFormat::Rgba32Float,
+                render_device,
+            ));
 
             // let mut copiers = Vec::new();
 
@@ -1167,9 +1189,9 @@ fn setup_editor_camera(
         let mut entity = commands.entity(entity);
         entity
             .insert((
-                Camera3d {
-                    screen_space_specular_transmission_quality:
-                        ScreenSpaceTransmissionQuality::High,
+                Camera3d::default(),
+                ScreenSpaceTransmission {
+                    quality: ScreenSpaceTransmissionQuality::High,
                     ..default()
                 },
                 Hdr,

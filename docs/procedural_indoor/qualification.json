@@ -1,0 +1,1239 @@
+{
+  "schema_version": 2,
+  "generator_version": 2,
+  "status": "bounded structural, render and dataset qualification; not state-of-the-art photographic realism",
+  "date": "2026-09-23",
+  "native_render": {
+    "schema_version": 1,
+    "run_id": "3501137-1790184299285147407",
+    "generator_version": 2,
+    "selection_policy": "first observed seed per layout/lighting/floor/furniture cell; category-balanced order, no image quality filtering",
+    "audit_scenes": 10000,
+    "rendered_scenes": 108,
+    "rendered_views": 648,
+    "playback_steps": 3,
+    "image_size": [
+      320,
+      240
+    ],
+    "observed_strata": 108,
+    "captured_layouts": {
+      "Lounge": 27,
+      "Conference": 27,
+      "OpenOffice": 27,
+      "Training": 27
+    },
+    "captured_lighting": {
+      "Evening": 36,
+      "Daylight": 36,
+      "Overcast": 36
+    },
+    "captured_floors": {
+      "1": 36,
+      "2": 36,
+      "0": 36
+    },
+    "captured_furniture": {
+      "2": 36,
+      "0": 36,
+      "1": 36
+    },
+    "rgb_and_pose": {
+      "mean_luminance": {
+        "count": 648,
+        "min": 0.09752095,
+        "max": 0.30219257,
+        "mean": 0.16253389687962963,
+        "p05_p50_p95": [
+          0.11239545,
+          0.15878427,
+          0.23083968
+        ]
+      },
+      "luminance_std": {
+        "count": 648,
+        "min": 0.058385845,
+        "max": 0.28245646,
+        "mean": 0.13026865933333334,
+        "p05_p50_p95": [
+          0.07220314,
+          0.12336985,
+          0.2208057
+        ]
+      },
+      "dark_fraction": {
+        "count": 648,
+        "min": 0.0,
+        "max": 0.0,
+        "mean": 0.0,
+        "p05_p50_p95": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "clipped_fraction": {
+        "count": 648,
+        "min": 0.0,
+        "max": 0.00125,
+        "mean": 1.3161490628086421e-05,
+        "p05_p50_p95": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "pose_max_absolute_error": {
+        "count": 648,
+        "min": 0.0,
+        "max": 0.0,
+        "mean": 0.0,
+        "p05_p50_p95": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "annotation": {
+      "depth_position_p99_metres": {
+        "count": 648,
+        "min": 0.0076048374,
+        "max": 0.021763802,
+        "mean": 0.014358011658796296,
+        "p05_p50_p95": [
+          0.009047985,
+          0.014593601,
+          0.019828081
+        ]
+      },
+      "reprojection_p99_pixels": {
+        "count": 648,
+        "min": 0.65763307,
+        "max": 7.3455,
+        "mean": 1.7345586843981482,
+        "p05_p50_p95": [
+          0.92700404,
+          1.5041742,
+          3.4036622
+        ]
+      },
+      "normal_length_max_error": {
+        "count": 648,
+        "min": 0.0011402965,
+        "max": 0.0016044378,
+        "mean": 0.0013656938134259259,
+        "p05_p50_p95": [
+          0.0012415051,
+          0.0013546348,
+          0.0015241504
+        ]
+      },
+      "position_quantization_budget_p99_ratio": {
+        "count": 648,
+        "min": 0.71412927,
+        "max": 0.93672514,
+        "mean": 0.8944278071296295,
+        "p05_p50_p95": [
+          0.8039438,
+          0.9068591,
+          0.92725676
+        ]
+      }
+    },
+    "mean_linear_luminance_by_layout": {
+      "Lounge": {
+        "count": 162,
+        "min": 0.10874009,
+        "max": 0.26266873,
+        "mean": 0.16403678538888888,
+        "p05_p50_p95": [
+          0.1131191,
+          0.16018745,
+          0.24108563
+        ]
+      },
+      "Conference": {
+        "count": 162,
+        "min": 0.09752095,
+        "max": 0.2942082,
+        "mean": 0.16303367174691358,
+        "p05_p50_p95": [
+          0.11662561,
+          0.15979937,
+          0.22067052
+        ]
+      },
+      "OpenOffice": {
+        "count": 162,
+        "min": 0.10841875,
+        "max": 0.30219257,
+        "mean": 0.16573931709876544,
+        "p05_p50_p95": [
+          0.11691432,
+          0.15846495,
+          0.24373133
+        ]
+      },
+      "Training": {
+        "count": 162,
+        "min": 0.097677365,
+        "max": 0.22346593,
+        "mean": 0.15732581328395062,
+        "p05_p50_p95": [
+          0.10286525,
+          0.15251614,
+          0.20276488
+        ]
+      }
+    },
+    "semantic_pixel_counts": {
+      "books": 239912,
+      "bookshelf": 391833,
+      "cabinet": 605522,
+      "ceiling": 10779108,
+      "chair": 4205767,
+      "desk": 2405814,
+      "floor": 11252673,
+      "floormat": 1594448,
+      "lamp": 264901,
+      "other_prop": 699716,
+      "other_structure": 574132,
+      "paper": 162713,
+      "picture": 181851,
+      "pillow": 34559,
+      "sofa": 806312,
+      "table": 890871,
+      "television": 627127,
+      "wall": 7952449,
+      "whiteboard": 378976,
+      "window": 5391933,
+      "door": 148069,
+      "blinds": 177574,
+      "background": 140
+    },
+    "semantic_view_presence_fraction": {
+      "books": 0.7608024691358025,
+      "bookshelf": 0.5123456790123457,
+      "cabinet": 0.6990740740740741,
+      "ceiling": 0.970679012345679,
+      "chair": 1.0,
+      "desk": 0.6558641975308642,
+      "floor": 1.0,
+      "floormat": 0.25,
+      "lamp": 0.9753086419753086,
+      "other_prop": 0.9969135802469136,
+      "other_structure": 0.9984567901234568,
+      "paper": 0.9938271604938271,
+      "picture": 0.5015432098765432,
+      "pillow": 0.21296296296296297,
+      "sofa": 0.25,
+      "table": 0.49691358024691357,
+      "television": 0.7098765432098766,
+      "wall": 1.0,
+      "whiteboard": 0.4305555555555556,
+      "window": 0.7700617283950617,
+      "door": 0.2962962962962963,
+      "blinds": 0.2222222222222222,
+      "background": 0.05246913580246913
+    },
+    "asset_counts": {
+      "mesh_assets": {
+        "count": 108,
+        "min": 119,
+        "max": 232,
+        "mean": 172.25,
+        "p05_p50_p95": [
+          123,
+          178,
+          218
+        ]
+      },
+      "material_assets": {
+        "count": 108,
+        "min": 23,
+        "max": 24,
+        "mean": 23.90740740740741,
+        "p05_p50_p95": [
+          23,
+          24,
+          24
+        ]
+      },
+      "image_assets": {
+        "count": 108,
+        "min": 44,
+        "max": 47,
+        "mean": 46.72222222222222,
+        "p05_p50_p95": [
+          44,
+          47,
+          47
+        ]
+      }
+    },
+    "capture_wall_seconds": {
+      "count": 108,
+      "min": 1.042890871,
+      "max": 4.401192444,
+      "mean": 1.8477827441574075,
+      "p05_p50_p95": [
+        1.225686234,
+        1.6634440640000001,
+        3.179659348
+      ]
+    },
+    "renderer": [
+      "WgpuWrapper(AdapterInfo { name: \"NVIDIA RTX PRO 6000 Blackwell Workstation Edition\", vendor: 4318, device: 11185, device_type: DiscreteGpu, driver: \"NVIDIA\", driver_info: \"610.43.02\", backend: Vulkan })"
+    ],
+    "capabilities": {
+      "annotation_hdr_format": "RGBA16Float",
+      "bloom": true,
+      "quality": "Auto",
+      "shadow_map_size": 2048,
+      "shadows": true,
+      "specular_transmission": true,
+      "ssao": true
+    },
+    "limits": [
+      "Signal and constraint gates do not measure photographic realism or real-office distribution match.",
+      "Camera paths checked at every captured timestep; geometry sweep is also audited separately.",
+      "Semantic pixel presence differs from scene instance counts; glazing is opaque in annotation passes.",
+      "HDR annotations quantize through RGBA16Float; reprojection errors are reported, not hidden.",
+      "Capture wall time includes generation, warmup, five render passes and disk IO; not FPS or isolated throughput."
+    ],
+    "darkest_views": [
+      {
+        "path": "out/indoor_review_v2/seed_000057/view_00_color.png",
+        "seed": 57,
+        "view": 0,
+        "mean_luminance": 0.09752095
+      },
+      {
+        "path": "out/indoor_review_v2/seed_000081/view_00_color.png",
+        "seed": 81,
+        "view": 0,
+        "mean_luminance": 0.097677365
+      },
+      {
+        "path": "out/indoor_review_v2/seed_000081/view_04_color.png",
+        "seed": 81,
+        "view": 4,
+        "mean_luminance": 0.09865059
+      },
+      {
+        "path": "out/indoor_review_v2/seed_000057/view_02_color.png",
+        "seed": 57,
+        "view": 2,
+        "mean_luminance": 0.0991199
+      },
+      {
+        "path": "out/indoor_review_v2/seed_000404/view_01_color.png",
+        "seed": 404,
+        "view": 1,
+        "mean_luminance": 0.09928107
+      },
+      {
+        "path": "out/indoor_review_v2/seed_000057/view_04_color.png",
+        "seed": 57,
+        "view": 4,
+        "mean_luminance": 0.09991879
+      },
+      {
+        "path": "out/indoor_review_v2/seed_000081/view_02_color.png",
+        "seed": 81,
+        "view": 2,
+        "mean_luminance": 0.100101344
+      },
+      {
+        "path": "out/indoor_review_v2/seed_000081/view_01_color.png",
+        "seed": 81,
+        "view": 1,
+        "mean_luminance": 0.10020513
+      }
+    ],
+    "brightest_views": [
+      {
+        "path": "out/indoor_review_v2/seed_000011/view_04_color.png",
+        "seed": 11,
+        "view": 4,
+        "mean_luminance": 0.30219257
+      },
+      {
+        "path": "out/indoor_review_v2/seed_000023/view_01_color.png",
+        "seed": 23,
+        "view": 1,
+        "mean_luminance": 0.2942082
+      },
+      {
+        "path": "out/indoor_review_v2/seed_000062/view_01_color.png",
+        "seed": 62,
+        "view": 1,
+        "mean_luminance": 0.289331
+      },
+      {
+        "path": "out/indoor_review_v2/seed_000062/view_05_color.png",
+        "seed": 62,
+        "view": 5,
+        "mean_luminance": 0.28893933
+      },
+      {
+        "path": "out/indoor_review_v2/seed_000023/view_03_color.png",
+        "seed": 23,
+        "view": 3,
+        "mean_luminance": 0.28889585
+      },
+      {
+        "path": "out/indoor_review_v2/seed_000062/view_03_color.png",
+        "seed": 62,
+        "view": 3,
+        "mean_luminance": 0.28888708
+      },
+      {
+        "path": "out/indoor_review_v2/seed_000023/view_05_color.png",
+        "seed": 23,
+        "view": 5,
+        "mean_luminance": 0.28034237
+      },
+      {
+        "path": "out/indoor_review_v2/seed_000011/view_02_color.png",
+        "seed": 11,
+        "view": 2,
+        "mean_luminance": 0.27959716
+      }
+    ],
+    "largest_position_error_views": [
+      {
+        "path": "out/indoor_review_v2/seed_000054/view_01_color.png",
+        "seed": 54,
+        "view": 1,
+        "mean_luminance": 0.1429414
+      },
+      {
+        "path": "out/indoor_review_v2/seed_000054/view_03_color.png",
+        "seed": 54,
+        "view": 3,
+        "mean_luminance": 0.14446986
+      },
+      {
+        "path": "out/indoor_review_v2/seed_000054/view_05_color.png",
+        "seed": 54,
+        "view": 5,
+        "mean_luminance": 0.1432647
+      },
+      {
+        "path": "out/indoor_review_v2/seed_000058/view_04_color.png",
+        "seed": 58,
+        "view": 4,
+        "mean_luminance": 0.17052166
+      },
+      {
+        "path": "out/indoor_review_v2/seed_000058/view_02_color.png",
+        "seed": 58,
+        "view": 2,
+        "mean_luminance": 0.17101921
+      },
+      {
+        "path": "out/indoor_review_v2/seed_000202/view_00_color.png",
+        "seed": 202,
+        "view": 0,
+        "mean_luminance": 0.15829545
+      },
+      {
+        "path": "out/indoor_review_v2/seed_000074/view_01_color.png",
+        "seed": 74,
+        "view": 1,
+        "mean_luminance": 0.12670091
+      },
+      {
+        "path": "out/indoor_review_v2/seed_000195/view_02_color.png",
+        "seed": 195,
+        "view": 2,
+        "mean_luminance": 0.15028705
+      }
+    ]
+  },
+  "native_high_resolution": {
+    "schema_version": 1,
+    "run_id": "3505076-1790184426839583928",
+    "generator_version": 2,
+    "selection_policy": "consecutive seeds",
+    "audit_scenes": 64,
+    "rendered_scenes": 8,
+    "rendered_views": 72,
+    "playback_steps": 3,
+    "image_size": [
+      801,
+      601
+    ],
+    "observed_strata": 49,
+    "captured_layouts": {
+      "Lounge": 2,
+      "Conference": 4,
+      "Training": 1,
+      "OpenOffice": 1
+    },
+    "captured_lighting": {
+      "Evening": 3,
+      "Overcast": 1,
+      "Daylight": 4
+    },
+    "captured_floors": {
+      "1": 2,
+      "0": 4,
+      "2": 2
+    },
+    "captured_furniture": {
+      "2": 5,
+      "1": 1,
+      "0": 2
+    },
+    "rgb_and_pose": {
+      "mean_luminance": {
+        "count": 72,
+        "min": 0.106854945,
+        "max": 0.22104017,
+        "mean": 0.14919814808333334,
+        "p05_p50_p95": [
+          0.1155991,
+          0.14507595,
+          0.19895647
+        ]
+      },
+      "luminance_std": {
+        "count": 72,
+        "min": 0.069109306,
+        "max": 0.2132463,
+        "mean": 0.12371048619444444,
+        "p05_p50_p95": [
+          0.06967867,
+          0.116429426,
+          0.18965544
+        ]
+      },
+      "dark_fraction": {
+        "count": 72,
+        "min": 0.0,
+        "max": 0.0,
+        "mean": 0.0,
+        "p05_p50_p95": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "clipped_fraction": {
+        "count": 72,
+        "min": 0.0,
+        "max": 0.0,
+        "mean": 0.0,
+        "p05_p50_p95": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "pose_max_absolute_error": {
+        "count": 72,
+        "min": 0.0,
+        "max": 4.7683716e-07,
+        "mean": 1.498394547916667e-07,
+        "p05_p50_p95": [
+          0.0,
+          5.9604645e-08,
+          4.7683716e-07
+        ]
+      }
+    },
+    "annotation": {
+      "depth_position_p99_metres": {
+        "count": 72,
+        "min": 0.0076835155,
+        "max": 0.02306366,
+        "mean": 0.014992343020833333,
+        "p05_p50_p95": [
+          0.009085178,
+          0.014980793,
+          0.021197557
+        ]
+      },
+      "reprojection_p99_pixels": {
+        "count": 72,
+        "min": 1.925053,
+        "max": 12.314578,
+        "mean": 4.661393452777777,
+        "p05_p50_p95": [
+          2.0960364,
+          4.4467707,
+          7.7516704
+        ]
+      },
+      "normal_length_max_error": {
+        "count": 72,
+        "min": 0.001287818,
+        "max": 0.001609683,
+        "mean": 0.0014597119555555555,
+        "p05_p50_p95": [
+          0.0013164878,
+          0.0014635324,
+          0.0015461445
+        ]
+      },
+      "position_quantization_budget_p99_ratio": {
+        "count": 72,
+        "min": 0.49738407,
+        "max": 0.92997813,
+        "mean": 0.8226393552777778,
+        "p05_p50_p95": [
+          0.5447187,
+          0.8899639,
+          0.9253718
+        ]
+      }
+    },
+    "mean_linear_luminance_by_layout": {
+      "Lounge": {
+        "count": 18,
+        "min": 0.106854945,
+        "max": 0.19895647,
+        "mean": 0.15109519422222223,
+        "p05_p50_p95": [
+          0.107693695,
+          0.14752375,
+          0.19339706
+        ]
+      },
+      "Conference": {
+        "count": 36,
+        "min": 0.11382488,
+        "max": 0.22104017,
+        "mean": 0.15135553155555556,
+        "p05_p50_p95": [
+          0.117259786,
+          0.14483769,
+          0.20777468
+        ]
+      },
+      "Training": {
+        "count": 9,
+        "min": 0.1504175,
+        "max": 0.20037606,
+        "mean": 0.16656969666666666,
+        "p05_p50_p95": [
+          0.1504175,
+          0.16416189,
+          0.20037606
+        ]
+      },
+      "OpenOffice": {
+        "count": 9,
+        "min": 0.11607722,
+        "max": 0.12228529,
+        "mean": 0.11940297333333334,
+        "p05_p50_p95": [
+          0.11607722,
+          0.12055935,
+          0.12228529
+        ]
+      }
+    },
+    "semantic_pixel_counts": {
+      "books": 171658,
+      "bookshelf": 301376,
+      "cabinet": 583608,
+      "ceiling": 8079716,
+      "chair": 3108574,
+      "desk": 870297,
+      "floor": 6910680,
+      "floormat": 993995,
+      "lamp": 190746,
+      "other_prop": 669491,
+      "other_structure": 405412,
+      "paper": 106348,
+      "picture": 132985,
+      "pillow": 19714,
+      "sofa": 945663,
+      "table": 970041,
+      "television": 420218,
+      "wall": 5605866,
+      "whiteboard": 300632,
+      "background": 60,
+      "window": 3627137,
+      "door": 184782,
+      "blinds": 61873
+    },
+    "semantic_view_presence_fraction": {
+      "books": 0.75,
+      "bookshelf": 0.6111111111111112,
+      "cabinet": 0.6666666666666666,
+      "ceiling": 1.0,
+      "chair": 1.0,
+      "desk": 0.3888888888888889,
+      "floor": 1.0,
+      "floormat": 0.25,
+      "lamp": 1.0,
+      "other_prop": 1.0,
+      "other_structure": 1.0,
+      "paper": 0.9861111111111112,
+      "picture": 0.5555555555555556,
+      "pillow": 0.19444444444444445,
+      "sofa": 0.25,
+      "table": 0.7361111111111112,
+      "television": 0.6388888888888888,
+      "wall": 1.0,
+      "whiteboard": 0.4861111111111111,
+      "background": 0.1111111111111111,
+      "window": 0.8472222222222222,
+      "door": 0.4722222222222222,
+      "blinds": 0.125
+    },
+    "asset_counts": {
+      "mesh_assets": {
+        "count": 8,
+        "min": 130,
+        "max": 198,
+        "mean": 171.75,
+        "p05_p50_p95": [
+          130,
+          190,
+          198
+        ]
+      },
+      "material_assets": {
+        "count": 8,
+        "min": 24,
+        "max": 24,
+        "mean": 24.0,
+        "p05_p50_p95": [
+          24,
+          24,
+          24
+        ]
+      },
+      "image_assets": {
+        "count": 8,
+        "min": 49,
+        "max": 49,
+        "mean": 49.0,
+        "p05_p50_p95": [
+          49,
+          49,
+          49
+        ]
+      }
+    },
+    "capture_wall_seconds": {
+      "count": 8,
+      "min": 5.010141427,
+      "max": 8.057692647,
+      "mean": 6.3731190405,
+      "p05_p50_p95": [
+        5.010141427,
+        6.3301158619999995,
+        8.057692647
+      ]
+    },
+    "renderer": [
+      "WgpuWrapper(AdapterInfo { name: \"NVIDIA RTX PRO 6000 Blackwell Workstation Edition\", vendor: 4318, device: 11185, device_type: DiscreteGpu, driver: \"NVIDIA\", driver_info: \"610.43.02\", backend: Vulkan })"
+    ],
+    "capabilities": {
+      "annotation_hdr_format": "RGBA16Float",
+      "bloom": true,
+      "quality": "Auto",
+      "shadow_map_size": 2048,
+      "shadows": true,
+      "specular_transmission": true,
+      "ssao": true
+    },
+    "limits": [
+      "Signal and constraint gates do not measure photographic realism or real-office distribution match.",
+      "Camera paths checked at every captured timestep; geometry sweep is also audited separately.",
+      "Semantic pixel presence differs from scene instance counts; glazing is opaque in annotation passes.",
+      "HDR annotations quantize through RGBA16Float; reprojection errors are reported, not hidden.",
+      "Capture wall time includes generation, warmup, five render passes and disk IO; not FPS or isolated throughput."
+    ],
+    "darkest_views": [
+      {
+        "path": "out/indoor_review_highres/seed_000000/view_05_color.png",
+        "seed": 0,
+        "view": 5,
+        "mean_luminance": 0.106854945
+      },
+      {
+        "path": "out/indoor_review_highres/seed_000000/view_08_color.png",
+        "seed": 0,
+        "view": 8,
+        "mean_luminance": 0.107693695
+      },
+      {
+        "path": "out/indoor_review_highres/seed_000000/view_02_color.png",
+        "seed": 0,
+        "view": 2,
+        "mean_luminance": 0.108613096
+      },
+      {
+        "path": "out/indoor_review_highres/seed_000002/view_02_color.png",
+        "seed": 2,
+        "view": 2,
+        "mean_luminance": 0.11382488
+      },
+      {
+        "path": "out/indoor_review_highres/seed_000002/view_05_color.png",
+        "seed": 2,
+        "view": 5,
+        "mean_luminance": 0.1155991
+      },
+      {
+        "path": "out/indoor_review_highres/seed_000006/view_07_color.png",
+        "seed": 6,
+        "view": 7,
+        "mean_luminance": 0.11607722
+      },
+      {
+        "path": "out/indoor_review_highres/seed_000006/view_04_color.png",
+        "seed": 6,
+        "view": 4,
+        "mean_luminance": 0.11675235
+      },
+      {
+        "path": "out/indoor_review_highres/seed_000002/view_08_color.png",
+        "seed": 2,
+        "view": 8,
+        "mean_luminance": 0.117259786
+      }
+    ],
+    "brightest_views": [
+      {
+        "path": "out/indoor_review_highres/seed_000007/view_06_color.png",
+        "seed": 7,
+        "view": 6,
+        "mean_luminance": 0.22104017
+      },
+      {
+        "path": "out/indoor_review_highres/seed_000007/view_03_color.png",
+        "seed": 7,
+        "view": 3,
+        "mean_luminance": 0.2082533
+      },
+      {
+        "path": "out/indoor_review_highres/seed_000007/view_07_color.png",
+        "seed": 7,
+        "view": 7,
+        "mean_luminance": 0.20777468
+      },
+      {
+        "path": "out/indoor_review_highres/seed_000004/view_01_color.png",
+        "seed": 4,
+        "view": 1,
+        "mean_luminance": 0.20037606
+      },
+      {
+        "path": "out/indoor_review_highres/seed_000001/view_01_color.png",
+        "seed": 1,
+        "view": 1,
+        "mean_luminance": 0.19895647
+      },
+      {
+        "path": "out/indoor_review_highres/seed_000007/view_00_color.png",
+        "seed": 7,
+        "view": 0,
+        "mean_luminance": 0.19528355
+      },
+      {
+        "path": "out/indoor_review_highres/seed_000001/view_04_color.png",
+        "seed": 1,
+        "view": 4,
+        "mean_luminance": 0.19339706
+      },
+      {
+        "path": "out/indoor_review_highres/seed_000007/view_04_color.png",
+        "seed": 7,
+        "view": 4,
+        "mean_luminance": 0.19010806
+      }
+    ],
+    "largest_position_error_views": [
+      {
+        "path": "out/indoor_review_highres/seed_000002/view_08_color.png",
+        "seed": 2,
+        "view": 8,
+        "mean_luminance": 0.117259786
+      },
+      {
+        "path": "out/indoor_review_highres/seed_000002/view_05_color.png",
+        "seed": 2,
+        "view": 5,
+        "mean_luminance": 0.1155991
+      },
+      {
+        "path": "out/indoor_review_highres/seed_000002/view_02_color.png",
+        "seed": 2,
+        "view": 2,
+        "mean_luminance": 0.11382488
+      },
+      {
+        "path": "out/indoor_review_highres/seed_000006/view_08_color.png",
+        "seed": 6,
+        "view": 8,
+        "mean_luminance": 0.11734247
+      },
+      {
+        "path": "out/indoor_review_highres/seed_000006/view_05_color.png",
+        "seed": 6,
+        "view": 5,
+        "mean_luminance": 0.12199667
+      },
+      {
+        "path": "out/indoor_review_highres/seed_000006/view_02_color.png",
+        "seed": 6,
+        "view": 2,
+        "mean_luminance": 0.12228529
+      },
+      {
+        "path": "out/indoor_review_highres/seed_000004/view_06_color.png",
+        "seed": 4,
+        "view": 6,
+        "mean_luminance": 0.16802725
+      },
+      {
+        "path": "out/indoor_review_highres/seed_000007/view_08_color.png",
+        "seed": 7,
+        "view": 8,
+        "mean_luminance": 0.17025888
+      }
+    ]
+  },
+  "geometry": {
+    "generator_version": 2,
+    "qualification": "bounded structural and distribution evaluation; not photographic realism certification",
+    "density_sweep": {
+      "seed_range_inclusive": [
+        0,
+        9999
+      ],
+      "densities": [
+        0.0,
+        0.35,
+        0.65,
+        1.0
+      ],
+      "scene_configurations": 40000,
+      "cameras_per_configuration": 4,
+      "camera_trajectories": 160000,
+      "invalid_configurations": 0,
+      "layout_counts_per_density": {
+        "Conference": 2469,
+        "Lounge": 2496,
+        "OpenOffice": 2521,
+        "Training": 2514
+      },
+      "elapsed_test_seconds": 7.95,
+      "log": "density_sweep.log"
+    },
+    "independent_checks": [
+      "actual geometry floor contact across 24 seeds",
+      "neighboring furniture fit and all expected conference seats across 512 seeds",
+      "actual architectural triangle-distance camera and doorway clearance across 32 seeds",
+      "runtime camera trajectory pose equivalence and metric baseline coverage across 96 seeds",
+      "CSV focal calibration versus Bevy projection at odd 641x479 resolution",
+      "object histogram zero counts, layout denominators and heatmap sample conservation",
+      "visible page edges checked using ray-triangle intersections",
+      "tabletop wood grain axis and metre-scaled UV checks",
+      "corrupted loaded-manifest pillar, neighbor and support relationships fail validation"
+    ],
+    "limits": [
+      "Four rectangular room grammars with one furnished neighboring room; no arbitrary building topology.",
+      "Most cameras sample the main-room perimeter and aim toward the room center.",
+      "Conservative whole-object envelopes keep chairs pulled out instead of allowing seats under tables.",
+      "Finite furniture and foliage construction grammars lack broad real-world style and wear coverage.",
+      "Constraint validity and balanced parameter distributions do not establish photographic realism or downstream ML transfer quality."
+    ]
+  },
+  "dataset": {
+    "cli_seeds": [
+      777,
+      778,
+      779
+    ],
+    "workers_compared": [
+      1,
+      2
+    ],
+    "exact_manifests_cameras_semantics": true,
+    "resume_seeds": [
+      777,
+      778,
+      779,
+      780,
+      781
+    ],
+    "metrics_scenes": 5,
+    "changed_resume_rejected": true,
+    "overwrite_rejected": true,
+    "rust_folder_python_manifest_camera_semantic_exact": true,
+    "cameras": 2,
+    "timesteps": [
+      0,
+      0.5,
+      1
+    ],
+    "modes": [
+      "color",
+      "depth",
+      "normal",
+      "semantic",
+      "position"
+    ],
+    "resolution": [
+      161,
+      119
+    ],
+    "python_indexed": {
+      "indices": [
+        4,
+        0,
+        4
+      ],
+      "seeds": [
+        904,
+        900,
+        904
+      ],
+      "repeated_manifest_exact": true,
+      "repeated_camera_exact": true,
+      "repeated_semantic_exact": true,
+      "two_spawn_workers_exact_manifests_cameras_semantics": true,
+      "repeat_rgb_max_error": 0.0,
+      "shape": [
+        3,
+        2,
+        119,
+        161,
+        3
+      ]
+    },
+    "color_codec": "raw",
+    "raw_rgb_exact_between_workers": true,
+    "raw_rgb_exact_folder_chunk": true,
+    "adapter": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+    "backend": "Vulkan",
+    "driver": "610.43.02",
+    "generator_version": 2,
+    "annotation_modes_geometry_alignment_checked": true,
+    "evidence_root": "out/indoor_dataset_qualification_raw"
+  },
+  "lighting_ablation": [
+    {
+      "camera": 0,
+      "changed_fraction_at_0_005": 0.0,
+      "condition": "baseline",
+      "mean_absolute_luminance_delta": 0.0,
+      "mean_linear_luminance": 0.1204926715075817
+    },
+    {
+      "camera": 0,
+      "changed_fraction_at_0_005": 0.32888671875,
+      "condition": "no_local_shadows",
+      "mean_absolute_luminance_delta": 0.011303225684290132,
+      "mean_linear_luminance": 0.12392784240980291
+    },
+    {
+      "camera": 0,
+      "changed_fraction_at_0_005": 0.975283203125,
+      "condition": "no_shadows",
+      "mean_absolute_luminance_delta": 0.42036716233102805,
+      "mean_linear_luminance": 0.5393669495722376
+    },
+    {
+      "camera": 0,
+      "changed_fraction_at_0_005": 0.597646484375,
+      "condition": "no_direct",
+      "mean_absolute_luminance_delta": 0.025127336880686926,
+      "mean_linear_luminance": 0.10615997417563904
+    },
+    {
+      "camera": 1,
+      "changed_fraction_at_0_005": 0.0,
+      "condition": "baseline",
+      "mean_absolute_luminance_delta": 0.0,
+      "mean_linear_luminance": 0.1160694206547896
+    },
+    {
+      "camera": 1,
+      "changed_fraction_at_0_005": 0.3330989583333333,
+      "condition": "no_local_shadows",
+      "mean_absolute_luminance_delta": 0.01574710314998356,
+      "mean_linear_luminance": 0.1185735806435044
+    },
+    {
+      "camera": 1,
+      "changed_fraction_at_0_005": 0.8749772135416667,
+      "condition": "no_shadows",
+      "mean_absolute_luminance_delta": 0.3793575783722584,
+      "mean_linear_luminance": 0.4903533790541163
+    },
+    {
+      "camera": 1,
+      "changed_fraction_at_0_005": 0.5952408854166666,
+      "condition": "no_direct",
+      "mean_absolute_luminance_delta": 0.027536246499932228,
+      "mean_linear_luminance": 0.10380284303911745
+    }
+  ],
+  "visual_inspection": {
+    "complete_first_view_contact_sheets": 108,
+    "high_resolution_examples": 8,
+    "conclusion": "Coherent synthetic interiors; visible limitations in GI, room topology, clutter, surfaces and foliage. No real-data or SOTA benchmark."
+  },
+  "checks": {
+    "root_library": "48 passed, 1 broad audit ignored in default run (40000 configurations passed separately)",
+    "broad_density_audit": "40000 scene configurations passed separately",
+    "burn_library_and_indoor_export": "14 passed",
+    "python_dataset_regressions": "6 passed",
+    "report_integrity": "13 passed",
+    "native_annotation_regeneration_and_legacy": "passed real GPU: all4exportannotation modes, CornellCube and Room",
+    "native_viewer": "passed native window event loop, generated viewpoint and field-of-view alignment",
+    "strict_workspace_clippy": "passed --workspace --all-targets -- -D warnings",
+    "annotation_specialization_cpu": "passed all5annotation types over3scene replacements"
+  },
+  "reproduction": {
+    "render_selection": "out/indoor_review_v2/render_selection.json",
+    "render_directory": "out/indoor_review_v2",
+    "high_resolution_directory": "out/indoor_review_highres",
+    "geometry_directory": "out/indoor_review_geometry",
+    "dataset_directory": "out/indoor_dataset_qualification_raw",
+    "lighting_directory": "out/indoor_lighting",
+    "browser_directory": "out/indoor_web_final"
+  },
+  "limits": [
+    "RGBA16Float intermediate limits annotation precision despite float32 readback.",
+    "Viewer WebGPU support is separate from native dataset capture; browser readback disabled.",
+    "No isolated long-running memory/throughput certification or downstream ML/real-image benchmark.",
+    "Four rectangular furniture grammars, mostly perimeter cameras, no new realistic clothed humans."
+  ],
+  "webgpu": {
+    "report": "web_qualification.json",
+    "case_count": 20,
+    "cases_include_regeneration": true,
+    "browser": "/usr/bin/google-chrome",
+    "headless": false,
+    "launch_arguments": [
+      "--enable-unsafe-webgpu",
+      "--ignore-gpu-blocklist",
+      "--enable-features=Vulkan,ForceEnableWebGpuInterop",
+      "--use-angle=vulkan"
+    ],
+    "scope": "viewer and displayed modalities; browser dataset readback is unsupported",
+    "additional_checks": {
+      "two_camera_startup_grid": "web_grid_qualification.json",
+      "browser_dataset_readback_rejection": "web_readback_guard.json"
+    }
+  },
+  "source_identity": {
+    "base_git_commit": "a6a29ab23f063e45f9639c4fef730cc04791f30a",
+    "working_tree": "uncommitted changes; source hashes identify this qualification snapshot",
+    "sha256": {
+      ".cargo/config.toml": "f4cfbeac3a74da609919e2a1867f51b722f83ac3c791c36e1315a178bf95ad4d",
+      "Cargo.lock": "d589f10284368c8cd801e0a60bdeffce849d0eace2c69e02b549f5fe4e3bccaa",
+      "Cargo.toml": "c42f51560ec39de5b44e20a39460c23ef1b9c83caf2c2af5061bc00b41d91ec0",
+      "benches/ovoxel.rs": "207299912b8aed20a6f3102ac2783dc4ef4071c8b76354a69044c3e4c41aae87",
+      "crates/burn/Cargo.toml": "6f7fee0659ba27e7a9396ec46cc2d05f14a4a43629f782257d58087cb9ecf56a",
+      "crates/burn/benches/chunk_gen.rs": "a99125494bb10dbd32706bbd4c58fc9e1dce2ba96a5185bec66568f94ec49442",
+      "crates/burn/src/bin/zeroverse_gen.rs": "e3908275e675a56d4b6f924edd7583b07d545ae489b65da6193bc4f32820f07c",
+      "crates/burn/src/chunk.rs": "b536e2b1aaed7bdb2a9b97014fd169a329ff95331f3dec4a3f1d2b7c88e8e526",
+      "crates/burn/src/compression.rs": "913a26ce2c7fb80f5aae707adfd875860a7f678bb17fc3c052960519e8ce32d5",
+      "crates/burn/src/dataset.rs": "c9a877407daabb002e84fbc6c88957664927809a24c0edf48ffd8840b21fe400",
+      "crates/burn/src/fs.rs": "4fb903494a59744fd8d72edd79a86eaf3ba327b0396da556f1512d85fdd6f6c6",
+      "crates/burn/src/generator.rs": "3ac2056107ff5d7ba4c2bc6fe4de5e949f17c28769ec9401bf73039daa36ebe0",
+      "crates/burn/src/lib.rs": "fc5b2c02b465ba6b72cba9c93c359a8d821b24f3ee8c5b6c9700c3a6a1ffe6fb",
+      "crates/burn/src/progress.rs": "d810ec7695c7f8121f9d1a75cda916dfd7164474ac69827b5af89c4beabb6420",
+      "crates/burn/src/tui.rs": "13c9941cc232c39bff037bc2581376329f4239e95e8c5781cf815f53d9ee55dc",
+      "crates/burn/tests/dataset_tests.rs": "9977f17456a5105fd8fb32c34269ccb824db6503da95b3bd68a064194691fe91",
+      "crates/burn/tests/indoor_roundtrip.rs": "7195394caf4eac021959805ad3188135b02448b4b498e05499e3b991536b7986",
+      "crates/burn/tests/memory_leak_tests.rs": "46aeaa3fa88877bdef41cbdbd3f81ce174c41e5beab276ccb06acdb0a352cc28",
+      "crates/ffi/Cargo.toml": "b788e06876c204effb92dcfecf1a05770d4e71808d10a46df5d8964ced020007",
+      "crates/ffi/pyproject.toml": "c79a58893de2eac54319d976cb03f9e11e85710b4fd623bc983f0d201b3302e6",
+      "crates/ffi/python/bench.py": "ca334460a0f20c6e5dfa6f454a00d4b06aa7c03be028e2942027d939d33142dc",
+      "crates/ffi/python/bench_decode.py": "74a37f7ec85d2adc760792f1c17d34c691559b7dbba264a333b723cd3c2658e6",
+      "crates/ffi/python/bevy_zeroverse_dataloader/__init__.py": "1a9247ec17f96390d13b0975301ce2533203aaa825d8ce4ed5069b6e5b29161a",
+      "crates/ffi/python/generate.py": "c24ee0bc4af0fd51032ad2a7175d090c9b691d245e4e1241087730e8d910658f",
+      "crates/ffi/python/pyproject.toml": "44d931d421355d772338f05a2494b76d906ac962fb4620dcb4bc970dfb0db81d",
+      "crates/ffi/python/setup.py": "b570bd57a58c8a8326fe3306af14ba7bcbb638f4ed5d98d3293270caa9cdac00",
+      "crates/ffi/python/test.py": "f27b02854ac5fdac245a82ca3a3d0e2364bdac190a967a9ec425a6888a500ced",
+      "crates/ffi/python/test_indoor.py": "0840b976540ff00c74499cc61ca1c2b304ccbce204c57a5c1490cc0e272c637d",
+      "crates/ffi/python/validate_indoor_dataset.py": "d1cdeee76dadb0c196655d14a7c3d0b8cc439a0ea2fcf6b4ab459794a3289446",
+      "crates/ffi/python/view.py": "229b1c04d8cafe326cbed04d5e44d88ad99919a91545b583b36d88a4036b41da",
+      "crates/ffi/setup.py": "c17cee9a1dcebe8c5617b6b19ba5853793916c27075a77ee04c73e7c7a654d33",
+      "crates/ffi/src/generate.rs": "313f528ceab9d8952c5f1ecb3b597d3862bbdc394a1d48efa15a2d2db9374a5e",
+      "crates/ffi/src/lib.rs": "1efbe2e72c76117528e7a29cc30f6eac87a96a8b7220eb6d232b47020e7c0d6a",
+      "crates/ffi/tests/headless_sampling.rs": "ec60cbb15c54f77d2abff9c7c812d368bd674a647ee99b2ce2f09db1a4cea7cd",
+      "mat-synth/resize.py": "9b23457680638b0c944abf34487dfa175b3cd4f055f1ef84c48ea0159ce66f85",
+      "objaverse/download.py": "0781cf1b1a00cb6a134ee928de69e5a13fbee66d8d131598bdfbb41831306895",
+      "rust-toolchain.toml": "2ce1c1fe5e79a52424c9d88d99f5a2c95dcf5b4f4a82431bb9e5710cfb39e184",
+      "scripts/indoor_report.py": "bc239ffbdbdaddf126f53138590481dfe50e335ae417a55a535973d167c4cb54",
+      "scripts/test_indoor_report.py": "7719145d12887dcedc0e33ef6a5494745756e7f34b29ae4505192821ec09226e",
+      "scripts/validate_indoor_web.py": "f57fb2cc7c73ac76750833ba8b06692274f9a7dfeebbc07b2dcefc98ece11dc5",
+      "src/annotation/mod.rs": "fe932081351c5db0ab50687ddee7087d86bf14973546c50e068449057f47f912",
+      "src/annotation/obb.rs": "57eb0a8e645532ae62f8665a6a2e7f0b8cf30e394e9b78bffd31d5fbbd4cdf51",
+      "src/annotation/ovoxel.rs": "2ff53693a98f73686d4ba8457172b5b1c1bbda6d6eb6063c07b44cceca0c287d",
+      "src/annotation/ovoxel.wgsl": "18b891f1ed712726bfdbca7ccfc7c4c09c7f048d5f8cff6f3ced4a0364d54fba",
+      "src/annotation/pose.rs": "36cc442ca913198beddd16fedccb9e8e07027caf3645e566e4c9b45965ed9b6e",
+      "src/app.rs": "7bc8059cf7250d5b8c5e690b574a9edb284d2a955e76f19ee44058f534a5924c",
+      "src/asset.rs": "347d0119035a4d1b36e30d1fc19e2e059f4e81f6ff049f42ab4b1a022935ac0b",
+      "src/bin/indoor_validate.rs": "bd4cf8374b7f52a55f4852c0ed53b3abbce581e6afe3a232a33b5d844e074c4a",
+      "src/bin/ovoxel_autoencode.rs": "98e3e072470e2cb83f89e7d26b6348d038af2c69a98f0ac1c3ba899b23f3830b",
+      "src/camera.rs": "e70219b82f7b92cff90704cbf4c1b9c7dc0f27b11359d10f1462030ba2bb5fb9",
+      "src/headless.rs": "67f605b52162b43b09e00ee6ab57680a7720104b35688827ef8c453987c43ad2",
+      "src/io.rs": "a96abb282f2d007d7634b65f3a937aafab59c75e6531438e26043459d0a07ead",
+      "src/lib.rs": "80ff65dec1a77ef4ebe5b85f63a87bd5b351cf9028dca4a6517773d8ec141dd7",
+      "src/manifold.rs": "e4d7cc5d5ed8704f04ce8180a729130ad074f74770ea5048f43006a957c83f66",
+      "src/material.rs": "65da39490f79947fb299280233ef2680f6d619260a56bec91333e1ef07f07846",
+      "src/mesh.rs": "84b35b1caa317d4022070484277f0f5a0bbe1ca6ef84483e644349f9b007502c",
+      "src/ovoxel_mesh.rs": "44df15c39b33da68cd0477ea2f6e6fbcefc0013aa896477142a9506759c1d465",
+      "src/plucker/mod.rs": "ee80eb9db9678199ea7417eb924f1fc7f8fbbedbe1718e0010e968b0f9042cda",
+      "src/plucker/plucker.wgsl": "182d356fbd2d12b4cb5c6f6fe670292ac173abdda87002a2285c80b21d6101c4",
+      "src/primitive.rs": "b2d36deb2461eed74910416a019bf9ccf2c39707ba3454ac3eca042d8d290c10",
+      "src/procedural_human.rs": "f7552052e902775ce5ddfaa405603861bd4a79662336130ededed0e827025a25",
+      "src/render/color.rs": "3f97cf9d9c4b5156e4b2495468f0bae83734de1076307ec0a569cb33f49f00b9",
+      "src/render/depth.rs": "3b88042da1f56faa8001bddae7dfb64bec5b64b2ec4825497f31b999e97ff960",
+      "src/render/depth.wgsl": "ea4efd0469f6e22b86edfab2c6b7ce209108754b408a16ae3de4cc27e17f1f98",
+      "src/render/mod.rs": "a95ff80a52f2cf02fe3acbc49cdaa91f365c04ca21ac213d8fe043b159bab3fc",
+      "src/render/normal.rs": "382ec76dbb1d0594ab4dbaa2f3276ace15212ab74019aa654992ad1aa6033e28",
+      "src/render/normal.wgsl": "079947157e499d93b31110df4c1c20d70dd168a61c652707fd7c73afed642ef0",
+      "src/render/optical_flow.rs": "2aa9f349381e4fe52d465239556b544b82d963222103de0be221336550e37f0a",
+      "src/render/optical_flow.wgsl": "68663c5cd5d752f24a478f492c9d1c8516e10d9c69a90113751e84af2125ec34",
+      "src/render/position.rs": "41e8443baedc2f91a51691524f2782118db582f302ed0d629c78741aebca446b",
+      "src/render/position.wgsl": "4ec0a9bd1702dee45f3a5b821b68d721b0fbf73e79405a83c92e72df71a25f30",
+      "src/render/semantic.rs": "0fde952df21b73f8eb3ff2910cf13501b8e81f8229f006307c36c85a36987805",
+      "src/render/semantic.wgsl": "d6bd8f399cf940a5159f89aaff524361540575318a9bbeeb4a20ac5fec6657b4",
+      "src/render/wireframe.rs": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "src/render/wireframe.wgsl": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "src/sample.rs": "7b486d3e229247e264ae95f82f600986d24cdbbad0e6465d5f1ce3e2c875a850",
+      "src/scene/cornell_cube.rs": "5bf956f9d5518ad1a67c72f11502a3759acbc5a327ed92d784ed983783c6c81f",
+      "src/scene/human.rs": "3efe1d8c19603fe5ad7721e19234ecac00cbd521b86e488a106b8722284a449f",
+      "src/scene/lighting.rs": "69f0684cc755e3da34c92a0f49a680e36695e0a011cdf6ec9c205da1f312bd84",
+      "src/scene/mod.rs": "5cd9b90f2d3783195e4a15a2a4e26df750493e93bf44f516486e2b8f995a987a",
+      "src/scene/object.rs": "d0f6906e4a04ddd94355bc8a4276f465c7310e6d023c886ebaebe425bf6413bd",
+      "src/scene/procedural_indoor/architecture.rs": "6028870d5f1219e67becd4fd78627bd08c2f897c62b3630eaa58cae81f897d5e",
+      "src/scene/procedural_indoor/geometry.rs": "1428e6daf408b820bf9e5293d59a02f1ebd8d5c6eb3e2e90a6103e06c443c2e1",
+      "src/scene/procedural_indoor/layout.rs": "b53369453a121aa810f9cc5261cbb13555b2402c1b097f686fb73422fe551d35",
+      "src/scene/procedural_indoor/materials.rs": "ea3fcdba09f834e4fed61d4bedd214fb67e2427583bbe212d00ae622ff1f5144",
+      "src/scene/procedural_indoor/metrics.rs": "6cd21aa28acf85a94e7fcbd687e73f497eed691f33eef6cebfd60ba53b882219",
+      "src/scene/procedural_indoor/mod.rs": "ae28278422b8a8b177e93acb5840e82b9405cf8eaf4d631b4e7a39983ba0fa9d",
+      "src/scene/procedural_indoor/objects.rs": "34cf78c780c07a33965bbcb94697ff07d2d6a39f518303a63cf2e5bcef32eb85",
+      "src/scene/procedural_indoor/tests.rs": "fe684ccfc5197ea5db877e78730944fbc15bf57a85393e0c0182b9755690e082",
+      "src/scene/procedural_indoor/validation.rs": "3fdbd081a31a61dc5f0078349450a23d3ef8f22ff62d20a9da9393db86860a85",
+      "src/scene/room.rs": "95346c9fa88685e89b1082fb8e79ab8b1b40505902ad5168fda14d3e05425233",
+      "src/scene/semantic_room.rs": "564113bebf693b713c828a93480450e3fc4fb097438f177df9accf937f3d8a00",
+      "src/util.rs": "e1693f478e120b4050ad6d0d96ab05002767d20aa3841317a6750f5e179ebe91",
+      "src/viewer.rs": "f63978cf89aaa84944a84ea282d16a9179e7221dc1d63911b60e3a75888773ee",
+      "src/wireframe/mod.rs": "d9d15789b618ecd85d42b7bf0d64842a35ea2bfca8f44b732f9b2e1c8c1eda81",
+      "src/wireframe/wireframe.wgsl": "4e5c3d70b08974d2143a0677bc42f1536194bb54f7966620a7738544f1367662",
+      "tests/procedural_indoor_lighting.rs": "d0d23ce25a6dd55cb0c3e89e7fd7b3224a05d93ebe46e7eeffd8bfc2a713b85d",
+      "tests/procedural_indoor_render.rs": "0fc1aca99e01471643ebc3a232419933bcbda33c8771453e32a8ebea10476974",
+      "tests/procedural_indoor_viewer.rs": "f82c2f1e3813651eb3ff7936efa7433f117e8743ec48804447d3068145723472",
+      "www/index.html": "37c79ca8e60058646885b18e23e971c19d56ef17ab1636de25d087731a269e79",
+      "www/project/index.html": "1912f13f3b1868137880bf033832036a167dc4b7b6d6a741fa407c86abce6ffa"
+    }
+  }
+}

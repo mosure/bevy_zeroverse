@@ -33,10 +33,10 @@ jobs:
         run: rustup target add wasm32-unknown-unknown
 
       - name: install wasm-bindgen-cli
-        run: cargo install wasm-bindgen-cli
+        run: cargo install wasm-bindgen-cli --version 0.2.128 --locked
 
       - name: build wasm artifacts
-        run: cargo build --target wasm32-unknown-unknown --release --no-default-features --features "web"
+        run: cargo build --target wasm32-unknown-unknown --bin viewer --release --no-default-features --features "web"
 
       - name: generate bindings with wasm-bindgen
         run: wasm-bindgen --out-dir ./www/out/ --target web ./target/wasm32-unknown-unknown/release/viewer.wasm

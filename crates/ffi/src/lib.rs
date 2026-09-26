@@ -25,6 +25,7 @@ use ::bevy_zeroverse::{
 };
 
 static INITIALIZED: AtomicBool = AtomicBool::new(false);
+static INDOOR_INITIALIZED: AtomicBool = AtomicBool::new(false);
 
 #[pyclass]
 #[derive(Clone, Debug, Default)]
@@ -32,6 +33,7 @@ pub struct View {
     pub color: Vec<u8>,
     pub depth: Vec<u8>,
     pub normal: Vec<u8>,
+    pub semantic: Vec<u8>,
     pub optical_flow: Vec<u8>,
     pub position: Vec<u8>,
 
@@ -57,6 +59,7 @@ impl From<core_sample::View> for View {
             color: value.color,
             depth: value.depth,
             normal: value.normal,
+            semantic: value.semantic,
             optical_flow: value.optical_flow,
             position: value.position,
             world_from_view: value.world_from_view,
@@ -83,6 +86,11 @@ impl View {
     #[getter]
     fn normal<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
         PyBytes::new(py, &self.normal)
+    }
+
+    #[getter]
+    fn semantic<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
+        PyBytes::new(py, &self.semantic)
     }
 
     #[getter]
@@ -155,6 +163,8 @@ impl Ovoxel {
 #[derive(Clone, Debug, Default)]
 pub struct ObjectObb {
     #[pyo3(get, set)]
+    pub instance_id: Option<i64>,
+    #[pyo3(get, set)]
     pub center: [f32; 3],
     #[pyo3(get, set)]
     pub scale: [f32; 3],
@@ -167,6 +177,7 @@ pub struct ObjectObb {
 impl From<core_sample::ObjectObbSample> for ObjectObb {
     fn from(value: core_sample::ObjectObbSample) -> Self {
         ObjectObb {
+            instance_id: value.instance_id,
             center: value.center,
             scale: value.scale,
             rotation: value.rotation,
@@ -196,6 +207,14 @@ impl From<core_sample::HumanPoseSample> for HumanPose {
 #[pyclass]
 #[derive(Clone, Debug, Default, Resource)]
 pub struct Sample {
+    #[pyo3(get)]
+    pub indoor_manifest: Option<String>,
+    #[pyo3(get)]
+    pub indoor_render_metadata: Option<String>,
+    #[pyo3(get)]
+    pub color_encoding: String,
+    #[pyo3(get)]
+    pub annotation_precision: String,
     pub views: Vec<View>,
 
     #[pyo3(get, set)]
@@ -210,6 +229,9 @@ pub struct Sample {
 
     #[pyo3(get, set)]
     pub human_poses: Vec<HumanPose>,
+
+    #[pyo3(get, set)]
+    pub human_instance_ids: Vec<i64>,
 
     #[pyo3(get, set)]
     pub human_pose_steps: Vec<Vec<HumanPose>>,
@@ -228,11 +250,33 @@ impl From<core_sample::Sample> for Sample {
     fn from(value: core_sample::Sample) -> Self {
         let views = value.views.into_iter().map(View::from).collect();
         Sample {
+            indoor_render_metadata: value
+                .indoor_render_metadata
+                .as_ref()
+                .map(|metadata| serde_json::to_string(metadata).expect("valid render provenance")),
+            annotation_precision: match value.annotation_precision {
+                core_sample::AnnotationPrecision::Float16Hdr => "float16_hdr",
+                core_sample::AnnotationPrecision::Float32Geometry => "float32_geometry",
+            }
+            .into(),
+            indoor_manifest: value
+                .indoor
+                .as_ref()
+                .map(|m| serde_json::to_string(m).expect("valid indoor manifest")),
+            color_encoding: match value.color_encoding {
+                bevy_zeroverse::render::color::ColorEncoding::Legacy => "legacy",
+                bevy_zeroverse::render::color::ColorEncoding::TonemappedLinear => {
+                    "tonemapped_linear"
+                }
+                bevy_zeroverse::render::color::ColorEncoding::Srgb => "srgb",
+            }
+            .to_owned(),
             views,
             view_dim: value.view_dim,
             aabb: value.aabb,
             object_obbs: value.object_obbs.into_iter().map(ObjectObb::from).collect(),
             human_poses: value.human_poses.into_iter().map(HumanPose::from).collect(),
+            human_instance_ids: value.human_instance_ids,
             human_pose_steps: value
                 .human_pose_steps
                 .into_iter()
@@ -282,32 +326,39 @@ pub fn initialize(
     py: Python<'_>,
     override_args: Option<BevyZeroverseConfig>,
     asset_root: Option<String>,
-) {
+) -> PyResult<()> {
     if INITIALIZED
         .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
         .is_err()
     {
-        warn!("bevy_zeroverse_ffi.initialize called more than once; ignoring duplicate request");
-        return;
+        return Err(PyRuntimeError::new_err(
+            "one Bevy engine is supported per process; create a fresh process for a different dataset configuration",
+        ));
     }
+
+    INDOOR_INITIALIZED.store(
+        override_args
+            .as_ref()
+            .is_some_and(|args| args.scene_type == ZeroverseSceneType::ProceduralIndoor),
+        Ordering::Release,
+    );
 
     setup_globals(asset_root);
 
     py.detach(move || {
         setup_and_run_app(true, override_args);
     });
+    Ok(())
 }
 
 #[pyfunction]
-pub fn next(py: Python<'_>) -> PyResult<Sample> {
-    {
-        let app_frame_sender = channels::app_frame_sender();
-
-        app_frame_sender
-            .send(())
-            .map_err(|_| PyRuntimeError::new_err("failed to request next frame from app"))?;
+#[pyo3(signature = (indoor_seed=None))]
+pub fn next(py: Python<'_>, indoor_seed: Option<u64>) -> PyResult<Sample> {
+    if indoor_seed.is_some() && !INDOOR_INITIALIZED.load(Ordering::Acquire) {
+        return Err(PyRuntimeError::new_err(
+            "indoor_seed requests require a procedural_indoor configuration",
+        ));
     }
-
     py.detach(|| {
         let sample_receiver = channels::sample_receiver().ok_or_else(|| {
             PyRuntimeError::new_err("bevy_zeroverse_ffi not initialized; call initialize() first")
@@ -316,15 +367,23 @@ pub fn next(py: Python<'_>) -> PyResult<Sample> {
             .lock()
             .map_err(|_| PyRuntimeError::new_err("sample receiver lock poisoned"))?;
 
-        let timeout = Duration::from_secs(300);
-
-        match sample_receiver.recv_timeout(timeout) {
-            Ok(sample) => Ok(Sample::from(sample)),
-            Err(RecvTimeoutError::Timeout) => {
-                Err(PyTimeoutError::new_err("receive operation timed out"))
+        channels::app_frame_sender()
+            .send(channels::AppFrameRequest { indoor_seed })
+            .map_err(|_| PyRuntimeError::new_err("failed to request next frame from app"))?;
+        let started = std::time::Instant::now();
+        loop {
+            if let Some(error) = channels::take_capture_failure() {
+                return Err(PyRuntimeError::new_err(error));
             }
-            Err(RecvTimeoutError::Disconnected) => {
-                Err(PyRuntimeError::new_err("channel disconnected"))
+            match sample_receiver.recv_timeout(Duration::from_millis(100)) {
+                Ok(sample) => return Ok(Sample::from(sample)),
+                Err(RecvTimeoutError::Timeout) if started.elapsed() < Duration::from_secs(300) => {}
+                Err(RecvTimeoutError::Timeout) => {
+                    return Err(PyTimeoutError::new_err("receive operation timed out"));
+                }
+                Err(RecvTimeoutError::Disconnected) => {
+                    return Err(PyRuntimeError::new_err("channel disconnected"));
+                }
             }
         }
     })
@@ -339,7 +398,10 @@ pub fn bevy_zeroverse_ffi(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PlaybackMode>()?;
     m.add_class::<OvoxelMode>()?;
     m.add_class::<RenderMode>()?;
+    m.add_class::<bevy_zeroverse::render::depth::DepthFormat>()?;
     m.add_class::<ZeroverseSceneType>()?;
+    m.add_class::<bevy_zeroverse::scene::procedural_indoor::layout::IndoorLayout>()?;
+    m.add_class::<bevy_zeroverse::scene::procedural_indoor::IndoorQuality>()?;
 
     m.add_class::<Ovoxel>()?;
     m.add_class::<Sample>()?;

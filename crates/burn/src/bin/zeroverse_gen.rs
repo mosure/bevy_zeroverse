@@ -1,5 +1,5 @@
 use std::{
-    io::IsTerminal,
+    io::{BufWriter, IsTerminal, Write},
     net::{SocketAddr, UdpSocket},
     path::PathBuf,
     sync::{
@@ -7,19 +7,25 @@ use std::{
         atomic::{AtomicBool, Ordering},
     },
     thread,
-    time::Duration,
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
 use anyhow::{Context, Result};
 use clap::{Parser, ValueEnum};
 
+use bevy_zeroverse::scene::procedural_indoor::layout::IndoorLayout;
 use bevy_zeroverse::{render::RenderMode, scene::ZeroverseSceneType};
 use bevy_zeroverse_burn::{
+    chunk::ColorCodec,
     compression::Compression,
     generator::{GenConfig, WriteMode, run_chunk_generation},
     progress::{ProgressAggregator, ProgressMessage, ProgressTracker},
     tui::{ProgressSource, UiConfig, spawn_tui},
 };
+
+#[path = "zeroverse_gen/process_pool.rs"]
+mod process_pool;
+use process_pool::{WorkerJobs, run_pool};
 
 #[derive(Copy, Clone, Debug, ValueEnum)]
 enum CompressionArg {
@@ -58,7 +64,7 @@ struct Cli {
     #[arg(short = 'w', long, default_value_t = 16)]
     workers: usize,
 
-    /// Run the headless app on the main thread (auto-enabled on macOS with --workers=1)
+    /// Run the headless app on the main thread (automatic for finite jobs and on macOS)
     #[arg(long, default_value_t = false)]
     main_thread_app: bool,
 
@@ -78,7 +84,7 @@ struct Cli {
     #[arg(long, default_value_t = 0, hide = true)]
     chunk_offset: usize,
 
-    /// Playback timestep delta (seconds)
+    /// Normalized camera-trajectory progress increment (not seconds)
     #[arg(long, default_value_t = 0.05)]
     playback_step: f32,
 
@@ -94,6 +100,34 @@ struct Cli {
     #[arg(long, value_enum, default_value_t = ZeroverseSceneType::SemanticRoom)]
     scene_type: ZeroverseSceneType,
 
+    /// Indoor room grammar (procedural-indoor only)
+    #[arg(long, value_enum, default_value_t = IndoorLayout::Mixed)]
+    indoor_layout: IndoorLayout,
+
+    /// Indoor furnishing density in [0, 1]
+    #[arg(long, default_value_t = 0.65)]
+    indoor_density: f32,
+
+    /// Indoor chair occupancy and standing person density in [0, 1] (0 disables people)
+    #[arg(long, default_value_t = 0.25)]
+    indoor_human_density: f32,
+
+    /// Rays per indirect-lighting probe; 256 efficient, 1024 reduces Monte Carlo noise
+    #[arg(long, default_value_t = 256, value_parser = clap::value_parser!(u32).range(64..=16384))]
+    indoor_gi_rays: u32,
+
+    /// Auto rendering or portable lighting/glazing for constrained adapters
+    #[arg(long, value_enum, default_value_t = bevy_zeroverse::scene::procedural_indoor::IndoorQuality::Auto)]
+    indoor_quality: bevy_zeroverse::scene::procedural_indoor::IndoorQuality,
+
+    /// Export chair/object histograms, placement heatmaps and camera distributions after indoor generation
+    #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
+    indoor_metrics: bool,
+
+    /// Rotate the complete room and camera trajectories using the scene seed
+    #[arg(long, default_value_t = false)]
+    rotation_augmentation: bool,
+
     /// Whether to write chunked safetensors or folder-per-sample
     #[arg(long, value_enum, default_value_t = OutputModeArg::Chunk)]
     output_mode: OutputModeArg,
@@ -105,6 +139,10 @@ struct Cli {
     /// Compression to apply to chunks
     #[arg(long, default_value_t = CompressionArg::Lz4, value_enum)]
     compression: CompressionArg,
+
+    /// RGB storage: indoor defaults to lossless sRGB float32, legacy scenes to JPEG quality75
+    #[arg(long, value_enum)]
+    color_codec: Option<ColorCodec>,
 
     /// Render modes to cycle through when capturing
     #[arg(long, value_enum, num_args = 1.., default_values_t = [RenderMode::Color])]
@@ -126,7 +164,7 @@ struct Cli {
     #[arg(long, default_value_t = 1)]
     cameras: usize,
 
-    /// Optional seed used to diversify worker RNGs (a random seed is chosen if omitted)
+    /// Base indoor seed: sample i uses seed + i, independent of process count
     #[arg(long)]
     seed: Option<u64>,
 
@@ -139,8 +177,17 @@ struct Cli {
     ui_refresh_ms: u64,
 
     /// Spawn one headless app per worker (multi-process). Otherwise workers share one app.
-    #[arg(long, default_value_t = true)]
+    #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
     per_process: bool,
+
+    /// Maximum scenes captured by a child before replacing its process (0 disables).
+    /// Defaults to 256 for finite indoor per-process jobs, otherwise 0.
+    #[arg(long, alias = "scenes-per-child")]
+    max_scenes_per_process: Option<usize>,
+
+    /// Internal child generation within its reusable worker slot.
+    #[arg(long, default_value_t = 0, hide = true)]
+    worker_job_id: usize,
 
     /// Internal flag set for spawned worker processes to avoid recursive spawning.
     #[arg(long, default_value_t = false, hide = true)]
@@ -171,12 +218,47 @@ struct Cli {
     ov_max_output_voxels: u32,
 }
 
+fn effective_process_cap(cli: &Cli) -> Result<usize> {
+    if let Some(limit) = cli.max_scenes_per_process {
+        anyhow::ensure!(
+            limit == 0 || cli.per_process,
+            "positive --max-scenes-per-process requires --per-process=true"
+        );
+        return Ok(limit);
+    }
+    Ok(
+        if cli.per_process
+            && cli.samples > 0
+            && cli.scene_type == ZeroverseSceneType::ProceduralIndoor
+        {
+            256
+        } else {
+            0
+        },
+    )
+}
+
 fn main() -> Result<()> {
-    let cli = Cli::parse();
+    let mut cli = Cli::parse();
+    cli.color_codec
+        .get_or_insert(if cli.scene_type == ZeroverseSceneType::ProceduralIndoor {
+            ColorCodec::Raw
+        } else {
+            ColorCodec::Jpeg
+        });
+    anyhow::ensure!(
+        cli.workers > 0 && cli.chunk_size > 0,
+        "workers and chunk-size must be positive"
+    );
+    let process_cap = effective_process_cap(&cli)?;
+    prepare_generation_metadata(&mut cli)?;
     let enable_ui = !cli.no_ui && std::io::stdout().is_terminal();
     let ui_refresh = Duration::from_millis(cli.ui_refresh_ms.max(50));
-    let main_thread_app =
-        cli.main_thread_app || (cfg!(target_os = "macos") && cli.workers.max(1) == 1);
+    // Finite jobs must join the renderer before process exit. A detached app
+    // can still be using Vulkan when the driver's process teardown starts.
+    let main_thread_app = cli.main_thread_app
+        || cli.samples > 0
+        || (cfg!(target_os = "macos") && cli.workers.max(1) == 1);
 
     fn render_mode_cli_name(mode: &RenderMode) -> &'static str {
         match mode {
@@ -204,6 +286,7 @@ fn main() -> Result<()> {
             ZeroverseSceneType::Object => "object",
             ZeroverseSceneType::SemanticRoom => "semantic-room",
             ZeroverseSceneType::Room => "room",
+            ZeroverseSceneType::ProceduralIndoor => "procedural-indoor",
         }
     }
     fn ovoxel_mode_cli_name(mode: &bevy_zeroverse::app::OvoxelMode) -> &'static str {
@@ -219,7 +302,7 @@ fn main() -> Result<()> {
     } else {
         (cli.sample_offset, cli.chunk_offset)
     };
-    let ui_config = build_ui_config(
+    let mut ui_config = build_ui_config(
         &cli,
         write_mode,
         base_sample_offset,
@@ -234,9 +317,29 @@ fn main() -> Result<()> {
         }
         let exe = std::env::current_exe()?;
         let base_seed = cli.seed.unwrap_or_else(rand::random);
-        let per_worker_samples = cli.samples.div_ceil(cli.workers.max(1));
+        let jobs = WorkerJobs::new(
+            cli.samples,
+            cli.workers,
+            process_cap,
+            base_sample_offset,
+            base_chunk_offset,
+            cli.chunk_size,
+            matches!(write_mode, WriteMode::Fs),
+        )?;
+        ui_config.planned_chunks = Some(jobs.total_chunks());
 
         std::fs::create_dir_all(&cli.output)?;
+        let mut lifecycle = BufWriter::new(
+            std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(cli.output.join("worker_lifecycle.jsonl"))?,
+        );
+        let run_id = format!(
+            "{}-{}",
+            std::process::id(),
+            SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos()
+        );
 
         let mut progress_listener = None;
         let mut progress_addr = None;
@@ -255,7 +358,7 @@ fn main() -> Result<()> {
         }
 
         let mut tui_handle = None;
-        if let Some(aggregator) = aggregator {
+        if let Some(aggregator) = aggregator.clone() {
             let stop = Arc::new(AtomicBool::new(false));
             let handle = spawn_tui(
                 ui_config.clone(),
@@ -266,100 +369,139 @@ fn main() -> Result<()> {
             tui_handle = Some((stop, handle));
         }
 
-        let mut children = Vec::with_capacity(cli.workers);
-        let mut start_index = base_sample_offset;
-        let mut next_chunk_offset = base_chunk_offset;
-        let target_sample = base_sample_offset.saturating_add(cli.samples);
-        for worker_idx in 0..cli.workers {
-            if start_index >= target_sample {
-                break;
-            }
-
-            let remaining = cli
-                .samples
-                .saturating_add(base_sample_offset)
-                .saturating_sub(start_index);
-            let worker_samples = remaining.min(per_worker_samples);
-            let worker_chunk_span = worker_samples.div_ceil(cli.chunk_size.max(1));
-            let worker_chunk_offset = next_chunk_offset;
-            next_chunk_offset = next_chunk_offset.saturating_add(worker_chunk_span);
-
-            let mut cmd = std::process::Command::new(&exe);
-            cmd.arg("--output")
-                .arg(&cli.output)
-                .arg("--workers")
-                .arg("1")
-                .arg("--ov-mode")
-                .arg(ovoxel_mode_cli_name(&cli.ov_mode))
-                .arg("--ov-resolution")
-                .arg(cli.ov_resolution.to_string())
-                .arg("--ov-max-output")
-                .arg(cli.ov_max_output_voxels.to_string())
-                .arg("--chunk-size")
-                .arg(cli.chunk_size.to_string())
-                .arg("--samples")
-                .arg(worker_samples.to_string())
-                .arg("--sample-offset")
-                .arg(start_index.to_string())
-                .arg("--chunk-offset")
-                .arg(worker_chunk_offset.to_string())
-                .arg("--playback-step")
-                .arg(cli.playback_step.to_string())
-                .arg("--playback-steps")
-                .arg(cli.playback_steps.to_string())
-                .arg("--scene-type")
-                .arg(scene_type_cli_name(&cli.scene_type))
-                .arg("--compression")
-                .arg(format!("{:?}", cli.compression).to_lowercase())
-                .arg("--output-mode")
-                .arg(format!("{:?}", cli.output_mode).to_lowercase())
-                .arg("--render-modes");
-            for mode in &cli.render_modes {
-                cmd.arg(render_mode_cli_name(mode));
-            }
-            cmd.arg("--width")
-                .arg(cli.width.to_string())
-                .arg("--height")
-                .arg(cli.height.to_string())
-                .arg("--cameras")
-                .arg(cli.cameras.to_string())
-                .arg("--timeout-secs")
-                .arg(cli.timeout_secs.to_string())
-                .arg("--ui-refresh-ms")
-                .arg(cli.ui_refresh_ms.to_string())
-                .arg("--no-ui")
-                .arg("--child-worker")
-                .arg("--per-process");
-
-            if let Some(asset_root) = &cli.asset_root {
-                cmd.arg("--asset-root").arg(asset_root);
-            }
-
-            if let Some(progress_addr) = progress_addr {
-                cmd.arg("--progress-addr")
-                    .arg(progress_addr.to_string())
+        let result = run_pool(
+            jobs,
+            cli.workers.min(cli.samples),
+            |worker_idx, job| {
+                let mut cmd = std::process::Command::new(&exe);
+                // glibc's REP MOVSB path can stall on write-combined Vulkan
+                // upload memory. Use streaming copies in owned indoor workers
+                // on the qualified platform; preserve any user-supplied policy.
+                // An explicitly empty GLIBC_TUNABLES opts into system defaults.
+                if cfg!(all(
+                    target_os = "linux",
+                    target_env = "gnu",
+                    target_arch = "x86_64"
+                )) && cli.scene_type == ZeroverseSceneType::ProceduralIndoor
+                    && std::env::var_os("GLIBC_TUNABLES").is_none()
+                {
+                    cmd.env("GLIBC_TUNABLES", "glibc.cpu.x86_non_temporal_threshold=32768:glibc.cpu.x86_rep_movsb_threshold=1073741824");
+                }
+                cmd.arg("--output")
+                    .arg(&cli.output)
+                    .arg("--workers")
+                    .arg("1")
+                    .arg("--ov-mode")
+                    .arg(ovoxel_mode_cli_name(&cli.ov_mode))
+                    .arg("--ov-resolution")
+                    .arg(cli.ov_resolution.to_string())
+                    .arg("--ov-max-output")
+                    .arg(cli.ov_max_output_voxels.to_string())
+                    .arg("--chunk-size")
+                    .arg(cli.chunk_size.to_string())
+                    .arg("--samples")
+                    .arg(job.samples.to_string())
+                    .arg("--sample-offset")
+                    .arg(job.sample_offset.to_string())
+                    .arg("--chunk-offset")
+                    .arg(job.chunk_offset.to_string())
+                    .arg("--playback-step")
+                    .arg(cli.playback_step.to_string())
+                    .arg("--playback-steps")
+                    .arg(cli.playback_steps.to_string())
+                    .arg("--scene-type")
+                    .arg(scene_type_cli_name(&cli.scene_type))
+                    .arg("--indoor-layout")
+                    .arg(cli.indoor_layout.to_possible_value().unwrap().get_name())
+                    .arg("--indoor-density")
+                    .arg(cli.indoor_density.to_string())
+                    .arg("--indoor-human-density")
+                    .arg(cli.indoor_human_density.to_string())
+                    .arg("--indoor-gi-rays")
+                    .arg(cli.indoor_gi_rays.to_string())
+                    .arg("--indoor-quality")
+                    .arg(cli.indoor_quality.to_possible_value().unwrap().get_name())
+                    .arg("--compression")
+                    .arg(format!("{:?}", cli.compression).to_lowercase())
+                    .arg("--color-codec")
+                    .arg(
+                        cli.color_codec
+                            .unwrap()
+                            .to_possible_value()
+                            .unwrap()
+                            .get_name(),
+                    )
+                    .arg("--output-mode")
+                    .arg(format!("{:?}", cli.output_mode).to_lowercase())
+                    .arg("--render-modes");
+                for mode in &cli.render_modes {
+                    cmd.arg(render_mode_cli_name(mode));
+                }
+                cmd.arg("--width")
+                    .arg(cli.width.to_string())
+                    .arg("--height")
+                    .arg(cli.height.to_string())
+                    .arg("--cameras")
+                    .arg(cli.cameras.to_string())
+                    .arg("--timeout-secs")
+                    .arg(cli.timeout_secs.to_string())
+                    .arg("--ui-refresh-ms")
+                    .arg(cli.ui_refresh_ms.to_string())
+                    .arg("--no-ui")
+                    .arg("--child-worker")
+                    .arg("--per-process=true")
                     .arg("--worker-id")
-                    .arg(worker_idx.to_string());
-            }
+                    .arg(worker_idx.to_string())
+                    .arg("--worker-job-id")
+                    .arg(job.job_id.to_string());
 
-            if cli.main_thread_app {
-                cmd.arg("--main-thread-app");
-            }
+                if cli.rotation_augmentation {
+                    cmd.arg("--rotation-augmentation");
+                }
 
-            cmd.arg("--seed")
-                .arg(base_seed.wrapping_add(worker_idx as u64 + 1).to_string());
+                if let Some(asset_root) = &cli.asset_root {
+                    cmd.arg("--asset-root").arg(asset_root);
+                }
 
-            children.push(cmd.spawn()?);
-            start_index = start_index.saturating_add(worker_samples);
-        }
+                if let Some(progress_addr) = progress_addr {
+                    cmd.arg("--progress-addr").arg(progress_addr.to_string());
+                }
 
-        let mut first_err = None;
-        for mut child in children {
-            let status = child.wait()?;
-            if !status.success() && first_err.is_none() {
-                first_err = Some(anyhow::anyhow!("worker process exited with failure: {status}"));
-            }
-        }
+                if cli.main_thread_app {
+                    cmd.arg("--main-thread-app");
+                }
+
+                cmd.arg("--seed").arg(base_seed.to_string());
+
+                cmd.spawn().context("starting generator child")
+            },
+            |event| {
+                if let Some(aggregator) = &aggregator {
+                    match event.event {
+                        "started" => aggregator.start_job(
+                            event.worker_id,
+                            event.job.job_id,
+                            event.job.samples,
+                            event.job.chunks,
+                        ),
+                        "completed" => aggregator.finish_job(event.worker_id, event.job.job_id),
+                        _ => {}
+                    }
+                }
+                let mut record = serde_json::to_value(&event)?;
+                record["schema_version"] = serde_json::json!(1);
+                record["run_id"] = serde_json::json!(run_id);
+                record["parent_pid"] = serde_json::json!(std::process::id());
+                record["max_scenes_per_process"] = serde_json::json!(process_cap);
+                record["unix_millis"] =
+                    serde_json::json!(SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis());
+                serde_json::to_writer(&mut lifecycle, &record)?;
+                writeln!(lifecycle)?;
+                lifecycle.flush()?;
+                Ok(())
+            },
+            || thread::sleep(Duration::from_millis(10)),
+        );
 
         if let Some((stop, handle)) = progress_listener {
             stop.store(true, Ordering::Release);
@@ -370,9 +512,8 @@ fn main() -> Result<()> {
             let _ = handle.join();
         }
 
-        if let Some(err) = first_err {
-            return Err(err);
-        }
+        result?;
+        export_dataset_metrics(&cli, base_sample_offset)?;
         return Ok(());
     }
 
@@ -388,6 +529,7 @@ fn main() -> Result<()> {
             addr,
             tracker,
             cli.worker_id,
+            cli.worker_job_id,
             reporter_stop.clone(),
             ui_refresh,
         ));
@@ -416,11 +558,18 @@ fn main() -> Result<()> {
         scene_type: cli.scene_type.clone(),
         asset_root: cli.asset_root.clone(),
         compression,
+        color_codec: cli.color_codec.unwrap(),
         render_modes: cli.render_modes.clone(),
         timeout_secs: cli.timeout_secs,
         width: cli.width,
         height: cli.height,
         seed: cli.seed,
+        indoor_layout: cli.indoor_layout,
+        indoor_density: cli.indoor_density,
+        indoor_human_density: cli.indoor_human_density,
+        indoor_gi_rays: cli.indoor_gi_rays,
+        indoor_quality: cli.indoor_quality,
+        rotation_augmentation: cli.rotation_augmentation,
         cameras: cli.cameras,
         enable_ui,
         write_mode,
@@ -441,7 +590,35 @@ fn main() -> Result<()> {
         let _ = handle.join();
     }
 
-    result
+    result?;
+    if !cli.child_worker {
+        export_dataset_metrics(&cli, base_sample_offset)?;
+    }
+    Ok(())
+}
+
+fn export_dataset_metrics(cli: &Cli, sample_offset: usize) -> Result<()> {
+    if cli.scene_type == ZeroverseSceneType::ProceduralIndoor
+        && cli.indoor_metrics
+        && cli.samples > 0
+    {
+        let count = sample_offset
+            .checked_add(cli.samples)
+            .context("dataset sample count overflow")?;
+        bevy_zeroverse::scene::procedural_indoor::metrics::export_metrics_with_humans(
+            cli.seed.context("indoor dataset seed missing")?,
+            count,
+            cli.cameras,
+            cli.indoor_density,
+            cli.indoor_layout,
+            cli.width,
+            cli.height,
+            &cli.output.join("metrics"),
+            cli.indoor_human_density,
+        )
+        .map_err(anyhow::Error::msg)?;
+    }
+    Ok(())
 }
 
 fn build_ui_config(
@@ -455,6 +632,7 @@ fn build_ui_config(
         output: cli.output.clone(),
         output_mode: write_mode,
         chunk_size: cli.chunk_size,
+        planned_chunks: None,
         samples: cli.samples,
         sample_offset,
         chunk_offset,
@@ -475,6 +653,121 @@ fn build_ui_config(
         ov_max_output_voxels: cli.ov_max_output_voxels,
         seed: cli.seed,
     }
+}
+
+fn prepare_generation_metadata(cli: &mut Cli) -> Result<()> {
+    if cli.scene_type != ZeroverseSceneType::ProceduralIndoor || cli.child_worker {
+        return Ok(());
+    }
+    bevy_zeroverse_burn::generator::validate_gen_config(&GenConfig {
+        workers: if cli.per_process { 1 } else { cli.workers },
+        chunk_size: cli.chunk_size,
+        width: cli.width,
+        height: cli.height,
+        cameras: cli.cameras,
+        playback_step: cli.playback_step,
+        playback_steps: cli.playback_steps,
+        timeout_secs: cli.timeout_secs,
+        render_modes: cli.render_modes.clone(),
+        scene_type: cli.scene_type.clone(),
+        indoor_density: cli.indoor_density,
+        indoor_human_density: cli.indoor_human_density,
+        indoor_gi_rays: cli.indoor_gi_rays,
+        ..Default::default()
+    })?;
+    let path = cli.output.join("generation_config.json");
+    let previous: Option<serde_json::Value> = if path.exists() {
+        Some(serde_json::from_slice(&std::fs::read(&path)?)?)
+    } else {
+        None
+    };
+    if cli.resume {
+        let previous = previous.as_ref().context(
+            "indoor resume requires generation_config.json to verify the seed and capture contract",
+        )?;
+        if cli.seed.is_none() {
+            cli.seed = previous["base_seed"].as_u64();
+        }
+    } else {
+        anyhow::ensure!(
+            previous.is_none(),
+            "output already has a generation contract; use --resume or a new output directory"
+        );
+        if cli.output.exists() {
+            for entry in std::fs::read_dir(&cli.output)? {
+                let entry = entry?;
+                let name = entry.file_name();
+                let name = name.to_string_lossy();
+                anyhow::ensure!(
+                    !name.chars().next().is_some_and(|c| c.is_ascii_digit()),
+                    "output contains existing indexed data; use a new directory or a verified resume"
+                );
+            }
+        }
+    }
+    let base_seed = *cli.seed.get_or_insert_with(rand::random);
+    let mut gi_settings = bevy_zeroverse::scene::procedural_indoor::gi::IndoorGiSettings::default();
+    gi_settings.bake.rays_per_probe = cli.indoor_gi_rays;
+    let spec = serde_json::json!({
+        "schema_version": 1,
+        "generator_version": bevy_zeroverse::scene::procedural_indoor::layout::GENERATOR_VERSION,
+        "capture_engine": bevy_zeroverse::CAPTURE_ENGINE_IDENTITY,
+        "generator": "bevy_zeroverse procedural_indoor",
+        "base_seed": base_seed,
+        "seed_rule": "scene_seed = base_seed.wrapping_add(global_sample_index)",
+        "scene_type": "procedural_indoor",
+        "layout": cli.indoor_layout.to_possible_value().unwrap().get_name(),
+        "density": cli.indoor_density,
+        "human_density": cli.indoor_human_density,
+        "quality": cli.indoor_quality.to_possible_value().unwrap().get_name(),
+        "gi_settings": gi_settings,
+        "gi_effective_enabled": cli.indoor_quality == bevy_zeroverse::scene::procedural_indoor::IndoorQuality::Auto && bevy_zeroverse::scene::procedural_indoor::gi::IndoorGiSettings::default().enabled,
+        "rotation_augmentation": cli.rotation_augmentation,
+        "width": cli.width,
+        "height": cli.height,
+        "cameras": cli.cameras,
+        "playback_steps": cli.playback_steps,
+        "playback_step": cli.playback_step,
+        "time_units": "normalized trajectory progress in [0, 1], not seconds",
+        "render_modes": cli.render_modes.iter().map(|m| format!("{m:?}")).collect::<Vec<_>>(),
+        "depth": "linear camera-space z in metres",
+        "normal": "view-space unit normal encoded as (n+1)/2",
+        "position": "world position normalized by exported scene AABB",
+        "semantic": "linear RGB palette, lossless float32 storage; decode against palette",
+        "annotation_precision": "per-sample enum: native indoor float32_geometry; fallback float16_hdr",
+        "color": "fixed linear-to-sRGB transfer after renderer tonemapping",
+        "color_codec": cli.color_codec.unwrap().to_possible_value().unwrap().get_name(),
+        "jpeg_quality": 75,
+        "camera_matrix": "world_from_view, column-major, right-handed -Z forward",
+        "fovy_units": "radians",
+        "output_mode": format!("{:?}", cli.output_mode),
+        "compression": format!("{:?}", cli.compression),
+        "ovoxel_mode": format!("{:?}", cli.ov_mode),
+        "ovoxel_resolution": cli.ov_resolution,
+        "ovoxel_max_output_voxels": cli.ov_max_output_voxels,
+    });
+    if let Some(previous) = previous {
+        verify_generation_contract(&previous, &spec)?;
+    } else {
+        std::fs::create_dir_all(&cli.output)?;
+        std::fs::write(path, serde_json::to_vec_pretty(&spec)?)?;
+    }
+    Ok(())
+}
+
+fn verify_generation_contract(
+    previous: &serde_json::Value,
+    current: &serde_json::Value,
+) -> Result<()> {
+    anyhow::ensure!(
+        previous["capture_engine"].as_str() == Some(bevy_zeroverse::CAPTURE_ENGINE_IDENTITY),
+        "resume capture engine differs or is missing; use a new output directory after a renderer upgrade (existing datasets remain readable)"
+    );
+    anyhow::ensure!(
+        previous == current,
+        "resume configuration differs from generation_config.json; retain its seed, scene and capture settings"
+    );
+    Ok(())
 }
 
 fn spawn_progress_listener(
@@ -507,6 +800,7 @@ fn spawn_progress_reporter(
     addr: SocketAddr,
     tracker: Arc<ProgressTracker>,
     worker_id: usize,
+    job_id: usize,
     stop: Arc<AtomicBool>,
     interval: Duration,
 ) -> thread::JoinHandle<()> {
@@ -522,7 +816,7 @@ fn spawn_progress_reporter(
         let interval = interval.max(Duration::from_millis(50));
         loop {
             let done = stop.load(Ordering::Acquire);
-            send_progress(&socket, addr, worker_id, &tracker, done);
+            send_progress(&socket, addr, worker_id, job_id, &tracker, done);
             if done {
                 break;
             }
@@ -535,12 +829,89 @@ fn send_progress(
     socket: &UdpSocket,
     addr: SocketAddr,
     worker_id: usize,
+    job_id: usize,
     tracker: &ProgressTracker,
     done: bool,
 ) {
     let snapshot = tracker.snapshot();
-    let message = ProgressMessage::from_snapshot(worker_id, &snapshot, done);
+    let mut message = ProgressMessage::from_snapshot(worker_id, &snapshot, done);
+    message.job_id = job_id;
     if let Ok(payload) = serde_json::to_vec(&message) {
         let _ = socket.send_to(&payload, addr);
+    }
+}
+
+#[cfg(test)]
+mod process_limit_tests {
+    use super::*;
+
+    fn indoor(arguments: &[&str]) -> Cli {
+        Cli::parse_from(
+            [
+                "zeroverse_gen",
+                "--output",
+                "unused",
+                "--scene-type",
+                "procedural-indoor",
+                "--samples",
+                "1000",
+            ]
+            .into_iter()
+            .chain(arguments.iter().copied()),
+        )
+    }
+
+    #[test]
+    fn renderer_upgrade_rejects_resume_without_changing_readers() {
+        let current = serde_json::json!({"capture_engine": bevy_zeroverse::CAPTURE_ENGINE_IDENTITY, "base_seed": 7});
+        assert!(verify_generation_contract(&current, &current).is_ok());
+        let mut legacy = current.clone();
+        legacy.as_object_mut().unwrap().remove("capture_engine");
+        assert!(
+            verify_generation_contract(&legacy, &current)
+                .unwrap_err()
+                .to_string()
+                .contains("capture engine")
+        );
+        let incompatible = serde_json::json!({"capture_engine": "old renderer", "base_seed": 7});
+        assert!(verify_generation_contract(&incompatible, &current).is_err());
+        let changed_seed = serde_json::json!({"capture_engine": bevy_zeroverse::CAPTURE_ENGINE_IDENTITY, "base_seed": 8});
+        assert!(verify_generation_contract(&changed_seed, &current).is_err());
+    }
+
+    #[test]
+    fn default_cap_only_applies_to_finite_indoor_process_jobs() {
+        assert_eq!(effective_process_cap(&indoor(&[])).unwrap(), 256);
+        assert_eq!(
+            effective_process_cap(&indoor(&["--per-process=false"])).unwrap(),
+            0
+        );
+        assert_eq!(
+            effective_process_cap(&indoor(&["--max-scenes-per-process", "0"])).unwrap(),
+            0
+        );
+        assert_eq!(
+            effective_process_cap(&indoor(&["--scenes-per-child", "3"])).unwrap(),
+            3
+        );
+        assert!(
+            effective_process_cap(&indoor(&[
+                "--max-scenes-per-process",
+                "3",
+                "--per-process=false"
+            ]))
+            .is_err()
+        );
+        let legacy = Cli::parse_from(["zeroverse_gen", "--output", "unused", "--samples", "1000"]);
+        assert_eq!(effective_process_cap(&legacy).unwrap(), 0);
+        let unbounded = Cli::parse_from([
+            "zeroverse_gen",
+            "--output",
+            "unused",
+            "--scene-type",
+            "procedural-indoor",
+            "--per-process=false",
+        ]);
+        assert_eq!(effective_process_cap(&unbounded).unwrap(), 0);
     }
 }

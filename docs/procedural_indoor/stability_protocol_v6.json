@@ -1,0 +1,31 @@
+{
+  "recorded_utc": "2026-09-24T17:35:27.317100+00:00",
+  "protocol": {
+    "version": 2,
+    "minimum_scenes": 4096,
+    "minimum_warmup": 512,
+    "tail_scenes": 2048,
+    "block_scenes": 64,
+    "heap_slope_upper_bytes_per_scene": 8192,
+    "rss_slope_upper_bytes_per_scene": 32768,
+    "heap_late_to_early_ratio": 1.08,
+    "rss_late_to_early_ratio": 1.15,
+    "maximum_live_heap_bytes": 2147483648,
+    "maximum_rss_bytes": 4831838208,
+    "maximum_retained_bind_groups": 512,
+    "maximum_retained_textures": 256,
+    "maximum_retained_buffers": 1024,
+    "require_gpu_memory": true,
+    "gpu_memory_slope_upper_bytes_per_scene": 8192,
+    "gpu_memory_late_to_early_ratio": 1.08,
+    "maximum_gpu_memory_bytes": 4294967296
+  },
+  "target": "out/indoor_v6_continuous4096",
+  "binary_sha256": "3395be0f564b16a8e41d11e37ad83cf81381fb1a4ebd6f74ea77413f299981b8",
+  "capture_engine": "capture-v6",
+  "scope": "Same frozen host gates; additional GPU-memory gates fixed before the run. Continuous native capture, direct draws with GPU preprocessing; indirect validation enabled. No concurrent GPU jobs or compilation.",
+  "environment": {
+    "WGPU_VALIDATION_INDIRECT_CALL": "1",
+    "GLIBC_TUNABLES": "glibc.cpu.x86_non_temporal_threshold=32768:glibc.cpu.x86_rep_movsb_threshold=1073741824"
+  }
+}

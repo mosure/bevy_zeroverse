@@ -1,0 +1,124 @@
+warning: trailing semicolon in macro used in expression position
+  --> third_party/wgpu-hal/build.rs:2:5
+   |
+ 2 | /     cfg_aliases::cfg_aliases! {
+ 3 | |         native: { not(target_arch = "wasm32") },
+ 4 | |         send_sync: { any(
+ 5 | |             not(target_arch = "wasm32"),
+...  |
+30 | |         supports_ptr_atomics: { target_has_atomic = "ptr" }
+31 | |     }
+   | |_____^
+   |
+   = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+   = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+   = note: `#[warn(semicolon_in_expressions_from_non_local_macros)]` (part of `#[warn(future_incompatible)]`) on by default
+   = note: this warning originates in the macro `$crate::cfg_aliases` which comes from the expansion of the macro `cfg_aliases::cfg_aliases` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+  --> third_party/wgpu-hal/build.rs:2:5
+   |
+ 2 | /     cfg_aliases::cfg_aliases! {
+ 3 | |         native: { not(target_arch = "wasm32") },
+ 4 | |         send_sync: { any(
+ 5 | |             not(target_arch = "wasm32"),
+...  |
+30 | |         supports_ptr_atomics: { target_has_atomic = "ptr" }
+31 | |     }
+   | |_____^
+   |
+   = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+   = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+   = note: this warning originates in the macro `$crate::cfg_aliases` which comes from the expansion of the macro `cfg_aliases::cfg_aliases` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: `wgpu-hal` (build script) generated 138 warnings (136 duplicates)
+    Checking wgpu-hal v29.0.4 (/media/mosure/hyper1/repos/bevy_zeroverse/third_party/wgpu-hal)
+warning: trailing semicolon in macro used in expression position
+  --> third_party/wgpu-core/build.rs:2:5
+   |
+ 2 | /     cfg_aliases::cfg_aliases! {
+ 3 | |         windows_linux_android: { any(windows, target_os = "linux", target_os = "android", target_os = "freebsd") },
+ 4 | |         send_sync: { all(
+ 5 | |             feature = "std",
+...  |
+25 | |         supports_64bit_atomics: { target_has_atomic = "64" }
+26 | |     }
+   | |_____^
+   |
+   = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+   = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+   = note: `#[warn(semicolon_in_expressions_from_non_local_macros)]` (part of `#[warn(future_incompatible)]`) on by default
+   = note: this warning originates in the macro `$crate::cfg_aliases` which comes from the expansion of the macro `cfg_aliases::cfg_aliases` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+  --> third_party/wgpu-core/build.rs:2:5
+   |
+ 2 | /     cfg_aliases::cfg_aliases! {
+ 3 | |         windows_linux_android: { any(windows, target_os = "linux", target_os = "android", target_os = "freebsd") },
+ 4 | |         send_sync: { all(
+ 5 | |             feature = "std",
+...  |
+25 | |         supports_64bit_atomics: { target_has_atomic = "64" }
+26 | |     }
+   | |_____^
+   |
+   = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+   = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+   = note: this warning originates in the macro `$crate::cfg_aliases` which comes from the expansion of the macro `cfg_aliases::cfg_aliases` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: `wgpu-core` (build script) generated 156 warnings (154 duplicates)
+    Checking wgpu-core-deps-windows-linux-android v29.0.4
+    Checking wgpu-core v29.0.4 (/media/mosure/hyper1/repos/bevy_zeroverse/third_party/wgpu-core)
+warning: overflow evaluating the requirement `&global::Global: Send`
+   --> third_party/wgpu-core/src/global.rs:103:5
+    |
+103 |     test_internal(global)
+    |     ^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: which requires `global::Global: Sync`
+    = note: which requires `Hub: Sync`
+    = note: which requires `Registry<Arc<command::CommandBuffer>>: Sync`
+    = note: which requires `vanilla::RwLock<storage::Storage<Arc<command::CommandBuffer>>>: Sync`
+    = note: which requires `parking_lot::lock_api::RwLock<parking_lot::RawRwLock, storage::Storage<Arc<command::CommandBuffer>>>: Sync`
+    = note: which requires `storage::Storage<Arc<command::CommandBuffer>>: Sync`
+    = note: which requires `Vec<storage::Element<Arc<command::CommandBuffer>>>: Sync`
+    = note: which requires `alloc::raw_vec::RawVec<storage::Element<Arc<command::CommandBuffer>>>: Sync`
+    = note: which requires `PhantomData<storage::Element<Arc<command::CommandBuffer>>>: Sync`
+    = note: which requires `storage::Element<Arc<command::CommandBuffer>>: Sync`
+    = note: which requires `Arc<command::CommandBuffer>: Sync`
+    = note: which requires `command::CommandBuffer: Send`
+    = note: which requires `vanilla::Mutex<CommandEncoderStatus>: Send`
+    = note: which requires `parking_lot::lock_api::Mutex<parking_lot::RawMutex, CommandEncoderStatus>: Send`
+    = note: which requires `CommandEncoderStatus: Send`
+    = note: and so on...
+    = help: consider adding a manual `impl` of auto traits like `Send` for intermediate types, if auto traits are involved
+    = help: or consider increasing the recursion limit by adding a `#![recursion_limit = "256"]` attribute to your crate (`wgpu_core`)
+    = note: this lint is attached to the whole crate and can't be disabled on a per-function basis
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #159228 <https://github.com/rust-lang/rust/issues/159228>
+    = note: `#[warn(recursion_depth_exceeding_limit)]` (part of `#[warn(future_incompatible)]`) on by default
+
+warning: `wgpu-core` (lib) generated 1 warning
+    Checking wgpu v29.0.4
+    Checking bevy_render v0.19.1
+    Checking bevy_core_pipeline v0.19.1
+    Checking bevy_sprite_render v0.19.1
+    Checking bevy_pbr v0.19.1
+    Checking bevy_ui_render v0.19.1
+    Checking bevy_anti_alias v0.19.1
+    Checking bevy_post_process v0.19.1
+    Checking bevy_egui v0.40.1
+    Checking bevy_egui v0.42.0
+    Checking bevy_gizmos_render v0.19.1
+    Checking bevy-inspector-egui v0.37.0
+    Checking bevy_internal v0.19.1
+    Checking bevy v0.19.1
+    Checking bevy_panorbit_camera v0.35.1
+    Checking bevy_args v4.0.0
+    Checking bevy_burn_human v0.4.0
+    Checking bevy_zeroverse v0.17.3 (/media/mosure/hyper1/repos/bevy_zeroverse)
+    Checking bevy_zeroverse_burn v0.1.2 (/media/mosure/hyper1/repos/bevy_zeroverse/crates/burn)
+    Checking bevy_zeroverse_ffi v0.18.1 (/media/mosure/hyper1/repos/bevy_zeroverse/crates/ffi)
+    Finished `dev` profile [optimized + debuginfo] target(s) in 1m 00s
+warning: the following packages contain code that will be rejected by a future version of Rust: cubecl-common v0.10.0, naga v29.0.4, nix v0.30.1, wgpu v29.0.4, wgpu-core v29.0.4 (/media/mosure/hyper1/repos/bevy_zeroverse/third_party/wgpu-core), wgpu-hal v29.0.4 (/media/mosure/hyper1/repos/bevy_zeroverse/third_party/wgpu-hal), winit v0.30.12
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 9`

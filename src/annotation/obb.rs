@@ -60,7 +60,7 @@ impl Plugin for ZeroverseObbPlugin {
     }
 }
 
-fn compute_object_obbs(
+pub(crate) fn compute_object_obbs(
     mut commands: Commands,
     parents: Query<&ChildOf>,
     class_sources: Query<(Option<&Name>, Option<&ObbClass>)>,
@@ -153,7 +153,7 @@ fn draw_object_obbs(
         let transform = Transform::from_translation(obb.center)
             .with_rotation(obb.rotation)
             .with_scale(obb.scale);
-        gizmos.cuboid(transform, color);
+        gizmos.cube(transform, color);
         gizmos.axes(transform, 0.5);
     }
 }

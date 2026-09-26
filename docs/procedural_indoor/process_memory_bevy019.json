@@ -1,0 +1,406 @@
+{
+  "schema_version": 1,
+  "run_id": "9688dd0e-dd80-4efc-ae03-3d93855bce58",
+  "command": [
+    "/media/mosure/hyper1/repos/bevy_zeroverse/target/debug/zeroverse_gen",
+    "--output",
+    "/media/mosure/hyper1/repos/bevy_zeroverse/out/indoor_bevy019_bounded_process128/dataset",
+    "--scene-type",
+    "procedural-indoor",
+    "--seed",
+    "23000",
+    "--samples",
+    "128",
+    "--workers",
+    "1",
+    "--per-process=true",
+    "--max-scenes-per-process",
+    "16",
+    "--chunk-size",
+    "8",
+    "--width",
+    "161",
+    "--height",
+    "119",
+    "--cameras",
+    "3",
+    "--playback-steps",
+    "1",
+    "--render-modes",
+    "color",
+    "depth",
+    "normal",
+    "semantic",
+    "position",
+    "--indoor-human-density",
+    ".5",
+    "--indoor-quality",
+    "auto",
+    "--indoor-gi-rays",
+    "256",
+    "--color-codec",
+    "raw",
+    "--compression",
+    "none",
+    "--ov-mode",
+    "disabled",
+    "--no-ui",
+    "--timeout-secs",
+    "120"
+  ],
+  "result": "passed",
+  "interval_seconds": 0.1,
+  "max_scenes_per_process": 16,
+  "gpu_release_grace_seconds": 15,
+  "worker_limit": 1,
+  "quality": "auto",
+  "proc_clock_ticks_per_second": 100,
+  "boot_id": "600616a3-0eb1-4834-b909-fa3ddaf5649c",
+  "timing_policy": "Memory and process-lifetime qualification; concurrent host activity is not controlled. Wall/CPU times are diagnostic, not an isolated throughput benchmark.",
+  "policy": "Peaks and lifetimes are observed /proc/NVML polls, not continuous maxima or exact exit times. Missing GPU memory remains unknown. Device activity from other processes is reported separately. PID identity includes /proc start_ticks.",
+  "adapter": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+  "adapter_uuid": "GPU-343b002b-d5c6-2d9c-9fea-9ab5a52d0879",
+  "binary_sha256": "4ac651fe6570d26541ac7249620e783522a553e2772342cd8a491dc0138b1c97",
+  "script_sha256": "6825cb21bb691ce09a6752375a7ec37885042ff3924823c7e205f4564b141b59",
+  "command_started_unix_seconds": 1790258413.7721322,
+  "parent_pid": 7709,
+  "exit_code": 0,
+  "command_exit_observed_unix_seconds": 1790258514.4983063,
+  "dataset": {
+    "samples": 128,
+    "chunks": [
+      {
+        "file": "000000.safetensors",
+        "sample_offset": 0,
+        "samples": 8,
+        "bytes": 24123980
+      },
+      {
+        "file": "000001.safetensors",
+        "sample_offset": 8,
+        "samples": 8,
+        "bytes": 24088176
+      },
+      {
+        "file": "000002.safetensors",
+        "sample_offset": 16,
+        "samples": 8,
+        "bytes": 24064078
+      },
+      {
+        "file": "000003.safetensors",
+        "sample_offset": 24,
+        "samples": 8,
+        "bytes": 24077342
+      },
+      {
+        "file": "000004.safetensors",
+        "sample_offset": 32,
+        "samples": 8,
+        "bytes": 24083101
+      },
+      {
+        "file": "000005.safetensors",
+        "sample_offset": 40,
+        "samples": 8,
+        "bytes": 24110155
+      },
+      {
+        "file": "000006.safetensors",
+        "sample_offset": 48,
+        "samples": 8,
+        "bytes": 24057334
+      },
+      {
+        "file": "000007.safetensors",
+        "sample_offset": 56,
+        "samples": 8,
+        "bytes": 24106073
+      },
+      {
+        "file": "000008.safetensors",
+        "sample_offset": 64,
+        "samples": 8,
+        "bytes": 24089979
+      },
+      {
+        "file": "000009.safetensors",
+        "sample_offset": 72,
+        "samples": 8,
+        "bytes": 24096565
+      },
+      {
+        "file": "000010.safetensors",
+        "sample_offset": 80,
+        "samples": 8,
+        "bytes": 24096770
+      },
+      {
+        "file": "000011.safetensors",
+        "sample_offset": 88,
+        "samples": 8,
+        "bytes": 24105701
+      },
+      {
+        "file": "000012.safetensors",
+        "sample_offset": 96,
+        "samples": 8,
+        "bytes": 24082399
+      },
+      {
+        "file": "000013.safetensors",
+        "sample_offset": 104,
+        "samples": 8,
+        "bytes": 24068754
+      },
+      {
+        "file": "000014.safetensors",
+        "sample_offset": 112,
+        "samples": 8,
+        "bytes": 24083955
+      },
+      {
+        "file": "000015.safetensors",
+        "sample_offset": 120,
+        "samples": 8,
+        "bytes": 24090705
+      }
+    ],
+    "capture_engine": "capture-v4;bevy=0.19.1;burn=0.21.0;burn_human=0.4.0;bevy_burn_human=0.4.0",
+    "planes": [
+      "color",
+      "depth",
+      "normal",
+      "position",
+      "semantic"
+    ],
+    "scope": "All tensor byte ranges/shapes and all small manifests/provenance checked; image tensor values were not loaded."
+  },
+  "lifecycle": {
+    "run_id": "7709-1790258413780401194",
+    "jobs": 8,
+    "lifecycle_peak_active_workers": 1,
+    "recycling_observed": true,
+    "all_worker_exits_and_gpu_release_observed": true
+  },
+  "processes": [
+    {
+      "pid": 7709,
+      "start_ticks": 67840486,
+      "role": "parent",
+      "first_seen_seconds": 2.4237428379710764,
+      "last_seen_seconds": 103.14116657699924,
+      "exit_observed_seconds": 103.14116657699924,
+      "rss_observed_peak_bytes": 45486080,
+      "cpu_seconds_last_observed": 0.3,
+      "gpu_observed_peak_bytes": null,
+      "gpu_first_seen_seconds": null,
+      "gpu_release_observed_seconds": 103.14116657699924
+    },
+    {
+      "pid": 7710,
+      "start_ticks": 67840487,
+      "role": "worker",
+      "first_seen_seconds": 2.5342422230169177,
+      "last_seen_seconds": 17.499465933069587,
+      "exit_observed_seconds": 17.60817306896206,
+      "rss_observed_peak_bytes": 1904717824,
+      "cpu_seconds_last_observed": 18.8,
+      "gpu_observed_peak_bytes": 1242705920,
+      "gpu_first_seen_seconds": 2.782425428973511,
+      "gpu_release_observed_seconds": 17.60817306896206,
+      "lifecycle": {
+        "run_id": "7709-1790258413780401194",
+        "job_id": 0,
+        "worker_id": 0,
+        "sample_offset": 0,
+        "samples": 16,
+        "chunk_offset": 0,
+        "chunks": 2,
+        "started_unix_millis": 1790258413780,
+        "completed_unix_millis": 1790258428914
+      },
+      "observed_lifetime_seconds": 15.073930845945142
+    },
+    {
+      "pid": 7976,
+      "start_ticks": 67842000,
+      "role": "worker",
+      "first_seen_seconds": 17.60817306896206,
+      "last_seen_seconds": 26.549254428013228,
+      "exit_observed_seconds": 26.549254428013228,
+      "rss_observed_peak_bytes": 2414571520,
+      "cpu_seconds_last_observed": 12.07,
+      "gpu_observed_peak_bytes": 1234317312,
+      "gpu_first_seen_seconds": 17.858105047023855,
+      "gpu_release_observed_seconds": 26.549254428013228,
+      "lifecycle": {
+        "run_id": "7709-1790258413780401194",
+        "job_id": 1,
+        "worker_id": 0,
+        "sample_offset": 16,
+        "samples": 16,
+        "chunk_offset": 2,
+        "chunks": 2,
+        "started_unix_millis": 1790258428915,
+        "completed_unix_millis": 1790258437941
+      },
+      "observed_lifetime_seconds": 8.941081359051168
+    },
+    {
+      "pid": 8101,
+      "start_ticks": 67842903,
+      "role": "worker",
+      "first_seen_seconds": 26.65823945601005,
+      "last_seen_seconds": 41.29873234499246,
+      "exit_observed_seconds": 41.29873234499246,
+      "rss_observed_peak_bytes": 2138828800,
+      "cpu_seconds_last_observed": 18.5,
+      "gpu_observed_peak_bytes": 1339174912,
+      "gpu_first_seen_seconds": 26.97768754605204,
+      "gpu_release_observed_seconds": 41.29873234499246,
+      "lifecycle": {
+        "run_id": "7709-1790258413780401194",
+        "job_id": 2,
+        "worker_id": 0,
+        "sample_offset": 32,
+        "samples": 16,
+        "chunk_offset": 4,
+        "chunks": 2,
+        "started_unix_millis": 1790258437942,
+        "completed_unix_millis": 1790258452699
+      },
+      "observed_lifetime_seconds": 14.640492888982408
+    },
+    {
+      "pid": 8254,
+      "start_ticks": 67844379,
+      "role": "worker",
+      "first_seen_seconds": 41.40766816097312,
+      "last_seen_seconds": 52.92857307498343,
+      "exit_observed_seconds": 53.04419150901958,
+      "rss_observed_peak_bytes": 2388803584,
+      "cpu_seconds_last_observed": 15.08,
+      "gpu_observed_peak_bytes": 1360146432,
+      "gpu_first_seen_seconds": 41.73574060504325,
+      "gpu_release_observed_seconds": 53.04419150901958,
+      "lifecycle": {
+        "run_id": "7709-1790258413780401194",
+        "job_id": 3,
+        "worker_id": 0,
+        "sample_offset": 48,
+        "samples": 16,
+        "chunk_offset": 6,
+        "chunks": 2,
+        "started_unix_millis": 1790258452700,
+        "completed_unix_millis": 1790258464375
+      },
+      "observed_lifetime_seconds": 11.636523348046467
+    },
+    {
+      "pid": 8367,
+      "start_ticks": 67845546,
+      "role": "worker",
+      "first_seen_seconds": 53.04419150901958,
+      "last_seen_seconds": 64.62722680997103,
+      "exit_observed_seconds": 64.74752755695954,
+      "rss_observed_peak_bytes": 2554134528,
+      "cpu_seconds_last_observed": 15.15,
+      "gpu_observed_peak_bytes": 1372729344,
+      "gpu_first_seen_seconds": 53.32304948603269,
+      "gpu_release_observed_seconds": 64.74752755695954,
+      "lifecycle": {
+        "run_id": "7709-1790258413780401194",
+        "job_id": 4,
+        "worker_id": 0,
+        "sample_offset": 64,
+        "samples": 16,
+        "chunk_offset": 8,
+        "chunks": 2,
+        "started_unix_millis": 1790258464376,
+        "completed_unix_millis": 1790258476075
+      },
+      "observed_lifetime_seconds": 11.703336047939956
+    },
+    {
+      "pid": 8479,
+      "start_ticks": 67846716,
+      "role": "worker",
+      "first_seen_seconds": 64.74752755695954,
+      "last_seen_seconds": 77.37981792306527,
+      "exit_observed_seconds": 77.49476015905384,
+      "rss_observed_peak_bytes": 2411024384,
+      "cpu_seconds_last_observed": 16.09,
+      "gpu_observed_peak_bytes": 1360146432,
+      "gpu_first_seen_seconds": 65.18028754100669,
+      "gpu_release_observed_seconds": 77.49476015905384,
+      "lifecycle": {
+        "run_id": "7709-1790258413780401194",
+        "job_id": 5,
+        "worker_id": 0,
+        "sample_offset": 80,
+        "samples": 16,
+        "chunk_offset": 10,
+        "chunks": 2,
+        "started_unix_millis": 1790258476076,
+        "completed_unix_millis": 1790258488829
+      },
+      "observed_lifetime_seconds": 12.7472326020943
+    },
+    {
+      "pid": 8624,
+      "start_ticks": 67847992,
+      "role": "worker",
+      "first_seen_seconds": 77.49476015905384,
+      "last_seen_seconds": 91.76256328506861,
+      "exit_observed_seconds": 91.76256328506861,
+      "rss_observed_peak_bytes": 1839562752,
+      "cpu_seconds_last_observed": 17.95,
+      "gpu_observed_peak_bytes": 1020407808,
+      "gpu_first_seen_seconds": 77.79115941096097,
+      "gpu_release_observed_seconds": 91.76256328506861,
+      "lifecycle": {
+        "run_id": "7709-1790258413780401194",
+        "job_id": 6,
+        "worker_id": 0,
+        "sample_offset": 96,
+        "samples": 16,
+        "chunk_offset": 12,
+        "chunks": 2,
+        "started_unix_millis": 1790258488830,
+        "completed_unix_millis": 1790258503127
+      },
+      "observed_lifetime_seconds": 14.267803126014769
+    },
+    {
+      "pid": 8771,
+      "start_ticks": 67849422,
+      "role": "worker",
+      "first_seen_seconds": 91.87211884406861,
+      "last_seen_seconds": 102.92029193101916,
+      "exit_observed_seconds": 103.03087874304038,
+      "rss_observed_peak_bytes": 2396966912,
+      "cpu_seconds_last_observed": 14.52,
+      "gpu_observed_peak_bytes": 1364340736,
+      "gpu_first_seen_seconds": 92.07344781502616,
+      "gpu_release_observed_seconds": 103.03087874304038,
+      "lifecycle": {
+        "run_id": "7709-1790258413780401194",
+        "job_id": 7,
+        "worker_id": 0,
+        "sample_offset": 112,
+        "samples": 16,
+        "chunk_offset": 14,
+        "chunks": 2,
+        "started_unix_millis": 1790258503128,
+        "completed_unix_millis": 1790258514377
+      },
+      "observed_lifetime_seconds": 11.158759898971766
+    }
+  ],
+  "peak_active_children": 1,
+  "tree_rss_observed_peak_bytes": 2598391808,
+  "tree_gpu_known_memory_observed_peak_bytes": 1372729344,
+  "parent_rss_observed_peak_bytes": 45486080,
+  "observed_wall_seconds": 103.18531192396767
+}

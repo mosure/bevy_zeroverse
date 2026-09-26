@@ -292,7 +292,6 @@ fn setup_scene(
                     ..default()
                 };
                 let origin_camera_center = origin_camera_sampler.sample();
-                let mut rng = rand::rng();
 
                 for _ in 0..scene_settings.num_cameras {
                     if scene_settings.max_camera_radius <= 0.0 {
@@ -327,7 +326,7 @@ fn setup_scene(
                         let circular_sampler = ExtrinsicsSampler {
                             position: ExtrinsicsSamplerType::Circle {
                                 radius: scene_settings.max_camera_radius,
-                                rotation: Quat::from_rng(&mut rng),
+                                rotation: Quat::from_rng(&mut rand_bevy::rng()),
                                 translate: origin_camera_center.translation,
                             },
                             looking_at: room_settings.looking_at_sampler.clone(),

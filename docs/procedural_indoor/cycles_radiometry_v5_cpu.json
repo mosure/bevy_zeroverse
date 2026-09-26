@@ -1,0 +1,67 @@
+{
+  "blender": "5.2.2 LTS",
+  "backend": "CPU",
+  "approximate_caustics": false,
+  "slab_diffuse_reflectance": 0.1554440598753425,
+  "sun_glass_model": "Two-interface Fresnel transmission and floor/slab radiosity feedback; finite solar disk differs from normal incidence by less than 0.01%",
+  "limits": "Pixel standard error is a Monte Carlo diagnostic, not a bound on all rendering bias",
+  "radiometry": "RGB photometric proxy scalar units; no wavelength-to-lumen conversion",
+  "controls": [
+    {
+      "control": "emission",
+      "expected_radiance": 4,
+      "measured_radiance": 4.0,
+      "relative_error": 0.0,
+      "samples": 512,
+      "seed": 73,
+      "pixel_standard_deviation": 0.0,
+      "mean_standard_error": 0.0,
+      "passed": true
+    },
+    {
+      "control": "sun",
+      "expected_radiance": 5.729577951308232,
+      "measured_radiance": 5.729559898376465,
+      "relative_error": 3.1508309897843034e-06,
+      "samples": 512,
+      "seed": 73,
+      "pixel_standard_deviation": 5.164780532140867e-07,
+      "mean_standard_error": 9.745202682061386e-09,
+      "passed": true
+    },
+    {
+      "control": "upper_hemisphere",
+      "expected_radiance": 0.18,
+      "measured_radiance": 0.18000942468643188,
+      "relative_error": 5.2359369066001804e-05,
+      "samples": 512,
+      "seed": 73,
+      "pixel_standard_deviation": 0.0007363574695773423,
+      "mean_standard_error": 1.534411104298531e-05,
+      "passed": true
+    },
+    {
+      "control": "glass",
+      "expected_radiance": 3.692307692307692,
+      "measured_radiance": 3.691650390625,
+      "relative_error": 0.00017801920572912966,
+      "samples": 512,
+      "seed": 73,
+      "pixel_standard_deviation": 0.01132296770811081,
+      "mean_standard_error": 0.0002359463635185046,
+      "passed": true
+    },
+    {
+      "control": "sun_glass",
+      "expected_radiance": 5.441082291699759,
+      "measured_radiance": 5.402803897857666,
+      "relative_error": 0.007035069824340989,
+      "samples": 262144,
+      "seed": 73,
+      "pixel_standard_deviation": 1.2019493579864502,
+      "mean_standard_error": 0.025046047408962213,
+      "passed": true
+    }
+  ],
+  "passed": true
+}

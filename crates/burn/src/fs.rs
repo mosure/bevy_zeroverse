@@ -16,8 +16,8 @@ type OvoxelTuple = ([u32; 3], [u8; 3], u8, [u8; 4], u16);
 
 use crate::{
     chunk::{
-        build_tensor_views, decode_jpeg_to_rgba_f32, decode_rgba_bytes,
-        encode_jpeg_from_rgba_f32, normalize_hdr_image_tonemap, TensorData,
+        TensorData, build_tensor_views, decode_jpeg_to_rgba_f32, decode_rgba_bytes,
+        encode_jpeg_from_rgba_f32, normalize_hdr_image_tonemap,
     },
     dataset::ZeroverseSample,
 };
@@ -30,12 +30,26 @@ pub struct FsDataset {
 
 impl FsDataset {
     pub fn from_dir(root: impl AsRef<Path>) -> Result<Self> {
-        let mut sample_dirs: Vec<PathBuf> = fs::read_dir(root.as_ref())?
-            .filter_map(|entry| entry.ok())
-            .map(|entry| entry.path())
-            .filter(|p| p.is_dir())
-            .filter(|p| p.join(META_FILE).exists())
-            .collect();
+        let mut sample_dirs = Vec::new();
+        for entry in fs::read_dir(root.as_ref())? {
+            let entry = entry?;
+            let name = entry.file_name();
+            let name = name.to_string_lossy();
+            if !entry.file_type()?.is_dir() || name.starts_with('.') {
+                continue;
+            }
+            let path = entry.path();
+            if name.parse::<usize>().is_ok() {
+                anyhow::ensure!(
+                    path.join(META_FILE).is_file(),
+                    "incomplete indexed sample directory {}",
+                    path.display()
+                );
+            }
+            if path.join(META_FILE).is_file() {
+                sample_dirs.push(path);
+            }
+        }
 
         sample_dirs.sort();
         Ok(Self { sample_dirs })
@@ -98,7 +112,7 @@ fn rgba_from_plane(data: &[f32], channels: usize) -> Vec<f32> {
             }
         }
         3 => {
-            for chunk in data.chunks_exact(3) {
+            for chunk in data.as_chunks::<3>().0.iter() {
                 out.extend_from_slice(&[chunk[0], chunk[1], chunk[2], 1.0]);
             }
         }
@@ -262,10 +276,19 @@ fn fill_plane_from_npz(
     height: usize,
     width: usize,
     expected_channels: usize,
-) -> Option<Vec<f32>> {
+) -> Result<Option<Vec<f32>>> {
     let file = dir.join(format!("{key}_{timestep:03}_{view:02}.npz"));
-    let (data, shape) = load_npz_array(&file, key).ok().flatten()?;
-    reshape_plane(data, &shape, height, width, expected_channels)
+    let Some((data, shape)) = load_npz_array(&file, key)? else {
+        return Ok(None);
+    };
+    let plane = reshape_plane(data, &shape, height, width, expected_channels)
+        .with_context(|| format!("invalid plane dimensions in {}", file.display()))?;
+    anyhow::ensure!(
+        plane.iter().all(|value| value.is_finite()),
+        "non-finite values in {}",
+        file.display()
+    );
+    Ok(Some(plane))
 }
 
 fn decode_color(bytes: &[u8], expected_width: u32, expected_height: u32) -> Result<Vec<f32>> {
@@ -290,6 +313,7 @@ struct MetaFields {
     time: Vec<f32>,
     aabb: [[f32; 3]; 2],
     object_obbs: Vec<bevy_zeroverse::sample::ObjectObbSample>,
+    human_instance_ids: Vec<i64>,
     human_poses: Vec<bevy_zeroverse::sample::HumanPoseSample>,
     human_pose_steps: Vec<Vec<bevy_zeroverse::sample::HumanPoseSample>>,
     human_bone_names: Vec<String>,
@@ -323,10 +347,7 @@ fn decode_ovoxel_coords(tensor: &TensorView<'_>) -> Option<Vec<[u32; 3]>> {
     }
 }
 
-fn decode_ovoxel_semantics(
-    tensor: Option<&TensorView<'_>>,
-    default_len: usize,
-) -> Vec<u16> {
+fn decode_ovoxel_semantics(tensor: Option<&TensorView<'_>>, default_len: usize) -> Vec<u16> {
     let Some(tensor) = tensor else {
         return vec![0; default_len];
     };
@@ -386,7 +407,7 @@ fn parse_ovoxel_from_tensors(
             )
         })
         .collect();
-    zipped.sort_by(|a, b| a.0.cmp(&b.0));
+    zipped.sort_by_key(|a| a.0);
 
     let mut ov = bevy_zeroverse::sample::OvoxelSample {
         coords: Vec::with_capacity(zipped.len()),
@@ -527,6 +548,16 @@ fn load_meta(dir: &Path, steps: usize, view_dim: usize) -> Result<MetaFields> {
         let class_ids: &[i64] = bytemuck::cast_slice(class_idx.data());
 
         let count = center.shape().first().copied().unwrap_or(0);
+        let instance_tensor = tensors.tensor("object_obb_instance_ids").ok();
+        let instance_ids: Option<&[i64]> = if let Some(tensor) = instance_tensor.as_ref() {
+            anyhow::ensure!(
+                tensor.dtype() == Dtype::I64 && tensor.shape() == [count],
+                "invalid OBB instance IDs"
+            );
+            Some(bytemuck::cast_slice(tensor.data()))
+        } else {
+            None
+        };
         for i in 0..count {
             let cls = class_ids.get(i).copied().unwrap_or(-1);
             if cls < 0 {
@@ -540,6 +571,9 @@ fn load_meta(dir: &Path, steps: usize, view_dim: usize) -> Result<MetaFields> {
                 .unwrap_or_else(|| "unknown".to_string());
 
             object_obbs.push(bevy_zeroverse::sample::ObjectObbSample {
+                instance_id: instance_ids
+                    .and_then(|ids| ids.get(i).copied())
+                    .filter(|id| *id >= 0),
                 center: [centers[c_idx], centers[c_idx + 1], centers[c_idx + 2]],
                 scale: [scales[c_idx], scales[c_idx + 1], scales[c_idx + 2]],
                 rotation: [
@@ -626,6 +660,15 @@ fn load_meta(dir: &Path, steps: usize, view_dim: usize) -> Result<MetaFields> {
         human_poses = human_pose_steps.first().cloned().unwrap_or_default();
     }
 
+    let human_instance_ids = if let Ok(tensor) = tensors.tensor("human_instance_ids") {
+        anyhow::ensure!(
+            tensor.dtype() == Dtype::I64 && tensor.shape() == [human_poses.len()],
+            "invalid human instance IDs"
+        );
+        bytemuck::cast_slice::<u8, i64>(tensor.data()).to_vec()
+    } else {
+        Vec::new()
+    };
     Ok(MetaFields {
         world_from_view,
         fovy,
@@ -634,6 +677,7 @@ fn load_meta(dir: &Path, steps: usize, view_dim: usize) -> Result<MetaFields> {
         time,
         aabb,
         object_obbs,
+        human_instance_ids,
         human_poses,
         human_pose_steps,
         human_bone_names,
@@ -645,12 +689,40 @@ fn load_meta(dir: &Path, steps: usize, view_dim: usize) -> Result<MetaFields> {
 pub fn load_sample_dir(dir: impl AsRef<Path>) -> Result<ZeroverseSample> {
     let dir = dir.as_ref();
     let color_files = collect_color_files(dir)?;
-    if color_files.is_empty() {
-        anyhow::bail!("no color files found in {:?}", dir);
+    let mut captured_files = color_files.clone();
+    let mut annotation_dimensions = None;
+    if captured_files.is_empty() {
+        for name in ["depth", "normal", "semantic", "position"] {
+            for entry in fs::read_dir(dir)? {
+                let path = entry?.path();
+                if path.extension().is_some_and(|extension| extension == "npz")
+                    && let Some((t, v)) = path
+                        .file_stem()
+                        .and_then(|stem| stem.to_str())
+                        .and_then(|stem| parse_indices(stem, &format!("{name}_")))
+                {
+                    let (_, shape) =
+                        load_npz_array(&path, name)?.context("annotation plane missing")?;
+                    anyhow::ensure!(
+                        shape.len() >= 2,
+                        "annotation image must have height/width dimensions"
+                    );
+                    annotation_dimensions = Some((shape[1] as u32, shape[0] as u32));
+                    captured_files.push((t, v, path));
+                }
+            }
+            if !captured_files.is_empty() {
+                break;
+            }
+        }
     }
-
-    let timesteps: BTreeSet<usize> = color_files.iter().map(|(t, _, _)| *t).collect();
-    let views: BTreeSet<usize> = color_files.iter().map(|(_, v, _)| *v).collect();
+    anyhow::ensure!(
+        !captured_files.is_empty(),
+        "no captured image planes found in {}",
+        dir.display()
+    );
+    let timesteps: BTreeSet<usize> = captured_files.iter().map(|(t, _, _)| *t).collect();
+    let views: BTreeSet<usize> = captured_files.iter().map(|(_, v, _)| *v).collect();
     let steps = timesteps.len().max(1);
     let view_dim = views.len().max(1);
 
@@ -659,12 +731,16 @@ pub fn load_sample_dir(dir: impl AsRef<Path>) -> Result<ZeroverseSample> {
         color_map.insert((t, v), path);
     }
 
-    let first_color = color_map
-        .values()
-        .next()
-        .context("no color paths after map build")?;
-    let first_bytes = fs::read(first_color)?;
-    let (width, height, _) = decode_jpeg_to_rgba_f32(&first_bytes)?;
+    let (width, height) = if let Some(dimensions) = annotation_dimensions {
+        dimensions
+    } else {
+        let first_color = color_map
+            .values()
+            .next()
+            .context("no color paths after map build")?;
+        let (width, height, _) = decode_jpeg_to_rgba_f32(&fs::read(first_color)?)?;
+        (width, height)
+    };
 
     let meta = load_meta(dir, steps, view_dim)?;
 
@@ -673,13 +749,32 @@ pub fn load_sample_dir(dir: impl AsRef<Path>) -> Result<ZeroverseSample> {
         view_dim: view_dim as u32,
         aabb: meta.aabb,
         object_obbs: meta.object_obbs,
+        human_instance_ids: meta.human_instance_ids,
         human_poses: meta.human_poses,
         human_pose_steps: meta.human_pose_steps,
         human_bone_names: meta.human_bone_names,
         human_bone_parents: meta.human_bone_parents,
         ovoxel: meta.ovoxel.clone(),
+        indoor: None,
+        indoor_render_metadata: None,
+        annotation_precision: Default::default(),
+        color_encoding: Default::default(),
     };
 
+    let render_metadata = dir.join("render_metadata.json");
+    let provenance = dir.join("indoor_render_metadata.json");
+    if provenance.exists() {
+        sample.indoor_render_metadata = Some(serde_json::from_slice(&fs::read(provenance)?)?);
+    }
+    let precision_metadata = dir.join("annotation_precision.json");
+    if precision_metadata.exists() {
+        sample.annotation_precision = serde_json::from_slice(&fs::read(precision_metadata)?)?;
+    }
+    if render_metadata.exists() {
+        let (encoding, indoor) = serde_json::from_slice(&fs::read(render_metadata)?)?;
+        sample.color_encoding = encoding;
+        sample.indoor = indoor;
+    }
     let timestep_list: Vec<usize> = timesteps.into_iter().collect();
     let view_list: Vec<usize> = views.into_iter().collect();
 
@@ -706,6 +801,23 @@ pub fn load_sample_dir(dir: impl AsRef<Path>) -> Result<ZeroverseSample> {
                 let rgba = decode_color(&bytes, width, height)?;
                 view.color = bytemuck::cast_slice(&rgba).to_vec();
             }
+            if let Some(plane) = fill_plane_from_npz(
+                dir,
+                "color",
+                *t_val,
+                *v_val,
+                height as usize,
+                width as usize,
+                3,
+            )? {
+                let rgba: Vec<f32> = plane
+                    .as_chunks::<3>()
+                    .0
+                    .iter()
+                    .flat_map(|rgb| [rgb[0], rgb[1], rgb[2], 1.0])
+                    .collect();
+                view.color = bytemuck::cast_slice(&rgba).to_vec();
+            }
 
             if let Some(depth_plane) = fill_plane_from_npz(
                 dir,
@@ -715,7 +827,7 @@ pub fn load_sample_dir(dir: impl AsRef<Path>) -> Result<ZeroverseSample> {
                 height as usize,
                 width as usize,
                 1,
-            ) {
+            )? {
                 let mut rgba = Vec::with_capacity(depth_plane.len() * 4);
                 for d in depth_plane {
                     rgba.extend_from_slice(&[d, d, d, d]);
@@ -731,12 +843,37 @@ pub fn load_sample_dir(dir: impl AsRef<Path>) -> Result<ZeroverseSample> {
                 height as usize,
                 width as usize,
                 3,
-            ) {
+            )? {
                 let mut rgba = Vec::with_capacity(normal_plane.len() / 3 * 4);
-                for chunk in normal_plane.chunks_exact(3) {
+                for chunk in normal_plane.as_chunks::<3>().0.iter() {
                     rgba.extend_from_slice(&[chunk[0], chunk[1], chunk[2], chunk[0]]);
                 }
                 view.normal = bytemuck::cast_slice(&rgba).to_vec();
+            }
+
+            let semantic_path = dir.join(format!("semantic_{t_val:03}_{v_val:02}.jpg"));
+            if let Some(plane) = fill_plane_from_npz(
+                dir,
+                "semantic",
+                *t_val,
+                *v_val,
+                height as usize,
+                width as usize,
+                3,
+            )? {
+                let rgba: Vec<f32> = plane
+                    .as_chunks::<3>()
+                    .0
+                    .iter()
+                    .flat_map(|p| [p[0], p[1], p[2], 1.0])
+                    .collect();
+                view.semantic = bytemuck::cast_slice(&rgba).to_vec();
+            } else if semantic_path.exists() {
+                let bytes = fs::read(&semantic_path)?;
+                let (w, h, rgba) = decode_jpeg_to_rgba_f32(&bytes)?;
+                if w == width && h == height {
+                    view.semantic = bytemuck::cast_slice(&rgba).to_vec();
+                }
             }
 
             if let Some(position_plane) = fill_plane_from_npz(
@@ -747,9 +884,9 @@ pub fn load_sample_dir(dir: impl AsRef<Path>) -> Result<ZeroverseSample> {
                 height as usize,
                 width as usize,
                 3,
-            ) {
+            )? {
                 let mut rgba = Vec::with_capacity(position_plane.len() / 3 * 4);
-                for chunk in position_plane.chunks_exact(3) {
+                for chunk in position_plane.as_chunks::<3>().0.iter() {
                     rgba.extend_from_slice(&[chunk[0], chunk[1], chunk[2], chunk[0]]);
                 }
                 view.position = bytemuck::cast_slice(&rgba).to_vec();
@@ -799,7 +936,7 @@ fn build_ovoxel_tensor_views(
         .zip(semantics.iter())
         .map(|((((c, d), i), bc), s)| (*c, *d, *i, *bc, *s))
         .collect();
-    zipped.sort_by(|a, b| a.0.cmp(&b.0));
+    zipped.sort_by_key(|a| a.0);
 
     let mut coords: Vec<u32> = Vec::with_capacity(zipped.len() * 3);
     let mut dual: Vec<u8> = Vec::with_capacity(zipped.len() * 3);
@@ -907,10 +1044,54 @@ pub fn save_sample_to_fs(
     height: u32,
     export_ovoxel: bool,
 ) -> Result<PathBuf> {
+    save_sample_to_fs_with_codec(
+        sample,
+        output_dir,
+        sample_idx,
+        width,
+        height,
+        export_ovoxel,
+        crate::chunk::ColorCodec::Jpeg,
+    )
+}
+
+pub fn save_sample_to_fs_with_codec(
+    sample: &ZeroverseSample,
+    output_dir: impl AsRef<Path>,
+    sample_idx: usize,
+    width: u32,
+    height: u32,
+    export_ovoxel: bool,
+    color_codec: crate::chunk::ColorCodec,
+) -> Result<PathBuf> {
     let output_dir = output_dir.as_ref();
     fs::create_dir_all(output_dir)?;
-    let scene_dir = output_dir.join(format!("{sample_idx:06}"));
-    fs::create_dir_all(&scene_dir)?;
+    let final_dir = output_dir.join(format!("{sample_idx:06}"));
+    anyhow::ensure!(
+        !final_dir.exists(),
+        "refusing to overwrite existing sample {}",
+        final_dir.display()
+    );
+    let scene_dir = output_dir.join(format!(".{sample_idx:06}.tmp-{}", std::process::id()));
+    fs::create_dir(&scene_dir)?;
+    let stored_encoding = match sample.color_encoding {
+        bevy_zeroverse::render::color::ColorEncoding::Legacy => sample.color_encoding,
+        _ => bevy_zeroverse::render::color::ColorEncoding::Srgb,
+    };
+    if let Some(provenance) = &sample.indoor_render_metadata {
+        fs::write(
+            scene_dir.join("indoor_render_metadata.json"),
+            serde_json::to_vec(provenance)?,
+        )?;
+    }
+    fs::write(
+        scene_dir.join("render_metadata.json"),
+        serde_json::to_vec_pretty(&(stored_encoding, &sample.indoor))?,
+    )?;
+    fs::write(
+        scene_dir.join("annotation_precision.json"),
+        serde_json::to_vec(&sample.annotation_precision)?,
+    )?;
 
     let view_dim = sample.view_dim as usize;
     anyhow::ensure!(view_dim > 0, "view_dim must be > 0");
@@ -967,7 +1148,8 @@ pub fn save_sample_to_fs(
 
             if !view.depth.is_empty() {
                 let depth_rgba = decode_rgba_bytes(&view.depth, width, height)?;
-                let depth_plane: Vec<f32> = depth_rgba.chunks_exact(4).map(|c| c[0]).collect();
+                let depth_plane: Vec<f32> =
+                    depth_rgba.as_chunks::<4>().0.iter().map(|c| c[0]).collect();
                 write_npz(
                     &scene_dir.join(format!("depth_{t:03}_{v:02}.npz")),
                     "depth",
@@ -986,7 +1168,9 @@ pub fn save_sample_to_fs(
             if !view.normal.is_empty() {
                 let normal_rgba = decode_rgba_bytes(&view.normal, width, height)?;
                 let normal_plane: Vec<f32> = normal_rgba
-                    .chunks_exact(4)
+                    .as_chunks::<4>()
+                    .0
+                    .iter()
                     .flat_map(|c| [c[0], c[1], c[2]])
                     .collect();
                 write_npz(
@@ -1004,10 +1188,44 @@ pub fn save_sample_to_fs(
                 fs::write(scene_dir.join(format!("normal_{t:03}_{v:02}.jpg")), jpg)?;
             }
 
+            if !view.semantic.is_empty() {
+                let semantic_rgba = decode_rgba_bytes(&view.semantic, width, height)?;
+                let plane: Vec<f32> = semantic_rgba
+                    .as_chunks::<4>()
+                    .0
+                    .iter()
+                    .flat_map(|p| [p[0], p[1], p[2]])
+                    .collect();
+                write_npz(
+                    &scene_dir.join(format!("semantic_{t:03}_{v:02}.npz")),
+                    "semantic",
+                    &plane,
+                    height as usize,
+                    width as usize,
+                    3,
+                )?;
+                // Palette previews are lossless PNG; float32 NPZ is authoritative for labels.
+                let preview: Vec<u8> = plane
+                    .iter()
+                    .map(|v| {
+                        (bevy_zeroverse::render::color::linear_to_srgb(*v) * 255.0).round() as u8
+                    })
+                    .collect();
+                image::save_buffer(
+                    scene_dir.join(format!("semantic_{t:03}_{v:02}.png")),
+                    &preview,
+                    width,
+                    height,
+                    image::ColorType::Rgb8,
+                )?;
+            }
+
             if !view.position.is_empty() {
                 let pos_rgba = decode_rgba_bytes(&view.position, width, height)?;
                 let position_plane: Vec<f32> = pos_rgba
-                    .chunks_exact(4)
+                    .as_chunks::<4>()
+                    .0
+                    .iter()
                     .flat_map(|c| [c[0], c[1], c[2]])
                     .collect();
                 write_npz(
@@ -1028,17 +1246,35 @@ pub fn save_sample_to_fs(
     }
 
     if let Some(mut color_buf) = color_tensor {
-        normalize_hdr_image_tonemap(
-            &mut color_buf,
-            steps,
-            view_dim,
-            height as usize,
-            width as usize,
-            3,
-        );
+        match sample.color_encoding {
+            bevy_zeroverse::render::color::ColorEncoding::Legacy => {
+                normalize_hdr_image_tonemap(
+                    &mut color_buf,
+                    steps,
+                    view_dim,
+                    height as usize,
+                    width as usize,
+                    3,
+                );
+            }
+            bevy_zeroverse::render::color::ColorEncoding::TonemappedLinear => color_buf
+                .iter_mut()
+                .for_each(|v| *v = bevy_zeroverse::render::color::linear_to_srgb(*v)),
+            bevy_zeroverse::render::color::ColorEncoding::Srgb => (),
+        }
         for t in 0..steps {
             for v in 0..view_dim {
                 let base = (t * view_dim + v) * pixel_count * 3;
+                if color_codec == crate::chunk::ColorCodec::Raw {
+                    write_npz(
+                        &scene_dir.join(format!("color_{t:03}_{v:02}.npz")),
+                        "color",
+                        &color_buf[base..base + pixel_count * 3],
+                        height as usize,
+                        width as usize,
+                        3,
+                    )?;
+                }
                 let mut rgba = Vec::with_capacity(pixel_count * 4);
                 for i in 0..pixel_count {
                     let src = base + i * 3;
@@ -1101,7 +1337,9 @@ pub fn save_sample_to_fs(
     let mut obb_scale = Vec::with_capacity(obb_count * 3);
     let mut obb_rotation = Vec::with_capacity(obb_count * 4);
     let mut obb_class_idx = Vec::with_capacity(obb_count);
+    let mut obb_instance_ids = Vec::with_capacity(obb_count);
     for obb in &sample.object_obbs {
+        obb_instance_ids.push(obb.instance_id.unwrap_or(-1));
         obb_center.extend_from_slice(&obb.center);
         obb_scale.extend_from_slice(&obb.scale);
         obb_rotation.extend_from_slice(&obb.rotation);
@@ -1109,6 +1347,34 @@ pub fn save_sample_to_fs(
     }
 
     let mut tensors: Vec<TensorData> = Vec::new();
+    let human_count = sample.human_pose_steps.first().map_or(0, Vec::len);
+    tensors.push(TensorData::new(
+        "human_count",
+        Dtype::I64,
+        vec![],
+        bytemuck::cast_slice(&[human_count as i64]).to_vec(),
+    ));
+    let human_ids: Vec<i64> = (0..human_count)
+        .map(|i| {
+            sample
+                .human_instance_ids
+                .get(i)
+                .copied()
+                .unwrap_or_else(|| {
+                    sample
+                        .indoor
+                        .as_ref()
+                        .and_then(|scene| scene.humans.get(i))
+                        .map_or(i as i64, |human| human.id as i64)
+                })
+        })
+        .collect();
+    tensors.push(TensorData::new(
+        "human_instance_ids",
+        Dtype::I64,
+        vec![human_count],
+        bytemuck::cast_slice(&human_ids).to_vec(),
+    ));
 
     let mut world_from_view = Vec::with_capacity(steps * view_dim * 16);
     let mut fovy = Vec::with_capacity(steps * view_dim);
@@ -1187,6 +1453,12 @@ pub fn save_sample_to_fs(
             bytemuck::cast_slice(&obb_rotation).to_vec(),
         ));
         tensors.push(TensorData::new(
+            "object_obb_instance_ids",
+            Dtype::I64,
+            vec![obb_count],
+            bytemuck::cast_slice(&obb_instance_ids).to_vec(),
+        ));
+        tensors.push(TensorData::new(
             "object_obb_class_idx",
             Dtype::I64,
             vec![obb_count],
@@ -1213,10 +1485,8 @@ pub fn save_sample_to_fs(
         }
 
         if bone_count > 0 && max_humans > 0 {
-            let mut pose_positions =
-                vec![0.0; pose_steps * max_humans * bone_count * 3];
-            let mut pose_rotations =
-                vec![0.0; pose_steps * max_humans * bone_count * 4];
+            let mut pose_positions = vec![0.0; pose_steps * max_humans * bone_count * 3];
+            let mut pose_rotations = vec![0.0; pose_steps * max_humans * bone_count * 4];
             for step in 0..pose_steps {
                 let step_poses = sample
                     .human_pose_steps
@@ -1225,14 +1495,12 @@ pub fn save_sample_to_fs(
                     .unwrap_or(&[]);
                 for (human_idx, pose) in step_poses.iter().take(max_humans).enumerate() {
                     for bone_idx in 0..bone_count {
-                        let base =
-                            ((step * max_humans + human_idx) * bone_count + bone_idx) * 3;
+                        let base = ((step * max_humans + human_idx) * bone_count + bone_idx) * 3;
                         if let Some(pos) = pose.bone_positions.get(bone_idx) {
                             pose_positions[base..base + 3].copy_from_slice(pos);
                         }
 
-                        let r_base =
-                            ((step * max_humans + human_idx) * bone_count + bone_idx) * 4;
+                        let r_base = ((step * max_humans + human_idx) * bone_count + bone_idx) * 4;
                         if let Some(rot) = pose.bone_rotations.get(bone_idx) {
                             pose_rotations[r_base..r_base + 4].copy_from_slice(rot);
                         }
@@ -1281,7 +1549,8 @@ pub fn save_sample_to_fs(
     let meta = serialize(views, None)?;
     fs::write(scene_dir.join(META_FILE), meta)?;
 
-    Ok(scene_dir)
+    fs::rename(&scene_dir, &final_dir)?;
+    Ok(final_dir)
 }
 
 #[cfg(test)]
@@ -1293,18 +1562,25 @@ mod tests {
     fn sample_with_color_and_obb() -> ZeroverseSample {
         let color: Vec<u8> = bytemuck::cast_slice(&[1.0f32, 0.5f32, 0.25f32, 1.0f32]).to_vec();
         ZeroverseSample {
+            indoor: None,
+            indoor_render_metadata: None,
+            annotation_precision: Default::default(),
+            color_encoding: Default::default(),
             views: vec![View {
+                semantic: Vec::new(),
                 color,
                 ..Default::default()
             }],
             view_dim: 1,
             aabb: [[0.0; 3]; 2],
             object_obbs: vec![ObjectObbSample {
+                instance_id: Some(314),
                 center: [0.0, 1.0, 2.0],
                 scale: [1.0, 2.0, 3.0],
                 rotation: [0.0, 0.0, 0.0, 1.0],
                 class_name: "table".to_string(),
             }],
+            human_instance_ids: Vec::new(),
             human_poses: Vec::new(),
             human_pose_steps: Vec::new(),
             human_bone_names: Vec::new(),
@@ -1316,13 +1592,19 @@ mod tests {
     fn sample_with_ovoxel() -> ZeroverseSample {
         let color: Vec<u8> = bytemuck::cast_slice(&[0.2f32, 0.3f32, 0.4f32, 1.0f32]).to_vec();
         ZeroverseSample {
+            indoor: None,
+            indoor_render_metadata: None,
+            annotation_precision: Default::default(),
+            color_encoding: Default::default(),
             views: vec![View {
+                semantic: Vec::new(),
                 color,
                 ..Default::default()
             }],
             view_dim: 1,
             aabb: [[-1.0, -1.0, -1.0], [1.0, 1.0, 1.0]],
             object_obbs: vec![],
+            human_instance_ids: Vec::new(),
             human_poses: Vec::new(),
             human_pose_steps: Vec::new(),
             human_bone_names: Vec::new(),
@@ -1359,6 +1641,7 @@ mod tests {
         let loaded = load_sample_dir(scene_dir).expect("load should succeed");
         assert_eq!(loaded.object_obbs.len(), 1);
         let obb = &loaded.object_obbs[0];
+        assert_eq!(obb.instance_id, Some(314));
         assert_eq!(obb.class_name, "table");
         assert_eq!(obb.center, [0.0, 1.0, 2.0]);
         assert_eq!(obb.scale, [1.0, 2.0, 3.0]);
@@ -1399,10 +1682,12 @@ mod tests {
         let color: Vec<u8> = bytemuck::cast_slice(&[0.1f32, 0.2f32, 0.3f32, 1.0f32]).to_vec();
         let views = vec![
             View {
+                semantic: Vec::new(),
                 color: color.clone(),
                 ..Default::default()
             },
             View {
+                semantic: Vec::new(),
                 color,
                 ..Default::default()
             },
@@ -1420,10 +1705,15 @@ mod tests {
             bone_rotations: vec![[0.0, 0.0, 0.0, 1.0]],
         };
         let sample = ZeroverseSample {
+            indoor: None,
+            indoor_render_metadata: None,
+            annotation_precision: Default::default(),
+            color_encoding: Default::default(),
             views,
             view_dim: 1,
             aabb: [[0.0; 3]; 2],
             object_obbs: Vec::new(),
+            human_instance_ids: Vec::new(),
             human_poses: Vec::new(),
             human_pose_steps: vec![
                 vec![pose_step0_a, pose_step0_b],
@@ -1434,8 +1724,8 @@ mod tests {
             ovoxel: None,
         };
 
-        let scene_dir = save_sample_to_fs(&sample, tmp.path(), 0, 1, 1, false)
-            .expect("save should succeed");
+        let scene_dir =
+            save_sample_to_fs(&sample, tmp.path(), 0, 1, 1, false).expect("save should succeed");
         let meta_bytes = std::fs::read(scene_dir.join("meta.safetensors")).unwrap();
         let tensors = SafeTensors::deserialize(&meta_bytes).unwrap();
         let pose_shape = tensors

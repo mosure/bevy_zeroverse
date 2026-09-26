@@ -1,0 +1,45 @@
+   Compiling bevy_zeroverse v0.17.3 (/media/mosure/hyper1/repos/bevy_zeroverse)
+    Finished `test` profile [optimized + debuginfo] target(s) in 9.36s
+warning: the following packages contain code that will be rejected by a future version of Rust: naga v26.0.0, nix v0.30.1, wgpu v26.0.1, wgpu-core v26.0.1, wgpu-hal v26.0.6, winit v0.30.12
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running tests/procedural_indoor_render.rs (target/debug/build/bevy_zeroverse/31248ed9053f30b3/out/procedural_indoor_render-31248ed9053f30b3)
+
+running 1 test
+2026-09-23T18:52:54.756053Z  INFO bevy_render::renderer: AdapterInfo { name: "NVIDIA RTX PRO 6000 Blackwell Workstation Edition", vendor: 4318, device: 11185, device_type: DiscreteGpu, driver: "NVIDIA", driver_info: "610.43.02", backend: Vulkan }
+2026-09-23T18:52:55.599242Z  INFO bevy_zeroverse: initializing BevyZeroversePlugin...
+2026-09-23T18:52:55.636562Z  INFO bevy_render::batching::gpu_preprocessing: GPU preprocessing is fully supported on this device.
+2026-09-23T18:52:55.638663Z  INFO bevy_zeroverse::mesh: BEVY_ASSET_ROOT: `/tmp/.tmpqV1dmE`
+2026-09-23T18:52:55.638667Z  INFO bevy_zeroverse::material: BEVY_ASSET_ROOT: `/tmp/.tmpqV1dmE`
+2026-09-23T18:52:55.638699Z  INFO bevy_zeroverse::material: current working directory: /tmp/.tmpqV1dmE
+2026-09-23T18:52:55.638734Z  INFO bevy_zeroverse::material: found 0 materials
+2026-09-23T18:52:55.638987Z  INFO bevy_zeroverse::app: skipping scene initialization.
+2026-09-23T18:52:55.807005Z  INFO bevy_zeroverse::scene::procedural_indoor: indoor diffuse GI GPU: 780 probes, 217524 triangles, 85.4 ms preparation, 37440 bytes
+2026-09-23T18:52:56.011901Z  INFO bevy_zeroverse::scene::procedural_indoor: procedural_indoor seed=3 version=3 humans=5 layout=Conference room=Vec3(9.741056, 3.3431041, 7.5089464) instances=46 cameras=2
+2026-09-23T18:52:56.047345Z  WARN bevy_pbr::render::mesh_view_bindings: Too many textures in mesh pipeline view layout, this might cause us to hit `wgpu::Limits::max_sampled_textures_per_shader_stage` in some environments.
+2026-09-23T18:52:56.874607Z  INFO bevy_zeroverse::scene::procedural_indoor: indoor diffuse GI GPU: 845 probes, 98420 triangles, 37.7 ms preparation, 40560 bytes
+2026-09-23T18:52:56.961818Z  INFO bevy_zeroverse::scene::procedural_indoor: procedural_indoor seed=4 version=3 humans=0 layout=Training room=Vec3(10.195659, 3.3511937, 7.465307) instances=41 cameras=2
+2026-09-23T18:52:57.339436Z  INFO bevy_zeroverse::scene::procedural_indoor: indoor diffuse GI GPU: 640 probes, 171096 triangles, 61.3 ms preparation, 30720 bytes
+2026-09-23T18:52:57.496390Z  INFO bevy_zeroverse::scene::procedural_indoor: procedural_indoor seed=5 version=3 humans=4 layout=Conference room=Vec3(7.885498, 3.035493, 9.917686) instances=47 cameras=2
+2026-09-23T18:52:57.871170Z  INFO bevy_zeroverse::scene::procedural_indoor: indoor diffuse GI GPU: 825 probes, 120464 triangles, 45.6 ms preparation, 39600 bytes
+2026-09-23T18:52:57.980887Z  INFO bevy_zeroverse::scene::procedural_indoor: procedural_indoor seed=6 version=3 humans=3 layout=OpenOffice room=Vec3(8.844214, 3.2474034, 9.035895) instances=40 cameras=2
+2026-09-23T18:52:58.431853Z  INFO bevy_zeroverse::scene::procedural_indoor: indoor diffuse GI GPU: 1040 probes, 228912 triangles, 85.1 ms preparation, 49920 bytes
+2026-09-23T18:52:58.647304Z  INFO bevy_zeroverse::scene::procedural_indoor: procedural_indoor seed=700 version=3 humans=7 layout=Training room=Vec3(10.272351, 3.5628061, 9.592109) instances=50 cameras=2
+annotation Semantic regeneration passed
+2026-09-23T18:52:59.127571Z  INFO bevy_zeroverse::scene::procedural_indoor: indoor diffuse GI GPU: 910 probes, 60496 triangles, 25.9 ms preparation, 43680 bytes
+2026-09-23T18:52:59.188918Z  INFO bevy_zeroverse::scene::procedural_indoor: procedural_indoor seed=701 version=3 humans=0 layout=Lounge room=Vec3(10.384935, 3.2782044, 8.174892) instances=27 cameras=2
+annotation Normal regeneration passed
+2026-09-23T18:52:59.616402Z  INFO bevy_zeroverse::scene::procedural_indoor: indoor diffuse GI GPU: 975 probes, 173060 triangles, 68.2 ms preparation, 46800 bytes
+2026-09-23T18:52:59.775837Z  INFO bevy_zeroverse::scene::procedural_indoor: procedural_indoor seed=702 version=3 humans=3 layout=Conference room=Vec3(10.153664, 3.329973, 8.6588335) instances=52 cameras=2
+annotation Position regeneration passed
+2026-09-23T18:53:00.230902Z  INFO bevy_zeroverse::scene::procedural_indoor: indoor diffuse GI GPU: 910 probes, 107944 triangles, 46.1 ms preparation, 43680 bytes
+2026-09-23T18:53:00.333201Z  INFO bevy_zeroverse::scene::procedural_indoor: procedural_indoor seed=703 version=3 humans=2 layout=OpenOffice room=Vec3(10.20357, 3.2826638, 8.2135315) instances=38 cameras=2
+annotation Depth regeneration passed
+2026-09-23T18:53:00.650901Z ERROR bevy_asset::server: Path not found: /tmp/.tmpqV1dmE/assets/burn_human/fullbody_default.meta.json
+2026-09-23T18:53:00.651217Z  INFO bevy_zeroverse::mesh: loaded total of 0 categories
+2026-09-23T18:53:00.651235Z  INFO bevy_zeroverse::material: loaded 1 materials
+legacy CornellCube capture passed
+legacy Room capture passed
+test empty_assets_rotated_odd_size_capture_and_legacy_scene_switches ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.59s
+

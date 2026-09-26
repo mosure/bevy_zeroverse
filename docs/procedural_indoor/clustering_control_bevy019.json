@@ -1,0 +1,22 @@
+{
+  "bevy_version": "0.19.1",
+  "wgpu_version": "29.0.4",
+  "gpu_control": {
+    "same_scene_no_pruning": "failed_bit_equality",
+    "different_rgb_float_channels": 3,
+    "total_rgba_channels": 76636,
+    "max_absolute_error": 0.0007324219,
+    "mean_absolute_error": 1.3539299e-08,
+    "process_exit": 101
+  },
+  "cpu_control": {
+    "same_scene_no_pruning": "bit_exact",
+    "cleanup_toggle": "bit_exact",
+    "regenerated_scenes": 64,
+    "fixed_scene_captures": 8,
+    "same_seed_replay": "bit_exact",
+    "annotation_planes": "all_bit_exact",
+    "process_exit": 0
+  },
+  "upstream_mechanism": "GPU cluster light lists use atomic allocation; floating point light accumulation order is not stable. CPU clustering preserves tested ordering."
+}
