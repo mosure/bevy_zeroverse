@@ -46,14 +46,14 @@ export interface InitOutput {
     readonly wasm_bindgen_e16e91df24b803f9___convert__closures_____invoke___web_sys_74dda96df7ba7141___features__gen_InputEvent__InputEvent______true__15: (a: number, b: number, c: any) => void;
     readonly wasm_bindgen_e16e91df24b803f9___convert__closures_____invoke___web_sys_74dda96df7ba7141___features__gen_InputEvent__InputEvent______true__7: (a: number, b: number, c: any) => void;
     readonly wasm_bindgen_e16e91df24b803f9___convert__closures_____invoke_______true_: (a: number, b: number) => void;
-    readonly __wbindgen_malloc_command_export: (a: number, b: number) => number;
-    readonly __wbindgen_realloc_command_export: (a: number, b: number, c: number, d: number) => number;
-    readonly __externref_table_alloc_command_export: () => number;
+    readonly __wbindgen_malloc: (a: number, b: number) => number;
+    readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
+    readonly __externref_table_alloc: () => number;
     readonly __wbindgen_externrefs: WebAssembly.Table;
-    readonly __wbindgen_exn_store_command_export: (a: number) => void;
-    readonly __wbindgen_free_command_export: (a: number, b: number, c: number) => void;
-    readonly __wbindgen_destroy_closure_command_export: (a: number, b: number) => void;
-    readonly __externref_table_dealloc_command_export: (a: number) => void;
+    readonly __wbindgen_exn_store: (a: number) => void;
+    readonly __wbindgen_free: (a: number, b: number, c: number) => void;
+    readonly __wbindgen_destroy_closure: (a: number, b: number) => void;
+    readonly __externref_table_dealloc: (a: number) => void;
     readonly __wbindgen_start: () => void;
 }
 
