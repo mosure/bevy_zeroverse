@@ -39,7 +39,17 @@ jobs:
         run: cargo build --locked --target wasm32-unknown-unknown --bin viewer --release --no-default-features --features "web,human_motion"
 
       - name: generate bindings with wasm-bindgen
-        run: wasm-bindgen --out-dir ./www/out/ --target web ./target/wasm32-unknown-unknown/release/viewer.wasm
+        run: wasm-bindgen --out-dir ./www/out/ --target web --remove-name-section --remove-producers-section ./target/wasm32-unknown-unknown/release/viewer.wasm
+
+      - name: check GitHub Pages artifact size
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          wasm = Path("www/out/viewer_bg.wasm")
+          size = wasm.stat().st_size
+          print(f"Motion-enabled viewer: {size / 1024**2:.2f} MiB")
+          assert size < 100 * 1024**2, "Wasm exceeds GitHub's per-file limit"
+          PY
 
       - name: copy assets
         run: mkdir -p ./www/assets && cp -r ./assets/* ./www/assets/
