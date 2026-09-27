@@ -15,6 +15,23 @@ pub struct Appearance {
     pub hair_length: f32,
     pub hair_part: f32,
     pub hair_curl: f32,
+    #[serde(default = "default_sleeve")]
+    pub sleeve_coverage: f32,
+    #[serde(default = "default_hem")]
+    pub hem_fraction: f32,
+    #[serde(default = "default_weave_scale")]
+    pub weave_scale: f32,
+    #[serde(default)]
+    pub weave_rotation: f32,
+}
+fn default_sleeve() -> f32 {
+    0.95
+}
+fn default_hem() -> f32 {
+    0.14
+}
+fn default_weave_scale() -> f32 {
+    1.0
 }
 impl Appearance {
     pub fn sample(seed: u64) -> Self {
@@ -29,16 +46,19 @@ impl Appearance {
             [c.red, c.green, c.blue]
         };
         let top = color(0.13, 0.79);
-        let trousers = color(0.07, 0.48);
+        let mut trousers = color(0.07, 0.48);
+        // Most trousers are neutral/dark; retain a smaller chromatic component.
+        if rng.random_bool(0.80) {
+            let n = rng.random_range(0.06..0.36);
+            let warmth = rng.random_range(-0.08..0.14);
+            trousers = [n * (1.0 + warmth), n, n * (1.0 - warmth)];
+        }
         let darkness = rng.random_range(0.045..0.56);
         let hair = if rng.random_bool(0.08) {
             [darkness; 3]
         } else {
-            [
-                darkness,
-                darkness * rng.random_range(0.45..0.86),
-                darkness * rng.random_range(0.25..0.66),
-            ]
+            let green = darkness * rng.random_range(0.50..0.86);
+            [darkness, green, green * rng.random_range(0.45..0.78)]
         };
         Self {
             melanin: rng.random_range(0.0..1.0),
@@ -54,6 +74,10 @@ impl Appearance {
             hair_length: rng.random_range(0.006_f32.ln()..0.11_f32.ln()).exp(),
             hair_part: rng.random_range(-0.6..0.6),
             hair_curl: rng.random_range(0.0..0.06),
+            sleeve_coverage: rng.random_range(0.0..1.0),
+            hem_fraction: rng.random_range(0.06..0.23),
+            weave_scale: rng.random_range(0.55..1.85),
+            weave_rotation: rng.random_range(-0.4..0.4),
         }
     }
     pub fn color(&self, surface: HumanSurface) -> Option<Color> {
@@ -81,7 +105,8 @@ impl Appearance {
                 0.19 - self.melanin * 0.14,
             ],
             HumanSurface::Trousers => self.trousers,
-            HumanSurface::Hair => self.hair,
+            HumanSurface::Hair | HumanSurface::Brow => self.hair,
+            HumanSurface::Eyewear => self.hair.map(|v| (v * 0.6).clamp(0.025, 0.22)),
             _ => return None,
         };
         Some(Color::srgb(rgb[0], rgb[1], rgb[2]))

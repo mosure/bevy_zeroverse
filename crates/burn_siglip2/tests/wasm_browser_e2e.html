@@ -1,0 +1,395 @@
+<!doctype html>
+<meta charset="utf-8">
+<link rel="icon" href="data:,">
+<title>siglip2-running</title>
+<body>{"ok":false,"stage":"starting"}</body>
+<script type="module">
+const result = { ok: false, stage: "starting" };
+globalThis.__burnSiglip2E2eResult = result;
+
+const TOKENIZER_SHA256 = "8a99220b2556b72893f261f733d71d403e0c4d047636b5a53581893df3771069";
+
+const update = (stage, extra = {}) => {
+  result.stage = stage;
+  Object.assign(result, extra);
+  document.body.textContent = JSON.stringify(result);
+};
+
+const assert = (condition, message) => {
+  if (!condition) throw new Error(message);
+};
+
+const assertShape = (actual, expected, name) => {
+  assert(Array.isArray(actual), `${name} is not an array`);
+  assert(
+    actual.length === expected.length &&
+      actual.every((value, index) => value === expected[index]),
+    `${name} ${JSON.stringify(actual)}, expected ${JSON.stringify(expected)}`,
+  );
+};
+
+const assertFiniteVector = (values, expectedLength, name) => {
+  assert(Array.isArray(values), `${name} is not an array`);
+  assert(values.length === expectedLength, `${name} length ${values.length}`);
+  assert(values.every(Number.isFinite), `${name} contains a non-finite value`);
+};
+
+const maxAbsDiff = (actual, expected) => {
+  assert(actual.length === expected.length, "maxAbsDiff input length mismatch");
+  return Math.max(
+    ...actual.map((value, index) => Math.abs(value - expected[index])),
+  );
+};
+
+const rowNorms = (values, rows, columns) =>
+  Array.from({ length: rows }, (_, row) => {
+    let squared = 0;
+    for (let column = 0; column < columns; column += 1) {
+      const value = values[row * columns + column];
+      squared += value * value;
+    }
+    return Math.sqrt(squared);
+  });
+
+const assertRawNorms = (values, rows, columns, name) => {
+  const norms = rowNorms(values, rows, columns);
+  assert(
+    norms.every((norm) => Number.isFinite(norm) && norm > 1e-12),
+    `${name} raw norms ${JSON.stringify(norms)}`,
+  );
+  return norms;
+};
+
+const assertUnitNorms = (values, rows, columns, name) => {
+  const norms = rowNorms(values, rows, columns);
+  assert(
+    norms.every((norm) => Number.isFinite(norm) && Math.abs(norm - 1) < 1e-3),
+    `${name} normalized norms ${JSON.stringify(norms)}`,
+  );
+  return norms;
+};
+
+async function deterministicReferencePng() {
+  const width = 83;
+  const height = 61;
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d", {
+    alpha: false,
+    colorSpace: "srgb",
+    willReadFrequently: true,
+  });
+  assert(context, "2D canvas is unavailable");
+
+  const image = context.createImageData(width, height);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const offset = (y * width + x) * 4;
+      // Keep this byte-for-byte equivalent to deterministic_rgb() in
+      // scripts/siglip2_reference.py.
+      image.data[offset] = (x * 3 + y * 5 + 17) % 256;
+      image.data[offset + 1] = (x * 7 + y * 11 + 29) % 256;
+      image.data[offset + 2] = (x * 13 + y * 17 + 43) % 256;
+      image.data[offset + 3] = 255;
+    }
+  }
+  context.putImageData(image, 0, 0);
+
+  // Check the canvas surface before PNG encoding so browser color handling
+  // cannot silently change the numerical reference input.
+  const rendered = context.getImageData(0, 0, width, height).data;
+  for (let index = 0; index < image.data.length; index += 1) {
+    assert(rendered[index] === image.data[index], `canvas pixel mismatch at ${index}`);
+  }
+
+  const blob = await new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (value) => (value ? resolve(value) : reject(new Error("canvas PNG encoding failed"))),
+      "image/png",
+    );
+  });
+  const png = new Uint8Array(await blob.arrayBuffer());
+  assert(png.length > 8, "canvas produced an empty PNG");
+  assert(
+    png[0] === 0x89 &&
+      png[1] === 0x50 &&
+      png[2] === 0x4e &&
+      png[3] === 0x47,
+    "canvas output is not a PNG",
+  );
+  return png;
+}
+
+(async () => {
+  try {
+    const modelSpecs = {
+      "base-patch16-224": {
+        imageSize: 224,
+        projection: 768,
+        parts: 14,
+        loadedBytes: 750427030n,
+        loadedWeightSha256: "6267af27dfa05ce21b73649f4d4f6cd4c6738acd4bcde5a0716051403c6f130e",
+        tokenizerSha256: TOKENIZER_SHA256,
+        upstreamModelId: "google/siglip2-base-patch16-224",
+        upstreamRevision: "75de2d55ec2d0b4efc50b3e9ad70dba96a7b2fa2",
+        referenceLogits: [-12.28870964050293, -13.581768035888672, -13.2543306350708],
+        referenceProbabilities: [
+          4.603405614034273e-6,
+          1.2633175856535672e-6,
+          1.752736238813668e-6,
+        ],
+      },
+      "large-patch16-256": {
+        imageSize: 256,
+        projection: 1024,
+        parts: 35,
+        loadedBytes: 1763157373n,
+        loadedWeightSha256: "eedde6eafa2c9cb987183977cb3a8ea55dc75846f00fedc2ff523a1cc2548fec",
+        tokenizerSha256: TOKENIZER_SHA256,
+        upstreamModelId: "google/siglip2-large-patch16-256",
+        upstreamRevision: "787800c8990e6f058423089178e718139608408c",
+        referenceLogits: [-12.191641, -12.918758, -15.024265],
+        referenceProbabilities: [5.072658e-6, 2.4516207e-6, 2.9856884e-7],
+      },
+      "so400m-patch14-224": {
+        imageSize: 224,
+        projection: 1152,
+        parts: 42,
+        loadedBytes: 2271045270n,
+        loadedWeightSha256: "70d77cf0bf06f29465bb98930f7a70c16edafec93835f29ef8e83085420c3e58",
+        tokenizerSha256: TOKENIZER_SHA256,
+        upstreamModelId: "google/siglip2-so400m-patch14-224",
+        upstreamRevision: "78e403963a4f6a3640d07803284752326fdf4edf",
+        referenceLogits: [-12.59067, -14.071991, -13.193394],
+        referenceProbabilities: [3.4036116e-6, 7.7376944e-7, 1.8628638e-6],
+      },
+    };
+    const modelSize = new URLSearchParams(location.search).get("model") ?? "base-patch16-224";
+    const spec = modelSpecs[modelSize];
+    assert(spec, `unsupported browser e2e model '${modelSize}'`);
+    const projection = spec.projection;
+    const textValueCount = (rows) => rows * projection;
+
+    update("initializing-wasm", { model_size: modelSize });
+    const { default: init, WasmSiglip2 } = await import(
+      "/artifacts/wasm/burn_siglip2/burn_siglip2.js"
+    );
+    await init();
+    assert(navigator.gpu, "navigator.gpu is unavailable");
+
+    const loadStart = performance.now();
+    update("loading-bundle", { model_size: modelSize });
+    const model = await WasmSiglip2.createFromBundleManifestUrl(
+      `/dist/cdn/siglip2/${modelSize}/bundle.manifest.json`,
+    );
+    const loadMs = performance.now() - loadStart;
+    assert(
+      model.loadedPartCount === spec.parts,
+      `loaded ${model.loadedPartCount} parts, expected ${spec.parts}`,
+    );
+    assert(model.loadedBytes === spec.loadedBytes, `loaded ${model.loadedBytes} bytes`);
+    assert(model.modelSize === modelSize, `loaded model size ${model.modelSize}`);
+    assert(model.imageSize === spec.imageSize, `image size ${model.imageSize}`);
+    assert(model.embeddingSize === projection, `embedding size ${model.embeddingSize}`);
+    assert(
+      model.loadedWeightSha256 === spec.loadedWeightSha256,
+      `loaded weight identity ${model.loadedWeightSha256}`,
+    );
+    assert(
+      model.tokenizerSha256 === spec.tokenizerSha256,
+      `tokenizer identity ${model.tokenizerSha256}`,
+    );
+    assert(
+      model.upstreamModelId === spec.upstreamModelId,
+      `upstream model ID ${model.upstreamModelId}`,
+    );
+    assert(
+      model.upstreamRevision === spec.upstreamRevision,
+      `upstream revision ${model.upstreamRevision}`,
+    );
+
+    update("creating-reference-image", { load_ms: loadMs });
+    const image = await deterministicReferencePng();
+    const texts = [
+      "this is a photo of a cat.",
+      "this is a photo of a dog.",
+      "this is a photo of an airplane.",
+    ];
+
+    update("running-standalone-image", {
+      load_ms: loadMs,
+      input_png_bytes: image.length,
+    });
+    const imageOnlyStart = performance.now();
+    const imageOnly = JSON.parse(await model.encodeImageBytesJson(image));
+    const imageOnlyMs = performance.now() - imageOnlyStart;
+    assertShape(imageOnly.shape, [1, projection], "standalone image shape");
+    assertFiniteVector(imageOnly.raw_embedding, projection, "standalone raw image embedding");
+    assertFiniteVector(
+      imageOnly.normalized_embedding,
+      projection,
+      "standalone normalized image embedding",
+    );
+    const standaloneImageRawNorms = assertRawNorms(
+      imageOnly.raw_embedding,
+      1,
+      projection,
+      "standalone image",
+    );
+    const standaloneImageNorms = assertUnitNorms(
+      imageOnly.normalized_embedding,
+      1,
+      projection,
+      "standalone image",
+    );
+
+    update("running-standalone-text", {
+      load_ms: loadMs,
+      standalone_image_ms: imageOnlyMs,
+    });
+    const textOnlyStart = performance.now();
+    const textOnly = JSON.parse(await model.encodeTextsJson(texts));
+    const textOnlyMs = performance.now() - textOnlyStart;
+    assertShape(textOnly.shape, [3, projection], "standalone text shape");
+    assertFiniteVector(textOnly.raw_embedding, textValueCount(3), "standalone raw text embedding");
+    assertFiniteVector(
+      textOnly.normalized_embedding,
+      textValueCount(3),
+      "standalone normalized text embedding",
+    );
+    const standaloneTextRawNorms = assertRawNorms(
+      textOnly.raw_embedding,
+      3,
+      projection,
+      "standalone text",
+    );
+    const standaloneTextNorms = assertUnitNorms(
+      textOnly.normalized_embedding,
+      3,
+      projection,
+      "standalone text",
+    );
+
+    update("running-dual-tower-inference", {
+      load_ms: loadMs,
+      standalone_image_ms: imageOnlyMs,
+      standalone_text_ms: textOnlyMs,
+    });
+    const inferenceStart = performance.now();
+    const score = JSON.parse(await model.scoreImageTextsJson(image, texts));
+    const inferenceMs = performance.now() - inferenceStart;
+
+    assert(score.schema_version === 1, "unexpected response schema");
+    assert(score.method === "scoreImageTextsJson", "unexpected response method");
+    assertShape(score.image_embedding_shape, [1, projection], "image embedding shape");
+    assertShape(score.text_embedding_shape, [3, projection], "text embedding shape");
+    assertShape(score.logits_shape, [1, 3], "logits shape");
+    for (const [name, values, expectedLength] of [
+      ["raw_image_embedding", score.raw_image_embedding, projection],
+      ["normalized_image_embedding", score.normalized_image_embedding, projection],
+      ["raw_text_embedding", score.raw_text_embedding, textValueCount(3)],
+      ["normalized_text_embedding", score.normalized_text_embedding, textValueCount(3)],
+      ["logits_per_image", score.logits_per_image, 3],
+      ["probabilities_per_image", score.probabilities_per_image, 3],
+    ]) {
+      assertFiniteVector(values, expectedLength, name);
+    }
+
+    const imageRawNorms = assertRawNorms(
+      score.raw_image_embedding,
+      1,
+      projection,
+      "combined image",
+    );
+    const textRawNorms = assertRawNorms(
+      score.raw_text_embedding,
+      3,
+      projection,
+      "combined text",
+    );
+    const imageNorms = assertUnitNorms(
+      score.normalized_image_embedding,
+      1,
+      projection,
+      "combined image",
+    );
+    const textNorms = assertUnitNorms(
+      score.normalized_text_embedding,
+      3,
+      projection,
+      "combined text",
+    );
+
+    const standaloneParity = {
+      raw_image: maxAbsDiff(imageOnly.raw_embedding, score.raw_image_embedding),
+      normalized_image: maxAbsDiff(
+        imageOnly.normalized_embedding,
+        score.normalized_image_embedding,
+      ),
+      raw_text: maxAbsDiff(textOnly.raw_embedding, score.raw_text_embedding),
+      normalized_text: maxAbsDiff(
+        textOnly.normalized_embedding,
+        score.normalized_text_embedding,
+      ),
+    };
+    for (const [name, error] of Object.entries(standaloneParity)) {
+      assert(error < 1e-6, `standalone/combined ${name} max abs ${error}`);
+    }
+
+    assert(
+      score.probabilities_per_image.every((value) => value >= 0 && value <= 1),
+      "probability is outside [0, 1]",
+    );
+    const sigmoid = score.logits_per_image.map((value) => 1 / (1 + Math.exp(-value)));
+    const sigmoidError = maxAbsDiff(score.probabilities_per_image, sigmoid);
+    assert(sigmoidError < 1e-6, `sigmoid calibration error ${sigmoidError}`);
+
+    const logitsMaxAbs = maxAbsDiff(score.logits_per_image, spec.referenceLogits);
+    const probabilitiesMaxAbs = maxAbsDiff(
+      score.probabilities_per_image,
+      spec.referenceProbabilities,
+    );
+    assert(logitsMaxAbs < 5e-3, `browser/reference logits max abs ${logitsMaxAbs}`);
+    assert(
+      probabilitiesMaxAbs < 1e-7,
+      `browser/reference probabilities max abs ${probabilitiesMaxAbs}`,
+    );
+
+    update("complete", {
+      ok: true,
+      model_size: modelSize,
+      projection,
+      load_ms: loadMs,
+      standalone_image_ms: imageOnlyMs,
+      standalone_text_ms: textOnlyMs,
+      inference_ms: inferenceMs,
+      input_png_bytes: image.length,
+      loaded_part_count: model.loadedPartCount,
+      loaded_bytes: model.loadedBytes.toString(),
+      loaded_weight_sha256: model.loadedWeightSha256,
+      tokenizer_sha256: model.tokenizerSha256,
+      upstream_model_id: model.upstreamModelId,
+      upstream_revision: model.upstreamRevision,
+      standalone_image_raw_norms: standaloneImageRawNorms,
+      standalone_image_norms: standaloneImageNorms,
+      standalone_text_raw_norms: standaloneTextRawNorms,
+      standalone_text_norms: standaloneTextNorms,
+      image_raw_norms: imageRawNorms,
+      image_norms: imageNorms,
+      text_raw_norms: textRawNorms,
+      text_norms: textNorms,
+      standalone_combined_max_abs: standaloneParity,
+      logits: score.logits_per_image,
+      probabilities: score.probabilities_per_image,
+      logits_max_abs_vs_reference: logitsMaxAbs,
+      probabilities_max_abs_vs_reference: probabilitiesMaxAbs,
+      sigmoid_max_abs: sigmoidError,
+    });
+  } catch (error) {
+    update("failed", { error: String(error?.stack || error) });
+  } finally {
+    document.title = "siglip2-complete";
+  }
+})();
+</script>

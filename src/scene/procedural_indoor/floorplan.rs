@@ -79,7 +79,24 @@ pub fn obstacles(scene: &IndoorManifest) -> Vec<(Vec3, Vec3)> {
 pub fn build(scene: &IndoorManifest, a: &mut Assembly) {
     if let Some(program) = &scene.program {
         for partition in &program.partitions {
-            partition.build(scene.room_size.y, a);
+            // Branches end at the face of the receiving wall. Building them to
+            // its center creates intersecting rails/plaster at T junctions.
+            let mut fitted = partition.clone();
+            for other in &program.partitions {
+                if other.axis == partition.axis
+                    || partition.coordinate < other.start
+                    || partition.coordinate > other.end
+                {
+                    continue;
+                }
+                if (partition.start - other.coordinate).abs() < 0.001 {
+                    fitted.start += other.thickness * 0.5;
+                }
+                if (partition.end - other.coordinate).abs() < 0.001 {
+                    fitted.end -= other.thickness * 0.5;
+                }
+            }
+            fitted.build(scene.room_size.y, a);
         }
         return;
     }

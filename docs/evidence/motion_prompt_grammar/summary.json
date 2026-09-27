@@ -1,0 +1,190 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-27",
+  "status": "local dirty checkout; bounded qualification, not a scale or action-fidelity benchmark",
+  "policy": {
+    "fraction": 1,
+    "locomotion_fraction": 1,
+    "sequence_fraction": 0.8,
+    "energetic_fraction": 0.2,
+    "max_actors": 16,
+    "frames": 160,
+    "batch_size": 4
+  },
+  "scene_policy": {
+    "layout": "Mixed",
+    "density": 0.35,
+    "camera_count": 2,
+    "human_density": 0.7
+  },
+  "planning": {
+    "scenes": 128,
+    "people": 780,
+    "requests": 668,
+    "unique_texts": 462,
+    "unique_action_programs": 192,
+    "atomic_actions_seen": 37,
+    "gaits_seen": 7,
+    "two_action_requests": 74,
+    "maximum_tokens_including_header": 52
+  },
+  "tokenizer": {
+    "bundle": "llama/ardy-llm2vec-8b/v1",
+    "sha256": "e134af98b985517b4f068e3755ae90d4e9cd2d45d328325dc503f1c6b2d06cc7",
+    "budget_including_header": 64,
+    "grammar_test_unique_texts": 2956,
+    "grammar_test_maximum_tokens": 53
+  },
+  "runtime": {
+    "gpu": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+    "backend": "Vulkan",
+    "driver": "610.43.02",
+    "views": 20,
+    "resolution": [
+      384,
+      288
+    ],
+    "times": [
+      0,
+      0.25,
+      0.5,
+      0.75,
+      1
+    ],
+    "seeds": [
+      {
+        "seed": 0,
+        "people": 5,
+        "feasible_requests": 4,
+        "accepted": 4,
+        "retained_static": [
+          {
+            "actor_id": 25,
+            "reason": "no collision-free behavior fits the available space"
+          }
+        ],
+        "cumulative_model_loads": 1,
+        "cumulative_generated_batches": 1,
+        "seconds_including_capture": 22.235743033,
+        "maximum_static_reprojection_p99_pixels": 0.0031744148582220078,
+        "missing_static_valid_pixels": 0,
+        "moving_person_pixels": 16110,
+        "terminal_flow_zero": true,
+        "maximum_normal_length_error": 2.384185791015625e-07,
+        "object_obb_count": 41,
+        "actors": [
+          {
+            "actor_id": 29,
+            "behavior": "shuffle_sway_wave_shuffle",
+            "prompt": "A person shuffles slowly, stops and sways the hips left and back once, shuffles again, stops and waves the right hand once, then resumes shuffling with relaxed shoulders.",
+            "net_horizontal_root_displacement_m": 1.188506015177075,
+            "root_height_min_m": 0.91273695,
+            "root_height_max_m": 0.94874626
+          },
+          {
+            "actor_id": 28,
+            "behavior": "march_jump_look_march",
+            "prompt": "A person marches slowly, stops and jumps upward once and lands, marches again, stops and looks over the right shoulder, then forward, then resumes marching with relaxed shoulders.",
+            "net_horizontal_root_displacement_m": 1.589243503069574,
+            "root_height_min_m": 0.92484343,
+            "root_height_max_m": 1.2226994
+          },
+          {
+            "actor_id": 27,
+            "behavior": "chest_touch",
+            "prompt": "A person touches the chest with the left hand with light movements.",
+            "net_horizontal_root_displacement_m": 0.009584181467167684,
+            "root_height_min_m": 0.93497926,
+            "root_height_max_m": 0.9421305
+          },
+          {
+            "actor_id": 26,
+            "behavior": "head_shake",
+            "prompt": "A person shakes the head three times with light movements.",
+            "net_horizontal_root_displacement_m": 0.0014552915446740143,
+            "root_height_min_m": 0.93207115,
+            "root_height_max_m": 0.94274133
+          }
+        ]
+      },
+      {
+        "seed": 44,
+        "people": 4,
+        "feasible_requests": 4,
+        "accepted": 4,
+        "retained_static": [],
+        "cumulative_model_loads": 1,
+        "cumulative_generated_batches": 2,
+        "seconds_including_capture": 8.948820944,
+        "maximum_static_reprojection_p99_pixels": 0.0028328897897154093,
+        "missing_static_valid_pixels": 0,
+        "moving_person_pixels": 32144,
+        "terminal_flow_zero": true,
+        "maximum_normal_length_error": 2.384185791015625e-07,
+        "object_obb_count": 50,
+        "actors": [
+          {
+            "actor_id": 31,
+            "behavior": "skip_fold_arms_jump_skip",
+            "prompt": "A person skips steadily, stops and folds both arms, pauses, then relaxes, skips again, stops and jumps upward once and lands, then resumes skipping carefully.",
+            "net_horizontal_root_displacement_m": 2.0616456776106755,
+            "root_height_min_m": 0.8948651,
+            "root_height_max_m": 1.3251513
+          },
+          {
+            "actor_id": 30,
+            "behavior": "shuffle",
+            "prompt": "A person shuffles slowly.",
+            "net_horizontal_root_displacement_m": 2.915648591806312,
+            "root_height_min_m": 0.9267776,
+            "root_height_max_m": 0.9496494
+          },
+          {
+            "actor_id": 32,
+            "behavior": "backward_walk_explain_head_shake_backward_walk",
+            "prompt": "A person walks backward slowly, stops and explains with small gestures of both hands, walks backward again, stops and shakes the head once, then resumes walking backward with relaxed shoulders.",
+            "net_horizontal_root_displacement_m": 1.8813430399910092,
+            "root_height_min_m": 0.9199277,
+            "root_height_max_m": 0.9517566
+          },
+          {
+            "actor_id": 29,
+            "behavior": "head_scratch",
+            "prompt": "A person scratches the head with the left hand with a stiff posture.",
+            "net_horizontal_root_displacement_m": 0.013567002130905795,
+            "root_height_min_m": 0.92884904,
+            "root_height_max_m": 0.94781834
+          }
+        ]
+      }
+    ]
+  },
+  "checks": {
+    "full_library_before_retry_bias_correction": {
+      "passed": 115,
+      "ignored": 3
+    },
+    "motion_suite_after_retry_bias_correction": {
+      "passed": 16
+    },
+    "workspace_clippy_all_targets_human_motion": "passed",
+    "wasm_viewer_web_human_motion_check": "passed",
+    "browser_runtime_requalified": false
+  },
+  "source_sha256": {
+    "src/app/inspector.rs": "15cbbf3df1355863cb5885178aa03b8a177645489ffcc6f0d12bb1f00860043b",
+    "src/bin/motion_validate/prompts.rs": "cb1d92cdc094644ab13be1ca44461b8aec04e48c1e2f293cdf629b09b848411d",
+    "src/bin/motion_validate.rs": "917c44e64694e43c3d3d74c26113c47becb1d82c537bcce46babe729dd50c86a",
+    "src/human_motion/contact.rs": "6b96553dcf94be938c0b82b530979bf6a6e86b476beca5c374fe03248f6c785e",
+    "src/human_motion/mod.rs": "e5d05bb99719f7603eac276d711bf8b8c311ac772577042134a6acc5498dea43",
+    "src/human_motion/planning.rs": "75bae4cebc0bf35578ad2ad1e978e414ca998f6c9c9f68f6b7be818c79ff3904",
+    "src/human_motion/prompts/catalog.rs": "6dbb4b4e1453f2053405e82fe38ec42464d1a66f9bf9b3926e13839c39ed48f5",
+    "src/human_motion/prompts/sequence.rs": "bd968a69ae7865bd3064344619615d1019c540c5d95076722cdea38681d3502d",
+    "src/human_motion/prompts/tests.rs": "d704a9ba367ca14e609e4ecf29077979bf20a5f28c657252aa572b0fb50e4cf0",
+    "src/human_motion/prompts.rs": "a7437c576069a5d6db737265a338ff79aa71f128dd4985c1e73a04db33d85729",
+    "src/human_motion/runtime.rs": "433f79a247435810cf8c876f13a020edee8254e52f2800b2c5ce074e7ef86176",
+    "src/human_motion/skin.rs": "92b56459af6e3cd2e4474374d52db8d4693a6667f8426c8e7e6b583b38a625e6",
+    "src/human_motion/validation.rs": "39bc843ac4b7e376f269a684041319d5ec0cb109bd549cfe8a391b477e477901",
+    "src/lib.rs": "2819acbd554bd24c9f60a9b970ff3182edb32d2359e983b8c310960ba6497584"
+  }
+}

@@ -41,7 +41,6 @@ use crate::{
     scene::{RegenerateSceneEvent, ZeroverseSceneRoot},
 };
 
-// TODO: support camera trajectories, requires custom motion vector prepass during capture
 /// Stable dataset camera index, independent of ECS archetype iteration order.
 #[derive(Component, Clone, Copy, Debug)]
 pub struct CaptureCameraIndex(pub usize);
@@ -68,7 +67,8 @@ impl Plugin for ZeroverseCameraPlugin {
             PoseGizmoConfigGroup,
             GizmoConfig {
                 render_layers: EDITOR_CAMERA_RENDER_LAYER,
-                depth_bias: -1.0,
+                // Depth-tested like camera and box gizmos; walls occlude joints.
+                depth_bias: 0.0,
                 ..default()
             },
         );
@@ -546,6 +546,11 @@ impl Playback {
 
 #[derive(Clone, Debug, Reflect)]
 pub enum TrajectorySampler {
+    /// Piecewise linear, constant metric speed with smoothly interpolated aims.
+    WaypointPath {
+        positions: Vec<Vec3>,
+        rotations: Vec<Quat>,
+    },
     /// Deterministic metric path with independently aimed endpoint orientations.
     CubicBezier {
         positions: [Vec3; 4],
@@ -588,6 +593,30 @@ impl Default for TrajectorySampler {
 impl TrajectorySampler {
     pub fn sample(&mut self, progress: f32) -> Transform {
         match self {
+            TrajectorySampler::WaypointPath {
+                positions,
+                rotations,
+            } => {
+                if positions.len() < 2 || rotations.len() != positions.len() {
+                    return Transform::IDENTITY;
+                }
+                let length: f32 = positions.windows(2).map(|p| p[0].distance(p[1])).sum();
+                let mut distance = progress.clamp(0.0, 1.0) * length;
+                for (i, p) in positions.windows(2).enumerate() {
+                    let segment = p[0].distance(p[1]);
+                    if distance <= segment || i + 2 == positions.len() {
+                        let t = if segment > 1e-6 {
+                            (distance / segment).clamp(0.0, 1.0)
+                        } else {
+                            0.0
+                        };
+                        return Transform::from_translation(p[0].lerp(p[1], t))
+                            .with_rotation(rotations[i].slerp(rotations[i + 1], t));
+                    }
+                    distance -= segment;
+                }
+                Transform::IDENTITY
+            }
             TrajectorySampler::CubicBezier {
                 positions: p,
                 rotations: r,
@@ -772,7 +801,7 @@ impl TrajectorySampler {
         color: Color,
     ) {
         match self {
-            TrajectorySampler::CubicBezier { .. } => {
+            TrajectorySampler::CubicBezier { .. } | TrajectorySampler::WaypointPath { .. } => {
                 let mut last = transform.transform_point(self.sample(0.0).translation);
                 for i in 1..=32 {
                     let next = transform.transform_point(self.sample(i as f32 / 32.0).translation);
@@ -943,7 +972,7 @@ pub struct DefaultZeroverseCamera {
     pub resolution: Option<UVec2>,
 }
 
-fn update_camera_trajectory(
+pub(crate) fn update_camera_trajectory(
     mut cameras: Query<(&mut Transform, &mut ZeroverseCamera)>,
     mut global_playback: ResMut<Playback>,
     time: Res<Time>,
@@ -1071,25 +1100,30 @@ fn insert_cameras(
             #[allow(unused_mut)] // Native ground truth adds two attachments.
             let mut targets = vec![render_target];
             #[cfg(not(target_arch = "wasm32"))]
-            if args.scene_type == crate::scene::ZeroverseSceneType::ProceduralIndoor
+            if (args.scene_type == crate::scene::ZeroverseSceneType::ProceduralIndoor
                 && args
                     .render_modes
                     .iter()
                     .chain(std::iter::once(&args.render_mode))
-                    .any(|mode| {
-                        matches!(
-                            mode,
-                            RenderMode::Depth
-                                | RenderMode::Position
-                                | RenderMode::Normal
-                                | RenderMode::Semantic
-                        )
-                    })
+                    .any(|mode| *mode != RenderMode::Color))
+                || args
+                    .render_modes
+                    .iter()
+                    .chain(std::iter::once(&args.render_mode))
+                    .any(RenderMode::is_flow)
             {
-                let ground_truth =
+                let mut ground_truth =
                     crate::render::ground_truth::GroundTruthCamera::new(&mut images, resolution);
                 targets.push(ground_truth.world_depth.clone());
                 targets.push(ground_truth.normal_semantic.clone());
+                if args
+                    .render_modes
+                    .iter()
+                    .chain(std::iter::once(&args.render_mode))
+                    .any(RenderMode::is_flow)
+                {
+                    targets.push(ground_truth.enable_flow(&mut images));
+                }
                 camera.insert(ground_truth);
             }
             camera.insert(io::image_copy::ImageCopier::for_targets(

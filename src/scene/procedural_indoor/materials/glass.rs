@@ -24,9 +24,10 @@ impl GlassRecipe {
             roughness: if interior && rng.random_bool(0.28) {
                 rng.random_range(0.18..0.48)
             } else {
-                // Bevy clamps GGX perceptual roughness to 0.089. Values below
-                // that all render the same specular lobe and fake diversity.
-                rng.random_range(0.089..0.14)
+                // Only the GGX reflection helper clamps to 0.089. Transmission
+                // uses the original roughness squared as its blur radius. The
+                // old reflection-floor minimum made every clear pane hazy.
+                rng.random_range(0.005..0.045)
             },
             ior: rng.random_range(1.46..1.55),
             thickness_m: if interior { 0.010 } else { 0.008 },
@@ -64,8 +65,10 @@ impl GlassRecipe {
             );
             material.alpha_mode = AlphaMode::Blend;
         }
-        material.cull_mode = None;
-        material.double_sided = true;
+        // Architectural panes are closed slabs. Rendering their exit faces as
+        // additional entry surfaces doubles refraction and alpha attenuation.
+        material.cull_mode = Some(bevy::render::render_resource::Face::Back);
+        material.double_sided = false;
     }
 }
 
@@ -78,7 +81,7 @@ mod tests {
         for seed in 0..256 {
             let exterior = GlassRecipe::sample(seed, Surface::Glass);
             let interior = GlassRecipe::sample(seed, Surface::GlassInterior);
-            assert!((0.089..0.14).contains(&exterior.roughness));
+            assert!((0.005..0.045).contains(&exterior.roughness));
             if interior.roughness > 0.18 {
                 frosted += 1;
             }

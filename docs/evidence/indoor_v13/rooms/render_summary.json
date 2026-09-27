@@ -1,0 +1,456 @@
+{
+  "schema_version": 1,
+  "run_id": "2042157-1790534036670218658",
+  "generator_version": 13,
+  "capture_engine": "capture-v20;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=5;surface_flow=1;indoor=13",
+  "selection_policy": "first observed seed per layout/lighting/floor/furniture/architecture cell; category-balanced order, no image quality filtering",
+  "audit_scenes": 128,
+  "rendered_scenes": 4,
+  "rendered_views": 8,
+  "playback_steps": 1,
+  "image_size": [
+    512,
+    384
+  ],
+  "observed_strata": 128,
+  "captured_layouts": {
+    "Lounge": 1,
+    "Conference": 1,
+    "OpenOffice": 1,
+    "Training": 1
+  },
+  "captured_lighting": {
+    "Overcast": 2,
+    "Daylight": 1,
+    "Evening": 1
+  },
+  "captured_floors": {
+    "1": 1,
+    "2": 1,
+    "0": 2
+  },
+  "captured_furniture": {
+    "2": 2,
+    "0": 1,
+    "1": 1
+  },
+  "captured_architecture": {
+    "Timber": 1,
+    "Industrial": 1,
+    "Classic": 1,
+    "Contemporary": 1
+  },
+  "captured_plant_species": {
+    "0": 2,
+    "1": 6,
+    "5": 2,
+    "3": 3,
+    "4": 2,
+    "2": 1
+  },
+  "rgb_and_pose": {
+    "mean_luminance": {
+      "count": 8,
+      "min": 0.033947516,
+      "max": 0.15699054,
+      "mean": 0.110995032875,
+      "p05_p50_p95": [
+        0.033947516,
+        0.13052322,
+        0.15699054
+      ]
+    },
+    "luminance_std": {
+      "count": 8,
+      "min": 0.04457102,
+      "max": 0.14822994,
+      "mean": 0.08954914,
+      "p05_p50_p95": [
+        0.04457102,
+        0.088945985,
+        0.14822994
+      ]
+    },
+    "dark_fraction": {
+      "count": 8,
+      "min": 0.0,
+      "max": 0.039774578,
+      "mean": 0.008041382,
+      "p05_p50_p95": [
+        0.0,
+        0.0,
+        0.039774578
+      ]
+    },
+    "clipped_fraction": {
+      "count": 8,
+      "min": 0.0,
+      "max": 0.0027567546,
+      "mean": 0.0003693898575,
+      "p05_p50_p95": [
+        0.0,
+        0.0,
+        0.0027567546
+      ]
+    },
+    "pose_max_absolute_error": {
+      "count": 8,
+      "min": 0.0,
+      "max": 0.0,
+      "mean": 0.0,
+      "p05_p50_p95": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    }
+  },
+  "annotation": {
+    "depth_position_p99_metres": {
+      "count": 8,
+      "min": 1.1920929e-06,
+      "max": 2.861023e-06,
+      "mean": 1.9073486375e-06,
+      "p05_p50_p95": [
+        1.1920929e-06,
+        1.9073486e-06,
+        2.861023e-06
+      ]
+    },
+    "reprojection_p99_pixels": {
+      "count": 8,
+      "min": 0.0019342584,
+      "max": 0.0025355774,
+      "mean": 0.0022351732750000002,
+      "p05_p50_p95": [
+        0.0019342584,
+        0.0021719534,
+        0.0025355774
+      ]
+    },
+    "normal_length_max_error": {
+      "count": 8,
+      "min": 1.7881393e-07,
+      "max": 2.3841858e-07,
+      "mean": 2.2351741750000003e-07,
+      "p05_p50_p95": [
+        1.7881393e-07,
+        2.3841858e-07,
+        2.3841858e-07
+      ]
+    },
+    "position_quantization_budget_p99_ratio": {
+      "count": 8,
+      "min": 0.13355884,
+      "max": 0.16374056,
+      "mean": 0.14508495,
+      "p05_p50_p95": [
+        0.13355884,
+        0.140638,
+        0.16374056
+      ]
+    }
+  },
+  "mean_linear_luminance_by_layout": {
+    "Lounge": {
+      "count": 2,
+      "min": 0.13052322,
+      "max": 0.1547516,
+      "mean": 0.14263741,
+      "p05_p50_p95": [
+        0.13052322,
+        0.13052322,
+        0.1547516
+      ]
+    },
+    "Conference": {
+      "count": 2,
+      "min": 0.10398293,
+      "max": 0.11880785,
+      "mean": 0.11139539000000001,
+      "p05_p50_p95": [
+        0.10398293,
+        0.10398293,
+        0.11880785
+      ]
+    },
+    "OpenOffice": {
+      "count": 2,
+      "min": 0.033947516,
+      "max": 0.048938427,
+      "mean": 0.041442971499999995,
+      "p05_p50_p95": [
+        0.033947516,
+        0.033947516,
+        0.048938427
+      ]
+    },
+    "Training": {
+      "count": 2,
+      "min": 0.14001818,
+      "max": 0.15699054,
+      "mean": 0.14850436,
+      "p05_p50_p95": [
+        0.14001818,
+        0.14001818,
+        0.15699054
+      ]
+    }
+  },
+  "semantic_pixel_counts": {
+    "chair": 48373,
+    "floor": 372589,
+    "other_prop": 18254,
+    "paper": 2421,
+    "person": 22656,
+    "table": 54548,
+    "wall": 652331,
+    "window": 202719,
+    "ceiling": 92561,
+    "door": 17651,
+    "lamp": 10024,
+    "whiteboard": 41141,
+    "bookshelf": 2535,
+    "desk": 21183,
+    "other_structure": 12332,
+    "books": 120,
+    "cabinet": 1426
+  },
+  "semantic_view_presence_fraction": {
+    "chair": 1.0,
+    "floor": 1.0,
+    "other_prop": 1.0,
+    "paper": 0.625,
+    "person": 0.875,
+    "table": 0.5,
+    "wall": 1.0,
+    "window": 0.875,
+    "ceiling": 0.75,
+    "door": 0.75,
+    "lamp": 0.75,
+    "whiteboard": 0.625,
+    "bookshelf": 0.25,
+    "desk": 0.625,
+    "other_structure": 0.625,
+    "books": 0.25,
+    "cabinet": 0.25
+  },
+  "asset_counts": {
+    "mesh_assets": {
+      "count": 4,
+      "min": 217,
+      "max": 730,
+      "mean": 450.25,
+      "p05_p50_p95": [
+        217,
+        592,
+        730
+      ]
+    },
+    "material_assets": {
+      "count": 4,
+      "min": 62,
+      "max": 189,
+      "mean": 120.25,
+      "p05_p50_p95": [
+        62,
+        160,
+        189
+      ]
+    },
+    "image_assets": {
+      "count": 4,
+      "min": 69,
+      "max": 72,
+      "mean": 71.25,
+      "p05_p50_p95": [
+        69,
+        72,
+        72
+      ]
+    }
+  },
+  "capture_wall_seconds": {
+    "count": 4,
+    "min": 1.407914648,
+    "max": 5.039621209,
+    "mean": 2.7128074779999998,
+    "p05_p50_p95": [
+      1.407914648,
+      2.893204107,
+      5.039621209
+    ]
+  },
+  "renderer": [
+    "WgpuWrapper(AdapterInfo { name: \"NVIDIA RTX PRO 6000 Blackwell Workstation Edition\", vendor: 4318, device: 11185, device_type: DiscreteGpu, device_pci_bus_id: \"0000:01:00.0\", driver: \"NVIDIA\", driver_info: \"610.43.02\", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: false })"
+  ],
+  "annotation_precision": [
+    "float32_geometry"
+  ],
+  "capabilities": {
+    "annotation_hdr_format": "RGBA32Float_direct",
+    "bloom": true,
+    "quality": "Auto",
+    "shadow_map_size": 2048,
+    "shadows": true,
+    "specular_transmission": true,
+    "ssao": true
+  },
+  "limits": [
+    "Signal and constraint gates do not measure photographic realism or real-office distribution match.",
+    "Camera paths checked at every captured timestep; geometry sweep is also audited separately.",
+    "Semantic pixel presence differs from scene instance counts; glazing is opaque in annotation passes.",
+    "Annotation precision is recorded explicitly; legacy HDR and native geometry captures have different error budgets.",
+    "Capture wall time includes generation, warmup, requested render work and disk IO; not FPS or isolated throughput."
+  ],
+  "darkest_views": [
+    {
+      "path": "out/review_v13/rooms_final/seed_000011/view_00_color.png",
+      "seed": 11,
+      "view": 0,
+      "mean_luminance": 0.033947516
+    },
+    {
+      "path": "out/review_v13/rooms_final/seed_000011/view_01_color.png",
+      "seed": 11,
+      "view": 1,
+      "mean_luminance": 0.048938427
+    },
+    {
+      "path": "out/review_v13/rooms_final/seed_000005/view_01_color.png",
+      "seed": 5,
+      "view": 1,
+      "mean_luminance": 0.10398293
+    },
+    {
+      "path": "out/review_v13/rooms_final/seed_000005/view_00_color.png",
+      "seed": 5,
+      "view": 0,
+      "mean_luminance": 0.11880785
+    },
+    {
+      "path": "out/review_v13/rooms_final/seed_000000/view_01_color.png",
+      "seed": 0,
+      "view": 1,
+      "mean_luminance": 0.13052322
+    },
+    {
+      "path": "out/review_v13/rooms_final/seed_000004/view_00_color.png",
+      "seed": 4,
+      "view": 0,
+      "mean_luminance": 0.14001818
+    },
+    {
+      "path": "out/review_v13/rooms_final/seed_000000/view_00_color.png",
+      "seed": 0,
+      "view": 0,
+      "mean_luminance": 0.1547516
+    },
+    {
+      "path": "out/review_v13/rooms_final/seed_000004/view_01_color.png",
+      "seed": 4,
+      "view": 1,
+      "mean_luminance": 0.15699054
+    }
+  ],
+  "brightest_views": [
+    {
+      "path": "out/review_v13/rooms_final/seed_000004/view_01_color.png",
+      "seed": 4,
+      "view": 1,
+      "mean_luminance": 0.15699054
+    },
+    {
+      "path": "out/review_v13/rooms_final/seed_000000/view_00_color.png",
+      "seed": 0,
+      "view": 0,
+      "mean_luminance": 0.1547516
+    },
+    {
+      "path": "out/review_v13/rooms_final/seed_000004/view_00_color.png",
+      "seed": 4,
+      "view": 0,
+      "mean_luminance": 0.14001818
+    },
+    {
+      "path": "out/review_v13/rooms_final/seed_000000/view_01_color.png",
+      "seed": 0,
+      "view": 1,
+      "mean_luminance": 0.13052322
+    },
+    {
+      "path": "out/review_v13/rooms_final/seed_000005/view_00_color.png",
+      "seed": 5,
+      "view": 0,
+      "mean_luminance": 0.11880785
+    },
+    {
+      "path": "out/review_v13/rooms_final/seed_000005/view_01_color.png",
+      "seed": 5,
+      "view": 1,
+      "mean_luminance": 0.10398293
+    },
+    {
+      "path": "out/review_v13/rooms_final/seed_000011/view_01_color.png",
+      "seed": 11,
+      "view": 1,
+      "mean_luminance": 0.048938427
+    },
+    {
+      "path": "out/review_v13/rooms_final/seed_000011/view_00_color.png",
+      "seed": 11,
+      "view": 0,
+      "mean_luminance": 0.033947516
+    }
+  ],
+  "largest_position_error_views": [
+    {
+      "path": "out/review_v13/rooms_final/seed_000011/view_00_color.png",
+      "seed": 11,
+      "view": 0,
+      "mean_luminance": 0.033947516
+    },
+    {
+      "path": "out/review_v13/rooms_final/seed_000011/view_01_color.png",
+      "seed": 11,
+      "view": 1,
+      "mean_luminance": 0.048938427
+    },
+    {
+      "path": "out/review_v13/rooms_final/seed_000004/view_00_color.png",
+      "seed": 4,
+      "view": 0,
+      "mean_luminance": 0.14001818
+    },
+    {
+      "path": "out/review_v13/rooms_final/seed_000005/view_00_color.png",
+      "seed": 5,
+      "view": 0,
+      "mean_luminance": 0.11880785
+    },
+    {
+      "path": "out/review_v13/rooms_final/seed_000005/view_01_color.png",
+      "seed": 5,
+      "view": 1,
+      "mean_luminance": 0.10398293
+    },
+    {
+      "path": "out/review_v13/rooms_final/seed_000000/view_01_color.png",
+      "seed": 0,
+      "view": 1,
+      "mean_luminance": 0.13052322
+    },
+    {
+      "path": "out/review_v13/rooms_final/seed_000004/view_01_color.png",
+      "seed": 4,
+      "view": 1,
+      "mean_luminance": 0.15699054
+    },
+    {
+      "path": "out/review_v13/rooms_final/seed_000000/view_00_color.png",
+      "seed": 0,
+      "view": 0,
+      "mean_luminance": 0.1547516
+    }
+  ]
+}

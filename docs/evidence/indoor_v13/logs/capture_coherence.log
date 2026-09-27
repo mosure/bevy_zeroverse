@@ -1,0 +1,30 @@
+   Compiling bevy_zeroverse v0.20.0 (/media/mosure/hyper1/repos/bevy_zeroverse)
+    Finished `test` profile [optimized] target(s) in 46.53s
+warning: the following packages contain code that will be rejected by a future version of Rust: burn-cubecl v0.21.0
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 3`
+     Running tests/capture_coherence.rs (target/debug/build/bevy_zeroverse/7fc8ce2238713f98/out/capture_coherence-7fc8ce2238713f98)
+
+running 1 test
+2026-09-27T18:26:16.352935Z  INFO bevy_render::renderer: AdapterInfo { name: "NVIDIA RTX PRO 6000 Blackwell Workstation Edition", vendor: 4318, device: 11185, device_type: DiscreteGpu, device_pci_bus_id: "0000:01:00.0", driver: "NVIDIA", driver_info: "610.43.02", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: false }
+2026-09-27T18:26:17.249461Z  INFO bevy_zeroverse: initializing BevyZeroversePlugin...
+2026-09-27T18:26:17.262169Z  INFO bevy_pbr::cluster: GPU clustering is supported on this device.
+2026-09-27T18:26:17.262217Z  INFO bevy_render::batching::gpu_preprocessing: GPU preprocessing is fully supported on this device.
+2026-09-27T18:26:17.539209Z  INFO bevy_zeroverse::scene::procedural_indoor: procedural_indoor seed=6 version=13 humans=0 layout=OpenOffice room=Vec3(6.9133186, 3.085111, 13.072114) instances=66 cameras=1
+Float32Geometry step=0 time=0: AnnotationAlignment { checked_pixels: 2120, depth_position_p99_metres: 1.9073486e-6, reprojection_p99_pixels: 0.002064135, normal_length_max_error: 1.7881393e-7, position_quantization_budget_p99_ratio: 0.14806278 }
+Float32Geometry step=1 time=0.4: AnnotationAlignment { checked_pixels: 2120, depth_position_p99_metres: 1.9073486e-6, reprojection_p99_pixels: 0.002111951, normal_length_max_error: 1.7881393e-7, position_quantization_budget_p99_ratio: 0.15954383 }
+Float32Geometry step=2 time=0.8: AnnotationAlignment { checked_pixels: 2120, depth_position_p99_metres: 1.9073486e-6, reprojection_p99_pixels: 0.0021789637, normal_length_max_error: 1.7881393e-7, position_quantization_budget_p99_ratio: 0.15875992 }
+Float16Hdr step=0 time=0: AnnotationAlignment { checked_pixels: 2120, depth_position_p99_metres: 0.009272575, reprojection_p99_pixels: 1.6114339, normal_length_max_error: 0.001339376, position_quantization_budget_p99_ratio: 0.9183924 }
+Float16Hdr step=1 time=0.4: AnnotationAlignment { checked_pixels: 2120, depth_position_p99_metres: 0.0090146065, reprojection_p99_pixels: 1.5294789, normal_length_max_error: 0.0013985634, position_quantization_budget_p99_ratio: 0.92218643 }
+Float16Hdr step=2 time=0.8: AnnotationAlignment { checked_pixels: 2120, depth_position_p99_metres: 0.008858204, reprojection_p99_pixels: 1.2706692, normal_length_max_error: 0.0012849569, position_quantization_budget_p99_ratio: 0.9078319 }
+2026-09-27T18:26:18.509504Z  INFO bevy_zeroverse::scene::procedural_indoor: procedural_indoor seed=7 version=13 humans=0 layout=Conference room=Vec3(8.145364, 2.8893657, 17.252607) instances=62 cameras=1
+Float32Geometry step=0 time=0: AnnotationAlignment { checked_pixels: 2120, depth_position_p99_metres: 1.66893e-6, reprojection_p99_pixels: 0.0020456454, normal_length_max_error: 1.7881393e-7, position_quantization_budget_p99_ratio: 0.1580437 }
+Float32Geometry step=1 time=0.4: AnnotationAlignment { checked_pixels: 2120, depth_position_p99_metres: 1.66893e-6, reprojection_p99_pixels: 0.0019070597, normal_length_max_error: 1.7881393e-7, position_quantization_budget_p99_ratio: 0.1560938 }
+Float32Geometry step=2 time=0.8: AnnotationAlignment { checked_pixels: 2120, depth_position_p99_metres: 1.9073486e-6, reprojection_p99_pixels: 0.0020610665, normal_length_max_error: 1.7881393e-7, position_quantization_budget_p99_ratio: 0.14945607 }
+Float32Geometry step=0 time=0: AnnotationAlignment { checked_pixels: 2120, depth_position_p99_metres: 1.66893e-6, reprojection_p99_pixels: 0.0020456454, normal_length_max_error: 1.7881393e-7, position_quantization_budget_p99_ratio: 0.1580437 }
+Float32Geometry step=1 time=0.4: AnnotationAlignment { checked_pixels: 2120, depth_position_p99_metres: 1.66893e-6, reprojection_p99_pixels: 0.0019070597, normal_length_max_error: 1.7881393e-7, position_quantization_budget_p99_ratio: 0.1560938 }
+Float32Geometry step=2 time=0.8: AnnotationAlignment { checked_pixels: 2120, depth_position_p99_metres: 1.9073486e-6, reprojection_p99_pixels: 0.0020610665, normal_length_max_error: 1.7881393e-7, position_quantization_budget_p99_ratio: 0.14945607 }
+total native headless polling sleeps: 45
+test animated_viewer_settings_capture_fixed_steps_and_reject_midflight_changes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.88s
+

@@ -1,6 +1,6 @@
 [package]
 name = "bevy_zeroverse_burn"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 description = "bevy zeroverse synthetic dataset rust generator"
@@ -46,8 +46,11 @@ crossterm = "0.29"
 ndarray = { version = "0.16", default-features = false, features = ["std"] }
 ndarray-npy = { version = "0.9", features = ["npz"] }
 
-bevy_zeroverse = { path = "../..", version = "0.20.0", default-features = true }
+bevy_zeroverse = { path = "../..", version = "0.21.0", default-features = true }
 
 [dev-dependencies]
 criterion = { version = "0.8", features = ["html_reports"] }
 tempfile = "3.13"
+
+[features]
+human_motion = ["bevy_zeroverse/human_motion"]

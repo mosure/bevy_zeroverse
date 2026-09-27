@@ -24,6 +24,7 @@ use bevy::{
 use serde::Serialize;
 use std::{
     collections::BTreeMap,
+    hash::{Hash, Hasher},
     num::NonZeroU64,
     ops::Range,
     sync::{
@@ -31,6 +32,9 @@ use std::{
         Arc, Mutex,
     },
 };
+
+pub mod flow;
+mod skin;
 
 const SHADER: Handle<Shader> = uuid_handle!("57c3d933-c7a7-41bc-b590-8f5d40a91758");
 
@@ -47,6 +51,10 @@ pub struct GroundTruthCamera {
     pub near: f32,
     pub far: f32,
     pub layers: RenderLayers,
+    /// Optional forward-flow output. Its pixels belong to the preceding capture.
+    pub flow: Option<Handle<Image>>,
+    /// Change this at every sequence boundary; warm-up frames never advance history.
+    pub flow_sequence: u64,
     depth: Handle<Image>,
     status: Arc<CameraStatus>,
 }
@@ -108,8 +116,18 @@ impl GroundTruthCamera {
             near: 0.1,
             far: 50.0,
             layers: RenderLayers::default(),
+            flow: None,
+            flow_sequence: 0,
             status: Arc::default(),
         }
+    }
+
+    pub fn enable_flow(&mut self, images: &mut Assets<Image>) -> Handle<Image> {
+        let mut target = images.get(&self.world_depth).unwrap().clone();
+        target.texture_descriptor.label = Some("forward_flow_f32");
+        let handle = images.add(target);
+        self.flow = Some(handle.clone());
+        handle
     }
 
     pub fn rendered_frame(&self) -> Option<u64> {
@@ -156,6 +174,12 @@ pub struct GroundTruthPlugin;
 impl Plugin for GroundTruthPlugin {
     fn build(&self, app: &mut App) {
         load_internal_asset!(app, SHADER, "ground_truth.wgsl", Shader::from_wgsl);
+        load_internal_asset!(
+            app,
+            flow::SHADER,
+            "ground_truth/flow.wgsl",
+            Shader::from_wgsl
+        );
         app.add_plugins(ExtractComponentPlugin::<GroundTruthCamera>::default());
         let diagnostics = GroundTruthDiagnostics::default();
         app.insert_resource(diagnostics.clone());
@@ -166,14 +190,16 @@ impl Plugin for GroundTruthPlugin {
         render_app.init_resource::<ExtractedGeometry>();
         render_app.init_resource::<GeometryCache>();
         render_app.init_resource::<GpuGeometry>();
+        render_app.init_resource::<flow::FlowHistory>();
         render_app.add_systems(ExtractSchedule, extract_geometry);
         render_app.add_systems(
             Render,
-            (prepare_geometry, prepare_cameras)
+            (prepare_geometry, prepare_cameras, flow::prepare)
                 .chain()
                 .in_set(RenderSystems::PrepareResources),
         );
         render_app.init_gpu_resource::<GroundTruthPipeline>();
+        render_app.init_resource::<flow::FlowPipeline>();
         render_app.add_systems(
             RenderGraph,
             render_ground_truth
@@ -225,10 +251,22 @@ struct ExtractedGeometry {
     batches: Vec<Batch>,
     instances: Vec<Instance>,
     failure: Option<String>,
+    topology: Vec<ObjectTopology>,
+}
+
+#[derive(Clone)]
+struct ObjectTopology {
+    entity: Entity,
+    mesh: AssetId<Mesh>,
+    vertices: Range<usize>,
+    indices_hash: u64,
 }
 
 #[derive(Resource, Default)]
 struct GeometryCache {
+    flow_enabled: bool,
+    skin_stamp: u64,
+    skinned_entities: Vec<Entity>,
     keys: Vec<(Entity, AssetId<Mesh>, usize, RenderLayers)>,
 }
 
@@ -250,6 +288,8 @@ fn extract_geometry(
     >,
     meshes: Extract<Res<Assets<Mesh>>>,
     materials: Extract<Res<Assets<StandardMaterial>>>,
+    inverse_bindposes: Extract<Res<Assets<bevy::mesh::skinning::SkinnedMeshInverseBindposes>>>,
+    joints: Extract<Query<Ref<GlobalTransform>>>,
     mut mesh_events: Extract<MessageReader<AssetEvent<Mesh>>>,
     mut cache: ResMut<GeometryCache>,
     mut geometry: ResMut<ExtractedGeometry>,
@@ -265,6 +305,7 @@ fn extract_geometry(
         cache.keys.clear();
         return;
     }
+    let flow_enabled = cameras.iter().any(|c| c.flow.is_some());
     let retry_failed_geometry = geometry.failure.is_some();
     geometry.failure = None;
     let mut objects: Vec<_> = objects
@@ -293,12 +334,32 @@ fn extract_geometry(
             )
         })
         .collect();
-    let changed = retry_failed_geometry || keys != cache.keys || events.iter().any(|event| matches!(event, AssetEvent::Modified { id } | AssetEvent::Removed { id } if keys.iter().any(|(_, mesh, ..)| mesh == id)));
+    let skin_stamp = cameras.iter().map(|c| c.frame_id).max().unwrap_or(0);
+    let skinned_entities: Vec<_> = objects
+        .iter()
+        .filter(|o| o.8.is_some())
+        .map(|o| o.0)
+        .collect();
+    // A new capture refreshes skin data even when only inverse binds or the
+    // SkinnedMesh component changed. Warm-up joint updates remain inexpensive.
+    let skin_changed = skinned_entities != cache.skinned_entities
+        || (!skinned_entities.is_empty() && skin_stamp != cache.skin_stamp)
+        || objects.iter().any(|(_, _, _, _, _, _, _, _, skin)| {
+            skin.is_some_and(|s| {
+                s.joints
+                    .iter()
+                    .any(|e| joints.get(*e).is_ok_and(|t| t.is_changed()))
+            })
+        });
+    cache.skin_stamp = skin_stamp;
+    cache.skinned_entities = skinned_entities;
+    let changed = skin_changed || retry_failed_geometry || keys != cache.keys || flow_enabled != cache.flow_enabled || events.iter().any(|event| matches!(event, AssetEvent::Modified { id } | AssetEvent::Removed { id } if keys.iter().any(|(_, mesh, ..)| mesh == id)));
     if changed {
         geometry.generation = geometry.generation.wrapping_add(1);
         geometry.vertices.clear();
         geometry.indices.clear();
         geometry.batches.clear();
+        geometry.topology.clear();
         let mut batch_indices = BTreeMap::<(usize, RenderLayers), Vec<u32>>::new();
         for (instance, ((entity, mesh_handle, _, _, _, _, _, _, skin), (_, _, cull, layers))) in
             objects.iter().zip(&keys).enumerate()
@@ -309,9 +370,9 @@ fn extract_geometry(
                 ));
                 break;
             };
-            if skin.is_some() || mesh.morph_targets().is_some() {
+            if mesh.morph_targets().is_some() {
                 geometry.failure = Some(format!(
-                    "ground truth requires baked geometry; skin/morph deformation on {entity:?} is unsupported"
+                    "ground truth requires baked geometry; morph deformation on {entity:?} is unsupported"
                 ));
                 break;
             }
@@ -353,10 +414,41 @@ fn extract_geometry(
                 || (mesh.indices().is_none() && positions.len() % 3 != 0)
             {
                 geometry.failure =
-                    Some(format!("ground truth mesh {entity:?} has invalid geometry"));
+                    Some(format!("ground truth mesh {entity:?} has invalid geometry: positions={}, normals={}, bad_position={:?}, bad_normal={:?}, indices={:?}",
+                        positions.len(), normals.len(),
+                        positions.iter().position(|p| !Vec3::from_array(*p).is_finite()),
+                        normals.iter().position(|n| !Vec3::from_array(*n).is_finite() || Vec3::from_array(*n).length_squared() < 1e-12),
+                        mesh.indices().map(|i| i.len())));
                 break;
             }
+            let baked;
+            let (positions, normals) = if let Some(skin) = skin {
+                match skin::bake(mesh, skin, &inverse_bindposes, &joints) {
+                    Ok(value) => baked = value,
+                    Err(error) => {
+                        geometry.failure = Some(format!("ground truth skin {entity:?}: {error}"));
+                        break;
+                    }
+                }
+                (&baked.0, &baked.1)
+            } else {
+                (positions, normals)
+            };
             let offset = geometry.vertices.len() as u32;
+            if flow_enabled {
+                let mut hash = std::collections::hash_map::DefaultHasher::new();
+                if let Some(indices) = mesh.indices() {
+                    for index in indices.iter() {
+                        index.hash(&mut hash);
+                    }
+                }
+                geometry.topology.push(ObjectTopology {
+                    entity: *entity,
+                    mesh: mesh_handle.id(),
+                    vertices: offset as usize..offset as usize + positions.len(),
+                    indices_hash: hash.finish(),
+                });
+            }
             geometry
                 .vertices
                 .extend(
@@ -387,10 +479,16 @@ fn extract_geometry(
             });
         }
         cache.keys = keys;
+        cache.flow_enabled = flow_enabled;
     }
     geometry.instances.clear();
-    for (entity, _, transform, _, semantic, _, _, _, _) in objects {
-        let world_from_local = transform.to_matrix();
+    for (entity, _, transform, _, semantic, _, _, _, skin) in objects {
+        // Bevy's skin matrices already transform rest vertices to world space.
+        let world_from_local = if skin.is_some() {
+            Mat4::IDENTITY
+        } else {
+            transform.to_matrix()
+        };
         let normal_from_local = world_from_local.inverse().transpose();
         if !world_from_local.is_finite() || !normal_from_local.is_finite() {
             geometry.failure = Some(format!(
@@ -804,6 +902,10 @@ fn render_ground_truth(
                     pass.draw_indexed(batch.indices.clone(), 0, 0..1);
                 }
             }
+        }
+        if camera.flow.is_some() && !flow::render(world, &mut context, camera, &depth.texture_view)
+        {
+            continue;
         }
         camera
             .status

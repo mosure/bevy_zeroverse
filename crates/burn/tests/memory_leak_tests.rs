@@ -84,7 +84,8 @@ fn make_sample(width: u32, height: u32) -> Sample {
         color: make_rgba_bytes(width, height, 0.1),
         depth: make_rgba_bytes(width, height, 0.2),
         normal: make_rgba_bytes(width, height, 0.3),
-        optical_flow: make_rgba_bytes(width, height, 0.4),
+        optical_flow: Vec::new(),
+        motion_vectors: Vec::new(),
         position: make_rgba_bytes(width, height, 0.5),
         world_from_view: [
             [1.0, 0.0, 0.0, 0.0],

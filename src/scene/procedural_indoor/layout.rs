@@ -8,7 +8,7 @@ use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 use serde::{Deserialize, Serialize};
 
-pub const GENERATOR_VERSION: u32 = 8;
+pub const GENERATOR_VERSION: u32 = 13;
 pub const CAMERA_CLEARANCE: f32 = 0.28;
 pub const NEIGHBOR_DEPTH: f32 = 3.2;
 
@@ -192,6 +192,8 @@ pub struct IndoorManifest {
     pub humans: Vec<super::humans::IndoorHuman>,
     #[serde(default)]
     pub rejected_human_placements: usize,
+    #[serde(default)]
+    pub camera_settings: super::cameras::CameraSettings,
     pub cameras: Vec<IndoorCamera>,
     pub rejected_placements: usize,
 }
@@ -298,6 +300,7 @@ impl IndoorManifest {
             human_density,
             humans: Vec::new(),
             rejected_human_placements: 0,
+            camera_settings: default(),
             cameras: Vec::new(),
             rejected_placements: 0,
         };
@@ -382,6 +385,8 @@ impl IndoorManifest {
     }
 
     pub fn placement_clear(&self, object: &IndoorObject, margin: f32) -> bool {
+        use super::footprint::Footprint;
+        let footprint = Footprint::object(object);
         let (lo, hi) = object.bounds();
         let half = self.room_size * 0.5;
         if lo.x < -half.x + 0.30
@@ -402,22 +407,18 @@ impl IndoorManifest {
         if hi.x > self.door_x - 0.70 && lo.x < self.door_x + 0.70 && hi.z > half.z - 1.45 {
             return false;
         }
-        if self.columns().iter().any(|(a, b)| {
-            lo.x < b.x + margin && hi.x + margin > a.x && lo.z < b.z + margin && hi.z + margin > a.z
-        }) {
+        if self
+            .columns()
+            .iter()
+            .any(|(a, b)| footprint.overlaps(Footprint::bounds(*a, *b), margin))
+        {
             return false;
         }
         !self
             .objects
             .iter()
             .filter(|o| o.solid && !o.neighbor && o.id != object.id)
-            .any(|other| {
-                let (a, b) = other.bounds();
-                lo.x < b.x + margin
-                    && hi.x + margin > a.x
-                    && lo.z < b.z + margin
-                    && hi.z + margin > a.z
-            })
+            .any(|other| footprint.overlaps(Footprint::object(other), margin))
     }
 
     fn assign_work_surfaces(&mut self) {
@@ -723,6 +724,13 @@ impl IndoorManifest {
         {
             return false;
         }
+        if matches!(
+            support.kind,
+            ObjectKind::Table | ObjectKind::Desk | ObjectKind::CoffeeTable
+        ) && !super::objects::tables::supports(support, lo, hi, margin)
+        {
+            return false;
+        }
         !self
             .objects
             .iter()
@@ -739,6 +747,7 @@ impl IndoorManifest {
     pub fn camera_clear(&self, p: Vec3) -> bool {
         let half = self.room_size * 0.5;
         if !p.is_finite()
+            || (self.camera_settings.primary_room && !self.in_primary_room(p, CAMERA_CLEARANCE))
             || p.x.abs() > half.x - 0.50
             || p.z.abs() > half.z - 0.50
             || p.y < 0.70
@@ -833,7 +842,7 @@ impl IndoorManifest {
             })
     }
 
-    pub(super) fn camera_obstacles(&self) -> Vec<(Vec3, Vec3)> {
+    pub(crate) fn camera_obstacles(&self) -> Vec<(Vec3, Vec3)> {
         let mut obstacles = self.columns();
         if let Some(program) = &self.program {
             for p in &program.partitions {
@@ -862,136 +871,6 @@ impl IndoorManifest {
         }
         boxes.extend(super::floorplan::obstacles(self));
         boxes
-    }
-
-    fn sample_cameras(&mut self, count: usize) -> Result<(), String> {
-        let mut rng = stream(self.seed, 3);
-        let half = self.room_size * 0.5;
-        for index in 0..count {
-            let mut found = None;
-            for attempt in 0..2048 {
-                // Mix eye-level, seated, low and elevated viewpoints; stratify room edges.
-                let height = match self.seed.wrapping_add(index as u64) % 5 {
-                    0 | 1 => rng.random_range(1.45..1.80),
-                    2 => rng.random_range(1.05..1.35),
-                    3 => rng.random_range(0.78..1.02),
-                    _ => rng.random_range(1.85..3.25),
-                };
-                let upper = (self.room_size.y
-                    - self.program.as_ref().map_or(0.48, |p| p.light_drop)
-                    - 0.04
-                    - CAMERA_CLEARANCE
-                    - 0.04)
-                    .min(3.25);
-                let height = if height > upper {
-                    rng.random_range(0.78..upper)
-                } else {
-                    height
-                };
-                let mut p = Vec3::new(
-                    rng.random_range(-half.x + 0.65..half.x - 0.65),
-                    height,
-                    rng.random_range(-half.z + 0.65..half.z - 0.65),
-                );
-                if attempt < 256 {
-                    match (self.seed / 5).wrapping_add(index as u64) % 4 {
-                        0 => p.z = half.z - 0.85,
-                        1 => p.x = -half.x + 0.85,
-                        2 => p.z = -half.z + 1.00,
-                        _ => p.x = half.x - 0.85,
-                    }
-                }
-                if !self.camera_clear(p) {
-                    continue;
-                }
-                // Aim at actual content in this room zone as well as broad views.
-                // A central target shared by every camera over-samples glass walls.
-                let zone = self.program.as_ref().and_then(|program| {
-                    program
-                        .zones
-                        .iter()
-                        .find(|z| p.x > z.min.x && p.x < z.max.x && p.z > z.min.y && p.z < z.max.y)
-                });
-                let candidates: Vec<_> = self
-                    .objects
-                    .iter()
-                    .filter(|o| {
-                        o.solid
-                            && !o.neighbor
-                            && zone.is_none_or(|z| {
-                                o.position.x > z.min.x
-                                    && o.position.x < z.max.x
-                                    && o.position.z > z.min.y
-                                    && o.position.z < z.max.y
-                            })
-                    })
-                    .collect();
-                let target = if !candidates.is_empty() && rng.random_bool(0.72) {
-                    let object = candidates[rng.random_range(0..candidates.len())];
-                    object.position
-                        + Vec3::new(
-                            rng.random_range(-0.18..0.18),
-                            (object.size.y * rng.random_range(0.7..1.15)).clamp(0.75, 1.55),
-                            rng.random_range(-0.18..0.18),
-                        )
-                } else {
-                    Vec3::new(
-                        rng.random_range(-half.x * 0.28..half.x * 0.28),
-                        rng.random_range(0.85..1.4),
-                        rng.random_range(-half.z * 0.32..half.z * 0.25),
-                    )
-                };
-                if !self.camera_view_clear(p, target) {
-                    continue;
-                }
-                // Metric baselines span short stereo captures through walking
-                // motion. Every family remains subject to full-path rejection.
-                let forward = (target - p).with_y(0.0).normalize();
-                let right = forward.cross(Vec3::Y);
-                let angle = rng.random_range(-std::f32::consts::PI..std::f32::consts::PI);
-                let direction = forward * angle.cos() + right * angle.sin();
-                let distance = rng.random_range(0.03_f32.ln()..3.0_f32.ln()).exp();
-                let end = p + direction * distance + Vec3::Y * rng.random_range(-0.25..0.25);
-                let bend = right * rng.random_range(-0.60..0.60) * distance;
-                let camera = IndoorCamera {
-                    start: p,
-                    end,
-                    target,
-                    // Log-uniform focal length gives useful wide through normal views.
-                    fov_degrees: (0.5 / rng.random_range(0.37_f32.ln()..2.0_f32.ln()).exp())
-                        .atan()
-                        .to_degrees()
-                        * 2.0,
-                    motion: Some(super::cameras::CameraMotion {
-                        control: [p.lerp(end, 0.33) + bend, p.lerp(end, 0.67) + bend],
-                        target_end: target
-                            + Vec3::new(
-                                rng.random_range(-0.25..0.25),
-                                rng.random_range(-0.12..0.12),
-                                rng.random_range(-0.25..0.25),
-                            ),
-                        roll: [rng.random_range(-0.09..0.09), rng.random_range(-0.09..0.09)],
-                    }),
-                };
-                if !self.camera_curve_clear(&camera) {
-                    continue;
-                }
-                if self
-                    .cameras
-                    .iter()
-                    .any(|c| c.start.distance(p) < 0.18 && c.target.distance(target) < 0.5)
-                {
-                    continue;
-                }
-                found = Some(camera);
-                break;
-            }
-            self.cameras
-                .push(found.ok_or_else(|| {
-                    format!("seed {}: unable to place camera {index}", self.seed)
-                })?);
-        }
-        Ok(())
     }
 }
 

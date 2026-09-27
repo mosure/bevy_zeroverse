@@ -51,6 +51,8 @@ pub struct GenConfig {
     pub indoor_layout: IndoorLayout,
     pub indoor_density: f32,
     pub indoor_human_density: f32,
+    pub human_motion: Option<String>,
+    pub indoor_camera: Option<String>,
     pub indoor_gi_rays: u32,
     pub indoor_quality: bevy_zeroverse::scene::procedural_indoor::IndoorQuality,
     pub rotation_augmentation: bool,
@@ -88,6 +90,8 @@ impl Default for GenConfig {
             indoor_layout: IndoorLayout::Mixed,
             indoor_density: 0.65,
             indoor_human_density: 0.25,
+            human_motion: None,
+            indoor_camera: None,
             indoor_gi_rays: 256,
             indoor_quality: Default::default(),
             rotation_augmentation: false,
@@ -106,6 +110,21 @@ impl Default for GenConfig {
 
 /// Validate the capture contract before starting a GPU process or writing data.
 pub fn validate_gen_config(config: &GenConfig) -> Result<()> {
+    if let Some(json) = &config.indoor_camera {
+        bevy_zeroverse::scene::procedural_indoor::cameras::CameraSettings::parse(json)
+            .map_err(anyhow::Error::msg)?;
+    }
+    if let Some(json) = &config.human_motion {
+        anyhow::ensure!(
+            cfg!(feature = "human_motion"),
+            "rebuild with --features human_motion"
+        );
+        anyhow::ensure!(
+            config.scene_type == ZeroverseSceneType::ProceduralIndoor,
+            "human motion requires procedural_indoor"
+        );
+        bevy_zeroverse::human_motion::HumanMotionConfig::parse(json).map_err(anyhow::Error::msg)?;
+    }
     anyhow::ensure!(
         !config.render_modes.is_empty()
             && config
@@ -127,10 +146,6 @@ pub fn validate_gen_config(config: &GenConfig) -> Result<()> {
         config.timeout_secs > 0 && config.playback_step.is_finite() && config.playback_step >= 0.0,
         "timeout must be positive and playback_step finite and nonnegative"
     );
-    anyhow::ensure!(
-        !config.render_modes.contains(&RenderMode::MotionVectors),
-        "motion-vectors capture is not implemented"
-    );
     if config.scene_type == ZeroverseSceneType::ProceduralIndoor {
         anyhow::ensure!(
             config.workers == 1,
@@ -148,10 +163,6 @@ pub fn validate_gen_config(config: &GenConfig) -> Result<()> {
         anyhow::ensure!(
             config.playback_step * config.playback_steps.saturating_sub(1) as f32 <= 1.0,
             "indoor trajectory progress must stay in [0, 1]: playback_step * (playback_steps - 1) <= 1"
-        );
-        anyhow::ensure!(
-            !config.render_modes.contains(&RenderMode::OpticalFlow),
-            "indoor optical flow is not temporally calibrated across multimodal captures; use depth, position and camera poses until qualified"
         );
     }
     Ok(())
@@ -273,6 +284,9 @@ fn sample_has_signal(
     width: u32,
     height: u32,
 ) -> bool {
+    if !render_modes.is_empty() && render_modes.iter().all(RenderMode::is_flow) {
+        return true;
+    }
     sample.views.iter().any(|view| {
         render_modes.iter().any(|mode| {
             let bytes: &[u8] = match mode {
@@ -282,7 +296,7 @@ fn sample_has_signal(
                 RenderMode::Semantic => view.semantic.as_slice(),
                 RenderMode::OpticalFlow => view.optical_flow.as_slice(),
                 RenderMode::Position => view.position.as_slice(),
-                RenderMode::MotionVectors => &[],
+                RenderMode::MotionVectors => view.motion_vectors.as_slice(),
             };
             if bytes.is_empty() {
                 return false;
@@ -321,10 +335,15 @@ fn sample_has_required_modes(
                 RenderMode::Semantic => view.semantic.as_slice(),
                 RenderMode::OpticalFlow => view.optical_flow.as_slice(),
                 RenderMode::Position => view.position.as_slice(),
-                RenderMode::MotionVectors => &[],
+                RenderMode::MotionVectors => view.motion_vectors.as_slice(),
             };
+            if mode.is_flow()
+                && crate::flow::validate(buf, width as usize * height as usize).is_err()
+            {
+                return false;
+            }
             if buf.is_empty()
-                || buf.iter().all(|b| *b == 0)
+                || (!mode.is_flow() && buf.iter().all(|b| *b == 0))
                 || decode_rgba_bytes(buf, width, height)
                     .map(|pixels| pixels.iter().any(|v| !v.is_finite()))
                     .unwrap_or(true)
@@ -393,6 +412,8 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
         indoor_layout,
         indoor_density,
         indoor_human_density,
+        human_motion,
+        indoor_camera,
         indoor_gi_rays,
         indoor_quality,
         rotation_augmentation,
@@ -435,6 +456,8 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
     zeroverse_config.indoor_layout = indoor_layout;
     zeroverse_config.indoor_density = indoor_density;
     zeroverse_config.indoor_human_density = indoor_human_density;
+    zeroverse_config.human_motion = human_motion;
+    zeroverse_config.indoor_camera = indoor_camera;
     zeroverse_config.indoor_gi_rays = indoor_gi_rays;
     zeroverse_config.indoor_quality = indoor_quality;
     zeroverse_config.rotation_augmentation = rotation_augmentation;
@@ -624,4 +647,25 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
     let result = join_worker_handles(handles);
     finished.store(true, Ordering::Release);
     result
+}
+
+#[cfg(test)]
+mod flow_tests {
+    use super::*;
+
+    #[test]
+    fn terminal_or_background_only_flow_is_a_complete_sample() {
+        let sample = crate::dataset::ZeroverseSample {
+            view_dim: 1,
+            views: vec![bevy_zeroverse::sample::View {
+                optical_flow: vec![0; 2 * 3 * 16],
+                motion_vectors: vec![0; 2 * 3 * 16],
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+        let modes = [RenderMode::OpticalFlow, RenderMode::MotionVectors];
+        assert!(sample_has_required_modes(&sample, &modes, 2, 3));
+        assert!(sample_has_signal(&sample, &modes, 2, 3));
+    }
 }

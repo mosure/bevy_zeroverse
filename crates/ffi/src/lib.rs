@@ -35,6 +35,7 @@ pub struct View {
     pub normal: Vec<u8>,
     pub semantic: Vec<u8>,
     pub optical_flow: Vec<u8>,
+    pub motion_vectors: Vec<u8>,
     pub position: Vec<u8>,
 
     #[pyo3(get, set)]
@@ -61,6 +62,7 @@ impl From<core_sample::View> for View {
             normal: value.normal,
             semantic: value.semantic,
             optical_flow: value.optical_flow,
+            motion_vectors: value.motion_vectors,
             position: value.position,
             world_from_view: value.world_from_view,
             fovy: value.fovy,
@@ -96,6 +98,11 @@ impl View {
     #[getter]
     fn optical_flow<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
         PyBytes::new(py, &self.optical_flow)
+    }
+
+    #[getter]
+    fn motion_vectors<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
+        PyBytes::new(py, &self.motion_vectors)
     }
 
     #[getter]

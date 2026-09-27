@@ -1,3 +1,6 @@
+mod readiness;
+pub use readiness::{CaptureBlocker, CaptureReadiness};
+
 use bevy::prelude::*;
 
 use crate::{
@@ -21,7 +24,12 @@ pub struct View {
     pub depth: Vec<u8>,
     pub normal: Vec<u8>,
     pub semantic: Vec<u8>,
+    /// RGBA f32: forward pixel displacement (right/down), valid, target-visible.
+    #[serde(default)]
     pub optical_flow: Vec<u8>,
+    /// Same forward correspondence in normalized image coordinates (dx/width, dy/height).
+    #[serde(default)]
+    pub motion_vectors: Vec<u8>,
     pub position: Vec<u8>,
     pub world_from_view: [[f32; 4]; 4],
     pub fovy: f32,
@@ -278,14 +286,18 @@ fn gate_capture_cameras(
     args: Res<BevyZeroverseConfig>,
     state: Res<SamplerState>,
     capture: Res<CaptureProgress>,
+    readiness: Res<CaptureReadiness>,
+    failure: Res<CaptureFailure>,
     mut cameras: Query<(&mut Camera, &ImageCopier), With<crate::camera::ZeroverseCamera>>,
 ) {
-    if !args.headless || args.editor || (!state.enabled && capture.next_request == 0) {
+    if !args.headless || args.editor {
         return;
     }
     for (mut camera, copier) in &mut cameras {
-        camera.is_active =
-            state.enabled && capture.pending.is_none_or(|id| copier.submitted_id() != id);
+        camera.is_active = state.enabled
+            && readiness.scene_ready()
+            && failure.0.is_none()
+            && capture.pending.is_none_or(|id| copier.submitted_id() != id);
     }
 }
 
@@ -438,6 +450,7 @@ pub fn configure_sampler(app: &mut App, initial_state: SamplerState) {
     });
     app.init_resource::<CaptureFailure>();
     app.init_resource::<CaptureProgress>();
+    app.init_resource::<CaptureReadiness>();
     app.init_resource::<CapturePollBackoff>();
     #[cfg(not(target_arch = "wasm32"))]
     app.add_systems(First, backoff_capture_poll);
@@ -456,22 +469,14 @@ pub fn configure_sampler(app: &mut App, initial_state: SamplerState) {
             .after(crate::annotation::obb::compute_object_obbs),
     );
     app.add_systems(PostUpdate, restore_sampling_motion.after(sample_stream));
+    app.add_systems(PostUpdate, readiness::update.before(sample_stream));
     app.add_systems(Last, gate_capture_cameras);
 }
 
 #[derive(bevy::ecs::system::SystemParam)]
-pub struct CaptureStatus<'w, 's> {
-    assets: Res<'w, crate::asset::WaitForAssets>,
-    indoor_generation: Option<Res<'w, crate::scene::procedural_indoor::IndoorGenerationStatus>>,
-    unfinished_primitives: Query<
-        'w,
-        's,
-        (),
-        (
-            With<crate::primitive::ZeroversePrimitiveSettings>,
-            Without<crate::primitive::ZeroversePrimitive>,
-        ),
-    >,
+pub struct CaptureStatus<'w> {
+    readiness: Res<'w, CaptureReadiness>,
+    motion: Option<Res<'w, crate::human_motion::HumanMotionReport>>,
     draw_policy: Res<'w, crate::camera::CaptureDrawPolicy>,
     pipeline: Option<Res<'w, crate::io::image_copy::CapturePipelineReadiness>>,
     clustering: Option<Res<'w, bevy::light::cluster::GlobalClusterSettings>>,
@@ -528,14 +533,8 @@ pub fn sample_stream(
         state.enabled = false;
         return;
     }
-    if capture_status.assets.is_waiting()
-        || capture_status
-            .indoor_generation
-            .as_ref()
-            .is_some_and(|status| status.busy())
-        || !capture_status.unfinished_primitives.is_empty()
-    {
-        state.warmup_frames = state.warmup_frames.max(3);
+    if !capture_status.readiness.scene_ready() {
+        state.warmup_frames = state.warmup_frames.max(SamplerState::WARMUP_FRAME_DELAY);
         return;
     }
     let mut camera_entities: Vec<_> = cameras
@@ -641,15 +640,16 @@ pub fn sample_stream(
     }
     let float32_geometry = cameras
         .iter()
-        .all(|(_, _, _, _, copier)| copier.attachment_count() == 3);
-    if float32_geometry {
-        if let Some(mode) = unsupported_float32_geometry_mode(&state.render_modes) {
-            failure.0 = Some(format!(
-                "native float32 geometry capture does not support {mode:?}; supported modes are Color, Depth, Position, Normal, and Semantic"
-            ));
-            state.enabled = false;
-            return;
-        }
+        .all(|(_, _, _, _, copier)| copier.attachment_count() >= 3);
+    let flow_capture = state.render_modes.iter().any(RenderMode::is_flow);
+    if flow_capture
+        && cameras
+            .iter()
+            .any(|(_, _, _, _, copier)| copier.attachment_count() != 4)
+    {
+        failure.0 = Some("flow capture requires the native temporal geometry attachments; configure flow before creating cameras".into());
+        state.enabled = false;
+        return;
     }
     let desired_mode = if float32_geometry {
         RenderMode::Color
@@ -683,7 +683,8 @@ pub fn sample_stream(
                 || !view.normal.is_empty()
                 || !view.position.is_empty()
                 || !view.semantic.is_empty()
-                || !view.optical_flow.is_empty();
+                || !view.optical_flow.is_empty()
+                || !view.motion_vectors.is_empty();
             if (capture.pending.is_some() || captured_modality)
                 && !camera_metadata_matches(view, transform, projection, playback.progress)
             {
@@ -854,19 +855,42 @@ pub fn sample_stream(
         capture.copied_bytes += packet.planes.iter().map(|p| p.len() as u64).sum::<u64>();
         if float32_geometry {
             #[cfg(not(target_arch = "wasm32"))]
-            if let Err(message) =
-                unpack_ground_truth(view, packet.planes, &requested_modes, &scene_aabb, &args)
             {
-                failure.0 = Some(message);
-                state.enabled = false;
-                return;
+                let mut planes = packet.planes;
+                let flow = (planes.len() == 4).then(|| planes.pop().unwrap());
+                if let Err(message) =
+                    unpack_ground_truth(view, planes, &requested_modes, &scene_aabb, &args)
+                {
+                    failure.0 = Some(message);
+                    state.enabled = false;
+                    return;
+                }
+                if let Some(flow) = flow {
+                    // The pair rendered at step N describes pixels in source N-1.
+                    // The terminal source has no successor and stays explicitly invalid.
+                    initialize_flow(view, flow.len(), &requested_modes);
+                    if state.step > 0 {
+                        let previous = &mut buffered_sample.views[view_idx - camera_count];
+                        if let Err(message) = unpack_flow(
+                            previous,
+                            &flow,
+                            &requested_modes,
+                            args.width as u32,
+                            args.height as u32,
+                        ) {
+                            failure.0 = Some(message);
+                            state.enabled = false;
+                            return;
+                        }
+                    }
+                }
             }
         } else {
             let image_data = packet.planes.into_iter().next().unwrap();
             match write_to {
                 RenderMode::Color => view.color = image_data,
                 RenderMode::Depth => view.depth = image_data,
-                RenderMode::MotionVectors => panic!("motion vector rendering not supported"),
+                RenderMode::MotionVectors => view.motion_vectors = image_data,
                 RenderMode::Normal => view.normal = image_data,
                 RenderMode::Semantic => view.semantic = image_data,
                 RenderMode::OpticalFlow => view.optical_flow = image_data,
@@ -890,7 +914,6 @@ pub fn sample_stream(
             *render_mode = first.clone();
         }
         state.reset();
-        // TODO: set fixed previous cameras for optical flow across timesteps
         return;
     }
 
@@ -993,6 +1016,14 @@ pub fn sample_stream(
             "schema_version": 1,
             "quality": args.indoor_quality,
             "diffuse_gi_supported": args.indoor_quality.diffuse_gi(),
+            "human_motion": capture_status.motion.as_deref(),
+            "capture_readiness": &*capture_status.readiness,
+            "render_readiness": pipeline_readiness.as_ref().map(|p| serde_json::json!({
+                "ready": p.ready(), "missing_assets": p.missing_assets(),
+                "pipelines": p.pipeline_count(),
+            })),
+            "flow": args.render_modes.iter().any(RenderMode::is_flow).then(crate::render::optical_flow::annotation_metadata),
+            "gi_human_motion_policy": "planned motion candidates omitted from static indirect transport; live direct shadows retained",
             "gi_settings": capture_status.gi_settings.as_deref(),
             "gi_statistics": capture_status.gi_statistics.as_deref(),
             "shadow_map_size": args.indoor_quality.shadow_map_size(),
@@ -1177,17 +1208,50 @@ fn unpack_ground_truth(
     Ok(())
 }
 
-fn unsupported_float32_geometry_mode(modes: &[RenderMode]) -> Option<&RenderMode> {
-    modes.iter().find(|mode| {
-        !matches!(
-            mode,
-            RenderMode::Color
-                | RenderMode::Depth
-                | RenderMode::Position
-                | RenderMode::Normal
-                | RenderMode::Semantic
-        )
-    })
+#[cfg(not(target_arch = "wasm32"))]
+fn initialize_flow(view: &mut View, bytes: usize, modes: &[RenderMode]) {
+    if modes.contains(&RenderMode::OpticalFlow) {
+        view.optical_flow = vec![0; bytes];
+    }
+    if modes.contains(&RenderMode::MotionVectors) {
+        view.motion_vectors = vec![0; bytes];
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn unpack_flow(
+    view: &mut View,
+    data: &[u8],
+    modes: &[RenderMode],
+    width: u32,
+    height: u32,
+) -> Result<(), String> {
+    if data.len() != width as usize * height as usize * 16 {
+        return Err("malformed flow attachment".into());
+    }
+    let mut normalized = Vec::new();
+    for pixel in data.as_chunks::<16>().0.iter() {
+        let mut p: [f32; 4] = bytemuck::pod_read_unaligned(pixel);
+        if p.iter().any(|v| !v.is_finite())
+            || ![0.0, 1.0].contains(&p[2])
+            || ![0.0, 1.0].contains(&p[3])
+            || p[3] > p[2]
+        {
+            return Err("nonfinite flow or invalid correspondence masks".into());
+        }
+        if modes.contains(&RenderMode::MotionVectors) {
+            p[0] /= width as f32;
+            p[1] /= height as f32;
+            normalized.extend_from_slice(bytemuck::bytes_of(&p));
+        }
+    }
+    if modes.contains(&RenderMode::OpticalFlow) {
+        view.optical_flow = data.to_vec();
+    }
+    if modes.contains(&RenderMode::MotionVectors) {
+        view.motion_vectors = normalized;
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -1368,27 +1432,23 @@ mod capture_motion_tests {
     }
 
     #[test]
-    fn float32_geometry_rejects_unsupported_modes_without_dropping_requested_channels() {
-        let supported = [
-            RenderMode::Color,
-            RenderMode::Depth,
-            RenderMode::Normal,
-            RenderMode::Position,
-            RenderMode::Semantic,
-        ];
-        assert!(unsupported_float32_geometry_mode(&supported).is_none());
-        for unsupported in [RenderMode::OpticalFlow, RenderMode::MotionVectors] {
-            assert_eq!(
-                unsupported_float32_geometry_mode(std::slice::from_ref(&unsupported)),
-                Some(&unsupported)
-            );
-            let mut mixed = supported.to_vec();
-            mixed.push(unsupported.clone());
-            assert_eq!(
-                unsupported_float32_geometry_mode(&mixed),
-                Some(&unsupported)
-            );
-        }
+    #[cfg(not(target_arch = "wasm32"))]
+    fn forward_flow_preserves_sign_masks_and_pixel_units() {
+        let modes = [RenderMode::OpticalFlow, RenderMode::MotionVectors];
+        let values = [[-2.5_f32, 3.25, 1.0, 0.0], [0.0, 0.0, 1.0, 1.0]];
+        let mut view = View::default();
+        unpack_flow(&mut view, bytemuck::cast_slice(&values), &modes, 2, 1).unwrap();
+        assert_eq!(view.optical_flow, bytemuck::cast_slice::<_, u8>(&values));
+        assert_eq!(
+            bytemuck::cast_slice::<u8, f32>(&view.motion_vectors),
+            &[-1.25, 3.25, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0]
+        );
+        initialize_flow(&mut view, 32, &modes);
+        assert!(view
+            .optical_flow
+            .iter()
+            .chain(&view.motion_vectors)
+            .all(|v| *v == 0));
     }
 
     #[test]

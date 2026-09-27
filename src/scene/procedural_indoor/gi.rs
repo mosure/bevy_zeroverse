@@ -361,6 +361,16 @@ impl BakeScene {
         materials: &impl super::preparation::AssetStore<StandardMaterial>,
         images: &impl super::preparation::AssetStore<Image>,
     ) -> Self {
+        Self::from_manifest_excluding_humans(scene, set, materials, images, &[])
+    }
+
+    pub(crate) fn from_manifest_excluding_humans(
+        scene: &IndoorManifest,
+        set: &IndoorMaterials,
+        materials: &impl super::preparation::AssetStore<StandardMaterial>,
+        images: &impl super::preparation::AssetStore<Image>,
+        moving_humans: &[usize],
+    ) -> Self {
         let started = Instant::now();
         let mut result = Self {
             triangles: Vec::new(),
@@ -426,9 +436,18 @@ impl BakeScene {
         for object in &scene.objects {
             result.add_assembly(objects::build_object(object), object.transform());
         }
-        for person in &scene.humans {
+        for person in scene
+            .humans
+            .iter()
+            .filter(|p| !moving_humans.contains(&p.id))
+        {
             for (surface, geometry) in super::humans::build_human(person).parts {
                 use super::humans::HumanSurface;
+                // The diffuse proxy has no thin-lens transmission model.
+                // Clear spectacles must not become opaque eye shadow casters.
+                if surface == HumanSurface::Lens {
+                    continue;
+                }
                 let cloth = matches!(
                     surface,
                     HumanSurface::Top | HumanSurface::Trousers | HumanSurface::Shirt
@@ -854,6 +873,38 @@ fn cosine_direction(normal: Vec3, u: f32, v: f32) -> Vec3 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn motion_candidates_do_not_leave_static_gi_casters() {
+        let scene = IndoorManifest::generate_with_humans(
+            0,
+            super::super::layout::IndoorLayout::Mixed,
+            0.35,
+            0,
+            0.7,
+        )
+        .unwrap();
+        assert!(scene.humans.len() > 1);
+        let mut images = Assets::default();
+        let mut materials = Assets::default();
+        let set = IndoorMaterials::build(&scene, &mut images, &mut materials);
+        let fixed = BakeScene::from_manifest(&scene, &set, &materials, &images);
+        let moving = BakeScene::from_manifest_excluding_humans(
+            &scene,
+            &set,
+            &materials,
+            &images,
+            &[scene.humans[0].id],
+        );
+        let all_ids: Vec<_> = scene.humans.iter().map(|h| h.id).collect();
+        let empty =
+            BakeScene::from_manifest_excluding_humans(&scene, &set, &materials, &images, &all_ids);
+        assert!(empty.triangles.len() < moving.triangles.len());
+        assert!(moving.triangles.len() < fixed.triangles.len());
+        assert_eq!(moving.lights.len(), fixed.lights.len());
+        assert_eq!(moving.bounds_min, fixed.bounds_min);
+        assert_eq!(moving.bounds_max, fixed.bounds_max);
+    }
 
     fn empty() -> BakeScene {
         BakeScene {

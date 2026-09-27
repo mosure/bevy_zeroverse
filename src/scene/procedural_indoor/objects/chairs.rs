@@ -13,18 +13,42 @@ pub struct ChairProgram {
     pub recline: f32,
     pub arm_height: f32,
     pub spindle_pitch: f32,
+    pub headrest: bool,
+    pub lumbar: f32,
+    pub shoulder_flare: f32,
+    pub seat_roundness: f32,
+    pub seat_width_fraction: f32,
+    pub seat_depth_fraction: f32,
+    pub back_width_fraction: f32,
+    pub arm_pad_length: f32,
+    pub base_radius_fraction: f32,
+    pub leg_splay: f32,
+    pub spoke_count: u32,
 }
 pub fn parameters(o: &IndoorObject) -> ChairProgram {
     let mut rng = stream(o.seed, 73);
     ChairProgram {
         back_construction: rng.random_range(0..3),
         armrests: rng.random_bool(0.62),
-        curvature: rng.random_range(0.025..0.075),
+        curvature: rng.random_range(0.018..0.095),
         taper: rng.random_range(-0.06..0.20),
         shell_thickness: rng.random_range(0.018..0.045),
         recline: rng.random_range(-0.04..0.10),
         arm_height: rng.random_range(0.61..0.70),
         spindle_pitch: rng.random_range(0.045..0.09),
+        headrest: o.size.y > 1.12
+            && matches!(o.variant % FAMILIES, 0 | 1 | 5)
+            && rng.random_bool(0.62),
+        lumbar: rng.random_range(0.012..0.050),
+        shoulder_flare: rng.random_range(-0.12..0.10),
+        seat_roundness: rng.random_range(2.5..7.0),
+        seat_width_fraction: rng.random_range(0.66..0.80),
+        seat_depth_fraction: rng.random_range(0.60..0.76),
+        back_width_fraction: rng.random_range(0.76..1.01),
+        arm_pad_length: rng.random_range(0.18..0.29),
+        base_radius_fraction: rng.random_range(0.34..0.43),
+        leg_splay: rng.random_range(0.04..0.16),
+        spoke_count: if rng.random_bool(0.85) { 5 } else { 4 },
     }
 }
 
@@ -32,8 +56,12 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     let mut rng = stream(o.seed, 70);
     let family = o.variant % FAMILIES;
     let program = parameters(o);
-    let width = rng.random_range(0.43..0.52_f32).min(o.size.x * 0.77);
-    let depth = rng.random_range(0.42..0.49_f32).min(o.size.z * 0.72);
+    let width = rng
+        .random_range(0.43..0.52_f32)
+        .min(o.size.x * program.seat_width_fraction);
+    let depth = rng
+        .random_range(0.42..0.49_f32)
+        .min(o.size.z * program.seat_depth_fraction);
     let label = "chair";
     let seat = 0.47;
     let padding = if family == 4 {
@@ -61,27 +89,39 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
         Vec3::new(width * 0.93, 0.022, depth * 0.93),
         0.009,
     );
-    a.box_part(
-        cover,
-        label,
-        Vec3::new(0.0, seat - padding * 0.5, -0.015),
-        Vec3::new(width, padding, depth),
+    let outline: Vec<_> = (0..48)
+        .map(|i| {
+            let angle = i as f32 * TAU / 48.0;
+            let f = |x: f32| {
+                if x.abs() < 1e-6 {
+                    0.0
+                } else {
+                    x.signum() * x.abs().powf(2.0 / program.seat_roundness)
+                }
+            };
+            Vec2::new(width * 0.5 * f(angle.cos()), depth * 0.5 * f(angle.sin()))
+        })
+        .collect();
+    a.part(cover, label).profile_slab(
+        &outline,
+        padding,
         padding * 0.4,
+        Transform::from_xyz(0.0, seat - padding * 0.5, -0.015),
     );
     let back_bottom = if family == 5 {
         0.53
     } else {
         rng.random_range(0.56..0.65)
     };
-    let back_top = o.size.y - 0.015;
+    let back_top = o.size.y - 0.015 - if program.headrest { 0.20 } else { 0.0 };
     let back_height = back_top - back_bottom;
-    let back_width = width * rng.random_range(0.82..0.99);
+    let back_width = width * program.back_width_fraction;
     let recline = program.recline;
     let back_depth = (o.size.z * 0.5
         - 0.02
         - program.shell_thickness
         - program.curvature
-        - back_height * (0.13 + recline.sin()).max(0.0))
+        - (o.size.y - back_bottom) * (0.13 + recline.sin()).max(0.0))
     .min(0.11);
     let back = Transform::from_xyz(0.0, back_bottom, back_depth)
         .with_rotation(Quat::from_rotation_x(recline));
@@ -126,7 +166,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
             back.with_translation(back.transform_point(Vec3::Y * (back_height - 0.02))),
         );
     } else {
-        a.part(cover, label).chair_back_profile(
+        a.part(cover, label).chair_back_contour(
             back_width,
             back_height,
             [
@@ -134,8 +174,25 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
                 program.taper,
                 0.13,
                 program.shell_thickness,
+                program.lumbar,
+                program.shoulder_flare,
             ],
             back,
+        );
+    }
+    if program.headrest {
+        for x in [-0.09, 0.09] {
+            a.part(Surface::Chrome, label).rod(
+                back.transform_point(Vec3::new(x, back_height - 0.04, 0.045)),
+                back.transform_point(Vec3::new(x, back_height + 0.10, 0.045)),
+                0.008,
+            );
+        }
+        a.part(cover, label).chair_back_contour(
+            width * 0.67,
+            0.14,
+            [0.035, 0.0, 0.05, 0.045, 0.008, 0.05],
+            back.with_translation(back.transform_point(Vec3::new(0.0, back_height + 0.055, 0.0))),
         );
     }
     for side in [-1.0, 1.0] {
@@ -151,10 +208,11 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
         a.part(Surface::Plastic, label)
             .cylinder(0.043, 0.10, Transform::from_xyz(0.0, 0.385, 0.0));
         let phase = rng.random_range(0.0..TAU);
-        for i in 0..5 {
-            let angle = phase + i as f32 * TAU / 5.0;
+        for i in 0..program.spoke_count {
+            let angle = phase + i as f32 * TAU / program.spoke_count as f32;
             let radial = Vec3::new(angle.sin(), 0.0, angle.cos());
-            let end = radial * 0.265 + Vec3::Y * 0.072;
+            let end =
+                radial * (o.size.x.min(o.size.z) * program.base_radius_fraction) + Vec3::Y * 0.072;
             a.part(frame, label).rod(Vec3::Y * 0.165, end, 0.020);
             for side in [-1.0, 1.0] {
                 let pos =
@@ -187,17 +245,23 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
             } else {
                 for z in [-1.0, 1.0] {
                     a.part(frame, label).rod(
-                        Vec3::new(x * 1.13, 0.018, z * depth * 0.5),
+                        Vec3::new(x * (1.0 + program.leg_splay), 0.018, z * depth * 0.5),
                         Vec3::new(x, 0.435, z * depth * 0.38),
                         if family == 3 { 0.022 } else { 0.012 },
                     );
                 }
             }
-            for z in [-0.23, 0.23] {
+            let foot_x = if family == 2 {
+                x
+            } else {
+                x * (1.0 + program.leg_splay)
+            };
+            let foot_depth = if family == 2 { 0.23 } else { depth * 0.5 };
+            for z in [-foot_depth, foot_depth] {
                 a.part(Surface::Rubber, label).cylinder(
                     0.022,
                     0.012,
-                    Transform::from_xyz(x * 1.1, 0.006, z),
+                    Transform::from_xyz(foot_x, 0.006, z),
                 );
             }
         }
@@ -214,7 +278,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
                 Surface::Plastic,
                 label,
                 Vec3::new(x, program.arm_height, 0.0),
-                Vec3::new(0.046, 0.025, 0.25),
+                Vec3::new(0.046, 0.025, program.arm_pad_length),
                 0.009,
             );
         }

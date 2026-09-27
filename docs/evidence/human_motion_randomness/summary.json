@@ -1,0 +1,497 @@
+{
+  "backend": "Vulkan",
+  "capture_engine": "capture-v19;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=5;surface_flow=1;indoor=12",
+  "device": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+  "different_seed_pairs": [
+    {
+      "cases": [
+        0,
+        1
+      ],
+      "difference": {
+        "articulation_max_m": 0.539451539516449,
+        "articulation_rms_m": 0.1058844713191522,
+        "frames_with_articulation_difference_over_1mm": 160,
+        "identical_frames": false,
+        "root_rms_m": 0.03254392470142629
+      }
+    },
+    {
+      "cases": [
+        0,
+        2
+      ],
+      "difference": {
+        "articulation_max_m": 0.42031124234199524,
+        "articulation_rms_m": 0.07618818883038496,
+        "frames_with_articulation_difference_over_1mm": 160,
+        "identical_frames": false,
+        "root_rms_m": 0.03665585305877115
+      }
+    },
+    {
+      "cases": [
+        1,
+        2
+      ],
+      "difference": {
+        "articulation_max_m": 0.40498092770576477,
+        "articulation_rms_m": 0.0671628624286087,
+        "frames_with_articulation_difference_over_1mm": 160,
+        "identical_frames": false,
+        "root_rms_m": 0.0395107429909015
+      }
+    },
+    {
+      "cases": [
+        3,
+        4
+      ],
+      "difference": {
+        "articulation_max_m": 0.7996980547904968,
+        "articulation_rms_m": 0.0959918872153064,
+        "frames_with_articulation_difference_over_1mm": 160,
+        "identical_frames": false,
+        "root_rms_m": 0.011003013735931766
+      }
+    },
+    {
+      "cases": [
+        3,
+        5
+      ],
+      "difference": {
+        "articulation_max_m": 0.9521515965461731,
+        "articulation_rms_m": 0.16802527898366396,
+        "frames_with_articulation_difference_over_1mm": 160,
+        "identical_frames": false,
+        "root_rms_m": 0.009359791551425668
+      }
+    },
+    {
+      "cases": [
+        4,
+        5
+      ],
+      "difference": {
+        "articulation_max_m": 0.7275263667106628,
+        "articulation_rms_m": 0.1425900245535565,
+        "frames_with_articulation_difference_over_1mm": 160,
+        "identical_frames": false,
+        "root_rms_m": 0.009634872083635102
+      }
+    }
+  ],
+  "driver": "610.43.02",
+  "first_batch_seconds": 5.817745835,
+  "frames_sha256": [
+    "56969cfd16817c0b083a9a93a906c9add71054f5a134b9c54231407936e7e4a2",
+    "15f7f2e55167e31f0f5bd9029909a87eef1c023bc60e8333bb9c823621a456a0",
+    "2ef4914ea350e6afe203d7000f473c7a82e09c5c9c5d35cdd2b074ca88b82401",
+    "6c5141225d77d2ed836a18860c293cde94b8bcb361bafda912e71742ec614456",
+    "76a62f57aca23fabb336f0fbec99f896588aef18c8c1c561ff3cf29e2989b1dc",
+    "7a404a63eb1b20421c58062a72750d4572864e355bc5051d6a076c552685fed0",
+    "56969cfd16817c0b083a9a93a906c9add71054f5a134b9c54231407936e7e4a2",
+    "6c5141225d77d2ed836a18860c293cde94b8bcb361bafda912e71742ec614456"
+  ],
+  "limits": {
+    "diversity_minimum_root_local_joint_rms_m": 0.001,
+    "minimum_fraction_frames_over_1mm": 0.5,
+    "replay": "exact frame content"
+  },
+  "model_loads": 1,
+  "model_manifests": {
+    "ardy": "6e03294854771ca3ed6641251c77ab75bd2542d778c02886ea795d8d77655cd8",
+    "llama": "09280ebcf02184708cff1a9f982b901166b433e504ff343f02c037cc52d8ee16"
+  },
+  "requests": [
+    {
+      "dense_trajectory": true,
+      "diffusion_steps": 10,
+      "frames": 160,
+      "history_frames": 80,
+      "prompt": "A person walks forward with a natural arm swing.",
+      "seed": 16437985787966871478,
+      "text_guidance": 2.0,
+      "trajectory_guidance": 3.0,
+      "waypoints": [
+        {
+          "constrain_height": true,
+          "frame": 0,
+          "heading": 0.0,
+          "position": [
+            0.0,
+            0.9399999976158142,
+            0.0
+          ]
+        },
+        {
+          "constrain_height": true,
+          "frame": 159,
+          "heading": 0.0,
+          "position": [
+            0.0,
+            0.9399999976158142,
+            3.0
+          ]
+        }
+      ]
+    },
+    {
+      "dense_trajectory": true,
+      "diffusion_steps": 10,
+      "frames": 160,
+      "history_frames": 80,
+      "prompt": "A person walks forward with a natural arm swing.",
+      "seed": 10734584917037010833,
+      "text_guidance": 2.0,
+      "trajectory_guidance": 3.0,
+      "waypoints": [
+        {
+          "constrain_height": true,
+          "frame": 0,
+          "heading": 0.0,
+          "position": [
+            0.0,
+            0.9399999976158142,
+            0.0
+          ]
+        },
+        {
+          "constrain_height": true,
+          "frame": 159,
+          "heading": 0.0,
+          "position": [
+            0.0,
+            0.9399999976158142,
+            3.0
+          ]
+        }
+      ]
+    },
+    {
+      "dense_trajectory": true,
+      "diffusion_steps": 10,
+      "frames": 160,
+      "history_frames": 80,
+      "prompt": "A person walks forward with a natural arm swing.",
+      "seed": 9568009755643129198,
+      "text_guidance": 2.0,
+      "trajectory_guidance": 3.0,
+      "waypoints": [
+        {
+          "constrain_height": true,
+          "frame": 0,
+          "heading": 0.0,
+          "position": [
+            0.0,
+            0.9399999976158142,
+            0.0
+          ]
+        },
+        {
+          "constrain_height": true,
+          "frame": 159,
+          "heading": 0.0,
+          "position": [
+            0.0,
+            0.9399999976158142,
+            3.0
+          ]
+        }
+      ]
+    },
+    {
+      "dense_trajectory": true,
+      "diffusion_steps": 10,
+      "frames": 160,
+      "history_frames": 80,
+      "prompt": "A person stands and waves the right hand.",
+      "seed": 16437985787966871478,
+      "text_guidance": 2.0,
+      "trajectory_guidance": 3.0,
+      "waypoints": [
+        {
+          "constrain_height": true,
+          "frame": 0,
+          "heading": 0.0,
+          "position": [
+            0.0,
+            0.9399999976158142,
+            0.0
+          ]
+        },
+        {
+          "constrain_height": true,
+          "frame": 159,
+          "heading": 0.0,
+          "position": [
+            0.0,
+            0.9399999976158142,
+            0.0
+          ]
+        }
+      ]
+    },
+    {
+      "dense_trajectory": true,
+      "diffusion_steps": 10,
+      "frames": 160,
+      "history_frames": 80,
+      "prompt": "A person stands and waves the right hand.",
+      "seed": 10734584917037010833,
+      "text_guidance": 2.0,
+      "trajectory_guidance": 3.0,
+      "waypoints": [
+        {
+          "constrain_height": true,
+          "frame": 0,
+          "heading": 0.0,
+          "position": [
+            0.0,
+            0.9399999976158142,
+            0.0
+          ]
+        },
+        {
+          "constrain_height": true,
+          "frame": 159,
+          "heading": 0.0,
+          "position": [
+            0.0,
+            0.9399999976158142,
+            0.0
+          ]
+        }
+      ]
+    },
+    {
+      "dense_trajectory": true,
+      "diffusion_steps": 10,
+      "frames": 160,
+      "history_frames": 80,
+      "prompt": "A person stands and waves the right hand.",
+      "seed": 7214613751112095670,
+      "text_guidance": 2.0,
+      "trajectory_guidance": 3.0,
+      "waypoints": [
+        {
+          "constrain_height": true,
+          "frame": 0,
+          "heading": 0.0,
+          "position": [
+            0.0,
+            0.9399999976158142,
+            0.0
+          ]
+        },
+        {
+          "constrain_height": true,
+          "frame": 159,
+          "heading": 0.0,
+          "position": [
+            0.0,
+            0.9399999976158142,
+            0.0
+          ]
+        }
+      ]
+    },
+    {
+      "dense_trajectory": true,
+      "diffusion_steps": 10,
+      "frames": 160,
+      "history_frames": 80,
+      "prompt": "A person walks forward with a natural arm swing.",
+      "seed": 16437985787966871478,
+      "text_guidance": 2.0,
+      "trajectory_guidance": 3.0,
+      "waypoints": [
+        {
+          "constrain_height": true,
+          "frame": 0,
+          "heading": 0.0,
+          "position": [
+            0.0,
+            0.9399999976158142,
+            0.0
+          ]
+        },
+        {
+          "constrain_height": true,
+          "frame": 159,
+          "heading": 0.0,
+          "position": [
+            0.0,
+            0.9399999976158142,
+            3.0
+          ]
+        }
+      ]
+    },
+    {
+      "dense_trajectory": true,
+      "diffusion_steps": 10,
+      "frames": 160,
+      "history_frames": 80,
+      "prompt": "A person stands and waves the right hand.",
+      "seed": 16437985787966871478,
+      "text_guidance": 2.0,
+      "trajectory_guidance": 3.0,
+      "waypoints": [
+        {
+          "constrain_height": true,
+          "frame": 0,
+          "heading": 0.0,
+          "position": [
+            0.0,
+            0.9399999976158142,
+            0.0
+          ]
+        },
+        {
+          "constrain_height": true,
+          "frame": 159,
+          "heading": 0.0,
+          "position": [
+            0.0,
+            0.9399999976158142,
+            0.0
+          ]
+        }
+      ]
+    }
+  ],
+  "same_seed_replays": [
+    {
+      "cases": [
+        0,
+        6
+      ],
+      "difference": {
+        "articulation_max_m": 0.0,
+        "articulation_rms_m": 0.0,
+        "frames_with_articulation_difference_over_1mm": 0,
+        "identical_frames": true,
+        "root_rms_m": 0.0
+      },
+      "kind": "duplicate_batch_lane"
+    },
+    {
+      "cases": [
+        3,
+        7
+      ],
+      "difference": {
+        "articulation_max_m": 0.0,
+        "articulation_rms_m": 0.0,
+        "frames_with_articulation_difference_over_1mm": 0,
+        "identical_frames": true,
+        "root_rms_m": 0.0
+      },
+      "kind": "duplicate_batch_lane"
+    },
+    {
+      "case": 0,
+      "difference": {
+        "articulation_max_m": 0.0,
+        "articulation_rms_m": 0.0,
+        "frames_with_articulation_difference_over_1mm": 0,
+        "identical_frames": true,
+        "root_rms_m": 0.0
+      },
+      "kind": "reordered_replay"
+    },
+    {
+      "case": 1,
+      "difference": {
+        "articulation_max_m": 0.0,
+        "articulation_rms_m": 0.0,
+        "frames_with_articulation_difference_over_1mm": 0,
+        "identical_frames": true,
+        "root_rms_m": 0.0
+      },
+      "kind": "reordered_replay"
+    },
+    {
+      "case": 2,
+      "difference": {
+        "articulation_max_m": 0.0,
+        "articulation_rms_m": 0.0,
+        "frames_with_articulation_difference_over_1mm": 0,
+        "identical_frames": true,
+        "root_rms_m": 0.0
+      },
+      "kind": "reordered_replay"
+    },
+    {
+      "case": 3,
+      "difference": {
+        "articulation_max_m": 0.0,
+        "articulation_rms_m": 0.0,
+        "frames_with_articulation_difference_over_1mm": 0,
+        "identical_frames": true,
+        "root_rms_m": 0.0
+      },
+      "kind": "reordered_replay"
+    },
+    {
+      "case": 4,
+      "difference": {
+        "articulation_max_m": 0.0,
+        "articulation_rms_m": 0.0,
+        "frames_with_articulation_difference_over_1mm": 0,
+        "identical_frames": true,
+        "root_rms_m": 0.0
+      },
+      "kind": "reordered_replay"
+    },
+    {
+      "case": 5,
+      "difference": {
+        "articulation_max_m": 0.0,
+        "articulation_rms_m": 0.0,
+        "frames_with_articulation_difference_over_1mm": 0,
+        "identical_frames": true,
+        "root_rms_m": 0.0
+      },
+      "kind": "reordered_replay"
+    },
+    {
+      "case": 6,
+      "difference": {
+        "articulation_max_m": 0.0,
+        "articulation_rms_m": 0.0,
+        "frames_with_articulation_difference_over_1mm": 0,
+        "identical_frames": true,
+        "root_rms_m": 0.0
+      },
+      "kind": "reordered_replay"
+    },
+    {
+      "case": 7,
+      "difference": {
+        "articulation_max_m": 0.0,
+        "articulation_rms_m": 0.0,
+        "frames_with_articulation_difference_over_1mm": 0,
+        "identical_frames": true,
+        "root_rms_m": 0.0
+      },
+      "kind": "reordered_replay"
+    },
+    {
+      "case": 0,
+      "difference": {
+        "articulation_max_m": 0.0,
+        "articulation_rms_m": 0.0,
+        "frames_with_articulation_difference_over_1mm": 0,
+        "identical_frames": true,
+        "root_rms_m": 0.0
+      },
+      "kind": "serial_replay"
+    }
+  ],
+  "scope": "Native real-weight randomness check, before scene admission; not action fidelity or cross-device determinism.",
+  "seconds_including_models_and_checks": 29.784936217,
+  "text_encodes": 2
+}

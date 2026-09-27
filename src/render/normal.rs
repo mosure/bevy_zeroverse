@@ -45,6 +45,7 @@ pub(crate) fn apply_normal_material(
     >,
     mut removed_normals: RemovedComponents<Normal>,
     mut materials: ResMut<Assets<NormalMaterial>>,
+    mut cache: Local<super::annotation_material::AnnotationMaterialCache<NormalMaterial>>,
 ) {
     for e in removed_normals.read() {
         if let Ok(mut commands) = commands.get_entity(e) {
@@ -53,13 +54,16 @@ pub(crate) fn apply_normal_material(
     }
 
     for (e, pbr_material) in &normals {
-        let normal_material = materials.add(ExtendedMaterial {
-            base: StandardMaterial {
-                double_sided: pbr_material.double_sided,
-                cull_mode: pbr_material.cull_mode,
-                ..default()
-            },
-            extension: NormalExtension::default(),
+        let normal_material = cache.get(&mut materials, pbr_material.annotation_key(), || {
+            ExtendedMaterial {
+                base: StandardMaterial {
+                    double_sided: pbr_material.double_sided,
+                    cull_mode: pbr_material.cull_mode,
+                    unlit: true,
+                    ..default()
+                },
+                extension: NormalExtension::default(),
+            }
         });
 
         commands.entity(e).insert(MeshMaterial3d(normal_material));
@@ -72,6 +76,13 @@ pub type NormalMaterial = ExtendedMaterial<StandardMaterial, NormalExtension>;
 pub struct NormalExtension {}
 
 impl MaterialExtension for NormalExtension {
+    fn enable_shadows() -> bool {
+        false
+    }
+    fn enable_prepass() -> bool {
+        false
+    }
+
     fn fragment_shader() -> ShaderRef {
         NORMAL_SHADER_HANDLE.into()
     }

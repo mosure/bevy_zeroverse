@@ -108,6 +108,7 @@ pub fn spawn_object(
             },
             ObbTracked,
             ObbClass(object.kind.class_name().to_owned()),
+            SemanticLabel::from_label(object.kind.class_name()).expect("indoor object class"),
             Aabb::from_min_max(lo, hi),
         ))
         .id();

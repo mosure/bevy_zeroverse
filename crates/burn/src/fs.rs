@@ -692,7 +692,14 @@ pub fn load_sample_dir(dir: impl AsRef<Path>) -> Result<ZeroverseSample> {
     let mut captured_files = color_files.clone();
     let mut annotation_dimensions = None;
     if captured_files.is_empty() {
-        for name in ["depth", "normal", "semantic", "position"] {
+        for name in [
+            "depth",
+            "normal",
+            "semantic",
+            "position",
+            "optical_flow",
+            "motion_vectors",
+        ] {
             for entry in fs::read_dir(dir)? {
                 let path = entry?.path();
                 if path.extension().is_some_and(|extension| extension == "npz")
@@ -892,12 +899,33 @@ pub fn load_sample_dir(dir: impl AsRef<Path>) -> Result<ZeroverseSample> {
                 view.position = bytemuck::cast_slice(&rgba).to_vec();
             }
 
-            let optical_flow_path = dir.join(format!("optical_flow_{t_val:03}_{v_val:02}.jpg"));
-            if optical_flow_path.exists() {
-                let bytes = fs::read(&optical_flow_path)?;
-                let (w, h, rgba) = decode_jpeg_to_rgba_f32(&bytes)?;
-                if w == width && h == height {
-                    view.optical_flow = bytemuck::cast_slice(&rgba).to_vec();
+            for name in ["optical_flow", "motion_vectors"] {
+                if let Some((plane, shape)) =
+                    load_npz_array(&dir.join(format!("{name}_{t_val:03}_{v_val:02}.npz")), name)?
+                {
+                    anyhow::ensure!(
+                        shape == [height as usize, width as usize, 4],
+                        "flow NPZ must be H x W x 4"
+                    );
+                    let metadata: serde_json::Value =
+                        serde_json::from_slice(&fs::read(dir.join("flow_metadata.json"))?)?;
+                    anyhow::ensure!(
+                        metadata["schema_version"] == 1,
+                        "unknown numeric flow convention"
+                    );
+                    let bytes = bytemuck::cast_slice(&plane).to_vec();
+                    crate::flow::validate(&bytes, height as usize * width as usize)?;
+                    if name == "optical_flow" {
+                        view.optical_flow = bytes;
+                    } else {
+                        view.motion_vectors = bytes;
+                    }
+                } else {
+                    anyhow::ensure!(
+                        !dir.join(format!("{name}_{t_val:03}_{v_val:02}.jpg"))
+                            .exists(),
+                        "legacy colored flow JPEG is a visualization, not optical-flow ground truth"
+                    );
                 }
             }
         }
@@ -1107,11 +1135,33 @@ pub fn save_sample_to_fs_with_codec(
         .iter()
         .any(|v| !v.color.is_empty())
         .then(|| vec![0.0; steps * view_dim * pixel_count * 3]);
-    let mut flow_tensor: Option<Vec<f32>> = sample
+    for name in ["optical_flow", "motion_vectors"] {
+        let presence: Vec<_> = sample
+            .views
+            .iter()
+            .map(|v| {
+                if name == "optical_flow" {
+                    !v.optical_flow.is_empty()
+                } else {
+                    !v.motion_vectors.is_empty()
+                }
+            })
+            .collect();
+        anyhow::ensure!(
+            presence.iter().all(|v| *v == presence[0]),
+            "{name} must be present for every timestep/camera or absent throughout"
+        );
+    }
+    if sample
         .views
         .iter()
-        .any(|v| !v.optical_flow.is_empty())
-        .then(|| vec![0.0; steps * view_dim * pixel_count * 3]);
+        .any(|v| !v.optical_flow.is_empty() || !v.motion_vectors.is_empty())
+    {
+        fs::write(
+            scene_dir.join("flow_metadata.json"),
+            serde_json::to_vec_pretty(&bevy_zeroverse::render::optical_flow::annotation_metadata())?,
+        )?;
+    }
 
     for t in 0..steps {
         for v in 0..view_dim {
@@ -1132,18 +1182,28 @@ pub fn save_sample_to_fs_with_codec(
                 }
             }
 
-            if let Some(flow_buf) = flow_tensor.as_mut()
-                && !view.optical_flow.is_empty()
-            {
-                let rgba = decode_rgba_bytes(&view.optical_flow, width, height)?;
-                let base = (t * view_dim + v) * pixel_count * 3;
-                for i in 0..pixel_count {
-                    let src = i * 4;
-                    let dst = base + i * 3;
-                    flow_buf[dst] = rgba[src];
-                    flow_buf[dst + 1] = rgba[src + 1];
-                    flow_buf[dst + 2] = rgba[src + 2];
+            for (name, bytes) in [
+                ("optical_flow", &view.optical_flow),
+                ("motion_vectors", &view.motion_vectors),
+            ] {
+                if bytes.is_empty() {
+                    continue;
                 }
+                crate::flow::validate(bytes, pixel_count)?;
+                let values: Vec<f32> = bytes
+                    .as_chunks::<4>()
+                    .0
+                    .iter()
+                    .map(|bytes| bytemuck::pod_read_unaligned(bytes))
+                    .collect();
+                write_npz(
+                    &scene_dir.join(format!("{name}_{t:03}_{v:02}.npz")),
+                    name,
+                    &values,
+                    height as usize,
+                    width as usize,
+                    4,
+                )?;
             }
 
             if !view.depth.is_empty() {
@@ -1287,37 +1347,6 @@ pub fn save_sample_to_fs_with_codec(
                 }
                 let jpg = encode_jpeg_from_rgba_f32(&rgba, width, height)?;
                 fs::write(scene_dir.join(format!("color_{t:03}_{v:02}.jpg")), jpg)?;
-            }
-        }
-    }
-
-    if let Some(mut flow_buf) = flow_tensor {
-        normalize_hdr_image_tonemap(
-            &mut flow_buf,
-            steps,
-            view_dim,
-            height as usize,
-            width as usize,
-            3,
-        );
-        for t in 0..steps {
-            for v in 0..view_dim {
-                let base = (t * view_dim + v) * pixel_count * 3;
-                let mut rgba = Vec::with_capacity(pixel_count * 4);
-                for i in 0..pixel_count {
-                    let src = base + i * 3;
-                    rgba.extend_from_slice(&[
-                        flow_buf[src],
-                        flow_buf[src + 1],
-                        flow_buf[src + 2],
-                        1.0,
-                    ]);
-                }
-                let jpg = encode_jpeg_from_rgba_f32(&rgba, width, height)?;
-                fs::write(
-                    scene_dir.join(format!("optical_flow_{t:03}_{v:02}.jpg")),
-                    jpg,
-                )?;
             }
         }
     }

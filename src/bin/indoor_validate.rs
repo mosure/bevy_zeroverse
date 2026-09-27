@@ -447,7 +447,6 @@ fn main() -> Result<()> {
             directory.join("manifest.json"),
             serde_json::to_vec_pretty(&manifest)?,
         )?;
-        let views = save_sample(&sample, &args, &directory)?;
         if args.export_reference {
             #[cfg(not(target_arch = "wasm32"))]
             bevy_zeroverse::scene::procedural_indoor::reference::export(
@@ -459,6 +458,7 @@ fn main() -> Result<()> {
             #[cfg(target_arch = "wasm32")]
             anyhow::bail!("reference export requires the native validator");
         }
+        let views = save_sample(&sample, &args, &directory)?;
         let report = CaptureReport {
             run_id: run_id.clone(),
             seed,
@@ -561,7 +561,9 @@ fn save_sample(
                 .collect();
             ensure!(
                 values.iter().all(|x| x.is_finite()),
-                "non-finite {name} output"
+                "non-finite {name} output: {} channels; first index {:?}",
+                values.iter().filter(|x| !x.is_finite()).count(),
+                values.iter().position(|x| !x.is_finite())
             );
             if !args.no_raw {
                 let raw: Vec<u8> = values.iter().flat_map(|v| v.to_le_bytes()).collect();
@@ -591,8 +593,11 @@ fn save_sample(
             }
             if name == "semantic" {
                 semantic_colors = colors.len();
+                // Class richness is a dataset review metric, not annotation
+                // validity. Close views and opaque annotation glass can contain
+                // only one or two classes; every pixel was palette-checked above.
                 ensure!(
-                    (3..=41).contains(&semantic_colors),
+                    (1..=41).contains(&semantic_colors),
                     "semantic image has an invalid palette size: {semantic_colors}"
                 );
             }

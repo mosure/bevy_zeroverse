@@ -1,0 +1,308 @@
+[
+  {
+    "case": "static",
+    "url": "http://127.0.0.1:8789/?scene_type=procedural_indoor&indoor_seed=0&indoor_density=0.35&indoor_human_density=0.7&width=960&height=720&editor=false&num_cameras=2&camera_grid=true&indoor_camera=%7B%22path_length_min%22%3A+0%2C+%22path_length_max%22%3A+0%7D&image_copiers=false&gizmos=false&yaw_speed=0&playback_mode=PingPong&playback_speed=0.1&regenerate_ms=0",
+    "image_0": {
+      "width": 960,
+      "height": 720,
+      "channel_mean_srgb": [
+        0.1761964472131445,
+        0.1520800596859114,
+        0.13381743600217863
+      ],
+      "channel_std_srgb": [
+        0.22554008297015016,
+        0.19237096509885102,
+        0.1736912276267399
+      ],
+      "unique_thumbnail_colors": 2970,
+      "sha256": "a18ba3efde5c1f254c0c76d0271fbb07a28d5e4eba80aeddff9eb3b5499eec01"
+    },
+    "image_1": {
+      "width": 960,
+      "height": 720,
+      "channel_mean_srgb": [
+        0.1761964472131445,
+        0.1520800596859114,
+        0.13381743600217863
+      ],
+      "channel_std_srgb": [
+        0.22554008297015016,
+        0.19237096509885102,
+        0.1736912276267399
+      ],
+      "unique_thumbnail_colors": 2970,
+      "sha256": "a18ba3efde5c1f254c0c76d0271fbb07a28d5e4eba80aeddff9eb3b5499eec01"
+    },
+    "frame_difference": {
+      "mean_absolute_srgb": 0.0,
+      "changed_pixels_over_4_255": 0,
+      "fixed_camera": true
+    },
+    "gpu": {
+      "submissions": 758,
+      "adapters": [
+        {
+          "vendor": "nvidia",
+          "architecture": "blackwell",
+          "device": "",
+          "description": "",
+          "maxSampledTexturesPerShaderStage": 48
+        },
+        {
+          "vendor": "nvidia",
+          "architecture": "blackwell",
+          "device": "",
+          "description": "",
+          "maxSampledTexturesPerShaderStage": 48
+        }
+      ],
+      "devices": [
+        {
+          "features": [
+            "float32-blendable",
+            "depth32float-stencil8",
+            "rg11b10ufloat-renderable",
+            "bgra8unorm-storage",
+            "depth-clip-control",
+            "texture-compression-bc",
+            "dual-source-blending",
+            "timestamp-query",
+            "texture-compression-bc-sliced-3d",
+            "core-features-and-limits",
+            "clip-distances",
+            "float32-filterable",
+            "indirect-first-instance"
+          ],
+          "required": {
+            "requiredLimits": {
+              "maxTextureDimension1D": 16384,
+              "maxTextureDimension2D": 16384,
+              "maxTextureDimension3D": 2048,
+              "maxTextureArrayLayers": 2048,
+              "maxBindGroups": 4,
+              "maxBindingsPerBindGroup": 1000,
+              "maxDynamicUniformBuffersPerPipelineLayout": 10,
+              "maxDynamicStorageBuffersPerPipelineLayout": 8,
+              "maxSampledTexturesPerShaderStage": 48,
+              "maxSamplersPerShaderStage": 16,
+              "maxStorageBuffersPerShaderStage": 16,
+              "maxStorageTexturesPerShaderStage": 8,
+              "maxUniformBuffersPerShaderStage": 12,
+              "maxUniformBufferBindingSize": 65536,
+              "maxStorageBufferBindingSize": 2147483644,
+              "minUniformBufferOffsetAlignment": 256,
+              "minStorageBufferOffsetAlignment": 256,
+              "maxVertexBuffers": 8,
+              "maxBufferSize": 4294967292,
+              "maxVertexAttributes": 30,
+              "maxVertexBufferArrayStride": 2048,
+              "maxInterStageShaderVariables": 28,
+              "maxColorAttachments": 8,
+              "maxColorAttachmentBytesPerSample": 128,
+              "maxComputeWorkgroupStorageSize": 49152,
+              "maxComputeInvocationsPerWorkgroup": 1024,
+              "maxComputeWorkgroupSizeX": 1024,
+              "maxComputeWorkgroupSizeY": 1024,
+              "maxComputeWorkgroupSizeZ": 64,
+              "maxComputeWorkgroupsPerDimension": 65535
+            },
+            "requiredFeatures": [
+              "depth-clip-control",
+              "depth32float-stencil8",
+              "texture-compression-bc",
+              "texture-compression-bc-sliced-3d",
+              "timestamp-query",
+              "indirect-first-instance",
+              "rg11b10ufloat-renderable",
+              "bgra8unorm-storage",
+              "float32-filterable",
+              "float32-blendable",
+              "dual-source-blending",
+              "clip-distances"
+            ]
+          }
+        }
+      ],
+      "errors": []
+    },
+    "success": true,
+    "seconds": 11.905438538058661,
+    "messages": [
+      {
+        "kind": "error",
+        "text": "Failed to load resource: the server responded with a status of 404 (File not found)"
+      },
+      {
+        "kind": "log",
+        "text": "%cINFO%c src/lib.rs:36%c initializing BevyZeroversePlugin... color: whitesmoke; background: #444 color: gray; font-style: italic color: inherit"
+      },
+      {
+        "kind": "log",
+        "text": "%cINFO%c /home/mosure/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bevy_winit-0.19.1/src/system.rs:67%c Creating new window bevy_zeroverse (65v0) color: whitesmoke; background: #444 color: gray; font-style: italic color: inherit"
+      },
+      {
+        "kind": "log",
+        "text": "%cINFO%c /home/mosure/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bevy_render-0.19.1/src/renderer/mod.rs:288%c AdapterInfo { name: \"\", vendor: 0, device: 0, device_type: Other, device_pci_bus_id: \"\", driver: \"\", driver_info: \"\", backend: BrowserWebGpu, subgroup_min_size: 4, subgroup_max_size: 128, transient_saves_memory: false } color: whitesmoke; background: #444 color: gray; font-style: italic color: inherit"
+      },
+      {
+        "kind": "log",
+        "text": "%cINFO%c /home/mosure/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bevy_pbr-0.19.1/src/cluster/mod.rs:87%c GPU clustering is supported on this device. color: whitesmoke; background: #444 color: gray; font-style: italic color: inherit"
+      },
+      {
+        "kind": "log",
+        "text": "%cINFO%c /home/mosure/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bevy_render-0.19.1/src/batching/gpu_preprocessing.rs:1372%c Some GPU preprocessing are limited on this device. color: whitesmoke; background: #444 color: gray; font-style: italic color: inherit"
+      },
+      {
+        "kind": "log",
+        "text": "%cWARN%c /home/mosure/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bevy_burn_human-0.6.1/src/lib.rs:864%c burn_human: clamping 8 bone influences to 4 for bevy skinning color: orange; background: #444 color: gray; font-style: italic color: inherit"
+      },
+      {
+        "kind": "log",
+        "text": "%cINFO%c src/scene/procedural_indoor/mod.rs:426%c procedural_indoor seed=0 version=13 humans=5 layout=Lounge room=Vec3(9.602869, 4.0209236, 8.136649) instances=30 cameras=2 color: whitesmoke; background: #444 color: gray; font-style: italic color: inherit"
+      }
+    ]
+  },
+  {
+    "case": "motion",
+    "url": "http://127.0.0.1:8789/?scene_type=procedural_indoor&indoor_seed=0&indoor_density=0.35&indoor_human_density=0.7&width=960&height=720&editor=false&num_cameras=2&camera_grid=true&indoor_camera=%7B%22path_length_min%22%3A+0%2C+%22path_length_max%22%3A+0%7D&image_copiers=false&gizmos=false&yaw_speed=0&playback_mode=PingPong&playback_speed=0.1&regenerate_ms=0&human_motion=%7B%22fraction%22%3A0.7%2C%22frames%22%3A120%2C%22batch_size%22%3A2%2C%22max_actors%22%3A4%2C%22model_root%22%3A%22http%3A%2F%2F127.0.0.1%3A8789%2Fmodels%22%7D",
+    "accepted": 2,
+    "image_0": {
+      "width": 960,
+      "height": 720,
+      "channel_mean_srgb": [
+        0.17196478985112562,
+        0.15037937999273782,
+        0.13341998002904865
+      ],
+      "channel_std_srgb": [
+        0.21487926693201004,
+        0.18586579862222508,
+        0.16995708466395007
+      ],
+      "unique_thumbnail_colors": 3095,
+      "sha256": "54da1c692bad509140697ab21adf6c531ab0424d5860675153da810bd533c7c4"
+    },
+    "image_1": {
+      "width": 960,
+      "height": 720,
+      "channel_mean_srgb": [
+        0.17194800744371821,
+        0.1504497378812636,
+        0.13340468409586057
+      ],
+      "channel_std_srgb": [
+        0.21482432156471287,
+        0.18587155128815974,
+        0.16998151044621312
+      ],
+      "unique_thumbnail_colors": 3077,
+      "sha256": "629560bbc0c5c8cbe432a6bb47b5338a1dc252def76ab0804f690eaa8d242246"
+    },
+    "frame_difference": {
+      "mean_absolute_srgb": 0.001620531121399177,
+      "changed_pixels_over_4_255": 14514,
+      "fixed_camera": true
+    },
+    "regenerated_accepted": 2,
+    "gpu": {
+      "submissions": 14597,
+      "adapters": [
+        {
+          "vendor": "nvidia",
+          "architecture": "blackwell",
+          "device": "",
+          "description": "",
+          "maxSampledTexturesPerShaderStage": 48
+        },
+        {
+          "vendor": "nvidia",
+          "architecture": "blackwell",
+          "device": "",
+          "description": "",
+          "maxSampledTexturesPerShaderStage": 48
+        }
+      ],
+      "devices": [
+        {
+          "features": [
+            "float32-blendable",
+            "depth32float-stencil8",
+            "rg11b10ufloat-renderable",
+            "bgra8unorm-storage",
+            "depth-clip-control",
+            "texture-compression-bc-sliced-3d",
+            "dual-source-blending",
+            "clip-distances",
+            "timestamp-query",
+            "core-features-and-limits",
+            "texture-compression-bc",
+            "float32-filterable",
+            "indirect-first-instance"
+          ],
+          "required": {
+            "requiredLimits": {
+              "maxTextureDimension1D": 16384,
+              "maxTextureDimension2D": 16384,
+              "maxTextureDimension3D": 2048,
+              "maxTextureArrayLayers": 2048,
+              "maxBindGroups": 4,
+              "maxBindingsPerBindGroup": 1000,
+              "maxDynamicUniformBuffersPerPipelineLayout": 10,
+              "maxDynamicStorageBuffersPerPipelineLayout": 8,
+              "maxSampledTexturesPerShaderStage": 48,
+              "maxSamplersPerShaderStage": 16,
+              "maxStorageBuffersPerShaderStage": 16,
+              "maxStorageTexturesPerShaderStage": 8,
+              "maxUniformBuffersPerShaderStage": 12,
+              "maxUniformBufferBindingSize": 65536,
+              "maxStorageBufferBindingSize": 2147483644,
+              "minUniformBufferOffsetAlignment": 256,
+              "minStorageBufferOffsetAlignment": 256,
+              "maxVertexBuffers": 8,
+              "maxBufferSize": 4294967292,
+              "maxVertexAttributes": 30,
+              "maxVertexBufferArrayStride": 2048,
+              "maxInterStageShaderVariables": 28,
+              "maxColorAttachments": 8,
+              "maxColorAttachmentBytesPerSample": 128,
+              "maxComputeWorkgroupStorageSize": 49152,
+              "maxComputeInvocationsPerWorkgroup": 1024,
+              "maxComputeWorkgroupSizeX": 1024,
+              "maxComputeWorkgroupSizeY": 1024,
+              "maxComputeWorkgroupSizeZ": 64,
+              "maxComputeWorkgroupsPerDimension": 65535
+            },
+            "requiredFeatures": [
+              "depth-clip-control",
+              "depth32float-stencil8",
+              "texture-compression-bc",
+              "texture-compression-bc-sliced-3d",
+              "timestamp-query",
+              "indirect-first-instance",
+              "rg11b10ufloat-renderable",
+              "bgra8unorm-storage",
+              "float32-filterable",
+              "float32-blendable",
+              "dual-source-blending",
+              "clip-distances"
+            ]
+          }
+        }
+      ],
+      "errors": []
+    },
+    "success": true,
+    "seconds": 90.90229829598684,
+    "messages": [
+      {
+        "kind": "log",
+        "text": "%cINFO%c src/scene/procedural_indoor/mod.rs:426%c procedural_indoor seed=1 version=13 humans=3 layout=Lounge room=Vec3(6.2352767, 3.441887, 10.781699) instances=24 cameras=2 color: whitesmoke; background: #444 color: gray; font-style: italic color: inherit"
+      },
+      {
+        "kind": "log",
+        "text": "%cINFO%c src/human_motion/runtime.rs:255%c human motion: 2 accepted, 1 retained static color: whitesmoke; background: #444 color: gray; font-style: italic color: inherit"
+      }
+    ]
+  }
+]

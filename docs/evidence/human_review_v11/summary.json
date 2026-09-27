@@ -1,0 +1,1237 @@
+{
+  "schema": 1,
+  "generator_version": 11,
+  "status": "bounded local diagnostic; not a photographic-realism benchmark",
+  "policy": {
+    "fraction": 1,
+    "locomotion_fraction": 1,
+    "max_actors": 16,
+    "frames": 120,
+    "batch_size": 4,
+    "max_attempts": 2
+  },
+  "planning": {
+    "scenes": 64,
+    "humans": 398,
+    "planned": 347,
+    "rejected": 51,
+    "behaviors": {
+      "balance": 1,
+      "exercise": 3,
+      "gesture": 8,
+      "idle": 20,
+      "leave": 3,
+      "seated_gesture": 6,
+      "stretch": 11,
+      "turn": 2,
+      "walk": 293
+    }
+  },
+  "render": {
+    "scenes": [
+      {
+        "seed": 0,
+        "humans": 5,
+        "requested": 5,
+        "accepted": 5,
+        "rejected": [],
+        "objects": 25,
+        "object_and_person_boxes": 30,
+        "model_loads": 1,
+        "generated_batches": 2,
+        "accepted_motions": [
+          {
+            "actor": 29,
+            "behavior": "walk",
+            "prompt": "A person paces slowly across the room while looking around with relaxed shoulders.",
+            "seed": 15827806476733526634,
+            "waypoints": [
+              {
+                "frame": 0,
+                "position": [
+                  -3.150237,
+                  0.94,
+                  2.293492
+                ],
+                "heading": -0.53148174,
+                "constrain_height": true
+              },
+              {
+                "frame": 119,
+                "position": [
+                  -3.9363613,
+                  0.94,
+                  3.6306446
+                ],
+                "heading": -0.53148174,
+                "constrain_height": true
+              }
+            ],
+            "path_m": 1.7005598689118901,
+            "endpoint_displacement_m": 1.5980466251462533
+          },
+          {
+            "actor": 28,
+            "behavior": "walk",
+            "prompt": "A person walks carefully with hands relaxed at the sides at an unhurried pace.",
+            "seed": 7556547519594960027,
+            "waypoints": [
+              {
+                "frame": 0,
+                "position": [
+                  2.4501376,
+                  0.94,
+                  -2.1299195
+                ],
+                "heading": -0.45004883,
+                "constrain_height": true
+              },
+              {
+                "frame": 119,
+                "position": [
+                  1.604793,
+                  0.94,
+                  -0.38014126
+                ],
+                "heading": -0.45004883,
+                "constrain_height": true
+              }
+            ],
+            "path_m": 1.980136157833421,
+            "endpoint_displacement_m": 1.9552177411278784
+          },
+          {
+            "actor": 25,
+            "behavior": "walk",
+            "prompt": "A person walks carefully with hands relaxed at the sides smoothly.",
+            "seed": 9243860760122646421,
+            "waypoints": [
+              {
+                "frame": 0,
+                "position": [
+                  -0.80784804,
+                  0.94,
+                  -1.9266305
+                ],
+                "heading": 2.6622963,
+                "constrain_height": true
+              },
+              {
+                "frame": 108,
+                "position": [
+                  -0.25,
+                  0.94,
+                  -3.0
+                ],
+                "heading": 2.7663996,
+                "constrain_height": true
+              },
+              {
+                "frame": 119,
+                "position": [
+                  -0.36577943,
+                  0.94,
+                  -3.0490603
+                ],
+                "heading": 2.7663996,
+                "constrain_height": true
+              }
+            ],
+            "path_m": 1.4175880030142503,
+            "endpoint_displacement_m": 1.2309454505145394
+          },
+          {
+            "actor": 27,
+            "behavior": "walk",
+            "prompt": "A person paces slowly across the room while looking around deliberately.",
+            "seed": 11446381061202201049,
+            "waypoints": [
+              {
+                "frame": 0,
+                "position": [
+                  3.428683,
+                  0.94,
+                  -0.82348335
+                ],
+                "heading": -3.0596805,
+                "constrain_height": true
+              },
+              {
+                "frame": 70,
+                "position": [
+                  3.25,
+                  0.94,
+                  -3.0
+                ],
+                "heading": -2.525069,
+                "constrain_height": true
+              },
+              {
+                "frame": 119,
+                "position": [
+                  1.7451785,
+                  0.94,
+                  -3.1990533
+                ],
+                "heading": -1.7023098,
+                "constrain_height": true
+              }
+            ],
+            "path_m": 3.759565770332569,
+            "endpoint_displacement_m": 2.867940466179679
+          },
+          {
+            "actor": 26,
+            "behavior": "walk",
+            "prompt": "A person walks forward looking ahead with relaxed arms deliberately.",
+            "seed": 1864000205045023006,
+            "waypoints": [
+              {
+                "frame": 0,
+                "position": [
+                  -2.312402,
+                  0.94,
+                  -2.827433
+                ],
+                "heading": -2.133023,
+                "constrain_height": true
+              },
+              {
+                "frame": 119,
+                "position": [
+                  -3.4439802,
+                  0.94,
+                  -3.5403905
+                ],
+                "heading": -2.133023,
+                "constrain_height": true
+              }
+            ],
+            "path_m": 1.4292172876348062,
+            "endpoint_displacement_m": 1.375302840892245
+          }
+        ],
+        "flow": {
+          "moving_person_pixels": 11905,
+          "views": [
+            {
+              "expected_static_valid_pixels": 107686,
+              "maximum_displacement_pixels": 24.830244064331055,
+              "missing_static_valid_pixels": 0,
+              "moving_person_pixels": 2906,
+              "static_camera_reprojection_p99_pixels": 0.0022608896251767874,
+              "valid_pixels": 110592,
+              "view": 0,
+              "visible_pixels": 102275
+            },
+            {
+              "expected_static_valid_pixels": 109695,
+              "maximum_displacement_pixels": 80.92619323730469,
+              "missing_static_valid_pixels": 0,
+              "moving_person_pixels": 897,
+              "static_camera_reprojection_p99_pixels": 0.0023319628089666367,
+              "valid_pixels": 110592,
+              "view": 1,
+              "visible_pixels": 82477
+            },
+            {
+              "expected_static_valid_pixels": 108550,
+              "maximum_displacement_pixels": 24.430227279663086,
+              "missing_static_valid_pixels": 0,
+              "moving_person_pixels": 2042,
+              "static_camera_reprojection_p99_pixels": 0.0020971260964870453,
+              "valid_pixels": 110592,
+              "view": 2,
+              "visible_pixels": 102391
+            },
+            {
+              "expected_static_valid_pixels": 109698,
+              "maximum_displacement_pixels": 98.46719360351562,
+              "missing_static_valid_pixels": 0,
+              "moving_person_pixels": 894,
+              "static_camera_reprojection_p99_pixels": 0.002496584551408887,
+              "valid_pixels": 110592,
+              "view": 3,
+              "visible_pixels": 81308
+            },
+            {
+              "expected_static_valid_pixels": 109089,
+              "maximum_displacement_pixels": 37.57737731933594,
+              "missing_static_valid_pixels": 0,
+              "moving_person_pixels": 1503,
+              "static_camera_reprojection_p99_pixels": 0.002204301068559289,
+              "valid_pixels": 110592,
+              "view": 4,
+              "visible_pixels": 101641
+            },
+            {
+              "expected_static_valid_pixels": 109639,
+              "maximum_displacement_pixels": 113.54170989990234,
+              "missing_static_valid_pixels": 0,
+              "moving_person_pixels": 953,
+              "static_camera_reprojection_p99_pixels": 0.0025554713793098927,
+              "valid_pixels": 110592,
+              "view": 5,
+              "visible_pixels": 81130
+            },
+            {
+              "expected_static_valid_pixels": 109412,
+              "maximum_displacement_pixels": 33.62453842163086,
+              "missing_static_valid_pixels": 0,
+              "moving_person_pixels": 1180,
+              "static_camera_reprojection_p99_pixels": 0.002145386766642332,
+              "valid_pixels": 110592,
+              "view": 6,
+              "visible_pixels": 101130
+            },
+            {
+              "expected_static_valid_pixels": 109062,
+              "maximum_displacement_pixels": 104.8240966796875,
+              "missing_static_valid_pixels": 0,
+              "moving_person_pixels": 1530,
+              "static_camera_reprojection_p99_pixels": 0.0025263153947889805,
+              "valid_pixels": 110592,
+              "view": 7,
+              "visible_pixels": 81243
+            },
+            {
+              "expected_static_valid_pixels": 0,
+              "maximum_displacement_pixels": 0.0,
+              "missing_static_valid_pixels": 0,
+              "moving_person_pixels": 0,
+              "static_camera_reprojection_p99_pixels": 0.0,
+              "valid_pixels": 0,
+              "view": 8,
+              "visible_pixels": 0
+            },
+            {
+              "expected_static_valid_pixels": 0,
+              "maximum_displacement_pixels": 0.0,
+              "missing_static_valid_pixels": 0,
+              "moving_person_pixels": 0,
+              "static_camera_reprojection_p99_pixels": 0.0,
+              "valid_pixels": 0,
+              "view": 9,
+              "visible_pixels": 0
+            }
+          ]
+        },
+        "annotation_checks": [
+          {
+            "depth_foreground_pixels": 110592,
+            "maximum_normal_length_error": 2.384185791015625e-07,
+            "view": 0
+          },
+          {
+            "depth_foreground_pixels": 110592,
+            "maximum_normal_length_error": 1.7881393432617188e-07,
+            "view": 1
+          },
+          {
+            "depth_foreground_pixels": 110592,
+            "maximum_normal_length_error": 2.384185791015625e-07,
+            "view": 2
+          },
+          {
+            "depth_foreground_pixels": 110592,
+            "maximum_normal_length_error": 2.384185791015625e-07,
+            "view": 3
+          },
+          {
+            "depth_foreground_pixels": 110592,
+            "maximum_normal_length_error": 2.384185791015625e-07,
+            "view": 4
+          },
+          {
+            "depth_foreground_pixels": 110592,
+            "maximum_normal_length_error": 1.7881393432617188e-07,
+            "view": 5
+          },
+          {
+            "depth_foreground_pixels": 110592,
+            "maximum_normal_length_error": 1.7881393432617188e-07,
+            "view": 6
+          },
+          {
+            "depth_foreground_pixels": 110592,
+            "maximum_normal_length_error": 2.384185791015625e-07,
+            "view": 7
+          },
+          {
+            "depth_foreground_pixels": 110592,
+            "maximum_normal_length_error": 2.384185791015625e-07,
+            "view": 8
+          },
+          {
+            "depth_foreground_pixels": 110592,
+            "maximum_normal_length_error": 2.384185791015625e-07,
+            "view": 9
+          }
+        ]
+      },
+      {
+        "seed": 1,
+        "humans": 3,
+        "requested": 3,
+        "accepted": 2,
+        "rejected": [
+          {
+            "actor_id": 26,
+            "reason": "moving people have overlapping swept bounds"
+          }
+        ],
+        "objects": 26,
+        "object_and_person_boxes": 29,
+        "model_loads": 1,
+        "generated_batches": 4,
+        "accepted_motions": [
+          {
+            "actor": 27,
+            "behavior": "walk",
+            "prompt": "A person walks purposefully across the room deliberately.",
+            "seed": 12766322213841528216,
+            "waypoints": [
+              {
+                "frame": 0,
+                "position": [
+                  -0.6843893,
+                  0.94,
+                  -2.6708338
+                ],
+                "heading": 1.4610066,
+                "constrain_height": true
+              },
+              {
+                "frame": 119,
+                "position": [
+                  1.2424858,
+                  0.94,
+                  -2.4584286
+                ],
+                "heading": 1.4610066,
+                "constrain_height": true
+              }
+            ],
+            "path_m": 1.9860991271341129,
+            "endpoint_displacement_m": 1.968020418363588
+          },
+          {
+            "actor": 28,
+            "behavior": "walk",
+            "prompt": "A person walks across the room with a natural arm swing smoothly.",
+            "seed": 16898985901228180942,
+            "waypoints": [
+              {
+                "frame": 0,
+                "position": [
+                  0.27848697,
+                  0.94,
+                  -3.94419
+                ],
+                "heading": -1.6072934,
+                "constrain_height": true
+              },
+              {
+                "frame": 87,
+                "position": [
+                  -1.25,
+                  0.94,
+                  -4.0
+                ],
+                "heading": -1.9352008,
+                "constrain_height": true
+              },
+              {
+                "frame": 119,
+                "position": [
+                  -1.329013,
+                  0.94,
+                  -4.5573545
+                ],
+                "heading": -3.0007668,
+                "constrain_height": true
+              }
+            ],
+            "path_m": 2.336710071221991,
+            "endpoint_displacement_m": 1.6959713882797367
+          }
+        ],
+        "flow": {
+          "moving_person_pixels": 16260,
+          "views": [
+            {
+              "expected_static_valid_pixels": 110238,
+              "maximum_displacement_pixels": 19.13194465637207,
+              "missing_static_valid_pixels": 0,
+              "moving_person_pixels": 265,
+              "static_camera_reprojection_p99_pixels": 0.002231258898973465,
+              "valid_pixels": 110592,
+              "view": 0,
+              "visible_pixels": 104125
+            },
+            {
+              "expected_static_valid_pixels": 98708,
+              "maximum_displacement_pixels": 61.50784683227539,
+              "missing_static_valid_pixels": 0,
+              "moving_person_pixels": 8501,
+              "static_camera_reprojection_p99_pixels": 0.0019491423154249787,
+              "valid_pixels": 110592,
+              "view": 1,
+              "visible_pixels": 97166
+            },
+            {
+              "expected_static_valid_pixels": 110235,
+              "maximum_displacement_pixels": 15.616742134094238,
+              "missing_static_valid_pixels": 0,
+              "moving_person_pixels": 275,
+              "static_camera_reprojection_p99_pixels": 0.002250723075121641,
+              "valid_pixels": 110592,
+              "view": 2,
+              "visible_pixels": 104277
+            },
+            {
+              "expected_static_valid_pixels": 102468,
+              "maximum_displacement_pixels": 30.88399887084961,
+              "missing_static_valid_pixels": 0,
+              "moving_person_pixels": 4768,
+              "static_camera_reprojection_p99_pixels": 0.0021365710999816656,
+              "valid_pixels": 110592,
+              "view": 3,
+              "visible_pixels": 100230
+            },
+            {
+              "expected_static_valid_pixels": 110232,
+              "maximum_displacement_pixels": 15.758618354797363,
+              "missing_static_valid_pixels": 0,
+              "moving_person_pixels": 276,
+              "static_camera_reprojection_p99_pixels": 0.002283114707097411,
+              "valid_pixels": 110592,
+              "view": 4,
+              "visible_pixels": 104160
+            },
+            {
+              "expected_static_valid_pixels": 105531,
+              "maximum_displacement_pixels": 106.6106948852539,
+              "missing_static_valid_pixels": 0,
+              "moving_person_pixels": 1727,
+              "static_camera_reprojection_p99_pixels": 0.002337152138352394,
+              "valid_pixels": 110592,
+              "view": 5,
+              "visible_pixels": 102049
+            },
+            {
+              "expected_static_valid_pixels": 110285,
+              "maximum_displacement_pixels": 12.143057823181152,
+              "missing_static_valid_pixels": 0,
+              "moving_person_pixels": 228,
+              "static_camera_reprojection_p99_pixels": 0.002290169009938836,
+              "valid_pixels": 110592,
+              "view": 6,
+              "visible_pixels": 104208
+            },
+            {
+              "expected_static_valid_pixels": 107031,
+              "maximum_displacement_pixels": 221.55465698242188,
+              "missing_static_valid_pixels": 0,
+              "moving_person_pixels": 220,
+              "static_camera_reprojection_p99_pixels": 0.0021921941079199314,
+              "valid_pixels": 110592,
+              "view": 7,
+              "visible_pixels": 103214
+            },
+            {
+              "expected_static_valid_pixels": 0,
+              "maximum_displacement_pixels": 0.0,
+              "missing_static_valid_pixels": 0,
+              "moving_person_pixels": 0,
+              "static_camera_reprojection_p99_pixels": 0.0,
+              "valid_pixels": 0,
+              "view": 8,
+              "visible_pixels": 0
+            },
+            {
+              "expected_static_valid_pixels": 0,
+              "maximum_displacement_pixels": 0.0,
+              "missing_static_valid_pixels": 0,
+              "moving_person_pixels": 0,
+              "static_camera_reprojection_p99_pixels": 0.0,
+              "valid_pixels": 0,
+              "view": 9,
+              "visible_pixels": 0
+            }
+          ]
+        },
+        "annotation_checks": [
+          {
+            "depth_foreground_pixels": 110592,
+            "maximum_normal_length_error": 2.384185791015625e-07,
+            "view": 0
+          },
+          {
+            "depth_foreground_pixels": 110592,
+            "maximum_normal_length_error": 2.384185791015625e-07,
+            "view": 1
+          },
+          {
+            "depth_foreground_pixels": 110592,
+            "maximum_normal_length_error": 2.384185791015625e-07,
+            "view": 2
+          },
+          {
+            "depth_foreground_pixels": 110592,
+            "maximum_normal_length_error": 1.7881393432617188e-07,
+            "view": 3
+          },
+          {
+            "depth_foreground_pixels": 110592,
+            "maximum_normal_length_error": 2.384185791015625e-07,
+            "view": 4
+          },
+          {
+            "depth_foreground_pixels": 110592,
+            "maximum_normal_length_error": 2.384185791015625e-07,
+            "view": 5
+          },
+          {
+            "depth_foreground_pixels": 110592,
+            "maximum_normal_length_error": 1.7881393432617188e-07,
+            "view": 6
+          },
+          {
+            "depth_foreground_pixels": 110592,
+            "maximum_normal_length_error": 2.384185791015625e-07,
+            "view": 7
+          },
+          {
+            "depth_foreground_pixels": 110592,
+            "maximum_normal_length_error": 1.7881393432617188e-07,
+            "view": 8
+          },
+          {
+            "depth_foreground_pixels": 110592,
+            "maximum_normal_length_error": 1.7881393432617188e-07,
+            "view": 9
+          }
+        ]
+      },
+      {
+        "seed": 13,
+        "humans": 5,
+        "requested": 5,
+        "accepted": 4,
+        "rejected": [
+          {
+            "actor_id": 49,
+            "reason": "moving people have overlapping swept bounds"
+          }
+        ],
+        "objects": 45,
+        "object_and_person_boxes": 50,
+        "model_loads": 1,
+        "generated_batches": 7,
+        "accepted_motions": [
+          {
+            "actor": 45,
+            "behavior": "walk",
+            "prompt": "A person walks purposefully across the room with relaxed shoulders.",
+            "seed": 800065842812146996,
+            "waypoints": [
+              {
+                "frame": 0,
+                "position": [
+                  -1.4014515,
+                  0.94,
+                  -1.2254499
+                ],
+                "heading": -0.38538635,
+                "constrain_height": true
+              },
+              {
+                "frame": 57,
+                "position": [
+                  -2.0,
+                  0.94,
+                  0.25
+                ],
+                "heading": -0.6174318,
+                "constrain_height": true
+              },
+              {
+                "frame": 119,
+                "position": [
+                  -3.2833893,
+                  0.94,
+                  1.425021
+                ],
+                "heading": -0.82945025,
+                "constrain_height": true
+              }
+            ],
+            "path_m": 3.3444431943054815,
+            "endpoint_displacement_m": 3.2375588899401877
+          },
+          {
+            "actor": 46,
+            "behavior": "walk",
+            "prompt": "A person walks across the room with a natural arm swing with small natural head movements.",
+            "seed": 4631070735932803895,
+            "waypoints": [
+              {
+                "frame": 0,
+                "position": [
+                  0.15859911,
+                  0.94,
+                  -4.932335
+                ],
+                "heading": 1.5074066,
+                "constrain_height": true
+              },
+              {
+                "frame": 119,
+                "position": [
+                  3.0563593,
+                  0.94,
+                  -4.7484
+                ],
+                "heading": 1.5074066,
+                "constrain_height": true
+              }
+            ],
+            "path_m": 2.9819284272377993,
+            "endpoint_displacement_m": 2.9453810382267633
+          },
+          {
+            "actor": 47,
+            "behavior": "walk",
+            "prompt": "A person walks across the room and glances to one side at an unhurried pace.",
+            "seed": 10049316373177256820,
+            "waypoints": [
+              {
+                "frame": 0,
+                "position": [
+                  2.58065,
+                  0.94,
+                  0.31098384
+                ],
+                "heading": -1.1711127,
+                "constrain_height": true
+              },
+              {
+                "frame": 119,
+                "position": [
+                  0.6871282,
+                  0.94,
+                  1.110846
+                ],
+                "heading": -1.1711127,
+                "constrain_height": true
+              }
+            ],
+            "path_m": 2.1458670735352205,
+            "endpoint_displacement_m": 1.971227582490074
+          },
+          {
+            "actor": 48,
+            "behavior": "walk",
+            "prompt": "A person walks purposefully across the room deliberately.",
+            "seed": 2372410085973480692,
+            "waypoints": [
+              {
+                "frame": 0,
+                "position": [
+                  -2.4663155,
+                  0.94,
+                  -4.135928
+                ],
+                "heading": 2.852978,
+                "constrain_height": true
+              },
+              {
+                "frame": 119,
+                "position": [
+                  -2.00852,
+                  0.94,
+                  -5.677822
+                ],
+                "heading": 2.852978,
+                "constrain_height": true
+              }
+            ],
+            "path_m": 1.6999047826996947,
+            "endpoint_displacement_m": 1.6567852717368594
+          }
+        ],
+        "flow": {
+          "moving_person_pixels": 25502,
+          "views": [
+            {
+              "expected_static_valid_pixels": 106454,
+              "maximum_displacement_pixels": 69.69981384277344,
+              "missing_static_valid_pixels": 0,
+              "moving_person_pixels": 4044,
+              "static_camera_reprojection_p99_pixels": 0.001870555803179741,
+              "valid_pixels": 110592,
+              "view": 0,
+              "visible_pixels": 102876
+            },
+            {
+              "expected_static_valid_pixels": 104759,
+              "maximum_displacement_pixels": 140.76100158691406,
+              "missing_static_valid_pixels": 0,
+              "moving_person_pixels": 5810,
+              "static_camera_reprojection_p99_pixels": 0.0018237285548821092,
+              "valid_pixels": 110569,
+              "view": 1,
+              "visible_pixels": 92929
+            },
+            {
+              "expected_static_valid_pixels": 106087,
+              "maximum_displacement_pixels": 45.89699935913086,
+              "missing_static_valid_pixels": 0,
+              "moving_person_pixels": 3292,
+              "static_camera_reprojection_p99_pixels": 0.001954376231878996,
+              "valid_pixels": 110592,
+              "view": 2,
+              "visible_pixels": 103799
+            },
+            {
+              "expected_static_valid_pixels": 100812,
+              "maximum_displacement_pixels": 76.09217834472656,
+              "missing_static_valid_pixels": 0,
+              "moving_person_pixels": 3770,
+              "static_camera_reprojection_p99_pixels": 0.0018190786940976977,
+              "valid_pixels": 110556,
+              "view": 3,
+              "visible_pixels": 97122
+            },
+            {
+              "expected_static_valid_pixels": 106597,
+              "maximum_displacement_pixels": 35.900264739990234,
+              "missing_static_valid_pixels": 0,
+              "moving_person_pixels": 2809,
+              "static_camera_reprojection_p99_pixels": 0.0021217947360128164,
+              "valid_pixels": 110592,
+              "view": 4,
+              "visible_pixels": 105990
+            },
+            {
+              "expected_static_valid_pixels": 104024,
+              "maximum_displacement_pixels": 82.4208755493164,
+              "missing_static_valid_pixels": 0,
+              "moving_person_pixels": 2512,
+              "static_camera_reprojection_p99_pixels": 0.0017253231490030885,
+              "valid_pixels": 110592,
+              "view": 5,
+              "visible_pixels": 102464
+            },
+            {
+              "expected_static_valid_pixels": 107887,
+              "maximum_displacement_pixels": 47.76919174194336,
+              "missing_static_valid_pixels": 0,
+              "moving_person_pixels": 1541,
+              "static_camera_reprojection_p99_pixels": 0.002210751175880432,
+              "valid_pixels": 110590,
+              "view": 6,
+              "visible_pixels": 106637
+            },
+            {
+              "expected_static_valid_pixels": 105845,
+              "maximum_displacement_pixels": 105.97877502441406,
+              "missing_static_valid_pixels": 0,
+              "moving_person_pixels": 1724,
+              "static_camera_reprojection_p99_pixels": 0.001873602857813239,
+              "valid_pixels": 110592,
+              "view": 7,
+              "visible_pixels": 96280
+            },
+            {
+              "expected_static_valid_pixels": 0,
+              "maximum_displacement_pixels": 0.0,
+              "missing_static_valid_pixels": 0,
+              "moving_person_pixels": 0,
+              "static_camera_reprojection_p99_pixels": 0.0,
+              "valid_pixels": 0,
+              "view": 8,
+              "visible_pixels": 0
+            },
+            {
+              "expected_static_valid_pixels": 0,
+              "maximum_displacement_pixels": 0.0,
+              "missing_static_valid_pixels": 0,
+              "moving_person_pixels": 0,
+              "static_camera_reprojection_p99_pixels": 0.0,
+              "valid_pixels": 0,
+              "view": 9,
+              "visible_pixels": 0
+            }
+          ]
+        },
+        "annotation_checks": [
+          {
+            "depth_foreground_pixels": 110592,
+            "maximum_normal_length_error": 2.384185791015625e-07,
+            "view": 0
+          },
+          {
+            "depth_foreground_pixels": 110569,
+            "maximum_normal_length_error": 1.7881393432617188e-07,
+            "view": 1
+          },
+          {
+            "depth_foreground_pixels": 110592,
+            "maximum_normal_length_error": 1.7881393432617188e-07,
+            "view": 2
+          },
+          {
+            "depth_foreground_pixels": 110556,
+            "maximum_normal_length_error": 2.384185791015625e-07,
+            "view": 3
+          },
+          {
+            "depth_foreground_pixels": 110592,
+            "maximum_normal_length_error": 1.7881393432617188e-07,
+            "view": 4
+          },
+          {
+            "depth_foreground_pixels": 110592,
+            "maximum_normal_length_error": 1.7881393432617188e-07,
+            "view": 5
+          },
+          {
+            "depth_foreground_pixels": 110590,
+            "maximum_normal_length_error": 2.384185791015625e-07,
+            "view": 6
+          },
+          {
+            "depth_foreground_pixels": 110592,
+            "maximum_normal_length_error": 2.384185791015625e-07,
+            "view": 7
+          },
+          {
+            "depth_foreground_pixels": 110592,
+            "maximum_normal_length_error": 2.384185791015625e-07,
+            "view": 8
+          },
+          {
+            "depth_foreground_pixels": 110592,
+            "maximum_normal_length_error": 1.7881393432617188e-07,
+            "view": 9
+          }
+        ]
+      },
+      {
+        "seed": 34,
+        "humans": 4,
+        "requested": 4,
+        "accepted": 3,
+        "rejected": [
+          {
+            "actor_id": 40,
+            "reason": "moving people have overlapping swept bounds"
+          }
+        ],
+        "objects": 37,
+        "object_and_person_boxes": 41,
+        "model_loads": 1,
+        "generated_batches": 9,
+        "accepted_motions": [
+          {
+            "actor": 38,
+            "behavior": "walk",
+            "prompt": "A person walks purposefully across the room deliberately.",
+            "seed": 10141907296348493469,
+            "waypoints": [
+              {
+                "frame": 0,
+                "position": [
+                  1.4838042,
+                  0.94,
+                  1.0869734
+                ],
+                "heading": 1.0966394,
+                "constrain_height": true
+              },
+              {
+                "frame": 59,
+                "position": [
+                  3.75,
+                  0.94,
+                  2.25
+                ],
+                "heading": 1.0591116,
+                "constrain_height": true
+              },
+              {
+                "frame": 68,
+                "position": [
+                  4.0,
+                  0.94,
+                  2.5
+                ],
+                "heading": 0.06890912,
+                "constrain_height": true
+              },
+              {
+                "frame": 119,
+                "position": [
+                  3.9190834,
+                  0.94,
+                  4.69983
+                ],
+                "heading": -0.03676656,
+                "constrain_height": true
+              }
+            ],
+            "path_m": 5.104870548296225,
+            "endpoint_displacement_m": 4.375598324020451
+          },
+          {
+            "actor": 39,
+            "behavior": "walk",
+            "prompt": "A person walks forward looking ahead with relaxed arms calmly.",
+            "seed": 16511946946490200384,
+            "waypoints": [
+              {
+                "frame": 0,
+                "position": [
+                  3.713287,
+                  0.94,
+                  -0.27948955
+                ],
+                "heading": 0.068968356,
+                "constrain_height": true
+              },
+              {
+                "frame": 119,
+                "position": [
+                  3.7986023,
+                  0.94,
+                  0.95556843
+                ],
+                "heading": 0.068968356,
+                "constrain_height": true
+              }
+            ],
+            "path_m": 1.366615854631749,
+            "endpoint_displacement_m": 1.2829562402605428
+          },
+          {
+            "actor": 37,
+            "behavior": "walk",
+            "prompt": "A person walks across the room with a natural arm swing calmly.",
+            "seed": 4648905356175188244,
+            "waypoints": [
+              {
+                "frame": 0,
+                "position": [
+                  -3.4404137,
+                  0.94,
+                  -0.76682436
+                ],
+                "heading": -0.49027207,
+                "constrain_height": true
+              },
+              {
+                "frame": 98,
+                "position": [
+                  -4.25,
+                  0.94,
+                  0.75
+                ],
+                "heading": -0.4541018,
+                "constrain_height": true
+              },
+              {
+                "frame": 119,
+                "position": [
+                  -4.356742,
+                  0.94,
+                  1.1104201
+                ],
+                "heading": -0.4541018,
+                "constrain_height": true
+              }
+            ],
+            "path_m": 2.1057445537770816,
+            "endpoint_displacement_m": 2.0870268424633163
+          }
+        ],
+        "flow": {
+          "moving_person_pixels": 2076,
+          "views": [
+            {
+              "expected_static_valid_pixels": 109581,
+              "maximum_displacement_pixels": 16.512678146362305,
+              "missing_static_valid_pixels": 0,
+              "moving_person_pixels": 486,
+              "static_camera_reprojection_p99_pixels": 0.0020148679614067078,
+              "valid_pixels": 110592,
+              "view": 0,
+              "visible_pixels": 103046
+            },
+            {
+              "expected_static_valid_pixels": 108765,
+              "maximum_displacement_pixels": 20.178043365478516,
+              "missing_static_valid_pixels": 0,
+              "moving_person_pixels": 223,
+              "static_camera_reprojection_p99_pixels": 0.0021176973823457956,
+              "valid_pixels": 110592,
+              "view": 1,
+              "visible_pixels": 102209
+            },
+            {
+              "expected_static_valid_pixels": 109726,
+              "maximum_displacement_pixels": 12.070985794067383,
+              "missing_static_valid_pixels": 0,
+              "moving_person_pixels": 359,
+              "static_camera_reprojection_p99_pixels": 0.00207369402050972,
+              "valid_pixels": 110592,
+              "view": 2,
+              "visible_pixels": 103121
+            },
+            {
+              "expected_static_valid_pixels": 108995,
+              "maximum_displacement_pixels": 20.500513076782227,
+              "missing_static_valid_pixels": 0,
+              "moving_person_pixels": 222,
+              "static_camera_reprojection_p99_pixels": 0.0022338887210935354,
+              "valid_pixels": 110592,
+              "view": 3,
+              "visible_pixels": 102301
+            },
+            {
+              "expected_static_valid_pixels": 109784,
+              "maximum_displacement_pixels": 23.173906326293945,
+              "missing_static_valid_pixels": 0,
+              "moving_person_pixels": 300,
+              "static_camera_reprojection_p99_pixels": 0.0019536614418029785,
+              "valid_pixels": 110592,
+              "view": 4,
+              "visible_pixels": 102951
+            },
+            {
+              "expected_static_valid_pixels": 109159,
+              "maximum_displacement_pixels": 20.812929153442383,
+              "missing_static_valid_pixels": 0,
+              "moving_person_pixels": 203,
+              "static_camera_reprojection_p99_pixels": 0.0021987089421600103,
+              "valid_pixels": 110592,
+              "view": 5,
+              "visible_pixels": 102178
+            },
+            {
+              "expected_static_valid_pixels": 109958,
+              "maximum_displacement_pixels": 8.732532501220703,
+              "missing_static_valid_pixels": 0,
+              "moving_person_pixels": 129,
+              "static_camera_reprojection_p99_pixels": 0.002041543833911419,
+              "valid_pixels": 110592,
+              "view": 6,
+              "visible_pixels": 103427
+            },
+            {
+              "expected_static_valid_pixels": 109289,
+              "maximum_displacement_pixels": 21.116132736206055,
+              "missing_static_valid_pixels": 0,
+              "moving_person_pixels": 154,
+              "static_camera_reprojection_p99_pixels": 0.002078012330457568,
+              "valid_pixels": 110592,
+              "view": 7,
+              "visible_pixels": 102248
+            },
+            {
+              "expected_static_valid_pixels": 0,
+              "maximum_displacement_pixels": 0.0,
+              "missing_static_valid_pixels": 0,
+              "moving_person_pixels": 0,
+              "static_camera_reprojection_p99_pixels": 0.0,
+              "valid_pixels": 0,
+              "view": 8,
+              "visible_pixels": 0
+            },
+            {
+              "expected_static_valid_pixels": 0,
+              "maximum_displacement_pixels": 0.0,
+              "missing_static_valid_pixels": 0,
+              "moving_person_pixels": 0,
+              "static_camera_reprojection_p99_pixels": 0.0,
+              "valid_pixels": 0,
+              "view": 9,
+              "visible_pixels": 0
+            }
+          ]
+        },
+        "annotation_checks": [
+          {
+            "depth_foreground_pixels": 110592,
+            "maximum_normal_length_error": 1.7881393432617188e-07,
+            "view": 0
+          },
+          {
+            "depth_foreground_pixels": 110592,
+            "maximum_normal_length_error": 2.384185791015625e-07,
+            "view": 1
+          },
+          {
+            "depth_foreground_pixels": 110592,
+            "maximum_normal_length_error": 1.7881393432617188e-07,
+            "view": 2
+          },
+          {
+            "depth_foreground_pixels": 110592,
+            "maximum_normal_length_error": 2.384185791015625e-07,
+            "view": 3
+          },
+          {
+            "depth_foreground_pixels": 110592,
+            "maximum_normal_length_error": 1.7881393432617188e-07,
+            "view": 4
+          },
+          {
+            "depth_foreground_pixels": 110592,
+            "maximum_normal_length_error": 1.7881393432617188e-07,
+            "view": 5
+          },
+          {
+            "depth_foreground_pixels": 110592,
+            "maximum_normal_length_error": 1.7881393432617188e-07,
+            "view": 6
+          },
+          {
+            "depth_foreground_pixels": 110592,
+            "maximum_normal_length_error": 2.384185791015625e-07,
+            "view": 7
+          },
+          {
+            "depth_foreground_pixels": 110592,
+            "maximum_normal_length_error": 2.384185791015625e-07,
+            "view": 8
+          },
+          {
+            "depth_foreground_pixels": 110592,
+            "maximum_normal_length_error": 2.384185791015625e-07,
+            "view": 9
+          }
+        ]
+      }
+    ],
+    "humans": 17,
+    "accepted": 14,
+    "views": 40,
+    "moving_person_flow_pixels": 55743,
+    "missing_static_flow_correspondences": 0
+  },
+  "appearance": {
+    "people": 6,
+    "views": 12,
+    "script": "examples/review_humans.rs",
+    "source": "out/human_review/verified",
+    "lighting": "850 lux key plus 250 lux fill; fixed studio controls; sRGB PNG encoding"
+  },
+  "capture_command": "target/debug/motion_validate --seeds 64 --render-seed-list 0,1,13,34 --flow --policy '{\"fraction\":1,\"locomotion_fraction\":1,\"max_actors\":16,\"frames\":120,\"batch_size\":4}' --output out/human_review/verified_motion",
+  "limits": [
+    "3 clips rejected for overlap of conservative generated body bounds",
+    "Wasm was compile-checked; no new browser runtime qualification",
+    "Procedural skin/clothing/hair are approximate; no photographic realism claim"
+  ]
+}

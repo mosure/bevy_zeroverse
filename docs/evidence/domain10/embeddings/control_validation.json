@@ -1,0 +1,264 @@
+{
+  "passed": true,
+  "measurements": {
+    "batch_invariance_max_absolute_error": 0.0,
+    "reference_normalized_embedding_max_absolute_error": 4.3585896492004395e-07,
+    "duplicate_max_cosine_distance": 5.960464477539063e-08
+  },
+  "upper_limits": {
+    "batch_invariance_max_absolute_error": 0.0005,
+    "reference_normalized_embedding_max_absolute_error": 0.0005,
+    "duplicate_max_cosine_distance": 1e-06
+  },
+  "model_sha256": "6267af27dfa05ce21b73649f4d4f6cd4c6738acd4bcde5a0716051403c6f130e",
+  "batched_metadata_sha256": "0e6366a7ad9085b463a37b08f1e3f02d8f53de2f344fb3cfd60b134df2075b35",
+  "single_metadata_sha256": "9a9c794982be66f57c82da0c1cac827c289693ac6025afa8624acb6fb7c372f0",
+  "reference_manifest_sha256": "f2bc56e618267004216809ae6759cb9f7a356bf5dce473ac72010fa7914facb1",
+  "reference": {
+    "schema": "burn_siglip2.hf_reference",
+    "schema_version": 1,
+    "generated_at": "2026-08-04T15:22:50.214081+00:00",
+    "generator": {
+      "script": "siglip2_reference.py",
+      "python": "3.14.4",
+      "torch": "2.13.0+cpu",
+      "transformers": "5.13.0",
+      "device": "cpu",
+      "threads": 16
+    },
+    "model": {
+      "variant": "base-patch16-224",
+      "weight_precision": "f16",
+      "resolved_config": {
+        "image_size": 224,
+        "patch_size": 16,
+        "hidden_size": 768,
+        "intermediate_size": 3072,
+        "num_hidden_layers": 12,
+        "num_attention_heads": 12,
+        "projection_size": 768,
+        "text_hidden_size": 768,
+        "text_intermediate_size": 3072,
+        "text_num_hidden_layers": 12,
+        "text_num_attention_heads": 12,
+        "text_max_positions": 64,
+        "text_vocab_size": 256000
+      },
+      "checkpoint": {
+        "hf_dir": "/home/mosure/models/siglip2/siglip2-base-patch16-224",
+        "upstream_revision": "75de2d55ec2d0b4efc50b3e9ad70dba96a7b2fa2",
+        "model_file": "model.safetensors",
+        "model_bytes": 1500800904,
+        "model_sha256": null,
+        "config_sha256": "fe8b5fe6d5734360678fd71c11c21e1ea3364bd8598d34295d9206335973ffd7",
+        "preprocessor_config_sha256": "9b36b57ebaf20f09bf4c22100ccc21877ea6bfe5aead0c00c59f8af8ccefacfc",
+        "tokenizer_sha256": "cb9140fae3ac5122c972d37adf83e1248471a38147ad76f8215c8872c6fd8322",
+        "tokenizer_config_sha256": "14afe629fe4959b9e0d51e1852b8d9f7ad074f90a1a7125a4fcdd17f06e78fc8"
+      }
+    },
+    "inputs": {
+      "encoded_image": {
+        "file": "base-patch16-224-f16-reference.input.png",
+        "file_sha256": "6d37148b889ab6de72173b6a7352e80068a9b7634ee1f7cfafead893b8d9d831",
+        "format": "png",
+        "width": 83,
+        "height": 61
+      },
+      "texts": [
+        "this is a photo of a cat.",
+        "this is a photo of a dog.",
+        "this is a photo of an airplane."
+      ]
+    },
+    "preprocessing": {
+      "image_processor_class": "SiglipImageProcessorPil",
+      "use_fast": false,
+      "resize_mode": "direct_square",
+      "resample": 2,
+      "rescale_factor": 0.00392156862745098,
+      "image_mean": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "image_std": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "image": {
+        "kind": "deterministic_rgb_v1",
+        "width": 83,
+        "height": 61,
+        "rgb_sha256": "37da0b4fb714077c620a406690437940d9196009eb6fd870a1be45a7ce809da3"
+      },
+      "text_lowercase": true,
+      "padding": "max_length",
+      "truncation": true,
+      "max_length": 64,
+      "attention_mask_forwarded": false,
+      "processor_returned_attention_mask": false,
+      "tokenizer": {
+        "class": "GemmaTokenizer",
+        "pad_token": "<pad>",
+        "pad_token_id": 0,
+        "eos_token": "<eos>",
+        "eos_token_id": 1,
+        "padding_side": "right"
+      },
+      "texts_original": [
+        "this is a photo of a cat.",
+        "this is a photo of a dog.",
+        "this is a photo of an airplane."
+      ],
+      "texts_normalized": [
+        "this is a photo of a cat.",
+        "this is a photo of a dog.",
+        "this is a photo of an airplane."
+      ]
+    },
+    "tensors": {
+      "file": "base-patch16-224-f16-reference.safetensors",
+      "file_sha256": "e10662e7f57e040bee75a2e688d5f027f6b6951c87898fdb5901ee7d5ed03590",
+      "entries": {
+        "input.pixel_values": {
+          "dtype": "float32",
+          "shape": [
+            1,
+            3,
+            224,
+            224
+          ],
+          "sha256": "5003b5db172ff7bc4f101d33921774d9511b1f84c23d74281678ca90a3ec7d16"
+        },
+        "input.input_ids": {
+          "dtype": "int64",
+          "shape": [
+            3,
+            64
+          ],
+          "sha256": "91ed5b71000f77befe56938ed784068b535b39a8b89fef34f029c8e5ddfd1d3f"
+        },
+        "output.image_embedding.raw": {
+          "dtype": "float32",
+          "shape": [
+            1,
+            768
+          ],
+          "sha256": "b1ebc0455e0ac7d1344bb7b7c1ee602e4683a44c1963bddf2f25b936fd25e349"
+        },
+        "output.image_embedding.normalized": {
+          "dtype": "float32",
+          "shape": [
+            1,
+            768
+          ],
+          "sha256": "72fa375d514525a6c7c9dd86a68c9f7fd1dd5f82acba9ca4bb4fc4a6f0f58d77"
+        },
+        "output.text_embedding.raw": {
+          "dtype": "float32",
+          "shape": [
+            3,
+            768
+          ],
+          "sha256": "2062fbd1e4b6e6a1bafe6cb723570ef5f8c396cd2226ed28e7e2a7eb5027c72b"
+        },
+        "output.text_embedding.normalized": {
+          "dtype": "float32",
+          "shape": [
+            3,
+            768
+          ],
+          "sha256": "50de4acd077459d31dc403aaf639f7d9d39d8ad64bf352dd2d54a7af6648cfc7"
+        },
+        "output.logits_per_image": {
+          "dtype": "float32",
+          "shape": [
+            1,
+            3
+          ],
+          "sha256": "c439e2f1b37f21f152792a92b58740b3994388bc8df498291e6a82719ed9eb20"
+        },
+        "output.logits_per_text": {
+          "dtype": "float32",
+          "shape": [
+            3,
+            1
+          ],
+          "sha256": "c439e2f1b37f21f152792a92b58740b3994388bc8df498291e6a82719ed9eb20"
+        },
+        "output.probabilities_per_image": {
+          "dtype": "float32",
+          "shape": [
+            1,
+            3
+          ],
+          "sha256": "d284d193961f811cbc28dc06c7158b5ca2cc6b73974048987abb51e553b656b4"
+        },
+        "output.probabilities_per_text": {
+          "dtype": "float32",
+          "shape": [
+            3,
+            1
+          ],
+          "sha256": "d284d193961f811cbc28dc06c7158b5ca2cc6b73974048987abb51e553b656b4"
+        },
+        "model.logit_scale": {
+          "dtype": "float32",
+          "shape": [
+            1
+          ],
+          "sha256": "46189574b8ded1ad2e3b8c6f6261bbd822751febd51ec12ba103717bed6bc29c"
+        },
+        "model.logit_bias": {
+          "dtype": "float32",
+          "shape": [
+            1
+          ],
+          "sha256": "549983b30830873d05002ab51a8e44b80719f05c45dd494ea3f5c1c3ba5ae04d"
+        }
+      },
+      "row_norms": {
+        "output.image_embedding.raw": [
+          12.351551055908203
+        ],
+        "output.image_embedding.normalized": [
+          0.9999998807907104
+        ],
+        "output.text_embedding.raw": [
+          24.57341766357422,
+          24.35087776184082,
+          22.986797332763672
+        ],
+        "output.text_embedding.normalized": [
+          1.0,
+          1.0,
+          0.9999999403953552
+        ]
+      }
+    },
+    "tolerances": {
+      "parity": {
+        "embedding_max_abs": 0.0005,
+        "embedding_rmse": 0.0001,
+        "embedding_min_cosine": 0.99999,
+        "logit_max_abs": 0.05,
+        "logit_rmse": 0.03,
+        "probability_max_abs": 0.005,
+        "probability_rmse": 0.003
+      },
+      "f16_fidelity_against_upstream_f32": {
+        "embedding_max_abs": 0.0005,
+        "embedding_min_cosine": 0.9999,
+        "logit_max_abs": 0.05,
+        "probability_max_abs": 0.005
+      }
+    }
+  },
+  "batched_run": {
+    "path": "out/domain10_embeddings/control_batch8/embeddings.json",
+    "batch_size": 8
+  },
+  "singleton_run": "out/domain10_embeddings/control_batch1/embeddings.json",
+  "limits": "One upstream deterministic image reference and eight-input batch controls; not a full model or downstream benchmark."
+}

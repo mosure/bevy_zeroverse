@@ -8,6 +8,7 @@ use serde::Serialize;
 use std::collections::BTreeMap;
 
 pub fn validate_layout(scene: &IndoorManifest) -> Result<(), String> {
+    scene.camera_settings.validate()?;
     if let Some(program) = &scene.program {
         program.validate(scene)?;
     }
@@ -90,8 +91,9 @@ pub fn validate_layout(scene: &IndoorManifest) -> Result<(), String> {
                 .skip(i + 1)
                 .filter(|o| o.solid && !o.neighbor)
             {
-                let (a, b) = other.bounds();
-                if lo.x < b.x && hi.x > a.x && lo.z < b.z && hi.z > a.z {
+                if super::footprint::Footprint::object(object)
+                    .overlaps(super::footprint::Footprint::object(other), 0.0)
+                {
                     return fail(&format!(
                         "furniture overlap: {} and {}",
                         object.id, other.id
@@ -202,25 +204,18 @@ pub fn validate_geometry(scene: &IndoorManifest) -> Result<GeometryStats, String
     assemblies.extend(scene.objects.iter().map(build_object));
     for human in &scene.humans {
         let human_geometry = super::humans::build_human(human);
-        let roles = [
-            super::materials::Surface::Ceramic,
-            super::materials::Surface::Accent,
-            super::materials::Surface::Fabric,
-            super::materials::Surface::FabricAlt,
-            super::materials::Surface::Wood,
-            super::materials::Surface::Rubber,
-            super::materials::Surface::Paper,
-            super::materials::Surface::Chrome,
-            super::materials::Surface::Plastic,
-            super::materials::Surface::WoodEdge,
-            super::materials::Surface::Ink,
-        ];
         assemblies.push(super::objects::Assembly {
             parts: human_geometry
                 .parts
                 .into_iter()
                 .map(|(surface, geometry)| {
-                    ((roles[surface as usize], "person".to_owned()), geometry)
+                    (
+                        (
+                            super::materials::Surface::Fabric,
+                            format!("person#{surface:?}"),
+                        ),
+                        geometry,
+                    )
                 })
                 .collect(),
         });

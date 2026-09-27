@@ -14,6 +14,7 @@ pub mod ovoxel_mesh;
 // pub mod plucker;
 pub mod annotation;
 pub use annotation::ovoxel;
+pub mod human_motion;
 pub mod primitive;
 pub mod procedural_human;
 pub mod render;
@@ -26,7 +27,7 @@ pub mod util;
 /// Pixel/annotation contract identity. Dependency versions are pinned in Cargo.toml.
 /// Geometry grammar version is independent; renderer upgrades invalidate capture resume.
 pub const CAPTURE_ENGINE_IDENTITY: &str =
-    "capture-v10;bevy=0.19.1;burn=0.21.0;burn_human=0.4.0;bevy_burn_human=0.4.0";
+    "capture-v20;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=5;surface_flow=1;indoor=13";
 
 pub struct BevyZeroversePlugin;
 
@@ -45,6 +46,7 @@ impl Plugin for BevyZeroversePlugin {
             annotation::obb::ZeroverseObbPlugin,
             annotation::pose::ZeroversePosePlugin,
             scene::ZeroverseScenePlugin,
+            human_motion::HumanMotionPlugin,
             ovoxel::OvoxelPlugin,
         ));
 

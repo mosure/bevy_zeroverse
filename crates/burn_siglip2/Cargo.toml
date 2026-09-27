@@ -1,0 +1,143 @@
+[package]
+name = "burn_siglip2"
+description = "Production SigLIP2 image/text inference in Burn for native CPU/GPU and browser WebGPU."
+version = "0.1.1"
+edition = "2024"
+rust-version = "1.92"
+authors = ["mosure <mitchell@mosure.me>", "burn_loom contributors"]
+license = "MIT OR Apache-2.0"
+keywords = ["burn", "siglip2", "vision", "wgpu", "webgpu"]
+categories = ["computer-vision", "science"]
+homepage = "https://github.com/mosure/bevy_zeroverse"
+repository = "https://github.com/mosure/bevy_zeroverse"
+documentation = "https://docs.rs/burn_siglip2"
+readme = "README.md"
+publish = ["crates-io"]
+include = [
+  "LICENSE-APACHE",
+  "LICENSE-MIT",
+  "README.md",
+  "CHANGELOG.md",
+  "RELEASING.md",
+  "ORIGIN.json",
+  "assets/fixtures/**",
+  "assets/hooks/**",
+  "examples/web/**",
+  "scripts/README.md",
+  "scripts/bundle_siglip2_assets.sh",
+  "scripts/siglip2_reference.py",
+  "src/**",
+  "tests/**",
+]
+
+[package.metadata.docs.rs]
+all-features = true
+targets = ["x86_64-unknown-linux-gnu", "wasm32-unknown-unknown"]
+
+[features]
+default = ["ndarray"]
+ndarray = ["burn/ndarray", "burn/simd", "dep:burn-ndarray"]
+flex = ["burn/flex", "burn/simd", "dep:burn-flex"]
+wgpu = ["burn/wgpu", "dep:burn-wgpu"]
+webgpu = ["wgpu", "burn/webgpu"]
+import = ["dep:burn-store"]
+bootstrap = ["dep:ureq", "dep:url"]
+tokenizer = ["dep:tokenizers"]
+preprocess = ["dep:image"]
+pipeline = ["preprocess", "tokenizer"]
+wasm = [
+  "webgpu",
+  "pipeline",
+  "dep:js-sys",
+  "dep:wasm-bindgen",
+  "dep:wasm-bindgen-futures",
+  "dep:web-sys",
+]
+cli = ["dep:clap", "import", "bootstrap", "tokenizer"]
+
+[dependencies]
+burn = { version = "0.21.0", default-features = false, features = ["std"] }
+burn-flex = { version = "0.21.0", default-features = false, features = ["std", "simd", "rayon"], optional = true }
+burn-ndarray = { version = "0.21.0", default-features = false, features = ["std", "simd", "multi-threads"], optional = true }
+burn-store = { version = "0.21.0", default-features = false, features = ["std", "safetensors"], optional = true }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+safetensors = "0.7"
+bytemuck = "1.25"
+sha2 = "0.10"
+hex = "0.4"
+half = "2.4"
+thiserror = "2.0"
+clap = { version = "4.5", features = ["derive"], optional = true }
+tokenizers = { version = "0.21", default-features = false, features = ["unstable_wasm"], optional = true }
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp", "bmp"], optional = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+ureq = { version = "2.12", optional = true }
+url = { version = "2.5", optional = true }
+
+[target.'cfg(all(not(target_arch = "wasm32"), not(target_os = "macos")))'.dependencies.burn-wgpu]
+version = "0.21.0"
+default-features = false
+features = ["fusion", "std", "vulkan"]
+optional = true
+
+[target.'cfg(all(not(target_arch = "wasm32"), target_os = "macos"))'.dependencies.burn-wgpu]
+version = "0.21.0"
+default-features = false
+features = ["fusion", "std", "metal"]
+optional = true
+
+[target.'cfg(target_arch = "wasm32")'.dependencies.burn-wgpu]
+version = "0.21.0"
+default-features = false
+features = ["std", "webgpu"]
+optional = true
+
+[target.'cfg(target_arch = "wasm32")'.dependencies.getrandom]
+version = "0.3"
+features = ["wasm_js"]
+
+[target.'cfg(target_arch = "wasm32")'.dependencies.getrandom_04]
+package = "getrandom"
+version = "0.4"
+features = ["wasm_js"]
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+js-sys = { version = "0.3", optional = true }
+wasm-bindgen = { version = "0.2", optional = true }
+wasm-bindgen-futures = { version = "0.4", optional = true }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies.web-sys]
+version = "0.3"
+optional = true
+features = [
+  "Headers",
+  "ReadableStream",
+  "ReadableStreamDefaultReader",
+  "Response",
+  "Url",
+  "Window",
+]
+
+[dev-dependencies]
+tempfile = "3.18"
+
+[lib]
+path = "src/lib.rs"
+crate-type = ["rlib", "cdylib"]
+
+[[bin]]
+name = "siglip2_import"
+path = "src/bin/siglip2_import.rs"
+required-features = ["cli"]
+
+[[bin]]
+name = "siglip2_parts"
+path = "src/bin/siglip2_parts.rs"
+required-features = ["cli"]
+
+[[bin]]
+name = "siglip2_short_bench"
+path = "src/bin/siglip2_short_bench.rs"
+required-features = ["ndarray", "pipeline"]

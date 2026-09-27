@@ -5,6 +5,7 @@ pub mod cameras;
 mod clutter;
 pub mod domain;
 pub mod floorplan;
+mod footprint;
 pub mod geometry;
 pub mod gi;
 pub mod humans;
@@ -185,6 +186,9 @@ pub fn indoor_generation_pending(world: &World) -> bool {
     world
         .get_resource::<IndoorGenerationStatus>()
         .is_some_and(IndoorGenerationStatus::busy)
+        || world
+            .get_resource::<crate::human_motion::HumanMotionReport>()
+            .is_some_and(|motion| motion.pending)
 }
 
 #[derive(Default)]
@@ -192,6 +196,11 @@ struct PendingIndoor {
     key: Option<(u64, IndoorLayoutKey)>,
     requested: bool,
     task: Option<bevy::tasks::Task<Result<preparation::PreparedIndoor, String>>>,
+    settings: Option<(
+        BevyZeroverseConfig,
+        ZeroverseSceneSettings,
+        gi::IndoorGiSettings,
+    )>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -211,7 +220,9 @@ fn regenerate(
     mut pending: Local<PendingIndoor>,
     mut generation: ResMut<IndoorGenerationStatus>,
 ) {
-    if settings.scene_type != ZeroverseSceneType::ProceduralIndoor {
+    if settings.scene_type != ZeroverseSceneType::ProceduralIndoor
+        && (!events.is_empty() || !pending.requested)
+    {
         *pending = PendingIndoor::default();
         generation.pending = false;
         generation.lighting_pending = false;
@@ -226,12 +237,17 @@ fn regenerate(
     }
     if !events.is_empty() {
         events.clear();
+        pending.settings = Some((args.clone(), settings.clone(), *gi_settings));
+        pending.task = None;
         pending.requested = true;
         generation.pending = true;
     }
     if !pending.requested {
         return;
     }
+    // A request is a snapshot: dragging a slider during preparation cannot
+    // restart the job or mix its geometry with newer lighting/motion settings.
+    let (args, settings, gi_settings) = pending.settings.clone().expect("requested settings");
     // Keep the old scene responsive while the model and phenotype surfaces load.
     if args.indoor_human_density > 0.0 && human_assets.is_none() {
         return;
@@ -272,7 +288,7 @@ fn regenerate(
         let material_stage = preparation::StagedAssets::new(&materials);
         let mesh_stage = preparation::StagedAssets::new(&meshes);
         let quality = args.indoor_quality;
-        let mut gi = *gi_settings;
+        let mut gi = gi_settings;
         // Full GPU bakes maximize headless generation throughput, but monopolize
         // the presentation queue during interactive regeneration. The CPU oracle
         // runs inside this background job while the GPU keeps drawing the old room.
@@ -280,17 +296,34 @@ fn regenerate(
             gi.gpu = false;
         }
         let rotation = settings.rotation_augmentation;
+        let motion_policy = args.human_motion.clone();
+        let camera_policy = args.indoor_camera.clone();
         pending.task = Some(bevy::tasks::AsyncComputeTaskPool::get().spawn(async move {
-            let mut scene =
-                IndoorManifest::generate_with_humans(seed, layout, density, cameras, humans)?;
+            let mut scene = IndoorManifest::generate_with_humans(seed, layout, density, 0, humans)?;
+            if let Some(json) = camera_policy {
+                scene.camera_settings = cameras::CameraSettings::parse(&json)?;
+            }
+            scene.sample_cameras(cameras)?;
             validation::validate_layout(&scene)?;
             if rotation {
                 scene.world_yaw = layout::stream(seed, 11).random_range(0.0..std::f32::consts::TAU);
             }
+            let moving_humans = if let Some(json) = motion_policy {
+                let config = crate::human_motion::HumanMotionConfig::parse(&json)?;
+                crate::human_motion::planning::prepare_scene(&mut scene, &config)?;
+                crate::human_motion::planning::plan(&scene, &config)?
+                    .0
+                    .into_iter()
+                    .map(|p| p.actor_id)
+                    .collect()
+            } else {
+                Vec::new()
+            };
             Ok(preparation::PreparedIndoor::build(
                 scene,
                 quality,
                 gi,
+                moving_humans,
                 image_stage,
                 material_stage,
                 mesh_stage,
@@ -333,6 +366,7 @@ fn regenerate(
             Name::new(format!("procedural_indoor_{seed}")),
             ZeroverseScene,
             ZeroverseSceneRoot,
+            crate::human_motion::SceneMotionPolicy(args.human_motion.clone()),
             Transform::from_rotation(Quat::from_rotation_y(manifest.world_yaw)),
             SceneAabbNode,
             OvoxelTracked,
@@ -428,6 +462,7 @@ fn configure_cameras(
                 #[cfg(not(target_arch = "wasm32"))]
                 e.remove::<ScreenSpaceAmbientOcclusion>();
                 e.insert(Exposure::INDOOR);
+                e.insert(bevy::pbr::ScreenSpaceTransmission::default());
             }
         }
         return;
@@ -442,6 +477,14 @@ fn configure_cameras(
         let mut e = commands.entity(entity);
         e.insert((
             IndoorCameraConfigured,
+            bevy::pbr::ScreenSpaceTransmission {
+                quality: if cfg!(target_arch = "wasm32") {
+                    bevy::pbr::ScreenSpaceTransmissionQuality::High
+                } else {
+                    bevy::pbr::ScreenSpaceTransmissionQuality::Ultra
+                },
+                ..default()
+            },
             Exposure {
                 ev100: environment.ev100,
             },

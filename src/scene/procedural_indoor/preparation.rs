@@ -71,6 +71,7 @@ struct Group {
     bounds: (Vec3, Vec3),
     object: Option<(usize, super::layout::ObjectKind)>,
     human: Option<(usize, Vec<Vec3>)>,
+    annotation: Option<SemanticLabel>,
     parts: Vec<Part>,
 }
 pub struct PreparedIndoor {
@@ -91,6 +92,7 @@ impl PreparedIndoor {
         manifest: IndoorManifest,
         quality: IndoorQuality,
         settings: gi::IndoorGiSettings,
+        moving_humans: Vec<usize>,
         mut images: StagedAssets<Image>,
         mut materials: StagedAssets<StandardMaterial>,
         mut meshes: StagedAssets<Mesh>,
@@ -103,15 +105,23 @@ impl PreparedIndoor {
         #[cfg(target_arch = "wasm32")]
         let probes = None;
         #[cfg(target_arch = "wasm32")]
-        let _ = settings;
+        let _ = (settings, moving_humans);
         #[cfg(not(target_arch = "wasm32"))]
         let mut gpu_request = None;
         #[cfg(not(target_arch = "wasm32"))]
         let mut cpu_bake = None;
         #[cfg(not(target_arch = "wasm32"))]
         if quality.diffuse_gi() && settings.enabled {
-            let transport =
-                gi::BakeScene::from_manifest(&manifest, &material_set, &materials, &images);
+            // A static irradiance volume must not retain a moving person's old
+            // occlusion. These candidates still cast live direct shadows; a
+            // rejected candidate also remains excluded until the next bake.
+            let transport = gi::BakeScene::from_manifest_excluding_humans(
+                &manifest,
+                &material_set,
+                &materials,
+                &images,
+                &moving_humans,
+            );
             #[cfg(not(target_arch = "wasm32"))]
             if settings.gpu {
                 let (request, transform, statistics) =
@@ -129,7 +139,11 @@ impl PreparedIndoor {
             }
         }
         let mut groups = Vec::new();
-        let mut add = |assembly: objects::Assembly, name: String, transform: Transform, object| {
+        let mut add = |assembly: objects::Assembly,
+                       name: String,
+                       transform: Transform,
+                       object,
+                       annotation| {
             let bounds = assembly.bounds();
             let parts = assembly
                 .parts
@@ -150,13 +164,37 @@ impl PreparedIndoor {
                 bounds,
                 object,
                 human: None,
+                annotation,
                 parts,
             });
         };
+        let mut shell = objects::Assembly::default();
+        let mut fixtures = std::collections::BTreeMap::<String, objects::Assembly>::new();
+        for ((surface, label), geometry) in architecture::architecture(&manifest).parts {
+            if label.starts_with("lamp#") {
+                fixtures
+                    .entry(label.clone())
+                    .or_default()
+                    .parts
+                    .insert((surface, label), geometry);
+            } else {
+                shell.parts.insert((surface, label), geometry);
+            }
+        }
+        for (name, fixture) in fixtures {
+            add(
+                fixture,
+                format!("ceiling_{name}"),
+                Transform::IDENTITY,
+                None,
+                Some(SemanticLabel::Lamp),
+            );
+        }
         add(
-            architecture::architecture(&manifest),
+            shell,
             "architecture".into(),
             Transform::IDENTITY,
+            None,
             None,
         );
         for object in &manifest.objects {
@@ -166,6 +204,7 @@ impl PreparedIndoor {
                 format!("{:?}_{}", object.kind, object.id),
                 object.transform(),
                 Some((object.id, object.kind)),
+                None,
             );
         }
         for person in &manifest.humans {
@@ -194,6 +233,7 @@ impl PreparedIndoor {
                 bounds,
                 object: None,
                 human: Some((person.id, assembly.local_joints)),
+                annotation: None,
                 parts,
             });
         }
@@ -219,9 +259,18 @@ impl PreparedIndoor {
                 Visibility::default(),
                 ChildOf(parent),
             ));
+            if let Some(label) = group.annotation {
+                root.insert((
+                    ObbTracked,
+                    ObbClass(label.as_str().into()),
+                    label,
+                    Aabb::from_min_max(group.bounds.0, group.bounds.1),
+                ));
+            }
             if let Some((id, kind)) = group.object {
                 root.insert((
                     objects::IndoorInstance { id, kind },
+                    SemanticLabel::from_label(kind.class_name()).expect("indoor object class"),
                     ObbTracked,
                     ObbClass(kind.class_name().into()),
                     Aabb::from_min_max(group.bounds.0, group.bounds.1),
@@ -230,6 +279,7 @@ impl PreparedIndoor {
             if let Some((id, local_joints)) = group.human {
                 root.insert((
                     humans::IndoorHumanInstance { id, local_joints },
+                    SemanticLabel::Person,
                     ObbTracked,
                     ObbClass("person".into()),
                     Aabb::from_min_max(group.bounds.0, group.bounds.1),
@@ -259,6 +309,9 @@ impl PreparedIndoor {
                     }
                 }
                 if let Some(surface) = part.human_surface {
+                    if surface == humans::HumanSurface::Lens {
+                        child.insert(NotShadowCaster);
+                    }
                     child.insert((
                         Name::new(format!("person/{surface:?}")),
                         humans::IndoorHumanSurface(surface),

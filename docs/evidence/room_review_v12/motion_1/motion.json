@@ -1,0 +1,157 @@
+{
+  "scene_seed": 1,
+  "pending": false,
+  "stage": "Ready",
+  "model_loads": 1,
+  "generated_batches": 5,
+  "embedding_hits": 2,
+  "model_artifacts": {
+    "ardy/core-rp-20fps-h40/v1": "6e03294854771ca3ed6641251c77ab75bd2542d778c02886ea795d8d77655cd8",
+    "llama/ardy-llm2vec-8b/v1": "09280ebcf02184708cff1a9f982b901166b433e504ff343f02c037cc52d8ee16"
+  },
+  "requested": [
+    {
+      "actor_id": 25,
+      "behavior": "walk",
+      "request": {
+        "prompt": "A person walks purposefully across the room deliberately.",
+        "seed": 12766322213841528216,
+        "frames": 160,
+        "history_frames": 80,
+        "diffusion_steps": 10,
+        "text_guidance": 2.0,
+        "trajectory_guidance": 3.0,
+        "waypoints": [
+          {
+            "frame": 0,
+            "position": [
+              -0.6843893,
+              0.94,
+              -2.6708338
+            ],
+            "heading": 1.4610066,
+            "constrain_height": true
+          },
+          {
+            "frame": 159,
+            "position": [
+              1.5570998,
+              0.94,
+              -2.4237478
+            ],
+            "heading": 1.4610066,
+            "constrain_height": true
+          }
+        ],
+        "dense_trajectory": true
+      },
+      "support_chair": null
+    },
+    {
+      "actor_id": 26,
+      "behavior": "skip",
+      "request": {
+        "prompt": "A person skips across the room with alternating light hops calmly.",
+        "seed": 16898985901228180942,
+        "frames": 160,
+        "history_frames": 80,
+        "diffusion_steps": 10,
+        "text_guidance": 2.0,
+        "trajectory_guidance": 3.0,
+        "waypoints": [
+          {
+            "frame": 0,
+            "position": [
+              0.27848697,
+              0.0,
+              -3.94419
+            ],
+            "heading": -1.3260461,
+            "constrain_height": false
+          },
+          {
+            "frame": 92,
+            "position": [
+              -1.5,
+              0.0,
+              -3.5
+            ],
+            "heading": -0.80966777,
+            "constrain_height": false
+          },
+          {
+            "frame": 154,
+            "position": [
+              -1.5,
+              0.0,
+              -2.25
+            ],
+            "heading": -0.037991915,
+            "constrain_height": false
+          },
+          {
+            "frame": 159,
+            "position": [
+              -1.5444272,
+              0.0,
+              -2.3311782
+            ],
+            "heading": -0.037991915,
+            "constrain_height": false
+          }
+        ],
+        "dense_trajectory": true
+      },
+      "support_chair": null
+    }
+  ],
+  "accepted": [
+    {
+      "actor_id": 25,
+      "behavior": "walk",
+      "request": {
+        "prompt": "A person walks purposefully across the room deliberately.",
+        "seed": 12766322213841528216,
+        "frames": 160,
+        "history_frames": 80,
+        "diffusion_steps": 10,
+        "text_guidance": 2.0,
+        "trajectory_guidance": 3.0,
+        "waypoints": [
+          {
+            "frame": 0,
+            "position": [
+              -0.6843893,
+              0.94,
+              -2.6708338
+            ],
+            "heading": 1.4610066,
+            "constrain_height": true
+          },
+          {
+            "frame": 159,
+            "position": [
+              1.5570998,
+              0.94,
+              -2.4237478
+            ],
+            "heading": 1.4610066,
+            "constrain_height": true
+          }
+        ],
+        "dense_trajectory": true
+      },
+      "support_chair": null
+    }
+  ],
+  "rejected": [
+    {
+      "actor_id": 24,
+      "reason": "no collision-free behavior fits the available space"
+    },
+    {
+      "actor_id": 26,
+      "reason": "frame 65: deformed body intersects obstacle [-1.0966992, 0.0, -3.1259637]..[-0.3229046, 1.760124, -2.2298803]"
+    }
+  ]
+}

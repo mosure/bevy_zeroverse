@@ -1,0 +1,112 @@
+{
+  "batch_size": 8,
+  "burn": "0.21.0",
+  "cohorts": {
+    "controls": {
+      "policy": "Two identical upstream PyTorch reference images plus six captured rooms; batch invariance and reference parity only."
+    }
+  },
+  "dtype": "little-endian float32",
+  "embedding_host_readbacks": 1,
+  "encoder": "SigLIP2",
+  "index_sha256": "21cbcc8067422b1f9a9c1031e868f812bdd0c2a9bce9d26cc483cfbf7b1e80c6",
+  "inference_and_io_seconds": 1.403943952,
+  "last_batch_execution": {
+    "backend_label": "fusion<cubecl<wgpu<spirv>>>",
+    "device_label": "cubecl_wgpu::device::WgpuDevice",
+    "host_readbacks": 1,
+    "stages_recorded": 0,
+    "wgpu_executed": true
+  },
+  "load_seconds": 19.48895019,
+  "loaded_weights": {
+    "artifact": {
+      "model_variant": "base-patch16-224",
+      "storage_dtype": "f16",
+      "upstream_model_id": "google/siglip2-base-patch16-224",
+      "upstream_revision": "75de2d55ec2d0b4efc50b3e9ad70dba96a7b2fa2"
+    },
+    "loaded_bytes": 750427030,
+    "loaded_weight_sha256": "6267af27dfa05ce21b73649f4d4f6cd4c6738acd4bcde5a0716051403c6f130e",
+    "part_count": 14,
+    "sha256_verified": 14,
+    "tensors_loaded": 427,
+    "weight_payload_sha256": "484e9ab7d41af66b34e973521c024fc9af54ff458f1c61408fca928405ae2c9d"
+  },
+  "model_parts": "/home/mosure/.burn_siglip2/models/siglip2-base-patch16-224/siglip2-base-patch16-224.bpk.parts.json",
+  "normalization": "L2",
+  "preprocessing": "RGB; direct bilinear resize to model square; /255; mean=std=0.5",
+  "samples": [
+    {
+      "camera": 0,
+      "cohort": "controls",
+      "path": "/home/mosure/repos/burn_loom/artifacts/siglip2/numerical/base-patch16-224-f16-reference.input.png",
+      "seed": 0,
+      "sha256": "6d37148b889ab6de72173b6a7352e80068a9b7634ee1f7cfafead893b8d9d831",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "controls",
+      "path": "/home/mosure/repos/burn_loom/artifacts/siglip2/numerical/base-patch16-224-f16-reference.input.png",
+      "seed": 1,
+      "sha256": "6d37148b889ab6de72173b6a7352e80068a9b7634ee1f7cfafead893b8d9d831",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "controls",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain9_qualified/seed_100000/view_00_color.png",
+      "seed": 2,
+      "sha256": "0a540c1fbf0791c46580e9691dd229d41fbdad779cf21035e60a148228423afc",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "controls",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain9_qualified/seed_100001/view_00_color.png",
+      "seed": 3,
+      "sha256": "27a21fea1ddfbd8b40fbab1504aa62a84cf10c8b583d3861b55e56c372b9dd36",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "controls",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain9_qualified/seed_100002/view_00_color.png",
+      "seed": 4,
+      "sha256": "e67d59aed5f9afee6c74245e98a503b0341654470e6bb842615063c60d7b1fbb",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "controls",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain9_qualified/seed_100003/view_00_color.png",
+      "seed": 5,
+      "sha256": "03415a8cedb773ae19f06d59925cbc748e401e608fd3193e39a380e181841659",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "controls",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain9_qualified/seed_100004/view_00_color.png",
+      "seed": 6,
+      "sha256": "fa3e42564c8a308e4d4be789c3e00e17fdbcb57c6a109c145732740059793017",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "controls",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain9_qualified/seed_100005/view_00_color.png",
+      "seed": 7,
+      "sha256": "eefb46a2fd05b4b29c633ddd83f67f9f85a4db0a46e2b883566477dc83404df2",
+      "time": 0.0
+    }
+  ],
+  "schema_version": 1,
+  "shape": [
+    8,
+    768
+  ],
+  "tensor_sha256": "b4c76cac3ebafc278a95132babf571fc527119290fad5adeb9d3e693896f4ec1",
+  "variant": "base"
+}

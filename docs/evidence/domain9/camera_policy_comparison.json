@@ -1,0 +1,29 @@
+{
+  "comparison": "Matched CPU audits only, not a paired rendered ablation. Identical generator-9 furnishing/architecture/plants; old fixed wall rail versus mixed interior/perimeter camera proposals.",
+  "first_seed": 100000,
+  "seed_count": 10000,
+  "old_fixed_rail": {
+    "scenes": 10000,
+    "cameras": 20000,
+    "boundary_clearance_m": {
+      "mean": 0.8802220196325,
+      "median": 0.8500000000000005,
+      "min": 0.6501354999999993,
+      "max": 2.3244583999999997
+    },
+    "fraction_over_1_8m_from_boundary": 5e-05,
+    "occupied_20x20_cells": 254
+  },
+  "new_camera_policy": {
+    "scenes": 10000,
+    "cameras": 20000,
+    "boundary_clearance_m": {
+      "mean": 1.69662788563891,
+      "median": 1.4311815,
+      "min": 0.6500697999999998,
+      "max": 7.444525
+    },
+    "fraction_over_1_8m_from_boundary": 0.30245,
+    "occupied_20x20_cells": 396
+  }
+}

@@ -41,13 +41,6 @@ impl IndoorManifest {
             };
             let along = rng
                 .random_range(-span * 0.5 + size.x * 0.5 + 0.35..span * 0.5 - size.x * 0.5 - 0.35);
-            // Leave the real classical wall niche open.
-            if rear
-                && self.architecture_style == ArchitectureStyle::Classic
-                && along - size.x * 0.5 < -w * 0.5 + 2.15
-            {
-                continue;
-            }
             let y = rng.random_range(0.95..(h - size.y - 0.3).clamp(0.96, 2.15));
             let (position, yaw) = if rear {
                 (Vec3::new(along, y, -d * 0.5 + 0.18), 0.0)
@@ -59,6 +52,9 @@ impl IndoorManifest {
             };
             let object = self.candidate(kind, position, size, yaw, rng);
             let (lo, hi) = object.bounds();
+            if super::super::architecture::details::overlaps_niche(self, lo, hi) {
+                continue;
+            }
             if self
                 .objects
                 .iter()

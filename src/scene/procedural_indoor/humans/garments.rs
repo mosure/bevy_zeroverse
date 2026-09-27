@@ -18,8 +18,8 @@ impl GarmentCut {
         if bone.starts_with("eye.") {
             return HumanSurface::Eye;
         }
-        if bone.starts_with("oris") {
-            return HumanSurface::Lip;
+        if is_hand(bone) {
+            return HumanSurface::Skin;
         }
         if is_arm(bone) {
             let (point, normal) = self.cuffs[usize::from(bone.ends_with(".R"))];
@@ -68,7 +68,7 @@ impl GarmentCut {
             emit(&triangle, surface, mesh);
             return;
         }
-        if bone.starts_with("eye.") || bone.starts_with("oris") {
+        if bone.starts_with("eye.") || is_hand(bone) {
             emit(&triangle, self.surface(h, triangle[0].rest, bone), mesh);
             return;
         }
@@ -115,17 +115,26 @@ impl GarmentCut {
         let rx = self.torso_half_width * (0.84 + t * 0.16);
         let rz = self.torso_half_depth * (0.92 + t * 0.08);
         let q = Vec2::new(p.x, p.z - self.depth_center);
-        let radius = (q / Vec2::new(rx, rz)).length();
+        // A rounded hanging cross-section spans the bust instead of following
+        // every skin depression. An ellipse made shirts look painted onto skin.
+        let section = (q / Vec2::new(rx, rz)).abs();
+        let radius = (section.x.powi(4) + section.y.powi(4)).sqrt().sqrt();
         if radius < 0.2 || radius >= 1.0 {
             return Vec3::ZERO;
         }
         let correction = q * (1.0 / radius - 1.0);
-        Vec3::new(correction.x, 0.0, correction.y).clamp_length_max(0.025)
+        Vec3::new(correction.x, 0.0, correction.y).clamp_length_max(0.05)
     }
 }
 
 fn is_arm(bone: &str) -> bool {
     ["upperarm", "lowerarm", "wrist", "finger", "thumb"]
+        .iter()
+        .any(|prefix| bone.starts_with(prefix))
+}
+
+fn is_hand(bone: &str) -> bool {
+    ["wrist", "finger", "thumb", "metacarpal"]
         .iter()
         .any(|prefix| bone.starts_with(prefix))
 }
@@ -187,7 +196,7 @@ fn split(
     (inside, outside)
 }
 
-fn emit(poly: &[GarmentVertex], surface: HumanSurface, mesh: &mut HumanAssembly) {
+pub(super) fn emit(poly: &[GarmentVertex], surface: HumanSurface, mesh: &mut HumanAssembly) {
     if poly.len() < 3 {
         return;
     }
@@ -206,6 +215,57 @@ fn emit(poly: &[GarmentVertex], surface: HumanSurface, mesh: &mut HumanAssembly)
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn palms_and_fingers_are_skin_even_below_the_waist() {
+        let h = crate::scene::procedural_indoor::humans::sample_person(
+            0,
+            0,
+            Vec3::ZERO,
+            0.0,
+            crate::scene::procedural_indoor::humans::HumanPoseKind::StandingRelaxed,
+            None,
+            false,
+        );
+        let cut = GarmentCut {
+            waist: 1.0,
+            neck: 1.5,
+            chest: 1.4,
+            torso_half_width: 0.25,
+            depth_center: 0.0,
+            torso_half_depth: 0.12,
+            shoe_top: 0.15,
+            cuffs: [(Vec3::ZERO, Vec3::X); 2],
+        };
+        for side in ["L", "R"] {
+            for bone in [
+                "metacarpal1",
+                "metacarpal4",
+                "wrist",
+                "finger1-1",
+                "finger5-3",
+            ] {
+                let bone = format!("{bone}.{side}");
+                let p = Vec3::new(-0.2, 0.8, -0.05);
+                assert_eq!(cut.surface(&h, p, &bone), HumanSurface::Skin);
+                assert_eq!(cut.ease(p, cut.surface(&h, p, &bone)), Vec3::ZERO);
+                let tri = [p, p + Vec3::X * 0.01, p + Vec3::Y * 0.01].map(|p| GarmentVertex {
+                    rest: p,
+                    position: p,
+                    normal: Vec3::Z,
+                    uv: p.truncate(),
+                });
+                let mut mesh = HumanAssembly::default();
+                cut.append(&h, &bone, tri, &mut mesh);
+                assert_eq!(mesh.parts.len(), 1);
+                assert_eq!(mesh.parts[&HumanSurface::Skin].positions.len(), 3);
+            }
+        }
+        assert_eq!(
+            cut.surface(&h, Vec3::new(0.0, 1.6, -0.1), "oris05"),
+            HumanSurface::Skin
+        );
+    }
 
     #[test]
     fn garment_cut_preserves_area_and_shared_edges() {

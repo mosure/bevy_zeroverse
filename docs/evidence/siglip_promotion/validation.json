@@ -1,0 +1,59 @@
+{
+  "schema": "bevy_zeroverse.siglip_crate_promotion",
+  "schema_version": 1,
+  "date": "2026-09-27",
+  "crate": "burn_siglip2",
+  "version": "0.1.1",
+  "path": "crates/burn_siglip2",
+  "canonical_repository": "https://github.com/mosure/bevy_zeroverse",
+  "burn_version": "0.21.0",
+  "release_status": "local_unreleased",
+  "checks": {
+    "format": "passed",
+    "native_tests_cli_pipeline": {
+      "passed": 117,
+      "failed": 0,
+      "ignored": 2
+    },
+    "clippy_all_targets_cli_pipeline_deny_warnings": "passed",
+    "wasm_check_no_defaults_wasm_feature": "passed",
+    "embedding_audit_native_build": "passed",
+    "reference_script_self_test": "passed",
+    "bundle_script_bash_syntax": "passed",
+    "browser_example_javascript_syntax": "passed",
+    "publish_dry_run": "passed",
+    "default_generator_dependency_graph_excludes_siglip": true
+  },
+  "standalone_package": {
+    "normalized_manifest_sha256": "999608226b3c7bdb806d8f838298842f109d3e3d913de8266c2794573add1b93",
+    "files": 58,
+    "dependency_sources": "Registry dependencies; no Bevy, sibling checkout paths or workspace wgpu patches."
+  },
+  "gpu_control": {
+    "passed": true,
+    "images": 8,
+    "batch_size": 8,
+    "model": "siglip2-base-patch16-224",
+    "model_sha256": "6267af27dfa05ce21b73649f4d4f6cd4c6738acd4bcde5a0716051403c6f130e",
+    "measurements": {
+      "batch_invariance_max_absolute_error": 0.0,
+      "reference_normalized_embedding_max_absolute_error": 4.3585896492004395e-07,
+      "duplicate_max_cosine_distance": 5.960464477539063e-08
+    },
+    "upper_limits": {
+      "batch_invariance_max_absolute_error": 0.0005,
+      "reference_normalized_embedding_max_absolute_error": 0.0005,
+      "duplicate_max_cosine_distance": 1e-06
+    },
+    "reference_manifest": "docs/evidence/domain10/embeddings/base-patch16-224-f16-reference.json",
+    "reference_manifest_sha256": "f2bc56e618267004216809ae6759cb9f7a356bf5dce473ac72010fa7914facb1",
+    "comparison": "Relocated 0.1.1 batch output versus the previously imported crate singleton output and the upstream PyTorch reference."
+  },
+  "limits": [
+    "No upload, commit, push or CI execution.",
+    "Native tests include opt-in real-model tests that return early when assets are not supplied; the separate GPU control exercised cached model inference.",
+    "The GPU control covers eight inputs and one upstream reference image, not a full model or downstream learning benchmark.",
+    "Wasm was compile-checked; browser runtime was not rerun for this source relocation.",
+    "GPU integration ran in the workspace with its existing wgpu patches; the standalone dry run compiled against registry dependencies."
+  ]
+}

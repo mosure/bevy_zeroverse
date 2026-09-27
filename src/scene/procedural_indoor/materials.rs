@@ -1,5 +1,6 @@
 //! Role-specific PBR textures, generated in memory with repeat sampling and mip chains.
 pub mod glass;
+mod human;
 pub mod layers;
 pub mod program;
 use super::layout::{IndoorManifest, LightingMood};
@@ -245,7 +246,7 @@ impl IndoorMaterials {
                 materials.add(material)
             })
             .collect();
-        let [cloth, skin, hair] = human_maps(images, materials);
+        let [cloth, skin, hair] = human::maps(scene.seed, images, materials);
         Self {
             handles,
             light_variants,
@@ -255,64 +256,6 @@ impl IndoorMaterials {
             hair,
         }
     }
-}
-
-/// Shared, neutral microstructure. Human pigmentation and wardrobe colours are
-/// applied separately, never multiplied by a furniture upholstery palette.
-fn human_maps(
-    images: &mut impl super::preparation::AssetStore<Image>,
-    materials: &mut impl super::preparation::AssetStore<StandardMaterial>,
-) -> [Handle<StandardMaterial>; 3] {
-    [0, 1, 2].map(|kind| {
-        let mut albedo = Vec::with_capacity(256 * 256 * 4);
-        let mut normal = Vec::with_capacity(256 * 256 * 4);
-        for y in 0..256 {
-            for x in 0..256 {
-                let u = x as f32 / 256.0;
-                let v = y as f32 / 256.0;
-                let phase = std::f32::consts::TAU;
-                let (shade, nx, ny) = match kind {
-                    0 => (
-                        0.96 + 0.025 * (u * phase * 32.0).sin() * (v * phase * 32.0).sin(),
-                        0.09 * (u * phase * 32.0).cos(),
-                        0.09 * (v * phase * 32.0).cos(),
-                    ),
-                    1 => (
-                        0.985 + 0.01 * periodic_noise(u, v, 32, 32, 919),
-                        0.025 * (u * phase * 40.0).sin(),
-                        0.025 * (v * phase * 40.0).sin(),
-                    ),
-                    _ => (
-                        0.85 + 0.14 * periodic_noise(u, v, 64, 2, 813),
-                        0.18 * (u * phase * 64.0).sin(),
-                        0.01 * (v * phase * 2.0).cos(),
-                    ),
-                };
-                let n = Vec3::new(nx, ny, 1.0).normalize();
-                let c = (shade * 255.0) as u8;
-                albedo.extend([c, c, c, 255]);
-                normal.extend([
-                    (n.x * 127.0 + 128.0) as u8,
-                    (n.y * 127.0 + 128.0) as u8,
-                    (n.z * 127.0 + 128.0) as u8,
-                    255,
-                ]);
-            }
-        }
-        materials.add(StandardMaterial {
-            base_color_texture: Some(images.add(mip_image(albedo, 256, MapType::Color))),
-            normal_map_texture: Some(images.add(mip_image(normal, 256, MapType::Normal))),
-            // Body UV islands cover several metres; the fibre/pores remain fine.
-            uv_transform: bevy::math::Affine2::from_scale(Vec2::splat(if kind == 2 {
-                10.0
-            } else {
-                24.0
-            })),
-            perceptual_roughness: if kind == 2 { 0.60 } else { 0.85 },
-            anisotropy_strength: if kind == 2 { 0.35 } else { 0.0 },
-            ..default()
-        })
-    })
 }
 
 type Definition = (Surface, [f32; 3], f32, f32, f32);
@@ -395,6 +338,7 @@ fn prepare_map(scene: &IndoorManifest, definition: &Definition) -> Option<[Image
             | Surface::Terracotta
             | Surface::Soil
             | Surface::Concrete
+            | Surface::Ceramic
             | Surface::Leaf
             | Surface::LeafLight
             | Surface::LeafVariegated

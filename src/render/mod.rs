@@ -11,6 +11,7 @@ use pyo3::prelude::*;
 
 use crate::primitive::process_primitives;
 
+mod annotation_material;
 pub mod color;
 pub mod depth;
 #[cfg(not(target_arch = "wasm32"))]
@@ -61,6 +62,10 @@ pub enum RenderMode {
 }
 
 impl RenderMode {
+    pub fn is_flow(&self) -> bool {
+        matches!(self, Self::OpticalFlow | Self::MotionVectors)
+    }
+
     pub fn bloom(&self) -> Option<Bloom> {
         match self {
             RenderMode::Color => Bloom::default().into(),
@@ -151,6 +156,19 @@ pub struct DisabledPbrMaterial {
     pub material: Handle<StandardMaterial>,
 }
 
+impl DisabledPbrMaterial {
+    pub(crate) fn annotation_key(&self) -> Vec<u32> {
+        vec![
+            match self.cull_mode {
+                None => 0,
+                Some(Face::Front) => 1,
+                Some(Face::Back) => 2,
+            },
+            self.double_sided as u32,
+        ]
+    }
+}
+
 #[derive(Component, Default, Debug, Reflect)]
 pub struct EnablePbrMaterial;
 
@@ -207,7 +225,7 @@ pub(crate) fn apply_render_modes(
         RenderMode::Normal => {
             commands.entity(entity).insert(normal::Normal);
         }
-        RenderMode::OpticalFlow => {
+        RenderMode::OpticalFlow | RenderMode::MotionVectors => {
             commands.entity(entity).insert(optical_flow::OpticalFlow);
         }
         RenderMode::Position => {
@@ -216,7 +234,6 @@ pub(crate) fn apply_render_modes(
         RenderMode::Semantic => {
             commands.entity(entity).insert(semantic::Semantic);
         }
-        _ => {}
     };
 
     if render_mode.is_changed() {
@@ -319,6 +336,36 @@ mod tests {
             tracked!(position::PositionMaterial, 2);
             tracked!(semantic::SemanticMaterial, 3);
             tracked!(optical_flow::OpticalFlowMaterial, 4);
+            // Regeneration must reuse these five equivalent materials rather
+            // than allocating one per mesh, which destroys instancing.
+            assert_eq!(
+                app.world().resource::<Assets<depth::DepthMaterial>>().len(),
+                1
+            );
+            assert_eq!(
+                app.world()
+                    .resource::<Assets<normal::NormalMaterial>>()
+                    .len(),
+                1
+            );
+            assert_eq!(
+                app.world()
+                    .resource::<Assets<position::PositionMaterial>>()
+                    .len(),
+                1
+            );
+            assert_eq!(
+                app.world()
+                    .resource::<Assets<semantic::SemanticMaterial>>()
+                    .len(),
+                1
+            );
+            assert_eq!(
+                app.world()
+                    .resource::<Assets<optical_flow::OpticalFlowMaterial>>()
+                    .len(),
+                1
+            );
             previous.extend(entities);
         }
     }

@@ -1,4 +1,6 @@
 pub mod details;
+#[cfg(test)]
+mod overlap_tests;
 use super::{
     layout::{stream, IndoorManifest, LightingMood, ObjectKind, NEIGHBOR_DEPTH},
     materials::{kelvin_rgb, Surface},
@@ -183,7 +185,7 @@ pub fn architecture(scene: &IndoorManifest) -> Assembly {
         Vec3::new(w, 0.22, 0.16),
         0.0,
     );
-    for (lo, hi) in [(-hx, door_left), (door_right, hx)] {
+    for (lo, hi) in [(-hx + 0.006, door_left), (door_right, hx - 0.006)] {
         let count = ((hi - lo) / 1.25).ceil() as u32;
         let segment = (hi - lo) / count as f32;
         for i in 0..count {
@@ -195,14 +197,47 @@ pub fn architecture(scene: &IndoorManifest) -> Assembly {
                 Vec3::new(segment - 0.045, partition_h - 0.06, 0.01),
                 0.0,
             );
-            // Fine safety manifestation band; glass itself remains transparent.
-            a.box_part(
-                Surface::Ceramic,
-                "window",
-                Vec3::new(x, 1.10, hz - 0.007),
-                Vec3::new(segment - 0.07, 0.023, 0.002),
-                0.0,
-            );
+            // Applied safety bands end beside perpendicular partition jambs.
+            // Their back faces otherwise coincide with the metal rail end caps.
+            let mut spans = vec![(x - (segment - 0.07) * 0.5, x + (segment - 0.07) * 0.5)];
+            if let Some(program) = &scene.program {
+                for p in &program.partitions {
+                    if p.axis != 0 || p.end < hz - 0.1 {
+                        continue;
+                    }
+                    let cut = (
+                        p.coordinate - p.thickness * 0.5 - 0.025,
+                        p.coordinate + p.thickness * 0.5 + 0.025,
+                    );
+                    spans = spans
+                        .into_iter()
+                        .flat_map(|(lo, hi)| {
+                            if hi <= cut.0 || lo >= cut.1 {
+                                return vec![(lo, hi)];
+                            }
+                            let mut parts = Vec::new();
+                            if lo < cut.0 {
+                                parts.push((lo, cut.0));
+                            }
+                            if hi > cut.1 {
+                                parts.push((cut.1, hi));
+                            }
+                            parts
+                        })
+                        .collect();
+                }
+            }
+            for (lo, hi) in spans {
+                if hi - lo > 0.01 {
+                    a.box_part(
+                        Surface::Ceramic,
+                        "window",
+                        Vec3::new((lo + hi) * 0.5, 1.10, hz - 0.007),
+                        Vec3::new(hi - lo, 0.023, 0.002),
+                        0.0,
+                    );
+                }
+            }
         }
         for i in 0..=count {
             a.box_part(
@@ -342,7 +377,13 @@ pub fn architecture(scene: &IndoorManifest) -> Assembly {
         }
     }
     for (i, p) in fixture_positions(scene).into_iter().enumerate() {
-        a.box_part(Surface::Metal, "lamp", p, fixture_size(scene), 0.006);
+        a.box_part(
+            Surface::Metal,
+            &format!("lamp#{i}"),
+            p,
+            fixture_size(scene),
+            0.006,
+        );
         a.box_part(
             Surface::Light,
             &format!("lamp#{i}"),
@@ -351,7 +392,7 @@ pub fn architecture(scene: &IndoorManifest) -> Assembly {
             0.002,
         );
         for x in [-fixture_size(scene).x * 0.36, fixture_size(scene).x * 0.36] {
-            a.part(Surface::Chrome, "lamp").rod(
+            a.part(Surface::Chrome, &format!("lamp#{i}")).rod(
                 p + Vec3::new(x, 0.028, 0.0),
                 Vec3::new(p.x + x, h, p.z),
                 0.002,
@@ -551,9 +592,16 @@ pub(crate) fn fixture_angles(scene: &IndoorManifest, index: usize) -> (f32, f32)
 
 pub(crate) fn fixture_photometry(scene: &IndoorManifest, index: usize) -> (Vec3, f32) {
     let mut rng = stream(scene.seed, 164 + index as u64);
-    let kelvin = (scene.light_kelvin + rng.random_range(-650.0..650.0)).clamp(1800.0, 9000.0);
+    let mut kelvin = scene.light_kelvin + rng.random_range(-650.0..650.0);
     let mut flux = fixture_lumens(scene) * rng.random_range(0.72..1.18);
     if let Some(d) = scene.domain() {
+        let position = fixture_positions(scene)[index];
+        let uv = Vec2::new(
+            position.x / scene.room_size.x,
+            position.z / scene.room_size.z,
+        ) * 2.0;
+        flux *= (1.0 + d.photometry.fixture_gradient.dot(uv)).clamp(0.25, 1.75);
+        kelvin += d.photometry.temperature_gradient * uv.x;
         // Independent circuits leave pools of light and unlit areas. Always keep
         // circuit zero energized; low-light scenes remain intentionally usable.
         if index > 0 && !rng.random_bool(d.photometry.active_fraction as f64) {
@@ -562,7 +610,7 @@ pub(crate) fn fixture_photometry(scene: &IndoorManifest, index: usize) -> (Vec3,
             flux *= 1.0 - d.photometry.circuit_contrast * rng.random_range(0.0..1.0);
         }
     }
-    (kelvin_rgb(kelvin), flux)
+    (kelvin_rgb(kelvin.clamp(1800.0, 9000.0)), flux)
 }
 
 pub(crate) fn fixture_lumens(scene: &IndoorManifest) -> f32 {

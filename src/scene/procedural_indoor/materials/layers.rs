@@ -78,17 +78,51 @@ impl FinishLayers {
         uv: [f32; 2],
         noise: [f32; 3],
         finish: &mut [f32; 3],
+        floor_style: u32,
     ) {
         use std::f32::consts::TAU;
         let [u, v] = uv;
         let [macro_n, meso, micro] = noise;
         let band = (TAU * (u * self.bands[0] as f32 + v * self.bands[1] as f32)).sin();
-        let stripes = (0.5 + 0.5 * band).powi(4) * self.stripe_strength;
-        let flecks = ((micro - 0.57) * 5.0).clamp(0.0, 1.0) * self.fleck_strength;
-        let veins = (TAU * (u * 3.0 + (v * TAU).sin() * recipe.warp * 8.0) + macro_n * 4.0)
+        let textile = matches!(recipe.surface, Surface::Fabric | Surface::FabricAlt)
+            || recipe.surface == Surface::Floor && floor_style == 1;
+        let mineral = matches!(recipe.surface, Surface::Concrete | Surface::Ceramic)
+            || recipe.surface == Surface::Floor && floor_style == 2;
+        // Timber gets its directional grain from the base recipe, not mineral
+        // veins or textile stripes spanning every plank in the room.
+        let stripes = if textile {
+            (0.5 + 0.5 * band).powi(4) * self.stripe_strength
+        } else {
+            0.0
+        };
+        let flecks = if mineral {
+            ((micro - 0.57) * 5.0).clamp(0.0, 1.0) * self.fleck_strength
+        } else {
+            0.0
+        };
+        // Stone tiles are cut from different parts of a slab. A room-wide
+        // sinusoid made unrelated tiles look like one striped sheet.
+        let (vein_u, vein_v, phase) = if recipe.surface == Surface::Floor && floor_style == 2 {
+            let [nx, ny] = recipe.floor_repetitions(floor_style);
+            let x = (u * nx).floor() as u32;
+            let y = (v * ny).floor() as u32;
+            let phase = super::hash(x, y, recipe.seed.wrapping_add(97));
+            let uv = ((u * nx).fract(), (v * ny).fract());
+            let uv = if phase > 0.5 { (uv.1, uv.0) } else { uv };
+            (uv.0, uv.1, phase * TAU)
+        } else {
+            (u, v, 0.0)
+        };
+        let veins = (TAU * (vein_u * 3.0 + (vein_v * TAU).sin() * recipe.warp * 8.0)
+            + macro_n * 4.0
+            + phase)
             .sin()
             .abs();
-        let vein = (1.0 - veins).powi(6) * self.vein_strength;
+        let vein = if mineral {
+            (1.0 - veins).powi(6) * self.vein_strength
+        } else {
+            0.0
+        };
         finish[0] *= 1.0 - stripes * 0.40 - vein * 0.28 + flecks * 0.18;
         finish[1] += recipe.relief_m * (stripes * 0.35 - vein * 0.25 + flecks * (meso - 0.5));
         finish[2] += stripes * 0.06 + vein * 0.09 - flecks * 0.10;

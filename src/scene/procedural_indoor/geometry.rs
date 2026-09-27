@@ -1,4 +1,5 @@
 //! Small procedural mesh vocabulary. UVs are measured in metres, not object extents.
+mod slab;
 use bevy::{
     asset::RenderAssetUsages,
     mesh::{Indices, PrimitiveTopology, VertexAttributeValues},
@@ -212,17 +213,38 @@ impl Geometry {
         profile: [f32; 4],
         tf: Transform,
     ) {
-        let [curvature, taper, rake, thickness] = profile;
+        self.chair_back_contour(
+            width,
+            height,
+            [profile[0], profile[1], profile[2], profile[3], 0.0, 0.0],
+            tf,
+        );
+    }
+
+    /// Independent lumbar bulge and shoulder flare, with analytic surface normals.
+    pub fn chair_back_contour(
+        &mut self,
+        width: f32,
+        height: f32,
+        profile: [f32; 6],
+        tf: Transform,
+    ) {
+        let [curvature, taper, rake, thickness, lumbar, flare] = profile;
         let offset = self.positions.len() as u32;
         for row in 0..=8 {
             let y = height * row as f32 / 8.0;
             for col in 0..=12 {
                 let t = col as f32 / 12.0 * 2.0 - 1.0;
-                let x = width * 0.5 * t * (1.0 - taper * (y / height));
-                let z = curvature * (1.0 - t * t) + y * rake;
-                let dx = -4.0 * curvature * t / (width * (1.0 - taper * y / height));
-                let dy =
-                    rake - 2.0 * curvature * t * t * taper / (height * (1.0 - taper * y / height));
+                let v = y / height;
+                let wave = (std::f32::consts::PI * v).sin();
+                let slope = std::f32::consts::PI * (std::f32::consts::PI * v).cos();
+                let factor = (1.0 - taper * v) * (1.0 + flare * wave);
+                let derivative = -taper * (1.0 + flare * wave) + (1.0 - taper * v) * flare * slope;
+                let x = width * 0.5 * t * factor;
+                let z = curvature * (1.0 - t * t) + y * rake - lumbar * wave;
+                let dx = -4.0 * curvature * t / (width * factor);
+                let dy = rake + 2.0 * curvature * t * t * derivative / (height * factor)
+                    - lumbar * slope / height;
                 let n = Vec3::new(dx, dy, -1.0).normalize();
                 self.vertex(Vec3::new(x, y, z), n, Vec2::new(x + width * 0.5, y), &tf);
             }
@@ -287,6 +309,30 @@ impl Geometry {
         .with_inserted_indices(Indices::U32(self.indices));
         mesh.generate_tangents()
             .expect("procedural indoor meshes have valid normals and UVs");
+        // MikkTSpace returns a zero tangent for collapsed UV triangles (e.g.
+        // tapered fibre tips and clipped garment seams). Normal mapping must
+        // still receive a finite orthonormal frame at these vertices.
+        if let Some(bevy::mesh::VertexAttributeValues::Float32x4(mut tangents)) =
+            mesh.remove_attribute(Mesh::ATTRIBUTE_TANGENT)
+        {
+            if let Some(bevy::mesh::VertexAttributeValues::Float32x3(normals)) =
+                mesh.attribute(Mesh::ATTRIBUTE_NORMAL)
+            {
+                for (tangent, normal) in tangents.iter_mut().zip(normals) {
+                    let n = Vec3::from_array(*normal).normalize_or(Vec3::Y);
+                    let t = Vec4::from_array(*tangent).truncate();
+                    let axis = if n.x.abs() < 0.8 { Vec3::X } else { Vec3::Z };
+                    let t = (t - n * n.dot(t))
+                        .try_normalize()
+                        .filter(|t| t.is_finite())
+                        .unwrap_or_else(|| (axis - n * n.dot(axis)).normalize());
+                    *tangent = t
+                        .extend(if tangent[3] < 0.0 { -1.0 } else { 1.0 })
+                        .to_array();
+                }
+            }
+            mesh.insert_attribute(Mesh::ATTRIBUTE_TANGENT, tangents);
+        }
         mesh
     }
 }

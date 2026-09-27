@@ -1,0 +1,748 @@
+{
+  "schema_version": 1,
+  "encoder": "SigLIP2",
+  "variant": "base",
+  "model_sha256": "6267af27dfa05ce21b73649f4d4f6cd4c6738acd4bcde5a0716051403c6f130e",
+  "input_tensor_sha256": "2a20db6beaeef0d6d20dbeaab0b83d77c1a5def7c7a199cfcc5156bfbbe09dac",
+  "cohorts": {
+    "v10": {
+      "images": 512,
+      "scenes": 128,
+      "cross_scene_nearest_cosine_distance": {
+        "count": 512,
+        "min": 0.03675413131713867,
+        "max": 0.1254158616065979,
+        "mean": 0.06136986764613539,
+        "p05_p50_p95": [
+          0.045158207416534424,
+          0.05945408344268799,
+          0.08314210176467896
+        ]
+      },
+      "scene_centroid_nearest_cosine_distance": {
+        "count": 128,
+        "min": 0.02590489387512207,
+        "max": 0.06100946664810181,
+        "mean": 0.03881076071411371,
+        "p05_p50_p95": [
+          0.028090059757232666,
+          0.0379338264465332,
+          0.05195492506027222
+        ]
+      },
+      "same_camera_trajectory_cosine_distance": {
+        "count": 256,
+        "min": 0.007413148880004883,
+        "max": 0.06942117214202881,
+        "mean": 0.023761075921356678,
+        "p05_p50_p95": [
+          0.010248303413391113,
+          0.02175748348236084,
+          0.04289919137954712
+        ]
+      },
+      "same_scene_other_camera_cosine_distance": {
+        "count": 256,
+        "min": 0.02822434902191162,
+        "max": 0.20090699195861816,
+        "mean": 0.09514914290048182,
+        "p05_p50_p95": [
+          0.04556041955947876,
+          0.08996456861495972,
+          0.16167211532592773
+        ]
+      },
+      "exact_file_duplicate_cosine_distance": null,
+      "scene_centroid_spectrum": {
+        "effective_rank": 47.333677012589206,
+        "dimensions_for_90_percent_variance": 53
+      },
+      "nearest_distance_threshold_fractions": {
+        "0.005": 0.0,
+        "0.01": 0.0,
+        "0.02": 0.0,
+        "0.05": 0.166015625,
+        "0.1": 0.986328125
+      },
+      "closest_cross_scene_pairs": [
+        {
+          "distance": 0.03675413131713867,
+          "left": {
+            "camera": 1,
+            "cohort": "v10",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100044/view_01_color.png",
+            "seed": 100044,
+            "sha256": "7f1d826ac080d2212ce9df76dc33c0524bc37da41201ea326b8abe42eab56888",
+            "time": 0.0
+          },
+          "right": {
+            "camera": 0,
+            "cohort": "v10",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100109/view_02_color.png",
+            "seed": 100109,
+            "sha256": "ec177e853ca0d2b46a11fcf6838ebbaaf71aa795edf3c9ec3d29f9df0bb6194c",
+            "time": 1.0
+          }
+        },
+        {
+          "distance": 0.03882235288619995,
+          "left": {
+            "camera": 1,
+            "cohort": "v10",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100037/view_01_color.png",
+            "seed": 100037,
+            "sha256": "6d6df2a67ca0f9d0d3a0fa0153f88d0cedadabf42026598e52ed8e801aaa00d2",
+            "time": 0.0
+          },
+          "right": {
+            "camera": 0,
+            "cohort": "v10",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100122/view_02_color.png",
+            "seed": 100122,
+            "sha256": "74e7a586545562e3e0a32c37319df5a86e4c1b8b911e7a9dd09086784a7e0592",
+            "time": 1.0
+          }
+        },
+        {
+          "distance": 0.03936767578125,
+          "left": {
+            "camera": 1,
+            "cohort": "v10",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100058/view_03_color.png",
+            "seed": 100058,
+            "sha256": "46aa97f516a96cfb254c3c030a3e22867c142aea80ac9bff9e6273f4dd2375b9",
+            "time": 1.0
+          },
+          "right": {
+            "camera": 0,
+            "cohort": "v10",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100077/view_02_color.png",
+            "seed": 100077,
+            "sha256": "b3b87ba3aa730fb9a435154782537ed6b5af6debc98ed6185d8a8b82647052a9",
+            "time": 1.0
+          }
+        },
+        {
+          "distance": 0.039842844009399414,
+          "left": {
+            "camera": 1,
+            "cohort": "v10",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100027/view_01_color.png",
+            "seed": 100027,
+            "sha256": "2b9f8240f9db86a91379c12db59034f778015e729795f9275d1aef0984e656ce",
+            "time": 0.0
+          },
+          "right": {
+            "camera": 1,
+            "cohort": "v10",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100097/view_01_color.png",
+            "seed": 100097,
+            "sha256": "975c953c83ef605b2b214b040a8cabaa1137b2387f46b7dbe22c617bf2430c9f",
+            "time": 0.0
+          }
+        },
+        {
+          "distance": 0.0404963493347168,
+          "left": {
+            "camera": 0,
+            "cohort": "v10",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100092/view_00_color.png",
+            "seed": 100092,
+            "sha256": "272ae6f9345d695734d6744bc9d271df23d0abfd8c471799de895a68d41f0784",
+            "time": 0.0
+          },
+          "right": {
+            "camera": 1,
+            "cohort": "v10",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100124/view_03_color.png",
+            "seed": 100124,
+            "sha256": "9710337fb6232b200c0ac426a0a9286349ca7e37401518707972798b59d4fce7",
+            "time": 1.0
+          }
+        },
+        {
+          "distance": 0.041263699531555176,
+          "left": {
+            "camera": 0,
+            "cohort": "v10",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100062/view_02_color.png",
+            "seed": 100062,
+            "sha256": "00e6630e44b4e74db729436af5f13e6f5864080e55606086011f2c9f97323509",
+            "time": 1.0
+          },
+          "right": {
+            "camera": 0,
+            "cohort": "v10",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100105/view_02_color.png",
+            "seed": 100105,
+            "sha256": "f32c2d1dd9cfb4f246ffee72f6f2afc87ab386cc0456f31652f1e7b944a227aa",
+            "time": 1.0
+          }
+        },
+        {
+          "distance": 0.042359352111816406,
+          "left": {
+            "camera": 1,
+            "cohort": "v10",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100000/view_01_color.png",
+            "seed": 100000,
+            "sha256": "06a28a62163fc82ea82e19df5b0da608c29eeea2d8dd8147299158f76d185643",
+            "time": 0.0
+          },
+          "right": {
+            "camera": 0,
+            "cohort": "v10",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100048/view_00_color.png",
+            "seed": 100048,
+            "sha256": "66b5b0204b1bf022926e94933877ee7d6ee6dc5aa8f18c98074a22e881840758",
+            "time": 0.0
+          }
+        },
+        {
+          "distance": 0.04271209239959717,
+          "left": {
+            "camera": 1,
+            "cohort": "v10",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100000/view_03_color.png",
+            "seed": 100000,
+            "sha256": "33cd434ad505b01597309c1c1a522f8312dab1a4f4a65f8e825269da3f7d511d",
+            "time": 1.0
+          },
+          "right": {
+            "camera": 0,
+            "cohort": "v10",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100017/view_00_color.png",
+            "seed": 100017,
+            "sha256": "d05d75625154ee689c2c2b71bb2b6e4ae447b3a15f49ec4f31048a587e3a6012",
+            "time": 0.0
+          }
+        },
+        {
+          "distance": 0.04335510730743408,
+          "left": {
+            "camera": 1,
+            "cohort": "v10",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100030/view_01_color.png",
+            "seed": 100030,
+            "sha256": "9a09747c060dca0704fcdd07fbdca2d4289c377821b379a3ffd71e3cb2c93f6b",
+            "time": 0.0
+          },
+          "right": {
+            "camera": 1,
+            "cohort": "v10",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100060/view_01_color.png",
+            "seed": 100060,
+            "sha256": "93027644361b948f71af4c1715b66d31c42f3144e1cc4e320eae959187daa127",
+            "time": 0.0
+          }
+        },
+        {
+          "distance": 0.04381704330444336,
+          "left": {
+            "camera": 1,
+            "cohort": "v10",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100015/view_03_color.png",
+            "seed": 100015,
+            "sha256": "10c1b5e0d893e05b61abc401fc7c2c25242d3cb6c321e7d7e2291a1bd3ef934e",
+            "time": 1.0
+          },
+          "right": {
+            "camera": 0,
+            "cohort": "v10",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100068/view_00_color.png",
+            "seed": 100068,
+            "sha256": "ba42388b5133d3519e90b09a7fd9d7e83ba4202db2f6113c5b31c2a1d672c71c",
+            "time": 0.0
+          }
+        },
+        {
+          "distance": 0.044529080390930176,
+          "left": {
+            "camera": 1,
+            "cohort": "v10",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100015/view_03_color.png",
+            "seed": 100015,
+            "sha256": "10c1b5e0d893e05b61abc401fc7c2c25242d3cb6c321e7d7e2291a1bd3ef934e",
+            "time": 1.0
+          },
+          "right": {
+            "camera": 1,
+            "cohort": "v10",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100044/view_03_color.png",
+            "seed": 100044,
+            "sha256": "6a46c57ec4f690da21a51da49b05f7168d71ed1d29fb5cd2e0f12d76f8823041",
+            "time": 1.0
+          }
+        },
+        {
+          "distance": 0.045047640800476074,
+          "left": {
+            "camera": 0,
+            "cohort": "v10",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100032/view_02_color.png",
+            "seed": 100032,
+            "sha256": "c2f81af81de1181759b7b69b736b69d8c7dc828cad9ae05a5927f43723027481",
+            "time": 1.0
+          },
+          "right": {
+            "camera": 0,
+            "cohort": "v10",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100105/view_02_color.png",
+            "seed": 100105,
+            "sha256": "f32c2d1dd9cfb4f246ffee72f6f2afc87ab386cc0456f31652f1e7b944a227aa",
+            "time": 1.0
+          }
+        },
+        {
+          "distance": 0.045158207416534424,
+          "left": {
+            "camera": 1,
+            "cohort": "v10",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100021/view_01_color.png",
+            "seed": 100021,
+            "sha256": "1a52a3a790819b764218e9d131c3005f1c933f2accbef11bf5b43893e6e297b7",
+            "time": 0.0
+          },
+          "right": {
+            "camera": 1,
+            "cohort": "v10",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100104/view_03_color.png",
+            "seed": 100104,
+            "sha256": "fe62891c16a6a291627bdc4bbb24eda419830f56b56c0d1bf41bc2940cfb0175",
+            "time": 1.0
+          }
+        },
+        {
+          "distance": 0.045165181159973145,
+          "left": {
+            "camera": 1,
+            "cohort": "v10",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100015/view_01_color.png",
+            "seed": 100015,
+            "sha256": "349b6f37360903a7d290284fa2666476f14ba2d72b31bfd8e8b369eb6890c63c",
+            "time": 0.0
+          },
+          "right": {
+            "camera": 1,
+            "cohort": "v10",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100021/view_01_color.png",
+            "seed": 100021,
+            "sha256": "1a52a3a790819b764218e9d131c3005f1c933f2accbef11bf5b43893e6e297b7",
+            "time": 0.0
+          }
+        },
+        {
+          "distance": 0.045783162117004395,
+          "left": {
+            "camera": 1,
+            "cohort": "v10",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100007/view_03_color.png",
+            "seed": 100007,
+            "sha256": "2cceb8bfb33c0ad64953ac88e218ec2847857071d3f76fae27d48848fbff2eb5",
+            "time": 1.0
+          },
+          "right": {
+            "camera": 0,
+            "cohort": "v10",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100127/view_00_color.png",
+            "seed": 100127,
+            "sha256": "a04cdbb3d2c862185134dc9855a84ace44770766186817abef9e9566d0e2cc23",
+            "time": 0.0
+          }
+        },
+        {
+          "distance": 0.04595530033111572,
+          "left": {
+            "camera": 1,
+            "cohort": "v10",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100012/view_03_color.png",
+            "seed": 100012,
+            "sha256": "b82cb4811af148f9ce23b159b2098cf7d6a905175c4b49218be6c76bc9c40c20",
+            "time": 1.0
+          },
+          "right": {
+            "camera": 1,
+            "cohort": "v10",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100097/view_01_color.png",
+            "seed": 100097,
+            "sha256": "975c953c83ef605b2b214b040a8cabaa1137b2387f46b7dbe22c617bf2430c9f",
+            "time": 0.0
+          }
+        }
+      ]
+    },
+    "v9": {
+      "images": 512,
+      "scenes": 128,
+      "cross_scene_nearest_cosine_distance": {
+        "count": 512,
+        "min": 0.02856314182281494,
+        "max": 0.13516509532928467,
+        "mean": 0.06856395537033677,
+        "p05_p50_p95": [
+          0.04746204614639282,
+          0.06563907861709595,
+          0.1032833456993103
+        ]
+      },
+      "scene_centroid_nearest_cosine_distance": {
+        "count": 128,
+        "min": 0.028283238410949707,
+        "max": 0.08126384019851685,
+        "mean": 0.04591931775212288,
+        "p05_p50_p95": [
+          0.03491699695587158,
+          0.04369175434112549,
+          0.06474179029464722
+        ]
+      },
+      "same_camera_trajectory_cosine_distance": {
+        "count": 256,
+        "min": 0.005617856979370117,
+        "max": 0.12056052684783936,
+        "mean": 0.027534949826076627,
+        "p05_p50_p95": [
+          0.009971976280212402,
+          0.023093998432159424,
+          0.05728429555892944
+        ]
+      },
+      "same_scene_other_camera_cosine_distance": {
+        "count": 256,
+        "min": 0.02460402250289917,
+        "max": 0.3322185277938843,
+        "mean": 0.11159726395271719,
+        "p05_p50_p95": [
+          0.05269438028335571,
+          0.10328519344329834,
+          0.19304001331329346
+        ]
+      },
+      "exact_file_duplicate_cosine_distance": null,
+      "scene_centroid_spectrum": {
+        "effective_rank": 46.218449890273874,
+        "dimensions_for_90_percent_variance": 52
+      },
+      "nearest_distance_threshold_fractions": {
+        "0.005": 0.0,
+        "0.01": 0.0,
+        "0.02": 0.0,
+        "0.05": 0.099609375,
+        "0.1": 0.93359375
+      },
+      "closest_cross_scene_pairs": [
+        {
+          "distance": 0.02856314182281494,
+          "left": {
+            "camera": 1,
+            "cohort": "v9",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain9_qualified/seed_100009/view_03_color.png",
+            "seed": 100009,
+            "sha256": "c0d688ca4ed224911d5f20cf95d4928ebf1fb9551aaa82ba2bbc439d4fbeeb13",
+            "time": 1.0
+          },
+          "right": {
+            "camera": 0,
+            "cohort": "v9",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain9_qualified/seed_100105/view_02_color.png",
+            "seed": 100105,
+            "sha256": "f46d178e590da49cb880fea0059dd68d2fc33f39a00e4a8fae8d2e112461017b",
+            "time": 1.0
+          }
+        },
+        {
+          "distance": 0.03605496883392334,
+          "left": {
+            "camera": 0,
+            "cohort": "v9",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain9_qualified/seed_100070/view_00_color.png",
+            "seed": 100070,
+            "sha256": "c0070225c854a278c4336cf613bc44c079aa7c015b90323a9bb06946c6fa1a94",
+            "time": 0.0
+          },
+          "right": {
+            "camera": 1,
+            "cohort": "v9",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain9_qualified/seed_100080/view_03_color.png",
+            "seed": 100080,
+            "sha256": "3db4bbe0901f65d5ceefb4303aed2376e511f1c809c12b9fbc5846572f4286c1",
+            "time": 1.0
+          }
+        },
+        {
+          "distance": 0.039156317710876465,
+          "left": {
+            "camera": 0,
+            "cohort": "v9",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain9_qualified/seed_100008/view_00_color.png",
+            "seed": 100008,
+            "sha256": "d2cee7565668feb24ba3cdf4f69180cdca0d56ff8f38071700ee9e3805fcf036",
+            "time": 0.0
+          },
+          "right": {
+            "camera": 0,
+            "cohort": "v9",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain9_qualified/seed_100037/view_00_color.png",
+            "seed": 100037,
+            "sha256": "3748acd883855899b086131f0d88b9774a2848ec57e7699ee9a16c36b0dee7a9",
+            "time": 0.0
+          }
+        },
+        {
+          "distance": 0.039362311363220215,
+          "left": {
+            "camera": 1,
+            "cohort": "v9",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain9_qualified/seed_100068/view_01_color.png",
+            "seed": 100068,
+            "sha256": "f458d27295dcacd4bfa0715a92cf76fa269491c53b9d140aa3c76a4b8412028b",
+            "time": 0.0
+          },
+          "right": {
+            "camera": 0,
+            "cohort": "v9",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain9_qualified/seed_100097/view_02_color.png",
+            "seed": 100097,
+            "sha256": "d6d2f3a6aae1a53a2fa253c3c5d620ebb12d48722d9f2122884c1e9ac1ca4ec4",
+            "time": 1.0
+          }
+        },
+        {
+          "distance": 0.041952311992645264,
+          "left": {
+            "camera": 0,
+            "cohort": "v9",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain9_qualified/seed_100005/view_00_color.png",
+            "seed": 100005,
+            "sha256": "eefb46a2fd05b4b29c633ddd83f67f9f85a4db0a46e2b883566477dc83404df2",
+            "time": 0.0
+          },
+          "right": {
+            "camera": 1,
+            "cohort": "v9",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain9_qualified/seed_100108/view_03_color.png",
+            "seed": 100108,
+            "sha256": "3449bf34d326e0f2741f606efd686271043d4dcdb779e94b7e71241cf7874699",
+            "time": 1.0
+          }
+        },
+        {
+          "distance": 0.04358828067779541,
+          "left": {
+            "camera": 1,
+            "cohort": "v9",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain9_qualified/seed_100054/view_03_color.png",
+            "seed": 100054,
+            "sha256": "91fea970ca6d1cf68bcf273fef55c93cfac383896362af7720fd5ae002f1ffa2",
+            "time": 1.0
+          },
+          "right": {
+            "camera": 0,
+            "cohort": "v9",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain9_qualified/seed_100102/view_00_color.png",
+            "seed": 100102,
+            "sha256": "0f6ab6591ecd8c06a2d8f90c1d13f21047408e7151b37ca57fe8e92b23aec4de",
+            "time": 0.0
+          }
+        },
+        {
+          "distance": 0.04400557279586792,
+          "left": {
+            "camera": 1,
+            "cohort": "v9",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain9_qualified/seed_100044/view_01_color.png",
+            "seed": 100044,
+            "sha256": "48153e6e844d1d2cad87145fc48c056394d95706793ea1a6d6d4d555a1f07ebf",
+            "time": 0.0
+          },
+          "right": {
+            "camera": 0,
+            "cohort": "v9",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain9_qualified/seed_100113/view_02_color.png",
+            "seed": 100113,
+            "sha256": "f6d8551ed0c8eaeff5c27eb5b32989ae7b73b67f7db383b197ab592cc4530620",
+            "time": 1.0
+          }
+        },
+        {
+          "distance": 0.04697996377944946,
+          "left": {
+            "camera": 0,
+            "cohort": "v9",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain9_qualified/seed_100048/view_02_color.png",
+            "seed": 100048,
+            "sha256": "314fecc7d02accf9437c5f03e8d1bbddad8ea9580377dc36feb25a316e1c8e89",
+            "time": 1.0
+          },
+          "right": {
+            "camera": 1,
+            "cohort": "v9",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain9_qualified/seed_100118/view_03_color.png",
+            "seed": 100118,
+            "sha256": "2ec68f36e54742a96eb96972858fb40764a76cbfffe86b29c04c967ab16b71ac",
+            "time": 1.0
+          }
+        },
+        {
+          "distance": 0.047354161739349365,
+          "left": {
+            "camera": 1,
+            "cohort": "v9",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain9_qualified/seed_100097/view_01_color.png",
+            "seed": 100097,
+            "sha256": "8fc7324a9b54745a475e24cf3a1faba17fa308660a7c272da3caca20c21801da",
+            "time": 0.0
+          },
+          "right": {
+            "camera": 0,
+            "cohort": "v9",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain9_qualified/seed_100112/view_02_color.png",
+            "seed": 100112,
+            "sha256": "896731211c0ae9b550067bd4c4af8faed420b9643aeeae77bb7ccf43d810c88d",
+            "time": 1.0
+          }
+        },
+        {
+          "distance": 0.04746204614639282,
+          "left": {
+            "camera": 0,
+            "cohort": "v9",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain9_qualified/seed_100028/view_00_color.png",
+            "seed": 100028,
+            "sha256": "36723efdf978d111dadb2ead6a496edd9ffda29c461551a2f7b9c4178ee0d4b3",
+            "time": 0.0
+          },
+          "right": {
+            "camera": 0,
+            "cohort": "v9",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain9_qualified/seed_100068/view_00_color.png",
+            "seed": 100068,
+            "sha256": "fc05887a41a85d9c1557e54c3c19c08ebbf9dd17826dfe64a7b18d9fc6d2e7e0",
+            "time": 0.0
+          }
+        },
+        {
+          "distance": 0.04806375503540039,
+          "left": {
+            "camera": 1,
+            "cohort": "v9",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain9_qualified/seed_100089/view_01_color.png",
+            "seed": 100089,
+            "sha256": "7927342caf781850bde31b575275353d8db3b4c1184990a3423756d141f8f994",
+            "time": 0.0
+          },
+          "right": {
+            "camera": 1,
+            "cohort": "v9",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain9_qualified/seed_100109/view_03_color.png",
+            "seed": 100109,
+            "sha256": "74ab51c7962dd1341042fff7215266ae8c71879a86fda3a2e388f16ad07cba04",
+            "time": 1.0
+          }
+        },
+        {
+          "distance": 0.04817533493041992,
+          "left": {
+            "camera": 0,
+            "cohort": "v9",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain9_qualified/seed_100084/view_02_color.png",
+            "seed": 100084,
+            "sha256": "b8717207d89a4944866876b796e3f74c9e8f87017fcbaaeb730239b429c21bfd",
+            "time": 1.0
+          },
+          "right": {
+            "camera": 1,
+            "cohort": "v9",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain9_qualified/seed_100118/view_01_color.png",
+            "seed": 100118,
+            "sha256": "9f3d0c7c260598d4389a11ae3e3e922aefb0658247cbdeadcb8b133b13c41a9b",
+            "time": 0.0
+          }
+        },
+        {
+          "distance": 0.048202574253082275,
+          "left": {
+            "camera": 1,
+            "cohort": "v9",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain9_qualified/seed_100050/view_03_color.png",
+            "seed": 100050,
+            "sha256": "5169b5396a512d116034c96bdfaf6f9cc27cc872f3e9b33aa421f2c9a36a66ad",
+            "time": 1.0
+          },
+          "right": {
+            "camera": 1,
+            "cohort": "v9",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain9_qualified/seed_100066/view_03_color.png",
+            "seed": 100066,
+            "sha256": "7fdeca60d9bd5ab90c13f8861a761c6e600d3aba04fc3e4745855c2f27a788e4",
+            "time": 1.0
+          }
+        },
+        {
+          "distance": 0.04833638668060303,
+          "left": {
+            "camera": 0,
+            "cohort": "v9",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain9_qualified/seed_100073/view_00_color.png",
+            "seed": 100073,
+            "sha256": "976262b778e0d9f0a3aab080d8faceecdccae63038b33b145d4f03de58ceec24",
+            "time": 0.0
+          },
+          "right": {
+            "camera": 1,
+            "cohort": "v9",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain9_qualified/seed_100080/view_03_color.png",
+            "seed": 100080,
+            "sha256": "3db4bbe0901f65d5ceefb4303aed2376e511f1c809c12b9fbc5846572f4286c1",
+            "time": 1.0
+          }
+        },
+        {
+          "distance": 0.04841834306716919,
+          "left": {
+            "camera": 0,
+            "cohort": "v9",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain9_qualified/seed_100077/view_00_color.png",
+            "seed": 100077,
+            "sha256": "5878c545ed2ef291661c192b091968637269437f6994dc39d4329d69d53d6e6e",
+            "time": 0.0
+          },
+          "right": {
+            "camera": 1,
+            "cohort": "v9",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain9_qualified/seed_100118/view_01_color.png",
+            "seed": 100118,
+            "sha256": "9f3d0c7c260598d4389a11ae3e3e922aefb0658247cbdeadcb8b133b13c41a9b",
+            "time": 0.0
+          }
+        },
+        {
+          "distance": 0.048758625984191895,
+          "left": {
+            "camera": 1,
+            "cohort": "v9",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain9_qualified/seed_100032/view_03_color.png",
+            "seed": 100032,
+            "sha256": "087cec53f0af43d33bd0b641ca50c1fa7e33880aff8b32e3210a78d296c1c073",
+            "time": 1.0
+          },
+          "right": {
+            "camera": 0,
+            "cohort": "v9",
+            "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain9_qualified/seed_100091/view_02_color.png",
+            "seed": 100091,
+            "sha256": "d4409d31446c3535777882102376e632e0ebd58cee8518c8f808f302695b1d61",
+            "time": 1.0
+          }
+        }
+      ]
+    }
+  },
+  "protocol": "Unit-normalized image embeddings; cosine distance = 1 - dot product. Cross-scene comparisons exclude every camera and timestep of the same scene. Each cohort is evaluated separately with exact neighbors.",
+  "interpretation": "Smaller distance means greater encoder similarity. Inspect nearest pairs. Thresholds are exploratory; no universal acceptable spacing or photographic-realism threshold is assumed. Scene centroids have equal scene weight. Trajectory frames are correlated positive controls, not new independent scenes.",
+  "limits": [
+    "This is a sampled perceptual redundancy audit, not evidence of downstream pretraining utility.",
+    "Results depend on model size, preprocessing, cohort size and camera policy. Compare matched cohort sizes.",
+    "A global semantic embedding may ignore geometry, material defects or annotation errors."
+  ]
+}

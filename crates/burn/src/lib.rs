@@ -1,6 +1,7 @@
 pub mod chunk;
 pub mod compression;
 pub mod dataset;
+mod flow;
 pub mod fs;
 pub mod generator;
 pub mod progress;

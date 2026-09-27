@@ -1,0 +1,150 @@
+{
+  "capture_engine": "capture-v20;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=5;surface_flow=1;indoor=13",
+  "scope": "Two real CLI scenes; readiness metadata, exported times, dynamic/static joint changes, finite aligned channels and terminal ovoxels. Analytic rendering checks are separate.",
+  "samples": [
+    {
+      "scene_seed": 0,
+      "ready_before_capture": true,
+      "blocked_updates": 5921,
+      "times": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.5,
+          0.5
+        ],
+        [
+          1.0,
+          1.0
+        ]
+      ],
+      "accepted": 2,
+      "static_people": 3,
+      "moving_people": [
+        {
+          "actor_id": 30,
+          "max_joint_displacement_m": 2.7870256900787354
+        },
+        {
+          "actor_id": 34,
+          "max_joint_displacement_m": 1.648706316947937
+        }
+      ],
+      "model_loads": 1,
+      "generated_batches": 3,
+      "modes": {
+        "color": {
+          "frames": 6,
+          "finite_values": 345600,
+          "peak_absolute": 0.9961264729499817
+        },
+        "depth": {
+          "frames": 6,
+          "finite_values": 115200,
+          "peak_absolute": 8.720576286315918
+        },
+        "normal": {
+          "frames": 6,
+          "finite_values": 345600,
+          "peak_absolute": 0.9999867081642151
+        },
+        "position": {
+          "frames": 6,
+          "finite_values": 345600,
+          "peak_absolute": 0.9925774335861206
+        },
+        "semantic": {
+          "frames": 6,
+          "finite_values": 345600,
+          "peak_absolute": 1.0
+        },
+        "optical_flow": {
+          "frames": 6,
+          "finite_values": 460800,
+          "peak_absolute": 486.39593505859375
+        },
+        "motion_vectors": {
+          "frames": 6,
+          "finite_values": 460800,
+          "peak_absolute": 3.0399746894836426
+        }
+      },
+      "ovoxel_cells": 3162,
+      "annotation_precision": "float32_geometry"
+    },
+    {
+      "scene_seed": 1,
+      "ready_before_capture": true,
+      "blocked_updates": 997,
+      "times": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.5,
+          0.5
+        ],
+        [
+          1.0,
+          1.0
+        ]
+      ],
+      "accepted": 2,
+      "static_people": 1,
+      "moving_people": [
+        {
+          "actor_id": 24,
+          "max_joint_displacement_m": 0.5701771378517151
+        },
+        {
+          "actor_id": 25,
+          "max_joint_displacement_m": 1.5879803895950317
+        }
+      ],
+      "model_loads": 1,
+      "generated_batches": 6,
+      "modes": {
+        "color": {
+          "frames": 6,
+          "finite_values": 345600,
+          "peak_absolute": 0.9907132983207703
+        },
+        "depth": {
+          "frames": 6,
+          "finite_values": 115200,
+          "peak_absolute": 10.621859550476074
+        },
+        "normal": {
+          "frames": 6,
+          "finite_values": 345600,
+          "peak_absolute": 0.9999990463256836
+        },
+        "position": {
+          "frames": 6,
+          "finite_values": 345600,
+          "peak_absolute": 0.9909617900848389
+        },
+        "semantic": {
+          "frames": 6,
+          "finite_values": 345600,
+          "peak_absolute": 1.0
+        },
+        "optical_flow": {
+          "frames": 6,
+          "finite_values": 460800,
+          "peak_absolute": 69.13842010498047
+        },
+        "motion_vectors": {
+          "frames": 6,
+          "finite_values": 460800,
+          "peak_absolute": 1.0
+        }
+      },
+      "ovoxel_cells": 3208,
+      "annotation_precision": "float32_geometry"
+    }
+  ]
+}

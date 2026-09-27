@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' blob: data:; connect-src 'self' https://aberration.technology"
+    >
+    <meta
+      name="description"
+      content="Run SigLIP2 image and text inference locally in the browser with Burn WebGPU."
+    >
+    <title>burn_siglip2 WebGPU example</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <main class="shell">
+      <header class="hero">
+        <p class="eyebrow">Burn · WebGPU · SigLIP2</p>
+        <h1>Compare an image with text in your browser</h1>
+        <p class="lede">
+          Model shards come from the public CDN. Inference stays on this device.
+        </p>
+      </header>
+
+      <section class="card" aria-labelledby="model-heading">
+        <div class="section-heading">
+          <div>
+            <p class="step">Step 1</p>
+            <h2 id="model-heading">Load a model</h2>
+          </div>
+          <span id="webgpu-badge" class="badge badge-pending">Checking WebGPU…</span>
+        </div>
+
+        <div class="model-controls">
+          <label>
+            Model size
+            <select id="model-size">
+              <option value="base">Base · patch16 · 224 px</option>
+              <option value="large">Large · patch16 · 256 px</option>
+              <option value="so400m">So400m · patch14 · 224 px</option>
+            </select>
+          </label>
+          <button id="load-model" type="button" disabled>Load model</button>
+        </div>
+
+        <div id="model-facts" class="model-facts"></div>
+        <div id="load-panel" class="load-panel" hidden>
+          <progress id="load-progress" aria-label="Model loading"></progress>
+          <div class="load-copy">
+            <strong id="load-title">Loading model…</strong>
+            <span id="load-detail" aria-live="polite"></span>
+          </div>
+        </div>
+        <p id="model-status" class="status" role="status" aria-live="polite"></p>
+      </section>
+
+      <section class="card" aria-labelledby="inference-heading">
+        <div class="section-heading">
+          <div>
+            <p class="step">Step 2</p>
+            <h2 id="inference-heading">Run image + text inference</h2>
+          </div>
+          <span id="loaded-model" class="badge">No model loaded</span>
+        </div>
+
+        <fieldset id="inference-fields" disabled>
+          <div class="input-grid">
+            <div>
+              <label class="file-picker" for="image-file">
+                <span>Choose an image</span>
+                <small>PNG, JPEG, WebP, or BMP · up to 64 MiB</small>
+              </label>
+              <input
+                id="image-file"
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/bmp"
+              >
+              <div id="preview-frame" class="preview-frame" hidden>
+                <img id="image-preview" alt="Selected inference input">
+                <span id="image-meta"></span>
+              </div>
+            </div>
+
+            <label>
+              Candidate texts
+              <textarea id="text-candidates" rows="8" spellcheck="true">a photo of a cat
+a photo of a dog
+a photo of an airplane</textarea>
+              <small>One candidate per line. Empty lines are ignored.</small>
+            </label>
+          </div>
+
+          <div class="action-row">
+            <button id="run-inference" type="button">Score image against texts</button>
+            <span id="inference-status" class="status" role="status" aria-live="polite"></span>
+          </div>
+        </fieldset>
+      </section>
+
+      <section id="results-card" class="card" aria-labelledby="results-heading" hidden>
+        <div class="section-heading">
+          <div>
+            <p class="step">Results</p>
+            <h2 id="results-heading">Similarity scores</h2>
+          </div>
+          <span id="inference-time" class="badge"></span>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Rank</th>
+                <th scope="col">Candidate</th>
+                <th scope="col">Logit</th>
+                <th scope="col">Sigmoid probability</th>
+              </tr>
+            </thead>
+            <tbody id="results-body"></tbody>
+          </table>
+        </div>
+
+        <details>
+          <summary>Embedding details</summary>
+          <pre id="embedding-details"></pre>
+        </details>
+      </section>
+
+      <section id="error-panel" class="error-panel" role="alert" hidden>
+        <strong>Something went wrong</strong>
+        <p id="error-message"></p>
+      </section>
+
+      <footer>
+        <p>
+          F16 shards are verified while streaming. Burn currently expands weights to F32 on the
+          GPU, so Large and So400m need substantial graphics memory.
+        </p>
+      </footer>
+    </main>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

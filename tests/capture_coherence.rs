@@ -12,11 +12,15 @@ use bevy::{
 };
 use bevy_zeroverse::{
     app::BevyZeroverseConfig,
+    asset::WaitForAssets,
     camera::{Playback, PlaybackMode, ZeroverseCamera},
     headless::{create_app, setup_globals},
     io::{channels, image_copy::ImageCopier},
     render::{depth::DepthFormat, ground_truth::GroundTruthCamera, RenderMode},
-    sample::{AnnotationPrecision, CaptureFailure, CaptureProgress, Sample, SamplerState},
+    sample::{
+        AnnotationPrecision, CaptureBlocker, CaptureFailure, CaptureProgress, CaptureReadiness,
+        Sample, SamplerState,
+    },
     scene::{
         procedural_indoor::{
             gi::IndoorGiSettings, layout::IndoorManifest,
@@ -27,7 +31,23 @@ use bevy_zeroverse::{
 };
 use std::time::{Duration, Instant};
 
+fn wait_for_scene(app: &mut App) {
+    // Regeneration prepares geometry asynchronously. Snapshot the new root,
+    // rather than assuming a fixed number of updates replaced the old room.
+    let start = Instant::now();
+    while !app.world().resource::<CaptureReadiness>().scene_ready() {
+        app.update();
+        assert!(app.world().resource::<CaptureFailure>().0.is_none());
+        assert!(
+            start.elapsed() < Duration::from_secs(30),
+            "scene preparation stalled"
+        );
+        std::thread::sleep(Duration::from_millis(1));
+    }
+}
+
 fn capture(app: &mut App, config: &BevyZeroverseConfig) -> Sample {
+    wait_for_scene(app);
     let previous = Playback {
         mode: PlaybackMode::Sin,
         progress: 0.37,
@@ -109,6 +129,8 @@ fn animated_viewer_settings_capture_fixed_steps_and_reject_midflight_changes() {
     let config = BevyZeroverseConfig {
         scene_type: ZeroverseSceneType::ProceduralIndoor,
         indoor_seed: Some(6),
+        indoor_human_density: 0.0,
+        human_motion: cfg!(feature = "human_motion").then(|| r#"{"fraction":0}"#.into()),
         indoor_quality: IndoorQuality::Portable,
         headless: true,
         editor: false,
@@ -140,14 +162,70 @@ fn animated_viewer_settings_capture_fixed_steps_and_reject_midflight_changes() {
     });
     app.finish();
     app.cleanup();
-    for _ in 0..16 {
-        app.update();
-    }
+    wait_for_scene(&mut app);
     assert_eq!(app.world().resource::<CaptureProgress>().backoff_sleeps, 0);
     assert_eq!(
         app.world().resource::<IndoorManifest>().generator_version,
         bevy_zeroverse::scene::procedural_indoor::layout::GENERATOR_VERSION
     );
+    // Neither raster nor readback may begin while scene assets are unfinished,
+    // even when the requested multi-timestep capture has already been enabled.
+    let assert_held = |app: &mut App, blocker| {
+        for _ in 0..8 {
+            app.update();
+            assert_eq!(
+                app.world().resource::<CaptureReadiness>().blocker,
+                Some(blocker)
+            );
+            for (camera, copier) in app
+                .world_mut()
+                .query_filtered::<(&Camera, &ImageCopier), With<ZeroverseCamera>>()
+                .iter(app.world())
+            {
+                assert!(!camera.is_active, "raster started before scene readiness");
+                assert_eq!(copier.requested_id(), 0, "premature readback request");
+            }
+        }
+    };
+    let mut state = SamplerState::from_config(&config);
+    state.regenerate_scene = false;
+    app.insert_resource(state);
+    app.world_mut()
+        .resource_mut::<WaitForAssets>()
+        .pending_catalogs += 1;
+    assert_held(&mut app, CaptureBlocker::Assets);
+    app.world_mut()
+        .resource_mut::<WaitForAssets>()
+        .pending_catalogs -= 1;
+
+    #[cfg(feature = "human_motion")]
+    {
+        use bevy_zeroverse::human_motion::HumanMotionReport;
+        app.insert_resource(HumanMotionReport {
+            scene_seed: 6,
+            pending: true,
+            stage: "Generating motion batch".into(),
+            ..default()
+        });
+        assert_held(&mut app, CaptureBlocker::Motion);
+        app.insert_resource(HumanMotionReport {
+            scene_seed: 5,
+            pending: false,
+            stage: "Ready".into(),
+            ..default()
+        });
+        assert_held(&mut app, CaptureBlocker::Motion);
+        app.insert_resource(HumanMotionReport {
+            scene_seed: 6,
+            pending: false,
+            stage: "Ready".into(),
+            ..default()
+        });
+    }
+    // Cancel the held request and release its playback ownership before the
+    // helper starts an independent capture with a different viewer clock.
+    app.world_mut().resource_mut::<SamplerState>().enabled = false;
+    app.update();
     let native = capture(&mut app, &config);
     assert_eq!(
         native.annotation_precision,
@@ -276,7 +354,7 @@ fn animated_viewer_settings_capture_fixed_steps_and_reject_midflight_changes() {
             .0
             .as_deref()
             .unwrap()
-            .contains(&format!("does not support {unsupported:?}")));
+            .contains("configure flow before creating cameras"));
         assert_eq!(*app.world().resource::<Playback>(), previous);
         assert_eq!(
             app.world().resource::<CaptureProgress>().backoff_sleeps,

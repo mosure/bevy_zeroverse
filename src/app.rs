@@ -67,6 +67,50 @@ use crate::{
 #[cfg(feature = "viewer")]
 use bevy::camera::RenderTarget;
 
+fn deserialize_human_motion<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<String>, D::Error> {
+    let value = Option::<serde_json::Value>::deserialize(deserializer)?;
+    value
+        .map(|value| {
+            let json = match value {
+                serde_json::Value::String(json) => json,
+                value if value.is_object() => value.to_string(),
+                _ => {
+                    return Err(serde::de::Error::custom(
+                        "human_motion must be a JSON object or JSON string",
+                    ))
+                }
+            };
+            crate::human_motion::HumanMotionConfig::parse(&json)
+                .map_err(serde::de::Error::custom)?;
+            Ok(json)
+        })
+        .transpose()
+}
+
+fn deserialize_indoor_camera<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<String>, D::Error> {
+    let value = Option::<serde_json::Value>::deserialize(deserializer)?;
+    value
+        .map(|value| {
+            let json = if let serde_json::Value::String(s) = value {
+                s
+            } else if value.is_object() {
+                value.to_string()
+            } else {
+                return Err(serde::de::Error::custom(
+                    "indoor_camera must be a JSON object or JSON string",
+                ));
+            };
+            crate::scene::procedural_indoor::cameras::CameraSettings::parse(&json)
+                .map_err(serde::de::Error::custom)?;
+            Ok(json)
+        })
+        .transpose()
+}
+
 fn default_indoor_human_density() -> f32 {
     0.25
 }
@@ -151,7 +195,7 @@ pub struct BevyZeroverseConfig {
     #[arg(long, action = clap::ArgAction::Set, default_value = "true")]
     pub editor: bool,
 
-    /// enable gizmo drawing on editor camera
+    /// draw capture-camera frusta and trajectories in the editor
     #[pyo3(get, set)]
     #[arg(long, action = clap::ArgAction::Set, default_value = "true")]
     pub gizmos: bool,
@@ -273,6 +317,18 @@ pub struct BevyZeroverseConfig {
     #[serde(default = "default_indoor_human_density")]
     pub indoor_human_density: f32,
 
+    /// Capture camera policy JSON: primary_room, path_length_min/max in metres, long_path_fraction.
+    #[pyo3(get, set)]
+    #[arg(long)]
+    #[serde(default, deserialize_with = "deserialize_indoor_camera")]
+    pub indoor_camera: Option<String>,
+
+    /// Opt-in motion policy as JSON; requires the human_motion Cargo feature.
+    #[pyo3(get, set)]
+    #[arg(long)]
+    #[serde(default, deserialize_with = "deserialize_human_motion")]
+    pub human_motion: Option<String>,
+
     /// Auto enables platform-supported effects; portable reduces GPU requirements.
     #[pyo3(get, set)]
     #[arg(long, value_enum, default_value_t = crate::scene::procedural_indoor::IndoorQuality::Auto)]
@@ -393,7 +449,7 @@ pub struct BevyZeroverseConfig {
     #[arg(long, action = clap::ArgAction::Set, default_value = "true")]
     pub editor: bool,
 
-    /// enable gizmo drawing on editor camera
+    /// draw capture-camera frusta and trajectories in the editor
     #[arg(long, action = clap::ArgAction::Set, default_value = "true")]
     pub gizmos: bool,
 
@@ -489,6 +545,16 @@ pub struct BevyZeroverseConfig {
     #[arg(long, default_value = "0.25")]
     #[serde(default = "default_indoor_human_density")]
     pub indoor_human_density: f32,
+
+    /// Capture camera policy JSON: primary_room, path_length_min/max in metres, long_path_fraction.
+    #[arg(long)]
+    #[serde(default, deserialize_with = "deserialize_indoor_camera")]
+    pub indoor_camera: Option<String>,
+
+    /// Opt-in motion policy as JSON; requires the human_motion Cargo feature.
+    #[arg(long)]
+    #[serde(default, deserialize_with = "deserialize_human_motion")]
+    pub human_motion: Option<String>,
 
     /// Auto enables platform-supported effects; portable reduces GPU requirements.
     #[arg(long, value_enum, default_value_t = crate::scene::procedural_indoor::IndoorQuality::Auto)]
@@ -593,6 +659,8 @@ impl Default for BevyZeroverseConfig {
             indoor_layout: IndoorLayout::Mixed,
             indoor_density: 0.65,
             indoor_human_density: 0.25,
+            indoor_camera: None,
+            human_motion: None,
             indoor_quality: crate::scene::procedural_indoor::IndoorQuality::Auto,
             indoor_gi_rays: 256,
             rotation_augmentation: false,
@@ -706,6 +774,10 @@ mod web_config_tests {
                 ("indoor_layout".into(), "open-office".into()),
                 ("editor".into(), "false".into()),
                 ("width".into(), "641".into()),
+                (
+                    "human_motion".into(),
+                    r#"{"fraction":0.25,"frames":120}"#.into(),
+                ),
             ],
         )
         .unwrap();
@@ -714,6 +786,12 @@ mod web_config_tests {
         assert_eq!(config.indoor_layout, IndoorLayout::OpenOffice);
         assert!(!config.editor);
         assert_eq!(config.width, 641.0);
+        assert_eq!(
+            crate::human_motion::HumanMotionConfig::parse(config.human_motion.as_ref().unwrap())
+                .unwrap()
+                .fraction,
+            0.25
+        );
         assert!(config_with_query(config, [("indoor_seed".into(), "invalid".into())]).is_err());
     }
 }
@@ -827,12 +905,7 @@ pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) 
         })
         .set(winit_plugin);
 
-    let default_plugins = default_plugins.set(WindowPlugin {
-        primary_window,
-        primary_cursor_options: None,
-        exit_condition: bevy::window::ExitCondition::DontExit,
-        close_when_requested: false,
-    });
+    let default_plugins = default_plugins.set(viewer_window_plugin(primary_window));
 
     // Offscreen capture uses image targets and does not need a hidden window or
     // winit's process-global event loop. This also permits sequential capture
@@ -918,6 +991,61 @@ pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) 
     app
 }
 
+fn viewer_window_plugin(primary_window: Option<Window>) -> WindowPlugin {
+    WindowPlugin {
+        // Capture workers have no window; interactive viewers should exit when
+        // their primary window closes, including through the window manager.
+        exit_condition: if primary_window.is_some() {
+            bevy::window::ExitCondition::OnPrimaryClosed
+        } else {
+            bevy::window::ExitCondition::DontExit
+        },
+        primary_window,
+        primary_cursor_options: None,
+        close_when_requested: true,
+    }
+}
+
+#[cfg(test)]
+mod window_lifecycle_tests {
+    use super::*;
+    use bevy::window::{PrimaryWindow, WindowCloseRequested};
+
+    #[test]
+    fn primary_window_close_exits_even_with_an_auxiliary_window() {
+        let mut app = App::new();
+        app.add_plugins(viewer_window_plugin(Some(Window::default())));
+        let primary = app
+            .world_mut()
+            .query_filtered::<Entity, With<PrimaryWindow>>()
+            .single(app.world())
+            .unwrap();
+        let auxiliary = app.world_mut().spawn(Window::default()).id();
+        app.update();
+        assert!(app.should_exit().is_none());
+
+        app.world_mut()
+            .write_message(WindowCloseRequested { window: primary });
+        app.update();
+        // Bevy marks the window as closing, then despawns it on the next frame.
+        app.update();
+
+        assert!(app.world().get_entity(primary).is_err());
+        assert!(app.world().get::<Window>(auxiliary).is_some());
+        assert_eq!(app.should_exit(), Some(AppExit::Success));
+    }
+
+    #[test]
+    fn headless_app_stays_alive_without_windows() {
+        let mut app = App::new();
+        app.add_plugins(viewer_window_plugin(None));
+        for _ in 0..3 {
+            app.update();
+            assert!(app.should_exit().is_none());
+        }
+    }
+}
+
 #[cfg(feature = "viewer")]
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) struct EditorCameraSetup;
@@ -939,6 +1067,7 @@ struct CameraSettingsSnapshot {
 fn setup_camera(
     args: Res<BevyZeroverseConfig>,
     mut commands: Commands,
+    windows: Query<(), With<Window>>,
     material_grid_cameras: Query<Entity, With<MaterialGridCameraMarker>>,
     mut editor_cameras: Query<
         (Entity, &mut PanOrbitCamera, Option<&mut Camera>),
@@ -947,7 +1076,9 @@ fn setup_camera(
     room_settings: Res<ZeroverseRoomSettings>,
     mut previous_settings: Local<Option<CameraSettingsSnapshot>>,
 ) {
-    if args.headless {
+    // A windowless capture app can inspect interactive scheduling without a
+    // primary surface. Do not create an editor view targeting a missing window.
+    if args.headless || windows.is_empty() {
         return;
     }
 

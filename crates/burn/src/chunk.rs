@@ -438,6 +438,7 @@ pub fn save_chunk_with_codec(
         ("semantic", 3),
         ("position", 4),
         ("optical_flow", 5),
+        ("motion_vectors", 6),
     ] {
         let present: Vec<bool> = samples
             .iter()
@@ -450,6 +451,7 @@ pub fn save_chunk_with_codec(
                     &view.semantic,
                     &view.position,
                     &view.optical_flow,
+                    &view.motion_vectors,
                 ][channel]
                     .is_empty()
             })
@@ -538,7 +540,6 @@ pub fn save_chunk_with_codec(
     let mut depth: Option<Vec<f32>> = None;
     let mut normal: Option<Vec<f32>> = None;
     let mut semantic: Option<Vec<f32>> = None;
-    let mut optical_flow: Option<Vec<f32>> = None;
     let mut position: Option<Vec<f32>> = None;
     let mut world_from_view: Vec<f32> = Vec::new();
     let mut fovy = Vec::new();
@@ -613,7 +614,6 @@ pub fn save_chunk_with_codec(
         );
 
         let mut sample_color: Option<Vec<f32>> = None;
-        let mut sample_optical_flow: Option<Vec<f32>> = None;
 
         for (local_idx, view) in sample.views.iter().enumerate() {
             let t = local_idx / view_dim;
@@ -670,21 +670,6 @@ pub fn save_chunk_with_codec(
                     semantic_buf[dst] = chunk[0];
                     semantic_buf[dst + 1] = chunk[1];
                     semantic_buf[dst + 2] = chunk[2];
-                }
-            }
-
-            if !view.optical_flow.is_empty() {
-                let rgba = decode_rgba_bytes(&view.optical_flow, width, height)
-                    .context("failed to parse optical flow")?;
-                let flow_buf = sample_optical_flow
-                    .get_or_insert_with(|| vec![0.0; steps * view_dim * pixel_count * 3]);
-                let base = (t * view_dim + v) * pixel_count * 3;
-                for i in 0..pixel_count {
-                    let src = i * 4;
-                    let dst = base + i * 3;
-                    flow_buf[dst] = rgba[src];
-                    flow_buf[dst + 1] = rgba[src + 1];
-                    flow_buf[dst + 2] = rgba[src + 2];
                 }
             }
 
@@ -746,21 +731,6 @@ pub fn save_chunk_with_codec(
                     color_entries.push((format!("color_jpg_{global_idx}"), jpg));
                 }
             }
-        }
-
-        if let Some(mut flow) = sample_optical_flow {
-            normalize_hdr_image_tonemap(
-                &mut flow,
-                steps,
-                view_dim,
-                height as usize,
-                width as usize,
-                3,
-            );
-            let flow_buf =
-                optical_flow.get_or_insert_with(|| vec![0.0; total_views * pixel_count * 3]);
-            let base = sample_idx * view_count * pixel_count * 3;
-            flow_buf[base..base + flow.len()].copy_from_slice(&flow);
         }
 
         aabb.extend_from_slice(cast_slice(&sample.aabb));
@@ -947,9 +917,10 @@ pub fn save_chunk_with_codec(
     if let Some(semantic) = semantic {
         push_tensor("semantic", semantic, 3, &mut tensors)?;
     }
-    if let Some(optical_flow) = optical_flow {
-        push_tensor("optical_flow", optical_flow, 3, &mut tensors)?;
-    }
+    tensors.extend(crate::flow::encode(
+        samples,
+        [b, steps, view_dim, height as usize, width as usize],
+    )?);
     if let Some(position) = position {
         push_tensor("position", position, 3, &mut tensors)?;
     }
@@ -1215,7 +1186,6 @@ pub fn load_chunk(path: impl AsRef<Path>) -> Result<Vec<ZeroverseSample>> {
         ("normal", 3),
         ("semantic", 3),
         ("position", 3),
-        ("optical_flow", 3),
     ] {
         if let Ok(tensor) = tensors.tensor(name) {
             anyhow::ensure!(
@@ -1367,16 +1337,6 @@ pub fn load_chunk(path: impl AsRef<Path>) -> Result<Vec<ZeroverseSample>> {
             rgba.push(w);
         }
         view.semantic = cast_slice(&rgba).to_vec();
-    });
-
-    fill_tensor("optical_flow", 3, &mut |view, data| {
-        let mut rgba = Vec::with_capacity(data.len() / 3 * 4);
-        for chunk in data.as_chunks::<3>().0.iter() {
-            let w = chunk[0];
-            rgba.extend_from_slice(chunk);
-            rgba.push(w);
-        }
-        view.optical_flow = cast_slice(&rgba).to_vec();
     });
 
     fill_tensor("position", 3, &mut |view, data| {
@@ -1822,6 +1782,7 @@ pub fn load_chunk(path: impl AsRef<Path>) -> Result<Vec<ZeroverseSample>> {
         }
     }
 
+    crate::flow::decode(&tensors, &mut samples, [b, steps, view_dim, height, width])?;
     Ok(samples)
 }
 

@@ -1,5 +1,6 @@
 //! Replayable spatial program: recursively split usable space, retain real portals,
 //! then populate each leaf with dimensioned functional groups. All units are metres.
+pub mod furnishing;
 use super::{
     layout::{stream, IndoorLayout, IndoorManifest},
     materials::Surface,
@@ -11,6 +12,8 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Zone {
+    #[serde(default)]
+    pub furnishing: Option<furnishing::FurnishingField>,
     pub min: Vec2,
     pub max: Vec2,
     pub activity: IndoorLayout,
@@ -34,6 +37,13 @@ pub struct Partition {
     pub thickness: f32,
     pub sill: f32,
     pub glazing_fraction: f32,
+    #[serde(default = "default_mullion_pitch")]
+    pub mullion_pitch: f32,
+    #[serde(default)]
+    pub transom_fraction: Option<f32>,
+}
+fn default_mullion_pitch() -> f32 {
+    1.35
 }
 impl Partition {
     pub fn position(&self, along: f32, height: f32) -> Vec3 {
@@ -72,7 +82,27 @@ impl Partition {
             .collect()
     }
     pub fn build(&self, height: f32, a: &mut Assembly) {
-        for (lo, hi) in self.spans() {
+        // A narrow opaque gasket closes the construction reveal at each wall
+        // junction. Adjacent caps meet with opposite normals and no shared area.
+        for along in [self.start + 0.003, self.end - 0.003] {
+            a.box_part(
+                Surface::Rubber,
+                "wall",
+                self.position(along, height * 0.5),
+                self.size(0.006, height, self.thickness),
+                0.0,
+            );
+        }
+        for (index, (mut lo, mut hi)) in self.spans().into_iter().enumerate() {
+            // Window posts must terminate beside the door jamb, not occupy the
+            // same volume. A 4.5 mm construction reveal separates their side faces.
+            if index == 0 {
+                hi -= 0.022;
+                lo += 0.006;
+            } else {
+                lo += 0.022;
+                hi -= 0.006;
+            }
             let length = hi - lo;
             let center = (lo + hi) * 0.5;
             let glazed = (height - self.sill - 0.16) * self.glazing_fraction;
@@ -96,16 +126,26 @@ impl Partition {
                     Surface::GlassInterior,
                     "window",
                     self.position(center, self.sill + glazed * 0.5),
-                    self.size(length, glazed, 0.010),
+                    self.size(
+                        (length - 0.074).max(0.001),
+                        (glazed - 0.039).max(0.001),
+                        0.010,
+                    ),
                     0.001,
                 );
-                let bays = (length / 1.35).ceil().max(1.0) as u32;
+                let bays = (length / self.mullion_pitch).ceil().max(1.0) as u32;
                 for i in 0..=bays {
                     a.box_part(
                         Surface::Metal,
                         "window",
                         self.position(
-                            lo + length * i as f32 / bays as f32,
+                            if i == 0 {
+                                lo + 0.0175
+                            } else if i == bays {
+                                hi - 0.0175
+                            } else {
+                                lo + length * i as f32 / bays as f32
+                            },
                             self.sill + glazed * 0.5,
                         ),
                         self.size(0.035, (glazed - 0.035).max(0.005), self.thickness),
@@ -120,6 +160,21 @@ impl Partition {
                         self.size(length, 0.035, self.thickness),
                         0.002,
                     );
+                }
+                if let Some(fraction) = self.transom_fraction {
+                    for bay in 0..bays {
+                        let lo = lo + length * bay as f32 / bays as f32 + 0.038;
+                        let hi = lo + length / bays as f32 - 0.076;
+                        if hi > lo {
+                            a.box_part(
+                                Surface::Metal,
+                                "window",
+                                self.position((lo + hi) * 0.5, self.sill + glazed * fraction),
+                                self.size(hi - lo, 0.027, self.thickness),
+                                0.002,
+                            );
+                        }
+                    }
                 }
             }
             a.box_part(
@@ -234,6 +289,8 @@ impl IndoorProgram {
                 } else {
                     rng.random_range(0.25..1.0)
                 },
+                mullion_pitch: rng.random_range(0.65..2.1),
+                transom_fraction: rng.random_bool(0.45).then(|| rng.random_range(0.35..0.80)),
             });
             let mut mid_hi = hi;
             mid_hi[axis] = coordinate;
@@ -245,10 +302,8 @@ impl IndoorProgram {
         let zones = leaves
             .into_iter()
             .enumerate()
-            .map(|(i, (min, max))| Zone {
-                min,
-                max,
-                activity: if i == 0 || rng.random_bool(0.68) {
+            .map(|(i, (min, max))| {
+                let activity = if i == 0 || rng.random_bool(0.68) {
                     activity
                 } else {
                     [
@@ -256,14 +311,20 @@ impl IndoorProgram {
                         IndoorLayout::OpenOffice,
                         IndoorLayout::Conference,
                     ][rng.random_range(0..3)]
-                },
-                orientation: rng.random_range(0..4) as f32 * std::f32::consts::FRAC_PI_2
-                    + rng.random_range(-0.3..0.3) * domain.disorder,
-                aisle: rng.random_range(0.78..1.9),
-                desk_width: rng.random_range(0.95..2.25),
-                desk_depth: rng.random_range(0.56..1.05),
-                seat_pitch: rng.random_range(0.78..1.45),
-                occupancy: (0.30 + density * 0.70) * rng.random_range(0.25..1.0),
+                };
+                Zone {
+                    furnishing: Some(furnishing::FurnishingField::sample(seed, i, activity)),
+                    min,
+                    max,
+                    activity,
+                    orientation: rng.random_range(0..4) as f32 * std::f32::consts::FRAC_PI_2
+                        + rng.random_range(-1.0..1.0) * (0.18 + 0.62 * domain.disorder),
+                    aisle: rng.random_range(0.78..1.9),
+                    desk_width: rng.random_range(0.95..2.25),
+                    desk_depth: rng.random_range(0.56..1.05),
+                    seat_pitch: rng.random_range(0.78..1.45),
+                    occupancy: (0.40 + density * 0.60) * rng.random_range(0.72..1.0),
+                }
             })
             .collect();
         Self {
@@ -305,6 +366,9 @@ pub fn primary_zone(scene: &IndoorManifest) -> Option<(Vec3, Vec2)> {
 
 impl IndoorProgram {
     pub fn validate(&self, scene: &IndoorManifest) -> Result<(), String> {
+        if let Some(niche) = self.finishes.as_ref().and_then(|f| f.niche.as_ref()) {
+            niche.validate()?;
+        }
         if let Some(domain) = &self.domain {
             domain.validate()?;
         }
@@ -317,6 +381,9 @@ impl IndoorProgram {
         let half = Vec2::new(scene.room_size.x, scene.room_size.z) * 0.5;
         let mut area = 0.0;
         for (i, zone) in self.zones.iter().enumerate() {
+            if let Some(field) = &zone.furnishing {
+                field.validate()?;
+            }
             let size = zone.max - zone.min;
             if !zone.min.is_finite()
                 || !zone.max.is_finite()
@@ -341,6 +408,9 @@ impl IndoorProgram {
         }
         for p in &self.partitions {
             if p.axis > 1
+                || !(0.55..=2.4).contains(&p.mullion_pitch)
+                || p.transom_fraction
+                    .is_some_and(|f| !(0.2..=0.85).contains(&f))
                 || ![
                     p.coordinate,
                     p.start,
@@ -383,7 +453,7 @@ impl IndoorProgram {
                     .color
                     .into_iter()
                     .all(|v| v.is_finite() && (0.0..=1.0).contains(&v))
-                || !(0.008..=1.0).contains(&r.roughness)
+                || !(0.0..=1.0).contains(&r.roughness)
                 || !r.period_m.is_finite()
                 || r.period_m <= 0.0
                 || !r.relief_m.is_finite()

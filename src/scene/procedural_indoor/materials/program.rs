@@ -232,6 +232,24 @@ pub fn sample(seed: u64) -> Vec<MaterialRecipe> {
         .collect()
 }
 impl MaterialRecipe {
+    /// Integer repetitions preserve tileability while constraining the actual
+    /// plank/tile dimensions rather than drawing arbitrary counts per texture.
+    pub fn floor_repetitions(&self, floor_style: u32) -> [f32; 2] {
+        let width = if floor_style == 0 {
+            0.10 + self.panel_count[0] as f32 * 0.010
+        } else {
+            0.30 + self.panel_count[0] as f32 * 0.055
+        };
+        let length = if floor_style == 0 {
+            0.75 + self.panel_count[1] as f32 * 0.20
+        } else {
+            0.30 + self.panel_count[1] as f32 * 0.10
+        };
+        [
+            (self.period_m / width).round().max(1.0),
+            (self.period_m / length).round().max(1.0),
+        ]
+    }
     /// Tileable multi-scale layers, evaluated in a physical repeat domain.
     pub fn evaluate(&self, u: f32, v: f32, floor_style: u32) -> (f32, f32, f32) {
         let (u, v) = self.layers.as_ref().map_or((u, v), |l| l.rotate(u, v));
@@ -281,8 +299,7 @@ impl MaterialRecipe {
         let mut height = (value - 0.5) * self.relief_m;
         let mut roughness = self.roughness + (value - 0.5) * 0.11 + stain * 0.3;
         if self.surface == Surface::Floor && floor_style != 1 {
-            let nx = self.panel_count[0] as f32;
-            let ny = self.panel_count[1] as f32;
+            let [nx, ny] = self.floor_repetitions(floor_style);
             let strip = (u * nx).floor() as u32;
             let stagger = if floor_style == 0 {
                 (strip % 2) as f32 * 0.5
@@ -293,8 +310,9 @@ impl MaterialRecipe {
             let y = (v * ny + stagger).fract();
             let distance =
                 (x.min(1.0 - x) * self.period_m / nx).min(y.min(1.0 - y) * self.period_m / ny);
+            let filter_width = self.joint_width + self.period_m / 256.0;
             let seam =
-                (1.0 - distance / (self.joint_width + self.period_m / 256.0)).clamp(0.0, 1.0);
+                (1.0 - distance / filter_width).clamp(0.0, 1.0) * (self.joint_width / filter_width);
             let board = super::hash(strip, (v * ny + stagger).floor() as u32, self.seed);
             shade = shade * (1.0 - 0.22 * seam) + (board - 0.5) * self.contrast;
             height -= seam * self.joint_width * 0.25;
@@ -302,7 +320,13 @@ impl MaterialRecipe {
         }
         let mut finish = [shade, height, roughness];
         if let Some(layers) = &self.layers {
-            layers.apply(self, [u, v], [macro_n, meso, micro], &mut finish);
+            layers.apply(
+                self,
+                [u, v],
+                [macro_n, meso, micro],
+                &mut finish,
+                floor_style,
+            );
         }
         (
             finish[0].clamp(0.25, 1.0),

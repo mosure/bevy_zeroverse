@@ -1,0 +1,1008 @@
+{
+  "generator_version": 12,
+  "capture_identity_version": 17,
+  "date": "2026-09-27",
+  "hardware": "NVIDIA RTX PRO 6000 Blackwell, Vulkan, driver 610.43.02",
+  "validation": {
+    "library_passed": 110,
+    "library_ignored": 3,
+    "strict_workspace_clippy": "passed",
+    "native_viewer_build": "passed",
+    "wasm_web_human_motion_compile": "passed",
+    "browser_runtime": "not requalified",
+    "format_and_diff_check": "passed"
+  },
+  "preview_benchmark": {
+    "before": {
+      "policy": "Two 640x360 cameras, 576 identical meshes, 100 warmup and 80 measured updates per mode. Device-synchronized wall time; not GPU occupancy.",
+      "rows": [
+        {
+          "frames": 80,
+          "median_ms": 2.742629,
+          "mode": "Color",
+          "p95_ms": 4.212921
+        },
+        {
+          "frames": 80,
+          "median_ms": 65.784525,
+          "mode": "Depth",
+          "p95_ms": 72.328371
+        },
+        {
+          "frames": 80,
+          "median_ms": 67.155213,
+          "mode": "Normal",
+          "p95_ms": 81.857207
+        },
+        {
+          "frames": 80,
+          "median_ms": 67.11402299999999,
+          "mode": "Position",
+          "p95_ms": 80.40781700000001
+        },
+        {
+          "frames": 80,
+          "median_ms": 69.059831,
+          "mode": "Semantic",
+          "p95_ms": 80.642684
+        },
+        {
+          "frames": 80,
+          "median_ms": 70.636984,
+          "mode": "OpticalFlow",
+          "p95_ms": 81.896846
+        },
+        {
+          "frames": 80,
+          "median_ms": 4.1821280000000005,
+          "mode": "Color",
+          "p95_ms": 6.9745170000000005
+        }
+      ]
+    },
+    "after": {
+      "policy": "Two 640x360 cameras, 576 identical meshes, 100 warmup and 80 measured updates per mode. Device-synchronized wall time; not GPU occupancy.",
+      "rows": [
+        {
+          "frames": 80,
+          "median_ms": 2.9770130000000004,
+          "mode": "Color",
+          "p95_ms": 5.665253
+        },
+        {
+          "frames": 80,
+          "median_ms": 2.2226619999999997,
+          "mode": "Depth",
+          "p95_ms": 3.36776
+        },
+        {
+          "frames": 80,
+          "median_ms": 2.19521,
+          "mode": "Normal",
+          "p95_ms": 3.458374
+        },
+        {
+          "frames": 80,
+          "median_ms": 2.276631,
+          "mode": "Position",
+          "p95_ms": 3.26121
+        },
+        {
+          "frames": 80,
+          "median_ms": 2.128012,
+          "mode": "Semantic",
+          "p95_ms": 3.264155
+        },
+        {
+          "frames": 80,
+          "median_ms": 2.122372,
+          "mode": "OpticalFlow",
+          "p95_ms": 3.496975
+        },
+        {
+          "frames": 80,
+          "median_ms": 2.840778,
+          "mode": "Color",
+          "p95_ms": 5.719503
+        }
+      ]
+    },
+    "scope": "Interactive annotation material pipeline; 576 repeated meshes, 2 cameras at 640x360, no capture readback. Synchronized CPU plus GPU frame time, not GPU occupancy. Not a dense unique-mesh throughput benchmark."
+  },
+  "layout_audit": {
+    "scenes": 128,
+    "invalid_seeds": [],
+    "cameras": 256,
+    "primary_room_start_fraction": {
+      "count": 128,
+      "min": 1.0,
+      "max": 1.0,
+      "mean": 1.0,
+      "standard_deviation": 0.0,
+      "percentiles_05_25_50_75_95": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "bin_edges": [
+        1.0,
+        1.00000005,
+        1.0000001,
+        1.00000015,
+        1.0000002,
+        1.00000025,
+        1.0000003,
+        1.00000035,
+        1.0000004,
+        1.00000045,
+        1.0000005,
+        1.00000055,
+        1.0000006,
+        1.00000065,
+        1.0000007,
+        1.00000075,
+        1.0000008,
+        1.00000085,
+        1.0000009,
+        1.00000095,
+        1.000001
+      ],
+      "bin_counts": [
+        128,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "path_length_m": {
+      "minimum": 0.042201586,
+      "maximum": 6.0565,
+      "mean": 1.344716104765625,
+      "over_two_metres": 86
+    },
+    "table_support_counts": {
+      "0": 227,
+      "1": 257,
+      "2": 231,
+      "3": 267,
+      "4": 283
+    },
+    "chair_headrest_counts": {
+      "false": 1221,
+      "true": 219
+    },
+    "full_metrics": "metrics.json",
+    "heatmaps": "placement_heatmaps.svg"
+  },
+  "static_capture": {
+    "seeds": [
+      0,
+      5,
+      11,
+      100
+    ],
+    "views": 24,
+    "steps": 3,
+    "cameras": 2,
+    "modes": [
+      "color",
+      "depth",
+      "normal",
+      "position",
+      "semantic"
+    ],
+    "semantic_class_count_range": [
+      7,
+      14
+    ],
+    "views_with_visible_lamp_pixels": 13,
+    "max_depth_position_p99_metres": 2.3841858e-06,
+    "max_reprojection_p99_pixels": 0.0026004934,
+    "max_normal_length_error": 2.3841858e-07
+  },
+  "motion_planning": {
+    "seeds": 64,
+    "people": 395,
+    "feasible_requests": 318,
+    "behaviors": {
+      "enter": 3,
+      "exercise": 7,
+      "gesture": 4,
+      "idle": 23,
+      "leave": 3,
+      "reach": 2,
+      "seated_gesture": 7,
+      "skip": 42,
+      "stretch": 13,
+      "turn": 8,
+      "walk": 179,
+      "walk_crouch_walk": 2,
+      "walk_kick_walk": 4,
+      "walk_look_walk": 9,
+      "walk_pick_up_walk": 6,
+      "walk_stretch_walk": 4,
+      "walk_wave_walk": 2
+    }
+  },
+  "motion_captures": [
+    {
+      "seed": 0,
+      "purpose": "fixed seed screen",
+      "people": 5,
+      "accepted": 4,
+      "retained_static": 1,
+      "seconds": 23.156030087,
+      "model_loads_in_process": 1,
+      "boxes": 41,
+      "lamp_boxes": 12,
+      "flow": {
+        "moving_person_pixels": 22640,
+        "views": [
+          {
+            "expected_static_valid_pixels": 104717,
+            "maximum_displacement_pixels": 163.33506774902344,
+            "missing_static_valid_pixels": 0,
+            "moving_person_pixels": 5875,
+            "static_camera_reprojection_p99_pixels": 0.002225276781246066,
+            "valid_pixels": 110592,
+            "view": 0,
+            "visible_pixels": 75946
+          },
+          {
+            "expected_static_valid_pixels": 110210,
+            "maximum_displacement_pixels": 9.636056900024414,
+            "missing_static_valid_pixels": 0,
+            "moving_person_pixels": 0,
+            "static_camera_reprojection_p99_pixels": 0.001978941960260272,
+            "valid_pixels": 110592,
+            "view": 1,
+            "visible_pixels": 104478
+          },
+          {
+            "expected_static_valid_pixels": 103011,
+            "maximum_displacement_pixels": 183.46131896972656,
+            "missing_static_valid_pixels": 0,
+            "moving_person_pixels": 7575,
+            "static_camera_reprojection_p99_pixels": 0.002559476997703314,
+            "valid_pixels": 110592,
+            "view": 2,
+            "visible_pixels": 74649
+          },
+          {
+            "expected_static_valid_pixels": 110213,
+            "maximum_displacement_pixels": 9.596463203430176,
+            "missing_static_valid_pixels": 0,
+            "moving_person_pixels": 0,
+            "static_camera_reprojection_p99_pixels": 0.002124043181538582,
+            "valid_pixels": 110592,
+            "view": 3,
+            "visible_pixels": 104899
+          },
+          {
+            "expected_static_valid_pixels": 104549,
+            "maximum_displacement_pixels": 198.62533569335938,
+            "missing_static_valid_pixels": 0,
+            "moving_person_pixels": 6043,
+            "static_camera_reprojection_p99_pixels": 0.002455966081470251,
+            "valid_pixels": 110592,
+            "view": 4,
+            "visible_pixels": 75300
+          },
+          {
+            "expected_static_valid_pixels": 110225,
+            "maximum_displacement_pixels": 9.57451057434082,
+            "missing_static_valid_pixels": 0,
+            "moving_person_pixels": 0,
+            "static_camera_reprojection_p99_pixels": 0.00215689348988235,
+            "valid_pixels": 110592,
+            "view": 5,
+            "visible_pixels": 104648
+          },
+          {
+            "expected_static_valid_pixels": 107445,
+            "maximum_displacement_pixels": 204.67471313476562,
+            "missing_static_valid_pixels": 0,
+            "moving_person_pixels": 3147,
+            "static_camera_reprojection_p99_pixels": 0.0031744148582220078,
+            "valid_pixels": 110592,
+            "view": 6,
+            "visible_pixels": 73898
+          },
+          {
+            "expected_static_valid_pixels": 110235,
+            "maximum_displacement_pixels": 9.567621231079102,
+            "missing_static_valid_pixels": 0,
+            "moving_person_pixels": 0,
+            "static_camera_reprojection_p99_pixels": 0.0021324804984033108,
+            "valid_pixels": 110592,
+            "view": 7,
+            "visible_pixels": 104877
+          },
+          {
+            "expected_static_valid_pixels": 0,
+            "maximum_displacement_pixels": 0.0,
+            "missing_static_valid_pixels": 0,
+            "moving_person_pixels": 0,
+            "static_camera_reprojection_p99_pixels": 0.0,
+            "valid_pixels": 0,
+            "view": 8,
+            "visible_pixels": 0
+          },
+          {
+            "expected_static_valid_pixels": 0,
+            "maximum_displacement_pixels": 0.0,
+            "missing_static_valid_pixels": 0,
+            "moving_person_pixels": 0,
+            "static_camera_reprojection_p99_pixels": 0.0,
+            "valid_pixels": 0,
+            "view": 9,
+            "visible_pixels": 0
+          }
+        ]
+      },
+      "clips": [
+        {
+          "actor": 28,
+          "behavior": "turn",
+          "horizontal_endpoint_distance_m": 0.008586283832368802,
+          "root_height_range_m": [
+            0.9510212,
+            0.9522779
+          ]
+        },
+        {
+          "actor": 25,
+          "behavior": "skip",
+          "horizontal_endpoint_distance_m": 1.2012846755137228,
+          "root_height_range_m": [
+            0.85591733,
+            0.9423588
+          ]
+        },
+        {
+          "actor": 27,
+          "behavior": "walk",
+          "horizontal_endpoint_distance_m": 2.666916442049321,
+          "root_height_range_m": [
+            0.93277293,
+            0.9543246
+          ]
+        },
+        {
+          "actor": 26,
+          "behavior": "stretch",
+          "horizontal_endpoint_distance_m": 0.010108981967042975,
+          "root_height_range_m": [
+            0.94341254,
+            0.9445777
+          ]
+        }
+      ]
+    },
+    {
+      "seed": 1,
+      "purpose": "fixed seed screen",
+      "people": 3,
+      "accepted": 1,
+      "retained_static": 2,
+      "seconds": 5.578633861,
+      "model_loads_in_process": 1,
+      "boxes": 36,
+      "lamp_boxes": 10,
+      "flow": {
+        "moving_person_pixels": 9260,
+        "views": [
+          {
+            "expected_static_valid_pixels": 104258,
+            "maximum_displacement_pixels": 68.60543823242188,
+            "missing_static_valid_pixels": 0,
+            "moving_person_pixels": 2396,
+            "static_camera_reprojection_p99_pixels": 0.002151705790311098,
+            "valid_pixels": 110592,
+            "view": 0,
+            "visible_pixels": 101251
+          },
+          {
+            "expected_static_valid_pixels": 110256,
+            "maximum_displacement_pixels": 67.30720520019531,
+            "missing_static_valid_pixels": 0,
+            "moving_person_pixels": 114,
+            "static_camera_reprojection_p99_pixels": 0.0021693790331482887,
+            "valid_pixels": 110592,
+            "view": 1,
+            "visible_pixels": 85464
+          },
+          {
+            "expected_static_valid_pixels": 105420,
+            "maximum_displacement_pixels": 53.20796203613281,
+            "missing_static_valid_pixels": 0,
+            "moving_person_pixels": 2274,
+            "static_camera_reprojection_p99_pixels": 0.002136233961209655,
+            "valid_pixels": 110592,
+            "view": 2,
+            "visible_pixels": 101297
+          },
+          {
+            "expected_static_valid_pixels": 110288,
+            "maximum_displacement_pixels": 76.48704528808594,
+            "missing_static_valid_pixels": 0,
+            "moving_person_pixels": 129,
+            "static_camera_reprojection_p99_pixels": 0.0026356771122664213,
+            "valid_pixels": 110592,
+            "view": 3,
+            "visible_pixels": 83719
+          },
+          {
+            "expected_static_valid_pixels": 104310,
+            "maximum_displacement_pixels": 47.777191162109375,
+            "missing_static_valid_pixels": 0,
+            "moving_person_pixels": 2410,
+            "static_camera_reprojection_p99_pixels": 0.0021035559475421906,
+            "valid_pixels": 110592,
+            "view": 4,
+            "visible_pixels": 101234
+          },
+          {
+            "expected_static_valid_pixels": 110217,
+            "maximum_displacement_pixels": 64.62222290039062,
+            "missing_static_valid_pixels": 0,
+            "moving_person_pixels": 142,
+            "static_camera_reprojection_p99_pixels": 0.0025927373208105564,
+            "valid_pixels": 110592,
+            "view": 5,
+            "visible_pixels": 82997
+          },
+          {
+            "expected_static_valid_pixels": 105549,
+            "maximum_displacement_pixels": 45.96737289428711,
+            "missing_static_valid_pixels": 0,
+            "moving_person_pixels": 1691,
+            "static_camera_reprojection_p99_pixels": 0.0019729509949684143,
+            "valid_pixels": 110592,
+            "view": 6,
+            "visible_pixels": 102170
+          },
+          {
+            "expected_static_valid_pixels": 110280,
+            "maximum_displacement_pixels": 61.39066696166992,
+            "missing_static_valid_pixels": 0,
+            "moving_person_pixels": 104,
+            "static_camera_reprojection_p99_pixels": 0.002374298870563507,
+            "valid_pixels": 110592,
+            "view": 7,
+            "visible_pixels": 83284
+          },
+          {
+            "expected_static_valid_pixels": 0,
+            "maximum_displacement_pixels": 0.0,
+            "missing_static_valid_pixels": 0,
+            "moving_person_pixels": 0,
+            "static_camera_reprojection_p99_pixels": 0.0,
+            "valid_pixels": 0,
+            "view": 8,
+            "visible_pixels": 0
+          },
+          {
+            "expected_static_valid_pixels": 0,
+            "maximum_displacement_pixels": 0.0,
+            "missing_static_valid_pixels": 0,
+            "moving_person_pixels": 0,
+            "static_camera_reprojection_p99_pixels": 0.0,
+            "valid_pixels": 0,
+            "view": 9,
+            "visible_pixels": 0
+          }
+        ]
+      },
+      "clips": [
+        {
+          "actor": 25,
+          "behavior": "walk",
+          "horizontal_endpoint_distance_m": 2.236104886049805,
+          "root_height_range_m": [
+            0.93291545,
+            0.9511542
+          ]
+        }
+      ]
+    },
+    {
+      "seed": 13,
+      "purpose": "fixed seed screen",
+      "people": 10,
+      "accepted": 6,
+      "retained_static": 4,
+      "seconds": 16.450969663,
+      "model_loads_in_process": 1,
+      "boxes": 71,
+      "lamp_boxes": 16,
+      "flow": {
+        "moving_person_pixels": 49137,
+        "views": [
+          {
+            "expected_static_valid_pixels": 102709,
+            "maximum_displacement_pixels": 27.229494094848633,
+            "missing_static_valid_pixels": 0,
+            "moving_person_pixels": 2097,
+            "static_camera_reprojection_p99_pixels": 0.00202178955078125,
+            "valid_pixels": 110592,
+            "view": 0,
+            "visible_pixels": 97662
+          },
+          {
+            "expected_static_valid_pixels": 103138,
+            "maximum_displacement_pixels": 43.61942672729492,
+            "missing_static_valid_pixels": 0,
+            "moving_person_pixels": 4588,
+            "static_camera_reprojection_p99_pixels": 0.0021617994643747807,
+            "valid_pixels": 110592,
+            "view": 1,
+            "visible_pixels": 96475
+          },
+          {
+            "expected_static_valid_pixels": 102044,
+            "maximum_displacement_pixels": 35.230003356933594,
+            "missing_static_valid_pixels": 0,
+            "moving_person_pixels": 2556,
+            "static_camera_reprojection_p99_pixels": 0.0021546792704612017,
+            "valid_pixels": 110592,
+            "view": 2,
+            "visible_pixels": 97505
+          },
+          {
+            "expected_static_valid_pixels": 104231,
+            "maximum_displacement_pixels": 26.886695861816406,
+            "missing_static_valid_pixels": 0,
+            "moving_person_pixels": 3449,
+            "static_camera_reprojection_p99_pixels": 0.002276632934808731,
+            "valid_pixels": 110592,
+            "view": 3,
+            "visible_pixels": 93139
+          },
+          {
+            "expected_static_valid_pixels": 101284,
+            "maximum_displacement_pixels": 25.778934478759766,
+            "missing_static_valid_pixels": 0,
+            "moving_person_pixels": 2877,
+            "static_camera_reprojection_p99_pixels": 0.0019830595701932907,
+            "valid_pixels": 110592,
+            "view": 4,
+            "visible_pixels": 97111
+          },
+          {
+            "expected_static_valid_pixels": 98287,
+            "maximum_displacement_pixels": 121.09143829345703,
+            "missing_static_valid_pixels": 0,
+            "moving_person_pixels": 9251,
+            "static_camera_reprojection_p99_pixels": 0.002227992285043001,
+            "valid_pixels": 110592,
+            "view": 5,
+            "visible_pixels": 82993
+          },
+          {
+            "expected_static_valid_pixels": 101387,
+            "maximum_displacement_pixels": 61.8636474609375,
+            "missing_static_valid_pixels": 0,
+            "moving_person_pixels": 2593,
+            "static_camera_reprojection_p99_pixels": 0.002367080422118306,
+            "valid_pixels": 110592,
+            "view": 6,
+            "visible_pixels": 96740
+          },
+          {
+            "expected_static_valid_pixels": 85681,
+            "maximum_displacement_pixels": 132.7977294921875,
+            "missing_static_valid_pixels": 0,
+            "moving_person_pixels": 21726,
+            "static_camera_reprojection_p99_pixels": 0.0020703088957816362,
+            "valid_pixels": 110592,
+            "view": 7,
+            "visible_pixels": 85628
+          },
+          {
+            "expected_static_valid_pixels": 0,
+            "maximum_displacement_pixels": 0.0,
+            "missing_static_valid_pixels": 0,
+            "moving_person_pixels": 0,
+            "static_camera_reprojection_p99_pixels": 0.0,
+            "valid_pixels": 0,
+            "view": 8,
+            "visible_pixels": 0
+          },
+          {
+            "expected_static_valid_pixels": 0,
+            "maximum_displacement_pixels": 0.0,
+            "missing_static_valid_pixels": 0,
+            "moving_person_pixels": 0,
+            "static_camera_reprojection_p99_pixels": 0.0,
+            "valid_pixels": 0,
+            "view": 9,
+            "visible_pixels": 0
+          }
+        ]
+      },
+      "clips": [
+        {
+          "actor": 52,
+          "behavior": "walk_wave_walk",
+          "horizontal_endpoint_distance_m": 3.5138318091758083,
+          "root_height_range_m": [
+            0.9218696,
+            0.95287293
+          ]
+        },
+        {
+          "actor": 49,
+          "behavior": "skip",
+          "horizontal_endpoint_distance_m": 1.288782560964452,
+          "root_height_range_m": [
+            0.7950869,
+            0.9527643
+          ]
+        },
+        {
+          "actor": 50,
+          "behavior": "idle",
+          "horizontal_endpoint_distance_m": 0.0010632286121056039,
+          "root_height_range_m": [
+            0.9475259,
+            0.9493951
+          ]
+        },
+        {
+          "actor": 45,
+          "behavior": "walk",
+          "horizontal_endpoint_distance_m": 1.4229402841191623,
+          "root_height_range_m": [
+            0.9245266,
+            0.9567057
+          ]
+        },
+        {
+          "actor": 53,
+          "behavior": "walk",
+          "horizontal_endpoint_distance_m": 1.4111127814372917,
+          "root_height_range_m": [
+            0.9289444,
+            0.95311856
+          ]
+        },
+        {
+          "actor": 51,
+          "behavior": "stretch",
+          "horizontal_endpoint_distance_m": 0.009031167849176229,
+          "root_height_range_m": [
+            0.9333806,
+            0.9353851
+          ]
+        }
+      ]
+    },
+    {
+      "seed": 34,
+      "purpose": "fixed seed screen",
+      "people": 4,
+      "accepted": 2,
+      "retained_static": 2,
+      "seconds": 6.91609466,
+      "model_loads_in_process": 1,
+      "boxes": 46,
+      "lamp_boxes": 7,
+      "flow": {
+        "moving_person_pixels": 22307,
+        "views": [
+          {
+            "expected_static_valid_pixels": 106045,
+            "maximum_displacement_pixels": 76.3204345703125,
+            "missing_static_valid_pixels": 0,
+            "moving_person_pixels": 295,
+            "static_camera_reprojection_p99_pixels": 0.001976537983864546,
+            "valid_pixels": 110592,
+            "view": 0,
+            "visible_pixels": 94728
+          },
+          {
+            "expected_static_valid_pixels": 108347,
+            "maximum_displacement_pixels": 122.95358276367188,
+            "missing_static_valid_pixels": 0,
+            "moving_person_pixels": 799,
+            "static_camera_reprojection_p99_pixels": 0.0023628100752830505,
+            "valid_pixels": 110592,
+            "view": 1,
+            "visible_pixels": 81373
+          },
+          {
+            "expected_static_valid_pixels": 102190,
+            "maximum_displacement_pixels": 57.03621292114258,
+            "missing_static_valid_pixels": 0,
+            "moving_person_pixels": 3820,
+            "static_camera_reprojection_p99_pixels": 0.0022037860471755266,
+            "valid_pixels": 110592,
+            "view": 2,
+            "visible_pixels": 97048
+          },
+          {
+            "expected_static_valid_pixels": 107299,
+            "maximum_displacement_pixels": 125.37826538085938,
+            "missing_static_valid_pixels": 0,
+            "moving_person_pixels": 1561,
+            "static_camera_reprojection_p99_pixels": 0.002704857150092721,
+            "valid_pixels": 110592,
+            "view": 3,
+            "visible_pixels": 83865
+          },
+          {
+            "expected_static_valid_pixels": 101817,
+            "maximum_displacement_pixels": 61.69100570678711,
+            "missing_static_valid_pixels": 0,
+            "moving_person_pixels": 3899,
+            "static_camera_reprojection_p99_pixels": 0.0018923974130302668,
+            "valid_pixels": 110592,
+            "view": 4,
+            "visible_pixels": 98369
+          },
+          {
+            "expected_static_valid_pixels": 104403,
+            "maximum_displacement_pixels": 88.7009506225586,
+            "missing_static_valid_pixels": 0,
+            "moving_person_pixels": 4141,
+            "static_camera_reprojection_p99_pixels": 0.002582941669970751,
+            "valid_pixels": 110592,
+            "view": 5,
+            "visible_pixels": 87944
+          },
+          {
+            "expected_static_valid_pixels": 101818,
+            "maximum_displacement_pixels": 41.68648910522461,
+            "missing_static_valid_pixels": 0,
+            "moving_person_pixels": 3648,
+            "static_camera_reprojection_p99_pixels": 0.0018713179742917418,
+            "valid_pixels": 110592,
+            "view": 6,
+            "visible_pixels": 97825
+          },
+          {
+            "expected_static_valid_pixels": 104147,
+            "maximum_displacement_pixels": 49.80122375488281,
+            "missing_static_valid_pixels": 0,
+            "moving_person_pixels": 4144,
+            "static_camera_reprojection_p99_pixels": 0.002746285405009985,
+            "valid_pixels": 110592,
+            "view": 7,
+            "visible_pixels": 91056
+          },
+          {
+            "expected_static_valid_pixels": 0,
+            "maximum_displacement_pixels": 0.0,
+            "missing_static_valid_pixels": 0,
+            "moving_person_pixels": 0,
+            "static_camera_reprojection_p99_pixels": 0.0,
+            "valid_pixels": 0,
+            "view": 8,
+            "visible_pixels": 0
+          },
+          {
+            "expected_static_valid_pixels": 0,
+            "maximum_displacement_pixels": 0.0,
+            "missing_static_valid_pixels": 0,
+            "moving_person_pixels": 0,
+            "static_camera_reprojection_p99_pixels": 0.0,
+            "valid_pixels": 0,
+            "view": 9,
+            "visible_pixels": 0
+          }
+        ]
+      },
+      "clips": [
+        {
+          "actor": 35,
+          "behavior": "walk",
+          "horizontal_endpoint_distance_m": 1.2741440521981964,
+          "root_height_range_m": [
+            0.9333047,
+            0.9454798
+          ]
+        },
+        {
+          "actor": 36,
+          "behavior": "walk",
+          "horizontal_endpoint_distance_m": 1.9548096310501566,
+          "root_height_range_m": [
+            0.9306488,
+            0.95928514
+          ]
+        }
+      ]
+    },
+    {
+      "seed": 44,
+      "purpose": "selected compound sequence diagnostic",
+      "people": 4,
+      "accepted": 4,
+      "retained_static": 0,
+      "seconds": 20.416105103,
+      "model_loads_in_process": 1,
+      "boxes": 50,
+      "lamp_boxes": 18,
+      "flow": {
+        "moving_person_pixels": 25116,
+        "views": [
+          {
+            "expected_static_valid_pixels": 103874,
+            "maximum_displacement_pixels": 519.670654296875,
+            "missing_static_valid_pixels": 0,
+            "moving_person_pixels": 6718,
+            "static_camera_reprojection_p99_pixels": 0.0022890218533575535,
+            "valid_pixels": 110592,
+            "view": 0,
+            "visible_pixels": 69808
+          },
+          {
+            "expected_static_valid_pixels": 109863,
+            "maximum_displacement_pixels": 63.09758377075195,
+            "missing_static_valid_pixels": 0,
+            "moving_person_pixels": 728,
+            "static_camera_reprojection_p99_pixels": 0.0020951267797499895,
+            "valid_pixels": 110591,
+            "view": 1,
+            "visible_pixels": 84139
+          },
+          {
+            "expected_static_valid_pixels": 104952,
+            "maximum_displacement_pixels": 212.42575073242188,
+            "missing_static_valid_pixels": 0,
+            "moving_person_pixels": 5640,
+            "static_camera_reprojection_p99_pixels": 0.002717606956139207,
+            "valid_pixels": 110592,
+            "view": 2,
+            "visible_pixels": 82267
+          },
+          {
+            "expected_static_valid_pixels": 110013,
+            "maximum_displacement_pixels": 48.58712387084961,
+            "missing_static_valid_pixels": 0,
+            "moving_person_pixels": 579,
+            "static_camera_reprojection_p99_pixels": 0.0023225240875035524,
+            "valid_pixels": 110592,
+            "view": 3,
+            "visible_pixels": 84127
+          },
+          {
+            "expected_static_valid_pixels": 106395,
+            "maximum_displacement_pixels": 157.8543243408203,
+            "missing_static_valid_pixels": 0,
+            "moving_person_pixels": 4197,
+            "static_camera_reprojection_p99_pixels": 0.0019011740805581212,
+            "valid_pixels": 110592,
+            "view": 4,
+            "visible_pixels": 87612
+          },
+          {
+            "expected_static_valid_pixels": 110012,
+            "maximum_displacement_pixels": 64.37466430664062,
+            "missing_static_valid_pixels": 0,
+            "moving_person_pixels": 580,
+            "static_camera_reprojection_p99_pixels": 0.0028328897897154093,
+            "valid_pixels": 110592,
+            "view": 5,
+            "visible_pixels": 83580
+          },
+          {
+            "expected_static_valid_pixels": 105246,
+            "maximum_displacement_pixels": 148.47703552246094,
+            "missing_static_valid_pixels": 0,
+            "moving_person_pixels": 5346,
+            "static_camera_reprojection_p99_pixels": 0.0020881695672869682,
+            "valid_pixels": 110592,
+            "view": 6,
+            "visible_pixels": 86462
+          },
+          {
+            "expected_static_valid_pixels": 109264,
+            "maximum_displacement_pixels": 126.1713638305664,
+            "missing_static_valid_pixels": 0,
+            "moving_person_pixels": 1328,
+            "static_camera_reprojection_p99_pixels": 0.002112612361088395,
+            "valid_pixels": 110592,
+            "view": 7,
+            "visible_pixels": 77605
+          },
+          {
+            "expected_static_valid_pixels": 0,
+            "maximum_displacement_pixels": 0.0,
+            "missing_static_valid_pixels": 0,
+            "moving_person_pixels": 0,
+            "static_camera_reprojection_p99_pixels": 0.0,
+            "valid_pixels": 0,
+            "view": 8,
+            "visible_pixels": 0
+          },
+          {
+            "expected_static_valid_pixels": 0,
+            "maximum_displacement_pixels": 0.0,
+            "missing_static_valid_pixels": 0,
+            "moving_person_pixels": 0,
+            "static_camera_reprojection_p99_pixels": 0.0,
+            "valid_pixels": 0,
+            "view": 9,
+            "visible_pixels": 0
+          }
+        ]
+      },
+      "clips": [
+        {
+          "actor": 31,
+          "behavior": "walk",
+          "horizontal_endpoint_distance_m": 1.2334302992621067,
+          "root_height_range_m": [
+            0.92824703,
+            0.94589716
+          ]
+        },
+        {
+          "actor": 30,
+          "behavior": "skip",
+          "horizontal_endpoint_distance_m": 1.2805046871966574,
+          "root_height_range_m": [
+            0.7637938,
+            0.90687966
+          ]
+        },
+        {
+          "actor": 32,
+          "behavior": "walk_pick_up_walk",
+          "horizontal_endpoint_distance_m": 2.7389467891392796,
+          "root_height_range_m": [
+            0.41430604,
+            0.9464521
+          ]
+        },
+        {
+          "actor": 29,
+          "behavior": "walk_crouch_walk",
+          "horizontal_endpoint_distance_m": 1.4688920327379493,
+          "root_height_range_m": [
+            0.45221183,
+            0.94772536
+          ]
+        }
+      ]
+    }
+  ],
+  "motion_totals": {
+    "people": 26,
+    "accepted": 17,
+    "retained_static": 9,
+    "views": 50,
+    "boxes": 244,
+    "lamp_boxes": 63,
+    "moving_person_pixels": 128460,
+    "missing_expected_static_flow": 0,
+    "max_static_flow_p99_pixels": 0.0031744148582220078
+  },
+  "limitations": [
+    "Admission checks do not establish that every generated clip follows every textual action.",
+    "Pick-up prompts mime an action; object attachment and cloth physics are not implemented.",
+    "Glass and human/material appearance remain visibly synthetic.",
+    "The benchmark and captures do not establish photographic realism or 10M-sample downstream utility.",
+    "Lamp boxes currently carry class labels and geometry; architectural fixture instance_id is null, as for other architecture."
+  ]
+}

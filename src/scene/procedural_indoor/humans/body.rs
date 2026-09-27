@@ -55,6 +55,31 @@ pub(super) fn build(h: &IndoorHuman) -> HumanAssembly {
 }
 
 fn build_uncached(h: &IndoorHuman, body: &AnnyBody) -> HumanAssembly {
+    build_impl(h, body, false).0
+}
+
+/// Motion-only rest preparation; static people take the original cached path.
+#[cfg(feature = "human_motion")]
+pub(crate) fn build_rest(h: &IndoorHuman) -> (HumanAssembly, RestSkin) {
+    let (mesh, rest) = build_impl(h, reference(), true);
+    (mesh, rest.expect("requested rest skin"))
+}
+
+#[cfg_attr(not(feature = "human_motion"), allow(dead_code))]
+pub(crate) struct RestSkin {
+    pub phenotype: Vec<f64>,
+    pub bones: Vec<Mat4>,
+    pub positions: Vec<Vec3>,
+    pub indices: Vec<[u16; 4]>,
+    pub weights: Vec<[f32; 4]>,
+    pub scale: f32,
+}
+
+fn build_impl(
+    h: &IndoorHuman,
+    body: &AnnyBody,
+    motion_rest: bool,
+) -> (HumanAssembly, Option<RestSkin>) {
     let mut rng = stream(h.seed, 43);
     let phenotype: Vec<_> = body
         .metadata()
@@ -118,7 +143,11 @@ fn build_uncached(h: &IndoorHuman, body: &AnnyBody) -> HumanAssembly {
     // Mapping spine01 here elongated the torso above it and bunched the shoulders.
     let rest_chest = (head("upperarm01.L") + head("upperarm01.R")) * 0.5;
     let torso = segment(rest_pelvis, rest_chest, p[0], p[2], scale);
-    let head_rotation = cranial_rotation(p, h.head_yaw);
+    let head_rotation = if motion_rest {
+        Quat::IDENTITY
+    } else {
+        cranial_rotation(p, h.head_yaw)
+    };
     // Rest neck bones tilt forward anatomically. Aligning that vector with an
     // upright target rotates the whole skull backwards. Preserve the rest skull
     // orientation in the program's torso frame, and anchor its actual rig pivot.
@@ -188,6 +217,9 @@ fn build_uncached(h: &IndoorHuman, body: &AnnyBody) -> HumanAssembly {
             }
         }
     }
+    if motion_rest {
+        transforms.fill(Mat4::from_scale(Vec3::splat(scale)));
+    }
     let (bone_ids, weights) = body.skinning_bindings();
     let influences = *bone_ids.shape.last().unwrap();
     let mut posed = Vec::with_capacity(vertices.len());
@@ -243,7 +275,14 @@ fn build_uncached(h: &IndoorHuman, body: &AnnyBody) -> HumanAssembly {
     };
     let torso_vertices: Vec<_> = vertices
         .iter()
-        .filter(|v| v.y > rest_pelvis.y && v.y < rest_chest.y && v.x.abs() < 0.08)
+        .enumerate()
+        .filter(|(i, v)| {
+            let bone = &labels[dominant[*i]];
+            v.y > rest_pelvis.y
+                && v.y < rest_chest.y
+                && (bone.starts_with("spine") || bone.starts_with("breast"))
+        })
+        .map(|(_, v)| v)
         .collect();
     let front = torso_vertices
         .iter()
@@ -254,7 +293,9 @@ fn build_uncached(h: &IndoorHuman, body: &AnnyBody) -> HumanAssembly {
         .map(|v| v.z)
         .fold(f32::NEG_INFINITY, f32::max);
     let cut = super::garments::GarmentCut {
-        waist: rest_pelvis.y + (rest_chest.y - rest_pelvis.y) * 0.14,
+        waist: rest_pelvis.y
+            + (rest_chest.y - rest_pelvis.y)
+                * h.appearance.as_ref().map_or(0.14, |a| a.hem_fraction),
         neck: head("neck01").y,
         chest: rest_chest.y - 0.03,
         torso_half_width: head("upperarm01.L")
@@ -268,11 +309,13 @@ fn build_uncached(h: &IndoorHuman, body: &AnnyBody) -> HumanAssembly {
         cuffs: ["L", "R"].map(|side| {
             let elbow = head(&format!("lowerarm01.{side}"));
             let wrist = head(&format!("wrist.{side}"));
-            let short = h.outfit == super::HumanOutfit::Knitwear && h.seed.is_multiple_of(3);
-            (
-                elbow.lerp(wrist, if short { 0.12 } else { 0.90 }),
-                (wrist - elbow).normalize(),
-            )
+            let coverage = h.appearance.as_ref().map_or(0.95, |a| a.sleeve_coverage);
+            let length = if h.outfit == super::HumanOutfit::Blazer {
+                0.86 + coverage * 0.09
+            } else {
+                -0.40 + coverage * 1.35
+            };
+            (elbow.lerp(wrist, length), (wrist - elbow).normalize())
         }),
     };
     let mut offsets = vec![0.0; posed.len()];
@@ -367,11 +410,12 @@ fn build_uncached(h: &IndoorHuman, body: &AnnyBody) -> HumanAssembly {
         .static_data
         .face_texture_coordinate_indices
         .data;
-    for (q, texture_indices) in faces
+    for (face_index, (q, texture_indices)) in faces
         .as_chunks::<4>()
         .0
         .iter()
         .zip(uv_faces.as_chunks::<4>().0)
+        .enumerate()
     {
         let corners: [_; 4] = std::array::from_fn(|k| {
             let i = q[k] as usize;
@@ -385,12 +429,12 @@ fn build_uncached(h: &IndoorHuman, body: &AnnyBody) -> HumanAssembly {
             }
         });
         for tri in [[0, 1, 2], [0, 2, 3]] {
-            cut.append(
-                h,
-                &labels[dominant[q[0] as usize]],
-                tri.map(|i| corners[i]),
-                &mut mesh,
-            );
+            let triangle = tri.map(|i| corners[i]);
+            if super::anatomy::lip_face(face_index) {
+                super::garments::emit(&triangle, HumanSurface::Lip, &mut mesh);
+            } else {
+                cut.append(h, &labels[dominant[q[0] as usize]], triangle, &mut mesh);
+            }
         }
     }
     // Eye and eyewear details attach to Anny's facial rig, following head turns.
@@ -418,44 +462,8 @@ fn build_uncached(h: &IndoorHuman, body: &AnnyBody) -> HumanAssembly {
             Transform::from_translation(eye + forward * (front + 0.0015 * scale))
                 .with_rotation(face_rotation),
         );
-        // Eyebrows follow the facial frame, set above the eye rim.
-        for k in 0..5 {
-            let local = |t: f32| {
-                Vec3::new(
-                    (t - 0.5) * 0.032,
-                    0.021 + (t * std::f32::consts::PI).sin() * 0.003,
-                    -front - 0.001,
-                )
-            };
-            mesh.part(HumanSurface::Hair).rod(
-                eye + face_rotation * local(k as f32 / 5.0),
-                eye + face_rotation * local((k + 1) as f32 / 5.0),
-                0.0014,
-            );
-        }
-        if h.glasses {
-            let points = [
-                Vec3::new(-0.019, -0.012, -0.018),
-                Vec3::new(0.019, -0.012, -0.018),
-                Vec3::new(0.019, 0.012, -0.018),
-                Vec3::new(-0.019, 0.012, -0.018),
-            ];
-            for k in 0..4 {
-                mesh.part(HumanSurface::Detail).rod(
-                    eye + face_rotation * points[k] * scale,
-                    eye + face_rotation * points[(k + 1) % 4] * scale,
-                    0.0012 * scale,
-                );
-            }
-        }
     }
-    if h.glasses {
-        mesh.part(HumanSurface::Detail).rod(
-            eyes[0] + forward * 0.018 * scale,
-            eyes[1] + forward * 0.018 * scale,
-            0.001 * scale,
-        );
-    }
+    super::face::append(h, &posed, faces, &eyes, face_rotation, scale, &mut mesh);
     if h.outfit != super::HumanOutfit::Knitwear {
         for row in 0..6 {
             let y = cut.waist + (cut.chest - cut.waist) * (row as f32 + 0.5) / 6.0;
@@ -508,7 +516,53 @@ fn build_uncached(h: &IndoorHuman, body: &AnnyBody) -> HumanAssembly {
             }
         }
     }
-    mesh
+    let rest = motion_rest.then(|| {
+        let basis = Mat4::from_cols(
+            Vec3::NEG_X.extend(0.0),
+            Vec3::Z.extend(0.0),
+            Vec3::Y.extend(0.0),
+            Vec4::W,
+        );
+        let basis =
+            Mat4::from_translation(-Vec3::Y * floor) * Mat4::from_scale(Vec3::splat(scale)) * basis;
+        let bones = output
+            .rest_bone_poses
+            .data
+            .as_chunks::<16>()
+            .0
+            .iter()
+            .map(|m| {
+                basis
+                    * Mat4::from_cols_array(&std::array::from_fn(|i| m[(i % 4) * 4 + i / 4] as f32))
+            })
+            .collect();
+        let mut indices = Vec::with_capacity(vertices.len());
+        let mut sparse_weights = Vec::with_capacity(vertices.len());
+        for i in 0..vertices.len() {
+            let mut values: Vec<_> = (0..influences)
+                .filter_map(|k| {
+                    let at = i * influences + k;
+                    (bone_ids.data[at] >= 0 && weights.data[at] > 0.0)
+                        .then_some((bone_ids.data[at] as u16, weights.data[at] as f32))
+                })
+                .collect();
+            values.sort_by(|a, b| b.1.total_cmp(&a.1).then(a.0.cmp(&b.0)));
+            values.truncate(4);
+            values.resize(4, (0, 0.0));
+            let sum: f32 = values.iter().map(|v| v.1).sum();
+            indices.push(std::array::from_fn(|k| values[k].0));
+            sparse_weights.push(std::array::from_fn(|k| values[k].1 / sum.max(1e-8)));
+        }
+        RestSkin {
+            phenotype,
+            bones,
+            positions: garment_positions,
+            indices,
+            weights: sparse_weights,
+            scale,
+        }
+    });
+    (mesh, rest)
 }
 
 fn cranial_rotation(joints: &[Vec3], yaw: f32) -> Quat {
@@ -555,6 +609,44 @@ mod tests {
             let up = (joints[2] - joints[0]).normalize();
             assert!((rotation * Vec3::Y).distance(up) < 1e-5);
             assert!((rotation * Vec3::NEG_Z).y.abs() < 0.15);
+        }
+    }
+
+    #[test]
+    fn scalp_and_fibres_have_finite_orthogonal_tangent_frames() {
+        use bevy::mesh::VertexAttributeValues;
+        let human = super::super::sample_person(
+            8646405506642607100,
+            0,
+            Vec3::ZERO,
+            0.0,
+            super::super::HumanPoseKind::StandingRelaxed,
+            None,
+            false,
+        );
+        let geometry = build(&human).parts.remove(&HumanSurface::Hair).unwrap();
+        let mesh = geometry.into_mesh();
+        let Some(VertexAttributeValues::Float32x4(tangents)) =
+            mesh.attribute(Mesh::ATTRIBUTE_TANGENT)
+        else {
+            panic!("missing hair tangents")
+        };
+        let Some(VertexAttributeValues::Float32x3(normals)) =
+            mesh.attribute(Mesh::ATTRIBUTE_NORMAL)
+        else {
+            panic!("missing hair normals")
+        };
+        for (t, n) in tangents.iter().zip(normals) {
+            let t = Vec4::from_array(*t);
+            let n = Vec3::from_array(*n);
+            assert!(
+                t.is_finite() && (t.truncate().length() - 1.0).abs() < 0.001,
+                "invalid tangent {t}"
+            );
+            assert!(
+                t.truncate().dot(n).abs() < 0.001,
+                "nonorthogonal tangent frame {t} / {n}"
+            );
         }
     }
 

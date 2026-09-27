@@ -11,7 +11,7 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use clap::{Parser, ValueEnum};
+use clap::{CommandFactory, FromArgMatches, Parser, ValueEnum};
 
 use bevy_zeroverse::scene::procedural_indoor::layout::IndoorLayout;
 use bevy_zeroverse::{render::RenderMode, scene::ZeroverseSceneType};
@@ -60,7 +60,7 @@ struct Cli {
     #[arg(short, long)]
     output: PathBuf,
 
-    /// Number of worker threads to pull samples concurrently
+    /// Worker count (defaults to one model-owning process when motion is enabled)
     #[arg(short = 'w', long, default_value_t = 16)]
     workers: usize,
 
@@ -111,6 +111,14 @@ struct Cli {
     /// Indoor chair occupancy and standing person density in [0, 1] (0 disables people)
     #[arg(long, default_value_t = 0.25)]
     indoor_human_density: f32,
+
+    /// Opt-in ARDY motion policy JSON (requires the human_motion Cargo feature)
+    #[arg(long)]
+    human_motion: Option<String>,
+
+    /// Capture camera policy JSON, with primary-room confinement and path length bounds
+    #[arg(long)]
+    indoor_camera: Option<String>,
 
     /// Rays per indirect-lighting probe; 256 efficient, 1024 reduces Monte Carlo noise
     #[arg(long, default_value_t = 256, value_parser = clap::value_parser!(u32).range(64..=16384))]
@@ -239,7 +247,9 @@ fn effective_process_cap(cli: &Cli) -> Result<usize> {
 }
 
 fn main() -> Result<()> {
-    let mut cli = Cli::parse();
+    let matches = Cli::command().get_matches();
+    let mut cli = Cli::from_arg_matches(&matches)?;
+    motion_worker_default(&mut cli, &matches);
     cli.color_codec
         .get_or_insert(if cli.scene_type == ZeroverseSceneType::ProceduralIndoor {
             ColorCodec::Raw
@@ -455,6 +465,12 @@ fn main() -> Result<()> {
                     .arg("--worker-job-id")
                     .arg(job.job_id.to_string());
 
+                if let Some(camera) = &cli.indoor_camera {
+                    cmd.arg("--indoor-camera").arg(camera);
+                }
+                if let Some(motion) = &cli.human_motion {
+                    cmd.arg("--human-motion").arg(motion);
+                }
                 if cli.rotation_augmentation {
                     cmd.arg("--rotation-augmentation");
                 }
@@ -567,6 +583,8 @@ fn main() -> Result<()> {
         indoor_layout: cli.indoor_layout,
         indoor_density: cli.indoor_density,
         indoor_human_density: cli.indoor_human_density,
+        human_motion: cli.human_motion.clone(),
+        indoor_camera: cli.indoor_camera.clone(),
         indoor_gi_rays: cli.indoor_gi_rays,
         indoor_quality: cli.indoor_quality,
         rotation_augmentation: cli.rotation_augmentation,
@@ -597,6 +615,48 @@ fn main() -> Result<()> {
     Ok(())
 }
 
+// A process owns its GPU models. Preserve an explicit concurrency choice, but
+// avoid loading sixteen copies of ARDY/Llama through the general CLI default.
+fn motion_worker_default(cli: &mut Cli, matches: &clap::ArgMatches) {
+    let wants_motion = cli.human_motion.as_ref().is_some_and(|json| {
+        bevy_zeroverse::human_motion::HumanMotionConfig::parse(json)
+            .is_ok_and(|p| p.fraction > 0.0 || !p.trajectories.is_empty())
+    });
+    if cli.per_process
+        && wants_motion
+        && matches.value_source("workers") == Some(clap::parser::ValueSource::DefaultValue)
+    {
+        cli.workers = 1;
+    }
+}
+
+#[cfg(test)]
+mod motion_worker_tests {
+    use super::*;
+
+    #[test]
+    fn motion_defaults_share_one_model_and_respect_explicit_concurrency() {
+        for (extra, expected) in [
+            (vec![], 16),
+            (vec!["--human-motion", r#"{"fraction":0}"#], 16),
+            (vec!["--human-motion", "{}"], 1),
+            (vec!["--human-motion", "{}", "--workers", "4"], 4),
+            (vec!["--human-motion", "{}", "--per-process", "false"], 16),
+        ] {
+            let matches = Cli::command()
+                .try_get_matches_from(
+                    ["zeroverse_gen", "--output", "unused"]
+                        .into_iter()
+                        .chain(extra),
+                )
+                .unwrap();
+            let mut cli = Cli::from_arg_matches(&matches).unwrap();
+            motion_worker_default(&mut cli, &matches);
+            assert_eq!(cli.workers, expected);
+        }
+    }
+}
+
 fn export_dataset_metrics(cli: &Cli, sample_offset: usize) -> Result<()> {
     if cli.scene_type == ZeroverseSceneType::ProceduralIndoor
         && cli.indoor_metrics
@@ -605,7 +665,7 @@ fn export_dataset_metrics(cli: &Cli, sample_offset: usize) -> Result<()> {
         let count = sample_offset
             .checked_add(cli.samples)
             .context("dataset sample count overflow")?;
-        bevy_zeroverse::scene::procedural_indoor::metrics::export_metrics_with_humans(
+        bevy_zeroverse::scene::procedural_indoor::metrics::export_metrics_with_camera_settings(
             cli.seed.context("indoor dataset seed missing")?,
             count,
             cli.cameras,
@@ -615,6 +675,12 @@ fn export_dataset_metrics(cli: &Cli, sample_offset: usize) -> Result<()> {
             cli.height,
             &cli.output.join("metrics"),
             cli.indoor_human_density,
+            &cli.indoor_camera
+                .as_deref()
+                .map(bevy_zeroverse::scene::procedural_indoor::cameras::CameraSettings::parse)
+                .transpose()
+                .map_err(anyhow::Error::msg)?
+                .unwrap_or_default(),
         )
         .map_err(anyhow::Error::msg)?;
     }
@@ -672,6 +738,8 @@ fn prepare_generation_metadata(cli: &mut Cli) -> Result<()> {
         scene_type: cli.scene_type.clone(),
         indoor_density: cli.indoor_density,
         indoor_human_density: cli.indoor_human_density,
+        human_motion: cli.human_motion.clone(),
+        indoor_camera: cli.indoor_camera.clone(),
         indoor_gi_rays: cli.indoor_gi_rays,
         ..Default::default()
     })?;
@@ -719,6 +787,8 @@ fn prepare_generation_metadata(cli: &mut Cli) -> Result<()> {
         "layout": cli.indoor_layout.to_possible_value().unwrap().get_name(),
         "density": cli.indoor_density,
         "human_density": cli.indoor_human_density,
+        "human_motion": cli.human_motion,
+        "indoor_camera": cli.indoor_camera,
         "quality": cli.indoor_quality.to_possible_value().unwrap().get_name(),
         "gi_settings": gi_settings,
         "gi_effective_enabled": cli.indoor_quality == bevy_zeroverse::scene::procedural_indoor::IndoorQuality::Auto && bevy_zeroverse::scene::procedural_indoor::gi::IndoorGiSettings::default().enabled,

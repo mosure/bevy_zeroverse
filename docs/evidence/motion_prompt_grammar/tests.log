@@ -1,0 +1,28 @@
+   Compiling bevy_zeroverse v0.20.0 (/media/mosure/hyper1/repos/bevy_zeroverse)
+    Finished `test` profile [optimized] target(s) in 24.71s
+warning: the following packages contain code that will be rejected by a future version of Rust: burn-cubecl v0.21.0
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 3`
+     Running unittests src/lib.rs (target/debug/build/bevy_zeroverse/3b867a2c2acca5b8/out/bevy_zeroverse-3b867a2c2acca5b8)
+
+running 16 tests
+test human_motion::prompts::tests::backward_and_sideways_gaits_condition_facing_without_reversing_the_route ... ok
+test human_motion::planning::tests::reservations_use_simultaneous_paths_not_their_union_aabbs ... ok
+test human_motion::contact::tests::thin_supports_allow_contact_but_reject_penetration_after_rotation ... ok
+test human_motion::skin::tests::interpolation_preserves_bone_lengths_and_encloses_deformed_render_vertices ... ok
+test human_motion::skin::tests::baked_normals_and_tangents_match_bevy_skinning_convention ... ok
+test human_motion::validation::tests::swept_routes_respect_glass_furniture_and_doorway ... ok
+test human_motion::prompts::tests::weights_space_support_and_duration_filter_actions ... ok
+test human_motion::validation::tests::explicit_prompts_preserve_contact_furniture_and_reject_invalid_ids ... ok
+test human_motion::runtime::tests::sampling_is_order_independent_and_marks_geometry_and_pose_dirty ... ok
+test human_motion::runtime::tests::absent_policy_never_initializes_device_models_or_worker ... ok
+test human_motion::runtime::tests::empty_policy_in_a_real_manifest_does_not_start_inference ... ok
+test human_motion::runtime::tests::regeneration_discards_stale_completion_without_loading_models ... ok
+test human_motion::planning::tests::selected_fraction_is_a_quota_and_staging_preserves_identity_and_clearance ... ok
+validated 497 unique prompts with pinned tokenizer; max 53/64 tokens including header
+test human_motion::prompts::tests::sequences_preserve_routes_and_bind_actions_to_ordered_waypoints ... ok
+validated 2459 unique prompts with pinned tokenizer; max 26/64 tokens including header
+test human_motion::prompts::tests::grammar_spans_actions_and_gaits_with_bounded_coherent_text ... ok
+test human_motion::validation::tests::policies_are_bounded_and_reproducible ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 102 filtered out; finished in 4.05s
+

@@ -54,6 +54,7 @@ pub(crate) fn apply_position_material(
     aabb: Query<&SceneAabb>,
     mut removed_positions: RemovedComponents<Position>,
     mut materials: ResMut<Assets<PositionMaterial>>,
+    mut cache: Local<super::annotation_material::AnnotationMaterialCache<PositionMaterial>>,
 ) {
     for e in removed_positions.read() {
         if let Ok(mut commands) = commands.get_entity(e) {
@@ -76,7 +77,10 @@ pub(crate) fn apply_position_material(
             ..default()
         };
 
-        let position_material = materials.add(ExtendedMaterial {
+        let mut key = pbr_material.annotation_key();
+        key.extend(min.to_array().map(f32::to_bits));
+        key.extend(max.to_array().map(f32::to_bits));
+        let position_material = cache.get(&mut materials, key, || ExtendedMaterial {
             base: base_material,
             extension: PositionExtension {},
         });
@@ -91,6 +95,13 @@ pub type PositionMaterial = ExtendedMaterial<StandardMaterial, PositionExtension
 pub struct PositionExtension {}
 
 impl MaterialExtension for PositionExtension {
+    fn enable_shadows() -> bool {
+        false
+    }
+    fn enable_prepass() -> bool {
+        false
+    }
+
     fn fragment_shader() -> ShaderRef {
         POSITION_SHADER_HANDLE.into()
     }

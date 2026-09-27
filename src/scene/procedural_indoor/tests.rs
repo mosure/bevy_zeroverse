@@ -2,6 +2,48 @@ use super::{geometry::Geometry, layout::*, validation::*};
 use bevy::prelude::*;
 
 #[test]
+fn sampled_niches_keep_wall_mounts_on_solid_wall_and_reject_invalid_fields() {
+    let mut niche_widths = std::collections::BTreeSet::new();
+    for seed in 0..256 {
+        let scene =
+            IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 0, 0.0).unwrap();
+        validate_layout(&scene).unwrap();
+        if scene.architecture_style != ArchitectureStyle::Classic {
+            continue;
+        }
+        let (lo, hi) = super::architecture::details::niche_region(&scene);
+        niche_widths.insert(((hi.x - lo.x) * 100.0) as i32);
+        for o in &scene.objects {
+            if !o.neighbor
+                && o.support.is_none()
+                && matches!(
+                    o.kind,
+                    ObjectKind::Display
+                        | ObjectKind::Whiteboard
+                        | ObjectKind::WallArt
+                        | ObjectKind::Clock
+                )
+            {
+                let (a, b) = o.bounds();
+                assert!(
+                    !super::architecture::details::overlaps_niche(&scene, a, b),
+                    "seed {seed}: unsupported wall mount"
+                );
+            }
+        }
+    }
+    assert!(niche_widths.len() > 15);
+    let mut scene =
+        IndoorManifest::generate_with_humans(0, IndoorLayout::Mixed, 0.65, 0, 0.0).unwrap();
+    scene.program.as_mut().unwrap().zones[0]
+        .furnishing
+        .as_mut()
+        .unwrap()
+        .curvature = f32::NAN;
+    assert!(validate_layout(&scene).is_err());
+}
+
+#[test]
 fn legacy_config_json_does_not_require_new_indoor_fields() {
     let mut json = serde_json::to_value(crate::app::BevyZeroverseConfig::default()).unwrap();
     let object = json.as_object_mut().unwrap();
@@ -112,8 +154,36 @@ fn distribution_is_valid_and_covers_all_families() {
     assert!(report.camera_height_range[0] < 0.85 && report.camera_height_range[1] > 2.1);
     assert!(report.fov_range[0] < 49.0 && report.fov_range[1] > 73.0);
     let specific = audit_layout(0, 32, 2, 0.5, IndoorLayout::Conference);
+    assert!(
+        specific.invalid_seeds.is_empty(),
+        "{:?}",
+        specific.invalid_seeds
+    );
     assert_eq!(specific.layout_counts.len(), 1);
     assert_eq!(specific.layout_counts["Conference"], 32);
+}
+
+#[test]
+fn visibility_sampling_handles_high_back_seats_and_glazed_rooms() {
+    for seed in [100075, 102210, 105756, 105940, 107796] {
+        if let Err(error) = IndoorManifest::generate(seed, IndoorLayout::Mixed, 0.65, 2) {
+            let scene = IndoorManifest::generate(seed, IndoorLayout::Mixed, 0.65, 0).unwrap();
+            let heads: Vec<_> = scene
+                .humans
+                .iter()
+                .filter(|h| !h.neighbor)
+                .map(|h| {
+                    (
+                        h.joints[4].y,
+                        h.chair
+                            .and_then(|id| scene.objects.iter().find(|o| o.id == id))
+                            .map(|o| o.size.y),
+                    )
+                })
+                .collect();
+            panic!("{error}; seated head/seat envelope heights: {heads:?}");
+        }
+    }
 }
 
 #[test]
@@ -243,6 +313,9 @@ fn tabletop_wood_grain_follows_the_long_axis() {
         .find(|o| o.kind == ObjectKind::Table)
         .unwrap()
         .clone();
+    while super::objects::tables::parameters(&object).top_surface != Surface::Wood {
+        object.seed = object.seed.wrapping_add(1);
+    }
     for size in [Vec3::new(1.5, 0.75, 3.5), Vec3::new(1.5, 0.75, 0.7)] {
         object.size = size;
         let assembly = super::objects::build_object(&object);
@@ -766,7 +839,7 @@ fn people_are_deterministic_diverse_supported_and_inside_collision_envelopes() {
     assert_eq!(poses.len(), 8, "{poses:?}");
     assert_eq!(outfits.len(), 3);
     assert_eq!(skin.len(), 8);
-    assert_eq!(hair.len(), 6);
+    assert_eq!(hair.len(), 8);
     assert!(neighbor_count > 50, "neighbor chair occupancy disappeared");
     assert!(poses.contains(&format!("{:?}", HumanPoseKind::SeatedWorking)));
     eprintln!(
@@ -861,7 +934,7 @@ fn broad_full_human_occupancy_preserves_geometry_and_layout() {
     assert_eq!(poses.len(), 8);
     assert_eq!(outfits.len(), 3);
     assert_eq!(skin.len(), 8);
-    assert_eq!(hair.len(), 6);
+    assert_eq!(hair.len(), 8);
     println!(
         "full occupancy geometry: vertices={total_vertices} triangles={total_triangles}; poses={poses:?}, outfits={outfits:?}, skin_tones={skin:?}, hairstyles={hair:?}"
     );
@@ -918,4 +991,32 @@ fn furniture_programs_have_bounded_geometry_and_varied_parameters() {
     assert_eq!(laptops.len(), 4);
     assert!(angles.iter().copied().fold(f32::INFINITY, f32::min) < 1.6);
     assert!(angles.iter().copied().fold(f32::NEG_INFINITY, f32::max) > 2.15);
+}
+
+#[test]
+fn dressed_staged_humans_have_finite_geometry_and_material_parts() {
+    for seed in [0, 1, 13, 34] {
+        let mut scene =
+            IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.35, 0, 0.7).unwrap();
+        crate::human_motion::planning::prepare_scene(
+            &mut scene,
+            &crate::human_motion::HumanMotionConfig {
+                fraction: 1.0,
+                locomotion_fraction: 1.0,
+                max_actors: 16,
+                ..default()
+            },
+        )
+        .unwrap();
+        for h in &scene.humans {
+            let assembly = super::humans::build_human(h);
+            for (surface, g) in assembly.parts {
+                for (index, (p, n)) in g.positions.iter().zip(&g.normals).enumerate() {
+                    assert!(Vec3::from_array(*p).is_finite() && Vec3::from_array(*n).is_finite()
+                        && Vec3::from_array(*n).length_squared() > 0.99,
+                        "seed={seed}, human={}, surface={surface:?}, vertex={index}, p={p:?}, n={n:?}", h.id);
+                }
+            }
+        }
+    }
 }

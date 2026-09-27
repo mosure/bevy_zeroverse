@@ -44,14 +44,27 @@ is required for the architecture and furnishings. People use the bundled AnnyBod
 reference in `assets/burn_human`; `--indoor-human-density 0` runs without it. Existing
 scene types remain available.
 
-Generator v8 expands continuous room, furnishing, material, camera and
-low-light-to-sunlight distributions. See the [domain review](docs/procedural_domain_v8.md)
-for measured coverage and renders. The [generator-v7 review](docs/scene_quality_v7.md)
+Generator v13 adds capture readiness barriers, continuous furniture and clothing
+parameters, glazing and lighting variation, and validated native/WebGPU human
+motion. The [current review](docs/indoor_review_v13.md) includes room and people
+galleries, annotation checks and a 128-room distribution audit.
+
+Generator v10 adds denser functional furnishing, wider collision-aware rotations,
+content-aware cameras and tangent/material fixes. The [quality and diversity review](docs/procedural_domain_v10.md)
+includes rendered visibility checks and a physical Cycles comparison. An optional
+[SigLIP2 audit](docs/embedding_audit.md) measures spacing between captured scenes
+using cached, verified model shards; it adds no model initialization to generation.
+
+Generator v9 adds continuous workstation fields, variable recessed niches and plant
+morphology, and broader interior camera placement. The [capture distribution review](docs/procedural_domain_v9.md)
+includes 144 captured rooms, count distributions, camera/placement heatmaps, visual
+repetition diagnostics and explicit quality gaps. The [generator-v8 review](docs/procedural_domain_v8.md)
+records the room, material and low-light-to-sunlight domains. The [generator-v7 review](docs/scene_quality_v7.md)
 records the controls, human surfaces, glazing and annotation fixes. The generator-v6
 [program review](docs/procedural_program_review.md) retains its historical
 native/browser checks and matched Cycles comparisons. The earlier
 [generator-v5 review](docs/local_scene_quality_review.md) is retained as historical evidence.
-See the [0.20 release notes](docs/release_0_20.md) for API and capture compatibility.
+See the [0.21 release notes](docs/release_0_21.md) for API and capture compatibility.
 
 See the [generation, capture and validation guide](docs/procedural_indoor.md) for
 dataset examples, distribution evidence and current rendering limits. The
@@ -59,6 +72,14 @@ dataset examples, distribution evidence and current rendering limits. The
 families, six potted plant forms, desk clutter, render inspections and dataset
 metrics. Native capture includes diffuse GI and float32 geometry annotations;
 the [WebGPU viewer](docs/procedural_indoor_web.md) has explicit quality profiles.
+
+## burn_siglip2
+
+The independently versioned [burn_siglip2](crates/burn_siglip2) crate is maintained
+and published from this workspace. It provides Burn 0.21 SigLIP2 image/text
+inference, cached model loading and native/browser GPU support. See its
+[release guide](crates/burn_siglip2/RELEASING.md) and the optional
+[capture embedding audit](docs/embedding_audit.md).
 
 ## dataloader
 
@@ -94,20 +115,23 @@ requires nvjpeg: https://developer.nvidia.com/nvjpeg
 ![Alt text](docs/bevy_zeroverse_material_grid.webp)
 
 
-The current checkout pins Bevy 0.19.1, Burn 0.21.0, `burn_human` 0.4.0 and
-`bevy_burn_human` 0.4.0. Capture metadata includes an engine identity; datasets
+The current checkout uses Bevy 0.19.1, Burn 0.21.0, `burn_human` 0.5.1 and
+`bevy_burn_human` 0.6.1. Capture metadata includes an engine identity; datasets
 created with the older rendering contract cannot be resumed into a mixed-version
 capture stream. Existing dataset files remain readable. See the
 [physical accuracy and memory review](docs/procedural_indoor_review_v6.md)
 for measured Cycles differences and the failed continuous-process stability gate.
-Production CLI generation should retain its process lifetime limit. The checkout's
-wgpu memory patches are not inherited by downstream crates.io consumers.
+Production CLI generation should retain its process lifetime limit. The
+[wgpu dependency review](docs/wgpu_dependency_review.md) measures why the local
+wgpu optimizations remain enabled. Crate packages exclude the vendored sources
+and resolve registry wgpu; local memory and performance results do not qualify
+that unpatched configuration.
 
 ## compatible bevy versions
 
 | `bevy_zeroverse` | `bevy` |
 | :--                       | :--    |
-| `0.20`, `0.19`            | `0.19.1` |
+| `0.21`, `0.20`, `0.19`     | `0.19.1` |
 | published `0.17`           | `0.17` |
 | `0.8`                     | `0.16` |
 | `0.6`                     | `0.15` |
@@ -120,3 +144,13 @@ wgpu memory patches are not inherited by downstream crates.io consumers.
 - [lgm](https://github.com/3DTopia/LGM)
 - [mat-synth](https://huggingface.co/datasets/gvecchio/MatSynth)
 - [zeroverse](https://github.com/desaixie/zeroverse)
+
+See [numeric optical flow and motion vectors](docs/optical_flow.md) for temporal annotation conventions and lossless export.
+
+See [optional indoor human motion](docs/human_motion.md) for cached ARDY text/waypoint generation, synchronized playback, and native/WebGPU validation.
+See the [v13 indoor review](docs/indoor_review_v13.md) for capture readiness barriers,
+native and browser motion checks, expanded procedural parameters, glass changes,
+and measured distributions with room, furniture and people galleries.
+See the [v12 room review](docs/room_review_v12.md) for primary-room camera paths,
+furniture programs, fixture annotations, compound motion and measured annotation
+preview performance, with captured galleries and 128-room distribution metrics.

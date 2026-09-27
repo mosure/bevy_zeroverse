@@ -21,7 +21,6 @@ pub(super) fn synchronize(
     mut scene: ResMut<ZeroverseSceneSettings>,
     mut semantic: ResMut<ZeroverseSemanticRoomSettings>,
     mut previous: Local<Option<BevyZeroverseConfig>>,
-    mut regenerate: MessageWriter<RegenerateSceneEvent>,
 ) {
     // Bypass Bevy's change flag until a value actually changes. Otherwise every
     // frame would rebuild camera grids and annotation materials.
@@ -59,12 +58,6 @@ pub(super) fn synchronize(
     if *render != old_mode {
         render.set_changed();
     }
-    if previous
-        .as_ref()
-        .is_some_and(|p| p.scene_type != config.scene_type)
-    {
-        regenerate.write(RegenerateSceneEvent);
-    }
     let changed = before.scene_type != config.scene_type
         || before.num_cameras != config.num_cameras
         || before.rotation_augmentation != config.rotation_augmentation
@@ -83,7 +76,7 @@ pub(super) fn synchronize(
 mod tests {
     use super::*;
     #[test]
-    fn either_scene_selector_reaches_asset_loading_and_emits_regeneration() {
+    fn settings_edits_sync_without_regenerating() {
         let mut app = App::new();
         app.init_resource::<BevyZeroverseConfig>()
             .init_resource::<Playback>()
@@ -105,10 +98,20 @@ mod tests {
             app.world().resource::<BevyZeroverseConfig>().scene_type,
             ZeroverseSceneType::ProceduralIndoor
         );
-        assert!(!app
+        assert!(app
             .world()
             .resource::<Messages<RegenerateSceneEvent>>()
             .is_empty());
+        for fraction in [0.2, 0.4, 0.8, 1.0] {
+            app.world_mut()
+                .resource_mut::<BevyZeroverseConfig>()
+                .human_motion = Some(format!(r#"{{"fraction":{fraction}}}"#));
+            app.update();
+            assert!(app
+                .world()
+                .resource::<Messages<RegenerateSceneEvent>>()
+                .is_empty());
+        }
         app.world_mut()
             .resource_mut::<BevyZeroverseConfig>()
             .scene_type = ZeroverseSceneType::Room;

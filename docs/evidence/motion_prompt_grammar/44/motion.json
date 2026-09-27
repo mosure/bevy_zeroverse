@@ -1,0 +1,819 @@
+{
+  "scene_seed": 44,
+  "pending": false,
+  "stage": "Ready",
+  "model_loads": 1,
+  "generated_batches": 2,
+  "embedding_hits": 0,
+  "model_artifacts": {
+    "ardy/core-rp-20fps-h40/v1": "6e03294854771ca3ed6641251c77ab75bd2542d778c02886ea795d8d77655cd8",
+    "llama/ardy-llm2vec-8b/v1": "09280ebcf02184708cff1a9f982b901166b433e504ff343f02c037cc52d8ee16"
+  },
+  "requested": [
+    {
+      "actor_id": 31,
+      "behavior": "skip_fold_arms_jump_skip",
+      "request": {
+        "prompt": "A person skips steadily, stops and folds both arms, pauses, then relaxes, skips again, stops and jumps upward once and lands, then resumes skipping carefully.",
+        "seed": 6929574002934722530,
+        "frames": 160,
+        "history_frames": 80,
+        "diffusion_steps": 10,
+        "text_guidance": 2.0,
+        "trajectory_guidance": 3.0,
+        "waypoints": [
+          {
+            "frame": 0,
+            "position": [
+              -1.2764137,
+              0.94,
+              0.9074291
+            ],
+            "heading": 2.572004,
+            "constrain_height": false
+          },
+          {
+            "frame": 19,
+            "position": [
+              -1.0329775,
+              0.94,
+              0.5272907
+            ],
+            "heading": 2.572004,
+            "constrain_height": true
+          },
+          {
+            "frame": 37,
+            "position": [
+              -1.0329775,
+              0.9531236,
+              0.5272907
+            ],
+            "heading": 2.572004,
+            "constrain_height": true
+          },
+          {
+            "frame": 54,
+            "position": [
+              -1.0329775,
+              0.94,
+              0.5272907
+            ],
+            "heading": 2.572004,
+            "constrain_height": true
+          },
+          {
+            "frame": 96,
+            "position": [
+              -0.50215733,
+              0.94,
+              -0.3016127
+            ],
+            "heading": 2.572004,
+            "constrain_height": true
+          },
+          {
+            "frame": 115,
+            "position": [
+              -0.50215733,
+              1.3226118,
+              -0.3016127
+            ],
+            "heading": 2.572004,
+            "constrain_height": true
+          },
+          {
+            "frame": 134,
+            "position": [
+              -0.50215733,
+              0.94,
+              -0.3016127
+            ],
+            "heading": 2.572004,
+            "constrain_height": true
+          },
+          {
+            "frame": 159,
+            "position": [
+              -0.17893624,
+              0.94,
+              -0.8063394
+            ],
+            "heading": 2.572004,
+            "constrain_height": false
+          }
+        ],
+        "dense_trajectory": true
+      },
+      "support_chair": null,
+      "prompt_recipe": {
+        "version": 1,
+        "family": "locomotion",
+        "gait": "skip",
+        "travel_speed_mps": 0.47326916,
+        "style": "carefully",
+        "arm_style": null,
+        "gaze": null,
+        "actions": [
+          {
+            "family": "idle",
+            "action": "fold_arms",
+            "hand": "left",
+            "side": "left",
+            "repetitions": 1,
+            "amplitude": 0.8280904,
+            "start_frame": 19,
+            "end_frame": 54,
+            "peak_pelvis_height": 0.9531236,
+            "clearance_radius": 0.540545
+          },
+          {
+            "family": "exercise",
+            "action": "jump",
+            "hand": "right",
+            "side": "right",
+            "repetitions": 1,
+            "amplitude": 0.8630589,
+            "start_frame": 96,
+            "end_frame": 134,
+            "peak_pelvis_height": 1.3226118,
+            "clearance_radius": 1.0849365
+          }
+        ]
+      }
+    },
+    {
+      "actor_id": 30,
+      "behavior": "shuffle",
+      "request": {
+        "prompt": "A person shuffles slowly.",
+        "seed": 398547671184668630,
+        "frames": 160,
+        "history_frames": 80,
+        "diffusion_steps": 10,
+        "text_guidance": 2.0,
+        "trajectory_guidance": 3.0,
+        "waypoints": [
+          {
+            "frame": 0,
+            "position": [
+              -3.7874248,
+              0.94,
+              4.533016
+            ],
+            "heading": -2.694042,
+            "constrain_height": true
+          },
+          {
+            "frame": 159,
+            "position": [
+              -5.043119,
+              0.94,
+              1.9171929
+            ],
+            "heading": -2.694042,
+            "constrain_height": true
+          }
+        ],
+        "dense_trajectory": true
+      },
+      "support_chair": null,
+      "prompt_recipe": {
+        "version": 1,
+        "family": "locomotion",
+        "gait": "shuffle",
+        "travel_speed_mps": 0.36498147,
+        "style": null,
+        "arm_style": null,
+        "gaze": null,
+        "actions": []
+      }
+    },
+    {
+      "actor_id": 32,
+      "behavior": "backward_walk_explain_head_shake_backward_walk",
+      "request": {
+        "prompt": "A person walks backward slowly, stops and explains with small gestures of both hands, walks backward again, stops and shakes the head once, then resumes walking backward with relaxed shoulders.",
+        "seed": 12874150833972768601,
+        "frames": 160,
+        "history_frames": 80,
+        "diffusion_steps": 10,
+        "text_guidance": 2.0,
+        "trajectory_guidance": 3.0,
+        "waypoints": [
+          {
+            "frame": 0,
+            "position": [
+              3.070016,
+              0.94,
+              -0.6161475
+            ],
+            "heading": 4.829812,
+            "constrain_height": true
+          },
+          {
+            "frame": 23,
+            "position": [
+              3.4976764,
+              0.94,
+              -0.6665967
+            ],
+            "heading": 4.829812,
+            "constrain_height": true
+          },
+          {
+            "frame": 42,
+            "position": [
+              3.4976764,
+              0.92158854,
+              -0.6665967
+            ],
+            "heading": 4.829812,
+            "constrain_height": true
+          },
+          {
+            "frame": 60,
+            "position": [
+              3.4976764,
+              0.94,
+              -0.6665967
+            ],
+            "heading": 4.829812,
+            "constrain_height": true
+          },
+          {
+            "frame": 107,
+            "position": [
+              4.3667626,
+              0.94,
+              -0.769119
+            ],
+            "heading": 4.829812,
+            "constrain_height": true
+          },
+          {
+            "frame": 121,
+            "position": [
+              4.3667626,
+              0.9404247,
+              -0.769119
+            ],
+            "heading": 4.829812,
+            "constrain_height": true
+          },
+          {
+            "frame": 135,
+            "position": [
+              4.3667626,
+              0.94,
+              -0.769119
+            ],
+            "heading": 4.829812,
+            "constrain_height": true
+          },
+          {
+            "frame": 159,
+            "position": [
+              4.8219724,
+              0.94,
+              -0.82281804
+            ],
+            "heading": 4.829812,
+            "constrain_height": true
+          }
+        ],
+        "dense_trajectory": true
+      },
+      "support_chair": null,
+      "prompt_recipe": {
+        "version": 1,
+        "family": "locomotion",
+        "gait": "backward_walk",
+        "travel_speed_mps": 0.37534136,
+        "style": "with relaxed shoulders",
+        "arm_style": null,
+        "gaze": null,
+        "actions": [
+          {
+            "family": "gesture",
+            "action": "explain",
+            "hand": "right",
+            "side": "left",
+            "repetitions": 1,
+            "amplitude": 0.039713502,
+            "start_frame": 23,
+            "end_frame": 60,
+            "peak_pelvis_height": 0.92158854,
+            "clearance_radius": 0.7231771
+          },
+          {
+            "family": "idle",
+            "action": "head_shake",
+            "hand": "right",
+            "side": "right",
+            "repetitions": 1,
+            "amplitude": 0.51061773,
+            "start_frame": 107,
+            "end_frame": 135,
+            "peak_pelvis_height": 0.9404247,
+            "clearance_radius": 0.523084
+          }
+        ]
+      }
+    },
+    {
+      "actor_id": 29,
+      "behavior": "head_scratch",
+      "request": {
+        "prompt": "A person scratches the head with the left hand with a stiff posture.",
+        "seed": 13947390841346612422,
+        "frames": 160,
+        "history_frames": 80,
+        "diffusion_steps": 10,
+        "text_guidance": 2.0,
+        "trajectory_guidance": 3.0,
+        "waypoints": [
+          {
+            "frame": 0,
+            "position": [
+              1.2625057,
+              0.94,
+              -1.02399
+            ],
+            "heading": 1.780452,
+            "constrain_height": true
+          },
+          {
+            "frame": 31,
+            "position": [
+              1.2625057,
+              0.94,
+              -1.02399
+            ],
+            "heading": 1.780452,
+            "constrain_height": true
+          },
+          {
+            "frame": 46,
+            "position": [
+              1.2625057,
+              0.94815385,
+              -1.02399
+            ],
+            "heading": 1.780452,
+            "constrain_height": true
+          },
+          {
+            "frame": 60,
+            "position": [
+              1.2625057,
+              0.94,
+              -1.02399
+            ],
+            "heading": 1.780452,
+            "constrain_height": true
+          },
+          {
+            "frame": 159,
+            "position": [
+              1.2625057,
+              0.94,
+              -1.02399
+            ],
+            "heading": 1.780452,
+            "constrain_height": true
+          }
+        ],
+        "dense_trajectory": true
+      },
+      "support_chair": null,
+      "prompt_recipe": {
+        "version": 1,
+        "family": "idle",
+        "gait": null,
+        "travel_speed_mps": null,
+        "style": "with a stiff posture",
+        "arm_style": null,
+        "gaze": null,
+        "actions": [
+          {
+            "family": "idle",
+            "action": "head_scratch",
+            "hand": "left",
+            "side": "right",
+            "repetitions": 1,
+            "amplitude": 0.70384705,
+            "start_frame": 31,
+            "end_frame": 60,
+            "peak_pelvis_height": 0.94815385,
+            "clearance_radius": 0.63075
+          }
+        ]
+      }
+    }
+  ],
+  "accepted": [
+    {
+      "actor_id": 31,
+      "behavior": "skip_fold_arms_jump_skip",
+      "request": {
+        "prompt": "A person skips steadily, stops and folds both arms, pauses, then relaxes, skips again, stops and jumps upward once and lands, then resumes skipping carefully.",
+        "seed": 6929574002934722530,
+        "frames": 160,
+        "history_frames": 80,
+        "diffusion_steps": 10,
+        "text_guidance": 2.0,
+        "trajectory_guidance": 3.0,
+        "waypoints": [
+          {
+            "frame": 0,
+            "position": [
+              -1.2764137,
+              0.94,
+              0.9074291
+            ],
+            "heading": 2.572004,
+            "constrain_height": false
+          },
+          {
+            "frame": 19,
+            "position": [
+              -1.0329775,
+              0.94,
+              0.5272907
+            ],
+            "heading": 2.572004,
+            "constrain_height": true
+          },
+          {
+            "frame": 37,
+            "position": [
+              -1.0329775,
+              0.9531236,
+              0.5272907
+            ],
+            "heading": 2.572004,
+            "constrain_height": true
+          },
+          {
+            "frame": 54,
+            "position": [
+              -1.0329775,
+              0.94,
+              0.5272907
+            ],
+            "heading": 2.572004,
+            "constrain_height": true
+          },
+          {
+            "frame": 96,
+            "position": [
+              -0.50215733,
+              0.94,
+              -0.3016127
+            ],
+            "heading": 2.572004,
+            "constrain_height": true
+          },
+          {
+            "frame": 115,
+            "position": [
+              -0.50215733,
+              1.3226118,
+              -0.3016127
+            ],
+            "heading": 2.572004,
+            "constrain_height": true
+          },
+          {
+            "frame": 134,
+            "position": [
+              -0.50215733,
+              0.94,
+              -0.3016127
+            ],
+            "heading": 2.572004,
+            "constrain_height": true
+          },
+          {
+            "frame": 159,
+            "position": [
+              -0.17893624,
+              0.94,
+              -0.8063394
+            ],
+            "heading": 2.572004,
+            "constrain_height": false
+          }
+        ],
+        "dense_trajectory": true
+      },
+      "support_chair": null,
+      "prompt_recipe": {
+        "version": 1,
+        "family": "locomotion",
+        "gait": "skip",
+        "travel_speed_mps": 0.47326916,
+        "style": "carefully",
+        "arm_style": null,
+        "gaze": null,
+        "actions": [
+          {
+            "family": "idle",
+            "action": "fold_arms",
+            "hand": "left",
+            "side": "left",
+            "repetitions": 1,
+            "amplitude": 0.8280904,
+            "start_frame": 19,
+            "end_frame": 54,
+            "peak_pelvis_height": 0.9531236,
+            "clearance_radius": 0.540545
+          },
+          {
+            "family": "exercise",
+            "action": "jump",
+            "hand": "right",
+            "side": "right",
+            "repetitions": 1,
+            "amplitude": 0.8630589,
+            "start_frame": 96,
+            "end_frame": 134,
+            "peak_pelvis_height": 1.3226118,
+            "clearance_radius": 1.0849365
+          }
+        ]
+      }
+    },
+    {
+      "actor_id": 30,
+      "behavior": "shuffle",
+      "request": {
+        "prompt": "A person shuffles slowly.",
+        "seed": 398547671184668630,
+        "frames": 160,
+        "history_frames": 80,
+        "diffusion_steps": 10,
+        "text_guidance": 2.0,
+        "trajectory_guidance": 3.0,
+        "waypoints": [
+          {
+            "frame": 0,
+            "position": [
+              -3.7874248,
+              0.94,
+              4.533016
+            ],
+            "heading": -2.694042,
+            "constrain_height": true
+          },
+          {
+            "frame": 159,
+            "position": [
+              -5.043119,
+              0.94,
+              1.9171929
+            ],
+            "heading": -2.694042,
+            "constrain_height": true
+          }
+        ],
+        "dense_trajectory": true
+      },
+      "support_chair": null,
+      "prompt_recipe": {
+        "version": 1,
+        "family": "locomotion",
+        "gait": "shuffle",
+        "travel_speed_mps": 0.36498147,
+        "style": null,
+        "arm_style": null,
+        "gaze": null,
+        "actions": []
+      }
+    },
+    {
+      "actor_id": 32,
+      "behavior": "backward_walk_explain_head_shake_backward_walk",
+      "request": {
+        "prompt": "A person walks backward slowly, stops and explains with small gestures of both hands, walks backward again, stops and shakes the head once, then resumes walking backward with relaxed shoulders.",
+        "seed": 12874150833972768601,
+        "frames": 160,
+        "history_frames": 80,
+        "diffusion_steps": 10,
+        "text_guidance": 2.0,
+        "trajectory_guidance": 3.0,
+        "waypoints": [
+          {
+            "frame": 0,
+            "position": [
+              3.070016,
+              0.94,
+              -0.6161475
+            ],
+            "heading": 4.829812,
+            "constrain_height": true
+          },
+          {
+            "frame": 23,
+            "position": [
+              3.4976764,
+              0.94,
+              -0.6665967
+            ],
+            "heading": 4.829812,
+            "constrain_height": true
+          },
+          {
+            "frame": 42,
+            "position": [
+              3.4976764,
+              0.92158854,
+              -0.6665967
+            ],
+            "heading": 4.829812,
+            "constrain_height": true
+          },
+          {
+            "frame": 60,
+            "position": [
+              3.4976764,
+              0.94,
+              -0.6665967
+            ],
+            "heading": 4.829812,
+            "constrain_height": true
+          },
+          {
+            "frame": 107,
+            "position": [
+              4.3667626,
+              0.94,
+              -0.769119
+            ],
+            "heading": 4.829812,
+            "constrain_height": true
+          },
+          {
+            "frame": 121,
+            "position": [
+              4.3667626,
+              0.9404247,
+              -0.769119
+            ],
+            "heading": 4.829812,
+            "constrain_height": true
+          },
+          {
+            "frame": 135,
+            "position": [
+              4.3667626,
+              0.94,
+              -0.769119
+            ],
+            "heading": 4.829812,
+            "constrain_height": true
+          },
+          {
+            "frame": 159,
+            "position": [
+              4.8219724,
+              0.94,
+              -0.82281804
+            ],
+            "heading": 4.829812,
+            "constrain_height": true
+          }
+        ],
+        "dense_trajectory": true
+      },
+      "support_chair": null,
+      "prompt_recipe": {
+        "version": 1,
+        "family": "locomotion",
+        "gait": "backward_walk",
+        "travel_speed_mps": 0.37534136,
+        "style": "with relaxed shoulders",
+        "arm_style": null,
+        "gaze": null,
+        "actions": [
+          {
+            "family": "gesture",
+            "action": "explain",
+            "hand": "right",
+            "side": "left",
+            "repetitions": 1,
+            "amplitude": 0.039713502,
+            "start_frame": 23,
+            "end_frame": 60,
+            "peak_pelvis_height": 0.92158854,
+            "clearance_radius": 0.7231771
+          },
+          {
+            "family": "idle",
+            "action": "head_shake",
+            "hand": "right",
+            "side": "right",
+            "repetitions": 1,
+            "amplitude": 0.51061773,
+            "start_frame": 107,
+            "end_frame": 135,
+            "peak_pelvis_height": 0.9404247,
+            "clearance_radius": 0.523084
+          }
+        ]
+      }
+    },
+    {
+      "actor_id": 29,
+      "behavior": "head_scratch",
+      "request": {
+        "prompt": "A person scratches the head with the left hand with a stiff posture.",
+        "seed": 13947390841346612422,
+        "frames": 160,
+        "history_frames": 80,
+        "diffusion_steps": 10,
+        "text_guidance": 2.0,
+        "trajectory_guidance": 3.0,
+        "waypoints": [
+          {
+            "frame": 0,
+            "position": [
+              1.2625057,
+              0.94,
+              -1.02399
+            ],
+            "heading": 1.780452,
+            "constrain_height": true
+          },
+          {
+            "frame": 31,
+            "position": [
+              1.2625057,
+              0.94,
+              -1.02399
+            ],
+            "heading": 1.780452,
+            "constrain_height": true
+          },
+          {
+            "frame": 46,
+            "position": [
+              1.2625057,
+              0.94815385,
+              -1.02399
+            ],
+            "heading": 1.780452,
+            "constrain_height": true
+          },
+          {
+            "frame": 60,
+            "position": [
+              1.2625057,
+              0.94,
+              -1.02399
+            ],
+            "heading": 1.780452,
+            "constrain_height": true
+          },
+          {
+            "frame": 159,
+            "position": [
+              1.2625057,
+              0.94,
+              -1.02399
+            ],
+            "heading": 1.780452,
+            "constrain_height": true
+          }
+        ],
+        "dense_trajectory": true
+      },
+      "support_chair": null,
+      "prompt_recipe": {
+        "version": 1,
+        "family": "idle",
+        "gait": null,
+        "travel_speed_mps": null,
+        "style": "with a stiff posture",
+        "arm_style": null,
+        "gaze": null,
+        "actions": [
+          {
+            "family": "idle",
+            "action": "head_scratch",
+            "hand": "left",
+            "side": "right",
+            "repetitions": 1,
+            "amplitude": 0.70384705,
+            "start_frame": 31,
+            "end_frame": 60,
+            "peak_pelvis_height": 0.94815385,
+            "clearance_radius": 0.63075
+          }
+        ]
+      }
+    }
+  ],
+  "rejected": []
+}

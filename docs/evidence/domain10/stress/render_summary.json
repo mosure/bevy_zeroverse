@@ -1,0 +1,468 @@
+{
+  "schema_version": 1,
+  "run_id": "1845358-1790514242950061627",
+  "generator_version": 10,
+  "capture_engine": "capture-v14;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;ardy_motion=1;surface_flow=1;indoor=10",
+  "selection_policy": "first observed seed per layout/lighting/floor/furniture/architecture cell; category-balanced order, no image quality filtering",
+  "audit_scenes": 2048,
+  "rendered_scenes": 16,
+  "rendered_views": 64,
+  "playback_steps": 2,
+  "image_size": [
+    640,
+    480
+  ],
+  "observed_strata": 1941,
+  "captured_layouts": {
+    "Training": 4,
+    "Conference": 4,
+    "OpenOffice": 3,
+    "Lounge": 5
+  },
+  "captured_lighting": {
+    "Evening": 6,
+    "Overcast": 5,
+    "Daylight": 5
+  },
+  "captured_floors": {
+    "2": 6,
+    "0": 6,
+    "1": 4
+  },
+  "captured_furniture": {
+    "2": 6,
+    "0": 6,
+    "1": 4
+  },
+  "captured_architecture": {
+    "Classic": 4,
+    "Timber": 4,
+    "Industrial": 4,
+    "Contemporary": 4
+  },
+  "captured_plant_species": {
+    "2": 15,
+    "4": 10,
+    "5": 7,
+    "3": 12,
+    "0": 12,
+    "1": 8
+  },
+  "rgb_and_pose": {
+    "mean_luminance": {
+      "count": 64,
+      "min": 0.0051972647,
+      "max": 0.3225851,
+      "mean": 0.0549887393171875,
+      "p05_p50_p95": [
+        0.0056497273,
+        0.030476427,
+        0.20894605
+      ]
+    },
+    "luminance_std": {
+      "count": 64,
+      "min": 0.0060509155,
+      "max": 0.2144475,
+      "mean": 0.0674985280453125,
+      "p05_p50_p95": [
+        0.008199479,
+        0.050224815,
+        0.19767955
+      ]
+    },
+    "dark_fraction": {
+      "count": 64,
+      "min": 0.0,
+      "max": 0.634375,
+      "mean": 0.063536173868125,
+      "p05_p50_p95": [
+        0.0,
+        0.009664713,
+        0.36317384
+      ]
+    },
+    "clipped_fraction": {
+      "count": 64,
+      "min": 0.0,
+      "max": 0.0040201824,
+      "mean": 0.00011072794728125,
+      "p05_p50_p95": [
+        0.0,
+        0.0,
+        0.0005598958
+      ]
+    },
+    "pose_max_absolute_error": {
+      "count": 64,
+      "min": 0.0,
+      "max": 0.0,
+      "mean": 0.0,
+      "p05_p50_p95": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    }
+  },
+  "annotation": {
+    "depth_position_p99_metres": {
+      "count": 64,
+      "min": 9.536743e-07,
+      "max": 2.9206276e-06,
+      "mean": 2.016313371875e-06,
+      "p05_p50_p95": [
+        1.4305115e-06,
+        1.9073486e-06,
+        2.861023e-06
+      ]
+    },
+    "reprojection_p99_pixels": {
+      "count": 64,
+      "min": 0.0018006826,
+      "max": 0.002606139,
+      "mean": 0.0021566327078125,
+      "p05_p50_p95": [
+        0.0019207294,
+        0.0021353583,
+        0.0025496336
+      ]
+    },
+    "normal_length_max_error": {
+      "count": 64,
+      "min": 1.7881393e-07,
+      "max": 2.3841858e-07,
+      "mean": 2.1141022296875002e-07,
+      "p05_p50_p95": [
+        1.7881393e-07,
+        2.3841858e-07,
+        2.3841858e-07
+      ]
+    },
+    "position_quantization_budget_p99_ratio": {
+      "count": 64,
+      "min": 0.09361214,
+      "max": 0.16125798,
+      "mean": 0.1335844265,
+      "p05_p50_p95": [
+        0.111176476,
+        0.13577469,
+        0.15611413
+      ]
+    }
+  },
+  "mean_linear_luminance_by_layout": {
+    "Training": {
+      "count": 16,
+      "min": 0.01796668,
+      "max": 0.067583874,
+      "mean": 0.03912657775,
+      "p05_p50_p95": [
+        0.018052822,
+        0.04461439,
+        0.059405964
+      ]
+    },
+    "Conference": {
+      "count": 16,
+      "min": 0.010941895,
+      "max": 0.11672062,
+      "mean": 0.0457875413125,
+      "p05_p50_p95": [
+        0.011597572,
+        0.029742327,
+        0.09613675
+      ]
+    },
+    "OpenOffice": {
+      "count": 12,
+      "min": 0.0051972647,
+      "max": 0.02231372,
+      "mean": 0.012714010083333333,
+      "p05_p50_p95": [
+        0.005320691,
+        0.011914716,
+        0.020584611
+      ]
+    },
+    "Lounge": {
+      "count": 20,
+      "min": 0.0070631923,
+      "max": 0.3225851,
+      "mean": 0.100404264515,
+      "p05_p50_p95": [
+        0.007384705,
+        0.06749098,
+        0.319187
+      ]
+    }
+  },
+  "semantic_pixel_counts": {
+    "ceiling": 1987693,
+    "chair": 610758,
+    "desk": 684256,
+    "door": 356887,
+    "floor": 4459617,
+    "lamp": 153755,
+    "other_prop": 314182,
+    "other_structure": 225616,
+    "paper": 49906,
+    "person": 724437,
+    "wall": 5728170,
+    "window": 3327297,
+    "books": 62726,
+    "blinds": 12239,
+    "bookshelf": 67918,
+    "picture": 22665,
+    "table": 522338,
+    "whiteboard": 91665,
+    "television": 12330,
+    "sofa": 190212,
+    "background": 53,
+    "pillow": 5708,
+    "cabinet": 50372
+  },
+  "semantic_view_presence_fraction": {
+    "ceiling": 0.765625,
+    "chair": 1.0,
+    "desk": 0.6875,
+    "door": 0.796875,
+    "floor": 1.0,
+    "lamp": 0.734375,
+    "other_prop": 1.0,
+    "other_structure": 0.546875,
+    "paper": 0.828125,
+    "person": 0.84375,
+    "wall": 1.0,
+    "window": 0.90625,
+    "books": 0.25,
+    "blinds": 0.09375,
+    "bookshelf": 0.125,
+    "picture": 0.28125,
+    "table": 0.5625,
+    "whiteboard": 0.25,
+    "television": 0.125,
+    "sofa": 0.09375,
+    "background": 0.109375,
+    "pillow": 0.0625,
+    "cabinet": 0.125
+  },
+  "asset_counts": {
+    "mesh_assets": {
+      "count": 16,
+      "min": 202,
+      "max": 770,
+      "mean": 485.625,
+      "p05_p50_p95": [
+        218,
+        519,
+        765
+      ]
+    },
+    "material_assets": {
+      "count": 16,
+      "min": 53,
+      "max": 179,
+      "mean": 127.9375,
+      "p05_p50_p95": [
+        66,
+        132,
+        176
+      ]
+    },
+    "image_assets": {
+      "count": 16,
+      "min": 66,
+      "max": 72,
+      "mean": 69.75,
+      "p05_p50_p95": [
+        66,
+        69,
+        72
+      ]
+    }
+  },
+  "capture_wall_seconds": {
+    "count": 16,
+    "min": 1.054937919,
+    "max": 3.377470147,
+    "mean": 2.3570713490625,
+    "p05_p50_p95": [
+      1.42258101,
+      2.312013096,
+      3.357958537
+    ]
+  },
+  "renderer": [
+    "WgpuWrapper(AdapterInfo { name: \"NVIDIA RTX PRO 6000 Blackwell Workstation Edition\", vendor: 4318, device: 11185, device_type: DiscreteGpu, device_pci_bus_id: \"0000:01:00.0\", driver: \"NVIDIA\", driver_info: \"610.43.02\", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: false })"
+  ],
+  "annotation_precision": [
+    "float32_geometry"
+  ],
+  "capabilities": {
+    "annotation_hdr_format": "RGBA32Float_direct",
+    "bloom": true,
+    "quality": "Auto",
+    "shadow_map_size": 2048,
+    "shadows": true,
+    "specular_transmission": true,
+    "ssao": true
+  },
+  "limits": [
+    "Signal and constraint gates do not measure photographic realism or real-office distribution match.",
+    "Camera paths checked at every captured timestep; geometry sweep is also audited separately.",
+    "Semantic pixel presence differs from scene instance counts; glazing is opaque in annotation passes.",
+    "Annotation precision is recorded explicitly; legacy HDR and native geometry captures have different error budgets.",
+    "Capture wall time includes generation, warmup, requested render work and disk IO; not FPS or isolated throughput."
+  ],
+  "darkest_views": [
+    {
+      "path": "out/domain10_verified_stress/seed_200277/view_01_color.png",
+      "seed": 200277,
+      "view": 1,
+      "mean_luminance": 0.0051972647
+    },
+    {
+      "path": "out/domain10_verified_stress/seed_200277/view_02_color.png",
+      "seed": 200277,
+      "view": 2,
+      "mean_luminance": 0.005320691
+    },
+    {
+      "path": "out/domain10_verified_stress/seed_200277/view_03_color.png",
+      "seed": 200277,
+      "view": 3,
+      "mean_luminance": 0.005334022
+    },
+    {
+      "path": "out/domain10_verified_stress/seed_200277/view_00_color.png",
+      "seed": 200277,
+      "view": 0,
+      "mean_luminance": 0.0056497273
+    },
+    {
+      "path": "out/domain10_verified_stress/seed_200654/view_03_color.png",
+      "seed": 200654,
+      "view": 3,
+      "mean_luminance": 0.0070631923
+    },
+    {
+      "path": "out/domain10_verified_stress/seed_200654/view_01_color.png",
+      "seed": 200654,
+      "view": 1,
+      "mean_luminance": 0.007384705
+    },
+    {
+      "path": "out/domain10_verified_stress/seed_200654/view_00_color.png",
+      "seed": 200654,
+      "view": 0,
+      "mean_luminance": 0.007930552
+    },
+    {
+      "path": "out/domain10_verified_stress/seed_200654/view_02_color.png",
+      "seed": 200654,
+      "view": 2,
+      "mean_luminance": 0.00862481
+    }
+  ],
+  "brightest_views": [
+    {
+      "path": "out/domain10_verified_stress/seed_200107/view_00_color.png",
+      "seed": 200107,
+      "view": 0,
+      "mean_luminance": 0.3225851
+    },
+    {
+      "path": "out/domain10_verified_stress/seed_200107/view_02_color.png",
+      "seed": 200107,
+      "view": 2,
+      "mean_luminance": 0.319187
+    },
+    {
+      "path": "out/domain10_verified_stress/seed_200107/view_03_color.png",
+      "seed": 200107,
+      "view": 3,
+      "mean_luminance": 0.21324205
+    },
+    {
+      "path": "out/domain10_verified_stress/seed_200107/view_01_color.png",
+      "seed": 200107,
+      "view": 1,
+      "mean_luminance": 0.20894605
+    },
+    {
+      "path": "out/domain10_verified_stress/seed_201110/view_02_color.png",
+      "seed": 201110,
+      "view": 2,
+      "mean_luminance": 0.11846606
+    },
+    {
+      "path": "out/domain10_verified_stress/seed_201363/view_01_color.png",
+      "seed": 201363,
+      "view": 1,
+      "mean_luminance": 0.11672062
+    },
+    {
+      "path": "out/domain10_verified_stress/seed_200668/view_00_color.png",
+      "seed": 200668,
+      "view": 0,
+      "mean_luminance": 0.11313271
+    },
+    {
+      "path": "out/domain10_verified_stress/seed_200668/view_02_color.png",
+      "seed": 200668,
+      "view": 2,
+      "mean_luminance": 0.11150076
+    }
+  ],
+  "largest_position_error_views": [
+    {
+      "path": "out/domain10_verified_stress/seed_200668/view_00_color.png",
+      "seed": 200668,
+      "view": 0,
+      "mean_luminance": 0.11313271
+    },
+    {
+      "path": "out/domain10_verified_stress/seed_200030/view_03_color.png",
+      "seed": 200030,
+      "view": 3,
+      "mean_luminance": 0.010941895
+    },
+    {
+      "path": "out/domain10_verified_stress/seed_200044/view_02_color.png",
+      "seed": 200044,
+      "view": 2,
+      "mean_luminance": 0.011827431
+    },
+    {
+      "path": "out/domain10_verified_stress/seed_200654/view_03_color.png",
+      "seed": 200654,
+      "view": 3,
+      "mean_luminance": 0.0070631923
+    },
+    {
+      "path": "out/domain10_verified_stress/seed_201110/view_02_color.png",
+      "seed": 201110,
+      "view": 2,
+      "mean_luminance": 0.11846606
+    },
+    {
+      "path": "out/domain10_verified_stress/seed_201047/view_01_color.png",
+      "seed": 201047,
+      "view": 1,
+      "mean_luminance": 0.04461439
+    },
+    {
+      "path": "out/domain10_verified_stress/seed_201047/view_03_color.png",
+      "seed": 201047,
+      "view": 3,
+      "mean_luminance": 0.04671007
+    },
+    {
+      "path": "out/domain10_verified_stress/seed_200000/view_01_color.png",
+      "seed": 200000,
+      "view": 1,
+      "mean_luminance": 0.019223133
+    }
+  ]
+}

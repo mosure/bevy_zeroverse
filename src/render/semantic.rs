@@ -231,14 +231,21 @@ impl Plugin for SemanticPlugin {
     }
 }
 
+#[allow(clippy::type_complexity)]
 fn propagate_semantic_labels(
     mut commands: Commands,
-    semantic_parents: Query<(&SemanticLabel, &Children)>,
+    semantic_parents: Query<
+        (&SemanticLabel, &Children),
+        Or<(Changed<SemanticLabel>, Changed<Children>)>,
+    >,
+    labels: Query<&SemanticLabel>,
 ) {
     // TODO: capture frame delay based on hierarchy propagation, determine delay from hierarchy depth or apply full-tree update
     for (label, children) in semantic_parents.iter() {
         for child in children.iter() {
-            commands.entity(child).insert(label.clone());
+            if labels.get(child) != Ok(label) {
+                commands.entity(child).insert(label.clone());
+            }
         }
     }
 }
@@ -248,10 +255,17 @@ pub(crate) fn apply_semantic_material(
     mut commands: Commands,
     semantic: Query<
         (Entity, &DisabledPbrMaterial, &SemanticLabel),
-        (With<Semantic>, Without<MeshMaterial3d<SemanticMaterial>>),
+        (
+            With<Semantic>,
+            Or<(
+                Without<MeshMaterial3d<SemanticMaterial>>,
+                Changed<SemanticLabel>,
+            )>,
+        ),
     >,
     mut removed_semantics: RemovedComponents<Semantic>,
     mut materials: ResMut<Assets<SemanticMaterial>>,
+    mut cache: Local<super::annotation_material::AnnotationMaterialCache<SemanticMaterial>>,
 ) {
     for e in removed_semantics.read() {
         if let Ok(mut commands) = commands.get_entity(e) {
@@ -261,16 +275,24 @@ pub(crate) fn apply_semantic_material(
 
     for (e, pbr_material, label) in &semantic {
         let base_color = label.color();
-        let semantic_material = materials.add(ExtendedMaterial {
-            base: StandardMaterial {
-                double_sided: pbr_material.double_sided,
-                cull_mode: pbr_material.cull_mode,
-                base_color,
-                unlit: true,
-                ..default()
+        let semantic_material = cache.get(
+            &mut materials,
+            {
+                let mut key = pbr_material.annotation_key();
+                key.extend(base_color.to_linear().to_f32_array().map(f32::to_bits));
+                key
             },
-            extension: SemanticExtension {},
-        });
+            || ExtendedMaterial {
+                base: StandardMaterial {
+                    double_sided: pbr_material.double_sided,
+                    cull_mode: pbr_material.cull_mode,
+                    base_color,
+                    unlit: true,
+                    ..default()
+                },
+                extension: SemanticExtension {},
+            },
+        );
 
         commands.entity(e).insert(MeshMaterial3d(semantic_material));
     }
@@ -282,6 +304,13 @@ pub type SemanticMaterial = ExtendedMaterial<StandardMaterial, SemanticExtension
 pub struct SemanticExtension {}
 
 impl MaterialExtension for SemanticExtension {
+    fn enable_shadows() -> bool {
+        false
+    }
+    fn enable_prepass() -> bool {
+        false
+    }
+
     fn fragment_shader() -> ShaderRef {
         SEMANTIC_SHADER_HANDLE.into()
     }

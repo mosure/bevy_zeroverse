@@ -266,8 +266,8 @@ impl IndoorManifest {
     }
 
     pub(super) fn chair(&mut self, pos: Vec3, yaw: f32, rng: &mut ChaCha8Rng) {
-        let height = rng.random_range(0.83..1.22);
-        let yaw_jitter = if rng.random_bool(0.18) { 0.70 } else { 0.25 };
+        let height = rng.random_range(0.83..1.44);
+        let yaw_jitter = if rng.random_bool(0.24) { 1.20 } else { 0.48 };
         let delta = rng.random_range(-yaw_jitter..yaw_jitter);
         let mut chair = self.candidate(
             ObjectKind::Chair,

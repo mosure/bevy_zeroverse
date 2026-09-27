@@ -1,0 +1,177 @@
+{
+  "run_id": "2042157-1790534036670218658",
+  "seed": 5,
+  "elapsed_seconds": 5.039621209,
+  "image_size": [
+    512,
+    384
+  ],
+  "capabilities": {
+    "annotation_hdr_format": "RGBA32Float_direct",
+    "bloom": true,
+    "quality": "Auto",
+    "shadow_map_size": 2048,
+    "shadows": true,
+    "specular_transmission": true,
+    "ssao": true
+  },
+  "renderer": "WgpuWrapper(AdapterInfo { name: \"NVIDIA RTX PRO 6000 Blackwell Workstation Edition\", vendor: 4318, device: 11185, device_type: DiscreteGpu, device_pci_bus_id: \"0000:01:00.0\", driver: \"NVIDIA\", driver_info: \"610.43.02\", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: false })",
+  "aabb": [
+    [
+      -19.266747,
+      -0.27,
+      -16.9
+    ],
+    [
+      5.494586,
+      13.676949,
+      16.9
+    ]
+  ],
+  "color_encoding": "PNG: sRGB OETF of Bevy tone-mapped linear RGB; raw: little-endian RGBA32F",
+  "label_policy": "first geometric surface; glass is an opaque window in geometry annotations; native indoor uses direct float32 MRT",
+  "views": [
+    {
+      "camera_index": 0,
+      "step_index": 0,
+      "time": 0.0,
+      "pose_max_absolute_error": 0.0,
+      "fx_pixels": 559.21454,
+      "fy_pixels": 559.21454,
+      "world_from_view": [
+        [
+          -0.36061347,
+          0.0012372285,
+          -0.93271464,
+          0.0
+        ],
+        [
+          -0.34914994,
+          0.9271128,
+          0.13622084,
+          0.0
+        ],
+        [
+          0.8649003,
+          0.37478027,
+          -0.33389747,
+          0.0
+        ],
+        [
+          1.337357,
+          1.6825308,
+          -4.6270423,
+          1.0
+        ]
+      ],
+      "fov_y": 0.6614564,
+      "near": 0.1,
+      "far": 50.0,
+      "mean_luminance": 0.11880785,
+      "luminance_std": 0.088945985,
+      "dark_fraction": 0.0,
+      "clipped_fraction": 0.0,
+      "semantic_colors": 6,
+      "semantic_pixel_counts": {
+        "chair": 9129,
+        "floor": 61906,
+        "other_prop": 9488,
+        "table": 40772,
+        "wall": 46707,
+        "window": 28606
+      },
+      "annotation_alignment": {
+        "checked_pixels": 21590,
+        "depth_position_p99_metres": 0.0000019073486,
+        "reprojection_p99_pixels": 0.00205269,
+        "normal_length_max_error": 2.3841858e-7,
+        "position_quantization_budget_p99_ratio": 0.140638
+      }
+    },
+    {
+      "camera_index": 1,
+      "step_index": 0,
+      "time": 0.0,
+      "pose_max_absolute_error": 0.0,
+      "fx_pixels": 165.89728,
+      "fy_pixels": 165.89728,
+      "world_from_view": [
+        [
+          0.24378031,
+          0.06279024,
+          0.9677958,
+          0.0
+        ],
+        [
+          0.11999785,
+          0.988281,
+          -0.09434586,
+          0.0
+        ],
+        [
+          -0.9623782,
+          0.13913307,
+          0.23338872,
+          0.0
+        ],
+        [
+          -3.3526096,
+          1.7136449,
+          -3.2818964,
+          1.0
+        ]
+      ],
+      "fov_y": 1.7164056,
+      "near": 0.1,
+      "far": 50.0,
+      "mean_luminance": 0.10398293,
+      "luminance_std": 0.06700598,
+      "dark_fraction": 0.0,
+      "clipped_fraction": 0.0,
+      "semantic_colors": 15,
+      "semantic_pixel_counts": {
+        "bookshelf": 1131,
+        "ceiling": 20561,
+        "chair": 2660,
+        "desk": 101,
+        "door": 2096,
+        "floor": 58290,
+        "lamp": 1206,
+        "other_prop": 1138,
+        "other_structure": 145,
+        "paper": 4,
+        "person": 56,
+        "table": 680,
+        "wall": 79285,
+        "whiteboard": 1071,
+        "window": 28184
+      },
+      "annotation_alignment": {
+        "checked_pixels": 21590,
+        "depth_position_p99_metres": 0.0000019073486,
+        "reprojection_p99_pixels": 0.0025355774,
+        "normal_length_max_error": 2.3841858e-7,
+        "position_quantization_budget_p99_ratio": 0.15089117
+      }
+    }
+  ],
+  "mesh_assets": 730,
+  "material_assets": 189,
+  "image_assets": 72,
+  "annotation_precision": "float32_geometry",
+  "diffuse_gi": {
+    "backend": "gpu_bvh_compute",
+    "triangles": 966184,
+    "probes": 2184,
+    "relocated_probes": 74,
+    "primary_rays": 559104,
+    "diffuse_bounces": 3,
+    "texture_bytes": 104832,
+    "preparation_ms": 1056.037798,
+    "bake_ms": null,
+    "mean_radiance": null,
+    "transport_bytes": 106019600,
+    "prefetch_hit": false,
+    "prefetch_wait_ms": 0.0
+  }
+}

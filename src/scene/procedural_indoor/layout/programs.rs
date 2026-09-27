@@ -5,7 +5,9 @@ impl IndoorManifest {
         let zones = self.program.as_ref().unwrap().zones.clone();
         for zone in zones {
             let extent = zone.max - zone.min;
-            let center = (zone.min + zone.max) * 0.5;
+            let field = zone.furnishing.as_ref();
+            let center =
+                (zone.min + zone.max) * 0.5 + field.map_or(Vec2::ZERO, |f| f.offset * extent);
             let tf = Transform::from_xyz(center.x, 0.0, center.y)
                 .with_rotation(Quat::from_rotation_y(zone.orientation));
             // Shrink the local envelope for the continuously sampled rotation,
@@ -54,7 +56,11 @@ impl IndoorManifest {
                 }
             } else if zone.activity == IndoorLayout::Conference && w > 3.15 && d > 3.25 {
                 let width = rng.random_range(1.05..1.55f32).min(w - 2.0);
-                let length = (d - 2.1).min(rng.random_range(2.0..5.8));
+                let length = if rng.random_bool(0.28) {
+                    width
+                } else {
+                    (d - 2.1).min(rng.random_range(2.0..5.8))
+                };
                 let offset = rng.random_range(-0.08..0.08);
                 if self
                     .add(
@@ -104,39 +110,42 @@ impl IndoorManifest {
                 let opposing = rng.random_bool(0.5);
                 for row in 0..rows {
                     for col in 0..cols {
-                        if row + col > 0 && !rng.random_bool(zone.occupancy as f64) {
+                        let (station, fan, occupancy) = field.map_or(
+                            (
+                                Vec2::new(
+                                    (col as f32 - (cols - 1) as f32 * 0.5) * pitch_x
+                                        + (row as f32 % 2.0 - 0.5) * stagger,
+                                    (row as f32 - (rows - 1) as f32 * 0.5) * pitch_z - 0.45,
+                                ),
+                                0.0,
+                                1.0,
+                            ),
+                            |f| f.station([col, row], [cols, rows], Vec2::new(pitch_x, pitch_z)),
+                        );
+                        if row + col > 0
+                            && !rng.random_bool((zone.occupancy * occupancy).min(1.0) as f64)
+                        {
                             continue;
                         }
-                        let x = (col as f32 - (cols - 1) as f32 * 0.5) * pitch_x
-                            + (row as f32 % 2.0 - 0.5) * stagger;
-                        let z = (row as f32 - (rows - 1) as f32 * 0.5) * pitch_z - 0.45;
-                        let turn = if opposing && col % 2 == 1 {
-                            std::f32::consts::PI
-                        } else {
-                            0.0
-                        };
+                        let jitter = field.map_or(0.0, |f| f.jitter);
+                        let x = station.x + rng.random_range(-1.0..1.0) * jitter;
+                        let z = station.y + rng.random_range(-1.0..1.0) * jitter;
+                        let opposing = field.map_or(opposing && col % 2 == 1, |f| {
+                            rng.random_bool(f.opposing_probability as f64)
+                        });
+                        let turn = fan + if opposing { std::f32::consts::PI } else { 0.0 };
                         let depth = zone.desk_depth * rng.random_range(0.94..1.02);
-                        if self
-                            .add(
-                                ObjectKind::Desk,
-                                point(x, 0.0, z),
-                                Vec3::new(zone.desk_width, rng.random_range(0.71..0.78), depth),
-                                zone.orientation + turn,
-                                rng,
-                            )
-                            .is_some()
-                        {
-                            add_chair(
-                                self,
-                                x + rng.random_range(-0.12..0.12),
-                                z + turn.cos() * (depth * 0.5 + rng.random_range(0.48..0.62)),
-                                turn,
-                                rng,
-                            );
-                        }
+                        self.workstation(
+                            ObjectKind::Desk,
+                            point(x, 0.0, z),
+                            Vec3::new(zone.desk_width, rng.random_range(0.71..0.78), depth),
+                            zone.orientation + turn,
+                            rng,
+                        );
                     }
                 }
             }
+            self.fill_functional_zone(&zone, rng);
             // Sample perimeter service objects by free space, not fixed global
             // corners. Plants, storage and bins compete for valid placements.
             let service_count = ((extent.x + extent.y)
@@ -237,37 +246,114 @@ impl IndoorManifest {
             }
             let x = rng.random_range(-0.35..0.35) * self.room_size.x;
             let z = rng.random_range(-0.35..0.35) * self.room_size.z;
-            let yaw = rng.random_range(0..4) as f32 * std::f32::consts::FRAC_PI_2;
-            if self
-                .add(
-                    if self.layout == IndoorLayout::Conference {
-                        ObjectKind::Table
-                    } else if self.layout == IndoorLayout::Lounge {
-                        ObjectKind::CoffeeTable
+            let yaw = rng.random_range(-std::f32::consts::PI..std::f32::consts::PI);
+            self.workstation(
+                if self.layout == IndoorLayout::Conference {
+                    ObjectKind::Table
+                } else if self.layout == IndoorLayout::Lounge {
+                    ObjectKind::CoffeeTable
+                } else {
+                    ObjectKind::Desk
+                },
+                Vec3::new(x, 0.0, z),
+                Vec3::new(
+                    1.15,
+                    if self.layout == IndoorLayout::Lounge {
+                        0.42
                     } else {
-                        ObjectKind::Desk
+                        0.74
                     },
-                    Vec3::new(x, 0.0, z),
-                    Vec3::new(
-                        1.15,
-                        if self.layout == IndoorLayout::Lounge {
-                            0.42
-                        } else {
-                            0.74
-                        },
-                        0.64,
-                    ),
-                    yaw,
-                    rng,
-                )
-                .is_some()
-            {
-                self.chair(
-                    Vec3::new(x, 0.0, z) + Quat::from_rotation_y(yaw) * Vec3::Z * 0.91,
-                    yaw,
-                    rng,
-                );
+                    0.64,
+                ),
+                yaw,
+                rng,
+            );
+        }
+    }
+
+    /// A workstation is transactional: failed seating must not leave another
+    /// unusable desk that consumes the space needed to repair the room.
+    fn workstation(
+        &mut self,
+        kind: ObjectKind,
+        position: Vec3,
+        size: Vec3,
+        yaw: f32,
+        rng: &mut ChaCha8Rng,
+    ) -> bool {
+        let before = self.objects.len();
+        if self.add(kind, position, size, yaw, rng).is_none() {
+            return false;
+        }
+        let rotation = Quat::from_rotation_y(yaw);
+        let sideways = rng.random_range(-0.10..0.10);
+        for gap in [0.54, 0.68, 0.82] {
+            self.chair(
+                position + rotation * Vec3::new(sideways, 0.0, size.z * 0.5 + gap),
+                yaw,
+                rng,
+            );
+            if self.objects.len() > before + 1 {
+                return true;
             }
+        }
+        self.objects.truncate(before);
+        false
+    }
+
+    fn fill_functional_zone(&mut self, zone: &super::super::program::Zone, rng: &mut ChaCha8Rng) {
+        let extent = zone.max - zone.min;
+        let area = extent.x * extent.y;
+        let area_per_seat = if zone.activity == IndoorLayout::Lounge {
+            14.0
+        } else {
+            9.0
+        };
+        let target = (area * (0.30 + 0.70 * self.density) / area_per_seat)
+            .ceil()
+            .clamp(1.0, 32.0) as usize;
+        for _ in 0..128 {
+            let seats: usize = self
+                .objects
+                .iter()
+                .filter(|o| {
+                    !o.neighbor
+                        && o.position.x > zone.min.x
+                        && o.position.x < zone.max.x
+                        && o.position.z > zone.min.y
+                        && o.position.z < zone.max.y
+                })
+                .map(|o| match o.kind {
+                    ObjectKind::Chair => 1,
+                    ObjectKind::Sofa => (o.size.x / 0.65).floor() as usize,
+                    _ => 0,
+                })
+                .sum();
+            if seats >= target {
+                break;
+            }
+            let p = Vec3::new(
+                rng.random_range(zone.min.x + 0.7..zone.max.x - 0.7),
+                0.0,
+                rng.random_range(zone.min.y + 0.7..zone.max.y - 0.7),
+            );
+            let yaw = zone.orientation + rng.random_range(-0.65..0.65);
+            let lounge = zone.activity == IndoorLayout::Lounge;
+            self.workstation(
+                if lounge {
+                    ObjectKind::CoffeeTable
+                } else {
+                    ObjectKind::Desk
+                },
+                p,
+                Vec3::new(
+                    rng.random_range(0.95..1.55),
+                    if lounge { 0.43 } else { 0.74 },
+                    rng.random_range(0.56..0.76),
+                ),
+                yaw,
+                rng,
+            );
         }
     }
 }

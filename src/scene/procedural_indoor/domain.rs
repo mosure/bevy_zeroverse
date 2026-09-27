@@ -35,6 +35,10 @@ pub struct Photometry {
     pub active_fraction: f32,
     pub circuit_contrast: f32,
     pub sun_kelvin: f32,
+    #[serde(default)]
+    pub fixture_gradient: Vec2,
+    #[serde(default)]
+    pub temperature_gradient: f32,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -84,6 +88,11 @@ impl SceneDomain {
             active_fraction: light.random_range(0.35..1.0),
             circuit_contrast: light.random_range(0.0..0.85),
             sun_kelvin: light.random_range(2600.0..6900.0),
+            fixture_gradient: Vec2::new(
+                light.random_range(-0.6..0.6),
+                light.random_range(-0.6..0.6),
+            ),
+            temperature_gradient: light.random_range(-1100.0..1100.0),
         };
         let fixture_kelvin = light.random_range(2200.0..7500.0);
         let mut rng = stream(seed, 213);
@@ -112,6 +121,7 @@ impl SceneDomain {
             (p.active_fraction, 0.0, 1.0),
             (p.circuit_contrast, 0.0, 1.0),
             (p.sun_kelvin, 1800.0, 10000.0),
+            (p.temperature_gradient, -1500.0, 1500.0),
             (self.facade_pier_fraction, 0.02, 0.70),
             (self.blind_coverage, 0.0, 1.0),
             (self.blind_tilt, -1.5, 1.5),
@@ -125,7 +135,11 @@ impl SceneDomain {
                 return Err("invalid continuous scene domain parameter".into());
             }
         }
-        if !p.sky_radiance.is_finite() || p.sky_radiance.min_element() < 0.0 {
+        if !p.sky_radiance.is_finite()
+            || p.sky_radiance.min_element() < 0.0
+            || !p.fixture_gradient.is_finite()
+            || p.fixture_gradient.abs().max_element() > 0.8
+        {
             return Err("invalid sky radiance".into());
         }
         Ok(())

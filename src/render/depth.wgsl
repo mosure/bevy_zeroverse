@@ -40,11 +40,7 @@ fn fragment(
 #endif
 
 #ifdef COLORIZED_DEPTH
-    let prepass_depth = bevy_pbr::prepass_utils::prepass_depth(
-        in.position,
-        sample_index,
-    );
-    return vec4<f32>(depth_to_rgb(prepass_depth), 1.0);
+    return vec4<f32>(depth_to_rgb(in.position.z), 1.0);
 #else ifdef NORMALIZED_DEPTH
     return vec4<f32>(vec3<f32>(depth / far), 1.0);
 #else ifdef LINEAR_DEPTH

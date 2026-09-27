@@ -12,6 +12,31 @@ use std::f32::consts::{PI, TAU};
 
 pub const SPECIES: u32 = 6;
 
+/// Independent morphology controls; species constrains growth habit, not a mesh.
+#[derive(Debug, Clone, serde::Serialize)]
+pub(super) struct Growth {
+    pub pot_fraction: f32,
+    pub pot_radius: f32,
+    pub pot_taper: f32,
+    pub density: f32,
+    pub phyllotaxis: f32,
+}
+impl Growth {
+    pub fn sample(seed: u64) -> Self {
+        let mut rng = stream(seed, 271);
+        Self {
+            pot_fraction: rng.random_range(0.19..0.30),
+            pot_radius: rng.random_range(0.36..0.55),
+            pot_taper: rng.random_range(0.60..0.94),
+            density: rng.random_range(0.50..1.08),
+            phyllotaxis: rng.random_range(2.18..2.62),
+        }
+    }
+    fn count(&self, nominal: usize) -> usize {
+        (nominal as f32 * self.density).round().max(3.0) as usize
+    }
+}
+
 fn radial(angle: f32) -> Vec3 {
     Vec3::new(angle.cos(), 0.0, angle.sin())
 }
@@ -45,6 +70,11 @@ fn blade(a: &mut Assembly, base: Vec3, delta: Vec3, half_width: f32, shape: u32,
     let bend = rng.random_range(0.18..0.50);
     let twist = rng.random_range(-0.30..0.30);
     let asymmetry = rng.random_range(-0.13..0.13);
+    let exponent = if shape == 2 {
+        rng.random_range(0.25..0.6)
+    } else {
+        rng.random_range(0.5..1.3)
+    };
     let surface = if shape == 2 {
         Surface::LeafVariegated
     } else if seed.is_multiple_of(5) {
@@ -58,7 +88,7 @@ fn blade(a: &mut Assembly, base: Vec3, delta: Vec3, half_width: f32, shape: u32,
     let mut uvs = vec![[0.5, 0.0]];
     for row in 1..8 {
         let t = row as f32 / 8.0;
-        let envelope = (PI * t).sin().powf(if shape == 2 { 0.34 } else { 0.72 });
+        let envelope = (PI * t).sin().powf(exponent);
         let lobes = if shape == 3 {
             0.48 + 0.52 * (t * PI * 4.0).cos().abs()
         } else {
@@ -111,9 +141,10 @@ fn blade(a: &mut Assembly, base: Vec3, delta: Vec3, half_width: f32, shape: u32,
 pub fn build(a: &mut Assembly, o: &IndoorObject) {
     let mut rng = stream(o.seed, 5);
     let h = o.size.y;
+    let growth = Growth::sample(o.seed);
     let spread = o.size.x.min(o.size.z) * 0.44;
-    let ph = h * if o.variant == 4 { 0.30 } else { 0.24 };
-    let r = spread * 0.48;
+    let ph = h * growth.pot_fraction;
+    let r = spread * growth.pot_radius;
     let pot = match (o.seed >> 8) % 3 {
         0 => Surface::Terracotta,
         1 => Surface::Concrete,
@@ -123,14 +154,14 @@ pub fn build(a: &mut Assembly, o: &IndoorObject) {
     a.part(pot, "other_prop").lathe(
         &[
             (0.0, foot),
-            (r * 0.72, foot),
-            (r * 0.76, ph * 0.14),
+            (r * growth.pot_taper, foot),
+            (r * (growth.pot_taper + 0.025), ph * 0.14),
             (r, ph * 0.92),
             (r * 1.035, ph * 0.93),
             (r * 1.035, ph),
             (r * 0.89, ph),
             (r * 0.86, ph * 0.90),
-            (r * 0.63, ph * 0.12),
+            (r * (growth.pot_taper - 0.09), ph * 0.12),
             (0.0, ph * 0.12),
         ],
         32,
@@ -161,10 +192,10 @@ pub fn build(a: &mut Assembly, o: &IndoorObject) {
     match o.variant % SPECIES {
         0 => {
             // Rubber plant: alternate broad leaves on several branching leaders.
-            for leader in 0..3 {
-                let angle = leader as f32 * 2.39996 + rng.random_range(0.0..0.4);
+            for leader in 0..growth.count(3) {
+                let angle = leader as f32 * growth.phyllotaxis + rng.random_range(0.0..0.4);
                 let top = base
-                    + Vec3::Y * (h * rng.random_range(0.58..0.70))
+                    + Vec3::Y * ((h - soil) * rng.random_range(0.64..0.84))
                     + radial(angle) * spread * 0.20;
                 stem(
                     a,
@@ -175,9 +206,9 @@ pub fn build(a: &mut Assembly, o: &IndoorObject) {
                     ],
                     h * 0.009,
                 );
-                for j in 0..9 {
-                    let p = base.lerp(top, 0.20 + j as f32 * 0.085);
-                    let d = radial(angle + j as f32 * 2.39996);
+                for j in 0..growth.count(9) {
+                    let p = base.lerp(top, 0.20 + j as f32 / growth.count(9) as f32 * 0.75);
+                    let d = radial(angle + j as f32 * growth.phyllotaxis);
                     let petiole = p + d * spread * 0.12 + Vec3::Y * h * 0.025;
                     stem(a, &[p, petiole], h * 0.0025);
                     blade(
@@ -195,8 +226,9 @@ pub fn build(a: &mut Assembly, o: &IndoorObject) {
         1 | 4 => {
             // Palm / fern: arching rachises with paired, tapered pinnae.
             let palm = o.variant == 1;
-            for frond in 0..if palm { 14 } else { 16 } {
-                let dir = radial(frond as f32 * 2.39996);
+            // Keep the existing <20k-triangle per-plant budget at the lush tail.
+            for frond in 0..growth.count(if palm { 14 } else { 16 }).min(16) {
+                let dir = radial(frond as f32 * growth.phyllotaxis);
                 let reach = spread * rng.random_range(0.76..0.95);
                 let rise =
                     (h - soil) * rng.random_range(0.64..0.94) * if palm { 1.0 } else { 0.55 };
@@ -227,8 +259,8 @@ pub fn build(a: &mut Assembly, o: &IndoorObject) {
         }
         2 => {
             // Snake plant: upright, stiff, gently twisted variegated swords.
-            for i in 0..15 {
-                let dir = radial(i as f32 * 2.39996);
+            for i in 0..growth.count(15) {
+                let dir = radial(i as f32 * growth.phyllotaxis);
                 let p = base + dir * r * 0.5;
                 blade(
                     a,
@@ -242,8 +274,8 @@ pub fn build(a: &mut Assembly, o: &IndoorObject) {
         }
         3 => {
             // Split-leaf tropical: independent arched petioles, deeply lobed blades.
-            for i in 0..11 {
-                let dir = radial(i as f32 * 2.39996);
+            for i in 0..growth.count(11) {
+                let dir = radial(i as f32 * growth.phyllotaxis);
                 let top = base
                     + Vec3::Y * (h - soil) * rng.random_range(0.40..0.86)
                     + dir * spread * 0.20;
@@ -265,7 +297,7 @@ pub fn build(a: &mut Assembly, o: &IndoorObject) {
         _ => {
             // Dracaena: cane trunks and narrow drooping rosettes at distinct heights.
             for cane in 0..3 {
-                let dir = radial(cane as f32 * 2.39996);
+                let dir = radial(cane as f32 * growth.phyllotaxis);
                 let start = base + dir * r * 0.35;
                 let top = start + Vec3::Y * (h - soil) * (0.43 + cane as f32 * 0.19);
                 stem(
@@ -273,8 +305,8 @@ pub fn build(a: &mut Assembly, o: &IndoorObject) {
                     &[start, start.lerp(top, 0.5) + dir * spread * 0.05, top],
                     h * 0.013,
                 );
-                for j in 0..19 {
-                    let d = radial(j as f32 * 2.39996 + cane as f32);
+                for j in 0..growth.count(19) {
+                    let d = radial(j as f32 * growth.phyllotaxis + cane as f32);
                     blade(
                         a,
                         top,
@@ -297,6 +329,7 @@ mod tests {
     #[test]
     fn all_botanical_forms_have_supported_pots_valid_leaf_frames_and_bounded_canopies() {
         for variant in 0..SPECIES {
+            let mut topology_counts = std::collections::BTreeSet::new();
             for seed in 0..12 {
                 let o = IndoorObject {
                     id: 0,
@@ -342,7 +375,12 @@ mod tests {
                     (1000..20000).contains(&triangles),
                     "species {variant}: {triangles} triangles"
                 );
+                topology_counts.insert(triangles);
             }
+            assert!(
+                topology_counts.len() >= 4,
+                "plant growth did not diversify topology: {variant}"
+            );
         }
     }
 }

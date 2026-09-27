@@ -9,15 +9,50 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FinishParameters {
+    #[serde(default)]
+    pub niche: Option<NicheParameters>,
     pub ceiling_pitch: Vec2,
     pub panel_pitch: f32,
     pub panel_height: f32,
     pub reveal: f32,
 }
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct NicheParameters {
+    pub width_fraction: f32,
+    pub position_fraction: f32,
+    pub bottom_fraction: f32,
+    pub height_fraction: f32,
+    pub depth_m: f32,
+    pub shelf_pitch_m: f32,
+}
+impl NicheParameters {
+    pub fn validate(&self) -> Result<(), String> {
+        if !(0.1..=0.5).contains(&self.width_fraction)
+            || !(0.0..=1.0).contains(&self.position_fraction)
+            || !(0.1..=0.4).contains(&self.bottom_fraction)
+            || !(0.2..=0.6).contains(&self.height_fraction)
+            || self.bottom_fraction + self.height_fraction > 0.9
+            || !(0.1..=0.4).contains(&self.depth_m)
+            || !(0.2..=0.6).contains(&self.shelf_pitch_m)
+        {
+            return Err("invalid recessed niche dimensions".into());
+        }
+        Ok(())
+    }
+}
 impl FinishParameters {
     pub fn sample(seed: u64) -> Self {
         let mut rng = super::super::layout::stream(seed, 162);
         Self {
+            niche: Some(NicheParameters {
+                width_fraction: rng.random_range(0.12..0.42),
+                position_fraction: rng.random_range(0.0..1.0),
+                bottom_fraction: rng.random_range(0.16..0.32),
+                height_fraction: rng.random_range(0.30..0.53),
+                depth_m: rng.random_range(0.16..0.34),
+                shelf_pitch_m: rng.random_range(0.25..0.55),
+            }),
             ceiling_pitch: Vec2::new(rng.random_range(0.50..1.25), rng.random_range(0.50..1.25)),
             panel_pitch: rng.random_range(0.45..1.65),
             panel_height: rng.random_range(0.42..0.80),
@@ -101,9 +136,40 @@ pub(super) fn crossed_beams(
 
 /// A real recessed bay, with a back, reveals and shelves; no intact wall behind
 /// the opening. Its entire recess lies outside the camera/furniture envelope.
+pub(crate) fn niche_region(scene: &IndoorManifest) -> (Vec2, Vec2) {
+    let Vec3 { x: w, y: h, .. } = scene.room_size;
+    FinishParameters::for_scene(scene).niche.map_or(
+        (
+            Vec2::new(-w * 0.5 + 0.6, 0.90),
+            Vec2::new(-w * 0.5 + 2.0, 2.32),
+        ),
+        |n| {
+            let width = (w * n.width_fraction).clamp(0.8, 3.6);
+            let left = -w * 0.5 + 0.45 + (w - width - 0.9) * n.position_fraction;
+            (
+                Vec2::new(left, h * n.bottom_fraction),
+                Vec2::new(left + width, h * (n.bottom_fraction + n.height_fraction)),
+            )
+        },
+    )
+}
+
+pub(crate) fn overlaps_niche(scene: &IndoorManifest, lo: Vec3, hi: Vec3) -> bool {
+    if scene.architecture_style != ArchitectureStyle::Classic
+        || lo.z > -scene.room_size.z * 0.5 + 0.30
+    {
+        return false;
+    }
+    let (a, b) = niche_region(scene);
+    lo.x < b.x + 0.05 && hi.x > a.x - 0.05 && lo.y < b.y + 0.05 && hi.y > a.y - 0.05
+}
+
 pub(super) fn rear_niche(a: &mut Assembly, scene: &IndoorManifest) {
     let Vec3 { x: w, y: h, z: d } = scene.room_size;
-    let (left, right, bottom, top) = (-w * 0.5 + 0.6, -w * 0.5 + 2.0, 0.90, 2.32);
+    let niche = FinishParameters::for_scene(scene).niche;
+    let (lo, hi) = niche_region(scene);
+    let (left, right, bottom, top) = (lo.x, hi.x, lo.y, hi.y);
+    let (depth, shelf_pitch) = niche.map_or((0.20, 0.52), |n| (n.depth_m, n.shelf_pitch_m));
     let z = -d * 0.5;
     for (lo, hi) in [(-w * 0.5 - 0.24, left), (right, w * 0.5 + 0.24)] {
         a.box_part(
@@ -126,7 +192,11 @@ pub(super) fn rear_niche(a: &mut Assembly, scene: &IndoorManifest) {
     a.box_part(
         Surface::Accent,
         "wall",
-        Vec3::new((left + right) * 0.5, (bottom + top) * 0.5, z - 0.25),
+        Vec3::new(
+            (left + right) * 0.5,
+            (bottom + top) * 0.5,
+            z + 0.03 - depth - 0.08,
+        ),
         Vec3::new(right - left, top - bottom, 0.16),
         0.0,
     );
@@ -134,17 +204,19 @@ pub(super) fn rear_niche(a: &mut Assembly, scene: &IndoorManifest) {
         a.box_part(
             Surface::WoodEdge,
             "wall",
-            Vec3::new(x, (bottom + top) * 0.5, z - 0.07),
-            Vec3::new(0.024, top - bottom, 0.20),
+            Vec3::new(x, (bottom + top) * 0.5, z + 0.03 - depth * 0.5),
+            Vec3::new(0.024, top - bottom, depth),
             0.002,
         );
     }
-    for y in [bottom, 1.42, 1.94, top] {
+    let intervals = ((top - bottom) / shelf_pitch).round().max(1.0) as usize;
+    for shelf in 0..=intervals {
+        let y = bottom + (top - bottom) * shelf as f32 / intervals as f32;
         a.box_part(
             Surface::Wood,
             "wall",
-            Vec3::new((left + right) * 0.5, y, z - 0.07),
-            Vec3::new(right - left - 0.048, 0.035, 0.20),
+            Vec3::new((left + right) * 0.5, y, z + 0.03 - depth * 0.5),
+            Vec3::new(right - left - 0.048, 0.035, depth),
             0.003,
         );
     }

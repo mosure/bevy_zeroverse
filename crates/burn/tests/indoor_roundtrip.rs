@@ -133,7 +133,7 @@ fn resume_counts_partial_chunks_and_rejects_gaps_and_overwrites() {
 }
 
 #[test]
-fn indoor_generation_rejects_unordered_workers_invalid_trajectories_and_flow() {
+fn indoor_generation_validates_workers_trajectories_and_accepts_numeric_flow() {
     use bevy_zeroverse::{render::RenderMode, scene::ZeroverseSceneType};
     use bevy_zeroverse_burn::generator::{GenConfig, validate_gen_config};
     let mut config = GenConfig {
@@ -154,8 +154,10 @@ fn indoor_generation_rejects_unordered_workers_invalid_trajectories_and_flow() {
     config.playback_step = 1.0;
     assert!(validate_gen_config(&config).is_err());
     config.playback_step = 0.05;
-    config.render_modes.push(RenderMode::OpticalFlow);
-    assert!(validate_gen_config(&config).is_err());
+    config
+        .render_modes
+        .extend([RenderMode::OpticalFlow, RenderMode::MotionVectors]);
+    assert!(validate_gen_config(&config).is_ok());
 }
 
 #[test]

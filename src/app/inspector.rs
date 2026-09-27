@@ -53,11 +53,39 @@ pub(super) fn panel(world: &mut World) {
                         ],
                     );
                     regenerate |= ui.button("Regenerate  [R]").clicked();
+                    if let Some(crate::sample::CaptureFailure(Some(error))) =
+                        world.get_resource::<crate::sample::CaptureFailure>()
+                    {
+                        ui.colored_label(egui::Color32::LIGHT_RED, error);
+                    }
                     if let Some(status) = world.get_resource::<IndoorGenerationStatus>() {
                         if status.pending {
                             ui.label("Preparing geometry…");
                         } else if status.lighting_pending {
                             ui.label("Refining indirect lighting…");
+                        }
+                    }
+                    if let Some(motion) =
+                        world.get_resource::<crate::human_motion::HumanMotionReport>()
+                    {
+                        if motion.pending {
+                            ui.label(&motion.stage);
+                        } else if config.human_motion.is_some() {
+                            ui.label(format!(
+                                "{} moving people; {} requests retained static",
+                                motion.accepted.len(),
+                                motion.rejected.len()
+                            ));
+                            if !motion.rejected.is_empty() {
+                                ui.collapsing("Motion rejection details", |ui| {
+                                    for rejected in &motion.rejected {
+                                        ui.label(format!(
+                                            "Person {}: {}",
+                                            rejected.actor_id, rejected.reason
+                                        ));
+                                    }
+                                });
+                            }
                         }
                     }
                     if config.scene_type == ProceduralIndoor {
@@ -100,6 +128,166 @@ pub(super) fn panel(world: &mut World) {
                                     .text("People density"),
                             )
                             .changed();
+                        ui.collapsing("Capture camera paths", |ui| {
+                            let mut policy = config
+                                .indoor_camera
+                                .as_deref()
+                                .and_then(|j| {
+                                    crate::scene::procedural_indoor::cameras::CameraSettings::parse(
+                                        j,
+                                    )
+                                    .ok()
+                                })
+                                .unwrap_or_default();
+                            let mut edit = ui
+                                .checkbox(&mut policy.primary_room, "Reconstruct primary room only")
+                                .changed();
+                            edit |= ui
+                                .add(
+                                    egui::Slider::new(&mut policy.path_length_min, 0.0..=20.0)
+                                        .text("Minimum path (m)"),
+                                )
+                                .changed();
+                            edit |= ui
+                                .add(
+                                    egui::Slider::new(&mut policy.path_length_max, 0.1..=30.0)
+                                        .text("Maximum path (m)"),
+                                )
+                                .changed();
+                            policy.path_length_max =
+                                policy.path_length_max.max(policy.path_length_min);
+                            edit |= ui
+                                .add(
+                                    egui::Slider::new(&mut policy.long_path_fraction, 0.0..=1.0)
+                                        .text("Long route fraction"),
+                                )
+                                .changed();
+                            if edit {
+                                config.indoor_camera =
+                                    Some(serde_json::to_string(&policy).unwrap());
+                                changed = true;
+                            }
+                        });
+                        #[cfg(feature = "human_motion")]
+                        ui.collapsing("Human motion", |ui| {
+                            let mut enabled = config.human_motion.is_some();
+                            if ui
+                                .checkbox(&mut enabled, "Generate motion for selected people")
+                                .changed()
+                            {
+                                config.human_motion = enabled.then(|| {
+                                    serde_json::to_string(
+                                        &crate::human_motion::HumanMotionConfig::default(),
+                                    )
+                                    .unwrap()
+                                });
+                                changed = true;
+                            }
+                            if let Some(json) = &mut config.human_motion {
+                                if let Ok(mut policy) =
+                                    crate::human_motion::HumanMotionConfig::parse(json)
+                                {
+                                    let fraction = ui
+                                        .add(
+                                            egui::Slider::new(&mut policy.fraction, 0.0..=1.0)
+                                                .text("Moving fraction"),
+                                        )
+                                        .changed();
+                                    let count = ui
+                                        .add(
+                                            egui::Slider::new(&mut policy.max_actors, 1..=16)
+                                                .text("Maximum moving people"),
+                                        )
+                                        .changed();
+                                    let locomotion = ui
+                                        .add(
+                                            egui::Slider::new(
+                                                &mut policy.locomotion_fraction,
+                                                0.0..=1.0,
+                                            )
+                                            .text("Navigate around room"),
+                                        )
+                                        .changed();
+                                    let sequences = ui
+                                        .add(
+                                            egui::Slider::new(
+                                                &mut policy.sequence_fraction,
+                                                0.0..=1.0,
+                                            )
+                                            .text("Walk / action / resume sequences"),
+                                        )
+                                        .changed();
+                                    let energetic = ui
+                                        .add(
+                                            egui::Slider::new(
+                                                &mut policy.energetic_fraction,
+                                                0.0..=1.0,
+                                            )
+                                            .text("Skipping / jogging proposals"),
+                                        )
+                                        .changed();
+                                    let mut prompt_changed = false;
+                                    ui.collapsing("Motion prompt sampling", |ui| {
+                                        let sampling = &mut policy.prompt_sampling;
+                                        ui.label(
+                                            "Relative proposal weights; zero excludes a family.",
+                                        );
+                                        for (name, weight) in [
+                                            (
+                                                "Travel and chair transitions",
+                                                &mut sampling.locomotion,
+                                            ),
+                                            ("Hand gestures", &mut sampling.gesture),
+                                            ("Exercise", &mut sampling.exercise),
+                                            ("Dance", &mut sampling.dance),
+                                            ("Floor actions", &mut sampling.floor),
+                                            ("Idle and looking", &mut sampling.idle),
+                                        ] {
+                                            prompt_changed |= ui
+                                                .add(
+                                                    egui::Slider::new(weight, 0.0..=10.0)
+                                                        .text(name),
+                                                )
+                                                .changed();
+                                        }
+                                        prompt_changed |= ui
+                                            .add(
+                                                egui::Slider::new(
+                                                    &mut sampling.style_fraction,
+                                                    0.0..=1.0,
+                                                )
+                                                .text("Posture / gaze variation"),
+                                            )
+                                            .changed();
+                                        prompt_changed |= ui
+                                            .add(
+                                                egui::Slider::new(
+                                                    &mut sampling.max_sequence_actions,
+                                                    1..=2,
+                                                )
+                                                .text("Maximum action stops"),
+                                            )
+                                            .changed();
+                                    });
+                                    if fraction
+                                        || count
+                                        || locomotion
+                                        || sequences
+                                        || energetic
+                                        || prompt_changed
+                                    {
+                                        if policy.validate().is_ok() {
+                                            *json = serde_json::to_string(&policy).unwrap();
+                                            changed = true;
+                                        } else {
+                                            ui.label("Keep at least one motion family enabled.");
+                                        }
+                                    }
+                                }
+                                ui.label("Motion models download once and use the local cache.");
+                                ui.label("Apply motion settings with Regenerate [R].");
+                            }
+                        });
                         changed |= choice(
                             ui,
                             "Quality",
@@ -128,8 +316,14 @@ pub(super) fn panel(world: &mut World) {
                         changed |= ui
                             .checkbox(&mut config.draw_obb_gizmo, "Bounding boxes")
                             .changed();
+                        changed |= ui
+                            .checkbox(&mut config.draw_pose_gizmos, "Human pose joints")
+                            .changed();
                     });
                     ui.collapsing("Cameras and playback", |ui| {
+                        changed |= ui
+                            .checkbox(&mut config.gizmos, "Show camera gizmos")
+                            .changed();
                         changed |= ui
                             .add(
                                 egui::Slider::new(&mut config.num_cameras, 1..=16)

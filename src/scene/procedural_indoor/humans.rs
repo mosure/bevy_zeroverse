@@ -1,6 +1,8 @@
 //! AnnyBody adults with support-aware poses and procedural garment shells.
+mod anatomy;
 pub mod appearance;
 pub(crate) mod body;
+mod face;
 mod garments;
 mod hair;
 pub mod poses;
@@ -174,7 +176,7 @@ impl IndoorHuman {
                 [0.20, 0.24, 0.31],
                 [0.10, 0.10, 0.12],
             ][self.trouser_color as usize],
-            HumanSurface::Hair => [
+            HumanSurface::Hair | HumanSurface::Brow => [
                 [0.075, 0.055, 0.038],
                 [0.21, 0.12, 0.065],
                 [0.41, 0.27, 0.12],
@@ -189,6 +191,8 @@ impl IndoorHuman {
             HumanSurface::Detail => [0.042, 0.037, 0.032],
             HumanSurface::Seam => [0.14, 0.14, 0.14],
             HumanSurface::Iris => [0.18, 0.12, 0.07],
+            HumanSurface::Eyewear => [0.10, 0.075, 0.055],
+            HumanSurface::Lens => [0.94, 0.98, 1.0],
         };
         Color::srgb(rgb[0], rgb[1], rgb[2])
     }
@@ -200,7 +204,7 @@ impl IndoorHuman {
             HumanSurface::Skin | HumanSurface::Lip => self.skin_tone,
             HumanSurface::Top => self.top_color,
             HumanSurface::Trousers => self.trouser_color,
-            HumanSurface::Hair => self.hair_color,
+            HumanSurface::Hair | HumanSurface::Brow => self.hair_color,
             HumanSurface::Shoes => self.shoe_color,
             _ => 0,
         };
@@ -221,6 +225,9 @@ pub enum HumanSurface {
     Detail,
     Seam,
     Iris,
+    Brow,
+    Eyewear,
+    Lens,
 }
 
 #[derive(Default, Clone)]
@@ -274,6 +281,20 @@ pub(crate) fn person_material(
         StandardMaterial::default()
     };
     material.base_color = person.material_color(surface);
+    if surface == HumanSurface::Lens {
+        material.base_color = Color::srgba(0.94, 0.98, 1.0, 0.045);
+        material.alpha_mode = AlphaMode::Blend;
+        material.perceptual_roughness = 0.045;
+        material.reflectance = 0.5;
+        material.double_sided = true;
+        material.cull_mode = None;
+        return material;
+    }
+    if surface == HumanSurface::Brow {
+        material.perceptual_roughness = 0.90;
+        material.reflectance = 0.15;
+        return material;
+    }
     material.perceptual_roughness = if cloth {
         1.0
     } else {
@@ -291,6 +312,11 @@ pub(crate) fn person_material(
     if let Some(appearance) = &person.appearance {
         if cloth {
             material.perceptual_roughness = appearance.cloth_roughness;
+            material.uv_transform *= bevy::math::Affine2::from_scale_angle_translation(
+                Vec2::splat(appearance.weave_scale),
+                appearance.weave_rotation,
+                Vec2::ZERO,
+            );
         }
         if matches!(surface, HumanSurface::Skin | HumanSurface::Lip) {
             material.perceptual_roughness = appearance.skin_roughness;
@@ -303,6 +329,12 @@ pub(crate) fn person_material(
             material.perceptual_roughness =
                 0.56 + 0.12 * (appearance.hair_curl / 0.06).clamp(0.0, 1.0);
         }
+    }
+    if surface == HumanSurface::Hair {
+        material.reflectance = 0.25;
+    }
+    if surface == HumanSurface::Eyewear {
+        material.perceptual_roughness = 0.27;
     }
     material
 }
@@ -331,6 +363,7 @@ pub fn spawn_people(
                 },
                 ObbTracked,
                 ObbClass("person".into()),
+                SemanticLabel::Person,
                 Aabb::from_min_max(lo, hi),
             ))
             .id();
@@ -345,7 +378,7 @@ pub fn spawn_people(
                     materials.add(material)
                 })
                 .clone();
-            commands.spawn((
+            let mut entity = commands.spawn((
                 Name::new(format!("person/{surface:?}")),
                 Mesh3d(meshes.add(geometry.into_mesh())),
                 MeshMaterial3d(handle),
@@ -354,6 +387,9 @@ pub fn spawn_people(
                 OvoxelTracked,
                 ChildOf(root),
             ));
+            if surface == HumanSurface::Lens {
+                entity.insert(bevy::light::NotShadowCaster);
+            }
         }
     }
 }
@@ -363,7 +399,7 @@ pub fn update_human_poses(
     mut commands: Commands,
     people: Query<
         (Entity, &IndoorHumanInstance, &GlobalTransform),
-        Or<(Changed<GlobalTransform>, Added<IndoorHumanInstance>)>,
+        Or<(Changed<GlobalTransform>, Changed<IndoorHumanInstance>)>,
     >,
 ) {
     for (entity, person, global) in &people {
@@ -433,23 +469,47 @@ fn sample_person(
         top_color: rng.random_range(0..12),
         trouser_color: rng.random_range(0..8),
         hair_color: rng.random_range(0..6),
-        hairstyle: rng.random_range(0..6),
+        hairstyle: rng.random_range(0..8),
         shoe_color: rng.random_range(0..3),
         glasses: rng.random_bool(0.3),
         joints,
         bounds_min: Vec3::ZERO,
         bounds_max: Vec3::ZERO,
     };
-    // Bounds enclose anatomy, clothing and fingers; ground contact is explicit.
+    update_bounds(&mut human);
+    human
+}
+
+/// Change support/pose before geometry and cameras are prepared, retaining the
+/// same sampled phenotype, outfit and identity for an automatically moving actor.
+pub(crate) fn standing_at(
+    h: &IndoorHuman,
+    position: Vec3,
+    yaw: f32,
+    neighbor: bool,
+) -> IndoorHuman {
+    let mut h = h.clone();
+    h.pose = HumanPoseKind::StandingWalking;
+    h.chair = None;
+    h.neighbor = neighbor;
+    h.position = position;
+    h.yaw = yaw;
+    let program = poses::PoseProgram::sample(h.seed, h.pose);
+    h.joints = program.solve(h.stature, h.build, h.shoulder_width, false);
+    h.pose_program = Some(program);
+    update_bounds(&mut h);
+    h
+}
+
+fn update_bounds(human: &mut IndoorHuman) {
     let mut lo = Vec3::splat(f32::INFINITY);
     let mut hi = Vec3::splat(f32::NEG_INFINITY);
-    for (a, b, r) in collision_capsules(&human) {
+    for (a, b, r) in collision_capsules(human) {
         lo = lo.min(a.min(b) - Vec3::splat(r));
         hi = hi.max(a.max(b) + Vec3::splat(r));
     }
     human.bounds_min = lo.with_y(0.0) - Vec3::new(0.055, 0.0, 0.055);
     human.bounds_max = hi + Vec3::splat(0.055);
-    human
 }
 
 pub fn populate(scene: &mut IndoorManifest, density: f32) {
@@ -729,7 +789,7 @@ pub fn validate(scene: &IndoorManifest) -> Result<(), String> {
             || human.top_color >= 12
             || human.trouser_color >= 8
             || human.hair_color >= 6
-            || human.hairstyle >= 6
+            || human.hairstyle >= 8
             || human.shoe_color >= 3
         {
             return Err("invalid human morphology or material palette".into());

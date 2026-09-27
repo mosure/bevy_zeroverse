@@ -100,7 +100,7 @@ fn draw_human_poses(
     poses: Query<&HumanPose>,
     mut gizmos: Gizmos<PoseGizmoConfigGroup>,
 ) {
-    if !args.gizmos || !args.draw_pose_gizmos {
+    if !args.draw_pose_gizmos {
         return;
     }
 

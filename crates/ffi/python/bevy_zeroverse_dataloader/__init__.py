@@ -30,6 +30,7 @@ import lz4.frame as lz4
 import zstandard as zstd
 
 import bevy_zeroverse_ffi
+from . import flow as numeric_flow
 
 
 def _chunk_collate(samples: list[dict[str, Any]]) -> dict[str, Any]:
@@ -143,12 +144,14 @@ class View:
         width,
         height,
         semantic=None,
+        motion_vectors=None,
     ):
         self.color = color
         self.depth = depth
         self.normal = normal
         self.semantic = semantic
         self.optical_flow = optical_flow
+        self.motion_vectors = motion_vectors
         self.position = position
         self.world_from_view = world_from_view
         self.fovy = fovy
@@ -181,6 +184,8 @@ class View:
         else:
             normal = None
 
+        if len(rust_view.optical_flow) != 0 and not hasattr(rust_view, "motion_vectors"):
+            raise ValueError("numeric flow requires the updated FFI; older optical_flow buffers contain a color visualization")
         if len(rust_view.optical_flow) != 0:
             optical_flow = reshape_data(rust_view.optical_flow, np.float32)
         else:
@@ -210,6 +215,7 @@ class View:
             width,
             height,
             semantic=reshape_data(rust_view.semantic, np.float32) if getattr(rust_view, "semantic", b"") else None,
+            motion_vectors=reshape_data(rust_view.motion_vectors, np.float32) if getattr(rust_view, "motion_vectors", b"") else None,
         )
 
     def to_tensors(self):
@@ -230,9 +236,9 @@ class View:
         if self.semantic is not None:
             batch['semantic'] = torch.tensor(self.semantic[..., :3], dtype=torch.float32)
 
-        if self.optical_flow is not None:
-            optical_flow_tensor = torch.tensor(self.optical_flow, dtype=torch.float32)
-            batch['optical_flow'] = optical_flow_tensor[..., :3]
+        for name in numeric_flow.NAMES:
+            if getattr(self, name) is not None:
+                batch.update(numeric_flow.from_rgba(name, getattr(self, name)))
 
         if self.position is not None:
             position_tensor = torch.tensor(self.position, dtype=torch.float32)
@@ -494,10 +500,14 @@ class Sample:
                 linear <= 0.0031308, linear * 12.92,
                 1.055 * torch.pow(linear, 1.0 / 2.4) - 0.055,
             )
-        normalize_keys = ['optical_flow'] if color_encoding in ("tonemapped_linear", "srgb") else ['color', 'optical_flow']
+        normalize_keys = [] if color_encoding in ("tonemapped_linear", "srgb") else ['color']
         for key in normalize_keys:
             if key in sample:
                 sample[key] = normalize_hdr_image_tonemap(sample[key])
+
+        if any(name in sample for name in numeric_flow.NAMES):
+            sample['flow_metadata'] = numeric_flow.metadata_tensor()
+            numeric_flow.validate(sample)
 
         if self.indoor_manifest is not None:
             sample['indoor_manifest'] = torch.tensor(list(self.indoor_manifest.encode("utf-8")), dtype=torch.uint8)
@@ -526,6 +536,7 @@ class BevyZeroverseDataset(Dataset):
         'depth': bevy_zeroverse_ffi.RenderMode.Depth,
         'normal': bevy_zeroverse_ffi.RenderMode.Normal,
         'optical_flow': bevy_zeroverse_ffi.RenderMode.OpticalFlow,
+        'motion_vectors': bevy_zeroverse_ffi.RenderMode.MotionVectors,
         'position': bevy_zeroverse_ffi.RenderMode.Position,
         'semantic': bevy_zeroverse_ffi.RenderMode.Semantic,
     }
@@ -612,8 +623,6 @@ class BevyZeroverseDataset(Dataset):
                 raise ValueError("indoor_seed must be a uint64")
             if indoor_layout not in {"mixed", "conference", "open_office", "lounge", "training"}:
                 raise ValueError("unsupported indoor_layout")
-            if "optical_flow" in render_modes:
-                raise ValueError("indoor optical flow is not temporally calibrated; use depth, position and camera poses")
             if not math.isfinite(indoor_density) or not 0 <= indoor_density <= 1:
                 raise ValueError("indoor_density must be finite and in [0, 1]")
             if not math.isfinite(indoor_human_density) or not 0 <= indoor_human_density <= 1:
@@ -924,9 +933,17 @@ def chunk_and_save(
             return torch.cat([tensor, pad], dim=0)
 
         for sample_index, sample in enumerate(chunk_samples):
+            numeric_flow.validate(sample)
+            for field in numeric_flow.NAMES:
+                if field in sample:
+                    batch.setdefault("color_shape", torch.tensor([len(chunk_samples), *sample[field].shape[:-1], 3], dtype=torch.int64))
             for name, tensor in sample.items():
                 if name in {"indoor_manifest", "indoor_render_metadata"}:
                     batch[f"{name}_{sample_index}"] = tensor.cpu().contiguous()
+                elif name == "flow_metadata":
+                    if name in batch and not torch.equal(batch[name], tensor.cpu()):
+                        raise ValueError("flow conventions differ within a chunk")
+                    batch[name] = tensor.cpu().contiguous()
                 elif name == "color":
                     if color_codec == "raw":
                         batch.setdefault("color_shape", torch.tensor([len(chunk_samples), *tensor.shape], dtype=torch.int64))
@@ -1232,6 +1249,7 @@ def load_chunk(
             if '_jpg_' not in key and '_shape' not in key and not key.startswith(('indoor_manifest_', 'indoor_render_metadata_')):
                 batch[key] = tensor
 
+        numeric_flow.validate(batch)
         for name in ('indoor_manifest', 'indoor_render_metadata'):
             prefix = name + '_'
             manifests = {int(key.removeprefix(prefix)): value for key, value in tensors.items() if key.startswith(prefix)}
@@ -1285,6 +1303,7 @@ def load_single_sample(
 ):
     chunk = load_chunk(chunk_path)
     meta_keys = {
+        "flow_metadata",
         "object_obb_class_names",
         "human_pose_bone_names",
         "human_pose_bone_parents",
@@ -1568,6 +1587,7 @@ class ChunkedIteratorDataset(IterableDataset):
 
             for sample_idx in local_indices:
                 meta_keys = {
+                    "flow_metadata",
                     "object_obb_class_names",
                     "human_pose_bone_names",
                     "human_pose_bone_parents",
@@ -1631,6 +1651,7 @@ def write_sample(sample: dict, *, jpg_quality: int = 75) -> None:
     assert {"_chunk_path", "_sample_idx"} <= sample.keys(), \
         "`_chunk_path` and `_sample_idx` must be present"
     meta_keys = {
+        "flow_metadata",
         "object_obb_class_names",
         "human_pose_bone_names",
         "human_pose_bone_parents",
@@ -1693,7 +1714,7 @@ def save_to_folders(dataset, output_dir: Path, n_workers: int = 1):
     output_dir.mkdir(exist_ok=True, parents=True)
     dataloader = DataLoader(dataset, batch_size=1, num_workers=n_workers,
                             shuffle=False, collate_fn=_chunk_collate)
-    planes = {"color", "depth", "normal", "semantic", "position", "optical_flow"}
+    planes = {"color", "depth", "normal", "semantic", "position", *numeric_flow.NAMES}
     for idx, batch in enumerate(dataloader):
         sample = {key: value[0] for key, value in batch.items()}
         final_dir = output_dir / f"{idx:06d}"
@@ -1702,6 +1723,9 @@ def save_to_folders(dataset, output_dir: Path, n_workers: int = 1):
         scene_dir = output_dir / f".{idx:06d}.tmp.{os.getpid()}"
         scene_dir.mkdir()
         steps, views = sample['fovy'].shape[:2]
+        numeric_flow.validate(sample)
+        if 'flow_metadata' in sample:
+            (scene_dir / 'flow_metadata.json').write_bytes(bytes(sample['flow_metadata'].tolist()))
         for name in planes.intersection(sample):
             tensor = sample[name].detach().cpu()
             if tuple(tensor.shape[:2]) != (steps, views) or tensor.ndim != 5:
@@ -1712,7 +1736,10 @@ def save_to_folders(dataset, output_dir: Path, n_workers: int = 1):
                 for camera in range(views):
                     plane = tensor[timestep, camera]
                     stem = scene_dir / f"{name}_{timestep:03d}_{camera:02d}"
-                    if name == 'color':
+                    if name in numeric_flow.NAMES:
+                        rgba = torch.cat([plane, sample[name + '_valid'][timestep, camera], sample[name + '_visible'][timestep, camera]], dim=-1)
+                        np.savez_compressed(stem.with_suffix('.npz'), **{name: rgba.numpy()})
+                    elif name == 'color':
                         np.savez_compressed(stem.with_suffix('.npz'), color=plane.numpy())
                         save_image(plane.permute(2, 0, 1), str(stem.with_suffix('.jpg')))
                     else:
@@ -1722,7 +1749,8 @@ def save_to_folders(dataset, output_dir: Path, n_workers: int = 1):
                             rgb = plane.clamp(0, 1)
                             rgb = torch.where(rgb <= 0.0031308, rgb * 12.92, 1.055 * rgb.pow(1 / 2.4) - 0.055)
                             save_image(rgb.permute(2, 0, 1), str(stem.with_suffix('.png')))
-        metadata = {key: value.cpu().contiguous() for key, value in sample.items() if key not in planes}
+        flow_masks = {name + suffix for name in numeric_flow.NAMES for suffix in ('_valid', '_visible')}
+        metadata = {key: value.cpu().contiguous() for key, value in sample.items() if key not in planes | flow_masks}
         if 'indoor_manifest' in sample:
             manifest = json.loads(bytes(sample['indoor_manifest'].tolist()))
             (scene_dir / 'render_metadata.json').write_text(json.dumps(['Srgb', manifest]))
@@ -1747,13 +1775,15 @@ class FolderDataset(Dataset):
         scene_dir = self.scene_dirs[idx]
         metadata = load_file(str(scene_dir / 'meta.safetensors'))
         steps, cameras = metadata['fovy'].shape[:2]
-        for name in ['color', 'depth', 'normal', 'semantic', 'position', 'optical_flow']:
+        for name in ['color', 'depth', 'normal', 'semantic', 'position', *numeric_flow.NAMES]:
             available = list(scene_dir.glob(f'{name}_*.npz'))
             extension = '.npz' if available else '.jpg'
             if not available:
                 available = list(scene_dir.glob(f'{name}_*.jpg'))
             if not available:
                 continue
+            if name in numeric_flow.NAMES and extension != '.npz':
+                raise ValueError("legacy flow JPEG is a visualization, not numeric flow")
             frames = []
             for step in range(steps):
                 views = []
@@ -1769,7 +1799,14 @@ class FolderDataset(Dataset):
                         view = torch.from_numpy(np.array(Image.open(path).convert('RGB'), copy=True)).float() / 255.0
                     views.append(view)
                 frames.append(torch.stack(views))
-            metadata[name] = torch.stack(frames)
+            if name in numeric_flow.NAMES:
+                metadata.update(numeric_flow.from_rgba(name, torch.stack(frames)))
+                flow_meta = scene_dir / 'flow_metadata.json'
+                if flow_meta.exists():
+                    metadata['flow_metadata'] = torch.tensor(list(flow_meta.read_bytes()), dtype=torch.uint8)
+            else:
+                metadata[name] = torch.stack(frames)
+        numeric_flow.validate(metadata)
         path = scene_dir / 'render_metadata.json'
         if path.exists() and 'indoor_manifest' not in metadata:
             encoding, manifest = json.loads(path.read_text())
@@ -1813,10 +1850,12 @@ def save_to_mp4(dataset, output_dir: Path, fps: int = 24, n_workers: int = 1):
     for idx, sample in enumerate(dataloader):
         sample = {k: v.squeeze(0) for k, v in sample.items()}
 
+        if any(name in sample for name in numeric_flow.NAMES):
+            raise ValueError("numeric flow cannot be saved to lossy MP4; use safetensors or NPZ")
         scene_dir = output_dir / f"{idx:06d}"
         scene_dir.mkdir(exist_ok=True)
 
-        planes = ['color', 'depth', 'normal', 'optical_flow', 'position']
+        planes = ['color', 'depth', 'normal', 'position']
 
         for plane in planes:
             if plane in sample:
@@ -1861,7 +1900,9 @@ class MP4Dataset(Dataset):
         with safe_open(str(meta_filename), framework="pt", device="cpu") as f:
             meta_tensors = {key: f.get_tensor(key) for key in f.keys()}
 
-        planes = ['color', 'depth', 'normal', 'optical_flow', 'position']
+        if any(list(scene_dir.glob(f"{name}_view_*.mp4")) for name in numeric_flow.NAMES):
+            raise ValueError("legacy flow MP4 is a visualization, not numeric flow")
+        planes = ['color', 'depth', 'normal', 'position']
 
         for plane in planes:
             video_files = sorted(scene_dir.glob(f"{plane}_view_*.mp4"))

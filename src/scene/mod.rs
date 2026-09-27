@@ -76,7 +76,7 @@ pub enum ZeroverseSceneType {
     ProceduralIndoor,
 }
 
-#[derive(Resource, Debug, Default, Reflect)]
+#[derive(Resource, Debug, Default, Reflect, Clone)]
 #[reflect(Resource)]
 pub struct ZeroverseSceneSettings {
     pub num_cameras: usize,
@@ -188,7 +188,7 @@ fn draw_scene_aabb(
     scene_instances: Query<&SceneAabb>,
     mut gizmos: Gizmos<EditorCameraGizmoConfigGroup>,
 ) {
-    if !args.gizmos {
+    if !args.draw_obb_gizmo {
         return;
     }
 

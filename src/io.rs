@@ -258,48 +258,8 @@ pub mod image_copy {
         ground_truth: Option<crate::render::ground_truth::GroundTruthCamera>,
     }
 
-    #[derive(Resource, Clone, Default)]
-    pub struct CapturePipelineReadiness {
-        ready: Arc<AtomicBool>,
-        failure: Arc<Mutex<Option<String>>>,
-        pipeline_count: Arc<AtomicU64>,
-    }
-    impl CapturePipelineReadiness {
-        pub fn pipeline_count(&self) -> u64 {
-            self.pipeline_count.load(Ordering::Acquire)
-        }
-        pub fn ready(&self) -> bool {
-            self.ready.load(Ordering::Acquire)
-        }
-        pub fn failure(&self) -> Option<String> {
-            self.failure.lock().unwrap().clone()
-        }
-    }
-    fn update_capture_readiness(
-        cache: Res<bevy::render::render_resource::PipelineCache>,
-        readiness: Res<CapturePipelineReadiness>,
-    ) {
-        use bevy::render::render_resource::CachedPipelineState;
-        use bevy::shader::ShaderCacheError;
-        let failure = cache
-            .pipelines()
-            .find_map(|pipeline| match &pipeline.state {
-                CachedPipelineState::Err(
-                    ShaderCacheError::ShaderNotLoaded(_)
-                    | ShaderCacheError::ShaderImportNotYetAvailable,
-                ) => None,
-                CachedPipelineState::Err(error) => Some(error.to_string()),
-                _ => None,
-            });
-        readiness.ready.store(
-            failure.is_none() && cache.waiting_pipelines().next().is_none(),
-            Ordering::Release,
-        );
-        *readiness.failure.lock().unwrap() = failure;
-        readiness
-            .pipeline_count
-            .store(cache.pipelines().count() as u64, Ordering::Release);
-    }
+    mod readiness;
+    pub use readiness::CapturePipelineReadiness;
 
     // The render graph appends copies to its own encoder. Only map after render_system
     // has submitted that encoder; submitting a separate encoder here can read stale GT.
@@ -370,18 +330,16 @@ pub mod image_copy {
             let render_app = app.sub_app_mut(RenderApp);
             render_app
                 .insert_resource(readiness)
-                .init_resource::<PendingMaps>();
-            render_app.add_systems(
-                Render,
-                update_capture_readiness.in_set(RenderSystems::Cleanup),
-            );
+                .init_resource::<PendingMaps>()
+                .init_resource::<readiness::ExpectedAssets>();
+            render_app.add_systems(Render, readiness::update.in_set(RenderSystems::Cleanup));
             render_app.add_systems(
                 Render,
                 map_submitted
                     .after(render_system)
                     .in_set(RenderSystems::Render),
             );
-            render_app.add_systems(ExtractSchedule, image_copy_extract);
+            render_app.add_systems(ExtractSchedule, (image_copy_extract, readiness::extract));
             let copy = copy_images
                 .after(bevy::core_pipeline::schedule::camera_driver)
                 .in_set(ImageCopyLabel)
@@ -393,6 +351,7 @@ pub mod image_copy {
     }
     #[cfg(not(target_arch = "wasm32"))]
     fn stamp_ground_truth(
+        state: Option<Res<crate::sample::SamplerState>>,
         mut cameras: Query<(
             &ImageCopier,
             &Projection,
@@ -400,7 +359,12 @@ pub mod image_copy {
         )>,
     ) {
         for (copier, projection, mut gt) in &mut cameras {
-            gt.frame_id = copier.requested_id();
+            let requested = copier.requested_id();
+            if requested != gt.frame_id && state.as_ref().is_some_and(|s| s.enabled && s.step == 0)
+            {
+                gt.flow_sequence = requested;
+            }
+            gt.frame_id = requested;
             if let Projection::Perspective(p) = projection {
                 gt.near = p.near;
                 gt.far = p.far;

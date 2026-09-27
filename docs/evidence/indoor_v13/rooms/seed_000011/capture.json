@@ -1,0 +1,183 @@
+{
+  "run_id": "2042157-1790534036670218658",
+  "seed": 11,
+  "elapsed_seconds": 2.893204107,
+  "image_size": [
+    512,
+    384
+  ],
+  "capabilities": {
+    "annotation_hdr_format": "RGBA32Float_direct",
+    "bloom": true,
+    "quality": "Auto",
+    "shadow_map_size": 2048,
+    "shadows": true,
+    "specular_transmission": true,
+    "ssao": true
+  },
+  "renderer": "WgpuWrapper(AdapterInfo { name: \"NVIDIA RTX PRO 6000 Blackwell Workstation Edition\", vendor: 4318, device: 11185, device_type: DiscreteGpu, device_pci_bus_id: \"0000:01:00.0\", driver: \"NVIDIA\", driver_info: \"610.43.02\", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: false })",
+  "aabb": [
+    [
+      -20.828005,
+      -0.27,
+      -16.9
+    ],
+    [
+      6.672469,
+      12.768187,
+      16.9
+    ]
+  ],
+  "color_encoding": "PNG: sRGB OETF of Bevy tone-mapped linear RGB; raw: little-endian RGBA32F",
+  "label_policy": "first geometric surface; glass is an opaque window in geometry annotations; native indoor uses direct float32 MRT",
+  "views": [
+    {
+      "camera_index": 0,
+      "step_index": 0,
+      "time": 0.0,
+      "pose_max_absolute_error": 0.0,
+      "fx_pixels": 513.00745,
+      "fy_pixels": 513.00745,
+      "world_from_view": [
+        [
+          0.99671435,
+          -0.07757948,
+          0.023278538,
+          0.0
+        ],
+        [
+          0.078462094,
+          0.99612397,
+          -0.039758056,
+          0.0
+        ],
+        [
+          -0.020103902,
+          0.041453905,
+          0.99893814,
+          0.0
+        ],
+        [
+          4.179228,
+          1.4624231,
+          4.659565,
+          1.0
+        ]
+      ],
+      "fov_y": 0.71624976,
+      "near": 0.1,
+      "far": 50.0,
+      "mean_luminance": 0.033947516,
+      "luminance_std": 0.04457102,
+      "dark_fraction": 0.039774578,
+      "clipped_fraction": 0.0,
+      "semantic_colors": 15,
+      "semantic_pixel_counts": {
+        "books": 118,
+        "bookshelf": 1404,
+        "cabinet": 1423,
+        "ceiling": 18157,
+        "chair": 10831,
+        "desk": 9766,
+        "door": 3719,
+        "floor": 35920,
+        "lamp": 1286,
+        "other_prop": 719,
+        "other_structure": 2427,
+        "paper": 310,
+        "person": 673,
+        "wall": 82770,
+        "window": 27085
+      },
+      "annotation_alignment": {
+        "checked_pixels": 21590,
+        "depth_position_p99_metres": 0.000002861023,
+        "reprojection_p99_pixels": 0.0021159847,
+        "normal_length_max_error": 1.7881393e-7,
+        "position_quantization_budget_p99_ratio": 0.13355884
+      }
+    },
+    {
+      "camera_index": 1,
+      "step_index": 0,
+      "time": 0.0,
+      "pose_max_absolute_error": 0.0,
+      "fx_pixels": 263.0039,
+      "fy_pixels": 263.0039,
+      "world_from_view": [
+        [
+          -0.9115654,
+          0.071522996,
+          0.40488622,
+          0.0
+        ],
+        [
+          0.10765837,
+          0.99191684,
+          0.06716157,
+          0.0
+        ],
+        [
+          -0.39680985,
+          0.10481156,
+          -0.9118972,
+          0.0
+        ],
+        [
+          3.6003869,
+          1.2451285,
+          1.3066988,
+          1.0
+        ]
+      ],
+      "fov_y": 1.261191,
+      "near": 0.1,
+      "far": 50.0,
+      "mean_luminance": 0.048938427,
+      "luminance_std": 0.06064343,
+      "dark_fraction": 0.024556478,
+      "clipped_fraction": 0.0,
+      "semantic_colors": 12,
+      "semantic_pixel_counts": {
+        "ceiling": 15378,
+        "chair": 2321,
+        "desk": 3416,
+        "door": 1589,
+        "floor": 57219,
+        "lamp": 1248,
+        "other_prop": 244,
+        "other_structure": 3474,
+        "person": 1947,
+        "wall": 77083,
+        "whiteboard": 2066,
+        "window": 30623
+      },
+      "annotation_alignment": {
+        "checked_pixels": 21590,
+        "depth_position_p99_metres": 0.0000023841858,
+        "reprojection_p99_pixels": 0.0021719534,
+        "normal_length_max_error": 2.3841858e-7,
+        "position_quantization_budget_p99_ratio": 0.13915378
+      }
+    }
+  ],
+  "mesh_assets": 592,
+  "material_assets": 160,
+  "image_assets": 72,
+  "annotation_precision": "float32_geometry",
+  "diffuse_gi": {
+    "backend": "gpu_bvh_compute",
+    "triangles": 709276,
+    "probes": 1840,
+    "relocated_probes": 38,
+    "primary_rays": 471040,
+    "diffuse_bounces": 3,
+    "texture_bytes": 88320,
+    "preparation_ms": 503.63932300000005,
+    "bake_ms": null,
+    "mean_radiance": null,
+    "transport_bytes": 81266896,
+    "prefetch_hit": false,
+    "prefetch_wait_ms": 0.0
+  }
+}

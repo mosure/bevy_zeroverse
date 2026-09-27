@@ -1,3 +1,6 @@
+Current appearance/control/motion fixes and captures: [v11 review](human_review_v11.md).
+The validation below describes the earlier v6 baseline.
+
 # Procedural indoor people
 
 Generator version 6 uses the real `burn_human` AnnyBody reference surface, including

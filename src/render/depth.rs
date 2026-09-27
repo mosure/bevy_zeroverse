@@ -62,6 +62,7 @@ pub(crate) fn apply_depth_material(
     >,
     mut removed_depths: RemovedComponents<Depth>,
     mut materials: ResMut<Assets<DepthMaterial>>,
+    mut cache: Local<super::annotation_material::AnnotationMaterialCache<DepthMaterial>>,
 ) {
     for e in removed_depths.read() {
         if let Ok(mut commands) = commands.get_entity(e) {
@@ -70,17 +71,26 @@ pub(crate) fn apply_depth_material(
     }
 
     for (e, pbr_material) in &depths {
-        let depth_material = materials.add(ExtendedMaterial {
-            base: StandardMaterial {
-                double_sided: pbr_material.double_sided,
-                cull_mode: pbr_material.cull_mode,
-                ..default()
+        let depth_material = cache.get(
+            &mut materials,
+            {
+                let mut key = pbr_material.annotation_key();
+                key.extend([args.depth_format as u32, args.z_depth as u32]);
+                key
             },
-            extension: DepthExtension {
-                format: args.depth_format,
-                z_depth: args.z_depth,
+            || ExtendedMaterial {
+                base: StandardMaterial {
+                    double_sided: pbr_material.double_sided,
+                    cull_mode: pbr_material.cull_mode,
+                    unlit: true,
+                    ..default()
+                },
+                extension: DepthExtension {
+                    format: args.depth_format,
+                    z_depth: args.z_depth,
+                },
             },
-        });
+        );
 
         commands.entity(e).insert(MeshMaterial3d(depth_material));
     }
@@ -114,6 +124,13 @@ pub struct DepthExtension {
 }
 
 impl MaterialExtension for DepthExtension {
+    fn enable_shadows() -> bool {
+        false
+    }
+    fn enable_prepass() -> bool {
+        false
+    }
+
     fn fragment_shader() -> ShaderRef {
         DEPTH_SHADER_HANDLE.into()
     }

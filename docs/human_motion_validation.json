@@ -1,0 +1,475 @@
+{
+  "date_utc": "2026-09-27",
+  "scope": "selected behavior coverage; not a representative large-scale acceptance benchmark",
+  "upstream_baseline": "d26d7a4afa3b8657e85687e83539cbbdbbfca1f0",
+  "policy": {
+    "fraction": 0.7,
+    "max_actors": 4,
+    "frames": 120,
+    "batch_size": 2
+  },
+  "native": {
+    "resolution": [
+      384,
+      288
+    ],
+    "cameras": 2,
+    "times": [
+      0,
+      0.25,
+      0.5,
+      0.75,
+      1
+    ],
+    "gi_enabled": false,
+    "scenes": [
+      {
+        "seed": 0,
+        "humans": 5,
+        "requested": [
+          "sit",
+          "sit"
+        ],
+        "accepted": [],
+        "rejected": [
+          {
+            "actor_id": 21,
+            "reason": "no collision-free behavior fits the available space"
+          },
+          {
+            "actor_id": 22,
+            "reason": "no collision-free behavior fits the available space"
+          },
+          {
+            "actor_id": 23,
+            "reason": "frame 37: deformed body intersects obstacle [-4.202878, 0.0, -2.1049237]..[-2.5286243, 1.030628, 1.4113718]"
+          },
+          {
+            "actor_id": 24,
+            "reason": "frame 103: body penetrates generated support chair geometry"
+          }
+        ],
+        "seconds": 31.358916071,
+        "model_loads": 1,
+        "embedding_hits": 0,
+        "maximum_normal_length_error": 2.384185791015625e-07,
+        "report_sha256": "2511fe7f72e1cd6b90349ae0cd4a620cb6aa2c846e686c79a605c2038208ba90"
+      },
+      {
+        "seed": 1,
+        "humans": 3,
+        "requested": [
+          "sit",
+          "walk"
+        ],
+        "accepted": [
+          "walk"
+        ],
+        "rejected": [
+          {
+            "actor_id": 25,
+            "reason": "no collision-free behavior fits the available space"
+          },
+          {
+            "actor_id": 26,
+            "reason": "frame 114: body penetrates generated support chair geometry"
+          }
+        ],
+        "seconds": 3.805611414,
+        "model_loads": 1,
+        "embedding_hits": 1,
+        "maximum_normal_length_error": 2.384185791015625e-07,
+        "report_sha256": "44eec991605dff90bda9baa4357a0b47be184b5adb8f3a3ee4985ca45f1495b9"
+      },
+      {
+        "seed": 2,
+        "humans": 3,
+        "requested": [
+          "enter"
+        ],
+        "accepted": [
+          "enter"
+        ],
+        "rejected": [
+          {
+            "actor_id": 28,
+            "reason": "no collision-free behavior fits the available space"
+          }
+        ],
+        "seconds": 3.6753996989999997,
+        "model_loads": 1,
+        "embedding_hits": 1,
+        "maximum_normal_length_error": 2.384185791015625e-07,
+        "report_sha256": "d9563d99b6ce429e53865eb9828d34f3680a37035773e9ca2aaace3549d08f4a"
+      },
+      {
+        "seed": 13,
+        "humans": 5,
+        "requested": [
+          "exercise",
+          "reach"
+        ],
+        "accepted": [
+          "exercise",
+          "reach"
+        ],
+        "rejected": [
+          {
+            "actor_id": 44,
+            "reason": "no collision-free behavior fits the available space"
+          },
+          {
+            "actor_id": 45,
+            "reason": "no collision-free behavior fits the available space"
+          }
+        ],
+        "seconds": 4.967807395,
+        "model_loads": 1,
+        "embedding_hits": 1,
+        "maximum_normal_length_error": 2.384185791015625e-07,
+        "report_sha256": "1a6d046a5a5ad041b1d0f4292caf70c90a6c685fb6902d846503d08e3bd1b33f"
+      },
+      {
+        "seed": 24,
+        "humans": 8,
+        "requested": [
+          "leave"
+        ],
+        "accepted": [
+          "leave"
+        ],
+        "rejected": [
+          {
+            "actor_id": 88,
+            "reason": "no collision-free behavior fits the available space"
+          },
+          {
+            "actor_id": 83,
+            "reason": "no collision-free behavior fits the available space"
+          },
+          {
+            "actor_id": 85,
+            "reason": "no collision-free behavior fits the available space"
+          },
+          {
+            "actor_id": 86,
+            "reason": "no collision-free behavior fits the available space"
+          }
+        ],
+        "seconds": 4.036308838,
+        "model_loads": 1,
+        "embedding_hits": 1,
+        "maximum_normal_length_error": 2.384185791015625e-07,
+        "report_sha256": "f4464204f44f1a8a0512212d5f86f40a4f116caf05520661b54d8f4aba59694d"
+      },
+      {
+        "seed": 36,
+        "humans": 7,
+        "requested": [
+          "stand",
+          "sit",
+          "stretch",
+          "sit"
+        ],
+        "accepted": [
+          "stand",
+          "stretch"
+        ],
+        "rejected": [
+          {
+            "actor_id": 33,
+            "reason": "frame 85: body penetrates generated support chair geometry"
+          },
+          {
+            "actor_id": 34,
+            "reason": "frame 115: body penetrates generated support chair geometry"
+          }
+        ],
+        "seconds": 8.348295287,
+        "model_loads": 1,
+        "embedding_hits": 1,
+        "maximum_normal_length_error": 2.384185791015625e-07,
+        "report_sha256": "ff924ba8f1f437180f57281df421046407a8e3cce37491fb793bff17df056621"
+      },
+      {
+        "seed": 44,
+        "humans": 3,
+        "requested": [
+          "turn",
+          "stand"
+        ],
+        "accepted": [
+          "turn"
+        ],
+        "rejected": [
+          {
+            "actor_id": 31,
+            "reason": "no collision-free behavior fits the available space"
+          },
+          {
+            "actor_id": 32,
+            "reason": "frame 40: body intersects floor or ceiling (y -0.030..1.461)"
+          }
+        ],
+        "seconds": 4.645311301,
+        "model_loads": 1,
+        "embedding_hits": 1,
+        "maximum_normal_length_error": 2.384185791015625e-07,
+        "report_sha256": "be2d2cbde59b4a4a522091bcbd632bd496596938409282410ee44ac2869ccf6c"
+      },
+      {
+        "seed": 54,
+        "humans": 7,
+        "requested": [
+          "stand"
+        ],
+        "accepted": [],
+        "rejected": [
+          {
+            "actor_id": 68,
+            "reason": "no collision-free behavior fits the available space"
+          },
+          {
+            "actor_id": 64,
+            "reason": "frame 0: body penetrates generated support chair geometry"
+          }
+        ],
+        "seconds": 3.233183631,
+        "model_loads": 1,
+        "embedding_hits": 1,
+        "maximum_normal_length_error": 2.384185791015625e-07,
+        "report_sha256": "f61d22ea7a93a243f4ce051c96a31604d22f8605ed8c2c593e8e352f6dc5a5b4"
+      },
+      {
+        "seed": 80,
+        "humans": 5,
+        "requested": [
+          "stand",
+          "reach"
+        ],
+        "accepted": [
+          "reach"
+        ],
+        "rejected": [
+          {
+            "actor_id": 26,
+            "reason": "no collision-free behavior fits the available space"
+          },
+          {
+            "actor_id": 28,
+            "reason": "no collision-free behavior fits the available space"
+          },
+          {
+            "actor_id": 27,
+            "reason": "frame 0: body penetrates generated support chair geometry"
+          }
+        ],
+        "seconds": 3.512732602,
+        "model_loads": 1,
+        "embedding_hits": 2,
+        "maximum_normal_length_error": 2.384185791015625e-07,
+        "report_sha256": "8a50178c9f35f89df9a89cd0079ad1487b4d8280af5362e54559ad6be31c5d67"
+      },
+      {
+        "seed": 82,
+        "humans": 4,
+        "requested": [
+          "stand",
+          "sit",
+          "walk"
+        ],
+        "accepted": [
+          "sit"
+        ],
+        "rejected": [
+          {
+            "actor_id": 27,
+            "reason": "no collision-free behavior fits the available space"
+          },
+          {
+            "actor_id": 24,
+            "reason": "frame 0: body penetrates generated support chair geometry"
+          },
+          {
+            "actor_id": 26,
+            "reason": "frame 19: body intersects floor or ceiling (y -0.027..1.102)"
+          }
+        ],
+        "seconds": 5.208935526,
+        "model_loads": 1,
+        "embedding_hits": 4,
+        "maximum_normal_length_error": 2.384185791015625e-07,
+        "report_sha256": "0c31813986c9e8dc7d8b99b8d09e12cf82154d30e88b27ad2f18e416524286b1"
+      },
+      {
+        "seed": 96,
+        "humans": 3,
+        "requested": [
+          "stand"
+        ],
+        "accepted": [],
+        "rejected": [
+          {
+            "actor_id": 20,
+            "reason": "no collision-free behavior fits the available space"
+          },
+          {
+            "actor_id": 19,
+            "reason": "frame 0: body penetrates generated support chair geometry"
+          }
+        ],
+        "seconds": 2.014363561,
+        "model_loads": 1,
+        "embedding_hits": 5,
+        "maximum_normal_length_error": 2.384185791015625e-07,
+        "report_sha256": "fdf1187c08c0805659910fb46918c7eed6355cac55c12f2a7b81015e99710eb6"
+      }
+    ],
+    "requested_clips": 21,
+    "accepted_clips": 10,
+    "static_humans": 43,
+    "rendered_views": 110,
+    "rgb_srgb_luminance": {
+      "minimum": 0.026632619620041303,
+      "maximum": 0.22902464430288896,
+      "mean": 0.10216414468907828,
+      "views_below_0_02": 0,
+      "note": "GI disabled; low-light coverage, not an automatic quality pass"
+    }
+  },
+  "planning": {
+    "scenes": 128,
+    "behaviors": {
+      "balance": 1,
+      "crouch": 1,
+      "enter": 14,
+      "exercise": 15,
+      "gesture": 6,
+      "idle": 3,
+      "leave": 13,
+      "reach": 6,
+      "sit": 19,
+      "stand": 14,
+      "stretch": 7,
+      "turn": 4,
+      "walk": 24
+    },
+    "unique_prompts": 62
+  },
+  "static": [
+    {
+      "seed": 0,
+      "model_loads": 0
+    },
+    {
+      "seed": 1,
+      "model_loads": 0
+    }
+  ],
+  "browser": [
+    {
+      "case": "static",
+      "success": true,
+      "seconds": 8.816976099973544,
+      "accepted": null,
+      "regenerated_accepted": null,
+      "gpu_device_count": 1,
+      "gpu_errors": [],
+      "image_sha256": "1013da95d99f25d50e9db22700c6cb737c589d8eb6ed2443eb472523508b4264"
+    },
+    {
+      "case": "motion",
+      "success": true,
+      "seconds": 127.11762303102296,
+      "accepted": 1,
+      "regenerated_accepted": 1,
+      "gpu_device_count": 1,
+      "gpu_errors": [],
+      "image_sha256": "e6dda17001d673069dcf3c9e54ec4fcd315da1ccbbd54ada9ba0de5aca5a8a6b"
+    }
+  ],
+  "cli": {
+    "artifact_directory": "out/motion_cli_gi_final",
+    "accepted": [
+      {
+        "actor_id": 30,
+        "behavior": "enter",
+        "request": {
+          "dense_trajectory": true,
+          "diffusion_steps": 10,
+          "frames": 120,
+          "history_frames": 80,
+          "prompt": "A person walks into the room through the doorway with small natural head movements.",
+          "seed": 7725369550577501792,
+          "text_guidance": 2.0,
+          "trajectory_guidance": 3.0,
+          "waypoints": [
+            {
+              "constrain_height": false,
+              "frame": 0,
+              "heading": -3.1114158630371094,
+              "position": [
+                3.5635721683502197,
+                0.0,
+                5.356024742126465
+              ]
+            },
+            {
+              "constrain_height": false,
+              "frame": 66,
+              "heading": -1.8608733415603638,
+              "position": [
+                3.5,
+                0.0,
+                3.25
+              ]
+            },
+            {
+              "constrain_height": false,
+              "frame": 119,
+              "heading": -1.8608733415603638,
+              "position": [
+                1.8745285272598267,
+                0.0,
+                2.7648022174835205
+              ]
+            }
+          ]
+        },
+        "support_chair": null
+      }
+    ],
+    "model_loads": 1,
+    "voxel_count": 3073,
+    "person_voxels": 29,
+    "pose_displacement_m": {
+      "28": 0.0,
+      "29": 0.0,
+      "30": 3.293083667755127
+    },
+    "semantic_shape": [
+      1,
+      3,
+      2,
+      96,
+      128,
+      3
+    ],
+    "gi_human_motion_policy": "planned motion candidates omitted from static indirect transport; live direct shadows retained",
+    "gi_triangles": 179162,
+    "archive_sha256": "0c75ec628d218514cac4c06d6bedc022deb8333db5bab1e3232d81c88599e78f"
+  },
+  "checks": {
+    "full_library_tests": {
+      "passed": 94,
+      "ignored": 3
+    },
+    "cli_worker_default_test": "passed",
+    "strict_workspace_clippy": "passed",
+    "feature_disabled_native_check": "passed",
+    "wasm_build_and_browser": "passed",
+    "wasm_explicit_contact_policy_check": "passed",
+    "final_motion_and_gi_regressions": 18,
+    "wasm_final_gi_policy_check": "passed"
+  }
+}

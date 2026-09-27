@@ -144,7 +144,7 @@ fn draw_object_obbs(
     obbs: Query<&ObjectObb>,
     mut gizmos: Gizmos<EditorCameraGizmoConfigGroup>,
 ) {
-    if !args.gizmos || !args.draw_obb_gizmo {
+    if !args.draw_obb_gizmo {
         return;
     }
 

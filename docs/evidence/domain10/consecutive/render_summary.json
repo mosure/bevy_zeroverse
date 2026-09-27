@@ -1,0 +1,468 @@
+{
+  "schema_version": 1,
+  "run_id": "1846041-1790514068714609835",
+  "generator_version": 10,
+  "capture_engine": "capture-v14;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;ardy_motion=1;surface_flow=1;indoor=10",
+  "selection_policy": "consecutive seeds",
+  "audit_scenes": 10000,
+  "rendered_scenes": 128,
+  "rendered_views": 512,
+  "playback_steps": 2,
+  "image_size": [
+    480,
+    360
+  ],
+  "observed_strata": 7930,
+  "captured_layouts": {
+    "OpenOffice": 27,
+    "Lounge": 38,
+    "Conference": 33,
+    "Training": 30
+  },
+  "captured_lighting": {
+    "Daylight": 65,
+    "Evening": 22,
+    "Overcast": 41
+  },
+  "captured_floors": {
+    "1": 35,
+    "0": 51,
+    "2": 42
+  },
+  "captured_furniture": {
+    "1": 36,
+    "2": 56,
+    "0": 36
+  },
+  "captured_architecture": {
+    "Classic": 27,
+    "Industrial": 28,
+    "Contemporary": 32,
+    "Timber": 41
+  },
+  "captured_plant_species": {
+    "4": 61,
+    "0": 88,
+    "5": 60,
+    "3": 70,
+    "1": 85,
+    "2": 79
+  },
+  "rgb_and_pose": {
+    "mean_luminance": {
+      "count": 512,
+      "min": 0.0012687608,
+      "max": 0.24507405,
+      "mean": 0.06946821552617187,
+      "p05_p50_p95": [
+        0.010091589,
+        0.055637896,
+        0.16362646
+      ]
+    },
+    "luminance_std": {
+      "count": 512,
+      "min": 0.00078024797,
+      "max": 0.29804108,
+      "mean": 0.08219232636486329,
+      "p05_p50_p95": [
+        0.015505601,
+        0.07020825,
+        0.21063364
+      ]
+    },
+    "dark_fraction": {
+      "count": 512,
+      "min": 0.0,
+      "max": 0.83394676,
+      "mean": 0.02194304288577539,
+      "p05_p50_p95": [
+        0.0,
+        0.0,
+        0.084577546
+      ]
+    },
+    "clipped_fraction": {
+      "count": 512,
+      "min": 0.0,
+      "max": 0.0070833336,
+      "mean": 8.319996040820312e-05,
+      "p05_p50_p95": [
+        0.0,
+        0.0,
+        0.00033564816
+      ]
+    },
+    "pose_max_absolute_error": {
+      "count": 512,
+      "min": 0.0,
+      "max": 0.0,
+      "mean": 0.0,
+      "p05_p50_p95": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    }
+  },
+  "annotation": {
+    "depth_position_p99_metres": {
+      "count": 512,
+      "min": 9.536743e-07,
+      "max": 4.7683716e-06,
+      "mean": 1.9425060537109375e-06,
+      "p05_p50_p95": [
+        1.4305115e-06,
+        1.9073486e-06,
+        2.861023e-06
+      ]
+    },
+    "reprojection_p99_pixels": {
+      "count": 512,
+      "min": 0.0017823742,
+      "max": 0.0027574536,
+      "mean": 0.0021169397615234376,
+      "p05_p50_p95": [
+        0.0018785051,
+        0.002082098,
+        0.0024879898
+      ]
+    },
+    "normal_length_max_error": {
+      "count": 512,
+      "min": 1.7881393e-07,
+      "max": 2.3841858e-07,
+      "mean": 1.9522849181640626e-07,
+      "p05_p50_p95": [
+        1.7881393e-07,
+        1.7881393e-07,
+        2.3841858e-07
+      ]
+    },
+    "position_quantization_budget_p99_ratio": {
+      "count": 512,
+      "min": 0.09559122,
+      "max": 0.17377019,
+      "mean": 0.13944191074609374,
+      "p05_p50_p95": [
+        0.11843991,
+        0.13926171,
+        0.16231985
+      ]
+    }
+  },
+  "mean_linear_luminance_by_layout": {
+    "OpenOffice": {
+      "count": 108,
+      "min": 0.004756428,
+      "max": 0.23964563,
+      "mean": 0.07304653272314815,
+      "p05_p50_p95": [
+        0.006565479,
+        0.053402416,
+        0.15918966
+      ]
+    },
+    "Lounge": {
+      "count": 152,
+      "min": 0.004230689,
+      "max": 0.17613119,
+      "mean": 0.061446293000657896,
+      "p05_p50_p95": [
+        0.009825234,
+        0.04855318,
+        0.15421884
+      ]
+    },
+    "Conference": {
+      "count": 132,
+      "min": 0.0012687608,
+      "max": 0.24507405,
+      "mean": 0.0782556926530303,
+      "p05_p50_p95": [
+        0.009230421,
+        0.068251565,
+        0.17187718
+      ]
+    },
+    "Training": {
+      "count": 120,
+      "min": 0.00938614,
+      "max": 0.22901301,
+      "mean": 0.06674260707499999,
+      "p05_p50_p95": [
+        0.014968323,
+        0.05211572,
+        0.16362646
+      ]
+    }
+  },
+  "semantic_pixel_counts": {
+    "ceiling": 6642447,
+    "chair": 2730811,
+    "desk": 3558195,
+    "floor": 20680974,
+    "other_prop": 1168396,
+    "other_structure": 1357965,
+    "person": 1601000,
+    "television": 460091,
+    "wall": 27122596,
+    "bookshelf": 810067,
+    "door": 1090792,
+    "lamp": 552942,
+    "paper": 223947,
+    "window": 15772551,
+    "background": 284,
+    "table": 1745655,
+    "books": 432759,
+    "picture": 174039,
+    "whiteboard": 611475,
+    "cabinet": 773319,
+    "blinds": 256795,
+    "pillow": 35712,
+    "sofa": 670788
+  },
+  "semantic_view_presence_fraction": {
+    "ceiling": 0.677734375,
+    "chair": 0.986328125,
+    "desk": 0.650390625,
+    "floor": 0.9921875,
+    "other_prop": 0.97265625,
+    "other_structure": 0.73046875,
+    "person": 0.681640625,
+    "television": 0.255859375,
+    "wall": 1.0,
+    "bookshelf": 0.244140625,
+    "door": 0.5546875,
+    "lamp": 0.650390625,
+    "paper": 0.771484375,
+    "window": 0.859375,
+    "background": 0.09375,
+    "table": 0.46484375,
+    "books": 0.388671875,
+    "picture": 0.158203125,
+    "whiteboard": 0.240234375,
+    "cabinet": 0.259765625,
+    "blinds": 0.11328125,
+    "pillow": 0.11328125,
+    "sofa": 0.1328125
+  },
+  "asset_counts": {
+    "mesh_assets": {
+      "count": 128,
+      "min": 115,
+      "max": 678,
+      "mean": 282.90625,
+      "p05_p50_p95": [
+        142,
+        252,
+        529
+      ]
+    },
+    "material_assets": {
+      "count": 128,
+      "min": 32,
+      "max": 146,
+      "mean": 66.3984375,
+      "p05_p50_p95": [
+        35,
+        60,
+        114
+      ]
+    },
+    "image_assets": {
+      "count": 128,
+      "min": 59,
+      "max": 72,
+      "mean": 68.4765625,
+      "p05_p50_p95": [
+        60,
+        69,
+        72
+      ]
+    }
+  },
+  "capture_wall_seconds": {
+    "count": 128,
+    "min": 0.605517797,
+    "max": 2.600422735,
+    "mean": 1.16153643996875,
+    "p05_p50_p95": [
+      0.70458002,
+      1.072524607,
+      1.9699885209999999
+    ]
+  },
+  "renderer": [
+    "WgpuWrapper(AdapterInfo { name: \"NVIDIA RTX PRO 6000 Blackwell Workstation Edition\", vendor: 4318, device: 11185, device_type: DiscreteGpu, device_pci_bus_id: \"0000:01:00.0\", driver: \"NVIDIA\", driver_info: \"610.43.02\", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: false })"
+  ],
+  "annotation_precision": [
+    "float32_geometry"
+  ],
+  "capabilities": {
+    "annotation_hdr_format": "RGBA32Float_direct",
+    "bloom": true,
+    "quality": "Auto",
+    "shadow_map_size": 2048,
+    "shadows": true,
+    "specular_transmission": true,
+    "ssao": true
+  },
+  "limits": [
+    "Signal and constraint gates do not measure photographic realism or real-office distribution match.",
+    "Camera paths checked at every captured timestep; geometry sweep is also audited separately.",
+    "Semantic pixel presence differs from scene instance counts; glazing is opaque in annotation passes.",
+    "Annotation precision is recorded explicitly; legacy HDR and native geometry captures have different error budgets.",
+    "Capture wall time includes generation, warmup, requested render work and disk IO; not FPS or isolated throughput."
+  ],
+  "darkest_views": [
+    {
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100070/view_01_color.png",
+      "seed": 100070,
+      "view": 1,
+      "mean_luminance": 0.0012687608
+    },
+    {
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100070/view_03_color.png",
+      "seed": 100070,
+      "view": 3,
+      "mean_luminance": 0.0013172826
+    },
+    {
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100070/view_02_color.png",
+      "seed": 100070,
+      "view": 2,
+      "mean_luminance": 0.0029152702
+    },
+    {
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100070/view_00_color.png",
+      "seed": 100070,
+      "view": 0,
+      "mean_luminance": 0.0031659438
+    },
+    {
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100018/view_03_color.png",
+      "seed": 100018,
+      "view": 3,
+      "mean_luminance": 0.004230689
+    },
+    {
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100018/view_01_color.png",
+      "seed": 100018,
+      "view": 1,
+      "mean_luminance": 0.004320233
+    },
+    {
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100065/view_01_color.png",
+      "seed": 100065,
+      "view": 1,
+      "mean_luminance": 0.004756428
+    },
+    {
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100065/view_03_color.png",
+      "seed": 100065,
+      "view": 3,
+      "mean_luminance": 0.0048470534
+    }
+  ],
+  "brightest_views": [
+    {
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100004/view_03_color.png",
+      "seed": 100004,
+      "view": 3,
+      "mean_luminance": 0.24507405
+    },
+    {
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100004/view_01_color.png",
+      "seed": 100004,
+      "view": 1,
+      "mean_luminance": 0.24504304
+    },
+    {
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100002/view_03_color.png",
+      "seed": 100002,
+      "view": 3,
+      "mean_luminance": 0.23964563
+    },
+    {
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100049/view_02_color.png",
+      "seed": 100049,
+      "view": 2,
+      "mean_luminance": 0.22901301
+    },
+    {
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100060/view_02_color.png",
+      "seed": 100060,
+      "view": 2,
+      "mean_luminance": 0.22745319
+    },
+    {
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100049/view_00_color.png",
+      "seed": 100049,
+      "view": 0,
+      "mean_luminance": 0.22643243
+    },
+    {
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100005/view_02_color.png",
+      "seed": 100005,
+      "view": 2,
+      "mean_luminance": 0.21068111
+    },
+    {
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100004/view_02_color.png",
+      "seed": 100004,
+      "view": 2,
+      "mean_luminance": 0.20888536
+    }
+  ],
+  "largest_position_error_views": [
+    {
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100028/view_02_color.png",
+      "seed": 100028,
+      "view": 2,
+      "mean_luminance": 0.04639646
+    },
+    {
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100028/view_00_color.png",
+      "seed": 100028,
+      "view": 0,
+      "mean_luminance": 0.045902397
+    },
+    {
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100116/view_03_color.png",
+      "seed": 100116,
+      "view": 3,
+      "mean_luminance": 0.013952707
+    },
+    {
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100119/view_01_color.png",
+      "seed": 100119,
+      "view": 1,
+      "mean_luminance": 0.09729972
+    },
+    {
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100029/view_00_color.png",
+      "seed": 100029,
+      "view": 0,
+      "mean_luminance": 0.11138116
+    },
+    {
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100078/view_00_color.png",
+      "seed": 100078,
+      "view": 0,
+      "mean_luminance": 0.020685164
+    },
+    {
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100078/view_02_color.png",
+      "seed": 100078,
+      "view": 2,
+      "mean_luminance": 0.020906772
+    },
+    {
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/domain10_verified/seed_100116/view_01_color.png",
+      "seed": 100116,
+      "view": 1,
+      "mean_luminance": 0.013670691
+    }
+  ]
+}

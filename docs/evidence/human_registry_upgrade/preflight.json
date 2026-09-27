@@ -1,0 +1,93 @@
+{
+  "phase": "local_preflight_awaiting_registry_publication",
+  "date": "2026-09-27",
+  "versions": [
+    {
+      "name": "bevy_burn_human",
+      "version": "0.6.1"
+    },
+    {
+      "name": "burn_ardy",
+      "version": "0.1.4"
+    },
+    {
+      "name": "burn_human",
+      "version": "0.5.1"
+    },
+    {
+      "name": "burn_human_inference",
+      "version": "0.1.4"
+    },
+    {
+      "name": "burn_human_motion",
+      "version": "0.1.1"
+    },
+    {
+      "name": "burn_llama",
+      "version": "0.1.2"
+    }
+  ],
+  "tests": {
+    "native_library": {
+      "passed": 102,
+      "failed": 0,
+      "ignored_long_qualifications": 3
+    },
+    "motion_wasm_viewer_compile": "passed",
+    "default_graph_excludes_inference_models": true,
+    "strict_workspace_clippy_all_targets": "passed",
+    "format_and_diff_checks": "passed"
+  },
+  "native_capture": {
+    "seeds": [
+      {
+        "seed": 1,
+        "admitted_actors": 0,
+        "frames_compared": 0,
+        "frame_component_max_absolute_error": 0.0,
+        "contact_disagreements": 0,
+        "model_loads": [
+          0,
+          0
+        ],
+        "cumulative_batches": [
+          0,
+          0
+        ],
+        "annotation_views_checked": 20
+      },
+      {
+        "seed": 13,
+        "admitted_actors": 2,
+        "frames_compared": 240,
+        "frame_component_max_absolute_error": 0.0,
+        "contact_disagreements": 0,
+        "model_loads": [
+          1,
+          1
+        ],
+        "cumulative_batches": [
+          2,
+          1
+        ],
+        "annotation_views_checked": 20
+      }
+    ],
+    "limits": {
+      "frame_component_max_absolute_error": 1e-06,
+      "contact_disagreements": 0
+    },
+    "static": {
+      "model_loads": 0,
+      "generated_batches": 0,
+      "annotation_views_checked": 10
+    },
+    "passed": true
+  },
+  "limitations": [
+    "Local batch-fix crates; publication still pending.",
+    "Small native integration control, not a new large-sample quality or long-run memory qualification.",
+    "Wasm compile check only; browser runtime not rerun."
+  ],
+  "capture_engine": "capture-v15"
+}

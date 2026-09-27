@@ -199,6 +199,34 @@ pub fn export_metrics_with_humans(
     directory: &Path,
     human_density: f32,
 ) -> Result<CoverageReport, String> {
+    export_metrics_with_camera_settings(
+        first_seed,
+        seeds,
+        cameras,
+        density,
+        layout,
+        width,
+        height,
+        directory,
+        human_density,
+        &default(),
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn export_metrics_with_camera_settings(
+    first_seed: u64,
+    seeds: usize,
+    cameras: usize,
+    density: f32,
+    layout: IndoorLayout,
+    width: u32,
+    height: u32,
+    directory: &Path,
+    human_density: f32,
+    camera_settings: &super::cameras::CameraSettings,
+) -> Result<CoverageReport, String> {
+    camera_settings.validate()?;
     if seeds == 0
         || cameras == 0
         || cameras > 256
@@ -221,6 +249,7 @@ pub fn export_metrics_with_humans(
         height,
         directory,
         human_density,
+        camera_settings,
     )
     .map_err(|e| e.to_string())
 }
@@ -236,6 +265,7 @@ fn export_inner(
     height: u32,
     directory: &Path,
     human_density: f32,
+    camera_settings: &super::cameras::CameraSettings,
 ) -> Result<CoverageReport, Box<dyn std::error::Error>> {
     fs::create_dir_all(directory)?;
     let mut humans = BufWriter::new(fs::File::create(directory.join("humans.csv"))?);
@@ -256,7 +286,7 @@ fn export_inner(
         "seed,layout,density,lighting,palette,floor,furniture,ceiling,width_m,height_m,depth_m,main_instances,neighbor_instances,main_chairs,rejected_placements"
     )?;
     let mut report = CoverageReport {
-        schema_version: 5,
+        schema_version: 6,
         generator_version: GENERATOR_VERSION,
         scenes: seeds,
         image_size: [width, height],
@@ -280,13 +310,18 @@ fn export_inner(
     let mut signatures = super::program_coverage::OccupancySketch::default();
     let mut numeric = super::metrics_sort::NumericCollector::new(directory)?;
     for offset in 0..seeds {
-        let scene = IndoorManifest::generate_with_humans(
+        let mut scene = IndoorManifest::generate_with_humans(
             first_seed.wrapping_add(offset as u64),
             layout,
             density,
             cameras,
             human_density,
         )?;
+        if scene.camera_settings != *camera_settings {
+            scene.camera_settings = camera_settings.clone();
+            scene.cameras.clear();
+            scene.sample_cameras(cameras)?;
+        }
         super::validation::validate_layout(&scene)?;
         signatures.insert(&scene);
         if let Some(program) = &scene.program {
@@ -299,6 +334,12 @@ fn export_inner(
                     ),
                     ("fixture_active_fraction", d.photometry.active_fraction),
                     ("fixture_circuit_contrast", d.photometry.circuit_contrast),
+                    ("fixture_gradient_x", d.photometry.fixture_gradient.x),
+                    ("fixture_gradient_z", d.photometry.fixture_gradient.y),
+                    (
+                        "fixture_temperature_gradient_kelvin",
+                        d.photometry.temperature_gradient,
+                    ),
                     ("facade_pier_fraction", d.facade_pier_fraction),
                     ("blind_coverage", d.blind_coverage),
                     ("blind_tilt_radians", d.blind_tilt),
@@ -344,6 +385,23 @@ fn export_inner(
                 numeric.push("ceiling_pitch_x_m", f.ceiling_pitch.x as f64)?;
                 numeric.push("ceiling_pitch_z_m", f.ceiling_pitch.y as f64)?;
                 numeric.push("wall_panel_pitch_m", f.panel_pitch as f64)?;
+                if scene.architecture_style == super::layout::ArchitectureStyle::Classic {
+                    if let Some(n) = &f.niche {
+                        for (key, value) in [
+                            (
+                                "niche_width_m",
+                                (scene.room_size.x * n.width_fraction).clamp(0.8, 3.6),
+                            ),
+                            ("niche_bottom_m", scene.room_size.y * n.bottom_fraction),
+                            ("niche_height_m", scene.room_size.y * n.height_fraction),
+                            ("niche_depth_m", n.depth_m),
+                            ("niche_position_fraction", n.position_fraction),
+                            ("niche_shelf_pitch_m", n.shelf_pitch_m),
+                        ] {
+                            numeric.push(key, value as f64)?;
+                        }
+                    }
+                }
             }
             for i in 0..super::architecture::fixture_positions(&scene).len() {
                 let (_, lumens) = super::architecture::fixture_photometry(&scene, i);
@@ -353,6 +411,19 @@ fn export_inner(
                 numeric.push("fixture_outer_angle", outer as f64)?;
             }
             for zone in &program.zones {
+                if let Some(f) = &zone.furnishing {
+                    for (key, value) in [
+                        ("workstation_stagger", f.stagger),
+                        ("workstation_curvature", f.curvature),
+                        ("workstation_fan_radians", f.fan_radians),
+                        ("workstation_jitter_m", f.jitter),
+                        ("workstation_occupancy_gradient_x", f.occupancy_gradient.x),
+                        ("workstation_occupancy_gradient_z", f.occupancy_gradient.y),
+                        ("workstation_opposing_probability", f.opposing_probability),
+                    ] {
+                        numeric.push(key, value as f64)?;
+                    }
+                }
                 let size = zone.max - zone.min;
                 for (name, value) in [
                     ("zone_area_m2", size.x * size.y),
@@ -370,8 +441,12 @@ fn export_inner(
                     ("partition_door_width_m", partition.door_width),
                     ("partition_glazing_fraction", partition.glazing_fraction),
                     ("partition_thickness_m", partition.thickness),
+                    ("partition_mullion_pitch_m", partition.mullion_pitch),
                 ] {
                     numeric.push(name, value as f64)?;
+                }
+                if let Some(f) = partition.transom_fraction {
+                    numeric.push("partition_transom_fraction", f as f64)?;
                 }
             }
             for material in &program.materials {
@@ -483,6 +558,21 @@ fn export_inner(
             }
         }
         let main_count = scene.objects.iter().filter(|o| !o.neighbor).count();
+        for plant in scene.objects.iter().filter(|o| o.kind == ObjectKind::Plant) {
+            let p = super::plants::Growth::sample(plant.seed);
+            for (key, value) in [
+                ("plant_pot_height_m", plant.size.y * p.pot_fraction),
+                (
+                    "plant_pot_radius_m",
+                    plant.size.x.min(plant.size.z) * 0.44 * p.pot_radius,
+                ),
+                ("plant_pot_taper", p.pot_taper),
+                ("plant_leaf_density", p.density),
+                ("plant_phyllotaxis_radians", p.phyllotaxis),
+            ] {
+                numeric.push(key, value as f64)?;
+            }
+        }
         writeln!(
             scenes,
             "{},{},{},{:?},{},{},{},{},{},{},{},{},{},{},{}",
@@ -543,20 +633,53 @@ fn export_inner(
                 .or_default() += 1;
         }
         numeric.push("people_per_scene", scene.humans.len() as f64)?;
+        numeric.push(
+            "ceiling_lights_per_scene",
+            super::architecture::fixture_positions(&scene).len() as f64,
+        )?;
+        numeric.push(
+            "camera_primary_room_fraction",
+            scene
+                .cameras
+                .iter()
+                .filter(|c| scene.in_primary_room(c.start, 0.0))
+                .count() as f64
+                / scene.cameras.len().max(1) as f64,
+        )?;
         for object in &scene.objects {
             if matches!(
                 object.kind,
                 ObjectKind::Table | ObjectKind::Desk | ObjectKind::CoffeeTable
             ) {
                 let p = super::objects::tables::parameters(object);
+                *report
+                    .categories
+                    .entry("table_support".into())
+                    .or_default()
+                    .entry(p.support.to_string())
+                    .or_default() += 1;
                 for (key, value) in [
                     ("table_top_thickness_m", p.top_thickness),
                     ("table_leg_radius_m", p.leg_radius),
                     ("table_leg_rake_m", p.leg_rake),
                     ("table_leg_inset_m", p.leg_inset),
+                    ("table_outline_exponent", p.outline_exponent),
+                    ("table_taper", p.taper),
+                    ("table_pedestal_radius_fraction", p.pedestal_radius),
+                    (
+                        "table_pedestal_base_radius_fraction",
+                        p.pedestal_base_radius,
+                    ),
+                    ("table_pedestal_base_aspect", p.pedestal_base_aspect),
                 ] {
                     numeric.push(key, value as f64)?;
                 }
+                *report
+                    .categories
+                    .entry("table_top_surface".into())
+                    .or_default()
+                    .entry(format!("{:?}", p.top_surface))
+                    .or_default() += 1;
             }
             let category = match object.kind {
                 ObjectKind::Chair => "chair_family",
@@ -585,12 +708,26 @@ fn export_inner(
                 )?;
             } else {
                 let p = super::objects::chairs::parameters(object);
+                *report
+                    .categories
+                    .entry("chair_headrest".into())
+                    .or_default()
+                    .entry(p.headrest.to_string())
+                    .or_default() += 1;
                 for (name, value) in [
                     ("chair_curvature_m", p.curvature),
                     ("chair_taper", p.taper),
                     ("chair_shell_m", p.shell_thickness),
                     ("chair_recline_radians", p.recline),
                     ("chair_arm_height_m", p.arm_height),
+                    ("chair_lumbar_m", p.lumbar),
+                    ("chair_seat_roundness", p.seat_roundness),
+                    ("chair_shoulder_flare", p.shoulder_flare),
+                    ("chair_seat_width_fraction", p.seat_width_fraction),
+                    ("chair_seat_depth_fraction", p.seat_depth_fraction),
+                    ("chair_back_width_fraction", p.back_width_fraction),
+                    ("chair_leg_splay", p.leg_splay),
+                    ("chair_base_radius_fraction", p.base_radius_fraction),
                 ] {
                     numeric.push(name, value as f64)?;
                 }
@@ -627,6 +764,13 @@ fn export_inner(
                     ("human_skin_roughness", a.skin_roughness),
                     ("human_garment_ease_m", a.garment_ease),
                     ("human_fold_amplitude_m", a.fold_amplitude),
+                    ("human_sleeve_coverage", a.sleeve_coverage),
+                    ("human_hem_fraction", a.hem_fraction),
+                    ("human_weave_scale", a.weave_scale),
+                    ("human_weave_rotation_radians", a.weave_rotation),
+                    ("human_hair_length_m", a.hair_length),
+                    ("human_hair_part", a.hair_part),
+                    ("human_hair_curl", a.hair_curl),
                 ] {
                     numeric.push(name, value as f64)?;
                 }
@@ -780,6 +924,11 @@ fn export_inner(
                 ("near_m", 0.1),
                 ("far_m", 50.0),
                 ("camera_height_m", camera.start.y),
+                (
+                    "camera_start_boundary_clearance_m",
+                    (scene.room_size.x * 0.5 - camera.start.x.abs())
+                        .min(scene.room_size.z * 0.5 - camera.start.z.abs()),
+                ),
                 ("trajectory_length_m", length),
                 ("camera_yaw_degrees", yaw),
                 ("camera_pitch_degrees", pitch),
