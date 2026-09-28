@@ -19,7 +19,7 @@ pixel-aligned RGB reveal control, per-camera co-visibility membership, exact
 NPZ visibility downloads, 120-frame multi-view and ARDY videos, a GIF, a
 compiled technical whitepaper and its complete LaTeX source archive. Native
 captures supply every render; no generated or stock images stand in for outputs.
-Figures preserve the v18 audit's population and scope. Selected v19 gallery
+Figures preserve the v18 audit's population and scope. Selected v20 gallery
 rooms do not constitute a repeated population evaluation.
 
 For the exact capture commands, data provenance, display mappings and browser
@@ -30,7 +30,7 @@ Matplotlib and safetensors in a Python environment, plus FFmpeg, latexmk/pdflate
 and Poppler on the host, then run:
 
 ```sh
-python scripts/build_project_media.py
+python scripts/build_project_media.py --keep-motion-video
 python scripts/build_project_whitepaper.py
 python scripts/validate_project_page.py --url http://127.0.0.1:8770/project/
 # Release check against a server that also hosts the Wasm viewer and its assets:
@@ -87,3 +87,5 @@ python scripts/validate_indoor_web.py --editor --seeds 6 --profiles auto portabl
 `cameras_y` parameters are ignored; use `num_cameras=4&camera_grid=true` for a
 four-camera grid. Browser checks retain console logs and canvas screenshots and
 fail on inspector-registration warnings, missing picking, and browser/GPU errors.
+
+The latest camera results cover 2,048 layouts and 512 rendered rooms, with all-camera depth-derived co-visibility. See [the v20 protocol](../docs/camera_evaluation_v20.md). Run `scripts/build_camera_evaluation.py` before `scripts/build_project_whitepaper.py`; the historical v18 appearance/performance baseline remains labeled separately.

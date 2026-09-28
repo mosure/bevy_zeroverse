@@ -7,19 +7,19 @@ workflow deploys the page and its checked-in media when `main` is pushed.
 
 The old academic template's placeholder images, venue, arXiv link and unsupported
 claims about trained-model transfer were replaced with actual outputs. The page
-links a seven-page PDF compiled from `tex/bevy_zeroverse.tex`, a self-contained
+links a PDF compiled from `tex/bevy_zeroverse.tex`, a self-contained
 LaTeX source ZIP, exact co-visibility NPZs, calibration JSON, and machine-readable
 population metrics. Videos are H.264 MP4, with a smaller-resolution GIF download.
 No external JavaScript, fonts, video service or PDF viewer is required.
 
 ## Evidence boundaries
 
-- **Gallery, v19:** two selected rooms (24005 and 24000), four cameras, 768×480,
+- **Gallery, v20:** two selected rooms (24005 and 24000), four cameras, 768×480,
   normalized times 0/0.1/0.2, all eight render modes, static human density 0.25,
   furnishing density 0.65, Auto quality and 1024 GI rays/probe. These are
   illustrations, not a new randomized cohort. Their geometric depth/position
   and camera-reprojection errors are checked before making previews.
-- **Traversal video, v19:** seed 24005, four cameras at 640×400, 120 synchronized
+- **Traversal video, v20:** seed 24005, four cameras at 640×400, 120 synchronized
   samples from t=0 to t=1, encoded at 20 fps. Scene and camera settings match the
   gallery's aspect ratio. The six-second visualization is a chosen camera-path
   playback duration; normalized camera time is not measured in seconds.
@@ -29,6 +29,11 @@ No external JavaScript, fonts, video service or PDF viewer is required.
   guidance 2/3. The 20 fps forward video uses the model's generated rate. Actual
   prompts, waypoint requests, model artifact identities and capture configuration
   are included in the gallery provenance. No video frame interpolation is used.
+- **Camera evaluation, v20:** 2,048 consecutive layout seeds and 512 rendered
+  rooms / 6,144 views at three times. The all-camera co-visibility report measures
+  18,432 directed pair/time observations from actual rendered depth and calibration,
+  separately from the production GPU mask convention. See
+  [protocol, tails and downloadable metrics](camera_evaluation_v20.md).
 - **Population and performance, v18:** the existing audit of 1,024 consecutive
   seeds, 64 rendered rooms / 256 images, verified SigLIP2 embeddings and bounded
   registry-dependency benchmarks is retained with its original denominators,
@@ -41,15 +46,17 @@ scene run, downstream pretraining gains or publication acceptance are made.
 
 ## Capture commands
 
-Run from the repository root with the current generator-19 source. Each output
-directory must be fresh. The human body assets must be available under
+Run from the repository root with the current generator-20 source. Each output
+directory must be fresh. The retained motion video uses generator 19; its command
+is a historical recipe requiring source commit `34bb373`, rather than a new v20
+motion measurement. The human body assets must be available under
 `assets/burn_human`; optional motion models use the normal loader/cache.
 
 ```sh
 cargo build -p bevy_zeroverse_burn --features human_motion --bin zeroverse_gen
 
 for seed in 24005 24000; do
-  target/debug/zeroverse_gen --output "out/project_page/scene_$seed" \
+  target/debug/zeroverse_gen --output "out/project_page_v20/scene_$seed" \
     --asset-root . --scene-type procedural-indoor --seed "$seed" \
     --samples 1 --workers 1 --cameras 4 --width 768 --height 480 \
     --indoor-density 0.65 --indoor-human-density 0.25 --indoor-gi-rays 1024 \
@@ -58,7 +65,7 @@ for seed in 24005 24000; do
     --ov-mode disabled --output-mode fs --color-codec raw --timeout-secs 300 --no-ui
 done
 
-target/debug/zeroverse_gen --output out/project_page/traversal_24005 \
+target/debug/zeroverse_gen --output out/project_page_v20/traversal_24005 \
   --asset-root . --scene-type procedural-indoor --seed 24005 \
   --samples 1 --workers 1 --cameras 4 --width 640 --height 400 \
   --indoor-density 0.65 --indoor-human-density 0.25 --indoor-gi-rays 1024 \
@@ -74,7 +81,8 @@ target/debug/zeroverse_gen --output out/project_page/motion_13 \
   --ov-mode disabled --output-mode fs --color-codec raw --timeout-secs 600 --no-ui
 ```
 
-`scripts/build_project_media.py` consumes these captures and the retained v18
+`python scripts/build_project_media.py --captures out/project_page_v20 --keep-motion-video`
+consumes the new gallery/traversal captures and preserves the motion illustration and the retained v18
 cohort under `out/paper_v18/cohort/`. The capture generator is not run during
 normal website builds. Checked-in assets let the page deploy without these
 local raw captures or neural models. `--skip-video` preserves existing video
@@ -104,8 +112,7 @@ calibration are separate downloads from the display previews.
 The media builder checks every one of the 24 scene/camera/time identities across
 eight modes: finite values, image size, normalized/pixel flow equivalence,
 source-bit exclusion, depth/position reconstruction and camera reprojection.
-Maximum depth disagreement was 0.0000103 m; maximum reprojection error was
-0.002827 pixels. Original source hashes, exact settings and per-view errors are
+Per-view errors are retained in the calibration downloads. Original source hashes, exact settings and per-view errors are
 recorded in the two calibration JSONs. Both video files contain 120 frames at
 20 fps with six-second duration.
 
@@ -119,8 +126,8 @@ result are recorded in `docs/evidence/project_page/`.
 [desktop preview](evidence/project_page/desktop.png),
 [matched annotation explorer](evidence/project_page/matched-annotations.png), and
 [phone preview](evidence/project_page/mobile-390.png) are retained for review.
-All 64 combinations and 39 local links passed, both MP4s decoded and played,
-and no browser errors were observed. The histogram and heatmap totals match
+The linked browser report records the checked combinations, local links, MP4
+decoding/playback, and browser errors for that validation run. The histogram and heatmap totals match
 their declared denominators, including 33 path samples per capture camera.
 
 The initial link check only verified HTTP responses. It missed a runtime error
@@ -137,6 +144,11 @@ Pillow. The lightweight default page check explicitly reports
 `viewer_runtime_checked: false`. `scripts/validate_project_viewer.py` can run
 the viewer regression independently and preview local HTML against the live
 renderer via `--project-html www/project/index.html`.
+
+Run `python scripts/build_camera_evaluation.py` after the completed v20 reports
+to update the paper macros, co-visibility plots and page metrics. Then run
+`python scripts/build_project_whitepaper.py` to rebuild the PDF, preview and
+source ZIP.
 
 The TeX document builds with latexmk/pdflatex; the downloadable source ZIP
 includes all figures, style and table inputs. `static/papers/provenance.json`

@@ -1,0 +1,53 @@
+{
+  "seed_range_inclusive": [
+    24000,
+    24127
+  ],
+  "cameras": 4,
+  "density": 0.65,
+  "human_density": 0.25,
+  "image_size": [
+    320,
+    240
+  ],
+  "layout_and_camera_audit_seconds": {
+    "before": 2.18,
+    "after": 2.49
+  },
+  "audit_timing_scope": "One sequential run per version after compilation, 128 layouts plus camera validation; excludes metrics export, mesh validation and rendering. Not an isolated sampler benchmark.",
+  "rendered_seeds": [
+    24004,
+    24005,
+    24006,
+    24007
+  ],
+  "rendered_times": [
+    0,
+    0.5,
+    1
+  ],
+  "views_per_version": 48,
+  "rendered_reference_pairs_per_version": 36,
+  "render_settings": "Identical geometry, people, lights, no GI; camera sampler only changed. Actual depth reprojection gate at 30% passed both versions. Four new pairs miss the 35% proxy estimate, minimum 32.67%.",
+  "checks": {
+    "library": {
+      "passed": 169,
+      "ignored": 3,
+      "command": "cargo test --lib --features human_motion"
+    },
+    "python": {
+      "passed": 59,
+      "command": "python -m unittest discover -s scripts -p 'test_indoor*.py'"
+    },
+    "clippy": {
+      "passed": true,
+      "command": "cargo clippy --workspace --all-targets --features human_motion,embedding_audit -- -D warnings"
+    },
+    "wasm_compile": {
+      "passed": true,
+      "command": "cargo check --target wasm32-unknown-unknown --no-default-features --features web,human_motion --bin viewer",
+      "browser_runtime_tested": false
+    }
+  },
+  "limitations": "128-room bounded audit, 4-room rendered check; no 10M-scale qualification. Group separation and spread checked at 33 times, overlap proxy at 5; full paths retain swept collision validation. Existing Burn future-incompatibility notices remain."
+}

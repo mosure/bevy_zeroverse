@@ -1,4 +1,5 @@
 //! Reproducible, resolution-aware dataset distribution exports, independent of a GPU.
+mod cameras;
 mod exterior;
 use super::layout::{IndoorLayout, IndoorManifest, ObjectKind, GENERATOR_VERSION, NEIGHBOR_DEPTH};
 use bevy::prelude::*;
@@ -96,6 +97,7 @@ impl NumericDistribution {
 pub struct CoverageReport {
     pub camera_settings: super::cameras::CameraSettings,
     pub camera_overlap_policy: &'static str,
+    pub camera_group_geometry_policy: &'static str,
     pub schema_version: u32,
     pub generator_version: u32,
     pub scenes: usize,
@@ -286,6 +288,10 @@ fn export_inner(
     let mut objects = BufWriter::new(fs::File::create(directory.join("objects.csv"))?);
     let mut camera_rows = BufWriter::new(fs::File::create(directory.join("cameras.csv"))?);
     let mut overlaps = BufWriter::new(fs::File::create(directory.join("camera_overlap.csv"))?);
+    let mut paths = BufWriter::new(fs::File::create(directory.join("camera_paths.csv"))?);
+    writeln!(paths, "seed,camera,time,x_m,y_m,z_m")?;
+    let mut groups = BufWriter::new(fs::File::create(directory.join("camera_groups.csv"))?);
+    writeln!(groups, "seed,min_pairwise_baseline_m,max_reference_baseline_m,min_horizontal_spread,min_relative_motion")?;
     writeln!(overlaps, "seed,reference,camera,time,reference_to_view,view_to_reference,baseline_m,mean_triangulation_degrees")?;
     let mut scenes = BufWriter::new(fs::File::create(directory.join("scenes.csv"))?);
     writeln!(
@@ -301,9 +307,10 @@ fn export_inner(
         "seed,layout,density,lighting,palette,floor,furniture,ceiling,width_m,height_m,depth_m,main_instances,neighbor_instances,main_chairs,rejected_placements"
     )?;
     let mut report = CoverageReport {
-        schema_version: 8,
+        schema_version: 9,
         camera_settings: camera_settings.clone(),
         camera_overlap_policy: "Proxy first-surface pixel overlap in both directions to camera zero, at normalized times 0,.25,.5,.75,1. Full capture aspect ratio, 13x9 rays/view. Glass is annotation-opaque. Not a rendered-pixel guarantee.",
+        camera_group_geometry_policy: "Worst geometry over 33 synchronized times including both endpoints. All-pair minimum Euclidean separation and maximum reference baseline, metres. Horizontal spread is minor/major standard deviation for 3+ views. Relative motion is RMS displacement difference with starts removed, normalized by the larger RMS travel, over all moving pairs. Static pairs and groups with fewer than 3 views omit inapplicable scores. These are sampled constraints, not a continuous-time proof.",
         generator_version: GENERATOR_VERSION,
         scenes: seeds,
         image_size: [width, height],
@@ -340,6 +347,7 @@ fn export_inner(
             width as f32 / height as f32,
         )?;
         super::validation::validate_layout(&scene)?;
+        cameras::record(&scene, &mut numeric, &mut paths, &mut groups)?;
         signatures.insert(&scene);
         exterior::record(&scene, &mut report, &mut numeric, &mut windows)?;
         if let Some(program) = &scene.program {
@@ -1217,6 +1225,8 @@ fn export_inner(
     objects.flush()?;
     camera_rows.flush()?;
     overlaps.flush()?;
+    paths.flush()?;
+    groups.flush()?;
     scenes.flush()?;
     fs::write(
         directory.join("metrics.json"),

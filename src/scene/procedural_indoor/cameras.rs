@@ -1,5 +1,6 @@
 //! The manifest, runtime, camera heatmaps and collision validation share one path.
 pub(crate) mod coverage;
+pub mod diversity;
 pub mod multiview;
 mod navigation;
 mod sampling;
@@ -45,6 +46,7 @@ pub(super) fn deserialize_archived_settings<'de, D: serde::Deserializer<'de>>(
         path_length_max: f32,
         long_path_fraction: f32,
         #[serde(default)]
+        #[serde(deserialize_with = "multiview::deserialize_archived_policy")]
         multiview: Option<multiview::MultiViewSettings>,
     }
     impl Default for Archived {

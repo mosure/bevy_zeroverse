@@ -131,7 +131,7 @@ that unpatched configuration.
 
 | `bevy_zeroverse` | `bevy` |
 | :--                       | :--    |
-| `0.23`, `0.22`, `0.21`, `0.20`, `0.19` | `0.19.1` |
+| `0.24`, `0.23`, `0.22`, `0.21`, `0.20`, `0.19` | `0.19.1` |
 | published `0.17`           | `0.17` |
 | `0.8`                     | `0.16` |
 | `0.6`                     | `0.15` |
@@ -157,3 +157,5 @@ and measured distributions with room, furniture and people galleries.
 See the [v12 room review](docs/room_review_v12.md) for primary-room camera paths,
 furniture programs, fixture annotations, compound motion and measured annotation
 preview performance, with captured galleries and 128-room distribution metrics.
+
+See the [generator-20 camera evaluation](docs/camera_evaluation_v20.md) for 2,048 audited layouts, 512 rendered rooms, trajectory diversity and all-camera co-visibility measurements, and the [0.24 release notes](docs/release_0_24.md) for compatibility.

@@ -11,16 +11,17 @@
 \pdfstringdefDisableCommands{\def\\{ }}
 \hypersetup{hidelinks,pdftitle={bevy\_zeroverse: Auditable Procedural Indoor Data for Multi-view Reconstruction},pdfauthor={Mitchell Mosure}}
 \input{generated/results.tex}
+\input{generated/camera_results.tex}
 \begin{document}
 \maketitle
 \begin{abstract}
-We describe an open-source synthetic data engine combining primitive-object scenes with furnished procedural interiors, calibrated multi-view cameras, optional human motion, and aligned geometric annotations. Indoor generation samples continuous architectural, furnishing, appearance, lighting and camera parameters under geometric constraints. We evaluate generator version 18 with \AuditRooms{} consecutive layout seeds and \RenderRooms{} rendered rooms, reporting distributions, shared-view geometry, image-embedding variance and completed-capture throughput. A measured CPU optimization reduces matched room-capture time by \SpeedupPercent{}\%, without reducing texture resolution, mesh detail or lighting samples. The published registry configuration is measured separately from local graphics-library patches. These are generator and dataset diagnostics: photographic realism, unlimited-process stability and downstream pretraining gains are not established by this study. The release includes manifests, capture identities, population metrics and reproducible evaluation tools.
+We describe an open-source synthetic data engine combining primitive-object scenes with furnished procedural interiors, calibrated multi-view cameras, optional human motion, and aligned geometric annotations. Indoor generation samples continuous architectural, furnishing, appearance, lighting and camera parameters under geometric constraints. A generator-20 camera evaluation covers \CameraAuditRooms{} consecutive layouts and \CameraRenderRooms{} rendered rooms, including all-camera co-visibility, spatial spread and trajectory diversity. We retain the separate generator-18 evaluation of \AuditRooms{} layouts and \RenderRooms{} rendered rooms for appearance distributions, image-embedding variance and completed-capture throughput. Its measured CPU optimization reduces matched room-capture time by \SpeedupPercent{}\%, without reducing texture resolution, mesh detail or lighting samples. Published registry dependencies are measured separately from local graphics-library patches. These are generator and dataset diagnostics: photographic realism, unlimited-process stability and downstream pretraining gains are not established by this study.
 \end{abstract}
 
 \section{Purpose and scope}
 Sparse-view reconstruction benefits from observations of shared surfaces: cameras that see unrelated objects offer little direct correspondence supervision. LRM-Zero demonstrates the potential of procedurally synthesized object data~\cite{xie2024}; MVSplat uses cross-view matching to estimate geometry~\cite{chen2024}. Our contribution is an inspectable data-generation system and its bounded evaluation, rather than a trained reconstruction model or a reconstruction accuracy result.
 
-Version 0.22 retains the existing Object, CornellCube, Room, SemanticRoom and Human scene modes, and exposes furnished interiors separately as \texttt{ProceduralIndoor}. The runtime uses Bevy 0.19.1, optional Burn 0.21 inference, and published AnnyBody/ARDY integrations. Office, conference, lounge, classroom, library and related activity priors influence a compositional program; they do not select complete meshes or a finite collection of room templates. Most architecture, furniture, plants and clutter require neither mesh repositories nor photographic texture collections. AnnyBody human meshes and optional motion/embedding models are explicit pretrained dependencies.
+Version 0.24 retains the existing Object, CornellCube, Room, SemanticRoom and Human scene modes, and exposes furnished interiors separately as \texttt{ProceduralIndoor}. The runtime uses Bevy 0.19.1, optional Burn 0.21 inference, and published AnnyBody/ARDY integrations. Office, conference, lounge, classroom, library and related activity priors influence a compositional program; they do not select complete meshes or a finite collection of room templates. Most architecture, furniture, plants and clutter require neither mesh repositories nor photographic texture collections. AnnyBody human meshes and optional motion/embedding models are explicit pretrained dependencies.
 
 \section{Procedural scene program}
 A scene is generated as $S=G(s,\theta)$, where $s$ seeds independent random streams and $\theta$ contains user-controlled densities, activity, quality, camera and motion policies. The serialized manifest records the sampled program, object transforms and seeds, people, photometry and camera paths. A separate generator version and capture-engine identity invalidate incompatible resumptions. Determinism means reproducing the same program and settings with compatible assets and engine versions; bit-identical rasterization across GPU vendors is not promised.
@@ -40,7 +41,7 @@ Camera centers and complete trajectories are constrained to the primary furnishe
  \min\{o_{0\rightarrow i}(t),o_{i\rightarrow0}(t)\}\geq\tau,
  \qquad b_{\min}\leq\|c_i(t)-c_0(t)\|\leq b_{\max},
 \]
-where $o$ estimates first-surface overlap using coarse visibility rays and object/architecture proxies. This constrains reference edges, not every camera pair. The finite proposal budget fails explicitly rather than silently weakening thresholds. A rendered-depth audit independently measures actual reprojection overlap; proxy bounds are not pixel-level guarantees.
+where $o$ estimates first-surface overlap using coarse visibility rays and object/architecture proxies. Overlap constrains reference edges, not every camera pair. Generator 20 additionally enforces $b_{\min}$ between every camera pair at 33 synchronized path samples. For three or more views, the horizontal camera-center covariance must have minor/major standard-deviation ratio at least 0.25 at those times. Paths independently vary heading, distance and curvature around the reference route; moving pairs require normalized RMS displacement difference of at least 0.15 after removing their starting offsets. Controls permit explicit rigid or collinear rigs. The finite proposal budget fails explicitly rather than silently weakening thresholds. Full-path swept collision checks remain; sampled spread and overlap are not continuous-time or pixel-level guarantees.
 
 \begin{table}[ht]
 \centering\small
@@ -48,7 +49,8 @@ where $o$ estimates first-surface overlap using coarse visibility rays and objec
 \toprule
 Indoor training configuration & Default and rationale\\\midrule
 Capture cameras / timesteps & Four / one; synchronized views of static geometry\\
-Shared-view policy & $\tau=0.35$, reference baseline 0.25--3.0 m; explicit \texttt{multiview:null} enables independent views\\
+Shared-view policy & $\tau=0.35$, all-pair separation $\geq0.25$ m, reference baseline $\leq3$ m; explicit \texttt{multiview:null} enables independent views\\
+Group diversity & Horizontal spread ratio $\geq0.25$ for 3+ views; moving-pair normalized RMS difference $\geq0.15$\\
 Room/activity/density & Primary room, Mixed activity, furnishing density 0.65, human density 0.25\\
 Camera path policy & 0.03--8 m allowed path length, 0.45 long-path proposal fraction; collision rejection still applies\\
 Human motion & Disabled; static people remain, no ARDY initialization\\
@@ -116,12 +118,15 @@ Profiling separates layout, camera planning, materials, geometry, tangent conver
 
 The before/after comparison changes both source preparation and the root development optimization level (1 to 3); it is not a source-only ablation or a release-LTO benchmark. Registry measurements compile the normalized crate archive without checkout-only wgpu patches. They should be used for published-package expectations. GPU timestamps are asynchronous diagnostic samples, and NVML active-process samples are not continuous occupancy measurements. Short runs cannot prove unlimited memory stability; finite child lifetimes remain part of the large-dataset operating policy. Throughput excludes neural motion generation and depends strongly on scene size, view count, resolution, modes and hardware.
 
+\section{Expanded camera and co-visibility evaluation}
+\input{generated/camera_evaluation.tex}
+
 \section{Subsequent gallery and viewer update}
-The accompanying project page presents selected generator-19 renders separately from the generator-18 population evaluated above. Two example rooms (seeds 24005 and 24000) were captured at $768\times480$, with four synchronized cameras, three normalized trajectory times and all eight render modes. All mode switches reuse these exact scene/camera/time identities. The native CLI used Auto quality, static human density 0.25 and 1024 indirect-lighting rays per probe. Depth/position reconstruction and camera reprojection checks validate alignment before generating website previews. Display mappings for depth, normals, positions and temporal vectors are declared alongside the visualizations; they do not replace the lossless numeric exports.
+The accompanying project page presents selected generator-20 renders separately from the population evaluations. Two example rooms (seeds 24005 and 24000) were captured at $768\times480$, with four synchronized cameras, three normalized trajectory times and all eight render modes. All mode switches reuse these exact scene/camera/time identities. The native CLI used Auto quality, static human density 0.25 and 1024 indirect-lighting rays per probe. Depth/position reconstruction and camera reprojection checks validate alignment before generating website previews. Display mappings for depth, normals, positions and temporal vectors are declared alongside the visualizations; they do not replace the lossless numeric exports.
 
 \begin{figure}[ht]
-\centering\includegraphics[width=\linewidth]{generated/gallery_v19.jpg}
-\caption{Selected generator-19 room, seed 24005: RGB, metric-depth visualization, view-space normals and semantic labels for cameras 0 and 2 at the same time. Camera selection and pixel-aligned annotation comparisons are interactive on the project page. These illustrations are not a new population evaluation.}
+\centering\includegraphics[width=\linewidth]{generated/gallery_v20.jpg}
+\caption{Selected generator-20 room, seed 24005: RGB, metric-depth visualization, view-space normals and semantic labels for cameras 0 and 2 at the same time. Camera selection and pixel-aligned annotation comparisons are interactive on the project page. These illustrations are separate from the consecutive population evaluation.}
 \end{figure}
 
 Co-visibility shares the float32 surface raster used by the other geometric annotations. A GPU pass projects each source surface into the other cameras and checks frustum bounds and symmetric local tangent-plane agreement. The tolerance is $\max(1\text{ mm},10^{-4}d)$ at target depth $d$. The exact membership mask is separate from its additive color preview and source-valid mask; a valid but unshared surface differs from background even though both have a zero membership mask. This measures raster surface visibility, with the same annotation-opaque glass policy, rather than reflected or refracted RGB content.

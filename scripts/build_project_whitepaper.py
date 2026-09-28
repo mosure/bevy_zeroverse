@@ -35,13 +35,13 @@ def main():
         for path in sources:
             archive.write(path, str(path.relative_to(TEX)))
         archive.writestr("BUILD.txt", "Run latexmk -pdf bevy_zeroverse.tex in this directory.\n"
-                         "Population tables measure generator v18. The v19 gallery is a separate illustration.\n")
+                         "Appearance/performance tables measure generator v18. Expanded camera/co-visibility results and the gallery use v20; the motion illustration retains v19.\n")
     (TARGET / "provenance.json").write_text(json.dumps({
         "pdf_sha256": sha(pdf),
         "sources": {str(p.relative_to(ROOT)): sha(p) for p in sources},
         "source_archive_sha256": sha(TARGET / "whitepaper-source.zip"),
         "build": "latexmk -pdf -interaction=nonstopmode -halt-on-error bevy_zeroverse.tex",
-        "scope": "v18 generator evaluation with v19 gallery and capability addendum; technical report"
+        "scope": "v20 expanded camera and co-visibility evaluation; v18 appearance/performance baseline; v20 matched gallery and retained v19 motion illustration; technical report"
     }, indent=2) + "\n")
 
 

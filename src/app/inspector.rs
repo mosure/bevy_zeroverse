@@ -181,16 +181,24 @@ pub(super) fn panel(world: &mut World) {
                                 edit |= ui
                                     .add(
                                         egui::Slider::new(&mut m.min_baseline, 0.01..=5.0)
-                                            .text("Minimum baseline (m)"),
+                                            .text("Minimum pair separation (m)"),
                                     )
                                     .changed();
                                 edit |= ui
                                     .add(
                                         egui::Slider::new(&mut m.max_baseline, 0.01..=10.0)
-                                            .text("Maximum baseline (m)"),
+                                            .text("Maximum reference baseline (m)"),
                                     )
                                     .changed();
                                 m.max_baseline = m.max_baseline.max(m.min_baseline);
+                                edit |= ui.add(egui::Slider::new(&mut m.min_spread, 0.0..=1.0)
+                                    .text("Group spread (3+ cameras)"))
+                                    .on_hover_text("Horizontal width relative to length of the camera group. Zero permits a line; higher values require a broader footprint throughout playback.")
+                                    .changed();
+                                edit |= ui.add(egui::Slider::new(&mut m.trajectory_variation, 0.0..=1.0)
+                                    .text("Independent path variation"))
+                                    .on_hover_text("Vary camera headings, travel and curvature. Zero permits translated copies for a rigid camera rig.")
+                                    .changed();
                             }
                             if edit {
                                 config.indoor_camera =

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="An open-source procedural data engine for multi-view reconstruction. Explore synchronized renders, geometric annotations, human motion and a measured 1,024-room audit.">
+  <meta name="description" content="An open-source procedural data engine for multi-view reconstruction. Explore synchronized renders, geometric annotations, human motion and a 2,048-layout audit and 512-room co-visibility evaluation.">
   <meta property="og:title" content="bevy_zeroverse · Procedural rooms, shared geometry">
   <meta property="og:description" content="Calibrated multi-view synthetic data, aligned annotations, optional human motion, and reproducible evaluation.">
   <meta property="og:url" content="https://mosure.github.io/bevy_zeroverse/project/">
@@ -42,7 +42,7 @@
         <source src="static/media/traversal_24005.mp4" type="video/mp4">
         <a href="static/media/traversal_24005.mp4">Download the multi-view video.</a>
       </video>
-      <figcaption><span><strong>One room, four synchronized trajectories.</strong> Seed 24005 · generator v19 · 120 rendered frames per camera.</span><a href="static/media/multiview.gif" download>GIF ↓</a></figcaption>
+      <figcaption><span><strong>One room, four synchronized trajectories.</strong> Seed 24005 · generator v20 · 120 rendered frames per camera.</span><a href="static/media/multiview.gif" download>GIF ↓</a></figcaption>
     </figure>
     <div class="capability-strip">
       <span><strong>8</strong> aligned render modes</span><span><strong>1–16</strong> co-visibility cameras</span><span><strong>Native + WebGPU</strong> scene &amp; motion viewers</span><span><strong>Seeded</strong> reproducible scene programs</span>
@@ -58,7 +58,7 @@
       <div class="explorer-toolbar">
         <label>Room <select id="scene-select"><option value="0">24005 · Sunlit seating</option><option value="1">24000 · Workspace &amp; bookshelves</option></select></label>
         <label>Capture time <select id="time-select"><option value="0">t = 0.00</option><option value="1">t = 0.10</option><option value="2">t = 0.20</option></select></label>
-        <span class="pill">Generator v19 · 768 × 480</span>
+        <span class="pill">Generator v20 · 768 × 480</span>
       </div>
       <div id="mode-buttons" class="mode-buttons" role="group" aria-label="Annotation mode">
         <button data-mode="color" aria-pressed="false">RGB</button>
@@ -95,7 +95,7 @@
     <noscript><p class="note">Enable JavaScript to switch matched views. Videos, figures, calibration downloads and the whitepaper remain available.</p></noscript>
     <p class="note">These two rooms are selected illustrations, not a population sample. Color, depth and label files share scene/camera/time identities. Glass is a first geometric surface for annotations; labels do not follow refracted or reflected light. Website images are visualizations; the downloadable NPZ visibility masks retain exact integer membership.</p>
     <div class="feature-columns">
-      <article><span class="feature-index">01</span><h3>Overlap is a sampling policy.</h3><p>Camera zero anchors the default 35% shared-surface proposal target, with 0.25–3 m baselines. Camera paths stay within the primary room and undergo geometric clearance checks.</p></article>
+      <article><span class="feature-index">01</span><h3>Overlap is a sampling policy.</h3><p>Camera zero anchors the default 35% shared-surface proposal target. Every camera pair keeps at least 0.25 m separation; paths vary independently and groups avoid a collinear footprint. Primary-room and swept-clearance checks remain.</p></article>
       <article><span class="feature-index">02</span><h3>Visibility is measured.</h3><p>Co-visibility projects each surface into the other capture cameras and checks occlusion. Each camera owns one bit in a lossless 16-bit membership mask; the source camera excludes itself.</p></article>
       <article><span class="feature-index">03</span><h3>Supervision stays aligned.</h3><p>Export RGB, float32 geometric channels, class labels, temporal correspondence, calibration, instance boxes and person joints. O-Voxel covers primary-room geometry in static, single-timestep captures.</p></article>
     </div>
@@ -108,7 +108,7 @@
     </div>
     <figure class="motion-film">
       <video id="motion-video" controls muted loop playsinline preload="none" poster="static/media/motion_13.webp" width="1280" height="432" aria-label="Two synchronized views of an ARDY-animated room"><source src="static/media/motion_13.mp4" type="video/mp4"><a href="static/media/motion_13.mp4">Download the human-motion video.</a></video>
-      <figcaption><strong>Two views · two accepted motions.</strong> Seed 13 · 120 frames at 20 Hz · forward playback at the model’s generated speed.</figcaption>
+      <figcaption><strong>Two views · two accepted motions.</strong> Seed 13 · generator v19 · 120 frames at 20 Hz · forward playback at the model’s generated speed.</figcaption>
     </figure>
     <div class="motion-details">
       <div><div class="eyebrow">TEXT CONDITIONING</div><blockquote>“A person scratches the head with the left hand smoothly.”</blockquote><blockquote>“A person marches steadily, stops and nods the head once, marches again, stops and taps the right heel once, then resumes marching.”</blockquote></div>
@@ -119,8 +119,24 @@
   <section id="evidence" class="container section" aria-labelledby="evidence-title">
     <div class="section-heading">
       <div><div class="eyebrow">03 / MEASURED COVERAGE</div><h2 id="evidence-title">Count the variation.<br>Keep the difficult examples.</h2></div>
-      <p>The whitepaper evaluates generator v18 on consecutive seeds, without replacing failed or unattractive samples. These measurements are separate from the v19 gallery above.</p>
+      <p>The expanded camera evaluation uses generator v20. Appearance, embedding and throughput measurements from v18 remain a separately labeled baseline. No failed or unattractive room is replaced.</p>
     </div>
+    <!-- CAMERA_EVALUATION_START -->
+    <div class="cohort-heading"><h3>Camera robustness and co-visibility</h3><span>generator v20 · consecutive seeds</span></div>
+    <div class="metric-strip">
+      <div><strong>2,048</strong><span>audited layouts</span><small>24000–26047 · zero invalid layouts</small></div>
+      <div><strong>512</strong><span>rendered rooms / 6,144 views</span><small>four cameras · three times · no GI</small></div>
+      <div><strong>626 → 0</strong><span>near-collinear starting groups</span><small>matched layouts · spread threshold 0.25</small></div>
+    </div>
+    <figure class="chart"><img src="static/media/camera-paths-v20.png" loading="lazy" width="1920" height="960" alt="Four camera paths before and after the spread and independent-motion constraints"><figcaption>Median starting spread increases from 0.351 to 0.474. Paths keep shared-content, primary-room and swept-clearance checks. New group metrics inspect 33 synchronized times.</figcaption></figure>
+    <figure class="chart"><img src="static/media/covisibility-v20.png" loading="lazy" width="1760" height="576" alt="Histogram of other-camera visibility and the worst reference overlap per rendered room"><figcaption>All 18,432 directed camera-pair/time observations. Membership excludes the source camera; counts describe valid source pixels, not unique 3D points.</figcaption></figure>
+    <div class="evidence-grid">
+      <article><div class="eyebrow">ALL-CAMERA CO-VISIBILITY</div><h3>84.3% shared with another camera</h3><p>Of valid source pixels, 20.7% are visible in one other camera, 25.6% in two, and 38.0% in all three. 15.7% have no other observing camera.</p><p class="note">Independent rendered-depth reprojection with a declared tolerance. The gallery's GPU annotation uses its separate tangent-plane test; these metrics do not claim identical masks.</p></article>
+      <article><div class="eyebrow">RETAINED DIFFICULT PAIRS</div><h3>53.4% mean reference overlap</h3><p>4,608 pair/time observations; minimum 20.5%. 245 miss the 35% proxy target. 0 rooms contain a reference pair below 10%.</p><p class="note">All 512 rooms and all captured times are included. 0 rooms include a view with at most two semantic classes. Photographic realism and downstream training gains remain unproven.</p></article>
+    </div>
+    <div class="evidence-downloads"><a href="static/media/covisibility-v20.json" download>Co-visibility report (JSON) ↓</a><a href="static/media/camera-groups-v20.json" download>Camera comparison (JSON) ↓</a><a href="static/media/population-v20.json" download>2,048-room distributions (JSON) ↓</a><a href="https://github.com/mosure/bevy_zeroverse/blob/main/docs/camera_evaluation_v20.md">Protocol and limitations ↗</a></div>
+    <!-- CAMERA_EVALUATION_END -->
+    <div class="cohort-heading"><h3>Retained appearance and performance baseline</h3><span>generator v18</span></div>
     <div class="metric-strip">
       <div><strong>1,024</strong><span>consecutive layout seeds</span><small>24000–25023 · zero invalid layouts</small></div>
       <div><strong>256</strong><span>rendered views of 64 rooms</span><small>four cameras · five render modes</small></div>
@@ -174,7 +190,7 @@
       <p>The paper describes continuous scene programs, material and geometry construction, calibrated multi-view capture, annotations, optional motion, diversity diagnostics and completed-capture performance.</p>
       <p>It reports a bounded generator evaluation. Photographic realism, ten-million-sample learning utility and downstream reconstruction gains remain open evaluation questions.</p>
       <div class="actions"><a class="button primary" href="static/papers/bevy_zeroverse.pdf">Read PDF ↗</a><a class="button" href="static/papers/whitepaper-source.zip" download>LaTeX source ↓</a></div>
-      <p class="note">Compiled from this repository’s TeX paper. Population measurements are v18; the v19 addendum and matched gallery describe subsequent capabilities. No publication venue or peer-review status is implied.</p>
+      <p class="note">Compiled from this repository’s TeX paper. Expanded camera and co-visibility measurements and the matched gallery are v20; appearance/performance measurements retain v18, and the motion illustration retains v19. No publication venue or peer-review status is implied.</p>
     </div>
   </div></section>
 

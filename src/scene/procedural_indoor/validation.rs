@@ -221,6 +221,12 @@ pub fn validate_layout(scene: &IndoorManifest) -> Result<(), String> {
     }
     if let Some(policy) = &scene.camera_settings.multiview {
         if scene
+            .camera_group_geometry()
+            .is_some_and(|g| !g.accepts(policy))
+        {
+            return fail("multi-view camera spacing, group spread or trajectory variation constraint violated");
+        }
+        if scene
             .camera_overlap()
             .iter()
             .any(|pair| !policy.accepts(&pair.samples))

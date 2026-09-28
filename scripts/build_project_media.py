@@ -73,7 +73,7 @@ def camera_record(meta, t, c):
 def scene_assets(source, seed, title):
     folder = source / f"scene_{seed}" / "000000"
     config = read(folder.parent / "generation_config.json")
-    assert config["generator_version"] == 19
+    assert config["generator_version"] == 20
     meta = load_file(folder / "meta.safetensors")
     h, w = config["height"], config["width"]
     steps, cameras = config["playback_steps"], config["cameras"]
@@ -156,7 +156,7 @@ def scene_assets(source, seed, title):
         for c in range(cameras):
             name = f"co_visibility_000_{c:02}.npz"
             archive.write(folder / name, name)
-    return dict(seed=seed, title=title, generator_version=19, width=w, height=h,
+    return dict(seed=seed, title=title, generator_version=config["generator_version"], width=w, height=h,
                 depth_max=depth_max, frames=frames, legend=legend["legend"],
                 calibration=f"s{seed}-calibration.json", masks=f"s{seed}-visibility.zip")
 
@@ -231,7 +231,7 @@ def figures():
 def video(source, name, views, fps=20):
     folder = source / name / "000000"
     config = read(folder.parent / "generation_config.json")
-    assert config["generator_version"] == 19 and config["playback_steps"] == 120
+    assert config["generator_version"] == 20 and config["playback_steps"] == 120
     frames = source / f"{name}_frames"
     frames.mkdir(exist_ok=True)
     width, height = config["width"], config["height"]
@@ -273,13 +273,15 @@ def paper_figure(scene):
             im = Image.open(MEDIA / views[c]["images"][mode]).resize((384, 240), Image.Resampling.LANCZOS)
             canvas.paste(im, (col * 384, row * 260))
             draw.text((col * 384 + 8, row * 260 + 243), f"Camera {c} / {mode}", fill="black")
-    canvas.save(ROOT / "tex/generated/gallery_v19.jpg", quality=93)
+    canvas.save(ROOT / "tex/generated/gallery_v20.jpg", quality=93)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--captures", type=Path, default=ROOT / "out/project_page")
+    parser.add_argument("--captures", type=Path, default=ROOT / "out/project_page_v20")
     parser.add_argument("--skip-video", action="store_true")
+    parser.add_argument("--keep-motion-video", action="store_true",
+                        help="Retain the separately labeled v19 motion illustration and its provenance.")
     args = parser.parse_args()
     args.captures = args.captures.resolve()
     MEDIA.mkdir(parents=True, exist_ok=True)
@@ -290,12 +292,20 @@ def main():
     assert len(palette) == 40
     data = dict(schema_version=1, scenes=scenes, semantic_palette=palette, audit=figures())
     if not args.skip_video:
-        data["videos"] = [video(args.captures, "traversal_24005", [0, 1, 2, 3]), video(args.captures, "motion_13", [0, 1])]
+        data["videos"] = [video(args.captures, "traversal_24005", [0, 1, 2, 3])]
+        if args.keep_motion_video:
+            previous = read(MEDIA / "gallery.json")
+            motion = next(v for v in previous["videos"] if v["output"] == "motion_13.mp4")
+            assert (MEDIA / motion["output"]).is_file()
+            data["videos"].append(motion)
+        else:
+            data["videos"].append(video(args.captures, "motion_13", [0, 1]))
     elif (MEDIA / "gallery.json").exists():
         data["videos"] = read(MEDIA / "gallery.json").get("videos", [])
     for entry in data.get("videos", []):
         metadata = args.captures / Path(entry["output"]).stem / "000000/indoor_render_metadata.json"
-        entry["human_motion"] = read(metadata).get("human_motion")
+        if metadata.exists():
+            entry["human_motion"] = read(metadata).get("human_motion")
     # Social preview is a labeled crop of the real room capture, never a mockup.
     social = Image.new("RGB", (1200, 630), "#20382e")
     source = Image.open(MEDIA / scenes[0]["frames"][0]["views"][0]["images"]["color"])

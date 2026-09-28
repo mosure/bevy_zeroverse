@@ -1,0 +1,31 @@
+We compare generators 19 and 20 on \CameraAuditRooms{} consecutive layout seeds (24000--26047), with four cameras, furnishing density 0.65 and static human density 0.25. Object, people and architecture CSV hashes agree exactly. All new layouts pass geometric, swept-path and sampled group checks. The new export contains 507 numeric series, 405 with observed nonzero variance; these remain correlated diagnostics, not independent degrees of freedom. The source reports and commands are retained in \texttt{docs/camera\_evaluation\_v20.md}.
+
+\begin{table}[ht]
+\centering\small
+\begin{tabular}{lrr}\toprule
+Camera-group statistic & Generator 19 & Generator 20\\\midrule
+Near-collinear starting groups (spread $<0.25$) & \CameraOldLines{} & \CameraNewLines{}\\
+Median starting spread & 0.351 & 0.474\\
+Median minimum pair separation (m) & 0.306 & 0.431\\
+Median minimum relative motion & approximately zero & 0.341\\\bottomrule
+\end{tabular}
+\caption{Matched layout comparison. Legacy CSVs expose endpoint checks; new path metrics use 33 synchronized samples. Generator 19 translated the same reference path for all views.}
+\end{table}
+
+\begin{figure}[ht]
+\centering\includegraphics[width=\linewidth]{generated/camera_paths_v20.png}
+\caption{Seed 24005 before and after the group/path diversity constraints. Starts are circles, endpoints crosses.}
+\end{figure}
+
+The rendered cohort contains \CameraRenderRooms{} consecutive rooms (24000--24511), four $320\times240$ cameras and times $0,0.5,1$: \CameraRenderViews{} views in 4 completed process chunks. Native lights and shadows remain enabled; baked GI is disabled for this geometric audit. No dark, weak or low-overlap view is discarded. Shared-depth reference overlap over \CameraReferencePairs{} pair/time observations averages \CameraMeanOverlap{}\%, with minimum \CameraMinimumOverlap{}\%. \CameraTargetMisses{} observations miss the 35\% proxy target; 0 rooms contain a reference pair below 10\%.
+
+We additionally evaluate all 18,432 directed camera-pair/time observations. For each valid source pixel we form a membership mask of other cameras passing rendered-depth reprojection, excluding the source bit. Across 471,859,197 valid source-pixel observations, the fractions seen by zero, one, two and three other cameras are 15.7\%, 20.7\%, 25.6\% and 38.0\%, respectively. Observations repeat surfaces across views and times; these are not counts of unique 3D points. 0 of 1,536 synchronized sets have a disconnected graph when edges require 10\% bidirectional overlap.
+
+This independent diagnostic uses nearest-pixel depth agreement within $0.01\,\mathrm{m}+0.002z$. It is deliberately separate from the production GPU co-visibility annotation's symmetric tangent-plane test described below; its masks must not be interpreted as identical annotation values. Both treat glass as an opaque geometric surface. Gallery mask exports retain and validate the production annotation contract.
+
+\begin{figure}[ht]
+\centering\includegraphics[width=\linewidth]{generated/covisibility_v20.png}
+\caption{Expanded co-visibility evaluation: source-pixel membership cardinality and per-room worst reference overlap. All captured times and failures are retained.}
+\end{figure}
+
+The same captures expose quality tails: 0 rooms contain a view with at most two visible semantic classes; 0 of 357 rooms containing primary-room people have no person pixels across the captured views. These diagnostics neither establish photographic realism nor repeat the historical embedding and throughput experiments. The largest depth/position p99 disagreement is 0.000004\,m. Four bounded processes do not establish unlimited-process memory stability.
