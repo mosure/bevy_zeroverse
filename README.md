@@ -1,5 +1,47 @@
 # bevy_zeroverse for web
 
+## Project page and whitepaper
+
+`www/project/` is a self-contained static project page. It needs no npm build,
+external font service or embedded GPU runtime. The existing Pages workflow
+copies it alongside the viewer. Keep media and the compiled PDF in the checkout;
+deployment does not regenerate the scientific figures or run model inference.
+
+Preview from the repository root:
+
+```sh
+python3 -m http.server 8770 --directory www
+# http://127.0.0.1:8770/project/
+```
+
+The page includes a two-room/four-camera/eight-mode annotation explorer, a
+pixel-aligned RGB reveal control, per-camera co-visibility membership, exact
+NPZ visibility downloads, 120-frame multi-view and ARDY videos, a GIF, a
+compiled technical whitepaper and its complete LaTeX source archive. Native
+captures supply every render; no generated or stock images stand in for outputs.
+Figures preserve the v18 audit's population and scope. Selected v19 gallery
+rooms do not constitute a repeated population evaluation.
+
+For the exact capture commands, data provenance, display mappings and browser
+checks, see [the project-page review](../docs/project_page.md).
+
+To rebuild assets after regenerating those captures, install NumPy, Pillow,
+Matplotlib and safetensors in a Python environment, plus FFmpeg, latexmk/pdflatex
+and Poppler on the host, then run:
+
+```sh
+python scripts/build_project_media.py
+python scripts/build_project_whitepaper.py
+python scripts/validate_project_page.py --url http://127.0.0.1:8770/project/
+```
+
+The media builder checks capture calibration, per-mode dimensions, camera-bit
+exclusion and optical-flow unit conversions. It verifies the first eight audit
+images against the recorded SHA-256 identities. The paper builder includes
+source and PDF hashes. Browser checks require Playwright and Chrome; they cover
+every room/camera/mode at t=0, temporal controls, peer masks, keyboard reveal,
+local downloads, both videos, reduced motion and mobile layouts.
+
 ## wasm support
 
 to build wasm run:
