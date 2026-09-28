@@ -88,4 +88,4 @@ python scripts/validate_indoor_web.py --editor --seeds 6 --profiles auto portabl
 four-camera grid. Browser checks retain console logs and canvas screenshots and
 fail on inspector-registration warnings, missing picking, and browser/GPU errors.
 
-The latest camera results cover 2,048 layouts and 512 rendered rooms, with all-camera depth-derived co-visibility. See [the v20 protocol](../docs/camera_evaluation_v20.md). Run `scripts/build_camera_evaluation.py` before `scripts/build_project_whitepaper.py`; the historical v18 appearance/performance baseline remains labeled separately.
+The current results cover 2,048 layouts, 512 distinct rendered rooms and a matched 128-room sweep at five camera-baseline values. See [the v21 protocol](../docs/camera_baseline_v21.md). Run `scripts/build_baseline_evaluation.py --analyze`, `scripts/build_project_media.py --captures out/project_page_v21`, then `scripts/build_project_whitepaper.py`. The page and whitepaper show current-generator measurements only.
