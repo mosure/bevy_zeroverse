@@ -1,91 +1,128 @@
 \documentclass{article}
-
 \usepackage{arxiv}
-
-\usepackage[utf8]{inputenc} % allow utf-8 input
-\usepackage[T1]{fontenc}    % use 8-bit T1 fonts
-\usepackage{hyperref}       % hyperlinks
-\usepackage{url}            % simple URL typesetting
-\usepackage{booktabs}       % professional-quality tables
-\usepackage{amsfonts}       % blackboard math symbols
-\usepackage{nicefrac}       % compact symbols for 1/2, etc.
-\usepackage{microtype}      % microtypography
-\usepackage{graphicx}
-\usepackage[style=ieee,backend=bibtex]{biblatex}
-
-\addbibresource{references.bib}
-
-
-\title{bevy\_zeroverse: Pre-training Reconstruction Models with Multi-scale Synthesized Data \\ \large{\textbf{Work in Progress}}}
-
-\author{ \href{https://orcid.org/0009-0009-8476-3358}{\hspace{1mm}Mitchell Mosure} \\
-    Organization Name\\
-    \texttt{mitchell@mosure.me} \\
-}
-
-% Uncomment to remove the date
-%\date{}
-
-% Uncomment to override the `A preprint` in the header
-%\renewcommand{\headeright}{Technical Report}
-%\renewcommand{\undertitle}{Technical Report}
-\renewcommand{\shorttitle}{bevy\_zeroverse: Pre-training Reconstruction Models}
-
-\hypersetup{
-    pdftitle={bevy\_zeroverse: Pre-training Reconstruction Models with Multi-scale Synthesized Data},
-    pdfsubject={cs.CV, cs.LG},
-    pdfauthor={Mitchell Mosure},
-    pdfkeywords={synthetic data, pre-training, reconstruction models},
-}
-
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{hyperref,url,booktabs,amsmath,amsfonts,microtype,graphicx}
+\usepackage{array}
+\title{bevy\_zeroverse: Auditable Procedural Indoor Data for Multi-view Reconstruction}
+\author{\href{https://orcid.org/0009-0009-8476-3358}{Mitchell Mosure}\\\texttt{mitchell@mosure.me}}
+\date{September 28, 2026}
+\renewcommand{\shorttitle}{bevy\_zeroverse: Procedural Indoor Data}
+\pdfstringdefDisableCommands{\def\\{ }}
+\hypersetup{hidelinks,pdftitle={bevy_zeroverse: Auditable Procedural Indoor Data for Multi-view Reconstruction},pdfauthor={Mitchell Mosure}}
+\input{generated/results.tex}
 \begin{document}
 \maketitle
-
 \begin{abstract}
-We present bevy\_zeroverse, a procedural synthetic dataset generator for pre-training reconstruction models. bevy\_zeroverse synthesizes datasets from primitive shapes with random materials, augmentations (e.g., normal deformation, boolean manifold operations, thin structures, hierarchical transforms), and multi-scale composition (e.g., object, room, and environment scales). Unlike previous works (e.g., Objaverse, Zeroverse) that target the object-scale 3D domain, bevy\_zeroverse extends into the multi-scale 4D domain, enabling the training of models that can generalize to larger, more complex, dynamic scenes. We demonstrate that pre-training on bevy\_zeroverse improves the performance of a reconstruction model on real-world data, achieving high-quality, sparse-view reconstructions. Additionally, we analyze the impact of synthetic data parameters on model training and performance. Our work highlights the potential of synthetic data for pre-training reconstruction models and emphasizes the importance of multi-scale, multi-domain data generation for training models that can generalize to complex, real-world scenes.
+We describe an open-source synthetic data engine combining primitive-object scenes with furnished procedural interiors, calibrated multi-view cameras, optional human motion, and aligned geometric annotations. Indoor generation samples continuous architectural, furnishing, appearance, lighting and camera parameters under geometric constraints. We evaluate generator version 18 with \AuditRooms{} consecutive layout seeds and \RenderRooms{} rendered rooms, reporting distributions, shared-view geometry, image-embedding variance and completed-capture throughput. A measured CPU optimization reduces matched room-capture time by \SpeedupPercent{}\%, without reducing texture resolution, mesh detail or lighting samples. The published registry configuration is measured separately from local graphics-library patches. These are generator and dataset diagnostics: photographic realism, unlimited-process stability and downstream pretraining gains are not established by this study. The release includes manifests, capture identities, population metrics and reproducible evaluation tools.
 \end{abstract}
 
-\section{Introduction}
-We present bevy\_zeroverse, a procedural synthetic dataset generator for pre-training reconstruction models. bevy\_zeroverse synthesizes datasets from primitive shapes with random materials, augmentations (e.g., normal deformation, boolean manifold operations, thin structures, hierarchical transforms), and multi-scale composition (e.g., object, room, and environment scales). Unlike previous works (e.g., Objaverse, Zeroverse) that target the object-scale 3D domain, bevy\_zeroverse extends into the multi-scale 4D domain, enabling the training of models that can generalize to larger, more complex, dynamic scenes.
+\section{Purpose and scope}
+Sparse-view reconstruction benefits from observations of shared surfaces: cameras that see unrelated objects offer little direct correspondence supervision. LRM-Zero demonstrates the potential of procedurally synthesized object data~\cite{xie2024}; MVSplat uses cross-view matching to estimate geometry~\cite{chen2024}. Our contribution is an inspectable data-generation system and its bounded evaluation, rather than a trained reconstruction model or a reconstruction accuracy result.
 
-\section{Methodology}
-\subsection{Dataset Generation}
-bevy\_zeroverse synthesizes datasets from primitive shapes with random materials and augmentations. These augmentations include normal deformation, boolean manifold operations, thin structures, and hierarchical transforms. The generated datasets span multiple scales, including object, room, and environment scales.
+Version 0.22 retains the existing Object, CornellCube, Room, SemanticRoom and Human scene modes, and exposes furnished interiors separately as \texttt{ProceduralIndoor}. The runtime uses Bevy 0.19.1, optional Burn 0.21 inference, and published AnnyBody/ARDY integrations. Office, conference, lounge, classroom, library and related activity priors influence a compositional program; they do not select complete meshes or a finite collection of room templates. Most architecture, furniture, plants and clutter require neither mesh repositories nor photographic texture collections. AnnyBody human meshes and optional motion/embedding models are explicit pretrained dependencies.
 
-\subsection{Training Process}
-The datasets generated by bevy\_zeroverse are used to pre-train reconstruction models. We demonstrate that pre-training on these synthetic datasets improves the performance of reconstruction models on real-world data. Our experiments show high-quality, sparse-view reconstructions.
+\section{Procedural scene program}
+A scene is generated as $S=G(s,\theta)$, where $s$ seeds independent random streams and $\theta$ contains user-controlled densities, activity, quality, camera and motion policies. The serialized manifest records the sampled program, object transforms and seeds, people, photometry and camera paths. A separate generator version and capture-engine identity invalidate incompatible resumptions. Determinism means reproducing the same program and settings with compatible assets and engine versions; bit-identical rasterization across GPU vendors is not promised.
 
-\section{Results}
-We analyze the impact of synthetic data parameters on model training and performance. Our results highlight the potential of synthetic data for pre-training reconstruction models and emphasize the importance of multi-scale, multi-domain data generation for training models that can generalize to complex, real-world scenes.
+\subsection{Architecture, objects and appearance}
+Room area and aspect are sampled logarithmically; width and depth are clamped to 5.6--21 m and height spans 2.65--4.8 m. Furnishing zones have continuous bounds, orientation, aisle width, occupancy and mixed activity weights. Partitions sample portal width, thickness, glazing fraction, mullion spacing and optional transoms. Pillars, ceiling relief, paneling, reveals, trim and shelves add geometric structure. One to three exterior faces independently receive glazing; the fourth face retains the neighboring-room connection. Window opening dimensions, sill/head heights, bay widths, frames, inset depth and shades vary continuously. Rough openings are subtracted from the solid wall geometry; decorative surfaces respect these openings. The exterior envelope remains rectangular: these are varied rectilinear interiors, not a general architectural CAD system.
 
-\section{Conclusion}
-Our work demonstrates the effectiveness of bevy\_zeroverse in generating synthetic datasets for pre-training reconstruction models. The multi-scale, multi-domain nature of the generated data enables models to generalize better to complex, dynamic scenes. This highlights the importance of synthetic data in advancing the field of reconstruction models.
+Furniture is assembled from material-specific parts. Tables vary outline, taper, thickness and leg/pedestal construction; chairs vary seat shell, curvature, back proportions, recline, arms, base and headrest. Sectional seating, shelving, potted plants, outlets, switches, ceiling lights, whiteboards, displays and tabletop objects extend the semantic inventory. Placement uses support relationships, clearance checks, zone-dependent furnishing fields and bounded rejection. Object yaw and arrangement are sampled rather than restricted to orthogonal grids. Collision proxies approximate detailed meshes; geometric validity is checked separately from physical plausibility.
 
-% TODO: debug tectonic references.bib sourcing
-% \printbibliography
+Surfaces use 35 role-specific base material slots with procedural albedo, normal and roughness maps, metric UV scales and mip chains. Recipes vary spatial frequency, directional grain, textile structure, mineral veining, relief, wear, color and roughness. Object finish variants preserve their underlying maps while varying appearance; screens, boards and printed pages have independently seeded content. Only referenced finish variants are built during runtime preparation. Glass recipes vary roughness, refractive index, tint, attenuation and thickness. Direct lights vary placement, intensity, color temperature, circuit activity and direction; exposure, daylight and sky radiance are independently recorded. Low-light samples are retained in evaluation.
 
-\begin{thebibliography}{1}
+People retain AnnyBody geometry with continuous phenotype/pose parameters, fitted garments, surface hair and facial details. Static people remain the default. Opt-in ARDY motion combines seeded procedural text sequences with object-aware waypoint planning and scene-time playback. Requesting static scenes does not initialize motion inference. Motion models use the upstream loaders and caches; cached prompt text does not replace the motion seed. Clothing, hair, joint limits and collision handling are approximations, particularly during complex motion.
 
-    \bibitem{tang2024lgm}
-    Jiaxiang Tang, Zhaoxi Chen, Xiaokang Chen, Tengfei Wang, Gang Zeng, and Ziwei Liu.
-    \newblock LGM: Large Multi-View Gaussian Model for High-Resolution 3D Content Creation.
-    \newblock {\em arXiv preprint arXiv:2402.05054}, 2024.
+\subsection{Multi-view sampling and training defaults}
+Camera centers and complete trajectories are constrained to the primary furnished room by default. The sampler varies focal length, position, target, roll and path shape, checks obstacle clearance and prefers visible content. Static capture uses one timestep; optional trajectories support repeated calibrated observations. A reference camera anchors a connected set of views. For each other camera and five trajectory times, we require
+\[
+ \min\{o_{0\rightarrow i}(t),o_{i\rightarrow0}(t)\}\geq\tau,
+ \qquad b_{\min}\leq\|c_i(t)-c_0(t)\|\leq b_{\max},
+\]
+where $o$ estimates first-surface overlap using coarse visibility rays and object/architecture proxies. This constrains reference edges, not every camera pair. The finite proposal budget fails explicitly rather than silently weakening thresholds. A rendered-depth audit independently measures actual reprojection overlap; proxy bounds are not pixel-level guarantees.
 
-    \bibitem{xie2024lrmzero}
-    Desai Xie, Sai Bi, Zhixin Shu, Kai Zhang, Zexiang Xu, Yi Zhou, Sören Pirk, Arie Kaufman, Xin Sun, and Hao Tan.
-    \newblock LRM-Zero: Training Large Reconstruction Models with Synthesized Data.
-    \newblock {\em arXiv preprint arXiv:2406.09371}, 2024.
+\begin{table}[ht]
+\centering\small
+\begin{tabular}{p{.35\linewidth}p{.54\linewidth}}
+\toprule
+Indoor training configuration & Default and rationale\\\midrule
+Capture cameras / timesteps & Four / one; synchronized views of static geometry\\
+Shared-view policy & $\tau=0.35$, reference baseline 0.25--3.0 m; explicit \texttt{multiview:null} enables independent views\\
+Room/activity/density & Primary room, Mixed activity, furnishing density 0.65, human density 0.25\\
+Camera path policy & 0.03--8 m allowed path length, 0.45 long-path proposal fraction; collision rejection still applies\\
+Human motion & Disabled; static people remain, no ARDY initialization\\
+Native lighting & Auto quality, shadows and approximate baked diffuse GI, 256 rays/probe\\
+Dataset CLI workers / chunks & One process, 16 rooms/chunk; explicit overrides retained\\
+Finite worker lifetime & 256 scenes/child for finite indoor jobs with process workers\\
+Default export & RGB and calibration; geometric channels are opt-in\\\bottomrule
+\end{tabular}
+\caption{Defaults conditional on the procedural-indoor dataset CLI scene. Other scene modes retain their defaults. These are an engineering starting point, not an optimum established by downstream training. Library callers explicitly choose camera and worker counts.}
+\end{table}
 
-    \bibitem{chen2024mvsplat}
-    Yuedong Chen, Haofei Xu, Chuanxia Zheng, Bohan Zhuang, Marc Pollefeys, Andreas Geiger, Tat-Jen Cham, and Jianfei Cai.
-    \newblock MVSplat: Efficient 3D Gaussian Splatting from Sparse Multi-View Images.
-    \newblock {\em arXiv preprint arXiv:2403.14627}, 2024.
+\section{Capture and annotation contract}
+Capture begins only after scene preparation, assets, shader pipelines, lighting and requested human trajectories are ready. A bounded asynchronous readback protocol associates outputs with the requested scene, camera, time and mode; it does not infer readiness from an arbitrary number of frames. Geometric channels share an RGBA32Float ground-truth raster attachment. RGB uses Bevy's PBR pipeline, shadow maps, tone mapping and optional indirect-lighting approximation. Float32 storage does not imply that all RGB or lighting computations have float32 intermediate precision: HDR color and irradiance volumes include float16 stages.
 
-    \bibitem{zhang2024geolrm}
-    Chubin Zhang, Hongliang Song, Yi Wei, Yu Chen, Jiwen Lu, and Yansong Tang.
-    \newblock GeoLRM: Geometry-Aware Large Reconstruction Model for High-Quality 3D Gaussian Generation.
-    \newblock {\em arXiv preprint arXiv:2406.15333}, 2024.
+\begin{table}[ht]
+\centering\small
+\begin{tabular}{p{.22\linewidth}p{.67\linewidth}}
+\toprule
+Output & Meaning and qualification\\\midrule
+Color & Display RGB; lossless float storage or explicitly chosen codecs. Separate linear-HDR export supports renderer comparisons.\\
+Depth & Colorized, normalized or metric linear depth; axial/ray conventions; calibration records the selection.\\
+Normal / position & View-space normals encoded as $(n+1)/2$; world positions affine-normalized by the exported AABB, without clamping. First surface, float32 geometric path.\\
+Semantic & Shared class vocabulary, aligned with depth/normal/position, including ceiling light fixtures.\\
+Optical flow & Forward displacement $(\Delta u,\Delta v)$ in pixels, with correspondence-valid and target-visible masks. Terminal time has no forward correspondence.\\
+Motion vectors & The same exported displacement divided by image width/height. Viewer velocity colors are previews, not these numeric annotations.\\
+Calibration / instances & Camera intrinsics, poses and normalized trajectory time, scene manifest, semantic instance oriented boxes, person joints, and primary-room annotation AABB.\\
+O-Voxel & Primary-room architecture/objects only; excludes neighboring/outside geometry. Requires one timestep and disabled human motion; incompatible requests are rejected.\\\bottomrule
+\end{tabular}
+\caption{Seven render modes plus structured annotations. Glass is a first geometric surface: annotations do not follow refracted or reflected light paths. Flow transports surface correspondence, including supported human deformation, rather than estimating photometric image motion.}
+\end{table}
 
+Headless generation supports chunked safetensors or per-sample files, compression, resumable identity checks, metrics and bounded worker replacement. RGB and numeric channels have separate encoding contracts. Native generation performs numeric temporal export and O-Voxel export. The WebGPU viewer supports indoor construction, inspection and optional motion inference, using the same manifest and geometry modules; Portable quality reduces unsupported or costly rendering features. Browser velocity visualization is not a qualification of native dataset flow export. The current Wasm path omits native baked diffuse GI and uses its platform lighting fallback.
+
+\section{Evaluation protocol and results}
+The evaluation artifacts and commands are in \texttt{docs/generation\_v18.md}; machine-readable results generate this paper's tables. We audit \AuditRooms{} consecutive seeds starting at 24000 at density 0.65, human density 0.25 and four cameras, with no failed-seed replacement. The first \RenderRooms{} seeds are rendered at $384\times288$ with RGB, depth, normal, position and semantic outputs. Every scene contributes to the reports, including dark rooms and weak views. Geometric audits and rendered-camera checks answer different questions and are reported separately.
+
+\subsection{Diversity and effective variance}
+\input{generated/diversity_table.tex}
+The full export includes \NumericSeries{} numeric distributions, \VaryingSeries{} of which have nonzero observed variance, \CategorySeries{} categorical distributions, zero-preserving per-class object counts, placement heatmaps, camera intrinsic/extrinsic distributions and joint histograms. These series are correlated projections of the program, not independent degrees of freedom. Histograms include their denominators and units; per-object style frequencies must not be interpreted as per-room frequencies.
+
+For a categorical distribution $p$, we report the entropy-effective count $\exp(-\sum_jp_j\log p_j)$. For centered feature eigenvalues $\lambda_j$, we use $q_j=\lambda_j/\sum_k\lambda_k$ and entropy-effective rank $r_{\mathrm{eff}}=\exp(-\sum_jq_j\log q_j)$. Constant features have rank zero. We additionally measure normalized SigLIP2 base image embeddings~\cite{siglip2}, with frozen model/shard identity and declared resize/normalization. Nearest-neighbor distances exclude all views and times from the same scene. Scene-level variance uses one normalized mean embedding per room, so four cameras do not count as four independent scenes.
+
+\input{generated/embedding_table.tex}
+\begin{figure}[ht]
+\centering\includegraphics[width=\linewidth]{generated/distributions.png}
+\caption{Observed variation in consecutive generated rooms. Shape, furnishing, illumination and camera metrics complement image-embedding diagnostics; none alone measures photographic realism.}
+\end{figure}
+A seed's bit width does not establish dataset diversity. Continuous parameter ranges have no meaningful finite cardinality before quantization; topology, placement constraints, correlations and rendering further collapse distinguishable outcomes. The occupancy-signature estimate in Table~\ref{tab:diversity} ignores seeds and textures and uses a declared spatial quantization. It is a bounded geometric redundancy diagnostic, not proof of ten million useful examples. Embedding rank and nearest distances also depend on encoder, population size, viewpoint policy and illumination. The study does not identify a universal acceptable distance or train a downstream model.
+
+\subsection{Multi-view and geometric correctness}
+\input{generated/overlap_table.tex}
+Rendered overlap is computed by depth unprojection, world-to-camera reprojection, frustum tests and a declared depth-consistency tolerance. We retain failures below the requested proxy threshold. Indoor annotation checks also compare depth with world-position reconstruction, reprojection and finite unit normals. The population audit found \InvalidRooms{} rejected/invalid seeds; this finite result is not an exhaustive correctness proof. Exact configuration, capture engine, time and camera identity accompany all checks.
+
+\begin{figure}[ht]
+\centering\includegraphics[width=\linewidth]{generated/scenes.jpg}
+\caption{Reference-camera RGB for the first eight consecutive rendered seeds, 24000--24007, without aesthetic filtering. The retained cohort includes dark scenes, approximate glass and visibly procedural human/material appearance.}
+\end{figure}
+
+\subsection{Generation performance}
+\input{generated/performance_table.tex}
+Timing uses completed samples, including asynchronous construction, lighting, rendering and readback. It excludes image/dataset encoding, validation and report writing unless explicitly labeled end-to-end. Each main benchmark runs 40 consecutive rooms, discards eight warmup rooms and captures four views per room at $320\times240$, one timestep, with static humans at density 0.25. Five-channel runs request RGB/depth/position/normal/semantic. Hardware is an NVIDIA RTX PRO 6000 Blackwell workstation GPU, Vulkan driver 610.43.02 on Linux. The benchmark records adapter, CPU, compiler, process memory, GPU timestamps and matching-PID NVML telemetry. Other desktop GPU activity is recorded, not attributed to the generator.
+
+Profiling separates layout, camera planning, materials, geometry, tangent conversion and asset insertion. The old ``preparation'' field measured only the regeneration request, concealing the asynchronous work. The revised schema records both the request and actual CPU stages. Geometry is constructed once for transport and rendering; unused material variants are skipped; independent MikkTSpace mesh conversions use a bounded four-thread native pool. The development profile now optimizes the procedural crate at level 3 as well as dependencies. Wasm retains cooperative serial conversion. No mesh-detail, texture-resolution, GI-ray or view-count reduction is used in the comparison. The intermediate shared-geometry-only trial did not improve throughput and is retained in the evidence.
+
+The before/after comparison changes both source preparation and the root development optimization level (1 to 3); it is not a source-only ablation or a release-LTO benchmark. Registry measurements compile the normalized crate archive without checkout-only wgpu patches. They should be used for published-package expectations. GPU timestamps are asynchronous diagnostic samples, and NVML active-process samples are not continuous occupancy measurements. Short runs cannot prove unlimited memory stability; finite child lifetimes remain part of the large-dataset operating policy. Throughput excludes neural motion generation and depends strongly on scene size, view count, resolution, modes and hardware.
+
+\section{Limitations and remaining evidence}
+Procedural correctness, broad parameter variation and efficient capture do not establish photographic realism. Hair is a surface groom, skin lacks a full subsurface model, some furnishings remain sparse, object motion uses approximate collision proxies, and diffuse GI uses probes and simplified transport. Glass and lighting are approximations rather than full path tracing. A retained earlier matched-scene Cycles study (generator 14, four unoccupied rooms, eight views, independent raw 8192-sample references) found coarse radiance relative errors of 9.0--98.7\%. That historical result is not a requalification of every generator-18 scene and explicitly includes the difficult dark example. Reference convergence and visual plausibility must be evaluated independently.
+
+The current study is a generator audit and a small capture cohort, not a ten-million-scene run. It does not establish long-run resident-memory bounds, balanced coverage of all rare architectural combinations, collision-free arbitrary motion, suitability for every reconstruction loss, or transfer to real photographs. Shared-view defaults deliberately correlate cameras within a room; train/validation splits should therefore be made by room seed, not by image. A downstream assessment should freeze a training budget and real evaluation set, compare matched data quantities and camera policies, and measure reconstruction/calibration quality alongside redundancy. The manifests and metrics make that experiment reproducible without claiming its outcome in advance.
+
+\begin{thebibliography}{9}
+\bibitem{xie2024} D. Xie et al. LRM-Zero: Training Large Reconstruction Models with Synthesized Data. NeurIPS, 2024. \url{https://arxiv.org/abs/2406.09371}.
+\bibitem{chen2024} Y. Chen et al. MVSplat: Efficient 3D Gaussian Splatting from Sparse Multi-View Images. ECCV, 2024. \url{https://arxiv.org/abs/2403.14627}.
+\bibitem{siglip2} M. Tschannen et al. SigLIP 2: Multilingual Vision-Language Encoders with Improved Semantic Understanding, Localization, and Dense Features. 2025. \url{https://arxiv.org/abs/2502.14786}.
 \end{thebibliography}
-
 \end{document}

@@ -1,0 +1,104 @@
+{
+  "schema_version": 1,
+  "samples": [
+    {
+      "seed": 11,
+      "occupied_voxels": 236070,
+      "resolution": 128,
+      "world_aabb": [
+        [
+          1.2211568355560303,
+          -0.20000000298023224,
+          -9.081266403198242
+        ],
+        [
+          8.01620101928711,
+          3.6277732849121094,
+          7.30903434753418
+        ]
+      ],
+      "semantic_counts": {
+        "person": 1917,
+        "paper": 93,
+        "other_prop": 1236,
+        "books": 150,
+        "whiteboard": 945,
+        "cabinet": 3301,
+        "chair": 3568,
+        "desk": 5404,
+        "window": 24051,
+        "wall": 132696,
+        "other_structure": 7893,
+        "floor": 17270,
+        "door": 1959,
+        "ceiling": 32858,
+        "lamp": 2729
+      },
+      "primary_objects": 22,
+      "total_objects": 83,
+      "primary_zone": {
+        "furnishing": {
+          "offset": [
+            -0.06392258,
+            0.049809217
+          ],
+          "stagger": 0.36259282,
+          "curvature": 0.14031565,
+          "fan_radians": -0.5138302,
+          "jitter": 0.02333757,
+          "occupancy_gradient": [
+            0.5338518,
+            0.64695853
+          ],
+          "opposing_probability": 0.36439514
+        },
+        "min": [
+          2.9733582,
+          -7.774418
+        ],
+        "max": [
+          6.4324694,
+          7.774418
+        ],
+        "activity": "Conference",
+        "orientation": -0.2473739,
+        "aisle": 1.1084034,
+        "desk_width": 2.0152664,
+        "desk_depth": 0.8180901,
+        "seat_pitch": 0.8685961,
+        "occupancy": 0.6704007
+      },
+      "primary_static_people": 2,
+      "total_people": 7,
+      "max_crop_escape_m": 0.041738802850480816,
+      "voxel_diagonal_m": 0.14180633425712585,
+      "statistics": {
+        "backend": "cpu_async",
+        "clipped_triangles": 185297,
+        "elapsed_seconds": 0.393979791,
+        "input_triangles": 218126,
+        "preparation_seconds": 0.013557192
+      },
+      "cache_version": 1,
+      "completed_capture_requests": 1,
+      "wait_updates": 124,
+      "intersection_flag_counts": [
+        93032,
+        53074,
+        29877,
+        2216,
+        46004,
+        8754,
+        2076,
+        1037
+      ]
+    }
+  ],
+  "input_sha256": {
+    "000000/meta.safetensors": "715e6466b4b2333b2b6543b4202776d360eecf6a2e6bbca66b6bada055bd49ff",
+    "000000/indoor_render_metadata.json": "225f7b57736934ade65d9d8a5c6b712610740f7c26405ae4697d757366ff0bfc",
+    "000000/render_metadata.json": "74e7010516e12c518de4139f25fa76887033def8149c59af8d42097846d640e3"
+  },
+  "limits": "Conservative surface occupancy, not solid voxels or watertight mesh reconstruction. Semantic colors, not textured albedo. World AABB differs from RGB scene normalization AABB.",
+  "script_sha256": "c16e8150ae8e5dabb47911f5233dc9d0db6c4fb5e0ecf9b6ddf0b95907281c80"
+}

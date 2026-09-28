@@ -1,0 +1,181 @@
+{
+  "schema_version": 1,
+  "capture_engine": "capture-v21;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=5;surface_flow=1;indoor=13;multiview=1",
+  "run_id": "2098585-1790540289912605511",
+  "selection_policy": "consecutive seeds",
+  "scenes": 8,
+  "pairs": 24,
+  "image_size": [
+    320,
+    240
+  ],
+  "camera_settings": {
+    "primary_room": true,
+    "path_length_min": 0.03,
+    "path_length_max": 8.0,
+    "long_path_fraction": 0.45,
+    "multiview": {
+      "min_overlap": 0.35,
+      "min_baseline": 0.25,
+      "max_baseline": 3.0
+    }
+  },
+  "distributions": {
+    "bidirectional_min": {
+      "count": 24,
+      "min": 0.39037760416666667,
+      "max": 0.8254817708333333,
+      "mean": 0.5945822482638888,
+      "p05_p50_p95": [
+        0.46596354166666665,
+        0.5815104166666667,
+        0.758125
+      ]
+    },
+    "reference_to_view": {
+      "count": 24,
+      "min": 0.39037760416666667,
+      "max": 0.8254817708333333,
+      "mean": 0.6379736328125,
+      "p05_p50_p95": [
+        0.46596354166666665,
+        0.6828645833333333,
+        0.7841276041666667
+      ]
+    },
+    "view_to_reference": {
+      "count": 24,
+      "min": 0.4851953125,
+      "max": 0.9269010416666666,
+      "mean": 0.7161376953124999,
+      "p05_p50_p95": [
+        0.49161458333333335,
+        0.7651432291666667,
+        0.9149348958333333
+      ]
+    },
+    "baseline_m": {
+      "count": 24,
+      "min": 0.3579147819418751,
+      "max": 1.8804866620587344,
+      "mean": 0.8441599816590339,
+      "p05_p50_p95": [
+        0.3579148242496392,
+        0.6584632168506075,
+        1.8804866543261243
+      ]
+    },
+    "triangulation_mean_degrees": {
+      "count": 24,
+      "min": 4.18357972004735,
+      "max": 14.954756316872055,
+      "mean": 8.954325155049391,
+      "p05_p50_p95": [
+        4.282864726433892,
+        8.48171426769011,
+        14.80641383919147
+      ]
+    },
+    "triangulation_p10_degrees": {
+      "count": 24,
+      "min": 0.7823776441621824,
+      "max": 12.029006064274753,
+      "mean": 4.589880383728916,
+      "p05_p50_p95": [
+        0.9394101910214677,
+        3.6383927169921932,
+        11.987957181324582
+      ]
+    }
+  },
+  "scene_worst_overlap": {
+    "count": 8,
+    "min": 0.39037760416666667,
+    "max": 0.6986067708333333,
+    "mean": 0.5596988932291667,
+    "p05_p50_p95": [
+      0.39037760416666667,
+      0.5641276041666666,
+      0.6986067708333333
+    ]
+  },
+  "pairs_below_requested_overlap": 0,
+  "scenes_with_under_10_percent_overlap": 0,
+  "input_sha256": {
+    "metrics.json": "3a056694a75420d9818d4148d9108d42f0d8022610fd537a0dafcbf31f93ea34",
+    "render_selection.json": "bbf347e72c87cfdebc2ea675f7061f4ce3aa2c2820e26e4b6539dd153272f619",
+    "run_complete.json": "05adee3d4b9ab5937dab73082397de4e1236662568d03a33848d182ed08acc85",
+    "seed_000000/view_00_depth.rgba32f": "12ba268d6abbae85a48f4fea1b439648ed455f6570486ce4c21fcdc7a7fb4434",
+    "seed_000000/view_01_depth.rgba32f": "740971adaecd20d6aff74c6b87a7208a8215084076e4dcf704c3919f899bb9f9",
+    "seed_000000/view_02_depth.rgba32f": "a339d738f6c16621e3a66b8886fece12c830f2f66bd84df1a2f702b66cbdb65b",
+    "seed_000000/view_03_depth.rgba32f": "b94be32403f1619c9edcaf72def0a02c7da58e2792a52f471359fd5138308dc8",
+    "seed_000000/view_04_depth.rgba32f": "f875d04b9973503937e541e8b0634d16ecc26ff567734f03ffcc398d103829fd",
+    "seed_000000/view_05_depth.rgba32f": "d00cfb87656938ee6ea1271e5aef9b9e5f4c927d1a3881627a1f853609f0de78",
+    "seed_000000/capture.json": "8a229134c4ab412aad3d2f6b5ba998cf06d6cae97b6932bf3e1ca88ca137750e",
+    "seed_000000/manifest.json": "ddb10ad748908093894f19e475e963247b07f6eab2f7161c9b7de434677c464a",
+    "seed_000001/view_00_depth.rgba32f": "8611dbb428af8cf5bd69aedf0e641285cc6e2949abf0e295acffc2ab8b5c099d",
+    "seed_000001/view_01_depth.rgba32f": "2a7db29aee8d81a111d75855190d7e057d574f27db3b2ac3ddaffaa62b7d5855",
+    "seed_000001/view_02_depth.rgba32f": "37f09cc510bd85bf6c6f5a7f4ab160b4bf56ffd1871ac8e090537ded91d95135",
+    "seed_000001/view_03_depth.rgba32f": "baf8a1364ddc12d65380314272d1759f12d08e14f5d3370a4e2937df707eccbf",
+    "seed_000001/view_04_depth.rgba32f": "ba049685614450e64602243f71d35212a0ed0d68511010acb212ad3e4bf5b841",
+    "seed_000001/view_05_depth.rgba32f": "3c5b55a999e0f972979c21ab2737c3dd8973d27e8e2ed7d0c6a41e6936766f44",
+    "seed_000001/capture.json": "6068cdf15eaa3c0c6f6433efd2f776d42e96239ed89ce50e3fdc21e587eea6ce",
+    "seed_000001/manifest.json": "08be1d322d43620a88fddfd704624ac5b9c4656376bc148ded72c5f467ec88e7",
+    "seed_000002/view_00_depth.rgba32f": "430b6cb99a366bf02fbdae5ad319efa426e4ac3b6f413471aecc39e6e4212df8",
+    "seed_000002/view_01_depth.rgba32f": "326e5a9b91e24dde16d280d5a65fba9fd55a74ba55942f15e66e4d6f12218433",
+    "seed_000002/view_02_depth.rgba32f": "2cce3f54e89560998e00186ad8b3a2d11a11daa50551f529a3e89ad2c6ae7171",
+    "seed_000002/view_03_depth.rgba32f": "7cd5c971055c6b0fa6039044ca18238b70360dc50556efc4a4391f17b6b527b4",
+    "seed_000002/view_04_depth.rgba32f": "c1d168c4627ca428985f20946dcecbc78aac92a2611da50b67249b1b7c24b086",
+    "seed_000002/view_05_depth.rgba32f": "197e50f202a913bd2d541fbd984da36bca958046a615baeafb9941665d5b606e",
+    "seed_000002/capture.json": "cc00a35084df0696b3aa27983aa034878e5897b5755714aede9dc7a5b6383942",
+    "seed_000002/manifest.json": "ecdb7e2b8594dc79abf8f67683cd69b658b87ba8f1d9595dce92cf99d0f4bc46",
+    "seed_000003/view_00_depth.rgba32f": "3888dc8c920b19156a28320bcf86caf39c01e94b2958e599c6a0ad74c7fa566c",
+    "seed_000003/view_01_depth.rgba32f": "931b2ec05c37d792a31646bdaa4886c57e63047aaa59de1a6bc9be026712c5fd",
+    "seed_000003/view_02_depth.rgba32f": "0f0ca8e710d8c5b5c447d5791c132d6408fce943acaf20dd620c99f6b0528129",
+    "seed_000003/view_03_depth.rgba32f": "72caec85120b1d8832810d2b2637b95eab2b1db881cb599ee3d2e9aa03949b2e",
+    "seed_000003/view_04_depth.rgba32f": "f83187a26b641a303cc686188a99c3063fdf3e494dc9ea22c869e5912b769237",
+    "seed_000003/view_05_depth.rgba32f": "f16f63615ea12ef8b3b4b6d890d55826dd3363b9ab02a2f4bf85583cccc8848d",
+    "seed_000003/capture.json": "0ba264dab5f08cc1f9f2261b977e5e2cf5de4bc5db0b355564b4635ed712e9db",
+    "seed_000003/manifest.json": "bb6bfcfa70bd35f6d10c6cb6db7a74972e46aa5c307d0320de97f2d6fa4951a3",
+    "seed_000004/view_00_depth.rgba32f": "27c7fbab0f3a925c4e82c5512c3c6456cd71f0e1af1b54a9fa6c3e9f4e612b0d",
+    "seed_000004/view_01_depth.rgba32f": "a9797ec924b43016fc1aa4c41f6642171420abe9d63865437b2e0f3406d7f443",
+    "seed_000004/view_02_depth.rgba32f": "729506e345f87a240f4ba7a72cc1260ee0927e636be74d4977cd6ad50e6b5563",
+    "seed_000004/view_03_depth.rgba32f": "26ceef77959e093a79d2fca01addf35573ba2e1b77a4b8b0e19f7a3d04a2cbb8",
+    "seed_000004/view_04_depth.rgba32f": "cca6e1086f3d9b84940e6ce31aa8921365a119486f05af69406b6cade7d1e5b2",
+    "seed_000004/view_05_depth.rgba32f": "22d5b02ac67086c35954c19220923f8cb308cb878a6222b2841b261a89238b34",
+    "seed_000004/capture.json": "e9d77e29a1950945d30408d8e3d8a204d71668c471a5138510263e690f7f5735",
+    "seed_000004/manifest.json": "6936e182790ad2e72bc21b5784579041fc61510b507f7603c6ad1c3ea0fd4a34",
+    "seed_000005/view_00_depth.rgba32f": "ca3eef1002acef92e502ee1c8911cad024fe35a04bc45c73b21b41f964104091",
+    "seed_000005/view_01_depth.rgba32f": "453f1c0fa5d03750f86a6ac171da561e8a959b058fd355ad8c5cf3b1902b8cf0",
+    "seed_000005/view_02_depth.rgba32f": "498a1c649a6f86bbcb090cdab7042c675cb8ab754ef5a2905bbec89fce4a122a",
+    "seed_000005/view_03_depth.rgba32f": "5ab0780ea50c224f27b99c9108ffa130bd27390d0550e8fce8c9107abfae068b",
+    "seed_000005/view_04_depth.rgba32f": "c19cd8830764fafaa2506500e09bfb330dbc31bdaba0ed2da88b230d16f8a252",
+    "seed_000005/view_05_depth.rgba32f": "b666fd00b92d528d6196d1b77601576f5c4fb344024e0bc55b92a07a14f3c762",
+    "seed_000005/capture.json": "bfe70f952ef305bca280dbc83c05b48b5bef270d05ce27c454f7760c25bd571f",
+    "seed_000005/manifest.json": "d1e0ca56b7da725211a04b04e45cd68ac70d3d6e302447acb7467e7e817c766f",
+    "seed_000006/view_00_depth.rgba32f": "715785d721d9f7b6d4a009e03d68dfbfb83ab31f02d09398c90b51fb4d28ee98",
+    "seed_000006/view_01_depth.rgba32f": "3392c8843998e18aa352aa1bdf07fabcb2fb43e170a04dc8cf62d7eab629d3ce",
+    "seed_000006/view_02_depth.rgba32f": "d891ffb5b58026aa9efd7551c5c35ec0f7600f1be9613d4a29780ed5ac5b02d4",
+    "seed_000006/view_03_depth.rgba32f": "d35ad567b0de7c37390cf4ee1dff8e058e55d9ac9de1b7b21895b57d0fd584e2",
+    "seed_000006/view_04_depth.rgba32f": "e0788cf9a58d1bae001ca7501f054eaad1b2f74406fed9575035d24a3ee063f6",
+    "seed_000006/view_05_depth.rgba32f": "daa5f9ef8df815d8cd538d3bebcbe32418bb59125c479cedcc2dd2c34acc4194",
+    "seed_000006/capture.json": "ace19e457a23a21f3a27c1e2759a87883097a3fe1f426a779c810299b21b1ba5",
+    "seed_000006/manifest.json": "aa2a293cd8bb71c13be5bc2f7317dfea1fb3352a975e3cd4ad18451cafff4958",
+    "seed_000007/view_00_depth.rgba32f": "11c22ff02bd337d332fc50d79643cc8577214ffca15b9fd2668a9d6861fd2ea4",
+    "seed_000007/view_01_depth.rgba32f": "f0560662aad0ab1667c7d6550076c8d69bd7bd6ec967cfed874246b5b3a4f987",
+    "seed_000007/view_02_depth.rgba32f": "0ba00303a525fd93bc5d13fd45f555d7f5f42bff886e6b057e29e2c2aab62a1e",
+    "seed_000007/view_03_depth.rgba32f": "27d5a656d875b8fabee686e6f55f0ab3520f4f7f862162854ec5711013addb34",
+    "seed_000007/view_04_depth.rgba32f": "759ec951c328a7a3f078de7db2de3968804052dbca9fc8cf5f4c4d0961101ec5",
+    "seed_000007/view_05_depth.rgba32f": "c7d89a78f4f287cb5fe9d41863a8104b95f44f12a28bd067ee43e5180e9bf278",
+    "seed_000007/capture.json": "3b7dbaa2b04b13a6eb465c8c5fea39dcc1ec80935025577730d0ac3eb0af4d12",
+    "seed_000007/manifest.json": "c5b5d2b5bbd56b958704367fa44ea35fcdacd2b5c166bed94159614a4d290b51"
+  },
+  "script_sha256": "ae660e994da1cdfe1aa8f3085252943583123a52ec16759a9f1bd9a6135cc2bc",
+  "definition": "Minimum of A-to-B and B-to-A visible surface pixels / all image pixels, paired with camera zero at equal time. Depth match uses nearest pixel and 0.01m + 0.002*z tolerance.",
+  "limitations": [
+    "Placement uses approximate boxes, this audit uses rendered first-surface depth; neither measures image matchability or downstream training utility.",
+    "Glass is opaque for annotations; transmitted RGB content is not measured.",
+    "Only captured timesteps are measured; moving people can change overlap.",
+    "Pairs/times within a room are correlated; scene minima are also reported."
+  ]
+}

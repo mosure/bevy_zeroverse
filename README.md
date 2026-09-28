@@ -64,7 +64,7 @@ records the controls, human surfaces, glazing and annotation fixes. The generato
 [program review](docs/procedural_program_review.md) retains its historical
 native/browser checks and matched Cycles comparisons. The earlier
 [generator-v5 review](docs/local_scene_quality_review.md) is retained as historical evidence.
-See the [0.21 release notes](docs/release_0_21.md) for API and capture compatibility.
+See the [0.22 release notes](docs/release_0_22.md) for API and capture compatibility, the [technical paper](tex/bevy_zeroverse.tex), and the [measured generation/diversity review](docs/generation_v18.md).
 
 See the [generation, capture and validation guide](docs/procedural_indoor.md) for
 dataset examples, distribution evidence and current rendering limits. The
@@ -131,7 +131,7 @@ that unpatched configuration.
 
 | `bevy_zeroverse` | `bevy` |
 | :--                       | :--    |
-| `0.21`, `0.20`, `0.19`     | `0.19.1` |
+| `0.22`, `0.21`, `0.20`, `0.19`     | `0.19.1` |
 | published `0.17`           | `0.17` |
 | `0.8`                     | `0.16` |
 | `0.6`                     | `0.15` |

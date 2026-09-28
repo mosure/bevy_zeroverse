@@ -5,7 +5,7 @@ use rand::Rng;
 #[cfg(feature = "python")]
 use pyo3::prelude::*;
 
-use crate::{app::BevyZeroverseConfig, camera::EditorCameraGizmoConfigGroup};
+use crate::{app::BevyZeroverseConfig, camera::EditorCameraGizmoConfigGroup, ovoxel::OvoxelRegion};
 
 // TODO: cornell box room scene
 pub mod cornell_cube;
@@ -42,15 +42,19 @@ impl Plugin for ZeroverseScenePlugin {
             procedural_indoor::ProceduralIndoorPlugin,
         ));
 
+        app.add_systems(Update, regenerate_rotation_augment);
         app.add_systems(
-            Update,
-            (
-                create_scene_aabb,
-                draw_scene_aabb,
-                regenerate_rotation_augment,
-            ),
+            PostUpdate,
+            (create_scene_aabb, draw_scene_aabb)
+                .chain()
+                .after(bevy::transform::TransformSystems::Propagate)
+                .after(bevy::camera::visibility::VisibilitySystems::CalculateBounds)
+                .before(crate::render::position::apply_position_material),
         );
-        app.add_systems(PostUpdate, rotation_augment);
+        app.add_systems(
+            PostUpdate,
+            rotation_augment.before(bevy::transform::TransformSystems::Propagate),
+        );
     }
 }
 
@@ -95,6 +99,8 @@ pub struct SceneLoadedEvent;
 pub struct SceneAabbNode;
 
 #[derive(Component, Debug, Reflect)]
+/// World-space reconstruction bounds. Indoor scenes use their primary-room
+/// O-voxel region, including its structural shell, even when voxel export is off.
 pub struct SceneAabb {
     pub min: Vec3,
     pub max: Vec3,
@@ -159,13 +165,23 @@ impl From<&SceneAabb> for Transform {
     }
 }
 
-fn create_scene_aabb(
+pub(crate) fn create_scene_aabb(
     mut commands: Commands,
-    scene_instances: Query<(Entity, &SceneAabbNode, &GlobalTransform)>,
+    scene_instances: Query<(Entity, &GlobalTransform, Option<&OvoxelRegion>), With<SceneAabbNode>>,
     children: Query<&Children>,
     bounding_boxes: Query<(&Aabb, &GlobalTransform)>,
 ) {
-    for (entity, _root_tag, _root_tf) in &scene_instances {
+    for (entity, transform, region) in &scene_instances {
+        if let Some(region) = region {
+            // Use exactly the voxelizer's transformed crop, not the union of
+            // render meshes: shared slabs and exterior context extend beyond it.
+            let [min, max] = region.world_bounds(transform.affine());
+            commands.entity(entity).insert(SceneAabb {
+                min: min.into(),
+                max: max.into(),
+            });
+            continue;
+        }
         let mut scene_aabb = SceneAabb::new();
 
         let mut merged_any = false;
@@ -253,6 +269,57 @@ fn regenerate_rotation_augment(
 mod tests {
     use super::*;
     use bevy::{ecs::system::RunSystemOnce, MinimalPlugins};
+
+    #[test]
+    fn reconstruction_aabb_ignores_context_and_tracks_transformed_region_without_voxel_export() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        let root = app
+            .world_mut()
+            .spawn((
+                SceneAabbNode,
+                GlobalTransform::from(Transform {
+                    translation: Vec3::new(10., 2., -7.),
+                    rotation: Quat::from_rotation_y(std::f32::consts::FRAC_PI_2),
+                    scale: Vec3::new(1.5, 2., 0.5),
+                }),
+                OvoxelRegion {
+                    min: Vec3::new(-2., -0.2, -4.),
+                    max: Vec3::new(3., 3.1, 5.),
+                },
+            ))
+            .id();
+        // A shared architecture slab and a remote backdrop would both enlarge
+        // a union of descendant mesh bounds. Neither can define the crop.
+        for (half_size, offset) in [(20., Vec3::ZERO), (5., Vec3::splat(100.))] {
+            app.world_mut().spawn((
+                Aabb::from_min_max(Vec3::splat(-half_size), Vec3::splat(half_size)),
+                GlobalTransform::from_translation(offset),
+                ChildOf(root),
+            ));
+        }
+        app.world_mut().run_system_once(create_scene_aabb).unwrap();
+        let aabb = app.world().get::<SceneAabb>(root).unwrap();
+        assert!(aabb.min.abs_diff_eq(Vec3::new(8., 1.6, -11.5), 1e-5));
+        assert!(aabb.max.abs_diff_eq(Vec3::new(12.5, 8.2, -4.), 1e-5));
+        assert!(app
+            .world()
+            .get::<crate::ovoxel::OvoxelExport>(root)
+            .is_none());
+
+        // Replacing the crop/transform must not retain bounds from a prior room.
+        app.world_mut().entity_mut(root).insert((
+            GlobalTransform::IDENTITY,
+            OvoxelRegion {
+                min: Vec3::splat(-1.),
+                max: Vec3::ONE,
+            },
+        ));
+        app.world_mut().run_system_once(create_scene_aabb).unwrap();
+        let aabb = app.world().get::<SceneAabb>(root).unwrap();
+        assert_eq!(aabb.min, Vec3::splat(-1.));
+        assert_eq!(aabb.max, Vec3::ONE);
+    }
 
     #[test]
     fn create_scene_aabb_merges_child_bounds() {

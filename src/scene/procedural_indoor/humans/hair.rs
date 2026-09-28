@@ -1,12 +1,13 @@
-//! An opaque, continuous scalp volume fitted to the Anny phenotype. Silhouette
-//! variation lives in the volume; mipmapped fibre relief supplies fine detail.
-//! No overlapping cards or subpixel strips that shimmer as the head moves.
+//! Opaque fitted grooms: directional scalp relief, a tapered hairline and curved
+//! bundles. No alpha cards or coincident shells; additions inherit Anny head weights.
+mod groom;
 use super::{super::geometry::Geometry, IndoorHuman};
 use bevy::prelude::*;
 
 #[derive(Clone, Copy)]
 struct Vertex {
     p: Vec3,
+    inner: Vec3,
     n: Vec3,
     uv: Vec2,
     field: f32,
@@ -27,162 +28,218 @@ pub(super) fn append(
     if h.hairstyle == 5 {
         return;
     }
+    let head = |i: usize| labels[dominant[i]] == "head";
     let mut lo = Vec3::splat(f32::INFINITY);
     let mut hi = Vec3::splat(f32::NEG_INFINITY);
-    for (i, p) in rest.iter().enumerate() {
-        if labels[dominant[i]] == "head" {
-            lo = lo.min(*p);
-            hi = hi.max(*p);
-        }
+    for (_, p) in rest.iter().enumerate().filter(|(i, _)| head(*i)) {
+        lo = lo.min(*p);
+        hi = hi.max(*p);
     }
-    let centre = (lo + hi) * 0.5;
-    let size = hi - lo;
-    let length = h.appearance.as_ref().map_or(0.015, |a| a.hair_length);
-    let part = h.appearance.as_ref().map_or(0.2, |a| a.hair_part);
-    let curl = h.appearance.as_ref().map_or(0.0, |a| a.hair_curl);
-    if h.hairstyle >= 6 {
-        // A single closed volume grows from the back of the scalp. No alpha
-        // cards, intersecting wisps or detached balls. Head-space attachment
-        // also transfers to the Anny head skin weights for motion playback.
-        let target = Vec3::new(centre.x, centre.y + size.y * 0.17, hi.z);
-        let i = rest
-            .iter()
-            .enumerate()
-            .filter(|(i, _)| labels[dominant[*i]] == "head")
-            .min_by(|(_, a), (_, b)| {
-                a.distance_squared(target)
-                    .total_cmp(&b.distance_squared(target))
-            })
-            .map(|(i, _)| i)
-            .unwrap();
-        let origin = posed[i] + rotation * (target - rest[i]);
-        let width = (size.x * 0.22 + length * 0.10).clamp(0.03, 0.055);
-        let radii = if h.hairstyle == 6 {
-            Vec3::new(width, width * 0.95, width * 0.9)
-        } else {
-            Vec3::new(width * 0.70, 0.065 + length * 0.50, width * 0.65)
-        };
-        let offset = if h.hairstyle == 6 {
-            Vec3::new(0.0, 0.014, width * 0.43)
-        } else {
-            Vec3::new(0.0, -radii.y * 0.5, width * 0.50)
-        };
-        g.ellipsoid(
-            radii,
-            Transform::from_translation(origin + rotation * offset)
-                .with_rotation(rotation * Quat::from_rotation_x(-0.22)),
-        );
-    }
-    let mut shell: Vec<_> = rest
-        .iter()
-        .enumerate()
-        .map(|(i, &p)| {
-            let front = ((centre.z - p.z) / (size.z * 0.5)).clamp(0.0, 1.0);
-            let side = (p.x / (size.x * 0.5)).abs().clamp(0.0, 1.0);
-            let nape = if h.hairstyle == 2 {
-                length * 0.6 * (1.0 - front)
-            } else {
-                0.0
-            };
-            let line = centre.y
-                + size.y * (-0.06 + front * (0.34 + part.abs() * 0.04) + side * 0.08)
-                - nape;
-            let crown = ((p.y - centre.y) / (size.y * 0.5)).clamp(0.0, 1.0);
-            let swept = 0.70 + 0.30 * (p.x / (size.x * 0.5) * part).clamp(-1.0, 1.0);
-            let style = match h.hairstyle {
-                0 => 0.22,
-                3 => 0.25 + 0.75 * crown,
-                _ => 1.0,
-            };
-            let taper = ((p.y - line) / 0.025).clamp(0.0, 1.0);
-            let taper = taper * taper * (3.0 - 2.0 * taper);
-            let bulk = 0.0015 + (0.003 + length * style * (0.18 + 0.32 * crown) * swept) * taper;
-            // Low frequency, millimetre-scale curl clumping cannot create loose
-            // disconnected wisps. The silhouette remains a single surface.
-            let frequency = if h.hairstyle == 4 { 320.0 } else { 85.0 };
-            let clump = (p.x * frequency).sin()
-                * (p.z * frequency * 0.87).sin()
-                * curl.min(length * 0.35).min(0.014)
-                * 0.35
-                * taper;
-            Vertex {
-                p: posed[i] + normals[i] * (bulk + clump),
-                n: normals[i],
-                uv: Vec2::new(p.x * 4.0, (p.y + p.z * 0.65) * 4.0),
-                field: p.y - line,
-            }
-        })
-        .collect();
-    // Shading follows the displaced volume, shared across every source vertex.
-    let mut surface_normals = vec![Vec3::ZERO; shell.len()];
+    let groom = groom::Groom::new(h, lo, hi);
+    let inv_rotation = rotation.inverse();
+    // Tessellate only head quads intersecting the hairline. Phong interpolation
+    // removes the polygonal silhouette without altering the underlying Anny mesh.
+    const STEPS: usize = 2;
     for q in faces.as_chunks::<4>().0 {
-        if !q.iter().all(|&i| labels[dominant[i as usize]] == "head") {
+        if !q.iter().all(|&i| head(i as usize)) {
             continue;
         }
-        for tri in [[q[0], q[1], q[2]], [q[0], q[2], q[3]]] {
-            let [a, b, c] = tri.map(|i| i as usize);
-            let n = (shell[b].p - shell[a].p).cross(shell[c].p - shell[a].p);
-            for i in [a, b, c] {
-                surface_normals[i] += n;
-            }
-        }
-    }
-    for (v, n) in shell.iter_mut().zip(surface_normals) {
-        v.n = n.normalize_or(v.n);
-    }
-    for q in faces.as_chunks::<4>().0 {
-        if !q.iter().all(|&i| labels[dominant[i as usize]] == "head") {
+        let indices = q.map(|i| i as usize);
+        if indices.iter().all(|&i| groom.sample(rest[i]).1 < -0.012) {
             continue;
         }
-        let mut poly = Vec::with_capacity(6);
-        let mut edge = Vec::with_capacity(2);
-        for k in 0..4 {
-            let a = shell[q[k] as usize];
-            let b = shell[q[(k + 1) % 4] as usize];
-            if a.field >= 0.0 {
-                poly.push(a);
-            }
-            if (a.field < 0.0) != (b.field < 0.0) {
-                let t = a.field / (a.field - b.field);
-                let c = Vertex {
-                    p: a.p.lerp(b.p, t),
-                    n: a.n.lerp(b.n, t).normalize_or(a.n),
-                    uv: a.uv.lerp(b.uv, t),
-                    field: 0.0,
+        let grid: Vec<_> = (0..=STEPS)
+            .flat_map(|y| (0..=STEPS).map(move |x| (x, y)))
+            .map(|(x, y)| {
+                let u = x as f32 / STEPS as f32;
+                let v = y as f32 / STEPS as f32;
+                let w = [(1.0 - u) * (1.0 - v), u * (1.0 - v), u * v, (1.0 - u) * v];
+                let interpolate = |values: &[Vec3]| {
+                    indices
+                        .iter()
+                        .zip(w)
+                        .map(|(&i, w)| values[i] * w)
+                        .sum::<Vec3>()
                 };
-                poly.push(c);
-                let inner =
-                    posed[q[k] as usize].lerp(posed[q[(k + 1) % 4] as usize], t) + c.n * 0.001;
-                edge.push((c, inner, a.field >= 0.0));
+                let mut p = interpolate(rest);
+                let mut inner = interpolate(posed);
+                let n = interpolate(normals).normalize_or(Vec3::Y);
+                let correction: Vec3 = indices
+                    .iter()
+                    .zip(w)
+                    .map(|(&i, w)| {
+                        let rn = inv_rotation * normals[i];
+                        -rn * (p - rest[i]).dot(rn) * w * 0.75
+                    })
+                    .sum();
+                p += correction;
+                inner += rotation * correction;
+                let (height, field, uv) = groom.sample(p);
+                let rn = inv_rotation * n;
+                let tangent = rn.any_orthonormal_vector();
+                let bitangent = rn.cross(tangent);
+                let derivative =
+                    |d| (groom.sample(p + d * 0.0002).0 - groom.sample(p - d * 0.0002).0) / 0.0004;
+                let normal = rotation
+                    * (rn - tangent * derivative(tangent) - bitangent * derivative(bitangent))
+                        .normalize_or(rn);
+                Vertex {
+                    p: inner + n * height,
+                    inner: inner + n * 0.0004,
+                    n: normal,
+                    uv,
+                    field,
+                }
+            })
+            .collect();
+        for y in 0..STEPS {
+            for x in 0..STEPS {
+                let i = y * (STEPS + 1) + x;
+                let mut quad = [
+                    grid[i],
+                    grid[i + 1],
+                    grid[i + STEPS + 2],
+                    grid[i + STEPS + 1],
+                ];
+                let period = groom.uv_period();
+                let min = quad.iter().map(|v| v.uv.x).fold(f32::INFINITY, f32::min);
+                let max = quad
+                    .iter()
+                    .map(|v| v.uv.x)
+                    .fold(f32::NEG_INFINITY, f32::max);
+                if max - min > period * 0.5 {
+                    for vertex in &mut quad {
+                        if vertex.uv.x < 0.0 {
+                            vertex.uv.x += period;
+                        }
+                    }
+                }
+                clip_cell(quad, g);
             }
         }
-        let base = g.positions.len() as u32;
-        for v in &poly {
-            g.positions.push(v.p.to_array());
-            g.normals.push(v.n.to_array());
-            g.uvs.push(v.uv.to_array());
+    }
+    if h.hairstyle >= 6 {
+        let target = Vec3::new(groom.centre.x, groom.centre.y + groom.size.y * 0.17, hi.z);
+        if let Some((i, _)) =
+            rest.iter()
+                .enumerate()
+                .filter(|(i, _)| head(*i))
+                .min_by(|(_, a), (_, b)| {
+                    a.distance_squared(target)
+                        .total_cmp(&b.distance_squared(target))
+                })
+        {
+            // Use the actual skull surface; a bounding-box corner can leave a gap.
+            let origin = posed[i] + normals[i] * 0.0005;
+            groom.bundle(h.hairstyle == 6, origin, rotation, g);
         }
-        for i in 1..poly.len().saturating_sub(1) as u32 {
-            g.indices.extend([base, base + i, base + i + 1]);
+    }
+}
+
+fn clip_cell(quad: [Vertex; 4], g: &mut Geometry) {
+    let mut poly = Vec::with_capacity(6);
+    let mut edge = Vec::with_capacity(2);
+    for k in 0..4 {
+        let a = quad[k];
+        let b = quad[(k + 1) % 4];
+        if a.field >= 0.0 {
+            poly.push(a);
         }
-        // Seal the hairline with thickness; no skin-coloured gap below the cap.
-        if let [(a, ai, exiting), (b, bi, _)] = edge.as_slice() {
-            let points = if *exiting {
-                [a.p, *ai, *bi, b.p]
-            } else {
-                [b.p, *bi, *ai, a.p]
+        if (a.field < 0.0) != (b.field < 0.0) {
+            let t = a.field / (a.field - b.field);
+            let c = Vertex {
+                p: a.p.lerp(b.p, t),
+                inner: a.inner.lerp(b.inner, t),
+                n: a.n.lerp(b.n, t).normalize_or(a.n),
+                uv: a.uv.lerp(b.uv, t),
+                field: 0.0,
             };
-            let n = (points[1] - points[0])
-                .cross(points[2] - points[0])
-                .normalize_or(a.n);
-            let base = g.positions.len() as u32;
-            for (i, p) in points.into_iter().enumerate() {
-                g.positions.push(p.to_array());
-                g.normals.push(n.to_array());
-                g.uvs.push([i as f32 * 0.01, 0.0]);
+            poly.push(c);
+            edge.push((c, a.field >= 0.0));
+        }
+    }
+    let base = g.positions.len() as u32;
+    for v in &poly {
+        g.positions.push(v.p.to_array());
+        g.normals.push(v.n.to_array());
+        g.uvs.push(v.uv.to_array());
+    }
+    for i in 1..poly.len().saturating_sub(1) as u32 {
+        g.indices.extend([base, base + i, base + i + 1]);
+    }
+    if let [(a, exiting), (b, _)] = edge.as_slice() {
+        let points = if *exiting {
+            [a.p, a.inner, b.inner, b.p]
+        } else {
+            [b.p, b.inner, a.inner, a.p]
+        };
+        let n = (points[1] - points[0])
+            .cross(points[2] - points[0])
+            .normalize_or(a.n);
+        let base = g.positions.len() as u32;
+        for p in points {
+            g.positions.push(p.to_array());
+            g.normals.push(n.to_array());
+            g.uvs.push(a.uv.to_array());
+        }
+        g.indices
+            .extend([base, base + 1, base + 2, base, base + 2, base + 3]);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::{build_human, sample_person, HumanPoseKind, HumanSurface};
+    use bevy::prelude::*;
+
+    #[test]
+    fn groom_extremes_remain_bounded_on_the_anny_head() {
+        for style in 0..8 {
+            for (length, curl, part) in [(0.006, 0.0, -0.6), (0.11, 0.06, 0.6)] {
+                let mut h = sample_person(
+                    31,
+                    0,
+                    Vec3::ZERO,
+                    0.0,
+                    HumanPoseKind::StandingRelaxed,
+                    None,
+                    false,
+                );
+                h.hairstyle = style;
+                let appearance = h.appearance.as_mut().unwrap();
+                appearance.hair_length = length;
+                appearance.hair_curl = curl;
+                appearance.hair_part = part;
+                let mut assembly = build_human(&h);
+                let hair = assembly.parts.remove(&HumanSurface::Hair);
+                if style == 5 {
+                    assert!(hair.is_none_or(|g| g.indices.is_empty()));
+                    continue;
+                }
+                let hair = hair.unwrap();
+                assert!(
+                    !hair.indices.is_empty() && hair.positions.len() < 100_000,
+                    "style {style}: {} vertices",
+                    hair.positions.len()
+                );
+                for p in &hair.positions {
+                    let p = Vec3::from_array(*p);
+                    assert!(
+                        p.is_finite() && p.distance(h.joints[4]) < 0.5,
+                        "style {style}: {p}"
+                    );
+                }
+                for normal in &hair.normals {
+                    assert!((Vec3::from_array(*normal).length() - 1.0).abs() < 0.005);
+                }
+                for uv in &hair.uvs {
+                    assert!(Vec2::from_array(*uv).is_finite());
+                }
+                assert!(hair
+                    .indices
+                    .iter()
+                    .all(|&i| (i as usize) < hair.positions.len()));
             }
-            g.indices
-                .extend([base, base + 1, base + 2, base, base + 2, base + 3]);
         }
     }
 }

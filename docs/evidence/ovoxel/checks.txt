@@ -1,0 +1,39 @@
+cargo test --lib --features human_motion
+    Finished `test` profile [optimized] target(s) in 0.46s
+test result: ok. 131 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 33.26s
+
+cargo test --lib --features human_motion dense_primitive_normals_remain_finite_at_small_scales
+    Finished `test` profile [optimized] target(s) in 29.99s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 134 filtered out; finished in 0.00s
+
+cargo test -p bevy_zeroverse_burn --lib --features human_motion
+    Finished `test` profile [optimized] target(s) in 50.61s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+cargo test -p bevy_zeroverse_burn --test indoor_roundtrip --test flow_roundtrip --features human_motion
+    Finished `test` profile [optimized] target(s) in 6.13s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+cargo test -p bevy_zeroverse_burn --features human_motion --test dataset_tests headless_chunk_generation_smoke -- --nocapture
+    Finished `test` profile [optimized] target(s) in 36.02s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 1.73s
+
+cargo test -p bevy_zeroverse_burn --features human_motion --test dataset_tests headless_fs_generation_smoke -- --nocapture
+    Finished `test` profile [optimized] target(s) in 0.38s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 1.50s
+
+cargo test --features human_motion --test capture_coherence -- --ignored --nocapture
+    Finished `test` profile [optimized] target(s) in 48.93s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.71s
+
+cargo clippy --workspace --all-targets --features human_motion,embedding_audit -- -D warnings
+    Finished `dev` profile [optimized] target(s) in 4.53s
+
+cargo check --target wasm32-unknown-unknown --no-default-features --features web,human_motion --bin viewer
+    Finished `dev` profile [optimized] target(s) in 1.92s
+
+Native library: 131 passed; subsequent dense-normal regression: 1 passed.
+Capture-coherence check predates numerical O-voxel fixes, which do not alter image readback.
+Four CPU/GPU room comparisons, child-process fs audit and visual crop review passed.
+Dependency future-incompatibility advisories from burn-cubecl remain; strict Clippy passed.

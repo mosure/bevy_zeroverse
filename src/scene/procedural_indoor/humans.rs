@@ -323,15 +323,15 @@ pub(crate) fn person_material(
             material.reflectance = 0.42;
         }
         if surface == HumanSurface::Hair {
-            // The scalp represents many unresolved fibres, not a smooth solid
-            // dielectric cap. Broaden its aggregate lobe to avoid white helmet
-            // highlights under nearby office fixtures.
+            // Aggregate fibre reflection is directional in the groom's tangent
+            // frame; curl broadens it continuously. This is still a surface PBR
+            // approximation, not multiple scattering between individual fibres.
             material.perceptual_roughness =
-                0.56 + 0.12 * (appearance.hair_curl / 0.06).clamp(0.0, 1.0);
+                0.58 + 0.12 * (appearance.hair_curl / 0.06).clamp(0.0, 1.0);
         }
     }
     if surface == HumanSurface::Hair {
-        material.reflectance = 0.25;
+        material.reflectance = 0.46;
     }
     if surface == HumanSurface::Eyewear {
         material.perceptual_roughness = 0.27;

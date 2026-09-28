@@ -22,6 +22,8 @@ fn fragment(
     let range = max_extent - min_extent;
     let zero_mask = abs(range) < vec3<f32>(1e-5);
     let safe_range = select(range, vec3<f32>(1.0), zero_mask);
-    let normalized_position = clamp((position - min_extent) / safe_range, vec3<f32>(0.0), vec3<f32>(1.0));
+    // The AABB is the reconstruction region. Preserve visible context outside
+    // it so min + value * range still recovers the actual world-space surface.
+    let normalized_position = (position - min_extent) / safe_range;
     return vec4<f32>(normalized_position, 1.0);
 }

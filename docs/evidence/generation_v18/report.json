@@ -1,0 +1,3197 @@
+{
+  "schema_version": 1,
+  "generator_version": 18,
+  "capture_engine": "capture-v28;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=5;surface_flow=1;indoor=18;multiview=2;ovoxel=2;glass=2;hair=2;bounds=2;position=2;tabletop=1;finishes=3;seating=2;activity=2;playback=2;exterior=1",
+  "audit": {
+    "generator_version": 18,
+    "seeds": 1024,
+    "first_seed": 24000,
+    "cameras_per_scene": 4,
+    "camera_clearance_metres": 0.28,
+    "layout_counts": {
+      "Breakroom": 114,
+      "Conference": 90,
+      "Coworking": 106,
+      "Library": 90,
+      "Lounge": 89,
+      "OpenOffice": 108,
+      "Reception": 108,
+      "Studio": 106,
+      "Training": 109,
+      "Workshop": 104
+    },
+    "architecture_counts": {
+      "Classic": 234,
+      "Contemporary": 248,
+      "Industrial": 280,
+      "Timber": 262
+    },
+    "plant_species_counts": {
+      "0": 447,
+      "1": 543,
+      "2": 516,
+      "3": 535,
+      "4": 562,
+      "5": 487
+    },
+    "palette_counts": {
+      "0": 167,
+      "1": 175,
+      "2": 181,
+      "3": 161,
+      "4": 183,
+      "5": 157
+    },
+    "floor_counts": {
+      "0": 347,
+      "1": 343,
+      "2": 334
+    },
+    "lighting_counts": {
+      "Daylight": 541,
+      "Evening": 183,
+      "Overcast": 300
+    },
+    "object_counts": {
+      "Bag": 449,
+      "Bookcase": 2270,
+      "Books": 1249,
+      "Cabinet": 1597,
+      "Chair": 10336,
+      "Clock": 431,
+      "CoatRack": 398,
+      "CoffeeCup": 2388,
+      "CoffeeTable": 1377,
+      "Desk": 7231,
+      "Display": 288,
+      "FloorLamp": 269,
+      "Keyboard": 107,
+      "Laptop": 3666,
+      "LightSwitch": 1022,
+      "Microphone": 179,
+      "Monitor": 214,
+      "Mouse": 111,
+      "Mug": 2093,
+      "Notebook": 4737,
+      "Notepad": 1212,
+      "PenHolder": 1165,
+      "Pencil": 4407,
+      "Phone": 2194,
+      "Plant": 3090,
+      "Printer": 26,
+      "SodaCan": 2759,
+      "Sofa": 880,
+      "StorageBox": 635,
+      "Table": 349,
+      "TrashCan": 1238,
+      "WallArt": 352,
+      "WallOutlet": 2796,
+      "WaterBottle": 4184,
+      "Whiteboard": 597
+    },
+    "object_count_range": [
+      18,
+      184
+    ],
+    "room_size_range": [
+      [
+        5.6,
+        2.655313,
+        5.6
+      ],
+      [
+        21.0,
+        4.795968,
+        21.0
+      ]
+    ],
+    "camera_height_range": [
+      0.70015234,
+      3.4727774
+    ],
+    "fov_range": [
+      28.073523,
+      106.965096
+    ],
+    "invalid_seeds": []
+  },
+  "rendered": {
+    "schema_version": 1,
+    "run_id": "2243581-1790557357859472828",
+    "generator_version": 18,
+    "capture_engine": "capture-v28;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=5;surface_flow=1;indoor=18;multiview=2;ovoxel=2;glass=2;hair=2;bounds=2;position=2;tabletop=1;finishes=3;seating=2;activity=2;playback=2;exterior=1",
+    "selection_policy": "consecutive seeds",
+    "audit_scenes": 1024,
+    "rendered_scenes": 64,
+    "rendered_views": 256,
+    "playback_steps": 1,
+    "image_size": [
+      384,
+      288
+    ],
+    "observed_strata": 1012,
+    "captured_layouts": {
+      "Studio": 8,
+      "Workshop": 8,
+      "Coworking": 4,
+      "Breakroom": 6,
+      "Library": 7,
+      "Training": 6,
+      "Conference": 6,
+      "OpenOffice": 8,
+      "Reception": 7,
+      "Lounge": 4
+    },
+    "captured_lighting": {
+      "Daylight": 31,
+      "Overcast": 21,
+      "Evening": 12
+    },
+    "captured_floors": {
+      "1": 27,
+      "0": 18,
+      "2": 19
+    },
+    "captured_furniture": {
+      "0": 21,
+      "1": 27,
+      "2": 16
+    },
+    "captured_architecture": {
+      "Classic": 17,
+      "Industrial": 15,
+      "Contemporary": 15,
+      "Timber": 17
+    },
+    "captured_plant_species": {
+      "1": 28,
+      "2": 38,
+      "4": 39,
+      "5": 27,
+      "0": 24,
+      "3": 33
+    },
+    "rgb_and_pose": {
+      "mean_luminance": {
+        "count": 256,
+        "min": 0.01016242,
+        "max": 0.5262996,
+        "mean": 0.11058947325976562,
+        "p05_p50_p95": [
+          0.016365765,
+          0.07079942,
+          0.28103808
+        ]
+      },
+      "luminance_std": {
+        "count": 256,
+        "min": 0.007870824,
+        "max": 0.36766693,
+        "mean": 0.11939370520703126,
+        "p05_p50_p95": [
+          0.021476384,
+          0.1001947,
+          0.26460883
+        ]
+      },
+      "dark_fraction": {
+        "count": 256,
+        "min": 0.0,
+        "max": 0.25298393,
+        "mean": 0.006288634310546875,
+        "p05_p50_p95": [
+          0.0,
+          0.0,
+          0.03720884
+        ]
+      },
+      "clipped_fraction": {
+        "count": 256,
+        "min": 0.0,
+        "max": 0.0068811486,
+        "mean": 9.745138584375e-05,
+        "p05_p50_p95": [
+          0.0,
+          0.0,
+          0.000587746
+        ]
+      },
+      "pose_max_absolute_error": {
+        "count": 256,
+        "min": 0.0,
+        "max": 0.0,
+        "mean": 0.0,
+        "p05_p50_p95": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "annotation": {
+      "depth_position_p99_metres": {
+        "count": 256,
+        "min": 4.7683716e-07,
+        "max": 2.861023e-06,
+        "mean": 1.35018489859375e-06,
+        "p05_p50_p95": [
+          9.536743e-07,
+          1.4305115e-06,
+          1.9073486e-06
+        ]
+      },
+      "reprojection_p99_pixels": {
+        "count": 256,
+        "min": 0.0016643975,
+        "max": 0.0026218933,
+        "mean": 0.002077039717578125,
+        "p05_p50_p95": [
+          0.0018779511,
+          0.002055414,
+          0.0023670343
+        ]
+      },
+      "normal_length_max_error": {
+        "count": 256,
+        "min": 1.1920929e-07,
+        "max": 2.3841858e-07,
+        "mean": 1.916196166015625e-07,
+        "p05_p50_p95": [
+          1.7881393e-07,
+          1.7881393e-07,
+          2.3841858e-07
+        ]
+      },
+      "position_quantization_budget_p99_ratio": {
+        "count": 256,
+        "min": 0.118939474,
+        "max": 0.17742653,
+        "mean": 0.1523572134140625,
+        "p05_p50_p95": [
+          0.13525231,
+          0.15290898,
+          0.16794488
+        ]
+      }
+    },
+    "mean_linear_luminance_by_layout": {
+      "Studio": {
+        "count": 32,
+        "min": 0.023361878,
+        "max": 0.28103808,
+        "mean": 0.14191888115625,
+        "p05_p50_p95": [
+          0.026703691,
+          0.14057009,
+          0.27536127
+        ]
+      },
+      "Workshop": {
+        "count": 32,
+        "min": 0.027964067,
+        "max": 0.14677228,
+        "mean": 0.06709590725,
+        "p05_p50_p95": [
+          0.032491203,
+          0.048643246,
+          0.14243734
+        ]
+      },
+      "Coworking": {
+        "count": 16,
+        "min": 0.01016242,
+        "max": 0.14292772,
+        "mean": 0.06777684759375001,
+        "p05_p50_p95": [
+          0.0121356305,
+          0.06939016,
+          0.14274655
+        ]
+      },
+      "Breakroom": {
+        "count": 24,
+        "min": 0.021045959,
+        "max": 0.13970464,
+        "mean": 0.06721758291666667,
+        "p05_p50_p95": [
+          0.022198424,
+          0.06148304,
+          0.12731428
+        ]
+      },
+      "Library": {
+        "count": 28,
+        "min": 0.044248726,
+        "max": 0.29041588,
+        "mean": 0.14428825610714285,
+        "p05_p50_p95": [
+          0.047103543,
+          0.12373175,
+          0.26652575
+        ]
+      },
+      "Training": {
+        "count": 24,
+        "min": 0.01220172,
+        "max": 0.19964717,
+        "mean": 0.06952890179166667,
+        "p05_p50_p95": [
+          0.012983688,
+          0.06431279,
+          0.18108425
+        ]
+      },
+      "Conference": {
+        "count": 24,
+        "min": 0.014914866,
+        "max": 0.47780946,
+        "mean": 0.20085373233333334,
+        "p05_p50_p95": [
+          0.015294116,
+          0.20250374,
+          0.456492
+        ]
+      },
+      "OpenOffice": {
+        "count": 32,
+        "min": 0.010483618,
+        "max": 0.20363137,
+        "mean": 0.0865714565625,
+        "p05_p50_p95": [
+          0.011031418,
+          0.06495538,
+          0.18493538
+        ]
+      },
+      "Reception": {
+        "count": 28,
+        "min": 0.031182902,
+        "max": 0.19974364,
+        "mean": 0.103798081,
+        "p05_p50_p95": [
+          0.032185726,
+          0.10204801,
+          0.19131792
+        ]
+      },
+      "Lounge": {
+        "count": 16,
+        "min": 0.030930068,
+        "max": 0.5262996,
+        "mean": 0.169930819125,
+        "p05_p50_p95": [
+          0.032751463,
+          0.072912514,
+          0.5123241
+        ]
+      }
+    },
+    "semantic_pixel_counts": {
+      "bookshelf": 581340,
+      "chair": 975495,
+      "desk": 1165233,
+      "floor": 6512820,
+      "other_prop": 366246,
+      "other_structure": 514499,
+      "paper": 60858,
+      "wall": 6113789,
+      "window": 7008342,
+      "blinds": 475850,
+      "person": 463751,
+      "table": 416720,
+      "ceiling": 2566197,
+      "lamp": 245527,
+      "door": 190924,
+      "whiteboard": 80534,
+      "books": 7071,
+      "cabinet": 209430,
+      "sofa": 317401,
+      "picture": 12392,
+      "television": 27133
+    },
+    "semantic_view_presence_fraction": {
+      "bookshelf": 0.41796875,
+      "chair": 0.9140625,
+      "desk": 0.7421875,
+      "floor": 1.0,
+      "other_prop": 0.98828125,
+      "other_structure": 0.6640625,
+      "paper": 0.71484375,
+      "wall": 1.0,
+      "window": 0.9765625,
+      "blinds": 0.25390625,
+      "person": 0.70703125,
+      "table": 0.515625,
+      "ceiling": 0.765625,
+      "lamp": 0.76953125,
+      "door": 0.46484375,
+      "whiteboard": 0.12890625,
+      "books": 0.14453125,
+      "cabinet": 0.1484375,
+      "sofa": 0.23828125,
+      "picture": 0.06640625,
+      "television": 0.0625
+    },
+    "asset_counts": {
+      "mesh_assets": {
+        "count": 64,
+        "min": 157,
+        "max": 943,
+        "mean": 399.15625,
+        "p05_p50_p95": [
+          183,
+          357,
+          748
+        ]
+      },
+      "material_assets": {
+        "count": 64,
+        "min": 81,
+        "max": 264,
+        "mean": 153.28125,
+        "p05_p50_p95": [
+          98,
+          150,
+          225
+        ]
+      },
+      "image_assets": {
+        "count": 64,
+        "min": 90,
+        "max": 119,
+        "mean": 105.046875,
+        "p05_p50_p95": [
+          94,
+          106,
+          113
+        ]
+      }
+    },
+    "capture_wall_seconds": {
+      "count": 64,
+      "min": 0.665009047,
+      "max": 4.382906517,
+      "mean": 2.164618258953125,
+      "p05_p50_p95": [
+        0.748059556,
+        2.2484302290000002,
+        3.912244258
+      ]
+    },
+    "renderer": [
+      "WgpuWrapper(AdapterInfo { name: \"NVIDIA RTX PRO 6000 Blackwell Workstation Edition\", vendor: 4318, device: 11185, device_type: DiscreteGpu, device_pci_bus_id: \"0000:01:00.0\", driver: \"NVIDIA\", driver_info: \"610.43.02\", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: false })"
+    ],
+    "annotation_precision": [
+      "float32_geometry"
+    ],
+    "capabilities": {
+      "annotation_hdr_format": "RGBA32Float_direct",
+      "bloom": true,
+      "glass_filter": "default",
+      "quality": "Auto",
+      "shadow_map_size": 2048,
+      "shadows": true,
+      "specular_transmission": true,
+      "ssao": true
+    },
+    "limits": [
+      "Signal and constraint gates do not measure photographic realism or real-office distribution match.",
+      "Camera paths checked at every captured timestep; geometry sweep is also audited separately.",
+      "Semantic pixel presence differs from scene instance counts; glazing is opaque in annotation passes.",
+      "Annotation precision is recorded explicitly; legacy HDR and native geometry captures have different error budgets.",
+      "Capture wall time includes generation, warmup, requested render work and disk IO; not FPS or isolated throughput."
+    ],
+    "darkest_views": [
+      {
+        "path": "out/paper_v18/cohort/seed_024003/view_02_color.png",
+        "seed": 24003,
+        "view": 2,
+        "mean_luminance": 0.01016242
+      },
+      {
+        "path": "out/paper_v18/cohort/seed_024022/view_02_color.png",
+        "seed": 24022,
+        "view": 2,
+        "mean_luminance": 0.010483618
+      },
+      {
+        "path": "out/paper_v18/cohort/seed_024022/view_00_color.png",
+        "seed": 24022,
+        "view": 0,
+        "mean_luminance": 0.010892332
+      },
+      {
+        "path": "out/paper_v18/cohort/seed_024022/view_01_color.png",
+        "seed": 24022,
+        "view": 1,
+        "mean_luminance": 0.011031418
+      },
+      {
+        "path": "out/paper_v18/cohort/seed_024003/view_03_color.png",
+        "seed": 24003,
+        "view": 3,
+        "mean_luminance": 0.0121356305
+      },
+      {
+        "path": "out/paper_v18/cohort/seed_024056/view_02_color.png",
+        "seed": 24056,
+        "view": 2,
+        "mean_luminance": 0.01220172
+      },
+      {
+        "path": "out/paper_v18/cohort/seed_024056/view_00_color.png",
+        "seed": 24056,
+        "view": 0,
+        "mean_luminance": 0.012983688
+      },
+      {
+        "path": "out/paper_v18/cohort/seed_024022/view_03_color.png",
+        "seed": 24022,
+        "view": 3,
+        "mean_luminance": 0.013310491
+      }
+    ],
+    "brightest_views": [
+      {
+        "path": "out/paper_v18/cohort/seed_024039/view_01_color.png",
+        "seed": 24039,
+        "view": 1,
+        "mean_luminance": 0.5262996
+      },
+      {
+        "path": "out/paper_v18/cohort/seed_024039/view_00_color.png",
+        "seed": 24039,
+        "view": 0,
+        "mean_luminance": 0.5123241
+      },
+      {
+        "path": "out/paper_v18/cohort/seed_024039/view_02_color.png",
+        "seed": 24039,
+        "view": 2,
+        "mean_luminance": 0.51014924
+      },
+      {
+        "path": "out/paper_v18/cohort/seed_024039/view_03_color.png",
+        "seed": 24039,
+        "view": 3,
+        "mean_luminance": 0.4941851
+      },
+      {
+        "path": "out/paper_v18/cohort/seed_024055/view_00_color.png",
+        "seed": 24055,
+        "view": 0,
+        "mean_luminance": 0.47780946
+      },
+      {
+        "path": "out/paper_v18/cohort/seed_024055/view_03_color.png",
+        "seed": 24055,
+        "view": 3,
+        "mean_luminance": 0.456492
+      },
+      {
+        "path": "out/paper_v18/cohort/seed_024015/view_01_color.png",
+        "seed": 24015,
+        "view": 1,
+        "mean_luminance": 0.4187742
+      },
+      {
+        "path": "out/paper_v18/cohort/seed_024015/view_00_color.png",
+        "seed": 24015,
+        "view": 0,
+        "mean_luminance": 0.41562754
+      }
+    ],
+    "largest_position_error_views": [
+      {
+        "path": "out/paper_v18/cohort/seed_024040/view_00_color.png",
+        "seed": 24040,
+        "view": 0,
+        "mean_luminance": 0.04787697
+      },
+      {
+        "path": "out/paper_v18/cohort/seed_024040/view_02_color.png",
+        "seed": 24040,
+        "view": 2,
+        "mean_luminance": 0.054411907
+      },
+      {
+        "path": "out/paper_v18/cohort/seed_024040/view_03_color.png",
+        "seed": 24040,
+        "view": 3,
+        "mean_luminance": 0.044248726
+      },
+      {
+        "path": "out/paper_v18/cohort/seed_024047/view_03_color.png",
+        "seed": 24047,
+        "view": 3,
+        "mean_luminance": 0.060031105
+      },
+      {
+        "path": "out/paper_v18/cohort/seed_024061/view_01_color.png",
+        "seed": 24061,
+        "view": 1,
+        "mean_luminance": 0.1390611
+      },
+      {
+        "path": "out/paper_v18/cohort/seed_024061/view_03_color.png",
+        "seed": 24061,
+        "view": 3,
+        "mean_luminance": 0.09731684
+      },
+      {
+        "path": "out/paper_v18/cohort/seed_024037/view_03_color.png",
+        "seed": 24037,
+        "view": 3,
+        "mean_luminance": 0.07487107
+      },
+      {
+        "path": "out/paper_v18/cohort/seed_024037/view_00_color.png",
+        "seed": 24037,
+        "view": 0,
+        "mean_luminance": 0.07288934
+      }
+    ]
+  },
+  "categorical_entropy": {
+    "CoffeeCup_construction": {
+      "total": 2388,
+      "observed": 6,
+      "effective_count": 5.442356611472643
+    },
+    "Mug_construction": {
+      "total": 2093,
+      "observed": 4,
+      "effective_count": 3.763223300822161
+    },
+    "SodaCan_construction": {
+      "total": 2759,
+      "observed": 12,
+      "effective_count": 10.945915811344788
+    },
+    "WaterBottle_construction": {
+      "total": 4184,
+      "observed": 6,
+      "effective_count": 5.997150067033509
+    },
+    "architecture": {
+      "total": 1024,
+      "observed": 4,
+      "effective_count": 3.991177260951835
+    },
+    "blinds": {
+      "total": 1024,
+      "observed": 2,
+      "effective_count": 1.987181028322391
+    },
+    "ceiling": {
+      "total": 1024,
+      "observed": 4,
+      "effective_count": 3.9944755289397724
+    },
+    "chair_family": {
+      "total": 10336,
+      "observed": 10,
+      "effective_count": 9.957761064556776
+    },
+    "chair_headrest": {
+      "total": 7492,
+      "observed": 2,
+      "effective_count": 1.6637681621278357
+    },
+    "clock_display": {
+      "total": 431,
+      "observed": 2,
+      "effective_count": 1.8298547648191832
+    },
+    "exterior_frame": {
+      "total": 1923,
+      "observed": 3,
+      "effective_count": 2.9932873915341154
+    },
+    "exterior_full_height_room": {
+      "total": 1024,
+      "observed": 2,
+      "effective_count": 1.8842701346751614
+    },
+    "exterior_shade": {
+      "total": 1923,
+      "observed": 3,
+      "effective_count": 2.548983965575996
+    },
+    "exterior_side": {
+      "total": 1923,
+      "observed": 3,
+      "effective_count": 2.998238625358915
+    },
+    "exterior_sides": {
+      "total": 1024,
+      "observed": 7,
+      "effective_count": 6.731479285059308
+    },
+    "exterior_wall_count": {
+      "total": 1024,
+      "observed": 3,
+      "effective_count": 2.9412628226322193
+    },
+    "floor": {
+      "total": 1024,
+      "observed": 3,
+      "effective_count": 2.999618613104091
+    },
+    "furniture": {
+      "total": 1024,
+      "observed": 3,
+      "effective_count": 2.9998601293264913
+    },
+    "human_hairstyle": {
+      "total": 2372,
+      "observed": 8,
+      "effective_count": 7.987244443242754
+    },
+    "human_outfit": {
+      "total": 2372,
+      "observed": 3,
+      "effective_count": 2.9991388982209637
+    },
+    "human_pose": {
+      "total": 2372,
+      "observed": 8,
+      "effective_count": 5.556442950939329
+    },
+    "human_skin_tone": {
+      "total": 2372,
+      "observed": 8,
+      "effective_count": 7.992447975686924
+    },
+    "laptop_family": {
+      "total": 3666,
+      "observed": 4,
+      "effective_count": 3.9991981733770454
+    },
+    "layout": {
+      "total": 1024,
+      "observed": 10,
+      "effective_count": 9.96330953847166
+    },
+    "lighting": {
+      "total": 1024,
+      "observed": 3,
+      "effective_count": 2.730564568231192
+    },
+    "screen_content": {
+      "total": 6362,
+      "observed": 8,
+      "effective_count": 7.990215023225159
+    },
+    "sofa_configuration": {
+      "total": 1657,
+      "observed": 7,
+      "effective_count": 4.0890658460699445
+    },
+    "sofa_upholstery": {
+      "total": 1657,
+      "observed": 3,
+      "effective_count": 2.9986683699603187
+    },
+    "table_support": {
+      "total": 8957,
+      "observed": 6,
+      "effective_count": 5.999274993825935
+    },
+    "table_top_surface": {
+      "total": 8957,
+      "observed": 4,
+      "effective_count": 2.5821541820912306
+    },
+    "tv_content": {
+      "total": 288,
+      "observed": 8,
+      "effective_count": 7.892816436983619
+    },
+    "whiteboard_content": {
+      "total": 597,
+      "observed": 8,
+      "effective_count": 7.920562415933971
+    },
+    "window_bays": {
+      "total": 1024,
+      "observed": 30,
+      "effective_count": 16.685042852743674
+    }
+  },
+  "numeric_series": 503,
+  "varying_numeric_series": 401,
+  "embedding": {
+    "images": 256,
+    "scenes": 64,
+    "cross_scene_nearest_cosine_distance": {
+      "count": 256,
+      "min": 0.03944516181945801,
+      "max": 0.1831619143486023,
+      "mean": 0.06743697705678642,
+      "p05_p50_p95": [
+        0.04693549871444702,
+        0.0628361701965332,
+        0.09718585014343262
+      ]
+    },
+    "scene_centroid_nearest_cosine_distance": {
+      "count": 64,
+      "min": 0.031543850898742676,
+      "max": 0.158730149269104,
+      "mean": 0.054236712865531445,
+      "p05_p50_p95": [
+        0.038356781005859375,
+        0.050868988037109375,
+        0.07669156789779663
+      ]
+    },
+    "same_camera_trajectory_cosine_distance": null,
+    "same_scene_other_camera_cosine_distance": {
+      "count": 384,
+      "min": 0.010002732276916504,
+      "max": 0.10581743717193604,
+      "mean": 0.03862890818466743,
+      "p05_p50_p95": [
+        0.017789244651794434,
+        0.03562438488006592,
+        0.06905984878540039
+      ]
+    },
+    "exact_file_duplicate_cosine_distance": null,
+    "scene_centroid_spectrum": {
+      "effective_rank": 32.29386121784591,
+      "dimensions_for_90_percent_variance": 34
+    },
+    "nearest_distance_threshold_fractions": {
+      "0.005": 0.0,
+      "0.01": 0.0,
+      "0.02": 0.0,
+      "0.05": 0.109375,
+      "0.1": 0.95703125
+    },
+    "closest_cross_scene_pairs": [
+      {
+        "distance": 0.03944516181945801,
+        "left": {
+          "camera": 2,
+          "cohort": "training",
+          "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024037/view_02_color.png",
+          "seed": 24037,
+          "sha256": "18b69ec6b20dc00cc3d6ff4a8851c1e6b6548c2f52d40cb9a4c53b88c5592792",
+          "time": 0.0
+        },
+        "right": {
+          "camera": 2,
+          "cohort": "training",
+          "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024052/view_02_color.png",
+          "seed": 24052,
+          "sha256": "e23ae978a76f37d37499b326d769ac1c4cccde550c033c90ac7c10f7a29e94e1",
+          "time": 0.0
+        }
+      },
+      {
+        "distance": 0.04105556011199951,
+        "left": {
+          "camera": 0,
+          "cohort": "training",
+          "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024007/view_00_color.png",
+          "seed": 24007,
+          "sha256": "b5a41657d302ccc89bcd00ff2af8bb63f1d0f8a7fe992a518735cd1e4e17a8ea",
+          "time": 0.0
+        },
+        "right": {
+          "camera": 0,
+          "cohort": "training",
+          "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024063/view_00_color.png",
+          "seed": 24063,
+          "sha256": "17c6fdd136f1b234a12a74e2ba3a8ebc2cb3d3ab146e159baecb6f85b1ba6a41",
+          "time": 0.0
+        }
+      },
+      {
+        "distance": 0.04276472330093384,
+        "left": {
+          "camera": 1,
+          "cohort": "training",
+          "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024008/view_01_color.png",
+          "seed": 24008,
+          "sha256": "054b12dcae4cd1c046302ad61a6fb034500091c9ac0ba19e54d8ba3dd2e8ad40",
+          "time": 0.0
+        },
+        "right": {
+          "camera": 0,
+          "cohort": "training",
+          "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024063/view_00_color.png",
+          "seed": 24063,
+          "sha256": "17c6fdd136f1b234a12a74e2ba3a8ebc2cb3d3ab146e159baecb6f85b1ba6a41",
+          "time": 0.0
+        }
+      },
+      {
+        "distance": 0.04506802558898926,
+        "left": {
+          "camera": 3,
+          "cohort": "training",
+          "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024033/view_03_color.png",
+          "seed": 24033,
+          "sha256": "480d18f7f0161e21bbb8e4fae6027f60d857a31313117c29ffa8b3c61bc4820c",
+          "time": 0.0
+        },
+        "right": {
+          "camera": 1,
+          "cohort": "training",
+          "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024052/view_01_color.png",
+          "seed": 24052,
+          "sha256": "1a478d770d84b369fbbe5663d59f0e4f4d2fb1a6c41a8de16b401b0c345ab8cd",
+          "time": 0.0
+        }
+      },
+      {
+        "distance": 0.045555710792541504,
+        "left": {
+          "camera": 0,
+          "cohort": "training",
+          "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024036/view_00_color.png",
+          "seed": 24036,
+          "sha256": "88c1b25bfb1b8b0cbbad7b0a6898c5c9788f9f5e9f703f2175d68bcd8e169f4e",
+          "time": 0.0
+        },
+        "right": {
+          "camera": 0,
+          "cohort": "training",
+          "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024040/view_00_color.png",
+          "seed": 24040,
+          "sha256": "b4334e9a9959ba623d08cd4b24ccba5c8c6f9139be9ab6f76979f4b2c2fcb08f",
+          "time": 0.0
+        }
+      },
+      {
+        "distance": 0.04693549871444702,
+        "left": {
+          "camera": 3,
+          "cohort": "training",
+          "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024016/view_03_color.png",
+          "seed": 24016,
+          "sha256": "fde8de2b8b3a20ad03b36e3d0ea32fd8ba26457cdbbe5c31a87faa5dc9c30d99",
+          "time": 0.0
+        },
+        "right": {
+          "camera": 1,
+          "cohort": "training",
+          "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024061/view_01_color.png",
+          "seed": 24061,
+          "sha256": "8c6f38bbfa8b63412747927194b2945beb298be51c3d55d311bb3625517396aa",
+          "time": 0.0
+        }
+      },
+      {
+        "distance": 0.047724127769470215,
+        "left": {
+          "camera": 0,
+          "cohort": "training",
+          "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024030/view_00_color.png",
+          "seed": 24030,
+          "sha256": "3fa55aa8be48dfa5c2dfe347cbd4d2ad80418fddaad93521507a854b5e2055e2",
+          "time": 0.0
+        },
+        "right": {
+          "camera": 2,
+          "cohort": "training",
+          "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024042/view_02_color.png",
+          "seed": 24042,
+          "sha256": "dc22cd8cf3ef3801abf59d378a02b16c4300650221b8c56d01764d2d8fc67b17",
+          "time": 0.0
+        }
+      },
+      {
+        "distance": 0.048283517360687256,
+        "left": {
+          "camera": 0,
+          "cohort": "training",
+          "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024033/view_00_color.png",
+          "seed": 24033,
+          "sha256": "f7ebf60b0944f72d804674d88069948f564e99f4f6792c3abc8c6b6e1b0a0328",
+          "time": 0.0
+        },
+        "right": {
+          "camera": 1,
+          "cohort": "training",
+          "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024037/view_01_color.png",
+          "seed": 24037,
+          "sha256": "167e2da8c5d55d27a314c3c53fec79fd7c754430ccb14cdd9f691da873da9dcd",
+          "time": 0.0
+        }
+      },
+      {
+        "distance": 0.04834526777267456,
+        "left": {
+          "camera": 0,
+          "cohort": "training",
+          "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024026/view_00_color.png",
+          "seed": 24026,
+          "sha256": "201123759d5cb9b1cee0bbbe2a52c9f5bb22517e22df99172145f69025518582",
+          "time": 0.0
+        },
+        "right": {
+          "camera": 1,
+          "cohort": "training",
+          "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024061/view_01_color.png",
+          "seed": 24061,
+          "sha256": "8c6f38bbfa8b63412747927194b2945beb298be51c3d55d311bb3625517396aa",
+          "time": 0.0
+        }
+      },
+      {
+        "distance": 0.048734843730926514,
+        "left": {
+          "camera": 0,
+          "cohort": "training",
+          "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024029/view_00_color.png",
+          "seed": 24029,
+          "sha256": "2bd5195b83ec16c87cb25f56e602c48b5c4934a81ef3892b3077890e05f54a6b",
+          "time": 0.0
+        },
+        "right": {
+          "camera": 1,
+          "cohort": "training",
+          "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024061/view_01_color.png",
+          "seed": 24061,
+          "sha256": "8c6f38bbfa8b63412747927194b2945beb298be51c3d55d311bb3625517396aa",
+          "time": 0.0
+        }
+      },
+      {
+        "distance": 0.04936337471008301,
+        "left": {
+          "camera": 3,
+          "cohort": "training",
+          "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024042/view_03_color.png",
+          "seed": 24042,
+          "sha256": "9c9adcf5824f7c45c18d526eb2ed9975bcd88cce63117fcce863db494b8e6d3e",
+          "time": 0.0
+        },
+        "right": {
+          "camera": 2,
+          "cohort": "training",
+          "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024047/view_02_color.png",
+          "seed": 24047,
+          "sha256": "793e63cc718258e0b0c58b7965560e853803bdfd29d7a93ed7792a172d1accf0",
+          "time": 0.0
+        }
+      },
+      {
+        "distance": 0.04992663860321045,
+        "left": {
+          "camera": 3,
+          "cohort": "training",
+          "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024027/view_03_color.png",
+          "seed": 24027,
+          "sha256": "ab3ee9491b89c100b9d801a48a982e94814fa24e78a18362f82041024bff028e",
+          "time": 0.0
+        },
+        "right": {
+          "camera": 1,
+          "cohort": "training",
+          "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024052/view_01_color.png",
+          "seed": 24052,
+          "sha256": "1a478d770d84b369fbbe5663d59f0e4f4d2fb1a6c41a8de16b401b0c345ab8cd",
+          "time": 0.0
+        }
+      },
+      {
+        "distance": 0.050028204917907715,
+        "left": {
+          "camera": 1,
+          "cohort": "training",
+          "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024019/view_01_color.png",
+          "seed": 24019,
+          "sha256": "e74d5d9da74b49bbca8eaf013cd2f3e5aaab4f6c36dc60b1277d1638ff42fc95",
+          "time": 0.0
+        },
+        "right": {
+          "camera": 1,
+          "cohort": "training",
+          "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024061/view_01_color.png",
+          "seed": 24061,
+          "sha256": "8c6f38bbfa8b63412747927194b2945beb298be51c3d55d311bb3625517396aa",
+          "time": 0.0
+        }
+      },
+      {
+        "distance": 0.050101399421691895,
+        "left": {
+          "camera": 0,
+          "cohort": "training",
+          "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024036/view_00_color.png",
+          "seed": 24036,
+          "sha256": "88c1b25bfb1b8b0cbbad7b0a6898c5c9788f9f5e9f703f2175d68bcd8e169f4e",
+          "time": 0.0
+        },
+        "right": {
+          "camera": 1,
+          "cohort": "training",
+          "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024047/view_01_color.png",
+          "seed": 24047,
+          "sha256": "1a765712acbd9b6c4dfd4cde252289fede6ea64e3dda4ae3e2d27fa76dc33851",
+          "time": 0.0
+        }
+      },
+      {
+        "distance": 0.05063307285308838,
+        "left": {
+          "camera": 2,
+          "cohort": "training",
+          "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024058/view_02_color.png",
+          "seed": 24058,
+          "sha256": "3f1b46744da8e13fff1f29b6ea2b50556024653306c56f65e7b8ee911f42bceb",
+          "time": 0.0
+        },
+        "right": {
+          "camera": 0,
+          "cohort": "training",
+          "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024063/view_00_color.png",
+          "seed": 24063,
+          "sha256": "17c6fdd136f1b234a12a74e2ba3a8ebc2cb3d3ab146e159baecb6f85b1ba6a41",
+          "time": 0.0
+        }
+      },
+      {
+        "distance": 0.050955355167388916,
+        "left": {
+          "camera": 1,
+          "cohort": "training",
+          "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024010/view_01_color.png",
+          "seed": 24010,
+          "sha256": "ec53f06f8dae393788eeede243483ca7d4068c7e152fa3500dbfa730901bbb0f",
+          "time": 0.0
+        },
+        "right": {
+          "camera": 3,
+          "cohort": "training",
+          "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024061/view_03_color.png",
+          "seed": 24061,
+          "sha256": "90aa6a782fa46d06f1d3f4de9e7bcba827c92559b7708e87bedf34ab17491145",
+          "time": 0.0
+        }
+      }
+    ]
+  },
+  "overlap": {
+    "schema_version": 1,
+    "capture_engine": "capture-v28;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=5;surface_flow=1;indoor=18;multiview=2;ovoxel=2;glass=2;hair=2;bounds=2;position=2;tabletop=1;finishes=3;seating=2;activity=2;playback=2;exterior=1",
+    "run_id": "2243581-1790557357859472828",
+    "selection_policy": "consecutive seeds",
+    "scenes": 64,
+    "pairs": 192,
+    "image_size": [
+      384,
+      288
+    ],
+    "camera_settings": {
+      "primary_room": true,
+      "path_length_min": 0.03,
+      "path_length_max": 8.0,
+      "long_path_fraction": 0.45,
+      "multiview": {
+        "min_overlap": 0.35,
+        "min_baseline": 0.25,
+        "max_baseline": 3.0
+      }
+    },
+    "distributions": {
+      "bidirectional_min": {
+        "count": 192,
+        "min": 0.3436595775462963,
+        "max": 0.8870804398148148,
+        "mean": 0.5812926586763358,
+        "p05_p50_p95": [
+          0.3741138599537037,
+          0.5788393373842593,
+          0.7826334635416666
+        ]
+      },
+      "reference_to_view": {
+        "count": 192,
+        "min": 0.3567165798611111,
+        "max": 0.9787326388888888,
+        "mean": 0.7186337223759404,
+        "p05_p50_p95": [
+          0.4147135416666667,
+          0.7563386140046297,
+          0.9283221209490741
+        ]
+      },
+      "view_to_reference": {
+        "count": 192,
+        "min": 0.3436595775462963,
+        "max": 0.9457013165509259,
+        "mean": 0.6887757572126977,
+        "p05_p50_p95": [
+          0.3892686631944444,
+          0.7151783130787037,
+          0.8992241753472222
+        ]
+      },
+      "baseline_m": {
+        "count": 192,
+        "min": 0.2513644539961241,
+        "max": 2.8660359750467146,
+        "mean": 0.7508567572592525,
+        "p05_p50_p95": [
+          0.2682347362082137,
+          0.5172878026070183,
+          1.9991141976248907
+        ]
+      },
+      "triangulation_mean_degrees": {
+        "count": 192,
+        "min": 1.1508627714362643,
+        "max": 39.70218959845407,
+        "mean": 8.034220994442782,
+        "p05_p50_p95": [
+          1.9443917163960511,
+          5.957576218158587,
+          20.42331581072527
+        ]
+      },
+      "triangulation_p10_degrees": {
+        "count": 192,
+        "min": 0.2364753436221133,
+        "max": 23.2633990562748,
+        "mean": 4.130923231248442,
+        "p05_p50_p95": [
+          0.5644602370640197,
+          2.584059126312881,
+          12.850290930525434
+        ]
+      }
+    },
+    "scene_worst_overlap": {
+      "count": 64,
+      "min": 0.3436595775462963,
+      "max": 0.6663140190972222,
+      "mean": 0.4740791320800781,
+      "p05_p50_p95": [
+        0.3567165798611111,
+        0.47313548900462965,
+        0.6382016782407407
+      ]
+    },
+    "pairs_below_requested_overlap": 3,
+    "scenes_with_under_10_percent_overlap": 0,
+    "input_sha256": {
+      "metrics.json": "eb133dfeed5d53afbd8c0026f60328c5c16eb7d7051d3dfa3b79a8fb1c5a3a5d",
+      "render_selection.json": "8a12c6b3d83638699248de5396dbee1bbee4ee69f8de8c861bbc5a01895fefa2",
+      "run_complete.json": "c004278fcc6970838b6eade33684a5a0ee950a4a295c0f573b4e20cda953968c",
+      "seed_024000/view_00_depth.rgba32f": "e20e0edf15e7824722f158b1c586a730126c6f0a55d9d0d5074b27b3b1967116",
+      "seed_024000/view_01_depth.rgba32f": "3b2e4823974bb215a65a16928922191bf9e9e126d802ea4d0f4f574df99f4a0d",
+      "seed_024000/view_02_depth.rgba32f": "869c6921ae019f105e899e49d78728789b7af0d1d2bb8542f85788b920e898cc",
+      "seed_024000/view_03_depth.rgba32f": "ae857ecd0bdbc94f20cc8aa643c67fec7ecc5c98bb03467b1ec399b5ced8ca3b",
+      "seed_024000/capture.json": "5151b9cf14b89766e1ea5d07dbc6fea433cc9d4ed4bdc4b66ab115a7e626b565",
+      "seed_024000/manifest.json": "31515dab160709edb1d689a0b13779400485db4109ecf933c2c7f90419e1b0ce",
+      "seed_024001/view_00_depth.rgba32f": "53eeb9c7785cbf461e97da9ecf0e8aa71941d0b638dc4378b92d475a66d8a841",
+      "seed_024001/view_01_depth.rgba32f": "915822f7810c8b5947c37f1d41357b6951bb49c1e3aeada89217ce77559e9d7d",
+      "seed_024001/view_02_depth.rgba32f": "093a945829c50a2ab75694b8e790dbb69ec67dabcbeca046055b2850d5e7e9f5",
+      "seed_024001/view_03_depth.rgba32f": "c6eb9654dff7c4d2ce52ceba161d94d741e1f2b3d221d0d011d1749d3a7dda00",
+      "seed_024001/capture.json": "ad4111f714e74da8e3a52203a59f5c235079e12795f5a644d1a18f8ead7fc566",
+      "seed_024001/manifest.json": "e4fb0718ae195d5e61dfbe7a676ad5c097e186d04aa121af1e5e85b5fcd2bb11",
+      "seed_024002/view_00_depth.rgba32f": "14de73519988bde476606918c1ee6ae33e718dc99e0d5a6f63e7d1c46e0e1f4d",
+      "seed_024002/view_01_depth.rgba32f": "7097b41eae6f78bce98ff2d53d9f5e2f327ef7f3fc250529328c059706a29006",
+      "seed_024002/view_02_depth.rgba32f": "eb1af79e9c54a1e90fa82fb8801e5fbe1498b69453ac2583bf8e366b6c398fb3",
+      "seed_024002/view_03_depth.rgba32f": "a3cb491ba5ab0ca62390f148db0c5273273643b52b99462d310ccc9adf4fa211",
+      "seed_024002/capture.json": "cb5eaf89fc87dbc5f9396e79cda2fc6af3f7772dcd463829c36b314ef63fd50c",
+      "seed_024002/manifest.json": "02d9f9a3f520426294d64f8cc2a7b88b338e72e6301393dd0fd8d655042cfe7c",
+      "seed_024003/view_00_depth.rgba32f": "0b71a262caf88902d7163b9364f5a37baaa6058080ef125a1d212d27f1823b45",
+      "seed_024003/view_01_depth.rgba32f": "df2b1fce5a6eaad55ce5d0021a9715d5d4e3034b4b044db823633aee706c634d",
+      "seed_024003/view_02_depth.rgba32f": "6ab0bc530811745b74f042685ef9f32f3c61ae5ed16c4ba9cd7bee6364353168",
+      "seed_024003/view_03_depth.rgba32f": "97234d298f7025714232d3f0cb51afe31ca7f6b17033e27f9992b56926670550",
+      "seed_024003/capture.json": "1c788719d3180396a3551800e8a5f3abb001a727fb8dd43ec88cc4a7d01c968f",
+      "seed_024003/manifest.json": "6541dbe854bd3a33aabe995f3c33fbf94f4ed20fa185ec5ba5b10926bfdeedd2",
+      "seed_024004/view_00_depth.rgba32f": "0c38a672d9253b7b98f2ae92113cd990681275d26aadd9e0c915edc1cc16819e",
+      "seed_024004/view_01_depth.rgba32f": "c94826f909bc96a8e681d372f2860f390f05f514d02d29aebe5357190a0e8f68",
+      "seed_024004/view_02_depth.rgba32f": "aa6cf09944b5bf7feb0b61bcdbc4837f67c194da8fbe81d6d292172f0b7cd980",
+      "seed_024004/view_03_depth.rgba32f": "8b9e4c0ac40c26ca3a55c6e8a0c38b63ab9d2d21b5dc73a1b0f749df315aaba7",
+      "seed_024004/capture.json": "cd2a58b5716918f92be61b9471a52f5999e0e50de32bfef8358da1ea7e91e2ac",
+      "seed_024004/manifest.json": "cb226f3a1889effaf174cea7ba719e38c2eb1e8de0a7c0cb5684c7d639f45b20",
+      "seed_024005/view_00_depth.rgba32f": "137f0e5b29bd905932acee78f69152582892be7643d6a3064743a2b956f3c57d",
+      "seed_024005/view_01_depth.rgba32f": "56c8d36c99fd802505a06906cf866980c49a5240c5b55655b88dc2820debbaa2",
+      "seed_024005/view_02_depth.rgba32f": "81ca01f5a9d6b328682da74bb6549cd1c6f080642fa9a700c3db27fe82caf5ae",
+      "seed_024005/view_03_depth.rgba32f": "010dca4d928f1eeff7b3a224bf014cb2165694a6d2419a6068ad9d1bc6f8b3d3",
+      "seed_024005/capture.json": "166f7e2644c99d81095324d3f9581248f67c01c45667c778fcdcc7b4441f5c0f",
+      "seed_024005/manifest.json": "9872c15313d16ae41f436770f6389e00ffc5557220068bb8ae452422c0fa9d37",
+      "seed_024006/view_00_depth.rgba32f": "e77e8f11567fd59a01762efc850f702c6e349da99e3c98d307fa71f43e694c40",
+      "seed_024006/view_01_depth.rgba32f": "b2c3cda43692f0b14e704eb004427178e44b8effc29496c25797d5e0d2a1e98a",
+      "seed_024006/view_02_depth.rgba32f": "b68ca4ed6d0ee71efe5aa9cd37f06f8300061156adc1afb739457dd64070cbe4",
+      "seed_024006/view_03_depth.rgba32f": "600451dd03ea1ecfced3865908351c67b8b13744c3eb82691ae13905555bc90e",
+      "seed_024006/capture.json": "2b053d9ed83554fb696bc9187c4705c0f605975d9419bf46b3847c3d386b02ac",
+      "seed_024006/manifest.json": "5c57b7d9a086456a919f9ace9f43aba616a2e5e28790a36391dbb2779d20c1f5",
+      "seed_024007/view_00_depth.rgba32f": "d69fbdd7b820daf1f12b762e19a21f3c0559ce637049f471d0724f9a39de08f0",
+      "seed_024007/view_01_depth.rgba32f": "96163e6c6964583327809e838abd946f4bb228a198d42e35d9bceab79307a276",
+      "seed_024007/view_02_depth.rgba32f": "8d77c239f16049eca835c9557e675a552de822cd1c26ea23f7d41b467301f7a3",
+      "seed_024007/view_03_depth.rgba32f": "f8d42b19b6cddbfbc80012bb06f7eb6a572ff7d110fa67f0b689df3b488b155d",
+      "seed_024007/capture.json": "f9c12f180f5cfd8259448430f4b7818e507aeeb03b6b88160859700d0febba61",
+      "seed_024007/manifest.json": "4180d7847845a966e5689ab9eb7fb16362aedc2c28f21d3a50636b27f9350aae",
+      "seed_024008/view_00_depth.rgba32f": "5f2a7ad5f1adbd4c30862180404520433d23772f914dd14df821566db8cb9790",
+      "seed_024008/view_01_depth.rgba32f": "0aea486b8a75e03cc0f1099a2966ec15d04732bed8ac94a255eebc2d500d0c3f",
+      "seed_024008/view_02_depth.rgba32f": "28263247028c1c0b084f7f1017f60675ffe6680d67e660af9ad8a19275937250",
+      "seed_024008/view_03_depth.rgba32f": "5bca9330badfeac47ca4d2738b4e327bd45af0c53a47606a046ea5f594af60f0",
+      "seed_024008/capture.json": "739387826642ddb00926432d7429c991464e83911cce01dcd1b04d82d5b72aaa",
+      "seed_024008/manifest.json": "76948fc4e66bcb7f350d7d463dd979a704a953e36a4d9cb6abf67d0251ddebf9",
+      "seed_024009/view_00_depth.rgba32f": "46b95906a8bef8aaff9a8f3e962810b2ab096924ae9cfec934a02e0c069ba71f",
+      "seed_024009/view_01_depth.rgba32f": "720e9e71ea50135dd36e957afb7acc7ee17f7b8c089a3b7d7b6fe5d69407e514",
+      "seed_024009/view_02_depth.rgba32f": "53c4931b812eff8a41bcf4d5d5b7ca796937ccd9761cf5d20694a8930dbd138c",
+      "seed_024009/view_03_depth.rgba32f": "d9452f18d8c682c67e72bd3b45f655be74264906e1fa3a33171d07439a711e62",
+      "seed_024009/capture.json": "2bad1bce093b2afbc2cceb8e88329328d1e882932c2234ffbbda4b532da00fb3",
+      "seed_024009/manifest.json": "f29560c2f736317ca4a73f1d2fb0d8e47e705b5baf499c5ed761501d320a6f68",
+      "seed_024010/view_00_depth.rgba32f": "7401815478da919ef98d24e7b5c4f6fa30f6adb2ce6876add2ef87dc1190e5c3",
+      "seed_024010/view_01_depth.rgba32f": "ccf353ca9f80defbdd564ec1acef34d65969616911e0f0156ea5b92aac24ec47",
+      "seed_024010/view_02_depth.rgba32f": "e78ef946ff157941a964ce8294286fb11dbdc930bd70ddc27e332495e6fa2aea",
+      "seed_024010/view_03_depth.rgba32f": "847ca24ca742f67fda4b420b21512f1c22d415b6c770505acd03b46dfc5a11e9",
+      "seed_024010/capture.json": "0eb72e2bd056c6fedf229254174764f2c1260854f2d4c80edb96ecdfe175c18e",
+      "seed_024010/manifest.json": "f01d3c14dac182db127116ec04fb419f4c3c1fa29ad4c19d805147763df9a427",
+      "seed_024011/view_00_depth.rgba32f": "4ac0c27efb73497bcf83e6cc77306ed0a55787d6761778e1720aaef0af945db5",
+      "seed_024011/view_01_depth.rgba32f": "a54872cc324bc2ca7fef33b3496e8472c731ed43bdd6fbfe4db209e942073a3b",
+      "seed_024011/view_02_depth.rgba32f": "cd7eb131c850d30c7e684924eafd62d8908a167e4b4d1372c339d19d93d0e0cb",
+      "seed_024011/view_03_depth.rgba32f": "c7c9598f0065d20c5b23e0e22440c615422ff72886681a8a778f00e3b55a0d31",
+      "seed_024011/capture.json": "8a65e6c5724eed83021ffc12546b4f317090a8f414338a574f08046cb279c57a",
+      "seed_024011/manifest.json": "13e7fa3c7f7a63d53b3f82568a5dacc62a63a9c838359207411bc86418b19789",
+      "seed_024012/view_00_depth.rgba32f": "13be897e6591ce9e461c32d1f0f93b9e6ec8a99e95c84453e3420f0bf1465db5",
+      "seed_024012/view_01_depth.rgba32f": "045256bc4ea5ce90eca28b72b0f104b1fcc87dd1529fca2785e4627b994093af",
+      "seed_024012/view_02_depth.rgba32f": "a371307db689c829f23247150ffe4ecde42c58359cdd6b31eee536aee224f28b",
+      "seed_024012/view_03_depth.rgba32f": "330401216ddf36f59745b5f3f7c141ebd7536771716f95cc9b8078f3cdf44b20",
+      "seed_024012/capture.json": "6150d10a4f0ae87d12b9f40f3c3fd1138bae9e4337f6f3cf2d280bef9bdd1795",
+      "seed_024012/manifest.json": "1b9c06957448336695d5bd4526d789436071c1ffd5b258dd504ad003a0cd39c9",
+      "seed_024013/view_00_depth.rgba32f": "6c337e4bce59db17f20cf040a3b6a7c26260b76da385a7a2ac2b350b2c7f2413",
+      "seed_024013/view_01_depth.rgba32f": "8fcafa1b5db955ae2a7be00580841a3aeb823bd9eddfadb457ac2f9261e3551c",
+      "seed_024013/view_02_depth.rgba32f": "a3b21713567575f4d1eed22c90a0bae2a34bba439f1ac240f68d3b8996060983",
+      "seed_024013/view_03_depth.rgba32f": "1142134d16fcf65c916221e2291b3e12311858265d0a63d8c63a68787627338f",
+      "seed_024013/capture.json": "e36f2d8183f4e60c96b4b3a4426a9332145cba774732eaecce5dc29216957de3",
+      "seed_024013/manifest.json": "33994fe66565d08f0ead26171274ce0910e0eea6b3755eafe0c19d5f1fee07fa",
+      "seed_024014/view_00_depth.rgba32f": "99432ec47b74e16fad415f02a39bb4fa9999102d9f2fbbe95a07d056f99aacea",
+      "seed_024014/view_01_depth.rgba32f": "0cb5e1406c165ad4526a6bb32eebfa5fdfcb15542fd2c0d4405ea85d45289611",
+      "seed_024014/view_02_depth.rgba32f": "eedae7d3f04b29d012bee7f4e8107aaabba752d5fe44121e981c59cc43604191",
+      "seed_024014/view_03_depth.rgba32f": "d784d8a3ce0adf4dae513d1f5cab4daf3fce5df6507e3144c10e8614457323a4",
+      "seed_024014/capture.json": "532febc3698778295a874f114531f32b13e6d0a1ccc1451a3a5e2fecd72c90e4",
+      "seed_024014/manifest.json": "f4c907669fcd6c8970584cfe478e0241d903276961f0f8eb6be1b6746ea4d0f5",
+      "seed_024015/view_00_depth.rgba32f": "c57cdbb5c76192e85f3804a6a54f95dff4a78df01d3edf4206e45ab2b913d9ce",
+      "seed_024015/view_01_depth.rgba32f": "10c2d1b13bf031c9f8940bf2fbe39eb7cc7e48c36cd859582032e5d0ac0e0bf3",
+      "seed_024015/view_02_depth.rgba32f": "776d641cafce6ecbb29012f36be9affa24a79131e0cb4312621aa2e6005341da",
+      "seed_024015/view_03_depth.rgba32f": "6b7a141ca237f368bc8613570b812fa37769d5eb6f9fe39aad0406a89d494cc2",
+      "seed_024015/capture.json": "72d5c7e2e825c46328b09e6468334a20a119fb65f78fd7b195af1722cdae2054",
+      "seed_024015/manifest.json": "b11bcd6e6415243fcff6eee5ae90d6a6b50b319544d6bcf8650944097d000caf",
+      "seed_024016/view_00_depth.rgba32f": "f4d3de3b308949baed71a22efd9a3132e10d994351c57d1d0df1c596a1c03ba8",
+      "seed_024016/view_01_depth.rgba32f": "d1405314d5968c4c34b8f171a8c7a9d78b82cd187758901a7eceda35d1bd8187",
+      "seed_024016/view_02_depth.rgba32f": "c4fda99de6f4278ccb0ba44127adeaf523f241ff7eaa3dcec40e06a2a8c15243",
+      "seed_024016/view_03_depth.rgba32f": "4820c4d801f9c0d510b715590bd311e60807ee7740fe28b326e02197410837fb",
+      "seed_024016/capture.json": "c824880b241defdc6fb4b4a00ce95fb726e54f35bd99e420284278b1dd2c4cdf",
+      "seed_024016/manifest.json": "b90d302a38ec10a5ea30e45fc74828c915147b9b0d0022484c9f5808f485023f",
+      "seed_024017/view_00_depth.rgba32f": "f413d7d15e09fe42ae554b46ac26c71992df04fdf016b76a23fd946639077e49",
+      "seed_024017/view_01_depth.rgba32f": "3980e107c21a8e0ef98c771158ace56b698b6ea43f7b077b0b7cb6f51bff19a4",
+      "seed_024017/view_02_depth.rgba32f": "882b09cbcc87535c026bdf0a589c750dfa6929ffbaa1c7495fdab7a422c221ad",
+      "seed_024017/view_03_depth.rgba32f": "308ce5668b8d1115bea7042ce116109322ca6e8ec29de8152b5a64ddae8f5c99",
+      "seed_024017/capture.json": "e9c6b9b14c7cea7aab6a4cb89bd797c7ba54f8361cf7fe91e08179d5d21f9442",
+      "seed_024017/manifest.json": "7c2d11cae9908d31e2978b3fccb5ed8f7233dac448a041c76fdd3df8c04b8f1c",
+      "seed_024018/view_00_depth.rgba32f": "6ebf11a99c47dc8c45942d102f510ba6981ebceef90413af062788926da92af9",
+      "seed_024018/view_01_depth.rgba32f": "46ef523c9bb03c5e0f3400c20881f04341d6801016fc9b19b9289b6c20322e8c",
+      "seed_024018/view_02_depth.rgba32f": "1c6642206b1e6739df280715b23cbce5a8187495cd392f215abf7fb784fd0741",
+      "seed_024018/view_03_depth.rgba32f": "ab77a8403579a2ee43cc7c5d6f2269bab7cfcfff617706f79618f812f4ca4d6e",
+      "seed_024018/capture.json": "2a8ce83047cf2697b743fbbdec7c9dc7156baf4b03da45f42afa283af311fe19",
+      "seed_024018/manifest.json": "9403777222c2a6de69b2991985bb358318d64868cef1eddd2a95d40a256c4ed1",
+      "seed_024019/view_00_depth.rgba32f": "f5484dbaaa3c0987dc34446103bd5561a872feca32661518310b108dbff430fd",
+      "seed_024019/view_01_depth.rgba32f": "2659b370d94a15efeabb9b03e474ce58468d440abbe8c928acf31395810c581b",
+      "seed_024019/view_02_depth.rgba32f": "b1575331a1937a739f48f5429751a68b3473bcf4540990119a1966703d82084b",
+      "seed_024019/view_03_depth.rgba32f": "b41bd5da79b2330d8eee4554788906f2cd6ac141fa66d2dd0f661fa095a782a5",
+      "seed_024019/capture.json": "31844d68a4b5ed30929a2cc909e7098f01e5021ab8ecf23500f325e0efbd9089",
+      "seed_024019/manifest.json": "1abc0f615feb26c532405d74ae8fb91383465391a41cd1a765fc0a14c87dae71",
+      "seed_024020/view_00_depth.rgba32f": "b32586ba6e3c01c5f0b88c57df55e325e66d413b7694f51cf72250cfd56dc0b3",
+      "seed_024020/view_01_depth.rgba32f": "e6b6289754a2dbdb638659e7446d3976f78f0d5d313d73f3f51c55876b1d5193",
+      "seed_024020/view_02_depth.rgba32f": "a8da5135b1d5421e102e10572d9bad33e2660bcb2f76f509e36991f1c7cb380e",
+      "seed_024020/view_03_depth.rgba32f": "6c62349370f083571d85b475b71145e2b1b30a55c8ce9063941188c155e4f740",
+      "seed_024020/capture.json": "5ef561c78b2b69d4d56f17e2d0278b582daad86676b71a25102038665a3c8b82",
+      "seed_024020/manifest.json": "c354c0804b6c7667e2263e5f73885f4a0b872626dffc0ee49436a576297658d9",
+      "seed_024021/view_00_depth.rgba32f": "0079da5180c82a0961e75372d0eec83ce43507140825adf6d67ccf68951358f0",
+      "seed_024021/view_01_depth.rgba32f": "4a63511110fe9a29be6ff05833c8d34ffd875f918c17e274064ba220d1119ee3",
+      "seed_024021/view_02_depth.rgba32f": "33401bb74fbab5aa4f0765e2433d2f231ca4bf34937be9e34a36cf5cdb03ac07",
+      "seed_024021/view_03_depth.rgba32f": "3f1970ae7296c30b011e7723abd04efefe8e859738bbe2ee4143de5ed04890bb",
+      "seed_024021/capture.json": "15dae77ff9393bc3477d33757f4ce2a4bddd17457aaf78acc807af9bb3b8fd3e",
+      "seed_024021/manifest.json": "84cd0259dfa9f979e568b40260a5ec58af28d4943a1a44677a7c69142c47403e",
+      "seed_024022/view_00_depth.rgba32f": "919e8bcd6a7405e7493bccb10ca716ab8b7d3f8880d2550e87d6e43421c7c228",
+      "seed_024022/view_01_depth.rgba32f": "0a917a432ea5c8fa129bad08cf96f6c73a6220688ad8a64589a32f52b137f2cf",
+      "seed_024022/view_02_depth.rgba32f": "29018b680443e718975b686f791b8d6144d779bab89f3729376a29a100938e66",
+      "seed_024022/view_03_depth.rgba32f": "1a04ab481352a4581c481a0636ecb6d0ed6b38f49f8ac12fe056861bca1fffa9",
+      "seed_024022/capture.json": "06e555a13a9bd94281f4b2d14b85defbf9c0be5618536088716bdd74276d36ef",
+      "seed_024022/manifest.json": "b9ff5c388b428ea98a2a1096103ae88ab05a511647825f45585990475964acd2",
+      "seed_024023/view_00_depth.rgba32f": "d7da7df230dce5c6fc525a0f00d51f70fc92b1521d71d0b1f2d2fee570866720",
+      "seed_024023/view_01_depth.rgba32f": "b66c6aa3a8ada17f276c734bb1050bec63cbf4717301ced32e5118c82d433781",
+      "seed_024023/view_02_depth.rgba32f": "7fe9a7f698c77f31e7fc0583ade69ca07a17a68be60cbe926695f2ff867c1d70",
+      "seed_024023/view_03_depth.rgba32f": "b1c64225ec7c3a85c26de2ed677205cea99ac006a2e89696ec2b5e45f631a616",
+      "seed_024023/capture.json": "39d8f1574adc5e11dfbf3ffdee3122668d4679b15b4adb7a94a16aafa29d29b9",
+      "seed_024023/manifest.json": "ad1c6d22d8529e33b38506c04b7b4b626783e43f70e2bf2bb011b1fc208500fa",
+      "seed_024024/view_00_depth.rgba32f": "29dbf0881bdc484f8a0a9f93dd05db1ab65855d0e1a9214a1e8f50b80144b02d",
+      "seed_024024/view_01_depth.rgba32f": "707e7df25015792b31f41167834429ef0dea562167679643133f6db3be51cdd7",
+      "seed_024024/view_02_depth.rgba32f": "975dac5033803890b6332476176c73521360067e98e8cd070ab72dc60bd607e8",
+      "seed_024024/view_03_depth.rgba32f": "8ac5f81817beb64ad9a220bbeee105cc9178c4cc14e7889c2cb449d7160c9b5e",
+      "seed_024024/capture.json": "390346a3f7b1c705f6c0a3815bdc15baf473fe8690a38d1d90d5e7819a5048d7",
+      "seed_024024/manifest.json": "4bcbab112926dbfe02d189f380916677c1196375e11fe3920406798ab846128a",
+      "seed_024025/view_00_depth.rgba32f": "40ed411004c0d063388860bb384d4a2c489f21fe542076c7820ef75c39a2846b",
+      "seed_024025/view_01_depth.rgba32f": "38a6433be0b1a2c21c36da0de57d665bef463349df760ef83055c7b23685db79",
+      "seed_024025/view_02_depth.rgba32f": "72efa345758d17c5859e3ae9ccab8ececa77cbcc64a9455b6c7386d61d17a0ab",
+      "seed_024025/view_03_depth.rgba32f": "f187b9a8ef4e16bd5129e8f10641f80e713d1d5484a5848564bb3688c60ef5c7",
+      "seed_024025/capture.json": "2bc2dbedb10ed6537048a9075a19928fb4103b0395d41900425f483cdbace300",
+      "seed_024025/manifest.json": "5a964dbab14cd12c3ecb049e86106cae3e8cc3895181acd59d8d42bbb4535bb5",
+      "seed_024026/view_00_depth.rgba32f": "41fa41cf9708fc9eb8fc9ce427e1a76ee987c883945da2bbf6965ca179356f4f",
+      "seed_024026/view_01_depth.rgba32f": "042a5cc7e84cfc14fc2ce8c1d8833c1f0f524fde8e425203d021872943dd8bf1",
+      "seed_024026/view_02_depth.rgba32f": "953885954151f041d601cfb31912ceea6733c65f8d5da646ba160d338b84df2c",
+      "seed_024026/view_03_depth.rgba32f": "58f045b5f77a5f6ad3e718345d03bbfbf38ed9b231578a6e347942cc8e0b2319",
+      "seed_024026/capture.json": "41fc12c2ef478fa00f8a20bb86c9f21338cfa979f8dcd641916a59b8c393f5d9",
+      "seed_024026/manifest.json": "579eae15bf2490d874c8e8fc16fd34da7af13fe9edacfb3d492b157792f268ba",
+      "seed_024027/view_00_depth.rgba32f": "3eeb5097ef4059b4734d395afefd43dd20e63ebe4a7fa4e8d673a8bac34c2349",
+      "seed_024027/view_01_depth.rgba32f": "07326c12fa8cc158050c74d239f6fd29121ad45a8626ea690852b2f0dfc63a32",
+      "seed_024027/view_02_depth.rgba32f": "dfb70791f5a756a540c0a600d6d8cdf4007a5e1f257314aa1e318f1a3b24b195",
+      "seed_024027/view_03_depth.rgba32f": "f61bfe98aa431e686204b6b8878b1f893d7aed255b5ed8fa4650d382e5af2fdc",
+      "seed_024027/capture.json": "585e04d28e202b13efa29053ad816a8e1fc3175b4ba00f13a7a019d2b2d57969",
+      "seed_024027/manifest.json": "cf1d18c0d8ad92fa160cfaab277ce62cb4d5a4d0c25f322b9f56790d3e840f24",
+      "seed_024028/view_00_depth.rgba32f": "c8c56a90a9da89d1f4cfb5922dcff51c28268ec301c998f75808478c5adacd03",
+      "seed_024028/view_01_depth.rgba32f": "813ffef7a1cd586de2a57a35de43b117488b141f26cd2f032e4e4535633e05a3",
+      "seed_024028/view_02_depth.rgba32f": "982920de1db7af1e4296a1a27dac747849713dea0216b6722365129b40f15206",
+      "seed_024028/view_03_depth.rgba32f": "01b1f7ccb075d8e84bf837594fdccc58e7e92a7b16a071db1e2254d6241dab79",
+      "seed_024028/capture.json": "b6e940927511079b8229a26039c730e6510e93d9abc902185bbb3e3daf78d16f",
+      "seed_024028/manifest.json": "12f2ebae1bc81679714ca11bf995f71f8aaa67245e188615c7dd841c43081a29",
+      "seed_024029/view_00_depth.rgba32f": "5f60ba9c1aa9d5cc3053194a275763e7a9da949436de21137751fed310c0f1e1",
+      "seed_024029/view_01_depth.rgba32f": "7b4840dc74fa863555604b3ad178625f8de9db17827ca50ccbe976a5a872d77a",
+      "seed_024029/view_02_depth.rgba32f": "5e97fdb11ddac59cedcc717b877032d669b6631d21ec605bb048230608fb66cb",
+      "seed_024029/view_03_depth.rgba32f": "74108b87d9515e8bb8ed0375204f708bdda446547da46c370d98b4a4b805b15d",
+      "seed_024029/capture.json": "c5f87822cbca3edb9f539e96909a188b76927004b5b232f33e0ef8852c01f679",
+      "seed_024029/manifest.json": "c02e08740fdfbc682c57abdfb4d2945836878dd2c4da9b289b71a8376b37003e",
+      "seed_024030/view_00_depth.rgba32f": "db590e9509e4da656aec842dfc779548aa6a71ef5c3d3a493ea30a0de0737cc0",
+      "seed_024030/view_01_depth.rgba32f": "ec198a2947325c652b8649ee1a07364b176f52a5cb162436c6aef4f3309e4acb",
+      "seed_024030/view_02_depth.rgba32f": "85243a48c43cef18e0db543f0ec1209ed7e40640b3bca1255e72d81d672b024e",
+      "seed_024030/view_03_depth.rgba32f": "05062655ca84d4d77db569ddf44326a5af86ce2794ca038da3e7f2c21e76ffad",
+      "seed_024030/capture.json": "40382f1408b57337d92cf81f3d6cc217fda07a7789b60998fad41613980a2f95",
+      "seed_024030/manifest.json": "cbfdb216357fb02d659cfd01044477f08f8cd6996d9128e532cfc0c91fe61c21",
+      "seed_024031/view_00_depth.rgba32f": "21d4188f77bdf9cf36c6bb6da7c06c111e9f949bb746f9fbbca5ae39db0b5c24",
+      "seed_024031/view_01_depth.rgba32f": "e77dbb290b018bcbcdb25fe1eeeeaafe7b121535ba16893487222478f1cac03f",
+      "seed_024031/view_02_depth.rgba32f": "8d7c771c9d5d50807a6bdb3862408967f7c3e2a0fb8a882941a4257f4ecdc25a",
+      "seed_024031/view_03_depth.rgba32f": "eb979adc8d7fa1ba39f46371d86601f3eae174b4a5a28f6aafc815c78580c07e",
+      "seed_024031/capture.json": "44313d4d258bc8e4c8bd8f2ed5616a55477589116fd1461a1ac9502cca920d89",
+      "seed_024031/manifest.json": "43f0b2f579c64082a69fa2ec95dd626878a776bfc0c436bf6e6639794d190b03",
+      "seed_024032/view_00_depth.rgba32f": "1106a7f45812256c82a4e2ee300da5926ea1604a5e9a44ce68e027fa1b64e674",
+      "seed_024032/view_01_depth.rgba32f": "2078e20b26e1d61b605545ea83291a9070a72ca1f593a038bb767c8d9156e777",
+      "seed_024032/view_02_depth.rgba32f": "82006627002e3507a6dcd0d4370916e9e5793bdd671ca4c681bdd6b6054e8cc7",
+      "seed_024032/view_03_depth.rgba32f": "6f857670dbf76033c3a7c7ec67a2cd27966af675eb5263ec63096bf3d5588999",
+      "seed_024032/capture.json": "4185aec468f20bcaa8c6a4eecc6df592023d4277300e0fde5bf1b2e25743f639",
+      "seed_024032/manifest.json": "c8e076952aa4efd4fafacfa1453658b45a8e439b492c671bc4d79988ca9a9783",
+      "seed_024033/view_00_depth.rgba32f": "53256b06cd0a076691bce59a9e59e0e2029e084e9a27a1bd019a3568a6aeae1e",
+      "seed_024033/view_01_depth.rgba32f": "a1126f89323881ec32c0d619ee58c5dfea8155ccd65938fbd44bd9a1a528eb56",
+      "seed_024033/view_02_depth.rgba32f": "c90a49e284025f0db44567f37b6cb0b9c45a5d2cc7edf9535a59a1e4f666edbd",
+      "seed_024033/view_03_depth.rgba32f": "2793bf5c0da38471f90957dd46edb0a0dcd60a7267658ea22c4636cdcff97e29",
+      "seed_024033/capture.json": "502afc462ecad7611e120e2343915ef9f3f05d95c849bdb1e5bc568fc4e1541f",
+      "seed_024033/manifest.json": "41ab008801a4b1bc45d8d12c97b9220f09ad740f1b5611315efe0db7bfdc57dd",
+      "seed_024034/view_00_depth.rgba32f": "88108ddb31ce73ff6c9f914a9fdfa27d52b615b89a3bfd401b30103144ebc903",
+      "seed_024034/view_01_depth.rgba32f": "7fbb451e077645a030242044b812753a0d0cb48a982c1970d67384640d7b247b",
+      "seed_024034/view_02_depth.rgba32f": "50e54a36b63726614b9662269fc9abe604753c7b2263a0a32d684e59d4a340cd",
+      "seed_024034/view_03_depth.rgba32f": "4b6101d364be5492b65c02a56eb431d782451bdf289f478878265cb4afa3e14d",
+      "seed_024034/capture.json": "b992b710d8c9ee7cb8741a435a9dd5790261840dac1a8f67f2c189572c6206e9",
+      "seed_024034/manifest.json": "9bc150804b9f6a3ae6f42a64404428bb4161bfaddeac12ce84acd5e149ef426c",
+      "seed_024035/view_00_depth.rgba32f": "e249299b8cc83106fee470d435c2a546f664be1e582c7e8db94e69873cd9d0fe",
+      "seed_024035/view_01_depth.rgba32f": "a6c803a5c151f4d560a82460ae1855870073d8ab8acb04862be5ad7eda87c407",
+      "seed_024035/view_02_depth.rgba32f": "eacce4568a296234d6a59e9582a2f81f00fb2a807a96e498a294b29fe3a2445e",
+      "seed_024035/view_03_depth.rgba32f": "a696ccf6c93f6f1bec28f41c2f4c40eb13a3af4103e92a4f0223d75e604f0df2",
+      "seed_024035/capture.json": "7302b3c20a19f7fd78050433a42b3d8e6e2e7b3978d8f0d70691e1743ca21267",
+      "seed_024035/manifest.json": "1f4b07c3d7e6fa2ba9d36c9136a037a02e7b32ae35c18320baf5e021099a4533",
+      "seed_024036/view_00_depth.rgba32f": "26a78e279948f750707e7f83e7d946b4af181feba2005e68af20689971aea51b",
+      "seed_024036/view_01_depth.rgba32f": "ab4cd4a12ebcab6aaa4fc05bd66b883921c462cabc61facee136cd73cd45566c",
+      "seed_024036/view_02_depth.rgba32f": "86a4b644dbd6a4829327c3a250d30b7a78be9ba36361b1378a000d783e8e6e62",
+      "seed_024036/view_03_depth.rgba32f": "a6dfca5631105eb190d9a66eb71f937886c61d02b681c3a62958e1fbf5d91177",
+      "seed_024036/capture.json": "d3b2de8de7920c6c32f706c9ac0c6bafb01680aa1b8c351a134e503771a9a971",
+      "seed_024036/manifest.json": "aecb32581c783e832e09c3a6eeb0c70a4f464d5e597b8b7dbcfddce34646f650",
+      "seed_024037/view_00_depth.rgba32f": "9fc3595953be09574a311799a9d514a3b91cfe170d5f25f8f54a03bd53ed9914",
+      "seed_024037/view_01_depth.rgba32f": "68a761b9b27316da5b4b59501428dcbf578254e48e9539ed2d53d815f959aa40",
+      "seed_024037/view_02_depth.rgba32f": "fda44ff44bc07a05baddc3b901b3c94d9857c8b31dd64d4091bcb746e0a194d1",
+      "seed_024037/view_03_depth.rgba32f": "5afc6c29589e379f244f2065daf0fd9f6879018382fdf365557dec4bd4eebcea",
+      "seed_024037/capture.json": "53148187610848d1cf1ce0e42c4077747048d5260573f72383fb1a27a4332124",
+      "seed_024037/manifest.json": "81fb81e09308a7877bf8621a6a847c3ce0b98b010497dbf3904ba3e81936ca24",
+      "seed_024038/view_00_depth.rgba32f": "6e0540c538be814559641438f8d8a310ab6e8385df372edc2938471851655d98",
+      "seed_024038/view_01_depth.rgba32f": "a2828d01012dfc7f29fe280cda61e5ee98a9a0697cd07d24452633910997887e",
+      "seed_024038/view_02_depth.rgba32f": "dfe9bd63a1d3c31452382cae745b16e319735013ca1065333ece89965282b47b",
+      "seed_024038/view_03_depth.rgba32f": "e9655df5d2d7fcc9ada27913c140e1133b8fcdf251005b8450d142ddabf13a2d",
+      "seed_024038/capture.json": "75b440b915213dd05786cb8187d1dbed5f5913b46c6245d6f5e2cf8acadf00cd",
+      "seed_024038/manifest.json": "d3b975c7879a956de1820230847c2e6cad988fd9385b5704a5f318cd393a9563",
+      "seed_024039/view_00_depth.rgba32f": "695844d7354c27d567b3a4cf0553c5d2509e69bb4f31783c2caa056d4c630ccf",
+      "seed_024039/view_01_depth.rgba32f": "a7d7e77b06befa77d6bb6fce03d745ee5baee5f22e57348c0b1de596da99e074",
+      "seed_024039/view_02_depth.rgba32f": "968ad6fb1b0c1af22521c8312375eec2e95447045f1956d5e162b30f026bcf0b",
+      "seed_024039/view_03_depth.rgba32f": "c3b64c873dd514d935f1b9e135230b1c62d3b7150a630dd3737c263180b35344",
+      "seed_024039/capture.json": "4ebec32d52904b2420d2b9ccbb9666394b45eb05ed11c169ca345d74090f4325",
+      "seed_024039/manifest.json": "16e751794bd6c31645a10980dcea8a7b62b93f7181ab13ac3afe8f778718fc45",
+      "seed_024040/view_00_depth.rgba32f": "65ea17ec0ae8825df90081ca5a276e108bd857b8d6dbb23f000177ae74c7f86a",
+      "seed_024040/view_01_depth.rgba32f": "6e87396f90f32d74a6fc1400c52f360b95b0aab99de024fc4402b40ef32657dd",
+      "seed_024040/view_02_depth.rgba32f": "01911bb362cc2d44dc2cd6cb0bd3b45986ef7bead29591a743122d35165bb8a1",
+      "seed_024040/view_03_depth.rgba32f": "b6c2393b1096c66b9d73dc88b4fdc867d07c653ed053b86cc2a246266c9cdbd8",
+      "seed_024040/capture.json": "9cf74311bfecc7843efa422e9630c5506221182e2e838982d40f2cb5ee7fe0ed",
+      "seed_024040/manifest.json": "c1d1f4a31891abd5a75720105a5777cf0a95803458cc356779dcfc572a237d9b",
+      "seed_024041/view_00_depth.rgba32f": "e4a0d66444a13c27e699ba13f8a19b64955931b885c85e6eab704c6595c5d734",
+      "seed_024041/view_01_depth.rgba32f": "2a35b510d54f9a631134f1153fb96733db99e8c2c99eae04f6b017751c2586bf",
+      "seed_024041/view_02_depth.rgba32f": "72741fd36e2db6dd3a82285fe9ee2a8487d2acca26770a5884f2d40f48bc7476",
+      "seed_024041/view_03_depth.rgba32f": "42073d202bfa5722fec2d0f4a97fb9c2326c0d295dde761a1d26364a6088d70b",
+      "seed_024041/capture.json": "4198ce2595aa514fe99759537dfb4a42fb1afec8f0c370bad90f1e1401c90915",
+      "seed_024041/manifest.json": "454821ae3a0fb93a8c05fecfe1f3f0126b2142e5f183e7d0127bd2cb56736650",
+      "seed_024042/view_00_depth.rgba32f": "e1d54839ba5fb69fbe31b5008034abb7a2f6b66f0e28987a2f86b10d497d3079",
+      "seed_024042/view_01_depth.rgba32f": "887653c0036e9315187e37220125196d8bba7f7087c5cbc97b4b97158f02a5bb",
+      "seed_024042/view_02_depth.rgba32f": "047131e320eae1cb8a9f99dc669fb1c662ba4c6da460aec863d76f9a9a565db4",
+      "seed_024042/view_03_depth.rgba32f": "31362375aaaf5eecf3e3ff1212250681d2a8b4de6b004b0eaefa7921303d65fa",
+      "seed_024042/capture.json": "349651224faf98f9fc8ba915a4866f51bd37166f4d6406be8e2bb6f2d826f1f4",
+      "seed_024042/manifest.json": "9390630662ab8bae04726662f288e9c1690b94845ce73eb4fcd72bbe1838b5df",
+      "seed_024043/view_00_depth.rgba32f": "919833c9b80532fa8ef35df368b0eaf259612906f9a0941b7c7db844b88e3734",
+      "seed_024043/view_01_depth.rgba32f": "907296a3083d9c649ff45b9c97b9dc4c52c1cbfd95bf2e8a8bfd56573a591aab",
+      "seed_024043/view_02_depth.rgba32f": "ec62499a29f32df85102625e96ac44c4de9aacea0cf07ff0954337a9e89b50f1",
+      "seed_024043/view_03_depth.rgba32f": "f4728e437c58aa331b0cf35dc0559d273842ca9b808da0db3680c49f8ca62b87",
+      "seed_024043/capture.json": "34411bd1637626169e83a93ad5246deea37ecf89f48ce0016762c65cf79e5f29",
+      "seed_024043/manifest.json": "e87a76ea27619ccef626ca796f4c8b6d44abfed1393cba04e9f1f0ac4a609e68",
+      "seed_024044/view_00_depth.rgba32f": "45cecf4170624bc46ccc44a6b9bb306ef2d2c0cae3274b908e7938ea97a943ee",
+      "seed_024044/view_01_depth.rgba32f": "76657984e221277446b916db9d4916de96f791d85f1f175e5e9b689730def248",
+      "seed_024044/view_02_depth.rgba32f": "3a97c1480e22a6e4e59c6d699a3732a87603f812587608cdf690f7994b4089e1",
+      "seed_024044/view_03_depth.rgba32f": "37c7489eceb40021abb496bcb192196a788f56c6955fc2252658522385cda7ae",
+      "seed_024044/capture.json": "2d4e14ebd0c72447d1a03c54f28e2c51baec7883c3b396ca9559e63444652db6",
+      "seed_024044/manifest.json": "98130dafa47fdb285068aaf4886d11f4c685a5dfd779646531451972eeb4bbab",
+      "seed_024045/view_00_depth.rgba32f": "b1f2297ce2454990288aaee487c8e2ad34c3ca34b566ed944028afeddd496a5e",
+      "seed_024045/view_01_depth.rgba32f": "4f8095328df74615f3c95f5e795f8afc49c8e4a5b2a48f2ef2098a945ff68587",
+      "seed_024045/view_02_depth.rgba32f": "1d070411e0d92d1c9c4ad4c8a2d947b1e8362e55ab581d3f2532f836a99e16db",
+      "seed_024045/view_03_depth.rgba32f": "3a0bf582ce6af4140291b639abc709d46e8b092b179c4593b1396f3abacbd272",
+      "seed_024045/capture.json": "4bf827bedca087cae649beebcaf1c658c463f9539e0a9a07c1b77b295e25d750",
+      "seed_024045/manifest.json": "3338f8d370c9c5fb7753ee195aebbf9d56b129a07365685f66fe3f94f4f87992",
+      "seed_024046/view_00_depth.rgba32f": "76be2bc22d0a5b24408adf2b7c0cbbe7d2b168cc36da6a32ced2457110e991aa",
+      "seed_024046/view_01_depth.rgba32f": "afd6512f4966343689ae7c38c68e5f599578ec4e8a5b27976659886085abafe4",
+      "seed_024046/view_02_depth.rgba32f": "9569c642e122748a4efeff49ca1616820e4780c471c13be9928dd1ab5a7b9322",
+      "seed_024046/view_03_depth.rgba32f": "8f3ff71f9c14bb18ef6b14223239c30093f185d38f13914ef06c4d234ed42fd0",
+      "seed_024046/capture.json": "52ec914502f668489b104f6fdcae6ec7936b51d5bf0e244ce794335b5fa54d23",
+      "seed_024046/manifest.json": "65111e401b2df35e1a3ad3a027279fd4a7da0659fd08b073ae9669d8f3d151bc",
+      "seed_024047/view_00_depth.rgba32f": "4afa8fc95bb98d696e850bf043c9dc6990d3e28780aadfc00d1bb7f488c65fb2",
+      "seed_024047/view_01_depth.rgba32f": "369b9a829a058c7ce5bba660f635e58396524ae9ee2b41b41286593cb5f83ac8",
+      "seed_024047/view_02_depth.rgba32f": "cd6b73783c8b4613ef66c9b5821af8cb6b8873599421a30b98aaa9c8b4012991",
+      "seed_024047/view_03_depth.rgba32f": "841d9835c2f4ce0e6fc3f6eb1f90ac1508b2840a43c3ffce970277885f33ef0d",
+      "seed_024047/capture.json": "ea5aa9be1151d5a8e1186a87d34635eacfcbc17e16838495bb8e92a6cca5c320",
+      "seed_024047/manifest.json": "04d25e2b1c894e551adb8a41f73f09a2ddab38dbb5fb08bd70fd6526f2a4f2d8",
+      "seed_024048/view_00_depth.rgba32f": "0dfe36f1218ff1d63f27e22f1de170e11a3b1d706e0645bf8966ada79c83288a",
+      "seed_024048/view_01_depth.rgba32f": "324d66e965c997165180c825d965cfba3382afad6d3081ed572d1ee4f3ca56cb",
+      "seed_024048/view_02_depth.rgba32f": "d2bbc1935d998f76fd57b75a0a790a443281abf5c94d67b7e167fbc54770655c",
+      "seed_024048/view_03_depth.rgba32f": "df89665d054fbd092c08fda6de2b8340e330c3af10a074135373955d4d1b5c5c",
+      "seed_024048/capture.json": "47fff733632e346d51267583f83d7807d1706b957e556a9255e37aa909ae40b7",
+      "seed_024048/manifest.json": "3b3f3d4823d308fce1f8bd0018dfb87223b5bf4d81c5007c868db6e1d29f005a",
+      "seed_024049/view_00_depth.rgba32f": "ebc15fa2c436a41ef5211439511fb9b5b9aa9fdb766e7f41d23fa91a0a3f36b8",
+      "seed_024049/view_01_depth.rgba32f": "e3dd64eb5f2d8e9d689c0b5bc7227df8972497dec50f8ad4fd25075c28b54eec",
+      "seed_024049/view_02_depth.rgba32f": "bd44521e0c2d768f1c481f40d9383a73e713a13e34c1f2bd8cec7c3b83178de3",
+      "seed_024049/view_03_depth.rgba32f": "b311c943f2c0c025894d09483e6ca14c48a5e7b0de4333d8f77cafdb08f6682f",
+      "seed_024049/capture.json": "c9f31aa41728d0c9ee856964b5977216c3c1daec672319b8bd5c1db77204f77f",
+      "seed_024049/manifest.json": "85991559aa7445b8a4044a0b9a273d531b014733c3e15bfec2cd6f65918d47be",
+      "seed_024050/view_00_depth.rgba32f": "89df9ebe05bae5e487dd5d5f32e9e0e13dc9e21a6a3f64cdc34c963ac39bd065",
+      "seed_024050/view_01_depth.rgba32f": "68cb40703f5ddeb636b03a85cddfbe2abae642609d586ff15a31af0b389e87bf",
+      "seed_024050/view_02_depth.rgba32f": "945ef213fb1ae2555c20ba6017678740b4db7555dea2efe3119ed3a0176876ef",
+      "seed_024050/view_03_depth.rgba32f": "0f1403172d73373d8b975a26f113f46f0d1cbdd3edfef5689079ffec4dee63df",
+      "seed_024050/capture.json": "97f4ef4c42c5c6f06adc09d5ec62a238b01e72fc377176288f1c5956fccd4b52",
+      "seed_024050/manifest.json": "2f4f5751dee8a910ead804a893b636d436136fde5f8c0d9b2b547af752719826",
+      "seed_024051/view_00_depth.rgba32f": "424eb4ca8a8c6eec23d3105c3af77dff08d4310ad0736aa0d77cbfa139a494fd",
+      "seed_024051/view_01_depth.rgba32f": "e1f0d3c0f8a13625c45d23dd30bb506a11ac0f18c80bec94be54621672229b4b",
+      "seed_024051/view_02_depth.rgba32f": "c51ce8b14f8fd64f95fe4427dfbda241bd8eb48d60cb84e5f1c7f6a1f3859d68",
+      "seed_024051/view_03_depth.rgba32f": "04117a92b93cff0d5c70486082afc9b46d71dae25e11a8ff56635b9bf4206b07",
+      "seed_024051/capture.json": "e1c6fe0828cbca7e30a0713a5b587bf24b5e0d38442a4e5a11095adca43d5fdd",
+      "seed_024051/manifest.json": "f6e9617747d8033b6736849a460f22e48e999ea065404f925051dc865918d50d",
+      "seed_024052/view_00_depth.rgba32f": "89c1770449fa04f4121ce067ab04d5a7337ddabcb17393c81124f694ad0ef524",
+      "seed_024052/view_01_depth.rgba32f": "f536f4b89203c4a2c3843f6b98e9f168ab2a8d5f4295b6152e440dd118ede3be",
+      "seed_024052/view_02_depth.rgba32f": "375d929b2bf6d4e4c77070dcc74c29bc6c631162295e80ee8f084aa171e3cc89",
+      "seed_024052/view_03_depth.rgba32f": "2f6f5a84ceb89205894f4d9aaf6fac1aa7f4c357c89d44ea10ecf60622d3b6aa",
+      "seed_024052/capture.json": "e9a747d0c6788265d3756817a39d57d6518fe12182de29fc61823297b9109eac",
+      "seed_024052/manifest.json": "9d62d51e02272dee40420bacbffd47bb42c91229ffe60659a5257d0332ba926f",
+      "seed_024053/view_00_depth.rgba32f": "faff6c809865d79dddf69b6fcfbd3162309351d68c541c4d72b71fceef09ed52",
+      "seed_024053/view_01_depth.rgba32f": "9af605db7b384064977358249d58c8def735cb00a6ba16294975817bf8f4d3d6",
+      "seed_024053/view_02_depth.rgba32f": "44999f0e8d039565bee6f1323f5a5cdd6b04cc9ed55adfbe84ee46048c45fe46",
+      "seed_024053/view_03_depth.rgba32f": "6d7241a7bf629c86fe2c3bf5819f0bcd7f6de668fa28b35b0a3521368e216ea7",
+      "seed_024053/capture.json": "f75cd926243cd614fcbf21d6b4303feedbeedc60e42d9e5d44d616abe1907ab4",
+      "seed_024053/manifest.json": "d004b0ef98a2c5a1b6d49fca62f83a60296e28aec663bb8bd236360b613f2a9f",
+      "seed_024054/view_00_depth.rgba32f": "61c8f03a20eb56256a985132425ae4d4495677a2eada8dd8d05adbcf49201ff0",
+      "seed_024054/view_01_depth.rgba32f": "caae7e6984d16562c640036b7df9ecc511aea57f6e574297bd3cf9b5080b41dd",
+      "seed_024054/view_02_depth.rgba32f": "5b5dfcd1059f527c36bea891ad0fb93e2bad3f4d12ce7557707e948e83dac658",
+      "seed_024054/view_03_depth.rgba32f": "ac4b7e10b626e3b51f5ed792bd57c56ecd0354dc490a8137fd51feab706891ba",
+      "seed_024054/capture.json": "04074602a81ddef8a47ef55f34b3acd79466ba7d21386d418b52d4e660c87c86",
+      "seed_024054/manifest.json": "0b31acf73575be0e0ae911468dc31e1ba66d773f780d6a15c43e2b325c84f2e9",
+      "seed_024055/view_00_depth.rgba32f": "2af3ade8bf2bd8e6a4a83259c512593e853c013a667eb823f21af0e992020198",
+      "seed_024055/view_01_depth.rgba32f": "b764b6afd0ceeca0faba66c9eaed6fccb4618f5fa2f4bed1d4f3d0554539ba86",
+      "seed_024055/view_02_depth.rgba32f": "c60079f23cfff40080742803c46d565cfd6fdfca0eb5cc567cc44e377352152e",
+      "seed_024055/view_03_depth.rgba32f": "dd4b5ee31fb251af820e0c614489af639b05da7b867c4679625244b8c5834aa1",
+      "seed_024055/capture.json": "0bacd25bcf5ba18702e48cbfca6038a28583672e14019586b83c7fdc6d4f9595",
+      "seed_024055/manifest.json": "fe0104ea4479a60faa63c09322d4d129cbd14989e249633e15affff94f17cfab",
+      "seed_024056/view_00_depth.rgba32f": "a28b624ec4af4b770671d0b0b13b4959703e8043af35bdae1bce8c6e02ecf368",
+      "seed_024056/view_01_depth.rgba32f": "967f7ad1779a077493b13718628d28ccdc98780d8cc9723f8621340180cc5d57",
+      "seed_024056/view_02_depth.rgba32f": "dc1d066f73c88ae8086de96270bb0de6aa7ecdfe485ac71f270a85f0fa197b18",
+      "seed_024056/view_03_depth.rgba32f": "b8bc5265f51c481c67e70f20a5eabb8f8edf4a366b7091d2dec06af53c4768d9",
+      "seed_024056/capture.json": "ba49809af08f9e142755c23220018a4da35dc627a4ed1e3333dd076bfe5d761c",
+      "seed_024056/manifest.json": "443a31e78094e3633a67fdc861570bd78f296b937b7ef31b53bfaa91be3e7afd",
+      "seed_024057/view_00_depth.rgba32f": "4132e446764c9dceafbd2df5789a427057697a7eb24a9dfcbac35cf2c39575a0",
+      "seed_024057/view_01_depth.rgba32f": "25b75779776df97fbc840825a91400e9029c1339de5502334dfacade24c08778",
+      "seed_024057/view_02_depth.rgba32f": "8568a09f96a3dbe001b25b3ca89b62539cdacd365f5185aa801d72a3ec27bcbb",
+      "seed_024057/view_03_depth.rgba32f": "610ec6c93cdff72b51ae69c749da663e3e2ad93a6d2c8663ab62bff9cbcb3af2",
+      "seed_024057/capture.json": "31b376e4c7e123be875fea898b03984bd59d044308740c34598a3373bc6969a9",
+      "seed_024057/manifest.json": "b8184d67250ccd54c374a3142f896d8d5350755ef78db9a2258228b0f9c2685a",
+      "seed_024058/view_00_depth.rgba32f": "0bb7239bb2f1bbdb0f06a0669bf3564a3c1f829974c8317b83bcd055d24c4242",
+      "seed_024058/view_01_depth.rgba32f": "c31bd8444c75159dcc50efa441e82aaad2918da04f8ba3e8d5a78932a0e9695b",
+      "seed_024058/view_02_depth.rgba32f": "28f5dabd074a10c70f7acc092d561624a90a816ef676f51915fbe2e6428bef68",
+      "seed_024058/view_03_depth.rgba32f": "c95880f8803ec1a6d63043d06bed30033de8e7cbbef48b15e51b3ff41854114e",
+      "seed_024058/capture.json": "3a55f60bf0bd76601bf1a6890a589daed1a3af5ec8924198fb07baad13b6f158",
+      "seed_024058/manifest.json": "17ac159fe243ec4d08fcd6a7cf1a3a81170a0bff00bcfcd96d3ecd2a0dc86f9f",
+      "seed_024059/view_00_depth.rgba32f": "e2549144c6cca40c960117c99057cb412196ce7a92d1f8859a9cea0b4546966c",
+      "seed_024059/view_01_depth.rgba32f": "e61e3acd6954f0a7908710ac717eacedf708ff3a57103fbabaa20fe2343f2b7f",
+      "seed_024059/view_02_depth.rgba32f": "762c8c8b65da4a02e31c4b71bc21747c5be94a5a8cfed8680da5a6cd9c949ac4",
+      "seed_024059/view_03_depth.rgba32f": "6ac1e3aac39e9f8cad0d50484a13da36ea402da258cda3619c750d2b9938f8c4",
+      "seed_024059/capture.json": "9769e38025b91d62915decba20eb2b2f7f1580908ee31c18ed95c868ad5d21e6",
+      "seed_024059/manifest.json": "40eb10fec1a327190efd5c1dc5fd9af1912c76b26850f9b6084763470a384b2e",
+      "seed_024060/view_00_depth.rgba32f": "308ac61fa6063ed29b1d5391ce88822d05d5ab29e1845e906d2601171d400874",
+      "seed_024060/view_01_depth.rgba32f": "9f6947028d32b5cff864692855e6e3f685e8a01ad493ddb71e34861e7786a346",
+      "seed_024060/view_02_depth.rgba32f": "9d4d63d71eb442e453ec823d34df93b8a917e1aba1ee38f5a5ed673f4548d109",
+      "seed_024060/view_03_depth.rgba32f": "f4fde7374d1c8dacbbe4c05885d54d4a78dcab0259f10032830ea10dbf45bd65",
+      "seed_024060/capture.json": "053cdfebca43eda4f97af4408f6bd9e0d1c430befbd205fd4e062e8958e3d12c",
+      "seed_024060/manifest.json": "c4a6b6be2f54e09cfe12ee9eeaf3d383a2c9a57a709156cca40451eca0b307b6",
+      "seed_024061/view_00_depth.rgba32f": "bd651b839241600f72972b64b7c75f3749b0ab9c3d2ac3277006dabd53a8477b",
+      "seed_024061/view_01_depth.rgba32f": "d4735a2928aff88d0ae8963856e38b24589cb738421c26fecf673e32d6aa2341",
+      "seed_024061/view_02_depth.rgba32f": "b460e2c4013efa9683addfcde8ff80ed9acd5010d243110f770dda5c00378f86",
+      "seed_024061/view_03_depth.rgba32f": "6fb43560859dbba1e0ff063641b64a1256c78c937d1e7ee6a423487c791b448e",
+      "seed_024061/capture.json": "cf4969dae586a55a481dff00662108f87884e7c66442d3dc51289ea3cb98a441",
+      "seed_024061/manifest.json": "f1c1fe5dd779d315aa8a5930faab41ae6494b2b45ebdd5acdb2c7d7760ffdf72",
+      "seed_024062/view_00_depth.rgba32f": "9476345c2be21d792d974ff874de147e2a5e0071d28556a5e42344739fd42d93",
+      "seed_024062/view_01_depth.rgba32f": "e1a60945c78ae417f9c9f2983ff17e1d1d936e51da2c976b3b4a7fa904ca3d1d",
+      "seed_024062/view_02_depth.rgba32f": "3a9a67c195648691d3386f036a0915861294491d48d4539c8a91548cdb53b4e7",
+      "seed_024062/view_03_depth.rgba32f": "a4bc3e40fff85dab117d2412cba8f1cef18db357d0680723f672ea544beef112",
+      "seed_024062/capture.json": "a39e0989e027e3e2c8074f7805d197f891c8aecee9ddfaab47b3bbdf0d0cd09e",
+      "seed_024062/manifest.json": "e18ccab1467dc6eedd9d1c1f8d6197b80e9bf4a9b0c59ba3a48083df20578832",
+      "seed_024063/view_00_depth.rgba32f": "828cf5f9430f2646a9eb3bb0aefe712585fd6f6522468c4eedaeb2333faa5866",
+      "seed_024063/view_01_depth.rgba32f": "714f2025afb7cc7a5256c9cc0b6efde361a8f85a4f844c6c34d2bd37b1a3bf53",
+      "seed_024063/view_02_depth.rgba32f": "db88bbfe4fa8485edf0dedc82a382010d96b648fa8d57e89dfcca41a2dd1ba59",
+      "seed_024063/view_03_depth.rgba32f": "2711ae5265e759f76a7cef43c3c62bdb43277ca84aa76c4c804cb676cd0b9b34",
+      "seed_024063/capture.json": "f44a5fd29998dba233181292bf5995a78a0197df6cb948e8c007fd3597327cfa",
+      "seed_024063/manifest.json": "d4cf8f433f9506b0d0f8844f889b80c4b8f1e4cbb819c143743490f3a7517e0f"
+    },
+    "script_sha256": "ae660e994da1cdfe1aa8f3085252943583123a52ec16759a9f1bd9a6135cc2bc",
+    "definition": "Minimum of A-to-B and B-to-A visible surface pixels / all image pixels, paired with camera zero at equal time. Depth match uses nearest pixel and 0.01m + 0.002*z tolerance.",
+    "limitations": [
+      "Placement uses approximate boxes, this audit uses rendered first-surface depth; neither measures image matchability or downstream training utility.",
+      "Glass is opaque for annotations; transmitted RGB content is not measured.",
+      "Only captured timesteps are measured; moving people can change overlap.",
+      "Pairs/times within a room are correlated; scene minima are also reported."
+    ]
+  },
+  "semantics": {
+    "occupied_primary_rooms": 45,
+    "primary_rooms_without_person_label": 0,
+    "class_pixels_threshold": 32,
+    "classes_per_view": {
+      "count": 256,
+      "min": 7,
+      "max": 18,
+      "mean": 11.37890625,
+      "p05_p50_p95": [
+        8,
+        11,
+        14
+      ]
+    },
+    "occupied_non_neighbor_rooms": 60,
+    "occupied_rooms_without_person_label": 14
+  },
+  "benchmarks": {
+    "baseline": {
+      "source": "out/paper_v18/baseline",
+      "summary": {
+        "adapter": "WgpuWrapper(AdapterInfo { name: \"NVIDIA RTX PRO 6000 Blackwell Workstation Edition\", vendor: 4318, device: 11185, device_type: DiscreteGpu, device_pci_bus_id: \"0000:01:00.0\", driver: \"NVIDIA\", driver_info: \"610.43.02\", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: false })",
+        "capture_engine": "capture-v27;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=5;surface_flow=1;indoor=17;multiview=1;ovoxel=2;glass=2;hair=2;bounds=2;position=2;tabletop=1;finishes=3;seating=2;activity=2;playback=2;exterior=1",
+        "config": {
+          "animated": false,
+          "camera_grid": false,
+          "cuboid_only": false,
+          "depth_format": "Linear",
+          "draw_obb_gizmo": false,
+          "draw_pose_gizmos": false,
+          "editor": false,
+          "gizmos": false,
+          "gizmos_alpha": 1.0,
+          "headless": true,
+          "height": 240.0,
+          "human_motion": null,
+          "image_copiers": true,
+          "indoor_camera": "{\"path_length_min\":0.03,\"path_length_max\":8,\"long_path_fraction\":0.45,\"multiview\":null}",
+          "indoor_density": 0.6499999761581421,
+          "indoor_gi_rays": 256,
+          "indoor_human_density": 0.25,
+          "indoor_layout": "Mixed",
+          "indoor_quality": "Auto",
+          "indoor_seed": 12000,
+          "initialize_scene": false,
+          "keybinds": false,
+          "material_grid": false,
+          "max_camera_radius": 0.0,
+          "name": "bevy_zeroverse",
+          "num_cameras": 4,
+          "orbit_smoothness": 0.800000011920929,
+          "ovoxel_max_output_voxels": 16000000,
+          "ovoxel_mode": "Disabled",
+          "ovoxel_resolution": 128,
+          "pan_smoothness": 0.6000000238418579,
+          "playback_mode": "Still",
+          "playback_speed": 0.20000000298023224,
+          "playback_step": 0.0,
+          "playback_steps": 1,
+          "plucker_visualization": false,
+          "press_esc_close": false,
+          "regenerate_ms": 0,
+          "regenerate_scene_material_shuffle_period": 0,
+          "regenerate_scene_mesh_shuffle_period": 0,
+          "render_mode": "Color",
+          "render_modes": [
+            "Color",
+            "Depth",
+            "Position",
+            "Normal",
+            "Semantic"
+          ],
+          "rotation_augmentation": false,
+          "scene_type": "ProceduralIndoor",
+          "width": 320.0,
+          "yaw_speed": 0.0,
+          "z_depth": true,
+          "zoom_smoothness": 0.800000011920929
+        },
+        "fixed_scene": false,
+        "generator_version": 17,
+        "gi_enabled": true,
+        "gi_settings": {
+          "bake": {
+            "diffuse_bounces": 3,
+            "rays_per_probe": 256,
+            "spacing": 0.8500000238418579,
+            "workers": 8
+          },
+          "enabled": true,
+          "gpu": true
+        },
+        "gpu_timings_enabled": true,
+        "indirect_draws": false,
+        "loop_started_unix_seconds": 1790556678.9809456,
+        "max_assets_mesh_material_image": [
+          721,
+          239,
+          116
+        ],
+        "measured_capture_seconds": 45.028901882,
+        "measured_completed_views": 128,
+        "pid": 2234274,
+        "poll_backoff_ms": 1,
+        "poll_window_ms": 10,
+        "render_cache_pruning": true,
+        "rss_first_quarter_mean_bytes": 2916145664.0,
+        "rss_last_quarter_mean_bytes": 3383000064.0,
+        "rss_max_bytes": 3445596160.0,
+        "rss_slope_bytes_per_scene": 19220090.369501468,
+        "run_id": "2234274-1790556677735238785",
+        "scene_seconds_p50_p95": [
+          1.348235681,
+          2.364118747
+        ],
+        "scenes": 40,
+        "scenes_per_second": 0.7106546831601013,
+        "schema_version": 3,
+        "timing_policy": "actual complete RGB/annotation samples; no PNG or dataset file encoding; scene preparation included, validation and JSONL writes excluded; GPU memory/utilization measured separately",
+        "total_wall_seconds": 57.757056335,
+        "views_per_second": 2.842618732640405,
+        "warmup_scenes": 8
+      },
+      "tail_scenes": 32,
+      "run_identity_verification": "matching_row_run_id_and_pid",
+      "tail_rss_slope_bytes_per_scene": 19220090.369501468,
+      "tail_rss_min_max_bytes": [
+        2577223680,
+        3445596160
+      ],
+      "request_seconds_mean": 0.00892963053125,
+      "capture_seconds_mean": 1.39822355328125,
+      "whole_loop_scenes_per_second": 0.6925560708633368,
+      "staging_bytes_min_max": [
+        14745600,
+        14745600
+      ],
+      "annotation_precision": [
+        "float32_geometry"
+      ],
+      "tail_live_heap_slope_bytes_per_scene": -1202771.9882697947,
+      "tail_heap_last": {
+        "arena_bytes": 2328244224,
+        "free_heap_bytes": 1727305472,
+        "live_heap_bytes": 600938752,
+        "mapped_bytes": 320404800
+      },
+      "preparation_stage_seconds_mean": {
+        "asset_insertion_seconds": 0.00044347546875,
+        "cameras_seconds": 0.00240361228125,
+        "geometry_seconds": 0.38133558775,
+        "gi_setup_seconds": 0.22617201934375,
+        "layout_seconds": 0.00042573659375,
+        "materials_seconds": 0.259780965125
+      },
+      "gpu_timestamp_spans": {
+        "render/dataset_readback_copy/elapsed_gpu": {
+          "samples": 30,
+          "sum_ms": 353.192192,
+          "record_batches": 29,
+          "max_reported_batch_mean_ms": 22.192128,
+          "mean_ms": 11.773073066666665
+        },
+        "render/indoor_diffuse_bake/elapsed_gpu": {
+          "samples": 13,
+          "sum_ms": 2363.400192,
+          "record_batches": 13,
+          "max_reported_batch_mean_ms": 394.433792,
+          "mean_ms": 181.80001476923078
+        },
+        "render/indoor_ground_truth/elapsed_gpu": {
+          "samples": 30,
+          "sum_ms": 2.3554559999999998,
+          "record_batches": 29,
+          "max_reported_batch_mean_ms": 0.131584,
+          "mean_ms": 0.0785152
+        }
+      },
+      "gpu_timestamp_policy": "Per-invocation elapsed GPU timestamp spans from available measured-scene diagnostic batches. Asynchronous delivery can cross scene boundaries; these are not exact per-seed attributions. Nested spans are not summed, and elapsed spans are not GPU occupancy.",
+      "telemetry": {
+        "available": true,
+        "schema_version": 2,
+        "pid": 2234274,
+        "identity_verification": "matching_pid_and_telemetry_run_id",
+        "adapter": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+        "adapter_uuid": "GPU-343b002b-d5c6-2d9c-9fea-9ab5a52d0879",
+        "interval_seconds": 0.25,
+        "command_timestamp_bounds_available": true,
+        "process_utilization_unavailable_polls": 0,
+        "process_utilization_errors": [],
+        "duplicate_nvml_samples_removed": 0,
+        "nvml_samples_outside_command_bounds_excluded": 0,
+        "whole_command": {
+          "polls": 232,
+          "known_process_memory_polls": 229,
+          "device_gpu_utilization_poll_mean_percent": 52.78879310344828,
+          "other_observed_gpu_pids": [
+            6937,
+            7013,
+            7389,
+            7878,
+            1223654,
+            1997952,
+            2048641,
+            2166677
+          ],
+          "process_gpu_memory_observed_peak_bytes": 1508847616,
+          "tail_polls": 50,
+          "tail_known_process_memory_polls": 49,
+          "process_gpu_memory_tail_min_max_bytes": [
+            841953280,
+            1508847616
+          ],
+          "process_utilization_reported_samples": 166,
+          "process_sm_utilization_reported_sample_mean_percent": 55.22289156626506,
+          "process_memory_utilization_reported_sample_mean_percent": 0.018072289156626505,
+          "process_utilization_reported_timestamp_span_seconds": 57.399763,
+          "process_utilization_timestamp_gap_seconds_min_median_max": [
+            0.197752,
+            0.396747,
+            1.000217
+          ],
+          "observed_wall_seconds": 59.50360099901445,
+          "child_cpu_user_seconds": 141.786207,
+          "child_cpu_system_seconds": 23.583088,
+          "child_cpu_total_seconds": 165.369295,
+          "child_cpu_core_equivalent": 2.7791476855785415,
+          "child_cpu_source": "resource.getrusage(RUSAGE_CHILDREN)"
+        },
+        "cpu_accounting_policy": "Optional Unix RUSAGE_CHILDREN delta for the reaped command and OS-accounted waited descendants, excluding collector CPU. Whole-command CPU-seconds divided by monotonic observed command wall-seconds gives CPU-core equivalents and can exceed 1. Includes startup/warmup/cleanup and exit-observation polling delay; no measured-scene-window CPU attribution. Older runs and unsupported platforms remain null.",
+        "measured_scene_window": {
+          "start_unix_seconds": 1790556691.6402514,
+          "end_unix_seconds": 1790556736.7366188,
+          "poll_timestamps_available": true,
+          "polls": 178,
+          "known_process_memory_polls": 178,
+          "device_gpu_utilization_poll_mean_percent": 56.168539325842694,
+          "other_observed_gpu_pids": [
+            6937,
+            7013,
+            7389,
+            7878,
+            1223654,
+            1997952,
+            2048641,
+            2166677
+          ],
+          "process_gpu_memory_observed_peak_bytes": 1508847616,
+          "tail_polls": 50,
+          "tail_known_process_memory_polls": 50,
+          "process_gpu_memory_tail_min_max_bytes": [
+            841953280,
+            1508847616
+          ],
+          "process_utilization_reported_samples": 133,
+          "process_sm_utilization_reported_sample_mean_percent": 55.75187969924812,
+          "process_memory_utilization_reported_sample_mean_percent": 0.022556390977443608,
+          "process_utilization_reported_timestamp_span_seconds": 44.599619,
+          "process_utilization_timestamp_gap_seconds_min_median_max": [
+            0.197752,
+            0.203156,
+            0.999911
+          ]
+        },
+        "policy": "Process utilization is an arithmetic mean of deduplicated matching-PID NVML reported samples; NVML may report only processes with nonzero activity. Missing samples remain unknown: no zero fill, interpolation, time weighting, or occupancy claim. GPU memory peaks are observed polling peaks. Whole-command scope includes startup, warmup, and cleanup. Timestamp-window filters select reported CPU timestamps; an NVML sample can include activity preceding a boundary. Device utilization is not attributed to the process.",
+        "nvml_api_source": "https://docs.nvidia.com/deploy/nvml-api/api/group__nvmlDeviceQueries.html"
+      }
+    },
+    "shared_geometry": {
+      "source": "out/paper_v18/shared_geometry",
+      "summary": {
+        "adapter": "WgpuWrapper(AdapterInfo { name: \"NVIDIA RTX PRO 6000 Blackwell Workstation Edition\", vendor: 4318, device: 11185, device_type: DiscreteGpu, device_pci_bus_id: \"0000:01:00.0\", driver: \"NVIDIA\", driver_info: \"610.43.02\", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: false })",
+        "capture_engine": "capture-v27;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=5;surface_flow=1;indoor=17;multiview=1;ovoxel=2;glass=2;hair=2;bounds=2;position=2;tabletop=1;finishes=3;seating=2;activity=2;playback=2;exterior=1",
+        "config": {
+          "animated": false,
+          "camera_grid": false,
+          "cuboid_only": false,
+          "depth_format": "Linear",
+          "draw_obb_gizmo": false,
+          "draw_pose_gizmos": false,
+          "editor": false,
+          "gizmos": false,
+          "gizmos_alpha": 1.0,
+          "headless": true,
+          "height": 240.0,
+          "human_motion": null,
+          "image_copiers": true,
+          "indoor_camera": "{\"path_length_min\":0.03,\"path_length_max\":8,\"long_path_fraction\":0.45,\"multiview\":null}",
+          "indoor_density": 0.6499999761581421,
+          "indoor_gi_rays": 256,
+          "indoor_human_density": 0.25,
+          "indoor_layout": "Mixed",
+          "indoor_quality": "Auto",
+          "indoor_seed": 12000,
+          "initialize_scene": false,
+          "keybinds": false,
+          "material_grid": false,
+          "max_camera_radius": 0.0,
+          "name": "bevy_zeroverse",
+          "num_cameras": 4,
+          "orbit_smoothness": 0.800000011920929,
+          "ovoxel_max_output_voxels": 16000000,
+          "ovoxel_mode": "Disabled",
+          "ovoxel_resolution": 128,
+          "pan_smoothness": 0.6000000238418579,
+          "playback_mode": "Still",
+          "playback_speed": 0.20000000298023224,
+          "playback_step": 0.0,
+          "playback_steps": 1,
+          "plucker_visualization": false,
+          "press_esc_close": false,
+          "regenerate_ms": 0,
+          "regenerate_scene_material_shuffle_period": 0,
+          "regenerate_scene_mesh_shuffle_period": 0,
+          "render_mode": "Color",
+          "render_modes": [
+            "Color",
+            "Depth",
+            "Position",
+            "Normal",
+            "Semantic"
+          ],
+          "rotation_augmentation": false,
+          "scene_type": "ProceduralIndoor",
+          "width": 320.0,
+          "yaw_speed": 0.0,
+          "z_depth": true,
+          "zoom_smoothness": 0.800000011920929
+        },
+        "fixed_scene": false,
+        "generator_version": 17,
+        "gi_enabled": true,
+        "gi_settings": {
+          "bake": {
+            "diffuse_bounces": 3,
+            "rays_per_probe": 256,
+            "spacing": 0.8500000238418579,
+            "workers": 8
+          },
+          "enabled": true,
+          "gpu": true
+        },
+        "gpu_timings_enabled": true,
+        "indirect_draws": false,
+        "loop_started_unix_seconds": 1790556831.6254423,
+        "max_assets_mesh_material_image": [
+          721,
+          239,
+          116
+        ],
+        "measured_capture_seconds": 47.747397427,
+        "measured_completed_views": 128,
+        "pid": 2236410,
+        "poll_backoff_ms": 1,
+        "poll_window_ms": 10,
+        "render_cache_pruning": true,
+        "rss_first_quarter_mean_bytes": 2952992768.0,
+        "rss_last_quarter_mean_bytes": 3408562688.0,
+        "rss_max_bytes": 3522138112.0,
+        "rss_slope_bytes_per_scene": 18584148.082111437,
+        "run_id": "2236410-1790556830332324725",
+        "scene_seconds_p50_p95": [
+          1.382055447,
+          2.539870133
+        ],
+        "scenes": 40,
+        "scenes_per_second": 0.6701935963928533,
+        "schema_version": 3,
+        "timing_policy": "actual complete RGB/annotation samples; no PNG or dataset file encoding; scene preparation included, validation and JSONL writes excluded; GPU memory/utilization measured separately",
+        "total_wall_seconds": 60.922472899,
+        "views_per_second": 2.680774385571413,
+        "warmup_scenes": 8
+      },
+      "tail_scenes": 32,
+      "run_identity_verification": "matching_row_run_id_and_pid",
+      "tail_rss_slope_bytes_per_scene": 18584148.082111437,
+      "tail_rss_min_max_bytes": [
+        2621526016,
+        3522138112
+      ],
+      "request_seconds_mean": 0.01101943025,
+      "capture_seconds_mean": 1.4810867393437501,
+      "whole_loop_scenes_per_second": 0.6565721661744393,
+      "staging_bytes_min_max": [
+        14745600,
+        14745600
+      ],
+      "annotation_precision": [
+        "float32_geometry"
+      ],
+      "tail_live_heap_slope_bytes_per_scene": 547389.0586510263,
+      "tail_heap_last": {
+        "arena_bytes": 2460979200,
+        "free_heap_bytes": 1844226336,
+        "live_heap_bytes": 616752864,
+        "mapped_bytes": 305679760
+      },
+      "preparation_stage_seconds_mean": {
+        "asset_insertion_seconds": 0.0004875239375,
+        "cameras_seconds": 0.00283949521875,
+        "geometry_seconds": 0.5005326396875001,
+        "gi_setup_seconds": 0.1596882735,
+        "layout_seconds": 0.00053091140625,
+        "materials_seconds": 0.28889322678125
+      },
+      "gpu_timestamp_spans": {
+        "render/dataset_readback_copy/elapsed_gpu": {
+          "samples": 28,
+          "sum_ms": 373.12947199999996,
+          "record_batches": 28,
+          "max_reported_batch_mean_ms": 19.224576,
+          "mean_ms": 13.326052571428571
+        },
+        "render/indoor_ground_truth/elapsed_gpu": {
+          "samples": 28,
+          "sum_ms": 3.4431999999999996,
+          "record_batches": 28,
+          "max_reported_batch_mean_ms": 1.35424,
+          "mean_ms": 0.12297142857142855
+        },
+        "render/indoor_diffuse_bake/elapsed_gpu": {
+          "samples": 8,
+          "sum_ms": 1891.7281280000002,
+          "record_batches": 8,
+          "max_reported_batch_mean_ms": 537.279488,
+          "mean_ms": 236.46601600000002
+        }
+      },
+      "gpu_timestamp_policy": "Per-invocation elapsed GPU timestamp spans from available measured-scene diagnostic batches. Asynchronous delivery can cross scene boundaries; these are not exact per-seed attributions. Nested spans are not summed, and elapsed spans are not GPU occupancy.",
+      "telemetry": {
+        "available": true,
+        "schema_version": 2,
+        "pid": 2236410,
+        "identity_verification": "matching_pid_and_telemetry_run_id",
+        "adapter": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+        "adapter_uuid": "GPU-343b002b-d5c6-2d9c-9fea-9ab5a52d0879",
+        "interval_seconds": 0.25,
+        "command_timestamp_bounds_available": true,
+        "process_utilization_unavailable_polls": 0,
+        "process_utilization_errors": [],
+        "duplicate_nvml_samples_removed": 0,
+        "nvml_samples_outside_command_bounds_excluded": 0,
+        "whole_command": {
+          "polls": 245,
+          "known_process_memory_polls": 243,
+          "device_gpu_utilization_poll_mean_percent": 52.33877551020408,
+          "other_observed_gpu_pids": [
+            6937,
+            7013,
+            7389,
+            7878,
+            1223654,
+            1997952,
+            2048641,
+            2166677,
+            2236443
+          ],
+          "process_gpu_memory_observed_peak_bytes": 1513041920,
+          "tail_polls": 50,
+          "tail_known_process_memory_polls": 50,
+          "process_gpu_memory_tail_min_max_bytes": [
+            9351168,
+            1500459008
+          ],
+          "process_utilization_reported_samples": 167,
+          "process_sm_utilization_reported_sample_mean_percent": 51.952095808383234,
+          "process_memory_utilization_reported_sample_mean_percent": 0.03592814371257485,
+          "process_utilization_reported_timestamp_span_seconds": 60.39926,
+          "process_utilization_timestamp_gap_seconds_min_median_max": [
+            0.196808,
+            0.398773,
+            1.402942
+          ],
+          "observed_wall_seconds": 62.6176693540765,
+          "child_cpu_user_seconds": 151.97358,
+          "child_cpu_system_seconds": 22.129782,
+          "child_cpu_total_seconds": 174.103362,
+          "child_cpu_core_equivalent": 2.7804190701432683,
+          "child_cpu_source": "resource.getrusage(RUSAGE_CHILDREN)"
+        },
+        "cpu_accounting_policy": "Optional Unix RUSAGE_CHILDREN delta for the reaped command and OS-accounted waited descendants, excluding collector CPU. Whole-command CPU-seconds divided by monotonic observed command wall-seconds gives CPU-core equivalents and can exceed 1. Includes startup/warmup/cleanup and exit-observation polling delay; no measured-scene-window CPU attribution. Older runs and unsupported platforms remain null.",
+        "measured_scene_window": {
+          "start_unix_seconds": 1790556844.7247703,
+          "end_unix_seconds": 1790556892.5464742,
+          "poll_timestamps_available": true,
+          "polls": 188,
+          "known_process_memory_polls": 188,
+          "device_gpu_utilization_poll_mean_percent": 54.23936170212766,
+          "other_observed_gpu_pids": [
+            6937,
+            7013,
+            7389,
+            7878,
+            1223654,
+            1997952,
+            2048641,
+            2166677,
+            2236443
+          ],
+          "process_gpu_memory_observed_peak_bytes": 1513041920,
+          "tail_polls": 50,
+          "tail_known_process_memory_polls": 50,
+          "process_gpu_memory_tail_min_max_bytes": [
+            976171008,
+            1500459008
+          ],
+          "process_utilization_reported_samples": 132,
+          "process_sm_utilization_reported_sample_mean_percent": 51.50757575757576,
+          "process_memory_utilization_reported_sample_mean_percent": 0.03787878787878788,
+          "process_utilization_reported_timestamp_span_seconds": 47.598254,
+          "process_utilization_timestamp_gap_seconds_min_median_max": [
+            0.197022,
+            0.398806,
+            1.402942
+          ]
+        },
+        "policy": "Process utilization is an arithmetic mean of deduplicated matching-PID NVML reported samples; NVML may report only processes with nonzero activity. Missing samples remain unknown: no zero fill, interpolation, time weighting, or occupancy claim. GPU memory peaks are observed polling peaks. Whole-command scope includes startup, warmup, and cleanup. Timestamp-window filters select reported CPU timestamps; an NVML sample can include activity preceding a boundary. Device utilization is not attributed to the process.",
+        "nvml_api_source": "https://docs.nvidia.com/deploy/nvml-api/api/group__nvmlDeviceQueries.html"
+      }
+    },
+    "optimized": {
+      "source": "out/paper_v18/optimized",
+      "summary": {
+        "adapter": "WgpuWrapper(AdapterInfo { name: \"NVIDIA RTX PRO 6000 Blackwell Workstation Edition\", vendor: 4318, device: 11185, device_type: DiscreteGpu, device_pci_bus_id: \"0000:01:00.0\", driver: \"NVIDIA\", driver_info: \"610.43.02\", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: false })",
+        "capture_engine": "capture-v28;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=5;surface_flow=1;indoor=18;multiview=2;ovoxel=2;glass=2;hair=2;bounds=2;position=2;tabletop=1;finishes=3;seating=2;activity=2;playback=2;exterior=1",
+        "config": {
+          "animated": false,
+          "camera_grid": false,
+          "cuboid_only": false,
+          "depth_format": "Linear",
+          "draw_obb_gizmo": false,
+          "draw_pose_gizmos": false,
+          "editor": false,
+          "gizmos": false,
+          "gizmos_alpha": 1.0,
+          "headless": true,
+          "height": 240.0,
+          "human_motion": null,
+          "image_copiers": true,
+          "indoor_camera": "{\"path_length_min\":0.03,\"path_length_max\":8,\"long_path_fraction\":0.45,\"multiview\":null}",
+          "indoor_density": 0.6499999761581421,
+          "indoor_gi_rays": 256,
+          "indoor_human_density": 0.25,
+          "indoor_layout": "Mixed",
+          "indoor_quality": "Auto",
+          "indoor_seed": 12000,
+          "initialize_scene": false,
+          "keybinds": false,
+          "material_grid": false,
+          "max_camera_radius": 0.0,
+          "name": "bevy_zeroverse",
+          "num_cameras": 4,
+          "orbit_smoothness": 0.800000011920929,
+          "ovoxel_max_output_voxels": 16000000,
+          "ovoxel_mode": "Disabled",
+          "ovoxel_resolution": 128,
+          "pan_smoothness": 0.6000000238418579,
+          "playback_mode": "Still",
+          "playback_speed": 0.20000000298023224,
+          "playback_step": 0.0,
+          "playback_steps": 1,
+          "plucker_visualization": false,
+          "press_esc_close": false,
+          "regenerate_ms": 0,
+          "regenerate_scene_material_shuffle_period": 0,
+          "regenerate_scene_mesh_shuffle_period": 0,
+          "render_mode": "Color",
+          "render_modes": [
+            "Color",
+            "Depth",
+            "Position",
+            "Normal",
+            "Semantic"
+          ],
+          "rotation_augmentation": false,
+          "scene_type": "ProceduralIndoor",
+          "width": 320.0,
+          "yaw_speed": 0.0,
+          "z_depth": true,
+          "zoom_smoothness": 0.800000011920929
+        },
+        "fixed_scene": false,
+        "generator_version": 18,
+        "gi_enabled": true,
+        "gi_settings": {
+          "bake": {
+            "diffuse_bounces": 3,
+            "rays_per_probe": 256,
+            "spacing": 0.8500000238418579,
+            "workers": 8
+          },
+          "enabled": true,
+          "gpu": true
+        },
+        "gpu_timings_enabled": true,
+        "indirect_draws": false,
+        "loop_started_unix_seconds": 1790557120.2834234,
+        "max_assets_mesh_material_image": [
+          721,
+          239,
+          116
+        ],
+        "measured_capture_seconds": 38.711945534,
+        "measured_completed_views": 128,
+        "pid": 2241867,
+        "poll_backoff_ms": 1,
+        "poll_window_ms": 10,
+        "render_cache_pruning": true,
+        "rss_first_quarter_mean_bytes": 2896001536.0,
+        "rss_last_quarter_mean_bytes": 3222566400.0,
+        "rss_max_bytes": 3289473024.0,
+        "rss_slope_bytes_per_scene": 13297829.91202346,
+        "run_id": "2241867-1790557119065687529",
+        "scene_seconds_p50_p95": [
+          1.072757264,
+          2.07760565
+        ],
+        "scenes": 40,
+        "scenes_per_second": 0.8266182326562477,
+        "schema_version": 3,
+        "timing_policy": "actual complete RGB/annotation samples; no PNG or dataset file encoding; scene preparation included, validation and JSONL writes excluded; GPU memory/utilization measured separately",
+        "total_wall_seconds": 49.454594008,
+        "views_per_second": 3.3064729306249907,
+        "warmup_scenes": 8
+      },
+      "tail_scenes": 32,
+      "run_identity_verification": "matching_row_run_id_and_pid",
+      "tail_rss_slope_bytes_per_scene": 13297829.91202346,
+      "tail_rss_min_max_bytes": [
+        2636939264,
+        3289473024
+      ],
+      "request_seconds_mean": 0.008280425,
+      "capture_seconds_mean": 1.2014678729375,
+      "whole_loop_scenes_per_second": 0.8088227353262554,
+      "staging_bytes_min_max": [
+        14745600,
+        14745600
+      ],
+      "annotation_precision": [
+        "float32_geometry"
+      ],
+      "tail_live_heap_slope_bytes_per_scene": -894722.9765395895,
+      "tail_heap_last": {
+        "arena_bytes": 2219061248,
+        "free_heap_bytes": 1639501328,
+        "live_heap_bytes": 579559920,
+        "mapped_bytes": 305679728
+      },
+      "preparation_stage_seconds_mean": {
+        "asset_insertion_seconds": 0.0003781358125,
+        "cameras_seconds": 0.00212976628125,
+        "geometry_seconds": 0.44779051371875,
+        "gi_setup_seconds": 0.1250872140625,
+        "layout_seconds": 0.0004154735625,
+        "materials_seconds": 0.106600226625
+      },
+      "gpu_timestamp_spans": {
+        "render/dataset_readback_copy/elapsed_gpu": {
+          "samples": 32,
+          "sum_ms": 355.008512,
+          "record_batches": 31,
+          "max_reported_batch_mean_ms": 18.371584,
+          "mean_ms": 11.094016
+        },
+        "render/indoor_ground_truth/elapsed_gpu": {
+          "samples": 32,
+          "sum_ms": 2.4273919999999998,
+          "record_batches": 31,
+          "max_reported_batch_mean_ms": 0.125184,
+          "mean_ms": 0.07585599999999999
+        },
+        "render/indoor_diffuse_bake/elapsed_gpu": {
+          "samples": 13,
+          "sum_ms": 2891.8484480000006,
+          "record_batches": 13,
+          "max_reported_batch_mean_ms": 500.260096,
+          "mean_ms": 222.44988061538467
+        }
+      },
+      "gpu_timestamp_policy": "Per-invocation elapsed GPU timestamp spans from available measured-scene diagnostic batches. Asynchronous delivery can cross scene boundaries; these are not exact per-seed attributions. Nested spans are not summed, and elapsed spans are not GPU occupancy.",
+      "telemetry": {
+        "available": true,
+        "schema_version": 2,
+        "pid": 2241867,
+        "identity_verification": "matching_pid_and_telemetry_run_id",
+        "adapter": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+        "adapter_uuid": "GPU-343b002b-d5c6-2d9c-9fea-9ab5a52d0879",
+        "interval_seconds": 0.25,
+        "command_timestamp_bounds_available": true,
+        "process_utilization_unavailable_polls": 0,
+        "process_utilization_errors": [],
+        "duplicate_nvml_samples_removed": 0,
+        "nvml_samples_outside_command_bounds_excluded": 0,
+        "whole_command": {
+          "polls": 200,
+          "known_process_memory_polls": 197,
+          "device_gpu_utilization_poll_mean_percent": 57.71,
+          "other_observed_gpu_pids": [
+            6937,
+            7013,
+            7389,
+            7878,
+            1223654,
+            1997952,
+            2048641,
+            2238619
+          ],
+          "process_gpu_memory_observed_peak_bytes": 1383018496,
+          "tail_polls": 50,
+          "tail_known_process_memory_polls": 49,
+          "process_gpu_memory_tail_min_max_bytes": [
+            716124160,
+            1378824192
+          ],
+          "process_utilization_reported_samples": 162,
+          "process_sm_utilization_reported_sample_mean_percent": 58.26543209876543,
+          "process_memory_utilization_reported_sample_mean_percent": 0.037037037037037035,
+          "process_utilization_reported_timestamp_span_seconds": 49.199667,
+          "process_utilization_timestamp_gap_seconds_min_median_max": [
+            0.196806,
+            0.200961,
+            0.801264
+          ],
+          "observed_wall_seconds": 51.11153038404882,
+          "child_cpu_user_seconds": 115.313677,
+          "child_cpu_system_seconds": 20.207823,
+          "child_cpu_total_seconds": 135.5215,
+          "child_cpu_core_equivalent": 2.651485858116554,
+          "child_cpu_source": "resource.getrusage(RUSAGE_CHILDREN)"
+        },
+        "cpu_accounting_policy": "Optional Unix RUSAGE_CHILDREN delta for the reaped command and OS-accounted waited descendants, excluding collector CPU. Whole-command CPU-seconds divided by monotonic observed command wall-seconds gives CPU-core equivalents and can exceed 1. Includes startup/warmup/cleanup and exit-observation polling delay; no measured-scene-window CPU attribution. Older runs and unsupported platforms remain null.",
+        "measured_scene_window": {
+          "start_unix_seconds": 1790557130.9661198,
+          "end_unix_seconds": 1790557169.736497,
+          "poll_timestamps_available": true,
+          "polls": 153,
+          "known_process_memory_polls": 153,
+          "device_gpu_utilization_poll_mean_percent": 59.48366013071895,
+          "other_observed_gpu_pids": [
+            6937,
+            7013,
+            7389,
+            7878,
+            1223654,
+            1997952,
+            2048641,
+            2238619
+          ],
+          "process_gpu_memory_observed_peak_bytes": 1383018496,
+          "tail_polls": 50,
+          "tail_known_process_memory_polls": 50,
+          "process_gpu_memory_tail_min_max_bytes": [
+            716124160,
+            1378824192
+          ],
+          "process_utilization_reported_samples": 128,
+          "process_sm_utilization_reported_sample_mean_percent": 58.046875,
+          "process_memory_utilization_reported_sample_mean_percent": 0.0390625,
+          "process_utilization_reported_timestamp_span_seconds": 38.399515,
+          "process_utilization_timestamp_gap_seconds_min_median_max": [
+            0.196806,
+            0.200932,
+            0.801264
+          ]
+        },
+        "policy": "Process utilization is an arithmetic mean of deduplicated matching-PID NVML reported samples; NVML may report only processes with nonzero activity. Missing samples remain unknown: no zero fill, interpolation, time weighting, or occupancy claim. GPU memory peaks are observed polling peaks. Whole-command scope includes startup, warmup, and cleanup. Timestamp-window filters select reported CPU timestamps; an NVML sample can include activity preceding a boundary. Device utilization is not attributed to the process.",
+        "nvml_api_source": "https://docs.nvidia.com/deploy/nvml-api/api/group__nvmlDeviceQueries.html"
+      }
+    },
+    "parallel": {
+      "source": "out/paper_v18/parallel",
+      "summary": {
+        "adapter": "WgpuWrapper(AdapterInfo { name: \"NVIDIA RTX PRO 6000 Blackwell Workstation Edition\", vendor: 4318, device: 11185, device_type: DiscreteGpu, device_pci_bus_id: \"0000:01:00.0\", driver: \"NVIDIA\", driver_info: \"610.43.02\", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: false })",
+        "capture_engine": "capture-v28;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=5;surface_flow=1;indoor=18;multiview=2;ovoxel=2;glass=2;hair=2;bounds=2;position=2;tabletop=1;finishes=3;seating=2;activity=2;playback=2;exterior=1",
+        "config": {
+          "animated": false,
+          "camera_grid": false,
+          "cuboid_only": false,
+          "depth_format": "Linear",
+          "draw_obb_gizmo": false,
+          "draw_pose_gizmos": false,
+          "editor": false,
+          "gizmos": false,
+          "gizmos_alpha": 1.0,
+          "headless": true,
+          "height": 240.0,
+          "human_motion": null,
+          "image_copiers": true,
+          "indoor_camera": "{\"path_length_min\":0.03,\"path_length_max\":8,\"long_path_fraction\":0.45,\"multiview\":null}",
+          "indoor_density": 0.6499999761581421,
+          "indoor_gi_rays": 256,
+          "indoor_human_density": 0.25,
+          "indoor_layout": "Mixed",
+          "indoor_quality": "Auto",
+          "indoor_seed": 12000,
+          "initialize_scene": false,
+          "keybinds": false,
+          "material_grid": false,
+          "max_camera_radius": 0.0,
+          "name": "bevy_zeroverse",
+          "num_cameras": 4,
+          "orbit_smoothness": 0.800000011920929,
+          "ovoxel_max_output_voxels": 16000000,
+          "ovoxel_mode": "Disabled",
+          "ovoxel_resolution": 128,
+          "pan_smoothness": 0.6000000238418579,
+          "playback_mode": "Still",
+          "playback_speed": 0.20000000298023224,
+          "playback_step": 0.0,
+          "playback_steps": 1,
+          "plucker_visualization": false,
+          "press_esc_close": false,
+          "regenerate_ms": 0,
+          "regenerate_scene_material_shuffle_period": 0,
+          "regenerate_scene_mesh_shuffle_period": 0,
+          "render_mode": "Color",
+          "render_modes": [
+            "Color",
+            "Depth",
+            "Position",
+            "Normal",
+            "Semantic"
+          ],
+          "rotation_augmentation": false,
+          "scene_type": "ProceduralIndoor",
+          "width": 320.0,
+          "yaw_speed": 0.0,
+          "z_depth": true,
+          "zoom_smoothness": 0.800000011920929
+        },
+        "fixed_scene": false,
+        "generator_version": 18,
+        "gi_enabled": true,
+        "gi_settings": {
+          "bake": {
+            "diffuse_bounces": 3,
+            "rays_per_probe": 256,
+            "spacing": 0.8500000238418579,
+            "workers": 8
+          },
+          "enabled": true,
+          "gpu": true
+        },
+        "gpu_timings_enabled": true,
+        "indirect_draws": false,
+        "loop_started_unix_seconds": 1790557279.524115,
+        "max_assets_mesh_material_image": [
+          721,
+          239,
+          116
+        ],
+        "measured_capture_seconds": 29.892319568999994,
+        "measured_completed_views": 128,
+        "pid": 2243428,
+        "poll_backoff_ms": 1,
+        "poll_window_ms": 10,
+        "render_cache_pruning": true,
+        "rss_first_quarter_mean_bytes": 2873905664.0,
+        "rss_last_quarter_mean_bytes": 3189328896.0,
+        "rss_max_bytes": 3270164480.0,
+        "rss_slope_bytes_per_scene": 13234859.917888563,
+        "run_id": "2243428-1790557278367656726",
+        "scene_seconds_p50_p95": [
+          0.761295279,
+          1.775186309
+        ],
+        "scenes": 40,
+        "scenes_per_second": 1.0705090960283252,
+        "schema_version": 3,
+        "timing_policy": "actual complete RGB/annotation samples; no PNG or dataset file encoding; scene preparation included, validation and JSONL writes excluded; GPU memory/utilization measured separately",
+        "total_wall_seconds": 38.367254248,
+        "views_per_second": 4.282036384113301,
+        "warmup_scenes": 8
+      },
+      "tail_scenes": 32,
+      "run_identity_verification": "matching_row_run_id_and_pid",
+      "tail_rss_slope_bytes_per_scene": 13234859.917888563,
+      "tail_rss_min_max_bytes": [
+        2505375744,
+        3270164480
+      ],
+      "request_seconds_mean": 0.0087518474375,
+      "capture_seconds_mean": 0.92538313909375,
+      "whole_loop_scenes_per_second": 1.0425557101753016,
+      "staging_bytes_min_max": [
+        14745600,
+        14745600
+      ],
+      "annotation_precision": [
+        "float32_geometry"
+      ],
+      "tail_live_heap_slope_bytes_per_scene": -1641126.7008797654,
+      "tail_heap_last": {
+        "arena_bytes": 2197860352,
+        "free_heap_bytes": 1614603712,
+        "live_heap_bytes": 583256640,
+        "mapped_bytes": 314486160
+      },
+      "preparation_stage_seconds_mean": {
+        "asset_insertion_seconds": 0.000377955625,
+        "cameras_seconds": 0.00225908865625,
+        "geometry_seconds": 0.0785725405,
+        "gi_setup_seconds": 0.1244313275,
+        "layout_seconds": 0.00047224371875,
+        "materials_seconds": 0.10910407631249999,
+        "meshes_seconds": 0.08951871259375
+      },
+      "gpu_timestamp_spans": {
+        "render/dataset_readback_copy/elapsed_gpu": {
+          "samples": 30,
+          "sum_ms": 366.6303999999999,
+          "record_batches": 30,
+          "max_reported_batch_mean_ms": 22.459392,
+          "mean_ms": 12.22101333333333
+        },
+        "render/indoor_ground_truth/elapsed_gpu": {
+          "samples": 30,
+          "sum_ms": 2.1775360000000004,
+          "record_batches": 30,
+          "max_reported_batch_mean_ms": 0.126208,
+          "mean_ms": 0.07258453333333334
+        },
+        "render/indoor_diffuse_bake/elapsed_gpu": {
+          "samples": 9,
+          "sum_ms": 2015.9505920000001,
+          "record_batches": 9,
+          "max_reported_batch_mean_ms": 501.283328,
+          "mean_ms": 223.99451022222223
+        }
+      },
+      "gpu_timestamp_policy": "Per-invocation elapsed GPU timestamp spans from available measured-scene diagnostic batches. Asynchronous delivery can cross scene boundaries; these are not exact per-seed attributions. Nested spans are not summed, and elapsed spans are not GPU occupancy.",
+      "telemetry": {
+        "available": true,
+        "schema_version": 2,
+        "pid": 2243428,
+        "identity_verification": "matching_pid_and_telemetry_run_id",
+        "adapter": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+        "adapter_uuid": "GPU-343b002b-d5c6-2d9c-9fea-9ab5a52d0879",
+        "interval_seconds": 0.25,
+        "command_timestamp_bounds_available": true,
+        "process_utilization_unavailable_polls": 0,
+        "process_utilization_errors": [],
+        "duplicate_nvml_samples_removed": 0,
+        "nvml_samples_outside_command_bounds_excluded": 0,
+        "whole_command": {
+          "polls": 156,
+          "known_process_memory_polls": 154,
+          "device_gpu_utilization_poll_mean_percent": 63.91025641025641,
+          "other_observed_gpu_pids": [
+            6937,
+            7013,
+            7389,
+            7878,
+            1223654,
+            1997952,
+            2048641,
+            2238619
+          ],
+          "process_gpu_memory_observed_peak_bytes": 1383018496,
+          "tail_polls": 50,
+          "tail_known_process_memory_polls": 50,
+          "process_gpu_memory_tail_min_max_bytes": [
+            147992576,
+            1378824192
+          ],
+          "process_utilization_reported_samples": 130,
+          "process_sm_utilization_reported_sample_mean_percent": 65.83076923076923,
+          "process_memory_utilization_reported_sample_mean_percent": 0.06923076923076923,
+          "process_utilization_reported_timestamp_span_seconds": 38.201164,
+          "process_utilization_timestamp_gap_seconds_min_median_max": [
+            0.196753,
+            0.20012,
+            1.202164
+          ],
+          "observed_wall_seconds": 39.854146012919955,
+          "child_cpu_user_seconds": 93.206777,
+          "child_cpu_system_seconds": 13.903443,
+          "child_cpu_total_seconds": 107.11022,
+          "child_cpu_core_equivalent": 2.687555266277112,
+          "child_cpu_source": "resource.getrusage(RUSAGE_CHILDREN)"
+        },
+        "cpu_accounting_policy": "Optional Unix RUSAGE_CHILDREN delta for the reaped command and OS-accounted waited descendants, excluding collector CPU. Whole-command CPU-seconds divided by monotonic observed command wall-seconds gives CPU-core equivalents and can exceed 1. Includes startup/warmup/cleanup and exit-observation polling delay; no measured-scene-window CPU attribution. Older runs and unsupported platforms remain null.",
+        "measured_scene_window": {
+          "start_unix_seconds": 1790557287.9345107,
+          "end_unix_seconds": 1790557317.8893704,
+          "poll_timestamps_available": true,
+          "polls": 118,
+          "known_process_memory_polls": 118,
+          "device_gpu_utilization_poll_mean_percent": 68.40677966101696,
+          "other_observed_gpu_pids": [
+            6937,
+            7013,
+            7389,
+            7878,
+            1223654,
+            1997952,
+            2048641,
+            2238619
+          ],
+          "process_gpu_memory_observed_peak_bytes": 1383018496,
+          "tail_polls": 50,
+          "tail_known_process_memory_polls": 50,
+          "process_gpu_memory_tail_min_max_bytes": [
+            711929856,
+            1378824192
+          ],
+          "process_utilization_reported_samples": 101,
+          "process_sm_utilization_reported_sample_mean_percent": 66.99009900990099,
+          "process_memory_utilization_reported_sample_mean_percent": 0.0594059405940594,
+          "process_utilization_reported_timestamp_span_seconds": 29.799854,
+          "process_utilization_timestamp_gap_seconds_min_median_max": [
+            0.196753,
+            0.2001075,
+            1.202164
+          ]
+        },
+        "policy": "Process utilization is an arithmetic mean of deduplicated matching-PID NVML reported samples; NVML may report only processes with nonzero activity. Missing samples remain unknown: no zero fill, interpolation, time weighting, or occupancy claim. GPU memory peaks are observed polling peaks. Whole-command scope includes startup, warmup, and cleanup. Timestamp-window filters select reported CPU timestamps; an NVML sample can include activity preceding a boundary. Device utilization is not attributed to the process.",
+        "nvml_api_source": "https://docs.nvidia.com/deploy/nvml-api/api/group__nvmlDeviceQueries.html"
+      }
+    },
+    "registry_grouped": {
+      "source": "out/paper_v18/registry_grouped",
+      "summary": {
+        "adapter": "WgpuWrapper(AdapterInfo { name: \"NVIDIA RTX PRO 6000 Blackwell Workstation Edition\", vendor: 4318, device: 11185, device_type: DiscreteGpu, device_pci_bus_id: \"0000:01:00.0\", driver: \"NVIDIA\", driver_info: \"610.43.02\", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: false })",
+        "capture_engine": "capture-v28;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=5;surface_flow=1;indoor=18;multiview=2;ovoxel=2;glass=2;hair=2;bounds=2;position=2;tabletop=1;finishes=3;seating=2;activity=2;playback=2;exterior=1",
+        "config": {
+          "animated": false,
+          "camera_grid": false,
+          "cuboid_only": false,
+          "depth_format": "Linear",
+          "draw_obb_gizmo": false,
+          "draw_pose_gizmos": false,
+          "editor": false,
+          "gizmos": false,
+          "gizmos_alpha": 1.0,
+          "headless": true,
+          "height": 240.0,
+          "human_motion": null,
+          "image_copiers": true,
+          "indoor_camera": null,
+          "indoor_density": 0.6499999761581421,
+          "indoor_gi_rays": 256,
+          "indoor_human_density": 0.25,
+          "indoor_layout": "Mixed",
+          "indoor_quality": "Auto",
+          "indoor_seed": 12000,
+          "initialize_scene": false,
+          "keybinds": false,
+          "material_grid": false,
+          "max_camera_radius": 0.0,
+          "name": "bevy_zeroverse",
+          "num_cameras": 4,
+          "orbit_smoothness": 0.800000011920929,
+          "ovoxel_max_output_voxels": 16000000,
+          "ovoxel_mode": "Disabled",
+          "ovoxel_resolution": 128,
+          "pan_smoothness": 0.6000000238418579,
+          "playback_mode": "Still",
+          "playback_speed": 0.20000000298023224,
+          "playback_step": 0.0,
+          "playback_steps": 1,
+          "plucker_visualization": false,
+          "press_esc_close": false,
+          "regenerate_ms": 0,
+          "regenerate_scene_material_shuffle_period": 0,
+          "regenerate_scene_mesh_shuffle_period": 0,
+          "render_mode": "Color",
+          "render_modes": [
+            "Color",
+            "Depth",
+            "Position",
+            "Normal",
+            "Semantic"
+          ],
+          "rotation_augmentation": false,
+          "scene_type": "ProceduralIndoor",
+          "width": 320.0,
+          "yaw_speed": 0.0,
+          "z_depth": true,
+          "zoom_smoothness": 0.800000011920929
+        },
+        "fixed_scene": false,
+        "generator_version": 18,
+        "gi_enabled": true,
+        "gi_settings": {
+          "bake": {
+            "diffuse_bounces": 3,
+            "rays_per_probe": 256,
+            "spacing": 0.8500000238418579,
+            "workers": 8
+          },
+          "enabled": true,
+          "gpu": true
+        },
+        "gpu_timings_enabled": true,
+        "indirect_draws": false,
+        "loop_started_unix_seconds": 1790558289.966229,
+        "max_assets_mesh_material_image": [
+          721,
+          239,
+          116
+        ],
+        "measured_capture_seconds": 35.746934692,
+        "measured_completed_views": 128,
+        "pid": 2259277,
+        "poll_backoff_ms": 1,
+        "poll_window_ms": 10,
+        "render_cache_pruning": true,
+        "rss_first_quarter_mean_bytes": 3412567040.0,
+        "rss_last_quarter_mean_bytes": 4647042560.0,
+        "rss_max_bytes": 4772679680.0,
+        "rss_slope_bytes_per_scene": 51699373.41935484,
+        "run_id": "2259277-1790558288714918688",
+        "scene_seconds_p50_p95": [
+          0.892340198,
+          2.641762529
+        ],
+        "scenes": 40,
+        "scenes_per_second": 0.8951816505587387,
+        "schema_version": 3,
+        "timing_policy": "actual complete RGB/annotation samples; no PNG or dataset file encoding; scene preparation included, validation and JSONL writes excluded; GPU memory/utilization measured separately",
+        "total_wall_seconds": 45.441106875,
+        "views_per_second": 3.5807266022349546,
+        "warmup_scenes": 8
+      },
+      "tail_scenes": 32,
+      "run_identity_verification": "matching_row_run_id_and_pid",
+      "tail_rss_slope_bytes_per_scene": 51699373.41935484,
+      "tail_rss_min_max_bytes": [
+        2957266944,
+        4772679680
+      ],
+      "request_seconds_mean": 0.00507317796875,
+      "capture_seconds_mean": 1.11201853115625,
+      "whole_loop_scenes_per_second": 0.8802602478419491,
+      "staging_bytes_min_max": [
+        14745600,
+        14745600
+      ],
+      "annotation_precision": [
+        "float32_geometry"
+      ],
+      "tail_live_heap_slope_bytes_per_scene": 32640547.95601173,
+      "tail_heap_last": {
+        "arena_bytes": 3903627264,
+        "free_heap_bytes": 1346942032,
+        "live_heap_bytes": 2556685232,
+        "mapped_bytes": 305679808
+      },
+      "preparation_stage_seconds_mean": {
+        "asset_insertion_seconds": 0.00034093159375,
+        "cameras_seconds": 0.0216605266875,
+        "geometry_seconds": 0.07790690725,
+        "gi_setup_seconds": 0.12699379475,
+        "layout_seconds": 0.00042851787500000003,
+        "materials_seconds": 0.10939445134375,
+        "meshes_seconds": 0.08712556621875
+      },
+      "gpu_timestamp_spans": {
+        "render/dataset_readback_copy/elapsed_gpu": {
+          "samples": 26,
+          "sum_ms": 310.512384,
+          "record_batches": 25,
+          "max_reported_batch_mean_ms": 20.56576,
+          "mean_ms": 11.942784
+        },
+        "render/indoor_ground_truth/elapsed_gpu": {
+          "samples": 26,
+          "sum_ms": 3.2693760000000007,
+          "record_batches": 25,
+          "max_reported_batch_mean_ms": 1.39648,
+          "mean_ms": 0.1257452307692308
+        },
+        "render/indoor_diffuse_bake/elapsed_gpu": {
+          "samples": 9,
+          "sum_ms": 2098.908416,
+          "record_batches": 9,
+          "max_reported_batch_mean_ms": 697.009152,
+          "mean_ms": 233.21204622222226
+        }
+      },
+      "gpu_timestamp_policy": "Per-invocation elapsed GPU timestamp spans from available measured-scene diagnostic batches. Asynchronous delivery can cross scene boundaries; these are not exact per-seed attributions. Nested spans are not summed, and elapsed spans are not GPU occupancy.",
+      "telemetry": {
+        "available": true,
+        "schema_version": 2,
+        "pid": 2259277,
+        "identity_verification": "matching_pid_and_telemetry_run_id",
+        "adapter": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+        "adapter_uuid": "GPU-343b002b-d5c6-2d9c-9fea-9ab5a52d0879",
+        "interval_seconds": 0.25,
+        "command_timestamp_bounds_available": true,
+        "process_utilization_unavailable_polls": 0,
+        "process_utilization_errors": [],
+        "duplicate_nvml_samples_removed": 0,
+        "nvml_samples_outside_command_bounds_excluded": 0,
+        "whole_command": {
+          "polls": 184,
+          "known_process_memory_polls": 181,
+          "device_gpu_utilization_poll_mean_percent": 53.48913043478261,
+          "other_observed_gpu_pids": [
+            6937,
+            7013,
+            7389,
+            7878,
+            1223654,
+            1997952,
+            2048641,
+            2238619
+          ],
+          "process_gpu_memory_observed_peak_bytes": 1659056128,
+          "tail_polls": 50,
+          "tail_known_process_memory_polls": 49,
+          "process_gpu_memory_tail_min_max_bytes": [
+            416428032,
+            1608855552
+          ],
+          "process_utilization_reported_samples": 120,
+          "process_sm_utilization_reported_sample_mean_percent": 59.416666666666664,
+          "process_memory_utilization_reported_sample_mean_percent": 0.06666666666666667,
+          "process_utilization_reported_timestamp_span_seconds": 45.200805,
+          "process_utilization_timestamp_gap_seconds_min_median_max": [
+            0.000338,
+            0.201225,
+            2.19997
+          ],
+          "observed_wall_seconds": 47.26417053292971,
+          "child_cpu_user_seconds": 106.654672,
+          "child_cpu_system_seconds": 17.03268,
+          "child_cpu_total_seconds": 123.687352,
+          "child_cpu_core_equivalent": 2.616936901787476,
+          "child_cpu_source": "resource.getrusage(RUSAGE_CHILDREN)"
+        },
+        "cpu_accounting_policy": "Optional Unix RUSAGE_CHILDREN delta for the reaped command and OS-accounted waited descendants, excluding collector CPU. Whole-command CPU-seconds divided by monotonic observed command wall-seconds gives CPU-core equivalents and can exceed 1. Includes startup/warmup/cleanup and exit-observation polling delay; no measured-scene-window CPU attribution. Older runs and unsupported platforms remain null.",
+        "measured_scene_window": {
+          "start_unix_seconds": 1790558299.559061,
+          "end_unix_seconds": 1790558335.404499,
+          "poll_timestamps_available": true,
+          "polls": 141,
+          "known_process_memory_polls": 141,
+          "device_gpu_utilization_poll_mean_percent": 56.48936170212766,
+          "other_observed_gpu_pids": [
+            6937,
+            7013,
+            7389,
+            7878,
+            1223654,
+            1997952,
+            2048641,
+            2238619
+          ],
+          "process_gpu_memory_observed_peak_bytes": 1659056128,
+          "tail_polls": 50,
+          "tail_known_process_memory_polls": 50,
+          "process_gpu_memory_tail_min_max_bytes": [
+            984559616,
+            1608855552
+          ],
+          "process_utilization_reported_samples": 95,
+          "process_sm_utilization_reported_sample_mean_percent": 59.73684210526316,
+          "process_memory_utilization_reported_sample_mean_percent": 0.07368421052631578,
+          "process_utilization_reported_timestamp_span_seconds": 35.599617,
+          "process_utilization_timestamp_gap_seconds_min_median_max": [
+            0.196714,
+            0.2013575,
+            2.19997
+          ]
+        },
+        "policy": "Process utilization is an arithmetic mean of deduplicated matching-PID NVML reported samples; NVML may report only processes with nonzero activity. Missing samples remain unknown: no zero fill, interpolation, time weighting, or occupancy claim. GPU memory peaks are observed polling peaks. Whole-command scope includes startup, warmup, and cleanup. Timestamp-window filters select reported CPU timestamps; an NVML sample can include activity preceding a boundary. Device utilization is not attributed to the process.",
+        "nvml_api_source": "https://docs.nvidia.com/deploy/nvml-api/api/group__nvmlDeviceQueries.html"
+      }
+    },
+    "registry_rgb": {
+      "source": "out/paper_v18/registry_rgb",
+      "summary": {
+        "adapter": "WgpuWrapper(AdapterInfo { name: \"NVIDIA RTX PRO 6000 Blackwell Workstation Edition\", vendor: 4318, device: 11185, device_type: DiscreteGpu, device_pci_bus_id: \"0000:01:00.0\", driver: \"NVIDIA\", driver_info: \"610.43.02\", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: false })",
+        "capture_engine": "capture-v28;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=5;surface_flow=1;indoor=18;multiview=2;ovoxel=2;glass=2;hair=2;bounds=2;position=2;tabletop=1;finishes=3;seating=2;activity=2;playback=2;exterior=1",
+        "config": {
+          "animated": false,
+          "camera_grid": false,
+          "cuboid_only": false,
+          "depth_format": "Linear",
+          "draw_obb_gizmo": false,
+          "draw_pose_gizmos": false,
+          "editor": false,
+          "gizmos": false,
+          "gizmos_alpha": 1.0,
+          "headless": true,
+          "height": 240.0,
+          "human_motion": null,
+          "image_copiers": true,
+          "indoor_camera": null,
+          "indoor_density": 0.6499999761581421,
+          "indoor_gi_rays": 256,
+          "indoor_human_density": 0.25,
+          "indoor_layout": "Mixed",
+          "indoor_quality": "Auto",
+          "indoor_seed": 12000,
+          "initialize_scene": false,
+          "keybinds": false,
+          "material_grid": false,
+          "max_camera_radius": 0.0,
+          "name": "bevy_zeroverse",
+          "num_cameras": 4,
+          "orbit_smoothness": 0.800000011920929,
+          "ovoxel_max_output_voxels": 16000000,
+          "ovoxel_mode": "Disabled",
+          "ovoxel_resolution": 128,
+          "pan_smoothness": 0.6000000238418579,
+          "playback_mode": "Still",
+          "playback_speed": 0.20000000298023224,
+          "playback_step": 0.0,
+          "playback_steps": 1,
+          "plucker_visualization": false,
+          "press_esc_close": false,
+          "regenerate_ms": 0,
+          "regenerate_scene_material_shuffle_period": 0,
+          "regenerate_scene_mesh_shuffle_period": 0,
+          "render_mode": "Color",
+          "render_modes": [
+            "Color"
+          ],
+          "rotation_augmentation": false,
+          "scene_type": "ProceduralIndoor",
+          "width": 320.0,
+          "yaw_speed": 0.0,
+          "z_depth": true,
+          "zoom_smoothness": 0.800000011920929
+        },
+        "fixed_scene": false,
+        "generator_version": 18,
+        "gi_enabled": true,
+        "gi_settings": {
+          "bake": {
+            "diffuse_bounces": 3,
+            "rays_per_probe": 256,
+            "spacing": 0.8500000238418579,
+            "workers": 8
+          },
+          "enabled": true,
+          "gpu": true
+        },
+        "gpu_timings_enabled": true,
+        "indirect_draws": false,
+        "loop_started_unix_seconds": 1790558394.7470067,
+        "max_assets_mesh_material_image": [
+          721,
+          239,
+          104
+        ],
+        "measured_capture_seconds": 29.599701699000004,
+        "measured_completed_views": 128,
+        "pid": 2259404,
+        "poll_backoff_ms": 1,
+        "poll_window_ms": 10,
+        "render_cache_pruning": true,
+        "rss_first_quarter_mean_bytes": 3558872576.0,
+        "rss_last_quarter_mean_bytes": 4547964928.0,
+        "rss_max_bytes": 4684296192.0,
+        "rss_slope_bytes_per_scene": 40700060.15249267,
+        "run_id": "2259404-1790558393500818857",
+        "scene_seconds_p50_p95": [
+          0.773275866,
+          1.776348271
+        ],
+        "scenes": 40,
+        "scenes_per_second": 1.081091976041133,
+        "schema_version": 3,
+        "timing_policy": "actual complete RGB/annotation samples; no PNG or dataset file encoding; scene preparation included, validation and JSONL writes excluded; GPU memory/utilization measured separately",
+        "total_wall_seconds": 37.909384434,
+        "views_per_second": 4.324367904164532,
+        "warmup_scenes": 8
+      },
+      "tail_scenes": 32,
+      "run_identity_verification": "matching_row_run_id_and_pid",
+      "tail_rss_slope_bytes_per_scene": 40700060.15249267,
+      "tail_rss_min_max_bytes": [
+        3228950528,
+        4684296192
+      ],
+      "request_seconds_mean": 0.00299477671875,
+      "capture_seconds_mean": 0.921995901375,
+      "whole_loop_scenes_per_second": 1.0551477054353058,
+      "staging_bytes_min_max": [
+        4915200,
+        4915200
+      ],
+      "annotation_precision": [
+        "float16_hdr"
+      ],
+      "tail_live_heap_slope_bytes_per_scene": 20510823.184750732,
+      "tail_heap_last": {
+        "arena_bytes": 3891863552,
+        "free_heap_bytes": 1371606816,
+        "live_heap_bytes": 2520256736,
+        "mapped_bytes": 260418976
+      },
+      "preparation_stage_seconds_mean": {
+        "asset_insertion_seconds": 0.00043290215625,
+        "cameras_seconds": 0.0207323394375,
+        "geometry_seconds": 0.07575963359375,
+        "gi_setup_seconds": 0.124299089625,
+        "layout_seconds": 0.0004154171875,
+        "materials_seconds": 0.10506206865625,
+        "meshes_seconds": 0.08546818940625
+      },
+      "gpu_timestamp_spans": {
+        "render/dataset_readback_copy/elapsed_gpu": {
+          "samples": 28,
+          "sum_ms": 127.27782400000001,
+          "record_batches": 26,
+          "max_reported_batch_mean_ms": 8.902912,
+          "mean_ms": 4.545636571428572
+        },
+        "render/indoor_diffuse_bake/elapsed_gpu": {
+          "samples": 8,
+          "sum_ms": 1842.3539199999998,
+          "record_batches": 8,
+          "max_reported_batch_mean_ms": 533.129472,
+          "mean_ms": 230.29423999999997
+        }
+      },
+      "gpu_timestamp_policy": "Per-invocation elapsed GPU timestamp spans from available measured-scene diagnostic batches. Asynchronous delivery can cross scene boundaries; these are not exact per-seed attributions. Nested spans are not summed, and elapsed spans are not GPU occupancy.",
+      "telemetry": {
+        "available": true,
+        "schema_version": 2,
+        "pid": 2259404,
+        "identity_verification": "matching_pid_and_telemetry_run_id",
+        "adapter": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+        "adapter_uuid": "GPU-343b002b-d5c6-2d9c-9fea-9ab5a52d0879",
+        "interval_seconds": 0.25,
+        "command_timestamp_bounds_available": true,
+        "process_utilization_unavailable_polls": 0,
+        "process_utilization_errors": [],
+        "duplicate_nvml_samples_removed": 0,
+        "nvml_samples_outside_command_bounds_excluded": 0,
+        "whole_command": {
+          "polls": 155,
+          "known_process_memory_polls": 153,
+          "device_gpu_utilization_poll_mean_percent": 60.49032258064516,
+          "other_observed_gpu_pids": [
+            6937,
+            7013,
+            7389,
+            7878,
+            1223654,
+            1997952,
+            2048641,
+            2238619
+          ],
+          "process_gpu_memory_observed_peak_bytes": 1641689088,
+          "tail_polls": 50,
+          "tail_known_process_memory_polls": 50,
+          "process_gpu_memory_tail_min_max_bytes": [
+            9351168,
+            1641689088
+          ],
+          "process_utilization_reported_samples": 115,
+          "process_sm_utilization_reported_sample_mean_percent": 61.21739130434783,
+          "process_memory_utilization_reported_sample_mean_percent": 0.05217391304347826,
+          "process_utilization_reported_timestamp_span_seconds": 37.597605,
+          "process_utilization_timestamp_gap_seconds_min_median_max": [
+            0.196821,
+            0.201219,
+            0.800954
+          ],
+          "observed_wall_seconds": 39.66746050294023,
+          "child_cpu_user_seconds": 94.650588,
+          "child_cpu_system_seconds": 16.044136,
+          "child_cpu_total_seconds": 110.69472400000001,
+          "child_cpu_core_equivalent": 2.7905674473866333,
+          "child_cpu_source": "resource.getrusage(RUSAGE_CHILDREN)"
+        },
+        "cpu_accounting_policy": "Optional Unix RUSAGE_CHILDREN delta for the reaped command and OS-accounted waited descendants, excluding collector CPU. Whole-command CPU-seconds divided by monotonic observed command wall-seconds gives CPU-core equivalents and can exceed 1. Includes startup/warmup/cleanup and exit-observation polling delay; no measured-scene-window CPU attribution. Older runs and unsupported platforms remain null.",
+        "measured_scene_window": {
+          "start_unix_seconds": 1790558402.97326,
+          "end_unix_seconds": 1790558432.6535637,
+          "poll_timestamps_available": true,
+          "polls": 117,
+          "known_process_memory_polls": 117,
+          "device_gpu_utilization_poll_mean_percent": 63.743589743589745,
+          "other_observed_gpu_pids": [
+            6937,
+            7013,
+            7389,
+            7878,
+            1223654,
+            1997952,
+            2048641,
+            2238619
+          ],
+          "process_gpu_memory_observed_peak_bytes": 1641689088,
+          "tail_polls": 50,
+          "tail_known_process_memory_polls": 50,
+          "process_gpu_memory_tail_min_max_bytes": [
+            955199488,
+            1641689088
+          ],
+          "process_utilization_reported_samples": 90,
+          "process_sm_utilization_reported_sample_mean_percent": 61.922222222222224,
+          "process_memory_utilization_reported_sample_mean_percent": 0.05555555555555555,
+          "process_utilization_reported_timestamp_span_seconds": 29.39969,
+          "process_utilization_timestamp_gap_seconds_min_median_max": [
+            0.196821,
+            0.201222,
+            0.800954
+          ]
+        },
+        "policy": "Process utilization is an arithmetic mean of deduplicated matching-PID NVML reported samples; NVML may report only processes with nonzero activity. Missing samples remain unknown: no zero fill, interpolation, time weighting, or occupancy claim. GPU memory peaks are observed polling peaks. Whole-command scope includes startup, warmup, and cleanup. Timestamp-window filters select reported CPU timestamps; an NVML sample can include activity preceding a boundary. Device utilization is not attributed to the process.",
+        "nvml_api_source": "https://docs.nvidia.com/deploy/nvml-api/api/group__nvmlDeviceQueries.html"
+      }
+    }
+  },
+  "capture_time_reduction_percent": 33.61525971178689,
+  "interpretation": "Bounded diagnostics, no downstream training or ten-million-scene qualification."
+}

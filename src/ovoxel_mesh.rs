@@ -68,10 +68,12 @@ fn ovoxel_to_mesh_internal(volume: &OvoxelVolume, semantic_colors: bool) -> Mesh
 
     // helper to push a quad (two triangles) with consistent winding
     let mut push_quad = |quad: [Vec3; 4], color: [f32; 4], semantic_id: u32| {
+        let normal = (quad[1] - quad[0]).cross(quad[2] - quad[0]);
+        if normal.length_squared() <= f32::EPSILON * f32::EPSILON {
+            return;
+        }
         let base = positions.len() as u32;
-        let n = (quad[1] - quad[0])
-            .cross(quad[2] - quad[0])
-            .normalize_or_zero();
+        let n = normal.normalize();
         for v in quad {
             positions.push([v.x, v.y, v.z]);
             normals.push([n.x, n.y, n.z]);
@@ -83,9 +85,10 @@ fn ovoxel_to_mesh_internal(volume: &OvoxelVolume, semantic_colors: bool) -> Mesh
 
     // For each voxel, emit quads only for the three canonical edges (+X, +Y, +Z from the voxel min corner).
     // Each quad connects the four dual vertices of the cells touching that primal edge. A quad is emitted if
-    // any of those four cells reports an intersection flag for the corresponding axis.
-    for coord in volume.coords.iter() {
+    // the canonical edge stored at this voxel minimum corner crosses geometry.
+    for (cell, coord) in volume.coords.iter().enumerate() {
         let base = (coord[0], coord[1], coord[2]);
+        let flags = volume.intersected.get(cell).copied().unwrap_or(0);
         let idx_at = |dx: i32, dy: i32, dz: i32| -> Option<usize> {
             let key = (
                 (base.0 as i32 + dx) as u32,
@@ -118,46 +121,52 @@ fn ovoxel_to_mesh_internal(volume: &OvoxelVolume, semantic_colors: bool) -> Mesh
         };
         let sem_for = |i: usize| *volume.semantics.get(i).unwrap_or(&0) as u32;
 
-        // Edge along +X: cells (0,0,0), (0,1,0), (0,0,1), (0,1,1)
-        if let (Some(a), Some(b), Some(c), Some(d)) = (
-            idx_at(0, 0, 0),
-            idx_at(0, 1, 0),
-            idx_at(0, 0, 1),
-            idx_at(0, 1, 1),
-        ) {
-            push_quad(
-                [dual_pos[a], dual_pos[b], dual_pos[d], dual_pos[c]],
-                color_for(a),
-                sem_for(a),
-            );
+        // Edge along +X: the four cells meeting at its minimum Y/Z corner.
+        if flags & 1 != 0 {
+            if let (Some(a), Some(b), Some(c), Some(d)) = (
+                idx_at(0, 0, 0),
+                idx_at(0, -1, 0),
+                idx_at(0, 0, -1),
+                idx_at(0, -1, -1),
+            ) {
+                push_quad(
+                    [dual_pos[a], dual_pos[b], dual_pos[d], dual_pos[c]],
+                    color_for(a),
+                    sem_for(a),
+                );
+            }
         }
 
-        // Edge along +Y: cells (0,0,0), (1,0,0), (0,0,1), (1,0,1)
-        if let (Some(a), Some(b), Some(c), Some(d)) = (
-            idx_at(0, 0, 0),
-            idx_at(1, 0, 0),
-            idx_at(0, 0, 1),
-            idx_at(1, 0, 1),
-        ) {
-            push_quad(
-                [dual_pos[a], dual_pos[b], dual_pos[d], dual_pos[c]],
-                color_for(a),
-                sem_for(a),
-            );
+        // Edge along +Y: the four cells meeting at its minimum X/Z corner.
+        if flags & 2 != 0 {
+            if let (Some(a), Some(b), Some(c), Some(d)) = (
+                idx_at(0, 0, 0),
+                idx_at(-1, 0, 0),
+                idx_at(0, 0, -1),
+                idx_at(-1, 0, -1),
+            ) {
+                push_quad(
+                    [dual_pos[a], dual_pos[b], dual_pos[d], dual_pos[c]],
+                    color_for(a),
+                    sem_for(a),
+                );
+            }
         }
 
-        // Edge along +Z: cells (0,0,0), (1,0,0), (0,1,0), (1,1,0)
-        if let (Some(a), Some(b), Some(c), Some(d)) = (
-            idx_at(0, 0, 0),
-            idx_at(1, 0, 0),
-            idx_at(0, 1, 0),
-            idx_at(1, 1, 0),
-        ) {
-            push_quad(
-                [dual_pos[a], dual_pos[b], dual_pos[d], dual_pos[c]],
-                color_for(a),
-                sem_for(a),
-            );
+        // Edge along +Z: the four cells meeting at its minimum X/Y corner.
+        if flags & 4 != 0 {
+            if let (Some(a), Some(b), Some(c), Some(d)) = (
+                idx_at(0, 0, 0),
+                idx_at(-1, 0, 0),
+                idx_at(0, -1, 0),
+                idx_at(-1, -1, 0),
+            ) {
+                push_quad(
+                    [dual_pos[a], dual_pos[b], dual_pos[d], dual_pos[c]],
+                    color_for(a),
+                    sem_for(a),
+                );
+            }
         }
     }
 
@@ -443,7 +452,7 @@ mod tests {
 
     #[test]
     fn builds_mesh_from_single_quad() {
-        let volume = OvoxelVolume {
+        let mut volume = OvoxelVolume {
             coords: vec![[0, 0, 0], [0, 1, 0], [0, 0, 1], [0, 1, 1]],
             dual_vertices: vec![[0, 0, 0]; 4],
             intersected: vec![1; 4],
@@ -465,6 +474,13 @@ mod tests {
         };
         assert!(!positions.is_empty(), "mesh should contain vertices");
         assert!(semantics.iter().all(|s| *s == 7));
+        volume.intersected.fill(0);
+        let empty = ovoxel_to_mesh(&volume);
+        assert_eq!(
+            empty.count_vertices(),
+            0,
+            "occupancy alone must not invent crossing faces"
+        );
     }
 
     #[test]

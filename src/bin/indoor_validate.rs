@@ -10,10 +10,11 @@ use bevy_zeroverse::{
     sample::{Sample, SamplerState},
     scene::{
         procedural_indoor::{
+            cameras::CameraSettings,
             layout::{IndoorLayout, IndoorManifest},
-            metrics::{export_metrics_with_humans, select_strata},
-            validation::{audit_layout_with_humans, validate_geometry},
-            IndoorQuality,
+            metrics::{export_metrics_with_camera_settings, select_strata},
+            validation::{audit_layout_with_camera_settings, validate_geometry},
+            GlassFilter, IndoorQuality,
         },
         RegenerateSceneEvent, ZeroverseSceneType,
     },
@@ -39,6 +40,9 @@ struct Args {
     renders: usize,
     #[arg(long, default_value_t = 4)]
     cameras: usize,
+    /// Camera policy JSON including optional multiview shared-surface constraints.
+    #[arg(long)]
+    indoor_camera: Option<String>,
     #[arg(long, default_value_t = 800)]
     width: u32,
     #[arg(long, default_value_t = 600)]
@@ -63,6 +67,9 @@ struct Args {
     /// Export exposed scene-linear HDR RGB for transport comparisons, with display effects disabled.
     #[arg(long)]
     linear_rgb: bool,
+    /// Offline glass sampling ablation; references integrate 2048 samples per pixel.
+    #[arg(long, value_enum, default_value_t = GlassFilter::Default)]
+    glass_filter: GlassFilter,
     #[arg(long, default_value_t = bevy_zeroverse::scene::procedural_indoor::gi::BakeSettings::default().rays_per_probe)]
     gi_rays: u32,
     /// Diffuse transport depth for controlled reference comparisons.
@@ -169,14 +176,23 @@ fn main() -> Result<()> {
             .unwrap_or_else(|| env!("CARGO_MANIFEST_DIR").to_owned()),
     ));
     fs::create_dir_all(&args.output)?;
+    let camera_settings = args
+        .indoor_camera
+        .as_deref()
+        .map(CameraSettings::parse)
+        .transpose()
+        .map_err(anyhow::Error::msg)?
+        .unwrap_or_default();
     let audit_start = Instant::now();
-    let report = audit_layout_with_humans(
+    let report = audit_layout_with_camera_settings(
         args.seed,
         args.audit_seeds,
         args.cameras,
         args.density,
         args.layout,
         args.human_density,
+        &camera_settings,
+        args.width as f32 / args.height as f32,
     );
     fs::write(
         args.output.join("distribution.json"),
@@ -193,7 +209,7 @@ fn main() -> Result<()> {
         report.invalid_seeds.is_empty(),
         "layout validation failed; see distribution.json"
     );
-    let metrics = export_metrics_with_humans(
+    let metrics = export_metrics_with_camera_settings(
         args.seed,
         args.audit_seeds,
         args.cameras,
@@ -203,6 +219,7 @@ fn main() -> Result<()> {
         args.height,
         &args.output,
         args.human_density,
+        &camera_settings,
     )
     .map_err(anyhow::Error::msg)?;
     let selected: Vec<u64> = if args.stratified {
@@ -229,20 +246,27 @@ fn main() -> Result<()> {
             "run_id": run_id, "quality": args.quality, "capture_engine": bevy_zeroverse::CAPTURE_ENGINE_IDENTITY,
             "policy": if args.stratified { "first observed seed per layout/lighting/floor/furniture/architecture cell; category-balanced order, no image quality filtering" } else { "consecutive seeds" },
             "observed_strata": metrics.stratified_seeds, "selected_seeds": selected,
-            "playback_steps": args.playback_steps, "density": args.density,
+            "playback_steps": args.playback_steps, "density": args.density, "indoor_camera": camera_settings,
             "human_density": args.human_density, "diffuse_gi_enabled": !args.no_gi && args.quality.diffuse_gi(), "gi_rays": args.gi_rays, "gi_bounces": args.gi_bounces,
         }))?,
     )?;
     // Check actual mesh construction independently of the cheaper distribution pass.
     for i in 0..args.audit_seeds.min(16) {
-        let manifest = IndoorManifest::generate_with_humans(
+        let mut manifest = IndoorManifest::generate_with_humans(
             args.seed.wrapping_add(i as u64),
             args.layout,
             args.density,
-            args.cameras,
+            0,
             args.human_density,
         )
         .map_err(anyhow::Error::msg)?;
+        manifest
+            .resample_cameras(
+                args.cameras,
+                camera_settings.clone(),
+                args.width as f32 / args.height as f32,
+            )
+            .map_err(anyhow::Error::msg)?;
         let stats = validate_geometry(&manifest).map_err(anyhow::Error::msg)?;
         fs::write(
             args.output.join(format!("geometry_{}.json", manifest.seed)),
@@ -266,6 +290,7 @@ fn main() -> Result<()> {
     let config = BevyZeroverseConfig {
         scene_type: ZeroverseSceneType::ProceduralIndoor,
         indoor_seed: Some(args.seed),
+        indoor_camera: args.indoor_camera.clone(),
         indoor_layout: args.layout,
         indoor_density: args.density,
         indoor_human_density: args.human_density,
@@ -289,6 +314,7 @@ fn main() -> Result<()> {
         ..default()
     };
     let mut app = create_app(None, Some(config), false);
+    app.insert_resource(args.glass_filter);
     if args.linear_rgb {
         app.add_systems(
             Last,
@@ -465,7 +491,7 @@ fn main() -> Result<()> {
             elapsed_seconds: start.elapsed().as_secs_f64(),
             image_size: [args.width, args.height],
             renderer: app.world().get_resource::<bevy::render::renderer::RenderAdapterInfo>().map(|adapter| format!("{:?}", adapter.0)),
-            capabilities: serde_json::json!({ "quality": args.quality, "shadows": args.quality.shadows() && !args.no_shadows,
+            capabilities: serde_json::json!({ "quality": args.quality, "glass_filter": args.glass_filter, "shadows": args.quality.shadows() && !args.no_shadows,
                 "ssao": args.quality.ssao() && !args.no_ssao, "bloom": args.quality.bloom() && !args.linear_rgb, "specular_transmission": args.quality.specular_transmission(),
                 "shadow_map_size": args.quality.shadow_map_size(), "annotation_hdr_format": if sample.annotation_precision == bevy_zeroverse::sample::AnnotationPrecision::Float32Geometry { "RGBA32Float_direct" } else { "RGBA16Float" } }),
             aabb: sample.aabb,

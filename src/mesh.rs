@@ -323,6 +323,42 @@ pub fn normalize_mesh_to_unit_cube(mesh: &mut Mesh) -> Option<Vec3> {
     None
 }
 
+/// Angle-weighted normals without an absolute edge-length cutoff. Dense caps
+/// and poles otherwise receive zero weights from Bevy's default normal helper.
+pub fn compute_scale_invariant_smooth_normals(mesh: &mut Mesh) {
+    let previous = mesh.remove_attribute(Mesh::ATTRIBUTE_NORMAL);
+    mesh.compute_custom_smooth_normals(|[a, b, c], positions, normals| {
+        let points = [a, b, c].map(|i| Vec3::from_array(positions[i]));
+        for (corner, index) in [a, b, c].into_iter().enumerate() {
+            let u = (points[(corner + 1) % 3] - points[corner]).normalize_or_zero();
+            let v = (points[(corner + 2) % 3] - points[corner]).normalize_or_zero();
+            let cross = u.cross(v);
+            let angle = cross.length().atan2(u.dot(v));
+            normals[index] += cross.normalize_or_zero() * angle;
+        }
+    });
+    if let Some(VertexAttributeValues::Float32x3(normals)) =
+        mesh.attribute_mut(Mesh::ATTRIBUTE_NORMAL)
+    {
+        let previous = match &previous {
+            Some(VertexAttributeValues::Float32x3(v)) => Some(v),
+            _ => None,
+        };
+        for (index, normal) in normals.iter_mut().enumerate() {
+            if Vec3::from_array(*normal).length_squared() < 1e-12 {
+                // UV pole duplicates may have no nondegenerate incident face.
+                // Preserve their analytic normal; they carry no rendered area.
+                *normal = previous
+                    .and_then(|v| v.get(index))
+                    .map(|v| Vec3::from_array(*v))
+                    .unwrap_or(Vec3::Y)
+                    .normalize_or(Vec3::Y)
+                    .to_array();
+            }
+        }
+    }
+}
+
 pub fn mesh_bounds(mesh: &Mesh) -> Option<(Vec3, Vec3)> {
     if let Some(VertexAttributeValues::Float32x3(positions)) =
         mesh.attribute(Mesh::ATTRIBUTE_POSITION)
@@ -385,4 +421,49 @@ pub fn displace_vertices_with_noise(mesh: &mut Mesh, frequency: f32, scale: f32)
         Mesh::ATTRIBUTE_POSITION,
         VertexAttributeValues::Float32x3(positions_attr),
     );
+}
+
+#[cfg(test)]
+mod normal_tests {
+    use super::*;
+    #[test]
+    fn dense_primitive_normals_remain_finite_at_small_scales() {
+        for scale in [1.0, 0.001] {
+            for mut mesh in [
+                Sphere::default().mesh().uv(63, 31),
+                Capsule3d::default()
+                    .mesh()
+                    .latitudes(62)
+                    .longitudes(63)
+                    .rings(31)
+                    .build(),
+            ] {
+                if let Some(VertexAttributeValues::Float32x3(positions)) =
+                    mesh.attribute_mut(Mesh::ATTRIBUTE_POSITION)
+                {
+                    for p in positions {
+                        *p = (Vec3::from_array(*p) * scale).to_array();
+                    }
+                }
+                compute_scale_invariant_smooth_normals(&mut mesh);
+                let normals = mesh
+                    .attribute(Mesh::ATTRIBUTE_NORMAL)
+                    .unwrap()
+                    .as_float3()
+                    .unwrap();
+                assert!(normals.iter().all(|n| Vec3::from_array(*n).is_finite()
+                    && (Vec3::from_array(*n).length_squared() - 1.).abs() < 1e-5));
+            }
+            let mut plane = Plane3d::default().mesh().size(scale, scale).build();
+            compute_scale_invariant_smooth_normals(&mut plane);
+            let normals = plane
+                .attribute(Mesh::ATTRIBUTE_NORMAL)
+                .unwrap()
+                .as_float3()
+                .unwrap();
+            assert!(normals
+                .iter()
+                .all(|n| Vec3::from_array(*n).distance(Vec3::Y) < 1e-6));
+        }
+    }
 }

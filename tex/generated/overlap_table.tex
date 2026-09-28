@@ -1,0 +1,16 @@
+\begin{table}[ht]
+\centering\small
+\begin{tabular}{p{.53\linewidth}p{.36\linewidth}}
+\toprule
+Semantic classes/view: minimum / mean (at least 32 pixels) & 7 / 11.38 \\
+Occupied primary rooms with no person label & 0 / 45 \\
+Occupied non-neighbor rooms with no person label & 14 / 60 \\
+Rendered reference edges / rooms & 192 / 64 \\
+Worst-pair overlap per room: min / mean & 0.344 / 0.474 \\
+Rendered pairs below the 0.35 proxy requirement & 3 \\
+Maximum per-view depth/position p99 error (m) & 2.86e-06 \\
+Maximum per-view reprojection p99 error (pixels) & 0.00262 \\
+\bottomrule
+\end{tabular}
+\caption{Actual geometry audit at the captured timestep. Visibility requires depth agreement within 0.01 m plus 0.002 times depth; nearest-pixel raster boundaries and thin geometry differ from proxy rays.}\label{tab:overlap}
+\end{table}

@@ -106,16 +106,11 @@ pub(super) fn panel(world: &mut World) {
                         }
                         changed |= choice(
                             ui,
-                            "Activity",
+                            "Activity bias",
                             &mut config.indoor_layout,
-                            &[
-                                IndoorLayout::Mixed,
-                                IndoorLayout::Conference,
-                                IndoorLayout::OpenOffice,
-                                IndoorLayout::Training,
-                                IndoorLayout::Lounge,
-                            ],
+                            <IndoorLayout as clap::ValueEnum>::value_variants(),
                         );
+                        ui.small("Samples a blend of work, meeting, social and learning spaces.");
                         changed |= ui
                             .add(
                                 egui::Slider::new(&mut config.indoor_density, 0.0..=1.0)
@@ -162,6 +157,38 @@ pub(super) fn panel(world: &mut World) {
                                         .text("Long route fraction"),
                                 )
                                 .changed();
+                            let mut overlap_enabled = policy.multiview.is_some();
+                            if ui
+                                .checkbox(&mut overlap_enabled, "Shared geometry across views")
+                                .changed()
+                            {
+                                policy.multiview = overlap_enabled.then(Default::default);
+                                edit = true;
+                            }
+                            if let Some(m) = &mut policy.multiview {
+                                ui.label(
+                                    "Each view overlaps camera 0; estimates include occlusion.",
+                                );
+                                edit |= ui
+                                    .add(
+                                        egui::Slider::new(&mut m.min_overlap, 0.0..=1.0)
+                                            .text("Minimum estimated overlap"),
+                                    )
+                                    .changed();
+                                edit |= ui
+                                    .add(
+                                        egui::Slider::new(&mut m.min_baseline, 0.01..=5.0)
+                                            .text("Minimum baseline (m)"),
+                                    )
+                                    .changed();
+                                edit |= ui
+                                    .add(
+                                        egui::Slider::new(&mut m.max_baseline, 0.01..=10.0)
+                                            .text("Maximum baseline (m)"),
+                                    )
+                                    .changed();
+                                m.max_baseline = m.max_baseline.max(m.min_baseline);
+                            }
                             if edit {
                                 config.indoor_camera =
                                     Some(serde_json::to_string(&policy).unwrap());
@@ -343,11 +370,7 @@ pub(super) fn panel(world: &mut World) {
                             ui,
                             "Playback",
                             &mut config.playback_mode,
-                            &[
-                                PlaybackMode::Still,
-                                PlaybackMode::Loop,
-                                PlaybackMode::PingPong,
-                            ],
+                            <PlaybackMode as clap::ValueEnum>::value_variants(),
                         );
                         changed |= ui
                             .add(

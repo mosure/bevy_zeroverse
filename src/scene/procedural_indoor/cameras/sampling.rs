@@ -1,14 +1,17 @@
 //! Camera proposals are restricted to one primary room unless explicitly disabled.
-use super::super::layout::{stream, IndoorCamera, IndoorManifest, CAMERA_CLEARANCE};
+use super::super::layout::{IndoorCamera, IndoorManifest, CAMERA_CLEARANCE};
 use bevy::prelude::*;
 use rand::Rng;
 impl IndoorManifest {
-    pub(crate) fn sample_cameras(&mut self, count: usize) -> Result<(), String> {
-        let mut rng = stream(self.seed, 3);
+    pub(super) fn sample_independent_cameras(
+        &mut self,
+        count: usize,
+        rng: &mut rand_chacha::ChaCha8Rng,
+        coverage: &super::coverage::Coverage,
+    ) -> Result<(), String> {
         let half = self.room_size * 0.5;
         self.camera_settings.validate()?;
         let (primary_lo, primary_hi) = self.primary_room_bounds();
-        let coverage = super::coverage::Coverage::new(self);
         let people: Vec<_> = self
             .humans
             .iter()

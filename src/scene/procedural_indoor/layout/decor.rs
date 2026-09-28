@@ -1,14 +1,92 @@
 //! Wall displays and supported clutter use free-space rejection, not fixed anchors.
+use super::super::architecture::facade::{self, FacadeSide};
 use super::*;
+
+pub(super) fn drink(rng: &mut ChaCha8Rng) -> (ObjectKind, Vec3) {
+    match rng.random_range(0..4) {
+        0 => (
+            ObjectKind::Mug,
+            Vec3::new(
+                rng.random_range(0.10..0.14),
+                rng.random_range(0.072..0.13),
+                rng.random_range(0.075..0.11),
+            ),
+        ),
+        1 => {
+            let d = rng.random_range(0.068..0.095);
+            (
+                ObjectKind::CoffeeCup,
+                Vec3::new(d, rng.random_range(0.085..0.15), d),
+            )
+        }
+        2 => {
+            let d = rng.random_range(0.055..0.09);
+            (
+                ObjectKind::WaterBottle,
+                Vec3::new(d, rng.random_range(0.16..0.31), d),
+            )
+        }
+        _ => {
+            let d = rng.random_range(0.057..0.075);
+            (
+                ObjectKind::SodaCan,
+                Vec3::new(d, rng.random_range(0.09..0.18), d),
+            )
+        }
+    }
+}
 impl IndoorManifest {
+    pub(super) fn wall_hardware(&mut self, rng: &mut ChaCha8Rng) {
+        for i in 0..rng.random_range(4..10) {
+            let switch = i < 2;
+            let kind = if switch {
+                ObjectKind::LightSwitch
+            } else {
+                ObjectKind::WallOutlet
+            };
+            let gangs = rng.random_range(1..=3);
+            let size = Vec3::new(0.075 * gangs as f32, rng.random_range(0.10..0.125), 0.018);
+            let side = FacadeSide::ALL[rng.random_range(0..3)];
+            let along = rng.random_range(-0.40..0.40);
+            let height = if switch {
+                rng.random_range(1.05..1.22)
+            } else {
+                rng.random_range(0.22..0.38)
+            };
+            let position = side.transform(self.room_size).transform_point(Vec3::new(
+                along * side.span(self.room_size),
+                height,
+                0.007,
+            ));
+            let yaw = side.yaw();
+            let mut obj = self.candidate(kind, position, size, yaw, rng);
+            obj.solid = false;
+            // One electrical convention per scene; finishes/gang counts can vary.
+            obj.variant = (self.seed % 4) as u32;
+            let (lo, hi) = obj.bounds();
+            if super::super::architecture::details::overlaps_niche(self, lo, hi)
+                || facade::overlaps_opening(self, lo, hi, 0.05)
+                || self
+                    .objects
+                    .iter()
+                    .map(IndoorObject::bounds)
+                    .chain(self.columns())
+                    .any(|(a, b)| {
+                        lo.cmplt(b + Vec3::splat(0.015)).all()
+                            && hi.cmpgt(a - Vec3::splat(0.015)).all()
+                    })
+            {
+                continue;
+            }
+            self.objects.push(obj);
+        }
+    }
     pub(super) fn wall_decorations(&mut self, rng: &mut ChaCha8Rng) {
-        let w = self.room_size.x;
-        let d = self.room_size.z;
         let h = self.room_size.y;
         let count = rng.random_range(2..=9);
         for _ in 0..count {
-            let rear = rng.random_bool(0.55);
-            let span = if rear { w } else { d };
+            let side = FacadeSide::ALL[rng.random_range(0..3)];
+            let span = side.span(self.room_size);
             let (kind, size) = match rng.random_range(0..5) {
                 0 => (
                     ObjectKind::Display,
@@ -42,17 +120,15 @@ impl IndoorManifest {
             let along = rng
                 .random_range(-span * 0.5 + size.x * 0.5 + 0.35..span * 0.5 - size.x * 0.5 - 0.35);
             let y = rng.random_range(0.95..(h - size.y - 0.3).clamp(0.96, 2.15));
-            let (position, yaw) = if rear {
-                (Vec3::new(along, y, -d * 0.5 + 0.18), 0.0)
-            } else {
-                (
-                    Vec3::new(w * 0.5 - 0.18, y, along),
-                    -std::f32::consts::FRAC_PI_2,
-                )
-            };
+            let position = side
+                .transform(self.room_size)
+                .transform_point(Vec3::new(along, y, 0.18));
+            let yaw = side.yaw();
             let object = self.candidate(kind, position, size, yaw, rng);
             let (lo, hi) = object.bounds();
-            if super::super::architecture::details::overlaps_niche(self, lo, hi) {
+            if super::super::architecture::details::overlaps_niche(self, lo, hi)
+                || facade::overlaps_opening(self, lo, hi, 0.05)
+            {
                 continue;
             }
             if self
@@ -78,8 +154,8 @@ impl IndoorManifest {
             .cloned()
             .collect();
         for support in surfaces {
-            for _ in 0..(clutter * 14.0) as usize {
-                let (kind, size) = match rng.random_range(0..8) {
+            for _ in 0..(clutter * 20.0) as usize {
+                let (kind, size) = match rng.random_range(0..17) {
                     0 => (
                         ObjectKind::StorageBox,
                         Vec3::new(
@@ -108,10 +184,30 @@ impl IndoorManifest {
                             0.21,
                         ),
                     ),
-                    4 => (ObjectKind::Mug, Vec3::new(0.12, 0.105, 0.09)),
-                    5 => (
-                        ObjectKind::WaterBottle,
-                        Vec3::new(0.08, rng.random_range(0.18..0.30), 0.08),
+                    4..=7 => drink(rng),
+                    8 | 9 => (
+                        ObjectKind::Notepad,
+                        Vec3::new(
+                            rng.random_range(0.09..0.20),
+                            rng.random_range(0.006..0.024),
+                            rng.random_range(0.12..0.27),
+                        ),
+                    ),
+                    10..=12 => (
+                        ObjectKind::Pencil,
+                        Vec3::new(0.008, 0.009, rng.random_range(0.11..0.19)),
+                    ),
+                    13 | 14 => (
+                        ObjectKind::Phone,
+                        Vec3::new(
+                            rng.random_range(0.064..0.083),
+                            rng.random_range(0.007..0.012),
+                            rng.random_range(0.13..0.17),
+                        ),
+                    ),
+                    15 if support.kind == ObjectKind::Table => (
+                        ObjectKind::Microphone,
+                        Vec3::new(0.13, rng.random_range(0.17..0.31), 0.16),
                     ),
                     _ => (
                         ObjectKind::Notebook,

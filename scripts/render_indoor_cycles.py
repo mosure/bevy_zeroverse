@@ -20,7 +20,7 @@ import sys
 import time
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from indoor_reference_contract import sky_radiance, validate_snapshot
+from indoor_reference_contract import absorption_coefficients, sky_radiance, validate_snapshot
 
 import bpy
 from mathutils import Matrix, Vector
@@ -140,6 +140,17 @@ def material(definition, directory, index):
         raise ValueError("Use native Auto quality for optical references; alpha approximations are unsupported")
     if definition["unlit"]:
         raise ValueError("Unlit materials have no physical reference mapping")
+    if definition["specular_transmission"] > 0:
+        sigma = absorption_coefficients(definition["attenuation_color"], definition["attenuation_distance"])
+        density = max(sigma)
+        if density > 0:
+            # Cycles Volume Absorption uses (1-Color)*Density as sigma_a.
+            # Use the exported closed slab and actual path length, not a tinted
+            # surface BSDF (which incorrectly absorbs once per interface).
+            volume = tree.nodes.new("ShaderNodeVolumeAbsorption")
+            volume.inputs["Color"].default_value = (*[1-s/density for s in sigma], 1)
+            volume.inputs["Density"].default_value = density
+            connect(tree, volume, "Volume", output, "Volume")
     return m
 
 
@@ -299,6 +310,8 @@ def main():
         raise ValueError("A passing ordinary-path radiometry control is required")
     if calibration["backend"] != args.device or calibration["blender"] != bpy.app.version_string:
         raise ValueError("Radiometry control must match this Blender version and backend")
+    if not any(c["control"] == "absorption" and c["passed"] for c in calibration["controls"]):
+        raise ValueError("Re-run radiometry controls: tinted glass requires the absorption control")
     args.scene = args.scene.resolve()
     document = json.loads(args.scene.read_text())
     if document["format"] != "zeroverse-reference-v1":
@@ -404,7 +417,7 @@ def main():
                   "Visible upper-hemisphere sky replaces indoor reflection cubemap",
                   "No SSAO, bloom, FXAA, probe interpolation or range truncation",
                   "Blender Principled BSDF and AgX differ from Bevy PBR and tone mapping",
-                  "Glass absorption is not mapped; RGB transport is not spectral"],
+                  "Glass volume absorption follows Beer-Lambert; RGB transport is not spectral"],
               "state_of_the_art_claim": False}
     (output / "report.json").write_text(json.dumps(report, indent=2) + "\n")
     if audit and not aligned:

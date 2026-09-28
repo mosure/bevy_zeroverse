@@ -27,7 +27,7 @@ pub mod util;
 /// Pixel/annotation contract identity. Dependency versions are pinned in Cargo.toml.
 /// Geometry grammar version is independent; renderer upgrades invalidate capture resume.
 pub const CAPTURE_ENGINE_IDENTITY: &str =
-    "capture-v20;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=5;surface_flow=1;indoor=13";
+    "capture-v28;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=5;surface_flow=1;indoor=18;multiview=2;ovoxel=2;glass=2;hair=2;bounds=2;position=2;tabletop=1;finishes=3;seating=2;activity=2;playback=2;exterior=1";
 
 pub struct BevyZeroversePlugin;
 

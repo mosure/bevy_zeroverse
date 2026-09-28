@@ -10,6 +10,8 @@ import json
 import math
 from pathlib import Path
 import sys
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from indoor_reference_contract import absorption_coefficients
 
 import bpy
 from mathutils import Vector
@@ -44,7 +46,8 @@ def main():
     through_glass /= 1 - .18 * diffuse_reflection
     for kind, expected in [("emission", 4), ("sun", 100 * .18 / math.pi),
                            ("upper_hemisphere", .18), ("glass", 4 * (1 - .04) / (1 + .04)),
-                           ("sun_glass", through_glass)]:
+                           ("sun_glass", through_glass),
+                           ("absorption", 4*sum(c**0.5 for c in (.4,.7,.9))/3)]:
         bpy.ops.wm.read_factory_settings(use_empty=True)
         scene = bpy.context.scene
         scene.render.engine = "CYCLES"
@@ -89,7 +92,7 @@ def main():
         tree = m.node_tree
         tree.nodes.clear()
         target = tree.nodes.new("ShaderNodeOutputMaterial")
-        if kind in ("emission", "glass"):
+        if kind in ("emission", "glass", "absorption"):
             shader = tree.nodes.new("ShaderNodeEmission")
             shader.inputs["Color"].default_value = (1, 1, 1, 1)
             shader.inputs["Strength"].default_value = 4
@@ -125,7 +128,7 @@ def main():
             tree.links.new(coord.outputs["Normal"], separate.inputs["Vector"])
             tree.links.new(separate.outputs["Y"], positive.inputs[0])
             tree.links.new(positive.outputs[0], bg.inputs["Strength"])
-        if kind in ("glass", "sun_glass"):
+        if kind in ("glass", "sun_glass", "absorption"):
             bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, .2))
             glass = bpy.context.object
             glass.cycles.is_caustics_caster = args.approximate_caustics
@@ -146,6 +149,19 @@ def main():
             bsdf.inputs["Roughness"].default_value = 0
             bsdf.inputs["IOR"].default_value = 1.5
             bsdf.inputs["Transmission Weight"].default_value = 1
+            if kind == "absorption":
+                # Isolate volume attenuation from Fresnel with transparent
+                # boundaries. Actual slab thickness .008 m, reference .016 m.
+                gm.node_tree.nodes.remove(bsdf)
+                bsdf = gm.node_tree.nodes.new("ShaderNodeBsdfTransparent")
+                output_node = gm.node_tree.nodes.get("Material Output")
+                gm.node_tree.links.new(bsdf.outputs[0], output_node.inputs["Surface"])
+                sigma = absorption_coefficients((.4,.7,.9), .016)
+                density = max(sigma)
+                volume = gm.node_tree.nodes.new("ShaderNodeVolumeAbsorption")
+                volume.inputs["Color"].default_value = (*[1-s/density for s in sigma],1)
+                volume.inputs["Density"].default_value = density
+                gm.node_tree.links.new(volume.outputs[0], output_node.inputs["Volume"])
             glass.data.materials.append(gm)
             if kind == "sun_glass":
                 # Observe the diffuse receiver from below the slab, measuring

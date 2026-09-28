@@ -38,7 +38,11 @@ impl IndoorManifest {
                     self.chair_work(Vec3::new(0.0, 0.0, length * 0.5 + 0.60), 0.0, rng);
                     self.chair_work(Vec3::new(0.0, 0.0, -length * 0.5 - 0.60), PI, rng);
                 }
-                IndoorLayout::OpenOffice => {
+                IndoorLayout::OpenOffice
+                | IndoorLayout::Coworking
+                | IndoorLayout::Library
+                | IndoorLayout::Workshop
+                | IndoorLayout::Studio => {
                     let rows = if d > 9.7 {
                         3
                     } else if d > 6.5 {
@@ -74,7 +78,7 @@ impl IndoorManifest {
                         }
                     }
                 }
-                IndoorLayout::Lounge => {
+                IndoorLayout::Lounge | IndoorLayout::Reception | IndoorLayout::Breakroom => {
                     self.add_work(
                         ObjectKind::Sofa,
                         Vec3::new(0.0, 0.0, -1.45),
@@ -276,6 +280,20 @@ impl IndoorManifest {
             yaw + delta,
             rng,
         );
+        match chair.variant % super::super::objects::chairs::FAMILIES {
+            // Tall upholstered task backs and headrests have different envelopes
+            // from a dining shell or a lounge armchair.
+            2..=4 => chair.size.y = 0.80 + (height - 0.83) / 0.61 * 0.32,
+            6 => chair.size.y = 0.48,
+            7 => chair.size.y = 0.79,
+            8 => {
+                chair.size.y = 0.78 + (height - 0.83) / 0.61 * 0.30;
+                chair.size.x = rng.random_range(0.77..1.02);
+                chair.size.z = rng.random_range(0.77..1.02);
+            }
+            9 => chair.size.y = rng.random_range(1.16..1.48),
+            _ => {}
+        }
         // Tight conference rows allow less swivel than an open workstation.
         // Preserve every planned seat, choosing the widest collision-free angle.
         for fraction in [1.0, 0.5, 0.2, 0.0] {

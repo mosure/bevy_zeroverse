@@ -1,0 +1,1032 @@
+{
+  "scope": "Matched native screen-space quadrature error; not photographic realism, temporal stability, or physical transport error",
+  "dense_samples_per_pixel": 2048,
+  "mask": "window semantic, eroded by one pixel, >=64 pixels/view",
+  "filter_reference_warning": "Each filter uses its own dense reference; dense_reference_change records kernel bias separately",
+  "script_sha256": "0035e33da33d433d3aeade4503007f2a752ee064ab9cb78dd1847f4c345b8e99",
+  "pixels": 407489,
+  "rmse_before": 0.007126266556221745,
+  "rmse_after": 0.0019262035829820067,
+  "rmse_after_against_shared_legacy_reference": 0.0027183659923339953,
+  "shared_reference_rmse_reduction_fraction": 0.6185427571523177,
+  "shared_reference_after_before_ratio_95_percent_spatial_block_bootstrap": [
+    0.3095754281845021,
+    1.0581302749927588
+  ],
+  "rmse_reduction_fraction": 0.729703685964386,
+  "after_before_rmse_ratio_95_percent_spatial_block_bootstrap": [
+    0.25464847603507734,
+    0.4022893646145136
+  ],
+  "uncertainty_scope": "32x32 spatial block bootstrap within these consecutive scenes; not confidence over the entire procedural distribution",
+  "views": [
+    {
+      "seed": 44,
+      "view": 0,
+      "qualified": true,
+      "optical_content_sha256": "2d77428732b7ead0e6b5d34093b3ad3e94d8a35b8fb1e1998500eb160f51d223",
+      "capture_sha256": {
+        "legacy": "11f0150d3cf9187af009312083b14da7f106e5a148443b8c8a2dfd47b4ffb818",
+        "legacy-reference": "133939fa8f360b0e3ca17b50f70f151575fd50556210e85178f5747da82bd703",
+        "default": "dcdbc3a150278d9203d0d02f7878fdee20bf64e602fe372f27564fe9e644349b",
+        "reference": "be90bec0268c183f1f80d9205205c4b8b6e1390da3e6cbab156ef4a0669d19cd"
+      },
+      "before": {
+        "pixels": 12890,
+        "rmse": 0.00869417506938765,
+        "relative_rmse": 1.1122995122127355,
+        "relative_bias": 0.0002815998176213871,
+        "reference_mean_luminance": 0.007816397448644053
+      },
+      "after": {
+        "pixels": 12890,
+        "rmse": 0.0036802317181344113,
+        "relative_rmse": 0.45779104543999355,
+        "relative_bias": -0.011455189327343308,
+        "reference_mean_luminance": 0.008039108136327253
+      },
+      "after_against_shared_legacy_reference": {
+        "pixels": 12890,
+        "rmse": 0.0036963380376629678,
+        "relative_rmse": 0.4728953538953151,
+        "relative_bias": 0.016711174529801445,
+        "reference_mean_luminance": 0.007816397448644053
+      },
+      "dense_reference_change": {
+        "pixels": 12890,
+        "rmse": 0.0015211094028578602,
+        "relative_rmse": 0.19460492034239305,
+        "relative_bias": 0.028492753745759797,
+        "reference_mean_luminance": 0.007816397448644053
+      }
+    },
+    {
+      "seed": 44,
+      "view": 1,
+      "qualified": true,
+      "optical_content_sha256": "2d77428732b7ead0e6b5d34093b3ad3e94d8a35b8fb1e1998500eb160f51d223",
+      "capture_sha256": {
+        "legacy": "ff96039055ccd01f34c5c1819f799c5e63b392cdf71064a02d6c77a2e324c48d",
+        "legacy-reference": "03deb369f2b66f9625fc760997c0d8471fa278d299614d857cd9b8b91073dec1",
+        "default": "1642bde2627981332b4c26b3ab814d1be3d1ee91bc71241cd6aad71998f23317",
+        "reference": "53c0fa75d4288e21adf34aba2cd1289d7a4fa635e58c2e9c177330fefade5d6b"
+      },
+      "before": {
+        "pixels": 4693,
+        "rmse": 0.0008723351346279919,
+        "relative_rmse": 0.001878575886513378,
+        "relative_bias": -1.807128246285322e-05,
+        "reference_mean_luminance": 0.46435980621844297
+      },
+      "after": {
+        "pixels": 4693,
+        "rmse": 0.0002579637149497195,
+        "relative_rmse": 0.0005548858684838164,
+        "relative_bias": 1.695244684582333e-07,
+        "reference_mean_luminance": 0.4648950885243947
+      },
+      "after_against_shared_legacy_reference": {
+        "pixels": 4693,
+        "rmse": 0.0017949052080598654,
+        "relative_rmse": 0.003865332838939791,
+        "relative_bias": 0.001152901499818224,
+        "reference_mean_luminance": 0.46435980621844297
+      },
+      "dense_reference_change": {
+        "pixels": 4693,
+        "rmse": 0.0017745806621103078,
+        "relative_rmse": 0.0038215638785832253,
+        "relative_bias": 0.0011527317799335233,
+        "reference_mean_luminance": 0.46435980621844297
+      }
+    },
+    {
+      "seed": 45,
+      "view": 0,
+      "qualified": true,
+      "optical_content_sha256": "4cf34b71164dc55ebd28d913ac61959d26cff89f5cc33b3147404bb705dfb4df",
+      "capture_sha256": {
+        "legacy": "b3c6348f95ac51367eeb2e92be3b810af688a19073acd0adbcc6524c15ee957e",
+        "legacy-reference": "23415f3eb35f92ce5e7db31a3f7303abb6e99c8a836a0ea64ac91ea44670eaa0",
+        "default": "8ab33e122f4375ff5cebe516c04a2d7d1959abdb3481fa7dc4687ab84552ac0f",
+        "reference": "8ab33e122f4375ff5cebe516c04a2d7d1959abdb3481fa7dc4687ab84552ac0f"
+      },
+      "before": {
+        "pixels": 6438,
+        "rmse": 0.00013386701660729922,
+        "relative_rmse": 0.0014442700503530458,
+        "relative_bias": -1.1834305312065157e-05,
+        "reference_mean_luminance": 0.09268835601387426
+      },
+      "after": {
+        "pixels": 6438,
+        "rmse": 0.0,
+        "relative_rmse": 0.0,
+        "relative_bias": 0.0,
+        "reference_mean_luminance": 0.09278163813787722
+      },
+      "after_against_shared_legacy_reference": {
+        "pixels": 6438,
+        "rmse": 0.0019092933615879716,
+        "relative_rmse": 0.020599063827415116,
+        "relative_bias": 0.001006406068837779,
+        "reference_mean_luminance": 0.09268835601387426
+      },
+      "dense_reference_change": {
+        "pixels": 6438,
+        "rmse": 0.0019092933615879716,
+        "relative_rmse": 0.020599063827415116,
+        "relative_bias": 0.001006406068837779,
+        "reference_mean_luminance": 0.09268835601387426
+      }
+    },
+    {
+      "seed": 45,
+      "view": 1,
+      "qualified": true,
+      "optical_content_sha256": "4cf34b71164dc55ebd28d913ac61959d26cff89f5cc33b3147404bb705dfb4df",
+      "capture_sha256": {
+        "legacy": "ffedbdd2d3d59e53ffa64b924e41fde8334112be373e6ed9fdc69c63ad44b20b",
+        "legacy-reference": "0a838f056240708d98e9de9e78939c197b470debd96d67b9a9d00afd670d99c4",
+        "default": "53c0164115ae5dffc24f6fa332a1f3f703d1a8e17f4616ae1a55f2b4a38877d6",
+        "reference": "53c0164115ae5dffc24f6fa332a1f3f703d1a8e17f4616ae1a55f2b4a38877d6"
+      },
+      "before": {
+        "pixels": 19618,
+        "rmse": 8.216779620850896e-05,
+        "relative_rmse": 0.0011638788257316824,
+        "relative_bias": -3.7162061588335314e-06,
+        "reference_mean_luminance": 0.07059823960355449
+      },
+      "after": {
+        "pixels": 19618,
+        "rmse": 0.0,
+        "relative_rmse": 0.0,
+        "relative_bias": 0.0,
+        "reference_mean_luminance": 0.07062542991590301
+      },
+      "after_against_shared_legacy_reference": {
+        "pixels": 19618,
+        "rmse": 0.000800101610889177,
+        "relative_rmse": 0.011333166597101572,
+        "relative_bias": 0.00038514150637755564,
+        "reference_mean_luminance": 0.07059823960355449
+      },
+      "dense_reference_change": {
+        "pixels": 19618,
+        "rmse": 0.000800101610889177,
+        "relative_rmse": 0.011333166597101572,
+        "relative_bias": 0.00038514150637755564,
+        "reference_mean_luminance": 0.07059823960355449
+      }
+    },
+    {
+      "seed": 46,
+      "view": 0,
+      "pixels": 0,
+      "qualified": false
+    },
+    {
+      "seed": 46,
+      "view": 1,
+      "qualified": true,
+      "optical_content_sha256": "b16547357f7b63eb589ac87ccd59e329f2d3965de330273a7a09f47fc01a740b",
+      "capture_sha256": {
+        "legacy": "8f50f1c0d9c23036b03cc3c663bf7caa4f4666df2b68b40ef2d66a4e3169b83d",
+        "legacy-reference": "b41f4b5ecc421f3217d4d5ac6d814c1d70859353cae70d28b59e192154e66cdc",
+        "default": "1ca0180a7c5ecdb558bff5c9693a781456b3af3527d34ff5d4fcad57a0b62399",
+        "reference": "1ca0180a7c5ecdb558bff5c9693a781456b3af3527d34ff5d4fcad57a0b62399"
+      },
+      "before": {
+        "pixels": 55384,
+        "rmse": 2.4264005825848217e-05,
+        "relative_rmse": 0.0020020363364182505,
+        "relative_bias": 9.920485625583297e-06,
+        "reference_mean_luminance": 0.012119663057293863
+      },
+      "after": {
+        "pixels": 55384,
+        "rmse": 0.0,
+        "relative_rmse": 0.0,
+        "relative_bias": 0.0,
+        "reference_mean_luminance": 0.012125423295298494
+      },
+      "after_against_shared_legacy_reference": {
+        "pixels": 55384,
+        "rmse": 0.00016534767706637,
+        "relative_rmse": 0.013642926893653233,
+        "relative_bias": 0.0004752803751555611,
+        "reference_mean_luminance": 0.012119663057293863
+      },
+      "dense_reference_change": {
+        "pixels": 55384,
+        "rmse": 0.00016534767706637,
+        "relative_rmse": 0.013642926893653233,
+        "relative_bias": 0.0004752803751555611,
+        "reference_mean_luminance": 0.012119663057293863
+      }
+    },
+    {
+      "seed": 47,
+      "view": 0,
+      "pixels": 0,
+      "qualified": false
+    },
+    {
+      "seed": 47,
+      "view": 1,
+      "pixels": 0,
+      "qualified": false
+    },
+    {
+      "seed": 48,
+      "view": 0,
+      "qualified": true,
+      "optical_content_sha256": "925189172aeaac8b2a0ba4d6b1c250cce693dbb21fbd3c08d58c614f4eb22347",
+      "capture_sha256": {
+        "legacy": "5c73a3ac4642392bc29a3090153f741c6bc0cbe7195fe14fda5ec6a199d9b9fe",
+        "legacy-reference": "2cdf9d99bcb1ac710d878dfa54cab900790379509be7b77cfe056b25a80707b6",
+        "default": "2aed3d49579e93801ca163181e5df8d7ba1a57e445a38967ee69e131383f5f3b",
+        "reference": "2aed3d49579e93801ca163181e5df8d7ba1a57e445a38967ee69e131383f5f3b"
+      },
+      "before": {
+        "pixels": 20133,
+        "rmse": 2.4799065813582414e-06,
+        "relative_rmse": 0.00013403970176828898,
+        "relative_bias": -1.2975771422802933e-07,
+        "reference_mean_luminance": 0.018501283937838005
+      },
+      "after": {
+        "pixels": 20133,
+        "rmse": 0.0,
+        "relative_rmse": 0.0,
+        "relative_bias": 0.0,
+        "reference_mean_luminance": 0.01850140018035869
+      },
+      "after_against_shared_legacy_reference": {
+        "pixels": 20133,
+        "rmse": 7.939398539314551e-06,
+        "relative_rmse": 0.0004291268955165455,
+        "relative_bias": 6.2829434473452e-06,
+        "reference_mean_luminance": 0.018501283937838005
+      },
+      "dense_reference_change": {
+        "pixels": 20133,
+        "rmse": 7.939398539314551e-06,
+        "relative_rmse": 0.0004291268955165455,
+        "relative_bias": 6.2829434473452e-06,
+        "reference_mean_luminance": 0.018501283937838005
+      }
+    },
+    {
+      "seed": 48,
+      "view": 1,
+      "qualified": true,
+      "optical_content_sha256": "925189172aeaac8b2a0ba4d6b1c250cce693dbb21fbd3c08d58c614f4eb22347",
+      "capture_sha256": {
+        "legacy": "acb5fb43f608a7553f7676cbab38f30566e86df009cc8a7e4b9c57e4f0e2cec6",
+        "legacy-reference": "7fedda1c7faa8e101dba2b0762f901181955b5ce30e222f5915c9d99470c42ee",
+        "default": "716e34ecb463ce1d5e2487236abd0e81d37bcb45b136b1d749a06bca3da011dd",
+        "reference": "716e34ecb463ce1d5e2487236abd0e81d37bcb45b136b1d749a06bca3da011dd"
+      },
+      "before": {
+        "pixels": 33177,
+        "rmse": 0.00043935061792253337,
+        "relative_rmse": 0.007566926270355785,
+        "relative_bias": 9.982594016972255e-06,
+        "reference_mean_luminance": 0.05806196627602079
+      },
+      "after": {
+        "pixels": 33177,
+        "rmse": 0.0,
+        "relative_rmse": 0.0,
+        "relative_bias": 0.0,
+        "reference_mean_luminance": 0.05808966350380076
+      },
+      "after_against_shared_legacy_reference": {
+        "pixels": 33177,
+        "rmse": 0.0024335796841184936,
+        "relative_rmse": 0.0419134907100717,
+        "relative_bias": 0.0004770287600715316,
+        "reference_mean_luminance": 0.05806196627602079
+      },
+      "dense_reference_change": {
+        "pixels": 33177,
+        "rmse": 0.0024335796841184936,
+        "relative_rmse": 0.0419134907100717,
+        "relative_bias": 0.0004770287600715316,
+        "reference_mean_luminance": 0.05806196627602079
+      }
+    },
+    {
+      "seed": 49,
+      "view": 0,
+      "qualified": true,
+      "optical_content_sha256": "9744c9a9456d9f476e355b743adb9aaeae15df0d5b6b780305a5b2be1c0a3017",
+      "capture_sha256": {
+        "legacy": "c0469a9fcff00ecd34c60ed68f6b4a3753f6962884acb6491a9950155ac1ae6c",
+        "legacy-reference": "102f8b21a6e642255cefc21423a1a18e5be3e725866b002dcae0133335682143",
+        "default": "96682d4b4f554d37a0eebe4f53b86f5c033028a6ddfc7b8b18a1a348f0f9b536",
+        "reference": "96682d4b4f554d37a0eebe4f53b86f5c033028a6ddfc7b8b18a1a348f0f9b536"
+      },
+      "before": {
+        "pixels": 2174,
+        "rmse": 0.00024811025600553465,
+        "relative_rmse": 0.0004296476957271441,
+        "relative_bias": -6.1409543399458485e-06,
+        "reference_mean_luminance": 0.5774737266672129
+      },
+      "after": {
+        "pixels": 2174,
+        "rmse": 0.0,
+        "relative_rmse": 0.0,
+        "relative_bias": 0.0,
+        "reference_mean_luminance": 0.5781762255002735
+      },
+      "after_against_shared_legacy_reference": {
+        "pixels": 2174,
+        "rmse": 0.002821804822774056,
+        "relative_rmse": 0.004886464426805358,
+        "relative_bias": 0.0012165035405419064,
+        "reference_mean_luminance": 0.5774737266672129
+      },
+      "dense_reference_change": {
+        "pixels": 2174,
+        "rmse": 0.002821804822774056,
+        "relative_rmse": 0.004886464426805358,
+        "relative_bias": 0.0012165035405419064,
+        "reference_mean_luminance": 0.5774737266672129
+      }
+    },
+    {
+      "seed": 49,
+      "view": 1,
+      "qualified": true,
+      "optical_content_sha256": "9744c9a9456d9f476e355b743adb9aaeae15df0d5b6b780305a5b2be1c0a3017",
+      "capture_sha256": {
+        "legacy": "6149b96818dffcc5464f6cebdbe5eec9e168788dea0f288d367da07e0b3a88a8",
+        "legacy-reference": "030a9795898a43c4779e58fbbe201b58adfb522267c306f6fd88ea310131ee63",
+        "default": "7f9dc629b93916d4d73b348f69ed97c6608bde8e216af8bfd900e1272b139297",
+        "reference": "7f9dc629b93916d4d73b348f69ed97c6608bde8e216af8bfd900e1272b139297"
+      },
+      "before": {
+        "pixels": 2813,
+        "rmse": 0.0002324188782048622,
+        "relative_rmse": 0.0004330498598230223,
+        "relative_bias": 2.0667849248892936e-07,
+        "reference_mean_luminance": 0.5367023517796462
+      },
+      "after": {
+        "pixels": 2813,
+        "rmse": 0.0,
+        "relative_rmse": 0.0,
+        "relative_bias": 0.0,
+        "reference_mean_luminance": 0.5372236237480171
+      },
+      "after_against_shared_legacy_reference": {
+        "pixels": 2813,
+        "rmse": 0.0026573017396076502,
+        "relative_rmse": 0.004951164701992322,
+        "relative_bias": 0.0009712496445050161,
+        "reference_mean_luminance": 0.5367023517796462
+      },
+      "dense_reference_change": {
+        "pixels": 2813,
+        "rmse": 0.0026573017396076502,
+        "relative_rmse": 0.004951164701992322,
+        "relative_bias": 0.0009712496445050161,
+        "reference_mean_luminance": 0.5367023517796462
+      }
+    },
+    {
+      "seed": 50,
+      "view": 0,
+      "pixels": 0,
+      "qualified": false
+    },
+    {
+      "seed": 50,
+      "view": 1,
+      "pixels": 0,
+      "qualified": false
+    },
+    {
+      "seed": 51,
+      "view": 0,
+      "qualified": true,
+      "optical_content_sha256": "a39c90d477e3c62feaf03d55dc53c0fc963a1aaef27f984fc37486638b1a0834",
+      "capture_sha256": {
+        "legacy": "095f58bdbebf3b5cd16fdd7dec7081bdd27e99fc5c3cc25f397036a56917db28",
+        "legacy-reference": "8cdf015f3c368f6566d67f500be15a5b29c5e27a19e7af67fa7ace2988f34ab3",
+        "default": "0151bc8024dbdaacb26d29667995a8cad203854b28e94e8dc0f821179897482b",
+        "reference": "0151bc8024dbdaacb26d29667995a8cad203854b28e94e8dc0f821179897482b"
+      },
+      "before": {
+        "pixels": 11844,
+        "rmse": 0.00010983543887777582,
+        "relative_rmse": 0.00027479726776650154,
+        "relative_bias": 2.570742175505385e-06,
+        "reference_mean_luminance": 0.39969625524480934
+      },
+      "after": {
+        "pixels": 11844,
+        "rmse": 0.0,
+        "relative_rmse": 0.0,
+        "relative_bias": 0.0,
+        "reference_mean_luminance": 0.39973560302385563
+      },
+      "after_against_shared_legacy_reference": {
+        "pixels": 11844,
+        "rmse": 0.0005282573059288621,
+        "relative_rmse": 0.001321646873086941,
+        "relative_bias": 9.844420239108141e-05,
+        "reference_mean_luminance": 0.39969625524480934
+      },
+      "dense_reference_change": {
+        "pixels": 11844,
+        "rmse": 0.0005282573059288621,
+        "relative_rmse": 0.001321646873086941,
+        "relative_bias": 9.844420239108141e-05,
+        "reference_mean_luminance": 0.39969625524480934
+      }
+    },
+    {
+      "seed": 51,
+      "view": 1,
+      "pixels": 0,
+      "qualified": false
+    },
+    {
+      "seed": 52,
+      "view": 0,
+      "qualified": true,
+      "optical_content_sha256": "fdee9bcee8056300611017504bd7c86bec762ff26453a32c1f573d4a49de3528",
+      "capture_sha256": {
+        "legacy": "cafe708fe234bc117e67fae635d731a97192c2f94ee3755bcefeba4e727f786c",
+        "legacy-reference": "a65607637ee1138b3f3cb4fbe0653398f6d8dbd25ffd55b799016bfafeb35697",
+        "default": "b62c2c6dc366012db8584c560f9cbc71e88bd178d2f50ad935beb637507e2746",
+        "reference": "b62c2c6dc366012db8584c560f9cbc71e88bd178d2f50ad935beb637507e2746"
+      },
+      "before": {
+        "pixels": 8949,
+        "rmse": 5.498215993965267e-06,
+        "relative_rmse": 9.938971769107373e-05,
+        "relative_bias": 2.0540921526705675e-06,
+        "reference_mean_luminance": 0.0553197666890955
+      },
+      "after": {
+        "pixels": 8949,
+        "rmse": 0.0,
+        "relative_rmse": 0.0,
+        "relative_bias": 0.0,
+        "reference_mean_luminance": 0.055319456344866215
+      },
+      "after_against_shared_legacy_reference": {
+        "pixels": 8949,
+        "rmse": 3.0641542957472745e-05,
+        "relative_rmse": 0.0005538986295745302,
+        "relative_bias": -5.610006112690008e-06,
+        "reference_mean_luminance": 0.0553197666890955
+      },
+      "dense_reference_change": {
+        "pixels": 8949,
+        "rmse": 3.0641542957472745e-05,
+        "relative_rmse": 0.0005538986295745302,
+        "relative_bias": -5.610006112690008e-06,
+        "reference_mean_luminance": 0.0553197666890955
+      }
+    },
+    {
+      "seed": 52,
+      "view": 1,
+      "qualified": true,
+      "optical_content_sha256": "fdee9bcee8056300611017504bd7c86bec762ff26453a32c1f573d4a49de3528",
+      "capture_sha256": {
+        "legacy": "51022688ef4ef72c78fe3b14aa6a0adc3421d45d08110a103d2badd807961c9f",
+        "legacy-reference": "47d34fc912d3df8579c9da672004d05d523d76ec62c1b6feddf11bc8033d5239",
+        "default": "9933378dd4e89f9a542c037bf6278dc6d0bdbd8f21ac4941fdebe02b53bd30ab",
+        "reference": "9933378dd4e89f9a542c037bf6278dc6d0bdbd8f21ac4941fdebe02b53bd30ab"
+      },
+      "before": {
+        "pixels": 43612,
+        "rmse": 9.516986695821783e-05,
+        "relative_rmse": 0.000847181164278898,
+        "relative_bias": 3.7069740702067794e-06,
+        "reference_mean_luminance": 0.11233709030727132
+      },
+      "after": {
+        "pixels": 43612,
+        "rmse": 0.0,
+        "relative_rmse": 0.0,
+        "relative_bias": 0.0,
+        "reference_mean_luminance": 0.11233735802204664
+      },
+      "after_against_shared_legacy_reference": {
+        "pixels": 43612,
+        "rmse": 0.00048088409323781444,
+        "relative_rmse": 0.0042807241305829686,
+        "relative_bias": 2.383137880908155e-06,
+        "reference_mean_luminance": 0.11233709030727132
+      },
+      "dense_reference_change": {
+        "pixels": 43612,
+        "rmse": 0.00048088409323781444,
+        "relative_rmse": 0.0042807241305829686,
+        "relative_bias": 2.383137880908155e-06,
+        "reference_mean_luminance": 0.11233709030727132
+      }
+    },
+    {
+      "seed": 53,
+      "view": 0,
+      "qualified": true,
+      "optical_content_sha256": "2251c3099d598bd183fbc91e87cc912a75512f1ecabdc8387e71937478ca08e8",
+      "capture_sha256": {
+        "legacy": "f5c583700cebc407965c664605e8d1da02e73b9f298aca77aacb1fb885b705f3",
+        "legacy-reference": "4a55eb914d7f701b4453e6b593463bab5a28e24a53f4f36d500635d698df99a2",
+        "default": "13320737ff88d160eb599d746fdca4be2362b77ba263e03240e4c56d1bda07f3",
+        "reference": "13320737ff88d160eb599d746fdca4be2362b77ba263e03240e4c56d1bda07f3"
+      },
+      "before": {
+        "pixels": 7052,
+        "rmse": 0.0003420123602664318,
+        "relative_rmse": 0.0011913051595003755,
+        "relative_bias": 8.452352596139546e-06,
+        "reference_mean_luminance": 0.2870904717728825
+      },
+      "after": {
+        "pixels": 7052,
+        "rmse": 0.0,
+        "relative_rmse": 0.0,
+        "relative_bias": 0.0,
+        "reference_mean_luminance": 0.2870944957241441
+      },
+      "after_against_shared_legacy_reference": {
+        "pixels": 7052,
+        "rmse": 0.0014020103887000162,
+        "relative_rmse": 0.004883514176009115,
+        "relative_bias": 1.4016317702084981e-05,
+        "reference_mean_luminance": 0.2870904717728825
+      },
+      "dense_reference_change": {
+        "pixels": 7052,
+        "rmse": 0.0014020103887000162,
+        "relative_rmse": 0.004883514176009115,
+        "relative_bias": 1.4016317702084981e-05,
+        "reference_mean_luminance": 0.2870904717728825
+      }
+    },
+    {
+      "seed": 53,
+      "view": 1,
+      "qualified": true,
+      "optical_content_sha256": "2251c3099d598bd183fbc91e87cc912a75512f1ecabdc8387e71937478ca08e8",
+      "capture_sha256": {
+        "legacy": "3264eb185a51ec8443916e06015b702f5ce4656e1ef0ff0ff6428c74c19a3e8d",
+        "legacy-reference": "4e359a59d33209f0cb39f606e3f4fcb1bec4194b0cbc442ba7331ec6d650a975",
+        "default": "e8e9bab5bcbed04dd9a275f94c4010c1f6d60f9a2b788ec304303545a3cfc491",
+        "reference": "e8e9bab5bcbed04dd9a275f94c4010c1f6d60f9a2b788ec304303545a3cfc491"
+      },
+      "before": {
+        "pixels": 2390,
+        "rmse": 5.593825314285784e-06,
+        "relative_rmse": 0.0003547717811371421,
+        "relative_bias": 8.673471474991613e-06,
+        "reference_mean_luminance": 0.015767390789526776
+      },
+      "after": {
+        "pixels": 2390,
+        "rmse": 0.0,
+        "relative_rmse": 0.0,
+        "relative_bias": 0.0,
+        "reference_mean_luminance": 0.015767360633626645
+      },
+      "after_against_shared_legacy_reference": {
+        "pixels": 2390,
+        "rmse": 9.975672267484797e-06,
+        "relative_rmse": 0.0006326774290462166,
+        "relative_bias": -1.912548533599818e-06,
+        "reference_mean_luminance": 0.015767390789526776
+      },
+      "dense_reference_change": {
+        "pixels": 2390,
+        "rmse": 9.975672267484797e-06,
+        "relative_rmse": 0.0006326774290462166,
+        "relative_bias": -1.912548533599818e-06,
+        "reference_mean_luminance": 0.015767390789526776
+      }
+    },
+    {
+      "seed": 54,
+      "view": 0,
+      "qualified": true,
+      "optical_content_sha256": "ede1abe49e1801f347d94a821f765a48a52bc3c38341ee68dd355208bebf6705",
+      "capture_sha256": {
+        "legacy": "e2d7ecc1bf839e1af9d97d9f0ad513eced2ecdd2945f617e7dcbb52e57e320be",
+        "legacy-reference": "256417ccdabc0a051ed4847cb3735aaf5f125a4ed72d8d3a5b17a64f4d1d93f3",
+        "default": "358373e96035522968ba2b558ea3a19b590027ebb78322f072ceca34c0ab36a9",
+        "reference": "358373e96035522968ba2b558ea3a19b590027ebb78322f072ceca34c0ab36a9"
+      },
+      "before": {
+        "pixels": 21839,
+        "rmse": 4.714207637865577e-05,
+        "relative_rmse": 0.00044798722781762236,
+        "relative_bias": 2.218034684026745e-06,
+        "reference_mean_luminance": 0.10523084912109933
+      },
+      "after": {
+        "pixels": 21839,
+        "rmse": 0.0,
+        "relative_rmse": 0.0,
+        "relative_bias": 0.0,
+        "reference_mean_luminance": 0.10523584105123382
+      },
+      "after_against_shared_legacy_reference": {
+        "pixels": 21839,
+        "rmse": 0.0002960582684247559,
+        "relative_rmse": 0.002813417081563725,
+        "relative_bias": 4.743789655009733e-05,
+        "reference_mean_luminance": 0.10523084912109933
+      },
+      "dense_reference_change": {
+        "pixels": 21839,
+        "rmse": 0.0002960582684247559,
+        "relative_rmse": 0.002813417081563725,
+        "relative_bias": 4.743789655009733e-05,
+        "reference_mean_luminance": 0.10523084912109933
+      }
+    },
+    {
+      "seed": 54,
+      "view": 1,
+      "qualified": true,
+      "optical_content_sha256": "ede1abe49e1801f347d94a821f765a48a52bc3c38341ee68dd355208bebf6705",
+      "capture_sha256": {
+        "legacy": "0ee1b425841cbd86e24abd0198872d41dce37c6c24bd426d666b91d25d89bf2b",
+        "legacy-reference": "55b4788b6d174d73a1682735bbaa7565c5d6422ed9feb63d0c157eb229aff0a1",
+        "default": "fda132e97a8653d0182601f6edf01b6fec40f6e5309784e338dd258b5c479181",
+        "reference": "fda132e97a8653d0182601f6edf01b6fec40f6e5309784e338dd258b5c479181"
+      },
+      "before": {
+        "pixels": 9025,
+        "rmse": 3.299782448864319e-05,
+        "relative_rmse": 0.00020637375562205742,
+        "relative_bias": -2.776870284531604e-06,
+        "reference_mean_luminance": 0.15989351160073742
+      },
+      "after": {
+        "pixels": 9025,
+        "rmse": 0.0,
+        "relative_rmse": 0.0,
+        "relative_bias": 0.0,
+        "reference_mean_luminance": 0.15989343541871806
+      },
+      "after_against_shared_legacy_reference": {
+        "pixels": 9025,
+        "rmse": 0.00011082151313928042,
+        "relative_rmse": 0.0006930957487256119,
+        "relative_bias": -4.7645472655281727e-07,
+        "reference_mean_luminance": 0.15989351160073742
+      },
+      "dense_reference_change": {
+        "pixels": 9025,
+        "rmse": 0.00011082151313928042,
+        "relative_rmse": 0.0006930957487256119,
+        "relative_bias": -4.7645472655281727e-07,
+        "reference_mean_luminance": 0.15989351160073742
+      }
+    },
+    {
+      "seed": 55,
+      "view": 0,
+      "qualified": true,
+      "optical_content_sha256": "273541596d006c7069f98c8662898e6ff91949ce5ed9f32bb11445ce668c62d6",
+      "capture_sha256": {
+        "legacy": "37720133b74133140d25e916e90cb32927bfef097e9a3f2a2b647568f9b607aa",
+        "legacy-reference": "187e18901e551653db6ee10095d7631b87a55a20bfe94fd67b65d40b0daa277a",
+        "default": "253c5a9fc3b6f2f41553332627bee26219123f62091ea7356e9c5ea0bfc497e3",
+        "reference": "253c5a9fc3b6f2f41553332627bee26219123f62091ea7356e9c5ea0bfc497e3"
+      },
+      "before": {
+        "pixels": 15864,
+        "rmse": 3.944296453097275e-06,
+        "relative_rmse": 0.00019034811467179752,
+        "relative_bias": 2.1506386501514546e-07,
+        "reference_mean_luminance": 0.020721489466276666
+      },
+      "after": {
+        "pixels": 15864,
+        "rmse": 0.0,
+        "relative_rmse": 0.0,
+        "relative_bias": 0.0,
+        "reference_mean_luminance": 0.02072188083276686
+      },
+      "after_against_shared_legacy_reference": {
+        "pixels": 15864,
+        "rmse": 2.0331693356284014e-05,
+        "relative_rmse": 0.0009811887986803734,
+        "relative_bias": 1.8886986422193532e-05,
+        "reference_mean_luminance": 0.020721489466276666
+      },
+      "dense_reference_change": {
+        "pixels": 15864,
+        "rmse": 2.0331693356284014e-05,
+        "relative_rmse": 0.0009811887986803734,
+        "relative_bias": 1.8886986422193532e-05,
+        "reference_mean_luminance": 0.020721489466276666
+      }
+    },
+    {
+      "seed": 55,
+      "view": 1,
+      "qualified": true,
+      "optical_content_sha256": "273541596d006c7069f98c8662898e6ff91949ce5ed9f32bb11445ce668c62d6",
+      "capture_sha256": {
+        "legacy": "dd5d3bcc48fcb28ff454126eaf3bd76c2a553a72f9d77a4e3931ddcf3649935c",
+        "legacy-reference": "0b66db268b23b6ba94676f4476039079f6dc20bd2271c44a2803b8c17274f20c",
+        "default": "18c9715c2317b5d39cb6a6b2b26de72593dd76f5e085136b8e2141401d575737",
+        "reference": "18c9715c2317b5d39cb6a6b2b26de72593dd76f5e085136b8e2141401d575737"
+      },
+      "before": {
+        "pixels": 35645,
+        "rmse": 8.065390062799687e-06,
+        "relative_rmse": 0.0001818292947994278,
+        "relative_bias": -1.7459223845852892e-06,
+        "reference_mean_luminance": 0.044356934187620614
+      },
+      "after": {
+        "pixels": 35645,
+        "rmse": 0.0,
+        "relative_rmse": 0.0,
+        "relative_bias": 0.0,
+        "reference_mean_luminance": 0.0443571195638857
+      },
+      "after_against_shared_legacy_reference": {
+        "pixels": 35645,
+        "rmse": 2.665913255527228e-05,
+        "relative_rmse": 0.0006010138672458671,
+        "relative_bias": 4.179194718507817e-06,
+        "reference_mean_luminance": 0.044356934187620614
+      },
+      "dense_reference_change": {
+        "pixels": 35645,
+        "rmse": 2.665913255527228e-05,
+        "relative_rmse": 0.0006010138672458671,
+        "relative_bias": 4.179194718507817e-06,
+        "reference_mean_luminance": 0.044356934187620614
+      }
+    },
+    {
+      "seed": 56,
+      "view": 0,
+      "qualified": true,
+      "optical_content_sha256": "bcf84338de7b1a3d4ba229e46cca1d10063322415ac3baa38386672daed1b740",
+      "capture_sha256": {
+        "legacy": "de595098b86f0bb82f6ea7fc443d74f72cb9c6246b5706614bf176c7738b394f",
+        "legacy-reference": "c332f0b7fe0b651f7a8fb3912793f4272458b085f2832428339b6b7a995e027b",
+        "default": "10d6dcd2ac1d3b60c9d0cb420abde07034de95f7812c0d4e1511826fffd9758c",
+        "reference": "9bbcc1d315c226766e7971d2edc0121cf388a50644df44fa9400f386511ebfbc"
+      },
+      "before": {
+        "pixels": 15463,
+        "rmse": 0.03555856182268028,
+        "relative_rmse": 0.646458481926247,
+        "relative_bias": -0.0015983280920008908,
+        "reference_mean_luminance": 0.05500517483617312
+      },
+      "after": {
+        "pixels": 15463,
+        "rmse": 0.009209478099012371,
+        "relative_rmse": 0.16573209031640718,
+        "relative_bias": -0.0003258191277211817,
+        "reference_mean_luminance": 0.055568466441412216
+      },
+      "after_against_shared_legacy_reference": {
+        "pixels": 15463,
+        "rmse": 0.010837229501484318,
+        "relative_rmse": 0.1970219989984909,
+        "relative_bias": 0.00991154627902063,
+        "reference_mean_luminance": 0.05500517483617312
+      },
+      "dense_reference_change": {
+        "pixels": 15463,
+        "rmse": 0.0055024605903201,
+        "relative_rmse": 0.10003532588903817,
+        "relative_bias": 0.01024070202334231,
+        "reference_mean_luminance": 0.05500517483617312
+      }
+    },
+    {
+      "seed": 56,
+      "view": 1,
+      "qualified": true,
+      "optical_content_sha256": "bcf84338de7b1a3d4ba229e46cca1d10063322415ac3baa38386672daed1b740",
+      "capture_sha256": {
+        "legacy": "f128385bee5c3dfa0c036a2827554c1edcc1fb6652a26693d86844c5369cf245",
+        "legacy-reference": "99d2da4e89865ac77151412448d6b4aeae7b75300a8bd0c1bb499ab82d18b77f",
+        "default": "a55719628373d2d9b7dde2b4201039088a54c7148c0263360b0b92c94009c06e",
+        "reference": "817ec98a7009cc3301c8885162a2e813651412c1178ab6d6937bfcd3cba3bab0"
+      },
+      "before": {
+        "pixels": 12250,
+        "rmse": 0.0019197325430991318,
+        "relative_rmse": 0.07032836603850065,
+        "relative_bias": -0.00013432418803953225,
+        "reference_mean_luminance": 0.02729670332520154
+      },
+      "after": {
+        "pixels": 12250,
+        "rmse": 0.0006886178895846802,
+        "relative_rmse": 0.024328711909504138,
+        "relative_bias": -0.00115319937313527,
+        "reference_mean_luminance": 0.028304741005037264
+      },
+      "after_against_shared_legacy_reference": {
+        "pixels": 12250,
+        "rmse": 0.003104653676194151,
+        "relative_rmse": 0.11373731249545418,
+        "relative_bias": 0.03573313079720631,
+        "reference_mean_luminance": 0.02729670332520154
+      },
+      "dense_reference_change": {
+        "pixels": 12250,
+        "rmse": 0.003095402576069432,
+        "relative_rmse": 0.11339840343326797,
+        "relative_bias": 0.03692891657378503,
+        "reference_mean_luminance": 0.02729670332520154
+      }
+    },
+    {
+      "seed": 57,
+      "view": 0,
+      "qualified": true,
+      "optical_content_sha256": "6ce5156d01d7c93952185dc6b861caf9f64f222db15046bb4bba7538af4c1cea",
+      "capture_sha256": {
+        "legacy": "aece9f5b14b1ee9e4e18c943e5be963989feb07b76409d2810e5edf874274cb2",
+        "legacy-reference": "6793b28eb9b70bd2468377384d7bcb77249dabdda95c9e7bb2cd4a4588497cc7",
+        "default": "42612c8ef752e3f909033e9390de1d684ca692692469954925c7490d54cc53d1",
+        "reference": "42612c8ef752e3f909033e9390de1d684ca692692469954925c7490d54cc53d1"
+      },
+      "before": {
+        "pixels": 22270,
+        "rmse": 1.05505775444158e-05,
+        "relative_rmse": 0.002171034461890604,
+        "relative_bias": -1.6269218732789906e-05,
+        "reference_mean_luminance": 0.0048597006310199375
+      },
+      "after": {
+        "pixels": 22270,
+        "rmse": 0.0,
+        "relative_rmse": 0.0,
+        "relative_bias": 0.0,
+        "reference_mean_luminance": 0.004859161977248712
+      },
+      "after_against_shared_legacy_reference": {
+        "pixels": 22270,
+        "rmse": 4.855362694606111e-05,
+        "relative_rmse": 0.009991073655059867,
+        "relative_bias": -0.00011084093694723197,
+        "reference_mean_luminance": 0.0048597006310199375
+      },
+      "dense_reference_change": {
+        "pixels": 22270,
+        "rmse": 4.855362694606111e-05,
+        "relative_rmse": 0.009991073655059867,
+        "relative_bias": -0.00011084093694723197,
+        "reference_mean_luminance": 0.0048597006310199375
+      }
+    },
+    {
+      "seed": 57,
+      "view": 1,
+      "qualified": true,
+      "optical_content_sha256": "6ce5156d01d7c93952185dc6b861caf9f64f222db15046bb4bba7538af4c1cea",
+      "capture_sha256": {
+        "legacy": "a4fbc17a352870af53c5bbe02c97e0f66cdaf9df4acc73ddd62e6506ce01e2e2",
+        "legacy-reference": "cb90cc0820ee6c4508bec0f7e96e70d53ef4eb63951919749bf7d0852d1b499e",
+        "default": "9d63269a6b0f4f39afb7a1e89e9ef0b3ffa7acb69cd0af7a26e7fd74a920a71d",
+        "reference": "9d63269a6b0f4f39afb7a1e89e9ef0b3ffa7acb69cd0af7a26e7fd74a920a71d"
+      },
+      "before": {
+        "pixels": 5558,
+        "rmse": 1.9682037307407612e-07,
+        "relative_rmse": 0.00018037527619298445,
+        "relative_bias": 2.2222224039761133e-06,
+        "reference_mean_luminance": 0.0010911715686771671
+      },
+      "after": {
+        "pixels": 5558,
+        "rmse": 0.0,
+        "relative_rmse": 0.0,
+        "relative_bias": 0.0,
+        "reference_mean_luminance": 0.001091123906649802
+      },
+      "after_against_shared_legacy_reference": {
+        "pixels": 5558,
+        "rmse": 8.239303619698147e-07,
+        "relative_rmse": 0.0007550878208535709,
+        "relative_bias": -4.3679682218046425e-05,
+        "reference_mean_luminance": 0.0010911715686771671
+      },
+      "dense_reference_change": {
+        "pixels": 5558,
+        "rmse": 8.239303619698147e-07,
+        "relative_rmse": 0.0007550878208535709,
+        "relative_bias": -4.3679682218046425e-05,
+        "reference_mean_luminance": 0.0010911715686771671
+      }
+    },
+    {
+      "seed": 58,
+      "view": 0,
+      "qualified": true,
+      "optical_content_sha256": "56b0a9ce5cb38ea8019c55c0eb497910fa7093971abb049e7fd3558683234557",
+      "capture_sha256": {
+        "legacy": "b287a37a342a622a96e0026942555498ab27624bd2f6c4526449b43039b9d356",
+        "legacy-reference": "c50555ead91621a894e2b86c6d0e7269d22d2b37d74adc8b7d83c9c759480b0b",
+        "default": "9f5e9ab349a8499da324fb2ace30def71b5d48e8ee23c4c3f19fc97ae886e0bc",
+        "reference": "9f5e9ab349a8499da324fb2ace30def71b5d48e8ee23c4c3f19fc97ae886e0bc"
+      },
+      "before": {
+        "pixels": 5522,
+        "rmse": 0.0007031096220747348,
+        "relative_rmse": 0.00014173116332704473,
+        "relative_bias": 2.3819894299212965e-06,
+        "reference_mean_luminance": 4.9608682068904555
+      },
+      "after": {
+        "pixels": 5522,
+        "rmse": 0.0,
+        "relative_rmse": 0.0,
+        "relative_bias": 0.0,
+        "reference_mean_luminance": 4.961147366942861
+      },
+      "after_against_shared_legacy_reference": {
+        "pixels": 5522,
+        "rmse": 0.0029223810528081484,
+        "relative_rmse": 0.0005890866136594948,
+        "relative_bias": 5.6272418609808715e-05,
+        "reference_mean_luminance": 4.9608682068904555
+      },
+      "dense_reference_change": {
+        "pixels": 5522,
+        "rmse": 0.0029223810528081484,
+        "relative_rmse": 0.0005890866136594948,
+        "relative_bias": 5.6272418609808715e-05,
+        "reference_mean_luminance": 4.9608682068904555
+      }
+    },
+    {
+      "seed": 58,
+      "view": 1,
+      "pixels": 0,
+      "qualified": false
+    },
+    {
+      "seed": 59,
+      "view": 0,
+      "qualified": true,
+      "optical_content_sha256": "24cc083a4ada0c9ad39192800b0e69a90aa0c0729c8d5074df439e69e59110f8",
+      "capture_sha256": {
+        "legacy": "7285d84d760986d649c73b2088e7d97aa3daf9fa9d88801f857d1f0b86fc9a50",
+        "legacy-reference": "8957742a002a116c5312b84fbed63fecadbdbd1f1f88775d1c9a5855543fa977",
+        "default": "6f478ed0c39fe80ac26bbbbd36174eb3f939949063660528f931d1eec48c0341",
+        "reference": "9470211c16f206622179625ec8b0ffa48b968f2d2efac468173cf87c4b7b64e8"
+      },
+      "before": {
+        "pixels": 32886,
+        "rmse": 0.0018123245513104677,
+        "relative_rmse": 0.06430165381112204,
+        "relative_bias": 0.0006221482544158709,
+        "reference_mean_luminance": 0.02818472689106786
+      },
+      "after": {
+        "pixels": 32886,
+        "rmse": 0.0007739589815155962,
+        "relative_rmse": 0.026910492984809714,
+        "relative_bias": 4.888258996034348e-06,
+        "reference_mean_luminance": 0.028760490636588348
+      },
+      "after_against_shared_legacy_reference": {
+        "pixels": 32886,
+        "rmse": 0.004044855611107167,
+        "relative_rmse": 0.14351232235601472,
+        "relative_bias": 0.020433206128745027,
+        "reference_mean_luminance": 0.02818472689106786
+      },
+      "dense_reference_change": {
+        "pixels": 32886,
+        "rmse": 0.003945368821415895,
+        "relative_rmse": 0.13998251026751082,
+        "relative_bias": 0.02042821801132853,
+        "reference_mean_luminance": 0.02818472689106786
+      }
+    },
+    {
+      "seed": 59,
+      "view": 1,
+      "pixels": 0,
+      "qualified": false
+    }
+  ]
+}

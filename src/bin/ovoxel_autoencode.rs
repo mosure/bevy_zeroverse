@@ -62,6 +62,7 @@ fn main() -> Result<()> {
         keybinds: false,
         render_modes: vec![RenderMode::Color],
         num_cameras: 1,
+        playback_steps: 1,
         scene_type: ZeroverseSceneType::SemanticRoom,
         ovoxel_resolution: args.resolution,
         ovoxel_mode: OvoxelMode::GpuCompute,

@@ -9,8 +9,14 @@ use std::collections::BTreeMap;
 
 pub fn validate_layout(scene: &IndoorManifest) -> Result<(), String> {
     scene.camera_settings.validate()?;
+    if !scene.camera_aspect_ratio.is_finite() || scene.camera_aspect_ratio <= 0.0 {
+        return Err("camera aspect ratio must be positive and finite".into());
+    }
     if let Some(program) = &scene.program {
         program.validate(scene)?;
+    }
+    if let Some(exterior) = &scene.exterior {
+        exterior.validate(scene.room_size)?;
     }
     super::humans::validate(scene)?;
     let fail = |message: &str| Err(format!("seed {}: {message}", scene.seed));
@@ -41,7 +47,9 @@ pub fn validate_layout(scene: &IndoorManifest) -> Result<(), String> {
             let valid = if object.kind == super::layout::ObjectKind::Chair {
                 matches!(
                     other.kind,
-                    super::layout::ObjectKind::Desk | super::layout::ObjectKind::Table
+                    super::layout::ObjectKind::Desk
+                        | super::layout::ObjectKind::Table
+                        | super::layout::ObjectKind::CoffeeTable
                 )
             } else {
                 matches!(
@@ -63,6 +71,22 @@ pub fn validate_layout(scene: &IndoorManifest) -> Result<(), String> {
                 if (Quat::from_rotation_y(object.yaw) * Vec3::Z).dot(direction) < 0.98 {
                     return fail("screen faces away from intended user");
                 }
+            }
+        }
+        if !object.neighbor
+            && matches!(
+                object.kind,
+                super::layout::ObjectKind::Display
+                    | super::layout::ObjectKind::Whiteboard
+                    | super::layout::ObjectKind::WallArt
+                    | super::layout::ObjectKind::Clock
+                    | super::layout::ObjectKind::WallOutlet
+                    | super::layout::ObjectKind::LightSwitch
+            )
+        {
+            let (lo, hi) = object.bounds();
+            if super::architecture::facade::overlaps_opening(scene, lo, hi, 0.049) {
+                return fail("wall fixture lacks solid backing beside exterior aperture");
             }
         }
         if object.solid && !object.neighbor {
@@ -164,15 +188,15 @@ pub fn validate_layout(scene: &IndoorManifest) -> Result<(), String> {
             }
         }
     }
-    if scene.layout != IndoorLayout::Lounge
-        && !scene.objects.iter().any(|o| {
-            !o.neighbor
-                && matches!(
-                    o.kind,
-                    super::layout::ObjectKind::Desk | super::layout::ObjectKind::Table
-                )
-        })
-    {
+    if !scene.objects.iter().any(|o| {
+        !o.neighbor
+            && matches!(
+                o.kind,
+                super::layout::ObjectKind::Desk
+                    | super::layout::ObjectKind::Table
+                    | super::layout::ObjectKind::CoffeeTable
+            )
+    }) {
         return fail("missing primary activity furniture");
     }
     if main_furniture < scene.minimum_main_objects() {
@@ -193,6 +217,18 @@ pub fn validate_layout(scene: &IndoorManifest) -> Result<(), String> {
             if !scene.camera_clear(camera.transform_at(step as f32 / 32.0).translation) {
                 return fail("unsafe sampled camera path");
             }
+        }
+    }
+    if let Some(policy) = &scene.camera_settings.multiview {
+        if scene
+            .camera_overlap()
+            .iter()
+            .any(|pair| !policy.accepts(&pair.samples))
+        {
+            return Err(format!(
+                "seed {}: multi-view camera overlap or baseline constraint violated",
+                scene.seed
+            ));
         }
     }
     Ok(())
@@ -462,6 +498,29 @@ pub fn audit_layout_with_humans(
     layout: IndoorLayout,
     human_density: f32,
 ) -> DistributionReport {
+    audit_layout_with_camera_settings(
+        first_seed,
+        seeds,
+        cameras,
+        density,
+        layout,
+        human_density,
+        &default(),
+        1.0,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn audit_layout_with_camera_settings(
+    first_seed: u64,
+    seeds: usize,
+    cameras: usize,
+    density: f32,
+    layout: IndoorLayout,
+    human_density: f32,
+    camera_settings: &super::cameras::CameraSettings,
+    aspect_ratio: f32,
+) -> DistributionReport {
     let mut report = DistributionReport {
         generator_version: GENERATOR_VERSION,
         seeds,
@@ -483,19 +542,18 @@ pub fn audit_layout_with_humans(
     };
     for offset in 0..seeds {
         let seed = first_seed.wrapping_add(offset as u64);
-        let scene = match IndoorManifest::generate_with_humans(
-            seed,
-            layout,
-            density,
-            cameras,
-            human_density,
-        ) {
-            Ok(s) => s,
-            Err(e) => {
-                report.invalid_seeds.push((seed, e));
-                continue;
-            }
-        };
+        let scene =
+            match IndoorManifest::generate_with_humans(seed, layout, density, 0, human_density)
+                .and_then(|mut scene| {
+                    scene.resample_cameras(cameras, camera_settings.clone(), aspect_ratio)?;
+                    Ok(scene)
+                }) {
+                Ok(s) => s,
+                Err(e) => {
+                    report.invalid_seeds.push((seed, e));
+                    continue;
+                }
+            };
         if let Err(e) = validate_layout(&scene) {
             report.invalid_seeds.push((seed, e));
         }

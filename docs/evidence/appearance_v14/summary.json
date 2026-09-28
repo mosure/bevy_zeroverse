@@ -1,0 +1,142 @@
+{
+  "capture_engine": "capture-v23;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=5;surface_flow=1;indoor=14;multiview=1;ovoxel=2;glass=2;hair=2",
+  "generator_version": 14,
+  "glass": {
+    "scenes": 16,
+    "seeds": [
+      44,
+      45,
+      46,
+      47,
+      48,
+      49,
+      50,
+      51,
+      52,
+      53,
+      54,
+      55,
+      56,
+      57,
+      58,
+      59
+    ],
+    "views": 32,
+    "qualified_glass_views": 24,
+    "pixels": 407489,
+    "sampling_rmse_reduction": 0.729703685964386,
+    "shared_reference_rmse_reduction": 0.6185427571523177,
+    "shared_reference_ratio_95_percent_interval": [
+      0.3095754281845021,
+      1.0581302749927588
+    ]
+  },
+  "physical_reference": {
+    "renderer": "Blender Cycles 5.2.2 LTS / OptiX",
+    "samples_per_independent_reference": 8192,
+    "independent_references_per_view": 2,
+    "views": [
+      {
+        "seed": 44,
+        "view": 0,
+        "rgb_relative_mae": 0.20342032894122497,
+        "luminance_bias_ratio": 0.9927951626188828,
+        "blocks32_rgb_relative_mae": 0.0895109498734591,
+        "reference_repeat_rgb_relative_mae": 0.01619420970374049,
+        "reference_repeat_blocks32_relative_mae": 0.0005211331541204269,
+        "coarse_reference_converged": true
+      },
+      {
+        "seed": 44,
+        "view": 1,
+        "rgb_relative_mae": 0.22425786790076752,
+        "luminance_bias_ratio": 0.9826367643429393,
+        "blocks32_rgb_relative_mae": 0.1072682846359672,
+        "reference_repeat_rgb_relative_mae": 0.027802033931120483,
+        "reference_repeat_blocks32_relative_mae": 0.002798380418592998,
+        "coarse_reference_converged": true
+      },
+      {
+        "seed": 45,
+        "view": 0,
+        "rgb_relative_mae": 0.4134425032449533,
+        "luminance_bias_ratio": 0.8996116125598497,
+        "blocks32_rgb_relative_mae": 0.1896128911705106,
+        "reference_repeat_rgb_relative_mae": 0.045993238950394,
+        "reference_repeat_blocks32_relative_mae": 0.009685430003908202,
+        "coarse_reference_converged": true
+      },
+      {
+        "seed": 45,
+        "view": 1,
+        "rgb_relative_mae": 0.37766598419949715,
+        "luminance_bias_ratio": 0.8068039745074284,
+        "blocks32_rgb_relative_mae": 0.22903300444663297,
+        "reference_repeat_rgb_relative_mae": 0.046044288371845196,
+        "reference_repeat_blocks32_relative_mae": 0.01271590045061992,
+        "coarse_reference_converged": true
+      },
+      {
+        "seed": 46,
+        "view": 0,
+        "rgb_relative_mae": 0.23566276318079632,
+        "luminance_bias_ratio": 1.0656955174267988,
+        "blocks32_rgb_relative_mae": 0.21250682575129712,
+        "reference_repeat_rgb_relative_mae": 0.031238756698008515,
+        "reference_repeat_blocks32_relative_mae": 0.004607886106555818,
+        "coarse_reference_converged": true
+      },
+      {
+        "seed": 46,
+        "view": 1,
+        "rgb_relative_mae": 0.4822210338054769,
+        "luminance_bias_ratio": 1.0879073445584855,
+        "blocks32_rgb_relative_mae": 0.4442429120121532,
+        "reference_repeat_rgb_relative_mae": 0.06325029686546063,
+        "reference_repeat_blocks32_relative_mae": 0.011047192534804594,
+        "coarse_reference_converged": true
+      },
+      {
+        "seed": 47,
+        "view": 0,
+        "rgb_relative_mae": 1.0329770650515855,
+        "luminance_bias_ratio": 1.5758301962721328,
+        "blocks32_rgb_relative_mae": 0.9868464452395035,
+        "reference_repeat_rgb_relative_mae": 0.1049054535975136,
+        "reference_repeat_blocks32_relative_mae": 0.007919991904762521,
+        "coarse_reference_converged": true
+      },
+      {
+        "seed": 47,
+        "view": 1,
+        "rgb_relative_mae": 0.4907627951613756,
+        "luminance_bias_ratio": 0.9434517684975758,
+        "blocks32_rgb_relative_mae": 0.4344100029437098,
+        "reference_repeat_rgb_relative_mae": 0.04264353380705614,
+        "reference_repeat_blocks32_relative_mae": 0.0022326395742319444,
+        "coarse_reference_converged": true
+      }
+    ]
+  },
+  "capture_wall_seconds": {
+    "median": 0.7958868754999999,
+    "minimum": 0.525969008,
+    "maximum": 1.84555047,
+    "scope": "Includes preparation, readback and export; qualification ran alongside checks; not isolated GPU frame timing or a throughput comparison"
+  },
+  "checks": {
+    "rust_library_passed": 135,
+    "rust_library_ignored": 3,
+    "python_passed": 56,
+    "workspace_clippy_warnings_denied": true,
+    "wasm_build_with_motion_feature": true,
+    "browser_auto_and_portable_nonblank_with_people": true
+  },
+  "limits": [
+    "Photographic realism is not established. Hair remains a groomed surface PBR approximation; skin lacks subsurface transport.",
+    "Coarse reference convergence does not establish per-pixel convergence. Native/reference raw RGB error includes lighting and BSDF differences.",
+    "Shared-reference glass improvement has a wider bootstrap interval including a small regression; spatial sampling error and changed filter bias are reported separately.",
+    "Sixteen scenes do not establish full-distribution quality, 10M-scale learning utility, temporal shimmer, or unlimited-process memory stability."
+  ],
+  "photographic_realism_established": false
+}

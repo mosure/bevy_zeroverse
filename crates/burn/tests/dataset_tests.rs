@@ -35,6 +35,21 @@ fn test_lock() -> std::sync::MutexGuard<'static, ()> {
     guard
 }
 
+// The persistent LiveDataset engine intentionally owns one configuration per
+// process. Each GPU case must start clean; a mutex alone cannot reset its device.
+fn isolated_case(name: &str) -> bool {
+    if std::env::var("ZEROVERSE_DATASET_TEST_CASE").as_deref() == Ok(name) {
+        return false;
+    }
+    let status = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", name, "--nocapture", "--test-threads=1"])
+        .env("ZEROVERSE_DATASET_TEST_CASE", name)
+        .status()
+        .expect("start isolated dataset case");
+    assert!(status.success(), "isolated dataset case {name} failed");
+    true
+}
+
 fn contains_non_zero(buf: &[u8]) -> bool {
     buf.iter().any(|b| *b != 0)
 }
@@ -78,6 +93,7 @@ fn run_headless_generation(
     write_mode: WriteMode,
     render_modes: Vec<RenderMode>,
     samples: usize,
+    export_ovoxel: bool,
 ) -> TempDir {
     let mut render_modes = render_modes;
     for mode in [
@@ -101,7 +117,11 @@ fn run_headless_generation(
         sample_offset: 0,
         chunk_offset: 0,
         playback_step: TEST_PLAYBACK_STEP,
-        playback_steps: TEST_PLAYBACK_STEPS,
+        playback_steps: if export_ovoxel {
+            1
+        } else {
+            TEST_PLAYBACK_STEPS
+        },
         scene_type: ZeroverseSceneType::Object,
         asset_root: std::env::current_dir().ok(),
         compression: Compression::None,
@@ -122,7 +142,7 @@ fn run_headless_generation(
         cameras: 1,
         enable_ui: false,
         write_mode,
-        export_ovoxel: true,
+        export_ovoxel,
         ov_mode: OvoxelMode::CpuAsync,
         ov_resolution: 128,
         ov_max_output_voxels: bevy_zeroverse::ovoxel::GPU_DEFAULT_MAX_OUTPUT_VOXELS,
@@ -171,7 +191,7 @@ fn run_generation_with_offsets(
         cameras: 1,
         enable_ui: false,
         write_mode,
-        export_ovoxel: true,
+        export_ovoxel: false,
         ov_mode: OvoxelMode::CpuAsync,
         ov_resolution: 128,
         ov_max_output_voxels: bevy_zeroverse::ovoxel::GPU_DEFAULT_MAX_OUTPUT_VOXELS,
@@ -183,9 +203,12 @@ fn run_generation_with_offsets(
 
 #[test]
 fn headless_chunk_generation_smoke() {
-    let _guard = test_lock();
+    let _process_guard = test_lock();
+    if isolated_case("headless_chunk_generation_smoke") {
+        return;
+    }
     let samples = 2usize;
-    let tmp = run_headless_generation(WriteMode::Chunk, vec![RenderMode::Color], samples);
+    let tmp = run_headless_generation(WriteMode::Chunk, vec![RenderMode::Color], samples, true);
 
     let chunks = discover_chunks(tmp.path()).expect("should discover chunk outputs");
     assert!(
@@ -212,11 +235,28 @@ fn headless_chunk_generation_smoke() {
         sample.ovoxel.is_some(),
         "chunk dataset should include ovoxel payload when export is enabled"
     );
+    let incompatible = bevy_zeroverse_burn::dataset::LiveDataset::new(
+        bevy_zeroverse_burn::dataset::LiveDatasetConfig {
+            zeroverse_config: bevy_zeroverse::app::BevyZeroverseConfig {
+                width: 127.0,
+                height: 83.0,
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+    );
+    assert!(
+        Dataset::get(&incompatible, 0).is_none(),
+        "a different renderer must be rejected"
+    );
 }
 
 #[test]
 fn headless_fs_generation_smoke() {
-    let _guard = test_lock();
+    let _process_guard = test_lock();
+    if isolated_case("headless_fs_generation_smoke") {
+        return;
+    }
     let samples = 1usize;
     let render_modes = vec![
         RenderMode::Color,
@@ -225,7 +265,7 @@ fn headless_fs_generation_smoke() {
         RenderMode::OpticalFlow,
         RenderMode::Position,
     ];
-    let tmp = run_headless_generation(WriteMode::Fs, render_modes, samples);
+    let tmp = run_headless_generation(WriteMode::Fs, render_modes, samples, true);
 
     let check = |dir: &std::path::Path| {
         let dirs: Vec<_> = std::fs::read_dir(dir)
@@ -272,6 +312,7 @@ fn headless_fs_generation_smoke() {
             WriteMode::Fs,
             vec![RenderMode::Color, RenderMode::Depth],
             samples,
+            true,
         );
         assert!(check(tmp_retry.path()), "fs smoke check should succeed");
     }
@@ -279,10 +320,13 @@ fn headless_fs_generation_smoke() {
 
 #[test]
 fn headless_fs_render_mode_resets_between_timesteps() {
-    let _guard = test_lock();
+    let _process_guard = test_lock();
+    if isolated_case("headless_fs_render_mode_resets_between_timesteps") {
+        return;
+    }
     let samples = 1usize;
     let render_modes = vec![RenderMode::Color, RenderMode::Position];
-    let tmp = run_headless_generation(WriteMode::Fs, render_modes.clone(), samples);
+    let tmp = run_headless_generation(WriteMode::Fs, render_modes.clone(), samples, false);
 
     let verify = |dir: &std::path::Path| -> bool {
         let first_dir = std::fs::read_dir(dir)
@@ -308,7 +352,7 @@ fn headless_fs_render_mode_resets_between_timesteps() {
     };
 
     if !verify(tmp.path()) {
-        let retry = run_headless_generation(WriteMode::Fs, render_modes, samples);
+        let retry = run_headless_generation(WriteMode::Fs, render_modes, samples, false);
         assert!(
             verify(retry.path()),
             "render-mode reset check should succeed"
@@ -318,8 +362,11 @@ fn headless_fs_render_mode_resets_between_timesteps() {
 
 #[test]
 fn fs_generation_respects_playback_steps() {
-    let _guard = test_lock();
-    let tmp = run_headless_generation(WriteMode::Fs, vec![RenderMode::Color], 1);
+    let _process_guard = test_lock();
+    if isolated_case("fs_generation_respects_playback_steps") {
+        return;
+    }
+    let tmp = run_headless_generation(WriteMode::Fs, vec![RenderMode::Color], 1, false);
 
     let first_dir = std::fs::read_dir(tmp.path())
         .expect("fs output should be readable")
@@ -336,7 +383,10 @@ fn fs_generation_respects_playback_steps() {
 
 #[test]
 fn fs_generation_uses_flat_indices_across_offsets() {
-    let _guard = test_lock();
+    let _process_guard = test_lock();
+    if isolated_case("fs_generation_uses_flat_indices_across_offsets") {
+        return;
+    }
     let tmp = TempDir::new().expect("tempdir should be creatable");
     run_generation_with_offsets(tmp.path(), WriteMode::Fs, vec![RenderMode::Color], 2, 0, 0);
     run_generation_with_offsets(tmp.path(), WriteMode::Fs, vec![RenderMode::Color], 2, 2, 0);
@@ -373,7 +423,10 @@ fn fs_generation_uses_flat_indices_across_offsets() {
 
 #[test]
 fn chunk_generation_uses_flat_indices_across_offsets() {
-    let _guard = test_lock();
+    let _process_guard = test_lock();
+    if isolated_case("chunk_generation_uses_flat_indices_across_offsets") {
+        return;
+    }
     let tmp = TempDir::new().expect("tempdir should be creatable");
     run_generation_with_offsets(
         tmp.path(),
@@ -412,7 +465,10 @@ fn chunk_generation_uses_flat_indices_across_offsets() {
 
 #[test]
 fn resume_offsets_continue_fs_indices() {
-    let _guard = test_lock();
+    let _process_guard = test_lock();
+    if isolated_case("resume_offsets_continue_fs_indices") {
+        return;
+    }
     let tmp = TempDir::new().expect("tempdir should be creatable");
     run_chunk_generation(GenConfig {
         output: tmp.path().to_path_buf(),
@@ -443,7 +499,7 @@ fn resume_offsets_continue_fs_indices() {
         cameras: 1,
         enable_ui: false,
         write_mode: WriteMode::Fs,
-        export_ovoxel: true,
+        export_ovoxel: false,
         ov_mode: OvoxelMode::CpuAsync,
         ov_resolution: 128,
         ov_max_output_voxels: bevy_zeroverse::ovoxel::GPU_DEFAULT_MAX_OUTPUT_VOXELS,
@@ -486,7 +542,7 @@ fn resume_offsets_continue_fs_indices() {
         cameras: 1,
         enable_ui: false,
         write_mode: WriteMode::Fs,
-        export_ovoxel: true,
+        export_ovoxel: false,
         ov_mode: OvoxelMode::CpuAsync,
         ov_resolution: 128,
         ov_max_output_voxels: bevy_zeroverse::ovoxel::GPU_DEFAULT_MAX_OUTPUT_VOXELS,
@@ -507,7 +563,10 @@ fn resume_offsets_continue_fs_indices() {
 
 #[test]
 fn resume_offsets_continue_chunk_indices() {
-    let _guard = test_lock();
+    let _process_guard = test_lock();
+    if isolated_case("resume_offsets_continue_chunk_indices") {
+        return;
+    }
     let tmp = TempDir::new().expect("tempdir should be creatable");
     run_chunk_generation(GenConfig {
         output: tmp.path().to_path_buf(),
@@ -538,7 +597,7 @@ fn resume_offsets_continue_chunk_indices() {
         cameras: 1,
         enable_ui: false,
         write_mode: WriteMode::Chunk,
-        export_ovoxel: true,
+        export_ovoxel: false,
         ov_mode: OvoxelMode::CpuAsync,
         ov_resolution: 128,
         ov_max_output_voxels: bevy_zeroverse::ovoxel::GPU_DEFAULT_MAX_OUTPUT_VOXELS,
@@ -581,7 +640,7 @@ fn resume_offsets_continue_chunk_indices() {
         cameras: 1,
         enable_ui: false,
         write_mode: WriteMode::Chunk,
-        export_ovoxel: true,
+        export_ovoxel: false,
         ov_mode: OvoxelMode::CpuAsync,
         ov_resolution: 128,
         ov_max_output_voxels: bevy_zeroverse::ovoxel::GPU_DEFAULT_MAX_OUTPUT_VOXELS,
@@ -603,9 +662,12 @@ fn resume_offsets_continue_chunk_indices() {
 
 #[test]
 fn chunk_dataset_loads_generated_samples() {
-    let _guard = test_lock();
+    let _process_guard = test_lock();
+    if isolated_case("chunk_dataset_loads_generated_samples") {
+        return;
+    }
     let samples = 2usize;
-    let tmp = run_headless_generation(WriteMode::Chunk, vec![RenderMode::Color], samples);
+    let tmp = run_headless_generation(WriteMode::Chunk, vec![RenderMode::Color], samples, true);
 
     let dataset = ChunkDataset::from_dir(tmp.path()).expect("chunk dataset should load");
     assert_eq!(Dataset::len(&dataset), samples, "all chunk samples load");
@@ -626,12 +688,16 @@ fn chunk_dataset_loads_generated_samples() {
 
 #[test]
 fn fs_dataset_loads_generated_samples() {
-    let _guard = test_lock();
+    let _process_guard = test_lock();
+    if isolated_case("fs_dataset_loads_generated_samples") {
+        return;
+    }
     let samples = 2usize;
     let tmp = run_headless_generation(
         WriteMode::Fs,
         vec![RenderMode::Color, RenderMode::Depth],
         samples,
+        true,
     );
 
     let dataset = FsDataset::from_dir(tmp.path()).expect("fs dataset should load");

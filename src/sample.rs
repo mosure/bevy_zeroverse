@@ -30,6 +30,8 @@ pub struct View {
     /// Same forward correspondence in normalized image coordinates (dx/width, dy/height).
     #[serde(default)]
     pub motion_vectors: Vec<u8>,
+    /// RGBA f32: world position affine-normalized by Sample::aabb, plus hit alpha.
+    /// Visible geometry outside the reconstruction region can be outside [0, 1].
     pub position: Vec<u8>,
     pub world_from_view: [[f32; 4]; 4],
     pub fovy: f32,
@@ -96,7 +98,8 @@ pub struct Sample {
 
     pub view_dim: u32,
 
-    /// min and max corners of the axis-aligned bounding box
+    /// World-space min/max reconstruction bounds. Indoor scenes use the primary
+    /// room's O-voxel region, including its enclosing structural shell.
     pub aabb: [[f32; 3]; 2],
 
     pub object_obbs: Vec<ObjectObbSample>,
@@ -213,6 +216,7 @@ pub struct CaptureProgress {
     identity: Option<CaptureIdentity>,
     saved_playback: Option<Playback>,
     progress: f32,
+    ovoxel_wait_started: Option<bevy::platform::time::Instant>,
     pub completed_requests: u64,
     pub copied_bytes: u64,
     pub waiting_updates: u64,
@@ -258,6 +262,7 @@ fn prepare_sampling_motion(
         capture.saved_playback = Some(*playback);
         capture.progress = 0.0;
         capture.identity = None;
+        capture.ovoxel_wait_started = None;
         *sample = Sample::default();
     }
     playback.mode = PlaybackMode::Still;
@@ -276,6 +281,7 @@ fn restore_sampling_motion(
         }
         capture.identity = None;
         capture.pending = None;
+        capture.ovoxel_wait_started = None;
     }
 }
 
@@ -295,6 +301,7 @@ fn gate_capture_cameras(
     }
     for (mut camera, copier) in &mut cameras {
         camera.is_active = state.enabled
+            && capture.ovoxel_wait_started.is_none()
             && readiness.scene_ready()
             && failure.0.is_none()
             && capture.pending.is_none_or(|id| copier.submitted_id() != id);
@@ -315,6 +322,11 @@ fn backoff_capture_poll(
     copiers: Query<&ImageCopier, (With<GlobalTransform>, With<Projection>)>,
     device: Option<Res<bevy::render::renderer::RenderDevice>>,
 ) {
+    if args.headless && state.enabled && capture.ovoxel_wait_started.is_some() {
+        std::thread::sleep(std::time::Duration::from_millis(1));
+        capture.backoff_sleeps += 1;
+        return;
+    }
     let Some(device) = device else {
         return;
     };
@@ -403,7 +415,7 @@ impl Default for SamplerState {
 impl SamplerState {
     const FRAME_DELAY: u32 = 1;
     const WARMUP_FRAME_DELAY: u32 = 3;
-    const MAX_OVOXEL_WAIT_FRAMES: u32 = 240;
+    const MAX_OVOXEL_WAIT_SECONDS: u64 = 120;
 
     /// Construct a complete timestep schedule for a concrete dataset configuration.
     pub fn from_config(config: &BevyZeroverseConfig) -> Self {
@@ -464,6 +476,7 @@ pub fn configure_sampler(app: &mut App, initial_state: SamplerState) {
         PostUpdate,
         sample_stream
             .after(bevy::transform::TransformSystems::Propagate)
+            .after(crate::scene::create_scene_aabb)
             .after(crate::scene::procedural_indoor::humans::update_human_poses)
             .after(crate::annotation::pose::compute_human_poses)
             .after(crate::annotation::obb::compute_object_obbs),
@@ -519,7 +532,14 @@ pub fn sample_stream(
     mut render_mode: ResMut<RenderMode>,
     mut playback: ResMut<Playback>,
     mut regenerate_event: MessageWriter<RegenerateSceneEvent>,
-    ovoxels: Query<&OvoxelVolume, With<OvoxelExport>>,
+    ovoxels: Query<
+        (
+            &OvoxelVolume,
+            Option<&crate::ovoxel::OvoxelStatistics>,
+            Option<&crate::ovoxel::OvoxelCache>,
+        ),
+        With<OvoxelExport>,
+    >,
     burn_human_assets: Option<Res<BurnHumanAssets>>,
     indoor: Option<Res<crate::scene::procedural_indoor::layout::IndoorManifest>>,
     capture_status: CaptureStatus,
@@ -560,6 +580,7 @@ pub fn sample_stream(
                 )
             }),
         });
+    let capture_root = current_identity.as_ref().map(|id| id.scene);
     if capture
         .identity
         .as_ref()
@@ -632,289 +653,295 @@ pub fn sample_stream(
         return;
     }
 
-    if state.render_modes.is_empty() {
-        state.render_modes = args.render_modes.clone();
-        if state.render_modes.is_empty() {
-            state.render_modes.push(args.render_mode.clone());
-        }
-    }
     let float32_geometry = cameras
         .iter()
         .all(|(_, _, _, _, copier)| copier.attachment_count() >= 3);
-    let flow_capture = state.render_modes.iter().any(RenderMode::is_flow);
-    if flow_capture
-        && cameras
-            .iter()
-            .any(|(_, _, _, _, copier)| copier.attachment_count() != 4)
-    {
-        failure.0 = Some("flow capture requires the native temporal geometry attachments; configure flow before creating cameras".into());
-        state.enabled = false;
-        return;
-    }
-    let desired_mode = if float32_geometry {
-        RenderMode::Color
-    } else {
-        state.render_modes[0].clone()
-    };
-    if *render_mode != desired_mode {
-        *render_mode = desired_mode;
-        state.reset();
-        return;
-    }
-
-    if let Some(message) = cameras
-        .iter()
-        .find_map(|(_, _, _, _, copier)| copier.failure())
-    {
-        failure.0 = Some(message);
-        state.enabled = false;
-        capture.pending = None;
-        return;
-    }
     let camera_count = cameras.iter().count();
-    let mut ordered_cameras: Vec<_> = cameras.iter().collect();
-    ordered_cameras
-        .sort_by_key(|(entity, index, ..)| (index.map_or(usize::MAX, |i| i.0), entity.to_bits()));
-    for (i, (_, _, transform, projection, _)) in ordered_cameras.iter().enumerate() {
-        let view_idx = i + camera_count * state.step as usize;
-        if let Some(view) = buffered_sample.views.get(view_idx) {
-            let captured_modality = !view.color.is_empty()
-                || !view.depth.is_empty()
-                || !view.normal.is_empty()
-                || !view.position.is_empty()
-                || !view.semantic.is_empty()
-                || !view.optical_flow.is_empty()
-                || !view.motion_vectors.is_empty();
-            if (capture.pending.is_some() || captured_modality)
-                && !camera_metadata_matches(view, transform, projection, playback.progress)
-            {
-                failure.0 = Some(
-                    "camera pose/projection/time changed between modalities or during readback"
-                        .into(),
-                );
-                state.enabled = false;
-                return;
+    if capture.ovoxel_wait_started.is_none() {
+        if state.render_modes.is_empty() {
+            state.render_modes = args.render_modes.clone();
+            if state.render_modes.is_empty() {
+                state.render_modes.push(args.render_mode.clone());
             }
         }
-    }
-    if capture.pending.is_none() {
-        let view_count = camera_count * args.playback_steps as usize;
-        if buffered_sample.views.len() != view_count {
-            buffered_sample.views.clear();
-
-            for _ in 0..view_count {
-                buffered_sample.views.push(View::default());
-            }
-        }
-
-        let scene_aabb = scene.single().unwrap().1;
-        buffered_sample.aabb = [scene_aabb.min.into(), scene_aabb.max.into()];
-        buffered_sample.object_obbs.clear();
-        let mut ordered_obbs: Vec<_> = object_obbs.iter().collect();
-        let instance_id = |object: Option<
-            &crate::scene::procedural_indoor::objects::IndoorInstance,
-        >,
-                           human: Option<
-            &crate::scene::procedural_indoor::humans::IndoorHumanInstance,
-        >| {
-            object
-                .map(|o| o.id as i64)
-                .or_else(|| human.map(|h| h.id as i64))
-        };
-        ordered_obbs.sort_by_key(|(entity, _, object, human)| {
-            (
-                instance_id(*object, *human).unwrap_or(i64::MAX),
-                entity.to_bits(),
-            )
-        });
-        for (_, obb, object, human) in ordered_obbs {
-            buffered_sample.object_obbs.push(ObjectObbSample {
-                instance_id: instance_id(object, human),
-                center: obb.center.into(),
-                scale: obb.scale.into(),
-                rotation: [
-                    obb.rotation.x,
-                    obb.rotation.y,
-                    obb.rotation.z,
-                    obb.rotation.w,
-                ],
-                class_name: obb.class_name.clone(),
-            });
-        }
-
-        let pose_steps = args.playback_steps.max(1) as usize;
-        if buffered_sample.human_pose_steps.len() != pose_steps {
-            buffered_sample.human_pose_steps = vec![Vec::new(); pose_steps];
-        }
-        let mut current_poses = Vec::new();
-        let mut ordered_people: Vec<_> = human_poses.iter().collect();
-        ordered_people.sort_by_key(|(entity, _, human)| {
-            (human.map_or(usize::MAX, |h| h.id), entity.to_bits())
-        });
-        buffered_sample.human_instance_ids = ordered_people
-            .iter()
-            .enumerate()
-            .map(|(index, (_, _, human))| human.map_or(index as i64, |human| human.id as i64))
-            .collect();
-        for (_, pose, _) in ordered_people {
-            current_poses.push(HumanPoseSample {
-                bone_positions: pose.bone_positions.iter().map(|p| (*p).into()).collect(),
-                bone_rotations: pose
-                    .bone_rotations
-                    .iter()
-                    .map(|r| [r.x, r.y, r.z, r.w])
-                    .collect(),
-            });
-        }
-        buffered_sample.human_poses = current_poses.clone();
-        let step_idx = state.step as usize;
-        if let Some(slot) = buffered_sample.human_pose_steps.get_mut(step_idx) {
-            *slot = current_poses;
-        }
-
-        if args.scene_type == crate::scene::ZeroverseSceneType::ProceduralIndoor {
-            use crate::scene::procedural_indoor::humans::{HUMAN_BONE_NAMES, HUMAN_BONE_PARENTS};
-            buffered_sample.human_bone_names =
-                HUMAN_BONE_NAMES.iter().map(|s| (*s).to_owned()).collect();
-            buffered_sample.human_bone_parents = HUMAN_BONE_PARENTS.to_vec();
-        } else if let Some(assets) = burn_human_assets.as_ref() {
-            buffered_sample.human_bone_names = assets.body.metadata().metadata.bone_labels.clone();
-            buffered_sample.human_bone_parents =
-                assets.body.metadata().metadata.bone_parents.clone();
-        } else {
-            buffered_sample.human_bone_names.clear();
-            buffered_sample.human_bone_parents.clear();
-        }
-
-        for (i, (_, _, camera_transform, projection, _)) in ordered_cameras.iter().enumerate() {
-            let view_idx = i + camera_count * state.step as usize;
-            let view = &mut buffered_sample.views[view_idx];
-            view.time = playback.progress;
-
-            match projection {
-                Projection::Perspective(perspective) => {
-                    view.fovy = perspective.fov;
-                    view.near = perspective.near;
-                    view.far = perspective.far;
-                }
-                Projection::Orthographic(_) => panic!("orthographic projection not supported"),
-                Projection::Custom(_) => panic!("custom projection not supported"),
-            };
-
-            let world_from_view = camera_transform.to_matrix().to_cols_array_2d();
-            view.world_from_view = world_from_view;
-        }
-        capture.identity = current_identity;
-    }
-    // Decode against the exact bounds stored when the GPU request was issued.
-    #[cfg(not(target_arch = "wasm32"))]
-    let scene_aabb = SceneAabb {
-        min: buffered_sample.aabb[0].into(),
-        max: buffered_sample.aabb[1].into(),
-    };
-    let request_id = match capture.pending {
-        Some(id) => id,
-        None => {
-            capture.next_request = capture
-                .next_request
-                .checked_add(1)
-                .expect("capture request overflow");
-            let id = capture.next_request;
-            for (_, _, _, _, copier) in &cameras {
-                copier.request(id);
-            }
-            capture.pending = Some(id);
+        let flow_capture = state.render_modes.iter().any(RenderMode::is_flow);
+        if flow_capture
+            && cameras
+                .iter()
+                .any(|(_, _, _, _, copier)| copier.attachment_count() != 4)
+        {
+            failure.0 = Some("flow capture requires the native temporal geometry attachments; configure flow before creating cameras".into());
+            state.enabled = false;
             return;
         }
-    };
-    if !cameras
-        .iter()
-        .all(|(_, _, _, _, copier)| copier.ready(request_id))
-    {
-        capture.waiting_updates += 1;
-        return;
-    }
-    capture.pending = None;
-    capture.completed_requests += 1;
+        let desired_mode = if float32_geometry {
+            RenderMode::Color
+        } else {
+            state.render_modes[0].clone()
+        };
+        if *render_mode != desired_mode {
+            *render_mode = desired_mode;
+            state.reset();
+            return;
+        }
 
-    let write_to = state.render_modes[0].clone();
-    #[allow(unused_variables)] // Float32 geometry is a native capture path.
-    let requested_modes = if float32_geometry {
-        std::mem::take(&mut state.render_modes)
-    } else {
-        vec![state.render_modes.remove(0)]
-    };
-
-    for (i, (_, _, _, _, image_copier)) in ordered_cameras.into_iter().enumerate() {
-        let view_idx = i + camera_count * state.step as usize;
-        let view = &mut buffered_sample.views[view_idx];
-
-        let packet = image_copier
-            .take(request_id)
-            .expect("complete capture packet");
-        capture.copied_bytes += packet.planes.iter().map(|p| p.len() as u64).sum::<u64>();
-        if float32_geometry {
-            #[cfg(not(target_arch = "wasm32"))]
-            {
-                let mut planes = packet.planes;
-                let flow = (planes.len() == 4).then(|| planes.pop().unwrap());
-                if let Err(message) =
-                    unpack_ground_truth(view, planes, &requested_modes, &scene_aabb, &args)
+        if let Some(message) = cameras
+            .iter()
+            .find_map(|(_, _, _, _, copier)| copier.failure())
+        {
+            failure.0 = Some(message);
+            state.enabled = false;
+            capture.pending = None;
+            return;
+        }
+        let mut ordered_cameras: Vec<_> = cameras.iter().collect();
+        ordered_cameras.sort_by_key(|(entity, index, ..)| {
+            (index.map_or(usize::MAX, |i| i.0), entity.to_bits())
+        });
+        for (i, (_, _, transform, projection, _)) in ordered_cameras.iter().enumerate() {
+            let view_idx = i + camera_count * state.step as usize;
+            if let Some(view) = buffered_sample.views.get(view_idx) {
+                let captured_modality = !view.color.is_empty()
+                    || !view.depth.is_empty()
+                    || !view.normal.is_empty()
+                    || !view.position.is_empty()
+                    || !view.semantic.is_empty()
+                    || !view.optical_flow.is_empty()
+                    || !view.motion_vectors.is_empty();
+                if (capture.pending.is_some() || captured_modality)
+                    && !camera_metadata_matches(view, transform, projection, playback.progress)
                 {
-                    failure.0 = Some(message);
+                    failure.0 = Some(
+                        "camera pose/projection/time changed between modalities or during readback"
+                            .into(),
+                    );
                     state.enabled = false;
                     return;
                 }
-                if let Some(flow) = flow {
-                    // The pair rendered at step N describes pixels in source N-1.
-                    // The terminal source has no successor and stays explicitly invalid.
-                    initialize_flow(view, flow.len(), &requested_modes);
-                    if state.step > 0 {
-                        let previous = &mut buffered_sample.views[view_idx - camera_count];
-                        if let Err(message) = unpack_flow(
-                            previous,
-                            &flow,
-                            &requested_modes,
-                            args.width as u32,
-                            args.height as u32,
-                        ) {
-                            failure.0 = Some(message);
-                            state.enabled = false;
-                            return;
+            }
+        }
+        if capture.pending.is_none() {
+            let view_count = camera_count * args.playback_steps as usize;
+            if buffered_sample.views.len() != view_count {
+                buffered_sample.views.clear();
+
+                for _ in 0..view_count {
+                    buffered_sample.views.push(View::default());
+                }
+            }
+
+            let scene_aabb = scene.single().unwrap().1;
+            buffered_sample.aabb = [scene_aabb.min.into(), scene_aabb.max.into()];
+            buffered_sample.object_obbs.clear();
+            let mut ordered_obbs: Vec<_> = object_obbs.iter().collect();
+            let instance_id = |object: Option<
+                &crate::scene::procedural_indoor::objects::IndoorInstance,
+            >,
+                               human: Option<
+                &crate::scene::procedural_indoor::humans::IndoorHumanInstance,
+            >| {
+                object
+                    .map(|o| o.id as i64)
+                    .or_else(|| human.map(|h| h.id as i64))
+            };
+            ordered_obbs.sort_by_key(|(entity, _, object, human)| {
+                (
+                    instance_id(*object, *human).unwrap_or(i64::MAX),
+                    entity.to_bits(),
+                )
+            });
+            for (_, obb, object, human) in ordered_obbs {
+                buffered_sample.object_obbs.push(ObjectObbSample {
+                    instance_id: instance_id(object, human),
+                    center: obb.center.into(),
+                    scale: obb.scale.into(),
+                    rotation: [
+                        obb.rotation.x,
+                        obb.rotation.y,
+                        obb.rotation.z,
+                        obb.rotation.w,
+                    ],
+                    class_name: obb.class_name.clone(),
+                });
+            }
+
+            let pose_steps = args.playback_steps.max(1) as usize;
+            if buffered_sample.human_pose_steps.len() != pose_steps {
+                buffered_sample.human_pose_steps = vec![Vec::new(); pose_steps];
+            }
+            let mut current_poses = Vec::new();
+            let mut ordered_people: Vec<_> = human_poses.iter().collect();
+            ordered_people.sort_by_key(|(entity, _, human)| {
+                (human.map_or(usize::MAX, |h| h.id), entity.to_bits())
+            });
+            buffered_sample.human_instance_ids = ordered_people
+                .iter()
+                .enumerate()
+                .map(|(index, (_, _, human))| human.map_or(index as i64, |human| human.id as i64))
+                .collect();
+            for (_, pose, _) in ordered_people {
+                current_poses.push(HumanPoseSample {
+                    bone_positions: pose.bone_positions.iter().map(|p| (*p).into()).collect(),
+                    bone_rotations: pose
+                        .bone_rotations
+                        .iter()
+                        .map(|r| [r.x, r.y, r.z, r.w])
+                        .collect(),
+                });
+            }
+            buffered_sample.human_poses = current_poses.clone();
+            let step_idx = state.step as usize;
+            if let Some(slot) = buffered_sample.human_pose_steps.get_mut(step_idx) {
+                *slot = current_poses;
+            }
+
+            if args.scene_type == crate::scene::ZeroverseSceneType::ProceduralIndoor {
+                use crate::scene::procedural_indoor::humans::{
+                    HUMAN_BONE_NAMES, HUMAN_BONE_PARENTS,
+                };
+                buffered_sample.human_bone_names =
+                    HUMAN_BONE_NAMES.iter().map(|s| (*s).to_owned()).collect();
+                buffered_sample.human_bone_parents = HUMAN_BONE_PARENTS.to_vec();
+            } else if let Some(assets) = burn_human_assets.as_ref() {
+                buffered_sample.human_bone_names =
+                    assets.body.metadata().metadata.bone_labels.clone();
+                buffered_sample.human_bone_parents =
+                    assets.body.metadata().metadata.bone_parents.clone();
+            } else {
+                buffered_sample.human_bone_names.clear();
+                buffered_sample.human_bone_parents.clear();
+            }
+
+            for (i, (_, _, camera_transform, projection, _)) in ordered_cameras.iter().enumerate() {
+                let view_idx = i + camera_count * state.step as usize;
+                let view = &mut buffered_sample.views[view_idx];
+                view.time = playback.progress;
+
+                match projection {
+                    Projection::Perspective(perspective) => {
+                        view.fovy = perspective.fov;
+                        view.near = perspective.near;
+                        view.far = perspective.far;
+                    }
+                    Projection::Orthographic(_) => panic!("orthographic projection not supported"),
+                    Projection::Custom(_) => panic!("custom projection not supported"),
+                };
+
+                let world_from_view = camera_transform.to_matrix().to_cols_array_2d();
+                view.world_from_view = world_from_view;
+            }
+            capture.identity = current_identity;
+        }
+        // Decode against the exact bounds stored when the GPU request was issued.
+        #[cfg(not(target_arch = "wasm32"))]
+        let scene_aabb = SceneAabb {
+            min: buffered_sample.aabb[0].into(),
+            max: buffered_sample.aabb[1].into(),
+        };
+        let request_id = match capture.pending {
+            Some(id) => id,
+            None => {
+                capture.next_request = capture
+                    .next_request
+                    .checked_add(1)
+                    .expect("capture request overflow");
+                let id = capture.next_request;
+                for (_, _, _, _, copier) in &cameras {
+                    copier.request(id);
+                }
+                capture.pending = Some(id);
+                return;
+            }
+        };
+        if !cameras
+            .iter()
+            .all(|(_, _, _, _, copier)| copier.ready(request_id))
+        {
+            capture.waiting_updates += 1;
+            return;
+        }
+        capture.pending = None;
+        capture.completed_requests += 1;
+
+        let write_to = state.render_modes[0].clone();
+        #[allow(unused_variables)] // Float32 geometry is a native capture path.
+        let requested_modes = if float32_geometry {
+            std::mem::take(&mut state.render_modes)
+        } else {
+            vec![state.render_modes.remove(0)]
+        };
+
+        for (i, (_, _, _, _, image_copier)) in ordered_cameras.into_iter().enumerate() {
+            let view_idx = i + camera_count * state.step as usize;
+            let view = &mut buffered_sample.views[view_idx];
+
+            let packet = image_copier
+                .take(request_id)
+                .expect("complete capture packet");
+            capture.copied_bytes += packet.planes.iter().map(|p| p.len() as u64).sum::<u64>();
+            if float32_geometry {
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    let mut planes = packet.planes;
+                    let flow = (planes.len() == 4).then(|| planes.pop().unwrap());
+                    if let Err(message) =
+                        unpack_ground_truth(view, planes, &requested_modes, &scene_aabb, &args)
+                    {
+                        failure.0 = Some(message);
+                        state.enabled = false;
+                        return;
+                    }
+                    if let Some(flow) = flow {
+                        // The pair rendered at step N describes pixels in source N-1.
+                        // The terminal source has no successor and stays explicitly invalid.
+                        initialize_flow(view, flow.len(), &requested_modes);
+                        if state.step > 0 {
+                            let previous = &mut buffered_sample.views[view_idx - camera_count];
+                            if let Err(message) = unpack_flow(
+                                previous,
+                                &flow,
+                                &requested_modes,
+                                args.width as u32,
+                                args.height as u32,
+                            ) {
+                                failure.0 = Some(message);
+                                state.enabled = false;
+                                return;
+                            }
                         }
                     }
                 }
-            }
-        } else {
-            let image_data = packet.planes.into_iter().next().unwrap();
-            match write_to {
-                RenderMode::Color => view.color = image_data,
-                RenderMode::Depth => view.depth = image_data,
-                RenderMode::MotionVectors => view.motion_vectors = image_data,
-                RenderMode::Normal => view.normal = image_data,
-                RenderMode::Semantic => view.semantic = image_data,
-                RenderMode::OpticalFlow => view.optical_flow = image_data,
-                RenderMode::Position => view.position = image_data,
+            } else {
+                let image_data = packet.planes.into_iter().next().unwrap();
+                match write_to {
+                    RenderMode::Color => view.color = image_data,
+                    RenderMode::Depth => view.depth = image_data,
+                    RenderMode::MotionVectors => view.motion_vectors = image_data,
+                    RenderMode::Normal => view.normal = image_data,
+                    RenderMode::Semantic => view.semantic = image_data,
+                    RenderMode::OpticalFlow => view.optical_flow = image_data,
+                    RenderMode::Position => view.position = image_data,
+                }
             }
         }
-    }
 
-    if !state.render_modes.is_empty() {
-        *render_mode = state.render_modes[0].clone();
-        state.reset();
-        return;
-    }
-
-    if !state.timesteps.is_empty() {
-        capture.progress = state.timesteps.remove(0);
-        playback.progress = capture.progress;
-        state.step += 1;
-        state.render_modes = args.render_modes.clone();
-        if let Some(first) = state.render_modes.first() {
-            *render_mode = first.clone();
+        if !state.render_modes.is_empty() {
+            *render_mode = state.render_modes[0].clone();
+            state.reset();
+            return;
         }
-        state.reset();
-        return;
+
+        if !state.timesteps.is_empty() {
+            capture.progress = state.timesteps.remove(0);
+            playback.progress = capture.progress;
+            state.step += 1;
+            state.render_modes = args.render_modes.clone();
+            if let Some(first) = state.render_modes.first() {
+                *render_mode = first.clone();
+            }
+            state.reset();
+            return;
+        }
     }
 
     let include_ovoxel = matches!(
@@ -927,18 +954,27 @@ pub fn sample_stream(
     let ovoxel = if !include_ovoxel {
         None
     } else {
-        match ovoxels.iter().next() {
-            Some(v) => {
+        match capture_root.and_then(|id| ovoxels.get(id).ok()) {
+            Some((v, _, _)) => {
                 let mut coords = v.coords.clone();
                 let mut dual_vertices = v.dual_vertices.clone();
                 let mut intersected = v.intersected.clone();
                 let mut base_color = v.base_color.clone();
                 let mut semantics = v.semantics.clone();
 
-                debug_assert_eq!(coords.len(), dual_vertices.len());
-                debug_assert_eq!(coords.len(), intersected.len());
-                debug_assert_eq!(coords.len(), base_color.len());
-                debug_assert_eq!(coords.len(), semantics.len());
+                if [
+                    dual_vertices.len(),
+                    intersected.len(),
+                    base_color.len(),
+                    semantics.len(),
+                ]
+                .into_iter()
+                .any(|n| n != coords.len())
+                {
+                    failure.0 = Some("O-voxel fields have mismatched lengths".into());
+                    state.enabled = false;
+                    return;
+                }
 
                 if !coords_sorted(&coords) {
                     #[allow(clippy::type_complexity)]
@@ -978,19 +1014,24 @@ pub fn sample_stream(
                     resolution: v.resolution,
                     aabb: v.aabb,
                 };
-                state.ovoxel_wait_frames = 0;
+                if let Err(error) = volume.validate() {
+                    failure.0 = Some(error);
+                    state.enabled = false;
+                    return;
+                }
                 Some(volume)
             }
             None => {
                 state.ovoxel_wait_frames = state.ovoxel_wait_frames.saturating_add(1);
-                if state.ovoxel_wait_frames < SamplerState::MAX_OVOXEL_WAIT_FRAMES {
-                    // O-Voxel generation still in flight; wait until available before emitting a sample.
-                    state.render_modes.insert(0, write_to);
-                    state.reset();
+                let started = capture
+                    .ovoxel_wait_started
+                    .get_or_insert_with(bevy::platform::time::Instant::now);
+                if started.elapsed().as_secs() < SamplerState::MAX_OVOXEL_WAIT_SECONDS {
+                    // The captured planes stay buffered; do not request or render them again.
                     return;
                 }
                 failure.0 = Some(format!(
-                    "required ovoxel volume unavailable after {} capture attempts",
+                    "required ovoxel volume unavailable after 120 seconds ({} wait updates)",
                     state.ovoxel_wait_frames
                 ));
                 state.enabled = false;
@@ -999,6 +1040,18 @@ pub fn sample_stream(
         }
     };
 
+    let ovoxel_metadata = ovoxel.as_ref().map(|volume| serde_json::json!({
+        "scope": "primary camera room plus 0.20m enclosing architecture shell; objects/static people selected by unpadded room membership; neighboring/outdoor geometry excluded",
+        "local_region": indoor.as_ref().map(|s| crate::ovoxel::OvoxelRegion::primary_room(s)),
+        "world_aabb": volume.aabb,
+        "wait_updates": state.ovoxel_wait_frames,
+        "completed_capture_requests": capture.completed_requests,
+        "coords": "unique lexicographic xyz grid coordinates",
+        "dual_position": "aabb_min + (coord + dual_vertex/255) * (aabb_max-aabb_min)/resolution",
+        "representation": "conservative triangle surface occupancy; no solid interior fill; colors are semantic palette colors, not RGB albedo",
+        "statistics": capture_root.and_then(|id| ovoxels.get(id).ok()).and_then(|(_,s,_)| s),
+        "cache_version": capture_root.and_then(|id| ovoxels.get(id).ok()).and_then(|(_,_,c)| c).map(|c| c.version),
+    }));
     let human_pose_steps = std::mem::take(&mut buffered_sample.human_pose_steps);
     let views = std::mem::take(&mut buffered_sample.views);
     let sample: Sample = Sample {
@@ -1015,6 +1068,7 @@ pub fn sample_stream(
         indoor_render_metadata: (args.scene_type == crate::scene::ZeroverseSceneType::ProceduralIndoor).then(|| serde_json::json!({
             "schema_version": 1,
             "quality": args.indoor_quality,
+            "ovoxel": ovoxel_metadata,
             "diffuse_gi_supported": args.indoor_quality.diffuse_gi(),
             "human_motion": capture_status.motion.as_deref(),
             "capture_readiness": &*capture_status.readiness,
@@ -1179,7 +1233,10 @@ fn unpack_ground_truth(
             append(&mut view.normal, [n[0], n[1], n[2], alpha]);
         }
         if position_enabled {
-            let p = ((Vec3::new(w[0], w[1], w[2]) - aabb.min) / range).clamp(Vec3::ZERO, Vec3::ONE);
+            // Context remains visible beyond the reconstruction region. Do not
+            // collapse its positions onto the crop boundary: decoding must still
+            // agree with depth and camera projection for every valid hit.
+            let p = (Vec3::new(w[0], w[1], w[2]) - aabb.min) / range;
             append(
                 &mut view.position,
                 if hit {
@@ -1257,6 +1314,51 @@ fn unpack_flow(
 #[cfg(test)]
 mod capture_motion_tests {
     use super::*;
+
+    #[test]
+    #[cfg(not(target_arch = "wasm32"))]
+    fn position_annotation_preserves_surfaces_outside_reconstruction_aabb() {
+        let aabb = SceneAabb {
+            min: Vec3::new(-2., 0., -3.),
+            max: Vec3::new(2., 4., 3.),
+        };
+        // One room hit, two context hits, then a background miss.
+        let hits = [
+            [0., 1., -2., 2.],
+            [-8., 2., -10., 10.],
+            [8., 7., -8., 8.],
+            [0.; 4],
+        ];
+        let planes = vec![
+            vec![0; hits.len() * 16],
+            bytemuck::cast_slice(&hits).to_vec(),
+            bytemuck::cast_slice(&[[0.5_f32, 1., 0.5, 0.]; 4]).to_vec(),
+        ];
+        let mut view = View::default();
+        unpack_ground_truth(
+            &mut view,
+            planes,
+            &[RenderMode::Position, RenderMode::Depth],
+            &aabb,
+            &BevyZeroverseConfig {
+                z_depth: true,
+                depth_format: crate::render::depth::DepthFormat::Linear,
+                ..default()
+            },
+        )
+        .unwrap();
+        let positions: &[[f32; 4]] = bytemuck::cast_slice(&view.position);
+        let depths: &[[f32; 4]] = bytemuck::cast_slice(&view.depth);
+        for (index, hit) in hits[..3].iter().enumerate() {
+            let normalized = Vec3::from_slice(&positions[index]);
+            let decoded = aabb.min + normalized * (aabb.max - aabb.min);
+            assert!(decoded.abs_diff_eq(Vec3::from_slice(hit), 1e-6));
+            assert_eq!(positions[index][3], 1.);
+            assert_eq!(depths[index][0], hit[3]);
+        }
+        assert!(positions[1][0] < 0. && positions[2][0] > 1.);
+        assert_eq!(positions[3], [0.; 4]);
+    }
 
     #[test]
     #[cfg(not(target_arch = "wasm32"))]

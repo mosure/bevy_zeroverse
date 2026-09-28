@@ -12,13 +12,13 @@ impl Default for OccupancySketch {
 }
 impl OccupancySketch {
     pub fn insert(&mut self, scene: &IndoorManifest) {
-        let mut grid = [0u32; 144];
+        let mut grid = [0u64; 144];
         for object in scene.objects.iter().filter(|o| !o.neighbor) {
             let x =
                 ((object.position.x / scene.room_size.x + 0.5) * 12.0).clamp(0.0, 11.0) as usize;
             let z =
                 ((object.position.z / scene.room_size.z + 0.5) * 12.0).clamp(0.0, 11.0) as usize;
-            grid[z * 12 + x] |= 1 << object.kind as u32;
+            grid[z * 12 + x] |= 1u64 << object.kind as u32;
         }
         let mut hash = 0xcbf29ce484222325u64;
         let mut bytes = |data: &[u8]| {

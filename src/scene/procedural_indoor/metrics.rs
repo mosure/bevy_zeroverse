@@ -1,4 +1,5 @@
 //! Reproducible, resolution-aware dataset distribution exports, independent of a GPU.
+mod exterior;
 use super::layout::{IndoorLayout, IndoorManifest, ObjectKind, GENERATOR_VERSION, NEIGHBOR_DEPTH};
 use bevy::prelude::*;
 use serde::Serialize;
@@ -10,7 +11,7 @@ use std::{
 };
 
 const GRID: usize = 24;
-const KINDS: [ObjectKind; 28] = [
+const KINDS: [ObjectKind; 36] = [
     ObjectKind::Table,
     ObjectKind::Desk,
     ObjectKind::Chair,
@@ -39,6 +40,14 @@ const KINDS: [ObjectKind; 28] = [
     ObjectKind::StorageBox,
     ObjectKind::CoatRack,
     ObjectKind::Bag,
+    ObjectKind::CoffeeCup,
+    ObjectKind::SodaCan,
+    ObjectKind::Notepad,
+    ObjectKind::Pencil,
+    ObjectKind::Microphone,
+    ObjectKind::Phone,
+    ObjectKind::WallOutlet,
+    ObjectKind::LightSwitch,
 ];
 
 #[derive(Serialize)]
@@ -85,6 +94,8 @@ impl NumericDistribution {
 
 #[derive(Serialize)]
 pub struct CoverageReport {
+    pub camera_settings: super::cameras::CameraSettings,
+    pub camera_overlap_policy: &'static str,
     pub schema_version: u32,
     pub generator_version: u32,
     pub scenes: usize,
@@ -268,10 +279,14 @@ fn export_inner(
     camera_settings: &super::cameras::CameraSettings,
 ) -> Result<CoverageReport, Box<dyn std::error::Error>> {
     fs::create_dir_all(directory)?;
+    let mut windows = BufWriter::new(fs::File::create(directory.join("windows.csv"))?);
+    exterior::header(&mut windows)?;
     let mut humans = BufWriter::new(fs::File::create(directory.join("humans.csv"))?);
     writeln!(humans,"seed,id,chair,neighbor,pose,outfit,stature_m,build,skin_tone,hairstyle,glasses,x_m,y_m,z_m,yaw_radians")?;
     let mut objects = BufWriter::new(fs::File::create(directory.join("objects.csv"))?);
     let mut camera_rows = BufWriter::new(fs::File::create(directory.join("cameras.csv"))?);
+    let mut overlaps = BufWriter::new(fs::File::create(directory.join("camera_overlap.csv"))?);
+    writeln!(overlaps, "seed,reference,camera,time,reference_to_view,view_to_reference,baseline_m,mean_triangulation_degrees")?;
     let mut scenes = BufWriter::new(fs::File::create(directory.join("scenes.csv"))?);
     writeln!(
         objects,
@@ -286,7 +301,9 @@ fn export_inner(
         "seed,layout,density,lighting,palette,floor,furniture,ceiling,width_m,height_m,depth_m,main_instances,neighbor_instances,main_chairs,rejected_placements"
     )?;
     let mut report = CoverageReport {
-        schema_version: 6,
+        schema_version: 8,
+        camera_settings: camera_settings.clone(),
+        camera_overlap_policy: "Proxy first-surface pixel overlap in both directions to camera zero, at normalized times 0,.25,.5,.75,1. Full capture aspect ratio, 13x9 rays/view. Glass is annotation-opaque. Not a rendered-pixel guarantee.",
         generator_version: GENERATOR_VERSION,
         scenes: seeds,
         image_size: [width, height],
@@ -314,16 +331,17 @@ fn export_inner(
             first_seed.wrapping_add(offset as u64),
             layout,
             density,
-            cameras,
+            0,
             human_density,
         )?;
-        if scene.camera_settings != *camera_settings {
-            scene.camera_settings = camera_settings.clone();
-            scene.cameras.clear();
-            scene.sample_cameras(cameras)?;
-        }
+        scene.resample_cameras(
+            cameras,
+            camera_settings.clone(),
+            width as f32 / height as f32,
+        )?;
         super::validation::validate_layout(&scene)?;
         signatures.insert(&scene);
+        exterior::record(&scene, &mut report, &mut numeric, &mut windows)?;
         if let Some(program) = &scene.program {
             if let Some(d) = &program.domain {
                 for (key, value) in [
@@ -364,6 +382,18 @@ fn export_inner(
                 );
             }
             numeric.push("program_zone_count", program.zones.len() as f64)?;
+            for zone in &program.zones {
+                if let Some(mix) = &zone.composition {
+                    for (name, weight) in ["work", "meeting", "social", "learning"]
+                        .into_iter()
+                        .zip(mix.weights)
+                    {
+                        numeric.push(&format!("activity_weight_{name}"), weight as f64)?;
+                    }
+                    numeric.push("activity_group_scale", mix.group_scale as f64)?;
+                    numeric.push("activity_storage_bias", mix.storage_bias as f64)?;
+                }
+            }
             numeric.push("program_partition_count", program.partitions.len() as f64)?;
             numeric.push("fixture_spacing_x_m", program.light_spacing.x as f64)?;
             numeric.push("fixture_spacing_z_m", program.light_spacing.y as f64)?;
@@ -385,7 +415,12 @@ fn export_inner(
                 numeric.push("ceiling_pitch_x_m", f.ceiling_pitch.x as f64)?;
                 numeric.push("ceiling_pitch_z_m", f.ceiling_pitch.y as f64)?;
                 numeric.push("wall_panel_pitch_m", f.panel_pitch as f64)?;
-                if scene.architecture_style == super::layout::ArchitectureStyle::Classic {
+                if scene.architecture_style == super::layout::ArchitectureStyle::Classic
+                    && !scene.exterior.as_ref().is_some_and(|e| {
+                        e.facade(super::architecture::facade::FacadeSide::Rear)
+                            .is_some()
+                    })
+                {
                     if let Some(n) = &f.niche {
                         for (key, value) in [
                             (
@@ -510,8 +545,29 @@ fn export_inner(
                 scene.furnishing_quarter_turn.to_string(),
             ),
             ("lighting_design", scene.lighting_design.to_string()),
-            ("blinds", scene.blinds.to_string()),
-            ("window_bays", scene.window_bays.to_string()),
+            (
+                "blinds",
+                scene
+                    .exterior
+                    .as_ref()
+                    .map_or(scene.blinds, |e| {
+                        e.facades.iter().any(|f| {
+                            f.shade != super::architecture::facade::Shade::None
+                                && f.shade_coverage >= 0.02
+                        })
+                    })
+                    .to_string(),
+            ),
+            (
+                "window_bays",
+                scene
+                    .exterior
+                    .as_ref()
+                    .map_or(scene.window_bays as usize, |e| {
+                        e.facades.iter().map(|f| f.openings.len()).sum()
+                    })
+                    .to_string(),
+            ),
         ] {
             if scene.program.is_some()
                 && matches!(
@@ -647,6 +703,69 @@ fn export_inner(
                 / scene.cameras.len().max(1) as f64,
         )?;
         for object in &scene.objects {
+            if object.kind == ObjectKind::Sofa
+                || object.kind == ObjectKind::Chair
+                    && object.variant % super::objects::chairs::FAMILIES == 8
+            {
+                let p = super::objects::seating::parameters(object);
+                for (name, value) in [
+                    ("sofa_cushion_m", p.cushion),
+                    ("sofa_seat_height_m", p.seat_height),
+                    ("sofa_arm_width_m", p.arm_width),
+                    ("sofa_leg_height_m", p.leg_height),
+                ] {
+                    numeric.push(name, value as f64)?;
+                }
+                for (key, value) in [
+                    (
+                        "sofa_configuration",
+                        if p.chaise {
+                            if p.left_return {
+                                "left_return"
+                            } else {
+                                "right_return"
+                            }
+                            .to_owned()
+                        } else {
+                            format!("{}-seat", p.modules)
+                        },
+                    ),
+                    ("sofa_upholstery", format!("{:?}", p.upholstery)),
+                ] {
+                    *report
+                        .categories
+                        .entry(key.into())
+                        .or_default()
+                        .entry(value)
+                        .or_default() += 1;
+                }
+            }
+            if object.kind == ObjectKind::Bookcase {
+                let p = super::objects::storage::parameters(object);
+                numeric.push("bookshelf_fill", p.fill as f64)?;
+                numeric.push("bookshelf_levels", p.levels as f64)?;
+                numeric.push("bookshelf_columns", p.columns as f64)?;
+            }
+            if matches!(object.kind, ObjectKind::Whiteboard | ObjectKind::Display) {
+                let seed = super::materials::variants::screen_seed(
+                    scene.seed,
+                    super::materials::variants::slot(object.seed),
+                );
+                let (key, content) = if object.kind == ObjectKind::Whiteboard {
+                    ("whiteboard_content", seed % 8)
+                } else {
+                    (
+                        "tv_content",
+                        super::materials::screens::parameters(seed).layout as u64,
+                    )
+                };
+                *report
+                    .categories
+                    .entry(key.into())
+                    .or_default()
+                    .entry(content.to_string())
+                    .or_default() += 1;
+            }
             if matches!(
                 object.kind,
                 ObjectKind::Table | ObjectKind::Desk | ObjectKind::CoffeeTable
@@ -681,6 +800,106 @@ fn export_inner(
                     .entry(format!("{:?}", p.top_surface))
                     .or_default() += 1;
             }
+            if matches!(
+                object.kind,
+                ObjectKind::Mug
+                    | ObjectKind::CoffeeCup
+                    | ObjectKind::WaterBottle
+                    | ObjectKind::SodaCan
+            ) {
+                let p = super::clutter::beverages::parameters(object);
+                // Report parameters that actually affect each mesh, not unused
+                // fields of the shared beverage sampler.
+                let construction = match object.kind {
+                    ObjectKind::Mug => format!(
+                        "{}-{}",
+                        if p.style.is_multiple_of(3) {
+                            "barrel"
+                        } else {
+                            "tapered"
+                        },
+                        if p.style >= 3 { "saucer" } else { "bare" }
+                    ),
+                    ObjectKind::CoffeeCup => format!(
+                        "{}-{}",
+                        ["kraft", "printed", "double_wall"][(p.style % 3) as usize],
+                        if p.lid { "lid" } else { "open" }
+                    ),
+                    ObjectKind::WaterBottle => [
+                        "ribbed_pet",
+                        "long_neck",
+                        "wide_neck",
+                        "steel",
+                        "metal",
+                        "loop_cap",
+                    ][p.style as usize]
+                        .into(),
+                    _ => format!(
+                        "{}-{}-bands",
+                        if p.lid { "open" } else { "closed" },
+                        p.style + 1
+                    ),
+                };
+                if matches!(object.kind, ObjectKind::Mug | ObjectKind::CoffeeCup) {
+                    numeric.push("drink_fill_fraction", p.fill_fraction as f64)?;
+                    numeric.push("vessel_taper", p.taper as f64)?;
+                    numeric.push("vessel_wall_m", p.wall_m as f64)?;
+                } else if object.kind == ObjectKind::WaterBottle && p.style <= 2 {
+                    numeric.push("water_fill_fraction", p.fill_fraction.min(0.53) as f64)?;
+                }
+                *report
+                    .categories
+                    .entry(format!("{:?}_construction", object.kind))
+                    .or_default()
+                    .entry(construction)
+                    .or_default() += 1;
+            }
+            if object.kind == ObjectKind::Clock {
+                let p = super::objects::clocks::parameters(object);
+                numeric.push("clock_time_seconds", p.seconds as f64)?;
+                numeric.push("clock_bezel_fraction", p.bezel_fraction as f64)?;
+                *report
+                    .categories
+                    .entry("clock_display".into())
+                    .or_default()
+                    .entry(if p.digital { "digital" } else { "analog" }.into())
+                    .or_default() += 1;
+            }
+            if matches!(
+                object.kind,
+                ObjectKind::Laptop | ObjectKind::Display | ObjectKind::Monitor | ObjectKind::Phone
+            ) {
+                let seed = super::materials::variants::screen_seed(
+                    scene.seed,
+                    super::materials::variants::slot(object.seed),
+                );
+                let p = super::materials::screens::parameters(seed);
+                numeric.push("screen_time_minutes", p.minutes as f64)?;
+                numeric.push(
+                    "screen_luminance",
+                    if p.layout == 7 {
+                        0.
+                    } else {
+                        p.luminance as f64
+                    },
+                )?;
+                *report
+                    .categories
+                    .entry("screen_content".into())
+                    .or_default()
+                    .entry(p.layout.to_string())
+                    .or_default() += 1;
+            }
+            if matches!(object.kind, ObjectKind::Monitor | ObjectKind::Display) {
+                let p = super::objects::computers::display_parameters(object);
+                for (key, value) in [
+                    ("display_aspect", p.aspect),
+                    ("display_bezel_m", p.bezel_m),
+                    ("display_panel_m", p.panel_m),
+                ] {
+                    numeric.push(key, value as f64)?;
+                }
+            }
             let category = match object.kind {
                 ObjectKind::Chair => "chair_family",
                 ObjectKind::Laptop => "laptop_family",
@@ -699,6 +918,8 @@ fn export_inner(
                     ("laptop_chassis_m", p.chassis_m),
                     ("laptop_bezel_m", p.bezel_m),
                     ("laptop_keyboard_fraction", p.keyboard_fraction),
+                    ("laptop_lid_m", p.lid_m),
+                    ("laptop_corner_m", p.corner_m),
                 ] {
                     numeric.push(name, value as f64)?;
                 }
@@ -707,6 +928,14 @@ fn export_inner(
                     super::objects::computers::lid_angle(object) as f64,
                 )?;
             } else {
+                let yaw = (object.yaw + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU)
+                    - std::f32::consts::PI;
+                numeric.push("chair_yaw_radians", yaw as f64)?;
+                // Stool/armchair geometry has its own program; do not report
+                // unused office-back parameters as realized scene diversity.
+                if matches!(object.variant % super::objects::chairs::FAMILIES, 6..=8) {
+                    continue;
+                }
                 let p = super::objects::chairs::parameters(object);
                 *report
                     .categories
@@ -731,9 +960,6 @@ fn export_inner(
                 ] {
                     numeric.push(name, value as f64)?;
                 }
-                let yaw = (object.yaw + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU)
-                    - std::f32::consts::PI;
-                numeric.push("chair_yaw_radians", yaw as f64)?;
             }
         }
         for human in &scene.humans {
@@ -867,6 +1093,35 @@ fn export_inner(
                 v
             )?;
         }
+        for pair in scene.camera_overlap() {
+            for s in pair.samples {
+                writeln!(
+                    overlaps,
+                    "{},{},{},{},{},{},{},{}",
+                    scene.seed,
+                    pair.reference,
+                    pair.camera,
+                    s.time,
+                    s.reference_to_view,
+                    s.view_to_reference,
+                    s.baseline_m,
+                    s.mean_triangulation_degrees
+                )?;
+                for (name, value) in [
+                    (
+                        "camera_overlap_bidirectional_min",
+                        s.reference_to_view.min(s.view_to_reference),
+                    ),
+                    ("camera_reference_baseline_m", s.baseline_m),
+                    (
+                        "camera_mean_triangulation_degrees",
+                        s.mean_triangulation_degrees,
+                    ),
+                ] {
+                    numeric.push(name, value as f64)?;
+                }
+            }
+        }
         for (i, camera) in scene.cameras.iter().enumerate() {
             let fy = height as f32 / (2.0 * (camera.fov_degrees.to_radians() * 0.5).tan());
             let hfov = (width as f32 / (2.0 * fy)).atan().to_degrees() * 2.0;
@@ -957,9 +1212,11 @@ fn export_inner(
     }
     report.occupancy_signature_estimate = signatures.estimate();
     report.numeric = numeric.finish()?;
+    windows.flush()?;
     humans.flush()?;
     objects.flush()?;
     camera_rows.flush()?;
+    overlaps.flush()?;
     scenes.flush()?;
     fs::write(
         directory.join("metrics.json"),

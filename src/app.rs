@@ -317,7 +317,7 @@ pub struct BevyZeroverseConfig {
     #[serde(default = "default_indoor_human_density")]
     pub indoor_human_density: f32,
 
-    /// Capture camera policy JSON: primary_room, path_length_min/max in metres, long_path_fraction.
+    /// Capture camera JSON: primary_room, path_length_min/max, long_path_fraction, multiview {min_overlap, min_baseline, max_baseline}.
     #[pyo3(get, set)]
     #[arg(long)]
     #[serde(default, deserialize_with = "deserialize_indoor_camera")]
@@ -546,7 +546,7 @@ pub struct BevyZeroverseConfig {
     #[serde(default = "default_indoor_human_density")]
     pub indoor_human_density: f32,
 
-    /// Capture camera policy JSON: primary_room, path_length_min/max in metres, long_path_fraction.
+    /// Capture camera JSON: primary_room, path_length_min/max, long_path_fraction, multiview {min_overlap, min_baseline, max_baseline}.
     #[arg(long)]
     #[serde(default, deserialize_with = "deserialize_indoor_camera")]
     pub indoor_camera: Option<String>,
@@ -810,6 +810,8 @@ pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) 
             }
         }
     };
+    args.validate_ovoxel()
+        .expect("invalid O-voxel capture configuration");
 
     #[cfg(target_arch = "wasm32")]
     assert!(
@@ -864,9 +866,11 @@ pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) 
     });
 
     app.insert_resource(ClearColor(Color::srgba(0.0, 0.0, 0.0, 0.0)));
-    // Bound interactive asset-upload bursts. Capture workers retain throughput
-    // and explicitly wait for assets/pipelines before accepting a frame.
-    if !args.image_copiers {
+    // Bound native interactive uploads. Capture workers wait for complete assets.
+    // On Bevy 0.19.1/WebGPU, throttled uploads left entire material groups missing
+    // even after pipeline compilation settled. Keep Bevy's default upload policy
+    // on Wasm; paired RGB/semantic browser fixtures cover this regression.
+    if !args.image_copiers && !cfg!(target_arch = "wasm32") {
         app.insert_resource(bevy::render::render_asset::RenderAssetBytesPerFrame::new(
             32 * 1024 * 1024,
         ));
@@ -948,6 +952,13 @@ pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) 
         app.register_type::<IndoorLayout>();
         app.register_type::<crate::scene::procedural_indoor::IndoorQuality>();
 
+        // setup_camera owns the sole inspector context. Automatic discovery can
+        // choose the editor/capture camera before the UI camera is processed,
+        // creating two contexts with the same multipass schedule at startup.
+        app.insert_resource(bevy_egui::EguiGlobalSettings {
+            auto_create_primary_context: false,
+            ..default()
+        });
         app.add_plugins(EguiPlugin::default());
         app.add_plugins(bevy_inspector_egui::DefaultInspectorConfigPlugin);
         app.add_systems(bevy_egui::EguiPrimaryContextPass, inspector::panel);
@@ -1068,7 +1079,10 @@ fn setup_camera(
     args: Res<BevyZeroverseConfig>,
     mut commands: Commands,
     windows: Query<(), With<Window>>,
-    material_grid_cameras: Query<Entity, With<MaterialGridCameraMarker>>,
+    mut material_grid_cameras: Query<
+        &mut Camera,
+        (With<MaterialGridCameraMarker>, Without<EditorCameraMarker>),
+    >,
     mut editor_cameras: Query<
         (Entity, &mut PanOrbitCamera, Option<&mut Camera>),
         With<EditorCameraMarker>,
@@ -1095,21 +1109,43 @@ fn setup_camera(
     }
     *previous_settings = Some(current_settings);
 
-    if args.camera_grid {
-        if let Ok((_entity, _pan, Some(mut camera))) = editor_cameras.single_mut() {
-            // Keep the editor camera entity (and its settings) intact and let it render UI.
-            camera.is_active = true;
-        } else if material_grid_cameras.is_empty() {
-            // Starting directly in grid mode has no editor camera yet. A surface
-            // camera is still required to display the offscreen image UI.
-            commands.spawn((Camera2d, MaterialGridCameraMarker));
-        }
-        return;
+    // A dedicated UI view keeps egui and capture images alive while the costly
+    // editor scene view is disabled. Grid letterboxing has an opaque backdrop.
+    let clear = if args.camera_grid {
+        ClearColorConfig::Custom(Color::srgb(0.025, 0.028, 0.032))
+    } else {
+        // The UI camera has an LDR intermediate, while the editor uses HDR.
+        // Loading the UI intermediate cannot preserve the editor's separate
+        // buffer. Clear transparently and blend into the final window instead.
+        ClearColorConfig::Custom(Color::NONE)
+    };
+    if let Ok(mut ui_camera) = material_grid_cameras.single_mut() {
+        ui_camera.clear_color = clear;
+    } else {
+        commands.spawn((
+            Camera2d,
+            Camera {
+                order: 1,
+                clear_color: clear,
+                output_mode: bevy::camera::CameraOutputMode::Write {
+                    blend_state: Some(bevy::render::render_resource::BlendState::ALPHA_BLENDING),
+                    clear_color: ClearColorConfig::None,
+                },
+                ..default()
+            },
+            bevy::render::view::Msaa::Off,
+            MaterialGridCameraMarker,
+            bevy::ui::IsDefaultUiCamera,
+            bevy_egui::PrimaryEguiContext,
+            Name::new("viewer_ui_camera"),
+        ));
     }
 
-    // No grid: remove any grid cameras and make sure the editor camera is active and updated.
-    for entity in material_grid_cameras.iter() {
-        commands.entity(entity).despawn();
+    if args.camera_grid {
+        if let Ok((_entity, _pan, Some(mut camera))) = editor_cameras.single_mut() {
+            camera.is_active = false;
+        }
+        return;
     }
 
     if let Ok((_, mut pan, Some(mut camera))) = editor_cameras.single_mut() {
@@ -1214,7 +1250,7 @@ fn setup_camera_grid(
                     grid_template_rows: RepeatedGridTrack::flex(rows, 1.0),
                     ..default()
                 },
-                BackgroundColor(Color::NONE),
+                BackgroundColor(Color::srgb(0.025, 0.028, 0.032)),
             ))
             .with_children(|builder| {
                 for (_, target) in zeroverse_cameras.iter() {
@@ -1366,3 +1402,6 @@ fn press_esc_close(keys: Res<ButtonInput<KeyCode>>, mut exit: MessageWriter<AppE
         exit.write(AppExit::Success);
     }
 }
+
+#[cfg(all(test, feature = "viewer"))]
+mod viewer_tests;

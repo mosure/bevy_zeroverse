@@ -1,0 +1,27 @@
+   Compiling bevy_zeroverse_burn v0.4.0 (/media/mosure/hyper1/repos/bevy_zeroverse/crates/burn)
+    Finished `test` profile [optimized] target(s) in 6.13s
+warning: the following packages contain code that will be rejected by a future version of Rust: burn-cubecl v0.21.0
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 3`
+     Running tests/flow_roundtrip.rs (target/debug/build/bevy_zeroverse_burn/5d813b04b55faef8/out/flow_roundtrip-5d813b04b55faef8)
+
+running 2 tests
+test flow_export_rejects_nonfinite_values_and_invalid_masks ... ok
+test signed_subpixel_flow_and_masks_roundtrip_without_rgb_or_tonemapping ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/indoor_roundtrip.rs (target/debug/build/bevy_zeroverse_burn/a7b2b254ab9c1369/out/indoor_roundtrip-a7b2b254ab9c1369)
+
+running 9 tests
+test indoor_generation_validates_workers_trajectories_and_accepts_numeric_flow ... ok
+test generation_ovoxel_requires_static_single_step_capture ... ok
+test mixed_human_counts_roundtrip_without_inventing_padded_people ... ok
+test chunk_preserves_seed_manifest_and_does_not_renormalize_constant_rgb ... ok
+test filesystem_supports_annotation_only_samples_without_lossy_palette_labels ... ok
+test filesystem_preserves_seed_manifest_and_color_encoding ... ok
+test resume_counts_partial_chunks_and_rejects_gaps_and_overwrites ... ok
+test raw_rgb_is_exact_srgb_once_in_both_export_formats ... ok
+test resume_recognizes_compressed_chunk_indices ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+

@@ -81,6 +81,21 @@ class BenchmarkTests(unittest.TestCase):
             self.assertEqual(result['gpu_timestamp_spans']['render/indoor_diffuse_bake/elapsed_gpu']['samples'], 6)
             self.assertFalse(result['telemetry']['available'])
 
+    def test_v3_separates_request_from_async_preparation_and_rejects_invalid_spans(self):
+        summary, rows = fixture()
+        summary['schema_version'] = 3
+        for row in rows:
+            row['request_seconds'] = row.pop('preparation_seconds')
+            row['preparation_stages'] = {'geometry_seconds': .3, 'materials_seconds': .1}
+        self.write(summary, rows)
+        result, _ = report.summarize(self.path)
+        self.assertAlmostEqual(result['request_seconds_mean'], .2)
+        self.assertAlmostEqual(result['preparation_stage_seconds_mean']['geometry_seconds'], .3)
+        rows[2]['preparation_stages']['geometry_seconds'] = -1
+        self.write(summary, rows)
+        with self.assertRaises(ValueError):
+            report.summarize(self.path)
+
     def test_sparse_nvml_is_conditional_and_window_filtered(self):
         self.write(gpu=True)
         result, _ = report.summarize(self.path)

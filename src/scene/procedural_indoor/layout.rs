@@ -8,7 +8,7 @@ use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 use serde::{Deserialize, Serialize};
 
-pub const GENERATOR_VERSION: u32 = 13;
+pub const GENERATOR_VERSION: u32 = 18;
 pub const CAMERA_CLEARANCE: f32 = 0.28;
 pub const NEIGHBOR_DEPTH: f32 = 3.2;
 
@@ -23,6 +23,30 @@ pub enum IndoorLayout {
     OpenOffice,
     Lounge,
     Training,
+    Coworking,
+    Breakroom,
+    Reception,
+    Library,
+    Workshop,
+    Studio,
+}
+
+impl IndoorLayout {
+    pub const PROFILES: [Self; 10] = [
+        Self::Conference,
+        Self::OpenOffice,
+        Self::Lounge,
+        Self::Training,
+        Self::Coworking,
+        Self::Breakroom,
+        Self::Reception,
+        Self::Library,
+        Self::Workshop,
+        Self::Studio,
+    ];
+    pub fn prefers_soft_seating(self) -> bool {
+        matches!(self, Self::Lounge | Self::Reception | Self::Breakroom)
+    }
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -64,6 +88,14 @@ pub enum ObjectKind {
     StorageBox,
     CoatRack,
     Bag,
+    CoffeeCup,
+    SodaCan,
+    Notepad,
+    Pencil,
+    Microphone,
+    Phone,
+    WallOutlet,
+    LightSwitch,
 }
 
 impl ObjectKind {
@@ -77,7 +109,7 @@ impl ObjectKind {
             Self::Bookcase => "bookshelf",
             Self::Whiteboard => "whiteboard",
             Self::Display | Self::Monitor => "television",
-            Self::Notebook => "paper",
+            Self::Notebook | Self::Notepad => "paper",
             Self::Books => "books",
             Self::Rug => "floormat",
             Self::WallArt => "picture",
@@ -168,6 +200,10 @@ pub struct IndoorManifest {
     pub ceiling_style: u32,
     #[serde(default)]
     pub architecture_style: ArchitectureStyle,
+    /// Per-wall exterior geometry. Missing on legacy manifests.
+    #[serde(default)]
+    pub exterior: Option<super::architecture::facade::ExteriorProgram>,
+    /// Legacy west-wall settings, used only when `exterior` is absent.
     pub window_bays: u32,
     pub window_sill: f32,
     pub glazing_height: f32,
@@ -192,8 +228,14 @@ pub struct IndoorManifest {
     pub humans: Vec<super::humans::IndoorHuman>,
     #[serde(default)]
     pub rejected_human_placements: usize,
-    #[serde(default)]
+    #[serde(
+        default = "super::cameras::CameraSettings::independent",
+        deserialize_with = "super::cameras::deserialize_archived_settings"
+    )]
     pub camera_settings: super::cameras::CameraSettings,
+    /// Width / height used by the visibility sampler, including portrait captures.
+    #[serde(default = "default_camera_aspect")]
+    pub camera_aspect_ratio: f32,
     pub cameras: Vec<IndoorCamera>,
     pub rejected_placements: usize,
 }
@@ -207,6 +249,9 @@ pub fn stream(seed: u64, domain: u64) -> ChaCha8Rng {
 
 fn default_target_lux() -> f32 {
     450.0
+}
+fn default_camera_aspect() -> f32 {
+    1.0
 }
 fn default_daylight_lux() -> f32 {
     18000.0
@@ -240,12 +285,7 @@ impl IndoorManifest {
         }
         let mut rng = stream(seed, 0);
         let layout = if layout == IndoorLayout::Mixed {
-            [
-                IndoorLayout::Conference,
-                IndoorLayout::OpenOffice,
-                IndoorLayout::Lounge,
-                IndoorLayout::Training,
-            ][rng.random_range(0..4)]
+            IndoorLayout::PROFILES[rng.random_range(0..IndoorLayout::PROFILES.len())]
         } else {
             layout
         };
@@ -276,6 +316,7 @@ impl IndoorManifest {
                 ArchitectureStyle::Industrial,
                 ArchitectureStyle::Classic,
             ][stream(seed, 20).random_range(0..4)],
+            exterior: None,
             window_bays: (room_size.z / rng.random_range(1.15..3.5))
                 .round()
                 .clamp(2.0, 14.0) as u32,
@@ -301,6 +342,7 @@ impl IndoorManifest {
             humans: Vec::new(),
             rejected_human_placements: 0,
             camera_settings: default(),
+            camera_aspect_ratio: default_camera_aspect(),
             cameras: Vec::new(),
             rejected_placements: 0,
         };
@@ -315,6 +357,11 @@ impl IndoorManifest {
         } else {
             LightingMood::Evening
         };
+        scene.exterior = Some(super::architecture::facade::ExteriorProgram::sample(
+            seed,
+            room_size,
+            scene.column_width,
+        ));
         scene.furnish(&mut rng);
         scene.assign_work_surfaces();
         scene.decorate(&mut rng);
@@ -470,6 +517,7 @@ impl IndoorManifest {
 
     fn decorate(&mut self, rng: &mut ChaCha8Rng) {
         self.wall_decorations(rng);
+        self.wall_hardware(rng);
         let surfaces: Vec<_> = self
             .objects
             .iter()
@@ -518,7 +566,19 @@ impl IndoorManifest {
                         &surface,
                         kind,
                         Vec3::new(0.0, 0.0, z - 0.08),
-                        Vec3::new(rng.random_range(0.30..0.41), 0.28, 0.34),
+                        if kind == ObjectKind::Monitor {
+                            Vec3::new(
+                                rng.random_range(0.38..0.66),
+                                rng.random_range(0.30..0.48),
+                                0.30,
+                            )
+                        } else {
+                            Vec3::new(
+                                rng.random_range(0.27..0.43),
+                                rng.random_range(0.23..0.32),
+                                rng.random_range(0.30..0.39),
+                            )
+                        },
                         rng.random_range(-0.12..0.12),
                         rng,
                     );
@@ -577,12 +637,13 @@ impl IndoorManifest {
                     rng,
                 );
                 if rng.random_bool((0.4 + self.density * 0.55) as f64) {
+                    let (kind, size) = decor::drink(rng);
                     self.prop(
                         &surface,
-                        ObjectKind::Mug,
+                        kind,
                         Vec3::new(surface.size.x * 0.30, 0.0, z),
-                        Vec3::new(0.12, 0.105, 0.09),
-                        0.0,
+                        size,
+                        rng.random_range(-1.2..1.2),
                         rng,
                     );
                 }
@@ -635,7 +696,11 @@ impl IndoorManifest {
                     surface,
                     ObjectKind::Laptop,
                     centre,
-                    Vec3::new(rng.random_range(0.30..0.41), 0.28, 0.34),
+                    Vec3::new(
+                        rng.random_range(0.27..0.43),
+                        rng.random_range(0.23..0.32),
+                        rng.random_range(0.30..0.39),
+                    ),
                     yaw,
                     rng,
                 );
@@ -649,15 +714,26 @@ impl IndoorManifest {
                 rng,
             );
             if rng.random_bool((0.3 + self.density * 0.5) as f64) {
+                let (kind, size) = decor::drink(rng);
                 self.prop(
                     surface,
-                    ObjectKind::Mug,
+                    kind,
                     centre + orientation * Vec3::new(0.30, 0.0, 0.04),
-                    Vec3::new(0.12, 0.105, 0.09),
-                    yaw,
+                    size,
+                    yaw + rng.random_range(-1.1..1.1),
                     rng,
                 );
             }
+        }
+        if rng.random_bool(0.6) {
+            self.prop(
+                surface,
+                ObjectKind::Microphone,
+                Vec3::new(0., 0., surface.size.z * 0.12),
+                Vec3::new(0.13, rng.random_range(0.17..0.30), 0.16),
+                rng.random_range(-0.4..0.4),
+                rng,
+            );
         }
     }
 

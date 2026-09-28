@@ -22,6 +22,8 @@ pub mod program;
 mod program_coverage;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod reference;
+pub(crate) mod shading;
+pub use shading::GlassFilter;
 pub mod validation;
 
 use crate::{
@@ -97,6 +99,7 @@ pub struct ProceduralIndoorPlugin;
 
 impl Plugin for ProceduralIndoorPlugin {
     fn build(&self, app: &mut App) {
+        app.add_plugins(shading::IndoorShadingPlugin);
         app.init_resource::<IndoorSequence>();
         app.init_resource::<IndoorGenerationStatus>();
         if !app.world().contains_resource::<gi::IndoorGiSettings>() {
@@ -298,13 +301,20 @@ fn regenerate(
         let rotation = settings.rotation_augmentation;
         let motion_policy = args.human_motion.clone();
         let camera_policy = args.indoor_camera.clone();
+        let camera_aspect = args.width as u32 as f32 / args.height as u32 as f32;
         pending.task = Some(bevy::tasks::AsyncComputeTaskPool::get().spawn(async move {
+            let started = bevy::platform::time::Instant::now();
             let mut scene = IndoorManifest::generate_with_humans(seed, layout, density, 0, humans)?;
-            if let Some(json) = camera_policy {
-                scene.camera_settings = cameras::CameraSettings::parse(&json)?;
-            }
-            scene.sample_cameras(cameras)?;
+            let layout_seconds = started.elapsed().as_secs_f64();
+            let started = bevy::platform::time::Instant::now();
+            let policy = camera_policy
+                .as_deref()
+                .map(cameras::CameraSettings::parse)
+                .transpose()?
+                .unwrap_or_default();
+            scene.resample_cameras(cameras, policy, camera_aspect)?;
             validation::validate_layout(&scene)?;
+            let cameras_seconds = started.elapsed().as_secs_f64();
             if rotation {
                 scene.world_yaw = layout::stream(seed, 11).random_range(0.0..std::f32::consts::TAU);
             }
@@ -319,7 +329,7 @@ fn regenerate(
             } else {
                 Vec::new()
             };
-            Ok(preparation::PreparedIndoor::build(
+            let mut prepared = preparation::PreparedIndoor::build(
                 scene,
                 quality,
                 gi,
@@ -328,7 +338,10 @@ fn regenerate(
                 material_stage,
                 mesh_stage,
             )
-            .await)
+            .await;
+            prepared.timings.layout_seconds = layout_seconds;
+            prepared.timings.cameras_seconds = cameras_seconds;
+            Ok(prepared)
         }));
     }
     let Some(result) =
@@ -347,6 +360,7 @@ fn regenerate(
             return;
         }
     };
+    let insertion_started = bevy::platform::time::Instant::now();
     sequence.index = sequence.index.wrapping_add(1);
     for entity in &old {
         commands.entity(entity).despawn();
@@ -370,6 +384,7 @@ fn regenerate(
             Transform::from_rotation(Quat::from_rotation_y(manifest.world_yaw)),
             SceneAabbNode,
             OvoxelTracked,
+            crate::ovoxel::OvoxelRegion::primary_room(manifest),
         ))
         .id();
     #[cfg(not(target_arch = "wasm32"))]
@@ -436,6 +451,8 @@ fn regenerate(
     prepared.images.commit(&mut images);
     prepared.materials.commit(&mut materials);
     prepared.meshes.commit(&mut meshes);
+    prepared.timings.asset_insertion_seconds = insertion_started.elapsed().as_secs_f64();
+    commands.insert_resource(prepared.timings);
     commands.insert_resource(prepared.manifest);
     loaded.write(SceneLoadedEvent);
 }

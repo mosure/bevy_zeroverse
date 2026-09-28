@@ -8,7 +8,8 @@ struct Params {
     tri_count: u32,
     max_output: u32,
     pair_cap: u32,
-    _pad_params: vec3<u32>,
+    max_dispatch: u32,
+    _pad_params: vec2<u32>,
 };
 
 struct Triangle {
@@ -92,6 +93,20 @@ struct DispatchArgs {
 const TILE_SIZE: u32 = 4u;
 const GPU_SCATTER_WG: u32 = 128u;
 
+fn segment_crosses_triangle(origin: vec3<f32>, delta: vec3<f32>, tri: Triangle) -> bool {
+    let e1 = tri.b.xyz - tri.a.xyz;
+    let e2 = tri.c.xyz - tri.a.xyz;
+    let p = cross(delta, e2);
+    let det = dot(e1, p);
+    if abs(det) <= 1e-7 * length(e1) * length(e2) * length(delta) { return false; }
+    let offset = origin - tri.a.xyz;
+    let u = dot(offset, p) / det;
+    let q = cross(offset, e1);
+    let v = dot(delta, q) / det;
+    let t = dot(e2, q) / det;
+    return u >= -1e-5 && v >= -1e-5 && u + v <= 1.00001 && t >= -1e-5 && t <= 1.00001;
+}
+
 fn total_tiles() -> u32 {
     return params.tile_dims.x * params.tile_dims.y * params.tile_dims.z;
 }
@@ -112,6 +127,11 @@ fn head_index(tile_id: u32) -> u32 {
     return tile_id + tile_stride() * 2u;
 }
 
+fn closest_point_on_edge(p: vec3<f32>, a: vec3<f32>, b: vec3<f32>) -> vec3<f32> {
+    let edge = b - a;
+    return a + edge * clamp(dot(p - a, edge) / max(dot(edge, edge), 1.17549435e-38), 0.0, 1.0);
+}
+
 fn closest_point_on_triangle(p: vec3<f32>, tri: Triangle) -> vec3<f32> {
     let a = tri.a.xyz;
     let b = tri.b.xyz;
@@ -119,52 +139,21 @@ fn closest_point_on_triangle(p: vec3<f32>, tri: Triangle) -> vec3<f32> {
     let ab = b - a;
     let ac = c - a;
     let ap = p - a;
-    let d1 = dot(ab, ap);
-    let d2 = dot(ac, ap);
-    var result = a;
-
-    if d1 <= 0.0 && d2 <= 0.0 {
-        result = a;
-    } else {
-        let bp = p - b;
-        let d3 = dot(ab, bp);
-        let d4 = dot(ac, bp);
-        if d3 >= 0.0 && d4 <= d3 {
-            result = b;
-        } else {
-            let vc = d1 * d4 - d3 * d2;
-            if vc <= 0.0 && d1 >= 0.0 && d3 <= 0.0 {
-                let v = d1 / (d1 - d3);
-                result = a + v * ab;
-            } else {
-                let cp = p - c;
-                let d5 = dot(ab, cp);
-                let d6 = dot(ac, cp);
-                if d6 >= 0.0 && d5 <= d6 {
-                    result = c;
-                } else {
-                    let vb = d5 * d2 - d1 * d6;
-                    if vb <= 0.0 && d2 >= 0.0 && d6 <= 0.0 {
-                        let w = d2 / (d2 - d6);
-                        result = a + w * ac;
-                    } else {
-                        let va = d3 * d6 - d5 * d4;
-                        if va <= 0.0 && (d4 - d3) >= 0.0 && (d5 - d6) >= 0.0 {
-                            let w = (d4 - d3) / ((d4 - d3) + (d5 - d6));
-                            result = b + w * (c - b);
-                        } else {
-                            let denom = 1.0 / (va + vb + vc);
-                            let v = vb * denom;
-                            let w = vc * denom;
-                            result = a + ab * v + ac * w;
-                        }
-                    }
-                }
-            }
+    let normal = cross(ab, ac);
+    let area2 = dot(normal, normal);
+    if area2 > 0.0 {
+        let u = dot(cross(ap, ac), normal);
+        let v = dot(cross(ab, ap), normal);
+        if u >= 0.0 && v >= 0.0 && u + v <= area2 {
+            return p - normal * (dot(ap, normal) / area2);
         }
     }
-
-    return result;
+    var best = closest_point_on_edge(p, a, b);
+    let q = closest_point_on_edge(p, a, c);
+    if dot(p - q, p - q) < dot(p - best, p - best) { best = q; }
+    let r = closest_point_on_edge(p, b, c);
+    if dot(p - r, p - r) < dot(p - best, p - best) { best = r; }
+    return best;
 }
 
 @compute @workgroup_size(256, 1, 1)
@@ -248,12 +237,14 @@ fn prepare_dispatch(@builtin(global_invocation_id) gid: vec3<u32>) {
     }
     let pairs = atomicLoad(&active_counter.pair_cursor);
     let scatter = (pairs + GPU_SCATTER_WG - 1u) / GPU_SCATTER_WG;
-    scatter_indirect.x = max(scatter, 1u);
+    let tiles = atomicLoad(&active_counter.active_count);
+    let supported = scatter <= params.max_dispatch && tiles <= params.max_dispatch;
+    if !supported { _ = atomicOr(&voxel_buffer.header.overflow, 8u); }
+    scatter_indirect.x = select(0u, max(scatter, 1u), supported);
     scatter_indirect.y = 1u;
     scatter_indirect.z = 1u;
 
-    let tiles = atomicLoad(&active_counter.active_count);
-    voxel_indirect.x = max(tiles, 1u);
+    voxel_indirect.x = select(0u, max(tiles, 1u), supported);
     voxel_indirect.y = 1u;
     voxel_indirect.z = 1u;
 }
@@ -335,8 +326,6 @@ fn voxel_main(
     for (var idx: u32 = at.start; idx < range_end; idx = idx + 1u) {
         let tri_idx = tile_indices[idx];
         let tri = tris[tri_idx];
-        let tri_min = tri.min.xyz;
-        let tri_max = tri.max.xyz;
         // Match the CPU's conservative floor..ceil candidate range exactly.
         // A geometric AABB intersection here incorrectly removed surface cells.
         let start = vec3<u32>(tri.start_x, tri.start_y, tri.start_z);
@@ -353,9 +342,9 @@ fn voxel_main(
             vec3<f32>(0.0),
             vec3<f32>(1.0),
         );
-        if tri_min.x < voxel_min.x && tri_max.x > voxel_min.x { mask = mask | 1u; }
-        if tri_min.y < voxel_min.y && tri_max.y > voxel_min.y { mask = mask | 2u; }
-        if tri_min.z < voxel_min.z && tri_max.z > voxel_min.z { mask = mask | 4u; }
+        if segment_crosses_triangle(voxel_min, vec3<f32>(voxel_extent.x, 0.0, 0.0), tri) { mask |= 1u; }
+        if segment_crosses_triangle(voxel_min, vec3<f32>(0.0, voxel_extent.y, 0.0), tri) { mask |= 2u; }
+        if segment_crosses_triangle(voxel_min, vec3<f32>(0.0, 0.0, voxel_extent.z), tri) { mask |= 4u; }
         dual_sum = dual_sum + offset;
         color_sum = color_sum + tri.color;
         var slot: u32 = 0u;

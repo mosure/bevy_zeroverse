@@ -1,7 +1,7 @@
 //! Furniture families share a seating datum, but have distinct frames and backs.
 use super::*;
 
-pub const FAMILIES: u32 = 6;
+pub const FAMILIES: u32 = 10;
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct ChairProgram {
@@ -27,8 +27,18 @@ pub struct ChairProgram {
 }
 pub fn parameters(o: &IndoorObject) -> ChairProgram {
     let mut rng = stream(o.seed, 73);
+    let sampled_back = rng.random_range(0..4);
+    let back_construction = match (o.variant % FAMILIES, sampled_back) {
+        // Keep structural/material combinations plausible. Wooden spindles are
+        // a dining construction; executive backs have a continuous padded shell.
+        (9, choice) => 2 + choice % 2,
+        (4, _) => 2,
+        (3, 3) => 2,
+        (family, 1) if family != 3 => 2,
+        (_, choice) => choice,
+    };
     ChairProgram {
-        back_construction: rng.random_range(0..3),
+        back_construction,
         armrests: rng.random_bool(0.62),
         curvature: rng.random_range(0.018..0.095),
         taper: rng.random_range(-0.06..0.20),
@@ -37,7 +47,7 @@ pub fn parameters(o: &IndoorObject) -> ChairProgram {
         arm_height: rng.random_range(0.61..0.70),
         spindle_pitch: rng.random_range(0.045..0.09),
         headrest: o.size.y > 1.12
-            && matches!(o.variant % FAMILIES, 0 | 1 | 5)
+            && matches!(o.variant % FAMILIES, 0 | 1 | 5 | 9)
             && rng.random_bool(0.62),
         lumbar: rng.random_range(0.012..0.050),
         shoulder_flare: rng.random_range(-0.12..0.10),
@@ -53,6 +63,14 @@ pub fn parameters(o: &IndoorObject) -> ChairProgram {
 }
 
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
+    if matches!(o.variant % FAMILIES, 6 | 7) {
+        stool(a, o);
+        return;
+    }
+    if o.variant % FAMILIES == 8 {
+        super::seating::build(a, o);
+        return;
+    }
     let mut rng = stream(o.seed, 70);
     let family = o.variant % FAMILIES;
     let program = parameters(o);
@@ -73,6 +91,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
         3 => Surface::Wood,
         4 => Surface::Plastic,
         2 => Surface::FabricAlt,
+        9 => Surface::Leather,
         _ => Surface::Fabric,
     };
     let frame = if family == 3 {
@@ -179,6 +198,21 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
             ],
             back,
         );
+        if program.back_construction == 3 {
+            // Separate padded lumbar/shoulder panels on a continuous back shell.
+            for i in 0..3 {
+                let y = back_height * (0.18 + i as f32 * 0.27);
+                a.part(cover, label).cuboid(
+                    Vec3::new(back_width * 0.82, back_height * 0.23, 0.045),
+                    0.018,
+                    back.with_translation(back.transform_point(Vec3::new(
+                        0.,
+                        y,
+                        -program.lumbar - 0.015,
+                    ))),
+                );
+            }
+        }
     }
     if program.headrest {
         for x in [-0.09, 0.09] {
@@ -202,7 +236,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
             0.012,
         );
     }
-    if matches!(family, 0 | 1 | 5) {
+    if matches!(family, 0 | 1 | 5 | 9) {
         a.part(Surface::Chrome, label)
             .cylinder(0.024, 0.27, Transform::from_xyz(0.0, 0.285, 0.0));
         a.part(Surface::Plastic, label)
@@ -282,5 +316,70 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
                 0.009,
             );
         }
+    }
+}
+
+fn stool(a: &mut Assembly, o: &IndoorObject) {
+    let mut rng = stream(o.seed, 3040);
+    let radius = o.size.x.min(o.size.z) * rng.random_range(0.30..0.38);
+    let cover = if o.variant % FAMILIES == 6 {
+        Surface::Wood
+    } else {
+        Surface::Leather
+    };
+    let frame = if rng.random_bool(0.45) {
+        Surface::WoodEdge
+    } else {
+        Surface::Chrome
+    };
+    a.part(cover, "chair").lathe(
+        &[
+            (0., 0.421),
+            (radius * 0.94, 0.421),
+            (radius, 0.434),
+            (radius, 0.454),
+            (radius * 0.94, 0.47),
+            (0., 0.47),
+        ],
+        40,
+        Transform::IDENTITY,
+    );
+    let leg_count = rng.random_range(3..=4);
+    let foot_radius = radius * rng.random_range(0.93..1.20);
+    for i in 0..leg_count {
+        let t = i as f32 * TAU / leg_count as f32;
+        let radial = Vec3::new(t.cos(), 0., t.sin());
+        a.part(frame, "chair").rod(
+            radial * foot_radius + Vec3::Y * 0.018,
+            radial * radius * 0.68 + Vec3::Y * 0.435,
+            0.016,
+        );
+        a.part(Surface::Rubber, "chair").cylinder(
+            0.018,
+            0.012,
+            Transform::from_translation(radial * foot_radius + Vec3::Y * 0.006),
+        );
+    }
+    let ring: Vec<_> = (0..=40)
+        .map(|i| {
+            let t = i as f32 * TAU / 40.;
+            Vec3::new(t.cos() * radius * 0.84, 0.18, t.sin() * radius * 0.84)
+        })
+        .collect();
+    a.part(frame, "chair").tube(&ring, 0.009, 8);
+    if o.variant % FAMILIES == 7 {
+        for side in [-1., 1.] {
+            a.part(frame, "chair").rod(
+                Vec3::new(side * radius * 0.65, 0.42, radius * 0.65),
+                Vec3::new(side * radius * 0.65, 0.69, radius * 0.82),
+                0.012,
+            );
+        }
+        a.part(cover, "chair").chair_back_contour(
+            radius * 1.5,
+            0.14,
+            [0.045, 0., 0.03, 0.023, 0.006, 0.],
+            Transform::from_xyz(0., 0.60, radius * 0.76),
+        );
     }
 }

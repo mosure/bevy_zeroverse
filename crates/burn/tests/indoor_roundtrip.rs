@@ -84,6 +84,35 @@ fn filesystem_preserves_seed_manifest_and_color_encoding() {
 }
 
 #[test]
+fn storage_preserves_primary_bounds_and_positions_outside_them() {
+    let mut original = sample();
+    original.aabb = [[-2., 0., -3.], [2., 4., 3.]];
+    let positions = [[-0.25_f32, 1.5, 0.75, 1.]; 64];
+    original.views[0].position = bytemuck::cast_slice(&positions).to_vec();
+    let dir = tempfile::tempdir().unwrap();
+    let path = save_chunk(
+        std::slice::from_ref(&original),
+        dir.path(),
+        0,
+        Compression::None,
+        8,
+        8,
+        false,
+    )
+    .unwrap();
+    save_sample_to_fs(&original, dir.path(), 0, 8, 8, false).unwrap();
+    let chunk = load_chunk(path).unwrap();
+    let filesystem = FsDataset::from_dir(dir.path()).unwrap().get(0).unwrap();
+    for decoded in [&chunk[0], &filesystem] {
+        assert_eq!(decoded.aabb, original.aabb);
+        let decoded_positions: &[[f32; 4]] = bytemuck::cast_slice(&decoded.views[0].position);
+        for (expected, actual) in positions.iter().zip(decoded_positions) {
+            assert_eq!(expected[..3], actual[..3]);
+        }
+    }
+}
+
+#[test]
 fn filesystem_supports_annotation_only_samples_without_lossy_palette_labels() {
     let mut original = sample();
     original.views[0].color.clear();
@@ -157,6 +186,36 @@ fn indoor_generation_validates_workers_trajectories_and_accepts_numeric_flow() {
     config
         .render_modes
         .extend([RenderMode::OpticalFlow, RenderMode::MotionVectors]);
+    assert!(validate_gen_config(&config).is_ok());
+}
+
+#[test]
+fn generation_ovoxel_requires_static_single_step_capture() {
+    use bevy_zeroverse::app::OvoxelMode;
+    use bevy_zeroverse_burn::generator::{GenConfig, validate_gen_config};
+    let mut config = GenConfig::default();
+    assert!(validate_gen_config(&config).is_ok()); // no export, five steps
+    config.export_ovoxel = true;
+    assert!(
+        validate_gen_config(&config)
+            .unwrap_err()
+            .to_string()
+            .contains("playback_steps=1")
+    );
+    config.playback_steps = 1;
+    assert!(validate_gen_config(&config).is_ok());
+    config.human_motion = Some("{}".into());
+    assert!(
+        validate_gen_config(&config)
+            .unwrap_err()
+            .to_string()
+            .contains("human motion disabled")
+    );
+    config.human_motion = None;
+    config.ov_mode = OvoxelMode::Disabled;
+    assert!(validate_gen_config(&config).is_err());
+    config.export_ovoxel = false;
+    config.playback_steps = 3;
     assert!(validate_gen_config(&config).is_ok());
 }
 

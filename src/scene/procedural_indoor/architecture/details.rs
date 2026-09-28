@@ -156,6 +156,10 @@ pub(crate) fn niche_region(scene: &IndoorManifest) -> (Vec2, Vec2) {
 
 pub(crate) fn overlaps_niche(scene: &IndoorManifest, lo: Vec3, hi: Vec3) -> bool {
     if scene.architecture_style != ArchitectureStyle::Classic
+        || scene
+            .exterior
+            .as_ref()
+            .is_some_and(|e| e.facade(super::facade::FacadeSide::Rear).is_some())
         || lo.z > -scene.room_size.z * 0.5 + 0.30
     {
         return false;
@@ -224,6 +228,7 @@ pub(super) fn rear_niche(a: &mut Assembly, scene: &IndoorManifest) {
 
 pub(super) fn feature_wall(a: &mut Assembly, scene: &IndoorManifest) {
     let Vec3 { x: w, y: h, z: d } = scene.room_size;
+    use super::facade::{clipped_wall_box, FacadeSide};
     let back = -d * 0.5;
     let finishes = FinishParameters::for_scene(scene);
     match scene.architecture_style {
@@ -231,13 +236,15 @@ pub(super) fn feature_wall(a: &mut Assembly, scene: &IndoorManifest) {
             let count = (w / finishes.panel_pitch).ceil() as usize;
             let pitch = w * 0.82 / count as f32;
             for i in 0..count {
-                a.box_part(
+                clipped_wall_box(
+                    a,
+                    scene,
+                    FacadeSide::Rear,
                     if i % 3 == 0 {
                         Surface::FabricAlt
                     } else {
                         Surface::Accent
                     },
-                    "wall",
                     Vec3::new(-w * 0.41 + (i as f32 + 0.5) * pitch, h * 0.52, back + 0.035),
                     Vec3::new(pitch - finishes.reveal, h * finishes.panel_height, 0.055),
                     0.008,
@@ -245,18 +252,22 @@ pub(super) fn feature_wall(a: &mut Assembly, scene: &IndoorManifest) {
             }
         }
         ArchitectureStyle::Timber => {
-            a.box_part(
+            clipped_wall_box(
+                a,
+                scene,
+                FacadeSide::Rear,
                 Surface::Accent,
-                "wall",
                 Vec3::new(0.0, h * 0.5, back + 0.024),
                 Vec3::new(w * 0.86, h - 0.3, 0.04),
                 0.003,
             );
             let count = (w * 0.28 / 0.052) as usize;
             for i in 0..count {
-                a.box_part(
+                clipped_wall_box(
+                    a,
+                    scene,
+                    FacadeSide::Rear,
                     Surface::Wood,
-                    "wall",
                     Vec3::new(-w * 0.43 + i as f32 * 0.052, h * 0.5, back + 0.067),
                     Vec3::new(0.026, h - 0.35, 0.042),
                     0.002,
@@ -266,15 +277,25 @@ pub(super) fn feature_wall(a: &mut Assembly, scene: &IndoorManifest) {
         ArchitectureStyle::Industrial => {
             for i in 1..(w / 1.20) as usize {
                 let x = -w * 0.5 + i as f32 * 1.20;
-                a.box_part(
+                clipped_wall_box(
+                    a,
+                    scene,
+                    FacadeSide::Rear,
                     Surface::Metal,
-                    "wall",
                     Vec3::new(x, h * 0.5, back + 0.003),
                     Vec3::new(0.007, h, 0.005),
                     0.0,
                 );
             }
             for x in [-w * 0.35, w * 0.35] {
+                if super::facade::overlaps_opening(
+                    scene,
+                    Vec3::new(x - 0.013, 0.15, back + 0.023),
+                    Vec3::new(x + 0.013, h - 0.15, back + 0.049),
+                    0.01,
+                ) {
+                    continue;
+                }
                 a.part(Surface::Metal, "other_structure").rod(
                     Vec3::new(x, 0.15, back + 0.036),
                     Vec3::new(x, h - 0.15, back + 0.036),
@@ -285,24 +306,32 @@ pub(super) fn feature_wall(a: &mut Assembly, scene: &IndoorManifest) {
         ArchitectureStyle::Classic => {
             // Shallow wainscot does not intrude into the 0.30 m placement margin.
             for z in [-d * 0.30, 0.0, d * 0.30] {
-                a.box_part(
+                clipped_wall_box(
+                    a,
+                    scene,
+                    FacadeSide::Right,
                     Surface::Wood,
-                    "wall",
                     Vec3::new(w * 0.5 - 0.025, 0.48, z),
                     Vec3::new(0.042, 0.78, d * 0.27),
                     0.004,
                 );
             }
-            a.box_part(
+            clipped_wall_box(
+                a,
+                scene,
+                FacadeSide::Right,
                 Surface::WoodEdge,
-                "wall",
                 Vec3::new(w * 0.5 - 0.040, 0.91, 0.0),
                 Vec3::new(0.06, 0.055, d),
                 0.005,
             );
         }
     }
-    // Low wall plates ground the room visually without creating floor obstacles.
+    // New manifests place annotated electrical fixtures on solid backing.
+    if scene.exterior.is_some() {
+        return;
+    }
+    // Low wall plates ground legacy rooms visually without creating floor obstacles.
     for x in [-w * 0.25, w * 0.29] {
         a.box_part(
             Surface::Ceramic,

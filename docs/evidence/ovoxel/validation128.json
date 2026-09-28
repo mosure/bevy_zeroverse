@@ -1,0 +1,411 @@
+{
+  "schema_version": 1,
+  "samples": [
+    {
+      "seed": 13,
+      "occupied_voxels": 232615,
+      "resolution": 128,
+      "world_aabb": [
+        [
+          -4.816628456115723,
+          -0.20000000298023224,
+          -8.066282272338867
+        ],
+        [
+          7.252965927124023,
+          3.6292574405670166,
+          4.171871185302734
+        ]
+      ],
+      "semantic_counts": {
+        "person": 4857,
+        "other_prop": 1810,
+        "books": 184,
+        "paper": 42,
+        "lamp": 1568,
+        "cabinet": 4954,
+        "bookshelf": 2401,
+        "chair": 3717,
+        "table": 2668,
+        "window": 7548,
+        "wall": 108214,
+        "other_structure": 3120,
+        "floor": 25493,
+        "door": 772,
+        "ceiling": 65267
+      },
+      "primary_objects": 23,
+      "total_objects": 49,
+      "primary_zone": {
+        "furnishing": {
+          "offset": [
+            0.039580643,
+            -0.042999916
+          ],
+          "stagger": -0.38884708,
+          "curvature": 0.4768086,
+          "fan_radians": 0.58711356,
+          "jitter": 0.03701483,
+          "occupancy_gradient": [
+            0.6796891,
+            -0.021092117
+          ],
+          "opposing_probability": 0.7235633
+        },
+        "min": [
+          -4.0767775,
+          -6.639159
+        ],
+        "max": [
+          4.0767775,
+          2.0454483
+        ],
+        "activity": "Conference",
+        "orientation": 1.4598368,
+        "aisle": 0.85335904,
+        "desk_width": 2.1295252,
+        "desk_depth": 0.8825146,
+        "seat_pitch": 1.0424612,
+        "occupancy": 0.75830835
+      },
+      "primary_static_people": 6,
+      "total_people": 9,
+      "max_crop_escape_m": 0.011967603913947578,
+      "voxel_diagonal_m": 0.1375778168439865,
+      "statistics": {
+        "backend": "cpu_async",
+        "clipped_triangles": 404660,
+        "elapsed_seconds": 0.511641045,
+        "input_triangles": 413984,
+        "preparation_seconds": 0.026547775
+      },
+      "cache_version": 1,
+      "completed_capture_requests": 1,
+      "wait_updates": 121,
+      "intersection_flag_counts": [
+        66888,
+        39819,
+        47609,
+        1437,
+        39082,
+        34616,
+        1048,
+        2116
+      ]
+    },
+    {
+      "seed": 14,
+      "occupied_voxels": 186744,
+      "resolution": 128,
+      "world_aabb": [
+        [
+          -4.771592140197754,
+          -0.20000000298023224,
+          -9.890144348144531
+        ],
+        [
+          3.8172082901000977,
+          3.599336862564087,
+          -0.886876106262207
+        ]
+      ],
+      "semantic_counts": {
+        "person": 1226,
+        "other_prop": 1347,
+        "paper": 58,
+        "chair": 2327,
+        "desk": 3654,
+        "window": 41316,
+        "wall": 56658,
+        "other_structure": 2046,
+        "floor": 28316,
+        "door": 1930,
+        "ceiling": 44581,
+        "lamp": 3285
+      },
+      "primary_objects": 11,
+      "total_objects": 70,
+      "primary_zone": {
+        "furnishing": {
+          "offset": [
+            -0.063625686,
+            -0.020771503
+          ],
+          "stagger": -0.21377203,
+          "curvature": 0.40208644,
+          "fan_radians": -0.68248826,
+          "jitter": 0.0037882768,
+          "occupancy_gradient": [
+            0.17471796,
+            0.52845937
+          ],
+          "opposing_probability": 0.0
+        },
+        "min": [
+          -5.1063633,
+          1.5171018
+        ],
+        "max": [
+          0.24198699,
+          8.146897
+        ],
+        "activity": "Training",
+        "orientation": 3.257678,
+        "aisle": 1.1572413,
+        "desk_width": 1.406837,
+        "desk_depth": 0.882264,
+        "seat_pitch": 1.1565816,
+        "occupancy": 0.76643294
+      },
+      "primary_static_people": 1,
+      "total_people": 7,
+      "max_crop_escape_m": 0.011634133187924833,
+      "voxel_diagonal_m": 0.101640984416008,
+      "statistics": {
+        "backend": "cpu_async",
+        "clipped_triangles": 110798,
+        "elapsed_seconds": 0.261166181,
+        "input_triangles": 149018,
+        "preparation_seconds": 0.007134441
+      },
+      "cache_version": 1,
+      "completed_capture_requests": 2,
+      "wait_updates": 0,
+      "intersection_flag_counts": [
+        53537,
+        31309,
+        47477,
+        1861,
+        29778,
+        19765,
+        1432,
+        1585
+      ]
+    }
+  ],
+  "input_sha256": {
+    "000000.safetensors": "37dd1c90d3a99f6576acd210e1503bc8bfd5815a7b475bf1e429c3826cb8a0bc"
+  },
+  "limits": "Conservative surface occupancy, not solid voxels or watertight mesh reconstruction. Semantic colors, not textured albedo. World AABB differs from RGB scene normalization AABB.",
+  "comparison": {
+    "other": {
+      "schema_version": 1,
+      "samples": [
+        {
+          "seed": 13,
+          "occupied_voxels": 232615,
+          "resolution": 128,
+          "world_aabb": [
+            [
+              -4.816628456115723,
+              -0.20000000298023224,
+              -8.066282272338867
+            ],
+            [
+              7.252965927124023,
+              3.6292574405670166,
+              4.171871185302734
+            ]
+          ],
+          "semantic_counts": {
+            "person": 4857,
+            "other_prop": 1810,
+            "books": 184,
+            "paper": 42,
+            "lamp": 1568,
+            "cabinet": 4954,
+            "bookshelf": 2401,
+            "chair": 3717,
+            "table": 2668,
+            "window": 7548,
+            "wall": 108214,
+            "other_structure": 3120,
+            "floor": 25493,
+            "door": 772,
+            "ceiling": 65267
+          },
+          "primary_objects": 23,
+          "total_objects": 49,
+          "primary_zone": {
+            "furnishing": {
+              "offset": [
+                0.039580643,
+                -0.042999916
+              ],
+              "stagger": -0.38884708,
+              "curvature": 0.4768086,
+              "fan_radians": 0.58711356,
+              "jitter": 0.03701483,
+              "occupancy_gradient": [
+                0.6796891,
+                -0.021092117
+              ],
+              "opposing_probability": 0.7235633
+            },
+            "min": [
+              -4.0767775,
+              -6.639159
+            ],
+            "max": [
+              4.0767775,
+              2.0454483
+            ],
+            "activity": "Conference",
+            "orientation": 1.4598368,
+            "aisle": 0.85335904,
+            "desk_width": 2.1295252,
+            "desk_depth": 0.8825146,
+            "seat_pitch": 1.0424612,
+            "occupancy": 0.75830835
+          },
+          "primary_static_people": 6,
+          "total_people": 9,
+          "max_crop_escape_m": 0.011967603913947578,
+          "voxel_diagonal_m": 0.1375778168439865,
+          "statistics": {
+            "backend": "gpu_compute",
+            "clipped_triangles": 404660,
+            "elapsed_seconds": 0.157613172,
+            "input_triangles": 413984,
+            "preparation_seconds": 0.027171183
+          },
+          "cache_version": 1,
+          "completed_capture_requests": 1,
+          "wait_updates": 8,
+          "intersection_flag_counts": [
+            66888,
+            39819,
+            47609,
+            1437,
+            39082,
+            34616,
+            1048,
+            2116
+          ]
+        },
+        {
+          "seed": 14,
+          "occupied_voxels": 186744,
+          "resolution": 128,
+          "world_aabb": [
+            [
+              -4.771592140197754,
+              -0.20000000298023224,
+              -9.890144348144531
+            ],
+            [
+              3.8172082901000977,
+              3.599336862564087,
+              -0.886876106262207
+            ]
+          ],
+          "semantic_counts": {
+            "person": 1226,
+            "other_prop": 1347,
+            "paper": 58,
+            "chair": 2327,
+            "desk": 3654,
+            "window": 41316,
+            "wall": 56658,
+            "other_structure": 2046,
+            "floor": 28316,
+            "door": 1930,
+            "ceiling": 44581,
+            "lamp": 3285
+          },
+          "primary_objects": 11,
+          "total_objects": 70,
+          "primary_zone": {
+            "furnishing": {
+              "offset": [
+                -0.063625686,
+                -0.020771503
+              ],
+              "stagger": -0.21377203,
+              "curvature": 0.40208644,
+              "fan_radians": -0.68248826,
+              "jitter": 0.0037882768,
+              "occupancy_gradient": [
+                0.17471796,
+                0.52845937
+              ],
+              "opposing_probability": 0.0
+            },
+            "min": [
+              -5.1063633,
+              1.5171018
+            ],
+            "max": [
+              0.24198699,
+              8.146897
+            ],
+            "activity": "Training",
+            "orientation": 3.257678,
+            "aisle": 1.1572413,
+            "desk_width": 1.406837,
+            "desk_depth": 0.882264,
+            "seat_pitch": 1.1565816,
+            "occupancy": 0.76643294
+          },
+          "primary_static_people": 1,
+          "total_people": 7,
+          "max_crop_escape_m": 0.011634133187924833,
+          "voxel_diagonal_m": 0.101640984416008,
+          "statistics": {
+            "backend": "gpu_compute",
+            "clipped_triangles": 110798,
+            "elapsed_seconds": 0.609971821,
+            "input_triangles": 149018,
+            "preparation_seconds": 0.010981503
+          },
+          "cache_version": 1,
+          "completed_capture_requests": 2,
+          "wait_updates": 4,
+          "intersection_flag_counts": [
+            53537,
+            31309,
+            47477,
+            1861,
+            29778,
+            19765,
+            1432,
+            1585
+          ]
+        }
+      ],
+      "input_sha256": {
+        "000000.safetensors": "d533e717f67386f1aaefb81182ff9a02dd8f89171cdf7b803e56a9e30c873608"
+      },
+      "limits": "Conservative surface occupancy, not solid voxels or watertight mesh reconstruction. Semantic colors, not textured albedo. World AABB differs from RGB scene normalization AABB."
+    },
+    "samples": [
+      {
+        "seed": 13,
+        "coordinates_flags_semantics_equal": true,
+        "dual_max_u8_error": 7,
+        "dual_fraction_over_one_u8": 5.731931875989654e-06,
+        "dual_max_world_error_metres": 0.0034613994618627993,
+        "semantic_color_max_u8_error": 4
+      },
+      {
+        "seed": 14,
+        "coordinates_flags_semantics_equal": true,
+        "dual_max_u8_error": 3,
+        "dual_fraction_over_one_u8": 3.5699495923117566e-06,
+        "dual_max_world_error_metres": 0.0011436510076420416,
+        "semantic_color_max_u8_error": 0
+      }
+    ],
+    "tolerance": {
+      "exact": [
+        "coords",
+        "flags",
+        "semantic_ids",
+        "palette"
+      ],
+      "max_attribute_u8_error": 8,
+      "max_dual_fraction_over_one_u8": 0.001
+    }
+  },
+  "script_sha256": "c16e8150ae8e5dabb47911f5233dc9d0db6c4fb5e0ecf9b6ddf0b95907281c80"
+}

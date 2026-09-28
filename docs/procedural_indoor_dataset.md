@@ -1,5 +1,10 @@
 # Reproducible indoor datasets
 
+Multi-view reconstruction uses the default [shared-surface camera policy](multiview_cameras.md): four cameras, 35% proxy overlap and 0.25–3 m reference baselines. The indoor CLI defaults to one worker, 16 rooms per chunk, one timestep, static people and 256 GI rays/probe. Explicit settings override these defaults; `--indoor-camera '{"multiview":null}'` selects independent views. These are practical starting points, not a downstream-trained optimum. See [measured performance and diversity](generation_v18.md).
+
+[Indoor O-voxel export](ovoxel_indoor.md) captures primary-room surface geometry
+and semantics for single-timestep datasets with human motion disabled.
+
 The supported native generator is `zeroverse_gen`. Indoor captures default to
 lossless float32 sRGB color tensors, with lossless geometric and semantic labels.
 Legacy scene modes retain their JPEG default. An example bounded dataset is:
@@ -7,11 +12,11 @@ Legacy scene modes retain their JPEG default. An example bounded dataset is:
 ```sh
 cargo run -p bevy_zeroverse_burn --bin zeroverse_gen -- \
   --scene-type procedural-indoor --output out/office_dataset \
-  --samples 100 --workers 2 --chunk-size 16 --seed 777 \
+  --samples 100 --workers 1 --chunk-size 16 --seed 777 \
   --indoor-layout mixed --indoor-density 0.65 --indoor-human-density 0.25 \
-  --indoor-quality auto --indoor-gi-rays 1024 \
+  --indoor-quality auto --indoor-gi-rays 256 \
   --width 640 --height 480 --cameras 4 \
-  --playback-steps 3 --playback-step 0.5 --rotation-augmentation \
+  --playback-steps 1 --rotation-augmentation \
   --render-modes color depth normal semantic position \
   --color-codec raw --compression zstd --ov-mode disabled --no-ui
 ```
@@ -84,12 +89,16 @@ new engine (including this Bevy 0.19 migration) requires a new output directory.
 64–16384 rays per probe: 256 is the efficient default; 1024 reduces measured
 probe integration noise at higher GPU cost. Portable mode omits GI.
 Successful finite generation also
-writes `metrics/metrics.json`, scene/object/camera CSVs, and SVG distributions
+writes `metrics/metrics.json`, scene/object/camera CSVs, `windows.csv`, and SVG distributions
 and heatmaps for the **complete exported seed population**. Disable these
 post-generation statistics with `--indoor-metrics=false` when unnecessary.
 Planned object counts are distinct from projected visible counts. Heatmaps
 use unaugmented room coordinates, with neighbor-room instances counted
-separately; see the policies embedded in the metrics JSON.
+separately; see the policies embedded in the metrics JSON. Exterior metrics count
+primary-room facade walls/openings separately from the internal glass partition.
+`windows.csv` records wall-local rough openings, mullion columns, frame/inset
+dimensions, shade coverage and near-full-height classification. Generator v17
+and capture-v27 require a new output directory; see the [window review](facade_v17.md).
 
 To append another 100 samples, repeat the capture settings with `--resume
 --samples 100`. The seed can be omitted on resume: the saved base seed is
@@ -112,8 +121,12 @@ lossy colors must not be treated as exact labels.
 The renderer applies its tone map before capture. Both raw and JPEG exports
 apply the sRGB transfer exactly once, without per-image contrast fitting.
 Depth is linear camera-space Z in metres, normal is view-space `(n + 1) / 2`,
-position is world position normalized by the exported AABB, and semantic is
-the linear RGB class palette. Matrices are column-major `world_from_view`,
+position is world position affine-normalized by the exported AABB, and semantic is
+the linear RGB class palette. For indoor scenes, `aabb` encloses the primary room
+and its structural shell and equals the default `ovoxel_aabb`, excluding exterior
+context. Positions are not clamped: context outside the reconstruction box may
+produce values outside `[0, 1]`. Decode with `min + position * (max - min)`.
+Matrices are column-major `world_from_view`,
 right-handed with camera forward `-Z`; vertical FOV is in radians. Annotation
 precision is explicitly recorded per sample: `annotation_precision=1`
 (`float32_geometry`) selects the native indoor MRT geometry pass, while `0`

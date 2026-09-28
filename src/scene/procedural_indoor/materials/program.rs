@@ -27,7 +27,7 @@ pub struct MaterialRecipe {
     pub panel_count: [u32; 2],
     pub joint_width: f32,
 }
-pub const SURFACES: [Surface; 27] = [
+pub const SURFACES: [Surface; 35] = [
     Surface::Paint,
     Surface::Accent,
     Surface::Wood,
@@ -55,6 +55,14 @@ pub const SURFACES: [Surface; 27] = [
     Surface::Terracotta,
     Surface::Bark,
     Surface::GlassInterior,
+    Surface::ContainerGlass,
+    Surface::Liquid,
+    Surface::Drink,
+    Surface::PhoneScreen,
+    Surface::PrintedPaper,
+    Surface::Leather,
+    Surface::Whiteboard,
+    Surface::Television,
 ];
 pub fn sample(seed: u64) -> Vec<MaterialRecipe> {
     let mut palette = stream(seed, 71);
@@ -117,8 +125,20 @@ pub fn sample(seed: u64) -> Vec<MaterialRecipe> {
                     let n = rng.random_range(0.56..0.76);
                     [n, n * 1.01, n * 1.02]
                 }
-                Surface::Glass | Surface::GlassInterior => [1.0; 3],
-                Surface::Ceramic | Surface::Paper => [
+                Surface::Glass
+                | Surface::GlassInterior
+                | Surface::ContainerGlass
+                | Surface::Liquid => [1.0; 3],
+                Surface::Drink => [0.09, 0.038, 0.016],
+                Surface::Leather => {
+                    let n = rng.random_range(0.055..0.40);
+                    [
+                        n,
+                        n * rng.random_range(0.40..0.82),
+                        n * rng.random_range(0.25..0.65),
+                    ]
+                }
+                Surface::Ceramic | Surface::Paper | Surface::PrintedPaper => [
                     neutral,
                     neutral * rng.random_range(0.94..1.02),
                     neutral * rng.random_range(0.88..1.01),
@@ -149,7 +169,11 @@ pub fn sample(seed: u64) -> Vec<MaterialRecipe> {
                 }
                 Surface::Rubber => [0.035, 0.036, 0.037],
                 Surface::Ink => [0.04, 0.065, 0.09],
-                Surface::Light | Surface::Screen => [1.0; 3],
+                Surface::Light
+                | Surface::Screen
+                | Surface::PhoneScreen
+                | Surface::Television
+                | Surface::Whiteboard => [1.0; 3],
             };
             let roughness = if cloth {
                 rng.random_range(0.72..0.98)
@@ -161,16 +185,23 @@ pub fn sample(seed: u64) -> Vec<MaterialRecipe> {
                         super::glass::GlassRecipe::sample(seed, surface).roughness
                     }
                     Surface::Chrome => rng.random_range(0.14..0.32),
-                    Surface::Metal => rng.random_range(0.24..0.46),
+                    Surface::ContainerGlass | Surface::Liquid => rng.random_range(0.035..0.08),
+                    Surface::Drink => rng.random_range(0.12..0.22),
+                    Surface::Metal => rng.random_range(0.32..0.50),
                     Surface::Plastic => rng.random_range(0.32..0.60),
                     Surface::Ceramic => rng.random_range(0.18..0.38),
+                    Surface::Art => rng.random_range(0.28..0.72),
                     Surface::Leaf | Surface::LeafLight | Surface::LeafVariegated => {
                         rng.random_range(0.36..0.63)
                     }
-                    Surface::Soil | Surface::Rubber | Surface::Paper => {
+                    Surface::Soil | Surface::Rubber | Surface::Paper | Surface::PrintedPaper => {
                         rng.random_range(0.83..0.99)
                     }
-                    Surface::Screen => rng.random_range(0.15..0.34),
+                    Surface::Screen | Surface::PhoneScreen | Surface::Television => {
+                        rng.random_range(0.15..0.34)
+                    }
+                    Surface::Leather => rng.random_range(0.32..0.58),
+                    Surface::Whiteboard => rng.random_range(0.18..0.30),
                     _ => rng.random_range(0.62..0.93),
                 }
             };
@@ -187,13 +218,30 @@ pub fn sample(seed: u64) -> Vec<MaterialRecipe> {
                 1.0
             } else if surface == Surface::Soil {
                 0.2
+            } else if matches!(
+                surface,
+                Surface::Metal
+                    | Surface::Chrome
+                    | Surface::Plastic
+                    | Surface::Rubber
+                    | Surface::Paper
+                    | Surface::Leather
+            ) {
+                rng.random_range(0.045..0.16)
             } else {
                 rng.random_range(0.4..1.4)
             };
             let relief_m = if cloth {
                 rng.random_range(0.00008..0.00035)
             } else if wood {
-                rng.random_range(0.00001..0.00014)
+                rng.random_range(0.000025..0.00022)
+            } else if matches!(surface, Surface::Metal | Surface::Chrome) {
+                rng.random_range(0.000008..0.000025)
+            } else if matches!(
+                surface,
+                Surface::Plastic | Surface::Paper | Surface::Leather
+            ) {
+                rng.random_range(0.000010..0.000030)
             } else {
                 rng.random_range(0.00002..0.0003)
             };
@@ -208,19 +256,23 @@ pub fn sample(seed: u64) -> Vec<MaterialRecipe> {
                 grain_frequency: rng.random_range(16.0..80.0),
                 cross_frequency: rng.random_range(1.0..8.0),
                 warp: rng.random_range(0.005..0.09),
-                contrast: if matches!(surface, Surface::Paint | Surface::Ceiling | Surface::Accent)
-                {
-                    rng.random_range(0.015..0.045)
-                } else {
-                    rng.random_range(0.035..0.23)
+                contrast: match surface {
+                    Surface::Metal | Surface::Chrome | Surface::Paper | Surface::PrintedPaper => {
+                        rng.random_range(0.005..0.025)
+                    }
+                    Surface::Plastic | Surface::Paint | Surface::Ceiling | Surface::Accent => {
+                        rng.random_range(0.015..0.045)
+                    }
+                    _ => rng.random_range(0.035..0.23),
                 },
-                weathering: if matches!(
-                    surface,
-                    Surface::Paint | Surface::Ceiling | Surface::Accent
-                ) {
-                    rng.random_range(0.0..0.018)
-                } else {
-                    rng.random_range(0.0..0.14)
+                weathering: match surface {
+                    Surface::Metal | Surface::Chrome | Surface::Paper | Surface::PrintedPaper => {
+                        rng.random_range(0.0..0.004)
+                    }
+                    Surface::Plastic | Surface::Paint | Surface::Ceiling | Surface::Accent => {
+                        rng.random_range(0.0..0.018)
+                    }
+                    _ => rng.random_range(0.0..0.14),
                 },
                 mineral_mix: rng.random_range(0.0..1.0),
                 weave_mix: rng.random_range(0.0..1.0),
@@ -261,21 +313,6 @@ impl MaterialRecipe {
         let micro = noise(97, 91, 3);
         let mineral = (0.55 * macro_n + 0.3 * meso + 0.15 * micro) * (1.0 - self.mineral_mix)
             + self.mineral_mix * (0.65 * meso + 0.35 * (TAU * u * 5.0 + macro_n * 8.0).sin().abs());
-        let warp = noise(3, 5, 4) * self.warp;
-        // Frequencies are integer at the repeat boundary; the spectrum is
-        // continuously mixed between neighbouring bands rather than quantized.
-        let f = self.grain_frequency;
-        let a = f.floor() as u32;
-        let g = |n| {
-            periodic_noise(
-                u + warp,
-                v,
-                n,
-                self.cross_frequency.round() as u32,
-                self.seed,
-            )
-        };
-        let grain = g(a) * (1.0 - f.fract()) + g(a + 1) * f.fract();
         let count = (self.period_m / 0.0025).round().clamp(12.0, 100.0);
         let threads = (TAU * u * count).sin() * (TAU * v * count).sin();
         // An odd thread count must not leave a half cycle at the tile boundary.
@@ -287,8 +324,17 @@ impl MaterialRecipe {
         ) || (self.surface == Surface::Floor && floor_style == 0);
         let cloth = matches!(self.surface, Surface::Fabric | Surface::FabricAlt)
             || (self.surface == Surface::Floor && floor_style == 1);
-        let value = if wood {
-            grain
+        let value = if matches!(self.surface, Surface::Metal | Surface::Chrome) {
+            // Long machining grooves; color stays restrained while normal and
+            // roughness maps carry the brushed finish under grazing light.
+            noise(103, 5, 44) * 0.78 + micro * 0.22
+        } else if matches!(
+            self.surface,
+            Surface::Plastic | Surface::Rubber | Surface::Paper | Surface::Leather
+        ) {
+            micro * 0.72 + meso * 0.28
+        } else if wood {
+            super::timber::grain(self, u, v)
         } else if cloth {
             weave * 0.72 + micro * 0.28
         } else {
@@ -297,7 +343,20 @@ impl MaterialRecipe {
         let stain = ((macro_n - 0.5) * 3.0).max(0.0) * self.weathering;
         let mut shade = 0.96 + (value - 0.5) * self.contrast - stain;
         let mut height = (value - 0.5) * self.relief_m;
-        let mut roughness = self.roughness + (value - 0.5) * 0.11 + stain * 0.3;
+        let finish_variation = if matches!(
+            self.surface,
+            Surface::Metal | Surface::Chrome | Surface::Plastic | Surface::Paper
+        ) {
+            0.14
+        } else if wood || cloth {
+            0.26
+        } else {
+            0.34
+        };
+        let mut roughness = self.roughness
+            + (value - 0.5) * finish_variation
+            + (macro_n - 0.5) * self.weathering
+            + stain * 0.3;
         if self.surface == Surface::Floor && floor_style != 1 {
             let [nx, ny] = self.floor_repetitions(floor_style);
             let strip = (u * nx).floor() as u32;
@@ -313,7 +372,13 @@ impl MaterialRecipe {
             let filter_width = self.joint_width + self.period_m / 256.0;
             let seam =
                 (1.0 - distance / filter_width).clamp(0.0, 1.0) * (self.joint_width / filter_width);
-            let board = super::hash(strip, (v * ny + stagger).floor() as u32, self.seed);
+            // Staggered boards cross the texture boundary halfway along their
+            // length. Wrap their identity as well as UVs to avoid a false joint.
+            let board = super::hash(
+                strip,
+                (v * ny + stagger).floor() as u32 % ny as u32,
+                self.seed,
+            );
             shade = shade * (1.0 - 0.22 * seam) + (board - 0.5) * self.contrast;
             height -= seam * self.joint_width * 0.25;
             roughness += seam * 0.12;

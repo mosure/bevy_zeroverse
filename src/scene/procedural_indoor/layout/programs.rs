@@ -5,6 +5,10 @@ impl IndoorManifest {
         let zones = self.program.as_ref().unwrap().zones.clone();
         for zone in zones {
             let extent = zone.max - zone.min;
+            let activity = zone
+                .composition
+                .as_ref()
+                .map_or(zone.activity, |mix| mix.choose(rng));
             let field = zone.furnishing.as_ref();
             let center =
                 (zone.min + zone.max) * 0.5 + field.map_or(Vec2::ZERO, |f| f.offset * extent);
@@ -24,19 +28,28 @@ impl IndoorManifest {
             let add_chair = |scene: &mut Self, x, z, yaw, rng: &mut ChaCha8Rng| {
                 scene.chair(point(x, 0.0, z), zone.orientation + yaw, rng);
             };
-            if zone.activity == IndoorLayout::Lounge && w > 2.7 && d > 3.0 {
+            if activity == IndoorLayout::Lounge && w > 2.7 && d > 3.0 {
                 let sofa_width = (w * rng.random_range(0.58..0.88)).clamp(1.6, 3.4);
-                let sofa_z = -d * 0.5 + 0.55;
+                let sofa_depth = if w > 3.4 && d > 4.0 && rng.random_bool(0.52) {
+                    rng.random_range(1.45..1.95)
+                } else {
+                    rng.random_range(0.80..1.05)
+                };
+                let sofa_z = -d * 0.5 + sofa_depth * 0.5 + 0.08;
                 self.add(
                     ObjectKind::Sofa,
                     point(0.0, 0.0, sofa_z),
-                    Vec3::new(sofa_width, rng.random_range(0.75..1.05), 0.90),
+                    Vec3::new(sofa_width, rng.random_range(0.78..1.06), sofa_depth),
                     zone.orientation + std::f32::consts::PI,
                     rng,
                 );
                 self.add(
                     ObjectKind::CoffeeTable,
-                    point(rng.random_range(-0.20..0.20), 0.0, sofa_z + 1.3),
+                    point(
+                        rng.random_range(-0.20..0.20),
+                        0.0,
+                        sofa_z + sofa_depth * 0.5 + 0.72,
+                    ),
                     Vec3::new(
                         rng.random_range(0.85..1.55),
                         rng.random_range(0.34..0.46),
@@ -49,13 +62,14 @@ impl IndoorManifest {
                     add_chair(
                         self,
                         side * (w * 0.32).min(1.45),
-                        sofa_z + 2.25,
+                        sofa_z + sofa_depth * 0.5 + 1.55,
                         side * 0.42,
                         rng,
                     );
                 }
-            } else if zone.activity == IndoorLayout::Conference && w > 3.15 && d > 3.25 {
-                let width = rng.random_range(1.05..1.55f32).min(w - 2.0);
+            } else if activity == IndoorLayout::Conference && w > 3.15 && d > 3.25 {
+                let scale = zone.composition.as_ref().map_or(1.0, |mix| mix.group_scale);
+                let width = (rng.random_range(1.05..1.55f32) * scale).clamp(0.9, w - 2.0);
                 let length = if rng.random_bool(0.28) {
                     width
                 } else {
@@ -173,7 +187,16 @@ impl IndoorManifest {
                         std::f32::consts::PI,
                     ),
                 };
-                let (kind, size) = match rng.random_range(0..8) {
+                let service = if rng.random_bool(
+                    zone.composition
+                        .as_ref()
+                        .map_or(0.16, |mix| mix.storage_bias) as f64,
+                ) {
+                    3
+                } else {
+                    rng.random_range(0..8)
+                };
+                let (kind, size) = match service {
                     0 | 1 => (
                         ObjectKind::Plant,
                         Vec3::new(
@@ -238,7 +261,7 @@ impl IndoorManifest {
                 && self.objects.iter().any(|o| {
                     !o.neighbor
                         && (matches!(o.kind, ObjectKind::Desk | ObjectKind::Table)
-                            || self.layout == IndoorLayout::Lounge
+                            || self.layout.prefers_soft_seating()
                                 && o.kind == ObjectKind::CoffeeTable)
                 })
             {
@@ -250,7 +273,7 @@ impl IndoorManifest {
             self.workstation(
                 if self.layout == IndoorLayout::Conference {
                     ObjectKind::Table
-                } else if self.layout == IndoorLayout::Lounge {
+                } else if self.layout.prefers_soft_seating() {
                     ObjectKind::CoffeeTable
                 } else {
                     ObjectKind::Desk
@@ -258,7 +281,7 @@ impl IndoorManifest {
                 Vec3::new(x, 0.0, z),
                 Vec3::new(
                     1.15,
-                    if self.layout == IndoorLayout::Lounge {
+                    if self.layout.prefers_soft_seating() {
                         0.42
                     } else {
                         0.74
@@ -338,7 +361,24 @@ impl IndoorManifest {
                 rng.random_range(zone.min.y + 0.7..zone.max.y - 0.7),
             );
             let yaw = zone.orientation + rng.random_range(-0.65..0.65);
-            let lounge = zone.activity == IndoorLayout::Lounge;
+            let lounge = zone
+                .composition
+                .as_ref()
+                .map_or(zone.activity, |mix| mix.choose(rng))
+                == IndoorLayout::Lounge;
+            if lounge && rng.random_bool(0.55) {
+                self.add(
+                    ObjectKind::Sofa,
+                    p,
+                    Vec3::new(
+                        rng.random_range(1.30..2.25),
+                        rng.random_range(0.78..1.02),
+                        rng.random_range(0.80..1.10),
+                    ),
+                    yaw,
+                    rng,
+                );
+            }
             self.workstation(
                 if lounge {
                     ObjectKind::CoffeeTable

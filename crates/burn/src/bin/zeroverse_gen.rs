@@ -61,7 +61,12 @@ struct Cli {
     output: PathBuf,
 
     /// Worker count (defaults to one model-owning process when motion is enabled)
-    #[arg(short = 'w', long, default_value_t = 16)]
+    #[arg(
+        short = 'w',
+        long,
+        default_value_t = 16,
+        default_value_if("scene_type", "procedural-indoor", "1")
+    )]
     workers: usize,
 
     /// Run the headless app on the main thread (automatic for finite jobs and on macOS)
@@ -69,7 +74,11 @@ struct Cli {
     main_thread_app: bool,
 
     /// Number of samples per saved chunk (ignored for fs mode)
-    #[arg(long, default_value_t = 512)]
+    #[arg(
+        long,
+        default_value_t = 512,
+        default_value_if("scene_type", "procedural-indoor", "16")
+    )]
     chunk_size: usize,
 
     /// Total samples to generate (0 = run until stopped)
@@ -116,7 +125,7 @@ struct Cli {
     #[arg(long)]
     human_motion: Option<String>,
 
-    /// Capture camera policy JSON, with primary-room confinement and path length bounds
+    /// Capture camera JSON with primary-room/path bounds and multiview {min_overlap, min_baseline, max_baseline}
     #[arg(long)]
     indoor_camera: Option<String>,
 
@@ -169,7 +178,11 @@ struct Cli {
     height: u32,
 
     /// Number of cameras/views to capture per frame
-    #[arg(long, default_value_t = 1)]
+    #[arg(
+        long,
+        default_value_t = 1,
+        default_value_if("scene_type", "procedural-indoor", "4")
+    )]
     cameras: usize,
 
     /// Base indoor seed: sample i uses seed + i, independent of process count
@@ -209,7 +222,7 @@ struct Cli {
     #[arg(long, default_value_t = 0, hide = true)]
     worker_id: usize,
 
-    /// Export O-Voxel tensors into the written safetensors outputs.
+    /// Export O-Voxel tensors (requires playback-steps=1 and human motion disabled).
     #[arg(long, value_enum, default_value_t = bevy_zeroverse::app::OvoxelMode::CpuAsync)]
     ov_mode: bevy_zeroverse::app::OvoxelMode,
 
@@ -217,7 +230,7 @@ struct Cli {
     #[arg(long, default_value_t = 256)]
     ov_resolution: u32,
 
-    /// Maximum number of voxels to read back from GPU path (upper bound on buffer size)
+    /// Maximum occupied voxels for CPU/GPU export; overflow fails without partial data
     #[arg(
         long = "ov-max-output-voxels",
         alias = "ov-max-output",
@@ -722,6 +735,14 @@ fn build_ui_config(
 }
 
 fn prepare_generation_metadata(cli: &mut Cli) -> Result<()> {
+    bevy_zeroverse::ovoxel::contract::validate_config(
+        cli.ov_mode,
+        cli.playback_steps,
+        cli.human_motion.as_deref(),
+        cli.ov_resolution,
+        cli.ov_max_output_voxels,
+    )
+    .map_err(anyhow::Error::msg)?;
     if cli.scene_type != ZeroverseSceneType::ProceduralIndoor || cli.child_worker {
         return Ok(());
     }
@@ -914,6 +935,19 @@ fn send_progress(
 #[cfg(test)]
 mod process_limit_tests {
     use super::*;
+
+    #[test]
+    fn indoor_cli_defaults_to_four_connected_views_and_preserves_explicit_counts() {
+        let config = indoor(&[]);
+        assert_eq!(config.cameras, 4);
+        assert_eq!(config.workers, 1);
+        assert_eq!(config.chunk_size, 16);
+        assert_eq!(indoor(&["--cameras", "2"]).cameras, 2);
+        let legacy = Cli::parse_from(["zeroverse_gen", "--output", "unused"]);
+        assert_eq!(legacy.cameras, 1);
+        assert_eq!(legacy.workers, 16);
+        assert_eq!(legacy.chunk_size, 512);
+    }
 
     fn indoor(arguments: &[&str]) -> Cli {
         Cli::parse_from(

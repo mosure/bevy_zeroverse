@@ -371,6 +371,26 @@ impl BakeScene {
         images: &impl super::preparation::AssetStore<Image>,
         moving_humans: &[usize],
     ) -> Self {
+        let geometry = super::preparation::SceneGeometry {
+            architecture: architecture::architecture(scene),
+            objects: scene.objects.iter().map(objects::build_object).collect(),
+            humans: scene
+                .humans
+                .iter()
+                .map(super::humans::build_human)
+                .collect(),
+        };
+        Self::from_geometry(scene, set, materials, images, moving_humans, &geometry)
+    }
+
+    pub(crate) fn from_geometry(
+        scene: &IndoorManifest,
+        set: &IndoorMaterials,
+        materials: &impl super::preparation::AssetStore<StandardMaterial>,
+        images: &impl super::preparation::AssetStore<Image>,
+        moving_humans: &[usize],
+        geometry: &super::preparation::SceneGeometry,
+    ) -> Self {
         let started = Instant::now();
         let mut result = Self {
             triangles: Vec::new(),
@@ -395,10 +415,20 @@ impl BakeScene {
             preparation_ms: 0.0,
             world_rotation: Quat::from_rotation_y(scene.world_yaw),
         };
-        for surface in super::materials::program::SURFACES {
-            let mat = materials
-                .get(&set.get(surface))
-                .expect("indoor material exists");
+        let mut finish_indices = std::collections::BTreeMap::new();
+        let handles = super::materials::program::SURFACES
+            .into_iter()
+            .map(|surface| (surface, None, set.get(surface)))
+            .chain(
+                set.variants
+                    .iter()
+                    .map(|(&(surface, slot), handle)| (surface, Some(slot), handle.clone())),
+            );
+        for (surface, slot, handle) in handles {
+            if let Some(slot) = slot {
+                finish_indices.insert((surface, slot), result.materials.len());
+            }
+            let mat = materials.get(&handle).expect("indoor material exists");
             let texture = mat
                 .base_color_texture
                 .as_ref()
@@ -432,16 +462,17 @@ impl BakeScene {
                 textured_emission: mat.emissive_texture.is_some(),
             });
         }
-        result.add_assembly(architecture::architecture(scene), Transform::IDENTITY);
-        for object in &scene.objects {
-            result.add_assembly(objects::build_object(object), object.transform());
+        result.add_assembly(&geometry.architecture, Transform::IDENTITY, &finish_indices);
+        for (object, assembly) in scene.objects.iter().zip(&geometry.objects) {
+            result.add_assembly(assembly, object.transform(), &finish_indices);
         }
-        for person in scene
+        for (person, assembly) in scene
             .humans
             .iter()
-            .filter(|p| !moving_humans.contains(&p.id))
+            .zip(&geometry.humans)
+            .filter(|(p, _)| !moving_humans.contains(&p.id))
         {
-            for (surface, geometry) in super::humans::build_human(person).parts {
+            for (&surface, geometry) in &assembly.parts {
                 use super::humans::HumanSurface;
                 // The diffuse proxy has no thin-lens transmission model.
                 // Clear spectacles must not become opaque eye shadow casters.
@@ -505,23 +536,39 @@ impl BakeScene {
         result
     }
 
-    fn add_assembly(&mut self, assembly: Assembly, transform: Transform) {
-        for ((surface, _), geometry) in assembly.parts {
+    fn add_assembly(
+        &mut self,
+        assembly: &Assembly,
+        transform: Transform,
+        finishes: &std::collections::BTreeMap<(Surface, usize), usize>,
+    ) {
+        for ((surface, label), geometry) in &assembly.parts {
+            let surface = *surface;
             // Match NotShadowCaster on transparent glazing and analytic-light
             // emitters. No double-counting emissive luminaire geometry + lights.
             if matches!(
                 surface,
-                Surface::Glass | Surface::GlassInterior | Surface::Light
+                Surface::Glass
+                    | Surface::GlassInterior
+                    | Surface::ContainerGlass
+                    | Surface::Liquid
+                    | Surface::Light
             ) {
                 continue;
             }
-            self.add_geometry(geometry, transform, surface as usize);
+            let material = label
+                .rsplit_once("#finish")
+                .and_then(|(_, slot)| slot.parse::<usize>().ok())
+                .and_then(|slot| finishes.get(&(surface, slot)))
+                .copied()
+                .unwrap_or(surface as usize);
+            self.add_geometry(geometry, transform, material);
         }
     }
 
     fn add_geometry(
         &mut self,
-        geometry: super::geometry::Geometry,
+        geometry: &super::geometry::Geometry,
         transform: Transform,
         material: usize,
     ) {
@@ -946,7 +993,7 @@ mod tests {
         });
         let mut walls = Assembly::default();
         walls.box_part(Surface::Paint, "wall", Vec3::ZERO, Vec3::splat(4.0), 0.0);
-        scene.add_assembly(walls, Transform::IDENTITY);
+        scene.add_assembly(&walls, Transform::IDENTITY, &Default::default());
         scene.build_node(0, scene.triangles.len());
         for bounces in [1, 2, 4, 8] {
             let values = scene.integrate(Vec3::ZERO, 2048, bounces, 4);
@@ -977,7 +1024,7 @@ mod tests {
                     Vec3::splat(0.6),
                     0.0,
                 );
-                scene.add_assembly(assembly, Transform::IDENTITY);
+                scene.add_assembly(&assembly, Transform::IDENTITY, &Default::default());
             }
         }
         scene.build_node(0, scene.triangles.len());
@@ -1044,7 +1091,7 @@ mod tests {
             Vec3::new(4.0, 0.1, 4.0),
             0.0,
         );
-        scene.add_assembly(blocker, Transform::IDENTITY);
+        scene.add_assembly(&blocker, Transform::IDENTITY, &Default::default());
         scene.build_node(0, scene.triangles.len());
         assert_eq!(scene.direct(Vec3::ZERO, Vec3::Y), Vec3::ZERO);
 
@@ -1066,7 +1113,7 @@ mod tests {
             Vec3::new(0.1, 4.0, 4.0),
             0.0,
         );
-        scene.add_assembly(panel, Transform::IDENTITY);
+        scene.add_assembly(&panel, Transform::IDENTITY, &Default::default());
         scene.build_node(0, scene.triangles.len());
         let local = scene.integrate(Vec3::ZERO, 8192, 1, 7);
         scene.world_rotation = Quat::from_rotation_y(PI * 0.5);

@@ -1,0 +1,106 @@
+{
+  "schema_version": 2,
+  "samples": [
+    {
+      "seed": 11,
+      "occupied_voxels": 50537,
+      "resolution": 64,
+      "world_aabb": [
+        [
+          1.2211568355560303,
+          -0.20000000298023224,
+          -9.081266403198242
+        ],
+        [
+          8.01620101928711,
+          3.6277732849121094,
+          7.309035301208496
+        ]
+      ],
+      "annotation_aabb_matches_ovoxel": true,
+      "cameras_in_primary_room": 2,
+      "semantic_counts": {
+        "person": 462,
+        "paper": 31,
+        "other_prop": 357,
+        "books": 35,
+        "whiteboard": 200,
+        "cabinet": 717,
+        "chair": 965,
+        "desk": 1337,
+        "window": 5777,
+        "wall": 26011,
+        "other_structure": 1752,
+        "floor": 3868,
+        "door": 558,
+        "ceiling": 7676,
+        "lamp": 791
+      },
+      "primary_objects": 22,
+      "total_objects": 83,
+      "primary_zone": {
+        "furnishing": {
+          "offset": [
+            -0.06392258,
+            0.049809217
+          ],
+          "stagger": 0.36259282,
+          "curvature": 0.14031565,
+          "fan_radians": -0.5138302,
+          "jitter": 0.02333757,
+          "occupancy_gradient": [
+            0.5338518,
+            0.64695853
+          ],
+          "opposing_probability": 0.36439514
+        },
+        "min": [
+          2.9733582,
+          -7.774418
+        ],
+        "max": [
+          6.4324694,
+          7.774418
+        ],
+        "activity": "Conference",
+        "orientation": -0.2473739,
+        "aisle": 1.1084034,
+        "desk_width": 2.0152664,
+        "desk_depth": 0.8180901,
+        "seat_pitch": 0.8685961,
+        "occupancy": 0.6704007
+      },
+      "primary_static_people": 2,
+      "total_people": 7,
+      "max_crop_escape_m": 0.08181209548522705,
+      "voxel_diagonal_m": 0.2836126685142517,
+      "statistics": {
+        "backend": "cpu_async",
+        "clipped_triangles": 196599,
+        "elapsed_seconds": 0.14289831,
+        "input_triangles": 229428,
+        "preparation_seconds": 0.01534248
+      },
+      "cache_version": 1,
+      "completed_capture_requests": 1,
+      "wait_updates": 28,
+      "intersection_flag_counts": [
+        17581,
+        12036,
+        6736,
+        699,
+        10152,
+        2284,
+        614,
+        435
+      ]
+    }
+  ],
+  "input_sha256": {
+    "000000/meta.safetensors": "77cdba9328d0b16be1d955de3d2b7a72e719511ece1345d5d4881a3ef6c58079",
+    "000000/indoor_render_metadata.json": "735e61a66c4e674413d3cf134d534ada1d34293d09944aea343e6e8b40bc4f7b",
+    "000000/render_metadata.json": "2b4ace959a7f84ebf09c35a7db096ed7452a69176bb19a52d3e761afa9aa4172"
+  },
+  "limits": "Conservative surface occupancy, not solid voxels or watertight mesh reconstruction. Semantic colors, not textured albedo. Primary-room world AABB is shared with scene annotation normalization; visible context can normalize outside [0, 1].",
+  "script_sha256": "0bf6efab0afd9d910477ccb9b8b133c606a5909e362b4b646ecee25d65694959"
+}

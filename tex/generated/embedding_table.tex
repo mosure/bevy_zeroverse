@@ -1,0 +1,13 @@
+\begin{table}[ht]
+\centering\small
+\begin{tabular}{p{.53\linewidth}p{.36\linewidth}}
+\toprule
+Rooms / images / embedding dimensions & 64 / 256 / 768 \\
+Cross-room nearest cosine distance: min / median / max & 0.0394 / 0.0628 / 0.1832 \\
+View fraction with cross-room nearest distance below 0.02 & 0.00\% \\
+Scene-centroid entropy-effective rank & 32.29 \\
+Dimensions explaining 90\% of centroid variance & 34 \\
+\bottomrule
+\end{tabular}
+\caption{Frozen SigLIP2 base-patch16-224 audit. Direct bilinear RGB resize, mean/std 0.5, L2-normalized embeddings. Thresholds are exploratory; no real-data baseline or training-utility claim.}\label{tab:embedding}
+\end{table}

@@ -48,7 +48,12 @@ impl FinishLayers {
             },
             bands: [rng.random_range(1..13), rng.random_range(0..5)],
             stripe_strength: if textile {
-                rng.random_range(0.0_f32..1.0).powi(2) * 0.85
+                rng.random_range(0.0_f32..1.0).powi(2)
+                    * if surface == Surface::Floor {
+                        0.85
+                    } else {
+                        0.35
+                    }
             } else {
                 0.0
             },
@@ -82,7 +87,7 @@ impl FinishLayers {
     ) {
         use std::f32::consts::TAU;
         let [u, v] = uv;
-        let [macro_n, meso, micro] = noise;
+        let [_, meso, micro] = noise;
         let band = (TAU * (u * self.bands[0] as f32 + v * self.bands[1] as f32)).sin();
         let textile = matches!(recipe.surface, Surface::Fabric | Surface::FabricAlt)
             || recipe.surface == Surface::Floor && floor_style == 1;
@@ -113,11 +118,18 @@ impl FinishLayers {
         } else {
             (u, v, 0.0)
         };
-        let veins = (TAU * (vein_u * 3.0 + (vein_v * TAU).sin() * recipe.warp * 8.0)
-            + macro_n * 4.0
-            + phase)
-            .sin()
-            .abs();
+        // Narrow level sets of a warped multi-octave mineral field produce
+        // branching deposits instead of equally spaced sinusoidal marble bands.
+        let mineral_field = super::periodic_noise(vein_u + phase, vein_v, 4, 5, recipe.seed)
+            + 0.32
+                * super::periodic_noise(
+                    vein_u,
+                    vein_v + phase,
+                    11,
+                    13,
+                    recipe.seed.wrapping_add(33),
+                );
+        let veins = ((mineral_field - 0.62).abs() * 14.0).clamp(0.0, 1.0);
         let vein = if mineral {
             (1.0 - veins).powi(6) * self.vein_strength
         } else {

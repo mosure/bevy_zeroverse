@@ -47,6 +47,12 @@ struct Args {
     steps: u32,
     #[arg(long, default_value_t = 0.25)]
     human_density: f32,
+    /// Root containing assets/burn_human when occupied rooms are measured.
+    #[arg(long)]
+    asset_root: Option<PathBuf>,
+    /// JSON camera placement policy, identical to viewer/capture CLI.
+    #[arg(long)]
+    indoor_camera: Option<String>,
     #[arg(long)]
     no_gi: bool,
     /// Exercise the independent CPU transport oracle and bounded prefetch.
@@ -157,7 +163,17 @@ fn main() -> Result<()> {
     let empty_assets = args.output.join("empty_assets");
     fs::create_dir_all(&empty_assets)?;
     setup_globals(Some(
-        empty_assets.canonicalize()?.to_string_lossy().into_owned(),
+        args.asset_root
+            .unwrap_or_else(|| {
+                if args.human_density > 0.0 {
+                    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                } else {
+                    empty_assets
+                }
+            })
+            .canonicalize()?
+            .to_string_lossy()
+            .into_owned(),
     ));
     let modes = if args.rgb_only {
         vec![RenderMode::Color]
@@ -173,6 +189,7 @@ fn main() -> Result<()> {
     let config = BevyZeroverseConfig {
         scene_type: ZeroverseSceneType::ProceduralIndoor,
         indoor_seed: Some(args.seed),
+        indoor_camera: args.indoor_camera.clone(),
         indoor_human_density: args.human_density,
         indoor_quality: args.quality,
         indoor_gi_rays: args.gi_rays,
@@ -253,7 +270,7 @@ fn main() -> Result<()> {
             app.world_mut().write_message(RegenerateSceneEvent);
             app.update();
         }
-        let preparation = start.elapsed().as_secs_f64();
+        let request_seconds = start.elapsed().as_secs_f64();
         let mut state = SamplerState::from_config(&config);
         state.regenerate_scene = false;
         app.insert_resource(state);
@@ -371,8 +388,9 @@ fn main() -> Result<()> {
             "memory_allocations":hal.memory_allocations.read(),"descriptor_sets":hal.bind_groups.read()});
         let record = serde_json::json!({"run_id":run_id,"pid":std::process::id(),"wall_elapsed_seconds":total.elapsed().as_secs_f64(),
             "completed_unix_seconds":SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs_f64(),
-            "index":index,"seed":seed,"elapsed_seconds":elapsed,"preparation_seconds":preparation,
-            "capture_seconds":elapsed-preparation,"updates":updates,"rss_bytes":rss,"heap":heap_memory(),
+            "index":index,"seed":seed,"elapsed_seconds":elapsed,"request_seconds":request_seconds,
+            "preparation_stages": if args.fixed_scene && index > 0 { None } else { app.world().get_resource::<procedural_indoor::preparation::PreparationTimings>() },
+            "capture_seconds":elapsed-request_seconds,"updates":updates,"rss_bytes":rss,"heap":heap_memory(),
             "ecs_entities":app.world().entities().len(),"gpu_registry":gpu_registry,
             "hal_memory":hal_memory,
             "renderer_residency":app.world().get_resource::<bevy_zeroverse::render::residency::RenderResidencyDiagnostics>().map(|d|d.snapshot()),
@@ -418,7 +436,7 @@ fn main() -> Result<()> {
             .sum::<f64>()
             .max(1.0);
     durations.sort_by(f64::total_cmp);
-    let report = serde_json::json!({"schema_version":2,"run_id":run_id,"pid":std::process::id(),"scenes":args.scenes,"warmup_scenes":args.warmup_scenes,
+    let report = serde_json::json!({"schema_version":3,"run_id":run_id,"pid":std::process::id(),"scenes":args.scenes,"warmup_scenes":args.warmup_scenes,
         "loop_started_unix_seconds":loop_started_unix_seconds,
         "poll_backoff_ms":args.poll_backoff_ms,
         "poll_window_ms":CapturePollBackoff::MAX_WINDOW.as_millis(),

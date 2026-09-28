@@ -62,22 +62,53 @@ fn normalize_asset_root(root: &Path) -> PathBuf {
 }
 
 static APP_STARTED: OnceLock<AtomicBool> = OnceLock::new();
+static APP_CONTRACT: OnceLock<serde_json::Value> = OnceLock::new();
+
+fn app_contract(config: &LiveDatasetConfig) -> Result<serde_json::Value> {
+    let mut engine = config.zeroverse_config.clone();
+    // Only indoor scenes consume this seed. Output index offsets for legacy
+    // scenes must not look like a renderer configuration change.
+    if engine.scene_type != bevy_zeroverse::scene::ZeroverseSceneType::ProceduralIndoor {
+        engine.indoor_seed = None;
+    }
+    let root = config
+        .asset_root
+        .clone()
+        .unwrap_or(std::env::current_dir()?);
+    Ok(serde_json::json!({"engine": engine,
+        "asset_root": normalize_asset_root(&root).canonicalize()?}))
+}
 
 impl LiveDataset {
     pub fn new(config: LiveDatasetConfig) -> Self {
+        config
+            .zeroverse_config
+            .validate_ovoxel()
+            .expect("invalid O-voxel dataset configuration");
         Self {
             config,
             initialized: AtomicBool::new(false),
         }
     }
 
-    fn ensure_initialized(&self) {
+    fn ensure_initialized(&self) -> Result<()> {
+        if self.initialized.load(Ordering::Acquire) {
+            return Ok(());
+        }
+        if env::var("BEVY_ZEROVERSE_FAKE_APP").is_err() {
+            let requested = app_contract(&self.config)?;
+            let active = APP_CONTRACT.get_or_init(|| requested.clone());
+            anyhow::ensure!(
+                active == &requested,
+                "LiveDataset supports one renderer configuration per process; use a fresh process for different dimensions, timesteps, modes, assets or scene settings"
+            );
+        }
         if self
             .initialized
             .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
             .is_err()
         {
-            return;
+            return Ok(());
         }
 
         bevy_zeroverse::headless::setup_globals(
@@ -89,7 +120,7 @@ impl LiveDataset {
 
         // Allow tests to bypass spawning the full Bevy app while still driving channel-based flows.
         if env::var("BEVY_ZEROVERSE_FAKE_APP").is_ok() {
-            return;
+            return Ok(());
         }
 
         let started = APP_STARTED.get_or_init(|| AtomicBool::new(false));
@@ -111,6 +142,7 @@ impl LiveDataset {
                 thread::sleep(Duration::from_millis(10));
             }
         }
+        Ok(())
     }
 
     fn receive_sample(&self) -> Result<ZeroverseSample> {
@@ -169,7 +201,10 @@ impl Dataset<ZeroverseSample> for LiveDataset {
     }
 
     fn get(&self, _index: usize) -> Option<ZeroverseSample> {
-        self.ensure_initialized();
+        if let Err(err) = self.ensure_initialized() {
+            eprintln!("failed to initialize dataset: {err:#}");
+            return None;
+        }
         if let Err(err) = self.request_next() {
             eprintln!("failed to request sample: {err:?}");
             return None;

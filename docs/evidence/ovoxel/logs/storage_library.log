@@ -1,0 +1,23 @@
+   Compiling criterion-plot v0.8.1
+   Compiling bevy_zeroverse v0.21.0 (/media/mosure/hyper1/repos/bevy_zeroverse)
+   Compiling criterion v0.8.1
+   Compiling bevy_zeroverse_burn v0.4.0 (/media/mosure/hyper1/repos/bevy_zeroverse/crates/burn)
+    Finished `test` profile [optimized] target(s) in 50.61s
+warning: the following packages contain code that will be rejected by a future version of Rust: burn-cubecl v0.21.0
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 3`
+     Running unittests src/lib.rs (target/debug/build/bevy_zeroverse_burn/814e84a2db593852/out/bevy_zeroverse_burn-814e84a2db593852)
+
+running 10 tests
+test generator::flow_tests::terminal_or_background_only_flow_is_a_complete_sample ... ok
+test progress::tests::reused_slot_keeps_cumulative_progress_and_rejects_stale_epochs ... ok
+test chunk::tests::chunk_roundtrips_multistep_pose ... ok
+test chunk::tests::chunk_roundtrips_ovoxel_sorted ... ok
+test chunk::tests::chunk_roundtrips_object_obbs_without_metadata ... ok
+test fs::tests::fs_roundtrips_ovoxel ... ok
+test progress::tests::progress_storage_is_bounded_by_slots_and_planned_work ... ok
+test chunk::tests::chunk_writes_ovoxel_tensors_with_offsets ... ok
+test fs::tests::fs_roundtrips_object_obbs_without_metadata ... ok
+test fs::tests::fs_roundtrips_multistep_pose ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

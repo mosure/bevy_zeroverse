@@ -110,6 +110,23 @@ impl Default for GenConfig {
 
 /// Validate the capture contract before starting a GPU process or writing data.
 pub fn validate_gen_config(config: &GenConfig) -> Result<()> {
+    anyhow::ensure!(
+        !config.export_ovoxel || config.ov_mode != bevy_zeroverse::app::OvoxelMode::Disabled,
+        "export_ovoxel requires an enabled ov_mode"
+    );
+    bevy_zeroverse::ovoxel::contract::validate_config(
+        if config.export_ovoxel {
+            config.ov_mode
+        } else {
+            bevy_zeroverse::app::OvoxelMode::Disabled
+        },
+        config.playback_steps,
+        config.human_motion.as_deref(),
+        config.ov_resolution,
+        config.ov_max_output_voxels,
+    )
+    .map_err(anyhow::Error::msg)?;
+
     if let Some(json) = &config.indoor_camera {
         bevy_zeroverse::scene::procedural_indoor::cameras::CameraSettings::parse(json)
             .map_err(anyhow::Error::msg)?;
@@ -447,7 +464,11 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
         playback_step,
         playback_steps,
         scene_type.clone(),
-        ov_mode,
+        if export_ovoxel {
+            ov_mode
+        } else {
+            bevy_zeroverse::app::OvoxelMode::Disabled
+        },
         ov_resolution,
         ov_max_output_voxels,
     );

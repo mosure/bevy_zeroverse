@@ -20,6 +20,10 @@ use bevy_zeroverse::{
     },
 };
 use std::time::{Duration, Instant};
+#[path = "review_furniture/seating.rs"]
+mod seating;
+#[path = "review_furniture/tabletop.rs"]
+mod tabletop;
 fn main() {
     std::env::set_var("BEVY_ASSET_ROOT", env!("CARGO_MANIFEST_DIR"));
     setup_globals(None);
@@ -29,20 +33,15 @@ fn main() {
             .unwrap_or("out/furniture_review".into()),
     );
     std::fs::create_dir_all(&output).unwrap();
+    let mode = std::env::args().nth(2);
+    let tabletop = mode.as_deref() == Some("tabletop");
+    let seating = mode.as_deref() == Some("seating");
     let scene =
         IndoorManifest::generate_with_humans(0, IndoorLayout::Conference, 0.5, 0, 0.0).unwrap();
-    let table = scene
-        .objects
-        .iter()
-        .find(|o| o.kind == ObjectKind::Table)
-        .unwrap()
-        .clone();
-    let chair = scene
-        .objects
-        .iter()
-        .find(|o| o.kind == ObjectKind::Chair)
-        .unwrap()
-        .clone();
+    let mut table = scene.objects[0].clone();
+    table.kind = ObjectKind::Table;
+    let mut chair = table.clone();
+    chair.kind = ObjectKind::Chair;
     let mut objects = Vec::new();
     for index in 0..12 {
         let mut o = if index < 6 {
@@ -99,6 +98,13 @@ fn main() {
         }
         objects.push(o);
     }
+    if tabletop {
+        objects = tabletop::objects(&table);
+    }
+    if seating {
+        objects = seating::objects(&table, scene.seed);
+    }
+    let object_count = objects.len();
     std::fs::write(
         output.join("objects.json"),
         serde_json::to_vec_pretty(&objects).unwrap(),
@@ -114,7 +120,7 @@ fn main() {
             gizmos: false,
             keybinds: false,
             image_copiers: true,
-            num_cameras: 12,
+            num_cameras: object_count,
             width: 400.0,
             height: 400.0,
             render_modes: vec![RenderMode::Color, RenderMode::Semantic],
@@ -142,7 +148,13 @@ fn main() {
                 objects::spawn_object(o, root, &mut commands, &mut meshes, &set);
                 let target = o.position + Vec3::Y * o.size.y * 0.48;
                 let from = target
-                    + if o.kind == ObjectKind::Chair {
+                    + if seating && matches!(o.kind, ObjectKind::Sofa | ObjectKind::Chair) {
+                        let scale = o.size.max_element();
+                        Vec3::new(scale * 0.95, scale * 0.52, -scale * 1.90)
+                    } else if tabletop || seating {
+                        let scale = o.size.max_element();
+                        Vec3::new(scale * 0.95, scale * 0.85, scale * 1.95)
+                    } else if o.kind == ObjectKind::Chair {
                         Vec3::new(1.1, 0.65, -1.8)
                     } else {
                         Vec3::new(2.2, 1.5, -2.5)
@@ -166,7 +178,7 @@ fn main() {
                     ChildOf(root),
                 ));
             }
-            let floor = meshes.add(Cuboid::new(60.0, 0.10, 8.0));
+            let floor = meshes.add(Cuboid::new(object_count as f32 * 9.0, 0.10, 8.0));
             let matte = materials.add(StandardMaterial {
                 base_color: Color::srgb(0.32, 0.34, 0.37),
                 perceptual_roughness: 0.9,
@@ -215,7 +227,7 @@ fn main() {
             .unwrap()
             .try_recv()
         {
-            assert_eq!(sample.object_obbs.len(), 12);
+            assert_eq!(sample.object_obbs.len(), object_count);
             for (i, v) in sample.views.iter().enumerate() {
                 let rgba: &[f32] = bytemuck::cast_slice(&v.color);
                 let bytes = rgba

@@ -6,7 +6,7 @@ use super::{
 };
 use crate::{
     annotation::obb::{ObbClass, ObbTracked},
-    ovoxel::OvoxelTracked,
+    ovoxel::{OvoxelExcluded, OvoxelTracked},
     render::semantic::SemanticLabel,
 };
 use bevy::{
@@ -58,6 +58,51 @@ impl<A: Asset> AssetStore<A> for StagedAssets<A> {
         self.entries.get(&handle.id()).map(|(_, asset)| asset)
     }
 }
+impl StagedAssets<Mesh> {
+    fn defer_geometry(
+        &self,
+        geometry: super::geometry::Geometry,
+        jobs: &mut Vec<(Handle<Mesh>, super::geometry::Geometry)>,
+    ) -> Handle<Mesh> {
+        let handle = self.provider.reserve_handle().typed::<Mesh>();
+        jobs.push((handle.clone(), geometry));
+        handle
+    }
+
+    async fn realize_geometry(&mut self, jobs: Vec<(Handle<Mesh>, super::geometry::Geometry)>) {
+        // MikkTSpace tangent construction is substantial for furnished rooms.
+        // Reserve handles in scene order, then convert independent parts on a
+        // bounded native pool. No mesh/material quality or batching is changed.
+        #[cfg(not(target_arch = "wasm32"))]
+        let ready = {
+            static POOL: std::sync::OnceLock<bevy::tasks::TaskPool> = std::sync::OnceLock::new();
+            let pool = POOL.get_or_init(|| {
+                bevy::tasks::TaskPoolBuilder::new()
+                    .num_threads(std::thread::available_parallelism().map_or(1, |n| n.get().min(4)))
+                    .thread_name("indoor-mesh".into())
+                    .build()
+            });
+            pool.scope(|scope| {
+                for (handle, geometry) in jobs {
+                    scope.spawn(async move { (handle, geometry.into_mesh()) });
+                }
+            })
+        };
+        #[cfg(target_arch = "wasm32")]
+        let ready = {
+            let mut ready = Vec::with_capacity(jobs.len());
+            for (handle, geometry) in jobs {
+                cooperate().await;
+                ready.push((handle, geometry.into_mesh()));
+            }
+            ready
+        };
+        for (handle, mesh) in ready {
+            self.entries.insert(handle.id(), (handle, mesh));
+        }
+    }
+}
+
 struct Part {
     mesh: Handle<Mesh>,
     material: Handle<StandardMaterial>,
@@ -74,7 +119,50 @@ struct Group {
     annotation: Option<SemanticLabel>,
     parts: Vec<Part>,
 }
+/// Wall durations for non-overlapping CPU preparation stages (seconds).
+/// Materials include their bounded worker-pool join. GPU baking, model loading,
+/// deferred ECS commands and render uploads are measured by the caller's total.
+#[derive(Resource, Debug, Default, Clone, serde::Serialize)]
+pub struct PreparationTimings {
+    pub layout_seconds: f64,
+    pub cameras_seconds: f64,
+    pub materials_seconds: f64,
+    pub gi_setup_seconds: f64,
+    pub geometry_seconds: f64,
+    pub meshes_seconds: f64,
+    pub asset_insertion_seconds: f64,
+}
+
+/// One construction of each assembly, shared by diffuse transport and rendering.
+/// Ownership passes into render meshes after the baker has copied its triangles.
+pub(crate) struct SceneGeometry {
+    pub architecture: objects::Assembly,
+    pub objects: Vec<objects::Assembly>,
+    pub humans: Vec<humans::HumanAssembly>,
+}
+impl SceneGeometry {
+    async fn build(scene: &IndoorManifest) -> Self {
+        let architecture = architecture::architecture(scene);
+        let mut objects = Vec::with_capacity(scene.objects.len());
+        for object in &scene.objects {
+            cooperate().await;
+            objects.push(objects::build_object(object));
+        }
+        let mut humans = Vec::with_capacity(scene.humans.len());
+        for person in &scene.humans {
+            cooperate().await;
+            humans.push(humans::build_human(person));
+        }
+        Self {
+            architecture,
+            objects,
+            humans,
+        }
+    }
+}
+
 pub struct PreparedIndoor {
+    pub timings: PreparationTimings,
     pub manifest: IndoorManifest,
     pub material_set: IndoorMaterials,
     pub images: StagedAssets<Image>,
@@ -97,8 +185,37 @@ impl PreparedIndoor {
         mut materials: StagedAssets<StandardMaterial>,
         mut meshes: StagedAssets<Mesh>,
     ) -> Self {
-        let mut material_set =
-            IndoorMaterials::build_async(&manifest, quality, &mut images, &mut materials).await;
+        let started = bevy::platform::time::Instant::now();
+        let geometry = SceneGeometry::build(&manifest).await;
+        let mut geometry_seconds = started.elapsed().as_secs_f64();
+        let finishes = geometry
+            .architecture
+            .parts
+            .keys()
+            .chain(
+                geometry
+                    .objects
+                    .iter()
+                    .flat_map(|assembly| assembly.parts.keys()),
+            )
+            .filter_map(|(surface, label)| {
+                label
+                    .rsplit_once("#finish")
+                    .and_then(|(_, slot)| slot.parse::<usize>().ok())
+                    .map(|slot| (*surface, slot))
+            })
+            .collect();
+        let started = bevy::platform::time::Instant::now();
+        let mut material_set = IndoorMaterials::build_async_with_finishes(
+            &manifest,
+            quality,
+            &mut images,
+            &mut materials,
+            Some(&finishes),
+        )
+        .await;
+        let materials_seconds = started.elapsed().as_secs_f64();
+        let started = bevy::platform::time::Instant::now();
         material_set.environment.rotation = Quat::from_rotation_y(manifest.world_yaw);
         #[cfg(not(target_arch = "wasm32"))]
         let mut probes = None;
@@ -115,12 +232,13 @@ impl PreparedIndoor {
             // A static irradiance volume must not retain a moving person's old
             // occlusion. These candidates still cast live direct shadows; a
             // rejected candidate also remains excluded until the next bake.
-            let transport = gi::BakeScene::from_manifest_excluding_humans(
+            let transport = gi::BakeScene::from_geometry(
                 &manifest,
                 &material_set,
                 &materials,
                 &images,
                 &moving_humans,
+                &geometry,
             );
             #[cfg(not(target_arch = "wasm32"))]
             if settings.gpu {
@@ -138,7 +256,10 @@ impl PreparedIndoor {
                 ));
             }
         }
+        let gi_setup_seconds = started.elapsed().as_secs_f64();
+        let started = bevy::platform::time::Instant::now();
         let mut groups = Vec::new();
+        let mut mesh_jobs = Vec::new();
         let mut add = |assembly: objects::Assembly,
                        name: String,
                        transform: Transform,
@@ -150,7 +271,7 @@ impl PreparedIndoor {
                 .into_iter()
                 .filter(|(_, g)| !g.indices.is_empty())
                 .map(|((surface, label), geometry)| Part {
-                    mesh: meshes.add(geometry.into_mesh()),
+                    mesh: meshes.defer_geometry(geometry, &mut mesh_jobs),
                     material: material_set.for_part(surface, &label),
                     label: SemanticLabel::from_label(objects::part_label(&label))
                         .expect("indoor semantic vocabulary"),
@@ -170,7 +291,7 @@ impl PreparedIndoor {
         };
         let mut shell = objects::Assembly::default();
         let mut fixtures = std::collections::BTreeMap::<String, objects::Assembly>::new();
-        for ((surface, label), geometry) in architecture::architecture(&manifest).parts {
+        for ((surface, label), geometry) in geometry.architecture.parts {
             if label.starts_with("lamp#") {
                 fixtures
                     .entry(label.clone())
@@ -197,19 +318,18 @@ impl PreparedIndoor {
             None,
             None,
         );
-        for object in &manifest.objects {
+        for (object, assembly) in manifest.objects.iter().zip(geometry.objects) {
             cooperate().await;
             add(
-                objects::build_object(object),
+                assembly,
                 format!("{:?}_{}", object.kind, object.id),
                 object.transform(),
                 Some((object.id, object.kind)),
                 None,
             );
         }
-        for person in &manifest.humans {
+        for (person, assembly) in manifest.humans.iter().zip(geometry.humans) {
             cooperate().await;
-            let assembly = humans::build_human(person);
             let bounds = assembly.bounds();
             let parts = assembly
                 .parts
@@ -219,7 +339,7 @@ impl PreparedIndoor {
                     let material =
                         humans::person_material(person, surface, &material_set, &materials);
                     Part {
-                        mesh: meshes.add(geometry.into_mesh()),
+                        mesh: meshes.defer_geometry(geometry, &mut mesh_jobs),
                         material: materials.add(material),
                         label: SemanticLabel::Person,
                         surface: None,
@@ -237,7 +357,18 @@ impl PreparedIndoor {
                 parts,
             });
         }
+        geometry_seconds += started.elapsed().as_secs_f64();
+        let started = bevy::platform::time::Instant::now();
+        meshes.realize_geometry(mesh_jobs).await;
+        let meshes_seconds = started.elapsed().as_secs_f64();
         Self {
+            timings: PreparationTimings {
+                materials_seconds,
+                gi_setup_seconds,
+                geometry_seconds,
+                meshes_seconds,
+                ..Default::default()
+            },
             manifest,
             material_set,
             images,
@@ -268,6 +399,10 @@ impl PreparedIndoor {
                 ));
             }
             if let Some((id, kind)) = group.object {
+                let object = &self.manifest.objects[id];
+                if object.neighbor || !self.manifest.in_primary_room(object.position, 0.0) {
+                    root.insert(OvoxelExcluded);
+                }
                 root.insert((
                     objects::IndoorInstance { id, kind },
                     SemanticLabel::from_label(kind.class_name()).expect("indoor object class"),
@@ -277,6 +412,15 @@ impl PreparedIndoor {
                 ));
             }
             if let Some((id, local_joints)) = group.human {
+                let person = self
+                    .manifest
+                    .humans
+                    .iter()
+                    .find(|person| person.id == id)
+                    .expect("prepared human instance belongs to manifest");
+                if person.neighbor || !self.manifest.in_primary_room(person.position, 0.0) {
+                    root.insert(OvoxelExcluded);
+                }
                 root.insert((
                     humans::IndoorHumanInstance { id, local_joints },
                     SemanticLabel::Person,
@@ -303,6 +447,8 @@ impl PreparedIndoor {
                         surface,
                         super::materials::Surface::Glass
                             | super::materials::Surface::GlassInterior
+                            | super::materials::Surface::ContainerGlass
+                            | super::materials::Surface::Liquid
                             | super::materials::Surface::Light
                     ) {
                         child.insert(NotShadowCaster);

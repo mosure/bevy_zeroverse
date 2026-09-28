@@ -28,6 +28,11 @@ pub struct DeformedVertices {
     pub tangents: Vec<[f32; 4]>,
 }
 impl SkinVertices {
+    fn attach_to_joint(&mut self, joint: usize) {
+        let joint = u16::try_from(joint).expect("joint index exceeds GPU skin format");
+        self.indices = vec![[joint; 4]; self.positions.len()];
+        self.weights = vec![[1.0, 0.0, 0.0, 0.0]; self.positions.len()];
+    }
     pub fn deform(&self, matrices: &[Mat4]) -> DeformedVertices {
         let mut p = Vec::with_capacity(self.positions.len());
         let mut n = Vec::with_capacity(p.capacity());
@@ -372,14 +377,28 @@ pub fn prepare(
         .filter(|(_, geometry)| !geometry.indices.is_empty())
         .map(|(surface, g)| {
             let positions: Vec<_> = g.positions.iter().copied().map(Vec3::from_array).collect();
-            let ids: Vec<_> = positions.iter().map(|&p| nearest(p)).collect();
-            let skin = SkinVertices {
+            // A ponytail can be closer to the neck/shoulder than the scalp.
+            // Transfer clothing weights spatially, but attach the entire groom
+            // to the Anny head so head turns cannot stretch it across bones.
+            let (indices, weights) = if surface == HumanSurface::Hair {
+                (Vec::new(), Vec::new())
+            } else {
+                let ids: Vec<_> = positions.iter().map(|&p| nearest(p)).collect();
+                (
+                    ids.iter().map(|&i| rest.indices[i]).collect(),
+                    ids.iter().map(|&i| rest.weights[i]).collect(),
+                )
+            };
+            let mut skin = SkinVertices {
                 positions,
                 normals: g.normals.iter().copied().map(Vec3::from_array).collect(),
                 tangents: Vec::new(),
-                indices: ids.iter().map(|&i| rest.indices[i]).collect(),
-                weights: ids.iter().map(|&i| rest.weights[i]).collect(),
+                indices,
+                weights,
             };
+            if surface == HumanSurface::Hair {
+                skin.attach_to_joint(joint_indices[4]);
+            }
             (surface, (g, skin))
         })
         .collect();
@@ -432,6 +451,59 @@ fn bounds(vertices: &[Vec3]) -> (Vec3, Vec3) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn long_groom_follows_head_turn_without_shoulder_stretch() {
+        let mut person = IndoorManifest::generate_with_humans(
+            31,
+            crate::scene::procedural_indoor::layout::IndoorLayout::Mixed,
+            0.35,
+            0,
+            1.0,
+        )
+        .unwrap()
+        .humans
+        .remove(0);
+        person.hairstyle = 7;
+        person.appearance.as_mut().unwrap().hair_length = 0.11;
+        let (mut assembly, rest) = humans::body::build_rest(&person);
+        let body = humans::body::installed().unwrap();
+        let head = body
+            .bone_hierarchy()
+            .0
+            .iter()
+            .position(|n| n == "head")
+            .unwrap();
+        let geometry = assembly.parts.remove(&HumanSurface::Hair).unwrap();
+        let mut skin = SkinVertices {
+            positions: geometry
+                .positions
+                .iter()
+                .copied()
+                .map(Vec3::from_array)
+                .collect(),
+            normals: geometry
+                .normals
+                .iter()
+                .copied()
+                .map(Vec3::from_array)
+                .collect(),
+            tangents: Vec::new(),
+            indices: Vec::new(),
+            weights: Vec::new(),
+        };
+        skin.attach_to_joint(head);
+        let pivot = rest.bones[head].transform_point3(Vec3::ZERO);
+        let turn = Mat4::from_translation(pivot)
+            * Mat4::from_quat(Quat::from_rotation_y(1.2))
+            * Mat4::from_translation(-pivot);
+        // Neighbouring shoulder/neck bones deliberately move somewhere else.
+        let mut matrices = vec![Mat4::from_translation(Vec3::X * 0.4); rest.bones.len()];
+        matrices[head] = turn;
+        let moved = skin.deform(&matrices);
+        for (p, original) in moved.positions.iter().zip(&skin.positions) {
+            assert!(Vec3::from_array(*p).distance(turn.transform_point3(*original)) < 1e-6);
+        }
+    }
     #[test]
     fn baked_normals_and_tangents_match_bevy_skinning_convention() {
         let source = SkinVertices {

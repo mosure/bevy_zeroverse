@@ -1,8 +1,14 @@
 //! Role-specific PBR textures, generated in memory with repeat sampling and mip chains.
+pub mod boards;
 pub mod glass;
 mod human;
 pub mod layers;
+mod paper;
 pub mod program;
+mod raster;
+pub mod screens;
+mod timber;
+pub mod variants;
 use super::layout::{IndoorManifest, LightingMood};
 use bevy::{
     asset::RenderAssetUsages,
@@ -45,6 +51,14 @@ pub enum Surface {
     Terracotta,
     Bark,
     GlassInterior,
+    ContainerGlass,
+    Liquid,
+    Drink,
+    PhoneScreen,
+    PrintedPaper,
+    Leather,
+    Whiteboard,
+    Television,
 }
 
 pub struct IndoorMaterials {
@@ -53,6 +67,7 @@ pub struct IndoorMaterials {
     pub skin: Handle<StandardMaterial>,
     pub hair: Handle<StandardMaterial>,
     light_variants: Vec<Handle<StandardMaterial>>,
+    pub(crate) variants: std::collections::BTreeMap<(Surface, usize), Handle<StandardMaterial>>,
     pub environment: EnvironmentMapLight,
 }
 
@@ -62,6 +77,13 @@ impl IndoorMaterials {
     }
 
     pub fn for_part(&self, surface: Surface, label: &str) -> Handle<StandardMaterial> {
+        if let Some(material) = label
+            .rsplit_once("#finish")
+            .and_then(|(_, s)| s.parse::<usize>().ok())
+            .and_then(|i| self.variants.get(&(surface, i)))
+        {
+            return material.clone();
+        }
         if surface == Surface::Light {
             if let Some(material) = label
                 .strip_prefix("lamp#")
@@ -88,6 +110,16 @@ impl IndoorMaterials {
         images: &mut impl super::preparation::AssetStore<Image>,
         materials: &mut impl super::preparation::AssetStore<StandardMaterial>,
     ) -> Self {
+        Self::build_with_finishes(scene, quality, images, materials, None)
+    }
+
+    fn build_with_finishes(
+        scene: &IndoorManifest,
+        quality: super::IndoorQuality,
+        images: &mut impl super::preparation::AssetStore<Image>,
+        materials: &mut impl super::preparation::AssetStore<StandardMaterial>,
+        finishes: Option<&std::collections::BTreeSet<(Surface, usize)>>,
+    ) -> Self {
         let definitions = definitions(scene);
         // Generate immutable maps on a bounded pool; asset insertion remains ordered.
         // Wasm uses the identical serial function and produces the same pixels.
@@ -110,7 +142,15 @@ impl IndoorMaterials {
         };
         #[cfg(target_arch = "wasm32")]
         let prepared: Vec<_> = definitions.iter().map(prepare).collect();
-        Self::insert_prepared(scene, quality, images, materials, definitions, prepared)
+        Self::insert_prepared(
+            scene,
+            quality,
+            images,
+            materials,
+            definitions,
+            prepared,
+            finishes,
+        )
     }
 
     pub async fn build_async(
@@ -119,9 +159,19 @@ impl IndoorMaterials {
         images: &mut impl super::preparation::AssetStore<Image>,
         materials: &mut impl super::preparation::AssetStore<StandardMaterial>,
     ) -> Self {
+        Self::build_async_with_finishes(scene, quality, images, materials, None).await
+    }
+
+    pub(crate) async fn build_async_with_finishes(
+        scene: &IndoorManifest,
+        quality: super::IndoorQuality,
+        images: &mut impl super::preparation::AssetStore<Image>,
+        materials: &mut impl super::preparation::AssetStore<StandardMaterial>,
+        finishes: Option<&std::collections::BTreeSet<(Surface, usize)>>,
+    ) -> Self {
         #[cfg(not(target_arch = "wasm32"))]
         {
-            Self::build_with_quality(scene, quality, images, materials)
+            Self::build_with_finishes(scene, quality, images, materials, finishes)
         }
         #[cfg(target_arch = "wasm32")]
         {
@@ -131,17 +181,27 @@ impl IndoorMaterials {
                 super::preparation::cooperate().await;
                 maps.push(prepare_map(scene, definition));
             }
-            Self::insert_prepared(scene, quality, images, materials, definitions, maps)
+            Self::insert_prepared(
+                scene,
+                quality,
+                images,
+                materials,
+                definitions,
+                maps,
+                finishes,
+            )
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn insert_prepared(
         scene: &IndoorManifest,
         quality: super::IndoorQuality,
         images: &mut impl super::preparation::AssetStore<Image>,
         materials: &mut impl super::preparation::AssetStore<StandardMaterial>,
-        definitions: [Definition; 27],
+        definitions: [Definition; 35],
         prepared: Vec<Option<[Image; 3]>>,
+        finishes: Option<&std::collections::BTreeSet<(Surface, usize)>>,
     ) -> Self {
         let mut handles = Vec::new();
         for ((surface, rgb, roughness, metallic, period), maps) in
@@ -180,16 +240,52 @@ impl IndoorMaterials {
                     mat.diffuse_transmission = 0.18
                 }
                 Surface::Screen => {
-                    let mut screen = mip_image(screen_pixels(scene.seed), 256, MapType::Color);
-                    screen.sampler = ImageSampler::linear();
-                    let texture = images.add(screen);
-                    mat.base_color = Color::WHITE;
-                    mat.base_color_texture = Some(texture.clone());
-                    mat.emissive_texture = Some(texture);
-                    // A display's luminance is spatially modulated by its UI.
-                    // Dark backgrounds retain detail instead of a blank glow.
-                    mat.emissive = LinearRgba::new(65.0, 65.0, 65.0, 1.0);
-                    mat.emissive_exposure_weight = 1.0;
+                    screens::apply(scene.seed, false, &mut mat, images);
+                }
+                Surface::Whiteboard => {
+                    boards::apply(scene.seed, &mut mat, images);
+                }
+                Surface::Television => {
+                    screens::apply_tv(scene.seed, &mut mat, images);
+                }
+                Surface::PhoneScreen => {
+                    screens::apply(scene.seed, true, &mut mat, images);
+                }
+                Surface::PrintedPaper => {
+                    paper::apply(scene.seed, &mut mat, images);
+                }
+                Surface::ContainerGlass | Surface::Liquid => {
+                    mat.base_color = Color::srgb(0.94, 0.985, 0.99);
+                    mat.ior = if surface == Surface::Liquid {
+                        1.333
+                    } else {
+                        1.47
+                    };
+                    mat.perceptual_roughness = 0.06;
+                    mat.thickness = if surface == Surface::Liquid {
+                        0.025
+                    } else {
+                        0.0012
+                    };
+                    mat.attenuation_distance = 1.0;
+                    mat.attenuation_color = Color::srgb(0.91, 0.98, 0.985);
+                    if quality.specular_transmission() {
+                        mat.specular_transmission = 0.94;
+                    } else {
+                        mat.alpha_mode = AlphaMode::Blend;
+                        mat.base_color = mat.base_color.with_alpha(0.18);
+                    }
+                }
+                Surface::Metal | Surface::Chrome => {
+                    mat.anisotropy_strength = if surface == Surface::Chrome {
+                        0.52
+                    } else {
+                        0.26
+                    };
+                }
+                Surface::Wood | Surface::WoodEdge | Surface::Ceramic => {
+                    mat.clearcoat = if roughness < 0.46 { 0.32 } else { 0.08 };
+                    mat.clearcoat_perceptual_roughness = (roughness * 0.55).max(0.09);
                 }
                 Surface::Light => {
                     let c = kelvin_rgb(scene.light_kelvin);
@@ -247,6 +343,7 @@ impl IndoorMaterials {
             })
             .collect();
         let [cloth, skin, hair] = human::maps(scene.seed, images, materials);
+        let variants = variants::build(scene.seed, &handles, images, materials, finishes);
         Self {
             handles,
             light_variants,
@@ -254,12 +351,13 @@ impl IndoorMaterials {
             cloth,
             skin,
             hair,
+            variants,
         }
     }
 }
 
 type Definition = (Surface, [f32; 3], f32, f32, f32);
-fn definitions(scene: &IndoorManifest) -> [Definition; 27] {
+fn definitions(scene: &IndoorManifest) -> [Definition; 35] {
     let (wood, fabric, accent) = match scene.palette {
         0 => ([0.58, 0.37, 0.19], [0.16, 0.25, 0.28], [0.22, 0.34, 0.32]),
         1 => ([0.76, 0.60, 0.40], [0.31, 0.34, 0.35], [0.42, 0.48, 0.52]),
@@ -307,6 +405,14 @@ fn definitions(scene: &IndoorManifest) -> [Definition; 27] {
         (Surface::Terracotta, [0.53, 0.27, 0.16], 0.84, 0.0, 0.3),
         (Surface::Bark, [0.22, 0.16, 0.085], 0.91, 0.0, 0.2),
         (Surface::GlassInterior, [1.0; 3], 0.06, 0.0, 1.0),
+        (Surface::ContainerGlass, [1.0; 3], 0.06, 0.0, 1.0),
+        (Surface::Liquid, [1.0; 3], 0.04, 0.0, 1.0),
+        (Surface::Drink, [0.09, 0.038, 0.016], 0.17, 0.0, 1.0),
+        (Surface::PhoneScreen, [1.0; 3], 0.24, 0.0, 1.0),
+        (Surface::PrintedPaper, [1.0; 3], 0.9, 0.0, 1.0),
+        (Surface::Leather, [0.22, 0.12, 0.07], 0.42, 0.0, 0.14),
+        (Surface::Whiteboard, [1.0; 3], 0.22, 0.0, 1.0),
+        (Surface::Television, [1.0; 3], 0.24, 0.0, 1.0),
     ];
     if let Some(program) = &scene.program {
         for (surface, rgb, roughness, _, period) in &mut definitions {
@@ -342,6 +448,13 @@ fn prepare_map(scene: &IndoorManifest, definition: &Definition) -> Option<[Image
             | Surface::Leaf
             | Surface::LeafLight
             | Surface::LeafVariegated
+            | Surface::Metal
+            | Surface::Chrome
+            | Surface::Plastic
+            | Surface::Rubber
+            | Surface::Paper
+            | Surface::Art
+            | Surface::Leather
     ) {
         return None;
     }
@@ -355,59 +468,6 @@ fn prepare_map(scene: &IndoorManifest, definition: &Definition) -> Option<[Image
         mip_image(maps.1, 256, MapType::Normal),
         mip_image(maps.2, 256, MapType::Data),
     ])
-}
-
-/// Asset-free dashboard/document content. Screen geometry uses normalized UVs;
-/// every panel therefore has one complete composition regardless of its size.
-fn screen_pixels(seed: u64) -> Vec<u8> {
-    let mut pixels = Vec::with_capacity(256 * 256 * 4);
-    let accent = match seed % 3 {
-        0 => [62, 144, 193],
-        1 => [77, 165, 133],
-        _ => [169, 124, 189],
-    };
-    for y in 0..256u32 {
-        for x in 0..256u32 {
-            let mut color = [17, 23, 31];
-            if y < 20 {
-                color = [29, 39, 51];
-            }
-            if x < 42 && y >= 20 {
-                color = [23, 31, 41];
-            }
-            if (8..31).contains(&x) && y > 32 && y < 200 && y % 24 < 3 {
-                color = [67, 82, 96];
-            }
-            if x > 51 && x < 245 && y > 30 && y < 45 {
-                color = [130, 148, 164];
-            }
-            if (54..243).contains(&x) && (59..155).contains(&y) {
-                color = [27, 37, 48];
-            }
-            for bar in 0..7 {
-                let h = 25 + (hash(bar, 0, seed) * 52.0) as u32;
-                if x >= 64 + bar * 24 && x < 77 + bar * 24 && y >= 146 - h && y < 146 {
-                    color = accent;
-                }
-            }
-            if x > 54 && x < 240 && y > 169 && y < 232 && y % 13 < 3 {
-                color = if x < 125 {
-                    [109, 125, 139]
-                } else {
-                    [60, 76, 90]
-                };
-            }
-            // Taskbar and small window controls remain recognizable at dataset scale.
-            if y > 246 {
-                color = [35, 46, 59];
-            }
-            if y > 7 && y < 12 && (x > 224 || (8..65).contains(&x)) {
-                color = [130, 146, 157];
-            }
-            pixels.extend([color[0], color[1], color[2], 255]);
-        }
-    }
-    pixels
 }
 
 fn hash(x: u32, y: u32, seed: u64) -> f32 {
@@ -449,72 +509,78 @@ fn texture_maps(
         for x in 0..n {
             let u = x as f32 / n as f32;
             let v = y as f32 / n as f32;
-            let noise = hash(x as u32, y as u32, seed);
-            let wood_surface = matches!(surface, Surface::Wood | Surface::WoodEdge)
-                || (surface == Surface::Floor && floor_style == 0);
-            let fibre = if wood_surface {
-                let warp = periodic_noise(u, v, 3, 3, seed.wrapping_add(17)) * 0.035;
-                0.65 * periodic_noise(u + warp, v, 80, 4, seed)
-                    + 0.35 * periodic_noise(u + warp, v, 29, 2, seed.wrapping_add(61))
-            } else {
-                0.5
-            };
-            let (shade, h) = match surface {
-                Surface::Wood | Surface::WoodEdge => {
-                    (0.81 + fibre * 0.15 + noise * 0.016, fibre * 0.001)
-                }
-                Surface::Floor if floor_style == 0 => {
-                    let strip = (u * 10.0).floor() as u32;
-                    let stagger = if strip.is_multiple_of(2) { 0.0 } else { 0.5 };
-                    let seam = (u * 10.0).fract() < 0.022 || (v * 2.0 + stagger).fract() < 0.008;
-                    let shade = if seam {
-                        0.36
-                    } else {
-                        0.75 + hash(strip, (v * 2.0 + stagger).floor() as u32, seed) * 0.19
-                            + (fibre - 0.5) * 0.09
-                    };
-                    (shade, if seam { -0.025 } else { fibre * 0.002 })
-                }
-                Surface::Floor if floor_style == 2 => {
-                    let seam = (u * 4.0).fract() < 0.014 || (v * 4.0).fract() < 0.014;
-                    (
-                        if seam { 0.6 } else { 0.89 + noise * 0.09 },
-                        if seam { -0.06 } else { noise * 0.003 },
-                    )
-                }
-                Surface::Fabric | Surface::FabricAlt | Surface::Floor => {
-                    let weave = ((x / 2 + y / 2) % 2) as f32;
-                    (
-                        0.76 + noise * 0.17 + weave * 0.06,
-                        weave * 0.012 + noise * 0.009,
-                    )
-                }
-                Surface::Leaf | Surface::LeafLight | Surface::LeafVariegated => {
-                    let vein = (u - 0.5).abs() < 0.015
-                        || ((v + (u - 0.5).abs() * 0.7) * 14.0).fract() < 0.028;
-                    (
-                        if vein {
-                            1.0
+            let fallback = || {
+                let noise = hash(x as u32, y as u32, seed);
+                let wood_surface = matches!(surface, Surface::Wood | Surface::WoodEdge)
+                    || (surface == Surface::Floor && floor_style == 0);
+                let fibre = if wood_surface {
+                    let warp = periodic_noise(u, v, 3, 3, seed.wrapping_add(17)) * 0.035;
+                    0.65 * periodic_noise(u + warp, v, 80, 4, seed)
+                        + 0.35 * periodic_noise(u + warp, v, 29, 2, seed.wrapping_add(61))
+                } else {
+                    0.5
+                };
+                let (shade, h) = match surface {
+                    Surface::Wood | Surface::WoodEdge => {
+                        (0.81 + fibre * 0.15 + noise * 0.016, fibre * 0.001)
+                    }
+                    Surface::Floor if floor_style == 0 => {
+                        let strip = (u * 10.0).floor() as u32;
+                        let stagger = if strip.is_multiple_of(2) { 0.0 } else { 0.5 };
+                        let seam =
+                            (u * 10.0).fract() < 0.022 || (v * 2.0 + stagger).fract() < 0.008;
+                        let shade = if seam {
+                            0.36
                         } else {
-                            if surface == Surface::LeafVariegated {
-                                0.53 + 0.24 * (v * 78.0 + (u * 30.0).sin()).sin().abs()
-                                    + 0.21 * ((u - 0.5).abs() * 2.0).powi(5)
+                            0.75 + hash(strip, (v * 2.0 + stagger).floor() as u32, seed) * 0.19
+                                + (fibre - 0.5) * 0.09
+                        };
+                        (shade, if seam { -0.025 } else { fibre * 0.002 })
+                    }
+                    Surface::Floor if floor_style == 2 => {
+                        let seam = (u * 4.0).fract() < 0.014 || (v * 4.0).fract() < 0.014;
+                        (
+                            if seam { 0.6 } else { 0.89 + noise * 0.09 },
+                            if seam { -0.06 } else { noise * 0.003 },
+                        )
+                    }
+                    Surface::Fabric | Surface::FabricAlt | Surface::Floor => {
+                        let weave = ((x / 2 + y / 2) % 2) as f32;
+                        (
+                            0.76 + noise * 0.17 + weave * 0.06,
+                            weave * 0.012 + noise * 0.009,
+                        )
+                    }
+                    Surface::Leaf | Surface::LeafLight | Surface::LeafVariegated => {
+                        let vein = (u - 0.5).abs() < 0.015
+                            || ((v + (u - 0.5).abs() * 0.7) * 14.0).fract() < 0.028;
+                        (
+                            if vein {
+                                1.0
                             } else {
-                                0.75 + 0.15 * (v * std::f32::consts::PI).sin() + noise * 0.07
-                            }
-                        },
-                        if vein { 0.013 } else { 0.0 },
-                    )
-                }
-                Surface::Bark => {
-                    let ridges = periodic_noise(u, v, 26, 3, seed);
-                    (0.66 + ridges * 0.28 + noise * 0.06, ridges * 0.045)
-                }
-                Surface::Terracotta => (0.85 + noise * 0.12, noise * 0.02),
-                Surface::Soil => (0.50 + noise * 0.45, noise * 0.12),
-                Surface::Concrete => (0.84 + noise * 0.13, noise * 0.022),
-                Surface::Ceiling => (0.94 + noise * 0.04, if noise < 0.1 { -0.018 } else { 0.0 }),
-                _ => (0.95 + noise * 0.04, noise * 0.008),
+                                if surface == Surface::LeafVariegated {
+                                    0.53 + 0.24 * (v * 78.0 + (u * 30.0).sin()).sin().abs()
+                                        + 0.21 * ((u - 0.5).abs() * 2.0).powi(5)
+                                } else {
+                                    0.75 + 0.15 * (v * std::f32::consts::PI).sin() + noise * 0.07
+                                }
+                            },
+                            if vein { 0.013 } else { 0.0 },
+                        )
+                    }
+                    Surface::Bark => {
+                        let ridges = periodic_noise(u, v, 26, 3, seed);
+                        (0.66 + ridges * 0.28 + noise * 0.06, ridges * 0.045)
+                    }
+                    Surface::Terracotta => (0.85 + noise * 0.12, noise * 0.02),
+                    Surface::Soil => (0.50 + noise * 0.45, noise * 0.12),
+                    Surface::Concrete => (0.84 + noise * 0.13, noise * 0.022),
+                    Surface::Ceiling => {
+                        (0.94 + noise * 0.04, if noise < 0.1 { -0.018 } else { 0.0 })
+                    }
+                    _ => (0.95 + noise * 0.04, noise * 0.008),
+                };
+                (shade, h * 0.001, roughness + (noise - 0.5) * 0.06)
             };
             let (shade, h, pixel_roughness) = if let Some(recipe) = recipe.filter(|_| {
                 !matches!(
@@ -524,7 +590,7 @@ fn texture_maps(
             }) {
                 recipe.evaluate(u, v, floor_style)
             } else {
-                (shade, h * 0.001, roughness + (noise - 0.5) * 0.06)
+                fallback()
             };
             heights[y * n + x] = h;
             let byte = (shade.clamp(0.0, 1.0) * 255.0) as u8;
@@ -532,7 +598,11 @@ fn texture_maps(
             data.extend([
                 255,
                 (pixel_roughness.clamp(0.05, 1.0) * 255.0) as u8,
-                0,
+                if matches!(surface, Surface::Metal | Surface::Chrome) {
+                    255
+                } else {
+                    0
+                },
                 255,
             ]);
         }
@@ -723,6 +793,104 @@ pub fn kelvin_rgb(k: f32) -> Vec3 {
 #[cfg(test)]
 mod surface_tests {
     use super::*;
+
+    #[test]
+    fn used_finish_palette_preserves_materials_and_texture_pixels() {
+        let scene = IndoorManifest::generate_with_humans(
+            44,
+            super::super::layout::IndoorLayout::Mixed,
+            0.65,
+            0,
+            0.0,
+        )
+        .unwrap();
+        let mut assemblies = vec![super::super::architecture::architecture(&scene)];
+        assemblies.extend(
+            scene
+                .objects
+                .iter()
+                .map(super::super::objects::build_object),
+        );
+        let keys: std::collections::BTreeSet<_> = assemblies
+            .iter()
+            .flat_map(|a| a.parts.keys())
+            .filter_map(|(surface, label)| {
+                label
+                    .rsplit_once("#finish")
+                    .and_then(|(_, s)| s.parse::<usize>().ok())
+                    .map(|i| (*surface, i))
+            })
+            .collect();
+        let (mut all_images, mut all_materials) = (Assets::default(), Assets::default());
+        let all = IndoorMaterials::build(&scene, &mut all_images, &mut all_materials);
+        let (mut images, mut materials) = (Assets::default(), Assets::default());
+        let used = IndoorMaterials::build_with_finishes(
+            &scene,
+            super::super::IndoorQuality::Auto,
+            &mut images,
+            &mut materials,
+            Some(&keys),
+        );
+        assert!(!used.variants.is_empty());
+        assert!(used.variants.len() < all.variants.len());
+        assert!(images.len() < all_images.len());
+        for key in keys.into_iter().filter(|k| variants::supports(k.0)) {
+            let a = all_materials.get(&all.variants[&key]).unwrap();
+            let b = materials.get(&used.variants[&key]).unwrap();
+            assert_eq!(a.base_color, b.base_color);
+            assert_eq!(a.emissive, b.emissive);
+            assert_eq!(a.perceptual_roughness, b.perceptual_roughness);
+            assert_eq!(a.metallic, b.metallic);
+            assert_eq!(a.uv_transform, b.uv_transform);
+            assert_eq!(a.clearcoat, b.clearcoat);
+            for (ah, bh) in [
+                (&a.base_color_texture, &b.base_color_texture),
+                (&a.emissive_texture, &b.emissive_texture),
+                (&a.normal_map_texture, &b.normal_map_texture),
+                (&a.metallic_roughness_texture, &b.metallic_roughness_texture),
+            ] {
+                assert_eq!(ah.is_some(), bh.is_some());
+                if let (Some(ah), Some(bh)) = (ah, bh) {
+                    let ai = all_images.get(ah).unwrap();
+                    let bi = images.get(bh).unwrap();
+                    assert_eq!(ai.texture_descriptor, bi.texture_descriptor);
+                    assert_eq!(ai.data, bi.data, "finish {key:?}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn hard_surface_maps_vary_normals_and_roughness_without_losing_metalness() {
+        let recipes = program::sample(81);
+        for surface in [
+            Surface::Metal,
+            Surface::Chrome,
+            Surface::Plastic,
+            Surface::Rubber,
+            Surface::Paper,
+        ] {
+            let recipe = &recipes[surface as usize];
+            let (_, normals, data) = texture_maps(surface, 0, 81, recipe.roughness, Some(recipe));
+            assert!(
+                normals
+                    .as_chunks::<4>()
+                    .0
+                    .iter()
+                    .any(|p| p[0] != 128 || p[1] != 128),
+                "{surface:?} has no resolved relief"
+            );
+            let roughness: std::collections::BTreeSet<_> =
+                data.as_chunks::<4>().0.iter().map(|p| p[1]).collect();
+            assert!(roughness.len() > 8, "{surface:?} has flat roughness");
+            assert!(data.as_chunks::<4>().0.iter().all(|p| p[2]
+                == if matches!(surface, Surface::Metal | Surface::Chrome) {
+                    255
+                } else {
+                    0
+                }));
+        }
+    }
 
     #[test]
     fn pbr_maps_have_correct_encodings_mips_and_finite_unit_normals() {

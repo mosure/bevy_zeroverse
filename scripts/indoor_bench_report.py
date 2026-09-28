@@ -45,7 +45,7 @@ def slope(values):
 
 def validate_benchmark(summary, rows):
     version = number(summary['schema_version'], 'schema_version', integer=True)
-    if version not in (1, 2):
+    if version not in (1, 2, 3):
         raise ValueError(f'unsupported benchmark schema: {version}')
     count = number(summary['scenes'], 'scenes', positive=True, integer=True)
     warmup = number(summary['warmup_scenes'], 'warmup_scenes', integer=True)
@@ -54,7 +54,7 @@ def validate_benchmark(summary, rows):
     pid = number(summary['pid'], 'pid', positive=True, integer=True)
     config = summary['config']
     views = number(config['num_cameras'], 'num_cameras', positive=True, integer=True) * number(config['playback_steps'], 'playback_steps', positive=True, integer=True)
-    if version == 2 and (not isinstance(summary.get('run_id'), str) or not summary['run_id']):
+    if version >= 2 and (not isinstance(summary.get('run_id'), str) or not summary['run_id']):
         raise ValueError('v2 benchmark requires a nonempty run_id')
     absolute_time = 'loop_started_unix_seconds' in summary
     previous_wall = 0
@@ -63,9 +63,12 @@ def validate_benchmark(summary, rows):
         if number(row['index'], 'index', integer=True) != index:
             raise ValueError('incomplete or unordered benchmark')
         elapsed = number(row['elapsed_seconds'], 'elapsed_seconds', positive=True)
-        preparation = number(row['preparation_seconds'], 'preparation_seconds')
+        preparation = number(row['request_seconds'] if version >= 3 else row['preparation_seconds'], 'request_seconds')
         capture = number(row['capture_seconds'], 'capture_seconds')
         close(preparation + capture, elapsed, 'preparation plus capture seconds')
+        if version >= 3 and row.get('preparation_stages') is not None:
+            for field, value in row['preparation_stages'].items():
+                number(value, field)
         for field in ('rss_bytes', 'staging_bytes', 'views'):
             number(row[field], field, integer=True)
         if row['views'] != views:
@@ -75,7 +78,7 @@ def validate_benchmark(summary, rows):
         if row.get('heap') is not None:
             for field in ('live_heap_bytes', 'mapped_bytes'):
                 number(row['heap'][field], field, integer=True)
-        if version == 2:
+        if version >= 2:
             if row.get('run_id') != summary['run_id'] or row.get('pid') != pid:
                 raise ValueError('scene run_id/PID differs from completed benchmark')
             wall = number(row['wall_elapsed_seconds'], 'wall_elapsed_seconds', positive=True)
@@ -181,7 +184,7 @@ def summarize_telemetry(directory, benchmark, scenes):
     summary = read_json(summary_path.read_text())
     rows = read_rows(telemetry_path)
     version = number(summary['schema_version'], 'telemetry schema_version', integer=True)
-    if version not in (1, 2):
+    if version not in (1, 2, 3):
         raise ValueError('unsupported telemetry schema')
     if not isinstance(summary['exit_code'], int) or isinstance(summary['exit_code'], bool) or summary['exit_code'] != 0:
         raise ValueError('telemetry command did not complete successfully')
@@ -192,7 +195,7 @@ def summarize_telemetry(directory, benchmark, scenes):
         raise ValueError('telemetry PID differs from benchmark PID')
     number(summary['interval_seconds'], 'telemetry interval', positive=True)
     command_window = None
-    if version == 2:
+    if version >= 2:
         if not isinstance(summary.get('telemetry_run_id'), str) or not summary['telemetry_run_id']:
             raise ValueError('v2 telemetry requires a nonempty telemetry_run_id')
         command_window = (number(summary['command_started_unix_seconds'], 'command start', positive=True),
@@ -207,7 +210,7 @@ def summarize_telemetry(directory, benchmark, scenes):
         if elapsed <= previous_elapsed:
             raise ValueError('nonmonotonic telemetry polls')
         previous_elapsed = elapsed
-        if version == 2:
+        if version >= 2:
             if row.get('telemetry_run_id') != summary['telemetry_run_id']:
                 raise ValueError('telemetry records belong to another run')
             wall = number(row['wall_unix_seconds'], 'telemetry wall timestamp', positive=True)
@@ -247,7 +250,7 @@ def summarize_telemetry(directory, benchmark, scenes):
     inside = samples if command_window is None else [s for s in samples if command_window[0] <= s['timestamp_us'] / 1e6 <= command_window[1]]
     result = {
         'available': True, 'schema_version': version, 'pid': pid,
-        'identity_verification': 'matching_pid_and_telemetry_run_id' if version == 2 else 'legacy_matching_poll_pid_only',
+        'identity_verification': 'matching_pid_and_telemetry_run_id' if version >= 2 else 'legacy_matching_poll_pid_only',
         'adapter': summary.get('adapter'), 'adapter_uuid': summary.get('adapter_uuid'),
         'interval_seconds': summary['interval_seconds'],
         'command_timestamp_bounds_available': command_window is not None,
@@ -283,10 +286,10 @@ def summarize(directory):
     measured = validate_benchmark(summary, rows)
     tail = measured[-250:]
     report = {'source': str(directory), 'summary': summary, 'tail_scenes': len(tail),
-              'run_identity_verification': 'matching_row_run_id_and_pid' if summary['schema_version'] == 2 else 'unverified_legacy_v1_rows',
+              'run_identity_verification': 'matching_row_run_id_and_pid' if summary['schema_version'] >= 2 else 'unverified_legacy_v1_rows',
               'tail_rss_slope_bytes_per_scene': slope([r['rss_bytes'] for r in tail]),
               'tail_rss_min_max_bytes': [min(r['rss_bytes'] for r in tail), max(r['rss_bytes'] for r in tail)],
-              'preparation_seconds_mean': statistics.mean(r['preparation_seconds'] for r in measured),
+              'request_seconds_mean': statistics.mean(r.get('request_seconds', r.get('preparation_seconds')) for r in measured),
               'capture_seconds_mean': statistics.mean(r['capture_seconds'] for r in measured),
               'whole_loop_scenes_per_second': len(rows) / summary['total_wall_seconds'],
               'staging_bytes_min_max': [min(r['staging_bytes'] for r in rows), max(r['staging_bytes'] for r in rows)],
@@ -294,6 +297,8 @@ def summarize(directory):
     if all(r.get('heap') is not None for r in rows):
         report['tail_live_heap_slope_bytes_per_scene'] = slope([r['heap']['live_heap_bytes'] + r['heap']['mapped_bytes'] for r in tail])
         report['tail_heap_last'] = tail[-1]['heap']
+    stages = [r['preparation_stages'] for r in measured if r.get('preparation_stages') is not None]
+    report['preparation_stage_seconds_mean'] = {key: statistics.mean(r[key] for r in stages) for key in stages[0]} if stages else None
     report['gpu_timestamp_spans'] = summarize_spans(measured)
     report['gpu_timestamp_policy'] = 'Per-invocation elapsed GPU timestamp spans from available measured-scene diagnostic batches. Asynchronous delivery can cross scene boundaries; these are not exact per-seed attributions. Nested spans are not summed, and elapsed spans are not GPU occupancy.'
     report['telemetry'] = summarize_telemetry(directory, summary, rows)

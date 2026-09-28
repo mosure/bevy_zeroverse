@@ -1,0 +1,20 @@
+   Compiling bevy_zeroverse v0.21.0 (/media/mosure/hyper1/repos/bevy_zeroverse)
+    Finished `test` profile [optimized] target(s) in 9.27s
+warning: the following packages contain code that will be rejected by a future version of Rust: burn-cubecl v0.21.0
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 3`
+     Running unittests src/lib.rs (target/debug/build/bevy_zeroverse/47aadb0c7e9716e2/out/bevy_zeroverse-47aadb0c7e9716e2)
+
+running 10 tests
+test scene::procedural_indoor::cameras::coverage::tests::shared_surfaces_require_visibility_and_actual_frustum ... ok
+test scene::procedural_indoor::cameras::coverage::tests::body_points_behind_annotation_opaque_glazing_are_hidden ... ok
+test scene::procedural_indoor::cameras::multiview::tests::policy_validation_and_legacy_json ... ok
+test scene::procedural_indoor::cameras::coverage::tests::walls_occlude_content_and_rays_handle_parallel_faces ... ok
+test scene::procedural_indoor::cameras::tests::camera_policy_rejects_bad_ranges_and_round_trips_routes ... ok
+test scene::procedural_indoor::cameras::multiview::tests::disabled_policy_preserves_old_cameras_and_impossible_policy_is_atomic ... ok
+test scene::procedural_indoor::cameras::tests::zero_length_capture_paths_freeze_orientation_as_well_as_position ... ok
+test scene::procedural_indoor::cameras::multiview::tests::fixed_small_stereo_baselines_and_single_views_work ... ok
+test scene::procedural_indoor::cameras::tests::primary_room_paths_and_long_routes_respect_furniture ... ok
+test scene::procedural_indoor::cameras::multiview::tests::connected_sets_preserve_layout_intrinsics_and_trajectories ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 118 filtered out; finished in 0.76s
+

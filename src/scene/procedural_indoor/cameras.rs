@@ -1,5 +1,6 @@
 //! The manifest, runtime, camera heatmaps and collision validation share one path.
 pub(crate) mod coverage;
+pub mod multiview;
 mod navigation;
 mod sampling;
 use super::layout::{IndoorCamera, IndoorManifest};
@@ -17,6 +18,8 @@ pub struct CameraSettings {
     pub path_length_min: f32,
     pub path_length_max: f32,
     pub long_path_fraction: f32,
+    /// Optional shared-surface policy. Every view is paired with camera zero.
+    pub multiview: Option<multiview::MultiViewSettings>,
 }
 impl Default for CameraSettings {
     fn default() -> Self {
@@ -25,10 +28,55 @@ impl Default for CameraSettings {
             path_length_min: 0.03,
             path_length_max: 8.0,
             long_path_fraction: 0.45,
+            multiview: Some(Default::default()),
         }
     }
 }
+// Archives predating multiview store the other path settings but omit this
+// field. Their existing independent cameras must not acquire a false guarantee.
+pub(super) fn deserialize_archived_settings<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<CameraSettings, D::Error> {
+    #[derive(Deserialize)]
+    #[serde(default, deny_unknown_fields)]
+    struct Archived {
+        primary_room: bool,
+        path_length_min: f32,
+        path_length_max: f32,
+        long_path_fraction: f32,
+        #[serde(default)]
+        multiview: Option<multiview::MultiViewSettings>,
+    }
+    impl Default for Archived {
+        fn default() -> Self {
+            let independent = CameraSettings::independent();
+            Self {
+                primary_room: independent.primary_room,
+                path_length_min: independent.path_length_min,
+                path_length_max: independent.path_length_max,
+                long_path_fraction: independent.long_path_fraction,
+                multiview: None,
+            }
+        }
+    }
+    let archived = Archived::deserialize(deserializer)?;
+    Ok(CameraSettings {
+        primary_room: archived.primary_room,
+        path_length_min: archived.path_length_min,
+        path_length_max: archived.path_length_max,
+        long_path_fraction: archived.long_path_fraction,
+        multiview: archived.multiview,
+    })
+}
+
 impl CameraSettings {
+    /// Archive fallback for manifests written before the shared-view default.
+    pub fn independent() -> Self {
+        Self {
+            multiview: None,
+            ..Default::default()
+        }
+    }
     pub fn parse(json: &str) -> Result<Self, String> {
         let settings: Self =
             serde_json::from_str(json).map_err(|e| format!("indoor_camera: {e}"))?;
@@ -44,6 +92,9 @@ impl CameraSettings {
             || !(0.0..=1.0).contains(&self.long_path_fraction)
         {
             return Err("indoor_camera requires 0 <= path_length_min <= path_length_max <= 100 metres and long_path_fraction in [0,1]".into());
+        }
+        if let Some(policy) = &self.multiview {
+            policy.validate()?;
         }
         Ok(())
     }
@@ -131,6 +182,33 @@ impl IndoorCamera {
     }
 }
 impl IndoorManifest {
+    /// Sample a complete camera set for the actual capture aspect ratio. No GPU
+    /// work or learned models are needed. Failure leaves the old set intact.
+    pub fn resample_cameras(
+        &mut self,
+        count: usize,
+        settings: CameraSettings,
+        aspect_ratio: f32,
+    ) -> Result<(), String> {
+        settings.validate()?;
+        if count > 256 || !aspect_ratio.is_finite() || aspect_ratio <= 0.0 {
+            return Err(
+                "camera sampling requires at most 256 cameras and a positive finite aspect ratio"
+                    .into(),
+            );
+        }
+        let old_settings = std::mem::replace(&mut self.camera_settings, settings);
+        let old_aspect = std::mem::replace(&mut self.camera_aspect_ratio, aspect_ratio);
+        let old_cameras = std::mem::take(&mut self.cameras);
+        if let Err(error) = self.sample_cameras(count) {
+            self.camera_settings = old_settings;
+            self.camera_aspect_ratio = old_aspect;
+            self.cameras = old_cameras;
+            return Err(error);
+        }
+        Ok(())
+    }
+
     pub fn primary_room_bounds(&self) -> (Vec2, Vec2) {
         self.program
             .as_ref()
@@ -259,7 +337,7 @@ mod tests {
         let mut obstacle = scene
             .objects
             .iter()
-            .find(|o| o.kind == ObjectKind::Table)
+            .find(|o| matches!(o.kind, ObjectKind::Table | ObjectKind::Desk))
             .unwrap()
             .clone();
         scene.room_size = Vec3::new(10.0, 3.5, 10.0);

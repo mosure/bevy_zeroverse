@@ -31,15 +31,21 @@ pub(super) fn maps(
                         0.075 * (u * phase * warp).cos(),
                         0.075 * (v * phase * weft).cos(),
                     ),
-                    1 => (
-                        0.985 + 0.01 * periodic_noise(u, v, 32, 32, seed.wrapping_add(919)),
-                        0.025 * (u * phase * 40.0).sin(),
-                        0.025 * (v * phase * 40.0).sin(),
-                    ),
+                    1 => {
+                        // Irregular pores, not a regular embossed grid. Derive
+                        // relief from the same field used by pigmentation.
+                        let pore = |u, v| periodic_noise(u, v, 47, 53, seed.wrapping_add(919));
+                        (
+                            0.985 + 0.012 * (pore(u, v) - 0.5),
+                            (pore(u + 1.0 / 256.0, v) - pore(u - 1.0 / 256.0, v)) * 0.14,
+                            (pore(u, v + 1.0 / 256.0) - pore(u, v - 1.0 / 256.0)) * 0.14,
+                        )
+                    }
                     _ => (
-                        0.85 + 0.14 * periodic_noise(u, v, strand, 2, seed.wrapping_add(813)),
-                        0.18 * (u * phase * strand as f32).sin(),
-                        0.01 * (v * phase * 2.0).cos(),
+                        0.86 + 0.24
+                            * (periodic_noise(u, v, strand, 3, seed.wrapping_add(813)) - 0.5),
+                        0.11 * (u * phase * strand as f32 + 0.12 * (v * phase).sin()).sin(),
+                        0.005 * (v * phase * 2.0).cos(),
                     ),
                 };
                 let n = Vec3::new(nx, ny, 1.0).normalize();
@@ -58,17 +64,15 @@ pub(super) fn maps(
             normal_map_texture: Some(images.add(mip_image(normal, 256, MapType::Normal))),
             // Body UV islands cover several metres; the fibre/pores remain fine.
             uv_transform: bevy::math::Affine2::from_scale(Vec2::splat(if kind == 2 {
-                10.0
+                25.0
             } else {
                 24.0
             })),
             perceptual_roughness: if kind == 2 { 0.60 } else { 0.85 },
-            // Bevy 0.19's LOAD_PREPASS_NORMALS path skips anisotropy_T/B
-            // initialization. Enabling anisotropy with the normal prepass then
-            // yields non-finite specular radiance (white hair after tonemapping).
-            // Use an aggregate isotropic fibre lobe until that path supplies a
-            // valid tangent frame; keep the directional microstructure/geometry.
-            anisotropy_strength: 0.0,
+            // The indoor shading integration initializes this tangent frame
+            // with and without a normal prepass. V follows the groom fibres.
+            anisotropy_strength: if kind == 2 { 0.35 } else { 0.0 },
+            anisotropy_rotation: std::f32::consts::FRAC_PI_2,
             ..default()
         })
     })

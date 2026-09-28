@@ -28,8 +28,8 @@ use crate::{
     manifold::ManifoldOperations,
     material::ZeroverseMaterials,
     mesh::{
-        displace_vertices_with_noise, mesh_bounds, normalize_mesh_to_unit_cube, MeshCategory,
-        NormalizeMeshesSet, ZeroverseMeshes,
+        compute_scale_invariant_smooth_normals, displace_vertices_with_noise, mesh_bounds,
+        normalize_mesh_to_unit_cube, MeshCategory, NormalizeMeshesSet, ZeroverseMeshes,
     },
     procedural_human::{
         base_pose_from_assets, sample_burn_human_descriptor, BurnHumanDescriptor,
@@ -648,7 +648,7 @@ fn build_primitive(
                 .with_scale(final_scale);
 
             if rng.random_bool(settings.smooth_normals_probability as f64) {
-                mesh.compute_smooth_normals();
+                compute_scale_invariant_smooth_normals(&mut mesh);
             } else {
                 mesh.duplicate_vertices();
                 mesh.compute_flat_normals();

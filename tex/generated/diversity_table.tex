@@ -1,0 +1,17 @@
+\begin{table}[ht]
+\centering\small
+\begin{tabular}{p{.53\linewidth}p{.36\linewidth}}
+\toprule
+Audited rooms / cameras & 1024 / 4096 \\
+Room area (m$^2$) & 38.01--267.28 (mean 117.84) \\
+Main-interior chairs per scene (zeros included) & 1.00--26.00 (mean 9.09) \\
+People per scene & 0.00--9.00 (mean 2.32) \\
+Exterior window walls / near full-height rooms & 1--3 / 337 \\
+Solar illuminance (lux) & 0.10--99862.07 (mean 20026.91) \\
+Vertical field of view (degrees) & 28.07--106.97 (mean 65.04) \\
+Observed / entropy-effective activity categories & 10 / 9.96 \\
+Quantized occupancy-signature estimate & 1018.8 \\
+\bottomrule
+\end{tabular}
+\caption{Consecutive layout population. Occupancy uses HyperLogLog with 4096 registers (approximately 1.63\% relative standard error), 12$\times$12 class occupancy and 10 cm partition quantization; random seeds and appearance are excluded.}\label{tab:diversity}
+\end{table}

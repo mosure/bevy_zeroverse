@@ -1,4 +1,16 @@
 """Optical inputs and snapshot constraints shared by reference tools."""
+import math
+
+
+def absorption_coefficients(color, distance):
+    """Beer-Lambert extinction in inverse metres; no fitted scene parameters."""
+    if distance is None:
+        return (0.0, 0.0, 0.0)
+    if not math.isfinite(distance) or distance <= 0:
+        raise ValueError("Attenuation distance must be finite and positive")
+    if len(color) < 3 or any(not math.isfinite(c) or c < 0 or c > 1 for c in color[:3]):
+        raise ValueError("Attenuation must be a linear transmission in [0,1]")
+    return tuple(-math.log(max(c, 1e-6))/distance for c in color[:3])
 
 SKY_RADIANCE = {"Daylight": (360, 440, 560), "Overcast": (420, 460, 510),
                 "Evening": (16, 21, 32)}

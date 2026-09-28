@@ -468,7 +468,7 @@ impl Default for Playback {
 }
 
 impl Playback {
-    pub fn step(&mut self, time: &Res<Time>) {
+    pub fn step(&mut self, time: &Time) {
         if self.speed == 0.0 {
             return;
         }
@@ -508,9 +508,19 @@ impl Playback {
                 self.progress += time.delta_secs() * self.direction * self.speed;
             }
             PlaybackMode::Sin => {
-                let theta = self.direction * self.speed * time.elapsed_secs();
-                let y = (theta * 2.0 * std::f32::consts::PI).sin();
-                self.progress = (y + 1.0) / 2.0;
+                // Recover phase from the shared progress/direction, rather than
+                // elapsed application time. Pausing, changing speed and scene
+                // regeneration therefore cannot jump cameras or motion actors.
+                let phase =
+                    (1.0 - 2.0 * self.progress.clamp(0.0, 1.0)).acos() / std::f32::consts::TAU;
+                let phase = if self.direction >= 0.0 {
+                    phase
+                } else {
+                    1.0 - phase
+                };
+                let phase = (phase + time.delta_secs() * self.speed).rem_euclid(1.0);
+                self.progress = (1.0 - (phase * std::f32::consts::TAU).cos()) * 0.5;
+                self.direction = if phase < 0.5 { 1.0 } else { -1.0 };
             }
             PlaybackMode::Still => {}
         }
@@ -985,6 +995,7 @@ pub(crate) fn update_camera_trajectory(
     if !regenerate_events.is_empty() {
         regenerate_events.clear();
         global_playback.progress = 0.0;
+        global_playback.direction = 1.0;
         update_camera_playbacks = true;
     }
 
@@ -1403,6 +1414,30 @@ mod tests {
     use bevy::ecs::system::RunSystemOnce;
     use bevy::render::view::Msaa;
     use bevy::MinimalPlugins;
+
+    #[test]
+    fn sin_playback_survives_pause_speed_change_and_regeneration_phase() {
+        let mut time = Time::default();
+        let mut p = Playback {
+            mode: PlaybackMode::Sin,
+            ..default()
+        };
+        for expected in [0.5, 1.0, 0.5, 0.0] {
+            time.advance_by(std::time::Duration::from_secs_f32(0.25));
+            p.step(&time);
+            assert!((p.progress - expected).abs() < 1e-5);
+            // Camera and generated motion actors consume the same mapped phase.
+            assert_eq!(p.mode.map_progress(p.progress), p.progress);
+        }
+        p.speed = 0.;
+        time.advance_by(std::time::Duration::from_secs(100));
+        p.step(&time);
+        assert!(p.progress < 1e-5);
+        p.speed = 0.5;
+        time.advance_by(std::time::Duration::from_secs_f32(0.5));
+        p.step(&time);
+        assert!((p.progress - 0.5).abs() < 1e-5);
+    }
 
     #[test]
     fn optical_flow_transition_preserves_prepass_targets() {

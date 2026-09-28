@@ -1,0 +1,2106 @@
+{
+  "batch_size": 16,
+  "burn": "0.21.0",
+  "cohorts": {
+    "training": {
+      "capture_engine": "capture-v28;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=5;surface_flow=1;indoor=18;multiview=2;ovoxel=2;glass=2;hair=2;bounds=2;position=2;tabletop=1;finishes=3;seating=2;activity=2;playback=2;exterior=1",
+      "generator_version": 18,
+      "image_size": [
+        384,
+        288
+      ],
+      "rendered_scenes": 64,
+      "rendered_views": 256,
+      "root": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort",
+      "run_id": "2243581-1790557357859472828",
+      "selection_policy": "consecutive seeds"
+    }
+  },
+  "dtype": "little-endian float32",
+  "embedding_host_readbacks": 16,
+  "encoder": "SigLIP2",
+  "index_sha256": "bf2455c64ee443ea3badf56c019234cbbef864a15c7cb23fd3ac04956e5ed5a9",
+  "inference_and_io_seconds": 2.84022004,
+  "last_batch_execution": {
+    "backend_label": "fusion<cubecl<wgpu<spirv>>>",
+    "device_label": "cubecl_wgpu::device::WgpuDevice",
+    "host_readbacks": 1,
+    "stages_recorded": 0,
+    "wgpu_executed": true
+  },
+  "load_seconds": 4.333968027,
+  "loaded_weights": {
+    "artifact": {
+      "model_variant": "base-patch16-224",
+      "storage_dtype": "f16",
+      "upstream_model_id": "google/siglip2-base-patch16-224",
+      "upstream_revision": "75de2d55ec2d0b4efc50b3e9ad70dba96a7b2fa2"
+    },
+    "loaded_bytes": 750427030,
+    "loaded_weight_sha256": "6267af27dfa05ce21b73649f4d4f6cd4c6738acd4bcde5a0716051403c6f130e",
+    "part_count": 14,
+    "sha256_verified": 14,
+    "tensors_loaded": 427,
+    "weight_payload_sha256": "484e9ab7d41af66b34e973521c024fc9af54ff458f1c61408fca928405ae2c9d"
+  },
+  "model_parts": "/home/mosure/.burn_siglip2/models/siglip2-base-patch16-224/siglip2-base-patch16-224.bpk.parts.json",
+  "normalization": "L2",
+  "preprocessing": "RGB; direct bilinear resize to model square; /255; mean=std=0.5",
+  "samples": [
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024000/view_00_color.png",
+      "seed": 24000,
+      "sha256": "0718cd6bfd82bc437ac05bfb9f58a1b8e0140944f1d2b538041f4e4e3bc9d156",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024000/view_01_color.png",
+      "seed": 24000,
+      "sha256": "4ef051cd1a5d76118fec6735aa06d48d63d34efd743cab067227670bee96d31f",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024000/view_02_color.png",
+      "seed": 24000,
+      "sha256": "ddcd4e82e35075d63dcf39f0288716dbf757b326ccb94c07547827a92a5d26ff",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024000/view_03_color.png",
+      "seed": 24000,
+      "sha256": "94278d54fbadb6ae22dd10ca34a68a9d9de44cd8079c643fc9be06ddcecbc25a",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024001/view_00_color.png",
+      "seed": 24001,
+      "sha256": "9f0a1399be1213a78dde418870b88de50d5ff4a24aea8c07cdebdfa54a9dde54",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024001/view_01_color.png",
+      "seed": 24001,
+      "sha256": "54aab621c207ebd89f123868070aa85061e61f6103a81852ae911ff74f9e512f",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024001/view_02_color.png",
+      "seed": 24001,
+      "sha256": "0fd13d7135df9ae5960337e6a1cdc7fffc7e300731ce07dba9214b8f65fc4725",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024001/view_03_color.png",
+      "seed": 24001,
+      "sha256": "791bcb6409ddadcafbf6af1b5d4c5354a5e4fe150aab562febaf41b5ac70081f",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024002/view_00_color.png",
+      "seed": 24002,
+      "sha256": "2994f8df7d42127224785fac125ebfd86f3f85080d68290594310d2d54fa4fbb",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024002/view_01_color.png",
+      "seed": 24002,
+      "sha256": "4e083715f62d1ac6fa70528d81be4e634a91c66e8ff9c28f51636e1809b9af3f",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024002/view_02_color.png",
+      "seed": 24002,
+      "sha256": "3f4a67207099eb1f798371eeb40d78786333f9162ea8c913f4bc2053072e98ed",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024002/view_03_color.png",
+      "seed": 24002,
+      "sha256": "24f0cd05b5b573ea08b936dcc904733e41a6cdf2162db7d1c6e656ae02378332",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024003/view_00_color.png",
+      "seed": 24003,
+      "sha256": "320db4f91968db455fcb7b5f3a5e89e4bb3c9a00e3db60442048d6fa6c5cbb6c",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024003/view_01_color.png",
+      "seed": 24003,
+      "sha256": "c9099e7286d369db5464225387f3199991fde045880325e36c7538df257a68a8",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024003/view_02_color.png",
+      "seed": 24003,
+      "sha256": "1e5e8332f1cf2c0d234e9a22349a8cafafcd29d3466edbfdd225edcf8b82d7fd",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024003/view_03_color.png",
+      "seed": 24003,
+      "sha256": "fff122a4b131de6dc33c48af7e35644e1ca374fdcae8c8d6522ecf5addfd4e11",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024004/view_00_color.png",
+      "seed": 24004,
+      "sha256": "79437b39ee9d09c8da7bb7e0017ef32603a954adda16268d211bd106ba1783aa",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024004/view_01_color.png",
+      "seed": 24004,
+      "sha256": "06ff14a8456c49e7788d0bb04d87b8bd12125a0097ab22ab562b7b0d9af6b572",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024004/view_02_color.png",
+      "seed": 24004,
+      "sha256": "02340c7e0dfc9b4b47985b1b0a522ff8eb6e94c1c5708592e1a4c2de18656995",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024004/view_03_color.png",
+      "seed": 24004,
+      "sha256": "c3ae3ddb176e2bab01856f93aa43700b43198f59c9a39889760c909bd707f7b2",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024005/view_00_color.png",
+      "seed": 24005,
+      "sha256": "c8c4535b663f3ab011bde5606bd1ce72a6f97d623940fb13a20c371cd56cfab3",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024005/view_01_color.png",
+      "seed": 24005,
+      "sha256": "f5def79ef7d1e1f96260dcbdb751cfe1220d82d94e704edfeb0635b1c3cb39bf",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024005/view_02_color.png",
+      "seed": 24005,
+      "sha256": "d82ededc36544eb08fbfaec383c713f8adec42fb24001eb2a3afff778b4ad7ee",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024005/view_03_color.png",
+      "seed": 24005,
+      "sha256": "289955683c322bbe94323c7c969cf2e422c31da8033d2f0b490965ae53ab039f",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024006/view_00_color.png",
+      "seed": 24006,
+      "sha256": "82710003378657068638624dfa6970e935f1fc9a9b62428f5af129f708959789",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024006/view_01_color.png",
+      "seed": 24006,
+      "sha256": "2788e254d3e6fd96400ae316f5ae910485d4913c2a1f22ace481cdc89b488a50",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024006/view_02_color.png",
+      "seed": 24006,
+      "sha256": "916ea6c461a62dae1e278249dbede53fa1b91f093c9b01732d89accda018fb53",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024006/view_03_color.png",
+      "seed": 24006,
+      "sha256": "a96d76450ca2f3297fd655fcccce54fc6fbde678c91b5384cd74f0897eb621ec",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024007/view_00_color.png",
+      "seed": 24007,
+      "sha256": "b5a41657d302ccc89bcd00ff2af8bb63f1d0f8a7fe992a518735cd1e4e17a8ea",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024007/view_01_color.png",
+      "seed": 24007,
+      "sha256": "03b08de85f18a4aeb884e19c83d2d20eba646e096fe7979e9e3c1a370b53addd",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024007/view_02_color.png",
+      "seed": 24007,
+      "sha256": "9a93e1a4e0d77ca8f9faf4ff8a5729841aed00d5b3bce462bdc5eb3c915596ef",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024007/view_03_color.png",
+      "seed": 24007,
+      "sha256": "21c4fa1fab83cbeff276068c04e36de5f4afedd9b6932f0ab95c5d137dfa3086",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024008/view_00_color.png",
+      "seed": 24008,
+      "sha256": "4144909ea606bd48b6d0b1e1002897c0e6b93366d6f230d56ad8307b7f5c6fef",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024008/view_01_color.png",
+      "seed": 24008,
+      "sha256": "054b12dcae4cd1c046302ad61a6fb034500091c9ac0ba19e54d8ba3dd2e8ad40",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024008/view_02_color.png",
+      "seed": 24008,
+      "sha256": "bc999d0acaee874331a9954d3b931aeaea8b03a052abf4deb0da312ab67d8e50",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024008/view_03_color.png",
+      "seed": 24008,
+      "sha256": "5e312934284c7918fec8ac525d60801d858f131578dade4016121b19d59c8cc6",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024009/view_00_color.png",
+      "seed": 24009,
+      "sha256": "dde7da35d727909f516aa717b888d6b724eac41d0166f1833d3277cac49c136d",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024009/view_01_color.png",
+      "seed": 24009,
+      "sha256": "55a3370f64fb83699339880473dda85330629a047eedc07e3d71d3bf3162ebbb",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024009/view_02_color.png",
+      "seed": 24009,
+      "sha256": "1510e182315e850e83a63bdc2529d9801ff628aa9355588546a4238e0539372f",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024009/view_03_color.png",
+      "seed": 24009,
+      "sha256": "9ec7ee7c53a398af9c744f532651b5dcf52f04737930c030c83b1b13c74bee1e",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024010/view_00_color.png",
+      "seed": 24010,
+      "sha256": "85c1bd79007f25b4e8d984b37638c2049dd147c2a6dc2d0e7cc8488767044aa6",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024010/view_01_color.png",
+      "seed": 24010,
+      "sha256": "ec53f06f8dae393788eeede243483ca7d4068c7e152fa3500dbfa730901bbb0f",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024010/view_02_color.png",
+      "seed": 24010,
+      "sha256": "306c0891972400e729eecab63cd7a977a81418eb949f2f75801c7505714b3084",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024010/view_03_color.png",
+      "seed": 24010,
+      "sha256": "c236ac8585eb58eced818148148e32ea6c9dc4a6f1b27eec8446516ad01b53f9",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024011/view_00_color.png",
+      "seed": 24011,
+      "sha256": "42321c0d635701a5c3cc1b42ba476b1a95ac021e7e8593a6d42c4239851d54bf",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024011/view_01_color.png",
+      "seed": 24011,
+      "sha256": "f6ee2e130c643e90c25d3c8c0a33b71a84fb2ed303c2081efbe5f7f1a3a44819",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024011/view_02_color.png",
+      "seed": 24011,
+      "sha256": "84ff27733eb02006b9f62443b4ef6772e3ab762f740b69357301d8d4c90626aa",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024011/view_03_color.png",
+      "seed": 24011,
+      "sha256": "35ae4f5f49342e1c80928c1c0bb2dee5aaf759458d8b3acac6a217f858460b0d",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024012/view_00_color.png",
+      "seed": 24012,
+      "sha256": "770b49265e5cf88d95a25881eed8b15a387e35d4fe533ea148765fb4e44bcb28",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024012/view_01_color.png",
+      "seed": 24012,
+      "sha256": "67ca7a737ef179adddb8f647c7e0745255febb1ff782491723d5874c1a16f7df",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024012/view_02_color.png",
+      "seed": 24012,
+      "sha256": "51ded7b4c4be5d937ede9cc0547072bbe726f43c79040b314a8effd83984054f",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024012/view_03_color.png",
+      "seed": 24012,
+      "sha256": "b0df9d6ff1373e0ea683253a6e6cae13f9be1ce147b06c245a7838d7d15c4d6f",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024013/view_00_color.png",
+      "seed": 24013,
+      "sha256": "64fa95c322e7edf4060793ee64eae43cde650275edf93a85c93983da4e632e2b",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024013/view_01_color.png",
+      "seed": 24013,
+      "sha256": "6d468bad81adff5bc45394df255d6c3eb7733b4dd6d376754e989619b92d285e",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024013/view_02_color.png",
+      "seed": 24013,
+      "sha256": "370928744e3157f6a060f8c342dc38c06cd0591567e451c34d366f01343c3368",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024013/view_03_color.png",
+      "seed": 24013,
+      "sha256": "1ba396f7d65f73d8ff95c0494635d6d0cad654ec9c43f2857aaa4b5e7e32257d",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024014/view_00_color.png",
+      "seed": 24014,
+      "sha256": "ada648af20585b9b78eea9aa6c78e98c2a7e4450f0d4de422beb749cc0f6f709",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024014/view_01_color.png",
+      "seed": 24014,
+      "sha256": "d5cef57b3cef09454781cfcf6dc127559846ff8cb051aa88928f93e6c05e3b71",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024014/view_02_color.png",
+      "seed": 24014,
+      "sha256": "137fe84ce4fc36a7e00c8d4e9ff7a041250a411bba43115623bc79675b29ddb9",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024014/view_03_color.png",
+      "seed": 24014,
+      "sha256": "b1e265ef299a556a5adb7fcaedcd3fc555862e8b11b76c89b236bd9e996cdca0",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024015/view_00_color.png",
+      "seed": 24015,
+      "sha256": "bd957267513149884980af02219a9031cbf44ce6a0797c86afa0a5c36e347214",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024015/view_01_color.png",
+      "seed": 24015,
+      "sha256": "2575b8c243bab281e4517d39caf9d77b41dc3fb73b9c69997722eadc90d82505",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024015/view_02_color.png",
+      "seed": 24015,
+      "sha256": "c3c05e97ecca29b932a6b356067fefd45e18994f451554a7ad56598a0922b04b",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024015/view_03_color.png",
+      "seed": 24015,
+      "sha256": "53a6dde3952ca242060081e242f1ee5d1ce6af1caf40857242b198aaea97c984",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024016/view_00_color.png",
+      "seed": 24016,
+      "sha256": "2fd492ccf1c54f063cbd5a7e365df703b13cb44f10c572864ed7448c8eb68215",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024016/view_01_color.png",
+      "seed": 24016,
+      "sha256": "07832af544974ed74b5ce407306957320ddbb623aadb3dd4ade722d6e34e1f91",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024016/view_02_color.png",
+      "seed": 24016,
+      "sha256": "c555dcf9c1f1364b663f4dba9dfc08002563f5749b3b9ad97465924580968118",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024016/view_03_color.png",
+      "seed": 24016,
+      "sha256": "fde8de2b8b3a20ad03b36e3d0ea32fd8ba26457cdbbe5c31a87faa5dc9c30d99",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024017/view_00_color.png",
+      "seed": 24017,
+      "sha256": "6f1e58fb2357be5d49e1beac917a4bebcd805b770185ab4ac3dbaf891b2b34a7",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024017/view_01_color.png",
+      "seed": 24017,
+      "sha256": "95f8165ec17538e9296b785e261ccdbb1f5e1b305ab96f9732a6dc199092b319",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024017/view_02_color.png",
+      "seed": 24017,
+      "sha256": "51edab8893a06976a06cfa1a1435828f436d8923cb375a59cfbc2ebf1aabf9b7",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024017/view_03_color.png",
+      "seed": 24017,
+      "sha256": "f14f243e08c82bb0888555c867ad1ab31962233aa0ad2e0d5d41533f39372215",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024018/view_00_color.png",
+      "seed": 24018,
+      "sha256": "012cd7fe3ce06c1d1e6f34dfc0b766dea2afe3cffced5bfad6e27f9df2f7e698",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024018/view_01_color.png",
+      "seed": 24018,
+      "sha256": "abc025be1ed3d902991e2859a28ac9becd1c7937ec546300242ee27d868fb707",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024018/view_02_color.png",
+      "seed": 24018,
+      "sha256": "0ff451d73e7ea93944af47c3760bedec1bc2528b1ed40069aa354038597d688a",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024018/view_03_color.png",
+      "seed": 24018,
+      "sha256": "b4a1c7b795d14cc7925484d7458095de6346637e9a2f02dc5a8256b26db6694e",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024019/view_00_color.png",
+      "seed": 24019,
+      "sha256": "5a342fa2dea05b1f4755b29a8b889bfaf804df3b70c7e3a5564d46e982ef9dc2",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024019/view_01_color.png",
+      "seed": 24019,
+      "sha256": "e74d5d9da74b49bbca8eaf013cd2f3e5aaab4f6c36dc60b1277d1638ff42fc95",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024019/view_02_color.png",
+      "seed": 24019,
+      "sha256": "d01cca8ed8c3c0272244aba74a9a5a2e0f7d8f7e318918b90bb1ffe817d4bb31",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024019/view_03_color.png",
+      "seed": 24019,
+      "sha256": "e88dffa3f3ba5b6c9e02978c0d58efc2b90bc65dd363e452770f3a1ba91c729b",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024020/view_00_color.png",
+      "seed": 24020,
+      "sha256": "99dad892826a5f9f414dcdfbb43207e5089cfb41d5252edbd301e685d806a841",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024020/view_01_color.png",
+      "seed": 24020,
+      "sha256": "5aa6db34d5214fa6ae2e04d9f5f172b6e2fc067ea1f76863f31292b4677e19ba",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024020/view_02_color.png",
+      "seed": 24020,
+      "sha256": "21e26cfc56415dc56a5809c3c3529c212abb72aac5cef1e5de98d6416fc30847",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024020/view_03_color.png",
+      "seed": 24020,
+      "sha256": "fdcd8d09e558e9ffd7ae592e96aaa20238a762f61912a69254442118d68b229f",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024021/view_00_color.png",
+      "seed": 24021,
+      "sha256": "406a73a4a11a832cd058eb3febd9f7b5413c982f459dfde1d6b6921152ea4e6d",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024021/view_01_color.png",
+      "seed": 24021,
+      "sha256": "33d7dc3c333a2d8fa1fea4cc1dcd8ba6c3b5aa9647fd88b603453cf741a5d536",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024021/view_02_color.png",
+      "seed": 24021,
+      "sha256": "145c1f44835ec28d89bef96f7e9c9f1e06797b31984f56a9aa6e3aafbe8a0000",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024021/view_03_color.png",
+      "seed": 24021,
+      "sha256": "d1a3cd44c3ccc1ddfb9c201ee61459901beb20b85cf7d72cfa15006448cd0a4e",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024022/view_00_color.png",
+      "seed": 24022,
+      "sha256": "24846f29019b108701b33e351671df0aa0399af245396c7466f193c437e5fb03",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024022/view_01_color.png",
+      "seed": 24022,
+      "sha256": "c99d1e48f656d4d12b1646b85322dd6f5303ed56f2d515d0c71ab952c2c16198",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024022/view_02_color.png",
+      "seed": 24022,
+      "sha256": "73c065b19ab48f66c2a5a3db1c29836d55f3c799272ca825bd36b102125b9c94",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024022/view_03_color.png",
+      "seed": 24022,
+      "sha256": "38b8f5b6320346b59c8cebee266e63db1f428f4d90bc24f8bf8863216a15822f",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024023/view_00_color.png",
+      "seed": 24023,
+      "sha256": "9b3c263423e8059ae9c83240af24f169a6212f14a6c384b91a3a501a463dc8b6",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024023/view_01_color.png",
+      "seed": 24023,
+      "sha256": "e63e6b932d8573b8ab4782bdfe65adc274aa39bc3cdb46928233e5c28ee3715c",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024023/view_02_color.png",
+      "seed": 24023,
+      "sha256": "2784c6b59be6696e1ec076af557c8e25c14bc4f5191286b7e5b4e214726ebc23",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024023/view_03_color.png",
+      "seed": 24023,
+      "sha256": "9749bc4c560dd5381400fdf22c1d3ad250111b11c8face00552df810b26f04cf",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024024/view_00_color.png",
+      "seed": 24024,
+      "sha256": "93a9f1ecbc46fd09aee4d8196ebe3436637ebb0131b31daa53c56f93cb2b6528",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024024/view_01_color.png",
+      "seed": 24024,
+      "sha256": "8a47e150dcd46b67c54297fad1993805a51b2d95e77e0b0455899d4be8824529",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024024/view_02_color.png",
+      "seed": 24024,
+      "sha256": "c53131f7f001b50d23e1fae0e8fffc82c24f15fc2fdc0f9f7d912f1f60848fc1",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024024/view_03_color.png",
+      "seed": 24024,
+      "sha256": "cbbb514e3785d3df9e925ccd39bd36142857dd215e873be8c7e1852f048fa1c3",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024025/view_00_color.png",
+      "seed": 24025,
+      "sha256": "8079666bdecce1429ed09cf8ed68e38cc3b20c3baa3fd5221c4a4e715ecb6269",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024025/view_01_color.png",
+      "seed": 24025,
+      "sha256": "c69a9d25eda0f9440511f191f761e91590bc1d9606fc41a0a484d314b9d33064",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024025/view_02_color.png",
+      "seed": 24025,
+      "sha256": "3f6b744bc0a55a9f80d7279a2b59734c21854b1bc279b32e1cefeba93663ccce",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024025/view_03_color.png",
+      "seed": 24025,
+      "sha256": "6b748d5b5c57ac6caf0404b1d06af6f1fc7e8f6a19c9d00b5119ef375bd62278",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024026/view_00_color.png",
+      "seed": 24026,
+      "sha256": "201123759d5cb9b1cee0bbbe2a52c9f5bb22517e22df99172145f69025518582",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024026/view_01_color.png",
+      "seed": 24026,
+      "sha256": "48de4c023106214e4ae70da9c61d5e4c4b898948e6ffd6ac317cdd3e80a862c4",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024026/view_02_color.png",
+      "seed": 24026,
+      "sha256": "626d291964f966467453fda5e0a79db7430d02ef0bd50c0149440707d401fee3",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024026/view_03_color.png",
+      "seed": 24026,
+      "sha256": "3b89404fce5aa1cda12e2f94ceea886110f8b39301bc6c2639c6d692de6e9538",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024027/view_00_color.png",
+      "seed": 24027,
+      "sha256": "7786be108df9eda6be93ca645fd08ae9e50215e1cb83b4096f2ce14772ccbcfb",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024027/view_01_color.png",
+      "seed": 24027,
+      "sha256": "f08ea64aa23fb3cb837eaf2d7ff6f720eca32b6b1bbee592c0ffc60ac81861b2",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024027/view_02_color.png",
+      "seed": 24027,
+      "sha256": "380ebd9f40f4858b4085025dbfc3390c132eff6bf76c86c07d64f29dc77f8ebd",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024027/view_03_color.png",
+      "seed": 24027,
+      "sha256": "ab3ee9491b89c100b9d801a48a982e94814fa24e78a18362f82041024bff028e",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024028/view_00_color.png",
+      "seed": 24028,
+      "sha256": "df8980eabe92a0271625051f73978bf18a5480a8e25ff707eb34a0ddb45c44e4",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024028/view_01_color.png",
+      "seed": 24028,
+      "sha256": "36e8050958d7712066dc35a0f2c01d5c5141744e96197588cbdfbb6e4d6dd3bb",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024028/view_02_color.png",
+      "seed": 24028,
+      "sha256": "bdcedbe88ca0d87442032aab7978a0de36c30c9dca06d9065420ab3c49ede26f",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024028/view_03_color.png",
+      "seed": 24028,
+      "sha256": "6f912f2dc8b89cbe0a86bcc124bdcce4d7095e53f0b4c9d4d385f3e092a3acb3",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024029/view_00_color.png",
+      "seed": 24029,
+      "sha256": "2bd5195b83ec16c87cb25f56e602c48b5c4934a81ef3892b3077890e05f54a6b",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024029/view_01_color.png",
+      "seed": 24029,
+      "sha256": "d59ed38baca6fb493545399e314a97561a242d35cd5c1faf23db640452a11893",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024029/view_02_color.png",
+      "seed": 24029,
+      "sha256": "e754a9df83e0688371dff105066e2c409f2bcadadd20f1879bcce733ccfe84fb",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024029/view_03_color.png",
+      "seed": 24029,
+      "sha256": "4a16208cf46aec804c3dd083b880d84f821d33101d575230cac93e622f3069e5",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024030/view_00_color.png",
+      "seed": 24030,
+      "sha256": "3fa55aa8be48dfa5c2dfe347cbd4d2ad80418fddaad93521507a854b5e2055e2",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024030/view_01_color.png",
+      "seed": 24030,
+      "sha256": "e3beb0c8e165e4a3d1444e87a9113d46df4f95dc62fc387ae8076f6c06fe747e",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024030/view_02_color.png",
+      "seed": 24030,
+      "sha256": "930d0807ec9ff8613501fcee482baa186242d0c6ae1ab2c1037ad056d29cd64d",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024030/view_03_color.png",
+      "seed": 24030,
+      "sha256": "6c67cea93a31efeb5224d828171e7586094f541d0960e7024ba69e2a9a46cf24",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024031/view_00_color.png",
+      "seed": 24031,
+      "sha256": "6049e80141022f51f4dd3f857342026665cb3ef18622a2990e3d129351694faf",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024031/view_01_color.png",
+      "seed": 24031,
+      "sha256": "a1bda57a32e73c0e24ff40367e33dbd5c091e893bb270562fe02acfd7ad11d69",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024031/view_02_color.png",
+      "seed": 24031,
+      "sha256": "a7a70ccfa8c6c39803cff55075171db08d035d4cc7142fcdcc36bb20e164d6cc",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024031/view_03_color.png",
+      "seed": 24031,
+      "sha256": "f8535c41bf7294dfb55aab380b8ccb97b8c38742e0105d5706431a9152c87829",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024032/view_00_color.png",
+      "seed": 24032,
+      "sha256": "fb5f74e07b60478ca0ce349e48b6556768d073d305a272bc8dcdd8f13d9318a2",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024032/view_01_color.png",
+      "seed": 24032,
+      "sha256": "f86cd0059f20b9dc0a830bf412db9b6bceef72060d8262af8d913ef4d3734d1b",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024032/view_02_color.png",
+      "seed": 24032,
+      "sha256": "ec8052c23a66fc76bc9869d439ac6f0f8f6018a067b107d018e4b2e9b291b658",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024032/view_03_color.png",
+      "seed": 24032,
+      "sha256": "d6384ea6f47f520f0d22d7c83bd38aaf931d429652b65c8352c5d98046c6270e",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024033/view_00_color.png",
+      "seed": 24033,
+      "sha256": "f7ebf60b0944f72d804674d88069948f564e99f4f6792c3abc8c6b6e1b0a0328",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024033/view_01_color.png",
+      "seed": 24033,
+      "sha256": "42b24a3c8fd0c2a75e7d582329c420fc383abf2d8e703a6e195d4b4b90ef4341",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024033/view_02_color.png",
+      "seed": 24033,
+      "sha256": "c0c5253ec78a587941a95bc3136849f1a82c850d068239d3317c8430be80a9a7",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024033/view_03_color.png",
+      "seed": 24033,
+      "sha256": "480d18f7f0161e21bbb8e4fae6027f60d857a31313117c29ffa8b3c61bc4820c",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024034/view_00_color.png",
+      "seed": 24034,
+      "sha256": "601eeabb70b05ea1b2fda859cef1d788b5512d29cc79e92f3a01b4ac5731dca9",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024034/view_01_color.png",
+      "seed": 24034,
+      "sha256": "f7b92cc7f3b53c76ad37e63f6c8bc55d516d2f73a070caf3979e7450e3b8c35f",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024034/view_02_color.png",
+      "seed": 24034,
+      "sha256": "da514e9ce45c945a14498778cc540d17287dc3be09ded458af0d8b5f4d4dad92",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024034/view_03_color.png",
+      "seed": 24034,
+      "sha256": "f7965185ff2c33cf9079e230713cafac490e9e85a734bdceb1077c3e9993808c",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024035/view_00_color.png",
+      "seed": 24035,
+      "sha256": "7bc58375a27916b461c842ed5d218bb21e48ad91c743d6cc19462dae4ca95127",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024035/view_01_color.png",
+      "seed": 24035,
+      "sha256": "4a37410e66f56f3c656b16e496c6af68294fb5f11170d57938293c6fe7461217",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024035/view_02_color.png",
+      "seed": 24035,
+      "sha256": "9583f06d199ab3c34ad4742df4107c2b9179d0d521b7c1f7e10cc65a4091a7e5",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024035/view_03_color.png",
+      "seed": 24035,
+      "sha256": "c3c90f3b3f5ca115f79a99a065342b82a4360711ac81ddf4ef8ac5dfab662c38",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024036/view_00_color.png",
+      "seed": 24036,
+      "sha256": "88c1b25bfb1b8b0cbbad7b0a6898c5c9788f9f5e9f703f2175d68bcd8e169f4e",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024036/view_01_color.png",
+      "seed": 24036,
+      "sha256": "f28dd6f70517ab9cce16efd4a93f5b76ff08cbb539bcca5e726150d9b55eacb7",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024036/view_02_color.png",
+      "seed": 24036,
+      "sha256": "6e2745326a112afd448d63a4df394cc8a31517674c3ffe617aedf98865538cf1",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024036/view_03_color.png",
+      "seed": 24036,
+      "sha256": "39648c9f8206e74a68583af91621b3b9f737efd57a639af6d66dde82e837c32a",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024037/view_00_color.png",
+      "seed": 24037,
+      "sha256": "1d9c329251feb710616cd21bc2bc23a6fd09dacf3f2caf92fa904edba1b2f407",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024037/view_01_color.png",
+      "seed": 24037,
+      "sha256": "167e2da8c5d55d27a314c3c53fec79fd7c754430ccb14cdd9f691da873da9dcd",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024037/view_02_color.png",
+      "seed": 24037,
+      "sha256": "18b69ec6b20dc00cc3d6ff4a8851c1e6b6548c2f52d40cb9a4c53b88c5592792",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024037/view_03_color.png",
+      "seed": 24037,
+      "sha256": "37a7b0ec307533b4f11f9cedee7d23c4bba3b6e62e7cff32d6cd55204d9dcb74",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024038/view_00_color.png",
+      "seed": 24038,
+      "sha256": "95858d9445bbfb99065ea581a7dfa810e8370adab67cf774e9282b508a31736b",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024038/view_01_color.png",
+      "seed": 24038,
+      "sha256": "46373cb2fbce4c1be1a47a7356c7e5303a815abd69696667b8272102a343059b",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024038/view_02_color.png",
+      "seed": 24038,
+      "sha256": "0b52c29e64b2d7c571dbb0de8fa0d6d9b354308d1d06385599a55481784bb08c",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024038/view_03_color.png",
+      "seed": 24038,
+      "sha256": "d0ca3cd0ea2a1bbbe8475f15503c00ea2e06c9136ff86a696065586f767a90bc",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024039/view_00_color.png",
+      "seed": 24039,
+      "sha256": "4e58659fb12bdfeb155794e9d34a68714ac88b9c4987c6809e76530703eb83ff",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024039/view_01_color.png",
+      "seed": 24039,
+      "sha256": "35ead78fb02e660b671de5b0d5a7a168a19cd490f0b4c5037f5e56e08c552945",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024039/view_02_color.png",
+      "seed": 24039,
+      "sha256": "f814fa1553b3992c922771a2794f7a991f139210cc5f9533d99eb8a45750bd48",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024039/view_03_color.png",
+      "seed": 24039,
+      "sha256": "2945128d741ef12b663306c5ce2d096d6dd0886ca1fe73a9b148b1a023dd98bd",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024040/view_00_color.png",
+      "seed": 24040,
+      "sha256": "b4334e9a9959ba623d08cd4b24ccba5c8c6f9139be9ab6f76979f4b2c2fcb08f",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024040/view_01_color.png",
+      "seed": 24040,
+      "sha256": "1a979277d331e9c63267ec8d64a9a741fcee94cb594050f21cb7d7522a076e47",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024040/view_02_color.png",
+      "seed": 24040,
+      "sha256": "8dc03275667873b3ca37f55d044c3f7e8ad2fa0fd91199109bb7e64c449d115c",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024040/view_03_color.png",
+      "seed": 24040,
+      "sha256": "8b393be3a2b975aa9c28ff291c4e19ff377743ccaab54660fa5063d68000f55c",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024041/view_00_color.png",
+      "seed": 24041,
+      "sha256": "2f50d0757ce768d7610867c3ee25ed1409f35dcc924c73157be86af9c80678a6",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024041/view_01_color.png",
+      "seed": 24041,
+      "sha256": "55c65e5895c574a9b3849403beccb1ca2bb1bb87fb4a81765015d4d7a15dd121",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024041/view_02_color.png",
+      "seed": 24041,
+      "sha256": "5764801fc0c3406b2b0d3cf9062706dbeaa41770573bd44baf8b5b1caaa07c65",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024041/view_03_color.png",
+      "seed": 24041,
+      "sha256": "118c51f43a19c6ada72f9e9e5ebf726e90eff5b00692ae784a55870f6dd07273",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024042/view_00_color.png",
+      "seed": 24042,
+      "sha256": "363eb672ea02934c0075c81fbe35a2e08b968d8703d485c7df95191500e0345a",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024042/view_01_color.png",
+      "seed": 24042,
+      "sha256": "ec735d7cfb5334cb66321a5a1dbec1863c3ded502c2811be33960e72982fef17",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024042/view_02_color.png",
+      "seed": 24042,
+      "sha256": "dc22cd8cf3ef3801abf59d378a02b16c4300650221b8c56d01764d2d8fc67b17",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024042/view_03_color.png",
+      "seed": 24042,
+      "sha256": "9c9adcf5824f7c45c18d526eb2ed9975bcd88cce63117fcce863db494b8e6d3e",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024043/view_00_color.png",
+      "seed": 24043,
+      "sha256": "362753bb3853a7e31bfebe9cd749e2bfd9526ed807c1cbbfb9a6d3e941ad7438",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024043/view_01_color.png",
+      "seed": 24043,
+      "sha256": "6c35a121c55080bba6db4e35718c7ad5f2139005aaa133ff213e2c0fad00e82c",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024043/view_02_color.png",
+      "seed": 24043,
+      "sha256": "369068260c623186c229afaa9547ffeeac3c0a7a0835cb5f37e191eafbf15c19",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024043/view_03_color.png",
+      "seed": 24043,
+      "sha256": "9a100367c03a7d2eb2fcd576cf06ba8d3b18edebba836291cc50052e88ed7fc0",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024044/view_00_color.png",
+      "seed": 24044,
+      "sha256": "aa89d2561fe02931b5774984e8414b4ed2d444c7939b5798ee1cd6bd0ef68835",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024044/view_01_color.png",
+      "seed": 24044,
+      "sha256": "8861c2867186c79bee54e843ac60c79ca62c1fa8363f682b6d57544b18bbaad1",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024044/view_02_color.png",
+      "seed": 24044,
+      "sha256": "465a511f1baea8132bec86dda97889c1341f874550c8f0dcf6cdd2cca9e9efbe",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024044/view_03_color.png",
+      "seed": 24044,
+      "sha256": "f8c72fa73da8cdce579b6948c6a560bfbba9af76de8a2307669fc03610bc06af",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024045/view_00_color.png",
+      "seed": 24045,
+      "sha256": "ce2edd99e8a7054e3322428f32e8cbc5080ab4b35336b4e19e84f935808d1861",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024045/view_01_color.png",
+      "seed": 24045,
+      "sha256": "c3572da3c3606dce92ba7181b29da0e7717d1f62818d56e80266c54f89a72486",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024045/view_02_color.png",
+      "seed": 24045,
+      "sha256": "aa5ecfe5ac52289fe47b48562385aec4a25cd3b0a6704e0aa9e39bf025dd4cca",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024045/view_03_color.png",
+      "seed": 24045,
+      "sha256": "dfc226e7dd3705afa7a2653be2d3850e422dc863d696a036b58822632e9e7a29",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024046/view_00_color.png",
+      "seed": 24046,
+      "sha256": "b3426fa5ff731af0f26011f0e1bd1a590aecc848b6d82308f4e7c9ef14f9f3e0",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024046/view_01_color.png",
+      "seed": 24046,
+      "sha256": "df7479e173a63d55ee33bf04e474206e6c55fc04353034be66dfa626e172c19e",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024046/view_02_color.png",
+      "seed": 24046,
+      "sha256": "868aecc1c931e43feea714262877c9058a3937f1d944f9de5d9faa451c2549e9",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024046/view_03_color.png",
+      "seed": 24046,
+      "sha256": "adcc48280c0da7af23bea89c0ebafa2f12b9d47877631e073b3db4a27da91956",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024047/view_00_color.png",
+      "seed": 24047,
+      "sha256": "6f1e8edf65182645173c9b67b0edce1f16ef8fd50f70e7c60b66422189c84a1b",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024047/view_01_color.png",
+      "seed": 24047,
+      "sha256": "1a765712acbd9b6c4dfd4cde252289fede6ea64e3dda4ae3e2d27fa76dc33851",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024047/view_02_color.png",
+      "seed": 24047,
+      "sha256": "793e63cc718258e0b0c58b7965560e853803bdfd29d7a93ed7792a172d1accf0",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024047/view_03_color.png",
+      "seed": 24047,
+      "sha256": "3d4454ec29df38ba4423455b4625806c3a636768de07c8f1b16d67c5e772ebb2",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024048/view_00_color.png",
+      "seed": 24048,
+      "sha256": "3f21907f25ed1cbbd7eaf4e290d03d45f82673fe328449624e072b7b279f318c",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024048/view_01_color.png",
+      "seed": 24048,
+      "sha256": "15e6ebbed240682e040bb37c2a973a880e111700b83b14133e2eeb932870ca43",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024048/view_02_color.png",
+      "seed": 24048,
+      "sha256": "31d3f82ccc675a377c51b4320350d2f3f50287b03db7edc5225231befd20034b",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024048/view_03_color.png",
+      "seed": 24048,
+      "sha256": "753d5914254e8c2ff1804b340b0787645aa611defa80686866f36872a9791a2e",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024049/view_00_color.png",
+      "seed": 24049,
+      "sha256": "c9ad3f429b1158b5022e9ad0c3c3c9cbee10f09c42d1872df7384195fbdeaec9",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024049/view_01_color.png",
+      "seed": 24049,
+      "sha256": "3a4025b5df36acc230bfb372e09dc48b68427811057e98385fb3e424433be6ef",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024049/view_02_color.png",
+      "seed": 24049,
+      "sha256": "79d6b226206788e82aa29c7e32c225ed0cdb45a3800df3d46253fb3049b09028",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024049/view_03_color.png",
+      "seed": 24049,
+      "sha256": "ffce32f26a00977e7674e2a9a1b13efc0332acc1090cf79bc7c74ab7aa413981",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024050/view_00_color.png",
+      "seed": 24050,
+      "sha256": "1dfdf190c9fc439e4f3a07a5a05abea1cc72e7915a4f2a17c4c451c94d95e99f",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024050/view_01_color.png",
+      "seed": 24050,
+      "sha256": "799669f113e789dce9c097b74210ca90126a600b23ced7d2c990f55e06262ef2",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024050/view_02_color.png",
+      "seed": 24050,
+      "sha256": "7d3fd3cde9018a061f41dee7c90ea74448c50640e0b41d0764e3e729a3652b64",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024050/view_03_color.png",
+      "seed": 24050,
+      "sha256": "e22da9fd81249eee2fee2163e22a1a5f3dbd3f6ed8ba839df3c9c852e6aca1ba",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024051/view_00_color.png",
+      "seed": 24051,
+      "sha256": "1347a720527cab00aa057af78cd3c096634b09c3f01c33692194c4c5b17442dc",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024051/view_01_color.png",
+      "seed": 24051,
+      "sha256": "ae39d2ea683d8d56db5340a1054da1df40e84a7ea219d0c947b6938af0497504",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024051/view_02_color.png",
+      "seed": 24051,
+      "sha256": "df8008ecc5cd1bc9155ffeace8ea7ef0589c4abff9b8864fce05e79709220c63",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024051/view_03_color.png",
+      "seed": 24051,
+      "sha256": "03658616f8c936f575fc4cdeb5af0f6573b612ee38843654e8bb816c4bfbc0b0",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024052/view_00_color.png",
+      "seed": 24052,
+      "sha256": "35a46beb08698ac1689343234b538cd43c3d948674a6cb2831ca3bebf43e5718",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024052/view_01_color.png",
+      "seed": 24052,
+      "sha256": "1a478d770d84b369fbbe5663d59f0e4f4d2fb1a6c41a8de16b401b0c345ab8cd",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024052/view_02_color.png",
+      "seed": 24052,
+      "sha256": "e23ae978a76f37d37499b326d769ac1c4cccde550c033c90ac7c10f7a29e94e1",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024052/view_03_color.png",
+      "seed": 24052,
+      "sha256": "b8af273bdf66044b9ad1a16ee0e61d85535a88bcc2d94b6ec2cc2af63c3ee4ee",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024053/view_00_color.png",
+      "seed": 24053,
+      "sha256": "4395ea78d65d862b591ac6e3326171e2a4c7ad115795e4018a8814a8f2eba38e",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024053/view_01_color.png",
+      "seed": 24053,
+      "sha256": "1e50d22d4bd48187542ef7844afcaef9bf615dcb9a8667765dc29d97c90bd433",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024053/view_02_color.png",
+      "seed": 24053,
+      "sha256": "6545f13246cdeb076b13a90909fa3ae5bb3d16a3232eed98565e1b369cd8bbd7",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024053/view_03_color.png",
+      "seed": 24053,
+      "sha256": "c1f2ae8721f07ade8d6c63e9dea04511dd144c6ead9491e237454b39a6a5b303",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024054/view_00_color.png",
+      "seed": 24054,
+      "sha256": "cabd995fa110cfe0962a34e40df989d6a949923b5fb55cd44d6a4a18b7523cc0",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024054/view_01_color.png",
+      "seed": 24054,
+      "sha256": "dcb91466c70f8fab7a4889ef5b33f74b902f107b104de86fbc7ddd8bce54088f",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024054/view_02_color.png",
+      "seed": 24054,
+      "sha256": "abb1adcd993021f7d435358e373b0cbd2083ae660ea42ecf311dec5837854fbd",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024054/view_03_color.png",
+      "seed": 24054,
+      "sha256": "b0a5650be99d509777c3ab51766365c3b0ce2103e923fd1afb5ca4d540b39af5",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024055/view_00_color.png",
+      "seed": 24055,
+      "sha256": "0b4f7b8dba0bc93fc34d72a574f33c49a7391d01468e49fe9575be1a4615e032",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024055/view_01_color.png",
+      "seed": 24055,
+      "sha256": "4a816d72f6954c4a4f7f9addeec123b45e064c98717ca324d6e087a1848fe2f6",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024055/view_02_color.png",
+      "seed": 24055,
+      "sha256": "fbdde6863b19e9ac02a2cc1a8437f55c6242e190b19e5a44863f70e2ba1eb227",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024055/view_03_color.png",
+      "seed": 24055,
+      "sha256": "25d5c71fb0dfe84549f2832da14b9cffafa4272e82a13ba452e9217a53deacc2",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024056/view_00_color.png",
+      "seed": 24056,
+      "sha256": "797cd5d5c7576b32cbd119f61593b941022a36fa0ec47eb5f41e9a51d2608714",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024056/view_01_color.png",
+      "seed": 24056,
+      "sha256": "edfb850d6e4b6271a79a6ff09bf5704c626707c3cfbc737b2bd71fbc9aaf36e8",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024056/view_02_color.png",
+      "seed": 24056,
+      "sha256": "ff94f9a0e4c691f960943fc62ef41cb92978508d39781e5535388faadc05a492",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024056/view_03_color.png",
+      "seed": 24056,
+      "sha256": "18ea09c8fe9579b68990192446fdc3f85bfe315e266ab9d12c1ce1364826ee97",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024057/view_00_color.png",
+      "seed": 24057,
+      "sha256": "d7839b519b3a9452c13d77ebcf671be3fd8fb0fd68a86bb638c375b483cc0432",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024057/view_01_color.png",
+      "seed": 24057,
+      "sha256": "59c1f2573a15e9b576644ab9125a6cdabfdb27188ede38776d95e383735978a2",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024057/view_02_color.png",
+      "seed": 24057,
+      "sha256": "684c3430bccf6afa657c83ed538cf2b94d1301dbcaf62ffa61e164fd682f9ec0",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024057/view_03_color.png",
+      "seed": 24057,
+      "sha256": "b652f0a81c48e6a467de7251aada1cd39751ca90a55aba708ca485c3cd70aced",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024058/view_00_color.png",
+      "seed": 24058,
+      "sha256": "e4268960a9569acf65b3cad8760aeb831ccb8892b07decd7ced88cee60ffafcd",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024058/view_01_color.png",
+      "seed": 24058,
+      "sha256": "f4e192d34ff3e97a930399f7821d0143487f2420c58d234a67fb148f7ee75568",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024058/view_02_color.png",
+      "seed": 24058,
+      "sha256": "3f1b46744da8e13fff1f29b6ea2b50556024653306c56f65e7b8ee911f42bceb",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024058/view_03_color.png",
+      "seed": 24058,
+      "sha256": "d100fd2c038c3ee2b6daf74381878bc8497dc661f57efdd2908b629c38702e0b",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024059/view_00_color.png",
+      "seed": 24059,
+      "sha256": "15a981ec98eb99bc3f605f4a133279c036b71a0b622b78b1f83ebbe34e8276b4",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024059/view_01_color.png",
+      "seed": 24059,
+      "sha256": "684aed262c4692b4df1b9da84a0f5771152e035143913ec24fcd436ad9f4b47a",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024059/view_02_color.png",
+      "seed": 24059,
+      "sha256": "31df249f1e8b541f22046040d2347b8486a83ff1a439503a3330103202f9c5cd",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024059/view_03_color.png",
+      "seed": 24059,
+      "sha256": "7b998d7089e78ee2774c34799ff4f3d11e35639f0edd91370d9961745e0cce5f",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024060/view_00_color.png",
+      "seed": 24060,
+      "sha256": "b815454727f0c86d4f4cabdc163c627ec624db3ef563d5afda7f0d702ba70cea",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024060/view_01_color.png",
+      "seed": 24060,
+      "sha256": "5785a5906021feb8bcc8ad41f918cadd38d042665a28233c807867a8b5e2011f",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024060/view_02_color.png",
+      "seed": 24060,
+      "sha256": "9dc8b23e7a889c4239dc776fee353f9169c8a0751a607372868f8c7058f0e821",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024060/view_03_color.png",
+      "seed": 24060,
+      "sha256": "c124a4b9859121fced28446ef59a5bf6ce5aeb8f183238216510f2525b85a777",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024061/view_00_color.png",
+      "seed": 24061,
+      "sha256": "c88fbb9375336432d2ba6f38b6f97eebcb3a2ddd17d42ee4a086e951ff6cc6c8",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024061/view_01_color.png",
+      "seed": 24061,
+      "sha256": "8c6f38bbfa8b63412747927194b2945beb298be51c3d55d311bb3625517396aa",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024061/view_02_color.png",
+      "seed": 24061,
+      "sha256": "b29dcb06bc30e1a1a85e091c9b285f1070e8b4f432c21ed9475c26f894906321",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024061/view_03_color.png",
+      "seed": 24061,
+      "sha256": "90aa6a782fa46d06f1d3f4de9e7bcba827c92559b7708e87bedf34ab17491145",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024062/view_00_color.png",
+      "seed": 24062,
+      "sha256": "42650447c2f5a41fa879a3e4d2b1496473d12c1354b1554db57f2d13222be69f",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024062/view_01_color.png",
+      "seed": 24062,
+      "sha256": "dc3fa6d9286db6596b9dcc2a24fc9b907c92ac8b0b243b4cdfa9fe8d10755b74",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024062/view_02_color.png",
+      "seed": 24062,
+      "sha256": "a9f6bc8994a513be28fac200f1ae7029137136ce63127a3f9d73332827b219fe",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024062/view_03_color.png",
+      "seed": 24062,
+      "sha256": "2e494e3c90a3e01c3cef6cc1208a743278d2bec1ee9d9d3b8b7f21e07fa26111",
+      "time": 0.0
+    },
+    {
+      "camera": 0,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024063/view_00_color.png",
+      "seed": 24063,
+      "sha256": "17c6fdd136f1b234a12a74e2ba3a8ebc2cb3d3ab146e159baecb6f85b1ba6a41",
+      "time": 0.0
+    },
+    {
+      "camera": 1,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024063/view_01_color.png",
+      "seed": 24063,
+      "sha256": "dce7e999a78a6ff406151235eb9398503dd986ffd121aa7f7d1911fb290adcf0",
+      "time": 0.0
+    },
+    {
+      "camera": 2,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024063/view_02_color.png",
+      "seed": 24063,
+      "sha256": "219d51949349c3c8e32ccd6ce4223eed123426fae05f7f61d2cba12904449308",
+      "time": 0.0
+    },
+    {
+      "camera": 3,
+      "cohort": "training",
+      "path": "/media/mosure/hyper1/repos/bevy_zeroverse/out/paper_v18/cohort/seed_024063/view_03_color.png",
+      "seed": 24063,
+      "sha256": "d6923b91dce6a04a63e59b351ac1bf2e9b40fc3b5d1770a775b1d3eb0c3acf77",
+      "time": 0.0
+    }
+  ],
+  "schema_version": 1,
+  "shape": [
+    256,
+    768
+  ],
+  "tensor_sha256": "9ea559377c13ccda28331cff2458730eeb2335c38f914b28d7a309508d58071d",
+  "variant": "base"
+}

@@ -10,6 +10,18 @@ This is a substantial procedural/PBR baseline, **not a demonstrated state-of-the
 photorealistic renderer**. The implementation and validation below separate what
 works from what has not been qualified.
 
+The [v17 exterior/window review](facade_v17.md) adds independently sampled
+exterior walls, larger near-floor-to-ceiling glazing, inset frames and shared
+aperture checks for finishes and wall-mounted objects, with distribution exports.
+
+The [v16 seating/activity review](seating_v16.md) documents modular upholstery,
+chair and bookshelf programs, wall hardware, generated board/TV content, continuous
+activity mixtures, playback/grid fixes and bounded native/browser validation.
+
+The [v15 tabletop/material review](tabletop_v15.md) documents new drink vessels,
+stationery, phones and microphones, device/clock programs, shared PBR finishes,
+and the preceding distribution and rendered-output checks.
+
 ## Run and inspect
 
 ```sh
@@ -60,6 +72,10 @@ support relationships, camera paths and optional world rotation.
   builders cover sofas, cabinets, bookcases/books, leafy plants and pots, bins,
   whiteboards, displays, monitors, laptops, mugs, notebooks, keyboards, mice,
   bottles, pen holders, clocks, lamps, rugs, printers, storage boxes, coat racks and bags.
+- Exterior windows sample one, two or three walls (all seven combinations),
+  with continuous bay widths, sill/head heights, pier spacing, frame dimensions
+  and inset depths. Tall glazing, horizontal ribbons and stacked bands use real
+  wall cutouts. The fourth wall retains the glazed neighboring room.
 - Architecture includes real window openings, inset glazing, sills, mullions,
   optional blinds, pilasters, skirting, ceiling trim, acoustic treatments,
   ventilation grilles, light housings and an open doorway. Adjacent furniture and
@@ -124,6 +140,8 @@ camera distributions and placement heatmaps in `metrics/`.
 See [dataset configuration and export contracts](procedural_indoor_dataset.md) for
 complete commands, resume semantics and tested Rust/Python interoperability.
 
+For multi-view reconstruction, use the optional [shared-surface camera policy](multiview_cameras.md), with overlap and baseline controls plus rendered-depth qualification.
+
 ## Capture and color contracts
 
 The validation CLI writes `distribution.json`, `metrics.json`, `scenes.csv`,
@@ -148,7 +166,7 @@ invalid semantic palette sizes and inconsistent geometric/camera annotations.
 | RGB PNG / new indoor dataset exports | Fixed linear-to-sRGB transfer; no second tone map or image/channel min/max scaling |
 | Linear depth | Positive camera z depth in metres; depth PNG is only a `/15 m` visualization |
 | Normal | View-space geometric normal encoded as `0.5 * normal + 0.5` |
-| Position | World position normalized to the captured scene AABB; decode with `min + value * (max - min)` |
+| Position | World position affine-normalized to the primary-room AABB; decode with `min + value * (max - min)`. Visible context can lie outside `[0, 1]`. |
 | Semantic | Existing semantic palette; PNG applies sRGB encoding, raw/tensor colors are linear |
 | OBB | Bounds of constructed object geometry with object class; architectural surfaces are semantic meshes |
 
@@ -156,6 +174,12 @@ Glass is treated as the first opaque geometric surface in depth/normal/position/
 semantic passes even though RGB sees through it. This policy is intentional and
 must be considered when training cross-modal tasks. Labels are not transparent-layer
 ground truth or pixel-level object-instance IDs.
+
+The scene AABB annotation and viewer gizmo enclose the primary reconstruction
+room with its structural shell, matching the default [O-voxel region](ovoxel_indoor.md).
+Exterior backdrops and neighboring rooms remain visible but do not expand this
+box. This scope also applies when voxel export is disabled. Position values are
+not clamped to the box, so the visible context still decodes correctly.
 
 **Precision:** native indoor dataset capture uses a dedicated geometry pass with
 its own depth test and two RGBA32F attachments. World position/linear depth and
@@ -319,3 +343,5 @@ optimization. The direct benchmark commands above inherit the caller's system
 copy policy; use the exact environment recorded with a report when reproducing
 its timing. Finite indoor CLI jobs additionally bound worker lifetimes to 256
 scenes by default; see the [dataset guide](procedural_indoor_dataset.md).
+
+The [v14 appearance qualification](appearance_v14.md) adds fitted grooms, material microstructure, deterministic glass quadrature and matched Cycles evidence. It records measured glass sampling improvements and the remaining photographic-realism limitations.

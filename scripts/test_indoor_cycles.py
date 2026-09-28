@@ -8,10 +8,19 @@ import unittest
 import numpy as np
 
 from compare_indoor_cycles import block_areas, block_measurements, blocks, compare, measurements, optical_identity
-from indoor_reference_contract import sky_radiance, validate_snapshot
+from indoor_reference_contract import absorption_coefficients, sky_radiance, validate_snapshot
 
 
 class ReferenceComparisonTests(unittest.TestCase):
+    def test_beer_lambert_distance_and_thickness_contract(self):
+        color = np.array([.4,.7,.9])
+        sigma = np.array(absorption_coefficients(color,.016))
+        np.testing.assert_allclose(np.exp(-sigma*.016),color)
+        np.testing.assert_allclose(np.exp(-sigma*.008),np.sqrt(color))
+        self.assertEqual(absorption_coefficients([1,1,1],None),(0,0,0))
+        for distance in (0,-1,float("nan")):
+            with self.assertRaises(ValueError): absorption_coefficients(color,distance)
+
     def test_continuous_sky_uses_manifest_radiance_with_legacy_fallback(self):
         self.assertEqual(sky_radiance({"lighting": "Evening"}), (16, 21, 32))
         manifest = {"lighting": "Evening", "program": {"domain": {

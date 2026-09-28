@@ -1,0 +1,14 @@
+\begin{table}[ht]
+\centering\small
+\begin{tabular}{p{.53\linewidth}p{.36\linewidth}}
+\toprule
+baseline & 2.84 views/s; 1.348/2.364 s \\
+shared geometry & 2.68 views/s; 1.382/2.540 s \\
+optimized & 3.31 views/s; 1.073/2.078 s \\
+parallel & 4.28 views/s; 0.761/1.775 s \\
+registry grouped & 3.58 views/s; 0.892/2.642 s \\
+registry rgb & 4.32 views/s; 0.773/1.776 s \\
+\bottomrule
+\end{tabular}
+\caption{Completed views per second; room wall-time median/p95. Baseline/shared geometry/optimized/parallel are local-patch runs with identical independent-camera settings. Registry rows use the normalized published dependency graph and the new grouped-camera default. See the evidence for modes, startup, memory and stage timings.}\label{tab:performance}
+\end{table}

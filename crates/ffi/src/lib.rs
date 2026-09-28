@@ -334,6 +334,9 @@ pub fn initialize(
     override_args: Option<BevyZeroverseConfig>,
     asset_root: Option<String>,
 ) -> PyResult<()> {
+    if let Some(config) = &override_args {
+        config.validate_ovoxel().map_err(PyRuntimeError::new_err)?;
+    }
     if INITIALIZED
         .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
         .is_err()

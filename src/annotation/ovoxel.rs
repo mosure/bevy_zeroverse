@@ -1,3 +1,7 @@
+pub mod contract;
+mod scope;
+pub use scope::{OvoxelExcluded, OvoxelRegion};
+
 use std::{
     borrow::Cow,
     collections::HashMap,
@@ -21,7 +25,7 @@ use crate::{
     annotation::obb::ObbClass,
     app::{BevyZeroverseConfig, OvoxelMode},
     render::semantic::SemanticLabel,
-    sample::{SamplerState, StartupDelay},
+    sample::{CaptureFailure, CaptureReadiness, SamplerState, StartupDelay},
     scene::{RegenerateSceneEvent, SceneAabbNode},
 };
 
@@ -56,11 +60,11 @@ pub struct OvoxelTracked;
 #[derive(Component, Debug, Default, Clone, Reflect)]
 #[reflect(Component)]
 pub struct OvoxelVolume {
-    /// Integer voxel coordinates in Morton order (sorted lexicographically here).
+    /// Unique integer voxel coordinates in lexicographic xyz order.
     pub coords: Vec<[u32; 3]>,
     /// Dual vertex offsets in voxel space, encoded to [0, 255].
     pub dual_vertices: Vec<[u8; 3]>,
-    /// Intersection flags (bitmask xyz) per voxel.
+    /// Triangle crossings of canonical +X/+Y/+Z edges from each voxel minimum corner.
     pub intersected: Vec<u8>,
     /// Packed base colors per voxel (rgba 0-255).
     pub base_color: Vec<[u8; 4]>,
@@ -82,7 +86,19 @@ pub struct OvoxelCache {
 }
 
 #[derive(Component, Debug)]
-pub(crate) struct OvoxelTask(Task<OvoxelVolume>);
+pub(crate) struct OvoxelTask(Task<Result<(OvoxelVolume, OvoxelStatistics), String>>);
+
+#[derive(Component, Debug, Clone, serde::Serialize)]
+pub struct OvoxelStatistics {
+    pub input_triangles: usize,
+    pub clipped_triangles: usize,
+    pub preparation_seconds: f64,
+    pub elapsed_seconds: f64,
+    pub backend: &'static str,
+}
+
+#[derive(Component, Debug)]
+pub(crate) struct OvoxelFailure(String);
 
 pub struct OvoxelPlugin;
 
@@ -114,6 +130,8 @@ impl Plugin for OvoxelPlugin {
         app.add_message::<RegenerateSceneEvent>();
         app.register_type::<OvoxelExport>();
         app.register_type::<OvoxelTracked>();
+        app.register_type::<OvoxelExcluded>();
+        app.register_type::<OvoxelRegion>();
         app.register_type::<OvoxelVolume>();
         app.register_type::<OvoxelCache>();
         app.add_systems(
@@ -141,6 +159,20 @@ struct Triangle {
     semantic_id: u16,
 }
 
+// Render-mode switches replace material handles, and cameras/lights move under
+// the same root. Neither changes this semantic geometry representation.
+type GeometryChanged = (
+    With<Mesh3d>,
+    Or<(
+        Changed<Mesh3d>,
+        Changed<Transform>,
+        Changed<GlobalTransform>,
+        Changed<SemanticLabel>,
+        Changed<ObbClass>,
+        Changed<Name>,
+    )>,
+);
+
 impl Triangle {
     fn is_degenerate(&self) -> bool {
         // Compare squared area with a squared tolerance. EPSILON alone used to
@@ -160,12 +192,16 @@ pub(crate) fn process_ovoxel_exports(
     render_queue: Option<Res<RenderQueue>>,
     sampler_state: Option<Res<SamplerState>>,
     startup_delay: Option<Res<StartupDelay>>,
+    readiness: Option<Res<CaptureReadiness>>,
     roots: Query<(
         Entity,
-        &OvoxelExport,
+        Ref<OvoxelExport>,
         Option<&OvoxelVolume>,
         Option<&OvoxelCache>,
         Option<&OvoxelTask>,
+        Option<&OvoxelFailure>,
+        Option<Ref<OvoxelRegion>>,
+        Option<&GlobalTransform>,
     )>,
     meshes: Res<Assets<Mesh>>,
     materials: Res<Assets<StandardMaterial>>,
@@ -178,18 +214,18 @@ pub(crate) fn process_ovoxel_exports(
         Option<&ObbClass>,
         Option<&Name>,
     )>,
-    mesh_changed: Query<
-        Entity,
-        Or<(
-            Changed<Mesh3d>,
-            Changed<MeshMaterial3d<StandardMaterial>>,
-            Changed<Transform>,
-            Changed<GlobalTransform>,
-        )>,
-    >,
+    mesh_changed: Query<Entity, GeometryChanged>,
     tracked: Query<(), With<OvoxelTracked>>,
+    excluded: Query<(), With<OvoxelExcluded>>,
     children: Query<&Children>,
 ) {
+    if readiness.as_ref().is_some_and(|r| !r.scene_ready())
+        || config
+            .as_ref()
+            .is_some_and(|c| c.validate_ovoxel().is_err())
+    {
+        return;
+    }
     if let (Some(state), Some(startup)) = (sampler_state.as_ref(), startup_delay.as_ref()) {
         if !state.enabled || !startup.done || state.warmup_frames > 0 || state.frames > 0 {
             return;
@@ -198,24 +234,30 @@ pub(crate) fn process_ovoxel_exports(
 
     let render_device_owned: Option<RenderDevice> = render_device.map(|r| r.clone());
     let render_queue_owned: Option<RenderQueue> = render_queue.map(|r| r.clone());
-    for (root, settings, existing_volume, cache, task) in roots.iter() {
-        if task.is_some() {
+    for (root, settings, existing_volume, cache, task, failed, region, transform) in roots.iter() {
+        if task.is_some() || failed.is_some() {
             continue;
         }
 
-        let mut palette = SemanticPalette::new();
         let needs_recompute = existing_volume.is_none()
             || cache.is_none()
-            || subtree_dirty(root, &mesh_changed, &children);
+            || settings.is_changed()
+            || region.as_ref().is_some_and(|r| r.is_changed())
+            || subtree_dirty(root, &mesh_changed, &children, &tracked, &excluded);
 
         if !needs_recompute {
             continue;
         }
 
+        let preparation_started = bevy::platform::time::Instant::now();
+        let mut palette = SemanticPalette::new();
         let mut triangles = Vec::new();
 
         let mut stack = vec![(root, false)];
         while let Some((entity, parent_tracked)) = stack.pop() {
+            if excluded.contains(entity) {
+                continue;
+            }
             let is_tracked = tracked.contains(entity);
             let include = parent_tracked || is_tracked;
 
@@ -245,7 +287,16 @@ pub(crate) fn process_ovoxel_exports(
             }
         }
 
+        let input_triangles = triangles.len();
+        let world_from_local =
+            transform.map_or(bevy::math::Affine3A::IDENTITY, GlobalTransform::affine);
+        if let Some(region) = &region {
+            triangles = region.clip(triangles, world_from_local);
+        }
         if triangles.is_empty() {
+            commands
+                .entity(root)
+                .insert(OvoxelFailure("O-voxel scope contains no triangles".into()));
             continue;
         }
 
@@ -261,7 +312,12 @@ pub(crate) fn process_ovoxel_exports(
         let aabb = settings
             .aabb
             .map(|(min, max)| [min, max])
-            .unwrap_or_else(|| triangles_aabb(&triangles));
+            .unwrap_or_else(|| {
+                region.as_ref().map_or_else(
+                    || triangles_aabb(&triangles),
+                    |r| r.world_bounds(world_from_local),
+                )
+            });
 
         let labels = palette.into_labels();
         let task_pool = AsyncComputeTaskPool::get();
@@ -278,42 +334,29 @@ pub(crate) fn process_ovoxel_exports(
             continue;
         }
 
-        let task = match mode {
-            OvoxelMode::CpuAsync => task_pool
-                .spawn(async move { voxelize_triangles(&triangles, resolution, aabb, labels) }),
-            OvoxelMode::GpuCompute => {
-                if let (Some(device), Some(queue)) =
-                    (render_device_owned.clone(), render_queue_owned.clone())
-                {
-                    if let Some(shader_source) = gpu_shader_source(&shaders) {
-                        task_pool.spawn(async move {
-                            voxelize_triangles_gpu(
-                                &triangles,
-                                resolution,
-                                aabb,
-                                labels,
-                                shader_source,
-                                &device,
-                                &queue,
-                                max_output_voxels,
-                                true,
-                            )
-                            .unwrap_or_else(|| {
-                                panic!("GPU ovoxel requested but GPU path failed; aborting")
-                            })
-                        })
-                    } else {
-                        warn!("ovoxel shader missing; falling back to CPU voxelization");
-                        task_pool.spawn(async move {
-                            voxelize_triangles(&triangles, resolution, aabb, labels)
-                        })
-                    }
-                } else {
-                    panic!("GPU ovoxel requested but RenderDevice/RenderQueue unavailable");
+        let shader = gpu_shader_source(&shaders);
+        let device = render_device_owned.clone();
+        let queue = render_queue_owned.clone();
+        let preparation_seconds = preparation_started.elapsed().as_secs_f64();
+        let task = task_pool.spawn(async move {
+            let started = bevy::platform::time::Instant::now();
+            let clipped_triangles = triangles.len();
+            let volume = match mode {
+                OvoxelMode::CpuAsync => voxelize_triangles_bounded(&triangles, resolution, aabb, labels, max_output_voxels)?,
+                OvoxelMode::GpuCompute => {
+                    let (Some(device), Some(queue), Some(shader)) = (device, queue, shader) else {
+                        return Err("GPU O-voxel requires render device, queue and shader".into());
+                    };
+                    voxelize_triangles_gpu(&triangles, resolution, aabb, labels, shader, &device, &queue, max_output_voxels, false)
+                        .ok_or_else(|| "GPU O-voxel failed: capacity exceeded or unsupported device; no partial volume exported".to_string())?
                 }
-            }
-            OvoxelMode::Disabled => continue,
-        };
+                OvoxelMode::Disabled => unreachable!(),
+            };
+            Ok((volume, OvoxelStatistics { input_triangles, clipped_triangles, preparation_seconds,
+                elapsed_seconds: started.elapsed().as_secs_f64(),
+                backend: if mode == OvoxelMode::GpuCompute { "gpu_compute" } else { "cpu_async" },
+            }))
+        });
 
         // Store the task so it can be polled to completion later.
         commands.entity(root).insert(OvoxelTask(task));
@@ -324,9 +367,29 @@ fn collect_ovoxel_tasks(
     mut commands: Commands,
     mut tasks: Query<(Entity, &mut OvoxelTask)>,
     mut caches: Query<&mut OvoxelCache>,
+    failures: Query<&OvoxelFailure>,
+    mut capture_failure: Option<ResMut<CaptureFailure>>,
 ) {
+    if let Some(failed) = failures.iter().next() {
+        if let Some(failure) = capture_failure.as_mut() {
+            failure.0 = Some(failed.0.clone());
+        }
+    }
     for (entity, mut task) in tasks.iter_mut() {
-        if let Some(volume) = block_on(futures_lite::future::poll_once(&mut task.0)) {
+        if let Some(result) = block_on(futures_lite::future::poll_once(&mut task.0)) {
+            let (volume, statistics) = match result {
+                Ok(result) => result,
+                Err(error) => {
+                    if let Some(failure) = capture_failure.as_mut() {
+                        failure.0 = Some(error.clone());
+                    }
+                    commands
+                        .entity(entity)
+                        .insert(OvoxelFailure(error))
+                        .remove::<OvoxelTask>();
+                    continue;
+                }
+            };
             let mut version = 1;
             if let Ok(mut cache) = caches.get_mut(entity) {
                 cache.version = cache.version.saturating_add(1);
@@ -334,7 +397,7 @@ fn collect_ovoxel_tasks(
             }
             commands
                 .entity(entity)
-                .insert((volume, OvoxelCache { version }))
+                .insert((volume, statistics, OvoxelCache { version }))
                 .remove::<OvoxelTask>();
         }
     }
@@ -348,7 +411,7 @@ fn reset_ovoxel_on_regen(
         Entity,
         (
             With<OvoxelExport>,
-            Or<(With<OvoxelVolume>, With<OvoxelTask>)>,
+            Or<(With<OvoxelVolume>, With<OvoxelTask>, With<OvoxelFailure>)>,
         ),
     >,
 ) {
@@ -361,6 +424,8 @@ fn reset_ovoxel_on_regen(
             .entity(entity)
             .remove::<OvoxelVolume>()
             .remove::<OvoxelCache>()
+            .remove::<OvoxelStatistics>()
+            .remove::<OvoxelFailure>()
             .remove::<OvoxelTask>();
     }
 }
@@ -368,25 +433,23 @@ fn reset_ovoxel_on_regen(
 #[allow(clippy::type_complexity)]
 fn subtree_dirty(
     root: Entity,
-    changed: &Query<
-        Entity,
-        Or<(
-            Changed<Mesh3d>,
-            Changed<MeshMaterial3d<StandardMaterial>>,
-            Changed<Transform>,
-            Changed<GlobalTransform>,
-        )>,
-    >,
+    changed: &Query<Entity, GeometryChanged>,
     children: &Query<&Children>,
+    tracked: &Query<(), With<OvoxelTracked>>,
+    excluded: &Query<(), With<OvoxelExcluded>>,
 ) -> bool {
-    let mut stack = vec![root];
-    while let Some(entity) = stack.pop() {
-        if changed.contains(entity) {
+    let mut stack = vec![(root, false)];
+    while let Some((entity, parent_tracked)) = stack.pop() {
+        if excluded.contains(entity) {
+            continue;
+        }
+        let include = parent_tracked || tracked.contains(entity);
+        if include && changed.contains(entity) {
             return true;
         }
         if let Ok(child_list) = children.get(entity) {
             for child in child_list.iter() {
-                stack.push(child);
+                stack.push((child, include));
             }
         }
     }
@@ -410,8 +473,7 @@ fn extract_triangles(
 
     let positions = mesh
         .attribute(Mesh::ATTRIBUTE_POSITION)
-        .and_then(|attr| attr.as_float3())
-        .map(|a| a.to_vec());
+        .and_then(|attr| attr.as_float3());
 
     let Some(positions) = positions else {
         return Vec::new();
@@ -436,16 +498,18 @@ fn extract_triangles(
     };
 
     let affine = transform.affine();
-    let indices: Vec<u32> = mesh
-        .indices()
-        .map(|idx| idx.iter().map(|v| v as u32).collect())
-        .unwrap_or_else(|| (0..positions.len() as u32).collect());
-
-    let mut tris = Vec::new();
-    for chunk in indices.as_chunks::<3>().0 {
-        let a = affine.transform_point3(Vec3::from(positions[chunk[0] as usize]));
-        let b = affine.transform_point3(Vec3::from(positions[chunk[1] as usize]));
-        let c = affine.transform_point3(Vec3::from(positions[chunk[2] as usize]));
+    let count = mesh.indices().map_or(positions.len(), |i| i.len());
+    let index = |i| match mesh.indices() {
+        Some(bevy::mesh::Indices::U16(v)) => v[i] as usize,
+        Some(bevy::mesh::Indices::U32(v)) => v[i] as usize,
+        None => i,
+    };
+    let mut tris = Vec::with_capacity(count / 3);
+    for first in (0..count.saturating_sub(2)).step_by(3) {
+        let chunk = [index(first), index(first + 1), index(first + 2)];
+        let a = affine.transform_point3(Vec3::from(positions[chunk[0]]));
+        let b = affine.transform_point3(Vec3::from(positions[chunk[1]]));
+        let c = affine.transform_point3(Vec3::from(positions[chunk[2]]));
 
         let centroid = (a + b + c) / 3.0;
         let tri_color = semantic_color
@@ -464,6 +528,24 @@ fn extract_triangles(
     tris
 }
 
+// Two-sided Moller-Trumbore on a finite canonical grid edge. Coplanar edges
+// are not crossings. Barycentric tolerance keeps shared triangle edges closed.
+fn segment_crosses_triangle(origin: Vec3, delta: Vec3, tri: &Triangle) -> bool {
+    let e1 = tri.b - tri.a;
+    let e2 = tri.c - tri.a;
+    let p = delta.cross(e2);
+    let det = e1.dot(p);
+    if det.abs() <= 1e-7 * e1.length() * e2.length() * delta.length() {
+        return false;
+    }
+    let offset = origin - tri.a;
+    let u = offset.dot(p) / det;
+    let q = offset.cross(e1);
+    let v = delta.dot(q) / det;
+    let t = e2.dot(q) / det;
+    u >= -1e-5 && v >= -1e-5 && u + v <= 1.00001 && (-1e-5..=1.00001).contains(&t)
+}
+
 fn triangles_aabb(triangles: &[Triangle]) -> [[f32; 3]; 2] {
     let mut min = Vec3::splat(f32::INFINITY);
     let mut max = Vec3::splat(f32::NEG_INFINITY);
@@ -478,19 +560,38 @@ fn triangles_aabb(triangles: &[Triangle]) -> [[f32; 3]; 2] {
     [[min.x, min.y, min.z], [max.x, max.y, max.z]]
 }
 
+fn nondegenerate_grid_aabb(mut aabb: [[f32; 3]; 2]) -> [[f32; 3]; 2] {
+    // Retain supplied corners bit-for-bit unless an axis needs padding. The
+    // round trip min + (max - min) can change max, separating voxel coordinates
+    // from the scene annotation's otherwise identical reconstruction bounds.
+    for axis in 0..3 {
+        if aabb[1][axis] - aabb[0][axis] < 1e-3 {
+            aabb[1][axis] = aabb[0][axis] + 1e-3;
+        }
+    }
+    aabb
+}
+
+#[cfg(test)]
 fn voxelize_triangles(
     triangles: &[Triangle],
     resolution: u32,
     aabb: [[f32; 3]; 2],
     semantic_labels: Vec<String>,
 ) -> OvoxelVolume {
+    voxelize_triangles_bounded(triangles, resolution, aabb, semantic_labels, u32::MAX).unwrap()
+}
+
+fn voxelize_triangles_bounded(
+    triangles: &[Triangle],
+    resolution: u32,
+    aabb: [[f32; 3]; 2],
+    semantic_labels: Vec<String>,
+    max_output: u32,
+) -> Result<OvoxelVolume, String> {
+    let aabb = nondegenerate_grid_aabb(aabb);
     let min = Vec3::from(aabb[0]);
-    let mut extent = Vec3::from(aabb[1]) - min;
-    let eps = 1e-3;
-    extent = extent.max(Vec3::splat(eps));
-    let max = min + extent;
-    let extent = extent.max(Vec3::splat(f32::EPSILON));
-    let aabb = [min.to_array(), max.to_array()];
+    let extent = Vec3::from(aabb[1]) - min;
     let res_f = resolution as f32;
     let voxel_size = extent / res_f;
     let half_diag = voxel_size.length() * 0.5;
@@ -536,16 +637,17 @@ fn voxelize_triangles(
                     let dual = offset.clamp(Vec3::ZERO, Vec3::ONE);
 
                     let mut mask = 0u8;
-                    if tri_min.x < voxel_min.x && tri_max.x > voxel_min.x {
-                        mask |= 1;
-                    }
-                    if tri_min.y < voxel_min.y && tri_max.y > voxel_min.y {
-                        mask |= 2;
-                    }
-                    if tri_min.z < voxel_min.z && tri_max.z > voxel_min.z {
-                        mask |= 4;
+                    for axis in 0..3 {
+                        let mut delta = Vec3::ZERO;
+                        delta[axis] = voxel_size[axis];
+                        if segment_crosses_triangle(voxel_min, delta, tri) {
+                            mask |= 1 << axis;
+                        }
                     }
 
+                    if voxels.len() >= max_output as usize && !voxels.contains_key(&(x, y, z)) {
+                        return Err(format!("CPU O-voxel capacity exceeded ({max_output}); no partial annotation returned"));
+                    }
                     let entry = voxels.entry((x, y, z)).or_default();
                     entry.count += 1;
                     entry.dual_sum += dual;
@@ -592,7 +694,7 @@ fn voxelize_triangles(
         }
     }
 
-    OvoxelVolume {
+    Ok(OvoxelVolume {
         coords,
         dual_vertices,
         intersected,
@@ -601,7 +703,7 @@ fn voxelize_triangles(
         semantic_labels,
         resolution,
         aabb,
-    }
+    })
 }
 
 #[repr(C)]
@@ -631,7 +733,8 @@ struct GpuParams {
     tri_count: u32,
     max_output: u32,
     pair_cap: u32,
-    _pad_params: [u32; 3],
+    max_dispatch: u32,
+    _pad_params: [u32; 2],
 }
 
 #[repr(C)]
@@ -909,13 +1012,9 @@ fn voxelize_triangles_gpu(
         gpu_bail!("ovoxel GPU path skipped: resolution too large");
     }
 
+    let aabb = nondegenerate_grid_aabb(aabb);
     let min = Vec3::from(aabb[0]);
-    let mut extent = Vec3::from(aabb[1]) - min;
-    let eps = 1e-3;
-    extent = extent.max(Vec3::splat(eps));
-    let max = min + extent;
-    let extent = extent.max(Vec3::splat(f32::EPSILON));
-    let aabb = [min.to_array(), max.to_array()];
+    let extent = Vec3::from(aabb[1]) - min;
     let voxel_size = extent / resolution as f32;
     let half_diag = voxel_size.length() * 0.5;
     let max_output_voxels = max_output_voxels.max(1).min(voxel_count as u32);
@@ -996,6 +1095,27 @@ fn voxelize_triangles_gpu(
     // Each pair can cover up to a whole 4^3 tile, not just one output cell.
     let max_output_voxels = max_output_voxels.min(pair_cap.saturating_mul(GPU_TILE_SIZE.pow(3)));
 
+    let wgpu_device = device.wgpu_device();
+    let limits = wgpu_device.limits();
+    let binding_limit = limits
+        .max_buffer_size
+        .min(limits.max_storage_buffer_binding_size);
+    let required_sizes = [
+        std::mem::size_of_val(gpu_tris.as_slice()) as u64,
+        tile_count * 12, // metadata
+        tile_count * std::mem::size_of::<GpuActiveTile>() as u64,
+        u64::from(pair_cap) * std::mem::size_of::<GpuTilePair>() as u64,
+        std::mem::size_of::<GpuOutputMeta>() as u64
+            + u64::from(max_output_voxels) * std::mem::size_of::<GpuVoxel>() as u64,
+    ];
+    if required_sizes.iter().any(|&size| size > binding_limit)
+        || gpu_tris.len().div_ceil(GPU_CLASSIFY_WG as usize)
+            > limits.max_compute_workgroups_per_dimension as usize
+        || tile_count.div_ceil(u64::from(GPU_PREFIX_WG))
+            > u64::from(limits.max_compute_workgroups_per_dimension)
+    {
+        gpu_bail!("O-voxel exceeds device buffer/dispatch limits; reduce resolution or output capacity, or use CPU");
+    }
     let params = GpuParams {
         min: [min.x, min.y, min.z, 0.0],
         voxel: [voxel_size.x, voxel_size.y, voxel_size.z, 0.0],
@@ -1005,10 +1125,10 @@ fn voxelize_triangles_gpu(
         tri_count: gpu_tris.len() as u32,
         max_output: max_output_voxels,
         pair_cap,
-        _pad_params: [0; 3],
+        max_dispatch: limits.max_compute_workgroups_per_dimension,
+        _pad_params: [0; 2],
     };
 
-    let wgpu_device = device.wgpu_device();
     let wgpu_queue = &*queue.0;
     let max_storage = wgpu_device.limits().max_storage_buffers_per_shader_stage;
     // The prepare layout declares nine storage buffers even when an
@@ -1591,54 +1711,34 @@ fn tag_scene_roots(
     }
 }
 
+// Cross-product barycentrics avoid the cancellation in differences of dot
+// products for long, thin trim/floor triangles. Outside the face, compare the
+// three finite edges directly; the result always lies on actual geometry.
 fn closest_point_on_triangle(p: Vec3, tri: &Triangle) -> Vec3 {
-    // Algorithm adapted from Real-Time Collision Detection (Christer Ericson).
     let ab = tri.b - tri.a;
     let ac = tri.c - tri.a;
     let ap = p - tri.a;
-
-    let d1 = ab.dot(ap);
-    let d2 = ac.dot(ap);
-    if d1 <= 0.0 && d2 <= 0.0 {
-        return tri.a;
+    let normal = ab.cross(ac);
+    let area2 = normal.length_squared();
+    if area2 > 0.0 {
+        let u = ap.cross(ac).dot(normal);
+        let v = ab.cross(ap).dot(normal);
+        if u >= 0.0 && v >= 0.0 && u + v <= area2 {
+            return p - normal * (ap.dot(normal) / area2);
+        }
     }
-
-    let bp = p - tri.b;
-    let d3 = ab.dot(bp);
-    let d4 = ac.dot(bp);
-    if d3 >= 0.0 && d4 <= d3 {
-        return tri.b;
+    let closest_edge = |a: Vec3, b: Vec3| {
+        let edge = b - a;
+        a + edge
+            * ((p - a).dot(edge) / edge.length_squared().max(f32::MIN_POSITIVE)).clamp(0.0, 1.0)
+    };
+    let mut best = closest_edge(tri.a, tri.b);
+    for q in [closest_edge(tri.a, tri.c), closest_edge(tri.b, tri.c)] {
+        if p.distance_squared(q) < p.distance_squared(best) {
+            best = q;
+        }
     }
-
-    let vc = d1 * d4 - d3 * d2;
-    if vc <= 0.0 && d1 >= 0.0 && d3 <= 0.0 {
-        let v = d1 / (d1 - d3);
-        return tri.a + ab * v;
-    }
-
-    let cp = p - tri.c;
-    let d5 = ab.dot(cp);
-    let d6 = ac.dot(cp);
-    if d6 >= 0.0 && d5 <= d6 {
-        return tri.c;
-    }
-
-    let vb = d5 * d2 - d1 * d6;
-    if vb <= 0.0 && d2 >= 0.0 && d6 <= 0.0 {
-        let w = d2 / (d2 - d6);
-        return tri.a + ac * w;
-    }
-
-    let va = d3 * d6 - d5 * d4;
-    if va <= 0.0 && (d4 - d3) >= 0.0 && (d5 - d6) >= 0.0 {
-        let w = (d4 - d3) / ((d4 - d3) + (d5 - d6));
-        return tri.b + (tri.c - tri.b) * w;
-    }
-
-    let denom = 1.0 / (va + vb + vc);
-    let v = vb * denom;
-    let w = vc * denom;
-    tri.a + ab * v + ac * w
+    best
 }
 
 #[cfg(test)]
@@ -1646,6 +1746,20 @@ mod tests {
     use super::*;
     use bevy::render::renderer::WgpuWrapper;
     use bevy::{render::render_resource::PrimitiveTopology, MinimalPlugins};
+
+    #[test]
+    fn grid_aabb_preserves_nondegenerate_corners_exactly() {
+        let bounds = [[-2., -0.2, -10.], [2., 4., 0.1]];
+        assert_eq!(nondegenerate_grid_aabb(bounds), bounds);
+        let volume = voxelize_triangles(&[], 16, bounds, vec!["unlabeled".into()]);
+        assert_eq!(volume.aabb, bounds);
+        let planar = [[1., 0., -3.], [2., 0., 4.]];
+        assert_eq!(
+            nondegenerate_grid_aabb(planar),
+            [[1., 0., -3.], [2., 0.001, 4.]]
+        );
+    }
+
     use std::{
         sync::{Mutex, OnceLock},
         thread,
@@ -1695,6 +1809,131 @@ mod tests {
             thread::yield_now();
         }
         panic!("cache version did not reach {min_version}");
+    }
+
+    #[test]
+    fn grid_edge_flags_describe_crossings_not_triangle_bounds() {
+        let floor = Triangle {
+            a: Vec3::new(-1., 0.5, -1.),
+            b: Vec3::new(2., 0.5, -1.),
+            c: Vec3::new(-1., 0.5, 2.),
+            color: Vec4::ONE,
+            semantic_id: 1,
+        };
+        assert!(segment_crosses_triangle(Vec3::ZERO, Vec3::Y, &floor));
+        assert!(!segment_crosses_triangle(Vec3::ZERO, Vec3::X, &floor));
+        assert!(!segment_crosses_triangle(Vec3::ZERO, Vec3::Z, &floor));
+        assert!(!segment_crosses_triangle(
+            Vec3::new(2., 0., 2.),
+            Vec3::Y,
+            &floor
+        ));
+        assert!(!segment_crosses_triangle(
+            Vec3::new(0., 0.5, 0.),
+            Vec3::X,
+            &floor
+        ));
+        let small = voxelize_triangles(
+            &[floor],
+            8,
+            [[0.; 3], [1.; 3]],
+            vec!["unlabeled".into(), "floor".into()],
+        );
+        assert!(small.intersected.contains(&2));
+        assert!(small
+            .intersected
+            .iter()
+            .all(|&flags| flags == 0 || flags == 2));
+        assert!(voxelize_triangles_bounded(
+            &[floor],
+            8,
+            [[0.; 3], [1.; 3]],
+            vec!["unlabeled".into(), "floor".into()],
+            1
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn closest_points_on_thin_trim_are_finite_and_stay_on_the_face() {
+        for width in [0.0001, 0.001, 0.01] {
+            let triangle = Triangle {
+                a: Vec3::ZERO,
+                b: Vec3::new(10., 0., 0.),
+                c: Vec3::new(10., width, 0.),
+                color: Vec4::ONE,
+                semantic_id: 1,
+            };
+            let p = Vec3::new(7., width * 0.3, 0.2);
+            let q = closest_point_on_triangle(p, &triangle);
+            assert!(q.distance(Vec3::new(p.x, p.y, 0.)) < 1e-6);
+            let outside = closest_point_on_triangle(Vec3::new(5., -1., 0.2), &triangle);
+            assert!(outside.distance(Vec3::new(5., 0., 0.)) < 1e-6);
+        }
+    }
+
+    #[test]
+    fn excluded_subtrees_override_inherited_tracking_and_do_not_dirty_cache() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.add_plugins(OvoxelPlugin);
+        app.add_systems(Update, crate::scene::create_scene_aabb);
+        app.insert_resource(Assets::<Mesh>::default());
+        app.insert_resource(Assets::<StandardMaterial>::default());
+        let mesh = app
+            .world_mut()
+            .resource_mut::<Assets<Mesh>>()
+            .add(simple_triangle_mesh());
+        let root = app
+            .world_mut()
+            .spawn((
+                OvoxelExport {
+                    resolution: 16,
+                    aabb: None,
+                },
+                OvoxelTracked,
+                SceneAabbNode,
+                OvoxelRegion {
+                    min: Vec3::splat(-1.),
+                    max: Vec3::splat(2.),
+                },
+                GlobalTransform::IDENTITY,
+            ))
+            .id();
+        app.world_mut().spawn((
+            Mesh3d(mesh.clone()),
+            GlobalTransform::IDENTITY,
+            SemanticLabel::Floor,
+            ChildOf(root),
+        ));
+        let excluded = app.world_mut().spawn((OvoxelExcluded, ChildOf(root))).id();
+        let outside = app
+            .world_mut()
+            .spawn((
+                Mesh3d(mesh),
+                GlobalTransform::from_translation(Vec3::splat(100.)),
+                SemanticLabel::Person,
+                OvoxelTracked,
+                ChildOf(excluded),
+            ))
+            .id();
+        let volume = wait_for_volume(&mut app, root);
+        assert_eq!(volume.aabb, [[-1.; 3], [2.; 3]]);
+        let annotation = app.world().get::<crate::scene::SceneAabb>(root).unwrap();
+        assert_eq!(
+            volume.aabb,
+            [annotation.min.to_array(), annotation.max.to_array()]
+        );
+        assert!(!volume.semantic_labels.iter().any(|l| l == "person"));
+        for i in 0..8 {
+            app.world_mut()
+                .entity_mut(outside)
+                .insert(GlobalTransform::from_translation(Vec3::splat(
+                    100. + i as f32,
+                )));
+            app.update();
+        }
+        assert_eq!(app.world().get::<OvoxelCache>(root).unwrap().version, 1);
     }
 
     #[test]
@@ -2083,6 +2322,33 @@ mod tests {
             cache_after.version, cache.version,
             "idle updates should be cached"
         );
+
+        let camera = app
+            .world_mut()
+            .spawn((Transform::IDENTITY, ChildOf(root)))
+            .id();
+        let untracked_mesh = app
+            .world_mut()
+            .spawn((Mesh3d::default(), Transform::IDENTITY, ChildOf(root)))
+            .id();
+        for i in 1..8 {
+            // Annotation modes change PBR handles; camera motion and untracked
+            // debug geometry must also leave the semantic geometry bake alone.
+            app.world_mut()
+                .entity_mut(child)
+                .insert(MeshMaterial3d::<StandardMaterial>::default());
+            for entity in [camera, untracked_mesh] {
+                app.world_mut()
+                    .entity_mut(entity)
+                    .insert(Transform::from_xyz(i as f32, 0., 0.));
+            }
+            app.update();
+            assert!(app.world().get::<OvoxelTask>(root).is_none());
+            assert_eq!(
+                app.world().get::<OvoxelCache>(root).unwrap().version,
+                cache.version
+            );
+        }
     }
 
     #[test]

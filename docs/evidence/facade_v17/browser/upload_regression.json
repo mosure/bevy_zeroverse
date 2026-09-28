@@ -1,0 +1,43 @@
+{
+  "auto": {
+    "before": {
+      "semantic_coverage": 1.0,
+      "opaque_architecture_fraction": 0.6934919028340081,
+      "rgb_near_black_architecture_fraction": 0.5597661894128464,
+      "scene_pixel_std": 81.94816950183139,
+      "passed": false
+    },
+    "after": {
+      "semantic_coverage": 1.0,
+      "opaque_architecture_fraction": 0.6934919028340081,
+      "rgb_near_black_architecture_fraction": 0.0,
+      "scene_pixel_std": 21.356417744048255,
+      "passed": true
+    }
+  },
+  "portable": {
+    "before": {
+      "semantic_coverage": 1.0,
+      "opaque_architecture_fraction": 0.384003036437247,
+      "rgb_near_black_architecture_fraction": 0.3799997364224621,
+      "scene_pixel_std": 51.13678480401219,
+      "passed": false
+    },
+    "after": {
+      "semantic_coverage": 1.0,
+      "opaque_architecture_fraction": 0.384003036437247,
+      "rgb_near_black_architecture_fraction": 0.0,
+      "scene_pixel_std": 37.92442938149391,
+      "passed": true
+    }
+  },
+  "method": "Same seed, camera and quality. Before uses 32 MiB/frame upload limit; after uses Bevy default (unlimited). Near-black RGB pixels (max channel <=16) tested against the corrected opaque-semantic wall/floor/ceiling mask in two illuminated smoke fixtures.",
+  "sha256": {
+    "auto.png": "674a44f0fc23e7a79172ce461c757a89950b56cc1ceed30751889b04d9598d09",
+    "auto_semantic.png": "555c75e1d40e8eaee1fe0d69f3b6fa4a625e67c4df77b004a1222eacc7a8edda",
+    "before_auto.png": "f8ce5ed3798d75882b59ac4f9fc0caa09523fc34962e1ec4d4d1d68dd04330ff",
+    "before_portable.png": "2f5764cb15c391250d1db44998870db66f711bbbb96b8d95c25a8cc26cfeaf12",
+    "portable.png": "202acc9a80a095580bf4a2f1613726e5fdbc5052777f51a49a2ffe58a8ecd281",
+    "portable_semantic.png": "ff256e852ac16e03298bd6297b325c7ba4f8ecbb3226ae667b26ae4097799a61"
+  }
+}

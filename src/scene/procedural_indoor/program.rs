@@ -1,5 +1,6 @@
 //! Replayable spatial program: recursively split usable space, retain real portals,
 //! then populate each leaf with dimensioned functional groups. All units are metres.
+pub mod activity;
 pub mod furnishing;
 use super::{
     layout::{stream, IndoorLayout, IndoorManifest},
@@ -12,6 +13,8 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Zone {
+    #[serde(default)]
+    pub composition: Option<activity::ActivityMix>,
     #[serde(default)]
     pub furnishing: Option<furnishing::FurnishingField>,
     pub min: Vec2,
@@ -306,13 +309,10 @@ impl IndoorProgram {
                 let activity = if i == 0 || rng.random_bool(0.68) {
                     activity
                 } else {
-                    [
-                        IndoorLayout::Lounge,
-                        IndoorLayout::OpenOffice,
-                        IndoorLayout::Conference,
-                    ][rng.random_range(0..3)]
+                    IndoorLayout::PROFILES[rng.random_range(0..IndoorLayout::PROFILES.len())]
                 };
                 Zone {
+                    composition: Some(activity::ActivityMix::sample(seed, i, activity)),
                     furnishing: Some(furnishing::FurnishingField::sample(seed, i, activity)),
                     min,
                     max,
@@ -381,6 +381,9 @@ impl IndoorProgram {
         let half = Vec2::new(scene.room_size.x, scene.room_size.z) * 0.5;
         let mut area = 0.0;
         for (i, zone) in self.zones.iter().enumerate() {
+            if let Some(mix) = &zone.composition {
+                mix.validate()?;
+            }
             if let Some(field) = &zone.furnishing {
                 field.validate()?;
             }

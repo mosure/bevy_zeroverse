@@ -1,0 +1,537 @@
+{
+  "schema_version": 1,
+  "run_id": "2243581-1790557357859472828",
+  "generator_version": 18,
+  "capture_engine": "capture-v28;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=5;surface_flow=1;indoor=18;multiview=2;ovoxel=2;glass=2;hair=2;bounds=2;position=2;tabletop=1;finishes=3;seating=2;activity=2;playback=2;exterior=1",
+  "selection_policy": "consecutive seeds",
+  "audit_scenes": 1024,
+  "rendered_scenes": 64,
+  "rendered_views": 256,
+  "playback_steps": 1,
+  "image_size": [
+    384,
+    288
+  ],
+  "observed_strata": 1012,
+  "captured_layouts": {
+    "Studio": 8,
+    "Workshop": 8,
+    "Coworking": 4,
+    "Breakroom": 6,
+    "Library": 7,
+    "Training": 6,
+    "Conference": 6,
+    "OpenOffice": 8,
+    "Reception": 7,
+    "Lounge": 4
+  },
+  "captured_lighting": {
+    "Daylight": 31,
+    "Overcast": 21,
+    "Evening": 12
+  },
+  "captured_floors": {
+    "1": 27,
+    "0": 18,
+    "2": 19
+  },
+  "captured_furniture": {
+    "0": 21,
+    "1": 27,
+    "2": 16
+  },
+  "captured_architecture": {
+    "Classic": 17,
+    "Industrial": 15,
+    "Contemporary": 15,
+    "Timber": 17
+  },
+  "captured_plant_species": {
+    "1": 28,
+    "2": 38,
+    "4": 39,
+    "5": 27,
+    "0": 24,
+    "3": 33
+  },
+  "rgb_and_pose": {
+    "mean_luminance": {
+      "count": 256,
+      "min": 0.01016242,
+      "max": 0.5262996,
+      "mean": 0.11058947325976562,
+      "p05_p50_p95": [
+        0.016365765,
+        0.07079942,
+        0.28103808
+      ]
+    },
+    "luminance_std": {
+      "count": 256,
+      "min": 0.007870824,
+      "max": 0.36766693,
+      "mean": 0.11939370520703126,
+      "p05_p50_p95": [
+        0.021476384,
+        0.1001947,
+        0.26460883
+      ]
+    },
+    "dark_fraction": {
+      "count": 256,
+      "min": 0.0,
+      "max": 0.25298393,
+      "mean": 0.006288634310546875,
+      "p05_p50_p95": [
+        0.0,
+        0.0,
+        0.03720884
+      ]
+    },
+    "clipped_fraction": {
+      "count": 256,
+      "min": 0.0,
+      "max": 0.0068811486,
+      "mean": 9.745138584375e-05,
+      "p05_p50_p95": [
+        0.0,
+        0.0,
+        0.000587746
+      ]
+    },
+    "pose_max_absolute_error": {
+      "count": 256,
+      "min": 0.0,
+      "max": 0.0,
+      "mean": 0.0,
+      "p05_p50_p95": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    }
+  },
+  "annotation": {
+    "depth_position_p99_metres": {
+      "count": 256,
+      "min": 4.7683716e-07,
+      "max": 2.861023e-06,
+      "mean": 1.35018489859375e-06,
+      "p05_p50_p95": [
+        9.536743e-07,
+        1.4305115e-06,
+        1.9073486e-06
+      ]
+    },
+    "reprojection_p99_pixels": {
+      "count": 256,
+      "min": 0.0016643975,
+      "max": 0.0026218933,
+      "mean": 0.002077039717578125,
+      "p05_p50_p95": [
+        0.0018779511,
+        0.002055414,
+        0.0023670343
+      ]
+    },
+    "normal_length_max_error": {
+      "count": 256,
+      "min": 1.1920929e-07,
+      "max": 2.3841858e-07,
+      "mean": 1.916196166015625e-07,
+      "p05_p50_p95": [
+        1.7881393e-07,
+        1.7881393e-07,
+        2.3841858e-07
+      ]
+    },
+    "position_quantization_budget_p99_ratio": {
+      "count": 256,
+      "min": 0.118939474,
+      "max": 0.17742653,
+      "mean": 0.1523572134140625,
+      "p05_p50_p95": [
+        0.13525231,
+        0.15290898,
+        0.16794488
+      ]
+    }
+  },
+  "mean_linear_luminance_by_layout": {
+    "Studio": {
+      "count": 32,
+      "min": 0.023361878,
+      "max": 0.28103808,
+      "mean": 0.14191888115625,
+      "p05_p50_p95": [
+        0.026703691,
+        0.14057009,
+        0.27536127
+      ]
+    },
+    "Workshop": {
+      "count": 32,
+      "min": 0.027964067,
+      "max": 0.14677228,
+      "mean": 0.06709590725,
+      "p05_p50_p95": [
+        0.032491203,
+        0.048643246,
+        0.14243734
+      ]
+    },
+    "Coworking": {
+      "count": 16,
+      "min": 0.01016242,
+      "max": 0.14292772,
+      "mean": 0.06777684759375001,
+      "p05_p50_p95": [
+        0.0121356305,
+        0.06939016,
+        0.14274655
+      ]
+    },
+    "Breakroom": {
+      "count": 24,
+      "min": 0.021045959,
+      "max": 0.13970464,
+      "mean": 0.06721758291666667,
+      "p05_p50_p95": [
+        0.022198424,
+        0.06148304,
+        0.12731428
+      ]
+    },
+    "Library": {
+      "count": 28,
+      "min": 0.044248726,
+      "max": 0.29041588,
+      "mean": 0.14428825610714285,
+      "p05_p50_p95": [
+        0.047103543,
+        0.12373175,
+        0.26652575
+      ]
+    },
+    "Training": {
+      "count": 24,
+      "min": 0.01220172,
+      "max": 0.19964717,
+      "mean": 0.06952890179166667,
+      "p05_p50_p95": [
+        0.012983688,
+        0.06431279,
+        0.18108425
+      ]
+    },
+    "Conference": {
+      "count": 24,
+      "min": 0.014914866,
+      "max": 0.47780946,
+      "mean": 0.20085373233333334,
+      "p05_p50_p95": [
+        0.015294116,
+        0.20250374,
+        0.456492
+      ]
+    },
+    "OpenOffice": {
+      "count": 32,
+      "min": 0.010483618,
+      "max": 0.20363137,
+      "mean": 0.0865714565625,
+      "p05_p50_p95": [
+        0.011031418,
+        0.06495538,
+        0.18493538
+      ]
+    },
+    "Reception": {
+      "count": 28,
+      "min": 0.031182902,
+      "max": 0.19974364,
+      "mean": 0.103798081,
+      "p05_p50_p95": [
+        0.032185726,
+        0.10204801,
+        0.19131792
+      ]
+    },
+    "Lounge": {
+      "count": 16,
+      "min": 0.030930068,
+      "max": 0.5262996,
+      "mean": 0.169930819125,
+      "p05_p50_p95": [
+        0.032751463,
+        0.072912514,
+        0.5123241
+      ]
+    }
+  },
+  "semantic_pixel_counts": {
+    "bookshelf": 581340,
+    "chair": 975495,
+    "desk": 1165233,
+    "floor": 6512820,
+    "other_prop": 366246,
+    "other_structure": 514499,
+    "paper": 60858,
+    "wall": 6113789,
+    "window": 7008342,
+    "blinds": 475850,
+    "person": 463751,
+    "table": 416720,
+    "ceiling": 2566197,
+    "lamp": 245527,
+    "door": 190924,
+    "whiteboard": 80534,
+    "books": 7071,
+    "cabinet": 209430,
+    "sofa": 317401,
+    "picture": 12392,
+    "television": 27133
+  },
+  "semantic_view_presence_fraction": {
+    "bookshelf": 0.41796875,
+    "chair": 0.9140625,
+    "desk": 0.7421875,
+    "floor": 1.0,
+    "other_prop": 0.98828125,
+    "other_structure": 0.6640625,
+    "paper": 0.71484375,
+    "wall": 1.0,
+    "window": 0.9765625,
+    "blinds": 0.25390625,
+    "person": 0.70703125,
+    "table": 0.515625,
+    "ceiling": 0.765625,
+    "lamp": 0.76953125,
+    "door": 0.46484375,
+    "whiteboard": 0.12890625,
+    "books": 0.14453125,
+    "cabinet": 0.1484375,
+    "sofa": 0.23828125,
+    "picture": 0.06640625,
+    "television": 0.0625
+  },
+  "asset_counts": {
+    "mesh_assets": {
+      "count": 64,
+      "min": 157,
+      "max": 943,
+      "mean": 399.15625,
+      "p05_p50_p95": [
+        183,
+        357,
+        748
+      ]
+    },
+    "material_assets": {
+      "count": 64,
+      "min": 81,
+      "max": 264,
+      "mean": 153.28125,
+      "p05_p50_p95": [
+        98,
+        150,
+        225
+      ]
+    },
+    "image_assets": {
+      "count": 64,
+      "min": 90,
+      "max": 119,
+      "mean": 105.046875,
+      "p05_p50_p95": [
+        94,
+        106,
+        113
+      ]
+    }
+  },
+  "capture_wall_seconds": {
+    "count": 64,
+    "min": 0.665009047,
+    "max": 4.382906517,
+    "mean": 2.164618258953125,
+    "p05_p50_p95": [
+      0.748059556,
+      2.2484302290000002,
+      3.912244258
+    ]
+  },
+  "renderer": [
+    "WgpuWrapper(AdapterInfo { name: \"NVIDIA RTX PRO 6000 Blackwell Workstation Edition\", vendor: 4318, device: 11185, device_type: DiscreteGpu, device_pci_bus_id: \"0000:01:00.0\", driver: \"NVIDIA\", driver_info: \"610.43.02\", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: false })"
+  ],
+  "annotation_precision": [
+    "float32_geometry"
+  ],
+  "capabilities": {
+    "annotation_hdr_format": "RGBA32Float_direct",
+    "bloom": true,
+    "glass_filter": "default",
+    "quality": "Auto",
+    "shadow_map_size": 2048,
+    "shadows": true,
+    "specular_transmission": true,
+    "ssao": true
+  },
+  "limits": [
+    "Signal and constraint gates do not measure photographic realism or real-office distribution match.",
+    "Camera paths checked at every captured timestep; geometry sweep is also audited separately.",
+    "Semantic pixel presence differs from scene instance counts; glazing is opaque in annotation passes.",
+    "Annotation precision is recorded explicitly; legacy HDR and native geometry captures have different error budgets.",
+    "Capture wall time includes generation, warmup, requested render work and disk IO; not FPS or isolated throughput."
+  ],
+  "darkest_views": [
+    {
+      "path": "out/paper_v18/cohort/seed_024003/view_02_color.png",
+      "seed": 24003,
+      "view": 2,
+      "mean_luminance": 0.01016242
+    },
+    {
+      "path": "out/paper_v18/cohort/seed_024022/view_02_color.png",
+      "seed": 24022,
+      "view": 2,
+      "mean_luminance": 0.010483618
+    },
+    {
+      "path": "out/paper_v18/cohort/seed_024022/view_00_color.png",
+      "seed": 24022,
+      "view": 0,
+      "mean_luminance": 0.010892332
+    },
+    {
+      "path": "out/paper_v18/cohort/seed_024022/view_01_color.png",
+      "seed": 24022,
+      "view": 1,
+      "mean_luminance": 0.011031418
+    },
+    {
+      "path": "out/paper_v18/cohort/seed_024003/view_03_color.png",
+      "seed": 24003,
+      "view": 3,
+      "mean_luminance": 0.0121356305
+    },
+    {
+      "path": "out/paper_v18/cohort/seed_024056/view_02_color.png",
+      "seed": 24056,
+      "view": 2,
+      "mean_luminance": 0.01220172
+    },
+    {
+      "path": "out/paper_v18/cohort/seed_024056/view_00_color.png",
+      "seed": 24056,
+      "view": 0,
+      "mean_luminance": 0.012983688
+    },
+    {
+      "path": "out/paper_v18/cohort/seed_024022/view_03_color.png",
+      "seed": 24022,
+      "view": 3,
+      "mean_luminance": 0.013310491
+    }
+  ],
+  "brightest_views": [
+    {
+      "path": "out/paper_v18/cohort/seed_024039/view_01_color.png",
+      "seed": 24039,
+      "view": 1,
+      "mean_luminance": 0.5262996
+    },
+    {
+      "path": "out/paper_v18/cohort/seed_024039/view_00_color.png",
+      "seed": 24039,
+      "view": 0,
+      "mean_luminance": 0.5123241
+    },
+    {
+      "path": "out/paper_v18/cohort/seed_024039/view_02_color.png",
+      "seed": 24039,
+      "view": 2,
+      "mean_luminance": 0.51014924
+    },
+    {
+      "path": "out/paper_v18/cohort/seed_024039/view_03_color.png",
+      "seed": 24039,
+      "view": 3,
+      "mean_luminance": 0.4941851
+    },
+    {
+      "path": "out/paper_v18/cohort/seed_024055/view_00_color.png",
+      "seed": 24055,
+      "view": 0,
+      "mean_luminance": 0.47780946
+    },
+    {
+      "path": "out/paper_v18/cohort/seed_024055/view_03_color.png",
+      "seed": 24055,
+      "view": 3,
+      "mean_luminance": 0.456492
+    },
+    {
+      "path": "out/paper_v18/cohort/seed_024015/view_01_color.png",
+      "seed": 24015,
+      "view": 1,
+      "mean_luminance": 0.4187742
+    },
+    {
+      "path": "out/paper_v18/cohort/seed_024015/view_00_color.png",
+      "seed": 24015,
+      "view": 0,
+      "mean_luminance": 0.41562754
+    }
+  ],
+  "largest_position_error_views": [
+    {
+      "path": "out/paper_v18/cohort/seed_024040/view_00_color.png",
+      "seed": 24040,
+      "view": 0,
+      "mean_luminance": 0.04787697
+    },
+    {
+      "path": "out/paper_v18/cohort/seed_024040/view_02_color.png",
+      "seed": 24040,
+      "view": 2,
+      "mean_luminance": 0.054411907
+    },
+    {
+      "path": "out/paper_v18/cohort/seed_024040/view_03_color.png",
+      "seed": 24040,
+      "view": 3,
+      "mean_luminance": 0.044248726
+    },
+    {
+      "path": "out/paper_v18/cohort/seed_024047/view_03_color.png",
+      "seed": 24047,
+      "view": 3,
+      "mean_luminance": 0.060031105
+    },
+    {
+      "path": "out/paper_v18/cohort/seed_024061/view_01_color.png",
+      "seed": 24061,
+      "view": 1,
+      "mean_luminance": 0.1390611
+    },
+    {
+      "path": "out/paper_v18/cohort/seed_024061/view_03_color.png",
+      "seed": 24061,
+      "view": 3,
+      "mean_luminance": 0.09731684
+    },
+    {
+      "path": "out/paper_v18/cohort/seed_024037/view_03_color.png",
+      "seed": 24037,
+      "view": 3,
+      "mean_luminance": 0.07487107
+    },
+    {
+      "path": "out/paper_v18/cohort/seed_024037/view_00_color.png",
+      "seed": 24037,
+      "view": 0,
+      "mean_luminance": 0.07288934
+    }
+  ]
+}

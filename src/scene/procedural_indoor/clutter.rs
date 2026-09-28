@@ -1,3 +1,7 @@
+pub mod beverages;
+mod tabletop;
+#[cfg(test)]
+mod tests;
 use super::{
     layout::{stream, IndoorObject, ObjectKind},
     materials::Surface,
@@ -60,39 +64,11 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
                 0.0,
             );
         }
-        ObjectKind::WaterBottle => {
-            let r = s.x.min(s.z) * 0.48;
-            a.part(
-                if o.variant == 0 {
-                    Surface::Chrome
-                } else {
-                    Surface::Ceramic
-                },
-                "other_prop",
-            )
-            .lathe(
-                &[
-                    (0.0, 0.0),
-                    (r * 0.85, 0.0),
-                    (r, s.y * 0.04),
-                    (r, s.y * 0.72),
-                    (r * 0.52, s.y * 0.83),
-                    (r * 0.50, s.y * 0.92),
-                    (0.0, s.y * 0.92),
-                ],
-                28,
-                Transform::IDENTITY,
-            );
-            a.part(Surface::Plastic, "other_prop").cylinder(
-                r * 0.57,
-                s.y * 0.09,
-                Transform::from_xyz(0.0, s.y * 0.955, 0.0),
-            );
-            a.part(Surface::Rubber, "other_prop").cylinder(
-                r * 1.008,
-                s.y * 0.015,
-                Transform::from_xyz(0.0, s.y * 0.15, 0.0),
-            );
+        ObjectKind::Mug | ObjectKind::CoffeeCup | ObjectKind::WaterBottle | ObjectKind::SodaCan => {
+            beverages::build(a, o)
+        }
+        ObjectKind::Notepad | ObjectKind::Pencil | ObjectKind::Microphone | ObjectKind::Phone => {
+            tabletop::build(a, o)
         }
         ObjectKind::PenHolder => {
             let r = s.x.min(s.z) * 0.47;

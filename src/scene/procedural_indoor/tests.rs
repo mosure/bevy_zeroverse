@@ -139,7 +139,7 @@ fn distribution_is_valid_and_covers_all_families() {
         "{:?}",
         &report.invalid_seeds[..report.invalid_seeds.len().min(10)]
     );
-    assert_eq!(report.layout_counts.len(), 4);
+    assert_eq!(report.layout_counts.len(), IndoorLayout::PROFILES.len());
     assert_eq!(report.palette_counts.len(), 6);
     assert_eq!(report.floor_counts.len(), 3);
     assert_eq!(report.lighting_counts.len(), 3);
@@ -147,7 +147,7 @@ fn distribution_is_valid_and_covers_all_families() {
     assert_eq!(report.plant_species_counts.len(), 6);
     for count in report.layout_counts.values() {
         assert!(
-            (175..=340).contains(count),
+            (60..=145).contains(count),
             "layout distribution collapsed: {report:?}"
         );
     }
@@ -188,12 +188,7 @@ fn visibility_sampling_handles_high_back_seats_and_glazed_rooms() {
 
 #[test]
 fn all_grammars_and_density_extremes_remain_valid() {
-    for layout in [
-        IndoorLayout::Conference,
-        IndoorLayout::OpenOffice,
-        IndoorLayout::Lounge,
-        IndoorLayout::Training,
-    ] {
+    for layout in IndoorLayout::PROFILES {
         for density in [0.0, 1.0] {
             for seed in 0..32 {
                 validate_layout(&IndoorManifest::generate(seed, layout, density, 8).unwrap())
@@ -310,7 +305,7 @@ fn tabletop_wood_grain_follows_the_long_axis() {
     let mut object = scene
         .objects
         .iter()
-        .find(|o| o.kind == ObjectKind::Table)
+        .find(|o| matches!(o.kind, ObjectKind::Table | ObjectKind::Desk))
         .unwrap()
         .clone();
     while super::objects::tables::parameters(&object).top_surface != Surface::Wood {
@@ -319,7 +314,15 @@ fn tabletop_wood_grain_follows_the_long_axis() {
     for size in [Vec3::new(1.5, 0.75, 3.5), Vec3::new(1.5, 0.75, 0.7)] {
         object.size = size;
         let assembly = super::objects::build_object(&object);
-        let top = &assembly.parts[&(Surface::Wood, object.kind.class_name().to_owned())];
+        let top = assembly
+            .parts
+            .iter()
+            .find(|((surface, label), _)| {
+                *surface == Surface::Wood
+                    && super::objects::part_label(label) == object.kind.class_name()
+            })
+            .unwrap()
+            .1;
         let is_top = |index: usize| top.normals[index][1] > 0.99;
         let top_indices: Vec<_> = (0..top.positions.len()).filter(|&i| is_top(i)).collect();
         let along = if size.x > size.z { 0 } else { 2 };
@@ -623,7 +626,7 @@ fn dataset_metrics_preserve_denominators_heatmap_mass_and_camera_calibration() {
         &directory,
     )
     .unwrap();
-    assert_eq!(report.object_counts_per_scene.len(), 58);
+    assert_eq!(report.object_counts_per_scene.len(), 74);
     for counts in report.object_counts_per_scene.values() {
         assert_eq!(
             counts.values().sum::<usize>(),
@@ -922,7 +925,7 @@ fn broad_full_human_occupancy_preserves_geometry_and_layout() {
                 }
             }
         }
-        assert_eq!(layouts.len(), 4);
+        assert_eq!(layouts.len(), IndoorLayout::PROFILES.len());
         assert!(
             people > 4096 && neighbors > 128,
             "full occupancy collapsed: people={people} neighboring={neighbors}"
@@ -987,7 +990,7 @@ fn furniture_programs_have_bounded_geometry_and_varied_parameters() {
     }
     assert!(plans.len() >= 4);
     assert!(designs.len() >= 24);
-    assert_eq!(chairs.len(), 6);
+    assert_eq!(chairs.len(), super::objects::chairs::FAMILIES as usize);
     assert_eq!(laptops.len(), 4);
     assert!(angles.iter().copied().fold(f32::INFINITY, f32::min) < 1.6);
     assert!(angles.iter().copied().fold(f32::NEG_INFINITY, f32::max) > 2.15);

@@ -54,6 +54,7 @@ pub(super) struct Inputs<'w, 's> {
     motion: Option<Res<'w, HumanMotionReport>>,
     indoor: Option<Res<'w, IndoorManifest>>,
     generation: Option<Res<'w, IndoorGenerationStatus>>,
+    shaders: Option<Res<'w, crate::scene::procedural_indoor::shading::IndoorShaders>>,
     roots: Query<'w, 's, Option<&'static SceneMotionPolicy>, With<ZeroverseSceneRoot>>,
     unfinished: Query<
         'w,
@@ -73,11 +74,26 @@ fn motion_ready(seed: u64, report: Option<&HumanMotionReport>) -> bool {
 }
 
 pub(super) fn update(input: Inputs, mut readiness: ResMut<CaptureReadiness>) {
-    #[cfg(not(target_arch = "wasm32"))]
     let mut input = input;
     #[cfg(not(target_arch = "wasm32"))]
     if let Some(error) = input.gi.as_ref().and_then(|gi| gi.failure()) {
         input.failure.0 = Some(error);
+    }
+    if let Err(error) = input.args.validate_ovoxel() {
+        input.failure.0 = Some(error);
+    }
+    if input.args.ovoxel_mode != crate::app::OvoxelMode::Disabled {
+        for policy in input.roots.iter().flatten() {
+            if let Err(error) = crate::ovoxel::contract::validate_config(
+                input.args.ovoxel_mode,
+                input.args.playback_steps,
+                policy.0.as_deref(),
+                input.args.ovoxel_resolution,
+                input.args.ovoxel_max_output_voxels,
+            ) {
+                input.failure.0 = Some(error);
+            }
+        }
     }
     let seed = input.indoor.as_ref().map(|scene| scene.seed);
     if readiness.scene_seed != seed {
@@ -86,7 +102,7 @@ pub(super) fn update(input: Inputs, mut readiness: ResMut<CaptureReadiness>) {
     readiness.scene_seed = seed;
     let blocker = if input.failure.0.is_some() {
         Some(CaptureBlocker::Failed)
-    } else if input.assets.is_waiting() {
+    } else if input.assets.is_waiting() || input.shaders.as_ref().is_some_and(|s| !s.ready()) {
         Some(CaptureBlocker::Assets)
     } else if input.roots.is_empty()
         || !input.unfinished.is_empty()

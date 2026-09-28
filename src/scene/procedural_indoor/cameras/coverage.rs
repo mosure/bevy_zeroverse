@@ -16,7 +16,83 @@ pub(crate) struct Coverage {
     body_points: Vec<Vec3>,
 }
 
+/// Pixel-centred proxy rays over the full calibrated frustum, not just its centre.
+pub(super) struct VisibilityView {
+    pose: Transform,
+    scale: Vec2,
+    points: Vec<Option<Vec3>>,
+}
+
 impl Coverage {
+    fn first_hit(&self, origin: Vec3, ray: Vec3) -> Option<f32> {
+        self.colliders
+            .iter()
+            .filter_map(|c| ray_box(c.inverse * (origin - c.center), c.inverse * ray, c.half))
+            .min_by(f32::total_cmp)
+    }
+
+    pub(super) fn view(&self, camera: &IndoorCamera, aspect: f32, t: f32) -> VisibilityView {
+        let pose = camera.transform_at(t);
+        let scale = Vec2::new(aspect, 1.0) * (camera.fov_degrees.to_radians() * 0.5).tan();
+        let mut points = Vec::with_capacity(117);
+        for y in 0..9 {
+            for x in 0..13 {
+                let local = Vec3::new(
+                    (2.0 * (x as f32 + 0.5) / 13.0 - 1.0) * scale.x,
+                    (2.0 * (y as f32 + 0.5) / 9.0 - 1.0) * scale.y,
+                    -1.0,
+                )
+                .normalize();
+                let ray = pose.rotation * local;
+                points.push(
+                    self.first_hit(pose.translation, ray)
+                        .filter(|&d| (-local.z * d) >= 0.1 && (-local.z * d) <= 50.0)
+                        .map(|d| pose.translation + ray * d),
+                );
+            }
+        }
+        VisibilityView {
+            pose,
+            scale,
+            points,
+        }
+    }
+
+    /// Fraction of source pixels whose first surface is also visible in target,
+    /// and the mean triangulation angle of those correspondences (degrees).
+    pub(super) fn shared(&self, source: &VisibilityView, target: &VisibilityView) -> (f32, f32) {
+        let mut visible = 0;
+        let mut angle = 0.0;
+        for point in source.points.iter().flatten() {
+            let delta = *point - target.pose.translation;
+            let local = target.pose.rotation.inverse() * delta;
+            if -local.z < 0.1
+                || -local.z > 50.0
+                || local.x.abs() >= -local.z * target.scale.x
+                || local.y.abs() >= -local.z * target.scale.y
+            {
+                continue;
+            }
+            let distance = delta.length();
+            if self
+                .first_hit(target.pose.translation, delta / distance)
+                .is_some_and(|hit| (hit - distance).abs() <= 0.002 * distance + 0.005)
+            {
+                visible += 1;
+                angle += (delta
+                    .normalize()
+                    .dot((*point - source.pose.translation).normalize()))
+                .clamp(-1.0, 1.0)
+                .acos()
+                .to_degrees();
+            }
+        }
+        (
+            visible as f32 / source.points.len() as f32,
+            angle / visible.max(1) as f32,
+        )
+    }
+
     pub fn new(scene: &IndoorManifest) -> Self {
         let mut colliders = Vec::new();
         let mut bounds = |lo: Vec3, hi: Vec3, label| {
@@ -209,6 +285,52 @@ fn ray_box(origin: Vec3, direction: Vec3, half: Vec3) -> Option<f32> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn shared_surfaces_require_visibility_and_actual_frustum() {
+        let point = Vec3::new(0.0, 0.0, -4.0);
+        let a = VisibilityView {
+            pose: Transform::IDENTITY,
+            scale: Vec2::ONE,
+            points: vec![Some(point)],
+        };
+        let mut b = VisibilityView {
+            pose: Transform::from_xyz(2.0, 0.0, 0.0).looking_at(point, Vec3::Y),
+            scale: Vec2::ONE,
+            points: vec![Some(point)],
+        };
+        let mut coverage = Coverage {
+            colliders: vec![Collider {
+                center: point - Vec3::Z * 0.01,
+                half: Vec3::new(10.0, 10.0, 0.01),
+                inverse: Quat::IDENTITY,
+                label: "wall",
+            }],
+            body_points: Vec::new(),
+        };
+        let (fraction, angle) = coverage.shared(&a, &b);
+        assert_eq!(fraction, 1.0);
+        assert!((angle - 26.56505).abs() < 0.001);
+        coverage.colliders.push(Collider {
+            center: Vec3::new(1.0, 0.0, -2.0),
+            half: Vec3::splat(0.2),
+            inverse: Quat::IDENTITY,
+            label: "wall",
+        });
+        assert_eq!(
+            coverage.shared(&a, &b).0,
+            0.0,
+            "a common target behind an occluder is not shared geometry"
+        );
+        coverage.colliders.pop();
+        b.pose.rotation = Quat::IDENTITY;
+        b.scale.x = 0.1; // narrow horizontal / portrait view excludes point
+        assert_eq!(coverage.shared(&a, &b).0, 0.0);
+        b.scale.x = 1.0;
+        assert_eq!(coverage.shared(&a, &b).0, 1.0);
+        b.pose.rotation = Quat::from_rotation_y(std::f32::consts::PI);
+        assert_eq!(coverage.shared(&a, &b).0, 0.0);
+    }
+
     #[test]
     fn body_points_behind_annotation_opaque_glazing_are_hidden() {
         let mut coverage = Coverage {
