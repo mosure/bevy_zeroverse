@@ -285,7 +285,13 @@ impl IndoorManifest {
             // from a dining shell or a lounge armchair.
             2..=4 => chair.size.y = 0.80 + (height - 0.83) / 0.61 * 0.32,
             6 => chair.size.y = 0.48,
-            7 => chair.size.y = 0.79,
+            7 => {
+                chair.size.y = if super::super::objects::chairs::is_backless(&chair) {
+                    0.48
+                } else {
+                    0.79
+                }
+            }
             8 => {
                 chair.size.y = 0.78 + (height - 0.83) / 0.61 * 0.30;
                 chair.size.x = rng.random_range(0.77..1.02);

@@ -36,6 +36,7 @@ pub struct View {
     pub semantic: Vec<u8>,
     pub optical_flow: Vec<u8>,
     pub motion_vectors: Vec<u8>,
+    pub co_visibility: Vec<u8>,
     pub position: Vec<u8>,
 
     #[pyo3(get, set)]
@@ -63,6 +64,7 @@ impl From<core_sample::View> for View {
             semantic: value.semantic,
             optical_flow: value.optical_flow,
             motion_vectors: value.motion_vectors,
+            co_visibility: value.co_visibility,
             position: value.position,
             world_from_view: value.world_from_view,
             fovy: value.fovy,
@@ -103,6 +105,11 @@ impl View {
     #[getter]
     fn motion_vectors<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
         PyBytes::new(py, &self.motion_vectors)
+    }
+
+    #[getter]
+    fn co_visibility<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
+        PyBytes::new(py, &self.co_visibility)
     }
 
     #[getter]
@@ -219,6 +226,8 @@ pub struct Sample {
     #[pyo3(get)]
     pub indoor_render_metadata: Option<String>,
     #[pyo3(get)]
+    pub co_visibility_metadata: Option<String>,
+    #[pyo3(get)]
     pub color_encoding: String,
     #[pyo3(get)]
     pub annotation_precision: String,
@@ -257,6 +266,10 @@ impl From<core_sample::Sample> for Sample {
     fn from(value: core_sample::Sample) -> Self {
         let views = value.views.into_iter().map(View::from).collect();
         Sample {
+            co_visibility_metadata: value
+                .co_visibility_metadata
+                .as_ref()
+                .map(|m| serde_json::to_string(m).expect("valid co-visibility metadata")),
             indoor_render_metadata: value
                 .indoor_render_metadata
                 .as_ref()

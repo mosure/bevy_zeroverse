@@ -152,6 +152,7 @@ fn mode_name(mode: &RenderMode) -> &'static str {
         RenderMode::OpticalFlow => "optical_flow",
         RenderMode::Position => "position",
         RenderMode::Semantic => "semantic",
+        RenderMode::CoVisibility => "co-visibility",
     }
 }
 

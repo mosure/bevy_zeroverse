@@ -812,6 +812,16 @@ pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) 
     };
     args.validate_ovoxel()
         .expect("invalid O-voxel capture configuration");
+    crate::render::co_visibility::validate_config(
+        &args
+            .render_modes
+            .iter()
+            .chain(std::iter::once(&args.render_mode))
+            .cloned()
+            .collect::<Vec<_>>(),
+        args.num_cameras as usize,
+    )
+    .expect("invalid co-visibility configuration");
 
     #[cfg(target_arch = "wasm32")]
     assert!(
@@ -991,7 +1001,11 @@ pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) 
         app.add_systems(PreUpdate, setup_material_grid);
         app.add_systems(
             PostUpdate,
-            (setup_camera.in_set(EditorCameraSetup), setup_camera_grid),
+            (
+                setup_camera.in_set(EditorCameraSetup),
+                setup_camera_grid,
+                update_camera_grid_images,
+            ),
         );
     }
 
@@ -1125,7 +1139,8 @@ fn setup_camera(
         commands.spawn((
             Camera2d,
             Camera {
-                order: 1,
+                // Keep UI above the editor and its optional pose overlay.
+                order: 2,
                 clear_color: clear,
                 output_mode: bevy::camera::CameraOutputMode::Write {
                     blend_state: Some(bevy::render::render_resource::BlendState::ALPHA_BLENDING),
@@ -1202,11 +1217,48 @@ pub struct CameraGrid;
 pub struct CameraGridMarker;
 
 #[cfg(feature = "viewer")]
+#[derive(Component)]
+struct CameraGridSource(Entity);
+
+#[cfg(feature = "viewer")]
+fn update_camera_grid_images(
+    mode: Res<RenderMode>,
+    cameras: Query<(
+        &RenderTarget,
+        Option<&crate::render::ground_truth::GroundTruthCamera>,
+    )>,
+    mut images: Query<(&CameraGridSource, &mut ImageNode)>,
+) {
+    for (source, mut image) in &mut images {
+        let Ok((RenderTarget::Image(target), gt)) = cameras.get(source.0) else {
+            continue;
+        };
+        let handle = if *mode == RenderMode::CoVisibility {
+            gt.and_then(|g| g.co_visibility.as_ref())
+                .and_then(|c| c.preview.as_ref())
+                .unwrap_or(&target.handle)
+        } else {
+            &target.handle
+        };
+        if image.image != *handle {
+            image.image = handle.clone();
+        }
+    }
+}
+
+#[cfg(feature = "viewer")]
 fn setup_camera_grid(
     mut commands: Commands,
     args: Res<BevyZeroverseConfig>,
     camera_grids: Query<Entity, With<CameraGrid>>,
-    zeroverse_cameras: Query<(Entity, &RenderTarget), With<ZeroverseCamera>>,
+    zeroverse_cameras: Query<
+        (
+            Entity,
+            &RenderTarget,
+            Option<&crate::camera::CaptureCameraIndex>,
+        ),
+        With<ZeroverseCamera>,
+    >,
     new_zeroverse_cameras: Query<Entity, (With<ZeroverseCamera>, Without<CameraGridMarker>)>,
     mut scene_loaded: MessageReader<SceneLoadedEvent>,
     mut previous_camera_grid: Local<Option<bool>>,
@@ -1234,7 +1286,11 @@ fn setup_camera_grid(
     }
 
     if args.camera_grid {
-        let camera_count = zeroverse_cameras.iter().count();
+        let mut cameras: Vec<_> = zeroverse_cameras.iter().collect();
+        cameras.sort_by_key(|(entity, _, index)| {
+            (index.map_or(usize::MAX, |i| i.0), entity.to_bits())
+        });
+        let camera_count = cameras.len();
         let rows = (camera_count as f32).sqrt().ceil() as u16;
         let cols = (camera_count as f32 / rows as f32).ceil() as u16;
 
@@ -1253,16 +1309,19 @@ fn setup_camera_grid(
                 BackgroundColor(Color::srgb(0.025, 0.028, 0.032)),
             ))
             .with_children(|builder| {
-                for (_, target) in zeroverse_cameras.iter() {
+                for (entity, target, _) in cameras {
                     let texture = match target.clone() {
                         RenderTarget::Image(texture) => texture,
                         _ => continue,
                     };
 
-                    builder.spawn(ImageNode {
-                        image: texture.handle,
-                        ..default()
-                    });
+                    builder.spawn((
+                        CameraGridSource(entity),
+                        ImageNode {
+                            image: texture.handle,
+                            ..default()
+                        },
+                    ));
                 }
             });
     }

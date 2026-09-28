@@ -64,6 +64,17 @@ fn grammar_spans_actions_and_gaits_with_bounded_coherent_text() {
         let mut points = path(config.frames);
         let draft = stationary(sample, &mut points, &config, false, &mut rng);
         assert!(fits(&draft.text));
+        assert!(
+            [
+                &draft.recipe.style,
+                &draft.recipe.arm_style,
+                &draft.recipe.gaze
+            ]
+            .iter()
+            .filter(|v| v.is_some())
+            .count()
+                <= 1
+        );
         assert!(!draft.text.contains(['{', '}']));
         assert!(!draft.text.contains("  "));
         assert!(!draft.text.contains("one jumping jacks"));
@@ -77,13 +88,24 @@ fn grammar_spans_actions_and_gaits_with_bounded_coherent_text() {
         let draft = locomotion("walk", &mut points, &config, 1.0, &mut rng);
         gaits.insert(draft.recipe.gait.unwrap());
         assert!(fits(&draft.text));
+        assert!(
+            [
+                &draft.recipe.style,
+                &draft.recipe.arm_style,
+                &draft.recipe.gaze
+            ]
+            .iter()
+            .filter(|v| v.is_some())
+            .count()
+                <= 1
+        );
         texts.insert(draft.text);
     }
     assert_eq!(actions.len(), catalog::ACTIONS.len());
     assert_eq!(gaits.len(), GAITS.len());
     assert!(
-        texts.len() > 1800,
-        "insufficient compositional text diversity: {}",
+        texts.len() > 500,
+        "lost core action/side/count diversity: {}",
         texts.len()
     );
     check_token_budget(&texts);
@@ -104,6 +126,17 @@ fn sequences_preserve_routes_and_bind_actions_to_ordered_waypoints() {
         let mut rng = stream(seed, 33);
         let draft = walking_sequence(&mut points, &config, 1.8, 1.0, &[], &mut rng).unwrap();
         assert!(fits(&draft.text));
+        assert!(
+            [
+                &draft.recipe.style,
+                &draft.recipe.arm_style,
+                &draft.recipe.gaze
+            ]
+            .iter()
+            .filter(|v| v.is_some())
+            .count()
+                <= 1
+        );
         texts.insert(draft.text.clone());
         assert_eq!(points.first().unwrap().frame, 0);
         assert_eq!(points.last().unwrap().frame, 239);

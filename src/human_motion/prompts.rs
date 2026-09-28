@@ -11,7 +11,7 @@ use rand::Rng;
 pub(super) use sequence::walking_sequence;
 use serde::{Deserialize, Serialize};
 
-pub const PROMPT_PROGRAM_VERSION: u32 = 1;
+pub const PROMPT_PROGRAM_VERSION: u32 = 2;
 const STANDING_PELVIS: f32 = 0.94;
 const MAX_PROMPT_BYTES: usize = 230;
 const MAX_PROMPT_WORDS: usize = 36;
@@ -70,7 +70,7 @@ impl Default for PromptSamplingConfig {
             dance: 0.5,
             floor: 0.35,
             idle: 0.5,
-            style_fraction: 0.8,
+            style_fraction: 0.35,
             max_sequence_actions: 2,
         }
     }
@@ -191,64 +191,36 @@ fn finish(
     rng: &mut impl Rng,
 ) -> String {
     let mut text = core;
+    // A single optional modifier keeps conditioning focused on the action.
+    // Previously a clip could request a gait, folded arms, stiff posture and a
+    // gaze change simultaneously, often contradicting the timed action stops.
     if rng.random_bool(config.style_fraction as f64) {
-        if allow_gaze {
-            let styles: &[&str] = if recipe
-                .gait
-                .as_deref()
-                .is_some_and(|g| matches!(g, "skip" | "jog"))
-            {
-                &["short arm swings", "loose arm swings", "bent elbows"]
-            } else {
-                &[
-                    "arms at the sides",
-                    "hands behind the back",
-                    "hands on the hips",
-                    "arms loosely folded",
-                    "one hand at the waist",
-                    "loose arm swings",
-                    "bent elbows",
-                ]
-            };
-            let arms = choose(styles, rng);
-            if fits(&format!("{text} with {arms}.")) {
-                text.push_str(" with ");
-                text.push_str(arms);
-                recipe.arm_style = Some(arms.into());
-            }
-        }
-
-        let style = choose(
-            &[
-                "carefully",
-                "with a loose posture",
-                "with a stiff posture",
-                "with relaxed shoulders",
-                "with controlled motion",
-                "with light movements",
-            ],
-            rng,
-        );
-        if fits(&format!("{text} {style}.")) {
+        let choice = rng.random_range(0..if allow_gaze { 3 } else { 1 });
+        let (suffix, field) = match choice {
+            1 => (
+                choose(
+                    &[
+                        "with relaxed arm swings",
+                        "with small arm swings",
+                        "with one hand at the waist",
+                    ],
+                    rng,
+                ),
+                &mut recipe.arm_style,
+            ),
+            2 => (
+                choose(&["looking ahead", "glancing left", "glancing right"], rng),
+                &mut recipe.gaze,
+            ),
+            _ => (
+                choose(&["carefully", "with relaxed shoulders", "smoothly"], rng),
+                &mut recipe.style,
+            ),
+        };
+        if fits(&format!("{text} {suffix}.")) {
             text.push(' ');
-            text.push_str(style);
-            recipe.style = Some(style.into());
-        }
-        if allow_gaze && rng.random_bool(0.5) {
-            let gaze = choose(
-                &[
-                    "looking ahead",
-                    "glancing left",
-                    "glancing right",
-                    "looking down",
-                ],
-                rng,
-            );
-            if fits(&format!("{text} {gaze}.")) {
-                text.push(' ');
-                text.push_str(gaze);
-                recipe.gaze = Some(gaze.into());
-            }
+            text.push_str(suffix);
+            *field = Some(suffix.into());
         }
     }
     text.push('.');

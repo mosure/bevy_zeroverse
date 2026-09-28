@@ -278,8 +278,8 @@ fn build_impl(
         .enumerate()
         .filter(|(i, v)| {
             let bone = &labels[dominant[*i]];
-            v.y > rest_pelvis.y
-                && v.y < rest_chest.y
+            v.y > rest_pelvis.y - 0.06
+                && v.y < rest_chest.y + 0.05
                 && (bone.starts_with("spine") || bone.starts_with("breast"))
         })
         .map(|(_, v)| v)
@@ -292,19 +292,14 @@ fn build_impl(
         .iter()
         .map(|v| v.z)
         .fold(f32::NEG_INFINITY, f32::max);
+    let waist = rest_pelvis.y
+        + (rest_chest.y - rest_pelvis.y) * h.appearance.as_ref().map_or(0.14, |a| a.hem_fraction);
     let cut = super::garments::GarmentCut {
-        waist: rest_pelvis.y
-            + (rest_chest.y - rest_pelvis.y)
-                * h.appearance.as_ref().map_or(0.14, |a| a.hem_fraction),
+        waist,
         neck: head("neck01").y,
         chest: rest_chest.y - 0.03,
-        torso_half_width: head("upperarm01.L")
-            .x
-            .abs()
-            .max(head("upperarm01.R").x.abs())
-            * 0.94,
         depth_center: (front + back) * 0.5,
-        torso_half_depth: (back - front) * 0.5,
+        fit: super::garments::fit::TorsoFit::new(&torso_vertices, waist, rest_chest.y),
         shoe_top: (head("foot.L").y + head("foot.R").y) * 0.5 + 0.015,
         cuffs: ["L", "R"].map(|side| {
             let elbow = head(&format!("lowerarm01.{side}"));
@@ -359,14 +354,30 @@ fn build_impl(
     for (offset, count) in offsets.iter_mut().zip(incident_faces) {
         *offset /= count.max(1) as f32;
     }
+    let fold_joints = [
+        "lowerarm01.L",
+        "lowerarm01.R",
+        "lowerleg01.L",
+        "lowerleg01.R",
+    ]
+    .map(head);
     for (i, offset) in offsets.iter_mut().enumerate() {
         if *offset > 0.006 {
             if let Some(a) = &h.appearance {
                 let v = vertices[i] * scale;
-                let wave = (v.y * a.fold_frequency + (v.x * 11.0).sin() * 1.8 + v.z * 7.0).sin();
-                // Compression folds are attenuated at garment seams by the shared
-                // offset field. One displaced position is used by all incident faces.
-                *offset += a.fold_amplitude * wave * (*offset / a.garment_ease).clamp(0.0, 1.0);
+                // Loose vertical drape plus short compression wrinkles near
+                // the hem/elbows/knees. Avoid identical horizontal bands across
+                // the entire torso, which read as layered plastic.
+                let hem = (-(vertices[i].y - waist).powi(2) / 0.009).exp();
+                let joint = fold_joints
+                    .iter()
+                    .map(|joint| (-(vertices[i] - *joint).length_squared() / 0.014).exp())
+                    .fold(hem, f32::max);
+                let drape = (v.x * a.fold_frequency * 0.75 + (v.y * 6.0).sin() + v.z * 9.0).sin();
+                let compression = (v.y * a.fold_frequency + v.x * 13.0 + (v.z * 8.0).sin()).sin();
+                *offset += a.fold_amplitude
+                    * (0.30 * drape + joint * compression)
+                    * (*offset / a.garment_ease).clamp(0.0, 1.0);
             }
         }
     }
@@ -437,6 +448,15 @@ fn build_impl(
             }
         }
     }
+    super::garments::details::append(
+        h,
+        &cut,
+        &vertices,
+        faces,
+        &garment_positions,
+        &normals,
+        &mut mesh,
+    );
     // Eye and eyewear details attach to Anny's facial rig, following head turns.
     let face_rotation = head_rotation;
     let forward = face_rotation * Vec3::NEG_Z;

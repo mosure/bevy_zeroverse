@@ -439,6 +439,7 @@ pub fn save_chunk_with_codec(
         ("position", 4),
         ("optical_flow", 5),
         ("motion_vectors", 6),
+        ("co_visibility", 7),
     ] {
         let present: Vec<bool> = samples
             .iter()
@@ -452,6 +453,7 @@ pub fn save_chunk_with_codec(
                     &view.position,
                     &view.optical_flow,
                     &view.motion_vectors,
+                    &view.co_visibility,
                 ][channel]
                     .is_empty()
             })
@@ -921,6 +923,10 @@ pub fn save_chunk_with_codec(
         samples,
         [b, steps, view_dim, height as usize, width as usize],
     )?);
+    tensors.extend(crate::co_visibility::encode(
+        samples,
+        [b, steps, view_dim, height as usize, width as usize],
+    )?);
     if let Some(position) = position {
         push_tensor("position", position, 3, &mut tensors)?;
     }
@@ -1210,6 +1216,7 @@ pub fn load_chunk(path: impl AsRef<Path>) -> Result<Vec<ZeroverseSample>> {
             ovoxel: None,
             indoor: None,
             indoor_render_metadata: None,
+            co_visibility_metadata: None,
             annotation_precision: Default::default(),
             color_encoding: Default::default(),
         };
@@ -1783,6 +1790,7 @@ pub fn load_chunk(path: impl AsRef<Path>) -> Result<Vec<ZeroverseSample>> {
     }
 
     crate::flow::decode(&tensors, &mut samples, [b, steps, view_dim, height, width])?;
+    crate::co_visibility::decode(&tensors, &mut samples, [b, steps, view_dim, height, width])?;
     Ok(samples)
 }
 
@@ -1812,6 +1820,7 @@ mod tests {
         ZeroverseSample {
             indoor: None,
             indoor_render_metadata: None,
+            co_visibility_metadata: None,
             annotation_precision: Default::default(),
             color_encoding: Default::default(),
             views: vec![bevy_zeroverse::sample::View::default()],
@@ -1837,6 +1846,7 @@ mod tests {
         ZeroverseSample {
             indoor: None,
             indoor_render_metadata: None,
+            co_visibility_metadata: None,
             annotation_precision: Default::default(),
             color_encoding: Default::default(),
             views: vec![bevy_zeroverse::sample::View::default()],
@@ -1869,6 +1879,7 @@ mod tests {
         ZeroverseSample {
             indoor: None,
             indoor_render_metadata: None,
+            co_visibility_metadata: None,
             annotation_precision: Default::default(),
             color_encoding: Default::default(),
             views: vec![bevy_zeroverse::sample::View::default()],
@@ -1948,6 +1959,7 @@ mod tests {
         let sample = ZeroverseSample {
             indoor: None,
             indoor_render_metadata: None,
+            co_visibility_metadata: None,
             annotation_precision: Default::default(),
             color_encoding: Default::default(),
             views: vec![bevy_zeroverse::sample::View::default(); 2],

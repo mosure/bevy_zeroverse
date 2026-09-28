@@ -41,6 +41,10 @@ pub struct HumanMotionConfig {
     pub max_actors: usize,
     pub frames: usize,
     pub diffusion_steps: usize,
+    /// Context retained between ARDY autoregressive windows, at 20 Hz.
+    pub history_frames: usize,
+    /// Constrain the whole interpolated navigation path, not only key waypoints.
+    pub dense_trajectory: bool,
     pub batch_size: usize,
     /// Bounded independent model samples for rejected clips; models stay cached.
     pub max_attempts: usize,
@@ -63,6 +67,8 @@ impl Default for HumanMotionConfig {
             max_actors: 8,
             frames: 160,
             diffusion_steps: 10,
+            history_frames: 80,
+            dense_trajectory: true,
             batch_size: 2,
             max_attempts: 2,
             text_guidance: 2.0,
@@ -93,12 +99,14 @@ impl HumanMotionConfig {
             || !(40..=640).contains(&self.frames)
             || !self.frames.is_multiple_of(4)
             || !(1..=10).contains(&self.diffusion_steps)
+            || self.history_frames > 160
+            || !self.history_frames.is_multiple_of(4)
             || [self.text_guidance, self.trajectory_guidance]
                 .iter()
                 .any(|v| !v.is_finite() || !(0.0..=10.0).contains(v))
             || self.trajectories.len() > self.max_actors
         {
-            return Err("invalid motion fraction, actor limit (1..16), batch limit (1..8), frames (40..640, multiple of 4), or guidance".into());
+            return Err("invalid motion fraction, actor limit (1..16), batch limit (1..8), frames (40..640, multiple of 4), steps (1..10), history (0..160, multiple of 4), or guidance".into());
         }
         let mut ids = std::collections::HashSet::new();
         for trajectory in &self.trajectories {
@@ -119,12 +127,12 @@ impl HumanMotionConfig {
             prompt,
             seed,
             frames: self.frames,
-            history_frames: 80,
+            history_frames: self.history_frames,
             diffusion_steps: self.diffusion_steps,
             text_guidance: self.text_guidance,
             trajectory_guidance: self.trajectory_guidance,
             waypoints,
-            dense_trajectory: true,
+            dense_trajectory: self.dense_trajectory,
         }
     }
 }
@@ -189,5 +197,38 @@ impl Plugin for HumanMotionPlugin {
                 }
             },
         );
+    }
+}
+
+#[cfg(test)]
+mod policy_tests {
+    use super::*;
+    #[test]
+    fn sampler_controls_validate_and_reach_model_requests() {
+        let policy = HumanMotionConfig::parse(r#"{"diffusion_steps":8,"history_frames":40,"frames":124,"text_guidance":1.5,"trajectory_guidance":2.5,"dense_trajectory":false}"#).unwrap();
+        let request = policy.request("A person walks.".into(), 17, vec![]);
+        assert_eq!(
+            (
+                request.diffusion_steps,
+                request.history_frames,
+                request.frames
+            ),
+            (8, 40, 124)
+        );
+        assert_eq!(
+            (request.text_guidance, request.trajectory_guidance),
+            (1.5, 2.5)
+        );
+        assert!(!request.dense_trajectory);
+        for invalid in [
+            r#"{"diffusion_steps":11}"#,
+            r#"{"history_frames":3}"#,
+            r#"{"history_frames":164}"#,
+        ] {
+            assert!(HumanMotionConfig::parse(invalid).is_err());
+        }
+        let legacy = HumanMotionConfig::parse("{}").unwrap();
+        assert_eq!(legacy.history_frames, 80);
+        assert!(legacy.dense_trajectory);
     }
 }

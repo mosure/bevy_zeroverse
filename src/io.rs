@@ -345,7 +345,7 @@ pub mod image_copy {
                 .in_set(ImageCopyLabel)
                 .in_set(RenderGraphSystems::Render);
             #[cfg(not(target_arch = "wasm32"))]
-            let copy = copy.after(crate::render::ground_truth::GroundTruthLabel);
+            let copy = copy.after(crate::render::co_visibility::CoVisibilityLabel);
             render_app.add_systems(RenderGraph, copy);
         }
     }

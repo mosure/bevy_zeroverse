@@ -86,6 +86,7 @@ fn make_sample(width: u32, height: u32) -> Sample {
         normal: make_rgba_bytes(width, height, 0.3),
         optical_flow: Vec::new(),
         motion_vectors: Vec::new(),
+        co_visibility: Vec::new(),
         position: make_rgba_bytes(width, height, 0.5),
         world_from_view: [
             [1.0, 0.0, 0.0, 0.0],
@@ -113,6 +114,7 @@ fn make_sample(width: u32, height: u32) -> Sample {
     Sample {
         indoor: None,
         indoor_render_metadata: None,
+        co_visibility_metadata: None,
         annotation_precision: Default::default(),
         color_encoding: Default::default(),
         views: vec![view],

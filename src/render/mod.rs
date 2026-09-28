@@ -12,9 +12,9 @@ use pyo3::prelude::*;
 use crate::primitive::process_primitives;
 
 mod annotation_material;
+pub mod co_visibility;
 pub mod color;
 pub mod depth;
-#[cfg(not(target_arch = "wasm32"))]
 pub mod ground_truth;
 pub mod normal;
 pub mod optical_flow;
@@ -24,7 +24,6 @@ pub mod semantic;
 
 /// Upload through queue staging instead of CPU-writing a mapped device-local
 /// allocation. Large mapped-at-creation copies can stall on discrete GPUs.
-#[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn upload_buffer(
     device: &bevy::render::renderer::RenderDevice,
     queue: &bevy::render::renderer::RenderQueue,
@@ -59,6 +58,7 @@ pub enum RenderMode {
     OpticalFlow,
     Position,
     Semantic,
+    CoVisibility,
 }
 
 impl RenderMode {
@@ -92,6 +92,10 @@ impl RenderMode {
     }
 }
 
+/// Editor overlays must never enter dataset geometry or annotation materials.
+#[derive(Component)]
+pub(crate) struct RenderOnlyOverlay;
+
 #[derive(Debug, Default)]
 pub struct RenderPlugin;
 
@@ -106,8 +110,8 @@ impl Plugin for RenderPlugin {
         app.add_plugins(position::PositionPlugin);
         app.add_plugins(semantic::SemanticPlugin);
         app.add_plugins(residency::RenderResidencyPlugin);
-        #[cfg(not(target_arch = "wasm32"))]
         app.add_plugins(ground_truth::GroundTruthPlugin);
+        app.add_plugins(co_visibility::CoVisibilityPlugin);
 
         // TODO: add wireframe depth, pbr disable, normals
         app.add_systems(
@@ -212,11 +216,11 @@ pub(crate) fn enable_pbr_material(
 pub(crate) fn apply_render_modes(
     mut commands: Commands,
     render_mode: Res<RenderMode>,
-    meshes: Query<Entity, With<Mesh3d>>,
-    new_meshes: Query<Entity, Added<Mesh3d>>,
+    meshes: Query<Entity, (With<Mesh3d>, Without<RenderOnlyOverlay>)>,
+    new_meshes: Query<Entity, (Added<Mesh3d>, Without<RenderOnlyOverlay>)>,
 ) {
     let insert_render_mode_flag = |commands: &mut Commands, entity: Entity| match *render_mode {
-        RenderMode::Color => {
+        RenderMode::Color | RenderMode::CoVisibility => {
             commands.entity(entity).insert(EnablePbrMaterial);
         }
         RenderMode::Depth => {

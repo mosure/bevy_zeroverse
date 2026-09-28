@@ -112,3 +112,18 @@ and both masks through raw/compressed safetensors and NPZ, including captures
 without RGB. The indoor audit checks camera-only reprojection on static surfaces
 and requires every eligible static surface to retain its correspondence. It also
 reports person motion remaining after removing camera motion.
+
+## Interactive preview
+
+The native/WebGPU viewer scales Bevy's per-frame motion vectors by the actual
+frame duration and a configurable reference interval (default 0.05 seconds).
+The **Flow preview interval** and **Flow color scale** controls are in Rendering
+and annotations. A constant image velocity therefore keeps the same color at
+30, 60 or 120 FPS. Pause produces zero flow; regeneration and playback wrap
+suppress invalid temporal history for two frames.
+
+This preview is a backward-difference velocity estimate displayed on the current
+image, not an exact finite-interval correspondence field. Fast acceleration,
+visibility changes and low frame rates can still affect it. Dataset optical flow
+and motion vectors continue to use exact captured endpoints and their validity
+and visibility masks; preview settings do not alter those exports.

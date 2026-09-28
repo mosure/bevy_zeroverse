@@ -66,8 +66,8 @@ impl Plugin for ZeroverseCameraPlugin {
         app.insert_gizmo_config(
             PoseGizmoConfigGroup,
             GizmoConfig {
-                render_layers: EDITOR_CAMERA_RENDER_LAYER,
-                // Depth-tested like camera and box gizmos; walls occlude joints.
+                render_layers: crate::annotation::pose::overlay::LAYER,
+                // The pose overlay tests only environment depth, excluding people.
                 depth_bias: 0.0,
                 ..default()
             },
@@ -1122,6 +1122,11 @@ fn insert_cameras(
                     .iter()
                     .chain(std::iter::once(&args.render_mode))
                     .any(RenderMode::is_flow)
+                || args
+                    .render_modes
+                    .iter()
+                    .chain(std::iter::once(&args.render_mode))
+                    .any(|m| *m == RenderMode::CoVisibility)
             {
                 let mut ground_truth =
                     crate::render::ground_truth::GroundTruthCamera::new(&mut images, resolution);
@@ -1134,6 +1139,14 @@ fn insert_cameras(
                     .any(RenderMode::is_flow)
                 {
                     targets.push(ground_truth.enable_flow(&mut images));
+                }
+                if args
+                    .render_modes
+                    .iter()
+                    .chain(std::iter::once(&args.render_mode))
+                    .any(|m| *m == RenderMode::CoVisibility)
+                {
+                    targets.push(ground_truth.enable_co_visibility(&mut images, resolution));
                 }
                 camera.insert(ground_truth);
             }
@@ -1252,6 +1265,11 @@ fn setup_editor_camera(
     editor_cameras: Query<(Entity, &EditorCameraMarker), Without<ProcessedEditorCameraMarker>>,
     render_mode: Res<RenderMode>,
 ) {
+    let render_mode = if *render_mode == RenderMode::CoVisibility {
+        &RenderMode::Color
+    } else {
+        &render_mode
+    };
     for (entity, marker) in editor_cameras.iter() {
         let render_layer = RenderLayers::default().union(&EDITOR_CAMERA_RENDER_LAYER);
         let mut entity = commands.entity(entity);
@@ -1299,14 +1317,19 @@ pub fn update_render_pipeline(
         return;
     }
 
-    for camera_entity in editor_cameras.iter().chain(zeroverse_cameras.iter()) {
+    let editor_mode = if *render_mode == RenderMode::CoVisibility {
+        &RenderMode::Color
+    } else {
+        &render_mode
+    };
+    for camera_entity in editor_cameras.iter() {
         let mut entity = commands.entity(camera_entity);
         entity
-            .insert(render_mode.dither())
-            .insert(render_mode.msaa())
-            .insert(render_mode.tonemapping());
+            .insert(editor_mode.dither())
+            .insert(editor_mode.msaa())
+            .insert(editor_mode.tonemapping());
 
-        if let Some(bloom) = render_mode.bloom() {
+        if let Some(bloom) = editor_mode.bloom() {
             entity.insert(bloom);
         } else {
             entity.remove::<Bloom>();

@@ -699,6 +699,7 @@ pub fn load_sample_dir(dir: impl AsRef<Path>) -> Result<ZeroverseSample> {
             "position",
             "optical_flow",
             "motion_vectors",
+            "co_visibility",
         ] {
             for entry in fs::read_dir(dir)? {
                 let path = entry?.path();
@@ -708,8 +709,15 @@ pub fn load_sample_dir(dir: impl AsRef<Path>) -> Result<ZeroverseSample> {
                         .and_then(|stem| stem.to_str())
                         .and_then(|stem| parse_indices(stem, &format!("{name}_")))
                 {
-                    let (_, shape) =
-                        load_npz_array(&path, name)?.context("annotation plane missing")?;
+                    let shape = if name == "co_visibility" {
+                        let mut archive = ndarray_npy::NpzReader::new(std::fs::File::open(&path)?)?;
+                        let array: ndarray::Array3<u16> = archive.by_name(name)?;
+                        array.shape().to_vec()
+                    } else {
+                        load_npz_array(&path, name)?
+                            .context("annotation plane missing")?
+                            .1
+                    };
                     anyhow::ensure!(
                         shape.len() >= 2,
                         "annotation image must have height/width dimensions"
@@ -732,6 +740,19 @@ pub fn load_sample_dir(dir: impl AsRef<Path>) -> Result<ZeroverseSample> {
     let views: BTreeSet<usize> = captured_files.iter().map(|(_, v, _)| *v).collect();
     let steps = timesteps.len().max(1);
     let view_dim = views.len().max(1);
+
+    if dir.join("co_visibility_metadata.json").exists() {
+        anyhow::ensure!(
+            timesteps.iter().copied().eq(0..steps) && views.iter().copied().eq(0..view_dim),
+            "non-contiguous co-visibility camera/timestep set"
+        );
+        let bytes = fs::read(dir.join(META_FILE))?;
+        let tensors = SafeTensors::deserialize(&bytes)?;
+        anyhow::ensure!(
+            tensors.tensor("fovy")?.shape() == [steps, view_dim, 1],
+            "co-visibility image set differs from calibrated camera/timestep metadata"
+        );
+    }
 
     let mut color_map: BTreeMap<(usize, usize), PathBuf> = BTreeMap::new();
     for (t, v, path) in color_files {
@@ -764,11 +785,19 @@ pub fn load_sample_dir(dir: impl AsRef<Path>) -> Result<ZeroverseSample> {
         ovoxel: meta.ovoxel.clone(),
         indoor: None,
         indoor_render_metadata: None,
+        co_visibility_metadata: None,
         annotation_precision: Default::default(),
         color_encoding: Default::default(),
     };
 
     let render_metadata = dir.join("render_metadata.json");
+    let co_visibility_metadata = dir.join("co_visibility_metadata.json");
+    if co_visibility_metadata.exists() {
+        let metadata = serde_json::from_slice(&fs::read(co_visibility_metadata)?)?;
+        bevy_zeroverse::render::co_visibility::validate_metadata(&metadata, view_dim)
+            .map_err(anyhow::Error::msg)?;
+        sample.co_visibility_metadata = Some(metadata);
+    }
     let provenance = dir.join("indoor_render_metadata.json");
     if provenance.exists() {
         sample.indoor_render_metadata = Some(serde_json::from_slice(&fs::read(provenance)?)?);
@@ -899,6 +928,24 @@ pub fn load_sample_dir(dir: impl AsRef<Path>) -> Result<ZeroverseSample> {
                 view.position = bytemuck::cast_slice(&rgba).to_vec();
             }
 
+            if let Some(plane) = crate::co_visibility::load_view(
+                dir,
+                *t_val,
+                *v_val,
+                [height as usize, width as usize],
+                view_dim,
+            )? {
+                anyhow::ensure!(
+                    sample.co_visibility_metadata.is_some(),
+                    "missing co-visibility metadata"
+                );
+                view.co_visibility = plane;
+            } else {
+                anyhow::ensure!(
+                    sample.co_visibility_metadata.is_none(),
+                    "missing co-visibility view"
+                );
+            }
             for name in ["optical_flow", "motion_vectors"] {
                 if let Some((plane, shape)) =
                     load_npz_array(&dir.join(format!("{name}_{t_val:03}_{v_val:02}.npz")), name)?
@@ -1129,6 +1176,23 @@ pub fn save_sample_to_fs_with_codec(
     );
     let steps = (sample.views.len() / view_dim).max(1);
 
+    if sample.views.iter().any(|v| !v.co_visibility.is_empty()) {
+        anyhow::ensure!(
+            sample.views.iter().all(|v| !v.co_visibility.is_empty()),
+            "co-visibility must be present for every view"
+        );
+        let metadata = sample
+            .co_visibility_metadata
+            .as_ref()
+            .context("missing co-visibility metadata")?;
+        bevy_zeroverse::render::co_visibility::validate_metadata(metadata, view_dim)
+            .map_err(anyhow::Error::msg)?;
+        fs::write(
+            scene_dir.join("co_visibility_metadata.json"),
+            serde_json::to_vec_pretty(metadata)?,
+        )?;
+    }
+
     let pixel_count = (height * width) as usize;
     let mut color_tensor: Option<Vec<f32>> = sample
         .views
@@ -1167,6 +1231,17 @@ pub fn save_sample_to_fs_with_codec(
         for v in 0..view_dim {
             let idx = t * view_dim + v;
             let view = &sample.views[idx];
+
+            if !view.co_visibility.is_empty() {
+                crate::co_visibility::save_view(
+                    &scene_dir,
+                    view,
+                    t,
+                    v,
+                    [height as usize, width as usize],
+                    view_dim,
+                )?;
+            }
 
             if let Some(color_buf) = color_tensor.as_mut()
                 && !view.color.is_empty()
@@ -1593,6 +1668,7 @@ mod tests {
         ZeroverseSample {
             indoor: None,
             indoor_render_metadata: None,
+            co_visibility_metadata: None,
             annotation_precision: Default::default(),
             color_encoding: Default::default(),
             views: vec![View {
@@ -1623,6 +1699,7 @@ mod tests {
         ZeroverseSample {
             indoor: None,
             indoor_render_metadata: None,
+            co_visibility_metadata: None,
             annotation_precision: Default::default(),
             color_encoding: Default::default(),
             views: vec![View {
@@ -1736,6 +1813,7 @@ mod tests {
         let sample = ZeroverseSample {
             indoor: None,
             indoor_render_metadata: None,
+            co_visibility_metadata: None,
             annotation_precision: Default::default(),
             color_encoding: Default::default(),
             views,

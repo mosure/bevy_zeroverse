@@ -31,13 +31,17 @@ import zstandard as zstd
 
 import bevy_zeroverse_ffi
 from . import flow as numeric_flow
+from . import co_visibility as numeric_cov
 
 
 def _chunk_collate(samples: list[dict[str, Any]]) -> dict[str, Any]:
     if not samples:
         return {}
+    membership = ['co_visibility' in sample for sample in samples]
+    if any(membership) and not all(membership):
+        raise ValueError('co-visibility must be present for every sample in a batch')
     collated: dict[str, Any] = {}
-    ragged_prefixes = ("ovoxel_", "object_obb_", "human_", "indoor_")
+    ragged_prefixes = ("ovoxel_", "object_obb_", "human_", "indoor_", "co_visibility_metadata")
     for key in dict.fromkeys(key for sample in samples for key in sample):
         values = [s.get(key) for s in samples]
         if key.startswith(ragged_prefixes):
@@ -145,6 +149,7 @@ class View:
         height,
         semantic=None,
         motion_vectors=None,
+        co_visibility=None,
     ):
         self.color = color
         self.depth = depth
@@ -152,6 +157,7 @@ class View:
         self.semantic = semantic
         self.optical_flow = optical_flow
         self.motion_vectors = motion_vectors
+        self.co_visibility = co_visibility
         self.position = position
         self.world_from_view = world_from_view
         self.fovy = fovy
@@ -216,6 +222,7 @@ class View:
             height,
             semantic=reshape_data(rust_view.semantic, np.float32) if getattr(rust_view, "semantic", b"") else None,
             motion_vectors=reshape_data(rust_view.motion_vectors, np.float32) if getattr(rust_view, "motion_vectors", b"") else None,
+            co_visibility=reshape_data(rust_view.co_visibility, np.float32) if getattr(rust_view, "co_visibility", b"") else None,
         )
 
     def to_tensors(self):
@@ -239,6 +246,9 @@ class View:
         for name in numeric_flow.NAMES:
             if getattr(self, name) is not None:
                 batch.update(numeric_flow.from_rgba(name, getattr(self, name)))
+
+        if self.co_visibility is not None:
+            batch.update({k: torch.from_numpy(v) for k, v in numeric_cov.from_rgba(self.co_visibility).items()})
 
         if self.position is not None:
             position_tensor = torch.tensor(self.position, dtype=torch.float32)
@@ -269,6 +279,7 @@ class Sample:
         annotation_precision="float16_hdr",
         human_instance_ids=None,
         indoor_render_metadata=None,
+        co_visibility_metadata=None,
     ):
         self.views = views
         self.view_dim = view_dim
@@ -284,6 +295,7 @@ class Sample:
         self.annotation_precision = annotation_precision
         self.human_instance_ids = human_instance_ids
         self.indoor_render_metadata = indoor_render_metadata
+        self.co_visibility_metadata = co_visibility_metadata
 
     @classmethod
     def from_rust(cls, rust_sample, width, height):
@@ -384,6 +396,7 @@ class Sample:
             annotation_precision=getattr(rust_sample, "annotation_precision", "float16_hdr"),
             human_instance_ids=getattr(rust_sample, "human_instance_ids", None),
             indoor_render_metadata=getattr(rust_sample, "indoor_render_metadata", None),
+            co_visibility_metadata=getattr(rust_sample, "co_visibility_metadata", None),
         )
 
     def to_tensors(self, color_encoding=None):
@@ -509,6 +522,10 @@ class Sample:
             sample['flow_metadata'] = numeric_flow.metadata_tensor()
             numeric_flow.validate(sample)
 
+        if self.co_visibility_metadata is not None:
+            sample["co_visibility_metadata"] = torch.tensor(list(self.co_visibility_metadata.encode()), dtype=torch.uint8)
+        numeric_cov.validate(sample)
+
         if self.indoor_manifest is not None:
             sample['indoor_manifest'] = torch.tensor(list(self.indoor_manifest.encode("utf-8")), dtype=torch.uint8)
             sample['color_encoding'] = torch.tensor(2, dtype=torch.uint8)  # stored sRGB
@@ -537,6 +554,7 @@ class BevyZeroverseDataset(Dataset):
         'normal': bevy_zeroverse_ffi.RenderMode.Normal,
         'optical_flow': bevy_zeroverse_ffi.RenderMode.OpticalFlow,
         'motion_vectors': bevy_zeroverse_ffi.RenderMode.MotionVectors,
+        'co_visibility': bevy_zeroverse_ffi.RenderMode.CoVisibility,
         'position': bevy_zeroverse_ffi.RenderMode.Position,
         'semantic': bevy_zeroverse_ffi.RenderMode.Semantic,
     }
@@ -610,6 +628,8 @@ class BevyZeroverseDataset(Dataset):
         self.depth_format = depth_format or ("linear" if scene_type == "procedural_indoor" else "normalized")
         if not render_modes or any(mode not in self.render_mode_map for mode in render_modes):
             raise ValueError("render_modes must contain supported capture modes")
+        if "co_visibility" in render_modes and not 1 <= num_cameras <= 16:
+            raise ValueError("co_visibility requires 1..16 capture cameras")
         if width <= 0 or height <= 0 or int(width) != width or int(height) != height:
             raise ValueError("width and height must be positive integers")
         if playback_steps < 1 or not math.isfinite(playback_step) or playback_step < 0 or playback_step * (playback_steps - 1) > 1:
@@ -843,6 +863,9 @@ def chunk_and_save(
         # Pose-bearing and empty scenes must retain the same batch dimension.
         # Missing poses have zero people, never omitted rows in a mixed chunk.
         chunk_samples = [dict(sample) for sample in chunk_samples]
+        membership = ["co_visibility" in sample for sample in chunk_samples]
+        if any(membership) and not all(membership):
+            raise ValueError("co-visibility must be present for every sample in a chunk")
         # OBB class IDs are local to each source sample; remap them to a shared
         # chunk dictionary before padding/stacking, preserving class identity.
         class_names = []
@@ -934,11 +957,12 @@ def chunk_and_save(
 
         for sample_index, sample in enumerate(chunk_samples):
             numeric_flow.validate(sample)
-            for field in numeric_flow.NAMES:
+            numeric_cov.validate(sample)
+            for field in (*numeric_flow.NAMES, "co_visibility"):
                 if field in sample:
                     batch.setdefault("color_shape", torch.tensor([len(chunk_samples), *sample[field].shape[:-1], 3], dtype=torch.int64))
             for name, tensor in sample.items():
-                if name in {"indoor_manifest", "indoor_render_metadata"}:
+                if name in {"indoor_manifest", "indoor_render_metadata", "co_visibility_metadata"}:
                     batch[f"{name}_{sample_index}"] = tensor.cpu().contiguous()
                 elif name == "flow_metadata":
                     if name in batch and not torch.equal(batch[name], tensor.cpu()):
@@ -1246,11 +1270,11 @@ def load_chunk(
             batch[parent] = torch.stack(decoded_images).reshape(shape)
 
         for key, tensor in tensors.items():
-            if '_jpg_' not in key and '_shape' not in key and not key.startswith(('indoor_manifest_', 'indoor_render_metadata_')):
+            if '_jpg_' not in key and '_shape' not in key and not key.startswith(('indoor_manifest_', 'indoor_render_metadata_', 'co_visibility_metadata_')):
                 batch[key] = tensor
 
         numeric_flow.validate(batch)
-        for name in ('indoor_manifest', 'indoor_render_metadata'):
+        for name in ('indoor_manifest', 'indoor_render_metadata', 'co_visibility_metadata'):
             prefix = name + '_'
             manifests = {int(key.removeprefix(prefix)): value for key, value in tensors.items() if key.startswith(prefix)}
             if manifests:
@@ -1258,6 +1282,8 @@ def load_chunk(
                 if min(manifests) < 0 or max(manifests) >= count:
                     raise ValueError(f'{name} index is outside the chunk')
                 batch[name] = [manifests.get(i, torch.empty(0, dtype=torch.uint8)) for i in range(count)]
+
+        numeric_cov.validate(batch)
 
         if "object_obb_class_names" in meta:
             try:
@@ -1724,6 +1750,7 @@ def save_to_folders(dataset, output_dir: Path, n_workers: int = 1):
         scene_dir.mkdir()
         steps, views = sample['fovy'].shape[:2]
         numeric_flow.validate(sample)
+        numeric_cov.save_folder(sample, scene_dir)
         if 'flow_metadata' in sample:
             (scene_dir / 'flow_metadata.json').write_bytes(bytes(sample['flow_metadata'].tolist()))
         for name in planes.intersection(sample):
@@ -1750,7 +1777,7 @@ def save_to_folders(dataset, output_dir: Path, n_workers: int = 1):
                             rgb = torch.where(rgb <= 0.0031308, rgb * 12.92, 1.055 * rgb.pow(1 / 2.4) - 0.055)
                             save_image(rgb.permute(2, 0, 1), str(stem.with_suffix('.png')))
         flow_masks = {name + suffix for name in numeric_flow.NAMES for suffix in ('_valid', '_visible')}
-        metadata = {key: value.cpu().contiguous() for key, value in sample.items() if key not in planes | flow_masks}
+        metadata = {key: value.cpu().contiguous() for key, value in sample.items() if key not in planes | flow_masks | {"co_visibility", "co_visibility_valid", "co_visibility_metadata"}}
         if 'indoor_manifest' in sample:
             manifest = json.loads(bytes(sample['indoor_manifest'].tolist()))
             (scene_dir / 'render_metadata.json').write_text(json.dumps(['Srgb', manifest]))
@@ -1807,6 +1834,8 @@ class FolderDataset(Dataset):
             else:
                 metadata[name] = torch.stack(frames)
         numeric_flow.validate(metadata)
+        metadata.update({k: torch.from_numpy(v) for k, v in numeric_cov.load_folder(scene_dir, steps, cameras).items()})
+        numeric_cov.validate(metadata)
         path = scene_dir / 'render_metadata.json'
         if path.exists() and 'indoor_manifest' not in metadata:
             encoding, manifest = json.loads(path.read_text())
@@ -1850,8 +1879,8 @@ def save_to_mp4(dataset, output_dir: Path, fps: int = 24, n_workers: int = 1):
     for idx, sample in enumerate(dataloader):
         sample = {k: v.squeeze(0) for k, v in sample.items()}
 
-        if any(name in sample for name in numeric_flow.NAMES):
-            raise ValueError("numeric flow cannot be saved to lossy MP4; use safetensors or NPZ")
+        if any(name in sample for name in (*numeric_flow.NAMES, "co_visibility")):
+            raise ValueError("numeric annotations cannot be saved to lossy MP4; use safetensors or NPZ")
         scene_dir = output_dir / f"{idx:06d}"
         scene_dir.mkdir(exist_ok=True)
 
@@ -1900,7 +1929,7 @@ class MP4Dataset(Dataset):
         with safe_open(str(meta_filename), framework="pt", device="cpu") as f:
             meta_tensors = {key: f.get_tensor(key) for key in f.keys()}
 
-        if any(list(scene_dir.glob(f"{name}_view_*.mp4")) for name in numeric_flow.NAMES):
+        if any(list(scene_dir.glob(f"{name}_view_*.mp4")) for name in (*numeric_flow.NAMES, "co_visibility")):
             raise ValueError("legacy flow MP4 is a visualization, not numeric flow")
         planes = ['color', 'depth', 'normal', 'position']
 

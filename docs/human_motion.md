@@ -21,8 +21,20 @@ Burn device, model download, text encoding, or motion skin preparation. An
 explicit policy with fraction zero and no trajectories also requests no
 inference. Builds without the optional Cargo feature reject an enabled policy
 instead of silently ignoring it. The `Human motion` inspector section exposes
-the moving fraction, navigation fraction and actor limit in feature-enabled builds.
-Changes apply only with **Regenerate / R**. Editing a slider leaves the current
+the moving fraction, navigation fraction, actor limit and **ARDY generation
+parameters** in feature-enabled builds: diffusion steps (1–10), clip frames
+(40–640 at 20 Hz), history frames (0–160, multiples of four), text and trajectory
+guidance (0–10), dense path conditioning, batch size and retry limit.
+Defaults remain 10 steps, 80 history frames, text guidance 2 and trajectory guidance 3.
+Ten steps is the published model's maximum; increasing guidance is not a general
+motion-quality improvement. Clip duration and viewer trajectory traversal time
+are separate: Sin/PingPong deliberately reverse clips, while Once plays forward.
+**Play once at model speed (20 Hz)** restarts the active generated clip with a linear
+forward timeline lasting `(frames - 1) / 20` seconds. It uses the active clip's
+length, not unapplied policy edits. Default Sin playback at speed 0.2 traverses a
+160-frame clip forward in 2.5 seconds (up to about 5× its generated speed), then
+backward; that retiming should not be mistaken for poor model inference.
+Generation settings apply only with **Regenerate / R**. Editing a motion-policy slider leaves the current
 scene and inference job intact. Camera gizmos and bounding boxes have independent
 checkboxes; rejected motion requests expose their reasons in the inspector.
 
@@ -51,8 +63,11 @@ dancing, and crouching. Prompts combine actions with manner and posture cues;
 paths, occupancy, dimensions, actor identity, and seeds vary independently.
 Behavior availability depends on the actual free space and supporting furniture.
 
-Prompt program 1 composes concrete actions with handedness, direction, repetition,
-amplitude, posture, arm carriage and gaze. Its 40 action primitives span gestures,
+Prompt program 2 composes concrete actions with handedness, direction, repetition
+and amplitude, plus at most one optional posture, arm or gaze modifier. The default
+modifier probability is 0.35. It avoids stacked posture instructions such as
+folded arms plus a stiff gait; the core action and navigation program retain
+independent seeded choices. Its 40 action primitives span gestures,
 exercise, dance, floor activities and idle motion. Travel additionally samples
 walking, tiptoeing, shuffling, marching, backward walking, sideways steps, skipping
 and jogging. Gaits are filtered by planned travel speed and headroom; backward
@@ -78,7 +93,7 @@ Pick-up actions do not attach props.
     "dance": 0.5,
     "floor": 0.35,
     "idle": 0.5,
-    "style_fraction": 0.8,
+    "style_fraction": 0.35,
     "max_sequence_actions": 2
   }
 }

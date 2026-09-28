@@ -7,6 +7,9 @@
 #import bevy_render::color_operations::hsv_to_rgb
 #import bevy_render::maths::PI_2
 
+// seconds, full-scale pixel displacement, temporal-history validity, reserved
+@group(#{MATERIAL_BIND_GROUP}) @binding(100) var<uniform> preview: vec4<f32>;
+
 @fragment
 fn fragment(
 #ifdef MULTISAMPLED
@@ -19,9 +22,13 @@ fn fragment(
 #endif
 
 #ifdef MOTION_VECTOR_PREPASS
-    // Motion vectors are stored as UV offsets per frame; convert to pixels per frame.
+    // Bevy stores frame displacement. Estimate velocity using the actual render
+    // interval, then display displacement over a fixed reference interval.
+    // Exported dataset flow uses the independent exact capture-time pipeline.
     let motion_vector_uv = prepass_motion_vector(in.position, sample_index);
-    let flow = motion_vector_uv * view.viewport.zw;
+    let scale = select(0.0, preview.x / max(globals.delta_time, 0.000001),
+        globals.delta_time > 0.000001 && preview.z > 0.5);
+    let flow = motion_vector_uv * view.viewport.zw * scale;
 #else
     let flow = vec2<f32>(0.0);
 #endif
@@ -29,7 +36,7 @@ fn fragment(
     let radius = length(flow);
     // Map magnitude to [0,1] with a gentle curve so small motions stay visible
     // and large motions do not immediately clamp.
-    let normalized = clamp(radius / 32.0, 0.0, 1.0);
+    let normalized = clamp(radius / preview.y, 0.0, 1.0);
     let m = pow(normalized, 0.65);
     var angle = atan2(flow.y, flow.x);
     if (angle < 0.0) {

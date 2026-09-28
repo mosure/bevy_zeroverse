@@ -1,274 +1,205 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
-  <!-- Meta tags for social media banners, these should be filled in appropriatly as they are your "business card" -->
-  <!-- Replace the content tag with appropriate information -->
-  <meta name="description" content="bevy zeroverse synthetic reconstruction dataset generator">
-  <meta property="og:title" content="bevy_zeroverse"/>
-  <meta property="og:description" content="bevy zeroverse synthetic dataset generator"/>
-  <meta property="og:url" content="https://mosure.github.io/bevy_zeroverse/project/index.html"/>
-  <!-- Path to banner image, should be in the path listed below. Optimal dimenssions are 1200X630-->
-  <meta property="og:image" content="static/image/banner.png" />
-  <meta property="og:image:width" content="1200"/>
-  <meta property="og:image:height" content="630"/>
-
-
-  <meta name="twitter:title" content="bevy_zeroverse">
-  <meta name="twitter:description" content="bevy zeroverse synthetic reconstruction dataset generator">
-  <!-- Path to banner image, should be in the path listed below. Optimal dimenssions are 1200X600-->
-  <meta name="twitter:image" content="static/images/banner.png">
-  <meta name="twitter:card" content="bevy zeroverse synthetic reconstruction dataset generator">
-  <!-- Keywords for your paper to be indexed by-->
-  <meta name="keywords" content="bevy, zeroverse, synthetic-data, machine-learning, reconstruction">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-
-
-  <title>bevy_zeroverse</title>
-  <link rel="icon" type="image/x-icon" href="static/images/favicon.ico">
-  <link href="https://fonts.googleapis.com/css?family=Google+Sans|Noto+Sans|Castoro"
-  rel="stylesheet">
-
-  <link rel="stylesheet" href="static/css/bulma.min.css">
-  <link rel="stylesheet" href="static/css/bulma-carousel.min.css">
-  <link rel="stylesheet" href="static/css/bulma-slider.min.css">
-  <link rel="stylesheet" href="static/css/fontawesome.all.min.css">
-  <link rel="stylesheet"
-  href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css">
+  <meta name="description" content="An open-source procedural data engine for multi-view reconstruction. Explore synchronized renders, geometric annotations, human motion and a measured 1,024-room audit.">
+  <meta property="og:title" content="bevy_zeroverse · Procedural rooms, shared geometry">
+  <meta property="og:description" content="Calibrated multi-view synthetic data, aligned annotations, optional human motion, and reproducible evaluation.">
+  <meta property="og:url" content="https://mosure.github.io/bevy_zeroverse/project/">
+  <meta property="og:image" content="https://mosure.github.io/bevy_zeroverse/project/static/media/social.jpg">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="theme-color" content="#f7f8f3">
+  <title>bevy_zeroverse — Procedural multi-view data</title>
+  <link rel="icon" href="static/images/favicon.ico">
   <link rel="stylesheet" href="static/css/index.css">
-
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-  <script src="https://documentcloud.adobe.com/view-sdk/main.js"></script>
-  <script defer src="static/js/fontawesome.all.min.js"></script>
-  <script src="static/js/bulma-carousel.min.js"></script>
-  <script src="static/js/bulma-slider.min.js"></script>
-  <script src="static/js/index.js"></script>
+  <script defer src="static/js/index.js"></script>
 </head>
 <body>
-
-  <section class="hero">
-    <div class="hero-body">
-      <div class="container is-max-desktop">
-        <div class="columns is-centered">
-          <div class="column has-text-centered">
-            <h1 class="title is-1 publication-title">bevy_zeroverse: Pre-training Reconstruction Models with Multi-scale Synthesized Data</h1>
-            <div class="is-size-5 publication-authors">
-              <!-- Paper authors -->
-              <span class="author-block">
-                <a href="https://mitchell.mosure.me" target="_blank">Mitchell Mosure</a><sup></sup></span>
-              </span>
-              <!-- <span class="author-block">
-                <a href="SECOND AUTHOR PERSONAL LINK" target="_blank">Second Author</a><sup>*</sup>,</span>
-              </span>
-              <span class="author-block">
-                <a href="THIRD AUTHOR PERSONAL LINK" target="_blank">Third Author</a>
-              </span> -->
-            </div>
-
-            <div class="is-size-5 publication-authors">
-              <span class="author-block">Institution Name<br>Conferance name and year</span>
-              <!-- <span class="eql-cntrb"><small><br><sup>*</sup>Indicates Equal Contribution</small></span> -->
-            </div>
-
-            <div class="column has-text-centered">
-              <div class="publication-links">
-                <!-- ArXiv abstract Link -->
-                <span class="link-block">
-                  <a href="https://arxiv.org/abs/<ARXIV PAPER ID>" target="_blank"
-                  class="external-link button is-normal is-rounded is-dark">
-                    <span class="icon">
-                      <i class="ai ai-arxiv"></i>
-                    </span>
-                    <span>arXiv</span>
-                  </a>
-                </span>
-
-                <!-- Github link -->
-                <span class="link-block">
-                  <a href="https://github.com/mosure/bevy_zeroverse" target="_blank"
-                  class="external-link button is-normal is-rounded is-dark">
-                    <span class="icon">
-                      <i class="fab fa-github"></i>
-                    </span>
-                    <span>Code</span>
-                  </a>
-                </span>
-              </div>
-            </div>
-          </div>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-header">
+  <a class="wordmark" href="#main"><svg viewBox="0 0 28 28" aria-hidden="true"><path d="m14 2 11 6v12l-11 6-11-6V8Z M3 8l11 6 11-6 M14 14v12Z"/></svg>bevy_zeroverse</a>
+  <nav aria-label="Page navigation">
+    <a href="#explore">Explore</a><a href="#motion">Motion</a><a href="#evidence">Evidence</a><a href="#paper">Whitepaper</a><a class="nav-source" href="https://github.com/mosure/bevy_zeroverse">GitHub ↗</a>
+  </nav>
+</header>
+<main id="main">
+  <section class="hero container" aria-labelledby="title">
+    <div class="eyebrow"><span class="status-dot"></span> OPEN SOURCE · SYNTHETIC 3D + 4D DATA</div>
+    <div class="hero-copy">
+      <div><h1 id="title">Procedural rooms.<br><em>Shared geometry.</em></h1></div>
+      <div class="hero-intro">
+        <p>A data engine for multi-view reconstruction. Generate furnished interiors, place calibrated cameras, animate people, and export images with aligned geometry and labels.</p>
+        <div class="actions">
+          <a class="button primary" href="static/papers/bevy_zeroverse.pdf">Read the whitepaper ↗</a>
+          <a class="button" href="../?scene_type=procedural-indoor&amp;indoor_seed=24005&amp;num_cameras=4&amp;camera_grid=true&amp;regenerate_ms=0&amp;playback_mode=sin&amp;playback_speed=0.1">Open WebGPU viewer ↗</a>
         </div>
+        <p class="byline"><a href="https://mitchell.mosure.me">Mitchell Mosure</a> · Bevy / Rust / Burn</p>
       </div>
+    </div>
+    <figure class="hero-film">
+      <video id="room-video" controls muted loop playsinline preload="none" poster="static/media/traversal_24005.webp" width="1280" height="864" aria-label="Four synchronized cameras following trajectories through a generated indoor room">
+        <source src="static/media/traversal_24005.mp4" type="video/mp4">
+        <a href="static/media/traversal_24005.mp4">Download the multi-view video.</a>
+      </video>
+      <figcaption><span><strong>One room, four synchronized trajectories.</strong> Seed 24005 · generator v19 · 120 rendered frames per camera.</span><a href="static/media/multiview.gif" download>GIF ↓</a></figcaption>
+    </figure>
+    <div class="capability-strip">
+      <span><strong>8</strong> aligned render modes</span><span><strong>1–16</strong> co-visibility cameras</span><span><strong>Native + WebGPU</strong> scene &amp; motion viewers</span><span><strong>Seeded</strong> reproducible scene programs</span>
     </div>
   </section>
 
-
-<!-- Teaser video-->
-<section class="hero teaser">
-  <div class="container is-max-desktop">
-    <div class="hero-body">
-      <!-- <video poster="" id="tree" autoplay controls muted loop height="100%">
-        <source src="static/videos/banner_video.mp4"
-        type="video/mp4">
-      </video> -->
-      <h2 class="subtitle has-text-centered">
-        Pre-training a Large Reconstruction Model entirely on multi-scale, synthetic 3D and 4D data, achieving generalized, high-quality, sparse-view reconstructions.
-      </h2>
+  <section id="explore" class="container section" aria-labelledby="explore-title">
+    <div class="section-heading">
+      <div><div class="eyebrow">01 / MATCHED SUPERVISION</div><h2 id="explore-title">Same room. Same camera.<br>A different way to see it.</h2></div>
+      <p>Switch cameras, time and annotation. Drag the reveal control to compare against the RGB image from exactly the same capture.</p>
     </div>
-  </div>
-</section>
-<!-- End teaser video -->
-
-<!-- Paper abstract -->
-<section class="section hero is-light">
-  <div class="container is-max-desktop">
-    <div class="columns is-centered has-text-centered">
-      <div class="column is-four-fifths">
-        <h2 class="title is-3">Abstract</h2>
-        <div class="content has-text-justified">
-          <p>
-            We present bevy_zeroverse, a procedural synthetic dataset generator for pre-training reconstruction models. bevy_zeroverse synthesizes datasets from primitive shapes with random materials, augmentations (e.g., normal deformation, boolean manifold operations, thin structures, hierarchical transforms), and multi-scale composition (e.g., object, room, and environment scales). Unlike previous works (e.g., Objaverse, Zeroverse) that target the object-scale 3D domain, bevy_zeroverse extends into the multi-scale 4D domain, enabling the training of models that can generalize to larger, more complex, dynamic scenes. We demonstrate that pre-training on bevy_zeroverse improves the performance of a reconstruction model on real-world data, achieving high-quality, sparse-view reconstructions. Additionally, we analyze the impact of synthetic data parameters on model training and performance. Our work highlights the potential of synthetic data for pre-training reconstruction models and emphasizes the importance of multi-scale, multi-domain data generation for training models that can generalize to complex, real-world scenes.
-          </p>
-        </div>
+    <div class="explorer">
+      <div class="explorer-toolbar">
+        <label>Room <select id="scene-select"><option value="0">24005 · Sunlit seating</option><option value="1">24000 · Workspace &amp; bookshelves</option></select></label>
+        <label>Capture time <select id="time-select"><option value="0">t = 0.00</option><option value="1">t = 0.10</option><option value="2">t = 0.20</option></select></label>
+        <span class="pill">Generator v19 · 768 × 480</span>
       </div>
+      <div id="mode-buttons" class="mode-buttons" role="group" aria-label="Annotation mode">
+        <button data-mode="color" aria-pressed="false">RGB</button>
+        <button data-mode="depth" aria-pressed="false">Depth</button>
+        <button data-mode="normal" aria-pressed="true">Normals</button>
+        <button data-mode="semantic" aria-pressed="false">Semantic</button>
+        <button data-mode="position" aria-pressed="false">Position</button>
+        <button data-mode="optical_flow" aria-pressed="false">Optical flow</button>
+        <button data-mode="motion_vectors" aria-pressed="false">Motion vectors</button>
+        <button data-mode="co_visibility" aria-pressed="false">Co-visibility</button>
+      </div>
+      <figure class="comparison" id="comparison" style="--split:50%">
+        <img id="rgb-image" src="static/media/s24005-t0-c0-color.webp" width="768" height="480" alt="RGB view of seed 24005 from camera 0">
+        <img id="annotation-image" class="annotation-image" src="static/media/s24005-t0-c0-normal.png" width="768" height="480" alt="Matching view-space normal annotation">
+        <div class="divider" aria-hidden="true"></div>
+        <span class="image-tag left-tag">RGB</span><span class="image-tag right-tag" id="mode-label">Normals</span>
+      </figure>
+      <div class="reveal-control">
+        <label for="reveal">RGB / annotation reveal</label><input id="reveal" type="range" min="0" max="100" value="50" aria-valuetext="50 percent RGB"><span id="reveal-value">50 / 50</span>
+      </div>
+      <div class="annotation-info">
+        <p id="mode-description">View-space unit normals encoded as RGB = (n + 1) / 2. Colors describe surface direction, not material.</p><div id="mode-legend" class="mode-legend"></div>
+      </div>
+      <div id="peer-controls" class="peer-controls" hidden><span>Show surfaces shared with</span><div id="peer-buttons" role="group" aria-label="Co-visibility camera membership"></div></div>
+      <div class="camera-heading"><h3>Four views of the same geometry</h3><span id="camera-info">Camera 0</span></div>
+      <div id="camera-buttons" class="camera-grid" role="group" aria-label="Source camera">
+        <button data-camera="0" aria-pressed="true"><img src="static/media/s24005-t0-c0-color.webp" width="768" height="480" alt="Camera 0"><span>Camera 0 · reference</span></button>
+        <button data-camera="1" aria-pressed="false"><img src="static/media/s24005-t0-c1-color.webp" width="768" height="480" alt="Camera 1"><span>Camera 1</span></button>
+        <button data-camera="2" aria-pressed="false"><img src="static/media/s24005-t0-c2-color.webp" width="768" height="480" alt="Camera 2"><span>Camera 2</span></button>
+        <button data-camera="3" aria-pressed="false"><img src="static/media/s24005-t0-c3-color.webp" width="768" height="480" alt="Camera 3"><span>Camera 3</span></button>
+      </div>
+      <div class="capture-footer"><p id="capture-status" aria-live="polite">Four calibrated capture cameras; the editor camera is excluded.</p><div><a id="calibration-link" href="static/media/s24005-calibration.json" download>Calibration &amp; provenance ↓</a><a id="mask-link" href="static/media/s24005-visibility.zip" download>Exact visibility masks ↓</a></div></div>
     </div>
-  </div>
-</section>
-<!-- End paper abstract -->
-
-
-<!-- Image carousel -->
-<section class="hero is-small">
-  <div class="hero-body">
-    <div class="container">
-      <div id="results-carousel" class="carousel results-carousel">
-       <div class="item">
-        <!-- Your image here -->
-        <img src="static/images/carousel1.jpg" alt="MY ALT TEXT"/>
-        <h2 class="subtitle has-text-centered">
-          First image description.
-        </h2>
-      </div>
-      <div class="item">
-        <!-- Your image here -->
-        <img src="static/images/carousel2.jpg" alt="MY ALT TEXT"/>
-        <h2 class="subtitle has-text-centered">
-          Second image description.
-        </h2>
-      </div>
-      <div class="item">
-        <!-- Your image here -->
-        <img src="static/images/carousel3.jpg" alt="MY ALT TEXT"/>
-        <h2 class="subtitle has-text-centered">
-         Third image description.
-       </h2>
-     </div>
-     <div class="item">
-      <!-- Your image here -->
-      <img src="static/images/carousel4.jpg" alt="MY ALT TEXT"/>
-      <h2 class="subtitle has-text-centered">
-        Fourth image description.
-      </h2>
+    <noscript><p class="note">Enable JavaScript to switch matched views. Videos, figures, calibration downloads and the whitepaper remain available.</p></noscript>
+    <p class="note">These two rooms are selected illustrations, not a population sample. Color, depth and label files share scene/camera/time identities. Glass is a first geometric surface for annotations; labels do not follow refracted or reflected light. Website images are visualizations; the downloadable NPZ visibility masks retain exact integer membership.</p>
+    <div class="feature-columns">
+      <article><span class="feature-index">01</span><h3>Overlap is a sampling policy.</h3><p>Camera zero anchors the default 35% shared-surface proposal target, with 0.25–3 m baselines. Camera paths stay within the primary room and undergo geometric clearance checks.</p></article>
+      <article><span class="feature-index">02</span><h3>Visibility is measured.</h3><p>Co-visibility projects each surface into the other capture cameras and checks occlusion. Each camera owns one bit in a lossless 16-bit membership mask; the source camera excludes itself.</p></article>
+      <article><span class="feature-index">03</span><h3>Supervision stays aligned.</h3><p>Export RGB, float32 geometric channels, class labels, temporal correspondence, calibration, instance boxes and person joints. O-Voxel covers primary-room geometry in static, single-timestep captures.</p></article>
     </div>
-  </div>
-</div>
-</div>
-</section>
-<!-- End image carousel -->
+  </section>
 
-
-
-
-<!-- Youtube video -->
-<!-- <section class="hero is-small is-light">
-  <div class="hero-body">
-    <div class="container">
-      <h2 class="title is-3">Video Presentation</h2>
-      <div class="columns is-centered has-text-centered">
-        <div class="column is-four-fifths">
-          <div class="publication-video">
-            <iframe src="https://www.youtube.com/embed/JkaxUblCGz0" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
-          </div>
-        </div>
-      </div>
+  <section id="motion" class="motion-section" aria-labelledby="motion-title"><div class="container section">
+    <div class="section-heading">
+      <div><div class="eyebrow">02 / SCENES OVER TIME</div><h2 id="motion-title">People and cameras.<br>One capture clock.</h2></div>
+      <p>Optional ARDY text and waypoint conditioning drives AnnyBody people. Static actors remain supported; motion models initialize only when a configuration requests them.</p>
     </div>
-  </div>
-</section> -->
-<!-- End youtube video -->
-
-
-<!-- Video carousel -->
-<!-- <section class="hero is-small">
-  <div class="hero-body">
-    <div class="container">
-      <h2 class="title is-3">Another Carousel</h2>
-      <div id="results-carousel" class="carousel results-carousel">
-        <div class="item item-video1">
-          <video poster="" id="video1" autoplay controls muted loop height="100%">
-            <source src="static/videos/carousel1.mp4"
-            type="video/mp4">
-          </video>
-        </div>
-        <div class="item item-video2">
-          <video poster="" id="video2" autoplay controls muted loop height="100%">
-            <source src="static/videos/carousel2.mp4"
-            type="video/mp4">
-          </video>
-        </div>
-        <div class="item item-video3">
-          <video poster="" id="video3" autoplay controls muted loop height="100%">\
-            <source src="static/videos/carousel3.mp4"
-            type="video/mp4">
-          </video>
-        </div>
-      </div>
+    <figure class="motion-film">
+      <video id="motion-video" controls muted loop playsinline preload="none" poster="static/media/motion_13.webp" width="1280" height="432" aria-label="Two synchronized views of an ARDY-animated room"><source src="static/media/motion_13.mp4" type="video/mp4"><a href="static/media/motion_13.mp4">Download the human-motion video.</a></video>
+      <figcaption><strong>Two views · two accepted motions.</strong> Seed 13 · 120 frames at 20 Hz · forward playback at the model’s generated speed.</figcaption>
+    </figure>
+    <div class="motion-details">
+      <div><div class="eyebrow">TEXT CONDITIONING</div><blockquote>“A person scratches the head with the left hand smoothly.”</blockquote><blockquote>“A person marches steadily, stops and nods the head once, marches again, stops and taps the right heel once, then resumes marching.”</blockquote></div>
+      <div><h3>Geometry before rendering</h3><p>Paths are planned after furnishing, with clearance and motion-admission checks. Capture waits for the scene, pipelines and requested motion to become ready. All views then sample the same normalized trajectory time.</p><p class="note">This is an illustrative model output, not a motion-quality benchmark. Contact, hair, cloth and motion naturalness remain approximate. Each video frame is a native render, played at the model’s generated rate.</p><a class="text-link" href="https://github.com/mosure/bevy_zeroverse/blob/main/docs/human_motion.md">Motion configuration and validation ↗</a></div>
     </div>
-  </div>
-</section> -->
-<!-- End video carousel -->
+  </div></section>
 
-
-
-<!-- Paper poster -->
-<!-- <section class="hero is-small is-light">
-  <div class="hero-body">
-    <div class="container">
-      <h2 class="title">Poster</h2>
-
-      <iframe  src="static/pdfs/sample.pdf" width="100%" height="550">
-          </iframe>
-      </div>
+  <section id="evidence" class="container section" aria-labelledby="evidence-title">
+    <div class="section-heading">
+      <div><div class="eyebrow">03 / MEASURED COVERAGE</div><h2 id="evidence-title">Count the variation.<br>Keep the difficult examples.</h2></div>
+      <p>The whitepaper evaluates generator v18 on consecutive seeds, without replacing failed or unattractive samples. These measurements are separate from the v19 gallery above.</p>
     </div>
-  </section> -->
-<!--End paper poster -->
-
-
-<!--BibTex citation -->
-<section class="section" id="BibTeX">
-  <div class="container is-max-desktop content">
-    <h2 class="title">BibTeX</h2>
-    <pre><code>BibTex Code Here</code></pre>
-  </div>
-</section>
-<!--End BibTex citation -->
-
-
-<footer class="footer">
-  <div class="container">
-    <div class="columns is-centered">
-      <div class="column is-8">
-        <div class="content">
-
-          <p>
-            This page was built using the <a href="https://github.com/eliahuhorwitz/Academic-project-page-template" target="_blank">Academic Project Page Template</a> which was adopted from the <a href="https://nerfies.github.io" target="_blank">Nerfies</a> project page.
-            <br> This website is licensed under a <a rel="license"  href="http://creativecommons.org/licenses/by-sa/4.0/" target="_blank">Creative
-            Commons Attribution-ShareAlike 4.0 International License</a>.
-          </p>
-
-        </div>
-      </div>
+    <div class="metric-strip">
+      <div><strong>1,024</strong><span>consecutive layout seeds</span><small>24000–25023 · zero invalid layouts</small></div>
+      <div><strong>256</strong><span>rendered views of 64 rooms</span><small>four cameras · five render modes</small></div>
+      <div><strong>401 / 503</strong><span>numeric series with observed variance</span><small>correlated measurements, not degrees of freedom</small></div>
     </div>
-  </div>
+    <figure class="chart">
+      <div class="plot-grid">
+        <img src="static/media/distribution-room_area_m2.svg" loading="lazy" width="430" height="320" alt="Distribution of room footprints in square metres">
+        <img src="static/media/distribution-chair.svg" loading="lazy" width="430" height="320" alt="Distribution of chair counts per room, including zero counts">
+        <img src="static/media/distribution-person.svg" loading="lazy" width="430" height="320" alt="Distribution of person counts per room, including zero counts">
+        <img src="static/media/distribution-vertical_fov_degrees.svg" loading="lazy" width="430" height="320" alt="Distribution of vertical camera fields of view, in degrees">
+        <img src="static/media/distribution-sun_illuminance_lux.svg" loading="lazy" width="430" height="320" alt="Distribution of solar illumination, in lux">
+        <img src="static/media/distribution-camera_reference_baseline_m.svg" loading="lazy" width="430" height="320" alt="Distribution of distances from each reference camera, in metres">
+      </div>
+      <figcaption>Room, furnishing, photometry and calibration distributions. Counts retain zero-object rooms. Baselines are sampled at five trajectory times; each plot states its own observation count. <a href="static/media/distributions.svg" download>Combined figure ↓</a></figcaption>
+    </figure>
+    <figure class="chart placement">
+      <div class="plot-grid">
+        <img src="static/media/placement-chair.svg" loading="lazy" width="430" height="380" alt="Chair-center placement heatmap in normalized room coordinates">
+        <img src="static/media/placement-person.svg" loading="lazy" width="430" height="380" alt="Person-center placement heatmap in normalized room coordinates">
+        <img src="static/media/placement-camera_path.svg" loading="lazy" width="430" height="380" alt="Camera-trajectory placement heatmap in normalized room coordinates">
+      </div>
+      <figcaption>Normalized interior placement: object centers, not visible pixels or footprints. Camera paths contribute 33 samples per camera. Each panel is normalized independently; +Z points down. <a href="static/media/placement.svg" download>Combined figure ↓</a></figcaption>
+    </figure>
+    <div class="evidence-grid">
+      <article><div class="eyebrow">IMAGE-SPACE VARIATION</div><h3>32.29 effective rank</h3><p>Frozen SigLIP2 base embeddings, averaged once per room. 34 dimensions explain 90% of scene-centroid variance. Median cross-room nearest cosine distance: <strong>0.0628</strong>.</p><p class="note">64 rooms / 256 images. Nearest-neighbor search excludes the same room. Embedding distance is a redundancy diagnostic, not a measure of photographic realism or learning utility.</p></article>
+      <article><div class="eyebrow">ACTUAL SHARED GEOMETRY</div><h3>47.4% mean worst-pair overlap</h3><p>192 reference-camera edges across 64 rooms. Minimum room-wise overlap: <strong>34.4%</strong>. Three edges fell below the 35% proposal target and remain in the report.</p><p class="note">Rendered depth reprojection uses a declared tolerance. A proposal constraint does not guarantee a pixel-level overlap bound.</p></article>
+    </div>
+    <div class="cohort-heading"><h3>The first eight rooms, unfiltered.</h3><span>v18 · camera 0 · seeds 24000–24007</span></div>
+    <div class="cohort-grid">
+      <figure><img src="static/media/cohort-24000.webp" loading="lazy" width="384" height="288" alt="Seed 24000: bookshelf and workspace"><figcaption>24000</figcaption></figure>
+      <figure><img src="static/media/cohort-24001.webp" loading="lazy" width="384" height="288" alt="Seed 24001: round table and seated person"><figcaption>24001</figcaption></figure>
+      <figure><img src="static/media/cohort-24002.webp" loading="lazy" width="384" height="288" alt="Seed 24002: standing person near windows"><figcaption>24002</figcaption></figure>
+      <figure><img src="static/media/cohort-24003.webp" loading="lazy" width="384" height="288" alt="Seed 24003: a dark furnished room"><figcaption>24003</figcaption></figure>
+      <figure><img src="static/media/cohort-24004.webp" loading="lazy" width="384" height="288" alt="Seed 24004: a person at a desk"><figcaption>24004</figcaption></figure>
+      <figure><img src="static/media/cohort-24005.webp" loading="lazy" width="384" height="288" alt="Seed 24005: sunlit lounge seating"><figcaption>24005</figcaption></figure>
+      <figure><img src="static/media/cohort-24006.webp" loading="lazy" width="384" height="288" alt="Seed 24006: dim room with sectional seating"><figcaption>24006</figcaption></figure>
+      <figure><img src="static/media/cohort-24007.webp" loading="lazy" width="384" height="288" alt="Seed 24007: warm illuminated office"><figcaption>24007</figcaption></figure>
+    </div>
+    <div class="table-heading"><h3>Completed capture throughput</h3><span>Published dependency graph · generator v18</span></div>
+    <div class="table-scroll"><table><caption class="sr-only">Registry dependency benchmark results</caption><thead><tr><th>Workload</th><th>Views / second</th><th>Room median</th><th>Room p95</th></tr></thead><tbody><tr><td>RGB</td><td><strong>4.32</strong></td><td>0.773 s</td><td>1.776 s</td></tr><tr><td>RGB + depth + normal + position + semantic</td><td><strong>3.58</strong></td><td>0.892 s</td><td>2.642 s</td></tr></tbody></table></div>
+    <p class="note">RTX PRO 6000 Blackwell · Vulkan 610.43.02 · optimized development build. Four 320 × 240 views per room; 40 rooms, first eight excluded as warmup; static people. Includes construction, lighting, rendering and readback. Excludes encoding, disk export and neural motion inference. These finite runs do not establish unlimited-process memory stability.</p>
+    <div class="evidence-downloads"><a href="static/media/audit-v18.json" download>Evaluation report (JSON) ↓</a><a href="static/media/population-v18.json" download>Histograms &amp; heatmaps (JSON) ↓</a><a href="https://github.com/mosure/bevy_zeroverse/blob/main/docs/generation_v18.md">Protocol &amp; reproducible commands ↗</a></div>
+  </section>
+
+  <section id="paper" class="paper-section" aria-labelledby="paper-title"><div class="container section paper-layout">
+    <a class="paper-preview" href="static/papers/bevy_zeroverse.pdf" aria-label="Read the bevy_zeroverse whitepaper PDF"><img src="static/media/whitepaper.webp" loading="lazy" width="612" height="792" alt="First page of the bevy_zeroverse technical whitepaper"></a>
+    <div>
+      <div class="eyebrow">04 / TECHNICAL WHITEPAPER</div><h2 id="paper-title">Auditable procedural indoor data for multi-view reconstruction.</h2>
+      <p class="paper-author">Mitchell Mosure · September 2026 · Technical report</p>
+      <p>The paper describes continuous scene programs, material and geometry construction, calibrated multi-view capture, annotations, optional motion, diversity diagnostics and completed-capture performance.</p>
+      <p>It reports a bounded generator evaluation. Photographic realism, ten-million-sample learning utility and downstream reconstruction gains remain open evaluation questions.</p>
+      <div class="actions"><a class="button primary" href="static/papers/bevy_zeroverse.pdf">Read PDF ↗</a><a class="button" href="static/papers/whitepaper-source.zip" download>LaTeX source ↓</a></div>
+      <p class="note">Compiled from this repository’s TeX paper. Population measurements are v18; the v19 addendum and matched gallery describe subsequent capabilities. No publication venue or peer-review status is implied.</p>
+    </div>
+  </div></section>
+
+  <section class="container section start-section" aria-labelledby="start-title">
+    <div><div class="eyebrow">MAKE YOUR OWN CAPTURES</div><h2 id="start-title">Start with shared views.</h2><p>One seeded room, four cameras, RGB and matched geometry. Human motion is optional; this command does not initialize motion models.</p><p class="note">Also available: primitive-object scenes, Cornell cube, legacy room and semantic-room scenes, and standalone humans. The native CLI writes datasets; the WebGPU app is an interactive viewer.</p></div>
+    <div class="code-panel"><pre><code>cargo run -p bevy_zeroverse_burn --bin zeroverse_gen -- \
+  --scene-type procedural-indoor --seed 24005 \
+  --samples 1 --workers 1 --cameras 4 \
+  --width 768 --height 480 \
+  --render-modes color depth normal semantic co-visibility \
+  --ov-mode disabled --output-mode fs \
+  --output out/shared_views --no-ui</code></pre><a href="https://github.com/mosure/bevy_zeroverse">Source, configuration and examples ↗</a></div>
+  </section>
+  <section class="container citation-section" aria-labelledby="citation-title"><h3 id="citation-title">Cite the technical report</h3><pre><code>@misc{mosure2026zeroverse,
+  title = {bevy_zeroverse: Auditable Procedural Indoor Data
+           for Multi-view Reconstruction},
+  author = {Mitchell Mosure},
+  year = {2026},
+  note = {Technical report; generator evaluation},
+  url = {https://mosure.github.io/bevy_zeroverse/project/}
+}</code></pre></section>
+</main>
+<footer class="container footer">
+  <div><strong>bevy_zeroverse</strong><p>Procedural scenes. Explicit data contracts. Reproducible evidence.</p></div>
+  <div><a href="https://github.com/mosure/bevy_zeroverse">Code ↗</a><a href="static/media/gallery.json">Gallery provenance ↗</a><p>Original page adapted from the <a href="https://github.com/eliahuhorwitz/Academic-project-page-template">Academic Project Page Template</a> / <a href="https://nerfies.github.io">Nerfies</a>.<br>Website content licensed under <a rel="license" href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.</p></div>
 </footer>
-
 </body>
 </html>

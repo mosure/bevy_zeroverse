@@ -1,4 +1,5 @@
 pub mod chunk;
+mod co_visibility;
 pub mod compression;
 pub mod dataset;
 mod flow;

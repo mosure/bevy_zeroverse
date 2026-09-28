@@ -555,11 +555,7 @@ fn position_editor(
     scene: Option<Res<IndoorManifest>>,
     args: Res<BevyZeroverseConfig>,
     mut cameras: Query<
-        (
-            &mut bevy_panorbit_camera::PanOrbitCamera,
-            &mut Transform,
-            &mut Projection,
-        ),
+        (&mut bevy_panorbit_camera::PanOrbitCamera, &mut Transform),
         (
             With<crate::camera::EditorCameraMarker>,
             With<crate::camera::ProcessedEditorCameraMarker>,
@@ -579,7 +575,7 @@ fn position_editor(
     let Some(view) = scene.cameras.first() else {
         return;
     };
-    for (mut orbit, mut tf, mut projection) in &mut cameras {
+    for (mut orbit, mut tf) in &mut cameras {
         let rotation = Quat::from_rotation_y(scene.world_yaw);
         let target = rotation * view.target;
         *tf = Transform::from_translation(rotation * view.start).looking_at(target, Vec3::Y);
@@ -592,9 +588,6 @@ fn position_editor(
         orbit.target_yaw = delta.x.atan2(delta.z);
         orbit.pitch = Some((delta.y / delta.length()).asin());
         orbit.target_pitch = (delta.y / delta.length()).asin();
-        if let Projection::Perspective(ref mut perspective) = *projection {
-            perspective.fov = view.fov_degrees.to_radians();
-        }
         *last_seed = Some(scene.seed);
     }
 }

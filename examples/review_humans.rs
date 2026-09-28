@@ -1,5 +1,6 @@
 //! Small reproducible portrait/contact-sheet capture for human appearance review.
 //! cargo run --example review_humans --features human_motion -- out/human_review
+//! Add --standing after the output directory to review the same wardrobes upright.
 use bevy::prelude::*;
 use bevy_zeroverse::{
     app::BevyZeroverseConfig,
@@ -35,6 +36,12 @@ fn main() {
         let mut source =
             IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.35, 0, 1.0).unwrap();
         let mut h = source.humans.remove(0);
+        if std::env::args().any(|a| a == "--standing") {
+            h.pose = humans::HumanPoseKind::StandingRelaxed;
+            let program = humans::poses::PoseProgram::sample(h.seed, h.pose);
+            h.joints = program.solve(h.stature, h.build, h.shoulder_width, false);
+            h.pose_program = Some(program);
+        }
         h.position = Vec3::new(seed as f32 * 1.5, 0.0, 0.0);
         h.yaw = 0.0;
         h.glasses = seed % 2 == 0;

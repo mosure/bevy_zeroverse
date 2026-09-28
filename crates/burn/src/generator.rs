@@ -110,6 +110,8 @@ impl Default for GenConfig {
 
 /// Validate the capture contract before starting a GPU process or writing data.
 pub fn validate_gen_config(config: &GenConfig) -> Result<()> {
+    bevy_zeroverse::render::co_visibility::validate_config(&config.render_modes, config.cameras)
+        .map_err(anyhow::Error::msg)?;
     anyhow::ensure!(
         !config.export_ovoxel || config.ov_mode != bevy_zeroverse::app::OvoxelMode::Disabled,
         "export_ovoxel requires an enabled ov_mode"
@@ -301,7 +303,11 @@ fn sample_has_signal(
     width: u32,
     height: u32,
 ) -> bool {
-    if !render_modes.is_empty() && render_modes.iter().all(RenderMode::is_flow) {
+    if !render_modes.is_empty()
+        && render_modes
+            .iter()
+            .all(|m| m.is_flow() || *m == RenderMode::CoVisibility)
+    {
         return true;
     }
     sample.views.iter().any(|view| {
@@ -314,6 +320,7 @@ fn sample_has_signal(
                 RenderMode::OpticalFlow => view.optical_flow.as_slice(),
                 RenderMode::Position => view.position.as_slice(),
                 RenderMode::MotionVectors => view.motion_vectors.as_slice(),
+                RenderMode::CoVisibility => view.co_visibility.as_slice(),
             };
             if bytes.is_empty() {
                 return false;
@@ -331,7 +338,7 @@ fn sample_has_required_modes(
     width: u32,
     height: u32,
 ) -> bool {
-    if sample.views.is_empty() {
+    if sample.views.is_empty() || sample.view_dim == 0 {
         return false;
     }
     let modes = if render_modes.is_empty() {
@@ -343,7 +350,7 @@ fn sample_has_required_modes(
     let has_color = modes.iter().any(|m| matches!(m, RenderMode::Color));
     let has_position = modes.iter().any(|m| matches!(m, RenderMode::Position));
 
-    for view in &sample.views {
+    for (index, view) in sample.views.iter().enumerate() {
         for mode in modes {
             let buf: &[u8] = match mode {
                 RenderMode::Color => view.color.as_slice(),
@@ -353,14 +360,28 @@ fn sample_has_required_modes(
                 RenderMode::OpticalFlow => view.optical_flow.as_slice(),
                 RenderMode::Position => view.position.as_slice(),
                 RenderMode::MotionVectors => view.motion_vectors.as_slice(),
+                RenderMode::CoVisibility => view.co_visibility.as_slice(),
             };
             if mode.is_flow()
                 && crate::flow::validate(buf, width as usize * height as usize).is_err()
             {
                 return false;
             }
+            if *mode == RenderMode::CoVisibility
+                && bevy_zeroverse::render::co_visibility::validate_plane(
+                    buf,
+                    width as usize * height as usize,
+                    sample.view_dim as usize,
+                    index % sample.view_dim as usize,
+                )
+                .is_err()
+            {
+                return false;
+            }
             if buf.is_empty()
-                || (!mode.is_flow() && buf.iter().all(|b| *b == 0))
+                || (!mode.is_flow()
+                    && *mode != RenderMode::CoVisibility
+                    && buf.iter().all(|b| *b == 0))
                 || decode_rgba_bytes(buf, width, height)
                     .map(|pixels| pixels.iter().any(|v| !v.is_finite()))
                     .unwrap_or(true)

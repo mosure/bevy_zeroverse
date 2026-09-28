@@ -7,7 +7,7 @@
 [![Average time to resolve an issue](https://isitmaintained.com/badge/resolution/mosure/bevy_zeroverse.svg)](http://isitmaintained.com/project/mosure/bevy_zeroverse)
 [![crates.io](https://img.shields.io/crates/v/bevy_zeroverse.svg)](https://crates.io/crates/bevy_zeroverse)
 
-### [arXiv](https://arxiv.org/abs/) | [project page](https://mosure.github.io/bevy_zeroverse/project/index.html)</a>
+### [whitepaper (PDF)](https://mosure.github.io/bevy_zeroverse/project/static/papers/bevy_zeroverse.pdf) | [project page](https://mosure.github.io/bevy_zeroverse/project/)
 
 bevy zeroverse synthetic reconstruction dataset generator. view the [live demo](https://mosure.github.io/bevy_zeroverse/?yaw_speed=0.7&num_cameras=4&camera_grid=true&regenerate_ms=8000&plucker_visualization=true).
 
@@ -64,7 +64,7 @@ records the controls, human surfaces, glazing and annotation fixes. The generato
 [program review](docs/procedural_program_review.md) retains its historical
 native/browser checks and matched Cycles comparisons. The earlier
 [generator-v5 review](docs/local_scene_quality_review.md) is retained as historical evidence.
-See the [0.22 release notes](docs/release_0_22.md) for API and capture compatibility, the [technical paper](tex/bevy_zeroverse.tex), and the [measured generation/diversity review](docs/generation_v18.md).
+See the [0.23 release notes](docs/release_0_23.md) for API and capture compatibility, the [technical paper](tex/bevy_zeroverse.tex), and the [measured generation/diversity review](docs/generation_v18.md).
 
 See the [generation, capture and validation guide](docs/procedural_indoor.md) for
 dataset examples, distribution evidence and current rendering limits. The
@@ -131,7 +131,7 @@ that unpatched configuration.
 
 | `bevy_zeroverse` | `bevy` |
 | :--                       | :--    |
-| `0.22`, `0.21`, `0.20`, `0.19`     | `0.19.1` |
+| `0.23`, `0.22`, `0.21`, `0.20`, `0.19` | `0.19.1` |
 | published `0.17`           | `0.17` |
 | `0.8`                     | `0.16` |
 | `0.6`                     | `0.15` |
@@ -147,7 +147,10 @@ that unpatched configuration.
 
 See [numeric optical flow and motion vectors](docs/optical_flow.md) for temporal annotation conventions and lossless export.
 
+See [co-visibility annotations](docs/co_visibility.md) for per-pixel membership in up to 16 capture cameras, additive color legends, and lossless multiview dataset exports.
+
 See [optional indoor human motion](docs/human_motion.md) for cached ARDY text/waypoint generation, synchronized playback, and native/WebGPU validation.
+See the [v19 clothing and viewer review](docs/viewer_quality_v19.md) for matched clothing renders, motion controls, pose occlusion, editor intrinsics and frame-rate-independent flow previews.
 See the [v13 indoor review](docs/indoor_review_v13.md) for capture readiness barriers,
 native and browser motion checks, expanded procedural parameters, glass changes,
 and measured distributions with room, furniture and people galleries.

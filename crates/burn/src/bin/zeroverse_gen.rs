@@ -292,6 +292,7 @@ fn main() -> Result<()> {
             RenderMode::OpticalFlow => "optical-flow",
             RenderMode::Position => "position",
             RenderMode::Semantic => "semantic",
+            RenderMode::CoVisibility => "co-visibility",
         }
     }
 

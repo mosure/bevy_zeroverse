@@ -13,6 +13,7 @@ fn sample_with_id(id: u8) -> ZeroverseSample {
     Sample {
         indoor: None,
         indoor_render_metadata: None,
+        co_visibility_metadata: None,
         annotation_precision: Default::default(),
         color_encoding: Default::default(),
         views: vec![View {
@@ -21,6 +22,7 @@ fn sample_with_id(id: u8) -> ZeroverseSample {
             depth: bytes.clone(),
             normal: bytes.clone(),
             motion_vectors: Vec::new(),
+            co_visibility: Vec::new(),
             optical_flow: Vec::new(),
             position: bytes.clone(),
             world_from_view: [[val; 4]; 4],

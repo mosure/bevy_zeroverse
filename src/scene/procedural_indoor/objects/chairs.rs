@@ -62,6 +62,16 @@ pub fn parameters(o: &IndoorObject) -> ChairProgram {
     }
 }
 
+/// Both wooden and upholstered stools can be backless. Keep this decision
+/// shared with placement bounds and reports instead of hiding it in mesh code.
+pub fn is_backless(o: &IndoorObject) -> bool {
+    match o.variant % FAMILIES {
+        6 => true,
+        7 => stream(o.seed, 3041).random_bool(0.60),
+        _ => false,
+    }
+}
+
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     if matches!(o.variant % FAMILIES, 6 | 7) {
         stool(a, o);
@@ -367,7 +377,7 @@ fn stool(a: &mut Assembly, o: &IndoorObject) {
         })
         .collect();
     a.part(frame, "chair").tube(&ring, 0.009, 8);
-    if o.variant % FAMILIES == 7 {
+    if !is_backless(o) {
         for side in [-1., 1.] {
             a.part(frame, "chair").rod(
                 Vec3::new(side * radius * 0.65, 0.42, radius * 0.65),

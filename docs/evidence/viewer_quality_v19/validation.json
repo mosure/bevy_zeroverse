@@ -1,0 +1,287 @@
+{
+  "generator_version": 19,
+  "clothing": {
+    "matched_source_room_seeds": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ],
+    "people": 8,
+    "views_per_capture": 18,
+    "outfits": {
+      "knitwear": 3,
+      "shirt": 3,
+      "blazer": 2
+    },
+    "comparison": "Identical people, poses, cameras and lighting; visual comparison, not a photographic similarity score.",
+    "same_people_metadata_verified": true,
+    "additional_standing_review": {
+      "people": 8,
+      "views": 18
+    }
+  },
+  "stools": {
+    "room_seeds": [
+      0,
+      127
+    ],
+    "primary_seats": 1198,
+    "backless_stools": 201,
+    "rooms_with_backless_stools": 89
+  },
+  "native_viewer_annotations": {
+    "flow": [
+      {
+        "hz": 30,
+        "rgb": [
+          255,
+          241,
+          241
+        ]
+      },
+      {
+        "hz": 60,
+        "rgb": [
+          255,
+          241,
+          241
+        ]
+      },
+      {
+        "hz": 120,
+        "rgb": [
+          255,
+          241,
+          241
+        ]
+      }
+    ],
+    "flow_reference_interval_seconds": 0.05,
+    "pose_pixels_through_person": 1115,
+    "pose_pixels_through_wall": 0
+  },
+  "prompt_audit": {
+    "action_counts": {
+      "beckon": 1,
+      "box": 1,
+      "calf_raise": 5,
+      "chest_touch": 3,
+      "clap": 1,
+      "explain": 2,
+      "head_scratch": 1,
+      "head_shake": 3,
+      "heel_tap": 1,
+      "look": 2,
+      "lunge": 1,
+      "nod": 2,
+      "point": 2,
+      "rub_hands": 1,
+      "shoulder_dance": 3,
+      "shoulder_roll": 2,
+      "shrug": 3,
+      "side_bend": 1,
+      "squat": 1,
+      "stop_sign": 1,
+      "sway": 3,
+      "weight_shift": 2
+    },
+    "actions_per_request": {
+      "0": 19,
+      "1": 36,
+      "2": 3
+    },
+    "examples_by_program": {
+      "dance:shoulder_dance:shoulder_dance": "A person bounces both shoulders in a syncopated rhythm.",
+      "dance:sway:sway": "A person sways the hips left and back once.",
+      "exercise:calf_raise:calf_raise": "A person rises onto both toes once.",
+      "exercise:lunge:lunge": "A person lunges with the right leg and returns.",
+      "exercise:side_bend:side_bend": "A person bends the torso right, then straightens.",
+      "exercise:squat:squat": "A person squats twice and straightens up.",
+      "gesture:chest_touch:chest_touch": "A person touches the chest with the left hand.",
+      "gesture:clap:clap": "A person claps both hands once.",
+      "gesture:explain:explain": "A person explains with wide gestures of both hands smoothly.",
+      "gesture:rub_hands:rub_hands": "A person rubs both hands together smoothly.",
+      "gesture:seated_gesture:stop_sign": "A seated person holds the right palm forward, then lowers it.",
+      "gesture:shrug:shrug": "A person shrugs both shoulders once smoothly.",
+      "idle:head_scratch:head_scratch": "A person scratches the head with the left hand smoothly.",
+      "idle:head_shake:head_shake": "A person shakes the head three times carefully.",
+      "idle:look:look": "A person looks over the left shoulder, then forward.",
+      "idle:nod:nod": "A person nods the head once carefully.",
+      "idle:shoulder_roll:shoulder_roll": "A person rolls both shoulders twice with relaxed shoulders.",
+      "idle:weight_shift:weight_shift": "A person shifts weight onto the right foot and back.",
+      "locomotion:backward_walk:": "A person walks backward steadily.",
+      "locomotion:march:": "A person marches steadily.",
+      "locomotion:march:nod/heel_tap": "A person marches steadily, stops and nods the head once, marches again, stops and taps the right heel once, then resumes marching.",
+      "locomotion:march:point": "A person marches slowly, stops and points left with the right hand, then resumes marching.",
+      "locomotion:march:sway": "A person marches briskly, stops and sways the hips right and back twice, then resumes marching.",
+      "locomotion:shuffle:": "A person shuffles slowly.",
+      "locomotion:side_step:": "A person steps sideways slowly.",
+      "locomotion:skip:box/calf_raise": "A person skips steadily, stops and punches forward with the left arm once, skips again, stops and rises onto both toes once, then resumes skipping carefully.",
+      "locomotion:skip:head_shake/beckon": "A person skips steadily, stops and shakes the head once, skips again, stops and beckons with the right hand once, then resumes skipping smoothly.",
+      "locomotion:tiptoe:": "A person tiptoes slowly.",
+      "locomotion:tiptoe:explain": "A person tiptoes slowly, stops and explains with wide gestures of both hands, then resumes tiptoeing.",
+      "locomotion:tiptoe:shrug": "A person tiptoes slowly, stops and shrugs both shoulders once, then resumes tiptoeing.",
+      "locomotion:tiptoe:sway": "A person tiptoes slowly, stops and sways the hips left and back once, then resumes tiptoeing.",
+      "locomotion:walk:": "A person walks slowly glancing right.",
+      "locomotion:walk:point": "A person walks slowly, stops and points right with the right hand, then resumes walking carefully.",
+      "locomotion:walk:weight_shift": "A person walks slowly, stops and shifts weight onto the left foot and back, then resumes walking."
+    },
+    "family_counts": {
+      "dance": 4,
+      "exercise": 7,
+      "gesture": 9,
+      "idle": 9,
+      "locomotion": 29
+    },
+    "gait_counts": {
+      "backward_walk": 4,
+      "march": 6,
+      "shuffle": 3,
+      "side_step": 3,
+      "skip": 2,
+      "tiptoe": 5,
+      "walk": 6
+    },
+    "policy": "Feasible plans after geometry filtering, before model admission. Program signatures omit wording, handedness, repetitions, amplitude and timing. Text diversity does not establish motion fidelity.",
+    "prompt_program_version": 2,
+    "requests": 58,
+    "tokens_including_header_histogram": {
+      "11": 3,
+      "12": 7,
+      "13": 5,
+      "14": 11,
+      "15": 4,
+      "16": 4,
+      "17": 10,
+      "18": 1,
+      "19": 2,
+      "20": 1,
+      "24": 1,
+      "25": 1,
+      "26": 1,
+      "27": 1,
+      "28": 1,
+      "30": 1,
+      "31": 1,
+      "33": 1,
+      "36": 1,
+      "37": 1
+    },
+    "unique_action_programs": 34,
+    "unique_texts": 51
+  },
+  "native_motion": [
+    {
+      "seed": 13,
+      "accepted": 2,
+      "rejected": [],
+      "prompts": [
+        "A person scratches the head with the left hand smoothly.",
+        "A person marches steadily, stops and nods the head once, marches again, stops and taps the right heel once, then resumes marching."
+      ]
+    },
+    {
+      "seed": 2,
+      "accepted": 1,
+      "rejected": [
+        {
+          "actor_id": 41,
+          "reason": "no collision-free behavior fits the available space"
+        }
+      ],
+      "prompts": [
+        "A person marches steadily."
+      ]
+    }
+  ],
+  "wasm_motion": [
+    {
+      "case": "static",
+      "frame_difference": {
+        "mean_absolute_srgb": 0.0,
+        "changed_pixels_over_4_255": 0,
+        "fixed_camera": true
+      },
+      "success": true,
+      "seconds": 12.565119928098284,
+      "gpu_devices": 1,
+      "gpu_errors": []
+    },
+    {
+      "case": "motion",
+      "accepted": 2,
+      "regenerated_accepted": 2,
+      "frame_difference": {
+        "mean_absolute_srgb": 0.00026435412127814086,
+        "changed_pixels_over_4_255": 2395,
+        "fixed_camera": true
+      },
+      "success": true,
+      "seconds": 115.02570128103253,
+      "gpu_devices": 1,
+      "gpu_errors": []
+    }
+  ],
+  "checks": {
+    "rust_library": {
+      "passed": 166,
+      "failed": 0,
+      "ignored": 3
+    },
+    "gpu_regressions": [
+      "viewer_annotations",
+      "optical_flow_render",
+      "co_visibility_render"
+    ],
+    "clippy": "workspace/all targets with human_motion,embedding_audit and -D warnings; passed",
+    "model_speed_playback": {
+      "fps": 20,
+      "mode": "once",
+      "frame_counts_tested": [
+        40,
+        120,
+        160,
+        640
+      ],
+      "uses_active_clip_frame_count": true
+    },
+    "native_viewer_build": "passed; human_motion",
+    "wasm_viewer_build": "passed; no default features; web,human_motion",
+    "upstream_notices": [
+      "burn-cubecl 0.21.0 future Rust compatibility",
+      "burn-cubecl-fusion 0.21.0 future Rust compatibility"
+    ]
+  },
+  "wasm_viewer_annotations": {
+    "cases": [
+      {
+        "case": "pose_off",
+        "passed": true,
+        "gpu_errors": []
+      },
+      {
+        "case": "pose_on",
+        "passed": true,
+        "gpu_errors": []
+      },
+      {
+        "case": "flow",
+        "passed": true,
+        "gpu_errors": []
+      }
+    ],
+    "pose_changed_pixels": 1365,
+    "checks": [
+      "pose overlay visible outside inspector",
+      "no motion model loads with fraction zero",
+      "motion policy UI opens without regeneration",
+      "advanced room settings populated"
+    ]
+  },
+  "qualification": "Bounded geometry/render regression and motion smoke tests. Does not establish photographic realism, physical cloth simulation, or motion fidelity across all prompts."
+}

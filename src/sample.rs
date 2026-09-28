@@ -30,6 +30,9 @@ pub struct View {
     /// Same forward correspondence in normalized image coordinates (dx/width, dy/height).
     #[serde(default)]
     pub motion_vectors: Vec<u8>,
+    /// RGBA f32: other-camera membership bitmask, popcount, source-valid, zero.
+    #[serde(default)]
+    pub co_visibility: Vec<u8>,
     /// RGBA f32: world position affine-normalized by Sample::aabb, plus hit alpha.
     /// Visible geometry outside the reconstruction region can be outside [0, 1].
     pub position: Vec<u8>,
@@ -91,6 +94,9 @@ pub struct Sample {
     pub color_encoding: crate::render::color::ColorEncoding,
     #[serde(default)]
     pub annotation_precision: AnnotationPrecision,
+    /// Shared camera ordering, visibility tolerance and additive RGB legend.
+    #[serde(default)]
+    pub co_visibility_metadata: Option<serde_json::Value>,
     /// Per-sample renderer settings and measured/declared light-transport provenance.
     #[serde(default)]
     pub indoor_render_metadata: Option<serde_json::Value>,
@@ -665,12 +671,14 @@ pub fn sample_stream(
             }
         }
         let flow_capture = state.render_modes.iter().any(RenderMode::is_flow);
-        if flow_capture
-            && cameras
-                .iter()
-                .any(|(_, _, _, _, copier)| copier.attachment_count() != 4)
+        let co_visibility_capture = state.render_modes.contains(&RenderMode::CoVisibility);
+        if (flow_capture || co_visibility_capture)
+            && cameras.iter().any(|(_, _, _, _, copier)| {
+                copier.attachment_count()
+                    != 3 + usize::from(flow_capture) + usize::from(co_visibility_capture)
+            })
         {
-            failure.0 = Some("flow capture requires the native temporal geometry attachments; configure flow before creating cameras".into());
+            failure.0 = Some("flow/co-visibility capture requires the native geometry attachments; configure these modes before creating cameras".into());
             state.enabled = false;
             return;
         }
@@ -708,6 +716,7 @@ pub fn sample_stream(
                     || !view.semantic.is_empty()
                     || !view.optical_flow.is_empty()
                     || !view.motion_vectors.is_empty();
+                let captured_modality = captured_modality || !view.co_visibility.is_empty();
                 if (capture.pending.is_some() || captured_modality)
                     && !camera_metadata_matches(view, transform, projection, playback.progress)
                 {
@@ -721,6 +730,22 @@ pub fn sample_stream(
             }
         }
         if capture.pending.is_none() {
+            if state.render_modes.contains(&RenderMode::CoVisibility) {
+                if let Err(error) =
+                    crate::render::co_visibility::validate_config(&state.render_modes, camera_count)
+                {
+                    failure.0 = Some(error);
+                    state.enabled = false;
+                    return;
+                }
+                let indices = ordered_cameras
+                    .iter()
+                    .enumerate()
+                    .map(|(slot, (_, i, ..))| i.map_or(slot, |i| i.0))
+                    .collect::<Vec<_>>();
+                buffered_sample.co_visibility_metadata =
+                    Some(crate::render::co_visibility::annotation_metadata(&indices));
+            }
             let view_count = camera_count * args.playback_steps as usize;
             if buffered_sample.views.len() != view_count {
                 buffered_sample.views.clear();
@@ -883,7 +908,28 @@ pub fn sample_stream(
                 #[cfg(not(target_arch = "wasm32"))]
                 {
                     let mut planes = packet.planes;
-                    let flow = (planes.len() == 4).then(|| planes.pop().unwrap());
+                    if requested_modes.contains(&RenderMode::CoVisibility) {
+                        let Some(plane) = planes.pop() else {
+                            failure.0 = Some("missing co-visibility attachment".into());
+                            state.enabled = false;
+                            return;
+                        };
+                        if let Err(error) = crate::render::co_visibility::validate_plane(
+                            &plane,
+                            args.width as usize * args.height as usize,
+                            camera_count,
+                            i,
+                        ) {
+                            failure.0 = Some(error);
+                            state.enabled = false;
+                            return;
+                        }
+                        view.co_visibility = plane;
+                    }
+                    let flow = requested_modes
+                        .iter()
+                        .any(RenderMode::is_flow)
+                        .then(|| planes.pop().unwrap());
                     if let Err(message) =
                         unpack_ground_truth(view, planes, &requested_modes, &scene_aabb, &args)
                     {
@@ -921,6 +967,7 @@ pub fn sample_stream(
                     RenderMode::Semantic => view.semantic = image_data,
                     RenderMode::OpticalFlow => view.optical_flow = image_data,
                     RenderMode::Position => view.position = image_data,
+                    RenderMode::CoVisibility => view.co_visibility = image_data,
                 }
             }
         }
@@ -1055,6 +1102,7 @@ pub fn sample_stream(
     let human_pose_steps = std::mem::take(&mut buffered_sample.human_pose_steps);
     let views = std::mem::take(&mut buffered_sample.views);
     let sample: Sample = Sample {
+        co_visibility_metadata: buffered_sample.co_visibility_metadata.take(),
         indoor: if args.scene_type == crate::scene::ZeroverseSceneType::ProceduralIndoor {
             indoor.map(|scene| scene.clone())
         } else {

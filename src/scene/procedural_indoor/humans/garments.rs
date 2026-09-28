@@ -1,5 +1,8 @@
 //! Clothing regions live in the rest body, then follow the full Anny skinning.
 //! Anatomical heights define waist/cuffs/necklines; rig ownership alone does not.
+pub(super) mod details;
+pub(super) mod fit;
+
 use super::{HumanAssembly, HumanOutfit, HumanSurface, IndoorHuman};
 use bevy::prelude::*;
 
@@ -7,9 +10,8 @@ pub(super) struct GarmentCut {
     pub waist: f32,
     pub neck: f32,
     pub chest: f32,
-    pub torso_half_width: f32,
     pub depth_center: f32,
-    pub torso_half_depth: f32,
+    pub fit: fit::TorsoFit,
     pub shoe_top: f32,
     pub cuffs: [(Vec3, Vec3); 2],
 }
@@ -74,14 +76,14 @@ impl GarmentCut {
         }
         if is_arm(bone) {
             let (point, normal) = self.cuffs[usize::from(bone.ends_with(".R"))];
-            let (cloth, skin) = split(&triangle, |p| (p - point).dot(normal), Some(mesh));
+            let (cloth, skin) = split(&triangle, |p| (p - point).dot(normal), Some((mesh, 0.002)));
             emit(&cloth, HumanSurface::Top, mesh);
             emit(&skin, HumanSurface::Skin, mesh);
             return;
         }
-        let (below_neck, skin) = split(&triangle, |p| p.y - self.neck, Some(mesh));
+        let (below_neck, skin) = split(&triangle, |p| p.y - self.neck, Some((mesh, 0.0028)));
         emit(&skin, HumanSurface::Skin, mesh);
-        let (legs, top) = split(&below_neck, |p| p.y - self.waist, Some(mesh));
+        let (legs, top) = split(&below_neck, |p| p.y - self.waist, Some((mesh, 0.0011)));
         let (shoes, trousers) = split(&legs, |p| p.y - self.shoe_top, None);
         emit(&shoes, HumanSurface::Shoes, mesh);
         emit(&trousers, HumanSurface::Trousers, mesh);
@@ -92,7 +94,7 @@ impl GarmentCut {
                     let y = ((p.y - self.waist) / (self.neck - self.waist)).clamp(0.0, 1.0);
                     (p.x.abs() - 0.012 - y.powi(2) * 0.075).max(p.z - self.depth_center)
                 },
-                Some(mesh),
+                Some((mesh, 0.0011)),
             );
             emit(&shirt, HumanSurface::Shirt, mesh);
             emit(&jacket, HumanSurface::Top, mesh);
@@ -104,26 +106,11 @@ impl GarmentCut {
     /// Ease smooths anatomical contours into a hanging torso silhouette. It is
     /// evaluated before skinning, so it also works on leaning/seated people.
     pub fn ease(&self, p: Vec3, surface: HumanSurface) -> Vec3 {
-        if !matches!(surface, HumanSurface::Top | HumanSurface::Shirt)
-            || p.y > self.chest
-            || p.y < self.waist
-            || p.x.abs() > self.torso_half_width * 1.05
-        {
-            return Vec3::ZERO;
+        if matches!(surface, HumanSurface::Top | HumanSurface::Shirt) {
+            self.fit.delta(p, self.waist, self.chest + 0.03, self.neck)
+        } else {
+            Vec3::ZERO
         }
-        let t = ((p.y - self.waist) / (self.chest - self.waist)).clamp(0.0, 1.0);
-        let rx = self.torso_half_width * (0.84 + t * 0.16);
-        let rz = self.torso_half_depth * (0.92 + t * 0.08);
-        let q = Vec2::new(p.x, p.z - self.depth_center);
-        // A rounded hanging cross-section spans the bust instead of following
-        // every skin depression. An ellipse made shirts look painted onto skin.
-        let section = (q / Vec2::new(rx, rz)).abs();
-        let radius = (section.x.powi(4) + section.y.powi(4)).sqrt().sqrt();
-        if radius < 0.2 || radius >= 1.0 {
-            return Vec3::ZERO;
-        }
-        let correction = q * (1.0 / radius - 1.0);
-        Vec3::new(correction.x, 0.0, correction.y).clamp_length_max(0.05)
     }
 }
 
@@ -150,7 +137,7 @@ pub(super) struct GarmentVertex {
 fn split(
     poly: &[GarmentVertex],
     field: impl Fn(Vec3) -> f32,
-    seam: Option<&mut HumanAssembly>,
+    seam: Option<(&mut HumanAssembly, f32)>,
 ) -> (Vec<GarmentVertex>, Vec<GarmentVertex>) {
     let mut inside = Vec::with_capacity(6);
     let mut outside = Vec::with_capacity(6);
@@ -186,11 +173,11 @@ fn split(
             crossings.push(v);
         }
     }
-    if let (Some(mesh), [a, b]) = (seam, crossings.as_slice()) {
+    if let (Some((mesh, radius)), [a, b]) = (seam, crossings.as_slice()) {
         mesh.part(HumanSurface::Seam).rod(
             a.position + a.normal * 0.0012,
             b.position + b.normal * 0.0012,
-            0.0011,
+            radius,
         );
     }
     (inside, outside)
@@ -231,9 +218,8 @@ mod tests {
             waist: 1.0,
             neck: 1.5,
             chest: 1.4,
-            torso_half_width: 0.25,
             depth_center: 0.0,
-            torso_half_depth: 0.12,
+            fit: fit::TorsoFit::new(&[], 1.0, 1.4),
             shoe_top: 0.15,
             cuffs: [(Vec3::ZERO, Vec3::X); 2],
         };

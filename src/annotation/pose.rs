@@ -1,3 +1,5 @@
+pub(crate) mod overlay;
+
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
@@ -28,6 +30,7 @@ pub struct ZeroversePosePlugin;
 
 impl Plugin for ZeroversePosePlugin {
     fn build(&self, app: &mut App) {
+        overlay::install(app);
         app.register_type::<PoseTracked>();
         app.register_type::<HumanPose>();
 
@@ -37,6 +40,7 @@ impl Plugin for ZeroversePosePlugin {
                 compute_human_poses.after(TransformSystems::Propagate),
                 draw_human_poses
                     .after(compute_human_poses)
+                    .after(crate::scene::procedural_indoor::humans::update_human_poses)
                     .run_if(resource_exists::<GizmoConfigStore>),
             ),
         );
@@ -97,31 +101,50 @@ fn has_scene_scope(
 fn draw_human_poses(
     args: Res<BevyZeroverseConfig>,
     assets: Option<Res<BurnHumanAssets>>,
-    poses: Query<&HumanPose>,
+    poses: Query<(
+        &HumanPose,
+        Has<crate::scene::procedural_indoor::humans::IndoorHumanInstance>,
+    )>,
     mut gizmos: Gizmos<PoseGizmoConfigGroup>,
 ) {
     if !args.draw_pose_gizmos {
         return;
     }
 
-    let Some(assets) = assets.as_ref() else {
-        return;
-    };
-
-    let bone_labels = &assets.body.metadata().metadata.bone_labels;
-    let bone_parents = &assets.body.metadata().metadata.bone_parents;
-
-    for pose in poses.iter() {
+    for (pose, indoor) in &poses {
         if pose.bone_positions.is_empty() {
             continue;
         }
 
         for (idx, position) in pose.bone_positions.iter().enumerate() {
-            let label = bone_labels.get(idx).map(|s| s.as_str()).unwrap_or("bone");
+            let label = if indoor {
+                crate::scene::procedural_indoor::humans::HUMAN_BONE_NAMES
+                    .get(idx)
+                    .copied()
+            } else {
+                assets.as_ref().and_then(|a| {
+                    a.body
+                        .metadata()
+                        .metadata
+                        .bone_labels
+                        .get(idx)
+                        .map(String::as_str)
+                })
+            }
+            .unwrap_or("bone");
             let color = bone_color(label, args.gizmos_alpha);
             gizmos.sphere(*position, 0.02, color);
 
-            let parent = bone_parents.get(idx).copied().unwrap_or(-1);
+            let parent = if indoor {
+                crate::scene::procedural_indoor::humans::HUMAN_BONE_PARENTS
+                    .get(idx)
+                    .copied()
+            } else {
+                assets
+                    .as_ref()
+                    .and_then(|a| a.body.metadata().metadata.bone_parents.get(idx).copied())
+            }
+            .unwrap_or(-1);
             if parent < 0 {
                 continue;
             }

@@ -130,17 +130,18 @@ impl MotionFrame {
                 let pb = next.bones[parent];
                 let local_a = pa.rotation.inverse() * a.rotation;
                 let local_b = pb.rotation.inverse() * b.rotation;
-                let offset = pa.rotation.inverse() * (a.translation - pa.translation);
+                let offset_a = pa.rotation.inverse() * (a.translation - pa.translation) / pa.scale;
+                let offset_b = pb.rotation.inverse() * (b.translation - pb.translation) / pb.scale;
                 Transform {
-                    translation: bones[parent].translation + bones[parent].rotation * offset,
+                    translation: bones[parent].transform_point(offset_a.lerp(offset_b, t)),
                     rotation: (bones[parent].rotation * local_a.slerp(local_b, t)).normalize(),
-                    scale: a.scale,
+                    scale: a.scale.lerp(b.scale, t),
                 }
             } else {
                 Transform {
                     translation: a.translation.lerp(b.translation, t),
                     rotation: a.rotation.slerp(b.rotation, t),
-                    scale: a.scale,
+                    scale: a.scale.lerp(b.scale, t),
                 }
             };
             bones.push(transform);
@@ -532,6 +533,49 @@ mod tests {
         assert!((n.length() - 1.0).abs() < 1e-6);
         assert_eq!(tangent.w, -1.0);
     }
+    #[test]
+    fn interpolation_has_continuous_endpoints_with_changing_local_offsets() {
+        let rig = MotionRig {
+            parents: vec![None, Some(0)],
+            annotation_indices: [1; 21],
+            stature: 1.75,
+            local_bounds: vec![None, None],
+        };
+        let frame = |offset: f32, angle: f32| {
+            let rotation = Quat::from_rotation_z(angle);
+            MotionFrame {
+                bones: vec![
+                    Transform::from_rotation(rotation),
+                    Transform::from_translation(rotation * Vec3::X * offset)
+                        .with_rotation(rotation),
+                ],
+                joints: vec![],
+                bounds: (Vec3::ZERO, Vec3::ZERO),
+            }
+        };
+        let a = frame(0.35, 0.1);
+        let b = frame(0.38, 0.5);
+        let c = frame(0.36, 0.8);
+        for t in [0.0, 0.5, 0.9999, 1.0] {
+            let f = a.interpolate(&b, t, &rig);
+            assert!((f.bones[1].translation.length() - (0.35 + 0.03 * t)).abs() < 1e-6);
+        }
+        let before = a.interpolate(&b, 1.0, &rig);
+        let after = b.interpolate(&c, 0.0, &rig);
+        assert!(
+            before.bones[1]
+                .translation
+                .distance(after.bones[1].translation)
+                < 1e-6
+        );
+        assert!(
+            before.bones[1]
+                .rotation
+                .angle_between(after.bones[1].rotation)
+                < 1e-6
+        );
+    }
+
     #[test]
     fn interpolation_preserves_bone_lengths_and_encloses_deformed_render_vertices() {
         let rig = MotionRig {

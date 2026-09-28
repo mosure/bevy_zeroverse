@@ -57,3 +57,43 @@ fn grid_disables_editor_scene_but_preserves_ui_and_restores_editor() {
     );
     assert!(matches!(clear_color, ClearColorConfig::None));
 }
+
+#[test]
+fn co_visibility_grid_uses_dedicated_preview_and_restores_rgb() {
+    use crate::render::ground_truth::GroundTruthCamera;
+    let mut app = App::new();
+    app.init_resource::<Assets<Image>>();
+    app.insert_resource(RenderMode::CoVisibility);
+    let (rgb, preview, gt) = {
+        let mut images = app.world_mut().resource_mut::<Assets<Image>>();
+        let rgb = images.add(Image::default());
+        let preview = images.add(Image::default());
+        let mut gt = GroundTruthCamera::new(&mut images, UVec2::new(32, 24));
+        gt.enable_co_visibility(&mut images, UVec2::new(32, 24));
+        gt.co_visibility.as_mut().unwrap().preview = Some(preview.clone());
+        (rgb, preview, gt)
+    };
+    let camera = app
+        .world_mut()
+        .spawn((RenderTarget::Image(rgb.clone().into()), gt))
+        .id();
+    let node = app
+        .world_mut()
+        .spawn((
+            CameraGridSource(camera),
+            ImageNode {
+                image: rgb.clone(),
+                ..default()
+            },
+        ))
+        .id();
+    app.world_mut()
+        .run_system_once(update_camera_grid_images)
+        .unwrap();
+    assert_eq!(app.world().get::<ImageNode>(node).unwrap().image, preview);
+    *app.world_mut().resource_mut::<RenderMode>() = RenderMode::Color;
+    app.world_mut()
+        .run_system_once(update_camera_grid_images)
+        .unwrap();
+    assert_eq!(app.world().get::<ImageNode>(node).unwrap().image, rgb);
+}

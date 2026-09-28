@@ -1,4 +1,4 @@
-//! Native, full precision, single-pass geometric ground truth.
+//! Full precision, single-pass geometric ground truth on native and WebGPU.
 //!
 //! Two RGBA32Float attachments contain world XYZ/linear view-Z depth and encoded
 //! geometric view normal/semantic ID respectively. No HDR intermediate, lighting,
@@ -18,7 +18,7 @@ use bevy::{
         renderer::{RenderContext, RenderDevice, RenderGraph, RenderGraphSystems, RenderQueue},
         texture::GpuImage,
         view::ExtractedView,
-        Extract, ExtractSchedule, GpuResourceAppExt, Render, RenderApp, RenderSystems,
+        Extract, ExtractSchedule, Render, RenderApp, RenderSystems,
     },
 };
 use serde::Serialize;
@@ -55,6 +55,7 @@ pub struct GroundTruthCamera {
     pub flow: Option<Handle<Image>>,
     /// Change this at every sequence boundary; warm-up frames never advance history.
     pub flow_sequence: u64,
+    pub co_visibility: Option<super::co_visibility::CoVisibilityOutput>,
     depth: Handle<Image>,
     status: Arc<CameraStatus>,
 }
@@ -118,6 +119,7 @@ impl GroundTruthCamera {
             layers: RenderLayers::default(),
             flow: None,
             flow_sequence: 0,
+            co_visibility: None,
             status: Arc::default(),
         }
     }
@@ -131,6 +133,29 @@ impl GroundTruthCamera {
     }
 
     pub fn rendered_frame(&self) -> Option<u64> {
+        let frame = self.geometry_frame()?;
+        if self
+            .co_visibility
+            .as_ref()
+            .is_some_and(|c| c.rendered_frame() != Some(frame))
+        {
+            return None;
+        }
+        Some(frame)
+    }
+
+    pub fn enable_co_visibility(
+        &mut self,
+        images: &mut Assets<Image>,
+        size: UVec2,
+    ) -> Handle<Image> {
+        let output = super::co_visibility::CoVisibilityOutput::new(images, size);
+        let image = output.image.clone();
+        self.co_visibility = Some(output);
+        image
+    }
+
+    pub(crate) fn geometry_frame(&self) -> Option<u64> {
         self.status
             .valid
             .load(Ordering::Acquire)
@@ -143,6 +168,10 @@ impl GroundTruthCamera {
 
     pub fn failure(&self) -> Option<String> {
         self.status.failure.lock().unwrap().clone()
+    }
+
+    pub(crate) fn fail(&self, message: String) {
+        *self.status.failure.lock().unwrap() = Some(message);
     }
 }
 
@@ -194,11 +223,16 @@ impl Plugin for GroundTruthPlugin {
         render_app.add_systems(ExtractSchedule, extract_geometry);
         render_app.add_systems(
             Render,
-            (prepare_geometry, prepare_cameras, flow::prepare)
+            (
+                initialize_pipeline,
+                prepare_geometry,
+                prepare_cameras,
+                flow::prepare,
+            )
                 .chain()
                 .in_set(RenderSystems::PrepareResources),
         );
-        render_app.init_gpu_resource::<GroundTruthPipeline>();
+        render_app.init_resource::<GroundTruthPipelines>();
         render_app.init_resource::<flow::FlowPipeline>();
         render_app.add_systems(
             RenderGraph,
@@ -274,17 +308,20 @@ struct GeometryCache {
 fn extract_geometry(
     cameras: Extract<Query<&GroundTruthCamera>>,
     objects: Extract<
-        Query<(
-            Entity,
-            &Mesh3d,
-            &GlobalTransform,
-            Option<&InheritedVisibility>,
-            Option<&SemanticLabel>,
-            Option<&RenderLayers>,
-            Option<&MeshMaterial3d<StandardMaterial>>,
-            Option<&DisabledPbrMaterial>,
-            Option<&SkinnedMesh>,
-        )>,
+        Query<
+            (
+                Entity,
+                &Mesh3d,
+                &GlobalTransform,
+                Option<&InheritedVisibility>,
+                Option<&SemanticLabel>,
+                Option<&RenderLayers>,
+                Option<&MeshMaterial3d<StandardMaterial>>,
+                Option<&DisabledPbrMaterial>,
+                Option<&SkinnedMesh>,
+            ),
+            Without<super::RenderOnlyOverlay>,
+        >,
     >,
     meshes: Extract<Res<Assets<Mesh>>>,
     materials: Extract<Res<Assets<StandardMaterial>>>,
@@ -564,15 +601,27 @@ pub fn semantic_label(id: u32) -> Option<SemanticLabel> {
         .and_then(|name| SemanticLabel::from_label(name))
 }
 
-#[derive(Resource)]
 struct GroundTruthPipeline {
     camera_layout: BindGroupLayout,
     instance_layout: BindGroupLayout,
     pipelines: [CachedRenderPipelineId; 3],
 }
 
-impl FromWorld for GroundTruthPipeline {
-    fn from_world(world: &mut World) -> Self {
+#[derive(Resource, Default)]
+struct GroundTruthPipelines(Option<GroundTruthPipeline>);
+
+fn initialize_pipeline(
+    cameras: Query<&GroundTruthCamera>,
+    cache: Res<PipelineCache>,
+    mut pipelines: ResMut<GroundTruthPipelines>,
+) {
+    if !cameras.is_empty() && pipelines.0.is_none() {
+        pipelines.0 = Some(GroundTruthPipeline::new(&cache));
+    }
+}
+
+impl GroundTruthPipeline {
+    fn new(cache: &PipelineCache) -> Self {
         let camera_descriptor = BindGroupLayoutDescriptor::new(
             "ground_truth_camera",
             &BindGroupLayoutEntries::single(
@@ -593,7 +642,6 @@ impl FromWorld for GroundTruthPipeline {
                 ),
             ),
         );
-        let cache = world.resource::<PipelineCache>();
         let camera_layout = cache.get_bind_group_layout(&camera_descriptor);
         let instance_layout = cache.get_bind_group_layout(&instance_descriptor);
         let pipelines = [None, Some(Face::Back), Some(Face::Front)].map(|cull_mode| {
@@ -673,7 +721,7 @@ struct GpuGeometry {
 
 fn prepare_geometry(
     geometry: Res<ExtractedGeometry>,
-    pipeline: Res<GroundTruthPipeline>,
+    pipelines: Res<GroundTruthPipelines>,
     mut gpu: ResMut<GpuGeometry>,
     device: Res<RenderDevice>,
     queue: Res<RenderQueue>,
@@ -689,6 +737,9 @@ fn prepare_geometry(
         stats.geometry_bytes = 0;
         return;
     }
+    let Some(pipeline) = pipelines.0.as_ref() else {
+        return;
+    };
     let mut stats = diagnostics.0.lock().unwrap();
     if gpu.vertices.is_none() || gpu.generation != geometry.generation {
         gpu.vertices = Some(super::upload_buffer(
@@ -760,10 +811,13 @@ fn prepare_cameras(
         &ExtractedView,
         Option<&PreparedCamera>,
     )>,
-    pipeline: Res<GroundTruthPipeline>,
+    pipelines: Res<GroundTruthPipelines>,
     device: Res<RenderDevice>,
     queue: Res<RenderQueue>,
 ) {
+    let Some(pipeline) = pipelines.0.as_ref() else {
+        return;
+    };
     for (entity, camera, view, prepared) in &cameras {
         let view_from_world = view.world_from_view.to_matrix().inverse();
         let uniform = CameraUniform {
@@ -804,7 +858,9 @@ fn render_ground_truth(
     if geometry.failure.is_some() {
         return;
     }
-    let pipeline = world.resource::<GroundTruthPipeline>();
+    let Some(pipeline) = world.resource::<GroundTruthPipelines>().0.as_ref() else {
+        return;
+    };
     let cache = world.resource::<PipelineCache>();
     let images = world.resource::<RenderAssets<GpuImage>>();
     // An empty scene is a valid background-only capture. Clear its targets
@@ -833,7 +889,7 @@ fn render_ground_truth(
     let active: Vec<_> = cameras
         .iter()
         .filter_map(|(camera, prepared)| {
-            if camera.frame_id == 0 || camera.rendered_frame() == Some(camera.frame_id) {
+            if camera.frame_id == 0 || camera.geometry_frame() == Some(camera.frame_id) {
                 return None;
             }
             Some((

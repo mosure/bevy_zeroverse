@@ -74,6 +74,9 @@ struct Args {
     gi_rays: u32,
     #[arg(long)]
     rgb_only: bool,
+    /// Add lossless same-time camera membership to the measured capture modes.
+    #[arg(long)]
+    co_visibility: bool,
     /// Repeated capture of a fixed scene distinguishes residency from regeneration.
     #[arg(long)]
     fixed_scene: bool,
@@ -175,7 +178,7 @@ fn main() -> Result<()> {
             .to_string_lossy()
             .into_owned(),
     ));
-    let modes = if args.rgb_only {
+    let mut modes = if args.rgb_only {
         vec![RenderMode::Color]
     } else {
         vec![
@@ -186,6 +189,9 @@ fn main() -> Result<()> {
             RenderMode::Semantic,
         ]
     };
+    if args.co_visibility {
+        modes.push(RenderMode::CoVisibility);
+    }
     let config = BevyZeroverseConfig {
         scene_type: ZeroverseSceneType::ProceduralIndoor,
         indoor_seed: Some(args.seed),
@@ -399,7 +405,8 @@ fn main() -> Result<()> {
             "readback_waiting_updates":capture.waiting_updates,"backoff_sleeps":capture.backoff_sleeps,
             "render_diagnostics":render_diagnostics,"views":sample.views.len(),"annotation_precision":sample.annotation_precision,
             "humans":sample.indoor.as_ref().unwrap().humans.len(),"gi":app.world().get_resource::<BakeStatistics>(),
-            "ground_truth":app.world().get_resource::<bevy_zeroverse::render::ground_truth::GroundTruthDiagnostics>().map(|d|d.snapshot())});
+            "ground_truth":app.world().get_resource::<bevy_zeroverse::render::ground_truth::GroundTruthDiagnostics>().map(|d|d.snapshot()),
+            "co_visibility":app.world().get_resource::<bevy_zeroverse::render::co_visibility::CoVisibilityDiagnostics>().map(|d|d.snapshot())});
         serde_json::to_writer(&mut records, &record)?;
         writeln!(records)?;
         records.flush()?;

@@ -1023,3 +1023,79 @@ fn dressed_staged_humans_have_finite_geometry_and_material_parts() {
         }
     }
 }
+
+#[test]
+fn editor_intrinsics_survive_room_regeneration() {
+    use super::position_editor;
+    use crate::camera::{EditorCameraMarker, ProcessedEditorCameraMarker};
+    use crate::{app::BevyZeroverseConfig, scene::ZeroverseSceneType};
+    use bevy::ecs::system::RunSystemOnce;
+    let mut app = App::new();
+    app.insert_resource(BevyZeroverseConfig {
+        scene_type: ZeroverseSceneType::ProceduralIndoor,
+        ..default()
+    });
+    let camera = app
+        .world_mut()
+        .spawn((
+            EditorCameraMarker::default(),
+            ProcessedEditorCameraMarker,
+            bevy_panorbit_camera::PanOrbitCamera::default(),
+            Transform::IDENTITY,
+            Projection::Perspective(PerspectiveProjection {
+                fov: 0.92,
+                near: 0.13,
+                far: 131.0,
+                aspect_ratio: 1.71,
+                ..default()
+            }),
+        ))
+        .id();
+    for seed in [0, 13, 42] {
+        let scene =
+            IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.4, 1, 0.0).unwrap();
+        app.insert_resource(scene);
+        app.world_mut().run_system_once(position_editor).unwrap();
+        let Projection::Perspective(p) = app.world().get::<Projection>(camera).unwrap() else {
+            panic!()
+        };
+        assert_eq!(
+            (p.fov, p.near, p.far, p.aspect_ratio),
+            (0.92, 0.13, 131.0, 1.71)
+        );
+        assert_ne!(
+            app.world().get::<Transform>(camera).unwrap().translation,
+            Vec3::ZERO
+        );
+    }
+}
+
+#[test]
+fn backless_stools_survive_placement_and_have_no_back_geometry() {
+    let mut seats = 0;
+    let mut stools = 0;
+    let mut rooms = 0;
+    for seed in 0..128 {
+        let scene =
+            IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 0, 0.0).unwrap();
+        let mut found = false;
+        for chair in scene
+            .objects
+            .iter()
+            .filter(|o| o.kind == ObjectKind::Chair && !o.neighbor)
+        {
+            seats += 1;
+            if super::objects::chairs::is_backless(chair) {
+                stools += 1;
+                found = true;
+                let (_, hi) = super::objects::build_object(chair).bounds();
+                assert!(hi.y <= 0.481, "stool acquired a back: {hi:?}");
+                assert!(hi.y >= 0.469, "missing stool seat: {hi:?}");
+            }
+        }
+        rooms += usize::from(found);
+    }
+    println!("128 primary rooms: {stools}/{seats} backless seats in {rooms} rooms");
+    assert!(stools as f32 / seats as f32 > 0.10);
+    assert!(rooms > 40);
+}

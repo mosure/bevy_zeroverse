@@ -8,6 +8,71 @@ use bevy::{
 
 use crate::render::DisabledPbrMaterial;
 
+/// Viewer velocity preview over a fixed reference interval. Dataset flow is
+/// instead the exact displacement between captured timesteps (see metadata).
+#[derive(Resource, Reflect, Clone, Copy)]
+#[reflect(Resource)]
+pub struct FlowPreviewSettings {
+    pub interval_seconds: f32,
+    pub full_scale_pixels: f32,
+}
+impl Default for FlowPreviewSettings {
+    fn default() -> Self {
+        Self {
+            interval_seconds: 0.05,
+            full_scale_pixels: 32.0,
+        }
+    }
+}
+
+#[derive(Default)]
+struct PreviewHistory {
+    previous: Option<(crate::camera::PlaybackMode, f32)>,
+    settle: u8,
+}
+
+fn update_preview(
+    mode: Res<super::RenderMode>,
+    settings: Res<FlowPreviewSettings>,
+    playback: Res<crate::camera::Playback>,
+    mut events: MessageReader<crate::scene::RegenerateSceneEvent>,
+    mut history: Local<PreviewHistory>,
+    mut materials: ResMut<Assets<OpticalFlowMaterial>>,
+) {
+    let regenerated = !events.is_empty();
+    events.clear();
+    if !mode.is_flow() {
+        history.previous = None;
+        return;
+    }
+    if regenerated
+        || history
+            .previous
+            .is_none_or(|(mode, p)| mode != playback.mode || (p - playback.progress).abs() > 0.25)
+    {
+        history.settle = 2;
+    }
+    history.previous = Some((playback.mode, playback.progress));
+    let valid = history.settle == 0;
+    history.settle = history.settle.saturating_sub(1);
+    let preview = Vec4::new(
+        settings.interval_seconds.clamp(0.001, 1.0),
+        settings.full_scale_pixels.clamp(1.0, 1024.0),
+        u32::from(valid) as f32,
+        0.0,
+    );
+    // Changing material uniforms only when settings/reset change avoids a
+    // bind-group upload on every frame. Delta seconds comes from Bevy's globals.
+    let ids: Vec<_> = materials
+        .iter()
+        .filter(|(_, m)| m.extension.preview != preview)
+        .map(|(id, _)| id)
+        .collect();
+    for id in ids {
+        materials.get_mut(id).unwrap().extension.preview = preview;
+    }
+}
+
 /// Shared by lossless dataset writers. Viewer colors are a separate preview.
 pub fn annotation_metadata() -> serde_json::Value {
     serde_json::json!({
@@ -46,6 +111,11 @@ impl Plugin for OpticalFlowPlugin {
         );
 
         app.register_type::<OpticalFlow>();
+        app.init_resource::<super::RenderMode>()
+            .init_resource::<crate::camera::Playback>()
+            .add_message::<crate::scene::RegenerateSceneEvent>();
+        app.init_resource::<FlowPreviewSettings>()
+            .register_type::<FlowPreviewSettings>();
 
         app.add_plugins(MaterialPlugin::<OpticalFlowMaterial>::default());
 
@@ -56,6 +126,10 @@ impl Plugin for OpticalFlowPlugin {
             PostUpdate,
             apply_optical_flow_material
                 .before(bevy::pbr::check_entities_needing_specialization::<OpticalFlowMaterial>),
+        );
+        app.add_systems(
+            PostUpdate,
+            update_preview.after(apply_optical_flow_material),
         );
     }
 }
@@ -102,8 +176,18 @@ pub(crate) fn apply_optical_flow_material(
 
 pub type OpticalFlowMaterial = ExtendedMaterial<StandardMaterial, OpticalFlowExtension>;
 
-#[derive(Default, AsBindGroup, TypePath, Debug, Clone, Asset)]
-pub struct OpticalFlowExtension {}
+#[derive(AsBindGroup, TypePath, Debug, Clone, Asset)]
+pub struct OpticalFlowExtension {
+    #[uniform(100)]
+    pub preview: Vec4,
+}
+impl Default for OpticalFlowExtension {
+    fn default() -> Self {
+        Self {
+            preview: Vec4::new(0.05, 32.0, 0.0, 0.0),
+        }
+    }
+}
 
 impl MaterialExtension for OpticalFlowExtension {
     fn enable_shadows() -> bool {
@@ -112,5 +196,48 @@ impl MaterialExtension for OpticalFlowExtension {
 
     fn fragment_shader() -> ShaderRef {
         OPTICAL_FLOW_SHADER_HANDLE.into()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn changing_playback_mode_discards_preview_history() {
+        let mut app = App::new();
+        app.insert_resource(super::super::RenderMode::OpticalFlow)
+            .init_resource::<FlowPreviewSettings>()
+            .init_resource::<crate::camera::Playback>()
+            .init_resource::<Assets<OpticalFlowMaterial>>()
+            .add_message::<crate::scene::RegenerateSceneEvent>()
+            .add_systems(Update, update_preview);
+        let material = app
+            .world_mut()
+            .resource_mut::<Assets<OpticalFlowMaterial>>()
+            .add(OpticalFlowMaterial::default());
+        let valid = |app: &App| {
+            app.world()
+                .resource::<Assets<OpticalFlowMaterial>>()
+                .get(&material)
+                .unwrap()
+                .extension
+                .preview
+                .z
+                > 0.5
+        };
+        for _ in 0..3 {
+            app.update();
+        }
+        assert!(valid(&app));
+        app.world_mut()
+            .resource_mut::<crate::camera::Playback>()
+            .mode = crate::camera::PlaybackMode::Once;
+        app.update();
+        assert!(!valid(&app), "mode changes must not display stale motion");
+        app.update();
+        assert!(!valid(&app));
+        app.update();
+        assert!(valid(&app), "preview must resume after history settles");
     }
 }

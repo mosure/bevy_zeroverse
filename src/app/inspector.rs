@@ -1,4 +1,6 @@
 //! Everyday scene controls in one place; the raw ECS inspector is optional.
+#[cfg(feature = "human_motion")]
+mod motion;
 use super::*;
 use crate::scene::procedural_indoor::{IndoorGenerationStatus, IndoorQuality};
 use bevy_egui::{egui, EguiContext, PrimaryEguiContext};
@@ -32,7 +34,8 @@ pub(super) fn panel(world: &mut World) {
     let mut changed = false;
     let mut regenerate = false;
     egui::Window::new("Zeroverse")
-        .default_width(300.0)
+        .default_width(340.0)
+        .default_height(720.0)
         .show(context.get_mut(), |ui| {
             egui::ScrollArea::vertical()
                 .max_height(740.0)
@@ -196,125 +199,23 @@ pub(super) fn panel(world: &mut World) {
                             }
                         });
                         #[cfg(feature = "human_motion")]
-                        ui.collapsing("Human motion", |ui| {
-                            let mut enabled = config.human_motion.is_some();
-                            if ui
-                                .checkbox(&mut enabled, "Generate motion for selected people")
-                                .changed()
-                            {
-                                config.human_motion = enabled.then(|| {
-                                    serde_json::to_string(
-                                        &crate::human_motion::HumanMotionConfig::default(),
-                                    )
-                                    .unwrap()
-                                });
-                                changed = true;
-                            }
-                            if let Some(json) = &mut config.human_motion {
-                                if let Ok(mut policy) =
-                                    crate::human_motion::HumanMotionConfig::parse(json)
-                                {
-                                    let fraction = ui
-                                        .add(
-                                            egui::Slider::new(&mut policy.fraction, 0.0..=1.0)
-                                                .text("Moving fraction"),
-                                        )
-                                        .changed();
-                                    let count = ui
-                                        .add(
-                                            egui::Slider::new(&mut policy.max_actors, 1..=16)
-                                                .text("Maximum moving people"),
-                                        )
-                                        .changed();
-                                    let locomotion = ui
-                                        .add(
-                                            egui::Slider::new(
-                                                &mut policy.locomotion_fraction,
-                                                0.0..=1.0,
-                                            )
-                                            .text("Navigate around room"),
-                                        )
-                                        .changed();
-                                    let sequences = ui
-                                        .add(
-                                            egui::Slider::new(
-                                                &mut policy.sequence_fraction,
-                                                0.0..=1.0,
-                                            )
-                                            .text("Walk / action / resume sequences"),
-                                        )
-                                        .changed();
-                                    let energetic = ui
-                                        .add(
-                                            egui::Slider::new(
-                                                &mut policy.energetic_fraction,
-                                                0.0..=1.0,
-                                            )
-                                            .text("Skipping / jogging proposals"),
-                                        )
-                                        .changed();
-                                    let mut prompt_changed = false;
-                                    ui.collapsing("Motion prompt sampling", |ui| {
-                                        let sampling = &mut policy.prompt_sampling;
-                                        ui.label(
-                                            "Relative proposal weights; zero excludes a family.",
-                                        );
-                                        for (name, weight) in [
-                                            (
-                                                "Travel and chair transitions",
-                                                &mut sampling.locomotion,
-                                            ),
-                                            ("Hand gestures", &mut sampling.gesture),
-                                            ("Exercise", &mut sampling.exercise),
-                                            ("Dance", &mut sampling.dance),
-                                            ("Floor actions", &mut sampling.floor),
-                                            ("Idle and looking", &mut sampling.idle),
-                                        ] {
-                                            prompt_changed |= ui
-                                                .add(
-                                                    egui::Slider::new(weight, 0.0..=10.0)
-                                                        .text(name),
-                                                )
-                                                .changed();
-                                        }
-                                        prompt_changed |= ui
-                                            .add(
-                                                egui::Slider::new(
-                                                    &mut sampling.style_fraction,
-                                                    0.0..=1.0,
-                                                )
-                                                .text("Posture / gaze variation"),
-                                            )
-                                            .changed();
-                                        prompt_changed |= ui
-                                            .add(
-                                                egui::Slider::new(
-                                                    &mut sampling.max_sequence_actions,
-                                                    1..=2,
-                                                )
-                                                .text("Maximum action stops"),
-                                            )
-                                            .changed();
-                                    });
-                                    if fraction
-                                        || count
-                                        || locomotion
-                                        || sequences
-                                        || energetic
-                                        || prompt_changed
-                                    {
-                                        if policy.validate().is_ok() {
-                                            *json = serde_json::to_string(&policy).unwrap();
-                                            changed = true;
-                                        } else {
-                                            ui.label("Keep at least one motion family enabled.");
-                                        }
-                                    }
+                        {
+                            changed |= motion::edit(ui, &mut config.human_motion);
+                            let frames = world.get_resource::<crate::human_motion::HumanMotionReport>()
+                                .and_then(|report| report.accepted.first())
+                                .map(|plan| plan.request.frames);
+                            if let Some(frames) = frames {
+                                if ui.button("Play once at model speed (20 Hz)")
+                                    .on_hover_text("Restart the active clip forward at its generated speed. Sin and PingPong reverse motion; trajectory speed can speed it up.")
+                                    .clicked() {
+                                    let playback = motion::model_playback(frames);
+                                    config.playback_mode = playback.mode;
+                                    config.playback_speed = playback.speed;
+                                    *world.resource_mut::<Playback>() = playback;
+                                    changed = true;
                                 }
-                                ui.label("Motion models download once and use the local cache.");
-                                ui.label("Apply motion settings with Regenerate [R].");
                             }
-                        });
+                        }
                         changed |= choice(
                             ui,
                             "Quality",
@@ -328,8 +229,30 @@ pub(super) fn panel(world: &mut World) {
                             ui,
                             "Render",
                             &mut config.render_mode,
-                            &[Color, Depth, Normal, Position, Semantic, OpticalFlow],
+                            &[Color, Depth, Normal, Position, Semantic, OpticalFlow, CoVisibility],
                         );
+                        if config.render_mode.is_flow() {
+                            if let Some(mut preview) = world.get_resource_mut::<crate::render::optical_flow::FlowPreviewSettings>() {
+                                ui.add(egui::Slider::new(&mut preview.interval_seconds, 0.005..=0.5).logarithmic(true).text("Flow preview interval (s)"));
+                                ui.add(egui::Slider::new(&mut preview.full_scale_pixels, 1.0..=256.0).logarithmic(true).text("Flow color scale (pixels)"));
+                                ui.small("Viewer: velocity scaled to this interval. Dataset export: exact captured-timestep displacement.");
+                            }
+                        }
+                        if config.render_mode == CoVisibility {
+                            if let Some(legend) = world.get_resource::<crate::render::co_visibility::CoVisibilityLegend>() {
+                                ui.small("Capture cameras only; colors add across visible cameras. The source camera's bit is excluded.");
+                                if let Some(error) = &legend.error { ui.colored_label(egui::Color32::LIGHT_RED, error); }
+                                if legend.camera_indices.is_empty() { ui.label("Create capture cameras and enable the camera grid to preview."); }
+                                for (bit, index) in legend.camera_indices.iter().enumerate().take(crate::render::co_visibility::MAX_CAMERAS) {
+                                    let rgb = crate::render::co_visibility::camera_color(bit, legend.camera_indices.len().min(crate::render::co_visibility::MAX_CAMERAS));
+                                    ui.horizontal(|ui| {
+                                        let (rect, _) = ui.allocate_exact_size(egui::vec2(20.0, 14.0), egui::Sense::hover());
+                                        ui.painter().rect_filled(rect, 1.0, egui::Color32::from_rgb(rgb[0], rgb[1], rgb[2]));
+                                        ui.label(format!("Camera {index}: 0x{:04X}  RGB {rgb:?}", 1u16 << bit));
+                                    });
+                                }
+                            }
+                        }
                         changed |= choice(
                             ui,
                             "O-voxel export",
@@ -401,9 +324,28 @@ pub(super) fn panel(world: &mut World) {
                             SemanticRoom => {
                                 ui_for_resource::<ZeroverseSemanticRoomSettings>(world, ui)
                             }
-                            _ => {
-                                ui.label("Generated from the controls above and the seed.");
+                            ProceduralIndoor => {
+                                changed |= ui.add(egui::Slider::new(&mut config.indoor_gi_rays, 64..=16384).logarithmic(true).text("Indirect lighting ray budget")).changed();
+                                ui.small("Applies on Regenerate [R]; native Auto quality uses indirect lighting. Portable/Web builds omit this pass.");
+                                changed |= ui.checkbox(&mut config.rotation_augmentation, "Randomize world orientation on regeneration").changed();
+                                if let Some(scene) = world.get_resource::<crate::scene::procedural_indoor::layout::IndoorManifest>() {
+                                    ui.separator();
+                                    ui.label(format!("Current room: {:.1} × {:.1} × {:.1} m; seed {}", scene.room_size.x, scene.room_size.z, scene.room_size.y, scene.seed));
+                                    let chairs: Vec<_> = scene.objects.iter().filter(|o| o.kind == crate::scene::procedural_indoor::layout::ObjectKind::Chair).collect();
+                                    let stools = chairs.iter().filter(|o| crate::scene::procedural_indoor::objects::chairs::is_backless(o)).count();
+                                    ui.label(format!("{} objects, {} people, {} seats ({} backless stools), {} capture cameras", scene.objects.len(), scene.humans.len(), chairs.len(), stools, scene.cameras.len()));
+                                    if let Some(program) = &scene.program {
+                                        ui.label(format!("{} activity zones, {} interior partitions; fixture spacing {:.1} × {:.1} m", program.zones.len(), program.partitions.len(), program.light_spacing.x, program.light_spacing.y));
+                                        if let Some(domain) = &program.domain {
+                                            ui.label(format!("Target {:.0} lux; fixtures {:.0} K; sunlight {:.0} lux; exposure EV {:.1}", domain.target_lux, domain.fixture_kelvin, domain.photometry.sun_lux, domain.photometry.ev100));
+                                        }
+                                    }
+                                    ui.small("The values above describe the active scene. Edited generation controls take effect with Regenerate [R].");
+                                }
                             }
+                            CornellCube => { ui.label("Cornell cube uses fixed reference geometry and lighting."); }
+                            Human => { ui.label("Body shape and pose controls are in the human entity's BurnHumanInput component in the world inspector."); }
+                            Custom => { ui.label("Custom scenes are configured by their application plugin."); }
                         }
                     });
                     ui.collapsing("Advanced world inspector", |ui| {
