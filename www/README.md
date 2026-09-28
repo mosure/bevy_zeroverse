@@ -33,6 +33,9 @@ and Poppler on the host, then run:
 python scripts/build_project_media.py
 python scripts/build_project_whitepaper.py
 python scripts/validate_project_page.py --url http://127.0.0.1:8770/project/
+# Release check against a server that also hosts the Wasm viewer and its assets:
+python scripts/validate_project_page.py --check-viewer \
+  --url https://mosure.github.io/bevy_zeroverse/project/
 ```
 
 The media builder checks capture calibration, per-mode dimensions, camera-bit
@@ -40,7 +43,16 @@ exclusion and optical-flow unit conversions. It verifies the first eight audit
 images against the recorded SHA-256 identities. The paper builder includes
 source and PDF hashes. Browser checks require Playwright and Chrome; they cover
 every room/camera/mode at t=0, temporal controls, peer masks, keyboard reveal,
-local downloads, both videos, reduced motion and mobile layouts.
+local downloads, both videos, reduced motion and mobile layouts. `--check-viewer`
+also clicks the actual viewer link, preserves its URL configuration, waits for
+WebGPU scene rendering and checks all four camera tiles for image variation.
+Without this flag, viewer links are checked only for an HTTP response.
+
+To preview just a project-page edit against the currently deployed renderer:
+
+```sh
+python scripts/validate_project_viewer.py --project-html www/project/index.html
+```
 
 ## wasm support
 

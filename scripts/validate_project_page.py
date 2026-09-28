@@ -12,6 +12,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--url", default="http://127.0.0.1:8770/project/")
     parser.add_argument("--output", type=Path, default=Path("out/project_page/browser"))
+    parser.add_argument("--check-viewer", action="store_true",
+                        help="Also click Open WebGPU viewer and require rendered camera tiles (needs WebGPU Chrome).")
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
     failures, cases = [], []
@@ -115,10 +117,17 @@ def main():
                       responsive_widths=[390, 768, 1440], reduced_motion_respected=True,
                       visible_teaser_autoplay=True,
                       keyboard_reveal=True, camera_membership_selection=True, terminal_flow_checked=True,
+                      viewer_runtime_checked=False,
                       errors=failures)
-        (args.output / "report.json").write_text(json.dumps(report, indent=2) + "\n")
-        print(json.dumps({k: v for k, v in report.items() if k != "cases"}, indent=2))
         browser.close()
+    if args.check_viewer:
+        from validate_project_viewer import validate
+        report["viewer"] = validate(argparse.Namespace(
+            url=args.url, project_html=None, output=args.output / "viewer",
+            browser="/usr/bin/google-chrome", timeout=120, headless=False))
+        report["viewer_runtime_checked"] = True
+    (args.output / "report.json").write_text(json.dumps(report, indent=2) + "\n")
+    print(json.dumps({k: v for k, v in report.items() if k != "cases"}, indent=2))
 
 
 if __name__ == "__main__":

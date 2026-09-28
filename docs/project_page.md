@@ -123,6 +123,21 @@ All 64 combinations and 39 local links passed, both MP4s decoded and played,
 and no browser errors were observed. The histogram and heatmap totals match
 their declared denominators, including 33 path samples per capture camera.
 
+The initial link check only verified HTTP responses. It missed a runtime error
+in the viewer URL: `playback_mode=sin` was rejected by the released viewer's
+case-sensitive enum decoder, which expects `Sin`. The corrected project-page
+button uses `playback_mode=Sin`. A separate [click-through regression](evidence/project_page/viewer_link.json)
+now checks the exact button navigation against the deployed viewer, including
+the requested seed, scene readiness, GPU submissions, browser/GPU errors and
+nonconstant images in all four capture-camera tiles.
+
+Run `python scripts/validate_project_page.py --check-viewer --url <project-page-url>`
+for release validation. This needs Chrome with WebGPU, Playwright, NumPy and
+Pillow. The lightweight default page check explicitly reports
+`viewer_runtime_checked: false`. `scripts/validate_project_viewer.py` can run
+the viewer regression independently and preview local HTML against the live
+renderer via `--project-html www/project/index.html`.
+
 The TeX document builds with latexmk/pdflatex; the downloadable source ZIP
 includes all figures, style and table inputs. `static/papers/provenance.json`
 records the PDF and source hashes. The browser validation uses the compiled

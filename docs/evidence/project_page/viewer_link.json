@@ -1,0 +1,63 @@
+{
+  "scope": "Project-page viewer link correction; same deployed bevy_zeroverse 0.23.0 renderer, no renderer change.",
+  "reproduced": {
+    "query": "playback_mode=sin",
+    "status": "unreachable",
+    "gpu_submissions": 0
+  },
+  "cause": "PlaybackMode query values use case-sensitive serialized enum names; the button used the CLI spelling sin instead of Sin.",
+  "corrected_html_preview_against_public_viewer": {
+    "passed": true,
+    "project_url": "https://mosure.github.io/bevy_zeroverse/project/",
+    "linked_url": "https://mosure.github.io/bevy_zeroverse/?scene_type=procedural-indoor&indoor_seed=24005&num_cameras=4&camera_grid=true&regenerate_ms=0&playback_mode=Sin&playback_speed=0.1",
+    "scene_ready": true,
+    "gpu": {
+      "submissions": 1884,
+      "errors": [],
+      "pipelines": 50,
+      "pipeline_idle_ms": 2405.5
+    },
+    "startup_seconds": 13.57176653703209,
+    "status": "Starting WebGPU viewer\u2026",
+    "status_visible": false,
+    "camera_rgb_standard_deviations": [
+      41.743874169363636,
+      43.49445360991686,
+      26.407215913490962,
+      32.19357636946313
+    ],
+    "errors": []
+  },
+  "runtime_regression": "python scripts/validate_project_page.py --check-viewer --url <project-page-url>",
+  "prior_validation_limit": "Initial project-page validation only checked HTTP responses for links; the separate viewer smoke used a different URL.",
+  "combined_validation": {
+    "passed": true,
+    "matched_mode_cases": 64,
+    "checked_local_links": 39,
+    "viewer_runtime_checked": true,
+    "viewer": {
+      "passed": true,
+      "project_url": "http://127.0.0.1:8770/project/",
+      "linked_url": "http://127.0.0.1:8770/?scene_type=procedural-indoor&indoor_seed=24005&num_cameras=4&camera_grid=true&regenerate_ms=0&playback_mode=Sin&playback_speed=0.1",
+      "scene_ready": true,
+      "gpu": {
+        "submissions": 1272,
+        "errors": [],
+        "pipelines": 50,
+        "pipeline_idle_ms": 2425.7999999523163
+      },
+      "startup_seconds": 8.657101021031849,
+      "status": "Starting WebGPU viewer\u2026",
+      "status_visible": false,
+      "camera_rgb_standard_deviations": [
+        27.847577179478122,
+        37.148227535841805,
+        27.945139339857963,
+        32.41119127841928
+      ],
+      "errors": []
+    },
+    "errors": []
+  },
+  "project_html_sha256": "e3948f6cf4a38de14bcdfcddabbf0b77463234b969df9cb1fd7132bb66d2887f"
+}
