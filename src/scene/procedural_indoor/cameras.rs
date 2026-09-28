@@ -1,4 +1,5 @@
 //! The manifest, runtime, camera heatmaps and collision validation share one path.
+mod baseline;
 pub(crate) mod coverage;
 pub mod diversity;
 pub mod multiview;
@@ -11,8 +12,7 @@ use crate::camera::{
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(default, deny_unknown_fields)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct CameraSettings {
     /// Keep every capture in the largest furnished room, including its full path.
     pub primary_room: bool,

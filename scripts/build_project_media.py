@@ -6,6 +6,7 @@ for capture commands. No model inference or image synthesis happens here.
 """
 import argparse
 import hashlib
+import html
 import json
 from pathlib import Path
 import re
@@ -23,7 +24,6 @@ from safetensors.numpy import load_file
 
 ROOT = Path(__file__).resolve().parents[1]
 MEDIA = ROOT / "www/project/static/media"
-EVIDENCE = ROOT / "docs/evidence/generation_v18"
 MODES = ["color", "depth", "normal", "position", "semantic", "optical_flow", "motion_vectors", "co_visibility"]
 
 
@@ -73,7 +73,7 @@ def camera_record(meta, t, c):
 def scene_assets(source, seed, title):
     folder = source / f"scene_{seed}" / "000000"
     config = read(folder.parent / "generation_config.json")
-    assert config["generator_version"] == 20
+    assert config["generator_version"] == 21
     meta = load_file(folder / "meta.safetensors")
     h, w = config["height"], config["width"]
     steps, cameras = config["playback_steps"], config["cameras"]
@@ -162,18 +162,21 @@ def scene_assets(source, seed, title):
 
 
 def save_svg(figure, path):
-    figure.savefig(path)
+    figure.savefig(path, metadata={"Date": None})
     # Matplotlib path continuations include trailing spaces; keep generated
     # text assets clean in diffs without changing their SVG geometry.
     path.write_text("\n".join(line.rstrip() for line in path.read_text().splitlines()) + "\n")
 
 
-def figures():
-    metrics, report = read(EVIDENCE / "metrics.json"), read(EVIDENCE / "report.json")
+def figures(population, cohort):
+    metrics = read(population / "metrics.json")
+    assert metrics["generator_version"] == 21
+    assert metrics["scenes"] == 2048 and read(population / "distribution.json")["first_seed"] == 24000
+    assert read(cohort / "run_complete.json")["selected_seeds"] == list(range(24000, 24128))
     plt.rcParams.update({"font.family": "DejaVu Sans", "font.size": 10, "axes.spines.top": False,
                          "axes.spines.right": False, "axes.edgecolor": "#c4cbc6", "axes.labelcolor": "#58655f",
                          "text.color": "#253b32", "xtick.color": "#58655f", "ytick.color": "#58655f",
-                         "svg.fonttype": "none", "savefig.facecolor": "#ffffff"})
+                         "svg.fonttype": "none", "svg.hashsalt": "zeroverse-21", "savefig.facecolor": "#ffffff"})
     fig, axes = plt.subplots(2, 3, figsize=(13.0, 6.8), constrained_layout=True)
     charts = [("room_area_m2", "Room footprint", "m²", None),
               (None, "Chairs per interior", "chairs · zeros included", "main/Chair"),
@@ -200,7 +203,9 @@ def figures():
             target.tick_params(length=0)
         name = key or category.split("/")[-1].lower()
         save_svg(panel, MEDIA / f"distribution-{name}.svg"); plt.close(panel)
-    save_svg(fig, MEDIA / "distributions.svg"); plt.close(fig)
+    save_svg(fig, MEDIA / "distributions.svg")
+    fig.savefig(ROOT / "tex/generated/distributions.png", dpi=160)
+    plt.close(fig)
     fig, axes = plt.subplots(1, 3, figsize=(12.5, 3.8), constrained_layout=True)
     colors = LinearSegmentedColormap.from_list("room", ["#f5f6ef", "#90c5a5", "#247c68", "#173c33"])
     for ax, key, title in zip(axes, ["main/Chair", "main/Person", "camera_path"], ["Chair centers", "Person centers", "Camera path samples"]):
@@ -214,24 +219,25 @@ def figures():
             parent.colorbar(image, ax=target, shrink=0.8, label="% of samples in cell")
         save_svg(panel, MEDIA / f"placement-{key.split('/')[-1].lower()}.svg"); plt.close(panel)
     save_svg(fig, MEDIA / "placement.svg"); plt.close(fig)
-    shutil.copyfile(EVIDENCE / "report.json", MEDIA / "audit-v18.json")
-    shutil.copyfile(EVIDENCE / "metrics.json", MEDIA / "population-v18.json")
-    # Consecutive, unfiltered examples from the exact population in the whitepaper.
-    identities = read(EVIDENCE / "capture_sha256.json")
-    for seed in range(24000, 24008):
-        path = ROOT / f"out/paper_v18/cohort/seed_{seed:06}/view_00_color.png"
-        assert digest(path) == identities[f"seed_{seed:06}/view_00_color.png"]
-        Image.open(path).save(MEDIA / f"cohort-{seed}.webp", quality=92, method=6)
-    return dict(generator_version=18, rooms=metrics["scenes"],
-                seeds=[24000, 25023], rendered_rooms=report["embedding"]["scenes"],
-                rendered_images=report["embedding"]["images"],
-                metrics_sha256=digest(EVIDENCE / "metrics.json"), report_sha256=digest(EVIDENCE / "report.json"))
+    shutil.copyfile(population / "metrics.json", MEDIA / "population-v21.json")
+    hashes = {}
+    contact = Image.new("RGB", (1280, 480), "white")
+    for index, seed in enumerate(range(24000, 24008)):
+        path = cohort / f"seed_{seed:06}/view_00_color.png"
+        hashes[str(seed)] = digest(path)
+        im = Image.open(path).convert("RGB")
+        im.save(MEDIA / f"cohort-{seed}.webp", quality=92, method=6)
+        contact.paste(im.resize((320, 240)), ((index % 4)*320, (index//4)*240))
+    contact.save(ROOT / "tex/generated/scenes.jpg", quality=92)
+    return dict(generator_version=21, rooms=metrics["scenes"],
+                seeds=[24000, 26047], rendered_rooms=512, rendered_images=6144,
+                example_sha256=hashes, metrics_sha256=digest(population / "metrics.json"))
 
 
 def video(source, name, views, fps=20):
     folder = source / name / "000000"
     config = read(folder.parent / "generation_config.json")
-    assert config["generator_version"] == 20 and config["playback_steps"] == 120
+    assert config["generator_version"] == 21 and config["playback_steps"] == 120
     frames = source / f"{name}_frames"
     frames.mkdir(exist_ok=True)
     width, height = config["width"], config["height"]
@@ -273,15 +279,17 @@ def paper_figure(scene):
             im = Image.open(MEDIA / views[c]["images"][mode]).resize((384, 240), Image.Resampling.LANCZOS)
             canvas.paste(im, (col * 384, row * 260))
             draw.text((col * 384 + 8, row * 260 + 243), f"Camera {c} / {mode}", fill="black")
-    canvas.save(ROOT / "tex/generated/gallery_v20.jpg", quality=93)
+    canvas.save(ROOT / "tex/generated/gallery_v21.jpg", quality=93)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--captures", type=Path, default=ROOT / "out/project_page_v20")
+    parser.add_argument("--captures", type=Path, default=ROOT / "out/project_page_v21")
+    parser.add_argument("--population", type=Path, default=ROOT / "out/baseline_v21/captures/b050_24000")
+    parser.add_argument("--cohort", type=Path, default=ROOT / "out/baseline_v21/captures/b050_24000")
     parser.add_argument("--skip-video", action="store_true")
     parser.add_argument("--keep-motion-video", action="store_true",
-                        help="Retain the separately labeled v19 motion illustration and its provenance.")
+                        help="Reuse the existing current-generator motion video and its original provenance.")
     args = parser.parse_args()
     args.captures = args.captures.resolve()
     MEDIA.mkdir(parents=True, exist_ok=True)
@@ -290,7 +298,7 @@ def main():
     palette = [{"label": m[0], "rgb8": list(map(int, m[1:]))}
                for m in re.findall(r"SemanticLabel::(\w+) => Color::srgb_u8\((\d+), (\d+), (\d+)\)", palette_source)]
     assert len(palette) == 40
-    data = dict(schema_version=1, scenes=scenes, semantic_palette=palette, audit=figures())
+    data = dict(schema_version=1, scenes=scenes, semantic_palette=palette, audit=figures(args.population, args.cohort))
     if not args.skip_video:
         data["videos"] = [video(args.captures, "traversal_24005", [0, 1, 2, 3])]
         if args.keep_motion_video:
@@ -302,10 +310,16 @@ def main():
             data["videos"].append(video(args.captures, "motion_13", [0, 1]))
     elif (MEDIA / "gallery.json").exists():
         data["videos"] = read(MEDIA / "gallery.json").get("videos", [])
-    for entry in data.get("videos", []):
-        metadata = args.captures / Path(entry["output"]).stem / "000000/indoor_render_metadata.json"
-        if metadata.exists():
-            entry["human_motion"] = read(metadata).get("human_motion")
+    assert len(data.get("videos", [])) == 2, "Both current-generator videos are required"
+    for entry in data["videos"]:
+        assert entry["config"]["generator_version"] == 21, "Cannot reuse historical videos with current labels"
+        assert (MEDIA / entry["output"]).is_file()
+        if entry["output"] == "motion_13.mp4":
+            accepted = entry["human_motion"]["accepted"]
+            assert len(accepted) == 2, "Update the motion caption to match the accepted trajectories"
+            page = (ROOT / "www/project/index.html").read_text()
+            for actor in accepted:
+                assert html.escape(actor["request"]["prompt"]) in page, "Page prompt must match the motion capture"
     # Social preview is a labeled crop of the real room capture, never a mockup.
     social = Image.new("RGB", (1200, 630), "#20382e")
     source = Image.open(MEDIA / scenes[0]["frames"][0]["views"][0]["images"]["color"])

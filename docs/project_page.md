@@ -14,49 +14,43 @@ No external JavaScript, fonts, video service or PDF viewer is required.
 
 ## Evidence boundaries
 
-- **Gallery, v20:** two selected rooms (24005 and 24000), four cameras, 768×480,
+- **Gallery, v21:** two selected rooms (24005 and 24000), four cameras, 768×480,
   normalized times 0/0.1/0.2, all eight render modes, static human density 0.25,
-  furnishing density 0.65, Auto quality and 1024 GI rays/probe. These are
-  illustrations, not a new randomized cohort. Their geometric depth/position
-  and camera-reprojection errors are checked before making previews.
-- **Traversal video, v20:** seed 24005, four cameras at 640×400, 120 synchronized
-  samples from t=0 to t=1, encoded at 20 fps. Scene and camera settings match the
-  gallery's aspect ratio. The six-second visualization is a chosen camera-path
-  playback duration; normalized camera time is not measured in seconds.
-- **Motion video, v19:** seed 13, two cameras at 640×400, human density 0.7,
-  furnishing density 0.35, 512 GI rays/probe. Two motions were accepted from one
-  batch, with 120 frames, ten diffusion steps, 80 history frames and text/path
-  guidance 2/3. The 20 fps forward video uses the model's generated rate. Actual
-  prompts, waypoint requests, model artifact identities and capture configuration
-  are included in the gallery provenance. No video frame interpolation is used.
-- **Camera evaluation, v20:** 2,048 consecutive layout seeds and 512 rendered
-  rooms / 6,144 views at three times. The all-camera co-visibility report measures
-  18,432 directed pair/time observations from actual rendered depth and calibration,
-  separately from the production GPU mask convention. See
-  [protocol, tails and downloadable metrics](camera_evaluation_v20.md).
-- **Population and performance, v18:** the existing audit of 1,024 consecutive
-  seeds, 64 rendered rooms / 256 images, verified SigLIP2 embeddings and bounded
-  registry-dependency benchmarks is retained with its original denominators,
-  hardware and exclusions. Figures are derived from checked-in JSON. The eight
-  example audit rooms are the first eight, including dark scenes; their original
-  PNG hashes match the recorded capture list.
+  furnishing density 0.65, default baseline 0.5, Auto quality and 1024 GI rays/probe.
+  These are illustrations, separately identified from the consecutive population.
+- **Traversal video, v21:** seed 24005, four cameras at 640×400, 120 synchronized
+  samples from t=0 to t=1, encoded at 20 fps. The six-second visualization is a
+  chosen playback duration; normalized camera time is not measured in seconds.
+- **Motion video, v21:** seed 13, two cameras at 640×400, human density 0.7,
+  furnishing density 0.35, 512 GI rays/probe. The request enables at most two
+  moving actors, 120 frames, ten diffusion steps, 80 history frames and guidance
+  2/3. Actual accepted trajectories, prompts, waypoints, model artifacts and
+  settings are retained in gallery provenance. The video uses the model's 20 Hz
+  generated rate without frame interpolation. It is not a motion benchmark.
+- **Population and camera baseline, v21:** 2,048 consecutive layout seeds and
+  512 distinct rendered rooms / 6,144 views at default baseline 0.5. A matched
+  128-room subset at five baseline settings yields 1,024 room/configurations /
+  12,288 views in total. All-camera co-visibility is independently measured from
+  depth/calibration. Geometry, lighting, people and materials match across levels.
+  See [protocol, denominators and limitations](camera_baseline_v21.md).
+- **Distributions and example cohort, v21:** all plots use the current 2,048-room
+  population. Eight example RGB images are the first eight rendered rooms, without
+  aesthetic filtering; provenance retains the original capture PNG hashes.
 
 No new claims of photographic realism, unlimited memory stability, a ten-million
 scene run, downstream pretraining gains or publication acceptance are made.
 
 ## Capture commands
 
-Run from the repository root with the current generator-20 source. Each output
-directory must be fresh. The retained motion video uses generator 19; its command
-is a historical recipe requiring source commit `34bb373`, rather than a new v20
-motion measurement. The human body assets must be available under
-`assets/burn_human`; optional motion models use the normal loader/cache.
+Run from the repository root with generator-21 source. Each output directory
+must be fresh. Human body assets must be available under `assets/burn_human`;
+optional motion models use the normal upstream loader/cache.
 
 ```sh
 cargo build -p bevy_zeroverse_burn --features human_motion --bin zeroverse_gen
 
 for seed in 24005 24000; do
-  target/debug/zeroverse_gen --output "out/project_page_v20/scene_$seed" \
+  target/debug/zeroverse_gen --output "out/project_page_v21/scene_$seed" \
     --asset-root . --scene-type procedural-indoor --seed "$seed" \
     --samples 1 --workers 1 --cameras 4 --width 768 --height 480 \
     --indoor-density 0.65 --indoor-human-density 0.25 --indoor-gi-rays 1024 \
@@ -65,14 +59,14 @@ for seed in 24005 24000; do
     --ov-mode disabled --output-mode fs --color-codec raw --timeout-secs 300 --no-ui
 done
 
-target/debug/zeroverse_gen --output out/project_page_v20/traversal_24005 \
+target/debug/zeroverse_gen --output out/project_page_v21/traversal_24005 \
   --asset-root . --scene-type procedural-indoor --seed 24005 \
   --samples 1 --workers 1 --cameras 4 --width 640 --height 400 \
   --indoor-density 0.65 --indoor-human-density 0.25 --indoor-gi-rays 1024 \
   --playback-steps 120 --playback-step 0.008403361 --render-modes color \
   --ov-mode disabled --output-mode fs --color-codec raw --timeout-secs 600 --no-ui
 
-target/debug/zeroverse_gen --output out/project_page/motion_13 \
+target/debug/zeroverse_gen --output out/project_page_v21/motion_13 \
   --asset-root . --scene-type procedural-indoor --seed 13 \
   --samples 1 --workers 1 --cameras 2 --width 640 --height 400 \
   --indoor-density 0.35 --indoor-human-density 0.7 --indoor-gi-rays 512 \
@@ -81,13 +75,19 @@ target/debug/zeroverse_gen --output out/project_page/motion_13 \
   --ov-mode disabled --output-mode fs --color-codec raw --timeout-secs 600 --no-ui
 ```
 
-`python scripts/build_project_media.py --captures out/project_page_v20 --keep-motion-video`
-consumes the new gallery/traversal captures and preserves the motion illustration and the retained v18
-cohort under `out/paper_v18/cohort/`. The capture generator is not run during
-normal website builds. Checked-in assets let the page deploy without these
-local raw captures or neural models. `--skip-video` preserves existing video
-artifacts while rebuilding images/charts. All display assets are beneath
-`www/project/static/media/`; paper artifacts are beneath `static/papers/`.
+After the completed baseline captures and selected gallery/video captures, run:
+
+```sh
+python scripts/build_baseline_evaluation.py --analyze
+python scripts/build_project_media.py --captures out/project_page_v21
+python scripts/build_project_whitepaper.py
+```
+
+The media builder consumes population CSV/JSON and the first eight captures from
+`out/baseline_v21/captures/b050_24000`. The generator is not run during normal
+website builds. Checked-in assets let the page deploy without local raw captures
+or neural models. Display assets are beneath `www/project/static/media/`; the
+PDF, provenance and dependency-complete source ZIP are under `static/papers/`.
 
 ## Display conventions
 
@@ -144,11 +144,6 @@ Pillow. The lightweight default page check explicitly reports
 `viewer_runtime_checked: false`. `scripts/validate_project_viewer.py` can run
 the viewer regression independently and preview local HTML against the live
 renderer via `--project-html www/project/index.html`.
-
-Run `python scripts/build_camera_evaluation.py` after the completed v20 reports
-to update the paper macros, co-visibility plots and page metrics. Then run
-`python scripts/build_project_whitepaper.py` to rebuild the PDF, preview and
-source ZIP.
 
 The TeX document builds with latexmk/pdflatex; the downloadable source ZIP
 includes all figures, style and table inputs. `static/papers/provenance.json`

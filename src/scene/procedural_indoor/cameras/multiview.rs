@@ -9,7 +9,7 @@ use rand::Rng;
 use serde::{Deserialize, Serialize};
 
 pub const CHECK_TIMES: [f32; 5] = [0.0, 0.25, 0.5, 0.75, 1.0];
-const GROUP_ATTEMPTS: usize = 8;
+const GROUP_ATTEMPTS: usize = 64;
 const VIEW_ATTEMPTS: usize = 384;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -19,6 +19,9 @@ pub struct MultiViewSettings {
     pub min_overlap: f32,
     /// Minimum Euclidean separation between EVERY pair, throughout sampled paths.
     pub min_baseline: f32,
+    /// Minimum reference-to-view distance. Zero retains legacy custom policies.
+    #[serde(default)]
+    pub min_reference_baseline: f32,
     /// Maximum Euclidean reference-to-view separation, throughout sampled paths.
     pub max_baseline: f32,
     /// Horizontal minor/major standard-deviation ratio for groups of 3+ cameras.
@@ -29,13 +32,7 @@ pub struct MultiViewSettings {
 }
 impl Default for MultiViewSettings {
     fn default() -> Self {
-        Self {
-            min_overlap: 0.35,
-            min_baseline: 0.25,
-            max_baseline: 3.0,
-            min_spread: 0.25,
-            trajectory_variation: 1.0,
-        }
+        Self::from_baseline(0.5).unwrap()
     }
 }
 impl MultiViewSettings {
@@ -47,17 +44,20 @@ impl MultiViewSettings {
             || self.min_baseline <= 0.0
             || self.max_baseline < self.min_baseline
             || self.max_baseline > 100.0
+            || !self.min_reference_baseline.is_finite()
+            || self.min_reference_baseline < 0.0
+            || self.min_reference_baseline > self.max_baseline
             || !(0.0..=1.0).contains(&self.min_spread)
             || !(0.0..=1.0).contains(&self.trajectory_variation)
         {
-            return Err("indoor_camera.multiview requires min_overlap, min_spread and trajectory_variation in [0,1] and 0 < min_baseline <= max_baseline <= 100 metres".into());
+            return Err("indoor_camera.multiview requires min_overlap, min_spread and trajectory_variation in [0,1] and 0 < min_baseline <= max_baseline <= 100 metres, with 0 <= min_reference_baseline <= max_baseline".into());
         }
         Ok(())
     }
     pub fn accepts(&self, samples: &[OverlapSample]) -> bool {
         samples.iter().all(|s| {
             s.reference_to_view.min(s.view_to_reference) >= self.min_overlap
-                && s.baseline_m + 1e-5 >= self.min_baseline
+                && s.baseline_m + 1e-5 >= self.min_baseline.max(self.min_reference_baseline)
                 && s.baseline_m <= self.max_baseline + 1e-5
         })
     }
@@ -169,6 +169,28 @@ impl IndoorManifest {
             self.cameras.clear();
             self.sample_independent_cameras(1, &mut rng, &coverage)?;
             let reference = self.cameras[0].clone();
+            let (lo, hi) = if self.camera_settings.primary_room {
+                self.primary_room_bounds()
+            } else {
+                let half = self.room_size.xz() * 0.5;
+                (-half, half)
+            };
+            // Bound proposals by reachable room space without weakening policy.
+            let reachable = [lo, hi, Vec2::new(lo.x, hi.y), Vec2::new(hi.x, lo.y)]
+                .into_iter()
+                .map(|p| p.distance(reference.start.xz()))
+                .fold(0.0_f32, f32::max)
+                .hypot(0.9)
+                .min(policy.max_baseline);
+            if reachable < policy.min_baseline.max(policy.min_reference_baseline) {
+                continue;
+            }
+            let ceiling = (self.room_size.y
+                - self.program.as_ref().map_or(0.5, |p| p.light_drop)
+                - 0.04
+                - super::super::layout::CAMERA_CLEARANCE)
+                .min(3.25);
+            let heights = Vec2::new(0.70 - reference.start.y, ceiling - reference.start.y);
             let extent = reference
                 .start
                 .distance(reference.end)
@@ -182,7 +204,8 @@ impl IndoorManifest {
             for _ in 1..count {
                 let mut found = None;
                 for _ in 0..VIEW_ATTEMPTS {
-                    let candidate = propose(&reference, extent, &policy, &mut rng);
+                    let candidate =
+                        propose(&reference, extent, reachable, heights, &policy, &mut rng);
                     let track = Track::new(&candidate);
                     // Cheap rejection before casts: swept collision checks still
                     // cover the complete paths, including route segments/curves.
@@ -219,23 +242,29 @@ impl IndoorManifest {
             }
         }
         self.cameras.clear();
-        Err(format!("seed {}: unable to sample {count} connected multi-view cameras after {GROUP_ATTEMPTS} anchors x {VIEW_ATTEMPTS} proposals/view; min_overlap={}, baseline={}..{}m, min_spread={}, trajectory_variation={}. Lower overlap/separation/spread bounds, reduce trajectory variation, or shorten paths; no unconstrained fallback was used", self.seed, policy.min_overlap, policy.min_baseline, policy.max_baseline, policy.min_spread, policy.trajectory_variation))
+        Err(format!("seed {}: unable to sample {count} connected multi-view cameras after {GROUP_ATTEMPTS} anchors x {VIEW_ATTEMPTS} proposals/view; min_overlap={}, pair_min={}m, reference={}..{}m, min_spread={}, trajectory_variation={}. Lower overlap/separation/spread bounds, reduce trajectory variation, or shorten paths; no unconstrained fallback was used", self.seed, policy.min_overlap, policy.min_baseline, policy.min_reference_baseline, policy.max_baseline, policy.min_spread, policy.trajectory_variation))
     }
 }
 
 fn propose(
     reference: &IndoorCamera,
     extent: f32,
+    reachable: f32,
+    heights: Vec2,
     policy: &MultiViewSettings,
     rng: &mut impl Rng,
 ) -> IndoorCamera {
     // Uniform metric baselines avoid the former logarithmic bias toward an
     // almost coincident cluster around the anchor.
-    let radius = rng.random_range(policy.min_baseline..=policy.max_baseline);
+    let radius =
+        rng.random_range(policy.min_baseline.max(policy.min_reference_baseline)..=reachable);
     let azimuth = rng.random_range(0.0..std::f32::consts::TAU);
-    let vertical: f32 = rng.random_range(-0.35..0.35);
-    let planar = (1.0 - vertical * vertical).sqrt();
-    let offset = Vec3::new(planar * azimuth.cos(), vertical, planar * azimuth.sin()) * radius;
+    // Sample usable heights directly; wide rigs may look over furniture that
+    // occludes a low reference camera. The complete path is still swept below.
+    let vertical_limit = (radius * 0.4).min(0.9);
+    let vertical = rng.random_range(heights.x.max(-vertical_limit)..=heights.y.min(vertical_limit));
+    let planar = (radius * radius - vertical * vertical).sqrt();
+    let offset = Vec3::new(planar * azimuth.cos(), vertical, planar * azimuth.sin());
     let jitter = Vec3::new(
         rng.random_range(-0.35..0.35),
         rng.random_range(-0.15..0.15),
@@ -244,7 +273,7 @@ fn propose(
     // Deform in the reference path's local frame, preserving its navigated
     // topology while independently varying heading, distance, bend and height.
     // Long paths have bounded deformation so they can still share scene content.
-    let budget = policy.max_baseline * 0.65 * policy.trajectory_variation;
+    let budget = (reachable * 0.65).min(extent) * policy.trajectory_variation;
     let angle = rng.random_range(-1.0..=1.0) * (budget / extent).min(std::f32::consts::PI);
     let rotation = Quat::from_rotation_y(angle);
     let scale = 1.0 + rng.random_range(-1.0..=1.0) * (budget / extent).min(0.65);
@@ -303,7 +332,7 @@ mod tests {
             assert!(CameraSettings::parse(json).is_err(), "{json}");
         }
         let policy = CameraSettings::parse(r#"{"multiview":{}}"#).unwrap();
-        assert_eq!(policy.multiview.unwrap(), MultiViewSettings::default());
+        assert_eq!(policy.multiview.unwrap().min_reference_baseline, 0.0);
     }
 
     #[test]
@@ -349,8 +378,9 @@ mod tests {
         let mut scene =
             IndoorManifest::generate_with_humans(1, IndoorLayout::Mixed, 0.65, 2, 0.0).unwrap();
         let original = scene.cameras.clone();
+        let aspect = scene.camera_aspect_ratio;
         scene
-            .resample_cameras(2, CameraSettings::default(), 4.0 / 3.0)
+            .resample_cameras(2, CameraSettings::default(), aspect)
             .unwrap();
         assert_eq!(scene.cameras, original);
         let original = scene.clone();
@@ -414,8 +444,7 @@ mod tests {
         validate_layout(&scene).unwrap();
         let geometry = scene.camera_group_geometry().unwrap();
         assert!(geometry.min_horizontal_spread.unwrap() >= 0.25 - 1e-5);
-        assert!(geometry.min_relative_motion.unwrap() >= 0.15 - 1e-5);
-        assert!(geometry.min_pairwise_baseline_m >= 0.25 - 1e-5);
+        assert!(geometry.accepts(&MultiViewSettings::default()));
 
         let mut settings = CameraSettings::default();
         let policy = settings.multiview.as_mut().unwrap();
@@ -442,6 +471,7 @@ mod tests {
             path_length_max: 0.0,
             multiview: Some(MultiViewSettings {
                 min_baseline: 0.1,
+                min_reference_baseline: 0.0,
                 max_baseline: 0.1,
                 min_overlap: 0.6,
                 ..default()

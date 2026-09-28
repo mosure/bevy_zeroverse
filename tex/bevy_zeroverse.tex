@@ -10,18 +10,17 @@
 \renewcommand{\shorttitle}{bevy\_zeroverse: Procedural Indoor Data}
 \pdfstringdefDisableCommands{\def\\{ }}
 \hypersetup{hidelinks,pdftitle={bevy\_zeroverse: Auditable Procedural Indoor Data for Multi-view Reconstruction},pdfauthor={Mitchell Mosure}}
-\input{generated/results.tex}
 \input{generated/camera_results.tex}
 \begin{document}
 \maketitle
 \begin{abstract}
-We describe an open-source synthetic data engine combining primitive-object scenes with furnished procedural interiors, calibrated multi-view cameras, optional human motion, and aligned geometric annotations. Indoor generation samples continuous architectural, furnishing, appearance, lighting and camera parameters under geometric constraints. A generator-20 camera evaluation covers \CameraAuditRooms{} consecutive layouts and \CameraRenderRooms{} rendered rooms, including all-camera co-visibility, spatial spread and trajectory diversity. We retain the separate generator-18 evaluation of \AuditRooms{} layouts and \RenderRooms{} rendered rooms for appearance distributions, image-embedding variance and completed-capture throughput. Its measured CPU optimization reduces matched room-capture time by \SpeedupPercent{}\%, without reducing texture resolution, mesh detail or lighting samples. Published registry dependencies are measured separately from local graphics-library patches. These are generator and dataset diagnostics: photographic realism, unlimited-process stability and downstream pretraining gains are not established by this study.
+We describe an open-source synthetic data engine combining primitive-object scenes with furnished procedural interiors, calibrated multi-view cameras, optional human motion, and aligned geometric annotations. Indoor generation samples continuous architectural, furnishing, appearance, lighting and camera parameters under geometric constraints. A continuous camera-baseline control coordinates spacing, shared-surface overlap and path variation. The current generator-21 evaluation covers \CameraAuditRooms{} consecutive layouts and \CameraRenderRooms{} distinct rendered rooms. A matched room subset measures co-visibility distributions at five baseline values. The report presents absolute measurements of the current generator, with exact configurations and reproducible artifacts. Photographic realism, unlimited-process stability and downstream pretraining gains are not established by these diagnostics.
 \end{abstract}
 
 \section{Purpose and scope}
 Sparse-view reconstruction benefits from observations of shared surfaces: cameras that see unrelated objects offer little direct correspondence supervision. LRM-Zero demonstrates the potential of procedurally synthesized object data~\cite{xie2024}; MVSplat uses cross-view matching to estimate geometry~\cite{chen2024}. Our contribution is an inspectable data-generation system and its bounded evaluation, rather than a trained reconstruction model or a reconstruction accuracy result.
 
-Version 0.24 retains the existing Object, CornellCube, Room, SemanticRoom and Human scene modes, and exposes furnished interiors separately as \texttt{ProceduralIndoor}. The runtime uses Bevy 0.19.1, optional Burn 0.21 inference, and published AnnyBody/ARDY integrations. Office, conference, lounge, classroom, library and related activity priors influence a compositional program; they do not select complete meshes or a finite collection of room templates. Most architecture, furniture, plants and clutter require neither mesh repositories nor photographic texture collections. AnnyBody human meshes and optional motion/embedding models are explicit pretrained dependencies.
+Version 0.25 retains the existing Object, CornellCube, Room, SemanticRoom and Human scene modes, and exposes furnished interiors separately as \texttt{ProceduralIndoor}. The runtime uses Bevy 0.19.1, optional Burn 0.21 inference, and published AnnyBody/ARDY integrations. Office, conference, lounge, classroom, library and related activity priors influence a compositional program; they do not select complete meshes or a finite collection of room templates. Most architecture, furniture, plants and clutter require neither mesh repositories nor photographic texture collections. AnnyBody human meshes and optional motion/embedding models are explicit pretrained dependencies.
 
 \section{Procedural scene program}
 A scene is generated as $S=G(s,\theta)$, where $s$ seeds independent random streams and $\theta$ contains user-controlled densities, activity, quality, camera and motion policies. The serialized manifest records the sampled program, object transforms and seeds, people, photometry and camera paths. A separate generator version and capture-engine identity invalidate incompatible resumptions. Determinism means reproducing the same program and settings with compatible assets and engine versions; bit-identical rasterization across GPU vendors is not promised.
@@ -41,7 +40,11 @@ Camera centers and complete trajectories are constrained to the primary furnishe
  \min\{o_{0\rightarrow i}(t),o_{i\rightarrow0}(t)\}\geq\tau,
  \qquad b_{\min}\leq\|c_i(t)-c_0(t)\|\leq b_{\max},
 \]
-where $o$ estimates first-surface overlap using coarse visibility rays and object/architecture proxies. Overlap constrains reference edges, not every camera pair. Generator 20 additionally enforces $b_{\min}$ between every camera pair at 33 synchronized path samples. For three or more views, the horizontal camera-center covariance must have minor/major standard-deviation ratio at least 0.25 at those times. Paths independently vary heading, distance and curvature around the reference route; moving pairs require normalized RMS displacement difference of at least 0.15 after removing their starting offsets. Controls permit explicit rigid or collinear rigs. The finite proposal budget fails explicitly rather than silently weakening thresholds. Full-path swept collision checks remain; sampled spread and overlap are not continuous-time or pixel-level guarantees.
+where $o$ estimates first-surface overlap using visibility rays and object/architecture proxies. Overlap constrains reference edges. An additional minimum separation applies to every camera pair at 33 synchronized path samples. Group spread is the horizontal camera-center covariance's minor/major standard-deviation ratio. Moving pairs must differ in normalized RMS displacement after removing their starting offsets. Full-path swept collision checks remain; sampled spread and overlap are not continuous-time or rendered-pixel guarantees.
+
+The camera-baseline control $b\in[0,1]$ expands into explicit advanced settings: minimum pair separation $0.04+0.46b$ metres, minimum reference distance $0.06+2.30b$ metres, maximum reference distance $0.35+9.65b$ metres, overlap target $0.65-0.55b^{0.6}$, group spread $0.20+0.10b$, and independent path variation $b$. The default is $b=0.5$. Wide settings permit distant viewpoints and lower overlap; narrow settings favor close views of shared content. Collision and visibility rejection affect the realized distribution. Arbitrary room, camera-count and constraint combinations need not be feasible.
+
+The inspector exposes this slider above the advanced controls. Any advanced edit switches to explicit custom values. Changes take effect on regeneration, so dragging a control does not rebuild the room. JSON input accepts \texttt{\{"baseline":0.75\}} within the \texttt{indoor\_camera} configuration. Serialization records the expanded values, avoiding hidden preset precedence. Camera travel length and long-route frequency are separate from spacing between cameras. Joint collision and overlap rejection can favor shorter accepted routes at wide spacing; the minimum travel bound remains explicit. The finite search budget reports impossible settings without silently weakening them.
 
 \begin{table}[ht]
 \centering\small
@@ -49,8 +52,8 @@ where $o$ estimates first-surface overlap using coarse visibility rays and objec
 \toprule
 Indoor training configuration & Default and rationale\\\midrule
 Capture cameras / timesteps & Four / one; synchronized views of static geometry\\
-Shared-view policy & $\tau=0.35$, all-pair separation $\geq0.25$ m, reference baseline $\leq3$ m; explicit \texttt{multiview:null} enables independent views\\
-Group diversity & Horizontal spread ratio $\geq0.25$ for 3+ views; moving-pair normalized RMS difference $\geq0.15$\\
+Shared-view policy & $b=0.5$: $\tau\approx0.287$, pair separation $\geq0.27$ m, reference distance 1.21--5.175 m; explicit \texttt{multiview:null} enables independent views\\
+Group diversity & Horizontal spread ratio $\geq0.25$ for 3+ views; moving-pair normalized RMS difference $\geq0.075$\\
 Room/activity/density & Primary room, Mixed activity, furnishing density 0.65, human density 0.25\\
 Camera path policy & 0.03--8 m allowed path length, 0.45 long-path proposal fraction; collision rejection still applies\\
 Human motion & Disabled; static people remain, no ARDY initialization\\
@@ -80,61 +83,42 @@ Co-visibility & Optional same-time, per-pixel membership in other capture camera
 Calibration / instances & Camera intrinsics, poses and normalized trajectory time, scene manifest, semantic instance oriented boxes, person joints, and primary-room annotation AABB.\\
 O-Voxel & Primary-room architecture/objects only; excludes neighboring/outside geometry. Requires one timestep and disabled human motion; incompatible requests are rejected.\\\bottomrule
 \end{tabular}
-\caption{Eight currently supported render modes plus structured annotations. The population experiment below uses five modes; co-visibility was added subsequently. Glass is a first geometric surface: annotations do not follow refracted or reflected light paths. Flow transports surface correspondence, including supported human deformation, rather than estimating photometric image motion.}
+\caption{Eight currently supported render modes plus structured annotations. The population experiment exports five modes and derives co-visibility independently from depth and calibration; the gallery exports all eight modes. Glass is a first geometric surface: annotations do not follow refracted or reflected light paths. Flow transports surface correspondence, including supported human deformation, rather than estimating photometric image motion.}
 \end{table}
 
 Headless generation supports chunked safetensors or per-sample files, compression, resumable identity checks, metrics and bounded worker replacement. RGB and numeric channels have separate encoding contracts. Native generation performs numeric temporal export and O-Voxel export. The WebGPU viewer supports indoor construction, inspection and optional motion inference, using the same manifest and geometry modules; Portable quality reduces unsupported or costly rendering features. Browser velocity visualization is not a qualification of native dataset flow export. The current Wasm path omits native baked diffuse GI and uses its platform lighting fallback.
 
-\section{Evaluation protocol and results}
-The evaluation artifacts and commands are in \texttt{docs/generation\_v18.md}; machine-readable results generate this paper's tables. We audit \AuditRooms{} consecutive seeds starting at 24000 at density 0.65, human density 0.25 and four cameras, with no failed-seed replacement. The first \RenderRooms{} seeds are rendered at $384\times288$ with RGB, depth, normal, position and semantic outputs. Every scene contributes to the reports, including dark rooms and weak views. Geometric audits and rendered-camera checks answer different questions and are reported separately.
-
-\subsection{Diversity and effective variance}
-\input{generated/diversity_table.tex}
-The full export includes \NumericSeries{} numeric distributions, \VaryingSeries{} of which have nonzero observed variance, \CategorySeries{} categorical distributions, zero-preserving per-class object counts, placement heatmaps, camera intrinsic/extrinsic distributions and joint histograms. These series are correlated projections of the program, not independent degrees of freedom. Histograms include their denominators and units; per-object style frequencies must not be interpreted as per-room frequencies.
-
-For a categorical distribution $p$, we report the entropy-effective count $\exp(-\sum_jp_j\log p_j)$. For centered feature eigenvalues $\lambda_j$, we use $q_j=\lambda_j/\sum_k\lambda_k$ and entropy-effective rank $r_{\mathrm{eff}}=\exp(-\sum_jq_j\log q_j)$. Constant features have rank zero. We additionally measure normalized SigLIP2 base image embeddings~\cite{siglip2}, with frozen model/shard identity and declared resize/normalization. Nearest-neighbor distances exclude all views and times from the same scene. Scene-level variance uses one normalized mean embedding per room, so four cameras do not count as four independent scenes.
-
-\input{generated/embedding_table.tex}
-\begin{figure}[ht]
-\centering\includegraphics[width=\linewidth]{generated/distributions.png}
-\caption{Observed variation in consecutive generated rooms. Shape, furnishing, illumination and camera metrics complement image-embedding diagnostics; none alone measures photographic realism.}
-\end{figure}
-A seed's bit width does not establish dataset diversity. Continuous parameter ranges have no meaningful finite cardinality before quantization; topology, placement constraints, correlations and rendering further collapse distinguishable outcomes. The occupancy-signature estimate in Table~\ref{tab:diversity} ignores seeds and textures and uses a declared spatial quantization. It is a bounded geometric redundancy diagnostic, not proof of ten million useful examples. Embedding rank and nearest distances also depend on encoder, population size, viewpoint policy and illumination. The study does not identify a universal acceptable distance or train a downstream model.
-
-\subsection{Multi-view and geometric correctness}
-\input{generated/overlap_table.tex}
-Rendered overlap is computed by depth unprojection, world-to-camera reprojection, frustum tests and a declared depth-consistency tolerance. We retain failures below the requested proxy threshold. Indoor annotation checks also compare depth with world-position reconstruction, reprojection and finite unit normals. The population audit found \InvalidRooms{} rejected/invalid seeds; this finite result is not an exhaustive correctness proof. Exact configuration, capture engine, time and camera identity accompany all checks.
-
-\begin{figure}[ht]
-\centering\includegraphics[width=\linewidth]{generated/scenes.jpg}
-\caption{Reference-camera RGB for the first eight consecutive rendered seeds, 24000--24007, without aesthetic filtering. The retained cohort includes dark scenes, approximate glass and visibly procedural human/material appearance.}
-\end{figure}
-
-\subsection{Generation performance}
-\input{generated/performance_table.tex}
-Timing uses completed samples, including asynchronous construction, lighting, rendering and readback. It excludes image/dataset encoding, validation and report writing unless explicitly labeled end-to-end. Each main benchmark runs 40 consecutive rooms, discards eight warmup rooms and captures four views per room at $320\times240$, one timestep, with static humans at density 0.25. Five-channel runs request RGB/depth/position/normal/semantic. Hardware is an NVIDIA RTX PRO 6000 Blackwell workstation GPU, Vulkan driver 610.43.02 on Linux. The benchmark records adapter, CPU, compiler, process memory, GPU timestamps and matching-PID NVML telemetry. Other desktop GPU activity is recorded, not attributed to the generator.
-
-Profiling separates layout, camera planning, materials, geometry, tangent conversion and asset insertion. The old ``preparation'' field measured only the regeneration request, concealing the asynchronous work. The revised schema records both the request and actual CPU stages. Geometry is constructed once for transport and rendering; unused material variants are skipped; independent MikkTSpace mesh conversions use a bounded four-thread native pool. The development profile now optimizes the procedural crate at level 3 as well as dependencies. Wasm retains cooperative serial conversion. No mesh-detail, texture-resolution, GI-ray or view-count reduction is used in the comparison. The intermediate shared-geometry-only trial did not improve throughput and is retained in the evidence.
-
-The before/after comparison changes both source preparation and the root development optimization level (1 to 3); it is not a source-only ablation or a release-LTO benchmark. Registry measurements compile the normalized crate archive without checkout-only wgpu patches. They should be used for published-package expectations. GPU timestamps are asynchronous diagnostic samples, and NVML active-process samples are not continuous occupancy measurements. Short runs cannot prove unlimited memory stability; finite child lifetimes remain part of the large-dataset operating policy. Throughput excludes neural motion generation and depends strongly on scene size, view count, resolution, modes and hardware.
-
-\section{Expanded camera and co-visibility evaluation}
+\section{Current-generation evaluation}
 \input{generated/camera_evaluation.tex}
 
-\section{Subsequent gallery and viewer update}
-The accompanying project page presents selected generator-20 renders separately from the population evaluations. Two example rooms (seeds 24005 and 24000) were captured at $768\times480$, with four synchronized cameras, three normalized trajectory times and all eight render modes. All mode switches reuse these exact scene/camera/time identities. The native CLI used Auto quality, static human density 0.25 and 1024 indirect-lighting rays per probe. Depth/position reconstruction and camera reprojection checks validate alignment before generating website previews. Display mappings for depth, normals, positions and temporal vectors are declared alongside the visualizations; they do not replace the lossless numeric exports.
+\subsection{Diversity diagnostics}
+The population export retains zero-preserving object counts, parameter distributions, camera intrinsics and extrinsics, placement heatmaps, correlations and occupancy signatures. These are correlated projections of the procedural program, not independent degrees of freedom. For categorical frequencies $p$, the entropy-effective count is $\exp(-\sum_jp_j\log p_j)$. The occupancy signature uses a 12-by-12 object-category grid and quantized partition geometry, excluding random seeds and textures. Its HyperLogLog estimate is a bounded geometric redundancy diagnostic, not proof of ten million useful examples.
 
 \begin{figure}[ht]
-\centering\includegraphics[width=\linewidth]{generated/gallery_v20.jpg}
-\caption{Selected generator-20 room, seed 24005: RGB, metric-depth visualization, view-space normals and semantic labels for cameras 0 and 2 at the same time. Camera selection and pixel-aligned annotation comparisons are interactive on the project page. These illustrations are separate from the consecutive population evaluation.}
+\centering\includegraphics[width=\linewidth]{generated/distributions.png}
+\caption{Absolute distributions in the current 2,048-room population at the default camera baseline. Each panel preserves its denominator and units.}
+\end{figure}
+\begin{figure}[ht]
+\centering\includegraphics[width=\linewidth]{generated/scenes.jpg}
+\caption{Camera-zero RGB for the first eight consecutive rendered rooms at the default baseline, without aesthetic filtering.}
+\end{figure}
+
+A seed's bit width does not establish dataset diversity. Continuous parameter ranges have no useful finite cardinality before quantization; topology, placement constraints, correlations and rendering reduce distinguishable outcomes. Optional frozen SigLIP2 embeddings~\cite{siglip2} support image-space redundancy audits, with scene-level aggregation and cross-room nearest neighbors. No embedding-rank or downstream-learning claim is made for this camera-baseline sweep.
+
+\section{Matched gallery and viewer}
+The accompanying project page presents selected generator-21 renders separately from the population evaluations. Two example rooms (seeds 24005 and 24000) were captured at $768\times480$, with four synchronized cameras, three normalized trajectory times and all eight render modes. All mode switches reuse these exact scene/camera/time identities. The native CLI used Auto quality, static human density 0.25 and 1024 indirect-lighting rays per probe. Depth/position reconstruction and camera reprojection checks validate alignment before generating website previews. Display mappings for depth, normals, positions and temporal vectors are declared alongside the visualizations; they do not replace the lossless numeric exports.
+
+\begin{figure}[ht]
+\centering\includegraphics[width=\linewidth]{generated/gallery_v21.jpg}
+\caption{Selected generator-21 room, seed 24005: RGB, metric-depth visualization, view-space normals and semantic labels for cameras 0 and 2 at the same time. Camera selection and pixel-aligned annotation comparisons are interactive on the project page. These illustrations are separate from the consecutive population evaluation.}
 \end{figure}
 
 Co-visibility shares the float32 surface raster used by the other geometric annotations. A GPU pass projects each source surface into the other cameras and checks frustum bounds and symmetric local tangent-plane agreement. The tolerance is $\max(1\text{ mm},10^{-4}d)$ at target depth $d$. The exact membership mask is separate from its additive color preview and source-valid mask; a valid but unshared surface differs from background even though both have a zero membership mask. This measures raster surface visibility, with the same annotation-opaque glass policy, rather than reflected or refracted RGB content.
 
-Generator 19 also replaces the squared clothing chest offset with smooth body-derived cross-sections, localized folds and fitted garment details. Eight matched adult wardrobes were visually reviewed before and after the change. Backless stool variants were present in 89 of 128 audited rooms (201 of 1198 seats). Viewer pose joints can show through people while environment depth occludes them; editor projections survive regeneration. ARDY controls expose diffusion steps, history length, guidance and path conditioning, and the prompt program limits optional style modifiers. Local bone translations are interpolated continuously. The project page's separate motion example uses seed 13, two accepted trajectories and two cameras, rendered as 120 frames at the model's 20 Hz rate. It is a bounded demonstration, not a motion-quality benchmark. Native and WebGPU validation and remaining qualifications are recorded in \texttt{docs/viewer\_quality\_v19.md}.
+Human clothing uses body-derived cross-sections, localized folds and fitted garment details. Viewer pose joints can show through people while environment depth occludes them; editor projections persist through regeneration. ARDY controls expose diffusion steps, history length, guidance and path conditioning. The project page's separately identified motion example contains two accepted trajectories, two cameras and 120 frames at the model's 20 Hz rate. It is an illustration of the optional motion pipeline, not part of the static camera-baseline experiment or a motion-quality benchmark.
 
 \section{Limitations and remaining evidence}
-Procedural correctness, broad parameter variation and efficient capture do not establish photographic realism. Hair is a surface groom, skin lacks a full subsurface model, some furnishings remain sparse, object motion uses approximate collision proxies, and diffuse GI uses probes and simplified transport. Glass and lighting are approximations rather than full path tracing. A retained earlier matched-scene Cycles study (generator 14, four unoccupied rooms, eight views, independent raw 8192-sample references) found coarse radiance relative errors of 9.0--98.7\%. That historical result is not a requalification of every generator-18 scene and explicitly includes the difficult dark example. Reference convergence and visual plausibility must be evaluated independently.
+Procedural correctness, broad parameter variation and efficient capture do not establish photographic realism. Hair is a surface groom, skin lacks a full subsurface model, some furnishings remain sparse, object motion uses approximate collision proxies, and diffuse GI uses probes and simplified transport. Glass and lighting are approximations rather than full path tracing. Physical transport accuracy and visual plausibility require independent path-traced reference studies; the camera-baseline sweep does not measure either.
 
 The current study is a generator audit and a small capture cohort, not a ten-million-scene run. It does not establish long-run resident-memory bounds, balanced coverage of all rare architectural combinations, collision-free arbitrary motion, suitability for every reconstruction loss, or transfer to real photographs. Shared-view defaults deliberately correlate cameras within a room; train/validation splits should therefore be made by room seed, not by image. A downstream assessment should freeze a training budget and real evaluation set, compare matched data quantities and camera policies, and measure reconstruction/calibration quality alongside redundancy. The manifests and metrics make that experiment reproducible without claiming its outcome in advance.
 

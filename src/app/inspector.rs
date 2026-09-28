@@ -1,4 +1,5 @@
 //! Everyday scene controls in one place; the raw ECS inspector is optional.
+mod cameras;
 #[cfg(feature = "human_motion")]
 mod motion;
 use super::*;
@@ -126,85 +127,8 @@ pub(super) fn panel(world: &mut World) {
                                     .text("People density"),
                             )
                             .changed();
-                        ui.collapsing("Capture camera paths", |ui| {
-                            let mut policy = config
-                                .indoor_camera
-                                .as_deref()
-                                .and_then(|j| {
-                                    crate::scene::procedural_indoor::cameras::CameraSettings::parse(
-                                        j,
-                                    )
-                                    .ok()
-                                })
-                                .unwrap_or_default();
-                            let mut edit = ui
-                                .checkbox(&mut policy.primary_room, "Reconstruct primary room only")
-                                .changed();
-                            edit |= ui
-                                .add(
-                                    egui::Slider::new(&mut policy.path_length_min, 0.0..=20.0)
-                                        .text("Minimum path (m)"),
-                                )
-                                .changed();
-                            edit |= ui
-                                .add(
-                                    egui::Slider::new(&mut policy.path_length_max, 0.1..=30.0)
-                                        .text("Maximum path (m)"),
-                                )
-                                .changed();
-                            policy.path_length_max =
-                                policy.path_length_max.max(policy.path_length_min);
-                            edit |= ui
-                                .add(
-                                    egui::Slider::new(&mut policy.long_path_fraction, 0.0..=1.0)
-                                        .text("Long route fraction"),
-                                )
-                                .changed();
-                            let mut overlap_enabled = policy.multiview.is_some();
-                            if ui
-                                .checkbox(&mut overlap_enabled, "Shared geometry across views")
-                                .changed()
-                            {
-                                policy.multiview = overlap_enabled.then(Default::default);
-                                edit = true;
-                            }
-                            if let Some(m) = &mut policy.multiview {
-                                ui.label(
-                                    "Each view overlaps camera 0; estimates include occlusion.",
-                                );
-                                edit |= ui
-                                    .add(
-                                        egui::Slider::new(&mut m.min_overlap, 0.0..=1.0)
-                                            .text("Minimum estimated overlap"),
-                                    )
-                                    .changed();
-                                edit |= ui
-                                    .add(
-                                        egui::Slider::new(&mut m.min_baseline, 0.01..=5.0)
-                                            .text("Minimum pair separation (m)"),
-                                    )
-                                    .changed();
-                                edit |= ui
-                                    .add(
-                                        egui::Slider::new(&mut m.max_baseline, 0.01..=10.0)
-                                            .text("Maximum reference baseline (m)"),
-                                    )
-                                    .changed();
-                                m.max_baseline = m.max_baseline.max(m.min_baseline);
-                                edit |= ui.add(egui::Slider::new(&mut m.min_spread, 0.0..=1.0)
-                                    .text("Group spread (3+ cameras)"))
-                                    .on_hover_text("Horizontal width relative to length of the camera group. Zero permits a line; higher values require a broader footprint throughout playback.")
-                                    .changed();
-                                edit |= ui.add(egui::Slider::new(&mut m.trajectory_variation, 0.0..=1.0)
-                                    .text("Independent path variation"))
-                                    .on_hover_text("Vary camera headings, travel and curvature. Zero permits translated copies for a rigid camera rig.")
-                                    .changed();
-                            }
-                            if edit {
-                                config.indoor_camera =
-                                    Some(serde_json::to_string(&policy).unwrap());
-                                changed = true;
-                            }
+                        ui.collapsing("Capture cameras", |ui| {
+                            changed |= cameras::edit(ui, &mut config.indoor_camera);
                         });
                         #[cfg(feature = "human_motion")]
                         {

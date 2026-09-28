@@ -158,4 +158,4 @@ See the [v12 room review](docs/room_review_v12.md) for primary-room camera paths
 furniture programs, fixture annotations, compound motion and measured annotation
 preview performance, with captured galleries and 128-room distribution metrics.
 
-See the [generator-20 camera evaluation](docs/camera_evaluation_v20.md) for 2,048 audited layouts, 512 rendered rooms, trajectory diversity and all-camera co-visibility measurements, and the [0.24 release notes](docs/release_0_24.md) for compatibility.
+The continuous [camera baseline control](docs/multiview_cameras.md) sets spacing from narrow to wide while retaining advanced overrides. See the [current camera-baseline evaluation](docs/camera_baseline_v21.md) for 2,048 audited layouts, 512 distinct rendered rooms and matched co-visibility distributions at five baseline values, and the [0.25 release notes](docs/release_0_25.md) for compatibility.

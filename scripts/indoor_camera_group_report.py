@@ -31,6 +31,7 @@ def group_geometry(positions):
     moving = denominator > 1e-8 / 33
     return dict(
         min_pairwise_baseline_m=float(np.linalg.norm(p[:, a] - p[:, b], axis=2).min()),
+        min_reference_baseline_m=float(np.linalg.norm(p[:, 1:] - p[:, :1], axis=2).min()),
         max_reference_baseline_m=float(np.linalg.norm(p[:, 1:] - p[:, :1], axis=2).max()),
         min_horizontal_spread=float(spread.min()) if p.shape[1] >= 3 else None,
         min_relative_motion=float(np.sqrt(residual[moving] / denominator[moving]).min()) if moving.any() else None,
@@ -106,6 +107,8 @@ def report(roots, output, seed):
                 raise ValueError('incomplete camera-group export')
             for row in exported:
                 for key, value in groups[int(row['seed'])].items():
+                    if key == 'min_reference_baseline_m' and key not in row:
+                        continue  # Older exports did not record this bound.
                     actual = float(row[key]) if row[key] else None
                     if (actual is None) != (value is None) or (value is not None and not np.isclose(actual, value, atol=2e-5)):
                         raise ValueError(f'exported geometry disagrees with independent NumPy calculation: {row["seed"]} {key}')

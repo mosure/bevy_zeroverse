@@ -2,6 +2,7 @@
 """Compile the repository paper and stage a self-contained project-page download."""
 import hashlib
 import json
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -30,18 +31,34 @@ def main():
     subprocess.run(["pdftoppm", "-f", "1", "-singlefile", "-scale-to", "1000", "-png",
                     str(pdf), str(BUILD / "whitepaper")], check=True)
     Image.open(BUILD / "whitepaper.png").save(MEDIA / "whitepaper.webp", quality=92, method=6)
-    sources = sorted(p for p in TEX.rglob("*") if p.suffix in {".tex", ".sty", ".bib", ".jpg", ".png"})
+    # Package only the paper's current dependency closure, keeping unused
+    # historical figures and tables out of the downloadable whitepaper source.
+    pending = [TEX / "bevy_zeroverse.tex", TEX / "arxiv.sty", TEX / "references.bib"]
+    used = set()
+    while pending:
+        source = pending.pop()
+        if source in used:
+            continue
+        assert source.is_file(), source
+        used.add(source)
+        if source.suffix == ".tex":
+            for name in re.findall(r"\\(?:input|includegraphics)(?:\[[^\]]*\])?\{([^}]+)\}", source.read_text()):
+                dependency = TEX / name
+                if not dependency.suffix:
+                    dependency = dependency.with_suffix(".tex")
+                pending.append(dependency)
+    sources = sorted(used)
     with zipfile.ZipFile(TARGET / "whitepaper-source.zip", "w", zipfile.ZIP_DEFLATED) as archive:
         for path in sources:
             archive.write(path, str(path.relative_to(TEX)))
         archive.writestr("BUILD.txt", "Run latexmk -pdf bevy_zeroverse.tex in this directory.\n"
-                         "Appearance/performance tables measure generator v18. Expanded camera/co-visibility results and the gallery use v20; the motion illustration retains v19.\n")
+                         "All population results, baseline sweeps and gallery illustrations use generator v21.\n")
     (TARGET / "provenance.json").write_text(json.dumps({
         "pdf_sha256": sha(pdf),
         "sources": {str(p.relative_to(ROOT)): sha(p) for p in sources},
         "source_archive_sha256": sha(TARGET / "whitepaper-source.zip"),
         "build": "latexmk -pdf -interaction=nonstopmode -halt-on-error bevy_zeroverse.tex",
-        "scope": "v20 expanded camera and co-visibility evaluation; v18 appearance/performance baseline; v20 matched gallery and retained v19 motion illustration; technical report"
+        "scope": "Generator 21 absolute population and camera-baseline measurements; matched gallery and motion illustration; technical report"
     }, indent=2) + "\n")
 
 

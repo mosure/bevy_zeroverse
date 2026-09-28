@@ -4,7 +4,7 @@
     "base_seed": 24000,
     "camera_matrix": "world_from_view, column-major, right-handed -Z forward",
     "cameras": 4,
-    "capture_engine": "capture-v31;co_visibility=1;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=6;surface_flow=1;indoor=20;multiview=3;ovoxel=2;glass=2;hair=2;bounds=2;position=2;tabletop=1;finishes=3;seating=2;activity=2;playback=2;exterior=1",
+    "capture_engine": "capture-v32;co_visibility=1;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=6;surface_flow=1;indoor=21;multiview=4;ovoxel=2;glass=2;hair=2;bounds=2;position=2;tabletop=1;finishes=3;seating=2;activity=2;playback=2;exterior=1",
     "color": "fixed linear-to-sRGB transfer after renderer tonemapping",
     "color_codec": "raw",
     "compression": "Lz4",
@@ -12,7 +12,7 @@
     "depth": "linear camera-space z in metres",
     "fovy_units": "radians",
     "generator": "bevy_zeroverse procedural_indoor",
-    "generator_version": 20,
+    "generator_version": 21,
     "gi_effective_enabled": true,
     "gi_settings": {
       "bake": {
@@ -112,27 +112,27 @@
         "far": 50.0,
         "world_from_view_columns": [
           [
-            0.8392692804336548,
-            -0.06546611338853836,
-            0.5397602915763855,
+            0.9804521203041077,
+            -0.06693268567323685,
+            0.18502330780029297,
             0.0
           ],
           [
-            0.23024016618728638,
-            0.942116916179657,
-            -0.24373184144496918,
+            0.11186186224222183,
+            0.9632219672203064,
+            -0.24431608617305756,
             0.0
           ],
           [
-            -0.49256113171577454,
-            0.32883116602897644,
-            0.805762767791748,
+            -0.16186580061912537,
+            0.26023727655410767,
+            0.9518802762031555,
             0.0
           ],
           [
-            3.418492555618286,
-            1.5603055953979492,
-            0.13208124041557312,
+            4.013399124145508,
+            1.5524401664733887,
+            0.9165760278701782,
             1.0
           ]
         ]
@@ -140,32 +140,32 @@
       {
         "index": 2,
         "time": 0.0,
-        "fovy_degrees": 36.69044876098633,
+        "fovy_degrees": 32.65174865722656,
         "near": 0.10000000149011612,
         "far": 50.0,
         "world_from_view_columns": [
           [
-            0.709978461265564,
-            0.037633396685123444,
-            0.7032171487808228,
+            0.8906925916671753,
+            0.049675822257995605,
+            0.45188388228416443,
             0.0
           ],
           [
-            0.1999017894268036,
-            0.9467252492904663,
-            -0.2524888217449188,
+            0.15278325974941254,
+            0.9034844040870667,
+            -0.40046626329421997,
             0.0
           ],
           [
-            -0.6752554178237915,
-            0.31983599066734314,
-            0.6646315455436707,
+            -0.4281634986400604,
+            0.4257326126098633,
+            0.7971372008323669,
             0.0
           ],
           [
-            2.619947910308838,
-            1.572184443473816,
-            -0.0710911750793457,
+            3.1137452125549316,
+            1.8775278329849243,
+            0.9147915840148926,
             1.0
           ]
         ]
@@ -173,32 +173,32 @@
       {
         "index": 3,
         "time": 0.0,
-        "fovy_degrees": 32.65174865722656,
+        "fovy_degrees": 36.000404357910156,
         "near": 0.10000000149011612,
         "far": 50.0,
         "world_from_view_columns": [
           [
-            0.7586423754692078,
-            0.04855022579431534,
-            0.6496957540512085,
+            0.9592847228050232,
+            -0.07473969459533691,
+            0.2723725140094757,
             0.0
           ],
           [
-            0.27141454815864563,
-            0.8830128908157349,
-            -0.3829130530357361,
+            0.20617863535881042,
+            0.8444007039070129,
+            -0.4944469928741455,
             0.0
           ],
           [
-            -0.5922802686691284,
-            0.4668309688568115,
-            0.6567137241363525,
+            -0.19303672015666962,
+            0.5304728746414185,
+            0.8254303932189941,
             0.0
           ],
           [
-            3.1193132400512695,
-            1.6213387250900269,
-            -0.011182516813278198,
+            4.220775604248047,
+            2.020317792892456,
+            0.5626856684684753,
             1.0
           ]
         ]
@@ -246,27 +246,27 @@
         "far": 50.0,
         "world_from_view_columns": [
           [
-            0.8475348949432373,
-            -0.052812159061431885,
-            0.5281055569648743,
+            0.9835222959518433,
+            -0.053990043699741364,
+            0.1725369393825531,
             0.0
           ],
           [
-            0.21441993117332458,
-            0.9442896842956543,
-            -0.24968193471431732,
+            0.09570031613111496,
+            0.9651660919189453,
+            -0.2435074746608734,
             0.0
           ],
           [
-            -0.4854983687400818,
-            0.32485049962997437,
-            0.8116424679756165,
+            -0.15337982773780823,
+            0.2560068666934967,
+            0.9544292092323303,
             0.0
           ],
           [
-            3.424853563308716,
-            1.5506258010864258,
-            0.12816014885902405,
+            4.015511512756348,
+            1.5428842306137085,
+            0.9016077518463135,
             1.0
           ]
         ]
@@ -274,32 +274,32 @@
       {
         "index": 2,
         "time": 0.10000000149011612,
-        "fovy_degrees": 36.69044876098633,
+        "fovy_degrees": 32.65174865722656,
         "near": 0.10000000149011612,
         "far": 50.0,
         "world_from_view_columns": [
           [
-            0.7101516723632812,
-            0.035370536148548126,
-            0.7031596899032593,
+            0.8928655385971069,
+            0.04903247952461243,
+            0.4476459324359894,
             0.0
           ],
           [
-            0.19880783557891846,
-            0.948017418384552,
-            -0.2484721839427948,
+            0.15132401883602142,
+            0.9035816192626953,
+            -0.40080076456069946,
             0.0
           ],
           [
-            -0.675396203994751,
-            0.3162465989589691,
-            0.6662042140960693,
+            -0.4241369068622589,
+            0.4256007671356201,
+            0.7993571162223816,
             0.0
           ],
           [
-            2.621260643005371,
-            1.5655391216278076,
-            -0.05779734253883362,
+            3.1219260692596436,
+            1.8677699565887451,
+            0.899552583694458,
             1.0
           ]
         ]
@@ -307,32 +307,32 @@
       {
         "index": 3,
         "time": 0.10000000149011612,
-        "fovy_degrees": 32.65174865722656,
+        "fovy_degrees": 36.000404357910156,
         "near": 0.10000000149011612,
         "far": 50.0,
         "world_from_view_columns": [
           [
-            0.7640892267227173,
-            0.04785333573818207,
-            0.6433330774307251,
+            0.9638641476631165,
+            -0.06511504203081131,
+            0.2583136260509491,
             0.0
           ],
           [
-            0.2662116289138794,
-            0.8849862217903137,
-            -0.3820086717605591,
+            0.19116535782814026,
+            0.8443926572799683,
+            -0.5004566311836243,
             0.0
           ],
           [
-            -0.5876213312149048,
-            0.4631515145301819,
-            0.6634693741798401,
+            -0.1855308711528778,
+            0.5317527651786804,
+            0.8263275623321533,
             0.0
           ],
           [
-            3.128909111022949,
-            1.6120412349700928,
-            0.0013003770727664232,
+            4.221102237701416,
+            2.006904363632202,
+            0.535810112953186,
             1.0
           ]
         ]
@@ -380,27 +380,27 @@
         "far": 50.0,
         "world_from_view_columns": [
           [
-            0.8554696440696716,
-            -0.0400872603058815,
-            0.5162990689277649,
+            0.9862591028213501,
+            -0.04098059982061386,
+            0.16004253923892975,
             0.0
           ],
           [
-            0.19849076867103577,
-            0.9462369084358215,
-            -0.25541549921035767,
+            0.07952536642551422,
+            0.9668886065483093,
+            -0.2424914538860321,
             0.0
           ],
           [
-            -0.47830232977867126,
-            0.3209807872772217,
-            0.8174338936805725,
+            -0.14480586349964142,
+            0.25188684463500977,
+            0.956861674785614,
             0.0
           ],
           [
-            3.4328150749206543,
-            1.5411640405654907,
-            0.12529154121875763,
+            4.019186973571777,
+            1.533414602279663,
+            0.8875184059143066,
             1.0
           ]
         ]
@@ -408,32 +408,32 @@
       {
         "index": 2,
         "time": 0.20000000298023224,
-        "fovy_degrees": 36.69044876098633,
+        "fovy_degrees": 32.65174865722656,
         "near": 0.10000000149011612,
         "far": 50.0,
         "world_from_view_columns": [
           [
-            0.7103271484375,
-            0.033108167350292206,
-            0.703092634677887,
+            0.8950179219245911,
+            0.048389919102191925,
+            0.44339752197265625,
             0.0
           ],
           [
-            0.19771382212638855,
-            0.9492911100387573,
-            -0.24444971978664398,
+            0.14986330270767212,
+            0.9036797285079956,
+            -0.4011284112930298,
             0.0
           ],
           [
-            -0.675532877445221,
-            0.3126503825187683,
-            0.6677613258361816,
+            -0.4200999140739441,
+            0.4254661202430725,
+            0.8015576601028442,
             0.0
           ],
           [
-            2.6213583946228027,
-            1.5587860345840454,
-            -0.045162755995988846,
+            3.130986213684082,
+            1.8578884601593018,
+            0.8853476047515869,
             1.0
           ]
         ]
@@ -441,32 +441,32 @@
       {
         "index": 3,
         "time": 0.20000000298023224,
-        "fovy_degrees": 32.65174865722656,
+        "fovy_degrees": 36.000404357910156,
         "near": 0.10000000149011612,
         "far": 50.0,
         "world_from_view_columns": [
           [
-            0.7694826722145081,
-            0.04719141870737076,
-            0.6369218230247498,
+            0.9681469202041626,
+            -0.055501461029052734,
+            0.2441539615392685,
             0.0
           ],
           [
-            0.26101258397102356,
-            0.8869448900222778,
-            -0.38105282187461853,
+            0.17606502771377563,
+            0.84422767162323,
+            -0.5062418580055237,
             0.0
           ],
           [
-            -0.5828970074653625,
-            0.4594581425189972,
-            0.6701711416244507,
+            -0.17802436649799347,
+            0.5331034064292908,
+            0.8271082639694214,
             0.0
           ],
           [
-            3.1380720138549805,
-            1.6025453805923462,
-            0.0141103221103549,
+            4.223123550415039,
+            1.9931927919387817,
+            0.5101025700569153,
             1.0
           ]
         ]
@@ -536,102 +536,102 @@
     "visibility_test": "in-frustum and symmetric tangent-plane agreement at the nearest target pixel center"
   },
   "source_sha256": {
-    "out/project_page_v20/scene_24000/000000/color_000_00.npz": "f8ea46e12f040fd1e10df21d8c8e0d9dabe8deaccc28e33636665d8ca0e17926",
-    "out/project_page_v20/scene_24000/000000/depth_000_00.npz": "927e1ed688ec2d1e4bc3f43a223cd2046b422e6f38b6c817075d4faa79ed6d32",
-    "out/project_page_v20/scene_24000/000000/normal_000_00.npz": "2225cb3193ee2ba9cb95ac52262efcb1eeb6c25db0cb18f268b8059ce6f83a64",
-    "out/project_page_v20/scene_24000/000000/position_000_00.npz": "3de9412187e3802dffda7ee02a232a2c1fe29b2fc06bbbe86e95caa717e71472",
-    "out/project_page_v20/scene_24000/000000/semantic_000_00.npz": "f122e281e13f32b12bcab1a8642056e3c82bd5628765041d695a825e47df7ff7",
-    "out/project_page_v20/scene_24000/000000/optical_flow_000_00.npz": "efdb53e11ac031fa593a392c338375136701f908572e87417b3058c785bddd2b",
-    "out/project_page_v20/scene_24000/000000/motion_vectors_000_00.npz": "7d2e35a9605296323169be65cedb789ae78c627446304052780018d8a69214bc",
-    "out/project_page_v20/scene_24000/000000/co_visibility_000_00.npz": "b76b6f6d878b9b7da12bc5cbcc75f5456fd574f3736e980ac860e86e0017cec4",
-    "out/project_page_v20/scene_24000/000000/color_000_01.npz": "1a21438d6354c203c5abaf733c6a380ea33f7d5a205d5ff460884b14c138d9fd",
-    "out/project_page_v20/scene_24000/000000/depth_000_01.npz": "c52858a1dc2a418eb24af564bb97bdd468086abae5aadb808ab1ed5f84bb4157",
-    "out/project_page_v20/scene_24000/000000/normal_000_01.npz": "32fe6b5701cc15a74de50e32ce7b1a12f22e894b59a3d93f4846f03156cb0eee",
-    "out/project_page_v20/scene_24000/000000/position_000_01.npz": "0ec50e59a9aaa92a25823caa8c41fa09d78bf3cc382dbea48616a212b047b582",
-    "out/project_page_v20/scene_24000/000000/semantic_000_01.npz": "d35322439305642f2f93499b7d1c273ad23ef13b8db4e8bb0efc05026be783a8",
-    "out/project_page_v20/scene_24000/000000/optical_flow_000_01.npz": "644b3e06229b26731eac704fdeb439c4e90542870a8b5bf84f228c33e980b163",
-    "out/project_page_v20/scene_24000/000000/motion_vectors_000_01.npz": "c7b94b6fbcc1787c53a51633f68970e192f88b85018b65b3c24a9e17bd0bfaa2",
-    "out/project_page_v20/scene_24000/000000/co_visibility_000_01.npz": "aec255f3b7675e4fa339fec831baa623fc665f6c30fc00fa2c7a4e6cda2bb5de",
-    "out/project_page_v20/scene_24000/000000/color_000_02.npz": "28afe9e181d5bf5b979e0cba729c8715fd54c2282792a973d1c0bf4ff3df6a6c",
-    "out/project_page_v20/scene_24000/000000/depth_000_02.npz": "c618423e7c7008904e1f2e0bc0155dc90c21726d7f9e91793c3c1aad9646e23f",
-    "out/project_page_v20/scene_24000/000000/normal_000_02.npz": "ef162af110a6cca5bd46766bb8163e41cb7c9ad86475985fb22f31ff6ab1d4fb",
-    "out/project_page_v20/scene_24000/000000/position_000_02.npz": "b9c24d18c316c035c8b547dfd894f032a3c5aacb64b08ccf9d0cf51942bd5015",
-    "out/project_page_v20/scene_24000/000000/semantic_000_02.npz": "608559c137a27c5ac05a0221bc70d641caee2af45e03bd0fd8724f8044a651f1",
-    "out/project_page_v20/scene_24000/000000/optical_flow_000_02.npz": "0ffc845aa33bec724a0f249887123d94e5e5231f65b94c38bafd21fbde360cc1",
-    "out/project_page_v20/scene_24000/000000/motion_vectors_000_02.npz": "f399edaafc35662f189ee6e3c03417c1f98bbfb6c8b7e3acf2cc034d35de95af",
-    "out/project_page_v20/scene_24000/000000/co_visibility_000_02.npz": "64eb83639d599b2dce209c04a57aa63b20eea7d9d345dd9209d896e907fd8e1c",
-    "out/project_page_v20/scene_24000/000000/color_000_03.npz": "c5c144ca37a8a0f18d561be2e65f98ebb6eec62e1d8432c24acfc57e3bb182fc",
-    "out/project_page_v20/scene_24000/000000/depth_000_03.npz": "bf865f73d4fb05a46f30c33d3a4e13d2f5759f5c86c92e4b0b18e18197f9d04c",
-    "out/project_page_v20/scene_24000/000000/normal_000_03.npz": "bd3ef182d59c18ac0143686cab2200be155d1469854563a03980124c389f8ce8",
-    "out/project_page_v20/scene_24000/000000/position_000_03.npz": "38c729ee59a685e594fd6240b6c13f24a21d54eda6d221e49eaae0efce7ae6eb",
-    "out/project_page_v20/scene_24000/000000/semantic_000_03.npz": "5f387853068b795a1199e1af8a5a59aeada45a27520e3e3706b3d38d2d4c6237",
-    "out/project_page_v20/scene_24000/000000/optical_flow_000_03.npz": "3786cc820d7b859201414fc786ef8e2c17c4bc4df174444b0dda057f472f01cb",
-    "out/project_page_v20/scene_24000/000000/motion_vectors_000_03.npz": "8ba897d8a4503652a6c8704c0f4ff01dc745358cf3d3fef416fcd2e9b9471480",
-    "out/project_page_v20/scene_24000/000000/co_visibility_000_03.npz": "819abcbcb0c97d9b980c956f7619184e64435a04ba43a7692a424920d6f66fc9",
-    "out/project_page_v20/scene_24000/000000/color_001_00.npz": "29899dae1b2096f3541264af33b117317bcc0c5863b90887d11787725f5c8bbd",
-    "out/project_page_v20/scene_24000/000000/depth_001_00.npz": "3da1e17afd35c2bd53dc08db0e3dfb498ce897dd8cce693b399ccd425001dffb",
-    "out/project_page_v20/scene_24000/000000/normal_001_00.npz": "febabe091158d19bfa6b9e58a69423cb18c05ea93356dfbecd5adc47458e434b",
-    "out/project_page_v20/scene_24000/000000/position_001_00.npz": "e2fb330dd8a7d48dfb0769e637ff689df0c9f964e3d9fc379d7f8449a96e1e16",
-    "out/project_page_v20/scene_24000/000000/semantic_001_00.npz": "5fb0a10e7383e2a6957f5e09f2bc651f85bce4c52332a6767251b9c924a4e941",
-    "out/project_page_v20/scene_24000/000000/optical_flow_001_00.npz": "27f3e2fe78943f90a19d8f54598c6bf374fa49ac2d41d0af5a84616f9633c4a8",
-    "out/project_page_v20/scene_24000/000000/motion_vectors_001_00.npz": "a0df01e1641ac1519cdd8568311a9650c3d99733b993935aab30d7c8ce07fb0a",
-    "out/project_page_v20/scene_24000/000000/co_visibility_001_00.npz": "95130da39768227eadf295d9317f37a84ed4d74bf4351504b379f5ea7c250b47",
-    "out/project_page_v20/scene_24000/000000/color_001_01.npz": "1dee7f65e8c3fa21bd5c7e8a62ce55e17632345c7857f9aa06eeb112c4f1b62e",
-    "out/project_page_v20/scene_24000/000000/depth_001_01.npz": "9997e71378e8df2cbfa04fcdadb8777dba1e0289e0102d062adfb50ecf97a171",
-    "out/project_page_v20/scene_24000/000000/normal_001_01.npz": "10c3318bc1eba307b73825f78b96384974e4b83b403cdd3aa300304d0ec32ab2",
-    "out/project_page_v20/scene_24000/000000/position_001_01.npz": "c73a498f471c31769fb919ffaff36e55318e79b33ba19fdf5a5c985d7ad74a70",
-    "out/project_page_v20/scene_24000/000000/semantic_001_01.npz": "899b13432336e5f89fe603cbda4de9c497bd5d9a283eb59342a4a455058d17f7",
-    "out/project_page_v20/scene_24000/000000/optical_flow_001_01.npz": "b925ad486dbe87e2cc3d0ffe8d67a5a9f157ab3db2b721260fd6f803c15264d1",
-    "out/project_page_v20/scene_24000/000000/motion_vectors_001_01.npz": "a168e9a768a873afc40d747f4029dfbb9e579311229cc472e8078b27d1672f77",
-    "out/project_page_v20/scene_24000/000000/co_visibility_001_01.npz": "b3ffe5ed63f6d7256c3813c3f592d558a4c1c10d0f37d630cf13510ecc353b08",
-    "out/project_page_v20/scene_24000/000000/color_001_02.npz": "d8389e613f26b894f47d94f4cc87645182f40e895c2d7738d018df10e0841fca",
-    "out/project_page_v20/scene_24000/000000/depth_001_02.npz": "27386f6d34a21eb1fdcf22246330933469017bcb6bb4337b89f6ff276a32f9a3",
-    "out/project_page_v20/scene_24000/000000/normal_001_02.npz": "a98bbccf2bec4896a8dad8c4adf00fd18e74717c2419abc348ec0538fbd55f50",
-    "out/project_page_v20/scene_24000/000000/position_001_02.npz": "d9ad906d4a4dfb55608fb6442bf8aaed328e10146ada10080206434c25e8d4e2",
-    "out/project_page_v20/scene_24000/000000/semantic_001_02.npz": "64633904ec886738de34d2ce13a29b96ea158a1f80030a9bf3b47889c754fd96",
-    "out/project_page_v20/scene_24000/000000/optical_flow_001_02.npz": "42b794ae677274dc9d21853819c56ffdf36e7c3b19bb6d77c3e0dce25f912a22",
-    "out/project_page_v20/scene_24000/000000/motion_vectors_001_02.npz": "aae21da712baded86e37b81ba355f76a53328e5cd1c358daeb529bf426b535a0",
-    "out/project_page_v20/scene_24000/000000/co_visibility_001_02.npz": "7b1650be50b6b122bcf5138440f10fc2f61e066e7f3fe234334d5d54276bfa85",
-    "out/project_page_v20/scene_24000/000000/color_001_03.npz": "914a452ec880dffffdfb6d6fb90d83991b5831df10a1fbc875d32c33c7f684d1",
-    "out/project_page_v20/scene_24000/000000/depth_001_03.npz": "82ff67314441730aa6ab049a7c134db03f478480ed1acaecf935eddfaf24c77c",
-    "out/project_page_v20/scene_24000/000000/normal_001_03.npz": "9fa5850c1953348d0448f8d4943d93b62045b3825e2d44ec163cdddfc1de8f4a",
-    "out/project_page_v20/scene_24000/000000/position_001_03.npz": "9679c469b68b19806fafc12e4ba25bd6c612c3171cea4a8f7703956e64911ec1",
-    "out/project_page_v20/scene_24000/000000/semantic_001_03.npz": "a803ddd558d625d949c3e104bfdd485f67d267d4082952328fb54c897aa5662f",
-    "out/project_page_v20/scene_24000/000000/optical_flow_001_03.npz": "d08fb0b83da07c765fb311fd5e039cd78ec1bb51125a6b85e684ffbd0a12ada3",
-    "out/project_page_v20/scene_24000/000000/motion_vectors_001_03.npz": "609f19f52e6a0e270f2dbd7e7922c7b44ee42e793c3314ed35a1761d746fc6ba",
-    "out/project_page_v20/scene_24000/000000/co_visibility_001_03.npz": "ccc37a2a92b606b951fe37502b456a55ce7c00d26cd92786be2e429f9c46cf97",
-    "out/project_page_v20/scene_24000/000000/color_002_00.npz": "cf1575eb2de949a587c20bdb476d71c5fa1750d9ecc5b0bb3317bbca4f800e14",
-    "out/project_page_v20/scene_24000/000000/depth_002_00.npz": "805881793f2eefdc018ab70d86d5b94ff4b2e5c47cd8282c3b86708abe549d6e",
-    "out/project_page_v20/scene_24000/000000/normal_002_00.npz": "091afea23e721d21dc721d1761a0b4539e4754dbd027223718bb947bf5745711",
-    "out/project_page_v20/scene_24000/000000/position_002_00.npz": "9274a867df6f9c574a410f6ee2fda1de5b85761609e711549f3a86e494641515",
-    "out/project_page_v20/scene_24000/000000/semantic_002_00.npz": "8da32e10a506363fa4767e4e7062d483033709ae8830ebd31a71d1cd6816cfbd",
-    "out/project_page_v20/scene_24000/000000/optical_flow_002_00.npz": "f8c8824691705b134bc04437a24bc172145e3e3b4f2ebc899b663ec0be1b74b5",
-    "out/project_page_v20/scene_24000/000000/motion_vectors_002_00.npz": "b8bc12a6ef620401e20b279827acfead3cfbdfa23e3b0db1c5847787628b8046",
-    "out/project_page_v20/scene_24000/000000/co_visibility_002_00.npz": "b3c77b17247735b3060cb64d1a27111e6be3fee08552c15fc7127af5e24b331e",
-    "out/project_page_v20/scene_24000/000000/color_002_01.npz": "96669d608fb2c8dcc0b790f5b656c441370ab67f063c00a91993086c473e7346",
-    "out/project_page_v20/scene_24000/000000/depth_002_01.npz": "0d4322bf05dc5295d717c1f610e067d65ec6494043b276fe583e1649a4de3d0e",
-    "out/project_page_v20/scene_24000/000000/normal_002_01.npz": "54c71628d9d56269ca389f0e9c83ec5cd23f02547b0b4819f87abf9182750e4d",
-    "out/project_page_v20/scene_24000/000000/position_002_01.npz": "6ea0737f41117a3c1ff93ae6f543841f17ec63a155de2073ed53d5da2441435d",
-    "out/project_page_v20/scene_24000/000000/semantic_002_01.npz": "42b3ee22087c3cf4932f74c73d5de26ad344ffe3c9dfc6039aaca391f634cec9",
-    "out/project_page_v20/scene_24000/000000/optical_flow_002_01.npz": "f8c8824691705b134bc04437a24bc172145e3e3b4f2ebc899b663ec0be1b74b5",
-    "out/project_page_v20/scene_24000/000000/motion_vectors_002_01.npz": "b8bc12a6ef620401e20b279827acfead3cfbdfa23e3b0db1c5847787628b8046",
-    "out/project_page_v20/scene_24000/000000/co_visibility_002_01.npz": "b2f701e5fb8d582da04f3749fff991afc9e292a96c9a43fcc98a26dbe7987b44",
-    "out/project_page_v20/scene_24000/000000/color_002_02.npz": "35148904f0fc799a95ee20e8e8b49213169c557b6523e3cd191dfbf98eb42729",
-    "out/project_page_v20/scene_24000/000000/depth_002_02.npz": "5557eaa4a5c7fce10db2f17916cc85a35d0e7392779482e8748fc1a8ea1e0730",
-    "out/project_page_v20/scene_24000/000000/normal_002_02.npz": "a2ac9a1c01b602bbfaa17540a9048230fe0d74e9c719e87abe278d45bdf62317",
-    "out/project_page_v20/scene_24000/000000/position_002_02.npz": "2784c324cd6dc915667a901b8ac83e11722050a863c9fa174b404a686e736f06",
-    "out/project_page_v20/scene_24000/000000/semantic_002_02.npz": "7700e97ebc429b48a4f23e6747208475579da8e3296327ff37e82852b120f7bd",
-    "out/project_page_v20/scene_24000/000000/optical_flow_002_02.npz": "f8c8824691705b134bc04437a24bc172145e3e3b4f2ebc899b663ec0be1b74b5",
-    "out/project_page_v20/scene_24000/000000/motion_vectors_002_02.npz": "b8bc12a6ef620401e20b279827acfead3cfbdfa23e3b0db1c5847787628b8046",
-    "out/project_page_v20/scene_24000/000000/co_visibility_002_02.npz": "531bf972a1ffe791c86124cf51be17487d69ba862d1a93c1098f67dd460e7272",
-    "out/project_page_v20/scene_24000/000000/color_002_03.npz": "ab61713bbdabc0b4cde1aef9b15b3418ec54af9932a136fb90126fdabbc47752",
-    "out/project_page_v20/scene_24000/000000/depth_002_03.npz": "867a18f2c2dc47388ce45eeea8472ebaad62e832036deec1d9f54adc61711ee1",
-    "out/project_page_v20/scene_24000/000000/normal_002_03.npz": "ad1480944b672d325263352e25cc41f0d090d912e06bc6b5bd07df49517c3009",
-    "out/project_page_v20/scene_24000/000000/position_002_03.npz": "50d59bb56604d10946378d966a6d8f0949356fbafd0abe7eb5a68982d2c51d30",
-    "out/project_page_v20/scene_24000/000000/semantic_002_03.npz": "d493a8b6a0b16323b2a0ab06713ad577a624e5b0e8945800c9b6df05f6f97256",
-    "out/project_page_v20/scene_24000/000000/optical_flow_002_03.npz": "f8c8824691705b134bc04437a24bc172145e3e3b4f2ebc899b663ec0be1b74b5",
-    "out/project_page_v20/scene_24000/000000/motion_vectors_002_03.npz": "b8bc12a6ef620401e20b279827acfead3cfbdfa23e3b0db1c5847787628b8046",
-    "out/project_page_v20/scene_24000/000000/co_visibility_002_03.npz": "109ce13774a9a0ef933c47f013496437111529ed462c7a6866348e16939314a6"
+    "out/project_page_v21/scene_24000/000000/color_000_00.npz": "f8ea46e12f040fd1e10df21d8c8e0d9dabe8deaccc28e33636665d8ca0e17926",
+    "out/project_page_v21/scene_24000/000000/depth_000_00.npz": "927e1ed688ec2d1e4bc3f43a223cd2046b422e6f38b6c817075d4faa79ed6d32",
+    "out/project_page_v21/scene_24000/000000/normal_000_00.npz": "2225cb3193ee2ba9cb95ac52262efcb1eeb6c25db0cb18f268b8059ce6f83a64",
+    "out/project_page_v21/scene_24000/000000/position_000_00.npz": "3de9412187e3802dffda7ee02a232a2c1fe29b2fc06bbbe86e95caa717e71472",
+    "out/project_page_v21/scene_24000/000000/semantic_000_00.npz": "f122e281e13f32b12bcab1a8642056e3c82bd5628765041d695a825e47df7ff7",
+    "out/project_page_v21/scene_24000/000000/optical_flow_000_00.npz": "efdb53e11ac031fa593a392c338375136701f908572e87417b3058c785bddd2b",
+    "out/project_page_v21/scene_24000/000000/motion_vectors_000_00.npz": "7d2e35a9605296323169be65cedb789ae78c627446304052780018d8a69214bc",
+    "out/project_page_v21/scene_24000/000000/co_visibility_000_00.npz": "a9899c42c9438739ddeb1a8e5878cadd25cb5e9259a6d4b7a70cd1d4c2ca3af3",
+    "out/project_page_v21/scene_24000/000000/color_000_01.npz": "332318c91c5f39ccb98c0cb256ea6790e054a9d11e9fc6aaccade5a76dc89249",
+    "out/project_page_v21/scene_24000/000000/depth_000_01.npz": "64201d6afde3fc39e28d9d7e049655e8599a813d1d774ac5e609c4c383afda38",
+    "out/project_page_v21/scene_24000/000000/normal_000_01.npz": "53a01955ab246334b318a33b38545b88f641e04a6058c353c478baf76e905b8a",
+    "out/project_page_v21/scene_24000/000000/position_000_01.npz": "1dc7701381e1c7239678752515cdcf3c8a876c137c567aeb08bdab327e4cf494",
+    "out/project_page_v21/scene_24000/000000/semantic_000_01.npz": "b8f7dfd0f1f3e88dce7f2c057b59229f3e63ac0bfc65340aaf20b90a71a19d4f",
+    "out/project_page_v21/scene_24000/000000/optical_flow_000_01.npz": "4125df834be77ceda7c5706366812dc068ee30af90212837aaa4e299577fcb97",
+    "out/project_page_v21/scene_24000/000000/motion_vectors_000_01.npz": "94456381d68b32ee0784651f133b55f98fd50505d1af09390a96f0a280afa5f6",
+    "out/project_page_v21/scene_24000/000000/co_visibility_000_01.npz": "daee40b542b8aa69a716b8032941968268087775bbf26a40dc5ae7d1bbfd6587",
+    "out/project_page_v21/scene_24000/000000/color_000_02.npz": "8c907f3522c53a6c296be7d3ac3445ca0b7b9c078cc726c612bca0938d3ad447",
+    "out/project_page_v21/scene_24000/000000/depth_000_02.npz": "2f38c5824592ba0acc6067f75a6197c02ed88f983df91c3013bf35f49c409339",
+    "out/project_page_v21/scene_24000/000000/normal_000_02.npz": "9db6c80732a60ea1b672a9b3461b7ac8f5bd23687732066e4be5482e8cd91a16",
+    "out/project_page_v21/scene_24000/000000/position_000_02.npz": "3733b908cc199e80c4994cb4f57a98af13c0672676c3209b8cc0eef29ef50f4a",
+    "out/project_page_v21/scene_24000/000000/semantic_000_02.npz": "6ddc40dde604cd7c571ab7cabbf3a9ebaa5c37acd9c7578e021b5b639300673d",
+    "out/project_page_v21/scene_24000/000000/optical_flow_000_02.npz": "444b9ef501ccd1872f76cbb5e81ba675529581788fee755ab93d35e3a3797466",
+    "out/project_page_v21/scene_24000/000000/motion_vectors_000_02.npz": "118e2a7f8cde1edd34cf479b4b48637f98e26fe279f4ffd17ba02fed1d8e4c48",
+    "out/project_page_v21/scene_24000/000000/co_visibility_000_02.npz": "280faceda897f2c8bdd8a671161825d7db9e9c1f06f7950f04b369fbab7bacee",
+    "out/project_page_v21/scene_24000/000000/color_000_03.npz": "be7cdae35cd0a54099a8ef262bc1cb890b00c071ed351fc4c30414fb24af7b16",
+    "out/project_page_v21/scene_24000/000000/depth_000_03.npz": "d098f40193c5db2f00df241fada33839eecf38d1dd68448c2e507729d2be7cdf",
+    "out/project_page_v21/scene_24000/000000/normal_000_03.npz": "7297b8a91f07c46c02f8a579e0d4023a08cc070bc9ab9a9f529dc6921b07a650",
+    "out/project_page_v21/scene_24000/000000/position_000_03.npz": "7fdbd3a6b9ecffb2cef40d2aca60bf630a7ef60ae540a741c5016f2e87d55140",
+    "out/project_page_v21/scene_24000/000000/semantic_000_03.npz": "5068175ae97476c6c3552da061a95a6bf86f309e111bbd310d5125aa4b665836",
+    "out/project_page_v21/scene_24000/000000/optical_flow_000_03.npz": "48e51f72b9d739e4e8802ab7a91b8bbd120ec545f84fe1635d203f2268dd7ba5",
+    "out/project_page_v21/scene_24000/000000/motion_vectors_000_03.npz": "afa1e5f6c86af248ccb88cc396772faf587d19da35bac198e63ba9cd6d849af4",
+    "out/project_page_v21/scene_24000/000000/co_visibility_000_03.npz": "823b546b6efa2401453d8df2c766a48ec0bf1dd682fa1803b7879c68a11c418e",
+    "out/project_page_v21/scene_24000/000000/color_001_00.npz": "29899dae1b2096f3541264af33b117317bcc0c5863b90887d11787725f5c8bbd",
+    "out/project_page_v21/scene_24000/000000/depth_001_00.npz": "3da1e17afd35c2bd53dc08db0e3dfb498ce897dd8cce693b399ccd425001dffb",
+    "out/project_page_v21/scene_24000/000000/normal_001_00.npz": "febabe091158d19bfa6b9e58a69423cb18c05ea93356dfbecd5adc47458e434b",
+    "out/project_page_v21/scene_24000/000000/position_001_00.npz": "e2fb330dd8a7d48dfb0769e637ff689df0c9f964e3d9fc379d7f8449a96e1e16",
+    "out/project_page_v21/scene_24000/000000/semantic_001_00.npz": "5fb0a10e7383e2a6957f5e09f2bc651f85bce4c52332a6767251b9c924a4e941",
+    "out/project_page_v21/scene_24000/000000/optical_flow_001_00.npz": "27f3e2fe78943f90a19d8f54598c6bf374fa49ac2d41d0af5a84616f9633c4a8",
+    "out/project_page_v21/scene_24000/000000/motion_vectors_001_00.npz": "a0df01e1641ac1519cdd8568311a9650c3d99733b993935aab30d7c8ce07fb0a",
+    "out/project_page_v21/scene_24000/000000/co_visibility_001_00.npz": "493bbcd4c0f25297590aa22232e98837b628235655955dd7342ef15ddc572d9d",
+    "out/project_page_v21/scene_24000/000000/color_001_01.npz": "007a44507fd4ebf86508068633902f73291238d76f37a8689305b8b2e1ac9bf6",
+    "out/project_page_v21/scene_24000/000000/depth_001_01.npz": "e8706dd00cbf3e670a8bdaa36e6cae6c3cbd1395727729442640d33ae8aab345",
+    "out/project_page_v21/scene_24000/000000/normal_001_01.npz": "8c51debdd0191ece9ed5b28f7e4f2ad1f5c4db0b73f0ae72559d5b7edacdc039",
+    "out/project_page_v21/scene_24000/000000/position_001_01.npz": "ce648f8f778e4ee7474c5238b88725cea6ad7f918c323e8efc90ddec16e5df0e",
+    "out/project_page_v21/scene_24000/000000/semantic_001_01.npz": "e406530d5bb12ab5db83370324f6fdf238784ea4c945c552e4fbf7ef99cb19d7",
+    "out/project_page_v21/scene_24000/000000/optical_flow_001_01.npz": "aabf178e5d6ddfb9a84dfa766ea8b908c9cd213c1810ca9982835ca171fc2edd",
+    "out/project_page_v21/scene_24000/000000/motion_vectors_001_01.npz": "0970c931ffeb9015e221d3093676001eb25d8b3b5e4e761b9b35ad18f620fdc3",
+    "out/project_page_v21/scene_24000/000000/co_visibility_001_01.npz": "790489f22b1d31793c52b92cbf1fd91f6d53e9f00cf9807f33daf52e520f9615",
+    "out/project_page_v21/scene_24000/000000/color_001_02.npz": "32b20d939625cfc79b090ac04372c8765fb25e8ed9bd776842bbf4d25571dcf8",
+    "out/project_page_v21/scene_24000/000000/depth_001_02.npz": "71061258bfb52d8474d83c5350014159e7d3dc032914f00c54db9ecb9c50db02",
+    "out/project_page_v21/scene_24000/000000/normal_001_02.npz": "fd58ae6ea548917438ed69d68b556177f61208869ecf4cf223cd9fa33d5d6200",
+    "out/project_page_v21/scene_24000/000000/position_001_02.npz": "0a0ad8b20dbd262cbcb291947bee79dfaac872014cdc9daca1dffe121b0c0d02",
+    "out/project_page_v21/scene_24000/000000/semantic_001_02.npz": "f095025ccac95018aaa4602c185047880d73d9cdf6ac8a48e6834f039655595f",
+    "out/project_page_v21/scene_24000/000000/optical_flow_001_02.npz": "b23375e81ff9406ecabd97d186fb358074211a5f39a4ea786d881e9322a44ede",
+    "out/project_page_v21/scene_24000/000000/motion_vectors_001_02.npz": "e7fc192de73b4d29173d06e076884491a892ca1ff740e99188be98f7274e253d",
+    "out/project_page_v21/scene_24000/000000/co_visibility_001_02.npz": "b5bf4cae439c717d4ea24c0bd08f8410fe89495e325a3a929f6209bae0246831",
+    "out/project_page_v21/scene_24000/000000/color_001_03.npz": "4f3a79d1691313907eaf9b8182d3dd8668fe087e94848ba46eb40b86f8671aec",
+    "out/project_page_v21/scene_24000/000000/depth_001_03.npz": "b6247fd1528f5c0efcddbbc239e98855e8ebbd0a4e99362e61b5c79749e31508",
+    "out/project_page_v21/scene_24000/000000/normal_001_03.npz": "4d164168011c545adaf9996257151e97e812174714960ed314f48c6fd5a01fac",
+    "out/project_page_v21/scene_24000/000000/position_001_03.npz": "a4e96d8404977df085674b39d8f544d38c586d9847c783565957ce065976f838",
+    "out/project_page_v21/scene_24000/000000/semantic_001_03.npz": "1451288375c49795ab70552e9b235830995588239a5238f4d6cc5043688493e0",
+    "out/project_page_v21/scene_24000/000000/optical_flow_001_03.npz": "dfae7b2ad98c19ed1ee946c491aede57cfa0672ea6925e66ca650d7336c38cb1",
+    "out/project_page_v21/scene_24000/000000/motion_vectors_001_03.npz": "3dc91723b432c71834c318fdd2424bf7fd49fb61c51fffda7e7aa759dc8998e2",
+    "out/project_page_v21/scene_24000/000000/co_visibility_001_03.npz": "81c8369880e5255b527aa748821ea2bfec39c3b61b01e1765f397d4a974612a7",
+    "out/project_page_v21/scene_24000/000000/color_002_00.npz": "cf1575eb2de949a587c20bdb476d71c5fa1750d9ecc5b0bb3317bbca4f800e14",
+    "out/project_page_v21/scene_24000/000000/depth_002_00.npz": "805881793f2eefdc018ab70d86d5b94ff4b2e5c47cd8282c3b86708abe549d6e",
+    "out/project_page_v21/scene_24000/000000/normal_002_00.npz": "091afea23e721d21dc721d1761a0b4539e4754dbd027223718bb947bf5745711",
+    "out/project_page_v21/scene_24000/000000/position_002_00.npz": "9274a867df6f9c574a410f6ee2fda1de5b85761609e711549f3a86e494641515",
+    "out/project_page_v21/scene_24000/000000/semantic_002_00.npz": "8da32e10a506363fa4767e4e7062d483033709ae8830ebd31a71d1cd6816cfbd",
+    "out/project_page_v21/scene_24000/000000/optical_flow_002_00.npz": "f8c8824691705b134bc04437a24bc172145e3e3b4f2ebc899b663ec0be1b74b5",
+    "out/project_page_v21/scene_24000/000000/motion_vectors_002_00.npz": "b8bc12a6ef620401e20b279827acfead3cfbdfa23e3b0db1c5847787628b8046",
+    "out/project_page_v21/scene_24000/000000/co_visibility_002_00.npz": "e11d6775bdf1a953aaaa5c2ed9336d7af96acfd4567dc1bc3a2d8f72327849d5",
+    "out/project_page_v21/scene_24000/000000/color_002_01.npz": "01d51b641e98710aa85464bbf875b548e399afafbbf9fe971df88901cb54ce0c",
+    "out/project_page_v21/scene_24000/000000/depth_002_01.npz": "b7bfa434732ed97ba0f196a6c99d6d701431c0f452754c7a2fef6f43944167e3",
+    "out/project_page_v21/scene_24000/000000/normal_002_01.npz": "7f9efc92c2714fe0091af66bc5274ff4938137f2f09ecb8b57311c1b166a1df4",
+    "out/project_page_v21/scene_24000/000000/position_002_01.npz": "6e34f5fcfc72a31350e8db9aa68a525efc2534d35fe724fcaa70856ad589e7fe",
+    "out/project_page_v21/scene_24000/000000/semantic_002_01.npz": "4d11cb7b6cda92fbd4602c2f9334e5cfef9e7c9e51883c0cb4e34b558a9e478b",
+    "out/project_page_v21/scene_24000/000000/optical_flow_002_01.npz": "f8c8824691705b134bc04437a24bc172145e3e3b4f2ebc899b663ec0be1b74b5",
+    "out/project_page_v21/scene_24000/000000/motion_vectors_002_01.npz": "b8bc12a6ef620401e20b279827acfead3cfbdfa23e3b0db1c5847787628b8046",
+    "out/project_page_v21/scene_24000/000000/co_visibility_002_01.npz": "f3a4245ff32fe15d18e5ac73f6c9be9254eca5c3d937a5fcdbf1bf111d704577",
+    "out/project_page_v21/scene_24000/000000/color_002_02.npz": "8dea1a470c1d52fd867e426382ab9a2f392464dc01eeb01aa802da071924a06e",
+    "out/project_page_v21/scene_24000/000000/depth_002_02.npz": "ac436ba850d5b1d5efaefce0f9f16c665603b35ed152551624baa2125c8142d5",
+    "out/project_page_v21/scene_24000/000000/normal_002_02.npz": "bdae9c9fe82cdc1b4f7731a1d4e72676c529324425c9df3e61821cd3c9b459af",
+    "out/project_page_v21/scene_24000/000000/position_002_02.npz": "f63649d6d95c84edf2d5e1b3fe666fe19c9b16b5756fac7238966b7b891dbf14",
+    "out/project_page_v21/scene_24000/000000/semantic_002_02.npz": "6802f212fa25362e2b826fef238520ab9c51413e88f3eee121e1092ef92b75e5",
+    "out/project_page_v21/scene_24000/000000/optical_flow_002_02.npz": "f8c8824691705b134bc04437a24bc172145e3e3b4f2ebc899b663ec0be1b74b5",
+    "out/project_page_v21/scene_24000/000000/motion_vectors_002_02.npz": "b8bc12a6ef620401e20b279827acfead3cfbdfa23e3b0db1c5847787628b8046",
+    "out/project_page_v21/scene_24000/000000/co_visibility_002_02.npz": "51fd2419bd9d692279caccf868268ecb400a3392e003cee76a108d3dabb9bfbc",
+    "out/project_page_v21/scene_24000/000000/color_002_03.npz": "67e600a9568ca0a84d311509693cd785365a99dcb1ae74d1b828c0e91b8e76eb",
+    "out/project_page_v21/scene_24000/000000/depth_002_03.npz": "f3c4dd6f71bd8fcdbb984d9995e7c8b2ef357d98e1672191a6077ab539529884",
+    "out/project_page_v21/scene_24000/000000/normal_002_03.npz": "e1751b1bcf0d0b5e35f1db63c4d2ecf7984be515d3a840f16f4c43629f0f5872",
+    "out/project_page_v21/scene_24000/000000/position_002_03.npz": "62ff07f44f98e41b0d8325ae84f7c86184466ac91f560282cbf3f66b9140de44",
+    "out/project_page_v21/scene_24000/000000/semantic_002_03.npz": "8613e9bd62ab28a5a5734ec359621c1c019fb1dab2dc0fd0ca5e11ec66c4e3cc",
+    "out/project_page_v21/scene_24000/000000/optical_flow_002_03.npz": "f8c8824691705b134bc04437a24bc172145e3e3b4f2ebc899b663ec0be1b74b5",
+    "out/project_page_v21/scene_24000/000000/motion_vectors_002_03.npz": "b8bc12a6ef620401e20b279827acfead3cfbdfa23e3b0db1c5847787628b8046",
+    "out/project_page_v21/scene_24000/000000/co_visibility_002_03.npz": "7ca75c63d04491016fab2c584880b55d866ffea4422909542cafbff2c87bd115"
   },
   "alignment_checks": [
     {
@@ -643,20 +643,20 @@
     {
       "t": 0,
       "camera": 1,
-      "depth_error_m": 1.6689300537109375e-06,
-      "reprojection_pixels": 0.003022187592016374
+      "depth_error_m": 1.1920928955078125e-06,
+      "reprojection_pixels": 0.0044571464050281685
     },
     {
       "t": 0,
       "camera": 2,
-      "depth_error_m": 1.6689300537109375e-06,
-      "reprojection_pixels": 0.002855368924404211
+      "depth_error_m": 1.430511474609375e-06,
+      "reprojection_pixels": 0.002866281966196487
     },
     {
       "t": 0,
       "camera": 3,
-      "depth_error_m": 1.1920928955078125e-06,
-      "reprojection_pixels": 0.0029070206906663294
+      "depth_error_m": 7.152557373046875e-07,
+      "reprojection_pixels": 0.0029864090761510236
     },
     {
       "t": 1,
@@ -667,20 +667,20 @@
     {
       "t": 1,
       "camera": 1,
-      "depth_error_m": 1.430511474609375e-06,
-      "reprojection_pixels": 0.002784969413698589
+      "depth_error_m": 1.1920928955078125e-06,
+      "reprojection_pixels": 0.0033812614586405014
     },
     {
       "t": 1,
       "camera": 2,
-      "depth_error_m": 1.6689300537109375e-06,
-      "reprojection_pixels": 0.002686598918110624
+      "depth_error_m": 1.430511474609375e-06,
+      "reprojection_pixels": 0.0026861403356877814
     },
     {
       "t": 1,
       "camera": 3,
-      "depth_error_m": 1.6689300537109375e-06,
-      "reprojection_pixels": 0.002767352299584442
+      "depth_error_m": 1.1920928955078125e-06,
+      "reprojection_pixels": 0.002800627940727524
     },
     {
       "t": 2,
@@ -691,20 +691,20 @@
     {
       "t": 2,
       "camera": 1,
-      "depth_error_m": 1.6689300537109375e-06,
-      "reprojection_pixels": 0.002840098126421941
+      "depth_error_m": 2.1457672119140625e-06,
+      "reprojection_pixels": 0.0028292712335073354
     },
     {
       "t": 2,
       "camera": 2,
-      "depth_error_m": 1.6689300537109375e-06,
-      "reprojection_pixels": 0.002773513783974839
+      "depth_error_m": 1.430511474609375e-06,
+      "reprojection_pixels": 0.002767650188802469
     },
     {
       "t": 2,
       "camera": 3,
-      "depth_error_m": 2.86102294921875e-06,
-      "reprojection_pixels": 0.0026905002872265843
+      "depth_error_m": 1.1920928955078125e-06,
+      "reprojection_pixels": 0.003061884307500387
     }
   ]
 }

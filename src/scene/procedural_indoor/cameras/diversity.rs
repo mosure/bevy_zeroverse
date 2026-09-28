@@ -23,6 +23,7 @@ impl Track {
 #[derive(Debug, Clone, Serialize)]
 pub struct CameraGroupGeometry {
     pub min_pairwise_baseline_m: f32,
+    pub min_reference_baseline_m: f32,
     pub max_reference_baseline_m: f32,
     pub min_horizontal_spread: Option<f32>,
     pub min_relative_motion: Option<f32>,
@@ -67,6 +68,7 @@ fn relative_motion(a: &Track, b: &Track) -> Option<f32> {
 impl CameraGroupGeometry {
     pub fn accepts(&self, policy: &MultiViewSettings) -> bool {
         self.min_pairwise_baseline_m + 1e-5 >= policy.min_baseline
+            && self.min_reference_baseline_m + 1e-5 >= policy.min_reference_baseline
             && self.max_reference_baseline_m <= policy.max_baseline + 1e-5
             && self
                 .min_horizontal_spread
@@ -84,6 +86,7 @@ pub(super) fn geometry(tracks: &[Track], extra: Option<&Track>) -> Option<Camera
     }
     let mut result = CameraGroupGeometry {
         min_pairwise_baseline_m: f32::INFINITY,
+        min_reference_baseline_m: f32::INFINITY,
         max_reference_baseline_m: 0.0,
         min_horizontal_spread: None,
         min_relative_motion: None,
@@ -94,6 +97,7 @@ pub(super) fn geometry(tracks: &[Track], extra: Option<&Track>) -> Option<Camera
                 let distance = pa.distance(pb);
                 result.min_pairwise_baseline_m = result.min_pairwise_baseline_m.min(distance);
                 if i == 0 {
+                    result.min_reference_baseline_m = result.min_reference_baseline_m.min(distance);
                     result.max_reference_baseline_m = result.max_reference_baseline_m.max(distance);
                 }
             }
@@ -132,7 +136,10 @@ mod tests {
 
     #[test]
     fn distinguishes_collinear_groups_rigid_paths_and_crossing_paths() {
-        let policy = MultiViewSettings::default();
+        let policy = MultiViewSettings {
+            min_reference_baseline: 0.0,
+            ..Default::default()
+        };
         let group: Vec<_> = (0..4)
             .map(|i| line(Vec3::X * i as f32 * 0.6, Vec3::X * i as f32 * 0.6 + Vec3::Z))
             .collect();

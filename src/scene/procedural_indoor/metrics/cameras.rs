@@ -13,9 +13,10 @@ pub(super) fn record(
     if let Some(group) = scene.camera_group_geometry() {
         writeln!(
             groups,
-            "{},{},{},{},{}",
+            "{},{},{},{},{},{}",
             scene.seed,
             group.min_pairwise_baseline_m,
+            group.min_reference_baseline_m,
             group.max_reference_baseline_m,
             group
                 .min_horizontal_spread
@@ -27,6 +28,10 @@ pub(super) fn record(
                 .unwrap_or_default()
         )?;
         for (name, value) in [
+            (
+                "camera_group_min_reference_baseline_m",
+                Some(group.min_reference_baseline_m),
+            ),
             (
                 "camera_group_min_pairwise_baseline_m",
                 Some(group.min_pairwise_baseline_m),
