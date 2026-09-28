@@ -1,0 +1,121 @@
+{
+  "schema_version": 1,
+  "cohorts": {
+    "before": {
+      "scenes": 2048,
+      "convention": "endpoints only; intermediate motion unmeasured",
+      "hashes": {
+        "cameras.csv": "e71135ecdfc067e12bf1577a4f83f2423f614479765d604195751352cc4ae363",
+        "objects.csv": "f08803e9a9a86c0cf74df5f6d366f4a0e2c07ca54dba97099b15a747815b2d98",
+        "humans.csv": "e5cbb8cd7405455294850c348e4d64ee33a49cfe8725cb0da72057ae258aba0f",
+        "scenes.csv": "964d4169a9ccfabad24164dd51b5b3f72c0d13e73706d993645f10c04f00a197",
+        "metrics.json": "5175b606893f04543a83f070dd54ac4c1c8d26a0161b1278d36c27aae2008dff"
+      },
+      "generator_version": 19,
+      "distributions": {
+        "min_pairwise_baseline_m": {
+          "count": 2048,
+          "min": 0.1800741666946707,
+          "median": 0.30639915908500676,
+          "mean": 0.35039412987451674,
+          "max": 1.3885984283144444
+        },
+        "max_reference_baseline_m": {
+          "count": 2048,
+          "min": 0.2730312257653692,
+          "median": 1.0165293380858906,
+          "mean": 1.164898983138563,
+          "max": 2.9920085688148483
+        },
+        "min_horizontal_spread": {
+          "count": 2048,
+          "min": 0.005796972093262165,
+          "median": 0.35146126650294873,
+          "mean": 0.37503914515365055,
+          "max": 0.9907217980458627
+        },
+        "min_relative_motion": {
+          "count": 2048,
+          "min": 0.0,
+          "median": 2.9664473297265546e-08,
+          "mean": 1.6519891581505635e-07,
+          "max": 4.564532175932539e-06
+        }
+      },
+      "start_spread": {
+        "count": 2048,
+        "min": 0.005796972093262165,
+        "median": 0.35146144106458266,
+        "mean": 0.3750391921023354,
+        "max": 0.9907217980458627
+      },
+      "starts_below_quarter_spread": 626,
+      "sample_seed": 24005,
+      "sample_geometry": {
+        "min_pairwise_baseline_m": 0.33307690025846876,
+        "max_reference_baseline_m": 1.942287820341087,
+        "min_horizontal_spread": 0.22215983330580535,
+        "min_relative_motion": 2.6881578326107764e-08
+      }
+    },
+    "after": {
+      "scenes": 2048,
+      "convention": "33 synchronized times",
+      "hashes": {
+        "cameras.csv": "56375ccd70e4450081ca031ada14148b52d45bb4e2e073e90b8e7ed5279137d5",
+        "objects.csv": "f08803e9a9a86c0cf74df5f6d366f4a0e2c07ca54dba97099b15a747815b2d98",
+        "humans.csv": "e5cbb8cd7405455294850c348e4d64ee33a49cfe8725cb0da72057ae258aba0f",
+        "scenes.csv": "964d4169a9ccfabad24164dd51b5b3f72c0d13e73706d993645f10c04f00a197",
+        "metrics.json": "2b423632bb7f4b5dd46a4aabbb28a1bfa0001020b69aa3d5c81a8b522d303697",
+        "camera_paths.csv": "fe3cac477d1225068974acb45b460722ebf0f497b3037003766e31c29ba4b209"
+      },
+      "generator_version": 20,
+      "distributions": {
+        "min_pairwise_baseline_m": {
+          "count": 2048,
+          "min": 0.25016228250659706,
+          "median": 0.43148353830683644,
+          "mean": 0.5129891048751573,
+          "max": 2.1139694008171035
+        },
+        "max_reference_baseline_m": {
+          "count": 2048,
+          "min": 0.34970771231406395,
+          "median": 1.8394167614910901,
+          "mean": 1.8144478887274027,
+          "max": 2.9995504576056793
+        },
+        "min_horizontal_spread": {
+          "count": 2048,
+          "min": 0.25002341519071886,
+          "median": 0.40617228306349495,
+          "mean": 0.43611587831306575,
+          "max": 0.9130738112503892
+        },
+        "min_relative_motion": {
+          "count": 2048,
+          "min": 0.15043712698327716,
+          "median": 0.3410855726815344,
+          "mean": 0.37674895096644817,
+          "max": 1.1073970593101874
+        }
+      },
+      "start_spread": {
+        "count": 2048,
+        "min": 0.2503039220484021,
+        "median": 0.4740111378669227,
+        "mean": 0.5009471093758878,
+        "max": 0.9710962106003667
+      },
+      "starts_below_quarter_spread": 0,
+      "sample_seed": 24005,
+      "sample_geometry": {
+        "min_pairwise_baseline_m": 0.5466246072948693,
+        "max_reference_baseline_m": 1.9740512821837168,
+        "min_horizontal_spread": 0.38314861686121643,
+        "min_relative_motion": 0.18471730833898944
+      }
+    }
+  },
+  "limitations": "Finite time samples. Spatial and path diversity do not establish rendered overlap or learning utility."
+}
