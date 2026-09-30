@@ -155,7 +155,8 @@ pub(crate) fn niche_region(scene: &IndoorManifest) -> (Vec2, Vec2) {
 }
 
 pub(crate) fn overlaps_niche(scene: &IndoorManifest, lo: Vec3, hi: Vec3) -> bool {
-    if scene.architecture_style != ArchitectureStyle::Classic
+    if scene.envelope.is_some()
+        || scene.architecture_style != ArchitectureStyle::Classic
         || scene
             .exterior
             .as_ref()

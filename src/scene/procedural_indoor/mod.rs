@@ -4,6 +4,7 @@ pub mod architecture;
 pub mod cameras;
 mod clutter;
 pub mod domain;
+pub mod envelope;
 pub mod floorplan;
 mod footprint;
 pub mod geometry;

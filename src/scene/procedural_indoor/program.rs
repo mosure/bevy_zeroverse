@@ -37,6 +37,9 @@ pub struct Partition {
     pub door_center: f32,
     pub door_width: f32,
     pub door_height: f32,
+    /// Elliptic arch rise; zero retains a rectangular portal.
+    #[serde(default)]
+    pub arch_rise: f32,
     pub thickness: f32,
     pub sill: f32,
     pub glazing_fraction: f32,
@@ -49,6 +52,26 @@ fn default_mullion_pitch() -> f32 {
     1.35
 }
 impl Partition {
+    pub fn opening_height(&self, along: f32) -> f32 {
+        let x = ((along - self.door_center) / (self.door_width * 0.5)).clamp(-1., 1.);
+        self.door_height - self.arch_rise + self.arch_rise * (1. - x * x).max(0.).sqrt()
+    }
+    pub fn portal_obstacles(&self, height: f32) -> Vec<(Vec3, Vec3)> {
+        let n = if self.arch_rise > 0. { 32 } else { 1 };
+        (0..n)
+            .map(|i| {
+                let lo = self.door_center - self.door_width * 0.5
+                    + self.door_width * i as f32 / n as f32;
+                let hi = lo + self.door_width / n as f32;
+                let floor = self.opening_height(lo).min(self.opening_height(hi)) - 0.025;
+                let a = self.position(lo, floor);
+                let b = self.position(hi, height);
+                let pad =
+                    if self.axis == 0 { Vec3::X } else { Vec3::Z } * (self.thickness * 0.5 + 0.02);
+                (a - pad, b + pad)
+            })
+            .collect()
+    }
     pub fn position(&self, along: f32, height: f32) -> Vec3 {
         if self.axis == 0 {
             Vec3::new(self.coordinate, height, along)
@@ -188,6 +211,10 @@ impl Partition {
                 0.002,
             );
         }
+        if self.arch_rise > 0. {
+            super::envelope::construction::arched_portal(self, height, a);
+            return;
+        }
         a.box_part(
             Surface::Paint,
             "wall",
@@ -238,7 +265,13 @@ impl IndoorProgram {
         let mut leaves = vec![(-half, half)];
         let mut partitions: Vec<Partition> = Vec::new();
         let target_area = rng.random_range(14.0_f32.ln()..140.0_f32.ln()).exp();
-        let attempts = ((size.x * size.z / target_area).round() as usize).clamp(1, 12) - 1;
+        // Tall loft volumes reserve the long, open run needed for a real stair;
+        // subdividing them first can make every mezzanine proposal impossible.
+        let attempts = if size.y > 5.8 {
+            0
+        } else {
+            ((size.x * size.z / target_area).round() as usize).clamp(1, 12) - 1
+        };
         for _ in 0..attempts {
             let index = leaves
                 .iter()
@@ -285,6 +318,7 @@ impl IndoorProgram {
                 door_center: door,
                 door_width: width,
                 door_height: rng.random_range(2.08..2.35),
+                arch_rise: 0.0,
                 thickness: rng.random_range(0.10..0.18),
                 sill: rng.random_range(0.10..1.35),
                 glazing_fraction: if rng.random_bool(0.35) {
@@ -374,7 +408,11 @@ impl IndoorProgram {
         }
         if self.zones.is_empty()
             || self.zones.len() > 16
-            || self.partitions.len() + 1 != self.zones.len()
+            || if scene.envelope.is_some() {
+                self.partitions.len() >= self.zones.len()
+            } else {
+                self.partitions.len() + 1 != self.zones.len()
+            }
         {
             return Err("invalid spatial program topology".into());
         }
@@ -421,6 +459,7 @@ impl IndoorProgram {
                     p.door_center,
                     p.door_width,
                     p.door_height,
+                    p.arch_rise,
                     p.thickness,
                     p.sill,
                     p.glazing_fraction,
@@ -433,6 +472,9 @@ impl IndoorProgram {
                 || p.door_center + p.door_width * 0.5 > p.end - 0.25
                 || p.door_height < 2.0
                 || p.door_height > scene.room_size.y - 0.1
+                || p.arch_rise < 0.0
+                || p.arch_rise > 0.8
+                || p.door_height - p.arch_rise < 2.0
                 || !(0.0..=1.0).contains(&p.glazing_fraction)
             {
                 return Err("invalid partition or portal".into());

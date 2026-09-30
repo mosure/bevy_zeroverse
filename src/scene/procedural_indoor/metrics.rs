@@ -1,5 +1,6 @@
 //! Reproducible, resolution-aware dataset distribution exports, independent of a GPU.
 mod cameras;
+mod envelope;
 mod exterior;
 use super::layout::{IndoorLayout, IndoorManifest, ObjectKind, GENERATOR_VERSION, NEIGHBOR_DEPTH};
 use bevy::prelude::*;
@@ -281,6 +282,7 @@ fn export_inner(
     camera_settings: &super::cameras::CameraSettings,
 ) -> Result<CoverageReport, Box<dyn std::error::Error>> {
     fs::create_dir_all(directory)?;
+    let mut architecture = BufWriter::new(fs::File::create(directory.join("architecture.jsonl"))?);
     let mut windows = BufWriter::new(fs::File::create(directory.join("windows.csv"))?);
     exterior::header(&mut windows)?;
     let mut humans = BufWriter::new(fs::File::create(directory.join("humans.csv"))?);
@@ -307,7 +309,7 @@ fn export_inner(
         "seed,layout,density,lighting,palette,floor,furniture,ceiling,width_m,height_m,depth_m,main_instances,neighbor_instances,main_chairs,rejected_placements"
     )?;
     let mut report = CoverageReport {
-        schema_version: 10,
+        schema_version: 11,
         camera_settings: camera_settings.clone(),
         camera_overlap_policy: "Proxy first-surface pixel overlap in both directions to camera zero, at normalized times 0,.25,.5,.75,1. Full capture aspect ratio, 13x9 rays/view. Glass is annotation-opaque. Not a rendered-pixel guarantee.",
         camera_group_geometry_policy: "Worst geometry over 33 synchronized times including both endpoints. All-pair minimum Euclidean separation and maximum reference baseline, metres. Horizontal spread is minor/major standard deviation for 3+ views. Relative motion is RMS displacement difference with starts removed, normalized by the larger RMS travel, over all moving pairs. Static pairs and groups with fewer than 3 views omit inapplicable scores. These are sampled constraints, not a continuous-time proof.",
@@ -350,6 +352,7 @@ fn export_inner(
         cameras::record(&scene, &mut numeric, &mut paths, &mut groups)?;
         signatures.insert(&scene);
         exterior::record(&scene, &mut report, &mut numeric, &mut windows)?;
+        envelope::record(&scene, &mut report, &mut numeric, &mut architecture)?;
         if let Some(program) = &scene.program {
             if let Some(d) = &program.domain {
                 for (key, value) in [
@@ -419,7 +422,11 @@ fn export_inner(
                     numeric.push(&format!("glazing_{surface:?}_{key}"), value as f64)?;
                 }
             }
-            if let Some(f) = &program.finishes {
+            if let Some(f) = &program
+                .finishes
+                .as_ref()
+                .filter(|_| scene.envelope.is_none())
+            {
                 numeric.push("ceiling_pitch_x_m", f.ceiling_pitch.x as f64)?;
                 numeric.push("ceiling_pitch_z_m", f.ceiling_pitch.y as f64)?;
                 numeric.push("wall_panel_pitch_m", f.panel_pitch as f64)?;
@@ -556,24 +563,48 @@ fn export_inner(
             (
                 "blinds",
                 scene
-                    .exterior
+                    .envelope
                     .as_ref()
-                    .map_or(scene.blinds, |e| {
-                        e.facades.iter().any(|f| {
-                            f.shade != super::architecture::facade::Shade::None
-                                && f.shade_coverage >= 0.02
-                        })
-                    })
+                    .map_or_else(
+                        || {
+                            scene.exterior.as_ref().map_or(scene.blinds, |e| {
+                                e.facades.iter().any(|f| {
+                                    f.shade != super::architecture::facade::Shade::None
+                                        && f.shade_coverage >= 0.02
+                                })
+                            })
+                        },
+                        |e| {
+                            e.walls.iter().filter_map(|w| w.facade.as_ref()).any(|f| {
+                                f.shade != super::architecture::facade::Shade::None
+                                    && f.shade_coverage >= 0.02
+                            })
+                        },
+                    )
                     .to_string(),
             ),
             (
                 "window_bays",
                 scene
-                    .exterior
+                    .envelope
                     .as_ref()
-                    .map_or(scene.window_bays as usize, |e| {
-                        e.facades.iter().map(|f| f.openings.len()).sum()
-                    })
+                    .map_or_else(
+                        || {
+                            scene
+                                .exterior
+                                .as_ref()
+                                .map_or(scene.window_bays as usize, |e| {
+                                    e.facades.iter().map(|f| f.openings.len()).sum()
+                                })
+                        },
+                        |e| {
+                            e.walls
+                                .iter()
+                                .filter_map(|w| w.facade.as_ref())
+                                .map(|f| f.openings.len())
+                                .sum::<usize>()
+                        },
+                    )
                     .to_string(),
             ),
         ] {
@@ -657,7 +688,15 @@ fn export_inner(
             scene.rejected_placements
         )?;
         for (name, value) in [
-            ("room_area_m2", scene.room_size.x * scene.room_size.z),
+            (
+                "room_area_m2",
+                scene
+                    .envelope
+                    .as_ref()
+                    .map_or(scene.room_size.x * scene.room_size.z, |e| {
+                        super::envelope::polygon::area(&e.footprint)
+                    }),
+            ),
             ("room_aspect_ratio", scene.room_size.x / scene.room_size.z),
             ("room_width_m", scene.room_size.x),
             ("room_depth_m", scene.room_size.z),

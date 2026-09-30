@@ -21,7 +21,11 @@ impl OvoxelRegion {
         // Preserve exterior wall/window insets, floor and ceiling slabs. Object
         // membership uses the unpadded room; only architecture gets this shell.
         Self {
-            min: Vec3::new(lo.x - 0.20, -0.20, lo.y - 0.20),
+            min: Vec3::new(
+                lo.x - 0.20,
+                scene.envelope.as_ref().map_or(0., |e| e.minimum_floor()) - 0.20,
+                lo.y - 0.20,
+            ),
             max: Vec3::new(hi.x + 0.20, scene.room_size.y + 0.14, hi.y + 0.20),
         }
     }

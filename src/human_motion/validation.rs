@@ -78,6 +78,19 @@ pub fn validate_positions(
             bounds.0.y, bounds.1.y
         ));
     }
+    if let Some(e) = &scene.envelope {
+        if positions.iter().any(|p| {
+            p.z < scene.room_size.z * 0.5 - 0.02
+                && (!crate::scene::procedural_indoor::envelope::polygon::contains(
+                    &e.footprint,
+                    p.xz(),
+                    0.005,
+                ) || p.y < e.floor_height(p.xz()) - 0.025
+                    || p.y > scene.ceiling_height(p.xz()) - 0.03)
+        }) {
+            return Err("deformed body intersects architectural envelope".into());
+        }
+    }
     for &obstacle in obstacles {
         if bounds_overlap(bounds, obstacle)
             && positions.iter().any(|&p| point_inside(p, obstacle, 0.008))

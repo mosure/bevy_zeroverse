@@ -1,5 +1,6 @@
 //! Cheap first-surface visibility proposals. Rendered labels remain the oracle.
 //! Glazing blocks labels, matching the dataset's annotation policy.
+use super::super::envelope::EnvelopeProgram;
 use crate::scene::procedural_indoor::layout::{IndoorCamera, IndoorManifest};
 use bevy::prelude::*;
 use std::collections::BTreeMap;
@@ -14,6 +15,7 @@ struct Collider {
 pub(crate) struct Coverage {
     colliders: Vec<Collider>,
     body_points: Vec<Vec3>,
+    shell: Option<(EnvelopeProgram, Vec3, f32)>,
 }
 
 /// Pixel-centred proxy rays over the full calibrated frustum, not just its centre.
@@ -24,10 +26,16 @@ pub(super) struct VisibilityView {
 }
 
 impl Coverage {
+    fn shell_hit(&self, origin: Vec3, ray: Vec3) -> Option<(f32, &'static str)> {
+        self.shell
+            .as_ref()
+            .and_then(|(e, size, door)| e.ray_hit(*size, *door, origin, ray))
+    }
     fn first_hit(&self, origin: Vec3, ray: Vec3) -> Option<f32> {
         self.colliders
             .iter()
             .filter_map(|c| ray_box(c.inverse * (origin - c.center), c.inverse * ray, c.half))
+            .chain(self.shell_hit(origin, ray).map(|hit| hit.0))
             .min_by(f32::total_cmp)
     }
 
@@ -106,28 +114,30 @@ impl Coverage {
         for (lo, hi) in scene.camera_obstacles() {
             bounds(lo, hi, "wall");
         }
-        let half = scene.room_size * 0.5;
-        for axis in [0, 2] {
-            for sign in [-1.0, 1.0] {
-                let mut lo = -half;
-                let mut hi = half;
-                lo.y = 0.0;
-                hi.y = scene.room_size.y;
-                lo[axis] = sign * half[axis] - 0.02;
-                hi[axis] = sign * half[axis] + 0.02;
-                bounds(lo, hi, "wall");
+        if scene.envelope.is_none() {
+            let half = scene.room_size * 0.5;
+            for axis in [0, 2] {
+                for sign in [-1.0, 1.0] {
+                    let mut lo = -half;
+                    let mut hi = half;
+                    lo.y = 0.0;
+                    hi.y = scene.room_size.y;
+                    lo[axis] = sign * half[axis] - 0.02;
+                    hi[axis] = sign * half[axis] + 0.02;
+                    bounds(lo, hi, "wall");
+                }
             }
+            bounds(
+                Vec3::new(-half.x, -0.02, -half.z),
+                Vec3::new(half.x, 0.0, half.z),
+                "floor",
+            );
+            bounds(
+                Vec3::new(-half.x, scene.room_size.y, -half.z),
+                Vec3::new(half.x, scene.room_size.y + 0.02, half.z),
+                "ceiling",
+            );
         }
-        bounds(
-            Vec3::new(-half.x, -0.02, -half.z),
-            Vec3::new(half.x, 0.0, half.z),
-            "floor",
-        );
-        bounds(
-            Vec3::new(-half.x, scene.room_size.y, -half.z),
-            Vec3::new(half.x, scene.room_size.y + 0.02, half.z),
-            "ceiling",
-        );
         for h in scene.humans.iter().filter(|h| !h.neighbor) {
             let (lo, hi) = h.bounds();
             bounds(lo, hi, "person");
@@ -190,6 +200,10 @@ impl Coverage {
         Self {
             colliders,
             body_points,
+            shell: scene
+                .envelope
+                .clone()
+                .map(|e| (e, scene.room_size, scene.door_x)),
         }
     }
 
@@ -206,17 +220,20 @@ impl Coverage {
             let distance = displacement.length();
             let ray = displacement / distance;
             !self
-                .colliders
-                .iter()
-                .filter(|c| c.label != "person")
-                .any(|c| {
-                    ray_box(
-                        c.inverse * (pose.translation - c.center),
-                        c.inverse * ray,
-                        c.half,
-                    )
-                    .is_some_and(|hit| hit < distance - 0.06)
-                })
+                .shell_hit(pose.translation, ray)
+                .is_some_and(|hit| hit.0 < distance - 0.06)
+                && !self
+                    .colliders
+                    .iter()
+                    .filter(|c| c.label != "person")
+                    .any(|c| {
+                        ray_box(
+                            c.inverse * (pose.translation - c.center),
+                            c.inverse * ray,
+                            c.half,
+                        )
+                        .is_some_and(|hit| hit < distance - 0.06)
+                    })
         })
     }
 
@@ -239,8 +256,9 @@ impl Coverage {
                             -1.0,
                         )
                         .normalize();
-                    let mut nearest = f32::INFINITY;
-                    let mut label = "background";
+                    let (mut nearest, mut label) = self
+                        .shell_hit(pose.translation, ray)
+                        .unwrap_or((f32::INFINITY, "background"));
                     for c in &self.colliders {
                         let origin = c.inverse * (pose.translation - c.center);
                         let direction = c.inverse * ray;
@@ -306,6 +324,7 @@ mod tests {
                 label: "wall",
             }],
             body_points: Vec::new(),
+            shell: None,
         };
         let (fraction, angle) = coverage.shared(&a, &b);
         assert_eq!(fraction, 1.0);
@@ -341,6 +360,7 @@ mod tests {
                 label: "window",
             }],
             body_points: vec![Vec3::new(0.0, 1.5, -3.0)],
+            shell: None,
         };
         let pose = Transform::from_xyz(0.0, 1.5, 0.0);
         assert!(!coverage.body_visible(pose, 1.0));

@@ -182,6 +182,10 @@ pub(in super::super) fn shell(a: &mut Assembly, scene: &IndoorManifest) {
 
 pub(super) fn glazing(a: &mut Assembly, scene: &IndoorManifest, f: &Facade) {
     let tf = f.side.transform(scene.room_size);
+    glazing_at(a, tf, f);
+}
+
+pub(crate) fn glazing_at(a: &mut Assembly, tf: Transform, f: &Facade) {
     let fw = f.frame_width;
     let bar = fw * 0.66;
     for o in &f.openings {
@@ -335,7 +339,7 @@ pub(super) fn glazing(a: &mut Assembly, scene: &IndoorManifest, f: &Facade) {
     }
 }
 
-pub(in super::super) fn backdrop(a: &mut Assembly, scene: &IndoorManifest) {
+pub(crate) fn backdrop(a: &mut Assembly, scene: &IndoorManifest) {
     let Some(exterior) = &scene.exterior else {
         return legacy::backdrop(a, scene);
     };

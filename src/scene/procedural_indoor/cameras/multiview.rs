@@ -165,6 +165,8 @@ impl IndoorManifest {
         };
         // Retry the whole set if an anchor lies in a cramped cul-de-sac. The
         // budget is bounded and thresholds are never silently relaxed.
+        let mut most_placed = 0;
+        let mut rejected = [0usize; 6];
         for _ in 0..GROUP_ATTEMPTS {
             self.cameras.clear();
             self.sample_independent_cameras(1, &mut rng, &coverage)?;
@@ -203,19 +205,73 @@ impl IndoorManifest {
                 .collect();
             for _ in 1..count {
                 let mut found = None;
-                for _ in 0..VIEW_ATTEMPTS {
-                    let candidate =
-                        propose(&reference, extent, reachable, heights, &policy, &mut rng);
+                for attempt in 0..VIEW_ATTEMPTS {
+                    // Larger rigs in concave rooms benefit from proposals near
+                    // already verified free corridors. Keep the same bounded
+                    // budget and all overlap/spread/separation constraints.
+                    let candidate = if count > 4
+                        && attempt >= VIEW_ATTEMPTS / 2
+                        && self.cameras.len() >= 4
+                        && rng.random_bool(0.5)
+                    {
+                        let template = &self.cameras[rng.random_range(1..self.cameras.len())];
+                        let local_policy = MultiViewSettings {
+                            min_reference_baseline: 0.,
+                            ..policy.clone()
+                        };
+                        let mut camera = propose(
+                            template,
+                            template.path_length().max(0.001),
+                            reachable.min(1.2).max(policy.min_baseline),
+                            Vec2::new(0.70 - template.start.y, ceiling - template.start.y),
+                            &local_policy,
+                            &mut rng,
+                        );
+                        // A sloping roof leaves a different usable height at
+                        // each origin. Sample that interval directly instead of
+                        // repeatedly proposing above the local ceiling. Move
+                        // the entire path; all swept and rig checks still apply.
+                        let low = self.floor_height(camera.start.xz()) + 0.70;
+                        let high = (self.ceiling_height(camera.start.xz())
+                            - self.program.as_ref().map_or(0.5, |p| p.light_drop)
+                            - 0.04
+                            - super::super::layout::CAMERA_CLEARANCE)
+                            .min(3.25);
+                        if low > high {
+                            continue;
+                        }
+                        let offset = Vec3::Y * (rng.random_range(low..=high) - camera.start.y);
+                        camera.start += offset;
+                        camera.end += offset;
+                        if let Some(motion) = &mut camera.motion {
+                            for point in motion.control.iter_mut().chain(&mut motion.route) {
+                                *point += offset;
+                            }
+                        }
+                        camera
+                    } else {
+                        propose(&reference, extent, reachable, heights, &policy, &mut rng)
+                    };
                     let track = Track::new(&candidate);
                     // Cheap rejection before casts: swept collision checks still
                     // cover the complete paths, including route segments/curves.
-                    if !self.camera_clear(candidate.start)
-                        || !geometry(&tracks, Some(&track)).unwrap().accepts(&policy)
-                        || candidate.path_length() + 1e-4 < self.camera_settings.path_length_min
+                    let rejection = if !self.camera_clear(candidate.start) {
+                        Some(0)
+                    } else if !geometry(&tracks, Some(&track)).unwrap().accepts(&policy) {
+                        Some(1)
+                    } else if candidate.path_length() + 1e-4 < self.camera_settings.path_length_min
                         || candidate.path_length() > self.camera_settings.path_length_max + 1e-4
-                        || !self.camera_curve_clear(&candidate)
-                        || !coverage.suitable(&candidate, false)
                     {
+                        Some(2)
+                    } else if !self.camera_curve_clear(&candidate) {
+                        Some(3)
+                    } else if !coverage.suitable(&candidate, false) {
+                        Some(4)
+                    } else {
+                        None
+                    };
+                    if let Some(reason) = rejection {
+                        rejected[reason] += 1;
                         continue;
                     }
                     let samples = pair_samples(
@@ -229,6 +285,7 @@ impl IndoorManifest {
                         found = Some((candidate, track));
                         break;
                     }
+                    rejected[5] += 1;
                 }
                 if let Some((camera, track)) = found {
                     self.cameras.push(camera);
@@ -237,12 +294,13 @@ impl IndoorManifest {
                     break;
                 }
             }
+            most_placed = most_placed.max(self.cameras.len());
             if self.cameras.len() == count {
                 return Ok(());
             }
         }
         self.cameras.clear();
-        Err(format!("seed {}: unable to sample {count} connected multi-view cameras after {GROUP_ATTEMPTS} anchors x {VIEW_ATTEMPTS} proposals/view; min_overlap={}, pair_min={}m, reference={}..{}m, min_spread={}, trajectory_variation={}. Lower overlap/separation/spread bounds, reduce trajectory variation, or shorten paths; no unconstrained fallback was used", self.seed, policy.min_overlap, policy.min_baseline, policy.min_reference_baseline, policy.max_baseline, policy.min_spread, policy.trajectory_variation))
+        Err(format!("seed {} ({:?}): unable to sample {count} connected multi-view cameras after {GROUP_ATTEMPTS} anchors x {VIEW_ATTEMPTS} proposals/view; most_placed={most_placed}, rejections clearance/rig/length/curve/coverage/overlap={rejected:?}; min_overlap={}, pair_min={}m, reference={}..{}m, min_spread={}, trajectory_variation={}. Lower overlap/separation/spread bounds, reduce trajectory variation, or shorten paths; no unconstrained fallback was used", self.seed, self.layout, policy.min_overlap, policy.min_baseline, policy.min_reference_baseline, policy.max_baseline, policy.min_spread, policy.trajectory_variation))
     }
 }
 
@@ -312,6 +370,19 @@ mod tests {
     use crate::scene::procedural_indoor::{
         cameras::CameraSettings, layout::IndoorLayout, validation::validate_layout,
     };
+
+    #[test]
+    fn dense_sloped_room_keeps_eight_connected_paths() {
+        let scene = IndoorManifest::generate(4, IndoorLayout::Reception, 1., 8).unwrap();
+        validate_layout(&scene).unwrap();
+        assert_eq!(scene.cameras.len(), 8);
+        let policy = scene.camera_settings.multiview.as_ref().unwrap();
+        assert!(scene.camera_group_geometry().unwrap().accepts(policy));
+        assert!(scene
+            .camera_overlap()
+            .iter()
+            .all(|p| policy.accepts(&p.samples)));
+    }
 
     #[test]
     fn policy_validation_and_legacy_json() {

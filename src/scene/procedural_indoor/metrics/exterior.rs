@@ -15,7 +15,42 @@ pub(super) fn record(
     numeric: &mut NumericCollector,
     writer: &mut impl Write,
 ) -> io::Result<()> {
-    let Some(exterior) = &scene.exterior else {
+    // Edge identifiers and dimensions come from the built geometry. The legacy
+    // three-side program is only used when replaying a rectangular envelope.
+    let facades: Vec<_> = if let Some(e) = &scene.envelope {
+        e.walls
+            .iter()
+            .filter_map(|w| {
+                w.facade.as_ref().map(|f| {
+                    let a = e.footprint[w.edge];
+                    let b = e.footprint[(w.edge + 1) % e.footprint.len()];
+                    (
+                        format!("edge{}", w.edge),
+                        a.distance(b),
+                        e.ceiling_height(scene.room_size, a)
+                            .min(e.ceiling_height(scene.room_size, b)),
+                        f,
+                    )
+                })
+            })
+            .collect()
+    } else if let Some(e) = &scene.exterior {
+        numeric.push(
+            "exterior_exposure_probability",
+            e.exposure_probability as f64,
+        )?;
+        e.facades
+            .iter()
+            .map(|f| {
+                (
+                    format!("{:?}", f.side),
+                    f.side.span(scene.room_size),
+                    scene.room_size.y,
+                    f,
+                )
+            })
+            .collect()
+    } else {
         return Ok(());
     };
     let mut category = |key: &str, value: String| {
@@ -26,32 +61,24 @@ pub(super) fn record(
             .entry(value)
             .or_default() += 1;
     };
-    category("exterior_wall_count", exterior.facades.len().to_string());
+    category("exterior_wall_count", facades.len().to_string());
     category(
         "exterior_sides",
-        exterior
-            .facades
+        facades
             .iter()
-            .map(|f| format!("{:?}", f.side))
+            .map(|(side, ..)| side.as_str())
             .collect::<Vec<_>>()
             .join("+"),
     );
-    numeric.push(
-        "exterior_exposure_probability",
-        exterior.exposure_probability as f64,
-    )?;
     let mut full_height = 0;
     let mut openings = 0;
-    for f in &exterior.facades {
-        category("exterior_side", format!("{:?}", f.side));
+    for (side, span, height, f) in facades {
+        category("exterior_side", side.clone());
         category("exterior_frame", format!("{:?}", f.frame));
         category("exterior_shade", format!("{:?}", f.shade));
         let area: f32 = f.openings.iter().map(|o| o.area()).sum();
         for (key, value) in [
-            (
-                "exterior_opening_area_fraction",
-                area / (f.side.span(scene.room_size) * scene.room_size.y),
-            ),
+            ("exterior_opening_area_fraction", area / (span * height)),
             ("exterior_frame_width_m", f.frame_width),
             ("exterior_frame_depth_m", f.frame_depth),
             ("exterior_recess_m", f.recess),
@@ -63,7 +90,7 @@ pub(super) fn record(
         }
         for (i, o) in f.openings.iter().enumerate() {
             let size = o.max - o.min;
-            let full = o.full_height(scene.room_size.y);
+            let full = o.full_height(height);
             full_height += usize::from(full);
             openings += 1;
             for (key, value) in [
@@ -71,16 +98,16 @@ pub(super) fn record(
                 ("exterior_opening_height_m", size.y),
                 ("exterior_opening_aspect", size.x / size.y),
                 ("exterior_sill_height_m", o.min.y),
-                ("exterior_head_clearance_m", scene.room_size.y - o.max.y),
+                ("exterior_head_clearance_m", height - o.max.y),
                 ("exterior_columns", o.columns as f32),
             ] {
                 numeric.push(key, value as f64)?;
             }
             writeln!(
                 writer,
-                "{},{:?},{},{},{},{},{},{},{},{},{},{},{},{:?},{},{},{},{:?},{},{}",
+                "{},{},{},{},{},{},{},{},{},{},{},{},{},{:?},{},{},{},{:?},{},{}",
                 scene.seed,
-                f.side,
+                side,
                 i,
                 o.min.x,
                 o.min.y,
@@ -88,7 +115,7 @@ pub(super) fn record(
                 o.max.y,
                 size.x,
                 size.y,
-                scene.room_size.y - o.max.y,
+                height - o.max.y,
                 o.columns,
                 o.transom,
                 o.operable,

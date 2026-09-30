@@ -17,6 +17,14 @@ pub struct Geometry {
 }
 
 impl Geometry {
+    pub fn append(&mut self, other: Self) {
+        let offset = self.positions.len() as u32;
+        self.positions.extend(other.positions);
+        self.normals.extend(other.normals);
+        self.uvs.extend(other.uvs);
+        self.indices
+            .extend(other.indices.into_iter().map(|i| i + offset));
+    }
     fn vertex(&mut self, p: Vec3, n: Vec3, uv: Vec2, tf: &Transform) {
         self.positions.push(tf.transform_point(p).to_array());
         self.normals.push(

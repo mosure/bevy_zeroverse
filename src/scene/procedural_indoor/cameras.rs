@@ -230,6 +230,10 @@ impl IndoorManifest {
         let (lo, hi) = self.primary_room_bounds();
         p.xz().cmpge(lo + Vec2::splat(clearance)).all()
             && p.xz().cmple(hi - Vec2::splat(clearance)).all()
+            && self
+                .envelope
+                .as_ref()
+                .is_none_or(|e| super::envelope::polygon::contains(&e.footprint, p.xz(), clearance))
     }
     pub fn camera_curve_clear(&self, camera: &IndoorCamera) -> bool {
         use super::layout::{segment_hits_box, CAMERA_CLEARANCE};
@@ -285,7 +289,18 @@ impl IndoorManifest {
         let mut previous = runtime.sample(0.0).translation;
         for i in 0..=64 {
             let pose = runtime.sample(i as f32 / 64.0);
-            if !pose.rotation.is_finite()
+            if pose.translation.y < self.floor_height(pose.translation.xz()) + 0.70
+                || !pose.rotation.is_finite()
+                || self.envelope.as_ref().is_some_and(|e| {
+                    !e.segment_clear(
+                        self.room_size,
+                        previous,
+                        pose.translation,
+                        CAMERA_CLEARANCE + error,
+                    )
+                })
+                || pose.translation.y
+                    > self.ceiling_height(pose.translation.xz()) - (self.room_size.y - ceiling)
                 || (pose.rotation * Vec3::X).y.abs() > 0.14
                 || pose.translation.distance(camera.target) < 1.5
                 || obstacles.iter().any(|(lo, hi)| {

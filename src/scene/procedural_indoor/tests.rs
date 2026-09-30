@@ -191,8 +191,9 @@ fn all_grammars_and_density_extremes_remain_valid() {
     for layout in IndoorLayout::PROFILES {
         for density in [0.0, 1.0] {
             for seed in 0..32 {
-                validate_layout(&IndoorManifest::generate(seed, layout, density, 8).unwrap())
-                    .unwrap();
+                let scene = IndoorManifest::generate(seed, layout, density, 8)
+                    .unwrap_or_else(|e| panic!("{layout:?}, density {density}, seed {seed}: {e}"));
+                validate_layout(&scene).unwrap();
             }
         }
     }
@@ -759,10 +760,27 @@ fn actual_architecture_preserves_door_opening_and_camera_clearance() {
         };
         for camera in &scene.cameras {
             for step in 0..=16 {
-                let position = camera.start.lerp(camera.end, step as f32 / 16.0);
+                let position = camera.transform_at(step as f32 / 16.0).translation;
+                let nearest = || {
+                    architecture
+                        .parts
+                        .iter()
+                        .flat_map(|((surface, label), g)| {
+                            g.indices.as_chunks::<3>().0.iter().map(move |t| {
+                                let p =
+                                    [t[0], t[1], t[2]].map(|i| Vec3::from(g.positions[i as usize]));
+                                (
+                                    point_triangle_distance_squared(position, p[0], p[1], p[2]),
+                                    surface,
+                                    label,
+                                )
+                            })
+                        })
+                        .min_by(|a, b| a.0.total_cmp(&b.0))
+                };
                 assert!(
                     clear(position, CAMERA_CLEARANCE - 0.001),
-                    "seed {seed}: actual architectural geometry violates camera clearance at {position:?}"
+                    "seed {seed}: actual architectural geometry violates camera clearance at {position:?}: nearest {:?}", nearest()
                 );
             }
         }
@@ -1024,6 +1042,7 @@ fn dressed_staged_humans_have_finite_geometry_and_material_parts() {
     }
 }
 
+#[cfg(feature = "viewer")]
 #[test]
 fn editor_intrinsics_survive_room_regeneration() {
     use super::position_editor;

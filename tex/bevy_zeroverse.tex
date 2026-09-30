@@ -131,7 +131,43 @@ The accompanying project page presents selected generator-21 renders separately 
 \caption{Selected generator-21 room, seed 24005: RGB, metric-depth visualization, view-space normals and semantic labels for cameras 0 and 2 at the same time. Camera selection and pixel-aligned annotation comparisons are interactive on the project page. These illustrations are separate from the consecutive population evaluation.}
 \end{figure}
 
-Co-visibility shares the float32 surface raster used by the other geometric annotations. A GPU pass projects each source surface into the other cameras and checks frustum bounds and symmetric local tangent-plane agreement. The tolerance is $\max(1\text{ mm},10^{-4}d)$ at target depth $d$. The exact membership mask is separate from its additive color preview and source-valid mask; a valid but unshared surface differs from background even though both have a zero membership mask. This measures raster surface visibility, with the same annotation-opaque glass policy, rather than reflected or refracted RGB content.
+\subsection{Co-visibility renderings and camera-specific supervision}
+Figures~\ref{fig:co-visibility-views} and~\ref{fig:co-visibility-bits} show the production GPU annotation for the matched generator-21 gallery. These are actual exported surface-membership masks at the same camera poses, intrinsics and time as the RGB images. They are distinct from the looser depth-based population diagnostic in the baseline table. The figures use the existing selected captures; they add no rooms to the population denominator.
+
+Co-visibility shares the float32 surface raster used by the other geometric annotations. For source camera $s$, pixel $p$ and time $t$, the exported unsigned 16-bit integer is
+\[
+ M_s(p,t)=\sum_{\substack{j=0\\j\ne s}}^{N-1}2^j V_{s\rightarrow j}(p,t),
+ \qquad 1\leq N\leq16,
+\]
+where $V_{s\rightarrow j}\in\{0,1\}$ records visibility of the source surface in peer camera $j$. The source camera's own bit is always zero; the editor has no membership bit. The ordered camera legend remains identical across views and timesteps in a sample. A peer's binary supervision is recovered by testing $(M_s\mathbin{\&}2^j)\ne0$; the number of observing peers is $\operatorname{popcount}(M_s)$. Thus the integer preserves camera identities, unlike a shared-pixel count alone.
+
+The GPU pass projects a valid source surface into each peer, checks near/far clipping and image bounds, and reads the nearest target pixel. For source point $x$, target point $y$, corresponding world-space unit normals $n_s,n_j$ and target axial depth $d$, the surface-agreement test is
+\[
+ \max\!\left(\left|(y-x)\cdot n_s\right|,
+                    \left|(y-x)\cdot n_j\right|\right)
+ \leq \max(0.001\,\mathrm{m},10^{-4}d).
+\]
+This local-plane test avoids comparing depths along different pixel-center rays on sloped surfaces. It remains resolution- and tolerance-dependent: silhouettes, thin geometry, curved surfaces and near-contact surfaces can be ambiguous. Pixel-level membership need not be symmetric after raster reprojection. Glass is the first opaque geometric surface, so reflected, refracted and transmitted RGB content does not imply co-visible geometry.
+
+The additive RGB8 preview sums the contributions of set camera bits without tone mapping. For four cameras, the shared legend is $C_0=(170,0,0)$, $C_1=(0,255,0)$, $C_2=(0,0,255)$ and $C_3=(85,0,0)$. For example, $M=10=\texttt{0b1010}$ means peers 1 and 3, with color $(85,255,0)$. These colors encode camera membership, not semantic classes or overlap magnitude. The palette adapts deterministically to camera count and remains uniquely decodable for all supported combinations in the original lossless PNG.
+
+A separate uint8 source-valid mask $A_s$ distinguishes an unshared surface ($A_s=1,M_s=0$) from background ($A_s=0,M_s=0$); both appear black in the additive preview. Folder exports retain membership and validity as $[H,W,1]$ arrays in NPZ. Chunked exports use $[B,T,N,H,W,1]$. Training should consume these numeric arrays and the camera metadata, rather than rasterizing the PDF or decoding a resized or lossy preview. Shared percentages below divide by valid source-pixel observations, including unshared surfaces, not unique 3D points.
+
+\begin{figure}[p]
+\centering\includegraphics[width=.97\linewidth]{generated/co_visibility_multiview_v21.png}
+\caption{Matched RGB (top) and production co-visibility (bottom) for all four cameras in seed 24005 at $t=0$, from native $768\times480$ captures. Columns retain the exact viewpoint and full image extent. Camera-bit colors share one legend; each source excludes its own bit. Percentages count valid source pixels visible in at least one peer, for these captures only.}
+\label{fig:co-visibility-views}
+
+\medskip
+\includegraphics[width=.97\linewidth]{generated/co_visibility_bits_v21.png}
+\caption{Camera-specific supervision: seed 24000, source camera 0, $t=0$. Top: RGB, additive code and derived peer count. Bottom: independent peer bit tests, all in source-pixel coordinates. White means visible, black means not visible; invalid source pixels would be gray. The peer masks can overlap: their weighted sum reconstructs membership, and their unweighted sum gives the count. The count palette is separate from the camera legend.}
+\label{fig:co-visibility-bits}
+\end{figure}
+
+All eight $t=0$ gallery annotations used for this check round-trip exactly between exported uint16 masks and their original additive PNGs. Source validity, self-bit exclusion, shared legends, capture identities and per-peer/count denominators are checked before composing the figures. Original capture hashes and depth/position reprojection are checked separately. The reproducible builder and per-view evidence are \texttt{scripts/build\_paper\_covisibility.py} and \texttt{docs/evidence/paper\_co\_visibility\_v21/report.json}.
+
+\clearpage
+\subsection{Human motion illustration}
 
 Human clothing uses body-derived cross-sections, localized folds and fitted garment details. Viewer pose joints can show through people while environment depth occludes them; editor projections persist through regeneration. ARDY controls expose diffusion steps, history length, guidance and path conditioning. The project page's separately identified motion example contains two accepted trajectories, two cameras and 120 frames at the model's 20 Hz rate. It is an illustration of the optional motion pipeline, not part of the static camera-baseline experiment or a motion-quality benchmark.
 

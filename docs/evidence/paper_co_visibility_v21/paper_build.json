@@ -1,0 +1,15 @@
+{
+  "pdf_sha256": "9fa8781c5a97326ea2c76608e538a032cda840959ac6143652c8364323f1805d",
+  "source_archive_sha256": "f76408ab7b656853f257b073cecf9f27f4a51ed5601e26d8f3bde91f5bca3c6d",
+  "source_hashes_match": true,
+  "self_contained_archive_compiled": true,
+  "pages": 11,
+  "figure_page_visually_reviewed": 10,
+  "unresolved_references_or_overfull_content": false,
+  "commands": [
+    "python scripts/build_paper_covisibility.py --verify-captures out/project_page_v21",
+    "python scripts/build_project_whitepaper.py",
+    "latexmk -pdf -interaction=nonstopmode -halt-on-error bevy_zeroverse.tex (extracted source archive)"
+  ],
+  "scope": "Generator-21 selected captures; no population measurements or rendering implementation changed."
+}

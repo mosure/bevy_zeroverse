@@ -35,6 +35,10 @@ pub(super) fn route(scene: &IndoorManifest, start: Vec3, end: Vec3) -> Option<Ve
         let pad = Vec3::splat(super::super::layout::CAMERA_CLEARANCE);
         (a.x.abs().max(b.x.abs()) < scene.room_size.x * 0.5 - 0.5)
             && (a.z.abs().max(b.z.abs()) < scene.room_size.z * 0.5 - 0.5)
+            && scene
+                .envelope
+                .as_ref()
+                .is_none_or(|e| e.segment_clear(scene.room_size, a, b, pad.x))
             && (!scene.camera_settings.primary_room
                 || (scene.in_primary_room(a, pad.x) && scene.in_primary_room(b, pad.x)))
             && !obstacles

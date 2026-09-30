@@ -10,6 +10,11 @@ This is a substantial procedural/PBR baseline, **not a demonstrated state-of-the
 photorealistic renderer**. The implementation and validation below separate what
 works from what has not been qualified.
 
+The [v22 architectural envelope review](architecture_v22.md) adds tapered and
+chamfered footprints, exterior cut-ins, sloped roofs, arched portals, pillars,
+floor levels, and furnished mezzanines with stairs and guardrails. It includes a
+512-room structural audit and 256 aligned rendered views.
+
 The [v17 exterior/window review](facade_v17.md) adds independently sampled
 exterior walls, larger near-floor-to-ceiling glazing, inset frames and shared
 aperture checks for finishes and wall-mounted objects, with distribution exports.
@@ -284,14 +289,14 @@ alone is not runtime evidence.
 
 ## Remaining qualification and scope
 
-The architecture grammar has a rectangular building envelope and one adjoining
-office, with open, service-core, gallery and divided-suite floor plans.
-Material/palette and object variation are broader than the old fitted
-mesh path, but this is not yet unrestricted building topology or a complete model
-of real indoor clutter. Generator v4 adds four architectural finish families,
-six potted botanical forms and support-aware desk accessories; see the
-[local generator-v5 scene review](local_scene_quality_review.md). People now use AnnyBody
-with procedural garment surfaces; their appearance remains synthetic. Outdoor
+Generator v22 uses continuously sampled polygonal footprints, ceiling planes and
+floor levels, with one adjoining office. The [architectural review](architecture_v22.md)
+describes its supported geometry and measured coverage. It remains a bounded
+building grammar: curved exterior walls, arbitrary multi-storey connectivity,
+structural analysis and building-code compliance are not implemented. The
+adjoining room and mezzanine decks remain rectangular. ARDY does not synthesize
+stair climbing; unsupported level transitions are excluded from motion planning.
+Material, clutter and AnnyBody garment surfaces still look synthetic. Outdoor
 trees are not implemented in this scene. The existing human mode remains.
 
 Native Auto uses multi-bounce diffuse transport computed from the generated

@@ -570,7 +570,7 @@ pub fn populate(scene: &mut IndoorManifest, density: f32) {
                 HumanPoseKind::StandingReading,
                 HumanPoseKind::StandingWalking,
             ][rng.random_range(0..5)];
-            let p = if index == 0 && attempt < 4 && pose == HumanPoseKind::StandingPresenting {
+            let mut p = if index == 0 && attempt < 4 && pose == HumanPoseKind::StandingPresenting {
                 Vec3::new(scene.room_size.x * 0.18, 0.0, -scene.room_size.z * 0.34)
             } else {
                 Vec3::new(
@@ -579,6 +579,7 @@ pub fn populate(scene: &mut IndoorManifest, density: f32) {
                     rng.random_range(-0.39..0.39) * scene.room_size.z,
                 )
             };
+            p.y = scene.floor_height(p.xz());
             let yaw = if pose == HumanPoseKind::StandingPresenting {
                 PI
             } else {
@@ -638,6 +639,22 @@ fn box_hit(a: Vec3, b: Vec3, r: f32, lo: Vec3, hi: Vec3) -> bool {
 
 pub fn placement_clear(scene: &IndoorManifest, person: &IndoorHuman) -> bool {
     let (lo, hi) = person.bounds();
+    if !person.neighbor
+        && scene.envelope.as_ref().is_some_and(|e| {
+            !super::envelope::polygon::box_inside(&e.footprint, lo.xz(), hi.xz(), 0.30)
+                || !e.support_clear(lo.with_y(person.position.y), hi)
+                || [
+                    lo.xz(),
+                    hi.xz(),
+                    Vec2::new(lo.x, hi.z),
+                    Vec2::new(hi.x, lo.z),
+                ]
+                .into_iter()
+                .any(|p| hi.y > scene.ceiling_height(p) - 0.15)
+        })
+    {
+        return false;
+    }
     let half = scene.room_size * 0.5;
     let zmin = if person.neighbor {
         half.z + 0.30

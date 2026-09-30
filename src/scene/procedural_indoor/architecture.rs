@@ -11,6 +11,9 @@ use bevy::{light::CascadeShadowConfigBuilder, prelude::*};
 use rand::Rng;
 
 pub fn architecture(scene: &IndoorManifest) -> Assembly {
+    if scene.envelope.is_some() {
+        return super::envelope::construction::build(scene);
+    }
     let mut a = Assembly::default();
     super::floorplan::build(scene, &mut a);
     let w = scene.room_size.x;
@@ -237,6 +240,12 @@ pub fn architecture(scene: &IndoorManifest) -> Assembly {
             );
         }
     }
+    fixture_geometry(&mut a, scene);
+    facade::backdrop(&mut a, scene);
+    a
+}
+
+pub(crate) fn fixture_geometry(a: &mut Assembly, scene: &IndoorManifest) {
     for (i, p) in fixture_positions(scene).into_iter().enumerate() {
         a.box_part(
             Surface::Metal,
@@ -255,13 +264,23 @@ pub fn architecture(scene: &IndoorManifest) -> Assembly {
         for x in [-fixture_size(scene).x * 0.36, fixture_size(scene).x * 0.36] {
             a.part(Surface::Chrome, &format!("lamp#{i}")).rod(
                 p + Vec3::new(x, 0.028, 0.0),
-                Vec3::new(p.x + x, h, p.z),
+                Vec3::new(
+                    p.x + x,
+                    scene
+                        .envelope
+                        .as_ref()
+                        .and_then(|e| e.mezzanine.as_ref())
+                        .filter(|m| m.deck.contains(p.xz()) && p.y < m.deck.height)
+                        .map_or_else(
+                            || scene.ceiling_height(Vec2::new(p.x + x, p.z)),
+                            |m| m.deck.height - m.thickness,
+                        ),
+                    p.z,
+                ),
                 0.002,
             );
         }
     }
-    facade::backdrop(&mut a, scene);
-    a
 }
 
 pub(crate) fn fixture_size(scene: &IndoorManifest) -> Vec3 {
@@ -273,6 +292,29 @@ pub(crate) fn fixture_size(scene: &IndoorManifest) -> Vec3 {
         1 => Vec3::new(1.45, 0.055, 0.17),
         _ => Vec3::new(0.22, 0.055, 0.22),
     }
+}
+
+/// Close-mounted luminaires below the deck prevent the upper floor from
+/// shadowing every light in the lower work area. Their anchors stop at the slab.
+pub(crate) fn under_mezzanine_fixtures(scene: &IndoorManifest) -> Vec<Vec3> {
+    let Some(m) = scene.envelope.as_ref().and_then(|e| e.mezzanine.as_ref()) else {
+        return vec![];
+    };
+    let size = m.deck.max - m.deck.min;
+    let count = (size / 2.5).ceil().max(Vec2::ONE).as_uvec2();
+    let mut positions = Vec::new();
+    for x in 0..count.x {
+        for z in 0..count.y {
+            let p = m.deck.min
+                + size
+                    * Vec2::new(
+                        (x as f32 + 0.5) / count.x as f32,
+                        (z as f32 + 0.5) / count.y as f32,
+                    );
+            positions.push(Vec3::new(p.x, m.deck.height - m.thickness - 0.10, p.y));
+        }
+    }
+    positions
 }
 
 pub fn fixture_positions(scene: &IndoorManifest) -> Vec<Vec3> {
@@ -289,13 +331,27 @@ pub fn fixture_positions(scene: &IndoorManifest) -> Vec<Vec3> {
                     let p = zone.min
                         + size * (Vec2::new(x as f32 + 0.5, z as f32 + 0.5) + program.light_phase)
                             / counts.as_vec2();
-                    positions.push(Vec3::new(p.x, scene.room_size.y - program.light_drop, p.y));
+                    if scene.envelope.as_ref().is_none_or(|e| {
+                        super::envelope::polygon::box_inside(
+                            &e.footprint,
+                            p - program.fixture_size * 0.5,
+                            p + program.fixture_size * 0.5,
+                            0.15,
+                        )
+                    }) {
+                        positions.push(Vec3::new(
+                            p.x,
+                            scene.ceiling_height(p) - program.light_drop,
+                            p.y,
+                        ));
+                    }
                 }
             }
         }
+        positions.extend(under_mezzanine_fixtures(scene));
         positions.push(Vec3::new(
             0.0,
-            scene.room_size.y - 0.18,
+            scene.ceiling_height(Vec2::new(0.0, scene.room_size.z * 0.5)) - 0.18,
             scene.room_size.z * 0.5 + 1.5,
         ));
         return positions;
@@ -321,7 +377,7 @@ pub fn fixture_positions(scene: &IndoorManifest) -> Vec<Vec3> {
     }
     positions.push(Vec3::new(
         0.0,
-        scene.room_size.y - 0.18,
+        scene.ceiling_height(Vec2::new(0.0, scene.room_size.z * 0.5)) - 0.18,
         scene.room_size.z * 0.5 + 1.5,
     ));
     positions
@@ -448,7 +504,15 @@ pub(crate) fn fixture_lumens(scene: &IndoorManifest) -> f32 {
     // N*flux*utilization/area. More fixtures maintain plausible office lighting
     // as room area changes. Evening retains a slightly lower occupied level.
     let illuminance = scene.target_lux;
-    let area = scene.room_size.x * scene.room_size.z;
+    let area = scene
+        .envelope
+        .as_ref()
+        .map_or(scene.room_size.x * scene.room_size.z, |e| {
+            super::envelope::polygon::area(&e.footprint)
+                + e.mezzanine
+                    .as_ref()
+                    .map_or(0., |m| (m.deck.max - m.deck.min).element_product())
+        });
     let count = (fixture_positions(scene).len() - 1) as f32;
     (illuminance * area / (count.max(1.0) * 0.70)).clamp(0.1, 16000.0)
 }

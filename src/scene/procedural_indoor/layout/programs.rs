@@ -249,9 +249,37 @@ impl IndoorManifest {
                 self.add(kind, Vec3::new(x, 0.0, z), size, yaw, rng);
             }
         }
+        // A usable upper floor gets its own work area; base-floor proposals do
+        // not get lifted onto the deck merely because their footprints overlap.
+        if let Some(m) = self.envelope.as_ref().and_then(|e| e.mezzanine.clone()) {
+            for _ in 0..48 {
+                let count = self
+                    .objects
+                    .iter()
+                    .filter(|o| {
+                        !o.neighbor && o.solid && (o.position.y - m.deck.height).abs() < 0.01
+                    })
+                    .count();
+                if count >= 4 {
+                    break;
+                }
+                let center = (m.deck.min + m.deck.max) * 0.5;
+                let extent = m.deck.max - m.deck.min;
+                let p = center
+                    + extent
+                        * Vec2::new(rng.random_range(-0.25..0.25), rng.random_range(-0.25..0.25));
+                self.workstation(
+                    ObjectKind::Desk,
+                    Vec3::new(p.x, m.deck.height, p.y),
+                    Vec3::new(1.12, 0.74, 0.62),
+                    rng.random_range(0..4) as f32 * std::f32::consts::FRAC_PI_2,
+                    rng,
+                );
+            }
+        }
         // Constraint rejection can remove a complete group near a portal. Repair
         // underfilled rooms with supported workstations before adding service pieces.
-        for _ in 0..96 {
+        for _ in 0..384 {
             if self
                 .objects
                 .iter()
@@ -267,9 +295,10 @@ impl IndoorManifest {
             {
                 break;
             }
-            let x = rng.random_range(-0.35..0.35) * self.room_size.x;
-            let z = rng.random_range(-0.35..0.35) * self.room_size.z;
-            let yaw = rng.random_range(-std::f32::consts::PI..std::f32::consts::PI);
+            let x = rng.random_range(-0.40..0.40) * self.room_size.x;
+            let z = rng.random_range(-0.40..0.40) * self.room_size.z;
+            let yaw = rng.random_range(0..4) as f32 * std::f32::consts::FRAC_PI_2
+                + rng.random_range(-0.12..0.12);
             self.workstation(
                 if self.layout == IndoorLayout::Conference {
                     ObjectKind::Table

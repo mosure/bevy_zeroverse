@@ -18,6 +18,9 @@ pub fn validate_layout(scene: &IndoorManifest) -> Result<(), String> {
     if let Some(exterior) = &scene.exterior {
         exterior.validate(scene.room_size)?;
     }
+    if let Some(envelope) = &scene.envelope {
+        envelope.validate(scene)?;
+    }
     super::humans::validate(scene)?;
     let fail = |message: &str| Err(format!("seed {}: {message}", scene.seed));
     if scene.generator_version != GENERATOR_VERSION
@@ -100,7 +103,7 @@ pub fn validate_layout(scene: &IndoorManifest) -> Result<(), String> {
             {
                 return fail("furniture intersects room boundary");
             }
-            if lo.y.abs() > 1e-5 {
+            if !scene.floor_support_clear(lo, hi) {
                 return fail("unsupported floor furniture");
             }
             if hi.x > scene.door_x - 0.70 && lo.x < scene.door_x + 0.70 && hi.z > half.z - 1.45 {
@@ -115,8 +118,11 @@ pub fn validate_layout(scene: &IndoorManifest) -> Result<(), String> {
                 .skip(i + 1)
                 .filter(|o| o.solid && !o.neighbor)
             {
-                if super::footprint::Footprint::object(object)
-                    .overlaps(super::footprint::Footprint::object(other), 0.0)
+                let (a, b) = other.bounds();
+                if lo.y < b.y
+                    && hi.y > a.y
+                    && super::footprint::Footprint::object(object)
+                        .overlaps(super::footprint::Footprint::object(other), 0.0)
                 {
                     return fail(&format!(
                         "furniture overlap: {} and {}",
@@ -127,7 +133,10 @@ pub fn validate_layout(scene: &IndoorManifest) -> Result<(), String> {
         }
         if object.solid {
             let (lo, hi) = object.bounds();
-            if lo.y.abs() > 1e-5 || hi.y > scene.room_size.y - 0.30 {
+            if (object.neighbor && lo.y.abs() > 1e-5)
+                || (!object.neighbor && !scene.floor_support_clear(lo, hi))
+                || hi.y > scene.ceiling_height(object.position.xz()) - 0.30
+            {
                 return fail("floor furniture floats, sinks or intersects ceiling fixtures");
             }
             if object.neighbor {

@@ -67,6 +67,9 @@ pub fn obstacles(
 ) -> Vec<(Vec3, Vec3)> {
     let half = scene.room_size * 0.5;
     let mut boxes = scene.camera_obstacles();
+    if let Some(e) = &scene.envelope {
+        boxes.extend(e.motion_barriers(scene.room_size));
+    }
     let wall = |a: Vec3, b: Vec3| (a, b);
     boxes.extend([
         wall(
@@ -398,6 +401,12 @@ pub fn plan(
         let Some(person) = scene.humans.iter().find(|h| h.id == explicit.actor_id) else {
             return Err(format!("motion actor {} does not exist", explicit.actor_id));
         };
+        if person.position.y.abs() > 0.01 {
+            return Err(format!(
+                "motion actor {} is on a nonzero floor; stair/level motion is not supported",
+                person.id
+            ));
+        }
         let support = explicit.support_chair.or(person.chair);
         if let Some(id) = support {
             if !scene
@@ -462,6 +471,15 @@ pub fn plan(
     }
     for id in selected_actors(scene, config) {
         let person = scene.humans.iter().find(|h| h.id == id).unwrap();
+        if person.position.y.abs() > 0.01 {
+            rejected.push(MotionRejection {
+                actor_id: person.id,
+                reason:
+                    "actor on nonzero floor retained static; stair/level motion is not supported"
+                        .into(),
+            });
+            continue;
+        }
         let mut found = None;
         // Sample a family per actor before searching geometry. Resampling it on
         // every failed path would overwhelm travel/exercise weights with the
@@ -475,7 +493,8 @@ pub fn plan(
             };
             let support = person.chair;
             let boxes = obstacles(scene, person.id, support);
-            let headroom = (scene.room_size.y - person.stature - 0.05).max(0.0);
+            let headroom =
+                (scene.ceiling_height(person.position.xz()) - person.stature - 0.05).max(0.0);
             let mut points;
             let draft = if let Some(id) = support {
                 let chair = scene

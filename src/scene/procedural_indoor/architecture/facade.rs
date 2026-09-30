@@ -13,7 +13,8 @@ use bevy::prelude::*;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 
-pub(super) use geometry::{backdrop, shell};
+pub(super) use geometry::shell;
+pub(crate) use geometry::{backdrop, glazing_at};
 pub use geometry::{clipped_wall_box, solid_rectangles};
 
 /// The +Z wall adjoins the furnished neighboring room and remains internal.
@@ -240,6 +241,33 @@ impl ExteriorProgram {
 
 /// Attachments require solid backing, not just a clear furniture footprint.
 pub fn overlaps_opening(scene: &IndoorManifest, lo: Vec3, hi: Vec3, margin: f32) -> bool {
+    if let Some(envelope) = &scene.envelope {
+        return envelope.walls.iter().any(|wall| {
+            let Some(f) = &wall.facade else {
+                return false;
+            };
+            let tf = envelope.wall_transform(wall.edge);
+            let mut min = Vec3::splat(f32::INFINITY);
+            let mut max = Vec3::splat(f32::NEG_INFINITY);
+            for x in [lo.x, hi.x] {
+                for y in [lo.y, hi.y] {
+                    for z in [lo.z, hi.z] {
+                        let p = tf.rotation.inverse() * (Vec3::new(x, y, z) - tf.translation);
+                        min = min.min(p);
+                        max = max.max(p);
+                    }
+                }
+            }
+            min.z < 0.30
+                && max.z > -0.24
+                && f.openings.iter().any(|o| {
+                    min.x < o.max.x + margin
+                        && max.x > o.min.x - margin
+                        && min.y < o.max.y + margin
+                        && max.y > o.min.y - margin
+                })
+        });
+    }
     let Some(exterior) = &scene.exterior else {
         return false;
     };

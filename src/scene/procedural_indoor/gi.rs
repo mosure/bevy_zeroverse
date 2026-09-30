@@ -404,7 +404,7 @@ impl BakeScene {
             sky: scene.sky_radiance(),
             bounds_min: Vec3::new(
                 -scene.room_size.x * 0.5 - 0.10,
-                -0.10,
+                scene.envelope.as_ref().map_or(0., |e| e.minimum_floor()) - 0.10,
                 -scene.room_size.z * 0.5 - 0.10,
             ),
             bounds_max: Vec3::new(

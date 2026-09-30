@@ -344,3 +344,125 @@ fn empty_assets_rotated_odd_size_capture_and_legacy_scene_switches() {
         println!("legacy {scene:?} capture passed");
     }
 }
+
+#[test]
+#[ignore = "requires native GPU; nonrectangular envelope CPU/GPU voxel and annotation contract"]
+fn nonrectangular_envelope_voxels_exclude_context_and_keep_floor_levels() {
+    let _guard = RENDER_TEST_LOCK.lock().unwrap();
+    use bevy_zeroverse::{
+        app::OvoxelMode,
+        ovoxel::{OvoxelCache, OvoxelExcluded, OvoxelVolume},
+    };
+    let assets = tempfile::tempdir().unwrap();
+    std::env::set_var("BEVY_ASSET_ROOT", assets.path());
+    setup_globals(Some(assets.path().to_string_lossy().into_owned()));
+    let modes = vec![
+        RenderMode::Color,
+        RenderMode::Depth,
+        RenderMode::Normal,
+        RenderMode::Semantic,
+        RenderMode::Position,
+    ];
+    let mut app = create_app(
+        None,
+        Some(BevyZeroverseConfig {
+            scene_type: ZeroverseSceneType::ProceduralIndoor,
+            indoor_seed: Some(229),
+            indoor_human_density: 0.0,
+            headless: true,
+            editor: false,
+            gizmos: false,
+            image_copiers: true,
+            keybinds: false,
+            press_esc_close: false,
+            initialize_scene: false,
+            num_cameras: 2,
+            width: 320.,
+            height: 200.,
+            ovoxel_resolution: 48,
+            ovoxel_mode: OvoxelMode::CpuAsync,
+            playback_mode: PlaybackMode::Still,
+            playback_steps: 1,
+            rotation_augmentation: false,
+            depth_format: DepthFormat::Linear,
+            ..default()
+        }),
+        false,
+    );
+    app.finish();
+    app.cleanup();
+    for _ in 0..4 {
+        app.update();
+    }
+    app.world_mut().write_message(RegenerateSceneEvent);
+    let sample = capture(&mut app, modes.clone());
+    let scene = sample.indoor.as_ref().unwrap();
+    let e = scene.envelope.as_ref().unwrap();
+    assert!(e.mezzanine.is_some() && e.minimum_floor() < -0.1 && e.footprint.len() > 6);
+    assert!(
+        app.world_mut()
+            .query_filtered::<Entity, (With<Mesh3d>, With<OvoxelExcluded>)>()
+            .iter(app.world())
+            .count()
+            >= 2,
+        "context meshes need explicit exclusion even inside the rectangular crop"
+    );
+    for v in &sample.views {
+        validate_annotations_with_precision(v, sample.aabb, 320, 200, sample.annotation_precision)
+            .unwrap();
+    }
+    let cpu = sample.ovoxel.unwrap();
+    assert_eq!(cpu.aabb, sample.aabb);
+    assert!((cpu.aabb[0][1] - (e.minimum_floor() - 0.2)).abs() < 1e-5);
+    assert!(cpu.coords.len() > 1000);
+    let min = Vec3::from(cpu.aabb[0]);
+    let voxel = (Vec3::from(cpu.aabb[1]) - min) / cpu.resolution as f32;
+    let clearance = voxel.length() + 0.20;
+    for c in &cpu.coords {
+        let p = (min + (UVec3::from(*c).as_vec3() + Vec3::splat(0.5)) * voxel).xz();
+        if bevy_zeroverse::scene::procedural_indoor::envelope::polygon::contains(
+            &e.footprint,
+            p,
+            0.,
+        ) {
+            continue;
+        }
+        let distance =
+            bevy_zeroverse::scene::procedural_indoor::envelope::polygon::edges(&e.footprint)
+                .map(|(a, b)| {
+                    p.distance(
+                        a + (b - a) * ((p - a).dot(b - a) / (b - a).length_squared()).clamp(0., 1.),
+                    )
+                })
+                .fold(f32::INFINITY, f32::min);
+        assert!(
+            distance <= clearance,
+            "context/courtyard voxel outside shell at {p:?}"
+        );
+    }
+    app.world_mut().resource_mut::<SamplerState>().enabled = false;
+    app.world_mut()
+        .resource_mut::<BevyZeroverseConfig>()
+        .ovoxel_mode = OvoxelMode::GpuCompute;
+    let roots: Vec<_> = app
+        .world_mut()
+        .query_filtered::<Entity, With<OvoxelVolume>>()
+        .iter(app.world())
+        .collect();
+    for root in roots {
+        app.world_mut()
+            .entity_mut(root)
+            .remove::<(OvoxelVolume, OvoxelCache)>();
+    }
+    let gpu = capture(&mut app, modes).ovoxel.unwrap();
+    assert!(
+        cpu.coords == gpu.coords,
+        "CPU/GPU envelope occupancy mismatch"
+    );
+    assert_eq!(cpu.semantic_labels, gpu.semantic_labels);
+    assert!(
+        cpu.semantics == gpu.semantics,
+        "CPU/GPU envelope semantic mismatch"
+    );
+    println!("seed 229: {} CPU/GPU matching occupied cells; courtyard excluded; depressed floor and mezzanine retained",cpu.coords.len());
+}

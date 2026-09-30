@@ -131,7 +131,7 @@ that unpatched configuration.
 
 | `bevy_zeroverse` | `bevy` |
 | :--                       | :--    |
-| `0.24`, `0.23`, `0.22`, `0.21`, `0.20`, `0.19` | `0.19.1` |
+| `0.26`, `0.25`, `0.24`, `0.23`, `0.22`, `0.21`, `0.20`, `0.19` | `0.19.1` |
 | published `0.17`           | `0.17` |
 | `0.8`                     | `0.16` |
 | `0.6`                     | `0.15` |
@@ -158,4 +158,11 @@ See the [v12 room review](docs/room_review_v12.md) for primary-room camera paths
 furniture programs, fixture annotations, compound motion and measured annotation
 preview performance, with captured galleries and 128-room distribution metrics.
 
-The continuous [camera baseline control](docs/multiview_cameras.md) sets spacing from narrow to wide while retaining advanced overrides. See the [current camera-baseline evaluation](docs/camera_baseline_v21.md) for 2,048 audited layouts, 512 distinct rendered rooms and matched co-visibility distributions at five baseline values, and the [0.25 release notes](docs/release_0_25.md) for compatibility.
+The continuous [camera baseline control](docs/multiview_cameras.md) sets spacing from narrow to wide while retaining advanced overrides. See the [generator-21 camera-baseline evaluation](docs/camera_baseline_v21.md) for 2,048 audited layouts, 512 distinct rendered rooms and matched co-visibility distributions at five baseline values.
+
+The [generator-22 architectural review](docs/architecture_v22.md) covers polygonal
+envelopes, sloped ceilings, cut-ins, archways, pillars, floor levels and furnished
+mezzanines, with a separate 512-room audit and 256 rendered views. See the
+[0.26 release notes](docs/release_0_26.md) for compatibility. The whitepaper adds
+matched co-visibility renderings and camera-bit decoding examples from its
+identified generator-21 capture set.

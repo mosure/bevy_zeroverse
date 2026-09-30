@@ -8,7 +8,7 @@ use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 use serde::{Deserialize, Serialize};
 
-pub const GENERATOR_VERSION: u32 = 21;
+pub const GENERATOR_VERSION: u32 = 22;
 pub const CAMERA_CLEARANCE: f32 = 0.28;
 pub const NEIGHBOR_DEPTH: f32 = 3.2;
 
@@ -190,6 +190,8 @@ pub struct IndoorManifest {
     pub layout: IndoorLayout,
     pub world_yaw: f32,
     pub room_size: Vec3,
+    #[serde(default)]
+    pub envelope: Option<super::envelope::EnvelopeProgram>,
     pub palette: u32,
     pub furniture_style: u32,
     #[serde(default)]
@@ -289,7 +291,8 @@ impl IndoorManifest {
         } else {
             layout
         };
-        let room_size = super::domain::room_size(seed);
+        let mut room_size = super::domain::room_size(seed);
+        room_size.y = super::envelope::EnvelopeProgram::room_height(seed, room_size);
         let mut scene = Self {
             generator_version: GENERATOR_VERSION,
             program: Some(super::program::IndoorProgram::sample(
@@ -299,6 +302,7 @@ impl IndoorManifest {
             layout,
             world_yaw: 0.0,
             room_size,
+            envelope: None,
             palette: rng.random_range(0..6),
             furniture_style: rng.random_range(0..3),
             floor_plan: [
@@ -362,6 +366,7 @@ impl IndoorManifest {
             room_size,
             scene.column_width,
         ));
+        scene.envelope = Some(super::envelope::EnvelopeProgram::sample(&mut scene));
         scene.furnish(&mut rng);
         scene.assign_work_surfaces();
         scene.decorate(&mut rng);
@@ -382,7 +387,11 @@ impl IndoorManifest {
         IndoorObject {
             id: self.objects.len(),
             kind,
-            position: pos,
+            position: if pos.y.abs() < 0.0001 && pos.z < self.room_size.z * 0.5 {
+                pos.with_y(self.floor_height(pos.xz()))
+            } else {
+                pos
+            },
             size,
             yaw,
             variant: rng.random_range(
@@ -436,6 +445,20 @@ impl IndoorManifest {
         let footprint = Footprint::object(object);
         let (lo, hi) = object.bounds();
         let half = self.room_size * 0.5;
+        if self.envelope.as_ref().is_some_and(|e| {
+            !super::envelope::polygon::box_inside(&e.footprint, lo.xz(), hi.xz(), 0.30)
+                || !e.support_clear(lo, hi)
+                || [
+                    lo.xz(),
+                    hi.xz(),
+                    Vec2::new(lo.x, hi.z),
+                    Vec2::new(hi.x, lo.z),
+                ]
+                .into_iter()
+                .any(|p| hi.y > e.ceiling_height(self.room_size, p) - 0.30)
+        }) {
+            return false;
+        }
         if lo.x < -half.x + 0.30
             || hi.x > half.x - 0.30
             || lo.z < -half.z + 0.30
@@ -454,18 +477,21 @@ impl IndoorManifest {
         if hi.x > self.door_x - 0.70 && lo.x < self.door_x + 0.70 && hi.z > half.z - 1.45 {
             return false;
         }
-        if self
-            .columns()
-            .iter()
-            .any(|(a, b)| footprint.overlaps(Footprint::bounds(*a, *b), margin))
-        {
+        if self.columns().iter().any(|(a, b)| {
+            lo.y < b.y - 0.001
+                && hi.y > a.y + 0.001
+                && footprint.overlaps(Footprint::bounds(*a, *b), margin)
+        }) {
             return false;
         }
         !self
             .objects
             .iter()
             .filter(|o| o.solid && !o.neighbor && o.id != object.id)
-            .any(|other| footprint.overlaps(Footprint::object(other), margin))
+            .any(|other| {
+                let (a, b) = other.bounds();
+                lo.y < b.y && hi.y > a.y && footprint.overlaps(Footprint::object(other), margin)
+            })
     }
 
     fn assign_work_surfaces(&mut self) {
@@ -485,7 +511,9 @@ impl IndoorManifest {
             chair.interaction_target = surfaces
                 .iter()
                 .filter_map(|surface| {
-                    if surface.neighbor != chair.neighbor {
+                    if surface.neighbor != chair.neighbor
+                        || (surface.position.y - chair.position.y).abs() > 0.05
+                    {
                         return None;
                     }
                     let local = surface
@@ -496,7 +524,10 @@ impl IndoorManifest {
                     let nearest = local
                         .clamp(-surface.size * 0.5, surface.size * 0.5)
                         .with_y(0.0);
-                    let edge = surface.transform().transform_point(nearest).with_y(0.0);
+                    let edge = surface
+                        .transform()
+                        .transform_point(nearest)
+                        .with_y(chair.position.y);
                     let delta = edge - chair.position;
                     let distance = delta.length();
                     if distance > 1.25
@@ -826,9 +857,10 @@ impl IndoorManifest {
             || (self.camera_settings.primary_room && !self.in_primary_room(p, CAMERA_CLEARANCE))
             || p.x.abs() > half.x - 0.50
             || p.z.abs() > half.z - 0.50
-            || p.y < 0.70
+            || p.y < self.floor_height(p.xz()) + 0.70
+            || self.envelope.as_ref().is_some_and(|e| !e.volume_clear(self.room_size,p,CAMERA_CLEARANCE))
             // Include the deepest sampled fixture and continuous lens clearance.
-            || p.y > self.room_size.y - self.program.as_ref().map_or([0.10, 0.42, 0.06][self.lighting_design as usize % 3], |p| p.light_drop) - 0.04 - CAMERA_CLEARANCE
+            || p.y > self.ceiling_height(p.xz()) - self.program.as_ref().map_or([0.10, 0.42, 0.06][self.lighting_design as usize % 3], |p| p.light_drop) - 0.04 - CAMERA_CLEARANCE
         {
             return false;
         }
@@ -852,6 +884,10 @@ impl IndoorManifest {
     pub fn camera_path_clear(&self, start: Vec3, end: Vec3) -> bool {
         self.camera_clear(start)
             && self.camera_clear(end)
+            && self
+                .envelope
+                .as_ref()
+                .is_none_or(|e| e.segment_clear(self.room_size, start, end, CAMERA_CLEARANCE))
             && !self.camera_obstacles().iter().any(|(a, b)| {
                 segment_hits_box(
                     start,
@@ -922,16 +958,26 @@ impl IndoorManifest {
         let mut obstacles = self.columns();
         if let Some(program) = &self.program {
             for p in &program.partitions {
-                let a = p.position(p.door_center - p.door_width * 0.5, p.door_height - 0.025);
-                let b = p.position(p.door_center + p.door_width * 0.5, self.room_size.y);
-                let pad = if p.axis == 0 { Vec3::X } else { Vec3::Z } * (p.thickness * 0.5 + 0.02);
-                obstacles.push((a - pad, b + pad));
+                obstacles.extend(p.portal_obstacles(self.room_size.y));
             }
         }
         obstacles
     }
 
     pub(super) fn columns(&self) -> Vec<(Vec3, Vec3)> {
+        if let Some(envelope) = &self.envelope {
+            let mut boxes = envelope.structural_boxes(self.room_size);
+            boxes.extend(
+                super::architecture::under_mezzanine_fixtures(self)
+                    .into_iter()
+                    .map(|p| {
+                        let half = super::architecture::fixture_size(self) * 0.5;
+                        (p - half - Vec3::Y * 0.008, p + half + Vec3::Y * 0.075)
+                    }),
+            );
+            boxes.extend(super::floorplan::obstacles(self));
+            return boxes;
+        }
         let half = self.room_size * 0.5;
         let mut boxes = Vec::with_capacity(4);
         for sx in [-1.0, 1.0] {

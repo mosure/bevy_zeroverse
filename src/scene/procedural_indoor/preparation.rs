@@ -109,6 +109,7 @@ struct Part {
     label: SemanticLabel,
     surface: Option<super::materials::Surface>,
     human_surface: Option<humans::HumanSurface>,
+    ovoxel_excluded: bool,
 }
 struct Group {
     name: String,
@@ -277,6 +278,7 @@ impl PreparedIndoor {
                         .expect("indoor semantic vocabulary"),
                     surface: Some(surface),
                     human_surface: None,
+                    ovoxel_excluded: label.ends_with("#exterior"),
                 })
                 .collect();
             groups.push(Group {
@@ -344,6 +346,7 @@ impl PreparedIndoor {
                         label: SemanticLabel::Person,
                         surface: None,
                         human_surface: Some(surface),
+                        ovoxel_excluded: false,
                     }
                 })
                 .collect();
@@ -438,6 +441,9 @@ impl PreparedIndoor {
                     OvoxelTracked,
                     ChildOf(root),
                 ));
+                if part.ovoxel_excluded {
+                    child.insert(OvoxelExcluded);
+                }
                 if let Some(surface) = part.surface {
                     child.insert((
                         Name::new(format!("{surface:?}")),

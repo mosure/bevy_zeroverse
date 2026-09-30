@@ -13,7 +13,7 @@ use super::{
 };
 use crate::{
     annotation::obb::{ObbClass, ObbTracked},
-    ovoxel::OvoxelTracked,
+    ovoxel::{OvoxelExcluded, OvoxelTracked},
     render::semantic::SemanticLabel,
 };
 use bevy::{camera::primitives::Aabb, light::NotShadowCaster, prelude::*};
@@ -81,6 +81,9 @@ impl Assembly {
                 OvoxelTracked,
                 ChildOf(parent),
             ));
+            if label.ends_with("#exterior") {
+                entity.insert(OvoxelExcluded);
+            }
             if matches!(
                 surface,
                 Surface::Glass
