@@ -14,6 +14,16 @@ No external JavaScript, fonts, video service or PDF viewer is required.
 
 ## Evidence boundaries
 
+- **Visual baseline comparison, v21:** the same two selected rooms at five
+  baseline settings (0/0.25/0.5/0.75/1), four cameras, 768×480 and t=0: 40 views.
+  Noncamera manifest fields match exactly within each room. Auto quality,
+  1024 GI rays/probe, static people and lighting match the gallery recipe.
+  The two b=0.5 groups reuse its first timestep. Camera poses **and intrinsics**
+  are resampled by the policy; camera 0 can move. Plans use common room axes,
+  footprint proxies and short view-direction wedges, not visibility frusta.
+  The page's local spacing is mean C0-to-peer distance at t=0; shared visibility
+  pools valid pixels from four exact production GPU masks. These selected
+  examples are separate from the 128-room independent-depth sweep below.
 - **Gallery, v21:** two selected rooms (24005 and 24000), four cameras, 768×480,
   normalized times 0/0.1/0.2, all eight render modes, static human density 0.25,
   furnishing density 0.65, default baseline 0.5, Auto quality and 1024 GI rays/probe.
@@ -106,6 +116,54 @@ zero motion. Last-timestep forward flow is invalid. The page labels the actual
 source/target normalized times. Glass remains annotation-opaque, so geometric
 annotations are not reflected/refracted optical content. Exact masks and
 calibration are separate downloads from the display previews.
+
+## Matched baseline illustrations
+
+The new `#baseline` module precedes the annotation explorer. Its five-stop slider
+selects native captures of the continuous policy, without interpolating images.
+Four views, the plan and metrics update atomically after image decoding; stale
+requests cannot mix room or camera identities. RGB and shared-surface overlays
+are available at every setting. The expandable contact sheet shows all four
+cameras at b=0/0.5/1 together and remains usable without JavaScript. Each image
+opens at its native resolution. The paper includes one full-page figure per room
+and a subsection specifying controlled variables, measurements and limitations.
+
+After capturing the default gallery above, capture the other levels into fresh
+directories with the same generator-21 build:
+
+```sh
+for seed in 24005 24000; do
+  for entry in 000:0 025:0.25 075:0.75 100:1; do
+    tag=${entry%:*}
+    baseline=${entry#*:}
+    target/debug/zeroverse_gen --asset-root . --scene-type procedural-indoor \
+      --output "out/baseline_gallery_v21/s${seed}-b${tag}" --seed "$seed" \
+      --samples 1 --workers 1 --cameras 4 --width 768 --height 480 \
+      --indoor-density 0.65 --indoor-human-density 0.25 --indoor-gi-rays 1024 \
+      --indoor-camera "{\"baseline\":${baseline}}" \
+      --playback-steps 1 --playback-step 0.1 \
+      --render-modes color depth position co-visibility \
+      --ov-mode disabled --output-mode fs --color-codec raw --timeout-secs 600 --no-ui
+  done
+done
+python scripts/build_baseline_gallery.py
+python scripts/build_project_whitepaper.py
+```
+
+The builder verifies all noncamera manifest fields, camera policy, capture size,
+GI settings, source-mask exclusion and valid-pixel denominators. It also checks
+depth/position consistency and camera reprojection for all 40 views (maximum
+errors: 0.000025 m and 0.0058 pixels). Original source hashes and individual errors
+are retained in [the illustration report](evidence/baseline_gallery_v21/report.json).
+`static/media/baseline/calibration-and-masks.zip` contains scene manifests,
+expanded settings, intrinsics/extrinsics, provenance and all 40 exact uint16 masks
+with source-valid masks. Website RGB and teal overlays are display previews.
+No per-image exposure correction or appearance filtering is performed.
+
+The browser regression additionally checks 80 baseline-view/display combinations,
+slider keyboard navigation, rapid room/baseline/mode changes, both contact sheets,
+responsive layouts and a JavaScript-disabled fallback. Validation and screenshots
+are retained in `docs/evidence/baseline_gallery_v21/`.
 
 ## Validation
 

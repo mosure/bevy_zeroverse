@@ -6,7 +6,7 @@
 \usepackage{array}
 \title{bevy\_zeroverse: Auditable Procedural Indoor Data for Multi-view Reconstruction}
 \author{\href{https://orcid.org/0009-0009-8476-3358}{Mitchell Mosure}\\\texttt{mitchell@mosure.me}}
-\date{September 28, 2026}
+\date{September 30, 2026}
 \renewcommand{\shorttitle}{bevy\_zeroverse: Procedural Indoor Data}
 \pdfstringdefDisableCommands{\def\\{ }}
 \hypersetup{hidelinks,pdftitle={bevy\_zeroverse: Auditable Procedural Indoor Data for Multi-view Reconstruction},pdfauthor={Mitchell Mosure}}
@@ -90,6 +90,24 @@ Headless generation supports chunked safetensors or per-sample files, compressio
 
 \section{Current-generation evaluation}
 \input{generated/camera_evaluation.tex}
+
+\subsection{Seeing the baseline control in a fixed room}
+Figures~\ref{fig:baseline-seating} and~\ref{fig:baseline-workspace} show the visual effect of camera-baseline sampling in two fixed scenes. Each column contains all four synchronized RGB views and a top-down camera plan at $t=0$. Columns change only the camera policy: geometry, furnishings, static people, materials and lighting are identical within a room, verified by hashing all noncamera manifest fields. The project page provides five captured settings ($b=0,0.25,0.5,0.75,1$), an interactive four-view comparison, and a shared-surface overlay backed by exact exported GPU masks. The figures select three of these settings for legibility; they do not select or crop individual camera views.
+
+These selected illustrations use native Auto lighting, 1024 diffuse-GI rays per probe and $768\times480$ images. They are separate from the consecutive population experiment above. The ten room/configuration captures yield 40 RGB views at one time; the two default groups reuse the matched gallery's $t=0$ exports. Image conversion uses a fixed sRGB transfer after renderer tone mapping, with no per-image exposure normalization.
+
+Camera indices identify members of a resampled group, not fixed physical viewpoints across columns. The reference pose and sampled intrinsics may change as rejection finds a feasible group. Hence the examples illustrate the complete baseline policy, not translation of a fixed calibrated rig. Plans retain identical metric axes within each room and show furniture footprints as proxies; short wedges indicate viewing direction, not full frusta or occlusion. Column headers give the mean camera-0 distance at this timestep and the fraction of valid source-pixel observations shared with at least one peer, pooled across all four views. The latter uses the production GPU surface test, distinct from the population depth diagnostic. Pixel observations repeat surfaces; glass remains a first geometric surface.
+
+\begin{figure}[p]
+\centering\includegraphics[width=\linewidth]{generated/baseline_s24005.jpg}
+\caption{Fixed sunlit seating scene (seed 24005), with narrow, balanced and wide baseline policies from left to right. Rows retain cameras 0--3 in order; the bottom row locates their centers in the same primary room. Close views concentrate on similar content; wider sampling changes perspective and the surfaces jointly observed. Header values describe these particular captures, not population averages.}
+\label{fig:baseline-seating}
+\end{figure}
+\begin{figure}[p]
+\centering\includegraphics[width=\linewidth]{generated/baseline_s24000.jpg}
+\caption{Fixed workspace scene (seed 24000), using the same column and camera ordering as Figure~\ref{fig:baseline-seating}. The room and its lighting are held fixed across baseline values. Feasibility depends on furniture, partitions, camera intrinsics and overlap constraints, so the control is not a requested distance in metres and individual realizations need not vary monotonically.}
+\label{fig:baseline-workspace}
+\end{figure}
 
 \subsection{Diversity diagnostics}
 The population export retains zero-preserving object counts, parameter distributions, camera intrinsics and extrinsics, placement heatmaps, correlations and occupancy signatures. These are correlated projections of the procedural program, not independent degrees of freedom. For categorical frequencies $p$, the entropy-effective count is $\exp(-\sum_jp_j\log p_j)$. The occupancy signature uses a 12-by-12 object-category grid and quantized partition geometry, excluding random seeds and textures. Its HyperLogLog estimate is a bounded geometric redundancy diagnostic, not proof of ten million useful examples.

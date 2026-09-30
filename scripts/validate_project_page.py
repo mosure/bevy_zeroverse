@@ -6,6 +6,7 @@ from pathlib import Path
 from urllib.parse import urljoin, urlparse
 
 from playwright.sync_api import sync_playwright
+import validate_baseline_gallery
 
 
 def main():
@@ -30,6 +31,7 @@ def main():
         data = page.request.get(urljoin(args.url, "static/media/gallery.json")).json()
         assert page.locator("#room-video").evaluate("v => v.paused"), "reduced motion must suppress autoplay"
         page.screenshot(path=str(args.output / "desktop.png"))
+        baseline = validate_baseline_gallery.validate(page, args.url, args.output)
         for s, scene in enumerate(data["scenes"]):
             page.select_option("#scene-select", str(s))
             for c in range(4):
@@ -95,6 +97,7 @@ def main():
             expected_columns = 1 if width < 640 else 2
             assert mobile.locator(".plot-grid").first.evaluate(
                 "e => getComputedStyle(e).gridTemplateColumns.split(' ').length") == expected_columns
+            validate_baseline_gallery.responsive(mobile, width, args.output)
             mobile.select_option("#scene-select", "1")
             mobile.click('[data-camera="2"]'); mobile.click('[data-mode="depth"]')
             mobile.wait_for_function("document.getElementById('annotation-image').src.endsWith('s24000-t0-c2-depth.png')")
@@ -111,11 +114,13 @@ def main():
         autoplay.goto(args.url, wait_until="networkidle")
         autoplay.wait_for_function("document.getElementById('room-video').currentTime > 0.15")
         autoplay.close()
+        validate_baseline_gallery.without_javascript(browser, args.url)
         assert not failures, failures
         report = dict(passed=True, matched_mode_cases=len(cases), cases=cases, checked_local_links=len(checked),
                       media=["4-camera traversal: 120 frames at 20 Hz", "2-camera ARDY motion: 120 frames at 20 Hz"],
                       responsive_widths=[390, 768, 1440], reduced_motion_respected=True,
                       visible_teaser_autoplay=True,
+                      baseline=baseline, baseline_no_javascript_fallback=True,
                       keyboard_reveal=True, camera_membership_selection=True, terminal_flow_checked=True,
                       viewer_runtime_checked=False,
                       errors=failures)
