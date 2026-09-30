@@ -14,13 +14,14 @@ python3 -m http.server 8770 --directory www
 # http://127.0.0.1:8770/project/
 ```
 
-The page includes a two-room/four-camera/eight-mode annotation explorer, a
+The page includes a two-room/five-baseline visual comparison with camera plans,
+measured spacing and shared-surface overlays, a four-camera/eight-mode annotation explorer, a
 pixel-aligned RGB reveal control, per-camera co-visibility membership, exact
 NPZ visibility downloads, 120-frame multi-view and ARDY videos, a GIF, a
 compiled technical whitepaper and its complete LaTeX source archive. Native
 captures supply every render; no generated or stock images stand in for outputs.
-Figures preserve the v18 audit's population and scope. Selected v20 gallery
-rooms do not constitute a repeated population evaluation.
+All figures use generator v21. The two selected illustration rooms are separate
+from the consecutive 512-room population and matched 128-room baseline sweep.
 
 For the exact capture commands, data provenance, display mappings and browser
 checks, see [the project-page review](../docs/project_page.md).
@@ -31,6 +32,7 @@ and Poppler on the host, then run:
 
 ```sh
 python scripts/build_project_media.py --keep-motion-video
+python scripts/build_baseline_gallery.py
 python scripts/build_project_whitepaper.py
 python scripts/validate_project_page.py --url http://127.0.0.1:8770/project/
 # Release check against a server that also hosts the Wasm viewer and its assets:

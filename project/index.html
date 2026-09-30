@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="An open-source procedural data engine for multi-view reconstruction. Explore synchronized renders, geometric annotations, human motion a 2,048-layout audit and co-visibility across five camera-baseline settings.">
+  <meta name="description" content="An open-source procedural data engine for multi-view reconstruction. Compare five camera baselines in fixed rooms, explore aligned annotations and human motion, and inspect a 2,048-layout audit.">
   <meta property="og:title" content="bevy_zeroverse · Procedural rooms, shared geometry">
   <meta property="og:description" content="Calibrated multi-view synthetic data, aligned annotations, optional human motion, and reproducible evaluation.">
   <meta property="og:url" content="https://mosure.github.io/bevy_zeroverse/project/">
@@ -13,14 +13,16 @@
   <title>bevy_zeroverse — Procedural multi-view data</title>
   <link rel="icon" href="static/images/favicon.ico">
   <link rel="stylesheet" href="static/css/index.css">
+  <link rel="stylesheet" href="static/css/baseline.css">
   <script defer src="static/js/index.js"></script>
+  <script defer src="static/js/baseline.js"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
 <header class="site-header">
   <a class="wordmark" href="#main"><svg viewBox="0 0 28 28" aria-hidden="true"><path d="m14 2 11 6v12l-11 6-11-6V8Z M3 8l11 6 11-6 M14 14v12Z"/></svg>bevy_zeroverse</a>
   <nav aria-label="Page navigation">
-    <a href="#explore">Explore</a><a href="#motion">Motion</a><a href="#evidence">Evidence</a><a href="#paper">Whitepaper</a><a class="nav-source" href="https://github.com/mosure/bevy_zeroverse">GitHub ↗</a>
+    <a href="#baseline">Baseline</a><a href="#explore">Explore</a><a href="#motion">Motion</a><a href="#evidence">Evidence</a><a href="#paper">Whitepaper</a><a class="nav-source" href="https://github.com/mosure/bevy_zeroverse">GitHub ↗</a>
   </nav>
 </header>
 <main id="main">
@@ -49,9 +51,53 @@
     </div>
   </section>
 
+  <section id="baseline" class="container section" aria-labelledby="baseline-title">
+    <div class="section-heading">
+      <div><div class="eyebrow">01 / CAMERA BASELINE, MADE VISIBLE</div><h2 id="baseline-title">Same room.<br>A wider point of view.</h2></div>
+      <p>Move from a close camera rig to views spread across the room. The geometry and lighting stay fixed. Watch how perspective and shared surfaces change together.</p>
+    </div>
+    <div class="baseline-explorer" id="baseline-explorer" aria-busy="false">
+      <div class="baseline-toolbar">
+        <label for="baseline-room">Room <select id="baseline-room" disabled><option value="0">24005 · Sunlit seating</option><option value="1">24000 · Workspace &amp; bookshelves</option></select></label>
+        <div class="baseline-modes" role="group" aria-label="Baseline image display">
+          <button data-baseline-mode="rgb" aria-pressed="true" disabled>RGB</button><button data-baseline-mode="shared" aria-pressed="false" disabled>Shared surfaces</button>
+        </div>
+      </div>
+      <div class="baseline-control">
+        <div class="baseline-control-heading"><label for="baseline-slider">Camera baseline</label><span><output id="baseline-value" for="baseline-slider">0.50</output> <span id="baseline-name">Balanced</span></span></div>
+        <input id="baseline-slider" type="range" min="0" max="1" step="0.25" value="0.5" aria-describedby="baseline-control-help" aria-valuetext="0.50, balanced baseline" disabled>
+        <div class="baseline-ticks" role="group" aria-label="Captured baseline settings">
+          <button data-baseline="0" aria-pressed="false" disabled>0 <span>Narrow</span></button>
+          <button data-baseline="0.25" aria-pressed="false" disabled>0.25</button>
+          <button data-baseline="0.5" aria-pressed="true" disabled>0.50 <span>Default</span></button>
+          <button data-baseline="0.75" aria-pressed="false" disabled>0.75</button>
+          <button data-baseline="1" aria-pressed="false" disabled>1 <span>Wide</span></button>
+        </div>
+        <p id="baseline-control-help">Five native captures along the continuous [0,1] control. Baseline sets a sampling policy; the spacing below is measured in this room.</p>
+      </div>
+      <div class="baseline-stage">
+        <aside class="baseline-spatial" aria-label="Camera layout and measured visibility">
+          <figure><img id="baseline-plan" src="static/media/baseline/s24005-b050-plan.png" width="576" height="584" loading="lazy" alt="Top-down camera layout for seed 24005 at baseline 0.50"><figcaption>Primary room · common metre scale<br>Dots: camera centers. Wedges: view directions.<br>Lines connect cameras 1–3 to reference 0.</figcaption></figure>
+          <dl class="baseline-numbers"><div><dt>Mean spacing from camera 0</dt><dd id="baseline-distance">—</dd></div><div><dt>Valid pixels shared with any peer</dt><dd id="baseline-shared">—</dd></div></dl>
+        </aside>
+        <div class="baseline-views" id="baseline-views">
+          <figure style="--camera-color:#146b5a"><a href="static/media/baseline/s24005-b050-c0.webp" target="_blank" rel="noopener"><img src="static/media/baseline/s24005-b050-c0.webp" width="768" height="480" loading="lazy" alt="Seed 24005, baseline 0.50, camera 0 RGB"></a><figcaption><span><i></i>Camera 0 · reference</span><span class="baseline-fov"></span></figcaption></figure>
+          <figure style="--camera-color:#bd572e"><a href="static/media/baseline/s24005-b050-c1.webp" target="_blank" rel="noopener"><img src="static/media/baseline/s24005-b050-c1.webp" width="768" height="480" loading="lazy" alt="Seed 24005, baseline 0.50, camera 1 RGB"></a><figcaption><span><i></i>Camera 1</span><span class="baseline-fov"></span></figcaption></figure>
+          <figure style="--camera-color:#4966b2"><a href="static/media/baseline/s24005-b050-c2.webp" target="_blank" rel="noopener"><img src="static/media/baseline/s24005-b050-c2.webp" width="768" height="480" loading="lazy" alt="Seed 24005, baseline 0.50, camera 2 RGB"></a><figcaption><span><i></i>Camera 2</span><span class="baseline-fov"></span></figcaption></figure>
+          <figure style="--camera-color:#9b4880"><a href="static/media/baseline/s24005-b050-c3.webp" target="_blank" rel="noopener"><img src="static/media/baseline/s24005-b050-c3.webp" width="768" height="480" loading="lazy" alt="Seed 24005, baseline 0.50, camera 3 RGB"></a><figcaption><span><i></i>Camera 3</span><span class="baseline-fov"></span></figcaption></figure>
+        </div>
+      </div>
+      <div class="baseline-caption"><p id="baseline-display-help">Four synchronized RGB views at t = 0. Select an image to open it at full resolution.</p><p id="baseline-status" role="status">Seed 24005 · baseline 0.50 · same geometry &amp; lighting</p></div>
+      <details class="baseline-contact"><summary>Compare narrow, balanced and wide side by side</summary><a id="baseline-contact-link" href="static/media/baseline/s24005-comparison.jpg" target="_blank" rel="noopener"><img id="baseline-contact-image" src="static/media/baseline/s24005-comparison.jpg" width="1808" height="2058" loading="lazy" alt="Seed 24005: all four cameras and room plans at baseline 0, 0.5 and 1"></a></details>
+      <div class="capture-footer"><p>2 fixed rooms · 5 settings · 40 RGB views · 768 × 480</p><div><a href="static/media/baseline/calibration-and-masks.zip" download>Calibration, scene manifests &amp; exact masks ↓</a></div></div>
+    </div>
+    <p class="note">Selected illustrations with full native lighting, separate from the <a href="#evidence">128-room baseline sweep</a>. Furniture, people, materials and lighting match by manifest hash. Camera poses and intrinsics are resampled, so camera 0 need not stay in place. Plan footprints are proxies; wedges show direction, not visibility. Shared-pixel percentages pool valid pixels from all four views using the production GPU annotation; glass is a first geometric surface.</p>
+    <noscript><p class="note">The default views and expandable side-by-side figure work without JavaScript. Enable JavaScript to change rooms, baseline or shared-surface display.</p></noscript>
+  </section>
+
   <section id="explore" class="container section" aria-labelledby="explore-title">
     <div class="section-heading">
-      <div><div class="eyebrow">01 / MATCHED SUPERVISION</div><h2 id="explore-title">Same room. Same camera.<br>A different way to see it.</h2></div>
+      <div><div class="eyebrow">02 / MATCHED SUPERVISION</div><h2 id="explore-title">Same room. Same camera.<br>A different way to see it.</h2></div>
       <p>Switch cameras, time and annotation. Drag the reveal control to compare against the RGB image from exactly the same capture.</p>
     </div>
     <div class="explorer">
@@ -103,7 +149,7 @@
 
   <section id="motion" class="motion-section" aria-labelledby="motion-title"><div class="container section">
     <div class="section-heading">
-      <div><div class="eyebrow">02 / SCENES OVER TIME</div><h2 id="motion-title">People and cameras.<br>One capture clock.</h2></div>
+      <div><div class="eyebrow">03 / SCENES OVER TIME</div><h2 id="motion-title">People and cameras.<br>One capture clock.</h2></div>
       <p>Optional ARDY text and waypoint conditioning drives AnnyBody people. Static actors remain supported; motion models initialize only when a configuration requests them.</p>
     </div>
     <figure class="motion-film">
@@ -118,7 +164,7 @@
 
   <section id="evidence" class="container section" aria-labelledby="evidence-title">
     <div class="section-heading">
-      <div><div class="eyebrow">03 / MEASURED COVERAGE</div><h2 id="evidence-title">Count the variation.<br>Keep the difficult examples.</h2></div>
+      <div><div class="eyebrow">04 / MEASURED COVERAGE</div><h2 id="evidence-title">Count the variation.<br>Keep the difficult examples.</h2></div>
       <p>Current generator measurements cover 512 distinct rendered rooms and a matched camera-baseline sweep. Geometry, lighting and room seeds are held fixed across slider values. All captured rooms contribute.</p>
     </div>
     <!-- CAMERA_EVALUATION_START -->
@@ -168,7 +214,7 @@
   <section id="paper" class="paper-section" aria-labelledby="paper-title"><div class="container section paper-layout">
     <a class="paper-preview" href="static/papers/bevy_zeroverse.pdf" aria-label="Read the bevy_zeroverse whitepaper PDF"><img src="static/media/whitepaper.webp" loading="lazy" width="612" height="792" alt="First page of the bevy_zeroverse technical whitepaper"></a>
     <div>
-      <div class="eyebrow">04 / TECHNICAL WHITEPAPER</div><h2 id="paper-title">Auditable procedural indoor data for multi-view reconstruction.</h2>
+      <div class="eyebrow">05 / TECHNICAL WHITEPAPER</div><h2 id="paper-title">Auditable procedural indoor data for multi-view reconstruction.</h2>
       <p class="paper-author">Mitchell Mosure · September 2026 · Technical report</p>
       <p>The paper describes continuous scene programs, material and geometry construction, calibrated multi-view capture, annotations, optional motion, diversity diagnostics and co-visibility distributions across camera-baseline settings.</p>
       <p>It reports a bounded generator evaluation. Photographic realism, ten-million-sample learning utility and downstream reconstruction gains remain open evaluation questions.</p>
