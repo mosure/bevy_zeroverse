@@ -33,6 +33,7 @@ and Poppler on the host, then run:
 ```sh
 python scripts/build_project_media.py --keep-motion-video
 python scripts/build_baseline_gallery.py
+python scripts/build_paper_covisibility.py --verify-captures out/project_page_v21
 python scripts/build_project_whitepaper.py
 python scripts/validate_project_page.py --url http://127.0.0.1:8770/project/
 # Release check against a server that also hosts the Wasm viewer and its assets:
@@ -49,6 +50,14 @@ local downloads, both videos, reduced motion and mobile layouts. `--check-viewer
 also clicks the actual viewer link, preserves its URL configuration, waits for
 WebGPU scene rendering and checks all four camera tiles for image variation.
 Without this flag, viewer links are checked only for an HTTP response.
+
+The paper's matched co-visibility panels are built from the tracked gallery RGB,
+lossless annotation PNGs, calibration and NPZ archives. The figure builder checks
+exact PNG/membership round trips, camera ordering, self-bit exclusion, validity
+and per-peer/count denominators. Omit `--verify-captures` when the original local
+capture directory is unavailable; that option additionally verifies original
+capture hashes, RGB preview reproduction and depth/position reprojection. The paper figures preserve the
+full image extents, but PDF previews are not numeric training annotations.
 
 To preview just a project-page edit against the currently deployed renderer:
 
