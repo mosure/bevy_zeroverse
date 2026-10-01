@@ -1,18 +1,86 @@
-# Project page: captures, paper and evidence
+# Project page: current captures, paper and evidence
 
-The static page is at `www/project/index.html`. Serve `www/` and open
-`/project/`; the live Pages URL remains
-<https://mosure.github.io/bevy_zeroverse/project/>. The existing GitHub Pages
-workflow deploys the page and its checked-in media when `main` is pushed.
+The main page is `www/project/index.html`; serve `www/` and open `/project/`.
+Its main examples use the current architectural generator, including real
+mezzanine stairs, raised/sunken floors, polygonal footprints and sloping ceilings.
+The page contains **all 32 consecutively rendered rooms**, four cameras, two
+trajectory endpoints and five aligned modes: **256 camera/time views and 1,280
+channel previews**. The population plots use the same **512 consecutive room
+programs**. No rooms are removed for appearance.
 
-The old academic template's placeholder images, venue, arXiv link and unsupported
-claims about trained-model transfer were replaced with actual outputs. The page
-links a PDF compiled from `tex/bevy_zeroverse.tex`, a self-contained
-LaTeX source ZIP, exact co-visibility NPZs, calibration JSON, and machine-readable
-population metrics. Videos are H.264 MP4, with a smaller-resolution GIF download.
-No external JavaScript, fonts, video service or PDF viewer is required.
+The four feature shortcuts select seeds 7, 8, 6 and 2 by structural coverage.
+They do not change population statistics. Room/feature/time controls update the
+four views, calibration and plan together; the reveal slider compares each
+annotation against RGB at exactly the same camera/time. The complete first-view
+contact sheet and native-resolution images also work without JavaScript.
 
-## Evidence boundaries
+Plans use the captured manifest's polygon, window openings, floor patches,
+pillars, portals and mezzanine stairs. Furniture uses solid footprint proxies.
+Camera arrows use the recorded extrinsics; they indicate direction, not visibility
+frusta. The adjacent section follows the indicated dashed line and shows the
+actual envelope roof/floor profile, including stair treads where intersected.
+It omits interior furniture, pillars and partitions. These are explanatory
+**diagrams**, not an alternate renderer or additional captured rooms.
+
+The paper's main evaluation and figures use this current cohort. Earlier
+camera-baseline, exact co-visibility and motion studies are preserved on
+[`reference.html`](../www/project/reference.html) and in the paper's reference
+appendix. Their earlier geometry and independent denominators remain explicit.
+The current cohort did not export co-visibility, optical flow, motion vectors
+or continuous video; those outputs must not be inferred from its display PNGs.
+
+## Current capture and rebuild recipe
+
+```sh
+cargo run --bin indoor_validate --no-default-features --features multi_threaded -- \
+  --seed 0 --audit-seeds 512 --renders 32 --cameras 4 \
+  --width 640 --height 400 --labels --no-raw --playback-steps 2 \
+  --gi-rays 1024 --output out/architecture_v22
+python scripts/report_indoor_architecture.py \
+  out/architecture_v22 docs/evidence/architecture_v22
+python scripts/build_architecture_media.py
+python scripts/build_project_whitepaper.py
+python scripts/validate_architecture_gallery.py --static-only
+python scripts/validate_project_page.py --url http://127.0.0.1:8770/project/
+```
+
+The media builder consumes completed, already validated engine captures. It does
+not render new scenes. It rejects a generator identity older than the source
+constant, mismatched input hashes, mixed run identities, wrong dimensions,
+inconsistent geometry and missing cameras/modes. It preserves original PNG
+hashes, matches plans to captured manifests and checks decoded-pixel equality
+for all non-RGB PNG-to-WebP conversions. Updating the cohort size/protocol requires
+updating the explanatory page/paper text; it cannot silently change denominators.
+
+Assets are under `www/project/static/media/architecture/`. `gallery.json` records
+source/output hashes, camera identities and display conventions; `population.json`
+contains all audit histograms. Per-room JSONs and `calibration-and-programs.zip`
+retain calibration, captured manifests and the 512 architectural programs.
+
+RGB is the original tone-mapped sRGB, encoded at WebP quality 92, without crop or
+exposure correction. Depth is grayscale `clamp(depth_metres / 15, 0, 1)`.
+Normals encode `(n+1)/2`; positions are normalized by the annotation AABB and
+clamped for display. Semantics preserve the captured palette. These **8-bit
+previews are not numeric training labels**. Float32 annotation alignment was
+checked during the original capture and is retained in the metadata.
+
+The page and figures were refreshed from the existing current-generator audit;
+this refresh did not run new GPU captures. Browser closeout passed all 320
+room/time/mode combinations (1,280 views), feature filtering, rapid switching,
+keyboard reveal, 390/768/1440 px layouts and the JavaScript-disabled fallback.
+Static/source-hash checks and the browser results are recorded separately. This
+page check does not qualify the linked WebGPU renderer or fresh scene generation.
+See the [page-refresh validation](evidence/architecture_page/validation.json)
+for exact check counts and the initial environment limitations.
+
+No photographic-realism, unlimited-memory-stability, ten-million-scene-run or
+pretraining-gain claim follows from these artifacts.
+
+## Reference study provenance
+
+The assets below retain their original generator/capture identities and live on
+`reference.html`. Rebuilding these older studies must not overwrite the current
+page, current social preview or current population figures.
 
 - **Visual baseline comparison, v21:** the same two selected rooms at five
   baseline settings (0/0.25/0.5/0.75/1), four cameras, 768×480 and t=0: 40 views.
@@ -43,14 +111,14 @@ No external JavaScript, fonts, video service or PDF viewer is required.
   12,288 views in total. All-camera co-visibility is independently measured from
   depth/calibration. Geometry, lighting, people and materials match across levels.
   See [protocol, denominators and limitations](camera_baseline_v21.md).
-- **Distributions and example cohort, v21:** all plots use the current 2,048-room
+- **Distributions and example cohort, v21:** these plots use the recorded 2,048-room
   population. Eight example RGB images are the first eight rendered rooms, without
   aesthetic filtering; provenance retains the original capture PNG hashes.
 
 No new claims of photographic realism, unlimited memory stability, a ten-million
 scene run, downstream pretraining gains or publication acceptance are made.
 
-## Capture commands
+## Reproducing the recorded reference studies
 
 Run from the repository root with generator-21 source. Each output directory
 must be fresh. Human body assets must be available under `assets/burn_human`;
@@ -119,7 +187,7 @@ calibration are separate downloads from the display previews.
 
 ## Matched baseline illustrations
 
-The new `#baseline` module precedes the annotation explorer. Its five-stop slider
+The `reference.html#baseline` module precedes the reference annotation explorer. Its five-stop slider
 selects native captures of the continuous policy, without interpolating images.
 Four views, the plan and metrics update atomically after image decoding; stale
 requests cannot mix room or camera identities. RGB and shared-surface overlays
@@ -174,7 +242,7 @@ Per-view errors are retained in the calibration downloads. Original source hashe
 recorded in the two calibration JSONs. Both video files contain 120 frames at
 20 fps with six-second duration.
 
-`scripts/validate_project_page.py` tests all 64 room/camera/mode combinations at
+`scripts/validate_project_page.py --reference` tests all 64 room/camera/mode combinations at
 t=0, temporal endpoints, per-peer visibility, keyboard sliders, local links,
 PDF signatures and actual MP4 decoding/playback. It also checks 390/768/1440 px
 layouts and honors reduced-motion preferences. The browser evidence and final
@@ -196,7 +264,7 @@ now checks the exact button navigation against the deployed viewer, including
 the requested seed, scene readiness, GPU submissions, browser/GPU errors and
 nonconstant images in all four capture-camera tiles.
 
-Run `python scripts/validate_project_page.py --check-viewer --url <project-page-url>`
+Run `python scripts/validate_project_page.py --reference --check-viewer --url <reference-page-url>`
 for release validation. This needs Chrome with WebGPU, Playwright, NumPy and
 Pillow. The lightweight default page check explicitly reports
 `viewer_runtime_checked: false`. `scripts/validate_project_viewer.py` can run

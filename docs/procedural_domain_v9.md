@@ -1,5 +1,8 @@
 # Generator 9: continuous furnishing and captured distribution evidence
 
+> **Archived evaluation.** This report describes its recorded build. Use the
+> [documentation index](README.md) for current capabilities and defaults.
+
 Generator 9 adds continuously sampled workstation arrangements, recessed wall
 niches, plant morphology and camera positions. The local qualification covers
 **12,048 CPU-audited rooms and 144 rendered rooms / 576 views**. These establish

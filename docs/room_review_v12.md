@@ -1,5 +1,8 @@
 # Primary-room cameras, furniture, annotations and motion — local v12 review
 
+> **Archived evaluation.** This report describes its recorded build. Use the
+> [documentation index](README.md) for current capabilities and defaults.
+
 Generator 12 addresses annotation preview cost, camera placement, furniture
 geometry, fixture annotations, motion prompts and overlapping architectural trim.
 The [render gallery](evidence/room_review_v12/review.html),

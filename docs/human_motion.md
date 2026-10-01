@@ -128,8 +128,8 @@ behavior or constrained route. See [seed validation](human_motion_randomness.md)
 for real-weight comparisons and platform limits.
 
 The [prompt grammar evaluation](motion_prompt_grammar.md) records text/token,
-room-distribution and real-model checks. The [v12 room review](room_review_v12.md)
-documents primary-room camera controls and the preceding prompt baseline.
+room-distribution and real-model checks. Use the [camera guide](multiview_cameras.md)
+for primary-room trajectory and overlap controls.
 
 Navigation uses swept clearance and A* around objects, columns, solid/glass
 partitions, door frames, the open door leaf, and other people. Moving paths

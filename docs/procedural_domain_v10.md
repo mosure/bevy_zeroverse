@@ -1,5 +1,8 @@
 # Generator 10: furnishing, visibility and embedding evidence
 
+> **Archived evaluation.** This report describes its recorded build. Use the
+> [documentation index](README.md) for current capabilities and defaults.
+
 Generator 10 increases usable furniture density and rotation variance, conditions
 cameras on visible content, and fixes procedural tangent/material defects. An
 optional Burn/WGPU SigLIP2 audit measures redundancy in captured image space.

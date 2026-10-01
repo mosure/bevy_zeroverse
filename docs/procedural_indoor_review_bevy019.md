@@ -1,5 +1,8 @@
 # Indoor qualification after the Bevy 0.19 migration
 
+> **Archived evaluation.** This report describes its recorded build. Use the
+> [documentation index](README.md) for current capabilities and defaults.
+
 **Status: native, WebGPU and dataset qualification passed; finite worker
 lifetimes accepted.** The current source targets Bevy 0.19.1 and retains indoor
 generator version 3. A GPU-binding retention bug is fixed. The final 1,000-scene

@@ -1,5 +1,8 @@
 # Indoor generation 13: capture readiness and visual review
 
+> **Archived evaluation.** This report describes its recorded build. Use the
+> [documentation index](README.md) for current capabilities and defaults.
+
 Headless capture now waits for the current scene, its assets, generated human
 trajectories and indirect lighting before enabling capture cameras. GPU asset
 uploads and pipeline compilation then gate readback. Generator 13 also expands

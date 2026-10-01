@@ -1,5 +1,8 @@
 # Generator-v4 scene quality review
 
+> **Archived evaluation.** This report describes its recorded build. Use the
+> [documentation index](README.md) for current capabilities and defaults.
+
 Generator v4 expands the asset-free indoor grammar on capture-v6, Bevy 0.19.1
 and Burn 0.21.0. It changes seeded scene content, so generation cannot be resumed
 into a generator-v3 dataset. Existing dataset readers and older scene types are

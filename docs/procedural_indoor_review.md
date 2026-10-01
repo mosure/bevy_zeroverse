@@ -1,6 +1,9 @@
 # Procedural indoor evaluation — generator v2
 
-This is a historical v2 report. See the [current v3 evaluation](procedural_indoor_review_v3.md).
+> **Archived evaluation.** This report describes its recorded build. Use the
+> [documentation index](README.md) for current capabilities and defaults.
+
+This is a historical v2 report. See the [archived v3 evaluation](procedural_indoor_review_v3.md).
 The original lighting A/B numbers below were later found to include interactive-camera motion; v3 replaces them with fixed-camera controls and exact pose-equality assertions. They must not be used as isolated lighting-effect measurements.
 
 The indoor mode now has reproducible, tested geometry, cameras, PBR rendering,

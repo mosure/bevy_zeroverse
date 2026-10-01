@@ -1,5 +1,8 @@
 # Generator 8: broader continuous indoor domains
 
+> **Archived evaluation.** This report describes its recorded build. Use the
+> [documentation index](README.md) for current capabilities and defaults.
+
 Generator 8 / `capture-v10` changes scene sampling and pixels. Keep the generator
 version, manifest and capture identity with every dataset shard. Generator 7
 renders and physical comparisons describe that earlier distribution.

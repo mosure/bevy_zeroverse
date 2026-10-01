@@ -1,64 +1,46 @@
-Current appearance/control/motion fixes and captures: [v11 review](human_review_v11.md).
-The validation below describes the earlier v6 baseline.
-
 # Procedural indoor people
 
-Generator version 6 uses the real `burn_human` AnnyBody reference surface, including
-its phenotype blendshapes and all skinning influences. `indoor_human_density`
-(`--indoor-human-density` in the viewer CLI) defaults to 0.25 and accepts 0–1.
-Zero disables people and reference loading. The reference files are in
-`assets/burn_human`; furnishings and their textures remain procedural.
+Indoor people use the `burn_human` AnnyBody reference surface with sampled
+phenotype, pose and appearance. `--indoor-human-density` defaults to 0.25 and
+accepts 0–1; zero omits both people and reference loading. The bundled reference
+lives in `assets/burn_human`.
 
-The reference loads asynchronously. Native scene preparation retargets surfaces on
-the compute pool and retains a bounded 24-person geometry cache for render/GI reuse.
-Dataset capture waits until preparation completes. On Wasm the same geometry code
-runs cooperatively on the browser thread; this is not a threaded Wasm implementation.
+Static poses sample continuous limb, torso, stance and chair-relative parameters.
+Placement checks furniture, partitions, walls, support surfaces, doorway approaches
+and other people. Cameras and their complete paths avoid occupied collision
+envelopes. The manifest records sampled appearance, pose, support and stable
+instance identities for reproducible captures.
 
-Chair occupancy is checked against furniture, partitions, walls, door approaches
-and other people. Working poses require a nearby surface facing the chair. There
-are three seated and five standing activity labels. Each samples continuous end-effector,
-stance, torso and swivel parameters; fixed-length two-bone IK solves each limb.
-These labels are not eight stored skeletons. Neighboring room chairs participate. Cameras and paths exclude people.
+Clothing, hair, footwear, eyewear and facial details are built around the body
+surface with separate material roles. Garment ease, folds, finish, pigmentation
+and grooming vary procedurally. This is fitted geometry rather than cloth
+simulation; hair, faces and silhouettes remain visibly synthetic.
 
-Garment shells, hair and eyewear are procedural additions to the Anny surface.
-Material groups preserve skin, lips, top, trousers, hair, shoes, eye and detail roles.
-Continuous appearance parameters control pigmentation, garment ease, fold amplitude,
-cloth roughness and combed hair geometry. Garment displacement retains shared seam
-positions, and normals are recomputed from the displaced surface.
-This is approximate clothed geometry, not cloth simulation or scanned appearance.
+## Optional motion
 
-The manifest contains the stable instance ID, pose, chair support, stature,
-build, shoulder width, palette/style choices, 21 local skeleton joints and
-collision envelope. The capture exports world-space joint positions and
-world-space bone-axis orientations, bone names/parents, stable human IDs, and
-oriented boxes linked to the same IDs. Poses are static across the camera
-trajectory. Chunk padding is excluded by `human_count` and uses `-1` instance
-IDs. This is pose annotation, not a skinning rig or human-motion generator.
+Static people remain the default. The `human_motion` feature enables opt-in ARDY
+text/waypoint generation, batching, cached model loaders and scene-time playback.
+A configurable fraction of people can move while others retain static poses.
+Models are not initialized when motion is unrequested.
 
-The people remain visibly procedural, particularly faces, hair and
-cloth silhouettes. They are useful controlled room-scale semantic/pose content;
-they are not a replacement for scanned people or learned human appearance when
-human photorealism is the acceptance criterion. Facial expression, clothing
-simulation, speech, hand-object interaction and interpersonal animation are not
-implemented.
+Routes are planned after furnishing and clips are checked before admission.
+Unsupported floor-level transitions are blocked; actors that cannot be staged
+onto suitable level ground remain static with a recorded rejection reason.
+Capture waits for requested trajectories and uploads to become ready. See
+[human motion](human_motion.md) for prompt sampling, inference settings,
+seed behavior, native/browser operation and admission limits.
 
-Current validation includes topology/normals, closed clothing material boundaries,
-actual Anny surface geometry within the conservative
-placement envelopes, floor contact, chair support, exclusion from obstacles and
-camera trajectories, and deterministic replay. Current evidence is recorded in
-the [local scene review](local_scene_quality_review.md).
+## Annotations and validation
 
-Historical generator-v3 validation used the previous primitive people, not AnnyBody.
-Across 128 fixed seeds at
-furnishing density 0.65, human densities 0/0.25/1 produced 0/361/1354 people;
-all five poses, three outfits, eight skin tones and six hairstyles appeared.
-Furniture remained identical across density settings. The native dataset
-qualification additionally verified every world joint against the manifest plus
-world augmentation, with maximum absolute discrepancy 1.09 micrometres across
-five exported scenes, and exact static poses over all three camera steps.
+Exports associate available world-space joints, bone metadata and object bounds
+with stable human IDs. Temporal capture samples poses on the same timeline as
+RGB and calibrated cameras; [flow](optical_flow.md) includes supported skeletal
+and garment deformation. Padded records are excluded using exported counts and
+instance IDs. Semantic person pixels do not establish per-person visibility.
 
-Evidence: `out/indoor_human_final_review` contains the final native 960×720 room render;
-`out/indoor_human_visual_review` contains the initial four-scene visual audit;
-`docs/procedural_indoor/dataset_qualification_v3.json` records indexed capture,
-worker/resume and pose correspondence checks. The broader CPU distribution and
-browser reports cover version 3 human placement as part of each room.
+The [architectural evaluation](architecture_v22.md) reports occupied-room
+visibility in the latest rendered cohort. For current validation commands and
+annotation conventions, use the [generation guide](procedural_indoor.md),
+[dataset guide](procedural_indoor_dataset.md) and [motion guide](human_motion.md).
+Natural motion, hand-object contact, cloth dynamics and photographic appearance
+remain separate qualification questions.

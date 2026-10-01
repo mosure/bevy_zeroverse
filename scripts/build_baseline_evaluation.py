@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Current-generator camera-baseline sweep: matched scenes, absolute metrics only."""
+"""Recorded camera-baseline sweep: matched scenes, absolute metrics only."""
 import argparse
 import csv
 import hashlib
@@ -100,7 +100,7 @@ def collect(root, output, analyze):
         dependency_sha256={name:hashlib.sha256(Path(__file__).with_name(name).read_bytes()).hexdigest()
             for name in ('indoor_camera_group_report.py','indoor_covisibility_report.py','indoor_report.py')},
         software=dict(python=sys.version.split()[0], numpy=np.__version__),
-        limitations=['Same current generator at every slider value; no historical version comparison.',
+        limitations=['Same recorded generator at every slider value; no historical version comparison.',
             'Co-visibility is an independent nearest-depth reprojection diagnostic, not exact production GPU mask counts.',
             'Pixel observations repeat surfaces across views and time; scenes are the independent units.',
             'Captures include all consecutive seeds and times; no filtering by overlap or appearance.',
@@ -145,7 +145,7 @@ def figures(output, result, paths):
             ax.scatter(*p[0,camera,[0,2]],color=f'C{camera}',marker='o')
             ax.scatter(*p[-1,camera,[0,2]],color=f'C{camera}',marker='x')
         ax.set(title=f'Baseline {b:g}',xlabel='x (m)',ylabel='z (m)',aspect='equal');ax.grid(alpha=.2)
-    axes[-1].legend(fontsize=8);fig.suptitle('Seed 24005 · current generator · circles=start, crosses=end')
+    axes[-1].legend(fontsize=8);fig.suptitle('Seed 24005 · reference capture · circles=start, crosses=end')
     fig.savefig(output/'baseline_paths.png',dpi=160);plt.close(fig)
 
 
@@ -163,7 +163,7 @@ def publish(output, result, default, metrics):
         f=row['other_camera_fractions']
         table.append(f"{row['baseline']:.2f} & {row['reference_baseline_m']['p05_p50_p95'][1]:.2f} & {100*row['reference_overlap']['mean']:.1f} & {100*(1-f[0]):.1f} & {100*f[3]:.1f} & {row['proxy_target_misses']} / {row['reference_pairs']} \\\\")
     quality=default['rendered_quality'];overlap=default['reference_overlap'];fractions=default['other_camera_count_fractions_valid']
-    tex=rf'''The current generator is audited on 2,048 consecutive layout seeds (24000--26047) at furnishing density 0.65, static human density 0.25, four cameras and default baseline $b=0.5$. All layouts pass geometry, swept collision and sampled camera constraints. The population contains {len(metrics['numeric'])} numeric series, {sum(v['standard_deviation']>1e-12 for v in metrics['numeric'].values())} with nonzero observed variance. These are correlated measurements.
+    tex=rf'''The camera-baseline reference build (generator 21) was audited on 2,048 consecutive layout seeds (24000--26047) at furnishing density 0.65, static human density 0.25, four cameras and default baseline $b=0.5$. All layouts pass geometry, swept collision and sampled camera constraints. The population contains {len(metrics['numeric'])} numeric series, {sum(v['standard_deviation']>1e-12 for v in metrics['numeric'].values())} with nonzero observed variance. These are correlated measurements.
 
 The rendered population contains 512 distinct consecutive rooms (24000--24511), four $320\times240$ cameras and times $0,0.5,1$. The first 128 rooms are additionally captured at $b=0,0.25,0.75,1$, yielding 1,024 room/configuration captures and 12,288 views. Every row in the parameter sweep uses the same 128 rooms, with identical geometry, people, materials and lighting, verified by manifest hashes. No failed, dark, or low-overlap sample is replaced. Native Auto lighting and shadows are enabled; baked diffuse GI is disabled for the sweep. The selected gallery uses a separate full-lighting recipe. Captures use the checkout-local wgpu command-cache/upload optimizations; published crates resolve registry wgpu. Timing observations do not qualify unpatched package performance.
 
@@ -172,12 +172,12 @@ The rendered population contains 512 distinct consecutive rooms (24000--24511), 
 Baseline & Distance (m) & Overlap (\%) & Shared (\%) & All three (\%) & Proxy misses\\\midrule
 '''+ '\n'.join(table)+rf'''
 \bottomrule\end{{tabular}}
-\caption{{Absolute measurements at five settings of the current camera program. Distance is the median room-mean reference distance, measured at 33 times. Overlap averages bidirectional reference pairs at three rendered times. Shared and all-three fractions use valid source-pixel observations. Each row contains 128 rooms, 1,536 views and 1,152 reference pairs; its proxy threshold depends on baseline.}}
+\caption{{Absolute measurements at five settings of the camera-baseline program. Distance is the median room-mean reference distance, measured at 33 times. Overlap averages bidirectional reference pairs at three rendered times. Shared and all-three fractions use valid source-pixel observations. Each row contains 128 rooms, 1,536 views and 1,152 reference pairs; its proxy threshold depends on baseline.}}
 \end{{table}}
 \begin{{figure}}[ht]\centering\includegraphics[width=\linewidth]{{generated/baseline_sweep.png}}
 \caption{{Realized spacing, room-level overlap quantiles and co-visibility cardinality versus the camera-baseline parameter. Pixel observations and views from the same room are correlated.}}\end{{figure}}
 \begin{{figure}}[ht]\centering\includegraphics[width=\linewidth]{{generated/baseline_paths.png}}
-\caption{{Current camera programs for one fixed room at three baseline settings, using common metric axes.}}\end{{figure}}
+\caption{{Camera programs for one fixed reference room at three baseline settings, using common metric axes.}}\end{{figure}}
 
 At default baseline, all 512 rooms contribute 6,144 views and 4,608 reference-pair/time observations. Mean reference overlap is {100*overlap['mean']:.1f}\%, with minimum {100*overlap['min']:.1f}\%; {default['reference_pairs_below_requested']} pairs miss the proxy target. {100*(1-fractions[0]):.1f}\% of valid source-pixel observations are visible to another camera, and {100*fractions[3]:.1f}\% to all three others. The denominator is {default['source_valid_pixels']:,} valid pixel observations, not unique 3D points. Membership excludes the source camera.
 
@@ -188,17 +188,17 @@ There are {quality['rooms_with_a_view_having_at_most_two_semantic_classes']} roo
     (generated/'camera_evaluation.tex').write_text(tex)
     tr=''.join(f"<tr><td>{r['baseline']:.2f}</td><td>{r['reference_baseline_m']['p05_p50_p95'][1]:.2f} m</td><td>{100*r['reference_overlap']['mean']:.1f}%</td><td>{100*(1-r['other_camera_fractions'][0]):.1f}%</td><td>{100*r['other_camera_fractions'][3]:.1f}%</td></tr>" for r in result['levels'])
     html=f'''
-    <div class="cohort-heading"><h3>Camera baseline: close rigs to wide views</h3><span>generator v21 · current measurements</span></div>
+    <div class="cohort-heading"><h3>Camera baseline: close rigs to wide views</h3><span>matched reference captures</span></div>
     <div class="metric-strip"><div><strong>512</strong><span>distinct rendered rooms</span><small>6,144 views at default baseline</small></div><div><strong>5 settings</strong><span>128 identical rooms at each</span><small>baseline 0, 0.25, 0.5, 0.75, 1</small></div><div><strong>12,288</strong><span>views across the full experiment</span><small>1,024 room/configuration captures</small></div></div>
     <p>The [0,1] Camera baseline slider coordinates reference distance, minimum pair separation, overlap, spread and path variation. Default: 0.5. Advanced edits switch to custom settings; Regenerate applies them. Wider spacing trades shared pixels for stronger viewpoint variation.</p>
-    <figure class="chart"><img src="static/media/baseline_sweep.png" loading="lazy" width="2240" height="592" alt="Current-generation spacing, overlap quantiles and co-visibility cardinality across five camera baseline settings"><figcaption>Same 128 room seeds, geometry and lighting at each value. Bands show room-level 5th–95th percentiles. Co-visibility fractions count valid source-pixel observations, not unique 3D points.</figcaption></figure>
+    <figure class="chart"><img src="static/media/baseline_sweep.png" loading="lazy" width="2240" height="592" alt="Measured reference spacing, overlap quantiles and co-visibility cardinality across five camera baseline settings"><figcaption>Same 128 room seeds, geometry and lighting at each value. Bands show room-level 5th–95th percentiles. Co-visibility fractions count valid source-pixel observations, not unique 3D points.</figcaption></figure>
     <div class="table-scroll"><table><caption>Matched 128-room camera-baseline sweep · 1,536 views per setting</caption><thead><tr><th>Baseline</th><th>Median room-mean distance</th><th>Mean reference overlap</th><th>Shared with any peer</th><th>Shared with all three</th></tr></thead><tbody>{tr}</tbody></table></div>
-    <figure class="chart"><img src="static/media/baseline_paths.png" loading="lazy" width="1920" height="640" alt="Paths in the same current-generation room at baseline 0, 0.5 and 1"><figcaption>Seed 24005 · common metric axes · circles mark starts and crosses mark ends. Camera travel is separate from spacing between views.</figcaption></figure>
+    <figure class="chart"><img src="static/media/baseline_paths.png" loading="lazy" width="1920" height="640" alt="Paths in the same reference room at baseline 0, 0.5 and 1"><figcaption>Seed 24005 · common metric axes · circles mark starts and crosses mark ends. Camera travel is separate from spacing between views.</figcaption></figure>
     <p>Across all 512 rooms at default baseline, mean reference overlap is {100*overlap['mean']:.1f}% (minimum {100*overlap['min']:.1f}%). {default['reference_pairs_below_requested']:,}/{default['reference_pairs']:,} observations miss the proxy target and remain reported. {100*(1-fractions[0]):.1f}% of valid source pixels are shared with another camera.</p>
     <p class="note">These are independent rendered-depth diagnostics; the gallery exports exact production GPU masks using a different surface test. Sweep: four 320 × 240 cameras, three times, native shadows, baked GI disabled. The gallery uses full lighting. No appearance filtering, photographic-realism claim or downstream training qualification.</p>
     <div class="evidence-downloads"><a href="static/media/baseline-v21.json" download>Baseline sweep (JSON) ↓</a><a href="static/media/covisibility-v21.json" download>512-room co-visibility (JSON) ↓</a><a href="static/media/population-v21.json" download>2,048-room distributions (JSON) ↓</a><a href="https://github.com/mosure/bevy_zeroverse/blob/main/docs/camera_baseline_v21.md">Protocol and limitations ↗</a></div>
 '''
-    page=ROOT/'www/project/index.html';text=page.read_text();a=text.index('<!-- CAMERA_EVALUATION_START -->');b=text.index('<!-- CAMERA_EVALUATION_END -->',a)
+    page=ROOT/'www/project/reference.html';text=page.read_text();a=text.index('<!-- CAMERA_EVALUATION_START -->');b=text.index('<!-- CAMERA_EVALUATION_END -->',a)
     page.write_text(text[:a]+'<!-- CAMERA_EVALUATION_START -->'+html+'    '+text[b:])
     rows = []
     for row in result['levels']:

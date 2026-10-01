@@ -1,5 +1,8 @@
 # Continuous capture and physical reference qualification
 
+> **Archived evaluation.** This report describes its recorded build. Use the
+> [documentation index](README.md) for current capabilities and defaults.
+
 This review covers capture-v6 on Bevy 0.19.1, Burn 0.21.0, `burn_human` 0.4.0
 and `bevy_burn_human` 0.4.0. Generator version 3 retains the existing seeded
 architecture, furnishings and cameras. The earlier [migration review](procedural_indoor_review_bevy019.md)

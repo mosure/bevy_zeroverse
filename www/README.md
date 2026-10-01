@@ -14,63 +14,55 @@ python3 -m http.server 8770 --directory www
 # http://127.0.0.1:8770/project/
 ```
 
-The page includes a two-room/five-baseline visual comparison with camera plans,
-measured spacing and shared-surface overlays, a four-camera/eight-mode annotation explorer, a
-pixel-aligned RGB reveal control, per-camera co-visibility membership, exact
-NPZ visibility downloads, 120-frame multi-view and ARDY videos, a GIF, a
-compiled technical whitepaper and its complete LaTeX source archive. Native
-captures supply every render; no generated or stock images stand in for outputs.
-All figures use generator v21. The two selected illustration rooms are separate
-from the consecutive 512-room population and matched 128-room baseline sweep.
+The main page presents the **current architectural generator**: all 32 rendered
+rooms, four synchronized views, both trajectory endpoints and five matched
+channels, with per-room plans/sections and 512-room distributions. Feature
+shortcuts expose mezzanines, stairs, floor levels, chamfers, cut-ins and arches.
+All displayed RGB comes from actual native captures.
 
-For the exact capture commands, data provenance, display mappings and browser
-checks, see [the project-page review](../docs/project_page.md).
+`project/reference.html` preserves the earlier camera-baseline sweep,
+eight-mode annotation explorer, exact co-visibility masks, traversal video and
+ARDY motion video. It labels their original capture scope explicitly. Those
+studies are not measurements of the current architectural cohort.
 
-To rebuild assets after regenerating those captures, install NumPy, Pillow,
-Matplotlib and safetensors in a Python environment, plus FFmpeg, latexmk/pdflatex
-and Poppler on the host, then run:
+The whitepaper's main figures show current architectural captures and metrics;
+its reference appendix retains the older baseline and co-visibility evidence.
+The PDF and complete LaTeX source archive are downloadable from both pages.
+
+To rebuild from completed current captures (NumPy, Pillow, Matplotlib,
+latexmk/pdflatex and Poppler required):
 
 ```sh
-python scripts/build_project_media.py --keep-motion-video
-python scripts/build_baseline_gallery.py
-python scripts/build_paper_covisibility.py --verify-captures out/project_page_v21
+python scripts/build_architecture_media.py
 python scripts/build_project_whitepaper.py
+python scripts/validate_architecture_gallery.py --static-only
 python scripts/validate_project_page.py --url http://127.0.0.1:8770/project/
-# Release check against a server that also hosts the Wasm viewer and its assets:
+# Optional recorded-reference regression:
+python scripts/validate_project_page.py --reference \
+  --url http://127.0.0.1:8770/project/reference.html
+# Release check also opens the actual linked WebGPU viewer:
 python scripts/validate_project_page.py --check-viewer \
   --url https://mosure.github.io/bevy_zeroverse/project/
 ```
 
-The media builder checks capture calibration, per-mode dimensions, camera-bit
-exclusion and optical-flow unit conversions. It verifies the first eight audit
-images against the recorded SHA-256 identities. The paper builder includes
-source and PDF hashes. Browser checks require Playwright and Chrome; they cover
-every room/camera/mode at t=0, temporal controls, peer masks, keyboard reveal,
-local downloads, both videos, reduced motion and mobile layouts. `--check-viewer`
-also clicks the actual viewer link, preserves its URL configuration, waits for
-WebGPU scene rendering and checks all four camera tiles for image variation.
-Without this flag, viewer links are checked only for an HTTP response.
+The current media builder checks generator freshness against the source,
+completed-run identity, audited input hashes, manifest/plan consistency and
+lossless annotation-preview conversion. It fails on missing channels or changed
+cohort denominators. Browser checks exercise every room/time/mode combination,
+atomic view switching, feature filters, keyboard controls and responsive layouts.
+Static validation is available without a browser and is reported separately;
+it does not establish browser or WebGPU runtime correctness.
 
-The paper's matched co-visibility panels are built from the tracked gallery RGB,
-lossless annotation PNGs, calibration and NPZ archives. The figure builder checks
-exact PNG/membership round trips, camera ordering, self-bit exclusion, validity
-and per-peer/count denominators. Omit `--verify-captures` when the original local
-capture directory is unavailable; that option additionally verifies original
-capture hashes, RGB preview reproduction and depth/position reprojection. The paper figures preserve the
-full image extents, but PDF previews are not numeric training annotations.
-
-To preview just a project-page edit against the currently deployed renderer:
-
-```sh
-python scripts/validate_project_viewer.py --project-html www/project/index.html
-```
+See [capture recipes, mappings and provenance](../docs/project_page.md) for
+current and reference workflows. Deployment copies checked-in assets; it does
+not regenerate captures or run inference.
 
 ## wasm support
 
 to build wasm run:
 
 ```bash
-cargo build --locked --target wasm32-unknown-unknown --bin viewer --release --no-default-features --features "web"
+cargo build --locked --target wasm32-unknown-unknown --bin viewer --release --no-default-features --features "web,human_motion"
 ```
 
 to generate bindings:
@@ -88,15 +80,18 @@ default demo URL and an indoor scene with the inspector enabled:
 
 ```bash
 python scripts/validate_indoor_web.py --url-only \
-  --url 'http://127.0.0.1:8765/?yaw_speed=0.7&cameras_x=2&cameras_y=2&regenerate_ms=8000&plucker_visualization=true' \
+  --url 'http://127.0.0.1:8765/?scene_type=procedural-indoor&num_cameras=4&camera_grid=true&regenerate_ms=0' \
   --observe-seconds 10 --output out/web_default_editor
 python scripts/validate_indoor_web.py --editor --seeds 6 --profiles auto portable \
-  --generator-version 8 --regenerate --output out/web_indoor_editor
+  --regenerate --output out/web_indoor_editor
 ```
 
-`--url-only` preserves the URL and its defaults exactly. The old `cameras_x` and
-`cameras_y` parameters are ignored; use `num_cameras=4&camera_grid=true` for a
-four-camera grid. Browser checks retain console logs and canvas screenshots and
+`--url-only` preserves the URL and its defaults exactly. Browser checks retain console logs and canvas screenshots and
 fail on inspector-registration warnings, missing picking, and browser/GPU errors.
 
-The current results cover 2,048 layouts, 512 distinct rendered rooms and a matched 128-room sweep at five camera-baseline values. See [the v21 protocol](../docs/camera_baseline_v21.md). Run `scripts/build_baseline_evaluation.py --analyze`, `scripts/build_project_media.py --captures out/project_page_v21`, then `scripts/build_project_whitepaper.py`. The page and whitepaper show current-generator measurements only.
+The [documentation index](../docs/README.md) describes current capabilities.
+The [architectural evaluation](../docs/architecture_v22.md) supplies the latest
+512-room structural audit and 256-view rendered cohort. The
+[camera-baseline study](../docs/camera_baseline_v21.md) preserves its separate
+2,048-layout / 512-rendered-room reference population. Rebuilding a report from
+stored captures does not update the generator that produced them.

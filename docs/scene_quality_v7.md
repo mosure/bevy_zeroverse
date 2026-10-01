@@ -1,5 +1,8 @@
 # Local generator 7 review
 
+> **Archived evaluation.** This report describes its recorded build. Use the
+> [documentation index](README.md) for current capabilities and defaults.
+
 Generator 7 changes pixels and camera paths. The capture contract is `capture-v9`;
 generator 6 distributions and Cycles comparisons are historical evidence only.
 All work in this review is local; no release or remote CI was requested.

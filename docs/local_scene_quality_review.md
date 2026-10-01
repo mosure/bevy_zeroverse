@@ -1,5 +1,8 @@
 # Local generator-v5 scene and startup review
 
+> **Archived evaluation.** This report describes its recorded build. Use the
+> [documentation index](README.md) for current capabilities and defaults.
+
 This is an uncommitted local revision on top of `f81f163`, using capture-v7.
 No release or CI run qualifies these changes. The previous generator-v4 reports
 remain historical evidence; they do not qualify the new human surfaces or layouts.

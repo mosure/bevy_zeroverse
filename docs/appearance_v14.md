@@ -1,5 +1,8 @@
 # Indoor appearance and optical qualification, v14
 
+> **Archived evaluation.** This report describes its recorded build. Use the
+> [documentation index](README.md) for current capabilities and defaults.
+
 This update improves fitted hair, material microstructure and glass sampling, and adds a reproducible physical-rendering benchmark. **It does not establish photographic realism.** The measurements and visual failures are retained in [the evidence bundle](evidence/appearance_v14/summary.json), including the difficult dark scene. No exposure fitting, image registration, or denoised Cycles reference is used.
 
 Hair now has a tessellated Anny scalp, a shaped and sealed hairline, fibre-aligned UVs, continuous part/curl relief, and swept, tapered bun/ponytail volumes. Tied hair attaches to the actual phenotype surface. The entire groom follows the head bone during motion, avoiding nearest-shoulder weight transfer. Geometry tests cover all eight style controls at length/curl/part extremes and bound groom vertex counts. [Before/after portraits](evidence/appearance_v14/hair_before_after.png) retain the same people, poses, cameras and studio lighting. Close-ups still reveal a stylized surface groom; this is not individual-fibre transport or a subsurface skin model. [PBRT's hair model](https://pbr-book.org/4ed/Reflection_Models/Scattering_from_Hair) describes the richer scattering model that this approximation does not implement.

@@ -1,5 +1,8 @@
 # Exterior architecture and windows, v17
 
+> **Archived evaluation.** This report describes its recorded build. Use the
+> [documentation index](README.md) for current capabilities and defaults.
+
 Exterior windows previously occupied only the negative-X wall, with the same sill/head heights in every bay. New manifests store an `exterior` program shared by architecture construction, wall-attachment rejection, validation and metrics. The primary room can expose its left, right and rear sides independently. All seven nonempty combinations occur, including adjacent corner exposure, opposite walls and three exposed sides. The fourth wall retains the internal glazed partition and furnished neighboring room.
 
 Each exposed wall independently samples a continuous aperture program: bay pitch and unequal widths, pier spacing, sill/head heights, optional separated vertical bands, mullion columns, transom height, frame width/depth, recess and sill projection. The height distribution favors near-floor-to-ceiling glazing while retaining ordinary punched windows, high ribbons and clerestories. Frames use metal, wood or plastic; panes, inset reveals, sills and handles are separate geometry. Optional roller or tilted Venetian shades have continuous deployment. Openings are rectangular; curved walls, arched windows, projecting bay windows and an arbitrary building envelope are not implemented here.

@@ -1,5 +1,8 @@
 # Clothing, motion controls and viewer annotation review
 
+> **Archived evaluation.** This report describes its recorded build. Use the
+> [documentation index](README.md) for current capabilities and defaults.
+
 Generator 19 replaces the squared torso offset with smooth sections fitted to
 each Anny body. Front and back profiles hang below their supports instead of
 following every anatomical depression. Shoulder and hem offsets fade smoothly;

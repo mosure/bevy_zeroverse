@@ -30,7 +30,7 @@ metres; camera 0 is the reference.
 
 These constrain a stochastic sampler, rather than determining exact camera
 positions. Room dimensions, furniture, camera intrinsics and visibility rejection
-shape the realized spacing and overlap. The [current measured parameter sweep](camera_baseline_v21.md)
+shape the realized spacing and overlap. The [recorded camera-baseline study](camera_baseline_v21.md)
 shows their distributions across matched rooms. Wider settings trade shared
 pixels for viewpoint variation; they do not guarantee a training-quality optimum.
 
@@ -106,12 +106,13 @@ array requires `min_spread: 0`.
 Rust callers can use `MultiViewSettings::from_baseline(b)` or
 `IndoorManifest::resample_cameras(count, settings, aspect)`; failed resampling
 preserves the prior camera set. Manifests retain the concrete policy, intrinsics
-and full trajectories. Generator **21**, multi-view policy **4** and capture
-identity **v32** prevent resumptions from mixing incompatible camera samples.
+and full trajectories. Generator, multi-view policy and capture-engine identities
+prevent resumptions from mixing incompatible camera samples. Always retain the
+identities exported by the build used for capture.
 
 ## Metrics and rendered qualification
 
-Metrics schema **10** includes `camera_overlap.csv`, `camera_groups.csv`,
+Metrics include `camera_overlap.csv`, `camera_groups.csv`,
 `camera_paths.csv` (33 times/camera), triangulation angles, reference and pair
 separation, spread and motion distributions. Independently recompute geometry:
 

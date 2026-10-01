@@ -1,5 +1,8 @@
 # Human appearance, controls and motion — local v11 review
 
+> **Archived evaluation.** This report describes its recorded build. Use the
+> [documentation index](README.md) for current capabilities and defaults.
+
 This revision fixes concrete rendering and control defects while retaining the
 AnnyBody phenotype mesh and optional ARDY motion. The [portrait/body gallery](evidence/human_review_v11/review.html)
 and [machine-readable report](evidence/human_review_v11/summary.json) show the

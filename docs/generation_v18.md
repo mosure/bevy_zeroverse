@@ -1,5 +1,8 @@
 # Generation performance and dataset audit, v18
 
+> **Archived evaluation.** This report describes its recorded build. Use the
+> [documentation index](README.md) for current capabilities and defaults.
+
 The [paper](../tex/bevy_zeroverse.tex) now describes the implemented engine and measured results. It no longer claims a trained reconstruction model or demonstrated real-data gains. [Machine-readable evidence](evidence/generation_v18/report.json), [hardware/compiler](evidence/generation_v18/hardware.json), [population metrics](evidence/generation_v18/metrics.json), [camera CSV](evidence/generation_v18/cameras.csv), [placement heatmaps](evidence/generation_v18/placement_heatmaps.svg), and [generated figures/tables](../tex/generated) accompany it.
 
 ## Measured performance

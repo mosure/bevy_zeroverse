@@ -10,22 +10,12 @@ This is a substantial procedural/PBR baseline, **not a demonstrated state-of-the
 photorealistic renderer**. The implementation and validation below separate what
 works from what has not been qualified.
 
-The [v22 architectural envelope review](architecture_v22.md) adds tapered and
-chamfered footprints, exterior cut-ins, sloped roofs, arched portals, pillars,
-floor levels, and furnished mezzanines with stairs and guardrails. It includes a
+The generator samples polygonal footprints, ceiling planes, floor levels,
+window apertures, activity mixtures, furniture components, surfaces and lighting.
+Tapered walls, chamfered corners, exterior cut-ins, archways, pillars and furnished
+mezzanines share the same geometry program used by placement, camera clearance
+and export. See the [architectural evaluation](architecture_v22.md) for the latest
 512-room structural audit and 256 aligned rendered views.
-
-The [v17 exterior/window review](facade_v17.md) adds independently sampled
-exterior walls, larger near-floor-to-ceiling glazing, inset frames and shared
-aperture checks for finishes and wall-mounted objects, with distribution exports.
-
-The [v16 seating/activity review](seating_v16.md) documents modular upholstery,
-chair and bookshelf programs, wall hardware, generated board/TV content, continuous
-activity mixtures, playback/grid fixes and bounded native/browser validation.
-
-The [v15 tabletop/material review](tabletop_v15.md) documents new drink vessels,
-stationery, phones and microphones, device/clock programs, shared PBR finishes,
-and the preceding distribution and rendered-output checks.
 
 ## Run and inspect
 
@@ -51,40 +41,32 @@ but no window or display server. The CPU audit does not require a graphics adapt
 
 The viewer starts inside the generated room. The existing regeneration control
 advances the scene seed. `--indoor-layout` accepts `mixed`, `conference`, `open-office`,
-`lounge`, or `training`; density accepts `[0, 1]`. `--indoor-human-density` controls occupancy independently (default 0.25, zero disables people). Invalid density values fail generation.
+`lounge`, `training`, `coworking`, `breakroom`, `reception`, `library`, `workshop`,
+or `studio`. These bias continuous activity mixtures; they are not fixed room
+templates. Density accepts `[0, 1]`. `--indoor-human-density` controls occupancy independently (default 0.25, zero disables people). Invalid density values fail generation.
 
 ## Generation contract
-
-The review found three central constraints in the older path: imported objects
-were fitted as coarse mesh units, material selection lacked part/surface roles,
-and export applied tone mapping plus channel normalization after rendered color
-was already tone mapped. Legacy semantic-room dimensions/cameras also covered
-spaces much larger than ordinary offices. The new mode addresses those constraints
-with metric construction, explicit surface roles, calibrated cameras and separate
-color-encoding metadata; it preserves the existing generators for compatibility.
 
 `src/scene/procedural_indoor/` separates layout, geometry, surfaces, object builders,
 architecture, runtime integration and validation. `IndoorManifest` is a versioned,
 serializable record of the seed, dimensions, layout, styles, lighting, instances,
 support relationships, camera paths and optional world rotation.
 
-- Furniture placement uses four activity priors over continuously sampled room
-  partitions, spacing, object proportions and coordinated finishes.
-  Room dimensions are 5.6–21 m, with logarithmic area/aspect sampling; ceiling height is 2.65–4.8 m.
-  The adjoining glazed room is 3.2 m deep.
-- Tables have separate tops, aprons, legs and cable details. Chairs have seats,
-  thick curved backs, frames, arms and wheeled, cantilever or wood bases. Other
-  builders cover sofas, cabinets, bookcases/books, leafy plants and pots, bins,
-  whiteboards, displays, monitors, laptops, mugs, notebooks, keyboards, mice,
-  bottles, pen holders, clocks, lamps, rugs, printers, storage boxes, coat racks and bags.
-- Exterior windows sample one, two or three walls (all seven combinations),
-  with continuous bay widths, sill/head heights, pier spacing, frame dimensions
-  and inset depths. Tall glazing, horizontal ribbons and stacked bands use real
-  wall cutouts. The fourth wall retains the glazed neighboring room.
-- Architecture includes real window openings, inset glazing, sills, mullions,
-  optional blinds, pilasters, skirting, ceiling trim, acoustic treatments,
-  ventilation grilles, light housings and an open doorway. Adjacent furniture and
-  exterior buildings are actual geometry.
+- Furniture placement blends activity priors over continuously sampled functional
+  zones, partitions, spacing, object proportions and coordinated finishes.
+  Supporting surfaces and circulation space constrain placement.
+- Tables vary top shape, edge profile, aprons, legs and cable details. Chairs
+  vary seat/back curves, height, headrests, arms and bases; backless stools and
+  modular upholstered seating are included. Builders also cover shelving/books,
+  potted plants, bins, whiteboards, displays, computers, clocks, rugs, lighting,
+  storage and tabletop drinks, stationery, microphones and phones.
+- The polygonal envelope and sloping ceiling determine wall meshes, exterior
+  apertures, inset frames, mullions, sills, shades and fixture heights. Window
+  area can span multiple facades, with tall, ribbon or stacked openings.
+  An internal glazed partition connects the furnished neighboring room.
+- Arched portals, pillars, acoustic treatments, trim and ventilation add structural
+  detail. Raised and sunken floors have treads and risers; mezzanines include
+  supports, stairs, guards and furnishings. The courtyard cut-in remains empty.
 - Wood, flooring, fabric, paint, foliage, concrete and other surfaces have distinct
   material roles. Generated 256² maps use mipmaps, repeating metric UVs, linear
   normal/roughness data, and sRGB albedo. Wood uses periodic anisotropic noise;
@@ -99,8 +81,10 @@ support relationships, camera paths and optional world rotation.
   swept collision tests against furniture/columns, not just clear endpoints.
   Paths maintain a 0.28 m clearance around nominal object envelopes, including supported props, columns and suspended lights; viewing directions are checked throughout motion.
 - Cameras cover seated, low, standing and elevated viewpoints, 0.78–3.25 m heights,
-  roughly 28–107° vertical FOV and 0.03–3.0 m requested translation baselines.
-  Cubic Bezier paths vary bend, target and roll; the full curve is clearance checked.
+  varied intrinsics and configurable travel lengths. The independent
+  [baseline control](multiview_cameras.md) sets spacing and shared-view constraints.
+  Cubic Bezier paths vary bend, target and roll; the full curve is clearance checked
+  against the local floor, sloped ceiling, walls and obstacles.
   Even single-camera streams span
   height strata across seeds. Camera count does not change furniture or earlier views.
 
@@ -130,7 +114,7 @@ batch = next(iter(loader))
 
 `indoor_manifest` is UTF-8 JSON carried as a ragged uint8 tensor. Use the provided
 collator for manifests and variable-length annotations. Indoor Python indexing is
-now reproducible: `dataset[i]` requests `base_seed + i`, including repeated indices,
+reproducible: `dataset[i]` requests `base_seed + i`, including repeated indices,
 shuffled access and worker changes. Camera count does not change furniture or
 previous camera samples. Split datasets by scene seed, not camera or timestep.
 
@@ -145,7 +129,7 @@ camera distributions and placement heatmaps in `metrics/`.
 See [dataset configuration and export contracts](procedural_indoor_dataset.md) for
 complete commands, resume semantics and tested Rust/Python interoperability.
 
-For multi-view reconstruction, use the optional [shared-surface camera policy](multiview_cameras.md), with overlap and baseline controls plus rendered-depth qualification.
+For multi-view reconstruction, use the default [shared-surface camera policy](multiview_cameras.md), with overlap and baseline controls plus rendered-depth qualification.
 
 ## Capture and color contracts
 
@@ -168,12 +152,15 @@ invalid semantic palette sizes and inconsistent geometric/camera annotations.
 | Output | Meaning |
 | --- | --- |
 | RGB raw | Bevy tone-mapped **linear** RGB, not scene radiance |
-| RGB PNG / new indoor dataset exports | Fixed linear-to-sRGB transfer; no second tone map or image/channel min/max scaling |
+| RGB PNG / indoor dataset exports | Fixed linear-to-sRGB transfer; no second tone map or image/channel min/max scaling |
 | Linear depth | Positive camera z depth in metres; depth PNG is only a `/15 m` visualization |
 | Normal | View-space geometric normal encoded as `0.5 * normal + 0.5` |
 | Position | World position affine-normalized to the primary-room AABB; decode with `min + value * (max - min)`. Visible context can lie outside `[0, 1]`. |
 | Semantic | Existing semantic palette; PNG applies sRGB encoding, raw/tensor colors are linear |
-| OBB | Bounds of constructed object geometry with object class; architectural surfaces are semantic meshes |
+| OBB / AABB | Constructed object bounds and the primary-room reconstruction region |
+| Optical flow / motion vectors | Forward correspondence to the next captured timestep, with validity and visibility masks; see [conventions](optical_flow.md) |
+| Co-visibility | Per-pixel U16 membership in up to 16 capture cameras; see [numeric contract](co_visibility.md) |
+| O-voxel | Primary-room surface geometry and semantic labels; [one timestep, human motion disabled](ovoxel_indoor.md) |
 
 Glass is treated as the first opaque geometric surface in depth/normal/position/
 semantic passes even though RGB sees through it. This policy is intentional and
@@ -194,47 +181,34 @@ without float16 quantization. `annotation_precision=float32_geometry` records
 this path. Interactive annotation display and legacy modes retain the HDR16
 path (`float16_hdr`). RGB still uses Bevy's HDR/tonemapping pipeline.
 
-An independent f64 ray/triangle test measured maximum position error of 66 µm
-and reprojection error of 0.00218 pixels across 518 samples, including transformed
-curved surfaces, motion, visibility and opaque-glass labels. Raster subpixel
-precision is distinguished from storage precision. PNG previews remain visual
-previews, not the authoritative geometric tensors.
-
-The new `ColorEncoding` metadata prevents repeated RGB conversion when chunks are
-loaded and saved again. Missing metadata retains the historical legacy behavior.
-Existing scene modes keep their previous color-export convention.
+PNG previews remain visual previews, not the authoritative geometric tensors.
+`ColorEncoding` metadata prevents repeated RGB conversion when chunks are loaded
+and saved again. Dataset resumes require a matching recorded capture contract.
 
 ## Validation evidence
 
-The implementation is generator v8; see the [continuous domain review](procedural_domain_v8.md).
-The [generator-v7 review](scene_quality_v7.md) records earlier annotation and viewer fixes.
-Historical evidence includes the [v3 evaluation](procedural_indoor_review_v3.md),
-[diffuse transport](procedural_indoor_gi.md), [human generation](procedural_indoor_humans.md),
-and [dataset contract](procedural_indoor_dataset.md). The [v2 evaluation](procedural_indoor_review.md)
-and its [qualification](procedural_indoor/qualification.json) are retained as historical evidence.
-The checked-in figures and pictures are actual engine captures. The review covers
-geometry, materials, shadows, camera motion, dataset export, and a real WebGPU
-browser runtime; it explicitly separates correctness from photographic realism.
+The [architectural evaluation](architecture_v22.md) records all 512 consecutive
+layout seeds and the first 32 rendered rooms without appearance filtering: four
+cameras at two times produce 256 aligned RGB/depth/normal/semantic/position views.
+It reports feature frequencies, structural uniqueness, semantic coverage,
+annotation alignment and CPU/GPU voxel agreement. These are bounded diagnostics,
+not a photographic-realism or downstream-training qualification.
 
-![Office](procedural_indoor/office_v3.png)
-![Conference room](procedural_indoor/conference_v3.png)
-![Lounge](procedural_indoor/lounge_v3.png)
+![Every consecutively rendered room, first camera](evidence/architecture_v22/consecutive_rooms.jpg)
 
-Reproduce the broad native audit and measured report:
+Reproduce the architectural audit and report in a fresh output directory:
 
 ```sh
 cargo run --no-default-features --features multi_threaded --bin indoor_validate -- \
-  --seed 0 --audit-seeds 10000 --stratified --cameras 2 \
-  --width 320 --height 240 --playback-steps 3 --labels --no-raw \
-  --output out/indoor_review
-python scripts/indoor_report.py out/indoor_review --figures
+  --seed 0 --audit-seeds 512 --renders 32 --cameras 4 \
+  --width 640 --height 400 --playback-steps 2 --labels --no-raw \
+  --gi-rays 1024 --output out/indoor_review
+python scripts/report_indoor_architecture.py out/indoor_review out/indoor_report
 ```
 
-The report script needs Pillow and matplotlib for `--figures`; JSON summaries use
-only Python's standard library. It exports complete first-view contact sheets by
-layout, exposure extremes and count/intrinsic/trajectory charts. CPU audit exports
-remain available without Python or a GPU. Large stratified render runs use all
-observed cells when `--renders` is omitted; `--renders N` caps the sample count.
+The report requires Pillow and matplotlib. Its input hashes and capture metadata
+identify the evaluated build. CPU audits also export object/count distributions,
+calibration and trajectory metrics, placement heatmaps and architecture programs.
 
 Regression commands:
 
@@ -289,7 +263,7 @@ alone is not runtime evidence.
 
 ## Remaining qualification and scope
 
-Generator v22 uses continuously sampled polygonal footprints, ceiling planes and
+The generator uses continuously sampled polygonal footprints, ceiling planes and
 floor levels, with one adjoining office. The [architectural review](architecture_v22.md)
 describes its supported geometry and measured coverage. It remains a bounded
 building grammar: curved exterior walls, arbitrary multi-storey connectivity,
@@ -342,11 +316,7 @@ utilization; device-wide activity is never attributed to the generator.
 and throughput plots. PNG/file encoding is excluded from this engine benchmark;
 canonical CLI writer tests measure that separate path.
 
-The [continuous capture and physical review](procedural_indoor_review_v6.md)
-records the Bevy 0.19 measurements and the hardware-specific streaming-copy
-optimization. The direct benchmark commands above inherit the caller's system
-copy policy; use the exact environment recorded with a report when reproducing
-its timing. Finite indoor CLI jobs additionally bound worker lifetimes to 256
-scenes by default; see the [dataset guide](procedural_indoor_dataset.md).
-
-The [v14 appearance qualification](appearance_v14.md) adds fitted grooms, material microstructure, deterministic glass quadrature and matched Cycles evidence. It records measured glass sampling improvements and the remaining photographic-realism limitations.
+The direct benchmark commands inherit the caller's system memory-copy policy;
+record the environment alongside timings. Finite indoor CLI jobs bound worker
+lifetimes to 256 scenes by default; see the [dataset guide](procedural_indoor_dataset.md).
+A bounded run does not establish unlimited-process stability.

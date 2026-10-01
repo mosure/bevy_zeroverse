@@ -289,7 +289,7 @@ def main():
     parser.add_argument("--cohort", type=Path, default=ROOT / "out/baseline_v21/captures/b050_24000")
     parser.add_argument("--skip-video", action="store_true")
     parser.add_argument("--keep-motion-video", action="store_true",
-                        help="Reuse the existing current-generator motion video and its original provenance.")
+                        help="Reuse the recorded motion video and its original capture provenance.")
     args = parser.parse_args()
     args.captures = args.captures.resolve()
     MEDIA.mkdir(parents=True, exist_ok=True)
@@ -310,14 +310,14 @@ def main():
             data["videos"].append(video(args.captures, "motion_13", [0, 1]))
     elif (MEDIA / "gallery.json").exists():
         data["videos"] = read(MEDIA / "gallery.json").get("videos", [])
-    assert len(data.get("videos", [])) == 2, "Both current-generator videos are required"
+    assert len(data.get("videos", [])) == 2, "Both recorded reference videos are required"
     for entry in data["videos"]:
-        assert entry["config"]["generator_version"] == 21, "Cannot reuse historical videos with current labels"
+        assert entry["config"]["generator_version"] == 21, "Cannot mix generator identities in this reference gallery"
         assert (MEDIA / entry["output"]).is_file()
         if entry["output"] == "motion_13.mp4":
             accepted = entry["human_motion"]["accepted"]
             assert len(accepted) == 2, "Update the motion caption to match the accepted trajectories"
-            page = (ROOT / "www/project/index.html").read_text()
+            page = (ROOT / "www/project/reference.html").read_text()
             for actor in accepted:
                 assert html.escape(actor["request"]["prompt"]) in page, "Page prompt must match the motion capture"
     # Social preview is a labeled crop of the real room capture, never a mockup.
@@ -329,7 +329,7 @@ def main():
     draw.text((35, 18), "bevy_zeroverse", fill="white", font=font)
     draw.text((35, 76), "Procedural rooms. Shared geometry.", fill="#cce0ce",
               font=ImageFont.truetype(matplotlib.font_manager.findfont("DejaVu Sans"), 23))
-    social.save(MEDIA / "social.jpg", quality=90)
+    social.save(MEDIA / "reference-social.jpg", quality=90)
     write(MEDIA / "gallery.json", data)
     paper_figure(scenes[0])
     print(f"Wrote {len(scenes)} scenes, matched annotations, calibration, charts and media to {MEDIA}")

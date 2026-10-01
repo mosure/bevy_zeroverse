@@ -1,5 +1,8 @@
 # Tabletop and material programs, v15
 
+> **Archived evaluation.** This report describes its recorded build. Use the
+> [documentation index](README.md) for current capabilities and defaults.
+
 The indoor generator now samples hollow mugs, tapered takeaway cups, bottles, soda cans, notepads, pencils, conference microphones and phones. Dimensions, yaw, vessel taper, fill level, wall thickness, closures and finishes vary independently where applicable. Tabletop footprints still pass the support-boundary and overlap rejection used by the room planner. Existing scene modes remain available.
 
 Mugs have swept handles and optional saucers. Takeaway cups have kraft/printed sleeves or double-wall bodies and optional stepped lids. Bottles have ribbed PET, long/wide necks, metal bodies and loop caps. Cans have rolled rims, hollow pull tabs and sampled label bands. Pads have covers, pages and optional spiral wire; their ruling and writing are mipmapped printing. Phones can face up or down, with mobile-specific screen layouts or rear cameras. Microphones sample a boundary puck or a curved gooseneck.

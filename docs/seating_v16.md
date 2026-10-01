@@ -1,5 +1,8 @@
 # Seating, activity and viewer review, v16
 
+> **Archived evaluation.** This report describes its recorded build. Use the
+> [documentation index](README.md) for current capabilities and defaults.
+
 Indoor generation now includes modular sofas, loveseats, left/right chaise returns and lounge armchairs. Seat width, cushion thickness, arm width, back tilt, rounding, leg height and exposed frame construction vary continuously. Upholstery samples fabric, alternate fabric or leather; cushions, arms, backs, legs and pillows have separate geometry/material roles. A chaise keeps a conservative rectangular placement envelope, so its open corner is not reused for another object or a camera path.
 
 Chair generation covers task/conference chairs, cantilever visitors, wood and plastic shells, backless and low-back stools, lounge armchairs and executive chairs. Shell curvature, taper, lumbar support, shoulder flare, recline, seat contour, armrests, base proportions and headrests vary within applicable families. Wood spindles stay with wood chairs; executive upholstery has a continuous back shell. Dining and lounge chairs use shorter height ranges than high-back task/executive chairs. Stools retain the existing 0.47 m seated-human datum; counter-height stools are not claimed here.

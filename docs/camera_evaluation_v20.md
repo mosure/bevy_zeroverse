@@ -1,5 +1,8 @@
 # Generator 20: camera distribution and 512-room co-visibility evaluation
 
+> **Archived evaluation.** This report describes its recorded build. Use the
+> [documentation index](README.md) for current capabilities and defaults.
+
 This release evaluates **2,048 consecutive layouts** (24000–26047) and **512
 consecutive rendered rooms** (24000–24511). No failed, dark or weak room is
 replaced. Rendering uses four 320×240 cameras at normalized times 0, 0.5 and 1:

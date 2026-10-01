@@ -1,5 +1,8 @@
 # Local generator-v6 program review
 
+> **Archived evaluation.** This report describes its recorded build. Use the
+> [documentation index](README.md) for current capabilities and defaults.
+
 This local revision uses generator 6 and capture-v8. It has not been committed,
 published or qualified by CI. Category counts are not evidence of suitability for
 10 million training samples or of photographic realism.

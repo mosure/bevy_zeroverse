@@ -1,9 +1,16 @@
-# Architectural envelopes — generator 22
+# Architectural envelopes and validation
 
 The primary building envelope is now a sampled polygon rather than a rectangular
 prism. The same serialized `EnvelopeProgram` drives construction, furniture and
 human support, camera sweeps, visibility proposals, motion barriers and export.
 The neighboring office and the original non-indoor scene modes remain available.
+
+The [project-page explorer](https://mosure.github.io/bevy_zeroverse/project/#architecture)
+shows all 32 captured rooms, four cameras, both endpoints and five matched modes.
+Each room has a plan and envelope section derived from its actual manifest.
+The [whitepaper](https://mosure.github.io/bevy_zeroverse/project/static/papers/bevy_zeroverse.pdf)
+includes current RGB/plan/section figures and population distributions; earlier
+camera-baseline and motion studies are retained separately as reference evidence.
 
 ![Sampled footprint programs, with glazing and level changes](evidence/architecture_v22/footprints.png)
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Browser check of actual gallery identities, controls, media, links and layout."""
+"""Browser check of the current page, or explicitly selected reference studies."""
 import argparse
 import json
 from pathlib import Path
@@ -13,10 +13,29 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--url", default="http://127.0.0.1:8770/project/")
     parser.add_argument("--output", type=Path, default=Path("out/project_page/browser"))
+    parser.add_argument("--reference", action="store_true", help="Validate reference.html and its recorded baseline/motion captures.")
     parser.add_argument("--check-viewer", action="store_true",
                         help="Also click Open WebGPU viewer and require rendered camera tiles (needs WebGPU Chrome).")
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
+    if not args.reference:
+        from validate_architecture_gallery import browser_checks, static_checks
+        report = dict(static=static_checks(), viewer_runtime_checked=False)
+        try:
+            report["browser"] = browser_checks(args.url,args.output)
+            if args.check_viewer:
+                from validate_project_viewer import validate
+                report["viewer"] = validate(argparse.Namespace(
+                    url=args.url, project_html=None, output=args.output / "viewer",
+                    browser="/usr/bin/google-chrome", timeout=120, headless=False))
+                report["viewer_runtime_checked"] = True
+        except Exception as error:
+            report["error"] = str(error)
+            (args.output / "report.json").write_text(json.dumps(report,indent=2)+"\n")
+            raise
+        (args.output / "report.json").write_text(json.dumps(report,indent=2)+"\n")
+        print(json.dumps(report,indent=2))
+        return
     failures, cases = [], []
     with sync_playwright() as p:
         browser = p.chromium.launch(executable_path="/usr/bin/google-chrome", headless=True,

@@ -1,9 +1,10 @@
-# Current camera-baseline evaluation (generator 21)
+# Camera-baseline reference evaluation
 
 The continuous [camera baseline program](multiview_cameras.md) controls spacing
 between views independently of camera travel length. This report measures the
-current generator at five settings; the project page and whitepaper contain no
-historical generator comparison.
+recorded generator-21 build at five settings, without comparing generator
+versions. For current architecture and its evaluation, see the
+[architectural review](architecture_v22.md).
 
 ## Protocol
 

@@ -1,7 +1,10 @@
 # Indoor engine qualification: generator version 3
 
+> **Archived evaluation.** This report describes its recorded build. Use the
+> [documentation index](README.md) for current capabilities and defaults.
+
 > **Historical Bevy 0.17 evidence.** The current source uses Bevy 0.19.1. See the
-> [migration review](procedural_indoor_review_bevy019.md) for current qualification
+> [migration review](procedural_indoor_review_bevy019.md) for its recorded qualification
 > status and separate runtime artifacts. Generator version 3 is retained, but the
 > renderer identity, performance and image evidence are not interchangeable.
 

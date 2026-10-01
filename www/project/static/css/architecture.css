@@ -1,0 +1,67 @@
+.architecture-hero img { width:100%; height:auto; }
+.architecture-hero figcaption { display:block; }
+.architecture-hero figcaption a { float:right; }
+.architecture-explorer { border:1px solid var(--line); border-radius:8px; background:white; overflow:hidden; --architecture-split:50%; }
+.architecture-featured { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:9px; padding:18px; background:var(--soft); }
+.architecture-featured button { padding:12px; border:1px solid #bac9b8; border-radius:5px; background:#fff; text-align:left; color:var(--ink); line-height:1.4; }
+.architecture-featured button span { display:block; font-size:11px; color:var(--muted); margin-top:5px; }
+.architecture-featured button[aria-pressed=true] { background:var(--ink); color:white; border-color:var(--ink); }
+.architecture-featured button[aria-pressed=true] span { color:#c7e1c9; }
+.architecture-toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:14px 25px; padding:18px; border-bottom:1px solid var(--line); font-size:12px; }
+.architecture-toolbar label { display:flex; gap:9px; align-items:center; }
+.architecture-toolbar select { max-width:100%; border:1px solid var(--line); padding:7px; border-radius:4px; color:var(--ink); background:var(--paper); }
+.architecture-toolbar>span { color:var(--muted); margin-left:auto; }
+.architecture-time { display:flex; align-items:center; gap:6px; margin-left:auto; font-size:12px; }
+.architecture-time button { border:1px solid var(--line); color:var(--ink); border-radius:4px; padding:5px 10px; background:white; }
+.architecture-time button[aria-pressed=true] { background:var(--ink); color:white; }
+.architecture-views { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); padding:0 18px; gap:16px; }
+.architecture-views figure { margin:0; min-width:0; border:1px solid var(--line); border-radius:4px; overflow:hidden; }
+.architecture-views a { display:block; position:relative; aspect-ratio:8/5; background:#111b17; }
+.architecture-views img { width:100%; height:100%; object-fit:contain; }
+.architecture-annotation { position:absolute; inset:0; clip-path:inset(0 0 0 var(--architecture-split)); }
+.architecture-views figcaption { padding:8px 12px; display:flex; justify-content:space-between; font-size:11px; color:var(--muted); }
+.architecture-views figcaption strong { color:var(--ink); }
+.architecture-reveal { display:flex; align-items:center; gap:18px; padding:15px 18px; font-size:12px; }
+.architecture-reveal input { flex:1; accent-color:var(--accent); min-width:50px; }
+.architecture-reveal output { min-width:72px; text-align:right; }
+.architecture-description { color:var(--muted); font-size:12px; padding:0 18px 12px; margin:0; }
+.architecture-plan-panel { display:grid; grid-template-columns:2fr 1fr; gap:20px; padding:20px 18px; border-top:1px solid var(--line); background:var(--paper); }
+.architecture-plan-panel figure { margin:0; align-self:center; }
+.architecture-plan-panel img { width:100%; background:white; }
+.architecture-plan-panel figcaption { font-size:10px; color:var(--muted); padding:10px 0; }
+.architecture-plan-panel h3 { margin:0 0 6px; }
+.architecture-plan-panel p { font-size:12px; color:var(--muted); }
+.architecture-features { display:flex; flex-wrap:wrap; list-style:none; gap:6px; padding:0; }
+.architecture-features li { font-size:11px; padding:3px 9px; border:1px solid #c9d7c9; border-radius:20px; color:var(--accent); background:white; }
+.architecture-downloads { display:flex; gap:20px; flex-wrap:wrap; padding:15px 18px; font-size:12px; border-top:1px solid var(--line); }
+.architecture-status { font-size:12px; color:var(--muted); padding:0 18px 14px; margin:0; }
+.architecture-cohort { margin-top:30px; }
+.architecture-cohort summary { cursor:pointer; font-weight:600; padding:16px 0; border-top:1px solid var(--line); }
+.architecture-cohort .cohort-grid { margin-top:12px; }
+.architecture-cohort figcaption { font-size:10px; line-height:1.5; padding:8px; }
+.architecture-feature-table { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin:24px 0; }
+.architecture-feature-stat { background:var(--soft); border-radius:4px; padding:12px 16px; }
+.architecture-feature-stat strong { display:block; font-size:21px; }
+.architecture-feature-stat span { font-size:12px; }
+.reference-banner { border-left:3px solid #a17240; background:#f4eddf; padding:14px 20px; font-size:13px; margin-bottom:25px; }
+.reference-study { border-top:1px solid var(--line); }
+@media(max-width:900px) {
+  .architecture-featured { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .architecture-plan-panel { grid-template-columns:1fr; }
+  .architecture-toolbar>span { margin-left:0; }
+}
+@media(max-width:640px) {
+  .architecture-featured { padding:12px; gap:8px; }
+  .architecture-featured button { font-size:12px; padding:9px; }
+  .architecture-featured button span { font-size:10px; }
+  .architecture-views { grid-template-columns:1fr; padding:0 10px; gap:12px; }
+  .architecture-toolbar { padding:12px; }
+  .architecture-toolbar label { width:100%; justify-content:space-between; }
+  .architecture-toolbar select { max-width:75%; min-width:0; }
+  .architecture-time { width:100%; margin:10px 0 0; }
+  .architecture-reveal { flex-wrap:wrap; gap:10px; padding:12px; }
+  .architecture-reveal label { width:100%; }
+  .architecture-plan-panel { padding:12px; }
+  .architecture-feature-table { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .architecture-hero figcaption a { float:none; display:block; }
+}

@@ -1,6 +1,13 @@
 # Reproducible indoor datasets
 
-Multi-view reconstruction uses the default [shared-surface camera policy](multiview_cameras.md): four cameras, 35% proxy overlap and 0.25–3 m reference baselines. The indoor CLI defaults to one worker, 16 rooms per chunk, one timestep, static people and 256 GI rays/probe. Explicit settings override these defaults; `--indoor-camera '{"multiview":null}'` selects independent views. These are practical starting points, not a downstream-trained optimum. See [measured performance and diversity](generation_v18.md).
+Multi-view reconstruction uses four cameras and the default
+[shared-surface camera policy](multiview_cameras.md), equivalent to
+`--indoor-camera '{"baseline":0.5}'`. This requests at least 0.27 m pair
+separation, 1.21–5.175 m reference distance and approximately 28.7% estimated
+bidirectional overlap; accepted spacing depends on room geometry and visibility.
+The CLI defaults to one worker, 16 rooms per chunk, one timestep, static people
+and 256 GI rays/probe. These are practical starting points, not a trained optimum.
+Use `--indoor-camera '{"multiview":null}'` for independent views.
 
 [Indoor O-voxel export](ovoxel_indoor.md) captures primary-room surface geometry
 and semantics for single-timestep datasets with human motion disabled.
@@ -68,9 +75,11 @@ failed scenes or overwrite surviving outputs.
 steps with increment `0.5` capture the start, midpoint, and endpoint. Each sample
 contains `[time, camera, height, width, channels]`; the Rust in-memory view list
 is time-major. Exported `time` records trajectory progress. Optical flow and
-motion-vector capture are rejected for indoor datasets until previous-frame
-pose semantics have been qualified. Derive correspondence from position,
-depth, and camera calibration where appropriate.
+motion-vector capture export numeric forward correspondence to the next captured
+timestep, including animated meshes, with separate validity and visibility masks.
+The final timestep has zero vectors and masks. See the [temporal annotation
+contract](optical_flow.md). [Co-visibility](co_visibility.md) instead measures
+shared surface visibility across cameras at the same timestep.
 
 `generation_config.json` records the base seed, generator version, capture-engine
 identity, image size,
@@ -84,8 +93,8 @@ sample records the actual `light_clustering` policy. Native capture compiles
 pipelines synchronously on the render thread to finish compiler tasks before
 worker shutdown. GPU submissions/readback and the CPU writer remain asynchronous;
 `pipeline_compilation` records this distinction.
-A dataset made by an older capture engine remains readable, but appending with a
-new engine (including this Bevy 0.19 migration) requires a new output directory. `--indoor-gi-rays` selects
+A dataset made by an older capture engine remains readable, but appending with an
+incompatible engine requires a new output directory. `--indoor-gi-rays` selects
 64–16384 rays per probe: 256 is the efficient default; 1024 reduces measured
 probe integration noise at higher GPU cost. Portable mode omits GI.
 Successful finite generation also
@@ -97,8 +106,9 @@ use unaugmented room coordinates, with neighbor-room instances counted
 separately; see the policies embedded in the metrics JSON. Exterior metrics count
 primary-room facade walls/openings separately from the internal glass partition.
 `windows.csv` records wall-local rough openings, mullion columns, frame/inset
-dimensions, shade coverage and near-full-height classification. Generator v17
-and capture-v27 require a new output directory; see the [window review](facade_v17.md).
+dimensions, shade coverage and near-full-height classification. Architecture
+metrics and `architecture.jsonl` record polygon outlines, roof slopes, floor
+patches, pillars, arches and mezzanines; see the [architectural evaluation](architecture_v22.md).
 
 To append another 100 samples, repeat the capture settings with `--resume
 --samples 100`. The seed can be omitted on resume: the saved base seed is
@@ -197,26 +207,12 @@ It checks one versus two CLI workers, partial-chunk resume, rejected overwrite
 and incompatible resume, native folder/Python interchange, out-of-order and
 repeated indexed Python captures, and two spawned DataLoader workers. It uses
 odd image dimensions (161 × 119), two cameras, three trajectory steps, and all
-five supported modalities. Deterministic manifests, poses, and semantic
-tensors were exact on the qualified native GPU. Pixel equality across other
-GPU drivers or rendering backends is not promised.
+five RGB/geometric/semantic modalities. Temporal and co-visibility exports have
+separate [flow](optical_flow.md) and [membership](co_visibility.md) regressions.
+Pixel equality across GPU drivers or rendering backends is not promised.
 
-The current Bevy 0.19 qualification passes native Auto256, including recycled
-worker lifetimes and exact raw RGB/labels across scheduling changes. See the
-[current dataset report](procedural_indoor/dataset_qualification_bevy019.json),
-[process-memory report](procedural_indoor/process_memory_bevy019.json) and
-[dependency/memory review](procedural_indoor_review_bevy019.md).
-
-Historical generator-version-3 qualification on Bevy 0.17 passed both Portable and native Auto with GPU GI
-(256 rays per probe, three diffuse bounces). The Auto evidence is recorded in
-`docs/procedural_indoor/dataset_qualification_v3_auto.json`, including
-per-sample lighting provenance and manifest-linked person/OBB instance IDs.
-The 128-scene writer residency report is in
-`docs/procedural_indoor/writer_report.json`; its RSS still increased during
-that bounded run, so it does not establish a long-run memory plateau.
-
-The historical explicit 1024-ray path also passed the full CLI worker/resume and Python
-spawn-worker qualification; see
-`docs/procedural_indoor/dataset_qualification_v3_auto_1024.json`. This checks
-that the requested budget reaches actual render provenance in every process,
-and that Python captures retain float32 precision tags and person/OBB IDs.
+Recorded qualifications retain their configuration, build and adapter identity.
+Re-run the commands above to qualify a deployment; archived results do not establish
+current throughput, a memory plateau or cross-device determinism. The
+[architectural evaluation](architecture_v22.md) reports the latest bounded scene
+and annotation audit.

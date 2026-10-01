@@ -1,0 +1,49 @@
+  <section id="architecture" class="container section" aria-labelledby="architecture-heading">
+    <div class="section-heading">
+      <div><div class="eyebrow">01 / BUILT GEOMETRY, VISIBLE VARIATION</div><h2 id="architecture-heading">Change the envelope.<br>Explore every view.</h2></div>
+      <p>Mezzanines with stairs, lowered and raised floors, cut-ins, tapered walls, chamfered corners and pitched ceilings. Explore the actual captures beside the program that built each room.</p>
+    </div>
+    <div id="architecture-explorer" class="architecture-explorer" aria-busy="false" data-mode="color">
+      <div class="architecture-featured" role="group" aria-label="Architectural examples">
+        @FEATURED@
+      </div>
+      <div class="architecture-toolbar">
+        <label for="architecture-filter">Feature <select id="architecture-filter" disabled><option value="">All features</option></select></label>
+        <label for="architecture-room">Room <select id="architecture-room" disabled><option value="7">7 · @ACTIVITY@</option></select></label>
+        <span id="architecture-count">32 of 32 captured rooms</span>
+      </div>
+      <div class="mode-buttons" role="group" aria-label="Current capture annotation">
+        @MODES@
+        <div class="architecture-time" role="group" aria-label="Captured trajectory endpoint"><span>Time</span><button data-architecture-step="0" aria-pressed="true" disabled>t = 0</button><button data-architecture-step="1" aria-pressed="false" disabled>t = 1</button></div>
+      </div>
+      <div class="architecture-views" id="architecture-views">@VIEWS@</div>
+      <div class="architecture-reveal"><label for="architecture-reveal">RGB / <span id="architecture-mode-label">RGB</span> reveal</label><input id="architecture-reveal" type="range" min="0" max="100" value="50" aria-valuetext="50 percent RGB" disabled><output id="architecture-reveal-value" for="architecture-reveal">50% RGB</output></div>
+      <p id="architecture-description" class="architecture-description">Original renderer-tonemapped sRGB; no crop or exposure correction.</p>
+      <div class="architecture-plan-panel">
+        <figure><a id="architecture-plan-link" href="static/media/architecture/s7-t0-plan.svg"><img id="architecture-plan" src="static/media/architecture/s7-t0-plan.svg" width="1000" height="510" loading="lazy" alt="Seed 7: plan with glazing, camera positions, mezzanine deck and stairs; section with actual roof slope"></a><figcaption>Cyan: glazing · orange/blue: raised/sunken floor · violet: mezzanine/stairs · triangles: arches. Dashed line: section location. Arrows show camera directions; gray shapes are furniture footprint proxies. Section shows the envelope and floor levels.</figcaption></figure>
+        <div><div class="eyebrow">THE SAME ROOM, IN METRES</div><h3 id="architecture-title">Seed 7 · @ACTIVITY@</h3><p id="architecture-dimensions">137.2 m² footprint · 3.1° roof pitch</p><ul id="architecture-features" class="architecture-features"><li>Oblique walls</li><li>Sloping ceiling</li><li>Interior pillars</li><li>Mezzanine</li></ul><p>A feature can lie outside one camera’s view. Check all four cameras and both captured endpoints; use the plan to locate the geometry.</p></div>
+      </div>
+      <div class="architecture-downloads"><a id="architecture-metadata" href="static/media/architecture/s7-capture.json" download>Room program &amp; calibration ↓</a><a href="static/media/architecture/calibration-and-programs.zip" download>All programs &amp; calibrations ↓</a><a href="static/media/architecture/gallery.json" download>Capture identities &amp; hashes ↓</a></div>
+      <p id="architecture-status" class="architecture-status" aria-live="polite">Seed 7 · t=0 · four matched 640 × 400 views · RGB</p>
+    </div>
+    <noscript><p class="note">Static images and plans open at full resolution. Enable JavaScript to switch all 32 rooms, cameras’ annotations and the two captured times.</p></noscript>
+    <p class="note">Current architectural captures: seeds 0–31, four cameras and two endpoints, captured with native shadows, SSAO and diffuse GI. The controls switch recorded views; they do not synthesize intermediate frames. Depth, normals and positions here are 8-bit display previews, with the original float32 alignment checks in each calibration download. Glass is the first geometric surface in annotations.</p>
+    <details class="architecture-cohort"><summary>See all 32 consecutive rooms · camera 0 at t = 0 · no appearance filtering</summary>
+      <div class="cohort-grid">@COHORT@</div>
+      <p class="note">Dark and sparsely furnished rooms remain in this complete contact sheet. Feature shortcuts above select structural examples; all 256 views remain accessible in the room selector.</p>
+    </details>
+  </section>
+
+  <section id="evidence" class="container section" aria-labelledby="evidence-title">
+    <div class="section-heading"><div><div class="eyebrow">02 / CURRENT ARCHITECTURAL POPULATION</div><h2 id="evidence-title">512 room programs.<br>One explicit denominator.</h2></div><p>Consecutive seeds 0–511, without removing failures or difficult examples. All passed the recorded layout, support and camera-clearance checks. The first 32 rooms were also rendered in five aligned modes.</p></div>
+    <div class="metric-strip"><div><strong>512</strong><span>consecutive rooms audited</span><small>512 distinct structural signatures at 1 cm</small></div><div><strong>256</strong><span>rendered camera/time views</span><small>32 rooms × four cameras × two times</small></div><div><strong>5 modes</strong><span>per captured view</span><small>RGB, depth, normal, semantic, position</small></div></div>
+    <div class="architecture-feature-table">@FEATURE_COUNTS@</div>
+    <figure class="chart"><a href="static/media/architecture/footprints.png"><img src="static/media/architecture/footprints.png" width="2100" height="1500" loading="lazy" alt="Twelve measured footprint programs showing taper, chamfers, courtyard cut-ins, varied window edges, floor patches and mezzanines"></a><figcaption>Architectural programs selected by feature coverage from the 512-room population. Plans show actual footprint vertices and openings. They are diagrams, not RGB renders. Roof pitch, heights and all dimensions come from the serialized program.</figcaption></figure>
+    <figure class="chart"><img src="static/media/architecture/distributions.png" width="2240" height="1280" loading="lazy" alt="Feature frequencies and distributions of footprint occupancy, ceiling slope, floor area, floor depth and mezzanine area"><figcaption>Absolute feature frequencies and continuous parameter distributions; zero-feature rooms are retained. Features co-occur, so their room fractions do not sum to 100%.</figcaption></figure>
+    <div class="cohort-heading"><h3>Furnishings, lighting and cameras</h3><span>the same 512-room population</span></div>
+    <figure class="chart"><div class="plot-grid">@DISTRIBUTIONS@</div><figcaption>Every panel states its observation count. Room and object counts include all 512 rooms; camera parameters have their own denominators. Photometry, geometry and placement are correlated samples, not independent dimensions.</figcaption></figure>
+    <figure class="chart placement"><img src="static/media/architecture/placement.svg" width="1200" height="380" loading="lazy" alt="Chair centers, person centers and 33-sample camera paths across the current 512 room programs"><figcaption>Placement in normalized room X/Z coordinates, with +Z down. Each heatmap is normalized separately and reports its sample total; camera paths contribute 33 points per camera.</figcaption></figure>
+    <p>All 256 views passed the recorded annotation-alignment checks: maximum per-view depth/position p99 error <strong>2.87 µm</strong>, reprojection p99 <strong>0.00264 pixels</strong>. Every view contains at least four semantic classes. All 18 rooms with people in the camera’s primary functional zone show person pixels in at least one view. Three of 22 rooms with people anywhere in the main envelope never show them.</p>
+    <p class="note">These checks measure geometry and annotation consistency. They do not establish photographic realism, real-building frequency matching or ten-million-sample training utility. This cohort has 32 rendered rooms; the separately recorded 512-room camera-baseline render study is available below with its original identity.</p>
+    <div class="evidence-downloads"><a href="static/media/architecture/population.json" download>512-room distributions (JSON) ↓</a><a href="static/media/architecture/audit.json" download>Validation &amp; provenance (JSON) ↓</a><a href="https://github.com/mosure/bevy_zeroverse/blob/main/docs/architecture_v22.md">Audit protocol &amp; limits ↗</a></div>
+  </section>
