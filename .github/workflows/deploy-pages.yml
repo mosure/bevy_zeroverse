@@ -15,12 +15,37 @@ env:
 
 
 jobs:
+  publication:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - uses: Swatinem/rust-cache@v2
+      - name: Install paper typesetter
+        run: sudo apt-get update && sudo apt-get install -y latexmk texlive-latex-extra poppler-utils
+      - name: Rebuild and verify the current page and paper
+        run: cargo run --locked -p bevy_zeroverse_publication -- rebuild
+      - name: Stage the validated publication bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: publication-bundle
+          path: |
+            www/project
+            tex
+
   deploy:
     runs-on: macos-latest
+    needs: publication
 
     steps:
       - name: checkout repository
         uses: actions/checkout@v3
+
+      - name: Retrieve the validated publication bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: publication-bundle
+          path: .
 
       - name: setup nightly rust toolchain with caching
         uses: brndnmtthws/rust-action@v1
@@ -31,6 +56,9 @@ jobs:
 
       - name: install wasm32-unknown-unknown
         run: rustup target add wasm32-unknown-unknown
+
+      - name: Verify the exact page and paper selected for deployment
+        run: cargo run --locked -p bevy_zeroverse_publication -- verify
 
       - name: install wasm-bindgen-cli
         run: cargo install wasm-bindgen-cli --version 0.2.128 --locked

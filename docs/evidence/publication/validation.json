@@ -1,0 +1,124 @@
+{
+  "validated_on": "2026-10-01",
+  "scope": "Local Rust publication pipeline, freshly captured current generator cohort, exact downloads, generated page and paper. Remote CI/deployment and WebGPU viewer runtime were not requalified.",
+  "generator_identity": {
+    "schema_version": 1,
+    "crate_version": "0.26.0",
+    "generator_version": 22,
+    "source_sha256": "14479ee198f2058ee85eef85ae7f22618aabd3d1a771273700881ca6ba35fb4c"
+  },
+  "protocol": {
+    "seed": 0,
+    "audit_rooms": 512,
+    "rendered_rooms": 32,
+    "cameras": 4,
+    "width": 640,
+    "height": 400,
+    "playback_steps": 2,
+    "density": 0.65,
+    "human_density": 0.25,
+    "gi_rays": 1024
+  },
+  "publication": {
+    "managed_artifacts_verified": 2802,
+    "attestation_sha256": "807a480b228b9b771d14b8c6dde3a7a1dd8f8ef06e3aecb46ffdafb0df275135",
+    "capture_sources_hashed": 2118,
+    "annotation_preview_roundtrips_verified_in_rust": 1536,
+    "exact_co_visibility_mask_pairs_verified": 256,
+    "reference_generator_versions": [
+      21
+    ],
+    "source_and_template_changes_rejected_by_gate": true,
+    "canonical_python_publication_builders_removed": true
+  },
+  "contracts": {
+    "passed": true,
+    "tests_passed": 16,
+    "command": "cargo test --locked -p bevy_zeroverse_capture -p bevy_zeroverse_publication",
+    "coverage": [
+      "exact 16-bit membership and source exclusion",
+      "valid background versus unshared geometry",
+      "corrupt validity/counts/previews",
+      "missing channels and duplicate cameras",
+      "stale source and mismatched geometry",
+      "intrinsics/planned extrinsics/alignment",
+      "histogram denominators and integer overflow",
+      "source closure/path escape",
+      "install rollback",
+      "dynamic cohort counts and example captions",
+      "JSON float32 precision with exact integer preservation",
+      "cache paths cannot replace source or the publication work directory"
+    ]
+  },
+  "static": {
+    "passed": true,
+    "generator_version": 22,
+    "audit_rooms": 512,
+    "rendered_rooms": 32,
+    "views": 256,
+    "decoded_channel_images": 1536,
+    "unique_channel_identities": 1536,
+    "lossless_annotation_roundtrips": 0,
+    "source_hashes_checked": 0,
+    "metadata_records": 32,
+    "local_links": 131,
+    "pdf_and_source_archive_verified": true,
+    "population_denominators_verified": true,
+    "object_and_material_examples_preserved": true,
+    "co_visibility_masks_checked": 256,
+    "co_visibility_peer_images": 1024,
+    "unified_annotation_gallery": true,
+    "browser_checked": false,
+    "viewer_runtime_checked": false
+  },
+  "browser": {
+    "passed": true,
+    "room_time_mode_cases": 384,
+    "view_cases": 1536,
+    "feature_filters": true,
+    "atomic_switching": true,
+    "keyboard_reveal": true,
+    "responsive_widths": [
+      390,
+      768,
+      1440
+    ],
+    "no_javascript_fallback": true,
+    "co_visibility_peer_cases": 256,
+    "unified_annotation_gallery": true,
+    "errors": []
+  },
+  "rebuilt_without_raw_capture_directory": true,
+  "rebuild_bundle_byte_identical": true,
+  "paper_pages": 21,
+  "clippy": {
+    "passed": true,
+    "commands": [
+      "cargo clippy --locked -p bevy_zeroverse_capture -p bevy_zeroverse_publication --all-targets -- -D warnings",
+      "cargo clippy --locked -p bevy_zeroverse --bin indoor_validate --no-default-features --features multi_threaded -- -D warnings"
+    ]
+  },
+  "wasm_check": {
+    "passed": true,
+    "command": "cargo check --locked --target wasm32-unknown-unknown -p bevy_zeroverse --bin viewer --no-default-features --features web,human_motion",
+    "runtime_checked": false
+  },
+  "rustfmt_passed": true,
+  "registry": {
+    "dry_run_passed": true,
+    "command": "cargo run --locked -p bevy_zeroverse_publication -- publish --package bevy_zeroverse_capture --dry-run",
+    "package_verified": "bevy_zeroverse_capture 0.1.0",
+    "uploaded": false
+  },
+  "remote_ci_run": false,
+  "logs_sha256": {
+    "publication-tests.log": "293c8829bbfda4af9a29735508bdf05fa53b098221507050fe9b071d58be84ea",
+    "publication-clippy.log": "824cd820e7ccd8c6902007cbc374d5c2d6e38271115f709c8f3ae3ce4b703854",
+    "publication-core-clippy.log": "d6cf3e2cf98db3a59eaea403bf7b1da7ad763887194f7427b60b28f2d9d46d8d",
+    "publication-wasm.log": "57166ce7ad909d7e3e7de44ebfdfb7d5c9ed2e1c36d70bc818d167a63ef4dcac",
+    "publication-refresh-final.log": "3640c09439df299edea6dffa7beb2977c640f86d758d48d4aef5a8879631a99c",
+    "publication-rebuild.log": "ea17acf28471331eeeb76317b3107856663727a512c98e5dfe208608d3616f13",
+    "publication-publish-dry-run.log": "3b6b18c94ecaefd7e19595981f157830df64f37d99e1610084bd02483249d611",
+    "report.json": "0d8030c7cb5f95cccc18203938bd9369db07675972d3719ce559bf770fa3360a"
+  }
+}

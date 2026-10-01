@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="An open-source procedural data engine for multi-view reconstruction. Explore current polygonal architecture, mezzanines, floor levels and matched annotations across @RENDER_ROOMS@ rooms, with a @AUDIT_ROOMS@-room structural audit.">
+  <meta property="og:title" content="bevy_zeroverse @CRATE_VERSION@ · Procedural rooms, shared geometry">
+  <meta property="og:description" content="Calibrated multi-view synthetic data, aligned annotations, optional human motion, and reproducible evaluation.">
+  <meta property="og:url" content="https://mosure.github.io/bevy_zeroverse/project/">
+  <meta property="og:image" content="https://mosure.github.io/bevy_zeroverse/project/static/media/social.jpg">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="theme-color" content="#f7f8f3">
+  <title>bevy_zeroverse — Procedural multi-view data</title>
+  <link rel="icon" href="static/images/favicon.ico">
+  <link rel="stylesheet" href="static/css/index.css">
+  <link rel="stylesheet" href="static/css/architecture.css">
+  <script defer src="static/js/architecture.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-header">
+  <a class="wordmark" href="#main"><svg viewBox="0 0 28 28" aria-hidden="true"><path d="m14 2 11 6v12l-11 6-11-6V8Z M3 8l11 6 11-6 M14 14v12Z"/></svg>bevy_zeroverse</a>
+  <nav aria-label="Page navigation">
+    <a href="#architecture">Architecture</a><a href="#explore" data-architecture-jump="co_visibility">Co-visibility</a><a href="#evidence">Evidence</a><a href="#paper">Whitepaper</a><a class="nav-source" href="https://github.com/mosure/bevy_zeroverse">GitHub ↗</a>
+  </nav>
+</header>
+<main id="main">
+  <section class="hero container" aria-labelledby="title">
+    <div class="eyebrow"><span class="status-dot"></span> OPEN SOURCE · SYNTHETIC 3D + 4D DATA</div>
+    <div class="hero-copy">
+      <div><h1 id="title">Built to vary.<br><em>Calibrated to learn.</em></h1></div>
+      <div class="hero-intro"><p>Generate furnished interiors with polygonal footprints, varied elevations and shared camera views. Inspect the geometry, rendered images and aligned annotations together.</p>
+        <div class="actions"><a class="button primary" href="#architecture">Explore current captures ↓</a><a class="button" href="../?scene_type=procedural-indoor&amp;indoor_seed=@FIRST_SEED@&amp;num_cameras=4&amp;camera_grid=true&amp;regenerate_ms=0&amp;playback_mode=Sin&amp;playback_speed=0.1">Open WebGPU viewer ↗</a></div>
+        <p class="byline"><a href="https://mitchell.mosure.me">Mitchell Mosure</a> · Bevy / Rust / Burn</p></div>
+    </div>
+    <figure class="hero-film architecture-hero"><a href="#architecture"><img src="static/media/architecture/hero.webp" width="1280" height="800" fetchpriority="high" alt="Four native views from the same current capture cohort, with calibrated same-room camera pairs and varied metric envelopes"></a><figcaption><strong>Actual generated geometry.</strong> @HERO_CAPTION@ <a href="static/papers/bevy_zeroverse.pdf">Whitepaper ↗</a></figcaption></figure>
+    <div class="capability-strip"><span><strong>Polygonal</strong> room envelopes</span><span><strong>8</strong> supported render modes</span><span><strong>Native + WebGPU</strong> viewers</span><span><strong>Seeded</strong> scene programs</span></div>
+  </section>
+
+@GALLERY@
+
+  <section id="reference" class="container section reference-study" aria-labelledby="reference-title">
+    <div class="section-heading"><div><div class="eyebrow">03 / BASELINE + MOTION</div><h2 id="reference-title">Camera baselines.<br>Scenes over time.</h2></div><p>Co-visibility is part of the @RENDER_ROOMS@-room explorer above. Recorded reference studies below illustrate the baseline control, temporal annotations and optional ARDY human motion.</p></div>
+    <div class="reference-banner">All @RENDER_ROOMS@ architectural rooms above include @MODE_COUNT@ matched render modes and exact co-visibility masks at both trajectory endpoints. Temporal-flow and continuous-video examples below retain their separate recorded capture identities.</div>
+    <div class="feature-columns"><article><h3>Camera baseline</h3><p>Five settings over the same geometry, four synchronized views, camera plans and measured shared surfaces.</p><a href="reference.html#baseline">Explore the baseline control ↗</a></article><article><h3>Temporal correspondence</h3><p>Recorded multi-frame captures pair optical flow and motion vectors with the same RGB, geometry, cameras and time.</p><a href="reference.html#explore">Inspect temporal annotations ↗</a></article><article><h3>Native rendered video</h3><p>Four-camera traversal and two-camera ARDY motion, with original calibration, prompts and model provenance.</p><a href="reference.html#motion">Watch motion examples ↗</a> · <a href="reference.html#main">Camera traversal ↗</a></article></div>
+    <p class="note">The reference population includes 512 distinct rendered rooms and a matched 128-room baseline sweep. It is separate from the @AUDIT_ROOMS@-program / @RENDER_ROOMS@-rendered-room architectural audit. <a href="reference.html#evidence">Reference metrics and co-visibility distributions ↗</a></p>
+  </section>
+
+  <section id="paper" class="paper-section" aria-labelledby="paper-title"><div class="container section paper-layout">
+    <a class="paper-preview" href="static/papers/bevy_zeroverse.pdf" aria-label="Read the bevy_zeroverse whitepaper PDF"><img src="static/media/whitepaper.webp" loading="lazy" width="612" height="792" alt="First page of the bevy_zeroverse technical whitepaper"></a>
+    <div>
+      <div class="eyebrow">04 / TECHNICAL WHITEPAPER</div><h2 id="paper-title">Auditable procedural indoor data for multi-view reconstruction.</h2>
+      <p class="paper-author">Mitchell Mosure · October 2026 · Technical report</p>
+      <p>The paper shows the current room envelopes, paired RGB and architectural plans, floor and roof variation, aligned annotation panels, and @AUDIT_ROOMS@-room distributions. An explicitly separate reference section retains the camera-baseline and co-visibility experiments.</p>
+      <p>It reports a bounded generator evaluation. Photographic realism, ten-million-sample learning utility and downstream reconstruction gains remain open evaluation questions.</p>
+      <div class="actions"><a class="button primary" href="static/papers/bevy_zeroverse.pdf">Read PDF ↗</a><a class="button" href="static/papers/whitepaper-source.zip" download>LaTeX source ↓</a></div>
+      <p class="note">Compiled from this repository’s TeX paper. It describes current capabilities and separates the architectural audit from the recorded camera-baseline and motion studies. Source files, exact configurations and machine-readable measurements are downloadable. No publication venue or peer-review status is implied.</p>
+    </div>
+  </div></section>
+
+  <section class="container section start-section" aria-labelledby="start-title">
+    <div><div class="eyebrow">MAKE YOUR OWN CAPTURES</div><h2 id="start-title">Start with shared views.</h2><p>One seeded room, four cameras, RGB and matched geometry. Human motion is optional; this command does not initialize motion models.</p><p class="note">Also available: primitive-object scenes, Cornell cube, room and semantic-room scenes, and standalone humans. The native CLI writes datasets; the WebGPU app is an interactive viewer.</p></div>
+    <div class="code-panel"><pre><code>cargo run -p bevy_zeroverse_burn --bin zeroverse_gen -- \
+  --scene-type procedural-indoor --seed 7 \
+  --samples 1 --workers 1 --cameras 4 \
+  --width 768 --height 480 \
+  --indoor-camera '{"baseline":0.5}' \
+  --render-modes color depth normal semantic co-visibility \
+  --ov-mode disabled --output-mode fs \
+  --output out/shared_views --no-ui</code></pre><a href="https://github.com/mosure/bevy_zeroverse">Source, configuration and examples ↗</a></div>
+  </section>
+  <section class="container citation-section" aria-labelledby="citation-title"><h3 id="citation-title">Cite the technical report</h3><pre><code>@misc{mosure2026zeroverse,
+  title = {bevy_zeroverse: Auditable Procedural Indoor Data
+           for Multi-view Reconstruction},
+  author = {Mitchell Mosure},
+  year = {2026},
+  note = {Technical report; generator evaluation},
+  url = {https://mosure.github.io/bevy_zeroverse/project/}
+}</code></pre></section>
+</main>
+<footer class="container footer">
+  <div><strong>bevy_zeroverse</strong><p>Procedural scenes. Explicit data contracts. Reproducible evidence.</p></div>
+  <div><a href="https://github.com/mosure/bevy_zeroverse">Code ↗</a><a href="static/media/architecture/gallery.json">Current capture provenance ↗</a><p>Original page adapted from the <a href="https://github.com/eliahuhorwitz/Academic-project-page-template">Academic Project Page Template</a> / <a href="https://nerfies.github.io">Nerfies</a>.<br>Website content licensed under <a rel="license" href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.</p></div>
+</footer>
+</body>
+</html>

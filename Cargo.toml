@@ -43,6 +43,8 @@ members = [
   "crates/ffi",
   "crates/burn",
   "crates/burn_siglip2",
+  "crates/capture",
+  "crates/publication",
 ]
 
 
@@ -92,6 +94,7 @@ webgpu = [
 
 
 [dependencies]
+bevy_zeroverse_capture = { version = "0.1.0", path = "crates/capture" }
 bevy_args = "4.0.0"
 bevy_egui = { version = "0.40", optional = true }
 bevy-inspector-egui = { version = "0.37.0", optional = true }
@@ -199,6 +202,9 @@ criterion = { version = "0.7", features = ["html_reports"] }
 futures-intrusive = { version = "0.5.0" }
 pollster = { version = "0.4" }
 tempfile = "3.10"
+
+[build-dependencies]
+bevy_zeroverse_capture = { version = "0.1.0", path = "crates/capture", features = ["provenance"] }
 
 [profile.dev.package."*"]
 opt-level = 3

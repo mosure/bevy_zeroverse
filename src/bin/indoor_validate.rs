@@ -193,6 +193,16 @@ fn main() -> Result<()> {
             .unwrap_or_else(|| env!("CARGO_MANIFEST_DIR").to_owned()),
     ));
     fs::create_dir_all(&args.output)?;
+    let identity = bevy_zeroverse_capture::GeneratorIdentity {
+        schema_version: bevy_zeroverse_capture::CAPTURE_SCHEMA_VERSION,
+        crate_version: env!("CARGO_PKG_VERSION").into(),
+        generator_version: bevy_zeroverse_capture::GENERATOR_VERSION,
+        source_sha256: env!("ZEROVERSE_SOURCE_SHA256").into(),
+    };
+    fs::write(
+        args.output.join("generator_identity.json"),
+        serde_json::to_vec_pretty(&identity)?,
+    )?;
     let camera_settings = args
         .indoor_camera
         .as_deref()
@@ -260,7 +270,7 @@ fn main() -> Result<()> {
     fs::write(
         args.output.join("render_selection.json"),
         serde_json::to_vec_pretty(&serde_json::json!({
-            "run_id": run_id, "quality": args.quality, "capture_engine": bevy_zeroverse::CAPTURE_ENGINE_IDENTITY,
+            "run_id": run_id, "identity": identity, "quality": args.quality, "capture_engine": bevy_zeroverse::CAPTURE_ENGINE_IDENTITY,
             "policy": if args.stratified { "first observed seed per layout/lighting/floor/furniture/architecture cell; category-balanced order, no image quality filtering" } else { "consecutive seeds" },
             "observed_strata": metrics.stratified_seeds, "selected_seeds": selected,
             "playback_steps": args.playback_steps, "density": args.density, "indoor_camera": camera_settings,
@@ -546,7 +556,7 @@ fn main() -> Result<()> {
     fs::write(
         args.output.join("run_complete.json"),
         serde_json::to_vec_pretty(&serde_json::json!({
-            "run_id": run_id, "captured_scenes": selected.len(), "selected_seeds": selected,
+            "run_id": run_id, "identity": identity, "captured_scenes": selected.len(), "selected_seeds": selected,
         }))?,
     )?;
     Ok(())

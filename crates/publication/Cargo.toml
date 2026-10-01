@@ -1,0 +1,27 @@
+[package]
+name = "bevy_zeroverse_publication"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Validated Rust project-page and whitepaper pipeline for bevy_zeroverse"
+repository = "https://github.com/mosure/bevy_zeroverse"
+readme = "README.md"
+include = ["src/**", "tests/**", "templates/**", "fonts/**", "README.md", "Cargo.toml", "build.rs"]
+
+[dependencies]
+anyhow = "1"
+bevy_zeroverse_capture = { version = "0.1.0", path = "../capture", features = ["provenance"] }
+base64 = "0.22"
+clap = { version = "4.5", features = ["derive"] }
+fs2 = "0.4"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }
+regex = "1"
+resvg = "0.45"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tempfile = "3"
+toml = "0.9"
+zip = { version = "4.6", default-features = false, features = ["deflate"] }
+
+[build-dependencies]
+bevy_zeroverse_capture = { version = "0.1.0", path = "../capture", features = ["provenance"] }

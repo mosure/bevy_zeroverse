@@ -20,8 +20,8 @@ contact sheets and machine-readable distributions. The
 [release compatibility notes](release_0_26.md) describe manifest and capture
 compatibility.
 
-The [project media protocol](project_page.md) identifies the captures behind the
-website and paper. Versioned reviews, release notes and evidence directories are
+The [Rust publication protocol](project_page.md) defines the single recipe and
+release gate for the website and paper. Versioned reviews, release notes and evidence directories are
 archival records: retain their original generator identities and input hashes.
 Use these guides for current behavior; a recorded benchmark does not automatically
 qualify a later generator or a different renderer/backend.

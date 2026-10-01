@@ -11,6 +11,7 @@ import json
 import math
 from pathlib import Path
 import re
+import subprocess
 from urllib.parse import unquote, urljoin, urlparse
 import zipfile
 
@@ -49,7 +50,10 @@ class Document(HTMLParser):
 
 def static_checks(captures=None):
     data = read(MEDIA/"gallery.json")
-    current = int(re.search(r"GENERATOR_VERSION: u32 = (\d+)", (ROOT/"src/scene/procedural_indoor/layout.rs").read_text()).group(1))
+    verifier = ROOT/'target/debug/bevy_zeroverse_publication'
+    command = [str(verifier),'verify'] if verifier.is_file() else ["cargo", "run", "--locked", "-p", "bevy_zeroverse_publication", "--", "verify"]
+    subprocess.run(command, cwd=ROOT, check=True)
+    current = read(PAGE/"publication.json")["generator_identity"]["generator_version"]
     assert data['generator_version'] == current
     assert data['audit_rooms']==512 and data['rendered_rooms']==32 and data['rendered_views']==256
     assert [s['seed'] for s in data['scenes']] == list(range(32))
@@ -61,7 +65,7 @@ def static_checks(captures=None):
         assert manifest['generator_version']==current
         assert manifest['seed']==capture['seed']==row['seed']==scene['seed']
         assert same_f32(manifest['envelope'],row['envelope'])
-        assert scene['features']==[k for k,v in feature_flags(row).items() if v]
+        assert set(scene['features'])=={k for k,v in feature_flags(row).items() if v}
         assert [f['time'] for f in scene['frames']]==[0,1]
         assert capture['co_visibility_metadata']['legend']==data['co_visibility']['legend']
         for step,frame in enumerate(scene['frames']):
@@ -127,7 +131,7 @@ def static_checks(captures=None):
                 assert unquote(url.fragment) in other.ids, f'{target}: missing #{url.fragment}'
             checked += 1
     main = (PAGE/'index.html').read_text()
-    architecture = main.split('<!-- ARCHITECTURE_GALLERY_START -->')[1].split('<!-- ARCHITECTURE_GALLERY_END -->')[0]
+    architecture = main.split('<section id="architecture"')[1].split('<section id="reference"')[0]
     assert 's24005-' not in architecture and 'cohort-24000' not in architecture
     assert 'explore' in documents[PAGE/'index.html'].ids
     assert 'id="comparison"' not in main and 'id="scene-select"' not in main
@@ -139,8 +143,8 @@ def static_checks(captures=None):
         assert f'(docs/{example})' in readme
         with Image.open(ROOT/'docs'/example) as im: im.load()
     assert 'static/media/architecture/hero.webp' in main
-    assert 'ARCHITECTURE_GALLERY_START' in main and '@FEATURED@' not in main
-    for seed in (7,8,6,2): assert f'data-architecture-seed="{seed}"' in main
+    assert '@FEATURED@' not in main
+    for feature in data['featured']: assert f'data-architecture-seed="{feature["seed"]}"' in main
     papers = PAGE/'static/papers'
     provenance = read(papers/'provenance.json')
     assert sha(papers/'bevy_zeroverse.pdf')==provenance['pdf_sha256']

@@ -1,90 +1,58 @@
-# Project page: matched captures, paper and evidence
+# Project page and paper publication
 
-Serve `www/` and open `/project/`. One explorer contains **all 32 consecutively
-rendered rooms**, four cameras, two trajectory endpoints and **six aligned modes**:
-RGB, depth, normals, semantics, positions and co-visibility. There are **256
-camera/time views**, **1,536 channel previews** and 1,024 per-peer display overlays.
-The population plots use **512 consecutive room programs**. No room is removed
-for appearance.
+The canonical publisher is the workspace crate [bevy_zeroverse_publication](../crates/publication/README.md). One Rust pipeline owns capture, validation, figures, the unified page, measured paper text, source/mask archives and publication attestation. There is no ordered sequence of Python publishing scripts.
 
-Room, feature, time, annotation and shared-camera controls update the same four
-views, plan and calibration. Co-visibility uses the production GPU's same-time
-first-surface visibility test, with one globally ordered camera bit per peer.
-Each source excludes its own bit. The additive legend is identical across views.
-Selecting an individual camera highlights shared surfaces in the other views;
-its own tile stays an RGB reference. Percentages divide by valid source pixels.
-The navigation link and `/project/#explore` open this same explorer in
-co-visibility mode; they do not select another capture dataset.
-
-The feature shortcuts select seeds 7, 8, 6 and 2 by structural coverage. Plans use
-the captured polygon, window openings, levels, pillars, portals and stairs.
-Furniture uses solid footprint proxies, and arrows show recorded camera direction,
-not visibility frusta. These explanatory diagrams do not render an alternate scene.
-
-The six-mode run uses generator 22 and the same seeds and configuration as the
-original architectural study. All 32 serialized room manifests and the complete
-512-room parameter distribution match that study exactly. RGB and annotations
-were recaptured together; no mask is inferred from a quantized display image or
-attached from a different room. The earlier five-mode run remains an archival
-artifact, not an additional population denominator.
-
-## Current capture and rebuild recipe
+## Commands and release contract
 
 ```sh
-cargo run --bin indoor_validate --no-default-features --features multi_threaded -- \
-  --seed 0 --audit-seeds 512 --renders 32 --cameras 4 \
-  --width 640 --height 400 --labels --co-visibility --no-raw --playback-steps 2 \
-  --gi-rays 1024 --output out/architecture_covisibility
-python scripts/report_indoor_architecture.py \
-  out/architecture_covisibility docs/evidence/architecture_covisibility
-python scripts/build_architecture_media.py
-python scripts/build_project_whitepaper.py
-python scripts/validate_architecture_gallery.py --static-only
-python scripts/validate_project_page.py --url http://127.0.0.1:8770/project/
+# Full update from the current compiled generator. Reuse only compatible captures.
+cargo run --locked -p bevy_zeroverse_publication -- refresh
+# Explicitly request a fresh GPU run:
+cargo run --locked -p bevy_zeroverse_publication -- refresh --recapture
+# Read-only release/deployment gate; no GPU, raw captures, Python or LaTeX:
+cargo run --locked -p bevy_zeroverse_publication -- verify
+# Rebuild page and PDF from the verified shipped dataset on release/deployment:
+cargo run --locked -p bevy_zeroverse_publication -- rebuild --release-version 0.26.0
+# Sanctioned registry entry point, which prepares/verifies the page and paper first:
+cargo run --locked -p bevy_zeroverse_publication -- publish --package bevy_zeroverse --dry-run
 ```
 
-The media builder consumes a completed capture run and matching audit. It refuses
-missing co-visibility, stale generators, changed input hashes, mixed run identities,
-incorrect camera/time identities and inconsistent masks or legends. It generates
-all six mode buttons, peer controls, calibration links, matched figures and current
-annotation statistics from one gallery manifest and HTML template. The obsolete
-separate main-page annotation explorer is removed. Reference-study builders write
-only the reference page. No media builder performs a new GPU render.
+[publication.toml](../publication.toml) declares the capture protocol: consecutive seeds, audit/render counts, resolution, synchronized camera/time counts, densities and GI sampling. Its current recipe audits 512 room programs and renders all 32 rooms at four cameras and two trajectory endpoints: 256 identities, each with RGB, depth, normals, semantics, positions and co-visibility. No room is removed for appearance. The explorer, static fallback, matched figures, numeric counts and paper use this same cohort.
 
-## Display conventions and exact downloads
+The generator records a build-time identity through the shared [capture contract](../crates/capture/README.md): crate version, geometry grammar and a digest of explicit renderer inputs, Cargo.lock, shaders and local WGPU patches. Publication compares that identity with the actual checkout, rather than reading a version number with a source-code regex. A version/dependency/source upgrade invalidates cached measurements even when the geometry grammar number is unchanged. This source identity does not promise bit-identical rasterization across devices or audit externally downloaded model assets.
 
-Assets are under `www/project/static/media/architecture/`. `gallery.json` records
-source/output hashes, camera identities, display conventions, per-view shared-pixel
-counts and pooled co-visibility statistics. `population.json` contains the complete
-512-room histograms. Per-room JSONs and `calibration-and-programs.zip` retain the
-captured room programs and calibration.
+Refresh requires a native graphics device, `latexmk`/`pdflatex` and Poppler `pdftoppm`. Rust image codecs, SVG rendering and a bundled licensed font produce figures without NumPy, Matplotlib, Pillow or system-font dependencies. External LaTeX typesets the document with shell escape disabled; Rust controls its source generation, dependency closure, failure checks, downloads and provenance.
 
-RGB is tone-mapped sRGB at WebP quality 92, without crop or exposure correction.
-Depth previews use `clamp(depth_metres / 15, 0, 1)`. Normals encode `(n+1)/2`;
-positions use the annotation AABB and clamp only for display. Semantic and additive
-co-visibility previews use lossless WebP encoding. All non-RGB preview conversions
-are checked for decoded-pixel equality.
+All work is staged before installation. Missing modes, incomplete runs, camera/time duplication, wrong transforms/intrinsics, geometry/manifest disagreement, invalid annotations, corrupt exact masks, mismatched legends and histogram denominators stop the build. Paper warnings and broken page links stop installation too. File replacements have rollback backups and the attestation is installed last. A partial install cannot pass the release gate.
 
-Every room has a downloadable visibility ZIP covering **both times and all four
-cameras**. `visibility-masks.zip` contains all 256 exact mask/validity pairs and
-capture metadata. Membership is **16-bit grayscale PNG**; validity is **8-bit
-PNG containing 0 or 1**. Black RGB can mean unshared geometry or background;
-consult validity to distinguish them. These exact masks remain available with
-`--no-raw`. Omitting that flag additionally exports float32 RGBA attachments.
-Peer overlays are display aids, not numeric training labels.
+`www/project/publication.json` binds renderer source inputs, publisher/templates, capture hashes, all managed artifacts and explicitly separate reference studies. `verify` checks the complete artifact set and exact masks from the shipped ZIPs; it never needs the original machine's absolute paths or `out/` directory. Generated files should not be manually edited: edit the recipe/templates or generate a new measured cohort and run refresh.
 
-Glass is the first geometric surface; masks do not follow reflection or refraction.
-The complete first-view contact sheet and static four-view co-visibility figure
-remain available without JavaScript. The README also retains the original object
-capture and MatSynth grids alongside the indoor examples.
+The Pages workflow first runs Rust `rebuild` on Linux, uploads the validated page/paper/TeX bundle, then verifies that exact bundle before deploying it alongside the WebGPU viewer. The paper workflow uses the same builder. The publication-contract workflow runs regression tests, Clippy and verification on pushes, pull requests and releases. Source upgrades require a successful native refresh before those gates can pass; CI does not silently reuse stale scenes or initialize neural models.
 
-Validation checks every numeric membership mask, source-bit exclusion, validity,
-reported counts, lossless preview and archive identity. Browser checks cover every
-room/time/mode and peer selection, atomic switching, feature filters, keyboard
-reveal, deep links, mobile/desktop layouts and the JavaScript-disabled fallback.
-The [unified-gallery validation](evidence/unified_gallery/validation.json) records
-exact counts and scope. These checks do not establish photographic realism,
-unlimited-process stability, ten-million-sample utility or downstream learning gains.
+For crate closeout, use `publish --package <name>` (omit `--dry-run` for an actual upload). It prepares and verifies the current page/paper before invoking Cargo. Publish the new `bevy_zeroverse_capture` dependency before dependent crates; `bevy_zeroverse_publication` is independently packageable. Direct external Cargo uploads cannot be intercepted and do not run repository workflows. Actual uploads retain Cargo's clean-checkout requirement; dry runs can package local work. The gate has no Cargo build-script publishing side effects.
+
+## Viewer and annotation contract
+
+Serve `www/` and open `/project/`. Room, feature, time, annotation and peer controls update one four-view explorer, plan and calibration. `/project/#explore` opens its co-visibility mode. Structural shortcuts use metadata with stable seed ties; RGB appearance never filters the cohort.
+
+All six previews now use lossless WebP, without exposure correction or cropping. Depth is the clamped 8-bit display of axial metres/15; normals encode (n+1)/2; position is annotation-AABB normalized for display. Semantic colors and additive membership codes preserve their source pixels. These previews are not float32 training labels.
+
+Co-visibility is the production GPU's same-time first-surface test. Bit i identifies ordered capture camera i; the source bit is excluded. The same additive legend applies to all views. Selecting a peer highlights shared surfaces in other cameras while its own tile stays RGB. Fractions use valid source pixels, rather than unique 3D points.
+
+Every room's ZIP covers both times and four cameras. The global archive includes all 256 mask/validity pairs: **16-bit grayscale PNG membership** and **8-bit 0/1 validity**. A valid unshared surface has zero membership and validity one; background has both zero. Glass is a first geometric surface, so annotations do not follow reflected/refracted light. Calibration-and-program downloads contain all 512 serialized architecture programs and every rendered calibration.
+
+The README's object and MatSynth grids remain. The project page retains the separate recorded camera-baseline/motion viewer, exact reference masks and videos with original identities. Those inputs are never promoted to current architectural measurements.
+
+Optional browser qualification remains independent of the Rust artifact gate:
+
+```sh
+python3 -m http.server 8770 --directory www
+python scripts/validate_project_page.py --url http://127.0.0.1:8770/project/
+python scripts/validate_project_page.py --reference \
+  --url http://127.0.0.1:8770/project/reference.html
+```
+
+The browser regression exercises all room/time/mode and peer selections, atomic switching, filters, keyboard controls, mobile/desktop layouts and the JavaScript-disabled fallback. Signal/geometry checks do not establish photographic realism, unlimited-process stability or ten-million-sample training utility.
 
 ## Reference study provenance
 
@@ -170,7 +138,7 @@ After the completed baseline captures and selected gallery/video captures, run:
 ```sh
 python scripts/build_baseline_evaluation.py --analyze
 python scripts/build_project_media.py --captures out/project_page_v21
-python scripts/build_project_whitepaper.py
+cargo run --locked -p bevy_zeroverse_publication -- refresh
 ```
 
 The media builder consumes population CSV/JSON and the first eight captures from
@@ -227,7 +195,7 @@ for seed in 24005 24000; do
   done
 done
 python scripts/build_baseline_gallery.py
-python scripts/build_project_whitepaper.py
+cargo run --locked -p bevy_zeroverse_publication -- refresh
 ```
 
 The builder verifies all noncamera manifest fields, camera policy, capture size,

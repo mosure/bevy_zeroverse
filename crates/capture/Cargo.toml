@@ -1,0 +1,14 @@
+[package]
+name = "bevy_zeroverse_capture"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Shared capture identity and annotation contracts for bevy_zeroverse"
+repository = "https://github.com/mosure/bevy_zeroverse"
+
+[features]
+provenance = ["dep:sha2"]
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+sha2 = { version = "0.10", optional = true }

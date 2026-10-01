@@ -1,0 +1,34 @@
+name: publication contract
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+      - name: Contract and failure regression tests
+        run: cargo test --locked -p bevy_zeroverse_capture -p bevy_zeroverse_publication
+      - name: Lint publication implementation
+        run: cargo clippy --locked -p bevy_zeroverse_capture -p bevy_zeroverse_publication --all-targets -- -D warnings
+      - name: Verify current generator, all annotations, page and paper
+        run: cargo run --locked -p bevy_zeroverse_publication -- verify
+      - name: Check crate release tag
+        if: github.event_name == 'release' && startsWith(github.event.release.tag_name, 'v')
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: cargo run --locked -p bevy_zeroverse_publication -- verify --release-version "$RELEASE_TAG"

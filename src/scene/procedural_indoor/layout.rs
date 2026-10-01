@@ -8,7 +8,7 @@ use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 use serde::{Deserialize, Serialize};
 
-pub const GENERATOR_VERSION: u32 = 22;
+pub use bevy_zeroverse_capture::GENERATOR_VERSION;
 pub const CAMERA_CLEARANCE: f32 = 0.28;
 pub const NEIGHBOR_DEPTH: f32 = 3.2;
 

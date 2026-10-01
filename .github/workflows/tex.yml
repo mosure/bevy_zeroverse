@@ -14,16 +14,15 @@ jobs:
       - name: checkout
         uses: actions/checkout@v4
 
-      - uses: wtfjoke/setup-tectonic@v3
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          biber-version: 'latest'
-
-      - name: run tectonic
-        run: tectonic tex/bevy_zeroverse.tex
+      - uses: dtolnay/rust-toolchain@nightly
+      - uses: Swatinem/rust-cache@v2
+      - name: Install paper typesetter
+        run: sudo apt-get update && sudo apt-get install -y latexmk texlive-latex-extra poppler-utils
+      - name: Rebuild verified publication from the current capture bundle
+        run: cargo run --locked -p bevy_zeroverse_publication -- rebuild
 
       - name: upload pdf
         uses: actions/upload-artifact@v4
         with:
           name: bevy_zeroverse
-          path: tex/bevy_zeroverse.pdf
+          path: www/project/static/papers/bevy_zeroverse.pdf

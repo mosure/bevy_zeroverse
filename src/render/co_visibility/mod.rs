@@ -16,7 +16,8 @@ pub(crate) use gpu::CoVisibilityLabel;
 #[cfg(test)]
 mod tests;
 
-pub const MAX_CAMERAS: usize = 16;
+pub use bevy_zeroverse_capture::{camera_color, mask_color};
+pub const MAX_CAMERAS: usize = bevy_zeroverse_capture::MAX_VISIBILITY_CAMERAS;
 pub const ABSOLUTE_TOLERANCE_M: f32 = 0.001;
 pub const RELATIVE_TOLERANCE: f32 = 0.0001;
 
@@ -59,32 +60,6 @@ pub fn validate_plane(
         }
     }
     Ok(())
-}
-
-/// Bit significance is global within the ordered capture-camera set, never
-/// reindexed after removing the source camera. Integer RGB sums cannot overflow.
-pub fn camera_color(index: usize, count: usize) -> [u8; 3] {
-    assert!((1..=MAX_CAMERAS).contains(&count) && index < count);
-    let channel = index % 3;
-    let bits = (count - channel).div_ceil(3);
-    let scale = 255 / ((1 << bits) - 1);
-    let mut rgb = [0; 3];
-    rgb[channel] = (scale * (1 << (bits - 1 - index / 3))) as u8;
-    rgb
-}
-
-pub fn mask_color(mask: u16, count: usize) -> [u8; 3] {
-    assert!((1..=MAX_CAMERAS).contains(&count));
-    let mut rgb = [0u8; 3];
-    for i in 0..count {
-        if mask & (1 << i) != 0 {
-            let color = camera_color(i, count);
-            for c in 0..3 {
-                rgb[c] += color[c];
-            }
-        }
-    }
-    rgb
 }
 
 /// Decode a lossless RGB code. Lossy codecs, resizing and color grading are not
