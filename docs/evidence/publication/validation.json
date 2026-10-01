@@ -5,7 +5,7 @@
     "schema_version": 1,
     "crate_version": "0.26.0",
     "generator_version": 22,
-    "source_sha256": "14479ee198f2058ee85eef85ae7f22618aabd3d1a771273700881ca6ba35fb4c"
+    "source_sha256": "9ed51df9c5545cb5482fee2d4e06bc9e9665287ea597948fe770489d1e355bad"
   },
   "protocol": {
     "seed": 0,
@@ -21,7 +21,7 @@
   },
   "publication": {
     "managed_artifacts_verified": 2802,
-    "attestation_sha256": "807a480b228b9b771d14b8c6dde3a7a1dd8f8ef06e3aecb46ffdafb0df275135",
+    "attestation_sha256": "8c0b8d3b1219ebd2fd6904a17699c11f1c4ce0ec40e1d287c29d71e9f15440ff",
     "capture_sources_hashed": 2118,
     "annotation_preview_roundtrips_verified_in_rust": 1536,
     "exact_co_visibility_mask_pairs_verified": 256,
@@ -33,7 +33,7 @@
   },
   "contracts": {
     "passed": true,
-    "tests_passed": 16,
+    "tests_passed": 18,
     "command": "cargo test --locked -p bevy_zeroverse_capture -p bevy_zeroverse_publication",
     "coverage": [
       "exact 16-bit membership and source exclusion",
@@ -47,7 +47,8 @@
       "install rollback",
       "dynamic cohort counts and example captions",
       "JSON float32 precision with exact integer preservation",
-      "cache paths cannot replace source or the publication work directory"
+      "cache paths cannot replace source or the publication work directory",
+      "LF/CRLF source identity equivalence without changing binary/artifact hashes"
     ]
   },
   "static": {
@@ -112,13 +113,15 @@
   },
   "remote_ci_run": false,
   "logs_sha256": {
-    "publication-tests.log": "293c8829bbfda4af9a29735508bdf05fa53b098221507050fe9b071d58be84ea",
-    "publication-clippy.log": "824cd820e7ccd8c6902007cbc374d5c2d6e38271115f709c8f3ae3ce4b703854",
+    "publication-tests.log": "1f8014cafb908c3ccbb11e2041dcee0fb95a4ee957f57414d8687f5c4014ad7d",
+    "publication-clippy.log": "b32b48d873708b63ec4d22bb174ea03813ba3ee892eae862fc21f6970075549e",
     "publication-core-clippy.log": "d6cf3e2cf98db3a59eaea403bf7b1da7ad763887194f7427b60b28f2d9d46d8d",
     "publication-wasm.log": "57166ce7ad909d7e3e7de44ebfdfb7d5c9ed2e1c36d70bc818d167a63ef4dcac",
     "publication-refresh-final.log": "3640c09439df299edea6dffa7beb2977c640f86d758d48d4aef5a8879631a99c",
     "publication-rebuild.log": "ea17acf28471331eeeb76317b3107856663727a512c98e5dfe208608d3616f13",
     "publication-publish-dry-run.log": "3b6b18c94ecaefd7e19595981f157830df64f37d99e1610084bd02483249d611",
-    "report.json": "0d8030c7cb5f95cccc18203938bd9369db07675972d3719ce559bf770fa3360a"
-  }
+    "report.json": "0d8030c7cb5f95cccc18203938bd9369db07675972d3719ce559bf770fa3360a",
+    "publication-refresh-ci.log": "acf6726b95296a0fb55e5ed016dee7efaacfe4e28424c0bb7f1c179a65acc54b"
+  },
+  "text_build_input_hashes_use_canonical_lf": true
 }

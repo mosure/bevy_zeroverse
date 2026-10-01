@@ -26,7 +26,7 @@ The page presents all 32 rooms, all four cameras and both endpoints in one explo
 
 The native capture protocol uses Auto quality, shadows, SSAO and approximate diffuse GI with 1024 primary rays per probe. Renderer identity and capabilities are recorded in every calibration download. All captured views passed the recorded alignment checks: maximum per-view depth/position p99 error 2.861 $\mu$m, reprojection p99 0.00263 pixels and normal-length error 2.384e-7. Every view contains at least 7 semantic classes. 18/18 rooms with humans in the camera's primary functional zone show person pixels; 3/22 rooms with humans anywhere in the main envelope never show person pixels. These are class-level observations, rather than instance-level visibility guarantees.
 
-Scene construction through capture/export takes 1.27--3.98 seconds per room (median 1.78), excluding application startup. This is a bounded capture run, not a sustained-throughput, unlimited-process memory-stability or photographic-realism qualification.
+Scene construction through capture/export takes 1.20--3.91 seconds per room (median 1.74), excluding application startup. This is a bounded capture run, not a sustained-throughput, unlimited-process memory-stability or photographic-realism qualification.
 
 \begin{figure}[p]
 \centering\includegraphics[width=\linewidth,height=.82\textheight,keepaspectratio]{generated/architecture_levels.jpg}

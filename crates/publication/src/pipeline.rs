@@ -12,7 +12,7 @@ use fs2::FileExt;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
     fs,
     io::Read,
     path::{Path, PathBuf},
@@ -151,9 +151,24 @@ pub fn verify(root: &Path, release_version: Option<&str>) -> Result<Attestation>
         "unsupported publication attestation"
     );
     let current = identity(root)?;
+    let renderer_inputs = source_inputs(root)?;
+    let changed_inputs = attestation
+        .renderer_inputs
+        .keys()
+        .chain(renderer_inputs.keys())
+        .filter(|name| attestation.renderer_inputs.get(*name) != renderer_inputs.get(*name))
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .take(8)
+        .cloned()
+        .collect::<Vec<_>>()
+        .join(", ");
     ensure!(
         attestation.generator_identity == current && attestation.protocol == config.capture,
-        "stale generator or capture recipe: publication refresh required"
+        "stale generator or capture recipe: publication refresh required; expected source {}, found {}; changed renderer inputs [{}]",
+        attestation.generator_identity.source_sha256,
+        current.source_sha256,
+        changed_inputs
     );
     if let Some(version) = release_version {
         ensure!(
@@ -162,7 +177,7 @@ pub fn verify(root: &Path, release_version: Option<&str>) -> Result<Attestation>
         );
     }
     ensure!(
-        attestation.renderer_inputs == source_inputs(root)?,
+        attestation.renderer_inputs == renderer_inputs,
         "renderer source set/hash changed"
     );
     ensure!(

@@ -58,6 +58,40 @@ pub mod provenance {
         format!("{:x}", Sha256::digest(bytes))
     }
 
+    // Git checks text inputs out as LF. Hash their canonical text contents so
+    // a pre-existing CRLF checkout has the same build identity. Binary assets
+    // and the public sha() used for rendered artifacts remain byte-exact.
+    fn input_sha(path: &Path, bytes: &[u8]) -> String {
+        let text = matches!(
+            path.extension().and_then(|value| value.to_str()),
+            Some(
+                "rs" | "wgsl"
+                    | "glsl"
+                    | "metal"
+                    | "hlsl"
+                    | "vert"
+                    | "frag"
+                    | "toml"
+                    | "lock"
+                    | "json"
+                    | "html"
+                    | "css"
+                    | "tex"
+                    | "sty"
+                    | "bib"
+                    | "md"
+                    | "svg"
+                    | "txt"
+            )
+        ) || path.file_name().is_some_and(|name| name == "LICENSE");
+        if text {
+            if let Ok(value) = std::str::from_utf8(bytes) {
+                return sha(value.replace("\r\n", "\n").as_bytes());
+            }
+        }
+        sha(bytes)
+    }
+
     /// Explicit renderer inputs; documentation/tooling changes do not force GPU
     /// recapture. Registry dependencies are bound by Cargo.lock. Local WGPU
     /// patches, shaders, built-in assets and the wire contract are included.
@@ -73,7 +107,7 @@ pub mod provenance {
         ] {
             let path = root.join(name);
             if path.is_file() {
-                files.insert(name.into(), sha(&fs::read(path)?));
+                files.insert(name.into(), input_sha(&path, &fs::read(&path)?));
             }
         }
         for name in [
@@ -115,7 +149,7 @@ pub mod provenance {
                     .map_err(io::Error::other)?
                     .to_string_lossy()
                     .replace('\\', "/");
-                out.insert(name, sha(&fs::read(entry.path())?));
+                out.insert(name, input_sha(&entry.path(), &fs::read(entry.path())?));
             }
         }
         Ok(())
@@ -134,11 +168,49 @@ pub mod provenance {
     pub fn publisher_inputs(root: &Path) -> io::Result<BTreeMap<String, String>> {
         let mut inputs = BTreeMap::new();
         for name in ["Cargo.toml", "build.rs"] {
-            inputs.insert(name.into(), sha(&fs::read(root.join(name))?));
+            let path = root.join(name);
+            inputs.insert(name.into(), input_sha(&path, &fs::read(&path)?));
         }
         for name in ["src", "templates", "fonts"] {
             collect(root, &root.join(name), &mut inputs)?;
         }
         Ok(inputs)
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn text_build_inputs_have_identical_lf_and_crlf_identities() {
+            for name in [
+                "Cargo.toml",
+                "Cargo.lock",
+                "src/main.rs",
+                "src/main.wgsl",
+                "templates/main.html",
+                "fonts/LICENSE",
+            ] {
+                let path = Path::new(name);
+                assert_eq!(
+                    input_sha(path, b"first\nsecond\n"),
+                    input_sha(path, b"first\r\nsecond\r\n"),
+                    "{name}"
+                );
+            }
+        }
+
+        #[test]
+        fn binary_assets_and_artifact_hashes_remain_byte_exact() {
+            let path = Path::new("assets/embedded/texture.png");
+            let bytes = b"first\r\nsecond\r\n";
+            assert_eq!(input_sha(path, bytes), sha(bytes));
+            assert_ne!(input_sha(path, bytes), input_sha(path, b"first\nsecond\n"));
+            assert_ne!(sha(bytes), sha(b"first\nsecond\n"));
+            assert_eq!(
+                input_sha(Path::new("src/invalid.rs"), b"\xff\r\n"),
+                sha(b"\xff\r\n")
+            );
+        }
     }
 }
