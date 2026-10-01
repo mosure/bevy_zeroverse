@@ -8,7 +8,14 @@
     position: "Position", optical_flow: "Optical flow", motion_vectors: "Motion vectors",
     co_visibility: "Co-visibility",
   };
-  const state = { scene: 0, time: 0, camera: 0, mode: "normal", peer: null };
+  const comparison = $("comparison");
+  if (!comparison) return;
+  const explorer = comparison.closest(".explorer");
+  const modeButtons = explorer.querySelectorAll("[data-mode]");
+  const cameraButtons = explorer.querySelectorAll("[data-camera]");
+  const initialMode = comparison.dataset.initialMode;
+  const state = { scene: 0, time: 0, camera: 0,
+    mode: Object.hasOwn(labels, initialMode) ? initialMode : "normal", peer: null };
   let gallery;
   let request = 0;
   const imageCache = new Map();
@@ -77,12 +84,14 @@
       button.textContent = peer === null ? "All cameras" : `Camera ${peer}`;
       button.setAttribute("aria-pressed", String(state.peer === peer));
       button.disabled = peer === state.camera;
+      button.dataset.peer = peer === null ? "all" : String(peer);
       button.addEventListener("click", () => { state.peer = peer; update(); });
       buttons.append(button);
     });
   }
   async function update() {
     const revision = ++request;
+    comparison.setAttribute("aria-busy", "true");
     const scene = gallery.scenes[state.scene];
     const frame = scene.frames[state.time];
     const view = frame.views[state.camera];
@@ -97,8 +106,8 @@
       const identity = `seed ${scene.seed}, camera ${state.camera}, t=${frame.time.toFixed(2)}`;
       $("rgb-image").alt = `RGB capture: ${identity}`;
       $("annotation-image").alt = `${labels[state.mode]} annotation: ${identity}`;
-      document.querySelectorAll("[data-mode]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.mode === state.mode)));
-      document.querySelectorAll("[data-camera]").forEach((button) => {
+      modeButtons.forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.mode === state.mode)));
+      cameraButtons.forEach((button) => {
         const index = Number(button.dataset.camera);
         button.setAttribute("aria-pressed", String(index === state.camera));
         button.querySelector("img").src = base + frame.views[index].images.color;
@@ -110,9 +119,13 @@
       $("calibration-link").href = base + scene.calibration;
       $("mask-link").href = base + scene.masks;
       $("reveal").disabled = state.mode === "color";
-      $("comparison").querySelector(".divider").hidden = state.mode === "color";
-      $("comparison").dataset.ready = "true";
+      comparison.querySelector(".divider").hidden = state.mode === "color";
+      comparison.dataset.selection = `${scene.seed}:${state.time}:${state.camera}:${state.mode}:${state.peer ?? "all"}`;
+      comparison.dataset.ready = "true";
+      comparison.setAttribute("aria-busy", "false");
     } catch (error) {
+      if (revision !== request) return;
+      comparison.setAttribute("aria-busy", "false");
       $("capture-status").textContent = "This image could not be loaded. Try another view or download the capture metadata.";
       console.error(error);
     }
@@ -130,12 +143,12 @@
     gallery = data;
     $("scene-select").addEventListener("change", (event) => { state.scene = Number(event.target.value); update(); });
     $("time-select").addEventListener("change", (event) => { state.time = Number(event.target.value); update(); });
-    document.querySelectorAll("[data-camera]").forEach((b) => b.addEventListener("click", () => {
+    cameraButtons.forEach((b) => b.addEventListener("click", () => {
       state.camera = Number(b.dataset.camera);
       if (state.peer === state.camera) state.peer = null;
       update();
     }));
-    document.querySelectorAll("[data-mode]").forEach((b) => b.addEventListener("click", () => { state.mode = b.dataset.mode; update(); }));
+    modeButtons.forEach((b) => b.addEventListener("click", () => { state.mode = b.dataset.mode; update(); }));
     update();
   }).catch((error) => {
     $("capture-status").textContent = "Interactive gallery unavailable. Static figures, videos and the whitepaper are still available.";
@@ -156,8 +169,9 @@
         }
       }
     }, { threshold: 0.2 });
-    observer.observe(teaser);
-    observer.observe($("motion-video"));
+    if (teaser) observer.observe(teaser);
+    const motion = $("motion-video");
+    if (motion) observer.observe(motion);
   }
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) document.querySelectorAll("video").forEach((v) => v.pause());

@@ -15,13 +15,14 @@
   <link rel="stylesheet" href="static/css/index.css">
   <link rel="stylesheet" href="static/css/architecture.css">
   <script defer src="static/js/architecture.js"></script>
+  <script defer src="static/js/index.js"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
 <header class="site-header">
   <a class="wordmark" href="#main"><svg viewBox="0 0 28 28" aria-hidden="true"><path d="m14 2 11 6v12l-11 6-11-6V8Z M3 8l11 6 11-6 M14 14v12Z"/></svg>bevy_zeroverse</a>
   <nav aria-label="Page navigation">
-    <a href="#architecture">Architecture</a><a href="#evidence">Evidence</a><a href="#paper">Whitepaper</a><a class="nav-source" href="https://github.com/mosure/bevy_zeroverse">GitHub ↗</a>
+    <a href="#architecture">Architecture</a><a href="#explore">Co-visibility</a><a href="#evidence">Evidence</a><a href="#paper">Whitepaper</a><a class="nav-source" href="https://github.com/mosure/bevy_zeroverse">GitHub ↗</a>
   </nav>
 </header>
 <main id="main">
@@ -90,17 +91,65 @@
 
 <!-- ARCHITECTURE_GALLERY_END -->
 
+  <section id="explore" class="container section" aria-labelledby="explore-title">
+    <div class="section-heading">
+      <div><div class="eyebrow">03 / CO-VISIBILITY + MATCHED SUPERVISION</div><h2 id="explore-title">See what the cameras share.</h2></div>
+      <p>Choose a source view, then highlight surfaces visible to another camera or combine all camera memberships. Switch annotations and time without losing the matching RGB capture.</p>
+    </div>
+    <div class="reference-banner">This interactive annotation study keeps its original captures. The architecture gallery above has its own room programs and measurements.</div>
+    <div class="explorer">
+      <div class="explorer-toolbar">
+        <label>Room <select id="scene-select"><option value="0">24005 · Sunlit seating</option><option value="1">24000 · Workspace &amp; bookshelves</option></select></label>
+        <label>Capture time <select id="time-select"><option value="0">t = 0.00</option><option value="1">t = 0.10</option><option value="2">t = 0.20</option></select></label>
+        <span class="pill">Matched captures · 768 × 480</span>
+      </div>
+      <div id="mode-buttons" class="mode-buttons" role="group" aria-label="Annotation mode">
+        <button data-mode="color" aria-pressed="false">RGB</button>
+        <button data-mode="depth" aria-pressed="false">Depth</button>
+        <button data-mode="normal" aria-pressed="false">Normals</button>
+        <button data-mode="semantic" aria-pressed="false">Semantic</button>
+        <button data-mode="position" aria-pressed="false">Position</button>
+        <button data-mode="optical_flow" aria-pressed="false">Optical flow</button>
+        <button data-mode="motion_vectors" aria-pressed="false">Motion vectors</button>
+        <button data-mode="co_visibility" aria-pressed="true">Co-visibility</button>
+      </div>
+      <figure class="comparison" id="comparison" data-initial-mode="co_visibility" aria-busy="false" style="--split:50%">
+        <img id="rgb-image" src="static/media/s24005-t0-c0-color.webp" width="768" height="480" alt="RGB view of seed 24005 from camera 0">
+        <img id="annotation-image" class="annotation-image" src="static/media/s24005-t0-c0-co_visibility.png" width="768" height="480" alt="Additive co-visibility annotation for seed 24005 from camera 0">
+        <div class="divider" aria-hidden="true"></div>
+        <span class="image-tag left-tag">RGB</span><span class="image-tag right-tag" id="mode-label">Co-visibility</span>
+      </figure>
+      <div class="reveal-control">
+        <label for="reveal">RGB / annotation reveal</label><input id="reveal" type="range" min="0" max="100" value="50" aria-valuetext="50 percent RGB"><span id="reveal-value">50 / 50</span>
+      </div>
+      <div class="annotation-info">
+        <p id="mode-description">Additive camera membership at the same timestep. Each legend color contributes one camera bit; combined colors mean shared visibility. The source camera excludes itself. Exact masks distinguish unshared surfaces from background.</p><div id="mode-legend" class="mode-legend"><span class="legend-swatch"><i style="background-color:rgb(170,0,0)"></i>Camera 0 (source; excluded)</span><span class="legend-swatch"><i style="background-color:rgb(0,255,0)"></i>Camera 1</span><span class="legend-swatch"><i style="background-color:rgb(0,0,255)"></i>Camera 2</span><span class="legend-swatch"><i style="background-color:rgb(85,0,0)"></i>Camera 3</span></div>
+      </div>
+      <div id="peer-controls" class="peer-controls"><span>Show surfaces shared with</span><div id="peer-buttons" role="group" aria-label="Co-visibility camera membership"><button data-peer="all" aria-pressed="true" disabled>All cameras</button><button data-peer="0" aria-pressed="false" disabled>Camera 0</button><button data-peer="1" aria-pressed="false" disabled>Camera 1</button><button data-peer="2" aria-pressed="false" disabled>Camera 2</button><button data-peer="3" aria-pressed="false" disabled>Camera 3</button></div></div>
+      <div class="camera-heading"><h3>Four views of the same geometry</h3><span id="camera-info">Camera 0</span></div>
+      <div id="camera-buttons" class="camera-grid" role="group" aria-label="Source camera">
+        <button data-camera="0" aria-pressed="true"><img src="static/media/s24005-t0-c0-color.webp" width="768" height="480" alt="Camera 0"><span>Camera 0 · reference</span></button>
+        <button data-camera="1" aria-pressed="false"><img src="static/media/s24005-t0-c1-color.webp" width="768" height="480" alt="Camera 1"><span>Camera 1</span></button>
+        <button data-camera="2" aria-pressed="false"><img src="static/media/s24005-t0-c2-color.webp" width="768" height="480" alt="Camera 2"><span>Camera 2</span></button>
+        <button data-camera="3" aria-pressed="false"><img src="static/media/s24005-t0-c3-color.webp" width="768" height="480" alt="Camera 3"><span>Camera 3</span></button>
+      </div>
+      <div class="capture-footer"><p id="capture-status" aria-live="polite">Four calibrated capture cameras; the editor camera is excluded.</p><div><a id="calibration-link" href="static/media/s24005-calibration.json" download>Calibration &amp; provenance ↓</a><a id="mask-link" href="static/media/s24005-visibility.zip" download>Exact visibility masks ↓</a></div></div>
+    </div>
+    <noscript><p class="note">The default RGB / co-visibility comparison, legend and exact-mask downloads remain available without JavaScript. Enable JavaScript to select cameras, peers, time or another annotation.</p></noscript>
+    <p class="note">Recorded annotation study · generator 21 · two selected rooms, four cameras, three times and eight modes. These captures retain their original identity and are separate from the current architectural cohort above. Color, depth and label files share scene/camera/time identities. Glass is a first geometric surface for annotations; labels do not follow refracted or reflected light. Website images are visualizations; the downloadable NPZ visibility masks retain exact integer membership.</p>
+  </section>
+
   <section id="reference" class="container section reference-study" aria-labelledby="reference-title">
-    <div class="section-heading"><div><div class="eyebrow">03 / ADDITIONAL CAPTURE CONTRACTS</div><h2 id="reference-title">Shared surfaces.<br>Motion over time.</h2></div><p>The engine also exports camera-specific co-visibility, optical flow and motion vectors, and supports optional ARDY human motion. Their detailed illustrations remain available in the recorded reference studies.</p></div>
+    <div class="section-heading"><div><div class="eyebrow">04 / BASELINE + MOTION</div><h2 id="reference-title">Shared surfaces.<br>Motion over time.</h2></div><p>The engine also exports camera-specific co-visibility, optical flow and motion vectors, and supports optional ARDY human motion. Explore shared surfaces above, and follow the recorded studies below for camera-baseline comparisons and videos.</p></div>
     <div class="reference-banner">The current architecture cohort above contains five render modes and two trajectory endpoints. It did not capture co-visibility, temporal flow or continuous video. The linked studies retain their earlier geometry and measurements.</div>
-    <div class="feature-columns"><article><h3>Camera baseline</h3><p>Five settings over the same geometry, four synchronized views, camera plans and measured shared surfaces.</p><a href="reference.html#baseline">Explore the baseline control ↗</a></article><article><h3>Eight matched annotations</h3><p>Same-view RGB, depth, normals, positions, labels, optical flow, motion vectors and exact camera-membership masks.</p><a href="reference.html#explore">Inspect aligned annotations ↗</a></article><article><h3>Native rendered video</h3><p>Four-camera traversal and two-camera ARDY motion, with original calibration, prompts and model provenance.</p><a href="reference.html#motion">Watch motion examples ↗</a> · <a href="reference.html#main">Camera traversal ↗</a></article></div>
+    <div class="feature-columns"><article><h3>Camera baseline</h3><p>Five settings over the same geometry, four synchronized views, camera plans and measured shared surfaces.</p><a href="reference.html#baseline">Explore the baseline control ↗</a></article><article><h3>Eight matched annotations</h3><p>Same-view RGB, depth, normals, positions, labels, optical flow, motion vectors and exact camera-membership masks.</p><a href="#explore">Inspect aligned annotations ↑</a></article><article><h3>Native rendered video</h3><p>Four-camera traversal and two-camera ARDY motion, with original calibration, prompts and model provenance.</p><a href="reference.html#motion">Watch motion examples ↗</a> · <a href="reference.html#main">Camera traversal ↗</a></article></div>
     <p class="note">The reference population includes 512 distinct rendered rooms and a matched 128-room baseline sweep. It is separate from the 512-program / 32-rendered-room architectural audit. <a href="reference.html#evidence">Reference metrics and co-visibility distributions ↗</a></p>
   </section>
 
   <section id="paper" class="paper-section" aria-labelledby="paper-title"><div class="container section paper-layout">
     <a class="paper-preview" href="static/papers/bevy_zeroverse.pdf" aria-label="Read the bevy_zeroverse whitepaper PDF"><img src="static/media/whitepaper.webp" loading="lazy" width="612" height="792" alt="First page of the bevy_zeroverse technical whitepaper"></a>
     <div>
-      <div class="eyebrow">04 / TECHNICAL WHITEPAPER</div><h2 id="paper-title">Auditable procedural indoor data for multi-view reconstruction.</h2>
+      <div class="eyebrow">05 / TECHNICAL WHITEPAPER</div><h2 id="paper-title">Auditable procedural indoor data for multi-view reconstruction.</h2>
       <p class="paper-author">Mitchell Mosure · October 2026 · Technical report</p>
       <p>The paper shows the current room envelopes, paired RGB and architectural plans, floor and roof variation, aligned annotation panels, and 512-room distributions. An explicitly separate reference section retains the camera-baseline and co-visibility experiments.</p>
       <p>It reports a bounded generator evaluation. Photographic realism, ten-million-sample learning utility and downstream reconstruction gains remain open evaluation questions.</p>
