@@ -27,6 +27,9 @@ use std::{
     time::{Duration, Instant},
 };
 
+#[path = "indoor_validate/co_visibility.rs"]
+mod co_visibility;
+
 #[derive(Parser)]
 #[command(
     about = "Audit seeded indoor layouts; optionally capture real RGB and aligned annotations"
@@ -77,6 +80,9 @@ struct Args {
     gi_bounces: u32,
     #[arg(long)]
     labels: bool,
+    /// Capture exact same-time camera membership, validity masks and additive previews.
+    #[arg(long, requires = "labels")]
+    co_visibility: bool,
     /// Export PNG previews and metrics without large RGBA32F files.
     #[arg(long)]
     no_raw: bool,
@@ -115,6 +121,8 @@ struct CaptureReport {
     image_assets: usize,
     annotation_precision: bevy_zeroverse::sample::AnnotationPrecision,
     diffuse_gi: Option<bevy_zeroverse::scene::procedural_indoor::gi::BakeStatistics>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    co_visibility_metadata: Option<serde_json::Value>,
 }
 
 #[derive(Serialize)]
@@ -137,6 +145,8 @@ struct ViewReport {
     semantic_pixel_counts: std::collections::BTreeMap<String, usize>,
     annotation_alignment:
         Option<bevy_zeroverse::scene::procedural_indoor::validation::AnnotationAlignment>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    co_visibility: Option<co_visibility::VisibilityReport>,
 }
 
 fn main() -> Result<()> {
@@ -153,6 +163,13 @@ fn main() -> Result<()> {
         args.cameras > 0 && args.cameras <= 256,
         "cameras must be between 1 and 256"
     );
+    if args.co_visibility {
+        bevy_zeroverse::render::co_visibility::validate_config(
+            &[RenderMode::CoVisibility],
+            args.cameras,
+        )
+        .map_err(anyhow::Error::msg)?;
+    }
     ensure!(
         args.width >= 64 && args.height >= 64 && args.width <= 4096 && args.height <= 4096,
         "image dimensions must be in [64, 4096]"
@@ -248,6 +265,7 @@ fn main() -> Result<()> {
             "observed_strata": metrics.stratified_seeds, "selected_seeds": selected,
             "playback_steps": args.playback_steps, "density": args.density, "indoor_camera": camera_settings,
             "human_density": args.human_density, "diffuse_gi_enabled": !args.no_gi && args.quality.diffuse_gi(), "gi_rays": args.gi_rays, "gi_bounces": args.gi_bounces,
+            "co_visibility": args.co_visibility,
         }))?,
     )?;
     // Check actual mesh construction independently of the cheaper distribution pass.
@@ -276,7 +294,7 @@ fn main() -> Result<()> {
     if selected.is_empty() {
         return Ok(());
     }
-    let modes = if args.labels {
+    let mut modes = if args.labels {
         vec![
             RenderMode::Color,
             RenderMode::Depth,
@@ -287,6 +305,9 @@ fn main() -> Result<()> {
     } else {
         vec![RenderMode::Color]
     };
+    if args.co_visibility {
+        modes.push(RenderMode::CoVisibility);
+    }
     let config = BevyZeroverseConfig {
         scene_type: ZeroverseSceneType::ProceduralIndoor,
         indoor_seed: Some(args.seed),
@@ -508,6 +529,7 @@ fn main() -> Result<()> {
             image_assets: app.world().resource::<Assets<Image>>().len(),
             annotation_precision: sample.annotation_precision,
             diffuse_gi: app.world().get_resource::<bevy_zeroverse::scene::procedural_indoor::gi::BakeStatistics>().cloned(),
+            co_visibility_metadata: sample.co_visibility_metadata.clone(),
         };
         fs::write(
             directory.join("capture.json"),
@@ -657,6 +679,19 @@ fn save_sample(
             "degenerate RGB image: mean={mean} std={std} dark={dark} clipped={clipped}"
         );
         let focal_length = args.height as f32 / (2.0 * (view.fovy * 0.5).tan());
+        let co_visibility = if args.co_visibility {
+            Some(co_visibility::save(
+                view,
+                directory,
+                i,
+                camera_index,
+                args.cameras,
+                [args.width, args.height],
+                !args.no_raw,
+            )?)
+        } else {
+            None
+        };
         reports.push(ViewReport {
             camera_index,
             step_index,
@@ -674,6 +709,7 @@ fn save_sample(
             clipped_fraction: clipped,
             semantic_colors,
             semantic_pixel_counts,
+            co_visibility,
             annotation_alignment: if args.labels {
                 Some(
                     bevy_zeroverse::scene::procedural_indoor::validation::validate_annotations_with_precision(

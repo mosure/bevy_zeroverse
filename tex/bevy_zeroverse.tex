@@ -92,7 +92,7 @@ Co-visibility & Optional same-time, per-pixel membership in other capture camera
 Calibration / instances & Camera intrinsics, poses and normalized trajectory time, scene manifest, semantic instance oriented boxes, person joints, and primary-room annotation AABB.\\
 O-Voxel & Primary-room architecture/objects only; excludes neighboring/outside geometry. Requires one timestep and disabled human motion; incompatible requests are rejected.\\\bottomrule
 \end{tabular}
-\caption{Eight currently supported render modes plus structured annotations. The current architectural cohort exports five modes. The separately identified reference gallery exports all eight modes, and its population study derives co-visibility independently from depth and calibration. Glass is a first geometric surface: annotations do not follow refracted or reflected light paths. Flow transports surface correspondence, including supported human deformation, rather than estimating photometric image motion.}
+\caption{Eight currently supported render modes plus structured annotations. The current architectural cohort exports six modes, including production co-visibility. The separately identified reference gallery exports all eight modes, and its population study derives co-visibility independently from depth and calibration. Glass is a first geometric surface: annotations do not follow refracted or reflected light paths. Flow transports surface correspondence, including supported human deformation, rather than estimating photometric image motion.}
 \end{table}
 
 Headless generation supports chunked safetensors or per-sample files, compression, resumable identity checks, metrics and bounded worker replacement. RGB and numeric channels have separate encoding contracts. Native generation performs numeric temporal export and O-Voxel export. The WebGPU viewer supports indoor construction, inspection and optional motion inference, using the same manifest and geometry modules; Portable quality reduces unsupported or costly rendering features. Browser velocity visualization is not a qualification of native dataset flow export. The current Wasm path omits native baked diffuse GI and uses its platform lighting fallback.
@@ -101,7 +101,7 @@ Headless generation supports chunked safetensors or per-sample files, compressio
 \subsection{Architectural audit}
 The current architectural program was audited on 512 consecutive seeds (0--511), with four cameras, furnishing density 0.65 and static human density 0.25. Every room passed layout, support, clearance and camera checks. Oblique walls occurred in 458 rooms, chamfered corners in 307, exterior cut-ins in 221, sloped ceilings in 354, raised floors in 90, sunken floors in 103, pillars in 425, arches in 194 and furnished mezzanines in 46. All 512 structural signatures were distinct after quantizing dimensions to 1 cm; this bounded uniqueness does not establish ten-million-sample utility.
 
-The first 32 rooms were rendered without filtering: four cameras at two trajectory endpoints produced 256 views in RGB, depth, normal, semantic and position modes at $640\times400$. All views passed annotation alignment. Maximum per-view depth/position p99 discrepancy was $2.87\,\mu$m, reprojection p99 was 0.00264 pixels, and decoded normal-length error was $2.39\times10^{-7}$. These are annotation consistency checks, not real-world accuracy measurements. The \href{https://github.com/mosure/bevy_zeroverse/blob/main/docs/architecture_v22.md}{architectural report} retains generator-22 identities, complete contact sheets and machine-readable distributions.
+The first 32 rooms were rendered without filtering: four cameras at two trajectory endpoints produced 256 views in RGB, depth, normal, semantic, position and co-visibility modes at $640\times400$. All views passed annotation alignment. Maximum per-view depth/position p99 discrepancy was $2.87\,\mu$m, reprojection p99 was 0.00264 pixels, and decoded normal-length error was $2.39\times10^{-7}$. These are annotation consistency checks, not real-world accuracy measurements. The \href{https://github.com/mosure/bevy_zeroverse/blob/main/docs/architecture_v22.md}{architectural report} retains generator-22 identities, complete contact sheets and machine-readable distributions.
 
 
 \input{generated/architecture_table.tex}
@@ -132,16 +132,41 @@ Footprint areas span 35.05--262.58 m$^2$ and occupy 87.3--100\% of the axis-alig
 \end{figure}
 
 \subsection{Aligned images of the current geometry}
-The main project-page explorer contains all 32 consecutively captured rooms, four cameras and normalized times $t=0,1$: 256 camera/time identities and 1,280 displayed channel images. RGB, depth, normals, semantics and positions switch atomically with the corresponding calibration and plan. These are existing native captures of the current generator; rebuilding the page does not perform a new render. Figure~\ref{fig:architecture-annotations} retains pixel alignment and illustrates several different floor levels.
+The main project-page explorer contains all 32 consecutively captured rooms, four cameras and normalized times $t=0,1$: 256 camera/time identities and 1,536 displayed channel images. RGB, depth, normals, semantics, positions and co-visibility switch atomically with the corresponding calibration and plan. These are matched six-mode native captures of the current generator; rebuilding the page does not perform a new render. Figure~\ref{fig:architecture-annotations} retains pixel alignment and illustrates several different floor levels.
 
 The render configuration is Auto quality, shadows, SSAO and approximate diffuse GI at 1024 primary rays per probe, using native Vulkan on an RTX PRO 6000 Blackwell. RGB display images preserve renderer tone mapping followed by sRGB encoding; no per-image exposure correction, crop or appearance filtering is applied. Depth previews are 8-bit grayscale axial depth divided by 15 m and clamped. Normal previews store $(n+1)/2$; position previews affine-normalize world coordinates by the annotation AABB and clamp for display. Semantic colors are preserved exactly. Non-RGB PNGs are converted losslessly to WebP, verified by decoded-pixel equality; these 8-bit previews must not be treated as float32 training labels. Original capture checks used the direct float32 ground-truth attachment. Calibration and program downloads retain exact input identities and original PNG hashes.
 
-Every captured view contains at least four semantic classes. All 18 rooms containing people in the camera's primary functional zone show person pixels in at least one captured view. Across the wider main envelope, 22 rooms contain people; three never show person pixels (seeds 17, 24 and 31). These are class-level observations across both endpoints, not individual-person visibility guarantees. Scene construction through capture/export takes 1.30--4.41 seconds per room (median 2.05), excluding application startup; each room produces eight views in five modes. This is a bounded run, not a sustained-throughput or memory-stability qualification.
+Every captured view contains at least four semantic classes. All 18 rooms containing people in the camera's primary functional zone show person pixels in at least one captured view. Across the wider main envelope, 22 rooms contain people; three never show person pixels (seeds 17, 24 and 31). These are class-level observations across both endpoints, not individual-person visibility guarantees. Scene construction through capture/export takes 1.44--4.49 seconds per room (median 2.17), excluding application startup; each room produces eight views in six modes. This is a bounded run, not a sustained-throughput or memory-stability qualification.
 
 \begin{figure}[p]
 \centering\includegraphics[width=\linewidth]{generated/architecture_annotations.jpg}
 \caption{Current captures with matched annotations: RGB, depth, view-space normals and semantics, all from camera 0 at $t=0$. Rows: seed 7 (mezzanine), seed 8 (sunken floor), seed 6 (raised floor). Full images and the corresponding position previews are accessible in the project-page explorer. Glass is annotation-opaque: RGB visibility through a pane need not match semantic content behind it.}
 \label{fig:architecture-annotations}
+\end{figure}
+
+\subsection{Co-visibility in every architectural room}
+Production co-visibility accompanies RGB and geometric annotations for all 32 rooms,
+all four cameras and both trajectory endpoints. Each valid source pixel stores an
+exact 16-bit membership mask of other cameras that see its first surface, with the
+source bit excluded. One additive RGB legend applies to every view. The unified
+project-page explorer can show all memberships or highlight an individual peer;
+the selected peer's own tile remains the RGB reference.
+
+Across the 256 camera/time views, 83.5\% of valid source-pixel observations
+are visible in at least one other camera. This pixel-weighted statistic uses every
+room and endpoint; it does not count unique 3D points. Exact downloads contain
+16-bit grayscale membership PNGs, separate 8-bit 0/1 validity PNGs, and the matching
+calibration and legend. The six-mode recapture preserves every serialized room
+program and the full 512-room parameter distribution of the architectural audit;
+RGB and annotations are captured together, rather than combining different runs.
+
+\begin{figure}[ht]
+\centering\includegraphics[width=\linewidth]{generated/architecture_co_visibility.jpg}
+\caption{Current architectural scene, seed 7 at $t=0$: four native RGB views (top)
+and their production co-visibility annotations (bottom). Columns share the same
+camera and capture time. All 32 rooms expose this annotation in the same explorer;
+exact membership and validity downloads preserve the numeric data.}
+\label{fig:architecture-co-visibility}
 \end{figure}
 
 \subsection{Population diversity and selection boundaries}
@@ -161,7 +186,7 @@ A seed's bit width does not establish dataset diversity. Continuous parameter ra
 
 \begin{figure}[p]
 \centering\includegraphics[width=\linewidth,height=.85\textheight,keepaspectratio]{generated/architecture_consecutive.jpg}
-\caption{Every consecutively rendered room, seeds 0--31, camera 0 at $t=0$. No room is removed for appearance. All four cameras, both endpoints and five modes remain available in the current project-page gallery.}
+\caption{Every consecutively rendered room, seeds 0--31, camera 0 at $t=0$. No room is removed for appearance. All four cameras, both endpoints and six modes remain available in the current project-page gallery.}
 \label{fig:architecture-consecutive}
 \end{figure}
 \clearpage

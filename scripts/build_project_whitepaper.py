@@ -52,14 +52,14 @@ def main():
         for path in sources:
             archive.write(path, str(path.relative_to(TEX)))
         archive.writestr("BUILD.txt", "Run latexmk -pdf bevy_zeroverse.tex in this directory.\n"
-                         "Main results and architectural gallery: generator 22, 512 programs and 256 views across 32 rooms.\n"
+                         "Main results and architectural gallery: generator 22, 512 programs and 256 matched six-mode views across 32 rooms, including co-visibility.\n"
                          "Reference appendix: generator 21 camera-baseline, co-visibility and motion. Preserve each cohort identity.\n")
     (TARGET / "provenance.json").write_text(json.dumps({
         "pdf_sha256": sha(pdf),
         "sources": {str(p.relative_to(ROOT)): sha(p) for p in sources},
         "source_archive_sha256": sha(TARGET / "whitepaper-source.zip"),
         "build": "latexmk -pdf -interaction=nonstopmode -halt-on-error bevy_zeroverse.tex",
-        "scope": "Main results and gallery: generator 22 architectural audit, 512 programs and 32 rendered rooms / 256 views. Reference appendix: generator 21 camera-baseline, co-visibility and motion.",
+        "scope": "Main results and gallery: generator 22 architectural audit, 512 programs and 32 rendered rooms / 256 six-mode views, including production co-visibility. Reference appendix: generator 21 camera-baseline, co-visibility and motion.",
         "architecture_gallery_sha256": sha(MEDIA / "architecture/gallery.json")
     }, indent=2) + "\n")
 

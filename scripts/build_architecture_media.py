@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Publish current indoor_validate captures, plans and paper figures.
 
-No rendering, exposure correction or inferred annotations. The capture's five
-PNG channels are display previews; their native float32 validation is retained
-in capture.json. Reject stale/mixed generators instead of silently reusing media.
+No rendering, exposure correction or inferred annotations. Exact co-visibility
+masks accompany the six display channels. Reject missing/mixed capture modes
+instead of attaching annotations from a different scene cohort.
 """
 import argparse
 from collections import Counter
@@ -24,10 +24,11 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 from indoor_report import summarize
+from indoor_visibility import load as load_visibility
 from report_indoor_architecture import feature_flags, same_f32
 
 ROOT = Path(__file__).resolve().parents[1]
-MODES = ("color", "depth", "normal", "semantic", "position")
+MODES = ("color", "depth", "normal", "semantic", "position", "co_visibility")
 COLORS = ("#147d70", "#c56a33", "#626aca", "#aa4984")
 FEATURED = ((7, "Mezzanine & stairs"), (8, "Sunken floor & chamfers"),
             (6, "Raised floor & archway"), (2, "Cut-in & tall glazing"))
@@ -249,14 +250,14 @@ def update_page(data):
     template = (ROOT/"scripts/templates/architecture_gallery.html").read_text()
     base = "static/media/architecture/"
     first = next(s for s in data['scenes'] if s['seed']==7)
-    modes = dict(zip(MODES,("RGB","Depth","Normals","Semantic","Position")))
+    modes = dict(zip(MODES,("RGB","Depth","Normals","Semantic","Position","Co-visibility")))
     featured = ''.join(f'<button data-architecture-seed="{s["seed"]}" aria-pressed="{str(s["seed"]==7).lower()}" disabled>'
                        f'{escape(s["title"])}<span>Seed {s["seed"]} · four views</span></button>' for s in data['featured'])
     buttons = ''.join(f'<button data-architecture-mode="{mode}" aria-pressed="{str(mode=="color").lower()}" disabled>{label}</button>' for mode,label in modes.items())
     views = ''.join(f'<figure data-architecture-camera="{i}"><a href="{base}{v["images"]["color"]}" aria-label="Open seed 7 camera {i} RGB at full resolution">'
                     f'<img class="architecture-rgb" src="{base}{v["images"]["color"]}" width="640" height="400" loading="lazy" alt="Seed 7, camera {i}, t=0, RGB">'
                     f'<img class="architecture-annotation" src="{base}{v["images"]["color"]}" width="640" height="400" loading="lazy" alt="Seed 7, camera {i}, t=0, RGB comparison">'
-                    f'</a><figcaption><strong>Camera {i}</strong><span class="architecture-fov">{math.degrees(v["camera"]["fov_y"]):.1f}° FOV</span></figcaption></figure>'
+                    f'</a><figcaption><strong>Camera {i}</strong><span class="architecture-fov">{math.degrees(v["camera"]["fov_y"]):.1f}° FOV</span><span class="architecture-shared" hidden></span></figcaption></figure>'
                     for i,v in enumerate(first['frames'][0]['views']))
     cohort = ''.join(f'<figure><a href="{base}{s["frames"][0]["views"][0]["images"]["color"]}">'
                      f'<img src="{base}{s["frames"][0]["views"][0]["images"]["color"]}" width="640" height="400" loading="lazy" alt="Consecutive seed {s["seed"]}, camera 0, t=0"></a>'
@@ -266,7 +267,22 @@ def update_page(data):
                     (("envelope_footprint_area_m2","Actual polygonal footprint areas in square metres"),("chair","Chairs per interior, including zero"),
                      ("person","People per interior, including zero"),("vertical_fov_degrees","Vertical camera field of view, degrees"),
                      ("sun_illuminance_lux","Solar illuminance, lux"),("camera_reference_baseline_m","Distances to the reference camera, metres")))
-    for key,value in dict(FEATURED=featured,MODES=buttons,VIEWS=views,COHORT=cohort,FEATURE_COUNTS=counts,DISTRIBUTIONS=plots,ACTIVITY=escape(first['activity'])).items():
+    legend = ''.join(f'<span class="legend-swatch"><i style="background-color:rgb({",".join(map(str,e["rgb8"]))})"></i>Camera {e["camera_index"]}</span>' for e in data['co_visibility']['legend'])
+    annotation = data['annotation_metrics']
+    coverage = data['semantic_coverage']
+    primary = coverage['rooms_with_camera_primary_zone_humans']
+    invisible_primary = len(coverage['camera_primary_zone_human_rooms_without_person_pixels'])
+    minimum = data['minimum_semantic_classes']
+    statistics = (f"All {data['rendered_views']} views passed annotation alignment: maximum per-view depth/position p99 error "
+                  f"<strong>{annotation['depth_position_p99_metres']['max']*1e6:.3g} µm</strong>, reprojection p99 "
+                  f"<strong>{annotation['reprojection_p99_pixels']['max']:.3g} pixels</strong>. Every view contains at least {minimum} semantic classes. "
+                  f"{primary-invisible_primary}/{primary} rooms with people in the camera’s primary functional zone show person pixels. "
+                  f"{len(coverage['main_envelope_human_rooms_without_person_pixels'])}/{coverage['rooms_with_main_envelope_humans']} rooms with people anywhere in the main envelope never show them.")
+    shared = data['co_visibility']['statistics']
+    visibility_statistics = (f"Production co-visibility covers all {shared['views']} camera/time views. "
+                             f"<strong>{100*shared['shared_fraction_valid']:.1f}%</strong> of valid source-pixel observations are visible in at least one other camera. "
+                             "This pools the exact masks over all 32 rooms and both endpoints; it does not count unique 3D points.")
+    for key,value in dict(FEATURED=featured,MODES=buttons,VIEWS=views,COHORT=cohort,FEATURE_COUNTS=counts,DISTRIBUTIONS=plots,ACTIVITY=escape(first['activity']),VISIBILITY_LEGEND=legend,ANNOTATION_STATISTICS=statistics,VISIBILITY_STATISTICS=visibility_statistics).items():
         template = template.replace(f"@{key}@",value)
     if re.search(r"@[A-Z_]+@",template):
         raise ValueError("unexpanded gallery template")
@@ -304,7 +320,7 @@ def build(captures, evidence, media, figures):
     if counts != audit["feature_room_counts"]:
         raise ValueError("feature counts disagree with architectural audit")
     for path in (media,figures): path.mkdir(parents=True,exist_ok=True)
-    records, hashes, output_hashes = [], {}, {}
+    records, hashes, output_hashes, visibility_records = [], {}, {}, []
     for folder,capture,manifest in scenes:
         seed, row = manifest["seed"], rows[manifest["seed"]]
         if not same_f32(manifest["envelope"],row["envelope"]):
@@ -333,16 +349,41 @@ def build(captures, evidence, media, figures):
                                     raise ValueError("annotation preview failed lossless roundtrip")
                     images[mode] = destination.name
                     output_hashes[destination.name] = sha(destination)
-                frame['views'].append({"camera":view,"images":images})
+                masks, valid, visibility = load_visibility(folder,capture,index,4)
+                visibility_records.append(visibility)
+                for suffix in ('mask','valid'):
+                    source = folder/f'view_{index:02}_co_visibility_{suffix}.png'
+                    hashes[str(source.relative_to(captures))] = sha(source)
+                with Image.open(folder/f'view_{index:02}_color.png') as image:
+                    color = np.asarray(image.convert('RGB'),dtype=np.float32)/255
+                peers = []
+                for peer in range(4):
+                    overlay = color*.20
+                    shared = (masks & (1 << peer)) != 0
+                    overlay[shared] = color[shared]*.65 + np.array([.12,.92,.72])*.35
+                    destination = media/f's{seed}-t{step}-c{view["camera_index"]}-peer{peer}.webp'
+                    Image.fromarray(np.rint(np.clip(overlay,0,1)*255).astype(np.uint8)).save(destination,lossless=True,method=4)
+                    peers.append(destination.name)
+                    output_hashes[destination.name] = sha(destination)
+                images['peers'] = peers
+                frame['views'].append({"camera":view,"images":images,"visibility":visibility})
             frames.append(frame)
         metadata = f"s{seed}-capture.json"
         write(media/metadata,{"manifest":manifest,"capture":capture,"architecture":row,
                              "source_sha256":{k:v for k,v in hashes.items() if k.startswith(folder.name+"/")}})
         for name in ("capture.json","manifest.json"):
             hashes[str((folder/name).relative_to(captures))] = sha(folder/name)
+        mask_archive = f's{seed}-visibility.zip'
+        with zipfile.ZipFile(media/mask_archive,'w',zipfile.ZIP_DEFLATED) as archive:
+            archive.write(media/metadata,'capture.json')
+            for index in range(len(capture['views'])):
+                for suffix in ('mask','valid'):
+                    path = folder/f'view_{index:02}_co_visibility_{suffix}.png'
+                    archive.write(path,path.name)
+        output_hashes[mask_archive] = sha(media/mask_archive)
         records.append({"seed":seed,"activity":manifest['layout'],"features":[k for k,v in feature_flags(row).items() if v],
                         "area_m2":area(row['envelope']['footprint']),"roof_pitch_degrees":math.degrees(math.atan(np.linalg.norm(np.array(row['envelope']['ceiling_drop'])/np.array(row['room_size'])[[0,2]]))),
-                        "metadata":metadata,"frames":frames})
+                        "metadata":metadata,"masks":mask_archive,"frames":frames})
     shutil.copyfile(captures/"metrics.json",media/"population.json")
     shutil.copyfile(evidence/"summary.json",media/"audit.json")
     for source,destination in (("footprints.png","architecture_footprints.png"),
@@ -362,6 +403,9 @@ def build(captures, evidence, media, figures):
                  for seed,title in FEATURED],figures/"architecture_examples.jpg",640)
     figure_rows([(f"Seed {seed} · {title}",[(media/by_seed[seed]['frames'][0]['views'][0]['images'][m],m.title()+" · C0 · t=0") for m in MODES[:4]])
                  for seed,title in FEATURED[:3]],figures/"architecture_annotations.jpg",480)
+    figure_rows([(f"Seed 7 · {label}",[(media/by_seed[7]['frames'][0]['views'][c]['images'][mode],f"Camera {c} · t=0") for c in range(4)])
+                 for mode,label in (('color','matched RGB'),('co_visibility','additive co-visibility'))],figures/'architecture_co_visibility.jpg',480)
+    shutil.copyfile(figures/'architecture_co_visibility.jpg',media/'architecture_co_visibility.jpg')
     geometry_rows = [(f"{title} · seed {seed}",[(media/by_seed[seed]['frames'][0]['views'][1 if seed==6 else 3]['images']['color'],f"Native RGB · C{1 if seed==6 else 3} · t=0"),
                                          (media/f"s{seed}-t0-plan.png","Manifest plan & section · same room")])
                  for seed,title in FEATURED]
@@ -388,7 +432,24 @@ def build(captures, evidence, media, figures):
         archive.write(captures/"distribution.json","distribution.json")
         archive.writestr("README.txt","32 rooms; four cameras; times 0 and 1. PNG/WebP channels are display previews, not float32 ground truth.\n"
                           "world_from_view stores columns; view forward is -Z. The architecture file covers all 512 audited seeds.\n"
-                          "No temporal flow, co-visibility or video was captured in this cohort.\n")
+                          "Six modes include production GPU co-visibility. Exact uint16 masks and uint8 validity PNGs are in visibility-masks.zip.\n"
+                          "No temporal flow or continuous video was captured in this cohort.\n")
+    with zipfile.ZipFile(media/'visibility-masks.zip','w',zipfile.ZIP_DEFLATED) as archive:
+        for folder,capture,manifest in scenes:
+            archive.write(media/f's{manifest["seed"]}-capture.json',f'{folder.name}/capture.json')
+            for index in range(len(capture['views'])):
+                for suffix in ('mask','valid'):
+                    path = folder/f'view_{index:02}_co_visibility_{suffix}.png'
+                    archive.write(path,f'{folder.name}/{path.name}')
+    output_hashes['visibility-masks.zip'] = sha(media/'visibility-masks.zip')
+    n = sum(v['valid_pixels'] for v in visibility_records)
+    visibility_stats = {'views':len(visibility_records),'valid_pixels':n,
+                        'shared_pixels':sum(v['shared_pixels'] for v in visibility_records),
+                        'cardinality_pixels':np.sum([v['cardinality_pixels'] for v in visibility_records],axis=0).tolist()}
+    visibility_stats['shared_fraction_valid'] = visibility_stats['shared_pixels']/n
+    metadata = scenes[0][1]['co_visibility_metadata']
+    if any(c['co_visibility_metadata'] != metadata for _,c,_ in scenes):
+        raise ValueError('camera-membership convention differs between rooms')
     data = {"schema_version":1,"generator_version":source_version,"capture_engine":render['capture_engine'],
             "audit_rooms":metrics['scenes'],"rendered_rooms":len(records),"rendered_views":render['rendered_views'],
             "capture_size":metrics['image_size'],"modes":list(MODES),"frames_per_camera":2,
@@ -400,7 +461,12 @@ def build(captures, evidence, media, figures):
                        "normal":"View-space (n+1)/2, 8-bit display preview.",
                        "position":"World position normalized by annotation AABB, clamped to [0,1] for display.",
                        "semantic":"Original semantic palette; lossless PNG-to-WebP RGB conversion.",
+                       "co_visibility":"Same-time first-surface camera membership. Add the legend colors for every visible peer; each source excludes its own bit. Black is unshared or background; exact masks include validity.",
                        "plans":"Manifest-derived plan and envelope section; solid-object footprint proxies; arrows are directions, not frusta. No implied visibility guarantee."},
+            "co_visibility":dict(metadata,archive='visibility-masks.zip',statistics=visibility_stats),
+            "annotation_metrics":render['annotation'],"semantic_coverage":audit['semantic_coverage'],
+            "minimum_semantic_classes":min(v['semantic_colors'] for _,c,_ in scenes for v in c['views']),
+            "capture_wall_seconds":render['capture_wall_seconds'],
             "fresh_render":False,"source_sha256":hashes,"output_sha256":output_hashes}
     write(media/"gallery.json",data)
     return data
@@ -408,8 +474,8 @@ def build(captures, evidence, media, figures):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--captures",type=Path,default=ROOT/"out/architecture_v22")
-    parser.add_argument("--evidence",type=Path,default=ROOT/"docs/evidence/architecture_v22")
+    parser.add_argument("--captures",type=Path,default=ROOT/"out/architecture_covisibility")
+    parser.add_argument("--evidence",type=Path,default=ROOT/"docs/evidence/architecture_covisibility")
     parser.add_argument("--media",type=Path,default=ROOT/"www/project/static/media/architecture")
     parser.add_argument("--figures",type=Path,default=ROOT/"tex/generated")
     args = parser.parse_args()

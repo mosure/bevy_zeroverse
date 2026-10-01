@@ -164,7 +164,11 @@ def build(root, output):
         ax.bar(edges[:-1],d["bin_counts"],width=[b-a for a,b in zip(edges,edges[1:])],align="edge",color="#446682",edgecolor="white",linewidth=.5)
         ax.set_xlabel(title);ax.set_ylabel("Rooms")
     fig.suptitle(f"Generator {metrics['generator_version']} · {len(rows)} consecutive rooms · counts include absent features")
-    for ext in ("png","svg"): fig.savefig(output/f"distributions.{ext}",dpi=160)
+    for ext in ("png","svg"):
+        destination=output/f"distributions.{ext}"
+        fig.savefig(destination,dpi=160,metadata={"Date":None} if ext=="svg" else None)
+        if ext=="svg":
+            destination.write_text('\n'.join(line.rstrip() for line in destination.read_text().splitlines())+'\n')
     plt.close(fig)
     main_human_rooms=[(d,c,m) for d,c,m in captures if any(not h["neighbor"] for h in m["humans"])]
     def primary_people(m):

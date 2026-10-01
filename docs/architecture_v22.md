@@ -6,13 +6,13 @@ human support, camera sweeps, visibility proposals, motion barriers and export.
 The neighboring office and the original non-indoor scene modes remain available.
 
 The [project-page explorer](https://mosure.github.io/bevy_zeroverse/project/#architecture)
-shows all 32 captured rooms, four cameras, both endpoints and five matched modes.
+shows all 32 captured rooms, four cameras, both endpoints and six matched modes, including co-visibility.
 Each room has a plan and envelope section derived from its actual manifest.
 The [whitepaper](https://mosure.github.io/bevy_zeroverse/project/static/papers/bevy_zeroverse.pdf)
 includes current RGB/plan/section figures and population distributions; earlier
 camera-baseline and motion studies are retained separately as reference evidence.
 
-![Sampled footprint programs, with glazing and level changes](evidence/architecture_v22/footprints.png)
+![Sampled footprint programs, with glazing and level changes](evidence/architecture_covisibility/footprints.png)
 
 These are twelve examples selected by architectural feature coverage from the
 512-room audit, independent of rendered appearance. Cyan marks exterior apertures;
@@ -79,16 +79,16 @@ and excluding seeds, materials and aperture detail. This measures uniqueness
 within this sample; it does not establish the effective size of a 10M-image
 training distribution.
 
-![Architectural feature and parameter distributions](evidence/architecture_v22/distributions.png)
+![Architectural feature and parameter distributions](evidence/architecture_covisibility/distributions.png)
 
 The **first 32 rooms were rendered without filtering**, with four cameras at
 both trajectory endpoints: **256 views**, each in RGB, depth, normal, semantic
-and position modes at 640×400. Native Vulkan used an RTX PRO 6000 Blackwell,
+position and co-visibility modes at 640×400. Native Vulkan used an RTX PRO 6000 Blackwell,
 Auto quality, shadows, SSAO and diffuse GI at 1,024 rays per probe. Geometry
 annotations used the native float32 path. The first-view contact sheet below
 includes every captured room, including dark scenes.
 
-![Every consecutively rendered room, first camera](evidence/architecture_v22/consecutive_rooms.jpg)
+![Every consecutively rendered room, first camera](evidence/architecture_covisibility/consecutive_rooms.jpg)
 
 All 256 views passed annotation alignment. The largest per-view depth/position
 p99 discrepancy was **2.87 µm**; the largest reprojection p99 was **0.00264 px**.
@@ -104,13 +104,13 @@ Glass follows the existing annotation-opaque policy, so RGB visibility through
 a pane does not imply a visible semantic person. Individual human visibility is
 not inferred from class-level person pixels.
 
-Scene construction through capture/export took 1.30–4.41 s per room, median
-2.05 s, excluding application startup. Each room produced eight views in five
+Scene construction through capture/export took 1.44–4.49 s per room, median
+2.17 s, excluding application startup. Each room produced eight views in six
 modes. This is a bounded run on one adapter, not a sustained-throughput or memory
 stability qualification.
 
-[Four-view examples](evidence/architecture_v22/multiview.jpg) and
-[matched RGB/depth/normal/semantic panels](evidence/architecture_v22/annotations.jpg)
+[Four-view examples](evidence/architecture_covisibility/multiview.jpg) and
+[matched RGB/depth/normal/semantic panels](evidence/architecture_covisibility/annotations.jpg)
 include both first-observed mezzanines. Example selection is based on structural
 coverage; it does not change the statistics above.
 
@@ -145,10 +145,10 @@ cargo check --target wasm32-unknown-unknown --bin viewer \
 
 cargo run --bin indoor_validate --no-default-features --features multi_threaded -- \
   --seed 0 --audit-seeds 512 --renders 32 --cameras 4 \
-  --width 640 --height 400 --labels --no-raw --playback-steps 2 \
-  --gi-rays 1024 --output out/architecture_v22
+  --width 640 --height 400 --labels --co-visibility --no-raw --playback-steps 2 \
+  --gi-rays 1024 --output out/architecture_covisibility
 python scripts/report_indoor_architecture.py \
-  out/architecture_v22 docs/evidence/architecture_v22
+  out/architecture_covisibility docs/evidence/architecture_covisibility
 
 # Native GPU, one static timestep, primary geometry only:
 cargo test --test procedural_indoor_render --no-default-features \
@@ -157,12 +157,12 @@ cargo test --test procedural_indoor_render --no-default-features \
   -- --ignored --nocapture
 ```
 
-The Python report requires Pillow and matplotlib. Its [summary](evidence/architecture_v22/summary.json)
+The Python report requires Pillow and matplotlib. Its [summary](evidence/architecture_covisibility/summary.json)
 records the capture engine, annotation precision, configuration and input hashes.
-[metrics.json](evidence/architecture_v22/metrics.json) holds all numeric and
-categorical distributions. [architecture.jsonl.gz](evidence/architecture_v22/architecture.jsonl.gz)
+[metrics.json](evidence/architecture_covisibility/metrics.json) holds all numeric and
+categorical distributions. [architecture.jsonl.gz](evidence/architecture_covisibility/architecture.jsonl.gz)
 holds the 512 footprint/roof/floor/structure/aperture programs. Full captures and
-per-instance camera/object CSVs are local in `out/architecture_v22`.
+per-instance camera/object CSVs are local in `out/architecture_covisibility`.
 
 ## Limits
 

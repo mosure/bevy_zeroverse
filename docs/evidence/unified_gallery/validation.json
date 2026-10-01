@@ -1,0 +1,114 @@
+{
+  "validated_on": "2026-10-01",
+  "scope": "Fresh six-mode native captures, exact visibility exports, one generated project-page explorer and rebuilt whitepaper. The linked WebGPU runtime and long-run generation stability were not requalified.",
+  "native_captures": {
+    "completed": 32,
+    "views": 256,
+    "modes": [
+      "color",
+      "depth",
+      "normal",
+      "semantic",
+      "position",
+      "co_visibility"
+    ],
+    "generator_version": 22,
+    "serialized_manifests_match_original_cohort": 32,
+    "full_512_room_distribution_unchanged": true
+  },
+  "static": {
+    "passed": true,
+    "generator_version": 22,
+    "audit_rooms": 512,
+    "rendered_rooms": 32,
+    "views": 256,
+    "decoded_channel_images": 1536,
+    "unique_channel_identities": 1536,
+    "lossless_annotation_roundtrips": 1280,
+    "source_hashes_checked": 2112,
+    "metadata_records": 32,
+    "local_links": 130,
+    "pdf_and_source_archive_verified": true,
+    "population_denominators_verified": true,
+    "object_and_material_examples_preserved": true,
+    "co_visibility_masks_checked": 256,
+    "co_visibility_peer_images": 1024,
+    "unified_annotation_gallery": true,
+    "browser_checked": false,
+    "viewer_runtime_checked": false
+  },
+  "browser": {
+    "passed": true,
+    "room_time_mode_cases": 384,
+    "view_cases": 1536,
+    "feature_filters": true,
+    "atomic_switching": true,
+    "keyboard_reveal": true,
+    "responsive_widths": [
+      390,
+      768,
+      1440
+    ],
+    "no_javascript_fallback": true,
+    "co_visibility_peer_cases": 256,
+    "unified_annotation_gallery": true,
+    "errors": []
+  },
+  "co_visibility": {
+    "views": 256,
+    "valid_pixels": 65535986,
+    "shared_pixels": 54723810,
+    "cardinality_pixels": [
+      10812176,
+      15129990,
+      17311237,
+      22282583
+    ],
+    "shared_fraction_valid": 0.8350192518656849
+  },
+  "numeric_contract_tests_passed": 8,
+  "native_gpu_oracle": {
+    "passed": true,
+    "tests_passed": 1,
+    "ignored": 0,
+    "coverage": [
+      "independent ray geometry",
+      "occlusion",
+      "camera ordering",
+      "moving geometry",
+      "16-camera heterogeneous-resolution packing",
+      "idle reuse",
+      "teardown"
+    ]
+  },
+  "clippy": {
+    "passed": true,
+    "command": "cargo clippy --locked --bin indoor_validate --no-default-features --features multi_threaded -- -D warnings"
+  },
+  "page_regeneration_byte_identical": true,
+  "javascript_syntax_checked": true,
+  "latex_warnings_in_final_log": false,
+  "pdf_pages": 20,
+  "local_markdown_targets_checked": 32,
+  "viewer_runtime_checked": false,
+  "source_sha256": {
+    "src/bin/indoor_validate.rs": "235d66f6606ab22da93aaceccaccf86b3a45ce0722cc522d8817a2a0b43bc053",
+    "src/bin/indoor_validate/co_visibility.rs": "b6ea40f0a6240f5ab81db60ae70e131fb7c194cda5e0d9b392c0bad2cf5f1abe",
+    "scripts/indoor_visibility.py": "f20fead5ddb654b61e53e88b6f8a7da705ff6573478b934652b90b387d1b88d7",
+    "scripts/test_indoor_visibility.py": "85e89c2c244c716ccbd098e1b4c032c45d9f910a9b22c65bdaf92b2bd6cbf6ee",
+    "scripts/build_architecture_media.py": "144531ff3cd9811ae74db88dba441f1cf72232d67d57d77bc65447f16c62c1ff",
+    "scripts/templates/architecture_gallery.html": "449e8c152f50b91101535454937f1c193713b2abbe523d877107f1a0a0b70419",
+    "scripts/validate_architecture_gallery.py": "5d5a71aa243024b675133d90e97c0bc8974f7b2b96d747f57e6f0505ee6df95e",
+    "scripts/build_project_whitepaper.py": "12ba169b932e2fb312793bb866e7b5745a6047949a1ec55efc60e2444df48ac1",
+    "www/project/index.html": "045adb1b5ae78889d1c3e0029e3a961080f8b627440b9f19204885957f67201e",
+    "www/project/static/js/architecture.js": "ce1ab69f52e1edef437a68047ec340a0a794539d44b648c4ddd64376e3b48c60",
+    "www/project/static/css/architecture.css": "08068438f8ed09cc85a129874429466acc398e6541600e721f8b53786ffe55e5",
+    "www/project/static/css/index.css": "8df7524a7eca3131fe6c0271797ecf8da27a6e6981dc06d258e880e74f3c4481",
+    "www/project/static/media/architecture/gallery.json": "1d6193288a41cd8a9d77f8ef565ae713979433a17f73ac458bf69551f91db96b",
+    "www/project/static/papers/provenance.json": "77b018412576dba4ee7dce3eb86a59b16f7a5ed9a3d4f43826e19fd2e377fa40",
+    "docs/project_page.md": "4392b7e6801ea30d8a81e3cbffb5becd888bef17c2bd4a3b9536a09c3f953bb2",
+    "docs/architecture_v22.md": "b42075f68e4595a21c6001035e89fbb586060af86e41d33aaf1f322efd715ee5",
+    "tex/bevy_zeroverse.tex": "bc5959cd0f208b298192cefb1919bfa1bdefe0708ee1f56053d3cc179b6babd8",
+    "scripts/report_indoor_architecture.py": "e1dc7066f9b0213569062e5fe9c2babc399185867ec9450a474c39dfb3b5907e"
+  }
+}

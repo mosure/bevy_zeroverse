@@ -1,103 +1,98 @@
-# Project page: current captures, paper and evidence
+# Project page: matched captures, paper and evidence
 
-The main page is `www/project/index.html`; serve `www/` and open `/project/`.
-Its main examples use the current architectural generator, including real
-mezzanine stairs, raised/sunken floors, polygonal footprints and sloping ceilings.
-The page contains **all 32 consecutively rendered rooms**, four cameras, two
-trajectory endpoints and five aligned modes: **256 camera/time views and 1,280
-channel previews**. The population plots use the same **512 consecutive room
-programs**. No rooms are removed for appearance.
+Serve `www/` and open `/project/`. One explorer contains **all 32 consecutively
+rendered rooms**, four cameras, two trajectory endpoints and **six aligned modes**:
+RGB, depth, normals, semantics, positions and co-visibility. There are **256
+camera/time views**, **1,536 channel previews** and 1,024 per-peer display overlays.
+The population plots use **512 consecutive room programs**. No room is removed
+for appearance.
 
-The four feature shortcuts select seeds 7, 8, 6 and 2 by structural coverage.
-They do not change population statistics. Room/feature/time controls update the
-four views, calibration and plan together; the reveal slider compares each
-annotation against RGB at exactly the same camera/time. The complete first-view
-contact sheet and native-resolution images also work without JavaScript.
+Room, feature, time, annotation and shared-camera controls update the same four
+views, plan and calibration. Co-visibility uses the production GPU's same-time
+first-surface visibility test, with one globally ordered camera bit per peer.
+Each source excludes its own bit. The additive legend is identical across views.
+Selecting an individual camera highlights shared surfaces in the other views;
+its own tile stays an RGB reference. Percentages divide by valid source pixels.
+The navigation link and `/project/#explore` open this same explorer in
+co-visibility mode; they do not select another capture dataset.
 
-Plans use the captured manifest's polygon, window openings, floor patches,
-pillars, portals and mezzanine stairs. Furniture uses solid footprint proxies.
-Camera arrows use the recorded extrinsics; they indicate direction, not visibility
-frusta. The adjacent section follows the indicated dashed line and shows the
-actual envelope roof/floor profile, including stair treads where intersected.
-It omits interior furniture, pillars and partitions. These are explanatory
-**diagrams**, not an alternate renderer or additional captured rooms.
+The feature shortcuts select seeds 7, 8, 6 and 2 by structural coverage. Plans use
+the captured polygon, window openings, levels, pillars, portals and stairs.
+Furniture uses solid footprint proxies, and arrows show recorded camera direction,
+not visibility frusta. These explanatory diagrams do not render an alternate scene.
 
-The paper's main evaluation and figures use this current cohort. The main page
-also retains the [interactive co-visibility and matched-annotation explorer](../www/project/index.html#explore):
-choose a source camera, additive camera membership or an individual peer, time,
-and any of eight annotations. It opens in co-visibility mode, with a static
-comparison, legend and exact-mask downloads available without JavaScript.
-The annotation study keeps its original generator 21 capture identity; it does
-not remeasure the current architectural cohort. Camera-baseline, co-visibility
-and motion studies also remain on [`reference.html`](../www/project/reference.html)
-and in the paper's reference appendix. Their geometry and independent denominators
-remain explicit.
-The current cohort did not export co-visibility, optical flow, motion vectors
-or continuous video; those outputs must not be inferred from its display PNGs.
+The six-mode run uses generator 22 and the same seeds and configuration as the
+original architectural study. All 32 serialized room manifests and the complete
+512-room parameter distribution match that study exactly. RGB and annotations
+were recaptured together; no mask is inferred from a quantized display image or
+attached from a different room. The earlier five-mode run remains an archival
+artifact, not an additional population denominator.
 
 ## Current capture and rebuild recipe
 
 ```sh
 cargo run --bin indoor_validate --no-default-features --features multi_threaded -- \
   --seed 0 --audit-seeds 512 --renders 32 --cameras 4 \
-  --width 640 --height 400 --labels --no-raw --playback-steps 2 \
-  --gi-rays 1024 --output out/architecture_v22
+  --width 640 --height 400 --labels --co-visibility --no-raw --playback-steps 2 \
+  --gi-rays 1024 --output out/architecture_covisibility
 python scripts/report_indoor_architecture.py \
-  out/architecture_v22 docs/evidence/architecture_v22
+  out/architecture_covisibility docs/evidence/architecture_covisibility
 python scripts/build_architecture_media.py
 python scripts/build_project_whitepaper.py
 python scripts/validate_architecture_gallery.py --static-only
 python scripts/validate_project_page.py --url http://127.0.0.1:8770/project/
 ```
 
-The media builder consumes completed, already validated engine captures. It does
-not render new scenes. It rejects a generator identity older than the source
-constant, mismatched input hashes, mixed run identities, wrong dimensions,
-inconsistent geometry and missing cameras/modes. It preserves original PNG
-hashes, matches plans to captured manifests and checks decoded-pixel equality
-for all non-RGB PNG-to-WebP conversions. Updating the cohort size/protocol requires
-updating the explanatory page/paper text; it cannot silently change denominators.
+The media builder consumes a completed capture run and matching audit. It refuses
+missing co-visibility, stale generators, changed input hashes, mixed run identities,
+incorrect camera/time identities and inconsistent masks or legends. It generates
+all six mode buttons, peer controls, calibration links, matched figures and current
+annotation statistics from one gallery manifest and HTML template. The obsolete
+separate main-page annotation explorer is removed. Reference-study builders write
+only the reference page. No media builder performs a new GPU render.
+
+## Display conventions and exact downloads
 
 Assets are under `www/project/static/media/architecture/`. `gallery.json` records
-source/output hashes, camera identities and display conventions; `population.json`
-contains all audit histograms. Per-room JSONs and `calibration-and-programs.zip`
-retain calibration, captured manifests and the 512 architectural programs.
+source/output hashes, camera identities, display conventions, per-view shared-pixel
+counts and pooled co-visibility statistics. `population.json` contains the complete
+512-room histograms. Per-room JSONs and `calibration-and-programs.zip` retain the
+captured room programs and calibration.
 
-RGB is the original tone-mapped sRGB, encoded at WebP quality 92, without crop or
-exposure correction. Depth is grayscale `clamp(depth_metres / 15, 0, 1)`.
-Normals encode `(n+1)/2`; positions are normalized by the annotation AABB and
-clamped for display. Semantics preserve the captured palette. These **8-bit
-previews are not numeric training labels**. Float32 annotation alignment was
-checked during the original capture and is retained in the metadata.
+RGB is tone-mapped sRGB at WebP quality 92, without crop or exposure correction.
+Depth previews use `clamp(depth_metres / 15, 0, 1)`. Normals encode `(n+1)/2`;
+positions use the annotation AABB and clamp only for display. Semantic and additive
+co-visibility previews use lossless WebP encoding. All non-RGB preview conversions
+are checked for decoded-pixel equality.
 
-The page and figures were refreshed from the existing current-generator audit;
-this refresh did not run new GPU captures. Browser closeout passed all 320
-room/time/mode combinations (1,280 views), feature filtering, rapid switching,
-keyboard reveal, 390/768/1440 px layouts and the JavaScript-disabled fallback.
-Static/source-hash checks and the browser results are recorded separately. This
-page check does not qualify the linked WebGPU renderer or fresh scene generation.
-See the [page-refresh validation](evidence/architecture_page/validation.json)
-for exact check counts and the initial environment limitations.
+Every room has a downloadable visibility ZIP covering **both times and all four
+cameras**. `visibility-masks.zip` contains all 256 exact mask/validity pairs and
+capture metadata. Membership is **16-bit grayscale PNG**; validity is **8-bit
+PNG containing 0 or 1**. Black RGB can mean unshared geometry or background;
+consult validity to distinguish them. These exact masks remain available with
+`--no-raw`. Omitting that flag additionally exports float32 RGBA attachments.
+Peer overlays are display aids, not numeric training labels.
 
-The [gallery-restoration validation](evidence/page_restoration/validation.json)
-checks the main-page co-visibility explorer alongside the architectural gallery:
-80 matched mode cases, 72 individual peer selections, all 320 architectural
-room/time/mode combinations, independent controls, keyboard reveal, three
-responsive widths and the JavaScript-disabled comparison. It also checks the
-original object-capture and MatSynth grids retained in the README, and a smoke
-test of the reference page's annotations, baseline controls and motion video.
+Glass is the first geometric surface; masks do not follow reflection or refraction.
+The complete first-view contact sheet and static four-view co-visibility figure
+remain available without JavaScript. The README also retains the original object
+capture and MatSynth grids alongside the indoor examples.
 
-No photographic-realism, unlimited-memory-stability, ten-million-scene-run or
-pretraining-gain claim follows from these artifacts.
+Validation checks every numeric membership mask, source-bit exclusion, validity,
+reported counts, lossless preview and archive identity. Browser checks cover every
+room/time/mode and peer selection, atomic switching, feature filters, keyboard
+reveal, deep links, mobile/desktop layouts and the JavaScript-disabled fallback.
+The [unified-gallery validation](evidence/unified_gallery/validation.json) records
+exact counts and scope. These checks do not establish photographic realism,
+unlimited-process stability, ten-million-sample utility or downstream learning gains.
 
 ## Reference study provenance
 
-The assets below retain their original generator/capture identities. The matched
-annotation explorer is available on both the main page and `reference.html`;
-baseline comparisons and videos remain on `reference.html`. Rebuilding these
-studies must preserve the main-page explorer and must not overwrite the current
-architectural gallery, social preview or population figures. Architectural media
-updates replace only the marked architecture block in the main page.
+The studies below retain their original generator/capture identities on
+`reference.html` and in the paper's reference appendix. They are independent
+experiments; the main page uses one current 32-room capture set for RGB, geometry
+and co-visibility. Rebuilding a recorded reference study must not replace the
+current gallery, calibration, masks or population statistics.
 
 - **Visual baseline comparison, v21:** the same two selected rooms at five
   baseline settings (0/0.25/0.5/0.75/1), four cameras, 768×480 and t=0: 40 views.

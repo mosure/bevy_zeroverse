@@ -21,6 +21,12 @@
 .architecture-annotation { position:absolute; inset:0; clip-path:inset(0 0 0 var(--architecture-split)); }
 .architecture-views figcaption { padding:8px 12px; display:flex; justify-content:space-between; font-size:11px; color:var(--muted); }
 .architecture-views figcaption strong { color:var(--ink); }
+.architecture-views figcaption { flex-wrap:wrap; gap:4px 12px; }
+.architecture-shared { width:100%; color:var(--accent); }
+.architecture-visibility { padding:0 18px 16px; border-bottom:1px solid var(--line); font-size:12px; }
+.architecture-visibility[hidden], .architecture-visibility [hidden] { display:none; }
+.architecture-visibility .peer-controls { padding:10px 0; border:0; }
+.architecture-visibility p { color:var(--muted); margin-top:6px; }
 .architecture-reveal { display:flex; align-items:center; gap:18px; padding:15px 18px; font-size:12px; }
 .architecture-reveal input { flex:1; accent-color:var(--accent); min-width:50px; }
 .architecture-reveal output { min-width:72px; text-align:right; }
