@@ -4,16 +4,30 @@
 [![crates.io](https://img.shields.io/crates/v/bevy_zeroverse.svg)](https://crates.io/crates/bevy_zeroverse)
 [![License](https://img.shields.io/github/license/mosure/bevy_zeroverse)](LICENSE)
 
-A procedural synthetic-data engine for multi-view reconstruction and geometric
-learning. Generate furnished interiors, capture synchronized views, and export
-calibrated cameras with aligned images, geometry and labels.
+Bevy Zeroverse is a procedural synthetic reconstruction dataset generator.
+Sample textured primitive objects or furnished interiors, capture synchronized
+views, and export calibrated cameras with aligned images, geometry and labels.
 
 [Project page](https://mosure.github.io/bevy_zeroverse/project/) ·
 [WebGPU viewer](https://mosure.github.io/bevy_zeroverse/?scene_type=procedural-indoor&indoor_seed=7&num_cameras=4&camera_grid=true&regenerate_ms=0) ·
 [Whitepaper](https://mosure.github.io/bevy_zeroverse/project/static/papers/bevy_zeroverse.pdf) ·
 [Documentation](docs/README.md)
 
-## Rendered examples
+## Object Zeroverse
+
+The original object scenes combine parametric primitives, mesh deformation,
+randomized materials and multi-view capture. The Python/PyTorch dataloader can
+generate samples online.
+
+![Object-scene dataloader captures showing matched RGB, depth and normal views](docs/bevy_zeroverse_dataloader_grid.webp)
+
+```sh
+cargo run --bin viewer -- --scene-type object --num-cameras 4 --camera-grid
+```
+
+[Open object scenes in the WebGPU viewer](https://mosure.github.io/bevy_zeroverse/?scene_type=object&num_cameras=4&camera_grid=true&regenerate_ms=8000)
+
+## Procedural interiors
 
 <table>
   <tr>
@@ -52,6 +66,8 @@ rooms, synchronized views, matching annotations, floor plans and distributions.
 
 ## Capabilities
 
+- **Object scene programs:** parametric primitives, mesh deformation, rotation
+  augmentation and material sampling, with Cornell cube and simple room scenes.
 - **Continuous scene programs:** polygonal footprints, cut-ins, chamfered corners,
   sloped ceilings, arches, pillars, floor levels and mezzanines. Windows and glass
   partitions connect interiors to neighboring rooms and outdoor context.
@@ -64,9 +80,9 @@ rooms, synchronized views, matching annotations, floor plans and distributions.
   ARDY text/waypoint motion. Cameras and people share a capture timeline; static
   scenes do not initialize motion models.
 
-Primitive-object, Cornell cube, room, semantic-room and standalone-human scenes
-are also supported. The engine is built with Bevy and Rust, with native dataset
-generation, a WebGPU viewer, and Python/PyTorch integration.
+Semantic-room and standalone-human scenes are also supported. The engine is
+built with Bevy and Rust, with native dataset generation, a WebGPU viewer, and
+Python/PyTorch integration.
 
 ## Quick start
 
@@ -95,6 +111,25 @@ cargo run -p bevy_zeroverse_burn --bin zeroverse_gen -- \
 The native CLI requires a GPU but no display server. Capture waits for assets,
 render pipelines and requested motion. People use the body assets in
 `assets/burn_human`; set `--indoor-human-density 0` to generate interiors without them.
+
+## MatSynth
+
+Object scenes can sample PBR materials from
+[MatSynth](https://huggingface.co/datasets/gvecchio/MatSynth). The original material
+grid shows the texture variety available alongside the procedural indoor materials.
+
+![MatSynth material grid rendered in the Bevy Zeroverse viewer](docs/bevy_zeroverse_material_grid.webp)
+
+Download the maps using the dataset's
+[download script](https://huggingface.co/datasets/gvecchio/MatSynth/blob/main/scripts/download_dataset.py),
+then resize them into the local material directory:
+
+```sh
+python mat-synth/resize.py --source_dir <path-to-mat-synth> --dest_dir assets/materials
+cargo run --bin viewer -- --material-grid
+```
+
+[Open the material grid in the WebGPU viewer](https://mosure.github.io/bevy_zeroverse/?material_grid=true)
 
 ## Exports
 

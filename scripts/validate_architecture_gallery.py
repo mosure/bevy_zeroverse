@@ -110,7 +110,15 @@ def static_checks(captures=None):
                 assert unquote(url.fragment) in other.ids, f'{target}: missing #{url.fragment}'
             checked += 1
     main = (PAGE/'index.html').read_text()
-    assert 's24005-' not in main and 'cohort-24000' not in main
+    architecture = main.split('<!-- ARCHITECTURE_GALLERY_START -->')[1].split('<!-- ARCHITECTURE_GALLERY_END -->')[0]
+    assert 's24005-' not in architecture and 'cohort-24000' not in architecture
+    assert 'explore' in documents[PAGE/'index.html'].ids
+    assert 'data-initial-mode="co_visibility"' in main and 'static/js/index.js' in main
+    assert 'Recorded annotation study · generator 21' in main
+    readme = (ROOT/'README.md').read_text()
+    for example in ('bevy_zeroverse_dataloader_grid.webp','bevy_zeroverse_material_grid.webp'):
+        assert f'(docs/{example})' in readme
+        with Image.open(ROOT/'docs'/example) as im: im.load()
     assert 'static/media/architecture/hero.webp' in main
     assert 'ARCHITECTURE_GALLERY_START' in main and '@FEATURED@' not in main
     for seed in (7,8,6,2): assert f'data-architecture-seed="{seed}"' in main
@@ -139,7 +147,79 @@ def static_checks(captures=None):
                 views=256, decoded_channel_images=images, unique_channel_identities=len(identities),
                 lossless_annotation_roundtrips=lossless, source_hashes_checked=source_count,
                 metadata_records=metadata_count, local_links=checked, pdf_and_source_archive_verified=True,
-                population_denominators_verified=True, browser_checked=False, viewer_runtime_checked=False)
+                population_denominators_verified=True, object_and_material_examples_preserved=True,
+                matched_annotation_gallery_preserved=True, browser_checked=False, viewer_runtime_checked=False)
+
+
+def matched_browser_checks(page, url):
+    """Check the retained annotation study without changing the architecture UI."""
+    data = page.request.get(urljoin(url,'static/media/gallery.json')).json()
+    architecture = page.locator('#architecture-explorer').get_attribute('data-selection')
+    cases, peers = 0, 0
+
+    def selected(scene, step, camera, mode, peer='all'):
+        identity = f'{scene["seed"]}:{step}:{camera}:{mode}:{peer}'
+        page.wait_for_function('s => document.getElementById("comparison").dataset.selection === s',arg=identity)
+        view = scene['frames'][step]['views'][camera]
+        expected = view['images']['peers'][int(peer)] if peer!='all' else view['images'][mode]
+        assert page.locator('#comparison').get_attribute('aria-busy')=='false'
+        assert page.locator('#rgb-image').get_attribute('src').endswith(view['images']['color'])
+        assert page.locator('#annotation-image').get_attribute('src').endswith(expected)
+        page.wait_for_function('document.getElementById("annotation-image").complete && document.getElementById("annotation-image").naturalWidth===768 && document.getElementById("annotation-image").naturalHeight===480')
+        assert page.locator(f'#mode-buttons [data-mode="{mode}"]').get_attribute('aria-pressed')=='true'
+        assert page.locator(f'#camera-buttons [data-camera="{camera}"]').get_attribute('aria-pressed')=='true'
+        assert page.locator('#calibration-link').get_attribute('href').endswith(scene['calibration'])
+        assert page.locator('#mask-link').get_attribute('href').endswith(scene['masks'])
+
+    assert page.locator('#comparison').get_attribute('data-selection')==f'{data["scenes"][0]["seed"]}:0:0:co_visibility:all'
+    for index, scene in enumerate(data['scenes']):
+        page.select_option('#scene-select',str(index))
+        for step in range(len(scene['frames'])):
+            page.select_option('#time-select',str(step))
+            for camera in range(4):
+                page.click(f'#camera-buttons [data-camera="{camera}"]')
+                modes = [m for m in scene['frames'][step]['views'][camera]['images'] if m!='peers'] if step==0 else ['co_visibility']
+                for mode in modes:
+                    page.click(f'#mode-buttons [data-mode="{mode}"]')
+                    if mode=='co_visibility':
+                        page.locator('#peer-buttons [data-peer="all"]').click()
+                    selected(scene,step,camera,mode)
+                    cases += 1
+                assert page.locator('#peer-controls').is_visible()
+                assert page.locator(f'#peer-buttons [data-peer="{camera}"]').is_disabled()
+                assert page.locator('#mode-legend .legend-swatch').count()==4
+                for peer in range(4):
+                    if peer==camera: continue
+                    page.locator(f'#peer-buttons [data-peer="{peer}"]').click()
+                    selected(scene,step,camera,'co_visibility',str(peer))
+                    assert f'camera {peer}' in page.locator('#mode-description').inner_text()
+                    peers += 1
+                page.locator('#peer-buttons [data-peer="all"]').click()
+                selected(scene,step,camera,'co_visibility')
+    page.click('#mode-buttons [data-mode="optical_flow"]')
+    selected(data['scenes'][-1],2,3,'optical_flow')
+    assert page.locator('#mode-description').inner_text().startswith('Terminal')
+    page.select_option('#time-select','1')
+    selected(data['scenes'][-1],1,3,'optical_flow')
+    assert 't=0.10 to t=0.20' in page.locator('#mode-description').inner_text()
+    page.locator('#reveal').fill('75')
+    page.locator('#reveal').focus(); page.keyboard.press('ArrowLeft')
+    assert page.locator('#reveal').input_value()=='74'
+    assert page.locator('#comparison').evaluate('e => e.style.getPropertyValue("--split")')=='74%'
+    page.evaluate('''() => {
+      const room = document.getElementById('scene-select'); room.value = '0'; room.dispatchEvent(new Event('change'));
+      const time = document.getElementById('time-select'); time.value = '0'; time.dispatchEvent(new Event('change'));
+      document.querySelector('#camera-buttons [data-camera="1"]').click();
+      document.querySelector('#mode-buttons [data-mode="normal"]').click();
+      document.querySelector('#camera-buttons [data-camera="0"]').click();
+      document.querySelector('#mode-buttons [data-mode="co_visibility"]').click();
+    }''')
+    selected(data['scenes'][0],0,0,'co_visibility')
+    page.locator('#reveal').fill('50')
+    assert page.locator('#architecture-explorer').get_attribute('data-selection')==architecture
+    return dict(passed=True,mode_cases=cases,peer_cases=peers,default_co_visibility=True,
+                aligned_camera_time_switching=True,terminal_flow=True,keyboard_reveal=True,
+                independent_architecture_controls=True,rapid_switching=True)
 
 
 def browser_checks(url, output):
@@ -154,6 +234,8 @@ def browser_checks(url, output):
         page.on('response',lambda r:errors.append(f'HTTP {r.status}: {r.url}') if r.status>=400 else None)
         page.goto(url,wait_until='networkidle')
         page.wait_for_selector('#architecture-explorer[data-ready="true"]')
+        page.wait_for_selector('#comparison[data-ready="true"]')
+        annotation_selection = page.locator('#comparison').get_attribute('data-selection')
         data = page.request.get(urljoin(url,'static/media/architecture/gallery.json')).json()
 
         def selected(seed,step,mode):
@@ -194,22 +276,29 @@ def browser_checks(url, output):
         page.locator('#architecture-reveal').fill('75')
         page.locator('#architecture-reveal').focus();page.keyboard.press('ArrowLeft')
         assert page.locator('#architecture-reveal').input_value()=='74'
+        assert page.locator('#comparison').get_attribute('data-selection')==annotation_selection
+        matched = matched_browser_checks(page,url)
         for width in (390,768,1440):
             page.set_viewport_size({'width':width,'height':1000})
             assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth')
             assert page.locator('.architecture-views').evaluate('e => getComputedStyle(e).gridTemplateColumns.split(" ").length')==(1 if width<640 else 2)
             page.locator('#architecture').screenshot(path=str(output/f'architecture-{width}.png'))
+            page.locator('#explore').screenshot(path=str(output/f'co-visibility-{width}.png'))
         plain = browser.new_context(java_script_enabled=False,viewport={'width':390,'height':844})
         fallback = plain.new_page();fallback.goto(url,wait_until='networkidle')
         assert fallback.locator('#architecture-room').is_disabled()
         assert fallback.locator('.architecture-views figure').count()==4
         fallback.locator('.architecture-cohort summary').click()
         assert fallback.locator('.architecture-cohort img').count()==32
+        assert fallback.locator('#annotation-image').evaluate('i => i.complete && i.naturalWidth===768')
+        assert fallback.locator('#annotation-image').get_attribute('src').endswith('-co_visibility.png')
+        assert fallback.locator('#mode-legend .legend-swatch').count()==4
+        assert fallback.locator('#peer-buttons [data-peer="all"]').is_disabled()
         assert not errors,errors
         browser.close()
     return dict(passed=True,room_time_mode_cases=cases,view_cases=cases*4,feature_filters=True,
                 atomic_switching=True,keyboard_reveal=True,responsive_widths=[390,768,1440],
-                no_javascript_fallback=True,errors=errors)
+                no_javascript_fallback=True,matched_annotations=matched,errors=errors)
 
 
 def main():

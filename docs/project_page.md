@@ -22,10 +22,16 @@ actual envelope roof/floor profile, including stair treads where intersected.
 It omits interior furniture, pillars and partitions. These are explanatory
 **diagrams**, not an alternate renderer or additional captured rooms.
 
-The paper's main evaluation and figures use this current cohort. Earlier
-camera-baseline, exact co-visibility and motion studies are preserved on
-[`reference.html`](../www/project/reference.html) and in the paper's reference
-appendix. Their earlier geometry and independent denominators remain explicit.
+The paper's main evaluation and figures use this current cohort. The main page
+also retains the [interactive co-visibility and matched-annotation explorer](../www/project/index.html#explore):
+choose a source camera, additive camera membership or an individual peer, time,
+and any of eight annotations. It opens in co-visibility mode, with a static
+comparison, legend and exact-mask downloads available without JavaScript.
+The annotation study keeps its original generator 21 capture identity; it does
+not remeasure the current architectural cohort. Camera-baseline, co-visibility
+and motion studies also remain on [`reference.html`](../www/project/reference.html)
+and in the paper's reference appendix. Their geometry and independent denominators
+remain explicit.
 The current cohort did not export co-visibility, optical flow, motion vectors
 or continuous video; those outputs must not be inferred from its display PNGs.
 
@@ -73,14 +79,25 @@ page check does not qualify the linked WebGPU renderer or fresh scene generation
 See the [page-refresh validation](evidence/architecture_page/validation.json)
 for exact check counts and the initial environment limitations.
 
+The [gallery-restoration validation](evidence/page_restoration/validation.json)
+checks the main-page co-visibility explorer alongside the architectural gallery:
+80 matched mode cases, 72 individual peer selections, all 320 architectural
+room/time/mode combinations, independent controls, keyboard reveal, three
+responsive widths and the JavaScript-disabled comparison. It also checks the
+original object-capture and MatSynth grids retained in the README, and a smoke
+test of the reference page's annotations, baseline controls and motion video.
+
 No photographic-realism, unlimited-memory-stability, ten-million-scene-run or
 pretraining-gain claim follows from these artifacts.
 
 ## Reference study provenance
 
-The assets below retain their original generator/capture identities and live on
-`reference.html`. Rebuilding these older studies must not overwrite the current
-page, current social preview or current population figures.
+The assets below retain their original generator/capture identities. The matched
+annotation explorer is available on both the main page and `reference.html`;
+baseline comparisons and videos remain on `reference.html`. Rebuilding these
+studies must preserve the main-page explorer and must not overwrite the current
+architectural gallery, social preview or population figures. Architectural media
+updates replace only the marked architecture block in the main page.
 
 - **Visual baseline comparison, v21:** the same two selected rooms at five
   baseline settings (0/0.25/0.5/0.75/1), four cameras, 768×480 and t=0: 40 views.
