@@ -4,8 +4,8 @@
 
 `www/project/` is a self-contained static project page. It needs no npm build,
 external font service or embedded GPU runtime. The existing Pages workflow
-copies it alongside the viewer. Keep media and the compiled PDF in the checkout;
-deployment does not regenerate the scientific figures or run model inference.
+rebuilds and verifies it alongside the viewer. Keep media and the compiled PDF in the checkout;
+deployment rebuilds HTML/PDF from the verified shipped measurements and runs no model inference.
 
 Preview from the repository root:
 
@@ -15,7 +15,7 @@ python3 -m http.server 8770 --directory www
 ```
 
 The main page presents the **current architectural generator**: all 32 rendered
-rooms, four synchronized views, both trajectory endpoints and five matched
+rooms, four synchronized views, both trajectory endpoints and six matched
 channels, with per-room plans/sections and 512-room distributions. Feature
 shortcuts expose mezzanines, stairs, floor levels, chamfers, cut-ins and arches.
 All displayed RGB comes from actual native captures.
@@ -29,33 +29,24 @@ The whitepaper's main figures show current architectural captures and metrics;
 its reference appendix retains the older baseline and co-visibility evidence.
 The PDF and complete LaTeX source archive are downloadable from both pages.
 
-To rebuild from completed current captures (NumPy, Pillow, Matplotlib,
-latexmk/pdflatex and Poppler required):
+The page and paper are built by one Rust pipeline:
 
 ```sh
-python scripts/build_architecture_media.py
-python scripts/build_project_whitepaper.py
-python scripts/validate_architecture_gallery.py --static-only
-python scripts/validate_project_page.py --url http://127.0.0.1:8770/project/
-# Optional recorded-reference regression:
-python scripts/validate_project_page.py --reference \
-  --url http://127.0.0.1:8770/project/reference.html
-# Release check also opens the actual linked WebGPU viewer:
-python scripts/validate_project_page.py --check-viewer \
-  --url https://mosure.github.io/bevy_zeroverse/project/
+cargo run --locked -p bevy_zeroverse_publication -- refresh
+cargo run --locked -p bevy_zeroverse_publication -- verify
+cargo run --locked -p bevy_zeroverse_publication -- rebuild
 ```
 
-The current media builder checks generator freshness against the source,
-completed-run identity, audited input hashes, manifest/plan consistency and
-lossless annotation-preview conversion. It fails on missing channels or changed
-cohort denominators. Browser checks exercise every room/time/mode combination,
-atomic view switching, feature filters, keyboard controls and responsive layouts.
-Static validation is available without a browser and is reported separately;
-it does not establish browser or WebGPU runtime correctness.
+Refresh validates and stages the current generator's complete captures, all six
+annotations, figures, HTML, PDF and exact downloads. Rebuild uses the verified
+self-contained shipped capture bundle without a GPU or raw `out/` files. The
+Pages workflow rebuilds and verifies this bundle before deployment. Source or
+version upgrades require fresh current captures; stale metrics fail the gate.
 
-See [capture recipes, mappings and provenance](../docs/project_page.md) for
-current and reference workflows. Deployment copies checked-in assets; it does
-not regenerate captures or run inference.
+The recipe is [publication.toml](../publication.toml), and authored templates live
+in [the publication crate](../crates/publication/README.md). See the
+[publication protocol](../docs/project_page.md) for source identity, exact mask
+formats, release requirements and separate browser/runtime qualification.
 
 ## wasm support
 
