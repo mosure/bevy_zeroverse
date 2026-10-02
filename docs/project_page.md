@@ -12,7 +12,7 @@ cargo run --locked -p bevy_zeroverse_publication -- refresh --recapture
 # Read-only release/deployment gate; no GPU, raw captures, Python or LaTeX:
 cargo run --locked -p bevy_zeroverse_publication -- verify
 # Rebuild page and PDF from the verified shipped dataset on release/deployment:
-cargo run --locked -p bevy_zeroverse_publication -- rebuild --release-version 0.26.0
+cargo run --locked -p bevy_zeroverse_publication -- rebuild --release-version 0.27.0
 # Sanctioned registry entry point, which prepares/verifies the page and paper first:
 cargo run --locked -p bevy_zeroverse_publication -- publish --package bevy_zeroverse --dry-run
 ```
@@ -36,6 +36,8 @@ For crate closeout, use `publish --package <name>` (omit `--dry-run` for an actu
 ## Viewer and annotation contract
 
 Serve `www/` and open `/project/`. Room, feature, time, annotation and peer controls update one four-view explorer, plan and calibration. `/project/#explore` opens its co-visibility mode. Structural shortcuts use metadata with stable seed ties; RGB appearance never filters the cohort.
+
+Co-visibility has one interactive presentation on the main page. Its static matched-view figure appears only when JavaScript is disabled; the same figure remains in the paper. Publication and browser checks reject duplicate controls or an additional static panel in the interactive page.
 
 All six previews now use lossless WebP, without exposure correction or cropping. Depth is the clamped 8-bit display of axial metres/15; normals encode (n+1)/2; position is annotation-AABB normalized for display. Semantic colors and additive membership codes preserve their source pixels. These previews are not float32 training labels.
 
@@ -257,3 +259,23 @@ The TeX document builds with latexmk/pdflatex; the downloadable source ZIP
 includes all figures, style and table inputs. `static/papers/provenance.json`
 records the PDF and source hashes. The browser validation uses the compiled
 file served by the same static site.
+
+## Matched factor qualification
+
+Publication refresh also runs the canonical Rust factor recipe from
+`crates/publication/src/qualification.rs`: two consecutive room families, eleven
+camera/aspect/material/detail/illumination/exposure settings, two cameras and two
+explicit timestamps. Its 88 images, annotations, receipt and geometry-family
+hashes live under `www/project/static/media/qualification/`. The page links that
+gallery; the paper derives its factor table from the same receipt. This small
+correctness sweep is distinct from the 512-program/32-render population study.
+It uses no human motion and does not establish photographic realism or transfer.
+
+The qualification cache at `out/publication/qualification` requires the exact
+source identity, canonical recipe, success status and all artifact hashes. The
+offline publication gate verifies the shipped qualification, including logs and
+per-case calibration, without needing that cache. A failed sweep preserves its
+diagnostics and prevents publication. `qualify --output <new-directory>` runs an
+independent sweep; `--recipe <json>` provides an explicit custom recipe. See the
+[camera and export contract](multiview_cameras.md) for factor definitions and
+unknown-time/pixel-center conventions.

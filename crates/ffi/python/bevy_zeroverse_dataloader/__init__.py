@@ -32,6 +32,7 @@ import zstandard as zstd
 import bevy_zeroverse_ffi
 from . import flow as numeric_flow
 from . import co_visibility as numeric_cov
+from . import calibration as numeric_calibration
 
 
 def _chunk_collate(samples: list[dict[str, Any]]) -> dict[str, Any]:
@@ -40,6 +41,9 @@ def _chunk_collate(samples: list[dict[str, Any]]) -> dict[str, Any]:
     membership = ['co_visibility' in sample for sample in samples]
     if any(membership) and not all(membership):
         raise ValueError('co-visibility must be present for every sample in a batch')
+    calibration = ['intrinsics' in sample for sample in samples]
+    if any(calibration) and not all(calibration):
+        raise ValueError('cannot mix calibrated and legacy samples')
     collated: dict[str, Any] = {}
     ragged_prefixes = ("ovoxel_", "object_obb_", "human_", "indoor_", "co_visibility_metadata")
     for key in dict.fromkeys(key for sample in samples for key in sample):
@@ -150,6 +154,9 @@ class View:
         semantic=None,
         motion_vectors=None,
         co_visibility=None,
+        calibration=None,
+        trajectory_progress=None,
+        time_seconds=None,
     ):
         self.color = color
         self.depth = depth
@@ -166,6 +173,9 @@ class View:
         self.time = time
         self.width = width
         self.height = height
+        self.calibration = calibration
+        self.trajectory_progress = trajectory_progress
+        self.time_seconds = time_seconds
 
     @classmethod
     def from_rust(cls, rust_view, width, height):
@@ -223,6 +233,9 @@ class View:
             semantic=reshape_data(rust_view.semantic, np.float32) if getattr(rust_view, "semantic", b"") else None,
             motion_vectors=reshape_data(rust_view.motion_vectors, np.float32) if getattr(rust_view, "motion_vectors", b"") else None,
             co_visibility=reshape_data(rust_view.co_visibility, np.float32) if getattr(rust_view, "co_visibility", b"") else None,
+            calibration=json.loads(rust_view.calibration) if getattr(rust_view, "calibration", None) else None,
+            trajectory_progress=getattr(rust_view, "trajectory_progress", None),
+            time_seconds=getattr(rust_view, "time_seconds", None),
         )
 
     def to_tensors(self):
@@ -259,6 +272,22 @@ class View:
         batch['near'] = torch.tensor(self.near, dtype=torch.float32).unsqueeze(-1)
         batch['time'] = torch.tensor(self.time, dtype=torch.float32).unsqueeze(-1)
         batch['world_from_view'] = torch.tensor(self.world_from_view, dtype=torch.float32)
+        if self.calibration is not None:
+            c = self.calibration
+            if c['schema_version'] != 1 or c['lens_model'] != 'pinhole' or c['lens_model_version'] != 1 or c['pixel_convention'] != 'top_left_corner_half_pixel_centers' or c['image_size'] != [self.width, self.height]:
+                raise ValueError('unsupported or mismatched camera calibration')
+            if self.trajectory_progress is None or not 0 <= self.trajectory_progress <= 1:
+                raise ValueError('calibrated views require trajectory progress')
+            k = np.asarray(c['k'])
+            if k.shape != (3, 3) or not np.isfinite(k).all() or k[0, 0] <= 0 or k[1, 1] <= 0 or k[1, 0] != 0 or not np.array_equal(k[2], [0, 0, 1]):
+                raise ValueError('invalid calibration K')
+            if self.time_seconds is not None and (not np.isfinite(self.time_seconds) or self.time_seconds < 0):
+                raise ValueError('invalid physical time')
+            batch['intrinsics'] = torch.tensor(c['k'], dtype=torch.float32)
+            batch['image_size'] = torch.tensor(c['image_size'], dtype=torch.int64)
+            batch['trajectory_progress'] = torch.tensor([self.trajectory_progress], dtype=torch.float32)
+            batch['time_seconds'] = torch.tensor([self.time_seconds or 0.0], dtype=torch.float32)
+            batch['time_seconds_valid'] = torch.tensor([self.time_seconds is not None], dtype=torch.uint8)
 
         return batch
 
@@ -522,6 +551,9 @@ class Sample:
             sample['flow_metadata'] = numeric_flow.metadata_tensor()
             numeric_flow.validate(sample)
 
+        if 'intrinsics' in sample:
+            sample['camera_calibration'] = numeric_calibration.metadata_tensor()
+            numeric_calibration.validate(sample)
         if self.co_visibility_metadata is not None:
             sample["co_visibility_metadata"] = torch.tensor(list(self.co_visibility_metadata.encode()), dtype=torch.uint8)
         numeric_cov.validate(sample)
@@ -958,15 +990,16 @@ def chunk_and_save(
         for sample_index, sample in enumerate(chunk_samples):
             numeric_flow.validate(sample)
             numeric_cov.validate(sample)
+            numeric_calibration.validate(sample)
             for field in (*numeric_flow.NAMES, "co_visibility"):
                 if field in sample:
                     batch.setdefault("color_shape", torch.tensor([len(chunk_samples), *sample[field].shape[:-1], 3], dtype=torch.int64))
             for name, tensor in sample.items():
                 if name in {"indoor_manifest", "indoor_render_metadata", "co_visibility_metadata"}:
                     batch[f"{name}_{sample_index}"] = tensor.cpu().contiguous()
-                elif name == "flow_metadata":
+                elif name in {"flow_metadata", "camera_calibration"}:
                     if name in batch and not torch.equal(batch[name], tensor.cpu()):
-                        raise ValueError("flow conventions differ within a chunk")
+                        raise ValueError(f"{name} conventions differ within a chunk")
                     batch[name] = tensor.cpu().contiguous()
                 elif name == "color":
                     if color_codec == "raw":
@@ -1260,6 +1293,8 @@ def load_chunk(
             perform_crop = any(img.shape[0] != height or img.shape[1] != width for img in decoded_images)
 
             if perform_crop:
+                if 'intrinsics' in tensors:
+                    raise ValueError('calibrated captures cannot be silently cropped')
                 decoded_images = [
                     crop(img, (height, width)) for img in decoded_images
                 ]
@@ -1274,6 +1309,7 @@ def load_chunk(
                 batch[key] = tensor
 
         numeric_flow.validate(batch)
+        numeric_calibration.validate(batch)
         for name in ('indoor_manifest', 'indoor_render_metadata', 'co_visibility_metadata'):
             prefix = name + '_'
             manifests = {int(key.removeprefix(prefix)): value for key, value in tensors.items() if key.startswith(prefix)}
@@ -1329,6 +1365,7 @@ def load_single_sample(
 ):
     chunk = load_chunk(chunk_path)
     meta_keys = {
+        "camera_calibration",
         "flow_metadata",
         "object_obb_class_names",
         "human_pose_bone_names",
@@ -1613,6 +1650,7 @@ class ChunkedIteratorDataset(IterableDataset):
 
             for sample_idx in local_indices:
                 meta_keys = {
+                    "camera_calibration",
                     "flow_metadata",
                     "object_obb_class_names",
                     "human_pose_bone_names",
@@ -1677,6 +1715,7 @@ def write_sample(sample: dict, *, jpg_quality: int = 75) -> None:
     assert {"_chunk_path", "_sample_idx"} <= sample.keys(), \
         "`_chunk_path` and `_sample_idx` must be present"
     meta_keys = {
+        "camera_calibration",
         "flow_metadata",
         "object_obb_class_names",
         "human_pose_bone_names",
@@ -1750,6 +1789,7 @@ def save_to_folders(dataset, output_dir: Path, n_workers: int = 1):
         scene_dir.mkdir()
         steps, views = sample['fovy'].shape[:2]
         numeric_flow.validate(sample)
+        numeric_calibration.validate(sample)
         numeric_cov.save_folder(sample, scene_dir)
         if 'flow_metadata' in sample:
             (scene_dir / 'flow_metadata.json').write_bytes(bytes(sample['flow_metadata'].tolist()))
@@ -1836,6 +1876,7 @@ class FolderDataset(Dataset):
         numeric_flow.validate(metadata)
         metadata.update({k: torch.from_numpy(v) for k, v in numeric_cov.load_folder(scene_dir, steps, cameras).items()})
         numeric_cov.validate(metadata)
+        numeric_calibration.validate(metadata)
         path = scene_dir / 'render_metadata.json'
         if path.exists() and 'indoor_manifest' not in metadata:
             encoding, manifest = json.loads(path.read_text())

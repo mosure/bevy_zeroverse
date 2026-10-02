@@ -9,7 +9,7 @@ From a bevy_zeroverse checkout:
 ```sh
 cargo run --locked -p bevy_zeroverse_publication -- refresh
 cargo run --locked -p bevy_zeroverse_publication -- verify
-cargo run --locked -p bevy_zeroverse_publication -- rebuild --release-version 0.26.0
+cargo run --locked -p bevy_zeroverse_publication -- rebuild --release-version 0.27.0
 # Registry publication through the same preparation/validation gate:
 cargo run --locked -p bevy_zeroverse_publication -- publish --package bevy_zeroverse --dry-run
 ```

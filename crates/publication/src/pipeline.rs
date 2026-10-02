@@ -1,7 +1,7 @@
 use crate::{
     config::{Config, Protocol},
     dataset::{Capture, Dataset},
-    io, media, paper, visibility,
+    io, media, paper, qualification, visibility,
 };
 use anyhow::{ensure, Context, Result};
 use bevy_zeroverse_capture::{
@@ -76,6 +76,7 @@ fn publication_inputs(root: &Path, config: &Config) -> Result<BTreeMap<String, S
 fn is_generated(name: &str) -> bool {
     name == "www/project/index.html"
         || name.starts_with("www/project/static/media/architecture/")
+        || name.starts_with("www/project/static/media/qualification/")
         || name.starts_with("www/project/static/papers/")
         || matches!(
             name,
@@ -199,6 +200,10 @@ pub fn verify(root: &Path, release_version: Option<&str>) -> Result<Attestation>
 /// The exported bundle is self-contained: CI never needs out/, GPU captures,
 /// neural models, Python, plotting packages or the original machine's paths.
 fn verify_bundle(root: &Path, config: &Config, attestation: &Attestation) -> Result<()> {
+    qualification::verify_current(
+        &root.join(qualification::PUBLISHED_DIRECTORY),
+        &attestation.generator_identity,
+    )?;
     let media = root.join("www/project/static/media/architecture");
     let gallery: Value = io::read(&media.join("gallery.json"))?;
     ensure!(
@@ -368,12 +373,7 @@ fn number_eq(value: &Value, expected: f64) -> bool {
 fn check_html(root: &Path) -> Result<()> {
     let page = root.join("www/project/index.html");
     let html = fs::read_to_string(&page)?;
-    ensure!(
-        html.matches("id=\"architecture-explorer\"").count() == 1
-            && !html.contains("id=\"comparison\"")
-            && !html.contains("static/js/index.js"),
-        "disjoint current gallery"
-    );
+    check_gallery(&html)?;
     let expression = regex::Regex::new(r#"(?:src|href)="([^"]+)""#)?;
     for captures in expression.captures_iter(&html) {
         let link = &captures[1];
@@ -386,6 +386,29 @@ fn check_html(root: &Path) -> Result<()> {
             "broken project-page link: {link}"
         );
     }
+    Ok(())
+}
+
+fn check_gallery(html: &str) -> Result<()> {
+    // A static matched panel is useful without JavaScript, but repeats the
+    // interactive gallery if it is also presented to scripting browsers.
+    let interactive = regex::Regex::new(r"(?s)<noscript>.*?</noscript>")?.replace_all(html, "");
+    ensure!(
+        interactive.matches("id=\"architecture-explorer\"").count() == 1
+            && interactive
+                .matches("id=\"architecture-visibility\"")
+                .count()
+                == 1
+            && interactive
+                .matches("data-architecture-mode=\"co_visibility\"")
+                .count()
+                == 1
+            && !interactive.contains("id=\"comparison\"")
+            && !interactive.contains("static/js/index.js")
+            && !regex::Regex::new(r#"<img\b[^>]*src="[^"]*architecture_co_visibility\.jpg""#)?
+                .is_match(&interactive),
+        "duplicate or disjoint co-visibility presentation"
+    );
     Ok(())
 }
 
@@ -494,12 +517,19 @@ pub fn refresh(root: &Path, recapture: bool) -> Result<()> {
             Dataset::load(&capture_root, &current, p)?
         }
     };
+    let qualification_cache = work.join("qualification");
+    qualification::refresh_cache(&root, &qualification_cache, &current)?;
     let staging = tempfile::Builder::new()
         .prefix("stage-")
         .tempdir_in(&work)?;
     let stage = staging.path();
     io::copy_tree(&root.join("www/project"), &stage.join("www/project"))?;
     io::copy_tree(&root.join("tex"), &stage.join("tex"))?;
+    let qualification_output = stage.join(qualification::PUBLISHED_DIRECTORY);
+    if qualification_output.exists() {
+        fs::remove_dir_all(&qualification_output)?;
+    }
+    io::copy_tree(&qualification_cache, &qualification_output)?;
     // The viewer is built separately, but the project link must resolve in the
     // same staged site root when validation checks relative targets.
     fs::copy(root.join("www/index.html"), stage.join("www/index.html"))?;
@@ -663,4 +693,24 @@ pub fn install(root: &Path, stage: &Path, artifacts: &BTreeMap<String, String>) 
         return Err(error.context("publication installation rolled back"));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod gallery_tests {
+    use super::check_gallery;
+
+    #[test]
+    fn rejects_duplicate_presentations_but_preserves_the_no_script_figure() {
+        let html = r#"<div id="architecture-explorer"><button data-architecture-mode="co_visibility"></button><div id="architecture-visibility"></div></div><noscript><img src="static/media/architecture/architecture_co_visibility.jpg"></noscript>"#;
+        check_gallery(html).unwrap();
+        for duplicate in [
+            r#"<img src="static/media/architecture/architecture_co_visibility.jpg">"#,
+            r#"<button data-architecture-mode="co_visibility"></button>"#,
+            r#"<div id="architecture-visibility"></div>"#,
+            r#"<div id="architecture-explorer"></div>"#,
+            r#"<div id="comparison"></div>"#,
+        ] {
+            assert!(check_gallery(&format!("{html}{duplicate}")).is_err());
+        }
+    }
 }

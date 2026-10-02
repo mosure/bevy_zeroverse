@@ -30,6 +30,12 @@ static INDOOR_INITIALIZED: AtomicBool = AtomicBool::new(false);
 #[pyclass]
 #[derive(Clone, Debug, Default)]
 pub struct View {
+    #[pyo3(get, set)]
+    pub calibration: Option<String>,
+    #[pyo3(get, set)]
+    pub trajectory_progress: Option<f32>,
+    #[pyo3(get, set)]
+    pub time_seconds: Option<f32>,
     pub color: Vec<u8>,
     pub depth: Vec<u8>,
     pub normal: Vec<u8>,
@@ -58,6 +64,11 @@ pub struct View {
 impl From<core_sample::View> for View {
     fn from(value: core_sample::View) -> Self {
         View {
+            calibration: value
+                .calibration
+                .map(|c| serde_json::to_string(&c).expect("valid calibration")),
+            trajectory_progress: value.trajectory_progress,
+            time_seconds: value.time_seconds,
             color: value.color,
             depth: value.depth,
             normal: value.normal,
@@ -415,6 +426,10 @@ pub fn next(py: Python<'_>, indoor_seed: Option<u64>) -> PyResult<Sample> {
 #[pymodule]
 pub fn bevy_zeroverse_ffi(m: &Bound<'_, PyModule>) -> PyResult<()> {
     pyo3_log::init();
+    m.add(
+        "CAMERA_CALIBRATION_METADATA",
+        bevy_zeroverse::calibration::TENSOR_METADATA,
+    )?;
 
     m.add_class::<BevyZeroverseConfig>()?;
     m.add_class::<Playback>()?;

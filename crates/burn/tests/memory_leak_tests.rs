@@ -98,6 +98,9 @@ fn make_sample(width: u32, height: u32) -> Sample {
         near: 0.1,
         far: 10.0,
         time: 0.0,
+        calibration: None,
+        trajectory_progress: None,
+        time_seconds: None,
     };
 
     let ov = OvoxelSample {

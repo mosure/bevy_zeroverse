@@ -12,8 +12,8 @@ use bevy_zeroverse::{
         procedural_indoor::{
             cameras::CameraSettings,
             layout::{IndoorLayout, IndoorManifest},
-            metrics::{export_metrics_with_camera_settings, select_strata},
-            validation::{audit_layout_with_camera_settings, validate_geometry},
+            metrics::{export_metrics_with_factors, select_strata},
+            validation::{audit_layout_with_factors, validate_geometry},
             GlassFilter, IndoorQuality,
         },
         RegenerateSceneEvent, ZeroverseSceneType,
@@ -46,6 +46,9 @@ struct Args {
     /// Camera policy JSON including optional multiview shared-surface constraints.
     #[arg(long)]
     indoor_camera: Option<String>,
+    /// Material/light factors applied after geometry generation.
+    #[arg(long)]
+    indoor_appearance: Option<String>,
     #[arg(long, default_value_t = 800)]
     width: u32,
     #[arg(long, default_value_t = 600)]
@@ -106,6 +109,8 @@ struct Args {
 
 #[derive(Serialize)]
 struct CaptureReport {
+    build_provenance: serde_json::Value,
+    camera_qualification: Option<serde_json::Value>,
     run_id: String,
     seed: u64,
     elapsed_seconds: f64,
@@ -127,6 +132,9 @@ struct CaptureReport {
 
 #[derive(Serialize)]
 struct ViewReport {
+    calibration: Option<bevy_zeroverse::calibration::CameraCalibration>,
+    time_seconds: Option<f32>,
+    trajectory_progress: Option<f32>,
     camera_index: usize,
     step_index: usize,
     time: f32,
@@ -210,8 +218,14 @@ fn main() -> Result<()> {
         .transpose()
         .map_err(anyhow::Error::msg)?
         .unwrap_or_default();
+    let appearance = args
+        .indoor_appearance
+        .as_deref()
+        .map(bevy_zeroverse::scene::procedural_indoor::appearance::AppearanceSettings::parse)
+        .transpose()
+        .map_err(anyhow::Error::msg)?;
     let audit_start = Instant::now();
-    let report = audit_layout_with_camera_settings(
+    let report = audit_layout_with_factors(
         args.seed,
         args.audit_seeds,
         args.cameras,
@@ -220,6 +234,7 @@ fn main() -> Result<()> {
         args.human_density,
         &camera_settings,
         args.width as f32 / args.height as f32,
+        appearance.as_ref(),
     );
     fs::write(
         args.output.join("distribution.json"),
@@ -236,7 +251,7 @@ fn main() -> Result<()> {
         report.invalid_seeds.is_empty(),
         "layout validation failed; see distribution.json"
     );
-    let metrics = export_metrics_with_camera_settings(
+    let metrics = export_metrics_with_factors(
         args.seed,
         args.audit_seeds,
         args.cameras,
@@ -247,6 +262,7 @@ fn main() -> Result<()> {
         &args.output,
         args.human_density,
         &camera_settings,
+        appearance.as_ref(),
     )
     .map_err(anyhow::Error::msg)?;
     let selected: Vec<u64> = if args.stratified {
@@ -273,7 +289,7 @@ fn main() -> Result<()> {
             "run_id": run_id, "identity": identity, "quality": args.quality, "capture_engine": bevy_zeroverse::CAPTURE_ENGINE_IDENTITY,
             "policy": if args.stratified { "first observed seed per layout/lighting/floor/furniture/architecture cell; category-balanced order, no image quality filtering" } else { "consecutive seeds" },
             "observed_strata": metrics.stratified_seeds, "selected_seeds": selected,
-            "playback_steps": args.playback_steps, "density": args.density, "indoor_camera": camera_settings,
+            "playback_steps": args.playback_steps, "density": args.density, "indoor_camera": camera_settings, "indoor_appearance": appearance,
             "human_density": args.human_density, "diffuse_gi_enabled": !args.no_gi && args.quality.diffuse_gi(), "gi_rays": args.gi_rays, "gi_bounces": args.gi_bounces,
             "co_visibility": args.co_visibility,
         }))?,
@@ -295,6 +311,11 @@ fn main() -> Result<()> {
                 args.width as f32 / args.height as f32,
             )
             .map_err(anyhow::Error::msg)?;
+        if let Some(settings) = &appearance {
+            manifest
+                .apply_appearance(settings.clone())
+                .map_err(anyhow::Error::msg)?;
+        }
         let stats = validate_geometry(&manifest).map_err(anyhow::Error::msg)?;
         fs::write(
             args.output.join(format!("geometry_{}.json", manifest.seed)),
@@ -322,6 +343,7 @@ fn main() -> Result<()> {
         scene_type: ZeroverseSceneType::ProceduralIndoor,
         indoor_seed: Some(args.seed),
         indoor_camera: args.indoor_camera.clone(),
+        indoor_appearance: args.indoor_appearance.clone(),
         indoor_layout: args.layout,
         indoor_density: args.density,
         indoor_human_density: args.human_density,
@@ -517,6 +539,8 @@ fn main() -> Result<()> {
         }
         let views = save_sample(&sample, &args, &directory)?;
         let report = CaptureReport {
+            build_provenance: bevy_zeroverse::provenance::capture_provenance(),
+            camera_qualification: sample.indoor_render_metadata.as_ref().and_then(|m| m.get("camera_qualification")).cloned(),
             run_id: run_id.clone(),
             seed,
             elapsed_seconds: start.elapsed().as_secs_f64(),
@@ -703,6 +727,9 @@ fn save_sample(
             None
         };
         reports.push(ViewReport {
+            calibration: view.calibration.clone(),
+            time_seconds: view.time_seconds,
+            trajectory_progress: view.trajectory_progress,
             camera_index,
             step_index,
             time,

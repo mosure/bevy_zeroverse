@@ -115,6 +115,22 @@ fn default_indoor_human_density() -> f32 {
     0.25
 }
 
+fn deserialize_indoor_appearance<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<String>, D::Error> {
+    Option::<serde_json::Value>::deserialize(deserializer)?
+        .map(|value| {
+            let json = match value {
+                serde_json::Value::String(s) => s,
+                value => value.to_string(),
+            };
+            crate::scene::procedural_indoor::appearance::AppearanceSettings::parse(&json)
+                .map_err(serde::de::Error::custom)?;
+            Ok(json)
+        })
+        .transpose()
+}
+
 fn default_indoor_gi_rays() -> u32 {
     256
 }
@@ -322,6 +338,12 @@ pub struct BevyZeroverseConfig {
     #[arg(long)]
     #[serde(default, deserialize_with = "deserialize_indoor_camera")]
     pub indoor_camera: Option<String>,
+
+    /// Independent material, illumination and exposure factors as JSON.
+    #[pyo3(get, set)]
+    #[arg(long)]
+    #[serde(default, deserialize_with = "deserialize_indoor_appearance")]
+    pub indoor_appearance: Option<String>,
 
     /// Opt-in motion policy as JSON; requires the human_motion Cargo feature.
     #[pyo3(get, set)]
@@ -551,6 +573,11 @@ pub struct BevyZeroverseConfig {
     #[serde(default, deserialize_with = "deserialize_indoor_camera")]
     pub indoor_camera: Option<String>,
 
+    /// Independent material, illumination and exposure factors as JSON.
+    #[arg(long)]
+    #[serde(default, deserialize_with = "deserialize_indoor_appearance")]
+    pub indoor_appearance: Option<String>,
+
     /// Opt-in motion policy as JSON; requires the human_motion Cargo feature.
     #[arg(long)]
     #[serde(default, deserialize_with = "deserialize_human_motion")]
@@ -660,6 +687,7 @@ impl Default for BevyZeroverseConfig {
             indoor_density: 0.65,
             indoor_human_density: 0.25,
             indoor_camera: None,
+            indoor_appearance: None,
             human_motion: None,
             indoor_quality: crate::scene::procedural_indoor::IndoorQuality::Auto,
             indoor_gi_rays: 256,

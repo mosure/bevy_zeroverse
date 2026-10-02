@@ -183,6 +183,8 @@ pub enum LightingMood {
 
 #[derive(Debug, Clone, Resource, Serialize, Deserialize, PartialEq)]
 pub struct IndoorManifest {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub appearance: Option<super::appearance::AppearanceSettings>,
     pub generator_version: u32,
     #[serde(default)]
     pub program: Option<super::program::IndoorProgram>,
@@ -294,6 +296,7 @@ impl IndoorManifest {
         let mut room_size = super::domain::room_size(seed);
         room_size.y = super::envelope::EnvelopeProgram::room_height(seed, room_size);
         let mut scene = Self {
+            appearance: None,
             generator_version: GENERATOR_VERSION,
             program: Some(super::program::IndoorProgram::sample(
                 seed, room_size, layout, density,

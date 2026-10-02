@@ -1,3 +1,4 @@
+mod calibration;
 pub mod chunk;
 mod co_visibility;
 pub mod compression;
@@ -6,6 +7,7 @@ mod flow;
 pub mod fs;
 pub mod generator;
 pub mod progress;
+pub mod sensor;
 pub mod tui;
 
 pub use dataset::{ChunkDataset, LiveDataset, LiveDatasetConfig, ZeroverseSample};

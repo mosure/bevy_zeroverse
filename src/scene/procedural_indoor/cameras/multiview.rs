@@ -1,4 +1,4 @@
-//! Connected multi-view sets for reconstruction: camera zero is the reference.
+//! Configurable multi-view sets for reconstruction: camera zero is the reference.
 //! Visibility uses first-surface proxy ray casts. It is a proposal constraint,
 //! not a guarantee about rendered pixels; the depth audit measures actual overlap.
 use super::coverage::{Coverage, VisibilityView};
@@ -163,6 +163,23 @@ impl IndoorManifest {
         let Some(policy) = self.camera_settings.multiview.clone().filter(|_| count > 1) else {
             return self.sample_independent_cameras(count, &mut rng, &coverage);
         };
+        // Select strata once for this seed. A failed difficult/negative stratum
+        // must not be redrawn as an easier one during anchor or view retries.
+        let targets = self
+            .camera_settings
+            .overlap_mixture
+            .as_ref()
+            .map_or_else(Vec::new, |m| m.targets(self.seed, count));
+        // Reserve constrained shared-content views before placing negatives.
+        // Class assignments and final camera indices remain fixed for this seed.
+        let mut placement_order: Vec<_> = (1..count).collect();
+        if !targets.is_empty() {
+            placement_order.sort_by_key(|&index| match targets[index - 1].class {
+                super::mixture::OverlapClass::High => 0,
+                super::mixture::OverlapClass::Low => 1,
+                super::mixture::OverlapClass::None => 2,
+            });
+        }
         // Retry the whole set if an anchor lies in a cramped cul-de-sac. The
         // budget is bounded and thresholds are never silently relaxed.
         let mut most_placed = 0;
@@ -203,13 +220,14 @@ impl IndoorManifest {
                 .into_iter()
                 .map(|t| coverage.view(&reference, self.camera_aspect_ratio, t))
                 .collect();
-            for _ in 1..count {
+            for &camera_index in &placement_order {
+                let target = targets.get(camera_index - 1);
                 let mut found = None;
                 for attempt in 0..VIEW_ATTEMPTS {
                     // Larger rigs in concave rooms benefit from proposals near
                     // already verified free corridors. Keep the same bounded
                     // budget and all overlap/spread/separation constraints.
-                    let candidate = if count > 4
+                    let mut candidate = if count > 4
                         && attempt >= VIEW_ATTEMPTS / 2
                         && self.cameras.len() >= 4
                         && rng.random_bool(0.5)
@@ -252,6 +270,53 @@ impl IndoorManifest {
                     } else {
                         propose(&reference, extent, reachable, heights, &policy, &mut rng)
                     };
+                    if target.is_some() && attempt % 2 == 1 {
+                        // A translated reference path over-proposes outside a
+                        // compact/concave room. Mix in independent origins in
+                        // its actual floor-to-roof interval, then retain all
+                        // clearance, rig and requested overlap tests below.
+                        let xz = Vec2::new(
+                            rng.random_range(lo.x + 0.5..hi.x - 0.5),
+                            rng.random_range(lo.y + 0.5..hi.y - 0.5),
+                        );
+                        let low = self.floor_height(xz) + 0.70;
+                        let high = (self.ceiling_height(xz)
+                            - self.program.as_ref().map_or(0.5, |p| p.light_drop)
+                            - 0.04
+                            - super::super::layout::CAMERA_CLEARANCE)
+                            .min(3.25);
+                        if low > high {
+                            continue;
+                        }
+                        let origin = Vec3::new(xz.x, rng.random_range(low..=high), xz.y);
+                        let offset = origin - candidate.start;
+                        candidate.start += offset;
+                        candidate.end += offset;
+                        if let Some(motion) = &mut candidate.motion {
+                            for point in motion.control.iter_mut().chain(&mut motion.route) {
+                                *point += offset;
+                            }
+                        }
+                    }
+                    if target.is_some_and(|t| t.class != super::mixture::OverlapClass::High) {
+                        // Low/negative pairs need independent headings. Translating
+                        // a shared-target rig cannot cover those requested strata.
+                        let yaw = rng.random_range(0.0..std::f32::consts::TAU);
+                        let aim = candidate.start
+                            + Vec3::new(
+                                4.0 * yaw.cos(),
+                                rng.random_range(-0.6..0.6),
+                                4.0 * yaw.sin(),
+                            );
+                        let offset = aim - candidate.target;
+                        candidate.target = aim;
+                        if let Some(motion) = &mut candidate.motion {
+                            motion.target_end += offset;
+                        }
+                    }
+                    if let Some(handheld) = &self.camera_settings.handheld {
+                        handheld.apply(&mut candidate, &mut rng);
+                    }
                     let track = Track::new(&candidate);
                     // Cheap rejection before casts: swept collision checks still
                     // cover the complete paths, including route segments/curves.
@@ -281,7 +346,10 @@ impl IndoorManifest {
                         &candidate,
                         self.camera_aspect_ratio,
                     );
-                    if policy.accepts(&samples) {
+                    if target.map_or_else(
+                        || policy.accepts(&samples),
+                        |t| t.accepts(&policy, &samples),
+                    ) {
                         found = Some((candidate, track));
                         break;
                     }
@@ -296,11 +364,18 @@ impl IndoorManifest {
             }
             most_placed = most_placed.max(self.cameras.len());
             if self.cameras.len() == count {
+                if !targets.is_empty() {
+                    let indices = std::iter::once(0).chain(placement_order.iter().copied());
+                    let mut indexed: Vec<_> =
+                        indices.zip(std::mem::take(&mut self.cameras)).collect();
+                    indexed.sort_by_key(|(index, _)| *index);
+                    self.cameras = indexed.into_iter().map(|(_, camera)| camera).collect();
+                }
                 return Ok(());
             }
         }
         self.cameras.clear();
-        Err(format!("seed {} ({:?}): unable to sample {count} connected multi-view cameras after {GROUP_ATTEMPTS} anchors x {VIEW_ATTEMPTS} proposals/view; most_placed={most_placed}, rejections clearance/rig/length/curve/coverage/overlap={rejected:?}; min_overlap={}, pair_min={}m, reference={}..{}m, min_spread={}, trajectory_variation={}. Lower overlap/separation/spread bounds, reduce trajectory variation, or shorten paths; no unconstrained fallback was used", self.seed, self.layout, policy.min_overlap, policy.min_baseline, policy.min_reference_baseline, policy.max_baseline, policy.min_spread, policy.trajectory_variation))
+        Err(format!("seed {} ({:?}): unable to sample {count} multi-view cameras after {GROUP_ATTEMPTS} anchors x {VIEW_ATTEMPTS} proposals/view; most_placed={most_placed}, rejections clearance/rig/length/curve/coverage/overlap={rejected:?}; requested_pairs={targets:?}; min_overlap={}, pair_min={}m, reference={}..{}m, min_spread={}, trajectory_variation={}. Lower overlap/separation/spread bounds, reduce trajectory variation, or shorten paths; no unconstrained fallback was used", self.seed, self.layout, policy.min_overlap, policy.min_baseline, policy.min_reference_baseline, policy.max_baseline, policy.min_spread, policy.trajectory_variation))
     }
 }
 

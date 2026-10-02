@@ -234,25 +234,26 @@ impl IndoorMaterials {
             }
             match surface {
                 Surface::Glass | Surface::GlassInterior => {
-                    glass::GlassRecipe::sample(scene.seed, surface).apply(&mut mat, quality);
+                    glass::GlassRecipe::sample(scene.material_seed(), surface)
+                        .apply(&mut mat, quality);
                 }
                 Surface::Leaf | Surface::LeafLight | Surface::LeafVariegated => {
                     mat.diffuse_transmission = 0.18
                 }
                 Surface::Screen => {
-                    screens::apply(scene.seed, false, &mut mat, images);
+                    screens::apply(scene.material_seed(), false, &mut mat, images);
                 }
                 Surface::Whiteboard => {
-                    boards::apply(scene.seed, &mut mat, images);
+                    boards::apply(scene.material_seed(), &mut mat, images);
                 }
                 Surface::Television => {
-                    screens::apply_tv(scene.seed, &mut mat, images);
+                    screens::apply_tv(scene.material_seed(), &mut mat, images);
                 }
                 Surface::PhoneScreen => {
-                    screens::apply(scene.seed, true, &mut mat, images);
+                    screens::apply(scene.material_seed(), true, &mut mat, images);
                 }
                 Surface::PrintedPaper => {
-                    paper::apply(scene.seed, &mut mat, images);
+                    paper::apply(scene.material_seed(), &mut mat, images);
                 }
                 Surface::ContainerGlass | Surface::Liquid => {
                     mat.base_color = Color::srgb(0.94, 0.985, 0.99);
@@ -342,8 +343,9 @@ impl IndoorMaterials {
                 materials.add(material)
             })
             .collect();
-        let [cloth, skin, hair] = human::maps(scene.seed, images, materials);
-        let variants = variants::build(scene.seed, &handles, images, materials, finishes);
+        let [cloth, skin, hair] = human::maps(scene.material_seed(), images, materials);
+        let variants =
+            variants::build(scene.material_seed(), &handles, images, materials, finishes);
         Self {
             handles,
             light_variants,
@@ -462,7 +464,13 @@ fn prepare_map(scene: &IndoorManifest, definition: &Definition) -> Option<[Image
         .program
         .as_ref()
         .map(|p| &p.materials[surface as usize]);
-    let maps = texture_maps(surface, scene.floor_style, scene.seed, roughness, recipe);
+    let maps = texture_maps(
+        surface,
+        scene.floor_style,
+        scene.material_seed(),
+        roughness,
+        recipe,
+    );
     Some([
         mip_image(maps.0, 256, MapType::Color),
         mip_image(maps.1, 256, MapType::Normal),

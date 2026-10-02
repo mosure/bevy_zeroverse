@@ -2,6 +2,8 @@
 mod baseline;
 pub(crate) mod coverage;
 pub mod diversity;
+pub mod handheld;
+pub mod mixture;
 pub mod multiview;
 mod navigation;
 mod sampling;
@@ -14,6 +16,15 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct CameraSettings {
+    /// Explicit capture timeline duration. None means seconds are unspecified.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub duration_seconds: Option<f32>,
+    /// Free orientation increments in a metric local camera frame.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub handheld: Option<handheld::HandheldSettings>,
+    /// Seeded reference-edge strata, selected before placement retries.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub overlap_mixture: Option<mixture::OverlapMixture>,
     /// Keep every capture in the largest furnished room, including its full path.
     pub primary_room: bool,
     pub path_length_min: f32,
@@ -25,6 +36,9 @@ pub struct CameraSettings {
 impl Default for CameraSettings {
     fn default() -> Self {
         Self {
+            duration_seconds: None,
+            handheld: None,
+            overlap_mixture: None,
             primary_room: true,
             path_length_min: 0.03,
             path_length_max: 8.0,
@@ -41,6 +55,9 @@ pub(super) fn deserialize_archived_settings<'de, D: serde::Deserializer<'de>>(
     #[derive(Deserialize)]
     #[serde(default, deny_unknown_fields)]
     struct Archived {
+        duration_seconds: Option<f32>,
+        handheld: Option<handheld::HandheldSettings>,
+        overlap_mixture: Option<mixture::OverlapMixture>,
         primary_room: bool,
         path_length_min: f32,
         path_length_max: f32,
@@ -53,6 +70,9 @@ pub(super) fn deserialize_archived_settings<'de, D: serde::Deserializer<'de>>(
         fn default() -> Self {
             let independent = CameraSettings::independent();
             Self {
+                duration_seconds: None,
+                handheld: None,
+                overlap_mixture: None,
                 primary_room: independent.primary_room,
                 path_length_min: independent.path_length_min,
                 path_length_max: independent.path_length_max,
@@ -63,6 +83,9 @@ pub(super) fn deserialize_archived_settings<'de, D: serde::Deserializer<'de>>(
     }
     let archived = Archived::deserialize(deserializer)?;
     Ok(CameraSettings {
+        duration_seconds: archived.duration_seconds,
+        handheld: archived.handheld,
+        overlap_mixture: archived.overlap_mixture,
         primary_room: archived.primary_room,
         path_length_min: archived.path_length_min,
         path_length_max: archived.path_length_max,
@@ -86,6 +109,21 @@ impl CameraSettings {
         Ok(settings)
     }
     pub fn validate(&self) -> Result<(), String> {
+        if self
+            .duration_seconds
+            .is_some_and(|seconds| !seconds.is_finite() || !(0.001..=3600.0).contains(&seconds))
+        {
+            return Err("indoor_camera.duration_seconds must be in [0.001,3600]".into());
+        }
+        if let Some(handheld) = &self.handheld {
+            handheld.validate()?;
+        }
+        if let Some(mixture) = &self.overlap_mixture {
+            mixture.validate()?;
+            if self.multiview.is_none() {
+                return Err("overlap_mixture requires multiview spacing constraints".into());
+            }
+        }
         if !self.path_length_min.is_finite()
             || !self.path_length_max.is_finite()
             || self.path_length_min < 0.0
@@ -104,6 +142,9 @@ impl CameraSettings {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CameraMotion {
+    /// Absolute endpoint orientations for free camera motion; None uses look targets.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub orientations: Option<[Quat; 2]>,
     pub control: [Vec3; 2],
     pub target_end: Vec3,
     /// Optical-axis roll in radians; small handheld deviations, not scene rotation.
@@ -142,10 +183,12 @@ impl IndoorCamera {
             }
             TrajectorySampler::CubicBezier {
                 positions: [self.start, m.control[0], m.control[1], self.end],
-                rotations: [
-                    orientation(self.start, self.target, m.roll[0]),
-                    orientation(self.end, m.target_end, m.roll[1]),
-                ],
+                rotations: m.orientations.unwrap_or_else(|| {
+                    [
+                        orientation(self.start, self.target, m.roll[0]),
+                        orientation(self.end, m.target_end, m.roll[1]),
+                    ]
+                }),
             }
         } else {
             let pose = |p| ExtrinsicsSampler {

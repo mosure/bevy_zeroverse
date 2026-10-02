@@ -374,6 +374,22 @@ fn page_counts_and_examples_follow_the_recipe_instead_of_fixed_seeds() {
     );
     assert!(html.contains("indoor_seed=0") && !html.contains("data-architecture-seed=\"7\""));
     assert!(html.contains("4-program / 4-rendered-room architectural audit"));
+    assert_eq!(html.matches("id=\"architecture-explorer\"").count(), 1);
+    assert_eq!(
+        html.matches("data-architecture-mode=\"co_visibility\"")
+            .count(),
+        1
+    );
+    let fallback = regex::Regex::new(r"(?s)<noscript>.*?</noscript>").unwrap();
+    assert!(fallback
+        .find(&html)
+        .unwrap()
+        .as_str()
+        .contains("architecture_co_visibility.jpg"));
+    assert!(!fallback
+        .replace_all(&html, "")
+        .contains("architecture_co_visibility.jpg"));
+    assert!(!html.contains("reference-banner"));
     // The independently frozen reference population remains 512 rooms.
     assert!(html.contains("reference population includes 512 distinct rendered rooms"));
 }

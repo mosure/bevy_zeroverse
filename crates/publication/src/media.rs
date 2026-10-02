@@ -758,7 +758,6 @@ pub fn page(gallery: &Value, stage: &Path, protocol: &Protocol) -> Result<()> {
             ("HERO_CAPTION",format!("Top: seed {}, cameras 0 and 3. Bottom: seed {} camera 0, seed {} camera 1. All at t = 0.",seed,featured[1]["seed"],featured[2]["seed"])),
             ("RENDER_ROOMS", protocol.rendered_rooms.to_string()),
             ("AUDIT_ROOMS", protocol.audit_rooms.to_string()),
-            ("MODE_COUNT", MODES.len().to_string()),
             (
                 "CRATE_VERSION",
                 gallery["generator_identity"]["crate_version"]

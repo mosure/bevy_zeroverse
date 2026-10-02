@@ -1,5 +1,6 @@
 //! Procedural interiors with optional AnnyBody people. Layout, surfaces and rendering are separate
 //! so datasets can audit the sampled distribution without creating a GPU device.
+pub mod appearance;
 pub mod architecture;
 pub mod cameras;
 mod clutter;
@@ -302,10 +303,14 @@ fn regenerate(
         let rotation = settings.rotation_augmentation;
         let motion_policy = args.human_motion.clone();
         let camera_policy = args.indoor_camera.clone();
+        let appearance_policy = args.indoor_appearance.clone();
         let camera_aspect = args.width as u32 as f32 / args.height as u32 as f32;
         pending.task = Some(bevy::tasks::AsyncComputeTaskPool::get().spawn(async move {
             let started = bevy::platform::time::Instant::now();
             let mut scene = IndoorManifest::generate_with_humans(seed, layout, density, 0, humans)?;
+            if let Some(json) = appearance_policy {
+                scene.apply_appearance(appearance::AppearanceSettings::parse(&json)?)?;
+            }
             let layout_seconds = started.elapsed().as_secs_f64();
             let started = bevy::platform::time::Instant::now();
             let policy = camera_policy

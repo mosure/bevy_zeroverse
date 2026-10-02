@@ -136,8 +136,13 @@ def static_checks(captures=None):
     assert 'explore' in documents[PAGE/'index.html'].ids
     assert 'id="comparison"' not in main and 'id="scene-select"' not in main
     assert 'static/js/index.js' not in main
-    assert 'data-architecture-mode="co_visibility"' in architecture
-    assert 'id="architecture-visibility"' in architecture
+    assert main.count('id="architecture-explorer"') == 1
+    assert main.count('data-architecture-mode="co_visibility"') == 1
+    assert main.count('id="architecture-visibility"') == 1
+    fallback = re.search(r'<noscript>.*?</noscript>', main, re.S).group()
+    assert 'architecture_co_visibility.jpg' in fallback
+    assert 'architecture_co_visibility.jpg' not in re.sub(r'<noscript>.*?</noscript>', '', main, flags=re.S)
+    assert 'reference-banner' not in main
     readme = (ROOT/'README.md').read_text()
     for example in ('bevy_zeroverse_dataloader_grid.webp','bevy_zeroverse_material_grid.webp'):
         assert f'(docs/{example})' in readme
@@ -187,6 +192,15 @@ def browser_checks(url, output):
         page.on('response',lambda r:errors.append(f'HTTP {r.status}: {r.url}') if r.status>=400 else None)
         page.goto(url,wait_until='networkidle')
         page.wait_for_selector('#architecture-explorer[data-ready="true"]')
+        assert page.locator('#architecture-explorer').count()==1
+        assert page.locator('[data-architecture-mode="co_visibility"]').count()==1
+        assert page.locator('#architecture-visibility').count()==1
+        assert page.locator('img[src$="architecture_co_visibility.jpg"]').count()==0
+        assert page.locator('.reference-banner').count()==0
+        active = page.locator('[data-architecture-mode="color"]')
+        background = active.evaluate('e => getComputedStyle(e).backgroundColor')
+        active.hover()
+        assert active.evaluate('e => getComputedStyle(e).backgroundColor')==background
         data = page.request.get(urljoin(url,'static/media/architecture/gallery.json')).json()
 
         def selected(seed,step,mode,peer='all'):
@@ -259,6 +273,10 @@ def browser_checks(url, output):
         fallback.locator('.architecture-cohort summary').click()
         assert fallback.locator('.architecture-cohort img').count()==32
         assert fallback.locator('img[src$="architecture_co_visibility.jpg"]').count()==1
+        assert fallback.locator('img[src$="architecture_co_visibility.jpg"]').is_visible()
+        fallback.locator('img[src$="architecture_co_visibility.jpg"]').scroll_into_view_if_needed()
+        fallback.wait_for_function("document.querySelector('noscript img').naturalWidth === 2010")
+        fallback.locator('noscript .chart').screenshot(path=str(output/'co-visibility-no-javascript.png'))
         assert fallback.locator('#architecture-masks').get_attribute('href').endswith('s7-visibility.zip')
         linked = context.new_page();linked.goto(url+'#explore',wait_until='networkidle')
         linked.wait_for_function('document.getElementById("architecture-explorer").dataset.selection === "7:0:co_visibility"')
@@ -270,7 +288,8 @@ def browser_checks(url, output):
         browser.close()
     return dict(passed=True,room_time_mode_cases=cases,view_cases=cases*4,feature_filters=True,
                 atomic_switching=True,keyboard_reveal=True,responsive_widths=[390,768,1440],
-                no_javascript_fallback=True,co_visibility_peer_cases=peer_cases,unified_annotation_gallery=True,errors=errors)
+                no_javascript_fallback=True,co_visibility_peer_cases=peer_cases,unified_annotation_gallery=True,
+                single_co_visibility_presentation=True,active_mode_hover_preserved=True,errors=errors)
 
 
 def main():

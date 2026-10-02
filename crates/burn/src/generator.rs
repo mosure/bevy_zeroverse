@@ -53,6 +53,8 @@ pub struct GenConfig {
     pub indoor_human_density: f32,
     pub human_motion: Option<String>,
     pub indoor_camera: Option<String>,
+    pub indoor_appearance: Option<String>,
+    pub rgb_sensor: Option<crate::sensor::SensorSettings>,
     pub indoor_gi_rays: u32,
     pub indoor_quality: bevy_zeroverse::scene::procedural_indoor::IndoorQuality,
     pub rotation_augmentation: bool,
@@ -92,6 +94,8 @@ impl Default for GenConfig {
             indoor_human_density: 0.25,
             human_motion: None,
             indoor_camera: None,
+            indoor_appearance: None,
+            rgb_sensor: None,
             indoor_gi_rays: 256,
             indoor_quality: Default::default(),
             rotation_augmentation: false,
@@ -132,6 +136,26 @@ pub fn validate_gen_config(config: &GenConfig) -> Result<()> {
     if let Some(json) = &config.indoor_camera {
         bevy_zeroverse::scene::procedural_indoor::cameras::CameraSettings::parse(json)
             .map_err(anyhow::Error::msg)?;
+    }
+    if let Some(json) = &config.indoor_appearance {
+        anyhow::ensure!(
+            config.scene_type == ZeroverseSceneType::ProceduralIndoor,
+            "indoor_appearance requires procedural_indoor"
+        );
+        bevy_zeroverse::scene::procedural_indoor::appearance::AppearanceSettings::parse(json)
+            .map_err(anyhow::Error::msg)?;
+    }
+    if let Some(sensor) = &config.rgb_sensor {
+        sensor.validate()?;
+        anyhow::ensure!(
+            config.scene_type == ZeroverseSceneType::ProceduralIndoor
+                && config.render_modes.contains(&RenderMode::Color),
+            "rgb_sensor requires procedural_indoor RGB captures"
+        );
+        anyhow::ensure!(
+            sensor.jpeg_quality.is_none() || config.color_codec == ColorCodec::Raw,
+            "rgb_sensor JPEG requires raw color storage to avoid double compression"
+        );
     }
     if let Some(json) = &config.human_motion {
         anyhow::ensure!(
@@ -452,6 +476,8 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
         indoor_human_density,
         human_motion,
         indoor_camera,
+        indoor_appearance,
+        rgb_sensor,
         indoor_gi_rays,
         indoor_quality,
         rotation_augmentation,
@@ -500,6 +526,7 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
     zeroverse_config.indoor_human_density = indoor_human_density;
     zeroverse_config.human_motion = human_motion;
     zeroverse_config.indoor_camera = indoor_camera;
+    zeroverse_config.indoor_appearance = indoor_appearance;
     zeroverse_config.indoor_gi_rays = indoor_gi_rays;
     zeroverse_config.indoor_quality = indoor_quality;
     zeroverse_config.rotation_augmentation = rotation_augmentation;
@@ -543,6 +570,7 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
     const MAX_SAMPLE_RETRIES: usize = 32;
 
     for _worker_id in 0..workers {
+        let rgb_sensor = rgb_sensor.clone();
         let dataset = Arc::clone(&dataset);
         let output_dir = Arc::clone(&output_dir);
         let sample_counter = Arc::clone(&sample_counter);
@@ -559,12 +587,16 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
             let writer = scope.spawn(|| -> Result<()> {
                 for job in write_rx {
                     let saved = match job {
-                        WriteJob::Chunk(batch, index) => {
+                        WriteJob::Chunk(mut batch, index) => {
+                            if let Some(sensor) = &rgb_sensor {
+                                for sample in &mut batch { sensor.apply(sample, [width, height])?; }
+                            }
                             save_chunk_with_codec(&batch, &*output_dir, index, compression, width, height, export_ovoxel, color_codec)
                                 .with_context(|| format!("failed to save chunk {index}"))?;
                             batch.len()
                         }
-                        WriteJob::Fs(sample, index) => {
+                        WriteJob::Fs(mut sample, index) => {
+                            if let Some(sensor) = &rgb_sensor { sensor.apply(&mut sample, [width, height])?; }
                             save_sample_to_fs_with_codec(&sample, &*output_dir, index, width, height, export_ovoxel, color_codec)
                                 .with_context(|| format!("failed to save sample {index} to fs output"))?;
                             1

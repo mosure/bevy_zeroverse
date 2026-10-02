@@ -484,6 +484,11 @@ pub fn save_chunk_with_codec(
     ];
 
     let mut tensors: Vec<TensorData> = Vec::new();
+    tensors.extend(crate::calibration::encode(
+        samples,
+        &[b, steps, view_dim],
+        [width, height],
+    )?);
     tensors.push(TensorData {
         name: "annotation_precision".into(),
         dtype: Dtype::U8,
@@ -1790,6 +1795,12 @@ pub fn load_chunk(path: impl AsRef<Path>) -> Result<Vec<ZeroverseSample>> {
     }
 
     crate::flow::decode(&tensors, &mut samples, [b, steps, view_dim, height, width])?;
+    crate::calibration::decode(
+        &tensors,
+        &mut samples,
+        &[b, steps, view_dim],
+        [width as u32, height as u32],
+    )?;
     crate::co_visibility::decode(&tensors, &mut samples, [b, steps, view_dim, height, width])?;
     Ok(samples)
 }

@@ -1,3 +1,4 @@
+#![recursion_limit = "256"]
 use std::{
     io::{BufWriter, IsTerminal, Write},
     net::{SocketAddr, UdpSocket},
@@ -128,6 +129,12 @@ struct Cli {
     /// Capture camera JSON with primary-room/path bounds and multiview {min_overlap, min_baseline, max_baseline}
     #[arg(long)]
     indoor_camera: Option<String>,
+    /// Independent seeded material, illumination and exposure factors as JSON.
+    #[arg(long)]
+    indoor_appearance: Option<String>,
+    /// Optional post-tonemapping RGB corruption ranges as JSON; annotations stay unchanged.
+    #[arg(long)]
+    rgb_sensor: Option<String>,
 
     /// Rays per indirect-lighting probe; 256 efficient, 1024 reduces Monte Carlo noise
     #[arg(long, default_value_t = 256, value_parser = clap::value_parser!(u32).range(64..=16384))]
@@ -482,6 +489,12 @@ fn main() -> Result<()> {
                 if let Some(camera) = &cli.indoor_camera {
                     cmd.arg("--indoor-camera").arg(camera);
                 }
+                if let Some(appearance) = &cli.indoor_appearance {
+                    cmd.arg("--indoor-appearance").arg(appearance);
+                }
+                if let Some(sensor) = &cli.rgb_sensor {
+                    cmd.arg("--rgb-sensor").arg(sensor);
+                }
                 if let Some(motion) = &cli.human_motion {
                     cmd.arg("--human-motion").arg(motion);
                 }
@@ -599,6 +612,12 @@ fn main() -> Result<()> {
         indoor_human_density: cli.indoor_human_density,
         human_motion: cli.human_motion.clone(),
         indoor_camera: cli.indoor_camera.clone(),
+        indoor_appearance: cli.indoor_appearance.clone(),
+        rgb_sensor: cli
+            .rgb_sensor
+            .as_deref()
+            .map(bevy_zeroverse_burn::sensor::SensorSettings::parse)
+            .transpose()?,
         indoor_gi_rays: cli.indoor_gi_rays,
         indoor_quality: cli.indoor_quality,
         rotation_augmentation: cli.rotation_augmentation,
@@ -679,7 +698,7 @@ fn export_dataset_metrics(cli: &Cli, sample_offset: usize) -> Result<()> {
         let count = sample_offset
             .checked_add(cli.samples)
             .context("dataset sample count overflow")?;
-        bevy_zeroverse::scene::procedural_indoor::metrics::export_metrics_with_camera_settings(
+        bevy_zeroverse::scene::procedural_indoor::metrics::export_metrics_with_factors(
             cli.seed.context("indoor dataset seed missing")?,
             count,
             cli.cameras,
@@ -695,6 +714,14 @@ fn export_dataset_metrics(cli: &Cli, sample_offset: usize) -> Result<()> {
                 .transpose()
                 .map_err(anyhow::Error::msg)?
                 .unwrap_or_default(),
+            cli.indoor_appearance
+                .as_deref()
+                .map(
+                    bevy_zeroverse::scene::procedural_indoor::appearance::AppearanceSettings::parse,
+                )
+                .transpose()
+                .map_err(anyhow::Error::msg)?
+                .as_ref(),
         )
         .map_err(anyhow::Error::msg)?;
     }
@@ -762,6 +789,13 @@ fn prepare_generation_metadata(cli: &mut Cli) -> Result<()> {
         indoor_human_density: cli.indoor_human_density,
         human_motion: cli.human_motion.clone(),
         indoor_camera: cli.indoor_camera.clone(),
+        indoor_appearance: cli.indoor_appearance.clone(),
+        rgb_sensor: cli
+            .rgb_sensor
+            .as_deref()
+            .map(bevy_zeroverse_burn::sensor::SensorSettings::parse)
+            .transpose()?,
+        color_codec: cli.color_codec.unwrap(),
         indoor_gi_rays: cli.indoor_gi_rays,
         ..Default::default()
     })?;
@@ -802,6 +836,7 @@ fn prepare_generation_metadata(cli: &mut Cli) -> Result<()> {
         "schema_version": 1,
         "generator_version": bevy_zeroverse::scene::procedural_indoor::layout::GENERATOR_VERSION,
         "capture_engine": bevy_zeroverse::CAPTURE_ENGINE_IDENTITY,
+        "build_provenance": bevy_zeroverse::provenance::capture_provenance(),
         "generator": "bevy_zeroverse procedural_indoor",
         "base_seed": base_seed,
         "seed_rule": "scene_seed = base_seed.wrapping_add(global_sample_index)",
@@ -811,6 +846,8 @@ fn prepare_generation_metadata(cli: &mut Cli) -> Result<()> {
         "human_density": cli.indoor_human_density,
         "human_motion": cli.human_motion,
         "indoor_camera": cli.indoor_camera,
+        "indoor_appearance": cli.indoor_appearance,
+        "rgb_sensor": cli.rgb_sensor.as_deref().map(bevy_zeroverse_burn::sensor::SensorSettings::parse).transpose()?,
         "quality": cli.indoor_quality.to_possible_value().unwrap().get_name(),
         "gi_settings": gi_settings,
         "gi_effective_enabled": cli.indoor_quality == bevy_zeroverse::scene::procedural_indoor::IndoorQuality::Auto && bevy_zeroverse::scene::procedural_indoor::gi::IndoorGiSettings::default().enabled,
@@ -832,6 +869,7 @@ fn prepare_generation_metadata(cli: &mut Cli) -> Result<()> {
         "jpeg_quality": 75,
         "camera_matrix": "world_from_view, column-major, right-handed -Z forward",
         "fovy_units": "radians",
+        "camera_calibration": serde_json::from_str::<serde_json::Value>(bevy_zeroverse::calibration::TENSOR_METADATA)?,
         "output_mode": format!("{:?}", cli.output_mode),
         "compression": format!("{:?}", cli.compression),
         "ovoxel_mode": format!("{:?}", cli.ov_mode),

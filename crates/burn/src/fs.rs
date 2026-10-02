@@ -978,6 +978,14 @@ pub fn load_sample_dir(dir: impl AsRef<Path>) -> Result<ZeroverseSample> {
         }
     }
 
+    let calibration_bytes = fs::read(dir.join(META_FILE))?;
+    crate::calibration::decode(
+        &SafeTensors::deserialize(&calibration_bytes)?,
+        std::slice::from_mut(&mut sample),
+        &[timestep_list.len(), view_dim],
+        [width, height],
+    )?;
+
     // Legacy O-Voxel payload from ovxel.vxz
     if sample.ovoxel.is_none() {
         let ov_path = dir.join("ovoxel.vxz");
@@ -1649,6 +1657,11 @@ pub fn save_sample_to_fs_with_codec(
         build_ovoxel_tensor_views(ov, &mut tensors)?;
     }
 
+    tensors.extend(crate::calibration::encode(
+        std::slice::from_ref(sample),
+        &[steps, view_dim],
+        [width, height],
+    )?);
     let views = build_tensor_views(&tensors)?;
     let meta = serialize(views, None)?;
     fs::write(scene_dir.join(META_FILE), meta)?;

@@ -7,4 +7,5 @@ pub mod io;
 pub mod media;
 pub mod paper;
 pub mod pipeline;
+pub mod qualification;
 pub mod visibility;

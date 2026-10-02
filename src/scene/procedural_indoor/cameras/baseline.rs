@@ -61,6 +61,9 @@ impl<'de> Deserialize<'de> for CameraSettings {
         #[derive(Deserialize)]
         #[serde(default, deny_unknown_fields)]
         struct Concrete {
+            duration_seconds: Option<f32>,
+            handheld: Option<super::handheld::HandheldSettings>,
+            overlap_mixture: Option<super::mixture::OverlapMixture>,
             primary_room: bool,
             path_length_min: f32,
             path_length_max: f32,
@@ -71,6 +74,9 @@ impl<'de> Deserialize<'de> for CameraSettings {
             fn default() -> Self {
                 let c = CameraSettings::default();
                 Self {
+                    duration_seconds: c.duration_seconds,
+                    handheld: c.handheld,
+                    overlap_mixture: c.overlap_mixture,
                     primary_room: c.primary_room,
                     path_length_min: c.path_length_min,
                     path_length_max: c.path_length_max,
@@ -81,6 +87,9 @@ impl<'de> Deserialize<'de> for CameraSettings {
         }
         let c: Concrete = serde_json::from_value(value).map_err(serde::de::Error::custom)?;
         Ok(Self {
+            duration_seconds: c.duration_seconds,
+            handheld: c.handheld,
+            overlap_mixture: c.overlap_mixture,
             primary_room: c.primary_room,
             path_length_min: c.path_length_min,
             path_length_max: c.path_length_max,

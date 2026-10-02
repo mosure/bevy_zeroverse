@@ -97,6 +97,7 @@ impl NumericDistribution {
 #[derive(Serialize)]
 pub struct CoverageReport {
     pub camera_settings: super::cameras::CameraSettings,
+    pub appearance: Option<super::appearance::AppearanceSettings>,
     pub camera_overlap_policy: &'static str,
     pub camera_group_geometry_policy: &'static str,
     pub schema_version: u32,
@@ -240,6 +241,35 @@ pub fn export_metrics_with_camera_settings(
     human_density: f32,
     camera_settings: &super::cameras::CameraSettings,
 ) -> Result<CoverageReport, String> {
+    export_metrics_with_factors(
+        first_seed,
+        seeds,
+        cameras,
+        density,
+        layout,
+        width,
+        height,
+        directory,
+        human_density,
+        camera_settings,
+        None,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn export_metrics_with_factors(
+    first_seed: u64,
+    seeds: usize,
+    cameras: usize,
+    density: f32,
+    layout: IndoorLayout,
+    width: u32,
+    height: u32,
+    directory: &Path,
+    human_density: f32,
+    camera_settings: &super::cameras::CameraSettings,
+    appearance: Option<&super::appearance::AppearanceSettings>,
+) -> Result<CoverageReport, String> {
     camera_settings.validate()?;
     if seeds == 0
         || cameras == 0
@@ -264,6 +294,7 @@ pub fn export_metrics_with_camera_settings(
         directory,
         human_density,
         camera_settings,
+        appearance,
     )
     .map_err(|e| e.to_string())
 }
@@ -280,6 +311,7 @@ fn export_inner(
     directory: &Path,
     human_density: f32,
     camera_settings: &super::cameras::CameraSettings,
+    appearance: Option<&super::appearance::AppearanceSettings>,
 ) -> Result<CoverageReport, Box<dyn std::error::Error>> {
     fs::create_dir_all(directory)?;
     let mut architecture = BufWriter::new(fs::File::create(directory.join("architecture.jsonl"))?);
@@ -311,6 +343,7 @@ fn export_inner(
     let mut report = CoverageReport {
         schema_version: 11,
         camera_settings: camera_settings.clone(),
+        appearance: appearance.cloned(),
         camera_overlap_policy: "Proxy first-surface pixel overlap in both directions to camera zero, at normalized times 0,.25,.5,.75,1. Full capture aspect ratio, 13x9 rays/view. Glass is annotation-opaque. Not a rendered-pixel guarantee.",
         camera_group_geometry_policy: "Worst geometry over 33 synchronized times including both endpoints. All-pair minimum Euclidean separation and maximum reference baseline, metres. Horizontal spread is minor/major standard deviation for 3+ views. Relative motion is RMS displacement difference with starts removed, normalized by the larger RMS travel, over all moving pairs. Static pairs and groups with fewer than 3 views omit inapplicable scores. These are sampled constraints, not a continuous-time proof.",
         generator_version: GENERATOR_VERSION,
@@ -343,6 +376,9 @@ fn export_inner(
             0,
             human_density,
         )?;
+        if let Some(settings) = appearance {
+            scene.apply_appearance(settings.clone())?;
+        }
         scene.resample_cameras(
             cameras,
             camera_settings.clone(),

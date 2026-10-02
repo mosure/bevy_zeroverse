@@ -12,6 +12,20 @@ struct Args {
 }
 #[derive(Subcommand)]
 enum Action {
+    /// Capture a matched camera/aspect/appearance sweep, receipt and annotation gallery.
+    Qualify {
+        #[arg(long, default_value = "target/debug/indoor_validate")]
+        validator: PathBuf,
+        #[arg(long, default_value = "out/qualification")]
+        output: PathBuf,
+        #[arg(long)]
+        recipe: Option<PathBuf>,
+    },
+    /// Verify every byte bound by a qualification receipt, including failed cases.
+    VerifyQualification {
+        #[arg(long, default_value = "out/qualification")]
+        output: PathBuf,
+    },
     /// Prepare/verify the latest page and paper before invoking cargo publish.
     Publish {
         #[arg(long, default_value = "bevy_zeroverse")]
@@ -40,6 +54,19 @@ enum Action {
 fn main() -> Result<()> {
     let args = Args::parse();
     match args.command {
+        Action::Qualify {
+            validator,
+            output,
+            recipe,
+        } => bevy_zeroverse_publication::qualification::run(
+            &args.root,
+            &validator,
+            &output,
+            recipe.as_deref(),
+        )?,
+        Action::VerifyQualification { output } => {
+            bevy_zeroverse_publication::qualification::verify(&output)?
+        }
         Action::Publish { package, dry_run } => {
             bevy_zeroverse_publication::pipeline::publish(&args.root, &package, dry_run)?
         }

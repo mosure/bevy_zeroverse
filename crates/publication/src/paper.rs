@@ -89,6 +89,40 @@ Across every room and endpoint, {shared:.1}\% of valid source-pixel observations
 
 ",shared=100.0*number(&summary["co_visibility"]["shared_fraction_valid"]),valid=summary["co_visibility"]["valid_pixels"]));
     evaluation.push_str(&figure("architecture_co_visibility.jpg","architecture-co-visibility",&format!("Seed {first} at t=0: four native RGB views above their production co-visibility annotations. Columns retain the same camera/time identity. All captured rooms expose this annotation in the same explorer.")));
+    let qualification: Value = io::read(
+        &stage
+            .join(crate::qualification::PUBLISHED_DIRECTORY)
+            .join("receipt.json"),
+    )?;
+    evaluation.push_str(&format!(r"\subsection{{Matched camera and appearance qualification}}
+A separate prespecified factor sweep covers {} geometry families, eleven settings, two cameras and two timestamps per variant ({} RGB images). Room geometry hashes are invariant across each family's camera, material, detail, illumination and exposure interventions. People are disabled in this sweep. The receipt binds the actual native executable, source identity, target, feature flags and locked package versions. All cases are retained, including failures; no model inference filters pairs. The project page provides the complete matched annotation gallery and machine-readable receipt.
+
+New captures export a full row-major pixel-space $K$, image dimensions, half-pixel centers, a versioned centered pinhole lens contract, normalized playback progress, eased trajectory progress and optional explicitly assigned seconds. Unassigned physical time remains unknown. Short handheld paths sample local metric translations and yaw/pitch/roll increments independently of a moving look-target, retaining swept collision checks. Requested high/low/zero proxy-overlap strata are selected before placement retries. Their all-ray proxy estimates are stored separately from rendered directed overlap over valid source pixels. A proxy-negative pair can retain a small rendered overlap. Lens distortion and sampled principal points are not implemented.
+
+Table~\ref{{tab:factor-qualification}} reports means over directed rendered pairs, and the maximum per-view 99th-percentile self-reprojection error. There are {} exact duplicate RGB images: the baseline/overlap interventions deliberately reuse the reference camera. These counts measure exact repetition in this matched study, not perceptual redundancy across a training population. Sensor white balance, blur, noise and optional JPEG are separate seeded RGB-only export transforms with individual operator regressions; they are not applied in this render sweep. This bounded check does not establish photographic realism, a calibrated sensor model, a fitted training mixture or downstream transfer.
+
+\begin{{table}}[htbp]\centering\small
+\begin{{tabular}}{{lrrr}}\toprule
+Factor & Shared pixels (\%) & Baseline (m) & Reproj. p99 max (px) \\
+\midrule
+",qualification["family_count"],qualification["captured_rgb_images"],qualification["exact_rgb_duplicate_count"]));
+    for case in qualification["cases"]
+        .as_array()
+        .context("qualification cases missing")?
+    {
+        ensure!(
+            case["success"] == true,
+            "cannot publish failed qualification as passed"
+        );
+        evaluation.push_str(&format!(
+            "{} & {:.4} & {:.3} & {:.5} \\\\\n",
+            tex(&case["name"].as_str().unwrap().replace('_', " ")),
+            number(&case["directed_rendered_overlap"]["mean"]) * 100.,
+            number(&case["baseline_m"]["mean"]),
+            number(&case["per_view_reprojection_p99_pixels"]["max"])
+        ));
+    }
+    evaluation.push_str("\\bottomrule\\end{tabular}\n\\caption{Prespecified factor checks on matched room geometry. Directed overlap uses valid source pixels; the zero target refers to placement proxies.}\\label{tab:factor-qualification}\n\\end{table}\n\n");
     evaluation.push_str(r"\subsection{Population distributions and publication contract}
 Room and object counts retain zero-instance rooms. Camera and photometric histograms state their own sample denominators. Placement heatmaps use 33 path samples per camera and normalize each panel independently. Feature shortcuts do not change population denominators. A seed's bit width and continuous parameter ranges do not establish ten-million-sample diversity; correlations, placement constraints and rendering affect distinguishable outcomes. Frozen SigLIP2 embeddings support separate redundancy audits, but no embedding-rank or downstream-learning result is claimed here.
 

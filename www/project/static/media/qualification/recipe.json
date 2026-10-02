@@ -1,0 +1,187 @@
+{
+  "schema_version": 1,
+  "seed": 0,
+  "rooms_per_case": 2,
+  "cases": [
+    {
+      "name": "reference",
+      "image_size": [
+        256,
+        160
+      ],
+      "camera": {
+        "duration_seconds": 2.0,
+        "long_path_fraction": 0.0,
+        "path_length_max": 0.6,
+        "path_length_min": 0.03
+      },
+      "appearance": {}
+    },
+    {
+      "name": "portrait",
+      "image_size": [
+        160,
+        256
+      ],
+      "camera": {
+        "duration_seconds": 2.0,
+        "long_path_fraction": 0.0,
+        "path_length_max": 0.6,
+        "path_length_min": 0.03
+      },
+      "appearance": {}
+    },
+    {
+      "name": "wide_baseline",
+      "image_size": [
+        256,
+        160
+      ],
+      "camera": {
+        "baseline": 0.9,
+        "duration_seconds": 2.0,
+        "long_path_fraction": 0.0,
+        "path_length_max": 0.6,
+        "path_length_min": 0.03
+      },
+      "appearance": {}
+    },
+    {
+      "name": "handheld",
+      "image_size": [
+        256,
+        160
+      ],
+      "camera": {
+        "duration_seconds": 2.0,
+        "handheld": {},
+        "long_path_fraction": 0.0,
+        "path_length_max": 0.6,
+        "path_length_min": 0.01
+      },
+      "appearance": {}
+    },
+    {
+      "name": "low_overlap",
+      "image_size": [
+        256,
+        160
+      ],
+      "camera": {
+        "duration_seconds": 2.0,
+        "long_path_fraction": 0.0,
+        "overlap_mixture": {
+          "weights": [
+            0,
+            1,
+            0
+          ]
+        },
+        "path_length_max": 0.6,
+        "path_length_min": 0.03
+      },
+      "appearance": {}
+    },
+    {
+      "name": "no_proxy_overlap",
+      "image_size": [
+        256,
+        160
+      ],
+      "camera": {
+        "duration_seconds": 2.0,
+        "long_path_fraction": 0.0,
+        "overlap_mixture": {
+          "weights": [
+            0,
+            0,
+            1
+          ]
+        },
+        "path_length_max": 0.6,
+        "path_length_min": 0.03
+      },
+      "appearance": {}
+    },
+    {
+      "name": "material_seed",
+      "image_size": [
+        256,
+        160
+      ],
+      "camera": {
+        "duration_seconds": 2.0,
+        "long_path_fraction": 0.0,
+        "path_length_max": 0.6,
+        "path_length_min": 0.03
+      },
+      "appearance": {
+        "material_seed": 55
+      }
+    },
+    {
+      "name": "low_detail",
+      "image_size": [
+        256,
+        160
+      ],
+      "camera": {
+        "duration_seconds": 2.0,
+        "long_path_fraction": 0.0,
+        "path_length_max": 0.6,
+        "path_length_min": 0.03
+      },
+      "appearance": {
+        "material_detail": 0.15
+      }
+    },
+    {
+      "name": "lighting_seed",
+      "image_size": [
+        256,
+        160
+      ],
+      "camera": {
+        "duration_seconds": 2.0,
+        "long_path_fraction": 0.0,
+        "path_length_max": 0.6,
+        "path_length_min": 0.03
+      },
+      "appearance": {
+        "lighting_seed": 88
+      }
+    },
+    {
+      "name": "dim_illumination",
+      "image_size": [
+        256,
+        160
+      ],
+      "camera": {
+        "duration_seconds": 2.0,
+        "long_path_fraction": 0.0,
+        "path_length_max": 0.6,
+        "path_length_min": 0.03
+      },
+      "appearance": {
+        "illumination_scale": 0.1
+      }
+    },
+    {
+      "name": "exposure",
+      "image_size": [
+        256,
+        160
+      ],
+      "camera": {
+        "duration_seconds": 2.0,
+        "long_path_fraction": 0.0,
+        "path_length_max": 0.6,
+        "path_length_min": 0.03
+      },
+      "appearance": {
+        "exposure_ev100_offset": 1.5
+      }
+    }
+  ]
+}

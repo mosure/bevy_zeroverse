@@ -212,6 +212,17 @@ pub fn validate_layout(scene: &IndoorManifest) -> Result<(), String> {
         return fail("insufficient main room furniture");
     }
     for camera in &scene.cameras {
+        if camera
+            .motion
+            .as_ref()
+            .and_then(|m| m.orientations)
+            .is_some_and(|q| {
+                q.iter()
+                    .any(|r| !r.is_finite() || (r.length_squared() - 1.).abs() > 1e-4)
+            })
+        {
+            return fail("invalid free camera orientation");
+        }
         if !camera.target.is_finite()
             || !(27.0..=108.0).contains(&camera.fov_degrees)
             || camera.start.distance(camera.target) < 1.5
@@ -238,7 +249,7 @@ pub fn validate_layout(scene: &IndoorManifest) -> Result<(), String> {
         if scene
             .camera_overlap()
             .iter()
-            .any(|pair| !policy.accepts(&pair.samples))
+            .any(|pair| !scene.accepts_camera_pair(pair))
         {
             return Err(format!(
                 "seed {}: multi-view camera overlap or baseline constraint violated",
@@ -393,8 +404,19 @@ pub fn validate_annotations_with_precision(
     let view_from_world = world_from_view.inverse();
     let lo = Vec3::from_array(aabb[0]);
     let range = Vec3::from_array(aabb[1]) - lo;
-    let tan = (view.fovy * 0.5).tan();
     let aspect = width as f32 / height as f32;
+    let calibration = view.calibration.clone().unwrap_or(
+        crate::calibration::CameraCalibration::centered_pinhole(width, height, view.fovy, aspect)?,
+    );
+    calibration.validate()?;
+    if calibration.image_size != [width, height] {
+        return Err("calibration/image dimensions disagree".into());
+    }
+    let k = calibration.k;
+    let pixel_footprint = world_from_view.transform_vector3(Vec3::X / k[0][0]).abs()
+        + world_from_view
+            .transform_vector3(Vec3::new(-k[0][1] / (k[0][0] * k[1][1]), -1. / k[1][1], 0.))
+            .abs();
     let mut errors = Vec::new();
     let mut reproject = Vec::new();
     let mut normal_error = 0.0_f32;
@@ -413,9 +435,11 @@ pub fn validate_annotations_with_precision(
                 return Err("position behind camera".into());
             }
             errors.push((depth[index] + v.z).abs());
-            let ndc_x = (x as f32 + 0.5) / width as f32 * 2.0 - 1.0;
-            let ndc_y = 1.0 - (y as f32 + 0.5) / height as f32 * 2.0;
-            let ray = Vec3::new(ndc_x * tan * aspect, ndc_y * tan, -1.0);
+            let ray = Vec3::from_array(
+                calibration
+                    .unproject([x as f32 + 0.5, y as f32 + 0.5], 1.)
+                    .ok_or("invalid calibrated ray")?,
+            );
             let expected = world_from_view.transform_point3(ray * depth[index]);
             // Conservative one-ULP error bounds for two independently quantized
             // float16 render targets, propagated into world coordinates.
@@ -426,17 +450,16 @@ pub fn validate_annotations_with_precision(
                     + Vec3::splat(1e-5)
                     // Rasterized vertex positions use subpixel fixed-point precision.
                     // Bound a 0.01-pixel ray-footprint separately from f32 storage ULPs.
-                    + (world_from_view.x_axis.truncate().abs() * (2.0 * tan * aspect / width as f32)
-                        + world_from_view.y_axis.truncate().abs() * (2.0 * tan / height as f32))
-                        * (depth[index] * 0.01)
+                    + pixel_footprint * (depth[index] * 0.01)
             } else {
                 range / 2048.0
                     + world_from_view.transform_vector3(ray).abs() * (depth[index] / 1024.0)
                     + Vec3::splat(0.0005)
             };
             quantization_ratios.push(((p - expected).abs() / budget).max_element());
-            let px = (v.x / (-v.z * tan * aspect) + 1.0) * width as f32 * 0.5;
-            let py = (1.0 - v.y / (-v.z * tan)) * height as f32 * 0.5;
+            let [px, py] = calibration
+                .project(v.to_array())
+                .ok_or("invalid reprojected point")?;
             reproject.push(Vec2::new(px - x as f32 - 0.5, py - y as f32 - 0.5).length());
             let n =
                 Vec3::new(normal[index], normal[index + 1], normal[index + 2]) * 2.0 - Vec3::ONE;
@@ -536,6 +559,31 @@ pub fn audit_layout_with_camera_settings(
     camera_settings: &super::cameras::CameraSettings,
     aspect_ratio: f32,
 ) -> DistributionReport {
+    audit_layout_with_factors(
+        first_seed,
+        seeds,
+        cameras,
+        density,
+        layout,
+        human_density,
+        camera_settings,
+        aspect_ratio,
+        None,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn audit_layout_with_factors(
+    first_seed: u64,
+    seeds: usize,
+    cameras: usize,
+    density: f32,
+    layout: IndoorLayout,
+    human_density: f32,
+    camera_settings: &super::cameras::CameraSettings,
+    aspect_ratio: f32,
+    appearance: Option<&super::appearance::AppearanceSettings>,
+) -> DistributionReport {
     let mut report = DistributionReport {
         generator_version: GENERATOR_VERSION,
         seeds,
@@ -560,6 +608,9 @@ pub fn audit_layout_with_camera_settings(
         let scene =
             match IndoorManifest::generate_with_humans(seed, layout, density, 0, human_density)
                 .and_then(|mut scene| {
+                    if let Some(settings) = appearance {
+                        scene.apply_appearance(settings.clone())?;
+                    }
                     scene.resample_cameras(cameras, camera_settings.clone(), aspect_ratio)?;
                     Ok(scene)
                 }) {

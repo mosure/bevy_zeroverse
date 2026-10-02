@@ -24,7 +24,8 @@ impl IndoorManifest {
             // The former fixed 0.85 m wall rail dominated accepted cameras.
             // Mix free interior proposals with continuously offset perimeter views.
             let perimeter = rng.random_bool(0.4);
-            let long_path = rng.random_bool(self.camera_settings.long_path_fraction as f64);
+            let long_path = rng.random_bool(self.camera_settings.long_path_fraction as f64)
+                && self.camera_settings.handheld.is_none();
             let edge = rng.random_range(0..4);
             let require_person = index == 0 && !people.is_empty();
             let mut found = None;
@@ -130,7 +131,9 @@ impl IndoorManifest {
                 } else {
                     min_length
                 };
-                let distance = if self.camera_settings.path_length_max == 0.0 {
+                let distance = if self.camera_settings.path_length_max == 0.0
+                    || self.camera_settings.handheld.is_some()
+                {
                     0.0
                 } else {
                     rng.random_range(desired_min.ln()..=max_length.ln()).exp()
@@ -153,7 +156,7 @@ impl IndoorManifest {
                     Vec::new()
                 };
                 let bend = right * rng.random_range(-0.60..0.60) * distance;
-                let camera = IndoorCamera {
+                let mut camera = IndoorCamera {
                     start: p,
                     end,
                     target,
@@ -163,6 +166,7 @@ impl IndoorManifest {
                         .to_degrees()
                         * 2.0,
                     motion: (distance > 0.0).then_some(super::CameraMotion {
+                        orientations: None,
                         route,
                         control: [p.lerp(end, 0.33) + bend, p.lerp(end, 0.67) + bend],
                         target_end: target
@@ -174,6 +178,9 @@ impl IndoorManifest {
                         roll: [rng.random_range(-0.09..0.09), rng.random_range(-0.09..0.09)],
                     }),
                 };
+                if let Some(handheld) = &self.camera_settings.handheld {
+                    handheld.apply(&mut camera, rng);
+                }
                 if camera.path_length() + 1e-4 < self.camera_settings.path_length_min
                     || camera.path_length() > self.camera_settings.path_length_max + 1e-4
                     || !self.camera_curve_clear(&camera)

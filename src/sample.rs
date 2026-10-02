@@ -1,3 +1,4 @@
+pub mod qualification;
 mod readiness;
 pub use readiness::{CaptureBlocker, CaptureReadiness};
 
@@ -20,6 +21,15 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct View {
+    /// Actual captured pinhole calibration. Absent in legacy archives.
+    #[serde(default)]
+    pub calibration: Option<bevy_zeroverse_capture::calibration::CameraCalibration>,
+    /// Capture timeline in seconds only when an explicit clip duration is assigned.
+    #[serde(default)]
+    pub time_seconds: Option<f32>,
+    /// Parameter supplied to scene trajectories after the playback easing map.
+    #[serde(default)]
+    pub trajectory_progress: Option<f32>,
     pub color: Vec<u8>,
     pub depth: Vec<u8>,
     pub normal: Vec<u8>,
@@ -841,12 +851,20 @@ pub fn sample_stream(
                 let view_idx = i + camera_count * state.step as usize;
                 let view = &mut buffered_sample.views[view_idx];
                 view.time = playback.progress;
+                view.trajectory_progress = Some(playback.mode.map_progress(playback.progress));
+                view.time_seconds = indoor
+                    .as_ref()
+                    .and_then(|scene| scene.camera_settings.duration_seconds)
+                    .map(|duration| duration * playback.progress);
 
                 match projection {
                     Projection::Perspective(perspective) => {
                         view.fovy = perspective.fov;
                         view.near = perspective.near;
                         view.far = perspective.far;
+                        view.calibration = Some(bevy_zeroverse_capture::calibration::CameraCalibration::centered_pinhole(
+                            args.width as u32, args.height as u32, perspective.fov, perspective.aspect_ratio,
+                        ).expect("validated capture projection"));
                     }
                     Projection::Orthographic(_) => panic!("orthographic projection not supported"),
                     Projection::Custom(_) => panic!("custom projection not supported"),
@@ -1104,7 +1122,7 @@ pub fn sample_stream(
     let sample: Sample = Sample {
         co_visibility_metadata: buffered_sample.co_visibility_metadata.take(),
         indoor: if args.scene_type == crate::scene::ZeroverseSceneType::ProceduralIndoor {
-            indoor.map(|scene| scene.clone())
+            indoor.as_deref().cloned()
         } else {
             None
         },
@@ -1115,6 +1133,8 @@ pub fn sample_stream(
         },
         indoor_render_metadata: (args.scene_type == crate::scene::ZeroverseSceneType::ProceduralIndoor).then(|| serde_json::json!({
             "schema_version": 1,
+            "build_provenance": crate::provenance::capture_provenance(),
+            "camera_qualification": indoor.as_ref().map(|scene| qualification::metadata(scene, &views, camera_count, buffered_sample.aabb)),
             "quality": args.indoor_quality,
             "ovoxel": ovoxel_metadata,
             "diffuse_gi_supported": args.indoor_quality.diffuse_gi(),
