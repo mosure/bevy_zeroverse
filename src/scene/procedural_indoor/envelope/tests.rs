@@ -2,6 +2,179 @@ use super::*;
 use crate::scene::procedural_indoor::{layout::IndoorLayout, validation};
 
 #[test]
+fn thin_polygons_preserve_area_at_different_scales_and_windings() {
+    // The former 1e-7/1e-6 predicates disagree on the h=2^-23 rectangle.
+    // Include concave slivers, not just a convex fan-triangulation shortcut.
+    for exponent in -25..=5 {
+        let h = 2_f32.powi(exponent);
+        for (outline, expected) in [
+            (vec![(0., 0.), (4., 0.), (4., h), (0., h)], 4. * h as f64),
+            (
+                vec![
+                    (0., 0.),
+                    (4., 0.),
+                    (4., 2. * h),
+                    (3., 2. * h),
+                    (3., h),
+                    (1., h),
+                    (1., 2. * h),
+                    (0., 2. * h),
+                ],
+                6. * h as f64,
+            ),
+        ] {
+            for scale in [1. / 256., 1., 256.] {
+                for reversed in [false, true] {
+                    for start in 0..outline.len() {
+                        let mut p: Vec<_> = outline
+                            .iter()
+                            .map(|&(x, y)| Vec2::new(x - 5., y + h * 8.) * scale)
+                            .collect();
+                        p.rotate_left(start);
+                        if reversed {
+                            p.reverse();
+                        }
+                        let triangles = polygon::triangles(&p);
+                        assert_eq!(triangles.len(), p.len() - 2, "{p:?}");
+                        let mut total = 0.;
+                        for t in triangles {
+                            let [a, b, c] = t.map(|p| p.as_dvec2());
+                            let area = (b - a).perp_dot(c - a) * 0.5;
+                            assert!(area > 0., "non-positive triangle {t:?}");
+                            total += area;
+                        }
+                        let expected = expected * (scale as f64).powi(2);
+                        assert!(
+                            (total - expected).abs() <= expected * 1e-12,
+                            "{p:?}: {total} != {expected}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn triangulation_handles_closing_duplicates_collinear_runs_and_degeneracy() {
+    let p = [
+        Vec2::ZERO,
+        Vec2::X,
+        Vec2::X * 2.,
+        Vec2::new(2., 1.),
+        Vec2::Y,
+        Vec2::ZERO,
+    ];
+    let triangles = polygon::triangles(&p);
+    assert_eq!(triangles.len(), 2);
+    assert!((triangles.iter().map(|t| polygon::area(t)).sum::<f32>() - 2.).abs() < 1e-6);
+    for p in [
+        vec![],
+        vec![Vec2::ZERO; 4],
+        vec![Vec2::ZERO, Vec2::X, Vec2::X * 2.],
+        vec![Vec2::ZERO, Vec2::X, Vec2::splat(f32::NAN)],
+    ] {
+        assert!(polygon::triangles(&p).is_empty());
+    }
+}
+
+#[test]
+fn convex_clipping_preserves_submicrometre_widths() {
+    let h = 2_f32.powi(-24);
+    let p = [
+        Vec2::new(-2., 0.),
+        Vec2::new(2., 0.),
+        Vec2::new(2., h),
+        Vec2::new(-2., h),
+    ];
+    let clipped = polygon::clip(&p, Vec2::Y, h * 0.5);
+    assert_eq!(clipped.len(), 4);
+    let triangles = polygon::triangles(&clipped);
+    assert_eq!(triangles.len(), 2);
+    assert_eq!(
+        triangles.iter().map(|t| polygon::area(t)).sum::<f32>(),
+        h * 2.
+    );
+}
+
+#[test]
+fn seed_202_constructs_complete_valid_geometry() {
+    let scene =
+        IndoorManifest::generate_with_humans(202, IndoorLayout::Mixed, 0.65, 0, 0.25).unwrap();
+    let geometry = validation::validate_geometry(&scene).unwrap();
+    assert!(geometry.triangles > 0);
+    assert!(geometry.semantic_triangles["floor"] > 0);
+}
+
+#[test]
+fn consecutive_envelopes_and_clipped_exteriors_have_complete_triangulations() {
+    for seed in 0..512 {
+        let scene =
+            IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 0, 0.25).unwrap();
+        let e = scene.envelope.as_ref().unwrap();
+        let exterior = polygon::outside(
+            &e.footprint,
+            -scene.room_size.xz() * 0.5 - Vec2::splat(0.25),
+            scene.room_size.xz() * 0.5 + Vec2::splat(0.25),
+        );
+        let box_area = (scene.room_size.x as f64 + 0.5) * (scene.room_size.z as f64 + 0.5);
+        let exterior_area: f64 = exterior.iter().map(|p| polygon::area(p) as f64).sum();
+        assert!(
+            (exterior_area + polygon::area(&e.footprint) as f64 - box_area).abs() < box_area * 1e-6,
+            "outside coverage seed {seed}"
+        );
+        for p in std::iter::once(&e.footprint).chain(exterior.iter()) {
+            let triangles = polygon::triangles(p);
+            let area: f64 = triangles
+                .iter()
+                .map(|t| {
+                    let [a, b, c] = t.map(|p| p.as_dvec2());
+                    let area = (b - a).perp_dot(c - a) * 0.5;
+                    assert!(area > 0., "seed {seed}: {t:?}");
+                    area
+                })
+                .sum();
+            let origin = p[0].as_dvec2();
+            let expected: f64 = polygon::edges(p)
+                .map(|(a, b)| (a.as_dvec2() - origin).perp_dot(b.as_dvec2() - origin) * 0.5)
+                .sum();
+            // Triangles may use different origins than the polygon area sum.
+            // Bound cancellation by the polygon's size and operation count,
+            // not its tiny final area or just one choice of origin's products.
+            let magnitude = p
+                .iter()
+                .map(|v| (v.as_dvec2() - origin).length_squared())
+                .fold(0., f64::max)
+                * p.len() as f64;
+            assert!(
+                (area - expected).abs() <= 64. * f64::EPSILON * magnitude + expected.abs() * 1e-12,
+                "seed {seed}: {area} != {expected}, {p:?}"
+            );
+        }
+        let built = construction::build(&scene);
+        assert!(!built.parts.is_empty(), "seed {seed}");
+        for (_, mesh) in built.parts {
+            assert!(
+                mesh.positions.iter().flatten().all(|v| v.is_finite()),
+                "seed {seed}"
+            );
+            assert!(
+                mesh.normals
+                    .iter()
+                    .all(|n| (Vec3::from(*n).length() - 1.).abs() < 0.005),
+                "seed {seed}"
+            );
+            assert!(
+                mesh.indices
+                    .iter()
+                    .all(|&i| (i as usize) < mesh.positions.len()),
+                "seed {seed}"
+            );
+        }
+    }
+}
+
+#[test]
 fn concave_notch_is_empty_and_sweeps_cannot_bridge_it() {
     let p = vec![
         Vec2::new(-4., -4.),

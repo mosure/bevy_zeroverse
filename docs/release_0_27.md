@@ -5,14 +5,14 @@ handheld motion and overlap mixtures, independent appearance controls, and
 recorded RGB sensor transforms. The project page and paper share a Rust
 qualification pipeline and a single interactive co-visibility gallery.
 
-Registry versions: `bevy_zeroverse` and `bevy_zeroverse_ffi` **0.27.0**,
-`bevy_zeroverse_burn` **0.10.0**, and the first releases of
+Registry versions: `bevy_zeroverse` and `bevy_zeroverse_ffi` **0.27.1**,
+`bevy_zeroverse_burn` **0.10.1**, and the first releases of
 `bevy_zeroverse_capture` and `bevy_zeroverse_publication` **0.1.0**.
 `burn_siglip2` remains **0.1.1**.
 
 ## Compatibility
 
-- Capture identity **v34**, architectural generator **22**. Start new shards
+- Capture identity **v35**, architectural generator **22**. Start new shards
   rather than resuming captures from an older engine identity.
 - View/config struct literals need the new fields. Archived JSON without the
   optional controls retains existing defaults. Legacy uncalibrated datasets
@@ -31,6 +31,14 @@ Registry versions: `bevy_zeroverse` and `bevy_zeroverse_ffi` **0.27.0**,
   encoding stage.
 
 ## Qualification
+
+Patch 0.27.1 fixes seed 202's exterior-floor triangulation panic. Consistent
+double-precision orientation predicates preserve thin valid polygons; area
+accumulation avoids cancellation from translated coordinates. Convex clipping
+repairs backtracking edges introduced by float32 rounding without filling
+concave room cutouts. Regression
+coverage includes thin concave/convex polygons, winding and scale variations,
+clipped exterior area conservation and 512 consecutive envelope constructions.
 
 `publication.toml` specifies the 512-room layout audit and 32-room rendered
 gallery. The additional matched qualification suite covers 11 camera, aspect,

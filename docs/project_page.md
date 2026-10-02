@@ -12,7 +12,7 @@ cargo run --locked -p bevy_zeroverse_publication -- refresh --recapture
 # Read-only release/deployment gate; no GPU, raw captures, Python or LaTeX:
 cargo run --locked -p bevy_zeroverse_publication -- verify
 # Rebuild page and PDF from the verified shipped dataset on release/deployment:
-cargo run --locked -p bevy_zeroverse_publication -- rebuild --release-version 0.27.0
+cargo run --locked -p bevy_zeroverse_publication -- rebuild --release-version 0.27.1
 # Sanctioned registry entry point, which prepares/verifies the page and paper first:
 cargo run --locked -p bevy_zeroverse_publication -- publish --package bevy_zeroverse --dry-run
 ```

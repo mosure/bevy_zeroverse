@@ -3,7 +3,23 @@
 use bevy::prelude::*;
 
 pub fn area(p: &[Vec2]) -> f32 {
-    edges(p).map(|(a, b)| a.perp_dot(b)).sum::<f32>() * 0.5
+    signed_area(p) as f32
+}
+
+// Widen before subtracting: clipped f32 vertices can delimit a valid sliver
+// much smaller than a fixed metric epsilon. Use the same determinant/sign for
+// degeneracy, convexity and triangle containment, without inflating its edges.
+fn orient(a: Vec2, b: Vec2, c: Vec2) -> f64 {
+    (b.as_dvec2() - a.as_dvec2()).perp_dot(c.as_dvec2() - a.as_dvec2())
+}
+
+fn signed_area(p: &[Vec2]) -> f64 {
+    p.get(1..).map_or(0., |tail| {
+        tail.windows(2)
+            .map(|edge| orient(p[0], edge[0], edge[1]))
+            .sum::<f64>()
+            * 0.5
+    })
 }
 
 pub fn edges(p: &[Vec2]) -> impl Iterator<Item = (Vec2, Vec2)> + '_ {
@@ -80,79 +96,116 @@ pub fn box_inside(poly: &[Vec2], lo: Vec2, hi: Vec2, margin: f32) -> bool {
     inside
 }
 
+/// Triangulate a simple polygon into CCW triangles, preserving thin pieces.
+/// Degenerate/non-finite inputs produce no triangles. Untriangulable input is
+/// reported and discarded as a whole, never emitted as a partial surface.
 pub fn triangles(poly: &[Vec2]) -> Vec<[Vec2; 3]> {
+    if poly.len() < 3 || !poly.iter().all(|p| p.is_finite()) {
+        return Vec::new();
+    }
+    let winding = signed_area(poly);
+    if winding == 0. {
+        return Vec::new();
+    }
     let mut indices: Vec<_> = (0..poly.len()).collect();
+    if winding < 0. {
+        indices.reverse();
+    }
+    let mut result = Vec::with_capacity(poly.len() - 2);
     // Half-plane clipping can repeat a vertex on a clip plane or retain a
-    // collinear run. Remove those zero-area ears before triangulation.
+    // collinear run. Ear removal can expose another such run, so normalize on
+    // every iteration. Only exact zero-area vertices are redundant.
     loop {
         if indices.len() < 3 {
-            return Vec::new();
+            return result;
         }
         let redundant = (0..indices.len()).find(|&i| {
             let a = poly[indices[(i + indices.len() - 1) % indices.len()]];
             let b = poly[indices[i]];
             let c = poly[indices[(i + 1) % indices.len()]];
-            a.distance_squared(b) < 1e-12 || (b - a).perp_dot(c - b).abs() < 1e-7
+            orient(a, b, c) == 0.
         });
         if let Some(i) = redundant {
             indices.remove(i);
-        } else {
-            break;
+            continue;
         }
-    }
-    let mut result = Vec::new();
-    while indices.len() > 3 {
-        let ear = (0..indices.len())
-            .find(|&i| {
-                let ids = [
-                    indices[(i + indices.len() - 1) % indices.len()],
-                    indices[i],
-                    indices[(i + 1) % indices.len()],
-                ];
-                let [a, b, c] = ids.map(|j| poly[j]);
-                (b - a).perp_dot(c - b) > 1e-7
-                    && indices.iter().all(|j| {
-                        ids.contains(j) || {
-                            let p = poly[*j];
-                            (b - a).perp_dot(p - a) < -1e-6
-                                || (c - b).perp_dot(p - b) < -1e-6
-                                || (a - c).perp_dot(p - c) < -1e-6
-                        }
-                    })
-            })
-            .expect("validated simple envelope has an ear");
+        let ear = (0..indices.len()).find(|&i| {
+            let ids = [
+                indices[(i + indices.len() - 1) % indices.len()],
+                indices[i],
+                indices[(i + 1) % indices.len()],
+            ];
+            let [a, b, c] = ids.map(|j| poly[j]);
+            orient(a, b, c) > 0.
+                && indices.iter().all(|j| {
+                    ids.contains(j) || {
+                        let p = poly[*j];
+                        orient(a, b, p) < 0. || orient(b, c, p) < 0. || orient(c, a, p) < 0.
+                    }
+                })
+        });
+        let Some(ear) = ear else {
+            warn!("cannot triangulate envelope polygon: {poly:?}");
+            return Vec::new();
+        };
         result.push([
             poly[indices[(ear + indices.len() - 1) % indices.len()]],
             poly[indices[ear]],
             poly[indices[(ear + 1) % indices.len()]],
         ]);
+        if indices.len() == 3 {
+            return result;
+        }
         indices.remove(ear);
     }
-    if indices.len() == 3 {
-        let last: [usize; 3] = indices.try_into().unwrap();
-        result.push(last.map(|i| poly[i]));
+}
+
+// A clipped convex polygon is still convex. Rounding intersections back to
+// f32 can introduce a one-ULP backtracking edge (seed 106), so restore that
+// invariant with sign predicates, not a distance/area epsilon. This helper is
+// deliberately confined to convex clipping, never to a concave footprint.
+fn convex_hull(mut points: Vec<Vec2>) -> Vec<Vec2> {
+    points.sort_by(|a, b| a.x.total_cmp(&b.x).then_with(|| a.y.total_cmp(&b.y)));
+    points.dedup();
+    if points.len() < 3 {
+        return points;
     }
-    result
+    fn append(hull: &mut Vec<Vec2>, p: Vec2) {
+        while hull.len() >= 2 && orient(hull[hull.len() - 2], hull[hull.len() - 1], p) <= 0. {
+            hull.pop();
+        }
+        hull.push(p);
+    }
+    let mut lower = Vec::with_capacity(points.len());
+    let mut upper = Vec::with_capacity(points.len());
+    for (&a, &b) in points.iter().zip(points.iter().rev()) {
+        append(&mut lower, a);
+        append(&mut upper, b);
+    }
+    lower.pop();
+    upper.pop();
+    lower.extend(upper);
+    lower
 }
 
 /// Clip a convex polygon by one half plane, n.dot(p) >= offset.
+/// The result is a convex CCW ring, or fewer than three vertices if collapsed.
 pub fn clip(poly: &[Vec2], n: Vec2, offset: f32) -> Vec<Vec2> {
     let mut result = Vec::new();
+    let n = n.as_dvec2();
+    let offset = f64::from(offset);
     for (a, b) in edges(poly) {
-        let da = n.dot(a) - offset;
-        let db = n.dot(b) - offset;
+        let da = n.dot(a.as_dvec2()) - offset;
+        let db = n.dot(b.as_dvec2()) - offset;
         if da >= 0. {
             result.push(a);
         }
         if (da >= 0.) != (db >= 0.) {
-            result.push(a + (b - a) * (da / (da - db)));
+            result
+                .push((a.as_dvec2() + (b.as_dvec2() - a.as_dvec2()) * (da / (da - db))).as_vec2());
         }
     }
-    result.dedup_by(|a, b| a.distance_squared(*b) < 1e-12);
-    if result.len() > 1 && result[0].distance_squared(*result.last().unwrap()) < 1e-12 {
-        result.pop();
-    }
-    result
+    convex_hull(result)
 }
 
 pub fn clip_box(poly: &[Vec2], lo: Vec2, hi: Vec2) -> Vec<Vec2> {
