@@ -20,6 +20,8 @@ use bevy::{
 use bevy_args::{Deserialize, Parser, Serialize, ValueEnum};
 use rand::Rng;
 
+mod capture_targets;
+
 #[cfg(feature = "python")]
 use pyo3::prelude::*;
 
@@ -75,6 +77,7 @@ impl Plugin for ZeroverseCameraPlugin {
 
         app.init_resource::<DefaultZeroverseCamera>();
         app.init_resource::<CaptureDrawPolicy>();
+        app.init_resource::<capture_targets::CaptureTargets>();
 
         app.init_resource::<Playback>();
         app.register_type::<Playback>();
@@ -1029,7 +1032,10 @@ fn insert_cameras(
     draw_policy: Res<CaptureDrawPolicy>,
     render_mode: Res<RenderMode>,
     render_device: Option<Res<RenderDevice>>,
+    mut capture_targets: ResMut<capture_targets::CaptureTargets>,
+    cameras: Query<(), With<Camera>>,
 ) {
+    capture_targets.retain(&args);
     let Some(render_device) = render_device.as_ref() else {
         return;
     };
@@ -1037,31 +1043,16 @@ fn insert_cameras(
         let resolution = zeroverse_camera.resolution
             .unwrap_or(default_zeroverse_camera.resolution.expect("DefaultZeroverseCamera resolution must be set if ZeroverseCamera resolution is not set"));
 
-        let size = Extent3d {
-            width: resolution.x,
-            height: resolution.y,
-            depth_or_array_layers: 1,
-        };
-
-        let mut render_target = Image {
-            texture_descriptor: TextureDescriptor {
-                label: "bevy_zeroverse_camera_target".into(),
-                size,
-                dimension: TextureDimension::D2,
-                format: TextureFormat::Rgba32Float,
-                mip_level_count: 1,
-                sample_count: 1,
-                usage: TextureUsages::TEXTURE_BINDING
-                    | TextureUsages::COPY_SRC
-                    | TextureUsages::COPY_DST
-                    | TextureUsages::RENDER_ATTACHMENT,
-                view_formats: &[],
-            },
-            ..default()
-        };
-        render_target.resize(size);
-        let render_target = images.add(render_target);
-        let target = RenderTarget::Image(ImageRenderTarget::from(render_target.clone()));
+        let targets = capture_targets.acquire(
+            entity,
+            capture_index,
+            resolution,
+            &args,
+            &cameras,
+            &mut images,
+            render_device,
+        );
+        let target = RenderTarget::Image(ImageRenderTarget::from(targets.color));
 
         // TODO: modulate fov
         let mut camera = commands.entity(entity);
@@ -1108,138 +1099,13 @@ fn insert_cameras(
             }
             #[cfg(target_arch = "wasm32")]
             let _ = &draw_policy;
-            #[allow(unused_mut)] // Native ground truth adds two attachments.
-            let mut targets = vec![render_target];
             #[cfg(not(target_arch = "wasm32"))]
-            if (args.scene_type == crate::scene::ZeroverseSceneType::ProceduralIndoor
-                && args
-                    .render_modes
-                    .iter()
-                    .chain(std::iter::once(&args.render_mode))
-                    .any(|mode| *mode != RenderMode::Color))
-                || args
-                    .render_modes
-                    .iter()
-                    .chain(std::iter::once(&args.render_mode))
-                    .any(RenderMode::is_flow)
-                || args
-                    .render_modes
-                    .iter()
-                    .chain(std::iter::once(&args.render_mode))
-                    .any(|m| *m == RenderMode::CoVisibility)
-            {
-                let mut ground_truth =
-                    crate::render::ground_truth::GroundTruthCamera::new(&mut images, resolution);
-                targets.push(ground_truth.world_depth.clone());
-                targets.push(ground_truth.normal_semantic.clone());
-                if args
-                    .render_modes
-                    .iter()
-                    .chain(std::iter::once(&args.render_mode))
-                    .any(RenderMode::is_flow)
-                {
-                    targets.push(ground_truth.enable_flow(&mut images));
-                }
-                if args
-                    .render_modes
-                    .iter()
-                    .chain(std::iter::once(&args.render_mode))
-                    .any(|m| *m == RenderMode::CoVisibility)
-                {
-                    targets.push(ground_truth.enable_co_visibility(&mut images, resolution));
-                }
+            if let Some(ground_truth) = targets.geometry {
                 camera.insert(ground_truth);
             }
-            camera.insert(io::image_copy::ImageCopier::for_targets(
-                targets,
-                size,
-                TextureFormat::Rgba32Float,
-                render_device,
-            ));
-
-            // let mut copiers = Vec::new();
-
-            // #[cfg(not(feature = "web"))]
-            // { // depth
-            //     let mut depth_cpu_image = Image {
-            //         texture_descriptor: TextureDescriptor {
-            //             label: "bevy_zeroverse_camera_depth_cpu_image".into(),
-            //             size,
-            //             dimension: TextureDimension::D2,
-            //             format: CORE_3D_DEPTH_FORMAT,
-            //             mip_level_count: 1,
-            //             sample_count: 1,
-            //             usage: TextureUsages::COPY_DST | TextureUsages::TEXTURE_BINDING,
-            //             view_formats: &[],
-            //         },
-            //         ..Default::default()
-            //     };
-            //     depth_cpu_image.resize(size);
-            //     let depth_cpu_image_handle = images.add(depth_cpu_image);
-
-            //     copiers.push(io::prepass_copy::PrepassCopier::new(
-            //         RenderMode::Depth,
-            //         depth_cpu_image_handle,
-            //         size,
-            //         CORE_3D_DEPTH_FORMAT,
-            //         &render_device,
-            //     ));
-            // }
-
-            // { // motion vector
-            //     let mut motion_vectors_cpu_image = Image {
-            //         texture_descriptor: TextureDescriptor {
-            //             label: "bevy_zeroverse_camera_motion_vectors_cpu_image".into(),
-            //             size,
-            //             dimension: TextureDimension::D2,
-            //             format: MOTION_VECTOR_PREPASS_FORMAT,
-            //             mip_level_count: 1,
-            //             sample_count: 1,
-            //             usage: TextureUsages::COPY_DST | TextureUsages::TEXTURE_BINDING,
-            //             view_formats: &[],
-            //         },
-            //         ..Default::default()
-            //     };
-            //     motion_vectors_cpu_image.resize(size);
-            //     let motion_vectors_cpu_image_handle = images.add(motion_vectors_cpu_image);
-
-            //     copiers.push(io::prepass_copy::PrepassCopier::new(
-            //         RenderMode::MotionVectors,
-            //         motion_vectors_cpu_image_handle,
-            //         size,
-            //         MOTION_VECTOR_PREPASS_FORMAT,
-            //         &render_device,
-            //     ));
-            // }
-
-            // #[cfg(not(feature = "web"))]
-            // { // normal
-            //     let mut normal_cpu_image = Image {
-            //         texture_descriptor: TextureDescriptor {
-            //             label: "bevy_zeroverse_camera_normal_cpu_image".into(),
-            //             size,
-            //             dimension: TextureDimension::D2,
-            //             format: NORMAL_PREPASS_FORMAT,
-            //             mip_level_count: 1,
-            //             sample_count: 1,
-            //             usage: TextureUsages::COPY_DST | TextureUsages::TEXTURE_BINDING,
-            //             view_formats: &[],
-            //         },
-            //         ..Default::default()
-            //     };
-            //     normal_cpu_image.resize(size);
-            //     let normal_cpu_image_handle = images.add(normal_cpu_image);
-
-            //     copiers.push(io::prepass_copy::PrepassCopier::new(
-            //         RenderMode::Normal,
-            //         normal_cpu_image_handle,
-            //         size,
-            //         NORMAL_PREPASS_FORMAT,
-            //         &render_device,
-            //     ));
-            // }
-
-            // camera.insert(io::prepass_copy::PrepassCopiers(copiers));
+            if let Some(copier) = targets.copier {
+                camera.insert(copier);
+            }
         }
     }
 }

@@ -13,7 +13,6 @@ use std::{
 use anyhow::{Context, Result, anyhow};
 use bevy_zeroverse::scene::procedural_indoor::layout::IndoorLayout;
 use bevy_zeroverse::{app::BevyZeroverseConfig, render::RenderMode, scene::ZeroverseSceneType};
-use burn::data::dataset::Dataset;
 
 use crate::{
     chunk::{ColorCodec, decode_rgba_bytes, discover_chunks, load_chunk, save_chunk_with_codec},
@@ -51,6 +50,10 @@ pub struct GenConfig {
     pub indoor_layout: IndoorLayout,
     pub indoor_density: f32,
     pub indoor_human_density: f32,
+    /// Bounded CPU lookahead for consecutive indoor captures.
+    pub indoor_prefetch: bool,
+    /// Maximum future CPU rooms (1..=4); each adds staging memory.
+    pub indoor_prefetch_depth: usize,
     pub human_motion: Option<String>,
     pub indoor_camera: Option<String>,
     pub indoor_appearance: Option<String>,
@@ -92,6 +95,8 @@ impl Default for GenConfig {
             indoor_layout: IndoorLayout::Mixed,
             indoor_density: 0.65,
             indoor_human_density: 0.25,
+            indoor_prefetch: true,
+            indoor_prefetch_depth: 3,
             human_motion: None,
             indoor_camera: None,
             indoor_appearance: None,
@@ -114,6 +119,10 @@ impl Default for GenConfig {
 
 /// Validate the capture contract before starting a GPU process or writing data.
 pub fn validate_gen_config(config: &GenConfig) -> Result<()> {
+    anyhow::ensure!(
+        (1..=4).contains(&config.indoor_prefetch_depth),
+        "indoor_prefetch_depth must be in 1..=4"
+    );
     bevy_zeroverse::render::co_visibility::validate_config(&config.render_modes, config.cameras)
         .map_err(anyhow::Error::msg)?;
     anyhow::ensure!(
@@ -474,6 +483,8 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
         indoor_layout,
         indoor_density,
         indoor_human_density,
+        indoor_prefetch,
+        indoor_prefetch_depth,
         human_motion,
         indoor_camera,
         indoor_appearance,
@@ -617,7 +628,10 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
 
                 let mut attempts = 0usize;
                 let sample = loop {
-                    let sample = dataset.get(idx).with_context(|| format!("capture failed for sample {idx}; generation stopped without skipping it"))?;
+                    let lookahead = if indoor_prefetch && scene_type == ZeroverseSceneType::ProceduralIndoor {
+                        indoor_prefetch_depth.min(4).min(target_samples - idx - 1)
+                    } else { 0 };
+                    let sample = dataset.capture_next(lookahead).with_context(|| format!("capture failed for sample {idx}; generation stopped without skipping it"))?;
                     let has_signal =
                         sample_has_signal(&sample, &render_modes_for_signal, width, height);
                     let has_required = has_signal

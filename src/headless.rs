@@ -46,6 +46,9 @@ fn signaled_runner(mut app: App) -> AppExit {
         match recv_result {
             Ok(request) => {
                 app.world_mut()
+                    .resource_mut::<crate::scene::procedural_indoor::preparation::IndoorPrefetch>()
+                    .depth = request.prefetch_indoor;
+                app.world_mut()
                     .resource_mut::<crate::sample::CaptureFailure>()
                     .0 = None;
                 if let Some(seed) = request.indoor_seed {

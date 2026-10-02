@@ -69,6 +69,17 @@ struct CameraStatus {
 }
 
 impl GroundTruthCamera {
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn recycled(&self) -> Self {
+        Self {
+            frame_id: 0,
+            flow_sequence: 0,
+            status: Arc::default(),
+            co_visibility: self.co_visibility.as_ref().map(|output| output.recycled()),
+            ..self.clone()
+        }
+    }
+
     pub fn new(images: &mut Assets<Image>, size: UVec2) -> Self {
         assert!(size.x > 0 && size.y > 0);
         let mut image = |label: &'static str, format, copy_src| {

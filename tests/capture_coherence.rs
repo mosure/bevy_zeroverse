@@ -231,6 +231,12 @@ fn animated_viewer_settings_capture_fixed_steps_and_reject_midflight_changes() {
         native.annotation_precision,
         AnnotationPrecision::Float32Geometry
     );
+    let native_geometry = app
+        .world_mut()
+        .query::<&GroundTruthCamera>()
+        .single(app.world())
+        .unwrap()
+        .clone();
 
     // Exercise the preserved one-attachment renderer and sequential material modes.
     let (entity, target) = app
@@ -306,6 +312,20 @@ fn animated_viewer_settings_capture_fixed_steps_and_reject_midflight_changes() {
         regenerated.annotation_precision,
         AnnotationPrecision::Float32Geometry
     );
+    let reused = app
+        .world_mut()
+        .query::<&GroundTruthCamera>()
+        .single(app.world())
+        .unwrap();
+    assert_eq!(
+        reused.world_depth, native_geometry.world_depth,
+        "completed headless attachments should survive regeneration"
+    );
+    assert_ne!(
+        reused.rendered_frame(),
+        native_geometry.rendered_frame(),
+        "old status must not acknowledge a new room's pixels"
+    );
 
     // The interactive configuration keeps its normal application cadence even
     // with a sampler attached. This also covers the no-GI viewer path explicitly.
@@ -354,7 +374,7 @@ fn animated_viewer_settings_capture_fixed_steps_and_reject_midflight_changes() {
             .0
             .as_deref()
             .unwrap()
-            .contains("configure flow before creating cameras"));
+            .contains("configure these modes before creating cameras"));
         assert_eq!(*app.world().resource::<Playback>(), previous);
         assert_eq!(
             app.world().resource::<CaptureProgress>().backoff_sleeps,

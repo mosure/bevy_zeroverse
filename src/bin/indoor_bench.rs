@@ -80,6 +80,14 @@ struct Args {
     /// Repeated capture of a fixed scene distinguishes residency from regeneration.
     #[arg(long)]
     fixed_scene: bool,
+    /// Disable the sequential CLI's bounded CPU room lookahead for comparison.
+    #[arg(long)]
+    no_prefetch: bool,
+    #[arg(long, default_value_t = 3, value_parser = clap::value_parser!(u8).range(1..=4))]
+    prefetch_depth: u8,
+    /// Write lossless planes/manifests for an untimed, same-seed correctness comparison.
+    #[arg(long)]
+    save_samples: bool,
     #[arg(long,value_enum,default_value_t=IndoorQuality::Auto)]
     quality: IndoorQuality,
     #[arg(long, default_value = "out/indoor_bench")]
@@ -265,6 +273,13 @@ fn main() -> Result<()> {
     let loop_started_unix_seconds = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs_f64();
     let total = Instant::now();
     for index in 0..args.scenes {
+        app.world_mut()
+            .resource_mut::<procedural_indoor::preparation::IndoorPrefetch>()
+            .depth = if !args.no_prefetch && !args.fixed_scene {
+            (args.prefetch_depth as usize).min(args.scenes - index - 1)
+        } else {
+            0
+        };
         let seed = if args.fixed_scene {
             args.seed
         } else {
@@ -303,6 +318,39 @@ fn main() -> Result<()> {
             );
         };
         let elapsed = start.elapsed().as_secs_f64();
+        if args.save_samples {
+            let directory = args.output.join(format!("seed_{seed:06}"));
+            fs::create_dir_all(&directory)?;
+            fs::write(
+                directory.join("manifest.json"),
+                serde_json::to_vec_pretty(&sample.indoor)?,
+            )?;
+            fs::write(
+                directory.join("sample.json"),
+                serde_json::to_vec_pretty(&serde_json::json!({
+                    "aabb":sample.aabb,"obbs":sample.object_obbs,"human_poses":sample.human_pose_steps,
+                    "human_ids":sample.human_instance_ids,"camera_qualification":sample.indoor_render_metadata.as_ref().and_then(|m| m.get("camera_qualification")),
+                    "views":sample.views.iter().map(|v| serde_json::json!({"world_from_view":v.world_from_view,"calibration":v.calibration,"time":v.time})).collect::<Vec<_>>()
+                }))?,
+            )?;
+            for (index, view) in sample.views.iter().enumerate() {
+                for (name, plane) in [
+                    ("color", &view.color),
+                    ("depth", &view.depth),
+                    ("normal", &view.normal),
+                    ("position", &view.position),
+                    ("semantic", &view.semantic),
+                    ("co_visibility", &view.co_visibility),
+                ] {
+                    if !plane.is_empty() {
+                        fs::write(
+                            directory.join(format!("view_{index:02}_{name}.rgba32f")),
+                            plane,
+                        )?;
+                    }
+                }
+            }
+        }
         ensure!(
             sample.indoor.as_ref().is_some_and(|m| m.seed == seed),
             "stale scene"
@@ -324,7 +372,7 @@ fn main() -> Result<()> {
                         .all(|p| p.len() == expected),
                     "incomplete annotations"
                 );
-                if index % 16 == 0 {
+                if args.save_samples || index % 16 == 0 {
                     procedural_indoor::validation::validate_annotations_with_precision(
                         view,
                         sample.aabb,
@@ -392,7 +440,11 @@ fn main() -> Result<()> {
         let hal_memory = serde_json::json!({"command_encoders":hal.command_encoders.read(),
             "buffer_bytes":hal.buffer_memory.read(),"texture_bytes":hal.texture_memory.read(),
             "memory_allocations":hal.memory_allocations.read(),"descriptor_sets":hal.bind_groups.read()});
+        let prefetch = app
+            .world()
+            .resource::<procedural_indoor::preparation::IndoorPrefetch>();
         let record = serde_json::json!({"run_id":run_id,"pid":std::process::id(),"wall_elapsed_seconds":total.elapsed().as_secs_f64(),
+            "prefetch": {"started":prefetch.started,"hits":prefetch.hits,"discarded":prefetch.discarded},
             "completed_unix_seconds":SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs_f64(),
             "index":index,"seed":seed,"elapsed_seconds":elapsed,"request_seconds":request_seconds,
             "preparation_stages": if args.fixed_scene && index > 0 { None } else { app.world().get_resource::<procedural_indoor::preparation::PreparationTimings>() },
@@ -449,6 +501,10 @@ fn main() -> Result<()> {
         "poll_window_ms":CapturePollBackoff::MAX_WINDOW.as_millis(),
         "render_cache_pruning":!args.no_cache_pruning,
         "indirect_draws":args.indirect_draws,
+        "cpu_scene_prefetch":!args.no_prefetch && !args.fixed_scene,
+        "cpu_scene_prefetch_depth":if args.no_prefetch || args.fixed_scene { 0 } else { args.prefetch_depth },
+        "saved_lossless_planes":args.save_samples,
+        "build_provenance":bevy_zeroverse::provenance::capture_provenance(),
         "generator_version":procedural_indoor::layout::GENERATOR_VERSION,"capture_engine":bevy_zeroverse::CAPTURE_ENGINE_IDENTITY,"config":config,"gi_enabled":!args.no_gi,
         "gi_settings":app.world().resource::<IndoorGiSettings>(),"gpu_timings_enabled":args.gpu_timings,"fixed_scene":args.fixed_scene,
         "adapter":app.world().get_resource::<bevy::render::renderer::RenderAdapterInfo>().map(|a|format!("{:?}",a.0)),

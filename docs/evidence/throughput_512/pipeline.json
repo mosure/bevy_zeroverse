@@ -1,0 +1,955 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-02",
+  "source_base_commit": "7bf468003213786e4f155acae643a63eae441f5c",
+  "scope": "Further optimization over the one-room-lookahead/SAH implementation. Matched performance and pixel comparisons retain the original population sampler; the presenter-placement bug fix is evaluated separately.",
+  "hardware": {
+    "gpu": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+    "logical_cpus": 24,
+    "driver": "610.43.02",
+    "backend": "Vulkan"
+  },
+  "build": "optimized dev, existing checkout WGPU patches; registry WGPU performance not measured",
+  "configuration": {
+    "views": 3,
+    "width": 512,
+    "height": 512,
+    "timesteps": 1,
+    "seed_start": 200,
+    "density": 0.65,
+    "human_density": 0.25,
+    "quality": "Auto",
+    "rays_per_probe": 256,
+    "diffuse_bounces": 3,
+    "modes": [
+      "color",
+      "depth",
+      "normal",
+      "position",
+      "semantic",
+      "co_visibility"
+    ],
+    "population": "consecutive seeds, no filtering"
+  },
+  "implementation": {
+    "future_rooms_default": 3,
+    "future_rooms_limit": 4,
+    "geometry_workers_limit": 4,
+    "pixels": "same transfer function and accumulation order",
+    "transport": "same CPU probe tree and GPU SAH tree; same triangle order/attributes, rays and bounces",
+    "capture_storage": "one slot per configured camera, keyed by size and modalities; only consumed successful staging can be reused; new capture/status epochs; one retained co-visibility atlas",
+    "settling": "original three settling frames preserved"
+  },
+  "capture_only": [
+    {
+      "run": "control128",
+      "rooms": 128,
+      "warmup_rooms": 8,
+      "views_per_second": 6.137409193084078,
+      "p50_room_seconds": 0.3559516535,
+      "p95_room_seconds": 1.0710914569999999,
+      "peak_rss_bytes": 3677618176.0,
+      "rss_first_quarter_mean_bytes": 2936382122.6666665,
+      "rss_last_quarter_mean_bytes": 3583773491.2,
+      "command_wall_seconds": 66.88277539401315,
+      "command_cpu_seconds": 251.510781,
+      "device_activity_whole_command_percent": 46.81651376146789,
+      "prefetch": {
+        "discarded": 0,
+        "hits": 127,
+        "started": 127
+      },
+      "co_visibility": {
+        "atlas_allocations": 128,
+        "atlas_bytes": 37748736,
+        "dispatches": 128,
+        "pipeline_initializations": 1,
+        "pixels": 100663296,
+        "views": 384
+      },
+      "mean_preparation_seconds": {
+        "asset_insertion_seconds": 0.000703955775,
+        "cameras_seconds": 0.023152280333333334,
+        "geometry_seconds": 0.06658969905833333,
+        "gi_setup_seconds": 0.20213976979166667,
+        "layout_seconds": 0.0005405750666666667,
+        "materials_seconds": 0.10431975480833333,
+        "meshes_seconds": 0.07631940708333333
+      },
+      "build_provenance": {
+        "capture_engine": "capture-v35;calibration=1;co_visibility=1;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=6;surface_flow=1;indoor=22;multiview=5;ovoxel=3;glass=2;hair=2;bounds=3;position=2;tabletop=1;finishes=3;seating=2;activity=2;playback=2;exterior=2;envelope=2",
+        "crate_version": "0.27.1",
+        "features": {
+          "human_motion": false,
+          "multi_threaded": true,
+          "web": false
+        },
+        "generator_version": 22,
+        "locked_package_versions": {
+          "bevy": [
+            "0.19.1"
+          ],
+          "bevy_burn_human": [
+            "0.6.1"
+          ],
+          "bevy_zeroverse": [
+            "0.27.1"
+          ],
+          "bevy_zeroverse_burn": [
+            "0.10.1"
+          ],
+          "bevy_zeroverse_capture": [
+            "0.1.0"
+          ],
+          "bevy_zeroverse_ffi": [
+            "0.27.1"
+          ],
+          "bevy_zeroverse_publication": [
+            "0.1.0"
+          ],
+          "burn": [
+            "0.21.0"
+          ],
+          "burn_ardy": [
+            "0.1.4"
+          ],
+          "burn_human": [
+            "0.5.1"
+          ],
+          "burn_human_inference": [
+            "0.1.4"
+          ],
+          "burn_human_motion": [
+            "0.1.1"
+          ],
+          "burn_llama": [
+            "0.1.2"
+          ],
+          "burn_siglip2": [
+            "0.1.1"
+          ],
+          "wgpu": [
+            "29.0.4"
+          ]
+        },
+        "schema_version": 1,
+        "source_sha256": "2f72c71ed2cad770bbb4a28ab3b0db008dd8cbd76351edd5202041f68adc6536",
+        "target": "x86_64-unknown-linux-gnu"
+      },
+      "command": [
+        "out/throughput_512/pipeline/indoor_bench_control",
+        "--scenes",
+        "128",
+        "--warmup-scenes",
+        "8",
+        "--seed",
+        "200",
+        "--cameras",
+        "3",
+        "--width",
+        "512",
+        "--height",
+        "512",
+        "--co-visibility",
+        "--gpu-timings",
+        "--asset-root",
+        "/media/mosure/hyper1/repos/bevy_zeroverse",
+        "--output",
+        "out/throughput_512/pipeline/control128"
+      ]
+    },
+    {
+      "run": "candidate128",
+      "rooms": 128,
+      "warmup_rooms": 8,
+      "views_per_second": 9.972111279758064,
+      "p50_room_seconds": 0.23916746,
+      "p95_room_seconds": 0.433105723,
+      "peak_rss_bytes": 4173656064.0,
+      "rss_first_quarter_mean_bytes": 3269459012.266667,
+      "rss_last_quarter_mean_bytes": 3979047867.733333,
+      "command_wall_seconds": 40.762299915077165,
+      "command_cpu_seconds": 177.88216599999998,
+      "device_activity_whole_command_percent": 68.24242424242425,
+      "prefetch": {
+        "discarded": 0,
+        "hits": 127,
+        "started": 127
+      },
+      "co_visibility": {
+        "atlas_allocations": 1,
+        "atlas_bytes": 37748736,
+        "dispatches": 128,
+        "pipeline_initializations": 1,
+        "pixels": 100663296,
+        "views": 384
+      },
+      "mean_preparation_seconds": {
+        "asset_insertion_seconds": 0.000762955625,
+        "cameras_seconds": 0.024450741408333334,
+        "geometry_seconds": 0.032086497383333336,
+        "gi_setup_seconds": 0.20626831015833333,
+        "layout_seconds": 0.000585399125,
+        "materials_seconds": 0.079816528575,
+        "meshes_seconds": 0.085165560725
+      },
+      "build_provenance": {
+        "capture_engine": "capture-v35;calibration=1;co_visibility=1;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=6;surface_flow=1;indoor=22;multiview=5;ovoxel=3;glass=2;hair=2;bounds=3;position=2;tabletop=1;finishes=3;seating=2;activity=2;playback=2;exterior=2;envelope=2",
+        "crate_version": "0.28.0",
+        "features": {
+          "human_motion": false,
+          "multi_threaded": true,
+          "web": false
+        },
+        "generator_version": 22,
+        "locked_package_versions": {
+          "bevy": [
+            "0.19.1"
+          ],
+          "bevy_burn_human": [
+            "0.6.1"
+          ],
+          "bevy_zeroverse": [
+            "0.28.0"
+          ],
+          "bevy_zeroverse_burn": [
+            "0.11.0"
+          ],
+          "bevy_zeroverse_capture": [
+            "0.1.0"
+          ],
+          "bevy_zeroverse_ffi": [
+            "0.28.0"
+          ],
+          "bevy_zeroverse_publication": [
+            "0.1.0"
+          ],
+          "burn": [
+            "0.21.0"
+          ],
+          "burn_ardy": [
+            "0.1.4"
+          ],
+          "burn_human": [
+            "0.5.1"
+          ],
+          "burn_human_inference": [
+            "0.1.4"
+          ],
+          "burn_human_motion": [
+            "0.1.1"
+          ],
+          "burn_llama": [
+            "0.1.2"
+          ],
+          "burn_siglip2": [
+            "0.1.1"
+          ],
+          "wgpu": [
+            "29.0.4"
+          ]
+        },
+        "schema_version": 1,
+        "source_sha256": "5a3fea1a60e0fada15788ed33a7a47d5b9e2511df3d1678a34af246859fe2e43",
+        "target": "x86_64-unknown-linux-gnu"
+      },
+      "command": [
+        "target/debug/indoor_bench",
+        "--scenes",
+        "128",
+        "--warmup-scenes",
+        "8",
+        "--seed",
+        "200",
+        "--cameras",
+        "3",
+        "--width",
+        "512",
+        "--height",
+        "512",
+        "--co-visibility",
+        "--gpu-timings",
+        "--asset-root",
+        "/media/mosure/hyper1/repos/bevy_zeroverse",
+        "--output",
+        "out/throughput_512/pipeline/candidate128",
+        "--prefetch-depth",
+        "3"
+      ]
+    }
+  ],
+  "complete_exports": [
+    {
+      "run": "cli_control",
+      "workers": 1,
+      "rooms": 64,
+      "views": 192,
+      "wall_seconds": 39.5634399431292,
+      "views_per_second": 4.852965269854998,
+      "cpu_seconds_per_room": 2.25187665625,
+      "device_activity_whole_command_percent": 39.77720207253886,
+      "command": [
+        "out/throughput_512/pipeline/zeroverse_gen_control",
+        "--scene-type",
+        "procedural-indoor",
+        "--output",
+        "out/throughput_512/pipeline/cli_control/dataset",
+        "--samples",
+        "64",
+        "--workers",
+        "1",
+        "--chunk-size",
+        "4",
+        "--seed",
+        "200",
+        "--width",
+        "512",
+        "--height",
+        "512",
+        "--cameras",
+        "3",
+        "--playback-steps",
+        "1",
+        "--render-modes",
+        "color",
+        "depth",
+        "normal",
+        "semantic",
+        "position",
+        "co-visibility",
+        "--color-codec",
+        "raw",
+        "--compression",
+        "zstd",
+        "--ov-mode",
+        "disabled",
+        "--no-ui",
+        "--asset-root",
+        "/media/mosure/hyper1/repos/bevy_zeroverse"
+      ],
+      "chunks": {
+        "000000.safetensors.zst": "cac7a9e957da023e2af356cac30271092641cbe28b4d4272a530a356f60c82b4",
+        "000001.safetensors.zst": "0857b5c6403431c99024d96dc7e1c8fd3e12127ccc6f014da58e45aa7fa49fea",
+        "000002.safetensors.zst": "76107c7211f5f68d973fd903b0ea8a09ca5e0833797c186e20d446dfe26c15dc",
+        "000003.safetensors.zst": "21ae1eda41d5149db5d13678f32a41e4c842131e8267a0280ffa6aa0181aa183",
+        "000004.safetensors.zst": "703d3126dcdddfe6c1e27c34ad7ae85cd15474a021bc59236ba04ac73c51b793",
+        "000005.safetensors.zst": "b71df0d6b9fd2aa8393fca22058e46df2ca7a59a676d6a0f1d19625cbefd667f",
+        "000006.safetensors.zst": "6111c8e919af5536830e76ab1692dfef56786c7b6d1b9a9eec213caef099032d",
+        "000007.safetensors.zst": "22230b6231e6845b3d661450f08ccba4764843ad34efc08a0357b5ae82b3c7ad",
+        "000008.safetensors.zst": "a00356551f8a88bd6eb6d5232e4848e43cc53d5f82014a8a8d4fc25c8c532e19",
+        "000009.safetensors.zst": "16b2425c9fa659b44e06684066c614c3b86b94d98d6815bd524ebb3f3f0e6e57",
+        "000010.safetensors.zst": "a37c5970160222360294654092859fa6816d3d6980679cd5906c5aaf2347ea92",
+        "000011.safetensors.zst": "81dc08d5ad8a59f10b817d466e701a7701757881108a72937d219b96dc7af6db",
+        "000012.safetensors.zst": "02dbe98cdfd16b7d40e00b451691a4ae1e07c61d4cb095f3466880c74895e971",
+        "000013.safetensors.zst": "4660876b5e0adaf3e1b4a52625e5e07aaf91f2187efada6bdf0d2dda3d57d662",
+        "000014.safetensors.zst": "faf51e7bf946bd60a2c6298ab464357e62873d03ea813fbe002f3e81ef2237cc",
+        "000015.safetensors.zst": "592666f009da5b27e6cf2ed8a620054d01770e4c0e93bf1af23aee49b569445a"
+      }
+    },
+    {
+      "run": "cli_candidate",
+      "workers": 1,
+      "rooms": 64,
+      "views": 192,
+      "wall_seconds": 27.362711678957567,
+      "views_per_second": 7.016848412273831,
+      "cpu_seconds_per_room": 1.72906290625,
+      "device_activity_whole_command_percent": 48.1203007518797,
+      "command": [
+        "target/debug/zeroverse_gen",
+        "--scene-type",
+        "procedural-indoor",
+        "--output",
+        "out/throughput_512/pipeline/cli_candidate/dataset",
+        "--samples",
+        "64",
+        "--workers",
+        "1",
+        "--chunk-size",
+        "4",
+        "--seed",
+        "200",
+        "--width",
+        "512",
+        "--height",
+        "512",
+        "--cameras",
+        "3",
+        "--playback-steps",
+        "1",
+        "--render-modes",
+        "color",
+        "depth",
+        "normal",
+        "semantic",
+        "position",
+        "co-visibility",
+        "--color-codec",
+        "raw",
+        "--compression",
+        "zstd",
+        "--ov-mode",
+        "disabled",
+        "--no-ui",
+        "--asset-root",
+        "/media/mosure/hyper1/repos/bevy_zeroverse"
+      ],
+      "chunks": {
+        "000000.safetensors.zst": "48589793f3148d884b1bb40dcc38b85f0657a0bd0a9ee5f960d6ffa2d6256b14",
+        "000001.safetensors.zst": "072ef12b8ae546ce5af29fcdf799a7b8c14e276c6417f9b60575fe897b842338",
+        "000002.safetensors.zst": "6501df23ee55542dcfc723a7682a5c21191884cdd86eef6c1b635933a98746c5",
+        "000003.safetensors.zst": "cfa3cc027ff771fdde1765a0b40e18a7d55911617d73a050345da1d0fbdc84d1",
+        "000004.safetensors.zst": "cfbf945caa5e36a12e12f863502b557f7a1c9d35c5e1794c3958d5fe8c5f4fc3",
+        "000005.safetensors.zst": "18ca75b9a83488bbe2f16bbf8f8f935c9e23e16a022fa31bf3c147559239e137",
+        "000006.safetensors.zst": "1fbfedc87618694584487e68b8436d57a477c80201098e6d39afc332583d2bb7",
+        "000007.safetensors.zst": "7f9952484c6f0443bf121ae69232205607fc2c1e504811f8349569a7214a020f",
+        "000008.safetensors.zst": "cd346dc70130f0982cbc0cfceb6849848cbbac598429086763714bb70e72e523",
+        "000009.safetensors.zst": "ace1d35327d919852600231fd7c16187d5c804a60f4783a51326a7b27f98c58d",
+        "000010.safetensors.zst": "d44303ee5206da260e2f216c65380d3ca5ee8a3a78f5eba8e37204bc321a45ea",
+        "000011.safetensors.zst": "b88075c296c0c443b3a262808391f40240a68c7c0f1a759a85a8c86865485f8e",
+        "000012.safetensors.zst": "261da584469dc9c28993cd1e89649bd7981ab9fe3526fbe046b39c81ce23bd66",
+        "000013.safetensors.zst": "3286e723852095214f7b8125abc04f49fb01d56aecd25fed1c97c1431d7d1622",
+        "000014.safetensors.zst": "73c3a800af88855ea4b72cd95eb192e25244877a4625e88495adfcb556608cbb",
+        "000015.safetensors.zst": "f935e1277e465715acef3d43273c8a9100c57278634c45601d84cc0f25a2476e"
+      }
+    },
+    {
+      "run": "cli_candidate_two",
+      "workers": 2,
+      "rooms": 64,
+      "views": 192,
+      "wall_seconds": 22.185354030923918,
+      "views_per_second": 8.654358173972494,
+      "cpu_seconds_per_room": 2.07693384375,
+      "device_activity_whole_command_percent": 64.3495145631068,
+      "command": [
+        "target/debug/zeroverse_gen",
+        "--scene-type",
+        "procedural-indoor",
+        "--output",
+        "out/throughput_512/pipeline/cli_candidate_two/dataset",
+        "--samples",
+        "64",
+        "--workers",
+        "2",
+        "--chunk-size",
+        "4",
+        "--seed",
+        "200",
+        "--width",
+        "512",
+        "--height",
+        "512",
+        "--cameras",
+        "3",
+        "--playback-steps",
+        "1",
+        "--render-modes",
+        "color",
+        "depth",
+        "normal",
+        "semantic",
+        "position",
+        "co-visibility",
+        "--color-codec",
+        "raw",
+        "--compression",
+        "zstd",
+        "--ov-mode",
+        "disabled",
+        "--no-ui",
+        "--asset-root",
+        "/media/mosure/hyper1/repos/bevy_zeroverse"
+      ],
+      "chunks": {
+        "000000.safetensors.zst": "19e75e056f5c7c51643396ad3bb23e14a1703ffb668d35bcf417758d267e80a9",
+        "000001.safetensors.zst": "e8432da6d80147ac52e1f163ae0e2f58ce8ea2acb1f395858a79403586b6d914",
+        "000002.safetensors.zst": "a5a1d83f4438d2baf29ee19035b1e3134365bc3c36c5ebe4d31d7eb1043247c2",
+        "000003.safetensors.zst": "e3963e6cce241623a3b4c2816caeafc6969d08510bf21db74b290901dbddd638",
+        "000004.safetensors.zst": "2d161d4e9b9d01ebf8690a0e8160ad2da9e74024c654a7bcc74c463fc21d6c85",
+        "000005.safetensors.zst": "d1a92c224ffc90c9289548f77e5b0d4bdda920dbb1075787d6abece6dc7be058",
+        "000006.safetensors.zst": "1aa6b8d3b364a4ac81b58055a04f18893b1eba6a190792f61018e9a28ec3ef3d",
+        "000007.safetensors.zst": "8d118d5eafd57d004a5618162d06dd28e93eab01f7c0004ad42acc252b43fc57",
+        "000008.safetensors.zst": "ca31e8e1e054e0544651c48c65157d497b602cddb3af6cb3c7cebed5694a44f9",
+        "000009.safetensors.zst": "2ca639e30910835e89bd829b3a9b9227b159dd3cd83a29e0d00163df0a371b01",
+        "000010.safetensors.zst": "d552a4f200baf9093c6b9d18940538429c8327b31d3678c3044d212e698f781d",
+        "000011.safetensors.zst": "07e5d3cb2a018bab6111be83a65761f2ea8c13fbb5dd0c96fa505988e220703a",
+        "000012.safetensors.zst": "c2d55fb762b6160b60cee3ef9627867458ff20c58506a69bcffe50f3cb5ef33d",
+        "000013.safetensors.zst": "a445a575cf99e6b55c9e6c2f4d78943bff415bcaef3103868311bd95551bb84d",
+        "000014.safetensors.zst": "bc37d731886fa8dd43d47140359e15665f1358f5056cc9c973c2183f339d4f2d",
+        "000015.safetensors.zst": "16f3a2be81aa9fbd1b98136c4ccd0a4b865fb23adb6271d2b07c7e902bfdb779"
+      }
+    },
+    {
+      "run": "cli_candidate_four",
+      "workers": 4,
+      "rooms": 64,
+      "views": 192,
+      "wall_seconds": 22.945924455998465,
+      "views_per_second": 8.367499002630415,
+      "cpu_seconds_per_room": 2.8570445625,
+      "device_activity_whole_command_percent": 64.72549019607843,
+      "command": [
+        "target/debug/zeroverse_gen",
+        "--scene-type",
+        "procedural-indoor",
+        "--output",
+        "out/throughput_512/pipeline/cli_candidate_four/dataset",
+        "--samples",
+        "64",
+        "--workers",
+        "4",
+        "--chunk-size",
+        "4",
+        "--seed",
+        "200",
+        "--width",
+        "512",
+        "--height",
+        "512",
+        "--cameras",
+        "3",
+        "--playback-steps",
+        "1",
+        "--render-modes",
+        "color",
+        "depth",
+        "normal",
+        "semantic",
+        "position",
+        "co-visibility",
+        "--color-codec",
+        "raw",
+        "--compression",
+        "zstd",
+        "--ov-mode",
+        "disabled",
+        "--no-ui",
+        "--asset-root",
+        "/media/mosure/hyper1/repos/bevy_zeroverse"
+      ],
+      "chunks": {
+        "000000.safetensors.zst": "a1af9f3fd7b501deadb335e3e79d56a998a3d7b85b64d854ffe79d202a5200df",
+        "000001.safetensors.zst": "5b77ac0fe20fb0ca509710f407f48f0f211904d969ebdface154de8895d56a03",
+        "000002.safetensors.zst": "3b133bdef950f19f57ead83b62ff1b69512a27b661b667b250fc9a40707bb6e8",
+        "000003.safetensors.zst": "480a5f3b11883dbf0bcd8335bfe9d14ccf25368ecadfe8759a548f5a54a0c540",
+        "000004.safetensors.zst": "3db4c478ae06a45d8599fb001f1a5dd6b4cb2fa7d130d352a4c4131f5576353e",
+        "000005.safetensors.zst": "cab27e5f35b05b013322b42c4b87af3464830807ebabbd2d2ddbe21ed13ff117",
+        "000006.safetensors.zst": "215c29fe439444348ce7eb95d0097f6982722874a5ac2e1a6b468086c84f1499",
+        "000007.safetensors.zst": "1bf72dffdcd1991d7b7930895abea1ab717568ac616e63bfe49234ca5d2bdab4",
+        "000008.safetensors.zst": "19fa3ea3d2d0d31363632b4da650ac25504de81a2c02649e5cd3b272d0f715df",
+        "000009.safetensors.zst": "3b143e9b947a58e0564afdbcc24f3fdd08c96924c4013175d55beedfdd9eb24e",
+        "000010.safetensors.zst": "73488b0b98b2eafbc0c20bb48092666268436232edeb8662070497829b16135c",
+        "000011.safetensors.zst": "07508345e0dd6ebcd0d83452ded09638f20c15d5e7c2a6cce9e8e976520700e6",
+        "000012.safetensors.zst": "575d5be4664e1f029402792b1893ff993d7745b56bc69d791a51f532d87eb2a1",
+        "000013.safetensors.zst": "cff7180ab8f47cf0979b78effa59b9a379533a65ffc68a33702b304af838fd00",
+        "000014.safetensors.zst": "26596181d67e6e788246620ac184e0aa951a9e72f7dcb025ae45b27da1b3f087",
+        "000015.safetensors.zst": "e6ccb25b0ab4b86a2f67e425c6240d2924fcbbca54f5ee3ee8a4ef6fabfaf5b0"
+      }
+    }
+  ],
+  "artifacts": {
+    "out/throughput_512/pipeline/control128/summary.json": "4a8942694ff8f38f6c3dc625409ec3e14129349d84b83f4a2d177f7491e25630",
+    "out/throughput_512/pipeline/control128/scenes.jsonl": "296f60e5940f08d0a612d42d93f19921ae9173e2829fc6673c0f9f64ab834702",
+    "out/throughput_512/pipeline/control128/telemetry_summary.json": "a2af224c718616da616fc4b3c19e2c461d0fc8a4a23d64c5b154540218f8d9a8",
+    "out/throughput_512/pipeline/control128/telemetry.jsonl": "f5ee220b24c79f03f4655eac37e7f740ad9ab529c85801a0fb548858bf7e5207",
+    "out/throughput_512/pipeline/control128/process.log": "b7e01fdcacaac15aab37a6a5e4b6525a7faae8869c73806630bcaefa9443bfac",
+    "out/throughput_512/pipeline/candidate128/summary.json": "6302c5a6482e2cec438201b8e836b48d932de4420ad79c7ab151bb82b285b2bb",
+    "out/throughput_512/pipeline/candidate128/scenes.jsonl": "e079d42d33c84eb88f98617621cf3b3a63a644fd0f9dc9d080d8ffb65f5e0c81",
+    "out/throughput_512/pipeline/candidate128/telemetry_summary.json": "e46f9d0d6a9e7b3bfcd6f4a5531c6f923dd0a940ba8a0414e00b9adeefefc6ef",
+    "out/throughput_512/pipeline/candidate128/telemetry.jsonl": "999e71f493797e80d53efcafc35766371cfcffef0fd0df066082a6b191cd5db0",
+    "out/throughput_512/pipeline/candidate128/process.log": "cab7b45403aeb96570d7f09513dc09338f4c616208ca4c32c1416782a4efeb3c",
+    "out/throughput_512/pipeline/cli_control/telemetry_summary.json": "9925bbbcca8d9ca21ff3c2acd4db065905ce7633a63057f2c97e739ad0bbc7b1",
+    "out/throughput_512/pipeline/cli_control/telemetry.jsonl": "cac7bb430fce4336397f65faf0f73a05d75e3d0e3720cd81ad576978f535cbc0",
+    "out/throughput_512/pipeline/cli_control/process.log": "fdb9db6a8cf9e7ef6f6a0d42250fdd6ba194213137bb960dc479f926ed5a1441",
+    "out/throughput_512/pipeline/cli_candidate/telemetry_summary.json": "81cad1e0fade32f6efbd72d3b2cb78c5b8e63afac0c4a3fcff32fdf585a9d71d",
+    "out/throughput_512/pipeline/cli_candidate/telemetry.jsonl": "82225384287de78a250b68da7f0c38a48723552ce17367eddb19ce1eeec165be",
+    "out/throughput_512/pipeline/cli_candidate/process.log": "b9b8290619bbdc93a8fc52bcf571b7abc1e85bd1b057a7fd65754aa2e70aa7cc",
+    "out/throughput_512/pipeline/cli_candidate_two/telemetry_summary.json": "e53ab8c5681b30c662c834508b48b2f414082ec2e5de495ffefb4b25d4401f92",
+    "out/throughput_512/pipeline/cli_candidate_two/telemetry.jsonl": "774338fc47f2f1047afd2182ac00aa49aadfbfc5cdccb4034b5435a2ca1043f3",
+    "out/throughput_512/pipeline/cli_candidate_two/process.log": "b9709ef784969d3de367c47aeb9d924a2237e1a7624bfcc3c87d6b8fd6bf6a36",
+    "out/throughput_512/pipeline/cli_candidate_four/telemetry_summary.json": "8128eb78f55fdc663d0b3cef2e0e2702256ae2bc9470b18994881c90da350bd7",
+    "out/throughput_512/pipeline/cli_candidate_four/telemetry.jsonl": "b89e1aa30826f4cff436f20112d86a485bd57dc9e18a3aafbffcbec7ac79d370",
+    "out/throughput_512/pipeline/cli_candidate_four/process.log": "3262f11692eebd5af85b6ef37c655b8b0461c80c31e7db52a345b546a3ca2492",
+    "out/throughput_512/pipeline/indoor_bench_control": "cc728598bb81b05383ce0b303f54bc733f86d9568f06dccb6a1b5602c3f53b91",
+    "out/throughput_512/pipeline/zeroverse_gen_control": "ec880f219fea2c4c60afc6abe4a9341e533e5aaec71ef6e74d2530f2be600176",
+    "out/throughput_512/pipeline/performance-source.tar.gz": "f5a88935f23dd22f95df2f2f36470ebca8979b32bf071f09503d1943f0b51880",
+    "out/throughput_512/pipeline/performance-only.patch": "695571db1a8bef3abfc70489a8375ec6ae94b06c01013d087a6cc09c1c7d597f",
+    "target/debug/indoor_bench": "e28241d406c52f2be2e397883366fdc0e5e2c6b49ba19ca6af5e6b468e265ce2",
+    "target/debug/zeroverse_gen": "508f8ba42e4907c73d20147ecbe7b409a243010d4ff90ae9b69f02644315b07a"
+  },
+  "same_geometry_and_lighting_work": {
+    "rooms": 128,
+    "exact_gi_fields": [
+      "backend",
+      "diffuse_bounces",
+      "primary_rays",
+      "probes",
+      "relocated_probes",
+      "texture_bytes",
+      "transport_bytes",
+      "triangles"
+    ],
+    "ground_truth_triangles_equal": true
+  },
+  "pixel_comparison": {
+    "cli_candidate": {
+      "rooms": 64,
+      "views": 192,
+      "planes": {
+        "color": {
+          "changed_pixels": 0,
+          "pixels": 50331648,
+          "max_abs": 0.0,
+          "pixels_over_1_255": 0,
+          "pixels_over_005": 0,
+          "worst_view_mae": 0.0,
+          "mae": 0.0
+        },
+        "depth": {
+          "changed_pixels": 0,
+          "pixels": 50331648,
+          "max_abs": 0.0,
+          "pixels_over_1_255": 0,
+          "pixels_over_005": 0,
+          "worst_view_mae": 0.0,
+          "mae": 0.0
+        },
+        "normal": {
+          "changed_pixels": 0,
+          "pixels": 50331648,
+          "max_abs": 0.0,
+          "pixels_over_1_255": 0,
+          "pixels_over_005": 0,
+          "worst_view_mae": 0.0,
+          "mae": 0.0
+        },
+        "position": {
+          "changed_pixels": 0,
+          "pixels": 50331648,
+          "max_abs": 0.0,
+          "pixels_over_1_255": 0,
+          "pixels_over_005": 0,
+          "worst_view_mae": 0.0,
+          "mae": 0.0
+        },
+        "semantic": {
+          "changed_pixels": 0,
+          "pixels": 50331648,
+          "max_abs": 0.0,
+          "pixels_over_1_255": 0,
+          "pixels_over_005": 0,
+          "worst_view_mae": 0.0,
+          "mae": 0.0
+        },
+        "co_visibility": {
+          "changed_pixels": 0,
+          "pixels": 50331648,
+          "max_abs": 0.0,
+          "pixels_over_1_255": 0,
+          "pixels_over_005": 0,
+          "worst_view_mae": 0.0,
+          "mae": 0.0
+        },
+        "co_visibility_valid": {
+          "changed_pixels": 0,
+          "pixels": 50331648,
+          "max_abs": 0.0,
+          "pixels_over_1_255": 0,
+          "pixels_over_005": 0,
+          "worst_view_mae": 0.0,
+          "mae": 0.0
+        }
+      },
+      "non_color_tensor_differences": {},
+      "box_sets_bit_exact": true,
+      "indexed_boxes_bit_exact": true,
+      "ready": true,
+      "seed_order_correct": true
+    },
+    "cli_candidate_two": {
+      "rooms": 64,
+      "views": 192,
+      "planes": {
+        "color": {
+          "changed_pixels": 44,
+          "pixels": 50331648,
+          "max_abs": 0.04165690392255783,
+          "pixels_over_1_255": 9,
+          "pixels_over_005": 0,
+          "worst_view_mae": 3.5020847614456824e-07,
+          "mae": 1.8240024799196262e-09
+        },
+        "depth": {
+          "changed_pixels": 77,
+          "pixels": 50331648,
+          "max_abs": 1.9073486328125e-06,
+          "pixels_over_1_255": 0,
+          "pixels_over_005": 0,
+          "worst_view_mae": 4.001776687800884e-11,
+          "mae": 7.508068241198392e-13
+        },
+        "normal": {
+          "changed_pixels": 79,
+          "pixels": 50331648,
+          "max_abs": 0.9989006221294403,
+          "pixels_over_1_255": 3,
+          "pixels_over_005": 3,
+          "worst_view_mae": 1.4103996666866199e-06,
+          "mae": 2.1167445278062285e-08
+        },
+        "position": {
+          "changed_pixels": 134,
+          "pixels": 50331648,
+          "max_abs": 9.655952453613281e-06,
+          "pixels_over_1_255": 0,
+          "pixels_over_005": 0,
+          "worst_view_mae": 8.786097775252226e-11,
+          "mae": 1.6945950815423e-12
+        },
+        "semantic": {
+          "changed_pixels": 5,
+          "pixels": 50331648,
+          "max_abs": 0.5937820822000504,
+          "pixels_over_1_255": 5,
+          "pixels_over_005": 5,
+          "worst_view_mae": 1.5170948112578724e-06,
+          "mae": 3.190355619193181e-08
+        },
+        "co_visibility": {
+          "changed_pixels": 5,
+          "pixels": 50331648,
+          "max_abs": 5.0,
+          "pixels_over_1_255": 5,
+          "pixels_over_005": 5,
+          "worst_view_mae": 1.9073486328125e-05,
+          "mae": 2.7815500895182293e-07
+        },
+        "co_visibility_valid": {
+          "changed_pixels": 0,
+          "pixels": 50331648,
+          "max_abs": 0.0,
+          "pixels_over_1_255": 0,
+          "pixels_over_005": 0,
+          "worst_view_mae": 0.0,
+          "mae": 0.0
+        }
+      },
+      "non_color_tensor_differences": {
+        "depth": [
+          "000008.safetensors.zst",
+          "000009.safetensors.zst",
+          "000010.safetensors.zst",
+          "000011.safetensors.zst",
+          "000013.safetensors.zst",
+          "000015.safetensors.zst"
+        ],
+        "normal": [
+          "000008.safetensors.zst",
+          "000009.safetensors.zst",
+          "000010.safetensors.zst",
+          "000011.safetensors.zst",
+          "000012.safetensors.zst",
+          "000013.safetensors.zst"
+        ],
+        "object_obb_center": [
+          "000008.safetensors.zst",
+          "000009.safetensors.zst",
+          "000010.safetensors.zst",
+          "000011.safetensors.zst",
+          "000012.safetensors.zst",
+          "000013.safetensors.zst",
+          "000014.safetensors.zst",
+          "000015.safetensors.zst"
+        ],
+        "object_obb_scale": [
+          "000008.safetensors.zst",
+          "000009.safetensors.zst",
+          "000010.safetensors.zst",
+          "000011.safetensors.zst",
+          "000012.safetensors.zst",
+          "000013.safetensors.zst",
+          "000014.safetensors.zst",
+          "000015.safetensors.zst"
+        ],
+        "position": [
+          "000008.safetensors.zst",
+          "000009.safetensors.zst",
+          "000010.safetensors.zst",
+          "000011.safetensors.zst",
+          "000012.safetensors.zst",
+          "000013.safetensors.zst",
+          "000015.safetensors.zst"
+        ],
+        "semantic": [
+          "000008.safetensors.zst",
+          "000009.safetensors.zst",
+          "000010.safetensors.zst",
+          "000012.safetensors.zst",
+          "000013.safetensors.zst"
+        ],
+        "co_visibility": [
+          "000008.safetensors.zst",
+          "000011.safetensors.zst"
+        ]
+      },
+      "box_sets_bit_exact": true,
+      "indexed_boxes_bit_exact": true,
+      "ready": true,
+      "seed_order_correct": true
+    },
+    "cli_candidate_four": {
+      "rooms": 64,
+      "views": 192,
+      "planes": {
+        "color": {
+          "changed_pixels": 44,
+          "pixels": 50331648,
+          "max_abs": 0.04165690392255783,
+          "pixels_over_1_255": 9,
+          "pixels_over_005": 0,
+          "worst_view_mae": 3.5020847614456824e-07,
+          "mae": 1.8240024799196262e-09
+        },
+        "depth": {
+          "changed_pixels": 223,
+          "pixels": 50331648,
+          "max_abs": 1.9073486328125e-06,
+          "pixels_over_1_255": 0,
+          "pixels_over_005": 0,
+          "worst_view_mae": 1.1823431123048067e-10,
+          "mae": 2.4324246320854095e-12
+        },
+        "normal": {
+          "changed_pixels": 141,
+          "pixels": 50331648,
+          "max_abs": 0.9989006221294403,
+          "pixels_over_1_255": 4,
+          "pixels_over_005": 4,
+          "worst_view_mae": 1.4103996666866199e-06,
+          "mae": 2.2237720603218097e-08
+        },
+        "position": {
+          "changed_pixels": 405,
+          "pixels": 50331648,
+          "max_abs": 9.8496675491333e-06,
+          "pixels_over_1_255": 0,
+          "pixels_over_005": 0,
+          "worst_view_mae": 5.128886944779273e-10,
+          "mae": 7.348738901353298e-12
+        },
+        "semantic": {
+          "changed_pixels": 5,
+          "pixels": 50331648,
+          "max_abs": 0.5937820822000504,
+          "pixels_over_1_255": 5,
+          "pixels_over_005": 5,
+          "worst_view_mae": 1.5170948112578724e-06,
+          "mae": 3.190355619193181e-08
+        },
+        "co_visibility": {
+          "changed_pixels": 5,
+          "pixels": 50331648,
+          "max_abs": 5.0,
+          "pixels_over_1_255": 5,
+          "pixels_over_005": 5,
+          "worst_view_mae": 1.9073486328125e-05,
+          "mae": 2.7815500895182293e-07
+        },
+        "co_visibility_valid": {
+          "changed_pixels": 0,
+          "pixels": 50331648,
+          "max_abs": 0.0,
+          "pixels_over_1_255": 0,
+          "pixels_over_005": 0,
+          "worst_view_mae": 0.0,
+          "mae": 0.0
+        }
+      },
+      "non_color_tensor_differences": {
+        "depth": [
+          "000004.safetensors.zst",
+          "000005.safetensors.zst",
+          "000008.safetensors.zst",
+          "000009.safetensors.zst",
+          "000010.safetensors.zst",
+          "000011.safetensors.zst",
+          "000013.safetensors.zst",
+          "000015.safetensors.zst"
+        ],
+        "normal": [
+          "000004.safetensors.zst",
+          "000005.safetensors.zst",
+          "000008.safetensors.zst",
+          "000009.safetensors.zst",
+          "000010.safetensors.zst",
+          "000011.safetensors.zst",
+          "000012.safetensors.zst",
+          "000013.safetensors.zst",
+          "000015.safetensors.zst"
+        ],
+        "object_obb_center": [
+          "000004.safetensors.zst",
+          "000005.safetensors.zst",
+          "000006.safetensors.zst",
+          "000007.safetensors.zst",
+          "000008.safetensors.zst",
+          "000009.safetensors.zst",
+          "000010.safetensors.zst",
+          "000011.safetensors.zst",
+          "000012.safetensors.zst",
+          "000013.safetensors.zst",
+          "000014.safetensors.zst",
+          "000015.safetensors.zst"
+        ],
+        "object_obb_scale": [
+          "000004.safetensors.zst",
+          "000005.safetensors.zst",
+          "000006.safetensors.zst",
+          "000007.safetensors.zst",
+          "000008.safetensors.zst",
+          "000009.safetensors.zst",
+          "000010.safetensors.zst",
+          "000011.safetensors.zst",
+          "000012.safetensors.zst",
+          "000013.safetensors.zst",
+          "000014.safetensors.zst",
+          "000015.safetensors.zst"
+        ],
+        "position": [
+          "000004.safetensors.zst",
+          "000005.safetensors.zst",
+          "000008.safetensors.zst",
+          "000009.safetensors.zst",
+          "000010.safetensors.zst",
+          "000011.safetensors.zst",
+          "000012.safetensors.zst",
+          "000013.safetensors.zst",
+          "000015.safetensors.zst"
+        ],
+        "semantic": [
+          "000008.safetensors.zst",
+          "000009.safetensors.zst",
+          "000010.safetensors.zst",
+          "000012.safetensors.zst",
+          "000013.safetensors.zst"
+        ],
+        "co_visibility": [
+          "000008.safetensors.zst",
+          "000011.safetensors.zst"
+        ]
+      },
+      "box_sets_bit_exact": true,
+      "indexed_boxes_bit_exact": true,
+      "ready": true,
+      "seed_order_correct": true
+    }
+  },
+  "limitations": [
+    "Additional 2x target not reached.",
+    "GPU activity includes desktop work and is not kernel occupancy.",
+    "128 varied rooms do not establish unlimited-process memory stability; RSS grows in both matched runs, and the deeper CPU queue adds residency.",
+    "Motion inference, ovoxel, multi-timestep throughput and browser runtime were not benchmarked.",
+    "Later placement fix changes occupied scenes; it is excluded from the matched speed and pixel comparison."
+  ]
+}

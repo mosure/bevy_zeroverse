@@ -643,6 +643,10 @@ enum MapType {
 }
 
 fn mip_image(base: Vec<u8>, size: u32, kind: MapType) -> Image {
+    // Input texels are bytes: evaluate exactly the same transfer function once
+    // per possible input instead of millions of powf calls per room. Filtering
+    // and the floating-point accumulation order remain unchanged.
+    let linear = srgb8_table();
     let mut bytes = base.clone();
     let mut prev = base;
     let mut n = size as usize;
@@ -654,12 +658,22 @@ fn mip_image(base: Vec<u8>, size: u32, kind: MapType) -> Image {
                 let mut sum = Vec3::ZERO;
                 for (dx, dy) in [(0, 0), (1, 0), (0, 1), (1, 1)] {
                     let i = ((y * 2 + dy) * n + x * 2 + dx) * 4;
-                    let c =
-                        Vec3::new(prev[i] as f32, prev[i + 1] as f32, prev[i + 2] as f32) / 255.0;
                     sum += match kind {
-                        MapType::Color => c.map(srgb_to_linear),
-                        MapType::Normal => c * 2.0 - Vec3::ONE,
-                        MapType::Data => c,
+                        MapType::Color => Vec3::new(
+                            linear[prev[i] as usize],
+                            linear[prev[i + 1] as usize],
+                            linear[prev[i + 2] as usize],
+                        ),
+                        MapType::Normal => {
+                            Vec3::new(prev[i] as f32, prev[i + 1] as f32, prev[i + 2] as f32)
+                                / 255.0
+                                * 2.0
+                                - Vec3::ONE
+                        }
+                        MapType::Data => {
+                            Vec3::new(prev[i] as f32, prev[i + 1] as f32, prev[i + 2] as f32)
+                                / 255.0
+                        }
                     };
                 }
                 let value = match kind {
@@ -707,6 +721,11 @@ fn mip_image(base: Vec<u8>, size: u32, kind: MapType) -> Image {
         ..default()
     });
     image
+}
+
+fn srgb8_table() -> &'static [f32; 256] {
+    static TABLE: std::sync::OnceLock<[f32; 256]> = std::sync::OnceLock::new();
+    TABLE.get_or_init(|| std::array::from_fn(|i| srgb_to_linear((Vec3::splat(i as f32) / 255.0).x)))
 }
 
 fn srgb_to_linear(v: f32) -> f32 {
@@ -801,6 +820,14 @@ pub fn kelvin_rgb(k: f32) -> Vec3 {
 #[cfg(test)]
 mod surface_tests {
     use super::*;
+
+    #[test]
+    fn byte_color_lookup_preserves_every_original_transfer_value() {
+        for (byte, &cached) in srgb8_table().iter().enumerate() {
+            let original = (Vec3::splat(byte as f32) / 255.).map(srgb_to_linear).x;
+            assert_eq!(cached.to_bits(), original.to_bits(), "byte {byte}");
+        }
+    }
 
     #[test]
     fn used_finish_palette_preserves_materials_and_texture_pixels() {

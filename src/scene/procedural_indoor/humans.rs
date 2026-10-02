@@ -5,14 +5,16 @@ pub(crate) mod body;
 mod face;
 mod garments;
 mod hair;
+mod population;
 pub mod poses;
+pub use population::populate;
 use std::{
     collections::BTreeMap,
     f32::consts::{PI, TAU},
 };
 
 use bevy::{camera::primitives::Aabb, prelude::*};
-use rand::{seq::SliceRandom, Rng};
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 
 use super::{
@@ -510,98 +512,6 @@ fn update_bounds(human: &mut IndoorHuman) {
     }
     human.bounds_min = lo.with_y(0.0) - Vec3::new(0.055, 0.0, 0.055);
     human.bounds_max = hi + Vec3::splat(0.055);
-}
-
-pub fn populate(scene: &mut IndoorManifest, density: f32) {
-    if density == 0.0 {
-        return;
-    }
-    let mut rng = stream(scene.seed, 39);
-    let mut chairs: Vec<_> = scene
-        .objects
-        .iter()
-        .filter(|o| o.kind == ObjectKind::Chair)
-        .map(|o| o.id)
-        .collect();
-    chairs.shuffle(&mut rng);
-    for chair_id in chairs {
-        if scene.humans.len() >= 16 || !rng.random_bool(density as f64) {
-            continue;
-        }
-        let chair = &scene.objects[chair_id];
-        let working_surface = chair.interaction_target.is_some();
-        let poses = if working_surface {
-            [
-                HumanPoseKind::SeatedWorking,
-                HumanPoseKind::SeatedListening,
-                HumanPoseKind::SeatedTalking,
-            ]
-        } else {
-            [
-                HumanPoseKind::SeatedListening,
-                HumanPoseKind::SeatedListening,
-                HumanPoseKind::SeatedTalking,
-            ]
-        };
-        let pose = poses[rng.random_range(0..3)];
-        let person = sample_person(
-            rng.random(),
-            scene.objects.len() + scene.humans.len(),
-            chair.position,
-            chair.yaw,
-            pose,
-            Some(chair_id),
-            chair.neighbor,
-        );
-        if placement_clear(scene, &person) {
-            scene.humans.push(person);
-        } else {
-            scene.rejected_human_placements += 1;
-        }
-    }
-    let standing = (density * 2.0).floor() as usize
-        + usize::from(rng.random_bool((density * 2.0).fract() as f64));
-    for index in 0..standing {
-        for attempt in 0..96 {
-            let pose = [
-                HumanPoseKind::StandingRelaxed,
-                HumanPoseKind::StandingPresenting,
-                HumanPoseKind::StandingConversation,
-                HumanPoseKind::StandingReading,
-                HumanPoseKind::StandingWalking,
-            ][rng.random_range(0..5)];
-            let mut p = if index == 0 && attempt < 4 && pose == HumanPoseKind::StandingPresenting {
-                Vec3::new(scene.room_size.x * 0.18, 0.0, -scene.room_size.z * 0.34)
-            } else {
-                Vec3::new(
-                    rng.random_range(-0.40..0.40) * scene.room_size.x,
-                    0.0,
-                    rng.random_range(-0.39..0.39) * scene.room_size.z,
-                )
-            };
-            p.y = scene.floor_height(p.xz());
-            let yaw = if pose == HumanPoseKind::StandingPresenting {
-                PI
-            } else {
-                rng.random_range(-PI..PI)
-            };
-            let person = sample_person(
-                rng.random(),
-                scene.objects.len() + scene.humans.len(),
-                p,
-                yaw,
-                pose,
-                None,
-                false,
-            );
-            if placement_clear(scene, &person) {
-                scene.humans.push(person);
-                break;
-            } else {
-                scene.rejected_human_placements += 1;
-            }
-        }
-    }
 }
 
 fn collision_capsules(human: &IndoorHuman) -> Vec<(Vec3, Vec3, f32)> {

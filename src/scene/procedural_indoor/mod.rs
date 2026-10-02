@@ -47,6 +47,7 @@ use bevy::{
     post_process::bloom::Bloom,
     prelude::*,
 };
+#[cfg(feature = "viewer")]
 use layout::IndoorManifest;
 use rand::Rng;
 
@@ -104,6 +105,7 @@ impl Plugin for ProceduralIndoorPlugin {
         app.add_plugins(shading::IndoorShadingPlugin);
         app.init_resource::<IndoorSequence>();
         app.init_resource::<IndoorGenerationStatus>();
+        app.init_resource::<preparation::IndoorPrefetch>();
         if !app.world().contains_resource::<gi::IndoorGiSettings>() {
             let mut settings = gi::IndoorGiSettings::default();
             if let Some(config) = app.world().get_resource::<BevyZeroverseConfig>() {
@@ -162,19 +164,6 @@ struct IndoorEnvironment {
 #[derive(Component)]
 struct IndoorCameraConfigured;
 
-#[derive(PartialEq, Clone, Copy)]
-struct IndoorLayoutKey {
-    layout: layout::IndoorLayout,
-    density: u32,
-    humans: u32,
-    cameras: usize,
-    rotation: bool,
-    quality: IndoorQuality,
-    gi: gi::BakeSettings,
-    gi_enabled: bool,
-    gi_gpu: bool,
-}
-
 #[derive(Resource, Default)]
 pub(crate) struct IndoorGenerationStatus {
     pub pending: bool,
@@ -198,9 +187,10 @@ pub fn indoor_generation_pending(world: &World) -> bool {
 
 #[derive(Default)]
 struct PendingIndoor {
-    key: Option<(u64, IndoorLayoutKey)>,
+    key: Option<preparation::pipeline::Request>,
+    prefetched: preparation::pipeline::Lookahead<preparation::pipeline::PreparationTask>,
     requested: bool,
-    task: Option<bevy::tasks::Task<Result<preparation::PreparedIndoor, String>>>,
+    task: Option<preparation::pipeline::PreparationTask>,
     settings: Option<(
         BevyZeroverseConfig,
         ZeroverseSceneSettings,
@@ -224,6 +214,7 @@ fn regenerate(
     human_assets: Option<Res<bevy_burn_human::BurnHumanAssets>>,
     mut pending: Local<PendingIndoor>,
     mut generation: ResMut<IndoorGenerationStatus>,
+    mut prefetch: ResMut<preparation::IndoorPrefetch>,
 ) {
     if settings.scene_type != ZeroverseSceneType::ProceduralIndoor
         && (!events.is_empty() || !pending.requested)
@@ -264,91 +255,20 @@ fn regenerate(
         pending.task = None;
     }
     let seed = sequence.base_seed.unwrap().wrapping_add(sequence.index);
-    let key = (
-        seed,
-        IndoorLayoutKey {
-            layout: args.indoor_layout,
-            density: args.indoor_density.to_bits(),
-            humans: args.indoor_human_density.to_bits(),
-            cameras: settings.num_cameras.max(1),
-            rotation: settings.rotation_augmentation,
-            quality: args.indoor_quality,
-            gi: gi_settings.bake,
-            gi_enabled: gi_settings.enabled,
-            gi_gpu: gi_settings.gpu && args.headless,
-        },
-    );
-    if pending.key != Some(key) {
-        pending.key = Some(key);
+    let key = preparation::pipeline::Request::new(seed, &args, &settings, gi_settings);
+    if pending.key.as_ref() != Some(&key) {
+        pending.key = Some(key.clone());
         pending.task = None;
     }
     if pending.task.is_none() {
-        let (layout, density, cameras, humans) = (
-            args.indoor_layout,
-            args.indoor_density,
-            settings.num_cameras.max(1),
-            args.indoor_human_density,
-        );
-        let image_stage = preparation::StagedAssets::new(&images);
-        let material_stage = preparation::StagedAssets::new(&materials);
-        let mesh_stage = preparation::StagedAssets::new(&meshes);
-        let quality = args.indoor_quality;
-        let mut gi = gi_settings;
-        // Full GPU bakes maximize headless generation throughput, but monopolize
-        // the presentation queue during interactive regeneration. The CPU oracle
-        // runs inside this background job while the GPU keeps drawing the old room.
-        if !args.headless {
-            gi.gpu = false;
+        let (task, discarded) = pending.prefetched.take(&key);
+        prefetch.discarded += discarded as u64;
+        if let Some(task) = task {
+            pending.task = Some(task);
+            prefetch.hits += 1;
+        } else {
+            pending.task = Some(key.spawn(&images, &materials, &meshes));
         }
-        let rotation = settings.rotation_augmentation;
-        let motion_policy = args.human_motion.clone();
-        let camera_policy = args.indoor_camera.clone();
-        let appearance_policy = args.indoor_appearance.clone();
-        let camera_aspect = args.width as u32 as f32 / args.height as u32 as f32;
-        pending.task = Some(bevy::tasks::AsyncComputeTaskPool::get().spawn(async move {
-            let started = bevy::platform::time::Instant::now();
-            let mut scene = IndoorManifest::generate_with_humans(seed, layout, density, 0, humans)?;
-            if let Some(json) = appearance_policy {
-                scene.apply_appearance(appearance::AppearanceSettings::parse(&json)?)?;
-            }
-            let layout_seconds = started.elapsed().as_secs_f64();
-            let started = bevy::platform::time::Instant::now();
-            let policy = camera_policy
-                .as_deref()
-                .map(cameras::CameraSettings::parse)
-                .transpose()?
-                .unwrap_or_default();
-            scene.resample_cameras(cameras, policy, camera_aspect)?;
-            validation::validate_layout(&scene)?;
-            let cameras_seconds = started.elapsed().as_secs_f64();
-            if rotation {
-                scene.world_yaw = layout::stream(seed, 11).random_range(0.0..std::f32::consts::TAU);
-            }
-            let moving_humans = if let Some(json) = motion_policy {
-                let config = crate::human_motion::HumanMotionConfig::parse(&json)?;
-                crate::human_motion::planning::prepare_scene(&mut scene, &config)?;
-                crate::human_motion::planning::plan(&scene, &config)?
-                    .0
-                    .into_iter()
-                    .map(|p| p.actor_id)
-                    .collect()
-            } else {
-                Vec::new()
-            };
-            let mut prepared = preparation::PreparedIndoor::build(
-                scene,
-                quality,
-                gi,
-                moving_humans,
-                image_stage,
-                material_stage,
-                mesh_stage,
-            )
-            .await;
-            prepared.timings.layout_seconds = layout_seconds;
-            prepared.timings.cameras_seconds = cameras_seconds;
-            Ok(prepared)
-        }));
     }
     let Some(result) =
         bevy::tasks::block_on(bevy::tasks::poll_once(pending.task.as_mut().unwrap()))
@@ -461,6 +381,19 @@ fn regenerate(
     commands.insert_resource(prepared.timings);
     commands.insert_resource(prepared.manifest);
     loaded.write(SceneLoadedEvent);
+    // Only explicit sequential capture asks for lookahead. Construction owns
+    // CPU assets; GI dispatch, motion inference and ECS installation still wait
+    // for an actual request and the existing readiness barriers.
+    let depth = if args.headless && !args.editor {
+        prefetch.depth
+    } else {
+        0
+    };
+    let (started, discarded) = pending
+        .prefetched
+        .fill(&key, depth, |next| next.spawn(&images, &materials, &meshes));
+    prefetch.started += started as u64;
+    prefetch.discarded += discarded as u64;
 }
 
 #[allow(clippy::type_complexity)]

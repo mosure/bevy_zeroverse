@@ -402,7 +402,10 @@ pub fn next(py: Python<'_>, indoor_seed: Option<u64>) -> PyResult<Sample> {
             .map_err(|_| PyRuntimeError::new_err("sample receiver lock poisoned"))?;
 
         channels::app_frame_sender()
-            .send(channels::AppFrameRequest { indoor_seed })
+            .send(channels::AppFrameRequest {
+                indoor_seed,
+                ..Default::default()
+            })
             .map_err(|_| PyRuntimeError::new_err("failed to request next frame from app"))?;
         let started = std::time::Instant::now();
         loop {

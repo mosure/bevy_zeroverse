@@ -24,6 +24,7 @@ pub struct CapturePipelineReadiness {
     failure: Arc<Mutex<Option<String>>>,
     pipeline_count: Arc<AtomicU64>,
     missing_assets: Arc<AtomicU64>,
+    ready_scene: Arc<AtomicU64>,
 }
 impl CapturePipelineReadiness {
     pub fn pipeline_count(&self) -> u64 {
@@ -35,6 +36,10 @@ impl CapturePipelineReadiness {
     pub fn ready(&self) -> bool {
         self.ready.load(Ordering::Acquire)
     }
+    /// An earlier room's prepared assets cannot release this room's capture.
+    pub fn ready_for_scene(&self, scene: Entity) -> bool {
+        self.ready() && self.ready_scene.load(Ordering::Acquire) == scene.to_bits()
+    }
     pub fn failure(&self) -> Option<String> {
         self.failure.lock().unwrap().clone()
     }
@@ -42,6 +47,7 @@ impl CapturePipelineReadiness {
 
 #[derive(Resource, Default)]
 pub(super) struct ExpectedAssets {
+    scene: Option<Entity>,
     meshes: Vec<AssetId<Mesh>>,
     images: Vec<AssetId<Image>>,
     materials: Vec<UntypedAssetId>,
@@ -52,7 +58,9 @@ pub(super) fn extract(
     meshes: Extract<Res<Assets<Mesh>>>,
     images: Extract<Res<Assets<Image>>>,
     materials: Extract<Res<Assets<StandardMaterial>>>,
+    scene: Extract<Query<Entity, With<crate::scene::SceneAabbNode>>>,
 ) {
+    expected.scene = scene.single().ok();
     expected.meshes.clear();
     expected.images.clear();
     expected.materials.clear();
@@ -110,10 +118,15 @@ pub(super) fn update(
             .iter()
             .filter(|id| materials.get(**id).is_none())
             .count();
-    readiness.ready.store(
-        failure.is_none() && missing == 0 && cache.waiting_pipelines().next().is_none(),
+    let ready = failure.is_none() && missing == 0 && cache.waiting_pipelines().next().is_none();
+    readiness.ready_scene.store(
+        expected
+            .scene
+            .filter(|_| ready)
+            .map_or(u64::MAX, Entity::to_bits),
         Ordering::Release,
     );
+    readiness.ready.store(ready, Ordering::Release);
     *readiness.failure.lock().unwrap() = failure;
     readiness
         .pipeline_count
@@ -121,4 +134,28 @@ pub(super) fn update(
     readiness
         .missing_assets
         .store(missing as u64, Ordering::Release);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn prepared_assets_from_a_previous_room_cannot_release_a_new_room() {
+        let mut world = World::new();
+        let previous = world.spawn_empty().id();
+        let current = world.spawn_empty().id();
+        let ready = CapturePipelineReadiness::default();
+        ready.ready.store(true, Ordering::Release);
+        ready
+            .ready_scene
+            .store(previous.to_bits(), Ordering::Release);
+        assert!(ready.ready_for_scene(previous));
+        assert!(!ready.ready_for_scene(current));
+        ready
+            .ready_scene
+            .store(current.to_bits(), Ordering::Release);
+        assert!(ready.ready_for_scene(current));
+        ready.ready.store(false, Ordering::Release);
+        assert!(!ready.ready_for_scene(current));
+    }
 }

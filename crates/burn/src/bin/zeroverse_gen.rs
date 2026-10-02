@@ -122,6 +122,14 @@ struct Cli {
     #[arg(long, default_value_t = 0.25)]
     indoor_human_density: f32,
 
+    /// Prepare consecutive rooms on the CPU while the current room renders.
+    #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
+    indoor_prefetch: bool,
+
+    /// CPU lookahead depth (1..=4). Larger queues use more host memory.
+    #[arg(long, default_value_t = 3, value_parser = clap::value_parser!(u8).range(1..=4))]
+    indoor_prefetch_depth: u8,
+
     /// Opt-in ARDY motion policy JSON (requires the human_motion Cargo feature)
     #[arg(long)]
     human_motion: Option<String>,
@@ -448,6 +456,10 @@ fn main() -> Result<()> {
                     .arg(cli.indoor_density.to_string())
                     .arg("--indoor-human-density")
                     .arg(cli.indoor_human_density.to_string())
+                    .arg("--indoor-prefetch")
+                    .arg(cli.indoor_prefetch.to_string())
+                    .arg("--indoor-prefetch-depth")
+                    .arg(cli.indoor_prefetch_depth.to_string())
                     .arg("--indoor-gi-rays")
                     .arg(cli.indoor_gi_rays.to_string())
                     .arg("--indoor-quality")
@@ -610,6 +622,8 @@ fn main() -> Result<()> {
         indoor_layout: cli.indoor_layout,
         indoor_density: cli.indoor_density,
         indoor_human_density: cli.indoor_human_density,
+        indoor_prefetch: cli.indoor_prefetch,
+        indoor_prefetch_depth: cli.indoor_prefetch_depth as usize,
         human_motion: cli.human_motion.clone(),
         indoor_camera: cli.indoor_camera.clone(),
         indoor_appearance: cli.indoor_appearance.clone(),

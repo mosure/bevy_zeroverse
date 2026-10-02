@@ -153,8 +153,11 @@ pub fn prepare(
             points[index].extend(index as f32).to_array()
         })
         .collect();
-    let triangles = scene
-        .triangles
+    // Solid classification above and the independent CPU oracle retain their
+    // original traversal order. Only GPU transport gets the tighter spatial tree.
+    let mut transport_triangles = scene.triangles.clone();
+    let transport_nodes = super::bvh::build(&mut transport_triangles);
+    let triangles = transport_triangles
         .iter()
         .map(|t| GpuTriangle {
             a: t.a.extend(0.0).to_array(),
@@ -165,8 +168,7 @@ pub fn prepare(
             normal: t.normal.extend(0.0).to_array(),
         })
         .collect();
-    let nodes = scene
-        .nodes
+    let nodes: Vec<_> = transport_nodes
         .iter()
         .map(|n| GpuNode {
             lo: n.lo.extend(0.0).to_array(),
@@ -179,6 +181,8 @@ pub fn prepare(
             ],
         })
         .collect();
+    drop(transport_triangles);
+    drop(transport_nodes);
     let mut texels = Vec::new();
     let materials = scene
         .materials
@@ -239,7 +243,7 @@ pub fn prepare(
         // execution timings come from the explicit GPU validation experiment.
         bake_ms: None,
         transport_bytes: scene.triangles.len() * std::mem::size_of::<GpuTriangle>()
-            + scene.nodes.len() * std::mem::size_of::<GpuNode>()
+            + nodes.len() * std::mem::size_of::<GpuNode>()
             + texels.len() * 16
             + scene.materials.len() * 64
             + count * 16,
@@ -494,6 +498,28 @@ fn bake_gpu(world: &World, mut context: RenderContext) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn accelerated_transport_preserves_probe_placement_at_touching_room_surfaces() {
+        let scene = IndoorManifest::generate_with_humans(
+            207,
+            super::super::super::layout::IndoorLayout::Mixed,
+            0.65,
+            0,
+            0.25,
+        )
+        .unwrap();
+        let mut images = Assets::default();
+        let mut materials = Assets::default();
+        let set = IndoorMaterials::build(&scene, &mut images, &mut materials);
+        let transport = BakeScene::from_manifest(&scene, &set, &materials, &images);
+        let (_, _, stats) = prepare(&transport, BakeSettings::default(), scene.seed, &mut images);
+        // A surface-area tree used for solid classification relocated 114 here,
+        // altering indirect illumination. These are the established capture values.
+        assert_eq!(stats.triangles, 349_783);
+        assert_eq!(stats.probes, 1848);
+        assert_eq!(stats.relocated_probes, 112);
+    }
+
     #[test]
     fn delayed_shader_availability_is_not_a_permanent_capture_failure() {
         assert!(pipeline_failure(&CachedPipelineState::Queued).is_none());

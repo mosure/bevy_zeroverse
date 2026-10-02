@@ -15,6 +15,9 @@ pub mod channels {
     #[derive(Clone, Copy, Debug, Default)]
     pub struct AppFrameRequest {
         pub indoor_seed: Option<u64>,
+        /// Future consecutive indoor rooms to prepare on the CPU (capped at 4).
+        /// Limit to remaining requests; zero disables speculative preparation.
+        pub prefetch_indoor: usize,
     }
 
     pub static APP_FRAME_RECEIVER: OnceCell<Arc<Mutex<Receiver<AppFrameRequest>>>> =
@@ -248,10 +251,54 @@ pub mod image_copy {
         pub fn staging_bytes(&self) -> usize {
             self.sources.len() * self.padded_row_bytes * self.rows
         }
+
+        /// Reuse storage only after the prior packet has been consumed. A fresh
+        /// epoch prevents a late render-world status from satisfying a new room.
+        pub(crate) fn recycled(&self) -> Option<Self> {
+            if self.state.busy.load(Ordering::Acquire) || self.failure().is_some() {
+                return None;
+            }
+            Some(Self {
+                state: Arc::default(),
+                ..self.clone()
+            })
+        }
     }
 
     #[derive(Resource, Default)]
     struct ImageCopiers(Vec<ExtractedCopier>);
+
+    #[cfg(test)]
+    mod recycling_tests {
+        use super::*;
+
+        #[test]
+        fn only_consumed_successful_packets_can_reuse_staging() {
+            let copier = ImageCopier {
+                sources: vec![],
+                buffers: vec![],
+                state: Arc::default(),
+                row_bytes: 0,
+                padded_row_bytes: 0,
+                rows: 0,
+            };
+            copier.request(17);
+            assert!(copier.recycled().is_none(), "in-flight packet");
+            *copier.state.completed.lock().unwrap() = Some(CapturedImages {
+                request_id: 17,
+                planes: vec![],
+            });
+            assert!(copier.recycled().is_none(), "unconsumed packet");
+            copier.take(17).unwrap();
+            let fresh = copier.recycled().unwrap();
+            assert_eq!(fresh.requested_id(), 0);
+            assert_eq!(fresh.submitted_id(), 0);
+            assert!(!fresh.ready(17));
+            assert!(!Arc::ptr_eq(&fresh.state, &copier.state));
+            *copier.state.failure.lock().unwrap() = Some("map failed".into());
+            assert!(copier.recycled().is_none(), "failed storage");
+        }
+    }
     struct ExtractedCopier {
         copier: ImageCopier,
         #[cfg(not(target_arch = "wasm32"))]

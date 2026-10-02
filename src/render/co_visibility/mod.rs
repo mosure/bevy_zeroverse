@@ -153,6 +153,15 @@ pub struct CoVisibilityOutput {
     status: Arc<Status>,
 }
 impl CoVisibilityOutput {
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn recycled(&self) -> Self {
+        Self {
+            status: Arc::default(),
+            slot: 0,
+            ..self.clone()
+        }
+    }
+
     pub(crate) fn new(images: &mut Assets<Image>, size: UVec2) -> Self {
         let mut image = Image::new_target_texture(size.x, size.y, TextureFormat::Rgba32Float, None);
         image.data = None;

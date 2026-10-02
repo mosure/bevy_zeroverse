@@ -1,5 +1,6 @@
 //! Prepare immutable render assets away from the ECS schedule. Handles are reserved
 //! from the live stores, so cancellation and scene replacement retain Bevy ownership.
+pub(crate) mod pipeline;
 use super::{
     architecture, gi, humans, layout::IndoorManifest, materials::IndoorMaterials, objects,
     IndoorQuality,
@@ -15,6 +16,7 @@ use bevy::{
     light::NotShadowCaster,
     prelude::*,
 };
+pub use pipeline::IndoorPrefetch;
 use std::collections::HashMap;
 
 pub trait AssetStore<A: Asset> {
@@ -143,21 +145,63 @@ pub(crate) struct SceneGeometry {
 }
 impl SceneGeometry {
     async fn build(scene: &IndoorManifest) -> Self {
-        let architecture = architecture::architecture(scene);
-        let mut objects = Vec::with_capacity(scene.objects.len());
-        for object in &scene.objects {
-            cooperate().await;
-            objects.push(objects::build_object(object));
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            static POOL: std::sync::OnceLock<bevy::tasks::TaskPool> = std::sync::OnceLock::new();
+            let pool = POOL.get_or_init(|| {
+                bevy::tasks::TaskPoolBuilder::new()
+                    .num_threads(std::thread::available_parallelism().map_or(1, |n| n.get().min(4)))
+                    .thread_name("indoor-geometry".into())
+                    .build()
+            });
+            enum Part {
+                Architecture(objects::Assembly),
+                Object(objects::Assembly),
+                Human(humans::HumanAssembly),
+            }
+            // All jobs are spawned directly by the scope: Bevy preserves this
+            // order independently of completion order. Each builder owns its RNG.
+            let parts = pool.scope(|scope| {
+                scope.spawn(async move { Part::Architecture(architecture::architecture(scene)) });
+                for object in &scene.objects {
+                    scope.spawn(async move { Part::Object(objects::build_object(object)) });
+                }
+                for person in &scene.humans {
+                    scope.spawn(async move { Part::Human(humans::build_human(person)) });
+                }
+            });
+            let mut result = Self {
+                architecture: default(),
+                objects: Vec::with_capacity(scene.objects.len()),
+                humans: Vec::with_capacity(scene.humans.len()),
+            };
+            for part in parts {
+                match part {
+                    Part::Architecture(a) => result.architecture = a,
+                    Part::Object(a) => result.objects.push(a),
+                    Part::Human(a) => result.humans.push(a),
+                }
+            }
+            result
         }
-        let mut humans = Vec::with_capacity(scene.humans.len());
-        for person in &scene.humans {
-            cooperate().await;
-            humans.push(humans::build_human(person));
-        }
-        Self {
-            architecture,
-            objects,
-            humans,
+        #[cfg(target_arch = "wasm32")]
+        {
+            let architecture = architecture::architecture(scene);
+            let mut objects = Vec::with_capacity(scene.objects.len());
+            for object in &scene.objects {
+                cooperate().await;
+                objects.push(objects::build_object(object));
+            }
+            let mut humans = Vec::with_capacity(scene.humans.len());
+            for person in &scene.humans {
+                cooperate().await;
+                humans.push(humans::build_human(person));
+            }
+            Self {
+                architecture,
+                objects,
+                humans,
+            }
         }
     }
 }
@@ -515,6 +559,42 @@ pub(crate) async fn cooperate() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[cfg(not(target_arch = "wasm32"))]
+    fn concurrent_builders_preserve_ordered_geometry_and_surface_assignments() {
+        fn geometry(a: &super::super::geometry::Geometry, b: &super::super::geometry::Geometry) {
+            assert_eq!(a.positions, b.positions);
+            assert_eq!(a.normals, b.normals);
+            assert_eq!(a.uvs, b.uvs);
+            assert_eq!(a.indices, b.indices);
+        }
+        fn assembly(a: &objects::Assembly, b: &objects::Assembly) {
+            assert_eq!(a.parts.len(), b.parts.len());
+            for (key, part) in &a.parts {
+                geometry(part, &b.parts[key]);
+            }
+        }
+        for seed in [0, 7, 207] {
+            let scene =
+                IndoorManifest::generate_with_humans(seed, default(), 0.65, 0, 0.5).unwrap();
+            let parallel = bevy::tasks::block_on(SceneGeometry::build(&scene));
+            assembly(&parallel.architecture, &architecture::architecture(&scene));
+            assert_eq!(parallel.objects.len(), scene.objects.len());
+            for (object, built) in scene.objects.iter().zip(&parallel.objects) {
+                assembly(built, &objects::build_object(object));
+            }
+            assert_eq!(parallel.humans.len(), scene.humans.len());
+            for (person, built) in scene.humans.iter().zip(&parallel.humans) {
+                let serial = humans::build_human(person);
+                assert_eq!(built.local_joints, serial.local_joints);
+                assert_eq!(built.parts.len(), serial.parts.len());
+                for (key, part) in &built.parts {
+                    geometry(part, &serial.parts[key]);
+                }
+            }
+        }
+    }
     #[derive(Asset, bevy::reflect::TypePath)]
     struct Value(u32);
     #[test]

@@ -34,6 +34,26 @@ capture threads sharing one engine are rejected for indoor generation because
 they cannot preserve index ordering. The seed for global sample index `i` is
 `base_seed.wrapping_add(i)`, independent of process count or chunk size.
 
+Sequential CLI generation enables `--indoor-prefetch=true` and
+`--indoor-prefetch-depth=3`: up to three future rooms are constructed on the CPU
+while the GPU captures the current room. Depth accepts 1–4; lower values reduce
+CPU asset residency. Geometry,
+material maps and camera planning use the same seeded functions as serial
+generation. The future room is installed only after its seed and every
+construction input match the next request. GPU uploads, lighting readiness,
+motion inference and annotation capture keep their existing barriers. There is
+no lookahead after a worker's final sample. Set `--indoor-prefetch=false` to
+disable this additional CPU asset residency on memory-constrained machines.
+This setting can change on resume because it does not change the dataset.
+
+Direct `LiveDataset::get`, Python indexed capture and the interactive viewer do
+not speculate about the next request. Rust callers driving the headless channel
+can set `AppFrameRequest::prefetch_indoor` to the number of future consecutive
+rooms needed (0 disables; values are capped at 4). Requests must reduce this
+count near the end of a finite run. CPU file encoding remains bounded and overlaps rendering.
+The [three-view 512×512 throughput report](generation_throughput.md) includes
+capture and complete-export timings, process-count comparisons and pixel checks.
+
 Finite indoor jobs using `--per-process=true` replace each child after at most
 256 captured scenes by default. Set `--max-scenes-per-process 16` for a shorter
 lifetime, or `--max-scenes-per-process 0` to disable replacement; the alias

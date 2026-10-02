@@ -10,7 +10,7 @@ use bevy::{
         renderer::{RenderContext, RenderDevice, RenderGraph, RenderGraphSystems, RenderQueue},
         texture::GpuImage,
         view::ExtractedView,
-        Render, RenderApp, RenderSystems,
+        Extract, ExtractSchedule, Render, RenderApp, RenderSystems,
     },
 };
 use std::num::NonZeroU64;
@@ -121,6 +121,24 @@ impl Pipelines {
 
 #[derive(Resource, Default)]
 struct Prepared(Option<Atlas>);
+#[derive(Resource, Default)]
+struct RetainCaptureStorage(bool);
+
+fn extract_retention(
+    mut retained: ResMut<RetainCaptureStorage>,
+    args: Extract<Option<Res<crate::app::BevyZeroverseConfig>>>,
+) {
+    retained.0 = cfg!(not(target_arch = "wasm32"))
+        && args.as_ref().is_some_and(|args| {
+            args.headless
+                && args.image_copiers
+                && args
+                    .render_modes
+                    .iter()
+                    .chain(std::iter::once(&args.render_mode))
+                    .any(|m| *m == RenderMode::CoVisibility)
+        });
+}
 #[derive(PartialEq, Eq)]
 struct Key {
     images: Vec<(AssetId<Image>, TextureId)>,
@@ -147,7 +165,9 @@ pub(super) fn install(app: &mut App) {
     render.insert_resource(diagnostics);
     render
         .init_resource::<Pipeline>()
+        .init_resource::<RetainCaptureStorage>()
         .init_resource::<Prepared>();
+    render.add_systems(ExtractSchedule, extract_retention);
     render.add_systems(Render, prepare.in_set(RenderSystems::PrepareResources));
     render.add_systems(
         RenderGraph,
@@ -168,14 +188,20 @@ fn prepare(
     device: Res<RenderDevice>,
     queue: Res<RenderQueue>,
     diagnostics: Res<CoVisibilityDiagnostics>,
+    retained: Res<RetainCaptureStorage>,
 ) {
     let mut cameras: Vec<_> = cameras
         .iter()
         .filter(|(c, _)| c.co_visibility.is_some())
         .collect();
     if cameras.is_empty() {
-        prepared.0 = None;
-        diagnostics.0.lock().unwrap().atlas_bytes = 0;
+        // Camera entities disappear for a frame during room replacement. The
+        // headless pool retains their attachments, so keep this single atlas
+        // too. Disabling capture/visibility immediately releases the allocation.
+        if !retained.0 {
+            prepared.0 = None;
+            diagnostics.0.lock().unwrap().atlas_bytes = 0;
+        }
         return;
     }
     cameras.sort_by_key(|(c, _)| c.co_visibility.as_ref().unwrap().slot);
@@ -396,6 +422,20 @@ fn render_visibility(
             .chain(o.preview.iter())
             .any(|h| images.get(h).is_none())
     }) {
+        return;
+    }
+    // A retained atlas must never acknowledge newly sized/replaced attachments
+    // until prepare has rebound their exact GPU textures and camera uniforms.
+    let current_images = cameras
+        .iter()
+        .flat_map(|c| {
+            let o = c.co_visibility.as_ref().unwrap();
+            [&c.world_depth, &c.normal_semantic, &o.image]
+                .into_iter()
+                .chain(o.preview.iter())
+        })
+        .map(|h| (h.id(), images.get(h).unwrap().texture.id()));
+    if !current_images.eq(atlas.key.images.iter().copied()) {
         return;
     }
     let diagnostics = context.diagnostic_recorder();

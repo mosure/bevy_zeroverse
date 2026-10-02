@@ -637,13 +637,12 @@ pub fn sample_stream(
         state.enabled = false;
         return;
     }
-    if pipeline_readiness
-        .as_ref()
-        .is_some_and(|ready| !ready.ready())
-    {
+    if pipeline_readiness.as_ref().is_some_and(|ready| {
+        !ready.ready() || capture_root.is_some_and(|root| !ready.ready_for_scene(root))
+    }) {
         // Hold the current mode until its pipelines exist; otherwise a previous
         // mode's readback can be mistaken for a completed geometric annotation.
-        state.warmup_frames = state.warmup_frames.max(3);
+        state.warmup_frames = state.warmup_frames.max(SamplerState::WARMUP_FRAME_DELAY);
         return;
     }
 

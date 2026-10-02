@@ -5,6 +5,7 @@
 //! transport reflected light for a bounded number of bounces. Six cosine
 //! convolutions are stored as Bevy ambient cubes, in cd/m² (irradiance / π).
 //! This is diffuse baked GI, not a replacement for a full specular path tracer.
+mod bvh;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod gpu;
 use super::{
@@ -531,7 +532,7 @@ impl BakeScene {
                 outer_cos: 0.0,
             });
         }
-        result.build_node(0, result.triangles.len());
+        result.build_bvh();
         result.preparation_ms = started.elapsed().as_secs_f64() * 1000.0;
         result
     }
@@ -572,10 +573,22 @@ impl BakeScene {
         transform: Transform,
         material: usize,
     ) {
+        if geometry.indices.is_empty() {
+            return;
+        }
+        // Indexed vertices are commonly shared by several triangles. Reuse
+        // the identical world transform result without changing triangle order,
+        // normal construction, UVs or intersection arithmetic.
+        let positions: Vec<_> = geometry
+            .positions
+            .iter()
+            .map(|p| transform.transform_point(Vec3::from_array(*p)))
+            .collect();
+        self.triangles.reserve(geometry.indices.len() / 3);
         for i in geometry.indices.as_chunks::<3>().0 {
-            let a = transform.transform_point(Vec3::from_array(geometry.positions[i[0] as usize]));
-            let b = transform.transform_point(Vec3::from_array(geometry.positions[i[1] as usize]));
-            let c = transform.transform_point(Vec3::from_array(geometry.positions[i[2] as usize]));
+            let a = positions[i[0] as usize];
+            let b = positions[i[1] as usize];
+            let c = positions[i[2] as usize];
             let normal = (b - a).cross(c - a).normalize_or_zero();
             if normal.length_squared() < 0.5 {
                 continue;
@@ -595,43 +608,8 @@ impl BakeScene {
         }
     }
 
-    fn build_node(&mut self, start: usize, count: usize) -> usize {
-        let index = self.nodes.len();
-        let mut lo = Vec3::splat(f32::INFINITY);
-        let mut hi = Vec3::splat(f32::NEG_INFINITY);
-        for t in &self.triangles[start..start + count] {
-            let (a, b) = t.bounds();
-            lo = lo.min(a);
-            hi = hi.max(b);
-        }
-        self.nodes.push(Node {
-            lo: lo - Vec3::splat(1e-5),
-            hi: hi + Vec3::splat(1e-5),
-            start,
-            count,
-            right: 0,
-            axis: 0,
-        });
-        if count > 8 {
-            let size = hi - lo;
-            let axis = if size.x > size.y && size.x > size.z {
-                0
-            } else if size.y > size.z {
-                1
-            } else {
-                2
-            };
-            let middle = count / 2;
-            self.triangles[start..start + count].select_nth_unstable_by(middle, |a, b| {
-                (a.a + (a.ab + a.ac) / 3.0)[axis].total_cmp(&(b.a + (b.ab + b.ac) / 3.0)[axis])
-            });
-            self.build_node(start, middle);
-            let right = self.build_node(start + middle, count - middle);
-            self.nodes[index].right = right;
-            self.nodes[index].axis = axis;
-            self.nodes[index].count = 0;
-        }
-        index
+    fn build_bvh(&mut self) {
+        self.nodes = bvh::build_probe_tree(&mut self.triangles);
     }
 
     fn hit(
@@ -994,7 +972,7 @@ mod tests {
         let mut walls = Assembly::default();
         walls.box_part(Surface::Paint, "wall", Vec3::ZERO, Vec3::splat(4.0), 0.0);
         scene.add_assembly(&walls, Transform::IDENTITY, &Default::default());
-        scene.build_node(0, scene.triangles.len());
+        scene.build_bvh();
         for bounces in [1, 2, 4, 8] {
             let values = scene.integrate(Vec3::ZERO, 2048, bounces, 4);
             let expected = Vec3::new(
@@ -1012,6 +990,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(target_arch = "wasm32"))]
     fn bvh_matches_brute_force_triangle_intersections_and_shadows() {
         let mut scene = empty();
         for x in -2..3 {
@@ -1027,29 +1006,31 @@ mod tests {
                 scene.add_assembly(&assembly, Transform::IDENTITY, &Default::default());
             }
         }
-        scene.build_node(0, scene.triangles.len());
-        let mut rng = Rng(917);
-        for _ in 0..1024 {
-            let origin = Vec3::new((rng.next() - 0.5) * 8.0, 2.0, (rng.next() - 0.5) * 8.0);
-            let direction = Vec3::new(rng.next() - 0.5, -1.0, rng.next() - 0.5).normalize();
-            let brute = scene
-                .triangles
-                .iter()
-                .filter_map(|t| t.hit(origin, direction, 100.0))
-                .map(|h| h.0)
-                .min_by(f32::total_cmp);
-            let accelerated = scene.hit(origin, direction, 100.0, false).map(|h| h.1);
-            assert_eq!(brute.is_some(), accelerated.is_some());
-            assert_eq!(
-                brute.is_some(),
-                scene.hit(origin, direction, 100.0, true).is_some()
-            );
-            if let (Some(a), Some(b)) = (brute, accelerated) {
-                assert!((a - b).abs() < 1e-5);
+        for build in [bvh::build_probe_tree, bvh::build] {
+            scene.nodes = build(&mut scene.triangles);
+            let mut rng = Rng(917);
+            for _ in 0..1024 {
+                let origin = Vec3::new((rng.next() - 0.5) * 8.0, 2.0, (rng.next() - 0.5) * 8.0);
+                let direction = Vec3::new(rng.next() - 0.5, -1.0, rng.next() - 0.5).normalize();
+                let brute = scene
+                    .triangles
+                    .iter()
+                    .filter_map(|t| t.hit(origin, direction, 100.0))
+                    .map(|h| h.0)
+                    .min_by(f32::total_cmp);
+                let accelerated = scene.hit(origin, direction, 100.0, false).map(|h| h.1);
+                assert_eq!(brute.is_some(), accelerated.is_some());
+                assert_eq!(
+                    brute.is_some(),
+                    scene.hit(origin, direction, 100.0, true).is_some()
+                );
+                if let (Some(a), Some(b)) = (brute, accelerated) {
+                    assert!((a - b).abs() < 1e-5);
+                }
             }
+            assert!(scene.inside_solid(Vec3::ZERO));
+            assert!(!scene.inside_solid(Vec3::Y));
         }
-        assert!(scene.inside_solid(Vec3::ZERO));
-        assert!(!scene.inside_solid(Vec3::Y));
     }
 
     #[test]
@@ -1092,7 +1073,7 @@ mod tests {
             0.0,
         );
         scene.add_assembly(&blocker, Transform::IDENTITY, &Default::default());
-        scene.build_node(0, scene.triangles.len());
+        scene.build_bvh();
         assert_eq!(scene.direct(Vec3::ZERO, Vec3::Y), Vec3::ZERO);
 
         scene.triangles.clear();
@@ -1114,7 +1095,7 @@ mod tests {
             0.0,
         );
         scene.add_assembly(&panel, Transform::IDENTITY, &Default::default());
-        scene.build_node(0, scene.triangles.len());
+        scene.build_bvh();
         let local = scene.integrate(Vec3::ZERO, 8192, 1, 7);
         scene.world_rotation = Quat::from_rotation_y(PI * 0.5);
         let world = scene.integrate(Vec3::ZERO, 8192, 1, 7);

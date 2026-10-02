@@ -167,7 +167,7 @@ impl LiveDataset {
         }
     }
 
-    fn request_next(&self) -> Result<()> {
+    fn request_next(&self, prefetch_indoor: usize) -> Result<()> {
         // Ensure the app channels are present even if initialization was skipped (e.g. in tests).
         if !bevy_zeroverse::io::channels::channels_initialized() {
             bevy_zeroverse::headless::setup_globals(
@@ -180,7 +180,10 @@ impl LiveDataset {
 
         let sender = bevy_zeroverse::io::channels::app_frame_sender();
         sender
-            .send(Default::default())
+            .send(bevy_zeroverse::io::channels::AppFrameRequest {
+                prefetch_indoor,
+                ..Default::default()
+            })
             .context("failed to signal zeroverse app for next sample")
     }
 
@@ -201,11 +204,19 @@ impl Dataset<ZeroverseSample> for LiveDataset {
     }
 
     fn get(&self, _index: usize) -> Option<ZeroverseSample> {
+        self.capture_next(0)
+    }
+}
+
+impl LiveDataset {
+    /// The sequential CLI knows whether another scene is needed. General
+    /// Dataset access remains non-speculative, including one-shot callers.
+    pub(crate) fn capture_next(&self, prefetch_indoor: usize) -> Option<ZeroverseSample> {
         if let Err(err) = self.ensure_initialized() {
             eprintln!("failed to initialize dataset: {err:#}");
             return None;
         }
-        if let Err(err) = self.request_next() {
+        if let Err(err) = self.request_next(prefetch_indoor) {
             eprintln!("failed to request sample: {err:?}");
             return None;
         }
