@@ -113,21 +113,68 @@ fn procedural_texture_uploads_have_complete_mips_and_correct_color_spaces() {
         roughness.texture_descriptor.format,
         TextureFormat::Rgba8Unorm
     );
-    for (_, image) in images.iter() {
+    for (id, image) in images.iter() {
         let size = image.width();
         let descriptor = &image.texture_descriptor;
-        assert_eq!(descriptor.mip_level_count, size.ilog2() + 1);
+        let diffuse_cube = generated.environment.diffuse_map.id() == id;
+        assert_eq!(
+            descriptor.mip_level_count,
+            if diffuse_cube { 1 } else { size.ilog2() + 1 }
+        );
         let pixels: u32 = (0..descriptor.mip_level_count)
             .map(|level| (size >> level).pow(2))
             .sum();
         assert_eq!(
             image.data.as_ref().unwrap().len(),
-            (pixels * descriptor.size.depth_or_array_layers * 4) as usize
+            (pixels
+                * descriptor.size.depth_or_array_layers
+                * if descriptor.format == TextureFormat::Rgba16Float {
+                    8
+                } else {
+                    4
+                }) as usize
         );
     }
     assert_eq!(
         wood.perceptual_roughness, 1.0,
         "roughness texture must not be multiplied twice"
+    );
+    let chrome = materials
+        .get(&generated.get(super::materials::Surface::Chrome))
+        .unwrap();
+    assert_eq!(chrome.metallic, 1.);
+    assert!(
+        chrome.normal_map_texture.is_none(),
+        "micron slopes must not become quantized visible bumps"
+    );
+    assert_eq!(
+        generated.environment.intensity, 1.,
+        "HDR radiance is already in cd/m²"
+    );
+    let specular = images.get(&generated.environment.specular_map).unwrap();
+    assert_eq!(
+        specular.texture_descriptor.format,
+        TextureFormat::Rgba16Float
+    );
+    let values: Vec<_> = specular
+        .data
+        .as_ref()
+        .unwrap()
+        .as_chunks::<8>()
+        .0
+        .iter()
+        .flat_map(|p| {
+            p[..6]
+                .as_chunks::<2>()
+                .0
+                .iter()
+                .map(|b| half::f16::from_le_bytes(*b).to_f32())
+        })
+        .collect();
+    assert!(values.iter().all(|v| v.is_finite() && *v >= 0.));
+    assert!(
+        values.iter().any(|v| *v > 1.),
+        "room radiance was clipped to LDR"
     );
 }
 

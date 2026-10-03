@@ -67,7 +67,7 @@ fn install(
             panic!("Expected Bevy 0.19.1 WGSL PBR libraries");
         };
         let updated = if i == 0 {
-            anisotropy_prepass(source)
+            clearcoat_prepass(&anisotropy_prepass(source))
         } else if i == 2 {
             attenuation(source)
         } else {
@@ -159,6 +159,39 @@ fn anisotropy_prepass(source: &str) -> String {
         end_marker,
         block,
         &source[end + end_marker.len()..]
+    )
+}
+
+fn clearcoat_prepass(source: &str) -> String {
+    // The prepass stores only the base-layer normal. Bevy initializes the
+    // separate coat frame inside !LOAD_PREPASS_NORMALS, leaving it zero with
+    // SSAO. A smooth coat must use the geometric normal, not the bumped base.
+    let prepass = "    pbr_input.N = prepass_utils::prepass_normal(in.position, 0u);";
+    assert!(
+        source.contains(prepass),
+        "Bevy prepass changed: requalify clearcoat"
+    );
+    let source = source.replace(
+        prepass,
+        &format!("{prepass}\n    pbr_input.clearcoat_N = normalize(pbr_input.world_normal);"),
+    );
+    // Preserve optional coat normal maps too, with the same UVs, flags and
+    // tangent frame as the regular path. This also works when downstream
+    // consumers enable Bevy's additional material texture features.
+    let begin = "#ifdef STANDARD_MATERIAL_CLEARCOAT\n\n        // Note:";
+    let end = "#endif  // STANDARD_MATERIAL_CLEARCOAT\n";
+    let start = source.find(begin).expect("Bevy clearcoat block changed");
+    let finish = start + source[start..].find(end).expect("unclosed clearcoat block") + end.len();
+    let block = source[start..finish].replace(
+        "            TBN,",
+        "            pbr_functions::calculate_tbn_mikktspace(pbr_input.world_normal, in.world_tangent),",
+    );
+    let without = format!("{}{}", &source[..start], &source[finish..]);
+    let marker = "#endif  // LOAD_PREPASS_NORMALS";
+    assert!(without.contains(marker));
+    without.replace(
+        marker,
+        &format!("{marker}\n#ifdef VERTEX_UVS\n#ifdef VERTEX_TANGENTS\n{block}\n#endif\n#endif"),
     )
 }
 

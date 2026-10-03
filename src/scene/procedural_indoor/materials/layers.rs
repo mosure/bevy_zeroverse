@@ -88,14 +88,14 @@ impl FinishLayers {
         use std::f32::consts::TAU;
         let [u, v] = uv;
         let [_, meso, micro] = noise;
-        let band = (TAU * (u * self.bands[0] as f32 + v * self.bands[1] as f32)).sin();
         let textile = matches!(recipe.surface, Surface::Fabric | Surface::FabricAlt)
             || recipe.surface == Surface::Floor && floor_style == 1;
-        let mineral = matches!(recipe.surface, Surface::Concrete | Surface::Ceramic)
+        let mineral = recipe.surface == Surface::Concrete
             || recipe.surface == Surface::Floor && floor_style == 2;
         // Timber gets its directional grain from the base recipe, not mineral
         // veins or textile stripes spanning every plank in the room.
         let stripes = if textile {
+            let band = (TAU * (u * self.bands[0] as f32 + v * self.bands[1] as f32)).sin();
             (0.5 + 0.5 * band).powi(4) * self.stripe_strength
         } else {
             0.0
@@ -107,31 +107,39 @@ impl FinishLayers {
         };
         // Stone tiles are cut from different parts of a slab. A room-wide
         // sinusoid made unrelated tiles look like one striped sheet.
-        let (vein_u, vein_v, phase) = if recipe.surface == Surface::Floor && floor_style == 2 {
-            let [nx, ny] = recipe.floor_repetitions(floor_style);
-            let x = (u * nx).floor() as u32;
-            let y = (v * ny).floor() as u32;
-            let phase = super::hash(x, y, recipe.seed.wrapping_add(97));
-            let uv = ((u * nx).fract(), (v * ny).fract());
-            let uv = if phase > 0.5 { (uv.1, uv.0) } else { uv };
-            (uv.0, uv.1, phase * TAU)
-        } else {
-            (u, v, 0.0)
-        };
-        // Narrow level sets of a warped multi-octave mineral field produce
-        // branching deposits instead of equally spaced sinusoidal marble bands.
-        let mineral_field = super::periodic_noise(vein_u + phase, vein_v, 4, 5, recipe.seed)
-            + 0.32
-                * super::periodic_noise(
-                    vein_u,
-                    vein_v + phase,
-                    11,
-                    13,
-                    recipe.seed.wrapping_add(33),
-                );
-        let veins = ((mineral_field - 0.62).abs() * 14.0).clamp(0.0, 1.0);
         let vein = if mineral {
-            (1.0 - veins).powi(6) * self.vein_strength
+            let (vein_u, vein_v, phase) = if recipe.surface == Surface::Floor && floor_style == 2 {
+                let [nx, ny] = recipe.floor_repetitions(floor_style);
+                let x = (u * nx).floor() as u32;
+                let y = (v * ny).floor() as u32;
+                let phase = super::hash(x, y, recipe.seed.wrapping_add(97));
+                let uv = ((u * nx).fract(), (v * ny).fract());
+                let uv = if phase > 0.5 { (uv.1, uv.0) } else { uv };
+                (uv.0, uv.1, phase * TAU)
+            } else {
+                (u, v, 0.0)
+            };
+            // Narrow level sets of a warped multi-octave mineral field produce
+            // branching deposits instead of equally spaced sinusoidal marble bands.
+            let mineral_field = super::periodic_noise(vein_u + phase, vein_v, 4, 5, recipe.seed)
+                + 0.32
+                    * super::periodic_noise(
+                        vein_u,
+                        vein_v + phase,
+                        11,
+                        13,
+                        recipe.seed.wrapping_add(33),
+                    );
+            let veins = ((mineral_field - 0.62).abs() * 14.0).clamp(0.0, 1.0);
+            // Only stone receives veins, with subdued aggregate transitions in
+            // concrete. Glazed ceramic and wall paint are not cut mineral slabs.
+            (1.0 - veins).powi(6)
+                * self.vein_strength
+                * if recipe.surface == Surface::Concrete {
+                    0.15
+                } else {
+                    1.0
+                }
         } else {
             0.0
         };
@@ -159,7 +167,7 @@ mod tests {
                             "nonperiodic {:?}: {a:?} {b:?}",
                             recipe.surface
                         );
-                        assert!(a.0.is_finite() && a.1.is_finite() && (0.12..=1.0).contains(&a.2));
+                        assert!(a.0.is_finite() && a.1.is_finite() && (0.045..=1.0).contains(&a.2));
                     }
                 }
             }

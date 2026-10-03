@@ -117,6 +117,39 @@ impl Default for GenConfig {
     }
 }
 
+impl GenConfig {
+    /// Full-quality multi-view indoor capture with automatic bounded scheduling.
+    /// Three 512×512 views, one timestep, lossless RGB and geometric annotations.
+    /// Change scene/content/output requirements as needed; no performance tuning
+    /// or reduced-quality profile is required to use the capture pipeline.
+    pub fn indoor(output: impl Into<PathBuf>, samples: usize) -> Self {
+        Self {
+            output: output.into(),
+            samples,
+            scene_type: ZeroverseSceneType::ProceduralIndoor,
+            width: 512,
+            height: 512,
+            cameras: 3,
+            playback_steps: 1,
+            playback_step: 0.0,
+            // Bound the two capture/export batches instead of accumulating
+            // hundreds of multi-view float32 samples in each batch.
+            chunk_size: 4,
+            color_codec: ColorCodec::Raw,
+            render_modes: vec![
+                RenderMode::Color,
+                RenderMode::Depth,
+                RenderMode::Normal,
+                RenderMode::Position,
+                RenderMode::Semantic,
+                RenderMode::CoVisibility,
+            ],
+            ov_mode: bevy_zeroverse::app::OvoxelMode::Disabled,
+            ..Self::default()
+        }
+    }
+}
+
 /// Validate the capture contract before starting a GPU process or writing data.
 pub fn validate_gen_config(config: &GenConfig) -> Result<()> {
     anyhow::ensure!(
@@ -740,6 +773,26 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
 #[cfg(test)]
 mod flow_tests {
     use super::*;
+
+    #[test]
+    fn indoor_constructor_keeps_quality_and_bounds_multiview_batches() {
+        let config = GenConfig::indoor("unused-test-output", 17);
+        validate_gen_config(&config).unwrap();
+        assert_eq!((config.cameras, config.width, config.height), (3, 512, 512));
+        assert_eq!(config.playback_steps, 1);
+        assert!(config.indoor_quality.shadows());
+        assert!(config.indoor_quality.ssao());
+        assert!(config.indoor_quality.diffuse_gi());
+        assert!(config.indoor_quality.specular_transmission());
+        assert_eq!(config.indoor_gi_rays, GenConfig::default().indoor_gi_rays);
+        assert_eq!(
+            config.indoor_human_density,
+            GenConfig::default().indoor_human_density
+        );
+        assert_eq!(config.color_codec, ColorCodec::Raw);
+        assert_eq!(config.chunk_size, 4);
+        assert!(config.human_motion.is_none());
+    }
 
     #[test]
     fn terminal_or_background_only_flow_is_a_complete_sample() {

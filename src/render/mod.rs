@@ -21,6 +21,8 @@ pub mod optical_flow;
 pub mod position;
 pub mod residency;
 pub mod semantic;
+#[cfg(all(target_os = "linux", target_env = "gnu", target_arch = "x86_64"))]
+mod upload;
 
 /// Upload through queue staging instead of CPU-writing a mapped device-local
 /// allocation. Large mapped-at-creation copies can stall on discrete GPUs.
@@ -39,6 +41,18 @@ pub(crate) fn upload_buffer(
         mapped_at_creation: false,
     });
     if !descriptor.contents.is_empty() {
+        #[cfg(all(target_os = "linux", target_env = "gnu", target_arch = "x86_64"))]
+        {
+            let mut mapped = queue
+                .write_buffer_with(
+                    &buffer,
+                    0,
+                    std::num::NonZeroU64::new(descriptor.contents.len() as u64).unwrap(),
+                )
+                .expect("aligned upload buffer");
+            upload::copy_upload(mapped.slice(..), descriptor.contents);
+        }
+        #[cfg(not(all(target_os = "linux", target_env = "gnu", target_arch = "x86_64")))]
         queue.write_buffer(&buffer, 0, descriptor.contents);
     }
     buffer
@@ -149,6 +163,8 @@ impl Plugin for RenderPlugin {
         {
             settings.gpu_clustering = None;
         }
+        #[cfg(all(target_os = "linux", target_env = "gnu", target_arch = "x86_64"))]
+        upload::install(app);
     }
 }
 

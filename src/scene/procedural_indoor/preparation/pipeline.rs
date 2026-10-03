@@ -1,5 +1,5 @@
-//! Bounded CPU lookahead for sequential capture. A prepared room owns reserved
-//! asset handles, but nothing is uploaded or installed until that room is requested.
+//! Bounded lookahead for sequential capture. One completed future room may upload
+//! immutable assets; entities, lighting and capture identity change only on demand.
 use super::{PreparedIndoor, StagedAssets};
 use crate::scene::procedural_indoor::{
     appearance, cameras, gi,
@@ -15,6 +15,42 @@ use rand::Rng;
 
 pub(crate) type PreparationTask = Task<Result<PreparedIndoor, String>>;
 
+/// Poll a future room without consuming it or exposing speculative errors to the
+/// current capture. A rejection is delivered only when its seed is requested.
+pub(crate) struct PreparationJob {
+    task: Option<PreparationTask>,
+    ready: Option<Result<PreparedIndoor, String>>,
+}
+impl PreparationJob {
+    #[cfg(test)]
+    pub(super) fn completed(ready: Result<PreparedIndoor, String>) -> Self {
+        Self {
+            task: None,
+            ready: Some(ready),
+        }
+    }
+    fn poll(&mut self) {
+        if let Some(task) = &mut self.task {
+            if let Some(result) = bevy::tasks::block_on(bevy::tasks::poll_once(task)) {
+                self.ready = Some(result);
+                self.task = None;
+            }
+        }
+    }
+    pub(crate) fn take_ready(&mut self) -> Option<Result<PreparedIndoor, String>> {
+        self.poll();
+        self.ready.take()
+    }
+    pub(crate) fn prepared(&mut self) -> Option<&mut PreparedIndoor> {
+        self.poll();
+        self.ready.as_mut().and_then(|result| result.as_mut().ok())
+    }
+    pub(crate) fn is_ready(&mut self) -> bool {
+        self.poll();
+        self.ready.is_some()
+    }
+}
+
 /// Only enable when a caller intends to capture the next consecutive seed.
 /// One-shot, random-access and interactive callers do no speculative work.
 #[derive(Resource, Default)]
@@ -24,6 +60,11 @@ pub struct IndoorPrefetch {
     pub started: u64,
     pub hits: u64,
     pub discarded: u64,
+    /// Hits whose CPU preparation was already complete when requested.
+    pub ready_hits: u64,
+    /// Future asset sets submitted to Bevy preparation; not GPU completion fences.
+    pub staged_rooms: u64,
+    pub staged_hits: u64,
 }
 
 pub const MAX_DEPTH: usize = 4;
@@ -39,6 +80,9 @@ impl<T> Default for Lookahead<T> {
 }
 
 impl<T> Lookahead<T> {
+    pub(crate) fn front_mut(&mut self) -> Option<&mut T> {
+        self.0.front_mut().map(|(_, job)| job)
+    }
     pub(crate) fn take(&mut self, request: &Request) -> (Option<T>, usize) {
         if self.0.front().is_some_and(|(key, _)| key == request) {
             return (self.0.pop_front().map(|(_, task)| task), 0);
@@ -130,12 +174,12 @@ impl Request {
         images: &Assets<Image>,
         materials: &Assets<StandardMaterial>,
         meshes: &Assets<Mesh>,
-    ) -> PreparationTask {
+    ) -> PreparationJob {
         let request = self.clone();
         let images = StagedAssets::new(images);
         let materials = StagedAssets::new(materials);
         let meshes = StagedAssets::new(meshes);
-        AsyncComputeTaskPool::get().spawn(async move {
+        let task = AsyncComputeTaskPool::get().spawn(async move {
             let started = bevy::platform::time::Instant::now();
             let mut scene = IndoorManifest::generate_with_humans(
                 request.seed,
@@ -190,13 +234,30 @@ impl Request {
             prepared.timings.layout_seconds = layout_seconds;
             prepared.timings.cameras_seconds = cameras_seconds;
             Ok(prepared)
-        })
+        });
+        PreparationJob {
+            task: Some(task),
+            ready: None,
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn speculative_failure_is_retained_until_requested() {
+        let mut job = PreparationJob::completed(Err("future seed rejected".into()));
+        assert!(job.prepared().is_none());
+        assert!(job.prepared().is_none());
+        assert!(job.is_ready());
+        assert_eq!(
+            job.take_ready().unwrap().err().as_deref(),
+            Some("future seed rejected")
+        );
+        assert!(job.take_ready().is_none());
+    }
 
     #[test]
     fn lookahead_is_bounded_contiguous_and_drains_at_end_of_capture() {

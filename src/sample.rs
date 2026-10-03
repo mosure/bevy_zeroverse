@@ -239,6 +239,15 @@ pub struct CaptureProgress {
     pub backoff_sleeps: u64,
 }
 
+impl CaptureProgress {
+    /// Future asset uploads must not compete with active scene construction,
+    /// lighting, or pipeline warmup. The current capture has been requested
+    /// before this window opens; its queue-ordered copies retain ownership.
+    pub(crate) fn readback_in_flight(&self) -> bool {
+        self.pending.is_some()
+    }
+}
+
 #[derive(Debug, PartialEq)]
 struct CaptureIdentity {
     scene: Entity,

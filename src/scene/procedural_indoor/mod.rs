@@ -67,8 +67,11 @@ use rand::Rng;
 )]
 #[cfg_attr(feature = "python", pyo3::pyclass(eq, eq_int))]
 pub enum IndoorQuality {
+    /// Full PBR effects supported by the target, including shadows. Dataset default.
     #[default]
     Auto,
+    /// Explicit reduced-effects profile: no shadows, GI, SSAO, bloom or refraction.
+    /// This is not a throughput preset for full-quality datasets.
     Portable,
 }
 
@@ -122,6 +125,7 @@ impl Plugin for ProceduralIndoorPlugin {
         #[cfg(not(target_arch = "wasm32"))]
         app.add_plugins(gi::gpu::GpuGiPlugin);
         app.add_systems(PreUpdate, regenerate);
+        app.init_resource::<preparation::residency::FutureAssets>();
         #[cfg(not(target_arch = "wasm32"))]
         app.add_systems(PreUpdate, lighting::finish.after(regenerate));
         app.add_systems(
@@ -188,9 +192,9 @@ pub fn indoor_generation_pending(world: &World) -> bool {
 #[derive(Default)]
 struct PendingIndoor {
     key: Option<preparation::pipeline::Request>,
-    prefetched: preparation::pipeline::Lookahead<preparation::pipeline::PreparationTask>,
+    prefetched: preparation::pipeline::Lookahead<preparation::pipeline::PreparationJob>,
     requested: bool,
-    task: Option<preparation::pipeline::PreparationTask>,
+    task: Option<preparation::pipeline::PreparationJob>,
     settings: Option<(
         BevyZeroverseConfig,
         ZeroverseSceneSettings,
@@ -215,11 +219,17 @@ fn regenerate(
     mut pending: Local<PendingIndoor>,
     mut generation: ResMut<IndoorGenerationStatus>,
     mut prefetch: ResMut<preparation::IndoorPrefetch>,
+    speculative: (
+        ResMut<preparation::residency::FutureAssets>,
+        Option<Res<crate::sample::CaptureProgress>>,
+    ),
 ) {
+    let (mut future_assets, capture) = speculative;
     if settings.scene_type != ZeroverseSceneType::ProceduralIndoor
         && (!events.is_empty() || !pending.requested)
     {
         *pending = PendingIndoor::default();
+        future_assets.clear();
         generation.pending = false;
         generation.lighting_pending = false;
         #[cfg(not(target_arch = "wasm32"))]
@@ -239,6 +249,22 @@ fn regenerate(
         generation.pending = true;
     }
     if !pending.requested {
+        // Sequential native capture automatically overlaps one future room's
+        // upload with current rendering/readback. Browsers retain cooperative
+        // CPU preparation and their existing upload policy.
+        if !cfg!(target_arch = "wasm32")
+            && args.headless
+            && !args.editor
+            && prefetch.depth > 0
+            && capture
+                .as_ref()
+                .is_some_and(|capture| capture.readback_in_flight())
+        {
+            if let Some(job) = pending.prefetched.front_mut() {
+                prefetch.staged_rooms +=
+                    u64::from(future_assets.stage(job, &mut images, &mut materials, &mut meshes));
+            }
+        }
         return;
     }
     // A request is a snapshot: dragging a slider during preparation cannot
@@ -261,18 +287,21 @@ fn regenerate(
         pending.task = None;
     }
     if pending.task.is_none() {
+        // From this point the requested room must satisfy the ordinary complete
+        // asset barrier, whether it came from lookahead or fresh construction.
+        future_assets.clear();
         let (task, discarded) = pending.prefetched.take(&key);
         prefetch.discarded += discarded as u64;
-        if let Some(task) = task {
+        if let Some(mut task) = task {
+            prefetch.ready_hits += u64::from(task.is_ready());
+            prefetch.staged_hits += u64::from(task.prepared().is_some_and(|p| p.assets_staged()));
             pending.task = Some(task);
             prefetch.hits += 1;
         } else {
             pending.task = Some(key.spawn(&images, &materials, &meshes));
         }
     }
-    let Some(result) =
-        bevy::tasks::block_on(bevy::tasks::poll_once(pending.task.as_mut().unwrap()))
-    else {
+    let Some(result) = pending.task.as_mut().unwrap().take_ready() else {
         return;
     };
     pending.task = None;
@@ -382,8 +411,8 @@ fn regenerate(
     commands.insert_resource(prepared.manifest);
     loaded.write(SceneLoadedEvent);
     // Only explicit sequential capture asks for lookahead. Construction owns
-    // CPU assets; GI dispatch, motion inference and ECS installation still wait
-    // for an actual request and the existing readiness barriers.
+    // CPU assets; the next room may upload immutable assets early. GI dispatch,
+    // motion inference and ECS installation still wait for an actual request.
     let depth = if args.headless && !args.editor {
         prefetch.depth
     } else {

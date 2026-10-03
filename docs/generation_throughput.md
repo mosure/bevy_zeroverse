@@ -1,5 +1,10 @@
 # Procedural capture throughput
 
+For the automatic library/CLI path and the published-WGPU upload improvements,
+see [efficient full-quality capture](generation_defaults.md). The measurements
+below are the October 2 checkout benchmark, including its stated local WGPU
+patches; they are retained as a separate workload and implementation snapshot.
+
 Measured October 2, 2026 on an NVIDIA RTX PRO 6000 Blackwell workstation
 (Vulkan, driver 610.43.02, 24 logical CPU cores). The workload uses three
 512×512 views per room, one timestep, consecutive seeds starting at 200,

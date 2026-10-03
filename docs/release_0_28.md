@@ -1,5 +1,15 @@
 # bevy_zeroverse 0.28
 
+Patch **0.28.2** (`bevy_zeroverse_burn` **0.11.2**, FFI **0.28.2**) adds
+scene-derived HDR reflections, corrected polished/brushed chrome, uneven timber
+growth contours and knots, and joint normal/roughness filtering. The full-quality
+indoor stream now automatically overlaps bounded CPU preparation and immutable
+GPU uploads with current captures. The efficient Burn library path retains the
+same shadows, GI and annotations as the CLI. See the measured [material
+qualification](material_quality.md) and [generation contract](generation_defaults.md).
+Geometry remains generator 22; the appearance contract is capture-v37/finishes=5.
+
+
 Patch **0.28.1** (`bevy_zeroverse_burn` **0.11.1**) fixes seed **1,013,005**
 being rejected for an inverted glass-window triangle. Roof clipping previously
 interpolated in float32, allowing a near-endpoint intersection to round outside

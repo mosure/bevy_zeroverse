@@ -4,7 +4,6 @@ use super::{periodic_noise, Surface};
 use crate::scene::procedural_indoor::layout::stream;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use std::f32::consts::TAU;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MaterialRecipe {
@@ -14,6 +13,7 @@ pub struct MaterialRecipe {
     pub seed: u64,
     pub color: [f32; 3],
     pub roughness: f32,
+    /// Longitudinal repeat. Timber's transverse cut width is given by `period_uv`.
     pub period_m: f32,
     pub relief_m: f32,
     pub grain_frequency: f32,
@@ -122,7 +122,7 @@ pub fn sample(seed: u64) -> Vec<MaterialRecipe> {
                     [n, n * 1.03, n * 1.06]
                 }
                 Surface::Chrome => {
-                    let n = rng.random_range(0.56..0.76);
+                    let n = rng.random_range(0.78..0.92);
                     [n, n * 1.01, n * 1.02]
                 }
                 Surface::Glass
@@ -184,7 +184,7 @@ pub fn sample(seed: u64) -> Vec<MaterialRecipe> {
                     Surface::Glass | Surface::GlassInterior => {
                         super::glass::GlassRecipe::sample(seed, surface).roughness
                     }
-                    Surface::Chrome => rng.random_range(0.14..0.32),
+                    Surface::Chrome => rng.random_range(0.06..0.24),
                     Surface::ContainerGlass | Surface::Liquid => rng.random_range(0.035..0.08),
                     Surface::Drink => rng.random_range(0.12..0.22),
                     Surface::Metal => rng.random_range(0.32..0.50),
@@ -226,22 +226,33 @@ pub fn sample(seed: u64) -> Vec<MaterialRecipe> {
                     | Surface::Rubber
                     | Surface::Paper
                     | Surface::Leather
+                    | Surface::Paint
+                    | Surface::Accent
+                    | Surface::Ceiling
+                    | Surface::Ceramic
             ) {
                 rng.random_range(0.045..0.16)
             } else {
                 rng.random_range(0.4..1.4)
             };
             let relief_m = if cloth {
-                rng.random_range(0.00008..0.00035)
+                rng.random_range(0.00016..0.00055)
             } else if wood {
                 rng.random_range(0.000025..0.00022)
-            } else if matches!(surface, Surface::Metal | Surface::Chrome) {
+            } else if surface == Surface::Chrome {
+                // Polished plating has microscopic scratches, not corrugated relief.
+                rng.random_range(0.0000002..0.0000015)
+            } else if surface == Surface::Metal {
                 rng.random_range(0.000008..0.000025)
             } else if matches!(
                 surface,
-                Surface::Plastic | Surface::Paper | Surface::Leather
+                Surface::Plastic | Surface::Paper | Surface::Ceramic
             ) {
                 rng.random_range(0.000010..0.000030)
+            } else if surface == Surface::Leather {
+                rng.random_range(0.00016..0.00048)
+            } else if matches!(surface, Surface::Paint | Surface::Accent | Surface::Ceiling) {
+                rng.random_range(0.000045..0.00014)
             } else {
                 rng.random_range(0.00002..0.0003)
             };
@@ -257,20 +268,33 @@ pub fn sample(seed: u64) -> Vec<MaterialRecipe> {
                 cross_frequency: rng.random_range(1.0..8.0),
                 warp: rng.random_range(0.005..0.09),
                 contrast: match surface {
+                    Surface::Wood | Surface::WoodEdge | Surface::Bark => {
+                        rng.random_range(0.25..0.65)
+                    }
+                    Surface::Fabric | Surface::FabricAlt | Surface::Leather => {
+                        rng.random_range(0.16..0.40)
+                    }
                     Surface::Metal | Surface::Chrome | Surface::Paper | Surface::PrintedPaper => {
                         rng.random_range(0.005..0.025)
                     }
-                    Surface::Plastic | Surface::Paint | Surface::Ceiling | Surface::Accent => {
-                        rng.random_range(0.015..0.045)
-                    }
+                    Surface::Plastic
+                    | Surface::Paint
+                    | Surface::Ceiling
+                    | Surface::Accent
+                    | Surface::Ceramic => rng.random_range(0.015..0.045),
                     _ => rng.random_range(0.035..0.23),
                 },
                 weathering: match surface {
                     Surface::Metal | Surface::Chrome | Surface::Paper | Surface::PrintedPaper => {
                         rng.random_range(0.0..0.004)
                     }
-                    Surface::Plastic | Surface::Paint | Surface::Ceiling | Surface::Accent => {
-                        rng.random_range(0.0..0.018)
+                    Surface::Plastic
+                    | Surface::Paint
+                    | Surface::Ceiling
+                    | Surface::Accent
+                    | Surface::Ceramic => rng.random_range(0.0..0.018),
+                    Surface::Leather | Surface::Wood | Surface::WoodEdge => {
+                        rng.random_range(0.0..0.035)
                     }
                     _ => rng.random_range(0.0..0.14),
                 },
@@ -283,7 +307,42 @@ pub fn sample(seed: u64) -> Vec<MaterialRecipe> {
         })
         .collect()
 }
+/// Specialize the floor recipe once, before recording it in a scene manifest.
+/// Carpet needs a textile-scale repeat, not the metre-wide plank/tile domain.
+pub(crate) fn floor_finish(recipes: &mut [MaterialRecipe], style: u32) {
+    let r = &mut recipes[Surface::Floor as usize];
+    let choice = super::hash(17, 89, r.seed);
+    match style {
+        0 => {
+            r.roughness = 0.26 + choice * 0.42;
+            // The floor atlas spans many boards. Millimetre fibres are below
+            // its texel footprint; exaggerating the surviving broad bands
+            // makes timber look like a striped sheet across the whole room.
+            r.contrast = (r.contrast * 0.70).clamp(0.04, 0.14);
+            r.relief_m = 0.00005 + choice * 0.00014;
+        }
+        1 => {
+            r.period_m = (r.period_m / 16.).clamp(0.12, 0.30);
+            r.roughness = 0.88 + choice * 0.10;
+            r.relief_m = 0.00030 + choice * 0.00045;
+        }
+        _ => {
+            r.roughness = 0.22 + choice * 0.53;
+            r.relief_m = 0.000025 + choice * 0.00010;
+        }
+    }
+}
+
 impl MaterialRecipe {
+    pub fn period_uv(&self) -> bevy::prelude::Vec2 {
+        let across = if matches!(self.surface, Surface::Wood | Surface::WoodEdge) {
+            (self.period_m * 0.32).clamp(0.22, 0.65)
+        } else {
+            self.period_m
+        };
+        bevy::prelude::Vec2::new(across, self.period_m)
+    }
+
     /// Integer repetitions preserve tileability while constraining the actual
     /// plank/tile dimensions rather than drawing arbitrary counts per texture.
     pub fn floor_repetitions(&self, floor_style: u32) -> [f32; 2] {
@@ -311,39 +370,25 @@ impl MaterialRecipe {
         let macro_n = noise(3, 3, 1);
         let meso = noise(17, 19, 2);
         let micro = noise(97, 91, 3);
-        let mineral = (0.55 * macro_n + 0.3 * meso + 0.15 * micro) * (1.0 - self.mineral_mix)
-            + self.mineral_mix * (0.65 * meso + 0.35 * (TAU * u * 5.0 + macro_n * 8.0).sin().abs());
-        let count = (self.period_m / 0.0025).round().clamp(12.0, 100.0);
-        let threads = (TAU * u * count).sin() * (TAU * v * count).sin();
-        // An odd thread count must not leave a half cycle at the tile boundary.
-        let twill = (TAU * (u + v) * (count * 0.5).round()).sin();
-        let weave = 0.5 + 0.25 * (threads * (1.0 - self.weave_mix) + twill * self.weave_mix);
         let wood = matches!(
             self.surface,
             Surface::Wood | Surface::WoodEdge | Surface::Bark
         ) || (self.surface == Surface::Floor && floor_style == 0);
         let cloth = matches!(self.surface, Surface::Fabric | Surface::FabricAlt)
             || (self.surface == Surface::Floor && floor_style == 1);
-        let value = if matches!(self.surface, Surface::Metal | Surface::Chrome) {
-            // Long machining grooves; color stays restrained while normal and
-            // roughness maps carry the brushed finish under grazing light.
-            noise(103, 5, 44) * 0.78 + micro * 0.22
-        } else if matches!(
-            self.surface,
-            Surface::Plastic | Surface::Rubber | Surface::Paper | Surface::Leather
-        ) {
-            micro * 0.72 + meso * 0.28
-        } else if wood {
-            super::timber::grain(self, u, v)
-        } else if cloth {
-            weave * 0.72 + micro * 0.28
-        } else {
-            mineral
-        };
+        let value = super::microstructure::value(self, [u, v], [macro_n, meso, micro], floor_style);
         let stain = ((macro_n - 0.5) * 3.0).max(0.0) * self.weathering;
-        let mut shade = 0.96 + (value - 0.5) * self.contrast - stain;
+        let mut shade = if wood {
+            // Leave headroom for light earlywood instead of clipping almost the
+            // entire grain to white. Base tint remains the species/palette.
+            0.88 + (value - 0.5) * self.contrast * 1.6 - stain
+        } else {
+            0.96 + (value - 0.5) * self.contrast - stain
+        };
         let mut height = (value - 0.5) * self.relief_m;
-        let finish_variation = if matches!(
+        let finish_variation = if self.surface == Surface::Chrome {
+            0.035
+        } else if matches!(
             self.surface,
             Surface::Metal | Surface::Chrome | Surface::Plastic | Surface::Paper
         ) {
@@ -357,6 +402,13 @@ impl MaterialRecipe {
             + (value - 0.5) * finish_variation
             + (macro_n - 0.5) * self.weathering
             + stain * 0.3;
+        if matches!(
+            self.surface,
+            Surface::Leather | Surface::Wood | Surface::WoodEdge
+        ) {
+            // Pores and creases scatter more broadly than their polished tops.
+            roughness += (0.5 - value) * 0.28;
+        }
         if self.surface == Surface::Floor && floor_style != 1 {
             let [nx, ny] = self.floor_repetitions(floor_style);
             let strip = (u * nx).floor() as u32;
@@ -396,7 +448,52 @@ impl MaterialRecipe {
         (
             finish[0].clamp(0.25, 1.0),
             finish[1],
-            finish[2].clamp(0.12, 1.0),
+            finish[2].clamp(0.045, 1.0),
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn timber_cut_spans_growth_rings_and_resolves_millimetre_pores() {
+        for seed in 0..128 {
+            for r in sample(seed)
+                .into_iter()
+                .filter(|r| matches!(r.surface, Surface::Wood | Surface::WoodEdge))
+            {
+                let period = r.period_uv();
+                assert_eq!(period.y, r.period_m);
+                assert!((0.002..0.009).contains(&(period.x / 109.)));
+                assert!(period.x <= period.y);
+            }
+        }
+    }
+
+    #[test]
+    fn recorded_floor_recipes_have_physical_scale_and_finish() {
+        for seed in 0..128 {
+            for style in 0..3 {
+                let mut recipes = sample(seed);
+                let original = recipes.clone();
+                floor_finish(&mut recipes, style);
+                for (r, old) in recipes.iter().zip(&original) {
+                    if r.surface != Surface::Floor {
+                        assert_eq!(r, old, "floor specialization modified another substrate");
+                    }
+                }
+                let floor = &recipes[Surface::Floor as usize];
+                assert!(floor.relief_m > 0. && floor.relief_m < 0.001);
+                if style == 1 {
+                    assert!((0.12..=0.30).contains(&floor.period_m));
+                    assert!(floor.roughness >= 0.88);
+                } else {
+                    assert_eq!(floor.period_m, original[Surface::Floor as usize].period_m);
+                    assert!((0.20..=0.76).contains(&floor.roughness));
+                }
+            }
+        }
     }
 }

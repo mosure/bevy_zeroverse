@@ -1,6 +1,9 @@
 //! Prepare immutable render assets away from the ECS schedule. Handles are reserved
 //! from the live stores, so cancellation and scene replacement retain Bevy ownership.
 pub(crate) mod pipeline;
+pub(crate) mod residency;
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod workers;
 use super::{
     architecture, gi, humans, layout::IndoorManifest, materials::IndoorMaterials, objects,
     IndoorQuality,
@@ -34,19 +37,26 @@ impl<A: Asset> AssetStore<A> for Assets<A> {
 pub struct StagedAssets<A: Asset> {
     provider: AssetHandleProvider,
     entries: HashMap<AssetId<A>, (Handle<A>, A)>,
+    // Keep speculative assets alive until their scene is promoted or canceled.
+    resident: Vec<Handle<A>>,
 }
 impl<A: Asset> StagedAssets<A> {
     pub fn new(assets: &Assets<A>) -> Self {
         Self {
             provider: assets.get_handle_provider(),
             entries: HashMap::new(),
+            resident: Vec::new(),
         }
     }
-    pub fn commit(self, assets: &mut Assets<A>) {
-        for (id, (_handle, asset)) in self.entries {
+    pub fn commit(mut self, assets: &mut Assets<A>) {
+        self.upload(assets);
+    }
+    fn upload(&mut self, assets: &mut Assets<A>) {
+        for (id, (handle, asset)) in self.entries.drain() {
             assets
                 .insert(id, asset)
                 .expect("staged asset uses the live allocator");
+            self.resident.push(handle);
         }
     }
 }
@@ -77,13 +87,7 @@ impl StagedAssets<Mesh> {
         // bounded native pool. No mesh/material quality or batching is changed.
         #[cfg(not(target_arch = "wasm32"))]
         let ready = {
-            static POOL: std::sync::OnceLock<bevy::tasks::TaskPool> = std::sync::OnceLock::new();
-            let pool = POOL.get_or_init(|| {
-                bevy::tasks::TaskPoolBuilder::new()
-                    .num_threads(std::thread::available_parallelism().map_or(1, |n| n.get().min(4)))
-                    .thread_name("indoor-mesh".into())
-                    .build()
-            });
+            let pool = workers::pool();
             pool.scope(|scope| {
                 for (handle, geometry) in jobs {
                     scope.spawn(async move { (handle, geometry.into_mesh()) });
@@ -147,13 +151,7 @@ impl SceneGeometry {
     async fn build(scene: &IndoorManifest) -> Self {
         #[cfg(not(target_arch = "wasm32"))]
         {
-            static POOL: std::sync::OnceLock<bevy::tasks::TaskPool> = std::sync::OnceLock::new();
-            let pool = POOL.get_or_init(|| {
-                bevy::tasks::TaskPoolBuilder::new()
-                    .num_threads(std::thread::available_parallelism().map_or(1, |n| n.get().min(4)))
-                    .thread_name("indoor-geometry".into())
-                    .build()
-            });
+            let pool = workers::pool();
             enum Part {
                 Architecture(objects::Assembly),
                 Object(objects::Assembly),
@@ -267,24 +265,24 @@ impl PreparedIndoor {
         #[cfg(target_arch = "wasm32")]
         let probes = None;
         #[cfg(target_arch = "wasm32")]
-        let _ = (settings, moving_humans);
+        let _ = settings;
         #[cfg(not(target_arch = "wasm32"))]
         let mut gpu_request = None;
         #[cfg(not(target_arch = "wasm32"))]
         let mut cpu_bake = None;
+        // Reuse the immutable transport acceleration structure for HDR reflections
+        // and native diffuse GI. Web gets the same reflection radiance without GI.
+        let transport = gi::BakeScene::from_geometry(
+            &manifest,
+            &material_set,
+            &materials,
+            &images,
+            &moving_humans,
+            &geometry,
+        );
+        material_set.build_environment(&manifest, &transport, &mut images);
         #[cfg(not(target_arch = "wasm32"))]
         if quality.diffuse_gi() && settings.enabled {
-            // A static irradiance volume must not retain a moving person's old
-            // occlusion. These candidates still cast live direct shadows; a
-            // rejected candidate also remains excluded until the next bake.
-            let transport = gi::BakeScene::from_geometry(
-                &manifest,
-                &material_set,
-                &materials,
-                &images,
-                &moving_humans,
-                &geometry,
-            );
             #[cfg(not(target_arch = "wasm32"))]
             if settings.gpu {
                 let (request, transform, statistics) =
@@ -597,6 +595,23 @@ mod tests {
     }
     #[derive(Asset, bevy::reflect::TypePath)]
     struct Value(u32);
+    #[test]
+    fn speculative_upload_promotes_without_replacing_or_copying_assets() {
+        let mut live = Assets::<Value>::default();
+        let mut staged = StagedAssets::new(&live);
+        let handle = staged.add(Value(17));
+        staged.upload(&mut live);
+        assert!(staged.entries.is_empty());
+        assert_eq!(staged.resident.len(), 1);
+        assert_eq!(live.get(&handle).unwrap().0, 17);
+        // A second stage/commit must not replace the uploaded object: preserve
+        // even a main-world modification made after staging.
+        live.get_mut(&handle).unwrap().0 = 23;
+        staged.upload(&mut live);
+        staged.commit(&mut live);
+        assert_eq!(live.len(), 1);
+        assert_eq!(live.get(&handle).unwrap().0, 23);
+    }
     #[test]
     fn reserved_assets_share_allocator_and_cancel_without_insertion() {
         let mut live = Assets::<Value>::default();

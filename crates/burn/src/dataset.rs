@@ -48,6 +48,7 @@ impl Default for LiveDatasetConfig {
 pub struct LiveDataset {
     config: LiveDatasetConfig,
     initialized: AtomicBool,
+    completed: Mutex<usize>,
 }
 
 fn normalize_asset_root(root: &Path) -> PathBuf {
@@ -63,6 +64,9 @@ fn normalize_asset_root(root: &Path) -> PathBuf {
 
 static APP_STARTED: OnceLock<AtomicBool> = OnceLock::new();
 static APP_CONTRACT: OnceLock<serde_json::Value> = OnceLock::new();
+// The process owns one renderer and one response channel. A request and its
+// receive are one transaction, including across compatible LiveDataset handles.
+static CAPTURE_TRANSACTION: Mutex<()> = Mutex::new(());
 
 fn app_contract(config: &LiveDatasetConfig) -> Result<serde_json::Value> {
     let mut engine = config.zeroverse_config.clone();
@@ -88,6 +92,7 @@ impl LiveDataset {
         Self {
             config,
             initialized: AtomicBool::new(false),
+            completed: Mutex::new(0),
         }
     }
 
@@ -204,29 +209,61 @@ impl Dataset<ZeroverseSample> for LiveDataset {
     }
 
     fn get(&self, _index: usize) -> Option<ZeroverseSample> {
-        self.capture_next(0)
+        self.next_sample()
+            .map_err(|err| eprintln!("capture failed: {err:#}"))
+            .ok()
     }
 }
 
 impl LiveDataset {
-    /// The sequential CLI knows whether another scene is needed. General
-    /// Dataset access remains non-speculative, including one-shot callers.
-    pub(crate) fn capture_next(&self, prefetch_indoor: usize) -> Option<ZeroverseSample> {
-        if let Err(err) = self.ensure_initialized() {
-            eprintln!("failed to initialize dataset: {err:#}");
-            return None;
-        }
-        if let Err(err) = self.request_next(prefetch_indoor) {
-            eprintln!("failed to request sample: {err:?}");
-            return None;
-        }
-        match self.receive_sample() {
-            Ok(sample) => Some(sample),
-            Err(err) => {
-                eprintln!("failed to receive sample: {err:?}");
-                None
+    /// Capture the next scene using the persistent renderer. Scheduling and
+    /// bounded lookahead are automatic; no thread, upload or queue tuning is
+    /// needed. Quality and requested annotations are never reduced for speed.
+    ///
+    /// Like the Burn `Dataset::get` adapter, this is a live stream, not random
+    /// access. `num_samples` bounds each epoch's lookahead; one-sample datasets
+    /// do no speculative work. Zero denotes an unbounded stream.
+    pub fn next_sample(&self) -> Result<ZeroverseSample> {
+        self.capture(None)
+    }
+
+    // Compatibility for the generator's existing diagnostic prefetch overrides.
+    // Ordinary downstream callers use next_sample or Dataset::get.
+    pub(crate) fn capture_next(&self, prefetch_indoor: usize) -> Result<ZeroverseSample> {
+        self.capture(Some(prefetch_indoor))
+    }
+
+    fn capture(&self, lookahead_override: Option<usize>) -> Result<ZeroverseSample> {
+        let _transaction = CAPTURE_TRANSACTION
+            .lock()
+            .map_err(|_| anyhow::anyhow!("capture transaction lock poisoned"))?;
+        self.ensure_initialized()?;
+        let mut completed = self
+            .completed
+            .lock()
+            .map_err(|_| anyhow::anyhow!("capture sequence lock poisoned"))?;
+        let lookahead = lookahead_override.unwrap_or_else(|| {
+            if self.config.zeroverse_config.scene_type
+                == bevy_zeroverse::scene::ZeroverseSceneType::ProceduralIndoor
+            {
+                automatic_lookahead(self.config.num_samples, *completed)
+            } else {
+                0
             }
-        }
+        });
+        self.request_next(lookahead)?;
+        let sample = self.receive_sample()?;
+        *completed = completed.wrapping_add(1);
+        Ok(sample)
+    }
+}
+
+fn automatic_lookahead(epoch_samples: usize, completed: usize) -> usize {
+    const DEPTH: usize = 3;
+    if epoch_samples == 0 {
+        DEPTH
+    } else {
+        DEPTH.min(epoch_samples - completed % epoch_samples - 1)
     }
 }
 
@@ -318,5 +355,88 @@ impl Dataset<ZeroverseSample> for ChunkDataset {
         load_chunk(path)
             .ok()
             .and_then(|chunk| chunk.get(local_idx).cloned())
+    }
+}
+
+#[cfg(test)]
+mod live_tests {
+    use super::*;
+    use bevy_zeroverse::io::channels;
+
+    #[test]
+    fn public_live_stream_automatically_prefetches_and_owns_each_response() {
+        channels::init_channels();
+        let dataset = LiveDataset::new(LiveDatasetConfig {
+            num_samples: 5,
+            zeroverse_config: bevy_zeroverse::app::BevyZeroverseConfig {
+                scene_type: bevy_zeroverse::scene::ZeroverseSceneType::ProceduralIndoor,
+                ..Default::default()
+            },
+            ..Default::default()
+        });
+        dataset.mark_initialized_for_tests();
+        let server = thread::spawn(|| {
+            let rx = channels::app_frame_receiver().unwrap().lock().unwrap();
+            for (index, depth) in [3, 3, 2, 1, 0, 3].into_iter().enumerate() {
+                let request = rx.recv_timeout(Duration::from_secs(5)).unwrap();
+                assert_eq!(request.prefetch_indoor, depth);
+                channels::sample_sender()
+                    .send(ZeroverseSample {
+                        view_dim: index as u32,
+                        ..Default::default()
+                    })
+                    .unwrap();
+            }
+        });
+        for index in 0..6 {
+            let sample = if index % 2 == 0 {
+                dataset.next_sample().unwrap()
+            } else {
+                Dataset::get(&dataset, index).unwrap()
+            };
+            assert_eq!(sample.view_dim, index as u32);
+        }
+        server.join().unwrap();
+
+        let mut clients = Vec::new();
+        let barrier = Arc::new(std::sync::Barrier::new(3));
+        for _ in 0..2 {
+            let client = LiveDataset::new(LiveDatasetConfig {
+                num_samples: 1,
+                ..Default::default()
+            });
+            client.mark_initialized_for_tests();
+            let barrier = barrier.clone();
+            clients.push(thread::spawn(move || {
+                barrier.wait();
+                client.next_sample().unwrap()
+            }));
+        }
+        barrier.wait();
+        let rx = channels::app_frame_receiver().unwrap().lock().unwrap();
+        for index in 0..2 {
+            let request = rx.recv_timeout(Duration::from_secs(5)).unwrap();
+            assert_eq!(request.prefetch_indoor, 0);
+            // A second caller must not submit while another owns the reply.
+            assert!(matches!(
+                rx.recv_timeout(Duration::from_millis(20)),
+                Err(std::sync::mpsc::RecvTimeoutError::Timeout)
+            ));
+            channels::sample_sender()
+                .send(ZeroverseSample {
+                    view_dim: index,
+                    ..Default::default()
+                })
+                .unwrap();
+        }
+        drop(rx);
+        let mut ids: Vec<_> = clients
+            .into_iter()
+            .map(|client| client.join().unwrap().view_dim)
+            .collect();
+        ids.sort_unstable();
+        assert_eq!(ids, [0, 1]);
+        assert_eq!(automatic_lookahead(1, 0), 0);
+        assert_eq!(automatic_lookahead(0, 100), 3);
     }
 }

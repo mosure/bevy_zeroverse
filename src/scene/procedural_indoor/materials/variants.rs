@@ -72,7 +72,11 @@ pub(super) fn build(
                         rng.random_range(0.20..0.78),
                     )
                 } else if matches!(surface, Surface::Metal | Surface::Chrome) {
-                    let silver = rng.random_range(0.15..0.82);
+                    let silver = if surface == Surface::Chrome {
+                        rng.random_range(0.78..0.94)
+                    } else {
+                        rng.random_range(0.08..0.55)
+                    };
                     let warm = rng.random_range(0.0..0.10);
                     Color::srgb(silver, silver * (1. - warm), silver * (1. - warm * 1.8))
                 } else if surface == Surface::Plastic {

@@ -78,7 +78,7 @@ struct Cli {
     #[arg(
         long,
         default_value_t = 512,
-        default_value_if("scene_type", "procedural-indoor", "16")
+        default_value_if("scene_type", "procedural-indoor", "4")
     )]
     chunk_size: usize,
 
@@ -122,12 +122,12 @@ struct Cli {
     #[arg(long, default_value_t = 0.25)]
     indoor_human_density: f32,
 
-    /// Prepare consecutive rooms on the CPU while the current room renders.
-    #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
+    /// Diagnostic override for automatic consecutive-room scheduling.
+    #[arg(long, default_value_t = true, action = clap::ArgAction::Set, hide = true)]
     indoor_prefetch: bool,
 
-    /// CPU lookahead depth (1..=4). Larger queues use more host memory.
-    #[arg(long, default_value_t = 3, value_parser = clap::value_parser!(u8).range(1..=4))]
+    /// Diagnostic override for the bounded CPU lookahead queue.
+    #[arg(long, default_value_t = 3, value_parser = clap::value_parser!(u8).range(1..=4), hide = true)]
     indoor_prefetch_depth: u8,
 
     /// Opt-in ARDY motion policy JSON (requires the human_motion Cargo feature)
@@ -148,7 +148,7 @@ struct Cli {
     #[arg(long, default_value_t = 256, value_parser = clap::value_parser!(u32).range(64..=16384))]
     indoor_gi_rays: u32,
 
-    /// Auto rendering or portable lighting/glazing for constrained adapters
+    /// Auto retains all effects; Portable disables shadows, GI, SSAO, bloom and refraction
     #[arg(long, value_enum, default_value_t = bevy_zeroverse::scene::procedural_indoor::IndoorQuality::Auto)]
     indoor_quality: bevy_zeroverse::scene::procedural_indoor::IndoorQuality,
 
@@ -994,7 +994,7 @@ mod process_limit_tests {
         let config = indoor(&[]);
         assert_eq!(config.cameras, 4);
         assert_eq!(config.workers, 1);
-        assert_eq!(config.chunk_size, 16);
+        assert_eq!(config.chunk_size, 4);
         assert_eq!(indoor(&["--cameras", "2"]).cameras, 2);
         let legacy = Cli::parse_from(["zeroverse_gen", "--output", "unused"]);
         assert_eq!(legacy.cameras, 1);

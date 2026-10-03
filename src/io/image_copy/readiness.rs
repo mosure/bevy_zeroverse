@@ -59,30 +59,53 @@ pub(super) fn extract(
     images: Extract<Res<Assets<Image>>>,
     materials: Extract<Res<Assets<StandardMaterial>>>,
     scene: Extract<Query<Entity, With<crate::scene::SceneAabbNode>>>,
+    future: Extract<
+        Option<Res<crate::scene::procedural_indoor::preparation::residency::FutureAssets>>,
+    >,
 ) {
-    expected.scene = scene.single().ok();
-    expected.meshes.clear();
-    expected.images.clear();
-    expected.materials.clear();
-    expected
-        .meshes
-        .extend(meshes.iter().filter_map(|(id, asset)| {
-            asset
-                .asset_usage
-                .contains(RenderAssetUsages::RENDER_WORLD)
-                .then_some(id)
+    expected.gather(
+        scene.single().ok(),
+        &meshes,
+        &images,
+        &materials,
+        future.as_deref(),
+    );
+}
+
+impl ExpectedAssets {
+    fn gather(
+        &mut self,
+        scene: Option<Entity>,
+        meshes: &Assets<Mesh>,
+        images: &Assets<Image>,
+        materials: &Assets<StandardMaterial>,
+        future: Option<&crate::scene::procedural_indoor::preparation::residency::FutureAssets>,
+    ) {
+        self.scene = scene;
+        self.meshes.clear();
+        self.images.clear();
+        self.materials.clear();
+        self.meshes.extend(meshes.iter().filter_map(|(id, asset)| {
+            (asset.asset_usage.contains(RenderAssetUsages::RENDER_WORLD)
+                && future
+                    .as_ref()
+                    .is_none_or(|future| !future.meshes.contains(&id)))
+            .then_some(id)
         }));
-    expected
-        .images
-        .extend(images.iter().filter_map(|(id, asset)| {
-            asset
-                .asset_usage
-                .contains(RenderAssetUsages::RENDER_WORLD)
-                .then_some(id)
+        self.images.extend(images.iter().filter_map(|(id, asset)| {
+            (asset.asset_usage.contains(RenderAssetUsages::RENDER_WORLD)
+                && future
+                    .as_ref()
+                    .is_none_or(|future| !future.images.contains(&id)))
+            .then_some(id)
         }));
-    expected
-        .materials
-        .extend(materials.ids().map(AssetId::untyped));
+        self.materials
+            .extend(materials.ids().map(AssetId::untyped).filter(|id| {
+                future
+                    .as_ref()
+                    .is_none_or(|future| !future.materials.contains(id))
+            }));
+    }
 }
 
 pub(super) fn update(
@@ -139,6 +162,41 @@ pub(super) fn update(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn future_uploads_do_not_hide_current_assets() {
+        use crate::scene::procedural_indoor::preparation::residency::FutureAssets;
+        let mut meshes = Assets::<Mesh>::default();
+        let mut images = Assets::<Image>::default();
+        let mut materials = Assets::<StandardMaterial>::default();
+        let current_mesh = meshes.add(Cuboid::default());
+        let next_mesh = meshes.add(Cuboid::default());
+        let current_image = images.add(Image::default());
+        let next_image = images.add(Image::default());
+        let current_material = materials.add(StandardMaterial::default());
+        let next_material = materials.add(StandardMaterial::default());
+        let mut future = FutureAssets {
+            meshes: [next_mesh.id()].into_iter().collect(),
+            images: [next_image.id()].into_iter().collect(),
+            materials: [next_material.id().untyped()].into_iter().collect(),
+        };
+        let mut expected = ExpectedAssets::default();
+        let mut world = World::new();
+        let current = world.spawn_empty().id();
+        let next = world.spawn_empty().id();
+        expected.gather(Some(current), &meshes, &images, &materials, Some(&future));
+        assert_eq!(expected.scene, Some(current));
+        assert_eq!(expected.meshes, [current_mesh.id()]);
+        assert_eq!(expected.images, [current_image.id()]);
+        assert_eq!(expected.materials, [current_material.id().untyped()]);
+
+        // Promotion restores the requirement for every promoted asset.
+        future.clear();
+        expected.gather(Some(next), &meshes, &images, &materials, Some(&future));
+        assert_eq!(expected.scene, Some(next));
+        assert!(expected.meshes.contains(&next_mesh.id()));
+        assert!(expected.images.contains(&next_image.id()));
+        assert!(expected.materials.contains(&next_material.id().untyped()));
+    }
     #[test]
     fn prepared_assets_from_a_previous_room_cannot_release_a_new_room() {
         let mut world = World::new();

@@ -296,8 +296,32 @@ fn main() -> Result<()> {
         state.regenerate_scene = false;
         app.insert_resource(state);
         let mut updates = 0;
+        let mut update_times = std::collections::BTreeMap::<String, (u64, f64, f64)>::new();
         let sample = loop {
+            let phase = {
+                let world = app.world();
+                let ready = world.resource::<bevy_zeroverse::sample::CaptureReadiness>();
+                let sampler = world.resource::<SamplerState>();
+                if let Some(blocker) = ready.blocker {
+                    format!("scene_{blocker:?}")
+                } else if !world
+                    .resource::<bevy_zeroverse::io::image_copy::CapturePipelineReadiness>()
+                    .ready()
+                {
+                    "render_preparation".into()
+                } else if sampler.warmup_frames > 0 || sampler.frames > 0 {
+                    "settling".into()
+                } else {
+                    "capture".into()
+                }
+            };
+            let update_started = Instant::now();
             app.update();
+            let seconds = update_started.elapsed().as_secs_f64();
+            let timing = update_times.entry(phase).or_default();
+            timing.0 += 1;
+            timing.1 += seconds;
+            timing.2 = timing.2.max(seconds);
             updates += 1;
             ensure!(
                 app.world().resource::<CaptureFailure>().0.is_none(),
@@ -444,11 +468,13 @@ fn main() -> Result<()> {
             .world()
             .resource::<procedural_indoor::preparation::IndoorPrefetch>();
         let record = serde_json::json!({"run_id":run_id,"pid":std::process::id(),"wall_elapsed_seconds":total.elapsed().as_secs_f64(),
-            "prefetch": {"started":prefetch.started,"hits":prefetch.hits,"discarded":prefetch.discarded},
+            "prefetch": {"started":prefetch.started,"hits":prefetch.hits,"discarded":prefetch.discarded,
+                "ready_hits":prefetch.ready_hits,"staged_rooms":prefetch.staged_rooms,"staged_hits":prefetch.staged_hits},
             "completed_unix_seconds":SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs_f64(),
             "index":index,"seed":seed,"elapsed_seconds":elapsed,"request_seconds":request_seconds,
             "preparation_stages": if args.fixed_scene && index > 0 { None } else { app.world().get_resource::<procedural_indoor::preparation::PreparationTimings>() },
             "capture_seconds":elapsed-request_seconds,"updates":updates,"rss_bytes":rss,"heap":heap_memory(),
+            "update_phase_seconds":update_times.iter().map(|(phase,(count,sum,max))| (phase,serde_json::json!({"count":count,"sum":sum,"max":max}))).collect::<std::collections::BTreeMap<_,_>>(),
             "ecs_entities":app.world().entities().len(),"gpu_registry":gpu_registry,
             "hal_memory":hal_memory,
             "renderer_residency":app.world().get_resource::<bevy_zeroverse::render::residency::RenderResidencyDiagnostics>().map(|d|d.snapshot()),

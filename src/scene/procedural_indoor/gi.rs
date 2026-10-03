@@ -17,13 +17,11 @@ use super::{
 use bevy::{
     asset::RenderAssetUsages,
     image::ImageSampler,
+    platform::time::Instant,
     prelude::*,
     render::render_resource::{Extent3d, TextureDimension, TextureFormat},
 };
-use std::{
-    f32::consts::{PI, TAU},
-    time::Instant,
-};
+use std::f32::consts::{PI, TAU};
 
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct BakeSettings {
@@ -356,6 +354,69 @@ fn linear(color: Color) -> Vec3 {
 }
 
 impl BakeScene {
+    /// One deterministic radiance sample for the static reflection environment.
+    /// Direct light is visibility-tested against the same BVH as diffuse GI;
+    /// unresolved secondary bounce energy uses a bounded ambient approximation.
+    pub(crate) fn reflection_radiance(
+        &self,
+        origin: Vec3,
+        direction: Vec3,
+        ambient: f32,
+    ) -> (f32, Vec3) {
+        let Some((index, distance, bary)) = self.hit(origin, direction, 1000., false) else {
+            return (
+                1000.,
+                if direction.y > 0. {
+                    self.sky
+                } else {
+                    Vec3::ZERO
+                },
+            );
+        };
+        let triangle = &self.triangles[index];
+        let normal = if triangle.normal.dot(direction) > 0. {
+            -triangle.normal
+        } else {
+            triangle.normal
+        };
+        let position = origin + direction * distance;
+        let mat = &self.materials[triangle.material];
+        let uv = triangle.uv[0] * (1. - bary.x - bary.y)
+            + triangle.uv[1] * bary.x
+            + triangle.uv[2] * bary.y;
+        let albedo = mat.albedo(uv);
+        let emission = if mat.textured_emission {
+            mat.emission * albedo
+        } else {
+            mat.emission
+        };
+        (
+            distance,
+            emission + albedo * (self.direct(position, normal) / PI + Vec3::splat(ambient)),
+        )
+    }
+
+    pub(crate) fn reflection_origin(&self, scene: &IndoorManifest) -> Vec3 {
+        let mut candidates = Vec::new();
+        for x in [0., -0.22, 0.22] {
+            for z in [0., -0.22, 0.22] {
+                let p = Vec2::new(x * scene.room_size.x, z * scene.room_size.z);
+                candidates.push(Vec3::new(p.x, scene.ceiling_height(p) * 0.60, p.y));
+            }
+        }
+        candidates.extend(scene.cameras.iter().map(|c| c.start));
+        candidates
+            .into_iter()
+            .find(|&p| {
+                scene
+                    .envelope
+                    .as_ref()
+                    .is_none_or(|e| e.volume_clear(scene.room_size, p, 0.03))
+                    && !self.inside_solid(p)
+            })
+            .unwrap_or(Vec3::Y * scene.room_size.y * 0.5)
+    }
+
     pub fn from_manifest(
         scene: &IndoorManifest,
         set: &IndoorMaterials,

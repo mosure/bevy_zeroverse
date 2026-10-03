@@ -961,6 +961,13 @@ pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) 
 
     app.add_plugins(default_plugins);
 
+    if args.image_copiers
+        && args.scene_type == ZeroverseSceneType::ProceduralIndoor
+        && args.indoor_quality == crate::scene::procedural_indoor::IndoorQuality::Portable
+    {
+        warn!("Portable indoor capture explicitly disables shadows, GI, SSAO, bloom and refraction; use the default Auto quality for full-quality datasets");
+    }
+
     #[cfg(not(target_arch = "wasm32"))]
     if args.headless {
         // Preserve App::run() for the standalone headless viewer. Dataset

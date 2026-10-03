@@ -353,6 +353,10 @@ impl IndoorManifest {
             cameras: Vec::new(),
             rejected_placements: 0,
         };
+        super::materials::program::floor_finish(
+            &mut scene.program.as_mut().unwrap().materials,
+            scene.floor_style,
+        );
         let domain = scene.domain().unwrap().clone();
         scene.target_lux = domain.target_lux;
         scene.daylight_lux = domain.photometry.sun_lux;

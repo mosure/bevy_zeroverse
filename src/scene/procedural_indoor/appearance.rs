@@ -72,6 +72,7 @@ impl IndoorManifest {
             .ok_or("appearance factors require photometry")?;
         if let Some(seed) = settings.material_seed {
             program.materials = materials::program::sample(seed);
+            materials::program::floor_finish(&mut program.materials, self.floor_style);
         }
         for recipe in &mut program.materials {
             recipe.relief_m *= settings.material_detail;

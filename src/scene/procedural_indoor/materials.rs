@@ -1,8 +1,11 @@
 //! Role-specific PBR textures, generated in memory with repeat sampling and mip chains.
 pub mod boards;
+mod environment;
+mod filter;
 pub mod glass;
 mod human;
 pub mod layers;
+mod microstructure;
 mod paper;
 pub mod program;
 mod raster;
@@ -126,13 +129,7 @@ impl IndoorMaterials {
         let prepare = |definition: &Definition| prepare_map(scene, definition);
         #[cfg(not(target_arch = "wasm32"))]
         let prepared = {
-            static POOL: std::sync::OnceLock<bevy::tasks::TaskPool> = std::sync::OnceLock::new();
-            let pool = POOL.get_or_init(|| {
-                bevy::tasks::TaskPoolBuilder::new()
-                    .num_threads(std::thread::available_parallelism().map_or(1, |n| n.get().min(4)))
-                    .thread_name("indoor-material".into())
-                    .build()
-            });
+            let pool = super::preparation::workers::pool();
             pool.scope(|scope| {
                 for definition in &definitions {
                     let prepare = &prepare;
@@ -215,6 +212,11 @@ impl IndoorMaterials {
                 uv_transform: bevy::math::Affine2::from_scale(Vec2::splat(1.0 / period)),
                 ..default()
             };
+            if let Some(program) = &scene.program {
+                mat.uv_transform = bevy::math::Affine2::from_scale(
+                    program.materials[surface as usize].period_uv().recip(),
+                );
+            }
             if let Some([color, normal, data]) = maps {
                 mat.base_color_texture = Some(images.add(color));
                 mat.normal_map_texture = Some(images.add(normal));
@@ -277,16 +279,21 @@ impl IndoorMaterials {
                         mat.base_color = mat.base_color.with_alpha(0.18);
                     }
                 }
-                Surface::Metal | Surface::Chrome => {
-                    mat.anisotropy_strength = if surface == Surface::Chrome {
-                        0.52
-                    } else {
-                        0.26
-                    };
+                Surface::Chrome => {
+                    // Micron scratches belong in the scattering distribution.
+                    // RGBA8 cannot resolve their tiny slopes: its two nearest
+                    // codes instead introduce artificial orange-peel facets.
+                    mat.normal_map_texture = None;
+                    // Rougher finishes are brushed; polished chrome is nearly isotropic.
+                    mat.anisotropy_strength = ((roughness - 0.08) * 3.0).clamp(0.0, 0.48);
                 }
                 Surface::Wood | Surface::WoodEdge | Surface::Ceramic => {
                     mat.clearcoat = if roughness < 0.46 { 0.32 } else { 0.08 };
                     mat.clearcoat_perceptual_roughness = (roughness * 0.55).max(0.09);
+                }
+                Surface::Leather => {
+                    mat.clearcoat = 0.10;
+                    mat.clearcoat_perceptual_roughness = 0.32;
                 }
                 Surface::Light => {
                     let c = kelvin_rgb(scene.light_kelvin);
@@ -308,8 +315,6 @@ impl IndoorMaterials {
             handles.push(materials.add(mat));
         }
         let environment = EnvironmentMapLight {
-            diffuse_map: images.add(environment_cube(16, true)),
-            specular_map: images.add(environment_cube(64, false)),
             intensity: scene.domain().map_or_else(
                 || match scene.lighting {
                     LightingMood::Daylight => 95.0,
@@ -346,7 +351,7 @@ impl IndoorMaterials {
         let [cloth, skin, hair] = human::maps(scene.material_seed(), images, materials);
         let variants =
             variants::build(scene.material_seed(), &handles, images, materials, finishes);
-        Self {
+        let mut result = Self {
             handles,
             light_variants,
             environment,
@@ -354,7 +359,31 @@ impl IndoorMaterials {
             skin,
             hair,
             variants,
+        };
+        // The staged production path supplies its already-built geometry/BVH.
+        // Standalone callers receive the same scene-derived environment here.
+        if finishes.is_none() {
+            let transport = super::gi::BakeScene::from_manifest(scene, &result, materials, images);
+            result.build_environment(scene, &transport, images);
         }
+        result
+    }
+
+    pub(crate) fn build_environment(
+        &mut self,
+        scene: &IndoorManifest,
+        transport: &super::gi::BakeScene,
+        images: &mut impl super::preparation::AssetStore<Image>,
+    ) {
+        let [diffuse, specular] = environment::build(scene, transport);
+        self.environment = EnvironmentMapLight {
+            diffuse_map: images.add(diffuse),
+            specular_map: images.add(specular),
+            // Maps store linear cd/m², rather than clipped RGB scaled by a prior.
+            intensity: 1.,
+            rotation: Quat::from_rotation_y(scene.world_yaw),
+            ..default()
+        };
     }
 }
 
@@ -386,7 +415,9 @@ fn definitions(scene: &IndoorManifest) -> [Definition; 35] {
             2.0,
         ),
         (Surface::Ceiling, [0.88, 0.88, 0.85], 0.9, 0.0, 0.6),
-        (Surface::Metal, [0.12, 0.135, 0.15], 0.34, 0.72, 1.0),
+        // Painted/powder-coated furniture metal reflects as a dielectric. Bare
+        // polished/brushed metal uses Chrome, with a conductive base layer.
+        (Surface::Metal, [0.12, 0.135, 0.15], 0.34, 0.0, 1.0),
         (Surface::Chrome, [0.64, 0.66, 0.68], 0.23, 1.0, 1.0),
         (Surface::Plastic, [0.065, 0.074, 0.08], 0.48, 0.0, 1.0),
         (Surface::Fabric, fabric, 0.92, 0.0, 0.12),
@@ -471,11 +502,7 @@ fn prepare_map(scene: &IndoorManifest, definition: &Definition) -> Option<[Image
         roughness,
         recipe,
     );
-    Some([
-        mip_image(maps.0, 256, MapType::Color),
-        mip_image(maps.1, 256, MapType::Normal),
-        mip_image(maps.2, 256, MapType::Data),
-    ])
+    Some(filter::images(maps, 256))
 }
 
 fn hash(x: u32, y: u32, seed: u64) -> f32 {
@@ -616,20 +643,16 @@ fn texture_maps(
         }
     }
     let mut normals = Vec::with_capacity(n * n * 4);
+    let period = recipe.map_or(Vec2::ONE, |r| r.period_uv());
+    let slope = Vec2::splat(n as f32 * 0.5) / period;
     for y in 0..n {
         for x in 0..n {
             let dx = heights[y * n + (x + 1) % n] - heights[y * n + (x + n - 1) % n];
             let dy = heights[((y + 1) % n) * n + x] - heights[((y + n - 1) % n) * n + x];
             // Tangent space follows increasing mesh U/V. Both slopes oppose the
             // height gradient; flipping only Y would invert relief in one axis.
-            let slope = n as f32 / (2.0 * recipe.map_or(1.0, |r| r.period_m));
-            let normal = Vec3::new(-dx * slope, -dy * slope, 1.0).normalize();
-            normals.extend([
-                (normal.x * 127.0 + 128.0) as u8,
-                (normal.y * 127.0 + 128.0) as u8,
-                (normal.z * 127.0 + 128.0) as u8,
-                255,
-            ]);
+            let normal = Vec3::new(-dx * slope.x, -dy * slope.y, 1.0).normalize();
+            normals.extend(filter::encode(normal));
         }
     }
     (colors, normals, data)
@@ -693,6 +716,10 @@ fn mip_image(base: Vec<u8>, size: u32, kind: MapType) -> Image {
         prev = next;
         n = next_n;
     }
+    mip_chain_image(bytes, size, kind)
+}
+
+fn mip_chain_image(bytes: Vec<u8>, size: u32, kind: MapType) -> Image {
     // Image::new validates base-level size, so append mip data afterwards.
     let mut image = Image::new(
         Extent3d {
@@ -741,65 +768,6 @@ fn linear_to_srgb(v: f32) -> f32 {
     } else {
         1.055 * v.powf(1.0 / 2.4) - 0.055
     }
-}
-
-/// Compact analytical room reflection proxy. It approximates indirect light; it is not GI.
-fn environment_cube(size: u32, diffuse: bool) -> Image {
-    let mut bytes = Vec::new();
-    for face in 0..6 {
-        let mut n = size;
-        loop {
-            let blur = if diffuse {
-                0.7
-            } else {
-                1.0 - n as f32 / size as f32
-            };
-            for y in 0..n {
-                for x in 0..n {
-                    let u = 2.0 * (x as f32 + 0.5) / n as f32 - 1.0;
-                    let v = 2.0 * (y as f32 + 0.5) / n as f32 - 1.0;
-                    let window = if face == 1 && u.abs() < 0.83 && v.abs() < 0.65 {
-                        1.0
-                    } else {
-                        0.0
-                    };
-                    let ceiling = if face == 2 { 0.35 } else { 0.0 };
-                    let c = Vec3::new(0.20, 0.19, 0.17)
-                        + Vec3::new(0.55, 0.63, 0.73) * (window * (1.0 - blur) + blur * 0.13)
-                        + Vec3::splat(ceiling);
-                    bytes.extend([
-                        (c.x * 255.0) as u8,
-                        (c.y * 255.0) as u8,
-                        (c.z * 255.0) as u8,
-                        255,
-                    ]);
-                }
-            }
-            if n == 1 {
-                break;
-            }
-            n /= 2;
-        }
-    }
-    let mut image = Image::new(
-        Extent3d {
-            width: size,
-            height: size,
-            depth_or_array_layers: 6,
-        },
-        TextureDimension::D2,
-        vec![0; (size * size * 6 * 4) as usize],
-        TextureFormat::Rgba8Unorm,
-        RenderAssetUsages::default(),
-    );
-    image.data = Some(bytes);
-    image.texture_descriptor.mip_level_count = size.ilog2() + 1;
-    image.texture_view_descriptor = Some(TextureViewDescriptor {
-        dimension: Some(TextureViewDimension::Cube),
-        ..default()
-    });
-    image.sampler = ImageSampler::linear();
-    image
 }
 
 pub fn kelvin_rgb(k: f32) -> Vec3 {
