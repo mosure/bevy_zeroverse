@@ -502,17 +502,30 @@ pub fn clip_roof(a: &mut Assembly, e: &EnvelopeProgram, size: Vec3) {
             for i in 0..3 {
                 let a = input[i];
                 let b = input[(i + 1) % 3];
-                let da = e.ceiling_height(size, a.0.xz()) - a.0.y;
-                let db = e.ceiling_height(size, b.0.xz()) - b.0.y;
+                let da = f64::from(e.ceiling_height(size, a.0.xz())) - f64::from(a.0.y);
+                let db = f64::from(e.ceiling_height(size, b.0.xz())) - f64::from(b.0.y);
                 if da >= 0. {
                     output.push(a);
                 }
                 if (da >= 0.) != (db >= 0.) {
+                    // Always interpolate from the inside endpoint, so shared
+                    // edges produce identical positions in either direction.
+                    let (a, b, da, db) = if da >= 0. {
+                        (a, b, da, db)
+                    } else {
+                        (b, a, db, da)
+                    };
                     let t = da / (da - db);
+                    // A float32 lerp can move an intersection outside its edge
+                    // by one ULP (seed 1013005), inverting a narrow bevel when
+                    // the clipped quad is triangulated. Widen before arithmetic
+                    // and round only the final vertex, including its attributes.
                     output.push((
-                        a.0.lerp(b.0, t),
-                        a.1.lerp(b.1, t).normalize_or_zero(),
-                        a.2.lerp(b.2, t),
+                        (a.0.as_dvec3() + (b.0.as_dvec3() - a.0.as_dvec3()) * t).as_vec3(),
+                        (a.1.as_dvec3() + (b.1.as_dvec3() - a.1.as_dvec3()) * t)
+                            .as_vec3()
+                            .normalize_or_zero(),
+                        (a.2.as_dvec2() + (b.2.as_dvec2() - a.2.as_dvec2()) * t).as_vec2(),
                     ));
                 }
             }

@@ -1,10 +1,21 @@
 # bevy_zeroverse 0.28
 
+Patch **0.28.1** (`bevy_zeroverse_burn` **0.11.1**) fixes seed **1,013,005**
+being rejected for an inverted glass-window triangle. Roof clipping previously
+interpolated in float32, allowing a near-endpoint intersection to round outside
+its source edge. Intersections now use double-precision arithmetic and a
+consistent edge direction, preserving normals and UVs. Geometry validation and
+the existing degeneracy threshold are unchanged; the seed is not filtered out.
+Regression coverage includes the complete failing room, the extracted bevel at
+multiple scales and windings, surface coverage and shared-edge agreement, and
+1,024 envelope constructions including the surrounding seed range. The FFI
+crate also advances to **0.28.1**, and both wrappers require the fixed core.
+
 This release improves native procedural capture throughput while preserving
 geometry, material detail, lighting budgets and capture-readiness checks.
 
-Crates: `bevy_zeroverse` and `bevy_zeroverse_ffi` **0.28.0**;
-`bevy_zeroverse_burn` **0.11.0**. Capture/publication and SigLIP2 versions are
+Crates: `bevy_zeroverse` and `bevy_zeroverse_ffi` **0.28.1**;
+`bevy_zeroverse_burn` **0.11.1**. Capture/publication and SigLIP2 versions are
 unchanged. The capture wire format remains v35 and the scene generator remains 22;
 the source fingerprint identifies this implementation and its refreshed captures.
 

@@ -107,8 +107,124 @@ fn seed_202_constructs_complete_valid_geometry() {
 }
 
 #[test]
+fn seed_1013005_constructs_valid_clipped_glazing() {
+    let scene = IndoorManifest::generate_with_humans(1_013_005, IndoorLayout::Mixed, 0.65, 0, 0.25)
+        .unwrap();
+    let geometry = validation::validate_geometry(&scene).unwrap();
+    assert!(geometry.semantic_triangles["window"] > 0);
+}
+
+#[test]
+fn roof_clipping_keeps_bevel_intersections_inside_the_source_triangle_bounds() {
+    use crate::scene::procedural_indoor::{
+        geometry::Geometry, materials::Surface, objects::Assembly,
+    };
+    // The second roof intersection used to round left of ALL source vertices,
+    // creating an inverted fan triangle instead of a collapsed float32 edge.
+    let positions = [
+        Vec3::new(-4.7753034, 0.6803348, 2.1882942),
+        Vec3::new(-4.775596, 0.6803348, 2.1890013),
+        Vec3::new(-4.775596, 3.7681258, 2.1890013),
+    ];
+    let normals = [Vec3::new(-0.7071022, 0., -0.70711136), -Vec3::X, -Vec3::X];
+    let uvs = [
+        [0., 3.088791],
+        [0.0010000002, 3.088791],
+        [0.0010000002, 0.0010000467],
+    ];
+    for scale in [1. / 64., 1., 32.] {
+        let size = Vec3::new(13.436966, 4.199328, 14.30445) * scale;
+        let envelope = EnvelopeProgram {
+            ceiling_drop: Vec2::new(0.819709, 0.47927946) * scale,
+            footprint: vec![],
+            floor_patches: vec![],
+            pillars: vec![],
+            mezzanine: None,
+            walls: vec![],
+        };
+        let points = positions.map(|p| p * scale);
+        let lo = points
+            .into_iter()
+            .fold(Vec3::splat(f32::INFINITY), Vec3::min);
+        let hi = points
+            .into_iter()
+            .fold(Vec3::splat(f32::NEG_INFINITY), Vec3::max);
+        let mut reference_vertices = None;
+        for reverse in [false, true] {
+            for start in 0..3 {
+                let mut order = [0_u32, 1, 2];
+                order.rotate_left(start);
+                if reverse {
+                    order.reverse();
+                }
+                let mut assembly = Assembly::default();
+                *assembly.part(Surface::GlassInterior, "window") = Geometry {
+                    positions: points.map(|p| p.to_array()).to_vec(),
+                    normals: normals
+                        .map(|n| (if reverse { -n } else { n }).to_array())
+                        .to_vec(),
+                    uvs: uvs.to_vec(),
+                    indices: order.to_vec(),
+                };
+                construction::clip_roof(&mut assembly, &envelope, size);
+                let g = &assembly.parts[&(Surface::GlassInterior, "window".into())];
+                assert!(!g.indices.is_empty());
+                for p in &g.positions {
+                    let p = Vec3::from(*p);
+                    assert!(
+                        p.cmpge(lo).all() && p.cmple(hi).all(),
+                        "intersection escaped source: {p:?}"
+                    );
+                    assert!(p.y <= envelope.ceiling_height(size, p.xz()) + 1e-6 * scale);
+                }
+                assert!(g
+                    .normals
+                    .iter()
+                    .all(|&n| (Vec3::from(n).length() - 1.).abs() < 1e-6));
+                assert!(g.uvs.iter().all(|&uv| (0.0..=uvs[1][0]).contains(&uv[0])
+                    && (uvs[2][1]..=uvs[0][1]).contains(&uv[1])));
+                let mut area = 0.;
+                for tri in g.indices.as_chunks::<3>().0 {
+                    let [a, b, c] = tri.map(|i| Vec3::from(g.positions[i as usize]).as_dvec3());
+                    let n = (b - a).cross(c - a);
+                    let shading = tri
+                        .iter()
+                        .map(|&i| Vec3::from(g.normals[i as usize]).as_dvec3())
+                        .sum::<bevy::math::DVec3>();
+                    assert!(n.dot(shading) > 0., "inverted clipped bevel");
+                    area += n.length() * 0.5;
+                }
+                let [a, b, c] = points.map(|p| p.as_dvec3());
+                let distances = points
+                    .map(|p| f64::from(envelope.ceiling_height(size, p.xz())) - f64::from(p.y));
+                let removed_fraction = distances[2].powi(2)
+                    / ((distances[0] - distances[2]) * (distances[1] - distances[2]));
+                let expected = (b - a).cross(c - a).length() * 0.5 * (1. - removed_fraction);
+                assert!(
+                    (area - expected).abs() < expected * 0.002,
+                    "clipped surface coverage changed"
+                );
+                let vertices = g
+                    .positions
+                    .iter()
+                    .map(|p| p.map(f32::to_bits))
+                    .collect::<std::collections::BTreeSet<_>>();
+                if let Some(reference) = &reference_vertices {
+                    assert_eq!(
+                        &vertices, reference,
+                        "edge direction changed intersection bits"
+                    );
+                } else {
+                    reference_vertices = Some(vertices);
+                }
+            }
+        }
+    }
+}
+
+#[test]
 fn consecutive_envelopes_and_clipped_exteriors_have_complete_triangulations() {
-    for seed in 0..512 {
+    for seed in (0..512).chain(1_012_750..1_013_262) {
         let scene =
             IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 0, 0.25).unwrap();
         let e = scene.envelope.as_ref().unwrap();
@@ -170,6 +286,17 @@ fn consecutive_envelopes_and_clipped_exteriors_have_complete_triangulations() {
                     .all(|&i| (i as usize) < mesh.positions.len()),
                 "seed {seed}"
             );
+            for tri in mesh.indices.as_chunks::<3>().0 {
+                let [a, b, c] = tri.map(|i| Vec3::from(mesh.positions[i as usize]));
+                let normals: Vec3 = tri
+                    .iter()
+                    .map(|&i| Vec3::from(mesh.normals[i as usize]))
+                    .sum();
+                assert!(
+                    (b - a).cross(c - a).dot(normals) >= -1e-6,
+                    "inverted architecture triangle in seed {seed}: {a:?} {b:?} {c:?}"
+                );
+            }
         }
     }
 }
