@@ -328,8 +328,8 @@
     ],
     "annotation_precision": "float32_geometry",
     "build_provenance": {
-      "capture_engine": "capture-v37;calibration=1;co_visibility=1;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=6;surface_flow=1;indoor=22;multiview=5;ovoxel=3;glass=2;hair=2;bounds=3;position=2;tabletop=1;finishes=5;seating=2;activity=2;playback=2;exterior=2;envelope=2",
-      "crate_version": "0.28.2",
+      "capture_engine": "capture-v39;calibration=1;co_visibility=1;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=6;surface_flow=1;indoor=22;multiview=5;ovoxel=3;glass=2;hair=2;bounds=3;position=2;tabletop=1;finishes=7;seating=2;activity=2;playback=2;exterior=2;envelope=2",
+      "crate_version": "0.29.0",
       "features": {
         "human_motion": false,
         "multi_threaded": true,
@@ -344,19 +344,19 @@
           "0.6.1"
         ],
         "bevy_zeroverse": [
-          "0.28.2"
+          "0.29.0"
         ],
         "bevy_zeroverse_burn": [
-          "0.11.2"
+          "0.12.0"
         ],
         "bevy_zeroverse_capture": [
           "0.1.0"
         ],
         "bevy_zeroverse_ffi": [
-          "0.28.2"
+          "0.29.0"
         ],
         "bevy_zeroverse_publication": [
-          "0.1.0"
+          "0.1.1"
         ],
         "burn": [
           "0.21.0"
@@ -384,7 +384,7 @@
         ]
       },
       "schema_version": 1,
-      "source_sha256": "00114648c20cede64e45de5a36ded90145f63b3f8dfaa792ba8041c33c8ab83b",
+      "source_sha256": "b9e3b15236d6af40b5f0459674ea89e6280243147a492929b77e9eaf802cf701",
       "target": "x86_64-unknown-linux-gnu"
     },
     "camera_qualification": {
@@ -872,25 +872,25 @@
       "mean_radiance": null,
       "prefetch_hit": false,
       "prefetch_wait_ms": 0.0,
-      "preparation_ms": 127.054984,
+      "preparation_ms": 132.592867,
       "primary_rays": 2976768,
       "probes": 2907,
       "relocated_probes": 35,
       "texture_bytes": 139536,
-      "transport_bytes": 26920416,
+      "transport_bytes": 27002656,
       "triangles": 217978
     },
-    "elapsed_seconds": 2.006718455,
-    "image_assets": 106,
+    "elapsed_seconds": 2.11398297,
+    "image_assets": 133,
     "image_size": [
       640,
       400
     ],
     "label_policy": "first geometric surface; glass is an opaque window in geometry annotations; native indoor uses direct float32 MRT",
-    "material_assets": 143,
+    "material_assets": 145,
     "mesh_assets": 444,
     "renderer": "WgpuWrapper(AdapterInfo { name: \"NVIDIA RTX PRO 6000 Blackwell Workstation Edition\", vendor: 4318, device: 11185, device_type: DiscreteGpu, device_pci_bus_id: \"0000:01:00.0\", driver: \"NVIDIA\", driver_info: \"610.43.02\", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: false })",
-    "run_id": "2152076-1791046301750116775",
+    "run_id": "2360403-1791060152869855390",
     "seed": 28,
     "views": [
       {
@@ -958,8 +958,8 @@
         "fov_y": 0.5700437426567078,
         "fx_pixels": 682.5953369140625,
         "fy_pixels": 682.5953369140625,
-        "luminance_std": 0.074069925,
-        "mean_luminance": 0.06513069,
+        "luminance_std": 0.0706543,
+        "mean_luminance": 0.083252974,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 10,
@@ -1071,8 +1071,8 @@
         "fov_y": 0.6920662522315979,
         "fx_pixels": 554.7241821289062,
         "fy_pixels": 554.7241821289062,
-        "luminance_std": 0.048991226,
-        "mean_luminance": 0.044254996,
+        "luminance_std": 0.049425185,
+        "mean_luminance": 0.063680634,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 8,
@@ -1182,8 +1182,8 @@
         "fov_y": 1.0259424448013306,
         "fx_pixels": 355.07196044921875,
         "fy_pixels": 355.07196044921875,
-        "luminance_std": 0.04859617,
-        "mean_luminance": 0.05011684,
+        "luminance_std": 0.048174974,
+        "mean_luminance": 0.06909579,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 10,
@@ -1295,8 +1295,8 @@
         "fov_y": 0.7168927788734436,
         "fx_pixels": 533.85986328125,
         "fy_pixels": 533.85986328125,
-        "luminance_std": 0.018240489,
-        "mean_luminance": 0.035560105,
+        "luminance_std": 0.0234812,
+        "mean_luminance": 0.05425853,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 8,
@@ -1406,8 +1406,8 @@
         "fov_y": 0.5700437426567078,
         "fx_pixels": 682.5953369140625,
         "fy_pixels": 682.5953369140625,
-        "luminance_std": 0.05464314,
-        "mean_luminance": 0.058804452,
+        "luminance_std": 0.074142955,
+        "mean_luminance": 0.097371675,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 13,
@@ -1522,8 +1522,8 @@
         "fov_y": 0.6920662522315979,
         "fx_pixels": 554.7241821289062,
         "fy_pixels": 554.7241821289062,
-        "luminance_std": 0.031485368,
-        "mean_luminance": 0.04421827,
+        "luminance_std": 0.03707404,
+        "mean_luminance": 0.069651775,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 13,
@@ -1638,8 +1638,8 @@
         "fov_y": 1.0259424448013306,
         "fx_pixels": 355.07196044921875,
         "fy_pixels": 355.07196044921875,
-        "luminance_std": 0.07250843,
-        "mean_luminance": 0.060891896,
+        "luminance_std": 0.073375955,
+        "mean_luminance": 0.094053596,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 14,
@@ -1755,8 +1755,8 @@
         "fov_y": 0.7168927788734436,
         "fx_pixels": 533.85986328125,
         "fy_pixels": 533.85986328125,
-        "luminance_std": 0.033164114,
-        "mean_luminance": 0.044774387,
+        "luminance_std": 0.05852364,
+        "mean_luminance": 0.07644322,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 13,
@@ -1809,10 +1809,10 @@
     ]
   },
   "generator_identity": {
-    "crate_version": "0.28.2",
+    "crate_version": "0.29.0",
     "generator_version": 22,
     "schema_version": 1,
-    "source_sha256": "00114648c20cede64e45de5a36ded90145f63b3f8dfaa792ba8041c33c8ab83b"
+    "source_sha256": "b9e3b15236d6af40b5f0459674ea89e6280243147a492929b77e9eaf802cf701"
   },
   "manifest": {
     "architecture_style": "Timber",
@@ -4099,6 +4099,22 @@
       ],
       "materials": [
         {
+          "coating": {
+            "cells": [
+              43,
+              34
+            ],
+            "clearcoat": 0.0,
+            "coat_roughness": 0.17197634,
+            "crackle": 0.0,
+            "gloss": 0.07649323,
+            "knockdown": 0.62168324,
+            "pigment_variation": 0.041481078,
+            "pinholes": 0.1196558,
+            "roller": 0.47416547,
+            "texture_mix": 0.89495724,
+            "trowel": 0.016993476
+          },
           "color": [
             0.8243228,
             0.8067617,
@@ -4118,25 +4134,46 @@
             "stripe_strength": 0.0,
             "vein_strength": 0.0
           },
+          "leaf": null,
+          "leather": null,
+          "mineral": null,
           "mineral_mix": 0.5658916,
           "panel_count": [
             14,
             4
           ],
-          "period_m": 0.053247828,
+          "period_m": 0.10409798,
           "phase": [
             0.42139953,
             0.8492147
           ],
-          "relief_m": 0.00012447574,
-          "roughness": 0.8817173,
+          "relief_m": 0.0005386165,
+          "roughness": 0.8949249,
           "seed": 15239305790391221868,
           "surface": "Paint",
+          "textile": null,
           "warp": 0.022968538,
           "weathering": 0.015799206,
-          "weave_mix": 0.60610116
+          "weave_mix": 0.60610116,
+          "wood": null
         },
         {
+          "coating": {
+            "cells": [
+              53,
+              45
+            ],
+            "clearcoat": 0.0,
+            "coat_roughness": 0.16246507,
+            "crackle": 0.0,
+            "gloss": 0.44961688,
+            "knockdown": 0.6704876,
+            "pigment_variation": 0.009714072,
+            "pinholes": 0.13768701,
+            "roller": 0.7459909,
+            "texture_mix": 0.09322468,
+            "trowel": 0.027372712
+          },
           "color": [
             0.3070963,
             0.27937454,
@@ -4156,25 +4193,31 @@
             "stripe_strength": 0.0,
             "vein_strength": 0.0
           },
+          "leaf": null,
+          "leather": null,
+          "mineral": null,
           "mineral_mix": 0.56965315,
           "panel_count": [
             9,
             4
           ],
-          "period_m": 0.06458623,
+          "period_m": 0.09593325,
           "phase": [
             0.3941148,
             0.19868648
           ],
-          "relief_m": 0.00008248162,
-          "roughness": 0.9279356,
+          "relief_m": 0.000023649049,
+          "roughness": 0.6262758,
           "seed": 10038372666986307048,
           "surface": "Accent",
+          "textile": null,
           "warp": 0.086344466,
           "weathering": 0.017275617,
-          "weave_mix": 0.7000674
+          "weave_mix": 0.7000674,
+          "wood": null
         },
         {
+          "coating": null,
           "color": [
             0.49800456,
             0.42610222,
@@ -4194,6 +4237,9 @@
             "stripe_strength": 0.0,
             "vein_strength": 0.0016374588
           },
+          "leaf": null,
+          "leather": null,
+          "mineral": null,
           "mineral_mix": 0.1584351,
           "panel_count": [
             7,
@@ -4208,11 +4254,27 @@
           "roughness": 0.6145406,
           "seed": 3357665377148451708,
           "surface": "Wood",
+          "textile": null,
           "warp": 0.015243075,
           "weathering": 0.021351311,
-          "weave_mix": 0.5080378
+          "weave_mix": 0.5080378,
+          "wood": {
+            "bleach": 0.06277061,
+            "clearcoat": 0.020811811,
+            "coat_roughness": 0.1594837,
+            "pore_fill": 0.21997191,
+            "ring_contrast": 1.1592482,
+            "seed": 3357665377148451708,
+            "stain_color": [
+              0.38316852,
+              0.32293704,
+              0.27629745
+            ],
+            "stain_strength": 0.45506856
+          }
         },
         {
+          "coating": null,
           "color": [
             0.49800456,
             0.42610222,
@@ -4232,6 +4294,9 @@
             "stripe_strength": 0.0,
             "vein_strength": 0.68636274
           },
+          "leaf": null,
+          "leather": null,
+          "mineral": null,
           "mineral_mix": 0.6061976,
           "panel_count": [
             7,
@@ -4246,15 +4311,31 @@
           "roughness": 0.6456474,
           "seed": 17097584893962637054,
           "surface": "WoodEdge",
+          "textile": null,
           "warp": 0.005748246,
           "weathering": 0.010376573,
-          "weave_mix": 0.3006059
+          "weave_mix": 0.3006059,
+          "wood": {
+            "bleach": 0.06277061,
+            "clearcoat": 0.020811811,
+            "coat_roughness": 0.1594837,
+            "pore_fill": 0.21997191,
+            "ring_contrast": 1.1592482,
+            "seed": 3357665377148451708,
+            "stain_color": [
+              0.38316852,
+              0.32293704,
+              0.27629745
+            ],
+            "stain_strength": 0.45506856
+          }
         },
         {
+          "coating": null,
           "color": [
-            0.30280873,
-            0.28407168,
-            0.2694984
+            0.5973562,
+            0.6124542,
+            0.62302274
           ],
           "contrast": 0.11844128,
           "cross_frequency": 5.439787,
@@ -4270,6 +4351,44 @@
             "stripe_strength": 0.00072193384,
             "vein_strength": 0.09698744
           },
+          "leaf": null,
+          "leather": null,
+          "mineral": {
+            "aggregate_cells": [
+              34,
+              44
+            ],
+            "aggregate_color": [
+              [
+                0.6925951,
+                0.7103292,
+                0.72096956
+              ],
+              [
+                0.4733504,
+                0.5093389,
+                0.530932
+              ]
+            ],
+            "aggregate_exposure": 0.015304822,
+            "aggregate_radius": 0.4244512,
+            "binder_variation": 0.1047823,
+            "marble_mix": 0.9728349,
+            "polish": 0.12757593,
+            "porosity": 0.13307238,
+            "vein_cells": [
+              5,
+              8
+            ],
+            "vein_color": [
+              0.29688084,
+              0.2453333,
+              0.20409526
+            ],
+            "vein_strength": 0.54838365,
+            "vein_warp": 0.15290801,
+            "vein_width": 0.033815682
+          },
           "mineral_mix": 0.43836987,
           "panel_count": [
             11,
@@ -4280,15 +4399,79 @@
             0.373958,
             0.31564462
           ],
-          "relief_m": 0.00006379344,
-          "roughness": 0.42560524,
+          "relief_m": 0.00015958786,
+          "roughness": 0.58008075,
           "seed": 2586885260134414347,
           "surface": "Floor",
+          "textile": {
+            "advance": 1,
+            "bundle": 1,
+            "crimp": 0.35776702,
+            "dye_variation": 0.045883484,
+            "float_length": 1,
+            "fuzz": 0.6201049,
+            "herringbone": false,
+            "lustre": 0.7682487,
+            "pile": 0.0,
+            "repeat": 2,
+            "slub": 0.04462628,
+            "twist": -1.2569425,
+            "width": [
+              0.85153735,
+              0.6388692
+            ],
+            "yarn_tint": [
+              [
+                0.96700203,
+                0.92197233,
+                0.922636
+              ],
+              [
+                0.90742964,
+                0.9185444,
+                0.9497648
+              ]
+            ],
+            "yarns": [
+              36,
+              24
+            ]
+          },
           "warp": 0.020257052,
           "weathering": 0.13899519,
-          "weave_mix": 0.37790215
+          "weave_mix": 0.37790215,
+          "wood": {
+            "bleach": 0.023119668,
+            "clearcoat": 0.29401308,
+            "coat_roughness": 0.11193609,
+            "pore_fill": 0.7272578,
+            "ring_contrast": 0.47170544,
+            "seed": 2586885260134414347,
+            "stain_color": [
+              0.16607577,
+              0.115813605,
+              0.10228136
+            ],
+            "stain_strength": 0.11775069
+          }
         },
         {
+          "coating": {
+            "cells": [
+              45,
+              58
+            ],
+            "clearcoat": 0.0,
+            "coat_roughness": 0.11138773,
+            "crackle": 0.0,
+            "gloss": 0.19942783,
+            "knockdown": 0.7338935,
+            "pigment_variation": 0.03153186,
+            "pinholes": 0.07224822,
+            "roller": 0.330148,
+            "texture_mix": 0.14064735,
+            "trowel": 0.4922587
+          },
           "color": [
             0.8683691,
             0.8683691,
@@ -4308,25 +4491,31 @@
             "stripe_strength": 0.0,
             "vein_strength": 0.0
           },
+          "leaf": null,
+          "leather": null,
+          "mineral": null,
           "mineral_mix": 0.3239255,
           "panel_count": [
             6,
             2
           ],
-          "period_m": 0.15126204,
+          "period_m": 0.20761281,
           "phase": [
             0.87214476,
             0.8607964
           ],
-          "relief_m": 0.0001222728,
-          "roughness": 0.8517231,
+          "relief_m": 0.000030858093,
+          "roughness": 0.806412,
           "seed": 17387517230043392920,
           "surface": "Ceiling",
+          "textile": null,
           "warp": 0.015518292,
           "weathering": 0.0042258566,
-          "weave_mix": 0.7117747
+          "weave_mix": 0.7117747,
+          "wood": null
         },
         {
+          "coating": null,
           "color": [
             0.14671537,
             0.15111683,
@@ -4346,6 +4535,9 @@
             "stripe_strength": 0.0,
             "vein_strength": 0.0
           },
+          "leaf": null,
+          "leather": null,
+          "mineral": null,
           "mineral_mix": 0.33072865,
           "panel_count": [
             3,
@@ -4360,11 +4552,14 @@
           "roughness": 0.44671965,
           "seed": 17659121574362179280,
           "surface": "Metal",
+          "textile": null,
           "warp": 0.06263913,
           "weathering": 0.0017586456,
-          "weave_mix": 0.52868545
+          "weave_mix": 0.52868545,
+          "wood": null
         },
         {
+          "coating": null,
           "color": [
             0.827601,
             0.835877,
@@ -4384,6 +4579,9 @@
             "stripe_strength": 0.0,
             "vein_strength": 0.0
           },
+          "leaf": null,
+          "leather": null,
+          "mineral": null,
           "mineral_mix": 0.83709633,
           "panel_count": [
             10,
@@ -4398,11 +4596,14 @@
           "roughness": 0.09475776,
           "seed": 16537629081723357473,
           "surface": "Chrome",
+          "textile": null,
           "warp": 0.038811952,
           "weathering": 0.0024390647,
-          "weave_mix": 0.09592688
+          "weave_mix": 0.09592688,
+          "wood": null
         },
         {
+          "coating": null,
           "color": [
             0.2083461,
             0.21459648,
@@ -4422,6 +4623,9 @@
             "stripe_strength": 0.0,
             "vein_strength": 0.0
           },
+          "leaf": null,
+          "leather": null,
+          "mineral": null,
           "mineral_mix": 0.07505345,
           "panel_count": [
             4,
@@ -4436,15 +4640,18 @@
           "roughness": 0.46584725,
           "seed": 723186132020082121,
           "surface": "Plastic",
+          "textile": null,
           "warp": 0.029556006,
           "weathering": 0.0069282185,
-          "weave_mix": 0.40708935
+          "weave_mix": 0.40708935,
+          "wood": null
         },
         {
+          "coating": null,
           "color": [
-            0.3144076,
-            0.28267783,
-            0.16333176
+            0.24514043,
+            0.25085342,
+            0.2548525
           ],
           "contrast": 0.32719886,
           "cross_frequency": 1.400146,
@@ -4460,29 +4667,68 @@
             "stripe_strength": 0.13941544,
             "vein_strength": 0.0
           },
+          "leaf": null,
+          "leather": null,
+          "mineral": null,
           "mineral_mix": 0.12548482,
           "panel_count": [
             10,
             4
           ],
-          "period_m": 0.22050342,
+          "period_m": 0.049425866,
           "phase": [
             0.69840354,
             0.5569245
           ],
-          "relief_m": 0.0004560802,
-          "roughness": 0.7405247,
+          "relief_m": 0.000060039365,
+          "roughness": 0.83620644,
           "seed": 6889811735415068348,
           "surface": "Fabric",
+          "textile": {
+            "advance": 1,
+            "bundle": 1,
+            "crimp": 0.29614598,
+            "dye_variation": 0.124020815,
+            "float_length": 3,
+            "fuzz": 0.7376274,
+            "herringbone": true,
+            "lustre": 0.17106359,
+            "pile": 0.0,
+            "repeat": 4,
+            "slub": 0.15314654,
+            "twist": -1.0728847,
+            "width": [
+              0.6267898,
+              0.606446
+            ],
+            "yarn_tint": [
+              [
+                0.9217107,
+                0.95327395,
+                0.9388847
+              ],
+              [
+                0.9145526,
+                0.893234,
+                0.906655
+              ]
+            ],
+            "yarns": [
+              40,
+              40
+            ]
+          },
           "warp": 0.018596824,
           "weathering": 0.10787436,
-          "weave_mix": 0.6247864
+          "weave_mix": 0.6247864,
+          "wood": null
         },
         {
+          "coating": null,
           "color": [
-            0.22393334,
-            0.22296268,
-            0.420174
+            0.61636454,
+            0.6023711,
+            0.5925757
           ],
           "contrast": 0.29284674,
           "cross_frequency": 6.028881,
@@ -4498,25 +4744,64 @@
             "stripe_strength": 0.00065888173,
             "vein_strength": 0.0
           },
+          "leaf": null,
+          "leather": null,
+          "mineral": null,
           "mineral_mix": 0.48362482,
           "panel_count": [
             8,
             4
           ],
-          "period_m": 0.17507398,
+          "period_m": 0.066888675,
           "phase": [
             0.79406524,
             0.64350355
           ],
-          "relief_m": 0.00029998022,
-          "roughness": 0.85288894,
+          "relief_m": 0.0001865708,
+          "roughness": 0.5413748,
           "seed": 10706427061674962331,
           "surface": "FabricAlt",
+          "textile": {
+            "advance": 4,
+            "bundle": 2,
+            "crimp": 0.32072857,
+            "dye_variation": 0.16828184,
+            "float_length": 4,
+            "fuzz": 0.13548736,
+            "herringbone": false,
+            "lustre": 0.7524089,
+            "pile": 0.0,
+            "repeat": 5,
+            "slub": 0.040580127,
+            "twist": -0.21036315,
+            "width": [
+              0.67982316,
+              0.606162
+            ],
+            "yarn_tint": [
+              [
+                0.9698913,
+                0.996582,
+                0.908455
+              ],
+              [
+                0.9869541,
+                0.9758546,
+                0.9517035
+              ]
+            ],
+            "yarns": [
+              20,
+              40
+            ]
+          },
           "warp": 0.021487609,
           "weathering": 0.08502294,
-          "weave_mix": 0.043630123
+          "weave_mix": 0.043630123,
+          "wood": null
         },
         {
+          "coating": null,
           "color": [
             1.0,
             1.0,
@@ -4536,6 +4821,9 @@
             "stripe_strength": 0.0,
             "vein_strength": 0.0
           },
+          "leaf": null,
+          "leather": null,
+          "mineral": null,
           "mineral_mix": 0.38798082,
           "panel_count": [
             6,
@@ -4550,11 +4838,29 @@
           "roughness": 0.014003067,
           "seed": 3006510446550788354,
           "surface": "Glass",
+          "textile": null,
           "warp": 0.05617326,
           "weathering": 0.05445482,
-          "weave_mix": 0.711689
+          "weave_mix": 0.711689,
+          "wood": null
         },
         {
+          "coating": {
+            "cells": [
+              35,
+              60
+            ],
+            "clearcoat": 0.64918506,
+            "coat_roughness": 0.27664116,
+            "crackle": 0.0,
+            "gloss": 0.84241843,
+            "knockdown": 0.5326153,
+            "pigment_variation": 0.035381787,
+            "pinholes": 0.041772768,
+            "roller": 0.70212996,
+            "texture_mix": 0.25303012,
+            "trowel": 0.0
+          },
           "color": [
             0.8328345,
             0.7941555,
@@ -4574,25 +4880,31 @@
             "stripe_strength": 0.0,
             "vein_strength": 0.71558154
           },
+          "leaf": null,
+          "leather": null,
+          "mineral": null,
           "mineral_mix": 0.66789365,
           "panel_count": [
             12,
             4
           ],
-          "period_m": 0.15442353,
+          "period_m": 0.094292305,
           "phase": [
             0.15615302,
             0.2101754
           ],
-          "relief_m": 0.000024184352,
-          "roughness": 0.25680387,
+          "relief_m": 0.000028067945,
+          "roughness": 0.3434587,
           "seed": 4933110483558372491,
           "surface": "Ceramic",
+          "textile": null,
           "warp": 0.04266981,
           "weathering": 0.0056291735,
-          "weave_mix": 0.035232544
+          "weave_mix": 0.035232544,
+          "wood": null
         },
         {
+          "coating": null,
           "color": [
             0.08499643,
             0.04929793,
@@ -4612,25 +4924,66 @@
             "stripe_strength": 0.0,
             "vein_strength": 0.0
           },
+          "leaf": null,
+          "leather": null,
+          "mineral": {
+            "aggregate_cells": [
+              61,
+              26
+            ],
+            "aggregate_color": [
+              [
+                0.6357007,
+                0.5487775,
+                0.49662367
+              ],
+              [
+                0.56293076,
+                0.58498335,
+                0.5982148
+              ]
+            ],
+            "aggregate_exposure": 0.40301836,
+            "aggregate_radius": 0.22719538,
+            "binder_variation": 0.09721227,
+            "marble_mix": 0.0,
+            "polish": 0.0,
+            "porosity": 0.09871765,
+            "vein_cells": [
+              2,
+              5
+            ],
+            "vein_color": [
+              0.8749618,
+              0.76478124,
+              0.67663676
+            ],
+            "vein_strength": 0.8103241,
+            "vein_warp": 0.3245137,
+            "vein_width": 0.031520244
+          },
           "mineral_mix": 0.5096915,
           "panel_count": [
             3,
             5
           ],
-          "period_m": 0.2,
+          "period_m": 0.12745686,
           "phase": [
             0.4479887,
             0.7431738
           ],
-          "relief_m": 0.00023815676,
+          "relief_m": 0.00011628386,
           "roughness": 0.83381134,
           "seed": 3771788894548961879,
           "surface": "Soil",
+          "textile": null,
           "warp": 0.084743485,
           "weathering": 0.018341975,
-          "weave_mix": 0.5736506
+          "weave_mix": 0.5736506,
+          "wood": null
         },
         {
+          "coating": null,
           "color": [
             0.22172888,
             0.32204738,
@@ -4650,6 +5003,32 @@
             "stripe_strength": 0.0,
             "vein_strength": 0.0
           },
+          "leaf": {
+            "chlorophyll_variation": 0.23974249,
+            "midrib_width": 0.011839941,
+            "pale_color": [
+              0.6268418,
+              0.6111917,
+              0.52797633
+            ],
+            "patch_cells": [
+              2,
+              7
+            ],
+            "reference_size_m": [
+              0.08593039,
+              0.16452801
+            ],
+            "transmission": 0.05552533,
+            "variegation": 0.016446983,
+            "vein_curve": -0.03031604,
+            "vein_pairs": 6,
+            "vein_rake": 0.6396166,
+            "vein_width": 0.0033740397,
+            "wax": 0.3205683
+          },
+          "leather": null,
+          "mineral": null,
           "mineral_mix": 0.40093493,
           "panel_count": [
             11,
@@ -4660,15 +5039,18 @@
             0.22601819,
             0.3665297
           ],
-          "relief_m": 0.00009716639,
-          "roughness": 0.6203201,
+          "relief_m": 0.00004127362,
+          "roughness": 0.53818405,
           "seed": 3584611720897266597,
           "surface": "Leaf",
+          "textile": null,
           "warp": 0.06889237,
           "weathering": 0.1188622,
-          "weave_mix": 0.50847626
+          "weave_mix": 0.50847626,
+          "wood": null
         },
         {
+          "coating": null,
           "color": [
             0.17065598,
             0.3654297,
@@ -4688,6 +5070,32 @@
             "stripe_strength": 0.0,
             "vein_strength": 0.0
           },
+          "leaf": {
+            "chlorophyll_variation": 0.058405176,
+            "midrib_width": 0.0038854522,
+            "pale_color": [
+              0.8743918,
+              0.8824882,
+              0.6496419
+            ],
+            "patch_cells": [
+              4,
+              9
+            ],
+            "reference_size_m": [
+              0.04082358,
+              0.24614832
+            ],
+            "transmission": 0.094333865,
+            "variegation": 0.09865823,
+            "vein_curve": -0.055924788,
+            "vein_pairs": 11,
+            "vein_rake": 0.19460382,
+            "vein_width": 0.004355791,
+            "wax": 0.4497679
+          },
+          "leather": null,
+          "mineral": null,
           "mineral_mix": 0.25341952,
           "panel_count": [
             8,
@@ -4698,15 +5106,18 @@
             0.8638037,
             0.6364525
           ],
-          "relief_m": 0.00021930132,
-          "roughness": 0.42887062,
+          "relief_m": 0.0000524571,
+          "roughness": 0.48908824,
           "seed": 10873982272671991689,
           "surface": "LeafLight",
+          "textile": null,
           "warp": 0.059521925,
           "weathering": 0.12224851,
-          "weave_mix": 0.49254465
+          "weave_mix": 0.49254465,
+          "wood": null
         },
         {
+          "coating": null,
           "color": [
             0.7980936,
             0.79088545,
@@ -4726,6 +5137,9 @@
             "stripe_strength": 0.0,
             "vein_strength": 0.0
           },
+          "leaf": null,
+          "leather": null,
+          "mineral": null,
           "mineral_mix": 0.039935946,
           "panel_count": [
             12,
@@ -4740,11 +5154,14 @@
           "roughness": 0.88892823,
           "seed": 1180529181361329742,
           "surface": "Paper",
+          "textile": null,
           "warp": 0.021030277,
           "weathering": 0.0012469498,
-          "weave_mix": 0.46950233
+          "weave_mix": 0.46950233,
+          "wood": null
         },
         {
+          "coating": null,
           "color": [
             1.0,
             1.0,
@@ -4764,6 +5181,9 @@
             "stripe_strength": 0.0,
             "vein_strength": 0.0
           },
+          "leaf": null,
+          "leather": null,
+          "mineral": null,
           "mineral_mix": 0.2752887,
           "panel_count": [
             11,
@@ -4778,11 +5198,14 @@
           "roughness": 0.23532066,
           "seed": 13849307214401984289,
           "surface": "Screen",
+          "textile": null,
           "warp": 0.040940214,
           "weathering": 0.06597745,
-          "weave_mix": 0.21896172
+          "weave_mix": 0.21896172,
+          "wood": null
         },
         {
+          "coating": null,
           "color": [
             0.04,
             0.065,
@@ -4802,6 +5225,9 @@
             "stripe_strength": 0.0,
             "vein_strength": 0.0
           },
+          "leaf": null,
+          "leather": null,
+          "mineral": null,
           "mineral_mix": 0.46875548,
           "panel_count": [
             11,
@@ -4816,11 +5242,14 @@
           "roughness": 0.6279735,
           "seed": 1209065887097320651,
           "surface": "Ink",
+          "textile": null,
           "warp": 0.057352994,
           "weathering": 0.12460035,
-          "weave_mix": 0.2366544
+          "weave_mix": 0.2366544,
+          "wood": null
         },
         {
+          "coating": null,
           "color": [
             1.0,
             1.0,
@@ -4840,6 +5269,9 @@
             "stripe_strength": 0.0,
             "vein_strength": 0.0
           },
+          "leaf": null,
+          "leather": null,
+          "mineral": null,
           "mineral_mix": 0.5904304,
           "panel_count": [
             13,
@@ -4854,11 +5286,14 @@
           "roughness": 0.88359034,
           "seed": 13883689079375822222,
           "surface": "Light",
+          "textile": null,
           "warp": 0.07234315,
           "weathering": 0.04654005,
-          "weave_mix": 0.110750794
+          "weave_mix": 0.110750794,
+          "wood": null
         },
         {
+          "coating": null,
           "color": [
             0.3970974,
             0.39312643,
@@ -4878,25 +5313,66 @@
             "stripe_strength": 0.0,
             "vein_strength": 0.32784185
           },
+          "leaf": null,
+          "leather": null,
+          "mineral": {
+            "aggregate_cells": [
+              50,
+              54
+            ],
+            "aggregate_color": [
+              [
+                0.56095487,
+                0.57997185,
+                0.5913821
+              ],
+              [
+                0.61723703,
+                0.52996373,
+                0.47759977
+              ]
+            ],
+            "aggregate_exposure": 0.057250977,
+            "aggregate_radius": 0.3615632,
+            "binder_variation": 0.09100686,
+            "marble_mix": 0.008363298,
+            "polish": 0.21595947,
+            "porosity": 0.053652745,
+            "vein_cells": [
+              3,
+              4
+            ],
+            "vein_color": [
+              0.5739076,
+              0.5674582,
+              0.56229866
+            ],
+            "vein_strength": 0.39800772,
+            "vein_warp": 0.13558069,
+            "vein_width": 0.026951402
+          },
           "mineral_mix": 0.8080728,
           "panel_count": [
             12,
             2
           ],
-          "period_m": 1.331899,
+          "period_m": 0.21076488,
           "phase": [
             0.48438406,
             0.19324368
           ],
-          "relief_m": 0.000022020573,
-          "roughness": 0.69835854,
+          "relief_m": 0.000229984,
+          "roughness": 0.78281826,
           "seed": 1193447893566690184,
           "surface": "Concrete",
+          "textile": null,
           "warp": 0.08986968,
           "weathering": 0.04991855,
-          "weave_mix": 0.026569009
+          "weave_mix": 0.026569009,
+          "wood": null
         },
         {
+          "coating": null,
           "color": [
             0.19959314,
             0.31903338,
@@ -4916,6 +5392,9 @@
             "stripe_strength": 0.0,
             "vein_strength": 0.0
           },
+          "leaf": null,
+          "leather": null,
+          "mineral": null,
           "mineral_mix": 0.02618432,
           "panel_count": [
             9,
@@ -4930,11 +5409,14 @@
           "roughness": 0.5205642,
           "seed": 17914403749792516950,
           "surface": "Art",
+          "textile": null,
           "warp": 0.048318747,
           "weathering": 0.12826826,
-          "weave_mix": 0.45180678
+          "weave_mix": 0.45180678,
+          "wood": null
         },
         {
+          "coating": null,
           "color": [
             0.035,
             0.036,
@@ -4954,6 +5436,9 @@
             "stripe_strength": 0.0,
             "vein_strength": 0.0
           },
+          "leaf": null,
+          "leather": null,
+          "mineral": null,
           "mineral_mix": 0.24094081,
           "panel_count": [
             11,
@@ -4968,11 +5453,14 @@
           "roughness": 0.8969099,
           "seed": 8351490568899126450,
           "surface": "Rubber",
+          "textile": null,
           "warp": 0.007226954,
           "weathering": 0.087413,
-          "weave_mix": 0.46949434
+          "weave_mix": 0.46949434,
+          "wood": null
         },
         {
+          "coating": null,
           "color": [
             0.13725394,
             0.25451025,
@@ -4992,6 +5480,32 @@
             "stripe_strength": 0.0,
             "vein_strength": 0.0
           },
+          "leaf": {
+            "chlorophyll_variation": 0.21159628,
+            "midrib_width": 0.0052325167,
+            "pale_color": [
+              0.6823581,
+              0.6809228,
+              0.48931015
+            ],
+            "patch_cells": [
+              4,
+              3
+            ],
+            "reference_size_m": [
+              0.09663029,
+              0.25860733
+            ],
+            "transmission": 0.09425641,
+            "variegation": 0.84722584,
+            "vein_curve": 0.11138442,
+            "vein_pairs": 18,
+            "vein_rake": 0.34426916,
+            "vein_width": 0.002218016,
+            "wax": 0.38096067
+          },
+          "leather": null,
+          "mineral": null,
           "mineral_mix": 0.37955725,
           "panel_count": [
             9,
@@ -5002,15 +5516,18 @@
             0.020319521,
             0.7043781
           ],
-          "relief_m": 0.000049438822,
-          "roughness": 0.60274005,
+          "relief_m": 0.000031816162,
+          "roughness": 0.51523495,
           "seed": 8564363655197405540,
           "surface": "LeafVariegated",
+          "textile": null,
           "warp": 0.043431595,
           "weathering": 0.051123533,
-          "weave_mix": 0.44719493
+          "weave_mix": 0.44719493,
+          "wood": null
         },
         {
+          "coating": null,
           "color": [
             0.6079005,
             0.39305618,
@@ -5030,25 +5547,66 @@
             "stripe_strength": 0.0,
             "vein_strength": 0.0
           },
+          "leaf": null,
+          "leather": null,
+          "mineral": {
+            "aggregate_cells": [
+              49,
+              61
+            ],
+            "aggregate_color": [
+              [
+                0.8424499,
+                0.8631565,
+                0.87558043
+              ],
+              [
+                0.81826687,
+                0.7156824,
+                0.6541317
+              ]
+            ],
+            "aggregate_exposure": 0.10678187,
+            "aggregate_radius": 0.31221694,
+            "binder_variation": 0.034146115,
+            "marble_mix": 0.0,
+            "polish": 0.0,
+            "porosity": 0.2400727,
+            "vein_cells": [
+              7,
+              3
+            ],
+            "vein_color": [
+              0.78280616,
+              0.68798155,
+              0.6121219
+            ],
+            "vein_strength": 0.8941395,
+            "vein_warp": 0.078772485,
+            "vein_width": 0.044201612
+          },
           "mineral_mix": 0.5015944,
           "panel_count": [
             14,
             1
           ],
-          "period_m": 1.3615623,
+          "period_m": 0.12248098,
           "phase": [
             0.8559728,
             0.22238475
           ],
-          "relief_m": 0.00010542185,
+          "relief_m": 0.00048064868,
           "roughness": 0.7725909,
           "seed": 12511944425772994376,
           "surface": "Terracotta",
+          "textile": null,
           "warp": 0.08935842,
           "weathering": 0.08076316,
-          "weave_mix": 0.3788855
+          "weave_mix": 0.3788855,
+          "wood": null
         },
         {
+          "coating": null,
           "color": [
             0.16222684,
             0.113558784,
@@ -5068,25 +5626,31 @@
             "stripe_strength": 0.0,
             "vein_strength": 0.7593803
           },
+          "leaf": null,
+          "leather": null,
+          "mineral": null,
           "mineral_mix": 0.57785666,
           "panel_count": [
             11,
             3
           ],
-          "period_m": 1.713769,
+          "period_m": 0.111800686,
           "phase": [
             0.2576095,
             0.18901366
           ],
-          "relief_m": 0.00013228755,
+          "relief_m": 0.0006285503,
           "roughness": 0.28407502,
           "seed": 17564411429211239078,
           "surface": "Bark",
+          "textile": null,
           "warp": 0.082687706,
           "weathering": 0.032102786,
-          "weave_mix": 0.20940995
+          "weave_mix": 0.20940995,
+          "wood": null
         },
         {
+          "coating": null,
           "color": [
             1.0,
             1.0,
@@ -5106,6 +5670,9 @@
             "stripe_strength": 0.0,
             "vein_strength": 0.0
           },
+          "leaf": null,
+          "leather": null,
+          "mineral": null,
           "mineral_mix": 0.8606924,
           "panel_count": [
             6,
@@ -5120,11 +5687,14 @@
           "roughness": 0.032869633,
           "seed": 12586253431944049210,
           "surface": "GlassInterior",
+          "textile": null,
           "warp": 0.062222943,
           "weathering": 0.021989873,
-          "weave_mix": 0.76412606
+          "weave_mix": 0.76412606,
+          "wood": null
         },
         {
+          "coating": null,
           "color": [
             1.0,
             1.0,
@@ -5144,6 +5714,9 @@
             "stripe_strength": 0.0,
             "vein_strength": 0.0
           },
+          "leaf": null,
+          "leather": null,
+          "mineral": null,
           "mineral_mix": 0.2761662,
           "panel_count": [
             12,
@@ -5158,11 +5731,14 @@
           "roughness": 0.05716853,
           "seed": 16639525103654081610,
           "surface": "ContainerGlass",
+          "textile": null,
           "warp": 0.06740292,
           "weathering": 0.019821081,
-          "weave_mix": 0.8807578
+          "weave_mix": 0.8807578,
+          "wood": null
         },
         {
+          "coating": null,
           "color": [
             1.0,
             1.0,
@@ -5182,6 +5758,9 @@
             "stripe_strength": 0.0,
             "vein_strength": 0.0
           },
+          "leaf": null,
+          "leather": null,
+          "mineral": null,
           "mineral_mix": 0.996809,
           "panel_count": [
             11,
@@ -5196,11 +5775,14 @@
           "roughness": 0.060817756,
           "seed": 1254940818785352069,
           "surface": "Liquid",
+          "textile": null,
           "warp": 0.010648634,
           "weathering": 0.12540585,
-          "weave_mix": 0.46849096
+          "weave_mix": 0.46849096,
+          "wood": null
         },
         {
+          "coating": null,
           "color": [
             0.09,
             0.038,
@@ -5220,6 +5802,9 @@
             "stripe_strength": 0.0,
             "vein_strength": 0.0
           },
+          "leaf": null,
+          "leather": null,
+          "mineral": null,
           "mineral_mix": 0.85468984,
           "panel_count": [
             7,
@@ -5234,11 +5819,14 @@
           "roughness": 0.16922402,
           "seed": 8194103184154703961,
           "surface": "Drink",
+          "textile": null,
           "warp": 0.009977905,
           "weathering": 0.13748588,
-          "weave_mix": 0.061704755
+          "weave_mix": 0.061704755,
+          "wood": null
         },
         {
+          "coating": null,
           "color": [
             1.0,
             1.0,
@@ -5258,6 +5846,9 @@
             "stripe_strength": 0.0,
             "vein_strength": 0.0
           },
+          "leaf": null,
+          "leather": null,
+          "mineral": null,
           "mineral_mix": 0.3112265,
           "panel_count": [
             8,
@@ -5272,11 +5863,14 @@
           "roughness": 0.24940866,
           "seed": 2016075018320066814,
           "surface": "PhoneScreen",
+          "textile": null,
           "warp": 0.040533796,
           "weathering": 0.052681196,
-          "weave_mix": 0.43984807
+          "weave_mix": 0.43984807,
+          "wood": null
         },
         {
+          "coating": null,
           "color": [
             0.76864934,
             0.72975445,
@@ -5296,6 +5890,9 @@
             "stripe_strength": 0.0,
             "vein_strength": 0.0
           },
+          "leaf": null,
+          "leather": null,
+          "mineral": null,
           "mineral_mix": 0.41013443,
           "panel_count": [
             7,
@@ -5310,11 +5907,14 @@
           "roughness": 0.9311595,
           "seed": 1267736729064312539,
           "surface": "PrintedPaper",
+          "textile": null,
           "warp": 0.014704183,
           "weathering": 0.0008472319,
-          "weave_mix": 0.78100455
+          "weave_mix": 0.78100455,
+          "wood": null
         },
         {
+          "coating": null,
           "color": [
             0.36882135,
             0.1578258,
@@ -5334,25 +5934,45 @@
             "stripe_strength": 0.0,
             "vein_strength": 0.0
           },
+          "leaf": null,
+          "leather": {
+            "cells": [
+              21,
+              22
+            ],
+            "coat": 0.08878253,
+            "coat_roughness": 0.14725938,
+            "crease_strength": 0.0055105113,
+            "mottling": 0.044410817,
+            "nap": 0.90937436,
+            "polish": 0.32480478,
+            "pore_depth": 0.15578823,
+            "roundness": 0.95750546,
+            "stretch": 1.2378192
+          },
+          "mineral": null,
           "mineral_mix": 0.2829262,
           "panel_count": [
             12,
             2
           ],
-          "period_m": 0.14890507,
+          "period_m": 0.03527822,
           "phase": [
             0.13423812,
             0.90172654
           ],
-          "relief_m": 0.00032634978,
-          "roughness": 0.3945467,
+          "relief_m": 0.00005927834,
+          "roughness": 0.7629255,
           "seed": 7608379175786536625,
           "surface": "Leather",
+          "textile": null,
           "warp": 0.012568616,
           "weathering": 0.014594134,
-          "weave_mix": 0.385123
+          "weave_mix": 0.385123,
+          "wood": null
         },
         {
+          "coating": null,
           "color": [
             1.0,
             1.0,
@@ -5372,6 +5992,9 @@
             "stripe_strength": 0.0,
             "vein_strength": 0.0
           },
+          "leaf": null,
+          "leather": null,
+          "mineral": null,
           "mineral_mix": 0.43290865,
           "panel_count": [
             14,
@@ -5386,11 +6009,14 @@
           "roughness": 0.24376431,
           "seed": 4886235401812606384,
           "surface": "Whiteboard",
+          "textile": null,
           "warp": 0.08970559,
           "weathering": 0.032135397,
-          "weave_mix": 0.0367378
+          "weave_mix": 0.0367378,
+          "wood": null
         },
         {
+          "coating": null,
           "color": [
             1.0,
             1.0,
@@ -5410,6 +6036,9 @@
             "stripe_strength": 0.0,
             "vein_strength": 0.0
           },
+          "leaf": null,
+          "leather": null,
+          "mineral": null,
           "mineral_mix": 0.053243518,
           "panel_count": [
             6,
@@ -5424,9 +6053,11 @@
           "roughness": 0.17792238,
           "seed": 2531701379335701801,
           "surface": "Television",
+          "textile": null,
           "warp": 0.068774745,
           "weathering": 0.113380246,
-          "weave_mix": 0.21504343
+          "weave_mix": 0.21504343,
+          "wood": null
         }
       ],
       "partitions": [],
@@ -5491,12 +6122,12 @@
     "world_yaw": 0.0
   },
   "source_sha256": {
-    "seed_000028/capture.json": "ff247b717b4bc7365b076ddd705ae86f52e7529bdb641b1af409401e6aec675d",
-    "seed_000028/manifest.json": "dcad141930837328835517480218da5f471ff3fbd9295f6e49be4a78762b0c54",
+    "seed_000028/capture.json": "651f8b776f29b6c7246740e3fd28bf92cc0472e94788b72c029583e6bb143f6c",
+    "seed_000028/manifest.json": "7afb9cdfbeb3a73d76f8bd0d52277031c0abb2535c46dae35597103c903ffaa6",
     "seed_000028/view_00_co_visibility.png": "c9f25f97b4684044d7b6b9efc2332a0e98fc5fdc14712db6e083b2d6467b1d51",
     "seed_000028/view_00_co_visibility_mask.png": "5f996609ab6564059ce41b2d887ddd4be44f47acb08828aad343340252a1f537",
     "seed_000028/view_00_co_visibility_valid.png": "5eafe350b349412989c1c69acda4bdf35c04b235e52f145cc058dfe1df0b101d",
-    "seed_000028/view_00_color.png": "661336d2a450ea4c60e27ac392886e1d14b6470a09b337815e46a13fd57940d7",
+    "seed_000028/view_00_color.png": "92e97b5fe3c413f2eeb19d3299aa63b8177fbea6f8f2ec0f8c31eac23fe7cccc",
     "seed_000028/view_00_depth.png": "011cb6c145df754975f2f481fa9e955ed9804dc29c06e635bef08eb897c7a463",
     "seed_000028/view_00_normal.png": "99e9f7a08f896c18bbd72d87b60230e3dbc3b1f8f46b951d985df8c36def8d18",
     "seed_000028/view_00_position.png": "0b1907525ae13340981357bcf07bc2527ce5d7a7cbd985fba251d54f37235dba",
@@ -5504,7 +6135,7 @@
     "seed_000028/view_01_co_visibility.png": "88b94a1b10359c87379741e1307c0ab7c379240be9af807a73d6cf3f8ca7b047",
     "seed_000028/view_01_co_visibility_mask.png": "b78e709255a4d92e9ba97fe9b232ba5bbc5a95180a851887418ff4afab7b48eb",
     "seed_000028/view_01_co_visibility_valid.png": "5eafe350b349412989c1c69acda4bdf35c04b235e52f145cc058dfe1df0b101d",
-    "seed_000028/view_01_color.png": "e742e462657a75806b407aefce4ca28044d8f36704915d81f54ce111879ac395",
+    "seed_000028/view_01_color.png": "1f6876b142da0d49259cf2d745eec319e58949ecff95cdb95da9a3dca5527e93",
     "seed_000028/view_01_depth.png": "014f417573b8ab89f4302b235c717ea7bcd8a7078c90b3c799cb89f3509ede95",
     "seed_000028/view_01_normal.png": "fe05368bd731c6a24ff088fc35ed90777d7f3d79045d081a62d10e0776822ace",
     "seed_000028/view_01_position.png": "44686025359e1e5d2f2c3010a7014f6fdb7f9364bab1fe94af2e809ebaf0acff",
@@ -5512,7 +6143,7 @@
     "seed_000028/view_02_co_visibility.png": "6837da9a3d386f2bf681d6ae5bfed4b7bf1af02422634f36a462cc39304e6178",
     "seed_000028/view_02_co_visibility_mask.png": "47e2ef6cde302374765a2f51620c5ffc5eaa671fa5b018792e710658381d6171",
     "seed_000028/view_02_co_visibility_valid.png": "5eafe350b349412989c1c69acda4bdf35c04b235e52f145cc058dfe1df0b101d",
-    "seed_000028/view_02_color.png": "c3d495310e0871708b0e8eb037363e8e2b70770cd4dca98b694ce80618475ac8",
+    "seed_000028/view_02_color.png": "8908240efc2046ef557700ca2e5e9eed30ef55219664b8ce643e2ec09e893884",
     "seed_000028/view_02_depth.png": "11141f43aaf1e4121666d3c6d849a000b28951733d3ccfc326d515245c711c62",
     "seed_000028/view_02_normal.png": "a4f1fee929100dd7cb6fd1278c559bc016f6c01957a8517da03f2161e1bec123",
     "seed_000028/view_02_position.png": "fcf6ac967a76d0ce2610fb785434646e9fc2940f9d902f3039675bdafafb667a",
@@ -5520,7 +6151,7 @@
     "seed_000028/view_03_co_visibility.png": "368eb5889261b2f7ae3f582538a226ba6a57a3e259bfa0d9ee7279288e37b152",
     "seed_000028/view_03_co_visibility_mask.png": "719c5eddce11a3c8a7c3dea87d6b91cc5ac351a9354111c8587828f7070cf024",
     "seed_000028/view_03_co_visibility_valid.png": "5eafe350b349412989c1c69acda4bdf35c04b235e52f145cc058dfe1df0b101d",
-    "seed_000028/view_03_color.png": "bff445369b1a1763b77597297f6a942bcb77befc4f00722e96ba68659ca6ec3e",
+    "seed_000028/view_03_color.png": "7e95453c461c3e185403b405339a2717cfd1d8b589e1768c0031333633a36fe9",
     "seed_000028/view_03_depth.png": "7a516092771a05eeb9a717e8feec99d13fe4585ac0c15feff0c1916e7980c71f",
     "seed_000028/view_03_normal.png": "2cb2c78d3207ead82cb1a41549e705f8651ed81d32fd3f995e1f6e579d719757",
     "seed_000028/view_03_position.png": "9296d7f37f1918781940b7ec84bf410f49c6c480e5125658fc1333043e99d283",
@@ -5528,7 +6159,7 @@
     "seed_000028/view_04_co_visibility.png": "2aded91aa0ebbd1b3f5a77415ccfae28c42c1d86881e9638144bfaa1667beeec",
     "seed_000028/view_04_co_visibility_mask.png": "520d3b386852be37a891ee1559f7996cb45912a0bc1162f49ae27f805b8b2eba",
     "seed_000028/view_04_co_visibility_valid.png": "5eafe350b349412989c1c69acda4bdf35c04b235e52f145cc058dfe1df0b101d",
-    "seed_000028/view_04_color.png": "5630220e96d2750c453dd7bd709e59aead8afa619217afdd2ff2430755e6862a",
+    "seed_000028/view_04_color.png": "7a3129ed59edfa82e70e22f4988884b4b9c3eb9071bc4c206a30ff4dedf31b32",
     "seed_000028/view_04_depth.png": "427ceb57f0f38b470ea1d1f60c2710c54fd31659d66b4eff3acee7ba44cbdf1c",
     "seed_000028/view_04_normal.png": "7c6e667676a67ac8f4db2c4b16871707211056d4ac43236808fab051ba0001e4",
     "seed_000028/view_04_position.png": "5eaff9a22a0fd15bb9f9e8f345195fb455f353156cdbc8456ca0141bffdbf38e",
@@ -5536,7 +6167,7 @@
     "seed_000028/view_05_co_visibility.png": "fb1183524b056eebb555a7578b22434a168274d00b009b4e2767b9232dd4fa18",
     "seed_000028/view_05_co_visibility_mask.png": "213a3e809d9d5983aa01fab54e8ad321bff5abbc0a09975cf84213f90226f5bf",
     "seed_000028/view_05_co_visibility_valid.png": "5eafe350b349412989c1c69acda4bdf35c04b235e52f145cc058dfe1df0b101d",
-    "seed_000028/view_05_color.png": "78319630a0b73f8f3ed3cce8206bfeaa4c7c011618de0634251a625234e2e762",
+    "seed_000028/view_05_color.png": "09a7faffe1de2eb175c8e26391ccac8625d645dfad9d1bd4410370d911bebafa",
     "seed_000028/view_05_depth.png": "dfc7fdf9576b38f31ef03f87bfebcc6fe9c3f6a850f803d1550ade58f7412236",
     "seed_000028/view_05_normal.png": "9f62b840fa0a73b6f9181bebefa07e3cf8a1d21c18bafb6f422116f7039bbfcc",
     "seed_000028/view_05_position.png": "6d4b5a7d5075bee5214a31df69ad337af20983b12b9d2554a628d2890ea43f5f",
@@ -5544,7 +6175,7 @@
     "seed_000028/view_06_co_visibility.png": "163a1d744b619920acec928392a8f6f5868fa25c396e607dc8dc1e13df2f3745",
     "seed_000028/view_06_co_visibility_mask.png": "8a3637a809a348594bea7d786f167445ff67e2d9a921f8d4cdfa4243e0a9433f",
     "seed_000028/view_06_co_visibility_valid.png": "5eafe350b349412989c1c69acda4bdf35c04b235e52f145cc058dfe1df0b101d",
-    "seed_000028/view_06_color.png": "b18eab0f10790caf45ba24082300d982b03aac4ba2e979517f2b3d8d408defb9",
+    "seed_000028/view_06_color.png": "42644a880e5e82c5ad547a8ddf3dd46aeb37566be653e0176427a5901ecf1050",
     "seed_000028/view_06_depth.png": "929aa3d5f9bc8ddc835945040f22cafc3f93fa8a82da567ba76264b44f26a7ca",
     "seed_000028/view_06_normal.png": "b0fd02fbe6895593386ed8614f346ebb538ea8e6898f1a8e5934313bb2d24770",
     "seed_000028/view_06_position.png": "eae7cace83580f459269015d57dbaa048589b7f892fc0e8963f4454e2ea0bea1",
@@ -5552,7 +6183,7 @@
     "seed_000028/view_07_co_visibility.png": "018c6da4b05bb1f5fd4ac024ef10866ce8e5789c7d00449f4419bf79dc5df673",
     "seed_000028/view_07_co_visibility_mask.png": "7d3146b168cf7b47495d1b28e9dfffb6c9b99f1d68fbf41ea5e3769c7516ba34",
     "seed_000028/view_07_co_visibility_valid.png": "5eafe350b349412989c1c69acda4bdf35c04b235e52f145cc058dfe1df0b101d",
-    "seed_000028/view_07_color.png": "48b015f4ca26613e89edd41fff8f9ea4505da14eb499f9d2b23399e5a1f5e749",
+    "seed_000028/view_07_color.png": "db51595df66fef45cd81c7e9d2a47cd9c1e58a845b005b0ff64adde75ca2dcc7",
     "seed_000028/view_07_depth.png": "5d02489d0ebf1a5c50be572adae9cf67af635f52d16c242d38951b63102eeff0",
     "seed_000028/view_07_normal.png": "c56bc5501f2279fbeb988991c8de263cf25b418f5bfecf6fc2cb36b837fa2449",
     "seed_000028/view_07_position.png": "b38c4a923d583dd9bb50adfa902bd7356abd95dba31162a7ee31260ac8d30a99",
