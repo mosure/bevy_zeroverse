@@ -18,7 +18,7 @@ These guides describe the current generator and export contracts.
 The [architectural evaluation](architecture_v22.md) contains the latest
 512-room structural audit and 256-view rendered evaluation, including complete
 contact sheets and machine-readable distributions. The
-[release compatibility notes](release_0_28.md) describe manifest and capture
+[release compatibility notes](release_0_29.md) describe manifest and capture
 compatibility.
 
 The [Rust publication protocol](project_page.md) defines the single recipe and

@@ -263,6 +263,20 @@ pub struct IndoorHumanSurface(pub HumanSurface);
 
 /// Material variants are deduplicated across every person in this scene and
 /// reuse the same generated cloth maps and the shared AnnyBody reference.
+pub(crate) fn cloth_finish(
+    person: &IndoorHuman,
+    surface: HumanSurface,
+) -> (super::materials::Surface, usize) {
+    let material = if surface == HumanSurface::Trousers {
+        super::materials::Surface::FabricAlt
+    } else {
+        super::materials::Surface::Fabric
+    };
+    (
+        material,
+        super::materials::variants::slot(person.seed.wrapping_add(material as u64)),
+    )
+}
 pub(crate) fn person_material(
     person: &IndoorHuman,
     surface: HumanSurface,
@@ -274,7 +288,18 @@ pub(crate) fn person_material(
         HumanSurface::Top | HumanSurface::Trousers | HumanSurface::Shirt | HumanSurface::Seam
     );
     let mut material = if cloth {
-        materials.get(&indoor_materials.cloth).unwrap().clone()
+        let mut mat = if let Some(handle) = indoor_materials
+            .variants
+            .get(&cloth_finish(person, surface))
+        {
+            let mut mat = materials.get(handle).unwrap().clone();
+            mat.uv_transform *= bevy::math::Affine2::from_scale(Vec2::splat(2.));
+            mat
+        } else {
+            materials.get(&indoor_materials.cloth).unwrap().clone()
+        };
+        mat.perceptual_roughness = 1.;
+        mat
     } else if surface == HumanSurface::Hair {
         materials.get(&indoor_materials.hair).unwrap().clone()
     } else if matches!(surface, HumanSurface::Skin | HumanSurface::Lip) {
@@ -313,12 +338,14 @@ pub(crate) fn person_material(
     material.cull_mode = Some(bevy::render::render_resource::Face::Back);
     if let Some(appearance) = &person.appearance {
         if cloth {
-            material.perceptual_roughness = appearance.cloth_roughness;
+            // Preserve the spatial roughness map and only modulate it gently.
+            material.perceptual_roughness = 0.85 + appearance.cloth_roughness * 0.15;
             material.uv_transform *= bevy::math::Affine2::from_scale_angle_translation(
                 Vec2::splat(appearance.weave_scale),
                 appearance.weave_rotation,
                 Vec2::ZERO,
             );
+            material.anisotropy_rotation -= appearance.weave_rotation;
         }
         if matches!(surface, HumanSurface::Skin | HumanSurface::Lip) {
             material.perceptual_roughness = appearance.skin_roughness;

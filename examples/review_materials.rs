@@ -27,9 +27,10 @@ use std::{
     time::{Duration, Instant},
 };
 
-const SURFACES: [Surface; 10] = [
+const SURFACES: [Surface; 20] = [
     Surface::Wood,
     Surface::Fabric,
+    Surface::FabricAlt,
     Surface::Leather,
     Surface::Paint,
     Surface::Concrete,
@@ -38,7 +39,29 @@ const SURFACES: [Surface; 10] = [
     Surface::Chrome,
     Surface::Plastic,
     Surface::Floor,
+    Surface::Accent,
+    Surface::Ceiling,
+    Surface::WoodEdge,
+    Surface::Soil,
+    Surface::Leaf,
+    Surface::LeafLight,
+    Surface::LeafVariegated,
+    Surface::Terracotta,
+    Surface::Bark,
 ];
+
+fn factor(name: &str) -> anyhow::Result<Option<f32>> {
+    let prefix = format!("--{name}=");
+    let v: Option<f32> = std::env::args()
+        .find_map(|s| s.strip_prefix(&prefix).map(str::to_owned))
+        .map(|s| s.parse())
+        .transpose()?;
+    anyhow::ensure!(
+        v.is_none_or(|v| v.is_finite() && (0.0..=1.).contains(&v)),
+        "{name} must be 0..1"
+    );
+    Ok(v)
+}
 
 fn main() -> anyhow::Result<()> {
     std::env::set_var("BEVY_ASSET_ROOT", env!("CARGO_MANIFEST_DIR"));
@@ -47,6 +70,27 @@ fn main() -> anyhow::Result<()> {
     std::fs::create_dir_all(&output)?;
     let normal_prepass = !std::env::args().any(|arg| arg == "--no-normal-prepass");
     let ibl_only = std::env::args().any(|arg| arg == "--ibl-only");
+    let variant: Option<usize> = std::env::args()
+        .find_map(|arg| arg.strip_prefix("--variant=").map(str::to_owned))
+        .map(|s| s.parse())
+        .transpose()?;
+    anyhow::ensure!(variant.is_none_or(|v| v < 12), "variant must be 0..12");
+    let floor_style: Option<u32> = std::env::args()
+        .find_map(|s| s.strip_prefix("--floor-style=").map(str::to_owned))
+        .map(|s| s.parse())
+        .transpose()?;
+    anyhow::ensure!(
+        floor_style.is_none_or(|s| s < 3),
+        "floor-style must be 0..2"
+    );
+    let stone_mix = factor("stone-mix")?;
+    let wall_texture = factor("wall-texture")?;
+    let wood_stain = factor("wood-stain")?;
+    anyhow::ensure!(
+        variant.is_none()
+            || (stone_mix.is_none() && wall_texture.is_none() && wood_stain.is_none()),
+        "finish-slot resampling cannot be combined with substrate factor overrides"
+    );
     let scale = if std::env::args().any(|arg| arg == "--close-up") {
         0.25
     } else {
@@ -60,11 +104,50 @@ fn main() -> anyhow::Result<()> {
             "key_fill_lux": if ibl_only { [0, 0] } else { [2400, 350] },
             "reflection_target_lux": 500, "reflection_sky_radiance": [450, 500, 600],
             "uniform_ambient": false, "ibl_only": ibl_only, "camera_fovy_degrees": 39,
+            "finish_slot":variant,
+            "floor_style":floor_style,"stone_mix":stone_mix,"wall_texture":wall_texture,"wood_stain":wood_stain,
         }))?,
     )?;
     let mut scene =
         IndoorManifest::generate_with_humans(seed, IndoorLayout::Conference, 0.5, 0, 0.0)
             .map_err(anyhow::Error::msg)?;
+    if let Some(s) = floor_style {
+        scene.floor_style = s;
+        let p = scene.program.as_mut().unwrap();
+        // Replace only the floor recipe before its one-time specialization.
+        p.materials[Surface::Floor as usize] =
+            bevy_zeroverse::scene::procedural_indoor::materials::program::sample_with_floor(
+                scene.seed, s,
+            )
+            .map_err(anyhow::Error::msg)?[Surface::Floor as usize]
+                .clone();
+    }
+    for r in &mut scene.program.as_mut().unwrap().materials {
+        if let Some(w) = r.wood.as_mut() {
+            if let Some(v) = wood_stain {
+                w.stain_strength = v;
+            }
+        }
+        if let Some(c) = r.coating.as_mut() {
+            if let Some(v) = wall_texture {
+                c.texture_mix = v;
+                if r.surface != Surface::Ceramic {
+                    r.relief_m = 0.000018 + v.powi(2) * 0.00065;
+                }
+            }
+        }
+        if r.surface == Surface::Floor {
+            if let Some(v) = stone_mix {
+                r.mineral.as_mut().unwrap().marble_mix = v;
+            }
+        }
+    }
+    scene
+        .program
+        .as_ref()
+        .unwrap()
+        .validate(&scene)
+        .map_err(anyhow::Error::msg)?;
     // Isolate finish variation from scene photometry. Seed 81 otherwise samples
     // an almost unlit room, obscuring IBL behind the review's separate key/fill.
     if let Some(domain) = scene.program.as_mut().and_then(|p| p.domain.as_mut()) {
@@ -84,6 +167,10 @@ fn main() -> anyhow::Result<()> {
     std::fs::write(
         output.join("engine.json"),
         serde_json::to_vec_pretty(&bevy_zeroverse::CAPTURE_ENGINE_IDENTITY)?,
+    )?;
+    std::fs::write(
+        output.join("build_provenance.json"),
+        serde_json::to_vec_pretty(&bevy_zeroverse::provenance::capture_provenance())?,
     )?;
     setup_globals(None);
     let modes = vec![RenderMode::Color, RenderMode::Normal];
@@ -123,6 +210,12 @@ fn main() -> anyhow::Result<()> {
               mut images: ResMut<Assets<Image>>,
               mut materials: ResMut<Assets<StandardMaterial>>| {
             let set = IndoorMaterials::build(&scene, &mut *images, &mut *materials);
+            let handle = |surface| {
+                variant.map_or_else(
+                    || set.get(surface),
+                    |slot| set.for_part(surface, &format!("review#finish{slot}")),
+                )
+            };
             let environment = images.get(&set.environment.specular_map).unwrap();
             std::fs::write(
                 maps_output.join("environment.rgba16f"),
@@ -130,7 +223,7 @@ fn main() -> anyhow::Result<()> {
             )
             .unwrap();
             for surface in SURFACES {
-                let material = materials.get(&set.get(surface)).unwrap();
+                let material = materials.get(&handle(surface)).unwrap();
                 for (name, handle) in [
                     ("albedo", &material.base_color_texture),
                     ("normal", &material.normal_map_texture),
@@ -165,37 +258,53 @@ fn main() -> anyhow::Result<()> {
                 let center = Vec3::X * i as f32 * 4.0;
                 // One-metre panel and a rounded sample expose both texture scale and BRDF.
                 let mut geometry = Geometry::default();
-                geometry.cuboid(
-                    Vec3::new(1.0, 0.65, 0.09) * scale,
-                    0.022 * scale,
-                    Transform::from_translation(center + Vec3::Y * 0.49 * scale),
+                let leaf = matches!(
+                    surface,
+                    Surface::Leaf | Surface::LeafLight | Surface::LeafVariegated
                 );
+                if leaf {
+                    geometry.leaf(
+                        0.65 * scale,
+                        0.42 * scale,
+                        0.04 * scale,
+                        Transform::from_translation(center + Vec3::Y * 0.16 * scale)
+                            .with_rotation(Quat::from_rotation_x(std::f32::consts::FRAC_PI_2)),
+                    );
+                } else {
+                    geometry.cuboid(
+                        Vec3::new(1.0, 0.65, 0.09) * scale,
+                        0.022 * scale,
+                        Transform::from_translation(center + Vec3::Y * 0.49 * scale),
+                    );
+                }
                 commands.spawn((
                     Mesh3d(meshes.add(geometry.into_mesh())),
-                    MeshMaterial3d(set.get(surface)),
+                    MeshMaterial3d(handle(surface)),
                     SemanticLabel::Wall,
                     ChildOf(root),
                 ));
-                let radius = 0.15 * scale;
-                let mut sphere = Sphere::new(radius).mesh().uv(64, 32);
-                // Production panels use metre UVs. Give the BRDF sphere the
-                // same physical scale instead of stretching a 0..1 texture.
-                if let Some(bevy::mesh::VertexAttributeValues::Float32x2(uvs)) =
-                    sphere.attribute_mut(Mesh::ATTRIBUTE_UV_0)
-                {
-                    for uv in uvs {
-                        uv[0] *= std::f32::consts::TAU * radius;
-                        uv[1] *= std::f32::consts::PI * radius;
+                if !leaf {
+                    let radius = 0.15 * scale;
+                    let mut sphere = Sphere::new(radius).mesh().uv(64, 32);
+                    // Production panels use metre UVs. Give the BRDF sphere the
+                    // same physical scale instead of stretching a 0..1 texture.
+                    if let Some(bevy::mesh::VertexAttributeValues::Float32x2(uvs)) =
+                        sphere.attribute_mut(Mesh::ATTRIBUTE_UV_0)
+                    {
+                        for uv in uvs {
+                            uv[0] *= std::f32::consts::TAU * radius;
+                            uv[1] *= std::f32::consts::PI * radius;
+                        }
                     }
+                    sphere.generate_tangents().unwrap();
+                    commands.spawn((
+                        Mesh3d(meshes.add(sphere)),
+                        MeshMaterial3d(handle(surface)),
+                        SemanticLabel::Wall,
+                        Transform::from_translation(center + Vec3::new(0.24, 0.15, 0.27) * scale),
+                        ChildOf(root),
+                    ));
                 }
-                sphere.generate_tangents().unwrap();
-                commands.spawn((
-                    Mesh3d(meshes.add(sphere)),
-                    MeshMaterial3d(set.get(surface)),
-                    SemanticLabel::Wall,
-                    Transform::from_translation(center + Vec3::new(0.24, 0.15, 0.27) * scale),
-                    ChildOf(root),
-                ));
                 commands.spawn((
                     Mesh3d(meshes.add(Cuboid::new(2.2, 0.08, 1.5))),
                     MeshMaterial3d(ground.clone()),

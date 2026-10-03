@@ -88,18 +88,10 @@ impl FinishLayers {
         use std::f32::consts::TAU;
         let [u, v] = uv;
         let [_, meso, micro] = noise;
-        let textile = matches!(recipe.surface, Surface::Fabric | Surface::FabricAlt)
-            || recipe.surface == Surface::Floor && floor_style == 1;
         let mineral = recipe.surface == Surface::Concrete
             || recipe.surface == Surface::Floor && floor_style == 2;
-        // Timber gets its directional grain from the base recipe, not mineral
-        // veins or textile stripes spanning every plank in the room.
-        let stripes = if textile {
-            let band = (TAU * (u * self.bands[0] as f32 + v * self.bands[1] as f32)).sin();
-            (0.5 + 0.5 * band).powi(4) * self.stripe_strength
-        } else {
-            0.0
-        };
+        // Textiles apply dye to selected yarns in their weaving program. Timber
+        // also supplies its own grain; neither receives room-wide sine stripes.
         let flecks = if mineral {
             ((micro - 0.57) * 5.0).clamp(0.0, 1.0) * self.fleck_strength
         } else {
@@ -143,9 +135,9 @@ impl FinishLayers {
         } else {
             0.0
         };
-        finish[0] *= 1.0 - stripes * 0.40 - vein * 0.28 + flecks * 0.18;
-        finish[1] += recipe.relief_m * (stripes * 0.35 - vein * 0.25 + flecks * (meso - 0.5));
-        finish[2] += stripes * 0.06 + vein * 0.09 - flecks * 0.10;
+        finish[0] *= 1.0 - vein * 0.28 + flecks * 0.18;
+        finish[1] += recipe.relief_m * (-vein * 0.25 + flecks * (meso - 0.5));
+        finish[2] += vein * 0.09 - flecks * 0.10;
     }
 }
 
@@ -155,6 +147,10 @@ mod tests {
     fn mixed_finishes_remain_tileable_and_finite() {
         for seed in 0..24 {
             for recipe in super::super::program::sample(seed) {
+                // Botanical fields are blade atlases, not repeating wall tiles.
+                if recipe.leaf.is_some() {
+                    continue;
+                }
                 for t in [0.0, 0.123, 0.5, 0.937, 1.0] {
                     for (a, b) in [
                         (recipe.evaluate(0.0, t, 2), recipe.evaluate(1.0, t, 2)),

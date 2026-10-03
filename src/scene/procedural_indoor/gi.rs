@@ -543,10 +543,20 @@ impl BakeScene {
                 }
                 let cloth = matches!(
                     surface,
-                    HumanSurface::Top | HumanSurface::Trousers | HumanSurface::Shirt
+                    HumanSurface::Top
+                        | HumanSurface::Trousers
+                        | HumanSurface::Shirt
+                        | HumanSurface::Seam
                 );
                 let mut material = if cloth {
-                    result.materials[Surface::Fabric as usize].clone()
+                    let key = super::humans::cloth_finish(person, surface);
+                    let index = finish_indices.get(&key).copied().unwrap_or(key.0 as usize);
+                    let mut material = result.materials[index].clone();
+                    // The diffuse transport proxy resolves only coarse color;
+                    // retain the wardrobe's atlas scale and selected structure.
+                    material.uv_scale *=
+                        2. * person.appearance.as_ref().map_or(1., |a| a.weave_scale);
+                    material
                 } else {
                     DiffuseMaterial {
                         albedo: Vec3::ONE,

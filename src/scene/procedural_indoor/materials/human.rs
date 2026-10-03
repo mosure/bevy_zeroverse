@@ -6,16 +6,25 @@ use crate::scene::procedural_indoor::preparation::AssetStore;
 /// applied separately, never multiplied by a furniture upholstery palette.
 pub(super) fn maps(
     seed: u64,
+    mut cloth: StandardMaterial,
     images: &mut impl AssetStore<Image>,
     materials: &mut impl AssetStore<StandardMaterial>,
 ) -> [Handle<StandardMaterial>; 3] {
     use rand::Rng;
     let mut rng = crate::scene::procedural_indoor::layout::stream(seed, 0x48554d414e4d4150);
-    let warp = rng.random_range(18..41) as f32;
-    let weft = rng.random_range(14..37) as f32;
-    let twill = rng.random_range(0.0..1.0_f32);
+    // Preserve the skin/hair RNG stream; wardrobe no longer uses sinusoidal maps.
+    let _ = rng.random_range(18..41);
+    let _ = rng.random_range(14..37);
+    let _ = rng.random_range(0.0..1.0_f32);
     let strand = rng.random_range(32..81) as u32;
+    cloth.base_color = Color::WHITE;
+    // Anny's atlas is normalized. A two-metre UV reference is modulated per actor.
+    cloth.uv_transform *= bevy::math::Affine2::from_scale(Vec2::splat(2.));
+    let cloth = materials.add(cloth);
     [0, 1, 2].map(|kind| {
+        if kind == 0 {
+            return cloth.clone();
+        }
         let mut albedo = Vec::with_capacity(256 * 256 * 4);
         let mut normal = Vec::with_capacity(256 * 256 * 4);
         for y in 0..256 {
@@ -24,13 +33,6 @@ pub(super) fn maps(
                 let v = y as f32 / 256.0;
                 let phase = std::f32::consts::TAU;
                 let (shade, nx, ny) = match kind {
-                    0 => (
-                        0.96 + 0.025
-                            * ((1.0 - twill) * (u * phase * warp).sin() * (v * phase * weft).sin()
-                                + twill * ((u * warp + v * weft) * phase).sin()),
-                        0.075 * (u * phase * warp).cos(),
-                        0.075 * (v * phase * weft).cos(),
-                    ),
                     1 => {
                         // Irregular pores, not a regular embossed grid. Derive
                         // relief from the same field used by pigmentation.

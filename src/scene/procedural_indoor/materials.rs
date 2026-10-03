@@ -1,16 +1,22 @@
 //! Role-specific PBR textures, generated in memory with repeat sampling and mip chains.
 pub mod boards;
+pub mod botanical;
+pub mod coating;
 mod environment;
+mod field;
 mod filter;
 pub mod glass;
 mod human;
 pub mod layers;
+pub mod leather;
 mod microstructure;
+pub mod mineral;
 mod paper;
 pub mod program;
 mod raster;
 pub mod screens;
-mod timber;
+pub mod textile;
+pub mod timber;
 pub mod variants;
 use super::layout::{IndoorManifest, LightingMood};
 use bevy::{
@@ -213,14 +219,33 @@ impl IndoorMaterials {
                 ..default()
             };
             if let Some(program) = &scene.program {
+                if program.materials[surface as usize].absolute_color(scene.floor_style) {
+                    mat.base_color = Color::WHITE;
+                }
                 mat.uv_transform = bevy::math::Affine2::from_scale(
                     program.materials[surface as usize].period_uv().recip(),
                 );
+                program.materials[surface as usize].apply_pbr(&mut mat);
+                if surface == Surface::Floor && scene.floor_style == 0 {
+                    if let Some(w) = &program.materials[surface as usize].wood {
+                        w.apply(&mut mat);
+                    }
+                }
             }
             if let Some([color, normal, data]) = maps {
                 mat.base_color_texture = Some(images.add(color));
                 mat.normal_map_texture = Some(images.add(normal));
-                mat.metallic_roughness_texture = Some(images.add(data));
+                let data = images.add(data);
+                if scene.program.is_some()
+                    || matches!(
+                        surface,
+                        Surface::Fabric | Surface::FabricAlt | Surface::Leather
+                    )
+                    || surface == Surface::Floor && scene.floor_style == 1
+                {
+                    mat.occlusion_texture = Some(data.clone());
+                }
+                mat.metallic_roughness_texture = Some(data);
                 mat.perceptual_roughness = 1.0;
             }
             if matches!(
@@ -240,7 +265,11 @@ impl IndoorMaterials {
                         .apply(&mut mat, quality);
                 }
                 Surface::Leaf | Surface::LeafLight | Surface::LeafVariegated => {
-                    mat.diffuse_transmission = 0.18
+                    if scene.program.is_none() {
+                        mat.diffuse_transmission = 0.18;
+                    }
+                    // The blade atlas remains 0..1 despite its metric derivative reference.
+                    mat.uv_transform = bevy::math::Affine2::IDENTITY;
                 }
                 Surface::Screen => {
                     screens::apply(scene.material_seed(), false, &mut mat, images);
@@ -288,12 +317,16 @@ impl IndoorMaterials {
                     mat.anisotropy_strength = ((roughness - 0.08) * 3.0).clamp(0.0, 0.48);
                 }
                 Surface::Wood | Surface::WoodEdge | Surface::Ceramic => {
-                    mat.clearcoat = if roughness < 0.46 { 0.32 } else { 0.08 };
-                    mat.clearcoat_perceptual_roughness = (roughness * 0.55).max(0.09);
+                    if scene.program.is_none() {
+                        mat.clearcoat = if roughness < 0.46 { 0.32 } else { 0.08 };
+                        mat.clearcoat_perceptual_roughness = (roughness * 0.55).max(0.09);
+                    }
                 }
                 Surface::Leather => {
-                    mat.clearcoat = 0.10;
-                    mat.clearcoat_perceptual_roughness = 0.32;
+                    if scene.program.is_none() {
+                        mat.clearcoat = 0.10;
+                        mat.clearcoat_perceptual_roughness = 0.32;
+                    }
                 }
                 Surface::Light => {
                     let c = kelvin_rgb(scene.light_kelvin);
@@ -348,9 +381,13 @@ impl IndoorMaterials {
                 materials.add(material)
             })
             .collect();
-        let [cloth, skin, hair] = human::maps(scene.material_seed(), images, materials);
-        let variants =
-            variants::build(scene.material_seed(), &handles, images, materials, finishes);
+        let variants = variants::build(scene, &handles, images, materials, finishes);
+        let cloth_template = materials
+            .get(&handles[Surface::Fabric as usize])
+            .unwrap()
+            .clone();
+        let [cloth, skin, hair] =
+            human::maps(scene.material_seed(), cloth_template, images, materials);
         let mut result = Self {
             handles,
             light_variants,
@@ -502,11 +539,38 @@ fn prepare_map(scene: &IndoorManifest, definition: &Definition) -> Option<[Image
         roughness,
         recipe,
     );
-    Some(filter::images(maps, 256))
+    Some(mapped_images(
+        maps,
+        recipe.map_or(256, |r| r.map_size(scene.floor_style)),
+        recipe,
+    ))
+}
+
+fn mapped_images(
+    maps: TextureMaps,
+    size: u32,
+    recipe: Option<&program::MaterialRecipe>,
+) -> [Image; 3] {
+    let mut images = filter::images(maps, size);
+    if recipe.is_some_and(|r| r.leaf.is_some()) {
+        for image in &mut images {
+            let mut descriptor = match &image.sampler {
+                ImageSampler::Descriptor(d) => d.clone(),
+                _ => ImageSamplerDescriptor::default(),
+            };
+            descriptor.address_mode_u = ImageAddressMode::ClampToEdge;
+            descriptor.address_mode_v = ImageAddressMode::ClampToEdge;
+            image.sampler = ImageSampler::Descriptor(descriptor);
+        }
+    }
+    images
 }
 
 fn hash(x: u32, y: u32, seed: u64) -> f32 {
-    let mut v = x.wrapping_mul(374761393) ^ y.wrapping_mul(668265263) ^ seed as u32;
+    let mut v = x.wrapping_mul(374761393)
+        ^ y.wrapping_mul(668265263)
+        ^ seed as u32
+        ^ ((seed >> 32) as u32).wrapping_mul(0x9e3779b9);
     v = (v ^ (v >> 13)).wrapping_mul(1274126177);
     (v ^ (v >> 16)) as f32 / u32::MAX as f32
 }
@@ -536,7 +600,26 @@ fn texture_maps(
     roughness: f32,
     recipe: Option<&program::MaterialRecipe>,
 ) -> TextureMaps {
-    let n = 256usize;
+    // Older serialized recipes omit the new programs. Resolve their defaults
+    // once per map, rather than initializing an RNG for each of 65,536 texels.
+    let initialized = recipe.and_then(|r| {
+        let textile = matches!(surface, Surface::Fabric | Surface::FabricAlt)
+            || surface == Surface::Floor && floor_style == 1;
+        if textile && r.textile.is_none() || surface == Surface::Leather && r.leather.is_none() {
+            let mut r = r.clone();
+            if textile {
+                r.textile = Some(textile::TextileRecipe::sample(r.seed));
+            }
+            if surface == Surface::Leather {
+                r.leather = Some(leather::LeatherRecipe::sample(r.seed));
+            }
+            Some(r)
+        } else {
+            None
+        }
+    });
+    let recipe = initialized.as_ref().or(recipe);
+    let n = recipe.map_or(256, |r| r.map_size(floor_style)) as usize;
     let mut heights = vec![0.0; n * n];
     let mut colors = Vec::with_capacity(n * n * 4);
     let mut data = Vec::with_capacity(n * n * 4);
@@ -617,38 +700,58 @@ fn texture_maps(
                 };
                 (shade, h * 0.001, roughness + (noise - 0.5) * 0.06)
             };
-            let (shade, h, pixel_roughness) = if let Some(recipe) = recipe.filter(|_| {
-                !matches!(
-                    surface,
-                    Surface::Leaf | Surface::LeafLight | Surface::LeafVariegated | Surface::Soil
-                )
-            }) {
-                recipe.evaluate(u, v, floor_style)
+            let texel = if let Some(recipe) = recipe {
+                recipe.texel(u, v, floor_style)
             } else {
-                fallback()
+                let (shade, h, roughness) = fallback();
+                program::Texel {
+                    color: [shade; 3],
+                    height: h,
+                    roughness,
+                    occlusion: 1.,
+                }
             };
-            heights[y * n + x] = h;
-            let byte = (shade.clamp(0.0, 1.0) * 255.0) as u8;
-            colors.extend([byte, byte, byte, 255]);
+            heights[y * n + x] = texel.height;
+            let rgb = texel.color.map(|c| (c.clamp(0., 1.) * 255.) as u8);
+            colors.extend([rgb[0], rgb[1], rgb[2], 255]);
             data.extend([
-                255,
-                (pixel_roughness.clamp(0.05, 1.0) * 255.0) as u8,
-                if matches!(surface, Surface::Metal | Surface::Chrome) {
-                    255
-                } else {
-                    0
-                },
+                (texel.occlusion * 255.).round() as u8,
+                (texel.roughness.clamp(0.05, 1.0) * 255.0) as u8,
+                if surface == Surface::Chrome { 255 } else { 0 },
                 255,
             ]);
         }
     }
     let mut normals = Vec::with_capacity(n * n * 4);
-    let period = recipe.map_or(Vec2::ONE, |r| r.period_uv());
+    let period = recipe.map_or(Vec2::ONE, |r| {
+        r.leaf
+            .as_ref()
+            .map_or_else(|| r.period_uv(), |l| Vec2::from_array(l.reference_size_m))
+    });
     let slope = Vec2::splat(n as f32 * 0.5) / period;
     for y in 0..n {
         for x in 0..n {
-            let dx = heights[y * n + (x + 1) % n] - heights[y * n + (x + n - 1) % n];
-            let dy = heights[((y + 1) % n) * n + x] - heights[((y + n - 1) % n) * n + x];
+            let atlas = recipe.is_some_and(|r| r.leaf.is_some());
+            let [left, right, bottom, top] = if atlas {
+                [
+                    x.saturating_sub(1),
+                    (x + 1).min(n - 1),
+                    y.saturating_sub(1),
+                    (y + 1).min(n - 1),
+                ]
+            } else {
+                [(x + n - 1) % n, (x + 1) % n, (y + n - 1) % n, (y + 1) % n]
+            };
+            let dx = heights[y * n + right] - heights[y * n + left];
+            let dy = heights[top * n + x] - heights[bottom * n + x];
+            let slope = if atlas {
+                Vec2::new(
+                    n as f32 / (right - left) as f32,
+                    n as f32 / (top - bottom) as f32,
+                ) / period
+            } else {
+                slope
+            };
             // Tangent space follows increasing mesh U/V. Both slopes oppose the
             // height gradient; flipping only Y would invert relief in one axis.
             let normal = Vec3::new(-dx * slope.x, -dy * slope.y, 1.0).normalize();
@@ -790,6 +893,45 @@ mod surface_tests {
     use super::*;
 
     #[test]
+    fn substrate_fields_consume_the_upper_seed_bits() {
+        for (x, y) in [(3, 7), (79, 19), (12, 53)] {
+            assert_ne!(hash(x, y, 73), hash(x, y, 73 + (1u64 << 32)));
+        }
+    }
+
+    #[test]
+    fn leaf_maps_clamp_at_atlas_edges_and_bind_absolute_color() {
+        let scene = IndoorManifest::generate_with_humans(
+            31,
+            super::super::layout::IndoorLayout::Mixed,
+            0.65,
+            0,
+            0.,
+        )
+        .unwrap();
+        let (mut images, mut materials) = (Assets::default(), Assets::default());
+        let set = IndoorMaterials::build(&scene, &mut images, &mut materials);
+        for s in [Surface::Leaf, Surface::LeafLight, Surface::LeafVariegated] {
+            let m = materials.get(&set.get(s)).unwrap();
+            assert_eq!(m.base_color, Color::WHITE);
+            assert_eq!(m.uv_transform, bevy::math::Affine2::IDENTITY);
+            assert!(m.diffuse_transmission > 0. && m.diffuse_transmission < 0.5);
+            for h in [
+                &m.base_color_texture,
+                &m.normal_map_texture,
+                &m.metallic_roughness_texture,
+            ] {
+                let ImageSampler::Descriptor(d) = &images.get(h.as_ref().unwrap()).unwrap().sampler
+                else {
+                    panic!("leaf sampler")
+                };
+                assert_eq!(d.address_mode_u, ImageAddressMode::ClampToEdge);
+                assert_eq!(d.address_mode_v, ImageAddressMode::ClampToEdge);
+            }
+        }
+    }
+
+    #[test]
     fn byte_color_lookup_preserves_every_original_transfer_value() {
         for (byte, &cached) in srgb8_table().iter().enumerate() {
             let original = (Vec3::splat(byte as f32) / 255.).map(srgb_to_linear).x;
@@ -864,6 +1006,52 @@ mod surface_tests {
     }
 
     #[test]
+    fn wardrobe_reuses_bounded_structure_maps_with_independent_tint() {
+        use super::super::humans::{cloth_finish, person_material, HumanSurface};
+        let scene = IndoorManifest::generate_with_humans(
+            44,
+            super::super::layout::IndoorLayout::Mixed,
+            0.65,
+            0,
+            0.8,
+        )
+        .unwrap();
+        assert!(!scene.humans.is_empty());
+        let mut images = Assets::default();
+        let mut materials = Assets::default();
+        let indoor = IndoorMaterials::build(&scene, &mut images, &mut materials);
+        let before = images.len();
+        let mut structures = std::collections::BTreeSet::new();
+        for person in &scene.humans {
+            for surface in [HumanSurface::Top, HumanSurface::Trousers] {
+                let m = person_material(person, surface, &indoor, &materials);
+                let base = materials
+                    .get(&indoor.variants[&cloth_finish(person, surface)])
+                    .unwrap();
+                assert_eq!(m.base_color, person.material_color(surface));
+                assert_eq!(m.base_color_texture, base.base_color_texture);
+                assert_eq!(m.normal_map_texture, base.normal_map_texture);
+                assert_eq!(
+                    m.metallic_roughness_texture,
+                    base.metallic_roughness_texture
+                );
+                assert_eq!(m.occlusion_texture, m.metallic_roughness_texture);
+                assert_eq!(m.metallic, 0.);
+                assert_eq!(m.clearcoat, 0.);
+                structures.insert(m.normal_map_texture.unwrap().id());
+                if let Some(a) = &person.appearance {
+                    assert!(
+                        (m.anisotropy_rotation - base.anisotropy_rotation + a.weave_rotation).abs()
+                            < 1e-5
+                    );
+                }
+            }
+        }
+        assert!(structures.len() <= 6);
+        assert_eq!(images.len(), before, "wardrobe allocated per-person maps");
+    }
+
+    #[test]
     fn hard_surface_maps_vary_normals_and_roughness_without_losing_metalness() {
         let recipes = program::sample(81);
         for surface in [
@@ -886,12 +1074,11 @@ mod surface_tests {
             let roughness: std::collections::BTreeSet<_> =
                 data.as_chunks::<4>().0.iter().map(|p| p[1]).collect();
             assert!(roughness.len() > 8, "{surface:?} has flat roughness");
-            assert!(data.as_chunks::<4>().0.iter().all(|p| p[2]
-                == if matches!(surface, Surface::Metal | Surface::Chrome) {
-                    255
-                } else {
-                    0
-                }));
+            assert!(data
+                .as_chunks::<4>()
+                .0
+                .iter()
+                .all(|p| p[2] == if surface == Surface::Chrome { 255 } else { 0 }));
         }
     }
 
@@ -958,7 +1145,8 @@ mod surface_tests {
                     recipe.roughness,
                     Some(recipe),
                 );
-                assert_eq!(colors.len(), 256 * 256 * 4);
+                let size = recipe.map_size(seed as u32 % 3) as usize;
+                assert_eq!(colors.len(), size * size * 4);
                 for pixel in normals.as_chunks::<4>().0.iter() {
                     let n = Vec3::new(pixel[0] as f32, pixel[1] as f32, pixel[2] as f32) / 127.5
                         - Vec3::ONE;

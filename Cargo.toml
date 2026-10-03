@@ -1,7 +1,7 @@
 [package]
 name = "bevy_zeroverse"
 description = "bevy zeroverse synthetic dataset generator"
-version = "0.28.2"
+version = "0.29.0"
 edition = "2021"
 authors = ["mosure <mitchell@mosure.me>"]
 license = "MIT"
@@ -198,6 +198,7 @@ features = [
 
 
 [dev-dependencies]
+sha2 = "0.10"
 criterion = { version = "0.7", features = ["html_reports"] }
 futures-intrusive = { version = "0.5.0" }
 pollster = { version = "0.4" }

@@ -1,6 +1,111 @@
 //! Uneven growth contours, cathedral cuts, knots and elongated open pores.
 use super::{hash, periodic_noise, program::MaterialRecipe, Surface};
+use crate::scene::procedural_indoor::layout::stream;
+use rand::Rng;
+use serde::{Deserialize, Serialize};
 use std::f32::consts::TAU;
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct WoodFinish {
+    #[serde(default)]
+    pub seed: u64,
+    pub stain_color: [f32; 3],
+    pub stain_strength: f32,
+    pub bleach: f32,
+    pub pore_fill: f32,
+    pub ring_contrast: f32,
+    pub clearcoat: f32,
+    pub coat_roughness: f32,
+}
+impl WoodFinish {
+    pub fn sample(seed: u64) -> Self {
+        let mut rng = stream(seed, 0x574f4f4446494e);
+        let neutral = rng.random_bool(0.25);
+        let c = bevy::prelude::Color::hsl(
+            rng.random_range(12.0..44.0),
+            if neutral {
+                rng.random_range(0.0..0.10)
+            } else {
+                rng.random_range(0.12..0.55)
+            },
+            rng.random_range(0.035..0.35),
+        )
+        .to_srgba();
+        Self {
+            seed,
+            stain_color: [c.red, c.green, c.blue],
+            stain_strength: rng.random_range(0.0_f32..1.0).powf(1.5) * 0.90,
+            bleach: rng.random_range(0.0_f32..1.0).powi(3) * 0.65,
+            pore_fill: rng.random_range(0.0..0.95),
+            ring_contrast: rng.random_range(0.35..1.25),
+            clearcoat: rng.random_range(0.0_f32..1.0).powi(2) * 0.85,
+            coat_roughness: rng.random_range(0.045..0.42),
+        }
+    }
+    pub fn validate(&self) -> Result<(), String> {
+        if self
+            .stain_color
+            .iter()
+            .chain(
+                [
+                    self.stain_strength,
+                    self.bleach,
+                    self.pore_fill,
+                    self.clearcoat,
+                    self.coat_roughness,
+                ]
+                .iter(),
+            )
+            .any(|v| !v.is_finite() || !(0.0..=1.).contains(v))
+            || !self.ring_contrast.is_finite()
+            || !(0.1..=1.5).contains(&self.ring_contrast)
+        {
+            return Err("invalid timber stain/finish program".into());
+        }
+        Ok(())
+    }
+    pub(super) fn apply(&self, mat: &mut bevy::prelude::StandardMaterial) {
+        mat.clearcoat = self.clearcoat;
+        mat.clearcoat_perceptual_roughness = self.coat_roughness;
+        mat.reflectance = 0.45;
+    }
+    pub(super) fn evaluate(&self, r: &MaterialRecipe, [u, v]: [f32; 2]) -> super::program::Texel {
+        use super::field::*;
+        let g = grain(r, u, v);
+        let absorbed = (self.stain_strength * (0.92 + (0.65 - g) * 0.22)).clamp(0., 1.);
+        let base = mix(
+            mix(r.color, self.stain_color, absorbed),
+            [0.88, 0.87, 0.82],
+            self.bleach,
+        );
+        let gain = (1. + (g - 0.58) * r.contrast * self.ring_contrast * 2.).clamp(0.35, 1.20);
+        super::program::Texel {
+            color: tint(base, gain),
+            height: (g - 0.5) * r.relief_m * (1. - self.pore_fill * 0.85),
+            roughness: (r.roughness + (0.55 - g) * 0.18 * (1. - self.clearcoat * 0.65))
+                .clamp(0.12, 0.95),
+            occlusion: 1. - (0.5 - g).max(0.) * 0.04 * (1. - self.pore_fill),
+        }
+    }
+}
+
+pub(super) fn bark(r: &MaterialRecipe, [u, v]: [f32; 2]) -> super::program::Texel {
+    use super::field::*;
+    let warp = periodic_noise(u, v, 3, 5, r.seed) - 0.5;
+    let ridges = deposit([u + warp * 0.04, v], [23, 3], 0.02, r.seed.wrapping_add(19));
+    let cracks = smooth((0.35 - ridges) * 7.);
+    let cross = smooth((0.24 - periodic_noise(u, v, 5, 29, r.seed.wrapping_add(23))) * 6.);
+    let grain = periodic_noise(u, v, 79, 13, r.seed.wrapping_add(29)) - 0.5;
+    super::program::Texel {
+        color: tint(
+            r.color,
+            (1. + grain * 0.18 - cracks * 0.42 - cross * 0.14).clamp(0.35, 1.2),
+        ),
+        height: r.relief_m * ((ridges - 0.5) * 0.6 - cracks * 0.35 - cross * 0.12),
+        roughness: (r.roughness + cracks * 0.08 + grain * 0.07).clamp(0.70, 1.),
+        occlusion: 1. - cracks * 0.06 - cross * 0.02,
+    }
+}
 
 pub(super) fn grain(r: &MaterialRecipe, mut u: f32, mut v: f32) -> f32 {
     let mut seed = r.seed;

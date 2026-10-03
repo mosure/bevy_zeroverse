@@ -490,21 +490,9 @@ impl IndoorProgram {
             return Err("invalid material or lighting program".into());
         }
         for (i, r) in self.materials.iter().enumerate() {
-            if let Some(layers) = &r.layers {
-                layers.validate()?;
-            }
-            if r.surface as usize != i
-                || !r
-                    .color
-                    .into_iter()
-                    .all(|v| v.is_finite() && (0.0..=1.0).contains(&v))
-                || !(0.0..=1.0).contains(&r.roughness)
-                || !r.period_m.is_finite()
-                || r.period_m <= 0.0
-                || !r.relief_m.is_finite()
-                || !(0.0..0.02).contains(&r.relief_m)
-            {
-                return Err("invalid metric material recipe".into());
+            r.validate()?;
+            if r.surface as usize != i {
+                return Err("material roles are not in canonical order".into());
             }
         }
         Ok(())

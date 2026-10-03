@@ -231,7 +231,7 @@ impl PreparedIndoor {
         let started = bevy::platform::time::Instant::now();
         let geometry = SceneGeometry::build(&manifest).await;
         let mut geometry_seconds = started.elapsed().as_secs_f64();
-        let finishes = geometry
+        let mut finishes: std::collections::BTreeSet<_> = geometry
             .architecture
             .parts
             .keys()
@@ -248,6 +248,11 @@ impl PreparedIndoor {
                     .map(|slot| (*surface, slot))
             })
             .collect();
+        for person in &manifest.humans {
+            for surface in [humans::HumanSurface::Top, humans::HumanSurface::Trousers] {
+                finishes.insert(humans::cloth_finish(person, surface));
+            }
+        }
         let started = bevy::platform::time::Instant::now();
         let mut material_set = IndoorMaterials::build_async_with_finishes(
             &manifest,
