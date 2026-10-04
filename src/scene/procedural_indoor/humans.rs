@@ -3,10 +3,13 @@ mod anatomy;
 pub mod appearance;
 pub(crate) mod body;
 mod face;
-mod garments;
-mod hair;
+pub mod footwear;
+pub mod garments;
+pub mod hair;
+pub mod morphology;
 mod population;
 pub mod poses;
+mod rig;
 pub use population::populate;
 use std::{
     collections::BTreeMap,
@@ -83,6 +86,26 @@ pub enum HumanOutfit {
     Shirt,
     Knitwear,
     Blazer,
+    Tee,
+    Polo,
+    Cardigan,
+}
+impl HumanOutfit {
+    pub(super) fn open_front(self) -> bool {
+        matches!(self, Self::Blazer | Self::Cardigan)
+    }
+    pub(super) fn collared(self) -> bool {
+        matches!(self, Self::Shirt | Self::Blazer | Self::Polo)
+    }
+    pub(super) fn buttoned(self) -> bool {
+        self.collared() || self == Self::Cardigan
+    }
+    pub(crate) fn knitted(self) -> bool {
+        matches!(
+            self,
+            Self::Knitwear | Self::Cardigan | Self::Tee | Self::Polo
+        )
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -195,6 +218,8 @@ impl IndoorHuman {
             HumanSurface::Iris => [0.18, 0.12, 0.07],
             HumanSurface::Eyewear => [0.10, 0.075, 0.055],
             HumanSurface::Lens => [0.94, 0.98, 1.0],
+            HumanSurface::FacialHair => [skin[0] * 0.65, skin[1] * 0.6, skin[2] * 0.6],
+            HumanSurface::Sole | HumanSurface::ShoeDetail => [0.15, 0.14, 0.13],
         };
         Color::srgb(rgb[0], rgb[1], rgb[2])
     }
@@ -230,12 +255,16 @@ pub enum HumanSurface {
     Brow,
     Eyewear,
     Lens,
+    FacialHair,
+    Sole,
+    ShoeDetail,
 }
 
 #[derive(Default, Clone)]
 pub struct HumanAssembly {
     pub parts: BTreeMap<HumanSurface, Geometry>,
     pub local_joints: Vec<Vec3>,
+    pub body_measurements: morphology::BodyMeasurements,
 }
 impl HumanAssembly {
     fn part(&mut self, surface: HumanSurface) -> &mut Geometry {
@@ -288,7 +317,11 @@ pub(crate) fn person_material(
         HumanSurface::Top | HumanSurface::Trousers | HumanSurface::Shirt | HumanSurface::Seam
     );
     let mut material = if cloth {
-        let mut mat = if let Some(handle) = indoor_materials
+        let mut mat = if person.outfit.knitted()
+            && matches!(surface, HumanSurface::Top | HumanSurface::Seam)
+        {
+            materials.get(&indoor_materials.knit).unwrap().clone()
+        } else if let Some(handle) = indoor_materials
             .variants
             .get(&cloth_finish(person, surface))
         {
@@ -300,10 +333,31 @@ pub(crate) fn person_material(
         };
         mat.perceptual_roughness = 1.;
         mat
-    } else if surface == HumanSurface::Hair {
+    } else if matches!(surface, HumanSurface::Hair | HumanSurface::FacialHair) {
         materials.get(&indoor_materials.hair).unwrap().clone()
     } else if matches!(surface, HumanSurface::Skin | HumanSurface::Lip) {
         materials.get(&indoor_materials.skin).unwrap().clone()
+    } else if surface == HumanSurface::Shoes {
+        let leather = person
+            .appearance
+            .as_ref()
+            .map_or(0.7, |a| a.footwear.leather);
+        if leather >= 0.45 {
+            materials
+                .get(&indoor_materials.get(super::materials::Surface::Leather))
+                .unwrap()
+                .clone()
+        } else {
+            let mut m = materials.get(&indoor_materials.cloth).unwrap().clone();
+            // Shoe UVs are metres, not Anny's normalized body atlas.
+            m.uv_transform *= bevy::math::Affine2::from_scale(Vec2::splat(0.5));
+            m
+        }
+    } else if matches!(surface, HumanSurface::Sole | HumanSurface::ShoeDetail) {
+        materials
+            .get(&indoor_materials.get(super::materials::Surface::Rubber))
+            .unwrap()
+            .clone()
     } else {
         StandardMaterial::default()
     };
@@ -339,7 +393,7 @@ pub(crate) fn person_material(
     if let Some(appearance) = &person.appearance {
         if cloth {
             // Preserve the spatial roughness map and only modulate it gently.
-            material.perceptual_roughness = 0.85 + appearance.cloth_roughness * 0.15;
+            material.perceptual_roughness = 0.72 + appearance.cloth_roughness * 0.25;
             material.uv_transform *= bevy::math::Affine2::from_scale_angle_translation(
                 Vec2::splat(appearance.weave_scale),
                 appearance.weave_rotation,
@@ -356,14 +410,40 @@ pub(crate) fn person_material(
             // frame; curl broadens it continuously. This is still a surface PBR
             // approximation, not multiple scattering between individual fibres.
             material.perceptual_roughness =
-                0.58 + 0.12 * (appearance.hair_curl / 0.06).clamp(0.0, 1.0);
+                0.64 + 0.10 * (appearance.hair_curl / 0.06).clamp(0.0, 1.0);
+        }
+        if surface == HumanSurface::Eyewear {
+            material.metallic = appearance.face.frame_metallic;
+        }
+        if surface == HumanSurface::Shoes {
+            material.perceptual_roughness = 0.95 - appearance.footwear.leather * 0.15;
         }
     }
     if surface == HumanSurface::Hair {
-        material.reflectance = 0.46;
+        material.reflectance = 0.28;
+        if person.hairstyle == hair::HairStyle::Afro as u8 {
+            material.perceptual_roughness = 0.90;
+            material.anisotropy_strength = 0.08;
+        } else if person.hairstyle == hair::HairStyle::TightCurls as u8 {
+            material.anisotropy_strength = 0.20;
+        }
     }
     if surface == HumanSurface::Eyewear {
         material.perceptual_roughness = 0.27;
+    }
+    if surface == HumanSurface::FacialHair {
+        material.perceptual_roughness = 0.88;
+        material.reflectance = 0.22;
+        material.anisotropy_strength = 0.0;
+        material.uv_transform = bevy::math::Affine2::from_scale(Vec2::splat(24.0));
+    }
+    if matches!(
+        surface,
+        HumanSurface::Shoes | HumanSurface::Sole | HumanSurface::ShoeDetail
+    ) {
+        material.metallic = 0.;
+        material.clearcoat = 0.;
+        material.reflectance = 0.35;
     }
     material
 }
@@ -472,7 +552,7 @@ fn sample_person(
     let mut rng = stream(seed, 40);
     let stature = rng.random_range(1.50..1.95);
     let build: f32 = rng.random_range(0.82..1.22);
-    let shoulder_width = rng.random_range(0.36..0.47) * build.sqrt();
+    let shoulder_width = morphology::shoulder_span(stature, build, rng.random_range(0.34..0.40));
     let program = poses::PoseProgram::sample(seed, pose);
     let joints = program.solve(stature, build, shoulder_width, pose.seated());
     let mut human = IndoorHuman {
@@ -493,12 +573,15 @@ fn sample_person(
             HumanOutfit::Shirt,
             HumanOutfit::Knitwear,
             HumanOutfit::Blazer,
-        ][rng.random_range(0..3)],
+            HumanOutfit::Tee,
+            HumanOutfit::Polo,
+            HumanOutfit::Cardigan,
+        ][rng.random_range(0..6)],
         skin_tone: rng.random_range(0..8),
         top_color: rng.random_range(0..12),
         trouser_color: rng.random_range(0..8),
         hair_color: rng.random_range(0..6),
-        hairstyle: rng.random_range(0..8),
+        hairstyle: rng.random_range(0..hair::HairStyle::ALL.len() as u8),
         shoe_color: rng.random_range(0..3),
         glasses: rng.random_bool(0.3),
         joints,
@@ -542,13 +625,47 @@ fn update_bounds(human: &mut IndoorHuman) {
 }
 
 fn collision_capsules(human: &IndoorHuman) -> Vec<(Vec3, Vec3, f32)> {
-    let p = &human.joints;
+    // Anatomical arm roots shrink with stature; circulation and seated-person
+    // reservations must still allow elbows/clothing and small pose changes.
+    // Otherwise correcting short bodies unexpectedly packs occupied rooms more
+    // densely and eliminates feasible multi-view camera paths.
+    let planning_joints = human.pose_program.as_ref().map(|pose| {
+        let span = human.shoulder_width.max(0.44 * human.build.sqrt());
+        pose.solve(human.stature, human.build, span, human.pose.seated())
+    });
+    let p = planning_joints.as_deref().unwrap_or(&human.joints);
+    let planning_shoulder = human.shoulder_width.max(0.44 * human.build.sqrt());
     let s = human.stature / 1.75;
+    let leg_ease = human.appearance.as_ref().map_or(0., |a| {
+        0.035 * a.garment.leg_straightness + a.garment.trouser_ease
+    });
     let mut result = vec![
         (p[0], p[1], 0.15 * human.build),
-        (p[1], p[2], human.shoulder_width * 0.49),
+        (p[1], p[2], planning_shoulder * 0.49),
         (p[3], p[4] + Vec3::Y * 0.03 * s, 0.155 * s),
     ];
+    if hair::HairStyle::from_id(human.hairstyle).is_some_and(hair::HairStyle::falls) {
+        let program = human
+            .appearance
+            .as_ref()
+            .map_or_else(hair::HairProgram::default, |a| a.hair_program.clone());
+        let torso_up = (p[2] - p[0]).normalize_or(Vec3::Y);
+        let right = (p[9] - p[5]).normalize_or(Vec3::X);
+        let back = right.cross(torso_up).normalize_or(Vec3::Z);
+        let bob = matches!(
+            hair::HairStyle::from_id(human.hairstyle),
+            Some(hair::HairStyle::Bob | hair::HairStyle::AsymmetricBob)
+        );
+        let drop = if bob { 0.10 } else { program.drop_m + 0.13 };
+        result.push((
+            p[4] + back * 0.075 * s,
+            p[3] - torso_up * drop * s + back * 0.11 * s,
+            planning_shoulder * 0.58 + 0.04,
+        ));
+    }
+    if human.hairstyle == hair::HairStyle::Afro as u8 {
+        result.push((p[4], p[4] + Vec3::Y * 0.025 * s, 0.25 * s));
+    }
     for base in [5, 9] {
         result.extend([
             (p[base], p[base + 1], 0.095 * human.build),
@@ -563,8 +680,8 @@ fn collision_capsules(human: &IndoorHuman) -> Vec<(Vec3, Vec3, f32)> {
     for base in [13, 17] {
         result.extend([
             (p[base], p[base + 1], 0.094 * human.build),
-            (p[base + 1], p[base + 2], 0.075 * human.build),
-            (p[base + 2].with_y(0.05), p[base + 3], 0.07 * s),
+            (p[base + 1], p[base + 2], 0.075 * human.build + leg_ease),
+            (p[base + 2].with_y(0.05), p[base + 3], 0.083 * s),
         ]);
     }
     result
@@ -711,9 +828,10 @@ pub fn validate(scene: &IndoorManifest) -> Result<(), String> {
         if human.id != scene.objects.len() + index
             || !human.position.is_finite()
             || !human.yaw.is_finite()
+            || !human.head_yaw.is_finite()
             || !(0.82..=1.22).contains(&human.build)
             || !human.shoulder_width.is_finite()
-            || !(0.30..=0.55).contains(&human.shoulder_width)
+            || !(0.26..=0.55).contains(&human.shoulder_width)
             || !human.bounds_min.is_finite()
             || !human.bounds_max.is_finite()
             || !human.bounds_min.cmplt(human.bounds_max).all()
@@ -743,10 +861,30 @@ pub fn validate(scene: &IndoorManifest) -> Result<(), String> {
             || human.top_color >= 12
             || human.trouser_color >= 8
             || human.hair_color >= 6
-            || human.hairstyle >= 8
+            || hair::HairStyle::from_id(human.hairstyle).is_none()
             || human.shoe_color >= 3
         {
             return Err("invalid human morphology or material palette".into());
+        }
+        if let Some(appearance) = &human.appearance {
+            appearance.footwear.validate()?;
+            appearance.hair_program.validate()?;
+            if let Some(program) = &appearance.body_program {
+                program.validate()?;
+            }
+            if appearance
+                .body_gender
+                .is_some_and(|v| !v.is_finite() || !(0.0..=1.0).contains(&v))
+            {
+                return Err("invalid Anny gender anchor".into());
+            }
+            if !appearance.garment.leg_straightness.is_finite()
+                || !(0.0..=1.).contains(&appearance.garment.leg_straightness)
+                || !appearance.garment.hem_width.is_finite()
+                || !(0.6..=1.7).contains(&appearance.garment.hem_width)
+            {
+                return Err("invalid trouser cut parameters".into());
+            }
         }
     }
     Ok(())

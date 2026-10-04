@@ -30,6 +30,42 @@ pub struct Pillar {
     pub center: Vec2,
     pub radius: f32,
     pub sides: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub profile: Option<ColumnProfile>,
+}
+
+/// Cross-section and taper fit within the pillar's conservative collision radius.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ColumnProfile {
+    pub aspect: f32,
+    pub roundness: f32,
+    pub taper: f32,
+    pub rotation: f32,
+    pub collar_height: f32,
+}
+impl ColumnProfile {
+    pub fn sample(seed: u64, index: usize) -> Self {
+        use rand::Rng;
+        let mut rng = super::layout::stream(seed, 6120 + index as u64);
+        Self {
+            aspect: rng.random_range(0.62..1.0),
+            roundness: rng.random_range(2.0..8.0),
+            taper: rng.random_range(0.84..1.0),
+            rotation: rng.random_range(0.0..std::f32::consts::PI),
+            collar_height: rng.random_range(0.045..0.15),
+        }
+    }
+    pub fn validate(&self) -> Result<(), String> {
+        if !(0.6..=1.0).contains(&self.aspect)
+            || !(2.0..=8.0).contains(&self.roundness)
+            || !(0.8..=1.0).contains(&self.taper)
+            || !self.rotation.is_finite()
+            || !(0.04..=0.16).contains(&self.collar_height)
+        {
+            return Err("invalid structural column profile".into());
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

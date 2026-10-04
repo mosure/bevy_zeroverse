@@ -1,0 +1,276 @@
+{
+  "schema_version": 1,
+  "scope": "Local dense-room placement and mesh qualification plus static native RGB/geometric annotation captures; no photographic or ten-million-room utility claim.",
+  "selection": {
+    "seeds": [
+      0,
+      511
+    ],
+    "captures": [
+      0,
+      7
+    ],
+    "furniture_density": 0.85,
+    "human_density": 0.7,
+    "image_size": [
+      512,
+      512
+    ],
+    "cameras": 3,
+    "motion_enabled": false,
+    "selection_policy": "consecutive seeds, no filtered views"
+  },
+  "build_provenance": {
+    "capture_engine": "capture-v45;calibration=1;co_visibility=1;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=9;surface_flow=1;indoor=27;multiview=5;ovoxel=3;glass=2;hair=5;wardrobe=3;footwear=1;bounds=4;position=2;tabletop=2;finishes=8;seating=3;activity=2;playback=2;exterior=2;envelope=3",
+    "crate_version": "0.29.0",
+    "features": {
+      "human_motion": true,
+      "multi_threaded": true,
+      "web": false
+    },
+    "generator_version": 27,
+    "locked_package_versions": {
+      "bevy": [
+        "0.19.1"
+      ],
+      "bevy_burn_human": [
+        "0.6.1"
+      ],
+      "bevy_zeroverse": [
+        "0.29.0"
+      ],
+      "bevy_zeroverse_burn": [
+        "0.12.0"
+      ],
+      "bevy_zeroverse_capture": [
+        "0.1.0"
+      ],
+      "bevy_zeroverse_ffi": [
+        "0.29.0"
+      ],
+      "bevy_zeroverse_publication": [
+        "0.1.1"
+      ],
+      "burn": [
+        "0.21.0"
+      ],
+      "burn_ardy": [
+        "0.1.4"
+      ],
+      "burn_human": [
+        "0.5.1"
+      ],
+      "burn_human_inference": [
+        "0.1.4"
+      ],
+      "burn_human_motion": [
+        "0.1.1"
+      ],
+      "burn_llama": [
+        "0.1.2"
+      ],
+      "burn_siglip2": [
+        "0.1.1"
+      ],
+      "wgpu": [
+        "29.0.4"
+      ]
+    },
+    "schema_version": 1,
+    "source_sha256": "51c775d8ffcdfb29f2a8ac1d29ea5b8cc41c7234c3bf42294ad925349416d18a",
+    "target": "x86_64-unknown-linux-gnu"
+  },
+  "generator": {
+    "crate_version": "0.29.0",
+    "generator_version": 27,
+    "schema_version": 1,
+    "source_sha256": "51c775d8ffcdfb29f2a8ac1d29ea5b8cc41c7234c3bf42294ad925349416d18a"
+  },
+  "renderer": "WgpuWrapper(AdapterInfo { name: \"NVIDIA RTX PRO 6000 Blackwell Workstation Edition\", vendor: 4318, device: 11185, device_type: DiscreteGpu, device_pci_bus_id: \"0000:01:00.0\", driver: \"NVIDIA\", driver_info: \"610.43.02\", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: false })",
+  "capabilities": {
+    "annotation_hdr_format": "RGBA32Float_direct",
+    "bloom": true,
+    "glass_filter": "default",
+    "quality": "Auto",
+    "shadow_map_size": 2048,
+    "shadows": true,
+    "specular_transmission": true,
+    "ssao": true
+  },
+  "annotation_precision": "float32_geometry",
+  "qualification": {
+    "constructed_rooms": 512,
+    "object_envelopes_checked": 37052,
+    "object_envelopes_by_kind": {
+      "Bag": 186,
+      "Bookcase": 757,
+      "Books": 579,
+      "Cabinet": 678,
+      "Chair": 5657,
+      "Clock": 211,
+      "CoatRack": 102,
+      "CoffeeCup": 1576,
+      "CoffeeTable": 919,
+      "Desk": 4284,
+      "Display": 102,
+      "FloorLamp": 69,
+      "Keyboard": 74,
+      "Laptop": 2438,
+      "LightSwitch": 569,
+      "Microphone": 50,
+      "Monitor": 160,
+      "Mouse": 89,
+      "Mug": 1322,
+      "Notebook": 2571,
+      "Notepad": 672,
+      "PenHolder": 825,
+      "Pencil": 2948,
+      "Phone": 1361,
+      "Plant": 1128,
+      "Printer": 14,
+      "SodaCan": 1786,
+      "Sofa": 513,
+      "StorageBox": 228,
+      "Table": 80,
+      "TrashCan": 489,
+      "WallArt": 136,
+      "WallOutlet": 1479,
+      "WaterBottle": 2822,
+      "Whiteboard": 178
+    },
+    "max_object_mesh_overrun_m": 0.0019999743,
+    "mesh_envelope_tolerance_m": 0.003,
+    "triangles_total": 342946984,
+    "triangles_per_room": {
+      "p05": 273176,
+      "median": 591779.5,
+      "p95": 1284115
+    },
+    "degenerate_triangles": 0,
+    "degenerate_by_semantic": {},
+    "captured_rooms": 8,
+    "views": 24,
+    "worst_view_reprojection_p99_px": 0.0024952202,
+    "worst_view_depth_position_p99_m": 1.9073486e-06,
+    "max_normal_length_error": 2.3841858e-07,
+    "max_pose_error": 0.0,
+    "semantic_classes_range": [
+      8,
+      16
+    ],
+    "directed_peer_visibility": {
+      "p05": 0.38034820556640625,
+      "median": 0.5888328552246094,
+      "p95": 0.8650016784667969
+    },
+    "union_peer_visibility": {
+      "p05": 0.5459785461425781,
+      "median": 0.7845916748046875,
+      "p95": 0.9632835388183594
+    },
+    "rooms_containing_people": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ],
+    "people_rooms_without_person_pixels": [],
+    "architecture_feature_counts": {
+      "envelope_archways": 194,
+      "envelope_concave": 221,
+      "envelope_depressed_floor": 103,
+      "envelope_mezzanine": 46,
+      "envelope_oblique": 458,
+      "envelope_pillars": 425,
+      "envelope_raised_floor": 90,
+      "envelope_sloped_ceiling": 354
+    },
+    "hair_style_counts": {
+      "Afro": 181,
+      "AsymmetricBob": 167,
+      "Bald": 183,
+      "Bob": 147,
+      "Braid": 154,
+      "Bun": 164,
+      "Buzz": 156,
+      "CurlyLong": 136,
+      "HighPonytail": 133,
+      "LayeredLong": 140,
+      "Locs": 126,
+      "Pixie": 174,
+      "Ponytail": 134,
+      "SidePart": 162,
+      "StraightLong": 149,
+      "Swept": 173,
+      "TightCurls": 151,
+      "TwinBraids": 182,
+      "WavyLong": 133
+    }
+  },
+  "checks": {
+    "core_tests": 245,
+    "ignored_large_tests": 3,
+    "strict_clippy": "passed",
+    "motion_enabled_webgpu_compile": "passed",
+    "browser_runtime": "not rerun",
+    "motion_runtime": "not rerun; appearance attachment and validation changes only",
+    "throughput_and_memory": "not benchmarked; renderer shares GPU with training",
+    "release": "local, unpublished"
+  },
+  "dependency_policy": "Existing root wgpu-core/wgpu-hal 29.0.4 patches retained and included in source identity.",
+  "external_anny_sha256": {
+    "fullbody_default.safetensors": "dc2db51d9ccac2a50664f99e6843f54f319f23ca5ad50d26b6648f3764261472",
+    "fullbody_default.meta.json": "956a17b3343a51c4dafa7bd8450fab88b7570387fb9b7c2ef9b4e414bc0287c7"
+  },
+  "file_sha256": {
+    "annotations.jpg": "6fead81b0e294e610dae04a31234db14600318ba9a6d63beb19bd8a6a76dbff8",
+    "build.log": "65b7b7027daca8e57a8c4a361db18498a40b56b218f2f01815f1c55033271157",
+    "capture_checks.json": "76c6c6b71602590a37a7024855d37c53a08bf476ffcb8dc4cd1087df6c5ab88d",
+    "clippy.log": "8018faacb53ce3973f9ac991223d1c90a998c83f965224b02f2e8a6138969479",
+    "distribution.json": "edb55161b36592c34cae169cbafee7c4584e73655203b395ac7a9e0634602ac4",
+    "generator_identity.json": "a6477866e8d10cc48df312cfb3b6ed06a12b7c1bc003edc368c02801ef39002b",
+    "geometry_audit.json": "118ceb64e6bffab6ea6284087d803968835c04da6c6df71f7703de1caecb77d7",
+    "metrics.json": "437502501984a58b8eed338fa6415718b59dce29a4df51b3314e9ad541ba608a",
+    "room_0_view_0.png": "88245ba64d7ff6d1487b83ed28996312dbc563173a59774f7e1385ea2f3412b4",
+    "room_0_view_1.png": "b64165bd05e98125cf434446a8f7aa2b13ab9a53e55532a2a9fd622598f7a5bd",
+    "room_0_view_2.png": "21bfe0cafe3ad72d7d97ecdddce4929f8bfccdcd3e46343a680efe877be97fa4",
+    "room_1_view_0.png": "992b8782164699a1f96aa28e476a916082615c49ffa5ef747864d64899a9cb35",
+    "room_1_view_1.png": "ab94ea3d53e897e360aa8944095c5f88f3e0279c9bb943de88a0041d42ef9f33",
+    "room_1_view_2.png": "6482668a53eb15cf8bcdaa15ff47db4faa6a10a990f8aa23369b57d83d67b64b",
+    "room_2_view_0.png": "3af76c6dfd0295a8700840655897f5cfc6f55a918d52d74d23615884d980ab63",
+    "room_2_view_1.png": "38f6bf61db37471cd80eabd1d07680b26d0b22dbcb62b2640711159a1e988464",
+    "room_2_view_2.png": "c90b8e8e6cb0f288f711466596e6ded3ca0506f22c3eb573293ca6d78fbb0dde",
+    "room_3_view_0.png": "cb619278e1d43c161af6c2d53a15e03eea400aa39349bafa1d02408573e1665b",
+    "room_3_view_0_co_visibility_mask.png": "0852f5e746751e2384b17ae937e6d3f56f30701d50a822d2f7a232dac60e8daa",
+    "room_3_view_0_co_visibility_valid.png": "9f73cc1be4e3ffa37948313565bf0dcb34826fcb56a943d3ef08afff6c4de173",
+    "room_3_view_1.png": "4e2688cf01660d415bc4086b36c566608673165d4542522c86d9a96bd1ed633e",
+    "room_3_view_1_co_visibility_mask.png": "aab131d6a5521c7363ba7c402ce00da8d2026b118a9db9a5f784e2d5119af321",
+    "room_3_view_1_co_visibility_valid.png": "9f73cc1be4e3ffa37948313565bf0dcb34826fcb56a943d3ef08afff6c4de173",
+    "room_3_view_2.png": "de8bacacd8497d4152d3cbaf650f56df15da4a2aa3712072d5bb23ebce9d43a7",
+    "room_3_view_2_co_visibility_mask.png": "fe43cc15c2f514bfe4eddfbc426ea53e80d1d6f7392f1613ba8ff81a36d177b2",
+    "room_3_view_2_co_visibility_valid.png": "9f73cc1be4e3ffa37948313565bf0dcb34826fcb56a943d3ef08afff6c4de173",
+    "room_4_view_0.png": "ec1343f070d49eabef1bdc0a395bd424c8b1882e2e3fd989ce13eb86d3eadc2a",
+    "room_4_view_1.png": "6516631f4b00728e1592590e28181ed33553a4817317616aa0ef5413778f9feb",
+    "room_4_view_2.png": "9b918638cd40191d12845c0afd774bd68c5735475fb4986842a83662e17af53b",
+    "room_5_view_0.png": "bd1e767d4c768b843c4c049b067c59f5e8bb0e78fddc3f99d49f86aecc1cfaaa",
+    "room_5_view_1.png": "08435a998c0905de4b70beef87f92c991b0ec10590d9d79aaa1278b417cac917",
+    "room_5_view_2.png": "413a0eecf114b105e7a2a33d84e306c1870e1e44a0969d4fd07884ce577f3068",
+    "room_6_view_0.png": "779342605e0047ba01fd71b1b56738e0ef6c06a4b2bbb1ff52ba7d8d003ab595",
+    "room_6_view_1.png": "39692e0a7495f506a51b429dc33a7b2c989ee78b6b07d3afd8a3e86df0b80cc4",
+    "room_6_view_2.png": "a3912a909e3082b935e1bf85c60d0e25acfb8507e5ab0c42d564fb179de1f35b",
+    "room_7_view_0.png": "1447c099dd2c0aa3698a2ff6416efe888830ae471d93248bd60d17e5964caf7c",
+    "room_7_view_1.png": "73dbec255cbe44897cbccad2bbe38829eb0b6d4f62e455df3b3e1adaa917c190",
+    "room_7_view_2.png": "88f7ad174aae16c422c83d82590c1c6a8ef422bbe68d746b33d265817b21e9e2",
+    "rooms.jpg": "d8423c220113342ffe058e6dd4b8ddc842638f5e5513e7da827b5cdf7e50660f",
+    "run_complete.json": "e6f5f6bf7b297f510f45b91a008b6651113b6b32019159895d4b4c20649318f1",
+    "source_inputs.json": "aff65946fb7f811f35bcbfa43198e607315329f5dbe0bd8d4c22288dbb6cc988",
+    "summary.json": "45407591f6cad11f98c09eab4b2d59b8d553c1625c41d95b050552124e395e76",
+    "tests.log": "13c69c3ce1be17cfcdcff07b5c2820873ac8394aa5bde1bc0cb275bd21f6ba7a",
+    "validation_tests.log": "edc3902b3e2f81f36a335baad233b0d06d36c4d977047667a109c0076e40f9fe",
+    "wasm.log": "21b0346e3cce6e75b8bf8e5f21d3f0a10dc89ff5e267c3bb83c58fdddb3944b1"
+  }
+}

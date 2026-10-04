@@ -39,6 +39,9 @@ struct Args {
     seed: u64,
     #[arg(long, default_value_t = 1024)]
     audit_seeds: usize,
+    /// Check actual mesh topology/normals for every audited seed (default: first 16).
+    #[arg(long)]
+    audit_geometry: bool,
     #[arg(long, default_value_t = 0)]
     renders: usize,
     #[arg(long, default_value_t = 4)]
@@ -203,9 +206,15 @@ fn main() -> Result<()> {
     fs::create_dir_all(&args.output)?;
     let identity = bevy_zeroverse_capture::GeneratorIdentity {
         schema_version: bevy_zeroverse_capture::CAPTURE_SCHEMA_VERSION,
-        crate_version: env!("CARGO_PKG_VERSION").into(),
+        crate_version: bevy_zeroverse::provenance::capture_provenance()["crate_version"]
+            .as_str()
+            .expect("compiled generator version")
+            .into(),
         generator_version: bevy_zeroverse_capture::GENERATOR_VERSION,
-        source_sha256: env!("ZEROVERSE_SOURCE_SHA256").into(),
+        source_sha256: bevy_zeroverse::provenance::capture_provenance()["source_sha256"]
+            .as_str()
+            .expect("compiled generator provenance")
+            .into(),
     };
     fs::write(
         args.output.join("generator_identity.json"),
@@ -295,7 +304,12 @@ fn main() -> Result<()> {
         }))?,
     )?;
     // Check actual mesh construction independently of the cheaper distribution pass.
-    for i in 0..args.audit_seeds.min(16) {
+    let geometry_seeds = if args.audit_geometry {
+        args.audit_seeds
+    } else {
+        args.audit_seeds.min(16)
+    };
+    for i in 0..geometry_seeds {
         let mut manifest = IndoorManifest::generate_with_humans(
             args.seed.wrapping_add(i as u64),
             args.layout,

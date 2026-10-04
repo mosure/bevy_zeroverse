@@ -36,6 +36,7 @@ fn main() {
     let mode = std::env::args().nth(2);
     let tabletop = mode.as_deref() == Some("tabletop");
     let seating = mode.as_deref() == Some("seating");
+    let plants = mode.as_deref() == Some("plants");
     let scene =
         IndoorManifest::generate_with_humans(0, IndoorLayout::Conference, 0.5, 0, 0.0).unwrap();
     let mut table = scene.objects[0].clone();
@@ -104,12 +105,37 @@ fn main() {
     if seating {
         objects = seating::objects(&table, scene.seed);
     }
+    if plants {
+        objects = (0..18)
+            .map(|i| {
+                let mut o = table.clone();
+                o.id = i;
+                o.kind = ObjectKind::Plant;
+                o.variant = (i % 6) as u32;
+                o.seed = (i as u64).wrapping_mul(197).wrapping_add(17);
+                o.size = Vec3::new(0.9, 1.7, 0.9);
+                o.position = Vec3::X * i as f32 * 4.5;
+                o.support = None;
+                o.interaction_target = None;
+                o.neighbor = false;
+                o.solid = true;
+                o
+            })
+            .collect();
+    }
     let object_count = objects.len();
     std::fs::write(
         output.join("objects.json"),
         serde_json::to_vec_pretty(&objects).unwrap(),
     )
     .unwrap();
+    std::fs::write(output.join("provenance.json"), serde_json::to_vec_pretty(&serde_json::json!({
+        "engine": bevy_zeroverse::CAPTURE_ENGINE_IDENTITY,
+        "generator_version": bevy_zeroverse::scene::procedural_indoor::layout::GENERATOR_VERSION,
+        "build": bevy_zeroverse::provenance::capture_provenance(),
+        "fixture": mode, "seed": scene.seed, "image_size": [400, 400],
+        "object_count": object_count, "selection": "illustrative program coverage, not a distribution sample"
+    })).unwrap()).unwrap();
     let mut app = create_app(
         None,
         Some(BevyZeroverseConfig {

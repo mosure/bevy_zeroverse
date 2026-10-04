@@ -1,6 +1,7 @@
 //! Small sewn features fitted to the actual dressed surface, not box-shaped
 //! torso attachments. Their vertices use the same Anny weight transfer as cloth.
-use super::{GarmentCut, HumanAssembly, HumanOutfit, HumanSurface, IndoorHuman};
+use super::super::HumanOutfit;
+use super::{GarmentCut, HumanAssembly, HumanSurface, IndoorHuman};
 use bevy::prelude::*;
 
 pub(in crate::scene::procedural_indoor::humans) fn append(
@@ -12,7 +13,7 @@ pub(in crate::scene::procedural_indoor::humans) fn append(
     normals: &[Vec3],
     mesh: &mut HumanAssembly,
 ) {
-    if h.outfit == HumanOutfit::Knitwear {
+    if !h.outfit.buttoned() && !cut.program.pocket {
         return;
     }
     // Project onto the exact front-facing garment triangles. Nearest-vertex
@@ -149,49 +150,88 @@ pub(in crate::scene::procedural_indoor::humans) fn append(
                 .to_array();
         }
     };
-    for side in [-1.0, 1.0] {
-        panel(
-            if h.outfit == HumanOutfit::Blazer {
-                HumanSurface::Shirt
-            } else {
-                HumanSurface::Top
-            },
-            &[
-                Vec2::new(side * 0.020, cut.neck - 0.009),
-                Vec2::new(side * 0.062, cut.neck - 0.022),
-                Vec2::new(side * 0.046, cut.neck - 0.095),
-                Vec2::new(side * 0.012, cut.neck - 0.043),
-            ],
-            0.006,
-        );
-        if h.outfit == HumanOutfit::Blazer {
+    if h.outfit.collared() {
+        for side in [-1.0, 1.0] {
             panel(
-                HumanSurface::Top,
+                if h.outfit == HumanOutfit::Blazer {
+                    HumanSurface::Shirt
+                } else {
+                    HumanSurface::Top
+                },
                 &[
-                    Vec2::new(side * 0.070, cut.neck - 0.032),
-                    Vec2::new(side * 0.132, cut.chest - 0.025),
-                    Vec2::new(side * 0.035, cut.waist + 0.075),
-                    Vec2::new(side * 0.019, cut.chest - 0.10),
+                    Vec2::new(side * 0.020, cut.neck - 0.009),
+                    Vec2::new(side * (0.020 + cut.program.collar_width), cut.neck - 0.022),
+                    Vec2::new(
+                        side * (0.013 + cut.program.collar_width * 0.60),
+                        cut.neck - 0.04 - cut.program.collar_width,
+                    ),
+                    Vec2::new(side * 0.012, cut.neck - 0.043),
                 ],
-                0.007,
+                0.006,
             );
+            if h.outfit == HumanOutfit::Blazer {
+                panel(
+                    HumanSurface::Top,
+                    &[
+                        Vec2::new(side * 0.070, cut.neck - 0.032),
+                        Vec2::new(side * 0.132, cut.chest - 0.025),
+                        Vec2::new(side * 0.035, cut.waist + 0.075),
+                        Vec2::new(side * 0.019, cut.chest - 0.10),
+                    ],
+                    0.007,
+                );
+            }
         }
     }
-    if h.outfit == HumanOutfit::Shirt {
+    if matches!(
+        h.outfit,
+        HumanOutfit::Shirt | HumanOutfit::Polo | HumanOutfit::Cardigan
+    ) {
         for i in 0..12 {
-            let y0 = cut.waist + 0.008 + (cut.neck - cut.waist - 0.06) * i as f32 / 12.0;
-            let y1 = cut.waist + 0.008 + (cut.neck - cut.waist - 0.06) * (i + 1) as f32 / 12.0;
+            let bottom = if h.outfit == HumanOutfit::Polo {
+                cut.neck - 0.135
+            } else {
+                cut.waist + 0.008
+            };
+            let y0 = bottom + (cut.neck - bottom - 0.04) * i as f32 / 12.0;
+            let y1 = bottom + (cut.neck - bottom - 0.04) * (i + 1) as f32 / 12.0;
+            let half = cut.program.placket_width * 0.5;
             panel(
                 HumanSurface::Seam,
                 &[
-                    Vec2::new(-0.007, y0),
-                    Vec2::new(0.007, y0),
-                    Vec2::new(0.007, y1),
-                    Vec2::new(-0.007, y1),
+                    Vec2::new(-half, y0),
+                    Vec2::new(half, y0),
+                    Vec2::new(half, y1),
+                    Vec2::new(-half, y1),
                 ],
                 0.0,
             );
         }
+    }
+    if cut.program.pocket {
+        let centre = 0.085;
+        let half = cut.program.pocket_width * 0.5;
+        let top = cut.chest - 0.035;
+        panel(
+            HumanSurface::Top,
+            &[
+                Vec2::new(centre - half, top - cut.program.pocket_height),
+                Vec2::new(centre + half, top - cut.program.pocket_height),
+                Vec2::new(centre + half, top),
+                Vec2::new(centre - half, top),
+            ],
+            0.001,
+        );
+        panel(
+            HumanSurface::Seam,
+            &[
+                Vec2::new(centre - half, top - 0.003),
+                Vec2::new(centre + half, top - 0.003),
+                Vec2::new(centre + half, top),
+                Vec2::new(centre - half, top),
+            ],
+            0.002,
+        );
     }
 }
 

@@ -4,6 +4,7 @@ mod envelope;
 mod exterior;
 use super::layout::{IndoorLayout, IndoorManifest, ObjectKind, GENERATOR_VERSION, NEIGHBOR_DEPTH};
 use bevy::prelude::*;
+use bevy_zeroverse_capture::INDOOR_METRICS_SCHEMA_VERSION;
 use serde::Serialize;
 use std::{
     collections::BTreeMap,
@@ -341,7 +342,7 @@ fn export_inner(
         "seed,layout,density,lighting,palette,floor,furniture,ceiling,width_m,height_m,depth_m,main_instances,neighbor_instances,main_chairs,rejected_placements"
     )?;
     let mut report = CoverageReport {
-        schema_version: 11,
+        schema_version: INDOOR_METRICS_SCHEMA_VERSION,
         camera_settings: camera_settings.clone(),
         appearance: appearance.cloned(),
         camera_overlap_policy: "Proxy first-surface pixel overlap in both directions to camera zero, at normalized times 0,.25,.5,.75,1. Full capture aspect ratio, 13x9 rays/view. Glass is annotation-opaque. Not a rendered-pixel guarantee.",
@@ -799,6 +800,9 @@ fn export_inner(
                 ] {
                     numeric.push(name, value as f64)?;
                 }
+                numeric.push("upholstery_cushion_crown", p.cushion_crown as f64)?;
+                numeric.push("upholstery_cushion_dish_m", p.cushion_dish_m as f64)?;
+                numeric.push("upholstery_seam_radius_m", p.seam_radius_m as f64)?;
                 for (key, value) in [
                     (
                         "sofa_configuration",
@@ -821,6 +825,19 @@ fn export_inner(
                         .or_default()
                         .entry(value)
                         .or_default() += 1;
+                }
+            }
+            if object.kind == ObjectKind::Plant {
+                let p = super::plants::PotProfile::sample(object.seed);
+                for (name, value) in [
+                    ("planter_belly", p.belly),
+                    ("planter_neck", p.neck),
+                    ("planter_wall_fraction", p.wall_fraction),
+                    ("planter_flute_depth", p.flute_depth),
+                    ("planter_flute_count", p.flute_count as f32),
+                    ("planter_lip_fraction", p.lip_height_fraction),
+                ] {
+                    numeric.push(name, value as f64)?;
                 }
             }
             if object.kind == ObjectKind::Bookcase {
@@ -867,6 +884,7 @@ fn export_inner(
                     ("table_leg_inset_m", p.leg_inset),
                     ("table_outline_exponent", p.outline_exponent),
                     ("table_taper", p.taper),
+                    ("table_capsule_blend", p.capsule_blend),
                     ("table_pedestal_radius_fraction", p.pedestal_radius),
                     (
                         "table_pedestal_base_radius_fraction",
@@ -875,6 +893,13 @@ fn export_inner(
                     ("table_pedestal_base_aspect", p.pedestal_base_aspect),
                 ] {
                     numeric.push(key, value as f64)?;
+                }
+                if p.support < 2 {
+                    numeric.push("table_leg_taper", p.leg_taper as f64)?;
+                    numeric.push("table_leg_aspect", p.leg_aspect as f64)?;
+                }
+                if p.support == 3 {
+                    numeric.push("table_frame_bend_m", p.frame_bend_m as f64)?;
                 }
                 *report
                     .categories
@@ -1033,6 +1058,8 @@ fn export_inner(
                     ("chair_recline_radians", p.recline),
                     ("chair_arm_height_m", p.arm_height),
                     ("chair_lumbar_m", p.lumbar),
+                    ("chair_seat_crown", p.seat_crown),
+                    ("chair_seat_dish_m", p.seat_dish_m),
                     ("chair_seat_roundness", p.seat_roundness),
                     ("chair_shoulder_flare", p.shoulder_flare),
                     ("chair_seat_width_fraction", p.seat_width_fraction),
@@ -1043,9 +1070,27 @@ fn export_inner(
                 ] {
                     numeric.push(name, value as f64)?;
                 }
+                if object.variant % super::objects::chairs::FAMILIES == 2 {
+                    numeric.push("chair_frame_bend_m", p.frame_bend_m as f64)?;
+                }
+                if p.back_construction == 0 {
+                    numeric.push("chair_mesh_pitch_m", p.mesh_pitch_m as f64)?;
+                }
             }
         }
         for human in &scene.humans {
+            let shape = super::humans::morphology::phenotype(human);
+            for (name, value) in [
+                ("human_anny_gender_anchor", shape.gender),
+                ("human_anny_age_anchor", shape.age),
+                ("human_anny_muscle_anchor", shape.muscle),
+                ("human_anny_weight_anchor", shape.weight),
+                ("human_anny_height_anchor", shape.height),
+                ("human_anny_proportions_anchor", shape.proportions),
+                ("human_shoulder_span_m", human.shoulder_width as f64),
+            ] {
+                numeric.push(name, value)?;
+            }
             if let Some(p) = &human.pose_program {
                 for (name, value) in [
                     ("pose_lean_x", p.lean.x),
@@ -1080,6 +1125,40 @@ fn export_inner(
                     ("human_hair_length_m", a.hair_length),
                     ("human_hair_part", a.hair_part),
                     ("human_hair_curl", a.hair_curl),
+                    ("human_hair_volume", a.hair_volume),
+                    ("human_hairline_raise_m", a.hairline_raise),
+                    ("human_hair_grey", a.hair_grey),
+                    ("human_hair_drop_m", a.hair_program.drop_m),
+                    ("human_hair_layers", a.hair_program.layers),
+                    ("human_hair_spread", a.hair_program.spread),
+                    ("human_hair_sweep", a.hair_program.sweep),
+                    ("human_hair_wave_length_m", a.hair_program.wave_length_m),
+                    ("human_hair_curl_radius_m", a.hair_program.curl_radius_m),
+                    ("human_hair_clump_width_m", a.hair_program.clump_width_m),
+                    ("human_hair_bangs", a.hair_program.bangs),
+                    ("human_hair_tie_height", a.hair_program.tie_height),
+                    ("human_hair_flyaways", a.hair_program.flyaways),
+                    ("human_neckline_depth_m", a.garment.neckline_depth),
+                    ("human_neckline_width_m", a.garment.neckline_width),
+                    ("human_neckline_roundness", a.garment.neckline_roundness),
+                    ("human_torso_drape", a.garment.drape),
+                    ("human_trouser_coverage", a.garment.trouser_coverage),
+                    ("human_trouser_ease_m", a.garment.trouser_ease),
+                    ("human_leg_straightness", a.garment.leg_straightness),
+                    ("human_hem_width", a.garment.hem_width),
+                    ("human_shoe_sole_height_m", a.footwear.sole_height),
+                    ("human_shoe_toe_room_m", a.footwear.toe_room),
+                    ("human_shoe_toe_roundness", a.footwear.toe_roundness),
+                    ("human_shoe_collar_raise_m", a.footwear.collar_raise),
+                    ("human_shoe_heel_width", a.footwear.heel_width),
+                    ("human_shoe_vamp", a.footwear.vamp),
+                    ("human_shoe_laces", a.footwear.laces as f32),
+                    ("human_shoe_leather", a.footwear.leather),
+                    ("human_collar_width_m", a.garment.collar_width),
+                    ("human_brow_arch_m", a.face.brow_arch),
+                    ("human_brow_width_m", a.face.brow_width),
+                    ("human_stubble", a.face.stubble),
+                    ("human_eyewear_metallic", a.face.frame_metallic),
                 ] {
                     numeric.push(name, value as f64)?;
                 }
@@ -1096,6 +1175,13 @@ fn export_inner(
                 ("human_outfit", format!("{:?}", human.outfit)),
                 ("human_skin_tone", human.skin_tone.to_string()),
                 ("human_hairstyle", human.hairstyle.to_string()),
+                (
+                    "human_hair_style",
+                    format!(
+                        "{:?}",
+                        super::humans::hair::HairStyle::from_id(human.hairstyle).unwrap()
+                    ),
+                ),
             ] {
                 *report
                     .categories

@@ -103,6 +103,19 @@ pub(super) fn record(
             .entry(present.to_string())
             .or_default() += 1;
     }
+    for p in &e.pillars {
+        if let Some(profile) = &p.profile {
+            for (key, value) in [
+                ("column_aspect", profile.aspect),
+                ("column_roundness", profile.roundness),
+                ("column_taper", profile.taper),
+                ("column_rotation_radians", profile.rotation),
+                ("column_collar_height_m", profile.collar_height),
+            ] {
+                numeric.push(key, value as f64)?;
+            }
+        }
+    }
     if let Some(m) = &e.mezzanine {
         for (key, value) in [
             ("mezzanine_height_m", m.deck.height),

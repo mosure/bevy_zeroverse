@@ -1,0 +1,230 @@
+{
+  "scene_seed": 1,
+  "pending": false,
+  "stage": "Ready",
+  "model_loads": 1,
+  "generated_batches": 2,
+  "embedding_hits": 0,
+  "model_artifacts": {
+    "ardy/core-rp-20fps-h40/v1": "6e03294854771ca3ed6641251c77ab75bd2542d778c02886ea795d8d77655cd8",
+    "llama/ardy-llm2vec-8b/v1": "09280ebcf02184708cff1a9f982b901166b433e504ff343f02c037cc52d8ee16"
+  },
+  "requested": [
+    {
+      "actor_id": 30,
+      "behavior": "tiptoe",
+      "request": {
+        "prompt": "A person tiptoes slowly.",
+        "seed": 7230976893032501788,
+        "frames": 120,
+        "history_frames": 80,
+        "diffusion_steps": 10,
+        "text_guidance": 2.0,
+        "trajectory_guidance": 3.0,
+        "waypoints": [
+          {
+            "frame": 0,
+            "position": [
+              -1.7952663,
+              0.94,
+              -2.9032524
+            ],
+            "heading": 1.9450084,
+            "constrain_height": true
+          },
+          {
+            "frame": 29,
+            "position": [
+              -1.5138588,
+              0.94,
+              -3.0137658
+            ],
+            "heading": 1.9319408,
+            "constrain_height": true
+          },
+          {
+            "frame": 37,
+            "position": [
+              -1.4374895,
+              0.94,
+              -3.0383883
+            ],
+            "heading": 1.8187972,
+            "constrain_height": true
+          },
+          {
+            "frame": 44,
+            "position": [
+              -1.359909,
+              0.94,
+              -3.052748
+            ],
+            "heading": 1.6882862,
+            "constrain_height": true
+          },
+          {
+            "frame": 52,
+            "position": [
+              -1.2811172,
+              0.94,
+              -3.0568454
+            ],
+            "heading": 1.5577737,
+            "constrain_height": true
+          },
+          {
+            "frame": 59,
+            "position": [
+              -1.2011139,
+              0.94,
+              -3.05068
+            ],
+            "heading": 1.4386686,
+            "constrain_height": true
+          },
+          {
+            "frame": 119,
+            "position": [
+              -0.5840683,
+              0.94,
+              -2.9642062
+            ],
+            "heading": 1.4315616,
+            "constrain_height": true
+          }
+        ],
+        "dense_trajectory": true
+      },
+      "support_chair": null,
+      "prompt_recipe": {
+        "version": 3,
+        "family": "locomotion",
+        "gait": "tiptoe",
+        "travel_speed_mps": 0.20902234,
+        "style": null,
+        "arm_style": null,
+        "gaze": null,
+        "actions": [],
+        "navigation": {
+          "kind": "bend",
+          "lateral_fraction": -0.12207642,
+          "return_fraction": 1.0,
+          "corner_radius_m": 0.2519219,
+          "path_length_m": 1.2436829
+        }
+      }
+    }
+  ],
+  "accepted": [
+    {
+      "actor_id": 30,
+      "behavior": "tiptoe",
+      "request": {
+        "prompt": "A person tiptoes slowly.",
+        "seed": 7230976893032501788,
+        "frames": 120,
+        "history_frames": 80,
+        "diffusion_steps": 10,
+        "text_guidance": 2.0,
+        "trajectory_guidance": 3.0,
+        "waypoints": [
+          {
+            "frame": 0,
+            "position": [
+              -1.7952663,
+              0.94,
+              -2.9032524
+            ],
+            "heading": 1.9450084,
+            "constrain_height": true
+          },
+          {
+            "frame": 29,
+            "position": [
+              -1.5138588,
+              0.94,
+              -3.0137658
+            ],
+            "heading": 1.9319408,
+            "constrain_height": true
+          },
+          {
+            "frame": 37,
+            "position": [
+              -1.4374895,
+              0.94,
+              -3.0383883
+            ],
+            "heading": 1.8187972,
+            "constrain_height": true
+          },
+          {
+            "frame": 44,
+            "position": [
+              -1.359909,
+              0.94,
+              -3.052748
+            ],
+            "heading": 1.6882862,
+            "constrain_height": true
+          },
+          {
+            "frame": 52,
+            "position": [
+              -1.2811172,
+              0.94,
+              -3.0568454
+            ],
+            "heading": 1.5577737,
+            "constrain_height": true
+          },
+          {
+            "frame": 59,
+            "position": [
+              -1.2011139,
+              0.94,
+              -3.05068
+            ],
+            "heading": 1.4386686,
+            "constrain_height": true
+          },
+          {
+            "frame": 119,
+            "position": [
+              -0.5840683,
+              0.94,
+              -2.9642062
+            ],
+            "heading": 1.4315616,
+            "constrain_height": true
+          }
+        ],
+        "dense_trajectory": true
+      },
+      "support_chair": null,
+      "prompt_recipe": {
+        "version": 3,
+        "family": "locomotion",
+        "gait": "tiptoe",
+        "travel_speed_mps": 0.20902234,
+        "style": null,
+        "arm_style": null,
+        "gaze": null,
+        "actions": [],
+        "navigation": {
+          "kind": "bend",
+          "lateral_fraction": -0.12207642,
+          "return_fraction": 1.0,
+          "corner_radius_m": 0.2519219,
+          "path_length_m": 1.2436829
+        }
+      }
+    }
+  ],
+  "rejected": [
+    {
+      "actor_id": 29,
+      "reason": "no collision-free behavior fits the available space"
+    }
+  ]
+}

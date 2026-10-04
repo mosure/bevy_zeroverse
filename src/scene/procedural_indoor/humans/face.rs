@@ -47,8 +47,14 @@ pub(super) fn append(
     };
     let world = |p: Vec3| origin + rotation * p;
     let mut rng = super::stream(h.seed, 0xface);
-    let brow_width = rng.random_range(0.036..0.046) * scale;
-    let brow_thickness = rng.random_range(0.0034..0.0065) * scale;
+    let program = h
+        .appearance
+        .as_ref()
+        .map(|a| &a.face)
+        .cloned()
+        .unwrap_or_default();
+    let brow_width = program.brow_width * scale;
+    let brow_thickness = program.brow_thickness * scale;
     let brow_rise = rng.random_range(0.022..0.028) * scale;
     for &eye in eyes {
         let eye = inverse * (eye - origin);
@@ -60,7 +66,7 @@ pub(super) fn append(
             let t = i as f32 / 16.0;
             let x = eye.x + (t - 0.5) * brow_width;
             let arch = (t * std::f32::consts::PI).sin().max(0.0);
-            let y = eye.y + brow_rise + arch * 0.004 * scale;
+            let y = eye.y + brow_rise + arch * program.brow_arch * scale;
             for side in [-1.0, 1.0] {
                 let y = y + side * brow_thickness * (0.12 + 0.88 * arch.sqrt()) * 0.5;
                 let p = Vec3::new(x, y, front(x, y) - 0.0015 * scale);
@@ -130,4 +136,26 @@ pub(super) fn append(
     let mid = (inner[0] + inner[1]) * 0.5 + Vec3::new(0.0, 0.006, -0.002) * scale;
     g.rod(world(inner[0]), world(mid), thickness * 0.8);
     g.rod(world(mid), world(inner[1]), thickness * 0.8);
+}
+
+/// Split existing skin faces at a fitted cheek/chin region. Stubble never adds
+/// an alpha shell or changes the vermilion mask and cannot shimmer against skin.
+pub(super) fn stubble(
+    triangle: [super::garments::GarmentVertex; 3],
+    eye_origin: Vec3,
+    mesh: &mut HumanAssembly,
+) {
+    let (hair, skin) = super::garments::split(
+        &triangle,
+        |p| {
+            let p = p - eye_origin;
+            let top = p.y + 0.030 - 0.012 * (p.x.abs() / 0.075).min(1.0);
+            top.max(-0.125 - p.y)
+                .max(p.z - 0.025)
+                .max(p.x.abs() - 0.075)
+        },
+        None,
+    );
+    super::garments::emit(&skin, HumanSurface::Skin, mesh);
+    super::garments::emit(&hair, HumanSurface::FacialHair, mesh);
 }

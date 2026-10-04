@@ -15,6 +15,10 @@ pub struct TableProgram {
     pub pedestal_radius: f32,
     pub pedestal_base_radius: f32,
     pub pedestal_base_aspect: f32,
+    pub capsule_blend: f32,
+    pub leg_taper: f32,
+    pub leg_aspect: f32,
+    pub frame_bend_m: f32,
 }
 pub fn parameters(o: &IndoorObject) -> TableProgram {
     let mut rng = stream(o.seed, 172);
@@ -47,32 +51,56 @@ pub fn parameters(o: &IndoorObject) -> TableProgram {
         pedestal_radius: rng.random_range(0.045..0.085),
         pedestal_base_radius: rng.random_range(0.24..0.36),
         pedestal_base_aspect: rng.random_range(0.72..1.0),
+        capsule_blend: rng.random_range(
+            0.0..if o.kind == ObjectKind::Desk {
+                0.25
+            } else {
+                1.0
+            },
+        ),
+        leg_taper: rng.random_range(0.60..1.0),
+        leg_aspect: rng.random_range(0.65..1.0),
+        frame_bend_m: rng.random_range(0.025..0.065),
     }
 }
 pub fn outline(o: &IndoorObject) -> Vec<Vec2> {
     let p = parameters(o);
+    let half = o.size.xz() * 0.5;
     (0..64)
         .map(|i| {
-            let a = i as f32 * TAU / 64.0;
-            let f = |x: f32| {
-                if x.abs() < 1e-6 {
-                    0.0
-                } else {
-                    x.signum() * x.abs().powf(2.0 / p.outline_exponent)
-                }
-            };
-            let x = f(a.cos());
-            let z = f(a.sin());
+            // Support-normal parameterization permits convex Minkowski blending of
+            // elliptical, squared and capsule tops without concave prop supports.
+            let angle = i as f32 * TAU / 64.0;
+            let n =
+                Vec2::new(angle.cos(), angle.sin()).map(|v| if v.abs() < 1e-6 { 0. } else { v });
+            let q = p.outline_exponent / (p.outline_exponent - 1.0);
+            let h = ((half.x * n.x).abs().powf(q) + (half.y * n.y).abs().powf(q)).powf(1.0 / q);
+            let shape = Vec2::new(
+                half.x.powf(q) * n.x.signum() * n.x.abs().powf(q - 1.0),
+                half.y.powf(q) * n.y.signum() * n.y.abs().powf(q - 1.0),
+            ) / h.powf(q - 1.0);
+            let radius = half.min_element();
+            let capsule = n * radius
+                + Vec2::new(
+                    (half.x - radius) * n.x.signum(),
+                    (half.y - radius) * n.y.signum(),
+                );
+            let v = shape.lerp(capsule, p.capsule_blend);
+            // A projective map preserves convexity for the tapered end widths.
+            let w = 1.0 + p.taper * v.y / half.y;
             Vec2::new(
-                x * o.size.x * 0.5 * (1.0 + p.taper * z) / (1.0 + p.taper.abs()),
-                z * o.size.z * 0.5,
+                v.x * (1.0 - p.taper.abs()) / w,
+                (v.y / w + half.y * p.taper / (1.0 - p.taper * p.taper))
+                    * (1.0 - p.taper * p.taper),
             )
         })
         .collect()
 }
 /// Require every prop corner to sit on the actual surface, not its rectangular bounds.
 pub fn supports(o: &IndoorObject, lo: Vec2, hi: Vec2, margin: f32) -> bool {
-    let outline = outline(o);
+    supports_outline(&outline(o), lo, hi, margin)
+}
+fn supports_outline(outline: &[Vec2], lo: Vec2, hi: Vec2, margin: f32) -> bool {
     [lo, hi, Vec2::new(lo.x, hi.y), Vec2::new(hi.x, lo.y)]
         .iter()
         .all(|p| {
@@ -101,7 +129,15 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
         }
     }
     let edge: Vec<_> = outline.iter().map(|p| *p * 0.985).collect();
-    a.part(Surface::WoodEdge, label).profile_slab(
+    a.part(
+        if p.top_surface == Surface::Wood {
+            Surface::WoodEdge
+        } else {
+            p.top_surface
+        },
+        label,
+    )
+    .profile_slab(
         &edge,
         0.012,
         0.003,
@@ -114,10 +150,27 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
         Surface::Metal
     };
     let half = Vec2::new(s.x, s.z) * 0.5;
-    let anchor = Vec2::new(
+    let mut anchor = Vec2::new(
         (half.x - p.leg_inset).max(0.12),
         (half.y - p.leg_inset).max(0.12),
     ) * 0.68;
+    // Mounts must fit the true convex top, including its tapered narrow end.
+    for _ in 0..24 {
+        if [-1., 1.].into_iter().all(|x| {
+            [-1., 1.].into_iter().all(|z| {
+                let mount = anchor * Vec2::new(x, z);
+                supports_outline(
+                    &outline,
+                    mount - Vec2::splat(0.05),
+                    mount + Vec2::splat(0.05),
+                    0.,
+                )
+            })
+        }) {
+            break;
+        }
+        anchor *= 0.92;
+    }
     match p.support {
         0 | 1 => {
             for x in [-1.0, 1.0] {
@@ -132,7 +185,26 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
                         p.leg_radius + 0.008,
                         z * (anchor.y + p.leg_rake),
                     );
-                    a.part(frame, label).rod(foot, top, p.leg_radius);
+                    let delta = top - foot;
+                    a.part(frame, label).lathe(
+                        &[
+                            (0., 0.),
+                            (p.leg_radius * p.leg_taper, 0.),
+                            (p.leg_radius, delta.length()),
+                            (0., delta.length()),
+                        ],
+                        16,
+                        Transform::from_translation(foot)
+                            .with_rotation(Quat::from_rotation_arc(Vec3::Y, delta.normalize()))
+                            .with_scale(Vec3::new(p.leg_aspect, 1., 1.)),
+                    );
+                    a.box_part(
+                        frame,
+                        label,
+                        top.with_y(underside - 0.004),
+                        Vec3::new(0.09, 0.008, 0.075),
+                        0.003,
+                    );
                     a.part(Surface::Rubber, label).cylinder(
                         p.leg_radius + 0.003,
                         p.leg_radius + 0.01,
@@ -174,12 +246,20 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
                     underside - 0.04,
                     Transform::from_translation(center + Vec3::Y * (underside + 0.04) * 0.5),
                 );
-                a.part(frame, label).cylinder(
-                    s.x.min(s.z) * p.pedestal_base_radius,
-                    0.035,
-                    Transform::from_translation(center + Vec3::Y * 0.0175).with_scale(Vec3::new(
-                        1.0,
-                        1.0,
+                let radius = s.x.min(s.z) * p.pedestal_base_radius;
+                a.part(frame, label).lathe(
+                    &[
+                        (0., 0.0),
+                        (radius * 0.94, 0.0),
+                        (radius, 0.012),
+                        (radius * 0.97, 0.022),
+                        (radius * 0.65, 0.036),
+                        (0., 0.04),
+                    ],
+                    40,
+                    Transform::from_translation(center).with_scale(Vec3::new(
+                        1.,
+                        1.,
                         p.pedestal_base_aspect,
                     )),
                 );
@@ -187,20 +267,24 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
         }
         3 => {
             for x in [-anchor.x, anchor.x] {
-                for z in [-anchor.y, anchor.y] {
-                    a.part(frame, label).rod(
-                        Vec3::new(x, p.leg_radius + 0.007, z),
-                        Vec3::new(x, underside, z),
-                        p.leg_radius,
-                    );
+                let radius = p.leg_radius.min(anchor.y * 0.24);
+                let r = p.frame_bend_m.max(radius * 2.5).min(anchor.y * 0.65);
+                let lo = p.leg_radius + 0.007;
+                let hi = underside - p.leg_radius;
+                let mut path = Vec::new();
+                for (cy, cz, phase) in [
+                    (lo + r, anchor.y - r, PI),
+                    (hi - r, anchor.y - r, FRAC_PI_2),
+                    (hi - r, -anchor.y + r, 0.),
+                    (lo + r, -anchor.y + r, -FRAC_PI_2),
+                ] {
+                    for i in 0..=6 {
+                        let t = phase - i as f32 * FRAC_PI_2 / 6.;
+                        path.push(Vec3::new(x, cy + r * t.cos(), cz + r * t.sin()));
+                    }
                 }
-                for y in [p.leg_radius + 0.007, underside] {
-                    a.part(frame, label).rod(
-                        Vec3::new(x, y, -anchor.y),
-                        Vec3::new(x, y, anchor.y),
-                        p.leg_radius,
-                    );
-                }
+                path.push(path[0]);
+                a.part(frame, label).tube(&path, radius, 10);
             }
         }
         4 => {

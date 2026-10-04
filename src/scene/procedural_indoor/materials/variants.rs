@@ -28,7 +28,7 @@ pub const SURFACES: [Surface; 18] = [
 ];
 pub fn structure_count(surface: Surface) -> usize {
     match surface {
-        Surface::Fabric | Surface::FabricAlt | Surface::Leather => 3,
+        Surface::Ceramic | Surface::Fabric | Surface::FabricAlt | Surface::Leather => 3,
         Surface::Wood
         | Surface::WoodEdge
         | Surface::Leaf
@@ -95,7 +95,15 @@ pub(super) fn build(
                 // Upholstery and device plastics remain in the scene palette;
                 // small personal accessories can have independently chosen hues.
                 let colorful = matches!(surface, Surface::Ceramic | Surface::Art);
-                mat.base_color = if colorful {
+                mat.base_color = if surface == Surface::Ceramic && rng.random_bool(0.58) {
+                    let white = rng.random_range(0.56..0.92);
+                    let warmth = rng.random_range(-0.035..0.075);
+                    Color::srgb(
+                        white,
+                        white * (1. - warmth),
+                        (white * (1. - warmth * 1.6)).min(0.98),
+                    )
+                } else if colorful {
                     Color::hsl(
                         rng.random_range(0.0..360.0),
                         rng.random_range(0.12..0.72),
@@ -143,28 +151,19 @@ fn structures(
     let Some(p) = &scene.program else {
         return BTreeMap::new();
     };
-    let jobs: Vec<_> = [
-        Surface::Fabric,
-        Surface::FabricAlt,
-        Surface::Leather,
-        Surface::Wood,
-        Surface::WoodEdge,
-        Surface::Leaf,
-        Surface::LeafLight,
-        Surface::LeafVariegated,
-    ]
-    .into_iter()
-    .flat_map(|s| {
-        (1..structure_count(s))
-            .filter(move |g| {
-                used.is_none_or(|keys| {
-                    keys.iter()
-                        .any(|(surface, slot)| *surface == s && slot % structure_count(s) == *g)
+    let jobs: Vec<_> = SURFACES
+        .into_iter()
+        .flat_map(|s| {
+            (1..structure_count(s))
+                .filter(move |g| {
+                    used.is_none_or(|keys| {
+                        keys.iter()
+                            .any(|(surface, slot)| *surface == s && slot % structure_count(s) == *g)
+                    })
                 })
-            })
-            .map(move |g| (s, g, p.materials[s as usize].variant(g)))
-    })
-    .collect();
+                .map(move |g| (s, g, p.materials[s as usize].variant(g)))
+        })
+        .collect();
     let prepare = |(s, g, r): &(Surface, usize, program::MaterialRecipe)| {
         let maps = r.maps(scene.floor_style);
         ((*s, *g), r.clone(), maps)

@@ -1,6 +1,9 @@
 //! Potted botanical forms with real leaf silhouettes, petioles and tapered stems.
 //! The curved lamina/branch approach follows the review of bevy_ftb; geometry is
 //! generated here independently, without its assets, shaders or runtime dependency.
+mod pots;
+pub use pots::PotProfile;
+
 use super::{
     layout::{stream, IndoorObject},
     materials::Surface,
@@ -150,36 +153,12 @@ pub fn build(a: &mut Assembly, o: &IndoorObject) {
         1 => Surface::Concrete,
         _ => Surface::Ceramic,
     };
-    let foot = ph * 0.035;
-    a.part(pot, "other_prop").lathe(
-        &[
-            (0.0, foot),
-            (r * growth.pot_taper, foot),
-            (r * (growth.pot_taper + 0.025), ph * 0.14),
-            (r, ph * 0.92),
-            (r * 1.035, ph * 0.93),
-            (r * 1.035, ph),
-            (r * 0.89, ph),
-            (r * 0.86, ph * 0.90),
-            (r * (growth.pot_taper - 0.09), ph * 0.12),
-            (0.0, ph * 0.12),
-        ],
-        32,
-        Transform::IDENTITY,
-    );
-    a.part(pot, "other_prop").lathe(
-        &[(0.0, 0.0), (r * 1.08, 0.0), (r * 1.08, foot), (0.0, foot)],
-        32,
-        Transform::IDENTITY,
-    );
-    let soil = ph * 0.86;
-    a.part(Surface::Soil, "other_prop").cylinder(
-        r * 0.89,
-        h * 0.009,
-        Transform::from_xyz(0.0, soil, 0.0),
-    );
+    let pot_program = PotProfile::sample(o.seed);
+    let (soil, soil_radius) = pots::build(a, pot, r, ph, growth.pot_taper, &pot_program);
     for _ in 0..18 {
-        let p = radial(rng.random_range(0.0..TAU)) * r * rng.random_range(0.12..0.82)
+        let p = radial(rng.random_range(0.0..TAU))
+            * (soil_radius - h * 0.01).max(0.)
+            * rng.random_range(0.12..0.92)
             + Vec3::Y * (soil + h * 0.008);
         a.part(Surface::Soil, "other_prop").cuboid(
             Vec3::splat(h * 0.009),

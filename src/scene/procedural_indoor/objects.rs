@@ -266,7 +266,21 @@ fn bin(a: &mut Assembly, o: &IndoorObject) {
 fn wall_panel(a: &mut Assembly, o: &IndoorObject) {
     let s = o.size;
     let label = o.kind.class_name();
-    a.box_part(Surface::Chrome, label, Vec3::Y * s.y * 0.5, s, 0.006);
+    // Reserve the tray/art relief in the declared depth, keeping the rear face
+    // at -depth/2 for an analytic wall mount and collision agreement.
+    let depth = if o.kind == ObjectKind::Whiteboard {
+        (s.z * 0.35).min(0.035)
+    } else {
+        (s.z - 0.016).max(s.z * 0.5)
+    };
+    let front = -s.z * 0.5 + depth;
+    a.box_part(
+        Surface::Chrome,
+        label,
+        Vec3::new(0., s.y * 0.5, -s.z * 0.5 + depth * 0.5),
+        s.with_z(depth),
+        0.006,
+    );
     a.box_part(
         if o.kind == ObjectKind::Whiteboard {
             Surface::Whiteboard
@@ -274,7 +288,7 @@ fn wall_panel(a: &mut Assembly, o: &IndoorObject) {
             Surface::Paper
         },
         label,
-        Vec3::new(0.0, s.y * 0.5, s.z * 0.5 + 0.001),
+        Vec3::new(0.0, s.y * 0.5, front + 0.002),
         Vec3::new(s.x - 0.035, s.y - 0.035, 0.003),
         0.0,
     );
@@ -283,14 +297,14 @@ fn wall_panel(a: &mut Assembly, o: &IndoorObject) {
         a.box_part(
             Surface::Chrome,
             label,
-            Vec3::new(0.0, 0.013, 0.049),
-            Vec3::new(s.x * 0.78, 0.025, 0.068),
+            Vec3::new(0.0, 0.013, (front + s.z * 0.5) * 0.5),
+            Vec3::new(s.x * 0.78, 0.025, s.z * 0.5 - front),
             0.002,
         );
         for i in 0..3 {
             a.part(Surface::Ink, label).rod(
-                Vec3::new(s.x * (-0.18 + i as f32 * 0.10), 0.031, 0.06),
-                Vec3::new(s.x * (-0.12 + i as f32 * 0.10), 0.031, 0.06),
+                Vec3::new(s.x * (-0.18 + i as f32 * 0.10), 0.031, s.z * 0.25),
+                Vec3::new(s.x * (-0.12 + i as f32 * 0.10), 0.031, s.z * 0.25),
                 0.006,
             );
         }
@@ -308,7 +322,7 @@ fn wall_panel(a: &mut Assembly, o: &IndoorObject) {
             )
             .ellipsoid(
                 Vec3::new(s.x * 0.16, s.y * 0.13, 0.002),
-                Transform::from_xyz(x, y, s.z * 0.5 + 0.006 + i as f32 * 0.001),
+                Transform::from_xyz(x, y, front + 0.006 + i as f32 * 0.001),
             );
         }
     }

@@ -1,13 +1,33 @@
 //! Acceptance checks shared by the runtime, CPU distribution audit and regression tests.
-use super::{
-    layout::{IndoorLayout, IndoorManifest, CAMERA_CLEARANCE, GENERATOR_VERSION},
-    objects::build_object,
-};
+use super::layout::{IndoorLayout, IndoorManifest, CAMERA_CLEARANCE, GENERATOR_VERSION};
 use bevy::prelude::*;
 use serde::Serialize;
 use std::collections::BTreeMap;
+mod geometry;
+#[cfg(test)]
+mod tests;
+pub use geometry::{validate_geometry, GeometryStats};
 
 pub fn validate_layout(scene: &IndoorManifest) -> Result<(), String> {
+    // Validate base scalars before dependent programs divide by room dimensions
+    // or inspect objects. Malformed archived manifests must fail without panic.
+    if scene.generator_version != GENERATOR_VERSION
+        || !scene.room_size.is_finite()
+        || scene.room_size.min_element() <= 0.0
+        || !scene.world_yaw.is_finite()
+        || !(0.0..=1.0).contains(&scene.density)
+        || !(0.0..=1.0).contains(&scene.human_density)
+        || !scene.sun_elevation.is_finite()
+        || !scene.sun_azimuth.is_finite()
+        || !(0.0..=150_000.0).contains(&scene.daylight_lux)
+        || !(0.0..=10_000.0).contains(&scene.target_lux)
+        || !(1000.0..=12_000.0).contains(&scene.light_kelvin)
+    {
+        return Err(format!(
+            "seed {}: invalid scene dimensions, density, transform or lighting",
+            scene.seed
+        ));
+    }
     scene.camera_settings.validate()?;
     if !scene.camera_aspect_ratio.is_finite() || scene.camera_aspect_ratio <= 0.0 {
         return Err("camera aspect ratio must be positive and finite".into());
@@ -23,12 +43,6 @@ pub fn validate_layout(scene: &IndoorManifest) -> Result<(), String> {
     }
     super::humans::validate(scene)?;
     let fail = |message: &str| Err(format!("seed {}: {message}", scene.seed));
-    if scene.generator_version != GENERATOR_VERSION
-        || !scene.room_size.is_finite()
-        || scene.room_size.min_element() <= 0.0
-    {
-        return fail("invalid room or generator version");
-    }
     if scene.objects.is_empty() {
         return fail("empty scene");
     }
@@ -86,11 +100,11 @@ pub fn validate_layout(scene: &IndoorManifest) -> Result<(), String> {
                     | super::layout::ObjectKind::WallOutlet
                     | super::layout::ObjectKind::LightSwitch
             )
+            && !scene.wall_attachment_clear(object)
         {
-            let (lo, hi) = object.bounds();
-            if super::architecture::facade::overlaps_opening(scene, lo, hi, 0.049) {
-                return fail("wall fixture lacks solid backing beside exterior aperture");
-            }
+            return fail(
+                "wall fixture is unmounted or lacks solid backing beside exterior aperture",
+            );
         }
         if object.solid && !object.neighbor {
             main_furniture += 1;
@@ -258,94 +272,6 @@ pub fn validate_layout(scene: &IndoorManifest) -> Result<(), String> {
         }
     }
     Ok(())
-}
-
-pub fn validate_geometry(scene: &IndoorManifest) -> Result<GeometryStats, String> {
-    let mut stats = GeometryStats::default();
-    let mut assemblies = vec![super::architecture::architecture(scene)];
-    assemblies.extend(scene.objects.iter().map(build_object));
-    for human in &scene.humans {
-        let human_geometry = super::humans::build_human(human);
-        assemblies.push(super::objects::Assembly {
-            parts: human_geometry
-                .parts
-                .into_iter()
-                .map(|(surface, geometry)| {
-                    (
-                        (
-                            super::materials::Surface::Fabric,
-                            format!("person#{surface:?}"),
-                        ),
-                        geometry,
-                    )
-                })
-                .collect(),
-        });
-    }
-    for a in assemblies {
-        stats.assemblies += 1;
-        for ((surface, label), g) in a.parts {
-            stats.batches += 1;
-            stats.vertices += g.positions.len();
-            stats.triangles += g.indices.len() / 3;
-            *stats
-                .semantic_triangles
-                .entry(super::objects::part_label(&label).to_owned())
-                .or_default() += g.indices.len() / 3;
-            if g.positions.len() != g.normals.len()
-                || g.positions.len() != g.uvs.len()
-                || g.indices.len() % 3 != 0
-            {
-                return Err("inconsistent mesh attribute lengths".into());
-            }
-            if g.positions
-                .iter()
-                .any(|p| !Vec3::from_array(*p).is_finite())
-                || g.uvs.iter().any(|uv| !Vec2::from_array(*uv).is_finite())
-            {
-                return Err("non-finite mesh attribute".into());
-            }
-            if g.normals
-                .iter()
-                .any(|n| (Vec3::from_array(*n).length() - 1.0).abs() > 0.005)
-            {
-                return Err("invalid mesh normal".into());
-            }
-            for tri in g.indices.as_chunks::<3>().0.iter() {
-                if tri.iter().any(|&i| i as usize >= g.positions.len()) {
-                    return Err("mesh index out of bounds".into());
-                }
-                let p = |i: u32| Vec3::from_array(g.positions[i as usize]);
-                let normal = (p(tri[1]) - p(tri[0])).cross(p(tri[2]) - p(tri[0]));
-                if normal.length_squared() < 1e-20 {
-                    stats.degenerate_triangles += 1;
-                }
-                let n = Vec3::from_array(g.normals[tri[0] as usize])
-                    + Vec3::from_array(g.normals[tri[1] as usize])
-                    + Vec3::from_array(g.normals[tri[2] as usize]);
-                if normal.dot(n) < -1e-6 {
-                    return Err(format!(
-                        "inverted triangle in seed {}: {surface:?}/{label}, positions={:?}, normal={n:?}",
-                        scene.seed,
-                        tri.iter()
-                            .map(|i| g.positions[*i as usize])
-                            .collect::<Vec<_>>()
-                    ));
-                }
-            }
-        }
-    }
-    Ok(stats)
-}
-
-#[derive(Debug, Default, Serialize)]
-pub struct GeometryStats {
-    pub assemblies: usize,
-    pub batches: usize,
-    pub vertices: usize,
-    pub triangles: usize,
-    pub degenerate_triangles: usize,
-    pub semantic_triangles: BTreeMap<String, usize>,
 }
 
 #[derive(Debug, Serialize)]

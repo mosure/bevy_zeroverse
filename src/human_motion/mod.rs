@@ -2,7 +2,9 @@
 //! Runtime inference is gated by the `human_motion` Cargo feature and configuration.
 #[cfg(feature = "human_motion")]
 mod contact;
+mod navigation;
 pub mod planning;
+pub use navigation::NavigationRecipe;
 mod prompts;
 pub use prompts::{
     ActionPhase, Family as MotionFamily, PromptRecipe, PromptSamplingConfig, PROMPT_PROGRAM_VERSION,

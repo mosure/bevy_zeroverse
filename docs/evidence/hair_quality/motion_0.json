@@ -1,0 +1,202 @@
+{
+  "scene_seed": 0,
+  "pending": false,
+  "stage": "Ready",
+  "model_loads": 1,
+  "generated_batches": 1,
+  "embedding_hits": 0,
+  "model_artifacts": {
+    "ardy/core-rp-20fps-h40/v1": "6e03294854771ca3ed6641251c77ab75bd2542d778c02886ea795d8d77655cd8",
+    "llama/ardy-llm2vec-8b/v1": "09280ebcf02184708cff1a9f982b901166b433e504ff343f02c037cc52d8ee16"
+  },
+  "requested": [
+    {
+      "actor_id": 45,
+      "behavior": "beckon",
+      "request": {
+        "prompt": "A person beckons with the left hand once.",
+        "seed": 18443867728505219881,
+        "frames": 120,
+        "history_frames": 80,
+        "diffusion_steps": 10,
+        "text_guidance": 2.0,
+        "trajectory_guidance": 3.0,
+        "waypoints": [
+          {
+            "frame": 0,
+            "position": [
+              -0.49426693,
+              0.94,
+              -2.7052402
+            ],
+            "heading": 3.0039809,
+            "constrain_height": true
+          },
+          {
+            "frame": 20,
+            "position": [
+              -0.49426693,
+              0.94,
+              -2.7052402
+            ],
+            "heading": 3.0039809,
+            "constrain_height": true
+          },
+          {
+            "frame": 33,
+            "position": [
+              -0.49426693,
+              0.92123556,
+              -2.7052402
+            ],
+            "heading": 3.0039809,
+            "constrain_height": true
+          },
+          {
+            "frame": 46,
+            "position": [
+              -0.49426693,
+              0.94,
+              -2.7052402
+            ],
+            "heading": 3.0039809,
+            "constrain_height": true
+          },
+          {
+            "frame": 119,
+            "position": [
+              -0.49426693,
+              0.94,
+              -2.7052402
+            ],
+            "heading": 3.0039809,
+            "constrain_height": true
+          }
+        ],
+        "dense_trajectory": true
+      },
+      "support_chair": null,
+      "prompt_recipe": {
+        "version": 3,
+        "family": "gesture",
+        "gait": null,
+        "travel_speed_mps": null,
+        "style": null,
+        "arm_style": null,
+        "gaze": null,
+        "actions": [
+          {
+            "family": "gesture",
+            "action": "beckon",
+            "hand": "left",
+            "side": "left",
+            "repetitions": 1,
+            "amplitude": 0.030888677,
+            "start_frame": 20,
+            "end_frame": 46,
+            "peak_pelvis_height": 0.92123556,
+            "clearance_radius": 0.67731667
+          }
+        ]
+      }
+    }
+  ],
+  "accepted": [
+    {
+      "actor_id": 45,
+      "behavior": "beckon",
+      "request": {
+        "prompt": "A person beckons with the left hand once.",
+        "seed": 18443867728505219881,
+        "frames": 120,
+        "history_frames": 80,
+        "diffusion_steps": 10,
+        "text_guidance": 2.0,
+        "trajectory_guidance": 3.0,
+        "waypoints": [
+          {
+            "frame": 0,
+            "position": [
+              -0.49426693,
+              0.94,
+              -2.7052402
+            ],
+            "heading": 3.0039809,
+            "constrain_height": true
+          },
+          {
+            "frame": 20,
+            "position": [
+              -0.49426693,
+              0.94,
+              -2.7052402
+            ],
+            "heading": 3.0039809,
+            "constrain_height": true
+          },
+          {
+            "frame": 33,
+            "position": [
+              -0.49426693,
+              0.92123556,
+              -2.7052402
+            ],
+            "heading": 3.0039809,
+            "constrain_height": true
+          },
+          {
+            "frame": 46,
+            "position": [
+              -0.49426693,
+              0.94,
+              -2.7052402
+            ],
+            "heading": 3.0039809,
+            "constrain_height": true
+          },
+          {
+            "frame": 119,
+            "position": [
+              -0.49426693,
+              0.94,
+              -2.7052402
+            ],
+            "heading": 3.0039809,
+            "constrain_height": true
+          }
+        ],
+        "dense_trajectory": true
+      },
+      "support_chair": null,
+      "prompt_recipe": {
+        "version": 3,
+        "family": "gesture",
+        "gait": null,
+        "travel_speed_mps": null,
+        "style": null,
+        "arm_style": null,
+        "gaze": null,
+        "actions": [
+          {
+            "family": "gesture",
+            "action": "beckon",
+            "hand": "left",
+            "side": "left",
+            "repetitions": 1,
+            "amplitude": 0.030888677,
+            "start_frame": 20,
+            "end_frame": 46,
+            "peak_pelvis_height": 0.92123556,
+            "clearance_radius": 0.67731667
+          }
+        ]
+      }
+    }
+  ],
+  "rejected": [
+    {
+      "actor_id": 43,
+      "reason": "no collision-free behavior fits the available space"
+    }
+  ]
+}

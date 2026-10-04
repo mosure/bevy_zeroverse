@@ -1,0 +1,130 @@
+{
+  "scene_seed": 2,
+  "pending": false,
+  "stage": "Ready",
+  "model_loads": 1,
+  "generated_batches": 3,
+  "embedding_hits": 0,
+  "model_artifacts": {
+    "ardy/core-rp-20fps-h40/v1": "6e03294854771ca3ed6641251c77ab75bd2542d778c02886ea795d8d77655cd8",
+    "llama/ardy-llm2vec-8b/v1": "09280ebcf02184708cff1a9f982b901166b433e504ff343f02c037cc52d8ee16"
+  },
+  "requested": [
+    {
+      "actor_id": 47,
+      "behavior": "shuffle",
+      "request": {
+        "prompt": "A person shuffles slowly.",
+        "seed": 4911147902644415502,
+        "frames": 120,
+        "history_frames": 80,
+        "diffusion_steps": 10,
+        "text_guidance": 2.0,
+        "trajectory_guidance": 3.0,
+        "waypoints": [
+          {
+            "frame": 0,
+            "position": [
+              -0.82825327,
+              0.94,
+              -1.1134064
+            ],
+            "heading": 1.436284,
+            "constrain_height": true
+          },
+          {
+            "frame": 119,
+            "position": [
+              0.9028233,
+              0.94,
+              -0.8791405
+            ],
+            "heading": 1.436284,
+            "constrain_height": true
+          }
+        ],
+        "dense_trajectory": true
+      },
+      "support_chair": null,
+      "prompt_recipe": {
+        "version": 3,
+        "family": "locomotion",
+        "gait": "shuffle",
+        "travel_speed_mps": 0.2935893,
+        "style": null,
+        "arm_style": null,
+        "gaze": null,
+        "actions": [],
+        "navigation": {
+          "kind": "direct",
+          "lateral_fraction": 0.025247425,
+          "return_fraction": 1.0,
+          "corner_radius_m": 0.26701123,
+          "path_length_m": 1.7468562
+        }
+      }
+    }
+  ],
+  "accepted": [
+    {
+      "actor_id": 47,
+      "behavior": "shuffle",
+      "request": {
+        "prompt": "A person shuffles slowly.",
+        "seed": 4911147902644415502,
+        "frames": 120,
+        "history_frames": 80,
+        "diffusion_steps": 10,
+        "text_guidance": 2.0,
+        "trajectory_guidance": 3.0,
+        "waypoints": [
+          {
+            "frame": 0,
+            "position": [
+              -0.82825327,
+              0.94,
+              -1.1134064
+            ],
+            "heading": 1.436284,
+            "constrain_height": true
+          },
+          {
+            "frame": 119,
+            "position": [
+              0.9028233,
+              0.94,
+              -0.8791405
+            ],
+            "heading": 1.436284,
+            "constrain_height": true
+          }
+        ],
+        "dense_trajectory": true
+      },
+      "support_chair": null,
+      "prompt_recipe": {
+        "version": 3,
+        "family": "locomotion",
+        "gait": "shuffle",
+        "travel_speed_mps": 0.2935893,
+        "style": null,
+        "arm_style": null,
+        "gaze": null,
+        "actions": [],
+        "navigation": {
+          "kind": "direct",
+          "lateral_fraction": 0.025247425,
+          "return_fraction": 1.0,
+          "corner_radius_m": 0.26701123,
+          "path_length_m": 1.7468562
+        }
+      }
+    }
+  ],
+  "rejected": [
+    {
+      "actor_id": 48,
+      "reason": "no collision-free behavior fits the available space"
+    }
+  ]
+}

@@ -10,6 +10,8 @@ pub(crate) struct TorsoFit {
     top: f32,
     // half width, front, back
     sections: [Vec3; SECTIONS],
+    roundness: f32,
+    drape: f32,
 }
 
 impl TorsoFit {
@@ -55,7 +57,15 @@ impl TorsoFit {
             bottom,
             top,
             sections,
+            roundness: 2.05,
+            drape: 0.55,
         }
+    }
+
+    pub fn with_program(mut self, program: &super::GarmentProgram) -> Self {
+        self.roundness = program.section_roundness;
+        self.drape = program.drape;
+        self
     }
 
     pub fn delta(&self, p: Vec3, waist: f32, shoulder: f32, neck: f32) -> Vec3 {
@@ -74,20 +84,32 @@ impl TorsoFit {
         let center = (section.y + section.z) * 0.5;
         let radii = Vec2::new(section.x, (section.z - section.y) * 0.5).max(Vec2::splat(0.025));
         let q = Vec2::new(p.x, p.z - center);
-        let normalized = (q / (radii * 1.04)).abs();
-        let radius = (normalized.x.powf(2.4) + normalized.y.powf(2.4)).powf(1.0 / 2.4);
-        if !(0.1..1.0).contains(&radius) {
-            return Vec3::ZERO;
-        }
-        let correction = q * (1.0 / radius - 1.0);
+        let normalized = (q / (radii * 1.015)).abs();
+        let radius = (normalized.x.powf(self.roundness) + normalized.y.powf(self.roundness))
+            .powf(1.0 / self.roundness);
+        let correction = if (0.1..1.).contains(&radius) {
+            q * (radius.recip() - 1.)
+        } else {
+            Vec2::ZERO
+        };
         // Saturate gradually instead of a hard 5 cm clamp. At the hem and
         // shoulder the fitted envelope fades into the original body's shell.
         let length = correction.length();
-        let correction = correction * (0.09 / (0.09 + length));
+        let mut correction = correction * (0.09 / (0.09 + length));
+        // A radial expansion alone retains the cleavage groove and makes a
+        // shirt look painted onto the body. Bridge its supported front panel
+        // in depth while keeping the side and shoulder fades smooth.
+        let x = (p.x.abs() / radii.x).min(1.0);
+        let front = section.y + radii.y * smooth(0.45, 0.98, x).powf(1.3);
+        let bridge = -(p.z - front).max(0.0);
+        let front_mask = 1. - smooth(center - 0.025, center + 0.025, p.z);
+        correction.y = correction
+            .y
+            .min(bridge * (0.075 / (0.075 + bridge.abs())) * front_mask);
         let mask = smooth(waist, waist + 0.08, p.y)
             * (1.0 - smooth(shoulder - 0.045, neck - 0.005, p.y))
             * (1.0 - smooth(radii.x * 0.84, radii.x * 1.16, p.x.abs()));
-        Vec3::new(correction.x, 0.0, correction.y) * mask
+        Vec3::new(correction.x, 0.0, correction.y) * mask * (0.70 + self.drape * 0.30)
     }
 }
 

@@ -263,6 +263,10 @@ pub fn build(scene: &IndoorManifest) -> Assembly {
         a.parts.entry(key).or_default().append(g);
     }
     for p in &e.pillars {
+        if p.profile.is_some() {
+            column(&mut a, p, e, size);
+            continue;
+        }
         let g = a.part(Surface::Concrete, "other_structure");
         let outline: Vec<_> = (0..p.sides)
             .map(|i| {
@@ -288,6 +292,85 @@ pub fn build(scene: &IndoorManifest) -> Assembly {
         a.part(surface, &format!("{label}#exterior")).append(g);
     }
     a
+}
+
+/// Joined cross-section rings, including the base reveal. No duplicate interior
+/// discs between the collar and shaft; the roof joint follows the actual plane.
+fn column(a: &mut Assembly, p: &Pillar, e: &EnvelopeProgram, size: Vec3) {
+    let shape = p.profile.as_ref().unwrap();
+    let scale = 2_f32.powf(0.5 - 1. / shape.roundness);
+    let section: Vec<_> = (0..p.sides)
+        .map(|i| {
+            let t = i as f32 * std::f32::consts::TAU / p.sides as f32;
+            let f = |v: f32| {
+                if v.abs() < 1e-6 {
+                    0.
+                } else {
+                    v.signum() * v.abs().powf(2. / shape.roundness)
+                }
+            };
+            let v = Vec2::new(f(t.cos()), f(t.sin()) * shape.aspect) / scale;
+            Vec2::from_angle(shape.rotation).rotate(v)
+        })
+        .collect();
+    let h = shape.collar_height;
+    let rings: Vec<Vec<Vec3>> = [
+        (p.radius + 0.019, 0.),
+        (p.radius + 0.025, 0.008),
+        (p.radius + 0.025, h - 0.008),
+        (p.radius + 0.019, h),
+        (p.radius, h),
+        (p.radius * shape.taper, f32::INFINITY),
+    ]
+    .into_iter()
+    .map(|(radius, y)| {
+        section
+            .iter()
+            .map(|v| {
+                let v = p.center + *v * radius;
+                Vec3::new(
+                    v.x,
+                    if y.is_infinite() {
+                        e.ceiling_height(size, v)
+                    } else {
+                        y
+                    },
+                    v.y,
+                )
+            })
+            .collect()
+    })
+    .collect();
+    for (index, pair) in rings.windows(2).enumerate() {
+        let g = a.part(
+            if index < 4 {
+                Surface::Metal
+            } else {
+                Surface::Concrete
+            },
+            "other_structure",
+        );
+        for i in 0..section.len() {
+            let j = (i + 1) % section.len();
+            let radial = (section[i] + section[j]) * 0.5;
+            let normal = if index == 3 {
+                Vec3::Y
+            } else {
+                Vec3::new(radial.x, 0., radial.y)
+            };
+            quad(g, [pair[0][i], pair[0][j], pair[1][j], pair[1][i]], normal);
+        }
+    }
+    face(
+        a.part(Surface::Metal, "other_structure"),
+        &rings[0],
+        Vec3::NEG_Y,
+    );
+    face(
+        a.part(Surface::Concrete, "other_structure"),
+        rings.last().unwrap(),
+        Vec3::Y,
+    );
 }
 
 pub fn arched_portal(p: &super::super::program::Partition, height: f32, a: &mut Assembly) {

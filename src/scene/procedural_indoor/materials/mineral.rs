@@ -11,6 +11,8 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MineralRecipe {
+    #[serde(default)]
+    pub casting: Option<super::concrete::ConcreteFinish>,
     pub aggregate_cells: [u32; 2],
     pub aggregate_exposure: f32,
     pub aggregate_radius: f32,
@@ -41,6 +43,8 @@ impl MineralRecipe {
         let n = rng.random_range(0.08..0.90);
         let warm = rng.random_range(-0.10..0.18);
         Self {
+            casting: (surface == Surface::Concrete)
+                .then(|| super::concrete::ConcreteFinish::sample(seed)),
             aggregate_cells: [rng.random_range(24..=64), rng.random_range(24..=64)],
             aggregate_exposure: rng.random_range(0.0_f32..1.0).powi(2),
             aggregate_radius: rng.random_range(0.18..0.46),
@@ -48,8 +52,6 @@ impl MineralRecipe {
             porosity: rng.random_range(0.0..if earthy { 0.32 } else { 0.16 }),
             marble_mix: if surface == Surface::Floor {
                 rng.random_range(0.0_f32..1.0).sqrt()
-            } else if surface == Surface::Concrete {
-                rng.random_range(0.0_f32..1.0).powi(3)
             } else {
                 0.
             },
@@ -71,6 +73,9 @@ impl MineralRecipe {
         }
     }
     pub fn validate(&self) -> Result<(), String> {
+        if let Some(c) = &self.casting {
+            c.validate()?;
+        }
         if self.aggregate_cells.iter().any(|c| !(12..=96).contains(c))
             || self.vein_cells.iter().any(|c| !(1..=16).contains(c))
             || [
@@ -129,6 +134,17 @@ impl MineralRecipe {
                 / self.aggregate_cells[1] as f32,
         ];
         let cell = cellular(packed, self.aggregate_cells, r.seed);
+        // Crushed minerals have stretched/angular sections and internal grains,
+        // rather than identical flat circular dots. The local transform has unit
+        // area; shape, size and pigment use distinct cell attributes.
+        let axis = 0.25 + cell.shape * 0.70;
+        let other = (1. - axis * axis).sqrt();
+        let aspect = 0.65 + cell.shape * 0.90;
+        let x = (cell.offset[0] * axis + cell.offset[1] * other) * aspect;
+        let y = (-cell.offset[0] * other + cell.offset[1] * axis) / aspect;
+        let rounded = (x * x + y * y).sqrt();
+        let angular = (x.abs() * 0.90 + y.abs() * 0.35).max(y.abs() * 0.90 + x.abs() * 0.35);
+        let clast_distance = rounded * (1. - cell.shape * 0.65) + angular * cell.shape * 0.65;
         let edge = periodic_noise(
             u,
             v,
@@ -141,16 +157,20 @@ impl MineralRecipe {
         let chip_aa =
             (footprint * self.aggregate_cells[0].max(self.aggregate_cells[1]) as f32 * 0.55)
                 .max(0.07);
-        let chip = smooth((radius + chip_aa - cell.radius) / (2. * chip_aa))
+        let chip = smooth((radius + chip_aa - clast_distance) / (2. * chip_aa))
             * smooth((cell.dye - 0.18) * 6.);
         let exposed = chip * self.aggregate_exposure * (1. - self.marble_mix * 0.65);
         let pores = (1. - smooth(cell.radius / 0.13)) * smooth((self.porosity - cell.dye) * 12.);
-        let field = deposit(
-            uv,
-            self.vein_cells,
-            self.vein_warp,
-            r.seed.wrapping_add(239),
-        );
+        let field = if self.marble_mix > 0. {
+            deposit(
+                uv,
+                self.vein_cells,
+                self.vein_warp,
+                r.seed.wrapping_add(239),
+            )
+        } else {
+            0.5
+        };
         // Integrate thin vein coverage over the atlas footprint. A sub-texel
         // level set must fade continuously instead of becoming isolated dots.
         let aa = footprint * (self.vein_cells[0] + self.vein_cells[1]) as f32 * 0.18;
@@ -163,11 +183,14 @@ impl MineralRecipe {
         let micro = periodic_noise(u, v, 97, 91, r.seed.wrapping_add(271)) - 0.5;
         let binder = periodic_noise(u, v, 9, 11, r.seed.wrapping_add(277)) - 0.5;
         let matrix = tint(r.color, 1. + binder * self.binder_variation + micro * 0.025);
-        let chips = mix(self.aggregate_color[0], self.aggregate_color[1], cell.dye);
+        let chips = tint(
+            mix(self.aggregate_color[0], self.aggregate_color[1], cell.dye),
+            1. + (edge - 0.5) * 0.28 + micro * 0.20,
+        );
         let stone = tint(matrix, 1. + (field - 0.5) * self.marble_mix * 0.20);
         let mut color = mix(mix(stone, chips, exposed), self.vein_color, vein);
         color = tint(color, 1. - pores * 0.65 - seam * 0.35);
-        Texel {
+        let mut texel = Texel {
             color,
             height: r.relief_m
                 * ((chip - 0.5) * self.aggregate_exposure * (1. - self.polish * 0.9)
@@ -180,6 +203,10 @@ impl MineralRecipe {
                 - vein * self.polish * 0.04)
                 .clamp(0.12, 1.),
             occlusion: (1. - pores * 0.12 - seam * 0.05).clamp(0.8, 1.),
+        };
+        if let Some(c) = &self.casting {
+            c.apply(r, uv, self.polish, &mut texel);
         }
+        texel
     }
 }

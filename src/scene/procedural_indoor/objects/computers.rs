@@ -270,5 +270,18 @@ pub(super) fn display(a: &mut Assembly, o: &IndoorObject) {
             Vec3::new(width * 0.07, bottom + height * 0.30, p.panel_m),
             0.003,
         );
+    } else {
+        // A real bracket bridges the panel to the reserved rear mounting face.
+        let rear = -p.panel_m.min(s.z) * 0.5;
+        let depth = rear + s.z * 0.5;
+        if depth > 0.001 {
+            a.box_part(
+                Surface::Metal,
+                label,
+                Vec3::new(0., bottom + height * 0.5, rear - depth * 0.5),
+                Vec3::new(width * 0.32, height * 0.32, depth),
+                0.002,
+            );
+        }
     }
 }

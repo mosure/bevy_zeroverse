@@ -1,0 +1,469 @@
+{
+  "schema_version": 1,
+  "scope": "Local clothing/appearance construction and bounded real-model motion qualification; photographic realism and downstream learning utility unqualified.",
+  "generator": {
+    "schema_version": 1,
+    "crate_version": "0.29.0",
+    "generator_version": 25,
+    "source_sha256": "dfd6959128867072eedf9efc4f4f69c1115f737e23d6747b00df54caae39eb3f"
+  },
+  "build_provenance": {
+    "capture_engine": "capture-v43;calibration=1;co_visibility=1;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=8;surface_flow=1;indoor=25;multiview=5;ovoxel=3;glass=2;hair=3;wardrobe=3;footwear=1;bounds=3;position=2;tabletop=1;finishes=8;seating=3;activity=2;playback=2;exterior=2;envelope=3",
+    "crate_version": "0.29.0",
+    "features": {
+      "human_motion": true,
+      "multi_threaded": true,
+      "web": false
+    },
+    "generator_version": 25,
+    "locked_package_versions": {
+      "bevy": [
+        "0.19.1"
+      ],
+      "bevy_burn_human": [
+        "0.6.1"
+      ],
+      "bevy_zeroverse": [
+        "0.29.0"
+      ],
+      "bevy_zeroverse_burn": [
+        "0.12.0"
+      ],
+      "bevy_zeroverse_capture": [
+        "0.1.0"
+      ],
+      "bevy_zeroverse_ffi": [
+        "0.29.0"
+      ],
+      "bevy_zeroverse_publication": [
+        "0.1.1"
+      ],
+      "burn": [
+        "0.21.0"
+      ],
+      "burn_ardy": [
+        "0.1.4"
+      ],
+      "burn_human": [
+        "0.5.1"
+      ],
+      "burn_human_inference": [
+        "0.1.4"
+      ],
+      "burn_human_motion": [
+        "0.1.1"
+      ],
+      "burn_llama": [
+        "0.1.2"
+      ],
+      "burn_siglip2": [
+        "0.1.1"
+      ],
+      "wgpu": [
+        "29.0.4"
+      ]
+    },
+    "schema_version": 1,
+    "source_sha256": "dfd6959128867072eedf9efc4f4f69c1115f737e23d6747b00df54caae39eb3f",
+    "target": "x86_64-unknown-linux-gnu"
+  },
+  "renderer": "WgpuWrapper(AdapterInfo { name: \"NVIDIA RTX PRO 6000 Blackwell Workstation Edition\", vendor: 4318, device: 11185, device_type: DiscreteGpu, device_pci_bus_id: \"0000:01:00.0\", driver: \"NVIDIA\", driver_info: \"610.43.02\", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: false })",
+  "dependency_policy": "Root Cargo manifest with existing local wgpu-core/wgpu-hal 29.0.4 patches; included in source identity. This is not registry-only qualification.",
+  "selection": {
+    "audit_seeds": [
+      0,
+      255
+    ],
+    "room_capture_seeds": [
+      0,
+      15
+    ],
+    "motion_capture_seeds": [
+      0,
+      3
+    ],
+    "furniture_density": 0.65,
+    "human_density": 0.7,
+    "studio": "Standing first-person source seeds 0..7; natural poses 16..23. Hair styles forced 0..7 and alternating eyewear for coverage; illustrative, not unbiased appearance samples."
+  },
+  "capabilities": {
+    "annotation_hdr_format": "RGBA32Float_direct",
+    "bloom": true,
+    "glass_filter": "default",
+    "quality": "Auto",
+    "shadow_map_size": 2048,
+    "shadows": true,
+    "specular_transmission": true,
+    "ssao": true
+  },
+  "annotation_precision": "float32_geometry",
+  "qualification": {
+    "layout_audit": {
+      "seeds": 256,
+      "first_seed": 0,
+      "invalid_seeds": [],
+      "human_instances": 1367
+    },
+    "geometry_audit": {
+      "constructed_seeds": 256,
+      "total_triangles": 143679225,
+      "triangles_per_room": {
+        "p05": 229085,
+        "median": 523217.5,
+        "p95": 1017934
+      },
+      "area_tolerance_degenerate_faces": 937,
+      "degenerate_by_semantic": {
+        "person": 937
+      }
+    },
+    "render_audit": {
+      "seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
+      ],
+      "views": 48,
+      "image_size": [
+        512,
+        512
+      ],
+      "semantic_classes_per_view": [
+        6,
+        16
+      ],
+      "primary_rooms_with_people": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
+      ],
+      "rooms_without_visible_people": [
+        10
+      ],
+      "maximum_reprojection_p99_px": 0.0024694738,
+      "maximum_depth_position_p99_m": 2.861023e-06,
+      "maximum_normal_length_error": 2.3841858e-07,
+      "maximum_camera_pose_error": 0.0,
+      "directed_peer_visibility": {
+        "p05": 0.2895164489746094,
+        "median": 0.565185546875,
+        "p95": 0.8911815306912639
+      },
+      "union_peer_visibility": {
+        "p05": 0.38286590576171875,
+        "median": 0.7743053436279297,
+        "p95": 0.9654159545898438
+      }
+    },
+    "motion_audit": {
+      "planning_seeds": 256,
+      "generated_scene_seeds": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "requested_slots": 8,
+      "feasible_requests": 5,
+      "accepted": 5,
+      "rejected_retained_static": [
+        {
+          "scene_seed": 0,
+          "actor_id": 43,
+          "reason": "no collision-free behavior fits the available space"
+        },
+        {
+          "scene_seed": 1,
+          "actor_id": 29,
+          "reason": "no collision-free behavior fits the available space"
+        },
+        {
+          "scene_seed": 2,
+          "actor_id": 48,
+          "reason": "no collision-free behavior fits the available space"
+        }
+      ],
+      "model_loads": 1,
+      "generated_batches": 4,
+      "embedding_hits": 1,
+      "accepted_clip_kinematics": [
+        {
+          "scene_seed": 0,
+          "actor_id": 45,
+          "duration_seconds": 5.949999809265137,
+          "fps": 20.0,
+          "frames": 120,
+          "horizontal_waypoint_error_m": {
+            "max": 0.06292664259672165,
+            "median": 0.026474740356206894,
+            "p05": 0.0043538277968764305,
+            "p95": 0.06071040779352188
+          },
+          "local_joint_angular_speed_rad_s": {
+            "max": 5.729034423828125,
+            "median": 0.2315094769001007,
+            "p05": 0.0,
+            "p95": 1.7055103778839111
+          },
+          "policy": "Physical-time diagnostics of admitted raw model clips; not thresholds or perceptual motion quality evidence. Render admission additionally checks retargeted cloth/hair geometry.",
+          "prompt": "A person marches slowly, turns around and comes back.",
+          "root_acceleration_mps2": {
+            "max": 10.191429138183594,
+            "median": 0.7845116257667542,
+            "p05": 0.3414932191371918,
+            "p95": 1.9335919618606567
+          },
+          "root_endpoint_baseline_m": 0.3624877631664276,
+          "root_path_length_m": 2.648477792739868,
+          "root_speed_mps": {
+            "max": 0.5644892454147339,
+            "median": 0.46616023778915405,
+            "p05": 0.3170597553253174,
+            "p95": 0.5304746031761169
+          },
+          "seed": 18443867728505219881
+        },
+        {
+          "scene_seed": 1,
+          "actor_id": 30,
+          "duration_seconds": 5.949999809265137,
+          "fps": 20.0,
+          "frames": 120,
+          "horizontal_waypoint_error_m": {
+            "max": 0.040333341807127,
+            "median": 0.02878037467598915,
+            "p05": 0.004793424624949694,
+            "p95": 0.03766220808029175
+          },
+          "local_joint_angular_speed_rad_s": {
+            "max": 2.727813959121704,
+            "median": 0.1280750185251236,
+            "p05": 0.0,
+            "p95": 0.5904824733734131
+          },
+          "policy": "Physical-time diagnostics of admitted raw model clips; not thresholds or perceptual motion quality evidence. Render admission additionally checks retargeted cloth/hair geometry.",
+          "prompt": "A person tiptoes slowly.",
+          "root_acceleration_mps2": {
+            "max": 5.589543342590332,
+            "median": 0.31831878423690796,
+            "p05": 0.10953249037265778,
+            "p95": 1.0135389566421509
+          },
+          "root_endpoint_baseline_m": 1.2428278923034668,
+          "root_path_length_m": 1.332692265510559,
+          "root_speed_mps": {
+            "max": 0.2929755449295044,
+            "median": 0.23341284692287445,
+            "p05": 0.1294020414352417,
+            "p95": 0.2839869260787964
+          },
+          "seed": 7230976893032501788
+        },
+        {
+          "scene_seed": 2,
+          "actor_id": 47,
+          "duration_seconds": 5.949999809265137,
+          "fps": 20.0,
+          "frames": 120,
+          "horizontal_waypoint_error_m": {
+            "max": 0.1279873251914978,
+            "median": 0.02880953997373581,
+            "p05": 0.007678237743675709,
+            "p95": 0.12542423605918884
+          },
+          "local_joint_angular_speed_rad_s": {
+            "max": 8.392332077026367,
+            "median": 0.14680960774421692,
+            "p05": 0.0,
+            "p95": 0.8624932765960693
+          },
+          "policy": "Physical-time diagnostics of admitted raw model clips; not thresholds or perceptual motion quality evidence. Render admission additionally checks retargeted cloth/hair geometry.",
+          "prompt": "A person shuffles slowly.",
+          "root_acceleration_mps2": {
+            "max": 11.024036407470703,
+            "median": 0.4495719373226166,
+            "p05": 0.14640550315380096,
+            "p95": 2.498518705368042
+          },
+          "root_endpoint_baseline_m": 1.7206672430038452,
+          "root_path_length_m": 1.9184576272964478,
+          "root_speed_mps": {
+            "max": 0.6152112483978271,
+            "median": 0.3142222464084625,
+            "p05": 0.1945449858903885,
+            "p95": 0.454577773809433
+          },
+          "seed": 4911147902644415502
+        },
+        {
+          "scene_seed": 3,
+          "actor_id": 90,
+          "duration_seconds": 5.949999809265137,
+          "fps": 20.0,
+          "frames": 120,
+          "horizontal_waypoint_error_m": {
+            "max": 0.060012586414813995,
+            "median": 0.018210534006357193,
+            "p05": 0.0049207755364477634,
+            "p95": 0.053684696555137634
+          },
+          "local_joint_angular_speed_rad_s": {
+            "max": 2.369673013687134,
+            "median": 0.0995902419090271,
+            "p05": 0.0,
+            "p95": 0.5849652886390686
+          },
+          "policy": "Physical-time diagnostics of admitted raw model clips; not thresholds or perceptual motion quality evidence. Render admission additionally checks retargeted cloth/hair geometry.",
+          "prompt": "A person rises onto both toes twice.",
+          "root_acceleration_mps2": {
+            "max": 9.773713111877441,
+            "median": 0.4643312096595764,
+            "p05": 0.1621135175228119,
+            "p95": 2.1236813068389893
+          },
+          "root_endpoint_baseline_m": 0.014194587245583534,
+          "root_path_length_m": 0.2869906425476074,
+          "root_speed_mps": {
+            "max": 0.5042976140975952,
+            "median": 0.060665812343358994,
+            "p05": 0.00840915646404028,
+            "p95": 0.2518981397151947
+          },
+          "seed": 17813550259245129207
+        },
+        {
+          "scene_seed": 3,
+          "actor_id": 88,
+          "duration_seconds": 5.949999809265137,
+          "fps": 20.0,
+          "frames": 120,
+          "horizontal_waypoint_error_m": {
+            "max": 0.0947711169719696,
+            "median": 0.02567206509411335,
+            "p05": 0.009645911864936352,
+            "p95": 0.08669514954090118
+          },
+          "local_joint_angular_speed_rad_s": {
+            "max": 3.6461565494537354,
+            "median": 0.1610589176416397,
+            "p05": 0.0,
+            "p95": 0.904170572757721
+          },
+          "policy": "Physical-time diagnostics of admitted raw model clips; not thresholds or perceptual motion quality evidence. Render admission additionally checks retargeted cloth/hair geometry.",
+          "prompt": "A person tiptoes slowly.",
+          "root_acceleration_mps2": {
+            "max": 12.129865646362305,
+            "median": 0.42365965247154236,
+            "p05": 0.18829426169395447,
+            "p95": 1.8761100769042969
+          },
+          "root_endpoint_baseline_m": 2.152775287628174,
+          "root_path_length_m": 2.427422046661377,
+          "root_speed_mps": {
+            "max": 0.511006236076355,
+            "median": 0.4290034770965576,
+            "p05": 0.2306767702102661,
+            "p95": 0.482544869184494
+          },
+          "seed": 15444413414904571552
+        }
+      ],
+      "views": 40,
+      "visible_moving_person_pixels_per_scene": [
+        0,
+        26913,
+        0,
+        0
+      ],
+      "maximum_static_flow_reprojection_p99_px": 0.0024230265989899635,
+      "missing_expected_static_flow_valid_pixels": 0
+    }
+  },
+  "checks": {
+    "core_tests_passed": 236,
+    "ignored_qualification_tests": 3,
+    "workspace_all_targets_clippy_warnings_denied": "passed",
+    "web_human_motion_viewer_compile": "passed",
+    "web_runtime": "not rerun",
+    "release": "local unpublished",
+    "throughput": "not benchmarked; GPU shared with training"
+  },
+  "review_tool_sha256": "87e9e076e83c529d2bc92079b5e5f3aa910d404548f524e8cc382ffaafa00d4d",
+  "external_assets": {
+    "tokenizer_sha256": "e134af98b985517b4f068e3755ae90d4e9cd2d45d328325dc503f1c6b2d06cc7",
+    "models": {
+      "ardy/core-rp-20fps-h40/v1": "6e03294854771ca3ed6641251c77ab75bd2542d778c02886ea795d8d77655cd8",
+      "llama/ardy-llm2vec-8b/v1": "09280ebcf02184708cff1a9f982b901166b433e504ff343f02c037cc52d8ee16"
+    }
+  },
+  "file_sha256": {
+    "annotations_0.jpg": "2a3cdc4468d16b4b84e6d70cba78c6b2e071aeb67cefb5a003d514fff628898f",
+    "clippy_final.log": "3fb72e68cde5a4a41f1625d7b92d6e41a65d558df7148fe6c5bafc717ab07da7",
+    "distribution.json": "52b4fc4e3f5a827a15be8aa98190fd24592c2fc6133644c69921f53c8e758e2f",
+    "final_seated_bodys.jpg": "d5321f38c5f2d90795ff6edcc9073885dad52743b3a8fa32932d9a5ad273cbd2",
+    "final_seated_footwears.jpg": "a8883ac9c96d3d5dd0fc5d1fdad025c3ebe1d507bbaccde8533438f5b0a932b0",
+    "final_seated_people.json": "91c626cad13da0b0a429c450aa8bc9371782b05fa937c4c4c102d5188d2106de",
+    "final_seated_portraits.jpg": "01be709fdae3fd56dd2dba91ec2d53048040c71d0ba70cd4a327e0eef894423f",
+    "final_standing_bodys.jpg": "f1cb11ef4b4fc73fcc51bb4c0d07f15d504accfcc16583ea33ad71f8d65553b9",
+    "final_standing_footwears.jpg": "b7bb0937ab52b015125691b4735f7e06ce2486ee2de3d9619b1342efe5bbf2eb",
+    "final_standing_people.json": "48ecf539eab2e0828a6f8f6e43062f29d2f8147f2233c5571ee8bad72ac433b1",
+    "final_standing_portraits.jpg": "16b6c0f22e680c9520a534d4633f2e3d0b7a6840a16d1e80f240381e5e57cb94",
+    "generator_identity.json": "11a91225b64fc9e3e37cee866650fce4e2f061a3f4ecdf9c527ab8afa4f1a122",
+    "geometry_audit.json": "6930d8923b134f3a23e55317f3122f6c33323b684df2066424f0a9cddc5cb6e1",
+    "kinematics_0.json": "85fc03171fd0cbc3524e265fd2611646410e0f459bdfb2b6a080f957a532685e",
+    "kinematics_1.json": "5fab8b2a54af9b69f589c332bc9580bd7a8902af7a0a5b5054cba43eef4aecf2",
+    "kinematics_2.json": "3d8f514b82ff2b2bca2056d4937ce2ae1503d01db7be34e40493fd6a03682b2b",
+    "kinematics_3.json": "be1f5439e903a8890e8761fd1b36ad1197dc367caa240dd5bc27715665f06053",
+    "metrics.json": "716ee2ad11b58e6f1e00f0b16bf00808d1e77cb3e6ef3200535fa1e06654a802",
+    "motion_0.jpg": "7518393c7cfa52e53b4fb7e260741a027266270c56a5c3d28614d3bc939b3492",
+    "motion_0.json": "0e144a05df2fc427164583f7ed8cca641acb0bcc96c39c50e066915e65cdcecf",
+    "motion_1.jpg": "3361b2a5dee22ca7843f0835ca8c124aa0cd2aac80e161c8fedee1a6c9edb0af",
+    "motion_1.json": "7a3b6e7de94ca16504945ff20e65880c0ecfe6d065511fabe100621f3b15d949",
+    "motion_2.jpg": "3f3464ef8633c5fe7280d6da44d0ec6bf2264add90af997d1b1d9baa406c650e",
+    "motion_2.json": "e9a21537eac9c978ed31140cd09d1f47f34243cf493e7a6367dccae60a368e4d",
+    "motion_3.jpg": "c956fac7e25359b2684bddcb7442239bebbb7ef2323dc642b6cbacd401164500",
+    "motion_3.json": "1b4667194262696ebde58efef0dd58bd31853e14ef0cc4c8d896df87ad0e0a7d",
+    "motion_checks_0.json": "5a27ff6f0f791c9993989ec039f5a787538a2f15774f2ad27446251582468099",
+    "motion_checks_1.json": "e8b53675a990d9e020a0acd54079a43b8862edaa2257186e77f2f7b7fcefee11",
+    "motion_checks_2.json": "bd73325328a7a4f2f6390da6906c661d2640a6ecc4a3cc001cd87203637e21e3",
+    "motion_checks_3.json": "6410eb0d838802a45047c5bb191f842c26c9551a7bc390e31800425dae2e2848",
+    "motion_pose_replay.jpg": "3c0c9dbc9e5b243078079489a3e135498159f99a10a1b80d155165c43e7b67f1",
+    "motion_pose_replay.json": "3b4a5db4347c8b7e1dad7d8e5f187e6bc45fb5f9d3a207a055e8ec2c99eb56af",
+    "policy.json": "209e431ab5d12fb642591f8b95fec7c785445bd36d2ff5e768428be409253c55",
+    "prompt_distribution.json": "2991964463618c639dba0f3bc4bf325d8e27fcdab0ece8309ccbfe83f9faf7ea",
+    "provenance.json": "180d59659a5c5a698e76a200d95f23003d7879ade11ab0ebfe8739098b876918",
+    "room_capture_checks.json": "f023d5868f2615a1c31e3f775b8153f979d25b37eea6c0d0724a831819207a4b",
+    "rooms_0_15.jpg": "7fec5098818256c56ba03ea949c47d1c3f356ee05c10dbca5eb757f4860bac99",
+    "run_complete.json": "520bc8d28e4e71501456b06cc575fc49157ace6f041b8e30b6dec6f36d1018ec",
+    "source_inputs.json": "5caf9150322c678ae3a56b0881db1ed6e5067372700a35b58341d4547433b637",
+    "summary.json": "0959b0dd79b9259154fb7de9fca1e277a81e7a4fb663ede40f5ef4724e39f189",
+    "tests_final.log": "5222b21f3ea911c8ba194ed0b0e87d68f8277e1bc76a06238d7ef834b81e9a6b",
+    "wasm_final.log": "2b4b260f5c083418228ab914e2228930476f305a78227afce7725cd2cf6f0659"
+  }
+}

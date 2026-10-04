@@ -1,12 +1,14 @@
 //! Small procedural mesh vocabulary. UVs are measured in metres, not object extents.
 mod slab;
 mod sweep;
+mod upholstery;
 use bevy::{
     asset::RenderAssetUsages,
     mesh::{Indices, PrimitiveTopology, VertexAttributeValues},
     prelude::*,
 };
 use std::f32::consts::TAU;
+pub use upholstery::CushionProfile;
 
 #[derive(Default, Clone)]
 pub struct Geometry {

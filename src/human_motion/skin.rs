@@ -28,10 +28,30 @@ pub struct DeformedVertices {
     pub tangents: Vec<[f32; 4]>,
 }
 impl SkinVertices {
+    fn attach_to_feet(&mut self, feet: [usize; 2]) {
+        let feet = feet.map(|i| u16::try_from(i).expect("foot index exceeds GPU skin format"));
+        self.indices = self
+            .positions
+            .iter()
+            .map(|p| [feet[usize::from(p.x > 0.)]; 4])
+            .collect();
+        self.weights = vec![[1., 0., 0., 0.]; self.positions.len()];
+    }
     fn attach_to_joint(&mut self, joint: usize) {
         let joint = u16::try_from(joint).expect("joint index exceeds GPU skin format");
         self.indices = vec![[joint; 4]; self.positions.len()];
         self.weights = vec![[1.0, 0.0, 0.0, 0.0]; self.positions.len()];
+    }
+    fn attach_groom(&mut self, head: usize, torso: usize, head_y: f32, person: &IndoorHuman) {
+        self.indices = vec![[head as u16, torso as u16, 0, 0]; self.positions.len()];
+        self.weights = self
+            .positions
+            .iter()
+            .map(|p| {
+                let t = humans::hair::torso_weight(person.hairstyle, head_y - p.y, person.stature);
+                [1. - t, t, 0., 0.]
+            })
+            .collect();
     }
     pub fn deform(&self, matrices: &[Mat4]) -> DeformedVertices {
         let mut p = Vec::with_capacity(self.positions.len());
@@ -372,16 +392,27 @@ pub fn prepare(
         }
         best.1
     };
-    let parts: BTreeMap<_, _> = assembly
+    let parts: BTreeMap<_, (Geometry, SkinVertices)> = assembly
         .parts
         .into_iter()
         .filter(|(_, geometry)| !geometry.indices.is_empty())
         .map(|(surface, g)| {
             let positions: Vec<_> = g.positions.iter().copied().map(Vec3::from_array).collect();
-            // A ponytail can be closer to the neck/shoulder than the scalp.
-            // Transfer clothing weights spatially, but attach the entire groom
-            // to the Anny head so head turns cannot stretch it across bones.
-            let (indices, weights) = if surface == HumanSurface::Hair {
+            // Groom roots are attached explicitly to the head. Supported lower
+            // lengths blend to the torso; nearest-vertex transfer can accidentally
+            // attach a ponytail root to the neck or shoulder.
+            let rigid_head = matches!(
+                surface,
+                HumanSurface::Hair
+                    | HumanSurface::Brow
+                    | HumanSurface::Eyewear
+                    | HumanSurface::Lens
+            );
+            let rigid_shoes = matches!(
+                surface,
+                HumanSurface::Shoes | HumanSurface::Sole | HumanSurface::ShoeDetail
+            );
+            let (indices, weights) = if rigid_head || rigid_shoes {
                 (Vec::new(), Vec::new())
             } else {
                 let ids: Vec<_> = positions.iter().map(|&p| nearest(p)).collect();
@@ -398,7 +429,17 @@ pub fn prepare(
                 weights,
             };
             if surface == HumanSurface::Hair {
+                skin.attach_groom(
+                    joint_indices[4],
+                    joint_indices[2],
+                    rest.bones[joint_indices[4]].transform_point3(Vec3::ZERO).y,
+                    person,
+                );
+            } else if rigid_head {
                 skin.attach_to_joint(joint_indices[4]);
+            }
+            if rigid_shoes {
+                skin.attach_to_feet([joint_indices[15], joint_indices[19]]);
             }
             (surface, (g, skin))
         })
@@ -425,6 +466,82 @@ pub fn prepare(
         frame.bounds = rig
             .bounds(&frame.bones)
             .ok_or("motion actor has no render vertices")?;
+    }
+    // RestSkin is the dressed Anny surface, not its collars, hair, eyewear and
+    // seam additions. Test the actual render vertices whenever their expanded
+    // bounds could touch an obstacle, support or envelope. This runs only during
+    // clip admission; playback still uploads only bone matrices.
+    let check_render_geometry = |frame: &MotionFrame| -> Result<(), String> {
+        let broad = frame.bounds;
+        let touches_envelope = broad.0.y < -0.025
+            || broad.1.y > scene.room_size.y - 0.03
+            || scene.envelope.as_ref().is_some_and(|e| {
+                [
+                    Vec2::new(broad.0.x, broad.0.z),
+                    Vec2::new(broad.0.x, broad.1.z),
+                    Vec2::new(broad.1.x, broad.0.z),
+                    Vec2::new(broad.1.x, broad.1.z),
+                ]
+                .into_iter()
+                .any(|p| {
+                    p.y < scene.room_size.z * 0.5 - 0.02
+                        && (!crate::scene::procedural_indoor::envelope::polygon::contains(
+                            &e.footprint,
+                            p,
+                            0.005,
+                        ) || broad.0.y < e.floor_height(p) - 0.025
+                            || broad.1.y > scene.ceiling_height(p) - 0.03)
+                })
+            });
+        if !touches_envelope
+            && support.is_none()
+            && !obstacles
+                .iter()
+                .any(|&b| validation::bounds_overlap(broad, b))
+        {
+            return Ok(());
+        }
+        let matrices: Vec<_> = frame
+            .bones
+            .iter()
+            .zip(&inverse_bind)
+            .map(|(b, i)| b.to_matrix() * *i)
+            .collect();
+        let vertices: Vec<_> = parts
+            .values()
+            .flat_map(|(_, skin)| {
+                skin.positions.iter().enumerate().map(|(i, &p)| {
+                    blend(&matrices, skin.indices[i], skin.weights[i]).transform_point3(p)
+                })
+            })
+            .collect();
+        validate(&vertices, bounds(&vertices))
+    };
+    for (i, frame) in frames.iter().enumerate() {
+        check_render_geometry(frame)
+            .map_err(|e| format!("render attachments at frame {i}: {e}"))?;
+        if i == 0 {
+            continue;
+        }
+        let previous = &frames[i - 1];
+        let angle = previous
+            .bones
+            .iter()
+            .zip(&frame.bones)
+            .map(|(a, b)| a.rotation.angle_between(b.rotation))
+            .fold(0.0, f32::max);
+        let step = previous
+            .bones
+            .iter()
+            .zip(&frame.bones)
+            .map(|(a, b)| a.translation.distance(b.translation))
+            .fold(0.0, f32::max);
+        let samples = ((angle / 0.15).max(step / 0.08).ceil() as usize).max(2);
+        for k in 1..samples {
+            let between = previous.interpolate(frame, k as f32 / samples as f32, &rig);
+            check_render_geometry(&between)
+                .map_err(|e| format!("render attachments between frames {} and {i}: {e}", i - 1))?;
+        }
     }
     Ok(PreparedActor {
         rig: Arc::new(rig),
@@ -453,6 +570,48 @@ fn bounds(vertices: &[Vec3]) -> (Vec3, Vec3) {
 mod tests {
     use super::*;
     #[test]
+    fn constructed_shoes_keep_their_shape_when_the_toes_bend() {
+        let person = IndoorManifest::generate_with_humans(12, default(), 0.35, 0, 1.)
+            .unwrap()
+            .humans
+            .remove(0);
+        let (assembly, rest) = humans::body::build_rest(&person);
+        let body = humans::body::installed().unwrap();
+        let (labels, _) = body.bone_hierarchy();
+        let feet =
+            ["foot.L", "foot.R"].map(|n| labels.iter().position(|label| label == n).unwrap());
+        let mut transforms = vec![Mat4::IDENTITY; rest.bones.len()];
+        for (i, name) in labels.iter().enumerate() {
+            if name.starts_with("toe") {
+                transforms[i] = Mat4::from_rotation_x(1.2);
+            }
+        }
+        for surface in [
+            HumanSurface::Shoes,
+            HumanSurface::Sole,
+            HumanSurface::ShoeDetail,
+        ] {
+            let g = &assembly.parts[&surface];
+            let mut skin = SkinVertices {
+                positions: g.positions.iter().copied().map(Vec3::from_array).collect(),
+                normals: g.normals.iter().copied().map(Vec3::from_array).collect(),
+                tangents: Vec::new(),
+                indices: Vec::new(),
+                weights: Vec::new(),
+            };
+            skin.attach_to_feet(feet);
+            let deformed = skin.deform(&transforms);
+            for (p, q) in skin.positions.iter().zip(&deformed.positions) {
+                assert!(p.distance(Vec3::from_array(*q)) < 1e-6);
+            }
+            assert!(skin
+                .indices
+                .iter()
+                .zip(&skin.positions)
+                .all(|(ids, p)| ids[0] as usize == feet[usize::from(p.x > 0.)]));
+        }
+    }
+    #[test]
     fn long_groom_follows_head_turn_without_shoulder_stretch() {
         let mut person = IndoorManifest::generate_with_humans(
             31,
@@ -464,7 +623,7 @@ mod tests {
         .unwrap()
         .humans
         .remove(0);
-        person.hairstyle = 7;
+        person.hairstyle = 6;
         person.appearance.as_mut().unwrap().hair_length = 0.11;
         let (mut assembly, rest) = humans::body::build_rest(&person);
         let body = humans::body::installed().unwrap();
@@ -504,6 +663,49 @@ mod tests {
         for (p, original) in moved.positions.iter().zip(&skin.positions) {
             assert!(Vec3::from_array(*p).distance(turn.transform_point3(*original)) < 1e-6);
         }
+    }
+    #[test]
+    fn long_hair_roots_follow_the_head_and_supported_ends_follow_the_torso() {
+        let scene = crate::scene::procedural_indoor::layout::IndoorManifest::generate_with_humans(
+            31,
+            crate::scene::procedural_indoor::layout::IndoorLayout::Mixed,
+            0.5,
+            1,
+            0.7,
+        )
+        .unwrap();
+        let mut person = scene.humans[0].clone();
+        person.hairstyle = 8;
+        let mut vertices = SkinVertices {
+            positions: vec![
+                Vec3::new(0.08, 1.70, 0.),
+                Vec3::new(0.08, 1.48, 0.),
+                Vec3::new(0.08, 1.22, 0.),
+            ],
+            normals: vec![Vec3::Z; 3],
+            tangents: Vec::new(),
+            indices: Vec::new(),
+            weights: Vec::new(),
+        };
+        vertices.attach_groom(0, 1, 1.62, &person);
+        assert_eq!(vertices.weights[0], [1., 0., 0., 0.]);
+        assert_eq!(vertices.weights[2], [0., 1., 0., 0.]);
+        assert!(vertices.weights[1][0] > 0. && vertices.weights[1][1] > 0.);
+        let turn = Mat4::from_quat(Quat::from_rotation_y(0.8));
+        let shifted = vertices.deform(&[turn, Mat4::IDENTITY]);
+        assert!(
+            Vec3::from_array(shifted.positions[0])
+                .distance(turn.transform_point3(vertices.positions[0]))
+                < 1e-6
+        );
+        assert_eq!(
+            Vec3::from_array(shifted.positions[2]),
+            vertices.positions[2]
+        );
+        assert!(shifted
+            .normals
+            .iter()
+            .all(|n| Vec3::from_array(*n).is_finite()));
     }
     #[test]
     fn baked_normals_and_tangents_match_bevy_skinning_convention() {

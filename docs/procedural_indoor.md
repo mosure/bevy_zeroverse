@@ -14,8 +14,11 @@ The generator samples polygonal footprints, ceiling planes, floor levels,
 window apertures, activity mixtures, furniture components, surfaces and lighting.
 Tapered walls, chamfered corners, exterior cut-ins, archways, pillars and furnished
 mezzanines share the same geometry program used by placement, camera clearance
-and export. See the [architectural evaluation](architecture_v22.md) for the latest
-512-room structural audit and 256 aligned rendered views.
+and export. See the [architectural evaluation](architecture_v22.md) for structural
+qualification and aligned rendered views. The current
+[dense-room robustness audit](procedural_space_robustness.md) checks constructed
+object bounds, wall mounting and prop support across 512 rooms, with native RGB
+and geometric annotation evidence.
 
 ## Run and inspect
 

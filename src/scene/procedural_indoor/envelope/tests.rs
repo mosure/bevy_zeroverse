@@ -115,6 +115,53 @@ fn seed_1013005_constructs_valid_clipped_glazing() {
 }
 
 #[test]
+fn shaped_columns_match_the_collision_radius_and_sloping_roof() {
+    let mut scene =
+        IndoorManifest::generate_with_humans(202, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
+    for seed in 0..64 {
+        let profile = ColumnProfile::sample(seed, 0);
+        profile.validate().unwrap();
+        let e = scene.envelope.as_mut().unwrap();
+        e.pillars = vec![Pillar {
+            center: Vec2::ZERO,
+            radius: 0.22,
+            sides: 24,
+            profile: Some(profile),
+        }];
+        e.ceiling_drop = Vec2::new(0.7, -0.5);
+        let a = construction::build(&scene);
+        for ((_, label), g) in &a.parts {
+            if label != "other_structure" {
+                continue;
+            }
+            for v in &g.positions {
+                let v = Vec3::from_array(*v);
+                assert!(v.xz().length() <= 0.245 + 1e-5, "collision radius: {v:?}");
+                assert!(
+                    v.y <= scene
+                        .envelope
+                        .as_ref()
+                        .unwrap()
+                        .ceiling_height(scene.room_size, v.xz())
+                        + 1e-5
+                );
+            }
+        }
+        validation::validate_geometry(&scene).unwrap();
+        let replay: EnvelopeProgram =
+            serde_json::from_str(&serde_json::to_string(scene.envelope.as_ref().unwrap()).unwrap())
+                .unwrap();
+        assert_eq!(&replay, scene.envelope.as_ref().unwrap());
+    }
+    let old: Pillar =
+        serde_json::from_str(r#"{"center":[0.0,0.0],"radius":0.2,"sides":4}"#).unwrap();
+    assert!(old.profile.is_none());
+    let mut invalid = ColumnProfile::sample(0, 0);
+    invalid.aspect = f32::NAN;
+    assert!(invalid.validate().is_err());
+}
+
+#[test]
 fn roof_clipping_keeps_bevel_intersections_inside_the_source_triangle_bounds() {
     use crate::scene::procedural_indoor::{
         geometry::Geometry, materials::Surface, objects::Assembly,

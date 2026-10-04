@@ -4,7 +4,9 @@ use crate::{
     visibility::{self, Stats},
 };
 use anyhow::{ensure, Context, Result};
-use bevy_zeroverse_capture::{GeneratorIdentity, GENERATOR_VERSION, PUBLICATION_MODES};
+use bevy_zeroverse_capture::{
+    GeneratorIdentity, GENERATOR_VERSION, INDOOR_METRICS_SCHEMA_VERSION, PUBLICATION_MODES,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::{
@@ -354,7 +356,7 @@ impl Dataset {
         let completion: Value = io::read(&root.join("run_complete.json"))?;
         let audit: Value = io::read(&root.join("distribution.json"))?;
         ensure!(
-            metrics["schema_version"] == 11
+            metrics["schema_version"] == INDOOR_METRICS_SCHEMA_VERSION
                 && metrics["generator_version"] == GENERATOR_VERSION
                 && metrics["scenes"] == protocol.audit_rooms
                 && metrics["image_size"] == json!([protocol.width, protocol.height]),

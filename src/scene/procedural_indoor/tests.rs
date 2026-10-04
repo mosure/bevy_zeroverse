@@ -376,24 +376,23 @@ fn tabletop_wood_grain_follows_the_long_axis() {
         let along = if size.x > size.z { 0 } else { 2 };
         let across = 2 - along;
         let i = top_indices[0];
-        let j = *top_indices
-            .iter()
-            .find(|&&j| {
-                (top.positions[j][along] - top.positions[i][along]).abs() > 0.2
-                    && (top.positions[j][across] - top.positions[i][across]).abs() < 1e-5
-            })
-            .unwrap();
-        assert!(
-            (top.uvs[j][0] - top.uvs[i][0]).abs() < 1e-5,
-            "grain crosses the long edge"
-        );
-        assert!(
-            ((top.uvs[j][1] - top.uvs[i][1]).abs()
-                - (top.positions[j][along] - top.positions[i][along]).abs())
-            .abs()
-                < 1e-5,
-            "wood UVs lost physical scale"
-        );
+        for j in top_indices {
+            assert!(
+                ((top.uvs[j][0] - top.uvs[i][0])
+                    - (top.positions[j][across] - top.positions[i][across]))
+                    .abs()
+                    < 1e-5,
+                "grain crosses the long edge"
+            );
+            let sign = if size.x > size.z { -1. } else { 1. };
+            assert!(
+                ((top.uvs[j][1] - top.uvs[i][1])
+                    - sign * (top.positions[j][along] - top.positions[i][along]))
+                    .abs()
+                    < 1e-5,
+                "wood UVs lost physical scale"
+            );
+        }
     }
 }
 
@@ -905,9 +904,9 @@ fn people_are_deterministic_diverse_supported_and_inside_collision_envelopes() {
         "human population collapsed: {counts:?}"
     );
     assert_eq!(poses.len(), 8, "{poses:?}");
-    assert_eq!(outfits.len(), 3);
+    assert_eq!(outfits.len(), 6);
     assert_eq!(skin.len(), 8);
-    assert_eq!(hair.len(), 8);
+    assert_eq!(hair.len(), super::humans::hair::HairStyle::ALL.len());
     assert!(neighbor_count > 50, "neighbor chair occupancy disappeared");
     assert!(poses.contains(&format!("{:?}", HumanPoseKind::SeatedWorking)));
     eprintln!(

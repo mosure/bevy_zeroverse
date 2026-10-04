@@ -250,6 +250,12 @@ impl PreparedIndoor {
             .collect();
         for person in &manifest.humans {
             for surface in [humans::HumanSurface::Top, humans::HumanSurface::Trousers] {
+                if surface == humans::HumanSurface::Top
+                    && person.outfit.knitted()
+                    && !person.outfit.open_front()
+                {
+                    continue;
+                }
                 finishes.insert(humans::cloth_finish(person, surface));
             }
         }

@@ -24,6 +24,10 @@ pub struct ChairProgram {
     pub base_radius_fraction: f32,
     pub leg_splay: f32,
     pub spoke_count: u32,
+    pub seat_crown: f32,
+    pub seat_dish_m: f32,
+    pub frame_bend_m: f32,
+    pub mesh_pitch_m: f32,
 }
 pub fn parameters(o: &IndoorObject) -> ChairProgram {
     let mut rng = stream(o.seed, 73);
@@ -59,6 +63,10 @@ pub fn parameters(o: &IndoorObject) -> ChairProgram {
         base_radius_fraction: rng.random_range(0.34..0.43),
         leg_splay: rng.random_range(0.04..0.16),
         spoke_count: if rng.random_bool(0.85) { 5 } else { 4 },
+        seat_crown: rng.random_range(2.8..5.0),
+        seat_dish_m: rng.random_range(0.002..0.010),
+        frame_bend_m: rng.random_range(0.025..0.065),
+        mesh_pitch_m: rng.random_range(0.035..0.060),
     }
 }
 
@@ -118,23 +126,13 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
         Vec3::new(width * 0.93, 0.022, depth * 0.93),
         0.009,
     );
-    let outline: Vec<_> = (0..48)
-        .map(|i| {
-            let angle = i as f32 * TAU / 48.0;
-            let f = |x: f32| {
-                if x.abs() < 1e-6 {
-                    0.0
-                } else {
-                    x.signum() * x.abs().powf(2.0 / program.seat_roundness)
-                }
-            };
-            Vec2::new(width * 0.5 * f(angle.cos()), depth * 0.5 * f(angle.sin()))
-        })
-        .collect();
-    a.part(cover, label).profile_slab(
-        &outline,
-        padding,
-        padding * 0.4,
+    a.part(cover, label).cushion(
+        Vec3::new(width, padding, depth),
+        super::super::geometry::CushionProfile {
+            roundness: program.seat_roundness,
+            crown: program.seat_crown,
+            dish: program.seat_dish_m,
+        },
         Transform::from_xyz(0.0, seat - padding * 0.5, -0.015),
     );
     let back_bottom = if family == 5 {
@@ -155,28 +153,51 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     let back = Transform::from_xyz(0.0, back_bottom, back_depth)
         .with_rotation(Quat::from_rotation_x(recline));
     if program.back_construction == 0 {
-        // A perforated suspension back: real openings, separate perimeter frame.
-        for side in [-1.0, 1.0] {
-            a.part(Surface::Plastic, label).rod(
-                back.transform_point(Vec3::new(side * back_width * 0.5, 0.0, 0.0)),
-                back.transform_point(Vec3::new(side * back_width * 0.47, back_height, 0.0)),
-                0.017,
-            );
+        // Curved tensioned strands attach to a continuous perimeter frame.
+        // No alpha-tested sheet: every opening is present in depth/semantics.
+        let point = |x: f32, v: f32| {
+            back.transform_point(Vec3::new(
+                x * back_width * 0.5,
+                v * back_height,
+                program.curvature * (1.0 - x * x) + v * back_height * 0.13
+                    - program.lumbar * (PI * v).sin(),
+            ))
+        };
+        let shape = |v: f32| {
+            if v.abs() < 1e-6 {
+                0.
+            } else {
+                v.signum() * v.abs().sqrt()
+            }
+        };
+        let rim: Vec<_> = (0..=64)
+            .map(|i| {
+                let t = TAU * (i % 64) as f32 / 64.;
+                point(shape(t.cos()), 0.5 + shape(t.sin()) * 0.5)
+            })
+            .collect();
+        a.part(Surface::Plastic, label).tube(&rim, 0.012, 8);
+        let rows = (back_height / program.mesh_pitch_m).round().clamp(5., 18.) as usize;
+        let cols = (back_width / program.mesh_pitch_m).round().clamp(5., 14.) as usize;
+        for row in 1..rows {
+            let path: Vec<_> = (0..=10)
+                .map(|i| {
+                    let v = row as f32 / rows as f32;
+                    let width = (1. - (v * 2. - 1.).powi(4)).powf(0.25);
+                    point((-1.0 + i as f32 * 0.2) * width, v)
+                })
+                .collect();
+            a.part(cover, label).tube(&path, 0.0023, 5);
         }
-        for y in [0.0, back_height] {
-            a.part(Surface::Plastic, label).rod(
-                back.transform_point(Vec3::new(-back_width * 0.48, y, 0.0)),
-                back.transform_point(Vec3::new(back_width * 0.48, y, 0.0)),
-                0.015,
-            );
-        }
-        for i in 1..18 {
-            let y = back_height * i as f32 / 18.0;
-            a.part(cover, label).rod(
-                back.transform_point(Vec3::new(-back_width * 0.46, y, -0.005)),
-                back.transform_point(Vec3::new(back_width * 0.46, y, -0.005)),
-                0.006,
-            );
+        for col in 1..cols {
+            let path: Vec<_> = (0..=8)
+                .map(|i| {
+                    let x = -1.0 + 2.0 * col as f32 / cols as f32;
+                    let height = (1. - x.powi(4)).powf(0.25);
+                    point(x, 0.5 + (i as f32 / 8.0 - 0.5) * height)
+                })
+                .collect();
+            a.part(cover, label).tube(&path, 0.0023, 5);
         }
     } else if program.back_construction == 1 {
         // Bentwood crest and individual spindles, with open space between them.
@@ -212,14 +233,21 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
             // Separate padded lumbar/shoulder panels on a continuous back shell.
             for i in 0..3 {
                 let y = back_height * (0.18 + i as f32 * 0.27);
-                a.part(cover, label).cuboid(
-                    Vec3::new(back_width * 0.82, back_height * 0.23, 0.045),
-                    0.018,
+                a.part(cover, label).cushion(
+                    Vec3::new(back_width * 0.82, 0.045, back_height * 0.23),
+                    super::super::geometry::CushionProfile {
+                        roundness: 4.,
+                        crown: program.seat_crown,
+                        dish: 0.,
+                    },
                     back.with_translation(back.transform_point(Vec3::new(
                         0.,
                         y,
-                        -program.lumbar - 0.015,
-                    ))),
+                        program.curvature + y * 0.13
+                            - program.lumbar * (PI * y / back_height).sin()
+                            - 0.030,
+                    )))
+                    .with_rotation(back.rotation * Quat::from_rotation_x(-FRAC_PI_2)),
                 );
             }
         }
@@ -279,13 +307,29 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
         for side in [-1.0, 1.0] {
             let x = side * width * 0.43;
             if family == 2 {
-                for (a0, b0) in [
-                    (Vec3::new(x, 0.024, 0.24), Vec3::new(x, 0.024, -0.23)),
-                    (Vec3::new(x, 0.024, -0.23), Vec3::new(x, 0.42, -0.16)),
-                    (Vec3::new(x, 0.42, -0.16), Vec3::new(x, 0.42, 0.20)),
-                ] {
-                    a.part(frame, label).rod(a0, b0, 0.017);
+                let bend = program.frame_bend_m;
+                let front = (depth * 0.49).min(0.23);
+                let rear = -front;
+                let mut path = vec![Vec3::new(x, 0.024, front), Vec3::new(x, 0.024, rear + bend)];
+                for i in 1..=6 {
+                    let t = i as f32 / 6.0 * FRAC_PI_2;
+                    path.push(Vec3::new(
+                        x,
+                        0.024 + bend * (1. - t.cos()),
+                        rear + bend * (1. - t.sin()),
+                    ));
                 }
+                path.push(Vec3::new(x, 0.42 - bend, rear));
+                for i in 1..=6 {
+                    let t = i as f32 / 6.0 * FRAC_PI_2;
+                    path.push(Vec3::new(
+                        x,
+                        0.42 - bend + bend * t.sin(),
+                        rear + bend * (1. - t.cos()),
+                    ));
+                }
+                path.push(Vec3::new(x, 0.42, front));
+                a.part(frame, label).tube(&path, 0.017, 10);
             } else {
                 for z in [-1.0, 1.0] {
                     a.part(frame, label).rod(

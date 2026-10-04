@@ -11,6 +11,10 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CoatingRecipe {
+    #[serde(default)]
+    pub glaze: Option<super::ceramic::GlazeRecipe>,
+    #[serde(default)]
+    pub application: Option<super::paint::PaintApplication>,
     pub cells: [u32; 2],
     pub texture_mix: f32,
     pub knockdown: f32,
@@ -28,11 +32,14 @@ impl CoatingRecipe {
         let mut rng = stream(seed, 0x434f4154494e47);
         let glaze = surface == Surface::Ceramic;
         let gloss = if glaze {
-            rng.random_range(0.45..0.95)
+            // Continuous bisque/satin/opaque glossy glaze, with glossy ware common.
+            rng.random_range(0.0_f32..1.).sqrt() * 0.97
         } else {
             rng.random_range(0.0_f32..1.0).powi(2) * 0.80
         };
         Self {
+            glaze: glaze.then(|| super::ceramic::GlazeRecipe::sample(seed)),
+            application: (!glaze).then(|| super::paint::PaintApplication::sample(seed)),
             cells: [rng.random_range(32..=64), rng.random_range(32..=64)],
             texture_mix: rng.random_range(0.0_f32..1.0).powi(2),
             knockdown: rng.random_range(0.0..0.8),
@@ -46,11 +53,15 @@ impl CoatingRecipe {
             pigment_variation: rng.random_range(0.005..0.055),
             gloss,
             clearcoat: if glaze {
-                rng.random_range(0.25..0.85)
+                gloss * rng.random_range(0.15..0.45)
             } else {
                 0.
             },
-            coat_roughness: rng.random_range(0.06..0.28),
+            coat_roughness: if glaze {
+                0.055 + (1. - gloss) * 0.34
+            } else {
+                0.18
+            },
             crackle: if glaze && rng.random_bool(0.30) {
                 rng.random_range(0.05..0.35)
             } else {
@@ -59,6 +70,15 @@ impl CoatingRecipe {
         }
     }
     pub fn validate(&self) -> Result<(), String> {
+        if self.glaze.is_some() && self.application.is_some() {
+            return Err("glaze and wall application are exclusive".into());
+        }
+        if let Some(g) = &self.glaze {
+            g.validate()?;
+        }
+        if let Some(a) = &self.application {
+            a.validate()?;
+        }
         if self.cells.iter().any(|n| !(16..=96).contains(n))
             || [
                 self.texture_mix,
@@ -85,6 +105,13 @@ impl CoatingRecipe {
         mat.reflectance = 0.45;
     }
     pub(super) fn evaluate(&self, r: &MaterialRecipe, [u, v]: [f32; 2]) -> Texel {
+        if let Some(g) = &self.glaze {
+            return g.evaluate(self, r, [u, v]);
+        }
+        if let Some(a) = &self.application {
+            return a.evaluate(self, r, [u, v]);
+        }
+        // Recorded recipes without the optional programs retain their legacy finish.
         let n = |x, y, s| periodic_noise(u, v, x, y, r.seed.wrapping_add(s));
         let micro = n(self.cells[0], self.cells[1], 11);
         // Flattening the highest peaks models knocking down sprayed plaster.

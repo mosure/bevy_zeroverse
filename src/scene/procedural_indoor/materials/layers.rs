@@ -41,7 +41,7 @@ impl FinishLayers {
         Self {
             // Object UVs align timber with its long axis and bark with the trunk.
             // Preserve that direction; floors and textiles may rotate freely.
-            quarter_turn: if wood {
+            quarter_turn: if wood || surface == Surface::Ceramic {
                 rng.random_range(0..2) * 2
             } else {
                 rng.random_range(0..4)

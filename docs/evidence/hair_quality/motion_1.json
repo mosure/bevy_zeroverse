@@ -1,0 +1,405 @@
+{
+  "scene_seed": 1,
+  "pending": false,
+  "stage": "Ready",
+  "model_loads": 1,
+  "generated_batches": 2,
+  "embedding_hits": 0,
+  "model_artifacts": {
+    "ardy/core-rp-20fps-h40/v1": "6e03294854771ca3ed6641251c77ab75bd2542d778c02886ea795d8d77655cd8",
+    "llama/ardy-llm2vec-8b/v1": "09280ebcf02184708cff1a9f982b901166b433e504ff343f02c037cc52d8ee16"
+  },
+  "requested": [
+    {
+      "actor_id": 30,
+      "behavior": "chest_touch",
+      "request": {
+        "prompt": "A person touches the chest with the right hand.",
+        "seed": 7230976893032501788,
+        "frames": 120,
+        "history_frames": 80,
+        "diffusion_steps": 10,
+        "text_guidance": 2.0,
+        "trajectory_guidance": 3.0,
+        "waypoints": [
+          {
+            "frame": 0,
+            "position": [
+              -1.7952663,
+              0.94,
+              -2.9032524
+            ],
+            "heading": 4.152269,
+            "constrain_height": true
+          },
+          {
+            "frame": 61,
+            "position": [
+              -1.7952663,
+              0.94,
+              -2.9032524
+            ],
+            "heading": 4.152269,
+            "constrain_height": true
+          },
+          {
+            "frame": 74,
+            "position": [
+              -1.7952663,
+              0.93355745,
+              -2.9032524
+            ],
+            "heading": 4.152269,
+            "constrain_height": true
+          },
+          {
+            "frame": 86,
+            "position": [
+              -1.7952663,
+              0.94,
+              -2.9032524
+            ],
+            "heading": 4.152269,
+            "constrain_height": true
+          },
+          {
+            "frame": 119,
+            "position": [
+              -1.7952663,
+              0.94,
+              -2.9032524
+            ],
+            "heading": 4.152269,
+            "constrain_height": true
+          }
+        ],
+        "dense_trajectory": true
+      },
+      "support_chair": null,
+      "prompt_recipe": {
+        "version": 3,
+        "family": "gesture",
+        "gait": null,
+        "travel_speed_mps": null,
+        "style": null,
+        "arm_style": null,
+        "gaze": null,
+        "actions": [
+          {
+            "family": "gesture",
+            "action": "chest_touch",
+            "hand": "right",
+            "side": "left",
+            "repetitions": 1,
+            "amplitude": 0.3389362,
+            "start_frame": 61,
+            "end_frame": 86,
+            "peak_pelvis_height": 0.93355745,
+            "clearance_radius": 0.5136415
+          }
+        ]
+      }
+    },
+    {
+      "actor_id": 29,
+      "behavior": "side_step",
+      "request": {
+        "prompt": "A person steps sideways slowly.",
+        "seed": 5675206938471473534,
+        "frames": 120,
+        "history_frames": 80,
+        "diffusion_steps": 10,
+        "text_guidance": 2.0,
+        "trajectory_guidance": 3.0,
+        "waypoints": [
+          {
+            "frame": 0,
+            "position": [
+              -0.049794234,
+              0.94,
+              3.6587536
+            ],
+            "heading": 0.51506436,
+            "constrain_height": true
+          },
+          {
+            "frame": 56,
+            "position": [
+              -0.90946054,
+              0.94,
+              4.1453476
+            ],
+            "heading": 0.49826562,
+            "constrain_height": true
+          },
+          {
+            "frame": 64,
+            "position": [
+              -1.0432808,
+              0.94,
+              4.1992626
+            ],
+            "heading": 0.2275753,
+            "constrain_height": true
+          },
+          {
+            "frame": 71,
+            "position": [
+              -1.1705577,
+              0.94,
+              4.2058144
+            ],
+            "heading": -0.13727713,
+            "constrain_height": true
+          },
+          {
+            "frame": 78,
+            "position": [
+              -1.2912916,
+              0.94,
+              4.165001
+            ],
+            "heading": -0.502133,
+            "constrain_height": true
+          },
+          {
+            "frame": 86,
+            "position": [
+              -1.4054819,
+              0.94,
+              4.076823
+            ],
+            "heading": -0.7635356,
+            "constrain_height": true
+          },
+          {
+            "frame": 119,
+            "position": [
+              -1.8174663,
+              0.94,
+              3.6613445
+            ],
+            "heading": -0.789621,
+            "constrain_height": true
+          }
+        ],
+        "dense_trajectory": true
+      },
+      "support_chair": null,
+      "prompt_recipe": {
+        "version": 3,
+        "family": "locomotion",
+        "gait": "side_step",
+        "travel_speed_mps": 0.35569295,
+        "style": null,
+        "arm_style": null,
+        "gaze": null,
+        "actions": [],
+        "navigation": {
+          "kind": "bend",
+          "lateral_fraction": -0.36212933,
+          "return_fraction": 1.0,
+          "corner_radius_m": 0.35366738,
+          "path_length_m": 2.116373
+        }
+      }
+    }
+  ],
+  "accepted": [
+    {
+      "actor_id": 30,
+      "behavior": "chest_touch",
+      "request": {
+        "prompt": "A person touches the chest with the right hand.",
+        "seed": 7230976893032501788,
+        "frames": 120,
+        "history_frames": 80,
+        "diffusion_steps": 10,
+        "text_guidance": 2.0,
+        "trajectory_guidance": 3.0,
+        "waypoints": [
+          {
+            "frame": 0,
+            "position": [
+              -1.7952663,
+              0.94,
+              -2.9032524
+            ],
+            "heading": 4.152269,
+            "constrain_height": true
+          },
+          {
+            "frame": 61,
+            "position": [
+              -1.7952663,
+              0.94,
+              -2.9032524
+            ],
+            "heading": 4.152269,
+            "constrain_height": true
+          },
+          {
+            "frame": 74,
+            "position": [
+              -1.7952663,
+              0.93355745,
+              -2.9032524
+            ],
+            "heading": 4.152269,
+            "constrain_height": true
+          },
+          {
+            "frame": 86,
+            "position": [
+              -1.7952663,
+              0.94,
+              -2.9032524
+            ],
+            "heading": 4.152269,
+            "constrain_height": true
+          },
+          {
+            "frame": 119,
+            "position": [
+              -1.7952663,
+              0.94,
+              -2.9032524
+            ],
+            "heading": 4.152269,
+            "constrain_height": true
+          }
+        ],
+        "dense_trajectory": true
+      },
+      "support_chair": null,
+      "prompt_recipe": {
+        "version": 3,
+        "family": "gesture",
+        "gait": null,
+        "travel_speed_mps": null,
+        "style": null,
+        "arm_style": null,
+        "gaze": null,
+        "actions": [
+          {
+            "family": "gesture",
+            "action": "chest_touch",
+            "hand": "right",
+            "side": "left",
+            "repetitions": 1,
+            "amplitude": 0.3389362,
+            "start_frame": 61,
+            "end_frame": 86,
+            "peak_pelvis_height": 0.93355745,
+            "clearance_radius": 0.5136415
+          }
+        ]
+      }
+    },
+    {
+      "actor_id": 29,
+      "behavior": "side_step",
+      "request": {
+        "prompt": "A person steps sideways slowly.",
+        "seed": 5675206938471473534,
+        "frames": 120,
+        "history_frames": 80,
+        "diffusion_steps": 10,
+        "text_guidance": 2.0,
+        "trajectory_guidance": 3.0,
+        "waypoints": [
+          {
+            "frame": 0,
+            "position": [
+              -0.049794234,
+              0.94,
+              3.6587536
+            ],
+            "heading": 0.51506436,
+            "constrain_height": true
+          },
+          {
+            "frame": 56,
+            "position": [
+              -0.90946054,
+              0.94,
+              4.1453476
+            ],
+            "heading": 0.49826562,
+            "constrain_height": true
+          },
+          {
+            "frame": 64,
+            "position": [
+              -1.0432808,
+              0.94,
+              4.1992626
+            ],
+            "heading": 0.2275753,
+            "constrain_height": true
+          },
+          {
+            "frame": 71,
+            "position": [
+              -1.1705577,
+              0.94,
+              4.2058144
+            ],
+            "heading": -0.13727713,
+            "constrain_height": true
+          },
+          {
+            "frame": 78,
+            "position": [
+              -1.2912916,
+              0.94,
+              4.165001
+            ],
+            "heading": -0.502133,
+            "constrain_height": true
+          },
+          {
+            "frame": 86,
+            "position": [
+              -1.4054819,
+              0.94,
+              4.076823
+            ],
+            "heading": -0.7635356,
+            "constrain_height": true
+          },
+          {
+            "frame": 119,
+            "position": [
+              -1.8174663,
+              0.94,
+              3.6613445
+            ],
+            "heading": -0.789621,
+            "constrain_height": true
+          }
+        ],
+        "dense_trajectory": true
+      },
+      "support_chair": null,
+      "prompt_recipe": {
+        "version": 3,
+        "family": "locomotion",
+        "gait": "side_step",
+        "travel_speed_mps": 0.35569295,
+        "style": null,
+        "arm_style": null,
+        "gaze": null,
+        "actions": [],
+        "navigation": {
+          "kind": "bend",
+          "lateral_fraction": -0.36212933,
+          "return_fraction": 1.0,
+          "corner_radius_m": 0.35366738,
+          "path_length_m": 2.116373
+        }
+      }
+    }
+  ],
+  "rejected": []
+}

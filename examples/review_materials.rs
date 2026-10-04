@@ -86,9 +86,50 @@ fn main() -> anyhow::Result<()> {
     let stone_mix = factor("stone-mix")?;
     let wall_texture = factor("wall-texture")?;
     let wood_stain = factor("wood-stain")?;
+    let ceramic_gloss = factor("ceramic-gloss")?;
+    let glaze_reactive = factor("glaze-reactive")?;
+    let glaze_speckles = factor("glaze-speckles")?;
+    let concrete_formwork = factor("concrete-formwork")?;
+    let concrete_polish = factor("concrete-polish")?;
+    let concrete_exposure = factor("concrete-exposure")?;
+    let wall_gloss = factor("wall-gloss")?;
+    let wall_knockdown = factor("wall-knockdown")?;
+    let wall_trowel = factor("wall-trowel")?;
+    let surfaces = if let Some(list) =
+        std::env::args().find_map(|a| a.strip_prefix("--surfaces=").map(str::to_owned))
+    {
+        let mut surfaces = Vec::new();
+        for name in list.split(',') {
+            let surface = SURFACES
+                .iter()
+                .find(|s| format!("{s:?}") == name)
+                .copied()
+                .ok_or_else(|| anyhow::anyhow!("unknown review surface {name}"))?;
+            anyhow::ensure!(!surfaces.contains(&surface), "duplicate review surface");
+            surfaces.push(surface);
+        }
+        surfaces
+    } else {
+        SURFACES.to_vec()
+    };
     anyhow::ensure!(
         variant.is_none()
-            || (stone_mix.is_none() && wall_texture.is_none() && wood_stain.is_none()),
+            || [
+                stone_mix,
+                wall_texture,
+                wood_stain,
+                ceramic_gloss,
+                glaze_reactive,
+                glaze_speckles,
+                concrete_formwork,
+                concrete_polish,
+                concrete_exposure,
+                wall_gloss,
+                wall_knockdown,
+                wall_trowel
+            ]
+            .iter()
+            .all(Option::is_none),
         "finish-slot resampling cannot be combined with substrate factor overrides"
     );
     let scale = if std::env::args().any(|arg| arg == "--close-up") {
@@ -100,12 +141,15 @@ fn main() -> anyhow::Result<()> {
         output.join("review.json"),
         serde_json::to_vec_pretty(&serde_json::json!({
             "seed": seed, "sample_width_m": scale, "normal_prepass": normal_prepass,
-            "surfaces": SURFACES, "image_size": [512, 512], "png_encoding": "sRGB",
+            "surfaces": surfaces, "image_size": [512, 512], "png_encoding": "sRGB",
             "key_fill_lux": if ibl_only { [0, 0] } else { [2400, 350] },
             "reflection_target_lux": 500, "reflection_sky_radiance": [450, 500, 600],
             "uniform_ambient": false, "ibl_only": ibl_only, "camera_fovy_degrees": 39,
             "finish_slot":variant,
             "floor_style":floor_style,"stone_mix":stone_mix,"wall_texture":wall_texture,"wood_stain":wood_stain,
+            "ceramic_gloss":ceramic_gloss,"glaze_reactive":glaze_reactive,"glaze_speckles":glaze_speckles,
+            "concrete_formwork":concrete_formwork,"concrete_polish":concrete_polish,"concrete_exposure":concrete_exposure,
+            "wall_gloss":wall_gloss,"wall_knockdown":wall_knockdown,"wall_trowel":wall_trowel,
         }))?,
     )?;
     let mut scene =
@@ -133,6 +177,50 @@ fn main() -> anyhow::Result<()> {
                 c.texture_mix = v;
                 if r.surface != Surface::Ceramic {
                     r.relief_m = 0.000018 + v.powi(2) * 0.00065;
+                }
+            }
+            if r.surface == Surface::Ceramic {
+                if let Some(v) = ceramic_gloss {
+                    c.gloss = v;
+                    c.clearcoat = v * 0.35;
+                    c.coat_roughness = 0.055 + (1. - v) * 0.34;
+                    r.roughness = 0.80 - v * 0.72;
+                }
+                if let Some(g) = &mut c.glaze {
+                    if let Some(v) = glaze_reactive {
+                        g.reactive_mix = v;
+                    }
+                    if let Some(v) = glaze_speckles {
+                        g.speckle_density = v;
+                    }
+                }
+            } else {
+                if let Some(v) = wall_gloss {
+                    c.gloss = v;
+                    r.roughness = 0.95 - v * 0.72;
+                }
+                if let Some(v) = wall_knockdown {
+                    c.knockdown = v;
+                }
+                if let Some(v) = wall_trowel {
+                    c.trowel = v;
+                }
+            }
+        }
+        if r.surface == Surface::Concrete {
+            if let Some(m) = r.mineral.as_mut() {
+                if let Some(v) = concrete_exposure {
+                    m.aggregate_exposure = v;
+                }
+                if let Some(v) = concrete_polish {
+                    r.relief_m *= (1. - v * 0.85) / (1. - m.polish * 0.85);
+                    m.polish = v;
+                    r.roughness = 0.88 - v * 0.60;
+                }
+                if let Some(c) = &mut m.casting {
+                    if let Some(v) = concrete_formwork {
+                        c.formwork = v;
+                    }
                 }
             }
         }
@@ -184,7 +272,7 @@ fn main() -> anyhow::Result<()> {
             gizmos: false,
             keybinds: false,
             image_copiers: true,
-            num_cameras: SURFACES.len(),
+            num_cameras: surfaces.len(),
             width: 512.0,
             height: 512.0,
             render_modes: modes.clone(),
@@ -202,6 +290,7 @@ fn main() -> anyhow::Result<()> {
         });
     }
     let maps_output = output.join("maps");
+    let review_surfaces = surfaces.clone();
     std::fs::create_dir_all(&maps_output)?;
     app.add_systems(
         Startup,
@@ -222,7 +311,7 @@ fn main() -> anyhow::Result<()> {
                 environment.data.as_ref().unwrap(),
             )
             .unwrap();
-            for surface in SURFACES {
+            for surface in review_surfaces.iter().copied() {
                 let material = materials.get(&handle(surface)).unwrap();
                 for (name, handle) in [
                     ("albedo", &material.base_color_texture),
@@ -254,7 +343,7 @@ fn main() -> anyhow::Result<()> {
                 perceptual_roughness: 0.92,
                 ..default()
             });
-            for (i, surface) in SURFACES.into_iter().enumerate() {
+            for (i, surface) in review_surfaces.iter().copied().enumerate() {
                 let center = Vec3::X * i as f32 * 4.0;
                 // One-metre panel and a rounded sample expose both texture scale and BRDF.
                 let mut geometry = Geometry::default();
@@ -381,8 +470,8 @@ fn main() -> anyhow::Result<()> {
             .unwrap()
             .try_recv()
         {
-            anyhow::ensure!(sample.views.len() == SURFACES.len(), "missing swatch views");
-            for (surface, view) in SURFACES.into_iter().zip(sample.views) {
+            anyhow::ensure!(sample.views.len() == surfaces.len(), "missing swatch views");
+            for (surface, view) in surfaces.into_iter().zip(sample.views) {
                 let rgba: &[f32] = bytemuck::cast_slice(&view.color);
                 anyhow::ensure!(rgba.iter().all(|v| v.is_finite()), "non-finite RGB");
                 let rgb = rgba

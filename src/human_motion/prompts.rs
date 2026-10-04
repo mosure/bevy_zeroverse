@@ -11,7 +11,7 @@ use rand::Rng;
 pub(super) use sequence::walking_sequence;
 use serde::{Deserialize, Serialize};
 
-pub const PROMPT_PROGRAM_VERSION: u32 = 2;
+pub const PROMPT_PROGRAM_VERSION: u32 = 3;
 const STANDING_PELVIS: f32 = 0.94;
 const MAX_PROMPT_BYTES: usize = 230;
 const MAX_PROMPT_WORDS: usize = 36;
@@ -136,6 +136,8 @@ pub struct PromptRecipe {
     pub arm_style: Option<String>,
     pub gaze: Option<String>,
     pub actions: Vec<ActionPhase>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub navigation: Option<super::NavigationRecipe>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ActionPhase {
@@ -178,6 +180,7 @@ fn recipe(family: Family) -> PromptRecipe {
         arm_style: None,
         gaze: None,
         actions: Vec::new(),
+        navigation: None,
     }
 }
 fn fits(text: &str) -> bool {
@@ -567,7 +570,7 @@ pub(super) fn locomotion(
         })
         .sum();
     let speed = distance / ((config.frames - 1) as f32 / 20.0);
-    let gait = if behavior == "walk" {
+    let gait = if matches!(behavior, "walk" | "return") {
         gait(speed, headroom, config.energetic_fraction, rng)
     } else {
         &GAITS[0]
@@ -579,6 +582,7 @@ pub(super) fn locomotion(
     let destination = match behavior {
         "enter" => " through the doorway into the room",
         "leave" => " through the doorway out of the room",
+        "return" => ", turns around and comes back",
         _ => "",
     };
     let text = finish(
@@ -589,7 +593,7 @@ pub(super) fn locomotion(
         rng,
     );
     Draft {
-        behavior: if behavior == "walk" {
+        behavior: if matches!(behavior, "walk" | "return") {
             gait.id.into()
         } else {
             behavior.into()

@@ -107,3 +107,60 @@ fn marker_programs_have_deterministic_nonrepeating_content() {
         super::super::materials::boards::pixels(312)
     );
 }
+
+#[test]
+fn continuous_table_tops_remain_convex_and_support_real_mounts() {
+    let mut scene =
+        IndoorManifest::generate_with_humans(17, IndoorLayout::Mixed, 0.5, 0, 0.).unwrap();
+    let mut o = scene.objects[0].clone();
+    scene.objects.clear();
+    let mut shapes = std::collections::BTreeSet::new();
+    for seed in 0..128 {
+        for (kind, size) in [
+            (ObjectKind::CoffeeTable, Vec3::new(0.80, 0.36, 0.60)),
+            (ObjectKind::Table, Vec3::new(1.1, 0.74, 3.4)),
+            (ObjectKind::Desk, Vec3::new(1.4, 0.74, 0.70)),
+        ] {
+            o.kind = kind;
+            o.size = size;
+            o.seed = seed;
+            o.id = scene.objects.len();
+            let outline = tables::outline(&o);
+            for i in 0..outline.len() {
+                let a = outline[i];
+                let e = outline[(i + 1) % outline.len()] - a;
+                assert!(
+                    outline.iter().all(|p| e.perp_dot(*p - a) >= -1e-6),
+                    "convex support seed={seed}/{kind:?}"
+                );
+            }
+            assert!(tables::supports(
+                &o,
+                Vec2::splat(-0.06),
+                Vec2::splat(0.06),
+                0.
+            ));
+            assert_eq!(outline, tables::outline(&o));
+            shapes.insert(
+                outline
+                    .iter()
+                    .map(|v| v.to_array().map(f32::to_bits))
+                    .collect::<Vec<_>>(),
+            );
+            let a = build_object(&o);
+            let (lo, hi) = a.bounds();
+            assert!(lo
+                .cmpge(Vec3::new(-size.x * 0.5, 0., -size.z * 0.5) - Vec3::splat(0.003))
+                .all());
+            assert!(hi
+                .cmple(Vec3::new(size.x * 0.5, size.y + 0.004, size.z * 0.5) + Vec3::splat(0.003))
+                .all());
+            assert!(lo.y <= 0.002, "supported feet {kind:?} seed={seed}: {lo:?}");
+            // Every mount/crossbar lies below the actual top, and no frame tube
+            // folds its inner bend (validated through triangle/normal agreement).
+            scene.objects.push(o.clone());
+        }
+    }
+    assert_eq!(shapes.len(), 384);
+    validation::validate_geometry(&scene).unwrap();
+}

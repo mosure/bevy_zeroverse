@@ -150,6 +150,15 @@ pub fn sample(seed: u64) -> Vec<MaterialRecipe> {
                         n * rng.random_range(0.25..0.65),
                     ]
                 }
+                Surface::Ceramic if rng.random_bool(0.42) => {
+                    let c = bevy::prelude::Color::hsl(
+                        hue + rng.random_range(-35.0..35.0),
+                        rng.random_range(0.10..0.60),
+                        rng.random_range(0.14..0.68),
+                    )
+                    .to_srgba();
+                    [c.red, c.green, c.blue]
+                }
                 Surface::Ceramic | Surface::Paper | Surface::PrintedPaper => [
                     neutral,
                     neutral * rng.random_range(0.94..1.02),
@@ -453,9 +462,17 @@ impl MaterialRecipe {
         }
         if let Some(m) = &self.mineral {
             m.validate()?;
+            if m.casting.is_some() && self.surface != Surface::Concrete {
+                return Err("concrete casting requires a concrete role".into());
+            }
         }
         if let Some(c) = &self.coating {
             c.validate()?;
+            if c.glaze.is_some() && self.surface != Surface::Ceramic
+                || c.application.is_some() && self.surface == Surface::Ceramic
+            {
+                return Err("glaze/wall application does not match material role".into());
+            }
         }
         if let Some(w) = &self.wood {
             w.validate()?;
@@ -476,7 +493,10 @@ impl MaterialRecipe {
     }
     /// Bounded resolution: floor atlases cover many independently cut panels.
     pub fn map_size(&self, floor_style: u32) -> u32 {
-        if self.surface == Surface::Floor && floor_style != 1 {
+        if self.surface == Surface::Floor && floor_style != 1
+            || self.surface == Surface::Concrete
+                && self.mineral.as_ref().is_some_and(|m| m.casting.is_some())
+        {
             512
         } else {
             256
@@ -543,9 +563,9 @@ impl MaterialRecipe {
         ) {
             let m = super::mineral::MineralRecipe::sample(self.seed, self.surface);
             if self.surface == Surface::Concrete {
-                self.period_m = rng.random_range(0.20..0.60);
+                self.period_m = rng.random_range(0.35..0.90);
                 self.relief_m = rng.random_range(0.00006..0.00045) * (1. - m.polish * 0.85);
-                self.roughness = 0.88 - m.polish * 0.45;
+                self.roughness = 0.88 - m.polish * 0.60;
             } else if matches!(self.surface, Surface::Terracotta | Surface::Soil) {
                 self.period_m = rng.random_range(0.06..0.22);
                 self.relief_m = rng.random_range(0.00008..0.0005);
@@ -557,8 +577,16 @@ impl MaterialRecipe {
             Surface::Paint | Surface::Accent | Surface::Ceiling | Surface::Ceramic
         ) {
             let c = super::coating::CoatingRecipe::sample(self.seed, self.surface);
-            self.period_m = rng.random_range(0.001..0.004) * c.cells[1] as f32;
-            self.roughness = (0.95 - c.gloss * 0.72).clamp(0.12, 0.97);
+            self.period_m = if self.surface == Surface::Ceramic {
+                rng.random_range(0.085..0.22)
+            } else {
+                rng.random_range(0.18..0.42)
+            };
+            self.roughness = if self.surface == Surface::Ceramic {
+                0.80 - c.gloss * 0.72
+            } else {
+                0.95 - c.gloss * 0.72
+            };
             self.relief_m = if self.surface == Surface::Ceramic {
                 rng.random_range(0.000012..0.000065)
             } else {
@@ -594,7 +622,8 @@ impl MaterialRecipe {
         if group != 0
             && matches!(
                 self.surface,
-                Surface::Fabric
+                Surface::Ceramic
+                    | Surface::Fabric
                     | Surface::FabricAlt
                     | Surface::Leather
                     | Surface::Wood
@@ -636,11 +665,11 @@ impl MaterialRecipe {
             l.apply(mat);
         }
     }
-    /// Colored substrate maps contain absolute sRGB reflectance. Upholstery
-    /// retains neutral maps for independently tinted garments/furniture.
+    /// Colored substrate maps contain absolute sRGB reflectance. Upholstery and
+    /// modern ceramic glazes retain relative maps for independent pigment tinting.
     pub(super) fn absolute_color(&self, floor_style: u32) -> bool {
         self.leaf.is_some()
-            || self.coating.is_some()
+            || self.coating.as_ref().is_some_and(|c| c.glaze.is_none())
             || self.surface == Surface::Bark
             || matches!(self.surface, Surface::Wood | Surface::WoodEdge) && self.wood.is_some()
             || matches!(
@@ -864,6 +893,117 @@ impl MaterialRecipe {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn finish_programs_replay_are_periodic_and_validate_their_physical_scales() {
+        for seed in 0..256 {
+            let rs = sample(seed);
+            for surface in [
+                Surface::Paint,
+                Surface::Accent,
+                Surface::Ceiling,
+                Surface::Concrete,
+                Surface::Ceramic,
+            ] {
+                let r = &rs[surface as usize];
+                r.validate().unwrap();
+                assert_eq!(r, &sample(seed)[surface as usize]);
+                for p in [0., 0.19, 0.73, 1.] {
+                    for (a, b) in [
+                        (r.texel(0., p, 0), r.texel(1., p, 0)),
+                        (r.texel(p, 0., 0), r.texel(p, 1., 0)),
+                    ] {
+                        assert!(
+                            a.color
+                                .iter()
+                                .zip(b.color)
+                                .all(|(a, b)| (a - b).abs() < 0.0001),
+                            "{surface:?}"
+                        );
+                        assert!(
+                            (a.height - b.height).abs() < 1e-7
+                                && (a.roughness - b.roughness).abs() < 0.0001
+                        );
+                    }
+                }
+            }
+            let concrete = rs[Surface::Concrete as usize].mineral.as_ref().unwrap();
+            assert_eq!(concrete.marble_mix, 0., "concrete is not a marble slab");
+            assert!(concrete.casting.is_some());
+            let ceramic = &rs[Surface::Ceramic as usize];
+            assert_eq!(
+                ceramic.layers.as_ref().unwrap().quarter_turn % 2,
+                0,
+                "wheel marks must follow circumference"
+            );
+            assert!(ceramic.coating.as_ref().unwrap().glaze.is_some());
+            assert_ne!(ceramic.variant(0).coating, ceramic.variant(1).coating);
+            assert_ne!(ceramic.variant(1).coating, ceramic.variant(2).coating);
+            assert_eq!(ceramic.variant(0), ceramic.variant(3));
+        }
+        let mut r = sample(7).remove(Surface::Ceramic as usize);
+        r.coating
+            .as_mut()
+            .unwrap()
+            .glaze
+            .as_mut()
+            .unwrap()
+            .body_grain_m = 0.;
+        assert!(r.validate().is_err());
+        let mut r = sample(7).remove(Surface::Paint as usize);
+        r.coating
+            .as_mut()
+            .unwrap()
+            .application
+            .as_mut()
+            .unwrap()
+            .roller_stretch = f32::NAN;
+        assert!(r.validate().is_err());
+        let mut r = sample(7).remove(Surface::Concrete as usize);
+        r.mineral
+            .as_mut()
+            .unwrap()
+            .casting
+            .as_mut()
+            .unwrap()
+            .bughole_depth_m = 0.1;
+        assert!(r.validate().is_err());
+    }
+
+    #[test]
+    fn ceramic_pigment_is_applied_once_and_old_recorded_recipes_remain_readable() {
+        let mut r = sample(81).remove(Surface::Ceramic as usize);
+        let maps = r.maps(0);
+        r.color = [0.08, 0.23, 0.60];
+        assert_eq!(r.texture_base_color(0), r.color);
+        for (a, b) in maps.iter().zip(r.maps(0)) {
+            assert_eq!(
+                a.data, b.data,
+                "ceramic pigment was baked into a relative map"
+            );
+        }
+        for surface in [Surface::Ceramic, Surface::Paint, Surface::Concrete] {
+            let r = sample(81).remove(surface as usize);
+            let mut json = serde_json::to_value(r).unwrap();
+            if let Some(c) = json
+                .get_mut("coating")
+                .and_then(serde_json::Value::as_object_mut)
+            {
+                c.remove("glaze");
+                c.remove("application");
+            }
+            if let Some(m) = json
+                .get_mut("mineral")
+                .and_then(serde_json::Value::as_object_mut)
+            {
+                m.remove("casting");
+            }
+            let old: MaterialRecipe = serde_json::from_value(json).unwrap();
+            old.validate().unwrap();
+            assert!(old.absolute_color(0));
+            assert!(old.texel(0.12, 0.71, 0).height.is_finite());
+        }
+    }
 
     #[test]
     fn mineral_coating_timber_and_foliage_programs_are_bounded_and_seeded() {

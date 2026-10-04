@@ -1,7 +1,9 @@
 //! Role-specific PBR textures, generated in memory with repeat sampling and mip chains.
 pub mod boards;
 pub mod botanical;
+pub mod ceramic;
 pub mod coating;
+pub mod concrete;
 mod environment;
 mod field;
 mod filter;
@@ -11,6 +13,7 @@ pub mod layers;
 pub mod leather;
 mod microstructure;
 pub mod mineral;
+pub mod paint;
 mod paper;
 pub mod program;
 mod raster;
@@ -75,6 +78,7 @@ pub struct IndoorMaterials {
     pub cloth: Handle<StandardMaterial>,
     pub skin: Handle<StandardMaterial>,
     pub hair: Handle<StandardMaterial>,
+    pub knit: Handle<StandardMaterial>,
     light_variants: Vec<Handle<StandardMaterial>>,
     pub(crate) variants: std::collections::BTreeMap<(Surface, usize), Handle<StandardMaterial>>,
     pub environment: EnvironmentMapLight,
@@ -388,6 +392,11 @@ impl IndoorMaterials {
             .clone();
         let [cloth, skin, hair] =
             human::maps(scene.material_seed(), cloth_template, images, materials);
+        let knit = if scene.humans.iter().any(|h| h.outfit.knitted()) {
+            human::knit(scene.material_seed(), images, materials)
+        } else {
+            cloth.clone()
+        };
         let mut result = Self {
             handles,
             light_variants,
@@ -395,6 +404,7 @@ impl IndoorMaterials {
             cloth,
             skin,
             hair,
+            knit,
             variants,
         };
         // The staged production path supplies its already-built geometry/BVH.
@@ -1006,6 +1016,47 @@ mod surface_tests {
     }
 
     #[test]
+    fn ceramic_items_share_three_glazes_with_independent_pigment() {
+        let scene = IndoorManifest::generate_with_humans(
+            81,
+            super::super::layout::IndoorLayout::Conference,
+            0.5,
+            0,
+            0.,
+        )
+        .unwrap();
+        let mut images = Assets::default();
+        let mut materials = Assets::default();
+        let set = IndoorMaterials::build(&scene, &mut images, &mut materials);
+        let mut structures = std::collections::BTreeSet::new();
+        let mut pigments = std::collections::BTreeSet::new();
+        for slot in 0..variants::COUNT {
+            let mat = materials
+                .get(&set.variants[&(Surface::Ceramic, slot)])
+                .unwrap();
+            let r =
+                scene.program.as_ref().unwrap().materials[Surface::Ceramic as usize].variant(slot);
+            let c = r.coating.as_ref().unwrap();
+            assert_eq!(mat.clearcoat, c.clearcoat);
+            assert_eq!(mat.clearcoat_perceptual_roughness, c.coat_roughness);
+            assert_eq!(mat.metallic, 0.);
+            assert_eq!(mat.occlusion_texture, mat.metallic_roughness_texture);
+            structures.insert(mat.normal_map_texture.as_ref().unwrap().id());
+            pigments.insert(mat.base_color.to_srgba().to_u8_array());
+        }
+        assert_eq!(structures.len(), 3);
+        assert_eq!(pigments.len(), variants::COUNT);
+        let size = images.len();
+        for slot in 0..1000 {
+            set.for_part(
+                Surface::Ceramic,
+                &format!("mug#finish{}", slot % variants::COUNT),
+            );
+        }
+        assert_eq!(images.len(), size);
+    }
+
+    #[test]
     fn wardrobe_reuses_bounded_structure_maps_with_independent_tint() {
         use super::super::humans::{cloth_finish, person_material, HumanSurface};
         let scene = IndoorManifest::generate_with_humans(
@@ -1023,11 +1074,28 @@ mod surface_tests {
         let before = images.len();
         let mut structures = std::collections::BTreeSet::new();
         for person in &scene.humans {
+            for surface in [
+                HumanSurface::Shoes,
+                HumanSurface::Sole,
+                HumanSurface::ShoeDetail,
+            ] {
+                let material = person_material(person, surface, &indoor, &materials);
+                assert_eq!(material.base_color, person.material_color(surface));
+                assert!(material.base_color_texture.is_some());
+                assert!(material.normal_map_texture.is_some());
+                assert!(material.metallic_roughness_texture.is_some());
+                assert_eq!(material.metallic, 0.);
+                assert_eq!(material.clearcoat, 0.);
+            }
             for surface in [HumanSurface::Top, HumanSurface::Trousers] {
                 let m = person_material(person, surface, &indoor, &materials);
-                let base = materials
-                    .get(&indoor.variants[&cloth_finish(person, surface)])
-                    .unwrap();
+                let base = if person.outfit.knitted() && surface == HumanSurface::Top {
+                    materials.get(&indoor.knit).unwrap()
+                } else {
+                    materials
+                        .get(&indoor.variants[&cloth_finish(person, surface)])
+                        .unwrap()
+                };
                 assert_eq!(m.base_color, person.material_color(surface));
                 assert_eq!(m.base_color_texture, base.base_color_texture);
                 assert_eq!(m.normal_map_texture, base.normal_map_texture);
@@ -1047,7 +1115,7 @@ mod surface_tests {
                 }
             }
         }
-        assert!(structures.len() <= 6);
+        assert!(structures.len() <= 7);
         assert_eq!(images.len(), before, "wardrobe allocated per-person maps");
     }
 

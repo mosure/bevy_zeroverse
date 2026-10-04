@@ -2,6 +2,36 @@
 use super::*;
 use crate::scene::procedural_indoor::preparation::AssetStore;
 
+/// One neutral loop-knit atlas shared by the room's jersey/knit garments.
+pub(super) fn knit(
+    seed: u64,
+    images: &mut impl AssetStore<Image>,
+    materials: &mut impl AssetStore<StandardMaterial>,
+) -> Handle<StandardMaterial> {
+    let mut recipe =
+        program::sample(seed.wrapping_add(0x4b4e4954))[Surface::Fabric as usize].clone();
+    recipe.layers = None;
+    let textile = recipe.textile.as_mut().unwrap();
+    textile.knit = true;
+    textile.yarn_tint = [[1.; 3]; 2];
+    textile.lustre *= 0.35;
+    recipe.period_m = 0.0015 * textile.yarns[1] as f32;
+    recipe.relief_m = 0.00010 + textile.crimp * 0.0002;
+    recipe.roughness = 0.83;
+    let maps = recipe.maps(0).map(|map| images.add(map));
+    let mut material = StandardMaterial {
+        base_color: Color::WHITE,
+        base_color_texture: Some(maps[0].clone()),
+        normal_map_texture: Some(maps[1].clone()),
+        metallic_roughness_texture: Some(maps[2].clone()),
+        occlusion_texture: Some(maps[2].clone()),
+        uv_transform: bevy::math::Affine2::from_scale(recipe.period_uv().recip() * 2.),
+        ..default()
+    };
+    recipe.apply_pbr(&mut material);
+    materials.add(material)
+}
+
 /// Shared, neutral microstructure. Human pigmentation and wardrobe colours are
 /// applied separately, never multiplied by a furniture upholstery palette.
 pub(super) fn maps(
@@ -27,12 +57,12 @@ pub(super) fn maps(
         }
         let mut albedo = Vec::with_capacity(256 * 256 * 4);
         let mut normal = Vec::with_capacity(256 * 256 * 4);
+        let mut packed = Vec::with_capacity(256 * 256 * 4);
         for y in 0..256 {
             for x in 0..256 {
                 let u = x as f32 / 256.0;
                 let v = y as f32 / 256.0;
-                let phase = std::f32::consts::TAU;
-                let (shade, nx, ny) = match kind {
+                let (shade, nx, ny, roughness) = match kind {
                     1 => {
                         // Irregular pores, not a regular embossed grid. Derive
                         // relief from the same field used by pigmentation.
@@ -41,14 +71,30 @@ pub(super) fn maps(
                             0.985 + 0.012 * (pore(u, v) - 0.5),
                             (pore(u + 1.0 / 256.0, v) - pore(u - 1.0 / 256.0, v)) * 0.14,
                             (pore(u, v + 1.0 / 256.0) - pore(u, v - 1.0 / 256.0)) * 0.14,
+                            0.90 + pore(u, v) * 0.10,
                         )
                     }
-                    _ => (
-                        0.86 + 0.24
-                            * (periodic_noise(u, v, strand, 3, seed.wrapping_add(813)) - 0.5),
-                        0.11 * (u * phase * strand as f32 + 0.12 * (v * phase).sin()).sin(),
-                        0.005 * (v * phase * 2.0).cos(),
-                    ),
+                    _ => {
+                        let fibre = |u, v| {
+                            let warp = periodic_noise(u, v, 7, 5, seed.wrapping_add(729));
+                            0.65 * periodic_noise(
+                                u + (warp - 0.5) * 0.035,
+                                v,
+                                strand,
+                                5,
+                                seed.wrapping_add(813),
+                            ) + 0.35
+                                * periodic_noise(u, v, strand * 2 + 1, 11, seed.wrapping_add(1183))
+                        };
+                        let f = fibre(u, v);
+                        let tone = periodic_noise(u, v, 5, 9, seed.wrapping_add(1927));
+                        (
+                            0.94 + 0.18 * (f - 0.5) + 0.12 * (tone - 0.5),
+                            (fibre(u + 1.0 / 256.0, v) - fibre(u - 1.0 / 256.0, v)) * 0.11,
+                            (fibre(u, v + 1.0 / 256.0) - fibre(u, v - 1.0 / 256.0)) * 0.025,
+                            0.76 + f * 0.20,
+                        )
+                    }
                 };
                 let n = Vec3::new(nx, ny, 1.0).normalize();
                 let c = (shade * 255.0) as u8;
@@ -59,11 +105,13 @@ pub(super) fn maps(
                     (n.z * 127.0 + 128.0) as u8,
                     255,
                 ]);
+                packed.extend([255, (roughness * 255.0) as u8, 0, 255]);
             }
         }
         materials.add(StandardMaterial {
             base_color_texture: Some(images.add(mip_image(albedo, 256, MapType::Color))),
             normal_map_texture: Some(images.add(mip_image(normal, 256, MapType::Normal))),
+            metallic_roughness_texture: Some(images.add(mip_image(packed, 256, MapType::Data))),
             // Body UV islands cover several metres; the fibre/pores remain fine.
             uv_transform: bevy::math::Affine2::from_scale(Vec2::splat(if kind == 2 {
                 25.0
@@ -73,7 +121,7 @@ pub(super) fn maps(
             perceptual_roughness: if kind == 2 { 0.60 } else { 0.85 },
             // The indoor shading integration initializes this tangent frame
             // with and without a normal prepass. V follows the groom fibres.
-            anisotropy_strength: if kind == 2 { 0.35 } else { 0.0 },
+            anisotropy_strength: if kind == 2 { 0.55 } else { 0.0 },
             anisotropy_rotation: std::f32::consts::FRAC_PI_2,
             ..default()
         })

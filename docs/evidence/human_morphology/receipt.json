@@ -1,0 +1,440 @@
+{
+  "schema_version": 1,
+  "scope": "Proportional adult anatomy, shared-vertex garment boundaries and dressed placement envelopes; dense static room RGB and geometric annotations; not photographic, demographic, motion-runtime or 10M-training qualification.",
+  "selection": {
+    "seeds": [
+      0,
+      127
+    ],
+    "captures": [
+      0,
+      3
+    ],
+    "furniture_density": 0.85,
+    "human_density": 1,
+    "image_size": [
+      512,
+      512
+    ],
+    "cameras": 3,
+    "motion_requested": false,
+    "policy": "consecutive seeds, no filtered views"
+  },
+  "build_provenance": {
+    "capture_engine": "capture-v47;calibration=1;co_visibility=1;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=9;surface_flow=1;indoor=29;multiview=5;ovoxel=3;glass=2;hair=5;wardrobe=4;footwear=1;bounds=4;morphology=2;position=2;tabletop=2;finishes=8;seating=3;activity=2;playback=2;exterior=2;envelope=3",
+    "crate_version": "0.29.0",
+    "features": {
+      "human_motion": true,
+      "multi_threaded": true,
+      "web": false
+    },
+    "generator_version": 29,
+    "locked_package_versions": {
+      "bevy": [
+        "0.19.1"
+      ],
+      "bevy_burn_human": [
+        "0.6.1"
+      ],
+      "bevy_zeroverse": [
+        "0.29.0"
+      ],
+      "bevy_zeroverse_burn": [
+        "0.12.0"
+      ],
+      "bevy_zeroverse_capture": [
+        "0.1.0"
+      ],
+      "bevy_zeroverse_ffi": [
+        "0.29.0"
+      ],
+      "bevy_zeroverse_publication": [
+        "0.1.1"
+      ],
+      "burn": [
+        "0.21.0"
+      ],
+      "burn_ardy": [
+        "0.1.4"
+      ],
+      "burn_human": [
+        "0.5.1"
+      ],
+      "burn_human_inference": [
+        "0.1.4"
+      ],
+      "burn_human_motion": [
+        "0.1.1"
+      ],
+      "burn_llama": [
+        "0.1.2"
+      ],
+      "burn_siglip2": [
+        "0.1.1"
+      ],
+      "wgpu": [
+        "29.0.4"
+      ]
+    },
+    "schema_version": 1,
+    "source_sha256": "9a5203b52006b2a061a48bc52c1e21d72c875fe73e5a52b31d976ed646911c9c",
+    "target": "x86_64-unknown-linux-gnu"
+  },
+  "renderer": "WgpuWrapper(AdapterInfo { name: \"NVIDIA RTX PRO 6000 Blackwell Workstation Edition\", vendor: 4318, device: 11185, device_type: DiscreteGpu, device_pci_bus_id: \"0000:01:00.0\", driver: \"NVIDIA\", driver_info: \"610.43.02\", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: false })",
+  "capabilities": {
+    "annotation_hdr_format": "RGBA32Float_direct",
+    "bloom": true,
+    "glass_filter": "default",
+    "quality": "Auto",
+    "shadow_map_size": 2048,
+    "shadows": true,
+    "specular_transmission": true,
+    "ssao": true
+  },
+  "qualification": {
+    "rooms": 128,
+    "humans": 974,
+    "objects_checked": 9275,
+    "triangles_checked": 106534543,
+    "degenerate_triangles": 0,
+    "human_envelope_max_overrun_metres": 0.0,
+    "object_envelope_max_overrun_metres": 0.0019999743,
+    "envelope_contact_tolerance_metres": 0.003,
+    "max_rest_stature_error_metres": 1.0000000005838672e-07,
+    "body_measurements": {
+      "rest_stature_metres": {
+        "count": 974,
+        "min": 1.5001388,
+        "max": 1.9495203,
+        "mean": 1.6779907891170431,
+        "p05": 1.5189735,
+        "median": 1.66325485,
+        "p95": 1.8963948
+      },
+      "rest_shoulder_bone_span_metres": {
+        "count": 974,
+        "min": 0.29233274,
+        "max": 0.4327141,
+        "mean": 0.3419195592710472,
+        "p05": 0.30445686,
+        "median": 0.339355305,
+        "p95": 0.38874355
+      },
+      "rest_torso_width_metres": {
+        "count": 974,
+        "min": 0.29295847,
+        "max": 0.41623577,
+        "mean": 0.34247140407597537,
+        "p05": 0.30651858,
+        "median": 0.34078215,
+        "p95": 0.38701358
+      },
+      "rest_torso_depth_metres": {
+        "count": 974,
+        "min": 0.19654822,
+        "max": 0.31766376,
+        "mean": 0.2317400070841889,
+        "p05": 0.2063337,
+        "median": 0.229307635,
+        "p95": 0.26247668
+      },
+      "shoulder_attachment_offset_metres": {
+        "count": 974,
+        "min": 0.0050000125,
+        "max": 0.041682262,
+        "mean": 0.012569110861396305,
+        "p05": 0.0050681024,
+        "median": 0.01060965875,
+        "p95": 0.026495412
+      }
+    },
+    "phenotype_anchors": {
+      "gender": {
+        "count": 974,
+        "min": 0.0012553772309782385,
+        "max": 0.9990870245234973,
+        "mean": 0.4893578118665395,
+        "p05": 0.05494642235512215,
+        "median": 0.47663784398926745,
+        "p95": 0.9539095422711721
+      },
+      "age": {
+        "count": 974,
+        "min": 0.6709121709035839,
+        "max": 0.9998455116013252,
+        "mean": 0.8388870251359176,
+        "p05": 0.6872205965017146,
+        "median": 0.8410589175600941,
+        "p95": 0.9832738452783432
+      },
+      "muscle": {
+        "count": 974,
+        "min": 0.12033470670887152,
+        "max": 0.8795337565714976,
+        "mean": 0.5089491639527672,
+        "p05": 0.16339082562252732,
+        "median": 0.5140705599696251,
+        "p95": 0.841564610730572
+      },
+      "weight": {
+        "count": 974,
+        "min": 0.16126699185371407,
+        "max": 0.8384290609359742,
+        "mean": 0.4744656368474452,
+        "p05": 0.1841674003601075,
+        "median": 0.46058255469799053,
+        "p95": 0.804635802268982
+      },
+      "height": {
+        "count": 974,
+        "min": 0.3500925064086914,
+        "max": 0.649680233001709,
+        "mean": 0.46866052619077664,
+        "p05": 0.3626489798227946,
+        "median": 0.4588365713755289,
+        "p95": 0.6142632325490315
+      },
+      "proportions": {
+        "count": 974,
+        "min": 0.020136227574034448,
+        "max": 0.8991230210046669,
+        "mean": 0.44938125806338175,
+        "p05": 0.056098249207326825,
+        "median": 0.4388397221657194,
+        "p95": 0.846615098599414
+      }
+    },
+    "accepted_occupancy": {
+      "seated": {
+        "count": 718,
+        "stature_metres": {
+          "count": 718,
+          "min": 1.5001388,
+          "max": 1.9495203,
+          "mean": 1.6615380527855153,
+          "p05": 1.5171893,
+          "median": 1.6514042500000001,
+          "p95": 1.8525897
+        },
+        "build": {
+          "count": 718,
+          "min": 0.8207453,
+          "max": 1.2190759,
+          "mean": 1.0063719985933148,
+          "p05": 0.83335805,
+          "median": 1.0032651000000001,
+          "p95": 1.2013205
+        }
+      },
+      "standing": {
+        "count": 256,
+        "stature_metres": {
+          "count": 256,
+          "min": 1.5017257,
+          "max": 1.948964,
+          "mean": 1.724135571875,
+          "p05": 1.524149,
+          "median": 1.731134,
+          "p95": 1.9304787
+        },
+        "build": {
+          "count": 256,
+          "min": 0.823798,
+          "max": 1.2168683,
+          "mean": 1.0010750634765624,
+          "p05": 0.8357367,
+          "median": 0.990574615,
+          "p95": 1.1935458
+        }
+      },
+      "primary": {
+        "count": 887,
+        "stature_metres": {
+          "count": 887,
+          "min": 1.5001388,
+          "max": 1.9495203,
+          "mean": 1.6783085745208568,
+          "p05": 1.5195884,
+          "median": 1.663246,
+          "p95": 1.8997028
+        },
+        "build": {
+          "count": 887,
+          "min": 0.8207453,
+          "max": 1.2168683,
+          "mean": 1.0031483697406989,
+          "p05": 0.8340051,
+          "median": 0.99208695,
+          "p95": 1.1991975
+        }
+      },
+      "neighbor": {
+        "count": 87,
+        "stature_metres": {
+          "count": 87,
+          "min": 1.5069737,
+          "max": 1.9198297,
+          "mean": 1.6747508356321839,
+          "p05": 1.5130503,
+          "median": 1.6671627,
+          "p95": 1.8391769
+        },
+        "build": {
+          "count": 87,
+          "min": 0.82360446,
+          "max": 1.2190759,
+          "mean": 1.0236518078160919,
+          "p05": 0.8406645,
+          "median": 1.0397629,
+          "p95": 1.2013205
+        }
+      }
+    },
+    "captured_rooms": 4,
+    "views": 12,
+    "semantic_classes_range": [
+      10,
+      15
+    ],
+    "worst_self_reprojection_p99_pixels": 0.0023851104,
+    "worst_depth_position_p99_metres": 1.9073486e-06,
+    "max_normal_length_error": 2.3841858e-07,
+    "max_pose_error": 0.0,
+    "directed_peer_visibility": {
+      "count": 24,
+      "min": 0.32454681396484375,
+      "max": 0.892608642578125,
+      "mean": 0.6155654589335123,
+      "p05": 0.3438682556152344,
+      "median": 0.6219005584716797,
+      "p95": 0.8659172058105469
+    },
+    "primary_room_camera_fraction": {
+      "count": 128,
+      "min": 1.0,
+      "max": 1.0,
+      "mean": 1.0,
+      "standard_deviation": 0.0,
+      "percentiles_05_25_50_75_95": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "bin_edges": [
+        1.0,
+        1.00000005,
+        1.0000001,
+        1.00000015,
+        1.0000002,
+        1.00000025,
+        1.0000003,
+        1.00000035,
+        1.0000004,
+        1.00000045,
+        1.0000005,
+        1.00000055,
+        1.0000006,
+        1.00000065,
+        1.0000007,
+        1.00000075,
+        1.0000008,
+        1.00000085,
+        1.0000009,
+        1.00000095,
+        1.000001
+      ],
+      "bin_counts": [
+        128,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "people_rooms_without_person_pixels": []
+  },
+  "checks": {
+    "core_tests": 251,
+    "ignored_large_tests": 3,
+    "strict_workspace_clippy": "passed",
+    "formatting": "passed",
+    "motion_enabled_webgpu_compile": "passed",
+    "browser_runtime": "not rerun",
+    "motion_runtime": "not rerun; shared phenotype resolver/rest preparation covered by core tests",
+    "throughput_memory": "not benchmarked on shared GPU",
+    "release": "local, unpublished"
+  },
+  "commands": {
+    "rooms": "indoor_validate --seed 0 --audit-seeds 128 --audit-geometry --renders 4 --cameras 3 --width 512 --height 512 --density 0.85 --human-density 1 --labels --co-visibility --no-raw",
+    "controlled_example": "review_humans OUTPUT --body-review",
+    "short_muscular_wardrobe": "review_humans OUTPUT --fit-review"
+  },
+  "review_example_sha256": "b898d8ecb676eda21f8f8d986b7f3fbc4f0c38408d7779b38fc155c6447c61c7",
+  "controlled_comparison": "Eight staged people, same source identity/wardrobe/pigments/pose program, height/build/gender-shape factorial slice; identical 32-degree full-body camera intrinsics, target 1m high, 4.3m z offset. Bald to expose morphology; not an unbiased population or furniture-placement cohort.",
+  "admission_caveat": "Collision admission favors shorter seated people; reported accepted distributions are not the proposal prior or measured demographics.",
+  "dependency_policy": "Existing root wgpu-core/wgpu-hal 29.0.4 patches retained and included in source identity.",
+  "external_anny_sha256": {
+    "fullbody_default.safetensors": "dc2db51d9ccac2a50664f99e6843f54f319f23ca5ad50d26b6648f3764261472",
+    "fullbody_default.meta.json": "956a17b3343a51c4dafa7bd8450fab88b7570387fb9b7c2ef9b4e414bc0287c7"
+  },
+  "height_anchor_calibration": "66 actual Anny forwards; male/female shape endpoints with neutral/light/heavy anchors, eleven height anchors each. No retargeting or clothes in this calibration.",
+  "file_sha256": {
+    "annotations.jpg": "54bfecfc97232c29eb1f67b1b6e242342112b78537f79c2202927f3647d7877f",
+    "anny_sweep.csv": "aa6078bd7292e98ba70e98269f3bfb6110b0a181d9e9a159b74005343fa82580",
+    "anny_sweep.rs": "1493685c53bdffa008d52d36e487d9d997b27d3727bc8e84ab79b9c3221ad234",
+    "audit.log": "d9df005f2c04a7dde90378937382915f3c96349ca57dd70f57fea5f7983e0a39",
+    "body_0.png": "68686fb2ad7b6bb549806bcfea2a865330994f6bed1087ba2de2216d974b8e46",
+    "body_1.png": "c13e3ce3367b46bd387165e2a632ba580f0d1dd43b11b1e4fe3c60b89665663b",
+    "body_2.png": "a875d45894ece5a715dcbe6603b19289814aacf8de6d90399bce7eecdaf07b0b",
+    "body_3.png": "15c4ac4996ee277c2518d5b046100be789a021ec5e008e0712cb5189fb6df10b",
+    "body_4.png": "3b07f173b4411032d9e70ebc35b6771284ac162b1c5d2717af555f165dc60e39",
+    "body_5.png": "e4865ddfc8fbe55b35fb09e1f98d18b71d05126920b706e09ceb71b102d6a3a4",
+    "body_6.png": "3f239dea63d8d0465538e5764e2a10594604c6caa2875529c44e617218780754",
+    "body_7.png": "dc8b6a2247a88e30214ef8b3871ff541db30c554aa36c62d96b08c372a62b487",
+    "body_comparison.jpg": "a31a79865d8a240ae8e8b668b4001f5bdc37aceb6967b070e6d60a59df59b040",
+    "body_review.log": "d4a1a8e65695c6ceb5f78afd9686ec507338b5bea65d00ea8727b1b2f42c8b87",
+    "build.log": "b0798faa8fe2a5ac6ae7b46b97701ae504afa4312cc2c3ccb9d5f8ed369fa639",
+    "capture_checks.json": "d23fe50485ced4db73d4ae235c8a0556d2dbc0b43d84f9dec11284ad11ccef91",
+    "clippy.log": "93a421516c9a430720a624f7e15f27094523e83e97f5651b00c7b4b288df5cac",
+    "controlled_people.json": "c8b50bba56405a6c251cc61bef29b62c6c1229f071c3a9609b857eb32a81be2f",
+    "distribution.json": "1e59653baa27644f43061c21c0fd409568da329ec1372abbcf5dbc5eb16a1eff",
+    "fit_review.log": "d4a1a8e65695c6ceb5f78afd9686ec507338b5bea65d00ea8727b1b2f42c8b87",
+    "fmt.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "generator_identity.json": "f90ed729aeecdfe0bc28b32da4b66a3bcf1c06d585d0203e938270651bdccb56",
+    "geometry_audit.json": "9c2ec919d2742b45d04261a1200b87be76ee2ecec8aa4ce7d4cd4bef1c763606",
+    "humans.csv": "8098421b0a3cdb5fa527bd36b35d696a523d3d04f3ff0276140af9ab86005030",
+    "metrics.json": "4acc636cf209b15e08313e2e35f2bd559ff2018b3f98d8d0bcedec6f2a9e2cfa",
+    "review_build.log": "4a92a7b506c9f988ea7827e986a171dc63a345b2dacdb6cbf14aee198b4bc8a6",
+    "room_3_view_0_co_visibility_mask.png": "4803fdcbc00f48a70e091cb539bd93008b9227fa9c2f4191c9444c5bcc866929",
+    "room_3_view_0_co_visibility_valid.png": "9f73cc1be4e3ffa37948313565bf0dcb34826fcb56a943d3ef08afff6c4de173",
+    "room_3_view_1_co_visibility_mask.png": "b8d477b5ee01135b7f0e0272881f20eed6b3ab3bfc5536fb70557607ea7800bd",
+    "room_3_view_1_co_visibility_valid.png": "9f73cc1be4e3ffa37948313565bf0dcb34826fcb56a943d3ef08afff6c4de173",
+    "room_3_view_2_co_visibility_mask.png": "158619d490796d67b6f90c72a979ec535664e55fef284831e74d9ca995ea4c9f",
+    "room_3_view_2_co_visibility_valid.png": "9f73cc1be4e3ffa37948313565bf0dcb34826fcb56a943d3ef08afff6c4de173",
+    "rooms.jpg": "830d08dd8b12a2c125209369bd8c859190671783ad0f6818627c28faf36b7b95",
+    "run_complete.json": "59a250dd49a6683137de2fd1380947fc50acc1cb9cb85da66041eabaf3073f97",
+    "source_inputs.json": "c75a566bb68956500344cfc3d78377038fa07fb218e44e1acc46024518469b13",
+    "summary.json": "acdf7331137fa31a2726cf7db53f7ca18880894fd7c740d8e87b428edd3fc89c",
+    "tests.log": "1a53ad2a8a84317dc2cad9aff79054bb563379295c89e7d4dcae19248b754294",
+    "wardrobe.jpg": "b903c7235fddfbaefa61fc1f6a6138b3499998aebba4f2d619ae61e9e017f829",
+    "wardrobe_people.json": "38f4a5caf9683a6fbdc17f907e540a1e473106169507e6246fd6425356585bb5",
+    "wasm.log": "f76be027bb98fb9859c6df684d1209686e93a2129ec13991dd98615dd5690554"
+  }
+}

@@ -1,0 +1,579 @@
+{
+  "schema_version": 1,
+  "scope": "Local hair construction, continuous sampling, static native captures and bounded real-model motion admission; photographic hair fidelity and learning utility unqualified.",
+  "generator": {
+    "schema_version": 1,
+    "crate_version": "0.29.0",
+    "generator_version": 26,
+    "source_sha256": "fd172c69498c374f0d839da98b3bbbecdd6938bb4cbfb216125e21585da09009"
+  },
+  "build_provenance": {
+    "capture_engine": "capture-v44;calibration=1;co_visibility=1;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=9;surface_flow=1;indoor=26;multiview=5;ovoxel=3;glass=2;hair=5;wardrobe=3;footwear=1;bounds=3;position=2;tabletop=1;finishes=8;seating=3;activity=2;playback=2;exterior=2;envelope=3",
+    "crate_version": "0.29.0",
+    "features": {
+      "human_motion": true,
+      "multi_threaded": true,
+      "web": false
+    },
+    "generator_version": 26,
+    "locked_package_versions": {
+      "bevy": [
+        "0.19.1"
+      ],
+      "bevy_burn_human": [
+        "0.6.1"
+      ],
+      "bevy_zeroverse": [
+        "0.29.0"
+      ],
+      "bevy_zeroverse_burn": [
+        "0.12.0"
+      ],
+      "bevy_zeroverse_capture": [
+        "0.1.0"
+      ],
+      "bevy_zeroverse_ffi": [
+        "0.29.0"
+      ],
+      "bevy_zeroverse_publication": [
+        "0.1.1"
+      ],
+      "burn": [
+        "0.21.0"
+      ],
+      "burn_ardy": [
+        "0.1.4"
+      ],
+      "burn_human": [
+        "0.5.1"
+      ],
+      "burn_human_inference": [
+        "0.1.4"
+      ],
+      "burn_human_motion": [
+        "0.1.1"
+      ],
+      "burn_llama": [
+        "0.1.2"
+      ],
+      "burn_siglip2": [
+        "0.1.1"
+      ],
+      "wgpu": [
+        "29.0.4"
+      ]
+    },
+    "schema_version": 1,
+    "source_sha256": "fd172c69498c374f0d839da98b3bbbecdd6938bb4cbfb216125e21585da09009",
+    "target": "x86_64-unknown-linux-gnu"
+  },
+  "renderer": "WgpuWrapper(AdapterInfo { name: \"NVIDIA RTX PRO 6000 Blackwell Workstation Edition\", vendor: 4318, device: 11185, device_type: DiscreteGpu, device_pci_bus_id: \"0000:01:00.0\", driver: \"NVIDIA\", driver_info: \"610.43.02\", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: false })",
+  "dependency_policy": "Root Cargo manifest with existing local wgpu-core/wgpu-hal 29.0.4 patches, included in source identity; not registry-only qualification.",
+  "selection": {
+    "audit_seeds": [
+      0,
+      255
+    ],
+    "room_capture_seeds": [
+      0,
+      7
+    ],
+    "motion_capture_seeds": [
+      0,
+      1
+    ],
+    "furniture_density": 0.65,
+    "human_density": 0.7,
+    "studio": "Long 8..15 and short 0..7 forced styles on one standing Anny female-anchor phenotype .95, source seed 0. Varied 16..18 and 0..4 on natural-pose source seeds 16..23, female-anchor .95. Alternating eyewear; illustrative fixtures, not unbiased room samples."
+  },
+  "capabilities": {
+    "annotation_hdr_format": "RGBA32Float_direct",
+    "bloom": true,
+    "glass_filter": "default",
+    "quality": "Auto",
+    "shadow_map_size": 2048,
+    "shadows": true,
+    "specular_transmission": true,
+    "ssao": true
+  },
+  "annotation_precision": "float32_geometry",
+  "qualification": {
+    "layout_audit": {
+      "seeds": 256,
+      "first_seed": 0,
+      "invalid_seeds": [],
+      "human_instances": 1328,
+      "hair_style_counts": {
+        "Afro": 68,
+        "AsymmetricBob": 60,
+        "Bald": 81,
+        "Bob": 62,
+        "Braid": 72,
+        "Bun": 62,
+        "Buzz": 91,
+        "CurlyLong": 68,
+        "HighPonytail": 66,
+        "LayeredLong": 62,
+        "Locs": 49,
+        "Pixie": 90,
+        "Ponytail": 55,
+        "SidePart": 78,
+        "StraightLong": 70,
+        "Swept": 83,
+        "TightCurls": 66,
+        "TwinBraids": 76,
+        "WavyLong": 69
+      },
+      "sampled_hair_controls": {
+        "human_hair_bangs": {
+          "count": 1328,
+          "min": 0.0,
+          "max": 0.9480085372924805,
+          "percentiles_05_25_50_75_95": [
+            0.0,
+            0.0,
+            0.0,
+            0.406014621257782,
+            0.8401081562042236
+          ]
+        },
+        "human_hair_clump_width_m": {
+          "count": 1328,
+          "min": 0.009001346305012703,
+          "max": 0.021999990567564964,
+          "percentiles_05_25_50_75_95": [
+            0.00969694647938013,
+            0.012521184980869293,
+            0.01581653393805027,
+            0.0188310369849205,
+            0.02148297056555748
+          ]
+        },
+        "human_hair_curl": {
+          "count": 1328,
+          "min": 1.166582114819903e-05,
+          "max": 0.05997474864125252,
+          "percentiles_05_25_50_75_95": [
+            0.0033060694113373756,
+            0.014492218382656574,
+            0.02854190021753311,
+            0.045422814786434174,
+            0.056933652609586716
+          ]
+        },
+        "human_hair_curl_radius_m": {
+          "count": 1328,
+          "min": 0.006035728380084038,
+          "max": 0.026995379477739334,
+          "percentiles_05_25_50_75_95": [
+            0.007150302641093731,
+            0.011063297279179096,
+            0.016405850648880005,
+            0.021878603845834732,
+            0.025866635143756866
+          ]
+        },
+        "human_hair_drop_m": {
+          "count": 1328,
+          "min": 0.1605151742696762,
+          "max": 0.5599082708358765,
+          "percentiles_05_25_50_75_95": [
+            0.18267865478992462,
+            0.2583142817020416,
+            0.3481696844100952,
+            0.45398297905921936,
+            0.537013053894043
+          ]
+        },
+        "human_hair_flyaways": {
+          "count": 1328,
+          "min": 0.0502920038998127,
+          "max": 0.34993329644203186,
+          "percentiles_05_25_50_75_95": [
+            0.06510720402002335,
+            0.12696294486522675,
+            0.20428358018398285,
+            0.27535194158554077,
+            0.33655402064323425
+          ]
+        },
+        "human_hair_grey": {
+          "count": 1328,
+          "min": 0.0,
+          "max": 0.841239869594574,
+          "percentiles_05_25_50_75_95": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.7049140930175781
+          ]
+        },
+        "human_hair_layers": {
+          "count": 1328,
+          "min": 0.10025856643915176,
+          "max": 0.8498857617378235,
+          "percentiles_05_25_50_75_95": [
+            0.142410010099411,
+            0.29050272703170776,
+            0.47124695777893066,
+            0.6697443127632141,
+            0.8117671012878418
+          ]
+        },
+        "human_hair_length_m": {
+          "count": 1328,
+          "min": 0.006041777785867453,
+          "max": 0.10996800661087036,
+          "percentiles_05_25_50_75_95": [
+            0.006986299529671669,
+            0.012697778642177582,
+            0.02623835578560829,
+            0.05246688053011894,
+            0.09575652331113815
+          ]
+        },
+        "human_hair_part": {
+          "count": 1328,
+          "min": -0.5999965667724609,
+          "max": 0.5997302532196045,
+          "percentiles_05_25_50_75_95": [
+            -0.5356166958808899,
+            -0.30317360162734985,
+            0.01787281036376953,
+            0.2947810888290405,
+            0.5363221168518066
+          ]
+        },
+        "human_hair_spread": {
+          "count": 1328,
+          "min": 0.8500257134437561,
+          "max": 1.2799348831176758,
+          "percentiles_05_25_50_75_95": [
+            0.8796430826187134,
+            0.9608944654464722,
+            1.061547040939331,
+            1.1559717655181885,
+            1.2565449476242065
+          ]
+        },
+        "human_hair_sweep": {
+          "count": 1328,
+          "min": -0.6492082476615906,
+          "max": 0.6472424268722534,
+          "percentiles_05_25_50_75_95": [
+            -0.5822861790657043,
+            -0.32644417881965637,
+            -0.014129579067230225,
+            0.295168936252594,
+            0.5827484130859375
+          ]
+        },
+        "human_hair_tie_height": {
+          "count": 1328,
+          "min": 0.18021351099014282,
+          "max": 0.7796657085418701,
+          "percentiles_05_25_50_75_95": [
+            0.20726647973060608,
+            0.3250429928302765,
+            0.48012223839759827,
+            0.6282844543457031,
+            0.7481375336647034
+          ]
+        },
+        "human_hair_volume": {
+          "count": 1328,
+          "min": 0.5502697229385376,
+          "max": 1.6494181156158447,
+          "percentiles_05_25_50_75_95": [
+            0.6047062277793884,
+            0.8115097284317017,
+            1.0871315002441406,
+            1.370631217956543,
+            1.5966057777404785
+          ]
+        },
+        "human_hair_wave_length_m": {
+          "count": 1328,
+          "min": 0.11034971475601196,
+          "max": 0.28958189487457275,
+          "percentiles_05_25_50_75_95": [
+            0.11878294497728348,
+            0.15330784022808075,
+            0.198062002658844,
+            0.24179305136203766,
+            0.2810325026512146
+          ]
+        }
+      }
+    },
+    "geometry_audit": {
+      "constructed_seeds": 256,
+      "total_triangles": 153792941,
+      "triangles_per_room": {
+        "p05": 259779,
+        "median": 558790.5,
+        "p95": 1084487
+      },
+      "area_tolerance_degenerate_faces": 0,
+      "degenerate_by_semantic": {}
+    },
+    "render_audit": {
+      "seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "views": 24,
+      "image_size": [
+        512,
+        512
+      ],
+      "semantic_classes_per_view": [
+        8,
+        15
+      ],
+      "primary_rooms_with_people": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "rooms_without_visible_people": [],
+      "maximum_reprojection_p99_px": 0.0024545316,
+      "maximum_depth_position_p99_m": 2.861023e-06,
+      "maximum_normal_length_error": 2.3841858e-07,
+      "maximum_camera_pose_error": 0.0,
+      "directed_peer_visibility": {
+        "p05": 0.21016693115234375,
+        "median": 0.6149864196777344,
+        "p95": 0.8285446166992188
+      },
+      "union_peer_visibility": {
+        "p05": 0.3824005126953125,
+        "median": 0.7797183990478516,
+        "p95": 0.9147453308105469
+      }
+    },
+    "motion_audit": {
+      "planning_seeds": 64,
+      "generated_scene_seeds": [
+        0,
+        1
+      ],
+      "requested_slots": 4,
+      "feasible_requests": 3,
+      "accepted": 3,
+      "rejected_retained_static": [
+        {
+          "scene_seed": 0,
+          "actor_id": 43,
+          "reason": "no collision-free behavior fits the available space"
+        }
+      ],
+      "model_loads": 1,
+      "generated_batches": 2,
+      "accepted_clip_kinematics": [
+        {
+          "scene_seed": 0,
+          "actor_id": 45,
+          "duration_seconds": 5.949999809265137,
+          "fps": 20.0,
+          "frames": 120,
+          "horizontal_waypoint_error_m": {
+            "max": 0.019393227994441986,
+            "median": 0.014021745882928371,
+            "p05": 0.0040007540956139565,
+            "p95": 0.018857663497328758
+          },
+          "local_joint_angular_speed_rad_s": {
+            "max": 6.095450401306152,
+            "median": 0.0390624962747097,
+            "p05": 0.0,
+            "p95": 0.3756924867630005
+          },
+          "policy": "Physical-time diagnostics of admitted raw model clips; not thresholds or perceptual motion quality evidence. Render admission additionally checks retargeted cloth/hair geometry.",
+          "prompt": "A person beckons with the left hand once.",
+          "root_acceleration_mps2": {
+            "max": 2.7046995162963867,
+            "median": 0.17619536817073822,
+            "p05": 0.07613756507635117,
+            "p95": 0.7605615854263306
+          },
+          "root_endpoint_baseline_m": 0.01811417192220688,
+          "root_path_length_m": 0.11628551781177521,
+          "root_speed_mps": {
+            "max": 0.1257936805486679,
+            "median": 0.01477790903300047,
+            "p05": 0.004430163651704788,
+            "p95": 0.07711395621299744
+          },
+          "seed": 18443867728505219881
+        },
+        {
+          "scene_seed": 1,
+          "actor_id": 30,
+          "duration_seconds": 5.949999809265137,
+          "fps": 20.0,
+          "frames": 120,
+          "horizontal_waypoint_error_m": {
+            "max": 0.009890248998999596,
+            "median": 0.003048471175134182,
+            "p05": 0.0006458609132096171,
+            "p95": 0.009453054517507553
+          },
+          "local_joint_angular_speed_rad_s": {
+            "max": 3.000260591506958,
+            "median": 0.04367320239543915,
+            "p05": 0.0,
+            "p95": 0.262766569852829
+          },
+          "policy": "Physical-time diagnostics of admitted raw model clips; not thresholds or perceptual motion quality evidence. Render admission additionally checks retargeted cloth/hair geometry.",
+          "prompt": "A person touches the chest with the right hand.",
+          "root_acceleration_mps2": {
+            "max": 2.3356356620788574,
+            "median": 0.1645093411207199,
+            "p05": 0.07273261249065399,
+            "p95": 0.455172598361969
+          },
+          "root_endpoint_baseline_m": 0.009455051273107529,
+          "root_path_length_m": 0.057399969547986984,
+          "root_speed_mps": {
+            "max": 0.1331242322921753,
+            "median": 0.012040730565786362,
+            "p05": 0.004454510752111673,
+            "p95": 0.025569802150130272
+          },
+          "seed": 7230976893032501788
+        },
+        {
+          "scene_seed": 1,
+          "actor_id": 29,
+          "duration_seconds": 5.949999809265137,
+          "fps": 20.0,
+          "frames": 120,
+          "horizontal_waypoint_error_m": {
+            "max": 0.06304745376110077,
+            "median": 0.0312458798289299,
+            "p05": 0.005208970513194799,
+            "p95": 0.05734039470553398
+          },
+          "local_joint_angular_speed_rad_s": {
+            "max": 6.977215766906738,
+            "median": 0.2205391377210617,
+            "p05": 0.0,
+            "p95": 1.1541203260421753
+          },
+          "policy": "Physical-time diagnostics of admitted raw model clips; not thresholds or perceptual motion quality evidence. Render admission additionally checks retargeted cloth/hair geometry.",
+          "prompt": "A person steps sideways slowly.",
+          "root_acceleration_mps2": {
+            "max": 15.43906307220459,
+            "median": 0.610316276550293,
+            "p05": 0.2025129795074463,
+            "p95": 2.2568182945251465
+          },
+          "root_endpoint_baseline_m": 1.8262553215026855,
+          "root_path_length_m": 2.253270387649536,
+          "root_speed_mps": {
+            "max": 0.5248699188232422,
+            "median": 0.3904835283756256,
+            "p05": 0.25616657733917236,
+            "p95": 0.46288546919822693
+          },
+          "seed": 5675206938471473534
+        }
+      ],
+      "views": 20,
+      "visible_moving_person_pixels_per_scene": [
+        0,
+        332
+      ],
+      "maximum_static_flow_reprojection_p99_px": 0.0041652861982584,
+      "missing_expected_static_flow_valid_pixels": 0
+    }
+  },
+  "checks": {
+    "core_tests_passed": 239,
+    "ignored_qualification_tests": 3,
+    "workspace_all_targets_clippy_warnings_denied": "passed",
+    "web_human_motion_viewer_compile": "passed",
+    "web_runtime": "not rerun",
+    "release": "local unpublished",
+    "throughput": "not benchmarked; GPU shared with training"
+  },
+  "review_tool_sha256": "1631d3b3f2a3470ca32356eaf2b379d5f7d0a3b9f9eeb7d6ff327252ebf7659c",
+  "external_assets": {
+    "models": {
+      "ardy/core-rp-20fps-h40/v1": "6e03294854771ca3ed6641251c77ab75bd2542d778c02886ea795d8d77655cd8",
+      "llama/ardy-llm2vec-8b/v1": "09280ebcf02184708cff1a9f982b901166b433e504ff343f02c037cc52d8ee16"
+    },
+    "anny_reference_sha256": {
+      "fullbody_default.safetensors": "dc2db51d9ccac2a50664f99e6843f54f319f23ca5ad50d26b6648f3764261472",
+      "fullbody_default.meta.json": "956a17b3343a51c4dafa7bd8450fab88b7570387fb9b7c2ef9b4e414bc0287c7"
+    }
+  },
+  "file_sha256": {
+    "annotations_1.jpg": "f1703fd15b951e6eab2dd81b4aa88fc1586d6636736cdc5900671a95a3f9ab72",
+    "attachment_and_fall.jpg": "6216a7f2d2b1439f427c1aca4a6f41bc4dd4461d1b41a8e9396c51af2a547805",
+    "build_final.log": "3d338f89b64fa65b8b5f8a14ed6b0f7e5e3f325e3fd0af32e0181592dbedc561",
+    "clippy_final.log": "540c354f361208c92cac46dd88a0948e69074ebf10f7bea8b41f7422f43fc4eb",
+    "distribution.json": "48f59fa9b52dc450d231d2db218b2cb1a42bbcb90e27a7f34f72cdcd366ed7d2",
+    "distributions.png": "0a739f0cae0b88876e77b062149146ae7dfa92cec3cfae0c4ecf96f80f8a8e80",
+    "distributions.svg": "ff6369d14a5932f34f28ff96f414d5488aae45d952f61b2921b008c63f905ca7",
+    "final_long_people.json": "819f3dad50928c9438a4306113ee62aaf134527cf541a6a374daa83bff0e5596",
+    "final_long_portraits.jpg": "256798db9f81eee87046a689db2f55a5c00290714dfebb98ebd7c81430cc03a0",
+    "final_long_rears.jpg": "362948358f5c55fac682535dcad4424dd34ea125ee8cf790af54538d0773ee80",
+    "final_short_people.json": "6b186f616dbe73cdaec20fb7dcc5e99b25c02a483ced170f77bc4a4b50a0988a",
+    "final_short_portraits.jpg": "28ed2e5508b5a75ef7d8786a0d002cc3a4b5e1cb1252287b76ba276a9fdbfc8c",
+    "final_short_rears.jpg": "906107861ccaa8d9e4c7c6a9e65f33f67999e26abb664f76dbaa4fb34b6c8084",
+    "final_varied_people.json": "5e43355e49be48452db0c41897c884c8b460244f3b8b6e2cdc9de8a6bd1b6859",
+    "final_varied_portraits.jpg": "b59699f71498b21febeb758fe8a13656b4fe5bd9c198b731727c0b83904e7ba0",
+    "final_varied_rears.jpg": "d4b0045035d26fcc4b3aaed6c09aa382943e29daa0f042a919acbc0d68e699e4",
+    "generator_identity.json": "8b6dd0d40606a084c93dc7c21fedff9a96dcf5d59164a829dc25cbdb9830c546",
+    "geometry_audit.json": "37e4578ea010a37037dfa010a7ca9398d68733542b66eec2ae905e048c3421c5",
+    "kinematics_0.json": "e01dea2eb6ff4abd3a3ada119939cfbcd9715580ca64bb68042409c2fa17c797",
+    "kinematics_1.json": "8a6b04bc4471d987811e7f1d5c3ed4a018105fbb39910df232104f036dbff00e",
+    "long_portrait_0.png": "78be80257ff2c06507d49d6ea77ad6153db029960f757f7f5b84fae0ee4f3611",
+    "long_portrait_1.png": "9afdaca2debabc32aba12a05beaffefccf0f6d20bf94c79521a032f681d82dc7",
+    "long_portrait_2.png": "d74c4c5ed10e77113e7c96a7327cd8b0ad443ddd39a0fc887470c7d67c18bf65",
+    "long_portrait_3.png": "5f0cf29b978ae988f06549875e6b58145511fb65558aa695b59c9e5e4816d87e",
+    "long_portrait_4.png": "1dbd12371d88a9715dc9268891686e5b5e90696a7a84dc5a076bb760326e0d1c",
+    "long_portrait_5.png": "6b2cec477506c46dfba61ec69ce7761e5727678a0388c89319394932dd0cf9f2",
+    "long_portrait_6.png": "4fab929026caaa1543995a5f4ce4a3329b34cefda9a17e6c551e87d2a3130e7e",
+    "long_portrait_7.png": "58dfe1ba922daca9d43a24773550283b67346b5db654c01d362dafed59ff823a",
+    "long_rear_0.png": "856f3ed4dddbd9dfb0eee51ac3bcf321edd8556db9a20643dbd2d35d56d5377c",
+    "long_rear_1.png": "d696e85fd6d45e9fb774d235fa2f1d6644b231548b771c89106b6c96ab274333",
+    "long_rear_2.png": "741ffe7818385a80dcfbe18d3f5c74aca07e0ebfc9ff6e15c7f8f665c2ae0b14",
+    "long_rear_3.png": "cf3ba9a6f50521f65b3f669cc18e8fa05184d83e688fdfeaef4992bcfd5dbfce",
+    "long_rear_4.png": "8256b6c00dfdd62ee1bf5e980c23fa3cc4c5c23047772b68e0e2ef54a55bad42",
+    "long_rear_5.png": "f3f265f70a27595c7f5803bc093de76c93e518de60a55eb581d96829e2a7182a",
+    "long_rear_6.png": "d74bbf2c2640d1688b6c3d4996bb69f0a8588fb700c9fd8ab775c4e78ab9f7a1",
+    "long_rear_7.png": "fd055bed628664f6ed5e68a5fc0a940d8b6b8fad1c24d90dfddeccf0ad4b2ff1",
+    "metrics.json": "0440f12c4a0762a07b217216e82b53056437291f30fbb5886f07f0d98fa17e75",
+    "motion_0.jpg": "498f99f185d61afe64a39d217a22e5ee0379bc3c44da77b1834672bf63972a98",
+    "motion_0.json": "06525538a80e6030defb610102123628d9e111855e3dbdd289c6a85c0dba3d1f",
+    "motion_1.jpg": "4a3c43662bbaea274c33ca5fc0c5c7b307d0a712a535a9fbb608c152f904ad97",
+    "motion_1.json": "c083d14d457ebda014fdd51276efc6ae37992824f7dadf2ba03258c45132e64a",
+    "motion_checks_0.json": "2902b350e266f2f0864a01b2c415303443cbe21ed21032e65716705d0fcf8cec",
+    "motion_checks_1.json": "c85ceb562f85b8ad813144936f887cae9b4497015f552df0211aec85194b9a2a",
+    "policy.json": "209e431ab5d12fb642591f8b95fec7c785445bd36d2ff5e768428be409253c55",
+    "prompt_distribution.json": "476f8e8c72d0cb13b41119eb13292eb2c7ac7a2447ebcb38259ecba036d0273f",
+    "provenance.json": "48eb6384bb332e746fc0eea3bde2dd89f3977c0f783a5f5d55962cc40c215c26",
+    "room_capture_checks.json": "67a7d7fed519bc636a3cfd0c1e2fe18e9c64ad2feebf0c39f3b99bacbd7b5205",
+    "rooms_0_7.jpg": "40246a0dec6391c1c1f870318337f96f7506e1857118f7b9ee16be8383cadeff",
+    "run_complete.json": "8945088f416091c0d904c59b335723ec7cd072a0efa9ea54cb05e7cfe88e5a31",
+    "source_inputs.json": "9b8b0a99492d5c24b9b3ab7601f12335627e160445528a31dedff5d6ba95c74d",
+    "summary.json": "2e4c73fe301502e7f63e9c9387e3637e22eb63bda49b4260563f353503895634",
+    "tests_final.log": "b54b9b7eafaba9103ead8eb7872d470e163ed6f82bf640e709af4fb750dcf3c9",
+    "wasm_final.log": "8af5a9cdbeddb785ab2d943131a2658424081251b1381e8730f568de5496e42c"
+  }
+}

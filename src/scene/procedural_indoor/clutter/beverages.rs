@@ -36,8 +36,13 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
 fn cup(a: &mut Assembly, o: &IndoorObject, p: &BeverageProgram) {
     let takeaway = o.kind == ObjectKind::CoffeeCup;
     let h = o.size.y * if takeaway { 0.9 } else { 1. };
-    let r = o.size.z.min(o.size.x) * if takeaway { 0.365 } else { 0.37 };
+    let mut r = o.size.z.min(o.size.x) * if takeaway { 0.365 } else { 0.37 };
     let offset = if takeaway { 0. } else { -o.size.x * 0.1 };
+    if !takeaway && p.style >= 3 {
+        // The saucer shares the cup's off-center axis. Reserve its real rim,
+        // rather than letting it overhang a narrow mug footprint by several mm.
+        r = r.min((o.size.x * 0.5 + offset).min(o.size.z * 0.5) / 1.23);
+    }
     let top = r * p.taper;
     let inner = top - p.wall_m;
     let belly = r * if !takeaway && p.style.is_multiple_of(3) {

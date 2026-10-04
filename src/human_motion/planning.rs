@@ -496,7 +496,8 @@ pub fn plan(
             let headroom =
                 (scene.ceiling_height(person.position.xz()) - person.stature - 0.05).max(0.0);
             let mut points;
-            let draft = if let Some(id) = support {
+            let mut navigation = None;
+            let mut draft = if let Some(id) = support {
                 let chair = scene
                     .objects
                     .iter()
@@ -551,15 +552,34 @@ pub fn plan(
                         )
                     }
                 };
-                let Some(path) = route(scene, a, b, person.stature, BODY_CLEARANCE, &boxes) else {
-                    continue;
+                let path = if behavior == "walk" {
+                    let Some((path, recipe)) = super::navigation::sample(
+                        scene,
+                        a,
+                        b,
+                        person.stature,
+                        BODY_CLEARANCE,
+                        &boxes,
+                        &mut rng,
+                    ) else {
+                        continue;
+                    };
+                    navigation = Some(recipe);
+                    path
+                } else {
+                    let Some(path) = route(scene, a, b, person.stature, BODY_CLEARANCE, &boxes)
+                    else {
+                        continue;
+                    };
+                    path
                 };
                 let length: f32 = path.windows(2).map(|p| p[0].distance(p[1])).sum();
                 if length < 1.2 || length > config.frames as f32 / 20.0 * 1.25 {
                     continue;
                 }
                 points = waypoints(&path, config.frames);
-                let sequence = (behavior == "walk")
+                let returning = navigation.as_ref().is_some_and(|n| n.kind == "return");
+                let sequence = (behavior == "walk" && !returning)
                     .then(|| {
                         prompts::walking_sequence(
                             &mut points,
@@ -572,7 +592,13 @@ pub fn plan(
                     })
                     .flatten();
                 sequence.unwrap_or_else(|| {
-                    prompts::locomotion(behavior, &mut points, config, headroom, &mut rng)
+                    prompts::locomotion(
+                        if returning { "return" } else { behavior },
+                        &mut points,
+                        config,
+                        headroom,
+                        &mut rng,
+                    )
                 })
             } else {
                 let Some(action) = prompts::sample_action(
@@ -587,10 +613,16 @@ pub fn plan(
                 };
                 points = waypoints(&[person.position, person.position], config.frames);
                 for w in &mut points {
-                    w.heading = Some(person.yaw);
+                    // Anny's forward is -Z; ARDY heading zero is +Z.
+                    w.heading = Some(person.yaw + std::f32::consts::PI);
                 }
                 prompts::stationary(action, &mut points, config, false, &mut rng)
             };
+            if let Some(navigation) = navigation {
+                // Keep the core gait/action prompt short. The dense waypoints
+                // supply turns; metadata records the travel program separately.
+                draft.recipe.navigation = Some(navigation);
+            }
             let radius = if support.is_some() {
                 if draft.behavior == "seated_gesture" {
                     0.25

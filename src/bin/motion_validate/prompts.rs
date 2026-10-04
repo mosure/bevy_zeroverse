@@ -14,6 +14,8 @@ pub struct PromptAudit {
     action_counts: BTreeMap<usize, usize>,
     tokens: BTreeMap<usize, usize>,
     examples: BTreeMap<String, String>,
+    navigation: BTreeMap<String, usize>,
+    lengths: Vec<f32>,
 }
 impl PromptAudit {
     pub fn observe(
@@ -34,6 +36,10 @@ impl PromptAudit {
                     .or_default() += 1;
             }
             if let Some(r) = &plan.prompt_recipe {
+                if let Some(n) = &r.navigation {
+                    *self.navigation.entry(n.kind.clone()).or_default() += 1;
+                    self.lengths.push(n.path_length_m);
+                }
                 *self.families.entry(r.family.name().into()).or_default() += 1;
                 if let Some(gait) = &r.gait {
                     *self.gaits.entry(gait.clone()).or_default() += 1;
@@ -66,6 +72,7 @@ impl PromptAudit {
             "family_counts":self.families,"gait_counts":self.gaits,"action_counts":self.actions,
             "actions_per_request":self.action_counts,"tokens_including_header_histogram":self.tokens,
             "examples_by_program":self.examples,
+            "navigation_program_counts":self.navigation,"navigation_path_lengths_m":self.lengths,
             "policy":"Feasible plans after geometry filtering, before model admission. Program signatures omit wording, handedness, repetitions, amplitude and timing. Text diversity does not establish motion fidelity."})
     }
 }

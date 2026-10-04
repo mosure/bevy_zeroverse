@@ -1,4 +1,6 @@
-use bevy_zeroverse_capture::{camera_color, mask_color, GeneratorIdentity, GENERATOR_VERSION};
+use bevy_zeroverse_capture::{
+    camera_color, mask_color, GeneratorIdentity, GENERATOR_VERSION, INDOOR_METRICS_SCHEMA_VERSION,
+};
 use bevy_zeroverse_publication::{
     config::{safe_relative, Config, Paper, Protocol},
     dataset::Dataset,
@@ -198,7 +200,7 @@ fn fixture(root: &Path) -> (GeneratorIdentity, Protocol) {
     };
     let p = protocol();
     io::write(&root.join("generator_identity.json"), &identity).unwrap();
-    io::write(&root.join("metrics.json"),&json!({"schema_version":11,"generator_version":GENERATOR_VERSION,"scenes":4,"image_size":[64,64],"density":0.65,"human_density":0.25,"numeric":{},"object_counts_per_scene":{"main/Chair":{"0":4},"main/Person":{"0":4}},"heatmap_grid_size":2,"placement_heatmaps":{"camera_path":[1,1,1,1]}})).unwrap();
+    io::write(&root.join("metrics.json"),&json!({"schema_version":INDOOR_METRICS_SCHEMA_VERSION,"generator_version":GENERATOR_VERSION,"scenes":4,"image_size":[64,64],"density":0.65,"human_density":0.25,"numeric":{},"object_counts_per_scene":{"main/Chair":{"0":4},"main/Person":{"0":4}},"heatmap_grid_size":2,"placement_heatmaps":{"camera_path":[1,1,1,1]}})).unwrap();
     io::write(
         &root.join("distribution.json"),
         &json!({"invalid_seeds":[],"first_seed":0,"seeds":4,"cameras_per_scene":4}),
@@ -392,4 +394,25 @@ fn page_counts_and_examples_follow_the_recipe_instead_of_fixed_seeds() {
     assert!(!html.contains("reference-banner"));
     // The independently frozen reference population remains 512 rooms.
     assert!(html.contains("reference population includes 512 distinct rendered rooms"));
+}
+
+#[test]
+fn population_schema_matches_renderer_and_rejects_stale_contracts() {
+    let temp = tempfile::tempdir().unwrap();
+    let (id, protocol) = fixture(temp.path());
+    assert!(Dataset::load(temp.path(), &id, &protocol).is_ok());
+    let path = temp.path().join("metrics.json");
+    let mut metrics: Value = io::read(&path).unwrap();
+    for version in [
+        11,
+        INDOOR_METRICS_SCHEMA_VERSION - 1,
+        INDOOR_METRICS_SCHEMA_VERSION + 1,
+    ] {
+        metrics["schema_version"] = json!(version);
+        io::write(&path, &metrics).unwrap();
+        let error = Dataset::load(temp.path(), &id, &protocol).err().unwrap();
+        assert!(error
+            .to_string()
+            .contains("incompatible population schema/protocol"));
+    }
 }

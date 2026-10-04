@@ -1,15 +1,20 @@
 //! Continuous groom coordinates, relief and closed, curved tied-hair bundles.
-use super::{Geometry, IndoorHuman};
+use super::{HairProgram, HairStyle, IndoorHuman};
 use bevy::prelude::*;
-use std::f32::consts::{PI, TAU};
+use noise::NoiseFn;
+use std::f32::consts::TAU;
 
 pub(super) struct Groom {
     pub centre: Vec3,
     pub size: Vec3,
-    length: f32,
-    part: f32,
-    curl: f32,
+    pub(super) length: f32,
+    pub(super) part: f32,
+    pub(super) curl: f32,
     style: u8,
+    pub(super) volume: f32,
+    pub(super) program: HairProgram,
+    hairline: f32,
+    clusters: noise::OpenSimplex,
 }
 impl Groom {
     pub fn new(h: &IndoorHuman, lo: Vec3, hi: Vec3) -> Self {
@@ -20,6 +25,13 @@ impl Groom {
             part: h.appearance.as_ref().map_or(0.2, |a| a.hair_part),
             curl: h.appearance.as_ref().map_or(0.0, |a| a.hair_curl / 0.06),
             style: h.hairstyle,
+            volume: h.appearance.as_ref().map_or(1.0, |a| a.hair_volume),
+            program: h
+                .appearance
+                .as_ref()
+                .map_or_else(HairProgram::default, |a| a.hair_program.clone()),
+            hairline: h.appearance.as_ref().map_or(0.0, |a| a.hairline_raise),
+            clusters: noise::OpenSimplex::new((h.seed ^ (h.seed >> 32)) as u32),
         }
     }
     pub fn uv_period(&self) -> f32 {
@@ -31,22 +43,27 @@ impl Groom {
         let front = (-local.z).clamp(0.0, 1.0);
         let side = local.x.abs().clamp(0.0, 1.0);
         let phi = local.x.atan2(local.z);
-        let irregular =
-            (phi * 31.0 + 0.6 * (phi * 7.0).sin()).sin() * 0.0011 + (phi * 67.0).sin() * 0.00035;
+        let irregular = self.noise(Vec3::new(phi.sin(), 0.2, phi.cos()), 7.) * 0.003;
         // Lower nape, recessed temples and a shallow widow's peak instead of a
         // horizontal boundary across the occiput.
         let line = self.centre.y
             + self.size.y
                 * (-0.20 + front * front * 0.55 + side * side * 0.24 + 0.075 * side * front
-                    - 0.025 * front * (1.0 - side).powi(4))
+                    - 0.05 * front * (1.0 - side).powi(4))
             + irregular
-            - if self.style == 2 {
-                self.length * 0.40 * (1.0 - front)
+            + self.hairline * (0.35 + front * 0.65)
+            + if self.style == HairStyle::Pixie as u8 {
+                front * 0.013 - side * 0.014
             } else {
-                0.0
+                0.
             };
         let field = p.y - line;
-        let taper = (field / 0.014).clamp(0.0, 1.0);
+        let edge_width = if self.style == HairStyle::Afro as u8 {
+            0.04
+        } else {
+            0.014
+        };
+        let taper = (field / edge_width).clamp(0.0, 1.0);
         let taper = taper * taper * (3.0 - 2.0 * taper);
         // Comb from a displaced crown/part. Metric meridians supply fibre UVs
         // rather than stretching a planar stripe across the entire skull.
@@ -57,13 +74,48 @@ impl Groom {
             + self.part * theta * 0.65
             + self.curl * 0.08 * (theta * 8.0 + (longitude * 3.0).sin()).sin();
         let crown = local.y.clamp(0.0, 1.0);
-        let clipped = if self.style == 0 { 0.16 } else { 1.0 };
+        let style = HairStyle::from_id(self.style).expect("validated groom");
+        let clipped = match style {
+            HairStyle::Buzz => 0.09,
+            HairStyle::Pixie => 0.40,
+            s if s.falls() => 0.30,
+            _ => 1.,
+        };
         let swept = 0.65 + 0.30 * (local.x * self.part).clamp(-1.0, 1.0);
-        let bulk = 0.002 + self.length * clipped * (0.12 + 0.28 * crown) * swept;
-        let clumps = (flow * 54.0 + theta.sin() * self.curl * 5.0).cos();
-        let wave = (flow * 17.0 + theta * 16.0).sin() * (theta * 21.0).sin();
+        let side_taper = if matches!(
+            style,
+            HairStyle::SidePart | HairStyle::Swept | HairStyle::Pixie
+        ) {
+            0.25 + 0.75 * crown.powf(0.7)
+        } else {
+            1.
+        };
+        let lift = if style == HairStyle::Swept {
+            front * crown * 0.018 * self.volume
+        } else {
+            0.
+        };
+        let bulk = 0.0015
+            + self.length * self.volume * clipped * (0.10 + 0.23 * crown) * swept * side_taper
+            + lift;
+        // Smooth aggregate locks alter the silhouette without alpha noise,
+        // repeating bands or seams at the poles of the cranial surface.
+        let cluster = self.clusters.get([
+            local.x as f64 * 5.2,
+            local.y as f64 * 5.2,
+            local.z as f64 * 5.2,
+        ]) as f32
+            * 0.5
+            + 0.5;
+        let curl_mass = self.length
+            * self.volume
+            * self.curl
+            * clipped
+            * if self.style == 4 { 0.45 } else { 0.08 };
+        let clumps = (flow * 19.0 + theta.sin() * self.curl * 5.0).cos();
+        let wave = (flow * 11.0 + theta * 7.0).sin() * (theta * 9.0).sin();
         let relief =
-            (0.00010 + self.curl * 0.00035) * clipped * clumps * (theta / 0.24).clamp(0.0, 1.0)
+            (0.00010 + self.curl * 0.00045) * clipped * clumps * (theta / 0.24).clamp(0.0, 1.0)
                 + if self.style == 4 {
                     self.curl * 0.00065 * wave
                 } else {
@@ -75,82 +127,35 @@ impl Groom {
         } else {
             0.0
         };
-        let height = 0.0008 + taper * (bulk + relief - part).max(0.0005);
+        let afro = if style == HairStyle::Afro {
+            // Dense, rounded volume with multiscale curl relief. Sparse ring
+            // attachments looked disconnected from the mass at the silhouette.
+            (0.05 + 0.04 * self.volume) * (0.45 + crown * 0.55)
+                + (cluster - 0.5) * 0.004
+                + self.noise(local, 21.) * 0.0015
+                + self.noise(local, 57.) * 0.0006
+        } else {
+            0.
+        };
+        let height =
+            0.0012 + taper * (bulk + afro + curl_mass * cluster + relief - part).max(0.0005);
         (
             height,
             field,
-            Vec2::new(flow * self.size.x * 0.5, theta * self.size.y * 0.5),
+            // Combing from a part runs across the cranial arc. This chart has
+            // a regular tangent frame at the crown; longitude UVs have a pole
+            // there and caused a bright anisotropic zigzag through the hair.
+            Vec2::new(
+                (local.z + local.x * self.program.sweep * 0.08) * self.size.z * 0.5,
+                (local.x - self.part * 0.4).atan2(local.y + 0.05) * self.size.x * 0.5,
+            ),
         )
     }
-    pub fn bundle(&self, bun: bool, origin: Vec3, rotation: Quat, g: &mut Geometry) {
-        let length = 0.10 + self.length * 1.45;
-        let width = (self.size.x * 0.11 + self.length * 0.055).clamp(0.013, 0.026);
-        let centre = |t: f32| {
-            if bun {
-                let angle = TAU * t * 2.1;
-                let r = (PI * t).sin().max(0.0) * width * 1.15;
-                Vec3::new(r * angle.sin(), r * angle.cos() + 0.008, 0.006 + t * 0.026)
-            } else {
-                Vec3::new(
-                    self.part * 0.014 * t * t,
-                    -length * t,
-                    0.008 + 0.045 * (PI * t * 0.72).sin() + self.curl * 0.012 * (TAU * t).sin(),
-                )
-            }
-        };
-        const RINGS: u32 = 32;
-        const SIDES: u32 = 48;
-        let base = g.positions.len() as u32;
-        let mut distance = 0.0;
-        let mut previous = centre(0.0);
-        for row in 0..=RINGS {
-            let t = row as f32 / RINGS as f32;
-            let p = centre(t);
-            distance += p.distance(previous);
-            previous = p;
-            let tangent = (centre((t + 0.001).min(1.0)) - centre((t - 0.001).max(0.0))).normalize();
-            let x = (Vec3::X - tangent * tangent.x).normalize_or(Vec3::Z);
-            let y = tangent.cross(x);
-            let radius = if bun {
-                width * 0.64 * (1.0 - 0.7 * t.powi(8))
-            } else {
-                width * (0.72 + 0.35 * (PI * t).sin()) * (1.0 - 0.96 * t.powf(1.8))
-            };
-            for side in 0..=SIDES {
-                let a = TAU * side as f32 / SIDES as f32;
-                let radial = x * a.cos() + y * a.sin();
-                let relief =
-                    1.0 + 0.045 * (a * 16.0 + t * 4.0).cos() + 0.018 * (a * 23.0 - t * 7.0).sin();
-                g.positions
-                    .push((origin + rotation * (p + radial * radius * relief)).to_array());
-                g.normals.push((rotation * radial).to_array());
-                g.uvs.push([a * width, distance]);
-            }
-        }
-        for row in 0..RINGS {
-            for side in 0..SIDES {
-                let a = base + row * (SIDES + 1) + side;
-                let b = a + SIDES + 1;
-                g.indices.extend([a, a + 1, b, b, a + 1, b + 1]);
-            }
-        }
-        // Opaque closures at the scalp-embedded root and tapered tip.
-        for row in [0, RINGS] {
-            let ring = base + row * (SIDES + 1);
-            let cap = g.positions.len() as u32;
-            let t = row as f32 / RINGS as f32;
-            g.positions.push((origin + rotation * centre(t)).to_array());
-            let n = (centre((t + 0.001).min(1.0)) - centre((t - 0.001).max(0.0))).normalize();
-            g.normals
-                .push((rotation * n * if row == 0 { -1.0 } else { 1.0 }).to_array());
-            g.uvs.push([0.0, t * distance]);
-            for side in 0..SIDES {
-                if row == 0 {
-                    g.indices.extend([cap, ring + side + 1, ring + side]);
-                } else {
-                    g.indices.extend([cap, ring + side, ring + side + 1]);
-                }
-            }
-        }
+    pub(super) fn noise(&self, p: Vec3, frequency: f64) -> f32 {
+        self.clusters.get([
+            p.x as f64 * frequency,
+            p.y as f64 * frequency,
+            p.z as f64 * frequency,
+        ]) as f32
     }
 }

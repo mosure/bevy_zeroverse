@@ -323,9 +323,12 @@ impl EnvelopeProgram {
             }
         }
         for p in &self.pillars {
+            if let Some(profile) = &p.profile {
+                profile.validate()?;
+            }
             if !p.radius.is_finite()
                 || !(0.1..=0.4).contains(&p.radius)
-                || ![4, 24].contains(&p.sides)
+                || ![4, 24, 32].contains(&p.sides)
                 || !polygon::contains(&self.footprint, p.center, p.radius + 0.1)
             {
                 return Err("invalid interior pillar".into());

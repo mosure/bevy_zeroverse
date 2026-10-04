@@ -2,8 +2,12 @@
 //! Anatomical heights define waist/cuffs/necklines; rig ownership alone does not.
 pub(super) mod details;
 pub(super) mod fit;
+pub(super) mod legs;
+mod program;
+pub use program::GarmentProgram;
+pub(super) mod drape;
 
-use super::{HumanAssembly, HumanOutfit, HumanSurface, IndoorHuman};
+use super::{HumanAssembly, HumanSurface, IndoorHuman};
 use bevy::prelude::*;
 
 pub(super) struct GarmentCut {
@@ -12,37 +16,54 @@ pub(super) struct GarmentCut {
     pub chest: f32,
     pub depth_center: f32,
     pub fit: fit::TorsoFit,
+    pub legs: [legs::LegFit; 2],
     pub shoe_top: f32,
     pub cuffs: [(Vec3, Vec3); 2],
+    pub leg_cuffs: [(Vec3, Vec3); 2],
+    pub program: GarmentProgram,
 }
 impl GarmentCut {
     pub fn surface(&self, h: &IndoorHuman, p: Vec3, bone: &str) -> HumanSurface {
         if bone.starts_with("eye.") {
             return HumanSurface::Eye;
         }
-        if is_hand(bone) {
-            return HumanSurface::Skin;
-        }
-        if is_arm(bone) {
+        self.surface_with_skin_field(h, p, self.skin_field(p, bone))
+    }
+
+    pub fn skin_field(&self, p: Vec3, bone: &str) -> f32 {
+        if is_arm(bone) || is_hand(bone) {
             let (point, normal) = self.cuffs[usize::from(bone.ends_with(".R"))];
-            return if (p - point).dot(normal) <= 0.0 {
-                HumanSurface::Top
+            let field = (p - point).dot(normal);
+            if is_hand(bone) {
+                field.max(0.001)
             } else {
-                HumanSurface::Skin
-            };
+                field
+            }
+        } else {
+            self.program.neckline(p, self.neck, self.depth_center)
         }
-        if p.y > self.neck {
+    }
+
+    fn surface_with_skin_field(&self, h: &IndoorHuman, p: Vec3, field: f32) -> HumanSurface {
+        if field > 0.0 {
             return HumanSurface::Skin;
         }
         if p.y < self.shoe_top {
             return HumanSurface::Shoes;
         }
         if p.y < self.waist {
-            return HumanSurface::Trousers;
+            return if self.leg_field(p) > 0.0 {
+                HumanSurface::Skin
+            } else {
+                HumanSurface::Trousers
+            };
         }
         let front = p.z < self.depth_center;
         let y = ((p.y - self.waist) / (self.neck - self.waist)).clamp(0.0, 1.0);
-        if h.outfit == HumanOutfit::Blazer && front && p.x.abs() < 0.012 + y.powi(2) * 0.075 {
+        if h.outfit.open_front()
+            && front
+            && p.x.abs() < self.program.placket_width + y.powi(2) * self.program.collar_width
+        {
             return HumanSurface::Shirt;
         }
         HumanSurface::Top
@@ -58,41 +79,40 @@ impl GarmentCut {
         triangle: [GarmentVertex; 3],
         mesh: &mut HumanAssembly,
     ) {
-        let surface = self.surface(h, triangle[0].rest, bone);
+        if bone.starts_with("eye.") {
+            emit(&triangle, HumanSurface::Eye, mesh);
+            return;
+        }
+        let surface = self.surface_with_skin_field(h, triangle[0].rest, triangle[0].skin_field);
         let center = triangle.iter().map(|v| v.rest).sum::<Vec3>() / 3.0;
+        let center_field = triangle.iter().map(|v| v.skin_field).sum::<f32>() / 3.0;
         // Almost all faces lie wholly within one garment. Only boundary faces
         // need polygon allocations or clipping; keep dense Anny builds cheap.
         if triangle
             .iter()
-            .all(|v| self.surface(h, v.rest, bone) == surface)
-            && self.surface(h, center, bone) == surface
+            .all(|v| self.surface_with_skin_field(h, v.rest, v.skin_field) == surface)
+            && self.surface_with_skin_field(h, center, center_field) == surface
         {
             emit(&triangle, surface, mesh);
             return;
         }
-        if bone.starts_with("eye.") || is_hand(bone) {
-            emit(&triangle, self.surface(h, triangle[0].rest, bone), mesh);
-            return;
-        }
-        if is_arm(bone) {
-            let (point, normal) = self.cuffs[usize::from(bone.ends_with(".R"))];
-            let (cloth, skin) = split(&triangle, |p| (p - point).dot(normal), Some((mesh, 0.002)));
-            emit(&cloth, HumanSurface::Top, mesh);
-            emit(&skin, HumanSurface::Skin, mesh);
-            return;
-        }
-        let (below_neck, skin) = split(&triangle, |p| p.y - self.neck, Some((mesh, 0.0028)));
+        // Each source vertex owns its skin field. Adjacent triangles share that
+        // value even when their first corner belongs to a different rig bone.
+        let (below_neck, skin) = split_values(&triangle, |v| v.skin_field, Some((mesh, 0.0022)));
         emit(&skin, HumanSurface::Skin, mesh);
         let (legs, top) = split(&below_neck, |p| p.y - self.waist, Some((mesh, 0.0011)));
-        let (shoes, trousers) = split(&legs, |p| p.y - self.shoe_top, None);
+        let (shoes, legs) = split(&legs, |p| p.y - self.shoe_top, None);
+        let (trousers, bare_legs) = split(&legs, |p| self.leg_field(p), Some((mesh, 0.0014)));
+        emit(&bare_legs, HumanSurface::Skin, mesh);
         emit(&shoes, HumanSurface::Shoes, mesh);
         emit(&trousers, HumanSurface::Trousers, mesh);
-        if h.outfit == HumanOutfit::Blazer {
+        if h.outfit.open_front() {
             let (shirt, jacket) = split(
                 &top,
                 |p| {
                     let y = ((p.y - self.waist) / (self.neck - self.waist)).clamp(0.0, 1.0);
-                    (p.x.abs() - 0.012 - y.powi(2) * 0.075).max(p.z - self.depth_center)
+                    (p.x.abs() - self.program.placket_width - y.powi(2) * self.program.collar_width)
+                        .max(p.z - self.depth_center)
                 },
                 Some((mesh, 0.0011)),
             );
@@ -103,11 +123,19 @@ impl GarmentCut {
         }
     }
 
+    fn leg_field(&self, p: Vec3) -> f32 {
+        let (point, normal) = self.leg_cuffs[usize::from(p.x > 0.0)];
+        (p - point).dot(normal)
+    }
+
     /// Ease smooths anatomical contours into a hanging torso silhouette. It is
     /// evaluated before skinning, so it also works on leaning/seated people.
     pub fn ease(&self, p: Vec3, surface: HumanSurface) -> Vec3 {
         if matches!(surface, HumanSurface::Top | HumanSurface::Shirt) {
             self.fit.delta(p, self.waist, self.chest + 0.03, self.neck)
+        } else if surface == HumanSurface::Trousers {
+            let side = usize::from(p.x > 0.0);
+            self.legs[side].delta(p, self.leg_cuffs[side], self.waist)
         } else {
             Vec3::ZERO
         }
@@ -132,11 +160,20 @@ pub(super) struct GarmentVertex {
     pub position: Vec3,
     pub normal: Vec3,
     pub uv: Vec2,
+    pub skin_field: f32,
 }
 
-fn split(
+pub(super) fn split(
     poly: &[GarmentVertex],
     field: impl Fn(Vec3) -> f32,
+    seam: Option<(&mut HumanAssembly, f32)>,
+) -> (Vec<GarmentVertex>, Vec<GarmentVertex>) {
+    split_values(poly, |v| field(v.rest), seam)
+}
+
+fn split_values(
+    poly: &[GarmentVertex],
+    field: impl Fn(GarmentVertex) -> f32,
     seam: Option<(&mut HumanAssembly, f32)>,
 ) -> (Vec<GarmentVertex>, Vec<GarmentVertex>) {
     let mut inside = Vec::with_capacity(6);
@@ -145,8 +182,8 @@ fn split(
     for i in 0..poly.len() {
         let a = poly[i];
         let b = poly[(i + 1) % poly.len()];
-        let da = field(a.rest);
-        let db = field(b.rest);
+        let da = field(a);
+        let db = field(b);
         if da <= 0.0 {
             inside.push(a);
         }
@@ -167,6 +204,7 @@ fn split(
                 position: a.position.lerp(b.position, t),
                 normal: a.normal.lerp(b.normal, t).normalize_or(a.normal),
                 uv: a.uv.lerp(b.uv, t),
+                skin_field: a.skin_field + (b.skin_field - a.skin_field) * t,
             };
             inside.push(v);
             outside.push(v);
@@ -195,7 +233,12 @@ pub(super) fn emit(poly: &[GarmentVertex], surface: HumanSurface, mesh: &mut Hum
         g.uvs.push(v.uv.to_array());
     }
     for i in 1..poly.len() as u32 - 1 {
-        g.indices.extend([base, base + i, base + i + 1]);
+        let a = poly[0].position;
+        let b = poly[i as usize].position;
+        let c = poly[i as usize + 1].position;
+        if (b - a).cross(c - a).length_squared() > 1e-18 {
+            g.indices.extend([base, base + i, base + i + 1]);
+        }
     }
 }
 
@@ -215,6 +258,9 @@ mod tests {
             false,
         );
         let cut = GarmentCut {
+            legs: std::array::from_fn(|_| {
+                legs::LegFit::new(&[], Vec3::Y, Vec3::ZERO, &GarmentProgram::default())
+            }),
             waist: 1.0,
             neck: 1.5,
             chest: 1.4,
@@ -222,6 +268,8 @@ mod tests {
             fit: fit::TorsoFit::new(&[], 1.0, 1.4),
             shoe_top: 0.15,
             cuffs: [(Vec3::ZERO, Vec3::X); 2],
+            leg_cuffs: [(Vec3::ZERO, Vec3::NEG_Y); 2],
+            program: GarmentProgram::default(),
         };
         for side in ["L", "R"] {
             for bone in [
@@ -240,6 +288,7 @@ mod tests {
                     position: p,
                     normal: Vec3::Z,
                     uv: p.truncate(),
+                    skin_field: cut.skin_field(p, &bone),
                 });
                 let mut mesh = HumanAssembly::default();
                 cut.append(&h, &bone, tri, &mut mesh);
@@ -254,12 +303,71 @@ mod tests {
     }
 
     #[test]
+    fn sleeve_material_boundaries_do_not_depend_on_first_face_bone() {
+        let h = super::super::sample_person(
+            0,
+            0,
+            Vec3::ZERO,
+            0.,
+            super::super::HumanPoseKind::StandingRelaxed,
+            None,
+            false,
+        );
+        let cut = GarmentCut {
+            legs: std::array::from_fn(|_| {
+                legs::LegFit::new(&[], Vec3::Y, Vec3::ZERO, &GarmentProgram::default())
+            }),
+            waist: 1.0,
+            neck: 1.5,
+            chest: 1.4,
+            depth_center: 0.,
+            fit: fit::TorsoFit::new(&[], 1.0, 1.4),
+            shoe_top: 0.15,
+            cuffs: [
+                (Vec3::new(-0.45, 1.2, 0.), Vec3::NEG_X),
+                (Vec3::new(0.45, 1.2, 0.), Vec3::X),
+            ],
+            leg_cuffs: [(Vec3::ZERO, Vec3::NEG_Y); 2],
+            program: GarmentProgram::default(),
+        };
+        let triangle = [
+            Vec3::new(0.44, 1.20, -0.05),
+            Vec3::new(0.46, 1.20, -0.05),
+            Vec3::new(0.44, 1.24, -0.05),
+        ]
+        .map(|p| GarmentVertex {
+            rest: p,
+            position: p,
+            normal: Vec3::Z,
+            uv: p.truncate(),
+            skin_field: cut.skin_field(p, "upperarm01.R"),
+        });
+        let mut expected = HumanAssembly::default();
+        cut.append(&h, "upperarm01.R", triangle, &mut expected);
+        assert!(expected.parts.contains_key(&HumanSurface::Top));
+        assert!(expected.parts.contains_key(&HumanSurface::Skin));
+        for first_bone in ["spine01", "lowerarm01.R", "wrist.R", "metacarpal1.R"] {
+            let mut mesh = HumanAssembly::default();
+            cut.append(&h, first_bone, triangle, &mut mesh);
+            assert_eq!(mesh.parts.len(), expected.parts.len());
+            for (surface, g) in &expected.parts {
+                let actual = &mesh.parts[surface];
+                assert_eq!(actual.positions, g.positions, "{first_bone}/{surface:?}");
+                assert_eq!(actual.normals, g.normals);
+                assert_eq!(actual.uvs, g.uvs);
+                assert_eq!(actual.indices, g.indices);
+            }
+        }
+    }
+
+    #[test]
     fn garment_cut_preserves_area_and_shared_edges() {
         let v = |x, y| GarmentVertex {
             rest: Vec3::new(x, y, 0.0),
             position: Vec3::new(x, y, 0.0),
             normal: Vec3::Z,
             uv: Vec2::new(x, y),
+            skin_field: 0.0,
         };
         let vertices = [v(0.0, 0.0), v(1.0, 0.0), v(1.0, 1.0), v(0.0, 1.0)];
         let mut boundary = Vec::new();

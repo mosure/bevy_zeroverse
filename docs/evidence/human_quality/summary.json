@@ -1,0 +1,308 @@
+{
+  "layout_audit": {
+    "seeds": 256,
+    "first_seed": 0,
+    "invalid_seeds": [],
+    "human_instances": 1367
+  },
+  "geometry_audit": {
+    "constructed_seeds": 256,
+    "total_triangles": 143679225,
+    "triangles_per_room": {
+      "p05": 229085,
+      "median": 523217.5,
+      "p95": 1017934
+    },
+    "area_tolerance_degenerate_faces": 937,
+    "degenerate_by_semantic": {
+      "person": 937
+    }
+  },
+  "render_audit": {
+    "seeds": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    "views": 48,
+    "image_size": [
+      512,
+      512
+    ],
+    "semantic_classes_per_view": [
+      6,
+      16
+    ],
+    "primary_rooms_with_people": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    "rooms_without_visible_people": [
+      10
+    ],
+    "maximum_reprojection_p99_px": 0.0024694738,
+    "maximum_depth_position_p99_m": 2.861023e-06,
+    "maximum_normal_length_error": 2.3841858e-07,
+    "maximum_camera_pose_error": 0.0,
+    "directed_peer_visibility": {
+      "p05": 0.2895164489746094,
+      "median": 0.565185546875,
+      "p95": 0.8911815306912639
+    },
+    "union_peer_visibility": {
+      "p05": 0.38286590576171875,
+      "median": 0.7743053436279297,
+      "p95": 0.9654159545898438
+    }
+  },
+  "motion_audit": {
+    "planning_seeds": 256,
+    "generated_scene_seeds": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "requested_slots": 8,
+    "feasible_requests": 5,
+    "accepted": 5,
+    "rejected_retained_static": [
+      {
+        "scene_seed": 0,
+        "actor_id": 43,
+        "reason": "no collision-free behavior fits the available space"
+      },
+      {
+        "scene_seed": 1,
+        "actor_id": 29,
+        "reason": "no collision-free behavior fits the available space"
+      },
+      {
+        "scene_seed": 2,
+        "actor_id": 48,
+        "reason": "no collision-free behavior fits the available space"
+      }
+    ],
+    "model_loads": 1,
+    "generated_batches": 4,
+    "embedding_hits": 1,
+    "accepted_clip_kinematics": [
+      {
+        "scene_seed": 0,
+        "actor_id": 45,
+        "duration_seconds": 5.949999809265137,
+        "fps": 20.0,
+        "frames": 120,
+        "horizontal_waypoint_error_m": {
+          "max": 0.06292664259672165,
+          "median": 0.026474740356206894,
+          "p05": 0.0043538277968764305,
+          "p95": 0.06071040779352188
+        },
+        "local_joint_angular_speed_rad_s": {
+          "max": 5.729034423828125,
+          "median": 0.2315094769001007,
+          "p05": 0.0,
+          "p95": 1.7055103778839111
+        },
+        "policy": "Physical-time diagnostics of admitted raw model clips; not thresholds or perceptual motion quality evidence. Render admission additionally checks retargeted cloth/hair geometry.",
+        "prompt": "A person marches slowly, turns around and comes back.",
+        "root_acceleration_mps2": {
+          "max": 10.191429138183594,
+          "median": 0.7845116257667542,
+          "p05": 0.3414932191371918,
+          "p95": 1.9335919618606567
+        },
+        "root_endpoint_baseline_m": 0.3624877631664276,
+        "root_path_length_m": 2.648477792739868,
+        "root_speed_mps": {
+          "max": 0.5644892454147339,
+          "median": 0.46616023778915405,
+          "p05": 0.3170597553253174,
+          "p95": 0.5304746031761169
+        },
+        "seed": 18443867728505219881
+      },
+      {
+        "scene_seed": 1,
+        "actor_id": 30,
+        "duration_seconds": 5.949999809265137,
+        "fps": 20.0,
+        "frames": 120,
+        "horizontal_waypoint_error_m": {
+          "max": 0.040333341807127,
+          "median": 0.02878037467598915,
+          "p05": 0.004793424624949694,
+          "p95": 0.03766220808029175
+        },
+        "local_joint_angular_speed_rad_s": {
+          "max": 2.727813959121704,
+          "median": 0.1280750185251236,
+          "p05": 0.0,
+          "p95": 0.5904824733734131
+        },
+        "policy": "Physical-time diagnostics of admitted raw model clips; not thresholds or perceptual motion quality evidence. Render admission additionally checks retargeted cloth/hair geometry.",
+        "prompt": "A person tiptoes slowly.",
+        "root_acceleration_mps2": {
+          "max": 5.589543342590332,
+          "median": 0.31831878423690796,
+          "p05": 0.10953249037265778,
+          "p95": 1.0135389566421509
+        },
+        "root_endpoint_baseline_m": 1.2428278923034668,
+        "root_path_length_m": 1.332692265510559,
+        "root_speed_mps": {
+          "max": 0.2929755449295044,
+          "median": 0.23341284692287445,
+          "p05": 0.1294020414352417,
+          "p95": 0.2839869260787964
+        },
+        "seed": 7230976893032501788
+      },
+      {
+        "scene_seed": 2,
+        "actor_id": 47,
+        "duration_seconds": 5.949999809265137,
+        "fps": 20.0,
+        "frames": 120,
+        "horizontal_waypoint_error_m": {
+          "max": 0.1279873251914978,
+          "median": 0.02880953997373581,
+          "p05": 0.007678237743675709,
+          "p95": 0.12542423605918884
+        },
+        "local_joint_angular_speed_rad_s": {
+          "max": 8.392332077026367,
+          "median": 0.14680960774421692,
+          "p05": 0.0,
+          "p95": 0.8624932765960693
+        },
+        "policy": "Physical-time diagnostics of admitted raw model clips; not thresholds or perceptual motion quality evidence. Render admission additionally checks retargeted cloth/hair geometry.",
+        "prompt": "A person shuffles slowly.",
+        "root_acceleration_mps2": {
+          "max": 11.024036407470703,
+          "median": 0.4495719373226166,
+          "p05": 0.14640550315380096,
+          "p95": 2.498518705368042
+        },
+        "root_endpoint_baseline_m": 1.7206672430038452,
+        "root_path_length_m": 1.9184576272964478,
+        "root_speed_mps": {
+          "max": 0.6152112483978271,
+          "median": 0.3142222464084625,
+          "p05": 0.1945449858903885,
+          "p95": 0.454577773809433
+        },
+        "seed": 4911147902644415502
+      },
+      {
+        "scene_seed": 3,
+        "actor_id": 90,
+        "duration_seconds": 5.949999809265137,
+        "fps": 20.0,
+        "frames": 120,
+        "horizontal_waypoint_error_m": {
+          "max": 0.060012586414813995,
+          "median": 0.018210534006357193,
+          "p05": 0.0049207755364477634,
+          "p95": 0.053684696555137634
+        },
+        "local_joint_angular_speed_rad_s": {
+          "max": 2.369673013687134,
+          "median": 0.0995902419090271,
+          "p05": 0.0,
+          "p95": 0.5849652886390686
+        },
+        "policy": "Physical-time diagnostics of admitted raw model clips; not thresholds or perceptual motion quality evidence. Render admission additionally checks retargeted cloth/hair geometry.",
+        "prompt": "A person rises onto both toes twice.",
+        "root_acceleration_mps2": {
+          "max": 9.773713111877441,
+          "median": 0.4643312096595764,
+          "p05": 0.1621135175228119,
+          "p95": 2.1236813068389893
+        },
+        "root_endpoint_baseline_m": 0.014194587245583534,
+        "root_path_length_m": 0.2869906425476074,
+        "root_speed_mps": {
+          "max": 0.5042976140975952,
+          "median": 0.060665812343358994,
+          "p05": 0.00840915646404028,
+          "p95": 0.2518981397151947
+        },
+        "seed": 17813550259245129207
+      },
+      {
+        "scene_seed": 3,
+        "actor_id": 88,
+        "duration_seconds": 5.949999809265137,
+        "fps": 20.0,
+        "frames": 120,
+        "horizontal_waypoint_error_m": {
+          "max": 0.0947711169719696,
+          "median": 0.02567206509411335,
+          "p05": 0.009645911864936352,
+          "p95": 0.08669514954090118
+        },
+        "local_joint_angular_speed_rad_s": {
+          "max": 3.6461565494537354,
+          "median": 0.1610589176416397,
+          "p05": 0.0,
+          "p95": 0.904170572757721
+        },
+        "policy": "Physical-time diagnostics of admitted raw model clips; not thresholds or perceptual motion quality evidence. Render admission additionally checks retargeted cloth/hair geometry.",
+        "prompt": "A person tiptoes slowly.",
+        "root_acceleration_mps2": {
+          "max": 12.129865646362305,
+          "median": 0.42365965247154236,
+          "p05": 0.18829426169395447,
+          "p95": 1.8761100769042969
+        },
+        "root_endpoint_baseline_m": 2.152775287628174,
+        "root_path_length_m": 2.427422046661377,
+        "root_speed_mps": {
+          "max": 0.511006236076355,
+          "median": 0.4290034770965576,
+          "p05": 0.2306767702102661,
+          "p95": 0.482544869184494
+        },
+        "seed": 15444413414904571552
+      }
+    ],
+    "views": 40,
+    "visible_moving_person_pixels_per_scene": [
+      0,
+      26913,
+      0,
+      0
+    ],
+    "maximum_static_flow_reprojection_p99_px": 0.0024230265989899635,
+    "missing_expected_static_flow_valid_pixels": 0
+  }
+}

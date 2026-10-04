@@ -1,10 +1,9 @@
 //! AnnyBody surface, retargeted with its full skinning weights. Garments are
 //! offset shells of that surface; no substitute primitive body is rendered.
+use super::rig::{cranial_rotation, segment, torso_segment};
 use super::{HumanAssembly, HumanSurface, IndoorHuman};
-use crate::scene::procedural_indoor::layout::stream;
 use bevy::prelude::*;
 use burn_human::{AnnyBody, AnnyInput};
-use rand::Rng;
 use std::sync::{Arc, Mutex, OnceLock};
 
 static REFERENCE: OnceLock<Arc<AnnyBody>> = OnceLock::new();
@@ -80,20 +79,13 @@ fn build_impl(
     body: &AnnyBody,
     motion_rest: bool,
 ) -> (HumanAssembly, Option<RestSkin>) {
-    let mut rng = stream(h.seed, 43);
+    let shape = super::morphology::phenotype(h);
     let phenotype: Vec<_> = body
         .metadata()
         .metadata
         .phenotype_labels
         .iter()
-        .map(|name| match name.as_str() {
-            "gender" => rng.random_range(0.0..1.0),
-            "age" => rng.random_range(0.60..0.95), // adult reference anchors only
-            "muscle" => rng.random_range(0.25..0.70),
-            "weight" => ((h.build as f64 - 0.82) / 0.40).mul_add(0.42, 0.30),
-            "height" => ((h.stature as f64 - 1.50) / 0.45).clamp(0.0, 1.0),
-            _ => rng.random_range(0.30..0.70),
-        })
+        .map(|name| shape.value(name))
         .collect();
     let output = body
         .forward(AnnyInput {
@@ -142,7 +134,13 @@ fn build_impl(
     // The program's chest is the shoulder girdle, not the spine01 bone head.
     // Mapping spine01 here elongated the torso above it and bunched the shoulders.
     let rest_chest = (head("upperarm01.L") + head("upperarm01.R")) * 0.5;
-    let torso = segment(rest_pelvis, rest_chest, p[0], p[2], scale);
+    let torso = torso_segment(
+        rest_pelvis,
+        rest_chest,
+        [head("upperarm01.L"), head("upperarm01.R")],
+        p,
+        scale,
+    );
     let head_rotation = if motion_rest {
         Quat::IDENTITY
     } else {
@@ -292,26 +290,90 @@ fn build_impl(
         .iter()
         .map(|v| v.z)
         .fold(f32::NEG_INFINITY, f32::max);
+    let left = torso_vertices
+        .iter()
+        .map(|v| v.x)
+        .fold(f32::INFINITY, f32::min);
+    let right = torso_vertices
+        .iter()
+        .map(|v| v.x)
+        .fold(f32::NEG_INFINITY, f32::max);
+    mesh.body_measurements = super::morphology::BodyMeasurements {
+        rest_stature_metres: (hi.y - lo.y) * scale,
+        rest_shoulder_bone_span_metres: head("upperarm01.L").distance(head("upperarm01.R")) * scale,
+        rest_torso_width_metres: (right - left) * scale,
+        rest_torso_depth_metres: (back - front) * scale,
+        shoulder_attachment_offset_metres: if motion_rest {
+            0.0
+        } else {
+            [("L", 5), ("R", 9)]
+                .into_iter()
+                .map(|(side, joint)| {
+                    torso
+                        .transform_point3(head(&format!("upperarm01.{side}")))
+                        .distance(p[joint])
+                })
+                .fold(0.0, f32::max)
+        },
+    };
     let waist = rest_pelvis.y
         + (rest_chest.y - rest_pelvis.y) * h.appearance.as_ref().map_or(0.14, |a| a.hem_fraction);
+    let mut garment = h
+        .appearance
+        .as_ref()
+        .map_or_else(Default::default, |a| a.garment.clone());
+    if h.outfit.collared() {
+        garment.neckline_depth *= 0.18;
+    }
     let cut = super::garments::GarmentCut {
         waist,
         neck: head("neck01").y,
         chest: rest_chest.y - 0.03,
         depth_center: (front + back) * 0.5,
-        fit: super::garments::fit::TorsoFit::new(&torso_vertices, waist, rest_chest.y),
+        fit: super::garments::fit::TorsoFit::new(&torso_vertices, waist, rest_chest.y)
+            .with_program(&garment),
+        legs: ["L", "R"].map(|side| {
+            let suffix = format!(".{side}");
+            let leg: Vec<_> = vertices
+                .iter()
+                .enumerate()
+                .filter_map(|(i, &p)| {
+                    let name = &labels[dominant[i]];
+                    (name.ends_with(&suffix)
+                        && (name.starts_with("upperleg") || name.starts_with("lowerleg")))
+                    .then_some(p)
+                })
+                .collect();
+            super::garments::legs::LegFit::new(
+                &leg,
+                head(&format!("upperleg01.{side}")),
+                head(&format!("foot.{side}")),
+                &garment,
+            )
+        }),
         shoe_top: (head("foot.L").y + head("foot.R").y) * 0.5 + 0.015,
         cuffs: ["L", "R"].map(|side| {
             let elbow = head(&format!("lowerarm01.{side}"));
             let wrist = head(&format!("wrist.{side}"));
             let coverage = h.appearance.as_ref().map_or(0.95, |a| a.sleeve_coverage);
-            let length = if h.outfit == super::HumanOutfit::Blazer {
+            let length = if h.outfit.open_front() {
                 0.86 + coverage * 0.09
+            } else if matches!(h.outfit, super::HumanOutfit::Tee | super::HumanOutfit::Polo) {
+                -0.55 + coverage * 0.5
             } else {
                 -0.40 + coverage * 1.35
             };
             (elbow.lerp(wrist, length), (wrist - elbow).normalize())
         }),
+        leg_cuffs: ["L", "R"].map(|side| {
+            let knee = head(&format!("lowerleg01.{side}"));
+            let ankle = head(&format!("foot.{side}"));
+            (
+                knee.lerp(ankle, garment.trouser_coverage),
+                (ankle - knee).normalize(),
+            )
+        }),
+        program: garment,
     };
     let mut offsets = vec![0.0; posed.len()];
     let mut incident_faces = vec![0_u32; posed.len()];
@@ -321,9 +383,9 @@ fn build_impl(
         let surface = cut.surface(h, center, bone);
         let ease = match surface {
             HumanSurface::Top | HumanSurface::Shirt => match h.outfit {
-                super::HumanOutfit::Knitwear => 0.006,
-                super::HumanOutfit::Shirt => 0.012,
-                super::HumanOutfit::Blazer => 0.021,
+                super::HumanOutfit::Knitwear | super::HumanOutfit::Tee => 0.006,
+                super::HumanOutfit::Shirt | super::HumanOutfit::Polo => 0.012,
+                super::HumanOutfit::Blazer | super::HumanOutfit::Cardigan => 0.021,
             },
             HumanSurface::Trousers => 0.008,
             HumanSurface::Shoes => 0.005,
@@ -336,7 +398,7 @@ fn build_impl(
             h.appearance.as_ref().map_or(ease, |a| {
                 a.garment_ease
                     * if surface == HumanSurface::Trousers {
-                        0.65
+                        a.garment.trouser_ease / a.garment_ease.max(0.001)
                     } else {
                         1.0
                     }
@@ -361,24 +423,15 @@ fn build_impl(
         "lowerleg01.R",
     ]
     .map(head);
+    let drape = super::garments::drape::Drape::new(h, waist, cut.chest, [front, back], fold_joints);
     for (i, offset) in offsets.iter_mut().enumerate() {
+        let surface = cut.surface(h, vertices[i], &labels[dominant[i]]);
+        if matches!(surface, HumanSurface::Skin | HumanSurface::Eye) {
+            *offset = 0.0;
+            continue;
+        }
         if *offset > 0.006 {
-            if let Some(a) = &h.appearance {
-                let v = vertices[i] * scale;
-                // Loose vertical drape plus short compression wrinkles near
-                // the hem/elbows/knees. Avoid identical horizontal bands across
-                // the entire torso, which read as layered plastic.
-                let hem = (-(vertices[i].y - waist).powi(2) / 0.009).exp();
-                let joint = fold_joints
-                    .iter()
-                    .map(|joint| (-(vertices[i] - *joint).length_squared() / 0.014).exp())
-                    .fold(hem, f32::max);
-                let drape = (v.x * a.fold_frequency * 0.75 + (v.y * 6.0).sin() + v.z * 9.0).sin();
-                let compression = (v.y * a.fold_frequency + v.x * 13.0 + (v.z * 8.0).sin()).sin();
-                *offset += a.fold_amplitude
-                    * (0.30 * drape + joint * compression)
-                    * (*offset / a.garment_ease).clamp(0.0, 1.0);
-            }
+            *offset = (*offset + drape.offset(vertices[i]) * scale).max(0.002);
         }
     }
     let garment_positions: Vec<_> = posed
@@ -437,12 +490,18 @@ fn build_impl(
                 normal: normals[i],
                 // Anny has separate vertex and face-corner UV indices at seams.
                 uv: Vec2::new(uv[t * 2] as f32, uv[t * 2 + 1] as f32),
+                skin_field: cut.skin_field(vertices[i], &labels[dominant[i]]),
             }
         });
         for tri in [[0, 1, 2], [0, 2, 3]] {
             let triangle = tri.map(|i| corners[i]);
             if super::anatomy::lip_face(face_index) {
                 super::garments::emit(&triangle, HumanSurface::Lip, &mut mesh);
+            } else if h.appearance.as_ref().is_some_and(|a| a.face.stubble > 0.0)
+                && triangle.iter().all(|v| v.rest.y > cut.neck)
+                && !labels[dominant[q[0] as usize]].starts_with("eye.")
+            {
+                super::face::stubble(triangle, (head("eye.L") + head("eye.R")) * 0.5, &mut mesh);
             } else {
                 cut.append(h, &labels[dominant[q[0] as usize]], triangle, &mut mesh);
             }
@@ -457,6 +516,37 @@ fn build_impl(
         &normals,
         &mut mesh,
     );
+    // Replace recolored anatomical feet with a padded last and separate sole.
+    // The rest body remains available for weight transfer and collision checks.
+    mesh.parts.remove(&HumanSurface::Shoes);
+    let footwear = h
+        .appearance
+        .as_ref()
+        .map_or_else(Default::default, |a| a.footwear.clone());
+    for side in ["L", "R"] {
+        let suffix = format!(".{side}");
+        let points: Vec<_> = vertices
+            .iter()
+            .enumerate()
+            .filter_map(|(i, &p)| {
+                (p.y <= cut.shoe_top + footwear.collar_raise + 0.018
+                    && labels[dominant[i]].ends_with(&suffix))
+                .then_some(p)
+            })
+            .collect();
+        super::footwear::append(
+            &footwear,
+            &points,
+            super::footwear::FootFrame {
+                ankle: head(&format!("foot.{side}")),
+                toe: head(&format!("toe2-1.{side}")),
+                posed_from_rest: transforms[index(&format!("foot.{side}"))],
+                floor,
+                shoe_top: cut.shoe_top,
+            },
+            &mut mesh,
+        );
+    }
     // Eye and eyewear details attach to Anny's facial rig, following head turns.
     let face_rotation = head_rotation;
     let forward = face_rotation * Vec3::NEG_Z;
@@ -484,9 +574,16 @@ fn build_impl(
         );
     }
     super::face::append(h, &posed, faces, &eyes, face_rotation, scale, &mut mesh);
-    if h.outfit != super::HumanOutfit::Knitwear {
+    if h.outfit.buttoned() {
         for row in 0..6 {
-            let y = cut.waist + (cut.chest - cut.waist) * (row as f32 + 0.5) / 6.0;
+            let y = if h.outfit == super::HumanOutfit::Polo {
+                if row > 2 {
+                    continue;
+                }
+                cut.neck - 0.035 - row as f32 * 0.027
+            } else {
+                cut.waist + (cut.chest - cut.waist) * (row as f32 + 0.5) / 6.0
+            };
             let at = vertices
                 .iter()
                 .enumerate()
@@ -513,6 +610,11 @@ fn build_impl(
         &dominant,
         labels,
         head_rotation,
+        super::hair::HairFrame {
+            head: Mat4::from_translation(-Vec3::Y * floor) * neck,
+            torso: Mat4::from_translation(-Vec3::Y * floor) * torso,
+            head_origin: head("head"),
+        },
         mesh.part(HumanSurface::Hair),
     );
     // The deformed surface contains sharp creases at bent joints. Split their
@@ -585,32 +687,6 @@ fn build_impl(
     (mesh, rest)
 }
 
-fn cranial_rotation(joints: &[Vec3], yaw: f32) -> Quat {
-    let up = (joints[2] - joints[0]).normalize_or(Vec3::Y);
-    let shoulder = (joints[9] - joints[5]).normalize_or(Vec3::X);
-    let back = shoulder.cross(up).normalize_or(Vec3::Z);
-    let right = up.cross(back).normalize_or(Vec3::X);
-    Quat::from_mat3(&Mat3::from_cols(right, up, back)) * Quat::from_rotation_y(yaw)
-}
-
-/// Match joint endpoints while retaining transverse anatomical dimensions.
-fn segment(a: Vec3, b: Vec3, target_a: Vec3, target_b: Vec3, scale: f32) -> Mat4 {
-    let source = b - a;
-    let target = target_b - target_a;
-    let axis = source.normalize_or(Vec3::Y);
-    let stretch = target.length() / source.length().max(0.0001);
-    let radial = Mat3::IDENTITY * scale;
-    let along = Mat3::from_cols(axis * axis.x, axis * axis.y, axis * axis.z) * (stretch - scale);
-    let linear = Mat3::from_quat(Quat::from_rotation_arc(axis, target.normalize_or(Vec3::Y)))
-        * (radial + along);
-    Mat4::from_cols(
-        linear.x_axis.extend(0.0),
-        linear.y_axis.extend(0.0),
-        linear.z_axis.extend(0.0),
-        (target_a - linear * a).extend(1.0),
-    )
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -671,15 +747,33 @@ mod tests {
     }
 
     #[test]
-    fn clothing_material_boundaries_keep_the_anny_surface_closed() {
+    fn garments_preserve_anny_body_and_uv_seams_above_constructed_footwear() {
         let scene = IndoorManifest::generate(31, IndoorLayout::Mixed, 0.65, 1).unwrap();
         let body = reference();
         let original_vertices: HashSet<_> = body.faces_quads().data.iter().copied().collect();
         let data = &body.metadata().static_data;
+        let (bone_ids, weights) = body.skinning_bindings();
+        let influences = *bone_ids.shape.last().unwrap();
+        let (labels, _) = body.bone_hierarchy();
+        let retained = |vertex: i64| {
+            let base = vertex as usize * influences;
+            let k = (0..influences)
+                .max_by(|&a, &b| weights.data[base + a].total_cmp(&weights.data[base + b]))
+                .unwrap();
+            let name = &labels[bone_ids.data[base + k] as usize];
+            !["lowerleg", "foot", "toe"]
+                .iter()
+                .any(|prefix| name.starts_with(prefix))
+        };
         let expected_uvs: HashSet<_> = data
             .face_texture_coordinate_indices
             .data
+            .as_chunks::<4>()
+            .0
             .iter()
+            .zip(body.faces_quads().data.as_chunks::<4>().0)
+            .filter(|(_, q)| q.iter().all(|&i| retained(i)))
+            .flat_map(|(uv, _)| uv)
             .map(|&i| {
                 let i = i as usize * 2;
                 [
@@ -707,9 +801,9 @@ mod tests {
                 .flat_map(|(_, g)| &g.positions)
                 .map(|p| p.map(f32::to_bits))
                 .collect();
-            // Clipping retains the complete Anny body and adds boundary vertices.
-            // Most vertices remain unchanged; this is not a substitute body.
-            assert!(vertices.len() >= original_vertices.len());
+            // Only feet are replaced by constructed shoe shells; the body and
+            // its face-corner UV atlas remain Anny, including split cloth cuts.
+            assert!(vertices.len() >= original_vertices.len() * 9 / 10);
             assert!(vertices.len() < original_vertices.len() * 2);
             let uvs: HashSet<_> = mesh
                 .parts

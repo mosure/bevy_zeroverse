@@ -3,6 +3,9 @@
 #[path = "motion_validate/flow.rs"]
 mod flow;
 #[cfg(not(target_arch = "wasm32"))]
+#[path = "motion_validate/kinematics.rs"]
+mod kinematics;
+#[cfg(not(target_arch = "wasm32"))]
 #[path = "motion_validate/prompts.rs"]
 mod prompts;
 #[cfg(not(target_arch = "wasm32"))]
@@ -16,10 +19,7 @@ mod native {
         render::RenderMode,
         sample::{CaptureFailure, SamplerState},
         scene::{
-            procedural_indoor::{
-                gi::IndoorGiSettings,
-                layout::{IndoorLayout, IndoorManifest},
-            },
+            procedural_indoor::layout::{IndoorLayout, IndoorManifest},
             ZeroverseSceneType,
         },
     };
@@ -54,11 +54,23 @@ mod native {
         /// Optional local upstream tokenizer.json; checks the 64-token chat budget without model loads.
         #[arg(long)]
         tokenizer: Option<PathBuf>,
+        #[arg(long, default_value_t = 0.65)]
+        density: f32,
+        #[arg(long, default_value_t = 0.7)]
+        human_density: f32,
     }
     pub fn run() -> Result<()> {
         let args = Args::parse();
         let policy = HumanMotionConfig::parse(&args.policy).map_err(anyhow::Error::msg)?;
         std::fs::create_dir_all(&args.output)?;
+        std::fs::write(
+            args.output.join("provenance.json"),
+            serde_json::to_vec_pretty(&bevy_zeroverse::provenance::capture_provenance())?,
+        )?;
+        std::fs::write(
+            args.output.join("policy.json"),
+            serde_json::to_vec_pretty(&policy)?,
+        )?;
         let mut counts = BTreeMap::<String, usize>::new();
         let mut reports = Vec::new();
         let tokenizer = args
@@ -68,9 +80,14 @@ mod native {
             .transpose()?;
         let mut prompt_audit = super::prompts::PromptAudit::default();
         for seed in args.seed..args.seed + args.seeds {
-            let mut scene =
-                IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.35, 2, 0.7)
-                    .map_err(anyhow::Error::msg)?;
+            let mut scene = IndoorManifest::generate_with_humans(
+                seed,
+                IndoorLayout::Mixed,
+                args.density,
+                2,
+                args.human_density,
+            )
+            .map_err(anyhow::Error::msg)?;
             planning::prepare_scene(&mut scene, &policy).map_err(anyhow::Error::msg)?;
             let (plans, rejected) = planning::plan(&scene, &policy).map_err(anyhow::Error::msg)?;
             prompt_audit.observe(&plans, tokenizer.as_ref())?;
@@ -112,16 +129,16 @@ mod native {
             Some(BevyZeroverseConfig {
                 scene_type: ZeroverseSceneType::ProceduralIndoor,
                 indoor_seed: Some(first_seed),
-                indoor_density: 0.35,
-                indoor_human_density: 0.7,
+                indoor_density: args.density,
+                indoor_human_density: args.human_density,
                 human_motion: (!args.static_only).then(|| args.policy.clone()),
                 headless: true,
                 editor: false,
                 gizmos: false,
                 image_copiers: true,
                 num_cameras: 2,
-                width: 384.0,
-                height: 288.0,
+                width: 512.0,
+                height: 512.0,
                 playback_mode: PlaybackMode::Still,
                 playback_steps: 5,
                 playback_step: 0.25,
@@ -131,10 +148,6 @@ mod native {
             }),
             false,
         );
-        app.insert_resource(IndoorGiSettings {
-            enabled: false,
-            ..default()
-        });
         app.finish();
         app.cleanup();
         for (index, seed) in render_seeds.into_iter().enumerate() {
@@ -202,7 +215,7 @@ mod native {
             let mut annotation_checks = Vec::new();
             for (i, view) in sample.views.iter().enumerate() {
                 for bytes in [&view.depth, &view.normal, &view.semantic] {
-                    ensure!(bytes.len() == 384 * 288 * 16, "annotation dimensions");
+                    ensure!(bytes.len() == 512 * 512 * 16, "annotation dimensions");
                     ensure!(
                         bytemuck::cast_slice::<u8, f32>(bytes)
                             .iter()
@@ -250,13 +263,13 @@ mod native {
                         })
                     })
                     .collect();
-                image::RgbImage::from_raw(384, 288, rgb)
+                image::RgbImage::from_raw(512, 512, rgb)
                     .context("RGB dimensions")?
                     .save(dir.join(format!("view_{i}.png")))?;
             }
             let flow_checks = args
                 .flow
-                .then(|| super::flow::validate(&sample, 384, 288, &dir))
+                .then(|| super::flow::validate(&sample, 512, 512, &dir))
                 .transpose()?;
             let report = app.world().resource::<HumanMotionReport>();
             let manifest = sample.indoor.as_ref().context("missing indoor manifest")?;
@@ -290,6 +303,22 @@ mod native {
                 ensure!(report.model_loads == 0, "static scene loaded motion models");
             }
             std::fs::write(dir.join("motion.json"), serde_json::to_vec_pretty(report)?)?;
+            let clips = &app.world().resource::<HumanMotionClips>().0;
+            let kinematic_reports: Vec<_> = clips
+                .iter()
+                .map(|(id, clip)| {
+                    let plan = report
+                        .accepted
+                        .iter()
+                        .find(|p| p.actor_id == *id)
+                        .expect("admitted clip plan");
+                    super::kinematics::report(plan, clip)
+                })
+                .collect();
+            std::fs::write(
+                dir.join("kinematics.json"),
+                serde_json::to_vec_pretty(&kinematic_reports)?,
+            )?;
             std::fs::write(
                 dir.join("clips.json"),
                 serde_json::to_vec(&app.world().resource::<HumanMotionClips>().0)?,

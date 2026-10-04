@@ -222,10 +222,19 @@ impl EnvelopeProgram {
                 {
                     continue;
                 }
+                let mut profile = ColumnProfile::sample(scene.seed, result.pillars.len());
+                // Retain the placement stream's section draw. Shape/detail use
+                // an independent stream, so they never perturb room furnishing.
+                profile.roundness = if r.random_bool(0.65) {
+                    2. + (profile.roundness - 2.) / 3.
+                } else {
+                    4. + (profile.roundness - 2.) * (2. / 3.)
+                };
                 result.pillars.push(Pillar {
                     center,
                     radius,
-                    sides: if r.random_bool(0.65) { 24 } else { 4 },
+                    sides: 32,
+                    profile: Some(profile),
                 });
                 break;
             }

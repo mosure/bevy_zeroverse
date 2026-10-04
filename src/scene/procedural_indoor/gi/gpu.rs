@@ -513,11 +513,30 @@ mod tests {
         let set = IndoorMaterials::build(&scene, &mut images, &mut materials);
         let transport = BakeScene::from_manifest(&scene, &set, &materials, &images);
         let (_, _, stats) = prepare(&transport, BakeSettings::default(), scene.seed, &mut images);
-        // A surface-area tree used for solid classification relocated 114 here,
-        // altering indirect illumination. These are the established capture values.
-        assert_eq!(stats.triangles, 349_783);
-        assert_eq!(stats.probes, 1848);
-        assert_eq!(stats.relocated_probes, 112);
+        // Build the solid-classification oracle before transport reorders its
+        // clone. Furniture tessellation may evolve; the classification must not.
+        let settings = BakeSettings::default();
+        let resolution = ((transport.bounds_max - transport.bounds_min) / settings.spacing)
+            .ceil()
+            .as_uvec3()
+            .max(UVec3::splat(2));
+        let count = resolution.element_product();
+        let relocated = (0..count)
+            .filter(|&i| {
+                let xyz = UVec3::new(
+                    i % resolution.x,
+                    (i / resolution.x) % resolution.y,
+                    i / (resolution.x * resolution.y),
+                );
+                let p = transport.bounds_min
+                    + (xyz.as_vec3() + Vec3::splat(0.5)) / resolution.as_vec3()
+                        * (transport.bounds_max - transport.bounds_min);
+                transport.inside_solid(p)
+            })
+            .count();
+        assert_eq!(stats.triangles, transport.triangles.len());
+        assert_eq!(stats.probes, count as usize);
+        assert_eq!(stats.relocated_probes, relocated);
     }
 
     #[test]

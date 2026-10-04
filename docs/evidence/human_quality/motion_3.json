@@ -1,0 +1,445 @@
+{
+  "scene_seed": 3,
+  "pending": false,
+  "stage": "Ready",
+  "model_loads": 1,
+  "generated_batches": 4,
+  "embedding_hits": 1,
+  "model_artifacts": {
+    "ardy/core-rp-20fps-h40/v1": "6e03294854771ca3ed6641251c77ab75bd2542d778c02886ea795d8d77655cd8",
+    "llama/ardy-llm2vec-8b/v1": "09280ebcf02184708cff1a9f982b901166b433e504ff343f02c037cc52d8ee16"
+  },
+  "requested": [
+    {
+      "actor_id": 90,
+      "behavior": "calf_raise",
+      "request": {
+        "prompt": "A person rises onto both toes twice.",
+        "seed": 17813550259245129207,
+        "frames": 120,
+        "history_frames": 80,
+        "diffusion_steps": 10,
+        "text_guidance": 2.0,
+        "trajectory_guidance": 3.0,
+        "waypoints": [
+          {
+            "frame": 0,
+            "position": [
+              5.468457,
+              0.94,
+              0.6141133
+            ],
+            "heading": 1.5589867,
+            "constrain_height": true
+          },
+          {
+            "frame": 8,
+            "position": [
+              5.468457,
+              0.94,
+              0.6141133
+            ],
+            "heading": 1.5589867,
+            "constrain_height": true
+          },
+          {
+            "frame": 24,
+            "position": [
+              5.468457,
+              1.0133302,
+              0.6141133
+            ],
+            "heading": 1.5589867,
+            "constrain_height": true
+          },
+          {
+            "frame": 41,
+            "position": [
+              5.468457,
+              0.94,
+              0.6141133
+            ],
+            "heading": 1.5589867,
+            "constrain_height": true
+          },
+          {
+            "frame": 57,
+            "position": [
+              5.468457,
+              1.0133302,
+              0.6141133
+            ],
+            "heading": 1.5589867,
+            "constrain_height": true
+          },
+          {
+            "frame": 73,
+            "position": [
+              5.468457,
+              0.94,
+              0.6141133
+            ],
+            "heading": 1.5589867,
+            "constrain_height": true
+          },
+          {
+            "frame": 119,
+            "position": [
+              5.468457,
+              0.94,
+              0.6141133
+            ],
+            "heading": 1.5589867,
+            "constrain_height": true
+          }
+        ],
+        "dense_trajectory": true
+      },
+      "support_chair": null,
+      "prompt_recipe": {
+        "version": 3,
+        "family": "exercise",
+        "gait": null,
+        "travel_speed_mps": null,
+        "style": null,
+        "arm_style": null,
+        "gaze": null,
+        "actions": [
+          {
+            "family": "exercise",
+            "action": "calf_raise",
+            "hand": "right",
+            "side": "right",
+            "repetitions": 2,
+            "amplitude": 0.22217083,
+            "start_frame": 8,
+            "end_frame": 73,
+            "peak_pelvis_height": 1.0133302,
+            "clearance_radius": 0.59944105
+          }
+        ]
+      }
+    },
+    {
+      "actor_id": 88,
+      "behavior": "tiptoe",
+      "request": {
+        "prompt": "A person tiptoes slowly.",
+        "seed": 15444413414904571552,
+        "frames": 120,
+        "history_frames": 80,
+        "diffusion_steps": 10,
+        "text_guidance": 2.0,
+        "trajectory_guidance": 3.0,
+        "waypoints": [
+          {
+            "frame": 0,
+            "position": [
+              4.181198,
+              0.94,
+              -4.606878
+            ],
+            "heading": -0.018402934,
+            "constrain_height": true
+          },
+          {
+            "frame": 54,
+            "position": [
+              4.1624656,
+              0.94,
+              -3.5890818
+            ],
+            "heading": -0.0064541996,
+            "constrain_height": true
+          },
+          {
+            "frame": 62,
+            "position": [
+              4.1736083,
+              0.94,
+              -3.430944
+            ],
+            "heading": 0.16405135,
+            "constrain_height": true
+          },
+          {
+            "frame": 70,
+            "position": [
+              4.2130547,
+              0.94,
+              -3.2834797
+            ],
+            "heading": 0.36062235,
+            "constrain_height": true
+          },
+          {
+            "frame": 78,
+            "position": [
+              4.2808046,
+              0.94,
+              -3.1466892
+            ],
+            "heading": 0.55719024,
+            "constrain_height": true
+          },
+          {
+            "frame": 87,
+            "position": [
+              4.3768573,
+              0.94,
+              -3.020572
+            ],
+            "heading": 0.72128445,
+            "constrain_height": true
+          },
+          {
+            "frame": 119,
+            "position": [
+              4.7861896,
+              0.94,
+              -2.571959
+            ],
+            "heading": 0.73964554,
+            "constrain_height": true
+          }
+        ],
+        "dense_trajectory": true
+      },
+      "support_chair": null,
+      "prompt_recipe": {
+        "version": 3,
+        "family": "locomotion",
+        "gait": "tiptoe",
+        "travel_speed_mps": 0.37775132,
+        "style": null,
+        "arm_style": null,
+        "gaze": null,
+        "actions": [],
+        "navigation": {
+          "kind": "bend",
+          "lateral_fraction": 0.19168895,
+          "return_fraction": 1.0,
+          "corner_radius_m": 0.40790117,
+          "path_length_m": 2.2476203
+        }
+      }
+    }
+  ],
+  "accepted": [
+    {
+      "actor_id": 90,
+      "behavior": "calf_raise",
+      "request": {
+        "prompt": "A person rises onto both toes twice.",
+        "seed": 17813550259245129207,
+        "frames": 120,
+        "history_frames": 80,
+        "diffusion_steps": 10,
+        "text_guidance": 2.0,
+        "trajectory_guidance": 3.0,
+        "waypoints": [
+          {
+            "frame": 0,
+            "position": [
+              5.468457,
+              0.94,
+              0.6141133
+            ],
+            "heading": 1.5589867,
+            "constrain_height": true
+          },
+          {
+            "frame": 8,
+            "position": [
+              5.468457,
+              0.94,
+              0.6141133
+            ],
+            "heading": 1.5589867,
+            "constrain_height": true
+          },
+          {
+            "frame": 24,
+            "position": [
+              5.468457,
+              1.0133302,
+              0.6141133
+            ],
+            "heading": 1.5589867,
+            "constrain_height": true
+          },
+          {
+            "frame": 41,
+            "position": [
+              5.468457,
+              0.94,
+              0.6141133
+            ],
+            "heading": 1.5589867,
+            "constrain_height": true
+          },
+          {
+            "frame": 57,
+            "position": [
+              5.468457,
+              1.0133302,
+              0.6141133
+            ],
+            "heading": 1.5589867,
+            "constrain_height": true
+          },
+          {
+            "frame": 73,
+            "position": [
+              5.468457,
+              0.94,
+              0.6141133
+            ],
+            "heading": 1.5589867,
+            "constrain_height": true
+          },
+          {
+            "frame": 119,
+            "position": [
+              5.468457,
+              0.94,
+              0.6141133
+            ],
+            "heading": 1.5589867,
+            "constrain_height": true
+          }
+        ],
+        "dense_trajectory": true
+      },
+      "support_chair": null,
+      "prompt_recipe": {
+        "version": 3,
+        "family": "exercise",
+        "gait": null,
+        "travel_speed_mps": null,
+        "style": null,
+        "arm_style": null,
+        "gaze": null,
+        "actions": [
+          {
+            "family": "exercise",
+            "action": "calf_raise",
+            "hand": "right",
+            "side": "right",
+            "repetitions": 2,
+            "amplitude": 0.22217083,
+            "start_frame": 8,
+            "end_frame": 73,
+            "peak_pelvis_height": 1.0133302,
+            "clearance_radius": 0.59944105
+          }
+        ]
+      }
+    },
+    {
+      "actor_id": 88,
+      "behavior": "tiptoe",
+      "request": {
+        "prompt": "A person tiptoes slowly.",
+        "seed": 15444413414904571552,
+        "frames": 120,
+        "history_frames": 80,
+        "diffusion_steps": 10,
+        "text_guidance": 2.0,
+        "trajectory_guidance": 3.0,
+        "waypoints": [
+          {
+            "frame": 0,
+            "position": [
+              4.181198,
+              0.94,
+              -4.606878
+            ],
+            "heading": -0.018402934,
+            "constrain_height": true
+          },
+          {
+            "frame": 54,
+            "position": [
+              4.1624656,
+              0.94,
+              -3.5890818
+            ],
+            "heading": -0.0064541996,
+            "constrain_height": true
+          },
+          {
+            "frame": 62,
+            "position": [
+              4.1736083,
+              0.94,
+              -3.430944
+            ],
+            "heading": 0.16405135,
+            "constrain_height": true
+          },
+          {
+            "frame": 70,
+            "position": [
+              4.2130547,
+              0.94,
+              -3.2834797
+            ],
+            "heading": 0.36062235,
+            "constrain_height": true
+          },
+          {
+            "frame": 78,
+            "position": [
+              4.2808046,
+              0.94,
+              -3.1466892
+            ],
+            "heading": 0.55719024,
+            "constrain_height": true
+          },
+          {
+            "frame": 87,
+            "position": [
+              4.3768573,
+              0.94,
+              -3.020572
+            ],
+            "heading": 0.72128445,
+            "constrain_height": true
+          },
+          {
+            "frame": 119,
+            "position": [
+              4.7861896,
+              0.94,
+              -2.571959
+            ],
+            "heading": 0.73964554,
+            "constrain_height": true
+          }
+        ],
+        "dense_trajectory": true
+      },
+      "support_chair": null,
+      "prompt_recipe": {
+        "version": 3,
+        "family": "locomotion",
+        "gait": "tiptoe",
+        "travel_speed_mps": 0.37775132,
+        "style": null,
+        "arm_style": null,
+        "gaze": null,
+        "actions": [],
+        "navigation": {
+          "kind": "bend",
+          "lateral_fraction": 0.19168895,
+          "return_fraction": 1.0,
+          "corner_radius_m": 0.40790117,
+          "path_length_m": 2.2476203
+        }
+      }
+    }
+  ],
+  "rejected": []
+}

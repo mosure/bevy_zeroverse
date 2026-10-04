@@ -821,6 +821,26 @@ impl IndoorManifest {
 
     /// Check actual rotated prop footprints in the supporting surface's frame.
     pub fn prop_clear(&self, object: &IndoorObject, support: &IndoorObject, margin: f32) -> bool {
+        // Surface containment alone does not protect a tall prop from a sloped
+        // ceiling. Check the complete transformed box, including its top.
+        let (world_lo, world_hi) = object.bounds();
+        if [
+            world_lo.xz(),
+            world_hi.xz(),
+            Vec2::new(world_lo.x, world_hi.z),
+            Vec2::new(world_hi.x, world_lo.z),
+        ]
+        .into_iter()
+        .any(|p| {
+            world_hi.y
+                > if object.neighbor {
+                    self.room_size.y
+                } else {
+                    self.ceiling_height(p)
+                } - 0.08
+        }) {
+            return false;
+        }
         let inverse = support.transform().compute_affine().inverse();
         let local_bounds = |o: &IndoorObject| {
             let centre = inverse.transform_point3(o.position);

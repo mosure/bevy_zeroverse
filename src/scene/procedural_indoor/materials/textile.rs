@@ -1,5 +1,6 @@
 //! A periodic weaving program: individual irregular yarns pass over/under one
 //! another. Dyed yarns, backing, crimp and filaments share the same surface field.
+mod knit;
 use super::{
     hash, periodic_noise,
     program::{MaterialRecipe, Texel},
@@ -25,6 +26,8 @@ pub struct TextileRecipe {
     pub dye_variation: f32,
     pub yarn_tint: [[f32; 3]; 2],
     pub pile: f32,
+    #[serde(default)]
+    pub knit: bool,
 }
 impl TextileRecipe {
     pub fn sample(seed: u64) -> Self {
@@ -50,6 +53,7 @@ impl TextileRecipe {
             dye_variation: rng.random_range(0.02..0.22),
             yarn_tint: [0, 1].map(|_| [0, 1, 2].map(|_| rng.random_range(0.88..1.0))),
             pile: 0.,
+            knit: false,
         }
     }
     pub fn validate(&self) -> Result<(), String> {
@@ -102,6 +106,9 @@ impl TextileRecipe {
     }
     pub(super) fn evaluate(&self, r: &MaterialRecipe, uv: [f32; 2]) -> Texel {
         let [u, v] = uv;
+        if self.knit {
+            return knit::texel(self, r, u, v);
+        }
         let n = self.yarns.map(|n| n as f32);
         let x = u * n[0];
         let y = v * n[1];

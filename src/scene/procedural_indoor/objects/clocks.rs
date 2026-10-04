@@ -29,6 +29,10 @@ pub fn hand_angles(seconds: u32) -> [f32; 3] {
         TAU * (t % 60.) / 60.,
     ]
 }
+pub(crate) fn case_depth(o: &IndoorObject) -> f32 {
+    // Reserve the dial, stacked hands and spindle in the total depth.
+    (o.size.z - 0.022).max(o.size.z * 0.3)
+}
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     let p = parameters(o);
     let s = o.size;
@@ -41,7 +45,8 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
         Surface::Plastic,
     ][(o.seed % 4) as usize];
     let tf = Transform::from_xyz(0., s.y * 0.5, 0.).with_rotation(Quat::from_rotation_x(FRAC_PI_2));
-    let front = s.z * 0.40;
+    let depth = case_depth(o);
+    let front = depth * 0.5;
     let dial = if p.dark_dial {
         Surface::Plastic
     } else {
@@ -57,7 +62,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
             casing,
             label,
             Vec3::Y * s.y * 0.5,
-            Vec3::new(s.x, s.y, s.z * 0.8),
+            Vec3::new(s.x, s.y, depth),
             s.z * 0.2,
         );
         a.box_part(
@@ -72,7 +77,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
             0.,
         );
     } else {
-        a.part(casing, label).cylinder(r, s.z * 0.8, tf);
+        a.part(casing, label).cylinder(r, depth, tf);
         a.part(dial, label).cylinder(
             r * (1. - p.bezel_fraction),
             0.001,

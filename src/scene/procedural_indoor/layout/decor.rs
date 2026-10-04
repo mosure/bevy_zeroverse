@@ -64,6 +64,31 @@ impl IndoorManifest {
             && !facade::overlaps_opening(self, lo, hi, 0.05)
     }
 
+    /// Same mounted-wall contract for generation and archived-manifest audits.
+    pub(crate) fn wall_attachment_clear(&self, obj: &IndoorObject) -> bool {
+        let Some(offset) = super::super::objects::wall::mount_offset(obj) else {
+            return false;
+        };
+        let normal = Quat::from_rotation_y(obj.yaw) * Vec3::Z;
+        let clear = |tf: Transform, span: f32| {
+            let local = tf.rotation.inverse() * (obj.position - tf.translation);
+            normal.dot(tf.rotation * Vec3::Z) > 0.99999
+                && (local.z - offset).abs() < 0.001
+                && self.attachment_clear(tf, span, obj)
+        };
+        if let Some(e) = &self.envelope {
+            e.walls.iter().any(|wall| {
+                let a = e.footprint[wall.edge];
+                let b = e.footprint[(wall.edge + 1) % e.footprint.len()];
+                clear(e.wall_transform(wall.edge), a.distance(b))
+            })
+        } else {
+            FacadeSide::ALL
+                .into_iter()
+                .any(|side| clear(side.transform(self.room_size), side.span(self.room_size)))
+        }
+    }
+
     pub(super) fn wall_hardware(&mut self, rng: &mut ChaCha8Rng) {
         for i in 0..rng.random_range(4..10) {
             let switch = i < 2;
@@ -81,10 +106,12 @@ impl IndoorManifest {
             } else {
                 rng.random_range(0.22..0.38)
             };
-            let position = tf.transform_point(Vec3::new(along * span, height, 0.007));
+            let position = tf.transform_point(Vec3::new(along * span, height, 0.));
             let yaw = tf.rotation.to_euler(EulerRot::YXZ).0;
             let mut obj = self.candidate(kind, position, size, yaw, rng);
             obj.solid = false;
+            obj.position +=
+                tf.rotation * Vec3::Z * super::super::objects::wall::mount_offset(&obj).unwrap();
             // One electrical convention per scene; finishes/gang counts can vary.
             obj.variant = (self.seed % 4) as u32;
             let (lo, hi) = obj.bounds();
@@ -123,7 +150,7 @@ impl IndoorManifest {
                     Vec3::new(
                         rng.random_range(0.7..2.3),
                         rng.random_range(0.65..1.35),
-                        0.05,
+                        rng.random_range(0.12..0.18),
                     ),
                 ),
                 3 => (
@@ -145,9 +172,12 @@ impl IndoorManifest {
             let along = rng
                 .random_range(-span * 0.5 + size.x * 0.5 + 0.35..span * 0.5 - size.x * 0.5 - 0.35);
             let y = rng.random_range(0.95..(h - size.y - 0.3).clamp(0.96, 2.15));
-            let position = tf.transform_point(Vec3::new(along, y, 0.18));
+            let position = tf.transform_point(Vec3::new(along, y, 0.));
             let yaw = tf.rotation.to_euler(EulerRot::YXZ).0;
-            let object = self.candidate(kind, position, size, yaw, rng);
+            let mut object = self.candidate(kind, position, size, yaw, rng);
+            object.solid = false;
+            object.position +=
+                tf.rotation * Vec3::Z * super::super::objects::wall::mount_offset(&object).unwrap();
             let (lo, hi) = object.bounds();
             if !self.attachment_clear(tf, span, &object) {
                 continue;
@@ -163,7 +193,7 @@ impl IndoorManifest {
             {
                 continue;
             }
-            self.fixture(kind, position, size, yaw, rng);
+            self.objects.push(object);
         }
     }
     pub(super) fn scatter_clutter(&mut self, rng: &mut ChaCha8Rng) {

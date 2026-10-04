@@ -79,12 +79,13 @@ impl PoseProgram {
     }
     pub fn solve(&self, stature: f32, build: f32, shoulder_width: f32, seated: bool) -> Vec<Vec3> {
         let s = stature / 1.75;
+        let hip_half_span = 0.092 * build.sqrt() * s;
         let mut pelvis = Vec3::new(self.weight_shift, 0.585, 0.015);
         if !seated {
             let horizontal = [-1.0, 1.0]
                 .into_iter()
                 .map(|side| {
-                    let hip = Vec2::new(self.weight_shift + side * 0.092 * build, 0.015);
+                    let hip = Vec2::new(self.weight_shift + side * hip_half_span, 0.015);
                     let ankle = Vec2::new(
                         side * self.stance * 0.5,
                         side * self.stride * self.phase.sin(),
@@ -126,7 +127,7 @@ impl PoseProgram {
             joints.extend([shoulder, elbow, wrist, hand]);
         }
         for (i, side) in [-1.0, 1.0].into_iter().enumerate() {
-            let hip = pelvis + Vec3::new(side * 0.092 * build, 0.0, 0.0);
+            let hip = pelvis + Vec3::new(side * hip_half_span, 0.0, 0.0);
             let stride = side * self.stride * self.phase.sin();
             let goal = Vec3::new(
                 side * self.stance * 0.5,

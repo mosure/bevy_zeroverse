@@ -45,6 +45,11 @@ pub fn validate_behavior(
 ) -> Result<(), String> {
     let a = clip.frames.first().unwrap().root_translation;
     let b = clip.frames.last().unwrap().root_translation;
+    let excursion = clip
+        .frames
+        .iter()
+        .map(|f| f.root_translation.with_y(0.0).distance(a.with_y(0.0)))
+        .fold(0.0, f32::max);
     match plan.behavior.as_str() {
         "sit" if a.y - b.y < 0.18 => Err("sit prompt did not produce a sitting transition".into()),
         "stand" if b.y - a.y < 0.18 => {
@@ -55,7 +60,7 @@ pub fn validate_behavior(
                 .prompt_recipe
                 .as_ref()
                 .is_some_and(|r| r.gait.is_some()))
-            && a.with_y(0.0).distance(b.with_y(0.0)) < 0.40 =>
+            && excursion < 0.40 =>
         {
             Err("locomotion prompt produced insufficient displacement".into())
         }
@@ -110,6 +115,59 @@ mod tests {
     use super::*;
     use crate::human_motion::{planning, HumanMotionConfig};
     use crate::scene::procedural_indoor::layout::IndoorLayout;
+    #[test]
+    fn return_walk_is_moving_even_when_its_endpoints_coincide() {
+        use burn_human_motion::{MotionClip, PoseFrame, RigDefinition, RigJoint, Waypoint};
+        let config = HumanMotionConfig::default();
+        let plan = MotionPlan {
+            actor_id: 0,
+            behavior: "walk".into(),
+            support_chair: None,
+            prompt_recipe: None,
+            request: config.request(
+                "A person walks and returns.".into(),
+                9,
+                [Vec3::ZERO, Vec3::X, Vec3::ZERO]
+                    .into_iter()
+                    .enumerate()
+                    .map(|(i, p)| Waypoint {
+                        frame: i * 2,
+                        position: p,
+                        heading: None,
+                        constrain_height: true,
+                    })
+                    .collect(),
+            ),
+        };
+        let rig = RigDefinition {
+            id: "one-joint-test".into(),
+            joints: vec![RigJoint {
+                name: "root".into(),
+                parent: None,
+                offset: Vec3::ZERO,
+                bind_rotation: Quat::IDENTITY,
+            }],
+        };
+        let mut clip = MotionClip {
+            schema_version: 1,
+            rig,
+            fps: 20.0,
+            provenance: "test".into(),
+            identity: None,
+            frames: [Vec3::ZERO, Vec3::X, Vec3::ZERO]
+                .map(|p| PoseFrame {
+                    root_translation: p,
+                    local_rotations: vec![Quat::IDENTITY],
+                    foot_contacts: [true; 4],
+                })
+                .to_vec(),
+        };
+        assert!(validate_behavior(&plan, &clip).is_ok());
+        for frame in &mut clip.frames {
+            frame.root_translation = Vec3::ZERO;
+        }
+        assert!(validate_behavior(&plan, &clip).is_err());
+    }
     #[test]
     fn swept_routes_respect_glass_furniture_and_doorway() {
         let scene =
