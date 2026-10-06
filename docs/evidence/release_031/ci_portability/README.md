@@ -1,0 +1,7 @@
+# Release 0.31 arithmetic NaN portability bridge
+
+This packet proves that the only changed compilation/test input after the [immutable runtime qualification](../receipt.json) is src/scene/procedural_indoor/materials/mineral/carry/replay_tests.rs. Its unchanged parent includes the module only under `cfg(test)`. All six package input memberships, every other compilation/test input, manifests, lockfile, local WGPU inputs and build configuration remain exact. Restoring the recorded `ee5084c` test bytes in hashing only reconstructs the old `ab2e322b` capture digest; both capture input counts are 416. No checkout source or old evidence is changed.
+
+The new completed local gates are formatting, the full core library harness with `human_motion`, and strict all-target workspace Clippy. The exceptional arithmetic oracle compares NaN classification per channel and exact bits for every non-NaN result, including signed zero and infinity. The finite oracle remains exact; non-arithmetic construction additionally checks exact NaN payload copying.
+
+The predecessor's eighteen runtime/package gates, 40,000 density scene configurations and 4,096 occupancy configurations are inherited, not newly run. The historical CPU timing packet remains separately bound to its measured source. This packet does not establish new-source render bytes, performance, remote CI, registry upload, canonical publication captures or deployed Pages. Actual release closeout records must verify those independently; the changed capture identity requires the canonical Rust publication refresh.

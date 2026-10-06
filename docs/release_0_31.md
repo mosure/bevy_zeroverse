@@ -45,13 +45,19 @@ exception. Local WGPU patches are excluded from registry packages; published
 packages are separately qualified against registry WGPU. The requested 2× gain,
 unlimited-process stability and downstream training benefit remain unproven.
 
-[Final-source qualification](evidence/release_031/README.md) binds 13 local and
-five registry-only gates to the release source: 40,000 density configurations,
+[Release qualification](evidence/release_031/README.md) binds 13 local and
+five registry-only gates to the frozen optimized source: 40,000 density configurations,
 4,096 full-occupancy configurations, recovered-camera RGB and annotation
 captures, native GPU fixtures, motion-enabled WASM compilation and strict
 Clippy. The normalized core archive passed unit, GPU and Burn temporal tests
 with registry WGPU 29.0.4. These counts are configurations, with seeds repeated
 across density settings; they do not imply 44,096 distinct seeds.
+
+[The portability bridge](evidence/release_031/ci_portability/README.md) records
+the final test-only correction found by macOS CI. Arithmetic replay checks NaN
+classification, while all non-NaN results and bit copies remain exact. The bridge
+proves unchanged production inputs, preserves the earlier runtime qualification,
+and records a fresh 368-test core suite, formatting and strict workspace Clippy.
 
 Crate archives exclude model assets. Occupied scenes require the deployed
 `assets/burn_human` fixture: pass its parent directory with `--asset-root` to
