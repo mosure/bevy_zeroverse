@@ -1,7 +1,7 @@
 # bevy_zeroverse 0.31
 
-Core and FFI **0.31.0**, with Burn wrapper **0.14.0**, release the qualified
-full-quality capture and CPU-preparation optimizations. Capture contract **0.1.1**,
+Core and FFI **0.31.1**, with Burn wrapper **0.14.1**, include a seeded furnishing
+repair on top of the qualified full-quality capture and CPU-preparation optimizations. Capture contract **0.1.1**,
 publication tool **0.1.2** and SigLIP2 **0.1.1** are unchanged. The renderer contract
 is capture-v48; the scene generator remains 29.
 
@@ -74,7 +74,26 @@ realism or ten-million-sample learning utility.
 
 PreparationTimings and AnnotationAlignment gain public diagnostic fields.
 Exhaustive Rust struct literals must initialize them; use Default where available.
-Both wrappers require core 0.31.0. This minor release makes those source-level
+Both wrappers require core 0.31.1. This minor release makes those source-level
 changes explicit. Existing material recipes, camera programs and numeric semantic,
 flow and co-visibility contracts retain their behavior. Capture identities and
 position precision distinguish the new export contract from older captures.
+
+## Patch 0.31.1
+
+Seed `43218880` could exhaust workstation repairs after accepting lounge seating
+from a mixed-activity program, leaving no primary activity surface. A bounded
+sofa-relative coffee-table recovery now completes existing seating groups only
+after ordinary repair exhausts. Floor support, portal, ceiling, pillar and
+collision checks are retained. Ordinary successful scenes and their random
+streams remain unchanged.
+
+Regression coverage includes deterministic replay, real mesh validation, three
+cameras, all twelve combinations of furniture density `0/.35/.65/1` and human
+density `0/.25/1`, and unchanged complete-room recovery. Native qualification
+checks six full-quality 512×512 views across two timesteps, with RGB, depth,
+normal, position, semantic and co-visibility outputs. A 256-seed neighborhood
+audit retains the same placement and camera acceptance thresholds.
+
+[Patch qualification](evidence/release_0311/README.md) binds the seed capture
+and neighborhood measurements to the 0.31.1 generator identity.

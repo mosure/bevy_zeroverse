@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "versions": {
+    "bevy_zeroverse": "0.31.1",
+    "bevy_zeroverse_burn": "0.14.1",
+    "bevy_zeroverse_ffi": "0.31.1"
+  },
+  "generator_identity": {
+    "schema_version": 1,
+    "crate_version": "0.31.1",
+    "generator_version": 29,
+    "source_sha256": "c376440b8b2d89d8cc8ac9eba5c5b85a7a457009a8753326cacfa980404b5eaf"
+  },
+  "seed": 43218880,
+  "failure": "missing primary activity furniture after workstation repair exhaustion",
+  "repair": "bounded sofa-relative coffee table proposals retaining all existing placement gates",
+  "native_capture": {
+    "cameras": 3,
+    "image_dimensions": [
+      512,
+      512
+    ],
+    "timesteps": 2,
+    "views": 6,
+    "quality": "Auto",
+    "gi_rays": 1024,
+    "annotations": [
+      "RGB",
+      "depth",
+      "normal",
+      "position",
+      "semantic",
+      "co_visibility"
+    ],
+    "maximum_reprojection_error_pixels": 0.00056271633
+  },
+  "neighborhood": {
+    "first_seed": 43218752,
+    "seeds": 256,
+    "cameras_per_scene": 3,
+    "actual_geometry_seeds": 16,
+    "invalid_seeds": []
+  },
+  "artifacts": {
+    "capture.json": "2a01fe4bde947b625623b32714e417f87653b86431736b3f123efb478d6ec636",
+    "clippy.log": "930c9522fc6b0063f4f7d0c676ff92557a82bf965defa73e2c81d56f2b0fb05b",
+    "geometry.json": "96fbad4153f4a51f2560b4464f7cf14afc68c1aab17bfffefc2e760617d247ff",
+    "implementation-unit-tests.log": "3727a255545412b24352f2a2f25d3534049466da4ed5b59f394a42061b7b78c5",
+    "neighborhood.json": "389b26be208afe658fdeb1889488f9de51be182eb279b933789fe96488e3e3e2",
+    "regression-tests.log": "3d4ae195d76767c958172a32127be3b2755b696f2a164c1d521399c49d265e96",
+    "wasm.log": "807d940c7443e2451c5f4a15d3c575697206af6f4bdaa8566002ee85e1d7a6a6"
+  },
+  "checks": {
+    "final_version_motion_enabled_regressions": 3,
+    "implementation_motion_enabled_core_suite": {
+      "passed": 371,
+      "ignored": 22,
+      "version_at_execution": "0.31.0",
+      "scope": "same Rust implementation, before only the three workspace package version records and manifests were bumped"
+    },
+    "final_version_strict_workspace_clippy_all_targets_human_motion": "passed",
+    "final_version_wasm_web_human_motion_viewer_compile": "passed",
+    "final_version_fmt": "passed"
+  }
+}

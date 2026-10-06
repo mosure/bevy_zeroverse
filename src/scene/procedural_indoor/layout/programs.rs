@@ -1,5 +1,8 @@
 //! Compose sized furniture groups into the leaves of the spatial program.
 use super::*;
+mod recovery;
+#[cfg(test)]
+mod tests;
 impl IndoorManifest {
     pub(super) fn furnish_program(&mut self, rng: &mut ChaCha8Rng) {
         let zones = self.program.as_ref().unwrap().zones.clone();
@@ -321,6 +324,7 @@ impl IndoorManifest {
                 rng,
             );
         }
+        self.complete_lounge_groups();
     }
 
     /// A workstation is transactional: failed seating must not leave another
