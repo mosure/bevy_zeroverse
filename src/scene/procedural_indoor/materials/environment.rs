@@ -4,6 +4,12 @@
 use super::*;
 use crate::scene::procedural_indoor::{architecture, gi::BakeScene};
 use std::f32::consts::{PI, TAU};
+mod kernel;
+#[cfg(test)]
+mod round4_replay;
+#[cfg(not(target_arch = "wasm32"))]
+mod stencil;
+use kernel::ConvolutionKernel;
 
 const SIZE: u32 = 64;
 const SAMPLES: u32 = 64;
@@ -104,6 +110,7 @@ fn coordinates(d: Vec3, size: u32) -> (u32, Vec2) {
     )
 }
 
+#[cfg(test)]
 fn sample(pixels: &[Vec3], size: u32, d: Vec3) -> Vec3 {
     let (face, p) = coordinates(d, size);
     let lo = p.floor();
@@ -165,18 +172,30 @@ impl RadianceMips {
         }
         Self(levels)
     }
-    fn sample(&self, direction: Vec3, lod: f32) -> Vec3 {
+    fn sample(&self, kernel: &ConvolutionKernel, direction: Vec3, lod: f32) -> Vec3 {
         let lod = lod.clamp(0., (self.0.len() - 1) as f32);
         let i = lod.floor() as usize;
-        let (size, pixels) = &self.0[i];
-        let a = sample(pixels, *size, direction);
-        let (size, pixels) = &self.0[(i + 1).min(self.0.len() - 1)];
-        a.lerp(sample(pixels, *size, direction), lod.fract())
+        let (_, pixels) = &self.0[i];
+        let a = kernel.taps[i].sample(pixels, direction);
+        let j = (i + 1).min(self.0.len() - 1);
+        let (_, pixels) = &self.0[j];
+        a.lerp(kernel.taps[j].sample(pixels, direction), lod.fract())
     }
 }
 fn convolve(pixels: &[Vec3], size: u32) -> [Image; 2] {
+    #[cfg(not(target_arch = "wasm32"))]
+    if size == SIZE {
+        return stencil::convolve(pixels);
+    }
     let source = RadianceMips::new(pixels, size);
-    let texel_angle = 4. * PI / (6 * size * size) as f32;
+    // Only the source radiance changes between rooms. Integer cube-edge taps and
+    // the quadrature coefficients are immutable and preserve the original math.
+    // The production-size kernel has fixed process residency; other sizes are
+    // owned by this call instead of creating an unbounded size-keyed cache.
+    let owned_kernel = (size != SIZE).then(|| ConvolutionKernel::new(size));
+    let kernel = owned_kernel
+        .as_ref()
+        .unwrap_or_else(|| ConvolutionKernel::production());
     let levels = size.ilog2() + 1;
     let mut specular = Vec::new();
     let mut diffuse = Vec::new();
@@ -184,7 +203,6 @@ fn convolve(pixels: &[Vec3], size: u32) -> [Image; 2] {
     for face in 0..6 {
         for level in 0..levels {
             let n = size >> level;
-            let roughness = level as f32 / (levels - 1) as f32;
             for y in 0..n {
                 for x in 0..n {
                     let normal = direction(face, x as f32, y as f32, n);
@@ -194,22 +212,14 @@ fn convolve(pixels: &[Vec3], size: u32) -> [Image; 2] {
                     if level == 0 {
                         value = pixels[(face * size * size + y * size + x) as usize];
                     } else {
-                        let alpha2 = roughness.powi(4);
-                        for i in 0..SAMPLES {
-                            let xi = hammersley(i);
-                            let cos = ((1. - xi.x) / (1. + (alpha2 - 1.) * xi.x)).sqrt();
-                            let sin = (1. - cos * cos).sqrt();
-                            let phi = TAU * xi.y;
-                            let h = t * (sin * phi.cos()) + b * (sin * phi.sin()) + normal * cos;
-                            let l = h * (2. * cos) - normal;
+                        for q in &kernel.specular[level as usize] {
+                            let h = t * q.x + b * q.y + normal * q.z;
+                            let l = h * (2. * q.z) - normal;
                             let w = normal.dot(l).max(0.);
                             // Sample the source footprint implied by the GGX PDF.
                             // Reading only level zero made small HDR emitters turn
                             // into isolated noisy dots in rough reflections.
-                            let denominator = cos * cos * (alpha2 - 1.) + 1.;
-                            let pdf = alpha2 / (4. * PI * denominator * denominator);
-                            let lod = 0.5 * (1. / (SAMPLES as f32 * pdf * texel_angle)).log2();
-                            value += source.sample(l, lod) * w;
+                            value += source.sample(kernel, l, q.lod) * w;
                             weight += w;
                         }
                         value /= weight.max(1e-6);
@@ -223,14 +233,9 @@ fn convolve(pixels: &[Vec3], size: u32) -> [Image; 2] {
                 let n = direction(face, x as f32, y as f32, 16);
                 let (t, b) = basis(n);
                 let mut value = Vec3::ZERO;
-                for i in 0..SAMPLES {
-                    let xi = hammersley(i);
-                    let r = xi.x.sqrt();
-                    let phi = TAU * xi.y;
-                    let l = t * (r * phi.cos()) + b * (r * phi.sin()) + n * (1. - xi.x).sqrt();
-                    let pdf = (1. - xi.x).sqrt() / PI;
-                    let lod = 0.5 * (1. / (SAMPLES as f32 * pdf * texel_angle)).log2();
-                    value += source.sample(l, lod);
+                for q in &kernel.diffuse {
+                    let l = t * q.x + b * q.y + n * q.z;
+                    value += source.sample(kernel, l, q.lod);
                 }
                 encode(&mut diffuse, value / SAMPLES as f32);
             }
@@ -310,3 +315,6 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+mod replay_tests;

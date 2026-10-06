@@ -8,6 +8,8 @@ use super::{
 use crate::scene::procedural_indoor::layout::stream;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+mod prepared;
+pub(super) use prepared::PreparedPaint;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PaintApplication {
@@ -65,49 +67,12 @@ impl PaintApplication {
         Ok(())
     }
     pub(super) fn evaluate(&self, c: &CoatingRecipe, r: &MaterialRecipe, uv: [f32; 2]) -> Texel {
-        let [u, v] = uv;
-        let spray_n = frequency(r.period_m, self.spray_spacing_m);
-        let spray = cellular(uv, [spray_n, spray_n], r.seed.wrapping_add(503));
-        let aa = spray_n as f32 / r.map_size(0) as f32;
-        let splat = disk(spray.radius, 0.20 + spray.dye * 0.28, aa);
-        // Rounded droplets become broad, flattened islands when knocked down.
-        let plateau = smooth(splat * 1.4).min(1. - c.knockdown * 0.55);
-        let roller_n = frequency(r.period_m, self.roller_spacing_m);
-        let roller = periodic_noise(
-            u,
-            v,
-            roller_n,
-            (roller_n as f32 / self.roller_stretch).round().max(1.) as u32,
-            r.seed.wrapping_add(509),
-        ) - 0.5;
-        let fine_n = frequency(r.period_m, self.orange_peel_m);
-        let film = periodic_noise(u, v, fine_n, fine_n, r.seed.wrapping_add(521)) - 0.5;
-        let brush_n = frequency(r.period_m, self.brush_spacing_m);
-        let brush = periodic_noise(u, v, brush_n, 5, r.seed.wrapping_add(523)) - 0.5;
-        // Unresolved brush strokes contribute scattering, not aliasing relief.
-        let resolved_brush = (r.map_size(0) as f32 / brush_n as f32 * 0.30).min(1.);
-        let trowel_n = frequency(r.period_m, self.trowel_scale_m);
-        let passes = deposit(uv, [trowel_n, trowel_n], 0.12, r.seed.wrapping_add(541));
-        let lap = smooth((passes - 0.35) * 1.5);
-        let repair = smooth((passes - 0.65) * 6.) * self.repair_mix;
-        let holes = disk(spray.radius, 0.08, aa) * smooth((c.pinholes - spray.dye) * 10.);
-        let texture = (plateau - 0.28) * c.texture_mix * (1. - repair);
-        Texel {
-            color: tint(
-                r.color,
-                1. + (passes - 0.5) * c.pigment_variation - holes * 0.035,
-            ),
-            height: r.relief_m * (texture * 0.80 + (lap - 0.5) * c.trowel * 0.22 - holes * 0.40)
-                + 0.000025 * (roller * c.roller + film * self.orange_peel)
-                + 0.000016 * brush * self.brush * resolved_brush,
-            roughness: (r.roughness
-                + film * 0.025
-                + roller * c.roller * 0.035
-                + (lap - 0.5) * self.lap_variation
-                + holes * 0.04
-                - repair * c.gloss * 0.10)
-                .clamp(0.16, 0.99),
-            occlusion: (1. - holes * 0.025).max(0.97),
-        }
+        self.prepare(r).evaluate(self, c, r, uv)
+    }
+    pub(super) fn prepare(&self, r: &MaterialRecipe) -> PreparedPaint {
+        PreparedPaint::new(self, r)
     }
 }
+
+#[cfg(test)]
+mod replay_tests;

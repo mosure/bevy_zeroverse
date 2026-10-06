@@ -98,6 +98,51 @@ pub struct GpuBakeRequest {
     pub readiness: GiGpuReadiness,
 }
 
+impl Input {
+    fn buffers(&self) -> [&[u8]; 7] {
+        [
+            bytemuck::bytes_of(&self.params),
+            bytemuck::cast_slice(&self.triangles),
+            bytemuck::cast_slice(&self.nodes),
+            bytemuck::cast_slice(&self.materials),
+            bytemuck::cast_slice(&self.texels),
+            bytemuck::cast_slice(&self.lights),
+            bytemuck::cast_slice(&self.origins),
+        ]
+    }
+}
+
+impl GpuBakeRequest {
+    pub(crate) fn gpu_buffer_bytes(&self) -> u64 {
+        self.input
+            .buffers()
+            .iter()
+            .map(|b| b.len().max(16) as u64)
+            .sum()
+    }
+
+    pub(crate) fn probe_texture_bytes(&self) -> u64 {
+        u64::from(self.input.params.resolution[3]) * 48
+    }
+}
+
+#[cfg(test)]
+pub(crate) fn test_request(image: Handle<Image>) -> GpuBakeRequest {
+    GpuBakeRequest {
+        image,
+        input: Arc::new(Input {
+            params: bytemuck::Zeroable::zeroed(),
+            triangles: Vec::new(),
+            nodes: Vec::new(),
+            materials: Vec::new(),
+            texels: Vec::new(),
+            lights: Vec::new(),
+            origins: Vec::new(),
+        }),
+        readiness: default(),
+    }
+}
+
 pub fn prepare(
     scene: &BakeScene,
     settings: BakeSettings,
@@ -153,11 +198,13 @@ pub fn prepare(
             points[index].extend(index as f32).to_array()
         })
         .collect();
-    // Solid classification above and the independent CPU oracle retain their
-    // original traversal order. Only GPU transport gets the tighter spatial tree.
-    let mut transport_triangles = scene.triangles.clone();
-    let transport_nodes = super::bvh::build(&mut transport_triangles);
-    let triangles = transport_triangles
+    // Closest hits, solid classification and the independent CPU oracle retain
+    // their original traversal order. Boolean shadows and GPU transport share
+    // the same tighter spatial tree without exposing its reordered indices.
+    let cached_transport = scene.transport_tree.get().is_some();
+    let transport = scene.gpu_transport();
+    let triangles = transport
+        .triangles
         .iter()
         .map(|t| GpuTriangle {
             a: t.a.extend(0.0).to_array(),
@@ -168,7 +215,8 @@ pub fn prepare(
             normal: t.normal.extend(0.0).to_array(),
         })
         .collect();
-    let nodes: Vec<_> = transport_nodes
+    let nodes: Vec<_> = transport
+        .nodes
         .iter()
         .map(|n| GpuNode {
             lo: n.lo.extend(0.0).to_array(),
@@ -181,8 +229,6 @@ pub fn prepare(
             ],
         })
         .collect();
-    drop(transport_triangles);
-    drop(transport_nodes);
     let mut texels = Vec::new();
     let materials = scene
         .materials
@@ -238,7 +284,13 @@ pub fn prepare(
         primary_rays: count as u64 * settings.rays_per_probe as u64,
         diffuse_bounces: settings.diffuse_bounces,
         texture_bytes: count * 48,
-        preparation_ms: scene.preparation_ms + started.elapsed().as_secs_f64() * 1000.0,
+        preparation_ms: scene.preparation_ms
+            + started.elapsed().as_secs_f64() * 1000.0
+            + if cached_transport {
+                transport.preparation_ms
+            } else {
+                0.0
+            },
         // GPU execution is asynchronous. Zero is not a timing measurement;
         // execution timings come from the explicit GPU validation experiment.
         bake_ms: None,
@@ -288,7 +340,10 @@ impl Plugin for GpuGiPlugin {
         let Some(render) = app.get_sub_app_mut(RenderApp) else {
             return;
         };
-        render.init_resource::<Prepared>();
+        render
+            .init_resource::<Prepared>()
+            .init_resource::<FutureRequest>()
+            .init_resource::<FuturePrepared>();
         render.add_systems(ExtractSchedule, extract);
         render.add_systems(Render, upload.in_set(RenderSystems::PrepareResources));
         render.init_gpu_resource::<Pipeline>();
@@ -301,7 +356,12 @@ impl Plugin for GpuGiPlugin {
     }
 }
 
-fn extract(mut commands: Commands, request: Extract<Option<Res<GpuBakeRequest>>>) {
+fn extract(
+    mut commands: Commands,
+    request: Extract<Option<Res<GpuBakeRequest>>>,
+    future: Extract<Res<super::super::preparation::residency::FutureAssets>>,
+    mut next: ResMut<FutureRequest>,
+) {
     if let Some(request) = request.as_ref() {
         if request.is_changed() {
             commands.insert_resource((**request).clone());
@@ -309,7 +369,22 @@ fn extract(mut commands: Commands, request: Extract<Option<Res<GpuBakeRequest>>>
     } else {
         commands.remove_resource::<GpuBakeRequest>();
     }
+    let requests: Vec<_> = future.gpu_requests().collect();
+    if !next
+        .0
+        .iter()
+        .map(|r| (&r.key, r.request.image.id()))
+        .eq(requests.iter().map(|r| (&r.key, r.request.image.id())))
+    {
+        next.0 = requests.into_iter().cloned().collect();
+    }
 }
+
+#[derive(Resource, Default)]
+struct FutureRequest(Vec<super::super::preparation::residency::FutureGi>);
+
+#[derive(Resource, Default)]
+struct FuturePrepared([Prepared; 2]);
 
 #[derive(Resource)]
 struct Pipeline {
@@ -375,6 +450,14 @@ struct Prepared {
     _buffers: Vec<Buffer>,
 }
 
+fn take_prepared(slots: &mut [Prepared], image: AssetId<Image>) -> Option<Prepared> {
+    slots
+        .iter_mut()
+        .find(|slot| slot.image == Some(image))
+        .map(std::mem::take)
+}
+
+#[allow(clippy::too_many_arguments)]
 fn upload(
     request: Option<Res<GpuBakeRequest>>,
     pipeline: Res<Pipeline>,
@@ -383,14 +466,66 @@ fn upload(
     queue: Res<RenderQueue>,
     images: Res<RenderAssets<GpuImage>>,
     mut prepared: ResMut<Prepared>,
+    future: (Res<FutureRequest>, ResMut<FuturePrepared>),
 ) {
-    let Some(request) = request else {
-        *prepared = default();
-        return;
-    };
+    let (next, mut next_prepared) = future;
     let failure = pipeline_failure(cache.get_compute_pipeline_state(pipeline.pipeline));
-    *request.readiness.0.failure.lock().unwrap() = failure.clone();
+    if let Some(request) = request.as_deref() {
+        // Promotion reuses independently uploaded bindings, including when the
+        // future dispatch has not yet encoded. Never overwrite its probe data.
+        if prepared.image != Some(request.image.id()) {
+            if let Some(slot) = take_prepared(&mut next_prepared.0, request.image.id()) {
+                *prepared = slot;
+            }
+        }
+        upload_request(
+            request,
+            &pipeline,
+            failure.as_deref(),
+            &device,
+            &queue,
+            &images,
+            &mut prepared,
+        );
+    } else {
+        *prepared = default();
+    }
+    // Slot positions change as the contiguous queue promotes its first room.
+    // Transfer by immutable probe identity before retiring unused bindings.
+    let mut previous = std::mem::take(&mut next_prepared.0);
+    for (next, slot) in next.0.iter().zip(&mut next_prepared.0) {
+        if let Some(old) = take_prepared(&mut previous, next.request.image.id()) {
+            *slot = old;
+        }
+        upload_request(
+            &next.request,
+            &pipeline,
+            failure.as_deref(),
+            &device,
+            &queue,
+            &images,
+            slot,
+        );
+    }
+}
+
+fn upload_request(
+    request: &GpuBakeRequest,
+    pipeline: &Pipeline,
+    failure: Option<&str>,
+    device: &RenderDevice,
+    queue: &RenderQueue,
+    images: &RenderAssets<GpuImage>,
+    prepared: &mut Prepared,
+) {
+    *request.readiness.0.failure.lock().unwrap() = failure.map(str::to_owned);
     if failure.is_some() {
+        return;
+    }
+    if request.readiness.ready() {
+        // Encoding holds GPU resource references until submission/completion;
+        // completed one-shot input buffers need no room-lifetime residency.
+        *prepared = default();
         return;
     }
     if prepared.image == Some(request.image.id()) {
@@ -399,23 +534,14 @@ fn upload(
     let Some(image) = images.get(&request.image) else {
         return;
     };
-    let input = &request.input;
-    let bytes: [&[u8]; 7] = [
-        bytemuck::bytes_of(&input.params),
-        bytemuck::cast_slice(&input.triangles),
-        bytemuck::cast_slice(&input.nodes),
-        bytemuck::cast_slice(&input.materials),
-        bytemuck::cast_slice(&input.texels),
-        bytemuck::cast_slice(&input.lights),
-        bytemuck::cast_slice(&input.origins),
-    ];
+    let bytes = request.input.buffers();
     let buffers: Vec<_> = bytes
         .iter()
         .enumerate()
         .map(|(i, data)| {
             crate::render::upload_buffer(
-                &device,
-                &queue,
+                device,
+                queue,
                 &BufferInitDescriptor {
                     label: Some("indoor_gi_transport"),
                     contents: if data.is_empty() { &[0; 16] } else { data },
@@ -459,27 +585,66 @@ fn pipeline_failure(state: &CachedPipelineState) -> Option<String> {
 }
 
 fn bake_gpu(world: &World, mut context: RenderContext) {
-    let Some(request) = world.get_resource::<GpuBakeRequest>() else {
+    let pipeline = world.resource::<Pipeline>();
+    let cache = world.resource::<PipelineCache>();
+    let Some(pipeline) = cache.get_compute_pipeline(pipeline.pipeline) else {
         return;
     };
+    if let Some(request) = world.get_resource::<GpuBakeRequest>() {
+        encode_request(
+            request,
+            world.resource::<Prepared>(),
+            pipeline,
+            &mut context,
+            "indoor_diffuse_bake",
+        );
+        // An unfinished current request always has priority over speculation.
+        if !request.readiness.ready() {
+            return;
+        }
+    }
+    // Independent seed-ordered dispatches preserve each room's original shader,
+    // group IDs, random state and reduction order. There is no cross-room sum.
+    for (index, (next, prepared)) in world
+        .resource::<FutureRequest>()
+        .0
+        .iter()
+        .zip(&world.resource::<FuturePrepared>().0)
+        .enumerate()
+    {
+        encode_request(
+            &next.request,
+            prepared,
+            pipeline,
+            &mut context,
+            if index == 0 {
+                "indoor_diffuse_bake_future"
+            } else {
+                "indoor_diffuse_bake_future_second"
+            },
+        );
+    }
+}
+
+fn encode_request(
+    request: &GpuBakeRequest,
+    prepared: &Prepared,
+    pipeline: &ComputePipeline,
+    context: &mut RenderContext,
+    diagnostic_label: &'static str,
+) {
     if request.readiness.ready() {
         return;
     }
-    let prepared = world.resource::<Prepared>();
     if prepared.image != Some(request.image.id()) {
         return;
     }
     let Some(bind_group) = &prepared.bind_group else {
         return;
     };
-    let pipeline = world.resource::<Pipeline>();
-    let cache = world.resource::<PipelineCache>();
-    let Some(pipeline) = cache.get_compute_pipeline(pipeline.pipeline) else {
-        return;
-    };
     let diagnostics = context.diagnostic_recorder();
     let diagnostics = diagnostics.as_deref();
-    let span = diagnostics.time_span(context.command_encoder(), "indoor_diffuse_bake");
+    let span = diagnostics.time_span(context.command_encoder(), diagnostic_label);
     {
         let mut pass = context
             .command_encoder()
@@ -498,6 +663,59 @@ fn bake_gpu(world: &World, mut context: RenderContext) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn each_future_binding_promotes_by_reserved_image_identity_exactly_once() {
+        let mut images = Assets::<Image>::default();
+        let first = images.add(Image::default());
+        let second = images.add(Image::default());
+        let unrelated = images.add(Image::default());
+        let mut slots = [
+            Prepared {
+                image: Some(first.id()),
+                ..default()
+            },
+            Prepared {
+                image: Some(second.id()),
+                ..default()
+            },
+        ];
+        assert!(take_prepared(&mut slots, unrelated.id()).is_none());
+        let current = take_prepared(&mut slots, first.id()).unwrap();
+        assert_eq!(current.image, Some(first.id()));
+        assert!(slots[0].image.is_none());
+        assert_eq!(slots[1].image, Some(second.id()));
+        // A second-slot room becomes first without allocation or overwriting
+        // its independently prepared bindings. Asset generations are retained.
+        let mut next = [Prepared::default(), Prepared::default()];
+        next[0] = take_prepared(&mut slots, second.id()).unwrap();
+        assert_eq!(next[0].image, Some(second.id()));
+        assert!(slots.iter().all(|slot| slot.image.is_none()));
+        assert!(take_prepared(&mut next, first.id()).is_none());
+        assert_eq!(
+            take_prepared(&mut next, second.id()).unwrap().image,
+            Some(second.id())
+        );
+        assert!(take_prepared(&mut next, second.id()).is_none());
+    }
+
+    #[test]
+    fn promotion_shares_encoded_future_status_without_releasing_current() {
+        let mut images = Assets::<Image>::default();
+        let current = test_request(images.add(Image::default()));
+        let future = test_request(images.add(Image::default()));
+        let promoted = future.clone();
+        future.readiness.0.encoded.store(true, Ordering::Release);
+        assert!(promoted.readiness.ready());
+        assert!(!current.readiness.ready());
+        assert_ne!(current.image.id(), promoted.image.id());
+        assert!(Arc::ptr_eq(&future.input, &promoted.input));
+        assert!(Arc::ptr_eq(&future.readiness.0, &promoted.readiness.0));
+        // Empty storage inputs still allocate sixteen-byte shader bindings.
+        assert_eq!(
+            future.gpu_buffer_bytes(),
+            std::mem::size_of::<Params>() as u64 + 6 * 16
+        );
+    }
     #[test]
     fn accelerated_transport_preserves_probe_placement_at_touching_room_surfaces() {
         let scene = IndoorManifest::generate_with_humans(

@@ -202,6 +202,19 @@ struct PendingIndoor {
     )>,
 }
 
+#[derive(bevy::ecs::system::SystemParam)]
+struct SpeculativePreparation<'w, 's> {
+    future_assets: ResMut<'w, preparation::residency::FutureAssets>,
+    capture: Option<Res<'w, crate::sample::CaptureProgress>>,
+    sampler: Option<Res<'w, crate::sample::SamplerState>>,
+    copiers: Query<
+        'w,
+        's,
+        &'static crate::io::image_copy::ImageCopier,
+        With<crate::camera::ZeroverseCamera>,
+    >,
+}
+
 #[allow(clippy::too_many_arguments)]
 fn regenerate(
     mut commands: Commands,
@@ -219,12 +232,19 @@ fn regenerate(
     mut pending: Local<PendingIndoor>,
     mut generation: ResMut<IndoorGenerationStatus>,
     mut prefetch: ResMut<preparation::IndoorPrefetch>,
-    speculative: (
-        ResMut<preparation::residency::FutureAssets>,
-        Option<Res<crate::sample::CaptureProgress>>,
-    ),
+    speculative: SpeculativePreparation,
 ) {
-    let (mut future_assets, capture) = speculative;
+    let SpeculativePreparation {
+        mut future_assets,
+        capture,
+        sampler,
+        copiers,
+    } = speculative;
+    #[cfg(not(target_arch = "wasm32"))]
+    let current_indoor = settings.scene_type == ZeroverseSceneType::ProceduralIndoor
+        && args.scene_type == ZeroverseSceneType::ProceduralIndoor;
+    #[cfg(target_arch = "wasm32")]
+    let _ = (&sampler, &copiers);
     if settings.scene_type != ZeroverseSceneType::ProceduralIndoor
         && (!events.is_empty() || !pending.requested)
     {
@@ -242,6 +262,8 @@ fn regenerate(
         return;
     }
     if !events.is_empty() {
+        #[cfg(not(target_arch = "wasm32"))]
+        future_assets.cancel_gi();
         events.clear();
         pending.settings = Some((args.clone(), settings.clone(), *gi_settings));
         pending.task = None;
@@ -249,9 +271,24 @@ fn regenerate(
         generation.pending = true;
     }
     if !pending.requested {
-        // Sequential native capture automatically overlaps one future room's
-        // upload with current rendering/readback. Browsers retain cooperative
-        // CPU preparation and their existing upload policy.
+        #[cfg(not(target_arch = "wasm32"))]
+        if prefetch.depth == 0
+            || !current_indoor
+            || !args.headless
+            || args.editor
+            || sampler.as_ref().is_none_or(|state| !state.enabled)
+            || args.indoor_seed != sequence.configured_seed
+            || pending
+                .key
+                .as_ref()
+                .is_none_or(|key| !key.matches_config(&args, &settings, *gi_settings))
+        {
+            future_assets.cancel_gi();
+            return;
+        }
+        // Sequential native capture overlaps one future room's complete upload
+        // and one further ready room's GI-only inputs with current readback.
+        // Browsers retain cooperative CPU preparation and their upload policy.
         if !cfg!(target_arch = "wasm32")
             && args.headless
             && !args.editor
@@ -260,9 +297,31 @@ fn regenerate(
                 .as_ref()
                 .is_some_and(|capture| capture.readback_in_flight())
         {
-            if let Some(job) = pending.prefetched.front_mut() {
-                prefetch.staged_rooms +=
-                    u64::from(future_assets.stage(job, &mut images, &mut materials, &mut meshes));
+            if let Some(key) = pending.key.as_ref().map(|key| key.successor()) {
+                #[cfg(not(target_arch = "wasm32"))]
+                let copies_submitted = capture.as_ref().is_some_and(|capture| {
+                    capture.copies_submitted(
+                        copiers.iter().map(|c| (c.requested_id(), c.submitted_id())),
+                    )
+                });
+                #[cfg(target_arch = "wasm32")]
+                let copies_submitted = false;
+                if let Some(job) = pending.prefetched.front_mut() {
+                    prefetch.staged_rooms += u64::from(future_assets.stage(
+                        job,
+                        &key,
+                        copies_submitted,
+                        &mut images,
+                        &mut materials,
+                        &mut meshes,
+                    ));
+                }
+                #[cfg(not(target_arch = "wasm32"))]
+                if let Some((second_key, job)) = pending.prefetched.second_mut() {
+                    if *second_key == key.successor() {
+                        future_assets.stage_second(job, second_key, copies_submitted, &mut images);
+                    }
+                }
             }
         }
         return;
@@ -289,19 +348,39 @@ fn regenerate(
     if pending.task.is_none() {
         // From this point the requested room must satisfy the ordinary complete
         // asset barrier, whether it came from lookahead or fresh construction.
-        future_assets.clear();
         let (task, discarded) = pending.prefetched.take(&key);
         prefetch.discarded += discarded as u64;
         if let Some(mut task) = task {
+            future_assets.promote(&key);
             prefetch.ready_hits += u64::from(task.is_ready());
             prefetch.staged_hits += u64::from(task.prepared().is_some_and(|p| p.assets_staged()));
             pending.task = Some(task);
             prefetch.hits += 1;
         } else {
+            future_assets.clear();
             pending.task = Some(key.spawn(&images, &materials, &meshes));
         }
     }
-    let Some(result) = pending.task.as_mut().unwrap().take_ready() else {
+    #[cfg(not(target_arch = "wasm32"))]
+    let policy = preparation::wait::WaitPolicy {
+        // Single-threaded native task pools must yield to the main executor.
+        threaded: cfg!(feature = "multi_threaded"),
+        headless: args.headless,
+        image_copiers: args.image_copiers,
+        editor: args.editor,
+        sampler_enabled: sampler.as_ref().is_some_and(|state| state.enabled),
+        current_indoor,
+        request_matches: pending.key.as_ref() == Some(&key),
+        readback_in_flight: capture
+            .as_ref()
+            .is_some_and(|capture| capture.readback_in_flight()),
+    };
+    let job = pending.task.as_mut().unwrap();
+    #[cfg(not(target_arch = "wasm32"))]
+    let result = preparation::wait::poll_current(policy, || job.take_ready());
+    #[cfg(target_arch = "wasm32")]
+    let result = job.take_ready();
+    let Some(result) = result else {
         return;
     };
     pending.task = None;
@@ -411,8 +490,9 @@ fn regenerate(
     commands.insert_resource(prepared.manifest);
     loaded.write(SceneLoadedEvent);
     // Only explicit sequential capture asks for lookahead. Construction owns
-    // CPU assets; the next room may upload immutable assets early. GI dispatch,
-    // motion inference and ECS installation still wait for an actual request.
+    // CPU assets; the next room may upload immutable assets and two consecutive
+    // ready rooms may bake static GI after current capture copies submit. Motion
+    // and ECS installation still wait for an actual request.
     let depth = if args.headless && !args.editor {
         prefetch.depth
     } else {

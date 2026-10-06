@@ -55,6 +55,30 @@ pub(super) fn maps(
         if kind == 0 {
             return cloth.clone();
         }
+        // Finite differences previously re-evaluated this same field five or
+        // six times per texel. A one-pixel halo retains the exact x/256 and
+        // y/256 inputs, including -1 and 256; wrapping indices instead would
+        // subtly change rounding inside the warped hair field at atlas seams.
+        let field = |u, v| {
+            if kind == 1 {
+                periodic_noise(u, v, 47, 53, seed.wrapping_add(919))
+            } else {
+                let warp = periodic_noise(u, v, 7, 5, seed.wrapping_add(729));
+                0.65 * periodic_noise(
+                    u + (warp - 0.5) * 0.035,
+                    v,
+                    strand,
+                    5,
+                    seed.wrapping_add(813),
+                ) + 0.35 * periodic_noise(u, v, strand * 2 + 1, 11, seed.wrapping_add(1183))
+            }
+        };
+        let mut halo = Vec::with_capacity(258 * 258);
+        for y in -1..=256 {
+            for x in -1..=256 {
+                halo.push(field(x as f32 / 256.0, y as f32 / 256.0));
+            }
+        }
         let mut albedo = Vec::with_capacity(256 * 256 * 4);
         let mut normal = Vec::with_capacity(256 * 256 * 4);
         let mut packed = Vec::with_capacity(256 * 256 * 4);
@@ -62,36 +86,27 @@ pub(super) fn maps(
             for x in 0..256 {
                 let u = x as f32 / 256.0;
                 let v = y as f32 / 256.0;
+                let center = (y + 1) * 258 + x + 1;
+                let f = halo[center];
+                let dx = halo[center + 1] - halo[center - 1];
+                let dy = halo[center + 258] - halo[center - 258];
                 let (shade, nx, ny, roughness) = match kind {
                     1 => {
                         // Irregular pores, not a regular embossed grid. Derive
                         // relief from the same field used by pigmentation.
-                        let pore = |u, v| periodic_noise(u, v, 47, 53, seed.wrapping_add(919));
                         (
-                            0.985 + 0.012 * (pore(u, v) - 0.5),
-                            (pore(u + 1.0 / 256.0, v) - pore(u - 1.0 / 256.0, v)) * 0.14,
-                            (pore(u, v + 1.0 / 256.0) - pore(u, v - 1.0 / 256.0)) * 0.14,
-                            0.90 + pore(u, v) * 0.10,
+                            0.985 + 0.012 * (f - 0.5),
+                            dx * 0.14,
+                            dy * 0.14,
+                            0.90 + f * 0.10,
                         )
                     }
                     _ => {
-                        let fibre = |u, v| {
-                            let warp = periodic_noise(u, v, 7, 5, seed.wrapping_add(729));
-                            0.65 * periodic_noise(
-                                u + (warp - 0.5) * 0.035,
-                                v,
-                                strand,
-                                5,
-                                seed.wrapping_add(813),
-                            ) + 0.35
-                                * periodic_noise(u, v, strand * 2 + 1, 11, seed.wrapping_add(1183))
-                        };
-                        let f = fibre(u, v);
                         let tone = periodic_noise(u, v, 5, 9, seed.wrapping_add(1927));
                         (
                             0.94 + 0.18 * (f - 0.5) + 0.12 * (tone - 0.5),
-                            (fibre(u + 1.0 / 256.0, v) - fibre(u - 1.0 / 256.0, v)) * 0.11,
-                            (fibre(u, v + 1.0 / 256.0) - fibre(u, v - 1.0 / 256.0)) * 0.025,
+                            dx * 0.11,
+                            dy * 0.025,
                             0.76 + f * 0.20,
                         )
                     }
@@ -127,3 +142,6 @@ pub(super) fn maps(
         })
     })
 }
+
+#[cfg(test)]
+mod replay_tests;

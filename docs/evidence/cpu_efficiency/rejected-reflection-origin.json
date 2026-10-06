@@ -1,0 +1,86 @@
+{
+  "accepted": false,
+  "reason": "Allocation-inclusive CPU benchmark was slower for both representative room geometries; rejected before renderer acceptance. No fixed-origin optimization remains in production.",
+  "source_archive": [
+    {
+      "source_path": "src/scene/procedural_indoor/gi/bvh.rs",
+      "archived_path": "out/throughput_cpu_round7/rejected_reflection_origin/src/scene/procedural_indoor/gi/bvh.rs",
+      "sha256": "6a25fd4dc8b02a970b666f6be76a8f10cae2ac9ed5ac2c07325fe19fe9b948a5",
+      "bytes": 4964
+    },
+    {
+      "source_path": "src/scene/procedural_indoor/gi/bvh/reflection.rs",
+      "archived_path": "out/throughput_cpu_round7/rejected_reflection_origin/src/scene/procedural_indoor/gi/bvh/reflection.rs",
+      "sha256": "308a40138f1d71cd7a23007da90e3be5a000ca320487a7ecde3aed2667a516c7",
+      "bytes": 6887
+    },
+    {
+      "source_path": "src/scene/procedural_indoor/gi/bvh/reflection/replay.rs",
+      "archived_path": "out/throughput_cpu_round7/rejected_reflection_origin/src/scene/procedural_indoor/gi/bvh/reflection/replay.rs",
+      "sha256": "62e4d5d23025e331dc4a60e67f95cececedae0aebf21b6f4f9b4c9984f715ca6",
+      "bytes": 18680
+    },
+    {
+      "source_path": "src/scene/procedural_indoor/materials/environment.rs",
+      "archived_path": "out/throughput_cpu_round7/rejected_reflection_origin/src/scene/procedural_indoor/materials/environment.rs",
+      "sha256": "825f707156b8249773b966c29f9a2f5f9b991080b2fb26221218f83418560356",
+      "bytes": 12450
+    },
+    {
+      "source_path": "src/scene/procedural_indoor/materials/environment/round7_replay.rs",
+      "archived_path": "out/throughput_cpu_round7/rejected_reflection_origin/src/scene/procedural_indoor/materials/environment/round7_replay.rs",
+      "sha256": "ca8c2b0bc4ded2c6edda37681acaa10a4e75f27ef1f4f74d54ffc41d5f98e171",
+      "bytes": 3463
+    }
+  ],
+  "benchmark_log": {
+    "path": "out/throughput_cpu_round7/fixed_origin_reflection_cpu_benchmark.log",
+    "sha256": "8240281c389015e0651e987aaa172a5182b8d67f9ef200dcf8ba0d5d58c8e4d9"
+  },
+  "benchmark_results": [
+    {
+      "baseline_seconds": 0.0165116265,
+      "cache_budget": 33554432,
+      "cache_bytes": 4668312,
+      "candidate_seconds": 0.0195093375,
+      "nodes": 38343,
+      "rays": 24576,
+      "repeats": 4,
+      "scope": "CPU primary environment rays with direct shadow queries and flat material proxies; cache construction and free included; geometry/material setup, convolution, rendering and uploads excluded",
+      "seed": 200,
+      "speedup": 0.8463448079669543,
+      "triangles": 133860
+    },
+    {
+      "baseline_seconds": 0.050106595500000004,
+      "cache_budget": 33554432,
+      "cache_bytes": 13785676,
+      "candidate_seconds": 0.053435865,
+      "nodes": 131071,
+      "rays": 24576,
+      "repeats": 4,
+      "scope": "CPU primary environment rays with direct shadow queries and flat material proxies; cache construction and free included; geometry/material setup, convolution, rendering and uploads excluded",
+      "seed": 230,
+      "speedup": 0.9376959744171822,
+      "triangles": 379999
+    }
+  ],
+  "restored_sources": [
+    {
+      "path": "src/scene/procedural_indoor/gi/bvh.rs",
+      "sha256": "fba9839a93c73d344219e4d2753161813b9477b3e2bff7a14c79685fad4eb124",
+      "exact_saved_original": true
+    },
+    {
+      "path": "src/scene/procedural_indoor/materials/environment.rs",
+      "sha256": "aa8be0f2ed34e18aadbec0cae5b021893e8b58748e5d655dc051b18df18bec10",
+      "exact_saved_original": true
+    }
+  ],
+  "removed_new_modules": [
+    "src/scene/procedural_indoor/gi/bvh/reflection.rs",
+    "src/scene/procedural_indoor/gi/bvh/reflection/replay.rs",
+    "src/scene/procedural_indoor/materials/environment/round7_replay.rs"
+  ],
+  "scope": "Diagnostic CPU primary environment rays with flat material proxies, direct shadows and cache allocation/free; not end-to-end renderer throughput or GPU utilization."
+}

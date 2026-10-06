@@ -924,7 +924,7 @@ fn people_are_deterministic_diverse_supported_and_inside_collision_envelopes() {
 #[test]
 #[ignore = "bounded 4096-scene full-occupancy geometry qualification"]
 fn broad_full_human_occupancy_preserves_geometry_and_layout() {
-    use super::humans::build_human;
+    use super::humans::{build_human, HumanOutfit};
     use std::collections::{BTreeMap, BTreeSet};
     let mut poses = BTreeSet::new();
     let mut outfits = BTreeSet::new();
@@ -999,9 +999,25 @@ fn broad_full_human_occupancy_preserves_geometry_and_layout() {
         );
     }
     assert_eq!(poses.len(), 8);
-    assert_eq!(outfits.len(), 3);
-    assert_eq!(skin.len(), 8);
-    assert_eq!(hair.len(), 8);
+    assert_eq!(
+        outfits,
+        [
+            HumanOutfit::Shirt,
+            HumanOutfit::Knitwear,
+            HumanOutfit::Blazer,
+            HumanOutfit::Tee,
+            HumanOutfit::Polo,
+            HumanOutfit::Cardigan,
+        ]
+        .map(|outfit| format!("{outfit:?}"))
+        .into_iter()
+        .collect::<BTreeSet<_>>()
+    );
+    assert_eq!(skin, (0..8_u8).collect::<BTreeSet<_>>());
+    assert_eq!(
+        hair,
+        (0..super::humans::hair::HairStyle::ALL.len() as u8).collect::<BTreeSet<_>>()
+    );
     println!(
         "full occupancy geometry: vertices={total_vertices} triangles={total_triangles}; poses={poses:?}, outfits={outfits:?}, skin_tones={skin:?}, hairstyles={hair:?}"
     );

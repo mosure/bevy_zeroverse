@@ -4,6 +4,10 @@ use super::{periodic_noise, Surface};
 use crate::scene::procedural_indoor::layout::stream;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+mod prepared;
+pub(super) use prepared::{PreparedMaterial, PreparedMineral, PreparedWood};
+#[cfg(test)]
+pub(super) mod replay_helpers;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MaterialRecipe {
@@ -728,6 +732,57 @@ impl MaterialRecipe {
         )
     }
     pub(super) fn texel(&self, u: f32, v: f32, floor_style: u32) -> Texel {
+        self.texel_prepared(u, v, floor_style, None)
+    }
+    pub(super) fn prepare_texels(&self, floor_style: u32) -> Option<PreparedMaterial> {
+        if self.leaf.is_some() {
+            return None;
+        }
+        if let Some(c) = &self.coating {
+            // Preserve the existing glaze-before-paint precedence even when an
+            // authored recipe contains both optional application programs.
+            if let Some(g) = &c.glaze {
+                return super::ceramic::PreparedGlaze::new(g, c, self).map(PreparedMaterial::Glaze);
+            }
+            return c
+                .application
+                .as_ref()
+                .map(|a| PreparedMaterial::Paint(a.prepare(self).cache_cells(self.seed)));
+        }
+        if let Some(m) = &self.mineral {
+            if self.surface != Surface::Floor || floor_style == 2 {
+                return Some(PreparedMaterial::Mineral(
+                    PreparedMineral::new(m, self.color).cache_fields(m, self),
+                ));
+            }
+        }
+        if self.surface == Surface::Bark {
+            return None;
+        }
+        if let Some(w) = self
+            .wood
+            .as_ref()
+            .filter(|_| self.surface != Surface::Floor || floor_style == 0)
+        {
+            return Some(PreparedMaterial::Wood(PreparedWood::new(w, self.color)));
+        }
+        if (matches!(self.surface, Surface::Fabric | Surface::FabricAlt)
+            || self.surface == Surface::Floor && floor_style == 1)
+            && self.textile.as_ref().is_none_or(|t| !t.knit)
+        {
+            return Some(PreparedMaterial::Textile(
+                super::textile::PreparedTextile::new(self),
+            ));
+        }
+        None
+    }
+    pub(super) fn texel_prepared(
+        &self,
+        u: f32,
+        v: f32,
+        floor_style: u32,
+        prepared: Option<&PreparedMaterial>,
+    ) -> Texel {
         // Leaf UVs run from petiole to tip. Rotating/phasing a repeating wall
         // texture here would move the midrib away from the geometric fold.
         if let Some(l) = &self.leaf {
@@ -737,11 +792,26 @@ impl MaterialRecipe {
         let u = (u + self.phase[0]).rem_euclid(1.0);
         let v = (v + self.phase[1]).rem_euclid(1.0);
         if let Some(c) = &self.coating {
+            if let Some(g) = &c.glaze {
+                return if let Some(PreparedMaterial::Glaze(p)) = prepared {
+                    p.evaluate(g, c, self, [u, v])
+                } else {
+                    g.evaluate(c, self, [u, v])
+                };
+            }
+            if let (Some(PreparedMaterial::Paint(p)), Some(a)) = (prepared, c.application.as_ref())
+            {
+                return p.evaluate(a, c, self, [u, v]);
+            }
             return c.evaluate(self, [u, v]);
         }
         if let Some(m) = &self.mineral {
             if self.surface != Surface::Floor || floor_style == 2 {
-                return m.evaluate(self, [u, v], floor_style);
+                return if let Some(PreparedMaterial::Mineral(p)) = prepared {
+                    m.evaluate_prepared(self, [u, v], floor_style, Some(p))
+                } else {
+                    m.evaluate(self, [u, v], floor_style)
+                };
             }
         }
         if self.surface == Surface::Bark {
@@ -749,7 +819,11 @@ impl MaterialRecipe {
         }
         if let Some(w) = &self.wood {
             if self.surface != Surface::Floor || floor_style == 0 {
-                let mut t = w.evaluate(self, [u, v]);
+                let mut t = if let Some(PreparedMaterial::Wood(p)) = prepared {
+                    w.evaluate_prepared(self, [u, v], Some(p))
+                } else {
+                    w.evaluate(self, [u, v])
+                };
                 if self.surface == Surface::Floor {
                     self.floor_joints([u, v], &mut t);
                 }
@@ -759,6 +833,9 @@ impl MaterialRecipe {
         if matches!(self.surface, Surface::Fabric | Surface::FabricAlt)
             || self.surface == Surface::Floor && floor_style == 1
         {
+            if let Some(PreparedMaterial::Textile(p)) = prepared {
+                return p.evaluate(self, [u, v]);
+            }
             if let Some(t) = &self.textile {
                 if self.surface != Surface::Floor {
                     return t.evaluate(self, [u, v]);

@@ -86,6 +86,11 @@ fn packed_readback_rows(
     padded_row_bytes: usize,
     rows: usize,
 ) -> Vec<u8> {
+    if row_bytes == padded_row_bytes {
+        // Common native capture widths are already WebGPU aligned. Copy the
+        // requested pixel extent once, without hundreds of tiny row appends.
+        return mapped[..row_bytes * rows].to_vec();
+    }
     let mut packed = Vec::with_capacity(row_bytes * rows);
     for row in 0..rows {
         let offset = row * padded_row_bytes;
@@ -104,10 +109,14 @@ mod readback_tests {
             [1, 2, 3, 4, 5, 6]
         );
         assert_eq!(super::packed_readback_rows(&mapped, 4, 4, 2), mapped);
+        assert_eq!(super::packed_readback_rows(&mapped, 4, 4, 1), mapped[..4]);
+        assert!(super::packed_readback_rows(&mapped, 4, 4, 0).is_empty());
     }
 }
 
 pub mod image_copy {
+    #[cfg(not(target_arch = "wasm32"))]
+    mod staging;
     use bevy::render::diagnostic::RecordDiagnostics;
     use bevy::{
         prelude::*,
@@ -145,16 +154,22 @@ pub mod image_copy {
         requested: AtomicU64,
         busy: AtomicBool,
         submitted: AtomicU64,
+        // Encoded copies alone do not prove map_async callbacks are registered.
+        #[cfg(not(target_arch = "wasm32"))]
+        mapping: AtomicU64,
         completed: Mutex<Option<CapturedImages>>,
         failure: Mutex<Option<String>>,
     }
 
-    /// One bounded staging allocation per attachment. Nothing is copied during warmup
+    /// Bounded staging storage for one view. Native attachments share one mapping
+    /// when the combined buffer fits the device limit. Nothing is copied during warmup
     /// or while the sampler is idle. Mapping never waits for the GPU on the render thread.
     #[derive(Clone, Component)]
     pub struct ImageCopier {
-        sources: Vec<Handle<Image>>,
-        buffers: Vec<Buffer>,
+        // Immutable for this view's lifetime; extraction/recycling clones only
+        // their ownership, while each recycled view receives a fresh epoch.
+        sources: Arc<[Handle<Image>]>,
+        buffers: Arc<[Buffer]>,
         state: Arc<CaptureState>,
         row_bytes: usize,
         padded_row_bytes: usize,
@@ -186,25 +201,46 @@ pub mod image_copy {
                     .expect("copyable capture format") as usize;
             let padded_row_bytes = RenderDevice::align_copy_bytes_per_row(row_bytes);
             let rows = size.height as usize / block.1 as usize;
-            let buffers = sources
-                .iter()
+            let plane_bytes = padded_row_bytes * rows;
+            #[cfg(not(target_arch = "wasm32"))]
+            let shared_bytes = staging::combined_buffer_size(
+                plane_bytes,
+                sources.len(),
+                device.limits().max_buffer_size,
+            );
+            #[cfg(target_arch = "wasm32")]
+            let shared_bytes: Option<usize> = None;
+            let buffer_count = if shared_bytes.is_some() {
+                1
+            } else {
+                sources.len()
+            };
+            let buffers = (0..buffer_count)
                 .map(|_| {
                     device.create_buffer(&BufferDescriptor {
                         label: Some("zeroverse_async_readback"),
-                        size: (padded_row_bytes * rows) as u64,
+                        size: shared_bytes.unwrap_or(plane_bytes) as u64,
                         usage: BufferUsages::MAP_READ | BufferUsages::COPY_DST,
                         mapped_at_creation: false,
                     })
                 })
                 .collect();
             Self {
-                sources,
+                sources: sources.into(),
                 buffers,
                 state: Arc::default(),
                 row_bytes,
                 padded_row_bytes,
                 rows,
             }
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        pub(crate) fn source_ids(&self) -> Vec<AssetId<Image>> {
+            self.sources.iter().map(Handle::id).collect()
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        fn combined_staging(&self) -> bool {
+            self.sources.len() > 1 && self.buffers.len() == 1
         }
         pub fn request(&self, id: u64) {
             assert_ne!(id, 0, "zero is reserved for idle readback");
@@ -224,6 +260,11 @@ pub mod image_copy {
         /// Last request whose copies have been encoded into the render graph.
         pub fn submitted_id(&self) -> u64 {
             self.state.submitted.load(Ordering::Acquire)
+        }
+        /// An exact epoch registered after queue submission and every attachment map.
+        #[cfg(not(target_arch = "wasm32"))]
+        pub(crate) fn mapping_id(&self) -> u64 {
+            self.state.mapping.load(Ordering::Acquire)
         }
         pub fn ready(&self, id: u64) -> bool {
             self.state
@@ -275,8 +316,8 @@ pub mod image_copy {
         #[test]
         fn only_consumed_successful_packets_can_reuse_staging() {
             let copier = ImageCopier {
-                sources: vec![],
-                buffers: vec![],
+                sources: Arc::default(),
+                buffers: Arc::default(),
                 state: Arc::default(),
                 row_bytes: 0,
                 padded_row_bytes: 0,
@@ -293,8 +334,12 @@ pub mod image_copy {
             let fresh = copier.recycled().unwrap();
             assert_eq!(fresh.requested_id(), 0);
             assert_eq!(fresh.submitted_id(), 0);
+            #[cfg(not(target_arch = "wasm32"))]
+            assert_eq!(fresh.mapping_id(), 0);
             assert!(!fresh.ready(17));
             assert!(!Arc::ptr_eq(&fresh.state, &copier.state));
+            assert!(Arc::ptr_eq(&fresh.sources, &copier.sources));
+            assert!(Arc::ptr_eq(&fresh.buffers, &copier.buffers));
             *copier.state.failure.lock().unwrap() = Some("map failed".into());
             assert!(copier.recycled().is_none(), "failed storage");
         }
@@ -305,7 +350,7 @@ pub mod image_copy {
         ground_truth: Option<crate::render::ground_truth::GroundTruthCamera>,
     }
 
-    mod readiness;
+    pub(crate) mod readiness;
     pub use readiness::CapturePipelineReadiness;
 
     // The render graph appends copies to its own encoder. Only map after render_system
@@ -322,6 +367,37 @@ pub mod image_copy {
         copiers: Res<ImageCopiers>,
     ) {
         for job in pending.0.lock().unwrap().drain(..) {
+            #[cfg(not(target_arch = "wasm32"))]
+            if job.copier.combined_staging() {
+                let buffer = job.copier.buffers[0].clone();
+                let callback_buffer = buffer.clone();
+                let state = job.copier.state.clone();
+                let id = job.request_id;
+                let (row, padded, rows, count) = (
+                    job.copier.row_bytes,
+                    job.copier.padded_row_bytes,
+                    job.copier.rows,
+                    job.copier.sources.len(),
+                );
+                buffer.slice(..).map_async(MapMode::Read, move |result| {
+                    if let Err(error) = result {
+                        *state.failure.lock().unwrap() =
+                            Some(format!("capture {id} GPU map failed: {error}"));
+                        return;
+                    }
+                    let view = callback_buffer.slice(..).get_mapped_range();
+                    let planes = staging::packed_planes(&view, row, padded, rows, count);
+                    drop(view);
+                    callback_buffer.unmap();
+                    *state.completed.lock().unwrap() = Some(CapturedImages {
+                        request_id: id,
+                        planes,
+                    });
+                });
+                // All planes share this mapping, registered after submission.
+                job.copier.state.mapping.store(id, Ordering::Release);
+                continue;
+            }
             let count = job.copier.buffers.len();
             let planes = Arc::new(Mutex::new((
                 0usize,
@@ -359,6 +435,14 @@ pub mod image_copy {
                     }
                 });
             }
+            // map_submitted runs after render_system submitted the copy encoder.
+            // Publish only after *all* attachment callbacks have been registered;
+            // native runner polling then needs no extraction/render schedule.
+            #[cfg(not(target_arch = "wasm32"))]
+            job.copier
+                .state
+                .mapping
+                .store(job.request_id, Ordering::Release);
         }
         if let Err(error) = device.poll(PollType::Poll) {
             for extracted in &copiers.0 {
@@ -378,6 +462,7 @@ pub mod image_copy {
             render_app
                 .insert_resource(readiness)
                 .init_resource::<PendingMaps>()
+                .init_resource::<ImageCopiers>()
                 .init_resource::<readiness::ExpectedAssets>();
             render_app.add_systems(Render, readiness::update.in_set(RenderSystems::Cleanup));
             render_app.add_systems(
@@ -420,7 +505,7 @@ pub mod image_copy {
     }
     #[cfg(not(target_arch = "wasm32"))]
     fn image_copy_extract(
-        mut commands: Commands,
+        mut copiers: ResMut<ImageCopiers>,
         cameras: Extract<
             Query<(
                 &ImageCopier,
@@ -428,26 +513,25 @@ pub mod image_copy {
             )>,
         >,
     ) {
-        commands.insert_resource(ImageCopiers(
-            cameras
-                .iter()
-                .map(|(copier, gt)| ExtractedCopier {
-                    copier: copier.clone(),
-                    ground_truth: gt.cloned(),
-                })
-                .collect(),
-        ));
+        copiers.0.clear();
+        copiers
+            .0
+            .extend(cameras.iter().map(|(copier, gt)| ExtractedCopier {
+                copier: copier.clone(),
+                ground_truth: gt.cloned(),
+            }));
     }
     #[cfg(target_arch = "wasm32")]
-    fn image_copy_extract(mut commands: Commands, cameras: Extract<Query<&ImageCopier>>) {
-        commands.insert_resource(ImageCopiers(
-            cameras
-                .iter()
-                .map(|copier| ExtractedCopier {
-                    copier: copier.clone(),
-                })
-                .collect(),
-        ));
+    fn image_copy_extract(
+        mut copiers: ResMut<ImageCopiers>,
+        cameras: Extract<Query<&ImageCopier>>,
+    ) {
+        copiers.0.clear();
+        copiers
+            .0
+            .extend(cameras.iter().map(|copier| ExtractedCopier {
+                copier: copier.clone(),
+            }));
     }
 
     fn copy_images(world: &World, mut context: RenderContext) {
@@ -483,14 +567,25 @@ pub mod image_copy {
                 copy_span =
                     Some(diagnostics.time_span(context.command_encoder(), "dataset_readback_copy"));
             }
-            for (source, buffer) in copier.sources.iter().zip(&copier.buffers) {
+            for (index, source) in copier.sources.iter().enumerate() {
+                #[cfg(not(target_arch = "wasm32"))]
+                let (buffer, offset) = if copier.combined_staging() {
+                    (
+                        &copier.buffers[0],
+                        (index * copier.padded_row_bytes * copier.rows) as u64,
+                    )
+                } else {
+                    (&copier.buffers[index], 0)
+                };
+                #[cfg(target_arch = "wasm32")]
+                let (buffer, offset) = (&copier.buffers[index], 0);
                 let image = images.get(source).unwrap();
                 context.command_encoder().copy_texture_to_buffer(
                     image.texture.as_image_copy(),
                     TexelCopyBufferInfo {
                         buffer,
                         layout: TexelCopyBufferLayout {
-                            offset: 0,
+                            offset,
                             bytes_per_row: Some(copier.padded_row_bytes as u32),
                             rows_per_image: None,
                         },

@@ -10,6 +10,7 @@ use std::{
 
 use bevy::{
     asset::{load_internal_asset, uuid_handle},
+    ecs::change_detection::Tick,
     prelude::*,
     render::{
         render_resource::*,
@@ -188,8 +189,11 @@ impl Triangle {
 pub(crate) fn process_ovoxel_exports(
     mut commands: Commands,
     config: Option<Res<BevyZeroverseConfig>>,
-    render_device: Option<Res<RenderDevice>>,
-    render_queue: Option<Res<RenderQueue>>,
+    gpu: (
+        Option<Res<RenderDevice>>,
+        Option<Res<RenderQueue>>,
+        Local<Option<(Tick, Tick, Arc<GpuContext>)>>,
+    ),
     sampler_state: Option<Res<SamplerState>>,
     startup_delay: Option<Res<StartupDelay>>,
     readiness: Option<Res<CaptureReadiness>>,
@@ -232,8 +236,36 @@ pub(crate) fn process_ovoxel_exports(
         }
     }
 
-    let render_device_owned: Option<RenderDevice> = render_device.map(|r| r.clone());
-    let render_queue_owned: Option<RenderQueue> = render_queue.map(|r| r.clone());
+    let (render_device, render_queue, mut gpu_context) = gpu;
+    // RenderDevice equality and stack addresses are not cross-Instance identities.
+    // Own one cache per App/resource generation, including its matching queue.
+    let gpu_context_owned = if config
+        .as_ref()
+        .is_some_and(|c| c.ovoxel_mode == OvoxelMode::GpuCompute)
+    {
+        match (render_device.as_ref(), render_queue.as_ref()) {
+            (Some(device), Some(queue)) => {
+                let generation = (device.last_changed(), queue.last_changed());
+                if gpu_context
+                    .as_ref()
+                    .is_none_or(|(d, q, _)| (*d, *q) != generation)
+                {
+                    *gpu_context = Some((
+                        generation.0,
+                        generation.1,
+                        Arc::new(GpuContext::new((**device).clone(), (**queue).clone())),
+                    ));
+                }
+                gpu_context.as_ref().map(|(_, _, cache)| cache.clone())
+            }
+            _ => {
+                *gpu_context = None;
+                None
+            }
+        }
+    } else {
+        None
+    };
     for (root, settings, existing_volume, cache, task, failed, region, transform) in roots.iter() {
         if task.is_some() || failed.is_some() {
             continue;
@@ -335,8 +367,7 @@ pub(crate) fn process_ovoxel_exports(
         }
 
         let shader = gpu_shader_source(&shaders);
-        let device = render_device_owned.clone();
-        let queue = render_queue_owned.clone();
+        let gpu_context = gpu_context_owned.clone();
         let preparation_seconds = preparation_started.elapsed().as_secs_f64();
         let task = task_pool.spawn(async move {
             let started = bevy::platform::time::Instant::now();
@@ -344,10 +375,10 @@ pub(crate) fn process_ovoxel_exports(
             let volume = match mode {
                 OvoxelMode::CpuAsync => voxelize_triangles_bounded(&triangles, resolution, aabb, labels, max_output_voxels)?,
                 OvoxelMode::GpuCompute => {
-                    let (Some(device), Some(queue), Some(shader)) = (device, queue, shader) else {
+                    let (Some(gpu_context), Some(shader)) = (gpu_context, shader) else {
                         return Err("GPU O-voxel requires render device, queue and shader".into());
                     };
-                    voxelize_triangles_gpu(&triangles, resolution, aabb, labels, shader, &device, &queue, max_output_voxels, false)
+                    voxelize_triangles_gpu(&triangles, resolution, aabb, labels, shader, &gpu_context, max_output_voxels, false)
                         .ok_or_else(|| "GPU O-voxel failed: capacity exceeded or unsupported device; no partial volume exported".to_string())?
                 }
                 OvoxelMode::Disabled => unreachable!(),
@@ -783,9 +814,21 @@ struct GpuActiveCounter {
     _pad: u32,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+/// A cache-owned identity remains alive in pooled buffers. Unlike a Device
+/// wrapper address or context-local wgpu ID, it cannot alias another renderer.
+#[derive(Clone)]
+struct DeviceKey(Arc<()>);
+
+impl PartialEq for DeviceKey {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+impl Eq for DeviceKey {}
+
+#[derive(Clone, PartialEq, Eq)]
 struct BufferKey {
-    device_id: usize,
+    device_id: DeviceKey,
     tile_count: u64,
     pair_cap: u32,
     max_output: u32,
@@ -818,21 +861,272 @@ struct GpuPipeline {
     voxel_pipeline: wgpu::ComputePipeline,
 }
 
-static GPU_PIPELINE: OnceLock<GpuPipeline> = OnceLock::new();
+pub(crate) struct GpuContext {
+    device: RenderDevice,
+    queue: RenderQueue,
+    key: DeviceKey,
+    pipeline: Mutex<Option<(Arc<str>, Arc<GpuPipeline>)>>,
+}
+
+impl GpuContext {
+    fn new(device: RenderDevice, queue: RenderQueue) -> Self {
+        Self {
+            device,
+            queue,
+            key: DeviceKey(Arc::new(())),
+            pipeline: Mutex::new(None),
+        }
+    }
+
+    fn pipeline(&self, source: Arc<str>) -> Arc<GpuPipeline> {
+        let mut cache = self
+            .pipeline
+            .lock()
+            .expect("ovoxel GPU pipeline cache poisoned");
+        if let Some((cached_source, pipeline)) = cache.as_ref() {
+            if cached_source == &source {
+                return pipeline.clone();
+            }
+        }
+        let pipeline = Arc::new(create_gpu_pipeline(self.device.wgpu_device(), &source));
+        *cache = Some((source, pipeline.clone()));
+        pipeline
+    }
+}
+
 static GPU_BUFFER_POOL: OnceLock<Mutex<Vec<GpuBuffers>>> = OnceLock::new();
+
+fn create_gpu_pipeline(device: &wgpu::Device, shader_source: &str) -> GpuPipeline {
+    let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+        label: Some("ovoxel_gpu"),
+        source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(shader_source)),
+    });
+
+    let shared_bind_group_layout =
+        device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("ovoxel_gpu_shared_bgl"),
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: wgpu::BufferSize::new(GPU_PARAMS_SIZE),
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+            ],
+        });
+
+    let state_bind_group_layout =
+        device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("ovoxel_gpu_state_bgl"),
+            entries: &[
+                // packed tile metadata (counts, offsets, heads)
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: false },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                // tile_pairs
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: false },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                // active + pair counters
+                wgpu::BindGroupLayoutEntry {
+                    binding: 2,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: false },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+            ],
+        });
+
+    let dispatch_bind_group_layout =
+        device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("ovoxel_gpu_dispatch_bgl"),
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: false },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: false },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+            ],
+        });
+
+    let voxel_bind_group_layout =
+        device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("ovoxel_gpu_voxel_bgl"),
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: false },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: false },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 2,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: false },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+            ],
+        });
+
+    let classify_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+        label: Some("ovoxel_gpu_classify_pl"),
+        bind_group_layouts: &[
+            Some(&shared_bind_group_layout),
+            Some(&state_bind_group_layout),
+        ],
+        immediate_size: 0,
+    });
+    let work_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+        label: Some("ovoxel_gpu_work_pl"),
+        bind_group_layouts: &[
+            Some(&shared_bind_group_layout),
+            Some(&state_bind_group_layout),
+            Some(&voxel_bind_group_layout),
+        ],
+        immediate_size: 0,
+    });
+    let prepare_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+        label: Some("ovoxel_gpu_prepare_pl"),
+        bind_group_layouts: &[
+            Some(&shared_bind_group_layout),
+            Some(&state_bind_group_layout),
+            Some(&voxel_bind_group_layout),
+            Some(&dispatch_bind_group_layout),
+        ],
+        immediate_size: 0,
+    });
+
+    let classify_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+        label: Some("ovoxel_gpu_classify_pipeline"),
+        layout: Some(&classify_pipeline_layout),
+        module: &shader,
+        entry_point: Some("classify_tiles"),
+        compilation_options: wgpu::PipelineCompilationOptions::default(),
+        cache: None,
+    });
+    let prefix_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+        label: Some("ovoxel_gpu_prefix_pipeline"),
+        layout: Some(&work_pipeline_layout),
+        module: &shader,
+        entry_point: Some("prefix_tiles"),
+        compilation_options: wgpu::PipelineCompilationOptions::default(),
+        cache: None,
+    });
+    let prepare_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+        label: Some("ovoxel_gpu_prepare_pipeline"),
+        layout: Some(&prepare_pipeline_layout),
+        module: &shader,
+        entry_point: Some("prepare_dispatch"),
+        compilation_options: wgpu::PipelineCompilationOptions::default(),
+        cache: None,
+    });
+    let scatter_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+        label: Some("ovoxel_gpu_scatter_pipeline"),
+        layout: Some(&work_pipeline_layout),
+        module: &shader,
+        entry_point: Some("scatter_pairs"),
+        compilation_options: wgpu::PipelineCompilationOptions::default(),
+        cache: None,
+    });
+    let voxel_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+        label: Some("ovoxel_gpu_pipeline"),
+        layout: Some(&work_pipeline_layout),
+        module: &shader,
+        entry_point: Some("voxel_main"),
+        compilation_options: wgpu::PipelineCompilationOptions::default(),
+        cache: None,
+    });
+
+    GpuPipeline {
+        shared_bind_group_layout,
+        state_bind_group_layout,
+        dispatch_bind_group_layout,
+        voxel_bind_group_layout,
+        prefix_pipeline,
+        prepare_pipeline,
+        scatter_pipeline,
+        classify_pipeline,
+        voxel_pipeline,
+    }
+}
 
 fn buffer_pool() -> &'static Mutex<Vec<GpuBuffers>> {
     GPU_BUFFER_POOL.get_or_init(|| Mutex::new(Vec::new()))
 }
 
 fn make_buffer_key(
-    device: &wgpu::Device,
+    device_id: &DeviceKey,
     tile_count: u64,
     pair_cap: u32,
     max_output: u32,
 ) -> BufferKey {
     BufferKey {
-        device_id: device as *const _ as usize,
+        device_id: device_id.clone(),
         tile_count,
         pair_cap,
         max_output,
@@ -841,11 +1135,12 @@ fn make_buffer_key(
 
 fn acquire_buffers(
     wgpu_device: &wgpu::Device,
+    device_id: &DeviceKey,
     tile_count: u64,
     pair_cap: u32,
     max_output_voxels: u32,
 ) -> GpuBuffers {
-    let key = make_buffer_key(wgpu_device, tile_count, pair_cap, max_output_voxels);
+    let key = make_buffer_key(device_id, tile_count, pair_cap, max_output_voxels);
     let mut pool = buffer_pool().lock().expect("gpu buffer pool poisoned");
     // Prefer exact match; otherwise reuse a superset (bigger buffers) for the same device/tile grid.
     if let Some(entry) = pool.iter().position(|b| b.key == key) {
@@ -991,8 +1286,7 @@ fn voxelize_triangles_gpu(
     aabb: [[f32; 3]; 2],
     semantic_labels: Vec<String>,
     shader_source: Arc<str>,
-    device: &RenderDevice,
-    queue: &RenderQueue,
+    context: &GpuContext,
     max_output_voxels: u32,
     strict: bool,
 ) -> Option<OvoxelVolume> {
@@ -1095,7 +1389,7 @@ fn voxelize_triangles_gpu(
     // Each pair can cover up to a whole 4^3 tile, not just one output cell.
     let max_output_voxels = max_output_voxels.min(pair_cap.saturating_mul(GPU_TILE_SIZE.pow(3)));
 
-    let wgpu_device = device.wgpu_device();
+    let wgpu_device = context.device.wgpu_device();
     let limits = wgpu_device.limits();
     let binding_limit = limits
         .max_buffer_size
@@ -1129,7 +1423,7 @@ fn voxelize_triangles_gpu(
         _pad_params: [0; 2],
     };
 
-    let wgpu_queue = &*queue.0;
+    let wgpu_queue = &*context.queue.0;
     let max_storage = wgpu_device.limits().max_storage_buffers_per_shader_stage;
     // The prepare layout declares nine storage buffers even when an
     // individual entry point uses fewer. wgpu validates the complete layout.
@@ -1154,230 +1448,15 @@ fn voxelize_triangles_gpu(
 
     let meta_bytes = std::mem::size_of::<GpuOutputMeta>() as u64;
 
-    let buffers = acquire_buffers(wgpu_device, tile_count, pair_cap, max_output_voxels);
+    let buffers = acquire_buffers(
+        wgpu_device,
+        &context.key,
+        tile_count,
+        pair_cap,
+        max_output_voxels,
+    );
 
-    let shader_source = shader_source.clone();
-    let device = wgpu_device.clone();
-    let pipeline = GPU_PIPELINE.get_or_init(move || {
-        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("ovoxel_gpu"),
-            source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(shader_source.as_ref())),
-        });
-
-        let shared_bind_group_layout =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: Some("ovoxel_gpu_shared_bgl"),
-                entries: &[
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::COMPUTE,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Uniform,
-                            has_dynamic_offset: false,
-                            min_binding_size: wgpu::BufferSize::new(GPU_PARAMS_SIZE),
-                        },
-                        count: None,
-                    },
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 1,
-                        visibility: wgpu::ShaderStages::COMPUTE,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Storage { read_only: true },
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
-                    },
-                ],
-            });
-
-        let state_bind_group_layout =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: Some("ovoxel_gpu_state_bgl"),
-                entries: &[
-                    // packed tile metadata (counts, offsets, heads)
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::COMPUTE,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Storage { read_only: false },
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
-                    },
-                    // tile_pairs
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 1,
-                        visibility: wgpu::ShaderStages::COMPUTE,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Storage { read_only: false },
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
-                    },
-                    // active + pair counters
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 2,
-                        visibility: wgpu::ShaderStages::COMPUTE,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Storage { read_only: false },
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
-                    },
-                ],
-            });
-
-        let dispatch_bind_group_layout =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: Some("ovoxel_gpu_dispatch_bgl"),
-                entries: &[
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::COMPUTE,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Storage { read_only: false },
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
-                    },
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 1,
-                        visibility: wgpu::ShaderStages::COMPUTE,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Storage { read_only: false },
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
-                    },
-                ],
-            });
-
-        let voxel_bind_group_layout =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: Some("ovoxel_gpu_voxel_bgl"),
-                entries: &[
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::COMPUTE,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Storage { read_only: false },
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
-                    },
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 1,
-                        visibility: wgpu::ShaderStages::COMPUTE,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Storage { read_only: false },
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
-                    },
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 2,
-                        visibility: wgpu::ShaderStages::COMPUTE,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Storage { read_only: false },
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
-                    },
-                ],
-            });
-
-        let classify_pipeline_layout =
-            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("ovoxel_gpu_classify_pl"),
-                bind_group_layouts: &[
-                    Some(&shared_bind_group_layout),
-                    Some(&state_bind_group_layout),
-                ],
-                immediate_size: 0,
-            });
-        let work_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("ovoxel_gpu_work_pl"),
-            bind_group_layouts: &[
-                Some(&shared_bind_group_layout),
-                Some(&state_bind_group_layout),
-                Some(&voxel_bind_group_layout),
-            ],
-            immediate_size: 0,
-        });
-        let prepare_pipeline_layout =
-            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("ovoxel_gpu_prepare_pl"),
-                bind_group_layouts: &[
-                    Some(&shared_bind_group_layout),
-                    Some(&state_bind_group_layout),
-                    Some(&voxel_bind_group_layout),
-                    Some(&dispatch_bind_group_layout),
-                ],
-                immediate_size: 0,
-            });
-
-        let classify_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-            label: Some("ovoxel_gpu_classify_pipeline"),
-            layout: Some(&classify_pipeline_layout),
-            module: &shader,
-            entry_point: Some("classify_tiles"),
-            compilation_options: wgpu::PipelineCompilationOptions::default(),
-            cache: None,
-        });
-        let prefix_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-            label: Some("ovoxel_gpu_prefix_pipeline"),
-            layout: Some(&work_pipeline_layout),
-            module: &shader,
-            entry_point: Some("prefix_tiles"),
-            compilation_options: wgpu::PipelineCompilationOptions::default(),
-            cache: None,
-        });
-        let prepare_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-            label: Some("ovoxel_gpu_prepare_pipeline"),
-            layout: Some(&prepare_pipeline_layout),
-            module: &shader,
-            entry_point: Some("prepare_dispatch"),
-            compilation_options: wgpu::PipelineCompilationOptions::default(),
-            cache: None,
-        });
-        let scatter_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-            label: Some("ovoxel_gpu_scatter_pipeline"),
-            layout: Some(&work_pipeline_layout),
-            module: &shader,
-            entry_point: Some("scatter_pairs"),
-            compilation_options: wgpu::PipelineCompilationOptions::default(),
-            cache: None,
-        });
-        let voxel_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-            label: Some("ovoxel_gpu_pipeline"),
-            layout: Some(&work_pipeline_layout),
-            module: &shader,
-            entry_point: Some("voxel_main"),
-            compilation_options: wgpu::PipelineCompilationOptions::default(),
-            cache: None,
-        });
-
-        GpuPipeline {
-            shared_bind_group_layout,
-            state_bind_group_layout,
-            dispatch_bind_group_layout,
-            voxel_bind_group_layout,
-            prefix_pipeline,
-            prepare_pipeline,
-            scatter_pipeline,
-            classify_pipeline,
-            voxel_pipeline,
-        }
-    });
+    let pipeline = context.pipeline(shader_source);
 
     let shared_bind_group = wgpu_device.create_bind_group(&wgpu::BindGroupDescriptor {
         label: Some("ovoxel_gpu_shared_bg"),
@@ -2057,6 +2136,7 @@ mod tests {
 
         let device = RenderDevice::from(device);
         let queue = RenderQueue(WgpuWrapper::new(queue).into());
+        let context = GpuContext::new(device, queue);
         let run_gpu = |triangles: &[Triangle], cap| {
             voxelize_triangles_gpu(
                 triangles,
@@ -2064,8 +2144,7 @@ mod tests {
                 aabb,
                 labels.clone(),
                 shader_source.clone(),
-                &device,
-                &queue,
+                &context,
                 cap,
                 false,
             )
@@ -2123,6 +2202,120 @@ mod tests {
     }
 
     #[test]
+    fn gpu_buffer_keys_identify_owned_contexts_not_wrapper_addresses() {
+        let first = DeviceKey(Arc::new(()));
+        let clone = first.clone();
+        let other = DeviceKey(Arc::new(()));
+        let first_key = make_buffer_key(&first, 64, 128, 256);
+        let cloned_key = make_buffer_key(&clone, 64, 128, 256);
+        let other_key = make_buffer_key(&other, 64, 128, 256);
+        assert!(
+            first_key == cloned_key,
+            "clones retain the same renderer generation"
+        );
+        assert!(
+            first_key != other_key,
+            "identical sizes never cross renderer contexts"
+        );
+        drop(first);
+        drop(clone);
+        assert!(
+            first_key != make_buffer_key(&DeviceKey(Arc::new(())), 64, 128, 256),
+            "pooled ownership prevents token address reuse after its App drops"
+        );
+    }
+
+    #[test]
+    fn gpu_voxelization_reuses_only_its_renderer_context_and_shader() {
+        let _guard = gpu_test_lock().lock().expect("gpu test lock poisoned");
+        clear_gpu_buffer_pool();
+        let make_context = || {
+            let instance = wgpu::Instance::default();
+            let adapter = futures_lite::future::block_on(instance.request_adapter(
+                &wgpu::RequestAdapterOptions {
+                    power_preference: wgpu::PowerPreference::LowPower,
+                    compatible_surface: None,
+                    force_fallback_adapter: false,
+                },
+            ))
+            .ok()?;
+            let (device, queue) =
+                futures_lite::future::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
+                    label: Some("ovoxel_independent_renderer_test"),
+                    required_features: wgpu::Features::empty(),
+                    required_limits: wgpu::Limits {
+                        max_storage_buffers_per_shader_stage: 9,
+                        ..wgpu::Limits::downlevel_defaults()
+                    },
+                    memory_hints: wgpu::MemoryHints::Performance,
+                    experimental_features: wgpu::ExperimentalFeatures::disabled(),
+                    trace: wgpu::Trace::default(),
+                }))
+                .ok()?;
+            Some(GpuContext::new(
+                RenderDevice::from(device),
+                RenderQueue(WgpuWrapper::new(queue).into()),
+            ))
+        };
+        let (Some(first), Some(second)) = (make_context(), make_context()) else {
+            eprintln!("Skipping independent renderer test: GPU device unavailable");
+            return;
+        };
+        let shader_source: Arc<str> = Arc::from(include_str!("ovoxel.wgsl"));
+        let triangle = Triangle {
+            a: Vec3::new(0.17, 0.19, 0.38),
+            b: Vec3::new(0.73, 0.19, 0.38),
+            c: Vec3::new(0.17, 0.81, 0.38),
+            // Qualify resource ownership with exact binary colors away from
+            // byte-quantization ties (CPU ties-even versus WGSL floor(x + 0.5)).
+            color: Vec4::new(0.25, 0.625, 0.75, 1.0),
+            semantic_id: 1,
+        };
+        let aabb = [[0.; 3], [1.; 3]];
+        let labels = vec!["unlabeled".into(), "test".into()];
+        let cpu = voxelize_triangles(&[triangle], 8, aabb, labels.clone());
+        // Returning to the first renderer after the second catches global cache
+        // reuse in either direction, including pooled buffers of identical size.
+        for context in [&first, &second, &first, &second] {
+            let gpu = voxelize_triangles_gpu(
+                &[triangle],
+                8,
+                aabb,
+                labels.clone(),
+                shader_source.clone(),
+                context,
+                GPU_DEFAULT_MAX_OUTPUT_VOXELS,
+                true,
+            )
+            .unwrap();
+            assert_eq!(gpu.coords, cpu.coords);
+            assert_eq!(gpu.base_color, cpu.base_color);
+            assert_eq!(gpu.semantics, cpu.semantics);
+            assert_eq!(gpu.intersected, cpu.intersected);
+            assert_eq!(gpu.resolution, cpu.resolution);
+            assert_eq!(gpu.aabb, cpu.aabb);
+        }
+        let original = first.pipeline(shader_source.clone());
+        assert!(Arc::ptr_eq(
+            &original,
+            &first.pipeline(shader_source.clone())
+        ));
+        assert!(!Arc::ptr_eq(
+            &original,
+            &second.pipeline(shader_source.clone())
+        ));
+        let changed_source: Arc<str> =
+            Arc::from(format!("{}\n// shader cache revision\n", shader_source));
+        let changed = first.pipeline(changed_source.clone());
+        assert!(
+            !Arc::ptr_eq(&original, &changed),
+            "source changes invalidate only this cache"
+        );
+        assert!(Arc::ptr_eq(&changed, &first.pipeline(changed_source)));
+        clear_gpu_buffer_pool();
+    }
+
+    #[test]
     fn gpu_buffer_pool_trims() {
         let _guard = gpu_test_lock().lock().expect("gpu test lock poisoned");
         clear_gpu_buffer_pool();
@@ -2159,9 +2352,10 @@ mod tests {
             return;
         };
 
+        let device_key = DeviceKey(Arc::new(()));
         // Push more buffers than the cap and ensure we trim back down.
         for i in 0..(GPU_BUFFER_POOL_LIMIT as u64 + 2) {
-            let buffers = acquire_buffers(&device, 1 + i, 16, 16);
+            let buffers = acquire_buffers(&device, &device_key, 1 + i, 16, 16);
             release_buffers(buffers);
         }
         assert!(
@@ -2209,12 +2403,13 @@ mod tests {
             return;
         };
 
-        let big = acquire_buffers(&device, 64, 128, 256);
+        let device_key = DeviceKey(Arc::new(()));
+        let big = acquire_buffers(&device, &device_key, 64, 128, 256);
         release_buffers(big);
         assert_eq!(gpu_buffer_pool_len(), 1);
 
         // Smaller pair_cap with same max_output should reuse the stored buffers.
-        let small = acquire_buffers(&device, 64, 64, 256);
+        let small = acquire_buffers(&device, &device_key, 64, 64, 256);
         assert_eq!(gpu_buffer_pool_len(), 0, "should pop from pool");
         release_buffers(small);
         assert_eq!(

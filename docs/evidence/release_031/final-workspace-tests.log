@@ -1,0 +1,952 @@
+   Compiling bevy_zeroverse v0.31.0 (/media/mosure/hyper1/repos/bevy_zeroverse)
+   Compiling bevy_zeroverse_burn v0.14.0 (/media/mosure/hyper1/repos/bevy_zeroverse/crates/burn)
+   Compiling bevy_zeroverse_ffi v0.31.0 (/media/mosure/hyper1/repos/bevy_zeroverse/crates/ffi)
+    Finished `test` profile [optimized] target(s) in 2m 52s
+warning: the following packages contain code that will be rejected by a future version of Rust: burn-cubecl v0.21.0
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 2`
+     Running unittests src/lib.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/bevy_zeroverse/c15e82f14325b4fa/out/bevy_zeroverse-c15e82f14325b4fa)
+
+running 390 tests
+test annotation::ovoxel::contract::tests::malformed_payloads_cannot_silently_truncate ... ok
+test annotation::ovoxel::contract::tests::temporal_contract_is_explicit_and_disabled_mode_is_free ... ok
+test annotation::ovoxel::scope::tests::crossing_floor_is_clipped_not_dropped_or_clamped_as_a_whole ... ok
+test annotation::obb::tests::obb_respects_rotation_and_scale ... ok
+test annotation::obb::tests::obb_inherits_parent_class_name ... ok
+test annotation::obb::tests::obb_ignored_outside_scene_scope ... ok
+test annotation::ovoxel::tests::closest_points_on_thin_trim_are_finite_and_stay_on_the_face ... ok
+test annotation::ovoxel::tests::gpu_buffer_keys_identify_owned_contexts_not_wrapper_addresses ... ok
+test annotation::ovoxel::tests::excluded_subtrees_override_inherited_tracking_and_do_not_dirty_cache ... ok
+test annotation::ovoxel::tests::caches_when_unchanged ... ok
+test annotation::ovoxel::tests::gpu_buffer_pool_reuses_supersets ... ok
+test annotation::ovoxel::tests::grid_aabb_preserves_nondegenerate_corners_exactly ... ok
+test annotation::ovoxel::tests::grid_edge_flags_describe_crossings_not_triangle_bounds ... ok
+test annotation::ovoxel::tests::recomputes_on_transform_change ... ok
+test annotation::ovoxel::tests::respects_custom_bounds_and_resolution ... ok
+test annotation::ovoxel::tests::voxelizes_high_resolution_scene_without_hanging ... ok
+test annotation::ovoxel::tests::voxelizes_single_mesh_under_root ... ok
+test app::config_tests::indoor_gi_budget_has_bounded_cli_and_json_configuration ... ok
+test app::inspector::motion::tests::model_speed_advances_one_motion_frame_per_twentieth_second ... ok
+test app::settings::tests::settings_edits_sync_without_regenerating ... ok
+test app::viewer_tests::co_visibility_grid_uses_dedicated_preview_and_restores_rgb ... ok
+test app::viewer_tests::grid_disables_editor_scene_but_preserves_ui_and_restores_editor ... ok
+test app::web_config_tests::typed_url_seed_and_cli_scene_names_are_supported ... ok
+test app::window_lifecycle_tests::headless_app_stays_alive_without_windows ... ok
+test app::window_lifecycle_tests::primary_window_close_exits_even_with_an_auxiliary_window ... ok
+test asset::tests::scene_demand_avoids_unrelated_models_and_tracks_scene_switches ... ok
+test camera::tests::optical_flow_transition_preserves_prepass_targets ... ok
+test camera::tests::sin_playback_survives_pause_speed_change_and_regeneration_phase ... ok
+test human_motion::contact::tests::thin_supports_allow_contact_but_reject_penetration_after_rotation ... ok
+test human_motion::navigation::tests::corners_are_smoothed_only_when_the_swept_curve_is_clear ... ok
+test human_motion::navigation::tests::return_walks_have_no_cusp_or_instantaneous_heading_reversal ... ok
+test human_motion::planning::tests::noise_seeds_separate_scenes_actors_and_high_bits ... ok
+test human_motion::planning::tests::repeated_prompt_and_person_get_scene_specific_noise_without_changing_conditioning ... ok
+test human_motion::planning::tests::reservations_use_simultaneous_paths_not_their_union_aabbs ... ok
+test human_motion::planning::tests::selected_fraction_is_a_quota_and_staging_preserves_identity_and_clearance ... ok
+test human_motion::policy_tests::sampler_controls_validate_and_reach_model_requests ... ok
+test human_motion::prompts::tests::backward_and_sideways_gaits_condition_facing_without_reversing_the_route ... ok
+test human_motion::prompts::tests::grammar_spans_actions_and_gaits_with_bounded_coherent_text ... ok
+test human_motion::prompts::tests::sequences_preserve_routes_and_bind_actions_to_ordered_waypoints ... ok
+test human_motion::prompts::tests::weights_space_support_and_duration_filter_actions ... ok
+test human_motion::runtime::tests::absent_policy_never_initializes_device_models_or_worker ... ok
+test human_motion::runtime::tests::empty_policy_in_a_real_manifest_does_not_start_inference ... ok
+test human_motion::runtime::tests::regeneration_discards_stale_completion_without_loading_models ... ok
+test human_motion::runtime::tests::regeneration_queues_fresh_noise_for_an_unchanged_prompt_and_person ... ok
+test human_motion::runtime::tests::sampling_is_order_independent_and_marks_geometry_and_pose_dirty ... ok
+test human_motion::skin::tests::baked_normals_and_tangents_match_bevy_skinning_convention ... ok
+test human_motion::skin::tests::constructed_shoes_keep_their_shape_when_the_toes_bend ... ok
+test human_motion::skin::tests::interpolation_has_continuous_endpoints_with_changing_local_offsets ... ok
+test human_motion::skin::tests::interpolation_preserves_bone_lengths_and_encloses_deformed_render_vertices ... ok
+test human_motion::skin::tests::long_groom_follows_head_turn_without_shoulder_stretch ... ok
+test human_motion::skin::tests::long_hair_roots_follow_the_head_and_supported_ends_follow_the_torso ... ok
+test human_motion::validation::tests::explicit_prompts_preserve_contact_furniture_and_reject_invalid_ids ... ok
+test annotation::ovoxel::tests::gpu_buffer_pool_trims ... ok
+test human_motion::validation::tests::return_walk_is_moving_even_when_its_endpoints_coincide ... ok
+test human_motion::validation::tests::swept_routes_respect_glass_furniture_and_doorway ... ok
+test io::image_copy::readiness::cache_tests::extraction_cache_rebuilds_after_resource_replacement ... ok
+test io::image_copy::readiness::cache_tests::extraction_cache_tracks_actual_main_resource_ticks_and_asset_usage ... ok
+test io::image_copy::readiness::cache_tests::extraction_cache_tracks_future_presence_promotion_and_scene_identity ... ok
+test io::image_copy::readiness::tests::future_uploads_do_not_hide_current_assets ... ok
+test io::image_copy::readiness::tests::prepared_assets_from_a_previous_room_cannot_release_a_new_room ... ok
+test io::image_copy::recycling_tests::only_consumed_successful_packets_can_reuse_staging ... ok
+test io::image_copy::staging::tests::combined_staging_is_bounded_by_actual_device_buffer_limit ... ok
+test io::image_copy::staging::tests::one_mapping_replays_ordered_original_plane_and_row_bytes ... ok
+test io::readback_tests::gpu_padding_is_not_exposed_as_pixels ... ok
+test mesh::normal_tests::dense_primitive_normals_remain_finite_at_small_scales ... ok
+test ovoxel_mesh::tests::builds_mesh_from_single_quad ... ok
+test ovoxel_mesh::tests::semantic_labels_export_to_glb_with_colors ... ok
+test ovoxel_mesh::tests::semantic_mesh_uses_palette_colors ... ok
+test ovoxel_mesh::tests::writes_glb ... ok
+test render::co_visibility::tests::every_supported_rgb_sum_decodes_without_ambiguity ... ok
+test render::co_visibility::tests::invalid_configuration_planes_and_legends_are_rejected ... ok
+test render::co_visibility::tests::legend_keeps_global_camera_identity_and_reserves_source_bit ... ok
+test render::color::tests::fixed_srgb_transfer_preserves_absolute_exposure_and_neutral_colors ... ok
+test render::ground_truth::extract::tests::ground_truth_camera_teardown_and_empty_scene_match_original_cache_reset ... ok
+test render::ground_truth::extract::tests::ground_truth_exact_matrix_reuse_matches_original_after_live_component_changes ... ok
+test render::ground_truth::extract::tests::ground_truth_extraction_allocation_inclusive_cpu_diagnostic ... ignored, allocation-inclusive counterbalanced ground-truth CPU diagnostic; root runs alone
+test render::ground_truth::extract::tests::ground_truth_invalid_meshes_preserve_original_partial_geometry_and_errors ... ok
+test render::ground_truth::extract::tests::ground_truth_matrix_bits_preserve_signed_zero_and_nonfinite_failure_recovery ... ok
+test render::ground_truth::extract::tests::ground_truth_mesh_events_invalidate_live_assets_and_retry_failed_geometry ... ok
+test render::ground_truth::extract::tests::ground_truth_skin_capture_joint_and_bind_changes_match_original_baked_bits ... ok
+test render::ground_truth::extract::tests::ground_truth_span_assembly_matches_original_indices_batches_and_flow_topology ... ok
+test render::ground_truth::tests::ground_truth_targets_have_no_half_precision_or_color_conversion ... ok
+test render::ground_truth::tests::semantic_ids_round_trip_and_match_existing_palette ... ok
+test render::optical_flow::tests::changing_playback_mode_discards_preview_history ... ok
+test render::residency::tests::retained_view_cleanup_preserves_live_keys_and_tracks_eviction ... ok
+test render::residency::tests::unpacking_cleanup_keeps_each_phase_of_live_views ... ok
+test render::tests::annotation_materials_are_specialized_in_the_frame_they_are_created ... ok
+test render::tests::color_to_normal_back_to_color_restores_materials_same_frame ... ok
+test render::upload::tests::layered_mips_keep_exact_source_order_and_padded_rows ... ok
+test render::upload::tests::upload_copy_preserves_unaligned_ranges_and_tails ... ok
+test sample::capture_motion_tests::camera_snapshot_rejects_pose_intrinsics_and_time_drift ... ok
+test sample::capture_motion_tests::capture_owns_normalized_time_and_restores_interactive_playback ... ok
+test sample::capture_motion_tests::forward_flow_preserves_sign_masks_and_pixel_units ... ok
+test sample::capture_motion_tests::polling_window_skips_ineligible_work_and_propagates_poll_failure ... ok
+test sample::capture_motion_tests::polling_window_yields_at_deadline_and_stops_immediately_on_completion ... ok
+test sample::capture_motion_tests::position_annotation_preserves_surfaces_outside_reconstruction_aabb ... ok
+test sample::capture_motion_tests::readback_backoff_is_bounded_and_excludes_interactive_idle_and_failed_capture ... ok
+test sample::capture_motion_tests::readback_backoff_requires_all_copies_submitted_and_an_incomplete_packet ... ok
+test sample::ground_truth_decode::tests::malformed_and_nonfinite_ground_truth_keep_their_rejection_contract ... ok
+test sample::ground_truth_decode::tests::output_ownership_reuses_consumed_geometry_allocations ... ok
+test sample::ground_truth_decode::tests::reused_ground_truth_matches_scalar_bytes_for_every_mode_subset ... ok
+test sample::native_readback::tests::each_submitted_epoch_gets_a_normal_update_before_poll_only_waiting ... ok
+test sample::native_readback::tests::non_capture_apps_keep_their_normal_update_schedule ... ok
+test sample::native_readback::tests::registered_maps_are_required_for_every_exact_current_camera ... ok
+test sample::qualification::tests::directed_overlap_distinguishes_no_shared_geometry_from_missing_measurement ... ok
+test sample::readiness::tests::only_a_completed_report_for_this_scene_releases_motion ... ok
+test sample::render_settling::tests::acknowledgement_matches_every_scene_camera_and_timestep_field ... ok
+test sample::render_settling::tests::assets_motion_gi_errors_and_non_capture_paths_never_release_settling ... ok
+test sample::render_settling::tests::late_activation_and_temporal_effects_keep_legacy_settling ... ok
+test sample::render_settling::tests::only_a_rendered_frame_with_current_assets_and_pipelines_is_acknowledged ... ok
+test sample::render_settling::tests::only_installed_deterministic_glass_kernels_use_the_render_fence ... ok
+test sample::render_settling::tests::recycled_or_replaced_attachment_handles_require_a_new_render ... ok
+test sample::render_settling::tests::separate_apps_and_next_flow_steps_have_independent_fences ... ok
+test sample::speculation_tests::only_all_submitted_current_request_copies_release_speculation ... ok
+test scene::procedural_indoor::appearance::tests::factors_preserve_geometry_people_cameras_and_the_scene_family_seed ... ok
+test scene::procedural_indoor::architecture::facade::tests::continuous_facades_cover_all_exposures_and_full_height_openings ... ok
+test scene::procedural_indoor::architecture::facade::tests::inset_glass_is_visible_through_actual_meshes_on_every_side ... ok
+test scene::procedural_indoor::architecture::facade::tests::malformed_openings_are_rejected_and_legacy_shell_still_builds ... ok
+test scene::procedural_indoor::architecture::facade::tests::wall_complement_preserves_area_without_filling_apertures ... ok
+test scene::procedural_indoor::architecture::lighting_tests::spotlight_cone_integrates_to_declared_lumens ... ok
+test scene::procedural_indoor::architecture::overlap_tests::architectural_trim_has_no_competing_coplanar_faces ... ok
+test scene::procedural_indoor::cameras::baseline::tests::baseline_expands_roundtrips_and_does_not_overwrite_custom_controls ... ok
+test annotation::ovoxel::tests::gpu_matches_cpu_occupancy_votes_and_capacity_failures ... ok
+test scene::procedural_indoor::cameras::coverage::tests::body_points_behind_annotation_opaque_glazing_are_hidden ... ok
+test scene::procedural_indoor::cameras::coverage::tests::shared_surfaces_require_visibility_and_actual_frustum ... ok
+test scene::procedural_indoor::cameras::coverage::tests::walls_occlude_content_and_rays_handle_parallel_faces ... ok
+test scene::procedural_indoor::cameras::diversity::tests::distinguishes_collinear_groups_rigid_paths_and_crossing_paths ... ok
+test scene::procedural_indoor::cameras::diversity::tests::spread_is_translation_rotation_and_scale_invariant ... ok
+test scene::procedural_indoor::cameras::handheld::tests::metric_stride_free_rotation_and_reversal_are_exact ... ok
+test scene::procedural_indoor::cameras::handheld::tests::sampled_short_paths_keep_clearance_and_duration_labels ... ok
+test scene::procedural_indoor::cameras::baseline::tests::narrow_and_wide_programs_control_realized_paths_without_changing_rooms ... ok
+test scene::procedural_indoor::cameras::multiview::tests::archive_without_camera_policy_retains_independent_semantics ... ok
+test scene::procedural_indoor::cameras::multiview::tests::compact_full_occupancy_group_recovers_without_relaxing_policy ... ok
+test scene::procedural_indoor::cameras::mixture::tests::fixed_strata_are_seeded_before_placement_and_preserved_in_archives ... ok
+test scene::procedural_indoor::cameras::multiview::tests::default_policy_is_deterministic_and_impossible_policy_is_atomic ... ok
+test annotation::ovoxel::tests::gpu_voxelization_reuses_only_its_renderer_context_and_shader ... ok
+test scene::procedural_indoor::cameras::multiview::tests::dense_full_occupancy_studio_completes_valid_camera_group ... ok
+test scene::procedural_indoor::cameras::multiview::tests::dense_sloped_room_keeps_eight_connected_paths ... ok
+test scene::procedural_indoor::cameras::multiview::tests::fixed_small_stereo_baselines_and_single_views_work ... ok
+test scene::procedural_indoor::cameras::multiview::tests::dense_full_occupancy_workshop_completes_valid_camera_group ... ok
+test scene::procedural_indoor::cameras::multiview::tests::connected_sets_preserve_layout_intrinsics_and_trajectories ... ok
+test scene::procedural_indoor::cameras::multiview::tests::policy_validation_and_legacy_json ... ok
+test scene::procedural_indoor::cameras::multiview::tests::project_room_has_spread_and_distinct_paths_and_rigid_rigs_are_explicit ... ok
+test human_motion::validation::tests::policies_are_bounded_and_reproducible ... ok
+test scene::procedural_indoor::cameras::sampling::tests::person_fallback_accepts_authored_rotation_only_handheld_with_zero_minimum_path ... ok
+test scene::procedural_indoor::cameras::sampling::tests::person_fallback_keeps_authored_handheld_orientations_reversal_and_duration ... ok
+test scene::procedural_indoor::cameras::sampling::tests::person_fallback_preserves_requested_motion_and_rejects_impossible_paths ... ok
+test scene::procedural_indoor::cameras::sampling::tests::sparse_failed_seed_anchors_keep_primary_room_coverage_and_deterministic_motion ... ok
+test scene::procedural_indoor::cameras::sampling::tests::successful_independent_proposals_and_rng_match_copied_original ... ok
+test scene::procedural_indoor::cameras::tests::camera_policy_rejects_bad_ranges_and_round_trips_routes ... ok
+test scene::procedural_indoor::cameras::tests::primary_room_paths_and_long_routes_respect_furniture ... ok
+test scene::procedural_indoor::cameras::tests::zero_length_capture_paths_freeze_orientation_as_well_as_position ... ok
+test scene::procedural_indoor::clutter::tests::clock_hands_share_fractional_time_and_screens_do_not_repeat_one_dashboard ... ok
+test scene::procedural_indoor::clutter::tests::new_props_are_sampled_on_valid_supports_across_room_programs ... ok
+test scene::procedural_indoor::clutter::tests::tabletop_meshes_fit_support_envelopes_and_keep_semantics ... ok
+test scene::procedural_indoor::domain::tests::electric_dimming_reaches_renderer_without_old_brightness_floor ... ok
+test scene::procedural_indoor::domain::tests::physical_domain_covers_decades_jointly_and_replays_full_width_seeds ... ok
+test scene::procedural_indoor::envelope::tests::architecture_program_replays_and_validates_consecutive_seeds ... ok
+test scene::procedural_indoor::envelope::tests::built_surfaces_match_floor_support_roof_and_apertures ... ok
+test scene::procedural_indoor::envelope::tests::concave_notch_is_empty_and_sweeps_cannot_bridge_it ... ok
+test scene::procedural_indoor::envelope::tests::consecutive_envelopes_and_clipped_exteriors_have_complete_triangulations ... ok
+test scene::procedural_indoor::envelope::tests::convex_clipping_preserves_submicrometre_widths ... ok
+test scene::procedural_indoor::envelope::tests::roof_clipping_keeps_bevel_intersections_inside_the_source_triangle_bounds ... ok
+test scene::procedural_indoor::envelope::tests::seed_1013005_constructs_valid_clipped_glazing ... ok
+test scene::procedural_indoor::envelope::tests::seed_202_constructs_complete_valid_geometry ... ok
+test scene::procedural_indoor::envelope::tests::shaped_columns_match_the_collision_radius_and_sloping_roof ... ok
+test scene::procedural_indoor::envelope::tests::thin_polygons_preserve_area_at_different_scales_and_windings ... ok
+test scene::procedural_indoor::envelope::tests::triangulation_handles_closing_duplicates_collinear_runs_and_degeneracy ... ok
+test scene::procedural_indoor::footprint::tests::rotating_separated_furniture_does_not_create_a_collision ... ok
+test scene::procedural_indoor::geometry::sweep::tests::closed_nonplanar_sweeps_weld_the_frame_and_uv_wraps ... ok
+test scene::procedural_indoor::geometry::upholstery::tests::cushions_are_closed_bounded_and_have_valid_cloth_frames ... ok
+test scene::procedural_indoor::gi::assembly::replay_tests::preparation_scope_nested_jobs_preserve_order_and_join ... ok
+test scene::procedural_indoor::cameras::multiview::tests::incomplete_reception_pair_restarts_without_relaxing_group_constraints ... ok
+test scene::procedural_indoor::gi::bvh::probe_tests::exact_node_capacity_matches_independent_recursive_leaf_counts ... ok
+test scene::procedural_indoor::gi::bvh::probe_tests::preallocated_parallel_probe_tree_matches_original_order_and_float_bits ... ok
+test scene::procedural_indoor::gi::bvh::probe_tests::probe_tree_cpu_benchmark ... ignored, CPU diagnostic; not scene or GPU throughput
+test scene::procedural_indoor::gi::bvh::sah::tests::benchmark_owned_transport ... ignored, bounded allocation/BVH microbenchmark; run separately from GPU measurements
+test scene::procedural_indoor::gi::bvh::sah::tests::owned_transport_matches_legacy_clone_copy_builder ... ok
+test scene::procedural_indoor::gi::bvh::sah::tests::parallel_subtrees_have_identical_bounds_indices_and_triangle_order ... ok
+test scene::procedural_indoor::gi::bvh::sah::tests::spatial_splits_preserve_thin_clustered_and_coincident_triangles ... ok
+test scene::procedural_indoor::gi::gpu::tests::accelerated_transport_preserves_probe_placement_at_touching_room_surfaces ... ok
+test scene::procedural_indoor::gi::gpu::tests::delayed_shader_availability_is_not_a_permanent_capture_failure ... ok
+test scene::procedural_indoor::gi::gpu::tests::each_future_binding_promotes_by_reserved_image_identity_exactly_once ... ok
+test scene::procedural_indoor::gi::gpu::tests::promotion_shares_encoded_future_status_without_releasing_current ... ok
+test scene::procedural_indoor::gi::probe_classification::benchmark_threshold_classification ... ignored, bounded CPU classification microbenchmark; run separately from GPU measurements
+test scene::procedural_indoor::gi::probe_classification::threshold_classification_matches_full_six_rays_on_boundaries_and_ties ... ok
+test scene::procedural_indoor::gi::probe_classification::threshold_classification_preserves_all_cardinal_backface_patterns ... ok
+test scene::procedural_indoor::gi::tests::bvh_matches_brute_force_triangle_intersections_and_shadows ... ok
+test scene::procedural_indoor::gi::tests::diffuse_cavity_matches_independent_geometric_series_energy ... ok
+test scene::procedural_indoor::gi::tests::export_indoor_gi_reference ... ignored, bounded CPU transport benchmark and high-sample comparison artifact
+test scene::procedural_indoor::gi::tests::hemispherical_sky_matches_analytic_cosine_integrals ... ok
+test scene::procedural_indoor::gi::tests::knitted_garment_transport_uses_rendered_neutral_atlas_and_body_scale ... ok
+test scene::procedural_indoor::gi::assembly::replay_tests::split_transport_binding_matches_original_geometry_materials_and_probe_origins ... ok
+test scene::procedural_indoor::gi::tests::rgba16_volume_packing_matches_bevy_shader_lobes ... ok
+test scene::procedural_indoor::gi::tests::shadow_visibility_and_rotated_lobes_follow_geometry ... ok
+test scene::procedural_indoor::gi::tests::shared_sah_shadow_queries_match_median_and_brute_force ... ok
+test scene::procedural_indoor::gi::tests::srgb8_transport_decode_matches_bevy_linear_bits ... ok
+test scene::procedural_indoor::humans::appearance::tests::wardrobe_and_face_replay_independently_with_legacy_defaults ... ok
+test scene::procedural_indoor::humans::body::tests::garments_preserve_anny_body_and_uv_seams_above_constructed_footwear ... ok
+test scene::procedural_indoor::humans::body::tests::scalp_and_fibres_have_finite_orthogonal_tangent_frames ... ok
+test scene::procedural_indoor::humans::body::tests::upright_program_does_not_pitch_the_cranium_backwards ... ok
+test scene::procedural_indoor::humans::footwear::tests::malformed_shoe_programs_are_rejected_before_geometry ... ok
+test scene::procedural_indoor::humans::footwear::tests::shoe_programs_replay_and_solids_have_outward_finite_triangles ... ok
+test scene::procedural_indoor::humans::garments::details::tests::attachments_stay_on_the_surface_instead_of_averaging_inside_it ... ok
+test scene::procedural_indoor::humans::garments::drape::tests::local_creases_are_bounded_and_do_not_deform_uncovered_hands ... ok
+test scene::procedural_indoor::humans::garments::fit::tests::fitted_cloth_has_no_chest_or_hem_ledge ... ok
+test scene::procedural_indoor::humans::garments::legs::tests::straight_trousers_bridge_the_calf_and_keep_bare_ankles_unchanged ... ok
+test scene::procedural_indoor::humans::garments::tests::garment_cut_preserves_area_and_shared_edges ... ok
+test scene::procedural_indoor::humans::garments::tests::palms_and_fingers_are_skin_even_below_the_waist ... ok
+test scene::procedural_indoor::humans::garments::tests::sleeve_material_boundaries_do_not_depend_on_first_face_bone ... ok
+test scene::procedural_indoor::humans::hair::program::tests::cuts_are_seeded_continuous_and_legacy_ids_stay_stable ... ok
+test scene::procedural_indoor::humans::hair::strands::tests::tied_roots_stay_on_individual_scalp_sides_at_extreme_tie_heights ... ok
+test scene::procedural_indoor::gi::tests::motion_candidates_do_not_leave_static_gi_casters ... ok
+test scene::procedural_indoor::humans::morphology::tests::adult_shape_program_is_continuous_replayable_and_rejects_bad_anchors ... ok
+test scene::procedural_indoor::humans::morphology::tests::legacy_body_stream_and_gender_override_remain_replayable ... ok
+test scene::procedural_indoor::humans::hair::tests::groom_extremes_remain_bounded_on_the_anny_head ... ok
+test scene::procedural_indoor::humans::population::tests::presenters_use_continuous_supported_placements_without_a_shared_anchor ... ok
+test scene::procedural_indoor::humans::poses::tests::continuous_program_preserves_limb_lengths_and_replays ... ok
+test scene::procedural_indoor::humans::rig::tests::torso_keeps_shoulder_roots_attached_when_twisting ... ok
+test scene::procedural_indoor::materials::atlas::replay_tests::bounded_bands_cover_disjoint_rows_before_neighbor_reads ... ok
+test scene::procedural_indoor::materials::atlas::replay_tests::material_recipe_cpu_profile ... ignored, diagnostic material recipe CPU profile; root coordinates compilation/timing
+test scene::procedural_indoor::materials::atlas::replay_tests::nested_map_scopes_join_without_changing_row_order ... ok
+test scene::procedural_indoor::cameras::multiview::tests::sparse_person_groups_complete_with_every_original_constraint ... ok
+test scene::procedural_indoor::materials::ceramic::prepared::budget_tests::glaze_halos_and_noise_debit_one_actual_capacity_budget ... ok
+test scene::procedural_indoor::materials::atlas::replay_tests::row_bands_match_original_atlas_bytes_and_every_mip ... ok
+test scene::procedural_indoor::materials::ceramic::replay_tests::exceptional_authored_glazes_retain_original_scalar_float_and_nan_payloads ... ok
+test scene::procedural_indoor::materials::ceramic::replay_tests::prepared_glaze_cpu_benchmark ... ignored, allocation-inclusive counterbalanced CPU diagnostic; run alone
+test scene::procedural_indoor::materials::ceramic::replay_tests::authored_glaze_uses_one_selected_cache_and_replays_512_maps ... ok
+test scene::procedural_indoor::humans::morphology::tests::stature_and_shape_reach_anny_and_dressed_extremes_fit_placement_bounds ... ok
+test scene::procedural_indoor::materials::ceramic::replay_tests::sparse_glaze_budgets_and_maximum_fields_replay_original_float_bits ... ok
+test scene::procedural_indoor::materials::ceramic::replay_tests::prepared_glaze_replays_every_consumed_base_and_structural_map_and_mip ... ok
+test scene::procedural_indoor::cameras::multiview::tests::furnished_lounge_group_completes_valid_camera_group ... ok
+test scene::procedural_indoor::materials::environment::replay_tests::cached_cube_edge_taps_preserve_original_sampling_bits ... ok
+test scene::procedural_indoor::materials::environment::replay_tests::cached_environment_convolution_cpu_benchmark ... ignored, counterbalanced CPU microbenchmark; run explicitly with --ignored --nocapture
+test scene::procedural_indoor::materials::environment::replay_tests::reflection_stencil_cpu_benchmark ... ignored, counterbalanced round4-versus-stencil kernel screen; no capture throughput claim
+test scene::procedural_indoor::materials::environment::stencil::tests::reflection_stencil_has_fixed_bounded_residency ... ok
+test scene::procedural_indoor::materials::environment::tests::cubemap_faces_roundtrip_and_keep_cross_face_sampling_continuous ... ok
+test scene::procedural_indoor::materials::ceramic::replay_tests::prepared_glaze_replays_original_texel_bits_and_every_pbr_mip ... ok
+test scene::procedural_indoor::materials::environment::tests::hdr_convolution_preserves_constant_radiance_without_clipping_or_srgb ... ok
+test scene::procedural_indoor::materials::field::halo_replay::cellular_halo_cpu_benchmark ... ignored, allocation-inclusive counterbalanced cellular kernel timing; root coordinates
+test scene::procedural_indoor::materials::field::halo_replay::cellular_halo_debits_actual_capacity_and_retains_small_budget_fallback ... ok
+test scene::procedural_indoor::materials::field::halo_replay::cellular_halo_preserves_rounding_fallback_signed_zero_and_nonfinite_inputs ... ok
+test scene::procedural_indoor::materials::field::deposit::tests::prepared_deposit_preserves_scalar_bits_and_shared_budget ... ok
+test scene::procedural_indoor::materials::field::periodic::tests::periodic_halo_counts_every_wrapped_border_byte_and_checks_overflow ... ok
+test scene::procedural_indoor::materials::field::periodic::tests::periodic_halo_preserves_original_bits_at_rounded_and_nonfinite_edges ... ok
+test scene::procedural_indoor::materials::field::periodic::tests::prepared_periodic_grids_share_a_total_allocation_budget ... ok
+test scene::procedural_indoor::materials::field::periodic::tests::prepared_periodic_noise_preserves_bits_at_wrapped_edges_and_fallbacks ... ok
+test scene::procedural_indoor::materials::field::halo_replay::cellular_halo_replays_original_full_atlases_and_wrapped_winners ... ok
+test scene::procedural_indoor::materials::field::tests::filtered_inclusions_preserve_area_across_pixel_footprints ... ok
+test scene::procedural_indoor::materials::field::tests::prepared_cell_attributes_preserve_positions_and_neighbor_selection ... ok
+test scene::procedural_indoor::materials::field::unit::tests::periodic_unit_cpu_benchmark ... ignored, CPU diagnostic; run alone outside capture/qualification timings
+test scene::procedural_indoor::materials::field::unit::tests::periodic_unit_matches_original_over_metric_coordinate_grid ... ok
+test scene::procedural_indoor::materials::field::unit::tests::periodic_unit_preserves_dense_seams_subnormals_and_all_exponents ... ok
+test scene::procedural_indoor::materials::field::periodic::tests::unit_wrap_noise_replays_original_complete_atlas_fields ... ok
+test scene::procedural_indoor::materials::filter::tests::a_smooth_uniform_surface_keeps_its_roughness_and_metalness ... ok
+test scene::procedural_indoor::materials::filter::tests::unresolved_relief_survives_all_mips_as_roughness_not_a_false_normal ... ok
+test scene::procedural_indoor::materials::glass::tests::glazing_roles_span_clear_tinted_and_frosted_optics ... ok
+test scene::procedural_indoor::materials::human::replay_tests::cached_human_fields_cpu_benchmark ... ignored, counterbalanced CPU microbenchmark; run explicitly with --ignored --nocapture
+test scene::procedural_indoor::materials::filter::replay_tests::reused_moment_buffer_preserves_every_pbr_mip_byte ... ok
+test scene::procedural_indoor::materials::layers::tests::mixed_finishes_remain_tileable_and_finite ... ok
+test scene::procedural_indoor::materials::concrete::replay_tests::prepared_casting_replays_scalar_channels_with_shared_budget_fallbacks ... ok
+test scene::procedural_indoor::materials::mineral::carry::replay_tests::carried_decode_preserves_signed_zero_nan_payloads_and_transfer_boundaries ... ok
+test scene::procedural_indoor::materials::mineral::carry::replay_tests::carried_decode_replays_original_transfers_without_assuming_identity ... ok
+test scene::procedural_indoor::materials::mineral::prepared::halo_budget_tests::maximum_cell_halo_and_pigments_fit_the_shared_actual_capacity_budget ... ok
+test scene::procedural_indoor::materials::human::replay_tests::cached_human_fields_replay_every_atlas_mip_and_pbr_template ... ok
+test scene::procedural_indoor::materials::mineral::replay_tests::carried_colors_match_prior_prepared_pipeline_with_malformed_inputs ... ok
+test scene::procedural_indoor::materials::mineral::replay_tests::absent_aggregate_replays_original_float_channels_and_complete_maps ... ok
+test scene::procedural_indoor::materials::mineral::replay_tests::chip_endpoint_guards_retain_signed_zero_and_malformed_pigment_behavior ... ok
+test scene::procedural_indoor::materials::mineral::replay_tests::consumed_mineral_atlases_report_exact_zero_exposure_coverage ... ignored, full consumed-atlas eligibility diagnostic; run explicitly with --ignored --nocapture
+test scene::procedural_indoor::materials::mineral::replay_tests::mineral_color_carry_cpu_benchmark ... ignored, allocation-inclusive counterbalanced CPU diagnostic; run alone
+test scene::procedural_indoor::materials::mineral::replay_tests::mineral_spatial_fields_share_one_map_budget_and_fallback_exactly ... ok
+test scene::procedural_indoor::materials::mineral::replay_tests::prepared_mineral_cpu_benchmark ... ignored, counterbalanced CPU microbenchmark; run explicitly with --ignored --nocapture
+test scene::procedural_indoor::materials::environment::replay_tests::cached_convolution_matches_original_hdr_bytes_at_every_mip ... ok
+test scene::procedural_indoor::materials::mip_transfer::tests::collisions_and_repeated_values_preserve_original_color_quantization ... ok
+test scene::procedural_indoor::materials::mipmap_replay_tests::cached_color_mip_cpu_benchmark ... ignored, counterbalanced color mip kernel timing; run explicitly
+test scene::procedural_indoor::materials::mipmap_replay_tests::contiguous_mips_preserve_all_bytes_and_image_metadata ... ok
+test scene::procedural_indoor::materials::paint::prepared::tests::scalar_paint_preparation_has_no_grids_and_map_noise_budget_is_bounded ... ok
+test scene::procedural_indoor::materials::paint::replay_tests::authored_glaze_retains_precedence_over_paint_application ... ok
+test scene::procedural_indoor::materials::paint::replay_tests::maximum_frequency_paint_cache_replays_original_complete_maps ... ok
+test scene::procedural_indoor::materials::paint::replay_tests::prepared_paint_cpu_benchmark ... ignored, counterbalanced CPU microbenchmark; run explicitly with --ignored --nocapture
+test scene::procedural_indoor::materials::mineral::replay_tests::carried_colors_replay_original_consumed_mineral_atlases_and_mips ... ok
+test scene::procedural_indoor::materials::program::tests::ceramic_pigment_is_applied_once_and_old_recorded_recipes_remain_readable ... ok
+test scene::procedural_indoor::materials::program::tests::finish_programs_replay_are_periodic_and_validate_their_physical_scales ... ok
+test scene::procedural_indoor::materials::program::tests::leaf_atlas_keeps_midrib_on_the_geometric_fold_and_preserves_pale_pigment ... ok
+test scene::procedural_indoor::materials::program::tests::malformed_substrate_parameters_are_rejected ... ok
+test scene::procedural_indoor::materials::program::tests::malformed_weaving_programs_are_rejected_without_overflow ... ok
+test scene::procedural_indoor::materials::paint::replay_tests::prepared_paint_replays_every_texel_channel_bit ... ok
+test scene::procedural_indoor::materials::program::tests::recorded_floor_recipes_have_physical_scale_and_finish ... ok
+test scene::procedural_indoor::materials::program::tests::timber_cut_spans_growth_rings_and_resolves_millimetre_pores ... ok
+test scene::procedural_indoor::materials::program::tests::upholstery_variants_change_structure_not_only_palette ... ok
+test scene::procedural_indoor::materials::program::tests::mineral_coating_timber_and_foliage_programs_are_bounded_and_seeded ... ok
+test scene::procedural_indoor::materials::program::tests::weaving_and_leather_programs_replay_close_at_seams_and_span_parameters ... ok
+test scene::procedural_indoor::materials::surface_tests::byte_color_lookup_preserves_every_original_transfer_value ... ok
+test scene::procedural_indoor::materials::screens::tv::tests::television_content_is_seeded_and_varied ... ok
+test scene::procedural_indoor::materials::surface_tests::ceramic_items_share_three_glazes_with_independent_pigment ... ok
+test scene::procedural_indoor::materials::surface_tests::hard_surface_maps_vary_normals_and_roughness_without_losing_metalness ... ok
+test scene::procedural_indoor::materials::surface_tests::leaf_maps_clamp_at_atlas_edges_and_bind_absolute_color ... ok
+test scene::procedural_indoor::materials::surface_tests::only_nonzero_replacement_structures_can_omit_parent_maps ... ok
+test scene::procedural_indoor::materials::surface_tests::pbr_maps_have_correct_encodings_mips_and_finite_unit_normals ... ok
+test scene::procedural_indoor::materials::surface_tests::portable_glazing_avoids_screen_space_refraction ... ok
+test scene::procedural_indoor::materials::map_replay_tests::consumed_scene_recipes_replay_every_scalar_map_byte_and_sampler ... ok
+test scene::procedural_indoor::materials::mineral::replay_tests::prepared_mineral_replays_texel_bits_and_every_pbr_mip ... ok
+test scene::procedural_indoor::materials::surface_tests::substrate_fields_consume_the_upper_seed_bits ... ok
+test scene::procedural_indoor::materials::surface_tests::replaced_parent_maps_preserve_every_finish_pbr_and_gi_hit ... ok
+test scene::procedural_indoor::materials::surface_tests::variant_parent_map_counts_200_through_231 ... ignored, count-only seed coverage diagnostic; no textures or GPU work
+test scene::procedural_indoor::materials::surface_tests::sampled_metric_recipes_produce_valid_pbr_maps ... ok
+test scene::procedural_indoor::materials::textile::knit::tests::loop_relief_is_periodic_with_coupled_pbr_channels ... ok
+test scene::procedural_indoor::materials::textile::replay_tests::prepared_weave_allocation_inclusive_cpu_benchmark ... ignored, allocation-inclusive weave CPU kernel; run separately with --ignored --nocapture
+test scene::procedural_indoor::materials::textile::replay_tests::prepared_weave_budget_fallbacks_and_authored_yarn_extremes_preserve_bits ... ok
+test scene::procedural_indoor::materials::textile::replay_tests::prepared_weave_keeps_fallback_recipe_carpet_pile_and_knit_dispatch ... ok
+test scene::procedural_indoor::materials::surface_tests::used_finish_palette_preserves_materials_and_texture_pixels ... ok
+test scene::procedural_indoor::materials::timber::replay_tests::prepared_wood_cpu_benchmark ... ignored, counterbalanced CPU microbenchmark; run explicitly with --ignored --nocapture
+test scene::procedural_indoor::materials::textile::replay_tests::prepared_weave_replays_original_texel_channels_and_complete_pbr_mips ... ok
+test scene::procedural_indoor::materials::timber::tests::staggered_plank_has_no_colour_seam_at_the_texture_wrap ... ok
+test scene::procedural_indoor::metrics::tests::small_render_budget_covers_layout_and_style_categories ... ok
+test scene::procedural_indoor::metrics::tests::summaries_preserve_counts_and_constant_intrinsics ... ok
+test scene::procedural_indoor::metrics_sort::tests::external_sort_matches_exact_distribution_across_partial_runs ... ok
+test scene::procedural_indoor::metrics_sort::tests::unfinished_and_invalid_collectors_clean_scratch ... ok
+test scene::procedural_indoor::materials::surface_tests::wardrobe_reuses_bounded_structure_maps_with_independent_tint ... ok
+test scene::procedural_indoor::objects::review_tests::continuous_table_tops_remain_convex_and_support_real_mounts ... ok
+test scene::procedural_indoor::objects::review_tests::marker_programs_have_deterministic_nonrepeating_content ... ok
+test scene::procedural_indoor::objects::review_tests::upholstery_shelves_and_wall_hardware_fit_declared_envelopes ... ok
+test scene::procedural_indoor::objects::utilities::tests::utilities_keep_all_parts_inside_placement_envelopes ... ok
+test scene::procedural_indoor::plants::tests::all_botanical_forms_have_supported_pots_valid_leaf_frames_and_bounded_canopies ... ok
+test scene::procedural_indoor::preparation::group_plan::tests::deferred_material_binding_preserves_groups_mesh_bytes_and_tangents ... ok
+test scene::procedural_indoor::preparation::pipeline::tests::gi_lookahead_is_limited_to_the_second_contiguous_slot ... ok
+test scene::procedural_indoor::preparation::pipeline::tests::lookahead_is_bounded_contiguous_and_drains_at_end_of_capture ... ok
+test scene::procedural_indoor::preparation::pipeline::tests::lookahead_preserves_errors_for_the_requested_seed ... ok
+test scene::procedural_indoor::preparation::pipeline::tests::lookahead_requires_exact_construction_inputs_and_consumes_the_slot ... ok
+test scene::procedural_indoor::preparation::pipeline::tests::speculative_failure_is_retained_until_requested ... ok
+test scene::procedural_indoor::preparation::residency::tests::canceled_second_probe_survives_first_promotion_without_overwriting_baked_data ... ok
+test scene::procedural_indoor::preparation::residency::tests::canceling_speculation_preserves_the_promoted_probe_and_status ... ok
+test scene::procedural_indoor::preparation::residency::tests::future_gi_requires_submitted_copies_and_owned_exact_request ... ok
+test scene::procedural_indoor::preparation::residency::tests::future_probe_aggregate_budget_rejects_without_consuming_or_allocating_assets ... ok
+test scene::procedural_indoor::preparation::residency::tests::speculative_second_failure_is_delivered_only_when_requested ... ok
+test scene::procedural_indoor::preparation::residency::tests::two_future_gi_slots_are_exact_ordered_and_individually_owned ... ok
+test scene::procedural_indoor::preparation::tests::concurrent_builders_preserve_ordered_geometry_and_surface_assignments ... ok
+test scene::procedural_indoor::preparation::tests::reserved_assets_share_allocator_and_cancel_without_insertion ... ok
+test scene::procedural_indoor::preparation::tests::speculative_upload_promotes_without_replacing_or_copying_assets ... ok
+test scene::procedural_indoor::preparation::wait::tests::completed_tasks_and_errors_return_without_sleeping ... ok
+test scene::procedural_indoor::preparation::wait::tests::current_task_finishing_during_wait_stops_immediately ... ok
+test scene::procedural_indoor::preparation::wait::tests::interactive_idle_stale_scene_and_readback_work_never_wait ... ok
+test scene::procedural_indoor::preparation::wait::tests::unfinished_task_returns_at_deadline_and_last_sleep_is_truncated ... ok
+test scene::procedural_indoor::materials::timber::replay_tests::prepared_wood_replays_texel_bits_and_every_pbr_mip ... ok
+test scene::procedural_indoor::program::tests::program_replays_covers_space_and_has_clear_portals ... ok
+test scene::procedural_indoor::materials::surface_tests::geometry_selection_preserves_all_referenced_pbr_and_human_maps ... ok
+test scene::procedural_indoor::tests::annotation_gate_detects_a_wrong_frame_or_camera ... ok
+test scene::procedural_indoor::tests::backless_stools_survive_placement_and_have_no_back_geometry ... ok
+test scene::procedural_indoor::tests::books_expose_the_paper_edges_between_the_covers ... ok
+test scene::procedural_indoor::tests::broad_density_sweep_is_valid ... ignored, bounded 40,000-scene distribution qualification; run explicitly for releases
+test scene::procedural_indoor::tests::broad_full_human_occupancy_preserves_geometry_and_layout ... ignored, bounded 4096-scene full-occupancy geometry qualification
+test scene::procedural_indoor::tests::continuous_camera_sweeps_detect_thin_obstacles ... ok
+test scene::procedural_indoor::objects::review_tests::activity_profiles_replay_continuous_mixtures_and_keep_functional_layouts ... ok
+test scene::procedural_indoor::tests::dataset_metrics_preserve_denominators_heatmap_mass_and_camera_calibration ... ok
+test scene::procedural_indoor::tests::actual_architecture_preserves_door_opening_and_camera_clearance ... ok
+test scene::procedural_indoor::tests::editor_intrinsics_survive_room_regeneration ... ok
+test scene::procedural_indoor::tests::dressed_staged_humans_have_finite_geometry_and_material_parts ... ok
+test scene::procedural_indoor::tests::floor_furniture_has_real_geometry_at_the_contact_plane ... ok
+test scene::procedural_indoor::tests::legacy_config_json_does_not_require_new_indoor_fields ... ok
+test scene::procedural_indoor::tests::loaded_manifests_reject_pillars_neighbor_overlaps_and_bad_supports ... ok
+test scene::procedural_indoor::tests::metric_uvs_do_not_stretch_with_box_size ... ok
+test scene::procedural_indoor::tests::neighboring_room_furniture_and_conference_seats_fit ... ok
+test scene::procedural_indoor::tests::furniture_programs_have_bounded_geometry_and_varied_parameters ... ok
+test scene::procedural_indoor::tests::procedural_meshes_have_valid_topology_normals_and_tangents ... ok
+test scene::procedural_indoor::tests::procedural_texture_uploads_have_complete_mips_and_correct_color_spaces ... ok
+test scene::procedural_indoor::tests::sampled_niches_keep_wall_mounts_on_solid_wall_and_reject_invalid_fields ... ok
+test scene::procedural_indoor::tests::seeded_replay_and_independent_camera_streams ... ok
+test scene::procedural_indoor::tests::single_camera_stream_still_covers_camera_heights ... ok
+test scene::procedural_indoor::tests::tabletop_wood_grain_follows_the_long_axis ... ok
+test scene::procedural_indoor::tests::trajectory_rejects_supported_props_and_midpath_view_obstruction ... ok
+test scene::procedural_indoor::tests::trajectory_validation_matches_runtime_poses_and_covers_metric_baselines ... ok
+test scene::procedural_indoor::tests::visibility_sampling_handles_high_back_seats_and_glazed_rooms ... ok
+test scene::procedural_indoor::validation::geometry::tests::human_mesh_qualification_checks_bounds_contact_and_metric_stature ... ok
+test scene::procedural_indoor::validation::geometry::tests::nonfinite_normals_cannot_bypass_the_unit_length_check ... ok
+test scene::procedural_indoor::validation::tests::annotation_value_borrowing_preserves_bits_and_unaligned_inputs ... ok
+test scene::procedural_indoor::validation::tests::float32_annotation_qualification_rejects_single_pixel_outliers ... ok
+test scene::procedural_indoor::validation::tests::geometry_qualification_catches_hidden_mesh_overruns_and_records_coverage ... ok
+test scene::procedural_indoor::validation::tests::invalid_base_scene_scalars_fail_before_dependent_program_queries ... ok
+test scene::procedural_indoor::validation::tests::percentile_selection_matches_sorted_total_order_exactly ... ok
+test scene::procedural_indoor::validation::tests::saucers_and_clock_relief_fit_narrow_and_shallow_reservations ... ok
+test scene::procedural_indoor::validation::tests::small_valid_captures_reject_insufficient_pixels_without_panicking ... ok
+test scene::procedural_indoor::validation::tests::tall_supported_props_must_fit_beneath_the_entire_sloped_roof ... ok
+test scene::procedural_indoor::validation::tests::wall_mounts_touch_real_back_faces_on_oblique_and_axis_aligned_walls ... ok
+test scene::semantic_room::tests::semantic_room_defaults_freeze_humans ... ok
+test scene::semantic_room::tests::semantic_room_defaults_include_human_mesh ... ok
+test scene::tests::create_scene_aabb_merges_child_bounds ... ok
+test scene::tests::reconstruction_aabb_ignores_context_and_tracks_transformed_region_without_voxel_export ... ok
+test scene::procedural_indoor::tests::all_grammars_and_density_extremes_remain_valid ... ok
+test scene::procedural_indoor::tests::people_are_deterministic_diverse_supported_and_inside_collision_envelopes ... ok
+test scene::procedural_indoor::tests::distribution_is_valid_and_covers_all_families has been running for over 60 seconds
+test scene::procedural_indoor::tests::distribution_is_valid_and_covers_all_families ... ok
+
+test result: ok. 368 passed; 0 failed; 22 ignored; 0 measured; 0 filtered out; finished in 87.83s
+
+     Running unittests src/bin/indoor_bench.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/bevy_zeroverse/a00a2d071677d0ab/out/indoor_bench-a00a2d071677d0ab)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/indoor_validate.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/bevy_zeroverse/967d14ebb587503b/out/indoor_validate-967d14ebb587503b)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/motion_validate.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/bevy_zeroverse/770413e1cd7d4d0f/out/motion_validate-770413e1cd7d4d0f)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/ovoxel_autoencode.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/bevy_zeroverse/5b97e5739afd943a/out/ovoxel_autoencode-5b97e5739afd943a)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/viewer.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/bevy_zeroverse/88792efa65d8f93e/out/viewer-88792efa65d8f93e)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/viewer_profile.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/bevy_zeroverse/becafd222498c693/out/viewer_profile-becafd222498c693)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/capture_coherence.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/bevy_zeroverse/8bc4fa13f6c0bfd8/out/capture_coherence-8bc4fa13f6c0bfd8)
+
+running 1 test
+test animated_viewer_settings_capture_fixed_steps_and_reject_midflight_changes ... ignored, requires native GPU; checks async metadata and legacy sequential modalities
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/co_visibility_render.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/bevy_zeroverse/a6fef5a47f3eff7f/out/co_visibility_render-a6fef5a47f3eff7f)
+
+running 1 test
+test same_time_visibility_matches_ray_geometry ... ignored, native GPU: independent occlusion, camera order, motion, flow and 16-camera packing
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/ground_truth_render.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/bevy_zeroverse/c21a2a9cdcb259a9/out/ground_truth_render-c21a2a9cdcb259a9)
+
+running 1 test
+test float32_mrt_matches_independent_ray_geometry_and_tracks_changes ... ignored, requires a native GPU; checks analytic accuracy and cache invalidation
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/human_motion_randomness.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/bevy_zeroverse/d0805fc1fa4f4436/out/human_motion_randomness-d0805fc1fa4f4436)
+
+running 1 test
+test cached_prompts_preserve_seed_diversity_and_replay_across_batches ... ignored, requires native GPU and cached/downloaded ARDY + Llama weights
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/multiview_factors.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/bevy_zeroverse/8284645024afe5fe/out/multiview_factors-8284645024afe5fe)
+
+running 1 test
+test four_view_mixtures_and_handheld_paths_keep_the_requested_strata ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.77s
+
+     Running tests/optical_flow_render.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/bevy_zeroverse/aea856200805af1c/out/optical_flow_render-aea856200805af1c)
+
+running 1 test
+test capture_pairs_track_rigid_camera_vertex_and_skeletal_motion ... ignored, requires native GPU; analytic flow, deformation, occlusion and sequence reset
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/procedural_indoor_gi.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/bevy_zeroverse/8e2780447ba98529/out/procedural_indoor_gi-8e2780447ba98529)
+
+running 1 test
+test baked_indirect_light_changes_rgb_without_changing_geometry_or_direct_lights ... ignored, requires native GPU; exports fixed-scene indirect-light ablations
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/procedural_indoor_lighting.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/bevy_zeroverse/a92a2f22902e5e18/out/procedural_indoor_lighting-a92a2f22902e5e18)
+
+running 1 test
+test direct_lighting_and_shadow_maps_affect_rgb ... ignored, requires native GPU/display; writes reproducible lighting ablations
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/procedural_indoor_render.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/bevy_zeroverse/c6414001379724bd/out/procedural_indoor_render-c6414001379724bd)
+
+running 5 tests
+test empty_assets_rotated_odd_size_capture_and_legacy_scene_switches ... ignored, requires a native GPU; exercises real shaders and readback
+test indoor_annotations_voxels_and_keyboard_after_object_scene ... ignored, requires native GPU and Anny assets; real mode switches, R and CPU/GPU voxels
+test nonrectangular_envelope_voxels_exclude_context_and_keep_floor_levels ... ignored, requires native GPU; nonrectangular envelope CPU/GPU voxel and annotation contract
+test render_fenced_indoor_capture_preserves_flow_and_shared_visibility ... ignored, requires native GPU; render-fenced multi-step indoor flow and co-visibility
+test thin_triangle_seeds_keep_every_pixel_on_its_calibrated_ray ... ignored, requires native GPU; full-pixel qualification of thin-triangle regression seeds
+
+test result: ok. 0 passed; 0 failed; 5 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/procedural_indoor_viewer.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/bevy_zeroverse/2de5af1e56f3ea03/out/procedural_indoor_viewer-2de5af1e56f3ea03)
+
+running 2 tests
+test editor_starts_at_a_generated_interior_viewpoint ... ignored, requires a native graphics adapter and display server
+test editor_engine_types_and_picking_are_available ... ok
+
+test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/render_residency.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/bevy_zeroverse/5528769e06f4d2cd/out/render_residency-5528769e06f4d2cd)
+
+running 1 test
+test retired_view_keys_are_evicted_without_changing_captured_pixels ... ignored, requires native GPU; 64 regenerated scenes plus fixed-scene cache/pixel controls
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/viewer_annotations.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/bevy_zeroverse/ad4cafd809050c0b/out/viewer_annotations-ad4cafd809050c0b)
+
+running 1 test
+test pose_overlay_respects_environment_and_flow_preview_respects_time ... ignored, requires native GPU; pose occlusion, teardown and 30/60/120 Hz flow
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/bevy_zeroverse_burn/81211a79dbae6f16/out/bevy_zeroverse_burn-81211a79dbae6f16)
+
+running 22 tests
+test chunk::tests::chunk_roundtrips_ovoxel_sorted ... ok
+test chunk::tests::chunk_roundtrips_multistep_pose ... ok
+test chunk::tests::chunk_writes_ovoxel_tensors_with_offsets ... ok
+test chunk::tests::chunk_roundtrips_object_obbs_without_metadata ... ok
+test chunk::tests::legacy_pitched_and_byte_planes_keep_the_same_values ... ok
+test chunk::tests::packed_float32_decode_borrows_and_preserves_every_bit ... ok
+test chunk::tests::raw_color_packing_preserves_sample_timestep_and_camera_order ... ok
+test compression::tests::uncompressed_owned_archives_reuse_the_input_allocation ... ok
+test fs::tests::fs_roundtrips_object_obbs_without_metadata ... ok
+test fs::tests::fs_roundtrips_multistep_pose ... ok
+test compression::tests::owned_compression_preserves_archive_bytes_for_every_codec ... ok
+test generator::flow_tests::every_requested_geometry_plane_rejects_nonfinite_or_truncated_values ... ok
+test generator::flow_tests::indoor_constructor_keeps_quality_and_bounds_multiview_batches ... ok
+test generator::flow_tests::specialized_numeric_validation_remains_strict ... ok
+test fs::tests::fs_roundtrips_ovoxel ... ok
+test generator::flow_tests::terminal_or_background_only_flow_is_a_complete_sample ... ok
+test progress::tests::reused_slot_keeps_cumulative_progress_and_rejects_stale_epochs ... ok
+test progress::tests::progress_storage_is_bounded_by_slots_and_planned_work ... ok
+test sensor::tests::each_sensor_factor_has_an_isolated_effect_and_keeps_annotations ... ok
+test sensor::tests::neutral_settings_preserve_display_values ... ok
+test sensor::tests::seeded_factors_only_modify_rgb ... ok
+test dataset::live_tests::public_live_stream_automatically_prefetches_and_owns_each_response ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running unittests src/bin/zeroverse_gen.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/bevy_zeroverse_burn/28659941ffc25769/out/zeroverse_gen-28659941ffc25769)
+
+running 10 tests
+test process_limit_tests::renderer_upgrade_rejects_resume_without_changing_readers ... ok
+test process_limit_tests::indoor_cli_defaults_to_four_connected_views_and_preserves_explicit_counts ... ok
+test process_pool::tests::failed_child_stops_dispatch_and_kills_and_reaps_siblings ... ok
+test process_pool::tests::actual_spawn_failure_reaps_a_running_cpu_only_child ... ok
+test process_pool::tests::rejects_unbounded_and_overflowing_assignments_before_spawning ... ok
+test motion_worker_tests::motion_defaults_share_one_model_and_respect_explicit_concurrency ... ok
+test process_limit_tests::default_cap_only_applies_to_finite_indoor_process_jobs ... ok
+test process_pool::tests::reuses_bounded_slots_and_drains_all_jobs ... ok
+test process_pool::tests::spawn_and_observer_failures_reap_previously_started_children ... ok
+test process_pool::tests::partitions_cover_indices_and_partial_chunks_without_cap_rounding ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/calibration_roundtrip.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/bevy_zeroverse_burn/d0abbe6eda24336f/out/calibration_roundtrip-d0abbe6eda24336f)
+
+running 2 tests
+test reject_partial_mislabeled_or_nonfinite_calibration ... ok
+test complete_calibration_and_unknown_physical_time_roundtrip ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/co_visibility_roundtrip.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/bevy_zeroverse_burn/c705bccdcc9f6462/out/co_visibility_roundtrip-c705bccdcc9f6462)
+
+running 2 tests
+test malformed_membership_and_incomplete_views_are_rejected ... ok
+test all_sixteen_bits_roundtrip_with_validity_metadata_and_lossless_preview ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/dataset_tests.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/bevy_zeroverse_burn/54e915f719f47c4c/out/dataset_tests-54e915f719f47c4c)
+
+running 10 tests
+
+running 1 test
+test chunk_dataset_loads_generated_samples ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 1.30s
+
+test chunk_dataset_loads_generated_samples ... ok
+
+running 1 test
+test fs_generation_respects_playback_steps ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 1.34s
+
+test fs_generation_respects_playback_steps ... ok
+
+running 1 test
+test chunk_generation_uses_flat_indices_across_offsets ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 1.32s
+
+test chunk_generation_uses_flat_indices_across_offsets ... ok
+
+running 1 test
+test fs_dataset_loads_generated_samples ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 1.86s
+
+test fs_dataset_loads_generated_samples ... ok
+
+running 1 test
+test fs_generation_uses_flat_indices_across_offsets ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 1.44s
+
+test fs_generation_uses_flat_indices_across_offsets ... ok
+
+running 1 test
+test headless_chunk_generation_smoke ... capture failed: LiveDataset supports one renderer configuration per process; use a fresh process for different dimensions, timesteps, modes, assets or scene settings
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 1.73s
+
+test headless_chunk_generation_smoke ... ok
+
+running 1 test
+test headless_fs_generation_smoke ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 1.41s
+
+test headless_fs_generation_smoke ... ok
+
+running 1 test
+test headless_fs_render_mode_resets_between_timesteps ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 1.23s
+
+test headless_fs_render_mode_resets_between_timesteps ... ok
+
+running 1 test
+test resume_offsets_continue_chunk_indices ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 1.52s
+
+test resume_offsets_continue_chunk_indices ... ok
+
+running 1 test
+test resume_offsets_continue_fs_indices ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 1.46s
+
+test resume_offsets_continue_fs_indices ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.49s
+
+     Running tests/flow_roundtrip.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/bevy_zeroverse_burn/a80c0930eb580212/out/flow_roundtrip-a80c0930eb580212)
+
+running 2 tests
+test flow_export_rejects_nonfinite_values_and_invalid_masks ... ok
+test signed_subpixel_flow_and_masks_roundtrip_without_rgb_or_tonemapping ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/indoor_roundtrip.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/bevy_zeroverse_burn/e53380ca36467e0c/out/indoor_roundtrip-e53380ca36467e0c)
+
+running 10 tests
+test generation_ovoxel_requires_static_single_step_capture ... ok
+test indoor_generation_validates_workers_trajectories_and_accepts_numeric_flow ... ok
+test chunk_preserves_seed_manifest_and_does_not_renormalize_constant_rgb ... ok
+test mixed_human_counts_roundtrip_without_inventing_padded_people ... ok
+test filesystem_supports_annotation_only_samples_without_lossy_palette_labels ... ok
+test filesystem_preserves_seed_manifest_and_color_encoding ... ok
+test raw_rgb_is_exact_srgb_once_in_both_export_formats ... ok
+test resume_counts_partial_chunks_and_rejects_gaps_and_overwrites ... ok
+test storage_preserves_primary_bounds_and_positions_outside_them ... ok
+test resume_recognizes_compressed_chunk_indices ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/memory_leak_tests.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/bevy_zeroverse_burn/9203f79ad9ce5210/out/memory_leak_tests-9203f79ad9ce5210)
+
+running 1 test
+test chunk_and_fs_roundtrip_do_not_leak_memory ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/bevy_zeroverse_capture/5112bf25c2a1ca3c/out/bevy_zeroverse_capture-5112bf25c2a1ca3c)
+
+running 4 tests
+test calibration::tests::projection_sign_flow_units_and_frustum_edges_are_explicit ... ok
+test provenance::tests::binary_assets_and_artifact_hashes_remain_byte_exact ... ok
+test calibration::tests::portrait_landscape_and_off_center_pinhole_roundtrip ... ok
+test provenance::tests::text_build_inputs_have_identical_lf_and_crlf_identities ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/bevy_zeroverse_ffi/7e80707d23d47118/out/bevy_zeroverse_ffi-7e80707d23d47118)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/generate.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/bevy_zeroverse_ffi/884a0455c9700c15/out/generate-884a0455c9700c15)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/headless_sampling.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/bevy_zeroverse_ffi/bf6b1e5625fa9d0f/out/headless_sampling-bf6b1e5625fa9d0f)
+
+running 1 test
+2026-10-06T07:27:17.300480Z  WARN bevy_burn_human: burn_human: clamping 8 bone influences to 4 for bevy skinning
+test headless_sampling_exports_pngs ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.66s
+
+     Running unittests src/lib.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/bevy_zeroverse_publication/72e3f258fae037e1/out/bevy_zeroverse_publication-72e3f258fae037e1)
+
+running 2 tests
+test qualification::tests::factor_recipe_is_explicit_and_rejects_paths_and_duplicate_cases ... ok
+test pipeline::gallery_tests::rejects_duplicate_presentations_but_preserves_the_no_script_figure ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/bevy_zeroverse_publication/22ff7e615392b877/out/bevy_zeroverse_publication-22ff7e615392b877)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/contracts.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/bevy_zeroverse_publication/ac111f291327b12b/out/contracts-ac111f291327b12b)
+
+running 17 tests
+test archive_bytes_are_reproducible ... ok
+test float32_geometry_roundtrip_preserves_integers_exactly ... ok
+test corrupt_validity_counts_and_previews_fail ... ok
+test high_membership_bits_and_source_exclusion_survive_png ... ok
+test install_failure_rolls_back_previously_published_files ... ok
+test a_rendered_camera_must_match_its_planned_pose ... ok
+test geometry_mismatch_and_source_upgrade_cannot_relabel_captures ... ok
+test complete_capture_fixture_passes_and_stale_completion_fails ... ok
+test membership_is_numeric_and_background_is_distinct_from_unshared_surface ... ok
+test invalid_alignment_fov_and_histogram_denominators_are_rejected ... ok
+test legend_and_templates_are_closed_contracts ... ok
+test paper_dependency_closure_is_complete_and_rejects_escape ... ok
+test malformed_histogram_reports_an_error_without_panicking ... ok
+test recipe_cannot_replace_sources_or_the_publication_work_directory ... ok
+test missing_annotation_and_duplicate_camera_cannot_publish ... ok
+test population_schema_matches_renderer_and_rejects_stale_contracts ... ok
+test page_counts_and_examples_follow_the_recipe_instead_of_fixed_seeds ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running unittests src/lib.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/burn_siglip2/bd60e130f5d1184c/out/burn_siglip2-bd60e130f5d1184c)
+
+running 67 tests
+test api::tests::detects_wgpu_from_backend_or_device_label ... ok
+test api::tests::execution_evidence_uses_the_backend_reported_name ... ok
+test api::tests::flat_inference_rejects_malformed_value_count_without_panicking ... ok
+test api::tests::flat_inference_rejects_shape_product_overflow_without_panicking ... ok
+test api::tests::flat_inference_rejects_zero_dimensions_without_panicking ... ok
+test api::tests::l2_normalization_rejects_empty_batches ... ok
+test bpk::tests::borrowed_view_rejects_payload_checksum_mismatch ... ok
+test bpk::tests::bpk_round_trip ... ok
+test bpk::tests::production_metadata_must_match_exact_variant_config ... ok
+test bpk::tests::rejects_invalid_magic ... ok
+test bpk::tests::production_metadata_round_trip ... ok
+test config::tests::all_supported_variants_are_valid_and_round_trip ... ok
+test config::tests::altered_near_presets_are_rejected_by_production_profile ... ok
+test config::tests::default_config_meets_production_profile ... ok
+test config::tests::model_size_aliases_are_bounded_to_supported_variants ... ok
+test config::tests::tiny_config_is_rejected_by_production_profile ... ok
+test config::tests::tiny_config_is_valid ... ok
+test loader::tests::accepts_exactly_one_complete_token_embedding_representation ... ok
+test loader::tests::actual_tensor_storage_changes_loaded_weight_identity ... ok
+test hooks::tests::writes_and_reads_hook_snapshot ... ok
+test loader::tests::bounded_stream_reader_rejects_more_than_declared_bytes ... ok
+test loader::tests::byte_reader_rejects_blank_required_checksum_before_reading_part ... ok
+test loader::tests::decoded_weights_must_be_finite ... ok
+test loader::tests::full_and_canonical_chunked_text_embeddings_have_one_identity ... ok
+test loader::tests::loaded_weight_identity_is_independent_of_part_application_order ... ok
+test loader::tests::manifest_payload_claim_does_not_control_loaded_weight_identity ... ok
+test loader::tests::native_reader_rejects_oversized_manifest_part_before_backend_allocation ... ok
+test api::tests::l2_normalization_is_row_wise_and_zero_safe ... ok
+test loader::tests::production_bpk_loader_rejects_blank_payload_checksum ... ok
+test loader::tests::production_bpk_loader_rejects_provenance_dtype_mismatch_before_model_allocation ... ok
+test loader::tests::production_bpk_loader_requires_artifact_provenance_before_model_allocation ... ok
+test loader::tests::read_parts_manifest_delegates_to_parts_module ... ok
+test loader::tests::read_parts_manifest_rejects_non_bpk_entries ... ok
+test loader::tests::shard_header_must_match_outer_artifact_provenance ... ok
+test loader::tests::stream_reader_rejects_blank_required_checksum_before_opening_part ... ok
+test loader::tests::validates_web_limits ... ok
+test model::tests::apply_weight_rejects_all_malformed_tensor_buffers_without_panicking ... ok
+test model::tests::chunked_embedding_rejects_malformed_value_lengths_without_panicking ... ok
+test model::tests::expected_weight_specs_cover_dual_tower_keys ... ok
+test model::tests::chunked_embedding_can_be_loaded_without_a_full_table_allocation ... ok
+test model::tests::chunked_embedding_matches_rows_across_chunk_boundaries ... ok
+test model::tests::gelu_extreme_inputs_remain_finite_and_saturate ... ok
+test model::tests::gelu_matches_pytorch_tanh_reference ... ok
+test model::tests::model_builder_rejects_duplicate_unexpected_and_incomplete_weights ... ok
+test model::tests::public_tensor_paths_reject_zero_batches_before_backend_operations ... ok
+test model::tests::similarity_logits_normalizes_both_towers ... ok
+test model::tests::forward_records_hooks_when_enabled ... ok
+test model::tests::model_builder_full_and_chunked_embeddings_are_equivalent ... ok
+test api::tests::multimodal_response_has_calibrated_matrix_shapes ... ok
+test model::tests::zeros_model_forward_text_tokens_has_expected_shape ... ok
+test parity::tests::compare_maps_reports_missing_and_shape_mismatch ... ok
+test model::tests::zeros_model_forward_image_has_expected_shape ... ok
+test parity::tests::diff_metrics_are_stable ... ok
+test parts::tests::manifest_path_is_stable ... ok
+test parts::tests::production_manifest_preserves_and_validates_typed_provenance ... ok
+test parts::tests::reads_written_manifest ... ok
+test parts::tests::portable_sharding_splits_and_preserves_the_full_token_embedding ... ok
+test parts::tests::rejects_manifest_path_traversal_and_absolute_paths ... ok
+test parts::tests::rejects_non_bpk_manifest_name ... ok
+test parts::tests::rejects_non_bpk_part_entry ... ok
+test parts::tests::resolves_relative_part_path ... ok
+test wasm_schema::tests::embedding_response_json_contract_is_stable ... ok
+test wasm_schema::tests::score_response_preserves_logits_and_adds_all_embeddings ... ok
+test wasm_schema::tests::text_embedding_response_uses_the_exported_method_name ... ok
+test parts::tests::reports_whole_tensor_part_larger_than_requested_limit ... ok
+test parts::tests::cdn_bundler_rejects_overlapping_destination_before_deleting_source ... ok
+test parts::tests::cdn_bundler_rejects_non_production_profiles ... ok
+
+test result: ok. 67 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+     Running tests/flex_backend_smoke.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/burn_siglip2/58ab2a6de2779696/out/flex_backend_smoke-58ab2a6de2779696)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/host_transfer_evidence.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/burn_siglip2/65fc262b6535e9f0/out/host_transfer_evidence-65fc262b6535e9f0)
+
+running 2 tests
+test tiny_fixture_bpk_is_rejected_for_inference_without_hooks ... ok
+test tiny_fixture_bpk_is_rejected_for_inference_with_hooks ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/live_cdn_base.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/burn_siglip2/c89f2b8e3ab2b57f/out/live_cdn_base-c89f2b8e3ab2b57f)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/loader_parity.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/burn_siglip2/2e38bf778113d2a3/out/loader_parity-2e38bf778113d2a3)
+
+running 4 tests
+test safetensors_loader_rejects_tiny_test_profile ... ok
+test bpk_loader_rejects_tiny_fixture_bpk ... ok
+test streamed_bpk_parts_loader_rejects_tiny_test_profile ... ok
+test bpk_parts_loader_rejects_tiny_test_profile ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/modality_parity.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/burn_siglip2/0c5e59c173a0b5fd/out/modality_parity-0c5e59c173a0b5fd)
+
+running 2 tests
+test production_profile_check_rejects_tiny_test_config ... ok
+test load_backend_rejects_tiny_fixture_bpk ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/python_hook_parity.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/burn_siglip2/0b0c22dd0c46bd41/out/python_hook_parity-0b0c22dd0c46bd41)
+
+running 1 test
+test tiny_fixture_bpk_is_rejected_before_hook_parity ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/real_backend_matrix.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/burn_siglip2/8f8e3ee3c73dc6ad/out/real_backend_matrix-8f8e3ee3c73dc6ad)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/real_hf_import_smoke.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/burn_siglip2/1f0c50ff6e7559b8/out/real_hf_import_smoke-1f0c50ff6e7559b8)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/real_numerical_parity.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/burn_siglip2/b87cc1b054085cbc/out/real_numerical_parity-b87cc1b054085cbc)
+
+running 2 tests
+test opt_in_real_hf_reference_matches_imported_bundle ... ok
+test comparison_math_and_schema_smoke_are_deterministic ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/real_wgpu_parity.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/burn_siglip2/2c9ecc4c192986dd/out/real_wgpu_parity-2c9ecc4c192986dd)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/wgpu_evidence_smoke.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/burn_siglip2/c4da5a5e58e22d95/out/wgpu_evidence_smoke-c4da5a5e58e22d95)
+
+running 1 test
+test wgpu_loader_test_skipped_when_feature_disabled ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests bevy_zeroverse
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests bevy_zeroverse_burn
+
+running 1 test
+test crates/burn/src/lib.rs - (line 9) - compile ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+all doctests ran in 0.83s; merged doctests compilation took 0.81s
+   Doc-tests bevy_zeroverse_capture
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests bevy_zeroverse_ffi
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests bevy_zeroverse_publication
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests burn_siglip2
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

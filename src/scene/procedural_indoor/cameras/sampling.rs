@@ -2,6 +2,10 @@
 use super::super::layout::{IndoorCamera, IndoorManifest, CAMERA_CLEARANCE};
 use bevy::prelude::*;
 use rand::Rng;
+#[cfg(test)]
+mod tests;
+
+const PERSON_FALLBACK_PROPOSALS: usize = 1536;
 impl IndoorManifest {
     pub(super) fn sample_independent_cameras(
         &mut self,
@@ -202,11 +206,103 @@ impl IndoorManifest {
                 found = Some(camera);
                 break;
             }
+            if found.is_none() && require_person {
+                found = self.person_camera_fallback(&people, rng, coverage);
+            }
             self.cameras
                 .push(found.ok_or_else(|| {
                     format!("seed {}: unable to place camera {index}; rejections clearance/view/route/curve/coverage={rejected:?}; primary={primary_lo:?}..{primary_hi:?}; people={}", self.seed, people.len())
                 })?);
         }
         Ok(())
+    }
+
+    /// Sparse rooms can have a narrow region that sees both anatomical points
+    /// and four first-surface labels. Search around the required person only
+    /// after the unchanged random proposals exhaust their original budget.
+    /// Every result retains the same complete path and coverage predicates.
+    fn person_camera_fallback(
+        &self,
+        people: &[&super::super::humans::IndoorHuman],
+        rng: &mut rand_chacha::ChaCha8Rng,
+        coverage: &super::coverage::Coverage,
+    ) -> Option<IndoorCamera> {
+        if people.is_empty() {
+            return None;
+        }
+        let phase = rng.random_range(0..16);
+        let person_phase = rng.random_range(0..people.len());
+        for proposal in 0..PERSON_FALLBACK_PROPOSALS {
+            let human = people[(person_phase + proposal % people.len()) % people.len()];
+            let mut slot = proposal / people.len();
+            let direction_sign = if slot.is_multiple_of(2) { 1.0 } else { -1.0 };
+            slot /= 2;
+            let fov_degrees = [84.0, 96.0, 106.0][slot % 3];
+            slot /= 3;
+            let height_offset = [0.0, 0.3, -0.3, 0.6][slot % 4];
+            slot /= 4;
+            let angle = ((slot % 16 + phase) % 16) as f32 * std::f32::consts::TAU / 16.0;
+            slot /= 16;
+            let radius = [1.65, 2.1, 2.7, 3.4][slot % 4];
+            let target = human.transform().transform_point(human.joints[2]);
+            let radial = Vec3::new(angle.cos(), 0.0, angle.sin());
+            let mut start = target + radial * radius;
+            let low = self.floor_height(start.xz()) + 0.78;
+            let high = (self.ceiling_height(start.xz())
+                - self.program.as_ref().map_or(
+                    [0.10, 0.42, 0.06][self.lighting_design as usize % 3],
+                    |program| program.light_drop,
+                )
+                - 0.04
+                - CAMERA_CLEARANCE
+                - 0.04)
+                .min(3.25);
+            if low > high {
+                continue;
+            }
+            start.y = (target.y + height_offset).clamp(low, high);
+            if !self.camera_clear(start) || !self.camera_view_clear(start, target) {
+                continue;
+            }
+            let distance = if self.camera_settings.path_length_max == 0.0 {
+                0.0
+            } else {
+                self.camera_settings
+                    .path_length_min
+                    .max(0.001)
+                    .min(self.camera_settings.path_length_max)
+            };
+            let end = start + radial.cross(Vec3::Y) * (distance * direction_sign);
+            let mut camera = IndoorCamera {
+                start,
+                end,
+                target,
+                fov_degrees,
+                motion: (distance > 0.0).then_some(super::CameraMotion {
+                    orientations: None,
+                    route: Vec::new(),
+                    control: [start.lerp(end, 1.0 / 3.0), start.lerp(end, 2.0 / 3.0)],
+                    target_end: target,
+                    roll: [0.0; 2],
+                }),
+            };
+            if let Some(handheld) = &self.camera_settings.handheld {
+                handheld.apply(&mut camera, rng);
+            }
+            let path_length = camera.path_length();
+            if path_length + 1e-4 < self.camera_settings.path_length_min
+                || path_length > self.camera_settings.path_length_max + 1e-4
+                || !self.camera_curve_clear(&camera)
+                || !coverage.suitable(&camera, true)
+                || self.cameras.iter().any(|existing| {
+                    existing.start.distance(start) < 0.18
+                        && existing.target.distance(camera.target) < 0.5
+                })
+            {
+                continue;
+            }
+            return Some(camera);
+        }
+        None
     }
 }

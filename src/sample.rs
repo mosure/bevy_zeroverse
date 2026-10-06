@@ -1,3 +1,11 @@
+#[cfg(not(target_arch = "wasm32"))]
+mod ground_truth_decode;
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod native_readback;
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod render_settling;
+#[cfg(not(target_arch = "wasm32"))]
+use ground_truth_decode::unpack_ground_truth;
 pub mod qualification;
 mod readiness;
 pub use readiness::{CaptureBlocker, CaptureReadiness};
@@ -245,6 +253,55 @@ impl CaptureProgress {
     /// before this window opens; its queue-ordered copies retain ownership.
     pub(crate) fn readback_in_flight(&self) -> bool {
         self.pending.is_some()
+    }
+
+    /// Speculative work cannot enter the queue ahead of any attachment from the
+    /// current request, including recycled copiers from an earlier room/frame.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn copies_submitted(&self, copiers: impl IntoIterator<Item = (u64, u64)>) -> bool {
+        let Some(expected) = self.pending else {
+            return false;
+        };
+        let mut seen = false;
+        for (requested, submitted) in copiers {
+            if requested != expected || submitted != expected {
+                return false;
+            }
+            seen = true;
+        }
+        seen
+    }
+}
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod speculation_tests {
+    use super::*;
+    #[test]
+    fn only_all_submitted_current_request_copies_release_speculation() {
+        let mut capture = CaptureProgress {
+            pending: Some(3),
+            ..default()
+        };
+        assert!(!capture.copies_submitted([]));
+        assert!(
+            !capture.copies_submitted([(2, 2), (2, 2)]),
+            "preceding room/frame"
+        );
+        assert!(!capture.copies_submitted([(0, 0)]), "recycled staging");
+        assert!(
+            !capture.copies_submitted([(3, 3), (3, 2)]),
+            "unsubmitted current attachment"
+        );
+        assert!(
+            !capture.copies_submitted([(3, 3), (2, 2)]),
+            "mixed frame IDs"
+        );
+        assert!(capture.copies_submitted([(3, 3), (3, 3)]));
+        capture.pending = None;
+        assert!(
+            !capture.copies_submitted([(3, 3)]),
+            "consumed or inactive capture"
+        );
     }
 }
 
@@ -509,6 +566,8 @@ pub fn configure_sampler(app: &mut App, initial_state: SamplerState) {
     app.add_systems(PostUpdate, restore_sampling_motion.after(sample_stream));
     app.add_systems(PostUpdate, readiness::update.before(sample_stream));
     app.add_systems(Last, gate_capture_cameras);
+    #[cfg(not(target_arch = "wasm32"))]
+    render_settling::configure(app);
 }
 
 #[derive(bevy::ecs::system::SystemParam)]
@@ -523,6 +582,8 @@ pub struct CaptureStatus<'w> {
     gi_statistics: Option<Res<'w, crate::scene::procedural_indoor::gi::BakeStatistics>>,
     #[cfg(not(target_arch = "wasm32"))]
     gi: Option<Res<'w, crate::scene::procedural_indoor::gi::gpu::GiGpuReadiness>>,
+    #[cfg(not(target_arch = "wasm32"))]
+    settling: Option<Res<'w, render_settling::RenderSettling>>,
 }
 
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
@@ -657,6 +718,24 @@ pub fn sample_stream(
 
     if cameras.is_empty() || current_identity.is_none() {
         return;
+    }
+
+    // The native indoor fence proves a complete current-view render after
+    // current visibility, uploads and pipelines, rather than guessing how many
+    // identical full frames those operations require. Unsupported render paths
+    // keep their ordinary settling policy.
+    #[cfg(not(target_arch = "wasm32"))]
+    if capture_status
+        .settling
+        .as_ref()
+        .is_some_and(|settling| settling.completed())
+    {
+        if state.warmup_frames != 0 || state.frames != 0 || !startup_delay.done {
+            capture_status.settling.as_ref().unwrap().record_hit();
+        }
+        state.warmup_frames = 0;
+        state.frames = 0;
+        startup_delay.done = true;
     }
 
     if !startup_delay.done {
@@ -1203,142 +1282,6 @@ pub fn sample_stream(
 
     state.ovoxel_wait_frames = 0;
     state.enabled = false;
-}
-
-/// Expand exact geometry attachments into the established dataset plane format.
-/// World position and depth are interpolated independently by the rasterizer.
-#[cfg(not(target_arch = "wasm32"))]
-fn unpack_ground_truth(
-    view: &mut View,
-    planes: Vec<Vec<u8>>,
-    modes: &[RenderMode],
-    aabb: &SceneAabb,
-    config: &BevyZeroverseConfig,
-) -> Result<(), String> {
-    if planes.len() != 3
-        || planes
-            .iter()
-            .any(|p| p.len() != planes[0].len() || p.len() % 16 != 0)
-    {
-        return Err("malformed float32 geometry attachments".into());
-    }
-    let mut planes = planes.into_iter();
-    let color = planes.next().unwrap();
-    let world_depth = planes.next().unwrap();
-    let normal_semantic = planes.next().unwrap();
-    if modes.contains(&RenderMode::Color) {
-        view.color = color;
-    }
-    let count = world_depth.len();
-    for (mode, output) in [
-        (RenderMode::Depth, &mut view.depth),
-        (RenderMode::Normal, &mut view.normal),
-        (RenderMode::Position, &mut view.position),
-        (RenderMode::Semantic, &mut view.semantic),
-    ] {
-        if modes.contains(&mode) {
-            output.clear();
-            output.reserve(count);
-        }
-    }
-    let range = (aabb.max - aabb.min).max(Vec3::splat(1e-5));
-    let camera_position = Mat4::from_cols_array_2d(&view.world_from_view)
-        .w_axis
-        .truncate();
-    let append = |target: &mut Vec<u8>, values: [f32; 4]| {
-        target.extend_from_slice(bytemuck::cast_slice(&values));
-    };
-    let depth_enabled = modes.contains(&RenderMode::Depth);
-    let normal_enabled = modes.contains(&RenderMode::Normal);
-    let position_enabled = modes.contains(&RenderMode::Position);
-    let semantic_enabled = modes.contains(&RenderMode::Semantic);
-    let palette: [Option<[f32; 4]>; 41] = std::array::from_fn(|id| {
-        crate::render::ground_truth::semantic_label(id as u32)
-            .map(|label| label.color().to_linear().to_f32_array())
-    });
-    for (wd, ns) in world_depth
-        .as_chunks::<16>()
-        .0
-        .iter()
-        .zip(normal_semantic.as_chunks::<16>().0.iter())
-    {
-        let read = |pixel: &[u8]| {
-            std::array::from_fn::<f32, 4, _>(|i| {
-                f32::from_ne_bytes(pixel[i * 4..i * 4 + 4].try_into().unwrap())
-            })
-        };
-        let w = read(wd);
-        let n = read(ns);
-        if w.iter().chain(n.iter()).any(|v| !v.is_finite()) {
-            return Err("non-finite float32 ground truth".into());
-        }
-        let hit = w[3] > 0.0;
-        let alpha = if hit { 1.0 } else { 0.0 };
-        if depth_enabled {
-            let d = if config.z_depth {
-                w[3]
-            } else {
-                (Vec3::new(w[0], w[1], w[2]) - camera_position).length()
-            };
-            let rgb = match config.depth_format {
-                crate::render::depth::DepthFormat::Linear => [d; 3],
-                crate::render::depth::DepthFormat::Normalized => [d / view.far; 3],
-                crate::render::depth::DepthFormat::Colorized => {
-                    let z = (view.near / w[3].max(view.near)).clamp(0.0, 1.0);
-                    let smooth = |x: f32| {
-                        let t = x.clamp(0.0, 1.0);
-                        t * t * (3.0 - 2.0 * t)
-                    };
-                    [
-                        smooth(2.0 * z - 1.0),
-                        1.0 - (z - 0.5).abs() * 2.0,
-                        1.0 - smooth(2.0 * z),
-                    ]
-                }
-            };
-            append(
-                &mut view.depth,
-                if hit {
-                    [rgb[0], rgb[1], rgb[2], alpha]
-                } else {
-                    [0.0; 4]
-                },
-            );
-        }
-        if normal_enabled {
-            append(&mut view.normal, [n[0], n[1], n[2], alpha]);
-        }
-        if position_enabled {
-            // Context remains visible beyond the reconstruction region. Do not
-            // collapse its positions onto the crop boundary: decoding must still
-            // agree with depth and camera projection for every valid hit.
-            let p = (Vec3::new(w[0], w[1], w[2]) - aabb.min) / range;
-            append(
-                &mut view.position,
-                if hit {
-                    [p.x, p.y, p.z, alpha]
-                } else {
-                    [0.0; 4]
-                },
-            );
-        }
-        if semantic_enabled {
-            let rgb = if hit {
-                if n[3].fract() != 0.0 {
-                    return Err("fractional geometry semantic ID".into());
-                }
-                palette
-                    .get(n[3] as usize)
-                    .copied()
-                    .flatten()
-                    .ok_or_else(|| format!("unknown geometry semantic ID {}", n[3]))?
-            } else {
-                [0.0; 4]
-            };
-            append(&mut view.semantic, [rgb[0], rgb[1], rgb[2], alpha]);
-        }
-    }
-    Ok(())
 }
 
 #[cfg(not(target_arch = "wasm32"))]

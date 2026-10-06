@@ -56,13 +56,13 @@ impl Bin {
     }
 }
 
-pub(super) fn build(triangles: &mut [Triangle]) -> Vec<Node> {
+pub(super) fn build(triangles: &[Triangle]) -> (Vec<Triangle>, Vec<Node>) {
     build_with_parallelism(triangles, true)
 }
 
-fn build_with_parallelism(triangles: &mut [Triangle], parallel: bool) -> Vec<Node> {
+fn build_with_parallelism(triangles: &[Triangle], parallel: bool) -> (Vec<Triangle>, Vec<Node>) {
     if triangles.is_empty() {
-        return Vec::new();
+        return (Vec::new(), Vec::new());
     }
     assert!(
         u32::try_from(triangles.len()).is_ok(),
@@ -82,9 +82,11 @@ fn build_with_parallelism(triangles: &mut [Triangle], parallel: bool) -> Vec<Nod
         .collect();
     let mut nodes = Vec::with_capacity(triangles.len() / 2);
     subdivide(&mut primitives, 0, 0, parallel, &mut nodes);
-    let ordered: Vec<_> = primitives.iter().map(|p| triangles[p.original]).collect();
-    triangles.copy_from_slice(&ordered);
-    nodes
+    // The caller already retains the original median/probe tree. Its immutable
+    // triangles are read directly into the final SAH-owned order: no preliminary
+    // full clone or copy-back allocation is required.
+    let ordered = primitives.iter().map(|p| triangles[p.original]).collect();
+    (ordered, nodes)
 }
 
 fn bin(centroid: f32, lower: f32, scale: f32) -> usize {
@@ -207,13 +209,7 @@ fn parallel_branches(
     start: usize,
     depth: usize,
 ) -> [Vec<Node>; 2] {
-    static POOL: std::sync::OnceLock<bevy::tasks::TaskPool> = std::sync::OnceLock::new();
-    let pool = POOL.get_or_init(|| {
-        bevy::tasks::TaskPoolBuilder::new()
-            .num_threads(std::thread::available_parallelism().map_or(1, |n| n.get().min(4)))
-            .thread_name("indoor-bvh".into())
-            .build()
-    });
+    let pool = super::native_pool();
     let right_start = start + left.len();
     let mut branches = pool.scope(|scope| {
         for (order, primitives, offset) in [(0, left, start), (1, right, right_start)] {
@@ -246,6 +242,156 @@ mod tests {
     use super::*;
     use bevy::prelude::Vec2;
 
+    // Pre-optimization ownership path, retained independently as an exact
+    // oracle. Tree splitting is unchanged; this models its old clone, ordered
+    // allocation and copy-back rather than using the new ownership helper.
+    fn legacy_build(original: &[Triangle], parallel: bool) -> (Vec<Triangle>, Vec<Node>) {
+        let mut triangles = original.to_vec();
+        if triangles.is_empty() {
+            return (triangles, Vec::new());
+        }
+        let mut primitives: Vec<_> = triangles
+            .iter()
+            .enumerate()
+            .map(|(original, triangle)| {
+                let (lo, hi) = triangle.bounds();
+                Primitive {
+                    bounds: Bounds { lo, hi },
+                    centroid: triangle.a + (triangle.ab + triangle.ac) / 3.0,
+                    original,
+                }
+            })
+            .collect();
+        let mut nodes = Vec::with_capacity(triangles.len() / 2);
+        subdivide(&mut primitives, 0, 0, parallel, &mut nodes);
+        let ordered: Vec<_> = primitives.iter().map(|p| triangles[p.original]).collect();
+        triangles.copy_from_slice(&ordered);
+        (triangles, nodes)
+    }
+
+    fn fixture(count: usize, coincident: bool) -> Vec<Triangle> {
+        (0..count)
+            .map(|i| Triangle {
+                a: if coincident {
+                    Vec3::ZERO
+                } else {
+                    Vec3::new(
+                        (i % 97) as f32 * 0.13,
+                        (i / 97 % 23) as f32 * 0.4,
+                        (i / (97 * 23)) as f32 * 0.21,
+                    )
+                },
+                ab: Vec3::X * if !coincident && i % 5 == 0 { 1e-7 } else { 0.1 },
+                ac: Vec3::Y * 0.1,
+                uv: [Vec2::ZERO, Vec2::X, Vec2::Y],
+                normal: if i % 2 == 0 { Vec3::Z } else { -Vec3::Z },
+                material: i,
+            })
+            .collect()
+    }
+
+    fn assert_exact_triangles(a: &[Triangle], b: &[Triangle]) {
+        assert_eq!(a.len(), b.len());
+        for (a, b) in a.iter().zip(b) {
+            assert_eq!(
+                a.a.to_array().map(f32::to_bits),
+                b.a.to_array().map(f32::to_bits)
+            );
+            assert_eq!(
+                a.ab.to_array().map(f32::to_bits),
+                b.ab.to_array().map(f32::to_bits)
+            );
+            assert_eq!(
+                a.ac.to_array().map(f32::to_bits),
+                b.ac.to_array().map(f32::to_bits)
+            );
+            assert_eq!(
+                a.normal.to_array().map(f32::to_bits),
+                b.normal.to_array().map(f32::to_bits)
+            );
+            for (a, b) in a.uv.iter().zip(b.uv.iter()) {
+                assert_eq!(
+                    a.to_array().map(f32::to_bits),
+                    b.to_array().map(f32::to_bits)
+                );
+            }
+            assert_eq!(a.material, b.material);
+        }
+    }
+
+    fn assert_exact_nodes(a: &[Node], b: &[Node]) {
+        assert_eq!(a.len(), b.len());
+        for (a, b) in a.iter().zip(b) {
+            assert_eq!(
+                a.lo.to_array().map(f32::to_bits),
+                b.lo.to_array().map(f32::to_bits)
+            );
+            assert_eq!(
+                a.hi.to_array().map(f32::to_bits),
+                b.hi.to_array().map(f32::to_bits)
+            );
+            assert_eq!(
+                (a.start, a.count, a.right, a.axis),
+                (b.start, b.count, b.right, b.axis)
+            );
+        }
+    }
+
+    #[test]
+    fn owned_transport_matches_legacy_clone_copy_builder() {
+        for count in [0, 1, 257, 40_000] {
+            for coincident in [false, true] {
+                let original = fixture(count, coincident);
+                let unchanged = original.clone();
+                let expected = legacy_build(&original, true);
+                let actual = build(&original);
+                assert_exact_triangles(&expected.0, &actual.0);
+                assert_exact_nodes(&expected.1, &actual.1);
+                // The original closest-hit/probe tree remains immutable.
+                assert_exact_triangles(&original, &unchanged);
+            }
+        }
+    }
+
+    #[test]
+    #[ignore = "bounded allocation/BVH microbenchmark; run separately from GPU measurements"]
+    fn benchmark_owned_transport() {
+        use std::{hint::black_box, time::Instant};
+        for count in [100_000, 300_000, 700_000] {
+            let original = fixture(count, false);
+            let expected = legacy_build(&original, true);
+            let actual = build(&original);
+            assert_exact_triangles(&expected.0, &actual.0);
+            assert_exact_nodes(&expected.1, &actual.1);
+            drop((expected, actual));
+            let mut elapsed = [0.0; 2];
+            for repetition in 0..4 {
+                for candidate in if repetition % 2 == 0 {
+                    [false, true]
+                } else {
+                    [true, false]
+                } {
+                    let started = Instant::now();
+                    let result = if candidate {
+                        build(black_box(&original))
+                    } else {
+                        legacy_build(black_box(&original), true)
+                    };
+                    black_box(&result);
+                    elapsed[usize::from(candidate)] += started.elapsed().as_secs_f64();
+                    drop(result);
+                }
+            }
+            eprintln!(
+                "{{\"kernel\":\"owned_transport\",\"triangles\":{count},\"repetitions\":4,\"legacy_seconds\":{},\"candidate_seconds\":{},\"speedup\":{},\"peak_bytes_removed\":{}}}",
+                elapsed[0] / 4.0,
+                elapsed[1] / 4.0,
+                elapsed[0] / elapsed[1],
+                count * std::mem::size_of::<Triangle>()
+            );
+        }
+    }
+
     fn check_tree(nodes: &[Node], index: usize, triangles: &[Triangle], depth: usize) -> usize {
         assert!(depth < 64, "CPU and GPU traversal stack budget");
         let node = &nodes[index];
@@ -270,7 +416,7 @@ mod tests {
     #[test]
     fn spatial_splits_preserve_thin_clustered_and_coincident_triangles() {
         for coincident in [false, true] {
-            let mut triangles: Vec<_> = (0..2048)
+            let mut original: Vec<_> = (0..2048)
                 .map(|i| Triangle {
                     a: if coincident {
                         Vec3::ZERO
@@ -286,12 +432,11 @@ mod tests {
                 .collect();
             // Truly identical centroids exercise median fallback, including ties.
             if coincident {
-                for t in &mut triangles {
+                for t in &mut original {
                     t.ab = Vec3::X * 0.1;
                 }
             }
-            let original = triangles.clone();
-            let nodes = build(&mut triangles);
+            let (triangles, nodes) = build(&original);
             assert_eq!(check_tree(&nodes, 0, &triangles, 0), original.len());
             let mut ids: Vec<_> = triangles.iter().map(|t| t.material).collect();
             ids.sort_unstable();
@@ -303,21 +448,21 @@ mod tests {
                     (o.a, o.ab, o.ac, o.uv, o.normal)
                 );
             }
-            let mut repeated = original;
-            let repeated_nodes = build(&mut repeated);
+            let (repeated, repeated_nodes) = build(&original);
             assert_eq!(nodes.len(), repeated_nodes.len());
             assert_eq!(
                 triangles.iter().map(|t| t.material).collect::<Vec<_>>(),
                 repeated.iter().map(|t| t.material).collect::<Vec<_>>()
             );
         }
-        assert!(build(&mut []).is_empty());
+        let (triangles, nodes) = build(&[]);
+        assert!(triangles.is_empty() && nodes.is_empty());
     }
 
     #[test]
     #[cfg(not(target_arch = "wasm32"))]
     fn parallel_subtrees_have_identical_bounds_indices_and_triangle_order() {
-        let mut serial: Vec<_> = (0..70_000)
+        let original: Vec<_> = (0..70_000)
             .map(|i| Triangle {
                 a: Vec3::new((i % 97) as f32 * 0.13, (i / 97) as f32 * 0.4, 0.0),
                 ab: Vec3::X * 0.1,
@@ -327,9 +472,8 @@ mod tests {
                 material: i,
             })
             .collect();
-        let mut parallel = serial.clone();
-        let a = build_with_parallelism(&mut serial, false);
-        let b = build_with_parallelism(&mut parallel, true);
+        let (serial, a) = build_with_parallelism(&original, false);
+        let (parallel, b) = build_with_parallelism(&original, true);
         assert_eq!(check_tree(&b, 0, &parallel, 0), parallel.len());
         assert_eq!(a.len(), b.len());
         for (a, b) in a.iter().zip(b.iter()) {

@@ -7,6 +7,7 @@ use crate::scene::procedural_indoor::layout::{stream, IndoorCamera, IndoorManife
 use bevy::prelude::*;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+mod recovery;
 
 pub const CHECK_TIMES: [f32; 5] = [0.0, 0.25, 0.5, 0.75, 1.0];
 const GROUP_ATTEMPTS: usize = 64;
@@ -184,9 +185,17 @@ impl IndoorManifest {
         // budget is bounded and thresholds are never silently relaxed.
         let mut most_placed = 0;
         let mut rejected = [0usize; 6];
+        let mut partial_groups = Vec::new();
         for _ in 0..GROUP_ATTEMPTS {
             self.cameras.clear();
-            self.sample_independent_cameras(1, &mut rng, &coverage)?;
+            if self
+                .sample_independent_cameras(1, &mut rng, &coverage)
+                .is_err()
+            {
+                // One exhausted anchor must not abort the bounded group search.
+                // Settings were validated before entering this loop.
+                continue;
+            }
             let reference = self.cameras[0].clone();
             let (lo, hi) = if self.camera_settings.primary_room {
                 self.primary_room_bounds()
@@ -362,7 +371,6 @@ impl IndoorManifest {
                     break;
                 }
             }
-            most_placed = most_placed.max(self.cameras.len());
             if self.cameras.len() == count {
                 if !targets.is_empty() {
                     let indices = std::iter::once(0).chain(placement_order.iter().copied());
@@ -373,9 +381,30 @@ impl IndoorManifest {
                 }
                 return Ok(());
             }
+            if targets.is_empty() {
+                // Completion is not monotonic in partial-group size: a pair
+                // can be trapped where no third origin has adequate spread.
+                // Keep the best partial group and a few diverse references.
+                // This consumes no RNG and never changes a successful search.
+                recovery::retain_diverse(&mut partial_groups, &self.cameras);
+            }
+            most_placed = most_placed.max(self.cameras.len());
+        }
+        let recovered = recovery::complete(
+            self,
+            &partial_groups,
+            count,
+            &policy,
+            &mut rng,
+            &coverage,
+            &mut rejected,
+        );
+        most_placed = most_placed.max(recovered);
+        if recovered == count {
+            return Ok(());
         }
         self.cameras.clear();
-        Err(format!("seed {} ({:?}): unable to sample {count} multi-view cameras after {GROUP_ATTEMPTS} anchors x {VIEW_ATTEMPTS} proposals/view; most_placed={most_placed}, rejections clearance/rig/length/curve/coverage/overlap={rejected:?}; requested_pairs={targets:?}; min_overlap={}, pair_min={}m, reference={}..{}m, min_spread={}, trajectory_variation={}. Lower overlap/separation/spread bounds, reduce trajectory variation, or shorten paths; no unconstrained fallback was used", self.seed, self.layout, policy.min_overlap, policy.min_baseline, policy.min_reference_baseline, policy.max_baseline, policy.min_spread, policy.trajectory_variation))
+        Err(format!("seed {} ({:?}): unable to sample {count} multi-view cameras after {GROUP_ATTEMPTS} anchors x {VIEW_ATTEMPTS} proposals/view and bounded room-space recovery; most_placed={most_placed}, rejections clearance/rig/length/curve/coverage/overlap={rejected:?}; requested_pairs={targets:?}; min_overlap={}, pair_min={}m, reference={}..{}m, min_spread={}, trajectory_variation={}. Lower overlap/separation/spread bounds, reduce trajectory variation, or shorten paths; no unconstrained fallback was used", self.seed, self.layout, policy.min_overlap, policy.min_baseline, policy.min_reference_baseline, policy.max_baseline, policy.min_spread, policy.trajectory_variation))
     }
 }
 
@@ -457,6 +486,109 @@ mod tests {
             .camera_overlap()
             .iter()
             .all(|p| policy.accepts(&p.samples)));
+    }
+
+    #[test]
+    fn compact_full_occupancy_group_recovers_without_relaxing_policy() {
+        let mut scene =
+            IndoorManifest::generate_with_humans(158, IndoorLayout::Mixed, 0., 0, 1.).unwrap();
+        let original = scene.clone();
+        let settings = CameraSettings::default();
+        let policy = settings.multiview.as_ref().unwrap();
+        scene.resample_cameras(4, settings.clone(), 1.).unwrap();
+        validate_layout(&scene).unwrap();
+        assert_eq!(scene.objects, original.objects);
+        assert_eq!(scene.humans, original.humans);
+        assert_eq!(scene.cameras.len(), 4);
+        assert!(scene.camera_group_geometry().unwrap().accepts(policy));
+        assert!(scene
+            .camera_overlap()
+            .iter()
+            .all(|p| policy.accepts(&p.samples)));
+        let coverage = Coverage::new(&scene);
+        for (index, camera) in scene.cameras.iter().enumerate() {
+            assert!(scene.camera_clear(camera.start));
+            assert!(scene.camera_curve_clear(camera));
+            assert!(coverage.suitable(camera, index == 0));
+            assert!(camera.path_length() + 1e-4 >= settings.path_length_min);
+            assert!(camera.path_length() <= settings.path_length_max + 1e-4);
+        }
+        let cameras = scene.cameras.clone();
+        scene.resample_cameras(4, settings, 1.).unwrap();
+        assert_eq!(scene.cameras, cameras);
+    }
+
+    fn assert_recovery_group(seed: u64, density: f32, human_density: f32) {
+        let mut scene = IndoorManifest::generate_with_humans(
+            seed,
+            IndoorLayout::Mixed,
+            density,
+            0,
+            human_density,
+        )
+        .unwrap();
+        let objects = scene.objects.clone();
+        let humans = scene.humans.clone();
+        scene
+            .resample_cameras(4, CameraSettings::default(), 1.)
+            .unwrap();
+        validate_layout(&scene).unwrap();
+        assert_eq!(scene.objects, objects);
+        assert_eq!(scene.humans, humans);
+        let policy = scene.camera_settings.multiview.as_ref().unwrap();
+        assert_eq!(scene.cameras.len(), 4);
+        assert!(scene.camera_group_geometry().unwrap().accepts(policy));
+        assert!(scene
+            .camera_overlap()
+            .iter()
+            .all(|p| policy.accepts(&p.samples)));
+        let coverage = Coverage::new(&scene);
+        for (index, camera) in scene.cameras.iter().enumerate() {
+            assert!(scene.camera_clear(camera.start));
+            assert!(scene.camera_curve_clear(camera));
+            assert!(coverage.suitable(camera, index == 0));
+            assert!(camera.path_length() + 1e-4 >= scene.camera_settings.path_length_min);
+            assert!(camera.path_length() <= scene.camera_settings.path_length_max + 1e-4);
+        }
+        let replay = IndoorManifest::generate_with_humans(
+            seed,
+            IndoorLayout::Mixed,
+            density,
+            4,
+            human_density,
+        )
+        .unwrap();
+        assert_eq!(
+            scene.cameras, replay.cameras,
+            "seed={seed} density={density}"
+        );
+    }
+
+    #[test]
+    fn sparse_person_groups_complete_with_every_original_constraint() {
+        for seed in [881, 2342, 3779, 5608] {
+            assert_recovery_group(seed, 0., 0.25);
+        }
+    }
+
+    #[test]
+    fn incomplete_reception_pair_restarts_without_relaxing_group_constraints() {
+        assert_recovery_group(3779, 0.35, 0.25);
+    }
+
+    #[test]
+    fn dense_full_occupancy_workshop_completes_valid_camera_group() {
+        assert_recovery_group(670, 0.65, 1.);
+    }
+
+    #[test]
+    fn furnished_lounge_group_completes_valid_camera_group() {
+        assert_recovery_group(3445, 0.65, 0.25);
+    }
+
+    #[test]
+    fn dense_full_occupancy_studio_completes_valid_camera_group() {
+        assert_recovery_group(682, 0.65, 1.);
     }
 
     #[test]

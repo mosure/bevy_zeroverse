@@ -70,13 +70,24 @@ impl WoodFinish {
         mat.reflectance = 0.45;
     }
     pub(super) fn evaluate(&self, r: &MaterialRecipe, [u, v]: [f32; 2]) -> super::program::Texel {
+        self.evaluate_prepared(r, [u, v], None)
+    }
+    pub(super) fn evaluate_prepared(
+        &self,
+        r: &MaterialRecipe,
+        [u, v]: [f32; 2],
+        prepared: Option<&super::program::PreparedWood>,
+    ) -> super::program::Texel {
         use super::field::*;
         let g = grain(r, u, v);
         let absorbed = (self.stain_strength * (0.92 + (0.65 - g) * 0.22)).clamp(0., 1.);
-        let base = mix(
-            mix(r.color, self.stain_color, absorbed),
-            [0.88, 0.87, 0.82],
-            self.bleach,
+        let stained = prepared.map_or_else(
+            || mix(r.color, self.stain_color, absorbed),
+            |p| p.stain(absorbed),
+        );
+        let base = prepared.map_or_else(
+            || mix(stained, [0.88, 0.87, 0.82], self.bleach),
+            |p| p.bleach(stained, self.bleach),
         );
         let gain = (1. + (g - 0.58) * r.contrast * self.ring_contrast * 2.).clamp(0.35, 1.20);
         super::program::Texel {
@@ -88,6 +99,9 @@ impl WoodFinish {
         }
     }
 }
+
+#[cfg(test)]
+mod replay_tests;
 
 pub(super) fn bark(r: &MaterialRecipe, [u, v]: [f32; 2]) -> super::program::Texel {
     use super::field::*;

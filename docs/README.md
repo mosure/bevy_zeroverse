@@ -6,7 +6,7 @@ These guides describe the current generator and export contracts.
 | --- | --- |
 | Build and inspect procedural interiors | [Generation, controls and validation](procedural_indoor.md) |
 | Generate native datasets or use Python | [Dataset configuration and export](procedural_indoor_dataset.md) |
-| Tune native generation throughput | [Measured performance and correctness](generation_throughput.md) |
+| Tune native generation throughput | [Measured performance and correctness](generation_cpu_efficiency.md) |
 | Set camera spacing, overlap and trajectories | [Multi-view cameras](multiview_cameras.md) |
 | Run the browser viewer | [WebGPU](procedural_indoor_web.md) |
 | Add text/waypoint human motion | [Human motion](human_motion.md) |
@@ -18,7 +18,7 @@ These guides describe the current generator and export contracts.
 The [architectural evaluation](architecture_v22.md) contains the latest
 512-room structural audit and 256-view rendered evaluation, including complete
 contact sheets and machine-readable distributions. The
-[release compatibility notes](release_0_29.md) describe manifest and capture
+[release compatibility notes](release_0_31.md) describe manifest and capture
 compatibility.
 
 The [Rust publication protocol](project_page.md) defines the single recipe and

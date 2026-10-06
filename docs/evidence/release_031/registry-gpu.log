@@ -1,0 +1,44 @@
+warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   /media/mosure/hyper1/repos/bevy_zeroverse/out/release_031/registry-workspace/core/Cargo.toml
+workspace: /media/mosure/hyper1/repos/bevy_zeroverse/out/release_031/registry-workspace/Cargo.toml
+   Compiling bevy_zeroverse v0.31.0 (/media/mosure/hyper1/repos/bevy_zeroverse/out/release_031/registry-workspace/core)
+    Finished `test` profile [optimized] target(s) in 1m 16s
+     Running tests/co_visibility_render.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/bevy_zeroverse/20347287f36064b2/out/co_visibility_render-20347287f36064b2)
+
+running 1 test
+test same_time_visibility_matches_ray_geometry ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.28s
+
+     Running tests/ground_truth_render.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/bevy_zeroverse/fc8efe9d872e66df/out/ground_truth_render-fc8efe9d872e66df)
+
+running 1 test
+test float32_mrt_matches_independent_ray_geometry_and_tracks_changes ... 2026-10-06T07:51:16.824890Z ERROR bevy_asset::server: Path not found: /tmp/.tmp1dIWp3/assets/burn_human/fullbody_default.meta.json
+2026-10-06T07:51:16.842935Z ERROR bevy_zeroverse::procedural_human: AnnyBody reference failed to load: Path not found: /tmp/.tmp1dIWp3/assets/burn_human/fullbody_default.meta.json; install assets/burn_human or set indoor_human_density=0 for an unoccupied indoor scene
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.30s
+
+     Running tests/optical_flow_render.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/bevy_zeroverse/aa812b911e82b310/out/optical_flow_render-aa812b911e82b310)
+
+running 1 test
+test capture_pairs_track_rigid_camera_vertex_and_skeletal_motion ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.48s
+
+     Running tests/procedural_indoor_render.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/bevy_zeroverse/34c0b81e80c8b921/out/procedural_indoor_render-34c0b81e80c8b921)
+
+running 5 tests
+test empty_assets_rotated_odd_size_capture_and_legacy_scene_switches ... ok
+test indoor_annotations_voxels_and_keyboard_after_object_scene ... 2026-10-06T07:51:29.177899Z ERROR bevy_log: Could not set global logger and tracing subscriber as they are already set. Consider disabling LogPlugin.
+2026-10-06T07:51:31.393053Z  WARN bevy_burn_human: burn_human: clamping 8 bone influences to 4 for bevy skinning
+ok
+test nonrectangular_envelope_voxels_exclude_context_and_keep_floor_levels ... 2026-10-06T07:51:35.797659Z ERROR bevy_log: Could not set global logger and tracing subscriber as they are already set. Consider disabling LogPlugin.
+ok
+test render_fenced_indoor_capture_preserves_flow_and_shared_visibility ... 2026-10-06T07:51:37.480901Z ERROR bevy_log: Could not set global logger and tracing subscriber as they are already set. Consider disabling LogPlugin.
+ok
+test thin_triangle_seeds_keep_every_pixel_on_its_calibrated_ray ... 2026-10-06T07:51:39.292192Z ERROR bevy_log: Could not set global logger and tracing subscriber as they are already set. Consider disabling LogPlugin.
+ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 20.67s
+

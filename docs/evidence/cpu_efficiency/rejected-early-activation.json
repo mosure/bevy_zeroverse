@@ -1,0 +1,45 @@
+{
+  "accepted": false,
+  "delta": {
+    "annotations_and_metadata_identical": true,
+    "float_channels": 17,
+    "maximum_absolute_difference": 0.00018310546875,
+    "pixels": 16,
+    "rgb_files": 4,
+    "scene_seed": 43084482
+  },
+  "diagnostic_configuration_note": "An initial diagnostic added co-visibility and is excluded from causal qualification; same_configuration_conservative_replay repeats the original five render modes exactly.",
+  "failed_candidate_binary": {
+    "path": "out/throughput_cpu_round7/activation_diagnostic/final-bench",
+    "sha256": "8c0056bbf9aec16a439698a15e922109a5ee5628c31b1c4aa711fe7a7cb87bd6"
+  },
+  "failed_candidate_source": "42d4adbaabc66284bec713ebf51217c8a81aa4ecbd26884d58f543081f4cc6dd",
+  "failed_replay_receipt": {
+    "path": "out/throughput_cpu_round7/activation_diagnostic/replay-five-receipt.json",
+    "sha256": "c670c7ba8b134e91a2e1383af7f4e95b982b89ee589429a8cacb47337c0f1c55"
+  },
+  "reason": "Earlier native camera activation changed strict RGB replay; conservative activation restored exact same-configuration glass RGB. Removed before throughput acceptance. The underlying HDR/transmission scheduling mechanism is not conclusively isolated.",
+  "removed_module": "src/sample/render_settling/activation.rs",
+  "restored_source": {
+    "path": "src/sample/render_settling.rs",
+    "sha256": "92ca8bdd26709e749ee33546e7eb2793e873a3b423346948319ccd21b17acebb"
+  },
+  "same_configuration_conservative_replay": {
+    "path": "out/throughput_cpu_round7/activation_diagnostic/no-activation-matched-receipt.json",
+    "sha256": "ac7d9c6c737d545d6847cc9ff81be67e9a8a35aa675df443d1df9d50d70b22e2"
+  },
+  "source_archive": [
+    {
+      "path": "out/throughput_cpu_round7/activation_diagnostic/src/sample/render_settling.rs",
+      "sha256": "da641d5783c67a6f94fef53f64e3598e1aef2513989367804c1c10c0b1bb66b1"
+    },
+    {
+      "path": "out/throughput_cpu_round7/activation_diagnostic/src/sample/render_settling/activation.rs",
+      "sha256": "6f13fe4bfebe881b7adda98b9c8125184502e4eca24b93804cd63b0db504f60f"
+    },
+    {
+      "path": "out/throughput_cpu_round7/activation_diagnostic/src/io.rs",
+      "sha256": "94a069d2ce67b253a7f58eee89627f325b112c1346fd511c953a8abfe128a89f"
+    }
+  ]
+}

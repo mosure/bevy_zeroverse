@@ -6,6 +6,11 @@ procedural texture resolution, geometry detail and annotation precision. Use
 constrained adapters; it is not a throughput preset. Headless Portable capture
 emits a warning describing those reductions.
 
+The current [CPU efficiency qualification](generation_cpu_efficiency.md) documents
+automatic preparation, polling and capture-buffer optimizations, with exact render
+replay and measurements under a fixed renderer pool. No additional scheduling
+controls are required.
+
 ## Library path
 
 ```rust,no_run

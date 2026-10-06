@@ -5,7 +5,7 @@ use bevy::prelude::*;
 use bevy_zeroverse::{
     app::BevyZeroverseConfig,
     camera::PlaybackMode,
-    headless::{create_app, setup_globals},
+    headless::{create_app, setup_globals, update_capture},
     io::channels,
     render::{depth::DepthFormat, RenderMode},
     sample::{CaptureFailure, CapturePollBackoff, CaptureProgress, SamplerState},
@@ -316,13 +316,18 @@ fn main() -> Result<()> {
                 }
             };
             let update_started = Instant::now();
-            app.update();
+            let updated = update_capture(&mut app);
             let seconds = update_started.elapsed().as_secs_f64();
+            let phase = if updated {
+                phase
+            } else {
+                "native_readback_poll".into()
+            };
             let timing = update_times.entry(phase).or_default();
             timing.0 += 1;
             timing.1 += seconds;
             timing.2 = timing.2.max(seconds);
-            updates += 1;
+            updates += u64::from(updated);
             ensure!(
                 app.world().resource::<CaptureFailure>().0.is_none(),
                 "capture failed: {:?}",

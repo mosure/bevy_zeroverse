@@ -5,6 +5,168 @@ use crate::scene::procedural_indoor::{
 };
 
 #[test]
+fn small_valid_captures_reject_insufficient_pixels_without_panicking() {
+    use crate::sample::{AnnotationPrecision, View};
+    for [width, height] in [[1, 1], [1, 8], [8, 1], [4, 256], [256, 4]] {
+        let mut view = View {
+            world_from_view: Mat4::IDENTITY.to_cols_array_2d(),
+            fovy: 1.1,
+            calibration: Some(
+                crate::calibration::CameraCalibration::centered_pinhole(
+                    width,
+                    height,
+                    1.1,
+                    width as f32 / height as f32,
+                )
+                .unwrap(),
+            ),
+            depth: vec![0; (width * height * 16) as usize],
+            position: vec![0; (width * height * 16) as usize],
+            normal: vec![0; (width * height * 16) as usize],
+            ..Default::default()
+        };
+        let check = |view: &View, precision| {
+            validate_annotations_with_precision(view, [[-5.; 3], [5.; 3]], width, height, precision)
+                .unwrap_err()
+        };
+        for precision in [
+            AnnotationPrecision::Float16Hdr,
+            AnnotationPrecision::Float32Geometry,
+        ] {
+            assert_eq!(
+                check(&view, precision),
+                "insufficient visible annotation pixels"
+            );
+        }
+        view.normal[..4].copy_from_slice(&f32::NAN.to_ne_bytes());
+        assert_eq!(
+            check(&view, AnnotationPrecision::Float16Hdr),
+            "non-finite annotation"
+        );
+        view.normal.clear();
+        assert_eq!(
+            check(&view, AnnotationPrecision::Float16Hdr),
+            "wrong annotation buffer length"
+        );
+    }
+}
+
+#[test]
+fn annotation_value_borrowing_preserves_bits_and_unaligned_inputs() {
+    let values = [0.0_f32, -0.0, 1.25, -17.5, f32::MIN_POSITIVE, f32::MAX];
+    let bytes = bytemuck::cast_slice(&values);
+    let borrowed = annotation_values(bytes, bytes.len()).unwrap();
+    assert!(matches!(borrowed, std::borrow::Cow::Borrowed(_)));
+    assert_eq!(borrowed.as_ptr(), values.as_ptr());
+    let mut storage = vec![0; bytes.len() + 4];
+    let offset = (0..4)
+        .find(|&offset| {
+            !(storage.as_ptr() as usize + offset).is_multiple_of(std::mem::align_of::<f32>())
+        })
+        .unwrap();
+    storage[offset..offset + bytes.len()].copy_from_slice(bytes);
+    let owned = annotation_values(&storage[offset..offset + bytes.len()], bytes.len()).unwrap();
+    assert!(matches!(owned, std::borrow::Cow::Owned(_)));
+    for decoded in [&*borrowed, &*owned] {
+        assert_eq!(
+            decoded.iter().map(|v| v.to_bits()).collect::<Vec<_>>(),
+            values.iter().map(|v| v.to_bits()).collect::<Vec<_>>()
+        );
+    }
+    assert!(annotation_values(bytes, bytes.len() - 1).is_err());
+    assert!(annotation_values(&bytes[..bytes.len() - 1], bytes.len() - 1).is_err());
+    // Finite scans include trailing channels, even when the pixel's validity is zero.
+    for bad in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
+        let corrupt = [0.0_f32, 0., 0., 0., 0., 0., bad, 0.];
+        let bytes = bytemuck::cast_slice(&corrupt);
+        assert_eq!(
+            annotation_values(bytes, bytes.len()).unwrap_err(),
+            "non-finite annotation"
+        );
+    }
+}
+
+#[test]
+fn percentile_selection_matches_sorted_total_order_exactly() {
+    for count in [100, 101, 137, 4096, 28672] {
+        let mut values: Vec<_> = (0..count)
+            .map(|i| {
+                if i % 17 == 0 {
+                    -0.0_f32
+                } else if i % 13 == 0 {
+                    0.0
+                } else {
+                    ((i * 7919) % 8093) as f32 / 31.0 - 130.0
+                }
+            })
+            .collect();
+        let mut sorted = values.clone();
+        sorted.sort_by(f32::total_cmp);
+        let expected = sorted[(count as f32 * 0.99) as usize];
+        assert_eq!(percentile99(&mut values).to_bits(), expected.to_bits());
+    }
+}
+
+#[test]
+fn float32_annotation_qualification_rejects_single_pixel_outliers() {
+    use crate::sample::{AnnotationPrecision, View};
+    let size = 64;
+    let calibration =
+        crate::calibration::CameraCalibration::centered_pinhole(size, size, 1.1, 1.).unwrap();
+    let aabb = [[-5.; 3], [5.; 3]];
+    let mut view = View {
+        world_from_view: Mat4::IDENTITY.to_cols_array_2d(),
+        fovy: 1.1,
+        calibration: Some(calibration.clone()),
+        ..Default::default()
+    };
+    for y in 0..size {
+        for x in 0..size {
+            let p = Vec3::from_array(
+                calibration
+                    .unproject([x as f32 + 0.5, y as f32 + 0.5], 2.)
+                    .unwrap(),
+            );
+            let p = (p + Vec3::splat(5.)) / 10.;
+            view.position
+                .extend_from_slice(bytemuck::cast_slice(&[p.x, p.y, p.z, 1.]));
+            view.depth
+                .extend_from_slice(bytemuck::cast_slice(&[2.0_f32, 2., 2., 1.]));
+            view.normal
+                .extend_from_slice(bytemuck::cast_slice(&[0.5_f32, 0.5, 1., 1.]));
+        }
+    }
+    let check = |view: &View| {
+        validate_annotations_with_precision(
+            view,
+            aabb,
+            size,
+            size,
+            AnnotationPrecision::Float32Geometry,
+        )
+    };
+    let report = check(&view).unwrap();
+    assert_eq!(report.checked_pixels, (size * size) as usize);
+    assert!(report.reprojection_max_pixels < 0.001);
+    // Both an unsampled border pixel and a sampled pixel hidden below p99
+    // must fail; neither a sampling gap nor a percentile may conceal a defect.
+    for pixel in [0, (2 * size + 2) as usize] {
+        let mut corrupt = view.clone();
+        let offset = pixel * 16;
+        let value = f32::from_ne_bytes(corrupt.position[offset..offset + 4].try_into().unwrap());
+        corrupt.position[offset..offset + 4].copy_from_slice(&(value + 0.001).to_ne_bytes());
+        assert!(check(&corrupt)
+            .unwrap_err()
+            .contains("annotation alignment failed"));
+        let mut corrupt = view.clone();
+        corrupt.depth[offset..offset + 4].copy_from_slice(&2.001_f32.to_ne_bytes());
+        assert!(check(&corrupt)
+            .unwrap_err()
+            .contains("annotation alignment failed"));
+    }
+}
+
+#[test]
 fn wall_mounts_touch_real_back_faces_on_oblique_and_axis_aligned_walls() {
     let mut kinds = std::collections::BTreeSet::new();
     let mut oblique = 0;

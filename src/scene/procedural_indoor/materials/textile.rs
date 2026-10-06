@@ -1,11 +1,13 @@
 //! A periodic weaving program: individual irregular yarns pass over/under one
 //! another. Dyed yarns, backing, crimp and filaments share the same surface field.
 mod knit;
+mod prepared;
 use super::{
     hash, periodic_noise,
     program::{MaterialRecipe, Texel},
 };
 use crate::scene::procedural_indoor::layout::stream;
+pub(super) use prepared::PreparedTextile;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 
@@ -105,6 +107,14 @@ impl TextileRecipe {
         mat.anisotropy_rotation = (1. - turn) * std::f32::consts::FRAC_PI_2;
     }
     pub(super) fn evaluate(&self, r: &MaterialRecipe, uv: [f32; 2]) -> Texel {
+        self.evaluate_prepared(r, uv, None)
+    }
+    fn evaluate_prepared(
+        &self,
+        r: &MaterialRecipe,
+        uv: [f32; 2],
+        prepared: Option<&PreparedTextile>,
+    ) -> Texel {
         let [u, v] = uv;
         if self.knit {
             return knit::texel(self, r, u, v);
@@ -115,8 +125,14 @@ impl TextileRecipe {
         let ix = x.floor() as u32 % self.yarns[0];
         let iy = y.floor() as u32 % self.yarns[1];
         let noise = |nx, ny, salt| periodic_noise(u, v, nx, ny, r.seed.wrapping_add(salt));
-        let slub = [noise(self.yarns[0], 3, 11), noise(3, self.yarns[1], 17)];
-        let jitter = [hash(ix, 0, r.seed) - 0.5, hash(iy, 1, r.seed) - 0.5];
+        let slub = prepared.map_or_else(
+            || [noise(self.yarns[0], 3, 11), noise(3, self.yarns[1], 17)],
+            |p| [p.noise(0, uv), p.noise(1, uv)],
+        );
+        let jitter = prepared.map_or_else(
+            || [hash(ix, 0, r.seed) - 0.5, hash(iy, 1, r.seed) - 0.5],
+            |p| [p.jitter(r, 0, ix), p.jitter(r, 1, iy)],
+        );
         let profile = |p: f32, w: f32| {
             let q = (p / (w * 0.5)).abs();
             // Rounded yarn crowns taper smoothly into gaps; no full-tile wave.
@@ -148,33 +164,53 @@ impl TextileRecipe {
             0.5
         };
         let coverage = crown[0].max(crown[1]);
-        let dye = [hash(ix, 13, r.seed), hash(iy, 19, r.seed)];
-        let bands = if let Some(l) = &r.layers {
-            [0, 1].map(|axis| {
-                let count = l.bands[axis];
-                let index = [ix, iy][axis];
-                if count > 0 && (index * count / self.yarns[axis]).is_multiple_of(3) {
-                    1. - l.stripe_strength * 0.25
-                } else {
-                    1.
-                }
-            })
-        } else {
-            [1.; 2]
-        };
-        let twist = self.twist * (noise(3, 3, 83) - 0.5);
+        let pigments = prepared.map(|p| [p.pigment(r, 0, ix), p.pigment(r, 1, iy)]);
+        // Retain the scalar dye/band expressions as a genuinely uncached path.
+        let dye = pigments
+            .is_none()
+            .then(|| [hash(ix, 13, r.seed), hash(iy, 19, r.seed)]);
+        let bands = pigments.is_none().then(|| {
+            if let Some(l) = &r.layers {
+                [0, 1].map(|axis| {
+                    let count = l.bands[axis];
+                    let index = [ix, iy][axis];
+                    if count > 0 && (index * count / self.yarns[axis]).is_multiple_of(3) {
+                        1. - l.stripe_strength * 0.25
+                    } else {
+                        1.
+                    }
+                })
+            } else {
+                [1.; 2]
+            }
+        });
+        let twist =
+            self.twist * (prepared.map_or_else(|| noise(3, 3, 83), |p| p.noise(2, uv)) - 0.5);
         let filament = [ridge(x * 2. + twist), ridge(y * 2. - twist)];
         let fibres = top * filament[0] + (1. - top) * filament[1];
-        let nap = noise(79, 83, 73) - 0.5;
+        let nap = prepared.map_or_else(|| noise(79, 83, 73), |p| p.noise(3, uv)) - 0.5;
         let yarn = [0, 1, 2].map(|c| {
-            let a = self.yarn_tint[0][c] * (0.94 + self.dye_variation * (dye[0] - 0.5)) * bands[0];
-            let b = self.yarn_tint[1][c] * (0.94 + self.dye_variation * (dye[1] - 0.5)) * bands[1];
+            let [a, b] = pigments.as_ref().map_or_else(
+                || {
+                    let dye = dye.as_ref().unwrap();
+                    let bands = bands.as_ref().unwrap();
+                    [
+                        self.yarn_tint[0][c]
+                            * (0.94 + self.dye_variation * (dye[0] - 0.5))
+                            * bands[0],
+                        self.yarn_tint[1][c]
+                            * (0.94 + self.dye_variation * (dye[1] - 0.5))
+                            * bands[1],
+                    ]
+                },
+                |pigments| [pigments[0][c], pigments[1][c]],
+            );
             (0.76 + (a * top + b * (1. - top) - 0.76) * coverage + nap * self.fuzz * 0.035)
                 .clamp(0.25, 1.)
         });
         let height = r.relief_m
             * (h[0].max(h[1]) - 0.5 + fibres * 0.045 * (1. - self.fuzz) + nap * self.fuzz * 0.09);
-        let pile = noise(37, 41, 101);
+        let pile = prepared.map_or_else(|| noise(37, 41, 101), |p| p.noise(4, uv));
         Texel {
             color: yarn.map(|c| (c * (1. - self.pile * 0.08 * (pile - 0.5))).clamp(0., 1.)),
             height: height * (1. - self.pile * 0.45) + self.pile * r.relief_m * (pile - 0.5),
@@ -192,3 +228,6 @@ fn smooth(t: f32) -> f32 {
 fn ridge(t: f32) -> f32 {
     1. - 2. * (t.rem_euclid(1.) - 0.5).abs()
 }
+
+#[cfg(test)]
+mod replay_tests;

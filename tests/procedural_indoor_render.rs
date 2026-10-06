@@ -14,23 +14,153 @@ use bevy_zeroverse::{
 };
 use std::time::{Duration, Instant};
 
+#[derive(Default)]
+struct PersistentAssets {
+    materials: std::collections::HashSet<AssetId<StandardMaterial>>,
+    images: std::collections::HashSet<AssetId<Image>>,
+}
+
+impl PersistentAssets {
+    fn from_world(world: &World) -> Self {
+        Self {
+            materials: world.resource::<Assets<StandardMaterial>>().ids().collect(),
+            images: world.resource::<Assets<Image>>().ids().collect(),
+        }
+    }
+
+    /// With lookahead disabled, only bootstrap assets and this room's live
+    /// references may remain. Geometry/finish diversity determines the budget.
+    fn assert_current_room(&self, world: &mut World) {
+        use bevy::{
+            asset::VisitAssetDependencies,
+            camera::RenderTarget,
+            light::{EnvironmentMapLight, IrradianceVolume},
+        };
+        use bevy_zeroverse::render::{ground_truth::GroundTruthCamera, DisabledPbrMaterial};
+        assert_eq!(
+            world
+                .resource::<bevy_zeroverse::scene::procedural_indoor::preparation::IndoorPrefetch>()
+                .depth,
+            0,
+            "this ownership audit excludes speculative future rooms"
+        );
+        assert_eq!(
+            world
+                .query_filtered::<(), With<bevy_zeroverse::scene::ZeroverseSceneRoot>>()
+                .iter(world)
+                .count(),
+            1,
+            "regeneration must retire the preceding room root"
+        );
+        let mut material_ids = self.materials.clone();
+        material_ids.extend(
+            world
+                .query::<&MeshMaterial3d<StandardMaterial>>()
+                .iter(world)
+                .map(|material| material.0.id()),
+        );
+        material_ids.extend(
+            world
+                .query::<&DisabledPbrMaterial>()
+                .iter(world)
+                .map(|material| material.material.id()),
+        );
+        material_ids.extend(
+            world
+                .resource::<bevy_zeroverse::material::ZeroverseMaterials>()
+                .materials
+                .iter()
+                .map(Handle::id),
+        );
+        let materials = world.resource::<Assets<StandardMaterial>>();
+        let unreferenced_materials: Vec<_> = materials
+            .ids()
+            .filter(|id| !material_ids.contains(id))
+            .collect();
+        assert!(
+            unreferenced_materials.is_empty(),
+            "materials retained without current-room or bootstrap ownership: {unreferenced_materials:?}"
+        );
+        let mut image_ids = self.images.clone();
+        for (_, material) in materials.iter() {
+            // Include every StandardMaterial map, including optional coat,
+            // anisotropy and transmission maps as the PBR vocabulary evolves.
+            material.visit_dependencies(&mut |id| {
+                if let Ok(image) = id.try_typed::<Image>() {
+                    image_ids.insert(image);
+                }
+            });
+        }
+        for target in world.query::<&RenderTarget>().iter(world) {
+            if let RenderTarget::Image(target) = target {
+                image_ids.insert(target.handle.id());
+            }
+        }
+        for environment in world.query::<&EnvironmentMapLight>().iter(world) {
+            image_ids.extend([environment.diffuse_map.id(), environment.specular_map.id()]);
+        }
+        for volume in world.query::<&IrradianceVolume>().iter(world) {
+            image_ids.insert(volume.voxels.id());
+        }
+        let mut depth_targets = 0;
+        for target in world.query::<&GroundTruthCamera>().iter(world) {
+            image_ids.extend([target.world_depth.id(), target.normal_semantic.id()]);
+            if let Some(flow) = &target.flow {
+                image_ids.insert(flow.id());
+            }
+            depth_targets += 1;
+        }
+        // The private depth attachment has exactly one slot per live geometric
+        // camera. Its image label identifies that fixed storage, not a room map.
+        let mut private_depth_images = 0;
+        let mut unreferenced_images = Vec::new();
+        for (id, image) in world.resource::<Assets<Image>>().iter() {
+            if image_ids.contains(&id) {
+                continue;
+            }
+            if image.texture_descriptor.label == Some("ground_truth_depth_test_f32") {
+                private_depth_images += 1;
+            } else {
+                unreferenced_images.push(id);
+            }
+        }
+        assert!(
+            unreferenced_images.is_empty(),
+            "images retained without current-room or bootstrap ownership: {unreferenced_images:?}"
+        );
+        assert!(private_depth_images <= depth_targets);
+    }
+}
+
 // Capture channels and asset-root discovery are process globals. Keep fixtures
 // isolated even when the ignored GPU tests are launched with default threading.
 static RENDER_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 fn capture(app: &mut App, modes: Vec<RenderMode>) -> Sample {
-    app.insert_resource(SamplerState {
-        enabled: true,
-        regenerate_scene: false,
-        render_modes: modes,
-        frames: 8,
-        warmup_frames: 16,
-        timesteps: Vec::new(),
-        ..default()
-    });
+    capture_with_state(
+        app,
+        SamplerState {
+            enabled: true,
+            regenerate_scene: false,
+            render_modes: modes,
+            frames: 8,
+            warmup_frames: 16,
+            timesteps: Vec::new(),
+            ..default()
+        },
+        false,
+    )
+}
+
+fn capture_with_state(app: &mut App, state: SamplerState, production_poll: bool) -> Sample {
+    app.insert_resource(state);
     let start = Instant::now();
     loop {
-        app.update();
+        if production_poll {
+            bevy_zeroverse::headless::update_capture(app);
+        } else {
+            app.update();
+        }
         assert!(
             app.should_exit().is_none(),
             "render app exited during capture"
@@ -55,8 +185,266 @@ fn capture(app: &mut App, modes: Vec<RenderMode>) -> Sample {
         }
         assert!(
             start.elapsed() < Duration::from_secs(120),
-            "capture stalled"
+            "capture stalled: scene={:?}, ovoxel={:?}, readiness={:?}, sampler={:?}, assets={:?}, pipeline={:?}",
+            app.world().resource::<BevyZeroverseConfig>().scene_type,
+            app.world().resource::<BevyZeroverseConfig>().ovoxel_mode,
+            app.world().resource::<bevy_zeroverse::sample::CaptureReadiness>(),
+            app.world().resource::<SamplerState>(),
+            app.world().resource::<bevy_zeroverse::asset::WaitForAssets>(),
+            app.world().get_resource::<bevy_zeroverse::io::image_copy::CapturePipelineReadiness>().map(|p| (p.ready(), p.pipeline_count(), p.missing_assets(), p.failure())),
         );
+    }
+}
+
+#[test]
+#[ignore = "requires native GPU; render-fenced multi-step indoor flow and co-visibility"]
+fn render_fenced_indoor_capture_preserves_flow_and_shared_visibility() {
+    use bevy::diagnostic::{DiagnosticPath, DiagnosticsStore};
+    use bevy_zeroverse::{
+        render::{co_visibility, ground_truth::GroundTruthCamera},
+        sample::{qualification::rendered_overlap, CaptureProgress},
+    };
+
+    let _guard = RENDER_TEST_LOCK.lock().unwrap();
+    std::env::set_var(
+        "BEVY_ASSET_ROOT",
+        format!("{}/assets", env!("CARGO_MANIFEST_DIR")),
+    );
+    setup_globals(Some(format!("{}/assets", env!("CARGO_MANIFEST_DIR"))));
+    let modes = vec![
+        RenderMode::Color,
+        RenderMode::Depth,
+        RenderMode::Normal,
+        RenderMode::Position,
+        RenderMode::Semantic,
+        RenderMode::OpticalFlow,
+        RenderMode::MotionVectors,
+        RenderMode::CoVisibility,
+    ];
+    let config = BevyZeroverseConfig {
+        scene_type: ZeroverseSceneType::ProceduralIndoor,
+        indoor_seed: Some(200),
+        indoor_density: 0.65,
+        indoor_human_density: 0.,
+        human_motion: None,
+        indoor_camera: Some(r#"{"duration_seconds":4.0,"path_length_min":0.1,"path_length_max":2.0,"long_path_fraction":0.0}"#.into()),
+        headless: true,
+        editor: false,
+        gizmos: false,
+        image_copiers: true,
+        keybinds: false,
+        press_esc_close: false,
+        num_cameras: 3,
+        width: 321.,
+        height: 239.,
+        playback_mode: PlaybackMode::Still,
+        playback_steps: 3,
+        playback_step: 0.25,
+        depth_format: DepthFormat::Linear,
+        render_modes: modes,
+        ..default()
+    };
+    let mut state = SamplerState::from_config(&config);
+    state.regenerate_scene = false;
+    let mut app = create_app(None, Some(config), false);
+    app.finish();
+    app.cleanup();
+    let sample = capture_with_state(&mut app, state, true);
+
+    assert_eq!(sample.view_dim, 3);
+    assert_eq!(sample.views.len(), 9);
+    assert_eq!(sample.indoor.as_ref().unwrap().seed, 200);
+    assert!(sample.indoor.as_ref().unwrap().humans.is_empty());
+    assert!(sample.ovoxel.is_none());
+    assert_eq!(
+        app.world().resource::<CaptureProgress>().completed_requests,
+        3
+    );
+    let hits = app
+        .world()
+        .resource::<DiagnosticsStore>()
+        .get(&DiagnosticPath::const_new(
+            "capture/settling_fence/hit_count",
+        ))
+        .and_then(|diagnostic| diagnostic.value())
+        .unwrap_or(0.);
+    assert!(
+        hits >= 3.,
+        "each changed camera timestep needs its own render fence: {hits}"
+    );
+    let mut cameras = app.world_mut().query::<&GroundTruthCamera>();
+    let stamps: Vec<_> = cameras
+        .iter(app.world())
+        .map(|camera| {
+            (
+                camera.flow_sequence,
+                camera.frame_id,
+                camera.rendered_frame(),
+            )
+        })
+        .collect();
+    assert_eq!(stamps.len(), 3);
+    assert!(stamps
+        .iter()
+        .all(|stamp| stamp.0 != 0 && stamp.1 == 3 && stamp.2 == Some(3)));
+    assert!(stamps.iter().all(|stamp| *stamp == stamps[0]));
+    co_visibility::validate_metadata(sample.co_visibility_metadata.as_ref().unwrap(), 3).unwrap();
+
+    let floats = |bytes: &[u8]| -> Vec<[f32; 4]> {
+        bytes
+            .as_chunks::<16>()
+            .0
+            .iter()
+            .map(|pixel| bytemuck::pod_read_unaligned(pixel))
+            .collect()
+    };
+    for (step, frame) in sample.views.as_chunks::<3>().0.iter().enumerate() {
+        for (camera, view) in frame.iter().enumerate() {
+            assert_eq!(view.time, step as f32 * 0.25);
+            assert_eq!(view.trajectory_progress, Some(view.time));
+            assert_eq!(view.time_seconds, Some(step as f32));
+            let alignment = validate_annotations_with_precision(
+                view,
+                sample.aabb,
+                321,
+                239,
+                sample.annotation_precision,
+            )
+            .unwrap();
+            assert!(alignment.checked_pixels > 1_000);
+            assert!(alignment.reprojection_max_pixels < 0.005, "{alignment:?}");
+            co_visibility::validate_plane(&view.co_visibility, 321 * 239, 3, camera).unwrap();
+            let optical = floats(&view.optical_flow);
+            let motion = floats(&view.motion_vectors);
+            assert_eq!(optical.len(), 321 * 239);
+            assert_eq!(motion.len(), optical.len());
+            for (flow, vector) in optical.iter().zip(motion) {
+                assert!(flow.iter().chain(&vector).all(|value| value.is_finite()));
+                assert_eq!(vector, [flow[0] / 321., flow[1] / 239., flow[2], flow[3]]);
+                assert!([0., 1.].contains(&flow[2]) && [0., 1.].contains(&flow[3]));
+            }
+            if step == 2 {
+                assert!(
+                    optical.iter().all(|flow| *flow == [0.; 4]),
+                    "terminal flow needs zero vectors and masks"
+                );
+                continue;
+            }
+            // All geometry is static. Independently project source world hits
+            // into the next captured camera; extra warmup/render frames must
+            // not become flow endpoints or advance temporal history.
+            let next = &sample.views[(step + 1) * 3 + camera];
+            assert_ne!(view.world_from_view, next.world_from_view);
+            let next_from_world = Mat4::from_cols_array_2d(&next.world_from_view)
+                .as_dmat4()
+                .inverse();
+            let k = next.calibration.as_ref().unwrap().k;
+            let low = Vec3::from_array(sample.aabb[0]).as_dvec3();
+            let range = Vec3::from_array(sample.aabb[1]).as_dvec3() - low;
+            let positions = floats(&view.position);
+            let mut checked = 0;
+            let mut maximum = 0f64;
+            for (pixel, (position, flow)) in positions.iter().zip(optical).enumerate() {
+                if position[3] == 0. || flow[2] != 1. || flow[3] != 1. {
+                    continue;
+                }
+                let world =
+                    low + Vec3::new(position[0], position[1], position[2]).as_dvec3() * range;
+                let p = next_from_world.transform_point3(world);
+                let endpoint = bevy::math::DVec2::new(
+                    (k[0][0] as f64 * p.x - k[0][1] as f64 * p.y) / -p.z + k[0][2] as f64,
+                    -k[1][1] as f64 * p.y / -p.z + k[1][2] as f64,
+                );
+                let source =
+                    bevy::math::DVec2::new((pixel % 321) as f64 + 0.5, (pixel / 321) as f64 + 0.5);
+                let actual = bevy::math::DVec2::new(flow[0] as f64, flow[1] as f64);
+                maximum = maximum.max((endpoint - source).distance(actual));
+                checked += 1;
+            }
+            assert!(
+                checked > 1_000,
+                "too few visible temporal correspondences: {checked}"
+            );
+            assert!(
+                maximum < 0.005,
+                "step {step} camera {camera}: analytic flow error {maximum}px"
+            );
+            println!("step {step} camera {camera}: {checked} analytic flow endpoints, max {maximum:.7}px");
+        }
+    }
+    let overlap = rendered_overlap(&sample.views, 3, sample.aabb);
+    assert_eq!(overlap.len(), 18);
+    assert!(overlap.iter().all(|pair| pair.valid_source_pixels > 1_000));
+    assert!(overlap.iter().any(|pair| pair.shared_pixels > 0));
+    println!(
+        "three capture epochs, {hits} settling-fence hits, and {} directed same-time overlap pairs",
+        overlap.len()
+    );
+}
+
+#[test]
+#[ignore = "requires native GPU; full-pixel qualification of thin-triangle regression seeds"]
+fn thin_triangle_seeds_keep_every_pixel_on_its_calibrated_ray() {
+    let _guard = RENDER_TEST_LOCK.lock().unwrap();
+    setup_globals(Some(format!("{}/assets", env!("CARGO_MANIFEST_DIR"))));
+    let modes = vec![
+        RenderMode::Color,
+        RenderMode::Depth,
+        RenderMode::Normal,
+        RenderMode::Position,
+        RenderMode::Semantic,
+        RenderMode::CoVisibility,
+    ];
+    let config = BevyZeroverseConfig {
+        scene_type: ZeroverseSceneType::ProceduralIndoor,
+        indoor_seed: Some(42_430_575),
+        indoor_density: 0.65,
+        indoor_human_density: 0.,
+        indoor_camera: Some(r#"{"primary_room":false,"path_length_min":0.0,"path_length_max":0.0,"long_path_fraction":0.0,"multiview":{"max_baseline":6.0,"min_baseline":0.4,"min_overlap":0.15,"min_reference_baseline":0.8,"min_spread":0.25,"trajectory_variation":0.3}}"#.into()),
+        headless: true,
+        editor: false,
+        gizmos: false,
+        image_copiers: true,
+        keybinds: false,
+        press_esc_close: false,
+        num_cameras: 5,
+        width: 512.,
+        height: 512.,
+        playback_mode: PlaybackMode::Still,
+        playback_steps: 1,
+        playback_step: 0.,
+        depth_format: DepthFormat::Linear,
+        render_modes: modes.clone(),
+        ..default()
+    };
+    let mut app = create_app(None, Some(config), false);
+    app.finish();
+    app.cleanup();
+    for seed in [42_430_575, 43_084_584] {
+        app.world_mut()
+            .resource_mut::<BevyZeroverseConfig>()
+            .indoor_seed = Some(seed);
+        app.world_mut().write_message(RegenerateSceneEvent);
+        app.update();
+        let sample = capture(&mut app, modes.clone());
+        assert_eq!(sample.indoor.as_ref().unwrap().seed, seed);
+        assert_eq!(sample.views.len(), 5);
+        for (index, view) in sample.views.iter().enumerate() {
+            let report = validate_annotations_with_precision(
+                view,
+                sample.aabb,
+                512,
+                512,
+                sample.annotation_precision,
+            )
+            .unwrap();
+            assert!(report.checked_pixels > 100_000);
+            assert!(
+                report.reprojection_max_pixels < 0.005,
+                "seed {seed} view {index}: {report:?}"
+            );
+            println!("seed {seed} view {index}: {report:?}");
+        }
     }
 }
 
@@ -115,6 +503,9 @@ fn indoor_annotations_voxels_and_keyboard_after_object_scene() {
     app.world_mut()
         .resource_mut::<BevyZeroverseConfig>()
         .ovoxel_mode = OvoxelMode::CpuAsync;
+    // Property edits only select configuration; the viewer's explicit R/apply
+    // request commits the scene change without interfering with UI sliders.
+    app.world_mut().write_message(RegenerateSceneEvent);
     app.update();
     let modes = vec![
         RenderMode::Color,
@@ -243,6 +634,7 @@ fn empty_assets_rotated_odd_size_capture_and_legacy_scene_switches() {
     for _ in 0..4 {
         app.update();
     }
+    let persistent_assets = PersistentAssets::from_world(app.world());
     for seed in 3..7 {
         app.world_mut()
             .resource_mut::<BevyZeroverseConfig>()
@@ -270,8 +662,13 @@ fn empty_assets_rotated_odd_size_capture_and_legacy_scene_switches() {
             )
             .unwrap();
         }
-        assert!(app.world().resource::<Assets<StandardMaterial>>().len() <= 80);
-        assert!(app.world().resource::<Assets<Image>>().len() < 80);
+        // Asset tracking and pipelined render extraction get two bounded
+        // retirement updates, with capture and automatic regeneration disabled.
+        assert!(!app.world().resource::<SamplerState>().enabled);
+        for _ in 0..2 {
+            app.update();
+        }
+        persistent_assets.assert_current_room(app.world_mut());
     }
     // Regenerate while an annotation material is active. This catches extraction
     // before Bevy's EntitySpecializationTicks bookkeeping (observed on WebGPU).

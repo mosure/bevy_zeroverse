@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     collections::HashMap,
     fs,
     path::{Path, PathBuf},
@@ -223,9 +224,11 @@ fn push_ovoxel_tensors(tensors: &mut Vec<TensorData>, data: OvoxelTensorData) ->
     Ok(())
 }
 
-pub(crate) fn decode_rgba_bytes(bytes: &[u8], width: u32, height: u32) -> Result<Vec<f32>> {
+/// Borrow native packed float32 capture planes. Legacy byte/pitched inputs are
+/// converted into owned storage, preserving the existing dataset contract.
+pub(crate) fn decode_rgba_bytes(bytes: &[u8], width: u32, height: u32) -> Result<Cow<'_, [f32]>> {
     if bytes.is_empty() {
-        return Ok(Vec::new());
+        return Ok(Cow::Borrowed(&[]));
     }
 
     let pixels = width as usize * height as usize;
@@ -233,12 +236,23 @@ pub(crate) fn decode_rgba_bytes(bytes: &[u8], width: u32, height: u32) -> Result
     let expected_f32 = expected_u8 * 4;
 
     if bytes.len() == expected_f32 {
-        let floats: &[f32] = cast_slice(bytes);
-        return Ok(floats.to_vec());
+        return Ok(match bytemuck::try_cast_slice(bytes) {
+            Ok(floats) => Cow::Borrowed(floats),
+            Err(_) => Cow::Owned(
+                bytes
+                    .as_chunks::<4>()
+                    .0
+                    .iter()
+                    .map(|value| f32::from_ne_bytes(*value))
+                    .collect(),
+            ),
+        });
     }
 
     if bytes.len() == expected_u8 {
-        return Ok(bytes.iter().map(|b| *b as f32 / 255.0).collect());
+        return Ok(Cow::Owned(
+            bytes.iter().map(|b| *b as f32 / 255.0).collect(),
+        ));
     }
 
     let height_usize = height as usize;
@@ -253,11 +267,17 @@ pub(crate) fn decode_rgba_bytes(bytes: &[u8], width: u32, height: u32) -> Result
                 let start = row * row_bytes;
                 let end = start + float_row;
                 let slice = &bytes[start..end];
-                let floats: &[f32] = cast_slice(slice);
-                out.extend_from_slice(floats);
+                // Pitched legacy rows may begin at an unaligned byte offset.
+                out.extend(
+                    slice
+                        .as_chunks::<4>()
+                        .0
+                        .iter()
+                        .map(|value| f32::from_ne_bytes(*value)),
+                );
             }
             if out.len() == pixels * 4 {
-                return Ok(out);
+                return Ok(Cow::Owned(out));
             }
         }
 
@@ -272,7 +292,7 @@ pub(crate) fn decode_rgba_bytes(bytes: &[u8], width: u32, height: u32) -> Result
                 out.extend(slice.iter().map(|b| *b as f32 / 255.0));
             }
             if out.len() == pixels * 4 {
-                return Ok(out);
+                return Ok(Cow::Owned(out));
             }
         }
     }
@@ -630,9 +650,17 @@ pub fn save_chunk_with_codec(
                 let rgba_f32 = decode_rgba_bytes(&view.color, width, height)
                     .context("failed to parse color")?;
                 let pixel_count = (height * width) as usize;
-                let color_buf = sample_color
-                    .get_or_insert_with(|| vec![0.0; steps * view_dim * pixel_count * 3]);
-                let base = (t * view_dim + v) * pixel_count * 3;
+                let (color_buf, base) = if color_codec == ColorCodec::Raw {
+                    (
+                        raw_color.get_or_insert_with(|| vec![0.0; total_views * pixel_count * 3]),
+                        (sample_idx * view_count + local_idx) * pixel_count * 3,
+                    )
+                } else {
+                    (
+                        sample_color.get_or_insert_with(|| vec![0.0; view_count * pixel_count * 3]),
+                        local_idx * pixel_count * 3,
+                    )
+                };
                 for i in 0..pixel_count {
                     let src = i * 4;
                     let dst = base + i * 3;
@@ -701,11 +729,19 @@ pub fn save_chunk_with_codec(
             time.push(view.time);
         }
 
-        if let Some(mut color) = sample_color {
+        let color = if color_codec == ColorCodec::Raw {
+            let start = sample_idx * view_count * pixel_count * 3;
+            raw_color
+                .as_mut()
+                .map(|raw| &mut raw[start..start + view_count * pixel_count * 3])
+        } else {
+            sample_color.as_deref_mut()
+        };
+        if let Some(color) = color {
             match sample.color_encoding {
                 bevy_zeroverse::render::color::ColorEncoding::Legacy => {
                     normalize_hdr_image_tonemap(
-                        &mut color,
+                        color,
                         steps,
                         view_dim,
                         height as usize,
@@ -719,11 +755,7 @@ pub fn save_chunk_with_codec(
                 bevy_zeroverse::render::color::ColorEncoding::Srgb => (),
             }
 
-            if color_codec == ColorCodec::Raw {
-                let raw = raw_color.get_or_insert_with(|| vec![0.0; total_views * pixel_count * 3]);
-                let start = sample_idx * view_count * pixel_count * 3;
-                raw[start..start + color.len()].copy_from_slice(&color);
-            } else {
+            if color_codec == ColorCodec::Jpeg {
                 let pixel_count = (height * width) as usize;
                 for local_idx in 0..(view_dim * steps) {
                     let base = local_idx * pixel_count * 3;
@@ -1111,7 +1143,7 @@ pub fn save_chunk_with_codec(
 
     let views = build_tensor_views(&tensors)?;
     let serialized = serialize(views, None)?;
-    let compressed = compression.compress(&serialized)?;
+    let compressed = compression.compress_owned(serialized)?;
     let staging = path.with_extension(format!("tmp-{}", std::process::id()));
     let mut file = fs::OpenOptions::new()
         .write(true)
@@ -1136,7 +1168,7 @@ pub fn load_chunk(path: impl AsRef<Path>) -> Result<Vec<ZeroverseSample>> {
         .unwrap_or_default();
 
     let decompressed = compression
-        .decompress(&data)
+        .decompress_owned(data)
         .with_context(|| format!("failed to decompress chunk {:?}", path))?;
 
     let tensors = SafeTensors::deserialize(&decompressed)?;
@@ -1826,6 +1858,105 @@ mod tests {
     use super::*;
     use bevy_zeroverse::sample::ObjectObbSample;
     use tempfile::tempdir;
+
+    #[test]
+    fn packed_float32_decode_borrows_and_preserves_every_bit() {
+        let values = [
+            0.1f32,
+            -0.0,
+            f32::MAX,
+            1.,
+            -2.,
+            0.5,
+            f32::NAN,
+            f32::INFINITY,
+        ];
+        let bytes = cast_slice(&values);
+        let decoded = decode_rgba_bytes(bytes, 2, 1).unwrap();
+        assert!(matches!(decoded, Cow::Borrowed(_)));
+        assert_eq!(decoded.as_ptr(), values.as_ptr());
+        assert_eq!(cast_slice::<_, u8>(&decoded), bytes);
+
+        let mut unaligned = vec![0; bytes.len() + 4];
+        let offset = (0..4)
+            .find(|offset| !(unaligned.as_ptr() as usize + offset).is_multiple_of(4))
+            .unwrap();
+        unaligned[offset..offset + bytes.len()].copy_from_slice(bytes);
+        let decoded = decode_rgba_bytes(&unaligned[offset..offset + bytes.len()], 2, 1).unwrap();
+        assert!(matches!(decoded, Cow::Owned(_)));
+        assert_eq!(cast_slice::<_, u8>(&decoded), bytes);
+    }
+
+    #[test]
+    fn legacy_pitched_and_byte_planes_keep_the_same_values() {
+        let bytes = [0u8, 64, 128, 255, 255, 128, 64, 0];
+        let expected: Vec<f32> = bytes.iter().map(|value| *value as f32 / 255.).collect();
+        assert_eq!(&*decode_rgba_bytes(&bytes, 1, 2).unwrap(), expected);
+        let pitched_bytes = [0u8, 64, 128, 255, 17, 17, 255, 128, 64, 0, 19, 19];
+        assert_eq!(&*decode_rgba_bytes(&pitched_bytes, 1, 2).unwrap(), expected);
+
+        let values = [0.1f32, 0.2, 0.3, 1., 0.4, 0.5, 0.6, 1.];
+        let mut pitched = Vec::new();
+        for pixel in values.as_chunks::<4>().0 {
+            pitched.extend_from_slice(cast_slice(pixel));
+            pitched.extend_from_slice(&[99; 4]);
+        }
+        assert_eq!(&*decode_rgba_bytes(&pitched, 1, 2).unwrap(), values);
+        assert!(decode_rgba_bytes(&[1u8; 3], 1, 1).is_err());
+    }
+
+    #[test]
+    fn raw_color_packing_preserves_sample_timestep_and_camera_order() {
+        use bevy_zeroverse::{render::color::ColorEncoding, sample::View};
+        let mut expected = Vec::new();
+        let samples: Vec<_> = [ColorEncoding::Srgb, ColorEncoding::TonemappedLinear]
+            .into_iter()
+            .enumerate()
+            .map(|(sample_index, encoding)| {
+                let views = (0..6)
+                    .map(|view_index| {
+                        let value = 0.03 * (sample_index * 6 + view_index + 1) as f32;
+                        let channel = if encoding == ColorEncoding::TonemappedLinear {
+                            bevy_zeroverse::render::color::linear_to_srgb(value)
+                        } else {
+                            value
+                        };
+                        expected.extend_from_slice(&[channel; 18]);
+                        View {
+                            color: cast_slice(&[value; 24]).to_vec(),
+                            fovy: 1.0,
+                            near: 0.1,
+                            far: 20.0,
+                            ..Default::default()
+                        }
+                    })
+                    .collect();
+                ZeroverseSample {
+                    view_dim: 3,
+                    views,
+                    color_encoding: encoding,
+                    ..Default::default()
+                }
+            })
+            .collect();
+        let directory = tempdir().unwrap();
+        let path = save_chunk_with_codec(
+            &samples,
+            directory.path(),
+            0,
+            Compression::None,
+            3,
+            2,
+            false,
+            ColorCodec::Raw,
+        )
+        .unwrap();
+        let bytes = fs::read(path).unwrap();
+        let tensors = SafeTensors::deserialize(&bytes).unwrap();
+        let color = tensors.tensor("color").unwrap();
+        assert_eq!(color.shape(), [2, 2, 3, 2, 3, 3]);
+        assert_eq!(color.data(), cast_slice::<_, u8>(&expected));
+    }
 
     fn sample_with_obb(class_name: &str) -> ZeroverseSample {
         ZeroverseSample {

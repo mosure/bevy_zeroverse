@@ -428,26 +428,29 @@ fn sample_has_required_modes(
                 RenderMode::MotionVectors => view.motion_vectors.as_slice(),
                 RenderMode::CoVisibility => view.co_visibility.as_slice(),
             };
-            if mode.is_flow()
-                && crate::flow::validate(buf, width as usize * height as usize).is_err()
-            {
-                return false;
+            if mode.is_flow() {
+                if crate::flow::validate(buf, width as usize * height as usize).is_err() {
+                    return false;
+                }
+                // The numeric flow validator already checks the exact layout,
+                // every float and mask. Do not decode/scan it a second time.
+                continue;
             }
-            if *mode == RenderMode::CoVisibility
-                && bevy_zeroverse::render::co_visibility::validate_plane(
+            if *mode == RenderMode::CoVisibility {
+                if bevy_zeroverse::render::co_visibility::validate_plane(
                     buf,
                     width as usize * height as usize,
                     sample.view_dim as usize,
                     index % sample.view_dim as usize,
                 )
                 .is_err()
-            {
-                return false;
+                {
+                    return false;
+                }
+                continue;
             }
             if buf.is_empty()
-                || (!mode.is_flow()
-                    && *mode != RenderMode::CoVisibility
-                    && buf.iter().all(|b| *b == 0))
+                || buf.iter().all(|b| *b == 0)
                 || decode_rgba_bytes(buf, width, height)
                     .map(|pixels| pixels.iter().any(|v| !v.is_finite()))
                     .unwrap_or(true)
@@ -685,24 +688,14 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
                                 }
                             }
                         }
-                        break Some(sample);
+                        break sample;
                     }
                     anyhow::ensure!(scene_type != ZeroverseSceneType::ProceduralIndoor,
                         "sample {idx} has missing or invalid render modes; refusing to silently advance its seed");
                     attempts += 1;
-                    if attempts >= MAX_SAMPLE_RETRIES {
-                        break Some(sample);
-                    }
+                    anyhow::ensure!(attempts < MAX_SAMPLE_RETRIES,
+                        "failed to capture required render modes for sample {idx} after {MAX_SAMPLE_RETRIES} attempts");
                 };
-
-                let Some(sample) = sample else { break };
-                if !sample_has_signal(&sample, &render_modes_for_signal, width, height)
-                    || !sample_has_required_modes(&sample, &render_modes_for_signal, width, height)
-                {
-                    return Err(anyhow!(
-                        "failed to capture required render modes for sample {idx} after {MAX_SAMPLE_RETRIES} attempts"
-                    ));
-                }
 
                 if let Some(progress) = progress.as_ref() {
                     progress.record_samples(1);
@@ -808,5 +801,100 @@ mod flow_tests {
         let modes = [RenderMode::OpticalFlow, RenderMode::MotionVectors];
         assert!(sample_has_required_modes(&sample, &modes, 2, 3));
         assert!(sample_has_signal(&sample, &modes, 2, 3));
+    }
+
+    #[test]
+    fn every_requested_geometry_plane_rejects_nonfinite_or_truncated_values() {
+        use bevy_zeroverse::sample::{Sample, View};
+        let plane = |value: f32| bytemuck::cast_slice(&[value; 16]).to_vec();
+        let sample = Sample {
+            view_dim: 1,
+            views: vec![View {
+                color: plane(0.2),
+                depth: plane(1.0),
+                normal: plane(0.5),
+                semantic: plane(0.3),
+                position: plane(0.4),
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+        let modes = [
+            RenderMode::Color,
+            RenderMode::Depth,
+            RenderMode::Normal,
+            RenderMode::Semantic,
+            RenderMode::Position,
+        ];
+        assert!(sample_has_required_modes(&sample, &modes, 2, 2));
+        for mode in &modes {
+            for corrupt_length in [false, true] {
+                let mut invalid = sample.clone();
+                let view = &mut invalid.views[0];
+                let bytes = match mode {
+                    RenderMode::Color => &mut view.color,
+                    RenderMode::Depth => &mut view.depth,
+                    RenderMode::Normal => &mut view.normal,
+                    RenderMode::Semantic => &mut view.semantic,
+                    RenderMode::Position => &mut view.position,
+                    _ => unreachable!(),
+                };
+                if corrupt_length {
+                    bytes.pop();
+                } else {
+                    bytes[60..].copy_from_slice(&f32::NAN.to_ne_bytes());
+                }
+                assert!(
+                    !sample_has_required_modes(&invalid, &modes, 2, 2),
+                    "{mode:?}, truncated={corrupt_length}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn specialized_numeric_validation_remains_strict() {
+        use bevy_zeroverse::sample::{Sample, View};
+        for (mode, valid, invalid) in [
+            (
+                RenderMode::OpticalFlow,
+                [0., 0., 1., 1.],
+                [0., f32::NAN, 1., 1.],
+            ),
+            (
+                RenderMode::MotionVectors,
+                [0., 0., 1., 1.],
+                [0., 0., 0., 1.],
+            ),
+            (RenderMode::CoVisibility, [0., 0., 1., 0.], [1., 1., 1., 0.]),
+        ] {
+            let sample_with = |values: [f32; 4]| {
+                let bytes = bytemuck::cast_slice(&values).to_vec();
+                let mut view = View::default();
+                match mode {
+                    RenderMode::OpticalFlow => view.optical_flow = bytes,
+                    RenderMode::MotionVectors => view.motion_vectors = bytes,
+                    RenderMode::CoVisibility => view.co_visibility = bytes,
+                    _ => unreachable!(),
+                }
+                Sample {
+                    view_dim: 1,
+                    views: vec![view],
+                    ..Default::default()
+                }
+            };
+            assert!(sample_has_required_modes(
+                &sample_with(valid),
+                std::slice::from_ref(&mode),
+                1,
+                1
+            ));
+            assert!(!sample_has_required_modes(
+                &sample_with(invalid),
+                std::slice::from_ref(&mode),
+                1,
+                1
+            ));
+        }
     }
 }

@@ -1,4 +1,5 @@
 //! Role-specific PBR textures, generated in memory with repeat sampling and mip chains.
+mod atlas;
 pub mod boards;
 pub mod botanical;
 pub mod ceramic;
@@ -13,6 +14,7 @@ pub mod layers;
 pub mod leather;
 mod microstructure;
 pub mod mineral;
+mod mip_transfer;
 pub mod paint;
 mod paper;
 pub mod program;
@@ -84,6 +86,45 @@ pub struct IndoorMaterials {
     pub environment: EnvironmentMapLight,
 }
 
+/// Texture parents and finish slots referenced by a prepared scene. Keep all
+/// base material handles addressable; only synthesis of unused images is skipped.
+pub(crate) struct MaterialSelection {
+    pub surfaces: std::collections::BTreeSet<Surface>,
+    pub finishes: std::collections::BTreeSet<(Surface, usize)>,
+    /// Parts which resolve to the base slot, plus templates cloned by people.
+    pub direct_surfaces: std::collections::BTreeSet<Surface>,
+}
+
+impl MaterialSelection {
+    fn omits_parent_maps(&self, scene: &IndoorManifest, surface: Surface) -> bool {
+        if scene.program.is_none()
+            || !self.surfaces.contains(&surface)
+            || self.direct_surfaces.contains(&surface)
+            || !variants::supports(surface)
+            || variants::structure_count(surface) <= 1
+        {
+            return false;
+        }
+        let mut replacements = false;
+        for &(s, slot) in &self.finishes {
+            if s != surface {
+                continue;
+            }
+            // Unresolved slots fall back to the base material. Structure zero
+            // also inherits its maps; only nonzero groups replace all four.
+            if slot >= variants::COUNT || slot % variants::structure_count(surface) == 0 {
+                return false;
+            }
+            replacements = true;
+        }
+        replacements
+    }
+
+    fn needs_maps(&self, scene: &IndoorManifest, surface: Surface) -> bool {
+        self.surfaces.contains(&surface) && !self.omits_parent_maps(scene, surface)
+    }
+}
+
 impl IndoorMaterials {
     pub fn get(&self, surface: Surface) -> Handle<StandardMaterial> {
         self.handles[surface as usize].clone()
@@ -123,24 +164,28 @@ impl IndoorMaterials {
         images: &mut impl super::preparation::AssetStore<Image>,
         materials: &mut impl super::preparation::AssetStore<StandardMaterial>,
     ) -> Self {
-        Self::build_with_finishes(scene, quality, images, materials, None)
+        Self::build_with_selection(scene, quality, images, materials, None)
     }
 
-    fn build_with_finishes(
+    fn build_with_selection(
         scene: &IndoorManifest,
         quality: super::IndoorQuality,
         images: &mut impl super::preparation::AssetStore<Image>,
         materials: &mut impl super::preparation::AssetStore<StandardMaterial>,
-        finishes: Option<&std::collections::BTreeSet<(Surface, usize)>>,
+        selection: Option<&MaterialSelection>,
     ) -> Self {
         let definitions = definitions(scene);
         // Generate immutable maps on a bounded pool; asset insertion remains ordered.
         // Wasm uses the identical serial function and produces the same pixels.
-        let prepare = |definition: &Definition| prepare_map(scene, definition);
+        let prepare = |definition: &Definition| {
+            selection
+                .is_none_or(|s| s.needs_maps(scene, definition.0))
+                .then(|| prepare_map(scene, definition))
+                .flatten()
+        };
         #[cfg(not(target_arch = "wasm32"))]
         let prepared = {
-            let pool = super::preparation::workers::pool();
-            pool.scope(|scope| {
+            super::preparation::workers::pool().scope(|scope| {
                 for definition in &definitions {
                     let prepare = &prepare;
                     scope.spawn(async move { prepare(definition) });
@@ -156,7 +201,7 @@ impl IndoorMaterials {
             materials,
             definitions,
             prepared,
-            finishes,
+            selection,
         )
     }
 
@@ -166,19 +211,19 @@ impl IndoorMaterials {
         images: &mut impl super::preparation::AssetStore<Image>,
         materials: &mut impl super::preparation::AssetStore<StandardMaterial>,
     ) -> Self {
-        Self::build_async_with_finishes(scene, quality, images, materials, None).await
+        Self::build_async_with_selection(scene, quality, images, materials, None).await
     }
 
-    pub(crate) async fn build_async_with_finishes(
+    pub(crate) async fn build_async_with_selection(
         scene: &IndoorManifest,
         quality: super::IndoorQuality,
         images: &mut impl super::preparation::AssetStore<Image>,
         materials: &mut impl super::preparation::AssetStore<StandardMaterial>,
-        finishes: Option<&std::collections::BTreeSet<(Surface, usize)>>,
+        selection: Option<&MaterialSelection>,
     ) -> Self {
         #[cfg(not(target_arch = "wasm32"))]
         {
-            Self::build_with_finishes(scene, quality, images, materials, finishes)
+            Self::build_with_selection(scene, quality, images, materials, selection)
         }
         #[cfg(target_arch = "wasm32")]
         {
@@ -186,7 +231,12 @@ impl IndoorMaterials {
             let mut maps = Vec::with_capacity(definitions.len());
             for definition in &definitions {
                 super::preparation::cooperate().await;
-                maps.push(prepare_map(scene, definition));
+                maps.push(
+                    selection
+                        .is_none_or(|s| s.needs_maps(scene, definition.0))
+                        .then(|| prepare_map(scene, definition))
+                        .flatten(),
+                );
             }
             Self::insert_prepared(
                 scene,
@@ -195,7 +245,7 @@ impl IndoorMaterials {
                 materials,
                 definitions,
                 maps,
-                finishes,
+                selection,
             )
         }
     }
@@ -208,7 +258,7 @@ impl IndoorMaterials {
         materials: &mut impl super::preparation::AssetStore<StandardMaterial>,
         definitions: [Definition; 35],
         prepared: Vec<Option<[Image; 3]>>,
-        finishes: Option<&std::collections::BTreeSet<(Surface, usize)>>,
+        selection: Option<&MaterialSelection>,
     ) -> Self {
         let mut handles = Vec::new();
         for ((surface, rgb, roughness, metallic, period), maps) in
@@ -251,6 +301,11 @@ impl IndoorMaterials {
                 }
                 mat.metallic_roughness_texture = Some(data);
                 mat.perceptual_roughness = 1.0;
+            } else if selection.is_some_and(|s| s.omits_parent_maps(scene, surface)) {
+                // Nonzero structure variants replace every texture, but clone
+                // the parent's PBR scalars. Retain the map insertion's scalar
+                // effect without synthesizing images which no part samples.
+                mat.perceptual_roughness = 1.0;
             }
             if matches!(
                 surface,
@@ -275,19 +330,21 @@ impl IndoorMaterials {
                     // The blade atlas remains 0..1 despite its metric derivative reference.
                     mat.uv_transform = bevy::math::Affine2::IDENTITY;
                 }
-                Surface::Screen => {
+                Surface::Screen if selection.is_none_or(|s| s.surfaces.contains(&surface)) => {
                     screens::apply(scene.material_seed(), false, &mut mat, images);
                 }
-                Surface::Whiteboard => {
+                Surface::Whiteboard if selection.is_none_or(|s| s.surfaces.contains(&surface)) => {
                     boards::apply(scene.material_seed(), &mut mat, images);
                 }
-                Surface::Television => {
+                Surface::Television if selection.is_none_or(|s| s.surfaces.contains(&surface)) => {
                     screens::apply_tv(scene.material_seed(), &mut mat, images);
                 }
-                Surface::PhoneScreen => {
+                Surface::PhoneScreen if selection.is_none_or(|s| s.surfaces.contains(&surface)) => {
                     screens::apply(scene.material_seed(), true, &mut mat, images);
                 }
-                Surface::PrintedPaper => {
+                Surface::PrintedPaper
+                    if selection.is_none_or(|s| s.surfaces.contains(&surface)) =>
+                {
                     paper::apply(scene.material_seed(), &mut mat, images);
                 }
                 Surface::ContainerGlass | Surface::Liquid => {
@@ -385,13 +442,24 @@ impl IndoorMaterials {
                 materials.add(material)
             })
             .collect();
-        let variants = variants::build(scene, &handles, images, materials, finishes);
+        let variants = variants::build(
+            scene,
+            &handles,
+            images,
+            materials,
+            selection.map(|s| &s.finishes),
+        );
         let cloth_template = materials
             .get(&handles[Surface::Fabric as usize])
             .unwrap()
             .clone();
-        let [cloth, skin, hair] =
-            human::maps(scene.material_seed(), cloth_template, images, materials);
+        let [cloth, skin, hair] = if selection.is_none() || !scene.humans.is_empty() {
+            human::maps(scene.material_seed(), cloth_template, images, materials)
+        } else {
+            // No actor refers to these templates. Aliases preserve the handle
+            // contract without paying for skin and hair atlases in empty rooms.
+            std::array::from_fn(|_| handles[Surface::Fabric as usize].clone())
+        };
         let knit = if scene.humans.iter().any(|h| h.outfit.knitted()) {
             human::knit(scene.material_seed(), images, materials)
         } else {
@@ -409,7 +477,7 @@ impl IndoorMaterials {
         };
         // The staged production path supplies its already-built geometry/BVH.
         // Standalone callers receive the same scene-derived environment here.
-        if finishes.is_none() {
+        if selection.is_none() {
             let transport = super::gi::BakeScene::from_manifest(scene, &result, materials, images);
             result.build_environment(scene, &transport, images);
         }
@@ -588,8 +656,8 @@ fn hash(x: u32, y: u32, seed: u64) -> f32 {
 // Periodic value noise: continuous at tile edges, with independent longitudinal
 // and transverse frequencies for wood fibres and large-scale surface variation.
 fn periodic_noise(u: f32, v: f32, nx: u32, ny: u32, seed: u64) -> f32 {
-    let x = u.rem_euclid(1.0) * nx as f32;
-    let y = v.rem_euclid(1.0) * ny as f32;
+    let x = field::periodic_unit(u) * nx as f32;
+    let y = field::periodic_unit(v) * ny as f32;
     let ix = x.floor() as u32;
     let iy = y.floor() as u32;
     let smooth = |t: f32| t * t * (3.0 - 2.0 * t);
@@ -610,6 +678,19 @@ fn texture_maps(
     roughness: f32,
     recipe: Option<&program::MaterialRecipe>,
 ) -> TextureMaps {
+    texture_maps_with_preparation(surface, floor_style, seed, roughness, recipe, true)
+}
+
+// Keep the scalar evaluation path available to exact whole-map replay tests.
+// This internal switch never changes recipe sampling, derivatives or encoding.
+fn texture_maps_with_preparation(
+    surface: Surface,
+    floor_style: u32,
+    seed: u64,
+    roughness: f32,
+    recipe: Option<&program::MaterialRecipe>,
+    prepare: bool,
+) -> TextureMaps {
     // Older serialized recipes omit the new programs. Resolve their defaults
     // once per map, rather than initializing an RNG for each of 65,536 texels.
     let initialized = recipe.and_then(|r| {
@@ -629,145 +710,169 @@ fn texture_maps(
         }
     });
     let recipe = initialized.as_ref().or(recipe);
+    let prepared = prepare
+        .then(|| recipe.and_then(|r| r.prepare_texels(floor_style)))
+        .flatten();
     let n = recipe.map_or(256, |r| r.map_size(floor_style)) as usize;
     let mut heights = vec![0.0; n * n];
-    let mut colors = Vec::with_capacity(n * n * 4);
-    let mut data = Vec::with_capacity(n * n * 4);
-    for y in 0..n {
-        for x in 0..n {
-            let u = x as f32 / n as f32;
-            let v = y as f32 / n as f32;
-            let fallback = || {
-                let noise = hash(x as u32, y as u32, seed);
-                let wood_surface = matches!(surface, Surface::Wood | Surface::WoodEdge)
-                    || (surface == Surface::Floor && floor_style == 0);
-                let fibre = if wood_surface {
-                    let warp = periodic_noise(u, v, 3, 3, seed.wrapping_add(17)) * 0.035;
-                    0.65 * periodic_noise(u + warp, v, 80, 4, seed)
-                        + 0.35 * periodic_noise(u + warp, v, 29, 2, seed.wrapping_add(61))
-                } else {
-                    0.5
-                };
-                let (shade, h) = match surface {
-                    Surface::Wood | Surface::WoodEdge => {
-                        (0.81 + fibre * 0.15 + noise * 0.016, fibre * 0.001)
-                    }
-                    Surface::Floor if floor_style == 0 => {
-                        let strip = (u * 10.0).floor() as u32;
-                        let stagger = if strip.is_multiple_of(2) { 0.0 } else { 0.5 };
-                        let seam =
-                            (u * 10.0).fract() < 0.022 || (v * 2.0 + stagger).fract() < 0.008;
-                        let shade = if seam {
-                            0.36
+    // Disjoint pre-sized bands keep each texel's original arithmetic while
+    // permitting long atlases to share the existing native worker budget.
+    let mut colors = vec![0; n * n * 4];
+    let mut data = vec![0; n * n * 4];
+    atlas::texels(
+        n,
+        prepare,
+        &mut heights,
+        &mut colors,
+        &mut data,
+        |first_y, heights, colors, data| {
+            for local_y in 0..heights.len() / n {
+                let y = first_y + local_y;
+                for x in 0..n {
+                    let u = x as f32 / n as f32;
+                    let v = y as f32 / n as f32;
+                    let fallback = || {
+                        let noise = hash(x as u32, y as u32, seed);
+                        let wood_surface = matches!(surface, Surface::Wood | Surface::WoodEdge)
+                            || (surface == Surface::Floor && floor_style == 0);
+                        let fibre = if wood_surface {
+                            let warp = periodic_noise(u, v, 3, 3, seed.wrapping_add(17)) * 0.035;
+                            0.65 * periodic_noise(u + warp, v, 80, 4, seed)
+                                + 0.35 * periodic_noise(u + warp, v, 29, 2, seed.wrapping_add(61))
                         } else {
-                            0.75 + hash(strip, (v * 2.0 + stagger).floor() as u32, seed) * 0.19
-                                + (fibre - 0.5) * 0.09
+                            0.5
                         };
-                        (shade, if seam { -0.025 } else { fibre * 0.002 })
-                    }
-                    Surface::Floor if floor_style == 2 => {
-                        let seam = (u * 4.0).fract() < 0.014 || (v * 4.0).fract() < 0.014;
-                        (
-                            if seam { 0.6 } else { 0.89 + noise * 0.09 },
-                            if seam { -0.06 } else { noise * 0.003 },
-                        )
-                    }
-                    Surface::Fabric | Surface::FabricAlt | Surface::Floor => {
-                        let weave = ((x / 2 + y / 2) % 2) as f32;
-                        (
-                            0.76 + noise * 0.17 + weave * 0.06,
-                            weave * 0.012 + noise * 0.009,
-                        )
-                    }
-                    Surface::Leaf | Surface::LeafLight | Surface::LeafVariegated => {
-                        let vein = (u - 0.5).abs() < 0.015
-                            || ((v + (u - 0.5).abs() * 0.7) * 14.0).fract() < 0.028;
-                        (
-                            if vein {
-                                1.0
-                            } else {
-                                if surface == Surface::LeafVariegated {
-                                    0.53 + 0.24 * (v * 78.0 + (u * 30.0).sin()).sin().abs()
-                                        + 0.21 * ((u - 0.5).abs() * 2.0).powi(5)
+                        let (shade, h) = match surface {
+                            Surface::Wood | Surface::WoodEdge => {
+                                (0.81 + fibre * 0.15 + noise * 0.016, fibre * 0.001)
+                            }
+                            Surface::Floor if floor_style == 0 => {
+                                let strip = (u * 10.0).floor() as u32;
+                                let stagger = if strip.is_multiple_of(2) { 0.0 } else { 0.5 };
+                                let seam = (u * 10.0).fract() < 0.022
+                                    || (v * 2.0 + stagger).fract() < 0.008;
+                                let shade = if seam {
+                                    0.36
                                 } else {
-                                    0.75 + 0.15 * (v * std::f32::consts::PI).sin() + noise * 0.07
-                                }
-                            },
-                            if vein { 0.013 } else { 0.0 },
-                        )
-                    }
-                    Surface::Bark => {
-                        let ridges = periodic_noise(u, v, 26, 3, seed);
-                        (0.66 + ridges * 0.28 + noise * 0.06, ridges * 0.045)
-                    }
-                    Surface::Terracotta => (0.85 + noise * 0.12, noise * 0.02),
-                    Surface::Soil => (0.50 + noise * 0.45, noise * 0.12),
-                    Surface::Concrete => (0.84 + noise * 0.13, noise * 0.022),
-                    Surface::Ceiling => {
-                        (0.94 + noise * 0.04, if noise < 0.1 { -0.018 } else { 0.0 })
-                    }
-                    _ => (0.95 + noise * 0.04, noise * 0.008),
-                };
-                (shade, h * 0.001, roughness + (noise - 0.5) * 0.06)
-            };
-            let texel = if let Some(recipe) = recipe {
-                recipe.texel(u, v, floor_style)
-            } else {
-                let (shade, h, roughness) = fallback();
-                program::Texel {
-                    color: [shade; 3],
-                    height: h,
-                    roughness,
-                    occlusion: 1.,
+                                    0.75 + hash(strip, (v * 2.0 + stagger).floor() as u32, seed)
+                                        * 0.19
+                                        + (fibre - 0.5) * 0.09
+                                };
+                                (shade, if seam { -0.025 } else { fibre * 0.002 })
+                            }
+                            Surface::Floor if floor_style == 2 => {
+                                let seam = (u * 4.0).fract() < 0.014 || (v * 4.0).fract() < 0.014;
+                                (
+                                    if seam { 0.6 } else { 0.89 + noise * 0.09 },
+                                    if seam { -0.06 } else { noise * 0.003 },
+                                )
+                            }
+                            Surface::Fabric | Surface::FabricAlt | Surface::Floor => {
+                                let weave = ((x / 2 + y / 2) % 2) as f32;
+                                (
+                                    0.76 + noise * 0.17 + weave * 0.06,
+                                    weave * 0.012 + noise * 0.009,
+                                )
+                            }
+                            Surface::Leaf | Surface::LeafLight | Surface::LeafVariegated => {
+                                let vein = (u - 0.5).abs() < 0.015
+                                    || ((v + (u - 0.5).abs() * 0.7) * 14.0).fract() < 0.028;
+                                (
+                                    if vein {
+                                        1.0
+                                    } else {
+                                        if surface == Surface::LeafVariegated {
+                                            0.53 + 0.24 * (v * 78.0 + (u * 30.0).sin()).sin().abs()
+                                                + 0.21 * ((u - 0.5).abs() * 2.0).powi(5)
+                                        } else {
+                                            0.75 + 0.15 * (v * std::f32::consts::PI).sin()
+                                                + noise * 0.07
+                                        }
+                                    },
+                                    if vein { 0.013 } else { 0.0 },
+                                )
+                            }
+                            Surface::Bark => {
+                                let ridges = periodic_noise(u, v, 26, 3, seed);
+                                (0.66 + ridges * 0.28 + noise * 0.06, ridges * 0.045)
+                            }
+                            Surface::Terracotta => (0.85 + noise * 0.12, noise * 0.02),
+                            Surface::Soil => (0.50 + noise * 0.45, noise * 0.12),
+                            Surface::Concrete => (0.84 + noise * 0.13, noise * 0.022),
+                            Surface::Ceiling => {
+                                (0.94 + noise * 0.04, if noise < 0.1 { -0.018 } else { 0.0 })
+                            }
+                            _ => (0.95 + noise * 0.04, noise * 0.008),
+                        };
+                        (shade, h * 0.001, roughness + (noise - 0.5) * 0.06)
+                    };
+                    let texel = if let Some(recipe) = recipe {
+                        recipe.texel_prepared(u, v, floor_style, prepared.as_ref())
+                    } else {
+                        let (shade, h, roughness) = fallback();
+                        program::Texel {
+                            color: [shade; 3],
+                            height: h,
+                            roughness,
+                            occlusion: 1.,
+                        }
+                    };
+                    let index = local_y * n + x;
+                    heights[index] = texel.height;
+                    let rgb = texel.color.map(|c| (c.clamp(0., 1.) * 255.) as u8);
+                    colors[index * 4..index * 4 + 4]
+                        .copy_from_slice(&[rgb[0], rgb[1], rgb[2], 255]);
+                    data[index * 4..index * 4 + 4].copy_from_slice(&[
+                        (texel.occlusion * 255.).round() as u8,
+                        (texel.roughness.clamp(0.05, 1.0) * 255.0) as u8,
+                        if surface == Surface::Chrome { 255 } else { 0 },
+                        255,
+                    ]);
                 }
-            };
-            heights[y * n + x] = texel.height;
-            let rgb = texel.color.map(|c| (c.clamp(0., 1.) * 255.) as u8);
-            colors.extend([rgb[0], rgb[1], rgb[2], 255]);
-            data.extend([
-                (texel.occlusion * 255.).round() as u8,
-                (texel.roughness.clamp(0.05, 1.0) * 255.0) as u8,
-                if surface == Surface::Chrome { 255 } else { 0 },
-                255,
-            ]);
-        }
-    }
-    let mut normals = Vec::with_capacity(n * n * 4);
+            }
+        },
+    );
+    let mut normals = vec![0; n * n * 4];
     let period = recipe.map_or(Vec2::ONE, |r| {
         r.leaf
             .as_ref()
             .map_or_else(|| r.period_uv(), |l| Vec2::from_array(l.reference_size_m))
     });
     let slope = Vec2::splat(n as f32 * 0.5) / period;
-    for y in 0..n {
-        for x in 0..n {
-            let atlas = recipe.is_some_and(|r| r.leaf.is_some());
-            let [left, right, bottom, top] = if atlas {
-                [
-                    x.saturating_sub(1),
-                    (x + 1).min(n - 1),
-                    y.saturating_sub(1),
-                    (y + 1).min(n - 1),
-                ]
-            } else {
-                [(x + n - 1) % n, (x + 1) % n, (y + n - 1) % n, (y + 1) % n]
-            };
-            let dx = heights[y * n + right] - heights[y * n + left];
-            let dy = heights[top * n + x] - heights[bottom * n + x];
-            let slope = if atlas {
-                Vec2::new(
-                    n as f32 / (right - left) as f32,
-                    n as f32 / (top - bottom) as f32,
-                ) / period
-            } else {
-                slope
-            };
-            // Tangent space follows increasing mesh U/V. Both slopes oppose the
-            // height gradient; flipping only Y would invert relief in one axis.
-            let normal = Vec3::new(-dx * slope.x, -dy * slope.y, 1.0).normalize();
-            normals.extend(filter::encode(normal));
+    // All height writes are joined before a normal reads an adjacent band.
+    atlas::normals(n, prepare, &mut normals, |first_y, normals| {
+        for local_y in 0..normals.len() / (n * 4) {
+            let y = first_y + local_y;
+            for x in 0..n {
+                let atlas = recipe.is_some_and(|r| r.leaf.is_some());
+                let [left, right, bottom, top] = if atlas {
+                    [
+                        x.saturating_sub(1),
+                        (x + 1).min(n - 1),
+                        y.saturating_sub(1),
+                        (y + 1).min(n - 1),
+                    ]
+                } else {
+                    [(x + n - 1) % n, (x + 1) % n, (y + n - 1) % n, (y + 1) % n]
+                };
+                let dx = heights[y * n + right] - heights[y * n + left];
+                let dy = heights[top * n + x] - heights[bottom * n + x];
+                let slope = if atlas {
+                    Vec2::new(
+                        n as f32 / (right - left) as f32,
+                        n as f32 / (top - bottom) as f32,
+                    ) / period
+                } else {
+                    slope
+                };
+                // Tangent space follows increasing mesh U/V. Both slopes oppose the
+                // height gradient; flipping only Y would invert relief in one axis.
+                let normal = Vec3::new(-dx * slope.x, -dy * slope.y, 1.0).normalize();
+                let index = (local_y * n + x) * 4;
+                normals[index..index + 4].copy_from_slice(&filter::encode(normal));
+            }
         }
-    }
+    });
     (colors, normals, data)
 }
 
@@ -778,46 +883,76 @@ enum MapType {
     Data,
 }
 
-fn mip_image(base: Vec<u8>, size: u32, kind: MapType) -> Image {
+fn mip_image(bytes: Vec<u8>, size: u32, kind: MapType) -> Image {
+    let mut transfer = matches!(kind, MapType::Color).then(mip_transfer::ColorTransfer::new);
+    mip_image_with_transfer(bytes, size, kind, |value| {
+        transfer.as_mut().unwrap().encode(value)
+    })
+}
+
+fn mip_image_with_transfer(
+    mut bytes: Vec<u8>,
+    size: u32,
+    kind: MapType,
+    mut color_transfer: impl FnMut(f32) -> u8,
+) -> Image {
     // Input texels are bytes: evaluate exactly the same transfer function once
     // per possible input instead of millions of powf calls per room. Filtering
     // and the floating-point accumulation order remain unchanged.
     let linear = srgb8_table();
-    let mut bytes = base.clone();
-    let mut prev = base;
+    // Keep all levels in their final allocation. Reading a completed level and
+    // appending its successor avoids cloning the base and allocating each mip.
     let mut n = size as usize;
+    let mut mip_bytes = 0;
+    let mut level = n;
+    while level > 1 {
+        level /= 2;
+        mip_bytes += level * level * 4;
+    }
+    bytes.reserve(mip_bytes);
+    let mut previous = 0;
     while n > 1 {
         let next_n = n / 2;
-        let mut next = Vec::with_capacity(next_n * next_n * 4);
+        let next_offset = bytes.len();
         for y in 0..next_n {
             for x in 0..next_n {
                 let mut sum = Vec3::ZERO;
                 for (dx, dy) in [(0, 0), (1, 0), (0, 1), (1, 1)] {
-                    let i = ((y * 2 + dy) * n + x * 2 + dx) * 4;
+                    let i = previous + ((y * 2 + dy) * n + x * 2 + dx) * 4;
                     sum += match kind {
                         MapType::Color => Vec3::new(
-                            linear[prev[i] as usize],
-                            linear[prev[i + 1] as usize],
-                            linear[prev[i + 2] as usize],
+                            linear[bytes[i] as usize],
+                            linear[bytes[i + 1] as usize],
+                            linear[bytes[i + 2] as usize],
                         ),
                         MapType::Normal => {
-                            Vec3::new(prev[i] as f32, prev[i + 1] as f32, prev[i + 2] as f32)
+                            Vec3::new(bytes[i] as f32, bytes[i + 1] as f32, bytes[i + 2] as f32)
                                 / 255.0
                                 * 2.0
                                 - Vec3::ONE
                         }
                         MapType::Data => {
-                            Vec3::new(prev[i] as f32, prev[i + 1] as f32, prev[i + 2] as f32)
+                            Vec3::new(bytes[i] as f32, bytes[i + 1] as f32, bytes[i + 2] as f32)
                                 / 255.0
                         }
                     };
                 }
+                if matches!(kind, MapType::Color) {
+                    let value = sum * 0.25;
+                    bytes.extend([
+                        color_transfer(value.x),
+                        color_transfer(value.y),
+                        color_transfer(value.z),
+                        255,
+                    ]);
+                    continue;
+                }
                 let value = match kind {
-                    MapType::Color => (sum * 0.25).map(linear_to_srgb),
+                    MapType::Color => unreachable!("color transfer is present"),
                     MapType::Normal => sum.normalize_or_zero() * 0.5 + Vec3::splat(0.5),
                     MapType::Data => sum * 0.25,
                 };
-                next.extend([
+                bytes.extend([
                     (value.x * 255.0) as u8,
                     (value.y * 255.0) as u8,
                     (value.z * 255.0) as u8,
@@ -825,23 +960,22 @@ fn mip_image(base: Vec<u8>, size: u32, kind: MapType) -> Image {
                 ]);
             }
         }
-        bytes.extend_from_slice(&next);
-        prev = next;
+        previous = next_offset;
         n = next_n;
     }
     mip_chain_image(bytes, size, kind)
 }
 
 fn mip_chain_image(bytes: Vec<u8>, size: u32, kind: MapType) -> Image {
-    // Image::new validates base-level size, so append mip data afterwards.
-    let mut image = Image::new(
+    // The complete chain is already owned; avoid allocating and zeroing a base
+    // image only to replace its data immediately.
+    let mut image = Image::new_uninit(
         Extent3d {
             width: size,
             height: size,
             depth_or_array_layers: 1,
         },
         TextureDimension::D2,
-        vec![0; (size * size * 4) as usize],
         if matches!(kind, MapType::Color) {
             TextureFormat::Rgba8UnormSrgb
         } else {
@@ -976,15 +1110,33 @@ mod surface_tests {
                     .map(|i| (*surface, i))
             })
             .collect();
+        let selection = MaterialSelection {
+            surfaces: assemblies
+                .iter()
+                .flat_map(|a| a.parts.keys().map(|(surface, _)| *surface))
+                .collect(),
+            finishes: keys.clone(),
+            direct_surfaces: assemblies
+                .iter()
+                .flat_map(|a| a.parts.keys())
+                .filter_map(|(surface, label)| {
+                    let variant = label
+                        .rsplit_once("#finish")
+                        .and_then(|(_, slot)| slot.parse::<usize>().ok())
+                        .is_some_and(|slot| variants::supports(*surface) && slot < variants::COUNT);
+                    (!variant).then_some(*surface)
+                })
+                .collect(),
+        };
         let (mut all_images, mut all_materials) = (Assets::default(), Assets::default());
         let all = IndoorMaterials::build(&scene, &mut all_images, &mut all_materials);
         let (mut images, mut materials) = (Assets::default(), Assets::default());
-        let used = IndoorMaterials::build_with_finishes(
+        let used = IndoorMaterials::build_with_selection(
             &scene,
             super::super::IndoorQuality::Auto,
             &mut images,
             &mut materials,
-            Some(&keys),
+            Some(&selection),
         );
         assert!(!used.variants.is_empty());
         assert!(used.variants.len() < all.variants.len());
@@ -1013,6 +1165,340 @@ mod surface_tests {
                 }
             }
         }
+    }
+
+    fn assert_same_material(
+        mut a: StandardMaterial,
+        mut b: StandardMaterial,
+        all_images: &Assets<Image>,
+        images: &Assets<Image>,
+    ) {
+        // Compare every PBR field after checking the full image contents and
+        // clearing only allocator-specific handles, including packed AO reuse.
+        macro_rules! image {
+            ($field:ident) => {
+                let ah = a.$field.take();
+                let bh = b.$field.take();
+                assert_eq!(ah.is_some(), bh.is_some(), stringify!($field));
+                if let (Some(ah), Some(bh)) = (ah, bh) {
+                    let ai = all_images.get(&ah).unwrap();
+                    let bi = images.get(&bh).unwrap();
+                    assert_eq!(ai.texture_descriptor, bi.texture_descriptor);
+                    assert_eq!(ai.data, bi.data, stringify!($field));
+                    assert_eq!(format!("{:?}", ai.sampler), format!("{:?}", bi.sampler));
+                    assert_eq!(ai.asset_usage, bi.asset_usage);
+                }
+            };
+        }
+        image!(base_color_texture);
+        image!(emissive_texture);
+        image!(metallic_roughness_texture);
+        image!(normal_map_texture);
+        image!(occlusion_texture);
+        image!(depth_map);
+        assert_eq!(format!("{a:?}"), format!("{b:?}"));
+    }
+
+    #[test]
+    fn geometry_selection_preserves_all_referenced_pbr_and_human_maps() {
+        use super::super::{humans, layout::IndoorLayout, preparation::SceneGeometry};
+        for (seed, human_density, legacy) in [
+            (44, 0., false),
+            (207, 1., false),
+            (7, 0., true),
+            (43_084_482, 0., false),
+        ] {
+            let mut scene = IndoorManifest::generate_with_humans(
+                seed,
+                IndoorLayout::Mixed,
+                0.65,
+                0,
+                human_density,
+            )
+            .unwrap();
+            if legacy {
+                scene.program = None;
+            }
+            let geometry = SceneGeometry {
+                architecture: super::super::architecture::architecture(&scene),
+                objects: scene
+                    .objects
+                    .iter()
+                    .map(super::super::objects::build_object)
+                    .collect(),
+                humans: scene.humans.iter().map(humans::build_human).collect(),
+            };
+            let selection = geometry.material_selection(&scene);
+            let (mut all_images, mut all_materials) = (Assets::default(), Assets::default());
+            let all = IndoorMaterials::build(&scene, &mut all_images, &mut all_materials);
+            let (mut images, mut materials) = (Assets::default(), Assets::default());
+            let used = IndoorMaterials::build_with_selection(
+                &scene,
+                super::super::IndoorQuality::Auto,
+                &mut images,
+                &mut materials,
+                Some(&selection),
+            );
+            assert!(images.len() < all_images.len());
+            assert!(selection.surfaces.len() < definitions(&scene).len());
+            for assembly in std::iter::once(&geometry.architecture).chain(&geometry.objects) {
+                for ((surface, label), part) in &assembly.parts {
+                    if part.indices.is_empty() {
+                        continue;
+                    }
+                    assert!(selection.surfaces.contains(surface));
+                    assert_same_material(
+                        all_materials
+                            .get(&all.for_part(*surface, label))
+                            .unwrap()
+                            .clone(),
+                        materials
+                            .get(&used.for_part(*surface, label))
+                            .unwrap()
+                            .clone(),
+                        &all_images,
+                        &images,
+                    );
+                }
+            }
+            if scene.humans.is_empty() {
+                // No human-only template has been synthesized; aliases are
+                // intentionally inaccessible from any scene geometry.
+                assert_eq!(used.cloth, used.get(Surface::Fabric));
+                assert_eq!(used.skin, used.cloth);
+                assert_eq!(used.hair, used.cloth);
+            } else {
+                for (person, assembly) in scene.humans.iter().zip(&geometry.humans) {
+                    for &surface in assembly.parts.keys() {
+                        assert_same_material(
+                            humans::person_material(person, surface, &all, &all_materials),
+                            humans::person_material(person, surface, &used, &materials),
+                            &all_images,
+                            &images,
+                        );
+                    }
+                }
+            }
+            // All surfaces retain valid handles for GI's stable surface indices.
+            for surface in program::SURFACES {
+                assert!(materials.get(&used.get(surface)).is_some());
+                if !selection.needs_maps(&scene, surface) {
+                    let mat = materials.get(&used.get(surface)).unwrap();
+                    assert!(mat.base_color_texture.is_none());
+                    assert!(mat.normal_map_texture.is_none());
+                    assert!(mat.emissive_texture.is_none());
+                    if selection.omits_parent_maps(&scene, surface) {
+                        assert_eq!(mat.perceptual_roughness, 1.0);
+                        assert!(mat.metallic_roughness_texture.is_none());
+                        assert!(mat.occlusion_texture.is_none());
+                    }
+                }
+            }
+            assert_same_gi_part_rays(
+                &scene,
+                &geometry,
+                &all,
+                &used,
+                &all_materials,
+                &materials,
+                &all_images,
+                &images,
+            );
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn assert_same_gi_part_rays(
+        scene: &IndoorManifest,
+        geometry: &super::super::preparation::SceneGeometry,
+        all: &IndoorMaterials,
+        used: &IndoorMaterials,
+        all_materials: &Assets<StandardMaterial>,
+        materials: &Assets<StandardMaterial>,
+        all_images: &Assets<Image>,
+        images: &Assets<Image>,
+    ) {
+        use super::super::gi::BakeScene;
+        let complete =
+            BakeScene::from_geometry(scene, all, all_materials, all_images, &[], geometry);
+        let selected = BakeScene::from_geometry(scene, used, materials, images, &[], geometry);
+        let check = |part: &super::super::geometry::Geometry, transform: Transform| {
+            let triangles = part.indices.as_chunks::<3>().0;
+            if triangles.is_empty() {
+                return;
+            }
+            // Surface-origin rays exercise actual closest-hit diffuse/emission
+            // sampling, including each referenced finish and the human proxy.
+            for triangle in [
+                triangles[0],
+                triangles[triangles.len() / 2],
+                triangles[triangles.len() - 1],
+            ] {
+                let [a, b, c] = triangle.map(|i| {
+                    transform.transform_point(Vec3::from_array(part.positions[i as usize]))
+                });
+                let normal = (b - a).cross(c - a).normalize_or_zero();
+                if normal.length_squared() < 0.5 {
+                    continue;
+                }
+                let origin = (a + b + c) / 3. + normal * 0.0005;
+                let (ad, ac) = complete.reflection_radiance(origin, -normal, 0.37);
+                let (bd, bc) = selected.reflection_radiance(origin, -normal, 0.37);
+                assert_eq!(ad.to_bits(), bd.to_bits());
+                assert_eq!(
+                    ac.to_array().map(f32::to_bits),
+                    bc.to_array().map(f32::to_bits),
+                    "seed {} GI ray {:?}",
+                    scene.seed,
+                    origin
+                );
+            }
+        };
+        for part in geometry.architecture.parts.values() {
+            check(part, Transform::IDENTITY);
+        }
+        for (object, assembly) in scene.objects.iter().zip(&geometry.objects) {
+            for part in assembly.parts.values() {
+                check(part, object.transform());
+            }
+        }
+        for (human, assembly) in scene.humans.iter().zip(&geometry.humans) {
+            for part in assembly.parts.values() {
+                check(part, human.transform());
+            }
+        }
+    }
+
+    #[test]
+    fn only_nonzero_replacement_structures_can_omit_parent_maps() {
+        use std::collections::BTreeSet;
+        let mut scene =
+            IndoorManifest::generate(207, super::super::layout::IndoorLayout::Mixed, 0.65, 0)
+                .unwrap();
+        let mut selection = MaterialSelection {
+            surfaces: BTreeSet::from([Surface::Fabric]),
+            finishes: BTreeSet::from([(Surface::Fabric, 1), (Surface::Fabric, 2)]),
+            direct_surfaces: BTreeSet::new(),
+        };
+        assert!(selection.omits_parent_maps(&scene, Surface::Fabric));
+        selection.direct_surfaces.insert(Surface::Fabric);
+        assert!(selection.needs_maps(&scene, Surface::Fabric));
+        selection.direct_surfaces.clear();
+        for slot in [0, 3, variants::COUNT, usize::MAX] {
+            selection.finishes.insert((Surface::Fabric, slot));
+            assert!(selection.needs_maps(&scene, Surface::Fabric));
+            selection.finishes.remove(&(Surface::Fabric, slot));
+        }
+        scene.program = None;
+        assert!(selection.needs_maps(&scene, Surface::Fabric));
+        selection.finishes.clear();
+        assert!(selection.needs_maps(&scene, Surface::Fabric));
+    }
+
+    #[test]
+    fn replaced_parent_maps_preserve_every_finish_pbr_and_gi_hit() {
+        use super::super::{layout::IndoorLayout, objects::Assembly, preparation::SceneGeometry};
+        let mut scene =
+            IndoorManifest::generate_with_humans(200, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
+        scene.objects.clear();
+        let mut architecture = Assembly::default();
+        let mut surfaces = Vec::new();
+        for surface in variants::SURFACES {
+            if variants::structure_count(surface) <= 1 {
+                continue;
+            }
+            let x = surfaces.len() as f32 * 0.25 - 1.;
+            architecture.box_part(
+                surface,
+                "chair#finish1",
+                Vec3::new(x, 1., 0.),
+                Vec3::splat(0.2),
+                0.,
+            );
+            surfaces.push(surface);
+        }
+        let geometry = SceneGeometry {
+            architecture,
+            objects: Vec::new(),
+            humans: Vec::new(),
+        };
+        let selection = geometry.material_selection(&scene);
+        assert_eq!(surfaces.len(), 9);
+        assert!(selection.direct_surfaces.is_empty());
+        let (mut all_images, mut all_materials) = (Assets::default(), Assets::default());
+        let all = IndoorMaterials::build(&scene, &mut all_images, &mut all_materials);
+        let (mut images, mut materials) = (Assets::default(), Assets::default());
+        let used = IndoorMaterials::build_with_selection(
+            &scene,
+            super::super::IndoorQuality::Auto,
+            &mut images,
+            &mut materials,
+            Some(&selection),
+        );
+        for surface in surfaces {
+            assert!(selection.omits_parent_maps(&scene, surface));
+            assert!(materials
+                .get(&used.get(surface))
+                .unwrap()
+                .base_color_texture
+                .is_none());
+            assert_same_material(
+                all_materials
+                    .get(&all.for_part(surface, "chair#finish1"))
+                    .unwrap()
+                    .clone(),
+                materials
+                    .get(&used.for_part(surface, "chair#finish1"))
+                    .unwrap()
+                    .clone(),
+                &all_images,
+                &images,
+            );
+        }
+        assert_same_gi_part_rays(
+            &scene,
+            &geometry,
+            &all,
+            &used,
+            &all_materials,
+            &materials,
+            &all_images,
+            &images,
+        );
+    }
+
+    #[test]
+    #[ignore = "count-only seed coverage diagnostic; no textures or GPU work"]
+    fn variant_parent_map_counts_200_through_231() {
+        use super::super::{humans, layout::IndoorLayout, preparation::SceneGeometry};
+        let mut rows = Vec::new();
+        let mut total = 0;
+        for seed in 200..232 {
+            let scene =
+                IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 3, 0.25)
+                    .unwrap();
+            let geometry = SceneGeometry {
+                architecture: super::super::architecture::architecture(&scene),
+                objects: scene
+                    .objects
+                    .iter()
+                    .map(super::super::objects::build_object)
+                    .collect(),
+                humans: scene.humans.iter().map(humans::build_human).collect(),
+            };
+            let selection = geometry.material_selection(&scene);
+            let omitted: Vec<_> = program::SURFACES
+                .into_iter()
+                .filter(|&s| selection.omits_parent_maps(&scene, s))
+                .map(|s| format!("{s:?}"))
+                .collect();
+            total += omitted.len();
+            rows.push(serde_json::json!({"seed":seed,"humans":scene.humans.len(),"omitted_parent_triplets":omitted,"selected_base_surfaces_before":selection.surfaces.len()}));
+        }
+        eprintln!(
+            "{}",
+            serde_json::json!({"scope":"exact assembly references; count-only, no capture speedup claim","rooms":rows,"omitted_parent_triplets":total,"omitted_images":total*3})
+        );
     }
 
     #[test]
@@ -1246,3 +1732,11 @@ mod surface_tests {
         assert_eq!(glass.specular_transmission, 0.0);
     }
 }
+
+#[cfg(test)]
+#[path = "materials/mipmap_replay_tests.rs"]
+mod mipmap_replay_tests;
+
+#[cfg(test)]
+#[path = "materials/map_replay_tests.rs"]
+mod map_replay_tests;

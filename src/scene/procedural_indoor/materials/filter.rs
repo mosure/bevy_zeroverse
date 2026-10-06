@@ -20,6 +20,14 @@ struct Moment {
 }
 
 fn filter(mut normals: Vec<u8>, mut data: Vec<u8>, mut size: usize) -> (Vec<u8>, Vec<u8>) {
+    let mut mip_bytes = 0;
+    let mut level = size;
+    while level > 1 {
+        level /= 2;
+        mip_bytes += level * level * 4;
+    }
+    normals.reserve(mip_bytes);
+    data.reserve(mip_bytes);
     let mut moments: Vec<_> = normals
         .as_chunks::<4>()
         .0
@@ -35,7 +43,6 @@ fn filter(mut normals: Vec<u8>, mut data: Vec<u8>, mut size: usize) -> (Vec<u8>,
     let mut offset = 0;
     while size > 1 {
         let next_size = size / 2;
-        let mut next = Vec::with_capacity(next_size * next_size);
         for y in 0..next_size {
             for x in 0..next_size {
                 let mut m = Moment::default();
@@ -59,12 +66,15 @@ fn filter(mut normals: Vec<u8>, mut data: Vec<u8>, mut size: usize) -> (Vec<u8>,
                     (channels[1] / 4) as u8,
                     255,
                 ]);
-                next.push(m);
+                // A row-major 2x2 reduction has consumed every source at or
+                // before this destination. Reuse the prefix without changing
+                // the unnormalized moment or floating-point reduction order.
+                moments[y * next_size + x] = m;
             }
         }
         offset += size * size * 4;
         size = next_size;
-        moments = next;
+        moments.truncate(next_size * next_size);
     }
     (normals, data)
 }
@@ -117,3 +127,6 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+mod replay_tests;

@@ -1,0 +1,41 @@
+   Compiling bevy_zeroverse v0.31.0 (/media/mosure/hyper1/repos/bevy_zeroverse)
+    Finished `test` profile [optimized] target(s) in 38.72s
+     Running tests/co_visibility_render.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/bevy_zeroverse/54c71f5227e96940/out/co_visibility_render-54c71f5227e96940)
+
+running 1 test
+test same_time_visibility_matches_ray_geometry ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.16s
+
+     Running tests/ground_truth_render.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/bevy_zeroverse/9fef7d1bd3afb040/out/ground_truth_render-9fef7d1bd3afb040)
+
+running 1 test
+test float32_mrt_matches_independent_ray_geometry_and_tracks_changes ... 2026-10-06T07:28:05.626314Z ERROR bevy_asset::server: Path not found: /tmp/.tmptx6lFd/assets/burn_human/fullbody_default.meta.json
+2026-10-06T07:28:05.646084Z ERROR bevy_zeroverse::procedural_human: AnnyBody reference failed to load: Path not found: /tmp/.tmptx6lFd/assets/burn_human/fullbody_default.meta.json; install assets/burn_human or set indoor_human_density=0 for an unoccupied indoor scene
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.36s
+
+     Running tests/optical_flow_render.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/bevy_zeroverse/f6634e6d44f23ee8/out/optical_flow_render-f6634e6d44f23ee8)
+
+running 1 test
+test capture_pairs_track_rigid_camera_vertex_and_skeletal_motion ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.32s
+
+     Running tests/procedural_indoor_render.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/bevy_zeroverse/8c9930a579b50ebb/out/procedural_indoor_render-8c9930a579b50ebb)
+
+running 5 tests
+test empty_assets_rotated_odd_size_capture_and_legacy_scene_switches ... ok
+test indoor_annotations_voxels_and_keyboard_after_object_scene ... 2026-10-06T07:28:13.154274Z ERROR bevy_log: Could not set global logger and tracing subscriber as they are already set. Consider disabling LogPlugin.
+2026-10-06T07:28:14.934733Z  WARN bevy_burn_human: burn_human: clamping 8 bone influences to 4 for bevy skinning
+ok
+test nonrectangular_envelope_voxels_exclude_context_and_keep_floor_levels ... 2026-10-06T07:28:18.954780Z ERROR bevy_log: Could not set global logger and tracing subscriber as they are already set. Consider disabling LogPlugin.
+ok
+test render_fenced_indoor_capture_preserves_flow_and_shared_visibility ... 2026-10-06T07:28:20.915426Z ERROR bevy_log: Could not set global logger and tracing subscriber as they are already set. Consider disabling LogPlugin.
+ok
+test thin_triangle_seeds_keep_every_pixel_on_its_calibrated_ray ... 2026-10-06T07:28:22.665790Z ERROR bevy_log: Could not set global logger and tracing subscriber as they are already set. Consider disabling LogPlugin.
+ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 17.58s
+

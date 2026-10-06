@@ -1,0 +1,1775 @@
+{
+  "binary_sha256": {
+    "overlap": "d8fa200651df1135c120d156a934e826194f113f437dab3462117909e6c10690",
+    "sequential": "8f48fee4099c12fabdd8f0afcc26103fbff9ffa866d8365d36488b7140a49e3a"
+  },
+  "burn_sources": {
+    "overlap": {
+      "generator_sha256": "ac0b594d3d1bc7fa107c7ec32616ebd91aed3c9d2cdb2f3f27b396bf1e18616b",
+      "scope": "Burn crate Cargo.toml and complete src tree, CRLF-normalized UTF-8. Core/dependencies are separately bound by renderer build provenance and Cargo.lock.",
+      "source_inputs": {
+        "Cargo.toml": "a65859b067909df19f0634e20c8ddd48b8d8fc70b81d962857456ca682cbeed6",
+        "src/bin/zeroverse_gen.rs": "7055f4940987d1180bdbfb5b2262e48fab6f8e9edd098f07e148ed16d1102812",
+        "src/bin/zeroverse_gen/process_pool.rs": "140fa9b9d9114306ec57a963ed4a8e4fd4065cd19308ece6386e19d569d9dabb",
+        "src/calibration.rs": "86793d2b678caac2192fac2c3703dcde08ad909d2d09a286ade7b74fac58a829",
+        "src/chunk.rs": "200e9622c38251bfe00a8cf63bd1149e4f0b44c4dc4eed9909792e2a9dcf25d9",
+        "src/co_visibility.rs": "5d59a9a7e58177a0f6a237f49b2bf477c197cd80eb8234f67cb5ce87063771b0",
+        "src/compression.rs": "36e579dc372ef514200c1024f961e281e05baafa6d1e8ed9b0fb32448beb7709",
+        "src/dataset.rs": "b5ea4d26fab7d9f5d3832f85a3d4267b2fe3426f8f6387e9395b2b00d5cff45f",
+        "src/flow.rs": "f0e895cb905b1e3c3ab5243a27344658ff0d721af9301e01c643c5f7877113c8",
+        "src/fs.rs": "223abe8dfc938956f01c098062c539ed076a25ebb5927b33fe04993f05839490",
+        "src/generator.rs": "ac0b594d3d1bc7fa107c7ec32616ebd91aed3c9d2cdb2f3f27b396bf1e18616b",
+        "src/generator/capture_overlap.rs": "d3e5fa3e53fa5a0e1598d2d4ee591b01a4a1ae3cea46e0bb3b33875b2bcdd71f",
+        "src/lib.rs": "3670e968ced90623ae6a302cf1a378b83c8e78c19fe24dc352f8e175c48cb46c",
+        "src/progress.rs": "4b2904243377fa1df45b957799beeab04e6332c0330e8bcf21cfb4211048f7c0",
+        "src/sensor.rs": "e2a0d541715a199263095603cacf36ac4064ab93701dc9548c09ee03d535c6a5",
+        "src/tui.rs": "83158f73f3725b16c5add3e902fffeed3f01942cf2b6a77ae52c80c4e278f15d"
+      },
+      "source_inputs_count": 16,
+      "source_root": "out/throughput_cpu_round4/overlap_burn_candidate",
+      "source_sha256": "82e99ab4975f69c26bfe6727372ae53002d4209c4291215b9c28168c45c75890"
+    },
+    "sequential": {
+      "generator_sha256": "c64ccdd07aff88de94d504e82f7d893e4eac5004182ac27e6254d43be8138006",
+      "scope": "Burn crate Cargo.toml and complete src tree, CRLF-normalized UTF-8. Core/dependencies are separately bound by renderer build provenance and Cargo.lock.",
+      "source_inputs": {
+        "Cargo.toml": "4f5a7cf86fce250e54465c124789fee70699b2f4c33235c27411b1e86965138e",
+        "src/bin/zeroverse_gen.rs": "7055f4940987d1180bdbfb5b2262e48fab6f8e9edd098f07e148ed16d1102812",
+        "src/bin/zeroverse_gen/process_pool.rs": "140fa9b9d9114306ec57a963ed4a8e4fd4065cd19308ece6386e19d569d9dabb",
+        "src/calibration.rs": "86793d2b678caac2192fac2c3703dcde08ad909d2d09a286ade7b74fac58a829",
+        "src/chunk.rs": "200e9622c38251bfe00a8cf63bd1149e4f0b44c4dc4eed9909792e2a9dcf25d9",
+        "src/co_visibility.rs": "5d59a9a7e58177a0f6a237f49b2bf477c197cd80eb8234f67cb5ce87063771b0",
+        "src/compression.rs": "36e579dc372ef514200c1024f961e281e05baafa6d1e8ed9b0fb32448beb7709",
+        "src/dataset.rs": "b5ea4d26fab7d9f5d3832f85a3d4267b2fe3426f8f6387e9395b2b00d5cff45f",
+        "src/flow.rs": "f0e895cb905b1e3c3ab5243a27344658ff0d721af9301e01c643c5f7877113c8",
+        "src/fs.rs": "223abe8dfc938956f01c098062c539ed076a25ebb5927b33fe04993f05839490",
+        "src/generator.rs": "c64ccdd07aff88de94d504e82f7d893e4eac5004182ac27e6254d43be8138006",
+        "src/generator/capture_overlap.rs": "d3e5fa3e53fa5a0e1598d2d4ee591b01a4a1ae3cea46e0bb3b33875b2bcdd71f",
+        "src/lib.rs": "3670e968ced90623ae6a302cf1a378b83c8e78c19fe24dc352f8e175c48cb46c",
+        "src/progress.rs": "4b2904243377fa1df45b957799beeab04e6332c0330e8bcf21cfb4211048f7c0",
+        "src/sensor.rs": "e2a0d541715a199263095603cacf36ac4064ab93701dc9548c09ee03d535c6a5",
+        "src/tui.rs": "83158f73f3725b16c5add3e902fffeed3f01942cf2b6a77ae52c80c4e278f15d"
+      },
+      "source_inputs_count": 16,
+      "source_root": "out/throughput_cpu_round4/sequential_burn_control",
+      "source_sha256": "c27e10c646ccb6f1c48888ba2d734d30ae9295bcf9edc9ba6c616a949a2e89f4"
+    }
+  },
+  "candidate_generator_test_run": {
+    "artifact": {
+      "artifact": "out/throughput_cpu_round4/burn-generator-tests.log",
+      "sha256": "b291b03befe11f064ed0f00efc8c727f5496531127a1eaa855fd37e0ebfeb584"
+    },
+    "candidate_only_checks_removed": 7,
+    "passed": 11,
+    "retained_checks": 4
+  },
+  "helper_sha256": "e91ae57a2783ce3e7b927942988a168dbe662dc37f578228635c56b88488d4da",
+  "implemented_in_accepted_source": false,
+  "locked_package_graphs": {
+    "artifacts": {
+      "overlap": {
+        "artifact": "Cargo.lock",
+        "sha256": "bacb96b69c8cffc4724877adf9b6e3a6338cb178c117fd13b473ad73ea6ac0f9"
+      },
+      "sequential": {
+        "artifact": "out/throughput_cpu_round4/sequential_burn_control/Cargo.lock",
+        "sha256": "8fa9a880b9b585b5022eacf63b450ac7677f0065027901d03301b562ff0fbc56"
+      }
+    },
+    "control_additional_name_version_pairs": [],
+    "root_unrelated_name_version_pairs_omitted_from_control": 54,
+    "scope": "Name/version lock comparison; the control graph may omit unrelated workspace packages, but adds no package versions. Source/helper/binaries are separately pinned."
+  },
+  "metrics": {
+    "accepted": false,
+    "allowed_metadata_diagnostic_exceptions": {
+      "/capture_readiness/blocked_updates": "completed CPU/GPU readiness polling count",
+      "/gi_statistics/bake_ms": "CPU bake wall time, when applicable",
+      "/gi_statistics/prefetch_hit": "CPU preparation scheduling/cache-hit diagnostic",
+      "/gi_statistics/prefetch_wait_ms": "CPU lookahead wait wall time",
+      "/gi_statistics/preparation_ms": "CPU preparation wall time"
+    },
+    "comparison": {
+      "complete_abba": true,
+      "cpu_seconds_per_room_change_percent": 2.37809611177755,
+      "matched_configuration": true,
+      "matched_gpu_identity": true,
+      "quality_and_numerical_outputs_exact": true,
+      "same_current_core": true,
+      "views_per_second_gain_percent": -2.1878882288310697
+    },
+    "missing": [],
+    "output_replay": {
+      "all_compressed_archives_exact": false,
+      "all_quality_and_numerical_outputs_exact": true,
+      "complete": true,
+      "metadata_diagnostic_exception_count": 75,
+      "paired_rooms": 64,
+      "pairs": [
+        {
+          "files": [
+            {
+              "exact": false,
+              "metadata_diagnostic_exceptions": [
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 129.462277,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 121.706748,
+                  "tensor": "indoor_render_metadata_0"
+                },
+                {
+                  "json_pointer": "/capture_readiness/blocked_updates",
+                  "overlap": 1,
+                  "reason": "completed CPU/GPU readiness polling count",
+                  "sequential": 0,
+                  "tensor": "indoor_render_metadata_1"
+                },
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 103.616221,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 99.036091,
+                  "tensor": "indoor_render_metadata_1"
+                },
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 127.33530400000001,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 125.71618899999999,
+                  "tensor": "indoor_render_metadata_2"
+                },
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 71.943831,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 93.35169199999999,
+                  "tensor": "indoor_render_metadata_3"
+                }
+              ],
+              "overlap_bytes": 60448383,
+              "overlap_path": "out/throughput_cpu_round4/producer_final1/000000.safetensors.zst",
+              "overlap_sha256": "96efef29f945afb74708e8f309c372ff98d25fb892288f5af022a20224473928",
+              "qualification_metadata_exact": true,
+              "quality_and_numerical_outputs_exact": true,
+              "sequential_bytes": 60448383,
+              "sequential_path": "out/throughput_cpu_round4/producer_control1/000000.safetensors.zst",
+              "sequential_sha256": "00092e2133b77b0c0868a66f6bef20216fa066a96202b7d594a7dc31ee2d4d51",
+              "tensor_bytes_compared": 173229344,
+              "unexpected_differences": []
+            },
+            {
+              "exact": false,
+              "metadata_diagnostic_exceptions": [
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 295.142525,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 283.226257,
+                  "tensor": "indoor_render_metadata_0"
+                },
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 72.192643,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 58.42259000000001,
+                  "tensor": "indoor_render_metadata_1"
+                },
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 151.768481,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 132.95897100000002,
+                  "tensor": "indoor_render_metadata_2"
+                },
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 275.147309,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 259.66103599999997,
+                  "tensor": "indoor_render_metadata_3"
+                }
+              ],
+              "overlap_bytes": 62905682,
+              "overlap_path": "out/throughput_cpu_round4/producer_final1/000001.safetensors.zst",
+              "overlap_sha256": "09ce140cba64e2fe2257107c8422d41c0f0b33c51c9284935c05cf73088ffd39",
+              "qualification_metadata_exact": true,
+              "quality_and_numerical_outputs_exact": true,
+              "sequential_bytes": 62905695,
+              "sequential_path": "out/throughput_cpu_round4/producer_control1/000001.safetensors.zst",
+              "sequential_sha256": "8ff8d769938dc2d02531299eaf0d823429ee1cc67b78f513df4e2512f2724dce",
+              "tensor_bytes_compared": 173284449,
+              "unexpected_differences": []
+            },
+            {
+              "exact": false,
+              "metadata_diagnostic_exceptions": [
+                {
+                  "json_pointer": "/capture_readiness/blocked_updates",
+                  "overlap": 2,
+                  "reason": "completed CPU/GPU readiness polling count",
+                  "sequential": 0,
+                  "tensor": "indoor_render_metadata_0"
+                },
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 121.322735,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 150.632621,
+                  "tensor": "indoor_render_metadata_0"
+                },
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 160.136331,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 189.56096,
+                  "tensor": "indoor_render_metadata_1"
+                },
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 260.16841999999997,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 270.766122,
+                  "tensor": "indoor_render_metadata_2"
+                },
+                {
+                  "json_pointer": "/capture_readiness/blocked_updates",
+                  "overlap": 1,
+                  "reason": "completed CPU/GPU readiness polling count",
+                  "sequential": 0,
+                  "tensor": "indoor_render_metadata_3"
+                },
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 84.743133,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 71.521692,
+                  "tensor": "indoor_render_metadata_3"
+                }
+              ],
+              "overlap_bytes": 56151653,
+              "overlap_path": "out/throughput_cpu_round4/producer_final1/000002.safetensors.zst",
+              "overlap_sha256": "e78dfe3b799a777d14738b1ad7a14dbc1906c8fbd262eec1b13a44170d1f8557",
+              "qualification_metadata_exact": true,
+              "quality_and_numerical_outputs_exact": true,
+              "sequential_bytes": 56151656,
+              "sequential_path": "out/throughput_cpu_round4/producer_control1/000002.safetensors.zst",
+              "sequential_sha256": "5f91b743e252813208ae6bcda7c323cfacaa4377e0756fd9a7200faca9fb0840",
+              "tensor_bytes_compared": 173256017,
+              "unexpected_differences": []
+            },
+            {
+              "exact": false,
+              "metadata_diagnostic_exceptions": [
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 92.34095300000001,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 105.951448,
+                  "tensor": "indoor_render_metadata_0"
+                },
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 117.751441,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 120.93785500000001,
+                  "tensor": "indoor_render_metadata_1"
+                },
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 90.35891799999999,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 97.51974200000001,
+                  "tensor": "indoor_render_metadata_2"
+                },
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 319.790204,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 351.851509,
+                  "tensor": "indoor_render_metadata_3"
+                }
+              ],
+              "overlap_bytes": 59243792,
+              "overlap_path": "out/throughput_cpu_round4/producer_final1/000003.safetensors.zst",
+              "overlap_sha256": "786c6fb72ab454b32f9f7d37e9e2cc2264b97f50eb3b1f8be971cccea77d621a",
+              "qualification_metadata_exact": true,
+              "quality_and_numerical_outputs_exact": true,
+              "sequential_bytes": 59243777,
+              "sequential_path": "out/throughput_cpu_round4/producer_control1/000003.safetensors.zst",
+              "sequential_sha256": "6b2d052a3798eaacdad91dfba3938ded95517190633918bf876d02aacc1fa391",
+              "tensor_bytes_compared": 173268569,
+              "unexpected_differences": []
+            },
+            {
+              "exact": false,
+              "metadata_diagnostic_exceptions": [
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 142.787162,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 151.226545,
+                  "tensor": "indoor_render_metadata_0"
+                },
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 38.25402,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 30.812942,
+                  "tensor": "indoor_render_metadata_1"
+                },
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 136.876613,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 122.012948,
+                  "tensor": "indoor_render_metadata_2"
+                },
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 174.176212,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 181.21403199999997,
+                  "tensor": "indoor_render_metadata_3"
+                }
+              ],
+              "overlap_bytes": 61294392,
+              "overlap_path": "out/throughput_cpu_round4/producer_final1/000004.safetensors.zst",
+              "overlap_sha256": "7f61c68271b2886db19218eeefcd8879bbf1e7f93845aeb7cb276d1eb61077dc",
+              "qualification_metadata_exact": true,
+              "quality_and_numerical_outputs_exact": true,
+              "sequential_bytes": 61294406,
+              "sequential_path": "out/throughput_cpu_round4/producer_control1/000004.safetensors.zst",
+              "sequential_sha256": "aaf3d225e786d2ce5e558d84120baefcda1589d2321b9396224bd98136e61f85",
+              "tensor_bytes_compared": 173252783,
+              "unexpected_differences": []
+            },
+            {
+              "exact": false,
+              "metadata_diagnostic_exceptions": [
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 195.67965800000002,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 229.27127099999998,
+                  "tensor": "indoor_render_metadata_0"
+                },
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 95.463911,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 86.043304,
+                  "tensor": "indoor_render_metadata_1"
+                },
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 207.41263700000002,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 192.073471,
+                  "tensor": "indoor_render_metadata_2"
+                },
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 62.588744000000005,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 55.607642,
+                  "tensor": "indoor_render_metadata_3"
+                }
+              ],
+              "overlap_bytes": 56637072,
+              "overlap_path": "out/throughput_cpu_round4/producer_final1/000005.safetensors.zst",
+              "overlap_sha256": "49be45e0dc3507a69b2b9c472ab2bb2869283f6b9fa122222291b95b16879694",
+              "qualification_metadata_exact": true,
+              "quality_and_numerical_outputs_exact": true,
+              "sequential_bytes": 56637068,
+              "sequential_path": "out/throughput_cpu_round4/producer_control1/000005.safetensors.zst",
+              "sequential_sha256": "e8074df138146d333659d640e82ded538e0424b5952fa54e137c82e1d204979f",
+              "tensor_bytes_compared": 173261428,
+              "unexpected_differences": []
+            },
+            {
+              "exact": false,
+              "metadata_diagnostic_exceptions": [
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 177.04616900000002,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 170.358964,
+                  "tensor": "indoor_render_metadata_0"
+                },
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 79.39700500000001,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 81.305564,
+                  "tensor": "indoor_render_metadata_1"
+                },
+                {
+                  "json_pointer": "/capture_readiness/blocked_updates",
+                  "overlap": 1,
+                  "reason": "completed CPU/GPU readiness polling count",
+                  "sequential": 2,
+                  "tensor": "indoor_render_metadata_2"
+                },
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 135.559457,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 127.025925,
+                  "tensor": "indoor_render_metadata_2"
+                },
+                {
+                  "json_pointer": "/capture_readiness/blocked_updates",
+                  "overlap": 2,
+                  "reason": "completed CPU/GPU readiness polling count",
+                  "sequential": 0,
+                  "tensor": "indoor_render_metadata_3"
+                },
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 115.62252199999999,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 106.14721100000001,
+                  "tensor": "indoor_render_metadata_3"
+                }
+              ],
+              "overlap_bytes": 59149640,
+              "overlap_path": "out/throughput_cpu_round4/producer_final1/000006.safetensors.zst",
+              "overlap_sha256": "278a02a9bf9b798ad6b9171579568f3140b0ac4aceae9963d42ef8c29da3730a",
+              "qualification_metadata_exact": true,
+              "quality_and_numerical_outputs_exact": true,
+              "sequential_bytes": 59149633,
+              "sequential_path": "out/throughput_cpu_round4/producer_control1/000006.safetensors.zst",
+              "sequential_sha256": "86eb70d34c3594ae0bcd1aa56f60428307f7fff467d141fc8441ed72635f5e3d",
+              "tensor_bytes_compared": 173242547,
+              "unexpected_differences": []
+            },
+            {
+              "exact": false,
+              "metadata_diagnostic_exceptions": [
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 77.54453900000001,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 67.260467,
+                  "tensor": "indoor_render_metadata_0"
+                },
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 225.683406,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 241.632216,
+                  "tensor": "indoor_render_metadata_1"
+                },
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 469.26388399999996,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 440.19158799999997,
+                  "tensor": "indoor_render_metadata_2"
+                },
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 153.104971,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 163.643077,
+                  "tensor": "indoor_render_metadata_3"
+                }
+              ],
+              "overlap_bytes": 59456551,
+              "overlap_path": "out/throughput_cpu_round4/producer_final1/000007.safetensors.zst",
+              "overlap_sha256": "f06504d415c8b266972888a5b14ae3f0c13d4c1c09f43221f7f731ef80ee1e0c",
+              "qualification_metadata_exact": true,
+              "quality_and_numerical_outputs_exact": true,
+              "sequential_bytes": 59456555,
+              "sequential_path": "out/throughput_cpu_round4/producer_control1/000007.safetensors.zst",
+              "sequential_sha256": "541b81983a5d780f3a3c58514df9e74980c9790e624bfa8052feb52ef46f967e",
+              "tensor_bytes_compared": 173332519,
+              "unexpected_differences": []
+            }
+          ],
+          "repeat": 1,
+          "rooms": 32,
+          "views": 96
+        },
+        {
+          "files": [
+            {
+              "exact": false,
+              "metadata_diagnostic_exceptions": [
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 123.972422,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 115.450219,
+                  "tensor": "indoor_render_metadata_0"
+                },
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 111.861276,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 99.18274500000001,
+                  "tensor": "indoor_render_metadata_1"
+                },
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 121.14630600000001,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 131.89894099999998,
+                  "tensor": "indoor_render_metadata_2"
+                },
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 104.50825900000001,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 128.449795,
+                  "tensor": "indoor_render_metadata_3"
+                }
+              ],
+              "overlap_bytes": 60448380,
+              "overlap_path": "out/throughput_cpu_round4/producer_final2/000000.safetensors.zst",
+              "overlap_sha256": "aa4336bc00583f2de74d0309af6813034982d1e7811e616e0f2b2e88cf023c3b",
+              "qualification_metadata_exact": true,
+              "quality_and_numerical_outputs_exact": true,
+              "sequential_bytes": 60448376,
+              "sequential_path": "out/throughput_cpu_round4/producer_control2/000000.safetensors.zst",
+              "sequential_sha256": "5c9f47dd3775f2c942292fa8e65d0f9b3d49db75e6ce9ef73386a9e2fca2a791",
+              "tensor_bytes_compared": 173229344,
+              "unexpected_differences": []
+            },
+            {
+              "exact": false,
+              "metadata_diagnostic_exceptions": [
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 315.328129,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 291.02707599999997,
+                  "tensor": "indoor_render_metadata_0"
+                },
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 63.89314099999999,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 62.797380000000004,
+                  "tensor": "indoor_render_metadata_1"
+                },
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 156.82698,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 147.798777,
+                  "tensor": "indoor_render_metadata_2"
+                },
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 247.64265,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 259.284123,
+                  "tensor": "indoor_render_metadata_3"
+                }
+              ],
+              "overlap_bytes": 62905688,
+              "overlap_path": "out/throughput_cpu_round4/producer_final2/000001.safetensors.zst",
+              "overlap_sha256": "192f39be2760e87cf4ac15cd6386fcbf683ec5c6cc63c90e3b3b365e0cd1d5f6",
+              "qualification_metadata_exact": true,
+              "quality_and_numerical_outputs_exact": true,
+              "sequential_bytes": 62905695,
+              "sequential_path": "out/throughput_cpu_round4/producer_control2/000001.safetensors.zst",
+              "sequential_sha256": "d7cd6f29ee39e575c333ff187f079423dc60845e9588e3cc7b3014a34cfd781d",
+              "tensor_bytes_compared": 173284449,
+              "unexpected_differences": []
+            },
+            {
+              "exact": false,
+              "metadata_diagnostic_exceptions": [
+                {
+                  "json_pointer": "/capture_readiness/blocked_updates",
+                  "overlap": 2,
+                  "reason": "completed CPU/GPU readiness polling count",
+                  "sequential": 0,
+                  "tensor": "indoor_render_metadata_0"
+                },
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 192.29065300000002,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 142.26029300000002,
+                  "tensor": "indoor_render_metadata_0"
+                },
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 181.221292,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 151.613102,
+                  "tensor": "indoor_render_metadata_1"
+                },
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 239.704429,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 213.951004,
+                  "tensor": "indoor_render_metadata_2"
+                },
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 78.084907,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 88.454418,
+                  "tensor": "indoor_render_metadata_3"
+                }
+              ],
+              "overlap_bytes": 56151654,
+              "overlap_path": "out/throughput_cpu_round4/producer_final2/000002.safetensors.zst",
+              "overlap_sha256": "94fd1b947d11dec97bd5cb3fa18063cefab1118db6cfaf2ebf683de50e78aab6",
+              "qualification_metadata_exact": true,
+              "quality_and_numerical_outputs_exact": true,
+              "sequential_bytes": 56151659,
+              "sequential_path": "out/throughput_cpu_round4/producer_control2/000002.safetensors.zst",
+              "sequential_sha256": "21f8d1a0e8dcc3b5d00bd4affbce8ca584177ed04b83edc9cc6926853963d88a",
+              "tensor_bytes_compared": 173256017,
+              "unexpected_differences": []
+            },
+            {
+              "exact": false,
+              "metadata_diagnostic_exceptions": [
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 123.509458,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 114.288783,
+                  "tensor": "indoor_render_metadata_0"
+                },
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 91.639861,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 109.616415,
+                  "tensor": "indoor_render_metadata_1"
+                },
+                {
+                  "json_pointer": "/capture_readiness/blocked_updates",
+                  "overlap": 0,
+                  "reason": "completed CPU/GPU readiness polling count",
+                  "sequential": 2,
+                  "tensor": "indoor_render_metadata_2"
+                },
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 86.833169,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 85.21995199999999,
+                  "tensor": "indoor_render_metadata_2"
+                },
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 314.30584,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 334.04254000000003,
+                  "tensor": "indoor_render_metadata_3"
+                }
+              ],
+              "overlap_bytes": 59243781,
+              "overlap_path": "out/throughput_cpu_round4/producer_final2/000003.safetensors.zst",
+              "overlap_sha256": "c5b13ce4b0dbf5323cffeb228fc1971faaca3a9aaa274baa06b3e250d9d5d1fe",
+              "qualification_metadata_exact": true,
+              "quality_and_numerical_outputs_exact": true,
+              "sequential_bytes": 59243790,
+              "sequential_path": "out/throughput_cpu_round4/producer_control2/000003.safetensors.zst",
+              "sequential_sha256": "3d1a8b09d4312a1a2c8a914540336254278f0f492e447200bb3fe63021f8b9ff",
+              "tensor_bytes_compared": 173268569,
+              "unexpected_differences": []
+            },
+            {
+              "exact": false,
+              "metadata_diagnostic_exceptions": [
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 151.489624,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 136.712089,
+                  "tensor": "indoor_render_metadata_0"
+                },
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 46.73870099999999,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 31.058707,
+                  "tensor": "indoor_render_metadata_1"
+                },
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 163.869083,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 141.31504900000002,
+                  "tensor": "indoor_render_metadata_2"
+                },
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 200.357446,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 201.892264,
+                  "tensor": "indoor_render_metadata_3"
+                }
+              ],
+              "overlap_bytes": 61294401,
+              "overlap_path": "out/throughput_cpu_round4/producer_final2/000004.safetensors.zst",
+              "overlap_sha256": "0a23abac33521f7027cbfc13317ce3cd8a4d79b6e475060cc0c9182f7b21874b",
+              "qualification_metadata_exact": true,
+              "quality_and_numerical_outputs_exact": true,
+              "sequential_bytes": 61294400,
+              "sequential_path": "out/throughput_cpu_round4/producer_control2/000004.safetensors.zst",
+              "sequential_sha256": "61561dc95b8031686dab2afa33330a1058061fb5c638484bbab54cfea77ca547",
+              "tensor_bytes_compared": 173252783,
+              "unexpected_differences": []
+            },
+            {
+              "exact": false,
+              "metadata_diagnostic_exceptions": [
+                {
+                  "json_pointer": "/capture_readiness/blocked_updates",
+                  "overlap": 1,
+                  "reason": "completed CPU/GPU readiness polling count",
+                  "sequential": 2,
+                  "tensor": "indoor_render_metadata_0"
+                },
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 198.066548,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 185.873613,
+                  "tensor": "indoor_render_metadata_0"
+                },
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 77.242639,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 96.304502,
+                  "tensor": "indoor_render_metadata_1"
+                },
+                {
+                  "json_pointer": "/capture_readiness/blocked_updates",
+                  "overlap": 2,
+                  "reason": "completed CPU/GPU readiness polling count",
+                  "sequential": 0,
+                  "tensor": "indoor_render_metadata_2"
+                },
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 178.70066,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 184.967577,
+                  "tensor": "indoor_render_metadata_2"
+                },
+                {
+                  "json_pointer": "/capture_readiness/blocked_updates",
+                  "overlap": 1,
+                  "reason": "completed CPU/GPU readiness polling count",
+                  "sequential": 0,
+                  "tensor": "indoor_render_metadata_3"
+                },
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 50.408333,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 47.988992,
+                  "tensor": "indoor_render_metadata_3"
+                }
+              ],
+              "overlap_bytes": 56637068,
+              "overlap_path": "out/throughput_cpu_round4/producer_final2/000005.safetensors.zst",
+              "overlap_sha256": "76d55310d76b801624472c7d8162b88b653290342b93150a3b13fa12ca52b2bc",
+              "qualification_metadata_exact": true,
+              "quality_and_numerical_outputs_exact": true,
+              "sequential_bytes": 56637061,
+              "sequential_path": "out/throughput_cpu_round4/producer_control2/000005.safetensors.zst",
+              "sequential_sha256": "b9f2152e71084b32d5becfa06a6436e753a47a5283f6c54d0c8f0fe5eb2701b5",
+              "tensor_bytes_compared": 173261428,
+              "unexpected_differences": []
+            },
+            {
+              "exact": false,
+              "metadata_diagnostic_exceptions": [
+                {
+                  "json_pointer": "/capture_readiness/blocked_updates",
+                  "overlap": 0,
+                  "reason": "completed CPU/GPU readiness polling count",
+                  "sequential": 2,
+                  "tensor": "indoor_render_metadata_0"
+                },
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 177.695598,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 183.05997200000002,
+                  "tensor": "indoor_render_metadata_0"
+                },
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 78.685658,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 78.13969499999999,
+                  "tensor": "indoor_render_metadata_1"
+                },
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 131.194773,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 135.95731,
+                  "tensor": "indoor_render_metadata_2"
+                },
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 101.871791,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 110.67391800000001,
+                  "tensor": "indoor_render_metadata_3"
+                }
+              ],
+              "overlap_bytes": 59149623,
+              "overlap_path": "out/throughput_cpu_round4/producer_final2/000006.safetensors.zst",
+              "overlap_sha256": "50674251822d71c0bd89227de370c36befc09031005dd59f3d3c2635a96677b7",
+              "qualification_metadata_exact": true,
+              "quality_and_numerical_outputs_exact": true,
+              "sequential_bytes": 59149651,
+              "sequential_path": "out/throughput_cpu_round4/producer_control2/000006.safetensors.zst",
+              "sequential_sha256": "580c08d337e97eb9c14dbe4cb35e4c36c69ee7edf8c7a7db12364f3f3a6055da",
+              "tensor_bytes_compared": 173242547,
+              "unexpected_differences": []
+            },
+            {
+              "exact": false,
+              "metadata_diagnostic_exceptions": [
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 81.997103,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 73.873358,
+                  "tensor": "indoor_render_metadata_0"
+                },
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 215.890134,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 232.73546200000004,
+                  "tensor": "indoor_render_metadata_1"
+                },
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 470.14787,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 432.907159,
+                  "tensor": "indoor_render_metadata_2"
+                },
+                {
+                  "json_pointer": "/gi_statistics/preparation_ms",
+                  "overlap": 148.403014,
+                  "reason": "CPU preparation wall time",
+                  "sequential": 146.043554,
+                  "tensor": "indoor_render_metadata_3"
+                }
+              ],
+              "overlap_bytes": 59456550,
+              "overlap_path": "out/throughput_cpu_round4/producer_final2/000007.safetensors.zst",
+              "overlap_sha256": "a3f45266efb7938ad46c1714d71e8975ae988a26be03c7d2c84111eb883c9a18",
+              "qualification_metadata_exact": true,
+              "quality_and_numerical_outputs_exact": true,
+              "sequential_bytes": 59456549,
+              "sequential_path": "out/throughput_cpu_round4/producer_control2/000007.safetensors.zst",
+              "sequential_sha256": "6a57acb2f813339872b002ffe8b7ea0b1c3e3434df85f1154a98a169bc7a1c15",
+              "tensor_bytes_compared": 173332519,
+              "unexpected_differences": []
+            }
+          ],
+          "repeat": 2,
+          "rooms": 32,
+          "views": 96
+        }
+      ],
+      "unexpected_difference_count": 0
+    },
+    "overlap": {
+      "aggregate": {
+        "cpu_seconds_per_room": 2.2668749999999998,
+        "full_lifetime_monitor_wall_seconds": 13.967569372616708,
+        "rooms_per_second": 2.296710354042155,
+        "views_per_second": 6.890131062126466
+      },
+      "runs": [
+        {
+          "archives": 8,
+          "artifacts": [
+            {
+              "path": "out/throughput_cpu_round4/producer-final-1.log",
+              "sha256": "8e4b6dea262463e93942b45c1fcfb04e0bb417eaf84577d7fc1635a68787d4c1"
+            },
+            {
+              "path": "out/throughput_cpu_round4/producer-final-1.time.txt",
+              "sha256": "4d0e05311807f7b580c94d9b2544c1845f00436418c73da3e81ababa50d957c7"
+            },
+            {
+              "path": "out/throughput_cpu_round4/producer-final-1.samples.jsonl",
+              "sha256": "284318b6dd2f620d5bd9d108a47c67ca946eecb2b8d48d1eac465ee9b25704ff"
+            },
+            {
+              "path": "out/throughput_cpu_round4/producer-final-1.summary.json",
+              "sha256": "d71c0581cd40c577bfcb69bd5a78f71b9bf7278140622775f140148a21188a34"
+            },
+            {
+              "path": "out/throughput_cpu_round4/producer_final1/000000.safetensors.zst",
+              "sha256": "96efef29f945afb74708e8f309c372ff98d25fb892288f5af022a20224473928"
+            },
+            {
+              "path": "out/throughput_cpu_round4/producer_final1/000001.safetensors.zst",
+              "sha256": "09ce140cba64e2fe2257107c8422d41c0f0b33c51c9284935c05cf73088ffd39"
+            },
+            {
+              "path": "out/throughput_cpu_round4/producer_final1/000002.safetensors.zst",
+              "sha256": "e78dfe3b799a777d14738b1ad7a14dbc1906c8fbd262eec1b13a44170d1f8557"
+            },
+            {
+              "path": "out/throughput_cpu_round4/producer_final1/000003.safetensors.zst",
+              "sha256": "786c6fb72ab454b32f9f7d37e9e2cc2264b97f50eb3b1f8be971cccea77d621a"
+            },
+            {
+              "path": "out/throughput_cpu_round4/producer_final1/000004.safetensors.zst",
+              "sha256": "7f61c68271b2886db19218eeefcd8879bbf1e7f93845aeb7cb276d1eb61077dc"
+            },
+            {
+              "path": "out/throughput_cpu_round4/producer_final1/000005.safetensors.zst",
+              "sha256": "49be45e0dc3507a69b2b9c472ab2bb2869283f6b9fa122222291b95b16879694"
+            },
+            {
+              "path": "out/throughput_cpu_round4/producer_final1/000006.safetensors.zst",
+              "sha256": "278a02a9bf9b798ad6b9171579568f3140b0ac4aceae9963d42ef8c29da3730a"
+            },
+            {
+              "path": "out/throughput_cpu_round4/producer_final1/000007.safetensors.zst",
+              "sha256": "f06504d415c8b266972888a5b14ae3f0c13d4c1c09f43221f7f731ef80ee1e0c"
+            },
+            {
+              "path": "out/throughput_cpu_round4/producer_final1/generation_config.json",
+              "sha256": "18b1a926cb03bce6d3d23688a875dee90e4e740abe80d6845b915888b5cd85bc"
+            }
+          ],
+          "binary_path": "out/throughput_cpu_round4/producer-final-gen",
+          "binary_sha256": "d8fa200651df1135c120d156a934e826194f113f437dab3462117909e6c10690",
+          "build_provenance": {
+            "capture_engine": "capture-v48;calibration=1;co_visibility=1;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=9;surface_flow=1;indoor=29;multiview=5;ovoxel=3;glass=2;hair=5;wardrobe=4;footwear=1;bounds=4;morphology=2;position=3;tabletop=2;finishes=8;seating=3;activity=2;playback=2;exterior=2;envelope=3",
+            "crate_version": "0.30.0",
+            "features": {
+              "human_motion": false,
+              "multi_threaded": true,
+              "web": false
+            },
+            "generator_version": 29,
+            "locked_package_versions": {
+              "bevy": [
+                "0.19.1"
+              ],
+              "bevy_burn_human": [
+                "0.6.1"
+              ],
+              "bevy_zeroverse": [
+                "0.30.0"
+              ],
+              "bevy_zeroverse_burn": [
+                "0.13.0"
+              ],
+              "bevy_zeroverse_capture": [
+                "0.1.1"
+              ],
+              "bevy_zeroverse_ffi": [
+                "0.30.0"
+              ],
+              "bevy_zeroverse_publication": [
+                "0.1.2"
+              ],
+              "burn": [
+                "0.21.0"
+              ],
+              "burn_ardy": [
+                "0.1.4"
+              ],
+              "burn_human": [
+                "0.5.1"
+              ],
+              "burn_human_inference": [
+                "0.1.4"
+              ],
+              "burn_human_motion": [
+                "0.1.1"
+              ],
+              "burn_llama": [
+                "0.1.2"
+              ],
+              "burn_siglip2": [
+                "0.1.1"
+              ],
+              "wgpu": [
+                "29.0.4"
+              ]
+            },
+            "schema_version": 1,
+            "source_sha256": "027deacd8162cf3e3c8f7b32746b5e13d1c5d5b6c621505b004245656383b1b6",
+            "target": "x86_64-unknown-linux-gnu"
+          },
+          "burn_source_sha256": "82e99ab4975f69c26bfe6727372ae53002d4209c4291215b9c28168c45c75890",
+          "configuration": {
+            "cameras": 3,
+            "chunk_size": 4,
+            "color_codec": "raw",
+            "compression": "zstd",
+            "height": 512,
+            "indoor_density": 0.65,
+            "indoor_gi_rays": 256,
+            "indoor_human_density": 0.25,
+            "indoor_metrics": false,
+            "indoor_quality": "auto",
+            "ov_mode": "disabled",
+            "per_process": false,
+            "playback_step": 0,
+            "playback_steps": 1,
+            "render_modes": [
+              "color",
+              "depth",
+              "normal",
+              "position",
+              "semantic",
+              "co-visibility"
+            ],
+            "rooms": 32,
+            "scene_type": "procedural-indoor",
+            "seed_range": [
+              200,
+              231
+            ],
+            "width": 512,
+            "workers": 1
+          },
+          "cpu_seconds_per_room": 2.2846875,
+          "full_lifetime_cpu_seconds": 73.11,
+          "full_lifetime_monitor_wall_seconds": 14.662729511037469,
+          "gpu": {
+            "gpu_utilization_percent": {
+              "count": 142,
+              "max": 98,
+              "mean": 35.63380281690141,
+              "min": 0,
+              "p50": 26.0,
+              "p95": 96.0
+            },
+            "memory_utilization_percent": {
+              "count": 142,
+              "max": 1,
+              "mean": 0.6690140845070423,
+              "min": 0,
+              "p50": 1.0,
+              "p95": 1.0
+            },
+            "power_watts": {
+              "count": 142,
+              "max": 152.931,
+              "mean": 130.03781690140843,
+              "min": 98.714,
+              "p50": 132.462,
+              "p95": 149.058
+            },
+            "vram_used_bytes": {
+              "count": 142,
+              "max": 3566141440,
+              "mean": 3180845604.056338,
+              "min": 2326855680,
+              "p50": 3319562240.0,
+              "p95": 3478454272.0
+            }
+          },
+          "gpu_identity": {
+            "device_index": 0,
+            "name": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+            "uuid": "GPU-343b002b-d5c6-2d9c-9fea-9ab5a52d0879"
+          },
+          "helper_path": "out/throughput_cpu_round4/run_producer_abba.py",
+          "helper_sha256": "e91ae57a2783ce3e7b927942988a168dbe662dc37f578228635c56b88488d4da",
+          "monitor_helper_path": "out/throughput_cpu_oct5/measure.py",
+          "monitor_helper_sha256": "0bdcd50d11b0b6d8a31bd34a2b96bf10e328a014369f2ea32789bc5c1c7dae43",
+          "peak_rss_bytes": 4241158144,
+          "repeat": 1,
+          "returncode": 0,
+          "rooms_per_second": 2.1824040316580744,
+          "seed_range": [
+            200,
+            231
+          ],
+          "summarizer_path": "out/throughput_cpu_round4/summarize_producer.py",
+          "summarizer_sha256": "cf59ee6b0ea8145f81f8c3ed685227ccc90cc1667221b5150c605dd59730c92c",
+          "total_rooms": 32,
+          "total_views": 96,
+          "views_per_room": 3,
+          "views_per_second": 6.547212094974223
+        },
+        {
+          "archives": 8,
+          "artifacts": [
+            {
+              "path": "out/throughput_cpu_round4/producer-final-2.log",
+              "sha256": "19efb33466441aca3d003edec4b2b1212fed45d32b004a1c3aa14884564b1a38"
+            },
+            {
+              "path": "out/throughput_cpu_round4/producer-final-2.time.txt",
+              "sha256": "9a01ecf6bae6770e9e64c5dc79addd299a50e2f024326b2ec26db725ddf4e564"
+            },
+            {
+              "path": "out/throughput_cpu_round4/producer-final-2.samples.jsonl",
+              "sha256": "e1ac2fd44d5ab4a80f2058b043860ec6684796458926484cc297f47025f38850"
+            },
+            {
+              "path": "out/throughput_cpu_round4/producer-final-2.summary.json",
+              "sha256": "ea5c72de96b04f75296161506d2be9a1fe687d18fbc7b209f47592c3e05529cd"
+            },
+            {
+              "path": "out/throughput_cpu_round4/producer_final2/000000.safetensors.zst",
+              "sha256": "aa4336bc00583f2de74d0309af6813034982d1e7811e616e0f2b2e88cf023c3b"
+            },
+            {
+              "path": "out/throughput_cpu_round4/producer_final2/000001.safetensors.zst",
+              "sha256": "192f39be2760e87cf4ac15cd6386fcbf683ec5c6cc63c90e3b3b365e0cd1d5f6"
+            },
+            {
+              "path": "out/throughput_cpu_round4/producer_final2/000002.safetensors.zst",
+              "sha256": "94fd1b947d11dec97bd5cb3fa18063cefab1118db6cfaf2ebf683de50e78aab6"
+            },
+            {
+              "path": "out/throughput_cpu_round4/producer_final2/000003.safetensors.zst",
+              "sha256": "c5b13ce4b0dbf5323cffeb228fc1971faaca3a9aaa274baa06b3e250d9d5d1fe"
+            },
+            {
+              "path": "out/throughput_cpu_round4/producer_final2/000004.safetensors.zst",
+              "sha256": "0a23abac33521f7027cbfc13317ce3cd8a4d79b6e475060cc0c9182f7b21874b"
+            },
+            {
+              "path": "out/throughput_cpu_round4/producer_final2/000005.safetensors.zst",
+              "sha256": "76d55310d76b801624472c7d8162b88b653290342b93150a3b13fa12ca52b2bc"
+            },
+            {
+              "path": "out/throughput_cpu_round4/producer_final2/000006.safetensors.zst",
+              "sha256": "50674251822d71c0bd89227de370c36befc09031005dd59f3d3c2635a96677b7"
+            },
+            {
+              "path": "out/throughput_cpu_round4/producer_final2/000007.safetensors.zst",
+              "sha256": "a3f45266efb7938ad46c1714d71e8975ae988a26be03c7d2c84111eb883c9a18"
+            },
+            {
+              "path": "out/throughput_cpu_round4/producer_final2/generation_config.json",
+              "sha256": "18b1a926cb03bce6d3d23688a875dee90e4e740abe80d6845b915888b5cd85bc"
+            }
+          ],
+          "binary_path": "out/throughput_cpu_round4/producer-final-gen",
+          "binary_sha256": "d8fa200651df1135c120d156a934e826194f113f437dab3462117909e6c10690",
+          "build_provenance": {
+            "capture_engine": "capture-v48;calibration=1;co_visibility=1;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=9;surface_flow=1;indoor=29;multiview=5;ovoxel=3;glass=2;hair=5;wardrobe=4;footwear=1;bounds=4;morphology=2;position=3;tabletop=2;finishes=8;seating=3;activity=2;playback=2;exterior=2;envelope=3",
+            "crate_version": "0.30.0",
+            "features": {
+              "human_motion": false,
+              "multi_threaded": true,
+              "web": false
+            },
+            "generator_version": 29,
+            "locked_package_versions": {
+              "bevy": [
+                "0.19.1"
+              ],
+              "bevy_burn_human": [
+                "0.6.1"
+              ],
+              "bevy_zeroverse": [
+                "0.30.0"
+              ],
+              "bevy_zeroverse_burn": [
+                "0.13.0"
+              ],
+              "bevy_zeroverse_capture": [
+                "0.1.1"
+              ],
+              "bevy_zeroverse_ffi": [
+                "0.30.0"
+              ],
+              "bevy_zeroverse_publication": [
+                "0.1.2"
+              ],
+              "burn": [
+                "0.21.0"
+              ],
+              "burn_ardy": [
+                "0.1.4"
+              ],
+              "burn_human": [
+                "0.5.1"
+              ],
+              "burn_human_inference": [
+                "0.1.4"
+              ],
+              "burn_human_motion": [
+                "0.1.1"
+              ],
+              "burn_llama": [
+                "0.1.2"
+              ],
+              "burn_siglip2": [
+                "0.1.1"
+              ],
+              "wgpu": [
+                "29.0.4"
+              ]
+            },
+            "schema_version": 1,
+            "source_sha256": "027deacd8162cf3e3c8f7b32746b5e13d1c5d5b6c621505b004245656383b1b6",
+            "target": "x86_64-unknown-linux-gnu"
+          },
+          "burn_source_sha256": "82e99ab4975f69c26bfe6727372ae53002d4209c4291215b9c28168c45c75890",
+          "configuration": {
+            "cameras": 3,
+            "chunk_size": 4,
+            "color_codec": "raw",
+            "compression": "zstd",
+            "height": 512,
+            "indoor_density": 0.65,
+            "indoor_gi_rays": 256,
+            "indoor_human_density": 0.25,
+            "indoor_metrics": false,
+            "indoor_quality": "auto",
+            "ov_mode": "disabled",
+            "per_process": false,
+            "playback_step": 0,
+            "playback_steps": 1,
+            "render_modes": [
+              "color",
+              "depth",
+              "normal",
+              "position",
+              "semantic",
+              "co-visibility"
+            ],
+            "rooms": 32,
+            "scene_type": "procedural-indoor",
+            "seed_range": [
+              200,
+              231
+            ],
+            "width": 512,
+            "workers": 1
+          },
+          "cpu_seconds_per_room": 2.2490625,
+          "full_lifetime_cpu_seconds": 71.97,
+          "full_lifetime_monitor_wall_seconds": 13.272409234195948,
+          "gpu": {
+            "gpu_utilization_percent": {
+              "count": 128,
+              "max": 99,
+              "mean": 36.09375,
+              "min": 0,
+              "p50": 28.0,
+              "p95": 98.0
+            },
+            "memory_utilization_percent": {
+              "count": 128,
+              "max": 1,
+              "mean": 0.46875,
+              "min": 0,
+              "p50": 0.0,
+              "p95": 1.0
+            },
+            "power_watts": {
+              "count": 128,
+              "max": 155.978,
+              "mean": 133.5232265625,
+              "min": 100.746,
+              "p50": 135.082,
+              "p95": 155.148
+            },
+            "vram_used_bytes": {
+              "count": 128,
+              "max": 3597926400,
+              "mean": 3194855424.0,
+              "min": 2326593536,
+              "p50": 3297902592.0,
+              "p95": 3469934592.0
+            }
+          },
+          "gpu_identity": {
+            "device_index": 0,
+            "name": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+            "uuid": "GPU-343b002b-d5c6-2d9c-9fea-9ab5a52d0879"
+          },
+          "helper_path": "out/throughput_cpu_round4/run_producer_abba.py",
+          "helper_sha256": "e91ae57a2783ce3e7b927942988a168dbe662dc37f578228635c56b88488d4da",
+          "monitor_helper_path": "out/throughput_cpu_oct5/measure.py",
+          "monitor_helper_sha256": "0bdcd50d11b0b6d8a31bd34a2b96bf10e328a014369f2ea32789bc5c1c7dae43",
+          "peak_rss_bytes": 4246753280,
+          "repeat": 2,
+          "returncode": 0,
+          "rooms_per_second": 2.411016676426236,
+          "seed_range": [
+            200,
+            231
+          ],
+          "summarizer_path": "out/throughput_cpu_round4/summarize_producer.py",
+          "summarizer_sha256": "cf59ee6b0ea8145f81f8c3ed685227ccc90cc1667221b5150c605dd59730c92c",
+          "total_rooms": 32,
+          "total_views": 96,
+          "views_per_room": 3,
+          "views_per_second": 7.233050029278709
+        }
+      ]
+    },
+    "rejection": "no measured throughput benefit",
+    "schema_version": 1,
+    "scope": "Four 32-room native Burn CLI ABBA runs; same current core; sequential versus bounded producer/consumer overlap. Full command lifetime includes startup, all validations, Raw/Zstd packing, fsync and teardown; excludes distribution recomputation. Whole-device NVML includes desktop/other-process activity, not per-PID activity or kernel occupancy. No model training measured.",
+    "sequential": {
+      "aggregate": {
+        "cpu_seconds_per_room": 2.21421875,
+        "full_lifetime_monitor_wall_seconds": 13.67304843349848,
+        "rooms_per_second": 2.3480838031749083,
+        "views_per_second": 7.044251409524724
+      },
+      "runs": [
+        {
+          "archives": 8,
+          "artifacts": [
+            {
+              "path": "out/throughput_cpu_round4/producer-control-1.log",
+              "sha256": "07d57a72b2ac3dc373f5a86aab10e20002aa690b2b3096a1237e8c6efe055483"
+            },
+            {
+              "path": "out/throughput_cpu_round4/producer-control-1.time.txt",
+              "sha256": "2c547b2e7eff03427e3db20848f00451074abff4bed96280733e1f755f6fdeaf"
+            },
+            {
+              "path": "out/throughput_cpu_round4/producer-control-1.samples.jsonl",
+              "sha256": "94826bbca2ec0f818847a3f544d056813c121cb43b888f442dafda67f4a3bc51"
+            },
+            {
+              "path": "out/throughput_cpu_round4/producer-control-1.summary.json",
+              "sha256": "8a95e36a06019bf4d0cffcbc198f0a3056541d9f1e7f80c5b0764850bd4acaa6"
+            },
+            {
+              "path": "out/throughput_cpu_round4/producer_control1/000000.safetensors.zst",
+              "sha256": "00092e2133b77b0c0868a66f6bef20216fa066a96202b7d594a7dc31ee2d4d51"
+            },
+            {
+              "path": "out/throughput_cpu_round4/producer_control1/000001.safetensors.zst",
+              "sha256": "8ff8d769938dc2d02531299eaf0d823429ee1cc67b78f513df4e2512f2724dce"
+            },
+            {
+              "path": "out/throughput_cpu_round4/producer_control1/000002.safetensors.zst",
+              "sha256": "5f91b743e252813208ae6bcda7c323cfacaa4377e0756fd9a7200faca9fb0840"
+            },
+            {
+              "path": "out/throughput_cpu_round4/producer_control1/000003.safetensors.zst",
+              "sha256": "6b2d052a3798eaacdad91dfba3938ded95517190633918bf876d02aacc1fa391"
+            },
+            {
+              "path": "out/throughput_cpu_round4/producer_control1/000004.safetensors.zst",
+              "sha256": "aaf3d225e786d2ce5e558d84120baefcda1589d2321b9396224bd98136e61f85"
+            },
+            {
+              "path": "out/throughput_cpu_round4/producer_control1/000005.safetensors.zst",
+              "sha256": "e8074df138146d333659d640e82ded538e0424b5952fa54e137c82e1d204979f"
+            },
+            {
+              "path": "out/throughput_cpu_round4/producer_control1/000006.safetensors.zst",
+              "sha256": "86eb70d34c3594ae0bcd1aa56f60428307f7fff467d141fc8441ed72635f5e3d"
+            },
+            {
+              "path": "out/throughput_cpu_round4/producer_control1/000007.safetensors.zst",
+              "sha256": "541b81983a5d780f3a3c58514df9e74980c9790e624bfa8052feb52ef46f967e"
+            },
+            {
+              "path": "out/throughput_cpu_round4/producer_control1/generation_config.json",
+              "sha256": "18b1a926cb03bce6d3d23688a875dee90e4e740abe80d6845b915888b5cd85bc"
+            }
+          ],
+          "binary_path": "out/throughput_cpu_round4/producer-control-gen",
+          "binary_sha256": "8f48fee4099c12fabdd8f0afcc26103fbff9ffa866d8365d36488b7140a49e3a",
+          "build_provenance": {
+            "capture_engine": "capture-v48;calibration=1;co_visibility=1;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=9;surface_flow=1;indoor=29;multiview=5;ovoxel=3;glass=2;hair=5;wardrobe=4;footwear=1;bounds=4;morphology=2;position=3;tabletop=2;finishes=8;seating=3;activity=2;playback=2;exterior=2;envelope=3",
+            "crate_version": "0.30.0",
+            "features": {
+              "human_motion": false,
+              "multi_threaded": true,
+              "web": false
+            },
+            "generator_version": 29,
+            "locked_package_versions": {
+              "bevy": [
+                "0.19.1"
+              ],
+              "bevy_burn_human": [
+                "0.6.1"
+              ],
+              "bevy_zeroverse": [
+                "0.30.0"
+              ],
+              "bevy_zeroverse_burn": [
+                "0.13.0"
+              ],
+              "bevy_zeroverse_capture": [
+                "0.1.1"
+              ],
+              "bevy_zeroverse_ffi": [
+                "0.30.0"
+              ],
+              "bevy_zeroverse_publication": [
+                "0.1.2"
+              ],
+              "burn": [
+                "0.21.0"
+              ],
+              "burn_ardy": [
+                "0.1.4"
+              ],
+              "burn_human": [
+                "0.5.1"
+              ],
+              "burn_human_inference": [
+                "0.1.4"
+              ],
+              "burn_human_motion": [
+                "0.1.1"
+              ],
+              "burn_llama": [
+                "0.1.2"
+              ],
+              "burn_siglip2": [
+                "0.1.1"
+              ],
+              "wgpu": [
+                "29.0.4"
+              ]
+            },
+            "schema_version": 1,
+            "source_sha256": "027deacd8162cf3e3c8f7b32746b5e13d1c5d5b6c621505b004245656383b1b6",
+            "target": "x86_64-unknown-linux-gnu"
+          },
+          "burn_source_sha256": "c27e10c646ccb6f1c48888ba2d734d30ae9295bcf9edc9ba6c616a949a2e89f4",
+          "configuration": {
+            "cameras": 3,
+            "chunk_size": 4,
+            "color_codec": "raw",
+            "compression": "zstd",
+            "height": 512,
+            "indoor_density": 0.65,
+            "indoor_gi_rays": 256,
+            "indoor_human_density": 0.25,
+            "indoor_metrics": false,
+            "indoor_quality": "auto",
+            "ov_mode": "disabled",
+            "per_process": false,
+            "playback_step": 0,
+            "playback_steps": 1,
+            "render_modes": [
+              "color",
+              "depth",
+              "normal",
+              "position",
+              "semantic",
+              "co-visibility"
+            ],
+            "rooms": 32,
+            "scene_type": "procedural-indoor",
+            "seed_range": [
+              200,
+              231
+            ],
+            "width": 512,
+            "workers": 1
+          },
+          "cpu_seconds_per_room": 2.2703125,
+          "full_lifetime_cpu_seconds": 72.65,
+          "full_lifetime_monitor_wall_seconds": 14.456707400036976,
+          "gpu": {
+            "gpu_utilization_percent": {
+              "count": 140,
+              "max": 100,
+              "mean": 34.06428571428572,
+              "min": 0,
+              "p50": 31.0,
+              "p95": 99.0
+            },
+            "memory_utilization_percent": {
+              "count": 140,
+              "max": 1,
+              "mean": 0.5642857142857143,
+              "min": 0,
+              "p50": 1.0,
+              "p95": 1.0
+            },
+            "power_watts": {
+              "count": 140,
+              "max": 163.897,
+              "mean": 128.33977857142858,
+              "min": 101.258,
+              "p50": 132.524,
+              "p95": 148.751
+            },
+            "vram_used_bytes": {
+              "count": 140,
+              "max": 3686989824,
+              "mean": 3170286211.6571426,
+              "min": 2327969792,
+              "p50": 3275751424.0,
+              "p95": 3548250112.0
+            }
+          },
+          "gpu_identity": {
+            "device_index": 0,
+            "name": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+            "uuid": "GPU-343b002b-d5c6-2d9c-9fea-9ab5a52d0879"
+          },
+          "helper_path": "out/throughput_cpu_round4/run_producer_abba.py",
+          "helper_sha256": "e91ae57a2783ce3e7b927942988a168dbe662dc37f578228635c56b88488d4da",
+          "monitor_helper_path": "out/throughput_cpu_oct5/measure.py",
+          "monitor_helper_sha256": "0bdcd50d11b0b6d8a31bd34a2b96bf10e328a014369f2ea32789bc5c1c7dae43",
+          "peak_rss_bytes": 4327350272,
+          "repeat": 1,
+          "returncode": 0,
+          "rooms_per_second": 2.2135054071799334,
+          "seed_range": [
+            200,
+            231
+          ],
+          "summarizer_path": "out/throughput_cpu_round4/summarize_producer.py",
+          "summarizer_sha256": "cf59ee6b0ea8145f81f8c3ed685227ccc90cc1667221b5150c605dd59730c92c",
+          "total_rooms": 32,
+          "total_views": 96,
+          "views_per_room": 3,
+          "views_per_second": 6.6405162215398
+        },
+        {
+          "archives": 8,
+          "artifacts": [
+            {
+              "path": "out/throughput_cpu_round4/producer-control-2.log",
+              "sha256": "531d48a7073c961c8f385f20e682320ed4208499f097b5d31c0649c249cb2b2a"
+            },
+            {
+              "path": "out/throughput_cpu_round4/producer-control-2.time.txt",
+              "sha256": "8b7648f80790cade06272c51847d76916355cd2ea95abaea6d08f1b9f928fbf2"
+            },
+            {
+              "path": "out/throughput_cpu_round4/producer-control-2.samples.jsonl",
+              "sha256": "b8fce84c7c3c783cd2f2c1dfa460e1b936d539917f0f5854bbfee557b21547e8"
+            },
+            {
+              "path": "out/throughput_cpu_round4/producer-control-2.summary.json",
+              "sha256": "b24760b8e0e6f602ca3fdf672a0082a668e7b8f4e718fef86575638d69c1e31b"
+            },
+            {
+              "path": "out/throughput_cpu_round4/producer_control2/000000.safetensors.zst",
+              "sha256": "5c9f47dd3775f2c942292fa8e65d0f9b3d49db75e6ce9ef73386a9e2fca2a791"
+            },
+            {
+              "path": "out/throughput_cpu_round4/producer_control2/000001.safetensors.zst",
+              "sha256": "d7cd6f29ee39e575c333ff187f079423dc60845e9588e3cc7b3014a34cfd781d"
+            },
+            {
+              "path": "out/throughput_cpu_round4/producer_control2/000002.safetensors.zst",
+              "sha256": "21f8d1a0e8dcc3b5d00bd4affbce8ca584177ed04b83edc9cc6926853963d88a"
+            },
+            {
+              "path": "out/throughput_cpu_round4/producer_control2/000003.safetensors.zst",
+              "sha256": "3d1a8b09d4312a1a2c8a914540336254278f0f492e447200bb3fe63021f8b9ff"
+            },
+            {
+              "path": "out/throughput_cpu_round4/producer_control2/000004.safetensors.zst",
+              "sha256": "61561dc95b8031686dab2afa33330a1058061fb5c638484bbab54cfea77ca547"
+            },
+            {
+              "path": "out/throughput_cpu_round4/producer_control2/000005.safetensors.zst",
+              "sha256": "b9f2152e71084b32d5becfa06a6436e753a47a5283f6c54d0c8f0fe5eb2701b5"
+            },
+            {
+              "path": "out/throughput_cpu_round4/producer_control2/000006.safetensors.zst",
+              "sha256": "580c08d337e97eb9c14dbe4cb35e4c36c69ee7edf8c7a7db12364f3f3a6055da"
+            },
+            {
+              "path": "out/throughput_cpu_round4/producer_control2/000007.safetensors.zst",
+              "sha256": "6a57acb2f813339872b002ffe8b7ea0b1c3e3434df85f1154a98a169bc7a1c15"
+            },
+            {
+              "path": "out/throughput_cpu_round4/producer_control2/generation_config.json",
+              "sha256": "18b1a926cb03bce6d3d23688a875dee90e4e740abe80d6845b915888b5cd85bc"
+            }
+          ],
+          "binary_path": "out/throughput_cpu_round4/producer-control-gen",
+          "binary_sha256": "8f48fee4099c12fabdd8f0afcc26103fbff9ffa866d8365d36488b7140a49e3a",
+          "build_provenance": {
+            "capture_engine": "capture-v48;calibration=1;co_visibility=1;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=9;surface_flow=1;indoor=29;multiview=5;ovoxel=3;glass=2;hair=5;wardrobe=4;footwear=1;bounds=4;morphology=2;position=3;tabletop=2;finishes=8;seating=3;activity=2;playback=2;exterior=2;envelope=3",
+            "crate_version": "0.30.0",
+            "features": {
+              "human_motion": false,
+              "multi_threaded": true,
+              "web": false
+            },
+            "generator_version": 29,
+            "locked_package_versions": {
+              "bevy": [
+                "0.19.1"
+              ],
+              "bevy_burn_human": [
+                "0.6.1"
+              ],
+              "bevy_zeroverse": [
+                "0.30.0"
+              ],
+              "bevy_zeroverse_burn": [
+                "0.13.0"
+              ],
+              "bevy_zeroverse_capture": [
+                "0.1.1"
+              ],
+              "bevy_zeroverse_ffi": [
+                "0.30.0"
+              ],
+              "bevy_zeroverse_publication": [
+                "0.1.2"
+              ],
+              "burn": [
+                "0.21.0"
+              ],
+              "burn_ardy": [
+                "0.1.4"
+              ],
+              "burn_human": [
+                "0.5.1"
+              ],
+              "burn_human_inference": [
+                "0.1.4"
+              ],
+              "burn_human_motion": [
+                "0.1.1"
+              ],
+              "burn_llama": [
+                "0.1.2"
+              ],
+              "burn_siglip2": [
+                "0.1.1"
+              ],
+              "wgpu": [
+                "29.0.4"
+              ]
+            },
+            "schema_version": 1,
+            "source_sha256": "027deacd8162cf3e3c8f7b32746b5e13d1c5d5b6c621505b004245656383b1b6",
+            "target": "x86_64-unknown-linux-gnu"
+          },
+          "burn_source_sha256": "c27e10c646ccb6f1c48888ba2d734d30ae9295bcf9edc9ba6c616a949a2e89f4",
+          "configuration": {
+            "cameras": 3,
+            "chunk_size": 4,
+            "color_codec": "raw",
+            "compression": "zstd",
+            "height": 512,
+            "indoor_density": 0.65,
+            "indoor_gi_rays": 256,
+            "indoor_human_density": 0.25,
+            "indoor_metrics": false,
+            "indoor_quality": "auto",
+            "ov_mode": "disabled",
+            "per_process": false,
+            "playback_step": 0,
+            "playback_steps": 1,
+            "render_modes": [
+              "color",
+              "depth",
+              "normal",
+              "position",
+              "semantic",
+              "co-visibility"
+            ],
+            "rooms": 32,
+            "scene_type": "procedural-indoor",
+            "seed_range": [
+              200,
+              231
+            ],
+            "width": 512,
+            "workers": 1
+          },
+          "cpu_seconds_per_room": 2.158125,
+          "full_lifetime_cpu_seconds": 69.06,
+          "full_lifetime_monitor_wall_seconds": 12.889389466959983,
+          "gpu": {
+            "gpu_utilization_percent": {
+              "count": 124,
+              "max": 99,
+              "mean": 39.104838709677416,
+              "min": 0,
+              "p50": 30.0,
+              "p95": 96.0
+            },
+            "memory_utilization_percent": {
+              "count": 124,
+              "max": 2,
+              "mean": 0.6370967741935484,
+              "min": 0,
+              "p50": 1.0,
+              "p95": 1.0
+            },
+            "power_watts": {
+              "count": 124,
+              "max": 159.901,
+              "mean": 134.2829677419355,
+              "min": 102.246,
+              "p50": 136.48,
+              "p95": 154.979
+            },
+            "vram_used_bytes": {
+              "count": 124,
+              "max": 3633577984,
+              "mean": 3236533941.677419,
+              "min": 2326593536,
+              "p50": 3331391488.0,
+              "p95": 3538858803.2
+            }
+          },
+          "gpu_identity": {
+            "device_index": 0,
+            "name": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+            "uuid": "GPU-343b002b-d5c6-2d9c-9fea-9ab5a52d0879"
+          },
+          "helper_path": "out/throughput_cpu_round4/run_producer_abba.py",
+          "helper_sha256": "e91ae57a2783ce3e7b927942988a168dbe662dc37f578228635c56b88488d4da",
+          "monitor_helper_path": "out/throughput_cpu_oct5/measure.py",
+          "monitor_helper_sha256": "0bdcd50d11b0b6d8a31bd34a2b96bf10e328a014369f2ea32789bc5c1c7dae43",
+          "peak_rss_bytes": 4267532288,
+          "repeat": 2,
+          "returncode": 0,
+          "rooms_per_second": 2.482662199169883,
+          "seed_range": [
+            200,
+            231
+          ],
+          "summarizer_path": "out/throughput_cpu_round4/summarize_producer.py",
+          "summarizer_sha256": "cf59ee6b0ea8145f81f8c3ed685227ccc90cc1667221b5150c605dd59730c92c",
+          "total_rooms": 32,
+          "total_views": 96,
+          "views_per_room": 3,
+          "views_per_second": 7.44798659750965
+        }
+      ]
+    }
+  },
+  "metrics_artifact": {
+    "artifact": "out/throughput_cpu_round4/producer-metrics.json",
+    "sha256": "26d28d2c01ba0892d13807cb831868b156502e2a55ece277801fd38850b77f96"
+  },
+  "monitor_helper_sha256": "0bdcd50d11b0b6d8a31bd34a2b96bf10e328a014369f2ea32789bc5c1c7dae43",
+  "paired_room_records": 64,
+  "room_captures": 128,
+  "scope": "Historical four-run 32-room native Burn producer experiment, same full-quality core, sequential versus bounded capture/consumer overlap. Includes validation/export rather than renderer-only capture. Candidate removed after slower throughput and higher CPU cost; no model training measured.",
+  "status": "rejected",
+  "summarizer_sha256": "cf59ee6b0ea8145f81f8c3ed685227ccc90cc1667221b5150c605dd59730c92c",
+  "unique_seeds": 32
+}

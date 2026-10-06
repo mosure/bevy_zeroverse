@@ -1,7 +1,8 @@
 //! Capture waits for asset uploads and material preparation, not just shaders.
 use bevy::{
     asset::{RenderAssetUsages, UntypedAssetId},
-    pbr::PreparedMaterial,
+    ecs::change_detection::Tick,
+    pbr::{MaterialBindGroupAllocators, PreparedMaterial},
     prelude::*,
     render::{
         erased_render_asset::ErasedRenderAssets,
@@ -46,11 +47,21 @@ impl CapturePipelineReadiness {
 }
 
 #[derive(Resource, Default)]
-pub(super) struct ExpectedAssets {
+pub(crate) struct ExpectedAssets {
+    key: Option<ExpectedAssetsKey>,
     scene: Option<Entity>,
     meshes: Vec<AssetId<Mesh>>,
     images: Vec<AssetId<Image>>,
     materials: Vec<UntypedAssetId>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct ExpectedAssetsKey {
+    scene: Option<Entity>,
+    meshes: Tick,
+    images: Tick,
+    materials: Tick,
+    future: Option<Tick>,
 }
 
 pub(super) fn extract(
@@ -63,14 +74,27 @@ pub(super) fn extract(
         Option<Res<crate::scene::procedural_indoor::preparation::residency::FutureAssets>>,
     >,
 ) {
-    expected.gather(
-        scene.single().ok(),
-        &meshes,
-        &images,
-        &materials,
-        future.as_deref(),
-    );
+    // These are the resources' actual main-world change ticks, fetched through
+    // Extract's main-world SystemState. Comparing snapshots does not depend on
+    // the render schedule's tick or its previous run. Resource replacement and
+    // asset mutations invalidate the lists, as does future-room promotion.
+    let key = ExpectedAssetsKey {
+        scene: scene.single().ok(),
+        meshes: meshes.last_changed(),
+        images: images.last_changed(),
+        materials: materials.last_changed(),
+        future: future.as_ref().map(|future| future.last_changed()),
+    };
+    if expected.key == Some(key) {
+        return;
+    }
+    expected.gather(key.scene, &meshes, &images, &materials, future.as_deref());
+    expected.key = Some(key);
 }
+
+#[cfg(test)]
+#[path = "readiness_tests.rs"]
+mod cache_tests;
 
 impl ExpectedAssets {
     fn gather(
@@ -108,12 +132,13 @@ impl ExpectedAssets {
     }
 }
 
-pub(super) fn update(
+pub(crate) fn update(
     cache: Res<PipelineCache>,
     expected: Res<ExpectedAssets>,
     meshes: Res<RenderAssets<RenderMesh>>,
     images: Res<RenderAssets<GpuImage>>,
     materials: Res<ErasedRenderAssets<PreparedMaterial>>,
+    allocators: Res<MaterialBindGroupAllocators>,
     readiness: Res<CapturePipelineReadiness>,
 ) {
     let failure = cache
@@ -139,7 +164,14 @@ pub(super) fn update(
         + expected
             .materials
             .iter()
-            .filter(|id| materials.get(**id).is_none())
+            .filter(|id| {
+                materials.get(**id).is_none_or(|material| {
+                    allocators
+                        .get(&id.type_id())
+                        .and_then(|allocator| allocator.get(material.binding.group))
+                        .is_none_or(|slab| slab.bind_group().is_none())
+                })
+            })
             .count();
     let ready = failure.is_none() && missing == 0 && cache.waiting_pipelines().next().is_none();
     readiness.ready_scene.store(
@@ -178,6 +210,7 @@ mod tests {
             meshes: [next_mesh.id()].into_iter().collect(),
             images: [next_image.id()].into_iter().collect(),
             materials: [next_material.id().untyped()].into_iter().collect(),
+            ..default()
         };
         let mut expected = ExpectedAssets::default();
         let mut world = World::new();

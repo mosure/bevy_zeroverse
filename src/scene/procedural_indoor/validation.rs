@@ -2,7 +2,7 @@
 use super::layout::{IndoorLayout, IndoorManifest, CAMERA_CLEARANCE, GENERATOR_VERSION};
 use bevy::prelude::*;
 use serde::Serialize;
-use std::collections::BTreeMap;
+use std::{borrow::Cow, collections::BTreeMap};
 mod geometry;
 #[cfg(test)]
 mod tests;
@@ -258,7 +258,9 @@ pub fn validate_layout(scene: &IndoorManifest) -> Result<(), String> {
             .camera_group_geometry()
             .is_some_and(|g| !g.accepts(policy))
         {
-            return fail("multi-view camera spacing, group spread or trajectory variation constraint violated");
+            return fail(
+                "multi-view camera spacing, group spread or trajectory variation constraint violated",
+            );
         }
         if scene
             .camera_overlap()
@@ -278,7 +280,9 @@ pub fn validate_layout(scene: &IndoorManifest) -> Result<(), String> {
 pub struct AnnotationAlignment {
     pub checked_pixels: usize,
     pub depth_position_p99_metres: f32,
+    pub depth_position_max_metres: f32,
     pub reprojection_p99_pixels: f32,
+    pub reprojection_max_pixels: f32,
     pub normal_length_max_error: f32,
     pub position_quantization_budget_p99_ratio: f32,
 }
@@ -300,6 +304,37 @@ pub fn validate_annotations(
     )
 }
 
+// Native tightly packed render planes already contain f32 values. Borrow when
+// aligned; archives and user-provided buffers may require an unaligned fallback.
+// Both paths retain every channel's bits and scan all values, including misses.
+fn annotation_values(bytes: &[u8], expected: usize) -> Result<Cow<'_, [f32]>, String> {
+    if bytes.len() != expected || !bytes.len().is_multiple_of(4) {
+        return Err("wrong annotation buffer length".into());
+    }
+    let values = match bytemuck::try_cast_slice::<u8, f32>(bytes) {
+        Ok(values) => Cow::Borrowed(values),
+        Err(_) => Cow::Owned(
+            bytes
+                .as_chunks::<4>()
+                .0
+                .iter()
+                .map(|b| f32::from_ne_bytes(*b))
+                .collect(),
+        ),
+    };
+    if values.iter().any(|v| !v.is_finite()) {
+        return Err("non-finite annotation".into());
+    }
+    Ok(values)
+}
+
+// Only the exact historical order statistic is exported. Selection preserves
+// total ordering (including signed zero) without sorting the other samples.
+fn percentile99(values: &mut [f32]) -> f32 {
+    let index = (values.len() as f32 * 0.99) as usize;
+    *values.select_nth_unstable_by(index, f32::total_cmp).1
+}
+
 pub fn validate_annotations_with_precision(
     view: &crate::sample::View,
     aabb: [[f32; 3]; 2],
@@ -308,35 +343,33 @@ pub fn validate_annotations_with_precision(
     precision: crate::sample::AnnotationPrecision,
 ) -> Result<AnnotationAlignment, String> {
     let full_precision = precision == crate::sample::AnnotationPrecision::Float32Geometry;
-    let read = |bytes: &[u8]| -> Result<Vec<f32>, String> {
-        if bytes.len() != (width * height * 16) as usize {
-            return Err("wrong annotation buffer length".into());
-        }
-        let values: Vec<f32> = bytes
-            .as_chunks::<4>()
-            .0
-            .iter()
-            .map(|b| f32::from_ne_bytes(*b))
-            .collect();
-        if values.iter().any(|v| !v.is_finite()) {
-            return Err("non-finite annotation".into());
-        }
-        Ok(values)
-    };
-    let depth = read(&view.depth)?;
-    let position = read(&view.position)?;
-    let normal = read(&view.normal)?;
+    let expected_bytes = (width as usize)
+        .checked_mul(height as usize)
+        .and_then(|pixels| pixels.checked_mul(16))
+        .ok_or("wrong annotation buffer length")?;
+    let depth = annotation_values(&view.depth, expected_bytes)?;
+    let position = annotation_values(&view.position, expected_bytes)?;
+    let normal = annotation_values(&view.normal, expected_bytes)?;
     let world_from_view = Mat4::from_cols_array_2d(&view.world_from_view);
     let view_from_world = world_from_view.inverse();
     let lo = Vec3::from_array(aabb[0]);
     let range = Vec3::from_array(aabb[1]) - lo;
     let aspect = width as f32 / height as f32;
-    let calibration = view.calibration.clone().unwrap_or(
-        crate::calibration::CameraCalibration::centered_pinhole(width, height, view.fovy, aspect)?,
-    );
+    let calibration = match &view.calibration {
+        Some(calibration) => Cow::Borrowed(calibration),
+        None => Cow::Owned(crate::calibration::CameraCalibration::centered_pinhole(
+            width, height, view.fovy, aspect,
+        )?),
+    };
     calibration.validate()?;
     if calibration.image_size != [width, height] {
         return Err("calibration/image dimensions disagree".into());
+    }
+    // The historical percentile grid has a two-pixel border. Small valid
+    // captures cannot qualify that grid; reject them without unsigned underflow.
+    // Buffer/finite/calibration checks above retain their original error order.
+    if width < 5 || height < 5 {
+        return Err("insufficient visible annotation pixels".into());
     }
     let k = calibration.k;
     let pixel_footprint = world_from_view.transform_vector3(Vec3::X / k[0][0]).abs()
@@ -345,11 +378,17 @@ pub fn validate_annotations_with_precision(
             .abs();
     let mut errors = Vec::new();
     let mut reproject = Vec::new();
+    let mut checked_pixels = 0;
+    let mut depth_error_max = 0.0_f32;
+    let mut reprojection_error_max = 0.0_f32;
     let mut normal_error = 0.0_f32;
     let mut quantization_ratios = Vec::new();
-    // Subsample a regular grid; check thousands of pixels, including all surfaces.
-    for y in (2..height - 2).step_by(3) {
-        for x in (2..width - 2).step_by(3) {
+    // Float32 qualification checks every foreground pixel: a single thin
+    // triangle can fail while both a regular grid and p99 remain excellent.
+    // Keep percentile samples bounded to the historical grid; maxima are exact.
+    let (start, end_margin, stride) = if full_precision { (0, 0, 1) } else { (2, 2, 3) };
+    for y in (start..height - end_margin).step_by(stride) {
+        for x in (start..width - end_margin).step_by(stride) {
             let index = ((y * width + x) * 4) as usize;
             if depth[index + 3] < 0.5 || position[index + 3] < 0.5 {
                 continue;
@@ -360,7 +399,29 @@ pub fn validate_annotations_with_precision(
             if -v.z < 0.1 {
                 return Err("position behind camera".into());
             }
-            errors.push((depth[index] + v.z).abs());
+            checked_pixels += 1;
+            let depth_error = (depth[index] + v.z).abs();
+            depth_error_max = depth_error_max.max(depth_error);
+            let [px, py] = calibration
+                .project(v.to_array())
+                .ok_or("invalid reprojected point")?;
+            let reprojection_error = Vec2::new(px - x as f32 - 0.5, py - y as f32 - 0.5).length();
+            reprojection_error_max = reprojection_error_max.max(reprojection_error);
+            let n =
+                Vec3::new(normal[index], normal[index + 1], normal[index + 2]) * 2.0 - Vec3::ONE;
+            normal_error = normal_error.max((n.length() - 1.0).abs());
+            if full_precision
+                && !(x >= 2
+                    && x < width - 2
+                    && y >= 2
+                    && y < height - 2
+                    && x % 3 == 2
+                    && y % 3 == 2)
+            {
+                continue;
+            }
+            errors.push(depth_error);
+            reproject.push(reprojection_error);
             let ray = Vec3::from_array(
                 calibration
                     .unproject([x as f32 + 0.5, y as f32 + 0.5], 1.)
@@ -383,36 +444,27 @@ pub fn validate_annotations_with_precision(
                     + Vec3::splat(0.0005)
             };
             quantization_ratios.push(((p - expected).abs() / budget).max_element());
-            let [px, py] = calibration
-                .project(v.to_array())
-                .ok_or("invalid reprojected point")?;
-            reproject.push(Vec2::new(px - x as f32 - 0.5, py - y as f32 - 0.5).length());
-            let n =
-                Vec3::new(normal[index], normal[index + 1], normal[index + 2]) * 2.0 - Vec3::ONE;
-            normal_error = normal_error.max((n.length() - 1.0).abs());
         }
     }
     if errors.len() < 100 {
         return Err("insufficient visible annotation pixels".into());
     }
-    quantization_ratios.sort_by(f32::total_cmp);
-    errors.sort_by(f32::total_cmp);
-    reproject.sort_by(f32::total_cmp);
-    let index = (errors.len() as f32 * 0.99) as usize;
     let report = AnnotationAlignment {
-        checked_pixels: errors.len(),
-        depth_position_p99_metres: errors[index],
-        reprojection_p99_pixels: reproject[index],
+        checked_pixels,
+        depth_position_p99_metres: percentile99(&mut errors),
+        depth_position_max_metres: depth_error_max,
+        reprojection_p99_pixels: percentile99(&mut reproject),
+        reprojection_max_pixels: reprojection_error_max,
         normal_length_max_error: normal_error,
-        position_quantization_budget_p99_ratio: quantization_ratios[index],
+        position_quantization_budget_p99_ratio: percentile99(&mut quantization_ratios),
     };
     // The existing HDR path quantizes intermediate values to float16. Bounds
     // include the exterior, so world-position precision is centimetres here.
     if report.position_quantization_budget_p99_ratio > 1.0
         || report.normal_length_max_error > if full_precision { 2e-5 } else { 0.012 }
         || (full_precision
-            && (report.depth_position_p99_metres > 0.00005
-                || report.reprojection_p99_pixels > 0.05))
+            && (report.depth_position_max_metres > 0.00005
+                || report.reprojection_max_pixels > 0.05))
     {
         return Err(format!("annotation alignment failed: {report:?}"));
     }

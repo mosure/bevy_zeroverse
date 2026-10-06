@@ -5,9 +5,13 @@
 //! transport reflected light for a bounded number of bounces. Six cosine
 //! convolutions are stored as Bevy ambient cubes, in cd/m² (irradiance / π).
 //! This is diffuse baked GI, not a replacement for a full specular path tracer.
+mod assembly;
+pub(crate) use assembly::GeometryTransport;
 mod bvh;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod gpu;
+#[cfg(test)]
+mod probe_classification;
 use super::{
     architecture,
     layout::{IndoorManifest, ObjectKind},
@@ -254,6 +258,45 @@ struct DiffuseMaterial {
 }
 
 impl DiffuseMaterial {
+    fn from_standard(
+        mat: &StandardMaterial,
+        images: &impl super::preparation::AssetStore<Image>,
+    ) -> Self {
+        let srgb_linear = srgb8_linear_table();
+        let texture = mat
+            .base_color_texture
+            .as_ref()
+            .and_then(|h| images.get(h))
+            .and_then(|image| {
+                image.data.as_ref().map(|data| {
+                    // Preserve the full-map point-sampling and byte decoding
+                    // contract used by both geometry and garment transport.
+                    let width = image.width() as usize;
+                    let n = 32usize;
+                    let mut pixels = Vec::with_capacity(n * n);
+                    for y in 0..n {
+                        for x in 0..n {
+                            let index = ((y * width / n) * width + x * width / n) * 4;
+                            pixels.push(Vec3::new(
+                                srgb_linear[data[index] as usize],
+                                srgb_linear[data[index + 1] as usize],
+                                srgb_linear[data[index + 2] as usize],
+                            ));
+                        }
+                    }
+                    (n as u32, pixels)
+                })
+            });
+        Self {
+            albedo: (linear(mat.base_color) * (1.0 - mat.metallic))
+                .clamp(Vec3::ZERO, Vec3::splat(0.95)),
+            emission: Vec3::new(mat.emissive.red, mat.emissive.green, mat.emissive.blue),
+            uv_scale: mat.uv_transform.matrix2 * Vec2::ONE,
+            texture,
+            textured_emission: mat.emissive_texture.is_some(),
+        }
+    }
+
     fn albedo(&self, uv: Vec2) -> Vec3 {
         let Some((n, pixels)) = &self.texture else {
             return self.albedo;
@@ -337,6 +380,11 @@ struct LocalLight {
 pub struct BakeScene {
     triangles: Vec<Triangle>,
     nodes: Vec<Node>,
+    // The median tree remains authoritative for closest-hit normal/tie order
+    // and probe placement. Native GPU transport and boolean shadow tests share
+    // one lazily constructed SAH tree, instead of separately rebuilding it.
+    #[cfg(not(target_arch = "wasm32"))]
+    transport_tree: std::sync::OnceLock<TransportTree>,
     materials: Vec<DiffuseMaterial>,
     lights: Vec<LocalLight>,
     sun_direction: Vec3,
@@ -348,12 +396,94 @@ pub struct BakeScene {
     world_rotation: Quat,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+struct TransportTree {
+    triangles: Vec<Triangle>,
+    nodes: Vec<Node>,
+    preparation_ms: f64,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl TransportTree {
+    fn occluded(&self, origin: Vec3, direction: Vec3, max: f32) -> bool {
+        if self.nodes.is_empty() {
+            return false;
+        }
+        let inverse = direction.recip();
+        let mut stack = [0usize; 64];
+        let mut len = 1;
+        while len > 0 {
+            len -= 1;
+            let index = stack[len];
+            let node = &self.nodes[index];
+            if !node.intersects(origin, inverse, max) {
+                continue;
+            }
+            if node.count > 0 {
+                for triangle in &self.triangles[node.start..node.start + node.count] {
+                    if triangle.hit(origin, direction, max).is_some() {
+                        return true;
+                    }
+                }
+            } else {
+                let (near, far) = if direction[node.axis] >= 0.0 {
+                    (index + 1, node.right)
+                } else {
+                    (node.right, index + 1)
+                };
+                stack[len] = far;
+                stack[len + 1] = near;
+                len += 2;
+            }
+        }
+        false
+    }
+}
+
 fn linear(color: Color) -> Vec3 {
     let c = color.to_linear();
     Vec3::new(c.red, c.green, c.blue)
 }
 
+fn srgb8_linear_table() -> &'static [f32; 256] {
+    static TABLE: std::sync::OnceLock<[f32; 256]> = std::sync::OnceLock::new();
+    TABLE.get_or_init(|| {
+        std::array::from_fn(|value| {
+            // Evaluate Bevy's exact transfer once for each possible byte input.
+            // This is an identity table, rather than an approximate gamma curve.
+            let channel = value as f32 / 255.0;
+            Color::srgb(channel, channel, channel).to_linear().red
+        })
+    })
+}
+
 impl BakeScene {
+    #[cfg(not(target_arch = "wasm32"))]
+    fn gpu_transport(&self) -> &TransportTree {
+        self.transport_tree.get_or_init(|| {
+            let started = Instant::now();
+            let (triangles, nodes) = bvh::build_transport(&self.triangles);
+            TransportTree {
+                triangles,
+                nodes,
+                preparation_ms: started.elapsed().as_secs_f64() * 1000.0,
+            }
+        })
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn prepare_gpu_transport(&self) {
+        self.gpu_transport();
+    }
+
+    fn occluded(&self, origin: Vec3, direction: Vec3, max: f32) -> bool {
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Some(tree) = self.transport_tree.get() {
+            return tree.occluded(origin, direction, max);
+        }
+        self.hit(origin, direction, max, true).is_some()
+    }
+
     /// One deterministic radiance sample for the static reflection environment.
     /// Direct light is visibility-tested against the same BVH as diffuse GI;
     /// unresolved secondary bounce energy uses a bounded ambient approximation.
@@ -453,161 +583,16 @@ impl BakeScene {
         moving_humans: &[usize],
         geometry: &super::preparation::SceneGeometry,
     ) -> Self {
-        let started = Instant::now();
-        let mut result = Self {
-            triangles: Vec::new(),
-            nodes: Vec::new(),
-            materials: Vec::new(),
-            lights: Vec::new(),
-            sun_direction: architecture::sun_direction(scene),
-            sun: linear(architecture::sun_color(scene)) * architecture::sun_illuminance(scene),
-            // Isotropic hemispherical sky luminance. Sun is a separate analytic
-            // source; its disk must not be integrated a second time here.
-            sky: scene.sky_radiance(),
-            bounds_min: Vec3::new(
-                -scene.room_size.x * 0.5 - 0.10,
-                scene.envelope.as_ref().map_or(0., |e| e.minimum_floor()) - 0.10,
-                -scene.room_size.z * 0.5 - 0.10,
-            ),
-            bounds_max: Vec3::new(
-                scene.room_size.x * 0.5 + 0.10,
-                scene.room_size.y + 0.10,
-                scene.room_size.z * 0.5 + super::layout::NEIGHBOR_DEPTH + 0.10,
-            ),
-            preparation_ms: 0.0,
-            world_rotation: Quat::from_rotation_y(scene.world_yaw),
-        };
-        let mut finish_indices = std::collections::BTreeMap::new();
-        let handles = super::materials::program::SURFACES
-            .into_iter()
-            .map(|surface| (surface, None, set.get(surface)))
-            .chain(
-                set.variants
-                    .iter()
-                    .map(|(&(surface, slot), handle)| (surface, Some(slot), handle.clone())),
-            );
-        for (surface, slot, handle) in handles {
-            if let Some(slot) = slot {
-                finish_indices.insert((surface, slot), result.materials.len());
-            }
-            let mat = materials.get(&handle).expect("indoor material exists");
-            let texture = mat
-                .base_color_texture
-                .as_ref()
-                .and_then(|h| images.get(h))
-                .and_then(|image| {
-                    image.data.as_ref().map(|data| {
-                        // Downsample once, not per path; only low-frequency diffuse
-                        // reflectance participates in this GI approximation.
-                        let width = image.width() as usize;
-                        let n = 32usize;
-                        let mut pixels = Vec::with_capacity(n * n);
-                        for y in 0..n {
-                            for x in 0..n {
-                                let index = ((y * width / n) * width + x * width / n) * 4;
-                                pixels.push(linear(Color::srgb(
-                                    data[index] as f32 / 255.0,
-                                    data[index + 1] as f32 / 255.0,
-                                    data[index + 2] as f32 / 255.0,
-                                )));
-                            }
-                        }
-                        (n as u32, pixels)
-                    })
-                });
-            result.materials.push(DiffuseMaterial {
-                albedo: (linear(mat.base_color) * (1.0 - mat.metallic))
-                    .clamp(Vec3::ZERO, Vec3::splat(0.95)),
-                emission: Vec3::new(mat.emissive.red, mat.emissive.green, mat.emissive.blue),
-                uv_scale: mat.uv_transform.matrix2 * Vec2::ONE,
-                texture,
-                textured_emission: mat.emissive_texture.is_some(),
-            });
-        }
-        result.add_assembly(&geometry.architecture, Transform::IDENTITY, &finish_indices);
-        for (object, assembly) in scene.objects.iter().zip(&geometry.objects) {
-            result.add_assembly(assembly, object.transform(), &finish_indices);
-        }
-        for (person, assembly) in scene
-            .humans
-            .iter()
-            .zip(&geometry.humans)
-            .filter(|(p, _)| !moving_humans.contains(&p.id))
-        {
-            for (&surface, geometry) in &assembly.parts {
-                use super::humans::HumanSurface;
-                // The diffuse proxy has no thin-lens transmission model.
-                // Clear spectacles must not become opaque eye shadow casters.
-                if surface == HumanSurface::Lens {
-                    continue;
-                }
-                let cloth = matches!(
-                    surface,
-                    HumanSurface::Top
-                        | HumanSurface::Trousers
-                        | HumanSurface::Shirt
-                        | HumanSurface::Seam
-                );
-                let mut material = if cloth {
-                    let key = super::humans::cloth_finish(person, surface);
-                    let index = finish_indices.get(&key).copied().unwrap_or(key.0 as usize);
-                    let mut material = result.materials[index].clone();
-                    // The diffuse transport proxy resolves only coarse color;
-                    // retain the wardrobe's atlas scale and selected structure.
-                    material.uv_scale *=
-                        2. * person.appearance.as_ref().map_or(1., |a| a.weave_scale);
-                    material
-                } else {
-                    DiffuseMaterial {
-                        albedo: Vec3::ONE,
-                        emission: Vec3::ZERO,
-                        uv_scale: Vec2::ONE,
-                        texture: None,
-                        textured_emission: false,
-                    }
-                };
-                material.albedo = linear(person.material_color(surface));
-                let index = result.materials.len();
-                result.materials.push(material);
-                result.add_geometry(geometry, person.transform(), index);
-            }
-        }
-        for (i, p) in architecture::fixture_positions(scene)
-            .into_iter()
-            .enumerate()
-        {
-            let (c, lumens) = architecture::fixture_photometry(scene, i);
-            let (inner, outer) = architecture::fixture_angles(scene, i);
-            result.lights.push(LocalLight {
-                position: p - Vec3::Y * 0.06,
-                color: linear(Color::srgb(c.x, c.y, c.z)),
-                candela: architecture::spot_intensity_for_lumens(lumens, inner, outer) / (4.0 * PI),
-                range: 13.0,
-                spot: true,
-                inner_cos: inner.cos(),
-                outer_cos: outer.cos(),
-            });
-        }
-        for lamp in scene
-            .objects
-            .iter()
-            .filter(|o| o.kind == ObjectKind::FloorLamp)
-        {
-            result.lights.push(LocalLight {
-                position: lamp.position + Vec3::Y * (lamp.size.y - 0.22),
-                color: linear(Color::srgb(1.0, 0.78, 0.57)),
-                candela: architecture::floor_lamp_lumens(scene, lamp.seed) / (4.0 * PI),
-                range: 5.0,
-                spot: false,
-                inner_cos: 1.0,
-                outer_cos: 0.0,
-            });
-        }
-        result.build_bvh();
-        result.preparation_ms = started.elapsed().as_secs_f64() * 1000.0;
-        result
+        GeometryTransport::build(scene, moving_humans, geometry, false).bind(
+            scene,
+            set,
+            materials,
+            images,
+            moving_humans,
+        )
     }
 
+    #[cfg(test)]
     fn add_assembly(
         &mut self,
         assembly: &Assembly,
@@ -738,7 +723,7 @@ impl BakeScene {
         let mut light = Vec3::ZERO;
         let origin = position + normal * 0.003;
         let sun_cosine = normal.dot(self.sun_direction).max(0.0);
-        if sun_cosine > 0.0 && self.hit(origin, self.sun_direction, 1000.0, true).is_none() {
+        if sun_cosine > 0.0 && !self.occluded(origin, self.sun_direction, 1000.0) {
             light += self.sun * sun_cosine;
         }
         for source in &self.lights {
@@ -757,11 +742,7 @@ impl BakeScene {
             } else {
                 1.0
             };
-            if spot <= 0.0
-                || self
-                    .hit(origin, direction, (d - 0.01).max(0.0), true)
-                    .is_some()
-            {
+            if spot <= 0.0 || self.occluded(origin, direction, (d - 0.01).max(0.0)) {
                 continue;
             }
             let attenuation =
@@ -837,14 +818,26 @@ impl BakeScene {
 
     fn inside_solid(&self, point: Vec3) -> bool {
         let mut backfaces = 0;
-        for direction in [Vec3::X, -Vec3::X, Vec3::Y, -Vec3::Y, Vec3::Z, -Vec3::Z] {
+        for (index, direction) in [Vec3::X, -Vec3::X, Vec3::Y, -Vec3::Y, Vec3::Z, -Vec3::Z]
+            .into_iter()
+            .enumerate()
+        {
             if let Some((index, _, _)) = self.hit(point, direction, 1000.0, false) {
                 if self.triangles[index].normal.dot(direction) > 0.0 {
                     backfaces += 1;
                 }
             }
+            // Classification depends only on reaching four backfaces. Retain
+            // the original cardinal-ray order and exact closest-hit checks,
+            // but omit queries once their outcomes cannot alter the result.
+            if backfaces >= 4 {
+                return true;
+            }
+            if backfaces + (5 - index) < 4 {
+                return false;
+            }
         }
-        backfaces >= 4
+        false
     }
 
     pub fn bake(&self, settings: BakeSettings, seed: u64) -> ProbeData {
@@ -971,6 +964,104 @@ mod tests {
     use super::*;
 
     #[test]
+    fn srgb8_transport_decode_matches_bevy_linear_bits() {
+        let table = srgb8_linear_table();
+        for r in 0..256 {
+            for g in 0..256 {
+                let b = (r * 73 + g * 19) % 256;
+                let original = linear(Color::srgb(
+                    r as f32 / 255.0,
+                    g as f32 / 255.0,
+                    b as f32 / 255.0,
+                ));
+                let cached = Vec3::new(table[r], table[g], table[b]);
+                assert_eq!(
+                    cached.to_array().map(f32::to_bits),
+                    original.to_array().map(f32::to_bits)
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn knitted_garment_transport_uses_rendered_neutral_atlas_and_body_scale() {
+        use super::super::{
+            humans::{self, HumanOutfit, HumanSurface},
+            layout::IndoorLayout,
+            preparation::SceneGeometry,
+        };
+        let mut scene =
+            IndoorManifest::generate_with_humans(207, IndoorLayout::Mixed, 0.65, 0, 1.).unwrap();
+        scene.objects.clear();
+        scene.humans.truncate(1);
+        let person = scene.humans.first_mut().expect("occupied knit fixture");
+        person.outfit = HumanOutfit::Knitwear;
+        let appearance = person.appearance.as_mut().expect("sampled wardrobe");
+        // The diffuse proxy retains the existing scalar UV approximation. Zero
+        // rotation makes its scale independently comparable to rendered UVs.
+        appearance.weave_rotation = 0.;
+        appearance.weave_scale = 1.7;
+        appearance.top = [0.21, 0.37, 0.54];
+        let (mut images, mut materials) = (Assets::default(), Assets::default());
+        let set = IndoorMaterials::build(&scene, &mut images, &mut materials);
+        for outfit in [
+            HumanOutfit::Knitwear,
+            HumanOutfit::Cardigan,
+            HumanOutfit::Tee,
+            HumanOutfit::Polo,
+        ] {
+            scene.humans[0].outfit = outfit;
+            let person = &scene.humans[0];
+            let mut assembly = humans::build_human(person);
+            assembly.parts.retain(|surface, geometry| {
+                matches!(surface, HumanSurface::Top | HumanSurface::Seam)
+                    && !geometry.indices.is_empty()
+            });
+            let geometry = SceneGeometry {
+                architecture: Assembly::default(),
+                objects: Vec::new(),
+                humans: vec![assembly],
+            };
+            let transport =
+                BakeScene::from_geometry(&scene, &set, &materials, &images, &[], &geometry);
+            let referenced: std::collections::BTreeSet<_> =
+                transport.triangles.iter().map(|t| t.material).collect();
+            assert_eq!(referenced.len(), geometry.humans[0].parts.len());
+            for (&surface, index) in geometry.humans[0].parts.keys().zip(referenced) {
+                let rendered = humans::person_material(person, surface, &set, &materials);
+                assert_eq!(
+                    rendered.base_color_texture,
+                    materials.get(&set.knit).unwrap().base_color_texture
+                );
+                let expected = DiffuseMaterial::from_standard(&rendered, &images);
+                let actual = &transport.materials[index];
+                let (expected_n, expected_pixels) = expected.texture.as_ref().unwrap();
+                let (actual_n, actual_pixels) = actual.texture.as_ref().unwrap();
+                assert_eq!(actual_n, expected_n);
+                assert_eq!(actual_pixels.len(), 32 * 32);
+                for (a, b) in actual_pixels.iter().zip(expected_pixels) {
+                    assert_eq!(
+                        a.to_array().map(f32::to_bits),
+                        b.to_array().map(f32::to_bits)
+                    );
+                }
+                assert_eq!(
+                    actual.uv_scale.to_array().map(f32::to_bits),
+                    expected.uv_scale.to_array().map(f32::to_bits)
+                );
+                for uv in [Vec2::ZERO, Vec2::new(0.037, 0.91), Vec2::new(-0.25, 1.125)] {
+                    assert_eq!(
+                        actual.albedo(uv).to_array().map(f32::to_bits),
+                        expected.albedo(uv).to_array().map(f32::to_bits)
+                    );
+                }
+                assert_eq!(actual.emission, expected.emission);
+                assert_eq!(actual.textured_emission, expected.textured_emission);
+            }
+        }
+    }
+
+    #[test]
     fn motion_candidates_do_not_leave_static_gi_casters() {
         let scene = IndoorManifest::generate_with_humans(
             0,
@@ -1006,6 +1097,8 @@ mod tests {
         BakeScene {
             triangles: Vec::new(),
             nodes: Vec::new(),
+            #[cfg(not(target_arch = "wasm32"))]
+            transport_tree: default(),
             materials: Vec::new(),
             lights: Vec::new(),
             sun_direction: Vec3::Y,
@@ -1015,6 +1108,116 @@ mod tests {
             bounds_max: Vec3::ONE,
             preparation_ms: 0.0,
             world_rotation: Quat::IDENTITY,
+        }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn shared_sah_shadow_queries_match_median_and_brute_force() {
+        use rand::{Rng, SeedableRng};
+        for seed in [0, 81, 43_084_584] {
+            let manifest = IndoorManifest::generate_with_humans(
+                seed,
+                super::super::layout::IndoorLayout::Mixed,
+                0.85,
+                0,
+                0.0,
+            )
+            .unwrap();
+            let mut transport = empty();
+            let finishes = std::collections::BTreeMap::new();
+            transport.add_assembly(
+                &architecture::architecture(&manifest),
+                Transform::IDENTITY,
+                &finishes,
+            );
+            for object in &manifest.objects {
+                transport.add_assembly(
+                    &objects::build_object(object),
+                    object.transform(),
+                    &finishes,
+                );
+            }
+            // Cover real construction triangles with bounded oracle work. The
+            // renderer replay separately checks complete dense room geometry.
+            let stride = (transport.triangles.len() / 1536).max(1);
+            transport.triangles = transport
+                .triangles
+                .into_iter()
+                .step_by(stride)
+                .take(2048)
+                .collect();
+            transport.build_bvh();
+            let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(seed);
+            let mut queries: Vec<_> = (0..256)
+                .map(|i| {
+                    (
+                        Vec3::new(
+                            rng.random_range(-0.75..0.75) * manifest.room_size.x,
+                            rng.random_range(0.0..1.1) * manifest.room_size.y,
+                            rng.random_range(-0.75..0.75) * manifest.room_size.z,
+                        ),
+                        Vec3::new(
+                            rng.random_range(-1.0..1.0),
+                            rng.random_range(-1.0..1.0),
+                            rng.random_range(-1.0..1.0),
+                        )
+                        .normalize_or(Vec3::Y),
+                        [0.003, 0.2, 1., 10., 1000.][i % 5],
+                    )
+                })
+                .collect();
+            // Axis-aligned rays and near-face starts stress box boundaries,
+            // infinities in slab inverses and the original triangle tolerances.
+            for triangle in transport
+                .triangles
+                .iter()
+                .step_by((transport.triangles.len() / 24).max(1))
+            {
+                for direction in [Vec3::X, -Vec3::X, Vec3::Y, -Vec3::Y, Vec3::Z, -Vec3::Z] {
+                    queries.push((triangle.a - direction * 0.003, direction, 0.006));
+                }
+                let grazing = (triangle.ab.normalize_or(Vec3::X) + triangle.normal * 0.001)
+                    .normalize_or(Vec3::Y);
+                queries.push((
+                    triangle.a + triangle.ab * 0.25 + triangle.ac * 0.25 - triangle.normal * 0.003,
+                    grazing,
+                    10.0,
+                ));
+            }
+            let median: Vec<_> = queries
+                .iter()
+                .map(|&(p, d, max)| transport.hit(p, d, max, true).is_some())
+                .collect();
+            let closest: Vec<_> = queries
+                .iter()
+                .map(|&(p, d, max)| transport.hit(p, d, max, false))
+                .collect();
+            let solid: Vec<_> = queries
+                .iter()
+                .map(|&(p, _, _)| transport.inside_solid(p))
+                .collect();
+            transport.prepare_gpu_transport();
+            let tree_address = std::ptr::from_ref(transport.gpu_transport());
+            transport.prepare_gpu_transport();
+            assert_eq!(tree_address, std::ptr::from_ref(transport.gpu_transport()));
+            for (i, &(p, d, max)) in queries.iter().enumerate() {
+                let brute_force = transport
+                    .triangles
+                    .iter()
+                    .any(|t| t.hit(p, d, max).is_some());
+                assert_eq!(
+                    median[i], brute_force,
+                    "median oracle: seed={seed}, ray={i}"
+                );
+                assert_eq!(
+                    transport.occluded(p, d, max),
+                    brute_force,
+                    "SAH: seed={seed}, ray={i}"
+                );
+                assert_eq!(transport.hit(p, d, max, false), closest[i]);
+                assert_eq!(transport.inside_solid(p), solid[i]);
+            }
         }
     }
 

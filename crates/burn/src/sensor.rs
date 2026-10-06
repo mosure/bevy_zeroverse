@@ -236,7 +236,7 @@ mod tests {
         SensorSettings::default().apply(&mut s, [8, 8]).unwrap();
         let a = crate::chunk::decode_rgba_bytes(&old, 8, 8).unwrap();
         let b = crate::chunk::decode_rgba_bytes(&s.views[0].color, 8, 8).unwrap();
-        assert!(a.iter().zip(b).all(|(a, b)| (a - b).abs() < 1e-6));
+        assert!(a.iter().zip(b.iter()).all(|(a, b)| (a - b).abs() < 1e-6));
     }
     #[test]
     fn each_sensor_factor_has_an_isolated_effect_and_keeps_annotations() {

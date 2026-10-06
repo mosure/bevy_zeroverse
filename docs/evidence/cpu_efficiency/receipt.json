@@ -1,0 +1,3954 @@
+{
+  "accepted_burn_source": {
+    "scope": "Burn crate Cargo.toml and complete src tree, CRLF-normalized UTF-8. Core/dependencies are separately bound by renderer build provenance and Cargo.lock.",
+    "source_inputs": {
+      "Cargo.toml": "a65859b067909df19f0634e20c8ddd48b8d8fc70b81d962857456ca682cbeed6",
+      "src/bin/zeroverse_gen.rs": "7055f4940987d1180bdbfb5b2262e48fab6f8e9edd098f07e148ed16d1102812",
+      "src/bin/zeroverse_gen/process_pool.rs": "140fa9b9d9114306ec57a963ed4a8e4fd4065cd19308ece6386e19d569d9dabb",
+      "src/calibration.rs": "86793d2b678caac2192fac2c3703dcde08ad909d2d09a286ade7b74fac58a829",
+      "src/chunk.rs": "200e9622c38251bfe00a8cf63bd1149e4f0b44c4dc4eed9909792e2a9dcf25d9",
+      "src/co_visibility.rs": "5d59a9a7e58177a0f6a237f49b2bf477c197cd80eb8234f67cb5ce87063771b0",
+      "src/compression.rs": "36e579dc372ef514200c1024f961e281e05baafa6d1e8ed9b0fb32448beb7709",
+      "src/dataset.rs": "b5ea4d26fab7d9f5d3832f85a3d4267b2fe3426f8f6387e9395b2b00d5cff45f",
+      "src/flow.rs": "f0e895cb905b1e3c3ab5243a27344658ff0d721af9301e01c643c5f7877113c8",
+      "src/fs.rs": "223abe8dfc938956f01c098062c539ed076a25ebb5927b33fe04993f05839490",
+      "src/generator.rs": "c64ccdd07aff88de94d504e82f7d893e4eac5004182ac27e6254d43be8138006",
+      "src/lib.rs": "3670e968ced90623ae6a302cf1a378b83c8e78c19fe24dc352f8e175c48cb46c",
+      "src/progress.rs": "4b2904243377fa1df45b957799beeab04e6332c0330e8bcf21cfb4211048f7c0",
+      "src/sensor.rs": "e2a0d541715a199263095603cacf36ac4064ab93701dc9548c09ee03d535c6a5",
+      "src/tui.rs": "83158f73f3725b16c5add3e902fffeed3f01942cf2b6a77ae52c80c4e278f15d"
+    },
+    "source_inputs_count": 15,
+    "source_sha256": "e17496a9556c5183ddd7921fe8e241c2a18dc1def31855e695be2f08e90a43fd"
+  },
+  "accepted_timing_room_captures": 896,
+  "actual_abba_monitor_chronology": {
+    "pool": [
+      {
+        "artifact": {
+          "artifact": "out/throughput_cpu_round8/baseline-pool-1.summary.json",
+          "sha256": "a60d9c98def10373c642b3750be79d26ab25d15c2d54ab904fdf59988a109348"
+        },
+        "ended_unix_seconds": 1791258529.602184,
+        "repeat": 1,
+        "started_unix_seconds": 1791258509.460271,
+        "version": "baseline"
+      },
+      {
+        "artifact": {
+          "artifact": "out/throughput_cpu_round8/final-pool-1.summary.json",
+          "sha256": "26f6310874ddba262e966889d920fb8e2dc590e3978b240d25eb56af164697e3"
+        },
+        "ended_unix_seconds": 1791258549.8528175,
+        "repeat": 1,
+        "started_unix_seconds": 1791258529.6558456,
+        "version": "final"
+      },
+      {
+        "artifact": {
+          "artifact": "out/throughput_cpu_round8/final-pool-2.summary.json",
+          "sha256": "0203b09ac1aea78f3d20bebca9a2a3912498933e36a3b65c9b8bbc4dfe3e4ec6"
+        },
+        "ended_unix_seconds": 1791258569.6425557,
+        "repeat": 2,
+        "started_unix_seconds": 1791258549.9034903,
+        "version": "final"
+      },
+      {
+        "artifact": {
+          "artifact": "out/throughput_cpu_round8/baseline-pool-2.summary.json",
+          "sha256": "b07904ee9f5d01c116c998ef48372f9c02270f9566c5172ed61db0b1d57ad0b9"
+        },
+        "ended_unix_seconds": 1791258589.466658,
+        "repeat": 2,
+        "started_unix_seconds": 1791258569.6964583,
+        "version": "baseline"
+      }
+    ],
+    "rgb": [
+      {
+        "artifact": {
+          "artifact": "out/throughput_cpu_round8/baseline-rgb-1.summary.json",
+          "sha256": "a083b7ddbadd24d47a11fd3730fcca99adacbf1841f91a765774a42c13b56bc4"
+        },
+        "ended_unix_seconds": 1791258375.853512,
+        "repeat": 1,
+        "started_unix_seconds": 1791258356.6042411,
+        "version": "baseline"
+      },
+      {
+        "artifact": {
+          "artifact": "out/throughput_cpu_round8/final-rgb-1.summary.json",
+          "sha256": "b0f2dc37d22de84ab133c6f4bf268dc4876aba974cd4586465fc6dbb3f1c2518"
+        },
+        "ended_unix_seconds": 1791258393.9371042,
+        "repeat": 1,
+        "started_unix_seconds": 1791258375.900752,
+        "version": "final"
+      },
+      {
+        "artifact": {
+          "artifact": "out/throughput_cpu_round8/final-rgb-2.summary.json",
+          "sha256": "bf7ae738d51a0de87638677c30e60bcdd31f7c673b732777db9027fc8b600a30"
+        },
+        "ended_unix_seconds": 1791258412.1951323,
+        "repeat": 2,
+        "started_unix_seconds": 1791258393.9875638,
+        "version": "final"
+      },
+      {
+        "artifact": {
+          "artifact": "out/throughput_cpu_round8/baseline-rgb-2.summary.json",
+          "sha256": "388a5ea4524fa5fb48ca51e5ea878ec544ac158d86a454a9ccc10f196aa2eaf1"
+        },
+        "ended_unix_seconds": 1791258430.6959178,
+        "repeat": 2,
+        "started_unix_seconds": 1791258412.2524076,
+        "version": "baseline"
+      }
+    ],
+    "six": [
+      {
+        "artifact": {
+          "artifact": "out/throughput_cpu_round8/baseline-six-1.summary.json",
+          "sha256": "605e2a73fb54907cda1e26f33ac4e10e8d630d8a91592d5bbf01b8d796738841"
+        },
+        "ended_unix_seconds": 1791258450.3815267,
+        "repeat": 1,
+        "started_unix_seconds": 1791258430.7486455,
+        "version": "baseline"
+      },
+      {
+        "artifact": {
+          "artifact": "out/throughput_cpu_round8/final-six-1.summary.json",
+          "sha256": "4b2704b6791efe01d744355e1600cf84b152285b6069388242e742980e59d9be"
+        },
+        "ended_unix_seconds": 1791258470.0504909,
+        "repeat": 1,
+        "started_unix_seconds": 1791258450.4294732,
+        "version": "final"
+      },
+      {
+        "artifact": {
+          "artifact": "out/throughput_cpu_round8/final-six-2.summary.json",
+          "sha256": "432216a9dc53f42bf82d220615e89540e601e8f63c16cb1a2799ee61a23486c7"
+        },
+        "ended_unix_seconds": 1791258489.6316328,
+        "repeat": 2,
+        "started_unix_seconds": 1791258470.1098304,
+        "version": "final"
+      },
+      {
+        "artifact": {
+          "artifact": "out/throughput_cpu_round8/baseline-six-2.summary.json",
+          "sha256": "1f4f8e5a0153b38a441c81a913bf07d3a1d6383c9c4ce7d3b94e66c29876fccc"
+        },
+        "ended_unix_seconds": 1791258509.4086585,
+        "repeat": 2,
+        "started_unix_seconds": 1791258489.6831045,
+        "version": "baseline"
+      }
+    ]
+  },
+  "allocation_bounds": {
+    "cellular_halo_max_axis_cells": 192,
+    "cellular_halo_max_single_table_capacity_bytes": 602176,
+    "color_carry_heap_bytes_per_texel": 0,
+    "color_carry_stack_bytes_per_record": 40,
+    "color_transfer_slots_per_map": 4096,
+    "color_transfer_table_bytes_per_map": 32768,
+    "combined_readback_adds_logical_staging_bytes": false,
+    "combined_readback_enabled_in_wasm": false,
+    "combined_readback_exceeds_adapter_max_buffer_size": false,
+    "earlier_camera_activation_implemented": false,
+    "fixed_origin_reflection_cache_implemented": false,
+    "glaze_all_fields_share_one_map_budget": true,
+    "glaze_allocates_crack_halo_when_crackle_zero": false,
+    "glaze_field_budget_uses_actual_vec_capacity": true,
+    "glaze_total_shared_field_budget_bytes_per_map": 1048576,
+    "ground_truth_additional_matrix_cache_bytes": 0,
+    "ground_truth_consumed_plane_reuse_count": 2,
+    "ground_truth_matrix_reuse_requires_exact_world_matrix_bits": true,
+    "ground_truth_temporary_index_spans_per_mesh_instance_maximum": 1,
+    "ground_truth_temporary_index_storage": "One borrowed source span per visible mesh instance, O(instances), dropped within extraction; no temporary per-index batch copy.",
+    "image_copier_clone_metadata": "Immutable source-image and staging-buffer arrays shared with Arc; row-layout values remain copied scalars and GPU buffers retain shared ownership.",
+    "image_copier_recycling_bypasses_live_upload_or_pipeline_readiness": false,
+    "image_copier_recycling_requires_consumed_successful_packet": true,
+    "logical_budget_is_vram_limit": false,
+    "material_preparation_cache_branches_per_map_maximum": 1,
+    "median_fork_uses_disjoint_triangle_and_node_slices": true,
+    "median_root_parallel_fork_count": 1,
+    "median_root_parallel_fork_threshold_triangles": 65536,
+    "mesh_realization_clones_full_scene_geometry": false,
+    "mineral_casting_total_field_budget_bytes_per_map": 1048576,
+    "native_atlas_additional_full_map_buffers": 0,
+    "native_atlas_bands_per_pass_maximum": 4,
+    "native_reflection_stencil_cache_count": 1,
+    "native_reflection_stencil_fixed_cube_size": 64,
+    "native_reflection_stencil_heap_capacity_bound_bytes": 25165824,
+    "native_reflection_stencil_taps": 622464,
+    "paint_total_shared_cache_budget_bytes_per_map": 851968,
+    "periodic_halo_allocation_charged_to_existing_map_budgets": true,
+    "prepared_textile_table_logical_bytes_per_map": 65536,
+    "readiness_asset_list_cache_key_fixed_fields": 5,
+    "readiness_asset_list_cache_scope": "Current scene identity plus actual main-world mesh/image/material/future-resource change ticks; asset-list vectors rebuilt on invalidation; GPU prepared-state/pipeline checks remain live.",
+    "render_fence_requires_exact_scene_camera_asset_and_step_token": true,
+    "render_fence_scope": "Generated immutable indoor scenes and pinned camera/human trajectories; arbitrary custom ECS light/transform/bone edits are outside this qualified token contract; temporal/history effects retain legacy settling.",
+    "retained_future_full_asset_room_count": 1,
+    "retained_future_gpu_logical_budget_bytes": 268435456,
+    "retained_future_gpu_slot_count": 2,
+    "retained_future_second_slot_only_uploads_gi_probe_and_inputs": true,
+    "retained_paint_cache_bytes_per_map": 851968,
+    "sah_temporary_triangle_bytes_removed_per_triangle": 80,
+    "scope": "Independent bounded cache/ownership quantities, not a summed process RAM/VRAM cap.",
+    "shared_preparation_worker_threads": 4,
+    "transport_material_join_clones_full_scene_geometry": false,
+    "unbound_mesh_groups_published_before_material_join": false,
+    "worker_scope": "Four shared worker threads plus possible joining-caller participation. One median root fork uses disjoint triangle/node slices; this is not a strict global task-count or process CPU-thread cap."
+  },
+  "baseline_ancestor_boundary": {
+    "artifact": "out/throughput_cpu_round4/before/evidence/receipt.json",
+    "older_control_changed_channels": 17,
+    "older_control_changed_pixels": 16,
+    "older_control_max_absolute_delta": 0.00018310546875,
+    "scope": "Previous accepted round had exact replay relative to its predecessor; the older ancestor retained 17 raw RGB channel differences at 16 pixels versus an earlier control. This round's replay does not retroactively resolve that historical exception.",
+    "sha256": "56c7674a81d8e2c977eb1fffb61d4bbcc890dd5d6e443ddb272726fa58a6668b"
+  },
+  "baseline_frozen_source_inventory": {
+    "artifact": "out/throughput_cpu_round8/baseline-frozen-source.json",
+    "sha256": "12db6c6b85880d0171c0d44a6e7a32c59c8fcd4efcc210aba36f00c28ff01ccd"
+  },
+  "baseline_provenance": {
+    "capture_engine": "capture-v48;calibration=1;co_visibility=1;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=9;surface_flow=1;indoor=29;multiview=5;ovoxel=3;glass=2;hair=5;wardrobe=4;footwear=1;bounds=4;morphology=2;position=3;tabletop=2;finishes=8;seating=3;activity=2;playback=2;exterior=2;envelope=3",
+    "crate_version": "0.30.0",
+    "features": {
+      "human_motion": false,
+      "multi_threaded": true,
+      "web": false
+    },
+    "generator_version": 29,
+    "locked_package_versions": {
+      "bevy": [
+        "0.19.1"
+      ],
+      "bevy_burn_human": [
+        "0.6.1"
+      ],
+      "bevy_zeroverse": [
+        "0.30.0"
+      ],
+      "bevy_zeroverse_burn": [
+        "0.13.0"
+      ],
+      "bevy_zeroverse_capture": [
+        "0.1.1"
+      ],
+      "bevy_zeroverse_ffi": [
+        "0.30.0"
+      ],
+      "bevy_zeroverse_publication": [
+        "0.1.2"
+      ],
+      "burn": [
+        "0.21.0"
+      ],
+      "burn_ardy": [
+        "0.1.4"
+      ],
+      "burn_human": [
+        "0.5.1"
+      ],
+      "burn_human_inference": [
+        "0.1.4"
+      ],
+      "burn_human_motion": [
+        "0.1.1"
+      ],
+      "burn_llama": [
+        "0.1.2"
+      ],
+      "burn_siglip2": [
+        "0.1.1"
+      ],
+      "wgpu": [
+        "29.0.4"
+      ]
+    },
+    "schema_version": 1,
+    "source_sha256": "d24f8324c8244944c1692b48130710398058075de7085cc6fa3b2efaaf82bad8",
+    "target": "x86_64-unknown-linux-gnu"
+  },
+  "binary_sha256": {
+    "baseline": "c496a69c709bbb0ab7de2522d8a396361a7d84a693a60d0b56924b1251b47b5b",
+    "final": "d3b57e2b331806abf5fd57b4aabe65aa2495eb70d30f0b435701d6389a4b7afc"
+  },
+  "build_profile": {
+    "debug": 0,
+    "incremental": true,
+    "opt_level": 3,
+    "release_lto_profile_tested": false,
+    "target": "x86_64-unknown-linux-gnu",
+    "timed_profile": "optimized dev",
+    "toolchain": "local nightly",
+    "wrapper_artifact": {
+      "artifact": "out/substrate_quality/cargo.sh",
+      "sha256": "1d5054c5f1e5e6588f2a6f262ceb0c4805d851e8c4073b3daf56103ca017652f"
+    }
+  },
+  "cpu_kernel_diagnostics": [
+    {
+      "artifact": {
+        "artifact": "out/throughput_cpu_round8/glaze-kernel-qualified.log",
+        "sha256": "61409a98ff293802dc27aee85a697307437c3a79b3e94153c5d3c014a4f56924"
+      },
+      "records": [
+        {
+          "atlas_size": 256,
+          "kernel_speedup": 1.5380580053952435,
+          "prepared_median_seconds": 0.016240972,
+          "prepared_seconds": [
+            0.016068661,
+            0.016117791,
+            0.016164212,
+            0.016190437,
+            0.016291507,
+            0.016429303,
+            0.016922278,
+            0.018289584
+          ],
+          "program": "copied original glaze vs prepared; includes field setup/evaluation/drop; excludes maps/mips/workers/GPU",
+          "reference_median_seconds": 0.024979557,
+          "reference_seconds": [
+            0.024441385,
+            0.024775526,
+            0.024787229,
+            0.024898288,
+            0.025060826,
+            0.025253827,
+            0.026580267,
+            0.031621259
+          ],
+          "scope": "counterbalanced CPU kernel diagnostic; timing boundary is documented by the calling fixture; no GPU/end-to-end capture claim",
+          "seeds": 8
+        },
+        {
+          "atlas_size": 512,
+          "kernel_speedup": 1.5545009355793342,
+          "prepared_median_seconds": 0.06376557050000001,
+          "prepared_seconds": [
+            0.062384636,
+            0.062653172,
+            0.062916297,
+            0.063642445,
+            0.063888696,
+            0.064114374,
+            0.065071308,
+            0.070471778
+          ],
+          "program": "copied original glaze vs prepared; includes field setup/evaluation/drop; excludes maps/mips/workers/GPU",
+          "reference_median_seconds": 0.099123639,
+          "reference_seconds": [
+            0.097228266,
+            0.097509502,
+            0.09846235,
+            0.098828056,
+            0.099419222,
+            0.10024113,
+            0.100544285,
+            0.11885068
+          ],
+          "scope": "counterbalanced CPU kernel diagnostic; timing boundary is documented by the calling fixture; no GPU/end-to-end capture claim",
+          "seeds": 8
+        }
+      ],
+      "scope": "Fresh allocation-inclusive counterbalanced copied-original glaze CPU evaluation; field setup/drop included, maps/mips/workers/GPU/capture excluded."
+    },
+    {
+      "artifact": {
+        "artifact": "out/throughput_cpu_round8/ground-truth-kernel-qualified.log",
+        "sha256": "06c8c70e185c08d42ba26d913a4e04aa19b07477f10f2204b370e161efd02b42"
+      },
+      "mode_speedup_ranges": {
+        "changing_transforms": {
+          "maximum": 0.9907449236916307,
+          "minimum": 0.9694522056783744
+        },
+        "fresh_rebuild": {
+          "maximum": 1.1022321820241527,
+          "minimum": 1.0773751957553515
+        },
+        "reused_rebuild": {
+          "maximum": 1.124282636153473,
+          "minimum": 1.0862520503894297
+        },
+        "unchanged_transforms": {
+          "maximum": 1.1152247098222914,
+          "minimum": 1.0670776981657897
+        }
+      },
+      "moving_transform_results": [
+        {
+          "candidate_median_slowdown_percent": 2.715929786274396,
+          "candidate_median_slower": true,
+          "median_extra_seconds_per_extraction": 7.555104166666666e-07,
+          "seed": 200,
+          "speedup": 0.9735588258615236
+        },
+        {
+          "candidate_median_slowdown_percent": 3.1510366516985577,
+          "candidate_median_slower": true,
+          "median_extra_seconds_per_extraction": 1.029484375e-06,
+          "seed": 207,
+          "speedup": 0.9694522056783744
+        },
+        {
+          "candidate_median_slowdown_percent": 0.9341532908272443,
+          "candidate_median_slower": true,
+          "median_extra_seconds_per_extraction": 1.9355729166666553e-07,
+          "seed": 239,
+          "speedup": 0.9907449236916307
+        }
+      ],
+      "records": [
+        {
+          "candidate_median_seconds": 0.0194736135,
+          "candidate_seconds": [
+            0.021227626,
+            0.023013292,
+            0.018858942,
+            0.0185848,
+            0.01803126,
+            0.018005289,
+            0.020088285,
+            0.02035031
+          ],
+          "indices": 422856,
+          "instances": 234,
+          "mode": "fresh_rebuild",
+          "original_median_seconds": 0.0214644435,
+          "original_seconds": [
+            0.050246384,
+            0.022222503,
+            0.021587316,
+            0.020468909,
+            0.019944515,
+            0.019733387,
+            0.024494818,
+            0.021341571
+          ],
+          "repetitions_per_pair": 12,
+          "scope": "CPU full extraction including batch/index/instance allocation, setup and teardown where fresh; room synthesis and GPU/capture excluded; copied original oracle checked after each counterbalanced pair",
+          "seed": 200,
+          "speedup": 1.1022321820241527,
+          "vertices": 171789
+        },
+        {
+          "candidate_median_seconds": 0.0187441635,
+          "candidate_seconds": [
+            0.017418151,
+            0.017399447,
+            0.017432387,
+            0.020064252,
+            0.019208295,
+            0.01910599,
+            0.018382337,
+            0.020405907
+          ],
+          "indices": 422856,
+          "instances": 234,
+          "mode": "reused_rebuild",
+          "original_median_seconds": 0.020697654500000003,
+          "original_seconds": [
+            0.018557598,
+            0.018649206,
+            0.018576557,
+            0.021535972,
+            0.021753426,
+            0.021389397,
+            0.023607728,
+            0.020005912
+          ],
+          "repetitions_per_pair": 12,
+          "scope": "CPU full extraction including batch/index/instance allocation, setup and teardown where fresh; room synthesis and GPU/capture excluded; copied original oracle checked after each counterbalanced pair",
+          "seed": 200,
+          "speedup": 1.1042186278411412,
+          "vertices": 171789
+        },
+        {
+          "candidate_median_seconds": 0.00273915,
+          "candidate_seconds": [
+            0.002727033,
+            0.002721333,
+            0.002745957,
+            0.002800375,
+            0.002765937,
+            0.002738768,
+            0.002739532,
+            0.002723732
+          ],
+          "indices": 422856,
+          "instances": 234,
+          "mode": "unchanged_transforms",
+          "original_median_seconds": 0.0029337805,
+          "original_seconds": [
+            0.003212839,
+            0.002851794,
+            0.003164536,
+            0.002892675,
+            0.002922118,
+            0.002945443,
+            0.00292076,
+            0.002946745
+          ],
+          "repetitions_per_pair": 192,
+          "scope": "CPU full extraction including batch/index/instance allocation, setup and teardown where fresh; room synthesis and GPU/capture excluded; copied original oracle checked after each counterbalanced pair",
+          "seed": 200,
+          "speedup": 1.071055071828852,
+          "vertices": 171789
+        },
+        {
+          "candidate_median_seconds": 0.0027430325,
+          "candidate_seconds": [
+            0.002696285,
+            0.002817513,
+            0.002723048,
+            0.002763017,
+            0.002788988,
+            0.003429134,
+            0.002183922,
+            0.002223615
+          ],
+          "indices": 422856,
+          "instances": 234,
+          "mode": "changing_transforms",
+          "original_median_seconds": 0.0026705035,
+          "original_seconds": [
+            0.002661603,
+            0.002743702,
+            0.002785523,
+            0.00308806,
+            0.002679404,
+            0.002524812,
+            0.002262852,
+            0.002130214
+          ],
+          "repetitions_per_pair": 96,
+          "scope": "CPU full extraction including batch/index/instance allocation, setup and teardown where fresh; room synthesis and GPU/capture excluded; copied original oracle checked after each counterbalanced pair",
+          "seed": 200,
+          "speedup": 0.9735588258615236,
+          "vertices": 171789
+        },
+        {
+          "candidate_median_seconds": 0.03428926,
+          "candidate_seconds": [
+            0.036541864,
+            0.033820244,
+            0.035196147,
+            0.033682029,
+            0.035366835,
+            0.034247416,
+            0.034331104,
+            0.033468263
+          ],
+          "indices": 596880,
+          "instances": 295,
+          "mode": "fresh_rebuild",
+          "original_median_seconds": 0.0371250955,
+          "original_seconds": [
+            0.040434786,
+            0.036885928,
+            0.03660347,
+            0.03754498,
+            0.037457416,
+            0.037364263,
+            0.036424908,
+            0.036658101
+          ],
+          "repetitions_per_pair": 12,
+          "scope": "CPU full extraction including batch/index/instance allocation, setup and teardown where fresh; room synthesis and GPU/capture excluded; copied original oracle checked after each counterbalanced pair",
+          "seed": 207,
+          "speedup": 1.0827033158487525,
+          "vertices": 251054
+        },
+        {
+          "candidate_median_seconds": 0.024990108,
+          "candidate_seconds": [
+            0.026357429,
+            0.026382485,
+            0.025408452,
+            0.025028944,
+            0.02492603,
+            0.024949334,
+            0.024951272,
+            0.02488878
+          ],
+          "indices": 596880,
+          "instances": 295,
+          "mode": "reused_rebuild",
+          "original_median_seconds": 0.028095944499999997,
+          "original_seconds": [
+            0.029249737,
+            0.029501101,
+            0.030475802,
+            0.027097806,
+            0.026618181,
+            0.028681929,
+            0.02750996,
+            0.026788625
+          ],
+          "repetitions_per_pair": 12,
+          "scope": "CPU full extraction including batch/index/instance allocation, setup and teardown where fresh; room synthesis and GPU/capture excluded; copied original oracle checked after each counterbalanced pair",
+          "seed": 207,
+          "speedup": 1.124282636153473,
+          "vertices": 251054
+        },
+        {
+          "candidate_median_seconds": 0.00284567,
+          "candidate_seconds": [
+            0.003010899,
+            0.003076428,
+            0.002800542,
+            0.002790281,
+            0.002864245,
+            0.002880209,
+            0.002827095,
+            0.002826136
+          ],
+          "indices": 596880,
+          "instances": 295,
+          "mode": "unchanged_transforms",
+          "original_median_seconds": 0.0031735615,
+          "original_seconds": [
+            0.003398095,
+            0.003597268,
+            0.002946238,
+            0.003554558,
+            0.003128853,
+            0.0030002,
+            0.003010896,
+            0.00321827
+          ],
+          "repetitions_per_pair": 192,
+          "scope": "CPU full extraction including batch/index/instance allocation, setup and teardown where fresh; room synthesis and GPU/capture excluded; copied original oracle checked after each counterbalanced pair",
+          "seed": 207,
+          "speedup": 1.1152247098222914,
+          "vertices": 251054
+        },
+        {
+          "candidate_median_seconds": 0.0032352745,
+          "candidate_seconds": [
+            0.003010651,
+            0.003057259,
+            0.003285732,
+            0.003286533,
+            0.003233497,
+            0.003235847,
+            0.003241698,
+            0.003234702
+          ],
+          "indices": 596880,
+          "instances": 295,
+          "mode": "changing_transforms",
+          "original_median_seconds": 0.003136444,
+          "original_seconds": [
+            0.003024429,
+            0.002941806,
+            0.002987235,
+            0.003188355,
+            0.003277124,
+            0.003129192,
+            0.003193743,
+            0.003143696
+          ],
+          "repetitions_per_pair": 96,
+          "scope": "CPU full extraction including batch/index/instance allocation, setup and teardown where fresh; room synthesis and GPU/capture excluded; copied original oracle checked after each counterbalanced pair",
+          "seed": 207,
+          "speedup": 0.9694522056783744,
+          "vertices": 251054
+        },
+        {
+          "candidate_median_seconds": 0.009597119500000001,
+          "candidate_seconds": [
+            0.009681664,
+            0.009551136,
+            0.009589111,
+            0.00964684,
+            0.009623041,
+            0.009562887,
+            0.009566963,
+            0.009605128
+          ],
+          "indices": 222804,
+          "instances": 153,
+          "mode": "fresh_rebuild",
+          "original_median_seconds": 0.010339698500000001,
+          "original_seconds": [
+            0.010526219,
+            0.0104146,
+            0.010261537,
+            0.010341875,
+            0.010463318,
+            0.010337522,
+            0.010283197,
+            0.010284819
+          ],
+          "repetitions_per_pair": 12,
+          "scope": "CPU full extraction including batch/index/instance allocation, setup and teardown where fresh; room synthesis and GPU/capture excluded; copied original oracle checked after each counterbalanced pair",
+          "seed": 239,
+          "speedup": 1.0773751957553515,
+          "vertices": 86813
+        },
+        {
+          "candidate_median_seconds": 0.009182402,
+          "candidate_seconds": [
+            0.009057427,
+            0.009068999,
+            0.009496249,
+            0.009635073,
+            0.009199668,
+            0.009165136,
+            0.009150369,
+            0.009208972
+          ],
+          "indices": 222804,
+          "instances": 153,
+          "mode": "reused_rebuild",
+          "original_median_seconds": 0.009974403,
+          "original_seconds": [
+            0.009824088,
+            0.010610823,
+            0.01132234,
+            0.010254702,
+            0.01000212,
+            0.009946686,
+            0.009877984,
+            0.009917737
+          ],
+          "repetitions_per_pair": 12,
+          "scope": "CPU full extraction including batch/index/instance allocation, setup and teardown where fresh; room synthesis and GPU/capture excluded; copied original oracle checked after each counterbalanced pair",
+          "seed": 239,
+          "speedup": 1.0862520503894297,
+          "vertices": 86813
+        },
+        {
+          "candidate_median_seconds": 0.0019602715,
+          "candidate_seconds": [
+            0.002004753,
+            0.002337935,
+            0.001960471,
+            0.001966515,
+            0.001960072,
+            0.001956926,
+            0.001928689,
+            0.001950956
+          ],
+          "indices": 222804,
+          "instances": 153,
+          "mode": "unchanged_transforms",
+          "original_median_seconds": 0.002091762,
+          "original_seconds": [
+            0.002064804,
+            0.00205556,
+            0.002095076,
+            0.002066914,
+            0.002096331,
+            0.002133627,
+            0.002110164,
+            0.002088448
+          ],
+          "repetitions_per_pair": 192,
+          "scope": "CPU full extraction including batch/index/instance allocation, setup and teardown where fresh; room synthesis and GPU/capture excluded; copied original oracle checked after each counterbalanced pair",
+          "seed": 239,
+          "speedup": 1.0670776981657897,
+          "vertices": 86813
+        },
+        {
+          "candidate_median_seconds": 0.002007709,
+          "candidate_seconds": [
+            0.00187255,
+            0.002134794,
+            0.002038678,
+            0.002004614,
+            0.002010804,
+            0.001989624,
+            0.002083312,
+            0.001981547
+          ],
+          "indices": 222804,
+          "instances": 153,
+          "mode": "changing_transforms",
+          "original_median_seconds": 0.0019891275,
+          "original_seconds": [
+            0.001821585,
+            0.002004518,
+            0.001950305,
+            0.001970648,
+            0.002066516,
+            0.002011052,
+            0.002058355,
+            0.001973737
+          ],
+          "repetitions_per_pair": 96,
+          "scope": "CPU full extraction including batch/index/instance allocation, setup and teardown where fresh; room synthesis and GPU/capture excluded; copied original oracle checked after each counterbalanced pair",
+          "seed": 239,
+          "speedup": 0.9907449236916307,
+          "vertices": 86813
+        }
+      ],
+      "scope": "Fresh full CPU extraction on three representative room geometries with eight counterbalanced pairs per mode; includes index/batch/instance allocations and fresh-reset teardown, excludes room synthesis/GPU/capture. All moving-transform results, including median regressions, are retained; this is not a universal extraction or capture speedup claim."
+    }
+  ],
+  "current_provenance": {
+    "capture_engine": "capture-v48;calibration=1;co_visibility=1;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=9;surface_flow=1;indoor=29;multiview=5;ovoxel=3;glass=2;hair=5;wardrobe=4;footwear=1;bounds=4;morphology=2;position=3;tabletop=2;finishes=8;seating=3;activity=2;playback=2;exterior=2;envelope=3",
+    "crate_version": "0.30.0",
+    "features": {
+      "human_motion": false,
+      "multi_threaded": true,
+      "web": false
+    },
+    "generator_version": 29,
+    "locked_package_versions": {
+      "bevy": [
+        "0.19.1"
+      ],
+      "bevy_burn_human": [
+        "0.6.1"
+      ],
+      "bevy_zeroverse": [
+        "0.30.0"
+      ],
+      "bevy_zeroverse_burn": [
+        "0.13.0"
+      ],
+      "bevy_zeroverse_capture": [
+        "0.1.1"
+      ],
+      "bevy_zeroverse_ffi": [
+        "0.30.0"
+      ],
+      "bevy_zeroverse_publication": [
+        "0.1.2"
+      ],
+      "burn": [
+        "0.21.0"
+      ],
+      "burn_ardy": [
+        "0.1.4"
+      ],
+      "burn_human": [
+        "0.5.1"
+      ],
+      "burn_human_inference": [
+        "0.1.4"
+      ],
+      "burn_human_motion": [
+        "0.1.1"
+      ],
+      "burn_llama": [
+        "0.1.2"
+      ],
+      "burn_siglip2": [
+        "0.1.1"
+      ],
+      "wgpu": [
+        "29.0.4"
+      ]
+    },
+    "schema_version": 1,
+    "source_sha256": "01dbb8f2f7ff7a6c58a36bcc8f51532c32ab4eae47557f7cdef62de1fef9c46c",
+    "target": "x86_64-unknown-linux-gnu"
+  },
+  "full_quality_policy": {
+    "diffuse_bounces": 3,
+    "gi_enabled": true,
+    "gpu_gi": true,
+    "indoor_quality": "Auto",
+    "rays_per_probe": 256,
+    "reduced_effects_profile_used": false,
+    "same_scene_camera_quality_and_gi_configuration": true,
+    "shadows_enabled_by_auto_policy": true
+  },
+  "hardware": {
+    "cpu_measurement": "GNU time user+system over full process lifetimes, including startup, warmup, prefetched work and teardown.",
+    "device_measurement": "100ms whole-device NVML sampling restricted to each steady window; includes desktop/other processes.",
+    "gpu": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+    "logical_cpu_cores": 24,
+    "perf_hardware_counters": "Unavailable, perf_event_paranoid=4",
+    "vulkan_driver": "610.43.02"
+  },
+  "historical_rejection_sources": {
+    "rejected_early_camera_activation": {
+      "inherited_record_unchanged": true,
+      "predecessor_artifact": {
+        "artifact": "out/throughput_cpu_round8/before-evidence/rejected-early-activation.json",
+        "sha256": "eaad56605136b69e3a248e7dbbb84a06e091431cf7803a6eebdea4c73cf4352d"
+      },
+      "predecessor_field": "rejected_early_camera_activation",
+      "predecessor_receipt": {
+        "artifact": "out/throughput_cpu_round8/before-evidence/receipt.json",
+        "sha256": "f0079778c4bf0879d047c6fc5b223804b970da8f8effddb4cc0a1626c7eec2a7"
+      },
+      "revalidated_against_current_sources": false
+    },
+    "rejected_fixed_origin_reflection": {
+      "inherited_record_unchanged": true,
+      "predecessor_artifact": {
+        "artifact": "out/throughput_cpu_round8/before-evidence/rejected-reflection-origin.json",
+        "sha256": "d12201b5c9672eb1e5bb6dc66fa9d7b90d33fe2b97e9a8cdf931d6de48e447d9"
+      },
+      "predecessor_field": "rejected_fixed_origin_reflection",
+      "predecessor_receipt": {
+        "artifact": "out/throughput_cpu_round8/before-evidence/receipt.json",
+        "sha256": "f0079778c4bf0879d047c6fc5b223804b970da8f8effddb4cc0a1626c7eec2a7"
+      },
+      "revalidated_against_current_sources": false
+    },
+    "rejected_producer_overlap_experiment": {
+      "inherited_record_unchanged": true,
+      "predecessor_artifact": {
+        "artifact": "out/throughput_cpu_round8/before-evidence/rejected-producer-overlap.json",
+        "sha256": "b55ed8425436bb26b816cc0ab687717a8aa624f348c5bbf2c7677c6850e11dde"
+      },
+      "predecessor_field": "rejected_producer_overlap_experiment",
+      "predecessor_receipt": {
+        "artifact": "out/throughput_cpu_round8/before-evidence/receipt.json",
+        "sha256": "f0079778c4bf0879d047c6fc5b223804b970da8f8effddb4cc0a1626c7eec2a7"
+      },
+      "revalidated_against_current_sources": false
+    },
+    "rejected_ready_consumption_shortcut": {
+      "inherited_record_unchanged": true,
+      "predecessor_field": "rejected_ready_consumption_shortcut",
+      "predecessor_receipt": {
+        "artifact": "out/throughput_cpu_round8/before-evidence/receipt.json",
+        "sha256": "f0079778c4bf0879d047c6fc5b223804b970da8f8effddb4cc0a1626c7eec2a7"
+      },
+      "revalidated_against_current_sources": false
+    }
+  },
+  "limitations": [
+    "2x throughput target not reached",
+    "GPU material/geometry baking remains unimplemented",
+    "Hardware NVML is whole-device activity, not occupancy or per-process utilization",
+    "ABBA two repeats/workload are bounded diagnostics, not statistical production assurance",
+    "No active ARDY throughput, downstream JIT training, browser runtime or unlimited-process memory qualification",
+    "Stage elapsed timings are overlapping and may execute other queued room jobs; not additive exclusive CPU accounting",
+    "Exact local replay does not resolve the older 17 raw RGB channel ancestor exception or establish photographic realism"
+  ],
+  "matched_capture_metrics": {
+    "missing": [],
+    "quality_policy": "full Auto GI/shadows/detail, identical scene/camera settings; exact raw-plane replay qualified separately",
+    "schema_version": 1,
+    "scope": "fresh matched accepted-source ABBA runs in this optimization round; no lossless export encoding or training",
+    "workloads": {
+      "pool": {
+        "baseline": {
+          "capture_or_common_seconds": 25.828376054763794,
+          "full_lifetime_cpu_seconds_per_room": 2.4965625,
+          "full_lifetime_views_per_second": 14.431708977172905,
+          "measured_views": 435,
+          "observed_steady_whole_device_busy_percent": 96.15748031496064,
+          "runs": [
+            {
+              "artifacts": [
+                {
+                  "path": "out/throughput_cpu_round8/baseline-pool-1.summary.json",
+                  "sha256": "a60d9c98def10373c642b3750be79d26ab25d15c2d54ab904fdf59988a109348"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/baseline-pool-1.samples.jsonl",
+                  "sha256": "ff0e037ae1432052402c651cf4d7099d1ec792437d81f25b54a0f35644e4f7a6"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/pool_baseline1/pool-summary.json",
+                  "sha256": "8fbff1220405cdc6b4b818cdf88efa041f648f89fbb0b80f603265d2c40e61f9"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/pool_baseline1/lane_0/scenes.jsonl",
+                  "sha256": "37e3f8baa5baa8979f3c4dfdf1578ba2ac4a3382f19c8da21223179655aca20b"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/pool_baseline1/lane_0/summary.json",
+                  "sha256": "a9ad48fa44161a98e400823024a554b1a6c52efd362ee607b24cde1f92a6a19c"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/pool_baseline1/lane_1/scenes.jsonl",
+                  "sha256": "5706902cba76daf633f7a637ebcf7581d92f4b87dd63076b61290cd2f424119b"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/pool_baseline1/lane_1/summary.json",
+                  "sha256": "e3471fa9c482bd48d480fcf5fdc4f1e27d0cc92e75b913f17d8dbebe8d27e791"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/pool_baseline1/lane_2/scenes.jsonl",
+                  "sha256": "319bb4e0eb86774cd210b84e59b47b3763bd595d1e5f32df8488163ad5c4ef4c"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/pool_baseline1/lane_2/summary.json",
+                  "sha256": "c1e53a9840cb54b42fbc34574c214303f50ec2f09b94318c8ef7a3429c51252c"
+                }
+              ],
+              "binary_sha256": "c496a69c709bbb0ab7de2522d8a396361a7d84a693a60d0b56924b1251b47b5b",
+              "build_provenance": {
+                "capture_engine": "capture-v48;calibration=1;co_visibility=1;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=9;surface_flow=1;indoor=29;multiview=5;ovoxel=3;glass=2;hair=5;wardrobe=4;footwear=1;bounds=4;morphology=2;position=3;tabletop=2;finishes=8;seating=3;activity=2;playback=2;exterior=2;envelope=3",
+                "crate_version": "0.30.0",
+                "features": {
+                  "human_motion": false,
+                  "multi_threaded": true,
+                  "web": false
+                },
+                "generator_version": 29,
+                "locked_package_versions": {
+                  "bevy": [
+                    "0.19.1"
+                  ],
+                  "bevy_burn_human": [
+                    "0.6.1"
+                  ],
+                  "bevy_zeroverse": [
+                    "0.30.0"
+                  ],
+                  "bevy_zeroverse_burn": [
+                    "0.13.0"
+                  ],
+                  "bevy_zeroverse_capture": [
+                    "0.1.1"
+                  ],
+                  "bevy_zeroverse_ffi": [
+                    "0.30.0"
+                  ],
+                  "bevy_zeroverse_publication": [
+                    "0.1.2"
+                  ],
+                  "burn": [
+                    "0.21.0"
+                  ],
+                  "burn_ardy": [
+                    "0.1.4"
+                  ],
+                  "burn_human": [
+                    "0.5.1"
+                  ],
+                  "burn_human_inference": [
+                    "0.1.4"
+                  ],
+                  "burn_human_motion": [
+                    "0.1.1"
+                  ],
+                  "burn_llama": [
+                    "0.1.2"
+                  ],
+                  "burn_siglip2": [
+                    "0.1.1"
+                  ],
+                  "wgpu": [
+                    "29.0.4"
+                  ]
+                },
+                "schema_version": 1,
+                "source_sha256": "d24f8324c8244944c1692b48130710398058075de7085cc6fa3b2efaaf82bad8",
+                "target": "x86_64-unknown-linux-gnu"
+              },
+              "capture_or_common_seconds": 13.09911584854126,
+              "configuration": {
+                "config": {
+                  "animated": false,
+                  "camera_grid": false,
+                  "cuboid_only": false,
+                  "depth_format": "Linear",
+                  "draw_obb_gizmo": false,
+                  "draw_pose_gizmos": false,
+                  "editor": false,
+                  "gizmos": false,
+                  "gizmos_alpha": 1.0,
+                  "headless": true,
+                  "height": 512.0,
+                  "human_motion": null,
+                  "image_copiers": true,
+                  "indoor_appearance": null,
+                  "indoor_camera": null,
+                  "indoor_density": 0.6499999761581421,
+                  "indoor_gi_rays": 256,
+                  "indoor_human_density": 0.25,
+                  "indoor_layout": "Mixed",
+                  "indoor_quality": "Auto",
+                  "initialize_scene": false,
+                  "keybinds": false,
+                  "material_grid": false,
+                  "max_camera_radius": 0.0,
+                  "name": "bevy_zeroverse",
+                  "num_cameras": 3,
+                  "orbit_smoothness": 0.800000011920929,
+                  "ovoxel_max_output_voxels": 16000000,
+                  "ovoxel_mode": "Disabled",
+                  "ovoxel_resolution": 128,
+                  "pan_smoothness": 0.6000000238418579,
+                  "playback_mode": "Still",
+                  "playback_speed": 0.20000000298023224,
+                  "playback_step": 0.0,
+                  "playback_steps": 1,
+                  "plucker_visualization": false,
+                  "press_esc_close": false,
+                  "regenerate_ms": 0,
+                  "regenerate_scene_material_shuffle_period": 0,
+                  "regenerate_scene_mesh_shuffle_period": 0,
+                  "render_mode": "Color",
+                  "render_modes": [
+                    "Color",
+                    "Depth",
+                    "Position",
+                    "Normal",
+                    "Semantic",
+                    "CoVisibility"
+                  ],
+                  "rotation_augmentation": false,
+                  "scene_type": "ProceduralIndoor",
+                  "width": 512.0,
+                  "yaw_speed": 0.0,
+                  "z_depth": true,
+                  "zoom_smoothness": 0.800000011920929
+                },
+                "gi_enabled": true,
+                "gi_settings": {
+                  "bake": {
+                    "diffuse_bounces": 3,
+                    "rays_per_probe": 256,
+                    "spacing": 0.8500000238418579,
+                    "workers": 8
+                  },
+                  "enabled": true,
+                  "gpu": true
+                },
+                "prefetch_depth": 3,
+                "timing_policy": "actual complete RGB/annotation samples; no PNG or dataset file encoding; scene preparation included, validation and JSONL writes excluded; GPU memory/utilization measured separately"
+              },
+              "full_lifetime_cpu_seconds": 240.5,
+              "full_lifetime_cpu_seconds_per_room": 2.5052083333333335,
+              "full_lifetime_monitor_wall_seconds": 20.14191323099658,
+              "full_lifetime_peak_rss_kib": 3910220.0,
+              "full_lifetime_views_per_second": 14.298542382597205,
+              "gpu_identity": {
+                "device_index": 0,
+                "name": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+                "uuid": "GPU-343b002b-d5c6-2d9c-9fea-9ab5a52d0879"
+              },
+              "mean_elapsed_preparation_seconds": {
+                "asset_insertion_seconds": 0.0006960253472222222,
+                "cameras_seconds": 0.03160458815277778,
+                "environment_seconds": 0.077473344375,
+                "geometry_seconds": 0.058902057555555554,
+                "gi_setup_seconds": 0.3150772989583333,
+                "gpu_gi_setup_seconds": 0.02017733227777778,
+                "layout_seconds": 0.0007465381944444444,
+                "material_transport_mesh_seconds": 0.4266664183888889,
+                "material_transport_seconds": 0.3490996767916667,
+                "materials_seconds": 0.31843280966666665,
+                "meshes_seconds": 0.1587521375833333,
+                "transport_seconds": 0.21742600469444442
+              },
+              "measured_rooms": 72,
+              "measured_views": 216,
+              "repeat": 1,
+              "steady_begin": 1791258514.612676,
+              "steady_end": 1791258527.7117918,
+              "steady_nvml_busy_mean": 95.5891472868217,
+              "steady_nvml_busy_sum": 12331,
+              "steady_nvml_sample_count": 129,
+              "total_rooms": 96,
+              "version": "baseline",
+              "views_per_second": 16.489662546503407,
+              "workload": "pool"
+            },
+            {
+              "artifacts": [
+                {
+                  "path": "out/throughput_cpu_round8/baseline-pool-2.summary.json",
+                  "sha256": "b07904ee9f5d01c116c998ef48372f9c02270f9566c5172ed61db0b1d57ad0b9"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/baseline-pool-2.samples.jsonl",
+                  "sha256": "75f8d2a619636c20705a65391e8a14bc80ae75f805a8ab043cee4bb1804b70ad"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/pool_baseline2/pool-summary.json",
+                  "sha256": "4ec82bcd7601f39857dcc63fd320ee23cf5cd883e53ee5245c72fa6630b1e601"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/pool_baseline2/lane_0/scenes.jsonl",
+                  "sha256": "ee849816106aa106e372b5a202b23740803bb3332bf4e76d7130964f316bc39c"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/pool_baseline2/lane_0/summary.json",
+                  "sha256": "9e900953cb7f302069a0a6355835b4988c38ec135223be4189de628d817c274f"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/pool_baseline2/lane_1/scenes.jsonl",
+                  "sha256": "d4c8598c20c11884686d213a90fd6a90f82003b9caf708bda3c0ba4e3abc1fc1"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/pool_baseline2/lane_1/summary.json",
+                  "sha256": "d099486ed49c49d84d886f4e405103102578686538e576b68128180f117be6ae"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/pool_baseline2/lane_2/scenes.jsonl",
+                  "sha256": "e800ea67e0f1d794d6fcea495a11a391ffb8b7ada7faaec3367ac98ebbc98586"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/pool_baseline2/lane_2/summary.json",
+                  "sha256": "6c7d1566c49fc99a99661c2a999cd78202b3814a9b50cd4e42af489aadd94bb5"
+                }
+              ],
+              "binary_sha256": "c496a69c709bbb0ab7de2522d8a396361a7d84a693a60d0b56924b1251b47b5b",
+              "build_provenance": {
+                "capture_engine": "capture-v48;calibration=1;co_visibility=1;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=9;surface_flow=1;indoor=29;multiview=5;ovoxel=3;glass=2;hair=5;wardrobe=4;footwear=1;bounds=4;morphology=2;position=3;tabletop=2;finishes=8;seating=3;activity=2;playback=2;exterior=2;envelope=3",
+                "crate_version": "0.30.0",
+                "features": {
+                  "human_motion": false,
+                  "multi_threaded": true,
+                  "web": false
+                },
+                "generator_version": 29,
+                "locked_package_versions": {
+                  "bevy": [
+                    "0.19.1"
+                  ],
+                  "bevy_burn_human": [
+                    "0.6.1"
+                  ],
+                  "bevy_zeroverse": [
+                    "0.30.0"
+                  ],
+                  "bevy_zeroverse_burn": [
+                    "0.13.0"
+                  ],
+                  "bevy_zeroverse_capture": [
+                    "0.1.1"
+                  ],
+                  "bevy_zeroverse_ffi": [
+                    "0.30.0"
+                  ],
+                  "bevy_zeroverse_publication": [
+                    "0.1.2"
+                  ],
+                  "burn": [
+                    "0.21.0"
+                  ],
+                  "burn_ardy": [
+                    "0.1.4"
+                  ],
+                  "burn_human": [
+                    "0.5.1"
+                  ],
+                  "burn_human_inference": [
+                    "0.1.4"
+                  ],
+                  "burn_human_motion": [
+                    "0.1.1"
+                  ],
+                  "burn_llama": [
+                    "0.1.2"
+                  ],
+                  "burn_siglip2": [
+                    "0.1.1"
+                  ],
+                  "wgpu": [
+                    "29.0.4"
+                  ]
+                },
+                "schema_version": 1,
+                "source_sha256": "d24f8324c8244944c1692b48130710398058075de7085cc6fa3b2efaaf82bad8",
+                "target": "x86_64-unknown-linux-gnu"
+              },
+              "capture_or_common_seconds": 12.729260206222534,
+              "configuration": {
+                "config": {
+                  "animated": false,
+                  "camera_grid": false,
+                  "cuboid_only": false,
+                  "depth_format": "Linear",
+                  "draw_obb_gizmo": false,
+                  "draw_pose_gizmos": false,
+                  "editor": false,
+                  "gizmos": false,
+                  "gizmos_alpha": 1.0,
+                  "headless": true,
+                  "height": 512.0,
+                  "human_motion": null,
+                  "image_copiers": true,
+                  "indoor_appearance": null,
+                  "indoor_camera": null,
+                  "indoor_density": 0.6499999761581421,
+                  "indoor_gi_rays": 256,
+                  "indoor_human_density": 0.25,
+                  "indoor_layout": "Mixed",
+                  "indoor_quality": "Auto",
+                  "initialize_scene": false,
+                  "keybinds": false,
+                  "material_grid": false,
+                  "max_camera_radius": 0.0,
+                  "name": "bevy_zeroverse",
+                  "num_cameras": 3,
+                  "orbit_smoothness": 0.800000011920929,
+                  "ovoxel_max_output_voxels": 16000000,
+                  "ovoxel_mode": "Disabled",
+                  "ovoxel_resolution": 128,
+                  "pan_smoothness": 0.6000000238418579,
+                  "playback_mode": "Still",
+                  "playback_speed": 0.20000000298023224,
+                  "playback_step": 0.0,
+                  "playback_steps": 1,
+                  "plucker_visualization": false,
+                  "press_esc_close": false,
+                  "regenerate_ms": 0,
+                  "regenerate_scene_material_shuffle_period": 0,
+                  "regenerate_scene_mesh_shuffle_period": 0,
+                  "render_mode": "Color",
+                  "render_modes": [
+                    "Color",
+                    "Depth",
+                    "Position",
+                    "Normal",
+                    "Semantic",
+                    "CoVisibility"
+                  ],
+                  "rotation_augmentation": false,
+                  "scene_type": "ProceduralIndoor",
+                  "width": 512.0,
+                  "yaw_speed": 0.0,
+                  "z_depth": true,
+                  "zoom_smoothness": 0.800000011920929
+                },
+                "gi_enabled": true,
+                "gi_settings": {
+                  "bake": {
+                    "diffuse_bounces": 3,
+                    "rays_per_probe": 256,
+                    "spacing": 0.8500000238418579,
+                    "workers": 8
+                  },
+                  "enabled": true,
+                  "gpu": true
+                },
+                "prefetch_depth": 3,
+                "timing_policy": "actual complete RGB/annotation samples; no PNG or dataset file encoding; scene preparation included, validation and JSONL writes excluded; GPU memory/utilization measured separately"
+              },
+              "full_lifetime_cpu_seconds": 238.84,
+              "full_lifetime_cpu_seconds_per_room": 2.4879166666666666,
+              "full_lifetime_monitor_wall_seconds": 19.770199805032462,
+              "full_lifetime_peak_rss_kib": 3922784.0,
+              "full_lifetime_views_per_second": 14.567379330515932,
+              "gpu_identity": {
+                "device_index": 0,
+                "name": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+                "uuid": "GPU-343b002b-d5c6-2d9c-9fea-9ab5a52d0879"
+              },
+              "mean_elapsed_preparation_seconds": {
+                "asset_insertion_seconds": 0.0007051896301369864,
+                "cameras_seconds": 0.03187506912328767,
+                "environment_seconds": 0.07686078760273973,
+                "geometry_seconds": 0.0571814005479452,
+                "gi_setup_seconds": 0.314760648,
+                "gpu_gi_setup_seconds": 0.02094573795890411,
+                "layout_seconds": 0.0008650324794520547,
+                "material_transport_mesh_seconds": 0.4303073602191781,
+                "material_transport_seconds": 0.3545693575068493,
+                "materials_seconds": 0.32493733999999996,
+                "meshes_seconds": 0.14692847750684931,
+                "transport_seconds": 0.21695357942465754
+              },
+              "measured_rooms": 73,
+              "measured_views": 219,
+              "repeat": 2,
+              "steady_begin": 1791258575.0175426,
+              "steady_end": 1791258587.7468028,
+              "steady_nvml_busy_mean": 96.744,
+              "steady_nvml_busy_sum": 12093,
+              "steady_nvml_sample_count": 125,
+              "total_rooms": 96,
+              "version": "baseline",
+              "views_per_second": 17.204456225425,
+              "workload": "pool"
+            }
+          ],
+          "steady_views_per_second": 16.84194155597206,
+          "total_room_captures": 192
+        },
+        "comparison": {
+          "complete_abba": true,
+          "cpu_seconds_per_room_reduction_fraction": -0.011828764551257809,
+          "full_lifetime_throughput_gain_fraction": -0.000599068276806225,
+          "matched_configuration": true,
+          "matched_gpu_identity": true,
+          "throughput_gain_fraction": -0.0017440462591333805
+        },
+        "counter_replay": {
+          "fields": [
+            "seed",
+            "index",
+            "views",
+            "humans",
+            "annotation_precision",
+            "copied_bytes",
+            "ground_truth.geometry_bytes",
+            "ground_truth.mesh_instances",
+            "ground_truth.vertices",
+            "ground_truth.triangles",
+            "gi.backend",
+            "gi.diffuse_bounces",
+            "gi.primary_rays",
+            "gi.probes",
+            "gi.relocated_probes",
+            "gi.texture_bytes",
+            "gi.triangles"
+          ],
+          "pairs": [
+            {
+              "counter_sha256": "cc082329fdcf59c97140614fb2400fdb80cb3ce19e4ccffab565dd15f2c3655d",
+              "exact_counter_replay": true,
+              "repeat": 1,
+              "rooms": 96,
+              "transport_unexpected_increases": []
+            },
+            {
+              "counter_sha256": "cc082329fdcf59c97140614fb2400fdb80cb3ce19e4ccffab565dd15f2c3655d",
+              "exact_counter_replay": true,
+              "repeat": 2,
+              "rooms": 96,
+              "transport_unexpected_increases": []
+            }
+          ]
+        },
+        "final": {
+          "capture_or_common_seconds": 26.587252378463745,
+          "full_lifetime_cpu_seconds_per_room": 2.52609375,
+          "full_lifetime_views_per_second": 14.423063398144581,
+          "measured_views": 447,
+          "observed_steady_whole_device_busy_percent": 96.46564885496183,
+          "runs": [
+            {
+              "artifacts": [
+                {
+                  "path": "out/throughput_cpu_round8/final-pool-1.summary.json",
+                  "sha256": "26f6310874ddba262e966889d920fb8e2dc590e3978b240d25eb56af164697e3"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/final-pool-1.samples.jsonl",
+                  "sha256": "6213db9e50254e10ddd35cbd750d49cb8986d89f7f86305a3434bbc313d0f8f4"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/pool_final1/pool-summary.json",
+                  "sha256": "f42d3196c283ff6180e56987d7bda61544ca05ea9628915a2a877c73670d7ed1"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/pool_final1/lane_0/scenes.jsonl",
+                  "sha256": "6fe3dc32b262d16b0bd6c2c87121770f879812fd51291aeb6de1844e131631d2"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/pool_final1/lane_0/summary.json",
+                  "sha256": "2826bac18bf95043894c7b7c7753ebda04ea74aeed9b144fa9a2fbd0cc15bce9"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/pool_final1/lane_1/scenes.jsonl",
+                  "sha256": "9ddf95f635e31b59095f21e18560efe37c02433167e3bbd080d9179aed8d3205"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/pool_final1/lane_1/summary.json",
+                  "sha256": "c9570e06d5f18d57cd5a61db219f33ab87b0909e9473c57608f9038b4fc3efa6"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/pool_final1/lane_2/scenes.jsonl",
+                  "sha256": "78102974e7f38472069567e4a4a153304599c0de2a1e1f2f527186b66bb8d2a5"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/pool_final1/lane_2/summary.json",
+                  "sha256": "ce19dc65a8296dc8e23b97070b203fe62f5c501af99f7d244bb3b8026c8abcf0"
+                }
+              ],
+              "binary_sha256": "d3b57e2b331806abf5fd57b4aabe65aa2495eb70d30f0b435701d6389a4b7afc",
+              "build_provenance": {
+                "capture_engine": "capture-v48;calibration=1;co_visibility=1;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=9;surface_flow=1;indoor=29;multiview=5;ovoxel=3;glass=2;hair=5;wardrobe=4;footwear=1;bounds=4;morphology=2;position=3;tabletop=2;finishes=8;seating=3;activity=2;playback=2;exterior=2;envelope=3",
+                "crate_version": "0.30.0",
+                "features": {
+                  "human_motion": false,
+                  "multi_threaded": true,
+                  "web": false
+                },
+                "generator_version": 29,
+                "locked_package_versions": {
+                  "bevy": [
+                    "0.19.1"
+                  ],
+                  "bevy_burn_human": [
+                    "0.6.1"
+                  ],
+                  "bevy_zeroverse": [
+                    "0.30.0"
+                  ],
+                  "bevy_zeroverse_burn": [
+                    "0.13.0"
+                  ],
+                  "bevy_zeroverse_capture": [
+                    "0.1.1"
+                  ],
+                  "bevy_zeroverse_ffi": [
+                    "0.30.0"
+                  ],
+                  "bevy_zeroverse_publication": [
+                    "0.1.2"
+                  ],
+                  "burn": [
+                    "0.21.0"
+                  ],
+                  "burn_ardy": [
+                    "0.1.4"
+                  ],
+                  "burn_human": [
+                    "0.5.1"
+                  ],
+                  "burn_human_inference": [
+                    "0.1.4"
+                  ],
+                  "burn_human_motion": [
+                    "0.1.1"
+                  ],
+                  "burn_llama": [
+                    "0.1.2"
+                  ],
+                  "burn_siglip2": [
+                    "0.1.1"
+                  ],
+                  "wgpu": [
+                    "29.0.4"
+                  ]
+                },
+                "schema_version": 1,
+                "source_sha256": "01dbb8f2f7ff7a6c58a36bcc8f51532c32ab4eae47557f7cdef62de1fef9c46c",
+                "target": "x86_64-unknown-linux-gnu"
+              },
+              "capture_or_common_seconds": 14.004303693771362,
+              "configuration": {
+                "config": {
+                  "animated": false,
+                  "camera_grid": false,
+                  "cuboid_only": false,
+                  "depth_format": "Linear",
+                  "draw_obb_gizmo": false,
+                  "draw_pose_gizmos": false,
+                  "editor": false,
+                  "gizmos": false,
+                  "gizmos_alpha": 1.0,
+                  "headless": true,
+                  "height": 512.0,
+                  "human_motion": null,
+                  "image_copiers": true,
+                  "indoor_appearance": null,
+                  "indoor_camera": null,
+                  "indoor_density": 0.6499999761581421,
+                  "indoor_gi_rays": 256,
+                  "indoor_human_density": 0.25,
+                  "indoor_layout": "Mixed",
+                  "indoor_quality": "Auto",
+                  "initialize_scene": false,
+                  "keybinds": false,
+                  "material_grid": false,
+                  "max_camera_radius": 0.0,
+                  "name": "bevy_zeroverse",
+                  "num_cameras": 3,
+                  "orbit_smoothness": 0.800000011920929,
+                  "ovoxel_max_output_voxels": 16000000,
+                  "ovoxel_mode": "Disabled",
+                  "ovoxel_resolution": 128,
+                  "pan_smoothness": 0.6000000238418579,
+                  "playback_mode": "Still",
+                  "playback_speed": 0.20000000298023224,
+                  "playback_step": 0.0,
+                  "playback_steps": 1,
+                  "plucker_visualization": false,
+                  "press_esc_close": false,
+                  "regenerate_ms": 0,
+                  "regenerate_scene_material_shuffle_period": 0,
+                  "regenerate_scene_mesh_shuffle_period": 0,
+                  "render_mode": "Color",
+                  "render_modes": [
+                    "Color",
+                    "Depth",
+                    "Position",
+                    "Normal",
+                    "Semantic",
+                    "CoVisibility"
+                  ],
+                  "rotation_augmentation": false,
+                  "scene_type": "ProceduralIndoor",
+                  "width": 512.0,
+                  "yaw_speed": 0.0,
+                  "z_depth": true,
+                  "zoom_smoothness": 0.800000011920929
+                },
+                "gi_enabled": true,
+                "gi_settings": {
+                  "bake": {
+                    "diffuse_bounces": 3,
+                    "rays_per_probe": 256,
+                    "spacing": 0.8500000238418579,
+                    "workers": 8
+                  },
+                  "enabled": true,
+                  "gpu": true
+                },
+                "prefetch_depth": 3,
+                "timing_policy": "actual complete RGB/annotation samples; no PNG or dataset file encoding; scene preparation included, validation and JSONL writes excluded; GPU memory/utilization measured separately"
+              },
+              "full_lifetime_cpu_seconds": 244.81,
+              "full_lifetime_cpu_seconds_per_room": 2.550104166666667,
+              "full_lifetime_monitor_wall_seconds": 20.1969719810877,
+              "full_lifetime_peak_rss_kib": 3867736.0,
+              "full_lifetime_views_per_second": 14.259563278578648,
+              "gpu_identity": {
+                "device_index": 0,
+                "name": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+                "uuid": "GPU-343b002b-d5c6-2d9c-9fea-9ab5a52d0879"
+              },
+              "mean_elapsed_preparation_seconds": {
+                "asset_insertion_seconds": 0.0006703094805194806,
+                "cameras_seconds": 0.0318938377012987,
+                "environment_seconds": 0.07663116792207793,
+                "geometry_seconds": 0.0621735808961039,
+                "gi_setup_seconds": 0.31602155988311686,
+                "gpu_gi_setup_seconds": 0.019067444974025974,
+                "layout_seconds": 0.000775257909090909,
+                "material_transport_mesh_seconds": 0.44571015949350645,
+                "material_transport_seconds": 0.3578380927012987,
+                "materials_seconds": 0.32383288796103893,
+                "meshes_seconds": 0.1557314988051948,
+                "transport_seconds": 0.22032239015584415
+              },
+              "measured_rooms": 77,
+              "measured_views": 231,
+              "repeat": 1,
+              "steady_begin": 1791258534.5997663,
+              "steady_end": 1791258548.60407,
+              "steady_nvml_busy_mean": 95.81159420289855,
+              "steady_nvml_busy_sum": 13222,
+              "steady_nvml_sample_count": 138,
+              "total_rooms": 96,
+              "version": "final",
+              "views_per_second": 16.494929348236067,
+              "workload": "pool"
+            },
+            {
+              "artifacts": [
+                {
+                  "path": "out/throughput_cpu_round8/final-pool-2.summary.json",
+                  "sha256": "0203b09ac1aea78f3d20bebca9a2a3912498933e36a3b65c9b8bbc4dfe3e4ec6"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/final-pool-2.samples.jsonl",
+                  "sha256": "c306dd8cbd8657e6e09572fb316a6a87a2eabed39a457b4fccda1026cf8ce9bf"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/pool_final2/pool-summary.json",
+                  "sha256": "1c1b4270c8bd897ff997be156a181db15afef2d0ee02b12204a744be7a28afe1"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/pool_final2/lane_0/scenes.jsonl",
+                  "sha256": "54a3958234fb6d4daffe8260c14fc13436f1e5aedc9e63a6ac16e951ff3b14bb"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/pool_final2/lane_0/summary.json",
+                  "sha256": "d4349a23807ba97be653de669ca201707edc51e1442d00f4108012a5b5fdc6b6"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/pool_final2/lane_1/scenes.jsonl",
+                  "sha256": "8ba39b1f9c99cf230ae82bbf20759fd2f1e0efee9de5d6c79ef9feead4b4b80f"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/pool_final2/lane_1/summary.json",
+                  "sha256": "3738b308f0738f26ba6eb4d8ad75090e426e0056624d08e15ea5e72e9fe822f0"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/pool_final2/lane_2/scenes.jsonl",
+                  "sha256": "a28d9696299da57da2140b376acb353dad488d28c97db0f2768d08cc9f3bc711"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/pool_final2/lane_2/summary.json",
+                  "sha256": "d8780d0be7a11e78f5c4bfdeb8a8be51cfa05f52579603643ae95d02fa404523"
+                }
+              ],
+              "binary_sha256": "d3b57e2b331806abf5fd57b4aabe65aa2495eb70d30f0b435701d6389a4b7afc",
+              "build_provenance": {
+                "capture_engine": "capture-v48;calibration=1;co_visibility=1;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=9;surface_flow=1;indoor=29;multiview=5;ovoxel=3;glass=2;hair=5;wardrobe=4;footwear=1;bounds=4;morphology=2;position=3;tabletop=2;finishes=8;seating=3;activity=2;playback=2;exterior=2;envelope=3",
+                "crate_version": "0.30.0",
+                "features": {
+                  "human_motion": false,
+                  "multi_threaded": true,
+                  "web": false
+                },
+                "generator_version": 29,
+                "locked_package_versions": {
+                  "bevy": [
+                    "0.19.1"
+                  ],
+                  "bevy_burn_human": [
+                    "0.6.1"
+                  ],
+                  "bevy_zeroverse": [
+                    "0.30.0"
+                  ],
+                  "bevy_zeroverse_burn": [
+                    "0.13.0"
+                  ],
+                  "bevy_zeroverse_capture": [
+                    "0.1.1"
+                  ],
+                  "bevy_zeroverse_ffi": [
+                    "0.30.0"
+                  ],
+                  "bevy_zeroverse_publication": [
+                    "0.1.2"
+                  ],
+                  "burn": [
+                    "0.21.0"
+                  ],
+                  "burn_ardy": [
+                    "0.1.4"
+                  ],
+                  "burn_human": [
+                    "0.5.1"
+                  ],
+                  "burn_human_inference": [
+                    "0.1.4"
+                  ],
+                  "burn_human_motion": [
+                    "0.1.1"
+                  ],
+                  "burn_llama": [
+                    "0.1.2"
+                  ],
+                  "burn_siglip2": [
+                    "0.1.1"
+                  ],
+                  "wgpu": [
+                    "29.0.4"
+                  ]
+                },
+                "schema_version": 1,
+                "source_sha256": "01dbb8f2f7ff7a6c58a36bcc8f51532c32ab4eae47557f7cdef62de1fef9c46c",
+                "target": "x86_64-unknown-linux-gnu"
+              },
+              "capture_or_common_seconds": 12.582948684692383,
+              "configuration": {
+                "config": {
+                  "animated": false,
+                  "camera_grid": false,
+                  "cuboid_only": false,
+                  "depth_format": "Linear",
+                  "draw_obb_gizmo": false,
+                  "draw_pose_gizmos": false,
+                  "editor": false,
+                  "gizmos": false,
+                  "gizmos_alpha": 1.0,
+                  "headless": true,
+                  "height": 512.0,
+                  "human_motion": null,
+                  "image_copiers": true,
+                  "indoor_appearance": null,
+                  "indoor_camera": null,
+                  "indoor_density": 0.6499999761581421,
+                  "indoor_gi_rays": 256,
+                  "indoor_human_density": 0.25,
+                  "indoor_layout": "Mixed",
+                  "indoor_quality": "Auto",
+                  "initialize_scene": false,
+                  "keybinds": false,
+                  "material_grid": false,
+                  "max_camera_radius": 0.0,
+                  "name": "bevy_zeroverse",
+                  "num_cameras": 3,
+                  "orbit_smoothness": 0.800000011920929,
+                  "ovoxel_max_output_voxels": 16000000,
+                  "ovoxel_mode": "Disabled",
+                  "ovoxel_resolution": 128,
+                  "pan_smoothness": 0.6000000238418579,
+                  "playback_mode": "Still",
+                  "playback_speed": 0.20000000298023224,
+                  "playback_step": 0.0,
+                  "playback_steps": 1,
+                  "plucker_visualization": false,
+                  "press_esc_close": false,
+                  "regenerate_ms": 0,
+                  "regenerate_scene_material_shuffle_period": 0,
+                  "regenerate_scene_mesh_shuffle_period": 0,
+                  "render_mode": "Color",
+                  "render_modes": [
+                    "Color",
+                    "Depth",
+                    "Position",
+                    "Normal",
+                    "Semantic",
+                    "CoVisibility"
+                  ],
+                  "rotation_augmentation": false,
+                  "scene_type": "ProceduralIndoor",
+                  "width": 512.0,
+                  "yaw_speed": 0.0,
+                  "z_depth": true,
+                  "zoom_smoothness": 0.800000011920929
+                },
+                "gi_enabled": true,
+                "gi_settings": {
+                  "bake": {
+                    "diffuse_bounces": 3,
+                    "rays_per_probe": 256,
+                    "spacing": 0.8500000238418579,
+                    "workers": 8
+                  },
+                  "enabled": true,
+                  "gpu": true
+                },
+                "prefetch_depth": 3,
+                "timing_policy": "actual complete RGB/annotation samples; no PNG or dataset file encoding; scene preparation included, validation and JSONL writes excluded; GPU memory/utilization measured separately"
+              },
+              "full_lifetime_cpu_seconds": 240.2,
+              "full_lifetime_cpu_seconds_per_room": 2.502083333333333,
+              "full_lifetime_monitor_wall_seconds": 19.73906546807848,
+              "full_lifetime_peak_rss_kib": 3876744.0,
+              "full_lifetime_views_per_second": 14.590356390769683,
+              "gpu_identity": {
+                "device_index": 0,
+                "name": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+                "uuid": "GPU-343b002b-d5c6-2d9c-9fea-9ab5a52d0879"
+              },
+              "mean_elapsed_preparation_seconds": {
+                "asset_insertion_seconds": 0.0006856074444444444,
+                "cameras_seconds": 0.03383501336111111,
+                "environment_seconds": 0.07924932765277777,
+                "geometry_seconds": 0.064326232,
+                "gi_setup_seconds": 0.32454652918055554,
+                "gpu_gi_setup_seconds": 0.018982941500000003,
+                "layout_seconds": 0.0008203933611111111,
+                "material_transport_mesh_seconds": 0.4320324208611111,
+                "material_transport_seconds": 0.35402773709722224,
+                "materials_seconds": 0.32245766713888885,
+                "meshes_seconds": 0.15172061045833335,
+                "transport_seconds": 0.2263137100138889
+              },
+              "measured_rooms": 72,
+              "measured_views": 216,
+              "repeat": 2,
+              "steady_begin": 1791258555.2465117,
+              "steady_end": 1791258567.8294604,
+              "steady_nvml_busy_mean": 97.19354838709677,
+              "steady_nvml_busy_sum": 12052,
+              "steady_nvml_sample_count": 124,
+              "total_rooms": 96,
+              "version": "final",
+              "views_per_second": 17.16608764865837,
+              "workload": "pool"
+            }
+          ],
+          "steady_views_per_second": 16.812568430804824,
+          "total_room_captures": 192
+        }
+      },
+      "rgb": {
+        "baseline": {
+          "capture_or_common_seconds": 29.917185950999993,
+          "full_lifetime_cpu_seconds_per_room": 1.8601562499999997,
+          "full_lifetime_views_per_second": 10.187627136119282,
+          "measured_views": 336,
+          "observed_steady_whole_device_busy_percent": 48.427609427609426,
+          "runs": [
+            {
+              "artifacts": [
+                {
+                  "path": "out/throughput_cpu_round8/baseline-rgb-1.summary.json",
+                  "sha256": "a083b7ddbadd24d47a11fd3730fcca99adacbf1841f91a765774a42c13b56bc4"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/baseline-rgb-1.samples.jsonl",
+                  "sha256": "8f638108a2faefc179de06fb4b7100b9831f2bb8c31ce138d2c93fec3c39f353"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/rgb_baseline1/scenes.jsonl",
+                  "sha256": "67c81edfabbe84c443a965cc21fc2fd29bea4b35024e256477133cc630fdf975"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/rgb_baseline1/summary.json",
+                  "sha256": "55ef913fb18bb22e8ad6a87d351337742737cb96b45ddb4d5b60d3b9caad168d"
+                }
+              ],
+              "binary_sha256": "c496a69c709bbb0ab7de2522d8a396361a7d84a693a60d0b56924b1251b47b5b",
+              "build_provenance": {
+                "capture_engine": "capture-v48;calibration=1;co_visibility=1;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=9;surface_flow=1;indoor=29;multiview=5;ovoxel=3;glass=2;hair=5;wardrobe=4;footwear=1;bounds=4;morphology=2;position=3;tabletop=2;finishes=8;seating=3;activity=2;playback=2;exterior=2;envelope=3",
+                "crate_version": "0.30.0",
+                "features": {
+                  "human_motion": false,
+                  "multi_threaded": true,
+                  "web": false
+                },
+                "generator_version": 29,
+                "locked_package_versions": {
+                  "bevy": [
+                    "0.19.1"
+                  ],
+                  "bevy_burn_human": [
+                    "0.6.1"
+                  ],
+                  "bevy_zeroverse": [
+                    "0.30.0"
+                  ],
+                  "bevy_zeroverse_burn": [
+                    "0.13.0"
+                  ],
+                  "bevy_zeroverse_capture": [
+                    "0.1.1"
+                  ],
+                  "bevy_zeroverse_ffi": [
+                    "0.30.0"
+                  ],
+                  "bevy_zeroverse_publication": [
+                    "0.1.2"
+                  ],
+                  "burn": [
+                    "0.21.0"
+                  ],
+                  "burn_ardy": [
+                    "0.1.4"
+                  ],
+                  "burn_human": [
+                    "0.5.1"
+                  ],
+                  "burn_human_inference": [
+                    "0.1.4"
+                  ],
+                  "burn_human_motion": [
+                    "0.1.1"
+                  ],
+                  "burn_llama": [
+                    "0.1.2"
+                  ],
+                  "burn_siglip2": [
+                    "0.1.1"
+                  ],
+                  "wgpu": [
+                    "29.0.4"
+                  ]
+                },
+                "schema_version": 1,
+                "source_sha256": "d24f8324c8244944c1692b48130710398058075de7085cc6fa3b2efaaf82bad8",
+                "target": "x86_64-unknown-linux-gnu"
+              },
+              "capture_or_common_seconds": 15.291425603999997,
+              "configuration": {
+                "config": {
+                  "animated": false,
+                  "camera_grid": false,
+                  "cuboid_only": false,
+                  "depth_format": "Linear",
+                  "draw_obb_gizmo": false,
+                  "draw_pose_gizmos": false,
+                  "editor": false,
+                  "gizmos": false,
+                  "gizmos_alpha": 1.0,
+                  "headless": true,
+                  "height": 512.0,
+                  "human_motion": null,
+                  "image_copiers": true,
+                  "indoor_appearance": null,
+                  "indoor_camera": null,
+                  "indoor_density": 0.6499999761581421,
+                  "indoor_gi_rays": 256,
+                  "indoor_human_density": 0.25,
+                  "indoor_layout": "Mixed",
+                  "indoor_quality": "Auto",
+                  "initialize_scene": false,
+                  "keybinds": false,
+                  "material_grid": false,
+                  "max_camera_radius": 0.0,
+                  "name": "bevy_zeroverse",
+                  "num_cameras": 3,
+                  "orbit_smoothness": 0.800000011920929,
+                  "ovoxel_max_output_voxels": 16000000,
+                  "ovoxel_mode": "Disabled",
+                  "ovoxel_resolution": 128,
+                  "pan_smoothness": 0.6000000238418579,
+                  "playback_mode": "Still",
+                  "playback_speed": 0.20000000298023224,
+                  "playback_step": 0.0,
+                  "playback_steps": 1,
+                  "plucker_visualization": false,
+                  "press_esc_close": false,
+                  "regenerate_ms": 0,
+                  "regenerate_scene_material_shuffle_period": 0,
+                  "regenerate_scene_mesh_shuffle_period": 0,
+                  "render_mode": "Color",
+                  "render_modes": [
+                    "Color"
+                  ],
+                  "rotation_augmentation": false,
+                  "scene_type": "ProceduralIndoor",
+                  "width": 512.0,
+                  "yaw_speed": 0.0,
+                  "z_depth": true,
+                  "zoom_smoothness": 0.800000011920929
+                },
+                "gi_enabled": true,
+                "gi_settings": {
+                  "bake": {
+                    "diffuse_bounces": 3,
+                    "rays_per_probe": 256,
+                    "spacing": 0.8500000238418579,
+                    "workers": 8
+                  },
+                  "enabled": true,
+                  "gpu": true
+                },
+                "prefetch_depth": 3,
+                "timing_policy": "actual complete RGB/annotation samples; no PNG or dataset file encoding; scene preparation included, validation and JSONL writes excluded; GPU memory/utilization measured separately"
+              },
+              "full_lifetime_cpu_seconds": 120.72999999999999,
+              "full_lifetime_cpu_seconds_per_room": 1.8864062499999998,
+              "full_lifetime_monitor_wall_seconds": 19.249270961154252,
+              "full_lifetime_peak_rss_kib": 3753960.0,
+              "full_lifetime_views_per_second": 9.974403726118416,
+              "gpu_identity": {
+                "device_index": 0,
+                "name": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+                "uuid": "GPU-343b002b-d5c6-2d9c-9fea-9ab5a52d0879"
+              },
+              "mean_elapsed_preparation_seconds": {
+                "asset_insertion_seconds": 0.0007507008750000001,
+                "cameras_seconds": 0.028446321357142857,
+                "environment_seconds": 0.06260634560714286,
+                "geometry_seconds": 0.06395831092857143,
+                "gi_setup_seconds": 0.25060215923214285,
+                "gpu_gi_setup_seconds": 0.016090598142857144,
+                "layout_seconds": 0.0006688122857142857,
+                "material_transport_mesh_seconds": 0.4189320872142857,
+                "material_transport_seconds": 0.3523446414464286,
+                "materials_seconds": 0.33723578825,
+                "meshes_seconds": 0.14656022042857142,
+                "transport_seconds": 0.17190477614285715
+              },
+              "measured_rooms": 56,
+              "measured_views": 168,
+              "repeat": 1,
+              "steady_begin": 1791258360.261987,
+              "steady_end": 1791258375.6354465,
+              "steady_nvml_busy_mean": 42.36184210526316,
+              "steady_nvml_busy_sum": 6439,
+              "steady_nvml_sample_count": 152,
+              "total_rooms": 64,
+              "version": "baseline",
+              "views_per_second": 10.986549217232815,
+              "workload": "rgb"
+            },
+            {
+              "artifacts": [
+                {
+                  "path": "out/throughput_cpu_round8/baseline-rgb-2.summary.json",
+                  "sha256": "388a5ea4524fa5fb48ca51e5ea878ec544ac158d86a454a9ccc10f196aa2eaf1"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/baseline-rgb-2.samples.jsonl",
+                  "sha256": "599c2a25bc52ae7909d416e39a3c25b6b024ab86d8da0a3b957d303672eae513"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/rgb_baseline2/scenes.jsonl",
+                  "sha256": "1aa7e7c369b6326d7350d334386f9bf972a9466e7063b98f9c4bd67fc3089008"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/rgb_baseline2/summary.json",
+                  "sha256": "ca95d329578ac625ce7d842c73ad91f3dfd0ca352a37ed3c7a9d21ef85d2618e"
+                }
+              ],
+              "binary_sha256": "c496a69c709bbb0ab7de2522d8a396361a7d84a693a60d0b56924b1251b47b5b",
+              "build_provenance": {
+                "capture_engine": "capture-v48;calibration=1;co_visibility=1;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=9;surface_flow=1;indoor=29;multiview=5;ovoxel=3;glass=2;hair=5;wardrobe=4;footwear=1;bounds=4;morphology=2;position=3;tabletop=2;finishes=8;seating=3;activity=2;playback=2;exterior=2;envelope=3",
+                "crate_version": "0.30.0",
+                "features": {
+                  "human_motion": false,
+                  "multi_threaded": true,
+                  "web": false
+                },
+                "generator_version": 29,
+                "locked_package_versions": {
+                  "bevy": [
+                    "0.19.1"
+                  ],
+                  "bevy_burn_human": [
+                    "0.6.1"
+                  ],
+                  "bevy_zeroverse": [
+                    "0.30.0"
+                  ],
+                  "bevy_zeroverse_burn": [
+                    "0.13.0"
+                  ],
+                  "bevy_zeroverse_capture": [
+                    "0.1.1"
+                  ],
+                  "bevy_zeroverse_ffi": [
+                    "0.30.0"
+                  ],
+                  "bevy_zeroverse_publication": [
+                    "0.1.2"
+                  ],
+                  "burn": [
+                    "0.21.0"
+                  ],
+                  "burn_ardy": [
+                    "0.1.4"
+                  ],
+                  "burn_human": [
+                    "0.5.1"
+                  ],
+                  "burn_human_inference": [
+                    "0.1.4"
+                  ],
+                  "burn_human_motion": [
+                    "0.1.1"
+                  ],
+                  "burn_llama": [
+                    "0.1.2"
+                  ],
+                  "burn_siglip2": [
+                    "0.1.1"
+                  ],
+                  "wgpu": [
+                    "29.0.4"
+                  ]
+                },
+                "schema_version": 1,
+                "source_sha256": "d24f8324c8244944c1692b48130710398058075de7085cc6fa3b2efaaf82bad8",
+                "target": "x86_64-unknown-linux-gnu"
+              },
+              "capture_or_common_seconds": 14.625760346999998,
+              "configuration": {
+                "config": {
+                  "animated": false,
+                  "camera_grid": false,
+                  "cuboid_only": false,
+                  "depth_format": "Linear",
+                  "draw_obb_gizmo": false,
+                  "draw_pose_gizmos": false,
+                  "editor": false,
+                  "gizmos": false,
+                  "gizmos_alpha": 1.0,
+                  "headless": true,
+                  "height": 512.0,
+                  "human_motion": null,
+                  "image_copiers": true,
+                  "indoor_appearance": null,
+                  "indoor_camera": null,
+                  "indoor_density": 0.6499999761581421,
+                  "indoor_gi_rays": 256,
+                  "indoor_human_density": 0.25,
+                  "indoor_layout": "Mixed",
+                  "indoor_quality": "Auto",
+                  "initialize_scene": false,
+                  "keybinds": false,
+                  "material_grid": false,
+                  "max_camera_radius": 0.0,
+                  "name": "bevy_zeroverse",
+                  "num_cameras": 3,
+                  "orbit_smoothness": 0.800000011920929,
+                  "ovoxel_max_output_voxels": 16000000,
+                  "ovoxel_mode": "Disabled",
+                  "ovoxel_resolution": 128,
+                  "pan_smoothness": 0.6000000238418579,
+                  "playback_mode": "Still",
+                  "playback_speed": 0.20000000298023224,
+                  "playback_step": 0.0,
+                  "playback_steps": 1,
+                  "plucker_visualization": false,
+                  "press_esc_close": false,
+                  "regenerate_ms": 0,
+                  "regenerate_scene_material_shuffle_period": 0,
+                  "regenerate_scene_mesh_shuffle_period": 0,
+                  "render_mode": "Color",
+                  "render_modes": [
+                    "Color"
+                  ],
+                  "rotation_augmentation": false,
+                  "scene_type": "ProceduralIndoor",
+                  "width": 512.0,
+                  "yaw_speed": 0.0,
+                  "z_depth": true,
+                  "zoom_smoothness": 0.800000011920929
+                },
+                "gi_enabled": true,
+                "gi_settings": {
+                  "bake": {
+                    "diffuse_bounces": 3,
+                    "rays_per_probe": 256,
+                    "spacing": 0.8500000238418579,
+                    "workers": 8
+                  },
+                  "enabled": true,
+                  "gpu": true
+                },
+                "prefetch_depth": 3,
+                "timing_policy": "actual complete RGB/annotation samples; no PNG or dataset file encoding; scene preparation included, validation and JSONL writes excluded; GPU memory/utilization measured separately"
+              },
+              "full_lifetime_cpu_seconds": 117.36999999999999,
+              "full_lifetime_cpu_seconds_per_room": 1.8339062499999998,
+              "full_lifetime_monitor_wall_seconds": 18.44351018103771,
+              "full_lifetime_peak_rss_kib": 3588960.0,
+              "full_lifetime_views_per_second": 10.410165858633603,
+              "gpu_identity": {
+                "device_index": 0,
+                "name": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+                "uuid": "GPU-343b002b-d5c6-2d9c-9fea-9ab5a52d0879"
+              },
+              "mean_elapsed_preparation_seconds": {
+                "asset_insertion_seconds": 0.0008354506071428572,
+                "cameras_seconds": 0.027146815214285715,
+                "environment_seconds": 0.07914320203571427,
+                "geometry_seconds": 0.057478254267857146,
+                "gi_setup_seconds": 0.26093342792857144,
+                "gpu_gi_setup_seconds": 0.015617055857142858,
+                "layout_seconds": 0.0006654908928571428,
+                "material_transport_mesh_seconds": 0.38876452680357143,
+                "material_transport_seconds": 0.33729724519642856,
+                "materials_seconds": 0.3266089031607143,
+                "meshes_seconds": 0.12560130051785715,
+                "transport_seconds": 0.16617273375
+              },
+              "measured_rooms": 56,
+              "measured_views": 168,
+              "repeat": 2,
+              "steady_begin": 1791258415.7628198,
+              "steady_end": 1791258430.468466,
+              "steady_nvml_busy_mean": 54.786206896551725,
+              "steady_nvml_busy_sum": 7944,
+              "steady_nvml_sample_count": 145,
+              "total_rooms": 64,
+              "version": "baseline",
+              "views_per_second": 11.486582305066948,
+              "workload": "rgb"
+            }
+          ],
+          "steady_views_per_second": 11.231002827281925,
+          "total_room_captures": 128
+        },
+        "comparison": {
+          "complete_abba": true,
+          "cpu_seconds_per_room_reduction_fraction": 0.015707685846282904,
+          "full_lifetime_throughput_gain_fraction": 0.03997527674864121,
+          "matched_configuration": true,
+          "matched_gpu_identity": true,
+          "throughput_gain_fraction": 0.04422552146831982
+        },
+        "counter_replay": {
+          "fields": [
+            "seed",
+            "index",
+            "views",
+            "humans",
+            "annotation_precision",
+            "copied_bytes",
+            "ground_truth.geometry_bytes",
+            "ground_truth.mesh_instances",
+            "ground_truth.vertices",
+            "ground_truth.triangles",
+            "gi.backend",
+            "gi.diffuse_bounces",
+            "gi.primary_rays",
+            "gi.probes",
+            "gi.relocated_probes",
+            "gi.texture_bytes",
+            "gi.triangles"
+          ],
+          "pairs": [
+            {
+              "counter_sha256": "c92fbc296febb7590ade4b2ff5dc61243ffabcef78b1d34673b60f3aaec90e47",
+              "exact_counter_replay": true,
+              "repeat": 1,
+              "rooms": 64,
+              "transport_unexpected_increases": []
+            },
+            {
+              "counter_sha256": "c92fbc296febb7590ade4b2ff5dc61243ffabcef78b1d34673b60f3aaec90e47",
+              "exact_counter_replay": true,
+              "repeat": 2,
+              "rooms": 64,
+              "transport_unexpected_increases": []
+            }
+          ]
+        },
+        "final": {
+          "capture_or_common_seconds": 28.650119477,
+          "full_lifetime_cpu_seconds_per_room": 1.8309375,
+          "full_lifetime_views_per_second": 10.594880350297618,
+          "measured_views": 336,
+          "observed_steady_whole_device_busy_percent": 53.02807017543859,
+          "runs": [
+            {
+              "artifacts": [
+                {
+                  "path": "out/throughput_cpu_round8/final-rgb-1.summary.json",
+                  "sha256": "b0f2dc37d22de84ab133c6f4bf268dc4876aba974cd4586465fc6dbb3f1c2518"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/final-rgb-1.samples.jsonl",
+                  "sha256": "b45d02f2d9dd4f10d4d1986d6c455ea0c8986065c14a1a25d03e20d47f017609"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/rgb_final1/scenes.jsonl",
+                  "sha256": "c9789c6dcafbd2c9a4e5f37d8dec595ee64c43da82bc7336c852c6f4d5780f51"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/rgb_final1/summary.json",
+                  "sha256": "efe9b6cf1dc707361bcf0908e289d91b9901fb84c603e57f4f959d3e2e28f173"
+                }
+              ],
+              "binary_sha256": "d3b57e2b331806abf5fd57b4aabe65aa2495eb70d30f0b435701d6389a4b7afc",
+              "build_provenance": {
+                "capture_engine": "capture-v48;calibration=1;co_visibility=1;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=9;surface_flow=1;indoor=29;multiview=5;ovoxel=3;glass=2;hair=5;wardrobe=4;footwear=1;bounds=4;morphology=2;position=3;tabletop=2;finishes=8;seating=3;activity=2;playback=2;exterior=2;envelope=3",
+                "crate_version": "0.30.0",
+                "features": {
+                  "human_motion": false,
+                  "multi_threaded": true,
+                  "web": false
+                },
+                "generator_version": 29,
+                "locked_package_versions": {
+                  "bevy": [
+                    "0.19.1"
+                  ],
+                  "bevy_burn_human": [
+                    "0.6.1"
+                  ],
+                  "bevy_zeroverse": [
+                    "0.30.0"
+                  ],
+                  "bevy_zeroverse_burn": [
+                    "0.13.0"
+                  ],
+                  "bevy_zeroverse_capture": [
+                    "0.1.1"
+                  ],
+                  "bevy_zeroverse_ffi": [
+                    "0.30.0"
+                  ],
+                  "bevy_zeroverse_publication": [
+                    "0.1.2"
+                  ],
+                  "burn": [
+                    "0.21.0"
+                  ],
+                  "burn_ardy": [
+                    "0.1.4"
+                  ],
+                  "burn_human": [
+                    "0.5.1"
+                  ],
+                  "burn_human_inference": [
+                    "0.1.4"
+                  ],
+                  "burn_human_motion": [
+                    "0.1.1"
+                  ],
+                  "burn_llama": [
+                    "0.1.2"
+                  ],
+                  "burn_siglip2": [
+                    "0.1.1"
+                  ],
+                  "wgpu": [
+                    "29.0.4"
+                  ]
+                },
+                "schema_version": 1,
+                "source_sha256": "01dbb8f2f7ff7a6c58a36bcc8f51532c32ab4eae47557f7cdef62de1fef9c46c",
+                "target": "x86_64-unknown-linux-gnu"
+              },
+              "capture_or_common_seconds": 14.30158042,
+              "configuration": {
+                "config": {
+                  "animated": false,
+                  "camera_grid": false,
+                  "cuboid_only": false,
+                  "depth_format": "Linear",
+                  "draw_obb_gizmo": false,
+                  "draw_pose_gizmos": false,
+                  "editor": false,
+                  "gizmos": false,
+                  "gizmos_alpha": 1.0,
+                  "headless": true,
+                  "height": 512.0,
+                  "human_motion": null,
+                  "image_copiers": true,
+                  "indoor_appearance": null,
+                  "indoor_camera": null,
+                  "indoor_density": 0.6499999761581421,
+                  "indoor_gi_rays": 256,
+                  "indoor_human_density": 0.25,
+                  "indoor_layout": "Mixed",
+                  "indoor_quality": "Auto",
+                  "initialize_scene": false,
+                  "keybinds": false,
+                  "material_grid": false,
+                  "max_camera_radius": 0.0,
+                  "name": "bevy_zeroverse",
+                  "num_cameras": 3,
+                  "orbit_smoothness": 0.800000011920929,
+                  "ovoxel_max_output_voxels": 16000000,
+                  "ovoxel_mode": "Disabled",
+                  "ovoxel_resolution": 128,
+                  "pan_smoothness": 0.6000000238418579,
+                  "playback_mode": "Still",
+                  "playback_speed": 0.20000000298023224,
+                  "playback_step": 0.0,
+                  "playback_steps": 1,
+                  "plucker_visualization": false,
+                  "press_esc_close": false,
+                  "regenerate_ms": 0,
+                  "regenerate_scene_material_shuffle_period": 0,
+                  "regenerate_scene_mesh_shuffle_period": 0,
+                  "render_mode": "Color",
+                  "render_modes": [
+                    "Color"
+                  ],
+                  "rotation_augmentation": false,
+                  "scene_type": "ProceduralIndoor",
+                  "width": 512.0,
+                  "yaw_speed": 0.0,
+                  "z_depth": true,
+                  "zoom_smoothness": 0.800000011920929
+                },
+                "gi_enabled": true,
+                "gi_settings": {
+                  "bake": {
+                    "diffuse_bounces": 3,
+                    "rays_per_probe": 256,
+                    "spacing": 0.8500000238418579,
+                    "workers": 8
+                  },
+                  "enabled": true,
+                  "gpu": true
+                },
+                "prefetch_depth": 3,
+                "timing_policy": "actual complete RGB/annotation samples; no PNG or dataset file encoding; scene preparation included, validation and JSONL writes excluded; GPU memory/utilization measured separately"
+              },
+              "full_lifetime_cpu_seconds": 117.65,
+              "full_lifetime_cpu_seconds_per_room": 1.83828125,
+              "full_lifetime_monitor_wall_seconds": 18.036352046998218,
+              "full_lifetime_peak_rss_kib": 3588052.0,
+              "full_lifetime_views_per_second": 10.645168130434362,
+              "gpu_identity": {
+                "device_index": 0,
+                "name": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+                "uuid": "GPU-343b002b-d5c6-2d9c-9fea-9ab5a52d0879"
+              },
+              "mean_elapsed_preparation_seconds": {
+                "asset_insertion_seconds": 0.000773875375,
+                "cameras_seconds": 0.026685271035714286,
+                "environment_seconds": 0.07589129894642857,
+                "geometry_seconds": 0.06193155698214286,
+                "gi_setup_seconds": 0.26422522867857146,
+                "gpu_gi_setup_seconds": 0.01616533825,
+                "layout_seconds": 0.0006673403214285714,
+                "material_transport_mesh_seconds": 0.38716819833928573,
+                "material_transport_seconds": 0.32801112783928577,
+                "materials_seconds": 0.30290917396428574,
+                "meshes_seconds": 0.12661896542857143,
+                "transport_seconds": 0.17216816796428572
+              },
+              "measured_rooms": 56,
+              "measured_views": 168,
+              "repeat": 1,
+              "steady_begin": 1791258379.3234637,
+              "steady_end": 1791258393.7038915,
+              "steady_nvml_busy_mean": 56.352112676056336,
+              "steady_nvml_busy_sum": 8002,
+              "steady_nvml_sample_count": 142,
+              "total_rooms": 64,
+              "version": "final",
+              "views_per_second": 11.746953488095688,
+              "workload": "rgb"
+            },
+            {
+              "artifacts": [
+                {
+                  "path": "out/throughput_cpu_round8/final-rgb-2.summary.json",
+                  "sha256": "bf7ae738d51a0de87638677c30e60bcdd31f7c673b732777db9027fc8b600a30"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/final-rgb-2.samples.jsonl",
+                  "sha256": "81ab97fa724156f9873fd53f04412b3a87a14c699f80381f932d4555a28a0a09"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/rgb_final2/scenes.jsonl",
+                  "sha256": "e4a5549772190929f2b3691dd2e69838e004b00be14f9cfe2c0856af28bc8496"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/rgb_final2/summary.json",
+                  "sha256": "23b556c6d078834db05f64a05f898e3e41624085db4397b5bdd895067eaec376"
+                }
+              ],
+              "binary_sha256": "d3b57e2b331806abf5fd57b4aabe65aa2495eb70d30f0b435701d6389a4b7afc",
+              "build_provenance": {
+                "capture_engine": "capture-v48;calibration=1;co_visibility=1;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=9;surface_flow=1;indoor=29;multiview=5;ovoxel=3;glass=2;hair=5;wardrobe=4;footwear=1;bounds=4;morphology=2;position=3;tabletop=2;finishes=8;seating=3;activity=2;playback=2;exterior=2;envelope=3",
+                "crate_version": "0.30.0",
+                "features": {
+                  "human_motion": false,
+                  "multi_threaded": true,
+                  "web": false
+                },
+                "generator_version": 29,
+                "locked_package_versions": {
+                  "bevy": [
+                    "0.19.1"
+                  ],
+                  "bevy_burn_human": [
+                    "0.6.1"
+                  ],
+                  "bevy_zeroverse": [
+                    "0.30.0"
+                  ],
+                  "bevy_zeroverse_burn": [
+                    "0.13.0"
+                  ],
+                  "bevy_zeroverse_capture": [
+                    "0.1.1"
+                  ],
+                  "bevy_zeroverse_ffi": [
+                    "0.30.0"
+                  ],
+                  "bevy_zeroverse_publication": [
+                    "0.1.2"
+                  ],
+                  "burn": [
+                    "0.21.0"
+                  ],
+                  "burn_ardy": [
+                    "0.1.4"
+                  ],
+                  "burn_human": [
+                    "0.5.1"
+                  ],
+                  "burn_human_inference": [
+                    "0.1.4"
+                  ],
+                  "burn_human_motion": [
+                    "0.1.1"
+                  ],
+                  "burn_llama": [
+                    "0.1.2"
+                  ],
+                  "burn_siglip2": [
+                    "0.1.1"
+                  ],
+                  "wgpu": [
+                    "29.0.4"
+                  ]
+                },
+                "schema_version": 1,
+                "source_sha256": "01dbb8f2f7ff7a6c58a36bcc8f51532c32ab4eae47557f7cdef62de1fef9c46c",
+                "target": "x86_64-unknown-linux-gnu"
+              },
+              "capture_or_common_seconds": 14.348539057,
+              "configuration": {
+                "config": {
+                  "animated": false,
+                  "camera_grid": false,
+                  "cuboid_only": false,
+                  "depth_format": "Linear",
+                  "draw_obb_gizmo": false,
+                  "draw_pose_gizmos": false,
+                  "editor": false,
+                  "gizmos": false,
+                  "gizmos_alpha": 1.0,
+                  "headless": true,
+                  "height": 512.0,
+                  "human_motion": null,
+                  "image_copiers": true,
+                  "indoor_appearance": null,
+                  "indoor_camera": null,
+                  "indoor_density": 0.6499999761581421,
+                  "indoor_gi_rays": 256,
+                  "indoor_human_density": 0.25,
+                  "indoor_layout": "Mixed",
+                  "indoor_quality": "Auto",
+                  "initialize_scene": false,
+                  "keybinds": false,
+                  "material_grid": false,
+                  "max_camera_radius": 0.0,
+                  "name": "bevy_zeroverse",
+                  "num_cameras": 3,
+                  "orbit_smoothness": 0.800000011920929,
+                  "ovoxel_max_output_voxels": 16000000,
+                  "ovoxel_mode": "Disabled",
+                  "ovoxel_resolution": 128,
+                  "pan_smoothness": 0.6000000238418579,
+                  "playback_mode": "Still",
+                  "playback_speed": 0.20000000298023224,
+                  "playback_step": 0.0,
+                  "playback_steps": 1,
+                  "plucker_visualization": false,
+                  "press_esc_close": false,
+                  "regenerate_ms": 0,
+                  "regenerate_scene_material_shuffle_period": 0,
+                  "regenerate_scene_mesh_shuffle_period": 0,
+                  "render_mode": "Color",
+                  "render_modes": [
+                    "Color"
+                  ],
+                  "rotation_augmentation": false,
+                  "scene_type": "ProceduralIndoor",
+                  "width": 512.0,
+                  "yaw_speed": 0.0,
+                  "z_depth": true,
+                  "zoom_smoothness": 0.800000011920929
+                },
+                "gi_enabled": true,
+                "gi_settings": {
+                  "bake": {
+                    "diffuse_bounces": 3,
+                    "rays_per_probe": 256,
+                    "spacing": 0.8500000238418579,
+                    "workers": 8
+                  },
+                  "enabled": true,
+                  "gpu": true
+                },
+                "prefetch_depth": 3,
+                "timing_policy": "actual complete RGB/annotation samples; no PNG or dataset file encoding; scene preparation included, validation and JSONL writes excluded; GPU memory/utilization measured separately"
+              },
+              "full_lifetime_cpu_seconds": 116.71000000000001,
+              "full_lifetime_cpu_seconds_per_room": 1.8235937500000001,
+              "full_lifetime_monitor_wall_seconds": 18.20756834698841,
+              "full_lifetime_peak_rss_kib": 3685852.0,
+              "full_lifetime_views_per_second": 10.5450654552538,
+              "gpu_identity": {
+                "device_index": 0,
+                "name": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+                "uuid": "GPU-343b002b-d5c6-2d9c-9fea-9ab5a52d0879"
+              },
+              "mean_elapsed_preparation_seconds": {
+                "asset_insertion_seconds": 0.0007577684642857142,
+                "cameras_seconds": 0.026419166875,
+                "environment_seconds": 0.07340719292857144,
+                "geometry_seconds": 0.05047122482142857,
+                "gi_setup_seconds": 0.2621809912857143,
+                "gpu_gi_setup_seconds": 0.01595749742857143,
+                "layout_seconds": 0.0006305873392857143,
+                "material_transport_mesh_seconds": 0.39222695198214286,
+                "material_transport_seconds": 0.3363156683571429,
+                "materials_seconds": 0.3166792628571429,
+                "meshes_seconds": 0.13755538248214286,
+                "transport_seconds": 0.172815856375
+              },
+              "measured_rooms": 56,
+              "measured_views": 168,
+              "repeat": 2,
+              "steady_begin": 1791258397.5355535,
+              "steady_end": 1791258411.9617474,
+              "steady_nvml_busy_mean": 49.72727272727273,
+              "steady_nvml_busy_sum": 7111,
+              "steady_nvml_sample_count": 143,
+              "total_rooms": 64,
+              "version": "final",
+              "views_per_second": 11.708509091595666,
+              "workload": "rgb"
+            }
+          ],
+          "steady_views_per_second": 11.727699783930642,
+          "total_room_captures": 128
+        }
+      },
+      "six": {
+        "baseline": {
+          "capture_or_common_seconds": 31.400894293000007,
+          "full_lifetime_cpu_seconds_per_room": 1.904765625,
+          "full_lifetime_views_per_second": 9.756485443979455,
+          "measured_views": 336,
+          "observed_steady_whole_device_busy_percent": 56.060317460317464,
+          "runs": [
+            {
+              "artifacts": [
+                {
+                  "path": "out/throughput_cpu_round8/baseline-six-1.summary.json",
+                  "sha256": "605e2a73fb54907cda1e26f33ac4e10e8d630d8a91592d5bbf01b8d796738841"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/baseline-six-1.samples.jsonl",
+                  "sha256": "3e710fb404481bda7a2c5daa0f65b6dc246f6ee012678cf8a41fb8a7b1d99b07"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/six_baseline1/scenes.jsonl",
+                  "sha256": "11c82e1a52302bd5f854be1fbecde2f22662591fa6df9f264b0f2171141d28a1"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/six_baseline1/summary.json",
+                  "sha256": "738e3257c1bb2f222b5579e2cbe1c86d4666b1248cfb62e9d68d0b0aa31884c0"
+                }
+              ],
+              "binary_sha256": "c496a69c709bbb0ab7de2522d8a396361a7d84a693a60d0b56924b1251b47b5b",
+              "build_provenance": {
+                "capture_engine": "capture-v48;calibration=1;co_visibility=1;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=9;surface_flow=1;indoor=29;multiview=5;ovoxel=3;glass=2;hair=5;wardrobe=4;footwear=1;bounds=4;morphology=2;position=3;tabletop=2;finishes=8;seating=3;activity=2;playback=2;exterior=2;envelope=3",
+                "crate_version": "0.30.0",
+                "features": {
+                  "human_motion": false,
+                  "multi_threaded": true,
+                  "web": false
+                },
+                "generator_version": 29,
+                "locked_package_versions": {
+                  "bevy": [
+                    "0.19.1"
+                  ],
+                  "bevy_burn_human": [
+                    "0.6.1"
+                  ],
+                  "bevy_zeroverse": [
+                    "0.30.0"
+                  ],
+                  "bevy_zeroverse_burn": [
+                    "0.13.0"
+                  ],
+                  "bevy_zeroverse_capture": [
+                    "0.1.1"
+                  ],
+                  "bevy_zeroverse_ffi": [
+                    "0.30.0"
+                  ],
+                  "bevy_zeroverse_publication": [
+                    "0.1.2"
+                  ],
+                  "burn": [
+                    "0.21.0"
+                  ],
+                  "burn_ardy": [
+                    "0.1.4"
+                  ],
+                  "burn_human": [
+                    "0.5.1"
+                  ],
+                  "burn_human_inference": [
+                    "0.1.4"
+                  ],
+                  "burn_human_motion": [
+                    "0.1.1"
+                  ],
+                  "burn_llama": [
+                    "0.1.2"
+                  ],
+                  "burn_siglip2": [
+                    "0.1.1"
+                  ],
+                  "wgpu": [
+                    "29.0.4"
+                  ]
+                },
+                "schema_version": 1,
+                "source_sha256": "d24f8324c8244944c1692b48130710398058075de7085cc6fa3b2efaaf82bad8",
+                "target": "x86_64-unknown-linux-gnu"
+              },
+              "capture_or_common_seconds": 15.668292158000005,
+              "configuration": {
+                "config": {
+                  "animated": false,
+                  "camera_grid": false,
+                  "cuboid_only": false,
+                  "depth_format": "Linear",
+                  "draw_obb_gizmo": false,
+                  "draw_pose_gizmos": false,
+                  "editor": false,
+                  "gizmos": false,
+                  "gizmos_alpha": 1.0,
+                  "headless": true,
+                  "height": 512.0,
+                  "human_motion": null,
+                  "image_copiers": true,
+                  "indoor_appearance": null,
+                  "indoor_camera": null,
+                  "indoor_density": 0.6499999761581421,
+                  "indoor_gi_rays": 256,
+                  "indoor_human_density": 0.25,
+                  "indoor_layout": "Mixed",
+                  "indoor_quality": "Auto",
+                  "initialize_scene": false,
+                  "keybinds": false,
+                  "material_grid": false,
+                  "max_camera_radius": 0.0,
+                  "name": "bevy_zeroverse",
+                  "num_cameras": 3,
+                  "orbit_smoothness": 0.800000011920929,
+                  "ovoxel_max_output_voxels": 16000000,
+                  "ovoxel_mode": "Disabled",
+                  "ovoxel_resolution": 128,
+                  "pan_smoothness": 0.6000000238418579,
+                  "playback_mode": "Still",
+                  "playback_speed": 0.20000000298023224,
+                  "playback_step": 0.0,
+                  "playback_steps": 1,
+                  "plucker_visualization": false,
+                  "press_esc_close": false,
+                  "regenerate_ms": 0,
+                  "regenerate_scene_material_shuffle_period": 0,
+                  "regenerate_scene_mesh_shuffle_period": 0,
+                  "render_mode": "Color",
+                  "render_modes": [
+                    "Color",
+                    "Depth",
+                    "Position",
+                    "Normal",
+                    "Semantic",
+                    "CoVisibility"
+                  ],
+                  "rotation_augmentation": false,
+                  "scene_type": "ProceduralIndoor",
+                  "width": 512.0,
+                  "yaw_speed": 0.0,
+                  "z_depth": true,
+                  "zoom_smoothness": 0.800000011920929
+                },
+                "gi_enabled": true,
+                "gi_settings": {
+                  "bake": {
+                    "diffuse_bounces": 3,
+                    "rays_per_probe": 256,
+                    "spacing": 0.8500000238418579,
+                    "workers": 8
+                  },
+                  "enabled": true,
+                  "gpu": true
+                },
+                "prefetch_depth": 3,
+                "timing_policy": "actual complete RGB/annotation samples; no PNG or dataset file encoding; scene preparation included, validation and JSONL writes excluded; GPU memory/utilization measured separately"
+              },
+              "full_lifetime_cpu_seconds": 121.61000000000001,
+              "full_lifetime_cpu_seconds_per_room": 1.9001562500000002,
+              "full_lifetime_monitor_wall_seconds": 19.63288118201308,
+              "full_lifetime_peak_rss_kib": 3904960.0,
+              "full_lifetime_views_per_second": 9.779512146994671,
+              "gpu_identity": {
+                "device_index": 0,
+                "name": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+                "uuid": "GPU-343b002b-d5c6-2d9c-9fea-9ab5a52d0879"
+              },
+              "mean_elapsed_preparation_seconds": {
+                "asset_insertion_seconds": 0.0007489805535714286,
+                "cameras_seconds": 0.02659247880357143,
+                "environment_seconds": 0.08002463535714285,
+                "geometry_seconds": 0.051273691660714285,
+                "gi_setup_seconds": 0.2634418285892857,
+                "gpu_gi_setup_seconds": 0.01565306323214286,
+                "layout_seconds": 0.0006850632857142858,
+                "material_transport_mesh_seconds": 0.36877716808928573,
+                "material_transport_seconds": 0.3162162445178572,
+                "materials_seconds": 0.30210535458928567,
+                "meshes_seconds": 0.13886633285714287,
+                "transport_seconds": 0.16776364826785714
+              },
+              "measured_rooms": 56,
+              "measured_views": 168,
+              "repeat": 1,
+              "steady_begin": 1791258434.3097854,
+              "steady_end": 1791258450.1456764,
+              "steady_nvml_busy_mean": 55.554140127388536,
+              "steady_nvml_busy_sum": 8722,
+              "steady_nvml_sample_count": 157,
+              "total_rooms": 64,
+              "version": "baseline",
+              "views_per_second": 10.722291766446391,
+              "workload": "six"
+            },
+            {
+              "artifacts": [
+                {
+                  "path": "out/throughput_cpu_round8/baseline-six-2.summary.json",
+                  "sha256": "1f4f8e5a0153b38a441c81a913bf07d3a1d6383c9c4ce7d3b94e66c29876fccc"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/baseline-six-2.samples.jsonl",
+                  "sha256": "db11dee06c9e99f87ef1e2960353bfb1808b5ac7625598ce45363b07c8358670"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/six_baseline2/scenes.jsonl",
+                  "sha256": "57449c95026f641c31807acce718af8e673f2b9c1bd3cb8ca341a46f9f4ae78d"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/six_baseline2/summary.json",
+                  "sha256": "1cb6e35f6f3833725b5550becc1a62019c7ec32f9a7fd1c2080e1f6f60ba211b"
+                }
+              ],
+              "binary_sha256": "c496a69c709bbb0ab7de2522d8a396361a7d84a693a60d0b56924b1251b47b5b",
+              "build_provenance": {
+                "capture_engine": "capture-v48;calibration=1;co_visibility=1;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=9;surface_flow=1;indoor=29;multiview=5;ovoxel=3;glass=2;hair=5;wardrobe=4;footwear=1;bounds=4;morphology=2;position=3;tabletop=2;finishes=8;seating=3;activity=2;playback=2;exterior=2;envelope=3",
+                "crate_version": "0.30.0",
+                "features": {
+                  "human_motion": false,
+                  "multi_threaded": true,
+                  "web": false
+                },
+                "generator_version": 29,
+                "locked_package_versions": {
+                  "bevy": [
+                    "0.19.1"
+                  ],
+                  "bevy_burn_human": [
+                    "0.6.1"
+                  ],
+                  "bevy_zeroverse": [
+                    "0.30.0"
+                  ],
+                  "bevy_zeroverse_burn": [
+                    "0.13.0"
+                  ],
+                  "bevy_zeroverse_capture": [
+                    "0.1.1"
+                  ],
+                  "bevy_zeroverse_ffi": [
+                    "0.30.0"
+                  ],
+                  "bevy_zeroverse_publication": [
+                    "0.1.2"
+                  ],
+                  "burn": [
+                    "0.21.0"
+                  ],
+                  "burn_ardy": [
+                    "0.1.4"
+                  ],
+                  "burn_human": [
+                    "0.5.1"
+                  ],
+                  "burn_human_inference": [
+                    "0.1.4"
+                  ],
+                  "burn_human_motion": [
+                    "0.1.1"
+                  ],
+                  "burn_llama": [
+                    "0.1.2"
+                  ],
+                  "burn_siglip2": [
+                    "0.1.1"
+                  ],
+                  "wgpu": [
+                    "29.0.4"
+                  ]
+                },
+                "schema_version": 1,
+                "source_sha256": "d24f8324c8244944c1692b48130710398058075de7085cc6fa3b2efaaf82bad8",
+                "target": "x86_64-unknown-linux-gnu"
+              },
+              "capture_or_common_seconds": 15.732602135,
+              "configuration": {
+                "config": {
+                  "animated": false,
+                  "camera_grid": false,
+                  "cuboid_only": false,
+                  "depth_format": "Linear",
+                  "draw_obb_gizmo": false,
+                  "draw_pose_gizmos": false,
+                  "editor": false,
+                  "gizmos": false,
+                  "gizmos_alpha": 1.0,
+                  "headless": true,
+                  "height": 512.0,
+                  "human_motion": null,
+                  "image_copiers": true,
+                  "indoor_appearance": null,
+                  "indoor_camera": null,
+                  "indoor_density": 0.6499999761581421,
+                  "indoor_gi_rays": 256,
+                  "indoor_human_density": 0.25,
+                  "indoor_layout": "Mixed",
+                  "indoor_quality": "Auto",
+                  "initialize_scene": false,
+                  "keybinds": false,
+                  "material_grid": false,
+                  "max_camera_radius": 0.0,
+                  "name": "bevy_zeroverse",
+                  "num_cameras": 3,
+                  "orbit_smoothness": 0.800000011920929,
+                  "ovoxel_max_output_voxels": 16000000,
+                  "ovoxel_mode": "Disabled",
+                  "ovoxel_resolution": 128,
+                  "pan_smoothness": 0.6000000238418579,
+                  "playback_mode": "Still",
+                  "playback_speed": 0.20000000298023224,
+                  "playback_step": 0.0,
+                  "playback_steps": 1,
+                  "plucker_visualization": false,
+                  "press_esc_close": false,
+                  "regenerate_ms": 0,
+                  "regenerate_scene_material_shuffle_period": 0,
+                  "regenerate_scene_mesh_shuffle_period": 0,
+                  "render_mode": "Color",
+                  "render_modes": [
+                    "Color",
+                    "Depth",
+                    "Position",
+                    "Normal",
+                    "Semantic",
+                    "CoVisibility"
+                  ],
+                  "rotation_augmentation": false,
+                  "scene_type": "ProceduralIndoor",
+                  "width": 512.0,
+                  "yaw_speed": 0.0,
+                  "z_depth": true,
+                  "zoom_smoothness": 0.800000011920929
+                },
+                "gi_enabled": true,
+                "gi_settings": {
+                  "bake": {
+                    "diffuse_bounces": 3,
+                    "rays_per_probe": 256,
+                    "spacing": 0.8500000238418579,
+                    "workers": 8
+                  },
+                  "enabled": true,
+                  "gpu": true
+                },
+                "prefetch_depth": 3,
+                "timing_policy": "actual complete RGB/annotation samples; no PNG or dataset file encoding; scene preparation included, validation and JSONL writes excluded; GPU memory/utilization measured separately"
+              },
+              "full_lifetime_cpu_seconds": 122.2,
+              "full_lifetime_cpu_seconds_per_room": 1.909375,
+              "full_lifetime_monitor_wall_seconds": 19.725554005010054,
+              "full_lifetime_peak_rss_kib": 3969396.0,
+              "full_lifetime_views_per_second": 9.73356692294849,
+              "gpu_identity": {
+                "device_index": 0,
+                "name": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+                "uuid": "GPU-343b002b-d5c6-2d9c-9fea-9ab5a52d0879"
+              },
+              "mean_elapsed_preparation_seconds": {
+                "asset_insertion_seconds": 0.0007649084107142856,
+                "cameras_seconds": 0.027615866357142856,
+                "environment_seconds": 0.07323309760714285,
+                "geometry_seconds": 0.047521199285714286,
+                "gi_setup_seconds": 0.26435289182142857,
+                "gpu_gi_setup_seconds": 0.01562357432142857,
+                "layout_seconds": 0.0007161938392857142,
+                "material_transport_mesh_seconds": 0.38431991753571426,
+                "material_transport_seconds": 0.3261973691071428,
+                "materials_seconds": 0.311023540625,
+                "meshes_seconds": 0.13818214242857144,
+                "transport_seconds": 0.17549575167857143
+              },
+              "measured_rooms": 56,
+              "measured_views": 168,
+              "repeat": 2,
+              "steady_begin": 1791258493.3059793,
+              "steady_end": 1791258509.176257,
+              "steady_nvml_busy_mean": 56.563291139240505,
+              "steady_nvml_busy_sum": 8937,
+              "steady_nvml_sample_count": 158,
+              "total_rooms": 64,
+              "version": "baseline",
+              "views_per_second": 10.678462377577947,
+              "workload": "six"
+            }
+          ],
+          "steady_views_per_second": 10.700332190058111,
+          "total_room_captures": 128
+        },
+        "comparison": {
+          "complete_abba": true,
+          "cpu_seconds_per_room_reduction_fraction": 0.007587875804930144,
+          "full_lifetime_throughput_gain_fraction": 0.005508416762932455,
+          "matched_configuration": true,
+          "matched_gpu_identity": true,
+          "throughput_gain_fraction": 0.007345983337243345
+        },
+        "counter_replay": {
+          "fields": [
+            "seed",
+            "index",
+            "views",
+            "humans",
+            "annotation_precision",
+            "copied_bytes",
+            "ground_truth.geometry_bytes",
+            "ground_truth.mesh_instances",
+            "ground_truth.vertices",
+            "ground_truth.triangles",
+            "gi.backend",
+            "gi.diffuse_bounces",
+            "gi.primary_rays",
+            "gi.probes",
+            "gi.relocated_probes",
+            "gi.texture_bytes",
+            "gi.triangles"
+          ],
+          "pairs": [
+            {
+              "counter_sha256": "cecfb512d1a31424c2ce512d7b96c3fabd201d5ebfce51c6222dd4ca04032f44",
+              "exact_counter_replay": true,
+              "repeat": 1,
+              "rooms": 64,
+              "transport_unexpected_increases": []
+            },
+            {
+              "counter_sha256": "cecfb512d1a31424c2ce512d7b96c3fabd201d5ebfce51c6222dd4ca04032f44",
+              "exact_counter_replay": true,
+              "repeat": 2,
+              "rooms": 64,
+              "transport_unexpected_increases": []
+            }
+          ]
+        },
+        "final": {
+          "capture_or_common_seconds": 31.171905991000003,
+          "full_lifetime_cpu_seconds_per_room": 1.8903124999999998,
+          "full_lifetime_views_per_second": 9.810228231946379,
+          "measured_views": 336,
+          "observed_steady_whole_device_busy_percent": 58.916666666666664,
+          "runs": [
+            {
+              "artifacts": [
+                {
+                  "path": "out/throughput_cpu_round8/final-six-1.summary.json",
+                  "sha256": "4b2704b6791efe01d744355e1600cf84b152285b6069388242e742980e59d9be"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/final-six-1.samples.jsonl",
+                  "sha256": "b467257db7703ec2fd67584b7fa116e33f5cf6944baa5644b3a7066e9c4213eb"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/six_final1/scenes.jsonl",
+                  "sha256": "a3b6949fe755505fdba6e5168a1e58115e6f4a9d9ad54422bb19f1009426bf24"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/six_final1/summary.json",
+                  "sha256": "81625eec91c2dde5cc0e2ab49c6ec071ad25d1331791019e1ff881c87dc52b15"
+                }
+              ],
+              "binary_sha256": "d3b57e2b331806abf5fd57b4aabe65aa2495eb70d30f0b435701d6389a4b7afc",
+              "build_provenance": {
+                "capture_engine": "capture-v48;calibration=1;co_visibility=1;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=9;surface_flow=1;indoor=29;multiview=5;ovoxel=3;glass=2;hair=5;wardrobe=4;footwear=1;bounds=4;morphology=2;position=3;tabletop=2;finishes=8;seating=3;activity=2;playback=2;exterior=2;envelope=3",
+                "crate_version": "0.30.0",
+                "features": {
+                  "human_motion": false,
+                  "multi_threaded": true,
+                  "web": false
+                },
+                "generator_version": 29,
+                "locked_package_versions": {
+                  "bevy": [
+                    "0.19.1"
+                  ],
+                  "bevy_burn_human": [
+                    "0.6.1"
+                  ],
+                  "bevy_zeroverse": [
+                    "0.30.0"
+                  ],
+                  "bevy_zeroverse_burn": [
+                    "0.13.0"
+                  ],
+                  "bevy_zeroverse_capture": [
+                    "0.1.1"
+                  ],
+                  "bevy_zeroverse_ffi": [
+                    "0.30.0"
+                  ],
+                  "bevy_zeroverse_publication": [
+                    "0.1.2"
+                  ],
+                  "burn": [
+                    "0.21.0"
+                  ],
+                  "burn_ardy": [
+                    "0.1.4"
+                  ],
+                  "burn_human": [
+                    "0.5.1"
+                  ],
+                  "burn_human_inference": [
+                    "0.1.4"
+                  ],
+                  "burn_human_motion": [
+                    "0.1.1"
+                  ],
+                  "burn_llama": [
+                    "0.1.2"
+                  ],
+                  "burn_siglip2": [
+                    "0.1.1"
+                  ],
+                  "wgpu": [
+                    "29.0.4"
+                  ]
+                },
+                "schema_version": 1,
+                "source_sha256": "01dbb8f2f7ff7a6c58a36bcc8f51532c32ab4eae47557f7cdef62de1fef9c46c",
+                "target": "x86_64-unknown-linux-gnu"
+              },
+              "capture_or_common_seconds": 15.574359038000004,
+              "configuration": {
+                "config": {
+                  "animated": false,
+                  "camera_grid": false,
+                  "cuboid_only": false,
+                  "depth_format": "Linear",
+                  "draw_obb_gizmo": false,
+                  "draw_pose_gizmos": false,
+                  "editor": false,
+                  "gizmos": false,
+                  "gizmos_alpha": 1.0,
+                  "headless": true,
+                  "height": 512.0,
+                  "human_motion": null,
+                  "image_copiers": true,
+                  "indoor_appearance": null,
+                  "indoor_camera": null,
+                  "indoor_density": 0.6499999761581421,
+                  "indoor_gi_rays": 256,
+                  "indoor_human_density": 0.25,
+                  "indoor_layout": "Mixed",
+                  "indoor_quality": "Auto",
+                  "initialize_scene": false,
+                  "keybinds": false,
+                  "material_grid": false,
+                  "max_camera_radius": 0.0,
+                  "name": "bevy_zeroverse",
+                  "num_cameras": 3,
+                  "orbit_smoothness": 0.800000011920929,
+                  "ovoxel_max_output_voxels": 16000000,
+                  "ovoxel_mode": "Disabled",
+                  "ovoxel_resolution": 128,
+                  "pan_smoothness": 0.6000000238418579,
+                  "playback_mode": "Still",
+                  "playback_speed": 0.20000000298023224,
+                  "playback_step": 0.0,
+                  "playback_steps": 1,
+                  "plucker_visualization": false,
+                  "press_esc_close": false,
+                  "regenerate_ms": 0,
+                  "regenerate_scene_material_shuffle_period": 0,
+                  "regenerate_scene_mesh_shuffle_period": 0,
+                  "render_mode": "Color",
+                  "render_modes": [
+                    "Color",
+                    "Depth",
+                    "Position",
+                    "Normal",
+                    "Semantic",
+                    "CoVisibility"
+                  ],
+                  "rotation_augmentation": false,
+                  "scene_type": "ProceduralIndoor",
+                  "width": 512.0,
+                  "yaw_speed": 0.0,
+                  "z_depth": true,
+                  "zoom_smoothness": 0.800000011920929
+                },
+                "gi_enabled": true,
+                "gi_settings": {
+                  "bake": {
+                    "diffuse_bounces": 3,
+                    "rays_per_probe": 256,
+                    "spacing": 0.8500000238418579,
+                    "workers": 8
+                  },
+                  "enabled": true,
+                  "gpu": true
+                },
+                "prefetch_depth": 3,
+                "timing_policy": "actual complete RGB/annotation samples; no PNG or dataset file encoding; scene preparation included, validation and JSONL writes excluded; GPU memory/utilization measured separately"
+              },
+              "full_lifetime_cpu_seconds": 121.67999999999999,
+              "full_lifetime_cpu_seconds_per_room": 1.9012499999999999,
+              "full_lifetime_monitor_wall_seconds": 19.62101778201759,
+              "full_lifetime_peak_rss_kib": 3929204.0,
+              "full_lifetime_views_per_second": 9.785425105519527,
+              "gpu_identity": {
+                "device_index": 0,
+                "name": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+                "uuid": "GPU-343b002b-d5c6-2d9c-9fea-9ab5a52d0879"
+              },
+              "mean_elapsed_preparation_seconds": {
+                "asset_insertion_seconds": 0.0007242548928571428,
+                "cameras_seconds": 0.027907011107142856,
+                "environment_seconds": 0.07940843762500001,
+                "geometry_seconds": 0.05077478414285714,
+                "gi_setup_seconds": 0.2664255244464286,
+                "gpu_gi_setup_seconds": 0.015080347285714285,
+                "layout_seconds": 0.0007179911071428572,
+                "material_transport_mesh_seconds": 0.37212757791071427,
+                "material_transport_seconds": 0.31562550076785717,
+                "materials_seconds": 0.29863588451785716,
+                "meshes_seconds": 0.12208961746428572,
+                "transport_seconds": 0.17193626305357143
+              },
+              "measured_rooms": 56,
+              "measured_views": 168,
+              "repeat": 1,
+              "steady_begin": 1791258454.0982404,
+              "steady_end": 1791258469.8123312,
+              "steady_nvml_busy_mean": 58.82692307692308,
+              "steady_nvml_busy_sum": 9177,
+              "steady_nvml_sample_count": 156,
+              "total_rooms": 64,
+              "version": "final",
+              "views_per_second": 10.786960772516894,
+              "workload": "six"
+            },
+            {
+              "artifacts": [
+                {
+                  "path": "out/throughput_cpu_round8/final-six-2.summary.json",
+                  "sha256": "432216a9dc53f42bf82d220615e89540e601e8f63c16cb1a2799ee61a23486c7"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/final-six-2.samples.jsonl",
+                  "sha256": "67c7270e1a23764c6b1135a56c82cd1ee2afdcab7e6794e67293a64308b5ca90"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/six_final2/scenes.jsonl",
+                  "sha256": "5d84b008a100496ec74c711ee9259b23c9a73d7ad4fdb439250098dd0d3f332b"
+                },
+                {
+                  "path": "out/throughput_cpu_round8/six_final2/summary.json",
+                  "sha256": "90ad60e98d69ad20a69797454da084ff5968019082116132171c89a19ffbe6a6"
+                }
+              ],
+              "binary_sha256": "d3b57e2b331806abf5fd57b4aabe65aa2495eb70d30f0b435701d6389a4b7afc",
+              "build_provenance": {
+                "capture_engine": "capture-v48;calibration=1;co_visibility=1;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=9;surface_flow=1;indoor=29;multiview=5;ovoxel=3;glass=2;hair=5;wardrobe=4;footwear=1;bounds=4;morphology=2;position=3;tabletop=2;finishes=8;seating=3;activity=2;playback=2;exterior=2;envelope=3",
+                "crate_version": "0.30.0",
+                "features": {
+                  "human_motion": false,
+                  "multi_threaded": true,
+                  "web": false
+                },
+                "generator_version": 29,
+                "locked_package_versions": {
+                  "bevy": [
+                    "0.19.1"
+                  ],
+                  "bevy_burn_human": [
+                    "0.6.1"
+                  ],
+                  "bevy_zeroverse": [
+                    "0.30.0"
+                  ],
+                  "bevy_zeroverse_burn": [
+                    "0.13.0"
+                  ],
+                  "bevy_zeroverse_capture": [
+                    "0.1.1"
+                  ],
+                  "bevy_zeroverse_ffi": [
+                    "0.30.0"
+                  ],
+                  "bevy_zeroverse_publication": [
+                    "0.1.2"
+                  ],
+                  "burn": [
+                    "0.21.0"
+                  ],
+                  "burn_ardy": [
+                    "0.1.4"
+                  ],
+                  "burn_human": [
+                    "0.5.1"
+                  ],
+                  "burn_human_inference": [
+                    "0.1.4"
+                  ],
+                  "burn_human_motion": [
+                    "0.1.1"
+                  ],
+                  "burn_llama": [
+                    "0.1.2"
+                  ],
+                  "burn_siglip2": [
+                    "0.1.1"
+                  ],
+                  "wgpu": [
+                    "29.0.4"
+                  ]
+                },
+                "schema_version": 1,
+                "source_sha256": "01dbb8f2f7ff7a6c58a36bcc8f51532c32ab4eae47557f7cdef62de1fef9c46c",
+                "target": "x86_64-unknown-linux-gnu"
+              },
+              "capture_or_common_seconds": 15.597546952999997,
+              "configuration": {
+                "config": {
+                  "animated": false,
+                  "camera_grid": false,
+                  "cuboid_only": false,
+                  "depth_format": "Linear",
+                  "draw_obb_gizmo": false,
+                  "draw_pose_gizmos": false,
+                  "editor": false,
+                  "gizmos": false,
+                  "gizmos_alpha": 1.0,
+                  "headless": true,
+                  "height": 512.0,
+                  "human_motion": null,
+                  "image_copiers": true,
+                  "indoor_appearance": null,
+                  "indoor_camera": null,
+                  "indoor_density": 0.6499999761581421,
+                  "indoor_gi_rays": 256,
+                  "indoor_human_density": 0.25,
+                  "indoor_layout": "Mixed",
+                  "indoor_quality": "Auto",
+                  "initialize_scene": false,
+                  "keybinds": false,
+                  "material_grid": false,
+                  "max_camera_radius": 0.0,
+                  "name": "bevy_zeroverse",
+                  "num_cameras": 3,
+                  "orbit_smoothness": 0.800000011920929,
+                  "ovoxel_max_output_voxels": 16000000,
+                  "ovoxel_mode": "Disabled",
+                  "ovoxel_resolution": 128,
+                  "pan_smoothness": 0.6000000238418579,
+                  "playback_mode": "Still",
+                  "playback_speed": 0.20000000298023224,
+                  "playback_step": 0.0,
+                  "playback_steps": 1,
+                  "plucker_visualization": false,
+                  "press_esc_close": false,
+                  "regenerate_ms": 0,
+                  "regenerate_scene_material_shuffle_period": 0,
+                  "regenerate_scene_mesh_shuffle_period": 0,
+                  "render_mode": "Color",
+                  "render_modes": [
+                    "Color",
+                    "Depth",
+                    "Position",
+                    "Normal",
+                    "Semantic",
+                    "CoVisibility"
+                  ],
+                  "rotation_augmentation": false,
+                  "scene_type": "ProceduralIndoor",
+                  "width": 512.0,
+                  "yaw_speed": 0.0,
+                  "z_depth": true,
+                  "zoom_smoothness": 0.800000011920929
+                },
+                "gi_enabled": true,
+                "gi_settings": {
+                  "bake": {
+                    "diffuse_bounces": 3,
+                    "rays_per_probe": 256,
+                    "spacing": 0.8500000238418579,
+                    "workers": 8
+                  },
+                  "enabled": true,
+                  "gpu": true
+                },
+                "prefetch_depth": 3,
+                "timing_policy": "actual complete RGB/annotation samples; no PNG or dataset file encoding; scene preparation included, validation and JSONL writes excluded; GPU memory/utilization measured separately"
+              },
+              "full_lifetime_cpu_seconds": 120.28,
+              "full_lifetime_cpu_seconds_per_room": 1.879375,
+              "full_lifetime_monitor_wall_seconds": 19.521802437957376,
+              "full_lifetime_peak_rss_kib": 3800236.0,
+              "full_lifetime_views_per_second": 9.835157414905666,
+              "gpu_identity": {
+                "device_index": 0,
+                "name": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+                "uuid": "GPU-343b002b-d5c6-2d9c-9fea-9ab5a52d0879"
+              },
+              "mean_elapsed_preparation_seconds": {
+                "asset_insertion_seconds": 0.0008357064464285714,
+                "cameras_seconds": 0.027814310035714284,
+                "environment_seconds": 0.07248492303571429,
+                "geometry_seconds": 0.05036832292857143,
+                "gi_setup_seconds": 0.25698894601785716,
+                "gpu_gi_setup_seconds": 0.01564256682142857,
+                "layout_seconds": 0.0007620209642857143,
+                "material_transport_mesh_seconds": 0.378890867875,
+                "material_transport_seconds": 0.3258965768035714,
+                "materials_seconds": 0.3096360210357143,
+                "meshes_seconds": 0.12201746475,
+                "transport_seconds": 0.1688609983214286
+              },
+              "measured_rooms": 56,
+              "measured_views": 168,
+              "repeat": 2,
+              "steady_begin": 1791258473.6406033,
+              "steady_end": 1791258489.3947191,
+              "steady_nvml_busy_mean": 59.006410256410255,
+              "steady_nvml_busy_sum": 9205,
+              "steady_nvml_sample_count": 156,
+              "total_rooms": 64,
+              "version": "final",
+              "views_per_second": 10.770924460508661,
+              "workload": "six"
+            }
+          ],
+          "steady_views_per_second": 10.778936652029246,
+          "total_room_captures": 128
+        }
+      }
+    }
+  },
+  "measurement_boundaries": {
+    "cpu": "Full renderer lifetimes, including startup, warmup, prefetch and teardown.",
+    "pool_common_steady": "Latest lane warmup completion through earliest lane final-capture completion, not process exit.",
+    "single_steady": "Capture loop after configured warmup through final capture completion."
+  },
+  "metrics_artifact": {
+    "artifact": "out/throughput_cpu_round8/metrics.json",
+    "sha256": "b4663e8e9144bc1a79911653d649d0370522d80d81afdd4363b8735c0d11babb"
+  },
+  "paired_counter_replay_records": 448,
+  "previous_accepted_receipt": {
+    "artifact": "out/throughput_cpu_round8/before-evidence/receipt.json",
+    "sha256": "f0079778c4bf0879d047c6fc5b223804b970da8f8effddb4cc0a1626c7eec2a7"
+  },
+  "qualification_date_utc": "2026-10-06T03:50:08.555798+00:00",
+  "quality_replay": {
+    "bytes_compared": 3445511069,
+    "file_receipts": [
+      {
+        "artifact": "out/throughput_cpu_round8/replay-three-receipt.json",
+        "sha256": "1a5a0111cce1453159a17f1b275e844d334dfbc625ed1291f4155b17a8a49a21"
+      },
+      {
+        "artifact": "out/throughput_cpu_round8/replay-five-receipt.json",
+        "sha256": "ac7d9c6c737d545d6847cc9ff81be67e9a8a35aa675df443d1df9d50d70b22e2"
+      },
+      {
+        "artifact": "out/throughput_cpu_round8/replay-future-receipt.json",
+        "sha256": "ae3b3d3bfed25c43378d22b5b74a11d99b3a54bcbd1d3da5fb96ebdaf2c8d508"
+      }
+    ],
+    "files": 908,
+    "groups": {
+      "five": {
+        "bytes_compared": 419970903,
+        "different": [],
+        "exact": true,
+        "files": 108,
+        "rooms": 4,
+        "views": 20
+      },
+      "future": {
+        "bytes_compared": 2420479868,
+        "different": [],
+        "exact": true,
+        "files": 640,
+        "rooms": 32,
+        "views": 96
+      },
+      "three": {
+        "bytes_compared": 605060298,
+        "different": [],
+        "exact": true,
+        "files": 160,
+        "rooms": 8,
+        "views": 24
+      }
+    },
+    "intended_family_configuration_artifacts": [
+      {
+        "artifact": "out/throughput_cpu_round5/replay_three_final/summary.json",
+        "sha256": "ce1d93698af6567f45f5f794ebc5290094965ce052f4effdb356d4030acffa2c"
+      },
+      {
+        "artifact": "out/throughput_cpu_round5/replay_five_final/summary.json",
+        "sha256": "a7703a7199a61822c968dd71f1b4ffca20724528228c024446ade367dd9cc898"
+      },
+      {
+        "artifact": "out/throughput_cpu_round5/replay_future_final/summary.json",
+        "sha256": "c7b785d0d3ec0f05529d76a34c43491e8e45bcf49c333eaff3ea22619ed36723"
+      }
+    ],
+    "rooms": 44,
+    "strict_all_output_bytes_identical": true,
+    "unique_scene_seeds": 36,
+    "unique_view_records": 116,
+    "views": 140
+  },
+  "receipt_staging": {
+    "destination": "docs/evidence/cpu_efficiency",
+    "independent_report_review_passed": true,
+    "permanent_evidence_written": true,
+    "promotion_date_utc": "2026-10-06T03:52:59.096862+00:00",
+    "qualified_staging_artifact": "out/throughput_cpu_round8/assembled-evidence/receipt.json",
+    "qualified_staging_sha256": "cdfb4514c27f6a82630e67e764e540e59a67f899f009b180beeb546d3d8fe567",
+    "source_and_binary_unchanged": true
+  },
+  "rejected_early_camera_activation": {
+    "accepted": false,
+    "artifact_receipt": {
+      "artifact": "out/throughput_cpu_round7/activation_diagnostic/rejection.json",
+      "sha256": "eaad56605136b69e3a248e7dbbb84a06e091431cf7803a6eebdea4c73cf4352d"
+    },
+    "delta": {
+      "annotations_and_metadata_identical": true,
+      "float_channels": 17,
+      "maximum_absolute_difference": 0.00018310546875,
+      "pixels": 16,
+      "rgb_files": 4,
+      "scene_seed": 43084482
+    },
+    "diagnostic_configuration_note": "An initial diagnostic added co-visibility and is excluded from causal qualification; same_configuration_conservative_replay repeats the original five render modes exactly.",
+    "failed_candidate_binary": {
+      "path": "out/throughput_cpu_round7/activation_diagnostic/final-bench",
+      "sha256": "8c0056bbf9aec16a439698a15e922109a5ee5628c31b1c4aa711fe7a7cb87bd6"
+    },
+    "failed_candidate_source": "42d4adbaabc66284bec713ebf51217c8a81aa4ecbd26884d58f543081f4cc6dd",
+    "failed_replay_receipt": {
+      "path": "out/throughput_cpu_round7/activation_diagnostic/replay-five-receipt.json",
+      "sha256": "c670c7ba8b134e91a2e1383af7f4e95b982b89ee589429a8cacb47337c0f1c55"
+    },
+    "reason": "Earlier native camera activation changed strict RGB replay; conservative activation restored exact same-configuration glass RGB. Removed before throughput acceptance. The underlying HDR/transmission scheduling mechanism is not conclusively isolated.",
+    "removed_module": "src/sample/render_settling/activation.rs",
+    "restored_source": {
+      "path": "src/sample/render_settling.rs",
+      "sha256": "92ca8bdd26709e749ee33546e7eb2793e873a3b423346948319ccd21b17acebb"
+    },
+    "same_configuration_conservative_replay": {
+      "path": "out/throughput_cpu_round7/activation_diagnostic/no-activation-matched-receipt.json",
+      "sha256": "ac7d9c6c737d545d6847cc9ff81be67e9a8a35aa675df443d1df9d50d70b22e2"
+    },
+    "source_archive": [
+      {
+        "path": "out/throughput_cpu_round7/activation_diagnostic/src/sample/render_settling.rs",
+        "sha256": "da641d5783c67a6f94fef53f64e3598e1aef2513989367804c1c10c0b1bb66b1"
+      },
+      {
+        "path": "out/throughput_cpu_round7/activation_diagnostic/src/sample/render_settling/activation.rs",
+        "sha256": "6f13fe4bfebe881b7adda98b9c8125184502e4eca24b93804cd63b0db504f60f"
+      },
+      {
+        "path": "out/throughput_cpu_round7/activation_diagnostic/src/io.rs",
+        "sha256": "94a069d2ce67b253a7f58eee89627f325b112c1346fd511c953a8abfe128a89f"
+      }
+    ]
+  },
+  "rejected_fixed_origin_reflection": {
+    "accepted": false,
+    "artifact_receipt": {
+      "artifact": "out/throughput_cpu_round7/rejected_reflection_origin/rejection.json",
+      "sha256": "d12201b5c9672eb1e5bb6dc66fa9d7b90d33fe2b97e9a8cdf931d6de48e447d9"
+    },
+    "benchmark_log": {
+      "path": "out/throughput_cpu_round7/fixed_origin_reflection_cpu_benchmark.log",
+      "sha256": "8240281c389015e0651e987aaa172a5182b8d67f9ef200dcf8ba0d5d58c8e4d9"
+    },
+    "benchmark_results": [
+      {
+        "baseline_seconds": 0.0165116265,
+        "cache_budget": 33554432,
+        "cache_bytes": 4668312,
+        "candidate_seconds": 0.0195093375,
+        "nodes": 38343,
+        "rays": 24576,
+        "repeats": 4,
+        "scope": "CPU primary environment rays with direct shadow queries and flat material proxies; cache construction and free included; geometry/material setup, convolution, rendering and uploads excluded",
+        "seed": 200,
+        "speedup": 0.8463448079669543,
+        "triangles": 133860
+      },
+      {
+        "baseline_seconds": 0.050106595500000004,
+        "cache_budget": 33554432,
+        "cache_bytes": 13785676,
+        "candidate_seconds": 0.053435865,
+        "nodes": 131071,
+        "rays": 24576,
+        "repeats": 4,
+        "scope": "CPU primary environment rays with direct shadow queries and flat material proxies; cache construction and free included; geometry/material setup, convolution, rendering and uploads excluded",
+        "seed": 230,
+        "speedup": 0.9376959744171822,
+        "triangles": 379999
+      }
+    ],
+    "reason": "Allocation-inclusive CPU benchmark was slower for both representative room geometries; rejected before renderer acceptance. No fixed-origin optimization remains in production.",
+    "removed_new_modules": [
+      "src/scene/procedural_indoor/gi/bvh/reflection.rs",
+      "src/scene/procedural_indoor/gi/bvh/reflection/replay.rs",
+      "src/scene/procedural_indoor/materials/environment/round7_replay.rs"
+    ],
+    "restored_sources": [
+      {
+        "exact_saved_original": true,
+        "path": "src/scene/procedural_indoor/gi/bvh.rs",
+        "sha256": "fba9839a93c73d344219e4d2753161813b9477b3e2bff7a14c79685fad4eb124"
+      },
+      {
+        "exact_saved_original": true,
+        "path": "src/scene/procedural_indoor/materials/environment.rs",
+        "sha256": "aa8be0f2ed34e18aadbec0cae5b021893e8b58748e5d655dc051b18df18bec10"
+      }
+    ],
+    "scope": "Diagnostic CPU primary environment rays with flat material proxies, direct shadows and cache allocation/free; not end-to-end renderer throughput or GPU utilization.",
+    "source_archive": [
+      {
+        "archived_path": "out/throughput_cpu_round7/rejected_reflection_origin/src/scene/procedural_indoor/gi/bvh.rs",
+        "bytes": 4964,
+        "sha256": "6a25fd4dc8b02a970b666f6be76a8f10cae2ac9ed5ac2c07325fe19fe9b948a5",
+        "source_path": "src/scene/procedural_indoor/gi/bvh.rs"
+      },
+      {
+        "archived_path": "out/throughput_cpu_round7/rejected_reflection_origin/src/scene/procedural_indoor/gi/bvh/reflection.rs",
+        "bytes": 6887,
+        "sha256": "308a40138f1d71cd7a23007da90e3be5a000ca320487a7ecde3aed2667a516c7",
+        "source_path": "src/scene/procedural_indoor/gi/bvh/reflection.rs"
+      },
+      {
+        "archived_path": "out/throughput_cpu_round7/rejected_reflection_origin/src/scene/procedural_indoor/gi/bvh/reflection/replay.rs",
+        "bytes": 18680,
+        "sha256": "62e4d5d23025e331dc4a60e67f95cececedae0aebf21b6f4f9b4c9984f715ca6",
+        "source_path": "src/scene/procedural_indoor/gi/bvh/reflection/replay.rs"
+      },
+      {
+        "archived_path": "out/throughput_cpu_round7/rejected_reflection_origin/src/scene/procedural_indoor/materials/environment.rs",
+        "bytes": 12450,
+        "sha256": "825f707156b8249773b966c29f9a2f5f9b991080b2fb26221218f83418560356",
+        "source_path": "src/scene/procedural_indoor/materials/environment.rs"
+      },
+      {
+        "archived_path": "out/throughput_cpu_round7/rejected_reflection_origin/src/scene/procedural_indoor/materials/environment/round7_replay.rs",
+        "bytes": 3463,
+        "sha256": "ca8c2b0bc4ded2c6edda37681acaa10a4e75f27ef1f4f74d54ffc41d5f98e171",
+        "source_path": "src/scene/procedural_indoor/materials/environment/round7_replay.rs"
+      }
+    ]
+  },
+  "rejected_producer_overlap_experiment": {
+    "implemented_in_accepted_source": false,
+    "retained_artifact": "rejected-producer-overlap.json",
+    "status": "rejected"
+  },
+  "rejected_ready_consumption_shortcut": {
+    "cached_consumer_system_instantiations": 0,
+    "candidate_binary_sha256": "8c4f9278e07fd94bebadac32605439cf2afc1912056ec96d0c7f24783d3d60e4",
+    "reason": "No direct-consumption system was instantiated in 32 matched full-quality rooms; the required scheduling update already consumed ready buffers. Extra revision scanning added work. Review also found readiness/projection guard gaps.",
+    "receipt_artifact": {
+      "artifact": "out/throughput_cpu_round5/rejected-ready-consumption.json",
+      "sha256": "6f34c9b485453a947d9a6fc91ae6a49371d40286282c718f7f1657c69f956143"
+    },
+    "restored_native_readback_sha256": "5877a79018d25352149def8de64d871e647c13f0af4d749db518031ea36b63d8",
+    "rooms": 32,
+    "scope": "Combined diagnostic screen only; no isolated benefit or exact replay claim for the abandoned path.",
+    "status": "rejected-and-removed"
+  },
+  "repository": {
+    "capture_source_inputs_count": 414,
+    "capture_source_sha256": "01dbb8f2f7ff7a6c58a36bcc8f51532c32ab4eae47557f7cdef62de1fef9c46c",
+    "commit_push_publish_performed": false,
+    "dirty_checkout": true,
+    "frozen_source_inventory": {
+      "artifact": "out/throughput_cpu_round8/frozen-source.json",
+      "sha256": "89da5cc6d7c71a50ebc221cb352038a5b2c3a67dd79172b6a7519420be2ef475"
+    },
+    "head": "051adaa2e3c72a7fd55ebe5003942e301966c665",
+    "path": "/media/mosure/hyper1/repos/bevy_zeroverse",
+    "rust_files_count": 271,
+    "working_tree_source_sha256": "01dbb8f2f7ff7a6c58a36bcc8f51532c32ab4eae47557f7cdef62de1fef9c46c"
+  },
+  "schema_version": 7,
+  "scope": "Current accepted local full-quality throughput snapshot after fresh qualification/replay/ABBA; progress toward 2x, not a demonstrated 2x or downstream training speedup.",
+  "timing_seeds": {
+    "pool": [
+      200,
+      295
+    ],
+    "single": [
+      200,
+      263
+    ]
+  },
+  "unique_timing_seeds": 96,
+  "validation": {
+    "burn_generator_tests": {
+      "fresh_log_artifact": {
+        "artifact": "out/throughput_cpu_round8/burn-generator-qualified.log",
+        "sha256": "b90a6bffbb3ba15445df5fe2fd7a99c19943df70e4b49273c45e49ea4ff6befa"
+      },
+      "passed": 4,
+      "scope": "Retained constructor and strict numerical flow/geometry fixtures; not the whole Burn suite."
+    },
+    "checks_artifact": {
+      "artifact": "out/throughput_cpu_round8/checks.json",
+      "sha256": "f4bc1cc6174db190a373d9bf8b733a567307616a59a8c16def7b342c73f2861f"
+    },
+    "clippy": {
+      "passed": true,
+      "scope": "Fresh core/Burn all targets, human_motion, -D warnings"
+    },
+    "compiler_advisory": "Existing upstream burn-cubecl 0.21 future-incompatibility advisory; no project Clippy warnings.",
+    "core_tests": {
+      "failed": 0,
+      "ignored": 22,
+      "passed": 357
+    },
+    "format_and_patch_whitespace": {
+      "format_check_passed": true,
+      "git_diff_check_passed": true
+    },
+    "independent_oracles": {
+      "atlas_rows": "Copied original full map routine, legacy/leaf/knit/wardrobe/floor styles, cross-band height derivatives and nested scoped scheduling.",
+      "carried_color": "Every original sRGB encode/mix/clamp retained; finite bit-equal decode reuse only, original helper/reset on exceptional operation inputs; copied transfer and actual consumed complete map/mip oracles.",
+      "cellular_halo": "Original neighbor arithmetic, signed halo positions, full-atlas nearest/wrapped pigment index, strict ties, exceptional coordinates and capacity budgets.",
+      "explicit_passed_test_gates": [
+        "deferred_material_binding_preserves_groups_mesh_bytes_and_tangents",
+        "cellular_halo_replays_original_full_atlases_and_wrapped_winners",
+        "cellular_halo_debits_actual_capacity_and_retains_small_budget_fallback",
+        "periodic_unit_matches_original_over_metric_coordinate_grid",
+        "periodic_unit_preserves_dense_seams_subnormals_and_all_exponents",
+        "unit_wrap_noise_replays_original_complete_atlas_fields",
+        "maximum_cell_halo_and_pigments_fit_the_shared_actual_capacity_budget",
+        "scalar_paint_preparation_has_no_grids_and_map_noise_budget_is_bounded",
+        "maximum_frequency_paint_cache_replays_original_complete_maps",
+        "carried_decode_replays_original_transfers_without_assuming_identity",
+        "carried_decode_preserves_signed_zero_nan_payloads_and_transfer_boundaries",
+        "carried_colors_replay_original_consumed_mineral_atlases_and_mips",
+        "carried_colors_match_prior_prepared_pipeline_with_malformed_inputs",
+        "combined_staging_is_bounded_by_actual_device_buffer_limit",
+        "one_mapping_replays_ordered_original_plane_and_row_bytes",
+        "ground_truth_camera_teardown_and_empty_scene_match_original_cache_reset",
+        "ground_truth_exact_matrix_reuse_matches_original_after_live_component_changes",
+        "ground_truth_invalid_meshes_preserve_original_partial_geometry_and_errors",
+        "ground_truth_matrix_bits_preserve_signed_zero_and_nonfinite_failure_recovery",
+        "ground_truth_mesh_events_invalidate_live_assets_and_retry_failed_geometry",
+        "ground_truth_skin_capture_joint_and_bind_changes_match_original_baked_bits",
+        "ground_truth_span_assembly_matches_original_indices_batches_and_flow_topology",
+        "glaze_halos_and_noise_debit_one_actual_capacity_budget",
+        "prepared_glaze_replays_original_texel_bits_and_every_pbr_mip",
+        "prepared_glaze_replays_every_consumed_base_and_structural_map_and_mip",
+        "authored_glaze_uses_one_selected_cache_and_replays_512_maps",
+        "sparse_glaze_budgets_and_maximum_fields_replay_original_float_bits",
+        "exceptional_authored_glazes_retain_original_scalar_float_and_nan_payloads",
+        "extraction_cache_rebuilds_after_resource_replacement",
+        "extraction_cache_tracks_actual_main_resource_ticks_and_asset_usage",
+        "extraction_cache_tracks_future_presence_promotion_and_scene_identity",
+        "only_consumed_successful_packets_can_reuse_staging"
+      ],
+      "ground_truth_extraction": "Frozen original complete extraction oracle; exact packed vertex/instance bytes, indices, batch order/cull/layers, flow topology, generation and error/prefix behavior. Live mesh events, visibility, semantic/transform changes, skin joint/bind/capture changes, camera teardown, signed zero/nonfinite failures and recovery are covered.",
+      "image_copier_ownership": "Immutable source-image/staging-buffer arrays shared with Arc; only successful consumed packets may recycle staging. Existing independent row stripping/combined buffer cap and live GPU/temporal gates rerun.",
+      "mesh_material_overlap": "Copied original fixture/shell/object/human planning; semantic/O-voxel tags, bounds, finishes, metadata, exact vertex/index/tangent bytes.",
+      "periodic_halo": "Original interpolation and hashes, wrapped borders, bit-adjacent coordinates and honest padded allocation.",
+      "prepared_glaze": "Copied original ceramic arithmetic preserves both sRGB encode/decode round trips; independent texel-bit/consumed complete-map/mip replay, authored 512 maps/coexisting programs, sparse/maximum shared capacity budgets, exceptional consumed parameters and nonfinite UV fallback.",
+      "readback_layout": "Ordered independent original row stripping at aligned and odd resolutions; checked actual adapter buffer cap with original per-plane/WASM fallback; fresh full capture/GPU replay.",
+      "readiness_extraction_cache": "Tests use actual Extract MainWorld resource ticks and replacement/removal/reintroduction; current scene/future asset promotion and RenderAssetUsages changes invalidate correctly. Prepared GPU asset and pipeline state still checked every render.",
+      "round8_glaze_gates": [
+        "glaze_halos_and_noise_debit_one_actual_capacity_budget",
+        "prepared_glaze_replays_original_texel_bits_and_every_pbr_mip",
+        "prepared_glaze_replays_every_consumed_base_and_structural_map_and_mip",
+        "authored_glaze_uses_one_selected_cache_and_replays_512_maps",
+        "sparse_glaze_budgets_and_maximum_fields_replay_original_float_bits",
+        "exceptional_authored_glazes_retain_original_scalar_float_and_nan_payloads"
+      ],
+      "round8_ground_truth_gates": [
+        "ground_truth_camera_teardown_and_empty_scene_match_original_cache_reset",
+        "ground_truth_exact_matrix_reuse_matches_original_after_live_component_changes",
+        "ground_truth_invalid_meshes_preserve_original_partial_geometry_and_errors",
+        "ground_truth_matrix_bits_preserve_signed_zero_and_nonfinite_failure_recovery",
+        "ground_truth_mesh_events_invalidate_live_assets_and_retry_failed_geometry",
+        "ground_truth_skin_capture_joint_and_bind_changes_match_original_baked_bits",
+        "ground_truth_span_assembly_matches_original_indices_batches_and_flow_topology"
+      ],
+      "round8_readiness_gates": [
+        "extraction_cache_rebuilds_after_resource_replacement",
+        "extraction_cache_tracks_actual_main_resource_ticks_and_asset_usage",
+        "extraction_cache_tracks_future_presence_promotion_and_scene_identity"
+      ],
+      "scope": "Fresh full-core tests; original expressions, exact complete consumed maps/mips plus original mesh/group planning and byte-level tangent output.",
+      "successful_staging_recycling_gate": "only_consumed_successful_packets_can_reuse_staging",
+      "unit_wrap": "For finite [0,1) inputs, preserve original float bits including signed zero; elsewhere retain literal rem_euclid. Independent copied-original complete noise fields plus dense coordinate/seam/subnormal/exponent/NaN tests validate this helper; prepared-vs-scalar maps alone share the helper and are insufficient."
+    },
+    "log_artifacts": [
+      {
+        "artifact": "out/throughput_cpu_round8/format.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "artifact": "out/throughput_cpu_round8/clippy-qualified.log",
+        "sha256": "cdb638a524d886805883640ae0eb701945a801800f2b2e98a0e76fe207450336"
+      },
+      {
+        "artifact": "out/throughput_cpu_round8/wasm-qualified.log",
+        "sha256": "683cdd780fa478f93097028856d22a2f88e82d02c12187a647d723bc24e51ee4"
+      },
+      {
+        "artifact": "out/throughput_cpu_round8/exceptional-glaze-focused.log",
+        "sha256": "e6cd47442a8ac1313900b368a11278b12483ea86bb799e65a76feb38c4cff6cb"
+      },
+      {
+        "artifact": "out/throughput_cpu_round8/core-tests-qualified.log",
+        "sha256": "1b2982d42138e9d3587dae6e23e20f9d7758b2a320ae750bcfabce2091ce71ff"
+      },
+      {
+        "artifact": "out/throughput_cpu_round8/glaze-kernel-qualified.log",
+        "sha256": "61409a98ff293802dc27aee85a697307437c3a79b3e94153c5d3c014a4f56924"
+      },
+      {
+        "artifact": "out/throughput_cpu_round8/ground-truth-kernel-qualified.log",
+        "sha256": "06c8c70e185c08d42ba26d913a4e04aa19b07477f10f2204b370e161efd02b42"
+      },
+      {
+        "artifact": "out/throughput_cpu_round8/gpu-tests-qualified.log",
+        "sha256": "dc76993f5edfdbd23a4c4e5057c9bec62885af2024775a2b42d268b9bb0de5b4"
+      },
+      {
+        "artifact": "out/throughput_cpu_round8/burn-generator-qualified.log",
+        "sha256": "b90a6bffbb3ba15445df5fe2fd7a99c19943df70e4b49273c45e49ea4ff6befa"
+      },
+      {
+        "artifact": "out/throughput_cpu_round8/native-temporal-qualified.log",
+        "sha256": "59af2a64f88f2b8f5cd7d5bcb72b335997bbb3b098e341216aa0ab6c709d2e21"
+      },
+      {
+        "artifact": "out/throughput_cpu_round8/build-final-bench.log",
+        "sha256": "64827dc444be6c9820ebe728ddc5cf84994bf194b5051b47f6b5d97aa74bcedb"
+      }
+    ],
+    "native_gpu_fixtures": {
+      "annotation_export": 3,
+      "fresh_log_artifact": {
+        "artifact": "out/throughput_cpu_round8/gpu-tests-qualified.log",
+        "sha256": "dc76993f5edfdbd23a4c4e5057c9bec62885af2024775a2b42d268b9bb0de5b4"
+      },
+      "indoor": 5,
+      "new_production_indoor_temporal_fixture": "Three 321x239 camera views at three physical timesteps; eight modes, exact request/flow epochs, analytic static-world flow<0.005px, terminal masks, eighteen directed co-visibility pairs; no human motion.",
+      "passed": 8,
+      "thin_triangle_seeds": [
+        42430575,
+        43084584
+      ]
+    },
+    "native_live_dataset_temporal_export": {
+      "fresh_log_artifact": {
+        "artifact": "out/throughput_cpu_round8/native-temporal-qualified.log",
+        "sha256": "59af2a64f88f2b8f5cd7d5bcb72b335997bbb3b098e341216aa0ab6c709d2e21"
+      },
+      "passed": true,
+      "raw_child_parent_test_summary_count": 2,
+      "scope": "Retained production LiveDataset Color/Position temporal fixture; legacy object scene, separately from new indoor fixture.",
+      "unique_fixture_count": 1
+    },
+    "ordered_required_checks": [
+      "format",
+      "clippy-qualified",
+      "wasm-qualified",
+      "exceptional-glaze-focused",
+      "core-tests-qualified",
+      "glaze-kernel-qualified",
+      "ground-truth-kernel-qualified",
+      "gpu-tests-qualified",
+      "burn-generator-qualified",
+      "native-temporal-qualified",
+      "build-final-bench"
+    ],
+    "wasm": {
+      "browser_runtime_tested": false,
+      "compile_passed": true,
+      "features": [
+        "web",
+        "human_motion"
+      ]
+    }
+  }
+}

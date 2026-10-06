@@ -8,6 +8,10 @@ use super::{
 use crate::scene::procedural_indoor::layout::stream;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+mod carry;
+mod prepared;
+pub(super) use carry::ColorCarry;
+pub(super) use prepared::MineralFields;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MineralRecipe {
@@ -104,6 +108,27 @@ impl MineralRecipe {
         Ok(())
     }
     pub(super) fn evaluate(&self, r: &MaterialRecipe, uv: [f32; 2], floor_style: u32) -> Texel {
+        self.evaluate_prepared(r, uv, floor_style, None)
+    }
+    pub(super) fn evaluate_prepared(
+        &self,
+        r: &MaterialRecipe,
+        uv: [f32; 2],
+        floor_style: u32,
+        prepared: Option<&super::program::PreparedMineral>,
+    ) -> Texel {
+        self.evaluate_color_carry(r, uv, floor_style, prepared, true)
+    }
+
+    fn evaluate_color_carry(
+        &self,
+        r: &MaterialRecipe,
+        uv: [f32; 2],
+        floor_style: u32,
+        prepared: Option<&super::program::PreparedMineral>,
+        reuse_colors: bool,
+    ) -> Texel {
+        let fields = prepared.and_then(|p| p.fields());
         let mut uv = uv;
         let mut seam = 0.;
         let mut footprint = 1. / r.map_size(floor_style) as f32;
@@ -128,12 +153,26 @@ impl MineralRecipe {
         // Warp the packing as well as individual chip edges. Random sizes and
         // missing chips keep the aggregate from resembling a regular dot grid.
         let packed = [
-            u + (periodic_noise(u, v, 11, 13, r.seed.wrapping_add(179)) - 0.5) * 0.9
+            u + (fields.map_or_else(
+                || periodic_noise(u, v, 11, 13, r.seed.wrapping_add(179)),
+                |p| p.noise[0].sample(u, v),
+            ) - 0.5)
+                * 0.9
                 / self.aggregate_cells[0] as f32,
-            v + (periodic_noise(u, v, 13, 11, r.seed.wrapping_add(181)) - 0.5) * 0.9
+            v + (fields.map_or_else(
+                || periodic_noise(u, v, 13, 11, r.seed.wrapping_add(181)),
+                |p| p.noise[1].sample(u, v),
+            ) - 0.5)
+                * 0.9
                 / self.aggregate_cells[1] as f32,
         ];
-        let cell = cellular(packed, self.aggregate_cells, r.seed);
+        let (cell, aggregate_index) = fields.and_then(|p| p.aggregate.as_ref()).map_or_else(
+            || (cellular(packed, self.aggregate_cells, r.seed).into(), None),
+            |cells| {
+                let (cell, index) = cells.sample_primary_indexed(packed);
+                (cell, Some(index))
+            },
+        );
         // Crushed minerals have stretched/angular sections and internal grains,
         // rather than identical flat circular dots. The local transform has unit
         // area; shape, size and pigment use distinct cell attributes.
@@ -145,12 +184,17 @@ impl MineralRecipe {
         let rounded = (x * x + y * y).sqrt();
         let angular = (x.abs() * 0.90 + y.abs() * 0.35).max(y.abs() * 0.90 + x.abs() * 0.35);
         let clast_distance = rounded * (1. - cell.shape * 0.65) + angular * cell.shape * 0.65;
-        let edge = periodic_noise(
-            u,
-            v,
-            self.aggregate_cells[0] * 3,
-            self.aggregate_cells[1] * 3,
-            r.seed.wrapping_add(191),
+        let edge = fields.map_or_else(
+            || {
+                periodic_noise(
+                    u,
+                    v,
+                    self.aggregate_cells[0] * 3,
+                    self.aggregate_cells[1] * 3,
+                    r.seed.wrapping_add(191),
+                )
+            },
+            |p| p.noise[2].sample(u, v),
         );
         let radius =
             self.aggregate_radius * (0.30 + cell.dye.powi(2) * 1.10) * (0.65 + edge * 0.70);
@@ -162,11 +206,16 @@ impl MineralRecipe {
         let exposed = chip * self.aggregate_exposure * (1. - self.marble_mix * 0.65);
         let pores = (1. - smooth(cell.radius / 0.13)) * smooth((self.porosity - cell.dye) * 12.);
         let field = if self.marble_mix > 0. {
-            deposit(
-                uv,
-                self.vein_cells,
-                self.vein_warp,
-                r.seed.wrapping_add(239),
+            fields.and_then(|p| p.veins.as_ref()).map_or_else(
+                || {
+                    deposit(
+                        uv,
+                        self.vein_cells,
+                        self.vein_warp,
+                        r.seed.wrapping_add(239),
+                    )
+                },
+                |p| p.sample(uv),
             )
         } else {
             0.5
@@ -180,16 +229,58 @@ impl MineralRecipe {
         };
         let vein = band(0.49, self.vein_width) + 0.35 * band(0.63, self.vein_width * 0.45);
         let vein = (vein * self.vein_strength * self.marble_mix).min(1.);
-        let micro = periodic_noise(u, v, 97, 91, r.seed.wrapping_add(271)) - 0.5;
-        let binder = periodic_noise(u, v, 9, 11, r.seed.wrapping_add(277)) - 0.5;
-        let matrix = tint(r.color, 1. + binder * self.binder_variation + micro * 0.025);
-        let chips = tint(
-            mix(self.aggregate_color[0], self.aggregate_color[1], cell.dye),
-            1. + (edge - 0.5) * 0.28 + micro * 0.20,
+        let micro = fields.map_or_else(
+            || periodic_noise(u, v, 97, 91, r.seed.wrapping_add(271)),
+            |p| p.noise[3].sample(u, v),
+        ) - 0.5;
+        let binder = fields.map_or_else(
+            || periodic_noise(u, v, 9, 11, r.seed.wrapping_add(277)),
+            |p| p.noise[4].sample(u, v),
+        ) - 0.5;
+        let matrix_gain = 1. + binder * self.binder_variation + micro * 0.025;
+        let matrix = prepared.map_or_else(|| tint(r.color, matrix_gain), |p| p.matrix(matrix_gain));
+        let chip_gain = 1. + (edge - 0.5) * 0.28 + micro * 0.20;
+        let chips = if prepared.is_some() && self.unused_chip_endpoint(exposed, chip_gain) {
+            // The chip endpoint contributes exactly zero. Keep the
+            // following mix, including stone's sRGB round trip and addition,
+            // while avoiding color conversions of an invisible inclusion.
+            [0.; 3]
+        } else {
+            let aggregate = fields
+                .and_then(|p| p.aggregate_colors.as_ref())
+                .zip(aggregate_index)
+                .map_or_else(
+                    || {
+                        prepared.map_or_else(
+                            || mix(self.aggregate_color[0], self.aggregate_color[1], cell.dye),
+                            |p| p.aggregate(cell.dye),
+                        )
+                    },
+                    |(colors, index)| colors[index],
+                );
+            tint(aggregate, chip_gain)
+        };
+        let stone_gain = 1. + (field - 0.5) * self.marble_mix * 0.20;
+        let pore_gain = 1. - pores * 0.65 - seam * 0.35;
+        let carried = prepared.filter(|_| reuse_colors).map(|p| {
+            ColorCarry::new(matrix)
+                .tinted(stone_gain)
+                .mixed(chips, exposed)
+                .mixed_linear(p.vein_linear(), vein)
+                .tinted(pore_gain)
+        });
+        let color = carried.as_ref().map_or_else(
+            || {
+                let stone = tint(matrix, stone_gain);
+                let exposed_color = mix(stone, chips, exposed);
+                let color = prepared.map_or_else(
+                    || mix(exposed_color, self.vein_color, vein),
+                    |p| p.vein(exposed_color, vein),
+                );
+                tint(color, pore_gain)
+            },
+            ColorCarry::encoded,
         );
-        let stone = tint(matrix, 1. + (field - 0.5) * self.marble_mix * 0.20);
-        let mut color = mix(mix(stone, chips, exposed), self.vein_color, vein);
-        color = tint(color, 1. - pores * 0.65 - seam * 0.35);
         let mut texel = Texel {
             color,
             height: r.relief_m
@@ -205,8 +296,28 @@ impl MineralRecipe {
             occlusion: (1. - pores * 0.12 - seam * 0.05).clamp(0.8, 1.),
         };
         if let Some(c) = &self.casting {
-            c.apply(r, uv, self.polish, &mut texel);
+            let casting = fields.and_then(|p| p.casting.as_ref());
+            if let Some(color) = carried {
+                c.apply_carried(r, uv, self.polish, &mut texel, casting, color);
+            } else {
+                c.apply_prepared(r, uv, self.polish, &mut texel, casting);
+            }
         }
         texel
     }
+
+    // Malformed authored pigment values and signed-zero endpoints retain the
+    // scalar behavior. Valid nonnegative pigments produce a finite endpoint
+    // whose multiplication by zero has the same sign as [0.; 3].
+    fn unused_chip_endpoint(&self, exposed: f32, gain: f32) -> bool {
+        exposed == 0.
+            && gain.is_finite()
+            && !gain.is_sign_negative()
+            && self.aggregate_color.iter().flatten().all(|color| {
+                color.is_finite() && (0.0..=1.0).contains(color) && !color.is_sign_negative()
+            })
+    }
 }
+
+#[cfg(test)]
+mod replay_tests;

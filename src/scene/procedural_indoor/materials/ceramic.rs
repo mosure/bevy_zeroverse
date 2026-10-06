@@ -9,6 +9,8 @@ use super::{
 use crate::scene::procedural_indoor::layout::stream;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+mod prepared;
+pub(super) use prepared::PreparedGlaze;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GlazeRecipe {
@@ -147,3 +149,6 @@ impl GlazeRecipe {
         }
     }
 }
+
+#[cfg(test)]
+mod replay_tests;

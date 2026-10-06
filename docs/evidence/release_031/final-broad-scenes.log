@@ -1,0 +1,23 @@
+   Compiling bevy_zeroverse v0.31.0 (/media/mosure/hyper1/repos/bevy_zeroverse)
+    Finished `test` profile [optimized] target(s) in 59.62s
+warning: the following packages contain code that will be rejected by a future version of Rust: burn-cubecl v0.21.0
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 2`
+     Running unittests src/lib.rs (/media/mosure/hyper2/build/bevy_zeroverse-0.28.1/debug/build/bevy_zeroverse/e199f51ef1319181/out/bevy_zeroverse-e199f51ef1319181)
+
+running 2 tests
+test scene::procedural_indoor::tests::broad_density_sweep_is_valid has been running for over 60 seconds
+test scene::procedural_indoor::tests::broad_full_human_occupancy_preserves_geometry_and_layout has been running for over 60 seconds
+full human density=1 furniture_density=0: scenes=1024 cameras=4096 people=5456 neighbor_people=766 per_scene_min=2 per_scene_max=12 layouts={"Breakroom": 114, "Conference": 87, "Coworking": 108, "Library": 107, "Lounge": 98, "OpenOffice": 100, "Reception": 101, "Studio": 107, "Training": 102, "Workshop": 100}
+density=0: 10000 seeds, 40000 cameras, zero invalid scenes; layouts={"Breakroom": 1005, "Conference": 1013, "Coworking": 1033, "Library": 992, "Lounge": 1009, "OpenOffice": 946, "Reception": 985, "Studio": 1035, "Training": 989, "Workshop": 993}
+full human density=1 furniture_density=0.35: scenes=1024 cameras=4096 people=6589 neighbor_people=748 per_scene_min=2 per_scene_max=18 layouts={"Breakroom": 114, "Conference": 87, "Coworking": 108, "Library": 107, "Lounge": 98, "OpenOffice": 100, "Reception": 101, "Studio": 107, "Training": 102, "Workshop": 100}
+density=0.35: 10000 seeds, 40000 cameras, zero invalid scenes; layouts={"Breakroom": 1005, "Conference": 1013, "Coworking": 1033, "Library": 992, "Lounge": 1009, "OpenOffice": 946, "Reception": 985, "Studio": 1035, "Training": 989, "Workshop": 993}
+full human density=1 furniture_density=0.65: scenes=1024 cameras=4096 people=7541 neighbor_people=736 per_scene_min=1 per_scene_max=18 layouts={"Breakroom": 114, "Conference": 87, "Coworking": 108, "Library": 107, "Lounge": 98, "OpenOffice": 100, "Reception": 101, "Studio": 107, "Training": 102, "Workshop": 100}
+density=0.65: 10000 seeds, 40000 cameras, zero invalid scenes; layouts={"Breakroom": 1005, "Conference": 1013, "Coworking": 1033, "Library": 992, "Lounge": 1009, "OpenOffice": 946, "Reception": 985, "Studio": 1035, "Training": 989, "Workshop": 993}
+full human density=1 furniture_density=1: scenes=1024 cameras=4096 people=8451 neighbor_people=727 per_scene_min=1 per_scene_max=18 layouts={"Breakroom": 114, "Conference": 87, "Coworking": 108, "Library": 107, "Lounge": 98, "OpenOffice": 100, "Reception": 101, "Studio": 107, "Training": 102, "Workshop": 100}
+full occupancy geometry: vertices=4096021484 triangles=2270546748; poses={"SeatedListening", "SeatedTalking", "SeatedWorking", "StandingConversation", "StandingPresenting", "StandingReading", "StandingRelaxed", "StandingWalking"}, outfits={"Blazer", "Cardigan", "Knitwear", "Polo", "Shirt", "Tee"}, skin_tones={0, 1, 2, 3, 4, 5, 6, 7}, hairstyles={0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18}
+test scene::procedural_indoor::tests::broad_full_human_occupancy_preserves_geometry_and_layout ... ok
+density=1: 10000 seeds, 40000 cameras, zero invalid scenes; layouts={"Breakroom": 1005, "Conference": 1013, "Coworking": 1033, "Library": 992, "Lounge": 1009, "OpenOffice": 946, "Reception": 985, "Studio": 1035, "Training": 989, "Workshop": 993}
+test scene::procedural_indoor::tests::broad_density_sweep_is_valid ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 388 filtered out; finished in 1252.84s
+

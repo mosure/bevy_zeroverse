@@ -75,7 +75,7 @@ fn signaled_runner(mut app: App) -> AppExit {
                         return AppExit::Success;
                     }
 
-                    app.update();
+                    update_capture(&mut app);
                     if let Some(exit) = app.should_exit() {
                         return exit;
                     }
@@ -101,6 +101,22 @@ fn signaled_runner(mut app: App) -> AppExit {
                 thread::sleep(Duration::from_millis(50));
             }
         }
+    }
+}
+
+/// Advance a native headless capture, servicing registered readback callbacks
+/// without repeatedly extracting/rendering while its exact packets are pending.
+/// Returns whether an application update ran. Interactive/Web apps update normally.
+/// Callers retain their ordinary exit, failure and wall-time timeout checks.
+pub fn update_capture(app: &mut App) -> bool {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        crate::sample::native_readback::update(app, || EXIT_REQUESTED.load(Ordering::Acquire))
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        app.update();
+        true
     }
 }
 

@@ -83,6 +83,10 @@ impl<T> Lookahead<T> {
     pub(crate) fn front_mut(&mut self) -> Option<&mut T> {
         self.0.front_mut().map(|(_, job)| job)
     }
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn second_mut(&mut self) -> Option<(&Request, &mut T)> {
+        self.0.get_mut(1).map(|(key, job)| (&*key, job))
+    }
     pub(crate) fn take(&mut self, request: &Request) -> (Option<T>, usize) {
         if self.0.front().is_some_and(|(key, _)| key == request) {
             return (self.0.pop_front().map(|(_, task)| task), 0);
@@ -137,6 +141,16 @@ pub(crate) struct Request {
 }
 
 impl Request {
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn matches_config(
+        &self,
+        args: &BevyZeroverseConfig,
+        settings: &ZeroverseSceneSettings,
+        gi: gi::IndoorGiSettings,
+    ) -> bool {
+        *self == Self::new(self.seed, args, settings, gi)
+    }
+
     pub(crate) fn new(
         seed: u64,
         args: &BevyZeroverseConfig,
@@ -283,6 +297,25 @@ mod tests {
         queue.fill(&key, 4, |next| next.seed);
         assert_eq!(queue.fill(&key, 0, |_| panic!("disabled")), (0, 4));
         assert!(queue.0.is_empty());
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn gi_lookahead_is_limited_to_the_second_contiguous_slot() {
+        let key = Request::new(u64::MAX - 1, &default(), &default(), default());
+        let mut queue = Lookahead::default();
+        assert!(queue.second_mut().is_none());
+        queue.fill(&key, 1, |next| next.seed);
+        assert!(queue.second_mut().is_none());
+        queue.fill(&key, MAX_DEPTH, |next| next.seed);
+        let (second_key, value) = queue.second_mut().unwrap();
+        assert_eq!(*second_key, key.successor().successor());
+        *value = 91;
+        assert_eq!(queue.take(&key.successor()), (Some(u64::MAX), 0));
+        assert_eq!(queue.take(&key.successor().successor()), (Some(91), 0));
+        assert_eq!(queue.second_mut().unwrap().0.seed, 2);
+        assert_eq!(queue.take(&key), (None, 2));
+        assert!(queue.second_mut().is_none());
     }
 
     #[test]
