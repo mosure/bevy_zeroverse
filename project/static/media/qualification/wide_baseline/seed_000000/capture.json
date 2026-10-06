@@ -1,7 +1,7 @@
 {
   "build_provenance": {
-    "capture_engine": "capture-v47;calibration=1;co_visibility=1;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=9;surface_flow=1;indoor=29;multiview=5;ovoxel=3;glass=2;hair=5;wardrobe=4;footwear=1;bounds=4;morphology=2;position=2;tabletop=2;finishes=8;seating=3;activity=2;playback=2;exterior=2;envelope=3",
-    "crate_version": "0.30.0",
+    "capture_engine": "capture-v48;calibration=1;co_visibility=1;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=9;surface_flow=1;indoor=29;multiview=5;ovoxel=3;glass=2;hair=5;wardrobe=4;footwear=1;bounds=4;morphology=2;position=3;tabletop=2;finishes=8;seating=3;activity=2;playback=2;exterior=2;envelope=3",
+    "crate_version": "0.31.0",
     "features": {
       "human_motion": false,
       "multi_threaded": true,
@@ -16,16 +16,16 @@
         "0.6.1"
       ],
       "bevy_zeroverse": [
-        "0.30.0"
+        "0.31.0"
       ],
       "bevy_zeroverse_burn": [
-        "0.13.0"
+        "0.14.0"
       ],
       "bevy_zeroverse_capture": [
         "0.1.1"
       ],
       "bevy_zeroverse_ffi": [
-        "0.30.0"
+        "0.31.0"
       ],
       "bevy_zeroverse_publication": [
         "0.1.2"
@@ -56,7 +56,7 @@
       ]
     },
     "schema_version": 1,
-    "source_sha256": "407d46b6901b770153c99b0063c1e0d7778f02bc93d7f6ad37b3470dbb660ed7",
+    "source_sha256": "ab2e322b1b6121ec0fc8bfa6dfe77e0783625cb164dec80227b0a65eba83bdeb",
     "target": "x86_64-unknown-linux-gnu"
   },
   "camera_qualification": {
@@ -109,9 +109,9 @@
     "rendered_overlap": [
       {
         "baseline_m": 2.2360661029815674,
-        "mean_triangulation_degrees": 51.243538569680965,
-        "shared_fraction_valid": 0.57998046875,
-        "shared_pixels": 23756,
+        "mean_triangulation_degrees": 51.24353700138082,
+        "shared_fraction_valid": 0.5800537109375,
+        "shared_pixels": 23759,
         "source_camera": 0,
         "step_index": 0,
         "target_camera": 1,
@@ -120,18 +120,18 @@
       },
       {
         "baseline_m": 2.2360661029815674,
-        "mean_triangulation_degrees": 51.883578053106625,
-        "shared_fraction_valid": 0.5708740234375,
-        "shared_pixels": 23383,
+        "mean_triangulation_degrees": 51.88953019489866,
+        "shared_fraction_valid": 0.5708984375,
+        "shared_pixels": 23384,
         "source_camera": 1,
         "step_index": 0,
         "target_camera": 0,
-        "triangulation_sample_count": 2344,
+        "triangulation_sample_count": 2345,
         "valid_source_pixels": 40960
       },
       {
         "baseline_m": 2.220214366912842,
-        "mean_triangulation_degrees": 51.16764763938615,
+        "mean_triangulation_degrees": 51.167629904566674,
         "shared_fraction_valid": 0.5541259765625,
         "shared_pixels": 22697,
         "source_camera": 0,
@@ -142,9 +142,9 @@
       },
       {
         "baseline_m": 2.220214366912842,
-        "mean_triangulation_degrees": 51.666365356790536,
-        "shared_fraction_valid": 0.537939453125,
-        "shared_pixels": 22034,
+        "mean_triangulation_degrees": 51.66635779989251,
+        "shared_fraction_valid": 0.5379150390625,
+        "shared_pixels": 22033,
         "source_camera": 1,
         "step_index": 1,
         "target_camera": 0,
@@ -162,9 +162,9 @@
     "selection": "requested strata are fixed before placement retries; no rendered or model-score filtering",
     "triangulation": "mean angle of shared rendered world positions on a regular grid of at most 4096 source pixels/view; null when position was not exported or no shared samples"
   },
-  "run_id": "3273915-1791133632089136117",
+  "run_id": "38171-1791273500394513482",
   "seed": 0,
-  "elapsed_seconds": 1.390690546,
+  "elapsed_seconds": 0.65933037,
   "image_size": [
     256,
     160
@@ -274,27 +274,29 @@
         "wall": 18792
       },
       "annotation_alignment": {
-        "checked_pixels": 4368,
-        "depth_position_p99_metres": 0.0000011920929,
-        "reprojection_p99_pixels": 0.0021949995,
+        "checked_pixels": 40960,
+        "depth_position_p99_metres": 7.1525574e-7,
+        "depth_position_max_metres": 9.536743e-7,
+        "reprojection_p99_pixels": 0.0000629136,
+        "reprojection_max_pixels": 0.00010377099,
         "normal_length_max_error": 1.7881393e-7,
-        "position_quantization_budget_p99_ratio": 0.134136
+        "position_quantization_budget_p99_ratio": 0.004784459
       },
       "co_visibility": {
         "valid_pixels": 40960,
-        "shared_pixels": 23756,
+        "shared_pixels": 23759,
         "peer_pixels": [
           0,
-          23756
+          23759
         ],
         "cardinality_pixels": [
-          17204,
-          23756
+          17201,
+          23759
         ],
-        "shared_fraction_valid": 0.57998046875,
+        "shared_fraction_valid": 0.5800537109375,
         "peer_fraction_valid": [
           0.0,
-          0.57998046875
+          0.5800537109375
         ]
       }
     },
@@ -377,26 +379,28 @@
         "wall": 11876
       },
       "annotation_alignment": {
-        "checked_pixels": 4368,
-        "depth_position_p99_metres": 4.7683716e-7,
-        "reprojection_p99_pixels": 0.001972357,
+        "checked_pixels": 40960,
+        "depth_position_p99_metres": 7.1525574e-7,
+        "depth_position_max_metres": 7.1525574e-7,
+        "reprojection_p99_pixels": 0.000076293945,
+        "reprojection_max_pixels": 0.00014675433,
         "normal_length_max_error": 1.7881393e-7,
-        "position_quantization_budget_p99_ratio": 0.14372364
+        "position_quantization_budget_p99_ratio": 0.0049494985
       },
       "co_visibility": {
         "valid_pixels": 40960,
-        "shared_pixels": 23383,
+        "shared_pixels": 23384,
         "peer_pixels": [
-          23383,
+          23384,
           0
         ],
         "cardinality_pixels": [
-          17577,
-          23383
+          17576,
+          23384
         ],
-        "shared_fraction_valid": 0.5708740234375,
+        "shared_fraction_valid": 0.5708984375,
         "peer_fraction_valid": [
-          0.5708740234375,
+          0.5708984375,
           0.0
         ]
       }
@@ -480,11 +484,13 @@
         "wall": 15762
       },
       "annotation_alignment": {
-        "checked_pixels": 4368,
-        "depth_position_p99_metres": 7.1525574e-7,
-        "reprojection_p99_pixels": 0.002075644,
+        "checked_pixels": 40960,
+        "depth_position_p99_metres": 4.7683716e-7,
+        "depth_position_max_metres": 7.1525574e-7,
+        "reprojection_p99_pixels": 0.000053947966,
+        "reprojection_max_pixels": 0.00010235907,
         "normal_length_max_error": 1.7881393e-7,
-        "position_quantization_budget_p99_ratio": 0.13628253
+        "position_quantization_budget_p99_ratio": 0.0048887813
       },
       "co_visibility": {
         "valid_pixels": 40960,
@@ -583,26 +589,28 @@
         "wall": 8910
       },
       "annotation_alignment": {
-        "checked_pixels": 4368,
+        "checked_pixels": 40960,
         "depth_position_p99_metres": 4.7683716e-7,
-        "reprojection_p99_pixels": 0.0021259196,
+        "depth_position_max_metres": 7.1525574e-7,
+        "reprojection_p99_pixels": 0.00007237879,
+        "reprojection_max_pixels": 0.00012302029,
         "normal_length_max_error": 1.7881393e-7,
-        "position_quantization_budget_p99_ratio": 0.13983376
+        "position_quantization_budget_p99_ratio": 0.0049398756
       },
       "co_visibility": {
         "valid_pixels": 40960,
-        "shared_pixels": 22034,
+        "shared_pixels": 22033,
         "peer_pixels": [
-          22034,
+          22033,
           0
         ],
         "cardinality_pixels": [
-          18926,
-          22034
+          18927,
+          22033
         ],
-        "shared_fraction_valid": 0.537939453125,
+        "shared_fraction_valid": 0.5379150390625,
         "peer_fraction_valid": [
-          0.537939453125,
+          0.5379150390625,
           0.0
         ]
       }
@@ -620,10 +628,10 @@
     "primary_rays": 215040,
     "diffuse_bounces": 3,
     "texture_bytes": 40320,
-    "preparation_ms": 86.097361,
+    "preparation_ms": 69.50130300000001,
     "bake_ms": null,
     "mean_radiance": null,
-    "transport_bytes": 14284560,
+    "transport_bytes": 14169872,
     "prefetch_hit": false,
     "prefetch_wait_ms": 0.0
   },
