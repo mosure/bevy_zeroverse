@@ -151,7 +151,13 @@ impl PoseProgram {
 }
 /// Clamps unreachable goals to the limb's feasible annulus, retaining both bone
 /// lengths. Pole projection controls swivel without discontinuous Euler angles.
-fn two_bone(root: Vec3, target: Vec3, pole: Vec3, upper: f32, lower: f32) -> (Vec3, Vec3) {
+pub(super) fn two_bone(
+    root: Vec3,
+    target: Vec3,
+    pole: Vec3,
+    upper: f32,
+    lower: f32,
+) -> (Vec3, Vec3) {
     let delta = target - root;
     let direction = delta.normalize_or(Vec3::NEG_Y);
     let distance = delta

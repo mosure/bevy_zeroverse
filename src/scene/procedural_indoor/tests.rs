@@ -869,10 +869,23 @@ fn people_are_deterministic_diverse_supported_and_inside_collision_envelopes() {
             let scene =
                 IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 2, density)
                     .unwrap();
-            assert_eq!(
-                scene.objects, empty.objects,
-                "human occupancy must not perturb furnishings"
-            );
+            assert_eq!(scene.objects.len(), empty.objects.len());
+            for (actual, original) in scene.objects.iter().zip(&empty.objects) {
+                let mut actual = actual.clone();
+                // Occupancy changes insertion clearance and the screen's user
+                // direction, while identities, geometry and other props retain
+                // their independent furniture/material random streams.
+                if actual.kind == ObjectKind::Chair && actual.interaction_target.is_some() {
+                    actual.position = original.position;
+                    actual.yaw = original.yaw;
+                } else if matches!(actual.kind, ObjectKind::Laptop | ObjectKind::Monitor) {
+                    actual.yaw = original.yaw;
+                }
+                assert_eq!(
+                    &actual, original,
+                    "occupancy perturbed unrelated furnishings"
+                );
+            }
             validate_layout(&scene).unwrap();
             counts[index] += scene.humans.len();
             for human in &scene.humans {

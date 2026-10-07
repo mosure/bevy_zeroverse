@@ -82,7 +82,21 @@ pub fn populate(scene: &mut IndoorManifest, density: f32) {
             Some(chair_id),
             chair.neighbor,
         );
-        if placement_clear(scene, &person) {
+        let fitted = (0..if pose == HumanPoseKind::SeatedWorking {
+            WORKTOP_POSE_ATTEMPTS
+        } else {
+            1
+        })
+            .find_map(|proposal| {
+                let mut h = person.clone();
+                if pose == HumanPoseKind::SeatedWorking {
+                    if let Some(table) = chair.interaction_target.map(|id| &scene.objects[id]) {
+                        fit_worktop(&mut h, table, proposal);
+                    }
+                }
+                placement_clear(scene, &h).then_some(h)
+            });
+        if let Some(person) = fitted {
             scene.humans.push(person);
         } else {
             scene.rejected_human_placements += 1;

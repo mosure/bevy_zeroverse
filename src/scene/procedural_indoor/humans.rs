@@ -2,6 +2,7 @@
 mod anatomy;
 pub mod appearance;
 pub(crate) mod body;
+pub mod contact;
 mod face;
 pub mod footwear;
 pub mod garments;
@@ -125,6 +126,9 @@ pub struct IndoorHuman {
     pub pose_program: Option<poses::PoseProgram>,
     #[serde(default)]
     pub appearance: Option<appearance::Appearance>,
+    /// Optional static tabletop support, in person-local metres.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub worktop_contact: Option<contact::WorktopContact>,
     pub chair: Option<usize>,
     pub neighbor: bool,
     pub outfit: HumanOutfit,
@@ -265,6 +269,8 @@ pub struct HumanAssembly {
     pub parts: BTreeMap<HumanSurface, Geometry>,
     pub local_joints: Vec<Vec3>,
     pub body_measurements: morphology::BodyMeasurements,
+    /// Realized skin/clothing contact measurements, before world transformation.
+    pub contacts: Vec<contact::ContactReport>,
 }
 impl HumanAssembly {
     fn part(&mut self, surface: HumanSurface) -> &mut Geometry {
@@ -556,6 +562,7 @@ fn sample_person(
     let program = poses::PoseProgram::sample(seed, pose);
     let joints = program.solve(stature, build, shoulder_width, pose.seated());
     let mut human = IndoorHuman {
+        worktop_contact: None,
         id,
         seed,
         position,
@@ -602,6 +609,7 @@ pub(crate) fn standing_at(
 ) -> IndoorHuman {
     let mut h = h.clone();
     h.pose = HumanPoseKind::StandingWalking;
+    h.worktop_contact = None;
     h.chair = None;
     h.neighbor = neighbor;
     h.position = position;
@@ -624,15 +632,75 @@ fn update_bounds(human: &mut IndoorHuman) {
     human.bounds_max = hi + Vec3::splat(0.055);
 }
 
+pub(super) const WORKTOP_POSE_ATTEMPTS: u64 = 6;
+
+/// Keep a working person's wrists above the actual top while retaining sampled
+/// torso, limb lengths and handed asymmetry. Reach is solved by the same IK as
+/// ordinary poses; infeasible or obstructed results still fail placement.
+pub(super) fn fit_worktop(h: &mut IndoorHuman, table: &super::layout::IndoorObject, proposal: u64) {
+    let top = table.position.y + table.size.y;
+    h.worktop_contact = None;
+    if !h.pose.seated() {
+        return;
+    }
+    let Some(pose) = h.pose_program.as_mut() else {
+        return;
+    };
+    let torso = Quat::from_rotation_y(pose.torso_twist)
+        * Quat::from_rotation_x(pose.lean.y)
+        * Quat::from_rotation_z(-pose.lean.x);
+    let mut rng = stream(h.seed, 907 + proposal);
+    // Feet adopt a compact but continuously varied stance in a worktop's knee
+    // bay. This retains anatomical segment lengths and avoids splayed shoes
+    // intersecting end panels or supports while the seat itself fits.
+    pose.stance = pose.stance.min(rng.random_range(0.20..0.26));
+    pose.stride = pose.stride.min(rng.random_range(0.0..0.03));
+    if h.pose == HumanPoseKind::SeatedWorking {
+        let active = rng.random_range(0..2);
+        let both = rng.random_bool(0.70);
+        for (i, base) in [5, 9].into_iter().enumerate() {
+            if i != active && !both {
+                let resting = poses::PoseProgram::sample(h.seed, HumanPoseKind::SeatedListening);
+                pose.arm_elevation[i] = resting.arm_elevation[i];
+                pose.arm_reach[i] = resting.arm_reach[i];
+                pose.arm_sweep[i] = resting.arm_sweep[i];
+                continue;
+            }
+            let goal = Vec3::new(
+                (if i == 0 { -1. } else { 1. }) * rng.random_range(0.18..0.32) * h.stature / 1.75,
+                top - h.position.y + rng.random_range(0.14..0.26),
+                -rng.random_range(0.26..0.40) * h.stature / 1.75,
+            );
+            let delta = torso.inverse() * (goal - h.joints[base]);
+            pose.arm_elevation[i] = delta.y.atan2(delta.xz().length());
+            pose.arm_sweep[i] = ((if i == 0 { -1. } else { 1. }) * delta.x).atan2(-delta.z);
+            pose.arm_reach[i] = (delta.length() / (0.55 * h.stature / 1.75)).clamp(0.25, 0.98);
+        }
+    }
+    h.joints = pose.solve(h.stature, h.build, h.shoulder_width, true);
+    // A mixture of contact and free gestures, independent of body morphology.
+    if h.pose == HumanPoseKind::SeatedWorking && proposal < 4 {
+        contact::plan(h, table, proposal);
+    }
+    update_bounds(h);
+}
+
 fn collision_capsules(human: &IndoorHuman) -> Vec<(Vec3, Vec3, f32)> {
+    collision_capsules_inner(human, false)
+}
+fn collision_capsules_inner(human: &IndoorHuman, support: bool) -> Vec<(Vec3, Vec3, f32)> {
     // Anatomical arm roots shrink with stature; circulation and seated-person
     // reservations must still allow elbows/clothing and small pose changes.
     // Otherwise correcting short bodies unexpectedly packs occupied rooms more
     // densely and eliminates feasible multi-view camera paths.
-    let planning_joints = human.pose_program.as_ref().map(|pose| {
-        let span = human.shoulder_width.max(0.44 * human.build.sqrt());
-        pose.solve(human.stature, human.build, span, human.pose.seated())
-    });
+    let planning_joints = human
+        .pose_program
+        .as_ref()
+        .filter(|_| human.worktop_contact.is_none())
+        .map(|pose| {
+            let span = human.shoulder_width.max(0.44 * human.build.sqrt());
+            pose.solve(human.stature, human.build, span, human.pose.seated())
+        });
     let p = planning_joints.as_deref().unwrap_or(&human.joints);
     let planning_shoulder = human.shoulder_width.max(0.44 * human.build.sqrt());
     let s = human.stature / 1.75;
@@ -667,6 +735,14 @@ fn collision_capsules(human: &IndoorHuman) -> Vec<(Vec3, Vec3, f32)> {
         result.push((p[4], p[4] + Vec3::Y * 0.025 * s, 0.25 * s));
     }
     for base in [5, 9] {
+        if support
+            && human
+                .worktop_contact
+                .as_ref()
+                .is_some_and(|c| c.palms[(base - 5) / 4])
+        {
+            continue;
+        }
         result.extend([
             (p[base], p[base + 1], 0.095 * human.build),
             (p[base + 1], p[base + 2], 0.065 * human.build),
@@ -679,7 +755,16 @@ fn collision_capsules(human: &IndoorHuman) -> Vec<(Vec3, Vec3, f32)> {
     }
     for base in [13, 17] {
         result.extend([
-            (p[base], p[base + 1], 0.094 * human.build),
+            // Thighs need trouser ease too, especially when bent under a desk.
+            (
+                p[base],
+                p[base + 1],
+                0.105 * human.build * s
+                    + human
+                        .appearance
+                        .as_ref()
+                        .map_or(0., |a| a.garment.trouser_ease),
+            ),
             (p[base + 1], p[base + 2], 0.075 * human.build + leg_ease),
             (p[base + 2].with_y(0.05), p[base + 3], 0.083 * s),
         ]);
@@ -758,61 +843,133 @@ pub fn placement_clear(scene: &IndoorManifest, person: &IndoorHuman) -> bool {
         return false;
     }
     let tf = person.transform();
-    for (a, b, r) in collision_capsules(person) {
-        let a = tf.transform_point(a);
-        let b = tf.transform_point(b);
-        if scene
-            .columns()
-            .iter()
-            .any(|(lo, hi)| box_hit(a, b, r, *lo, *hi))
+    let capsules: Vec<_> = collision_capsules(person)
+        .into_iter()
+        .map(|(a, b, r)| (tf.transform_point(a), tf.transform_point(b), r))
+        .collect();
+    // The chest is broad across the shoulders, not equally deep front-to-back.
+    // Three overlapping longitudinal capsules bound that elliptical volume and
+    // let an abdomen approach a desk edge without shrinking the lateral envelope.
+    let mut table_capsules: Vec<_> = collision_capsules_inner(person, true)
+        .into_iter()
+        .map(|(a, b, r)| (tf.transform_point(a), tf.transform_point(b), r))
+        .collect();
+    let (waist, chest, width) = table_capsules.remove(1);
+    let depth = (0.125 * person.build
+        + person.appearance.as_ref().map_or(0.015, |a| a.garment_ease))
+    .min(width);
+    let right = tf.rotation * Vec3::X;
+    for offset in [-(width - depth), 0., width - depth] {
+        table_capsules.push((waist + right * offset, chest + right * offset, depth));
+    }
+    // The wider circulation skeleton is not a superset of the anatomical arm
+    // positions: it moves wrists sideways. Include the actual limbs at close
+    // worktops, with room for the skin's sole-grounding offset and finger tips.
+    let s = person.stature / 1.75;
+    let ground = Vec3::Y * (0.025 * s);
+    for base in [5, 9] {
+        if person
+            .worktop_contact
+            .as_ref()
+            .is_some_and(|c| c.palms[(base - 5) / 4])
         {
-            return false;
+            continue;
         }
-        for object in &scene.objects {
-            if object.neighbor != person.neighbor
-                || person.chair == Some(object.id)
-                || object.kind == ObjectKind::Rug
-            {
-                continue;
-            }
-            let inverse = object.transform().compute_affine().inverse();
-            let aa = inverse.transform_point3(a);
-            let bb = inverse.transform_point3(b);
-            let size = object.size;
-            if matches!(
-                object.kind,
-                ObjectKind::Table | ObjectKind::Desk | ObjectKind::CoffeeTable
-            ) {
-                // Anatomy can occupy the actual free volume under a worktop.
-                if box_hit(
-                    aa,
-                    bb,
-                    r,
-                    Vec3::new(-size.x * 0.5, size.y - 0.145, -size.z * 0.5),
-                    Vec3::new(size.x * 0.5, size.y + 0.01, size.z * 0.5),
+        let p = &person.joints;
+        let tip = p[base + 3] + (p[base + 3] - p[base + 2]).normalize_or(Vec3::NEG_Y) * 0.095 * s;
+        for (a, b, r) in [
+            (p[base], p[base + 1], 0.095 * person.build + 0.025 * s),
+            (p[base + 1], p[base + 2], 0.065 * person.build + 0.025 * s),
+            (p[base + 2], tip, 0.080 * s),
+        ] {
+            table_capsules.push((
+                tf.transform_point(a - ground),
+                tf.transform_point(b - ground),
+                r,
+            ));
+        }
+    }
+    let columns = scene.columns();
+    if capsules
+        .iter()
+        .any(|&(a, b, r)| columns.iter().any(|&(lo, hi)| box_hit(a, b, r, lo, hi)))
+    {
+        return false;
+    }
+    for object in &scene.objects {
+        if object.neighbor != person.neighbor
+            || person.chair == Some(object.id)
+            || object.kind == ObjectKind::Rug
+        {
+            continue;
+        }
+        let (ol, oh) = object.bounds();
+        if !lo.cmplt(oh + Vec3::splat(0.01)).all() || !hi.cmpgt(ol - Vec3::splat(0.01)).all() {
+            continue;
+        }
+        let inverse = object.transform().compute_affine().inverse();
+        let table = matches!(
+            object.kind,
+            ObjectKind::Table | ObjectKind::Desk | ObjectKind::CoffeeTable
+        )
+        .then(|| super::objects::tables::Clearance::new(object));
+        let supported = person
+            .worktop_contact
+            .as_ref()
+            .is_some_and(|c| c.table == object.id);
+        // The support constraint only allows the selected palms/forearms to
+        // touch this top. Their full envelopes still clear every structural
+        // support and all other objects; upper arms remain above the slab.
+        if supported {
+            let c = person.worktop_contact.as_ref().unwrap();
+            let table = table.as_ref().expect("worktop contact names a table");
+            for (arm, &supported) in c.palms.iter().enumerate() {
+                if !supported {
+                    continue;
+                }
+                let base = 5 + arm * 4;
+                let p = &person.joints;
+                let local = |v| inverse.transform_point3(tf.transform_point(v));
+                let tip = p[base + 3] + (p[base + 3] - p[base + 2]);
+                for (a, b, r) in [
+                    (p[base], p[base + 1], 0.095 * person.build),
+                    (p[base + 1], p[base + 2], 0.085 * person.build),
+                    (p[base + 2], tip, 0.08 * s),
+                ] {
+                    if table.hits_structure_capsule(local(a - ground), local(b - ground), r + 0.008)
+                    {
+                        return false;
+                    }
+                }
+                if table.hits_capsule(
+                    local(p[base] - ground),
+                    local(p[base + 1] - ground),
+                    0.065 * person.build,
                 ) {
                     return false;
                 }
-                for x in [-1.0, 1.0] {
-                    for z in [-1.0, 1.0] {
-                        let c = Vec3::new(
-                            x * (size.x * 0.5 - 0.13),
-                            size.y * 0.5,
-                            z * (size.z * 0.5 - 0.13),
-                        );
-                        let h = Vec3::new(0.075, size.y * 0.5, 0.075);
-                        if box_hit(aa, bb, r, c - h, c + h) {
-                            return false;
-                        }
-                    }
-                }
-            } else if box_hit(
-                aa,
-                bb,
-                r,
-                Vec3::new(-size.x * 0.5, 0.0, -size.z * 0.5),
-                Vec3::new(size.x * 0.5, size.y, size.z * 0.5),
-            ) {
+            }
+        }
+        let size = object.size;
+        for &(a, b, r) in if table.is_some() && (person.worktop_contact.is_none() || supported) {
+            &table_capsules
+        } else {
+            &capsules
+        } {
+            let aa = inverse.transform_point3(a);
+            let bb = inverse.transform_point3(b);
+            let hit = if let Some(table) = &table {
+                table.hits_capsule(aa, bb, r + 0.008)
+            } else {
+                box_hit(
+                    aa,
+                    bb,
+                    r,
+                    Vec3::new(-size.x * 0.5, 0., -size.z * 0.5),
+                    Vec3::new(size.x * 0.5, size.y, size.z * 0.5),
+                )
+            };
+            if hit {
                 return false;
             }
         }
@@ -825,6 +982,9 @@ pub fn validate(scene: &IndoorManifest) -> Result<(), String> {
         return Err("invalid human density".into());
     }
     for (index, human) in scene.humans.iter().enumerate() {
+        if let Some(contact) = &human.worktop_contact {
+            contact.validate(human, scene)?;
+        }
         if human.id != scene.objects.len() + index
             || !human.position.is_finite()
             || !human.yaw.is_finite()

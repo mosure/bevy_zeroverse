@@ -129,10 +129,220 @@ fn build_impl(
         .copied()
         .fold(Vec3::splat(f32::NEG_INFINITY), Vec3::max);
     let scale = h.stature / (hi.y - lo.y);
-    let p = &h.joints;
+    let mut resolved_joints = h.joints.clone();
+    let make_transforms = |p: &[Vec3]| {
+        let rest_pelvis = (head("upperleg01.L") + head("upperleg01.R")) * 0.5;
+        // The program's chest is the shoulder girdle, not the spine01 bone head.
+        // Mapping spine01 here elongated the torso above it and bunched the shoulders.
+        let rest_chest = (head("upperarm01.L") + head("upperarm01.R")) * 0.5;
+        let torso = torso_segment(
+            rest_pelvis,
+            rest_chest,
+            [head("upperarm01.L"), head("upperarm01.R")],
+            p,
+            scale,
+        );
+        let head_rotation = if motion_rest {
+            Quat::IDENTITY
+        } else {
+            cranial_rotation(p, h.head_yaw)
+        };
+        // Rest neck bones tilt forward anatomically. Aligning that vector with an
+        // upright target rotates the whole skull backwards. Preserve the rest skull
+        // orientation in the program's torso frame, and anchor its actual rig pivot.
+        let neck = Mat4::from_scale_rotation_translation(
+            Vec3::splat(scale),
+            head_rotation,
+            p[4] - Vec3::Y * 0.055 * scale,
+        ) * Mat4::from_translation(-head("head"));
+        let mut transforms = vec![torso; labels.len()];
+        for (i, name) in labels.iter().enumerate() {
+            transforms[i] = if parents[i] >= 0 {
+                transforms[parents[i] as usize]
+            } else {
+                torso
+            };
+            if name.starts_with("neck") || name == "head" {
+                transforms[i] = neck;
+            }
+            for (side, arm, leg) in [("L", 5, 13), ("R", 9, 17)] {
+                let bone = |base: &str| head(&format!("{base}.{side}"));
+                if !name.ends_with(&format!(".{side}")) {
+                    continue;
+                }
+                if name.starts_with("upperarm") {
+                    transforms[i] = segment(
+                        bone("upperarm01"),
+                        bone("lowerarm01"),
+                        p[arm],
+                        p[arm + 1],
+                        scale,
+                    );
+                } else if name.starts_with("lowerarm") {
+                    transforms[i] = segment(
+                        bone("lowerarm01"),
+                        bone("wrist"),
+                        p[arm + 1],
+                        p[arm + 2],
+                        scale,
+                    );
+                } else if name.starts_with("wrist") {
+                    transforms[i] = if !motion_rest
+                        && h.worktop_contact
+                            .as_ref()
+                            .is_some_and(|c| c.palms[(arm - 5) / 4])
+                    {
+                        super::rig::palm_segment(
+                            bone("wrist"),
+                            bone("finger3-1"),
+                            (bone("finger5-1") - bone("finger2-1"))
+                                * if side == "L" { 1. } else { -1. },
+                            p[arm + 2],
+                            p[arm + 3],
+                            scale,
+                        )
+                    } else {
+                        segment(
+                            bone("wrist"),
+                            bone("finger3-1"),
+                            p[arm + 2],
+                            p[arm + 3],
+                            scale,
+                        )
+                    };
+                } else if name.starts_with("upperleg") {
+                    transforms[i] = segment(
+                        bone("upperleg01"),
+                        bone("lowerleg01"),
+                        p[leg],
+                        p[leg + 1],
+                        scale,
+                    );
+                } else if name.starts_with("lowerleg") {
+                    transforms[i] = segment(
+                        bone("lowerleg01"),
+                        bone("foot"),
+                        p[leg + 1],
+                        p[leg + 2],
+                        scale,
+                    );
+                } else if name.starts_with("foot") {
+                    transforms[i] =
+                        segment(bone("foot"), bone("toe2-1"), p[leg + 2], p[leg + 3], scale);
+                }
+            }
+        }
+        if !motion_rest {
+            if let Some(contact) = &h.worktop_contact {
+                for (arm, side) in ["L", "R"].into_iter().enumerate() {
+                    if !contact.palms[arm] {
+                        continue;
+                    }
+                    let wrist = transforms[index(&format!("wrist.{side}"))];
+                    for finger in 1..=5 {
+                        for joint in 1..=3 {
+                            let i = index(&format!("finger{finger}-{joint}.{side}"));
+                            let a = heads[i];
+                            let b = if joint < 3 {
+                                head(&format!("finger{finger}-{}.{side}", joint + 1))
+                            } else {
+                                a + (a - head(&format!("finger{finger}-2.{side}"))) * 0.65
+                            };
+                            let origin = transforms[parents[i] as usize].transform_point3(a);
+                            transforms[i] = super::rig::supported_finger(wrist, a, b, origin);
+                        }
+                    }
+                }
+            }
+        }
+        if motion_rest {
+            transforms.fill(Mat4::from_scale(Vec3::splat(scale)));
+        }
+        transforms
+    };
+    let mut transforms = make_transforms(&resolved_joints);
+    let (bone_ids, weights) = body.skinning_bindings();
+    let influences = *bone_ids.shape.last().unwrap();
+    let skin = |transforms: &[Mat4]| {
+        let torso = transforms[0];
+        let mut posed = Vec::with_capacity(vertices.len());
+        let mut dominant = Vec::with_capacity(vertices.len());
+        for (i, &v) in vertices.iter().enumerate() {
+            let mut q = Vec3::ZERO;
+            let mut total = 0.0;
+            let mut strongest = (0.0, 0);
+            for influence in 0..influences {
+                let at = i * influences + influence;
+                let w = weights.data[at] as f32;
+                let bone = bone_ids.data[at];
+                if bone < 0 || w <= 0.0 {
+                    continue;
+                }
+                q += transforms[bone as usize].transform_point3(v) * w;
+                total += w;
+                if w > strongest.0 {
+                    strongest = (w, bone as usize);
+                }
+            }
+            posed.push(if total > 0.0 {
+                q / total
+            } else {
+                torso.transform_point3(v)
+            });
+            dominant.push(strongest.1);
+        }
+        (posed, dominant)
+    };
+    let (mut posed, dominant) = skin(&transforms);
+    let floor = posed.iter().map(|p| p.y).fold(f32::INFINITY, f32::min);
+    if !motion_rest {
+        if let Some(contact) = &h.worktop_contact {
+            // Only the two small arm chains are re-solved; body morphology is
+            // evaluated once. Grounding comes from unchanged feet. Fit the
+            // actual Anny palm, not a spherical hand proxy or a nominal height.
+            for _ in 0..6 {
+                let mut max_error = 0.0_f32;
+                for (arm, side) in ["L", "R"].into_iter().enumerate() {
+                    if !contact.palms[arm] {
+                        continue;
+                    }
+                    let suffix = format!(".{side}");
+                    let min = posed
+                        .iter()
+                        .enumerate()
+                        .filter(|(i, p)| {
+                            let name = &labels[dominant[*i]];
+                            name.ends_with(&suffix)
+                                && (name.starts_with("wrist") || name.starts_with("metacarpal"))
+                                && super::contact::palm_region(
+                                    &resolved_joints,
+                                    arm,
+                                    **p,
+                                    h.stature / 1.75,
+                                )
+                        })
+                        .map(|(_, p)| p.y - floor)
+                        .fold(f32::INFINITY, f32::min);
+                    let error = contact.height + 0.0005 - min;
+                    max_error = max_error.max(error.abs());
+                    let wrist = resolved_joints[7 + arm * 4] + Vec3::Y * error;
+                    contact.arm(&mut resolved_joints, arm, wrist, h.stature / 1.75);
+                }
+                transforms = make_transforms(&resolved_joints);
+                posed = skin(&transforms).0;
+                if max_error < 0.0002 {
+                    break;
+                }
+            }
+        }
+    }
+    // Ground the deformed feet exactly. The skeleton is anchored to footwear in
+    // placement; a small sole offset avoids a floating shell at the floor.
+    for p in &mut posed {
+        p.y -= floor;
+    }
+    let p = &resolved_joints;
     let rest_pelvis = (head("upperleg01.L") + head("upperleg01.R")) * 0.5;
-    // The program's chest is the shoulder girdle, not the spine01 bone head.
-    // Mapping spine01 here elongated the torso above it and bunched the shoulders.
     let rest_chest = (head("upperarm01.L") + head("upperarm01.R")) * 0.5;
     let torso = torso_segment(
         rest_pelvis,
@@ -146,112 +356,11 @@ fn build_impl(
     } else {
         cranial_rotation(p, h.head_yaw)
     };
-    // Rest neck bones tilt forward anatomically. Aligning that vector with an
-    // upright target rotates the whole skull backwards. Preserve the rest skull
-    // orientation in the program's torso frame, and anchor its actual rig pivot.
     let neck = Mat4::from_scale_rotation_translation(
         Vec3::splat(scale),
         head_rotation,
         p[4] - Vec3::Y * 0.055 * scale,
     ) * Mat4::from_translation(-head("head"));
-    let mut transforms = vec![torso; labels.len()];
-    for (i, name) in labels.iter().enumerate() {
-        transforms[i] = if parents[i] >= 0 {
-            transforms[parents[i] as usize]
-        } else {
-            torso
-        };
-        if name.starts_with("neck") || name == "head" {
-            transforms[i] = neck;
-        }
-        for (side, arm, leg) in [("L", 5, 13), ("R", 9, 17)] {
-            let bone = |base: &str| head(&format!("{base}.{side}"));
-            if !name.ends_with(&format!(".{side}")) {
-                continue;
-            }
-            if name.starts_with("upperarm") {
-                transforms[i] = segment(
-                    bone("upperarm01"),
-                    bone("lowerarm01"),
-                    p[arm],
-                    p[arm + 1],
-                    scale,
-                );
-            } else if name.starts_with("lowerarm") {
-                transforms[i] = segment(
-                    bone("lowerarm01"),
-                    bone("wrist"),
-                    p[arm + 1],
-                    p[arm + 2],
-                    scale,
-                );
-            } else if name.starts_with("wrist") {
-                transforms[i] = segment(
-                    bone("wrist"),
-                    bone("finger3-1"),
-                    p[arm + 2],
-                    p[arm + 3],
-                    scale,
-                );
-            } else if name.starts_with("upperleg") {
-                transforms[i] = segment(
-                    bone("upperleg01"),
-                    bone("lowerleg01"),
-                    p[leg],
-                    p[leg + 1],
-                    scale,
-                );
-            } else if name.starts_with("lowerleg") {
-                transforms[i] = segment(
-                    bone("lowerleg01"),
-                    bone("foot"),
-                    p[leg + 1],
-                    p[leg + 2],
-                    scale,
-                );
-            } else if name.starts_with("foot") {
-                transforms[i] =
-                    segment(bone("foot"), bone("toe2-1"), p[leg + 2], p[leg + 3], scale);
-            }
-        }
-    }
-    if motion_rest {
-        transforms.fill(Mat4::from_scale(Vec3::splat(scale)));
-    }
-    let (bone_ids, weights) = body.skinning_bindings();
-    let influences = *bone_ids.shape.last().unwrap();
-    let mut posed = Vec::with_capacity(vertices.len());
-    let mut dominant = Vec::with_capacity(vertices.len());
-    for (i, &v) in vertices.iter().enumerate() {
-        let mut q = Vec3::ZERO;
-        let mut total = 0.0;
-        let mut strongest = (0.0, 0);
-        for influence in 0..influences {
-            let at = i * influences + influence;
-            let w = weights.data[at] as f32;
-            let bone = bone_ids.data[at];
-            if bone < 0 || w <= 0.0 {
-                continue;
-            }
-            q += transforms[bone as usize].transform_point3(v) * w;
-            total += w;
-            if w > strongest.0 {
-                strongest = (w, bone as usize);
-            }
-        }
-        posed.push(if total > 0.0 {
-            q / total
-        } else {
-            torso.transform_point3(v)
-        });
-        dominant.push(strongest.1);
-    }
-    // Ground the deformed feet exactly. The skeleton is anchored to footwear in
-    // placement; a small sole offset avoids a floating shell at the floor.
-    let floor = posed.iter().map(|p| p.y).fold(f32::INFINITY, f32::min);
-    for p in &mut posed {
-        p.y -= floor;
-    }
     let faces = &body.faces_quads().data;
     let mut normals = vec![Vec3::ZERO; posed.len()];
     for q in faces.as_chunks::<4>().0 {
@@ -268,7 +377,10 @@ fn build_impl(
     }
     let uv = &body.metadata().static_data.texture_coordinates.data;
     let mut mesh = HumanAssembly {
-        local_joints: h.joints.iter().map(|p| *p - Vec3::Y * floor).collect(),
+        local_joints: resolved_joints
+            .iter()
+            .map(|p| *p - Vec3::Y * floor)
+            .collect(),
         ..Default::default()
     };
     let torso_vertices: Vec<_> = vertices
@@ -434,7 +546,7 @@ fn build_impl(
             *offset = (*offset + drape.offset(vertices[i]) * scale).max(0.002);
         }
     }
-    let garment_positions: Vec<_> = posed
+    let mut garment_positions: Vec<_> = posed
         .iter()
         .enumerate()
         .map(|(i, p)| {
@@ -455,6 +567,51 @@ fn build_impl(
             q.with_y(q.y.max(0.0))
         })
         .collect();
+    if !motion_rest {
+        if let Some(contact) = &h.worktop_contact {
+            for (arm, side) in ["L", "R"].into_iter().enumerate() {
+                if !contact.palms[arm] {
+                    continue;
+                }
+                let suffix = format!(".{side}");
+                let mut report = super::contact::ContactReport {
+                    arm,
+                    minimum_gap_metres: f32::INFINITY,
+                    palm_gap_metres: f32::INFINITY,
+                    ..Default::default()
+                };
+                for (i, q) in garment_positions.iter_mut().enumerate() {
+                    let name = &labels[dominant[i]];
+                    if !name.ends_with(&suffix)
+                        || !(name.starts_with("lowerarm")
+                            || name.starts_with("wrist")
+                            || name.starts_with("finger")
+                            || name.starts_with("metacarpal"))
+                        || !contact.contains(*q, 0.)
+                    {
+                        continue;
+                    }
+                    // Cloth can compress against a rigid top. This acts only on
+                    // the supported limb; no geometry or semantic parts vanish.
+                    let compression = (contact.height + 0.0005 - q.y).max(0.);
+                    if cut.surface(h, vertices[i], name) == HumanSurface::Skin {
+                        report.skin_compression_metres =
+                            report.skin_compression_metres.max(compression);
+                    } else {
+                        report.cloth_compression_metres =
+                            report.cloth_compression_metres.max(compression);
+                    }
+                    q.y += compression;
+                    report.minimum_gap_metres = report.minimum_gap_metres.min(q.y - contact.height);
+                    if super::contact::palm_region(&mesh.local_joints, arm, *q, h.stature / 1.75) {
+                        report.palm_gap_metres = report.palm_gap_metres.min(q.y - contact.height);
+                    }
+                    report.contact_vertices += usize::from(q.y - contact.height < 0.003);
+                }
+                mesh.contacts.push(report);
+            }
+        }
+    }
     normals.fill(Vec3::ZERO);
     for q in faces.as_chunks::<4>().0 {
         for tri in [[q[0], q[1], q[2]], [q[0], q[2], q[3]]] {
@@ -516,6 +673,11 @@ fn build_impl(
         &normals,
         &mut mesh,
     );
+    if !motion_rest {
+        if let Some(contact) = &h.worktop_contact {
+            contact.support_stitching(&mut mesh, h.stature / 1.75);
+        }
+    }
     // Replace recolored anatomical feet with a padded last and separate sole.
     // The rest body remains available for weight transfer and collision checks.
     mesh.parts.remove(&HumanSurface::Shoes);

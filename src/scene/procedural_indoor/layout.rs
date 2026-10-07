@@ -2,6 +2,9 @@
 mod decor;
 mod furnishing;
 mod programs;
+mod seating;
+mod surfaces;
+pub(crate) use seating::furniture_overlap;
 #[cfg(test)]
 mod tests;
 use bevy::prelude::*;
@@ -381,6 +384,7 @@ impl IndoorManifest {
         scene.decorate(&mut rng);
         scene.scatter_clutter(&mut rng);
         super::humans::populate(&mut scene, human_density);
+        scene.settle_seating();
         scene.sample_cameras(cameras)?;
         Ok(scene)
     }
@@ -512,10 +516,7 @@ impl IndoorManifest {
             .objects
             .iter()
             .filter(|o| o.solid && !o.neighbor && o.id != object.id)
-            .any(|other| {
-                let (a, b) = other.bounds();
-                lo.y < b.y && hi.y > a.y && footprint.overlaps(Footprint::object(other), margin)
-            })
+            .any(|other| seating::furniture_overlap(object, other, margin))
     }
 
     fn assign_work_surfaces(&mut self) {
@@ -581,7 +582,7 @@ impl IndoorManifest {
             .collect();
         for surface in surfaces {
             if surface.kind == ObjectKind::Cabinet {
-                self.prop(
+                self.place_prop(
                     &surface,
                     ObjectKind::Books,
                     Vec3::new(-0.40, 0.0, 0.0),
@@ -590,7 +591,7 @@ impl IndoorManifest {
                     rng,
                 );
                 if rng.random_bool(0.72) {
-                    self.prop(
+                    self.place_prop(
                         &surface,
                         ObjectKind::Plant,
                         Vec3::new(surface.size.x * 0.28, 0.0, 0.0),
@@ -617,7 +618,7 @@ impl IndoorManifest {
                     } else {
                         ObjectKind::Laptop
                     };
-                    self.prop(
+                    self.place_prop(
                         &surface,
                         kind,
                         Vec3::new(0.0, 0.0, z - 0.08),
@@ -643,7 +644,7 @@ impl IndoorManifest {
                     .iter()
                     .any(|o| o.support == Some(surface.id) && o.kind == ObjectKind::Monitor)
                 {
-                    self.prop(
+                    self.place_prop(
                         &surface,
                         ObjectKind::Keyboard,
                         Vec3::new(0.0, 0.0, 0.23),
@@ -651,7 +652,7 @@ impl IndoorManifest {
                         rng.random_range(-0.035..0.035),
                         rng,
                     );
-                    self.prop(
+                    self.place_prop(
                         &surface,
                         ObjectKind::Mouse,
                         Vec3::new(0.26, 0.0, 0.23),
@@ -666,7 +667,7 @@ impl IndoorManifest {
                     } else {
                         ObjectKind::PenHolder
                     };
-                    self.prop(
+                    self.place_prop(
                         &surface,
                         kind,
                         Vec3::new(surface.size.x * 0.29, 0.0, -surface.size.z * 0.29),
@@ -683,7 +684,7 @@ impl IndoorManifest {
                         rng,
                     );
                 }
-                self.prop(
+                self.place_prop(
                     &surface,
                     ObjectKind::Notebook,
                     Vec3::new(-surface.size.x * 0.27, 0.0, z + 0.03),
@@ -693,7 +694,7 @@ impl IndoorManifest {
                 );
                 if rng.random_bool((0.4 + self.density * 0.55) as f64) {
                     let (kind, size) = decor::drink(rng);
-                    self.prop(
+                    self.place_prop(
                         &surface,
                         kind,
                         Vec3::new(surface.size.x * 0.30, 0.0, z),
@@ -722,7 +723,7 @@ impl IndoorManifest {
             .collect();
         if rng.random_bool((0.2 + self.density * 0.65) as f64) {
             for x in [-0.18, 0.18] {
-                self.prop(
+                self.place_prop(
                     surface,
                     ObjectKind::WaterBottle,
                     Vec3::new(x, 0.0, 0.0),
@@ -747,7 +748,7 @@ impl IndoorManifest {
             };
             let orientation = Quat::from_rotation_y(yaw);
             if rng.random_bool((0.22 + self.density * 0.58) as f64) {
-                self.prop(
+                self.place_prop(
                     surface,
                     ObjectKind::Laptop,
                     centre,
@@ -760,7 +761,7 @@ impl IndoorManifest {
                     rng,
                 );
             }
-            self.prop(
+            self.place_prop(
                 surface,
                 ObjectKind::Notebook,
                 centre + orientation * Vec3::new(-0.31, 0.0, 0.025),
@@ -770,7 +771,7 @@ impl IndoorManifest {
             );
             if rng.random_bool((0.3 + self.density * 0.5) as f64) {
                 let (kind, size) = decor::drink(rng);
-                self.prop(
+                self.place_prop(
                     surface,
                     kind,
                     centre + orientation * Vec3::new(0.30, 0.0, 0.04),
@@ -781,7 +782,7 @@ impl IndoorManifest {
             }
         }
         if rng.random_bool(0.6) {
-            self.prop(
+            self.place_prop(
                 surface,
                 ObjectKind::Microphone,
                 Vec3::new(0., 0., surface.size.z * 0.12),

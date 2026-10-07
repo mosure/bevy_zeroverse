@@ -2,7 +2,10 @@
 //! The ordinary seeded search always runs first and retains its exact results.
 use super::*;
 
-pub(super) const SAVED_GROUPS: usize = 4;
+// Occupied seats can expose narrow, distinct viewing pockets at a worktop.
+// Preserve enough alternate anchors for the rare recovery path; ordinary
+// successful groups keep their exact search, cost and acceptance predicates.
+pub(super) const SAVED_GROUPS: usize = 8;
 const NEARBY_ATTEMPTS: usize = 24;
 
 pub(super) fn retain_diverse(groups: &mut Vec<Vec<IndoorCamera>>, cameras: &[IndoorCamera]) {
@@ -309,7 +312,7 @@ pub(super) fn complete(
                 continue;
             }
             // Preserve a small frontier instead of locking on the first legal pair.
-            // Parent and child frontiers each hold at most four accepted prefixes;
+            // Parent and child frontiers each have a bounded set of accepted prefixes;
             // cached tracks avoid resampling retained paths. The loop still spends
             // at most one candidate-parent consideration per original proposal slot.
             let mut parents = vec![Prefix::new(&scene.cameras)];

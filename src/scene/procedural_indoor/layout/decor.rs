@@ -205,7 +205,9 @@ impl IndoorManifest {
             .cloned()
             .collect();
         for support in surfaces {
-            for _ in 0..(clutter * 20.0) as usize {
+            for _ in 0..(clutter * (12.0 + 6.0 * (support.size.x * support.size.z).sqrt()))
+                .min(64.0) as usize
+            {
                 let (kind, size) = match rng.random_range(0..17) {
                     0 => (
                         ObjectKind::StorageBox,
@@ -265,12 +267,8 @@ impl IndoorManifest {
                         Vec3::new(0.19, rng.random_range(0.004..0.028), 0.25),
                     ),
                 };
-                let offset = Vec3::new(
-                    rng.random_range(-0.42..0.42) * support.size.x,
-                    0.0,
-                    rng.random_range(-0.42..0.42) * support.size.z,
-                );
-                let yaw = rng.random_range(-std::f32::consts::PI..std::f32::consts::PI);
+                let (offset, yaw) =
+                    super::surfaces::scatter_proposal(&self.objects, &support, kind, size, rng);
                 self.prop(&support, kind, offset, size, yaw, rng);
             }
         }

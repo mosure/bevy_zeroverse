@@ -36,6 +36,29 @@ pub(super) fn segment(a: Vec3, b: Vec3, target_a: Vec3, target_b: Vec3, scale: f
     aligned_segment(a, source, target_a, target, scale, rotation)
 }
 
+/// Lock the palm plane as well as its long axis. A shortest-arc wrist rotation
+/// otherwise leaves supported hands resting on their little-finger edge.
+pub(super) fn palm_segment(
+    a: Vec3,
+    b: Vec3,
+    across: Vec3,
+    target_a: Vec3,
+    target_b: Vec3,
+    scale: f32,
+) -> Mat4 {
+    let source = b - a;
+    let target = target_b - target_a;
+    let source_axis = source.normalize_or(Vec3::X);
+    let normal = source_axis.cross(across).normalize_or(Vec3::Y);
+    let target_axis = target.normalize_or(Vec3::NEG_Z);
+    let source_frame = Mat3::from_cols(source_axis, normal.cross(source_axis), normal);
+    let target_normal = Vec3::Y;
+    let target_frame =
+        Mat3::from_cols(target_axis, target_normal.cross(target_axis), target_normal);
+    let rotation = Quat::from_mat3(&(target_frame * source_frame.transpose()));
+    aligned_segment(a, source, target_a, target, scale, rotation)
+}
+
 fn aligned_segment(
     a: Vec3,
     source: Vec3,
@@ -54,6 +77,21 @@ fn aligned_segment(
         linear.y_axis.extend(0.0),
         linear.z_axis.extend(0.0),
         (target_a - linear * a).extend(1.0),
+    )
+}
+
+/// Extend a supported finger in the palm plane, preserving its bone length,
+/// inherited roll and its parent's mapped knuckle position.
+pub(super) fn supported_finger(wrist: Mat4, a: Vec3, b: Vec3, origin: Vec3) -> Mat4 {
+    let direction = wrist.transform_vector3(b - a).normalize_or(Vec3::NEG_Z);
+    let flat = direction.with_y(0.).normalize_or(Vec3::NEG_Z);
+    let correction = Mat3::from_quat(Quat::from_rotation_arc(direction, flat));
+    let linear = correction * Mat3::from_mat4(wrist);
+    Mat4::from_cols(
+        linear.x_axis.extend(0.),
+        linear.y_axis.extend(0.),
+        linear.z_axis.extend(0.),
+        (origin - linear * a).extend(1.),
     )
 }
 

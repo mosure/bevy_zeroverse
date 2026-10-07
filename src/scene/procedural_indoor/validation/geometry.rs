@@ -80,6 +80,27 @@ fn qualify_human(
     stats: &mut GeometryStats,
 ) -> Result<(), String> {
     let (lo, hi) = mesh.bounds();
+    if human
+        .worktop_contact
+        .as_ref()
+        .is_some_and(|c| mesh.contacts.len() != c.palms.iter().filter(|&&v| v).count())
+        || mesh.contacts.iter().any(|r| {
+            !r.minimum_gap_metres.is_finite()
+                || !r.palm_gap_metres.is_finite()
+                || !(-1e-5..=0.003).contains(&r.palm_gap_metres)
+                || !(-1e-5..=0.003).contains(&r.minimum_gap_metres)
+                || !r.cloth_compression_metres.is_finite()
+                || r.cloth_compression_metres > 0.025
+                || !r.skin_compression_metres.is_finite()
+                || r.skin_compression_metres > 0.006
+                || r.contact_vertices == 0
+        })
+    {
+        return Err(format!(
+            "seed {seed}: person {} has invalid tabletop contact: {:?}",
+            human.id, mesh.contacts
+        ));
+    }
     let overrun = (human.bounds_min - lo)
         .max(hi - human.bounds_max)
         .max_element()
@@ -124,6 +145,7 @@ fn qualify_human(
         posed_mesh_bounds: [lo.to_array(), hi.to_array()],
         placement_bounds: [human.bounds_min.to_array(), human.bounds_max.to_array()],
         envelope_overrun_metres: overrun,
+        worktop_contacts: mesh.contacts.clone(),
     });
     Ok(())
 }
@@ -217,6 +239,7 @@ pub struct HumanGeometryReport {
     pub posed_mesh_bounds: [[f32; 3]; 2],
     pub placement_bounds: [[f32; 3]; 2],
     pub envelope_overrun_metres: f32,
+    pub worktop_contacts: Vec<super::super::humans::contact::ContactReport>,
 }
 
 #[cfg(test)]

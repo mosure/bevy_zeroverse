@@ -80,6 +80,56 @@ pub fn is_backless(o: &IndoorObject) -> bool {
     }
 }
 
+/// Conservative local envelopes with free space above the front of the seat.
+/// They bound the rendered shell, arms and base separately; lounge chairs retain
+/// their full upholstered envelope. Mesh coverage is qualified in tests.
+pub(crate) fn clearance_boxes(o: &IndoorObject) -> Vec<(Vec3, Vec3)> {
+    let half = o.size * 0.5;
+    let full = (
+        Vec3::new(-half.x, 0., -half.z),
+        Vec3::new(half.x, o.size.y, half.z),
+    );
+    if o.variant % FAMILIES == 8 {
+        return vec![full];
+    }
+    let mut boxes = vec![(full.0, full.1.with_y(0.50))];
+    if is_backless(o) {
+        return boxes;
+    }
+    let p = parameters(o);
+    let family = o.variant % FAMILIES;
+    let mut rng = stream(o.seed, 70);
+    let _width = rng.random_range(0.43..0.52_f32);
+    let _depth = rng.random_range(0.42..0.49_f32);
+    if family != 4 {
+        let _padding = rng.random_range(0.044..0.075_f32);
+    }
+    let bottom = if family == 5 {
+        0.53
+    } else {
+        rng.random_range(0.56..0.65)
+    };
+    let depth = (half.z
+        - 0.02
+        - p.shell_thickness
+        - p.curvature
+        - (o.size.y - bottom) * (0.13 + p.recline.sin()).max(0.))
+    .min(0.11);
+    let front = if family == 7 {
+        -0.02
+    } else {
+        depth - p.recline.sin().abs() * o.size.y - 0.09
+    };
+    boxes.push((Vec3::new(-half.x, 0.48, front), full.1));
+    if p.armrests && family != 7 {
+        boxes.push((
+            Vec3::new(-half.x, 0.42, -p.arm_pad_length * 0.5 - 0.013),
+            Vec3::new(half.x, p.arm_height + 0.014, 0.18),
+        ));
+    }
+    boxes
+}
+
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     if matches!(o.variant % FAMILIES, 6 | 7) {
         stool(a, o);

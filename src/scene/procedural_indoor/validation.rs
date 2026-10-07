@@ -132,12 +132,7 @@ pub fn validate_layout(scene: &IndoorManifest) -> Result<(), String> {
                 .skip(i + 1)
                 .filter(|o| o.solid && !o.neighbor)
             {
-                let (a, b) = other.bounds();
-                if lo.y < b.y
-                    && hi.y > a.y
-                    && super::footprint::Footprint::object(object)
-                        .overlaps(super::footprint::Footprint::object(other), 0.0)
-                {
+                if super::layout::furniture_overlap(object, other, 0.0) {
                     return fail(&format!(
                         "furniture overlap: {} and {}",
                         object.id, other.id

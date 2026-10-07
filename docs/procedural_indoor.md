@@ -63,6 +63,26 @@ support relationships, camera paths and optional world rotation.
   modular upholstered seating are included. Builders also cover shelving/books,
   potted plants, bins, whiteboards, displays, computers, clocks, rugs, lighting,
   storage and tabletop drinks, stationery, microphones and phones.
+- Chairs sample pulled-out and pushed-in positions, including occupied seats.
+  Insertion and alignment use the actual convex top and shared structural support
+  program (legs, pedestal bases, braces, panels and cable trays). Seated bodies
+  move with their chair; working poses sample asymmetric one- and two-hand
+  reaches above the top, with bounded collision-checked alternatives. Resting
+  and conversational poses remain available. Static working poses also sample
+  one- and two-hand tabletop support. Palm-down
+  wrist frames and fixed-length arm IK fit actual Anny hand thickness after foot
+  grounding. Geometry reports record contact gaps, supported vertices and sleeve
+  compression. Manifest joints describe the placement pose; rendered pose
+  annotations use the grounded, contact-refined joints. Walking actors clear
+  these static constraints; grasping and
+  animated contact dynamics are outside this support model.
+  Conservative body/clothing clearance can retain a shallower insertion when a
+  sampled pose or table structure leaves insufficient room. Insertion never
+  shrinks a chair or ignores table supports.
+- Surface arrangements vary shared workspace offsets, handedness, spacing,
+  alignment and independent item jitter. Loose accessory clusters mix with
+  uniform proposals across the top. Input devices follow the display's working
+  side; supported props still pass top-outline, peer-overlap and ceiling checks.
 - The polygonal envelope and sloping ceiling determine wall meshes, exterior
   apertures, inset frames, mullions, sills, shades and fixture heights. Window
   area can span multiple facades, with tall, ribbon or stacked openings.

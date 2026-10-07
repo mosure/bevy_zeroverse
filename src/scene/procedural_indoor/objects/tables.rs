@@ -1,5 +1,11 @@
 //! Continuous convex top outlines and independent structural support programs.
 use super::*;
+mod clearance;
+mod structure;
+#[cfg(test)]
+mod tests;
+pub(crate) use clearance::Clearance;
+use structure::{PartSink, StructureSink};
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct TableProgram {
     pub top_thickness: f32,
@@ -143,7 +149,19 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
         0.003,
         Transform::from_xyz(0.0, underside - 0.006, 0.0),
     );
-    let underside = underside - 0.012;
+    build_structure(a, o, &p, &outline);
+}
+
+// Rendering and clearance consume the same structural primitive program.
+fn build_structure(
+    a: &mut impl StructureSink,
+    o: &IndoorObject,
+    p: &TableProgram,
+    outline: &[Vec2],
+) {
+    let s = o.size;
+    let label = o.kind.class_name();
+    let underside = s.y - p.top_thickness - 0.012;
     let frame = if o.variant == 1 {
         Surface::WoodEdge
     } else {
@@ -160,7 +178,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
             [-1., 1.].into_iter().all(|z| {
                 let mount = anchor * Vec2::new(x, z);
                 supports_outline(
-                    &outline,
+                    outline,
                     mount - Vec2::splat(0.05),
                     mount + Vec2::splat(0.05),
                     0.,

@@ -1,13 +1,13 @@
 {
   "build_provenance": {
     "capture_engine": "capture-v48;calibration=1;co_visibility=1;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=9;surface_flow=1;indoor=29;multiview=5;ovoxel=3;glass=2;hair=5;wardrobe=4;footwear=1;bounds=4;morphology=2;position=3;tabletop=2;finishes=8;seating=3;activity=2;playback=2;exterior=2;envelope=3",
-    "crate_version": "0.33.0",
+    "crate_version": "0.34.0",
     "features": {
       "human_motion": false,
       "multi_threaded": true,
       "web": false
     },
-    "generator_version": 29,
+    "generator_version": 30,
     "locked_package_versions": {
       "bevy": [
         "0.19.1"
@@ -16,19 +16,19 @@
         "0.6.1"
       ],
       "bevy_zeroverse": [
-        "0.33.0"
+        "0.34.0"
       ],
       "bevy_zeroverse_burn": [
-        "0.16.0"
+        "0.17.0"
       ],
       "bevy_zeroverse_capture": [
-        "0.1.1"
+        "0.1.2"
       ],
       "bevy_zeroverse_ffi": [
-        "0.33.0"
+        "0.34.0"
       ],
       "bevy_zeroverse_publication": [
-        "0.1.2"
+        "0.1.3"
       ],
       "burn": [
         "0.21.0"
@@ -56,7 +56,7 @@
       ]
     },
     "schema_version": 1,
-    "source_sha256": "218591493a104d786697a22211da3a3dccd1524a59722d7901ab6308f2982dee",
+    "source_sha256": "418bb424759ff3037937f05764b1dbe5c31836be6a1e23ba4a81a62005f25422",
     "target": "x86_64-unknown-linux-gnu"
   },
   "camera_qualification": {
@@ -154,7 +154,7 @@
     ],
     "requested_pairs": [],
     "scene_family": {
-      "id": "procedural_indoor/29/0000000000000000",
+      "id": "procedural_indoor/30/0000000000000000",
       "rule": "group all frames, cameras and appearance/sensor variants of a generator-version/seed family before assigning dataset splits",
       "split_bucket_10000": 3946
     },
@@ -162,9 +162,9 @@
     "selection": "requested strata are fixed before placement retries; no rendered or model-score filtering",
     "triangulation": "mean angle of shared rendered world positions on a regular grid of at most 4096 source pixels/view; null when position was not exported or no shared samples"
   },
-  "run_id": "1109960-1791384943937270040",
+  "run_id": "1316998-1791397549727470125",
   "seed": 0,
-  "elapsed_seconds": 1.454014209,
+  "elapsed_seconds": 0.66676403,
   "image_size": [
     160,
     256
@@ -260,16 +260,16 @@
       "fov_y": 0.63502324,
       "near": 0.1,
       "far": 50.0,
-      "mean_luminance": 0.09733598,
-      "luminance_std": 0.026670676,
+      "mean_luminance": 0.096202694,
+      "luminance_std": 0.026848769,
       "dark_fraction": 0.0,
       "clipped_fraction": 0.0,
       "semantic_colors": 5,
       "semantic_pixel_counts": {
         "chair": 2904,
-        "desk": 5822,
+        "desk": 5823,
         "floor": 8875,
-        "other_prop": 129,
+        "other_prop": 128,
         "wall": 23230
       },
       "annotation_alignment": {
@@ -364,8 +364,8 @@
       "fov_y": 0.71498704,
       "near": 0.1,
       "far": 50.0,
-      "mean_luminance": 0.13654011,
-      "luminance_std": 0.12777229,
+      "mean_luminance": 0.13595615,
+      "luminance_std": 0.12798072,
       "dark_fraction": 0.0,
       "clipped_fraction": 0.0,
       "semantic_colors": 5,
@@ -468,8 +468,8 @@
       "fov_y": 0.63502324,
       "near": 0.1,
       "far": 50.0,
-      "mean_luminance": 0.09176488,
-      "luminance_std": 0.02785725,
+      "mean_luminance": 0.09091122,
+      "luminance_std": 0.027824083,
       "dark_fraction": 0.0,
       "clipped_fraction": 0.0,
       "semantic_colors": 6,
@@ -573,8 +573,8 @@
       "fov_y": 0.71498704,
       "near": 0.1,
       "far": 50.0,
-      "mean_luminance": 0.1579721,
-      "luminance_std": 0.14632882,
+      "mean_luminance": 0.15772048,
+      "luminance_std": 0.14642267,
       "dark_fraction": 0.0,
       "clipped_fraction": 0.0,
       "semantic_colors": 5,
@@ -613,22 +613,22 @@
       }
     }
   ],
-  "mesh_assets": 221,
-  "material_assets": 106,
-  "image_assets": 108,
+  "mesh_assets": 209,
+  "material_assets": 102,
+  "image_assets": 106,
   "annotation_precision": "float32_geometry",
   "diffuse_gi": {
     "backend": "gpu_bvh_compute",
-    "triangles": 110718,
+    "triangles": 93434,
     "probes": 840,
     "relocated_probes": 62,
     "primary_rays": 215040,
     "diffuse_bounces": 3,
     "texture_bytes": 40320,
-    "preparation_ms": 62.790577,
+    "preparation_ms": 58.920455,
     "bake_ms": null,
     "mean_radiance": null,
-    "transport_bytes": 14169872,
+    "transport_bytes": 12123696,
     "prefetch_hit": false,
     "prefetch_wait_ms": 0.0
   },

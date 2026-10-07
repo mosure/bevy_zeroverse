@@ -1,13 +1,13 @@
 {
   "build_provenance": {
     "capture_engine": "capture-v48;calibration=1;co_visibility=1;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=9;surface_flow=1;indoor=29;multiview=5;ovoxel=3;glass=2;hair=5;wardrobe=4;footwear=1;bounds=4;morphology=2;position=3;tabletop=2;finishes=8;seating=3;activity=2;playback=2;exterior=2;envelope=3",
-    "crate_version": "0.33.0",
+    "crate_version": "0.34.0",
     "features": {
       "human_motion": false,
       "multi_threaded": true,
       "web": false
     },
-    "generator_version": 29,
+    "generator_version": 30,
     "locked_package_versions": {
       "bevy": [
         "0.19.1"
@@ -16,19 +16,19 @@
         "0.6.1"
       ],
       "bevy_zeroverse": [
-        "0.33.0"
+        "0.34.0"
       ],
       "bevy_zeroverse_burn": [
-        "0.16.0"
+        "0.17.0"
       ],
       "bevy_zeroverse_capture": [
-        "0.1.1"
+        "0.1.2"
       ],
       "bevy_zeroverse_ffi": [
-        "0.33.0"
+        "0.34.0"
       ],
       "bevy_zeroverse_publication": [
-        "0.1.2"
+        "0.1.3"
       ],
       "burn": [
         "0.21.0"
@@ -56,7 +56,7 @@
       ]
     },
     "schema_version": 1,
-    "source_sha256": "218591493a104d786697a22211da3a3dccd1524a59722d7901ab6308f2982dee",
+    "source_sha256": "418bb424759ff3037937f05764b1dbe5c31836be6a1e23ba4a81a62005f25422",
     "target": "x86_64-unknown-linux-gnu"
   },
   "camera_qualification": {
@@ -109,52 +109,52 @@
     "rendered_overlap": [
       {
         "baseline_m": 2.731830596923828,
-        "mean_triangulation_degrees": 39.50422823669311,
-        "shared_fraction_valid": 0.406298828125,
-        "shared_pixels": 16642,
+        "mean_triangulation_degrees": 39.497995912204686,
+        "shared_fraction_valid": 0.4057373046875,
+        "shared_pixels": 16619,
         "source_camera": 0,
         "step_index": 0,
         "target_camera": 1,
-        "triangulation_sample_count": 1737,
+        "triangulation_sample_count": 1736,
         "valid_source_pixels": 40960
       },
       {
         "baseline_m": 2.731830596923828,
-        "mean_triangulation_degrees": 34.89568718166455,
-        "shared_fraction_valid": 0.3652099609375,
-        "shared_pixels": 14959,
+        "mean_triangulation_degrees": 34.795702109625054,
+        "shared_fraction_valid": 0.362158203125,
+        "shared_pixels": 14834,
         "source_camera": 1,
         "step_index": 0,
         "target_camera": 0,
-        "triangulation_sample_count": 1472,
+        "triangulation_sample_count": 1456,
         "valid_source_pixels": 40960
       },
       {
         "baseline_m": 2.698495388031006,
-        "mean_triangulation_degrees": 37.08365429657434,
-        "shared_fraction_valid": 0.491552734375,
-        "shared_pixels": 20134,
+        "mean_triangulation_degrees": 37.081056032534,
+        "shared_fraction_valid": 0.490576171875,
+        "shared_pixels": 20094,
         "source_camera": 0,
         "step_index": 1,
         "target_camera": 1,
-        "triangulation_sample_count": 2030,
+        "triangulation_sample_count": 2025,
         "valid_source_pixels": 40960
       },
       {
         "baseline_m": 2.698495388031006,
-        "mean_triangulation_degrees": 30.9565996613222,
-        "shared_fraction_valid": 0.4184326171875,
-        "shared_pixels": 17139,
+        "mean_triangulation_degrees": 30.83306008825404,
+        "shared_fraction_valid": 0.41435546875,
+        "shared_pixels": 16972,
         "source_camera": 1,
         "step_index": 1,
         "target_camera": 0,
-        "triangulation_sample_count": 1700,
+        "triangulation_sample_count": 1682,
         "valid_source_pixels": 40960
       }
     ],
     "requested_pairs": [],
     "scene_family": {
-      "id": "procedural_indoor/29/0000000000000001",
+      "id": "procedural_indoor/30/0000000000000001",
       "rule": "group all frames, cameras and appearance/sensor variants of a generator-version/seed family before assigning dataset splits",
       "split_bucket_10000": 515
     },
@@ -162,9 +162,9 @@
     "selection": "requested strata are fixed before placement retries; no rendered or model-score filtering",
     "triangulation": "mean angle of shared rendered world positions on a regular grid of at most 4096 source pixels/view; null when position was not exported or no shared samples"
   },
-  "run_id": "1109960-1791384943937270040",
+  "run_id": "1316998-1791397549727470125",
   "seed": 1,
-  "elapsed_seconds": 1.406112344,
+  "elapsed_seconds": 0.488815472,
   "image_size": [
     160,
     256
@@ -260,24 +260,23 @@
       "fov_y": 1.6332153,
       "near": 0.1,
       "far": 50.0,
-      "mean_luminance": 0.46942505,
-      "luminance_std": 0.19001693,
+      "mean_luminance": 0.46858788,
+      "luminance_std": 0.19054711,
       "dark_fraction": 0.0,
       "clipped_fraction": 0.0,
-      "semantic_colors": 14,
+      "semantic_colors": 13,
       "semantic_pixel_counts": {
         "blinds": 217,
         "bookshelf": 539,
         "ceiling": 7352,
-        "chair": 121,
+        "chair": 122,
         "door": 36,
-        "floor": 14151,
+        "floor": 14138,
         "lamp": 328,
-        "other_prop": 32,
+        "other_prop": 146,
         "other_structure": 953,
-        "paper": 40,
         "sofa": 6102,
-        "table": 289,
+        "table": 227,
         "wall": 7110,
         "window": 3690
       },
@@ -292,19 +291,19 @@
       },
       "co_visibility": {
         "valid_pixels": 40960,
-        "shared_pixels": 16642,
+        "shared_pixels": 16619,
         "peer_pixels": [
           0,
-          16642
+          16619
         ],
         "cardinality_pixels": [
-          24318,
-          16642
+          24341,
+          16619
         ],
-        "shared_fraction_valid": 0.406298828125,
+        "shared_fraction_valid": 0.4057373046875,
         "peer_fraction_valid": [
           0.0,
-          0.406298828125
+          0.4057373046875
         ]
       }
     },
@@ -373,22 +372,21 @@
       "fov_y": 1.3035145,
       "near": 0.1,
       "far": 50.0,
-      "mean_luminance": 0.5543195,
-      "luminance_std": 0.20042334,
+      "mean_luminance": 0.553937,
+      "luminance_std": 0.20088358,
       "dark_fraction": 0.0,
       "clipped_fraction": 0.0,
-      "semantic_colors": 12,
+      "semantic_colors": 11,
       "semantic_pixel_counts": {
         "bookshelf": 319,
         "ceiling": 4469,
         "door": 524,
-        "floor": 11938,
+        "floor": 11945,
         "lamp": 202,
-        "other_prop": 31,
+        "other_prop": 141,
         "other_structure": 4559,
-        "paper": 68,
         "sofa": 5354,
-        "table": 582,
+        "table": 533,
         "wall": 12900,
         "window": 14
       },
@@ -403,18 +401,18 @@
       },
       "co_visibility": {
         "valid_pixels": 40960,
-        "shared_pixels": 14959,
+        "shared_pixels": 14834,
         "peer_pixels": [
-          14959,
+          14834,
           0
         ],
         "cardinality_pixels": [
-          26001,
-          14959
+          26126,
+          14834
         ],
-        "shared_fraction_valid": 0.3652099609375,
+        "shared_fraction_valid": 0.362158203125,
         "peer_fraction_valid": [
-          0.3652099609375,
+          0.362158203125,
           0.0
         ]
       }
@@ -484,24 +482,23 @@
       "fov_y": 1.6332153,
       "near": 0.1,
       "far": 50.0,
-      "mean_luminance": 0.47246736,
-      "luminance_std": 0.18255216,
+      "mean_luminance": 0.47186786,
+      "luminance_std": 0.18331373,
       "dark_fraction": 0.0,
       "clipped_fraction": 0.0,
-      "semantic_colors": 14,
+      "semantic_colors": 13,
       "semantic_pixel_counts": {
         "blinds": 210,
         "bookshelf": 269,
         "ceiling": 6802,
         "chair": 128,
         "door": 36,
-        "floor": 13615,
+        "floor": 13614,
         "lamp": 325,
-        "other_prop": 25,
+        "other_prop": 136,
         "other_structure": 966,
-        "paper": 45,
         "sofa": 4875,
-        "table": 472,
+        "table": 407,
         "wall": 9388,
         "window": 3804
       },
@@ -516,19 +513,19 @@
       },
       "co_visibility": {
         "valid_pixels": 40960,
-        "shared_pixels": 20134,
+        "shared_pixels": 20094,
         "peer_pixels": [
           0,
-          20134
+          20094
         ],
         "cardinality_pixels": [
-          20826,
-          20134
+          20866,
+          20094
         ],
-        "shared_fraction_valid": 0.491552734375,
+        "shared_fraction_valid": 0.490576171875,
         "peer_fraction_valid": [
           0.0,
-          0.491552734375
+          0.490576171875
         ]
       }
     },
@@ -597,23 +594,22 @@
       "fov_y": 1.3035145,
       "near": 0.1,
       "far": 50.0,
-      "mean_luminance": 0.5535631,
-      "luminance_std": 0.20579779,
+      "mean_luminance": 0.5531019,
+      "luminance_std": 0.20628926,
       "dark_fraction": 0.0,
       "clipped_fraction": 0.0,
-      "semantic_colors": 13,
+      "semantic_colors": 12,
       "semantic_pixel_counts": {
         "bookshelf": 328,
         "ceiling": 4302,
         "chair": 3,
         "door": 495,
-        "floor": 14221,
+        "floor": 14227,
         "lamp": 194,
-        "other_prop": 29,
+        "other_prop": 137,
         "other_structure": 1917,
-        "paper": 75,
         "sofa": 5013,
-        "table": 796,
+        "table": 757,
         "wall": 13243,
         "window": 344
       },
@@ -624,43 +620,43 @@
         "reprojection_p99_pixels": 0.000061510145,
         "reprojection_max_pixels": 0.00011003269,
         "normal_length_max_error": 2.3841858e-7,
-        "position_quantization_budget_p99_ratio": 0.0045377794
+        "position_quantization_budget_p99_ratio": 0.0045295856
       },
       "co_visibility": {
         "valid_pixels": 40960,
-        "shared_pixels": 17139,
+        "shared_pixels": 16972,
         "peer_pixels": [
-          17139,
+          16972,
           0
         ],
         "cardinality_pixels": [
-          23821,
-          17139
+          23988,
+          16972
         ],
-        "shared_fraction_valid": 0.4184326171875,
+        "shared_fraction_valid": 0.41435546875,
         "peer_fraction_valid": [
-          0.4184326171875,
+          0.41435546875,
           0.0
         ]
       }
     }
   ],
-  "mesh_assets": 175,
-  "material_assets": 92,
-  "image_assets": 104,
+  "mesh_assets": 158,
+  "material_assets": 82,
+  "image_assets": 87,
   "annotation_precision": "float32_geometry",
   "diffuse_gi": {
     "backend": "gpu_bvh_compute",
-    "triangles": 88398,
+    "triangles": 72890,
     "probes": 680,
     "relocated_probes": 54,
     "primary_rays": 174080,
     "diffuse_bounces": 3,
     "texture_bytes": 32640,
-    "preparation_ms": 70.04335699999999,
+    "preparation_ms": 46.618676,
     "bake_ms": null,
     "mean_radiance": null,
-    "transport_bytes": 11461424,
+    "transport_bytes": 9522192,
     "prefetch_hit": false,
     "prefetch_wait_ms": 0.0
   },

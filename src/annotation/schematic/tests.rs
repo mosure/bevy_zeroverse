@@ -25,7 +25,7 @@ fn metric_projection_roundtrips_and_predictions_do_not_change_extent() {
     assert_eq!(projection, plan.projection(&options).unwrap());
     let rgba = plan.rgba(&options, &overlay).unwrap();
     assert_eq!(rgba.len(), 1024 * 1024 * 4);
-    assert!(rgba.chunks_exact(4).all(|p| p[3] == 255));
+    assert!(rgba.as_chunks::<4>().0.iter().all(|p| p[3] == 255));
 }
 #[test]
 fn captured_cameras_and_pose_steps_override_planned_state() {
