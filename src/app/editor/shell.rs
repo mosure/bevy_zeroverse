@@ -386,16 +386,11 @@ pub(super) fn viewport(
     } else {
         PANEL.min(window.width())
     };
-    let scale = window.scale_factor();
+    if window.physical_width() == 0 || window.physical_height() == 0 {
+        return;
+    }
     for (mut camera, mut pan) in &mut editor {
-        let rect = Viewport {
-            physical_position: UVec2::new((left * scale) as u32, (54. * scale) as u32),
-            physical_size: UVec2::new(
-                ((window.width() - left).max(1.) * scale) as u32,
-                ((window.height() - 96.).max(1.) * scale) as u32,
-            ),
-            ..default()
-        };
+        let rect = bounded_viewport(window, left);
         if camera.viewport.as_ref().is_none_or(|v| {
             v.physical_position != rect.physical_position || v.physical_size != rect.physical_size
         }) {
@@ -412,5 +407,25 @@ pub(super) fn viewport(
         node.top = px(54);
         node.width = px((window.width() - left).max(1.));
         node.height = px((window.height() - 96.).max(1.));
+    }
+}
+
+/// A collapsed/narrow/minimized viewport must never extend beyond its render target.
+pub(super) fn bounded_viewport(window: &Window, left: f32) -> Viewport {
+    let width = window.physical_width().max(1);
+    let height = window.physical_height().max(1);
+    let scale = window.scale_factor();
+    let x = ((left * scale) as u32).min(width - 1);
+    let y = ((54. * scale) as u32).min(height - 1);
+    Viewport {
+        physical_position: UVec2::new(x, y),
+        physical_size: UVec2::new(
+            width - x,
+            height
+                .saturating_sub(y)
+                .saturating_sub((42. * scale) as u32)
+                .max(1),
+        ),
+        ..default()
     }
 }

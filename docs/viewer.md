@@ -20,13 +20,17 @@ View → Capture grid reserves the same viewport for dataset cameras.
 configuration and advances from the displayed seed. Moving sliders or typing
 never regenerates a scene. Pending changes are visibly marked; Discard returns
 them to the last applied configuration. Preview controls update immediately.
+Space controls playback when the scene has keyboard focus; focused buttons retain
+their normal keyboard activation.
 Invalid fields remain editable and block generation with a readable error.
 
 On WebGPU, the address bar is updated with `history.replaceState` after valid edits
 and scene generation. It records the current seed, complete nested policies,
 render/grid/overlay state, panel, timeline and editor camera in versioned
 `viewer_state` JSON. Copying the URL replays those settings without carrying a
-sequence offset from previous rooms. Pending edits are restored as pending, preserving the rendered scene until Apply. Startup options such as headless mode or readback require relaunching with the desired CLI/query setting. Continuous motion/camera updates are
+sequence offset from previous rooms. Pending edits are restored as pending,
+preserving the rendered scene until Apply. Startup options such as headless mode or
+readback require relaunching with the desired CLI/query setting. Continuous motion/camera updates are
 throttled to twice per second. Random legacy object scenes do not have the indoor
 seed replay contract. Low-level ECS inspector edits are not serialized in URLs.
 
@@ -114,7 +118,8 @@ Actual Bevy screenshots of seed **46839170**, four 512 × 512 capture views, in 
 </details>
 
 The native review also exercises text entry of `u64::MAX`, slider events, Discard,
-text hit-target bounds, and menu activation. Core validation passed 383 tests
+text hit-target bounds, menu activation and focused-button keyboard activation.
+Core validation passed 383 tests
 (22 ignored); the reported seed passed 27 camera/population/furnishing configurations.
 The shared WebGPU controller compiles with motion enabled. Browser rendering could
 not be qualified in the connected in-app browser because it exposes no WebGPU

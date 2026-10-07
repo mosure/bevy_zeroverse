@@ -31,6 +31,7 @@ fn main() {
             height: 512.,
             camera_grid: true,
             gizmos: false,
+            playback_mode: bevy_zeroverse::camera::PlaybackMode::Still,
             playback_speed: 0.,
             ..default()
         }),
@@ -53,6 +54,49 @@ fn review(world: &mut World) {
     }
     let mut review = world.remove_resource::<Review>().unwrap();
     review.frames += 1;
+    // Space activates a focused button once, without also running the scene shortcut.
+    if review.frames == 70 {
+        assert_eq!(
+            world.resource::<BevyZeroverseConfig>().playback_mode,
+            bevy_zeroverse::camera::PlaybackMode::Still
+        );
+        let entity = labeled(world, "Play / pause");
+        world
+            .resource_mut::<bevy::input_focus::InputFocus>()
+            .set(entity, bevy::input_focus::FocusCause::Pressed);
+    }
+    if review.frames == 75 {
+        let window = world
+            .query_filtered::<Entity, With<bevy::window::PrimaryWindow>>()
+            .single(world)
+            .unwrap();
+        for state in [
+            bevy::input::ButtonState::Pressed,
+            bevy::input::ButtonState::Released,
+        ] {
+            world.write_message(bevy::input::keyboard::KeyboardInput {
+                key_code: KeyCode::Space,
+                logical_key: bevy::input::keyboard::Key::Space,
+                state,
+                text: None,
+                repeat: false,
+                window,
+            });
+        }
+    }
+    if review.frames == 85 {
+        assert_eq!(
+            world.resource::<BevyZeroverseConfig>().playback_mode,
+            bevy_zeroverse::camera::PlaybackMode::Loop
+        );
+        world.resource_mut::<Actions>().0.push(Action::Set(
+            "/playback_mode".into(),
+            serde_json::json!("Still"),
+        ));
+        world
+            .resource_mut::<bevy::input_focus::InputFocus>()
+            .clear();
+    }
     // Exercise real text editing, widget observers and retained layout.
     if review.frames == 90 {
         let entity = labeled(world, "Room seed");

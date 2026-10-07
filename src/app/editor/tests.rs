@@ -318,3 +318,19 @@ fn editor_pose_restores_when_grid_startup_creates_the_editor_camera_later() {
     };
     assert!((p.fov - 1.1).abs() < 1e-6);
 }
+
+#[test]
+fn small_editor_viewports_stay_inside_the_window() {
+    for (width, height) in [(1, 1), (300, 60), (380, 96), (1360, 900)] {
+        let window = Window {
+            resolution: bevy::window::WindowResolution::new(width, height),
+            ..default()
+        };
+        for left in [0., 380.] {
+            let v = shell::bounded_viewport(&window, left);
+            assert!(v.physical_size.min_element() >= 1);
+            assert!(v.physical_position.x + v.physical_size.x <= window.physical_width());
+            assert!(v.physical_position.y + v.physical_size.y <= window.physical_height());
+        }
+    }
+}

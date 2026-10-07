@@ -349,6 +349,7 @@ fn update(world: &mut World) {
     world.resource_mut::<EditorInputCapture>().keyboard = typing;
     let mut actions = std::mem::take(&mut world.resource_mut::<Actions>().0);
     if world.resource::<BevyZeroverseConfig>().keybinds
+        && focus.is_none()
         && !typing
         && world
             .resource::<ButtonInput<KeyCode>>()
