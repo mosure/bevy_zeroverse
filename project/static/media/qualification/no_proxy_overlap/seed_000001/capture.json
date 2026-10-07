@@ -1,13 +1,13 @@
 {
   "build_provenance": {
     "capture_engine": "capture-v48;calibration=1;co_visibility=1;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=9;surface_flow=1;indoor=29;multiview=5;ovoxel=3;glass=2;hair=5;wardrobe=4;footwear=1;bounds=4;morphology=2;position=3;tabletop=2;finishes=8;seating=3;activity=2;playback=2;exterior=2;envelope=3",
-    "crate_version": "0.32.0",
+    "crate_version": "0.34.0",
     "features": {
       "human_motion": false,
       "multi_threaded": true,
       "web": false
     },
-    "generator_version": 29,
+    "generator_version": 30,
     "locked_package_versions": {
       "bevy": [
         "0.19.1"
@@ -16,19 +16,19 @@
         "0.6.1"
       ],
       "bevy_zeroverse": [
-        "0.32.0"
+        "0.34.0"
       ],
       "bevy_zeroverse_burn": [
-        "0.15.0"
+        "0.17.0"
       ],
       "bevy_zeroverse_capture": [
-        "0.1.1"
+        "0.1.2"
       ],
       "bevy_zeroverse_ffi": [
-        "0.32.0"
+        "0.34.0"
       ],
       "bevy_zeroverse_publication": [
-        "0.1.2"
+        "0.1.3"
       ],
       "burn": [
         "0.21.0"
@@ -56,7 +56,7 @@
       ]
     },
     "schema_version": 1,
-    "source_sha256": "9094ec576c112a4233094fa0e5151e75e0f6978b96d70ed60c3d35699e75326a",
+    "source_sha256": "418bb424759ff3037937f05764b1dbe5c31836be6a1e23ba4a81a62005f25422",
     "target": "x86_64-unknown-linux-gnu"
   },
   "camera_qualification": {
@@ -164,7 +164,7 @@
       }
     ],
     "scene_family": {
-      "id": "procedural_indoor/29/0000000000000001",
+      "id": "procedural_indoor/30/0000000000000001",
       "rule": "group all frames, cameras and appearance/sensor variants of a generator-version/seed family before assigning dataset splits",
       "split_bucket_10000": 515
     },
@@ -172,9 +172,9 @@
     "selection": "requested strata are fixed before placement retries; no rendered or model-score filtering",
     "triangulation": "mean angle of shared rendered world positions on a regular grid of at most 4096 source pixels/view; null when position was not exported or no shared samples"
   },
-  "run_id": "693510-1791345073196698455",
+  "run_id": "1317263-1791397559296661539",
   "seed": 1,
-  "elapsed_seconds": 1.029396442,
+  "elapsed_seconds": 0.419257311,
   "image_size": [
     256,
     160
@@ -270,24 +270,23 @@
       "fov_y": 1.6332153,
       "near": 0.1,
       "far": 50.0,
-      "mean_luminance": 0.578686,
-      "luminance_std": 0.20443213,
+      "mean_luminance": 0.57837737,
+      "luminance_std": 0.20477211,
       "dark_fraction": 0.0,
       "clipped_fraction": 0.0,
-      "semantic_colors": 14,
+      "semantic_colors": 13,
       "semantic_pixel_counts": {
         "blinds": 998,
         "bookshelf": 512,
         "ceiling": 4817,
         "chair": 638,
         "door": 14,
-        "floor": 10409,
+        "floor": 10404,
         "lamp": 192,
-        "other_prop": 10,
+        "other_prop": 56,
         "other_structure": 379,
-        "paper": 16,
         "sofa": 2624,
-        "table": 113,
+        "table": 88,
         "wall": 15846,
         "window": 4392
       },
@@ -383,19 +382,19 @@
       "fov_y": 1.76776,
       "near": 0.1,
       "far": 50.0,
-      "mean_luminance": 0.5673224,
-      "luminance_std": 0.17000742,
+      "mean_luminance": 0.5685832,
+      "luminance_std": 0.16965449,
       "dark_fraction": 0.0,
       "clipped_fraction": 0.0,
       "semantic_colors": 7,
       "semantic_pixel_counts": {
-        "books": 52,
-        "cabinet": 7425,
+        "books": 209,
+        "cabinet": 7350,
         "ceiling": 662,
         "floor": 3235,
-        "other_prop": 79,
+        "other_prop": 8,
         "television": 872,
-        "wall": 28635
+        "wall": 28624
       },
       "annotation_alignment": {
         "checked_pixels": 40960,
@@ -489,11 +488,11 @@
       "fov_y": 1.6332153,
       "near": 0.1,
       "far": 50.0,
-      "mean_luminance": 0.5888079,
-      "luminance_std": 0.20249362,
+      "mean_luminance": 0.5885824,
+      "luminance_std": 0.20286779,
       "dark_fraction": 0.0,
       "clipped_fraction": 0.0,
-      "semantic_colors": 14,
+      "semantic_colors": 13,
       "semantic_pixel_counts": {
         "blinds": 1175,
         "bookshelf": 558,
@@ -502,11 +501,10 @@
         "door": 17,
         "floor": 10874,
         "lamp": 197,
-        "other_prop": 8,
+        "other_prop": 53,
         "other_structure": 377,
-        "paper": 16,
         "sofa": 2388,
-        "table": 184,
+        "table": 155,
         "wall": 16602,
         "window": 4516
       },
@@ -602,19 +600,19 @@
       "fov_y": 1.76776,
       "near": 0.1,
       "far": 50.0,
-      "mean_luminance": 0.56290686,
-      "luminance_std": 0.1619263,
+      "mean_luminance": 0.56445277,
+      "luminance_std": 0.1609324,
       "dark_fraction": 0.0,
       "clipped_fraction": 0.0,
       "semantic_colors": 7,
       "semantic_pixel_counts": {
-        "books": 61,
-        "cabinet": 6898,
+        "books": 267,
+        "cabinet": 6781,
         "ceiling": 436,
         "floor": 2637,
-        "other_prop": 101,
+        "other_prop": 8,
         "television": 1046,
-        "wall": 29781
+        "wall": 29785
       },
       "annotation_alignment": {
         "checked_pixels": 40960,
@@ -644,22 +642,22 @@
       }
     }
   ],
-  "mesh_assets": 175,
-  "material_assets": 92,
-  "image_assets": 104,
+  "mesh_assets": 158,
+  "material_assets": 82,
+  "image_assets": 87,
   "annotation_precision": "float32_geometry",
   "diffuse_gi": {
     "backend": "gpu_bvh_compute",
-    "triangles": 88398,
+    "triangles": 72890,
     "probes": 680,
     "relocated_probes": 54,
     "primary_rays": 174080,
     "diffuse_bounces": 3,
     "texture_bytes": 32640,
-    "preparation_ms": 73.752856,
+    "preparation_ms": 40.740403,
     "bake_ms": null,
     "mean_radiance": null,
-    "transport_bytes": 11461424,
+    "transport_bytes": 9522192,
     "prefetch_hit": false,
     "prefetch_wait_ms": 0.0
   },
