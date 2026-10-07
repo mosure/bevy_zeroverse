@@ -93,8 +93,10 @@ cargo run --bin viewer -- --scene-type procedural-indoor --indoor-seed 7 \
   --num-cameras 4 --camera-grid
 ```
 
-Adjust controls, then press **Regenerate / R**. Camera baseline controls spacing
-between views; trajectory length controls how far each camera travels.
+Scene Studio uses Bevy Feathers controls on native and WebGPU. **Apply changes**
+keeps the selected seed; **Next / R** advances it. Editing does not regenerate.
+Camera baseline controls spacing between views; travel controls how far each
+camera moves. Browser links preserve the active scene, preview and pending edits.
 
 Generate a dataset with four views per room:
 

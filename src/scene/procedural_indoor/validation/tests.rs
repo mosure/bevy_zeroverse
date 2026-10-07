@@ -353,3 +353,27 @@ fn geometry_qualification_catches_hidden_mesh_overruns_and_records_coverage() {
             .contains("invalid object geometry dimensions"));
     }
 }
+
+#[test]
+fn reported_seed_46839170_validates_across_view_and_population_settings() {
+    for cameras in [0, 3, 4] {
+        for density in [0.0, 0.65, 1.0] {
+            for humans in [0.0, 0.25, 1.0] {
+                let scene = IndoorManifest::generate_with_humans(
+                    46_839_170,
+                    IndoorLayout::Mixed,
+                    density,
+                    cameras,
+                    humans,
+                )
+                .unwrap();
+                validate_layout(&scene).unwrap_or_else(|e| {
+                    panic!("cameras={cameras}, density={density}, people={humans}: {e}")
+                });
+                if cameras == 4 && density == 0.65 && humans == 0.25 {
+                    validate_geometry(&scene).unwrap();
+                }
+            }
+        }
+    }
+}

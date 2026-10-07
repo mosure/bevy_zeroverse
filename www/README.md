@@ -48,6 +48,18 @@ in [the publication crate](../crates/publication/README.md). See the
 [publication protocol](../docs/project_page.md) for source identity, exact mask
 formats, release requirements and separate browser/runtime qualification.
 
+## Interactive scene controller
+
+The native and WebGPU viewers share Bevy Feathers controls: Scene, Cameras,
+Materials & light, People & motion, View & playback, and Advanced. Apply keeps the
+room seed; Next / R advances it. Scene edits are staged, so dragging a slider does
+not regenerate. Render and playback controls update live.
+
+Valid edits and the active room seed update the browser URL automatically, along
+with the editor camera and timeline. Copy the URL to reproduce the configuration.
+The versioned `viewer_state` parameter records display state; `indoor_camera`
+continues to accept JSON such as `{"baseline":0.8}`.
+
 ## wasm support
 
 to build wasm run:

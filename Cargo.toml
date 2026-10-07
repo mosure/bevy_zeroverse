@@ -1,7 +1,7 @@
 [package]
 name = "bevy_zeroverse"
 description = "bevy zeroverse synthetic dataset generator"
-version = "0.31.1"
+version = "0.32.0"
 edition = "2021"
 authors = ["mosure <mitchell@mosure.me>"]
 license = "MIT"
@@ -80,6 +80,8 @@ viewer = [
   # requires PickingPlugin in DefaultPlugins on both native and Wasm builds.
   "bevy/reflect_auto_register",
   "bevy/bevy_picking",
+  "bevy/bevy_feathers",
+  "bevy/bevy_scene",
 ]
 
 web = [
@@ -191,6 +193,7 @@ features = [
   'Element',
   'HtmlElement',
   'Location',
+  'History',
   'Node',
   'UrlSearchParams',
   'Window',
@@ -253,3 +256,7 @@ required-features = ["human_motion"]
 name = "indoor_embed"
 path = "src/bin/indoor_embed.rs"
 required-features = ["embedding_audit"]
+
+[[example]]
+name = "review_editor"
+required-features = ["viewer"]

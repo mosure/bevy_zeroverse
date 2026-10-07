@@ -1,30 +1,33 @@
-<html>
-  <head>
-    <meta charset="UTF-8" />
-    <title>bevy_zeroverse</title>
-    <style>
-      body {
-        width: 100%;
-        height: 100%;
-        margin: 0;
-        padding: 0;
-        overflow: hidden;
-      }
-    </style>
-  </head>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0c1018">
+  <title>Zeroverse · Scene Studio</title>
+  <style>
+    html,body { width:100%;height:100%;margin:0;overflow:hidden;background:#0c1018;color:#e8eff7;font:15px system-ui,sans-serif; }
+    canvas { display:block;width:100%;height:100%;outline:none; }
+    #status { position:absolute;inset:0;display:grid;place-content:center;gap:12px;padding:32px;pointer-events:none;background:#0c1018; }
+    #status[hidden] { display:none; }
+    #status strong { font-size:26px;letter-spacing:.08em; }
+    #status small { color:#6bd4bf;letter-spacing:.2em; }
+    #message { color:#a5b5c7;max-width:560px;line-height:1.6; }
+  </style>
+</head>
+<body>
+  <canvas id="bevy" aria-label="Zeroverse procedural scene editor"></canvas>
+  <div id="status" role="status"><small>SCENE STUDIO</small><strong>ZERO / VERSE</strong><span id="message">Starting WebGPU…</span></div>
   <script type="module">
-    import init from './out/viewer.js'
+    import init from './out/viewer.js';
     const status = document.getElementById('status');
+    const message = document.getElementById('message');
     try {
       const params = new URLSearchParams(location.search);
       if ((params.get('image_copiers') ?? params.get('image-copiers')) === 'true') {
         throw new Error('Browser dataset readback is unavailable. Set image_copiers=false and use native indoor_validate or zeroverse_gen for capture.');
       }
-      if (!navigator.gpu) {
-        throw new Error('This viewer requires WebGPU. Use a supported browser over HTTPS or localhost.');
-      }
-      // Some browser/driver combinations briefly return no adapter while the GPU
-      // process starts. Check before entering Rust, where missing adapters panic.
+      if (!navigator.gpu) throw new Error('This viewer requires WebGPU. Use a supported browser over HTTPS or localhost.');
       let adapter = null;
       for (let attempt = 0; attempt < 4 && !adapter; attempt++) {
         adapter = await navigator.gpu.requestAdapter();
@@ -35,30 +38,10 @@
       await init();
     } catch (error) {
       status.hidden = false;
-      status.textContent = error.message ?? String(error);
+      message.textContent = error.message ?? String(error);
       console.error(error);
     }
-  </script>
-  <script>
-    // disable right-click context menu
     document.addEventListener('contextmenu', event => event.preventDefault());
   </script>
-  <style>
-    body {
-      width: 100%;
-      height: 100%;
-      margin: 0;
-      padding: 0;
-      overflow: hidden;
-    }
-
-    .full-size {
-      width: 100% !important;
-      height: 100% !important;
-    }
-  </style>
-  <body>
-    <div id="status" style="position:absolute;inset:1rem auto auto 1rem;font:16px sans-serif;color:#333">Starting WebGPU viewer…</div>
-    <canvas id="bevy" class="full-size"></canvas>
-  </body>
+</body>
 </html>

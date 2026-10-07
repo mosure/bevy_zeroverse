@@ -26,6 +26,8 @@ use bevy_args::{Deserialize, Parser, Serialize, ValueEnum};
 #[cfg(feature = "viewer")]
 use bevy_egui::EguiPlugin;
 #[cfg(feature = "viewer")]
+pub mod editor;
+#[cfg(feature = "viewer")]
 mod inspector;
 mod settings;
 #[cfg(feature = "viewer")]
@@ -199,6 +201,20 @@ mod config_tests {
     }
 }
 
+fn deserialize_viewer_state<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<String>, D::Error> {
+    let value = Option::<serde_json::Value>::deserialize(deserializer)?;
+    match value {
+        None => Ok(None),
+        Some(serde_json::Value::String(s)) => Ok(Some(s)),
+        Some(value @ serde_json::Value::Object(_)) => Ok(Some(value.to_string())),
+        _ => Err(serde::de::Error::custom(
+            "viewer_state must be a JSON object or string",
+        )),
+    }
+}
+
 // TODO: add meta-derive macro to populate get/set methods
 #[cfg(feature = "python")]
 #[derive(Clone, Debug, Resource, Serialize, Deserialize, Parser, Reflect)]
@@ -206,10 +222,16 @@ mod config_tests {
 #[command(about = "bevy_zeroverse viewer", version, long_about = None)]
 #[reflect(Resource)]
 pub struct BevyZeroverseConfig {
-    /// enable the bevy inspector
+    /// enable the Scene Studio controller
     #[pyo3(get, set)]
     #[arg(long, action = clap::ArgAction::Set, default_value = "true")]
     pub editor: bool,
+
+    /// Versioned viewer state (panel, timeline and editor camera) as JSON.
+    #[arg(long)]
+    #[serde(default, deserialize_with = "deserialize_viewer_state")]
+    #[pyo3(get, set)]
+    pub viewer_state: Option<String>,
 
     /// draw capture-camera frusta and trajectories in the editor
     #[pyo3(get, set)]
@@ -467,9 +489,14 @@ impl BevyZeroverseConfig {
 #[command(about = "bevy_zeroverse viewer", version, long_about = None)]
 #[reflect(Resource)]
 pub struct BevyZeroverseConfig {
-    /// enable the bevy inspector
+    /// enable the Scene Studio controller
     #[arg(long, action = clap::ArgAction::Set, default_value = "true")]
     pub editor: bool,
+
+    /// Versioned viewer state (panel, timeline and editor camera) as JSON.
+    #[arg(long)]
+    #[serde(default, deserialize_with = "deserialize_viewer_state")]
+    pub viewer_state: Option<String>,
 
     /// draw capture-camera frusta and trajectories in the editor
     #[arg(long, action = clap::ArgAction::Set, default_value = "true")]
@@ -661,6 +688,7 @@ impl Default for BevyZeroverseConfig {
     fn default() -> BevyZeroverseConfig {
         BevyZeroverseConfig {
             editor: true,
+            viewer_state: None,
             gizmos: true,
             gizmos_alpha: 1.0,
             draw_obb_gizmo: false,
@@ -868,7 +896,7 @@ pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) 
 
     #[cfg(target_arch = "wasm32")]
     let primary_window = Some(Window {
-        // fit_canvas_to_parent: true,
+        fit_canvas_to_parent: true,
         canvas: Some("#bevy".to_string()),
         resolution: bevy::window::WindowResolution::new(
             args.width.round() as u32,
@@ -891,8 +919,16 @@ pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) 
         mode: bevy::window::WindowMode::Windowed,
         prevent_default_event_handling: false,
         resolution: bevy::window::WindowResolution::new(
-            args.width.round() as u32,
-            args.height.round() as u32,
+            if args.editor {
+                args.width.max(1200.).round() as u32
+            } else {
+                args.width.round() as u32
+            },
+            if args.editor {
+                args.height.max(800.).round() as u32
+            } else {
+                args.height.round() as u32
+            },
         ),
         title: args.name.clone(),
         #[cfg(feature = "perftest")]
@@ -1007,6 +1043,7 @@ pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) 
         app.add_plugins(EguiPlugin::default());
         app.add_plugins(bevy_inspector_egui::DefaultInspectorConfigPlugin);
         app.add_systems(bevy_egui::EguiPrimaryContextPass, inspector::panel);
+        app.add_plugins(editor::EditorPlugin);
     }
 
     if args.press_esc_close {
@@ -1438,6 +1475,8 @@ fn regenerate_scene_system(
     keys: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
     mut regenerate_stopwatch: Local<Stopwatch>,
+    #[cfg(feature = "viewer")] mut editor_actions: Option<ResMut<editor::Actions>>,
+    #[cfg(feature = "viewer")] input_capture: Option<Res<editor::EditorInputCapture>>,
     mut regenerate_event: MessageWriter<RegenerateSceneEvent>,
 ) {
     if sampler.is_some_and(|state| state.enabled) {
@@ -1452,10 +1491,20 @@ fn regenerate_scene_system(
         && !indoor.is_some_and(|status| status.busy());
 
     if args.keybinds {
-        regenerate_scene |= keys.just_pressed(KeyCode::KeyR);
+        #[cfg(feature = "viewer")]
+        let typing = input_capture.is_some_and(|input| input.keyboard);
+        #[cfg(not(feature = "viewer"))]
+        let typing = false;
+        regenerate_scene |= !typing && keys.just_pressed(KeyCode::KeyR);
     }
 
     if regenerate_scene {
+        #[cfg(feature = "viewer")]
+        if let Some(actions) = &mut editor_actions {
+            actions.0.push(editor::Action::Next);
+            regenerate_stopwatch.reset();
+            return;
+        }
         regenerate_event.write(RegenerateSceneEvent);
         regenerate_stopwatch.reset();
     }
@@ -1482,16 +1531,29 @@ fn rotate_scene(
 
 fn press_m_shuffle_materials_and_meshes(
     keys: Res<ButtonInput<KeyCode>>,
+    #[cfg(feature = "viewer")] input_capture: Option<Res<editor::EditorInputCapture>>,
     mut shuffle_material_events: MessageWriter<ShuffleMaterialsEvent>,
     mut shuffle_meshes_events: MessageWriter<ShuffleMeshesEvent>,
 ) {
+    #[cfg(feature = "viewer")]
+    if input_capture.is_some_and(|input| input.keyboard) {
+        return;
+    }
     if keys.just_pressed(KeyCode::KeyM) {
         shuffle_material_events.write(ShuffleMaterialsEvent);
         shuffle_meshes_events.write(ShuffleMeshesEvent);
     }
 }
 
-fn press_esc_close(keys: Res<ButtonInput<KeyCode>>, mut exit: MessageWriter<AppExit>) {
+fn press_esc_close(
+    keys: Res<ButtonInput<KeyCode>>,
+    #[cfg(feature = "viewer")] focus: Option<Res<bevy::input_focus::InputFocus>>,
+    mut exit: MessageWriter<AppExit>,
+) {
+    #[cfg(feature = "viewer")]
+    if focus.is_some_and(|f| f.get().is_some()) {
+        return;
+    }
     if keys.just_pressed(KeyCode::Escape) {
         exit.write(AppExit::Success);
     }
