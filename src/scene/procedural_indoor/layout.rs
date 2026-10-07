@@ -2,6 +2,8 @@
 mod decor;
 mod furnishing;
 mod programs;
+#[cfg(test)]
+mod tests;
 use bevy::prelude::*;
 use clap::ValueEnum;
 use rand::{Rng, SeedableRng};
@@ -394,11 +396,7 @@ impl IndoorManifest {
         IndoorObject {
             id: self.objects.len(),
             kind,
-            position: if pos.y.abs() < 0.0001 && pos.z < self.room_size.z * 0.5 {
-                pos.with_y(self.floor_height(pos.xz()))
-            } else {
-                pos
-            },
+            position: pos,
             size,
             yaw,
             variant: rng.random_range(
@@ -420,6 +418,25 @@ impl IndoorManifest {
         }
     }
 
+    /// Resolve base-floor proposals without modifying explicit upper-floor heights.
+    /// Supported props and wall attachments use `candidate` with exact positions:
+    /// a tabletop over a sunken floor can legitimately lie near world height zero.
+    fn floor_candidate(
+        &self,
+        kind: ObjectKind,
+        pos: Vec3,
+        size: Vec3,
+        yaw: f32,
+        rng: &mut ChaCha8Rng,
+    ) -> IndoorObject {
+        let pos = if pos.y.abs() < 0.0001 && pos.z < self.room_size.z * 0.5 {
+            pos.with_y(self.floor_height(pos.xz()))
+        } else {
+            pos
+        };
+        self.candidate(kind, pos, size, yaw, rng)
+    }
+
     fn add(
         &mut self,
         kind: ObjectKind,
@@ -428,7 +445,7 @@ impl IndoorManifest {
         yaw: f32,
         rng: &mut ChaCha8Rng,
     ) -> Option<usize> {
-        let mut obj = self.candidate(kind, pos, size, yaw, rng);
+        let mut obj = self.floor_candidate(kind, pos, size, yaw, rng);
         if matches!(kind, ObjectKind::Desk | ObjectKind::Table) {
             obj.variant = self.furniture_style;
         }
@@ -442,7 +459,7 @@ impl IndoorManifest {
     }
 
     fn fixture(&mut self, kind: ObjectKind, pos: Vec3, size: Vec3, yaw: f32, rng: &mut ChaCha8Rng) {
-        let mut obj = self.candidate(kind, pos, size, yaw, rng);
+        let mut obj = self.floor_candidate(kind, pos, size, yaw, rng);
         obj.solid = false;
         self.objects.push(obj);
     }

@@ -57,6 +57,10 @@ enum OutputModeArg {
     about = "Generate Zeroverse samples and write either safetensor chunks or folder-per-sample outputs."
 )]
 struct Cli {
+    /// Export top-down JSON/SVG/PNG sidecars for each captured timestep.
+    #[arg(long)]
+    schematic: bool,
+
     /// Output directory for generated data
     #[arg(short, long)]
     output: PathBuf,
@@ -426,6 +430,9 @@ fn main() -> Result<()> {
                 {
                     cmd.env("GLIBC_TUNABLES", "glibc.cpu.x86_non_temporal_threshold=32768:glibc.cpu.x86_rep_movsb_threshold=1073741824");
                 }
+                if cli.schematic {
+                    cmd.arg("--schematic");
+                }
                 cmd.arg("--output")
                     .arg(&cli.output)
                     .arg("--workers")
@@ -638,6 +645,7 @@ fn main() -> Result<()> {
         cameras: cli.cameras,
         enable_ui,
         write_mode,
+        export_schematic: cli.schematic,
         export_ovoxel: !matches!(cli.ov_mode, bevy_zeroverse::app::OvoxelMode::Disabled),
         ov_mode: cli.ov_mode,
         ov_resolution: cli.ov_resolution,
@@ -777,6 +785,10 @@ fn build_ui_config(
 }
 
 fn prepare_generation_metadata(cli: &mut Cli) -> Result<()> {
+    anyhow::ensure!(
+        !cli.schematic || cli.scene_type == ZeroverseSceneType::ProceduralIndoor,
+        "--schematic requires --scene-type procedural-indoor"
+    );
     bevy_zeroverse::ovoxel::contract::validate_config(
         cli.ov_mode,
         cli.playback_steps,
@@ -886,6 +898,7 @@ fn prepare_generation_metadata(cli: &mut Cli) -> Result<()> {
         "camera_calibration": serde_json::from_str::<serde_json::Value>(bevy_zeroverse::calibration::TENSOR_METADATA)?,
         "output_mode": format!("{:?}", cli.output_mode),
         "compression": format!("{:?}", cli.compression),
+        "schematic": cli.schematic,
         "ovoxel_mode": format!("{:?}", cli.ov_mode),
         "ovoxel_resolution": cli.ov_resolution,
         "ovoxel_max_output_voxels": cli.ov_max_output_voxels,

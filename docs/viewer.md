@@ -125,3 +125,8 @@ The shared WebGPU controller compiles with motion enabled. Browser rendering cou
 not be qualified in the connected in-app browser because it exposes no WebGPU
 adapter; its preflight error state was checked. The native images above are not
 presented as browser captures.
+
+The View & playback viewport selector also offers a [room schematic](schematic.md):
+a metric top-down diagram of primary-room geometry, capture cameras, trajectories
+and human joints. Its native/Wasm renderer is shared with optional dataset exports
+and supports prediction overlays.

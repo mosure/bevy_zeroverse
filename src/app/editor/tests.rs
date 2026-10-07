@@ -142,7 +142,8 @@ fn share_query_roundtrips_nested_policies_seed_and_view_state() {
         scene_type: ZeroverseSceneType::ProceduralIndoor,
         indoor_seed: Some(u64::MAX),
         num_cameras: 4,
-        camera_grid: true,
+        camera_grid: false,
+        room_schematic: true,
         render_mode: RenderMode::CoVisibility,
         indoor_camera: Some(r#"{"baseline":0.8}"#.into()),
         ..default()
@@ -332,5 +333,23 @@ fn small_editor_viewports_stay_inside_the_window() {
             assert!(v.physical_position.x + v.physical_size.x <= window.physical_width());
             assert!(v.physical_position.y + v.physical_size.y <= window.physical_height());
         }
+    }
+}
+
+#[test]
+fn viewport_selection_is_live_exclusive_and_shared() {
+    let mut app = App::new();
+    app.init_resource::<BevyZeroverseConfig>();
+    let mut state = EditorState::new(app.world().resource::<BevyZeroverseConfig>());
+    edit(&mut state, "/indoor_density", json!(0.9)).unwrap();
+    for mode in ["schematic", "grid", "editor"] {
+        edit(&mut state, "@viewport", json!(mode)).unwrap();
+        live_update(app.world_mut(), &mut state, "@viewport").unwrap();
+        let config = app.world().resource::<BevyZeroverseConfig>();
+        assert_eq!(config.room_schematic, mode == "schematic");
+        assert_eq!(config.camera_grid, mode == "grid");
+        assert_eq!(config.indoor_density, 0.65);
+        assert_eq!(value(&state, "@viewport"), json!(mode));
+        assert!(state.pending());
     }
 }

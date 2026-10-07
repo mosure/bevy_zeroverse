@@ -295,6 +295,11 @@ pub struct BevyZeroverseConfig {
     #[arg(long, default_value = "false")]
     pub camera_grid: bool,
 
+    /// Display the primary room metric top-down schematic (takes precedence over camera_grid).
+    #[pyo3(get, set)]
+    #[arg(long, default_value = "false")]
+    pub room_schematic: bool,
+
     /// window title
     #[pyo3(get, set)]
     #[arg(long, default_value = "bevy_zeroverse")]
@@ -547,6 +552,10 @@ pub struct BevyZeroverseConfig {
     #[arg(long, default_value = "false")]
     pub camera_grid: bool,
 
+    /// Display the primary room metric top-down schematic.
+    #[arg(long, default_value = "false")]
+    pub room_schematic: bool,
+
     /// window title
     #[arg(long, default_value = "bevy_zeroverse")]
     pub name: String,
@@ -702,6 +711,7 @@ impl Default for BevyZeroverseConfig {
             height: 1080.0,
             num_cameras: 0,
             camera_grid: false,
+            room_schematic: false,
             name: "bevy_zeroverse".to_string(),
             regenerate_ms: 0,
             regenerate_scene_material_shuffle_period: 0,
@@ -1154,6 +1164,7 @@ struct MaterialGridCameraMarker;
 #[derive(Clone, PartialEq)]
 struct CameraSettingsSnapshot {
     camera_grid: bool,
+    room_schematic: bool,
     scene_type: ZeroverseSceneType,
     orbit_smoothness: f32,
     pan_smoothness: f32,
@@ -1184,6 +1195,7 @@ fn setup_camera(
 
     let current_settings = CameraSettingsSnapshot {
         camera_grid: args.camera_grid,
+        room_schematic: args.room_schematic,
         scene_type: args.scene_type.clone(),
         orbit_smoothness: args.orbit_smoothness,
         pan_smoothness: args.pan_smoothness,
@@ -1197,7 +1209,7 @@ fn setup_camera(
 
     // A dedicated UI view keeps egui and capture images alive while the costly
     // editor scene view is disabled. Grid letterboxing has an opaque backdrop.
-    let clear = if args.camera_grid {
+    let clear = if args.camera_grid || args.room_schematic {
         ClearColorConfig::Custom(Color::srgb(0.025, 0.028, 0.032))
     } else {
         // The UI camera has an LDR intermediate, while the editor uses HDR.
@@ -1228,7 +1240,7 @@ fn setup_camera(
         ));
     }
 
-    if args.camera_grid {
+    if args.camera_grid || args.room_schematic {
         if let Ok((_entity, _pan, Some(mut camera))) = editor_cameras.single_mut() {
             camera.is_active = false;
         }
@@ -1340,14 +1352,14 @@ fn setup_camera_grid(
     }
 
     let camera_grid_changed = previous_camera_grid
-        .map(|prev| prev != args.camera_grid)
+        .map(|prev| prev != (args.camera_grid && !args.room_schematic))
         .unwrap_or(true);
 
     if scene_loaded.is_empty() && !camera_grid_changed && new_zeroverse_cameras.is_empty() {
         return;
     }
     scene_loaded.clear();
-    *previous_camera_grid = Some(args.camera_grid);
+    *previous_camera_grid = Some(args.camera_grid && !args.room_schematic);
 
     for entity in new_zeroverse_cameras.iter() {
         commands.entity(entity).insert(CameraGridMarker);
@@ -1357,7 +1369,7 @@ fn setup_camera_grid(
         commands.entity(camera_grids.single().unwrap()).despawn();
     }
 
-    if args.camera_grid {
+    if args.camera_grid && !args.room_schematic {
         let mut cameras: Vec<_> = zeroverse_cameras.iter().collect();
         cameras.sort_by_key(|(entity, _, index)| {
             (index.map_or(usize::MAX, |i| i.0), entity.to_bits())

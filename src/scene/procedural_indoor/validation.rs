@@ -194,7 +194,11 @@ pub fn validate_layout(scene: &IndoorManifest) -> Result<(), String> {
                 return fail("supported prop overlaps a peer or overhangs its support");
             }
             if (object.position.y - parent.position.y - parent.size.y).abs() > 0.002 {
-                return fail("prop floats or sinks into support");
+                return fail(&format!(
+                    "prop floats or sinks into support: {:?} instance {} at y={:.6}, {:?} support {} top={:.6}",
+                    object.kind, object.id, object.position.y, parent.kind, parent.id,
+                    parent.position.y + parent.size.y
+                ));
             }
             let local = parent
                 .transform()

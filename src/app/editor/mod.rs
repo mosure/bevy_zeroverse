@@ -1,6 +1,7 @@
 //! Shared native/WebGPU scene controller built with retained Bevy Feathers widgets.
 mod fields;
 pub mod model;
+pub mod schematic;
 mod share;
 mod shell;
 #[cfg(test)]
@@ -52,7 +53,16 @@ impl Plugin for EditorPlugin {
             .insert_resource(studio_theme())
             .add_systems(Update, (scene_loaded, update).chain())
             .add_systems(PostUpdate, shell::viewport.after(EditorCameraSetup))
-            .add_systems(Last, share::synchronize);
+            .add_systems(Last, share::synchronize)
+            .init_resource::<schematic::Preview>()
+            .init_resource::<schematic::Predictions>()
+            .add_systems(
+                PostUpdate,
+                schematic::update
+                    .after(bevy::transform::TransformSystems::Propagate)
+                    .after(crate::annotation::pose::compute_human_poses)
+                    .after(crate::scene::procedural_indoor::humans::update_human_poses),
+            );
     }
 }
 fn studio_theme() -> UiTheme {
@@ -97,6 +107,13 @@ fn scene_loaded(
 pub fn value(state: &EditorState, path: &str) -> Value {
     match path {
         "@config" => state.draft.clone(),
+        "@viewport" => json!(if state.draft["room_schematic"] == true {
+            "schematic"
+        } else if state.draft["camera_grid"] == true {
+            "grid"
+        } else {
+            "editor"
+        }),
         "@baseline" => serde_json::from_value::<
             crate::scene::procedural_indoor::cameras::multiview::MultiViewSettings,
         >(state.draft["indoor_camera"]["multiview"].clone())
@@ -143,6 +160,15 @@ fn edit(state: &mut EditorState, path: &str, mut v: Value) -> Result<bool, Strin
     let mut rebuild = false;
     state.error = None;
     match path {
+        "@viewport" => {
+            let mode = v.as_str().ok_or("Expected a viewport")?;
+            if !["editor", "grid", "schematic"].contains(&mode) {
+                return Err("Unknown viewport".into());
+            }
+            state.draft["room_schematic"] = json!(mode == "schematic");
+            state.draft["camera_grid"] = json!(mode == "grid");
+            rebuild = true;
+        }
         "@config" => {
             let config = model::validate(&v)?;
             state.draft = model::expand(&config);
@@ -299,6 +325,14 @@ fn apply(world: &mut World, state: &mut EditorState, next: bool) -> Result<(), S
     Ok(())
 }
 fn live_update(world: &mut World, state: &mut EditorState, path: &str) -> Result<(), String> {
+    if path == "@viewport" {
+        let mut config = world.resource_mut::<BevyZeroverseConfig>();
+        config.camera_grid = state.draft["camera_grid"] == true;
+        config.room_schematic = state.draft["room_schematic"] == true;
+        for key in ["camera_grid", "room_schematic"] {
+            state.applied[key] = state.draft[key].clone();
+        }
+    }
     if model::live(path) || path == "@progress" {
         let mut config = serde_json::to_value(world.resource::<BevyZeroverseConfig>()).unwrap();
         let key = if path == "@progress" {

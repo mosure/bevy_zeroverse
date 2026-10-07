@@ -1,7 +1,7 @@
 [package]
 name = "bevy_zeroverse"
 description = "bevy zeroverse synthetic dataset generator"
-version = "0.32.0"
+version = "0.33.0"
 edition = "2021"
 authors = ["mosure <mitchell@mosure.me>"]
 license = "MIT"
@@ -123,6 +123,7 @@ wgpu = { version = "29.0.4", features = ["counters"] }
 anyhow = "1.0"
 bytemuck = "1.19"
 image = "0.25"
+resvg = { version = "0.45", default-features = false, features = ["text"] }
 half = "2"
 futures-lite = "2.3"
 # Keep motion numerics tied to the capture identity, including downstream builds.
@@ -259,4 +260,8 @@ required-features = ["embedding_audit"]
 
 [[example]]
 name = "review_editor"
+required-features = ["viewer"]
+
+[[example]]
+name = "review_schematic"
 required-features = ["viewer"]

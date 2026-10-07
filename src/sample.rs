@@ -1221,6 +1221,7 @@ pub fn sample_stream(
         indoor_render_metadata: (args.scene_type == crate::scene::ZeroverseSceneType::ProceduralIndoor).then(|| serde_json::json!({
             "schema_version": 1,
             "build_provenance": crate::provenance::capture_provenance(),
+            "world_from_scene": capture.identity.as_ref().and_then(|identity|identity.world_from_scene),
             "camera_qualification": indoor.as_ref().map(|scene| qualification::metadata(scene, &views, camera_count, buffered_sample.aabb)),
             "quality": args.indoor_quality,
             "ovoxel": ovoxel_metadata,

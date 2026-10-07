@@ -93,9 +93,9 @@ pub fn items(state: &EditorState) -> Vec<Item> {
         Page::People=>vec![section("POPULATION","Body shape, skin, hair and clothing are seeded with the room."),num("/indoor_human_density","People density",0.,1.,0.01,"Static people do not load motion models."),toggle("@motion","Generate human motion","Only loads cached ARDY models after applying an enabled policy." )],
         Page::View=>vec![
             section("PREVIEW","Changes here update the current scene immediately."),
+            choices("@viewport","Viewport",&[("Editor camera","editor"),("Capture grid","grid"),("Room schematic","schematic")],"Schematic shows metric primary-room footprints, live capture cameras, paths and human poses."),
             choices("/render_mode","Annotation",&[("Color / PBR","Color"),("Depth","Depth"),("Surface normals","Normal"),("World position","Position"),("Semantic classes","Semantic"),("Optical flow","OpticalFlow"),("Motion vectors","MotionVectors"),("Co-visibility","CoVisibility")],"Co-visibility uses capture views, excluding the editor camera."),
             num("@editor_fov","Editor field of view (degrees)",15.,120.,1.,"Editor lens only; capture intrinsics remain the seeded dataset cameras."),
-            toggle("/camera_grid","Show capture grid","Use at least one capture view. Hides the editor scene behind the grid."),
             toggle("/gizmos","Camera frusta & trajectories","Capture cameras only."),
             toggle("/draw_obb_gizmo","Object bounding boxes","Semantic object envelopes."),
             toggle("/draw_pose_gizmos","Human skeletons","Visible through clothing, occluded by room geometry."),
@@ -286,9 +286,9 @@ pub fn items(state: &EditorState) -> Vec<Item> {
             "Array of actor_id, prompt and frame-indexed waypoints; [] uses sampled prompts.",
         ));
     }
-    if state.view.page == Page::View && state.view.camera.is_none() {
+    if state.view.page == Page::View && state.view.camera.is_none() && d["room_schematic"] != true {
         v.push(Item::Note(
-            "Hide the capture grid to initialize the editor camera and adjust its lens.".into(),
+            "Select Editor camera to initialize it and adjust its lens.".into(),
         ));
     }
     if !indoor {
@@ -323,6 +323,24 @@ pub fn items(state: &EditorState) -> Vec<Item> {
             }
             _ => {}
         }
+    }
+    if state.view.page == Page::View && d["room_schematic"] == true {
+        v.retain(|item| match item {
+            Item::Field(f) => ![
+                "/render_mode",
+                "@editor_fov",
+                "/gizmos",
+                "/draw_obb_gizmo",
+                "/draw_pose_gizmos",
+                "/gizmos_alpha",
+                "@flow_interval",
+                "@flow_scale",
+            ]
+            .contains(&f.path.as_str()),
+            Item::Section(title, _) => *title != "OPTICAL FLOW",
+            _ => true,
+        });
+        v.push(Item::Note("All capture cameras and human joints are shown. Furnishings use oriented bounds; ceilings and neighboring rooms are omitted. Predictions appear in dashed magenta.".into()));
     }
     v
 }

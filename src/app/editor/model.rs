@@ -267,6 +267,7 @@ pub fn live(path: &str) -> bool {
         path,
         "/render_mode"
             | "/camera_grid"
+            | "/room_schematic"
             | "/material_grid"
             | "/gizmos"
             | "/gizmos_alpha"

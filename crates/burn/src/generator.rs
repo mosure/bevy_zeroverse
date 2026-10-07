@@ -64,6 +64,8 @@ pub struct GenConfig {
     pub cameras: usize,
     pub enable_ui: bool,
     pub write_mode: WriteMode,
+    /// Export metric schematic JSON, SVG and PNG sidecars for each capture step.
+    pub export_schematic: bool,
     pub export_ovoxel: bool,
     pub ov_mode: bevy_zeroverse::app::OvoxelMode,
     pub ov_resolution: u32,
@@ -107,6 +109,7 @@ impl Default for GenConfig {
             cameras: 1,
             enable_ui: false,
             write_mode: WriteMode::Chunk,
+            export_schematic: false,
             export_ovoxel: false,
             ov_mode: bevy_zeroverse::app::OvoxelMode::CpuAsync,
             ov_resolution: 128,
@@ -152,6 +155,10 @@ impl GenConfig {
 
 /// Validate the capture contract before starting a GPU process or writing data.
 pub fn validate_gen_config(config: &GenConfig) -> Result<()> {
+    anyhow::ensure!(
+        !config.export_schematic || config.scene_type == ZeroverseSceneType::ProceduralIndoor,
+        "schematic export requires procedural-indoor"
+    );
     anyhow::ensure!(
         (1..=4).contains(&config.indoor_prefetch_depth),
         "indoor_prefetch_depth must be in 1..=4"
@@ -532,6 +539,7 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
         enable_ui: _enable_ui,
         write_mode,
         scene_type,
+        export_schematic,
         export_ovoxel,
         ov_mode,
         ov_resolution,
@@ -638,12 +646,14 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
                             if let Some(sensor) = &rgb_sensor {
                                 for sample in &mut batch { sensor.apply(sample, [width, height])?; }
                             }
+                            if export_schematic { for (i,sample) in batch.iter().enumerate() {sample.write_schematics(output_dir.join(format!("schematics/chunk_{index:06}/{i:04}")),Default::default())?;} }
                             save_chunk_with_codec(&batch, &*output_dir, index, compression, width, height, export_ovoxel, color_codec)
                                 .with_context(|| format!("failed to save chunk {index}"))?;
                             batch.len()
                         }
                         WriteJob::Fs(mut sample, index) => {
                             if let Some(sensor) = &rgb_sensor { sensor.apply(&mut sample, [width, height])?; }
+                            if export_schematic {sample.write_schematics(output_dir.join(format!("schematics/sample_{index:06}")),Default::default())?;}
                             save_sample_to_fs_with_codec(&sample, &*output_dir, index, width, height, export_ovoxel, color_codec)
                                 .with_context(|| format!("failed to save sample {index} to fs output"))?;
                             1

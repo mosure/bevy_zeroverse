@@ -336,3 +336,66 @@ fn mixed_human_counts_roundtrip_without_inventing_padded_people() {
         vec![[4., 5., 6.]]
     );
 }
+
+#[test]
+fn schematic_exports_survive_capture_archive_roundtrip() {
+    use bevy_zeroverse::annotation::schematic::{Document, Overlay, RenderOptions};
+    let mut original = sample();
+    let camera = &original.indoor.as_ref().unwrap().cameras[0];
+    original.views[0].world_from_view = camera.transform_at(0.).to_matrix().to_cols_array_2d();
+    original.views[0].fovy = camera.fov_degrees.to_radians();
+    original.views[0].calibration = Some(
+        bevy_zeroverse::calibration::CameraCalibration::centered_pinhole(
+            8,
+            8,
+            original.views[0].fovy,
+            1.,
+        )
+        .unwrap(),
+    );
+    original.views[0].trajectory_progress = Some(0.);
+    original.views[0].time_seconds = Some(0.);
+    let mut next = original.views[0].clone();
+    next.world_from_view = camera.transform_at(1.).to_matrix().to_cols_array_2d();
+    next.time = 1.;
+    next.trajectory_progress = Some(1.);
+    next.time_seconds = Some(5.);
+    original.views.push(next);
+    let dir = tempfile::tempdir().unwrap();
+    let path = save_chunk(
+        std::slice::from_ref(&original),
+        dir.path(),
+        0,
+        Compression::None,
+        8,
+        8,
+        false,
+    )
+    .unwrap();
+    let decoded = load_chunk(path).unwrap();
+    let options = RenderOptions {
+        width: 256,
+        height: 256,
+        ..Default::default()
+    };
+    decoded[0]
+        .write_schematics(dir.path().join("plans"), options)
+        .unwrap();
+    for step in 0..2 {
+        let plan = original.schematic(step).unwrap();
+        assert_eq!(plan, decoded[0].schematic(step).unwrap());
+        let document: Document = serde_json::from_slice(
+            &std::fs::read(dir.path().join(format!("plans/{step:03}.json"))).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(document.schematic, plan);
+        let png = image::open(dir.path().join(format!("plans/{step:03}.png")))
+            .unwrap()
+            .to_rgba8();
+        assert_eq!(png.dimensions(), (256, 256));
+        assert_eq!(
+            png.as_raw(),
+            &plan.rgba(&options, &Overlay::default()).unwrap()
+        );
+    }
+}

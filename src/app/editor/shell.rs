@@ -5,6 +5,7 @@ use bevy::{camera::Viewport, ui_widgets::ScrollArea};
 pub(super) struct Shell {
     root: Entity,
     status: Entity,
+    hint: Entity,
     summary: Entity,
     seed: Entity,
     error: Entity,
@@ -92,7 +93,7 @@ pub(super) fn build(world: &mut World, state: &EditorState) {
         },
         ChildOf(bottom),
     ));
-    widgets::text(
+    let hint = widgets::text(
         world,
         bottom,
         "Drag: orbit   ·   Shift-drag: pan   ·   Wheel: zoom",
@@ -255,7 +256,7 @@ pub(super) fn build(world: &mut World, state: &EditorState) {
                 false,
             );
         }
-        if state.view.page == Page::View {
+        if state.view.page == Page::View && state.draft["room_schematic"] != true {
             if let Some(legend) =
                 world.get_resource::<crate::render::co_visibility::CoVisibilityLegend>()
             {
@@ -290,6 +291,7 @@ pub(super) fn build(world: &mut World, state: &EditorState) {
     world.insert_resource(Shell {
         root,
         status,
+        hint,
         summary,
         seed,
         error,
@@ -304,7 +306,21 @@ fn set_text(world: &mut World, e: Entity, s: String) {
 }
 pub(super) fn status(world: &mut World, state: &EditorState) {
     let shell = world.resource::<Shell>();
-    let (status, summary, seed, error) = (shell.status, shell.summary, shell.seed, shell.error);
+    let (status, summary, seed, error, hint) = (
+        shell.status,
+        shell.summary,
+        shell.seed,
+        shell.error,
+        shell.hint,
+    );
+    let hint_text = if state.applied["room_schematic"] == true {
+        "Metric footprints · capture cameras · live joints"
+    } else if state.applied["camera_grid"] == true {
+        "Synchronized capture views"
+    } else {
+        "Drag: orbit   ·   Shift-drag: pan   ·   Wheel: zoom"
+    };
+    set_text(world, hint, hint_text.into());
     let pending = world.get_resource::<crate::scene::procedural_indoor::IndoorGenerationStatus>();
     let message = if let Some(crate::sample::CaptureFailure(Some(e))) =
         world.get_resource::<crate::sample::CaptureFailure>()
@@ -376,7 +392,14 @@ pub(super) fn viewport(
     windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
     capture: Res<EditorInputCapture>,
     mut editor: Query<(&mut Camera, &mut PanOrbitCamera), With<EditorCameraMarker>>,
-    mut grids: Query<&mut Node, Or<(With<CameraGrid>, With<MaterialGrid>)>>,
+    mut grids: Query<
+        &mut Node,
+        Or<(
+            With<CameraGrid>,
+            With<MaterialGrid>,
+            With<schematic::SchematicView>,
+        )>,
+    >,
 ) {
     let Ok(window) = windows.single() else {
         return;
@@ -399,7 +422,10 @@ pub(super) fn viewport(
         let over = window
             .cursor_position()
             .is_some_and(|p| p.x < left || p.y < 54. || p.y > window.height() - 42.);
-        pan.enabled = !over && !capture.keyboard;
+        pan.enabled = !over
+            && !capture.keyboard
+            && state.applied["room_schematic"] != true
+            && state.applied["camera_grid"] != true;
     }
     for mut node in &mut grids {
         node.position_type = PositionType::Absolute;

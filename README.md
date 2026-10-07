@@ -96,7 +96,8 @@ cargo run --bin viewer -- --scene-type procedural-indoor --indoor-seed 7 \
 Scene Studio uses Bevy Feathers controls on native and WebGPU. **Apply changes**
 keeps the selected seed; **Next / R** advances it. Editing does not regenerate.
 Camera baseline controls spacing between views; travel controls how far each
-camera moves. Browser links preserve the active scene, preview and pending edits.
+camera moves. The viewport selector offers **Editor camera**, **Capture grid**,
+and **Room schematic**. Browser links preserve the active scene, preview and pending edits.
 
 Generate a dataset with four views per room:
 
@@ -109,6 +110,8 @@ cargo run -p bevy_zeroverse_burn --bin zeroverse_gen -- \
   --render-modes color depth normal semantic position co-visibility \
   --ov-mode disabled --no-ui
 ```
+
+Add `--schematic` to export top-down diagrams at each capture timestep.
 
 The native CLI requires a GPU but no display server. Capture waits for assets,
 render pipelines and requested motion. People use the body assets in
@@ -142,6 +145,7 @@ cargo run --bin viewer -- --material-grid
 | Semantics and instances | Class labels, object bounds, primary-room AABB and human joints |
 | Optical flow and motion vectors | Temporal correspondence, validity and visibility masks |
 | Co-visibility | Per-pixel membership in up to 16 capture cameras |
+| Room schematic | Metric top-down JSON/SVG/PNG with captured cameras, skeletons and optional prediction overlays |
 | O-voxel | Primary-room surface geometry and semantics |
 
 Exports support chunked or per-sample storage, resume validation and distributions

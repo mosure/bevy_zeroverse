@@ -273,7 +273,7 @@ impl IndoorManifest {
         let height = rng.random_range(0.83..1.44);
         let yaw_jitter = if rng.random_bool(0.24) { 1.20 } else { 0.48 };
         let delta = rng.random_range(-yaw_jitter..yaw_jitter);
-        let mut chair = self.candidate(
+        let mut chair = self.floor_candidate(
             ObjectKind::Chair,
             pos,
             Vec3::new(0.68, height, 0.68),
