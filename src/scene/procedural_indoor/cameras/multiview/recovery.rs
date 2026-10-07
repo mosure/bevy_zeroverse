@@ -3,9 +3,10 @@
 use super::*;
 
 // Occupied seats can expose narrow, distinct viewing pockets at a worktop.
+// Compact stepped lounges also need distinct anchors for landscape frusta.
 // Preserve enough alternate anchors for the rare recovery path; ordinary
 // successful groups keep their exact search, cost and acceptance predicates.
-pub(super) const SAVED_GROUPS: usize = 8;
+pub(super) const SAVED_GROUPS: usize = 12;
 const NEARBY_ATTEMPTS: usize = 24;
 
 pub(super) fn retain_diverse(groups: &mut Vec<Vec<IndoorCamera>>, cameras: &[IndoorCamera]) {

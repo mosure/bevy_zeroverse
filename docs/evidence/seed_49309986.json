@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "seed": 49309986,
+  "generator_identity": {
+    "schema_version": 1,
+    "crate_version": "0.34.1",
+    "generator_version": 30,
+    "source_sha256": "7544e99fbc8d7dcac7b51c9508146e0570e907c1d19d1966aac8acf4e4113e28"
+  },
+  "failure": "insufficient main room furniture",
+  "resolution": "Complete underfilled sofa groups after service furnishing using supported front/side tables or reading lamps; preserve the existing furnishing minimum and all geometric clearance checks.",
+  "primary_solid_furnishings": 6,
+  "regressions": {
+    "density": [
+      0,
+      0.35,
+      0.65,
+      1
+    ],
+    "human_density": [
+      0,
+      0.25,
+      1
+    ],
+    "deterministic_replay": true,
+    "recovery_idempotent": true,
+    "complete_rooms_unchanged": true
+  },
+  "nearby_camera_seed": {
+    "seed": 49309985,
+    "views": 4,
+    "aspect": 1.3333333333333333,
+    "same_clearance_overlap_spread_path_constraints": true,
+    "deterministic_replay": true
+  },
+  "neighborhood": {
+    "start_seed": 49309954,
+    "rooms": 64,
+    "cameras": 4,
+    "image_size": [
+      800,
+      600
+    ],
+    "invalid_layouts": 0,
+    "actual_mesh_geometry_checked": 64
+  },
+  "render": {
+    "image_size": [
+      512,
+      512
+    ],
+    "cameras": 4,
+    "timesteps": 2,
+    "views": 8,
+    "annotations": [
+      "rgb",
+      "depth",
+      "normal",
+      "position",
+      "semantic",
+      "co_visibility"
+    ],
+    "max_reprojection_error_pixels": 0.00022006538,
+    "max_depth_position_error_metres": 1.4305115e-06,
+    "engine": "capture-v48;calibration=1;co_visibility=1;bevy=0.19.1;burn=0.21.0;burn_human=0.5.1;bevy_burn_human=0.6.1;burn_human_motion=0.1.1;burn_ardy=0.1.4;burn_llama=0.1.2;burn_human_inference=0.1.4;ardy_motion=9;surface_flow=1;indoor=29;multiview=5;ovoxel=3;glass=2;hair=5;wardrobe=4;footwear=1;bounds=4;morphology=2;position=3;tabletop=2;finishes=8;seating=3;activity=2;playback=2;exterior=2;envelope=3"
+  },
+  "verification": {
+    "core_tests_passed": 400,
+    "core_tests_ignored": 22,
+    "strict_workspace_clippy": true,
+    "motion_enabled_wasm_compile": true
+  },
+  "scope": "Seeded CPU geometry and native rendered qualification; Wasm compilation. Registry/CI/deployment receipts are recorded separately for the release commit."
+}

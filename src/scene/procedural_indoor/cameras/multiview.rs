@@ -587,6 +587,28 @@ mod tests {
     }
 
     #[test]
+    fn constrained_lounge_seed_49309985_supports_landscape_views() {
+        let mut scene =
+            IndoorManifest::generate_with_humans(49_309_985, IndoorLayout::Mixed, 0.65, 0, 0.25)
+                .unwrap();
+        scene
+            .resample_cameras(4, CameraSettings::default(), 4. / 3.)
+            .unwrap();
+        validate_layout(&scene).unwrap();
+        let policy = scene.camera_settings.multiview.as_ref().unwrap();
+        assert!(scene.camera_group_geometry().unwrap().accepts(policy));
+        assert!(scene
+            .camera_overlap()
+            .iter()
+            .all(|p| policy.accepts(&p.samples)));
+        let cameras = scene.cameras.clone();
+        scene
+            .resample_cameras(4, CameraSettings::default(), 4. / 3.)
+            .unwrap();
+        assert_eq!(scene.cameras, cameras);
+    }
+
+    #[test]
     fn dense_full_occupancy_studio_completes_valid_camera_group() {
         assert_recovery_group(682, 0.65, 1.);
     }

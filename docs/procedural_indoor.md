@@ -103,6 +103,9 @@ support relationships, camera paths and optional world rotation.
   doorway approach. Props have explicit supporting surfaces. Cameras use continuous
   swept collision tests against furniture/columns, not just clear endpoints.
   Paths maintain a 0.28 m clearance around nominal object envelopes, including supported props, columns and suspended lights; viewing directions are checked throughout motion.
+  Underfilled lounges complete accepted sofa groups with front or side tables and
+  reading lamps after service furnishing. These bounded recovery proposals retain
+  the same furnishing minimum, floor/step support and collision checks.
 - Cameras cover seated, low, standing and elevated viewpoints, 0.78–3.25 m heights,
   varied intrinsics and configurable travel lengths. The independent
   [baseline control](multiview_cameras.md) sets spacing and shared-view constraints.

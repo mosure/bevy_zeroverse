@@ -267,6 +267,7 @@ impl IndoorManifest {
                 self.rejected_placements += 1;
             }
         }
+        self.complete_underfilled_lounge_groups();
     }
 
     pub(super) fn chair(&mut self, pos: Vec3, yaw: f32, rng: &mut ChaCha8Rng) {
