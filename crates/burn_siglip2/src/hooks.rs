@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, fs, path::Path};
 
-use burn::tensor::{Tensor, TensorData, backend::Backend};
+use burn::tensor::{Tensor, TensorData};
 use bytemuck::cast_slice;
 use safetensors::{Dtype, tensor::TensorView};
 
@@ -81,23 +81,23 @@ impl HookRecorder {
         }
         let data = data.convert::<f32>();
         let values = data
-            .to_vec::<f32>()
+            .try_to_vec::<f32>()
             .map_err(|err| format!("failed to decode hook tensor '{key}' to f32: {err:?}"))?;
         self.host_readbacks = self.host_readbacks.saturating_add(1);
         self.tensors.insert(
             key.to_string(),
             HookTensor {
-                shape: data.shape.to_vec(),
+                shape: data.shape().to_vec(),
                 data: values,
             },
         );
         Ok(())
     }
 
-    pub fn record_tensor<B: Backend, const D: usize>(
+    pub fn record_tensor<const D: usize>(
         &mut self,
         key: &str,
-        tensor: &Tensor<B, D>,
+        tensor: &Tensor<D>,
     ) -> Result<(), String> {
         self.record_data(key, tensor.clone().into_data())
     }

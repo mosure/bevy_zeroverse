@@ -244,7 +244,11 @@ fn readback_volume(
         .recv_timeout(Duration::from_secs(30))
         .unwrap()
         .unwrap();
-    let bytes = buffer.slice(..).get_mapped_range().to_vec();
+    let bytes = buffer
+        .slice(..)
+        .get_mapped_range()
+        .expect("mapped test buffer")
+        .to_vec();
     buffer.unmap();
     *output.0.lock().unwrap() = Some((extent, row_pitch, bytes));
 }

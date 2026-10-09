@@ -2,10 +2,11 @@
 use bevy::{
     asset::{RenderAssetUsages, UntypedAssetId},
     ecs::change_detection::Tick,
-    pbr::{MaterialBindGroupAllocators, PreparedMaterial},
+    pbr::PreparedMaterial,
     prelude::*,
     render::{
         erased_render_asset::ErasedRenderAssets,
+        material_bind_groups::MaterialBindGroupAllocators,
         mesh::RenderMesh,
         render_asset::RenderAssets,
         render_resource::{CachedPipelineState, PipelineCache},

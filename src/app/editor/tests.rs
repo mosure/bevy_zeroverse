@@ -306,12 +306,23 @@ fn editor_pose_restores_when_grid_startup_creates_the_editor_camera_later() {
         .spawn((
             EditorCameraMarker::default(),
             PanOrbitCamera::default(),
+            Transform::default(),
             Projection::default(),
         ))
         .id();
     app.update();
     assert_eq!(
-        app.world().get::<PanOrbitCamera>(entity).unwrap().focus,
+        {
+            let t = app.world().get::<Transform>(entity).unwrap();
+            t.translation
+                + t.forward().as_vec3()
+                    * app
+                        .world()
+                        .get::<PanOrbitCamera>(entity)
+                        .unwrap()
+                        .last_anchor_depth()
+                        .abs() as f32
+        },
         Vec3::new(1., 2., 3.)
     );
     let Projection::Perspective(p) = app.world().get::<Projection>(entity).unwrap() else {
@@ -352,4 +363,23 @@ fn viewport_selection_is_live_exclusive_and_shared() {
         assert_eq!(value(&state, "@viewport"), json!(mode));
         assert!(state.pending());
     }
+}
+
+#[test]
+fn first_pointer_frame_over_controls_cannot_start_orbit() {
+    let state = EditorState::new(&BevyZeroverseConfig::default());
+    let mut window = Window {
+        focused: true,
+        ..default()
+    };
+    let capture = EditorInputCapture::default();
+    window.set_cursor_position(Some(Vec2::new(20., 200.)));
+    assert!(!shell::orbit_enabled(&state, &window, &capture));
+    window.set_cursor_position(Some(Vec2::new(600., 200.)));
+    assert!(shell::orbit_enabled(&state, &window, &capture));
+    assert!(!shell::orbit_enabled(
+        &state,
+        &window,
+        &EditorInputCapture { keyboard: true }
+    ));
 }

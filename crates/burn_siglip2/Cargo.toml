@@ -1,9 +1,9 @@
 [package]
 name = "burn_siglip2"
 description = "Production SigLIP2 image/text inference in Burn for native CPU/GPU and browser WebGPU."
-version = "0.1.1"
+version = "0.2.0"
 edition = "2024"
-rust-version = "1.92"
+rust-version = "1.95"
 authors = ["mosure <mitchell@mosure.me>", "burn_loom contributors"]
 license = "MIT OR Apache-2.0"
 keywords = ["burn", "siglip2", "vision", "wgpu", "webgpu"]
@@ -35,8 +35,8 @@ all-features = true
 targets = ["x86_64-unknown-linux-gnu", "wasm32-unknown-unknown"]
 
 [features]
-default = ["ndarray"]
-ndarray = ["burn/ndarray", "burn/simd", "dep:burn-ndarray"]
+default = ["flex"]
+ndarray = ["flex"]
 flex = ["burn/flex", "burn/simd", "dep:burn-flex"]
 wgpu = ["burn/wgpu", "dep:burn-wgpu"]
 webgpu = ["wgpu", "burn/webgpu"]
@@ -56,10 +56,9 @@ wasm = [
 cli = ["dep:clap", "import", "bootstrap", "tokenizer"]
 
 [dependencies]
-burn = { version = "0.21.0", default-features = false, features = ["std"] }
-burn-flex = { version = "0.21.0", default-features = false, features = ["std", "simd", "rayon"], optional = true }
-burn-ndarray = { version = "0.21.0", default-features = false, features = ["std", "simd", "multi-threads"], optional = true }
-burn-store = { version = "0.21.0", default-features = false, features = ["std", "safetensors"], optional = true }
+burn = { version = "0.22.0", default-features = false, features = ["std"] }
+burn-flex = { version = "0.22.0", default-features = false, features = ["std", "simd", "rayon"], optional = true }
+burn-store = { version = "0.22.0", default-features = false, features = ["std", "safetensors"], optional = true }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 safetensors = "0.7"
@@ -69,7 +68,7 @@ hex = "0.4"
 half = "2.4"
 thiserror = "2.0"
 clap = { version = "4.5", features = ["derive"], optional = true }
-tokenizers = { version = "0.21", default-features = false, features = ["unstable_wasm"], optional = true }
+tokenizers = { version = "0.22", default-features = false, features = ["unstable_wasm"], optional = true }
 image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp", "bmp"], optional = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
@@ -77,19 +76,19 @@ ureq = { version = "2.12", optional = true }
 url = { version = "2.5", optional = true }
 
 [target.'cfg(all(not(target_arch = "wasm32"), not(target_os = "macos")))'.dependencies.burn-wgpu]
-version = "0.21.0"
+version = "0.22.0"
 default-features = false
-features = ["fusion", "std", "vulkan"]
+features = ["std", "vulkan"]
 optional = true
 
 [target.'cfg(all(not(target_arch = "wasm32"), target_os = "macos"))'.dependencies.burn-wgpu]
-version = "0.21.0"
+version = "0.22.0"
 default-features = false
-features = ["fusion", "std", "metal"]
+features = ["std", "metal"]
 optional = true
 
 [target.'cfg(target_arch = "wasm32")'.dependencies.burn-wgpu]
-version = "0.21.0"
+version = "0.22.0"
 default-features = false
 features = ["std", "webgpu"]
 optional = true

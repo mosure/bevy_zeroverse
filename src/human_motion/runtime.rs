@@ -25,9 +25,8 @@ use bevy::{
         RenderApp,
     },
 };
-use burn::backend::wgpu::{init_device, WgpuSetup};
+use burn::tensor::{wgpu::WgpuSetup, Device};
 use burn_ardy::Ardy;
-use burn_human_inference::gpu::WgpuBackend;
 use burn_human_motion::{MotionClip, TextEmbedding};
 use burn_llama::TextEncoder;
 use std::{
@@ -64,10 +63,10 @@ impl Plugin for HumanMotionPlugin {
             let device = w.get_resource::<RenderDevice>()?;
             let queue = w.get_resource::<RenderQueue>()?;
             Some(WgpuSetup {
-                instance: (****instance).clone(),
-                adapter: (****adapter).clone(),
+                instance: (**instance).clone(),
+                adapter: (**adapter).clone(),
                 device: device.wgpu_device().clone(),
-                queue: (****queue).clone(),
+                queue: (**queue).clone(),
                 backend: adapter.get_info().backend,
             })
         });
@@ -79,13 +78,13 @@ impl Plugin for HumanMotionPlugin {
 #[derive(Resource, Default)]
 pub struct HumanMotionClips(pub Vec<(usize, MotionClip)>);
 struct Models {
-    ardy: Ardy<WgpuBackend>,
-    text: TextEncoder<WgpuBackend>,
+    ardy: Ardy,
+    text: TextEncoder,
     embeddings: VecDeque<TextEmbedding>,
 }
 #[derive(Default)]
 struct Shared {
-    device: Option<burn::backend::wgpu::WgpuDevice>,
+    device: Option<Device>,
     models: Option<Models>,
     busy: bool,
     stage: String,
@@ -334,11 +333,16 @@ async fn run_job(
         // Retain the registered Burn handle even if downloading a model fails.
         // Retrying a policy must not grow the backend's global device registry.
         let existing_device = state.lock().unwrap().device.clone();
-        let device = existing_device.unwrap_or_else(|| {
-            let device = init_device(setup, Default::default());
+        let device = if let Some(device) = existing_device {
+            device
+        } else {
+            let device = Device::wgpu_options()
+                .setup(setup)
+                .init()
+                .map_err(|e| format!("Shared motion device: {e}"))?;
             state.lock().unwrap().device = Some(device.clone());
             device
-        });
+        };
         let root = job
             .config
             .model_root

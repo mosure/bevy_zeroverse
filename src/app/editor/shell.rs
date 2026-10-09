@@ -236,16 +236,13 @@ pub(super) fn build(world: &mut World, state: &EditorState) {
                 }
             }
         }
-        if state.view.page == Page::Advanced
-            || (state.view.page == Page::Scene && state.draft["scene_type"] != "ProceduralIndoor")
+        if matches!(state.view.page, Page::Scene | Page::Advanced)
+            && matches!(
+                state.draft["scene_type"].as_str(),
+                Some("Object" | "Room" | "SemanticRoom")
+            )
         {
-            widgets::button(
-                world,
-                scroll,
-                "Scene resource inspector",
-                Action::Debug,
-                false,
-            );
+            widgets::button(world, scroll, "Geometry controls", Action::Debug, false);
         }
         if state.view.page == Page::People {
             widgets::button(
@@ -419,13 +416,12 @@ pub(super) fn viewport(
         }) {
             camera.viewport = Some(rect);
         }
-        let over = window
-            .cursor_position()
-            .is_some_and(|p| p.x < left || p.y < 54. || p.y > window.height() - 42.);
-        pan.enabled = !over
-            && !capture.keyboard
-            && state.applied["room_schematic"] != true
-            && state.applied["camera_grid"] != true;
+        let enabled = orbit_enabled(&state, window, &capture);
+        pan.enabled_motion = bevy::camera_controller::pan_orbit_camera::prelude::EnabledMotion {
+            pan: enabled,
+            orbit: enabled,
+            zoom: enabled,
+        };
     }
     for mut node in &mut grids {
         node.position_type = PositionType::Absolute;
@@ -434,6 +430,28 @@ pub(super) fn viewport(
         node.width = px((window.width() - left).max(1.));
         node.height = px((window.height() - 96.).max(1.));
     }
+}
+
+/// Evaluate the current pointer position, including the first drag frame.
+pub(in crate::app) fn orbit_enabled(
+    state: &EditorState,
+    window: &Window,
+    capture: &EditorInputCapture,
+) -> bool {
+    let left = if state.view.collapsed {
+        0.
+    } else {
+        PANEL.min(window.width())
+    };
+    let over = window
+        .cursor_position()
+        .is_some_and(|p| p.x < left || p.y < 54. || p.y > window.height() - 42.);
+    window.focused
+        && !state.debug
+        && !over
+        && !capture.keyboard
+        && state.applied["room_schematic"] != true
+        && state.applied["camera_grid"] != true
 }
 
 /// A collapsed/narrow/minimized viewport must never extend beyond its render target.

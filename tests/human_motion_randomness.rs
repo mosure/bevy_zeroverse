@@ -6,7 +6,6 @@ use bevy::prelude::Vec3;
 use bevy_zeroverse::human_motion::{planning::motion_seed, HumanMotionConfig};
 use burn::backend::wgpu::{graphics::AutoGraphicsApi, init_setup_async, WgpuDevice};
 use burn_ardy::Ardy;
-use burn_human_inference::gpu::WgpuBackend;
 use burn_human_motion::{MotionClip, Waypoint};
 use burn_llama::TextEncoder;
 use serde::Serialize;
@@ -73,8 +72,9 @@ fn cached_prompts_preserve_seed_diversity_and_replay_across_batches() -> Result<
             "Motion randomness qualification: {} {:?}",
             adapter.name, adapter.backend
         );
-        let ardy = Ardy::<WgpuBackend>::load_pretrained(&device, |_, _| {}).await?;
-        let mut text = TextEncoder::<WgpuBackend>::load_pretrained(&device, |_, _| {}).await?;
+        let device = burn::tensor::Device::wgpu_options().setup(setup).init()?;
+        let ardy = Ardy::load_pretrained(&device, |_, _| {}).await?;
+        let mut text = TextEncoder::load_pretrained(&device, |_, _| {}).await?;
         let prompts = [
             "A person walks forward with a natural arm swing.",
             "A person stands and waves the right hand.",

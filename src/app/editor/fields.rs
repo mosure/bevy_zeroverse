@@ -95,6 +95,7 @@ pub fn items(state: &EditorState) -> Vec<Item> {
             section("PREVIEW","Changes here update the current scene immediately."),
             choices("@viewport","Viewport",&[("Editor camera","editor"),("Capture grid","grid"),("Room schematic","schematic")],"Schematic shows metric primary-room footprints, live capture cameras, paths and human poses."),
             choices("/render_mode","Annotation",&[("Color / PBR","Color"),("Depth","Depth"),("Surface normals","Normal"),("World position","Position"),("Semantic classes","Semantic"),("Optical flow","OpticalFlow"),("Motion vectors","MotionVectors"),("Co-visibility","CoVisibility")],"Co-visibility uses capture views, excluding the editor camera."),
+            choices("/annotation_glass","Glass in annotations",&[("Glass surface","surface"),("Geometry behind glass","through")],"Depth, normals, position, semantic, flow and co-visibility use the same unrefracted geometric hits. RGB is unchanged."),
             num("@editor_fov","Editor field of view (degrees)",15.,120.,1.,"Editor lens only; capture intrinsics remain the seeded dataset cameras."),
             toggle("/gizmos","Camera frusta & trajectories","Capture cameras only."),
             toggle("/draw_obb_gizmo","Object bounding boxes","Semantic object envelopes."),
@@ -302,7 +303,10 @@ pub fn items(state: &EditorState) -> Vec<Item> {
                         "Omit interior objects in semantic rooms.",
                     ));
                 }
-                v.push(Item::Note("Additional object and legacy-room geometry controls are in the scene resource inspector below.".into()));
+                v.push(Item::Note(
+                    "Edit this scene’s geometry program with the Geometry controls button below."
+                        .into(),
+                ));
             }
             Page::Cameras => {
                 v = vec![section("CAPTURE CAMERAS", "Camera sampling follows this scene's geometry program."),
@@ -311,14 +315,14 @@ pub fn items(state: &EditorState) -> Vec<Item> {
                     Item::Note("Coordinated baselines and collision-checked room travel are available in Procedural indoor.".into())];
             }
             Page::Appearance => {
-                v = vec![section("MATERIAL SAMPLING", "Legacy scenes sample the loaded material and mesh catalog."),
+                v = vec![section("MATERIAL SAMPLING", "This scene samples the loaded MatSynth material and mesh catalog."),
                     toggle("/material_grid", "Browse material textures", "Shows the loaded MatSynth material catalog."),
                     num("/regenerate_scene_material_shuffle_period", "Scenes per material shuffle",0.,100.,1., "0 disables periodic shuffling."),
                     num("/regenerate_scene_mesh_shuffle_period", "Scenes per mesh shuffle",0.,100.,1., "0 disables periodic shuffling."),
                     Item::Note("Independent procedural material and lighting policies are available in Procedural indoor.".into())];
             }
             Page::People => {
-                v = vec![section("ANIMATION", "Legacy scene animation controls."), toggle("/animated", "Animate scene elements", "Applies on regeneration in scene types supporting animation."),
+                v = vec![section("ANIMATION", "Animation controls for this scene."), toggle("/animated", "Animate scene elements", "Applies on regeneration in scene types supporting animation."),
                     Item::Note("ARDY text and waypoint motion controls are available in Procedural indoor.".into())];
             }
             _ => {}

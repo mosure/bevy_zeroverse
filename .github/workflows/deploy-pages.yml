@@ -61,13 +61,13 @@ jobs:
         run: cargo run --locked -p bevy_zeroverse_publication -- verify
 
       - name: install wasm-bindgen-cli
-        run: cargo install wasm-bindgen-cli --version 0.2.128 --locked
+        run: cargo install wasm-bindgen-cli --version 0.2.129 --locked
 
       - name: build wasm artifacts
-        run: cargo build --locked --target wasm32-unknown-unknown --bin viewer --release --no-default-features --features "web,human_motion"
+        run: cargo build --locked --target wasm32-unknown-unknown --bin viewer --profile wasm-release --no-default-features --features "web,human_motion"
 
       - name: generate bindings with wasm-bindgen
-        run: wasm-bindgen --out-dir ./www/out/ --target web --remove-name-section --remove-producers-section ./target/wasm32-unknown-unknown/release/viewer.wasm
+        run: wasm-bindgen --out-dir ./www/out/ --target web --remove-name-section --remove-producers-section ./target/wasm32-unknown-unknown/wasm-release/viewer.wasm
 
       - name: check GitHub Pages artifact size
         run: |

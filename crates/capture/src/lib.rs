@@ -69,6 +69,7 @@ pub mod provenance {
             path.extension().and_then(|value| value.to_str()),
             Some(
                 "rs" | "wgsl"
+                    | "wesl"
                     | "glsl"
                     | "metal"
                     | "hlsl"
@@ -96,8 +97,8 @@ pub mod provenance {
     }
 
     /// Explicit renderer inputs; documentation/tooling changes do not force GPU
-    /// recapture. Registry dependencies are bound by Cargo.lock. Local WGPU
-    /// patches, shaders, built-in assets and the wire contract are included.
+    /// recapture. Registry dependencies are bound by Cargo.lock. Shaders, built-in
+    /// assets and the wire contract are included; unused historical forks are not.
     pub fn source_inputs(root: &Path) -> io::Result<BTreeMap<String, String>> {
         let mut files = BTreeMap::new();
         for name in [
@@ -105,20 +106,13 @@ pub mod provenance {
             "Cargo.lock",
             "build.rs",
             "crates/capture/Cargo.toml",
-            "third_party/wgpu-core/Cargo.toml",
-            "third_party/wgpu-hal/Cargo.toml",
         ] {
             let path = root.join(name);
             if path.is_file() {
                 files.insert(name.into(), input_sha(&path, &fs::read(&path)?));
             }
         }
-        for name in [
-            "src",
-            "crates/capture/src",
-            "third_party/wgpu-core/src",
-            "third_party/wgpu-hal/src",
-        ] {
+        for name in ["src", "crates/capture/src"] {
             collect(root, &root.join(name), &mut files)?;
         }
         // Avoid hashing downloaded models/textures that are deliberately not
@@ -191,6 +185,7 @@ pub mod provenance {
                 "Cargo.lock",
                 "src/main.rs",
                 "src/main.wgsl",
+                "src/main.wesl",
                 "templates/main.html",
                 "fonts/LICENSE",
             ] {

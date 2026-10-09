@@ -73,7 +73,7 @@ fn main() -> Result<(), String> {
         .embedding
         .into_data()
         .convert::<f32>()
-        .to_vec::<f32>()
+        .try_to_vec::<f32>()
         .map_err(|err| format!("failed to read warmup output: {err:?}"))?;
     let warmup_norm = warmup_values
         .iter()

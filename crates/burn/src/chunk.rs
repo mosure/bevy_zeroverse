@@ -5,7 +5,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use anyhow::{Context, Result, anyhow, ensure};
+use anyhow::{Context as ContextExt, Result, anyhow, ensure};
 use bytemuck::cast_slice;
 use safetensors::{Dtype, SafeTensors, serialize, tensor::TensorView};
 use serde_json;
@@ -518,6 +518,18 @@ pub fn save_chunk_with_codec(
             .map(|sample| match sample.annotation_precision {
                 bevy_zeroverse::sample::AnnotationPrecision::Float16Hdr => 0,
                 bevy_zeroverse::sample::AnnotationPrecision::Float32Geometry => 1,
+            })
+            .collect(),
+    });
+    tensors.push(TensorData {
+        name: "annotation_glass".into(),
+        dtype: Dtype::U8,
+        shape: vec![samples.len()],
+        data: samples
+            .iter()
+            .map(|s| match s.annotation_glass {
+                bevy_zeroverse::render::glass::AnnotationGlass::Surface => 0,
+                bevy_zeroverse::render::glass::AnnotationGlass::Through => 1,
             })
             .collect(),
     });
@@ -1255,6 +1267,7 @@ pub fn load_chunk(path: impl AsRef<Path>) -> Result<Vec<ZeroverseSample>> {
             indoor_render_metadata: None,
             co_visibility_metadata: None,
             annotation_precision: Default::default(),
+            annotation_glass: Default::default(),
             color_encoding: Default::default(),
         };
         b
@@ -1297,6 +1310,19 @@ pub fn load_chunk(path: impl AsRef<Path>) -> Result<Vec<ZeroverseSample>> {
         }
     }
 
+    if let Ok(tensor) = tensors.tensor("annotation_glass") {
+        anyhow::ensure!(
+            tensor.dtype() == Dtype::U8 && tensor.shape() == [samples.len()],
+            "invalid annotation glass metadata"
+        );
+        for (sample, &value) in samples.iter_mut().zip(tensor.data()) {
+            sample.annotation_glass = match value {
+                0 => bevy_zeroverse::render::glass::AnnotationGlass::Surface,
+                1 => bevy_zeroverse::render::glass::AnnotationGlass::Through,
+                _ => anyhow::bail!("unknown annotation glass policy {value}"),
+            };
+        }
+    }
     if let Ok(tensor) = tensors.tensor("annotation_precision") {
         anyhow::ensure!(
             tensor.dtype() == Dtype::U8 && tensor.data().len() == samples.len(),
@@ -1964,6 +1990,7 @@ mod tests {
             indoor_render_metadata: None,
             co_visibility_metadata: None,
             annotation_precision: Default::default(),
+            annotation_glass: Default::default(),
             color_encoding: Default::default(),
             views: vec![bevy_zeroverse::sample::View::default()],
             view_dim: 1,
@@ -1990,6 +2017,7 @@ mod tests {
             indoor_render_metadata: None,
             co_visibility_metadata: None,
             annotation_precision: Default::default(),
+            annotation_glass: Default::default(),
             color_encoding: Default::default(),
             views: vec![bevy_zeroverse::sample::View::default()],
             view_dim: 1,
@@ -2023,6 +2051,7 @@ mod tests {
             indoor_render_metadata: None,
             co_visibility_metadata: None,
             annotation_precision: Default::default(),
+            annotation_glass: Default::default(),
             color_encoding: Default::default(),
             views: vec![bevy_zeroverse::sample::View::default()],
             view_dim: 1,
@@ -2044,6 +2073,24 @@ mod tests {
                 aabb: [[-0.75, -0.75, -0.75], [0.75, 0.75, 0.75]],
             }),
         }
+    }
+
+    #[test]
+    fn chunk_dataset_preserves_glass_policy_and_reports_missing_files() {
+        use burn::data::dataset::Dataset;
+        let tmp = tempdir().unwrap();
+        let mut sample = sample_with_obb("chair");
+        sample.annotation_glass = bevy_zeroverse::render::glass::AnnotationGlass::Through;
+        let path = save_chunk(&[sample], tmp.path(), 0, Compression::None, 1, 1, false).unwrap();
+        let samples = load_chunk(&path).unwrap();
+        assert_eq!(
+            samples[0].annotation_glass,
+            bevy_zeroverse::render::glass::AnnotationGlass::Through
+        );
+        let dataset = crate::dataset::ChunkDataset::from_dir(tmp.path()).unwrap();
+        fs::remove_file(path).unwrap();
+        assert!(dataset.get(0).is_err());
+        assert!(std::panic::catch_unwind(|| dataset.get(1)).is_err());
     }
 
     #[test]
@@ -2103,6 +2150,7 @@ mod tests {
             indoor_render_metadata: None,
             co_visibility_metadata: None,
             annotation_precision: Default::default(),
+            annotation_glass: Default::default(),
             color_encoding: Default::default(),
             views: vec![bevy_zeroverse::sample::View::default(); 2],
             view_dim: 1,

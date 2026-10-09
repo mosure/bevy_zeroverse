@@ -1,6 +1,15 @@
-# Registry wgpu and package review, 2026-09-27
+# Registry GPU dependencies
 
-The local wgpu patches still have measured benefits, so this review retains them.
+Bevy 0.20 and Burn 0.22 now share registry `wgpu` 30.0.1. The workspace has no
+wgpu path patches; local builds and published packages use the same GPU sources.
+The 29.0.4 measurements below describe an earlier release and do not qualify
+30.0.1 performance or unlimited-process memory stability. Keep the bounded worker
+lifetime controls until long-run testing qualifies the new stack.
+
+## Historical review: 2026-09-27
+
+
+The earlier local wgpu patches had measured benefits and were retained at that time.
 The crate archive already excludes `third_party` and Cargo removes root patches
 from its normalized manifest. Publishing does not ship a private wgpu fork, but
 consumers get different memory and upload behavior from this checkout.

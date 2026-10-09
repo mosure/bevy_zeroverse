@@ -1,4 +1,4 @@
-#![cfg(feature = "ndarray")]
+#![cfg(feature = "flex")]
 
 use std::path::PathBuf;
 

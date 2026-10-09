@@ -22,16 +22,16 @@ pub mod wasm;
 mod wasm_schema;
 
 #[cfg(feature = "flex")]
-pub use api::{DefaultFlexBackend, FlexSiglip2Backend, load_backend_flex, run_inference_flex};
-#[cfg(feature = "ndarray")]
-pub use api::{DefaultNdArrayBackend, Siglip2Backend, load_backend, run_inference};
-#[cfg(feature = "wgpu")]
-pub use api::{DefaultWgpuBackend, WgpuSiglip2Backend, load_backend_wgpu, run_inference_wgpu};
+pub use api::{FlexSiglip2Backend, load_backend_flex, run_inference_flex};
 pub use api::{
     LoadRequest, Siglip2ExecutionEvidence, Siglip2InferenceRequest, Siglip2InferenceResponse,
     Siglip2MultimodalTensorResponse, Siglip2Runtime, Siglip2TensorEmbeddingResponse, WeightSource,
     load_backend_on_device,
 };
+#[cfg(any(feature = "ndarray", feature = "flex"))]
+pub use api::{Siglip2Backend, load_backend, run_inference};
+#[cfg(feature = "wgpu")]
+pub use api::{WgpuSiglip2Backend, load_backend_wgpu, run_inference_wgpu};
 #[cfg(feature = "bootstrap")]
 pub use bootstrap::{
     BootstrapProgressCallback, ModelBootstrapError, Siglip2Artifacts, Siglip2BootstrapConfig,
@@ -44,12 +44,6 @@ pub use bpk::{
     Siglip2BpkView, build_bpk_header, build_bpk_header_with_metadata, parse_siglip2_bpk_bytes,
     parse_siglip2_bpk_view, read_siglip2_bpk, write_siglip2_bpk,
 };
-#[cfg(feature = "flex")]
-pub use burn::backend::flex::FlexDevice;
-#[cfg(feature = "ndarray")]
-pub use burn::backend::ndarray::NdArrayDevice;
-#[cfg(feature = "wgpu")]
-pub use burn_wgpu::WgpuDevice;
 pub use config::{SIGLIP2_DEFAULT_CDN_ROOT_URL, Siglip2Config, Siglip2ModelVariant};
 pub use hooks::HookTensor;
 #[cfg(feature = "import")]
@@ -86,3 +80,5 @@ pub use tokenizer::{
 };
 #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
 pub use wasm::WasmSiglip2;
+
+pub use burn::tensor::Device;

@@ -208,8 +208,8 @@ impl Plugin for SemanticPlugin {
         load_internal_asset!(
             app,
             SEMANTIC_SHADER_HANDLE,
-            "semantic.wgsl",
-            Shader::from_wgsl
+            "semantic.wesl",
+            Shader::from_wesl
         );
 
         app.register_type::<Semantic>();

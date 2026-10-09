@@ -25,8 +25,8 @@ impl Plugin for PositionPlugin {
         load_internal_asset!(
             app,
             POSITION_SHADER_HANDLE,
-            "position.wgsl",
-            Shader::from_wgsl
+            "position.wesl",
+            Shader::from_wesl
         );
 
         app.register_type::<Position>();

@@ -1,9 +1,9 @@
-#![cfg(feature = "ndarray")]
+#![cfg(feature = "flex")]
 
 use std::{fs, path::Path, path::PathBuf};
 
 use burn::tensor::{Int, Tensor, TensorData};
-use burn_siglip2::{DefaultNdArrayBackend, LoadRequest, load_backend};
+use burn_siglip2::{LoadRequest, load_backend};
 #[cfg(feature = "pipeline")]
 use burn_siglip2::{Siglip2Backend, Siglip2ImageProcessor, Siglip2Tokenizer};
 use safetensors::{Dtype, SafeTensors};
@@ -191,11 +191,9 @@ fn opt_in_real_hf_reference_matches_imported_bundle() -> Result<(), String> {
         .clone()
         .try_into()
         .map_err(|_| format!("input.input_ids must be rank 2, got {:?}", input_ids.shape))?;
-    let pixel_tensor = Tensor::<DefaultNdArrayBackend, 4>::from_data(
-        TensorData::new(pixels.values, pixel_shape),
-        &runtime.device,
-    );
-    let input_id_tensor = Tensor::<DefaultNdArrayBackend, 2, Int>::from_data(
+    let pixel_tensor =
+        Tensor::<4>::from_data(TensorData::new(pixels.values, pixel_shape), &runtime.device);
+    let input_id_tensor = Tensor::<2, Int>::from_data(
         TensorData::new(input_ids.values, input_id_shape),
         &runtime.device,
     );
@@ -325,7 +323,7 @@ fn assert_end_to_end_pipeline_parity(
     }
 
     let rust_pixels = Siglip2ImageProcessor::new(&runtime.model.config)?
-        .preprocess_bytes::<DefaultNdArrayBackend>(&image_bytes, &runtime.device)?;
+        .preprocess_bytes(&image_bytes, &runtime.device)?;
     let rust_pixels = burn_f32(rust_pixels)?;
     let reference_pixels = read_f32(reference_tensors, "input.pixel_values")?;
     let pixel_metrics = metrics(&rust_pixels.values, &reference_pixels.values)?;
@@ -590,13 +588,11 @@ fn read_i64(tensors: &SafeTensors<'_>, name: &str) -> Result<OwnedTensor<i64>, S
     })
 }
 
-fn burn_f32<const D: usize>(
-    tensor: Tensor<DefaultNdArrayBackend, D>,
-) -> Result<OwnedTensor<f32>, String> {
+fn burn_f32<const D: usize>(tensor: Tensor<D>) -> Result<OwnedTensor<f32>, String> {
     let shape = tensor.shape().dims::<D>().to_vec();
     let values = tensor
         .into_data()
-        .to_vec::<f32>()
+        .try_to_vec::<f32>()
         .map_err(|err| format!("failed to read Burn output tensor: {err:?}"))?;
     Ok(OwnedTensor { shape, values })
 }

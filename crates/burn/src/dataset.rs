@@ -9,8 +9,8 @@ use std::{
     time::Duration,
 };
 
-use anyhow::{Context, Result};
-use burn::data::dataset::Dataset;
+use anyhow::{Context as ContextExt, Result};
+use burn::data::dataset::{Dataset, DatasetError};
 
 use crate::chunk::{discover_chunks, load_chunk};
 
@@ -208,10 +208,13 @@ impl Dataset<ZeroverseSample> for LiveDataset {
         self.config.num_samples
     }
 
-    fn get(&self, _index: usize) -> Option<ZeroverseSample> {
+    fn get(&self, index: usize) -> Result<ZeroverseSample, DatasetError> {
+        assert!(
+            self.config.num_samples == 0 || index < self.len(),
+            "live dataset index out of bounds"
+        );
         self.next_sample()
-            .map_err(|err| eprintln!("capture failed: {err:#}"))
-            .ok()
+            .map_err(|err| DatasetError::new(std::io::Error::other(err)))
     }
 }
 
@@ -296,14 +299,14 @@ impl ChunkDataset {
         })
     }
 
-    fn fetch_chunk(&self, idx: usize) -> Option<Vec<ZeroverseSample>> {
+    fn fetch_chunk(&self, idx: usize) -> Result<Vec<ZeroverseSample>> {
         if let Ok(cache) = self.cache.lock()
             && let Some((_, samples)) = cache.iter().find(|(chunk_start, samples)| {
                 let chunk_end = chunk_start + samples.len();
                 idx >= *chunk_start && idx < chunk_end
             })
         {
-            return Some(samples.clone());
+            return Ok(samples.clone());
         }
 
         let (path, start, _) = self
@@ -312,10 +315,11 @@ impl ChunkDataset {
             .find(|(_, start, len)| {
                 let end = *start + *len;
                 idx >= *start && idx < end
-            })?
+            })
+            .ok_or_else(|| anyhow::anyhow!("chunk index {idx} is not mapped"))?
             .clone();
 
-        let samples = load_chunk(&path).ok()?;
+        let samples = load_chunk(&path)?;
 
         if let Ok(mut cache) = self.cache.lock() {
             cache.push((start, samples.clone()));
@@ -324,7 +328,7 @@ impl ChunkDataset {
             }
         }
 
-        Some(samples)
+        Ok(samples)
     }
 }
 
@@ -333,28 +337,19 @@ impl Dataset<ZeroverseSample> for ChunkDataset {
         self.total
     }
 
-    fn get(&self, index: usize) -> Option<ZeroverseSample> {
-        if index >= self.total {
-            return None;
-        }
-
-        let (path, start, _len) = self
+    fn get(&self, index: usize) -> Result<ZeroverseSample, DatasetError> {
+        assert!(index < self.total, "chunk dataset index out of bounds");
+        let (_, start, _) = self
             .chunks
             .iter()
-            .find(|(_, start, len)| {
-                let end = *start + *len;
-                index >= *start && index < end
-            })?
-            .clone();
-
-        let local_idx = index - start;
-        if let Some(chunk) = self.fetch_chunk(index) {
-            return chunk.get(local_idx).cloned();
-        }
-
-        load_chunk(path)
-            .ok()
-            .and_then(|chunk| chunk.get(local_idx).cloned())
+            .find(|(_, start, len)| index >= *start && index < *start + *len)
+            .expect("validated chunk index map");
+        let chunk = self
+            .fetch_chunk(index)
+            .map_err(|err| DatasetError::new(std::io::Error::other(err)))?;
+        chunk.get(index - start).cloned().ok_or_else(|| {
+            DatasetError::new(std::io::Error::other("chunk size changed after discovery"))
+        })
     }
 }
 
@@ -392,7 +387,7 @@ mod live_tests {
             let sample = if index % 2 == 0 {
                 dataset.next_sample().unwrap()
             } else {
-                Dataset::get(&dataset, index).unwrap()
+                Dataset::get(&dataset, index % dataset.len()).unwrap()
             };
             assert_eq!(sample.view_dim, index as u32);
         }

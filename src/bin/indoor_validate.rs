@@ -1,5 +1,5 @@
 //! Reproducible CPU audit and real-render qualification/export tool.
-use anyhow::{ensure, Context, Result};
+use anyhow::{ensure, Context as ContextExt, Result};
 use bevy::prelude::*;
 use bevy_zeroverse::{
     app::BevyZeroverseConfig,
@@ -79,6 +79,9 @@ struct Args {
     /// Offline glass sampling ablation; references integrate 2048 samples per pixel.
     #[arg(long, value_enum, default_value_t = GlassFilter::Default)]
     glass_filter: GlassFilter,
+    /// Shared geometric annotation surface policy, independent of RGB glass.
+    #[arg(long, value_enum, default_value = "surface")]
+    annotation_glass: bevy_zeroverse::render::glass::AnnotationGlass,
     #[arg(long, default_value_t = bevy_zeroverse::scene::procedural_indoor::gi::BakeSettings::default().rays_per_probe)]
     gi_rays: u32,
     /// Diffuse transport depth for controlled reference comparisons.
@@ -362,6 +365,7 @@ fn main() -> Result<()> {
         indoor_density: args.density,
         indoor_human_density: args.human_density,
         indoor_quality: args.quality,
+        annotation_glass: args.annotation_glass,
         indoor_gi_rays: args.gi_rays,
         headless: true,
         editor: false,
@@ -559,7 +563,7 @@ fn main() -> Result<()> {
             seed,
             elapsed_seconds: start.elapsed().as_secs_f64(),
             image_size: [args.width, args.height],
-            renderer: app.world().get_resource::<bevy::render::renderer::RenderAdapterInfo>().map(|adapter| format!("{:?}", adapter.0)),
+            renderer: app.world().get_resource::<bevy::render::renderer::RenderAdapterInfo>().map(|adapter| format!("{:?}", **adapter)),
             capabilities: serde_json::json!({ "quality": args.quality, "glass_filter": args.glass_filter, "shadows": args.quality.shadows() && !args.no_shadows,
                 "ssao": args.quality.ssao() && !args.no_ssao, "bloom": args.quality.bloom() && !args.linear_rgb, "specular_transmission": args.quality.specular_transmission(),
                 "shadow_map_size": args.quality.shadow_map_size(), "annotation_hdr_format": if sample.annotation_precision == bevy_zeroverse::sample::AnnotationPrecision::Float32Geometry { "RGBA32Float_direct" } else { "RGBA16Float" } }),

@@ -1,6 +1,7 @@
+use burn::tensor::Device;
 use std::path::{Path, PathBuf};
 
-use burn::tensor::{Int, Tensor, TensorData, backend::Backend};
+use burn::tensor::{Int, Tensor, TensorData};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use tokenizers::{
@@ -565,23 +566,17 @@ impl Siglip2TokenizedBatch {
         Ok(())
     }
 
-    pub fn input_ids_tensor<B: Backend>(
-        &self,
-        device: &B::Device,
-    ) -> Result<Tensor<B, 2, Int>, String> {
+    pub fn input_ids_tensor(&self, device: &Device) -> Result<Tensor<2, Int>, String> {
         self.validate()?;
-        Ok(Tensor::<B, 2, Int>::from_data(
+        Ok(Tensor::<2, Int>::from_data(
             TensorData::new(self.input_ids.clone(), self.shape),
             device,
         ))
     }
 
-    pub fn attention_mask_tensor<B: Backend>(
-        &self,
-        device: &B::Device,
-    ) -> Result<Tensor<B, 2>, String> {
+    pub fn attention_mask_tensor(&self, device: &Device) -> Result<Tensor<2>, String> {
         self.validate()?;
-        Ok(Tensor::<B, 2>::from_data(
+        Ok(Tensor::<2>::from_data(
             TensorData::new(self.attention_mask.clone(), self.shape),
             device,
         ))

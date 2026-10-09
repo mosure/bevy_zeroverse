@@ -1,7 +1,7 @@
 //! Lossless geometry/camera bridge for independent offline renderer comparisons.
 //! This is an opt-in diagnostic export; it never changes dataset RGB or labels.
 use crate::sample::Sample;
-use anyhow::{bail, ensure, Context, Result};
+use anyhow::{bail, ensure, Context as ContextExt, Result};
 use bevy::{
     asset::AssetId,
     mesh::{PrimitiveTopology, VertexAttributeValues},

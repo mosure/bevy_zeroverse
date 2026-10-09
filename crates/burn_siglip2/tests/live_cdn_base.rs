@@ -1,4 +1,4 @@
-#![cfg(all(feature = "bootstrap", feature = "ndarray", feature = "pipeline"))]
+#![cfg(all(feature = "bootstrap", feature = "flex", feature = "pipeline"))]
 
 use std::{io::Cursor, io::Read, path::PathBuf};
 
@@ -78,25 +78,25 @@ fn public_default_base_bundle_matches_reference() -> Result<(), String> {
         .normalized_image_embedding
         .into_data()
         .convert::<f32>()
-        .to_vec::<f32>()
+        .try_to_vec::<f32>()
         .map_err(|err| format!("failed to read image embedding: {err:?}"))?;
     let text_embeddings = response
         .normalized_text_embedding
         .into_data()
         .convert::<f32>()
-        .to_vec::<f32>()
+        .try_to_vec::<f32>()
         .map_err(|err| format!("failed to read text embeddings: {err:?}"))?;
     let logits = response
         .logits_per_image
         .into_data()
         .convert::<f32>()
-        .to_vec::<f32>()
+        .try_to_vec::<f32>()
         .map_err(|err| format!("failed to read logits: {err:?}"))?;
     let probabilities = response
         .probabilities_per_image
         .into_data()
         .convert::<f32>()
-        .to_vec::<f32>()
+        .try_to_vec::<f32>()
         .map_err(|err| format!("failed to read probabilities: {err:?}"))?;
 
     assert_unit_rows(&image_embedding, 1, 768, "image")?;

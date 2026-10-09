@@ -96,7 +96,7 @@ pub fn annotation_metadata(camera_indices: &[usize]) -> serde_json::Value {
         "schema_version": 1,
         "camera_count": camera_indices.len(), "max_cameras": MAX_CAMERAS,
         "direction": "source pixel to other capture cameras at the same timestep",
-        "surface": "first geometric surface, including opaque glass; no reflected or refracted visibility",
+        "surface": "first geometric surface according to Sample.annotation_glass; no reflected or refracted visibility",
         "membership": "bit i identifies the i-th ordered capture camera; source bit is always zero; editor excluded",
         "rgba_layout": ["membership_mask", "popcount", "source_valid", "reserved_zero"],
         "mask_dtype": "uint16", "background": "mask=0, valid=0; valid unshared surfaces have mask=0, valid=1",

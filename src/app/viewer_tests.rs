@@ -31,10 +31,7 @@ fn grid_disables_editor_scene_but_preserves_ui_and_restores_editor() {
         app.world().get::<Camera>(ui).unwrap().clear_color,
         ClearColorConfig::Custom(_)
     ));
-    assert!(app
-        .world()
-        .get::<bevy_egui::PrimaryEguiContext>(ui)
-        .is_some());
+    assert!(app.world().get::<bevy::ui::IsDefaultUiCamera>(ui).is_some());
     app.world_mut()
         .resource_mut::<BevyZeroverseConfig>()
         .camera_grid = false;

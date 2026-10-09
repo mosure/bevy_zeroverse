@@ -1,12 +1,8 @@
 use bevy::{
     camera::{visibility::RenderLayers, Exposure, Hdr, ImageRenderTarget, RenderTarget},
     core_pipeline::prepass::MotionVectorPrepass, // MOTION_VECTOR_PREPASS_FORMAT,
+    curve::cubic_splines::CubicBSpline,
     gizmos::config::{GizmoConfig, GizmoConfigGroup},
-    math::{
-        cubic_splines::CubicBSpline,
-        primitives::{Circle, Sphere},
-        sampling::ShapeSample,
-    },
     pbr::{ScreenSpaceTransmission, ScreenSpaceTransmissionQuality},
     post_process::bloom::Bloom,
     prelude::*,
@@ -16,6 +12,7 @@ use bevy::{
         },
         renderer::RenderDevice,
     },
+    shape::{Circle, ShapeSample, Sphere},
 };
 use bevy_args::{Deserialize, Parser, Serialize, ValueEnum};
 use rand::Rng;
@@ -79,6 +76,8 @@ impl Plugin for ZeroverseCameraPlugin {
         app.init_resource::<CaptureDrawPolicy>();
         app.init_resource::<capture_targets::CaptureTargets>();
 
+        app.add_systems(PostUpdate, gate_interactive_views);
+
         app.init_resource::<Playback>();
         app.register_type::<Playback>();
 
@@ -93,6 +92,29 @@ impl Plugin for ZeroverseCameraPlugin {
             ),
         );
     }
+}
+
+/// Hidden offscreen views need no continuous rasterization in the editor.
+/// Dataset cameras retain the sampler's independent, request-driven gate.
+fn gate_interactive_views(
+    args: Res<BevyZeroverseConfig>,
+    mode: Res<RenderMode>,
+    sampler: Option<Res<crate::sample::SamplerState>>,
+    mut cameras: Query<&mut Camera, With<ZeroverseCamera>>,
+) {
+    if args.headless || !args.editor {
+        return;
+    }
+    let active =
+        interactive_views_needed(&args, &mode, sampler.as_ref().is_some_and(|s| s.enabled));
+    for mut camera in &mut cameras {
+        if camera.is_active != active {
+            camera.is_active = active;
+        }
+    }
+}
+fn interactive_views_needed(args: &BevyZeroverseConfig, mode: &RenderMode, sampling: bool) -> bool {
+    args.camera_grid || *mode == RenderMode::CoVisibility || sampling
 }
 
 // TODO: convert to position sampler
@@ -1078,7 +1100,7 @@ fn insert_cameras(
             Name::new("zeroverse_camera"),
         ));
 
-        // Bevy 0.19 shares local-light shadow LOD across views. Use dataset
+        // Bevy shares local-light shadow LOD across views. Use dataset
         // camera zero explicitly; entity allocation order can vary across jobs.
         // Headless disables the editor even if its CLI flag remains at default.
         if args.headless && capture_index.is_none_or(|index| index.0 == 0) {
@@ -1389,5 +1411,31 @@ mod tests {
             world.entity(zeroverse_camera).get::<Msaa>(),
             Some(&Msaa::Off)
         );
+    }
+}
+
+#[cfg(test)]
+mod interactive_activity_tests {
+    use super::*;
+    #[test]
+    fn hidden_views_only_render_for_visible_grid_annotation_or_capture() {
+        let mut config = BevyZeroverseConfig::default();
+        assert!(!interactive_views_needed(
+            &config,
+            &RenderMode::Color,
+            false
+        ));
+        assert!(interactive_views_needed(&config, &RenderMode::Color, true));
+        assert!(interactive_views_needed(
+            &config,
+            &RenderMode::CoVisibility,
+            false
+        ));
+        config.camera_grid = true;
+        assert!(interactive_views_needed(
+            &config,
+            &RenderMode::Normal,
+            false
+        ));
     }
 }

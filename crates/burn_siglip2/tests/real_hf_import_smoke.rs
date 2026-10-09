@@ -1,4 +1,4 @@
-#![cfg(all(feature = "import", feature = "ndarray", feature = "tokenizer"))]
+#![cfg(all(feature = "import", feature = "flex", feature = "tokenizer"))]
 
 use std::path::PathBuf;
 

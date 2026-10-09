@@ -1,17 +1,10 @@
-#![cfg(all(
-    feature = "ndarray",
-    feature = "flex",
-    feature = "wgpu",
-    feature = "pipeline"
-))]
+#![cfg(all(feature = "flex", feature = "wgpu", feature = "pipeline"))]
+use burn::tensor::Device;
 
 use std::{fs, path::Path, path::PathBuf};
 
-use burn::tensor::{Tensor, backend::Backend};
-use burn_siglip2::{
-    DefaultFlexBackend, DefaultNdArrayBackend, DefaultWgpuBackend, Siglip2Runtime,
-    Siglip2Tokenizer, load_model_from_parts_manifest_path,
-};
+use burn::tensor::Tensor;
+use burn_siglip2::{Siglip2Runtime, Siglip2Tokenizer, load_model_from_parts_manifest_path};
 
 const ROOT_ENV: &str = "BURN_SIGLIP2_BACKEND_MATRIX_ROOT";
 const IMAGE_ENV: &str = "BURN_SIGLIP2_BACKEND_MATRIX_IMAGE";
@@ -60,7 +53,7 @@ const WGPU_TOLERANCE: MatrixTolerance = MatrixTolerance {
 fn opt_in_all_model_sizes_match_across_ndarray_flex_and_wgpu() -> Result<(), String> {
     let Some(root) = std::env::var_os(ROOT_ENV).map(PathBuf::from) else {
         eprintln!(
-            "skipping real backend matrix; set {ROOT_ENV} and {IMAGE_ENV} to run NdArray/Flex/WGPU parity"
+            "skipping real backend matrix; set {ROOT_ENV} and {IMAGE_ENV} to run CPU/Flex/WGPU parity"
         );
         return Ok(());
     };
@@ -78,26 +71,24 @@ fn opt_in_all_model_sizes_match_across_ndarray_flex_and_wgpu() -> Result<(), Str
         require_file(&manifest)?;
         require_file(&tokenizer)?;
 
-        eprintln!("backend matrix: loading {variant} with NdArray");
-        let ndarray = run_backend::<DefaultNdArrayBackend>(
-            Default::default(),
-            &manifest,
-            &tokenizer,
-            &image,
-        )?;
+        eprintln!("backend matrix: loading {variant} with CPU compatibility loader");
+        let ndarray = run_backend(Device::flex(), &manifest, &tokenizer, &image)?;
         eprintln!(
-            "backend matrix NdArray oracle: variant={variant}, logits={:?}, probabilities={:?}",
+            "backend matrix CPU oracle: variant={variant}, logits={:?}, probabilities={:?}",
             ndarray.logits, ndarray.probabilities
         );
 
         eprintln!("backend matrix: loading {variant} with Flex CPU");
-        let flex =
-            run_backend::<DefaultFlexBackend>(Default::default(), &manifest, &tokenizer, &image)?;
+        let flex = run_backend(Device::flex(), &manifest, &tokenizer, &image)?;
         compare_outputs(variant, "Flex", &flex, &ndarray, FLEX_TOLERANCE)?;
 
         eprintln!("backend matrix: loading {variant} with native WGPU");
-        let wgpu =
-            run_backend::<DefaultWgpuBackend>(Default::default(), &manifest, &tokenizer, &image)?;
+        let wgpu = run_backend(
+            Device::wgpu(Default::default()),
+            &manifest,
+            &tokenizer,
+            &image,
+        )?;
         compare_outputs(variant, "WGPU", &wgpu, &ndarray, WGPU_TOLERANCE)?;
     }
     Ok(())
@@ -130,13 +121,13 @@ fn require_file(path: &Path) -> Result<(), String> {
     Ok(())
 }
 
-fn run_backend<B: Backend>(
-    device: B::Device,
+fn run_backend(
+    device: Device,
     manifest: &Path,
     tokenizer_path: &Path,
     image: &[u8],
 ) -> Result<Outputs, String> {
-    let (model, load_stats) = load_model_from_parts_manifest_path::<B>(&device, manifest, true)?;
+    let (model, load_stats) = load_model_from_parts_manifest_path(&device, manifest, true)?;
     let tokenizer = Siglip2Tokenizer::from_file(tokenizer_path, &model.config)?;
     let runtime = Siglip2Runtime {
         model,
@@ -162,11 +153,11 @@ fn run_backend<B: Backend>(
     Ok(outputs)
 }
 
-fn tensor_values<B: Backend>(tensor: Tensor<B, 2>) -> Result<Vec<f32>, String> {
+fn tensor_values(tensor: Tensor<2>) -> Result<Vec<f32>, String> {
     tensor
         .into_data()
         .convert::<f32>()
-        .to_vec::<f32>()
+        .try_to_vec::<f32>()
         .map_err(|err| format!("failed to read backend tensor: {err:?}"))
 }
 
@@ -226,7 +217,7 @@ fn compare_outputs(
         || actual.logits_shape != expected.logits_shape
     {
         return Err(format!(
-            "{variant} {backend}/NdArray shape mismatch: actual image={:?} text={:?} logits={:?}; expected image={:?} text={:?} logits={:?}",
+            "{variant} {backend}/CPU shape mismatch: actual image={:?} text={:?} logits={:?}; expected image={:?} text={:?} logits={:?}",
             actual.image_shape,
             actual.text_shape,
             actual.logits_shape,
@@ -249,7 +240,7 @@ fn compare_outputs(
         || probabilities > tolerance.probabilities
     {
         return Err(format!(
-            "{variant} {backend}/NdArray mismatch: raw_image={raw_image:.6e}, raw_text={raw_text:.6e}, normalized_image={normalized_image:.6e}, normalized_text={normalized_text:.6e}, logits={logits:.6e}, probabilities={probabilities:.6e}; tolerance={tolerance:?}"
+            "{variant} {backend}/CPU mismatch: raw_image={raw_image:.6e}, raw_text={raw_text:.6e}, normalized_image={normalized_image:.6e}, normalized_text={normalized_text:.6e}, logits={logits:.6e}, probabilities={probabilities:.6e}; tolerance={tolerance:?}"
         ));
     }
     eprintln!(

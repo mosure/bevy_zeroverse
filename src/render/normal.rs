@@ -19,7 +19,7 @@ pub struct Normal;
 pub struct NormalPlugin;
 impl Plugin for NormalPlugin {
     fn build(&self, app: &mut App) {
-        load_internal_asset!(app, NORMAL_SHADER_HANDLE, "normal.wgsl", Shader::from_wgsl);
+        load_internal_asset!(app, NORMAL_SHADER_HANDLE, "normal.wesl", Shader::from_wesl);
 
         app.register_type::<Normal>();
 

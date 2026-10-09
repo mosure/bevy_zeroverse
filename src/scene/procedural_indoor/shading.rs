@@ -18,8 +18,8 @@ pub enum GlassFilter {
 
 #[derive(Resource)]
 pub(crate) struct IndoorShaders {
-    handles: [Handle<Shader>; 3],
-    installed: [bool; 3],
+    handles: [Handle<Shader>; 2],
+    installed: [bool; 2],
 }
 
 impl IndoorShaders {
@@ -34,14 +34,13 @@ impl Plugin for IndoorShadingPlugin {
             return;
         };
         let handles = [
-            server.load("embedded://bevy_pbr/render/pbr_fragment.wgsl"),
-            server.load("embedded://bevy_pbr/transmission/transmission.wgsl"),
-            server.load("embedded://bevy_pbr/render/pbr_functions.wgsl"),
+            server.load("embedded://bevy_pbr/render/pbr_fragment.wesl"),
+            server.load("embedded://bevy_pbr/transmission.wesl"),
         ];
         app.init_resource::<GlassFilter>()
             .insert_resource(IndoorShaders {
                 handles,
-                installed: [false; 3],
+                installed: [false; 2],
             })
             .add_systems(PreUpdate, install.run_if(pending));
     }
@@ -56,49 +55,38 @@ fn install(
     mut state: ResMut<IndoorShaders>,
     filter: Res<GlassFilter>,
 ) {
-    for i in 0..3 {
+    for i in 0..2 {
         if state.installed[i] {
             continue;
         }
         let Some(mut shader) = shaders.get_mut(&state.handles[i]) else {
             continue;
         };
-        let Source::Wgsl(source) = &shader.source else {
-            panic!("Expected Bevy 0.19.1 WGSL PBR libraries");
+        let Source::Wesl(source) = &shader.source else {
+            panic!("Expected Bevy 0.20 WESL PBR libraries");
         };
         let updated = if i == 0 {
             clearcoat_prepass(&anisotropy_prepass(source))
-        } else if i == 2 {
-            attenuation(source)
         } else {
             match *filter {
                 GlassFilter::Default => transmission_filter(source),
                 GlassFilter::Legacy => source.to_string(),
                 GlassFilter::Reference => transmission_filter(source)
                     .replace(
-                        "let taps = 2 * #{SCREEN_SPACE_SPECULAR_TRANSMISSION_BLUR_TAPS};",
+                        "let taps = 2 * constants::SCREEN_SPACE_SPECULAR_TRANSMISSION_BLUR_TAPS;",
                         "let taps = 2048;",
                     )
                     .replace("let taps = 16;", "let taps = 2048;"),
                 GlassFilter::LegacyReference => legacy_reference(source),
             }
         };
-        shader.source = Source::Wgsl(updated.into());
+        shader.source = Source::Wesl(updated.into());
         state.installed[i] = true;
     }
 }
 
-fn attenuation(source: &str) -> String {
-    // StandardMaterial defines attenuation_color as the remaining transmission
-    // at attenuation_distance. Beer-Lambert therefore needs -ln(T)/distance;
-    // the upstream pow(1-T,e) approximation severely under-absorbs tinted panes.
-    let old = "pow(1.0 - in.material.attenuation_color.rgb, vec3<f32>(E)) / in.material.attenuation_distance";
-    assert!(
-        source.contains(old),
-        "Bevy absorption changed: requalify glass transport"
-    );
-    source.replace(old, "-log(clamp(in.material.attenuation_color.rgb, vec3(0.000001), vec3(1.0))) / max(in.material.attenuation_distance, 0.000001)")
-}
+// Bevy 0.20 implements Beer-Lambert absorption directly (T^(thickness/distance));
+// the previous absorption correction is no longer needed.
 
 fn legacy_reference(source: &str) -> String {
     // Integrate 64 rotations of the *same* upstream 32-tap kernel, including
@@ -128,71 +116,64 @@ fn legacy_reference(source: &str) -> String {
         })
 }
 
+/// End of a WESL statement block, including nested runtime/conditional blocks.
+fn block_end(source: &str, start: usize) -> usize {
+    let body = start + source[start..].find('{').expect("WESL block");
+    let mut depth = 0;
+    source[body..]
+        .char_indices()
+        .find_map(|(offset, c)| {
+            match c {
+                '{' => depth += 1,
+                '}' => depth -= 1,
+                _ => {}
+            }
+            (depth == 0).then_some(body + offset + 1)
+        })
+        .expect("closed WESL block")
+}
+
 fn anisotropy_prepass(source: &str) -> String {
-    // Upstream initializes the tangent frame only when it does NOT load normals
-    // from the prepass. With SSAO, hair otherwise normalizes a zero vector. Move
-    // the existing anisotropy implementation outside that conditional, retaining
-    // bindless/textured/material flags and using the same MikkTSpace frame.
-    let start = source
-        .find("        // Take anisotropy into account.")
-        .expect("Bevy PBR changed: requalify anisotropy prepass integration");
-    let end_marker = "#endif  // LOAD_PREPASS_NORMALS";
-    let end = start
-        + source[start..]
-            .find(end_marker)
-            .expect("Bevy PBR changed: missing prepass conditional");
+    // SSAO supplies base normals, but must not suppress the tangent frame.
+    let marker =
+        "@if(PBR_ANISOTROPY_TEXTURE_SUPPORTED && VERTEX_TANGENTS && STANDARD_MATERIAL_ANISOTROPY)";
+    let start = source.find(marker).expect("Bevy anisotropy block changed");
+    let end = block_end(source, start);
     let block = source[start..end]
-        // Constant anisotropy also works without Bevy's optional texture
-        // bindings (notably the reduced native/WebGPU feature set here).
-        .replace("#ifdef PBR_ANISOTROPY_TEXTURE_SUPPORTED\n", "")
-        .replace("#endif  // PBR_ANISOTROPY_TEXTURE_SUPPORTED\n", "")
-        .replace("        // Adjust based on the anisotropy map", "#ifdef PBR_ANISOTROPY_TEXTURE_SUPPORTED\n        // Adjust based on the anisotropy map")
-        .replace("        pbr_input.anisotropy_strength =", "#endif\n        pbr_input.anisotropy_strength =")
-        .replace(
-        "let anisotropy_T = normalize(TBN *",
-        "let anisotropy_frame = pbr_functions::calculate_tbn_mikktspace(pbr_input.world_normal, in.world_tangent);\n        let anisotropy_T = normalize(anisotropy_frame *",
-    );
-    assert!(block.contains("let anisotropy_frame ="));
+        .replace(marker, "@if(VERTEX_TANGENTS && STANDARD_MATERIAL_ANISOTROPY)")
+        .replace("        if ((flags & pbr_types::STANDARD_MATERIAL_FLAGS_ANISOTROPY_TEXTURE_BIT)", "        @if(PBR_ANISOTROPY_TEXTURE_SUPPORTED)\n        if ((flags & pbr_types::STANDARD_MATERIAL_FLAGS_ANISOTROPY_TEXTURE_BIT)")
+        .replace("let anisotropy_T = normalize(TBN *", "let anisotropy_frame = pbr_functions::calculate_tbn_mikktspace(pbr_input.world_normal, in.world_tangent);\n        let anisotropy_T = normalize(anisotropy_frame *");
+    // The following brace closes !LOAD_PREPASS_NORMALS. Insert immediately after.
+    let outer_end = end + source[end..].find('}').expect("prepass block end") + 1;
     format!(
         "{}{}\n{}{}",
         &source[..start],
-        end_marker,
+        &source[end..outer_end],
         block,
-        &source[end + end_marker.len()..]
+        &source[outer_end..]
     )
 }
 
 fn clearcoat_prepass(source: &str) -> String {
-    // The prepass stores only the base-layer normal. Bevy initializes the
-    // separate coat frame inside !LOAD_PREPASS_NORMALS, leaving it zero with
-    // SSAO. A smooth coat must use the geometric normal, not the bumped base.
+    let marker = "@if(VERTEX_UVS && VERTEX_TANGENTS && STANDARD_MATERIAL_CLEARCOAT)";
+    let start = source.find(marker).expect("Bevy clearcoat block changed");
+    let end = block_end(source, start);
+    let block = source[start..end].replace("            TBN,", "            pbr_functions::calculate_tbn_mikktspace(pbr_input.world_normal, in.world_tangent),");
+    let outer_end = end + source[end..].find('}').expect("prepass block end") + 1;
+    let without = format!(
+        "{}{}\n{}{}",
+        &source[..start],
+        &source[end..outer_end],
+        block,
+        &source[outer_end..]
+    );
     let prepass = "    pbr_input.N = prepass_utils::prepass_normal(in.position, 0u);";
     assert!(
-        source.contains(prepass),
+        without.contains(prepass),
         "Bevy prepass changed: requalify clearcoat"
     );
-    let source = source.replace(
-        prepass,
-        &format!("{prepass}\n    pbr_input.clearcoat_N = normalize(pbr_input.world_normal);"),
-    );
-    // Preserve optional coat normal maps too, with the same UVs, flags and
-    // tangent frame as the regular path. This also works when downstream
-    // consumers enable Bevy's additional material texture features.
-    let begin = "#ifdef STANDARD_MATERIAL_CLEARCOAT\n\n        // Note:";
-    let end = "#endif  // STANDARD_MATERIAL_CLEARCOAT\n";
-    let start = source.find(begin).expect("Bevy clearcoat block changed");
-    let finish = start + source[start..].find(end).expect("unclosed clearcoat block") + end.len();
-    let block = source[start..finish].replace(
-        "            TBN,",
-        "            pbr_functions::calculate_tbn_mikktspace(pbr_input.world_normal, in.world_tangent),",
-    );
-    let without = format!("{}{}", &source[..start], &source[finish..]);
-    let marker = "#endif  // LOAD_PREPASS_NORMALS";
-    assert!(without.contains(marker));
-    without.replace(
-        marker,
-        &format!("{marker}\n#ifdef VERTEX_UVS\n#ifdef VERTEX_TANGENTS\n{block}\n#endif\n#endif"),
-    )
+    // Braces keep both statements inside the conditional branch.
+    without.replace(prepass, &format!("    {{\n{prepass}\n    pbr_input.clearcoat_N = normalize(pbr_input.world_normal);\n    }}"))
 }
 
 fn transmission_filter(source: &str) -> String {
@@ -218,7 +199,7 @@ fn transmission_filter(source: &str) -> String {
     format!(
         "{}{}{}",
         &source[..start],
-        include_str!("shading/transmission.wgsl"),
+        include_str!("shading/transmission.wesl"),
         &source[end..]
     )
 }

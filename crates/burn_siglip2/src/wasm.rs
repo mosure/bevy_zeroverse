@@ -3,7 +3,7 @@
 use std::{cell::RefCell, path::Path};
 
 use burn::tensor::Tensor;
-use burn_wgpu::{self as wgpu, WebGpu};
+use burn::tensor::{Device, DeviceKind, wgpu::WgpuBackend};
 use js_sys::{Array, Function, JsString, Promise, Reflect, Uint8Array};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
@@ -28,8 +28,7 @@ use crate::{
     },
 };
 
-type WasmBackend = WebGpu<f32, i32>;
-type WasmDevice = wgpu::WgpuDevice;
+type WasmDevice = Device;
 
 const MAX_REMOTE_MANIFEST_BYTES: u64 = 8 * 1024 * 1024;
 const MAX_REMOTE_TOKENIZER_BYTES: u64 = 64 * 1024 * 1024;
@@ -56,7 +55,7 @@ thread_local! {
 /// time. This avoids retaining the complete model package in JavaScript or Wasm memory.
 #[wasm_bindgen]
 pub struct WasmSiglip2 {
-    runtime: Siglip2Runtime<WasmBackend>,
+    runtime: Siglip2Runtime,
     tokenizer: Option<Siglip2Tokenizer>,
 }
 
@@ -252,7 +251,7 @@ impl WasmSiglip2 {
         validate_parts_array(&parts, &manifest)?;
 
         let device = webgpu_device().await?;
-        let mut loader = Siglip2PartsLoader::<WasmBackend>::new(manifest, &device, true)
+        let mut loader = Siglip2PartsLoader::new(manifest, &device, true)
             .map_err(|err| js_error(format!("failed to initialize sharded model: {err}")))?;
         for index in 0..parts.length() as usize {
             let array = parts.get(index as u32).unchecked_into::<Uint8Array>();
@@ -527,11 +526,10 @@ async fn create_from_bundle_manifest_url_expected(
 
 async fn embedding_response_json(
     method: &'static str,
-    raw_embedding: Tensor<WasmBackend, 2>,
+    raw_embedding: Tensor<2>,
 ) -> Result<String, JsValue> {
     let shape = raw_embedding.shape().dims::<2>();
-    let normalized_embedding =
-        crate::Siglip2Model::<WasmBackend>::normalize_embeddings(raw_embedding.clone());
+    let normalized_embedding = crate::Siglip2Model::normalize_embeddings(raw_embedding.clone());
     let raw_embedding = tensor_values(raw_embedding, "raw_embedding").await?;
     let normalized_embedding = tensor_values(normalized_embedding, "normalized_embedding").await?;
     serialize_response(&WasmEmbeddingResponse {
@@ -543,15 +541,12 @@ async fn embedding_response_json(
     })
 }
 
-async fn tensor_values(
-    tensor: Tensor<WasmBackend, 2>,
-    field: &'static str,
-) -> Result<Vec<f32>, JsValue> {
+async fn tensor_values(tensor: Tensor<2>, field: &'static str) -> Result<Vec<f32>, JsValue> {
     let values = tensor
         .into_data_async()
         .await
         .map_err(|err| js_error(format!("failed to read WebGPU output: {err:?}")))?
-        .to_vec::<f32>()
+        .try_to_vec::<f32>()
         .map_err(|err| js_error(format!("failed to decode WebGPU output: {err:?}")))?;
     if let Some((index, value)) = values
         .iter()
@@ -855,10 +850,10 @@ async fn fetch_verified_bundle_file(
 async fn load_remote_parts(
     manifest: Siglip2BpkPartsManifest,
     manifest_url: &str,
-) -> Result<Siglip2Runtime<WasmBackend>, JsValue> {
+) -> Result<Siglip2Runtime, JsValue> {
     validate_remote_manifest(&manifest)?;
     let device = webgpu_device().await?;
-    let mut loader = Siglip2PartsLoader::<WasmBackend>::new(manifest, &device, true)
+    let mut loader = Siglip2PartsLoader::new(manifest, &device, true)
         .map_err(|err| js_error(format!("failed to initialize sharded model: {err}")))?;
     for index in 0..loader.manifest().parts.len() {
         let part_name = loader.manifest().parts[index].path.clone();
@@ -1118,6 +1113,16 @@ fn validate_parts_array(parts: &Array, manifest: &Siglip2BpkPartsManifest) -> Re
 }
 
 async fn webgpu_device() -> Result<WasmDevice, JsValue> {
+    // Make static CubeCL/Burn registrations reachable and run them once, rather
+    // than allowing LLD to insert constructors at every JS/Rust crossing.
+    unsafe extern "C" {
+        fn __wasm_call_ctors();
+    }
+    static INITIALIZED: std::sync::Once = std::sync::Once::new();
+    INITIALIZED.call_once(|| {
+        // SAFETY: supplied by LLD for this module; called before compiler/device creation.
+        unsafe { __wasm_call_ctors() };
+    });
     let window = web_sys::window().ok_or_else(|| js_error("browser window is unavailable"))?;
     let navigator = Reflect::get(window.as_ref(), &JsValue::from_str("navigator"))
         .map_err(|err| js_error(format!("failed to inspect navigator: {err:?}")))?;
@@ -1156,13 +1161,17 @@ async fn webgpu_device() -> Result<WasmDevice, JsValue> {
                 "WebGPU is present but no usable adapter is available (high-performance: {high_performance_error}; low-power: {low_power_error})"
             )));
         }
-        WasmDevice::IntegratedGpu(0)
+        DeviceKind::IntegratedGpu(0)
     } else {
-        WasmDevice::default()
+        DeviceKind::DefaultDevice
     };
 
-    wgpu::init_setup_async::<wgpu::graphics::WebGpu>(&device, wgpu::RuntimeOptions::default())
-        .await;
+    let device = Device::wgpu_options()
+        .device_kind(device)
+        .graphics_api(WgpuBackend::WebGpu)
+        .init_async()
+        .await
+        .map_err(|error| js_error(format!("WebGPU initialization: {error}")))?;
     WEBGPU_RUNTIME_DEVICE.with(|slot| *slot.borrow_mut() = Some(device.clone()));
     Ok(device)
 }

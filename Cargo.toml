@@ -1,8 +1,9 @@
 [package]
 name = "bevy_zeroverse"
 description = "bevy zeroverse synthetic dataset generator"
-version = "0.34.1"
+version = "0.35.0"
 edition = "2021"
+rust-version = "1.97.1"
 authors = ["mosure <mitchell@mosure.me>"]
 license = "MIT"
 keywords = [
@@ -72,15 +73,14 @@ plucker = []
 python = ["extension-module", "pyo3", "webgpu"]
 
 viewer = [
-  "bevy_egui",
-  "bevy-inspector-egui",
-  "bevy_panorbit_camera",
   "bevy/bevy_ui",
-  # The inspector relies on registered engine types; egui's picking integration
-  # requires PickingPlugin in DefaultPlugins on both native and Wasm builds.
+  # Scene Studio uses first-party Feathers controls and Bevy's pan-orbit camera.
   "bevy/reflect_auto_register",
   "bevy/bevy_picking",
   "bevy/bevy_feathers",
+  "bevy/pan_orbit_camera",
+  "bevy/ui_picking",
+  "bevy/custom_cursor",
   "bevy/bevy_scene",
 ]
 
@@ -96,12 +96,9 @@ webgpu = [
 
 
 [dependencies]
-bevy_zeroverse_capture = { version = "0.1.2", path = "crates/capture" }
-bevy_args = "4.0.0"
-bevy_egui = { version = "0.40", optional = true }
-bevy-inspector-egui = { version = "0.37.0", optional = true }
-bevy_panorbit_camera = { version = "0.35.1", optional = true, features = ["bevy_egui"] }
-bevy_mesh = "0.19.1"
+bevy_zeroverse_capture = { version = "0.1.3", path = "crates/capture" }
+bevy_args = { version = "4.0.0", default-features = false }
+bevy_mesh = "0.20.0"
 clap = { version = "4.5", features = ["derive"] }
 futures-intrusive = "0.5"
 glob = "0.3"
@@ -119,7 +116,7 @@ serde = "1.0"
 serde_json = "1.0"
 strum = "0.27"
 strum_macros = "0.27"
-wgpu = { version = "29.0.4", features = ["counters"] }
+wgpu = { version = "30.0.1", features = ["counters"] }
 anyhow = "1.0"
 bytemuck = "1.19"
 image = "0.25"
@@ -127,22 +124,15 @@ resvg = { version = "0.45", default-features = false, features = ["text"] }
 half = "2"
 futures-lite = "2.3"
 # Keep motion numerics tied to the capture identity, including downstream builds.
-bevy_burn_human = { version = "=0.6.1", default-features = false }
-burn_human = { version = "=0.5.1" }
-burn_human_motion = { version = "=0.1.1" }
-burn_ardy = { version = "=0.1.4", default-features = false, features = ["wgpu", "transport"], optional = true }
-burn_llama = { version = "=0.1.2", features = ["wgpu"], optional = true }
-burn_human_inference = { version = "=0.1.4", features = ["wgpu", "transport"], optional = true }
-burn = { version = "0.21", default-features = false, features = ["std", "wgpu"], optional = true }
-burn_siglip2 = { version = "0.1.1", path = "crates/burn_siglip2", default-features = false, features = ["wgpu", "preprocess", "bootstrap"], optional = true }
+bevy_burn_human = { version = "=0.7.0", default-features = false }
+burn_human = { version = "=0.6.0" }
+burn_human_motion = { version = "=0.2.0" }
+burn_ardy = { version = "=0.2.0", default-features = false, features = ["wgpu", "transport"], optional = true }
+burn_llama = { version = "=0.2.0", features = ["wgpu"], optional = true }
+burn_human_inference = { version = "=0.2.0", features = ["wgpu", "transport"], optional = true }
+burn = { version = "0.22", default-features = false, features = ["std", "wgpu"], optional = true }
+burn_siglip2 = { version = "0.2.0", path = "crates/burn_siglip2", default-features = false, features = ["wgpu", "preprocess", "bootstrap"], optional = true }
 sha2 = { version = "0.10", optional = true }
-
-# Local optimizations still reduce command-cache retention and Vulkan CPU upload
-# latency; see docs/wgpu_dependency_review.md for the registry comparison.
-# Cargo packaging excludes these sources and removes these root-only overrides.
-[patch.crates-io]
-wgpu-core = { path = "third_party/wgpu-core" }
-wgpu-hal = { path = "third_party/wgpu-hal" }
 
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
@@ -154,12 +144,13 @@ wasm-bindgen-futures = { version = "0.4", optional = true }
 
 
 [dependencies.bevy]
-version = "=0.19.1"
+version = "=0.20.0"
 default-features = false
 features = [
   "bevy_asset",
   "bevy_anti_alias",
   "bevy_camera",
+  "bevy_curve",
   "bevy_core_pipeline",
   "bevy_gizmos",
   "bevy_gizmos_render",
@@ -209,7 +200,7 @@ pollster = { version = "0.4" }
 tempfile = "3.10"
 
 [build-dependencies]
-bevy_zeroverse_capture = { version = "0.1.2", path = "crates/capture", features = ["provenance"] }
+bevy_zeroverse_capture = { version = "0.1.3", path = "crates/capture", features = ["provenance"] }
 serde_json = "1.0"
 toml = "0.9"
 
@@ -264,4 +255,8 @@ required-features = ["viewer"]
 
 [[example]]
 name = "review_schematic"
+required-features = ["viewer"]
+
+[[example]]
+name = "review_studio"
 required-features = ["viewer"]

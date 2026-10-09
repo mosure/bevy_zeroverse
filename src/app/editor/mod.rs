@@ -3,7 +3,7 @@ mod fields;
 pub mod model;
 pub mod schematic;
 mod share;
-mod shell;
+pub(super) mod shell;
 #[cfg(test)]
 mod tests;
 mod widgets;
@@ -74,7 +74,11 @@ fn studio_theme() -> UiTheme {
         tokens::CHECKBOX_BG_CHECKED,
         tokens::SCROLLBAR_THUMB,
     ] {
-        theme.color.insert(token, Color::srgb(0.12, 0.39, 0.36));
+        if let Some(semantic) = theme.token_assignments.get(&token).cloned() {
+            theme
+                .semantic_base
+                .insert(semantic, Color::srgb(0.12, 0.39, 0.36));
+        }
     }
     for token in [
         tokens::BUTTON_PRIMARY_BG_HOVER,
@@ -82,11 +86,15 @@ fn studio_theme() -> UiTheme {
         tokens::CHECKBOX_BG_CHECKED_HOVER,
         tokens::SCROLLBAR_THUMB_HOVER,
     ] {
-        theme.color.insert(token, Color::srgb(0.16, 0.49, 0.44));
+        if let Some(semantic) = theme.token_assignments.get(&token).cloned() {
+            theme
+                .semantic_base
+                .insert(semantic, Color::srgb(0.16, 0.49, 0.44));
+        }
     }
-    theme
-        .color
-        .insert(tokens::FOCUS_RING, ACCENT.with_alpha(0.7));
+    if let Some(semantic) = theme.token_assignments.get(&tokens::FOCUS_RING).cloned() {
+        theme.semantic_base.insert(semantic, ACCENT.with_alpha(0.7));
+    }
     UiTheme(theme)
 }
 fn scene_loaded(
@@ -373,7 +381,7 @@ fn live_update(world: &mut World, state: &mut EditorState, path: &str) -> Result
     }
     Ok(())
 }
-fn update(world: &mut World) {
+pub(super) fn update(world: &mut World) {
     if !world.contains_resource::<AssetServer>() {
         return;
     }

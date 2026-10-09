@@ -7,7 +7,7 @@ with `crates/burn_siglip2/Cargo.toml`.
 
 Run these commands from the repository root. No model downloads are needed for
 the regular tests. The published package uses registry dependencies, without
-requiring the sibling `burn_human` checkout or the workspace's wgpu patches.
+requiring the sibling `burn_human` checkout or any wgpu patches.
 
 ```sh
 cargo fmt -p burn_siglip2 -- --check

@@ -1,20 +1,18 @@
-#import bevy_pbr::{
-    forward_io::VertexOutput,
-    mesh_view_bindings::view,
-    pbr_bindings::material,
-}
+import bevy_pbr::{
+    render::forward_io::VertexOutput,
+    render::mesh_view_bindings::view,
+    render::pbr_bindings::material,
+};
 
 
 @fragment
 fn fragment(
-#ifdef MULTISAMPLED
+@if(MULTISAMPLED)
     @builtin(sample_index) sample_index: u32,
-#endif
     in: VertexOutput,
 ) -> @location(0) vec4<f32> {
-#ifndef MULTISAMPLED
+@if(!MULTISAMPLED)
     let sample_index = 0u;
-#endif
 
     let position = in.world_position.xyz;
     let min_extent = material.base_color.xyz;

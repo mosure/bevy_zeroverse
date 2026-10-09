@@ -1,6 +1,6 @@
 //! Sustained actual-capture benchmark. No PNG/file encoding is included in capture timing.
 #![recursion_limit = "256"]
-use anyhow::{ensure, Context, Result};
+use anyhow::{ensure, Context as ContextExt, Result};
 use bevy::prelude::*;
 use bevy_zeroverse::{
     app::BevyZeroverseConfig,
@@ -538,7 +538,7 @@ fn main() -> Result<()> {
         "build_provenance":bevy_zeroverse::provenance::capture_provenance(),
         "generator_version":procedural_indoor::layout::GENERATOR_VERSION,"capture_engine":bevy_zeroverse::CAPTURE_ENGINE_IDENTITY,"config":config,"gi_enabled":!args.no_gi,
         "gi_settings":app.world().resource::<IndoorGiSettings>(),"gpu_timings_enabled":args.gpu_timings,"fixed_scene":args.fixed_scene,
-        "adapter":app.world().get_resource::<bevy::render::renderer::RenderAdapterInfo>().map(|a|format!("{:?}",a.0)),
+        "adapter":app.world().get_resource::<bevy::render::renderer::RenderAdapterInfo>().map(|a|format!("{:?}",**a)),
         "total_wall_seconds":total.elapsed().as_secs_f64(),"measured_capture_seconds":measured_seconds,
         "measured_completed_views":n*args.cameras*args.steps as usize,
         "scenes_per_second":n as f64/measured_seconds,"views_per_second":(n*args.cameras*args.steps as usize) as f64/measured_seconds,

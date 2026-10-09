@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fs, io::Write, path::Path};
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Context as ContextExt, Result};
 use bevy::{asset::RenderAssetUsages, prelude::*, render::render_resource::PrimitiveTopology};
 use bevy_mesh::{Indices, MeshVertexAttribute, VertexAttributeValues, VertexFormat};
 use bytemuck::cast_slice;

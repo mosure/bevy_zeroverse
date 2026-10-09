@@ -10,11 +10,11 @@ fn fetch_transmissive_background(offset_position: vec2<f32>, frag_coord: vec3<f3
     if radius * full_size.x < 0.5 {
         return fetch_transmissive_background_non_rough(offset_position, frag_coord);
     }
-#ifdef SCREEN_SPACE_SPECULAR_TRANSMISSION_BLUR_TAPS
-    let taps = 2 * #{SCREEN_SPACE_SPECULAR_TRANSMISSION_BLUR_TAPS};
-#else
+@if(SCREEN_SPACE_SPECULAR_TRANSMISSION_BLUR_TAPS)
+    let taps = 2 * constants::SCREEN_SPACE_SPECULAR_TRANSMISSION_BLUR_TAPS;
+@else
     let taps = 16;
-#endif
+
     var result = vec4<f32>(0.0);
     // Opposite pairs have an exactly zero first moment. A fixed low-discrepancy
     // disk stratifies the original Ultra kernel's empirical radial distribution,
@@ -36,13 +36,11 @@ fn fetch_transmissive_background(offset_position: vec2<f32>, frag_coord: vec3<f3
             if any(pixel < origin) || any(pixel >= origin + view_bindings::view.viewport.zw) {
                 continue;
             }
-#ifdef DEPTH_PREPASS
-#ifndef WEBGL2
+@if(DEPTH_PREPASS && !WEBGL2) {
             if prepass_utils::prepass_depth(vec4<f32>(pixel, 0.0, 0.0), 0u) > frag_coord.z {
                 continue;
             }
-#endif
-#endif
+}
             let sample = textureSampleLevel(view_bindings::view_transmission_texture,
                 view_bindings::view_transmission_sampler, uv, 0.0);
             // Linear radiance, including bright sources. No brightness-dependent
@@ -54,8 +52,8 @@ fn fetch_transmissive_background(offset_position: vec2<f32>, frag_coord: vec3<f3
     // environment using this alpha; dividing RGB by taps as well would apply
     // coverage twice and create a dark halo beside foreground frames/objects.
     result = vec4(result.rgb / max(result.a, 0.000001), result.a / f32(taps));
-#ifdef TONEMAP_IN_SHADER
+@if(TONEMAP_IN_SHADER)
     result = approximate_inverse_tone_mapping(result, view_bindings::view.color_grading);
-#endif
+
     return result;
 }

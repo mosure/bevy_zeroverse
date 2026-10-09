@@ -4,8 +4,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use anyhow::{Context, Result};
-use burn::data::dataset::Dataset;
+use anyhow::{Context as ContextExt, Result};
+use burn::data::dataset::{Dataset, DatasetError};
 use ndarray::{Array2, Array3, ArrayD};
 use ndarray_npy::NpzReader;
 use safetensors::{Dtype, SafeTensors, serialize, tensor::TensorView};
@@ -61,15 +61,13 @@ impl Dataset<ZeroverseSample> for FsDataset {
         self.sample_dirs.len()
     }
 
-    fn get(&self, index: usize) -> Option<ZeroverseSample> {
-        let dir = self.sample_dirs.get(index)?.clone();
-        match load_sample_dir(&dir) {
-            Ok(sample) => Some(sample),
-            Err(err) => {
-                eprintln!("failed to load sample from {:?}: {err:?}", dir);
-                None
-            }
-        }
+    fn get(&self, index: usize) -> Result<ZeroverseSample, DatasetError> {
+        assert!(
+            index < self.sample_dirs.len(),
+            "filesystem dataset index out of bounds"
+        );
+        load_sample_dir(&self.sample_dirs[index])
+            .map_err(|err| DatasetError::new(std::io::Error::other(err)))
     }
 }
 
@@ -787,6 +785,7 @@ pub fn load_sample_dir(dir: impl AsRef<Path>) -> Result<ZeroverseSample> {
         indoor_render_metadata: None,
         co_visibility_metadata: None,
         annotation_precision: Default::default(),
+        annotation_glass: Default::default(),
         color_encoding: Default::default(),
     };
 
@@ -801,6 +800,10 @@ pub fn load_sample_dir(dir: impl AsRef<Path>) -> Result<ZeroverseSample> {
     let provenance = dir.join("indoor_render_metadata.json");
     if provenance.exists() {
         sample.indoor_render_metadata = Some(serde_json::from_slice(&fs::read(provenance)?)?);
+    }
+    let glass_metadata = dir.join("annotation_glass.json");
+    if glass_metadata.exists() {
+        sample.annotation_glass = serde_json::from_slice(&fs::read(glass_metadata)?)?;
     }
     let precision_metadata = dir.join("annotation_precision.json");
     if precision_metadata.exists() {
@@ -1170,6 +1173,10 @@ pub fn save_sample_to_fs_with_codec(
     fs::write(
         scene_dir.join("render_metadata.json"),
         serde_json::to_vec_pretty(&(stored_encoding, &sample.indoor))?,
+    )?;
+    fs::write(
+        scene_dir.join("annotation_glass.json"),
+        serde_json::to_vec(&sample.annotation_glass)?,
     )?;
     fs::write(
         scene_dir.join("annotation_precision.json"),
@@ -1683,6 +1690,7 @@ mod tests {
             indoor_render_metadata: None,
             co_visibility_metadata: None,
             annotation_precision: Default::default(),
+            annotation_glass: Default::default(),
             color_encoding: Default::default(),
             views: vec![View {
                 semantic: Vec::new(),
@@ -1714,6 +1722,7 @@ mod tests {
             indoor_render_metadata: None,
             co_visibility_metadata: None,
             annotation_precision: Default::default(),
+            annotation_glass: Default::default(),
             color_encoding: Default::default(),
             views: vec![View {
                 semantic: Vec::new(),
@@ -1743,6 +1752,23 @@ mod tests {
                 aabb: [[-0.25, -0.25, -0.25], [0.25, 0.25, 0.25]],
             }),
         }
+    }
+
+    #[test]
+    fn filesystem_dataset_preserves_glass_policy_and_reports_missing_files() {
+        use burn::data::dataset::Dataset;
+        let tmp = tempdir().unwrap();
+        let mut sample = sample_with_color_and_obb();
+        sample.annotation_glass = bevy_zeroverse::render::glass::AnnotationGlass::Through;
+        let directory = save_sample_to_fs(&sample, tmp.path(), 0, 1, 1, false).unwrap();
+        let dataset = FsDataset::from_dir(tmp.path()).unwrap();
+        assert_eq!(
+            dataset.get(0).unwrap().annotation_glass,
+            sample.annotation_glass
+        );
+        fs::remove_dir_all(directory).unwrap();
+        assert!(dataset.get(0).is_err());
+        assert!(std::panic::catch_unwind(|| dataset.get(1)).is_err());
     }
 
     #[test]
@@ -1828,6 +1854,7 @@ mod tests {
             indoor_render_metadata: None,
             co_visibility_metadata: None,
             annotation_precision: Default::default(),
+            annotation_glass: Default::default(),
             color_encoding: Default::default(),
             views,
             view_dim: 1,

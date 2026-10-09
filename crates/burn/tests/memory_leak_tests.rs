@@ -119,6 +119,7 @@ fn make_sample(width: u32, height: u32) -> Sample {
         indoor_render_metadata: None,
         co_visibility_metadata: None,
         annotation_precision: Default::default(),
+        annotation_glass: Default::default(),
         color_encoding: Default::default(),
         views: vec![view],
         view_dim: 1,

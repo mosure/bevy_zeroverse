@@ -106,8 +106,8 @@ impl Plugin for OpticalFlowPlugin {
         load_internal_asset!(
             app,
             OPTICAL_FLOW_SHADER_HANDLE,
-            "optical_flow.wgsl",
-            Shader::from_wgsl
+            "optical_flow.wesl",
+            Shader::from_wesl
         );
 
         app.register_type::<OpticalFlow>();

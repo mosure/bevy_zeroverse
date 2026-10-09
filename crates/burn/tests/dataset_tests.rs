@@ -142,6 +142,7 @@ fn run_headless_generation(
         rgb_sensor: None,
         indoor_gi_rays: 256,
         indoor_quality: Default::default(),
+        annotation_glass: Default::default(),
         rotation_augmentation: false,
         cameras: 1,
         enable_ui: false,
@@ -196,6 +197,7 @@ fn run_generation_with_offsets(
         rgb_sensor: None,
         indoor_gi_rays: 256,
         indoor_quality: Default::default(),
+        annotation_glass: Default::default(),
         rotation_augmentation: false,
         cameras: 1,
         enable_ui: false,
@@ -256,7 +258,7 @@ fn headless_chunk_generation_smoke() {
         },
     );
     assert!(
-        Dataset::get(&incompatible, 0).is_none(),
+        Dataset::get(&incompatible, 0).is_err(),
         "a different renderer must be rejected"
     );
 }
@@ -509,6 +511,7 @@ fn resume_offsets_continue_fs_indices() {
         rgb_sensor: None,
         indoor_gi_rays: 256,
         indoor_quality: Default::default(),
+        annotation_glass: Default::default(),
         rotation_augmentation: false,
         cameras: 1,
         enable_ui: false,
@@ -557,6 +560,7 @@ fn resume_offsets_continue_fs_indices() {
         rgb_sensor: None,
         indoor_gi_rays: 256,
         indoor_quality: Default::default(),
+        annotation_glass: Default::default(),
         rotation_augmentation: false,
         cameras: 1,
         enable_ui: false,
@@ -617,6 +621,7 @@ fn resume_offsets_continue_chunk_indices() {
         rgb_sensor: None,
         indoor_gi_rays: 256,
         indoor_quality: Default::default(),
+        annotation_glass: Default::default(),
         rotation_augmentation: false,
         cameras: 1,
         enable_ui: false,
@@ -665,6 +670,7 @@ fn resume_offsets_continue_chunk_indices() {
         rgb_sensor: None,
         indoor_gi_rays: 256,
         indoor_quality: Default::default(),
+        annotation_glass: Default::default(),
         rotation_augmentation: false,
         cameras: 1,
         enable_ui: false,

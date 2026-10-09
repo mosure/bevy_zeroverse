@@ -2,8 +2,8 @@
 use anyhow::{bail, ensure, Context, Result};
 use burn_siglip2::{
     load_backend_on_device, preprocess_dynamic_images,
-    resolve_or_bootstrap_siglip2_weights_with_config, DefaultWgpuBackend, LoadRequest,
-    Siglip2BootstrapConfig, Siglip2ModelVariant, WgpuDevice,
+    resolve_or_bootstrap_siglip2_weights_with_config, Device, LoadRequest, Siglip2BootstrapConfig,
+    Siglip2ModelVariant,
 };
 use clap::Parser;
 use serde::{Deserialize, Serialize};
@@ -88,9 +88,9 @@ fn main() -> Result<()> {
         );
         artifacts.parts_manifest_path
     };
-    let runtime = load_backend_on_device::<DefaultWgpuBackend>(
+    let runtime = load_backend_on_device(
         LoadRequest::from_parts_manifest(&parts, true),
-        WgpuDevice::default(),
+        Device::wgpu(Default::default()),
     )
     .map_err(anyhow::Error::msg)?;
     ensure!(
@@ -133,12 +133,8 @@ fn main() -> Result<()> {
                 Ok(image::load_from_memory(&bytes)?)
             })
             .collect::<Result<_>>()?;
-        let input = preprocess_dynamic_images::<DefaultWgpuBackend>(
-            &images,
-            &runtime.model.config,
-            &runtime.device,
-        )
-        .map_err(anyhow::Error::msg)?;
+        let input = preprocess_dynamic_images(&images, &runtime.model.config, &runtime.device)
+            .map_err(anyhow::Error::msg)?;
         let mut response = runtime
             .encode_image(input, false)
             .map_err(anyhow::Error::msg)?;
@@ -151,7 +147,7 @@ fn main() -> Result<()> {
         let values = response
             .embedding
             .into_data()
-            .to_vec::<f32>()
+            .try_to_vec::<f32>()
             .map_err(|e| anyhow::anyhow!("embedding readback: {e:?}"))?;
         response.evidence.host_readbacks += 1;
         for row in values.chunks_exact(dim) {
@@ -178,7 +174,7 @@ fn main() -> Result<()> {
     fs::write(
         args.output.join("embeddings.json"),
         serde_json::to_vec_pretty(&serde_json::json!({
-            "schema_version":1,"encoder":"SigLIP2","variant":args.variant,"burn":"0.21.0",
+            "schema_version":1,"encoder":"SigLIP2","variant":args.variant,"burn":"0.22.0",
             "shape":[index.samples.len(),dimension.unwrap()],"dtype":"little-endian float32","normalization":"L2",
             "index_sha256":format!("{:x}",Sha256::digest(&bytes)),"tensor_sha256":format!("{:x}",digest.finalize()),
             "model_parts":parts,"loaded_weights":runtime.load_stats,"last_batch_execution":evidence,

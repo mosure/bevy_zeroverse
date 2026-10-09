@@ -1,7 +1,7 @@
-#import bevy_pbr::{
-    forward_io::VertexOutput,
-    mesh_view_bindings::view,
-}
+import bevy_pbr::{
+    render::forward_io::VertexOutput,
+    render::mesh_view_bindings::view,
+};
 
 
 @fragment

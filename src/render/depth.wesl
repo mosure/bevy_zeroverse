@@ -1,8 +1,8 @@
-#import bevy_pbr::{
-    forward_io::VertexOutput,
-    mesh_view_bindings::view,
-    prepass_utils,
-}
+import bevy_pbr::{
+    render::forward_io::VertexOutput,
+    render::mesh_view_bindings::view,
+    prepass::utils,
+};
 
 
 fn depth_to_rgb(depth: f32) -> vec3<f32> {
@@ -18,14 +18,12 @@ fn depth_to_rgb(depth: f32) -> vec3<f32> {
 
 @fragment
 fn fragment(
-#ifdef MULTISAMPLED
+@if(MULTISAMPLED)
     @builtin(sample_index) sample_index: u32,
-#endif
     in: VertexOutput,
 ) -> @location(0) vec4<f32> {
-#ifndef MULTISAMPLED
+@if(!MULTISAMPLED)
     let sample_index = 0u;
-#endif
 
     let n = view.frustum[5].xyz;
     let d = view.frustum[5].w;
@@ -33,17 +31,15 @@ fn fragment(
     let far = dot(n, view.world_position) + d;
     let frag_to_cam = view.world_position - in.world_position.xyz;
 
-#ifdef RAY_DEPTH
+@if(RAY_DEPTH)
     let depth = length(frag_to_cam);
-#else ifdef Z_DEPTH
+@elif(Z_DEPTH)
     let depth = dot(n, frag_to_cam);
-#endif
 
-#ifdef COLORIZED_DEPTH
+@if(COLORIZED_DEPTH)
     return vec4<f32>(depth_to_rgb(in.position.z), 1.0);
-#else ifdef NORMALIZED_DEPTH
+@elif(NORMALIZED_DEPTH)
     return vec4<f32>(vec3<f32>(depth / far), 1.0);
-#else ifdef LINEAR_DEPTH
+@elif(LINEAR_DEPTH)
     return vec4<f32>(vec3<f32>(depth), 1.0);
-#endif
 }

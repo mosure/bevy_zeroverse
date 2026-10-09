@@ -1,7 +1,8 @@
 [package]
 name = "bevy_zeroverse_burn"
-version = "0.17.1"
+version = "0.18.0"
 edition = "2024"
+rust-version = "1.97.1"
 license = "MIT OR Apache-2.0"
 description = "bevy zeroverse synthetic dataset rust generator"
 authors = ["mosure <mitchell@mosure.me>"]
@@ -19,6 +20,10 @@ categories = [
 homepage = "https://github.com/mosure/bevy_zeroverse"
 repository = "https://github.com/mosure/bevy_zeroverse"
 
+[package.metadata.docs.rs]
+features = ["gpu_tensor"]
+targets = ["x86_64-unknown-linux-gnu"]
+
 
 [[bin]]
 name = "zeroverse_gen"
@@ -31,7 +36,10 @@ harness = false
 [dependencies]
 anyhow = "1.0"
 bincode = { version = "2.0", features = ["serde"] }
-burn = { version = "=0.21.0", default-features = false, features = ["std", "dataset"] }
+burn = { version = "=0.22.0", default-features = false, features = ["std", "dataset"] }
+bevy = { version = "=0.20.0", default-features = false, optional = true }
+burn-cubecl = { version = "=0.22.0", default-features = false, features = ["std"], optional = true }
+burn-fusion = { version = "=0.22.0", default-features = false, features = ["std"], optional = true }
 clap = { version = "4.5", features = ["derive"] }
 lz4_flex = { version = "0.12.2", default-features = false, features = ["frame"] }
 serde = { version = "1.0", features = ["derive"] }
@@ -46,7 +54,7 @@ crossterm = "0.29"
 ndarray = { version = "0.16", default-features = false, features = ["std"] }
 ndarray-npy = { version = "0.9", features = ["npz"] }
 
-bevy_zeroverse = { path = "../..", version = "0.34.1", default-features = true }
+bevy_zeroverse = { path = "../..", version = "0.35.0", default-features = true }
 
 [dev-dependencies]
 criterion = { version = "0.8", features = ["html_reports"] }
@@ -54,3 +62,10 @@ tempfile = "3.13"
 
 [features]
 human_motion = ["bevy_zeroverse/human_motion"]
+
+gpu_tensor = ["dep:bevy", "dep:burn-cubecl", "burn/wgpu", "burn/cubecl"]
+gpu_tensor_fusion = ["gpu_tensor", "dep:burn-fusion", "burn/fusion"]
+
+[[example]]
+name = "gpu_jit_bench"
+required-features = ["gpu_tensor"]

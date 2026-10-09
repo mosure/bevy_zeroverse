@@ -60,13 +60,16 @@ fn review(world: &mut World) {
         let config = world.resource::<BevyZeroverseConfig>();
         let hidden = config.room_schematic || config.camera_grid;
         for (camera, orbit) in world
-            .query::<(&Camera, &bevy_panorbit_camera::PanOrbitCamera)>()
+            .query::<(
+                &Camera,
+                &bevy::camera_controller::pan_orbit_camera::prelude::PanOrbitCamera,
+            )>()
             .iter(world)
         {
             assert_eq!(camera.is_active, !hidden);
             if hidden {
                 assert!(
-                    !orbit.enabled,
+                    !orbit.enabled_motion.orbit,
                     "hidden editor must not respond to schematic gestures"
                 );
             }

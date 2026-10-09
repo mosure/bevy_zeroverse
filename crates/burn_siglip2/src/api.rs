@@ -1,10 +1,9 @@
 use std::path::PathBuf;
 
-#[cfg(feature = "ndarray")]
-use burn::backend::NdArray;
+use burn::tensor::Device;
 #[cfg(any(feature = "ndarray", feature = "flex", feature = "wgpu"))]
 use burn::tensor::TensorData;
-use burn::tensor::{Int, Tensor, activation, backend::Backend};
+use burn::tensor::{Int, Tensor, activation};
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "preprocess")]
@@ -21,24 +20,15 @@ use crate::{
     model::Siglip2Model,
 };
 
-#[cfg(feature = "ndarray")]
-pub type DefaultNdArrayBackend = NdArray;
-#[cfg(feature = "ndarray")]
-pub type Siglip2Backend = Siglip2Runtime<DefaultNdArrayBackend>;
-
-/// Burn's portable, runtime-dtype-dispatched CPU backend.
-#[cfg(feature = "flex")]
-pub type DefaultFlexBackend = burn::backend::Flex<f32, i32>;
+#[cfg(any(feature = "ndarray", feature = "flex"))]
+pub type Siglip2Backend = Siglip2Runtime;
 
 /// A SigLIP2 runtime executing on Burn Flex CPU kernels.
 #[cfg(feature = "flex")]
-pub type FlexSiglip2Backend = Siglip2Runtime<DefaultFlexBackend>;
+pub type FlexSiglip2Backend = Siglip2Runtime;
 
 #[cfg(feature = "wgpu")]
-pub type DefaultWgpuBackend = burn_wgpu::Wgpu<f32, i32, u32>;
-
-#[cfg(feature = "wgpu")]
-pub type WgpuSiglip2Backend = Siglip2Runtime<DefaultWgpuBackend>;
+pub type WgpuSiglip2Backend = Siglip2Runtime;
 
 #[derive(Debug, Clone)]
 pub enum WeightSource {
@@ -90,30 +80,30 @@ pub struct Siglip2ExecutionEvidence {
 }
 
 #[derive(Debug, Clone)]
-pub struct Siglip2TensorEmbeddingResponse<B: Backend> {
-    pub embedding: Tensor<B, 2>,
+pub struct Siglip2TensorEmbeddingResponse {
+    pub embedding: Tensor<2>,
     pub hooks: Vec<(String, HookTensor)>,
     pub evidence: Siglip2ExecutionEvidence,
 }
 
 #[derive(Debug, Clone)]
-pub struct Siglip2MultimodalTensorResponse<B: Backend> {
+pub struct Siglip2MultimodalTensorResponse {
     /// Raw vision tower pooler output.
-    pub image_embedding: Tensor<B, 2>,
+    pub image_embedding: Tensor<2>,
     /// Raw text tower projected pooler output.
-    pub text_embedding: Tensor<B, 2>,
+    pub text_embedding: Tensor<2>,
     /// L2-normalized image embedding used for similarity scoring.
-    pub normalized_image_embedding: Tensor<B, 2>,
+    pub normalized_image_embedding: Tensor<2>,
     /// L2-normalized text embedding used for similarity scoring.
-    pub normalized_text_embedding: Tensor<B, 2>,
+    pub normalized_text_embedding: Tensor<2>,
     /// Learned-scale and learned-bias similarity matrix, shaped `[images, texts]`.
-    pub logits_per_image: Tensor<B, 2>,
+    pub logits_per_image: Tensor<2>,
     /// Transposed learned similarity matrix, shaped `[texts, images]`.
-    pub logits_per_text: Tensor<B, 2>,
+    pub logits_per_text: Tensor<2>,
     /// Sigmoid-calibrated image-to-text probabilities, shaped `[images, texts]`.
-    pub probabilities_per_image: Tensor<B, 2>,
+    pub probabilities_per_image: Tensor<2>,
     /// Sigmoid-calibrated text-to-image probabilities, shaped `[texts, images]`.
-    pub probabilities_per_text: Tensor<B, 2>,
+    pub probabilities_per_text: Tensor<2>,
     pub image_hooks: Vec<(String, HookTensor)>,
     pub text_hooks: Vec<(String, HookTensor)>,
     pub evidence: Siglip2ExecutionEvidence,
@@ -135,18 +125,18 @@ pub struct Siglip2InferenceResponse {
 }
 
 #[derive(Debug, Clone)]
-pub struct Siglip2Runtime<B: Backend> {
-    pub model: Siglip2Model<B>,
-    pub device: B::Device,
+pub struct Siglip2Runtime {
+    pub model: Siglip2Model,
+    pub device: Device,
     pub load_stats: PartLoadStats,
 }
 
-impl<B: Backend> Siglip2Runtime<B> {
+impl Siglip2Runtime {
     pub fn encode_image(
         &self,
-        image: Tensor<B, 4>,
+        image: Tensor<4>,
         capture_hooks: bool,
-    ) -> Result<Siglip2TensorEmbeddingResponse<B>, String> {
+    ) -> Result<Siglip2TensorEmbeddingResponse, String> {
         let (embedding, hook, evidence) = self.run_image_tensor(image, capture_hooks)?;
         let hooks = hook
             .map(|hook| hook.into_tensors().into_iter().collect::<Vec<_>>())
@@ -160,9 +150,9 @@ impl<B: Backend> Siglip2Runtime<B> {
 
     pub fn encode_image_normalized(
         &self,
-        image: Tensor<B, 4>,
+        image: Tensor<4>,
         capture_hooks: bool,
-    ) -> Result<Siglip2TensorEmbeddingResponse<B>, String> {
+    ) -> Result<Siglip2TensorEmbeddingResponse, String> {
         normalize_embedding_response(self.encode_image(image, capture_hooks)?)
     }
 
@@ -171,7 +161,7 @@ impl<B: Backend> Siglip2Runtime<B> {
         &self,
         encoded_image: &[u8],
         capture_hooks: bool,
-    ) -> Result<Siglip2TensorEmbeddingResponse<B>, String> {
+    ) -> Result<Siglip2TensorEmbeddingResponse, String> {
         let image = Siglip2ImageProcessor::new(&self.model.config)?
             .preprocess_bytes(encoded_image, &self.device)?;
         self.encode_image(image, capture_hooks)
@@ -182,15 +172,15 @@ impl<B: Backend> Siglip2Runtime<B> {
         &self,
         encoded_image: &[u8],
         capture_hooks: bool,
-    ) -> Result<Siglip2TensorEmbeddingResponse<B>, String> {
+    ) -> Result<Siglip2TensorEmbeddingResponse, String> {
         normalize_embedding_response(self.encode_image_bytes(encoded_image, capture_hooks)?)
     }
 
     pub fn encode_text(
         &self,
-        text: Tensor<B, 3>,
+        text: Tensor<3>,
         capture_hooks: bool,
-    ) -> Result<Siglip2TensorEmbeddingResponse<B>, String> {
+    ) -> Result<Siglip2TensorEmbeddingResponse, String> {
         let (embedding, hook, evidence) = self.run_text_embedding_tensor(text, capture_hooks)?;
         let hooks = hook
             .map(|hook| hook.into_tensors().into_iter().collect::<Vec<_>>())
@@ -204,18 +194,18 @@ impl<B: Backend> Siglip2Runtime<B> {
 
     pub fn encode_text_normalized(
         &self,
-        text: Tensor<B, 3>,
+        text: Tensor<3>,
         capture_hooks: bool,
-    ) -> Result<Siglip2TensorEmbeddingResponse<B>, String> {
+    ) -> Result<Siglip2TensorEmbeddingResponse, String> {
         normalize_embedding_response(self.encode_text(text, capture_hooks)?)
     }
 
     pub fn encode_text_tokens(
         &self,
-        input_ids: Tensor<B, 2, Int>,
-        attention_mask: Option<Tensor<B, 2>>,
+        input_ids: Tensor<2, Int>,
+        attention_mask: Option<Tensor<2>>,
         capture_hooks: bool,
-    ) -> Result<Siglip2TensorEmbeddingResponse<B>, String> {
+    ) -> Result<Siglip2TensorEmbeddingResponse, String> {
         let (embedding, hook, evidence) =
             self.run_text_token_tensor(input_ids, attention_mask, capture_hooks)?;
         let hooks = hook
@@ -230,10 +220,10 @@ impl<B: Backend> Siglip2Runtime<B> {
 
     pub fn encode_text_tokens_normalized(
         &self,
-        input_ids: Tensor<B, 2, Int>,
-        attention_mask: Option<Tensor<B, 2>>,
+        input_ids: Tensor<2, Int>,
+        attention_mask: Option<Tensor<2>>,
         capture_hooks: bool,
-    ) -> Result<Siglip2TensorEmbeddingResponse<B>, String> {
+    ) -> Result<Siglip2TensorEmbeddingResponse, String> {
         normalize_embedding_response(self.encode_text_tokens(
             input_ids,
             attention_mask,
@@ -246,7 +236,7 @@ impl<B: Backend> Siglip2Runtime<B> {
         &self,
         batch: &Siglip2TokenizedBatch,
         capture_hooks: bool,
-    ) -> Result<Siglip2TensorEmbeddingResponse<B>, String> {
+    ) -> Result<Siglip2TensorEmbeddingResponse, String> {
         // Fixed-resolution SigLIP2 checkpoints were evaluated without forwarding the tokenizer
         // attention mask. Keep that behavior as the ergonomic default; callers that intentionally
         // need masking can opt in through the explicit method below or `encode_text_tokens`.
@@ -258,7 +248,7 @@ impl<B: Backend> Siglip2Runtime<B> {
         &self,
         batch: &Siglip2TokenizedBatch,
         capture_hooks: bool,
-    ) -> Result<Siglip2TensorEmbeddingResponse<B>, String> {
+    ) -> Result<Siglip2TensorEmbeddingResponse, String> {
         self.encode_text_tokens(
             batch.input_ids_tensor(&self.device)?,
             Some(batch.attention_mask_tensor(&self.device)?),
@@ -272,7 +262,7 @@ impl<B: Backend> Siglip2Runtime<B> {
         tokenizer: &Siglip2Tokenizer,
         texts: &[T],
         capture_hooks: bool,
-    ) -> Result<Siglip2TensorEmbeddingResponse<B>, String> {
+    ) -> Result<Siglip2TensorEmbeddingResponse, String> {
         let batch = tokenizer.encode_batch(texts)?;
         self.encode_tokenized_text_batch(&batch, capture_hooks)
     }
@@ -283,7 +273,7 @@ impl<B: Backend> Siglip2Runtime<B> {
         tokenizer: &Siglip2Tokenizer,
         texts: &[T],
         capture_hooks: bool,
-    ) -> Result<Siglip2TensorEmbeddingResponse<B>, String> {
+    ) -> Result<Siglip2TensorEmbeddingResponse, String> {
         normalize_embedding_response(self.encode_text_strings(tokenizer, texts, capture_hooks)?)
     }
 
@@ -293,17 +283,17 @@ impl<B: Backend> Siglip2Runtime<B> {
         tokenizer: &Siglip2Tokenizer,
         texts: &[T],
         capture_hooks: bool,
-    ) -> Result<Siglip2TensorEmbeddingResponse<B>, String> {
+    ) -> Result<Siglip2TensorEmbeddingResponse, String> {
         let batch = tokenizer.encode_batch(texts)?;
         self.encode_tokenized_text_batch_with_attention_mask(&batch, capture_hooks)
     }
 
     pub fn encode_text_and_image(
         &self,
-        image: Tensor<B, 4>,
-        text: Tensor<B, 3>,
+        image: Tensor<4>,
+        text: Tensor<3>,
         capture_hooks: bool,
-    ) -> Result<Siglip2MultimodalTensorResponse<B>, String> {
+    ) -> Result<Siglip2MultimodalTensorResponse, String> {
         let (image_embedding, image_hook, image_evidence) =
             self.run_image_tensor(image, capture_hooks)?;
         let (text_embedding, text_hook, text_evidence) =
@@ -321,11 +311,11 @@ impl<B: Backend> Siglip2Runtime<B> {
 
     pub fn encode_image_and_text_tokens(
         &self,
-        image: Tensor<B, 4>,
-        input_ids: Tensor<B, 2, Int>,
-        attention_mask: Option<Tensor<B, 2>>,
+        image: Tensor<4>,
+        input_ids: Tensor<2, Int>,
+        attention_mask: Option<Tensor<2>>,
         capture_hooks: bool,
-    ) -> Result<Siglip2MultimodalTensorResponse<B>, String> {
+    ) -> Result<Siglip2MultimodalTensorResponse, String> {
         let (image_embedding, image_hook, image_evidence) =
             self.run_image_tensor(image, capture_hooks)?;
         let (text_embedding, text_hook, text_evidence) =
@@ -348,7 +338,7 @@ impl<B: Backend> Siglip2Runtime<B> {
         tokenizer: &Siglip2Tokenizer,
         texts: &[T],
         capture_hooks: bool,
-    ) -> Result<Siglip2MultimodalTensorResponse<B>, String> {
+    ) -> Result<Siglip2MultimodalTensorResponse, String> {
         let image = Siglip2ImageProcessor::new(&self.model.config)?
             .preprocess_bytes(encoded_image, &self.device)?;
         let batch = tokenizer.encode_batch(texts)?;
@@ -367,7 +357,7 @@ impl<B: Backend> Siglip2Runtime<B> {
         tokenizer: &Siglip2Tokenizer,
         texts: &[T],
         capture_hooks: bool,
-    ) -> Result<Siglip2MultimodalTensorResponse<B>, String> {
+    ) -> Result<Siglip2MultimodalTensorResponse, String> {
         let image = Siglip2ImageProcessor::new(&self.model.config)?
             .preprocess_bytes(encoded_image, &self.device)?;
         let batch = tokenizer.encode_batch(texts)?;
@@ -381,13 +371,13 @@ impl<B: Backend> Siglip2Runtime<B> {
 
     fn build_multimodal_response(
         &self,
-        image_embedding: Tensor<B, 2>,
-        text_embedding: Tensor<B, 2>,
+        image_embedding: Tensor<2>,
+        text_embedding: Tensor<2>,
         image_hook: Option<HookRecorder>,
         text_hook: Option<HookRecorder>,
         image_evidence: Siglip2ExecutionEvidence,
         text_evidence: Siglip2ExecutionEvidence,
-    ) -> Result<Siglip2MultimodalTensorResponse<B>, String> {
+    ) -> Result<Siglip2MultimodalTensorResponse, String> {
         let normalized_image_embedding = l2_normalize_embeddings(image_embedding.clone())?;
         let normalized_text_embedding = l2_normalize_embeddings(text_embedding.clone())?;
         let logits_per_image = self
@@ -433,40 +423,40 @@ impl<B: Backend> Siglip2Runtime<B> {
 
     fn run_image_tensor(
         &self,
-        image: Tensor<B, 4>,
+        image: Tensor<4>,
         capture_hooks: bool,
-    ) -> Result<(Tensor<B, 2>, Option<HookRecorder>, Siglip2ExecutionEvidence), String> {
+    ) -> Result<(Tensor<2>, Option<HookRecorder>, Siglip2ExecutionEvidence), String> {
         let mut hook = if capture_hooks {
             Some(HookRecorder::new())
         } else {
             None
         };
         let output = self.model.forward_image(image, hook.as_mut())?;
-        let evidence = execution_evidence::<B>(&self.device, &hook);
+        let evidence = execution_evidence(&self.device, &hook);
         Ok((output, hook, evidence))
     }
 
     fn run_text_embedding_tensor(
         &self,
-        text: Tensor<B, 3>,
+        text: Tensor<3>,
         capture_hooks: bool,
-    ) -> Result<(Tensor<B, 2>, Option<HookRecorder>, Siglip2ExecutionEvidence), String> {
+    ) -> Result<(Tensor<2>, Option<HookRecorder>, Siglip2ExecutionEvidence), String> {
         let mut hook = if capture_hooks {
             Some(HookRecorder::new())
         } else {
             None
         };
         let output = self.model.forward_text(text, hook.as_mut())?;
-        let evidence = execution_evidence::<B>(&self.device, &hook);
+        let evidence = execution_evidence(&self.device, &hook);
         Ok((output, hook, evidence))
     }
 
     fn run_text_token_tensor(
         &self,
-        input_ids: Tensor<B, 2, Int>,
-        attention_mask: Option<Tensor<B, 2>>,
+        input_ids: Tensor<2, Int>,
+        attention_mask: Option<Tensor<2>>,
         capture_hooks: bool,
-    ) -> Result<(Tensor<B, 2>, Option<HookRecorder>, Siglip2ExecutionEvidence), String> {
+    ) -> Result<(Tensor<2>, Option<HookRecorder>, Siglip2ExecutionEvidence), String> {
         let mut hook = if capture_hooks {
             Some(HookRecorder::new())
         } else {
@@ -475,44 +465,44 @@ impl<B: Backend> Siglip2Runtime<B> {
         let output = self
             .model
             .forward_text_tokens(input_ids, attention_mask, hook.as_mut())?;
-        let evidence = execution_evidence::<B>(&self.device, &hook);
+        let evidence = execution_evidence(&self.device, &hook);
         Ok((output, hook, evidence))
     }
 }
 
-fn l2_normalize_embeddings<B: Backend>(embedding: Tensor<B, 2>) -> Result<Tensor<B, 2>, String> {
+fn l2_normalize_embeddings(embedding: Tensor<2>) -> Result<Tensor<2>, String> {
     let [batch, dim] = embedding.shape().dims();
     if batch == 0 || dim == 0 {
         return Err(format!(
             "cannot normalize an empty embedding tensor with shape [{batch}, {dim}]"
         ));
     }
-    Ok(Siglip2Model::<B>::normalize_embeddings(embedding))
+    Ok(Siglip2Model::normalize_embeddings(embedding))
 }
 
-fn normalize_embedding_response<B: Backend>(
-    mut response: Siglip2TensorEmbeddingResponse<B>,
-) -> Result<Siglip2TensorEmbeddingResponse<B>, String> {
+fn normalize_embedding_response(
+    mut response: Siglip2TensorEmbeddingResponse,
+) -> Result<Siglip2TensorEmbeddingResponse, String> {
     response.embedding = l2_normalize_embeddings(response.embedding)?;
     Ok(response)
 }
 
-#[cfg(feature = "ndarray")]
+#[cfg(any(feature = "ndarray", feature = "flex"))]
 pub fn load_backend(request: LoadRequest) -> Result<Siglip2Backend, String> {
-    let device = burn::backend::ndarray::NdArrayDevice::default();
+    let device = burn::tensor::Device::flex();
     load_backend_on_device(request, device)
 }
 
 /// Load a production BPK or parts manifest into Burn's portable Flex CPU backend.
 #[cfg(feature = "flex")]
 pub fn load_backend_flex(request: LoadRequest) -> Result<FlexSiglip2Backend, String> {
-    let device = burn::backend::flex::FlexDevice;
+    let device = burn::tensor::Device::flex();
     load_backend_on_device(request, device)
 }
 
 #[cfg(feature = "wgpu")]
 pub fn load_backend_wgpu(request: LoadRequest) -> Result<WgpuSiglip2Backend, String> {
-    let device = burn_wgpu::WgpuDevice::default();
+    let device = burn::tensor::Device::wgpu(Default::default());
     load_backend_on_device(request, device)
 }
 
@@ -520,14 +510,14 @@ pub fn load_backend_wgpu(request: LoadRequest) -> Result<WgpuSiglip2Backend, Str
 ///
 /// This is the backend-generic entry point for callers that need to choose a
 /// non-default CPU device, GPU adapter, or another compatible Burn backend.
-pub fn load_backend_on_device<B: Backend>(
+pub fn load_backend_on_device(
     request: LoadRequest,
-    device: B::Device,
-) -> Result<Siglip2Runtime<B>, String> {
+    device: Device,
+) -> Result<Siglip2Runtime, String> {
     load_runtime(&request, device)
 }
 
-#[cfg(feature = "ndarray")]
+#[cfg(any(feature = "ndarray", feature = "flex"))]
 pub fn run_inference(
     backend: &Siglip2Backend,
     request: Siglip2InferenceRequest,
@@ -552,10 +542,7 @@ pub fn run_inference_wgpu(
     run_inference_with_runtime(backend, request)
 }
 
-fn load_runtime<B: Backend>(
-    request: &LoadRequest,
-    device: B::Device,
-) -> Result<Siglip2Runtime<B>, String> {
+fn load_runtime(request: &LoadRequest, device: Device) -> Result<Siglip2Runtime, String> {
     let (model, load_stats) = match &request.source {
         WeightSource::BpkFile(path) => load_model_from_bpk_path(&device, path)?,
         WeightSource::SafetensorsFile(path) => {
@@ -596,8 +583,8 @@ fn required_config<'a>(
 }
 
 #[cfg(any(feature = "ndarray", feature = "flex", feature = "wgpu"))]
-fn run_inference_with_runtime<B: Backend>(
-    runtime: &Siglip2Runtime<B>,
+fn run_inference_with_runtime(
+    runtime: &Siglip2Runtime,
     request: Siglip2InferenceRequest,
 ) -> Result<Siglip2InferenceResponse, String> {
     if request.shape.contains(&0) {
@@ -625,7 +612,7 @@ fn run_inference_with_runtime<B: Backend>(
             request.input.len()
         ));
     }
-    let input = Tensor::<B, 4>::from_data(
+    let input = Tensor::<4>::from_data(
         TensorData::new(request.input, request.shape),
         &runtime.device,
     );
@@ -637,7 +624,7 @@ fn run_inference_with_runtime<B: Backend>(
     let [batch, dim] = embedding.shape().dims();
     let embedding_data = embedding.into_data().convert::<f32>();
     let embedding_vec = embedding_data
-        .to_vec::<f32>()
+        .try_to_vec::<f32>()
         .map_err(|err| format!("failed to read embedding tensor: {err:?}"))?;
     evidence.host_readbacks = evidence.host_readbacks.saturating_add(1);
 
@@ -649,12 +636,9 @@ fn run_inference_with_runtime<B: Backend>(
     })
 }
 
-fn execution_evidence<B: Backend>(
-    device: &B::Device,
-    hook: &Option<HookRecorder>,
-) -> Siglip2ExecutionEvidence {
-    let backend_label = B::name(device);
-    let device_label = std::any::type_name::<B::Device>().to_string();
+fn execution_evidence(device: &Device, hook: &Option<HookRecorder>) -> Siglip2ExecutionEvidence {
+    let backend_label = format!("{device:?}");
+    let device_label = format!("{device:?}");
     let mut evidence = Siglip2ExecutionEvidence {
         backend_label: backend_label.clone(),
         device_label: device_label.clone(),
@@ -674,12 +658,9 @@ fn infer_wgpu_execution(backend_label: &str, device_label: &str) -> bool {
     backend.contains("burn_wgpu") || backend.contains("wgpu") || device.contains("wgpu")
 }
 
-#[cfg(all(test, feature = "ndarray"))]
+#[cfg(all(test, any(feature = "ndarray", feature = "flex")))]
 mod tests {
-    use burn::{
-        backend::NdArray,
-        tensor::{Int, Tensor, TensorData, backend::Backend},
-    };
+    use burn::tensor::{Int, Tensor, TensorData};
 
     use super::{
         Siglip2InferenceRequest, Siglip2Runtime, execution_evidence, infer_wgpu_execution,
@@ -702,27 +683,21 @@ mod tests {
 
     #[test]
     fn execution_evidence_uses_the_backend_reported_name() {
-        type TestBackend = NdArray<f32>;
-
-        let device = burn::backend::ndarray::NdArrayDevice::default();
-        let evidence = execution_evidence::<TestBackend>(&device, &None);
-        assert_eq!(evidence.backend_label, TestBackend::name(&device));
-        assert_eq!(evidence.backend_label, "ndarray");
-        assert!(evidence.device_label.contains("NdArrayDevice"));
+        let device = burn::tensor::Device::flex();
+        let evidence = execution_evidence(&device, &None);
+        assert_eq!(evidence.backend_label, format!("{device:?}"));
+        assert!(evidence.backend_label.contains("Flex"));
+        assert!(evidence.device_label.contains("Flex"));
     }
 
     #[test]
     fn l2_normalization_is_row_wise_and_zero_safe() -> Result<(), String> {
-        type TestBackend = NdArray<f32>;
-
-        let device = burn::backend::ndarray::NdArrayDevice::default();
-        let embeddings = Tensor::<TestBackend, 2>::from_data(
-            TensorData::new(vec![3.0, 4.0, 0.0, 0.0], [2, 2]),
-            &device,
-        );
+        let device = burn::tensor::Device::flex();
+        let embeddings =
+            Tensor::<2>::from_data(TensorData::new(vec![3.0, 4.0, 0.0, 0.0], [2, 2]), &device);
         let values = l2_normalize_embeddings(embeddings)?
             .into_data()
-            .to_vec::<f32>()
+            .try_to_vec::<f32>()
             .map_err(|err| format!("failed to read normalized embeddings: {err:?}"))?;
 
         assert!((values[0] - 0.6).abs() < 1.0e-6);
@@ -734,31 +709,26 @@ mod tests {
 
     #[test]
     fn l2_normalization_rejects_empty_batches() {
-        type TestBackend = NdArray<f32>;
-
-        let device = burn::backend::ndarray::NdArrayDevice::default();
-        let embeddings = Tensor::<TestBackend, 2>::zeros([0, 4], &device);
+        let device = burn::tensor::Device::flex();
+        let embeddings = Tensor::<2>::zeros([0, 4], &device);
         let err = l2_normalize_embeddings(embeddings).expect_err("empty batches must fail");
         assert!(err.contains("empty embedding tensor"));
     }
 
     #[test]
     fn multimodal_response_has_calibrated_matrix_shapes() -> Result<(), String> {
-        type TestBackend = NdArray<f32>;
-
-        let device = burn::backend::ndarray::NdArrayDevice::default();
+        let device = burn::tensor::Device::flex();
         let config = Siglip2Config::tiny_for_tests();
         let runtime = Siglip2Runtime {
-            model: Siglip2Model::<TestBackend>::zeros(config.clone(), &device)?,
-            device,
+            model: Siglip2Model::zeros(config.clone(), &device)?,
+            device: device.clone(),
             load_stats: PartLoadStats::default(),
         };
-        let image = Tensor::<TestBackend, 4>::zeros(
+        let image = Tensor::<4>::zeros(
             [2, config.channels, config.image_size, config.image_size],
             &device,
         );
-        let input_ids =
-            Tensor::<TestBackend, 2, Int>::zeros([3, config.text_max_positions], &device);
+        let input_ids = Tensor::<2, Int>::zeros([3, config.text_max_positions], &device);
         let response = runtime.encode_image_and_text_tokens(image, input_ids, None, false)?;
 
         assert_eq!(response.image_embedding.shape().dims::<2>(), [2, 8]);
@@ -770,7 +740,7 @@ mod tests {
         let probabilities = response
             .probabilities_per_image
             .into_data()
-            .to_vec::<f32>()
+            .try_to_vec::<f32>()
             .map_err(|err| format!("failed to read similarity probabilities: {err:?}"))?;
         assert!(
             probabilities
@@ -782,13 +752,11 @@ mod tests {
 
     #[test]
     fn flat_inference_rejects_malformed_value_count_without_panicking() -> Result<(), String> {
-        type TestBackend = NdArray<f32>;
-
-        let device = burn::backend::ndarray::NdArrayDevice::default();
+        let device = burn::tensor::Device::flex();
         let config = Siglip2Config::tiny_for_tests();
         let runtime = Siglip2Runtime {
-            model: Siglip2Model::<TestBackend>::zeros(config.clone(), &device)?,
-            device,
+            model: Siglip2Model::zeros(config.clone(), &device)?,
+            device: device.clone(),
             load_stats: PartLoadStats::default(),
         };
         let shape = [1, config.channels, config.image_size, config.image_size];
@@ -810,12 +778,10 @@ mod tests {
 
     #[test]
     fn flat_inference_rejects_shape_product_overflow_without_panicking() -> Result<(), String> {
-        type TestBackend = NdArray<f32>;
-
-        let device = burn::backend::ndarray::NdArrayDevice::default();
+        let device = burn::tensor::Device::flex();
         let runtime = Siglip2Runtime {
-            model: Siglip2Model::<TestBackend>::zeros(Siglip2Config::tiny_for_tests(), &device)?,
-            device,
+            model: Siglip2Model::zeros(Siglip2Config::tiny_for_tests(), &device)?,
+            device: device.clone(),
             load_stats: PartLoadStats::default(),
         };
         let error = run_inference_with_runtime(
@@ -834,12 +800,10 @@ mod tests {
 
     #[test]
     fn flat_inference_rejects_zero_dimensions_without_panicking() -> Result<(), String> {
-        type TestBackend = NdArray<f32>;
-
-        let device = burn::backend::ndarray::NdArrayDevice::default();
+        let device = burn::tensor::Device::flex();
         let runtime = Siglip2Runtime {
-            model: Siglip2Model::<TestBackend>::zeros(Siglip2Config::tiny_for_tests(), &device)?,
-            device,
+            model: Siglip2Model::zeros(Siglip2Config::tiny_for_tests(), &device)?,
+            device: device.clone(),
             load_stats: PartLoadStats::default(),
         };
         let error = run_inference_with_runtime(

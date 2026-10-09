@@ -21,6 +21,7 @@ use bevy_zeroverse::{
 };
 use std::time::{Duration, Instant};
 
+#[derive(Clone)]
 struct Plane {
     transform: Transform,
     half: Vec2,
@@ -403,6 +404,37 @@ fn same_time_visibility_matches_ray_geometry() {
         pixels(&second[0].planes[3]).iter().any(|p| p[2] == 1.0),
         "flow attachment must coexist with co-visibility"
     );
+    // The membership oracle must use the same behind-glass hits as all other
+    // geometric planes. Treat the moving occluder as transmissive glass.
+    let glass = app
+        .world()
+        .get::<MeshMaterial3d<StandardMaterial>>(planes[2].entity)
+        .unwrap()
+        .0
+        .clone();
+    app.world_mut()
+        .resource_mut::<Assets<StandardMaterial>>()
+        .get_mut(&glass)
+        .unwrap()
+        .specular_transmission = 0.8;
+    app.world_mut()
+        .resource_mut::<BevyZeroverseConfig>()
+        .annotation_glass = bevy_zeroverse::render::glass::AnnotationGlass::Through;
+    let through = capture(&mut app, &cameras, 3);
+    let behind: Vec<_> = planes
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| *i != 2)
+        .map(|(_, p)| p.clone())
+        .collect();
+    verify(&cameras, &through, &behind);
+    assert_ne!(
+        second[0].planes[4], through[0].planes[4],
+        "glass must affect occlusion membership"
+    );
+    app.world_mut()
+        .resource_mut::<BevyZeroverseConfig>()
+        .annotation_glass = bevy_zeroverse::render::glass::AnnotationGlass::Surface;
     for c in cameras.drain(..) {
         app.world_mut().despawn(c.entity);
     }
@@ -416,7 +448,7 @@ fn same_time_visibility_matches_ray_geometry() {
         ));
     }
     cameras.sort_by_key(|c| c.index);
-    let packed = capture(&mut app, &cameras, 3);
+    let packed = capture(&mut app, &cameras, 4);
     for (i, (c, packet)) in cameras.iter().zip(&packed).enumerate() {
         let data = pixels(packet.planes.last().unwrap());
         let center = data[(c.size.y / 2 * c.size.x + c.size.x / 2) as usize];
@@ -427,7 +459,7 @@ fn same_time_visibility_matches_ray_geometry() {
         app.world_mut().despawn(c.entity);
     }
     let single = vec![spawn_camera(&mut app, 4, Transform::default(), size, false)];
-    let packet = capture(&mut app, &single, 4);
+    let packet = capture(&mut app, &single, 5);
     let plane = packet[0].planes.last().unwrap();
     validate_plane(plane, (size.x * size.y) as usize, 1, 0).unwrap();
     assert!(pixels(plane).iter().all(|p| p[0] == 0.0 && p[1] == 0.0));

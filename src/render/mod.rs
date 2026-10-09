@@ -15,6 +15,7 @@ mod annotation_material;
 pub mod co_visibility;
 pub mod color;
 pub mod depth;
+pub mod glass;
 pub mod ground_truth;
 pub mod normal;
 pub mod optical_flow;
@@ -117,6 +118,7 @@ impl Plugin for RenderPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<RenderMode>();
         app.register_type::<RenderMode>();
+        app.register_type::<glass::AnnotationGlass>();
 
         app.add_plugins(depth::DepthPlugin);
         app.add_plugins(normal::NormalPlugin);
@@ -138,6 +140,7 @@ impl Plugin for RenderPlugin {
                 auto_disable_pbr_material::<position::Position>,
                 auto_disable_pbr_material::<semantic::Semantic>,
                 enable_pbr_material,
+                glass::preview,
             )
                 .chain()
                 .after(process_primitives),
@@ -278,7 +281,7 @@ pub(crate) fn apply_render_modes(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bevy::{math::primitives::Sphere, MinimalPlugins};
+    use bevy::{shape::Sphere, MinimalPlugins};
 
     #[test]
     fn annotation_materials_are_specialized_in_the_frame_they_are_created() {

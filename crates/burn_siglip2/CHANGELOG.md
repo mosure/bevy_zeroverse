@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.0 (2026-10-08)
+
+- Migrate to Burn 0.22 runtime devices and backend-independent tensors/models.
+- Use Flex for the default CPU loader; retain `ndarray` as a feature alias.
+- Initialize browser WebGPU asynchronously and use explicit devices in native loaders.
+- Preserve checked CDN shards, artifact formats, F32 inference and numerical oracles.
+- Avoid enabling fusion implicitly when sharing a renderer device with human motion.
+
 ## 0.1.1 (2026-09-27)
 
 - Move canonical source and crate publication to `mosure/bevy_zeroverse`, under

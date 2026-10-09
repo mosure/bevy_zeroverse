@@ -116,6 +116,8 @@ mod readback_tests {
 
 pub mod image_copy {
     #[cfg(not(target_arch = "wasm32"))]
+    mod gpu;
+    #[cfg(not(target_arch = "wasm32"))]
     mod staging;
     use bevy::render::diagnostic::RecordDiagnostics;
     use bevy::{
@@ -132,6 +134,8 @@ pub mod image_copy {
             Extract, Render, RenderApp, RenderSystems,
         },
     };
+    #[cfg(not(target_arch = "wasm32"))]
+    pub use gpu::{GpuCaptureTarget, GpuCapturedImages};
     use std::sync::{
         atomic::{AtomicBool, AtomicU64, Ordering},
         Arc, Mutex,
@@ -158,6 +162,10 @@ pub mod image_copy {
         #[cfg(not(target_arch = "wasm32"))]
         mapping: AtomicU64,
         completed: Mutex<Option<CapturedImages>>,
+        #[cfg(not(target_arch = "wasm32"))]
+        gpu_target: Mutex<Option<GpuCaptureTarget>>,
+        #[cfg(not(target_arch = "wasm32"))]
+        gpu_completed: Mutex<Option<GpuCapturedImages>>,
         failure: Mutex<Option<String>>,
     }
 
@@ -171,6 +179,8 @@ pub mod image_copy {
         sources: Arc<[Handle<Image>]>,
         buffers: Arc<[Buffer]>,
         state: Arc<CaptureState>,
+        #[cfg(not(target_arch = "wasm32"))]
+        format: TextureFormat,
         row_bytes: usize,
         padded_row_bytes: usize,
         rows: usize,
@@ -229,6 +239,8 @@ pub mod image_copy {
                 sources: sources.into(),
                 buffers,
                 state: Arc::default(),
+                #[cfg(not(target_arch = "wasm32"))]
+                format,
                 row_bytes,
                 padded_row_bytes,
                 rows,
@@ -267,6 +279,17 @@ pub mod image_copy {
             self.state.mapping.load(Ordering::Acquire)
         }
         pub fn ready(&self, id: u64) -> bool {
+            #[cfg(not(target_arch = "wasm32"))]
+            if self
+                .state
+                .gpu_completed
+                .lock()
+                .unwrap()
+                .as_ref()
+                .is_some_and(|p| p.request_id == id)
+            {
+                return true;
+            }
             self.state
                 .completed
                 .lock()
@@ -319,6 +342,8 @@ pub mod image_copy {
                 sources: Arc::default(),
                 buffers: Arc::default(),
                 state: Arc::default(),
+                #[cfg(not(target_arch = "wasm32"))]
+                format: TextureFormat::Rgba32Float,
                 row_bytes: 0,
                 padded_row_bytes: 0,
                 rows: 0,
@@ -365,8 +390,22 @@ pub mod image_copy {
         pending: Res<PendingMaps>,
         device: Res<RenderDevice>,
         copiers: Res<ImageCopiers>,
+        #[cfg(not(target_arch = "wasm32"))] queue: Res<bevy::render::renderer::RenderQueue>,
     ) {
         for job in pending.0.lock().unwrap().drain(..) {
+            #[cfg(not(target_arch = "wasm32"))]
+            if let Some(target) = job.copier.state.gpu_target.lock().unwrap().clone() {
+                // This system is after render_system: consumer work on this same
+                // queue observes the complete copy without a GPU completion wait.
+                // Retain the allocator lease even if the consumer drops its tensor.
+                let lease = target.lease.clone();
+                queue.on_submitted_work_done(move || drop(lease));
+                *job.copier.state.gpu_completed.lock().unwrap() = Some(GpuCapturedImages {
+                    request_id: job.request_id,
+                    target,
+                });
+                continue;
+            }
             #[cfg(not(target_arch = "wasm32"))]
             if job.copier.combined_staging() {
                 let buffer = job.copier.buffers[0].clone();
@@ -385,7 +424,15 @@ pub mod image_copy {
                             Some(format!("capture {id} GPU map failed: {error}"));
                         return;
                     }
-                    let view = callback_buffer.slice(..).get_mapped_range();
+                    let view = match callback_buffer.slice(..).get_mapped_range() {
+                        Ok(view) => view,
+                        Err(error) => {
+                            *state.failure.lock().unwrap() =
+                                Some(format!("capture {id} mapped range failed: {error}"));
+                            callback_buffer.unmap();
+                            return;
+                        }
+                    };
                     let planes = staging::packed_planes(&view, row, padded, rows, count);
                     drop(view);
                     callback_buffer.unmap();
@@ -420,7 +467,15 @@ pub mod image_copy {
                             Some(format!("capture {id} GPU map failed: {error}"));
                         return;
                     }
-                    let view = callback_buffer.slice(..).get_mapped_range();
+                    let view = match callback_buffer.slice(..).get_mapped_range() {
+                        Ok(view) => view,
+                        Err(error) => {
+                            *state.failure.lock().unwrap() =
+                                Some(format!("capture {id} mapped range failed: {error}"));
+                            callback_buffer.unmap();
+                            return;
+                        }
+                    };
                     let data = super::packed_readback_rows(&view, row, padded, rows);
                     drop(view);
                     callback_buffer.unmap();
@@ -579,6 +634,16 @@ pub mod image_copy {
                 };
                 #[cfg(target_arch = "wasm32")]
                 let (buffer, offset) = (&copier.buffers[index], 0);
+                #[cfg(not(target_arch = "wasm32"))]
+                let gpu_target = copier.state.gpu_target.lock().unwrap().clone();
+                #[cfg(not(target_arch = "wasm32"))]
+                let (buffer, offset): (&wgpu::Buffer, u64) =
+                    gpu_target.as_ref().map_or((&**buffer, offset), |target| {
+                        (
+                            &target.buffer,
+                            target.offset + (index * copier.padded_row_bytes * copier.rows) as u64,
+                        )
+                    });
                 let image = images.get(source).unwrap();
                 context.command_encoder().copy_texture_to_buffer(
                     image.texture.as_image_copy(),
@@ -662,7 +727,9 @@ pub mod prepass_copy {
                     let row_bytes = image.width() as usize / blocks.0 as usize
                         * format.block_copy_size(None).unwrap() as usize;
                     image.data = Some(super::packed_readback_rows(
-                        &buffer_slice.get_mapped_range(),
+                        &buffer_slice
+                            .get_mapped_range()
+                            .expect("successfully mapped prepass readback"),
                         row_bytes,
                         RenderDevice::align_copy_bytes_per_row(row_bytes),
                         image.height() as usize / blocks.1 as usize,

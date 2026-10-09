@@ -1,8 +1,8 @@
-//! Bound obsolete view keys and GPU bin-unpacking bindings retained by Bevy 0.19.
+//! Bound obsolete prepass keys and per-view GPU allocation bindings on Bevy 0.20.
 //!
 //! This does not clear compiled pipelines or material specialization caches.
-//! Cleanup runs after rendering. Bevy 0.19 removed the old specialization tick
-//! maps, including wireframe mesh ticks; they are no longer patched here.
+//! Cleanup runs after rendering. Main view and light keys already have upstream
+//! cleanup and are observed without repeating it.
 
 use std::{
     collections::{BTreeMap, HashSet},
@@ -11,7 +11,10 @@ use std::{
 };
 
 use bevy::{
-    pbr::{BinUnpackingBindGroups, LightKeyCache, ViewKeyCache, ViewKeyPrepassCache},
+    pbr::{
+        BinUnpackingBindGroups, LightKeyCache, UniformAllocationBindGroups, ViewKeyCache,
+        ViewKeyPrepassCache,
+    },
     prelude::*,
     render::{
         extract_resource::{ExtractResource, ExtractResourcePlugin},
@@ -22,6 +25,7 @@ use bevy::{
 
 /// Optional control for matched cache-residency experiments.
 #[derive(Resource, Clone, ExtractResource)]
+#[extract_app(RenderApp)]
 pub struct RenderResidencyPolicy {
     pub prune: bool,
 }
@@ -101,6 +105,7 @@ struct ViewCaches<'w> {
     view_keys: Option<ResMut<'w, ViewKeyCache>>,
     prepass_keys: Option<ResMut<'w, ViewKeyPrepassCache>>,
     bin_unpacking: Option<ResMut<'w, BinUnpackingBindGroups>>,
+    uniform_allocation: Option<ResMut<'w, UniformAllocationBindGroups>>,
 }
 
 fn retain_current<K: Eq + Hash, V, S: BuildHasher>(
@@ -138,18 +143,18 @@ fn prune_retired_keys(
     stats.live_meshes = live_meshes.live_meshes;
     stats.live_views = live_views.len();
     macro_rules! prune_view {
-        ($cache:expr, $name:literal) => {
+        ($cache:expr, $name:literal, $prune:expr) => {
             if let Some(mut cache) = $cache {
                 retain_current(
                     &mut cache,
                     |key| live_views.contains(key),
-                    policy.prune,
+                    $prune,
                     stats.caches.entry($name.into()).or_default(),
                 );
             }
         };
     }
-    // Bevy 0.19 already retains live shadow keys in prepare_lights. Observe
+    // Bevy already retains live shadow keys in prepare_lights. Observe
     // that upstream cleanup without making its lifecycle depend on our policy.
     if let Some(mut cache) = caches.light_keys {
         retain_current(
@@ -159,9 +164,9 @@ fn prune_retired_keys(
             stats.caches.entry("light_keys".into()).or_default(),
         );
     }
-    prune_view!(caches.view_keys, "view_keys");
-    prune_view!(caches.prepass_keys, "prepass_keys");
-    // Bevy 0.19 prunes BinUnpackingBuffers, but its separate bind-group map
+    prune_view!(caches.view_keys, "view_keys", false);
+    prune_view!(caches.prepass_keys, "prepass_keys", policy.prune);
+    // Bevy prunes BinUnpackingBuffers, but its separate bind-group map
     // only inserts/replaces current (view, phase) keys. Retired cameras and
     // shadow views otherwise retain GPU bindings across every regeneration.
     // Cleanup follows rendering; active views retain all of their phases.
@@ -171,6 +176,16 @@ fn prune_retired_keys(
             |key| live_views.contains(&key.view),
             policy.prune,
             stats.caches.entry("bin_unpacking".into()).or_default(),
+        );
+    }
+    // Bevy 0.20 adds a second per-view allocation map. Like unpacking, it
+    // replaces active keys but does not retire old camera/shadow keys itself.
+    if let Some(mut cache) = caches.uniform_allocation {
+        retain_current(
+            &mut cache,
+            |key| live_views.contains(&key.view),
+            policy.prune,
+            stats.caches.entry("uniform_allocation".into()).or_default(),
         );
     }
 }
@@ -204,7 +219,7 @@ mod tests {
 
     #[test]
     fn unpacking_cleanup_keeps_each_phase_of_live_views() {
-        use bevy::render::batching::gpu_preprocessing::BinUnpackingBuffersKey;
+        use bevy::render::batching::gpu_preprocessing::SceneUnpackingBuffersKey;
         use std::any::TypeId;
 
         let mut world = World::new();
@@ -212,10 +227,10 @@ mod tests {
         let live = RetainedViewEntity::new(entity.into(), None, 0);
         let dead = RetainedViewEntity::new(entity.into(), None, 1);
         let mut cache =
-            bevy::platform::collections::HashMap::<BinUnpackingBuffersKey, i32>::default();
+            bevy::platform::collections::HashMap::<SceneUnpackingBuffersKey, i32>::default();
         for (phase, value) in [(TypeId::of::<u32>(), 11), (TypeId::of::<f32>(), 22)] {
-            cache.insert(BinUnpackingBuffersKey { phase, view: live }, value);
-            cache.insert(BinUnpackingBuffersKey { phase, view: dead }, value);
+            cache.insert(SceneUnpackingBuffersKey { phase, view: live }, value);
+            cache.insert(SceneUnpackingBuffersKey { phase, view: dead }, value);
         }
         let mut stats = CacheResidency::default();
         retain_current(&mut cache, |key| key.view == live, true, &mut stats);

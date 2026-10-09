@@ -25,6 +25,7 @@ use bevy_zeroverse::{
 };
 use std::time::{Duration, Instant};
 
+#[derive(Clone)]
 struct ReferenceMesh {
     entity: Entity,
     positions: Vec<[f32; 3]>,
@@ -68,6 +69,7 @@ fn spawn_mesh(
             } else {
                 AlphaMode::Opaque
             },
+            specular_transmission: if glass { 0.8 } else { 0.0 },
             unlit: true,
             ..default()
         });
@@ -421,12 +423,38 @@ fn float32_mrt_matches_independent_ray_geometry_and_tracks_changes() {
         0,
         "idle frames must not rasterize ground truth"
     );
-    check_reference(
-        &capture(&mut app, &copier, 1),
-        &objects,
-        camera_transform,
-        fov,
-        size,
+    let surface = capture(&mut app, &copier, 1);
+    check_reference(&surface, &objects, camera_transform, fov, size);
+    app.world_mut()
+        .resource_mut::<BevyZeroverseConfig>()
+        .annotation_glass = bevy_zeroverse::render::glass::AnnotationGlass::Through;
+    let through = capture(&mut app, &copier, 2);
+    let behind: Vec<_> = objects
+        .iter()
+        .filter(|m| m.label != SemanticLabel::Window)
+        .cloned()
+        .collect();
+    check_reference(&through, &behind, camera_transform, fov, size);
+    assert_ne!(
+        surface.planes[1], through.planes[1],
+        "glass must change depth and position hits"
+    );
+    assert_ne!(
+        surface.planes[2], through.planes[2],
+        "glass must change semantic and normal hits"
+    );
+    assert_eq!(
+        surface.planes[0], through.planes[0],
+        "annotation policy changed RGB"
+    );
+    app.world_mut()
+        .resource_mut::<BevyZeroverseConfig>()
+        .annotation_glass = bevy_zeroverse::render::glass::AnnotationGlass::Surface;
+    let restored = capture(&mut app, &copier, 3);
+    assert_eq!(
+        surface.planes[1..],
+        restored.planes[1..],
+        "surface policy did not restore exact geometry"
     );
     let before = app.world().resource::<GroundTruthDiagnostics>().snapshot();
     for _ in 0..8 {
@@ -444,7 +472,7 @@ fn float32_mrt_matches_independent_ray_geometry_and_tracks_changes() {
         app.update();
     }
     check_reference(
-        &capture(&mut app, &copier, 2),
+        &capture(&mut app, &copier, 4),
         &objects,
         camera_transform,
         fov,
@@ -462,7 +490,7 @@ fn float32_mrt_matches_independent_ray_geometry_and_tracks_changes() {
         app.update();
     }
     check_reference(
-        &capture(&mut app, &copier, 3),
+        &capture(&mut app, &copier, 5),
         &objects,
         camera_transform,
         fov,
@@ -486,8 +514,8 @@ fn float32_mrt_matches_independent_ray_geometry_and_tracks_changes() {
     for _ in 0..3 {
         app.update();
     }
-    let empty = capture(&mut app, &copier, 4);
-    assert_eq!(empty.request_id, 4);
+    let empty = capture(&mut app, &copier, 6);
+    assert_eq!(empty.request_id, 6);
     assert_eq!(empty.planes.len(), 3);
     for plane in &empty.planes[1..] {
         assert_eq!(plane.len(), size.x as usize * size.y as usize * 16);
@@ -501,7 +529,7 @@ fn float32_mrt_matches_independent_ray_geometry_and_tracks_changes() {
             .get::<GroundTruthCamera>(camera_entity)
             .unwrap()
             .rendered_frame(),
-        Some(4),
+        Some(6),
     );
     let empty_stats = app.world().resource::<GroundTruthDiagnostics>().snapshot();
     assert_eq!(empty_stats.geometry_bytes, 0);
@@ -511,6 +539,6 @@ fn float32_mrt_matches_independent_ray_geometry_and_tracks_changes() {
     assert_eq!(empty_stats.geometry_uploads, final_stats.geometry_uploads);
     assert_eq!(empty_stats.rendered_views, final_stats.rendered_views + 1);
     println!(
-        "request 4: empty scene completed; both annotation planes zero; geometry residency zero"
+        "request 6: empty scene completed; both annotation planes zero; geometry residency zero"
     );
 }

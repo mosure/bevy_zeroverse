@@ -5,7 +5,7 @@ use bevy_zeroverse::{
     headless::{create_app, setup_globals},
     io::channels,
     render::{color::linear_to_srgb, RenderMode},
-    sample::{Sample, SamplerState},
+    sample::{CaptureFailure, Sample, SamplerState},
     scene::{RegenerateSceneEvent, ZeroverseSceneType},
 };
 use std::time::{Duration, Instant};
@@ -23,6 +23,11 @@ fn capture(app: &mut App) -> Sample {
     let start = Instant::now();
     loop {
         app.update();
+        assert!(
+            app.world().resource::<CaptureFailure>().0.is_none(),
+            "{:?}",
+            app.world().resource::<CaptureFailure>()
+        );
         if let Ok(sample) = channels::sample_receiver()
             .unwrap()
             .lock()
@@ -46,6 +51,7 @@ fn direct_lighting_and_shadow_maps_affect_rgb() {
     let config = BevyZeroverseConfig {
         scene_type: ZeroverseSceneType::ProceduralIndoor,
         indoor_seed: Some(6),
+        indoor_human_density: 0.0,
         headless: true,
         editor: false,
         gizmos: false,

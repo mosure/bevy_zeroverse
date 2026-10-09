@@ -1,6 +1,7 @@
+use burn::tensor::Device;
 use std::io::Cursor;
 
-use burn::tensor::{Tensor, TensorData, backend::Backend};
+use burn::tensor::{Tensor, TensorData};
 use image::{DynamicImage, ImageDecoder, ImageReader, Limits, RgbImage};
 
 use crate::config::Siglip2Config;
@@ -62,11 +63,11 @@ impl Siglip2ImageProcessor {
         self.image_size
     }
 
-    pub fn preprocess_bytes<B: Backend>(
+    pub fn preprocess_bytes(
         &self,
         encoded_image: &[u8],
-        device: &B::Device,
-    ) -> Result<Tensor<B, 4>, String> {
+        device: &Device,
+    ) -> Result<Tensor<4>, String> {
         validate_encoded_image_len(encoded_image.len())?;
 
         // Inspect with a separate reader so declared dimensions and pixel count are rejected
@@ -104,19 +105,19 @@ impl Siglip2ImageProcessor {
         self.preprocess_image(&image, device)
     }
 
-    pub fn preprocess_image<B: Backend>(
+    pub fn preprocess_image(
         &self,
         image: &DynamicImage,
-        device: &B::Device,
-    ) -> Result<Tensor<B, 4>, String> {
+        device: &Device,
+    ) -> Result<Tensor<4>, String> {
         self.preprocess_images(std::slice::from_ref(image), device)
     }
 
-    pub fn preprocess_images<B: Backend>(
+    pub fn preprocess_images(
         &self,
         images: &[DynamicImage],
-        device: &B::Device,
-    ) -> Result<Tensor<B, 4>, String> {
+        device: &Device,
+    ) -> Result<Tensor<4>, String> {
         if images.is_empty() {
             return Err("SigLIP2 image batch must contain at least one image".to_string());
         }
@@ -164,7 +165,7 @@ impl Siglip2ImageProcessor {
             }
         }
 
-        Ok(Tensor::<B, 4>::from_data(
+        Ok(Tensor::<4>::from_data(
             TensorData::new(output, [images.len(), 3, self.image_size, self.image_size]),
             device,
         ))
@@ -360,35 +361,34 @@ fn pillow_clip_u8(value: i64) -> u8 {
     (value >> PILLOW_PRECISION_BITS).clamp(0, 255) as u8
 }
 
-pub fn preprocess_image_bytes<B: Backend>(
+pub fn preprocess_image_bytes(
     encoded_image: &[u8],
     config: &Siglip2Config,
-    device: &B::Device,
-) -> Result<Tensor<B, 4>, String> {
+    device: &Device,
+) -> Result<Tensor<4>, String> {
     Siglip2ImageProcessor::new(config)?.preprocess_bytes(encoded_image, device)
 }
 
-pub fn preprocess_dynamic_image<B: Backend>(
+pub fn preprocess_dynamic_image(
     image: &DynamicImage,
     config: &Siglip2Config,
-    device: &B::Device,
-) -> Result<Tensor<B, 4>, String> {
+    device: &Device,
+) -> Result<Tensor<4>, String> {
     Siglip2ImageProcessor::new(config)?.preprocess_image(image, device)
 }
 
-pub fn preprocess_dynamic_images<B: Backend>(
+pub fn preprocess_dynamic_images(
     images: &[DynamicImage],
     config: &Siglip2Config,
-    device: &B::Device,
-) -> Result<Tensor<B, 4>, String> {
+    device: &Device,
+) -> Result<Tensor<4>, String> {
     Siglip2ImageProcessor::new(config)?.preprocess_images(images, device)
 }
 
-#[cfg(all(test, feature = "ndarray"))]
+#[cfg(all(test, any(feature = "ndarray", feature = "flex")))]
 mod tests {
     use std::io::Cursor;
 
-    use burn::backend::NdArray;
     use image::{
         DynamicImage, ExtendedColorType, GrayImage, ImageEncoder, ImageFormat, Luma, Rgb, RgbImage,
         codecs::{jpeg::JpegEncoder, webp::WebPEncoder},
@@ -400,8 +400,6 @@ mod tests {
         validate_source_image_dimensions,
     };
     use crate::Siglip2Config;
-
-    type TestBackend = NdArray<f32>;
 
     fn config(image_size: usize) -> Siglip2Config {
         Siglip2Config {
@@ -473,10 +471,10 @@ mod tests {
         Ok(encoded)
     }
 
-    fn tensor_values(tensor: burn::tensor::Tensor<TestBackend, 4>) -> Result<Vec<f32>, String> {
+    fn tensor_values(tensor: burn::tensor::Tensor<4>) -> Result<Vec<f32>, String> {
         tensor
             .into_data()
-            .to_vec::<f32>()
+            .try_to_vec::<f32>()
             .map_err(|err| format!("failed to read test tensor: {err:?}"))
     }
 
@@ -489,13 +487,12 @@ mod tests {
             _ => Rgb([64, 192, 32]),
         });
         let processor = Siglip2ImageProcessor::new(&config(2))?;
-        let device = burn::backend::ndarray::NdArrayDevice::default();
-        let tensor =
-            processor.preprocess_image::<TestBackend>(&DynamicImage::ImageRgb8(image), &device)?;
+        let device = burn::tensor::Device::flex();
+        let tensor = processor.preprocess_image(&DynamicImage::ImageRgb8(image), &device)?;
         assert_eq!(tensor.shape().dims::<4>(), [1, 3, 2, 2]);
         let values = tensor
             .into_data()
-            .to_vec::<f32>()
+            .try_to_vec::<f32>()
             .map_err(|err| format!("failed to read test tensor: {err:?}"))?;
 
         let normalized = |value: u8| f32::from(value) * SIGLIP2_IMAGE_RESCALE_FACTOR * 2.0 - 1.0;
@@ -523,11 +520,11 @@ mod tests {
     fn converts_grayscale_to_three_rgb_channels() -> Result<(), String> {
         let image = DynamicImage::ImageLuma8(GrayImage::from_pixel(1, 1, Luma([255])));
         let processor = Siglip2ImageProcessor::new(&config(1))?;
-        let device = burn::backend::ndarray::NdArrayDevice::default();
+        let device = burn::tensor::Device::flex();
         let values = processor
-            .preprocess_image::<TestBackend>(&image, &device)?
+            .preprocess_image(&image, &device)?
             .into_data()
-            .to_vec::<f32>()
+            .try_to_vec::<f32>()
             .map_err(|err| format!("failed to read test tensor: {err:?}"))?;
         assert_eq!(values, vec![1.0, 1.0, 1.0]);
         Ok(())
@@ -544,11 +541,11 @@ mod tests {
         )
         .ok_or_else(|| "invalid RGB fixture".to_string())?;
         let processor = Siglip2ImageProcessor::new(&config(2))?;
-        let device = burn::backend::ndarray::NdArrayDevice::default();
+        let device = burn::tensor::Device::flex();
         let values = processor
-            .preprocess_image::<TestBackend>(&DynamicImage::ImageRgb8(image), &device)?
+            .preprocess_image(&DynamicImage::ImageRgb8(image), &device)?
             .into_data()
-            .to_vec::<f32>()
+            .try_to_vec::<f32>()
             .map_err(|err| format!("failed to read test tensor: {err:?}"))?;
 
         // Pillow 12.1.1 `Image.resize((2, 2), Resampling.BILINEAR)` yields these RGB
@@ -581,8 +578,8 @@ mod tests {
             .map_err(|err| format!("failed to encode fixture: {err}"))?;
 
         let processor = Siglip2ImageProcessor::new(&config(2))?;
-        let device = burn::backend::ndarray::NdArrayDevice::default();
-        let tensor = processor.preprocess_bytes::<TestBackend>(encoded.get_ref(), &device)?;
+        let device = burn::tensor::Device::flex();
+        let tensor = processor.preprocess_bytes(encoded.get_ref(), &device)?;
         assert_eq!(tensor.shape().dims::<4>(), [1, 3, 2, 2]);
         Ok(())
     }
@@ -601,7 +598,7 @@ mod tests {
             ("WebP", encode_oriented_webp(&source, 6)?),
         ];
         let processor = Siglip2ImageProcessor::new(&config(8))?;
-        let device = burn::backend::ndarray::NdArrayDevice::default();
+        let device = burn::tensor::Device::flex();
 
         for (format, encoded) in fixtures {
             // The ordinary image decode path intentionally leaves EXIF orientation unapplied,
@@ -612,15 +609,11 @@ mod tests {
             let oriented_once = decoded.rotate90();
             assert_eq!((oriented_once.width(), oriented_once.height()), (8, 16));
 
-            let actual =
-                tensor_values(processor.preprocess_bytes::<TestBackend>(&encoded, &device)?)?;
-            let expected =
-                tensor_values(processor.preprocess_image::<TestBackend>(&oriented_once, &device)?)?;
-            let not_oriented =
-                tensor_values(processor.preprocess_image::<TestBackend>(&decoded, &device)?)?;
-            let oriented_twice = tensor_values(
-                processor.preprocess_image::<TestBackend>(&oriented_once.rotate90(), &device)?,
-            )?;
+            let actual = tensor_values(processor.preprocess_bytes(&encoded, &device)?)?;
+            let expected = tensor_values(processor.preprocess_image(&oriented_once, &device)?)?;
+            let not_oriented = tensor_values(processor.preprocess_image(&decoded, &device)?)?;
+            let oriented_twice =
+                tensor_values(processor.preprocess_image(&oriented_once.rotate90(), &device)?)?;
 
             assert_eq!(actual, expected, "{format} EXIF orientation parity");
             assert_ne!(actual, not_oriented, "{format} orientation was not applied");
@@ -641,12 +634,12 @@ mod tests {
 
     #[test]
     fn rejects_dimension_and_pixel_bombs_from_tiny_headers() {
-        let device = burn::backend::ndarray::NdArrayDevice::default();
+        let device = burn::tensor::Device::flex();
         let processor = Siglip2ImageProcessor::new(&config(2)).expect("processor");
 
         let dimension_bomb = bmp_header(SIGLIP2_MAX_SOURCE_IMAGE_DIMENSION + 1, 1);
         let error = processor
-            .preprocess_bytes::<TestBackend>(&dimension_bomb, &device)
+            .preprocess_bytes(&dimension_bomb, &device)
             .expect_err("oversized dimension must fail during preflight");
         assert!(error.contains("dimensions"), "{error}");
 
@@ -654,7 +647,7 @@ mod tests {
         // remains below the strict per-axis limit. Only a 54-byte header is needed.
         let pixel_bomb = bmp_header(8192, 8193);
         let error = processor
-            .preprocess_bytes::<TestBackend>(&pixel_bomb, &device)
+            .preprocess_bytes(&pixel_bomb, &device)
             .expect_err("oversized pixel count must fail during preflight");
         assert!(
             error.contains("pixels") && error.contains("exceeding"),
@@ -667,10 +660,10 @@ mod tests {
         // This image is only about 49 KiB despite its hostile aspect ratio.
         let image =
             DynamicImage::ImageRgb8(RgbImage::new(SIGLIP2_MAX_SOURCE_IMAGE_DIMENSION + 1, 1));
-        let device = burn::backend::ndarray::NdArrayDevice::default();
+        let device = burn::tensor::Device::flex();
         let processor = Siglip2ImageProcessor::new(&config(2)).expect("processor");
         let error = processor
-            .preprocess_image::<TestBackend>(&image, &device)
+            .preprocess_image(&image, &device)
             .expect_err("extreme DynamicImage must fail before conversion");
         assert!(error.contains("per-dimension limit"), "{error}");
 
@@ -681,11 +674,11 @@ mod tests {
 
     #[test]
     fn rejects_empty_batches_and_non_rgb_configs() {
-        let device = burn::backend::ndarray::NdArrayDevice::default();
+        let device = burn::tensor::Device::flex();
         let processor = Siglip2ImageProcessor::new(&config(2)).expect("processor");
         assert!(
             processor
-                .preprocess_images::<TestBackend>(&[], &device)
+                .preprocess_images(&[], &device)
                 .expect_err("empty batch should fail")
                 .contains("at least one")
         );

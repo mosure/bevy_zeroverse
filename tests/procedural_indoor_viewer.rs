@@ -7,13 +7,11 @@ use bevy_zeroverse::{
     scene::{procedural_indoor::layout::IndoorManifest, ZeroverseSceneType},
 };
 
-/// Exercise the inspector's startup contract without requiring a GPU or display.
+/// Exercise the first-party editor's startup contract without requiring a GPU or display.
 /// This also runs in normal CI, where the rendering test below is ignored.
 #[test]
 fn editor_engine_types_and_picking_are_available() {
     use std::any::TypeId;
-
-    use bevy_inspector_egui::DefaultInspectorConfigPlugin;
 
     assert!(DefaultPlugins
         .build()
@@ -60,13 +58,10 @@ fn editor_engine_types_and_picking_are_available() {
     }
 
     // This panicked before automatic engine type registration was enabled.
-    app.add_plugins(DefaultInspectorConfigPlugin);
-    let registry = app.world().resource::<AppTypeRegistry>().read();
-    assert!(registry
-        .get_type_data::<bevy_inspector_egui::inspector_egui_impls::InspectorEguiImpl>(
-            TypeId::of::<bevy::gizmos::config::GizmoConfigStore>()
-        )
-        .is_some());
+    app.add_plugins(
+        bevy::camera_controller::pan_orbit_camera::controller::MinimalPanOrbitCameraPlugin,
+    );
+    assert!(app.is_plugin_added::<bevy::camera_controller::pan_orbit_camera::controller::MinimalPanOrbitCameraPlugin>());
 }
 
 #[test]

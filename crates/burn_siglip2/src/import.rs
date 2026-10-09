@@ -4,11 +4,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use burn::{
-    module::ParamId,
-    tensor::{BoolStore, Bytes, DType, TensorData},
-};
-use burn_store::{KeyRemapper, TensorSnapshot};
+use burn::tensor::{BoolStore, Bytes, DType, TensorData};
+use burn_store::{KeyRemapper, burn_pack::Tensor as TensorSnapshot};
 use half::{bf16, f16};
 use safetensors::{
     SafeTensors,
@@ -390,12 +387,7 @@ fn build_simple_snapshots(
             record.shape.clone(),
             dtype,
         );
-        snapshots.push(TensorSnapshot::from_data(
-            data,
-            name.split('.').map(|part| part.to_string()).collect(),
-            vec!["Siglip2Import".to_string()],
-            ParamId::new(),
-        ));
+        snapshots.push(burn_store::bridge::from_data(data, name.to_string(), None));
     }
     Ok(snapshots)
 }

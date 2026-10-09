@@ -1134,7 +1134,7 @@ fn editor_intrinsics_survive_room_regeneration() {
         .spawn((
             EditorCameraMarker::default(),
             ProcessedEditorCameraMarker,
-            bevy_panorbit_camera::PanOrbitCamera::default(),
+            bevy::camera_controller::pan_orbit_camera::prelude::PanOrbitCamera::default(),
             Transform::IDENTITY,
             Projection::Perspective(PerspectiveProjection {
                 fov: 0.92,

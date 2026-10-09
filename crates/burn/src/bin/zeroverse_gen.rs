@@ -11,7 +11,7 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
-use anyhow::{Context, Result};
+use anyhow::{Context as ContextExt, Result};
 use clap::{CommandFactory, FromArgMatches, Parser, ValueEnum};
 
 use bevy_zeroverse::scene::procedural_indoor::layout::IndoorLayout;
@@ -155,6 +155,10 @@ struct Cli {
     /// Auto retains all effects; Portable disables shadows, GI, SSAO, bloom and refraction
     #[arg(long, value_enum, default_value_t = bevy_zeroverse::scene::procedural_indoor::IndoorQuality::Auto)]
     indoor_quality: bevy_zeroverse::scene::procedural_indoor::IndoorQuality,
+
+    /// Geometric hits on glass surfaces or the geometry behind them.
+    #[arg(long, value_enum, default_value = "surface")]
+    annotation_glass: bevy_zeroverse::render::glass::AnnotationGlass,
 
     /// Export chair/object histograms, placement heatmaps and camera distributions after indoor generation
     #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
@@ -469,6 +473,8 @@ fn main() -> Result<()> {
                     .arg(cli.indoor_prefetch_depth.to_string())
                     .arg("--indoor-gi-rays")
                     .arg(cli.indoor_gi_rays.to_string())
+                    .arg("--annotation-glass")
+                    .arg(cli.annotation_glass.to_possible_value().unwrap().get_name())
                     .arg("--indoor-quality")
                     .arg(cli.indoor_quality.to_possible_value().unwrap().get_name())
                     .arg("--compression")
@@ -641,6 +647,7 @@ fn main() -> Result<()> {
             .transpose()?,
         indoor_gi_rays: cli.indoor_gi_rays,
         indoor_quality: cli.indoor_quality,
+        annotation_glass: cli.annotation_glass,
         rotation_augmentation: cli.rotation_augmentation,
         cameras: cli.cameras,
         enable_ui,
@@ -874,6 +881,7 @@ fn prepare_generation_metadata(cli: &mut Cli) -> Result<()> {
         "indoor_camera": cli.indoor_camera,
         "indoor_appearance": cli.indoor_appearance,
         "rgb_sensor": cli.rgb_sensor.as_deref().map(bevy_zeroverse_burn::sensor::SensorSettings::parse).transpose()?,
+        "annotation_glass": cli.annotation_glass,
         "quality": cli.indoor_quality.to_possible_value().unwrap().get_name(),
         "gi_settings": gi_settings,
         "gi_effective_enabled": cli.indoor_quality == bevy_zeroverse::scene::procedural_indoor::IndoorQuality::Auto && bevy_zeroverse::scene::procedural_indoor::gi::IndoorGiSettings::default().enabled,

@@ -1,9 +1,9 @@
 use bevy::mesh::VertexAttributeValues;
 use bevy::{
     light::{CascadeShadowConfigBuilder, NotShadowCaster, TransmittedShadowReceiver},
-    math::primitives::{Plane3d, Sphere},
     prelude::*,
     render::render_resource::Face,
+    shape::{Plane3d, Sphere},
 };
 use rand::seq::IndexedRandom;
 use rand::Rng;

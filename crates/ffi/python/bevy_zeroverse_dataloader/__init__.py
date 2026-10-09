@@ -309,6 +309,7 @@ class Sample:
         human_instance_ids=None,
         indoor_render_metadata=None,
         co_visibility_metadata=None,
+        annotation_glass="surface",
     ):
         self.views = views
         self.view_dim = view_dim
@@ -322,6 +323,7 @@ class Sample:
         self.indoor_manifest = indoor_manifest
         self.color_encoding = color_encoding
         self.annotation_precision = annotation_precision
+        self.annotation_glass = annotation_glass
         self.human_instance_ids = human_instance_ids
         self.indoor_render_metadata = indoor_render_metadata
         self.co_visibility_metadata = co_visibility_metadata
@@ -423,6 +425,7 @@ class Sample:
             indoor_manifest=getattr(rust_sample, "indoor_manifest", None),
             color_encoding=getattr(rust_sample, "color_encoding", "legacy"),
             annotation_precision=getattr(rust_sample, "annotation_precision", "float16_hdr"),
+            annotation_glass=getattr(rust_sample, "annotation_glass", "surface"),
             human_instance_ids=getattr(rust_sample, "human_instance_ids", None),
             indoor_render_metadata=getattr(rust_sample, "indoor_render_metadata", None),
             co_visibility_metadata=getattr(rust_sample, "co_visibility_metadata", None),
@@ -568,6 +571,7 @@ class Sample:
         sample['human_count'] = torch.tensor(people, dtype=torch.int64)
         manifest_people = json.loads(self.indoor_manifest).get('humans', []) if self.indoor_manifest else []
         sample['human_instance_ids'] = torch.tensor(self.human_instance_ids if self.human_instance_ids is not None else ([p['id'] for p in manifest_people] if manifest_people else list(range(people))), dtype=torch.int64)
+        sample['annotation_glass'] = torch.tensor({'surface': 0, 'through': 1}[self.annotation_glass], dtype=torch.uint8)
         sample['annotation_precision'] = torch.tensor({"float16_hdr": 0, "float32_geometry": 1}[self.annotation_precision], dtype=torch.uint8)
 
         self.views.clear()
@@ -1886,6 +1890,9 @@ class FolderDataset(Dataset):
         provenance_path = scene_dir / 'indoor_render_metadata.json'
         if provenance_path.exists():
             metadata['indoor_render_metadata'] = torch.tensor(list(provenance_path.read_bytes()), dtype=torch.uint8)
+        glass_path = scene_dir / 'annotation_glass.json'
+        glass = json.loads(glass_path.read_text()) if glass_path.exists() else 'surface'
+        metadata['annotation_glass'] = torch.tensor({'surface': 0, 'through': 1}[glass], dtype=torch.uint8)
         precision_path = scene_dir / 'annotation_precision.json'
         if precision_path.exists():
             metadata['annotation_precision'] = torch.tensor({"float16_hdr": 0, "float32_geometry": 1}[json.loads(precision_path.read_text())], dtype=torch.uint8)

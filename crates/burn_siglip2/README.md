@@ -6,7 +6,7 @@ The crate has its own version and can be used independently of Bevy and the scen
 generator. It was originally developed in `burn_loom`; see [ORIGIN.json](ORIGIN.json)
 for import provenance and [RELEASING.md](RELEASING.md) for the publication procedure.
 
-Production fixed-resolution SigLIP2 inference for Burn 0.21. The crate implements both image and
+Production fixed-resolution SigLIP2 inference for Burn 0.22. The crate implements both image and
 text towers, canonical preprocessing/tokenization, calibrated SigLIP scoring, native BPK loading,
 incremental BPK-shard loading, and a browser WebGPU interface.
 
@@ -28,8 +28,8 @@ loader rejects them.
 
 | Feature | Purpose |
 | --- | --- |
-| `ndarray` (default) | Burn NdArray CPU backend and compatibility aliases |
-| `flex` | Burn Flex portable SIMD CPU backend |
+| `ndarray` | Compatibility feature alias for Flex CPU |
+| `flex` (default) | Burn Flex portable SIMD CPU backend |
 | `preprocess` | Encoded image decoding and canonical RGB/bilinear/mean-std preprocessing |
 | `tokenizer` | Fixed-length SigLIP2 tokenization from Hugging Face tokenizer assets |
 | `pipeline` | `preprocess` + `tokenizer` ergonomic inference APIs |
@@ -39,11 +39,12 @@ loader rejects them.
 | `import` | Hugging Face safetensors importer |
 | `cli` | `siglip2_import` plus native bootstrap support |
 
-The default native backend is Burn NdArray with SIMD and multithreading. Enable `flex` and use
-`load_backend_flex` for Burn's portable SIMD + Rayon CPU kernels. Enable `webgpu` (or the
-lower-level `wgpu` feature) and use
-`load_backend_wgpu` for native GPU execution. Browser builds use unfused WebGPU because current
-browser validation rejects some fused command scopes; native Vulkan/Metal builds retain fusion.
+The default native backend is Burn Flex with SIMD and Rayon CPU kernels.
+`load_backend` and `load_backend_flex` both select Flex explicitly; the `ndarray`
+feature remains a compatibility alias. GPU runtimes use explicit Burn 0.22
+`Device` selection. GPU fusion is not enabled by this crate, so it can share
+Bevy's device with the motion renderer's unfused buffer bridge. Browser device
+initialization is asynchronous.
 F16 is an artifact storage format; loaders expand stored values to F32 tensors for the current
 backends.
 
@@ -80,7 +81,7 @@ fn main() -> Result<(), String> {
     let probabilities = response
         .probabilities_per_image
         .into_data()
-        .to_vec::<f32>()
+        .try_to_vec::<f32>()
         .map_err(|err| format!("{err:?}"))?;
     println!("{probabilities:?}");
     Ok(())
@@ -110,15 +111,15 @@ application can choose the first discrete adapter rather than relying on the pla
 
 ```rust
 use burn_siglip2::{
-    DefaultWgpuBackend, LoadRequest, WgpuDevice, load_backend_on_device,
+    Device, LoadRequest, load_backend_on_device,
 };
 
-let runtime = load_backend_on_device::<DefaultWgpuBackend>(
+let runtime = load_backend_on_device(
     LoadRequest::from_parts_manifest(
         "/models/base/siglip2-base-patch16-224.bpk.parts.json",
         true,
     ),
-    WgpuDevice::DiscreteGpu(0),
+    Device::wgpu(burn::tensor::DeviceKind::DiscreteGpu(0)),
 )?;
 # Ok::<(), String>(())
 ```
@@ -514,7 +515,7 @@ cargo test --release -p burn_siglip2 --features wgpu,pipeline \
   -- --nocapture
 ```
 
-An additional real-model matrix loads every selected bundle independently on NdArray, Flex CPU,
+An additional real-model matrix loads every selected bundle independently on the CPU compatibility loader, Flex CPU,
 and native WGPU; runs encoded-image preprocessing, tokenization, both towers, and calibrated
 scoring; and compares every returned embedding, logit, and probability with finite/shape/sigmoid
 checks. Omitting `BURN_SIGLIP2_BACKEND_MATRIX_VARIANTS` runs all three model sizes:
@@ -569,7 +570,7 @@ cargo package --list -p burn_siglip2 --allow-dirty --locked
 cargo publish --dry-run -p burn_siglip2 --allow-dirty --locked
 ```
 
-The crate's default build is NdArray CPU. The following consumer-facing feature checks cover the
+The crate's default build is Flex CPU. The following consumer-facing feature checks cover the
 independent CPU, native GPU, and browser configurations:
 
 ```bash
@@ -578,3 +579,11 @@ cargo check -p burn_siglip2 --no-default-features --features webgpu,pipeline
 cargo check -p burn_siglip2 --target wasm32-unknown-unknown \
   --no-default-features --features wasm
 ```
+
+## Burn 0.22 API migration
+
+Models and tensor responses no longer take a backend type parameter: use
+`Siglip2Model`, `Siglip2Runtime`, `Tensor<4>` and `Device`. Pass an explicit device
+to `load_backend_on_device`; tensor dtype and backend selection belong to that
+device. The three CDN variants, verified shard cache, tokenizer and F16 artifact
+format remain supported. Loaded weights and inference tensors remain F32.

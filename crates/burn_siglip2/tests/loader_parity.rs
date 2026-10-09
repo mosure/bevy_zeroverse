@@ -1,6 +1,5 @@
-#![cfg(feature = "ndarray")]
+#![cfg(feature = "flex")]
 
-use burn::backend::NdArray;
 use burn_siglip2::{
     Siglip2Config, build_bpk_header, load_model_from_bpk_path, load_model_from_parts_manifest_path,
     load_model_from_parts_manifest_path_with_stream_reader, load_model_from_safetensors_path,
@@ -39,10 +38,10 @@ fn tiny_bpk_fixture() -> Result<(tempfile::TempDir, std::path::PathBuf), Box<dyn
 fn safetensors_loader_rejects_tiny_test_profile() -> Result<(), Box<dyn std::error::Error>> {
     let dir = tempdir()?;
     let config = Siglip2Config::tiny_for_tests();
-    let device = burn::backend::ndarray::NdArrayDevice::default();
+    let device = burn::tensor::Device::flex();
     let weights_path = dir.path().join("siglip2_tiny_weights.safetensors");
     std::fs::write(&weights_path, tiny_safetensors_payload()?)?;
-    let result = load_model_from_safetensors_path::<NdArray>(&config, &device, &weights_path);
+    let result = load_model_from_safetensors_path(&config, &device, &weights_path);
     let message = result.expect_err("tiny test profile should be rejected");
     assert!(
         message.contains("production SigLIP2 profile"),
@@ -55,9 +54,9 @@ fn safetensors_loader_rejects_tiny_test_profile() -> Result<(), Box<dyn std::err
 fn bpk_parts_loader_rejects_tiny_test_profile() -> Result<(), Box<dyn std::error::Error>> {
     let (_dir, bpk_path) = tiny_bpk_fixture()?;
     let _report = write_bpk_parts(&bpk_path, 1, true)?;
-    let device = burn::backend::ndarray::NdArrayDevice::default();
+    let device = burn::tensor::Device::flex();
     let manifest_path = bpk_path.with_file_name("siglip2_tiny_model.bpk.parts.json");
-    let result = load_model_from_parts_manifest_path::<NdArray>(&device, &manifest_path, true);
+    let result = load_model_from_parts_manifest_path(&device, &manifest_path, true);
     let message = result.expect_err("tiny test profile should be rejected");
     assert!(
         message.contains("production SigLIP2 profile"),
@@ -70,9 +69,9 @@ fn bpk_parts_loader_rejects_tiny_test_profile() -> Result<(), Box<dyn std::error
 fn streamed_bpk_parts_loader_rejects_tiny_test_profile() -> Result<(), Box<dyn std::error::Error>> {
     let (_dir, bpk_path) = tiny_bpk_fixture()?;
     let _report = write_bpk_parts(&bpk_path, 1, true)?;
-    let device = burn::backend::ndarray::NdArrayDevice::default();
+    let device = burn::tensor::Device::flex();
     let manifest_path = bpk_path.with_file_name("siglip2_tiny_model.bpk.parts.json");
-    let result = load_model_from_parts_manifest_path_with_stream_reader::<NdArray, _, _>(
+    let result = load_model_from_parts_manifest_path_with_stream_reader::<_, _>(
         &device,
         &manifest_path,
         true,
@@ -92,8 +91,8 @@ fn streamed_bpk_parts_loader_rejects_tiny_test_profile() -> Result<(), Box<dyn s
 #[test]
 fn bpk_loader_rejects_tiny_fixture_bpk() -> Result<(), Box<dyn std::error::Error>> {
     let (_dir, bpk_path) = tiny_bpk_fixture()?;
-    let device = burn::backend::ndarray::NdArrayDevice::default();
-    let result = load_model_from_bpk_path::<NdArray>(&device, &bpk_path);
+    let device = burn::tensor::Device::flex();
+    let result = load_model_from_bpk_path(&device, &bpk_path);
     let message = result.expect_err("tiny fixture bpk should be rejected");
     assert!(
         message.contains("production SigLIP2 profile"),

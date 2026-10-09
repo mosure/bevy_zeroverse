@@ -85,37 +85,37 @@ fn opt_in_real_wgpu_dual_tower_matches_reference_logits() -> Result<(), String> 
         .image_embedding
         .into_data()
         .convert::<f32>()
-        .to_vec::<f32>()
+        .try_to_vec::<f32>()
         .map_err(|err| format!("failed to read WGPU image embedding: {err:?}"))?;
     let actual_text_embedding = response
         .text_embedding
         .into_data()
         .convert::<f32>()
-        .to_vec::<f32>()
+        .try_to_vec::<f32>()
         .map_err(|err| format!("failed to read WGPU text embedding: {err:?}"))?;
     let actual_normalized_image_embedding = response
         .normalized_image_embedding
         .into_data()
         .convert::<f32>()
-        .to_vec::<f32>()
+        .try_to_vec::<f32>()
         .map_err(|err| format!("failed to read normalized WGPU image embedding: {err:?}"))?;
     let actual_normalized_text_embedding = response
         .normalized_text_embedding
         .into_data()
         .convert::<f32>()
-        .to_vec::<f32>()
+        .try_to_vec::<f32>()
         .map_err(|err| format!("failed to read normalized WGPU text embedding: {err:?}"))?;
     let actual_logits = response
         .logits_per_image
         .into_data()
         .convert::<f32>()
-        .to_vec::<f32>()
+        .try_to_vec::<f32>()
         .map_err(|err| format!("failed to read WGPU logits: {err:?}"))?;
     let actual_probabilities = response
         .probabilities_per_image
         .into_data()
         .convert::<f32>()
-        .to_vec::<f32>()
+        .try_to_vec::<f32>()
         .map_err(|err| format!("failed to read WGPU probabilities: {err:?}"))?;
     let all_outputs_finite = [
         actual_image_embedding.as_slice(),

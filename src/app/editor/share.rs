@@ -48,8 +48,11 @@ pub(super) fn synchronize(
     config: Res<BevyZeroverseConfig>,
     time: Res<Time>,
     mut local: Local<ShareState>,
-    mut cameras: Query<(&mut PanOrbitCamera, &mut Projection), With<EditorCameraMarker>>,
-    mut roots: Query<&mut Transform, With<ZeroverseSceneRoot>>,
+    mut cameras: Query<
+        (&mut PanOrbitCamera, &mut Transform, &mut Projection),
+        With<EditorCameraMarker>,
+    >,
+    mut roots: Query<&mut Transform, (With<ZeroverseSceneRoot>, Without<EditorCameraMarker>)>,
     mut playback: ResMut<Playback>,
     mut flow: Option<ResMut<crate::render::optical_flow::FlowPreviewSettings>>,
     generation: Option<Res<crate::scene::procedural_indoor::IndoorGenerationStatus>>,
@@ -85,17 +88,10 @@ pub(super) fn synchronize(
     // A grid-only startup creates the editor camera later. Restore its pose then,
     // independently of the scene/timeline snapshot and URL update cadence.
     if !local.camera_restored {
-        if let Ok((mut pan, mut projection)) = cameras.single_mut() {
+        if let Ok((mut pan, mut transform, mut projection)) = cameras.single_mut() {
             if let Some(c) = &state.view.camera {
-                pan.focus = Vec3::from_array(c.focus);
-                pan.target_focus = pan.focus;
-                pan.yaw = Some(c.yaw);
-                pan.target_yaw = c.yaw;
-                pan.pitch = Some(c.pitch);
-                pan.target_pitch = c.pitch;
-                pan.radius = Some(c.radius);
-                pan.target_radius = c.radius;
-                pan.force_update = true;
+                *transform = orbit::transform(Vec3::from_array(c.focus), c.yaw, c.pitch, c.radius);
+                orbit::reset(&mut pan, c.radius);
                 if let Projection::Perspective(p) = &mut *projection {
                     p.fov = c.fov;
                 }
@@ -103,13 +99,15 @@ pub(super) fn synchronize(
             local.camera_restored = true;
         }
     }
-    if let Ok((pan, projection)) = cameras.single_mut() {
+    if let Ok((pan, transform, projection)) = cameras.single_mut() {
         if let Projection::Perspective(p) = &*projection {
             state.view.camera = Some(CameraPose {
-                focus: pan.focus.to_array(),
-                yaw: pan.yaw.unwrap_or(pan.target_yaw),
-                pitch: pan.pitch.unwrap_or(pan.target_pitch),
-                radius: pan.radius.unwrap_or(pan.target_radius),
+                focus: (transform.translation
+                    + transform.forward().as_vec3() * pan.last_anchor_depth().abs() as f32)
+                    .to_array(),
+                yaw: transform.rotation.to_euler(EulerRot::YXZ).0,
+                pitch: -transform.rotation.to_euler(EulerRot::YXZ).1,
+                radius: pan.last_anchor_depth().abs() as f32,
                 fov: p.fov,
             });
         }

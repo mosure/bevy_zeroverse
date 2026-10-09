@@ -15,6 +15,7 @@ fn sample_with_id(id: u8) -> ZeroverseSample {
         indoor_render_metadata: None,
         co_visibility_metadata: None,
         annotation_precision: Default::default(),
+        annotation_glass: Default::default(),
         color_encoding: Default::default(),
         views: vec![View {
             semantic: Vec::new(),

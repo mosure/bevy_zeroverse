@@ -1,6 +1,6 @@
 //! Optional, reproducible RGB corruptions on the CPU export worker. These are
 //! post-tonemapping augmentations, not a physical sensor simulation.
-use anyhow::{Context, Result, ensure};
+use anyhow::{Context as ContextExt, Result, ensure};
 use bevy_zeroverse::{
     render::color::{ColorEncoding, linear_to_srgb},
     sample::Sample,

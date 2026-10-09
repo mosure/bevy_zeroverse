@@ -1,4 +1,6 @@
 #[cfg(not(target_arch = "wasm32"))]
+pub mod gpu;
+#[cfg(not(target_arch = "wasm32"))]
 mod ground_truth_decode;
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod native_readback;
@@ -112,6 +114,9 @@ pub struct Sample {
     pub color_encoding: crate::render::color::ColorEncoding,
     #[serde(default)]
     pub annotation_precision: AnnotationPrecision,
+    /// Shared first-hit policy for all geometric annotation planes.
+    #[serde(default)]
+    pub annotation_glass: crate::render::glass::AnnotationGlass,
     /// Shared camera ordering, visibility tolerance and additive RGB legend.
     #[serde(default)]
     pub co_visibility_metadata: Option<serde_json::Value>,
@@ -578,6 +583,8 @@ pub struct CaptureStatus<'w> {
     pipeline: Option<Res<'w, crate::io::image_copy::CapturePipelineReadiness>>,
     clustering: Option<Res<'w, bevy::light::cluster::GlobalClusterSettings>>,
     failure: ResMut<'w, CaptureFailure>,
+    #[cfg(not(target_arch = "wasm32"))]
+    gpu_sink: Option<ResMut<'w, gpu::GpuSampleSink>>,
     gi_settings: Option<Res<'w, crate::scene::procedural_indoor::gi::IndoorGiSettings>>,
     gi_statistics: Option<Res<'w, crate::scene::procedural_indoor::gi::BakeStatistics>>,
     #[cfg(not(target_arch = "wasm32"))]
@@ -630,6 +637,8 @@ pub fn sample_stream(
     indoor: Option<Res<crate::scene::procedural_indoor::layout::IndoorManifest>>,
     capture_status: CaptureStatus,
 ) {
+    #[cfg(not(target_arch = "wasm32"))]
+    let mut gpu_sink = capture_status.gpu_sink;
     let pipeline_readiness = capture_status.pipeline;
     let mut failure = capture_status.failure;
     if !state.enabled {
@@ -977,6 +986,14 @@ pub fn sample_stream(
                     .expect("capture request overflow");
                 let id = capture.next_request;
                 for (_, _, _, _, copier) in &cameras {
+                    #[cfg(not(target_arch = "wasm32"))]
+                    if gpu_sink.is_some() && !copier.gpu_target_armed() {
+                        failure.0 = Some(
+                            "GPU sampler requires a consumer-owned target for every view".into(),
+                        );
+                        state.enabled = false;
+                        return;
+                    }
                     copier.request(id);
                 }
                 capture.pending = Some(id);
@@ -1005,6 +1022,16 @@ pub fn sample_stream(
             let view_idx = i + camera_count * state.step as usize;
             let view = &mut buffered_sample.views[view_idx];
 
+            #[cfg(not(target_arch = "wasm32"))]
+            if let Some(sink) = &mut gpu_sink {
+                let Some(packet) = image_copier.take_gpu(request_id) else {
+                    failure.0 = Some("GPU sampler received a CPU packet".into());
+                    state.enabled = false;
+                    return;
+                };
+                sink.images.push((view_idx, packet));
+                continue;
+            }
             let packet = image_copier
                 .take(request_id)
                 .expect("complete capture packet");
@@ -1207,6 +1234,7 @@ pub fn sample_stream(
     let human_pose_steps = std::mem::take(&mut buffered_sample.human_pose_steps);
     let views = std::mem::take(&mut buffered_sample.views);
     let sample: Sample = Sample {
+        annotation_glass: args.annotation_glass,
         co_visibility_metadata: buffered_sample.co_visibility_metadata.take(),
         indoor: if args.scene_type == crate::scene::ZeroverseSceneType::ProceduralIndoor {
             indoor.as_deref().cloned()
@@ -1238,8 +1266,9 @@ pub fn sample_stream(
             "gi_statistics": capture_status.gi_statistics.as_deref(),
             "shadow_map_size": args.indoor_quality.shadow_map_size(),
             "shadows": args.indoor_quality.shadows(),
-            "annotation_policy": "first geometric surface including opaque glass; geometric interpolated view normals; camera z-depth by default; no per-pixel instance IDs",
-            "capture_transport": "requested asynchronous queue-ordered GPU readback",
+            "annotation_glass": args.annotation_glass,
+            "annotation_policy": "first geometric surface according to annotation_glass; unrefracted rays; geometric interpolated view normals; camera z-depth by default; no per-pixel instance IDs",
+            "capture_transport": if cfg!(not(target_arch = "wasm32")) && capture.copied_bytes == 0 { "queue-ordered GPU-resident consumer buffers" } else { "requested asynchronous queue-ordered GPU readback" },
             "draw_submission": if !cfg!(target_arch = "wasm32") && args.image_copiers && !capture_status.draw_policy.indirect { "direct_gpu_preprocessing" } else { "bevy_default" },
             "light_clustering": capture_status.clustering.as_ref().map(|settings|
                 if settings.gpu_clustering.is_some() { "gpu" } else { "cpu_deterministic" }),
@@ -1267,8 +1296,14 @@ pub fn sample_stream(
         ovoxel,
     };
 
-    let sender = channels::sample_sender();
-    sender.send(sample).unwrap();
+    #[cfg(not(target_arch = "wasm32"))]
+    if let Some(sink) = &mut gpu_sink {
+        sink.metadata = Some(sample);
+    } else {
+        channels::sample_sender().send(sample).unwrap();
+    }
+    #[cfg(target_arch = "wasm32")]
+    channels::sample_sender().send(sample).unwrap();
 
     // restore primary render mode for subsequent captures
     *render_mode = args

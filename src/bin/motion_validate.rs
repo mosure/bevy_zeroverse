@@ -10,7 +10,7 @@ mod kinematics;
 mod prompts;
 #[cfg(not(target_arch = "wasm32"))]
 mod native {
-    use anyhow::{ensure, Context, Result};
+    use anyhow::{ensure, Context as ContextExt, Result};
     use bevy::prelude::*;
     use bevy_zeroverse::{
         app::BevyZeroverseConfig,

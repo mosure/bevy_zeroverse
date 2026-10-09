@@ -1,7 +1,7 @@
 //! Bounded process lifetimes without changing a sample's global index or seed.
 use std::{io, process::Child};
 
-use anyhow::{Context, Result, ensure};
+use anyhow::{Context as ContextExt, Result, ensure};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
 pub struct WorkerJob {

@@ -1,6 +1,7 @@
+use burn::tensor::Device;
 use std::collections::{BTreeMap, BTreeSet};
 
-use burn::tensor::{Int, Tensor, TensorData, backend::Backend, module::embedding};
+use burn::tensor::{Int, Tensor, TensorData, module::embedding};
 
 use crate::{config::Siglip2Config, hooks::HookRecorder};
 
@@ -163,16 +164,16 @@ pub(crate) fn validate_loaded_weight_keys(
 }
 
 #[derive(Debug, Clone)]
-struct Linear<B: Backend> {
-    weight: Tensor<B, 2>, // [out, in]
-    bias: Tensor<B, 1>,   // [out]
+struct Linear {
+    weight: Tensor<2>, // [out, in]
+    bias: Tensor<1>,   // [out]
 }
 
-impl<B: Backend> Linear<B> {
-    fn zeros(input_dim: usize, output_dim: usize, device: &B::Device) -> Self {
+impl Linear {
+    fn zeros(input_dim: usize, output_dim: usize, device: &Device) -> Self {
         Self {
-            weight: Tensor::<B, 2>::zeros([output_dim, input_dim], device),
-            bias: Tensor::<B, 1>::zeros([output_dim], device),
+            weight: Tensor::<2>::zeros([output_dim, input_dim], device),
+            bias: Tensor::<1>::zeros([output_dim], device),
         }
     }
 
@@ -182,11 +183,11 @@ impl<B: Backend> Linear<B> {
         shape: &[usize],
         values: Vec<f32>,
         expected: [usize; 2],
-        device: &B::Device,
+        device: &Device,
     ) -> Result<(), String> {
         expect_shape(key, shape, &expected)?;
         expect_values_shape(key, &values, &expected)?;
-        self.weight = Tensor::<B, 2>::from_data(TensorData::new(values, expected), device);
+        self.weight = Tensor::<2>::from_data(TensorData::new(values, expected), device);
         Ok(())
     }
 
@@ -196,15 +197,15 @@ impl<B: Backend> Linear<B> {
         shape: &[usize],
         values: Vec<f32>,
         expected: [usize; 1],
-        device: &B::Device,
+        device: &Device,
     ) -> Result<(), String> {
         expect_shape(key, shape, &expected)?;
         expect_values_shape(key, &values, &expected)?;
-        self.bias = Tensor::<B, 1>::from_data(TensorData::new(values, expected), device);
+        self.bias = Tensor::<1>::from_data(TensorData::new(values, expected), device);
         Ok(())
     }
 
-    fn forward_3d(&self, input: Tensor<B, 3>) -> Tensor<B, 3> {
+    fn forward_3d(&self, input: Tensor<3>) -> Tensor<3> {
         let [batch, tokens, input_dim] = input.shape().dims();
         let [output_dim, expected_input] = self.weight.shape().dims();
         assert_eq!(
@@ -222,7 +223,7 @@ impl<B: Backend> Linear<B> {
         output.add(bias).reshape([batch, tokens, output_dim])
     }
 
-    fn forward_2d(&self, input: Tensor<B, 2>) -> Tensor<B, 2> {
+    fn forward_2d(&self, input: Tensor<2>) -> Tensor<2> {
         let [batch, _] = input.shape().dims();
         let [output_dim, _] = self.weight.shape().dims();
         let output = input.matmul(self.weight.clone().swap_dims(0, 1));
@@ -236,18 +237,18 @@ impl<B: Backend> Linear<B> {
 }
 
 #[derive(Debug, Clone)]
-struct EmbeddingTable<B: Backend> {
+struct EmbeddingTable {
     // Keep individual backend buffers below WebGPU's guaranteed binding limits. The published
     // 256k-token table is 0.75-1.15 GiB as f32 and cannot be represented by one portable WebGPU
     // storage buffer.
-    weights: Vec<Tensor<B, 2>>, // each [chunk_vocab, hidden]
+    weights: Vec<Tensor<2>>, // each [chunk_vocab, hidden]
     vocab_size: usize,
     hidden_dim: usize,
     chunk_rows: usize,
 }
 
-impl<B: Backend> EmbeddingTable<B> {
-    fn zeros(vocab_size: usize, hidden_dim: usize, device: &B::Device) -> Self {
+impl EmbeddingTable {
+    fn zeros(vocab_size: usize, hidden_dim: usize, device: &Device) -> Self {
         Self::zeros_with_chunk_rows(vocab_size, hidden_dim, TEXT_TOKEN_EMBED_CHUNK_ROWS, device)
     }
 
@@ -255,13 +256,13 @@ impl<B: Backend> EmbeddingTable<B> {
         vocab_size: usize,
         hidden_dim: usize,
         chunk_rows: usize,
-        device: &B::Device,
+        device: &Device,
     ) -> Self {
         let chunk_rows = chunk_rows.max(1);
         let weights = (0..vocab_size)
             .step_by(chunk_rows)
             .map(|start| {
-                Tensor::<B, 2>::zeros([(vocab_size - start).min(chunk_rows), hidden_dim], device)
+                Tensor::<2>::zeros([(vocab_size - start).min(chunk_rows), hidden_dim], device)
             })
             .collect();
         Self {
@@ -278,7 +279,7 @@ impl<B: Backend> EmbeddingTable<B> {
         shape: &[usize],
         values: Vec<f32>,
         expected: [usize; 2],
-        device: &B::Device,
+        device: &Device,
     ) -> Result<(), String> {
         *self = Self::from_weight_values(key, shape, values, expected, self.chunk_rows, device)?;
         Ok(())
@@ -290,7 +291,7 @@ impl<B: Backend> EmbeddingTable<B> {
         values: Vec<f32>,
         expected: [usize; 2],
         chunk_rows: usize,
-        device: &B::Device,
+        device: &Device,
     ) -> Result<Self, String> {
         expect_shape(key, shape, &expected)?;
         expect_values_shape(key, &values, &expected)?;
@@ -302,7 +303,7 @@ impl<B: Backend> EmbeddingTable<B> {
             .chunks(values_per_chunk)
             .map(|values| {
                 let rows = values.len() / expected[1];
-                Tensor::<B, 2>::from_data(
+                Tensor::<2>::from_data(
                     TensorData::new(values.to_vec(), [rows, expected[1]]),
                     device,
                 )
@@ -322,7 +323,7 @@ impl<B: Backend> EmbeddingTable<B> {
         chunk_index: usize,
         shape: &[usize],
         values: Vec<f32>,
-        device: &B::Device,
+        device: &Device,
     ) -> Result<(), String> {
         let start = chunk_index
             .checked_mul(self.chunk_rows)
@@ -338,13 +339,13 @@ impl<B: Backend> EmbeddingTable<B> {
         let slot = self.weights.get_mut(chunk_index).ok_or_else(|| {
             format!("embedding chunk index {chunk_index} is out of range for '{key}'")
         })?;
-        *slot = Tensor::<B, 2>::from_data(TensorData::new(values, [rows, self.hidden_dim]), device);
+        *slot = Tensor::<2>::from_data(TensorData::new(values, [rows, self.hidden_dim]), device);
         Ok(())
     }
 
-    fn forward(&self, input_ids: Tensor<B, 2, Int>) -> Tensor<B, 3> {
+    fn forward(&self, input_ids: Tensor<2, Int>) -> Tensor<3> {
         let [batch, sequence] = input_ids.shape().dims();
-        let mut output: Option<Tensor<B, 3>> = None;
+        let mut output: Option<Tensor<3>> = None;
         for (chunk_index, weight) in self.weights.iter().enumerate() {
             let start = chunk_index * self.chunk_rows;
             let rows = weight.shape().dims::<2>()[0];
@@ -366,23 +367,23 @@ impl<B: Backend> EmbeddingTable<B> {
             });
         }
         output.unwrap_or_else(|| {
-            Tensor::<B, 3>::zeros([batch, sequence, self.hidden_dim], &input_ids.device())
+            Tensor::<3>::zeros([batch, sequence, self.hidden_dim], &input_ids.device())
         })
     }
 }
 
 #[derive(Debug, Clone)]
-struct LayerNorm<B: Backend> {
-    gamma: Tensor<B, 1>,
-    beta: Tensor<B, 1>,
+struct LayerNorm {
+    gamma: Tensor<1>,
+    beta: Tensor<1>,
     eps: f32,
 }
 
-impl<B: Backend> LayerNorm<B> {
-    fn identity(hidden_dim: usize, eps: f32, device: &B::Device) -> Self {
+impl LayerNorm {
+    fn identity(hidden_dim: usize, eps: f32, device: &Device) -> Self {
         Self {
-            gamma: Tensor::<B, 1>::ones([hidden_dim], device),
-            beta: Tensor::<B, 1>::zeros([hidden_dim], device),
+            gamma: Tensor::<1>::ones([hidden_dim], device),
+            beta: Tensor::<1>::zeros([hidden_dim], device),
             eps,
         }
     }
@@ -393,11 +394,11 @@ impl<B: Backend> LayerNorm<B> {
         shape: &[usize],
         values: Vec<f32>,
         expected: [usize; 1],
-        device: &B::Device,
+        device: &Device,
     ) -> Result<(), String> {
         expect_shape(key, shape, &expected)?;
         expect_values_shape(key, &values, &expected)?;
-        self.gamma = Tensor::<B, 1>::from_data(TensorData::new(values, expected), device);
+        self.gamma = Tensor::<1>::from_data(TensorData::new(values, expected), device);
         Ok(())
     }
 
@@ -407,15 +408,15 @@ impl<B: Backend> LayerNorm<B> {
         shape: &[usize],
         values: Vec<f32>,
         expected: [usize; 1],
-        device: &B::Device,
+        device: &Device,
     ) -> Result<(), String> {
         expect_shape(key, shape, &expected)?;
         expect_values_shape(key, &values, &expected)?;
-        self.beta = Tensor::<B, 1>::from_data(TensorData::new(values, expected), device);
+        self.beta = Tensor::<1>::from_data(TensorData::new(values, expected), device);
         Ok(())
     }
 
-    fn forward_3d(&self, input: Tensor<B, 3>) -> Tensor<B, 3> {
+    fn forward_3d(&self, input: Tensor<3>) -> Tensor<3> {
         let [batch, tokens, hidden_dim] = input.shape().dims();
         let mean = input.clone().mean_dim(2);
         let centered = input.clone().sub(mean);
@@ -438,17 +439,17 @@ impl<B: Backend> LayerNorm<B> {
 }
 
 #[derive(Debug, Clone)]
-struct Attention<B: Backend> {
-    q_proj: Linear<B>,
-    k_proj: Linear<B>,
-    v_proj: Linear<B>,
-    out_proj: Linear<B>,
+struct Attention {
+    q_proj: Linear,
+    k_proj: Linear,
+    v_proj: Linear,
+    out_proj: Linear,
     num_heads: usize,
     head_dim: usize,
 }
 
-impl<B: Backend> Attention<B> {
-    fn zeros(config: &Siglip2Config, device: &B::Device) -> Self {
+impl Attention {
+    fn zeros(config: &Siglip2Config, device: &Device) -> Self {
         Self {
             q_proj: Linear::zeros(config.hidden_dim, config.hidden_dim, device),
             k_proj: Linear::zeros(config.hidden_dim, config.hidden_dim, device),
@@ -461,12 +462,12 @@ impl<B: Backend> Attention<B> {
 
     fn forward(
         &self,
-        query_states: Tensor<B, 3>,
-        key_value_states: Tensor<B, 3>,
-        attention_mask: Option<Tensor<B, 4>>,
+        query_states: Tensor<3>,
+        key_value_states: Tensor<3>,
+        attention_mask: Option<Tensor<4>>,
         prefix: &str,
         mut hook: Option<&mut HookRecorder>,
-    ) -> Result<Tensor<B, 3>, String> {
+    ) -> Result<Tensor<3>, String> {
         let [batch, query_len, hidden_dim] = query_states.shape().dims();
         let [kv_batch, key_len, kv_hidden_dim] = key_value_states.shape().dims();
         if batch != kv_batch {
@@ -518,16 +519,16 @@ impl<B: Backend> Attention<B> {
 }
 
 #[derive(Debug, Clone)]
-struct Siglip2Block<B: Backend> {
-    norm1: LayerNorm<B>,
-    attn: Attention<B>,
-    norm2: LayerNorm<B>,
-    mlp_fc1: Linear<B>,
-    mlp_fc2: Linear<B>,
+struct Siglip2Block {
+    norm1: LayerNorm,
+    attn: Attention,
+    norm2: LayerNorm,
+    mlp_fc1: Linear,
+    mlp_fc2: Linear,
 }
 
-impl<B: Backend> Siglip2Block<B> {
-    fn zeros(config: &Siglip2Config, device: &B::Device) -> Self {
+impl Siglip2Block {
+    fn zeros(config: &Siglip2Config, device: &Device) -> Self {
         Self {
             norm1: LayerNorm::identity(config.hidden_dim, config.layer_norm_eps, device),
             attn: Attention::zeros(config, device),
@@ -541,10 +542,10 @@ impl<B: Backend> Siglip2Block<B> {
         &self,
         block_prefix: &str,
         block_idx: usize,
-        input: Tensor<B, 3>,
-        attention_mask: Option<Tensor<B, 4>>,
+        input: Tensor<3>,
+        attention_mask: Option<Tensor<4>>,
         mut hook: Option<&mut HookRecorder>,
-    ) -> Result<Tensor<B, 3>, String> {
+    ) -> Result<Tensor<3>, String> {
         let prefix = format!("{block_prefix}.{block_idx}");
         let attn_input = self.norm1.forward_3d(input.clone());
         let attn_out = self.attn.forward(
@@ -567,18 +568,18 @@ impl<B: Backend> Siglip2Block<B> {
 }
 
 #[derive(Debug, Clone)]
-struct AttentionPoolHead<B: Backend> {
-    probe: Tensor<B, 3>,
-    attn: Attention<B>,
-    layernorm: LayerNorm<B>,
-    mlp_fc1: Linear<B>,
-    mlp_fc2: Linear<B>,
+struct AttentionPoolHead {
+    probe: Tensor<3>,
+    attn: Attention,
+    layernorm: LayerNorm,
+    mlp_fc1: Linear,
+    mlp_fc2: Linear,
 }
 
-impl<B: Backend> AttentionPoolHead<B> {
-    fn zeros(config: &Siglip2Config, device: &B::Device) -> Self {
+impl AttentionPoolHead {
+    fn zeros(config: &Siglip2Config, device: &Device) -> Self {
         Self {
-            probe: Tensor::<B, 3>::zeros([1, 1, config.hidden_dim], device),
+            probe: Tensor::<3>::zeros([1, 1, config.hidden_dim], device),
             attn: Attention::zeros(config, device),
             layernorm: LayerNorm::identity(config.hidden_dim, config.layer_norm_eps, device),
             mlp_fc1: Linear::zeros(config.hidden_dim, config.intermediate_dim, device),
@@ -592,19 +593,19 @@ impl<B: Backend> AttentionPoolHead<B> {
         shape: &[usize],
         values: Vec<f32>,
         expected: [usize; 3],
-        device: &B::Device,
+        device: &Device,
     ) -> Result<(), String> {
         expect_shape(key, shape, &expected)?;
         expect_values_shape(key, &values, &expected)?;
-        self.probe = Tensor::<B, 3>::from_data(TensorData::new(values, expected), device);
+        self.probe = Tensor::<3>::from_data(TensorData::new(values, expected), device);
         Ok(())
     }
 
     fn forward(
         &self,
-        hidden_state: Tensor<B, 3>,
+        hidden_state: Tensor<3>,
         mut hook: Option<&mut HookRecorder>,
-    ) -> Result<Tensor<B, 2>, String> {
+    ) -> Result<Tensor<2>, String> {
         let [batch, _, hidden_dim] = hidden_state.shape().dims();
         let probe = self.probe.clone().expand([batch as i64, -1, -1]);
         let hidden_state = self.attn.forward(
@@ -629,20 +630,20 @@ impl<B: Backend> AttentionPoolHead<B> {
 }
 
 #[derive(Debug, Clone)]
-pub struct Siglip2Model<B: Backend> {
+pub struct Siglip2Model {
     pub config: Siglip2Config,
-    vision_patch_embed: Linear<B>,
-    vision_pos_embed: Tensor<B, 2>,
-    vision_blocks: Vec<Siglip2Block<B>>,
-    vision_post_norm: LayerNorm<B>,
-    vision_head: AttentionPoolHead<B>,
-    text_token_embed: EmbeddingTable<B>,
-    text_pos_embed: Tensor<B, 2>,
-    text_blocks: Vec<Siglip2Block<B>>,
-    text_final_norm: LayerNorm<B>,
-    text_projection: Linear<B>,
-    logit_scale: Tensor<B, 1>,
-    logit_bias: Tensor<B, 1>,
+    vision_patch_embed: Linear,
+    vision_pos_embed: Tensor<2>,
+    vision_blocks: Vec<Siglip2Block>,
+    vision_post_norm: LayerNorm,
+    vision_head: AttentionPoolHead,
+    text_token_embed: EmbeddingTable,
+    text_pos_embed: Tensor<2>,
+    text_blocks: Vec<Siglip2Block>,
+    text_final_norm: LayerNorm,
+    text_projection: Linear,
+    logit_scale: Tensor<1>,
+    logit_bias: Tensor<1>,
 }
 
 /// Incrementally constructs a model from backend tensors without first allocating a complete
@@ -653,28 +654,28 @@ pub struct Siglip2Model<B: Backend> {
 /// builder separate from [`Siglip2Model::zeros`] ensures sharded loaders only allocate each real
 /// tensor once. The final model is assembled by moving the populated tensors into their runtime
 /// structures after the complete key set has been validated.
-pub(crate) struct Siglip2ModelBuilder<B: Backend> {
+pub(crate) struct Siglip2ModelBuilder {
     config: Siglip2Config,
     expected_shapes: BTreeMap<String, Vec<usize>>,
     expected_text_chunk_shapes: BTreeMap<String, Vec<usize>>,
     loaded: BTreeSet<String>,
-    tensors: BTreeMap<String, PendingTensor<B>>,
-    text_token_embed: PendingEmbeddingTable<B>,
+    tensors: BTreeMap<String, PendingTensor>,
+    text_token_embed: PendingEmbeddingTable,
 }
 
-enum PendingTensor<B: Backend> {
-    D1(Tensor<B, 1>),
-    D2(Tensor<B, 2>),
-    D3(Tensor<B, 3>),
+enum PendingTensor {
+    D1(Tensor<1>),
+    D2(Tensor<2>),
+    D3(Tensor<3>),
 }
 
-enum PendingEmbeddingTable<B: Backend> {
+enum PendingEmbeddingTable {
     Empty,
-    Full(EmbeddingTable<B>),
-    Chunks(Vec<Option<Tensor<B, 2>>>),
+    Full(EmbeddingTable),
+    Chunks(Vec<Option<Tensor<2>>>),
 }
 
-impl<B: Backend> Siglip2ModelBuilder<B> {
+impl Siglip2ModelBuilder {
     pub(crate) fn new(config: Siglip2Config) -> Result<Self, String> {
         config.validate()?;
         if config.projection_dim != config.hidden_dim {
@@ -683,12 +684,12 @@ impl<B: Backend> Siglip2ModelBuilder<B> {
                 config.projection_dim, config.hidden_dim
             ));
         }
-        let expected_shapes = Siglip2Model::<B>::expected_weight_specs(&config)
+        let expected_shapes = Siglip2Model::expected_weight_specs(&config)
             .into_iter()
             .map(|spec| (spec.key, spec.shape))
             .collect();
         let expected_text_chunk_shapes =
-            Siglip2Model::<B>::expected_text_token_embedding_chunk_specs(&config)
+            Siglip2Model::expected_text_token_embedding_chunk_specs(&config)
                 .into_iter()
                 .map(|spec| (spec.key, spec.shape))
                 .collect();
@@ -711,7 +712,7 @@ impl<B: Backend> Siglip2ModelBuilder<B> {
         key: &str,
         shape: &[usize],
         values: Vec<f32>,
-        device: &B::Device,
+        device: &Device,
     ) -> Result<(), String> {
         if self.loaded.contains(key) {
             return Err(format!("duplicate weight key loaded: '{key}'"));
@@ -762,7 +763,7 @@ impl<B: Backend> Siglip2ModelBuilder<B> {
             expect_shape(key, shape, expected)?;
             expect_values_shape(key, &values, expected)?;
             let expected = [expected[0], expected[1]];
-            let tensor = Tensor::<B, 2>::from_data(TensorData::new(values, expected), device);
+            let tensor = Tensor::<2>::from_data(TensorData::new(values, expected), device);
             if matches!(self.text_token_embed, PendingEmbeddingTable::Empty) {
                 self.text_token_embed = PendingEmbeddingTable::Chunks(
                     (0..self.expected_text_chunk_shapes.len())
@@ -791,15 +792,15 @@ impl<B: Backend> Siglip2ModelBuilder<B> {
         expect_shape(key, shape, expected)?;
         expect_values_shape(key, &values, expected)?;
         let tensor = match expected.as_slice() {
-            [length] => PendingTensor::D1(Tensor::<B, 1>::from_data(
+            [length] => PendingTensor::D1(Tensor::<1>::from_data(
                 TensorData::new(values, [*length]),
                 device,
             )),
-            [rows, columns] => PendingTensor::D2(Tensor::<B, 2>::from_data(
+            [rows, columns] => PendingTensor::D2(Tensor::<2>::from_data(
                 TensorData::new(values, [*rows, *columns]),
                 device,
             )),
-            [first, second, third] => PendingTensor::D3(Tensor::<B, 3>::from_data(
+            [first, second, third] => PendingTensor::D3(Tensor::<3>::from_data(
                 TensorData::new(values, [*first, *second, *third]),
                 device,
             )),
@@ -815,7 +816,7 @@ impl<B: Backend> Siglip2ModelBuilder<B> {
         Ok(())
     }
 
-    pub(crate) fn finish(mut self) -> Result<Siglip2Model<B>, String> {
+    pub(crate) fn finish(mut self) -> Result<Siglip2Model, String> {
         validate_loaded_weight_keys(&self.config, &self.loaded)?;
 
         let text_token_embed = match self.text_token_embed {
@@ -904,10 +905,10 @@ impl<B: Backend> Siglip2ModelBuilder<B> {
     }
 }
 
-fn take_tensor_1<B: Backend>(
-    tensors: &mut BTreeMap<String, PendingTensor<B>>,
+fn take_tensor_1(
+    tensors: &mut BTreeMap<String, PendingTensor>,
     key: &str,
-) -> Result<Tensor<B, 1>, String> {
+) -> Result<Tensor<1>, String> {
     match tensors.remove(key) {
         Some(PendingTensor::D1(tensor)) => Ok(tensor),
         Some(_) => Err(format!("internal tensor rank mismatch for '{key}'")),
@@ -915,10 +916,10 @@ fn take_tensor_1<B: Backend>(
     }
 }
 
-fn take_tensor_2<B: Backend>(
-    tensors: &mut BTreeMap<String, PendingTensor<B>>,
+fn take_tensor_2(
+    tensors: &mut BTreeMap<String, PendingTensor>,
     key: &str,
-) -> Result<Tensor<B, 2>, String> {
+) -> Result<Tensor<2>, String> {
     match tensors.remove(key) {
         Some(PendingTensor::D2(tensor)) => Ok(tensor),
         Some(_) => Err(format!("internal tensor rank mismatch for '{key}'")),
@@ -926,10 +927,10 @@ fn take_tensor_2<B: Backend>(
     }
 }
 
-fn take_tensor_3<B: Backend>(
-    tensors: &mut BTreeMap<String, PendingTensor<B>>,
+fn take_tensor_3(
+    tensors: &mut BTreeMap<String, PendingTensor>,
     key: &str,
-) -> Result<Tensor<B, 3>, String> {
+) -> Result<Tensor<3>, String> {
     match tensors.remove(key) {
         Some(PendingTensor::D3(tensor)) => Ok(tensor),
         Some(_) => Err(format!("internal tensor rank mismatch for '{key}'")),
@@ -937,21 +938,21 @@ fn take_tensor_3<B: Backend>(
     }
 }
 
-fn take_linear<B: Backend>(
-    tensors: &mut BTreeMap<String, PendingTensor<B>>,
+fn take_linear(
+    tensors: &mut BTreeMap<String, PendingTensor>,
     prefix: &str,
-) -> Result<Linear<B>, String> {
+) -> Result<Linear, String> {
     Ok(Linear {
         weight: take_tensor_2(tensors, &format!("{prefix}.weight"))?,
         bias: take_tensor_1(tensors, &format!("{prefix}.bias"))?,
     })
 }
 
-fn take_layer_norm<B: Backend>(
-    tensors: &mut BTreeMap<String, PendingTensor<B>>,
+fn take_layer_norm(
+    tensors: &mut BTreeMap<String, PendingTensor>,
     prefix: &str,
     eps: f32,
-) -> Result<LayerNorm<B>, String> {
+) -> Result<LayerNorm, String> {
     Ok(LayerNorm {
         gamma: take_tensor_1(tensors, &format!("{prefix}.gamma"))?,
         beta: take_tensor_1(tensors, &format!("{prefix}.beta"))?,
@@ -959,11 +960,11 @@ fn take_layer_norm<B: Backend>(
     })
 }
 
-fn take_attention<B: Backend>(
-    tensors: &mut BTreeMap<String, PendingTensor<B>>,
+fn take_attention(
+    tensors: &mut BTreeMap<String, PendingTensor>,
     prefix: &str,
     config: &Siglip2Config,
-) -> Result<Attention<B>, String> {
+) -> Result<Attention, String> {
     Ok(Attention {
         q_proj: take_linear(tensors, &format!("{prefix}.q_proj"))?,
         k_proj: take_linear(tensors, &format!("{prefix}.k_proj"))?,
@@ -974,11 +975,11 @@ fn take_attention<B: Backend>(
     })
 }
 
-fn take_block<B: Backend>(
-    tensors: &mut BTreeMap<String, PendingTensor<B>>,
+fn take_block(
+    tensors: &mut BTreeMap<String, PendingTensor>,
     prefix: &str,
     config: &Siglip2Config,
-) -> Result<Siglip2Block<B>, String> {
+) -> Result<Siglip2Block, String> {
     Ok(Siglip2Block {
         norm1: take_layer_norm(tensors, &format!("{prefix}.norm1"), config.layer_norm_eps)?,
         attn: take_attention(tensors, &format!("{prefix}.attn"), config)?,
@@ -988,10 +989,10 @@ fn take_block<B: Backend>(
     })
 }
 
-fn take_pool_head<B: Backend>(
-    tensors: &mut BTreeMap<String, PendingTensor<B>>,
+fn take_pool_head(
+    tensors: &mut BTreeMap<String, PendingTensor>,
     config: &Siglip2Config,
-) -> Result<AttentionPoolHead<B>, String> {
+) -> Result<AttentionPoolHead, String> {
     Ok(AttentionPoolHead {
         probe: take_tensor_3(tensors, "vision.head.probe")?,
         attn: take_attention(tensors, "vision.head.attn", config)?,
@@ -1001,8 +1002,8 @@ fn take_pool_head<B: Backend>(
     })
 }
 
-impl<B: Backend> Siglip2Model<B> {
-    pub fn zeros(config: Siglip2Config, device: &B::Device) -> Result<Self, String> {
+impl Siglip2Model {
+    pub fn zeros(config: Siglip2Config, device: &Device) -> Result<Self, String> {
         config.validate()?;
         if config.projection_dim != config.hidden_dim {
             return Err(format!(
@@ -1012,7 +1013,7 @@ impl<B: Backend> Siglip2Model<B> {
         }
         let vision_patch_embed = Linear::zeros(config.patch_dim(), config.hidden_dim, device);
         let vision_pos_embed =
-            Tensor::<B, 2>::zeros([config.image_token_count(), config.hidden_dim], device);
+            Tensor::<2>::zeros([config.image_token_count(), config.hidden_dim], device);
         let vision_blocks = (0..config.num_layers)
             .map(|_| Siglip2Block::zeros(&config, device))
             .collect::<Vec<_>>();
@@ -1022,14 +1023,14 @@ impl<B: Backend> Siglip2Model<B> {
         let text_token_embed =
             EmbeddingTable::zeros(config.text_vocab_size, config.hidden_dim, device);
         let text_pos_embed =
-            Tensor::<B, 2>::zeros([config.text_max_positions, config.hidden_dim], device);
+            Tensor::<2>::zeros([config.text_max_positions, config.hidden_dim], device);
         let text_blocks = (0..config.num_layers)
             .map(|_| Siglip2Block::zeros(&config, device))
             .collect::<Vec<_>>();
         let text_final_norm = LayerNorm::identity(config.hidden_dim, config.layer_norm_eps, device);
         let text_projection = Linear::zeros(config.hidden_dim, config.projection_dim, device);
-        let logit_scale = Tensor::<B, 1>::zeros([1], device);
-        let logit_bias = Tensor::<B, 1>::zeros([1], device);
+        let logit_scale = Tensor::<1>::zeros([1], device);
+        let logit_bias = Tensor::<1>::zeros([1], device);
         Ok(Self {
             config,
             vision_patch_embed,
@@ -1048,7 +1049,7 @@ impl<B: Backend> Siglip2Model<B> {
     }
 
     pub fn backend_label() -> String {
-        std::any::type_name::<B>().to_string()
+        "burn::tensor::Device".to_string()
     }
 
     pub fn expected_weight_specs(config: &Siglip2Config) -> Vec<WeightSpec> {
@@ -1070,7 +1071,7 @@ impl<B: Backend> Siglip2Model<B> {
         key: &str,
         shape: &[usize],
         values: Vec<f32>,
-        device: &B::Device,
+        device: &Device,
     ) -> Result<(), String> {
         if key == "vision.patch_embed.weight" {
             return self.vision_patch_embed.set_weight(
@@ -1095,7 +1096,7 @@ impl<B: Backend> Siglip2Model<B> {
             expect_shape(key, shape, &expected)?;
             expect_values_shape(key, &values, &expected)?;
             self.vision_pos_embed =
-                Tensor::<B, 2>::from_data(TensorData::new(values, expected), device);
+                Tensor::<2>::from_data(TensorData::new(values, expected), device);
             return Ok(());
         }
         if key == "vision.post_norm.gamma" {
@@ -1147,8 +1148,7 @@ impl<B: Backend> Siglip2Model<B> {
             let expected = [self.config.text_max_positions, self.config.hidden_dim];
             expect_shape(key, shape, &expected)?;
             expect_values_shape(key, &values, &expected)?;
-            self.text_pos_embed =
-                Tensor::<B, 2>::from_data(TensorData::new(values, expected), device);
+            self.text_pos_embed = Tensor::<2>::from_data(TensorData::new(values, expected), device);
             return Ok(());
         }
         if key == "text.final_norm.gamma" {
@@ -1190,13 +1190,13 @@ impl<B: Backend> Siglip2Model<B> {
         if key == "logit_scale" {
             expect_shape(key, shape, &[1])?;
             expect_values_len(key, &values, 1)?;
-            self.logit_scale = Tensor::<B, 1>::from_data(TensorData::new(values, [1]), device);
+            self.logit_scale = Tensor::<1>::from_data(TensorData::new(values, [1]), device);
             return Ok(());
         }
         if key == "logit_bias" {
             expect_shape(key, shape, &[1])?;
             expect_values_len(key, &values, 1)?;
-            self.logit_bias = Tensor::<B, 1>::from_data(TensorData::new(values, [1]), device);
+            self.logit_bias = Tensor::<1>::from_data(TensorData::new(values, [1]), device);
             return Ok(());
         }
 
@@ -1228,9 +1228,9 @@ impl<B: Backend> Siglip2Model<B> {
 
     pub fn forward_image(
         &self,
-        image: Tensor<B, 4>,
+        image: Tensor<4>,
         mut hook: Option<&mut HookRecorder>,
-    ) -> Result<Tensor<B, 2>, String> {
+    ) -> Result<Tensor<2>, String> {
         let [batch, channels, height, width] = image.shape().dims();
         expect_nonzero_batch("image input", batch)?;
         if channels != self.config.channels {
@@ -1271,9 +1271,9 @@ impl<B: Backend> Siglip2Model<B> {
 
     pub fn forward_text(
         &self,
-        text_embeddings: Tensor<B, 3>,
+        text_embeddings: Tensor<3>,
         mut hook: Option<&mut HookRecorder>,
-    ) -> Result<Tensor<B, 2>, String> {
+    ) -> Result<Tensor<2>, String> {
         let [batch, seq_len, hidden] = text_embeddings.shape().dims();
         expect_nonzero_batch("text embedding input", batch)?;
         if hidden != self.config.hidden_dim {
@@ -1297,10 +1297,10 @@ impl<B: Backend> Siglip2Model<B> {
 
     pub fn forward_text_tokens(
         &self,
-        input_ids: Tensor<B, 2, Int>,
-        attention_mask: Option<Tensor<B, 2>>,
+        input_ids: Tensor<2, Int>,
+        attention_mask: Option<Tensor<2>>,
         mut hook: Option<&mut HookRecorder>,
-    ) -> Result<Tensor<B, 2>, String> {
+    ) -> Result<Tensor<2>, String> {
         let [batch, seq_len] = input_ids.shape().dims();
         expect_nonzero_batch("text token input", batch)?;
         if seq_len == 0 {
@@ -1323,20 +1323,20 @@ impl<B: Backend> Siglip2Model<B> {
 
         let embeddings = self.text_token_embed.forward(input_ids);
         record_tensor(&mut hook, "text.token_embeddings", &embeddings)?;
-        let attention_mask = attention_mask.map(|mask| prepare_text_attention_mask(mask));
+        let attention_mask = attention_mask.map(prepare_text_attention_mask);
         self.encode_text_embeddings(embeddings, attention_mask, hook)
     }
 
     pub fn forward(
         &self,
-        image: Tensor<B, 4>,
+        image: Tensor<4>,
         hook: Option<&mut HookRecorder>,
-    ) -> Result<Tensor<B, 2>, String> {
+    ) -> Result<Tensor<2>, String> {
         self.forward_image(image, hook)
     }
 
     /// L2-normalize a batch of image or text embeddings along its feature dimension.
-    pub fn normalize_embeddings(embeddings: Tensor<B, 2>) -> Tensor<B, 2> {
+    pub fn normalize_embeddings(embeddings: Tensor<2>) -> Tensor<2> {
         let squared = embeddings.clone().mul(embeddings.clone());
         let norm = squared.sum_dim(1).add_scalar(1.0e-12).sqrt();
         embeddings.div(norm)
@@ -1349,9 +1349,9 @@ impl<B: Backend> Siglip2Model<B> {
     /// `[image_batch, text_batch]`, matching Hugging Face's `logits_per_image`.
     pub fn similarity_logits(
         &self,
-        image_embeddings: Tensor<B, 2>,
-        text_embeddings: Tensor<B, 2>,
-    ) -> Result<Tensor<B, 2>, String> {
+        image_embeddings: Tensor<2>,
+        text_embeddings: Tensor<2>,
+    ) -> Result<Tensor<2>, String> {
         let [image_batch, image_dim] = image_embeddings.shape().dims();
         let [text_batch, text_dim] = text_embeddings.shape().dims();
         expect_nonzero_batch("image embedding input", image_batch)?;
@@ -1382,10 +1382,10 @@ impl<B: Backend> Siglip2Model<B> {
 
     fn encode_text_embeddings(
         &self,
-        mut embeddings: Tensor<B, 3>,
-        attention_mask: Option<Tensor<B, 4>>,
+        mut embeddings: Tensor<3>,
+        attention_mask: Option<Tensor<4>>,
         mut hook: Option<&mut HookRecorder>,
-    ) -> Result<Tensor<B, 2>, String> {
+    ) -> Result<Tensor<2>, String> {
         let [batch, seq_len, hidden] = embeddings.shape().dims();
         embeddings = add_position_embedding(
             embeddings,
@@ -1423,7 +1423,7 @@ impl<B: Backend> Siglip2Model<B> {
         key: &str,
         shape: &[usize],
         values: Vec<f32>,
-        device: &B::Device,
+        device: &Device,
     ) -> Result<(), String> {
         match rest {
             "probe" => self.vision_head.set_probe(
@@ -1625,14 +1625,14 @@ fn append_pool_head_specs(specs: &mut Vec<WeightSpec>, config: &Siglip2Config) {
     });
 }
 
-fn apply_block_weight<B: Backend>(
-    blocks: &mut [Siglip2Block<B>],
+fn apply_block_weight(
+    blocks: &mut [Siglip2Block],
     config: &Siglip2Config,
     rest: &str,
     key: &str,
     shape: &[usize],
     values: Vec<f32>,
-    device: &B::Device,
+    device: &Device,
 ) -> Result<(), String> {
     let mut parts = rest.split('.');
     let block_idx = parts
@@ -1742,10 +1742,10 @@ fn apply_block_weight<B: Backend>(
     }
 }
 
-fn record_tensor<B: Backend, const D: usize>(
+fn record_tensor<const D: usize>(
     hook: &mut Option<&mut HookRecorder>,
     name: &str,
-    tensor: &Tensor<B, D>,
+    tensor: &Tensor<D>,
 ) -> Result<(), String> {
     if let Some(hook) = hook.as_deref_mut() {
         hook.record_tensor(name, tensor)?;
@@ -1753,12 +1753,12 @@ fn record_tensor<B: Backend, const D: usize>(
     Ok(())
 }
 
-fn add_position_embedding<B: Backend>(
-    tokens: Tensor<B, 3>,
-    pos_embed: Tensor<B, 2>,
+fn add_position_embedding(
+    tokens: Tensor<3>,
+    pos_embed: Tensor<2>,
     max_tokens: usize,
     hidden_dim: usize,
-) -> Result<Tensor<B, 3>, String> {
+) -> Result<Tensor<3>, String> {
     let [batch, token_count, hidden] = tokens.shape().dims();
     if hidden != hidden_dim {
         return Err(format!(
@@ -1777,7 +1777,7 @@ fn add_position_embedding<B: Backend>(
     Ok(tokens.add(pos))
 }
 
-fn prepare_text_attention_mask<B: Backend>(mask: Tensor<B, 2>) -> Tensor<B, 4> {
+fn prepare_text_attention_mask(mask: Tensor<2>) -> Tensor<4> {
     let [batch, seq_len] = mask.shape().dims();
     mask.mul_scalar(-1.0)
         .add_scalar(1.0)
@@ -1785,13 +1785,13 @@ fn prepare_text_attention_mask<B: Backend>(mask: Tensor<B, 2>) -> Tensor<B, 4> {
         .reshape([batch, 1, 1, seq_len])
 }
 
-fn broadcast_attention_mask<B: Backend>(
-    mask: Tensor<B, 4>,
+fn broadcast_attention_mask(
+    mask: Tensor<4>,
     batch: usize,
     num_heads: usize,
     query_len: usize,
     key_len: usize,
-) -> Result<Tensor<B, 4>, String> {
+) -> Result<Tensor<4>, String> {
     let [mask_batch, mask_heads, mask_query, mask_key] = mask.shape().dims();
     if mask_batch != batch {
         return Err(format!(
@@ -1821,14 +1821,14 @@ fn broadcast_attention_mask<B: Backend>(
     ]))
 }
 
-fn softmax_last_dim_4d<B: Backend>(tensor: Tensor<B, 4>) -> Tensor<B, 4> {
+fn softmax_last_dim_4d(tensor: Tensor<4>) -> Tensor<4> {
     let max = tensor.clone().max_dim(3);
     let exp = tensor.sub(max).exp();
     let denom = exp.clone().sum_dim(3);
     exp.div(denom)
 }
 
-fn gelu<B: Backend, const D: usize>(tensor: Tensor<B, D>) -> Tensor<B, D> {
+fn gelu<const D: usize>(tensor: Tensor<D>) -> Tensor<D> {
     // Hugging Face `gelu_pytorch_tanh`, which is the activation recorded in every
     // supported fixed-resolution SigLIP 2 checkpoint.
     const SQRT_2_OVER_PI: f32 = 0.797_884_6;
@@ -1852,7 +1852,7 @@ fn gelu<B: Backend, const D: usize>(tensor: Tensor<B, D>) -> Tensor<B, D> {
     tensor.mul(inner).mul_scalar(0.5)
 }
 
-fn patchify<B: Backend>(image: Tensor<B, 4>, patch_size: usize) -> Tensor<B, 3> {
+fn patchify(image: Tensor<4>, patch_size: usize) -> Tensor<3> {
     let [batch, channels, height, width] = image.shape().dims();
     assert_eq!(
         height % patch_size,
@@ -1907,12 +1907,9 @@ fn expect_values_shape(key: &str, values: &[f32], shape: &[usize]) -> Result<(),
     expect_values_len(key, values, expected)
 }
 
-#[cfg(all(test, feature = "ndarray"))]
+#[cfg(all(test, any(feature = "ndarray", feature = "flex")))]
 mod tests {
-    use burn::{
-        backend::NdArray,
-        tensor::{Int, Tensor, TensorData},
-    };
+    use burn::tensor::{Int, Tensor, TensorData};
 
     use crate::{config::Siglip2Config, hooks::HookRecorder};
 
@@ -1921,13 +1918,13 @@ mod tests {
     };
 
     fn populate_builder(
-        builder: &mut Siglip2ModelBuilder<NdArray>,
+        builder: &mut Siglip2ModelBuilder,
         config: &Siglip2Config,
         embedding_values: &[f32],
         use_embedding_chunks: bool,
-        device: &burn::backend::ndarray::NdArrayDevice,
+        device: &burn::tensor::Device,
     ) -> Result<(), String> {
-        for spec in Siglip2Model::<NdArray>::expected_weight_specs(config) {
+        for spec in Siglip2Model::expected_weight_specs(config) {
             if spec.key == "text.token_embed.weight" {
                 continue;
             }
@@ -1936,10 +1933,9 @@ mod tests {
         }
 
         if use_embedding_chunks {
-            for (index, spec) in
-                Siglip2Model::<NdArray>::expected_text_token_embedding_chunk_specs(config)
-                    .into_iter()
-                    .enumerate()
+            for (index, spec) in Siglip2Model::expected_text_token_embedding_chunk_specs(config)
+                .into_iter()
+                .enumerate()
             {
                 let start_row = index * TEXT_TOKEN_EMBED_CHUNK_ROWS;
                 let end_row = start_row + spec.shape[0];
@@ -1966,8 +1962,8 @@ mod tests {
     #[test]
     fn model_builder_rejects_duplicate_unexpected_and_incomplete_weights() -> Result<(), String> {
         let config = Siglip2Config::tiny_for_tests();
-        let device = burn::backend::ndarray::NdArrayDevice::default();
-        let mut builder = Siglip2ModelBuilder::<NdArray>::new(config)?;
+        let device = burn::tensor::Device::flex();
+        let mut builder = Siglip2ModelBuilder::new(config)?;
 
         builder.apply_weight("logit_scale", &[1], vec![1.0], &device)?;
         let duplicate = builder
@@ -1989,12 +1985,12 @@ mod tests {
     fn model_builder_full_and_chunked_embeddings_are_equivalent() -> Result<(), String> {
         let mut config = Siglip2Config::tiny_for_tests();
         config.text_vocab_size = TEXT_TOKEN_EMBED_CHUNK_ROWS + 2;
-        let device = burn::backend::ndarray::NdArrayDevice::default();
+        let device = burn::tensor::Device::flex();
         let embedding_values = (0..config.text_vocab_size * config.hidden_dim)
             .map(|index| (index % 997) as f32 / 997.0)
             .collect::<Vec<_>>();
 
-        let mut full_builder = Siglip2ModelBuilder::<NdArray>::new(config.clone())?;
+        let mut full_builder = Siglip2ModelBuilder::new(config.clone())?;
         populate_builder(
             &mut full_builder,
             &config,
@@ -2004,7 +2000,7 @@ mod tests {
         )?;
         let full = full_builder.finish()?;
 
-        let mut chunked_builder = Siglip2ModelBuilder::<NdArray>::new(config.clone())?;
+        let mut chunked_builder = Siglip2ModelBuilder::new(config.clone())?;
         populate_builder(
             &mut chunked_builder,
             &config,
@@ -2014,7 +2010,7 @@ mod tests {
         )?;
         let chunked = chunked_builder.finish()?;
 
-        let ids = Tensor::<NdArray, 2, Int>::from_data(
+        let ids = Tensor::<2, Int>::from_data(
             TensorData::new(
                 vec![
                     0i64,
@@ -2031,14 +2027,14 @@ mod tests {
             .forward(ids.clone())
             .into_data()
             .convert::<f32>()
-            .to_vec::<f32>()
+            .try_to_vec::<f32>()
             .map_err(|error| format!("full embedding readback failed: {error:?}"))?;
         let chunked_values = chunked
             .text_token_embed
             .forward(ids)
             .into_data()
             .convert::<f32>()
-            .to_vec::<f32>()
+            .try_to_vec::<f32>()
             .map_err(|error| format!("chunked embedding readback failed: {error:?}"))?;
         assert_eq!(full_values, chunked_values);
         Ok(())
@@ -2046,19 +2042,17 @@ mod tests {
 
     #[test]
     fn chunked_embedding_matches_rows_across_chunk_boundaries() -> Result<(), String> {
-        let device = burn::backend::ndarray::NdArrayDevice::default();
-        let mut table = EmbeddingTable::<NdArray>::zeros_with_chunk_rows(5, 2, 2, &device);
+        let device = burn::tensor::Device::flex();
+        let mut table = EmbeddingTable::zeros_with_chunk_rows(5, 2, 2, &device);
         let values = vec![0.0, 1.0, 10.0, 11.0, 20.0, 21.0, 30.0, 31.0, 40.0, 41.0];
         table.set_weight("embedding", &[5, 2], values.clone(), [5, 2], &device)?;
-        let ids = Tensor::<NdArray, 2, Int>::from_data(
-            TensorData::new(vec![0i64, 1, 2, 3, 4], [1, 5]),
-            &device,
-        );
+        let ids =
+            Tensor::<2, Int>::from_data(TensorData::new(vec![0i64, 1, 2, 3, 4], [1, 5]), &device);
         let actual = table
             .forward(ids)
             .into_data()
             .convert::<f32>()
-            .to_vec::<f32>()
+            .try_to_vec::<f32>()
             .map_err(|err| format!("embedding readback failed: {err:?}"))?;
         assert_eq!(actual, values);
         Ok(())
@@ -2066,20 +2060,18 @@ mod tests {
 
     #[test]
     fn chunked_embedding_can_be_loaded_without_a_full_table_allocation() -> Result<(), String> {
-        let device = burn::backend::ndarray::NdArrayDevice::default();
-        let mut table = EmbeddingTable::<NdArray>::zeros_with_chunk_rows(5, 2, 2, &device);
+        let device = burn::tensor::Device::flex();
+        let mut table = EmbeddingTable::zeros_with_chunk_rows(5, 2, 2, &device);
         table.set_weight_chunk("chunk.0", 0, &[2, 2], vec![0.0, 1.0, 10.0, 11.0], &device)?;
         table.set_weight_chunk("chunk.1", 1, &[2, 2], vec![20.0, 21.0, 30.0, 31.0], &device)?;
         table.set_weight_chunk("chunk.2", 2, &[1, 2], vec![40.0, 41.0], &device)?;
-        let ids = Tensor::<NdArray, 2, Int>::from_data(
-            TensorData::new(vec![0i64, 1, 2, 3, 4], [1, 5]),
-            &device,
-        );
+        let ids =
+            Tensor::<2, Int>::from_data(TensorData::new(vec![0i64, 1, 2, 3, 4], [1, 5]), &device);
         let actual = table
             .forward(ids)
             .into_data()
             .convert::<f32>()
-            .to_vec::<f32>()
+            .try_to_vec::<f32>()
             .map_err(|err| format!("embedding readback failed: {err:?}"))?;
         assert_eq!(
             actual,
@@ -2090,8 +2082,8 @@ mod tests {
 
     #[test]
     fn chunked_embedding_rejects_malformed_value_lengths_without_panicking() {
-        let device = burn::backend::ndarray::NdArrayDevice::default();
-        let mut table = EmbeddingTable::<NdArray>::zeros_with_chunk_rows(5, 2, 2, &device);
+        let device = burn::tensor::Device::flex();
+        let mut table = EmbeddingTable::zeros_with_chunk_rows(5, 2, 2, &device);
         let error = table
             .set_weight_chunk("chunk.0", 0, &[2, 2], vec![1.0, 2.0, 3.0], &device)
             .expect_err("short value buffer must fail");
@@ -2101,8 +2093,8 @@ mod tests {
     #[test]
     fn apply_weight_rejects_all_malformed_tensor_buffers_without_panicking() -> Result<(), String> {
         let cfg = Siglip2Config::tiny_for_tests();
-        let device = burn::backend::ndarray::NdArrayDevice::default();
-        let mut model = Siglip2Model::<NdArray>::zeros(cfg.clone(), &device)?;
+        let device = burn::tensor::Device::flex();
+        let mut model = Siglip2Model::zeros(cfg.clone(), &device)?;
         let cases = [
             (
                 "vision.patch_embed.weight",
@@ -2159,15 +2151,13 @@ mod tests {
 
     #[test]
     fn gelu_matches_pytorch_tanh_reference() -> Result<(), String> {
-        let device = burn::backend::ndarray::NdArrayDevice::default();
-        let input = Tensor::<NdArray, 1>::from_data(
-            TensorData::new(vec![-1.0f32, 0.0, 1.0, 2.0], [4]),
-            &device,
-        );
+        let device = burn::tensor::Device::flex();
+        let input =
+            Tensor::<1>::from_data(TensorData::new(vec![-1.0f32, 0.0, 1.0, 2.0], [4]), &device);
         let actual = gelu(input)
             .into_data()
             .convert::<f32>()
-            .to_vec::<f32>()
+            .try_to_vec::<f32>()
             .map_err(|err| format!("gelu readback failed: {err:?}"))?;
         let expected = [-0.158_808, 0.0, 0.841_192, 1.954_598];
         for (actual, expected) in actual.into_iter().zip(expected) {
@@ -2178,16 +2168,16 @@ mod tests {
 
     #[test]
     fn gelu_extreme_inputs_remain_finite_and_saturate() -> Result<(), String> {
-        let device = burn::backend::ndarray::NdArrayDevice::default();
+        let device = burn::tensor::Device::flex();
         let input_values = [-1.0e6f32, -100.0, -20.0, -10.0, 10.0, 20.0, 100.0, 1.0e6];
-        let input = Tensor::<NdArray, 1>::from_data(
+        let input = Tensor::<1>::from_data(
             TensorData::new(input_values.to_vec(), [input_values.len()]),
             &device,
         );
         let actual = gelu(input)
             .into_data()
             .convert::<f32>()
-            .to_vec::<f32>()
+            .try_to_vec::<f32>()
             .map_err(|err| format!("gelu readback failed: {err:?}"))?;
 
         assert!(actual.iter().all(|value| value.is_finite()));
@@ -2206,8 +2196,8 @@ mod tests {
     #[test]
     fn similarity_logits_normalizes_both_towers() -> Result<(), String> {
         let cfg = Siglip2Config::tiny_for_tests();
-        let device = burn::backend::ndarray::NdArrayDevice::default();
-        let model = Siglip2Model::<NdArray>::zeros(cfg.clone(), &device)?;
+        let device = burn::tensor::Device::flex();
+        let model = Siglip2Model::zeros(cfg.clone(), &device)?;
         let mut image = vec![0.0f32; cfg.projection_dim * 2];
         image[0] = 3.0;
         image[1] = 4.0;
@@ -2216,19 +2206,13 @@ mod tests {
         text[0] = 1.0;
         text[cfg.projection_dim + 1] = 1.0;
         let logits = model.similarity_logits(
-            Tensor::<NdArray, 2>::from_data(
-                TensorData::new(image, [2, cfg.projection_dim]),
-                &device,
-            ),
-            Tensor::<NdArray, 2>::from_data(
-                TensorData::new(text, [2, cfg.projection_dim]),
-                &device,
-            ),
+            Tensor::<2>::from_data(TensorData::new(image, [2, cfg.projection_dim]), &device),
+            Tensor::<2>::from_data(TensorData::new(text, [2, cfg.projection_dim]), &device),
         )?;
         let actual = logits
             .into_data()
             .convert::<f32>()
-            .to_vec::<f32>()
+            .try_to_vec::<f32>()
             .map_err(|err| format!("logit readback failed: {err:?}"))?;
         let expected = [0.6f32, 0.8, 0.0, 1.0];
         for (actual, expected) in actual.into_iter().zip(expected) {
@@ -2240,7 +2224,7 @@ mod tests {
     #[test]
     fn expected_weight_specs_cover_dual_tower_keys() {
         let cfg = Siglip2Config::tiny_for_tests();
-        let specs = Siglip2Model::<NdArray>::expected_weight_specs(&cfg);
+        let specs = Siglip2Model::expected_weight_specs(&cfg);
         assert!(!specs.is_empty());
         assert!(
             specs
@@ -2258,10 +2242,9 @@ mod tests {
     #[test]
     fn zeros_model_forward_image_has_expected_shape() -> Result<(), String> {
         let cfg = Siglip2Config::tiny_for_tests();
-        let device = burn::backend::ndarray::NdArrayDevice::default();
-        let model = Siglip2Model::<NdArray>::zeros(cfg.clone(), &device)?;
-        let input =
-            Tensor::<NdArray, 4>::zeros([2, cfg.channels, cfg.image_size, cfg.image_size], &device);
+        let device = burn::tensor::Device::flex();
+        let model = Siglip2Model::zeros(cfg.clone(), &device)?;
+        let input = Tensor::<4>::zeros([2, cfg.channels, cfg.image_size, cfg.image_size], &device);
         let output = model.forward(input, None)?;
         assert_eq!(output.shape().dims(), [2, cfg.hidden_dim]);
         Ok(())
@@ -2270,13 +2253,13 @@ mod tests {
     #[test]
     fn zeros_model_forward_text_tokens_has_expected_shape() -> Result<(), String> {
         let cfg = Siglip2Config::tiny_for_tests();
-        let device = burn::backend::ndarray::NdArrayDevice::default();
-        let model = Siglip2Model::<NdArray>::zeros(cfg.clone(), &device)?;
-        let input_ids = Tensor::<NdArray, 2, Int>::from_data(
+        let device = burn::tensor::Device::flex();
+        let model = Siglip2Model::zeros(cfg.clone(), &device)?;
+        let input_ids = Tensor::<2, Int>::from_data(
             TensorData::new(vec![1i64, 2, 3, 0, 4, 5, 0, 0], [2, 4]),
             &device,
         );
-        let attention_mask = Tensor::<NdArray, 2>::from_data(
+        let attention_mask = Tensor::<2>::from_data(
             TensorData::new(vec![1.0f32, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0], [2, 4]),
             &device,
         );
@@ -2288,30 +2271,29 @@ mod tests {
     #[test]
     fn public_tensor_paths_reject_zero_batches_before_backend_operations() -> Result<(), String> {
         let cfg = Siglip2Config::tiny_for_tests();
-        let device = burn::backend::ndarray::NdArrayDevice::default();
-        let model = Siglip2Model::<NdArray>::zeros(cfg.clone(), &device)?;
+        let device = burn::tensor::Device::flex();
+        let model = Siglip2Model::zeros(cfg.clone(), &device)?;
 
-        let image =
-            Tensor::<NdArray, 4>::zeros([0, cfg.channels, cfg.image_size, cfg.image_size], &device);
+        let image = Tensor::<4>::zeros([0, cfg.channels, cfg.image_size, cfg.image_size], &device);
         let image_error = model
             .forward_image(image, None)
             .expect_err("a zero image batch must fail before patchification");
         assert_eq!(image_error, "image input batch size must be > 0");
 
-        let text_embeddings = Tensor::<NdArray, 3>::zeros([0, 2, cfg.hidden_dim], &device);
+        let text_embeddings = Tensor::<3>::zeros([0, 2, cfg.hidden_dim], &device);
         let text_error = model
             .forward_text(text_embeddings, None)
             .expect_err("a zero text embedding batch must fail before encoding");
         assert_eq!(text_error, "text embedding input batch size must be > 0");
 
-        let input_ids = Tensor::<NdArray, 2, Int>::zeros([0, 2], &device);
+        let input_ids = Tensor::<2, Int>::zeros([0, 2], &device);
         let token_error = model
             .forward_text_tokens(input_ids, None, None)
             .expect_err("a zero token batch must fail before embedding lookup");
         assert_eq!(token_error, "text token input batch size must be > 0");
 
-        let empty_images = Tensor::<NdArray, 2>::zeros([0, cfg.projection_dim], &device);
-        let one_text = Tensor::<NdArray, 2>::zeros([1, cfg.projection_dim], &device);
+        let empty_images = Tensor::<2>::zeros([0, cfg.projection_dim], &device);
+        let one_text = Tensor::<2>::zeros([1, cfg.projection_dim], &device);
         let image_similarity_error = model
             .similarity_logits(empty_images, one_text)
             .expect_err("a zero image embedding batch must fail before normalization");
@@ -2320,8 +2302,8 @@ mod tests {
             "image embedding input batch size must be > 0"
         );
 
-        let one_image = Tensor::<NdArray, 2>::zeros([1, cfg.projection_dim], &device);
-        let empty_texts = Tensor::<NdArray, 2>::zeros([0, cfg.projection_dim], &device);
+        let one_image = Tensor::<2>::zeros([1, cfg.projection_dim], &device);
+        let empty_texts = Tensor::<2>::zeros([0, cfg.projection_dim], &device);
         let text_similarity_error = model
             .similarity_logits(one_image, empty_texts)
             .expect_err("a zero text embedding batch must fail before normalization");
@@ -2335,10 +2317,9 @@ mod tests {
     #[test]
     fn forward_records_hooks_when_enabled() -> Result<(), String> {
         let cfg = Siglip2Config::tiny_for_tests();
-        let device = burn::backend::ndarray::NdArrayDevice::default();
-        let model = Siglip2Model::<NdArray>::zeros(cfg.clone(), &device)?;
-        let input =
-            Tensor::<NdArray, 4>::zeros([1, cfg.channels, cfg.image_size, cfg.image_size], &device);
+        let device = burn::tensor::Device::flex();
+        let model = Siglip2Model::zeros(cfg.clone(), &device)?;
+        let input = Tensor::<4>::zeros([1, cfg.channels, cfg.image_size, cfg.image_size], &device);
         let mut hook = HookRecorder::new();
         let _ = model.forward(input, Some(&mut hook))?;
         assert!(hook.len() > 3);

@@ -5,7 +5,7 @@ use std::{
     path::Path,
 };
 
-use burn::tensor::backend::Backend;
+use burn::tensor::Device;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
@@ -209,9 +209,9 @@ fn safetensors_dtype_bytes(dtype: safetensors::tensor::Dtype) -> Option<usize> {
 ///
 /// Exactly one BPK shard needs to be resident on the host at a time. Each shard is verified,
 /// applied to the backend, and can then be dropped by the caller before the next fetch.
-pub struct Siglip2PartsLoader<B: Backend> {
+pub struct Siglip2PartsLoader {
     manifest: Siglip2BpkPartsManifest,
-    builder: Siglip2ModelBuilder<B>,
+    builder: Siglip2ModelBuilder,
     loaded_weights: BTreeSet<String>,
     applied_parts: BTreeSet<usize>,
     verify_checksums: bool,
@@ -219,10 +219,10 @@ pub struct Siglip2PartsLoader<B: Backend> {
     loaded_weight_identity: LoadedWeightIdentity,
 }
 
-impl<B: Backend> Siglip2PartsLoader<B> {
+impl Siglip2PartsLoader {
     pub fn new(
         manifest: Siglip2BpkPartsManifest,
-        _device: &B::Device,
+        _device: &Device,
         verify_checksums: bool,
     ) -> Result<Self, String> {
         validate_production_bpk_parts_manifest(Path::new("remote.bpk.parts.json"), &manifest)?;
@@ -251,7 +251,7 @@ impl<B: Backend> Siglip2PartsLoader<B> {
         &mut self,
         part_index: usize,
         bytes: &[u8],
-        device: &B::Device,
+        device: &Device,
     ) -> Result<(), String> {
         let entry = self.manifest.parts.get(part_index).ok_or_else(|| {
             format!(
@@ -307,7 +307,7 @@ impl<B: Backend> Siglip2PartsLoader<B> {
         Ok(())
     }
 
-    pub fn finish(mut self) -> Result<(Siglip2Model<B>, PartLoadStats), String> {
+    pub fn finish(mut self) -> Result<(Siglip2Model, PartLoadStats), String> {
         if self.applied_parts.len() != self.manifest.parts.len() {
             let missing = (0..self.manifest.parts.len())
                 .filter(|index| !self.applied_parts.contains(index))
@@ -321,7 +321,7 @@ impl<B: Backend> Siglip2PartsLoader<B> {
                 missing.join(", ")
             ));
         }
-        verify_all_expected_weights_loaded::<B>(&self.manifest.config, &self.loaded_weights)?;
+        verify_all_expected_weights_loaded(&self.manifest.config, &self.loaded_weights)?;
         self.stats.loaded_weight_sha256 = self.loaded_weight_identity.finish()?;
         let model = self.builder.finish()?;
         Ok((model, self.stats))
@@ -329,12 +329,12 @@ impl<B: Backend> Siglip2PartsLoader<B> {
 }
 
 /// Load a manifest and ordered shard byte buffers without requiring filesystem access.
-pub fn load_model_from_parts_bytes<B: Backend>(
-    device: &B::Device,
+pub fn load_model_from_parts_bytes(
+    device: &Device,
     manifest: Siglip2BpkPartsManifest,
     parts: impl IntoIterator<Item = Vec<u8>>,
     verify_checksums: bool,
-) -> Result<(Siglip2Model<B>, PartLoadStats), String> {
+) -> Result<(Siglip2Model, PartLoadStats), String> {
     let mut loader = Siglip2PartsLoader::new(manifest, device, verify_checksums)?;
     for (index, bytes) in parts.into_iter().enumerate() {
         loader.apply_part(index, bytes.as_slice(), device)?;
@@ -404,11 +404,11 @@ pub fn validate_manifest_for_web(
     Ok(())
 }
 
-pub fn load_model_from_safetensors_path<B: Backend>(
+pub fn load_model_from_safetensors_path(
     config: &Siglip2Config,
-    device: &B::Device,
+    device: &Device,
     weights_path: &Path,
-) -> Result<(Siglip2Model<B>, PartLoadStats), String> {
+) -> Result<(Siglip2Model, PartLoadStats), String> {
     config.validate_production_profile()?;
     let bytes = fs::read(weights_path).map_err(|err| {
         format!(
@@ -419,10 +419,10 @@ pub fn load_model_from_safetensors_path<B: Backend>(
     load_model_from_safetensor_bytes(config, device, bytes.as_slice(), None)
 }
 
-pub fn load_model_from_bpk_path<B: Backend>(
-    device: &B::Device,
+pub fn load_model_from_bpk_path(
+    device: &Device,
     bpk_path: &Path,
-) -> Result<(Siglip2Model<B>, PartLoadStats), String> {
+) -> Result<(Siglip2Model, PartLoadStats), String> {
     let package = read_siglip2_bpk(bpk_path)?;
     if package.header.weight_sha256.trim().is_empty() {
         return Err(format!(
@@ -450,11 +450,11 @@ pub fn load_model_from_bpk_path<B: Backend>(
     Ok((model, stats))
 }
 
-pub fn load_model_from_parts_manifest_path<B: Backend>(
-    device: &B::Device,
+pub fn load_model_from_parts_manifest_path(
+    device: &Device,
     manifest_path: &Path,
     verify_checksums: bool,
-) -> Result<(Siglip2Model<B>, PartLoadStats), String> {
+) -> Result<(Siglip2Model, PartLoadStats), String> {
     load_model_from_parts_manifest_path_with_stream_reader(
         device,
         manifest_path,
@@ -466,12 +466,12 @@ pub fn load_model_from_parts_manifest_path<B: Backend>(
     )
 }
 
-pub fn load_model_from_parts_manifest_path_with_reader<B: Backend, F>(
-    device: &B::Device,
+pub fn load_model_from_parts_manifest_path_with_reader<F>(
+    device: &Device,
     manifest_path: &Path,
     verify_checksums: bool,
     mut read_part_bytes: F,
-) -> Result<(Siglip2Model<B>, PartLoadStats), String>
+) -> Result<(Siglip2Model, PartLoadStats), String>
 where
     F: FnMut(&Path, &Siglip2BpkPartEntry) -> Result<Vec<u8>, String>,
 {
@@ -522,18 +522,18 @@ where
         )?;
     }
 
-    verify_all_expected_weights_loaded::<B>(&manifest.config, &loaded)?;
+    verify_all_expected_weights_loaded(&manifest.config, &loaded)?;
     stats.loaded_weight_sha256 = loaded_weight_identity.finish()?;
     let model = builder.finish()?;
     Ok((model, stats))
 }
 
-pub fn load_model_from_parts_manifest_path_with_stream_reader<B: Backend, F, R>(
-    device: &B::Device,
+pub fn load_model_from_parts_manifest_path_with_stream_reader<F, R>(
+    device: &Device,
     manifest_path: &Path,
     verify_checksums: bool,
     mut open_part_reader: F,
-) -> Result<(Siglip2Model<B>, PartLoadStats), String>
+) -> Result<(Siglip2Model, PartLoadStats), String>
 where
     F: FnMut(&Path, &Siglip2BpkPartEntry) -> Result<R, String>,
     R: Read,
@@ -580,7 +580,7 @@ where
         )?;
     }
 
-    verify_all_expected_weights_loaded::<B>(&manifest.config, &loaded)?;
+    verify_all_expected_weights_loaded(&manifest.config, &loaded)?;
     stats.loaded_weight_sha256 = loaded_weight_identity.finish()?;
     let model = builder.finish()?;
     Ok((model, stats))
@@ -764,12 +764,12 @@ fn reject_non_finite_weight_values(name: &str, values: &[f32]) -> Result<(), Str
     Ok(())
 }
 
-fn load_model_from_safetensor_bytes<B: Backend>(
+fn load_model_from_safetensor_bytes(
     config: &Siglip2Config,
-    device: &B::Device,
+    device: &Device,
     bytes: &[u8],
     expected_storage_dtype: Option<safetensors::tensor::Dtype>,
-) -> Result<(Siglip2Model<B>, PartLoadStats), String> {
+) -> Result<(Siglip2Model, PartLoadStats), String> {
     if let Some(expected_dtype) = expected_storage_dtype {
         validate_safetensor_storage_dtype(bytes, expected_dtype)?;
     }
@@ -791,15 +791,15 @@ fn load_model_from_safetensor_bytes<B: Backend>(
         &mut loaded_weight_identity,
         expected_storage_dtype,
     )?;
-    verify_all_expected_weights_loaded::<B>(config, &loaded)?;
+    verify_all_expected_weights_loaded(config, &loaded)?;
     stats.loaded_weight_sha256 = loaded_weight_identity.finish()?;
     let model = builder.finish()?;
     Ok((model, stats))
 }
 
-fn apply_safetensor_part_bytes<B: Backend>(
-    builder: &mut Siglip2ModelBuilder<B>,
-    device: &B::Device,
+fn apply_safetensor_part_bytes(
+    builder: &mut Siglip2ModelBuilder,
+    device: &Device,
     bytes: &[u8],
     loaded: &mut BTreeSet<String>,
     stats: &mut PartLoadStats,
@@ -841,11 +841,10 @@ fn apply_safetensor_part_bytes<B: Backend>(
     Ok(())
 }
 
-fn verify_all_expected_weights_loaded<B: Backend>(
+fn verify_all_expected_weights_loaded(
     config: &Siglip2Config,
     loaded: &BTreeSet<String>,
 ) -> Result<(), String> {
-    let _ = std::marker::PhantomData::<B>;
     validate_loaded_weight_keys(config, loaded)
 }
 
@@ -878,11 +877,10 @@ fn sha256_hex(bytes: &[u8]) -> String {
     hex::encode(digest.finalize())
 }
 
-#[cfg(all(test, feature = "ndarray"))]
+#[cfg(all(test, any(feature = "ndarray", feature = "flex")))]
 mod tests {
     use std::collections::{BTreeMap, BTreeSet};
 
-    use burn::backend::NdArray;
     use safetensors::tensor::{Dtype, TensorView, serialize};
     use tempfile::tempdir;
 
@@ -1106,8 +1104,8 @@ mod tests {
         let mut manifest = production_manifest();
         manifest.parts[0].sha256 = "  ".to_string();
         std::fs::write(&manifest_path, serde_json::to_vec(&manifest)?)?;
-        let device = burn::backend::ndarray::NdArrayDevice::default();
-        let error = load_model_from_parts_manifest_path_with_reader::<NdArray, _>(
+        let device = burn::tensor::Device::flex();
+        let error = load_model_from_parts_manifest_path_with_reader::<_>(
             &device,
             &manifest_path,
             false,
@@ -1129,9 +1127,8 @@ mod tests {
         let mut manifest = production_manifest();
         manifest.parts[0].sha256 = "  ".to_string();
         std::fs::write(&manifest_path, serde_json::to_vec(&manifest)?)?;
-        let device = burn::backend::ndarray::NdArrayDevice::default();
+        let device = burn::tensor::Device::flex();
         let error = load_model_from_parts_manifest_path_with_stream_reader::<
-            NdArray,
             _,
             std::io::Cursor<Vec<u8>>,
         >(&device, &manifest_path, true, |_, _| {
@@ -1153,8 +1150,8 @@ mod tests {
         let mut manifest = production_manifest();
         manifest.parts[0].bytes = MAX_PRODUCTION_PART_BYTES + 1;
         std::fs::write(&manifest_path, serde_json::to_vec(&manifest)?)?;
-        let device = burn::backend::ndarray::NdArrayDevice::default();
-        let error = load_model_from_parts_manifest_path_with_reader::<NdArray, _>(
+        let device = burn::tensor::Device::flex();
+        let error = load_model_from_parts_manifest_path_with_reader::<_>(
             &device,
             &manifest_path,
             true,
@@ -1203,8 +1200,8 @@ mod tests {
 
         // The compatibility parser/writer accepts legacy blank checksums, but the
         // production model loader must reject one before allocating model tensors.
-        let device = burn::backend::ndarray::NdArrayDevice::default();
-        let error = load_model_from_bpk_path::<NdArray>(&device, &bpk_path)
+        let device = burn::tensor::Device::flex();
+        let error = load_model_from_bpk_path(&device, &bpk_path)
             .expect_err("production BPK loading must require a payload checksum");
         assert!(
             error.contains("no payload SHA-256 checksum"),
@@ -1222,8 +1219,8 @@ mod tests {
         let header = build_bpk_header(Siglip2Config::default(), payload.as_slice());
         write_siglip2_bpk(&bpk_path, &header, payload.as_slice())?;
 
-        let device = burn::backend::ndarray::NdArrayDevice::default();
-        let error = load_model_from_bpk_path::<NdArray>(&device, &bpk_path)
+        let device = burn::tensor::Device::flex();
+        let error = load_model_from_bpk_path(&device, &bpk_path)
             .expect_err("production BPK without provenance must fail");
         assert!(
             error.contains("missing immutable artifact provenance"),
@@ -1245,8 +1242,8 @@ mod tests {
         );
         write_siglip2_bpk(&bpk_path, &header, payload.as_slice())?;
 
-        let device = burn::backend::ndarray::NdArrayDevice::default();
-        let error = load_model_from_bpk_path::<NdArray>(&device, &bpk_path)
+        let device = burn::tensor::Device::flex();
+        let error = load_model_from_bpk_path(&device, &bpk_path)
             .expect_err("F32 payload with F16 provenance must fail");
         assert!(
             error.contains("artifact provenance declares F16"),
@@ -1268,28 +1265,27 @@ mod tests {
         const FULL_KEY: &str = "text.token_embed.weight";
 
         let config = Siglip2Config::tiny_for_tests();
-        let full = crate::Siglip2Model::<NdArray>::expected_weight_key_set(&config);
-        assert!(verify_all_expected_weights_loaded::<NdArray>(&config, &full).is_ok());
+        let full = crate::Siglip2Model::expected_weight_key_set(&config);
+        assert!(verify_all_expected_weights_loaded(&config, &full).is_ok());
 
-        let chunks =
-            crate::Siglip2Model::<NdArray>::expected_text_token_embedding_chunk_specs(&config)
-                .into_iter()
-                .map(|spec| spec.key)
-                .collect::<BTreeSet<_>>();
+        let chunks = crate::Siglip2Model::expected_text_token_embedding_chunk_specs(&config)
+            .into_iter()
+            .map(|spec| spec.key)
+            .collect::<BTreeSet<_>>();
         let mut chunked = full.clone();
         chunked.remove(FULL_KEY);
         chunked.extend(chunks.iter().cloned());
-        assert!(verify_all_expected_weights_loaded::<NdArray>(&config, &chunked).is_ok());
+        assert!(verify_all_expected_weights_loaded(&config, &chunked).is_ok());
 
         let mut mixed = chunked.clone();
         mixed.insert(FULL_KEY.to_string());
-        let mixed_error = verify_all_expected_weights_loaded::<NdArray>(&config, &mixed)
+        let mixed_error = verify_all_expected_weights_loaded(&config, &mixed)
             .expect_err("mixed full/chunk embedding must fail");
         assert!(mixed_error.contains("never both"));
 
         let mut incomplete = chunked;
         incomplete.remove(chunks.first().expect("tiny config has an embedding chunk"));
-        let missing_error = verify_all_expected_weights_loaded::<NdArray>(&config, &incomplete)
+        let missing_error = verify_all_expected_weights_loaded(&config, &incomplete)
             .expect_err("incomplete embedding chunks must fail");
         assert!(missing_error.contains("missing required weight tensors"));
     }

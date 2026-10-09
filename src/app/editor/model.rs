@@ -266,6 +266,7 @@ pub fn live(path: &str) -> bool {
     matches!(
         path,
         "/render_mode"
+            | "/annotation_glass"
             | "/camera_grid"
             | "/room_schematic"
             | "/material_grid"

@@ -1,3 +1,4 @@
+#![recursion_limit = "256"]
 //! Persistent synthetic capture and bounded dataset export.
 //!
 //! For full-quality indoor multi-view datasets, start with
@@ -13,6 +14,12 @@
 //! run_chunk_generation(config)?;
 //! # Ok::<(), anyhow::Error>(())
 //! ```
+//!
+//! For native JIT training, enable `gpu_tensor` and retain a
+//! `gpu::GpuLiveDataset`. Build the model and optimizer on its `device()` to
+//! consume GPU tensors without a host image round trip. It schedules one future
+//! sample automatically while training runs. The CPU/archive interface remains
+//! useful for export and host processing.
 //!
 //! For in-memory consumption, retain a [`LiveDataset`] and call
 //! [`LiveDataset::next_sample`]. Its renderer persists across calls and compatible
@@ -36,3 +43,6 @@ pub mod tui;
 
 pub use dataset::{ChunkDataset, LiveDataset, LiveDatasetConfig, ZeroverseSample};
 pub use fs::{FsDataset, load_sample_dir, save_sample_to_fs};
+
+#[cfg(all(feature = "gpu_tensor", not(target_arch = "wasm32")))]
+pub mod gpu;

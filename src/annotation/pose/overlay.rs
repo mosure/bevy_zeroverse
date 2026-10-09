@@ -118,6 +118,7 @@ fn sync(
                 Camera3d::default(),
                 Msaa::Off,
                 Tonemapping::None,
+                bevy::core_pipeline::tonemapping::DebandDither::Disabled,
                 LAYER,
             ))
             .id()

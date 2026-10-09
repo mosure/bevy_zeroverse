@@ -4,8 +4,7 @@ use std::path::PathBuf;
 use burn::tensor::{Int, Tensor, TensorData};
 #[cfg(feature = "wgpu")]
 use burn_siglip2::{
-    DefaultWgpuBackend, LoadRequest, PartLoadStats, Siglip2Config, Siglip2Model, Siglip2Runtime,
-    load_backend_wgpu,
+    LoadRequest, PartLoadStats, Siglip2Config, Siglip2Model, Siglip2Runtime, load_backend_wgpu,
 };
 
 fn fixture_path(rel: &str) -> PathBuf {
@@ -31,18 +30,18 @@ fn wgpu_loader_rejects_tiny_fixture_bpk() {
 #[test]
 fn wgpu_executes_both_towers_and_calibrated_scoring() -> Result<(), String> {
     let config = Siglip2Config::tiny_for_tests();
-    let device = burn_wgpu::WgpuDevice::default();
-    let model = Siglip2Model::<DefaultWgpuBackend>::zeros(config.clone(), &device)?;
+    let device = burn::tensor::Device::wgpu(Default::default());
+    let model = Siglip2Model::zeros(config.clone(), &device)?;
     let runtime = Siglip2Runtime {
         model,
         device: device.clone(),
         load_stats: PartLoadStats::default(),
     };
-    let image = Tensor::<DefaultWgpuBackend, 4>::zeros(
+    let image = Tensor::<4>::zeros(
         [1, config.channels, config.image_size, config.image_size],
         &device,
     );
-    let input_ids = Tensor::<DefaultWgpuBackend, 2, Int>::from_data(
+    let input_ids = Tensor::<2, Int>::from_data(
         TensorData::new(
             vec![0i64; config.text_max_positions],
             [1, config.text_max_positions],
@@ -64,7 +63,7 @@ fn wgpu_executes_both_towers_and_calibrated_scoring() -> Result<(), String> {
         .probabilities_per_image
         .into_data()
         .convert::<f32>()
-        .to_vec::<f32>()
+        .try_to_vec::<f32>()
         .map_err(|err| format!("failed to read WGPU probabilities: {err:?}"))?;
     assert_eq!(probabilities, vec![0.5]);
     Ok(())

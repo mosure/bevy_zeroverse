@@ -1,6 +1,6 @@
 [package]
 name = "bevy_zeroverse_publication"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2021"
 license = "MIT"
 description = "Validated Rust project-page and whitepaper pipeline for bevy_zeroverse"
@@ -10,7 +10,7 @@ include = ["src/**", "tests/**", "templates/**", "fonts/**", "README.md", "Cargo
 
 [dependencies]
 anyhow = "1"
-bevy_zeroverse_capture = { version = "0.1.2", path = "../capture", features = ["provenance"] }
+bevy_zeroverse_capture = { version = "0.1.3", path = "../capture", features = ["provenance"] }
 base64 = "0.22"
 clap = { version = "4.5", features = ["derive"] }
 fs2 = "0.4"
@@ -24,4 +24,4 @@ toml = "0.9"
 zip = { version = "4.6", default-features = false, features = ["deflate"] }
 
 [build-dependencies]
-bevy_zeroverse_capture = { version = "0.1.2", path = "../capture", features = ["provenance"] }
+bevy_zeroverse_capture = { version = "0.1.3", path = "../capture", features = ["provenance"] }

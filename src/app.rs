@@ -24,14 +24,16 @@ use bevy_args::parse_args;
 use bevy_args::{Deserialize, Parser, Serialize, ValueEnum};
 
 #[cfg(feature = "viewer")]
-use bevy_egui::EguiPlugin;
-#[cfg(feature = "viewer")]
 pub mod editor;
 #[cfg(feature = "viewer")]
 mod inspector;
 mod settings;
 #[cfg(feature = "viewer")]
-use bevy_panorbit_camera::{PanOrbitCamera, PanOrbitCameraPlugin};
+use bevy::camera_controller::pan_orbit_camera::{
+    controller::MinimalPanOrbitCameraPlugin, prelude::PanOrbitCamera,
+};
+#[cfg(feature = "viewer")]
+pub(crate) mod orbit;
 
 #[cfg(feature = "python")]
 use pyo3::prelude::*;
@@ -332,6 +334,12 @@ pub struct BevyZeroverseConfig {
     #[pyo3(get, set)]
     pub render_modes: Vec<RenderMode>,
 
+    /// Geometric annotations hit glass surfaces, or follow straight rays through them.
+    #[arg(long, value_enum, default_value = "surface")]
+    #[serde(default)]
+    #[pyo3(get, set)]
+    pub annotation_glass: crate::render::glass::AnnotationGlass,
+
     #[pyo3(get, set)]
     #[arg(long, value_enum, default_value_t = ZeroverseSceneType::Object)]
     pub scene_type: ZeroverseSceneType,
@@ -581,6 +589,11 @@ pub struct BevyZeroverseConfig {
 
     pub render_modes: Vec<RenderMode>,
 
+    /// Geometric annotations hit glass surfaces, or follow straight rays through them.
+    #[arg(long, value_enum, default_value = "surface")]
+    #[serde(default)]
+    pub annotation_glass: crate::render::glass::AnnotationGlass,
+
     #[arg(long, value_enum, default_value_t = ZeroverseSceneType::Object)]
     pub scene_type: ZeroverseSceneType,
 
@@ -719,6 +732,7 @@ impl Default for BevyZeroverseConfig {
             yaw_speed: 0.0,
             render_mode: Default::default(),
             render_modes: vec![],
+            annotation_glass: Default::default(),
             scene_type: Default::default(),
             indoor_seed: None,
             indoor_layout: IndoorLayout::Mixed,
@@ -863,6 +877,8 @@ mod web_config_tests {
 }
 
 pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) -> App {
+    #[cfg(all(target_arch = "wasm32", feature = "human_motion"))]
+    burn_human_inference::initialize_browser_runtime();
     let args = match override_args {
         Some(args) => args,
         None => {
@@ -1005,6 +1021,11 @@ pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) 
         default_plugins
     };
 
+    let default_plugins = if bevy::log::tracing::dispatcher::has_been_set() {
+        default_plugins.disable::<bevy::log::LogPlugin>()
+    } else {
+        default_plugins
+    };
     app.add_plugins(default_plugins);
 
     if args.image_copiers
@@ -1029,11 +1050,16 @@ pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) 
     }
 
     #[cfg(feature = "viewer")]
-    app.add_plugins(PanOrbitCameraPlugin);
+    app.add_plugins(MinimalPanOrbitCameraPlugin);
+    #[cfg(feature = "viewer")]
+    app.add_systems(
+        PreUpdate,
+        orbit::input.before(PanOrbitCamera::update_camera_positions),
+    );
 
     #[cfg(feature = "viewer")]
     if args.editor && !args.headless {
-        // Register config and the enum fields it exposes so the inspector keeps working
+        // Register config and the enum fields exposed by Scene Studio
         // when the config definition changes.
         app.register_type::<BevyZeroverseConfig>();
         app.register_type::<DepthFormat>();
@@ -1043,17 +1069,9 @@ pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) 
         app.register_type::<IndoorLayout>();
         app.register_type::<crate::scene::procedural_indoor::IndoorQuality>();
 
-        // setup_camera owns the sole inspector context. Automatic discovery can
-        // choose the editor/capture camera before the UI camera is processed,
-        // creating two contexts with the same multipass schedule at startup.
-        app.insert_resource(bevy_egui::EguiGlobalSettings {
-            auto_create_primary_context: false,
-            ..default()
-        });
-        app.add_plugins(EguiPlugin::default());
-        app.add_plugins(bevy_inspector_egui::DefaultInspectorConfigPlugin);
-        app.add_systems(bevy_egui::EguiPrimaryContextPass, inspector::panel);
         app.add_plugins(editor::EditorPlugin);
+        app.init_resource::<inspector::State>()
+            .add_systems(Update, inspector::panel.after(editor::update));
     }
 
     if args.press_esc_close {
@@ -1207,7 +1225,7 @@ fn setup_camera(
     }
     *previous_settings = Some(current_settings);
 
-    // A dedicated UI view keeps egui and capture images alive while the costly
+    // A dedicated UI view keeps controls and capture images alive while the costly
     // editor scene view is disabled. Grid letterboxing has an opaque backdrop.
     let clear = if args.camera_grid || args.room_schematic {
         ClearColorConfig::Custom(Color::srgb(0.025, 0.028, 0.032))
@@ -1235,7 +1253,6 @@ fn setup_camera(
             bevy::render::view::Msaa::Off,
             MaterialGridCameraMarker,
             bevy::ui::IsDefaultUiCamera,
-            bevy_egui::PrimaryEguiContext,
             Name::new("viewer_ui_camera"),
         ));
     }
@@ -1250,9 +1267,7 @@ fn setup_camera(
     if let Ok((_, mut pan, Some(mut camera))) = editor_cameras.single_mut() {
         camera.is_active = true;
 
-        pan.orbit_smoothness = args.orbit_smoothness;
-        pan.pan_smoothness = args.pan_smoothness;
-        pan.zoom_smoothness = args.zoom_smoothness;
+        orbit::smoothing(&mut pan, &args);
     } else {
         let radius = match args.scene_type {
             ZeroverseSceneType::Room | ZeroverseSceneType::SemanticRoom => {
@@ -1262,34 +1277,24 @@ fn setup_camera(
                 }) * 2.0
             }
             _ => 3.5,
-        }
-        .into();
+        };
 
         let yaw = match args.scene_type {
             ZeroverseSceneType::Room | ZeroverseSceneType::SemanticRoom => 0.8,
             _ => 0.0,
-        }
-        .into();
+        };
 
         let pitch = match args.scene_type {
             ZeroverseSceneType::Room | ZeroverseSceneType::SemanticRoom => 0.8,
             _ => 0.0,
-        }
-        .into();
+        };
 
         commands.spawn((
-            EditorCameraMarker::default(),
-            PanOrbitCamera {
-                focus: Vec3::ZERO,
-                radius,
-                pitch,
-                yaw,
-                allow_upside_down: true,
-                orbit_smoothness: args.orbit_smoothness,
-                pan_smoothness: args.pan_smoothness,
-                zoom_smoothness: args.zoom_smoothness,
-                ..default()
+            EditorCameraMarker {
+                transform: Some(orbit::transform(Vec3::ZERO, yaw, pitch, radius)),
             },
+            orbit::controller(radius, &args),
+            orbit::transform(Vec3::ZERO, yaw, pitch, radius),
         ));
     }
 }

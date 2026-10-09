@@ -10,7 +10,7 @@ use std::{
     time::Duration,
 };
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context as ContextExt, Result, anyhow};
 use bevy_zeroverse::scene::procedural_indoor::layout::IndoorLayout;
 use bevy_zeroverse::{app::BevyZeroverseConfig, render::RenderMode, scene::ZeroverseSceneType};
 
@@ -59,6 +59,7 @@ pub struct GenConfig {
     pub indoor_appearance: Option<String>,
     pub rgb_sensor: Option<crate::sensor::SensorSettings>,
     pub indoor_gi_rays: u32,
+    pub annotation_glass: bevy_zeroverse::render::glass::AnnotationGlass,
     pub indoor_quality: bevy_zeroverse::scene::procedural_indoor::IndoorQuality,
     pub rotation_augmentation: bool,
     pub cameras: usize,
@@ -104,6 +105,7 @@ impl Default for GenConfig {
             indoor_appearance: None,
             rgb_sensor: None,
             indoor_gi_rays: 256,
+            annotation_glass: Default::default(),
             indoor_quality: Default::default(),
             rotation_augmentation: false,
             cameras: 1,
@@ -534,6 +536,7 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
         rgb_sensor,
         indoor_gi_rays,
         indoor_quality,
+        annotation_glass,
         rotation_augmentation,
         cameras,
         enable_ui: _enable_ui,
@@ -584,6 +587,7 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
     zeroverse_config.indoor_appearance = indoor_appearance;
     zeroverse_config.indoor_gi_rays = indoor_gi_rays;
     zeroverse_config.indoor_quality = indoor_quality;
+    zeroverse_config.annotation_glass = annotation_glass;
     zeroverse_config.rotation_augmentation = rotation_augmentation;
     let app_ready = if main_thread_app {
         Some(Arc::new(AtomicBool::new(false)))

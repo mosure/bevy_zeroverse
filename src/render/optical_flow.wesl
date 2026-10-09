@@ -1,27 +1,25 @@
-#import bevy_pbr::{
-    forward_io::VertexOutput,
-    mesh_view_bindings::globals,
-    mesh_view_bindings::view,
-    prepass_utils::prepass_motion_vector,
-}
-#import bevy_render::color_operations::hsv_to_rgb
-#import bevy_render::maths::PI_2
+import bevy_pbr::{
+    render::forward_io::VertexOutput,
+    render::mesh_view_bindings::globals,
+    render::mesh_view_bindings::view,
+    prepass::utils::prepass_motion_vector,
+};
+import bevy_render::color_operations::hsv_to_rgb;
+import bevy_render::maths::PI_2;
 
 // seconds, full-scale pixel displacement, temporal-history validity, reserved
-@group(#{MATERIAL_BIND_GROUP}) @binding(100) var<uniform> preview: vec4<f32>;
+@group(constants::MATERIAL_BIND_GROUP) @binding(100) var<uniform> preview: vec4<f32>;
 
 @fragment
 fn fragment(
-#ifdef MULTISAMPLED
+@if(MULTISAMPLED)
     @builtin(sample_index) sample_index: u32,
-#endif
     in: VertexOutput,
 ) -> @location(0) vec4<f32> {
-#ifndef MULTISAMPLED
+@if(!MULTISAMPLED)
     let sample_index = 0u;
-#endif
 
-#ifdef MOTION_VECTOR_PREPASS
+@if(MOTION_VECTOR_PREPASS) {
     // Bevy stores frame displacement. Estimate velocity using the actual render
     // interval, then display displacement over a fixed reference interval.
     // Exported dataset flow uses the independent exact capture-time pipeline.
@@ -29,9 +27,10 @@ fn fragment(
     let scale = select(0.0, preview.x / max(globals.delta_time, 0.000001),
         globals.delta_time > 0.000001 && preview.z > 0.5);
     let flow = motion_vector_uv * view.viewport.zw * scale;
-#else
+}
+@else {
     let flow = vec2<f32>(0.0);
-#endif
+}
 
     let radius = length(flow);
     // Map magnitude to [0,1] with a gentle curve so small motions stay visible

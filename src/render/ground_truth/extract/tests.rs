@@ -675,3 +675,56 @@ fn ground_truth_extraction_allocation_inclusive_cpu_diagnostic() {
         }
     }
 }
+
+#[test]
+fn glass_policy_filters_shared_geometry_and_invalidates_cached_topology() {
+    use crate::render::glass::AnnotationGlass;
+    let mut x = Extraction::new();
+    let (glass, _, material) = x.object(
+        triangle(None),
+        None,
+        RenderLayers::default(),
+        Mat4::IDENTITY,
+    );
+    x.main
+        .resource_mut::<Assets<StandardMaterial>>()
+        .get_mut(&material)
+        .unwrap()
+        .specular_transmission = 0.8;
+    x.object(
+        triangle(None),
+        None,
+        RenderLayers::default(),
+        Mat4::from_translation(Vec3::Z),
+    );
+    x.main.get_mut::<GroundTruthCamera>(x.camera).unwrap().flow = Some(Handle::default());
+    x.main
+        .insert_resource(crate::app::BevyZeroverseConfig::default());
+    x.run_current();
+    assert_eq!(x.geometry().instances.len(), 2);
+    let generation = x.geometry().generation;
+    x.main
+        .resource_mut::<crate::app::BevyZeroverseConfig>()
+        .annotation_glass = AnnotationGlass::Through;
+    x.run_current();
+    assert_eq!(x.geometry().instances.len(), 1);
+    assert_eq!(x.geometry().topology.len(), 1);
+    assert_ne!(x.geometry().topology[0].entity, glass);
+    assert!(x.geometry().generation > generation);
+    // Annotation preview disables the live PBR material: classification still uses its saved source.
+    x.main
+        .entity_mut(glass)
+        .remove::<MeshMaterial3d<StandardMaterial>>()
+        .insert(DisabledPbrMaterial {
+            material: material.clone(),
+            ..default()
+        });
+    x.run_current();
+    assert_eq!(x.geometry().instances.len(), 1);
+    x.main
+        .resource_mut::<crate::app::BevyZeroverseConfig>()
+        .annotation_glass = AnnotationGlass::Surface;
+    x.run_current();
+    assert_eq!(x.geometry().instances.len(), 2);
+    assert_eq!(x.geometry().topology.len(), 2);
+}

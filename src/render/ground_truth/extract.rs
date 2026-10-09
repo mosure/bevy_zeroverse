@@ -47,6 +47,7 @@ fn same_matrix_bits(left: &[[f32; 4]; 4], right: &[[f32; 4]; 4]) -> bool {
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
 pub(super) fn extract_geometry(
     cameras: Extract<Query<&GroundTruthCamera>>,
+    config: Extract<Option<Res<crate::app::BevyZeroverseConfig>>>,
     objects: Extract<
         Query<
             (
@@ -85,9 +86,19 @@ pub(super) fn extract_geometry(
     let flow_enabled = cameras.iter().any(|c| c.flow.is_some());
     let retry_failed_geometry = geometry.failure.is_some();
     geometry.failure = None;
+    let glass = config
+        .as_ref()
+        .map_or(super::super::glass::AnnotationGlass::Surface, |c| {
+            c.annotation_glass
+        });
     let mut objects: Vec<_> = objects
         .iter()
-        .filter(|(_, _, _, visible, ..)| visible.is_none_or(|v| v.get()))
+        .filter(|(_, _, _, visible, _, _, material, disabled, _)| {
+            let source = material
+                .map(|m| &m.0)
+                .or_else(|| disabled.map(|m| &m.material));
+            visible.is_none_or(|v| v.get()) && glass.includes(source.and_then(|h| materials.get(h)))
+        })
         .collect();
     objects.sort_by_key(|(entity, ..)| entity.to_bits());
     let keys: Vec<_> = objects

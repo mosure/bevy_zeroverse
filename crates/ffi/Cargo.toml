@@ -1,8 +1,9 @@
 [package]
 name = "bevy_zeroverse_ffi"
 description = "bevy zeroverse ffi library"
-version = "0.34.1"
+version = "0.35.0"
 edition = "2021"
+rust-version = "1.97.1"
 license = "MIT"
 homepage = "https://github.com/mosure/bevy_zeroverse"
 repository = "https://github.com/mosure/bevy_zeroverse"
@@ -20,8 +21,8 @@ extension-module = [
 
 
 [dependencies]
-bevy_args = "4.0.0"
-bevy_zeroverse = { path = "../..", version = "0.34.1", default-features = false, features = ["python"] }
+bevy_args = { version = "4.0.0", default-features = false }
+bevy_zeroverse = { path = "../..", version = "0.35.0", default-features = false, features = ["python"] }
 bytemuck = "1.17"
 clap = { version = "4.4", features = ["derive"] }
 image = "0.25"
@@ -37,7 +38,7 @@ serde_json = "1.0"
 
 
 [dependencies.bevy]
-version = "=0.19.1"
+version = "=0.20.0"
 default-features = false
 features = [
   "bevy_asset",

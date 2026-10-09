@@ -3,16 +3,13 @@ use bevy::{
     ecs::system::SystemParam,
     gltf::{Gltf, GltfMesh},
     light::{NotShadowCaster, TransmittedShadowReceiver},
-    math::{
-        primitives::{
-            Capsule3d, Cone, ConicalFrustum, Cuboid, Cylinder, Sphere, Tetrahedron, Torus,
-        },
-        sampling::ShapeSample,
-    },
     mesh::VertexAttributeValues,
     pbr::wireframe::{Wireframe, WireframeColor},
     prelude::*,
     render::render_resource::Face,
+    shape::{
+        Capsule3d, Cone, ConicalFrustum, Cuboid, Cylinder, ShapeSample, Sphere, Tetrahedron, Torus,
+    },
 };
 use bevy_burn_human::{
     BurnHumanAssets, BurnHumanInput, BurnHumanMeshMode, BurnHumanMeshSettings, BurnHumanRenderMode,

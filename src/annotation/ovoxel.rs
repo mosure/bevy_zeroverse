@@ -1423,7 +1423,7 @@ fn voxelize_triangles_gpu(
         _pad_params: [0; 2],
     };
 
-    let wgpu_queue = &*context.queue.0;
+    let wgpu_queue = &*context.queue;
     let max_storage = wgpu_device.limits().max_storage_buffers_per_shader_stage;
     // The prepare layout declares nine storage buffers even when an
     // individual entry point uses fewer. wgpu validates the complete layout.
@@ -1624,7 +1624,7 @@ fn voxelize_triangles_gpu(
     });
     let _ = wgpu_device.poll(wgpu::PollType::wait_indefinitely());
     rx_meta.recv().ok().and_then(Result::ok)?;
-    let meta_view = meta_slice.get_mapped_range();
+    let meta_view = meta_slice.get_mapped_range().ok()?;
     debug_assert_eq!(meta_view.len() as u64, meta_bytes);
     let meta: GpuOutputMeta = bytemuck::from_bytes::<GpuOutputMeta>(&meta_view).to_owned();
     let used = meta.count.min(max_output_voxels);
@@ -1690,7 +1690,7 @@ fn voxelize_triangles_gpu(
     });
     let _ = wgpu_device.poll(wgpu::PollType::wait_indefinitely());
     rx.recv().ok().and_then(Result::ok)?;
-    let data = slice.get_mapped_range();
+    let data = slice.get_mapped_range().ok()?;
     debug_assert_eq!(data.len() as u64, used_bytes);
     let voxels: &[GpuVoxel] = bytemuck::cast_slice(&data);
     let used = used.min(voxels.len() as u32) as usize;
@@ -1823,7 +1823,6 @@ fn closest_point_on_triangle(p: Vec3, tri: &Triangle) -> Vec3 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bevy::render::renderer::WgpuWrapper;
     use bevy::{render::render_resource::PrimitiveTopology, MinimalPlugins};
 
     #[test]
@@ -2081,6 +2080,7 @@ mod tests {
                 power_preference: wgpu::PowerPreference::LowPower,
                 compatible_surface: None,
                 force_fallback_adapter: false,
+                apply_limit_buckets: false,
             },
         )) {
             Ok(adapter) => adapter,
@@ -2135,7 +2135,7 @@ mod tests {
         };
 
         let device = RenderDevice::from(device);
-        let queue = RenderQueue(WgpuWrapper::new(queue).into());
+        let queue = RenderQueue::new(queue);
         let context = GpuContext::new(device, queue);
         let run_gpu = |triangles: &[Triangle], cap| {
             voxelize_triangles_gpu(
@@ -2236,6 +2236,7 @@ mod tests {
                     power_preference: wgpu::PowerPreference::LowPower,
                     compatible_surface: None,
                     force_fallback_adapter: false,
+                    apply_limit_buckets: false,
                 },
             ))
             .ok()?;
@@ -2254,7 +2255,7 @@ mod tests {
                 .ok()?;
             Some(GpuContext::new(
                 RenderDevice::from(device),
-                RenderQueue(WgpuWrapper::new(queue).into()),
+                RenderQueue::new(queue),
             ))
         };
         let (Some(first), Some(second)) = (make_context(), make_context()) else {
@@ -2326,6 +2327,7 @@ mod tests {
                 power_preference: wgpu::PowerPreference::LowPower,
                 compatible_surface: None,
                 force_fallback_adapter: false,
+                apply_limit_buckets: false,
             },
         )) {
             Ok(adapter) => adapter,
@@ -2377,6 +2379,7 @@ mod tests {
                 power_preference: wgpu::PowerPreference::LowPower,
                 compatible_surface: None,
                 force_fallback_adapter: false,
+                apply_limit_buckets: false,
             },
         )) {
             Ok(adapter) => adapter,

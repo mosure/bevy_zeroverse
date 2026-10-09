@@ -35,7 +35,7 @@ pub struct Depth;
 pub struct DepthPlugin;
 impl Plugin for DepthPlugin {
     fn build(&self, app: &mut App) {
-        load_internal_asset!(app, DEPTH_SHADER_HANDLE, "depth.wgsl", Shader::from_wgsl);
+        load_internal_asset!(app, DEPTH_SHADER_HANDLE, "depth.wesl", Shader::from_wesl);
 
         app.register_type::<Depth>();
 

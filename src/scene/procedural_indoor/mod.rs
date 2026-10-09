@@ -572,6 +572,7 @@ fn configure_cameras(
                 e.insert(ScreenSpaceAmbientOcclusion {
                     quality_level: ScreenSpaceAmbientOcclusionQualityLevel::High,
                     constant_object_thickness: 0.12,
+                    ..default()
                 });
             } else {
                 e.remove::<ScreenSpaceAmbientOcclusion>();
@@ -603,7 +604,10 @@ fn position_editor(
     scene: Option<Res<IndoorManifest>>,
     args: Res<BevyZeroverseConfig>,
     mut cameras: Query<
-        (&mut bevy_panorbit_camera::PanOrbitCamera, &mut Transform),
+        (
+            &mut bevy::camera_controller::pan_orbit_camera::prelude::PanOrbitCamera,
+            &mut Transform,
+        ),
         (
             With<crate::camera::EditorCameraMarker>,
             With<crate::camera::ProcessedEditorCameraMarker>,
@@ -628,14 +632,7 @@ fn position_editor(
         let target = rotation * view.target;
         *tf = Transform::from_translation(rotation * view.start).looking_at(target, Vec3::Y);
         let delta = rotation * (view.start - view.target);
-        orbit.focus = target;
-        orbit.target_focus = target;
-        orbit.radius = Some(delta.length());
-        orbit.target_radius = delta.length();
-        orbit.yaw = Some(delta.x.atan2(delta.z));
-        orbit.target_yaw = delta.x.atan2(delta.z);
-        orbit.pitch = Some((delta.y / delta.length()).asin());
-        orbit.target_pitch = (delta.y / delta.length()).asin();
+        crate::app::orbit::reset(&mut orbit, delta.length());
         *last_seed = Some(scene.seed);
     }
 }

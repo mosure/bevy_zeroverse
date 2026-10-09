@@ -81,23 +81,34 @@ rooms, synchronized views, matching annotations, floor plans and distributions.
   scenes do not initialize motion models.
 
 Semantic-room and standalone-human scenes are also supported. The engine is
-built with Bevy and Rust, with native dataset generation, a WebGPU viewer, and
+built with Bevy 0.20 and Rust, with native dataset generation, a WebGPU viewer, and
 Python/PyTorch integration.
 
 ## Quick start
 
-Run the native viewer using the repository's nightly Rust toolchain:
+Run the native viewer using the repository's nightly Rust toolchain (Rust 1.97.1
+or newer). Optional motion and SigLIP2 inference use Burn 0.22:
 
 ```sh
 cargo run --bin viewer -- --scene-type procedural-indoor --indoor-seed 7 \
   --num-cameras 4 --camera-grid
 ```
 
-Scene Studio uses Bevy Feathers controls on native and WebGPU. **Apply changes**
+Native JIT training can use `bevy_zeroverse_burn::gpu::GpuLiveDataset` (feature
+`gpu_tensor`) to render into Burn-owned buffers on the same device, retaining
+full native quality. See the [tensor contract and benchmark](docs/gpu_jit.md).
+
+Scene Studio uses Bevy 0.20 Feathers controls and the built-in pan-orbit camera
+on native and WebGPU; it needs no egui, inspector or external camera plugin. **Apply changes**
 keeps the selected seed; **Next / R** advances it. Editing does not regenerate.
 Camera baseline controls spacing between views; travel controls how far each
 camera moves. The viewport selector offers **Editor camera**, **Capture grid**,
 and **Room schematic**. Browser links preserve the active scene, preview and pending edits.
+**View & playback → Glass in annotations** selects glass surfaces (default) or
+unrefracted geometry behind glass for depth, normal, position, semantic, optical
+flow and co-visibility. RGB transmission is unchanged. The same policy is available
+as `--annotation-glass through` or `?annotation_glass=through` and recorded in
+exports (`annotation_glass`: 0 = surface, 1 = through in tensor datasets).
 
 Generate a dataset with four views per room:
 

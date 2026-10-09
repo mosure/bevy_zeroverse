@@ -11,8 +11,6 @@ fn main() {
         "crates/capture/src",
         "assets/shaders",
         "assets/embedded",
-        "third_party/wgpu-core/src",
-        "third_party/wgpu-hal/src",
     ] {
         if root.join(path).exists() {
             println!("cargo:rerun-if-changed={path}");

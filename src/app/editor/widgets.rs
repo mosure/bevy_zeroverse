@@ -79,7 +79,7 @@ pub fn button(
             AccessibleLabel({caption.clone()})
             ChildOf(parent)
             on(move |_e:On<Activate>,mut actions:ResMut<Actions>| {actions.0.push(action.clone());})
-            Children[(Text(caption) ThemedText)]
+            Children[Text(caption) ThemedText]
         })
         .expect("button scene")
         .id()
@@ -96,7 +96,8 @@ pub fn control(world: &mut World, parent: Entity, field: Field, state: &EditorSt
             let (min, max, step) = (*min, *max, *step);
             let val = value.as_f64().unwrap_or(min as f64) as f32;
             let entity = world.spawn_scene(bsn! {
-                @FeathersSlider { @value:val, @min:min, @max:max }
+                @FeathersSlider { @min:min, @max:max }
+                SliderValue(val)
                 Node {height:px(29),flex_shrink:0.}
                 SliderStep(step) SliderPrecision({if step>=1. {0}else if step>=0.01 {2}else{3}})
                 AccessibleLabel(label) ChildOf(row)

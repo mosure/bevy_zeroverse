@@ -45,6 +45,7 @@ pub struct GroundTruthLabel;
 /// Set `frame_id` alongside the RGB capture stamp before render extraction.
 /// `rendered_frame()` reports encoding of this pass, not GPU/map completion.
 #[derive(Component, Clone, ExtractComponent)]
+#[extract_app(RenderApp)]
 pub struct GroundTruthCamera {
     pub world_depth: Handle<Image>,
     pub normal_semantic: Handle<Image>,

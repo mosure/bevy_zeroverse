@@ -5,7 +5,7 @@ use bevy::{
     pbr::StandardMaterial,
     prelude::{Mesh3d, MeshMaterial3d, *},
     render::render_resource::PrimitiveTopology,
-    render::renderer::{RenderDevice, RenderQueue, WgpuWrapper},
+    render::renderer::{RenderDevice, RenderQueue},
     MinimalPlugins,
 };
 use bevy_zeroverse::{
@@ -123,6 +123,7 @@ fn gpu_device_and_queue() -> Option<(RenderDevice, RenderQueue)> {
             power_preference: wgpu::PowerPreference::HighPerformance,
             compatible_surface: None,
             force_fallback_adapter: false,
+            apply_limit_buckets: false,
         }))
         .ok()?;
     let info = adapter.get_info();
@@ -143,10 +144,7 @@ fn gpu_device_and_queue() -> Option<(RenderDevice, RenderQueue)> {
     };
     let (device, queue) =
         futures_lite::future::block_on(adapter.request_device(&device_desc)).ok()?;
-    Some((
-        RenderDevice::from(device),
-        RenderQueue(WgpuWrapper::new(queue).into()),
-    ))
+    Some((RenderDevice::from(device), RenderQueue::new(queue)))
 }
 
 fn ovoxel_creation_benchmark(c: &mut Criterion) {
