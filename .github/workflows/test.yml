@@ -20,7 +20,7 @@ jobs:
       matrix:
         os: [windows-latest, macos-latest, macos-14]
         rust-toolchain:
-          - nightly
+          - nightly-2026-08-31
 
     runs-on: ${{ matrix.os }}
     timeout-minutes: 120

@@ -86,8 +86,9 @@ Python/PyTorch integration.
 
 ## Quick start
 
-Run the native viewer using the repository's nightly Rust toolchain (Rust 1.97.1
-or newer). Optional motion and SigLIP2 inference use Burn 0.22:
+Run the native viewer using the repository's pinned `nightly-2026-08-31` Rust toolchain (crate MSRV
+1.97.1). The pin keeps native and WebGPU builds on the qualified compiler.
+Optional motion and SigLIP2 inference use Burn 0.22:
 
 ```sh
 cargo run --bin viewer -- --scene-type procedural-indoor --indoor-seed 7 \

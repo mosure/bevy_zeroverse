@@ -19,7 +19,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@nightly
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly-2026-08-31
       - uses: Swatinem/rust-cache@v2
       - name: Install paper typesetter
         run: sudo apt-get update && sudo apt-get install -y latexmk texlive-latex-extra poppler-utils
@@ -50,7 +52,7 @@ jobs:
       - name: setup nightly rust toolchain with caching
         uses: brndnmtthws/rust-action@v1
         with:
-          toolchain: nightly
+          toolchain: nightly-2026-08-31
           components: rustfmt, clippy
           enable-sccache: "false"
 
