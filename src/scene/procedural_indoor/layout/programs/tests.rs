@@ -52,14 +52,14 @@ fn constrained_activity_room_supports_density_and_occupancy_variation() {
 }
 
 #[test]
-fn complete_activity_rooms_are_unchanged_by_lounge_recovery() {
+fn complete_activity_rooms_are_unchanged_by_furnishing_recovery() {
     for seed in 0..16 {
         let mut scene =
             IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 0, 0.25).unwrap();
         validate_layout(&scene).unwrap();
         let before = scene.clone();
         scene.complete_lounge_groups();
-        scene.complete_underfilled_lounge_groups();
+        scene.complete_underfilled_activity_groups();
         assert_eq!(scene, before);
     }
 }
@@ -81,7 +81,7 @@ fn constrained_lounge_seed_49309986_has_sufficient_primary_furniture() {
     validate_layout(&scene).unwrap();
     validate_geometry(&scene).unwrap();
     let mut recovered = scene.clone();
-    recovered.complete_underfilled_lounge_groups();
+    recovered.complete_underfilled_activity_groups();
     assert_eq!(scene, recovered, "complete rooms must not be refurnished");
     assert_eq!(
         scene,
@@ -105,6 +105,54 @@ fn constrained_lounge_seed_49309986_preserves_density_and_population_controls() 
             validate_layout(&scene)
                 .unwrap_or_else(|e| panic!("density={density}, humans={human_density}: {e}"));
             validate_geometry(&scene).unwrap();
+        }
+    }
+}
+
+#[test]
+fn constrained_library_seed_49981871_retains_sufficient_activity_furniture() {
+    let scene =
+        IndoorManifest::generate_with_humans(49_981_871, IndoorLayout::Mixed, 0.65, 0, 0.25)
+            .unwrap();
+    assert_eq!(scene.layout, IndoorLayout::Library);
+    validate_layout(&scene).unwrap();
+    validate_geometry(&scene).unwrap();
+    assert!(scene
+        .objects
+        .iter()
+        .any(|o| !o.neighbor && o.kind == ObjectKind::Bookcase));
+    let mut recovered = scene.clone();
+    recovered.complete_underfilled_activity_groups();
+    assert_eq!(scene, recovered, "recovery must be idempotent");
+    assert_eq!(
+        scene,
+        IndoorManifest::generate_with_humans(49_981_871, IndoorLayout::Mixed, 0.65, 0, 0.25)
+            .unwrap()
+    );
+}
+
+#[test]
+fn constrained_library_seed_49981871_preserves_density_population_and_camera_controls() {
+    for density in [0., 0.35, 0.65, 1.] {
+        for human_density in [0., 0.25, 1.] {
+            let mut scene = IndoorManifest::generate_with_humans(
+                49_981_871,
+                IndoorLayout::Mixed,
+                density,
+                3,
+                human_density,
+            )
+            .unwrap();
+            validate_layout(&scene)
+                .unwrap_or_else(|e| panic!("density={density}, humans={human_density}: {e}"));
+            validate_geometry(&scene).unwrap();
+            let objects = scene.objects.clone();
+            scene.resample_cameras(4, default(), 1.6).unwrap();
+            assert_eq!(
+                scene.objects, objects,
+                "camera controls must not refurnish the room"
+            );
+            validate_layout(&scene).unwrap();
         }
     }
 }

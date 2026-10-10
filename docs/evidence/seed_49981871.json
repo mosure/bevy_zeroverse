@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "seed": 49981871,
+  "generator_identity": {
+    "schema_version": 1,
+    "crate_version": "0.35.1",
+    "generator_version": 30,
+    "source_sha256": "0d5efe0a4f3eac5de74bb59d8936f55d30ff59f9e0ba1e517cbd4dfb7f6ce366"
+  },
+  "failure": "insufficient main room furniture",
+  "resolution": "Complete constrained activity areas with compact storage groups or reading lamps beside accepted surfaces, preserving the furnishing minimum and existing floor, ceiling, doorway, pillar and furniture clearance checks. Reserve the complete lamp mesh footprint.",
+  "primary_solid_furnishings": 5,
+  "regressions": {
+    "density": [
+      0,
+      0.35,
+      0.65,
+      1
+    ],
+    "human_density": [
+      0,
+      0.25,
+      1
+    ],
+    "camera_counts": [
+      3,
+      4
+    ],
+    "camera_aspects": [
+      1,
+      1.6
+    ],
+    "deterministic_replay": true,
+    "recovery_idempotent": true,
+    "complete_rooms_unchanged": true,
+    "camera_controls_preserve_furnishings": true
+  },
+  "neighborhood": {
+    "start_seed": 49981839,
+    "rooms": 64,
+    "cameras": 4,
+    "image_size": [
+      800,
+      600
+    ],
+    "invalid_layouts": 0,
+    "actual_mesh_geometry_checked": 64
+  },
+  "render": {
+    "image_size": [
+      512,
+      512
+    ],
+    "cameras": 4,
+    "timesteps": 2,
+    "views": 8,
+    "annotations": [
+      "rgb",
+      "depth",
+      "normal",
+      "position",
+      "semantic",
+      "co_visibility"
+    ],
+    "annotation_precision": "float32_geometry",
+    "max_reprojection_error_pixels": 0.0002516544,
+    "max_depth_position_error_metres": 1.4305115e-06,
+    "capabilities": {
+      "annotation_hdr_format": "RGBA32Float_direct",
+      "bloom": true,
+      "glass_filter": "default",
+      "quality": "Auto",
+      "shadow_map_size": 2048,
+      "shadows": true,
+      "specular_transmission": true,
+      "ssao": true
+    },
+    "geometry_triangles": 101720,
+    "degenerate_triangles": 0,
+    "bookshelf_semantic_triangles": 648
+  },
+  "verification": {
+    "core_tests_passed": 397,
+    "core_tests_ignored": 22,
+    "strict_workspace_all_target_clippy": true,
+    "burn_unit_tests_passed": 24,
+    "same_device_gpu_replay_tests_passed": 2
+  },
+  "scope": "Seeded CPU geometry and native rendered qualification. Registry, exact-commit CI and deployed WebGPU verification receipts are recorded separately for the release commit."
+}

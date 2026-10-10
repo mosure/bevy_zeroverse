@@ -1,4 +1,4 @@
-//! Complete already accepted seating when ordinary workstation repair exhausts.
+//! Complete accepted activity areas when ordinary workstation repair exhausts.
 use super::*;
 
 impl IndoorManifest {
@@ -20,14 +20,15 @@ impl IndoorManifest {
     }
 
     /// Check population after perimeter/service furnishing has finished. An
-    /// existing desk does not imply that every accepted sofa has its own usable
-    /// surface, or that the room meets the unchanged furnishing minimum.
-    pub(in crate::scene::procedural_indoor::layout) fn complete_underfilled_lounge_groups(
+    /// accepted activity surface can still have an incomplete seating/storage
+    /// group and fail the unchanged furnishing minimum.
+    pub(in crate::scene::procedural_indoor::layout) fn complete_underfilled_activity_groups(
         &mut self,
     ) {
         if self.main_furniture_count() < self.minimum_main_objects() {
             self.add_lounge_surfaces();
             self.add_lounge_side_pieces();
+            self.add_work_area_side_pieces();
         }
     }
 
@@ -36,6 +37,76 @@ impl IndoorManifest {
             .iter()
             .filter(|o| o.solid && !o.neighbor)
             .count()
+    }
+
+    fn add_work_area_side_pieces(&mut self) {
+        if self.main_furniture_count() >= self.minimum_main_objects() {
+            return;
+        }
+        let surfaces: Vec<_> = self
+            .objects
+            .iter()
+            .filter(|o| {
+                !o.neighbor
+                    && o.solid
+                    && matches!(
+                        o.kind,
+                        ObjectKind::Desk | ObjectKind::Table | ObjectKind::CoffeeTable
+                    )
+            })
+            .cloned()
+            .collect();
+        // A desk/chair pair can exhaust the usable floor around steps, portals
+        // and columns. Compact storage or a reading lamp still completes an
+        // existing activity area, rather than leaving the room underfilled.
+        // A separate stream preserves the rest of the scene's sampled details.
+        let mut rng = stream(self.seed, 6132);
+        for surface in surfaces {
+            let rotation = Quat::from_rotation_y(surface.yaw);
+            for (kind, size) in [
+                (
+                    if self.layout == IndoorLayout::Library {
+                        ObjectKind::Bookcase
+                    } else {
+                        ObjectKind::Cabinet
+                    },
+                    Vec3::new(0.64, 1.12, 0.32),
+                ),
+                // The lamp base has a 0.22 m minimum radius; reserve its full
+                // mesh footprint, including the same clearance as lounge lamps.
+                (ObjectKind::FloorLamp, Vec3::new(0.46, 1.50, 0.46)),
+            ] {
+                for side in [-1., 1.] {
+                    if self.main_furniture_count() >= self.minimum_main_objects() {
+                        return;
+                    }
+                    // Small modular storage units can form a pair alongside
+                    // an activity area; one reading lamp per side is enough.
+                    let limit = if kind == ObjectKind::FloorLamp { 1 } else { 2 };
+                    let mut placed = 0;
+                    'candidates: for gap in [0.15, 0.30, 0.45] {
+                        for along in [0., -0.5, 0.5, -1., 1., -1.5, 1.5] {
+                            let p = surface.position
+                                + rotation
+                                    * Vec3::new(
+                                        side * ((surface.size.x + size.x) * 0.5 + gap),
+                                        0.,
+                                        along * surface.size.z * 0.5,
+                                    );
+                            if self.add(kind, p, size, surface.yaw, &mut rng).is_some() {
+                                if self.main_furniture_count() >= self.minimum_main_objects() {
+                                    return;
+                                }
+                                placed += 1;
+                                if placed == limit {
+                                    break 'candidates;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     fn add_lounge_side_pieces(&mut self) {
