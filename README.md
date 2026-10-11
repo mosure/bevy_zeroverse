@@ -78,7 +78,7 @@ rooms, synchronized views, matching annotations, floor plans and distributions.
   dyed yarns, timber treatments, concrete, glass and lighting. Architecture and
   furnishings need no downloaded mesh or texture catalog. Power cables follow
   collision-checked gravity curves, including floor contact. Daylight-aware
-  exposure and deterministic soft sun shadows retain surface detail in bright rooms.
+  exposure and native soft sun shadows retain surface detail in bright rooms.
 - **Calibrated multi-view cameras:** sampled intrinsics, primary-room placement,
   collision-checked trajectories and adjustable baselines with shared-view constraints.
 - **People and motion:** AnnyBody meshes with procedural clothing and optional

@@ -142,6 +142,13 @@ getrandom04 = { package = "getrandom", version = "0.4", default-features = false
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = { version = "0.4", optional = true }
 
+# Bevy 0.20 PCSS uses implicit-derivative sampling that WebGPU rejects in
+# non-uniform control flow. WebGPU keeps the standard filtered shadow path.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies.bevy]
+version = "=0.20.0"
+default-features = false
+features = ["experimental_pbr_pcss"]
+
 
 [dependencies.bevy]
 version = "=0.20.0"
@@ -168,7 +175,6 @@ features = [
   "bevy_ui_render",
   "bevy_window",
   "bevy_winit",
-  "experimental_pbr_pcss",
   "jpeg",
   "png",
   "std",

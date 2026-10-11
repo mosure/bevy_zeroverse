@@ -430,6 +430,7 @@ pub fn spawn_lights(
             // Deterministic contact-hardening shadow filtering. Cameras retain
             // Gaussian/non-temporal filtering so capture is independent of FPS
             // and history; this is a raster approximation, not a solar-disk tracer.
+            #[cfg(not(target_arch = "wasm32"))]
             soft_shadow_size: quality.shadows().then_some(4.0),
             shadow_depth_bias: 0.015,
             shadow_normal_bias: DirectionalLight::DEFAULT_SHADOW_NORMAL_BIAS,
@@ -678,6 +679,7 @@ mod lighting_tests {
         world.flush();
         let sun = world.query::<&DirectionalLight>().single(&world).unwrap();
         assert!(sun.shadow_maps_enabled);
+        #[cfg(not(target_arch = "wasm32"))]
         assert_eq!(sun.soft_shadow_size, Some(4.0));
         let (_, light, transform) = world
             .query::<(&Name, &SpotLight, &Transform)>()
