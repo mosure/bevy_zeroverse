@@ -245,33 +245,43 @@ fn assert_accepted(scene: &IndoorManifest, camera: &IndoorCamera, coverage: &Cov
 }
 
 #[test]
-fn successful_independent_proposals_and_rng_match_copied_original() {
+fn continuous_independent_proposals_replay_and_preserve_all_acceptance_gates() {
     for seed in [0, 7, 13, 42, 100, 200, 207, 239] {
         for density in [0.0, 0.65] {
             let mut scene =
                 IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, density, 0, 0.25)
                     .unwrap();
             scene.camera_settings = CameraSettings::independent();
-            let mut original = scene.clone();
+            let mut replay = scene.clone();
             let coverage = Coverage::new(&scene);
             let mut rng = stream(seed, 3);
-            let mut original_rng = rng.clone();
-            original
-                .original_sample_independent_cameras(4, &mut original_rng, &coverage)
+            let mut replay_rng = rng.clone();
+            replay
+                .sample_independent_cameras(4, &mut replay_rng, &coverage)
                 .unwrap();
             scene
                 .sample_independent_cameras(4, &mut rng, &coverage)
                 .unwrap();
             assert_eq!(
                 serde_json::to_vec(&scene.cameras).unwrap(),
-                serde_json::to_vec(&original.cameras).unwrap(),
+                serde_json::to_vec(&replay.cameras).unwrap(),
                 "seed={seed} density={density}"
             );
             assert_eq!(
                 rng.random::<u64>(),
-                original_rng.random::<u64>(),
+                replay_rng.random::<u64>(),
                 "RNG continuation seed={seed} density={density}"
             );
+            assert_eq!(scene.objects, replay.objects);
+            assert_eq!(scene.humans, replay.humans);
+            if !people(&scene).is_empty() {
+                assert_accepted(&scene, &scene.cameras[0], &coverage);
+            }
+            for camera in &scene.cameras {
+                assert!(scene.camera_view_clear(camera.start, camera.target));
+                assert!(scene.camera_curve_clear(camera));
+                assert!(coverage.suitable(camera, false));
+            }
             validate_layout(&scene).unwrap();
         }
     }
@@ -311,7 +321,9 @@ fn sparse_failed_seed_anchors_keep_primary_room_coverage_and_deterministic_motio
         assert_eq!(scene.cameras.len(), 1);
         validate_layout(&scene).unwrap();
         assert_accepted(&scene, &scene.cameras[0], &coverage);
-        println!("sparse seed={seed}: original first-anchor result={original_result:?}; bounded fallback and deterministic production placement retain all predicates");
+        println!(
+            "sparse seed={seed}: original first-anchor result={original_result:?}; bounded fallback and deterministic production placement retain all predicates"
+        );
     }
 }
 

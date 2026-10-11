@@ -8,4 +8,5 @@ pub mod media;
 pub mod paper;
 pub mod pipeline;
 pub mod qualification;
+pub mod study;
 pub mod visibility;

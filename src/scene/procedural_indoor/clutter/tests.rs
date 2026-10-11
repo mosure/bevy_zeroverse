@@ -92,14 +92,17 @@ fn clock_hands_share_fractional_time_and_screens_do_not_repeat_one_dashboard() {
         let p = screens::parameters(seed);
         layouts.insert(p.layout);
         times.insert(p.minutes);
-        if p.layout != 7 {
+        if !p.dormant {
             images.insert(screens::pixels(seed));
             let mobile = screens::mobile_pixels(seed);
             assert_ne!(mobile, screens::pixels(seed));
             mobile_images.insert(mobile);
         }
     }
-    assert_eq!(layouts.len(), 8);
+    assert_eq!(
+        layouts.len(),
+        super::super::materials::screens::LAYOUTS as usize
+    );
     assert!(times.len() > 55);
     assert!(images.len() > 50);
     assert!(mobile_images.len() > 50);

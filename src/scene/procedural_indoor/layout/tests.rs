@@ -193,6 +193,14 @@ fn reported_sunken_room_props_remain_on_their_supports() {
             IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 4, 0.25).unwrap();
         for prop in scene.objects.iter().filter(|o| o.support.is_some()) {
             let support = &scene.objects[prop.support.unwrap()];
+            if prop.kind == ObjectKind::Cable {
+                // Connected leads can hang between ports above a tabletop.
+                // Their exact graph and swept jacket, rather than their AABB's
+                // root height, define support without penetrating the surface.
+                assert!(super::equipment::cable_route_clear(&scene, prop));
+                assert!(prop.bounds().0.y >= support.position.y + support.size.y - 0.001);
+                continue;
+            }
             assert!(
                 (prop.position.y - support.position.y - support.size.y).abs() < 1e-5,
                 "seed {seed}: {:?} {} at {} on {:?} {} at {} + {}",

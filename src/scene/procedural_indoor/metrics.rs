@@ -1,5 +1,6 @@
 //! Reproducible, resolution-aware dataset distribution exports, independent of a GPU.
 mod cameras;
+mod content;
 mod envelope;
 mod exterior;
 use super::layout::{IndoorLayout, IndoorManifest, ObjectKind, GENERATOR_VERSION, NEIGHBOR_DEPTH};
@@ -14,44 +15,7 @@ use std::{
 };
 
 const GRID: usize = 24;
-const KINDS: [ObjectKind; 36] = [
-    ObjectKind::Table,
-    ObjectKind::Desk,
-    ObjectKind::Chair,
-    ObjectKind::Sofa,
-    ObjectKind::CoffeeTable,
-    ObjectKind::Cabinet,
-    ObjectKind::Bookcase,
-    ObjectKind::Plant,
-    ObjectKind::TrashCan,
-    ObjectKind::Whiteboard,
-    ObjectKind::Display,
-    ObjectKind::Laptop,
-    ObjectKind::Monitor,
-    ObjectKind::Notebook,
-    ObjectKind::Mug,
-    ObjectKind::Books,
-    ObjectKind::Rug,
-    ObjectKind::WallArt,
-    ObjectKind::Clock,
-    ObjectKind::FloorLamp,
-    ObjectKind::Keyboard,
-    ObjectKind::Mouse,
-    ObjectKind::WaterBottle,
-    ObjectKind::PenHolder,
-    ObjectKind::Printer,
-    ObjectKind::StorageBox,
-    ObjectKind::CoatRack,
-    ObjectKind::Bag,
-    ObjectKind::CoffeeCup,
-    ObjectKind::SodaCan,
-    ObjectKind::Notepad,
-    ObjectKind::Pencil,
-    ObjectKind::Microphone,
-    ObjectKind::Phone,
-    ObjectKind::WallOutlet,
-    ObjectKind::LightSwitch,
-];
+const KINDS: [ObjectKind; ObjectKind::ALL.len()] = ObjectKind::ALL;
 
 #[derive(Serialize)]
 pub struct NumericDistribution {
@@ -319,15 +283,24 @@ fn export_inner(
     let mut windows = BufWriter::new(fs::File::create(directory.join("windows.csv"))?);
     exterior::header(&mut windows)?;
     let mut humans = BufWriter::new(fs::File::create(directory.join("humans.csv"))?);
-    writeln!(humans,"seed,id,chair,neighbor,pose,outfit,stature_m,build,skin_tone,hairstyle,glasses,x_m,y_m,z_m,yaw_radians")?;
+    writeln!(
+        humans,
+        "seed,id,chair,neighbor,pose,outfit,stature_m,build,skin_tone,hairstyle,glasses,x_m,y_m,z_m,yaw_radians"
+    )?;
     let mut objects = BufWriter::new(fs::File::create(directory.join("objects.csv"))?);
     let mut camera_rows = BufWriter::new(fs::File::create(directory.join("cameras.csv"))?);
     let mut overlaps = BufWriter::new(fs::File::create(directory.join("camera_overlap.csv"))?);
     let mut paths = BufWriter::new(fs::File::create(directory.join("camera_paths.csv"))?);
     writeln!(paths, "seed,camera,time,x_m,y_m,z_m")?;
     let mut groups = BufWriter::new(fs::File::create(directory.join("camera_groups.csv"))?);
-    writeln!(groups, "seed,min_pairwise_baseline_m,min_reference_baseline_m,max_reference_baseline_m,min_horizontal_spread,min_relative_motion")?;
-    writeln!(overlaps, "seed,reference,camera,time,reference_to_view,view_to_reference,baseline_m,mean_triangulation_degrees")?;
+    writeln!(
+        groups,
+        "seed,min_pairwise_baseline_m,min_reference_baseline_m,max_reference_baseline_m,min_horizontal_spread,min_relative_motion"
+    )?;
+    writeln!(
+        overlaps,
+        "seed,reference,camera,time,reference_to_view,view_to_reference,baseline_m,mean_triangulation_degrees"
+    )?;
     let mut scenes = BufWriter::new(fs::File::create(directory.join("scenes.csv"))?);
     writeln!(
         objects,
@@ -389,6 +362,7 @@ fn export_inner(
         cameras::record(&scene, &mut numeric, &mut paths, &mut groups)?;
         signatures.insert(&scene);
         exterior::record(&scene, &mut report, &mut numeric, &mut windows)?;
+        content::record_scene(&scene, &mut numeric)?;
         envelope::record(&scene, &mut report, &mut numeric, &mut architecture)?;
         if let Some(program) = &scene.program {
             if let Some(d) = &program.domain {
@@ -450,7 +424,8 @@ fn export_inner(
                 super::materials::Surface::Glass,
                 super::materials::Surface::GlassInterior,
             ] {
-                let recipe = super::materials::glass::GlassRecipe::sample(scene.seed, surface);
+                let recipe =
+                    super::materials::glass::GlassRecipe::sample(scene.material_seed(), surface);
                 for (key, value) in [
                     ("roughness", recipe.roughness),
                     ("ior", recipe.ior),
@@ -537,6 +512,7 @@ fn export_inner(
                 }
             }
             for material in &program.materials {
+                content::record_material(material, &mut numeric)?;
                 if let Some(l) = &material.layers {
                     for (key, value) in [
                         ("stripe_strength", l.stripe_strength),
@@ -690,17 +666,53 @@ fn export_inner(
             }
         }
         let main_count = scene.objects.iter().filter(|o| !o.neighbor).count();
+        let greenery = super::layout::botany::BotanyProgram::sample(scene.seed);
+        let palette = super::materials::program::PaletteProgram::sample(scene.material_seed());
+        for (key, value) in [
+            ("greenery_abundance", greenery.abundance),
+            ("greenery_window_affinity", greenery.window_affinity),
+            ("greenery_clustering", greenery.clustering),
+            ("greenery_tabletop_fraction", greenery.tabletop_fraction),
+            ("palette_hue_degrees", palette.hue),
+            ("palette_harmony_degrees", palette.harmony_angle),
+            ("wall_pigment_strength", palette.pigment_strength),
+            ("wall_lightness", palette.wall_lightness),
+            ("ceiling_lightness", palette.ceiling_lightness),
+            ("furnishing_lightness", palette.furnishing_lightness),
+            ("furnishing_saturation", palette.furnishing_saturation),
+        ] {
+            numeric.push(key, value as f64)?;
+        }
         for plant in scene.objects.iter().filter(|o| o.kind == ObjectKind::Plant) {
             let p = super::plants::Growth::sample(plant.seed);
+            let pot = super::plants::PotProfile::sample(plant.seed);
+            *report
+                .categories
+                .entry("plant_growth_habit".into())
+                .or_default()
+                .entry(super::plants::species_name(plant.variant).into())
+                .or_default() += 1;
+            *report
+                .categories
+                .entry("plant_pot_sides".into())
+                .or_default()
+                .entry(pot.sides.to_string())
+                .or_default() += 1;
             for (key, value) in [
-                ("plant_pot_height_m", plant.size.y * p.pot_fraction),
                 (
-                    "plant_pot_radius_m",
-                    plant.size.x.min(plant.size.z) * 0.44 * p.pot_radius,
+                    "plant_pot_height_m",
+                    super::plants::pot_dimensions(plant, &p).1,
                 ),
+                ("plant_pot_radius_m", super::plants::pot_radius(plant, &p)),
                 ("plant_pot_taper", p.pot_taper),
                 ("plant_leaf_density", p.density),
                 ("plant_phyllotaxis_radians", p.phyllotaxis),
+                ("plant_leaf_aspect", p.leaf_aspect),
+                ("plant_crown_skew", p.crown_skew),
+                ("plant_leaf_droop", p.droop),
+                ("plant_branching", p.branching),
+                ("plant_pot_shoulder_fraction", pot.shoulder_height_fraction),
+                ("plant_pot_pedestal_fraction", pot.pedestal_fraction),
             ] {
                 numeric.push(key, value as f64)?;
             }
@@ -787,6 +799,85 @@ fn export_inner(
                 / scene.cameras.len().max(1) as f64,
         )?;
         for object in &scene.objects {
+            content::record_object(&scene, object, &mut report.categories, &mut numeric)?;
+            if !object.neighbor && object.kind.is_surface() {
+                let p = super::items::parameters(&scene, object);
+                *report
+                    .categories
+                    .entry("surface_task".into())
+                    .or_default()
+                    .entry(p.dominant_task().into())
+                    .or_default() += 1;
+                for (task, weight) in super::items::TASKS.into_iter().zip(p.task_weights) {
+                    numeric.push(&format!("surface_task_weight_{task}"), weight as f64)?;
+                }
+                for (key, value) in [
+                    ("surface_occupancy", p.occupancy),
+                    ("surface_clustering", p.clustering),
+                    ("surface_alignment", p.alignment),
+                    ("surface_rotation", p.rotation),
+                ] {
+                    numeric.push(key, value as f64)?;
+                }
+            }
+            if object.kind == ObjectKind::Cabinet && !object.neighbor {
+                let p = super::objects::storage::parameters(object);
+                *report
+                    .categories
+                    .entry("storage_front".into())
+                    .or_default()
+                    .entry(
+                        [
+                            "hinged",
+                            "drawers",
+                            "mixed",
+                            "open_bays",
+                            "sliding",
+                            "slatted",
+                        ][p.front as usize]
+                            .into(),
+                    )
+                    .or_default() += 1;
+                *report
+                    .categories
+                    .entry("storage_handle".into())
+                    .or_default()
+                    .entry(p.handle.to_string())
+                    .or_default() += 1;
+                *report
+                    .categories
+                    .entry("storage_front_handle".into())
+                    .or_default()
+                    .entry(format!("{}/{}", p.front, p.handle))
+                    .or_default() += 1;
+                if p.front == 3 {
+                    numeric.push("storage_open_fraction", p.open_fraction as f64)?;
+                }
+            }
+            if matches!(
+                object.kind,
+                ObjectKind::MobileCart
+                    | ObjectKind::DrawerUnit
+                    | ObjectKind::Bench
+                    | ObjectKind::Ottoman
+                    | ObjectKind::RoomDivider
+            ) {
+                let p = super::objects::services::parameters(object);
+                if object.kind == ObjectKind::Ottoman
+                    || object.kind == ObjectKind::Bench && !p.slats
+                {
+                    numeric.push("service_roundness", p.roundness as f64)?;
+                }
+                if object.kind == ObjectKind::RoomDivider {
+                    numeric.push("service_panel_fraction", p.panel_fraction as f64)?;
+                }
+                *report
+                    .categories
+                    .entry("service_structure".into())
+                    .or_default()
+                    .entry(super::objects::services::construction(object))
+                    .or_default() += 1;
+            }
             if object.kind == ObjectKind::Sofa
                 || object.kind == ObjectKind::Chair
                     && object.variant % super::objects::chairs::FAMILIES == 8
@@ -797,12 +888,23 @@ fn export_inner(
                     ("sofa_seat_height_m", p.seat_height),
                     ("sofa_arm_width_m", p.arm_width),
                     ("sofa_leg_height_m", p.leg_height),
+                    ("sofa_arm_rise_m", p.arm_rise_m),
+                    ("sofa_arm_crown", p.arm_crown),
+                    ("sofa_arm_roundness", p.arm_roundness),
+                    ("sofa_cushion_gap_m", p.cushion_gap_m),
                 ] {
                     numeric.push(name, value as f64)?;
                 }
                 numeric.push("upholstery_cushion_crown", p.cushion_crown as f64)?;
                 numeric.push("upholstery_cushion_dish_m", p.cushion_dish_m as f64)?;
                 numeric.push("upholstery_seam_radius_m", p.seam_radius_m as f64)?;
+                for width in super::objects::seating::module_widths(object) {
+                    numeric.push("sofa_module_width_m", width as f64)?;
+                }
+                if p.pillows && object.size.x > 1.2 {
+                    numeric.push("sofa_pillow_maximum_width_m", p.pillow_width_m as f64)?;
+                    numeric.push("sofa_pillow_roll_radians", p.pillow_roll as f64)?;
+                }
                 for (key, value) in [
                     (
                         "sofa_configuration",
@@ -846,30 +948,7 @@ fn export_inner(
                 numeric.push("bookshelf_levels", p.levels as f64)?;
                 numeric.push("bookshelf_columns", p.columns as f64)?;
             }
-            if matches!(object.kind, ObjectKind::Whiteboard | ObjectKind::Display) {
-                let seed = super::materials::variants::screen_seed(
-                    scene.seed,
-                    super::materials::variants::slot(object.seed),
-                );
-                let (key, content) = if object.kind == ObjectKind::Whiteboard {
-                    ("whiteboard_content", seed % 8)
-                } else {
-                    (
-                        "tv_content",
-                        super::materials::screens::parameters(seed).layout as u64,
-                    )
-                };
-                *report
-                    .categories
-                    .entry(key.into())
-                    .or_default()
-                    .entry(content.to_string())
-                    .or_default() += 1;
-            }
-            if matches!(
-                object.kind,
-                ObjectKind::Table | ObjectKind::Desk | ObjectKind::CoffeeTable
-            ) {
+            if object.kind.has_table_outline() {
                 let p = super::objects::tables::parameters(object);
                 *report
                     .categories
@@ -885,21 +964,31 @@ fn export_inner(
                     ("table_outline_exponent", p.outline_exponent),
                     ("table_taper", p.taper),
                     ("table_capsule_blend", p.capsule_blend),
-                    ("table_pedestal_radius_fraction", p.pedestal_radius),
-                    (
-                        "table_pedestal_base_radius_fraction",
-                        p.pedestal_base_radius,
-                    ),
-                    ("table_pedestal_base_aspect", p.pedestal_base_aspect),
                 ] {
                     numeric.push(key, value as f64)?;
+                }
+                if matches!(p.support, 2 | 7) {
+                    numeric.push("table_pedestal_radius_fraction", p.pedestal_radius as f64)?;
+                    numeric.push(
+                        "table_pedestal_base_radius_fraction",
+                        p.pedestal_base_radius as f64,
+                    )?;
+                }
+                if p.support == 2 {
+                    numeric.push("table_pedestal_base_aspect", p.pedestal_base_aspect as f64)?;
                 }
                 if p.support < 2 {
                     numeric.push("table_leg_taper", p.leg_taper as f64)?;
                     numeric.push("table_leg_aspect", p.leg_aspect as f64)?;
                 }
-                if p.support == 3 {
+                if p.support == 3 || p.support == 7 {
                     numeric.push("table_frame_bend_m", p.frame_bend_m as f64)?;
+                }
+                if p.support == 6 {
+                    numeric.push("table_trestle_spread", p.trestle_spread as f64)?;
+                }
+                if p.support == 7 {
+                    numeric.push("table_spider_sweep", p.spider_sweep as f64)?;
                 }
                 *report
                     .categories
@@ -973,31 +1062,6 @@ fn export_inner(
                     .entry(if p.digital { "digital" } else { "analog" }.into())
                     .or_default() += 1;
             }
-            if matches!(
-                object.kind,
-                ObjectKind::Laptop | ObjectKind::Display | ObjectKind::Monitor | ObjectKind::Phone
-            ) {
-                let seed = super::materials::variants::screen_seed(
-                    scene.seed,
-                    super::materials::variants::slot(object.seed),
-                );
-                let p = super::materials::screens::parameters(seed);
-                numeric.push("screen_time_minutes", p.minutes as f64)?;
-                numeric.push(
-                    "screen_luminance",
-                    if p.layout == 7 {
-                        0.
-                    } else {
-                        p.luminance as f64
-                    },
-                )?;
-                *report
-                    .categories
-                    .entry("screen_content".into())
-                    .or_default()
-                    .entry(p.layout.to_string())
-                    .or_default() += 1;
-            }
             if matches!(object.kind, ObjectKind::Monitor | ObjectKind::Display) {
                 let p = super::objects::computers::display_parameters(object);
                 for (key, value) in [
@@ -1045,6 +1109,25 @@ fn export_inner(
                     continue;
                 }
                 let p = super::objects::chairs::parameters(object);
+                if p.armrests {
+                    numeric.push("chair_arm_pad_width_m", p.arm_pad_width_m as f64)?;
+                    numeric.push("chair_arm_pad_roundness", p.arm_pad_roundness as f64)?;
+                    *report
+                        .categories
+                        .entry("chair_arm_support".into())
+                        .or_default()
+                        .entry(p.arm_support.to_string())
+                        .or_default() += 1;
+                }
+                if p.headrest {
+                    for (key, value) in [
+                        ("chair_headrest_width_fraction", p.headrest_width_fraction),
+                        ("chair_headrest_height_m", p.headrest_height_m),
+                        ("chair_headrest_curvature_m", p.headrest_curvature_m),
+                    ] {
+                        numeric.push(key, value as f64)?;
+                    }
+                }
                 *report
                     .categories
                     .entry("chair_headrest".into())

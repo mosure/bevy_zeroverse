@@ -1,6 +1,7 @@
 //! Potted botanical forms with real leaf silhouettes, petioles and tapered stems.
 //! The curved lamina/branch approach follows the review of bevy_ftb; geometry is
 //! generated here independently, without its assets, shaders or runtime dependency.
+mod habits;
 mod pots;
 pub use pots::PotProfile;
 
@@ -13,7 +14,65 @@ use bevy::prelude::*;
 use rand::Rng;
 use std::f32::consts::{PI, TAU};
 
-pub const SPECIES: u32 = 6;
+pub const SPECIES: u32 = 14;
+
+pub fn species_name(variant: u32) -> &'static str {
+    [
+        "rubber_plant",
+        "palm",
+        "snake_plant",
+        "split_leaf",
+        "fern",
+        "dracaena",
+        "branching_ficus",
+        "succulent_rosette",
+        "ribbed_cactus",
+        "paddle_cactus",
+        "bamboo",
+        "trailing_vine",
+        "umbrella_plant",
+        "leafy_shrub",
+    ][(variant % SPECIES) as usize]
+}
+
+/// Existing floor/tabletop plant proposals also need a compatible growth habit:
+/// a two-metre narrow reserve must not turn into a vertically stretched rosette.
+pub(super) fn sample_species(size: Vec3, rng: &mut impl Rng) -> u32 {
+    let ratio = size.y / size.x.min(size.z);
+    let ranges = [
+        (1.1, 6.0),
+        (1.2, 5.5),
+        (1.3, 8.0),
+        (0.7, 3.0),
+        (0.65, 1.9),
+        (1.6, 7.0),
+        (1.3, 6.0),
+        (0.30, 1.7),
+        (0.75, 6.0),
+        (0.70, 4.0),
+        (1.8, 8.0),
+        (0.70, 4.0),
+        (1.2, 5.0),
+        (0.70, 3.0),
+    ];
+    let mut choices = [0u32; SPECIES as usize];
+    let mut count = 0;
+    for (i, (min, max)) in ranges.into_iter().enumerate() {
+        if (min..=max).contains(&ratio) && (i != 7 || size.y <= 0.70 || ratio <= 1.1) {
+            choices[count] = i as u32;
+            count += 1;
+        }
+    }
+    if count == 0 {
+        if ratio < 1. {
+            7
+        } else {
+            2
+        }
+    } else {
+        choices[rng.random_range(0..count)]
+    }
+}
 
 /// Independent morphology controls; species constrains growth habit, not a mesh.
 #[derive(Debug, Clone, serde::Serialize)]
@@ -23,6 +82,10 @@ pub(super) struct Growth {
     pub pot_taper: f32,
     pub density: f32,
     pub phyllotaxis: f32,
+    pub leaf_aspect: f32,
+    pub crown_skew: f32,
+    pub droop: f32,
+    pub branching: f32,
 }
 impl Growth {
     pub fn sample(seed: u64) -> Self {
@@ -33,6 +96,10 @@ impl Growth {
             pot_taper: rng.random_range(0.60..0.94),
             density: rng.random_range(0.50..1.08),
             phyllotaxis: rng.random_range(2.18..2.62),
+            leaf_aspect: rng.random_range(0.72..1.28),
+            crown_skew: rng.random_range(-0.16..0.16),
+            droop: rng.random_range(0.08..0.42),
+            branching: rng.random_range(0.38..0.92),
         }
     }
     fn count(&self, nominal: usize) -> usize {
@@ -42,6 +109,36 @@ impl Growth {
 
 fn radial(angle: f32) -> Vec3 {
     Vec3::new(angle.cos(), 0.0, angle.sin())
+}
+
+/// Root volume scales with stature as well as canopy width. The saucer and
+/// sculpted rim remain inside the existing placement reserve. Tall decorative
+/// planters retain a separate continuous aspect range, rather than stretching
+/// every tall plant's nursery pot vertically.
+pub(super) fn pot_dimensions(o: &IndoorObject, growth: &Growth) -> (f32, f32) {
+    // Cactus and succulent crowns do not have the spreading leaf canopy of a
+    // ficus. Give their root volumes broad nursery pots rather than pencil pots.
+    let form = match o.variant % SPECIES {
+        7 => 1.35,
+        8 | 9 => 1.55,
+        _ => 1.0,
+    };
+    let mut rng = stream(o.seed, 6230);
+    let width = o.size.x.min(o.size.z);
+    let radius = (width * 0.40 * growth.pot_radius * form)
+        .max(o.size.y * rng.random_range(0.055..0.085))
+        .min(width * 0.40);
+    let max_aspect = if rng.random_bool(0.22) {
+        rng.random_range(1.15..1.65)
+    } else {
+        rng.random_range(0.68..1.15)
+    };
+    let height = (o.size.y * growth.pot_fraction).min(2. * radius * max_aspect);
+    (radius, height)
+}
+
+pub(super) fn pot_radius(o: &IndoorObject, growth: &Growth) -> f32 {
+    pot_dimensions(o, growth).0
 }
 
 fn stem(a: &mut Assembly, points: &[Vec3], radius: f32) {
@@ -65,11 +162,20 @@ fn stem(a: &mut Assembly, points: &[Vec3], radius: f32) {
 
 /// Each blade owns its UV domain: the central vein follows the midrib, even on
 /// a twisted leaf. Area-weighted mesh normals follow the actual curved surface.
-fn blade(a: &mut Assembly, base: Vec3, delta: Vec3, half_width: f32, shape: u32, seed: u64) {
+fn blade(
+    a: &mut Assembly,
+    base: Vec3,
+    delta: Vec3,
+    half_width: f32,
+    shape: u32,
+    seed: u64,
+    morphology: &Growth,
+) {
     let axis = delta.normalize();
     let side = axis.cross(Vec3::Y).try_normalize().unwrap_or(Vec3::X);
     let up = side.cross(axis).normalize();
     let mut rng = stream(seed, 91);
+    let half_width = half_width * morphology.leaf_aspect;
     let bend = rng.random_range(0.18..0.50);
     let twist = rng.random_range(-0.30..0.30);
     let asymmetry = rng.random_range(-0.13..0.13);
@@ -91,20 +197,28 @@ fn blade(a: &mut Assembly, base: Vec3, delta: Vec3, half_width: f32, shape: u32,
     let mut uvs = vec![[0.5, 0.0]];
     for row in 1..8 {
         let t = row as f32 / 8.0;
-        let envelope = (PI * t).sin().powf(exponent);
+        let envelope = (PI * t).sin().powf(exponent)
+            * if shape == 4 {
+                (1.30 - t).clamp(0.35, 1.0)
+            } else {
+                1.0
+            };
         let lobes = if shape == 3 {
             0.48 + 0.52 * (t * PI * 4.0).cos().abs()
+        } else if shape == 5 {
+            0.88 + 0.12 * (t * PI * 12.0).cos().abs()
         } else {
             1.0
         };
-        let mid = base + delta * t + up * half_width * (bend * (PI * t).sin() - 0.25 * t * t);
+        let mid =
+            base + delta * t + up * half_width * (bend * (PI * t).sin() - morphology.droop * t * t);
         for sign in [-1.0, 0.0, 1.0] {
             let w = half_width * envelope * lobes * sign * (1.0 + sign * asymmetry);
             positions.push(mid + side * w + up * (w * twist * t - w.abs() * 0.22));
             uvs.push([0.5 + sign * envelope * lobes * 0.5, t]);
         }
     }
-    positions.push(base + delta - up * half_width * 0.25);
+    positions.push(base + delta - up * half_width * morphology.droop);
     uvs.push([0.5, 1.0]);
     let mut indices = vec![0, 2, 1, 0, 3, 2];
     for row in 0..6 {
@@ -145,12 +259,14 @@ pub fn build(a: &mut Assembly, o: &IndoorObject) {
     let mut rng = stream(o.seed, 5);
     let h = o.size.y;
     let growth = Growth::sample(o.seed);
-    let spread = o.size.x.min(o.size.z) * 0.44;
-    let ph = h * growth.pot_fraction;
-    let r = spread * growth.pot_radius;
-    let pot = match (o.seed >> 8) % 3 {
+    // The foliage envelope includes maximum leaf-width modulation and droop.
+    let spread = o.size.x.min(o.size.z) * 0.40;
+    let (r, ph) = pot_dimensions(o, &growth);
+    let pot = match (o.seed >> 8) % 5 {
         0 => Surface::Terracotta,
         1 => Surface::Concrete,
+        2 => Surface::Plastic,
+        3 => Surface::Metal,
         _ => Surface::Ceramic,
     };
     let pot_program = PotProfile::sample(o.seed);
@@ -168,6 +284,13 @@ pub fn build(a: &mut Assembly, o: &IndoorObject) {
         );
     }
     let base = Vec3::Y * soil;
+    // Broad nursery pots need compact crowns: a horizontal leaf's rise must
+    // fit the headroom too. Stem and pot dimensions retain their metric scale.
+    let spread = spread.min((h - soil) * 0.80);
+    if o.variant % SPECIES >= 6 {
+        habits::build(a, o, &growth, base, spread, soil_radius);
+        return;
+    }
     match o.variant % SPECIES {
         0 => {
             // Rubber plant: alternate broad leaves on several branching leaders.
@@ -198,13 +321,14 @@ pub fn build(a: &mut Assembly, o: &IndoorObject) {
                         spread * 0.19,
                         0,
                         rng.random(),
+                        &growth,
                     );
                 }
             }
         }
         1 | 4 => {
             // Palm / fern: arching rachises with paired, tapered pinnae.
-            let palm = o.variant == 1;
+            let palm = o.variant % SPECIES == 1;
             // Keep the existing <20k-triangle per-plant budget at the lush tail.
             for frond in 0..growth.count(if palm { 14 } else { 16 }).min(16) {
                 let dir = radial(frond as f32 * growth.phyllotaxis);
@@ -231,6 +355,7 @@ pub fn build(a: &mut Assembly, o: &IndoorObject) {
                             length * if palm { 0.13 } else { 0.22 },
                             1,
                             rng.random(),
+                            &growth,
                         );
                     }
                 }
@@ -248,6 +373,7 @@ pub fn build(a: &mut Assembly, o: &IndoorObject) {
                     spread * rng.random_range(0.075..0.13),
                     2,
                     rng.random(),
+                    &growth,
                 );
             }
         }
@@ -270,6 +396,7 @@ pub fn build(a: &mut Assembly, o: &IndoorObject) {
                     spread * 0.31,
                     3,
                     rng.random(),
+                    &growth,
                 );
             }
         }
@@ -294,6 +421,7 @@ pub fn build(a: &mut Assembly, o: &IndoorObject) {
                         spread * 0.045,
                         1,
                         rng.random(),
+                        &growth,
                     );
                 }
             }
@@ -305,6 +433,19 @@ pub fn build(a: &mut Assembly, o: &IndoorObject) {
 mod tests {
     use super::*;
     use crate::scene::procedural_indoor::layout::ObjectKind;
+    #[test]
+    fn habit_selection_does_not_stretch_compact_plants_into_tall_floor_envelopes() {
+        let mut tall = std::collections::BTreeSet::new();
+        let mut compact = std::collections::BTreeSet::new();
+        for seed in 0..256 {
+            let mut rng = stream(seed, 6280);
+            tall.insert(sample_species(Vec3::new(0.75, 1.80, 0.75), &mut rng));
+            compact.insert(sample_species(Vec3::new(0.26, 0.22, 0.26), &mut rng));
+        }
+        assert!(!tall.contains(&7) && !tall.contains(&4));
+        assert!(tall.len() >= 8 && compact.contains(&7) && compact.contains(&4));
+        assert!(!compact.contains(&2) && !compact.contains(&5));
+    }
     #[test]
     fn all_botanical_forms_have_supported_pots_valid_leaf_frames_and_bounded_canopies() {
         for variant in 0..SPECIES {
@@ -322,6 +463,8 @@ mod tests {
                     support: None,
                     neighbor: false,
                     interaction_target: None,
+                    cable_path: None,
+                    cable_target: None,
                 };
                 let mut a = Assembly::default();
                 build(&mut a, &o);
@@ -360,6 +503,61 @@ mod tests {
                 topology_counts.len() >= 4,
                 "plant growth did not diversify topology: {variant}"
             );
+        }
+    }
+
+    #[test]
+    fn compact_and_wide_botanical_canopies_keep_actual_vertices_in_reserved_bounds() {
+        for dimensions in [
+            Vec3::new(0.18, 0.23, 0.16),
+            Vec3::new(0.95, 2.12, 1.064),
+            Vec3::new(0.45, 2.30, 0.45),
+            Vec3::new(0.75, 0.40, 0.70),
+        ] {
+            for variant in 0..SPECIES {
+                for seed in 0..12 {
+                    let o = IndoorObject {
+                        id: 0,
+                        kind: ObjectKind::Plant,
+                        position: Vec3::ZERO,
+                        size: dimensions,
+                        yaw: 0.,
+                        variant,
+                        seed,
+                        solid: true,
+                        support: None,
+                        neighbor: false,
+                        interaction_target: None,
+                        cable_path: None,
+                        cable_target: None,
+                    };
+                    let mut a = Assembly::default();
+                    let growth = Growth::sample(o.seed);
+                    let (radius, height) = pot_dimensions(&o, &growth);
+                    assert_eq!((radius, height), pot_dimensions(&o, &growth));
+                    assert!(height / (2. * radius) <= 1.65);
+                    assert!(radius * 1.10 <= dimensions.x.min(dimensions.z) * 0.5);
+                    if dimensions.y > 2.2 && dimensions.x < 0.5 {
+                        assert!(radius * 2. >= 0.25, "insufficient tall-plant root volume");
+                    }
+                    build(&mut a, &o);
+                    let (lo, hi) = a.bounds();
+                    assert!(
+                        lo.y >= -0.0001
+                            && hi.y <= dimensions.y + 0.0001
+                            && lo.x >= -dimensions.x * 0.5
+                            && hi.x <= dimensions.x * 0.5
+                            && lo.z >= -dimensions.z * 0.5
+                            && hi.z <= dimensions.z * 0.5,
+                        "{} seed {seed} size {dimensions:?}: {lo:?} {hi:?}",
+                        species_name(variant)
+                    );
+                    for g in a.parts.values() {
+                        assert!(g.normals.iter().all(|n| n.iter().all(|v| v.is_finite())
+                            && (Vec3::from_array(*n).length() - 1.).abs() < 0.001));
+                    }
+                }
+            }
         }
     }
 }

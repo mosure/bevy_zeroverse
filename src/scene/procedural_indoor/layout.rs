@@ -1,9 +1,13 @@
 //! Seeded, renderer-independent layout grammar. All lengths are metres.
+mod amenities;
+pub(crate) mod botany;
 mod decor;
+pub(crate) mod equipment;
 mod furnishing;
 mod programs;
 mod seating;
-mod surfaces;
+pub(crate) mod surfaces;
+pub(crate) mod wall_composition;
 pub(crate) use seating::furniture_overlap;
 #[cfg(test)]
 mod tests;
@@ -101,24 +105,121 @@ pub enum ObjectKind {
     Phone,
     WallOutlet,
     LightSwitch,
+    SideTable,
+    MobileCart,
+    DrawerUnit,
+    Bench,
+    Ottoman,
+    RoomDivider,
+    DeskLamp,
+    CoffeeMaker,
+    Kettle,
+    Speaker,
+    Headphones,
+    Stapler,
+    TapeDispenser,
+    DocumentTray,
+    DeskOrganizer,
+    TissueBox,
+    Vase,
+    Bowl,
+    DeskFan,
+    Projector,
+    ProjectionScreen,
+    PowerStrip,
+    Cable,
+    WallShelf,
+    NoticeBoard,
+    WallSconce,
+    CeilingPendant,
 }
 
 impl ObjectKind {
+    /// Authoritative item catalog, shared with distribution and placement exports.
+    pub const ALL: [Self; 63] = [
+        Self::Table,
+        Self::Desk,
+        Self::Chair,
+        Self::Sofa,
+        Self::CoffeeTable,
+        Self::Cabinet,
+        Self::Bookcase,
+        Self::Plant,
+        Self::TrashCan,
+        Self::Whiteboard,
+        Self::Display,
+        Self::Laptop,
+        Self::Monitor,
+        Self::Notebook,
+        Self::Mug,
+        Self::Books,
+        Self::Rug,
+        Self::WallArt,
+        Self::Clock,
+        Self::FloorLamp,
+        Self::Keyboard,
+        Self::Mouse,
+        Self::WaterBottle,
+        Self::PenHolder,
+        Self::Printer,
+        Self::StorageBox,
+        Self::CoatRack,
+        Self::Bag,
+        Self::CoffeeCup,
+        Self::SodaCan,
+        Self::Notepad,
+        Self::Pencil,
+        Self::Microphone,
+        Self::Phone,
+        Self::WallOutlet,
+        Self::LightSwitch,
+        Self::SideTable,
+        Self::MobileCart,
+        Self::DrawerUnit,
+        Self::Bench,
+        Self::Ottoman,
+        Self::RoomDivider,
+        Self::DeskLamp,
+        Self::CoffeeMaker,
+        Self::Kettle,
+        Self::Speaker,
+        Self::Headphones,
+        Self::Stapler,
+        Self::TapeDispenser,
+        Self::DocumentTray,
+        Self::DeskOrganizer,
+        Self::TissueBox,
+        Self::Vase,
+        Self::Bowl,
+        Self::DeskFan,
+        Self::Projector,
+        Self::ProjectionScreen,
+        Self::PowerStrip,
+        Self::Cable,
+        Self::WallShelf,
+        Self::NoticeBoard,
+        Self::WallSconce,
+        Self::CeilingPendant,
+    ];
+
     pub fn class_name(self) -> &'static str {
         match self {
-            Self::Table | Self::CoffeeTable => "table",
+            Self::Table | Self::CoffeeTable | Self::SideTable => "table",
             Self::Desk => "desk",
             Self::Chair => "chair",
-            Self::Sofa => "sofa",
-            Self::Cabinet => "cabinet",
+            Self::Sofa | Self::Ottoman => "sofa",
+            Self::Bench => "chair",
+            Self::Cabinet | Self::DrawerUnit => "cabinet",
             Self::Bookcase => "bookshelf",
             Self::Whiteboard => "whiteboard",
-            Self::Display | Self::Monitor => "television",
+            Self::Display | Self::Monitor | Self::ProjectionScreen => "television",
+            Self::NoticeBoard => "whiteboard",
+            Self::WallSconce | Self::CeilingPendant => "lamp",
             Self::Notebook | Self::Notepad => "paper",
             Self::Books => "books",
             Self::Rug => "floormat",
             Self::WallArt => "picture",
-            Self::FloorLamp => "lamp",
+            Self::FloorLamp | Self::DeskLamp => "lamp",
             _ => "other_prop",
         }
     }
@@ -126,7 +227,21 @@ impl ObjectKind {
     pub fn is_surface(self) -> bool {
         matches!(
             self,
-            Self::Table | Self::Desk | Self::CoffeeTable | Self::Cabinet
+            Self::Table
+                | Self::Desk
+                | Self::CoffeeTable
+                | Self::Cabinet
+                | Self::SideTable
+                | Self::MobileCart
+                | Self::DrawerUnit
+                | Self::WallShelf
+        )
+    }
+
+    pub fn has_table_outline(self) -> bool {
+        matches!(
+            self,
+            Self::Table | Self::Desk | Self::CoffeeTable | Self::SideTable
         )
     }
 }
@@ -149,6 +264,12 @@ pub struct IndoorObject {
     /// Chair -> work surface; display/laptop -> intended seated user (chair id).
     #[serde(default)]
     pub interaction_target: Option<usize>,
+    /// Seeded local centreline of a routed wire. Non-cables never carry a path.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cable_path: Option<Vec<Vec3>>,
+    /// Cable destination instance; `interaction_target` identifies its source.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cable_target: Option<usize>,
 }
 
 impl IndoorObject {
@@ -381,10 +502,20 @@ impl IndoorManifest {
         scene.envelope = Some(super::envelope::EnvelopeProgram::sample(&mut scene));
         scene.furnish(&mut rng);
         scene.assign_work_surfaces();
+        scene.furnish_amenities();
+        scene.furnish_botany();
+        scene.furnish_equipment();
+        scene.compose_wall_groups();
         scene.decorate(&mut rng);
         scene.scatter_clutter(&mut rng);
         super::humans::populate(&mut scene, human_density);
         scene.settle_seating();
+        scene.connect_equipment();
+        // Routing depends on settled people, but may append new object instances.
+        // Assign the final disjoint human ID range before camera/annotation export.
+        for (index, human) in scene.humans.iter_mut().enumerate() {
+            human.id = scene.objects.len() + index;
+        }
         scene.sample_cameras(cameras)?;
         Ok(scene)
     }
@@ -403,22 +534,28 @@ impl IndoorManifest {
             position: pos,
             size,
             yaw,
-            variant: rng.random_range(
-                0..if kind == ObjectKind::Chair {
-                    super::objects::chairs::FAMILIES
-                } else if kind == ObjectKind::Laptop {
-                    super::objects::computers::LAPTOP_FAMILIES
-                } else if kind == ObjectKind::Plant {
-                    super::plants::SPECIES
-                } else {
-                    3
-                },
-            ),
+            variant: if kind == ObjectKind::Plant {
+                super::plants::sample_species(size, rng)
+            } else {
+                rng.random_range(
+                    0..if kind == ObjectKind::Chair {
+                        super::objects::chairs::FAMILIES
+                    } else if kind == ObjectKind::Laptop {
+                        super::objects::computers::LAPTOP_FAMILIES
+                    } else if kind == ObjectKind::WallArt {
+                        6
+                    } else {
+                        3
+                    },
+                )
+            },
             seed: rng.random(),
             solid: true,
             support: None,
             neighbor: false,
             interaction_target: None,
+            cable_path: None,
+            cable_target: None,
         }
     }
 
@@ -452,6 +589,9 @@ impl IndoorManifest {
         let mut obj = self.floor_candidate(kind, pos, size, yaw, rng);
         if matches!(kind, ObjectKind::Desk | ObjectKind::Table) {
             obj.variant = self.furniture_style;
+        }
+        if kind == ObjectKind::Bench && !super::objects::services::parameters(&obj).backed {
+            obj.size.y = obj.size.y.min(0.48);
         }
         if !self.placement_clear(&obj, 0.06) {
             self.rejected_placements += 1;
@@ -516,7 +656,17 @@ impl IndoorManifest {
             .objects
             .iter()
             .filter(|o| o.solid && !o.neighbor && o.id != object.id)
-            .any(|other| seating::furniture_overlap(object, other, margin))
+            .any(|other| {
+                seating::furniture_overlap(
+                    object,
+                    other,
+                    if object.kind == ObjectKind::Plant || other.kind == ObjectKind::Plant {
+                        margin.max(0.06)
+                    } else {
+                        margin
+                    },
+                )
+            })
     }
 
     fn assign_work_surfaces(&mut self) {
@@ -581,7 +731,24 @@ impl IndoorManifest {
             .cloned()
             .collect();
         for surface in surfaces {
+            // Refreshment carts, personal drawers and lounge side tables use
+            // their own task program rather than inheriting a laptop workstation.
+            if matches!(
+                surface.kind,
+                ObjectKind::MobileCart
+                    | ObjectKind::DrawerUnit
+                    | ObjectKind::SideTable
+                    | ObjectKind::WallShelf
+            ) {
+                if surface.kind == ObjectKind::MobileCart {
+                    self.appliance_group(&surface);
+                }
+                continue;
+            }
             if surface.kind == ObjectKind::Cabinet {
+                if super::items::parameters(self, &surface).dominant_task() == "refreshment" {
+                    self.appliance_group(&surface);
+                }
                 self.place_prop(
                     &surface,
                     ObjectKind::Books,
@@ -602,108 +769,25 @@ impl IndoorManifest {
                 }
                 continue;
             }
+            if surface.kind == ObjectKind::Desk {
+                let mut light_rng = stream(surface.seed, 5540);
+                if light_rng.random_bool(0.26) {
+                    let handed = if light_rng.random_bool(0.5) { -1. } else { 1. };
+                    self.prop(
+                        &surface,
+                        ObjectKind::DeskLamp,
+                        Vec3::new(handed * surface.size.x * 0.34, 0., -surface.size.z * 0.27),
+                        Vec3::new(0.20, light_rng.random_range(0.31..0.48), 0.22),
+                        light_rng.random_range(-0.12..0.12),
+                        &mut light_rng,
+                    );
+                }
+            }
             if surface.kind == ObjectKind::Table {
                 self.conference_props(&surface, rng);
                 continue;
             }
-            let count = 1;
-            for i in 0..count {
-                let z = (i as f32 - (count - 1) as f32 * 0.5) * 1.04;
-                if rng.random_bool((0.35 + self.density * 0.6) as f64) {
-                    let kind = if self.layout == IndoorLayout::OpenOffice
-                        && surface.kind == ObjectKind::Desk
-                        && rng.random_bool(0.55)
-                    {
-                        ObjectKind::Monitor
-                    } else {
-                        ObjectKind::Laptop
-                    };
-                    self.place_prop(
-                        &surface,
-                        kind,
-                        Vec3::new(0.0, 0.0, z - 0.08),
-                        if kind == ObjectKind::Monitor {
-                            Vec3::new(
-                                rng.random_range(0.38..0.66),
-                                rng.random_range(0.30..0.48),
-                                0.30,
-                            )
-                        } else {
-                            Vec3::new(
-                                rng.random_range(0.27..0.43),
-                                rng.random_range(0.23..0.32),
-                                rng.random_range(0.30..0.39),
-                            )
-                        },
-                        rng.random_range(-0.12..0.12),
-                        rng,
-                    );
-                }
-                if self
-                    .objects
-                    .iter()
-                    .any(|o| o.support == Some(surface.id) && o.kind == ObjectKind::Monitor)
-                {
-                    self.place_prop(
-                        &surface,
-                        ObjectKind::Keyboard,
-                        Vec3::new(0.0, 0.0, 0.23),
-                        Vec3::new(0.33, 0.022, 0.13),
-                        rng.random_range(-0.035..0.035),
-                        rng,
-                    );
-                    self.place_prop(
-                        &surface,
-                        ObjectKind::Mouse,
-                        Vec3::new(0.26, 0.0, 0.23),
-                        Vec3::new(0.065, 0.035, 0.105),
-                        rng.random_range(-0.12..0.12),
-                        rng,
-                    );
-                }
-                if rng.random_bool((0.20 + self.density * 0.55) as f64) {
-                    let kind = if rng.random_bool(0.55) {
-                        ObjectKind::WaterBottle
-                    } else {
-                        ObjectKind::PenHolder
-                    };
-                    self.place_prop(
-                        &surface,
-                        kind,
-                        Vec3::new(surface.size.x * 0.29, 0.0, -surface.size.z * 0.29),
-                        Vec3::new(
-                            0.08,
-                            if kind == ObjectKind::WaterBottle {
-                                0.24
-                            } else {
-                                0.17
-                            },
-                            0.08,
-                        ),
-                        0.0,
-                        rng,
-                    );
-                }
-                self.place_prop(
-                    &surface,
-                    ObjectKind::Notebook,
-                    Vec3::new(-surface.size.x * 0.27, 0.0, z + 0.03),
-                    Vec3::new(0.20, 0.016, 0.27),
-                    rng.random_range(-0.18..0.18),
-                    rng,
-                );
-                if rng.random_bool((0.4 + self.density * 0.55) as f64) {
-                    let (kind, size) = decor::drink(rng);
-                    self.place_prop(
-                        &surface,
-                        kind,
-                        Vec3::new(surface.size.x * 0.30, 0.0, z),
-                        size,
-                        rng.random_range(-1.2..1.2),
-                        rng,
-                    );
-                }
-            }
+            self.decorate_workspace(&surface);
         }
     }
 
@@ -839,6 +923,10 @@ impl IndoorManifest {
 
     /// Check actual rotated prop footprints in the supporting surface's frame.
     pub fn prop_clear(&self, object: &IndoorObject, support: &IndoorObject, margin: f32) -> bool {
+        if object.kind == ObjectKind::Cable {
+            return object.support == Some(support.id)
+                && equipment::cable_route_clear(self, object);
+        }
         // Surface containment alone does not protect a tall prop from a sloped
         // ceiling. Check the complete transformed box, including its top.
         let (world_lo, world_hi) = object.bounds();
@@ -876,24 +964,29 @@ impl IndoorManifest {
         {
             return false;
         }
-        if matches!(
-            support.kind,
-            ObjectKind::Table | ObjectKind::Desk | ObjectKind::CoffeeTable
-        ) && !super::objects::tables::supports(support, lo, hi, margin)
+        if support.kind.has_table_outline()
+            && !super::objects::tables::supports(support, lo, hi, margin)
         {
             return false;
         }
-        !self
-            .objects
-            .iter()
-            .filter(|o| o.support == Some(support.id) && o.id != object.id)
-            .any(|o| {
-                let (a, b) = local_bounds(o);
-                lo.x < b.x + margin
-                    && hi.x + margin > a.x
-                    && lo.y < b.y + margin
-                    && hi.y + margin > a.y
-            })
+        equipment::cables_clear_proposed_prop(self, object)
+            && !self
+                .objects
+                .iter()
+                // Cables reserve their actual segments above, rather than their
+                // enclosing rectangle, while ordinary props retain footprint gaps.
+                .filter(|o| {
+                    o.support == Some(support.id)
+                        && o.id != object.id
+                        && o.kind != ObjectKind::Cable
+                })
+                .any(|o| {
+                    let (a, b) = local_bounds(o);
+                    lo.x < b.x + margin
+                        && hi.x + margin > a.x
+                        && lo.y < b.y + margin
+                        && hi.y + margin > a.y
+                })
     }
 
     pub fn camera_clear(&self, p: Vec3) -> bool {

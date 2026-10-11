@@ -6,7 +6,7 @@ use rand::Rng;
 use std::collections::BTreeMap;
 
 pub const COUNT: usize = 12;
-pub const SURFACES: [Surface; 18] = [
+pub const SURFACES: [Surface; 19] = [
     Surface::Ceramic,
     Surface::Metal,
     Surface::Chrome,
@@ -25,6 +25,7 @@ pub const SURFACES: [Surface; 18] = [
     Surface::Leaf,
     Surface::LeafLight,
     Surface::LeafVariegated,
+    Surface::Succulent,
 ];
 pub fn structure_count(surface: Surface) -> usize {
     match surface {
@@ -33,7 +34,8 @@ pub fn structure_count(surface: Surface) -> usize {
         | Surface::WoodEdge
         | Surface::Leaf
         | Surface::LeafLight
-        | Surface::LeafVariegated => 2,
+        | Surface::LeafVariegated
+        | Surface::Succulent => 2,
         _ => 1,
     }
 }
@@ -91,6 +93,8 @@ pub(super) fn build(
                 boards::apply(screen_seed(seed, index), &mut mat, images);
             } else if surface == Surface::PrintedPaper {
                 paper::apply(screen_seed(seed, index), &mut mat, images);
+            } else if surface == Surface::Art {
+                art::apply(screen_seed(seed, index), &mut mat, images);
             } else {
                 // Upholstery and device plastics remain in the scene palette;
                 // small personal accessories can have independently chosen hues.

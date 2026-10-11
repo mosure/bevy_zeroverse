@@ -28,6 +28,12 @@ pub struct ChairProgram {
     pub seat_dish_m: f32,
     pub frame_bend_m: f32,
     pub mesh_pitch_m: f32,
+    pub arm_support: u8,
+    pub arm_pad_width_m: f32,
+    pub arm_pad_roundness: f32,
+    pub headrest_width_fraction: f32,
+    pub headrest_height_m: f32,
+    pub headrest_curvature_m: f32,
 }
 pub fn parameters(o: &IndoorObject) -> ChairProgram {
     let mut rng = stream(o.seed, 73);
@@ -67,6 +73,12 @@ pub fn parameters(o: &IndoorObject) -> ChairProgram {
         seat_dish_m: rng.random_range(0.002..0.010),
         frame_bend_m: rng.random_range(0.025..0.065),
         mesh_pitch_m: rng.random_range(0.035..0.060),
+        arm_support: rng.random_range(0..3),
+        arm_pad_width_m: rng.random_range(0.040..0.055),
+        arm_pad_roundness: rng.random_range(2.2..7.8),
+        headrest_width_fraction: rng.random_range(0.52..0.75),
+        headrest_height_m: rng.random_range(0.11..0.14),
+        headrest_curvature_m: rng.random_range(0.012..0.035),
     }
 }
 
@@ -303,7 +315,8 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
         }
     }
     if program.headrest {
-        for x in [-0.09, 0.09] {
+        for x in [-1., 1.] {
+            let x = x * width * program.headrest_width_fraction * 0.28;
             a.part(Surface::Chrome, label).rod(
                 back.transform_point(Vec3::new(x, back_height - 0.04, 0.045)),
                 back.transform_point(Vec3::new(x, back_height + 0.10, 0.045)),
@@ -311,9 +324,9 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
             );
         }
         a.part(cover, label).chair_back_contour(
-            width * 0.67,
-            0.14,
-            [0.035, 0.0, 0.05, 0.045, 0.008, 0.05],
+            width * program.headrest_width_fraction,
+            program.headrest_height_m,
+            [program.headrest_curvature_m, 0.0, 0.05, 0.035, 0.008, 0.05],
             back.with_translation(back.transform_point(Vec3::new(0.0, back_height + 0.055, 0.0))),
         );
     }
@@ -407,18 +420,54 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     if program.armrests {
         for side in [-1.0, 1.0] {
             let x = side * (width * 0.5 + 0.037);
-            a.part(frame, label).rod(
-                Vec3::new(x * 0.79, 0.42, 0.09),
-                Vec3::new(x, program.arm_height - 0.013, 0.07),
-                0.012,
-            );
-            a.box_part(
-                Surface::Plastic,
-                label,
-                Vec3::new(x, program.arm_height, 0.0),
-                Vec3::new(0.046, 0.025, program.arm_pad_length),
-                0.009,
-            );
+            let under_pad = program.arm_height - 0.013;
+            match program.arm_support {
+                0 => a.part(frame, label).rod(
+                    Vec3::new(x * 0.79, 0.42, 0.09),
+                    Vec3::new(x, under_pad, 0.07),
+                    0.012,
+                ),
+                1 => {
+                    // A continuous bowed loop attaches below both ends of the
+                    // pad. All bends are broad enough for a real metal tube.
+                    let half = program.arm_pad_length * 0.38;
+                    let path = [
+                        Vec3::new(x * 0.79, 0.42, -half),
+                        Vec3::new(x, under_pad - 0.05, -half),
+                        Vec3::new(x, under_pad, -half + 0.045),
+                        Vec3::new(x, under_pad, half - 0.045),
+                        Vec3::new(x, under_pad - 0.05, half),
+                        Vec3::new(x * 0.79, 0.42, half),
+                    ];
+                    a.part(frame, label).tube(&path, 0.010, 10);
+                }
+                _ => {
+                    // A broad upright fork has distinct vertical and fore-aft
+                    // spans; it is no longer a single diagonal stick.
+                    a.box_part(
+                        frame,
+                        label,
+                        Vec3::new(x, (0.44 + under_pad) * 0.5, 0.06),
+                        Vec3::new(0.028, under_pad - 0.44, 0.044),
+                        0.006,
+                    );
+                    a.part(frame, label).rod(
+                        Vec3::new(x * 0.79, 0.425, 0.06),
+                        Vec3::new(x, 0.455, 0.06),
+                        0.012,
+                    );
+                }
+            }
+            a.part(if family == 9 { cover } else { Surface::Plastic }, label)
+                .cushion(
+                    Vec3::new(program.arm_pad_width_m, 0.025, program.arm_pad_length),
+                    super::super::geometry::CushionProfile {
+                        roundness: program.arm_pad_roundness,
+                        crown: 3.5,
+                        dish: 0.,
+                    },
+                    Transform::from_xyz(x, program.arm_height, 0.),
+                );
         }
     }
 }

@@ -463,11 +463,57 @@ pub fn spawn_lights(
             ChildOf(root),
         ));
     }
+    for lamp in scene.objects.iter().filter(|o| {
+        matches!(
+            o.kind,
+            ObjectKind::DeskLamp | ObjectKind::WallSconce | ObjectKind::CeilingPendant
+        )
+    }) {
+        let (p, color, lumens, inner, outer) = object_fixture_photometry(scene, lamp);
+        commands.spawn((
+            Name::new(format!("indoor_desk_lamp_{}", lamp.id)),
+            SpotLight {
+                color: Color::srgb(color.x, color.y, color.z),
+                intensity: spot_intensity_for_lumens(lumens, inner, outer),
+                range: 3.0,
+                radius: 0.018,
+                inner_angle: inner,
+                outer_angle: outer,
+                shadow_maps_enabled: quality.shadows(),
+                shadow_depth_bias: 0.01,
+                ..default()
+            },
+            Transform::from_translation(p).looking_at(p - Vec3::Y, Vec3::Z),
+            ChildOf(root),
+        ));
+    }
 }
 
 pub(crate) fn spot_intensity_for_lumens(lumens: f32, inner: f32, outer: f32) -> f32 {
     let angular_integral = 1.0 - inner.cos() + (inner.cos() - outer.cos()) / 3.0;
     lumens * 2.0 / angular_integral
+}
+
+/// Native lighting and diffuse transport consume the same sampled emitter.
+pub(crate) fn object_fixture_photometry(
+    scene: &IndoorManifest,
+    lamp: &super::layout::IndoorObject,
+) -> (Vec3, Vec3, f32, f32, f32) {
+    let (p, c, flux, inner, outer) = if lamp.kind == ObjectKind::DeskLamp {
+        super::objects::accessories::lamp_photometry(lamp)
+    } else {
+        super::objects::equipment::fixture_photometry(lamp)
+    };
+    (
+        p,
+        c,
+        flux * scene
+            .appearance
+            .as_ref()
+            .map_or(1.0, |a| a.illumination_scale),
+        inner,
+        outer,
+    )
 }
 
 /// Circuit-level dimming and colour temperature vary independently of placement.
@@ -579,5 +625,66 @@ mod lighting_tests {
             let flux = intensity / (4.0 * std::f32::consts::PI) * integral;
             assert!((flux - 4200.0).abs() < 1.0);
         }
+    }
+
+    #[test]
+    fn desk_lamps_have_seeded_shadowed_downward_emitters_at_the_diffuser() {
+        let scene = IndoorManifest::generate_with_humans(
+            0,
+            super::super::layout::IndoorLayout::Mixed,
+            0.65,
+            0,
+            0.,
+        )
+        .unwrap();
+        let mut lamp = scene.objects[0].clone();
+        lamp.kind = ObjectKind::DeskLamp;
+        lamp.size = Vec3::new(0.23, 0.41, 0.24);
+        lamp.position = Vec3::new(1., 0.8, -1.);
+        lamp.yaw = 0.7;
+        let mut colors = std::collections::BTreeSet::new();
+        for seed in 0..32 {
+            lamp.seed = seed;
+            let sample = super::super::objects::accessories::lamp_photometry(&lamp);
+            assert_eq!(
+                sample,
+                super::super::objects::accessories::lamp_photometry(&lamp)
+            );
+            let local = lamp
+                .transform()
+                .compute_affine()
+                .inverse()
+                .transform_point3(sample.0);
+            assert!((local.y - lamp.size.y * 0.866).abs() < 1e-6);
+            assert!((150.0..550.0).contains(&sample.2));
+            assert!(sample.3 < sample.4);
+            colors.insert(sample.1.to_array().map(f32::to_bits));
+        }
+        assert_eq!(colors.len(), 32);
+        let mut scene = scene;
+        scene.objects = vec![lamp.clone()];
+        let mut world = World::new();
+        let root = world.spawn_empty().id();
+        spawn_lights(
+            &scene,
+            super::super::IndoorQuality::Auto,
+            root,
+            &mut world.commands(),
+        );
+        world.flush();
+        let (_, light, transform) = world
+            .query::<(&Name, &SpotLight, &Transform)>()
+            .iter(&world)
+            .find(|(name, _, _)| name.as_str() == format!("indoor_desk_lamp_{}", lamp.id))
+            .unwrap();
+        assert!(light.shadow_maps_enabled);
+        assert!(Vec3::from(transform.forward()).distance(Vec3::NEG_Y) < 1e-6);
+        let (position, _, lumens, inner, outer) =
+            super::super::objects::accessories::lamp_photometry(&lamp);
+        assert!(transform.translation.distance(position) < 1e-6);
+        assert_eq!(
+            light.intensity,
+            spot_intensity_for_lumens(lumens, inner, outer)
+        );
     }
 }

@@ -40,6 +40,27 @@ fn prepared_wood_replays_texel_bits_and_every_pbr_mip() {
 }
 
 #[test]
+fn timber_finish_treatments_replay_and_span_dark_stain_pale_wash_and_clearcoat() {
+    let mut stain = 0;
+    let mut wash = 0;
+    let mut coat = 0;
+    for seed in 0..512 {
+        let w = WoodFinish::sample(seed);
+        assert_eq!(w, WoodFinish::sample(seed));
+        w.validate().unwrap();
+        stain += usize::from(w.stain_strength > 0.60);
+        wash += usize::from(w.bleach > 0.30);
+        coat += usize::from(w.clearcoat > 0.65);
+        assert!(w.bleach <= 0.65 * (1. - w.stain_strength * 0.85));
+        assert!(w.pore_fill + 1e-6 >= w.clearcoat * 0.48);
+    }
+    assert!(
+        stain > 80 && wash > 20 && coat > 35,
+        "finish diversity collapsed: {stain} {wash} {coat}"
+    );
+}
+
+#[test]
 #[ignore = "counterbalanced CPU microbenchmark; run explicitly with --ignored --nocapture"]
 fn prepared_wood_cpu_benchmark() {
     use super::super::program::{replay_helpers::*, PreparedWood};

@@ -191,7 +191,10 @@ fn distribution_is_valid_and_covers_all_families() {
     assert_eq!(report.floor_counts.len(), 3);
     assert_eq!(report.lighting_counts.len(), 3);
     assert_eq!(report.architecture_counts.len(), 4);
-    assert_eq!(report.plant_species_counts.len(), 6);
+    assert_eq!(
+        report.plant_species_counts.len(),
+        super::plants::SPECIES as usize
+    );
     for count in report.layout_counts.values() {
         assert!(
             (60..=145).contains(count),
@@ -321,7 +324,11 @@ fn annotation_gate_detects_a_wrong_frame_or_camera() {
 #[test]
 fn single_camera_stream_still_covers_camera_heights() {
     let report = audit(0, 128, 1, 0.5);
-    assert!(report.camera_height_range[0] < 0.85 && report.camera_height_range[1] > 2.1);
+    assert!(
+        report.camera_height_range[0] < 0.85 && report.camera_height_range[1] > 2.1,
+        "realized eye-height coverage: {:?}",
+        report.camera_height_range
+    );
 }
 
 #[test]
@@ -673,7 +680,10 @@ fn dataset_metrics_preserve_denominators_heatmap_mass_and_camera_calibration() {
         &directory,
     )
     .unwrap();
-    assert_eq!(report.object_counts_per_scene.len(), 74);
+    assert_eq!(
+        report.object_counts_per_scene.len(),
+        2 * (ObjectKind::ALL.len() + 1)
+    );
     for counts in report.object_counts_per_scene.values() {
         assert_eq!(
             counts.values().sum::<usize>(),
@@ -709,6 +719,25 @@ fn dataset_metrics_preserve_denominators_heatmap_mass_and_camera_calibration() {
     }
     assert_eq!(report.numeric["room_width_m"].count, scenes);
     assert_eq!(report.numeric["fy_pixels"].count, scenes * cameras);
+    assert_eq!(
+        report.numeric["wall_composition_prior_span_fraction"].count,
+        scenes
+    );
+    let supports = &report.categories["table_support"];
+    let count = |key: &str| supports.get(key).copied().unwrap_or(0);
+    let measured = |key: &str| report.numeric.get(key).map_or(0, |d| d.count);
+    assert_eq!(
+        measured("table_pedestal_radius_fraction"),
+        count("2") + count("7")
+    );
+    assert_eq!(measured("table_pedestal_base_aspect"), count("2"));
+    assert_eq!(
+        report.categories["accepted_workspace_arrangement"]
+            .values()
+            .sum::<usize>(),
+        measured("workspace_monitor_count"),
+        "realized workspace categories and counts need the same denominator"
+    );
     for distribution in report.numeric.values() {
         assert_eq!(
             distribution.bin_counts.iter().sum::<usize>(),
@@ -869,8 +898,19 @@ fn people_are_deterministic_diverse_supported_and_inside_collision_envelopes() {
             let scene =
                 IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 2, density)
                     .unwrap();
-            assert_eq!(scene.objects.len(), empty.objects.len());
-            for (actual, original) in scene.objects.iter().zip(&empty.objects) {
+            // Routes are fitted after occupied chairs/screens settle. Their
+            // acceptance and shape can change with people; other object programs
+            // retain independent random streams.
+            let furniture = |s: &IndoorManifest| {
+                s.objects
+                    .iter()
+                    .filter(|o| o.kind != ObjectKind::Cable)
+                    .cloned()
+                    .collect::<Vec<_>>()
+            };
+            let (actual_furniture, original_furniture) = (furniture(&scene), furniture(&empty));
+            assert_eq!(actual_furniture.len(), original_furniture.len());
+            for (actual, original) in actual_furniture.iter().zip(&original_furniture) {
                 let mut actual = actual.clone();
                 // Occupancy changes insertion clearance and the screen's user
                 // direction, while identities, geometry and other props retain
@@ -885,6 +925,9 @@ fn people_are_deterministic_diverse_supported_and_inside_collision_envelopes() {
                     &actual, original,
                     "occupancy perturbed unrelated furnishings"
                 );
+            }
+            for (i, human) in scene.humans.iter().enumerate() {
+                assert_eq!(human.id, scene.objects.len() + i);
             }
             validate_layout(&scene).unwrap();
             counts[index] += scene.humans.len();

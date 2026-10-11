@@ -1,4 +1,5 @@
 //! Role-specific PBR textures, generated in memory with repeat sampling and mip chains.
+pub mod art;
 mod atlas;
 pub mod boards;
 pub mod botanical;
@@ -73,6 +74,7 @@ pub enum Surface {
     Leather,
     Whiteboard,
     Television,
+    Succulent,
 }
 
 pub struct IndoorMaterials {
@@ -256,7 +258,7 @@ impl IndoorMaterials {
         quality: super::IndoorQuality,
         images: &mut impl super::preparation::AssetStore<Image>,
         materials: &mut impl super::preparation::AssetStore<StandardMaterial>,
-        definitions: [Definition; 35],
+        definitions: [Definition; 36],
         prepared: Vec<Option<[Image; 3]>>,
         selection: Option<&MaterialSelection>,
     ) -> Self {
@@ -335,6 +337,9 @@ impl IndoorMaterials {
                 }
                 Surface::Whiteboard if selection.is_none_or(|s| s.surfaces.contains(&surface)) => {
                     boards::apply(scene.material_seed(), &mut mat, images);
+                }
+                Surface::Art if selection.is_none_or(|s| s.surfaces.contains(&surface)) => {
+                    art::apply(scene.material_seed(), &mut mat, images);
                 }
                 Surface::Television if selection.is_none_or(|s| s.surfaces.contains(&surface)) => {
                     screens::apply_tv(scene.material_seed(), &mut mat, images);
@@ -503,7 +508,7 @@ impl IndoorMaterials {
 }
 
 type Definition = (Surface, [f32; 3], f32, f32, f32);
-fn definitions(scene: &IndoorManifest) -> [Definition; 35] {
+fn definitions(scene: &IndoorManifest) -> [Definition; 36] {
     let (wood, fabric, accent) = match scene.palette {
         0 => ([0.58, 0.37, 0.19], [0.16, 0.25, 0.28], [0.22, 0.34, 0.32]),
         1 => ([0.76, 0.60, 0.40], [0.31, 0.34, 0.35], [0.42, 0.48, 0.52]),
@@ -561,6 +566,7 @@ fn definitions(scene: &IndoorManifest) -> [Definition; 35] {
         (Surface::Leather, [0.22, 0.12, 0.07], 0.42, 0.0, 0.14),
         (Surface::Whiteboard, [1.0; 3], 0.22, 0.0, 1.0),
         (Surface::Television, [1.0; 3], 0.24, 0.0, 1.0),
+        (Surface::Succulent, [0.16, 0.32, 0.22], 0.47, 0.0, 0.10),
     ];
     if let Some(program) = &scene.program {
         for (surface, rgb, roughness, _, period) in &mut definitions {
@@ -596,12 +602,12 @@ fn prepare_map(scene: &IndoorManifest, definition: &Definition) -> Option<[Image
             | Surface::Leaf
             | Surface::LeafLight
             | Surface::LeafVariegated
+            | Surface::Succulent
             | Surface::Metal
             | Surface::Chrome
             | Surface::Plastic
             | Surface::Rubber
             | Surface::Paper
-            | Surface::Art
             | Surface::Leather
     ) {
         return None;
@@ -1423,7 +1429,7 @@ mod surface_tests {
             humans: Vec::new(),
         };
         let selection = geometry.material_selection(&scene);
-        assert_eq!(surfaces.len(), 9);
+        assert_eq!(surfaces.len(), 10);
         assert!(selection.direct_surfaces.is_empty());
         let (mut all_images, mut all_materials) = (Assets::default(), Assets::default());
         let all = IndoorMaterials::build(&scene, &mut all_images, &mut all_materials);

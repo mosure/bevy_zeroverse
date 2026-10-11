@@ -267,6 +267,174 @@ fn complete_capture_fixture_passes_and_stale_completion_fails() {
     .unwrap();
     assert!(Dataset::load(temp.path(), &id, &p).is_err());
 }
+
+#[test]
+fn historical_single_frame_studies_do_not_relax_current_publication_gates() {
+    let directory = tempfile::tempdir().unwrap();
+    let root = directory.path();
+    let (mut identity, mut protocol) = fixture(root);
+    protocol.playback_steps = 1;
+    identity.generator_version = GENERATOR_VERSION - 1;
+    io::write(&root.join("generator_identity.json"), &identity).unwrap();
+    for file in ["render_selection.json", "run_complete.json"] {
+        let mut value: Value = io::read(&root.join(file)).unwrap();
+        value["identity"] = json!(identity);
+        if file == "render_selection.json" {
+            value["playback_steps"] = json!(1);
+        }
+        io::write(&root.join(file), &value).unwrap();
+    }
+    let mut metrics: Value = io::read(&root.join("metrics.json")).unwrap();
+    metrics["generator_version"] = json!(identity.generator_version);
+    metrics["schema_version"] = json!(15);
+    io::write(&root.join("metrics.json"), &metrics).unwrap();
+    for seed in 0..4 {
+        let folder = root.join(format!("seed_{seed:06}"));
+        let mut manifest: Value = io::read(&folder.join("manifest.json")).unwrap();
+        manifest["generator_version"] = json!(identity.generator_version);
+        io::write(&folder.join("manifest.json"), &manifest).unwrap();
+        let mut capture: Value = io::read(&folder.join("capture.json")).unwrap();
+        capture["views"]
+            .as_array_mut()
+            .unwrap()
+            .retain(|v| v["step_index"] == 0);
+        io::write(&folder.join("capture.json"), &capture).unwrap();
+    }
+    let study = Dataset::load_study(root, &protocol).unwrap();
+    assert_eq!(study.identity, identity);
+    assert_eq!(
+        study.summary["generator_version"],
+        identity.generator_version
+    );
+    assert!(Dataset::load(root, &identity, &protocol).is_err());
+}
+
+#[test]
+fn paired_study_binds_every_annotation_and_keeps_previous_report_on_rejection() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path();
+    let mut p = protocol();
+    p.playback_steps = 1;
+    fs::write(root.join("study.toml"), toml::to_string(&p).unwrap()).unwrap();
+    for (name, digest) in [("before", "b"), ("after", "a")] {
+        let directory = root.join(name);
+        fs::create_dir(&directory).unwrap();
+        let (mut id, _) = fixture(&directory);
+        id.source_sha256 = digest.repeat(64);
+        io::write(&directory.join("generator_identity.json"), &id).unwrap();
+        for file in ["render_selection.json", "run_complete.json"] {
+            let mut v: Value = io::read(&directory.join(file)).unwrap();
+            v["identity"] = json!(id);
+            if file == "render_selection.json" {
+                v["playback_steps"] = json!(1);
+            }
+            io::write(&directory.join(file), &v).unwrap();
+        }
+        for seed in 0..4 {
+            let file = directory.join(format!("seed_{seed:06}/capture.json"));
+            let mut capture: Value = io::read(&file).unwrap();
+            capture["views"]
+                .as_array_mut()
+                .unwrap()
+                .retain(|v| v["step_index"] == 0);
+            for view in capture["views"].as_array_mut().unwrap() {
+                view["annotation_alignment"]["depth_position_max_metres"] = json!(0.);
+                view["annotation_alignment"]["reprojection_max_pixels"] = json!(0.);
+            }
+            io::write(&file, &capture).unwrap();
+            io::write(
+                &directory.join(format!("geometry_{seed}.json")),
+                &json!({"degenerate_triangles":0,"triangles":1,"object_envelopes_checked":0,
+                    "human_envelopes_checked":0,"object_envelope_max_overrun_metres":0.}),
+            )
+            .unwrap();
+        }
+    }
+    let compare = || {
+        bevy_zeroverse_publication::study::compare(
+            root,
+            Path::new("before"),
+            Path::new("after"),
+            Path::new("out/report"),
+            Some(Path::new("study.toml")),
+            None,
+            None,
+            None,
+        )
+    };
+    compare().unwrap();
+    let output = root.join("out/report");
+    bevy_zeroverse_publication::study::verify(&output).unwrap();
+    assert!(output
+        .join("media/after/seed_000003/view_03_co_visibility_mask.png")
+        .is_file());
+    let receipt = fs::read(output.join("receipt.json")).unwrap();
+    fs::remove_file(root.join("after/seed_000002/view_01_depth.png")).unwrap();
+    assert!(compare().is_err());
+    assert_eq!(receipt, fs::read(output.join("receipt.json")).unwrap());
+    bevy_zeroverse_publication::study::verify(&output).unwrap();
+    fs::write(
+        output.join("media/after/seed_000003/view_03_co_visibility_mask.png"),
+        b"corrupt",
+    )
+    .unwrap();
+    assert!(bevy_zeroverse_publication::study::verify(&output).is_err());
+}
+
+#[cfg(unix)]
+#[test]
+fn matched_study_rejects_directory_aliases_into_the_publication_cache() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path();
+    let publication = root.join("out/publication");
+    fs::create_dir_all(publication.join("nested")).unwrap();
+    fs::write(publication.join("sentinel"), b"public capture cache").unwrap();
+    for (alias, target) in [
+        ("direct", publication.clone()),
+        ("nested", publication.join("nested")),
+    ] {
+        std::os::unix::fs::symlink(target, root.join("out").join(alias)).unwrap();
+        let error = bevy_zeroverse_publication::study::compare(
+            root,
+            Path::new("missing-before"),
+            Path::new("missing-after"),
+            &Path::new("out").join(alias).join("report"),
+            None,
+            None,
+            None,
+            None,
+        )
+        .unwrap_err();
+        assert!(error.to_string().contains("publication cache"), "{error:#}");
+    }
+    assert_eq!(
+        fs::read(publication.join("sentinel")).unwrap(),
+        b"public capture cache"
+    );
+    assert!(!publication.join("report").exists());
+    assert!(!publication.join("nested/report").exists());
+
+    // The reserved directory can itself be an alias; its resolved target must
+    // remain reserved even when accessed through an ordinary local-cache name.
+    let second = tempfile::tempdir().unwrap();
+    let root = second.path();
+    fs::create_dir_all(root.join("out/shared-cache")).unwrap();
+    std::os::unix::fs::symlink(root.join("out/shared-cache"), root.join("out/publication"))
+        .unwrap();
+    let error = bevy_zeroverse_publication::study::compare(
+        root,
+        Path::new("missing-before"),
+        Path::new("missing-after"),
+        Path::new("out/shared-cache/report"),
+        None,
+        None,
+        None,
+        None,
+    )
+    .unwrap_err();
+    assert!(error.to_string().contains("publication cache"), "{error:#}");
+    assert!(!root.join("out/shared-cache/report").exists());
+}
 #[test]
 fn missing_annotation_and_duplicate_camera_cannot_publish() {
     let temp = tempfile::tempdir().unwrap();

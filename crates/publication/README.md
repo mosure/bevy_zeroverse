@@ -9,7 +9,7 @@ From a bevy_zeroverse checkout:
 ```sh
 cargo run --locked -p bevy_zeroverse_publication -- refresh
 cargo run --locked -p bevy_zeroverse_publication -- verify
-cargo run --locked -p bevy_zeroverse_publication -- rebuild --release-version 0.30.0
+cargo run --locked -p bevy_zeroverse_publication -- rebuild --release-version 0.36.0
 # Registry publication through the same preparation/validation gate:
 cargo run --locked -p bevy_zeroverse_publication -- publish --package bevy_zeroverse --dry-run
 ```
@@ -59,3 +59,42 @@ attestation. It binds renderer inputs, publisher/templates, capture sources,
 reference identities and every managed page/paper artifact. A crash during
 installation cannot yield a partially installed bundle that passes this gate.
 Tests cover the failure modes that previously allowed mixed gallery cohorts.
+
+## Paired room studies
+
+`compare-indoor` qualifies two complete, explicitly identified cohorts and builds
+an independent local before/after gallery without replacing the project page or paper.
+Study outputs must stay below ignored `out/`, outside `out/publication/`.
+Reports and receipts carry `visibility = local_only`; the release pipeline
+rejects them as public reference studies. They are not deployment artifacts.
+The default protocol is 64 consecutive rooms, three 512×512 views, one timestep,
+furnishing density 0.65, human density 0.25 and 1,024 diffuse-GI rays.
+
+```sh
+cargo run --locked -p bevy_zeroverse_publication -- compare-indoor \
+  --before out/study/before --after out/study/after --output out/study/report \
+  --before-population out/study/before-population \
+  --after-population out/study/after-population
+cargo run --locked -p bevy_zeroverse_publication -- verify-study \
+  --output out/study/report
+```
+
+Every seed, camera, RGB/annotation preview, exact co-visibility membership/validity
+mask, schematic, actual-mesh audit and input identity is retained and checked.
+Primary architecture, base lighting samples and camera controls must match.
+Updated viewpoint priors, added fixture illumination and collision-safe camera
+replanning are disclosed; the views are not assumed pixel-matched.
+Optional population inputs must match each renderer's compiled identity and
+controls. No sample is dropped because it is sparse, dark or has a close neighbor.
+
+The first invocation produces `embedding-index.json`. Run the optional native
+`indoor_embed` tool against it, then repeat `compare-indoor` with
+`--embeddings out/study/embeddings` to bind the exact tensor and model checksums.
+Reports include cross-room nearest pairs, equal-weight room-centroid variance,
+and paired-room bootstrap intervals. Seed uniqueness and products of marginal
+entropies are not estimates of perceptual procedural-space size.
+
+Outputs are staged and installed atomically. Failed qualification preserves the
+previous report, and `verify-study` detects modified or missing gallery bytes.
+Study generation supports 2–256 rendered rooms and a single timestep; use
+`--recipe protocol.toml` for a smaller qualification fixture or a larger cohort.

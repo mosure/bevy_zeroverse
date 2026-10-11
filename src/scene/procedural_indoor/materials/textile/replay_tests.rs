@@ -62,9 +62,27 @@ fn reference(t: &TextileRecipe, r: &MaterialRecipe, uv: [f32; 2]) -> Texel {
     let filament = [ridge(x * 2. + twist), ridge(y * 2. - twist)];
     let fibres = top * filament[0] + (1. - top) * filament[1];
     let nap = noise(79, 83, 73) - 0.5;
+    let pigment = |axis: usize, index: u32| {
+        t.dye_program.as_ref().map_or([1.; 3], |p| {
+            let count = p.runs[axis] as f32;
+            let center = ((index as f32 + 0.5) / t.yarns[axis] as f32 * count + p.phase[axis])
+                .rem_euclid(1.);
+            let width = count / t.yarns[axis] as f32 * 0.5;
+            let mask = smooth((p.duty[axis] * 0.5 + width - (center - 0.5).abs()) / (2. * width));
+            p.secondary_tint
+                .map(|c| 1. + (c - 1.) * mask * p.strength[axis])
+        })
+    };
+    let program = [pigment(0, ix), pigment(1, iy)];
     let yarn = [0, 1, 2].map(|c| {
-        let a = t.yarn_tint[0][c] * (0.94 + t.dye_variation * (dye[0] - 0.5)) * bands[0];
-        let b = t.yarn_tint[1][c] * (0.94 + t.dye_variation * (dye[1] - 0.5)) * bands[1];
+        let a = t.yarn_tint[0][c]
+            * (0.94 + t.dye_variation * (dye[0] - 0.5))
+            * bands[0]
+            * program[0][c];
+        let b = t.yarn_tint[1][c]
+            * (0.94 + t.dye_variation * (dye[1] - 0.5))
+            * bands[1]
+            * program[1][c];
         (0.76 + (a * top + b * (1. - top) - 0.76) * coverage + nap * t.fuzz * 0.035).clamp(0.25, 1.)
     });
     let height =

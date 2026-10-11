@@ -25,6 +25,10 @@ pub struct TableProgram {
     pub leg_taper: f32,
     pub leg_aspect: f32,
     pub frame_bend_m: f32,
+    /// Fraction of the available under-top span used by a splayed trestle.
+    pub trestle_spread: f32,
+    /// Continuous rake of the spider pedestal spokes toward the top mount.
+    pub spider_sweep: f32,
 }
 pub fn parameters(o: &IndoorObject) -> TableProgram {
     let mut rng = stream(o.seed, 172);
@@ -47,7 +51,7 @@ pub fn parameters(o: &IndoorObject) -> TableProgram {
         } else {
             0.0
         },
-        support: rng.random_range(0..6),
+        support: rng.random_range(0..8),
         top_surface: match rng.random_range(0..10) {
             0 => Surface::Ceramic,
             1 => Surface::Plastic,
@@ -67,6 +71,8 @@ pub fn parameters(o: &IndoorObject) -> TableProgram {
         leg_taper: rng.random_range(0.60..1.0),
         leg_aspect: rng.random_range(0.65..1.0),
         frame_bend_m: rng.random_range(0.025..0.065),
+        trestle_spread: rng.random_range(0.62..0.98),
+        spider_sweep: rng.random_range(0.18..0.48),
     }
 }
 pub fn outline(o: &IndoorObject) -> Vec<Vec2> {
@@ -316,7 +322,7 @@ fn build_structure(
                 }
             }
         }
-        _ => {
+        5 => {
             // End panels leave an open knee bay; width, rake and thickness
             // remain independent of the top outline and finish.
             for x in [-anchor.x, anchor.x] {
@@ -327,8 +333,96 @@ fn build_structure(
                 );
             }
         }
+        6 => {
+            // Two true trestles: the narrow upper mount leaves knee clearance,
+            // while splayed legs carry loads to separated, grounded feet.
+            // The rail mechanically joins the trestles below the tabletop.
+            let spread = anchor.y * p.trestle_spread;
+            let mount = spread * 0.30;
+            for x in [-anchor.x, anchor.x] {
+                for sign in [-1., 1.] {
+                    let top = Vec3::new(x, underside - 0.018, sign * mount);
+                    let foot = Vec3::new(x, p.leg_radius + 0.008, sign * spread);
+                    a.part(frame, label).rod(foot, top, p.leg_radius);
+                    a.part(Surface::Rubber, label).cylinder(
+                        p.leg_radius + 0.005,
+                        p.leg_radius + 0.010,
+                        Transform::from_translation(foot.with_y((p.leg_radius + 0.010) * 0.5)),
+                    );
+                }
+                a.box_part(
+                    frame,
+                    label,
+                    Vec3::new(x, underside - 0.017, 0.),
+                    Vec3::new(p.leg_radius * 2.8, 0.034, spread * 2. + p.leg_radius * 2.),
+                    0.006,
+                );
+                let rail_y = underside * 0.42;
+                let fraction =
+                    (rail_y - p.leg_radius - 0.008) / (underside - 0.018 - p.leg_radius - 0.008);
+                let rail_z = spread + (mount - spread) * fraction;
+                a.part(frame, label).rod(
+                    Vec3::new(x, rail_y, -rail_z),
+                    Vec3::new(x, rail_y, rail_z),
+                    p.leg_radius * 0.65,
+                );
+            }
+            a.part(frame, label).rod(
+                Vec3::new(-anchor.x, underside * 0.42, 0.),
+                Vec3::new(anchor.x, underside * 0.42, 0.),
+                p.leg_radius * 0.80,
+            );
+        }
+        _ => {
+            // Sculptural spider bases have grounded spokes and an actual
+            // central stem. Long conference tops use two stems for support.
+            let long_x = s.x > s.z;
+            let count = if s.x.max(s.z) / s.x.min(s.z) > 1.8 {
+                2
+            } else {
+                1
+            };
+            let radius = s.x.min(s.z) * p.pedestal_base_radius;
+            for i in 0..count {
+                let offset = if count == 1 {
+                    0.
+                } else {
+                    (i as f32 - 0.5) * s.x.max(s.z) * 0.5
+                };
+                let center = if long_x {
+                    Vec3::X * offset
+                } else {
+                    Vec3::Z * offset
+                };
+                a.part(frame, label).cylinder(
+                    s.x.min(s.z) * p.pedestal_radius,
+                    underside - 0.13,
+                    Transform::from_translation(center + Vec3::Y * (underside + 0.13) * 0.5),
+                );
+                for x in [-1., 1.] {
+                    for z in [-1., 1.] {
+                        let direction = Vec3::new(x, 0., z).normalize();
+                        let foot = center + direction * radius + Vec3::Y * (p.leg_radius + 0.008);
+                        let root = center
+                            + direction * radius * p.spider_sweep
+                            + Vec3::Y * (underside * 0.44).max(0.16);
+                        let path = [foot, foot.lerp(root, 0.40) + Vec3::Y * p.frame_bend_m, root];
+                        a.part(frame, label).tube(&path, p.leg_radius, 10);
+                        // Each spoke is attached to the stem, rather than
+                        // terminating in open space beside it.
+                        a.part(frame, label)
+                            .rod(root, center.with_y(root.y), p.leg_radius);
+                        a.part(Surface::Rubber, label).cylinder(
+                            p.leg_radius + 0.005,
+                            p.leg_radius + 0.010,
+                            Transform::from_translation(foot.with_y((p.leg_radius + 0.010) * 0.5)),
+                        );
+                    }
+                }
+            }
+        }
     }
-    if p.support >= 3 {
+    if (3..=5).contains(&p.support) {
         for x in [-anchor.x, anchor.x] {
             for z in [-anchor.y, anchor.y] {
                 a.part(Surface::Rubber, label).cylinder(

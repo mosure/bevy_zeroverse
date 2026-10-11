@@ -105,6 +105,11 @@ fn references(root: &Path, config: &Config) -> Result<Vec<Value>> {
     let mut result = Vec::new();
     for r in &config.references {
         let data: Value = io::read(&root.join(&r.gallery))?;
+        ensure!(
+            data["visibility"] != "local_only",
+            "local matched studies cannot become publication references: {}",
+            r.id
+        );
         fn versions(data: &Value, out: &mut Vec<u32>) {
             match data {
                 Value::Object(o) => {

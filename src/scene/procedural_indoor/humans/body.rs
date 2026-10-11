@@ -130,18 +130,13 @@ fn build_impl(
         .fold(Vec3::splat(f32::NEG_INFINITY), Vec3::max);
     let scale = h.stature / (hi.y - lo.y);
     let mut resolved_joints = h.joints.clone();
+    let rest_pelvis = (head("upperleg01.L") + head("upperleg01.R")) * 0.5;
+    let rest_chest = (head("upperarm01.L") + head("upperarm01.R")) * 0.5;
+    let rest_shoulders = [head("upperarm01.L"), head("upperarm01.R")];
     let make_transforms = |p: &[Vec3]| {
-        let rest_pelvis = (head("upperleg01.L") + head("upperleg01.R")) * 0.5;
         // The program's chest is the shoulder girdle, not the spine01 bone head.
         // Mapping spine01 here elongated the torso above it and bunched the shoulders.
-        let rest_chest = (head("upperarm01.L") + head("upperarm01.R")) * 0.5;
-        let torso = torso_segment(
-            rest_pelvis,
-            rest_chest,
-            [head("upperarm01.L"), head("upperarm01.R")],
-            p,
-            scale,
-        );
+        let torso = torso_segment(rest_pelvis, rest_chest, rest_shoulders, p, scale);
         let head_rotation = if motion_rest {
             Quat::IDENTITY
         } else {
@@ -260,6 +255,16 @@ fn build_impl(
         }
         transforms
     };
+    if !motion_rest {
+        let torso = torso_segment(
+            rest_pelvis,
+            rest_chest,
+            rest_shoulders,
+            &resolved_joints,
+            scale,
+        );
+        super::rig::attach_shoulders(torso, rest_shoulders, &mut resolved_joints);
+    }
     let mut transforms = make_transforms(&resolved_joints);
     let (bone_ids, weights) = body.skinning_bindings();
     let influences = *bone_ids.shape.last().unwrap();
@@ -342,15 +347,7 @@ fn build_impl(
         p.y -= floor;
     }
     let p = &resolved_joints;
-    let rest_pelvis = (head("upperleg01.L") + head("upperleg01.R")) * 0.5;
-    let rest_chest = (head("upperarm01.L") + head("upperarm01.R")) * 0.5;
-    let torso = torso_segment(
-        rest_pelvis,
-        rest_chest,
-        [head("upperarm01.L"), head("upperarm01.R")],
-        p,
-        scale,
-    );
+    let torso = torso_segment(rest_pelvis, rest_chest, rest_shoulders, p, scale);
     let head_rotation = if motion_rest {
         Quat::IDENTITY
     } else {

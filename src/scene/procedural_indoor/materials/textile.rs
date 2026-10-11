@@ -30,6 +30,73 @@ pub struct TextileRecipe {
     pub pile: f32,
     #[serde(default)]
     pub knit: bool,
+    /// Dye is assigned to complete yarn runs. These broad bands remain attached
+    /// to the weave, including at crossings, instead of painting a wave over it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dye_program: Option<YarnDyeProgram>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct YarnDyeProgram {
+    pub runs: [u32; 2],
+    pub duty: [f32; 2],
+    pub phase: [f32; 2],
+    pub strength: [f32; 2],
+    /// Relative pigment reflectance of the secondary dyed yarns.
+    pub secondary_tint: [f32; 3],
+}
+impl YarnDyeProgram {
+    fn sample(seed: u64) -> Self {
+        let mut rng = stream(seed, 0x5941524e445945);
+        let tone = rng.random_range(0.38..0.86);
+        let warm = rng.random_range(-0.15..0.18);
+        Self {
+            runs: [rng.random_range(1..=4), rng.random_range(1..=4)],
+            duty: [rng.random_range(0.12..0.72), rng.random_range(0.08..0.64)],
+            phase: [rng.random(), rng.random()],
+            strength: [
+                rng.random_range(0.15..0.90),
+                if rng.random_bool(0.65) {
+                    rng.random_range(0.12..0.85)
+                } else {
+                    0.
+                },
+            ],
+            secondary_tint: [
+                tone,
+                (tone * (1. - warm)).min(1.),
+                (tone * (1. - warm * 1.6)).min(1.),
+            ],
+        }
+    }
+    pub fn validate(&self) -> Result<(), String> {
+        if self.runs.iter().any(|n| !(1..=8).contains(n))
+            || self
+                .duty
+                .iter()
+                .any(|v| !v.is_finite() || !(0.02..=0.95).contains(v))
+            || self
+                .phase
+                .iter()
+                .chain(self.strength.iter())
+                .chain(self.secondary_tint.iter())
+                .any(|v| !v.is_finite() || !(0.0..=1.).contains(v))
+        {
+            return Err("invalid yarn dye program".into());
+        }
+        Ok(())
+    }
+    pub(super) fn pigment(&self, axis: usize, index: u32, yarns: u32) -> [f32; 3] {
+        let count = self.runs[axis] as f32;
+        let at = ((index as f32 + 0.5) / yarns as f32 * count + self.phase[axis]).rem_euclid(1.);
+        let distance = (at - 0.5).abs();
+        // A partly resolved boundary is the average dye of adjacent threads;
+        // no new high-frequency noise field or allocation is required.
+        let width = count / yarns as f32 * 0.5;
+        let mask = smooth((self.duty[axis] * 0.5 + width - distance) / (2. * width));
+        self.secondary_tint
+            .map(|c| 1. + (c - 1.) * mask * self.strength[axis])
+    }
 }
 impl TextileRecipe {
     pub fn sample(seed: u64) -> Self {
@@ -56,9 +123,13 @@ impl TextileRecipe {
             yarn_tint: [0, 1].map(|_| [0, 1, 2].map(|_| rng.random_range(0.88..1.0))),
             pile: 0.,
             knit: false,
+            dye_program: rng.random_bool(0.58).then(|| YarnDyeProgram::sample(seed)),
         }
     }
     pub fn validate(&self) -> Result<(), String> {
+        if let Some(p) = &self.dye_program {
+            p.validate()?;
+        }
         if !(2..=7).contains(&self.repeat) || !(1..=3).contains(&self.bundle) {
             return Err("invalid textile repeat".into());
         }
@@ -94,6 +165,11 @@ impl TextileRecipe {
             return Err("invalid textile weaving program".into());
         }
         Ok(())
+    }
+    pub(super) fn yarn_dye(&self, axis: usize, index: u32) -> [f32; 3] {
+        self.dye_program
+            .as_ref()
+            .map_or([1.; 3], |p| p.pigment(axis, index, self.yarns[axis]))
     }
     pub(super) fn apply(&self, r: &MaterialRecipe, mat: &mut bevy::prelude::StandardMaterial) {
         mat.clearcoat = 0.;
@@ -184,6 +260,9 @@ impl TextileRecipe {
                 [1.; 2]
             }
         });
+        let dye_program = pigments
+            .is_none()
+            .then(|| [self.yarn_dye(0, ix), self.yarn_dye(1, iy)]);
         let twist =
             self.twist * (prepared.map_or_else(|| noise(3, 3, 83), |p| p.noise(2, uv)) - 0.5);
         let filament = [ridge(x * 2. + twist), ridge(y * 2. - twist)];
@@ -194,13 +273,16 @@ impl TextileRecipe {
                 || {
                     let dye = dye.as_ref().unwrap();
                     let bands = bands.as_ref().unwrap();
+                    let program = dye_program.as_ref().unwrap();
                     [
                         self.yarn_tint[0][c]
                             * (0.94 + self.dye_variation * (dye[0] - 0.5))
-                            * bands[0],
+                            * bands[0]
+                            * program[0][c],
                         self.yarn_tint[1][c]
                             * (0.94 + self.dye_variation * (dye[1] - 0.5))
-                            * bands[1],
+                            * bands[1]
+                            * program[1][c],
                     ]
                 },
                 |pigments| [pigments[0][c], pigments[1][c]],
@@ -229,5 +311,7 @@ fn ridge(t: f32) -> f32 {
     1. - 2. * (t.rem_euclid(1.) - 0.5).abs()
 }
 
+#[cfg(test)]
+mod dye_tests;
 #[cfg(test)]
 mod replay_tests;

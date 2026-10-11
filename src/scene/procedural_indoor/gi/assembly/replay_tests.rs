@@ -167,6 +167,24 @@ fn original_from_geometry(
             outer_cos: 0.0,
         });
     }
+    for lamp in scene.objects.iter().filter(|o| {
+        matches!(
+            o.kind,
+            ObjectKind::DeskLamp | ObjectKind::WallSconce | ObjectKind::CeilingPendant
+        )
+    }) {
+        let (position, color, lumens, inner, outer) =
+            architecture::object_fixture_photometry(scene, lamp);
+        result.lights.push(LocalLight {
+            position,
+            color: linear(Color::srgb(color.x, color.y, color.z)),
+            candela: architecture::spot_intensity_for_lumens(lumens, inner, outer) / (4.0 * PI),
+            range: 3.0,
+            spot: true,
+            inner_cos: inner.cos(),
+            outer_cos: outer.cos(),
+        });
+    }
     result.nodes = original_median(&mut result.triangles);
     result.preparation_ms = started.elapsed().as_secs_f64() * 1000.0;
     result

@@ -43,10 +43,14 @@ impl PreparedTextile {
                     .map(|index| {
                         let dye = hash(index, [13, 19][axis], r.seed);
                         let band = band(&recipe, r, axis, index);
+                        let program = recipe.yarn_dye(axis, index);
                         Yarn {
                             jitter: hash(index, axis as u32, r.seed) - 0.5,
-                            pigment: recipe.yarn_tint[axis].map(|color| {
-                                color * (0.94 + recipe.dye_variation * (dye - 0.5)) * band
+                            pigment: [0, 1, 2].map(|c| {
+                                recipe.yarn_tint[axis][c]
+                                    * (0.94 + recipe.dye_variation * (dye - 0.5))
+                                    * band
+                                    * program[c]
                             }),
                         }
                     })
@@ -93,8 +97,13 @@ impl PreparedTextile {
             || {
                 let dye = hash(index, [13, 19][axis], r.seed);
                 let band = band(&self.recipe, r, axis, index);
-                self.recipe.yarn_tint[axis]
-                    .map(|color| color * (0.94 + self.recipe.dye_variation * (dye - 0.5)) * band)
+                let program = self.recipe.yarn_dye(axis, index);
+                [0, 1, 2].map(|c| {
+                    self.recipe.yarn_tint[axis][c]
+                        * (0.94 + self.recipe.dye_variation * (dye - 0.5))
+                        * band
+                        * program[c]
+                })
             },
             |yarns| yarns[axis][index as usize].pigment,
         )

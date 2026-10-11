@@ -27,6 +27,26 @@ pub(super) fn torso_segment(
     aligned_segment(pelvis, source, joints[0], target, scale, rotation)
 }
 
+/// Pose programs use approximate joint spans before the body model is loaded.
+/// Attach each complete arm chain to the evaluated anatomical shoulder instead
+/// of stretching the skin between two disagreeing arm roots. Keep each wrist
+/// target and limb length, retaining the sampled elbow swivel. Supported palms
+/// are subsequently fitted to the actual skin/cloth thickness by contact IK.
+pub(super) fn attach_shoulders(torso: Mat4, shoulders: [Vec3; 2], joints: &mut [Vec3]) {
+    for (shoulder, base) in shoulders.into_iter().zip([5, 9]) {
+        let root = torso.transform_point3(shoulder);
+        let old_wrist = joints[base + 2];
+        let pole = joints[base + 1] - (joints[base] + old_wrist) * 0.5;
+        let upper = joints[base].distance(joints[base + 1]);
+        let lower = joints[base + 1].distance(old_wrist);
+        let (elbow, wrist) = super::poses::two_bone(root, old_wrist, pole, upper, lower);
+        joints[base] = root;
+        joints[base + 1] = elbow;
+        joints[base + 2] = wrist;
+        joints[base + 3] += wrist - old_wrist;
+    }
+}
+
 /// Match endpoints while retaining transverse anatomical dimensions.
 pub(super) fn segment(a: Vec3, b: Vec3, target_a: Vec3, target_b: Vec3, scale: f32) -> Mat4 {
     let source = b - a;
@@ -114,6 +134,48 @@ mod tests {
             assert!(t.transform_point3(Vec3::Y).distance(p[2]) < 1e-6);
             assert!(t.transform_point3(shoulders[0]).distance(p[5]) < 1e-6);
             assert!(t.transform_point3(shoulders[1]).distance(p[9]) < 1e-6);
+        }
+    }
+
+    #[test]
+    fn anatomical_attachment_preserves_limb_lengths_wrist_goals_and_torso_endpoints() {
+        let shoulders = [Vec3::new(-0.16, 1., 0.), Vec3::new(0.16, 1., 0.)];
+        for (scale, lean, yaw) in [(0.8, -0.2, -0.5), (1.1, 0.3, 0.7), (1.4, 0., 0.)] {
+            let rotation = Quat::from_rotation_z(lean) * Quat::from_rotation_y(yaw);
+            let mut joints = vec![Vec3::ZERO; 21];
+            joints[0] = Vec3::new(0.02, 0.6, 0.01);
+            joints[2] = joints[0] + rotation * Vec3::Y * scale;
+            for (side, base) in [(-1., 5), (1., 9)] {
+                for i in 0..4 {
+                    joints[base + i] = joints[2]
+                        + rotation
+                            * Vec3::new(
+                                side * (0.23 + if i == 1 { 0.08 } else { 0. }) * scale,
+                                -0.1 * i as f32,
+                                -0.08 * i as f32,
+                            );
+                }
+            }
+            let before = joints.clone();
+            let torso = torso_segment(Vec3::ZERO, Vec3::Y, shoulders, &joints, scale);
+            attach_shoulders(torso, shoulders, &mut joints);
+            assert_eq!(&joints[..5], &before[..5]);
+            assert_eq!(&joints[13..], &before[13..]);
+            assert!(torso.transform_point3(Vec3::ZERO).distance(joints[0]) < 1e-6);
+            assert!(torso.transform_point3(Vec3::Y).distance(joints[2]) < 1e-6);
+            for (shoulder, base) in shoulders.into_iter().zip([5, 9]) {
+                assert!(torso.transform_point3(shoulder).distance(joints[base]) < 1e-6);
+                assert!(joints[base + 2].distance(before[base + 2]) < 1e-6);
+                assert!(joints[base + 3].distance(before[base + 3]) < 1e-6);
+                for i in 1..3 {
+                    assert!(
+                        (joints[base + i].distance(joints[base + i - 1])
+                            - before[base + i].distance(before[base + i - 1]))
+                        .abs()
+                            < 1e-6
+                    );
+                }
+            }
         }
     }
 }

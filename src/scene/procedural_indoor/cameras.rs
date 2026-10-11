@@ -7,6 +7,7 @@ pub mod mixture;
 pub mod multiview;
 mod navigation;
 mod sampling;
+pub mod viewpoint;
 use super::layout::{IndoorCamera, IndoorManifest};
 use crate::camera::{
     ExtrinsicsSampler, ExtrinsicsSamplerType, LookingAtSampler, TrajectorySampler,

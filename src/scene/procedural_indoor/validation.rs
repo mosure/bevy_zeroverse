@@ -56,6 +56,20 @@ pub fn validate_layout(scene: &IndoorManifest) -> Result<(), String> {
         {
             return fail("invalid instance dimensions, transform or identity");
         }
+        if object.kind == super::layout::ObjectKind::Cable {
+            if !super::layout::equipment::cable_route_clear(scene, object) {
+                return fail("invalid cable path, port connection or segment clearance");
+            }
+            continue;
+        }
+        if object.cable_path.is_some() || object.cable_target.is_some() {
+            return fail("only cables may carry routed-wire metadata");
+        }
+        if object.kind == super::layout::ObjectKind::CeilingPendant
+            && !super::layout::equipment::ceiling_fixture_clear(scene, object)
+        {
+            return fail("ceiling pendant is unmounted or intersects architecture or furniture");
+        }
         if let Some(target) = object.interaction_target {
             let other = scene
                 .objects
@@ -99,6 +113,10 @@ pub fn validate_layout(scene: &IndoorManifest) -> Result<(), String> {
                     | super::layout::ObjectKind::Clock
                     | super::layout::ObjectKind::WallOutlet
                     | super::layout::ObjectKind::LightSwitch
+                    | super::layout::ObjectKind::ProjectionScreen
+                    | super::layout::ObjectKind::WallShelf
+                    | super::layout::ObjectKind::NoticeBoard
+                    | super::layout::ObjectKind::WallSconce
             )
             && !scene.wall_attachment_clear(object)
         {
@@ -186,7 +204,10 @@ pub fn validate_layout(scene: &IndoorManifest) -> Result<(), String> {
                 return fail("prop has an inconsistent support relationship");
             }
             if !scene.prop_clear(object, parent, 0.0) {
-                return fail("supported prop overlaps a peer or overhangs its support");
+                return fail(&format!(
+                    "supported prop overlaps a peer or overhangs its support: {:?} instance {} on {:?} support {}",
+                    object.kind, object.id, parent.kind, parent.id
+                ));
             }
             if (object.position.y - parent.position.y - parent.size.y).abs() > 0.002 {
                 return fail(&format!(

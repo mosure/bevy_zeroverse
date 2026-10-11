@@ -1,5 +1,6 @@
 //! Mesh qualification; one assembly is held at a time.
 use super::*;
+use crate::scene::procedural_indoor::layout::ObjectKind;
 use crate::scene::procedural_indoor::objects::{build_object, Assembly};
 
 pub fn validate_geometry(scene: &IndoorManifest) -> Result<GeometryStats, String> {
@@ -32,7 +33,16 @@ pub fn validate_geometry(scene: &IndoorManifest) -> Result<GeometryStats, String
                 scene.seed, object.kind, object.id, object.size
             ));
         }
-        if (object.solid || object.support.is_some()) && lo.y > 0.003 {
+        if object.kind == ObjectKind::Cable {
+            // A lead is supported at its connected plugs and may be suspended
+            // above the tabletop; ordinary props must still touch their base.
+            if !super::super::layout::equipment::cable_route_clear(scene, object) {
+                return Err(format!(
+                    "seed {}: disconnected or obstructed cable {}",
+                    scene.seed, object.id
+                ));
+            }
+        } else if (object.solid || object.support.is_some()) && lo.y > 0.003 {
             return Err(format!(
                 "seed {}: {:?} instance {} has no floor/support contact ({:.6} m gap)",
                 scene.seed, object.kind, object.id, lo.y
@@ -131,8 +141,8 @@ fn qualify_human(
         || !(0.0..=0.045).contains(&m.shoulder_attachment_offset_metres)
     {
         return Err(format!(
-            "seed {seed}: person {} has invalid Anny body dimensions",
-            human.id
+            "seed {seed}: person {} (body seed {}, requested stature {}) has invalid Anny body dimensions: {m:?}",
+            human.id, human.seed, human.stature
         ));
     }
     stats.human_envelopes_checked += 1;

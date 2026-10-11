@@ -346,6 +346,41 @@ pub fn distribution(mut values: Vec<f64>) -> Value {
 
 impl Dataset {
     pub fn load(root: &Path, identity: &GeneratorIdentity, protocol: &Protocol) -> Result<Self> {
+        ensure!(
+            identity.generator_version == GENERATOR_VERSION,
+            "publication requires the current generator"
+        );
+        Self::load_checked(root, identity, protocol, INDOOR_METRICS_SCHEMA_VERSION)
+    }
+
+    /// Matched studies retain the historical generator identity. This explicit
+    /// loader supports the compatible population schemas 15/16; release gates
+    /// still use `load` and require the current generator and metrics schema.
+    pub fn load_study(root: &Path, protocol: &Protocol) -> Result<Self> {
+        let identity: GeneratorIdentity = io::read(&root.join("generator_identity.json"))?;
+        let metrics: Value = io::read(&root.join("metrics.json"))?;
+        let schema = metrics["schema_version"]
+            .as_u64()
+            .context("missing metrics schema")? as u32;
+        ensure!(
+            [15, 16, 17].contains(&schema)
+                && identity.schema_version == 1
+                && identity.source_sha256.len() == 64
+                && identity
+                    .source_sha256
+                    .bytes()
+                    .all(|b| b.is_ascii_hexdigit()),
+            "unsupported study schema or source identity"
+        );
+        Self::load_checked(root, &identity, protocol, schema)
+    }
+
+    fn load_checked(
+        root: &Path,
+        identity: &GeneratorIdentity,
+        protocol: &Protocol,
+        schema: u32,
+    ) -> Result<Self> {
         let actual: GeneratorIdentity = io::read(&root.join("generator_identity.json"))?;
         ensure!(
             actual == *identity,
@@ -356,8 +391,8 @@ impl Dataset {
         let completion: Value = io::read(&root.join("run_complete.json"))?;
         let audit: Value = io::read(&root.join("distribution.json"))?;
         ensure!(
-            metrics["schema_version"] == INDOOR_METRICS_SCHEMA_VERSION
-                && metrics["generator_version"] == GENERATOR_VERSION
+            metrics["schema_version"] == schema
+                && metrics["generator_version"] == identity.generator_version
                 && metrics["scenes"] == protocol.audit_rooms
                 && metrics["image_size"] == json!([protocol.width, protocol.height]),
             "incompatible population schema/protocol"
@@ -449,7 +484,7 @@ impl Dataset {
                 capture.seed == seed
                     && manifest["seed"] == seed
                     && capture.run_id == run_id
-                    && manifest["generator_version"] == GENERATOR_VERSION
+                    && manifest["generator_version"] == identity.generator_version
                     && capture.image_size == [protocol.width, protocol.height],
                 "mixed room capture/manifest"
             );
@@ -484,7 +519,11 @@ impl Dataset {
                         && identities.insert((view.step_index, view.camera_index)),
                     "duplicate/out-of-range camera/time"
                 );
-                let time = view.step_index as f32 / (protocol.playback_steps - 1) as f32;
+                let time = if protocol.playback_steps == 1 {
+                    0.
+                } else {
+                    view.step_index as f32 / (protocol.playback_steps - 1) as f32
+                };
                 ensure!(
                     view.time == time
                         && view.near > 0.0
@@ -562,7 +601,8 @@ impl Dataset {
                 architecture: row.clone(),
             });
         }
-        let summary = summarize(&rows, &scenes, &metrics)?;
+        let mut summary = summarize(&rows, &scenes, &metrics)?;
+        summary["generator_version"] = json!(identity.generator_version);
         Ok(Self {
             identity: actual,
             metrics,

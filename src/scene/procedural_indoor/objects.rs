@@ -1,7 +1,11 @@
+pub mod accessories;
 pub mod chairs;
 pub mod clocks;
 pub mod computers;
+pub mod equipment;
+pub mod hospitality;
 pub mod seating;
+pub mod services;
 pub mod storage;
 pub mod tables;
 mod utilities;
@@ -129,10 +133,37 @@ pub fn spawn_object(
 pub fn build_object(o: &IndoorObject) -> Assembly {
     let mut a = Assembly::default();
     match o.kind {
+        ObjectKind::Projector
+        | ObjectKind::ProjectionScreen
+        | ObjectKind::PowerStrip
+        | ObjectKind::Cable
+        | ObjectKind::WallShelf
+        | ObjectKind::NoticeBoard
+        | ObjectKind::WallSconce
+        | ObjectKind::CeilingPendant => equipment::build(&mut a, o),
         ObjectKind::Printer | ObjectKind::StorageBox | ObjectKind::CoatRack | ObjectKind::Bag => {
             utilities::build(&mut a, o)
         }
-        ObjectKind::Table | ObjectKind::Desk | ObjectKind::CoffeeTable => tables::build(&mut a, o),
+        ObjectKind::Table | ObjectKind::Desk | ObjectKind::CoffeeTable | ObjectKind::SideTable => {
+            tables::build(&mut a, o)
+        }
+        ObjectKind::MobileCart
+        | ObjectKind::DrawerUnit
+        | ObjectKind::Bench
+        | ObjectKind::Ottoman
+        | ObjectKind::RoomDivider => services::build(&mut a, o),
+        ObjectKind::DeskLamp
+        | ObjectKind::Speaker
+        | ObjectKind::Headphones
+        | ObjectKind::Stapler
+        | ObjectKind::TapeDispenser
+        | ObjectKind::DocumentTray
+        | ObjectKind::DeskOrganizer
+        | ObjectKind::TissueBox
+        | ObjectKind::DeskFan => accessories::build(&mut a, o),
+        ObjectKind::CoffeeMaker | ObjectKind::Kettle | ObjectKind::Vase | ObjectKind::Bowl => {
+            hospitality::build(&mut a, o)
+        }
         ObjectKind::Chair => chairs::build(&mut a, o),
         ObjectKind::Sofa => seating::build(&mut a, o),
         ObjectKind::Cabinet | ObjectKind::Bookcase => storage::build(&mut a, o),
@@ -266,34 +297,41 @@ fn bin(a: &mut Assembly, o: &IndoorObject) {
 fn wall_panel(a: &mut Assembly, o: &IndoorObject) {
     let s = o.size;
     let label = o.kind.class_name();
-    // Reserve the tray/art relief in the declared depth, keeping the rear face
-    // at -depth/2 for an analytic wall mount and collision agreement.
-    let depth = if o.kind == ObjectKind::Whiteboard {
-        (s.z * 0.35).min(0.035)
-    } else {
-        (s.z - 0.016).max(s.z * 0.5)
+    // Printed/painted content is a single front-facing image domain. Metric
+    // cuboid UVs are correct for timber, but crop images when the panel changes
+    // aspect. The physical backing closes the solid mount behind this face.
+    let image_face = |a: &mut Assembly, surface: Surface, size: Vec2, z: f32| {
+        let g = a.part(surface, label);
+        let start = g.positions.len() as u32;
+        let y0 = (s.y - size.y) * 0.5;
+        let y1 = y0 + size.y;
+        g.positions.extend([
+            [-size.x * 0.5, y0, z],
+            [size.x * 0.5, y0, z],
+            [size.x * 0.5, y1, z],
+            [-size.x * 0.5, y1, z],
+        ]);
+        g.normals.extend([[0., 0., 1.]; 4]);
+        g.uvs.extend([[0., 1.], [1., 1.], [1., 0.], [0., 0.]]);
+        g.indices
+            .extend([start, start + 1, start + 2, start, start + 2, start + 3]);
     };
-    let front = -s.z * 0.5 + depth;
-    a.box_part(
-        Surface::Chrome,
-        label,
-        Vec3::new(0., s.y * 0.5, -s.z * 0.5 + depth * 0.5),
-        s.with_z(depth),
-        0.006,
-    );
-    a.box_part(
-        if o.kind == ObjectKind::Whiteboard {
-            Surface::Whiteboard
-        } else {
-            Surface::Paper
-        },
-        label,
-        Vec3::new(0.0, s.y * 0.5, front + 0.002),
-        Vec3::new(s.x - 0.035, s.y - 0.035, 0.003),
-        0.0,
-    );
-    let mut rng = stream(o.seed, 7);
     if o.kind == ObjectKind::Whiteboard {
+        let depth = (s.z * 0.35).min(0.035);
+        let front = -s.z * 0.5 + depth;
+        a.box_part(
+            Surface::Chrome,
+            label,
+            Vec3::new(0., s.y * 0.5, -s.z * 0.5 + depth * 0.5),
+            s.with_z(depth),
+            0.006,
+        );
+        image_face(
+            a,
+            Surface::Whiteboard,
+            Vec2::new(s.x - 0.035, s.y - 0.035),
+            front + 0.0035,
+        );
         a.box_part(
             Surface::Chrome,
             label,
@@ -308,24 +346,54 @@ fn wall_panel(a: &mut Assembly, o: &IndoorObject) {
                 0.006,
             );
         }
-    } else {
-        for i in 0..5 {
-            let x = rng.random_range(-s.x * 0.27..s.x * 0.27);
-            let y = rng.random_range(s.y * 0.2..s.y * 0.8);
-            a.part(
-                if i % 2 == 0 {
-                    Surface::Art
-                } else {
-                    Surface::Wood
-                },
+        return;
+    }
+    let p = super::materials::art::frame_parameters(o);
+    let border = p.border_width;
+    let inner = Vec2::new(s.x - border * 2., s.y - border * 2.);
+    let image_size = inner - Vec2::splat((p.mat_width + p.shadow_gap) * 2.);
+    // All front surfaces have explicit depth separation. In particular, the
+    // paper mat cannot share a plane with the picture or the frame front.
+    let front = s.z * 0.5 - p.picture_inset;
+    let backing_depth = (s.z - p.picture_inset - 0.0015).max(s.z * 0.3);
+    a.box_part(
+        if p.style == 4 {
+            Surface::Plastic
+        } else {
+            Surface::Paper
+        },
+        label,
+        Vec3::new(0., s.y * 0.5, -s.z * 0.5 + backing_depth * 0.5),
+        Vec3::new(inner.x, inner.y, backing_depth),
+        0.001,
+    );
+    if p.style != 0 {
+        let surface = match p.style {
+            1 | 4 => Surface::Wood,
+            2 => Surface::Plastic,
+            _ => Surface::Metal,
+        };
+        let bevel = (border * 0.12).min(s.z * 0.1);
+        for y in [border * 0.5, s.y - border * 0.5] {
+            a.box_part(
+                surface,
                 label,
-            )
-            .ellipsoid(
-                Vec3::new(s.x * 0.16, s.y * 0.13, 0.002),
-                Transform::from_xyz(x, y, front + 0.006 + i as f32 * 0.001),
+                Vec3::new(0., y, 0.),
+                Vec3::new(s.x, border, s.z),
+                bevel,
+            );
+        }
+        for x in [-s.x * 0.5 + border * 0.5, s.x * 0.5 - border * 0.5] {
+            a.box_part(
+                surface,
+                label,
+                Vec3::new(x, s.y * 0.5, 0.),
+                Vec3::new(border, s.y - border * 2., s.z),
+                bevel,
             );
         }
     }
+    image_face(a, Surface::Art, image_size, front);
 }
 
 fn books(a: &mut Assembly, o: &IndoorObject) {
@@ -382,5 +450,7 @@ fn lamp(a: &mut Assembly, o: &IndoorObject) {
         .ellipsoid(Vec3::splat(0.045), Transform::from_xyz(0.0, h - 0.22, 0.0));
 }
 
+#[cfg(test)]
+mod catalog_tests;
 #[cfg(test)]
 mod review_tests;

@@ -209,7 +209,7 @@ fn wall_mounts_touch_real_back_faces_on_oblique_and_axis_aligned_walls() {
                 .contains("unmounted"));
         }
     }
-    assert_eq!(kinds.len(), 6);
+    assert_eq!(kinds.len(), 10);
     assert!(oblique > 50, "only rectangular mounting was exercised");
 }
 
@@ -241,6 +241,8 @@ fn saucers_and_clock_relief_fit_narrow_and_shallow_reservations() {
                 support: None,
                 neighbor: false,
                 interaction_target: None,
+                cable_path: None,
+                cable_target: None,
             };
             if kind == ObjectKind::Mug {
                 saucers += usize::from(

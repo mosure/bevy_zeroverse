@@ -12,6 +12,29 @@ struct Args {
 }
 #[derive(Subcommand)]
 enum Action {
+    /// Verify all bytes in an offline paired study, including every annotation.
+    VerifyStudy {
+        #[arg(long)]
+        output: PathBuf,
+    },
+    /// Qualify and compare every room in matched cohorts; build a complete gallery.
+    CompareIndoor {
+        #[arg(long)]
+        before: PathBuf,
+        #[arg(long)]
+        after: PathBuf,
+        #[arg(long, default_value = "out/indoor_study")]
+        output: PathBuf,
+        /// Protocol TOML; defaults to 64 rooms, 3 views, 512 square, GI 1024.
+        #[arg(long)]
+        recipe: Option<PathBuf>,
+        #[arg(long)]
+        embeddings: Option<PathBuf>,
+        #[arg(long)]
+        before_population: Option<PathBuf>,
+        #[arg(long)]
+        after_population: Option<PathBuf>,
+    },
     /// Capture a matched camera/aspect/appearance sweep, receipt and annotation gallery.
     Qualify {
         #[arg(long, default_value = "target/debug/indoor_validate")]
@@ -54,6 +77,27 @@ enum Action {
 fn main() -> Result<()> {
     let args = Args::parse();
     match args.command {
+        Action::VerifyStudy { output } => {
+            bevy_zeroverse_publication::study::verify(&args.root.join(output))?
+        }
+        Action::CompareIndoor {
+            before,
+            after,
+            output,
+            recipe,
+            embeddings,
+            before_population,
+            after_population,
+        } => bevy_zeroverse_publication::study::compare(
+            &args.root,
+            &before,
+            &after,
+            &output,
+            recipe.as_deref(),
+            embeddings.as_deref(),
+            before_population.as_deref(),
+            after_population.as_deref(),
+        )?,
         Action::Qualify {
             validator,
             output,

@@ -9,6 +9,63 @@ pub(super) use prepared::{PreparedMaterial, PreparedMineral, PreparedWood};
 #[cfg(test)]
 pub(super) mod replay_helpers;
 
+/// Continuous, correlated interior pigments. Wall, ceiling and accent colours
+/// share a design hue, while wood stays inside plausible stain reflectances.
+/// These parameters describe materials, never RGB-only postprocessing effects.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PaletteProgram {
+    pub hue: f32,
+    pub harmony_angle: f32,
+    pub pigment_strength: f32,
+    pub wall_lightness: f32,
+    pub ceiling_lightness: f32,
+    pub furnishing_lightness: f32,
+    pub furnishing_saturation: f32,
+    pub wood_hue: f32,
+    pub wood_lightness: f32,
+    pub wood_saturation: f32,
+}
+impl PaletteProgram {
+    pub fn sample(seed: u64) -> Self {
+        let mut rng = stream(seed, 5720);
+        let dark_wall = rng.random_bool(0.08);
+        let neutral = rng.random_bool(0.52);
+        Self {
+            hue: rng.random_range(0.0..360.0),
+            harmony_angle: if rng.random_bool(0.70) {
+                rng.random_range(-42.0..42.0)
+            } else {
+                rng.random_range(145.0..215.0)
+            },
+            pigment_strength: if neutral {
+                rng.random_range(0.005..0.065)
+            } else {
+                rng.random_range(0.07..0.28)
+            },
+            wall_lightness: if dark_wall {
+                rng.random_range(0.18..0.42)
+            } else {
+                rng.random_range(0.53..0.94)
+            },
+            ceiling_lightness: rng.random_range(0.72..0.96),
+            furnishing_lightness: rng.random_range(0.13..0.68),
+            furnishing_saturation: rng.random_range(0.08..0.58),
+            wood_hue: rng.random_range(16.0..48.0),
+            wood_lightness: rng.random_range(0.10..0.65),
+            wood_saturation: rng.random_range(0.12..0.63),
+        }
+    }
+    pub fn rgb(hue: f32, saturation: f32, lightness: f32) -> [f32; 3] {
+        let c = bevy::prelude::Color::hsl(
+            hue.rem_euclid(360.0),
+            saturation.clamp(0.0, 1.0),
+            lightness.clamp(0.0, 1.0),
+        )
+        .to_srgba();
+        [c.red, c.green, c.blue]
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MaterialRecipe {
     #[serde(default)]
@@ -25,6 +82,8 @@ pub struct MaterialRecipe {
     pub wood: Option<super::timber::WoodFinish>,
     #[serde(default)]
     pub leaf: Option<super::botanical::LeafRecipe>,
+    #[serde(default)]
+    pub cuticle: Option<super::botanical::CuticleRecipe>,
     pub surface: Surface,
     pub seed: u64,
     pub color: [f32; 3],
@@ -43,7 +102,7 @@ pub struct MaterialRecipe {
     pub panel_count: [u32; 2],
     pub joint_width: f32,
 }
-pub const SURFACES: [Surface; 35] = [
+pub const SURFACES: [Surface; 36] = [
     Surface::Paint,
     Surface::Accent,
     Surface::Wood,
@@ -79,14 +138,13 @@ pub const SURFACES: [Surface; 35] = [
     Surface::Leather,
     Surface::Whiteboard,
     Surface::Television,
+    Surface::Succulent,
 ];
 pub fn sample(seed: u64) -> Vec<MaterialRecipe> {
-    let mut palette = stream(seed, 71);
-    let hue = palette.random_range(0.0..360.0);
-    let wood_light = palette.random_range(0.25..0.78);
-    let wood_saturation = palette.random_range(0.10..0.70);
-    let temperature = palette.random_range(-0.025..0.04);
-    let accent_hue = hue + palette.random_range(90.0..210.0);
+    let palette = PaletteProgram::sample(seed);
+    let hue = palette.hue;
+    let wood_saturation = palette.wood_saturation;
+    let accent_hue = hue + palette.harmony_angle;
     let mut recipes: Vec<MaterialRecipe> = SURFACES
         .into_iter()
         .map(|surface| {
@@ -99,32 +157,26 @@ pub fn sample(seed: u64) -> Vec<MaterialRecipe> {
                 } else {
                     hue
                 } + rng.random_range(-14.0..14.0),
-                rng.random_range(0.12..0.43),
-                rng.random_range(0.16..0.51),
+                (palette.furnishing_saturation + rng.random_range(-0.06..0.06)).clamp(0.035, 0.68),
+                (palette.furnishing_lightness + rng.random_range(-0.10..0.10)).clamp(0.08, 0.78),
             )
             .to_srgba();
             let neutral = rng.random_range(0.68..0.91);
             let color = match surface {
-                Surface::Wood | Surface::WoodEdge => [
-                    wood_light,
-                    wood_light * (1.0 - 0.42 * wood_saturation),
-                    wood_light * (1.0 - 0.72 * wood_saturation),
-                ],
+                Surface::Wood | Surface::WoodEdge => {
+                    PaletteProgram::rgb(palette.wood_hue, wood_saturation, palette.wood_lightness)
+                }
                 Surface::Fabric | Surface::FabricAlt | Surface::Accent | Surface::Art => {
                     [chromatic.red, chromatic.green, chromatic.blue]
                 }
-                Surface::Paint if rng.random_bool(0.28) => {
-                    let tint = bevy::prelude::Color::hsl(
-                        hue,
-                        rng.random_range(0.04..0.25),
-                        rng.random_range(0.38..0.85),
-                    )
-                    .to_srgba();
-                    [tint.red, tint.green, tint.blue]
+                Surface::Paint => {
+                    PaletteProgram::rgb(hue, palette.pigment_strength, palette.wall_lightness)
                 }
-                Surface::Paint | Surface::Ceiling => {
-                    [neutral, neutral, neutral * (1.0 - temperature)]
-                }
+                Surface::Ceiling => PaletteProgram::rgb(
+                    hue,
+                    palette.pigment_strength * 0.16,
+                    palette.ceiling_lightness,
+                ),
                 Surface::Floor => {
                     let n = rng.random_range(0.3..0.7);
                     [
@@ -172,7 +224,10 @@ pub fn sample(seed: u64) -> Vec<MaterialRecipe> {
                     let n = rng.random_range(0.075..0.16);
                     [n, n * 0.58, n * 0.29]
                 }
-                Surface::Leaf | Surface::LeafLight | Surface::LeafVariegated => {
+                Surface::Leaf
+                | Surface::LeafLight
+                | Surface::LeafVariegated
+                | Surface::Succulent => {
                     let green = rng.random_range(0.18..0.42);
                     [
                         green * rng.random_range(0.30..0.70),
@@ -289,6 +344,7 @@ pub fn sample(seed: u64) -> Vec<MaterialRecipe> {
                 coating: None,
                 wood: None,
                 leaf: None,
+                cuticle: None,
                 surface,
                 seed: rng.random(),
                 color,
@@ -461,6 +517,7 @@ impl MaterialRecipe {
                     Surface::Fabric | Surface::FabricAlt | Surface::Floor
                 )
             || self.leather.is_some() && self.surface != Surface::Leather
+            || self.cuticle.is_some() && self.surface != Surface::Succulent
         {
             return Err("substrate program does not match material role".into());
         }
@@ -483,6 +540,9 @@ impl MaterialRecipe {
         }
         if let Some(l) = &self.leaf {
             l.validate()?;
+        }
+        if let Some(c) = &self.cuticle {
+            c.validate()?;
         }
         if let Some(t) = &self.textile {
             t.validate()?;
@@ -618,6 +678,13 @@ impl MaterialRecipe {
             self.roughness = 0.66 - l.wax * 0.38;
             self.leaf = Some(l);
         }
+        if self.surface == Surface::Succulent {
+            let c = super::botanical::CuticleRecipe::sample(self.seed);
+            self.period_m = rng.random_range(0.055..0.18);
+            self.relief_m = rng.random_range(0.000008..0.000030);
+            self.roughness = 0.62 - c.wax * 0.25;
+            self.cuticle = Some(c);
+        }
     }
     /// Bounded structure programs shared by the twelve finish slots.
     pub fn variant(&self, slot: usize) -> Self {
@@ -635,6 +702,7 @@ impl MaterialRecipe {
                     | Surface::Leaf
                     | Surface::LeafLight
                     | Surface::LeafVariegated
+                    | Surface::Succulent
             )
         {
             result.seed = stream(self.seed, 0x535452554354 + group as u64).random();
@@ -668,11 +736,15 @@ impl MaterialRecipe {
         if let Some(l) = &self.leaf {
             l.apply(mat);
         }
+        if let Some(c) = &self.cuticle {
+            c.apply(mat);
+        }
     }
     /// Colored substrate maps contain absolute sRGB reflectance. Upholstery and
     /// modern ceramic glazes retain relative maps for independent pigment tinting.
     pub(super) fn absolute_color(&self, floor_style: u32) -> bool {
         self.leaf.is_some()
+            || self.cuticle.is_some()
             || self.coating.as_ref().is_some_and(|c| c.glaze.is_none())
             || self.surface == Surface::Bark
             || matches!(self.surface, Surface::Wood | Surface::WoodEdge) && self.wood.is_some()
@@ -791,6 +863,9 @@ impl MaterialRecipe {
         let (u, v) = self.layers.as_ref().map_or((u, v), |l| l.rotate(u, v));
         let u = (u + self.phase[0]).rem_euclid(1.0);
         let v = (v + self.phase[1]).rem_euclid(1.0);
+        if let Some(c) = &self.cuticle {
+            return c.evaluate(self, [u, v]);
+        }
         if let Some(c) = &self.coating {
             if let Some(g) = &c.glaze {
                 return if let Some(PreparedMaterial::Glaze(p)) = prepared {
@@ -970,6 +1045,37 @@ impl MaterialRecipe {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn interior_palettes_replay_with_bounded_correlated_pigments() {
+        let mut dark = 0;
+        let mut neutral = 0;
+        let mut hues = [false; 12];
+        for seed in 0..512 {
+            let p = PaletteProgram::sample(seed);
+            assert_eq!(p, PaletteProgram::sample(seed));
+            dark += usize::from(p.wall_lightness < 0.5);
+            neutral += usize::from(p.pigment_strength < 0.07);
+            hues[(p.hue / 30.) as usize] = true;
+            assert!((16.0..48.0).contains(&p.wood_hue));
+            assert!((0.72..0.96).contains(&p.ceiling_lightness));
+            for recipe in sample(seed) {
+                recipe.validate().unwrap();
+            }
+            for (h, s, l) in [
+                (p.hue, p.pigment_strength, p.wall_lightness),
+                (p.hue, p.pigment_strength * 0.16, p.ceiling_lightness),
+                (p.wood_hue, p.wood_saturation, p.wood_lightness),
+            ] {
+                assert!(PaletteProgram::rgb(h, s, l)
+                    .iter()
+                    .all(|v| v.is_finite() && (0.0..=1.0).contains(v)));
+            }
+        }
+        assert!(hues.into_iter().all(|v| v));
+        assert!((20..65).contains(&dark));
+        assert!((220..310).contains(&neutral));
+    }
 
     #[test]
     fn finish_programs_replay_are_periodic_and_validate_their_physical_scales() {

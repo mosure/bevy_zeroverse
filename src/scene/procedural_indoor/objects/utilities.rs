@@ -149,6 +149,8 @@ mod tests {
                     support: None,
                     neighbor: false,
                     interaction_target: None,
+                    cable_path: None,
+                    cable_target: None,
                 };
                 let a = super::super::build_object(&o);
                 let (lo, hi) = a.bounds();

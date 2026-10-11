@@ -490,3 +490,35 @@ fn mineral_spatial_fields_share_one_map_budget_and_fallback_exactly() {
         }
     }
 }
+
+#[test]
+fn cast_concrete_finish_distribution_retains_paste_and_exposed_ground_options() {
+    let mut paste = 0;
+    let mut ground = 0;
+    let mut unique = std::collections::BTreeSet::new();
+    for seed in 0..512 {
+        let m = MineralRecipe::sample(seed, Surface::Concrete);
+        assert_eq!(m, MineralRecipe::sample(seed, Surface::Concrete));
+        m.validate().unwrap();
+        paste += usize::from(m.aggregate_exposure < 0.08);
+        ground += usize::from(m.aggregate_exposure > 0.30 && m.polish > 0.40);
+        unique.insert(m.aggregate_exposure.to_bits());
+        assert_eq!(m.marble_mix, 0.);
+        assert!(m
+            .aggregate_color
+            .iter()
+            .flatten()
+            .all(|c| (0.10..=0.90).contains(c)));
+    }
+    assert!(
+        paste > 280 && ground > 30,
+        "cast/ground continuum collapsed: {paste} {ground}"
+    );
+    assert_eq!(unique.len(), 512);
+    // The physically different stone-tile and soil programs retain their range.
+    assert!((0..64).any(|seed| MineralRecipe::sample(seed, Surface::Floor).marble_mix > 0.85));
+    assert!(
+        (0..64).any(|seed| MineralRecipe::sample(seed, Surface::Floor).aggregate_exposure > 0.75)
+    );
+    assert!((0..64).all(|seed| MineralRecipe::sample(seed, Surface::Soil).polish == 0.));
+}

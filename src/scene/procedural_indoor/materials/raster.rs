@@ -2,6 +2,131 @@
 pub(super) const N: i32 = 256;
 pub(super) struct Canvas(pub Vec<u8>);
 impl Canvas {
+    pub(super) fn new(color: [u8; 3]) -> Self {
+        let mut canvas = Self(vec![255; (N * N * 4) as usize]);
+        canvas.rect(0, 0, N, N, color);
+        canvas
+    }
+    pub(super) fn blend(&mut self, x: i32, y: i32, color: [u8; 3], alpha: f32) {
+        if !(0..N).contains(&x) || !(0..N).contains(&y) {
+            return;
+        }
+        let i = ((y * N + x) * 4) as usize;
+        let alpha = alpha.clamp(0., 1.);
+        for (channel, value) in color.into_iter().enumerate() {
+            self.0[i + channel] =
+                (self.0[i + channel] as f32 * (1. - alpha) + value as f32 * alpha).round() as u8;
+        }
+    }
+    pub(super) fn ellipse(&mut self, center: [f32; 2], radius: [f32; 2], color: [u8; 3]) {
+        self.ellipse_clipped(center, radius, color, [0, 0, N, N]);
+    }
+    pub(super) fn ellipse_clipped(
+        &mut self,
+        center: [f32; 2],
+        radius: [f32; 2],
+        color: [u8; 3],
+        bounds: [i32; 4],
+    ) {
+        let [left, top, width, height] = bounds;
+        for y in ((center[1] - radius[1]).floor() as i32).max(top).max(0)
+            ..=((center[1] + radius[1]).ceil() as i32)
+                .min(top + height - 1)
+                .min(N - 1)
+        {
+            for x in ((center[0] - radius[0]).floor() as i32).max(left).max(0)
+                ..=((center[0] + radius[0]).ceil() as i32)
+                    .min(left + width - 1)
+                    .min(N - 1)
+            {
+                if ((x as f32 - center[0]) / radius[0].max(0.1)).powi(2)
+                    + ((y as f32 - center[1]) / radius[1].max(0.1)).powi(2)
+                    <= 1.
+                {
+                    self.blend(x, y, color, 1.);
+                }
+            }
+        }
+    }
+    pub(super) fn polygon(&mut self, points: &[[f32; 2]], color: [u8; 3]) {
+        if points.len() < 3 {
+            return;
+        }
+        let min_y = points.iter().map(|p| p[1]).fold(f32::INFINITY, f32::min);
+        let max_y = points
+            .iter()
+            .map(|p| p[1])
+            .fold(f32::NEG_INFINITY, f32::max);
+        // Scanline filling visits each covered pixel once, rather than testing
+        // every edge at every texel. Small paths are bounded by the 256px atlas.
+        let mut intersections = Vec::with_capacity(points.len());
+        for y in (min_y.floor() as i32).max(0)..=(max_y.ceil() as i32).min(N - 1) {
+            intersections.clear();
+            let fy = y as f32 + 0.5;
+            for i in 0..points.len() {
+                let a = points[i];
+                let b = points[(i + 1) % points.len()];
+                if (a[1] <= fy && b[1] > fy) || (b[1] <= fy && a[1] > fy) {
+                    intersections.push(a[0] + (fy - a[1]) * (b[0] - a[0]) / (b[1] - a[1]));
+                }
+            }
+            intersections.sort_by(f32::total_cmp);
+            for pair in intersections.as_chunks::<2>().0 {
+                self.rect(
+                    pair[0].ceil() as i32,
+                    y,
+                    (pair[1].ceil() - pair[0].ceil()) as i32,
+                    1,
+                    color,
+                );
+            }
+        }
+    }
+    pub(super) fn text(&mut self, text: &str, x: i32, y: i32, scale: i32, color: [u8; 3]) {
+        // A compact bitmap alphabet gives headings actual readable content;
+        // no font loading, hidden Unicode fallback, or per-frame rasterization.
+        const LETTERS: [[u8; 5]; 26] = [
+            [2, 5, 7, 5, 5],
+            [6, 5, 6, 5, 6],
+            [3, 4, 4, 4, 3],
+            [6, 5, 5, 5, 6],
+            [7, 4, 6, 4, 7],
+            [7, 4, 6, 4, 4],
+            [3, 4, 5, 5, 3],
+            [5, 5, 7, 5, 5],
+            [7, 2, 2, 2, 7],
+            [1, 1, 1, 5, 2],
+            [5, 5, 6, 5, 5],
+            [4, 4, 4, 4, 7],
+            [5, 7, 7, 5, 5],
+            [5, 7, 7, 7, 5],
+            [2, 5, 5, 5, 2],
+            [6, 5, 6, 4, 4],
+            [2, 5, 5, 3, 1],
+            [6, 5, 6, 5, 5],
+            [3, 4, 2, 1, 6],
+            [7, 2, 2, 2, 2],
+            [5, 5, 5, 5, 7],
+            [5, 5, 5, 5, 2],
+            [5, 5, 7, 7, 5],
+            [5, 5, 2, 5, 5],
+            [5, 5, 2, 2, 2],
+            [7, 1, 2, 4, 7],
+        ];
+        for (index, letter) in text.bytes().enumerate() {
+            let x = x + index as i32 * 4 * scale;
+            if letter.is_ascii_alphabetic() {
+                let glyph = LETTERS[(letter.to_ascii_uppercase() - b'A') as usize];
+                for (row, bits) in glyph.into_iter().enumerate() {
+                    for col in 0..3 {
+                        if bits & (1 << (2 - col)) != 0 {
+                            self.rect(x + col * scale, y + row as i32 * scale, scale, scale, color);
+                        }
+                    }
+                }
+            }
+        }
+    }
     pub(super) fn line(&mut self, a: [f32; 2], b: [f32; 2], width: i32, color: [u8; 3]) {
         let n = ((b[0] - a[0]).abs().max((b[1] - a[1]).abs()).ceil() as usize).max(1);
         for i in 0..=n {
@@ -75,6 +200,25 @@ impl Canvas {
         }
         for dy in [2, 6] {
             self.rect(x + scale * 14, y + scale * dy, scale, scale, color);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn video_portraits_clip_at_their_panel_boundary() {
+        let mut canvas = Canvas::new([17, 23, 31]);
+        canvas.ellipse_clipped([40., 55.], [29., 34.], [185, 112, 79], [20, 20, 40, 40]);
+        for y in 0..N {
+            for x in 0..N {
+                let i = ((y * N + x) * 4) as usize;
+                if !(20..60).contains(&x) || !(20..60).contains(&y) {
+                    assert_eq!(&canvas.0[i..i + 3], &[17, 23, 31]);
+                }
+                assert_eq!(canvas.0[i + 3], 255);
+            }
         }
     }
 }

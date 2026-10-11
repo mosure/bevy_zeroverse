@@ -31,14 +31,18 @@ impl WoodFinish {
             rng.random_range(0.035..0.35),
         )
         .to_srgba();
+        let stain_strength = rng.random_range(0.0_f32..1.0).powf(1.5) * 0.90;
+        let clearcoat = rng.random_range(0.0_f32..1.0).powi(2) * 0.85;
         Self {
             seed,
             stain_color: [c.red, c.green, c.blue],
-            stain_strength: rng.random_range(0.0_f32..1.0).powf(1.5) * 0.90,
-            bleach: rng.random_range(0.0_f32..1.0).powi(3) * 0.65,
-            pore_fill: rng.random_range(0.0..0.95),
+            stain_strength,
+            // Pale washed timber and dark absorbed stain share a continuum;
+            // strong bleaching is not layered arbitrarily over opaque dark dye.
+            bleach: rng.random_range(0.0_f32..1.0).powi(3) * 0.65 * (1. - stain_strength * 0.85),
+            pore_fill: (rng.random_range(0.0..0.55) + clearcoat * 0.48).min(0.95),
             ring_contrast: rng.random_range(0.35..1.25),
-            clearcoat: rng.random_range(0.0_f32..1.0).powi(2) * 0.85,
+            clearcoat,
             coat_roughness: rng.random_range(0.045..0.42),
         }
     }

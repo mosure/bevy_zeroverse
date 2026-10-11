@@ -10,7 +10,7 @@ pub(super) fn texel(t: &TextileRecipe, r: &MaterialRecipe, u: f32, v: f32) -> Te
     );
     let cell = p.floor();
     let q = p - cell - Vec2::splat(0.5);
-    let mut closest = (f32::INFINITY, 0.0, 0.0);
+    let mut closest = (f32::INFINITY, 0.0, 0.0, 0);
     for row in -1..=1 {
         for col in -1..=1 {
             let jitter = hash(
@@ -47,7 +47,12 @@ pub(super) fn texel(t: &TextileRecipe, r: &MaterialRecipe, u: f32, v: f32) -> Te
                     let f = ((local - previous).dot(d) / d.length_squared()).clamp(0., 1.);
                     let distance = local.distance_squared(previous + d * f) / (width * width);
                     if distance < closest.0 {
-                        closest = (distance, jitter, local.y);
+                        closest = (
+                            distance,
+                            jitter,
+                            local.y,
+                            (cell.y as i32 + row).rem_euclid(t.yarns[1] as i32) as u32,
+                        );
                     }
                     previous = next;
                 }
@@ -57,8 +62,9 @@ pub(super) fn texel(t: &TextileRecipe, r: &MaterialRecipe, u: f32, v: f32) -> Te
     let crown = (1. - closest.0).max(0.).sqrt();
     let nap = periodic_noise(u, v, 71, 73, r.seed.wrapping_add(127)) - 0.5;
     let yarn = 0.79 + crown * (0.18 + t.dye_variation * (closest.1 - 0.5)) + t.fuzz * nap * 0.03;
+    let dye = t.yarn_dye(1, closest.3);
     Texel {
-        color: t.yarn_tint[0].map(|c| (c * yarn).clamp(0., 1.)),
+        color: [0, 1, 2].map(|c| (t.yarn_tint[0][c] * yarn * dye[c]).clamp(0., 1.)),
         height: r.relief_m * (crown * (0.85 + t.crimp * closest.2 * 0.15) - 0.45),
         roughness: (r.roughness + (1. - crown) * 0.09 + nap * t.fuzz * 0.08).clamp(0.4, 1.),
         occlusion: 0.89 + crown * 0.11,

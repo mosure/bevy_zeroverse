@@ -27,14 +27,15 @@ pub struct PaintApplication {
 impl PaintApplication {
     pub fn sample(seed: u64) -> Self {
         let mut rng = stream(seed, 0x5041494e54);
+        let brushed = rng.random_range(0.0_f32..1.).powi(2);
         Self {
             spray_spacing_m: rng.random_range(0.0025..0.009),
             roller_spacing_m: rng.random_range(0.0018..0.0055),
             roller_stretch: rng.random_range(1.4..4.0),
             orange_peel_m: rng.random_range(0.0007..0.0020),
-            orange_peel: rng.random_range(0.0_f32..1.).powi(2),
+            orange_peel: rng.random_range(0.0_f32..1.).powi(2) * (1. - brushed * 0.75),
             brush_spacing_m: rng.random_range(0.0006..0.0018),
-            brush: rng.random_range(0.0_f32..1.).powi(3) * 0.75,
+            brush: brushed * rng.random_range(0.35..0.85),
             trowel_scale_m: rng.random_range(0.018..0.075),
             lap_variation: rng.random_range(0.008..0.065),
             repair_mix: rng.random_range(0.0_f32..1.).powi(3) * 0.22,

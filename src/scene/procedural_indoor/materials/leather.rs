@@ -23,17 +23,22 @@ pub struct LeatherRecipe {
 impl LeatherRecipe {
     pub fn sample(seed: u64) -> Self {
         let mut rng = stream(seed, 0x4c454154484552);
+        // Finishing a hide couples its nap, pore definition, dye uniformity and
+        // sheen. Avoid independently choosing thick shiny lacquer and suede nap.
+        let polish = rng.random_range(0.0_f32..1.0);
+        let nap = rng.random_range(0.0_f32..1.0).powi(2) * (1. - polish).powi(2);
+        let coat = rng.random_range(0.0..0.70) * (1. - nap);
         Self {
             cells: [rng.random_range(18..=52), rng.random_range(18..=52)],
-            stretch: rng.random_range(0.65..1.5),
+            stretch: rng.random_range(0.72..1.40),
             roundness: rng.random_range(0.45..1.6),
-            pore_depth: rng.random_range(0.02..0.22),
-            crease_strength: rng.random_range(0.0..0.22),
-            mottling: rng.random_range(0.03..0.25),
-            polish: rng.random_range(0.0..1.0),
-            nap: rng.random_range(0.0_f32..1.0).powi(3),
-            coat: rng.random_range(0.0..0.35),
-            coat_roughness: rng.random_range(0.14..0.40),
+            pore_depth: rng.random_range(0.02..0.22) * (1. - polish * 0.55),
+            crease_strength: rng.random_range(0.0..0.22) * (1. - coat * 0.60),
+            mottling: rng.random_range(0.03..0.32) * (1. - coat * 0.65),
+            polish,
+            nap,
+            coat,
+            coat_roughness: rng.random_range(0.10..0.35) + nap * 0.20,
         }
     }
     pub fn validate(&self) -> Result<(), String> {
@@ -65,7 +70,7 @@ impl LeatherRecipe {
     }
     pub(super) fn evaluate(&self, r: &MaterialRecipe, [u, v]: [f32; 2]) -> Texel {
         let noise = |nx, ny, salt| periodic_noise(u, v, nx, ny, r.seed.wrapping_add(salt));
-        let [nx, ny] = self.cells;
+        let [nx, ny] = self.stretched_cells();
         // A low-frequency warp changes cell shape and size while preserving seams.
         let x = (u + (noise(3, 5, 11) - 0.5) * 0.008) * nx as f32;
         let y = (v + (noise(5, 3, 19) - 0.5) * 0.008) * ny as f32;
@@ -116,8 +121,77 @@ impl LeatherRecipe {
             occlusion: 0.95 + 0.05 * grain,
         }
     }
+    /// Stretching the skin changes the density along both principal axes.
+    /// Resolving integer periodic cell counts keeps the three-by-three neighbor
+    /// search complete, instead of distorting its distance metric and missing pores.
+    pub fn stretched_cells(&self) -> [u32; 2] {
+        [
+            (self.cells[0] as f32 / self.stretch)
+                .round()
+                .clamp(6., 128.) as u32,
+            (self.cells[1] as f32 * self.stretch)
+                .round()
+                .clamp(6., 128.) as u32,
+        ]
+    }
 }
 fn smooth(t: f32) -> f32 {
     let t = t.clamp(0., 1.);
     t * t * (3. - 2. * t)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::{program, Surface};
+    use super::*;
+
+    #[test]
+    fn hide_finishes_replay_and_do_not_combine_suede_with_shiny_topcoat() {
+        let mut rough = 0;
+        let mut glossy = 0;
+        for seed in 0..512 {
+            let l = LeatherRecipe::sample(seed);
+            assert_eq!(l, LeatherRecipe::sample(seed));
+            l.validate().unwrap();
+            if l.nap > 0.30 {
+                assert!(l.polish < 0.46);
+                rough += 1;
+            }
+            if l.polish > 0.80 {
+                assert!(l.nap < 0.04);
+                glossy += 1;
+            }
+        }
+        assert!(
+            rough > 15 && glossy > 60,
+            "finish distribution collapsed: {rough} {glossy}"
+        );
+    }
+
+    #[test]
+    fn authored_leather_stretch_changes_grain_without_breaking_periodic_pbr_channels() {
+        let r = program::sample(202)[Surface::Leather as usize].clone();
+        let mut l = r.leather.clone().unwrap();
+        l.cells = [32, 32];
+        l.stretch = 0.5;
+        let narrow = l.stretched_cells();
+        let before = l.evaluate(&r, [0.37, 0.64]);
+        l.stretch = 2.;
+        assert_ne!(narrow, l.stretched_cells());
+        assert_ne!(before.height, l.evaluate(&r, [0.37, 0.64]).height);
+        for t in [0., 0.23, 0.67, 1.] {
+            for (a, b) in [
+                (l.evaluate(&r, [0., t]), l.evaluate(&r, [1., t])),
+                (l.evaluate(&r, [t, 0.]), l.evaluate(&r, [t, 1.])),
+            ] {
+                for (x, y) in a.color.into_iter().zip(b.color) {
+                    assert!((x - y).abs() < 0.0001);
+                }
+                assert!((a.height - b.height).abs() < 1e-7);
+                assert!((a.roughness - b.roughness).abs() < 0.0001);
+                assert!((0.18..=1.).contains(&a.roughness));
+                assert!((0.90..=1.).contains(&a.occlusion));
+            }
+        }
+    }
 }

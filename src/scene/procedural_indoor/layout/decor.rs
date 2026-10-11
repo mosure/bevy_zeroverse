@@ -36,6 +36,52 @@ pub(super) fn drink(rng: &mut ChaCha8Rng) -> (ObjectKind, Vec3) {
     }
 }
 impl IndoorManifest {
+    /// Reserve an aligned service appliance before small accessories compete for
+    /// its space. Sampling a big appliance as late uniform clutter almost never
+    /// fits a realistic narrow cart, even when its geometry is perfectly valid.
+    pub(super) fn appliance_group(&mut self, support: &IndoorObject) {
+        let mut rng = stream(support.seed, 5530);
+        let program = super::super::items::parameters(self, support);
+        if support.size.x < 0.52
+            || support.size.z < 0.35
+            || !rng.random_bool((0.38 + program.task_weights[2] * 0.55) as f64)
+        {
+            return;
+        }
+        let kind = if rng.random_bool(0.55) {
+            ObjectKind::CoffeeMaker
+        } else {
+            ObjectKind::Kettle
+        };
+        let size = if kind == ObjectKind::CoffeeMaker {
+            Vec3::new(
+                rng.random_range(0.24..0.31),
+                rng.random_range(0.29..0.41),
+                (support.size.z * 0.69).clamp(0.27, 0.38),
+            )
+        } else {
+            Vec3::new(0.18, rng.random_range(0.20..0.27), 0.25)
+        };
+        let side = if rng.random_bool(0.5) { -1. } else { 1. };
+        self.prop(
+            support,
+            kind,
+            Vec3::new(side * support.size.x * 0.16, 0., -support.size.z * 0.03),
+            size,
+            rng.random_range(-0.06..0.06),
+            &mut rng,
+        );
+        let (drink, size) = drink(&mut rng);
+        self.prop(
+            support,
+            drink,
+            Vec3::new(-side * support.size.x * 0.28, 0., support.size.z * 0.16),
+            size,
+            rng.random_range(-0.8..0.8),
+            &mut rng,
+        );
+    }
+
     fn attachment_wall(&self, rng: &mut ChaCha8Rng) -> (Transform, f32) {
         if let Some(e) = &self.envelope {
             let wall = &e.walls[rng.random_range(0..e.walls.len())];
@@ -196,7 +242,7 @@ impl IndoorManifest {
             self.objects.push(object);
         }
     }
-    pub(super) fn scatter_clutter(&mut self, rng: &mut ChaCha8Rng) {
+    pub(super) fn scatter_clutter(&mut self, _rng: &mut ChaCha8Rng) {
         let clutter = self.domain().map_or(0.5, |d| d.clutter) * self.density;
         let surfaces: Vec<_> = self
             .objects
@@ -205,71 +251,49 @@ impl IndoorManifest {
             .cloned()
             .collect();
         for support in surfaces {
-            for _ in 0..(clutter * (12.0 + 6.0 * (support.size.x * support.size.z).sqrt()))
-                .min(64.0) as usize
-            {
-                let (kind, size) = match rng.random_range(0..17) {
-                    0 => (
-                        ObjectKind::StorageBox,
+            let program = super::super::items::parameters(self, &support);
+            let mut rng = stream(support.seed, 5510);
+            let attempts = (clutter * program.occupancy * (12.0 + 6.0 * support.size.xz().length()))
+                .clamp(0.0, 48.0) as usize;
+            for _ in 0..attempts {
+                let (kind, size) = program.item(&support, &mut rng);
+                // Large appliances are occasional service equipment, not piles
+                // of repeated identical machines on a single support.
+                if matches!(
+                    kind,
+                    ObjectKind::CoffeeMaker
+                        | ObjectKind::Kettle
+                        | ObjectKind::Printer
+                        | ObjectKind::DeskLamp
+                        | ObjectKind::DeskFan
+                ) && self
+                    .objects
+                    .iter()
+                    .any(|o| o.support == Some(support.id) && o.kind == kind)
+                {
+                    continue;
+                }
+                let (mut offset, mut yaw) = super::surfaces::scatter_proposal(
+                    &self.objects,
+                    &support,
+                    kind,
+                    size,
+                    &mut rng,
+                );
+                if rng.random_bool(program.clustering as f64) {
+                    offset = offset.lerp(
                         Vec3::new(
-                            rng.random_range(0.21..0.40),
-                            rng.random_range(0.15..0.29),
-                            0.24,
+                            program.focal_point.x * support.size.x,
+                            0.,
+                            program.focal_point.y * support.size.z,
                         ),
-                    ),
-                    1 if matches!(support.kind, ObjectKind::Cabinet | ObjectKind::Desk) => (
-                        ObjectKind::Printer,
-                        Vec3::new(
-                            rng.random_range(0.36..0.58),
-                            rng.random_range(0.18..0.32),
-                            rng.random_range(0.30..0.43),
-                        ),
-                    ),
-                    2 => (
-                        ObjectKind::Plant,
-                        Vec3::new(0.24, rng.random_range(0.23..0.54), 0.24),
-                    ),
-                    3 => (
-                        ObjectKind::Books,
-                        Vec3::new(
-                            rng.random_range(0.16..0.30),
-                            rng.random_range(0.035..0.14),
-                            0.21,
-                        ),
-                    ),
-                    4..=7 => drink(rng),
-                    8 | 9 => (
-                        ObjectKind::Notepad,
-                        Vec3::new(
-                            rng.random_range(0.09..0.20),
-                            rng.random_range(0.006..0.024),
-                            rng.random_range(0.12..0.27),
-                        ),
-                    ),
-                    10..=12 => (
-                        ObjectKind::Pencil,
-                        Vec3::new(0.008, 0.009, rng.random_range(0.11..0.19)),
-                    ),
-                    13 | 14 => (
-                        ObjectKind::Phone,
-                        Vec3::new(
-                            rng.random_range(0.064..0.083),
-                            rng.random_range(0.007..0.012),
-                            rng.random_range(0.13..0.17),
-                        ),
-                    ),
-                    15 if support.kind == ObjectKind::Table => (
-                        ObjectKind::Microphone,
-                        Vec3::new(0.13, rng.random_range(0.17..0.31), 0.16),
-                    ),
-                    _ => (
-                        ObjectKind::Notebook,
-                        Vec3::new(0.19, rng.random_range(0.004..0.028), 0.25),
-                    ),
-                };
-                let (offset, yaw) =
-                    super::surfaces::scatter_proposal(&self.objects, &support, kind, size, rng);
-                self.prop(&support, kind, offset, size, yaw, rng);
+                        0.35,
+                    );
+                }
+                if rng.random_bool(program.alignment as f64) {
+                    yaw = program.rotation + rng.random_range(-0.22..0.22);
+                }
+                self.prop(&support, kind, offset, size, yaw, &mut rng);
             }
         }
     }

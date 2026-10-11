@@ -5,7 +5,13 @@ use super::*;
 /// A millimetre gap avoids coplanar faces while retaining a plausible mounting.
 pub(crate) fn mount_offset(o: &IndoorObject) -> Option<f32> {
     let fraction = match o.kind {
-        ObjectKind::Display | ObjectKind::Whiteboard | ObjectKind::WallArt => 0.5,
+        ObjectKind::Display
+        | ObjectKind::Whiteboard
+        | ObjectKind::WallArt
+        | ObjectKind::ProjectionScreen
+        | ObjectKind::WallShelf
+        | ObjectKind::NoticeBoard
+        | ObjectKind::WallSconce => 0.5,
         ObjectKind::Clock => return Some(clocks::case_depth(o) * 0.5 + 0.001),
         ObjectKind::WallOutlet | ObjectKind::LightSwitch => 0.35,
         _ => return None,

@@ -11,6 +11,7 @@ mod footprint;
 pub mod geometry;
 pub mod gi;
 pub mod humans;
+pub mod items;
 pub mod layout;
 #[cfg(not(target_arch = "wasm32"))]
 mod lighting;

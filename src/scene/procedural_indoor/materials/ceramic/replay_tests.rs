@@ -127,7 +127,7 @@ fn prepared_glaze_replays_every_consumed_base_and_structural_map_and_mip() {
             maps += 1;
         }
     }
-    assert_eq!(maps, 9, "qualified consumed ceramic map corpus changed");
+    assert_eq!(maps, 11, "qualified consumed ceramic map corpus changed");
 }
 
 #[test]

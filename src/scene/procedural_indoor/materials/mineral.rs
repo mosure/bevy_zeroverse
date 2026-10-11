@@ -46,7 +46,7 @@ impl MineralRecipe {
         });
         let n = rng.random_range(0.08..0.90);
         let warm = rng.random_range(-0.10..0.18);
-        Self {
+        let mut result = Self {
             casting: (surface == Surface::Concrete)
                 .then(|| super::concrete::ConcreteFinish::sample(seed)),
             aggregate_cells: [rng.random_range(24..=64), rng.random_range(24..=64)],
@@ -74,6 +74,39 @@ impl MineralRecipe {
                 rng.random_range(0.0_f32..1.0).powi(2)
             },
             binder_variation: rng.random_range(0.02..0.15),
+        };
+        if surface == Surface::Concrete {
+            result.cast_concrete(seed);
+        }
+        result
+    }
+    fn cast_concrete(&mut self, seed: u64) {
+        let mut rng = stream(seed, 0x434153544d4958);
+        // Most indoor columns expose cement paste. Grinding is a deliberate
+        // finish continuum, rather than an independent random bright chip field
+        // on every cast surface. Keep genuinely exposed aggregate as an option.
+        let grinding = if rng.random_bool(0.25) {
+            rng.random_range(0.35..1.0)
+        } else {
+            rng.random_range(0.0_f32..1.0).powi(3) * 0.32
+        };
+        self.aggregate_exposure = grinding.powf(1.35) * rng.random_range(0.50..0.90);
+        self.polish = (grinding * 0.86 + rng.random_range(0.0..0.10)).min(0.96);
+        self.porosity = rng.random_range(0.008..0.075) * (1. - self.polish * 0.75);
+        self.binder_variation = rng.random_range(0.015..0.075);
+        let tone = rng.random_range(0.36..0.66);
+        let contrast = rng.random_range(0.025..0.10) + grinding * 0.12;
+        let warm = rng.random_range(-0.035..0.065);
+        self.aggregate_color = [-1., 1.].map(|sign| {
+            let n = (tone + sign * contrast).clamp(0.10, 0.90);
+            [n, n * (1. - warm), n * (1. - warm * 1.6)]
+        });
+        if let Some(c) = &mut self.casting {
+            c.formwork *= 1. - grinding;
+            c.sand_exposure *= 1. - grinding * 0.70;
+            c.bughole_density *= 1. - self.polish * 0.70;
+            c.bleed *= 1. - self.polish * 0.65;
+            c.cure_variation *= 0.70 + (1. - grinding) * 0.30;
         }
     }
     pub fn validate(&self) -> Result<(), String> {

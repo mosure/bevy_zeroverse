@@ -17,7 +17,7 @@ use std::{
 
 #[derive(Parser)]
 struct Args {
-    /// Index produced by scripts/indoor_embedding_report.py index.
+    /// Index produced by `bevy_zeroverse_publication compare-indoor`.
     #[arg(long)]
     index: PathBuf,
     #[arg(long)]

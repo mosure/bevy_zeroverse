@@ -15,6 +15,7 @@ impl IndoorManifest {
     ) -> Result<(), String> {
         let half = self.room_size * 0.5;
         self.camera_settings.validate()?;
+        let viewpoint = super::viewpoint::ViewpointProgram::sample(self.seed);
         let (primary_lo, primary_hi) = self.primary_room_bounds();
         let people: Vec<_> = self
             .humans
@@ -35,30 +36,9 @@ impl IndoorManifest {
             let mut found = None;
             let mut rejected = [0usize; 5];
             for attempt in 0..2048 {
-                // Mix eye-level, seated, low and elevated viewpoints; stratify room edges.
-                let height = match self.seed.wrapping_add(index as u64) % 5 {
-                    0 | 1 => rng.random_range(1.45..1.80),
-                    2 => rng.random_range(1.05..1.35),
-                    3 => rng.random_range(0.78..1.02),
-                    _ => rng.random_range(1.85..3.25),
-                };
-                let upper = (self.room_size.y
-                    - self.program.as_ref().map_or(0.48, |p| p.light_drop)
-                    - 0.04
-                    - CAMERA_CLEARANCE
-                    - 0.04)
-                    .min(3.25);
-                // A low camera can have no view of a seated person above an
-                // intervening desk. After the preferred height band is tried,
-                // search the full safe height range without weakening visibility.
-                let height = if height > upper || (require_person && attempt >= 256) {
-                    rng.random_range(0.78..upper)
-                } else {
-                    height
-                };
                 let mut p = Vec3::new(
                     rng.random_range(-half.x + 0.65..half.x - 0.65),
-                    height,
+                    0.,
                     rng.random_range(-half.z + 0.65..half.z - 0.65),
                 );
                 if self.camera_settings.primary_room {
@@ -74,6 +54,30 @@ impl IndoorManifest {
                         _ => p.x = half.x - inset,
                     }
                 }
+                // Propose relative to the actual local floor and slanted roof.
+                // A room-seeded continuous mixture replaces seed%5 height bands.
+                let floor = self.floor_height(p.xz());
+                let upper = (self.ceiling_height(p.xz())
+                    - self
+                        .program
+                        .as_ref()
+                        .map_or(0.48, |program| program.light_drop)
+                    - 0.04
+                    - CAMERA_CLEARANCE
+                    - 0.04)
+                    .min(3.25)
+                    .min(floor + 3.25);
+                let Some(height) = viewpoint.height(floor, upper, rng) else {
+                    rejected[0] += 1;
+                    continue;
+                };
+                // Difficult human framing still gets the full safe interval;
+                // changing its proposal never weakens the visibility predicate.
+                p.y = if require_person && attempt >= 256 {
+                    rng.random_range(floor + 0.78..upper)
+                } else {
+                    height
+                };
                 if !self.camera_clear(p) {
                     rejected[0] += 1;
                     continue;

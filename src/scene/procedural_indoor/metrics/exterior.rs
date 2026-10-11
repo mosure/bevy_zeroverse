@@ -6,7 +6,10 @@ use crate::scene::procedural_indoor::{
 use std::io::{self, Write};
 
 pub(super) fn header(writer: &mut impl Write) -> io::Result<()> {
-    writeln!(writer, "seed,side,opening,left_m,bottom_m,right_m,top_m,width_m,height_m,head_clearance_m,columns,transom,operable,frame,frame_width_m,frame_depth_m,recess_m,shade,shade_coverage,full_height")
+    writeln!(
+        writer,
+        "seed,side,opening,left_m,bottom_m,right_m,top_m,width_m,height_m,head_clearance_m,columns,transom,operable,frame,frame_width_m,frame_depth_m,recess_m,shade,shade_coverage,full_height"
+    )
 }
 
 pub(super) fn record(

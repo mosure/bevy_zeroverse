@@ -71,9 +71,12 @@ rooms, synchronized views, matching annotations, floor plans and distributions.
 - **Continuous scene programs:** polygonal footprints, cut-ins, chamfered corners,
   sloped ceilings, arches, pillars, floor levels and mezzanines. Windows and glass
   partitions connect interiors to neighboring rooms and outdoor context.
-- **Procedural furnishings and appearance:** multipart furniture, potted plants,
-  fixtures and clutter, with varied geometry, placement, PBR textures, glass and
-  lighting. Architecture and furnishings need no downloaded mesh or texture catalog.
+- **Procedural furnishings and appearance:** 63 item kinds, multipart furniture,
+  task-conditioned tabletop groups, multi-monitor workspaces, coordinated wall
+  galleries, 14 plant growth habits, connected equipment and fixtures. Continuous
+  construction and finish programs vary furniture supports, shaped upholstery,
+  dyed yarns, timber treatments, concrete, glass and lighting. Architecture and
+  furnishings need no downloaded mesh or texture catalog.
 - **Calibrated multi-view cameras:** sampled intrinsics, primary-room placement,
   collision-checked trajectories and adjustable baselines with shared-view constraints.
 - **People and motion:** AnnyBody meshes with procedural clothing and optional
