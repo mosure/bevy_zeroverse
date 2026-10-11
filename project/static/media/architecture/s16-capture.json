@@ -193,14 +193,14 @@
     ],
     "annotation_precision": "float32_geometry",
     "build_provenance": {
-      "capture_engine": "capture-v52;calibration=1;co_visibility=1;bevy=0.20.0;burn=0.22.0;burn_human=0.6.0;bevy_burn_human=0.7.0;burn_human_motion=0.2.0;burn_ardy=0.2.0;burn_llama=0.2.0;burn_human_inference=0.2.0;ardy_motion=9;surface_flow=1;indoor=32;multiview=6;ovoxel=3;glass=3;hair=5;wardrobe=4;footwear=1;bounds=4;morphology=3;position=3;tabletop=2;finishes=9;seating=3;activity=2;playback=2;exterior=2;envelope=3;furnishings=3;botany=2;visual_content=3;equipment=2;palette=2",
-      "crate_version": "0.37.0",
+      "capture_engine": "capture-v53;calibration=1;co_visibility=1;bevy=0.20.0;burn=0.22.0;burn_human=0.6.0;bevy_burn_human=0.7.0;burn_human_motion=0.2.0;burn_ardy=0.2.0;burn_llama=0.2.0;burn_human_inference=0.2.0;ardy_motion=9;surface_flow=1;indoor=35;multiview=6;ovoxel=3;glass=3;hair=5;wardrobe=4;footwear=1;bounds=4;morphology=3;position=3;tabletop=2;finishes=9;seating=3;activity=2;playback=2;exterior=2;envelope=3;furnishings=3;botany=2;visual_content=3;equipment=3;palette=2;photometry=2;sun_shadow=2",
+      "crate_version": "0.37.1",
       "features": {
         "human_motion": false,
         "multi_threaded": true,
         "web": false
       },
-      "generator_version": 34,
+      "generator_version": 35,
       "locked_package_versions": {
         "bevy": [
           "0.20.0"
@@ -209,19 +209,19 @@
           "0.7.0"
         ],
         "bevy_zeroverse": [
-          "0.37.0"
+          "0.37.1"
         ],
         "bevy_zeroverse_burn": [
-          "0.20.0"
+          "0.20.1"
         ],
         "bevy_zeroverse_capture": [
-          "0.1.5"
+          "0.1.6"
         ],
         "bevy_zeroverse_ffi": [
-          "0.37.0"
+          "0.37.1"
         ],
         "bevy_zeroverse_publication": [
-          "0.2.1"
+          "0.2.2"
         ],
         "burn": [
           "0.22.0"
@@ -882,7 +882,7 @@
         }
       ],
       "semantic_taxonomy_version": 2,
-      "source_sha256": "72bca78f5e68164b02da8a6b72d73dac631a310def1c69880cc1a1167ce296fd",
+      "source_sha256": "e4aca087a3576188a5e641d0320539974b9eeeb9de6e8bb9d058044c0ebd4500",
       "target": "x86_64-unknown-linux-gnu"
     },
     "camera_qualification": {
@@ -1094,9 +1094,9 @@
         },
         {
           "baseline_m": 3.445886611938477,
-          "mean_triangulation_degrees": 33.697468394936934,
-          "shared_fraction_valid": 0.651953125,
-          "shared_pixels": 166900,
+          "mean_triangulation_degrees": 33.69755634870324,
+          "shared_fraction_valid": 0.65191015625,
+          "shared_pixels": 166889,
           "source_camera": 2,
           "step_index": 0,
           "target_camera": 1,
@@ -1194,8 +1194,8 @@
         {
           "baseline_m": 1.9546741247177124,
           "mean_triangulation_degrees": 17.298206667407868,
-          "shared_fraction_valid": 0.75130078125,
-          "shared_pixels": 192333,
+          "shared_fraction_valid": 0.75128125,
+          "shared_pixels": 192328,
           "source_camera": 1,
           "step_index": 1,
           "target_camera": 2,
@@ -1227,8 +1227,8 @@
         {
           "baseline_m": 1.9546741247177124,
           "mean_triangulation_degrees": 20.885963623732316,
-          "shared_fraction_valid": 0.61715625,
-          "shared_pixels": 157992,
+          "shared_fraction_valid": 0.6171484375,
+          "shared_pixels": 157990,
           "source_camera": 2,
           "step_index": 1,
           "target_camera": 1,
@@ -1282,7 +1282,7 @@
       ],
       "requested_pairs": [],
       "scene_family": {
-        "id": "procedural_indoor/34/0000000000000010",
+        "id": "procedural_indoor/35/0000000000000010",
         "rule": "group all frames, cameras and appearance/sensor variants of a generator-version/seed family before assigning dataset splits",
         "split_bucket_10000": 7179
       },
@@ -1293,12 +1293,14 @@
     "capabilities": {
       "annotation_hdr_format": "RGBA32Float_direct",
       "bloom": true,
+      "exposure_ev100": 6.654267311096191,
       "glass_filter": "default",
       "quality": "Auto",
       "shadow_map_size": 2048,
       "shadows": true,
       "specular_transmission": true,
-      "ssao": true
+      "ssao": true,
+      "sun_shadow_filter": "pcss_non_temporal"
     },
     "co_visibility_metadata": {
       "absolute_tolerance_m": 0.0010000000474974513,
@@ -1370,15 +1372,15 @@
       "mean_radiance": null,
       "prefetch_hit": false,
       "prefetch_wait_ms": 0.0,
-      "preparation_ms": 306.639475,
+      "preparation_ms": 232.838014,
       "primary_rays": 983040,
       "probes": 960,
       "relocated_probes": 16,
       "texture_bytes": 46080,
-      "transport_bytes": 49163312,
-      "triangles": 413476
+      "transport_bytes": 49204688,
+      "triangles": 413844
     },
-    "elapsed_seconds": 5.121081144,
+    "elapsed_seconds": 1.529099187,
     "image_assets": 171,
     "image_size": [
       640,
@@ -1388,7 +1390,7 @@
     "material_assets": 172,
     "mesh_assets": 406,
     "renderer": "AdapterInfo { name: \"NVIDIA RTX PRO 6000 Blackwell Workstation Edition\", vendor: 4318, device: 11185, device_type: DiscreteGpu, device_pci_bus_id: \"0000:01:00.0\", driver: \"NVIDIA\", driver_info: \"610.43.02\", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: Some(false), limit_bucket: None }",
-    "run_id": "1656663-1791733637064521018",
+    "run_id": "1811111-1791743409624412512",
     "seed": 16,
     "views": [
       {
@@ -1458,8 +1460,8 @@
         "fov_y": 0.9042027592658997,
         "fx_pixels": 411.8197021484375,
         "fy_pixels": 411.8197021484375,
-        "luminance_std": 0.09370238,
-        "mean_luminance": 0.11496101,
+        "luminance_std": 0.090152636,
+        "mean_luminance": 0.10770391,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 20,
@@ -1583,8 +1585,8 @@
         "fov_y": 0.901900053024292,
         "fx_pixels": 413.0291748046875,
         "fy_pixels": 413.0291748046875,
-        "luminance_std": 0.08272293,
-        "mean_luminance": 0.10302313,
+        "luminance_std": 0.07930438,
+        "mean_luminance": 0.09636603,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 24,
@@ -1593,10 +1595,10 @@
           "bag": 1419,
           "blinds": 3090,
           "bookshelf": 2095,
-          "cable": 24,
+          "cable": 32,
           "ceiling": 44044,
           "chair": 3487,
-          "desk": 17047,
+          "desk": 17045,
           "drawer_unit": 5023,
           "drink_container": 256,
           "floor": 51440,
@@ -1605,11 +1607,11 @@
           "person": 1773,
           "phone": 58,
           "plant": 1399,
-          "power_strip": 33,
+          "power_strip": 32,
           "shelves": 210,
           "stationery": 108,
           "trash_can": 1196,
-          "wall": 77987,
+          "wall": 77982,
           "wall_outlet": 159,
           "whiteboard": 4025,
           "window": 8209
@@ -1686,25 +1688,25 @@
         "clipped_fraction": 0.0,
         "co_visibility": {
           "cardinality_pixels": [
-            32224,
-            128175,
+            32235,
+            128164,
             49882,
             45719
           ],
           "peer_fraction_valid": [
             0.40889453125,
-            0.651953125,
+            0.65191015625,
             0.0,
             0.36530859375
           ],
           "peer_pixels": [
             104677,
-            166900,
+            166889,
             0,
             93519
           ],
-          "shared_fraction_valid": 0.874125,
-          "shared_pixels": 223776,
+          "shared_fraction_valid": 0.87408203125,
+          "shared_pixels": 223765,
           "valid_pixels": 256000
         },
         "dark_fraction": 0.0,
@@ -1712,8 +1714,8 @@
         "fov_y": 1.8001405000686646,
         "fx_pixels": 158.6873321533203,
         "fy_pixels": 158.6873321533203,
-        "luminance_std": 0.14133726,
-        "mean_luminance": 0.12066627,
+        "luminance_std": 0.13913518,
+        "mean_luminance": 0.11398143,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 24,
@@ -1722,10 +1724,10 @@
           "bag": 85,
           "blinds": 3622,
           "bookshelf": 2666,
-          "cable": 39,
+          "cable": 44,
           "ceiling": 61497,
           "chair": 3627,
-          "desk": 21081,
+          "desk": 21084,
           "door": 3227,
           "drink_container": 74,
           "floor": 51331,
@@ -1738,7 +1740,7 @@
           "shelves": 69,
           "stationery": 991,
           "trash_can": 219,
-          "wall": 33919,
+          "wall": 33911,
           "wall_outlet": 33,
           "whiteboard": 2497,
           "window": 11134
@@ -1841,8 +1843,8 @@
         "fov_y": 0.7025607824325562,
         "fx_pixels": 545.7321166992188,
         "fy_pixels": 545.7321166992188,
-        "luminance_std": 0.12238021,
-        "mean_luminance": 0.12640893,
+        "luminance_std": 0.11959451,
+        "mean_luminance": 0.118984155,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 21,
@@ -1967,8 +1969,8 @@
         "fov_y": 0.9042027592658997,
         "fx_pixels": 411.8197021484375,
         "fy_pixels": 411.8197021484375,
-        "luminance_std": 0.07782233,
-        "mean_luminance": 0.11087568,
+        "luminance_std": 0.07350676,
+        "mean_luminance": 0.10363197,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 14,
@@ -2060,25 +2062,25 @@
         "clipped_fraction": 0.0,
         "co_visibility": {
           "cardinality_pixels": [
-            43272,
-            90180,
+            43277,
+            90175,
             52058,
             70490
           ],
           "peer_fraction_valid": [
             0.4004140625,
             0.0,
-            0.75130078125,
+            0.75128125,
             0.43330859375
           ],
           "peer_pixels": [
             102506,
             0,
-            192333,
+            192328,
             110927
           ],
-          "shared_fraction_valid": 0.83096875,
-          "shared_pixels": 212728,
+          "shared_fraction_valid": 0.83094921875,
+          "shared_pixels": 212723,
           "valid_pixels": 256000
         },
         "dark_fraction": 0.0,
@@ -2086,18 +2088,18 @@
         "fov_y": 0.901900053024292,
         "fx_pixels": 413.0291748046875,
         "fy_pixels": 413.0291748046875,
-        "luminance_std": 0.07697779,
-        "mean_luminance": 0.109979965,
+        "luminance_std": 0.073188886,
+        "mean_luminance": 0.102791175,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 21,
         "semantic_pixel_counts": {
           "blinds": 3086,
           "bookshelf": 6404,
-          "cable": 10,
+          "cable": 9,
           "ceiling": 15412,
           "chair": 7943,
-          "desk": 16096,
+          "desk": 16094,
           "drink_container": 24,
           "floor": 53133,
           "lamp": 707,
@@ -2105,7 +2107,7 @@
           "person": 4085,
           "phone": 142,
           "plant": 2095,
-          "power_strip": 36,
+          "power_strip": 39,
           "shelves": 515,
           "stationery": 5,
           "trash_can": 2368,
@@ -2186,25 +2188,25 @@
         "clipped_fraction": 0.0,
         "co_visibility": {
           "cardinality_pixels": [
-            74586,
-            72385,
+            74588,
+            72383,
             46682,
             62347
           ],
           "peer_fraction_valid": [
             0.384890625,
-            0.61715625,
+            0.6171484375,
             0.0,
             0.3760390625
           ],
           "peer_pixels": [
             98532,
-            157992,
+            157990,
             0,
             96266
           ],
-          "shared_fraction_valid": 0.7086484375,
-          "shared_pixels": 181414,
+          "shared_fraction_valid": 0.708640625,
+          "shared_pixels": 181412,
           "valid_pixels": 256000
         },
         "dark_fraction": 0.0,
@@ -2212,18 +2214,18 @@
         "fov_y": 1.8001405000686646,
         "fx_pixels": 158.6873321533203,
         "fy_pixels": 158.6873321533203,
-        "luminance_std": 0.076335646,
-        "mean_luminance": 0.112261645,
+        "luminance_std": 0.07275126,
+        "mean_luminance": 0.104907535,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 20,
         "semantic_pixel_counts": {
           "blinds": 2098,
           "bookshelf": 2241,
-          "cable": 33,
+          "cable": 47,
           "ceiling": 49092,
           "chair": 9573,
-          "desk": 20190,
+          "desk": 20188,
           "drink_container": 46,
           "floor": 47867,
           "lamp": 539,
@@ -2234,8 +2236,8 @@
           "shelves": 797,
           "stationery": 4,
           "trash_can": 2404,
-          "wall": 92195,
-          "wall_outlet": 164,
+          "wall": 92182,
+          "wall_outlet": 165,
           "whiteboard": 4899,
           "window": 4780
         },
@@ -2337,8 +2339,8 @@
         "fov_y": 0.7025607824325562,
         "fx_pixels": 545.7321166992188,
         "fy_pixels": 545.7321166992188,
-        "luminance_std": 0.11027156,
-        "mean_luminance": 0.13049823,
+        "luminance_std": 0.106891006,
+        "mean_luminance": 0.122590885,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 16,
@@ -2394,10 +2396,10 @@
     ]
   },
   "generator_identity": {
-    "crate_version": "0.37.0",
-    "generator_version": 34,
+    "crate_version": "0.37.1",
+    "generator_version": 35,
     "schema_version": 1,
-    "source_sha256": "72bca78f5e68164b02da8a6b72d73dac631a310def1c69880cc1a1167ce296fd"
+    "source_sha256": "e4aca087a3576188a5e641d0320539974b9eeeb9de6e8bb9d058044c0ebd4500"
   },
   "manifest": {
     "architecture_style": "Classic",
@@ -2942,7 +2944,7 @@
     "floor_style": 2,
     "furnishing_quarter_turn": 2,
     "furniture_style": 1,
-    "generator_version": 34,
+    "generator_version": 35,
     "glazing_height": 2.8759098,
     "human_density": 0.25,
     "humans": [
@@ -5367,174 +5369,289 @@
       {
         "cable_path": [
           [
-            0.5089855,
-            0.43482056,
-            0.3973236
+            0.5089865,
+            0.53522867,
+            0.3973117
           ],
           [
-            0.51248884,
-            0.43482056,
-            0.42144966
+            0.51248956,
+            0.53522867,
+            0.4214356
           ],
           [
-            0.5125847,
-            0.43485412,
-            0.424675
+            0.512584,
+            0.5352183,
+            0.4246614
           ],
           [
-            0.5119457,
-            0.434953,
-            0.42783642
+            0.51194096,
+            0.5351878,
+            0.42782354
           ],
           [
-            0.5106058,
-            0.43511203,
-            0.43076754
+            0.5105941,
+            0.53513867,
+            0.43075585
           ],
           [
-            0.5086353,
-            0.4353228,
-            0.43331409
+            0.50861454,
+            0.5350736,
+            0.4333036
           ],
           [
-            0.50613785,
-            0.4355742,
-            0.43534207
+            0.5061066,
+            0.5349959,
+            0.435333
           ],
           [
-            0.5032451,
-            0.4358531,
-            0.43674445
+            0.5032022,
+            0.5349098,
+            0.43673682
           ],
           [
-            0.50010943,
-            0.43614468,
-            0.4374478
+            0.50005436,
+            0.5348197,
+            0.4374416
           ],
           [
-            0.29854512,
-            0.45457605,
-            0.45872808
+            0.29892516,
+            0.529162,
+            0.4586761
           ],
           [
-            0.2952602,
-            0.45458576,
-            0.45881844
+            0.29557776,
+            0.52871346,
+            0.45883036
           ],
           [
-            0.29204917,
-            0.45402333,
-            0.45840216
+            0.2924018,
+            0.5275816,
+            0.4585793
           ],
           [
-            0.28908777,
-            0.45291933,
-            0.45750165
+            0.28958106,
+            0.5258317,
+            0.45793772
           ],
           [
-            0.2865374,
-            0.45133415,
-            0.4561665
+            0.2872784,
+            0.523565,
+            0.4569428
           ],
           [
-            0.28453755,
-            0.44935432,
-            0.4544692
+            0.28562713,
+            0.5209124,
+            0.45565176
           ],
           [
-            0.18923926,
-            0.32820758,
-            0.34994602
+            0.26434016,
+            0.47479576,
+            0.43230414
           ],
           [
-            0.1888988,
-            0.32779476,
-            0.34957266
+            0.26415753,
+            0.4744137,
+            0.43210363
           ],
           [
-            0.08919239,
-            0.21250007,
-            0.24021411
+            0.23928976,
+            0.42421126,
+            0.40482855
           ],
           [
-            0.08845425,
-            0.21172747,
-            0.23940444
+            0.23908925,
+            0.4238211,
+            0.40460873
           ],
           [
-            -0.010823011,
-            0.11800763,
-            0.13051677
+            0.21423984,
+            0.37715864,
+            0.3773539
           ],
           [
-            -0.012026072,
-            0.11704528,
-            0.12919712
+            0.21402049,
+            0.37676173,
+            0.37711334
           ],
           [
-            -0.11085725,
-            0.05116245,
-            0.020798922
+            0.18919039,
+            0.33348173,
+            0.3498795
           ],
           [
-            -0.11246872,
-            0.050337702,
-            0.019031525
+            0.18895102,
+            0.3330801,
+            0.34961677
           ],
           [
-            -0.21103454,
-            0.014227152,
-            -0.08907604
+            0.16414165,
+            0.29303557,
+            0.32240605
           ],
           [
-            -0.21273828,
-            0.013842553,
-            -0.09094477
+            0.16388106,
+            0.29263127,
+            0.3221202
           ],
           [
-            -0.31143498,
-            0.005062908,
-            -0.19919538
+            0.13916445,
+            0.25579143,
+            0.2950108
           ],
           [
-            -0.31278658,
-            0.0050860345,
-            -0.20067787
+            0.13873315,
+            0.2551875,
+            0.29453778
           ],
           [
-            -0.41198778,
-            0.017323494,
-            -0.30948305
+            0.08915424,
+            0.19000463,
+            0.24015927
           ],
           [
-            -0.4127047,
-            0.017452955,
-            -0.31026936
+            0.08849549,
+            0.18921359,
+            0.23943663
           ],
           [
-            -0.5088861,
-            0.04036939,
-            -0.415761
+            0.03908372,
+            0.13512675,
+            0.1852417
           ],
           [
-            -0.5108969,
-            0.040848523,
-            -0.41861105
+            0.038328648,
+            0.13438033,
+            0.18441343
           ],
           [
-            -0.51215625,
-            0.041148573,
-            -0.421885
+            -0.010986805,
+            0.090537444,
+            0.13032413
           ],
           [
-            -0.5125849,
-            0.041250706,
-            -0.42537832
+            -0.011836529,
+            0.08986665,
+            0.12939215
           ],
           [
-            -0.5125849,
-            0.041250706,
-            -0.45881796
+            -0.06106019,
+            0.055644497,
+            0.07540345
+          ],
+          [
+            -0.0619967,
+            0.05508165,
+            0.074376106
+          ],
+          [
+            -0.11114025,
+            0.029986009,
+            0.020475626
+          ],
+          [
+            -0.11214948,
+            0.029561773,
+            0.019368649
+          ],
+          [
+            -0.16122985,
+            0.013224617,
+            -0.03446293
+          ],
+          [
+            -0.16229105,
+            0.012964234,
+            -0.03562689
+          ],
+          [
+            -0.21133137,
+            0.005142942,
+            -0.089414835
+          ],
+          [
+            -0.2124188,
+            0.005062893,
+            -0.09060764
+          ],
+          [
+            -0.2614472,
+            0.0056403577,
+            -0.144382
+          ],
+          [
+            -0.2625327,
+            0.005745828,
+            -0.14557266
+          ],
+          [
+            -0.31157732,
+            0.014730722,
+            -0.19936466
+          ],
+          [
+            -0.3126328,
+            0.015014872,
+            -0.20052242
+          ],
+          [
+            -0.36172056,
+            0.032541648,
+            -0.2543621
+          ],
+          [
+            -0.36272073,
+            0.032986626,
+            -0.2554593
+          ],
+          [
+            -0.41187406,
+            0.05931513,
+            -0.309371
+          ],
+          [
+            -0.41279936,
+            0.059894755,
+            -0.3103857
+          ],
+          [
+            -0.46203542,
+            0.09541024,
+            -0.36438847
+          ],
+          [
+            -0.46287227,
+            0.0960934,
+            -0.36530638
+          ],
+          [
+            -0.50873494,
+            0.1381308,
+            -0.4156084
+          ],
+          [
+            -0.51035476,
+            0.13961546,
+            -0.41783142
+          ],
+          [
+            -0.51157236,
+            0.14073162,
+            -0.42048502
+          ],
+          [
+            -0.5123279,
+            0.14142416,
+            -0.42343807
+          ],
+          [
+            -0.512584,
+            0.14165889,
+            -0.42654467
+          ],
+          [
+            -0.512584,
+            0.14165883,
+            -0.45882988
           ]
         ],
         "cable_target": 52,
@@ -5543,15 +5660,15 @@
         "kind": "Cable",
         "neighbor": false,
         "position": [
-          2.874226,
-          0.31957945,
-          -3.8682694
+          2.8742251,
+          0.21917133,
+          -3.8682575
         ],
         "seed": 865609700058833714,
         "size": [
-          1.0352952,
-          0.45964864,
-          0.92776227
+          1.0352936,
+          0.54029155,
+          0.9277861
         ],
         "solid": false,
         "support": 15,
@@ -5574,7 +5691,7 @@
           "active_fraction": 0.44925326,
           "circuit_contrast": 0.16790053,
           "environment_intensity": 16.85249,
-          "ev100": 6.5377846,
+          "ev100": 6.6542673,
           "fixture_gradient": [
             0.5727762,
             0.191302
@@ -7922,36 +8039,36 @@
     "world_yaw": 0.0
   },
   "source_sha256": {
-    "seed_000016/capture.json": "2542042ec49a1630d80380108c4aaf31dc393d773898c53728df080728c1fc7f",
-    "seed_000016/manifest.json": "3c3f144ce516f0cd859fde2b5f840ea58cf6b41305af668febd60ff7d9c39833",
+    "seed_000016/capture.json": "940c9ab1506fa26de12432ee81a67819ad515494d3646f818a5783d19a7dcc70",
+    "seed_000016/manifest.json": "7c04f8b76b60e30d66f37aaa21c29bbd81009692d6ca3ad137efb1fd711bf33c",
     "seed_000016/view_00_co_visibility.png": "f45e362397f97fd981fe230404bc08cdee0f9bd24aa3462adcba7870fe7358f1",
     "seed_000016/view_00_co_visibility_mask.png": "b13a9ef3bcde116a95127044099d81cd6e419a333a74e5abc274f9e3d34bcde7",
     "seed_000016/view_00_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000016/view_00_color.png": "0aa7665e42b2a684bfe7815de741d76237d38d3e9193a44762b725e3b6c7a46c",
+    "seed_000016/view_00_color.png": "b797f0833d4352edd262da77a0d46639a7638a8540ec17254c4e17bd84f7a11c",
     "seed_000016/view_00_depth.png": "ca3a49b01c570139f6307a69b421416b6129c155d426ed96cde81138342154b1",
     "seed_000016/view_00_normal.png": "9735cebfd25145552824171ea7178ea07bf67c0afe6f01a5d6b2f208a8c3a2f7",
     "seed_000016/view_00_position.png": "31c56f8a945b465cc2cc570258c291dd64505482c21615d53823085c247a0f8e",
     "seed_000016/view_00_semantic.png": "7caa310a7ae39865500a9e3f6e6641d62bf37d9d8ca6ecd64cd9c1bee044f8f7",
-    "seed_000016/view_01_co_visibility.png": "83f98a59f1e10e241102420cef97579246d3b1daa717acf35bc8224f88ad2b5b",
-    "seed_000016/view_01_co_visibility_mask.png": "b425731ac06f0e103a6fb7f905ea1b375d68da8fb4be5924d5d7283daaf15813",
+    "seed_000016/view_01_co_visibility.png": "e65e1d5db7deacc4a869786e458f32fd4cc122a3a0cdce6fe9f314422ca86418",
+    "seed_000016/view_01_co_visibility_mask.png": "ad9dafdb48a8924fa0208583f8c72bdaf69cf53a7d9ff2f16b39eeacac7f60db",
     "seed_000016/view_01_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000016/view_01_color.png": "e9489db5e7c858f159bc79f7dc9839ab546f5ace26849f35b30158656da6270f",
-    "seed_000016/view_01_depth.png": "1e34d79a63e1ae1747d6cbc85b8705c2f0fddbb92974b569cb45a4787885926e",
-    "seed_000016/view_01_normal.png": "17293cc09c65e2298e215bbf7dd4f0eb26c9f4b8f0c2555a17c9f2aee5ecf8dc",
-    "seed_000016/view_01_position.png": "6084ac6607a9ae700a27499adb99d0a037c5fb0e5509ab496ea413255dba6e84",
-    "seed_000016/view_01_semantic.png": "3f5ea9e6e7cf0c08a8cf587df0b330cf8b7c984fe0f7b39a8587bb1bcae79057",
-    "seed_000016/view_02_co_visibility.png": "fc09c2195280df74072d1648f1c8740575f1ae732359adf479087c85119d7d19",
-    "seed_000016/view_02_co_visibility_mask.png": "14af16209a6d9998ebe6c417026b5a39d06321723c9722b01d702b4077284a08",
+    "seed_000016/view_01_color.png": "cfe1937d7f10674dba8c88e901e8ccffdb14f162a7d2a1f1a3fb71e3bbb2bba3",
+    "seed_000016/view_01_depth.png": "ecc35e17b30fcc3bf9a98928c7206b1fa9303867cfe09668dc7ee2a54a4d7b5c",
+    "seed_000016/view_01_normal.png": "8ce5dd478813dbb50b9ea93be1b2db2fa2a5d4f9c3294223d9f58b307c5284a1",
+    "seed_000016/view_01_position.png": "1debc46eb692b80e873a19ae71d279c74f5088fed80624aa7b67ac094916f922",
+    "seed_000016/view_01_semantic.png": "47edccb65eb50b47f9a717548396a024061bf29217a8957cd3bcb31eea91cd21",
+    "seed_000016/view_02_co_visibility.png": "04ad98a9f7ab24b90767f77b7bb8ae029bba6f83ff557c262873923d18edba7d",
+    "seed_000016/view_02_co_visibility_mask.png": "2867958bd91c3e24554328d736d4696af9c3cac03a84013e641b796c312e585b",
     "seed_000016/view_02_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000016/view_02_color.png": "f2a72f7f247475b6ce77eb9714a490fa282e9b33b4d5c44764f65c853b35b27a",
-    "seed_000016/view_02_depth.png": "8873734486b8f6f8a1638dc22cd1fbafbe70a9d0cf54ea58db66e4330bfb34a7",
-    "seed_000016/view_02_normal.png": "721fabf9b00e38b3b64843b5cb6959f3bfb2ae8daa91075dc68e972ee6707bf3",
-    "seed_000016/view_02_position.png": "e4d8a9e8ebce57863a806083b6188e52e886b2a27eefb706e6cf0b28937bb880",
-    "seed_000016/view_02_semantic.png": "5c79483d561e492e988ab19dd88dcd7d01eb6d0c3123788c851005dc9acd6504",
+    "seed_000016/view_02_color.png": "0c9590e326409ec4c2c7f2e2d73430af3ccf0445332e50879d8e76f26d53aa71",
+    "seed_000016/view_02_depth.png": "517c1dbf736e7cf6462cbbced8a8b7f6b2ca469c7dfa16ad53fb9b9ad1a4f7b0",
+    "seed_000016/view_02_normal.png": "3bd52096899f3d911c3cc2b0422c3f0197a2ad840960c13512063c35bd45b2f9",
+    "seed_000016/view_02_position.png": "77bd600b4af015c7d0ad54bb8d7014cb4213ee9f6c5fb8894dc6b0a27356845b",
+    "seed_000016/view_02_semantic.png": "68c6069f2800e4e9770bee52f49986d0df1cbc32abe8c138560104a021df80de",
     "seed_000016/view_03_co_visibility.png": "6287b8dff872d5af8033e429efb7c0c74464de74fd068157a893f45281ca9ebb",
     "seed_000016/view_03_co_visibility_mask.png": "919df67827e26c8427ef284dd89bd4beb7f5b1074eedbd715ae2d8d8f50ba84a",
     "seed_000016/view_03_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000016/view_03_color.png": "785c6589e7a8ac763b86797b7bf68c1b38cdaeb821b8ea8c9ffeae59095cf0c7",
+    "seed_000016/view_03_color.png": "6e1bb227b5eaa8a86aaa5fe80ca9bda7051d20f73a2c8e14145f0b55e13d6986",
     "seed_000016/view_03_depth.png": "1e573e622ba78ca4983e244a948236f869a7db8c02cd72ea3629b69e1f327ae9",
     "seed_000016/view_03_normal.png": "ac273ddc73510b00cc9093051c86e980ab9849a5fd9c5166c86b49e1a0ffaf3c",
     "seed_000016/view_03_position.png": "386f496841daf1d1217d609f8b9b34c95c0b6dec090d0aa2e141e5acc3c9e126",
@@ -7959,31 +8076,31 @@
     "seed_000016/view_04_co_visibility.png": "088b421532fac7195914023241a44c19af9ddb62ad51cbf5f2cfe7c65877143f",
     "seed_000016/view_04_co_visibility_mask.png": "64323e666a9ca717b5b0c0d5eaff27aaac6907e9147f2c450698f02fd78f14cc",
     "seed_000016/view_04_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000016/view_04_color.png": "baf613eb36e6d23288c78901070026ca0bb18c1946c945353bb1d041122839a1",
+    "seed_000016/view_04_color.png": "37bd14ab29034192df10d596543930cff73b727b77bbdb51a4c2e78d8a23ede9",
     "seed_000016/view_04_depth.png": "2dd22be29595258dde8e6149bad3ecd968d6f863e14f994ff54577f9ad87132e",
     "seed_000016/view_04_normal.png": "2fe366de91f34ae0f5634a608e77baee1eed0bef2603e59e30d27b8701dcdf44",
     "seed_000016/view_04_position.png": "4b83c522c34b8417fbc76e43321cdeaf161e7a17d1fda633d8b81ad374f22e17",
     "seed_000016/view_04_semantic.png": "d95ee331b0a2cf686472a9fc58855dc5c7371c5693a1aad930cd20a1a8c6e545",
-    "seed_000016/view_05_co_visibility.png": "1e61dced1851f7de1cab37dc82e16360e179ee0b2d62fe7d4b5dccb7e0fb82cf",
-    "seed_000016/view_05_co_visibility_mask.png": "62ab6529af5dabd8803364c58eb9affedc6d3cc71e7413e16a389c319f3ea715",
+    "seed_000016/view_05_co_visibility.png": "79c4f4f2812c14d4a567d63d7359b0d494b2a012ff0e7a2934ba4086f1b574e3",
+    "seed_000016/view_05_co_visibility_mask.png": "933487f8bd5fec06bffcda21ff5e110c6d8030258911f3c3f0a8eba6eb6b4147",
     "seed_000016/view_05_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000016/view_05_color.png": "115059789fd66eba78e6b09808425f8e06d47f6f9e985fd34406b463aa279029",
-    "seed_000016/view_05_depth.png": "5acfcbd537c382a41d359fa38a5aee8824c1b2b2bb65d118de777b6ef294d8db",
-    "seed_000016/view_05_normal.png": "9b923fc139e79d52a5b5cbdff20dd0235fbda82bd58396a29a0bc83999b1174d",
-    "seed_000016/view_05_position.png": "7033568eaeb2bf32ca7b05089f9e5dfbc28dc0534d204908559d4977ef122f2d",
-    "seed_000016/view_05_semantic.png": "2a89d41cd4397e84423b522bec51f520066be409cb763156d93a373907bdcac0",
-    "seed_000016/view_06_co_visibility.png": "fbd69ad648ffd80a89044b7ad9b20704c1bafd682ed1f122e72c3ea08f2c5b2e",
-    "seed_000016/view_06_co_visibility_mask.png": "7a78a0921966c2151f85dd6d27a78448f2f841ed8b1c927aa8beb7b975e4fc98",
+    "seed_000016/view_05_color.png": "3a26e27bb70d57294c282c2e87e090007e644440627cd5d0edb1f7190335fa40",
+    "seed_000016/view_05_depth.png": "5803fcff996ffc4938cca5b60247645c09c020f9732b664f13e733723cbc4416",
+    "seed_000016/view_05_normal.png": "108e3df8c5fb11c12299cc737d385052b3500f0d641df378ee0de1012c49b784",
+    "seed_000016/view_05_position.png": "c6d99ebdd8674e92321c13174ed1a1f769b7db7445678494b87d67ef3452bcf8",
+    "seed_000016/view_05_semantic.png": "a09cbb6a9b566756304735738ea585940dc72cbcbdcf2636ec1e6412ea30af4d",
+    "seed_000016/view_06_co_visibility.png": "777d9cb82f2acd79bbf1a1b37017d6842e14a84dfe88d40498761397a2e5e970",
+    "seed_000016/view_06_co_visibility_mask.png": "9a34eb44a3fe3b869e87cb49701e3e74ffc204f51021a5d4efb3ab1fc55b5259",
     "seed_000016/view_06_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000016/view_06_color.png": "0fbb670c80a9007c6c063e7af90a9c326e79e1103a0b5bcce6981dbc01d24a9f",
-    "seed_000016/view_06_depth.png": "c11fcc0aab587d2de245cc366aa109a2c2f72bdea4d319f2a1a1a61d5657e3da",
-    "seed_000016/view_06_normal.png": "05ba883d60a0899a43cffb37ac515e0fb4decbbaea74b6ad6d6761e38101d014",
-    "seed_000016/view_06_position.png": "3811da1389ad5a96cd781b709469f4c532711aa72f9e83f0b86143591a7f6e8f",
-    "seed_000016/view_06_semantic.png": "c7c5eb0748e9439ababb736edf16fb073779fa622e816957f4bc20b5bccfb4f4",
+    "seed_000016/view_06_color.png": "5c9cb07dd3b72e3d121cc4aa2a756e1d4adc15b24dcafe9e4f8b84dc1a6a3018",
+    "seed_000016/view_06_depth.png": "3a4348692ff4085d6779872823aae9b2a87198216594f9ad12c9baa96b01d5e7",
+    "seed_000016/view_06_normal.png": "60408db2de36f87328c4ae0d8ab9943d25113d8d59e7ba241cdaeab022a5720e",
+    "seed_000016/view_06_position.png": "224279c1100bf92d2a5ba6c54be36d769c746b9a5e6dd8596c2ce777aedba97d",
+    "seed_000016/view_06_semantic.png": "33ff244d5ad9221876e170b27b5ceacf87947a6b84d89d3738298667a9f03a3e",
     "seed_000016/view_07_co_visibility.png": "36933aed9da987c047e6262c2650752b38881f7ace5bbd9a849ee0ef454ba8fd",
     "seed_000016/view_07_co_visibility_mask.png": "8fb3ebc0634a3bcee7af80f34acaa0b419aa81e704b8217fe31f8c941dcb7433",
     "seed_000016/view_07_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000016/view_07_color.png": "96bbd383d5b120bbd9eb74fc6bd77a34046dfb1c06a2cbc327fc52ca9c7b0c8d",
+    "seed_000016/view_07_color.png": "c6844795cb2eb08d38c5f474b3cd5a1673b5e08101ff0e01cba08430d4097f4f",
     "seed_000016/view_07_depth.png": "f4ce1d49b29cb3e3244b1a69ebbb13931f8db5f8457b1ea682be7eee11d70684",
     "seed_000016/view_07_normal.png": "d1e6b31f66245abea1168ce4812b127cbdc88c3051b4a0b8efdf0d9904131a9a",
     "seed_000016/view_07_position.png": "71bf578fa2230bf72c7adb855c51ea8a8295c63fe3d0617e11237fc02faa531c",

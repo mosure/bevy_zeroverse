@@ -303,14 +303,14 @@
     ],
     "annotation_precision": "float32_geometry",
     "build_provenance": {
-      "capture_engine": "capture-v52;calibration=1;co_visibility=1;bevy=0.20.0;burn=0.22.0;burn_human=0.6.0;bevy_burn_human=0.7.0;burn_human_motion=0.2.0;burn_ardy=0.2.0;burn_llama=0.2.0;burn_human_inference=0.2.0;ardy_motion=9;surface_flow=1;indoor=32;multiview=6;ovoxel=3;glass=3;hair=5;wardrobe=4;footwear=1;bounds=4;morphology=3;position=3;tabletop=2;finishes=9;seating=3;activity=2;playback=2;exterior=2;envelope=3;furnishings=3;botany=2;visual_content=3;equipment=2;palette=2",
-      "crate_version": "0.37.0",
+      "capture_engine": "capture-v53;calibration=1;co_visibility=1;bevy=0.20.0;burn=0.22.0;burn_human=0.6.0;bevy_burn_human=0.7.0;burn_human_motion=0.2.0;burn_ardy=0.2.0;burn_llama=0.2.0;burn_human_inference=0.2.0;ardy_motion=9;surface_flow=1;indoor=35;multiview=6;ovoxel=3;glass=3;hair=5;wardrobe=4;footwear=1;bounds=4;morphology=3;position=3;tabletop=2;finishes=9;seating=3;activity=2;playback=2;exterior=2;envelope=3;furnishings=3;botany=2;visual_content=3;equipment=3;palette=2;photometry=2;sun_shadow=2",
+      "crate_version": "0.37.1",
       "features": {
         "human_motion": false,
         "multi_threaded": true,
         "web": false
       },
-      "generator_version": 34,
+      "generator_version": 35,
       "locked_package_versions": {
         "bevy": [
           "0.20.0"
@@ -319,19 +319,19 @@
           "0.7.0"
         ],
         "bevy_zeroverse": [
-          "0.37.0"
+          "0.37.1"
         ],
         "bevy_zeroverse_burn": [
-          "0.20.0"
+          "0.20.1"
         ],
         "bevy_zeroverse_capture": [
-          "0.1.5"
+          "0.1.6"
         ],
         "bevy_zeroverse_ffi": [
-          "0.37.0"
+          "0.37.1"
         ],
         "bevy_zeroverse_publication": [
-          "0.2.1"
+          "0.2.2"
         ],
         "burn": [
           "0.22.0"
@@ -992,7 +992,7 @@
         }
       ],
       "semantic_taxonomy_version": 2,
-      "source_sha256": "72bca78f5e68164b02da8a6b72d73dac631a310def1c69880cc1a1167ce296fd",
+      "source_sha256": "e4aca087a3576188a5e641d0320539974b9eeeb9de6e8bb9d058044c0ebd4500",
       "target": "x86_64-unknown-linux-gnu"
     },
     "camera_qualification": {
@@ -1392,7 +1392,7 @@
       ],
       "requested_pairs": [],
       "scene_family": {
-        "id": "procedural_indoor/34/0000000000000018",
+        "id": "procedural_indoor/35/0000000000000018",
         "rule": "group all frames, cameras and appearance/sensor variants of a generator-version/seed family before assigning dataset splits",
         "split_bucket_10000": 1960
       },
@@ -1403,12 +1403,14 @@
     "capabilities": {
       "annotation_hdr_format": "RGBA32Float_direct",
       "bloom": true,
+      "exposure_ev100": 6.010190963745117,
       "glass_filter": "default",
       "quality": "Auto",
       "shadow_map_size": 2048,
       "shadows": true,
       "specular_transmission": true,
-      "ssao": true
+      "ssao": true,
+      "sun_shadow_filter": "pcss_non_temporal"
     },
     "co_visibility_metadata": {
       "absolute_tolerance_m": 0.0010000000474974513,
@@ -1480,7 +1482,7 @@
       "mean_radiance": null,
       "prefetch_hit": false,
       "prefetch_wait_ms": 0.0,
-      "preparation_ms": 656.651173,
+      "preparation_ms": 335.27630600000003,
       "primary_rays": 1712128,
       "probes": 1672,
       "relocated_probes": 13,
@@ -1488,7 +1490,7 @@
       "transport_bytes": 67717872,
       "triangles": 574103
     },
-    "elapsed_seconds": 4.17402944,
+    "elapsed_seconds": 2.918408579,
     "image_assets": 186,
     "image_size": [
       640,
@@ -1498,7 +1500,7 @@
     "material_assets": 206,
     "mesh_assets": 595,
     "renderer": "AdapterInfo { name: \"NVIDIA RTX PRO 6000 Blackwell Workstation Edition\", vendor: 4318, device: 11185, device_type: DiscreteGpu, device_pci_bus_id: \"0000:01:00.0\", driver: \"NVIDIA\", driver_info: \"610.43.02\", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: Some(false), limit_bucket: None }",
-    "run_id": "1656663-1791733637064521018",
+    "run_id": "1811111-1791743409624412512",
     "seed": 24,
     "views": [
       {
@@ -1568,8 +1570,8 @@
         "fov_y": 1.02016019821167,
         "fx_pixels": 357.485107421875,
         "fy_pixels": 357.485107421875,
-        "luminance_std": 0.06146728,
-        "mean_luminance": 0.044849675,
+        "luminance_std": 0.049431022,
+        "mean_luminance": 0.03285248,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 12,
@@ -1685,8 +1687,8 @@
         "fov_y": 0.7664421200752258,
         "fx_pixels": 496.0902404785156,
         "fy_pixels": 496.0902404785156,
-        "luminance_std": 0.069255605,
-        "mean_luminance": 0.04664454,
+        "luminance_std": 0.05724073,
+        "mean_luminance": 0.03445753,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 9,
@@ -1799,8 +1801,8 @@
         "fov_y": 0.9891234636306763,
         "fx_pixels": 370.877197265625,
         "fy_pixels": 370.877197265625,
-        "luminance_std": 0.026295053,
-        "mean_luminance": 0.027141677,
+        "luminance_std": 0.021301363,
+        "mean_luminance": 0.019425124,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 8,
@@ -1912,8 +1914,8 @@
         "fov_y": 0.9301896691322327,
         "fx_pixels": 398.5569152832031,
         "fy_pixels": 398.5569152832031,
-        "luminance_std": 0.047168627,
-        "mean_luminance": 0.046255775,
+        "luminance_std": 0.037130665,
+        "mean_luminance": 0.033497974,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 12,
@@ -2029,8 +2031,8 @@
         "fov_y": 1.02016019821167,
         "fx_pixels": 357.485107421875,
         "fy_pixels": 357.485107421875,
-        "luminance_std": 0.048815753,
-        "mean_luminance": 0.042095542,
+        "luminance_std": 0.03943224,
+        "mean_luminance": 0.030653447,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 12,
@@ -2146,8 +2148,8 @@
         "fov_y": 0.7664421200752258,
         "fx_pixels": 496.0902404785156,
         "fy_pixels": 496.0902404785156,
-        "luminance_std": 0.06726574,
-        "mean_luminance": 0.04662246,
+        "luminance_std": 0.05567772,
+        "mean_luminance": 0.034376107,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 9,
@@ -2260,8 +2262,8 @@
         "fov_y": 0.9891234636306763,
         "fx_pixels": 370.877197265625,
         "fy_pixels": 370.877197265625,
-        "luminance_std": 0.023102514,
-        "mean_luminance": 0.026713086,
+        "luminance_std": 0.018376097,
+        "mean_luminance": 0.019076498,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 8,
@@ -2373,8 +2375,8 @@
         "fov_y": 0.9301896691322327,
         "fx_pixels": 398.5569152832031,
         "fy_pixels": 398.5569152832031,
-        "luminance_std": 0.056252927,
-        "mean_luminance": 0.04852157,
+        "luminance_std": 0.045043133,
+        "mean_luminance": 0.035367228,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 12,
@@ -2426,10 +2428,10 @@
     ]
   },
   "generator_identity": {
-    "crate_version": "0.37.0",
-    "generator_version": 34,
+    "crate_version": "0.37.1",
+    "generator_version": 35,
     "schema_version": 1,
-    "source_sha256": "72bca78f5e68164b02da8a6b72d73dac631a310def1c69880cc1a1167ce296fd"
+    "source_sha256": "e4aca087a3576188a5e641d0320539974b9eeeb9de6e8bb9d058044c0ebd4500"
   },
   "manifest": {
     "architecture_style": "Classic",
@@ -2982,7 +2984,7 @@
     "floor_style": 2,
     "furnishing_quarter_turn": 2,
     "furniture_style": 0,
-    "generator_version": 34,
+    "generator_version": 35,
     "glazing_height": 2.088397,
     "human_density": 0.25,
     "humans": [
@@ -6071,7 +6073,7 @@
           "active_fraction": 0.40608647,
           "circuit_contrast": 0.09701163,
           "environment_intensity": 28.011534,
-          "ev100": 5.4992013,
+          "ev100": 6.010191,
           "fixture_gradient": [
             0.29236525,
             -0.37059933
@@ -8476,12 +8478,12 @@
     "world_yaw": 0.0
   },
   "source_sha256": {
-    "seed_000024/capture.json": "25dc765de8058fec67a9e37d85464f675bd6879e7233759e1d86648829c49345",
-    "seed_000024/manifest.json": "27beb9541da2fdd8b44c83ddd299f282fe30eebff9720ef56292d1d32aa26a02",
+    "seed_000024/capture.json": "f8fe10a0fa79a3ee33981f419c597a310b933e1c09ea360b551de3a71f1e7106",
+    "seed_000024/manifest.json": "d37d2dd443b57637cc8de6d4c671afe6bcb1326ed21ea5d3941c5d4d74f42065",
     "seed_000024/view_00_co_visibility.png": "2e90e2c4760396517e1c45ef99609cc884b42fb47035ec008ef9685aea12bce8",
     "seed_000024/view_00_co_visibility_mask.png": "cdbb0ece2aa6bb610c1e6ea1db52837df0c0c81f4543e82330199ad72b5b05cb",
     "seed_000024/view_00_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000024/view_00_color.png": "cfb5b4255073ae069f024abe2de8698594b17132d50779ef6ade6cb252f8ffaf",
+    "seed_000024/view_00_color.png": "64076c1979f55ed142235a0eb3f13ca432ab49eda8a9db0e5edada3de6d54cb5",
     "seed_000024/view_00_depth.png": "a3d26ee1bf94499fbb98823c8f8eacd9502474928f2a8ac0e4c0ba02dbb7e8f7",
     "seed_000024/view_00_normal.png": "36bd093b4dbad448d06a55bdc3e3af31f67d2d5e5dc10b1e53be795817e7931c",
     "seed_000024/view_00_position.png": "224e55eeb54a7e52ef95c8cf4dd075f8db500276b6d444d408828b447fd7f650",
@@ -8489,7 +8491,7 @@
     "seed_000024/view_01_co_visibility.png": "036f89ab99161dc792a71c29cbdeee4ab17770894f6252feec43aef1d6e3449e",
     "seed_000024/view_01_co_visibility_mask.png": "29c19501fc8828c185e2db841711604a74c2d31b71d6bddeeae20ef5e99ec9cd",
     "seed_000024/view_01_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000024/view_01_color.png": "14cef0a328561148fdc74b3133b833f34dcba76184cf3a11afa6863bb9374aae",
+    "seed_000024/view_01_color.png": "69dc6167e998951a480e4152f65de7c280fd7c5f34acbd937c60e00f11e0a41f",
     "seed_000024/view_01_depth.png": "2dac6d1e21fe75809e1b21c427c48b3cca6c1551748980a78e8dc30247394e98",
     "seed_000024/view_01_normal.png": "30a4119bf48e57c43d9eb4aa9521e790af28d4393e4aa74372844f351503899d",
     "seed_000024/view_01_position.png": "ed187483d85c8ba7af453cb15d5f9e8bb5fe6fea8510eed8db6cddf86354fb16",
@@ -8497,7 +8499,7 @@
     "seed_000024/view_02_co_visibility.png": "4908f0b1d992799dbcdbfdf7a987272a089d3af689dbf68edd59a9ea502448d0",
     "seed_000024/view_02_co_visibility_mask.png": "d3b7a07701c13fc7cc4436b7139a0b0e32a3133951de0d86641cf44580faf0ad",
     "seed_000024/view_02_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000024/view_02_color.png": "d2dfd0e97084f3732f868bacb0578dc6eab14ae5a6f916551dcce86a047454ed",
+    "seed_000024/view_02_color.png": "2131fa183cff2ef1663186d20b5f8c6ef1f8e00b0e9a61338e45a22802c08a9c",
     "seed_000024/view_02_depth.png": "9cd8a87f46469eae33777e91014b27ee1488ab5dcf19aa353d18ded8e601ab4f",
     "seed_000024/view_02_normal.png": "eb256e1231964f445123a57b34c2605bbf91998cc30bfe2935786b530273f900",
     "seed_000024/view_02_position.png": "16c778cc90d8c8f1e8fdf05895afe99fd8511211ce55b52021421ef9344da730",
@@ -8505,7 +8507,7 @@
     "seed_000024/view_03_co_visibility.png": "9b6561cb8865839ce314416b2d06ef05fa43372f25b0ff92dcaf68c67ee45d25",
     "seed_000024/view_03_co_visibility_mask.png": "aad70f2946d82db4d55aa1ee3dca8195612a663dae91b47c67749022e0b2b842",
     "seed_000024/view_03_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000024/view_03_color.png": "815331b1f2aabd3b9978cc25bac4ece4ba4c6907b3cd8cac11358d68dfa336ba",
+    "seed_000024/view_03_color.png": "95f1122937bd29664a5de44e93db92594641c34e136c3e573fcf19fc057e5957",
     "seed_000024/view_03_depth.png": "f702d1ea231e241c5f80e37f8ac7aabe35351795256d5b5a7a751382ecad9828",
     "seed_000024/view_03_normal.png": "0ef1cf352241ae3668a408369f284b22f7aad4e67729aa93f4fd01550694ff68",
     "seed_000024/view_03_position.png": "b6b75b583cc6eaf4483506221938f4a170a28713dcb7cc37558a8f6069e6db42",
@@ -8513,7 +8515,7 @@
     "seed_000024/view_04_co_visibility.png": "5aece64e5e05f8c360808eab761b631a6c6ef3f8f62dfb167b7ef60bf6a3d76f",
     "seed_000024/view_04_co_visibility_mask.png": "777e29a40d8c61b17ab7ac687ce2375f8474549f6177028d9a465e24c2b83b22",
     "seed_000024/view_04_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000024/view_04_color.png": "d2fb1bdb02720e969115bb1da2827d81b3b22936dcc684e67d538dd9ad6e7a04",
+    "seed_000024/view_04_color.png": "82388f01673045e33bb25cd1bfba8636c8dd4e493e365d005400b6989353ba99",
     "seed_000024/view_04_depth.png": "c5b6dde252d2a40ecadb7532d20aa0891beb62bd472f910cead0487dcceb2ef7",
     "seed_000024/view_04_normal.png": "fddf0c7d38272a4cee43d7d70c86095c42427d3d54a625feac1dadfb7fa6a1ea",
     "seed_000024/view_04_position.png": "5f47afd48c1ddc5057b2546dc0a506c5bd46ff6f00a6937033be764e1e1c8750",
@@ -8521,7 +8523,7 @@
     "seed_000024/view_05_co_visibility.png": "b31687f76c29a6d359e27a05db4de47c5a3073741112dc9cdcbc2ed50c94227b",
     "seed_000024/view_05_co_visibility_mask.png": "0b017b933e3cb95483b80bc3d1d9b934405dd9516a47b96b7fd338f14f52fcd9",
     "seed_000024/view_05_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000024/view_05_color.png": "3d6c49e312a50b7ecad5ed941a5ee4569a3e46157254aae045cd7598bda77f71",
+    "seed_000024/view_05_color.png": "0c350c708398257bc4b576f3f863be0e19baf1af0f224adc99898f2b17d17d42",
     "seed_000024/view_05_depth.png": "74569f15510bf97993df4d82e02ee5c9480ff2f0c703e32454650b982ac27016",
     "seed_000024/view_05_normal.png": "b81d23baae31516abcb1965e29b4e2349f9a406dbf49d3b667d5c34925c0cb9d",
     "seed_000024/view_05_position.png": "ba7cc33f573daee36c7299b8474edc7ebddfadfa57050b44caeccb4f27bf7c37",
@@ -8529,7 +8531,7 @@
     "seed_000024/view_06_co_visibility.png": "7596544f2bdb8892e0f5afe759eb988b41c955bd998c7269e88f400e34670027",
     "seed_000024/view_06_co_visibility_mask.png": "8a63d453b960c8b66497510f3a32b65d07f815d098c58b6e619bde1ea2e4eeb4",
     "seed_000024/view_06_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000024/view_06_color.png": "84b68a9466dd0f9614e67a98d0f9bae2b38e15b4c324e3d9fcd95221aff747d2",
+    "seed_000024/view_06_color.png": "f085206340a0e281736274a60abc2892d61e8833b2c44675f39986462b9fdaef",
     "seed_000024/view_06_depth.png": "38dc125a439950f7bb0923c64150fc75fc57746c593c35f479be88b3963602a5",
     "seed_000024/view_06_normal.png": "55e21b4ca7fc0320d39e4ec3086c6e5ee42c0c935d91966e75e95b6ba6db7516",
     "seed_000024/view_06_position.png": "86245f67f4dc569b32282411616bb5a11f7e38cdfca035fe2d4cdbe757bdd994",
@@ -8537,7 +8539,7 @@
     "seed_000024/view_07_co_visibility.png": "9e580706cb1a4e830cd31b476170e767fbeac132cb4c0eb104787f9966b5d1c0",
     "seed_000024/view_07_co_visibility_mask.png": "bda00cb5a4e041a99a5524b17c451f2a4dc55c7e6f7d65850a41b9256c28b827",
     "seed_000024/view_07_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000024/view_07_color.png": "b677e1c1a106cc64e2bb365281d146a1adbc63d3037323d11eed7866939b8073",
+    "seed_000024/view_07_color.png": "4806515301cc68212e3581c48241dbc7f6ad796ec9dcf62ac2f8bade6c8f2e8d",
     "seed_000024/view_07_depth.png": "3b844bd2048ca7c231c097c6b832a2db7b0b5af429d8dcf8403e2ce47eac9442",
     "seed_000024/view_07_normal.png": "60d1303e4ab3af55622b64c23e8c1d99958d695be439372950a834eb2fdfd536",
     "seed_000024/view_07_position.png": "a53cc976499b9fa3d2eb8296aa771218f0717a941473f95e1c4be5a71c0a0ea3",

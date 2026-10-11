@@ -1,13 +1,13 @@
 {
   "build_provenance": {
-    "capture_engine": "capture-v52;calibration=1;co_visibility=1;bevy=0.20.0;burn=0.22.0;burn_human=0.6.0;bevy_burn_human=0.7.0;burn_human_motion=0.2.0;burn_ardy=0.2.0;burn_llama=0.2.0;burn_human_inference=0.2.0;ardy_motion=9;surface_flow=1;indoor=32;multiview=6;ovoxel=3;glass=3;hair=5;wardrobe=4;footwear=1;bounds=4;morphology=3;position=3;tabletop=2;finishes=9;seating=3;activity=2;playback=2;exterior=2;envelope=3;furnishings=3;botany=2;visual_content=3;equipment=2;palette=2",
-    "crate_version": "0.37.0",
+    "capture_engine": "capture-v53;calibration=1;co_visibility=1;bevy=0.20.0;burn=0.22.0;burn_human=0.6.0;bevy_burn_human=0.7.0;burn_human_motion=0.2.0;burn_ardy=0.2.0;burn_llama=0.2.0;burn_human_inference=0.2.0;ardy_motion=9;surface_flow=1;indoor=35;multiview=6;ovoxel=3;glass=3;hair=5;wardrobe=4;footwear=1;bounds=4;morphology=3;position=3;tabletop=2;finishes=9;seating=3;activity=2;playback=2;exterior=2;envelope=3;furnishings=3;botany=2;visual_content=3;equipment=3;palette=2;photometry=2;sun_shadow=2",
+    "crate_version": "0.37.1",
     "features": {
       "human_motion": false,
       "multi_threaded": true,
       "web": false
     },
-    "generator_version": 34,
+    "generator_version": 35,
     "locked_package_versions": {
       "bevy": [
         "0.20.0"
@@ -16,19 +16,19 @@
         "0.7.0"
       ],
       "bevy_zeroverse": [
-        "0.37.0"
+        "0.37.1"
       ],
       "bevy_zeroverse_burn": [
-        "0.20.0"
+        "0.20.1"
       ],
       "bevy_zeroverse_capture": [
-        "0.1.5"
+        "0.1.6"
       ],
       "bevy_zeroverse_ffi": [
-        "0.37.0"
+        "0.37.1"
       ],
       "bevy_zeroverse_publication": [
-        "0.2.1"
+        "0.2.2"
       ],
       "burn": [
         "0.22.0"
@@ -689,7 +689,7 @@
       }
     ],
     "semantic_taxonomy_version": 2,
-    "source_sha256": "72bca78f5e68164b02da8a6b72d73dac631a310def1c69880cc1a1167ce296fd",
+    "source_sha256": "e4aca087a3576188a5e641d0320539974b9eeeb9de6e8bb9d058044c0ebd4500",
     "target": "x86_64-unknown-linux-gnu"
   },
   "camera_qualification": {
@@ -787,7 +787,7 @@
     ],
     "requested_pairs": [],
     "scene_family": {
-      "id": "procedural_indoor/34/0000000000000001",
+      "id": "procedural_indoor/35/0000000000000001",
       "rule": "group all frames, cameras and appearance/sensor variants of a generator-version/seed family before assigning dataset splits",
       "split_bucket_10000": 515
     },
@@ -795,9 +795,9 @@
     "selection": "requested strata are fixed before placement retries; no rendered or model-score filtering",
     "triangulation": "mean angle of shared rendered world positions on a regular grid of at most 4096 source pixels/view; null when position was not exported or no shared samples"
   },
-  "run_id": "1662280-1791733886214919903",
+  "run_id": "1815858-1791743564611198185",
   "seed": 1,
-  "elapsed_seconds": 2.372761449,
+  "elapsed_seconds": 0.507974132,
   "image_size": [
     160,
     256
@@ -805,12 +805,14 @@
   "capabilities": {
     "annotation_hdr_format": "RGBA32Float_direct",
     "bloom": true,
+    "exposure_ev100": 7.0925397872924805,
     "glass_filter": "default",
     "quality": "Auto",
     "shadow_map_size": 2048,
     "shadows": true,
     "specular_transmission": true,
-    "ssao": true
+    "ssao": true,
+    "sun_shadow_filter": "pcss_non_temporal"
   },
   "renderer": "AdapterInfo { name: \"NVIDIA RTX PRO 6000 Blackwell Workstation Edition\", vendor: 4318, device: 11185, device_type: DiscreteGpu, device_pci_bus_id: \"0000:01:00.0\", driver: \"NVIDIA\", driver_info: \"610.43.02\", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: Some(false), limit_bucket: None }",
   "aabb": [
@@ -893,8 +895,8 @@
       "fov_y": 1.1738726,
       "near": 0.1,
       "far": 50.0,
-      "mean_luminance": 0.54330575,
-      "luminance_std": 0.21653643,
+      "mean_luminance": 0.46053424,
+      "luminance_std": 0.2160027,
       "dark_fraction": 0.0,
       "clipped_fraction": 0.0,
       "semantic_colors": 15,
@@ -1007,8 +1009,8 @@
       "fov_y": 1.5328966,
       "near": 0.1,
       "far": 50.0,
-      "mean_luminance": 0.60518676,
-      "luminance_std": 0.20973128,
+      "mean_luminance": 0.51804054,
+      "luminance_std": 0.2134518,
       "dark_fraction": 0.0,
       "clipped_fraction": 0.0,
       "semantic_colors": 17,
@@ -1123,8 +1125,8 @@
       "fov_y": 1.1738726,
       "near": 0.1,
       "far": 50.0,
-      "mean_luminance": 0.5298641,
-      "luminance_std": 0.22426099,
+      "mean_luminance": 0.4485621,
+      "luminance_std": 0.2230781,
       "dark_fraction": 0.0,
       "clipped_fraction": 0.0,
       "semantic_colors": 15,
@@ -1237,8 +1239,8 @@
       "fov_y": 1.5328966,
       "near": 0.1,
       "far": 50.0,
-      "mean_luminance": 0.5846136,
-      "luminance_std": 0.2135093,
+      "mean_luminance": 0.49657717,
+      "luminance_std": 0.2155151,
       "dark_fraction": 0.0,
       "clipped_fraction": 0.0,
       "semantic_colors": 17,
@@ -1301,7 +1303,7 @@
     "primary_rays": 174080,
     "diffuse_bounces": 3,
     "texture_bytes": 32640,
-    "preparation_ms": 106.427479,
+    "preparation_ms": 63.263495000000006,
     "bake_ms": null,
     "mean_radiance": null,
     "transport_bytes": 13318640,

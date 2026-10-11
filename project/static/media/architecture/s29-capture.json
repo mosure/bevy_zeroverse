@@ -233,14 +233,14 @@
     ],
     "annotation_precision": "float32_geometry",
     "build_provenance": {
-      "capture_engine": "capture-v52;calibration=1;co_visibility=1;bevy=0.20.0;burn=0.22.0;burn_human=0.6.0;bevy_burn_human=0.7.0;burn_human_motion=0.2.0;burn_ardy=0.2.0;burn_llama=0.2.0;burn_human_inference=0.2.0;ardy_motion=9;surface_flow=1;indoor=32;multiview=6;ovoxel=3;glass=3;hair=5;wardrobe=4;footwear=1;bounds=4;morphology=3;position=3;tabletop=2;finishes=9;seating=3;activity=2;playback=2;exterior=2;envelope=3;furnishings=3;botany=2;visual_content=3;equipment=2;palette=2",
-      "crate_version": "0.37.0",
+      "capture_engine": "capture-v53;calibration=1;co_visibility=1;bevy=0.20.0;burn=0.22.0;burn_human=0.6.0;bevy_burn_human=0.7.0;burn_human_motion=0.2.0;burn_ardy=0.2.0;burn_llama=0.2.0;burn_human_inference=0.2.0;ardy_motion=9;surface_flow=1;indoor=35;multiview=6;ovoxel=3;glass=3;hair=5;wardrobe=4;footwear=1;bounds=4;morphology=3;position=3;tabletop=2;finishes=9;seating=3;activity=2;playback=2;exterior=2;envelope=3;furnishings=3;botany=2;visual_content=3;equipment=3;palette=2;photometry=2;sun_shadow=2",
+      "crate_version": "0.37.1",
       "features": {
         "human_motion": false,
         "multi_threaded": true,
         "web": false
       },
-      "generator_version": 34,
+      "generator_version": 35,
       "locked_package_versions": {
         "bevy": [
           "0.20.0"
@@ -249,19 +249,19 @@
           "0.7.0"
         ],
         "bevy_zeroverse": [
-          "0.37.0"
+          "0.37.1"
         ],
         "bevy_zeroverse_burn": [
-          "0.20.0"
+          "0.20.1"
         ],
         "bevy_zeroverse_capture": [
-          "0.1.5"
+          "0.1.6"
         ],
         "bevy_zeroverse_ffi": [
-          "0.37.0"
+          "0.37.1"
         ],
         "bevy_zeroverse_publication": [
-          "0.2.1"
+          "0.2.2"
         ],
         "burn": [
           "0.22.0"
@@ -922,7 +922,7 @@
         }
       ],
       "semantic_taxonomy_version": 2,
-      "source_sha256": "72bca78f5e68164b02da8a6b72d73dac631a310def1c69880cc1a1167ce296fd",
+      "source_sha256": "e4aca087a3576188a5e641d0320539974b9eeeb9de6e8bb9d058044c0ebd4500",
       "target": "x86_64-unknown-linux-gnu"
     },
     "camera_qualification": {
@@ -1322,7 +1322,7 @@
       ],
       "requested_pairs": [],
       "scene_family": {
-        "id": "procedural_indoor/34/000000000000001d",
+        "id": "procedural_indoor/35/000000000000001d",
         "rule": "group all frames, cameras and appearance/sensor variants of a generator-version/seed family before assigning dataset splits",
         "split_bucket_10000": 6490
       },
@@ -1333,12 +1333,14 @@
     "capabilities": {
       "annotation_hdr_format": "RGBA32Float_direct",
       "bloom": true,
+      "exposure_ev100": 6.3656229972839355,
       "glass_filter": "default",
       "quality": "Auto",
       "shadow_map_size": 2048,
       "shadows": true,
       "specular_transmission": true,
-      "ssao": true
+      "ssao": true,
+      "sun_shadow_filter": "pcss_non_temporal"
     },
     "co_visibility_metadata": {
       "absolute_tolerance_m": 0.0010000000474974513,
@@ -1410,15 +1412,15 @@
       "mean_radiance": null,
       "prefetch_hit": false,
       "prefetch_wait_ms": 0.0,
-      "preparation_ms": 214.750571,
+      "preparation_ms": 133.83023400000002,
       "primary_rays": 501760,
       "probes": 490,
       "relocated_probes": 18,
       "texture_bytes": 23520,
-      "transport_bytes": 27332336,
-      "triangles": 226181
+      "transport_bytes": 27426608,
+      "triangles": 226997
     },
-    "elapsed_seconds": 3.759201777,
+    "elapsed_seconds": 2.719453023,
     "image_assets": 154,
     "image_size": [
       640,
@@ -1428,7 +1430,7 @@
     "material_assets": 121,
     "mesh_assets": 281,
     "renderer": "AdapterInfo { name: \"NVIDIA RTX PRO 6000 Blackwell Workstation Edition\", vendor: 4318, device: 11185, device_type: DiscreteGpu, device_pci_bus_id: \"0000:01:00.0\", driver: \"NVIDIA\", driver_info: \"610.43.02\", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: Some(false), limit_bucket: None }",
-    "run_id": "1656663-1791733637064521018",
+    "run_id": "1811111-1791743409624412512",
     "seed": 29,
     "views": [
       {
@@ -1498,8 +1500,8 @@
         "fov_y": 0.9481831192970276,
         "fx_pixels": 389.7693786621094,
         "fy_pixels": 389.7693786621094,
-        "luminance_std": 0.118488096,
-        "mean_luminance": 0.14254461,
+        "luminance_std": 0.09625122,
+        "mean_luminance": 0.10784731,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 15,
@@ -1618,8 +1620,8 @@
         "fov_y": 0.6857497096061707,
         "fx_pixels": 560.2637329101562,
         "fy_pixels": 560.2637329101562,
-        "luminance_std": 0.09861395,
-        "mean_luminance": 0.13596483,
+        "luminance_std": 0.07669763,
+        "mean_luminance": 0.10197569,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 16,
@@ -1739,8 +1741,8 @@
         "fov_y": 1.2209277153015137,
         "fx_pixels": 285.8737487792969,
         "fy_pixels": 285.8737487792969,
-        "luminance_std": 0.110107005,
-        "mean_luminance": 0.1626208,
+        "luminance_std": 0.08759872,
+        "mean_luminance": 0.12260476,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 16,
@@ -1860,8 +1862,8 @@
         "fov_y": 0.95013427734375,
         "fx_pixels": 388.8349609375,
         "fy_pixels": 388.8349609375,
-        "luminance_std": 0.112151474,
-        "mean_luminance": 0.1559075,
+        "luminance_std": 0.086260356,
+        "mean_luminance": 0.11713713,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 18,
@@ -1983,8 +1985,8 @@
         "fov_y": 0.9481831192970276,
         "fx_pixels": 389.7693786621094,
         "fy_pixels": 389.7693786621094,
-        "luminance_std": 0.12721537,
-        "mean_luminance": 0.15434642,
+        "luminance_std": 0.10481999,
+        "mean_luminance": 0.118378215,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 15,
@@ -2103,8 +2105,8 @@
         "fov_y": 0.6857497096061707,
         "fx_pixels": 560.2637329101562,
         "fy_pixels": 560.2637329101562,
-        "luminance_std": 0.11454041,
-        "mean_luminance": 0.14540003,
+        "luminance_std": 0.08765516,
+        "mean_luminance": 0.10912694,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 18,
@@ -2226,8 +2228,8 @@
         "fov_y": 1.2209277153015137,
         "fx_pixels": 285.8737487792969,
         "fy_pixels": 285.8737487792969,
-        "luminance_std": 0.10528578,
-        "mean_luminance": 0.16652793,
+        "luminance_std": 0.08373093,
+        "mean_luminance": 0.12544261,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 16,
@@ -2347,8 +2349,8 @@
         "fov_y": 0.95013427734375,
         "fx_pixels": 388.8349609375,
         "fy_pixels": 388.8349609375,
-        "luminance_std": 0.120181404,
-        "mean_luminance": 0.16131562,
+        "luminance_std": 0.09281756,
+        "mean_luminance": 0.12148029,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 18,
@@ -2406,10 +2408,10 @@
     ]
   },
   "generator_identity": {
-    "crate_version": "0.37.0",
-    "generator_version": 34,
+    "crate_version": "0.37.1",
+    "generator_version": 35,
     "schema_version": 1,
-    "source_sha256": "72bca78f5e68164b02da8a6b72d73dac631a310def1c69880cc1a1167ce296fd"
+    "source_sha256": "e4aca087a3576188a5e641d0320539974b9eeeb9de6e8bb9d058044c0ebd4500"
   },
   "manifest": {
     "architecture_style": "Classic",
@@ -2890,7 +2892,7 @@
     "floor_style": 0,
     "furnishing_quarter_turn": 2,
     "furniture_style": 2,
-    "generator_version": 34,
+    "generator_version": 35,
     "glazing_height": 3.571107,
     "human_density": 0.25,
     "humans": [
@@ -4400,169 +4402,424 @@
       {
         "cable_path": [
           [
-            0.6265275,
-            0.38622606,
-            0.49806142
+            0.62652844,
+            0.72864383,
+            0.49789214
           ],
           [
-            0.6335853,
-            0.38622606,
-            0.52162766
+            0.63358706,
+            0.72864383,
+            0.52146125
           ],
           [
-            0.63420707,
-            0.3862787,
-            0.5253861
+            0.6342063,
+            0.7286284,
+            0.5252199
           ],
           [
-            0.6338638,
-            0.38643306,
-            0.5291774
+            0.6338558,
+            0.72858304,
+            0.52901316
           ],
           [
-            0.63257766,
-            0.38667923,
-            0.5327554
+            0.63255847,
+            0.72851074,
+            0.53259397
           ],
           [
-            0.63043225,
-            0.38700122,
-            0.5358875
+            0.63039833,
+            0.7284162,
+            0.53573036
           ],
           [
-            0.62756693,
-            0.38737804,
-            0.53837013
+            0.6275158,
+            0.7283055,
+            0.5382185
           ],
           [
-            0.6241678,
-            0.38778526,
-            0.54004216
+            0.62409806,
+            0.72818595,
+            0.53989697
           ],
           [
-            0.46890402,
-            0.40565294,
-            0.5929887
+            0.4698192,
+            0.7229989,
+            0.59250784
           ],
           [
-            0.4652599,
-            0.40580058,
-            0.5938175
+            0.4666605,
+            0.72257066,
+            0.5934031
           ],
           [
-            0.46153855,
-            0.40543061,
-            0.5938704
+            0.46356523,
+            0.72151613,
+            0.5939224
           ],
           [
-            0.45797288,
-            0.40456623,
-            0.5931444
+            0.46068513,
+            0.7198872,
+            0.5940397
           ],
           [
-            0.45478618,
-            0.40326154,
-            0.5916848
+            0.4581616,
+            0.7177636,
+            0.5937495
           ],
           [
-            0.45217776,
-            0.40159822,
-            0.5895829
+            0.45611823,
+            0.71524966,
+            0.593066
           ],
           [
-            0.32226157,
-            0.29763144,
-            0.4527228
+            0.4546554,
+            0.71246856,
+            0.5920229
           ],
           [
-            0.3219266,
-            0.29737496,
-            0.45236993
+            0.42465544,
+            0.6373429,
+            0.5604193
           ],
           [
-            0.18581057,
-            0.19774395,
-            0.30897808
+            0.42445374,
+            0.63685906,
+            0.5602069
           ],
           [
-            0.18514049,
-            0.19729644,
-            0.30827212
+            0.3905146,
+            0.5588286,
+            0.52445364
           ],
           [
-            0.049343705,
-            0.115038306,
-            0.16521716
+            0.39028633,
+            0.55832654,
+            0.5242133
           ],
           [
-            0.048371315,
-            0.11453092,
-            0.16419268
+            0.35637534,
+            0.48689702,
+            0.48848963
           ],
           [
-            -0.08717668,
-            0.054775566,
-            0.021399498
+            0.35611784,
+            0.48637882,
+            0.4882183
           ],
           [
-            -0.08833635,
-            0.05436927,
-            0.020177841
+            0.32223713,
+            0.42116362,
+            0.4525268
           ],
           [
-            -0.22379684,
-            0.018830657,
-            -0.12252331
+            0.32194793,
+            0.42063233,
+            0.4522221
           ],
           [
-            -0.2249372,
-            0.018626153,
-            -0.1237247
+            0.28810036,
+            0.3612768,
+            0.41656518
           ],
           [
-            -0.36053205,
-            0.005412221,
-            -0.26656675
+            0.2877767,
+            0.3607361,
+            0.41622424
           ],
           [
-            -0.36142468,
-            0.005381614,
-            -0.26750708
+            0.25396478,
+            0.30691615,
+            0.38060522
           ],
           [
-            -0.49735093,
-            0.009290814,
-            -0.41069913
+            0.25360417,
+            0.30637062,
+            0.38022542
           ],
           [
-            -0.4978335,
-            0.009321153,
-            -0.41120744
+            0.21983051,
+            0.25779086,
+            0.34464622
           ],
           [
-            -0.6300955,
-            0.02215895,
-            -0.5505388
+            0.21943092,
+            0.25724593,
+            0.34422517
           ],
           [
-            -0.6323297,
-            0.022375822,
-            -0.55358696
+            0.18569696,
+            0.21363801,
+            0.30868816
           ],
           [
-            -0.6337302,
-            0.02251175,
-            -0.557101
+            0.1852566,
+            0.2131001,
+            0.3082242
           ],
           [
-            -0.63420725,
-            0.022558063,
-            -0.5608561
+            0.15156412,
+            0.17422137,
+            0.27273107
           ],
           [
-            -0.63420725,
-            0.022558063,
-            -0.5938704
+            0.15108192,
+            0.17369759,
+            0.272223
+          ],
+          [
+            0.11743152,
+            0.13932997,
+            0.23677397
+          ],
+          [
+            0.11690712,
+            0.13882837,
+            0.23622155
+          ],
+          [
+            0.0832988,
+            0.10877716,
+            0.20081687
+          ],
+          [
+            0.08273268,
+            0.10830622,
+            0.20022058
+          ],
+          [
+            0.049165487,
+            0.08239966,
+            0.1648593
+          ],
+          [
+            0.04855919,
+            0.08196815,
+            0.16422057
+          ],
+          [
+            0.01503098,
+            0.060056567,
+            0.12890005
+          ],
+          [
+            0.01438725,
+            0.05967333,
+            0.12822199
+          ],
+          [
+            -0.019105434,
+            0.041628808,
+            0.09293914
+          ],
+          [
+            -0.019782662,
+            0.041302256,
+            0.09222579
+          ],
+          [
+            -0.053244114,
+            0.027018424,
+            0.056975603
+          ],
+          [
+            -0.053949833,
+            0.026756208,
+            0.056232214
+          ],
+          [
+            -0.08738577,
+            0.016148064,
+            0.021008968
+          ],
+          [
+            -0.088113785,
+            0.015956629,
+            0.020241976
+          ],
+          [
+            -0.12153089,
+            0.00896059,
+            -0.014961243
+          ],
+          [
+            -0.12227416,
+            0.008844826,
+            -0.01574421
+          ],
+          [
+            -0.1556797,
+            0.0054186992,
+            -0.050935507
+          ],
+          [
+            -0.15643072,
+            0.0053816214,
+            -0.05172658
+          ],
+          [
+            -0.18983257,
+            0.005504679,
+            -0.086913824
+          ],
+          [
+            -0.19058335,
+            0.005547274,
+            -0.08770466
+          ],
+          [
+            -0.22398937,
+            0.009220265,
+            -0.12289643
+          ],
+          [
+            -0.22473192,
+            0.009341411,
+            -0.123678684
+          ],
+          [
+            -0.2581501,
+            0.01658655,
+            -0.15888286
+          ],
+          [
+            -0.2588768,
+            0.016783074,
+            -0.15964842
+          ],
+          [
+            -0.2923143,
+            0.027644042,
+            -0.19487333
+          ],
+          [
+            -0.29301822,
+            0.027910952,
+            -0.19561481
+          ],
+          [
+            -0.32648182,
+            0.042452827,
+            -0.23086667
+          ],
+          [
+            -0.3271569,
+            0.04278356,
+            -0.23157787
+          ],
+          [
+            -0.36065185,
+            0.061092816,
+            -0.2668631
+          ],
+          [
+            -0.36129308,
+            0.061479688,
+            -0.26753855
+          ],
+          [
+            -0.3948238,
+            0.083664164,
+            -0.30286193
+          ],
+          [
+            -0.39542735,
+            0.08409869,
+            -0.3034978
+          ],
+          [
+            -0.42899752,
+            0.11028782,
+            -0.33886218
+          ],
+          [
+            -0.4295609,
+            0.1107612,
+            -0.3394556
+          ],
+          [
+            -0.46317196,
+            0.14110616,
+            -0.37486315
+          ],
+          [
+            -0.46369362,
+            0.14160961,
+            -0.37541246
+          ],
+          [
+            -0.49734664,
+            0.1762838,
+            -0.41086483
+          ],
+          [
+            -0.49782586,
+            0.17680877,
+            -0.4113698
+          ],
+          [
+            -0.5315213,
+            0.21600845,
+            -0.44686604
+          ],
+          [
+            -0.5319588,
+            0.21654707,
+            -0.4473269
+          ],
+          [
+            -0.5656955,
+            0.26049197,
+            -0.48286676
+          ],
+          [
+            -0.56609225,
+            0.2610371,
+            -0.4832847
+          ],
+          [
+            -0.599869,
+            0.3099716,
+            -0.5188668
+          ],
+          [
+            -0.6002269,
+            0.31051695,
+            -0.5192437
+          ],
+          [
+            -0.630147,
+            0.3584701,
+            -0.55076337
+          ],
+          [
+            -0.6315174,
+            0.36066654,
+            -0.5525918
+          ],
+          [
+            -0.632653,
+            0.36248657,
+            -0.55492496
+          ],
+          [
+            -0.6335027,
+            0.36384836,
+            -0.55765796
+          ],
+          [
+            -0.6340282,
+            0.36469072,
+            -0.56066775
+          ],
+          [
+            -0.6342063,
+            0.36497578,
+            -0.5638194
+          ],
+          [
+            -0.6342063,
+            0.3649758,
+            -0.5940397
           ]
         ],
         "cable_target": 32,
@@ -4571,15 +4828,15 @@
         "kind": "Cable",
         "neighbor": false,
         "position": [
-          -1.6010833,
-          0.3659737,
-          -3.3085241
+          -1.6010842,
+          0.023555957,
+          -3.3083549
         ],
         "seed": 15722493688110719067,
         "size": [
-          1.2791775,
-          0.41118222,
-          1.198504
+          1.2791758,
+          0.7340255,
+          1.1988425
         ],
         "solid": false,
         "support": 0,
@@ -4602,7 +4859,7 @@
           "active_fraction": 0.9017949,
           "circuit_contrast": 0.3162392,
           "environment_intensity": 56.679356,
-          "ev100": 5.854431,
+          "ev100": 6.365623,
           "fixture_gradient": [
             0.10837239,
             -0.3570395
@@ -6950,12 +7207,12 @@
     "world_yaw": 0.0
   },
   "source_sha256": {
-    "seed_000029/capture.json": "b118c9b8bf16d5b96eeadc74be98f1071cd545d1a46883ec496f40a2a190a996",
-    "seed_000029/manifest.json": "aa0ea3557111c7cc08b22be5f461fb375d9ab7c567c9fe6f612819e7bc8fcc10",
+    "seed_000029/capture.json": "a9ecce46f5ad4ca0426ffa5b0613b67c7847c142e7ffbe1314d3f55520648eae",
+    "seed_000029/manifest.json": "a498320d47e85c083dede423d9503cb4c1217697f9b82a8f1810361291ea2d95",
     "seed_000029/view_00_co_visibility.png": "b77c08c7bf05c59910a7582955ef018b424849408ce96c30fa7c310316572138",
     "seed_000029/view_00_co_visibility_mask.png": "e7039815c54c57b9a319f7b4bb74bb7b5505bdf8c7cb298cae08e25ac8a30ba6",
     "seed_000029/view_00_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000029/view_00_color.png": "7526b236ca3eb22028b6d02564ffe8381a4a2508d3be202d10341b84d383a832",
+    "seed_000029/view_00_color.png": "4ee1df51fb2e9c3abe335e04f43dcd7a9c7f70e8178fe302ea742639165caf92",
     "seed_000029/view_00_depth.png": "5072eafc0ea980007d618aca206b2422dfff51682107b6e354a77e59e42016d4",
     "seed_000029/view_00_normal.png": "eb3891e72d5e928347aa43b4c783ae136c409bebdeccd4a9df47242ca6562fd1",
     "seed_000029/view_00_position.png": "8d6215aab1c01a6024fb8e3fe1190d5e84e0b018d5523a727ecd3680e9c61530",
@@ -6963,7 +7220,7 @@
     "seed_000029/view_01_co_visibility.png": "1041290896f624a52c8e0c4a9396e1c00ab443aba7a0c3a32b9180f25879a4fc",
     "seed_000029/view_01_co_visibility_mask.png": "b8e7da34dfadb9033f82e301bfa19f77467d16e5c12f5430d57f81d41487be4a",
     "seed_000029/view_01_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000029/view_01_color.png": "00fdf2d0cbf6e978904d639898f4909043421ffbcdd99ede28450d5cf4e84d3e",
+    "seed_000029/view_01_color.png": "d5c87d9923225f8ae498a654440f609e0f8072f63d7efa85bf0ea48131d3153f",
     "seed_000029/view_01_depth.png": "f23d65c64de4dfa97905fc4945a9712717ccbbe3167168c251942fe0a2b5c210",
     "seed_000029/view_01_normal.png": "9b51a4f2d5f479daced2583314d37ca15592c065b058d9ae1902a2d815808c51",
     "seed_000029/view_01_position.png": "a27d42fe8d4263f8306530c8f0eab84ef8c90bc8c418ab3554b983877940da71",
@@ -6971,7 +7228,7 @@
     "seed_000029/view_02_co_visibility.png": "d3634038660fcce5c135a1797d12fa704124a3cc1611d5ccac03c7e38a19b7e0",
     "seed_000029/view_02_co_visibility_mask.png": "fb80c436ffe8f62e37cb13bd73ddd0d9988270a5d3c5a1cc8ec368d5b28faca6",
     "seed_000029/view_02_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000029/view_02_color.png": "560d5b2d18815ca3dd145c1b56f273589d06c67e0b5f89db2cda482cde878eca",
+    "seed_000029/view_02_color.png": "4f79a6ada4f5433ba47abe0c4debd68a096951cd059d3133530637aca60a2529",
     "seed_000029/view_02_depth.png": "cb1033672d81202d15a1e1e3811068c9f341d0ff33b91a91d022280a085357e7",
     "seed_000029/view_02_normal.png": "af67950b93126a22b70979ac55e2822fdc644a5b0f3524366c9501f4cad1de1b",
     "seed_000029/view_02_position.png": "4cbe85d23d440e7ad65cb2acd4077ced7f43edbe80a0ebf94ddc92c6c79a49c2",
@@ -6979,7 +7236,7 @@
     "seed_000029/view_03_co_visibility.png": "b8eb0bc195f11b1f590235753b8d35e9937b29f6a5ab4097a40ece3c2d3268c0",
     "seed_000029/view_03_co_visibility_mask.png": "55b2c43860c1c90abee114c2054c5891aff40c353671dbbd6fe33ca1cfa53654",
     "seed_000029/view_03_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000029/view_03_color.png": "edb56ca2cfeefcf44a5463fdd3abe5863abc661b5adfee747e09e80268e0c0fc",
+    "seed_000029/view_03_color.png": "82b4f2a570755584da71ed13f66d562c8d7db8a0d3bbbaf4cec85e60bc6d655a",
     "seed_000029/view_03_depth.png": "c6fc6eb0e7c925210ae0ea926938c7cc2c8d1205ce11388ab41c747491a81c7f",
     "seed_000029/view_03_normal.png": "aaa114122eea04f8b7e6e07a70199748702bd60de5c80de4145643e23e7e350b",
     "seed_000029/view_03_position.png": "8885bbe5bb06a2fefe3178cabdf769231812e70a37473ebce7c6206469a29ff0",
@@ -6987,7 +7244,7 @@
     "seed_000029/view_04_co_visibility.png": "6ee69fb8e19babea38dbc5c0a6c71950a761966ead87afefdb0935a873f6bb81",
     "seed_000029/view_04_co_visibility_mask.png": "be134c67876559166bffcf4ec1d7156e9f7c3609c0ded3fed17c539470721359",
     "seed_000029/view_04_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000029/view_04_color.png": "caddc66b5bf20c0677b5cc95fd5ab46f449690afd23885ac766ee31111480974",
+    "seed_000029/view_04_color.png": "579d78cb727a06dee93de3602846d99d7486c16ea9764ad4cc0512dc2023d5a8",
     "seed_000029/view_04_depth.png": "1e3c4f98b76a7cf3d0764a207b7df7c504efcff61f60e0d95ea4286c0a9205a2",
     "seed_000029/view_04_normal.png": "ae3c719eb1c8fb1943cb890a7e3497e3c803eaae65d29a0639badd6b80a8b2f0",
     "seed_000029/view_04_position.png": "85739d07b4c1700a47ed3062f9f3d44c7281095c35505b2a6b12fc17c294c21e",
@@ -6995,7 +7252,7 @@
     "seed_000029/view_05_co_visibility.png": "68652272ffe2ac8e77ea27845930e319418c3646c57fbe0b6e6ae25961c917f1",
     "seed_000029/view_05_co_visibility_mask.png": "670d20c122f6cd04430851119421eac2fed48f490d177cc19e5b517784c170e1",
     "seed_000029/view_05_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000029/view_05_color.png": "e0737ad5706a8eb6227daa12cfc54b97517fb2fdcb0361783063689c775d496f",
+    "seed_000029/view_05_color.png": "bb049d6f566132e5bca8f0148b973833e113a0a1332fcae502028ef1e595b0d1",
     "seed_000029/view_05_depth.png": "9439f60a0dd1dcc6f619f2ab4a4dc10cce9d7aa2992c387de5fff65d93b44ae2",
     "seed_000029/view_05_normal.png": "387db0ee1fe6b0e868706bbbbc8b514818ef705094bffa3ae84199784bcb332a",
     "seed_000029/view_05_position.png": "a4d0a2bdfdc05a74ed8dbeb2d0867e824b9092a3fb864f4158e071472d644fa8",
@@ -7003,7 +7260,7 @@
     "seed_000029/view_06_co_visibility.png": "558982f0f167976e0bfcee9b30f5fd49cd70fd7fed89ba7de507215fd9abafdc",
     "seed_000029/view_06_co_visibility_mask.png": "7f4c604c328a7c45f4452aa170f414e7ae06078d147c000df048f1ce70723973",
     "seed_000029/view_06_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000029/view_06_color.png": "82b9260a03f04db6f2abb332b8b7b98fcfd8760d3b40c409ff975ece0911dc64",
+    "seed_000029/view_06_color.png": "0ca54ffd5433bca859f07bbec18efdf47462040e10980d94aa0835f138e0564a",
     "seed_000029/view_06_depth.png": "65f0752af166065bd5a2d037ae8c41bf9a0dd60dd41f25247e651db768cf6939",
     "seed_000029/view_06_normal.png": "a306f94e675d0bfa8a32d1b2b9629b1247b8a73542528817473e1336e8f97541",
     "seed_000029/view_06_position.png": "f18e480fd94cf9027fc339ffc76fc953976b80c46e59ec662a21d336eb7823f7",
@@ -7011,7 +7268,7 @@
     "seed_000029/view_07_co_visibility.png": "b36c9da77921866f1bbe7473fa4ec6404d58b9c7fea2e8cff6b45208b4e4508c",
     "seed_000029/view_07_co_visibility_mask.png": "94db59b9bed9d65d8d85b855fdc5ff171074b6f5c075ad1b88e9759c3a8bedc9",
     "seed_000029/view_07_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000029/view_07_color.png": "afed5a8f81f3aaa81bb137cbdd7fb955381eb6b4e7fbab160c1e4e2135829923",
+    "seed_000029/view_07_color.png": "67c60bf0463a34060f04afdd297993642321fd2870cbf56ec76a991e231bb278",
     "seed_000029/view_07_depth.png": "85697837bc0950316e8cadc3de91d19bbd44ccea5935f1f4ab8f5c21610f64c2",
     "seed_000029/view_07_normal.png": "15111e2a3db0d577e25f3f4b4fba45e22a0d02b8d41ef21f53d0966ee41dd109",
     "seed_000029/view_07_position.png": "e3dd6403247eb2a534109e95a5e17f657e9d2add9eae93e58bf6e5a63a52568f",
