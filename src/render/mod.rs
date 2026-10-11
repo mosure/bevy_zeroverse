@@ -147,19 +147,11 @@ impl Plugin for RenderPlugin {
         );
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
     fn finish(&self, app: &mut App) {
         // GPU clustering appends lights with atomics, so floating point lighting
-        // accumulation can vary between identical captures. Indoor datasets have
-        // few lights; CPU clustering preserves exact replay without changing the
-        // GPU shading, shadow, GI, or asynchronous readback paths.
-        if !app
-            .world()
-            .get_resource::<crate::app::BevyZeroverseConfig>()
-            .is_some_and(|config| config.image_copiers)
-        {
-            return;
-        }
+        // accumulation can vary between identical captures. Use the same stable
+        // light assignment in interactive and dataset views, including WebGPU.
+        // Our scenes have few lights; shading, shadows and GI still run on GPU.
         if let Some(mut settings) = app
             .world_mut()
             .get_resource_mut::<bevy::light::cluster::GlobalClusterSettings>()
@@ -281,6 +273,33 @@ pub(crate) fn apply_render_modes(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn viewer_and_capture_use_the_same_stable_light_assignment() {
+        use bevy::light::cluster::{GlobalClusterGpuSettings, GlobalClusterSettings};
+        for image_copiers in [false, true] {
+            let mut app = App::new();
+            app.insert_resource(crate::app::BevyZeroverseConfig {
+                image_copiers,
+                ..default()
+            });
+            app.insert_resource(GlobalClusterSettings {
+                supports_storage_buffers: true,
+                clustered_decals_are_usable: true,
+                gpu_clustering: Some(GlobalClusterGpuSettings {
+                    initial_z_slice_list_capacity: 4096,
+                    initial_index_list_capacity: 65536,
+                }),
+                max_uniform_buffer_clusterable_objects: 256,
+                view_cluster_bindings_max_indices: 16384,
+            });
+            RenderPlugin.finish(&mut app);
+            let settings = app.world().resource::<GlobalClusterSettings>();
+            assert!(settings.gpu_clustering.is_none());
+            assert!(settings.supports_storage_buffers);
+            assert!(settings.clustered_decals_are_usable);
+        }
+    }
     use bevy::{shape::Sphere, MinimalPlugins};
 
     #[test]

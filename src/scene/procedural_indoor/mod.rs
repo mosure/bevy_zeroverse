@@ -555,6 +555,7 @@ fn configure_cameras(
                 ev100: environment.ev100,
             },
             environment.map.clone(),
+            bevy::light::ShadowFilteringMethod::Gaussian,
             // A camera override leaves legacy scenes' ambient settings intact.
             AmbientLight {
                 color: Color::srgb(0.94, 0.96, 1.0),

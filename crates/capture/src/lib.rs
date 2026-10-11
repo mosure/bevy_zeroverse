@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 pub mod calibration;
 
-pub const GENERATOR_VERSION: u32 = 34;
+pub const GENERATOR_VERSION: u32 = 35;
 pub const CAPTURE_SCHEMA_VERSION: u32 = 1;
 /// Population metrics contract shared by the renderer and publication gate.
 pub const INDOOR_METRICS_SCHEMA_VERSION: u32 = 17;

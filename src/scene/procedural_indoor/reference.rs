@@ -47,8 +47,11 @@ pub fn export(world: &mut World, sample: &Sample, size: [u32; 2], directory: &Pa
         .query::<(&DirectionalLight, &GlobalTransform)>()
         .iter(world)
     {
-        lights.push(json!({"kind":"sun", "color":light.color.to_linear().to_f32_array(),
-            "illuminance":light.illuminance, "world_from_light":transform.to_matrix().to_cols_array_2d()}));
+        lights.push(
+            json!({"kind":"sun", "color":light.color.to_linear().to_f32_array(),
+            "illuminance":light.illuminance, "raster_soft_shadow_size":light.soft_shadow_size,
+            "world_from_light":transform.to_matrix().to_cols_array_2d()}),
+        );
     }
     for (light, transform, name) in world
         .query::<(&PointLight, &GlobalTransform, Option<&Name>)>()

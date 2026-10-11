@@ -75,18 +75,29 @@ impl IndoorManifest {
                     };
                     let edge = parent.transform().transform_point(Vec3::new(
                         exit.x,
-                        local.y.max(parent.size.y + 0.035),
+                        if source.kind == ObjectKind::PowerStrip {
+                            parent.size.y + radius + 0.003
+                        } else {
+                            local.y.max(parent.size.y + radius + 0.003)
+                        },
                         exit.y,
                     ));
-                    let mut path = vec![start, a, edge];
-                    let sag = rng.random_range(0.06..0.20);
-                    for i in 1..=7 {
-                        let t = i as f32 / 8.;
-                        let mut p = edge.lerp(b, t);
-                        p.y -= (PI * t).sin() * sag;
-                        path.push(p);
-                    }
-                    path.extend([b, end]);
+                    let floor = (0..=8)
+                        .map(|i| self.floor_height(edge.lerp(b, i as f32 / 8.).xz()))
+                        // A raised step must not create an imaginary support
+                        // plane over the lower floor. The final route check
+                        // rejects any curve that intersects the actual steps.
+                        .fold(f32::INFINITY, f32::min)
+                        + radius
+                        + 0.002;
+                    let Some(hanging) =
+                        wires::hanging_curve(edge, b, floor, rng.random_range(0.12..0.55))
+                    else {
+                        continue;
+                    };
+                    let mut path = vec![start, a];
+                    path.extend(hanging);
+                    path.push(end);
                     let Some(path) = wires::fillet_path(&path, wires::radius(&o)) else {
                         continue;
                     };

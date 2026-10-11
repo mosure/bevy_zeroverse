@@ -566,7 +566,10 @@ fn main() -> Result<()> {
             renderer: app.world().get_resource::<bevy::render::renderer::RenderAdapterInfo>().map(|adapter| format!("{:?}", **adapter)),
             capabilities: serde_json::json!({ "quality": args.quality, "glass_filter": args.glass_filter, "shadows": args.quality.shadows() && !args.no_shadows,
                 "ssao": args.quality.ssao() && !args.no_ssao, "bloom": args.quality.bloom() && !args.linear_rgb, "specular_transmission": args.quality.specular_transmission(),
-                "shadow_map_size": args.quality.shadow_map_size(), "annotation_hdr_format": if sample.annotation_precision == bevy_zeroverse::sample::AnnotationPrecision::Float32Geometry { "RGBA32Float_direct" } else { "RGBA16Float" } }),
+                "shadow_map_size": args.quality.shadow_map_size(),
+                "sun_shadow_filter": if args.quality.shadows() && !args.no_shadows { "pcss_non_temporal" } else { "disabled" },
+                "exposure_ev100": manifest.ev100(),
+                "annotation_hdr_format": if sample.annotation_precision == bevy_zeroverse::sample::AnnotationPrecision::Float32Geometry { "RGBA32Float_direct" } else { "RGBA16Float" } }),
             aabb: sample.aabb,
             color_encoding: if args.linear_rgb {
                 "raw: exposed scene-linear little-endian RGBA32F (RGBA16F rendering intermediate); PNG: clipped sRGB preview; no tone map, bloom, FXAA or dither"

@@ -1,4 +1,6 @@
 use super::*;
+mod catenary;
+pub(crate) use catenary::hanging_curve;
 
 pub(crate) fn radius(o: &IndoorObject) -> f32 {
     stream(o.seed, 5750).random_range(0.0018..0.0033)
@@ -17,7 +19,7 @@ pub(crate) const MAX_PATH_POINTS: usize = 128;
 /// samples are archived before bounds and collision tests; no hidden renderer
 /// deformation can move the wire outside its qualified route.
 pub(crate) fn fillet_path(points: &[Vec3], jacket: f32) -> Option<Vec<Vec3>> {
-    if !(2..=16).contains(&points.len()) || points.iter().any(|p| !p.is_finite()) {
+    if !(2..=64).contains(&points.len()) || points.iter().any(|p| !p.is_finite()) {
         return None;
     }
     let bend_radius = jacket * 5.;

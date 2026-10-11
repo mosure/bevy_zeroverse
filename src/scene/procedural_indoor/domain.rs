@@ -76,10 +76,8 @@ impl SceneDomain {
         let sky_radiance = kelvin_rgb(light.random_range(5000.0..10000.0)) * sky;
         // Partial adaptation preserves real brightness differences. Independent
         // exposure offsets cover under/overexposure without normalizing each image.
-        let ev100 = (6.4
-            + 0.45 * ((target_lux + sun_lux * 0.025) / 450.0).log2()
-            + light.random_range(-1.1..1.3))
-        .clamp(2.0, 10.5);
+        let exposure_variation = light.random_range(-1.1..1.3);
+        let ev100 = exposure_for_illuminance(target_lux, sun_lux, exposure_variation);
         let photometry = Photometry {
             sun_lux,
             sky_radiance,
@@ -146,6 +144,15 @@ impl SceneDomain {
     }
 }
 
+/// Scene-level partial adaptation, shared by every view and timestep. Metering
+/// a wider daylight contribution prevents sunny interiors from living entirely
+/// in the tone mapper's highlight shoulder. Keep independent illumination and
+/// exposure variation; no image-dependent metering or annotation changes.
+fn exposure_for_illuminance(electric_lux: f32, sun_lux: f32, variation: f32) -> f32 {
+    (6.7 + 0.55 * ((electric_lux + sun_lux * 0.025) / 450.0).log2() + 0.70 * variation)
+        .clamp(2.0, 12.0)
+}
+
 impl IndoorManifest {
     pub(crate) fn minimum_main_objects(&self) -> usize {
         self.domain()
@@ -179,6 +186,22 @@ impl IndoorManifest {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn exposure_preserves_lighting_range_without_washing_out_daylight() {
+        let sunny = SceneDomain::sample(6).photometry;
+        assert!((6.8..7.5).contains(&sunny.ev100));
+        // A lighting octave is partially compensated, leaving 0.45 stops of
+        // brightness variation. This holds before the intentional dark limit.
+        for electric in [30., 300., 900.] {
+            for sun in [100., 10_000., 50_000.] {
+                let a = exposure_for_illuminance(electric, sun, 0.);
+                let b = exposure_for_illuminance(electric * 2., sun * 2., 0.);
+                assert!((b - a - 0.55).abs() < 1e-5);
+            }
+        }
+        assert!(exposure_for_illuminance(3., 0.1, 0.) < 3.);
+        assert!(exposure_for_illuminance(900., 100_000., 0.) > 8.);
+    }
     #[test]
     fn physical_domain_covers_decades_jointly_and_replays_full_width_seeds() {
         let mut joint = [0u32; 18];

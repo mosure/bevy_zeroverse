@@ -14,6 +14,9 @@ use bevy::{
     },
 };
 
+#[cfg(test)]
+mod replay;
+
 /// Fixed-size copies stay below libc's ERMS threshold. The opaque destination
 /// prevents LLVM coalescing the loop back into one large memcpy. Safe slices
 /// preserve all alignment/tail cases; no CPU features, unsafe stores or env vars.
