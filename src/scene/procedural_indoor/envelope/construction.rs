@@ -232,6 +232,56 @@ pub(super) fn wall(
     }
 }
 
+/// Roof-following perimeter moulding. Front and rear faces are separated from
+/// the wall and roof; corner ends have a real reveal, avoiding duplicate caps.
+fn cornice(
+    a: &mut Assembly,
+    scene: &IndoorManifest,
+    edge: usize,
+    holes: &[architecture::facade::WindowOpening],
+) {
+    use rand::Rng;
+    let e = scene.envelope.as_ref().unwrap();
+    let mut rng = super::super::layout::stream(scene.seed, 163);
+    if rng.random_bool(0.12) {
+        return;
+    }
+    let height = rng.random_range(0.055..0.135);
+    let depth = rng.random_range(0.022..0.055);
+    let tf = e.wall_transform(edge);
+    let length = e.footprint[edge].distance(e.footprint[(edge + 1) % e.footprint.len()]);
+    if length < 0.20 {
+        return;
+    }
+    let at = |x| scene.ceiling_height(tf.transform_point(Vec3::new(x, 0., depth)).xz()) - 0.004;
+    let hp = at(-length * 0.5);
+    let hq = at(length * 0.5);
+    let mid = (hp + hq) * 0.5;
+    let slope = (hq - hp) / length;
+    let surface = if scene.architecture_style == super::super::layout::ArchitectureStyle::Timber {
+        Surface::WoodEdge
+    } else {
+        Surface::Paint
+    };
+    for (lo, hi) in architecture::facade::solid_rectangles(
+        Vec2::new(-length * 0.5 + 0.065, hp.min(hq) - height),
+        Vec2::new(length * 0.5 - 0.065, hp.max(hq)),
+        holes,
+    ) {
+        let rect = [lo, Vec2::new(hi.x, lo.y), hi, Vec2::new(lo.x, hi.y)];
+        let top = polygon::clip(&rect, Vec2::new(slope, -1.), -mid);
+        let band = polygon::clip(&top, Vec2::new(-slope, 1.), mid - height);
+        panel(
+            a.part(surface, "ceiling"),
+            &band
+                .iter()
+                .map(|p| tf.transform_point(Vec3::new(p.x, p.y, depth)))
+                .collect::<Vec<_>>(),
+            tf.rotation * Vec3::Z * (depth + 0.002),
+        );
+    }
+}
+
 pub fn build(scene: &IndoorManifest) -> Assembly {
     let e = scene.envelope.as_ref().unwrap();
     let size = scene.room_size;
@@ -249,6 +299,7 @@ pub fn build(scene: &IndoorManifest) -> Assembly {
             .as_ref()
             .map_or(&[][..], |f| f.openings.as_slice());
         wall(&mut a, e, size, entry.edge, holes);
+        cornice(&mut a, scene, entry.edge, holes);
         if let Some(f) = &entry.facade {
             architecture::facade::glazing_at(&mut a, e.wall_transform(entry.edge), f);
         }

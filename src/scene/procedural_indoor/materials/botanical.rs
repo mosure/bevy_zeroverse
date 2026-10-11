@@ -48,7 +48,7 @@ impl LeafRecipe {
                 n * rng.random_range(0.65..0.91),
             ],
             wax: rng.random_range(0.0..0.80),
-            transmission: rng.random_range(0.05..0.38),
+            transmission: rng.random_range(0.015..0.09),
             reference_size_m: [rng.random_range(0.04..0.10), rng.random_range(0.12..0.30)],
         }
     }

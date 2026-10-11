@@ -106,7 +106,7 @@ pub fn obstacles(
             .objects
             .iter()
             .filter(|o| Some(o.id) != support)
-            .map(|o| o.bounds()),
+            .flat_map(|o| o.obstacle_bounds()),
     );
     boxes.extend(
         scene
@@ -485,14 +485,16 @@ pub fn plan(
         // every failed path would overwhelm travel/exercise weights with the
         // easiest stationary gestures, especially in furnished rooms.
         let preferred_family = config.prompt_sampling.sample_family(&mut rng);
+        let support = person.chair;
+        let boxes = obstacles(scene, person.id, support);
         for attempt in 0..48 {
-            let family = if attempt < 32 {
+            // Dense furnishings deserve most of the fixed search budget for
+            // the requested family before trying easier fallback behaviors.
+            let family = if attempt < 40 {
                 preferred_family
             } else {
                 config.prompt_sampling.sample_family(&mut rng)
             };
-            let support = person.chair;
-            let boxes = obstacles(scene, person.id, support);
             let headroom =
                 (scene.ceiling_height(person.position.xz()) - person.stature - 0.05).max(0.0);
             let mut points;

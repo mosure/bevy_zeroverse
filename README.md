@@ -163,6 +163,11 @@ cargo run --bin viewer -- --material-grid
 | Room schematic | Metric top-down JSON/SVG/PNG with captured cameras, skeletons and optional prediction overlays |
 | O-voxel | Primary-room surface geometry and semantics |
 
+Semantic taxonomy 2 provides 70 labels, including plants, phones, laptops,
+monitors, bins, cables, outlets and distinct furniture classes. Capture provenance
+includes the complete label/color palette; existing class colors remain stable.
+Consumers should read this palette rather than assume a fixed class count.
+
 Exports support chunked or per-sample storage, resume validation and distributions
 of object counts, placements, lighting and camera parameters. Glass is the first
 surface in geometry annotations. O-voxel requires one timestep and disabled human

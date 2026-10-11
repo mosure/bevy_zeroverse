@@ -790,52 +790,9 @@ fn linear_to_srgb(v: f32) -> f32 {
 
 fn semantic_palette() -> std::collections::BTreeMap<[u8; 3], String> {
     let mut palette = std::collections::BTreeMap::from([([0, 0, 0], "background".into())]);
-    for name in [
-        "wall",
-        "floor",
-        "cabinet",
-        "bed",
-        "chair",
-        "sofa",
-        "table",
-        "door",
-        "window",
-        "bookshelf",
-        "picture",
-        "counter",
-        "blinds",
-        "desk",
-        "shelves",
-        "curtain",
-        "dresser",
-        "pillow",
-        "mirror",
-        "floormat",
-        "clothes",
-        "ceiling",
-        "books",
-        "refrigerator",
-        "television",
-        "paper",
-        "towel",
-        "shower_curtain",
-        "box",
-        "whiteboard",
-        "person",
-        "nightstand",
-        "toilet",
-        "sink",
-        "lamp",
-        "bathtub",
-        "bag",
-        "other_structure",
-        "other_furniture",
-        "other_prop",
-    ] {
-        let color = bevy_zeroverse::render::semantic::SemanticLabel::from_label(name)
-            .unwrap()
-            .color()
-            .to_srgba();
+    for label in bevy_zeroverse::render::semantic::SemanticLabel::ALL {
+        let name = label.as_str();
+        let color = label.color().to_srgba();
         palette.insert(
             [color.red, color.green, color.blue].map(|c| (c * 255.0).round() as u8),
             name.into(),

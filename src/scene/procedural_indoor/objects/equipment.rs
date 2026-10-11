@@ -213,6 +213,14 @@ pub(crate) fn power_port(o: &IndoorObject, low_voltage: bool) -> Option<Vec3> {
         }
         ObjectKind::Monitor if !low_voltage => super::computers::monitor_power_port_local(o).0,
         ObjectKind::Projector => Vec3::new(s.x * 0.24, s.y * 0.23, -s.z * 0.48 - 0.001),
+        ObjectKind::WallOutlet if !low_voltage => {
+            let gangs = (s.x / 0.075).round().clamp(1., 3.);
+            Vec3::new(
+                -(gangs - 1.) * 0.5 * s.x / gangs,
+                s.y * 0.28,
+                s.z * 0.46 + 0.001,
+            )
+        }
         ObjectKind::PowerStrip if low_voltage => {
             Vec3::new(s.x * 0.35, s.y * 0.48, s.z * 0.5 + 0.001)
         }
@@ -234,11 +242,31 @@ pub(crate) fn power_port_normal(o: &IndoorObject, low_voltage: bool) -> Option<V
         ObjectKind::Laptop => Vec3::X,
         ObjectKind::Monitor if !low_voltage => super::computers::monitor_power_port_local(o).1,
         ObjectKind::Projector => Vec3::NEG_Z,
+        ObjectKind::WallOutlet if !low_voltage => Vec3::Z,
         ObjectKind::PowerStrip if low_voltage => Vec3::Z,
         ObjectKind::PowerStrip => Vec3::Y,
         _ => return None,
     };
     Some(o.transform().rotation * local)
+}
+
+/// Power strips have a mains inlet distinct from their output receptacles.
+pub(crate) fn source_power_port(o: &IndoorObject) -> Option<Vec3> {
+    if o.kind == ObjectKind::PowerStrip {
+        Some(
+            o.transform()
+                .transform_point(Vec3::new(-o.size.x * 0.5 - 0.001, o.size.y * 0.48, 0.)),
+        )
+    } else {
+        power_port(o, o.kind == ObjectKind::Laptop)
+    }
+}
+pub(crate) fn source_power_normal(o: &IndoorObject) -> Option<Vec3> {
+    if o.kind == ObjectKind::PowerStrip {
+        Some(o.transform().rotation * Vec3::NEG_X)
+    } else {
+        power_port_normal(o, o.kind == ObjectKind::Laptop)
+    }
 }
 
 /// Emitter outside its downward diffuser. The caller uses this same result for

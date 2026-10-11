@@ -136,7 +136,9 @@ impl IndoorManifest {
     }
 
     pub(super) fn wall_hardware(&mut self, rng: &mut ChaCha8Rng) {
-        for i in 0..rng.random_range(4..10) {
+        let count =
+            ((self.room_size.x + self.room_size.z) * rng.random_range(0.65..0.95)).round() as usize;
+        for i in 0..count.clamp(10, 32) {
             let switch = i < 2;
             let kind = if switch {
                 ObjectKind::LightSwitch

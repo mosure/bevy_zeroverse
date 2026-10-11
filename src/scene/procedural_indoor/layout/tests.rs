@@ -198,7 +198,10 @@ fn reported_sunken_room_props_remain_on_their_supports() {
                 // Their exact graph and swept jacket, rather than their AABB's
                 // root height, define support without penetrating the surface.
                 assert!(super::equipment::cable_route_clear(&scene, prop));
-                assert!(prop.bounds().0.y >= support.position.y + support.size.y - 0.001);
+                let target = &scene.objects[prop.cable_target.unwrap()];
+                if target.kind != ObjectKind::WallOutlet {
+                    assert!(prop.bounds().0.y >= support.position.y + support.size.y - 0.001);
+                }
                 continue;
             }
             assert!(

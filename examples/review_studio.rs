@@ -14,9 +14,16 @@ use bevy_zeroverse::{
 struct Review {
     frame: u32,
     stage: usize,
+    output: std::path::PathBuf,
 }
 fn main() {
-    std::fs::create_dir_all("out/release_0350/ui").unwrap();
+    std::env::set_var("BEVY_ASSET_ROOT", env!("CARGO_MANIFEST_DIR"));
+    let output = std::path::PathBuf::from(
+        std::env::args()
+            .nth(1)
+            .unwrap_or_else(|| "out/studio_review".into()),
+    );
+    std::fs::create_dir_all(&output).unwrap();
     let mut app = viewer_app(
         None,
         Some(BevyZeroverseConfig {
@@ -38,10 +45,13 @@ fn main() {
     {
         window.resolution.set(1360., 900.);
     }
-    app.init_resource::<Review>()
-        .insert_resource(bevy::winit::WinitSettings::continuous())
-        .add_systems(Update, review)
-        .run();
+    app.insert_resource(Review {
+        output,
+        ..default()
+    })
+    .insert_resource(bevy::winit::WinitSettings::continuous())
+    .add_systems(Update, review)
+    .run();
 }
 fn review(world: &mut World) {
     if !world.contains_resource::<IndoorManifest>() {
@@ -64,15 +74,14 @@ fn review(world: &mut World) {
         "co-visibility",
         "glass-through",
     ];
-    if review.frame == 90 {
+    if review.frame == 24 {
         world
             .spawn(Screenshot::primary_window())
-            .observe(save_to_disk(format!(
-                "out/release_0350/ui/{}.png",
-                names[review.stage]
-            )));
+            .observe(save_to_disk(
+                review.output.join(format!("{}.png", names[review.stage])),
+            ));
     }
-    if review.frame == 110 {
+    if review.frame == 32 {
         review.frame = 0;
         review.stage += 1;
         if review.stage == names.len() {

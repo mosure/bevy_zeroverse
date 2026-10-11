@@ -204,15 +204,14 @@ impl ObjectKind {
 
     pub fn class_name(self) -> &'static str {
         match self {
-            Self::Table | Self::CoffeeTable | Self::SideTable => "table",
+            Self::Table => "table",
             Self::Desk => "desk",
             Self::Chair => "chair",
-            Self::Sofa | Self::Ottoman => "sofa",
-            Self::Bench => "chair",
-            Self::Cabinet | Self::DrawerUnit => "cabinet",
+            Self::Sofa => "sofa",
+            Self::Cabinet => "cabinet",
             Self::Bookcase => "bookshelf",
             Self::Whiteboard => "whiteboard",
-            Self::Display | Self::Monitor | Self::ProjectionScreen => "television",
+            Self::Display => "television",
             Self::NoticeBoard => "whiteboard",
             Self::WallSconce | Self::CeilingPendant => "lamp",
             Self::Notebook | Self::Notepad => "paper",
@@ -220,7 +219,44 @@ impl ObjectKind {
             Self::Rug => "floormat",
             Self::WallArt => "picture",
             Self::FloorLamp | Self::DeskLamp => "lamp",
-            _ => "other_prop",
+            Self::Plant => "plant",
+            Self::TrashCan => "trash_can",
+            Self::Laptop => "laptop",
+            Self::Monitor => "monitor",
+            Self::Phone => "phone",
+            Self::Keyboard => "keyboard",
+            Self::Mouse => "mouse",
+            Self::Headphones => "headphones",
+            Self::Speaker => "speaker",
+            Self::Microphone => "microphone",
+            Self::Printer => "printer",
+            Self::Projector => "projector",
+            Self::ProjectionScreen => "projection_screen",
+            Self::CoffeeTable => "coffee_table",
+            Self::SideTable => "side_table",
+            Self::Bench => "bench",
+            Self::Ottoman => "ottoman",
+            Self::MobileCart => "mobile_cart",
+            Self::DrawerUnit => "drawer_unit",
+            Self::CoatRack => "coat_rack",
+            Self::RoomDivider => "room_divider",
+            Self::WallOutlet => "wall_outlet",
+            Self::LightSwitch => "light_switch",
+            Self::PowerStrip => "power_strip",
+            Self::Cable => "cable",
+            Self::Clock => "clock",
+            Self::Mug | Self::CoffeeCup | Self::WaterBottle | Self::SodaCan => "drink_container",
+            Self::CoffeeMaker | Self::Kettle | Self::DeskFan => "appliance",
+            Self::PenHolder
+            | Self::Pencil
+            | Self::Stapler
+            | Self::TapeDispenser
+            | Self::DocumentTray
+            | Self::DeskOrganizer => "stationery",
+            Self::Vase | Self::Bowl => "vase",
+            Self::StorageBox | Self::TissueBox => "box",
+            Self::Bag => "bag",
+            Self::WallShelf => "shelves",
         }
     }
 
@@ -273,6 +309,30 @@ pub struct IndoorObject {
 }
 
 impl IndoorObject {
+    /// Physical cable segments leave the empty space inside a hanging route
+    /// navigable. This iterator allocates nothing and preserves ordinary boxes.
+    pub(crate) fn obstacle_bounds(&self) -> impl Iterator<Item = (Vec3, Vec3)> + '_ {
+        let tf = self.transform();
+        let radius = if self.kind == ObjectKind::Cable {
+            super::objects::equipment::wires::bound_radius(self)
+        } else {
+            0.
+        };
+        (self.kind != ObjectKind::Cable)
+            .then(|| self.bounds())
+            .into_iter()
+            .chain(self.cable_path.iter().flat_map(move |path| {
+                path.windows(2).map(move |pair| {
+                    let a = tf.transform_point(pair[0]);
+                    let b = tf.transform_point(pair[1]);
+                    (
+                        a.min(b) - Vec3::splat(radius),
+                        a.max(b) + Vec3::splat(radius),
+                    )
+                })
+            }))
+    }
+
     pub fn transform(&self) -> Transform {
         Transform::from_translation(self.position).with_rotation(Quat::from_rotation_y(self.yaw))
     }
@@ -1011,7 +1071,7 @@ impl IndoorManifest {
         !self
             .objects
             .iter()
-            .map(IndoorObject::bounds)
+            .flat_map(IndoorObject::obstacle_bounds)
             .chain(self.humans.iter().map(super::humans::IndoorHuman::bounds))
             .any(|(a, b)| {
                 p.cmpge(a - Vec3::splat(CAMERA_CLEARANCE)).all()
@@ -1037,7 +1097,7 @@ impl IndoorManifest {
             && !self
                 .objects
                 .iter()
-                .map(IndoorObject::bounds)
+                .flat_map(IndoorObject::obstacle_bounds)
                 .chain(self.humans.iter().map(super::humans::IndoorHuman::bounds))
                 .any(|(a, b)| {
                     segment_hits_box(
@@ -1059,7 +1119,7 @@ impl IndoorManifest {
         !self
             .objects
             .iter()
-            .map(IndoorObject::bounds)
+            .flat_map(IndoorObject::obstacle_bounds)
             .chain(self.humans.iter().map(super::humans::IndoorHuman::bounds))
             .chain(self.camera_obstacles())
             .any(|(lo, hi)| {

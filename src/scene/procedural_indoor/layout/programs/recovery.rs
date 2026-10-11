@@ -3,20 +3,15 @@ use super::*;
 
 impl IndoorManifest {
     pub(super) fn complete_lounge_groups(&mut self) {
-        // Activity mixtures can leave only sofas in a globally office-labelled
-        // room. Another desk plus chair may not fit, but its existing seating
-        // can still support a useful lounge group. Keep ordinary successful
-        // scenes and their random streams unchanged.
-        if self.objects.iter().any(|o| {
-            !o.neighbor
-                && matches!(
-                    o.kind,
-                    ObjectKind::Desk | ObjectKind::Table | ObjectKind::CoffeeTable
-                )
-        }) {
-            return;
-        }
+        // Complete each seating area. A desk in a different activity zone is
+        // not a usable surface for this sofa.
+        let before = (self.objects.len(), self.rejected_placements);
         self.add_lounge_surfaces();
+        // An unsuccessful, repeatable repair is a no-op on the manifest; do not
+        // accumulate diagnostic counters when clients recheck a complete room.
+        if self.objects.len() == before.0 {
+            self.rejected_placements = before.1;
+        }
     }
 
     /// Check population after perimeter/service furnishing has finished. An
@@ -160,7 +155,20 @@ impl IndoorManifest {
         let mut rng = stream(self.seed, 6130);
         for sofa in sofas {
             let rotation = Quat::from_rotation_y(sofa.yaw);
-            let mut placed = false;
+            if self.objects.iter().any(|o| {
+                if o.neighbor
+                    || o.kind != ObjectKind::CoffeeTable
+                    || (o.position.y - sofa.position.y).abs() > 0.01
+                {
+                    return false;
+                }
+                let local = rotation.inverse() * (o.position - sofa.position);
+                local.x.abs() < (sofa.size.x + o.size.x) * 0.5
+                    && local.z < -sofa.size.z * 0.5
+                    && local.z > -sofa.size.z * 0.5 - o.size.z - 1.0
+            }) {
+                continue;
+            }
             // Search in sofa coordinates: negative Z is the front of the seat.
             // Smaller tables and off-centre placement fit compact alcoves while
             // retaining human-scale furniture, access gaps and floor support.
@@ -180,14 +188,10 @@ impl IndoorManifest {
                             .add(ObjectKind::CoffeeTable, p, size, sofa.yaw, &mut rng)
                             .is_some()
                         {
-                            placed = true;
                             break 'candidates;
                         }
                     }
                 }
-            }
-            if placed && self.main_furniture_count() >= self.minimum_main_objects() {
-                break;
             }
         }
     }

@@ -126,6 +126,26 @@ impl IndoorManifest {
                 &mut rng,
             );
         }
+        // A personal device is a workstation companion, not only a rare draw
+        // from the general accessory catalog. It uses the same support gate.
+        if rng.random_bool((0.42 + p.accessory_affinity * 0.42) as f64) {
+            self.place_prop(
+                support,
+                ObjectKind::Phone,
+                Vec3::new(
+                    support.size.x * rng.random_range(-0.32..0.32),
+                    0.,
+                    support.size.z * rng.random_range(0.05..0.30),
+                ),
+                Vec3::new(
+                    rng.random_range(0.065..0.084),
+                    rng.random_range(0.007..0.013),
+                    rng.random_range(0.13..0.17),
+                ),
+                rng.random_range(-1.1..1.1),
+                &mut rng,
+            );
+        }
         if rng.random_bool(p.paper_affinity as f64) {
             let side = if rng.random_bool(0.5) { -1. } else { 1. };
             self.place_prop(

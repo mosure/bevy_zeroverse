@@ -55,9 +55,115 @@ pub enum SemanticLabel {
     OtherStructure,
     OtherFurniture,
     OtherProp,
+    // Extended indoor taxonomy; legacy labels and colors remain stable.
+    Plant,
+    TrashCan,
+    Laptop,
+    Monitor,
+    Phone,
+    Keyboard,
+    Mouse,
+    Headphones,
+    Speaker,
+    Microphone,
+    Printer,
+    Projector,
+    ProjectionScreen,
+    CoffeeTable,
+    SideTable,
+    Bench,
+    Ottoman,
+    MobileCart,
+    DrawerUnit,
+    CoatRack,
+    RoomDivider,
+    WallOutlet,
+    LightSwitch,
+    PowerStrip,
+    Cable,
+    Clock,
+    DrinkContainer,
+    Appliance,
+    Stationery,
+    Vase,
 }
 
 impl SemanticLabel {
+    /// Versioned, authoritative vocabulary for rendered colors and exports.
+    pub const TAXONOMY_VERSION: u32 = 2;
+    pub const ALL: &[Self] = &[
+        Self::Wall,
+        Self::Floor,
+        Self::Cabinet,
+        Self::Bed,
+        Self::Chair,
+        Self::Sofa,
+        Self::Table,
+        Self::Door,
+        Self::Window,
+        Self::Bookshelf,
+        Self::Picture,
+        Self::Counter,
+        Self::Blinds,
+        Self::Desk,
+        Self::Shelves,
+        Self::Curtain,
+        Self::Dresser,
+        Self::Pillow,
+        Self::Mirror,
+        Self::Floormat,
+        Self::Clothes,
+        Self::Ceiling,
+        Self::Books,
+        Self::Refrigerator,
+        Self::Television,
+        Self::Paper,
+        Self::Towel,
+        Self::ShowerCurtain,
+        Self::Box,
+        Self::Whiteboard,
+        Self::Person,
+        Self::Nightstand,
+        Self::Toilet,
+        Self::Sink,
+        Self::Lamp,
+        Self::Bathtub,
+        Self::Bag,
+        Self::OtherStructure,
+        Self::OtherFurniture,
+        Self::OtherProp,
+        Self::Plant,
+        Self::TrashCan,
+        Self::Laptop,
+        Self::Monitor,
+        Self::Phone,
+        Self::Keyboard,
+        Self::Mouse,
+        Self::Headphones,
+        Self::Speaker,
+        Self::Microphone,
+        Self::Printer,
+        Self::Projector,
+        Self::ProjectionScreen,
+        Self::CoffeeTable,
+        Self::SideTable,
+        Self::Bench,
+        Self::Ottoman,
+        Self::MobileCart,
+        Self::DrawerUnit,
+        Self::CoatRack,
+        Self::RoomDivider,
+        Self::WallOutlet,
+        Self::LightSwitch,
+        Self::PowerStrip,
+        Self::Cable,
+        Self::Clock,
+        Self::DrinkContainer,
+        Self::Appliance,
+        Self::Stationery,
+        Self::Vase,
+    ];
+
     pub fn color(&self) -> Color {
         // https://github.com/apple/ml-hypersim/blob/main/code/cpp/tools/scene_annotation_tool/semantic_label_descs.csv
         match self {
@@ -101,6 +207,36 @@ impl SemanticLabel {
             SemanticLabel::OtherStructure => Color::srgb_u8(94, 106, 211),
             SemanticLabel::OtherFurniture => Color::srgb_u8(82, 84, 163),
             SemanticLabel::OtherProp => Color::srgb_u8(100, 85, 144),
+            SemanticLabel::Plant => Color::srgb_u8(166, 109, 53),
+            SemanticLabel::TrashCan => Color::srgb_u8(75, 47, 186),
+            SemanticLabel::Laptop => Color::srgb_u8(52, 207, 37),
+            SemanticLabel::Monitor => Color::srgb_u8(227, 73, 131),
+            SemanticLabel::Phone => Color::srgb_u8(41, 125, 166),
+            SemanticLabel::Keyboard => Color::srgb_u8(180, 186, 34),
+            SemanticLabel::Mouse => Color::srgb_u8(171, 66, 207),
+            SemanticLabel::Headphones => Color::srgb_u8(57, 227, 134),
+            SemanticLabel::Speaker => Color::srgb_u8(166, 52, 30),
+            SemanticLabel::Microphone => Color::srgb_u8(60, 76, 186),
+            SemanticLabel::Printer => Color::srgb_u8(117, 207, 52),
+            SemanticLabel::Projector => Color::srgb_u8(227, 41, 173),
+            SemanticLabel::ProjectionScreen => Color::srgb_u8(53, 166, 165),
+            SemanticLabel::CoffeeTable => Color::srgb_u8(186, 145, 47),
+            SemanticLabel::SideTable => Color::srgb_u8(107, 37, 207),
+            SemanticLabel::Bench => Color::srgb_u8(73, 227, 91),
+            SemanticLabel::Ottoman => Color::srgb_u8(166, 41, 63),
+            SemanticLabel::MobileCart => Color::srgb_u8(34, 104, 186),
+            SemanticLabel::DrawerUnit => Color::srgb_u8(172, 207, 66),
+            SemanticLabel::CoatRack => Color::srgb_u8(219, 57, 227),
+            SemanticLabel::RoomDivider => Color::srgb_u8(30, 166, 120),
+            SemanticLabel::WallOutlet => Color::srgb_u8(186, 106, 60),
+            SemanticLabel::LightSwitch => Color::srgb_u8(64, 52, 207),
+            SemanticLabel::PowerStrip => Color::srgb_u8(81, 227, 41),
+            SemanticLabel::Cable => Color::srgb_u8(166, 53, 110),
+            SemanticLabel::Clock => Color::srgb_u8(47, 158, 186),
+            SemanticLabel::DrinkContainer => Color::srgb_u8(207, 192, 37),
+            SemanticLabel::Appliance => Color::srgb_u8(168, 73, 227),
+            SemanticLabel::Stationery => Color::srgb_u8(41, 166, 82),
+            SemanticLabel::Vase => Color::srgb_u8(186, 39, 34),
         }
     }
 
@@ -147,6 +283,37 @@ impl SemanticLabel {
             "other_furniture" => Some(SemanticLabel::OtherFurniture),
             "other_prop" => Some(SemanticLabel::OtherProp),
             "human" => Some(SemanticLabel::Person),
+            "plant" => Some(SemanticLabel::Plant),
+            "trash_can" => Some(SemanticLabel::TrashCan),
+            "laptop" => Some(SemanticLabel::Laptop),
+            "monitor" => Some(SemanticLabel::Monitor),
+            "phone" => Some(SemanticLabel::Phone),
+            "keyboard" => Some(SemanticLabel::Keyboard),
+            "mouse" => Some(SemanticLabel::Mouse),
+            "headphones" => Some(SemanticLabel::Headphones),
+            "speaker" => Some(SemanticLabel::Speaker),
+            "microphone" => Some(SemanticLabel::Microphone),
+            "printer" => Some(SemanticLabel::Printer),
+            "projector" => Some(SemanticLabel::Projector),
+            "projection_screen" => Some(SemanticLabel::ProjectionScreen),
+            "coffee_table" => Some(SemanticLabel::CoffeeTable),
+            "side_table" => Some(SemanticLabel::SideTable),
+            "bench" => Some(SemanticLabel::Bench),
+            "ottoman" => Some(SemanticLabel::Ottoman),
+            "mobile_cart" => Some(SemanticLabel::MobileCart),
+            "drawer_unit" => Some(SemanticLabel::DrawerUnit),
+            "coat_rack" => Some(SemanticLabel::CoatRack),
+            "room_divider" => Some(SemanticLabel::RoomDivider),
+            "wall_outlet" => Some(SemanticLabel::WallOutlet),
+            "light_switch" => Some(SemanticLabel::LightSwitch),
+            "power_strip" => Some(SemanticLabel::PowerStrip),
+            "cable" => Some(SemanticLabel::Cable),
+            "clock" => Some(SemanticLabel::Clock),
+            "drink_container" => Some(SemanticLabel::DrinkContainer),
+            "appliance" => Some(SemanticLabel::Appliance),
+            "stationery" => Some(SemanticLabel::Stationery),
+            "vase" => Some(SemanticLabel::Vase),
+
             _ => None,
         }
     }
@@ -193,6 +360,36 @@ impl SemanticLabel {
             SemanticLabel::OtherStructure => "other_structure",
             SemanticLabel::OtherFurniture => "other_furniture",
             SemanticLabel::OtherProp => "other_prop",
+            SemanticLabel::Plant => "plant",
+            SemanticLabel::TrashCan => "trash_can",
+            SemanticLabel::Laptop => "laptop",
+            SemanticLabel::Monitor => "monitor",
+            SemanticLabel::Phone => "phone",
+            SemanticLabel::Keyboard => "keyboard",
+            SemanticLabel::Mouse => "mouse",
+            SemanticLabel::Headphones => "headphones",
+            SemanticLabel::Speaker => "speaker",
+            SemanticLabel::Microphone => "microphone",
+            SemanticLabel::Printer => "printer",
+            SemanticLabel::Projector => "projector",
+            SemanticLabel::ProjectionScreen => "projection_screen",
+            SemanticLabel::CoffeeTable => "coffee_table",
+            SemanticLabel::SideTable => "side_table",
+            SemanticLabel::Bench => "bench",
+            SemanticLabel::Ottoman => "ottoman",
+            SemanticLabel::MobileCart => "mobile_cart",
+            SemanticLabel::DrawerUnit => "drawer_unit",
+            SemanticLabel::CoatRack => "coat_rack",
+            SemanticLabel::RoomDivider => "room_divider",
+            SemanticLabel::WallOutlet => "wall_outlet",
+            SemanticLabel::LightSwitch => "light_switch",
+            SemanticLabel::PowerStrip => "power_strip",
+            SemanticLabel::Cable => "cable",
+            SemanticLabel::Clock => "clock",
+            SemanticLabel::DrinkContainer => "drink_container",
+            SemanticLabel::Appliance => "appliance",
+            SemanticLabel::Stationery => "stationery",
+            SemanticLabel::Vase => "vase",
         }
     }
 }
@@ -313,5 +510,33 @@ impl MaterialExtension for SemanticExtension {
 
     fn fragment_shader() -> ShaderRef {
         SEMANTIC_SHADER_HANDLE.into()
+    }
+}
+
+#[cfg(test)]
+mod vocabulary_tests {
+    use super::*;
+    #[test]
+    fn complete_taxonomy_roundtrips_and_has_unique_nonbackground_colors() {
+        let mut names = std::collections::BTreeSet::new();
+        let mut colors = std::collections::BTreeSet::new();
+        for label in SemanticLabel::ALL {
+            assert_eq!(
+                SemanticLabel::from_label(label.as_str()).as_ref(),
+                Some(label)
+            );
+            assert!(names.insert(label.as_str()));
+            let c = label.color().to_srgba();
+            let rgb = [c.red, c.green, c.blue].map(|v| (v * 255.).round() as u8);
+            assert_ne!(rgb, [0; 3]);
+            assert!(colors.insert(rgb), "duplicate palette entry: {label:?}");
+        }
+        for kind in crate::scene::procedural_indoor::layout::ObjectKind::ALL {
+            assert!(
+                SemanticLabel::from_label(kind.class_name()).is_some(),
+                "{kind:?}"
+            );
+            assert_ne!(kind.class_name(), "other_prop", "{kind:?}");
+        }
     }
 }

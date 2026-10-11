@@ -623,6 +623,11 @@ fn build_impl(
     for n in &mut normals {
         *n = n.normalize_or(Vec3::Y);
     }
+    let beard = h
+        .appearance
+        .as_ref()
+        .is_some_and(|a| a.face.stubble > 0.0)
+        .then(|| super::face::BeardRegion::new(&vertices, faces, [head("eye.L"), head("eye.R")]));
     let uv_faces = &body
         .metadata()
         .static_data
@@ -651,11 +656,11 @@ fn build_impl(
             let triangle = tri.map(|i| corners[i]);
             if super::anatomy::lip_face(face_index) {
                 super::garments::emit(&triangle, HumanSurface::Lip, &mut mesh);
-            } else if h.appearance.as_ref().is_some_and(|a| a.face.stubble > 0.0)
+            } else if beard.is_some()
                 && triangle.iter().all(|v| v.rest.y > cut.neck)
                 && !labels[dominant[q[0] as usize]].starts_with("eye.")
             {
-                super::face::stubble(triangle, (head("eye.L") + head("eye.R")) * 0.5, &mut mesh);
+                beard.as_ref().unwrap().append(triangle, &mut mesh);
             } else {
                 cut.append(h, &labels[dominant[q[0] as usize]], triangle, &mut mesh);
             }

@@ -1,7 +1,7 @@
 use super::*;
 use std::collections::BTreeMap;
 
-fn intersection_area(a: [Vec2; 3], b: [Vec2; 3]) -> f32 {
+pub(crate) fn intersection_area(a: [Vec2; 3], b: [Vec2; 3]) -> f32 {
     let orient = (b[1] - b[0]).perp_dot(b[2] - b[0]).signum();
     let mut polygon = a.to_vec();
     for i in 0..3 {

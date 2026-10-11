@@ -326,7 +326,11 @@ impl IndoorManifest {
         let obstacles: Vec<_> = self
             .camera_obstacles()
             .into_iter()
-            .chain(self.objects.iter().map(super::layout::IndoorObject::bounds))
+            .chain(
+                self.objects
+                    .iter()
+                    .flat_map(super::layout::IndoorObject::obstacle_bounds),
+            )
             .chain(self.humans.iter().map(super::humans::IndoorHuman::bounds))
             .collect();
         let pad = Vec3::splat(CAMERA_CLEARANCE + error);

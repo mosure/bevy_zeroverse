@@ -1,5 +1,6 @@
 //! Equipment is fitted to existing rooms and work surfaces, then wires are routed
 //! between actual ports after all supported objects have been accepted.
+mod hanging;
 use super::super::architecture::facade::FacadeSide;
 use super::super::objects::equipment::{self, wires};
 use super::*;
@@ -366,6 +367,7 @@ impl IndoorManifest {
                 }
             }
         }
+        self.connect_wall_power();
     }
 }
 
@@ -518,22 +520,29 @@ pub(crate) fn cables_clear_proposed_prop(scene: &IndoorManifest, prop: &IndoorOb
             else {
                 return false;
             };
-            if prop.support != cable.support
+            if (prop.kind != ObjectKind::WallOutlet && prop.support != cable.support)
                 || prop.neighbor
                 || if is_source {
                     prop.kind != source.kind
                         || !matches!(
                             prop.kind,
-                            ObjectKind::Laptop | ObjectKind::Monitor | ObjectKind::Projector
+                            ObjectKind::Laptop
+                                | ObjectKind::Monitor
+                                | ObjectKind::Projector
+                                | ObjectKind::PowerStrip
                         )
                 } else {
-                    prop.kind != ObjectKind::PowerStrip
+                    !matches!(prop.kind, ObjectKind::PowerStrip | ObjectKind::WallOutlet)
                 }
             {
                 return false;
             }
             let low_voltage = source.kind == ObjectKind::Laptop;
-            let Some(port) = equipment::power_port(prop, low_voltage) else {
+            let Some(port) = (if is_source {
+                equipment::source_power_port(prop)
+            } else {
+                equipment::power_port(prop, low_voltage)
+            }) else {
                 return false;
             };
             let (end, next) = if is_source {
@@ -541,7 +550,11 @@ pub(crate) fn cables_clear_proposed_prop(scene: &IndoorManifest, prop: &IndoorOb
             } else {
                 (points[points.len() - 1], points[points.len() - 2])
             };
-            let Some(normal) = equipment::power_port_normal(prop, low_voltage) else {
+            let Some(normal) = (if is_source {
+                equipment::source_power_normal(prop)
+            } else {
+                equipment::power_port_normal(prop, low_voltage)
+            }) else {
                 return false;
             };
             let end = tf.transform_point(end);
@@ -632,18 +645,24 @@ pub(crate) fn cable_route_clear(scene: &IndoorManifest, o: &IndoorObject) -> boo
     ) else {
         return false;
     };
+    let hanging = target.kind == ObjectKind::WallOutlet;
     if !parent.kind.is_surface()
         || source.id >= o.id
         || target.id >= o.id
         || source.support != Some(parent.id)
-        || target.support != Some(parent.id)
+        || (!hanging && target.support != Some(parent.id))
+        || (hanging && (target.support.is_some() || source.kind == ObjectKind::Laptop))
+        || (!hanging && source.kind == ObjectKind::PowerStrip)
         || source.neighbor
         || target.neighbor
         || parent.neighbor
-        || target.kind != ObjectKind::PowerStrip
+        || !matches!(target.kind, ObjectKind::PowerStrip | ObjectKind::WallOutlet)
         || !matches!(
             source.kind,
-            ObjectKind::Laptop | ObjectKind::Monitor | ObjectKind::Projector
+            ObjectKind::Laptop
+                | ObjectKind::Monitor
+                | ObjectKind::Projector
+                | ObjectKind::PowerStrip
         )
     {
         return false;
@@ -653,7 +672,7 @@ pub(crate) fn cable_route_clear(scene: &IndoorManifest, o: &IndoorObject) -> boo
         .map(|&p| o.transform().transform_point(p))
         .collect();
     let low = source.kind == ObjectKind::Laptop;
-    if world[0].distance(equipment::power_port(source, low).unwrap()) > 0.001
+    if world[0].distance(equipment::source_power_port(source).unwrap()) > 0.001
         || world
             .last()
             .unwrap()
@@ -662,7 +681,7 @@ pub(crate) fn cable_route_clear(scene: &IndoorManifest, o: &IndoorObject) -> boo
     {
         return false;
     }
-    let source_normal = equipment::power_port_normal(source, low).unwrap();
+    let source_normal = equipment::source_power_normal(source).unwrap();
     let target_normal = equipment::power_port_normal(target, low).unwrap();
     if (world[1] - world[0]).normalize_or_zero().dot(source_normal) < 0.98
         || (world[world.len() - 2] - world[world.len() - 1])
@@ -692,12 +711,24 @@ pub(crate) fn cable_route_clear(scene: &IndoorManifest, o: &IndoorObject) -> boo
     let peers: Vec<_> = scene
         .objects
         .iter()
-        .filter(|other| other.id != parent.id && other.id != o.id)
+        .filter(|other| (hanging || other.id != parent.id) && other.id != o.id)
         .map(|other| {
             (
                 other,
                 (other.kind != ObjectKind::Cable).then(|| cable_prop_intersector(other, radius)),
             )
+        })
+        .collect();
+    let partitions = super::super::floorplan::obstacles(scene);
+    let columns = scene.columns();
+    let human_capsules: Vec<_> = scene
+        .humans
+        .iter()
+        .flat_map(|h| {
+            let tf = h.transform();
+            super::super::humans::collision_capsules(h)
+                .into_iter()
+                .map(move |(a, b, r)| (tf.transform_point(a), tf.transform_point(b), r))
         })
         .collect();
     let mut length = 0.;
@@ -713,15 +744,16 @@ pub(crate) fn cable_route_clear(scene: &IndoorManifest, o: &IndoorObject) -> boo
         for step in 0..=4 {
             let q = inv.transform_point3(pair[0].lerp(pair[1], step as f32 / 4.));
             let half = parent.size.xz() * 0.5;
-            if q.y < parent.size.y + wires::radius(o) - 0.0003
-                || q.xz().abs().cmpgt(half - Vec2::splat(radius + 0.002)).any()
-                || parent.kind.has_table_outline()
-                    && !super::super::objects::tables::supports(
-                        parent,
-                        q.xz() - Vec2::splat(radius),
-                        q.xz() + Vec2::splat(radius),
-                        0.001,
-                    )
+            if !hanging
+                && (q.y < parent.size.y + wires::radius(o) - 0.0003
+                    || q.xz().abs().cmpgt(half - Vec2::splat(radius + 0.002)).any()
+                    || parent.kind.has_table_outline()
+                        && !super::super::objects::tables::supports(
+                            parent,
+                            q.xz() - Vec2::splat(radius),
+                            q.xz() + Vec2::splat(radius),
+                            0.001,
+                        ))
             {
                 return false;
             }
@@ -760,7 +792,33 @@ pub(crate) fn cable_route_clear(scene: &IndoorManifest, o: &IndoorObject) -> boo
         }) {
             return false;
         }
-        if scene.columns().iter().any(|&(a, b)| {
+        if hanging {
+            if let Some(envelope) = &scene.envelope {
+                if !super::super::envelope::polygon::segment_inside(
+                    &envelope.footprint,
+                    pair[0].xz(),
+                    pair[1].xz(),
+                    radius,
+                ) {
+                    return false;
+                }
+            } else if pair.iter().any(|p| {
+                p.xz()
+                    .abs()
+                    .cmpgt(scene.room_size.xz() * 0.5 - Vec2::splat(radius))
+                    .any()
+            }) {
+                return false;
+            }
+            if (0..=4).any(|step| {
+                let p = pair[0].lerp(pair[1], step as f32 / 4.);
+                p.y < scene.floor_height(p.xz()) + radius
+                    || p.y > scene.ceiling_height(p.xz()) - radius
+            }) {
+                return false;
+            }
+        }
+        if columns.iter().chain(partitions.iter()).any(|&(a, b)| {
             segment_hits_box(
                 pair[0],
                 pair[1],
@@ -770,19 +828,13 @@ pub(crate) fn cable_route_clear(scene: &IndoorManifest, o: &IndoorObject) -> boo
         }) {
             return false;
         }
-        if scene.humans.iter().any(|h| {
-            let (a, b) = h.bounds();
-            segment_hits_box(
-                pair[0],
-                pair[1],
-                a - Vec3::splat(radius),
-                b + Vec3::splat(radius),
-            )
+        if human_capsules.iter().any(|&(a, b, r)| {
+            wires::segment_distance_squared(pair[0], pair[1], a, b) <= ((r + radius) as f64).powi(2)
         }) {
             return false;
         }
     }
-    (0.05..=2.0).contains(&length)
+    (0.05..=if hanging { 6.0 } else { 2.0 }).contains(&length)
 }
 
 #[cfg(test)]

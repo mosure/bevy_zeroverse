@@ -1,7 +1,7 @@
 pub mod details;
 pub mod facade;
 #[cfg(test)]
-mod overlap_tests;
+pub(crate) mod overlap_tests;
 use super::{
     layout::{stream, IndoorManifest, LightingMood, ObjectKind, NEIGHBOR_DEPTH},
     materials::{kelvin_rgb, Surface},

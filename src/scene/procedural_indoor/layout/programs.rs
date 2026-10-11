@@ -6,7 +6,10 @@ mod tests;
 impl IndoorManifest {
     pub(super) fn furnish_program(&mut self, rng: &mut ChaCha8Rng) {
         let zones = self.program.as_ref().unwrap().zones.clone();
-        for zone in zones {
+        for (zone_index, zone) in zones.into_iter().enumerate() {
+            // Placement refinements must not consume the activity/composition
+            // stream and accidentally change the next zone's function.
+            let mut transform_rng = stream(self.seed, 5810 + zone_index as u64);
             let extent = zone.max - zone.min;
             let activity = zone
                 .composition
@@ -172,21 +175,22 @@ impl IndoorManifest {
             for _ in 0..service_count {
                 let side = rng.random_range(0..4);
                 let t = rng.random_range(0.14..0.86);
+                let setback = transform_rng.random_range(0.48..0.92);
                 let (x, z, yaw) = match side {
                     0 => (
-                        zone.min.x + 0.65,
+                        zone.min.x + setback,
                         zone.min.y + t * extent.y,
                         -std::f32::consts::FRAC_PI_2,
                     ),
                     1 => (
-                        zone.max.x - 0.65,
+                        zone.max.x - setback,
                         zone.min.y + t * extent.y,
                         std::f32::consts::FRAC_PI_2,
                     ),
-                    2 => (zone.min.x + t * extent.x, zone.min.y + 0.65, 0.0),
+                    2 => (zone.min.x + t * extent.x, zone.min.y + setback, 0.0),
                     _ => (
                         zone.min.x + t * extent.x,
-                        zone.max.y - 0.65,
+                        zone.max.y - setback,
                         std::f32::consts::PI,
                     ),
                 };
@@ -249,6 +253,7 @@ impl IndoorManifest {
                         Vec3::new(0.35, rng.random_range(0.4..0.65), 0.35),
                     ),
                 };
+                let yaw = yaw + transform_rng.random_range(-0.20..0.20);
                 self.add(kind, Vec3::new(x, 0.0, z), size, yaw, rng);
             }
         }

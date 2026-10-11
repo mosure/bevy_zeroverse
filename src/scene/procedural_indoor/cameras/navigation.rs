@@ -22,7 +22,7 @@ pub(super) fn route(scene: &IndoorManifest, start: Vec3, end: Vec3) -> Option<Ve
             scene
                 .objects
                 .iter()
-                .map(super::super::layout::IndoorObject::bounds),
+                .flat_map(super::super::layout::IndoorObject::obstacle_bounds),
         )
         .chain(
             scene

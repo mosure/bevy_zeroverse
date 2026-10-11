@@ -15,7 +15,7 @@ use serde_json::json;
 
 #[derive(Component, Clone)]
 pub struct Binding(pub Field);
-#[derive(Component)]
+#[derive(Component, Clone, Default)]
 pub struct ChoiceCaption(pub String);
 
 pub fn text(
@@ -86,6 +86,7 @@ pub fn button(
 }
 pub fn control(world: &mut World, parent: Entity, field: Field, state: &EditorState) {
     let row = column(world, parent, 5.);
+    world.get_mut::<Node>(row).unwrap().padding.bottom = px(5.);
     let value = super::value(state, &field.path);
     let label = field.label.clone();
     if !matches!(field.kind, Kind::Toggle) {
@@ -134,16 +135,25 @@ pub fn control(world: &mut World, parent: Entity, field: Field, state: &EditorSt
                 .map(|(s, _)| s.clone())
                 .unwrap_or_else(|| "Custom".into());
             let menu = world
-                .spawn_scene(bsn! { @FeathersMenu ChildOf(row) })
+                .spawn_scene(bsn! {
+                    @FeathersMenu Node {width:percent(100),height:px(32),flex_shrink:0.}
+                    ChildOf(row)
+                })
                 .expect("menu")
                 .id();
-            let trigger=world.spawn_scene(bsn! { @FeathersMenuButton Node {width:percent(100), min_height:px(30)} AccessibleLabel(label) ChildOf(menu) }).expect("menu button").id();
-            world.spawn((
-                Text::new(caption),
-                ThemedText,
-                ChoiceCaption(field.path.clone()),
-                ChildOf(trigger),
-            ));
+            // Supply the caption through Feathers: appended children land after
+            // its expanding spacer and chevron, pushing text to the right.
+            world
+                .spawn_scene(bsn! {
+                    @FeathersMenuButton { @caption:bsn!{
+                        Text(caption) ThemedText ChoiceCaption({field.path.clone()})
+                        TextLayout {linebreak:bevy::text::LineBreak::NoWrap}
+                        Node {min_width:px(0),flex_shrink:1.}
+                    } }
+                    Node {width:percent(100),min_height:px(32),align_items:AlignItems::Center}
+                    AccessibleLabel(label) ChildOf(menu)
+                })
+                .expect("menu button");
             let popup = world
                 .spawn_scene(bsn! { @FeathersMenuPopup ChildOf(menu) GlobalZIndex(200) })
                 .expect("menu popup")

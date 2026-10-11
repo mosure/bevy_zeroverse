@@ -2,6 +2,7 @@
 //! cargo run --example review_humans --features human_motion -- out/human_review
 //! Add --standing after the output directory to review the same wardrobes upright.
 //! --fit-review stages short, muscular bodies across all six garment cuts.
+//! --beard-review forces fitted stubble on eight varied adult faces.
 use bevy::prelude::*;
 use bevy_zeroverse::{
     app::BevyZeroverseConfig,
@@ -81,6 +82,11 @@ fn main() {
         h.hairstyle = (hair_start + seed as u8) % humans::hair::HairStyle::ALL.len() as u8;
         if args.iter().any(|a| a == "--female") {
             h.appearance.as_mut().unwrap().body_gender = Some(0.95);
+        }
+        if args.iter().any(|a| a == "--beard-review") {
+            let appearance = h.appearance.as_mut().unwrap();
+            appearance.body_gender = Some(0.05);
+            appearance.face.stubble = 1.0;
         }
         if body_review {
             // Same wardrobe/pose/pigments and fixed full-body cameras: compare

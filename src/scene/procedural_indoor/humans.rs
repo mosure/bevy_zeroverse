@@ -339,9 +339,14 @@ pub(crate) fn person_material(
         };
         mat.perceptual_roughness = 1.;
         mat
-    } else if matches!(surface, HumanSurface::Hair | HumanSurface::FacialHair) {
+    } else if surface == HumanSurface::Hair {
         materials.get(&indoor_materials.hair).unwrap().clone()
-    } else if matches!(surface, HumanSurface::Skin | HumanSurface::Lip) {
+    } else if matches!(
+        surface,
+        HumanSurface::Skin | HumanSurface::Lip | HumanSurface::FacialHair
+    ) {
+        // Close-cropped facial hair follows the skin relief. Long scalp-fibre
+        // maps on Anny's face UVs look like broad horizontal painted stripes.
         materials.get(&indoor_materials.skin).unwrap().clone()
     } else if surface == HumanSurface::Shoes {
         let leather = person
@@ -390,6 +395,7 @@ pub(crate) fn person_material(
             HumanSurface::Eye => 0.20,
             HumanSurface::Iris => 0.23,
             HumanSurface::Hair => 0.60,
+            HumanSurface::FacialHair => 0.82,
             HumanSurface::Shoes => 0.52,
             _ => 0.78,
         }
@@ -685,7 +691,7 @@ pub(super) fn fit_worktop(h: &mut IndoorHuman, table: &super::layout::IndoorObje
     update_bounds(h);
 }
 
-fn collision_capsules(human: &IndoorHuman) -> Vec<(Vec3, Vec3, f32)> {
+pub(crate) fn collision_capsules(human: &IndoorHuman) -> Vec<(Vec3, Vec3, f32)> {
     collision_capsules_inner(human, false)
 }
 fn collision_capsules_inner(human: &IndoorHuman, support: bool) -> Vec<(Vec3, Vec3, f32)> {
@@ -905,6 +911,26 @@ pub fn placement_clear(scene: &IndoorManifest, person: &IndoorHuman) -> bool {
         }
         let (ol, oh) = object.bounds();
         if !lo.cmplt(oh + Vec3::splat(0.01)).all() || !hi.cmpgt(ol - Vec3::splat(0.01)).all() {
+            continue;
+        }
+        if object.kind == ObjectKind::Cable {
+            let Some(path) = &object.cable_path else {
+                return false;
+            };
+            let transform = object.transform();
+            let jacket = super::objects::equipment::wires::bound_radius(object);
+            if path.windows(2).any(|pair| {
+                capsules.iter().any(|&(a, b, r)| {
+                    super::objects::equipment::wires::segment_distance_squared(
+                        a,
+                        b,
+                        transform.transform_point(pair[0]),
+                        transform.transform_point(pair[1]),
+                    ) <= ((r + jacket) as f64).powi(2)
+                })
+            }) {
+                return false;
+            }
             continue;
         }
         let inverse = object.transform().compute_affine().inverse();

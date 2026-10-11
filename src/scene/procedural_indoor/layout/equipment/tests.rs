@@ -558,3 +558,42 @@ fn reported_dense_and_rotated_equipment_routes_retain_layout_and_mesh_validity()
         super::super::super::validation::validate_geometry(&scene).unwrap();
     }
 }
+
+#[test]
+fn wall_power_routes_dangle_from_real_ports_without_filling_their_empty_envelope() {
+    let (mut routes, mut hanging) = (0, 0);
+    for seed in 0..64 {
+        let scene =
+            IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 0, 0.25).unwrap();
+        for cable in scene.objects.iter().filter(|o| {
+            o.kind == ObjectKind::Cable
+                && o.cable_target
+                    .is_some_and(|id| scene.objects[id].kind == ObjectKind::WallOutlet)
+        }) {
+            routes += 1;
+            assert!(cable_route_clear(&scene, cable), "seed {seed}");
+            let parent = &scene.objects[cable.support.unwrap()];
+            hanging += usize::from(cable.bounds().0.y < parent.position.y + parent.size.y - 0.10);
+            let (lo, hi) = cable.bounds();
+            let occupied: f32 = cable
+                .obstacle_bounds()
+                .map(|(a, b)| (b - a).element_product())
+                .sum();
+            assert!(
+                occupied < (hi - lo).element_product(),
+                "wire must not reserve its empty enclosing box"
+            );
+            let mut moved_scene = scene.clone();
+            let target = cable.cable_target.unwrap();
+            moved_scene.objects[target].position.x += 0.05;
+            assert!(
+                !cable_route_clear(&moved_scene, cable),
+                "moving a receptacle must invalidate its cable"
+            );
+        }
+    }
+    assert!(
+        routes >= 12 && hanging >= 10,
+        "wall routes={routes}, hanging={hanging}"
+    );
+}

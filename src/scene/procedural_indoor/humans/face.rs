@@ -138,24 +138,74 @@ pub(super) fn append(
     g.rod(world(mid), world(inner[1]), thickness * 0.8);
 }
 
-/// Split existing skin faces at a fitted cheek/chin region. Stubble never adds
-/// an alpha shell or changes the vermilion mask and cannot shimmer against skin.
-pub(super) fn stubble(
-    triangle: [super::garments::GarmentVertex; 3],
-    eye_origin: Vec3,
-    mesh: &mut HumanAssembly,
-) {
-    let (hair, skin) = super::garments::split(
-        &triangle,
-        |p| {
-            let p = p - eye_origin;
-            let top = p.y + 0.030 - 0.012 * (p.x.abs() / 0.075).min(1.0);
-            top.max(-0.125 - p.y)
-                .max(p.z - 0.025)
-                .max(p.x.abs() - 0.075)
-        },
-        None,
-    );
-    super::garments::emit(&skin, HumanSurface::Skin, mesh);
-    super::garments::emit(&hair, HumanSurface::FacialHair, mesh);
+/// A fitted rest-space lower-face region. The nose exclusion is tied to the
+/// actual vermilion edge, not deformation bone weights or a horizontal eye band.
+pub(super) struct BeardRegion {
+    eye: Vec3,
+    scale: f32,
+    upper_lip: f32,
+}
+impl BeardRegion {
+    pub fn new(vertices: &[Vec3], faces: &[i64], eyes: [Vec3; 2]) -> Self {
+        let eye = (eyes[0] + eyes[1]) * 0.5;
+        let scale = (eyes[0].distance(eyes[1]) / 0.064).clamp(0.65, 1.55);
+        let upper_lip = faces
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .enumerate()
+            .filter(|(i, _)| super::anatomy::lip_face(*i))
+            .flat_map(|(_, q)| q.iter().map(|&i| vertices[i as usize].y))
+            .fold(f32::NEG_INFINITY, f32::max);
+        Self {
+            eye,
+            scale,
+            upper_lip,
+        }
+    }
+    fn field(&self, point: Vec3) -> f32 {
+        let p = (point - self.eye) / self.scale;
+        // A cheek line rises smoothly from the moustache toward the sideburns.
+        // A rectangular nose cutout produces an equally artificial square beard.
+        let side = ((p.x.abs() - 0.026) / 0.049).clamp(0., 1.);
+        let lip = (self.upper_lip - self.eye.y) / self.scale;
+        let top = p.y - (lip + 0.006 + 0.054 * side * side * (3. - 2. * side));
+        let nose = (0.027 - p.x.abs()).min((point.y - self.upper_lip) / self.scale - 0.007);
+        top.max(-0.125 - p.y)
+            .max(p.z - 0.025)
+            .max(p.x.abs() - 0.075)
+            .max(nose)
+    }
+    pub fn append(&self, triangle: [super::garments::GarmentVertex; 3], mesh: &mut HumanAssembly) {
+        let (hair, skin) = super::garments::split(&triangle, |p| self.field(p), None);
+        super::garments::emit(&skin, HumanSurface::Skin, mesh);
+        super::garments::emit(&hair, HumanSurface::FacialHair, mesh);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn beard_excludes_nose_but_retains_cheek_chin_and_moustache() {
+        for scale in [0.65, 1.0, 1.55] {
+            let mask = BeardRegion {
+                eye: Vec3::ZERO,
+                scale,
+                upper_lip: -0.070 * scale,
+            };
+            for x in [-0.024, 0., 0.024] {
+                for y in [-0.025, -0.045, -0.060] {
+                    assert!(mask.field(Vec3::new(x, y, -0.04) * scale) > 0.);
+                }
+            }
+            for p in [
+                Vec3::new(0.045, -0.052, -0.01),
+                Vec3::new(0., -0.108, 0.),
+                Vec3::new(0., -0.069, -0.015),
+            ] {
+                assert!(mask.field(p * scale) < 0.);
+            }
+        }
+    }
 }

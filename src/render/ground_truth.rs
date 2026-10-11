@@ -312,57 +312,16 @@ struct ObjectTopology {
     indices_hash: u64,
 }
 
-/// Stable NYU/Hypersim vocabulary IDs; 0 is unlabeled/background, 1..40 are classes.
+/// Stable vocabulary IDs; 0 is background, 1..40 retain the original classes.
+/// Extended classes are appended in `SemanticLabel::ALL` order.
 pub fn semantic_id(label: &SemanticLabel) -> u32 {
     label.clone() as u32 + 1
 }
 
 pub fn semantic_label(id: u32) -> Option<SemanticLabel> {
-    const NAMES: [&str; 40] = [
-        "wall",
-        "floor",
-        "cabinet",
-        "bed",
-        "chair",
-        "sofa",
-        "table",
-        "door",
-        "window",
-        "bookshelf",
-        "picture",
-        "counter",
-        "blinds",
-        "desk",
-        "shelves",
-        "curtain",
-        "dresser",
-        "pillow",
-        "mirror",
-        "floormat",
-        "clothes",
-        "ceiling",
-        "books",
-        "refrigerator",
-        "television",
-        "paper",
-        "towel",
-        "shower_curtain",
-        "box",
-        "whiteboard",
-        "person",
-        "nightstand",
-        "toilet",
-        "sink",
-        "lamp",
-        "bathtub",
-        "bag",
-        "other_structure",
-        "other_furniture",
-        "other_prop",
-    ];
     id.checked_sub(1)
-        .and_then(|i| NAMES.get(i as usize))
-        .and_then(|name| SemanticLabel::from_label(name))
+        .and_then(|i| SemanticLabel::ALL.get(i as usize))
+        .cloned()
 }
 
 struct GroundTruthPipeline {
@@ -770,13 +729,13 @@ mod tests {
 
     #[test]
     fn semantic_ids_round_trip_and_match_existing_palette() {
-        for id in 1..=40 {
+        for id in 1..=SemanticLabel::ALL.len() as u32 {
             let label = semantic_label(id).unwrap();
             assert_eq!(semantic_id(&label), id);
             assert_eq!(SemanticLabel::from_label(label.as_str()).unwrap(), label);
         }
         assert!(semantic_label(0).is_none());
-        assert!(semantic_label(41).is_none());
+        assert!(semantic_label(SemanticLabel::ALL.len() as u32 + 1).is_none());
     }
 
     #[test]

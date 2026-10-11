@@ -94,7 +94,7 @@ impl Growth {
             pot_fraction: rng.random_range(0.19..0.30),
             pot_radius: rng.random_range(0.36..0.55),
             pot_taper: rng.random_range(0.60..0.94),
-            density: rng.random_range(0.50..1.08),
+            density: rng.random_range(0.78..1.08),
             phyllotaxis: rng.random_range(2.18..2.62),
             leaf_aspect: rng.random_range(0.72..1.28),
             crown_skew: rng.random_range(-0.16..0.16),
@@ -411,14 +411,18 @@ pub fn build(a: &mut Assembly, o: &IndoorObject) {
                     &[start, start.lerp(top, 0.5) + dir * spread * 0.05, top],
                     h * 0.013,
                 );
-                for j in 0..growth.count(19) {
+                // Age-graded whorls form a crown, rather than a single sparse
+                // star of blades at one point. Older outer leaves hang lower;
+                // the compact centre retains upright new growth.
+                for j in 0..growth.count(34) {
+                    let tier = (j % 3) as f32;
                     let d = radial(j as f32 * growth.phyllotaxis + cane as f32);
                     blade(
                         a,
-                        top,
-                        d * spread * rng.random_range(0.45..0.77)
-                            + Vec3::Y * h * rng.random_range(-0.18..0.08),
-                        spread * 0.045,
+                        top + Vec3::Y * h * (tier - 1.) * 0.012,
+                        d * spread * rng.random_range(0.52..0.79) * (1. - tier * 0.16)
+                            + Vec3::Y * h * (rng.random_range(-0.13..-0.045) + tier * 0.075),
+                        spread * rng.random_range(0.046..0.065),
                         1,
                         rng.random(),
                         &growth,

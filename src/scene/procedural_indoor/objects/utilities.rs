@@ -46,8 +46,8 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
             a.box_part(
                 Surface::Paper,
                 "other_prop",
-                Vec3::Y * s.y * 0.46,
-                Vec3::new(s.x * 0.95, s.y * 0.92, s.z * 0.95),
+                Vec3::Y * (s.y * 0.92 - 0.0015) * 0.5,
+                Vec3::new(s.x * 0.95, s.y * 0.92 - 0.0015, s.z * 0.95),
                 0.003,
             );
             a.box_part(

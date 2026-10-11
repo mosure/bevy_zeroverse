@@ -3,6 +3,11 @@
 pub fn capture_provenance() -> serde_json::Value {
     serde_json::json!({
         "schema_version": 1,
+        "semantic_taxonomy_version": crate::render::semantic::SemanticLabel::TAXONOMY_VERSION,
+        "semantic_palette": crate::render::semantic::SemanticLabel::ALL.iter().map(|label| {
+            let color = label.color().to_srgba();
+            serde_json::json!({"id":crate::render::ground_truth::semantic_id(label),"label":label.as_str(),"srgb8":([color.red,color.green,color.blue].map(|v| (v*255.).round() as u8))})
+        }).collect::<Vec<_>>(),
         "capture_engine": crate::CAPTURE_ENGINE_IDENTITY,
         "generator_version": bevy_zeroverse_capture::GENERATOR_VERSION,
         "crate_version": env!("CARGO_PKG_VERSION"),

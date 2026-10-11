@@ -117,6 +117,7 @@ fn prepared_glaze_replays_every_consumed_base_and_structural_map_and_mip() {
                 structures.insert(slot % super::super::variants::structure_count(surface));
             }
         }
+        structures.extend(0..super::super::variants::structure_count(surface));
         for structure in structures {
             let r = r.variant(structure);
             let c = r.coating.as_ref().unwrap();
@@ -127,7 +128,7 @@ fn prepared_glaze_replays_every_consumed_base_and_structural_map_and_mip() {
             maps += 1;
         }
     }
-    assert_eq!(maps, 11, "qualified consumed ceramic map corpus changed");
+    assert_eq!(maps, 12, "all three glaze structures across four scenes");
 }
 
 #[test]

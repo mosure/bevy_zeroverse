@@ -24,7 +24,7 @@ fn constrained_mixed_activity_room_retains_a_complete_furniture_group() {
             .transform_point3(table.position);
         local.z < -o.size.z * 0.5 && local.x.abs() < o.size.x * 0.5
     }));
-    assert!(validate_geometry(&scene).unwrap().semantic_triangles["table"] > 0);
+    assert!(validate_geometry(&scene).unwrap().semantic_triangles["coffee_table"] > 0);
     assert_eq!(
         scene,
         IndoorManifest::generate_with_humans(43_218_880, IndoorLayout::Mixed, 0.65, 3, 0.25)
@@ -60,7 +60,11 @@ fn complete_activity_rooms_are_unchanged_by_furnishing_recovery() {
         let before = scene.clone();
         scene.complete_lounge_groups();
         scene.complete_underfilled_activity_groups();
-        assert_eq!(scene, before);
+        assert!(
+            scene == before,
+            "seed {seed}: recovery added {:?}",
+            &scene.objects[before.objects.len()..]
+        );
     }
 }
 

@@ -143,6 +143,19 @@ impl Coverage {
             bounds(lo, hi, "person");
         }
         for o in scene.objects.iter().filter(|o| !o.neighbor) {
+            if o.kind == super::super::layout::ObjectKind::Cable {
+                // A hanging lead bounds a large empty volume. Only its jacket
+                // occludes geometry; its overall AABB is not a solid object.
+                for (lo, hi) in o.obstacle_bounds() {
+                    colliders.push(Collider {
+                        center: (lo + hi) * 0.5,
+                        half: (hi - lo) * 0.5,
+                        inverse: Quat::IDENTITY,
+                        label: "cable",
+                    });
+                }
+                continue;
+            }
             if o.kind == super::super::layout::ObjectKind::Chair {
                 // A tall chair's full bounding box hides the seated person's
                 // face even when the front of the real chair is completely open.

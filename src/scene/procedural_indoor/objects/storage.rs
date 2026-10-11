@@ -51,7 +51,10 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     let bottom = 0.065;
     let top = s.y - t * 0.5;
     let pitch = (top - bottom) / p.levels as f32;
-    if !p.open_back || o.kind == ObjectKind::Cabinet {
+    let closed_back = !p.open_back || o.kind == ObjectKind::Cabinet;
+    let frame_depth = s.z - if closed_back { t } else { 0. };
+    let frame_z = if closed_back { t * 0.5 } else { 0. };
+    if closed_back {
         a.box_part(
             Surface::WoodEdge,
             label,
@@ -65,20 +68,29 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
         a.box_part(
             frame,
             label,
-            Vec3::new(x, s.y * 0.5, 0.),
-            Vec3::new(t, s.y, s.z),
+            Vec3::new(x, s.y * 0.5, frame_z),
+            Vec3::new(t, s.y, frame_depth),
             0.003,
         );
     }
     for level in 0..=p.levels {
         let y = bottom + level as f32 * pitch;
-        a.box_part(
-            frame,
-            label,
-            Vec3::new(0., y, 0.),
-            Vec3::new(s.x - t * 2., t, s.z),
-            0.003,
-        );
+        // Shelves butt between uprights and the rear panel. Overlapping full
+        // width boards put competing faces on the exterior/front frame planes.
+        let bay = (s.x - t) / p.columns as f32;
+        for col in 0..p.columns {
+            a.box_part(
+                frame,
+                label,
+                Vec3::new(
+                    -s.x * 0.5 + t + col as f32 * bay + (bay - t) * 0.5,
+                    y,
+                    frame_z,
+                ),
+                Vec3::new(bay - t, t, frame_depth),
+                0.003,
+            );
+        }
         if level == p.levels || (o.kind == ObjectKind::Cabinet && p.front != 3) {
             continue;
         }
@@ -101,28 +113,28 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
                 if content < 2 {
                     a.box_part(
                         Surface::Paper,
-                        "other_prop",
-                        Vec3::new(x, base + h * 0.5, z),
-                        Vec3::new(w, h, s.z * 0.77),
+                        "box",
+                        Vec3::new(x, base + (h - 0.0195) * 0.5, z),
+                        Vec3::new(w, h - 0.0195, s.z * 0.77),
                         0.003,
                     );
                     a.box_part(
                         Surface::WoodEdge,
-                        "other_prop",
+                        "box",
                         Vec3::new(x, base + h - 0.009, z),
                         Vec3::new(w + 0.008, 0.018, s.z * 0.80),
                         0.002,
                     );
                     a.box_part(
                         Surface::Ink,
-                        "other_prop",
+                        "box",
                         Vec3::new(x, base + h * 0.62, z + s.z * 0.39),
                         Vec3::new(w * 0.32, 0.011, 0.001),
                         0.001,
                     );
                 } else {
                     let r = (w * 0.36).min(s.z * 0.30);
-                    a.part(Surface::Ceramic, "other_prop").lathe(
+                    a.part(Surface::Ceramic, "vase").lathe(
                         &[
                             (0., 0.),
                             (r * 0.64, 0.),
@@ -172,20 +184,45 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
                 };
                 let depth = s.z * rng.random_range(0.63..0.87);
                 let z = (s.z - depth) * 0.34;
+                // Covers and spine enclose a real paper block. Painting a thin
+                // paper cap over a closed cover box created coincident end faces.
+                let thickness = 0.002_f32.min(w * 0.10).min(h * 0.10);
+                let center = Vec3::new(x + w * 0.5, base + h * 0.5, z);
+                for side in [-1., 1.] {
+                    let offset = if flat {
+                        Vec3::Y * (h - thickness) * 0.5
+                    } else {
+                        Vec3::X * (w - thickness) * 0.5
+                    };
+                    let size = if flat {
+                        Vec3::new(w, thickness, depth)
+                    } else {
+                        Vec3::new(thickness, h, depth)
+                    };
+                    a.box_part(cover, &book_label, center + side * offset, size, 0.0004);
+                }
+                let inside = if flat {
+                    Vec2::new(w, h - 2. * thickness)
+                } else {
+                    Vec2::new(w - 2. * thickness, h)
+                };
                 a.box_part(
                     cover,
                     &book_label,
-                    Vec3::new(x + w * 0.5, base + h * 0.5, z),
-                    Vec3::new(w, h, depth),
-                    0.0015,
+                    center + Vec3::Z * (depth - thickness) * 0.5,
+                    Vec3::new(inside.x, inside.y, thickness),
+                    0.0004,
                 );
-                // Paper block leaves visible cover boards and a colored spine.
                 a.box_part(
                     Surface::Paper,
                     "books",
-                    Vec3::new(x + w * 0.5, base + h * 0.5, z - depth * 0.49),
-                    Vec3::new(w * 0.82, h * 0.96, 0.004),
-                    0.,
+                    center - Vec3::Z * thickness * 0.5,
+                    Vec3::new(
+                        inside.x - 0.001,
+                        inside.y - 0.001,
+                        depth - thickness - 0.001,
+                    ),
+                    0.0003,
                 );
                 for fraction in [0.18, 0.82] {
                     a.box_part(
@@ -202,12 +239,12 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     }
     if o.kind == ObjectKind::Cabinet {
         if p.front == 4 {
-            for y in [0.070, s.y - 0.012] {
+            for y in [bottom + t * 0.5 + 0.005, s.y - t - 0.005] {
                 a.box_part(
                     Surface::Metal,
                     label,
                     Vec3::new(0., y, s.z * 0.5 - 0.010),
-                    Vec3::new(s.x - 2. * t, 0.008, 0.012),
+                    Vec3::new(s.x - 2. * t - 0.004, 0.008, 0.012),
                     0.001,
                 );
             }

@@ -52,10 +52,11 @@ pub(super) fn unpack_ground_truth(
     let append = |target: &mut Vec<u8>, values: [f32; 4]| {
         target.extend_from_slice(bytemuck::cast_slice(&values));
     };
-    let palette: [Option<[f32; 4]>; 41] = std::array::from_fn(|id| {
-        crate::render::ground_truth::semantic_label(id as u32)
-            .map(|label| label.color().to_linear().to_f32_array())
-    });
+    let palette: [Option<[f32; 4]>; crate::render::semantic::SemanticLabel::ALL.len() + 1] =
+        std::array::from_fn(|id| {
+            crate::render::ground_truth::semantic_label(id as u32)
+                .map(|label| label.color().to_linear().to_f32_array())
+        });
     for (wd, ns) in world_depth
         .as_chunks_mut::<16>()
         .0
@@ -201,10 +202,11 @@ mod tests {
         let normal_enabled = modes.contains(&RenderMode::Normal);
         let position_enabled = modes.contains(&RenderMode::Position);
         let semantic_enabled = modes.contains(&RenderMode::Semantic);
-        let palette: [Option<[f32; 4]>; 41] = std::array::from_fn(|id| {
-            crate::render::ground_truth::semantic_label(id as u32)
-                .map(|label| label.color().to_linear().to_f32_array())
-        });
+        let palette: [Option<[f32; 4]>; crate::render::semantic::SemanticLabel::ALL.len() + 1] =
+            std::array::from_fn(|id| {
+                crate::render::ground_truth::semantic_label(id as u32)
+                    .map(|label| label.color().to_linear().to_f32_array())
+            });
         for (wd, ns) in world_depth
             .as_chunks::<16>()
             .0
@@ -301,7 +303,14 @@ mod tests {
         let normals = [
             [0.5_f32, 1., 0.5, 1.],
             [1., 0.5, 0.5, 2.],
-            [-0., 0.5, 0.5, 40.],
+            [
+                -0.,
+                0.5,
+                0.5,
+                crate::render::ground_truth::semantic_id(
+                    &crate::render::semantic::SemanticLabel::Plant,
+                ) as f32,
+            ],
             [-0., 0., 0.5, 0.],
             [0., -0., 0.5, 0.],
         ];
@@ -323,6 +332,41 @@ mod tests {
             near: 0.1,
             far: 50.,
             ..default()
+        }
+    }
+
+    #[test]
+    fn every_taxonomy_class_decodes_to_its_exact_render_palette() {
+        for label in crate::render::semantic::SemanticLabel::ALL {
+            let wd = [0_f32, 0., -2., 2.];
+            let ns = [
+                0.5_f32,
+                1.,
+                0.5,
+                crate::render::ground_truth::semantic_id(label) as f32,
+            ];
+            let mut output = view();
+            unpack_ground_truth(
+                &mut output,
+                vec![
+                    vec![0; 16],
+                    bytemuck::cast_slice(&wd).to_vec(),
+                    bytemuck::cast_slice(&ns).to_vec(),
+                ],
+                &[RenderMode::Semantic],
+                &SceneAabb {
+                    min: -Vec3::ONE,
+                    max: Vec3::ONE,
+                },
+                &default(),
+            )
+            .unwrap();
+            assert_eq!(
+                output.semantic,
+                bytemuck::cast_slice::<f32, u8>(&label.color().to_linear().to_f32_array()),
+                "{}",
+                label.as_str()
+            );
         }
     }
 
@@ -431,7 +475,12 @@ mod tests {
             (2, 3, 2, f32::INFINITY),
             (2, 0, 3, 0.5),
             (2, 0, 3, 0.),
-            (2, 0, 3, 41.),
+            (
+                2,
+                0,
+                3,
+                crate::render::semantic::SemanticLabel::ALL.len() as f32 + 1.,
+            ),
         ] {
             let mut source = planes();
             let offset = pixel * 16 + field * 4;
@@ -448,7 +497,9 @@ mod tests {
         // Unsupported semantic IDs are checked only when semantic output is
         // requested; all finite channels are still checked for RGB-only capture.
         let mut source = planes();
-        source[2][12..16].copy_from_slice(&41_f32.to_ne_bytes());
+        source[2][12..16].copy_from_slice(
+            &(crate::render::semantic::SemanticLabel::ALL.len() as f32 + 1.).to_ne_bytes(),
+        );
         assert!(
             unpack_ground_truth(&mut view(), source, &[RenderMode::Color], &aabb, &default())
                 .is_ok()

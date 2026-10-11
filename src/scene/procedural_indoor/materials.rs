@@ -327,7 +327,7 @@ impl IndoorMaterials {
                 }
                 Surface::Leaf | Surface::LeafLight | Surface::LeafVariegated => {
                     if scene.program.is_none() {
-                        mat.diffuse_transmission = 0.18;
+                        mat.diffuse_transmission = 0.06;
                     }
                     // The blade atlas remains 0..1 despite its metric derivative reference.
                     mat.uv_transform = bevy::math::Affine2::IDENTITY;

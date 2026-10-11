@@ -243,6 +243,32 @@ pub fn build_object(o: &IndoorObject) -> Assembly {
             }
         }
     }
+    // Object identities and pixels use the same taxonomy. Preserve explicit
+    // contents (books/paper) on storage furniture, but replace builder-era
+    // coarse furniture/prop classes before material batching.
+    let class = o.kind.class_name();
+    let mut labeled = BTreeMap::<(Surface, String), Geometry>::new();
+    for ((surface, label), geometry) in a.parts {
+        let old = part_label(&label);
+        let label = if matches!(
+            old,
+            "other_prop" | "chair" | "sofa" | "table" | "cabinet" | "television"
+        ) {
+            label.replacen(old, class, 1)
+        } else {
+            label
+        };
+        // Several older part labels may converge on the same object class.
+        match labeled.entry((surface, label)) {
+            std::collections::btree_map::Entry::Vacant(entry) => {
+                entry.insert(geometry);
+            }
+            std::collections::btree_map::Entry::Occupied(mut entry) => {
+                entry.get_mut().append(geometry)
+            }
+        }
+    }
+    a.parts = labeled;
     // Keep a bounded finish palette, shared maps and separate semantic labels.
     // Independent object seeds avoid uniform mug/chassis/cover colors in a room.
     a.parts = a
@@ -452,5 +478,7 @@ fn lamp(a: &mut Assembly, o: &IndoorObject) {
 
 #[cfg(test)]
 mod catalog_tests;
+#[cfg(test)]
+mod coplanar_tests;
 #[cfg(test)]
 mod review_tests;

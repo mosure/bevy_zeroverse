@@ -202,7 +202,11 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     } else {
         rng.random_range(0.56..0.65)
     };
-    let back_top = o.size.y - 0.015 - if program.headrest { 0.20 } else { 0.0 };
+    // Negative recline raises a curved rim above its unrotated datum.
+    // Reserve that rise before constructing the frame, keeping metric thickness.
+    let rise = (-program.recline.sin()).max(0.)
+        * (program.curvature + program.shell_thickness + (o.size.y - back_bottom) * 0.13);
+    let back_top = o.size.y - 0.018 - rise - if program.headrest { 0.20 } else { 0.0 };
     let back_height = back_top - back_bottom;
     let back_width = width * program.back_width_fraction;
     let recline = program.recline;
