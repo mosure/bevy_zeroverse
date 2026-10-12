@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "date_utc": "2026-10-12T05:19:43.979222+00:00",
+  "crates": {
+    "bevy_zeroverse": "0.37.2",
+    "bevy_zeroverse_burn": "0.21.0",
+    "bevy_zeroverse_ffi": "0.37.2"
+  },
+  "status": "native_hardware_qualified_experimental_cuda",
+  "source_sha256": {
+    "crates/burn/Cargo.toml": "340474927be465702f975790884eb28b52fc88ad92ee28897529b2b136daca21",
+    "crates/burn/src/gpu.rs": "ed0b8f74ed5028d2974c3cd2bdf78f16870235d30eb472d151a5cc91801203f9",
+    "crates/burn/src/gpu/worker.rs": "9171abe39049378240b5d4a6847f8a34b75b2250ecea5a116130cb2385fd64bb",
+    "crates/burn/src/gpu/cuda/mod.rs": "a8a0c9941a5e2cf3f1ca4f62aa4397b7ed7854d275b882ba11212afe755cd1f4",
+    "crates/burn/src/gpu/cuda/memory.rs": "aef408f54a9cfe559f5a541fd2904f8b130ac7ecd8bd70e6383251e11076c88d",
+    "crates/burn/src/gpu/cuda/semaphore.rs": "63af74cd96b5243bc17d92ae44165261fdbb39760960262d1b8008d7f3945574"
+  },
+  "platform": "Linux, NVIDIA RTX PRO 6000 Blackwell 96 GB, driver 610.43.02",
+  "versions": {
+    "bevy": "0.20.0",
+    "burn": "0.22.0",
+    "wgpu": "30.0.1",
+    "cubecl": "0.11.0"
+  },
+  "copy_contract": {
+    "wgpu": {
+      "host_image_bytes": 0,
+      "base_gpu_copies_per_attachment": 1,
+      "shares_bevy_logical_device_and_queue": true,
+      "producer_completion_fence": false,
+      "aligned_512_planes_share_storage": true
+    },
+    "vulkan_cuda": {
+      "host_image_bytes": 0,
+      "base_gpu_copies_per_attachment": 2,
+      "physical_gpu_matched_by_uuid": true,
+      "allocation_context_verified": true,
+      "producer_allocation_and_transfer_stream_fences": true,
+      "device_wide_cuda_fence": false,
+      "zero_copy": false
+    },
+    "padding": "Odd widths may need GPU packing; derived channels and terminal flow may launch GPU kernels.",
+    "evidence": "Source audit, actual WGPU buffer/offset identity, exact rendered CPU transport parity and on-device consumer arithmetic; not a PCIe bus trace."
+  },
+  "validation": {
+    "workspace_clippy_warnings_denied": true,
+    "adapter_unit_tests_passed": 25,
+    "native_gpu_tests_passed": 5,
+    "native_gpu_tests_with_fusion_passed": 5,
+    "publication_contract_tests_passed": 37,
+    "webgpu_motion_viewer_compiled": true,
+    "default_wgpu_and_wasm_cuda_dependency_isolation": true,
+    "three_crate_registry_package_dry_run": true,
+    "render_coverage": [
+      "RGB",
+      "depth",
+      "normal",
+      "position",
+      "semantic",
+      "forward optical flow",
+      "co-visibility",
+      "glass Surface and Through",
+      "321x239 row padding",
+      "512x512 shared allocation planes",
+      "consumer tensor arithmetic",
+      "retained samples after regeneration and renderer destruction",
+      "worker sequence and indexed replay",
+      "invalid CUDA batch poisons future captures"
+    ]
+  },
+  "prior_cuda_sanitizer": {
+    "date_utc": "2026-10-11",
+    "result": "passed with zero memory errors; leak checking disabled",
+    "interop_source_hashes_unchanged": true
+  },
+  "log_sha256": {
+    "check": "cc5f29fd1663d2f03b9b9f0f3d3bfd063a6a564e9fee43d691c5aa9d1b149929",
+    "clippy": "f8bb38f545ed56292ea044711b092e3821eeabfd7d07346a10dd5f2da505fa3e",
+    "unit": "4a8273c85950e7d2d4172d8d968c6b8b37c0b9f0468a6dd0ff95703d73a3360d",
+    "gpu": "b237b9cf23e864af6faf528cd3fc8fa08bcf3b2bba1c74b4e01463fc64a84157",
+    "fusion": "fe8d90ce60f11233248d6ab3f0192a72f92c9da8ae122debdcd2722b058005b9",
+    "wasm": "093d5127cc68b74371d32291909def8532c792e88b72df6901635d32f448b326",
+    "publication-tests": "7febfe955a607208304125d3de4dc26062744dd61ad6fad2d16de4b8aabe1645",
+    "package-dry-run": "329a3764f646e490e09b1ced331c981230cc14dd909a9661a044309347d1db8c"
+  },
+  "limits": [
+    "Native GPU runtime qualification used one Linux NVIDIA GPU; no multi-GPU or unlimited-duration memory qualification",
+    "CUDA has two GPU copies and producer stream fences; it is not zero-copy or a guaranteed throughput improvement",
+    "The native threaded GPU dataset API is not exported on WASM; the WebGPU viewer remains supported",
+    "GPU procedural material synthesis is not part of this release",
+    "Current throughput study stays local; compare complete training steps and input waiting on the intended workload"
+  ]
+}

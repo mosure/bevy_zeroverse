@@ -9,6 +9,9 @@ use std::time::Instant;
 struct Args {
     #[arg(long)]
     gpu: bool,
+    /// Native Vulkan/CUDA external-memory transport (requires cuda_interop).
+    #[arg(long, conflicts_with = "gpu")]
+    cuda: bool,
     #[arg(long, default_value_t = 64)]
     scenes: usize,
     #[arg(long, default_value_t = 8)]
@@ -38,8 +41,19 @@ fn main() -> Result<()> {
     let mut times = Vec::new();
     let mut capture_times = Vec::new();
     let mut consumer_times = Vec::new();
-    if args.gpu {
-        let mut dataset = GpuLiveDataset::new(config)?;
+    if args.gpu || args.cuda {
+        let mut dataset = if args.cuda {
+            #[cfg(all(feature = "cuda_interop", target_os = "linux"))]
+            {
+                GpuLiveDataset::new_cuda(config)?
+            }
+            #[cfg(not(all(feature = "cuda_interop", target_os = "linux")))]
+            {
+                anyhow::bail!("--cuda requires the cuda_interop feature on Linux")
+            }
+        } else {
+            GpuLiveDataset::new(config)?
+        };
         for index in 0..args.scenes + args.warmup {
             let start = Instant::now();
             let sample = dataset.next_sample()?;
@@ -91,7 +105,7 @@ fn main() -> Result<()> {
     println!(
         "{}",
         serde_json::to_string_pretty(
-            &serde_json::json!({"gpu_transport":args.gpu,"scenes":args.scenes,"warmup":args.warmup,"seed":args.seed,"views":3,"timesteps":1,"width":512,"height":512,"quality":"auto, full native shadows and diffuse GI","seconds":total,"rooms_per_second":args.scenes as f64/total,"target_views_per_second":args.scenes as f64*3./total,"scene_seconds":times,"capture_seconds":capture_times,"consumer_seconds":consumer_times})
+            &serde_json::json!({"gpu_transport":args.gpu || args.cuda,"transport":if args.cuda { "vulkan_cuda" } else if args.gpu { "wgpu" } else { "cpu" },"scenes":args.scenes,"warmup":args.warmup,"seed":args.seed,"views":3,"timesteps":1,"width":512,"height":512,"quality":"auto, full native shadows and diffuse GI","seconds":total,"rooms_per_second":args.scenes as f64/total,"target_views_per_second":args.scenes as f64*3./total,"scene_seconds":times,"capture_seconds":capture_times,"consumer_seconds":consumer_times})
         )?
     );
     Ok(())

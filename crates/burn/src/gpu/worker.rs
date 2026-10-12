@@ -27,17 +27,42 @@ pub struct GpuLiveDataset {
 impl GpuLiveDataset {
     /// Three 512x512 views, one timestep, full native lighting and annotations.
     pub fn indoor() -> Result<Self> {
-        Self::new(BevyZeroverseConfig {
+        Self::new(Self::indoor_config())
+    }
+
+    /// The same full-quality indoor preset as [`Self::indoor`], delivered to
+    /// CUDA through external GPU memory. Requires Linux and `cuda_interop`.
+    /// See [`Self::new_cuda`] for the copy and synchronization contract.
+    #[cfg(all(feature = "cuda_interop", target_os = "linux"))]
+    pub fn indoor_cuda() -> Result<Self> {
+        Self::new_cuda(Self::indoor_config())
+    }
+
+    fn indoor_config() -> BevyZeroverseConfig {
+        BevyZeroverseConfig {
             scene_type: ZeroverseSceneType::ProceduralIndoor,
             num_cameras: 3,
             width: 512.,
             height: 512.,
             playback_steps: 1,
             ..Default::default()
-        })
+        }
     }
 
-    pub fn new(mut config: BevyZeroverseConfig) -> Result<Self> {
+    pub fn new(config: BevyZeroverseConfig) -> Result<Self> {
+        Self::with_transport(config, Transport::Wgpu)
+    }
+
+    /// Experimental Linux Vulkan/CUDA capture on the same physical GPU.
+    /// Uses external device memory, never a host image round trip. One additional
+    /// GPU copy and a producer-side completion fence make returned Burn tensors
+    /// safe on any consumer thread/stream. Requires `cuda_interop`; no patches.
+    #[cfg(all(feature = "cuda_interop", target_os = "linux"))]
+    pub fn new_cuda(config: BevyZeroverseConfig) -> Result<Self> {
+        Self::with_transport(config, Transport::Cuda)
+    }
+
+    fn with_transport(mut config: BevyZeroverseConfig, transport: Transport) -> Result<Self> {
         let next_seed = *config.indoor_seed.get_or_insert_with(rand::random);
         let (requests, incoming) = mpsc::sync_channel(1);
         let (outgoing, samples) = mpsc::sync_channel(1);
@@ -46,8 +71,9 @@ impl GpuLiveDataset {
             .name("zeroverse-gpu-capture".into())
             .spawn(move || {
                 // App is created and destroyed on its own thread. No native
-                // windows, winit event loop or motion model are initialized here.
-                let mut renderer = match Renderer::new(config) {
+                // windows or winit event loop are initialized here. Motion
+                // models remain lazy and load only when the config requests them.
+                let mut renderer = match Renderer::with_transport(config, transport) {
                     Ok(renderer) => renderer,
                     Err(error) => {
                         let _ = ready.send(Err(error));
@@ -81,7 +107,8 @@ impl GpuLiveDataset {
         })
     }
 
-    /// Construct the Burn model and optimizer on this same device/queue.
+    /// Construct the Burn model and optimizer here. WGPU shares Bevy's device
+    /// and queue; the opt-in CUDA device matches Bevy's physical GPU by UUID.
     pub fn device(&self) -> &Device {
         &self.device
     }
@@ -97,7 +124,8 @@ impl GpuLiveDataset {
     }
 
     /// Consume the next consecutive seed and prepare one future room while the
-    /// model trains. This does not wait for GPU completion or map image data.
+    /// model trains. WGPU returns after submission; CUDA fences its transfer
+    /// stream before returning. Neither transport maps image data to the host.
     pub fn next_sample(&mut self) -> Result<GpuSample> {
         let seed = self.next_seed;
         let next = seed.checked_add(1).context("indoor seed overflow")?;

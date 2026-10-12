@@ -247,6 +247,11 @@ impl Request {
             .await;
             prepared.timings.layout_seconds = layout_seconds;
             prepared.timings.cameras_seconds = cameras_seconds;
+            // Disabled by default; attribute CPU work without adding timings to
+            // deterministic dataset metadata or changing capture readiness.
+            debug!(target: "bevy_zeroverse::preparation", seed = request.seed,
+                timings = %serde_json::to_string(&prepared.timings).expect("finite preparation durations"),
+                "indoor preparation complete");
             Ok(prepared)
         });
         PreparationJob {

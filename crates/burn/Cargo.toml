@@ -1,6 +1,6 @@
 [package]
 name = "bevy_zeroverse_burn"
-version = "0.20.1"
+version = "0.21.0"
 edition = "2024"
 rust-version = "1.97.1"
 license = "MIT OR Apache-2.0"
@@ -54,7 +54,16 @@ crossterm = "0.29"
 ndarray = { version = "0.16", default-features = false, features = ["std"] }
 ndarray-npy = { version = "0.9", features = ["npz"] }
 
-bevy_zeroverse = { path = "../..", version = "0.37.1", default-features = true }
+bevy_zeroverse = { path = "../..", version = "0.37.2", default-features = true }
+
+# Native CUDA interoperability uses published APIs only. These dependencies and
+# their features never enter the default or WebGPU/WASM dependency graph.
+[target.'cfg(target_os = "linux")'.dependencies]
+ash = { version = "0.38", default-features = false, optional = true }
+cudarc = { version = "0.19.10", default-features = false, features = ["std", "driver", "fallback-dynamic-loading", "cuda-version-from-build-system", "fallback-latest"], optional = true }
+bevy-render-cuda = { package = "bevy_render", version = "=0.20.0", default-features = false, features = ["raw_vulkan_init"], optional = true }
+burn-tensor-cuda = { package = "burn-tensor", version = "=0.22.0", default-features = false, features = ["std", "cuda"], optional = true }
+cubecl-runtime = { version = "=0.11.0", default-features = false, features = ["std"], optional = true }
 
 [dev-dependencies]
 criterion = { version = "0.8", features = ["html_reports"] }
@@ -65,6 +74,7 @@ human_motion = ["bevy_zeroverse/human_motion"]
 
 gpu_tensor = ["dep:bevy", "dep:burn-cubecl", "burn/wgpu", "burn/cubecl"]
 gpu_tensor_fusion = ["gpu_tensor", "dep:burn-fusion", "burn/fusion"]
+cuda_interop = ["gpu_tensor", "dep:ash", "dep:cudarc", "dep:bevy-render-cuda", "dep:burn-tensor-cuda", "dep:cubecl-runtime"]
 
 [[example]]
 name = "gpu_jit_bench"

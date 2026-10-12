@@ -102,7 +102,9 @@ cargo run --bin viewer -- --scene-type procedural-indoor --indoor-seed 7 \
 
 Native JIT training can use `bevy_zeroverse_burn::gpu::GpuLiveDataset` (feature
 `gpu_tensor`) to render into Burn-owned buffers on the same device, retaining
-full native quality. See the [tensor contract and benchmark](docs/gpu_jit.md).
+full native quality without host image transfers. Experimental `cuda_interop` also
+supports Linux Vulkan → CUDA through shared GPU memory and an additional device copy, using
+published dependencies without patches. See the [tensor contract and benchmark](docs/gpu_jit.md).
 
 Scene Studio uses Bevy 0.20 Feathers controls and the built-in pan-orbit camera
 on native and WebGPU; it needs no egui, inspector or external camera plugin. **Apply changes**

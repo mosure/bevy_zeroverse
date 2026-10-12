@@ -20,6 +20,12 @@
 //! consume GPU tensors without a host image round trip. It schedules one future
 //! sample automatically while training runs. The CPU/archive interface remains
 //! useful for export and host processing.
+//! Linux NVIDIA users can opt into `cuda_interop` and construct the same stream
+//! with `gpu::GpuLiveDataset::new_cuda` or `gpu::GpuLiveDataset::indoor_cuda`.
+//! WGPU shares Bevy's logical device and queue; CUDA verifies the physical GPU
+//! and uses external device memory, an extra device copy and producer stream
+//! fences. Both retain ordinary Burn-owned tensors with no host image transfer.
+//! The CUDA bridge uses published dependencies and introduces no Cargo patches.
 //!
 //! For in-memory consumption, retain a [`LiveDataset`] and call
 //! [`LiveDataset::next_sample`]. Its renderer persists across calls and compatible

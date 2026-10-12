@@ -1,6 +1,7 @@
-//! Same-device JIT training: render once into Burn-owned storage. No image
-//! readback, host decoding, upload, or GPU completion wait occurs in capture.
-//! Use this renderer's `device()` for the model and optimizer too.
+//! Native GPU-resident JIT training. WGPU shares Bevy's exact device/queue and
+//! copies textures into Burn storage without host image transfer or completion
+//! waits. Opt-in Linux Vulkan/CUDA interop uses an additional device copy and
+//! producer fences. Use the renderer's `device()` for model and optimizer too.
 use anyhow::{Context as ContextExt, Result, ensure};
 use bevy::{
     prelude::*,
@@ -26,6 +27,16 @@ use std::{
     sync::Arc,
     time::{Duration, Instant},
 };
+
+#[cfg(all(feature = "cuda_interop", target_os = "linux"))]
+mod cuda;
+
+#[derive(Clone, Copy)]
+enum Transport {
+    Wgpu,
+    #[cfg(all(feature = "cuda_interop", target_os = "linux"))]
+    Cuda,
+}
 
 /// Raw planes preserve full precision and the raster oracle contract. All
 /// tensors have [height, width, 4] layout, without row padding. Normals are
@@ -72,12 +83,14 @@ struct Renderer {
     queued_seed: Option<u64>,
     next_token: u64,
     tensors: HashMap<u64, Tensor<4>>,
+    #[cfg(all(feature = "cuda_interop", target_os = "linux"))]
+    cuda: Option<cuda::Bridge>,
 }
 mod worker;
 pub use worker::{GpuDataset, GpuLiveDataset};
 
 impl Renderer {
-    pub fn new(mut config: BevyZeroverseConfig) -> Result<Self> {
+    fn with_transport(mut config: BevyZeroverseConfig, transport: Transport) -> Result<Self> {
         ensure!(
             config.width.is_finite()
                 && config.height.is_finite()
@@ -114,7 +127,17 @@ impl Renderer {
         }
         config.validate_ovoxel().map_err(anyhow::Error::msg)?;
         bevy_zeroverse::headless::setup_globals(std::env::var("BEVY_ASSET_ROOT").ok());
-        let mut app = bevy_zeroverse::headless::create_app(None, Some(config.clone()), false);
+        let initial_app = match transport {
+            Transport::Wgpu => App::new(),
+            #[cfg(all(feature = "cuda_interop", target_os = "linux"))]
+            Transport::Cuda => {
+                let mut app = App::new();
+                app.insert_resource(cuda::settings());
+                app
+            }
+        };
+        let mut app =
+            bevy_zeroverse::headless::create_app(Some(initial_app), Some(config.clone()), false);
         app.finish();
         let world = app.sub_app(RenderApp).world();
         let adapter = world.resource::<RenderAdapter>();
@@ -149,7 +172,16 @@ impl Renderer {
         // Cleanup transfers RenderApp to the pipelined rendering thread.
         // Clone its instance/device/queue first; handles refer to the same GPU.
         app.cleanup();
-        let device = Device::wgpu_options().setup(setup).init()?;
+        #[cfg(all(feature = "cuda_interop", target_os = "linux"))]
+        let cuda = match transport {
+            Transport::Cuda => Some(cuda::Bridge::new(&setup)?),
+            Transport::Wgpu => None,
+        };
+        let device = match transport {
+            Transport::Wgpu => Device::wgpu_options().setup(setup).init()?,
+            #[cfg(all(feature = "cuda_interop", target_os = "linux"))]
+            Transport::Cuda => cuda.as_ref().unwrap().device().clone(),
+        };
         app.insert_resource(GpuSampleSink::default());
         app.world_mut()
             .resource_mut::<procedural_indoor::preparation::IndoorPrefetch>()
@@ -161,6 +193,8 @@ impl Renderer {
             config,
             next_token: 0,
             tensors: HashMap::new(),
+            #[cfg(all(feature = "cuda_interop", target_os = "linux"))]
+            cuda,
         })
     }
     pub fn device(&self) -> &Device {
@@ -171,6 +205,10 @@ impl Renderer {
         self.capture(seed, true)
     }
     fn capture(&mut self, seed: u64, reset_sequence: bool) -> Result<GpuSample> {
+        #[cfg(all(feature = "cuda_interop", target_os = "linux"))]
+        if let Some(bridge) = &self.cuda {
+            bridge.begin_capture()?;
+        }
         self.tensors.clear();
         *self.app.world_mut().resource_mut::<GpuSampleSink>() = GpuSampleSink::default();
         self.app.world_mut().resource_mut::<CaptureFailure>().0 = None;
@@ -191,33 +229,56 @@ impl Renderer {
             .resource::<bevy_zeroverse::sample::CaptureProgress>()
             .waiting_updates;
         let mut updates = 0_u64;
+        let mut target_binding_seconds = 0.0_f64;
+        let mut app_update_seconds = 0.0_f64;
+        let expected_views = self
+            .config
+            .num_cameras
+            .checked_mul(self.config.playback_steps as usize)
+            .context("GPU capture view count overflow")?;
         while self.app.world().resource::<SamplerState>().enabled {
             ensure!(
                 start.elapsed() < Duration::from_secs(120),
                 "GPU capture timed out for seed {seed}"
             );
-            let copiers: Vec<_> = self
-                .app
-                .world_mut()
-                .query::<&ImageCopier>()
-                .iter(self.app.world())
-                .cloned()
-                .collect();
+            let binding_started = Instant::now();
+            // The sampler has a final metadata update after taking the last
+            // planes. Do not allocate another set of targets for that update.
+            let copiers: Vec<_> =
+                if self.app.world().resource::<GpuSampleSink>().images.len() >= expected_views {
+                    Vec::new()
+                } else {
+                    self.app
+                        .world_mut()
+                        .query::<&ImageCopier>()
+                        .iter(self.app.world())
+                        .cloned()
+                        .collect()
+                };
             for copier in copiers {
                 if copier.gpu_target_armed() {
                     continue;
                 }
                 let shape = copier.gpu_shape();
-                let tensor = Tensor::<4>::empty(shape, &self.device);
                 self.next_token = self
                     .next_token
                     .checked_add(1)
                     .context("GPU capture token overflow")?;
+                #[cfg(all(feature = "cuda_interop", target_os = "linux"))]
+                if let Some(bridge) = &mut self.cuda {
+                    let target = bridge.allocate(shape, self.next_token)?;
+                    copier.bind_gpu_target(target).map_err(anyhow::Error::msg)?;
+                    continue;
+                }
+                let tensor = Tensor::<4>::empty(shape, &self.device);
                 let target = target(tensor.clone(), self.next_token)?;
                 copier.bind_gpu_target(target).map_err(anyhow::Error::msg)?;
                 self.tensors.insert(self.next_token, tensor);
             }
+            target_binding_seconds += binding_started.elapsed().as_secs_f64();
+            let update_started = Instant::now();
             self.app.update();
+            app_update_seconds += update_started.elapsed().as_secs_f64();
             updates += 1;
             if let Some(exit) = self.app.should_exit() {
                 anyhow::bail!("GPU renderer exited: {exit:?}");
@@ -226,8 +287,12 @@ impl Renderer {
                 anyhow::bail!(error.clone());
             }
         }
-        bevy::log::debug!(target: "bevy_zeroverse_burn::gpu", seed, updates, waiting_updates = self.app.world().resource::<bevy_zeroverse::sample::CaptureProgress>().waiting_updates - waiting_before, seconds = start.elapsed().as_secs_f64(), "GPU capture submitted");
+        bevy::log::debug!(target: "bevy_zeroverse_burn::gpu", seed, updates, target_binding_seconds, app_update_seconds, waiting_updates = self.app.world().resource::<bevy_zeroverse::sample::CaptureProgress>().waiting_updates - waiting_before, seconds = start.elapsed().as_secs_f64(), "GPU capture submitted");
         let mut sink = std::mem::take(&mut *self.app.world_mut().resource_mut::<GpuSampleSink>());
+        #[cfg(all(feature = "cuda_interop", target_os = "linux"))]
+        if let Some(bridge) = &mut self.cuda {
+            self.tensors = bridge.finish(sink.images.iter().map(|(_, p)| p.target.token))?;
+        }
         let mut metadata = sink
             .metadata
             .take()
@@ -237,12 +302,33 @@ impl Renderer {
             .as_mut()
             .and_then(|m| m.as_object_mut())
         {
+            let transport = serde_json::json!({
+                "backend": "wgpu", "host_image_bytes": 0,
+                "base_gpu_copies_per_attachment": 1,
+                "shared_device_and_queue": true,
+                "producer_completion_fence": false,
+                "padding_removal": "GPU only, if required by image width"
+            });
+            #[cfg(all(feature = "cuda_interop", target_os = "linux"))]
+            let transport = if self.cuda.is_some() {
+                serde_json::json!({
+                    "backend": "vulkan_cuda", "host_image_bytes": 0,
+                    "base_gpu_copies_per_attachment": 2,
+                    "shared_physical_device_verified_by_uuid": true,
+                    "shared_external_device_memory": true,
+                    "producer_completion_fence": true,
+                    "padding_removal": "GPU only, if required by image width"
+                })
+            } else {
+                transport
+            };
             object.insert("gpu_tensor_contract".into(), serde_json::json!({
                 "version": 1, "layout": "HWC", "dtype": "float32",
                 "color": "tonemapped linear RGBA", "world_depth": "world XYZ and metric camera Z depth",
                 "normal_semantic": "view normal encoded in [0,1] and integer semantic class ID",
                 "optical_flow": "forward pixel dx/dy, source validity, target visibility",
-                "co_visibility": "camera membership bits, peer count, source validity, zero"
+                "co_visibility": "camera membership bits, peer count, source validity, zero",
+                "transport": transport
             }));
         }
         sink.images.sort_by_key(|(index, _)| *index);
@@ -302,9 +388,27 @@ impl Renderer {
 
 fn target(tensor: Tensor<4>, token: u64) -> Result<GpuCaptureTarget> {
     let bytes = tensor.dims().iter().product::<usize>() as u64 * 4;
+    let primitive = primitive(tensor)?;
+    let resource = primitive
+        .client
+        .get_resource::<burn::cubecl::wgpu::WgpuServer<AutoCompiler>>(primitive.handle.clone())?;
+    primitive.client.flush()?;
+    let view = resource.resource();
+    ensure!(view.size >= bytes, "GPU tensor allocation is undersized");
+    Ok(GpuCaptureTarget {
+        token,
+        buffer: view.buffer.clone(),
+        offset: view.offset,
+        byte_len: bytes,
+        lease: Arc::new(resource),
+    })
+}
+
+fn primitive(tensor: Tensor<4>) -> Result<CubeTensor> {
     let primitive = tensor
         .try_into_primitive::<Wgpu>()
-        .map_err(|e| anyhow::anyhow!("GPU capture requires a WGPU tensor: {e:?}"))?;
+        // Burn 0.22 uses the same Cube backend for WGPU and CUDA tensors.
+        .map_err(|e| anyhow::anyhow!("GPU capture requires a Cube tensor: {e:?}"))?;
     let primitive: Box<dyn Any> = Box::new(primitive);
     let primitive = match primitive.downcast::<CubeTensor>() {
         Ok(tensor) => *tensor,
@@ -313,7 +417,7 @@ fn target(tensor: Tensor<4>, token: u64) -> Result<GpuCaptureTarget> {
             {
                 let tensor = primitive
                     .downcast::<burn_fusion::FusionTensor<burn_cubecl::fusion::FusionCubeRuntime>>()
-                    .map_err(|_| anyhow::anyhow!("unknown WGPU primitive"))?;
+                    .map_err(|_| anyhow::anyhow!("unknown Cube GPU primitive"))?;
                 tensor
                     .client
                     .clone()
@@ -334,19 +438,7 @@ fn target(tensor: Tensor<4>, token: u64) -> Result<GpuCaptureTarget> {
             && !primitive.meta.is_tiled(),
         "GPU capture requires plain contiguous float32 tensor allocation"
     );
-    let resource = primitive
-        .client
-        .get_resource::<burn::cubecl::wgpu::WgpuServer<AutoCompiler>>(primitive.handle.clone())?;
-    primitive.client.flush()?;
-    let view = resource.resource();
-    ensure!(view.size >= bytes, "GPU tensor allocation is undersized");
-    Ok(GpuCaptureTarget {
-        token,
-        buffer: view.buffer.clone(),
-        offset: view.offset,
-        byte_len: bytes,
-        lease: Arc::new(resource),
-    })
+    Ok(primitive)
 }
 
 #[cfg(test)]
@@ -421,29 +513,43 @@ mod tests {
     #[test]
     #[ignore = "native GPU: same-scene CPU/GPU parity, row padding, glass, retained allocations and replay"]
     fn gpu_transport_matches_cpu_capture_and_retains_old_samples() -> Result<()> {
+        transport_parity(Transport::Wgpu)
+    }
+
+    #[cfg(all(feature = "cuda_interop", target_os = "linux"))]
+    #[test]
+    #[ignore = "native NVIDIA GPU: Vulkan/CUDA exact annotation parity, padding and retained allocations"]
+    fn cuda_transport_matches_cpu_capture_and_retains_old_samples() -> Result<()> {
+        transport_parity(Transport::Cuda)
+    }
+
+    fn transport_parity(transport: Transport) -> Result<()> {
         setup_test_assets();
         channels::init_channels();
-        let mut dataset = Renderer::new(BevyZeroverseConfig {
-            scene_type: ZeroverseSceneType::ProceduralIndoor,
-            indoor_seed: Some(6),
-            num_cameras: 3,
-            width: 321.,
-            height: 239.,
-            playback_steps: 2,
-            indoor_human_density: 0.25,
-            depth_format: DepthFormat::Linear,
-            z_depth: true,
-            render_modes: vec![
-                RenderMode::Color,
-                RenderMode::Depth,
-                RenderMode::Normal,
-                RenderMode::Position,
-                RenderMode::Semantic,
-                RenderMode::OpticalFlow,
-                RenderMode::CoVisibility,
-            ],
-            ..default()
-        })?;
+        let mut dataset = Renderer::with_transport(
+            BevyZeroverseConfig {
+                scene_type: ZeroverseSceneType::ProceduralIndoor,
+                indoor_seed: Some(6),
+                num_cameras: 3,
+                width: 321.,
+                height: 239.,
+                playback_steps: 2,
+                indoor_human_density: 0.25,
+                depth_format: DepthFormat::Linear,
+                z_depth: true,
+                render_modes: vec![
+                    RenderMode::Color,
+                    RenderMode::Depth,
+                    RenderMode::Normal,
+                    RenderMode::Position,
+                    RenderMode::Semantic,
+                    RenderMode::OpticalFlow,
+                    RenderMode::CoVisibility,
+                ],
+                ..default()
+            },
+            transport,
+        )?;
         let mut retained = None;
         for policy in [AnnotationGlass::Surface, AnnotationGlass::Through] {
             dataset.config.annotation_glass = policy;
@@ -509,6 +615,18 @@ mod tests {
         }
         let retained = retained.unwrap();
         let original = values(retained.views[0].color.clone());
+        assert!(
+            retained
+                .metadata
+                .views
+                .iter()
+                .all(|v| v.color.is_empty() && v.depth.is_empty() && v.normal.is_empty())
+        );
+        equal_plane(
+            values(retained.views[0].color.clone() * 0.5 + 0.25),
+            original.iter().map(|v| v * 0.5 + 0.25).collect(),
+            "consumer arithmetic on training device",
+        );
         for seed in 7..11 {
             let _ = dataset.sample_seed(seed)?;
         }
@@ -517,14 +635,59 @@ mod tests {
             values(retained.views[0].color.clone()),
             "new rooms reused a retained tensor allocation"
         );
+        #[cfg(all(feature = "cuda_interop", target_os = "linux"))]
+        if let Some(bridge) = &mut dataset.cuda {
+            assert!(bridge.finish(std::iter::empty()).is_err());
+            assert!(
+                bridge.begin_capture().is_err(),
+                "failed batches must fail closed"
+            );
+        }
+        drop(dataset);
+        equal_plane(
+            values(retained.views[0].color.clone()),
+            original,
+            "tensor survives renderer destruction",
+        );
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "native GPU: aligned 512x512 planes share the capture allocation without GPU slicing copies"]
+    fn gpu_aligned_planes_share_capture_allocation() -> Result<()> {
+        let device = Device::wgpu(Default::default());
+        let tensor = Tensor::<4>::empty([5, 512, 512, 4], &device);
+        let allocation = target(tensor.clone(), 0)?;
+        for plane in 0..5 {
+            let view = tensor
+                .clone()
+                .slice([plane..plane + 1, 0..512, 0..512, 0..4]);
+            let view = target(view, 0)?;
+            assert_eq!(view.buffer, allocation.buffer);
+            assert_eq!(
+                view.offset,
+                allocation.offset + plane as u64 * 512 * 512 * 16
+            );
+        }
         Ok(())
     }
 
     #[test]
     #[ignore = "native GPU: bounded worker sequencing, indexed replay and tensor lifetime"]
     fn gpu_worker_preserves_stream_seeds_across_indexed_capture() -> Result<()> {
+        worker_lifetime(Transport::Wgpu)
+    }
+
+    #[cfg(all(feature = "cuda_interop", target_os = "linux"))]
+    #[test]
+    #[ignore = "native NVIDIA GPU: CUDA worker sequencing, consumer thread and shutdown lifetime"]
+    fn cuda_worker_preserves_stream_seeds_across_indexed_capture() -> Result<()> {
+        worker_lifetime(Transport::Cuda)
+    }
+
+    fn worker_lifetime(transport: Transport) -> Result<()> {
         setup_test_assets();
-        let mut dataset = GpuLiveDataset::new(BevyZeroverseConfig {
+        let config = BevyZeroverseConfig {
             scene_type: ZeroverseSceneType::ProceduralIndoor,
             indoor_seed: Some(6),
             num_cameras: 3,
@@ -533,7 +696,12 @@ mod tests {
             playback_steps: 1,
             indoor_human_density: 0.25,
             ..default()
-        })?;
+        };
+        let mut dataset = match transport {
+            Transport::Wgpu => GpuLiveDataset::new(config)?,
+            #[cfg(all(feature = "cuda_interop", target_os = "linux"))]
+            Transport::Cuda => GpuLiveDataset::new_cuda(config)?,
+        };
         let retained = dataset.next_sample()?;
         assert_eq!(retained.metadata.indoor.as_ref().unwrap().seed, 6);
         let before = values(retained.views[0].color.clone());
