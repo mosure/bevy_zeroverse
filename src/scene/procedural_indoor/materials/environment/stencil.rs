@@ -1,6 +1,6 @@
 //! Fixed-size reflection filtering: cache scene-independent addresses and weights,
 //! then interpolate the room's HDR radiance with the original arithmetic/order.
-//! One process-wide cache has bounded residency; Web keeps the smaller kernel.
+//! One bounded process-wide cache is shared by native and Web preparation.
 use super::*;
 
 #[derive(Clone, Copy)]
@@ -163,25 +163,32 @@ pub(super) fn convolve(pixels: &[Vec3]) -> [Image; 2] {
     let source = RadianceMips::new(pixels, SIZE);
     let stencil = Stencil::production();
     let levels = SIZE.ilog2() + 1;
+    let render_face = |face: usize, kernel: &Face| {
+        let mut specular = Vec::with_capacity((SIZE * SIZE * 8 * 4 / 3 + 8) as usize);
+        let mut diffuse = Vec::with_capacity(16 * 16 * 8);
+        for &value in &pixels[face * (SIZE * SIZE) as usize..(face + 1) * (SIZE * SIZE) as usize] {
+            encode(&mut specular, value);
+        }
+        for level in &kernel.specular {
+            filter(&source, level, true, &mut specular);
+        }
+        filter(&source, &kernel.diffuse, false, &mut diffuse);
+        (diffuse, specular)
+    };
+    #[cfg(not(target_arch = "wasm32"))]
     let faces = crate::scene::procedural_indoor::preparation::workers::pool().scope(|scope| {
         for (face, kernel) in stencil.faces.iter().enumerate() {
-            let source = &source;
-            scope.spawn(async move {
-                let mut specular = Vec::with_capacity((SIZE * SIZE * 8 * 4 / 3 + 8) as usize);
-                let mut diffuse = Vec::with_capacity(16 * 16 * 8);
-                for &value in
-                    &pixels[face * (SIZE * SIZE) as usize..(face + 1) * (SIZE * SIZE) as usize]
-                {
-                    encode(&mut specular, value);
-                }
-                for level in &kernel.specular {
-                    filter(source, level, true, &mut specular);
-                }
-                filter(source, &kernel.diffuse, false, &mut diffuse);
-                (diffuse, specular)
-            });
+            let render_face = &render_face;
+            scope.spawn(async move { render_face(face, kernel) });
         }
     });
+    #[cfg(target_arch = "wasm32")]
+    let faces: Vec<_> = stencil
+        .faces
+        .iter()
+        .enumerate()
+        .map(|(face, kernel)| render_face(face, kernel))
+        .collect();
     let mut diffuse = Vec::with_capacity(6 * 16 * 16 * 8);
     let mut specular = Vec::new();
     for (d, s) in faces {

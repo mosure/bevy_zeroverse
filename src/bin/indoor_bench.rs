@@ -61,6 +61,9 @@ struct Args {
     /// Record actual GPU timestamp spans where the adapter supports them.
     #[arg(long)]
     gpu_timings: bool,
+    /// Diagnostic light-culling reference; one includes the full visible light list.
+    #[arg(long, hide = true, value_parser = clap::value_parser!(u32).range(1..=4096))]
+    cluster_budget: Option<u32>,
     /// Pace CPU polling only while submitted GPU captures are incomplete; zero disables.
     #[arg(long, default_value_t = 1)]
     poll_backoff_ms: u64,
@@ -248,6 +251,27 @@ fn main() -> Result<()> {
     });
     if args.gpu_timings {
         app.add_plugins(bevy::render::diagnostic::RenderDiagnosticsPlugin);
+    }
+    if let Some(total) = args.cluster_budget {
+        use bevy::light::{cluster::ClusterConfig, SimulationLightSystems};
+        app.add_systems(
+            PostUpdate,
+            (move |mut views: Query<&mut ClusterConfig, With<Camera3d>>| {
+                for mut grid in &mut views {
+                    *grid = if total == 1 {
+                        ClusterConfig::Single
+                    } else {
+                        ClusterConfig::FixedZ {
+                            total,
+                            z_slices: total.min(24),
+                            z_config: default(),
+                            dynamic_resizing: true,
+                        }
+                    };
+                }
+            })
+            .before(SimulationLightSystems::AssignLightsToClusters),
+        );
     }
     app.finish();
     // Pipelined rendering moves RenderApp to its worker during cleanup. Keep a
@@ -529,6 +553,7 @@ fn main() -> Result<()> {
     let report = serde_json::json!({"schema_version":3,"run_id":run_id,"pid":std::process::id(),"scenes":args.scenes,"warmup_scenes":args.warmup_scenes,
         "loop_started_unix_seconds":loop_started_unix_seconds,
         "poll_backoff_ms":args.poll_backoff_ms,
+        "light_cluster_budget_override":args.cluster_budget,
         "poll_window_ms":CapturePollBackoff::MAX_WINDOW.as_millis(),
         "render_cache_pruning":!args.no_cache_pruning,
         "indirect_draws":args.indirect_draws,

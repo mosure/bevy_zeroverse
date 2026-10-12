@@ -138,7 +138,7 @@ pub mod image_copy {
     pub use gpu::{GpuCaptureTarget, GpuCapturedImages};
     use std::sync::{
         atomic::{AtomicBool, AtomicU64, Ordering},
-        Arc, Mutex,
+        Arc, Mutex, OnceLock,
     };
     use wgpu::{PollType, TexelCopyBufferInfo, TexelCopyBufferLayout};
 
@@ -177,7 +177,10 @@ pub mod image_copy {
         // Immutable for this view's lifetime; extraction/recycling clones only
         // their ownership, while each recycled view receives a fresh epoch.
         sources: Arc<[Handle<Image>]>,
-        buffers: Arc<[Buffer]>,
+        // GPU consumers never need host-visible storage. Allocate it on the
+        // first CPU copy, and share that allocation across recycled epochs.
+        buffers: Arc<OnceLock<Arc<[Buffer]>>>,
+        shared_bytes: Option<usize>,
         state: Arc<CaptureState>,
         #[cfg(not(target_arch = "wasm32"))]
         format: TextureFormat,
@@ -202,7 +205,7 @@ pub mod image_copy {
             sources: Vec<Handle<Image>>,
             size: Extent3d,
             format: TextureFormat,
-            device: &RenderDevice,
+            _device: &RenderDevice,
         ) -> Self {
             let block = format.block_dimensions();
             let row_bytes = size.width as usize / block.0 as usize
@@ -211,33 +214,18 @@ pub mod image_copy {
                     .expect("copyable capture format") as usize;
             let padded_row_bytes = RenderDevice::align_copy_bytes_per_row(row_bytes);
             let rows = size.height as usize / block.1 as usize;
-            let plane_bytes = padded_row_bytes * rows;
             #[cfg(not(target_arch = "wasm32"))]
             let shared_bytes = staging::combined_buffer_size(
-                plane_bytes,
+                padded_row_bytes * rows,
                 sources.len(),
-                device.limits().max_buffer_size,
+                _device.limits().max_buffer_size,
             );
             #[cfg(target_arch = "wasm32")]
             let shared_bytes: Option<usize> = None;
-            let buffer_count = if shared_bytes.is_some() {
-                1
-            } else {
-                sources.len()
-            };
-            let buffers = (0..buffer_count)
-                .map(|_| {
-                    device.create_buffer(&BufferDescriptor {
-                        label: Some("zeroverse_async_readback"),
-                        size: shared_bytes.unwrap_or(plane_bytes) as u64,
-                        usage: BufferUsages::MAP_READ | BufferUsages::COPY_DST,
-                        mapped_at_creation: false,
-                    })
-                })
-                .collect();
             Self {
                 sources: sources.into(),
-                buffers,
+                buffers: Arc::default(),
+                shared_bytes,
                 state: Arc::default(),
                 #[cfg(not(target_arch = "wasm32"))]
                 format,
@@ -252,7 +240,36 @@ pub mod image_copy {
         }
         #[cfg(not(target_arch = "wasm32"))]
         fn combined_staging(&self) -> bool {
-            self.sources.len() > 1 && self.buffers.len() == 1
+            self.sources.len() > 1 && self.shared_bytes.is_some()
+        }
+        fn cpu_buffers(&self, device: &RenderDevice) -> &[Buffer] {
+            self.buffers.get_or_init(|| {
+                let count = if self.shared_bytes.is_some() {
+                    1
+                } else {
+                    self.sources.len()
+                };
+                (0..count)
+                    .map(|_| {
+                        device.create_buffer(&BufferDescriptor {
+                            label: Some("zeroverse_async_readback"),
+                            size: self
+                                .shared_bytes
+                                .unwrap_or(self.padded_row_bytes * self.rows)
+                                as u64,
+                            usage: BufferUsages::MAP_READ | BufferUsages::COPY_DST,
+                            mapped_at_creation: false,
+                        })
+                    })
+                    .collect()
+            })
+        }
+        /// Host-visible readback storage actually allocated by this view.
+        /// GPU-only capture leaves this at zero; CPU captures reuse the storage.
+        pub fn allocated_readback_bytes(&self) -> u64 {
+            self.buffers.get().map_or(0, |buffers| {
+                buffers.iter().map(|buffer| buffer.size()).sum()
+            })
         }
         pub fn request(&self, id: u64) {
             assert_ne!(id, 0, "zero is reserved for idle readback");
@@ -341,6 +358,7 @@ pub mod image_copy {
             let copier = ImageCopier {
                 sources: Arc::default(),
                 buffers: Arc::default(),
+                shared_bytes: None,
                 state: Arc::default(),
                 #[cfg(not(target_arch = "wasm32"))]
                 format: TextureFormat::Rgba32Float,
@@ -406,9 +424,14 @@ pub mod image_copy {
                 });
                 continue;
             }
+            let buffers = job
+                .copier
+                .buffers
+                .get()
+                .expect("encoded CPU copies allocated staging");
             #[cfg(not(target_arch = "wasm32"))]
             if job.copier.combined_staging() {
-                let buffer = job.copier.buffers[0].clone();
+                let buffer = buffers[0].clone();
                 let callback_buffer = buffer.clone();
                 let state = job.copier.state.clone();
                 let id = job.request_id;
@@ -445,12 +468,12 @@ pub mod image_copy {
                 job.copier.state.mapping.store(id, Ordering::Release);
                 continue;
             }
-            let count = job.copier.buffers.len();
+            let count = buffers.len();
             let planes = Arc::new(Mutex::new((
                 0usize,
                 (0..count).map(|_| Vec::new()).collect::<Vec<_>>(),
             )));
-            for (index, buffer) in job.copier.buffers.iter().enumerate() {
+            for (index, buffer) in buffers.iter().enumerate() {
                 let buffer = buffer.clone();
                 let callback_buffer = buffer.clone();
                 let state = job.copier.state.clone();
@@ -622,28 +645,34 @@ pub mod image_copy {
                 copy_span =
                     Some(diagnostics.time_span(context.command_encoder(), "dataset_readback_copy"));
             }
+            #[cfg(not(target_arch = "wasm32"))]
+            let gpu_target = copier.state.gpu_target.lock().unwrap().clone();
+            #[cfg(not(target_arch = "wasm32"))]
+            let buffers = gpu_target
+                .is_none()
+                .then(|| copier.cpu_buffers(world.resource::<RenderDevice>()));
+            #[cfg(target_arch = "wasm32")]
+            let buffers = copier.cpu_buffers(world.resource::<RenderDevice>());
             for (index, source) in copier.sources.iter().enumerate() {
                 #[cfg(not(target_arch = "wasm32"))]
-                let (buffer, offset) = if copier.combined_staging() {
+                let (buffer, offset): (&wgpu::Buffer, u64) = if let Some(target) = &gpu_target {
                     (
-                        &copier.buffers[0],
-                        (index * copier.padded_row_bytes * copier.rows) as u64,
+                        &target.buffer,
+                        target.offset + (index * copier.padded_row_bytes * copier.rows) as u64,
                     )
                 } else {
-                    (&copier.buffers[index], 0)
+                    let buffers = buffers.expect("CPU capture storage");
+                    if copier.combined_staging() {
+                        (
+                            &buffers[0],
+                            (index * copier.padded_row_bytes * copier.rows) as u64,
+                        )
+                    } else {
+                        (&buffers[index], 0)
+                    }
                 };
                 #[cfg(target_arch = "wasm32")]
-                let (buffer, offset) = (&copier.buffers[index], 0);
-                #[cfg(not(target_arch = "wasm32"))]
-                let gpu_target = copier.state.gpu_target.lock().unwrap().clone();
-                #[cfg(not(target_arch = "wasm32"))]
-                let (buffer, offset): (&wgpu::Buffer, u64) =
-                    gpu_target.as_ref().map_or((&**buffer, offset), |target| {
-                        (
-                            &target.buffer,
-                            target.offset + (index * copier.padded_row_bytes * copier.rows) as u64,
-                        )
-                    });
+                let (buffer, offset) = (&*buffers[index], 0);
                 let image = images.get(source).unwrap();
                 context.command_encoder().copy_texture_to_buffer(
                     image.texture.as_image_copy(),

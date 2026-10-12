@@ -43,6 +43,11 @@ on that queue observes the copies in order. Allocator leases remain alive until
 the render copies finish, including when a sample is dropped early. Samples
 retained by a consumer cannot be overwritten by subsequent rooms.
 
+GPU capture allocates no host readback buffers. CPU staging is created lazily
+only if a CPU capture is requested. Allocation leases for all cameras are
+resolved before one producer-stream flush per batch. The renderer uses Bevy's
+parallel executor for CPU preparation, including uploads and lights.
+
 `GpuSample` separates small CPU metadata from GPU images; it is deliberately not
 a CPU archive `Sample`. View order is timestep-major. Row padding is removed
 from each tensor's logical shape. Outputs preserve the raw raster contract:
@@ -81,6 +86,15 @@ device, which can also include unrelated future-room work. Production capture
 does not impose this per-sample completion fence. CPU
 construction and training can still dominate end-to-end throughput; a removed
 host round trip alone is not evidence of a twofold speedup.
+Compare identical rendered seeds, annotations and completed consumer work.
+A capture-only timing cannot be compared with a timing that includes backward
+passes and optimizer updates. The CPU benchmark joins its background renderer
+before process teardown through `headless::shutdown_app()`.
+
+For an isolated PCIe test, add `--transport-only` to each benchmark command.
+It consumes the same captured RGB tensors on one shared device, stops renderer
+lookahead before measurement, and records host image bytes. This mode excludes
+scene generation and rendering; its iteration rate is not rooms per second.
 
 The optional [GPU material baker](gpu_materials.md) moves qualified substrate
 programs and their coupled normal/roughness mip chains onto the existing render

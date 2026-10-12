@@ -1,12 +1,17 @@
 //! Matched full-quality CPU transport versus same-device GPU transport.
-use anyhow::Result;
+use anyhow::{Result, ensure};
 use bevy_zeroverse::{app::BevyZeroverseConfig, render::RenderMode, scene::ZeroverseSceneType};
 use bevy_zeroverse_burn::{LiveDataset, LiveDatasetConfig, gpu::GpuLiveDataset};
 use burn::tensor::{DType, Device, Tensor, TensorData};
 use clap::Parser;
 use std::time::Instant;
+#[path = "gpu_jit_bench/transport.rs"]
+mod transport;
 #[derive(Parser)]
 struct Args {
+    /// Isolate RGB transport/consumption on one captured room; excludes rendering.
+    #[arg(long, conflicts_with = "cuda")]
+    transport_only: bool,
     #[arg(long)]
     gpu: bool,
     /// Native Vulkan/CUDA external-memory transport (requires cuda_interop).
@@ -38,6 +43,9 @@ fn main() -> Result<()> {
         ],
         ..Default::default()
     };
+    if args.transport_only {
+        return transport::run(&args, config);
+    }
     let mut times = Vec::new();
     let mut capture_times = Vec::new();
     let mut consumer_times = Vec::new();
@@ -57,6 +65,10 @@ fn main() -> Result<()> {
         for index in 0..args.scenes + args.warmup {
             let start = Instant::now();
             let sample = dataset.next_sample()?;
+            ensure!(
+                sample.metadata.indoor.as_ref().map(|m| m.seed) == Some(args.seed + index as u64),
+                "GPU stream did not capture the requested consecutive seed"
+            );
             let capture_time = start.elapsed().as_secs_f64();
             let consumer_start = Instant::now();
             for view in sample.views {
@@ -85,6 +97,10 @@ fn main() -> Result<()> {
         for index in 0..args.scenes + args.warmup {
             let start = Instant::now();
             let sample = dataset.next_sample()?;
+            ensure!(
+                sample.indoor.as_ref().map(|m| m.seed) == Some(args.seed + index as u64),
+                "CPU stream did not capture the requested consecutive seed"
+            );
             let capture_time = start.elapsed().as_secs_f64();
             let consumer_start = Instant::now();
             for view in sample.views {
@@ -100,6 +116,10 @@ fn main() -> Result<()> {
                 consumer_times.push(consumer_start.elapsed().as_secs_f64());
             }
         }
+        // LiveDataset shares a process-owned background app. Join it before
+        // process teardown, which otherwise races Vulkan work and destruction.
+        bevy_zeroverse::headless::shutdown_app()
+            .map_err(|_| anyhow::anyhow!("CPU capture renderer panicked during shutdown"))?;
     }
     let total = times.iter().sum::<f64>();
     println!(

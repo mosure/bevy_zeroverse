@@ -60,6 +60,14 @@ establish unlimited-process memory stability.
 
 ## Internal scheduling and uploads
 
+- On Linux GNU x86-64 NVIDIA Vulkan, unchanged CPU light-cluster buffers are
+  retained across frames. Exact ordered membership, object classification,
+  render-entity mappings, resolved light/probe indices and buffer layout must
+  match; no probabilistic hash is used. Changed cluster inputs rebuild through
+  Bevy; light uniforms and probe textures continue updating each frame. Cache
+  lifetime follows the camera entity. The original
+  cluster resolution, light ordering, shadows and GI remain unchanged; other
+  adapters retain Bevy's normal preparation.
 - Geometry, texture construction and mesh realization share four native workers
   instead of starting three independent four-worker pools. Seed streams and
   scoped output order are unchanged. The recursively scoped GI builder remains
@@ -80,6 +88,13 @@ establish unlimited-process memory stability.
   upload budgets retain Bevy's ordinary preparation path.
 - Other native platforms retain their existing image uploads. Browser
   construction remains cooperative and does not stage future GPU assets.
+  Bevy's WASM task pool runs on the browser main thread; spawning an async task
+  does not create CPU workers. Preparation checks a 4 ms work budget between
+  units instead of scheduling a clamped timer for every tiny mesh. Individual
+  texture, architecture and human builders remain synchronous and can exceed
+  that budget. The exact reflection-filter stencil is reused between rooms
+  with bounded process residency (under 24 MiB); its first construction is
+  still synchronous. These changes do not establish multithreaded WASM generation.
 
 `indoor_bench` records ready versus unfinished prefetch hits, staged promotions,
 and update durations classified by the state before each update. These are

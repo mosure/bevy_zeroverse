@@ -7,7 +7,6 @@ use std::f32::consts::{PI, TAU};
 mod kernel;
 #[cfg(test)]
 mod round4_replay;
-#[cfg(not(target_arch = "wasm32"))]
 mod stencil;
 use kernel::ConvolutionKernel;
 
@@ -183,7 +182,6 @@ impl RadianceMips {
     }
 }
 fn convolve(pixels: &[Vec3], size: u32) -> [Image; 2] {
-    #[cfg(not(target_arch = "wasm32"))]
     if size == SIZE {
         return stencil::convolve(pixels);
     }

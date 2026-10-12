@@ -1,5 +1,7 @@
 //! Prepare immutable render assets away from the ECS schedule. Handles are reserved
 //! from the live stores, so cancellation and scene replacement retain Bevy ownership.
+mod cooperative;
+pub(crate) use cooperative::cooperate;
 mod group_plan;
 pub(crate) mod pipeline;
 pub(crate) mod residency;
@@ -224,6 +226,7 @@ impl SceneGeometry {
     }
 
     async fn build(scene: &IndoorManifest) -> Self {
+        cooperate().await;
         #[cfg(not(target_arch = "wasm32"))]
         {
             enum Part {
@@ -655,44 +658,6 @@ impl PreparedIndoor {
                 }
             }
         }
-    }
-}
-
-/// A browser task must return to the event loop, not merely yield to the same
-/// microtask queue. Native jobs already run on the compute pool.
-pub(crate) async fn cooperate() {
-    #[cfg(target_arch = "wasm32")]
-    {
-        use std::sync::{
-            atomic::{AtomicBool, Ordering},
-            Arc,
-        };
-        use wasm_bindgen::{closure::Closure, JsCast};
-        let ready = Arc::new(AtomicBool::new(false));
-        let mut scheduled = false;
-        futures_lite::future::poll_fn(move |cx| {
-            if ready.load(Ordering::Acquire) {
-                return std::task::Poll::Ready(());
-            }
-            if !scheduled {
-                scheduled = true;
-                let ready = ready.clone();
-                let wake = cx.waker().clone();
-                let callback = Closure::once_into_js(move || {
-                    ready.store(true, Ordering::Release);
-                    wake.wake();
-                });
-                web_sys::window()
-                    .expect("browser window")
-                    .set_timeout_with_callback_and_timeout_and_arguments_0(
-                        callback.unchecked_ref(),
-                        0,
-                    )
-                    .expect("schedule browser preparation");
-            }
-            std::task::Poll::Pending
-        })
-        .await;
     }
 }
 

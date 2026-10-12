@@ -12,6 +12,8 @@ use pyo3::prelude::*;
 use crate::primitive::process_primitives;
 
 mod annotation_material;
+#[cfg(all(target_os = "linux", target_env = "gnu", target_arch = "x86_64"))]
+mod cluster_cache;
 pub mod co_visibility;
 pub mod color;
 pub mod depth;
@@ -159,7 +161,10 @@ impl Plugin for RenderPlugin {
             settings.gpu_clustering = None;
         }
         #[cfg(all(target_os = "linux", target_env = "gnu", target_arch = "x86_64"))]
-        upload::install(app);
+        {
+            upload::install(app);
+            cluster_cache::install(app);
+        }
     }
 }
 

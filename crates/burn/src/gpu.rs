@@ -148,27 +148,8 @@ impl Renderer {
             queue: (**world.resource::<RenderQueue>()).clone(),
             backend: adapter.get_info().backend,
         };
-        // The small native render schedule spends more time waking workers
-        // than preparing draws. Construction still uses the bounded CPU pools;
-        // render graph execution and GPU work are unchanged.
-        app.sub_app_mut(RenderApp)
-            .get_schedule_mut(bevy::render::Render)
-            .context("missing render schedule")?
-            .set_executor(bevy::ecs::schedule::SingleThreadedExecutor::new());
-        // The capture worker has no simulation/input workload. Keep its small
-        // ECS schedules local; geometry, maps and transform propagation retain
-        // their explicit parallel work, without waking the schedule pool for
-        // each readiness update.
-        let schedules = app
-            .world()
-            .resource::<bevy::app::MainScheduleOrder>()
-            .labels
-            .clone();
-        for label in schedules {
-            if let Some(schedule) = app.get_schedule_mut(label) {
-                schedule.set_executor(bevy::ecs::schedule::SingleThreadedExecutor::new());
-            }
-        }
+        // Use Bevy's normal executor: uploads, light preparation and independent
+        // main-world systems must retain the same parallelism as CPU capture.
         // Cleanup transfers RenderApp to the pipelined rendering thread.
         // Clone its instance/device/queue first; handles refer to the same GPU.
         app.cleanup();
@@ -255,10 +236,11 @@ impl Renderer {
                         .cloned()
                         .collect()
                 };
-            for copier in copiers {
-                if copier.gpu_target_armed() {
-                    continue;
-                }
+            let mut copiers = copiers
+                .into_iter()
+                .filter(|copier| !copier.gpu_target_armed())
+                .peekable();
+            while let Some(copier) = copiers.next() {
                 let shape = copier.gpu_shape();
                 self.next_token = self
                     .next_token
@@ -271,7 +253,9 @@ impl Renderer {
                     continue;
                 }
                 let tensor = Tensor::<4>::empty(shape, &self.device);
-                let target = target(tensor.clone(), self.next_token)?;
+                // All allocations are resolved on this producer stream. Flush
+                // it once before Bevy submits copies, rather than once per view.
+                let target = target(tensor.clone(), self.next_token, copiers.peek().is_none())?;
                 copier.bind_gpu_target(target).map_err(anyhow::Error::msg)?;
                 self.tensors.insert(self.next_token, tensor);
             }
@@ -307,6 +291,7 @@ impl Renderer {
                 "base_gpu_copies_per_attachment": 1,
                 "shared_device_and_queue": true,
                 "producer_completion_fence": false,
+                "allocated_host_readback_bytes": self.app.world_mut().query::<&ImageCopier>().iter(self.app.world()).map(ImageCopier::allocated_readback_bytes).sum::<u64>(),
                 "padding_removal": "GPU only, if required by image width"
             });
             #[cfg(all(feature = "cuda_interop", target_os = "linux"))]
@@ -386,13 +371,15 @@ impl Renderer {
     }
 }
 
-fn target(tensor: Tensor<4>, token: u64) -> Result<GpuCaptureTarget> {
+fn target(tensor: Tensor<4>, token: u64, flush: bool) -> Result<GpuCaptureTarget> {
     let bytes = tensor.dims().iter().product::<usize>() as u64 * 4;
     let primitive = primitive(tensor)?;
     let resource = primitive
         .client
         .get_resource::<burn::cubecl::wgpu::WgpuServer<AutoCompiler>>(primitive.handle.clone())?;
-    primitive.client.flush()?;
+    if flush {
+        primitive.client.flush()?;
+    }
     let view = resource.resource();
     ensure!(view.size >= bytes, "GPU tensor allocation is undersized");
     Ok(GpuCaptureTarget {
@@ -558,8 +545,28 @@ mod tests {
                 .world_mut()
                 .resource_mut::<BevyZeroverseConfig>()
                 .annotation_glass = policy;
-            let cpu = cpu_capture(&mut dataset, 6);
             let gpu = dataset.sample_seed(6)?;
+            if retained.is_none() {
+                assert!(
+                    dataset
+                        .app
+                        .world_mut()
+                        .query::<&ImageCopier>()
+                        .iter(dataset.app.world())
+                        .all(|copier| copier.allocated_readback_bytes() == 0),
+                    "GPU capture allocated unused CPU readback storage"
+                );
+            }
+            let cpu = cpu_capture(&mut dataset, 6);
+            assert!(
+                dataset
+                    .app
+                    .world_mut()
+                    .query::<&ImageCopier>()
+                    .iter(dataset.app.world())
+                    .all(|copier| copier.allocated_readback_bytes() > 0),
+                "CPU fallback did not allocate its readback storage"
+            );
             assert_eq!(gpu.metadata.aabb, cpu.aabb);
             assert_eq!(gpu.metadata.annotation_glass, policy);
             assert_eq!(gpu.metadata.views.len(), cpu.views.len());
@@ -657,12 +664,12 @@ mod tests {
     fn gpu_aligned_planes_share_capture_allocation() -> Result<()> {
         let device = Device::wgpu(Default::default());
         let tensor = Tensor::<4>::empty([5, 512, 512, 4], &device);
-        let allocation = target(tensor.clone(), 0)?;
+        let allocation = target(tensor.clone(), 0, true)?;
         for plane in 0..5 {
             let view = tensor
                 .clone()
                 .slice([plane..plane + 1, 0..512, 0..512, 0..4]);
-            let view = target(view, 0)?;
+            let view = target(view, 0, true)?;
             assert_eq!(view.buffer, allocation.buffer);
             assert_eq!(
                 view.offset,

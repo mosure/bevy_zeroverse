@@ -2,7 +2,7 @@ use std::{
     env,
     sync::{
         atomic::{AtomicBool, Ordering},
-        Arc,
+        Arc, Mutex,
     },
     thread,
     time::Duration,
@@ -16,6 +16,7 @@ use crate::{
 use bevy::prelude::*;
 
 static EXIT_REQUESTED: AtomicBool = AtomicBool::new(false);
+static APP_THREAD: Mutex<Option<thread::JoinHandle<()>>> = Mutex::new(None);
 
 fn signaled_runner(mut app: App) -> AppExit {
     app.finish();
@@ -158,7 +159,13 @@ pub fn setup_and_run_app(new_thread: bool, override_args: Option<BevyZeroverseCo
     };
 
     if new_thread {
-        thread::spawn(startup);
+        let mut app_thread = APP_THREAD.lock().unwrap();
+        assert!(
+            app_thread.is_none(),
+            "a background renderer is already registered"
+        );
+        *app_thread = Some(thread::spawn(startup));
+        drop(app_thread);
 
         while !ready.load(Ordering::Acquire) {
             thread::yield_now();
@@ -182,6 +189,23 @@ pub fn run_app_on_current_thread(
 
 pub fn request_exit() {
     EXIT_REQUESTED.store(true, Ordering::Release);
+}
+
+/// Stop and join the process-owned background renderer after its consumers finish.
+/// A main-thread runner receives the exit request without a background join.
+pub fn shutdown_app() -> thread::Result<()> {
+    request_exit();
+    let worker = APP_THREAD.lock().unwrap().take();
+    match worker {
+        Some(worker) if worker.thread().id() == thread::current().id() => {
+            *APP_THREAD.lock().unwrap() = Some(worker);
+            Err(Box::new(
+                "the renderer must be joined by its consumer thread",
+            ))
+        }
+        Some(worker) => worker.join(),
+        None => Ok(()),
+    }
 }
 
 pub fn setup_globals(asset_root: Option<String>) {
