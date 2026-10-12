@@ -1,5 +1,7 @@
+pub(crate) mod background;
 pub mod details;
 pub mod facade;
+pub(crate) mod outdoors;
 #[cfg(test)]
 pub(crate) mod overlap_tests;
 use super::{
@@ -241,7 +243,12 @@ pub fn architecture(scene: &IndoorManifest) -> Assembly {
         }
     }
     fixture_geometry(&mut a, scene);
-    facade::backdrop(&mut a, scene);
+    let mut outside = Assembly::default();
+    facade::backdrop(&mut outside, scene);
+    for ((surface, label), g) in outside.parts {
+        a.part(surface, &format!("{label}#exterior")).append(g);
+    }
+    background::append(&mut a, scene);
     a
 }
 

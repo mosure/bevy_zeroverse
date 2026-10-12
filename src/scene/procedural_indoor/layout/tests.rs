@@ -281,3 +281,21 @@ fn reported_sunken_room_seeds_cover_density_and_activity_variants() {
         }
     }
 }
+
+#[test]
+fn reported_57m_room_seeds_cover_density_and_activity_variants() {
+    for seed in [57_541_088, 57_491_588] {
+        for layout in IndoorLayout::PROFILES {
+            for density in [0.15, 0.65, 1.] {
+                let scene = IndoorManifest::generate_with_humans(seed, layout, density, 3, 0.25)
+                    .unwrap_or_else(|e| {
+                        panic!("seed={seed},layout={layout:?},density={density}: {e}")
+                    });
+                validate_layout(&scene).unwrap();
+                validate_geometry(&scene).unwrap_or_else(|e| {
+                    panic!("seed={seed},layout={layout:?},density={density}: {e}")
+                });
+            }
+        }
+    }
+}

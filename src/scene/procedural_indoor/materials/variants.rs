@@ -56,9 +56,11 @@ pub(super) fn build(
     images: &mut impl AssetStore<Image>,
     materials: &mut impl AssetStore<StandardMaterial>,
     used: Option<&std::collections::BTreeSet<(Surface, usize)>>,
+    gpu: bool,
+    requests: &mut gpu::Requests,
 ) -> BTreeMap<(Surface, usize), Handle<StandardMaterial>> {
     let seed = scene.material_seed();
-    let structures = structures(scene, images, used);
+    let structures = structures(scene, images, used, gpu, requests);
     let mut result = BTreeMap::new();
     for surface in SURFACES {
         for index in 0..COUNT {
@@ -151,6 +153,8 @@ fn structures(
     scene: &IndoorManifest,
     images: &mut impl AssetStore<Image>,
     used: Option<&std::collections::BTreeSet<(Surface, usize)>>,
+    gpu: bool,
+    requests: &mut gpu::Requests,
 ) -> BTreeMap<(Surface, usize), Structure> {
     let Some(p) = &scene.program else {
         return BTreeMap::new();
@@ -169,7 +173,7 @@ fn structures(
         })
         .collect();
     let prepare = |(s, g, r): &(Surface, usize, program::MaterialRecipe)| {
-        let maps = r.maps(scene.floor_style);
+        let maps = gpu::Maps::prepare(r, scene.floor_style, gpu);
         ((*s, *g), r.clone(), maps)
     };
     #[cfg(not(target_arch = "wasm32"))]
@@ -183,6 +187,6 @@ fn structures(
     let ready: Vec<_> = jobs.iter().map(prepare).collect();
     ready
         .into_iter()
-        .map(|(key, r, maps)| (key, (r, maps.map(|map| images.add(map)))))
+        .map(|(key, r, maps)| (key, (r, maps.insert(images, requests))))
         .collect()
 }

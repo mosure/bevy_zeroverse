@@ -450,7 +450,7 @@ mod tests {
         render::{RenderMode, depth::DepthFormat, glass::AnnotationGlass},
     };
 
-    fn setup_test_assets() {
+    pub(super) fn setup_test_assets() {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../..")
             .canonicalize()
@@ -481,10 +481,10 @@ mod tests {
         dataset.app.insert_resource(GpuSampleSink::default());
         sample
     }
-    fn values(tensor: Tensor<3>) -> Vec<f32> {
+    pub(super) fn values(tensor: Tensor<3>) -> Vec<f32> {
         tensor.into_data().try_to_vec().unwrap()
     }
-    fn equal_plane(actual: Vec<f32>, expected: Vec<f32>, description: &str) {
+    pub(super) fn equal_plane(actual: Vec<f32>, expected: Vec<f32>, description: &str) {
         assert_eq!(actual.len(), expected.len());
         let different = actual
             .iter()
@@ -739,3 +739,6 @@ mod tests {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod material_qualification;

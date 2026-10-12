@@ -82,6 +82,10 @@ does not impose this per-sample completion fence. CPU
 construction and training can still dominate end-to-end throughput; a removed
 host round trip alone is not evidence of a twofold speedup.
 
+The optional [GPU material baker](gpu_materials.md) moves qualified substrate
+programs and their coupled normal/roughness mip chains onto the existing render
+device. Its qualification tool includes actual concurrent Burn training.
+
 Native room preparation already overlaps bounded future rooms and parallelizes
 geometry, material maps and tangents. Lighting trees have a separate bounded
 pool. Increasing thread counts alone can slow full captures; CPU-stage timing

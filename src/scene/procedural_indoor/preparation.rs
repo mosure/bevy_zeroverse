@@ -298,9 +298,32 @@ impl PreparedIndoor {
         quality: IndoorQuality,
         settings: gi::IndoorGiSettings,
         moving_humans: Vec<usize>,
+        images: StagedAssets<Image>,
+        materials: StagedAssets<StandardMaterial>,
+        meshes: StagedAssets<Mesh>,
+    ) -> Self {
+        Self::build_with_materials(
+            manifest,
+            quality,
+            settings,
+            moving_humans,
+            images,
+            materials,
+            meshes,
+            false,
+        )
+        .await
+    }
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) async fn build_with_materials(
+        manifest: IndoorManifest,
+        quality: IndoorQuality,
+        settings: gi::IndoorGiSettings,
+        moving_humans: Vec<usize>,
         mut images: StagedAssets<Image>,
         mut materials: StagedAssets<StandardMaterial>,
         mut meshes: StagedAssets<Mesh>,
+        gpu_materials: bool,
     ) -> Self {
         let started = bevy::platform::time::Instant::now();
         let geometry = SceneGeometry::build(&manifest).await;
@@ -370,6 +393,7 @@ impl PreparedIndoor {
                             &mut images,
                             &mut materials,
                             Some(&selection),
+                            gpu_materials,
                         )
                         .await;
                         Stage::Materials(
@@ -416,6 +440,7 @@ impl PreparedIndoor {
                 &mut images,
                 &mut materials,
                 Some(&selection),
+                gpu_materials,
             )
             .await;
             let materials_seconds = started.elapsed().as_secs_f64();
@@ -542,6 +567,7 @@ impl PreparedIndoor {
         }
     }
     pub fn spawn_groups(&mut self, parent: Entity, commands: &mut Commands) {
+        let mut annotation_order = 0u64;
         for group in self.groups.drain(..) {
             let mut root = commands.spawn((
                 Name::new(group.name),
@@ -591,12 +617,14 @@ impl PreparedIndoor {
             let root = root.id();
             for part in group.parts {
                 let mut child = commands.spawn((
+                    crate::render::ground_truth::AnnotationOrder(annotation_order),
                     Mesh3d(part.mesh),
                     MeshMaterial3d(part.material),
                     part.label,
                     OvoxelTracked,
                     ChildOf(root),
                 ));
+                annotation_order += 1;
                 if part.ovoxel_excluded {
                     child.insert(OvoxelExcluded);
                 }

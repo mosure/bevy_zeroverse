@@ -248,10 +248,18 @@ impl IndoorManifest {
                             0.38,
                         ),
                     ),
-                    _ => (
-                        ObjectKind::TrashCan,
-                        Vec3::new(0.35, rng.random_range(0.4..0.65), 0.35),
-                    ),
+                    _ => {
+                        let height = rng.random_range(0.4_f32..0.65);
+                        let mut shape_rng = stream(self.seed ^ height.to_bits() as u64, 6330);
+                        (
+                            ObjectKind::TrashCan,
+                            Vec3::new(
+                                shape_rng.random_range(0.27..0.46),
+                                height,
+                                shape_rng.random_range(0.26..0.42),
+                            ),
+                        )
+                    }
                 };
                 let yaw = yaw + transform_rng.random_range(-0.20..0.20);
                 self.add(kind, Vec3::new(x, 0.0, z), size, yaw, rng);

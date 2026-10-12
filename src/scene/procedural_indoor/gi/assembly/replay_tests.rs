@@ -58,7 +58,7 @@ fn original_from_geometry(
         let mat = materials.get(&handle).expect("indoor material exists");
         result
             .materials
-            .push(DiffuseMaterial::from_standard(mat, images));
+            .push(DiffuseMaterial::from_standard(mat, images, &set.gpu_bakes));
     }
     original_add_assembly(
         &mut result,
@@ -83,6 +83,7 @@ fn original_from_geometry(
                     .get(&set.knit)
                     .expect("indoor knit material exists"),
                 images,
+                &set.gpu_bakes,
             )
         });
     for (person, assembly) in scene

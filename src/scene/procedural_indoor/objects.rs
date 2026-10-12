@@ -2,6 +2,7 @@ pub mod accessories;
 pub mod chairs;
 pub mod clocks;
 pub mod computers;
+pub mod containers;
 pub mod equipment;
 pub mod hospitality;
 pub mod seating;
@@ -180,7 +181,7 @@ pub fn build_object(o: &IndoorObject) -> Assembly {
         | ObjectKind::Phone
         | ObjectKind::PenHolder => super::clutter::build(&mut a, o),
         ObjectKind::Plant => super::plants::build(&mut a, o),
-        ObjectKind::TrashCan => bin(&mut a, o),
+        ObjectKind::TrashCan => containers::bin(&mut a, o),
         ObjectKind::Display | ObjectKind::Monitor => computers::display(&mut a, o),
         ObjectKind::Laptop => computers::laptop(&mut a, o),
         ObjectKind::Whiteboard | ObjectKind::WallArt => wall_panel(&mut a, o),
@@ -285,39 +286,6 @@ pub fn build_object(o: &IndoorObject) -> Assembly {
         })
         .collect();
     a
-}
-
-fn bin(a: &mut Assembly, o: &IndoorObject) {
-    let r = o.size.x * 0.5;
-    let h = o.size.y;
-    a.part(Surface::Metal, "other_prop").lathe(
-        &[
-            (0.0, 0.0),
-            (r * 0.82, 0.0),
-            (r, h * 0.90),
-            (r * 0.94, h * 0.92),
-            (r * 0.85, 0.03),
-            (0.0, 0.03),
-        ],
-        36,
-        Transform::IDENTITY,
-    );
-    a.part(Surface::Plastic, "other_prop").lathe(
-        &[
-            (r * 0.94, h * 0.88),
-            (r, h * 0.93),
-            (r * 0.98, h),
-            (r * 0.58, h),
-            (r * 0.55, h * 0.96),
-        ],
-        36,
-        Transform::IDENTITY,
-    );
-    a.part(Surface::Rubber, "other_prop").cylinder(
-        r * 0.8,
-        0.005,
-        Transform::from_xyz(0.0, h * 0.3, 0.0),
-    );
 }
 
 fn wall_panel(a: &mut Assembly, o: &IndoorObject) {

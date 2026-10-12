@@ -34,7 +34,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
         ObjectKind::Stapler => stapler(a, o, &p),
         ObjectKind::TapeDispenser => tape(a, o, &p),
         ObjectKind::DocumentTray | ObjectKind::DeskOrganizer => organizer(a, o, &p),
-        ObjectKind::TissueBox => tissues(a, o, &p),
+        ObjectKind::TissueBox => super::containers::tissues(a, o),
         ObjectKind::DeskFan => fan(a, o, &p),
         _ => unreachable!("non-accessory object"),
     }
@@ -320,38 +320,6 @@ fn organizer(a: &mut Assembly, o: &IndoorObject, p: &AccessoryProgram) {
             }
         }
     }
-}
-
-fn tissues(a: &mut Assembly, o: &IndoorObject, p: &AccessoryProgram) {
-    let s = o.size;
-    let label = o.kind.class_name();
-    a.box_part(
-        if p.style == 0 {
-            Surface::Wood
-        } else {
-            Surface::Art
-        },
-        label,
-        Vec3::Y * s.y * 0.33,
-        Vec3::new(s.x, s.y * 0.66, s.z),
-        0.004,
-    );
-    a.box_part(
-        Surface::Ink,
-        label,
-        Vec3::Y * (s.y * 0.66 + 0.0005),
-        Vec3::new(s.x * 0.48, 0.001, s.z * 0.18),
-        0.001,
-    );
-    a.part(Surface::Paper, "paper").cushion(
-        Vec3::new(s.x * 0.30, s.y * 0.33, s.z * 0.16),
-        super::super::geometry::CushionProfile {
-            roundness: 4.,
-            crown: 2.,
-            dish: 0.,
-        },
-        Transform::from_xyz(0., s.y * 0.825, 0.),
-    );
 }
 
 fn fan(a: &mut Assembly, o: &IndoorObject, p: &AccessoryProgram) {

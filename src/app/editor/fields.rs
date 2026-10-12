@@ -86,6 +86,7 @@ pub fn items(state: &EditorState) -> Vec<Item> {
             num("/indoor_appearance/illumination_scale","Illumination multiplier",0.05,1.,0.01,"Uniformly dims sun, sky, electric and ambient lighting."),
             num("/indoor_appearance/exposure_ev100_offset","Exposure offset (EV100)",-2.,2.,0.05,"Positive values darken the image. Negative values brighten it."),
             section("RENDER QUALITY","Full supported effects are enabled by Auto."),
+            toggle("/indoor_gpu_materials","Bake materials on GPU","Caches the same PBR recipes on the rendering device. Unsupported programs and devices use CPU synthesis."),
             choices("/indoor_quality","Quality",&[("Auto · platform supported","Auto"),("Portable · reduced effects","Portable")],"Portable omits shadows, GI, SSAO, bloom and refraction."),
             num("/indoor_gi_rays","Indirect-light rays / probe",64.,16384.,64.,"Native Auto only. More rays reduce bake noise and take longer."),
             Item::Note(if cfg!(target_arch="wasm32") {"WebGPU Auto retains shadows, bloom and glass refraction. GI and SSAO are native-only."} else {"Lighting is baked during generation. Apply to see changes."}.into()),

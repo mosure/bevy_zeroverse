@@ -79,6 +79,9 @@ rooms, synchronized views, matching annotations, floor plans and distributions.
   furnishings need no downloaded mesh or texture catalog. Power cables follow
   collision-checked gravity curves, including floor contact. Daylight-aware
   exposure and native soft sun shadows retain surface detail in bright rooms.
+  Supported PBR recipes bake once on the GPU by default, with CPU fallback.
+  Finite, separately labelled sky geometry closes window views without changing
+  primary-room reconstruction bounds. RGB exposure is adjustable in Scene Studio.
 - **Calibrated multi-view cameras:** sampled intrinsics, primary-room placement,
   collision-checked trajectories and adjustable baselines with shared-view constraints.
 - **People and motion:** AnnyBody meshes with procedural clothing and optional

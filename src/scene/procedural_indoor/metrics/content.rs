@@ -23,6 +23,12 @@ pub(super) fn record_scene(
     scene: &IndoorManifest,
     numeric: &mut NumericCollector,
 ) -> io::Result<()> {
+    for (kind, count) in ["building", "garden", "courtyard", "pergola"]
+        .into_iter()
+        .zip(super::super::architecture::outdoors::counts(scene))
+    {
+        numeric.push(&format!("exterior_{kind}_parcels"), count as f64)?;
+    }
     let p = ViewpointProgram::sample(scene.seed);
     let wall = super::super::layout::wall_composition::WallComposition::sample(scene);
     for (name, value) in [
@@ -246,6 +252,39 @@ pub(super) fn record_object(
     numeric: &mut NumericCollector,
 ) -> Result<(), Box<dyn std::error::Error>> {
     record_equipment(scene, o, categories, numeric)?;
+    match o.kind {
+        ObjectKind::TrashCan => {
+            let p = super::super::objects::containers::bin_parameters(o);
+            category(categories, "bin_lid", p.lid);
+            category(categories, "bin_finish", format!("{:?}", p.finish));
+            numeric.push("bin_squareness", p.squareness as f64)?;
+            numeric.push("bin_taper", p.taper as f64)?;
+            numeric.push("bin_rim_width_fraction", p.rim_width as f64)?;
+        }
+        ObjectKind::TissueBox => {
+            let p = super::super::objects::containers::tissue_parameters(o);
+            category(categories, "tissue_box_finish", format!("{:?}", p.finish));
+            numeric.push("tissue_box_height_fraction", p.box_height as f64)?;
+            numeric.push("tissue_sheet_fold", p.fold as f64)?;
+            numeric.push("tissue_sheet_lean", p.lean as f64)?;
+        }
+        ObjectKind::WallOutlet | ObjectKind::LightSwitch => {
+            let p = super::super::objects::wall::parameters(o);
+            let name = if o.kind == ObjectKind::WallOutlet {
+                "outlet"
+            } else {
+                "switch"
+            };
+            category(categories, &format!("{name}_construction"), p.style);
+            category(categories, &format!("{name}_gangs"), p.gangs);
+            category(
+                categories,
+                &format!("{name}_finish"),
+                format!("{:?}", p.finish),
+            );
+        }
+        _ => {}
+    }
     if matches!(o.kind, ObjectKind::Monitor | ObjectKind::Display) {
         let p = super::super::objects::computers::display_parameters(o);
         let d = super::super::objects::computers::display_geometry(o);

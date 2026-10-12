@@ -283,14 +283,14 @@
     ],
     "annotation_precision": "float32_geometry",
     "build_provenance": {
-      "capture_engine": "capture-v53;calibration=1;co_visibility=1;bevy=0.20.0;burn=0.22.0;burn_human=0.6.0;bevy_burn_human=0.7.0;burn_human_motion=0.2.0;burn_ardy=0.2.0;burn_llama=0.2.0;burn_human_inference=0.2.0;ardy_motion=9;surface_flow=1;indoor=35;multiview=6;ovoxel=3;glass=3;hair=5;wardrobe=4;footwear=1;bounds=4;morphology=3;position=3;tabletop=2;finishes=9;seating=3;activity=2;playback=2;exterior=2;envelope=3;furnishings=3;botany=2;visual_content=3;equipment=3;palette=2;photometry=2;sun_shadow=2",
-      "crate_version": "0.37.2",
+      "capture_engine": "capture-v54;calibration=1;co_visibility=1;bevy=0.20.0;burn=0.22.0;burn_human=0.6.0;bevy_burn_human=0.7.0;burn_human_motion=0.2.0;burn_ardy=0.2.0;burn_llama=0.2.0;burn_human_inference=0.2.0;ardy_motion=9;surface_flow=1;indoor=36;multiview=6;ovoxel=3;glass=3;hair=5;wardrobe=4;footwear=1;bounds=4;morphology=3;position=3;tabletop=2;finishes=9;seating=3;activity=2;playback=2;exterior=3;envelope=3;furnishings=3;botany=2;visual_content=3;equipment=3;palette=2;photometry=2;sun_shadow=2;material_compute=1;semantic=3",
+      "crate_version": "0.38.0",
       "features": {
         "human_motion": false,
         "multi_threaded": true,
         "web": false
       },
-      "generator_version": 35,
+      "generator_version": 36,
       "locked_package_versions": {
         "bevy": [
           "0.20.0"
@@ -299,19 +299,19 @@
           "0.7.0"
         ],
         "bevy_zeroverse": [
-          "0.37.2"
+          "0.38.0"
         ],
         "bevy_zeroverse_burn": [
-          "0.21.0"
+          "0.22.0"
         ],
         "bevy_zeroverse_capture": [
-          "0.1.6"
+          "0.1.7"
         ],
         "bevy_zeroverse_ffi": [
-          "0.37.2"
+          "0.38.0"
         ],
         "bevy_zeroverse_publication": [
-          "0.2.2"
+          "0.2.3"
         ],
         "burn": [
           "0.22.0"
@@ -969,10 +969,19 @@
             39,
             34
           ]
+        },
+        {
+          "id": 71,
+          "label": "sky",
+          "srgb8": [
+            75,
+            145,
+            245
+          ]
         }
       ],
-      "semantic_taxonomy_version": 2,
-      "source_sha256": "f4d63ef78ebe787973c9919148781b0a4f181c04e8b4a06173ebdcac4004bf6e",
+      "semantic_taxonomy_version": 3,
+      "source_sha256": "a894dcdb1957617987ad7b2d73d41a0e3c88226693165c7c8608c30b5caeabc3",
       "target": "x86_64-unknown-linux-gnu"
     },
     "camera_qualification": {
@@ -1107,53 +1116,53 @@
       "rendered_overlap": [
         {
           "baseline_m": 4.513847827911377,
-          "mean_triangulation_degrees": 93.91709003163808,
-          "shared_fraction_valid": 0.39415625,
-          "shared_pixels": 100904,
+          "mean_triangulation_degrees": 93.91942796784302,
+          "shared_fraction_valid": 0.3941171875,
+          "shared_pixels": 100894,
           "source_camera": 0,
           "step_index": 0,
           "target_camera": 1,
-          "triangulation_sample_count": 1608,
+          "triangulation_sample_count": 1607,
           "valid_source_pixels": 256000
         },
         {
           "baseline_m": 2.204810857772827,
-          "mean_triangulation_degrees": 36.51245707159059,
-          "shared_fraction_valid": 0.56921875,
-          "shared_pixels": 145720,
+          "mean_triangulation_degrees": 36.51052376696806,
+          "shared_fraction_valid": 0.56928515625,
+          "shared_pixels": 145737,
           "source_camera": 0,
           "step_index": 0,
           "target_camera": 2,
-          "triangulation_sample_count": 2292,
+          "triangulation_sample_count": 2293,
           "valid_source_pixels": 256000
         },
         {
           "baseline_m": 2.674136161804199,
-          "mean_triangulation_degrees": 40.59321119538493,
-          "shared_fraction_valid": 0.462078125,
-          "shared_pixels": 118292,
+          "mean_triangulation_degrees": 40.596582423921454,
+          "shared_fraction_valid": 0.46208984375,
+          "shared_pixels": 118295,
           "source_camera": 0,
           "step_index": 0,
           "target_camera": 3,
-          "triangulation_sample_count": 1874,
+          "triangulation_sample_count": 1873,
           "valid_source_pixels": 256000
         },
         {
           "baseline_m": 4.513847827911377,
-          "mean_triangulation_degrees": 90.76849592436508,
-          "shared_fraction_valid": 0.425296875,
-          "shared_pixels": 108876,
+          "mean_triangulation_degrees": 90.768198761004,
+          "shared_fraction_valid": 0.425265625,
+          "shared_pixels": 108868,
           "source_camera": 1,
           "step_index": 0,
           "target_camera": 0,
-          "triangulation_sample_count": 1726,
+          "triangulation_sample_count": 1727,
           "valid_source_pixels": 256000
         },
         {
           "baseline_m": 3.76004958152771,
-          "mean_triangulation_degrees": 66.51950193485803,
-          "shared_fraction_valid": 0.44935546875,
-          "shared_pixels": 115035,
+          "mean_triangulation_degrees": 66.51953602832205,
+          "shared_fraction_valid": 0.44931640625,
+          "shared_pixels": 115025,
           "source_camera": 1,
           "step_index": 0,
           "target_camera": 2,
@@ -1162,9 +1171,9 @@
         },
         {
           "baseline_m": 4.293497085571289,
-          "mean_triangulation_degrees": 68.28898401290272,
-          "shared_fraction_valid": 0.39530078125,
-          "shared_pixels": 101197,
+          "mean_triangulation_degrees": 68.28902059333825,
+          "shared_fraction_valid": 0.39528515625,
+          "shared_pixels": 101193,
           "source_camera": 1,
           "step_index": 0,
           "target_camera": 3,
@@ -1173,20 +1182,20 @@
         },
         {
           "baseline_m": 2.204810857772827,
-          "mean_triangulation_degrees": 30.52231700800248,
-          "shared_fraction_valid": 0.543859375,
-          "shared_pixels": 139228,
+          "mean_triangulation_degrees": 30.521501588345007,
+          "shared_fraction_valid": 0.5438828125,
+          "shared_pixels": 139234,
           "source_camera": 2,
           "step_index": 0,
           "target_camera": 0,
-          "triangulation_sample_count": 2203,
+          "triangulation_sample_count": 2202,
           "valid_source_pixels": 256000
         },
         {
           "baseline_m": 3.76004958152771,
-          "mean_triangulation_degrees": 64.79264763030667,
-          "shared_fraction_valid": 0.440984375,
-          "shared_pixels": 112892,
+          "mean_triangulation_degrees": 64.79264830274222,
+          "shared_fraction_valid": 0.4409609375,
+          "shared_pixels": 112886,
           "source_camera": 2,
           "step_index": 0,
           "target_camera": 1,
@@ -1195,9 +1204,9 @@
         },
         {
           "baseline_m": 1.0475921630859375,
-          "mean_triangulation_degrees": 14.00113976653626,
-          "shared_fraction_valid": 0.5799140625,
-          "shared_pixels": 148458,
+          "mean_triangulation_degrees": 14.001140245192634,
+          "shared_fraction_valid": 0.57991015625,
+          "shared_pixels": 148457,
           "source_camera": 2,
           "step_index": 0,
           "target_camera": 3,
@@ -1206,20 +1215,20 @@
         },
         {
           "baseline_m": 2.674136161804199,
-          "mean_triangulation_degrees": 31.83399130490401,
-          "shared_fraction_valid": 0.4844609375,
-          "shared_pixels": 124022,
+          "mean_triangulation_degrees": 31.83252880009076,
+          "shared_fraction_valid": 0.484453125,
+          "shared_pixels": 124020,
           "source_camera": 3,
           "step_index": 0,
           "target_camera": 0,
-          "triangulation_sample_count": 1966,
+          "triangulation_sample_count": 1965,
           "valid_source_pixels": 256000
         },
         {
           "baseline_m": 4.293497085571289,
-          "mean_triangulation_degrees": 68.36030192638006,
-          "shared_fraction_valid": 0.4382890625,
-          "shared_pixels": 112202,
+          "mean_triangulation_degrees": 68.36035211818425,
+          "shared_fraction_valid": 0.4382265625,
+          "shared_pixels": 112186,
           "source_camera": 3,
           "step_index": 0,
           "target_camera": 1,
@@ -1228,31 +1237,31 @@
         },
         {
           "baseline_m": 1.0475921630859375,
-          "mean_triangulation_degrees": 12.065110586794583,
-          "shared_fraction_valid": 0.82416015625,
-          "shared_pixels": 210985,
+          "mean_triangulation_degrees": 12.06414006320792,
+          "shared_fraction_valid": 0.824125,
+          "shared_pixels": 210976,
           "source_camera": 3,
           "step_index": 0,
           "target_camera": 2,
-          "triangulation_sample_count": 3355,
+          "triangulation_sample_count": 3354,
           "valid_source_pixels": 256000
         },
         {
           "baseline_m": 4.578968048095703,
-          "mean_triangulation_degrees": 88.57942443368323,
-          "shared_fraction_valid": 0.41988671875,
-          "shared_pixels": 107491,
+          "mean_triangulation_degrees": 88.57006266619469,
+          "shared_fraction_valid": 0.41973828125,
+          "shared_pixels": 107453,
           "source_camera": 0,
           "step_index": 1,
           "target_camera": 1,
-          "triangulation_sample_count": 1719,
+          "triangulation_sample_count": 1718,
           "valid_source_pixels": 256000
         },
         {
           "baseline_m": 2.4105100631713867,
-          "mean_triangulation_degrees": 41.06415472062688,
-          "shared_fraction_valid": 0.51839453125,
-          "shared_pixels": 132709,
+          "mean_triangulation_degrees": 41.06429294892017,
+          "shared_fraction_valid": 0.51827734375,
+          "shared_pixels": 132679,
           "source_camera": 0,
           "step_index": 1,
           "target_camera": 2,
@@ -1261,20 +1270,20 @@
         },
         {
           "baseline_m": 2.8365235328674316,
-          "mean_triangulation_degrees": 44.63327356420382,
-          "shared_fraction_valid": 0.38898046875,
-          "shared_pixels": 99579,
+          "mean_triangulation_degrees": 44.63305672617254,
+          "shared_fraction_valid": 0.38883203125,
+          "shared_pixels": 99541,
           "source_camera": 0,
           "step_index": 1,
           "target_camera": 3,
-          "triangulation_sample_count": 1584,
+          "triangulation_sample_count": 1583,
           "valid_source_pixels": 256000
         },
         {
           "baseline_m": 4.578968048095703,
-          "mean_triangulation_degrees": 91.54043288041652,
-          "shared_fraction_valid": 0.44066796875,
-          "shared_pixels": 112811,
+          "mean_triangulation_degrees": 91.54052830968509,
+          "shared_fraction_valid": 0.44055078125,
+          "shared_pixels": 112781,
           "source_camera": 1,
           "step_index": 1,
           "target_camera": 0,
@@ -1283,9 +1292,9 @@
         },
         {
           "baseline_m": 3.8630619049072266,
-          "mean_triangulation_degrees": 75.59489491224289,
-          "shared_fraction_valid": 0.396984375,
-          "shared_pixels": 101628,
+          "mean_triangulation_degrees": 75.5979241323471,
+          "shared_fraction_valid": 0.39695703125,
+          "shared_pixels": 101621,
           "source_camera": 1,
           "step_index": 1,
           "target_camera": 2,
@@ -1294,42 +1303,42 @@
         },
         {
           "baseline_m": 4.328047752380371,
-          "mean_triangulation_degrees": 76.42403176824101,
-          "shared_fraction_valid": 0.3224921875,
-          "shared_pixels": 82558,
+          "mean_triangulation_degrees": 76.4197988147242,
+          "shared_fraction_valid": 0.3225390625,
+          "shared_pixels": 82570,
           "source_camera": 1,
           "step_index": 1,
           "target_camera": 3,
-          "triangulation_sample_count": 1313,
+          "triangulation_sample_count": 1314,
           "valid_source_pixels": 256000
         },
         {
           "baseline_m": 2.4105100631713867,
-          "mean_triangulation_degrees": 35.20855478459534,
-          "shared_fraction_valid": 0.566046875,
-          "shared_pixels": 144908,
+          "mean_triangulation_degrees": 35.21114849411097,
+          "shared_fraction_valid": 0.566015625,
+          "shared_pixels": 144900,
           "source_camera": 2,
           "step_index": 1,
           "target_camera": 0,
-          "triangulation_sample_count": 2296,
+          "triangulation_sample_count": 2297,
           "valid_source_pixels": 256000
         },
         {
           "baseline_m": 3.8630619049072266,
-          "mean_triangulation_degrees": 72.1776135754941,
-          "shared_fraction_valid": 0.41135546875,
-          "shared_pixels": 105307,
+          "mean_triangulation_degrees": 72.18396032554416,
+          "shared_fraction_valid": 0.41130859375,
+          "shared_pixels": 105295,
           "source_camera": 2,
           "step_index": 1,
           "target_camera": 1,
-          "triangulation_sample_count": 1675,
+          "triangulation_sample_count": 1674,
           "valid_source_pixels": 256000
         },
         {
           "baseline_m": 0.9876426458358764,
-          "mean_triangulation_degrees": 13.604049272566916,
-          "shared_fraction_valid": 0.5538828125,
-          "shared_pixels": 141794,
+          "mean_triangulation_degrees": 13.602533718701096,
+          "shared_fraction_valid": 0.55387109375,
+          "shared_pixels": 141791,
           "source_camera": 2,
           "step_index": 1,
           "target_camera": 3,
@@ -1338,9 +1347,9 @@
         },
         {
           "baseline_m": 2.8365235328674316,
-          "mean_triangulation_degrees": 35.986083029169905,
-          "shared_fraction_valid": 0.462375,
-          "shared_pixels": 118368,
+          "mean_triangulation_degrees": 35.98608279240967,
+          "shared_fraction_valid": 0.4622890625,
+          "shared_pixels": 118346,
           "source_camera": 3,
           "step_index": 1,
           "target_camera": 0,
@@ -1349,20 +1358,20 @@
         },
         {
           "baseline_m": 4.328047752380371,
-          "mean_triangulation_degrees": 73.7737285368564,
-          "shared_fraction_valid": 0.36834375,
-          "shared_pixels": 94296,
+          "mean_triangulation_degrees": 73.78111321366073,
+          "shared_fraction_valid": 0.368390625,
+          "shared_pixels": 94308,
           "source_camera": 3,
           "step_index": 1,
           "target_camera": 1,
-          "triangulation_sample_count": 1492,
+          "triangulation_sample_count": 1490,
           "valid_source_pixels": 256000
         },
         {
           "baseline_m": 0.9876426458358764,
-          "mean_triangulation_degrees": 12.425009463468903,
-          "shared_fraction_valid": 0.82516796875,
-          "shared_pixels": 211243,
+          "mean_triangulation_degrees": 12.425010446145835,
+          "shared_fraction_valid": 0.82515625,
+          "shared_pixels": 211240,
           "source_camera": 3,
           "step_index": 1,
           "target_camera": 2,
@@ -1372,7 +1381,7 @@
       ],
       "requested_pairs": [],
       "scene_family": {
-        "id": "procedural_indoor/35/0000000000000019",
+        "id": "procedural_indoor/36/0000000000000019",
         "rule": "group all frames, cameras and appearance/sensor variants of a generator-version/seed family before assigning dataset splits",
         "split_bucket_10000": 8074
       },
@@ -1462,25 +1471,25 @@
       "mean_radiance": null,
       "prefetch_hit": false,
       "prefetch_wait_ms": 0.0,
-      "preparation_ms": 655.193077,
+      "preparation_ms": 479.411795,
       "primary_rays": 1638400,
       "probes": 1600,
-      "relocated_probes": 239,
+      "relocated_probes": 238,
       "texture_bytes": 76800,
-      "transport_bytes": 74723344,
-      "triangles": 637997
+      "transport_bytes": 79993296,
+      "triangles": 685057
     },
-    "elapsed_seconds": 4.447638247,
-    "image_assets": 172,
+    "elapsed_seconds": 2.952389278,
+    "image_assets": 173,
     "image_size": [
       640,
       400
     ],
     "label_policy": "first geometric surface; glass is an opaque window in geometry annotations; native indoor uses direct float32 MRT",
-    "material_assets": 203,
-    "mesh_assets": 503,
+    "material_assets": 208,
+    "mesh_assets": 510,
     "renderer": "AdapterInfo { name: \"NVIDIA RTX PRO 6000 Blackwell Workstation Edition\", vendor: 4318, device: 11185, device_type: DiscreteGpu, device_pci_bus_id: \"0000:01:00.0\", driver: \"NVIDIA\", driver_info: \"610.43.02\", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: Some(false), limit_bucket: None }",
-    "run_id": "2223442-1791782392524223400",
+    "run_id": "2551504-1791818048819931776",
     "seed": 25,
     "views": [
       {
@@ -1489,7 +1498,7 @@
           "depth_position_max_metres": 1.4305115e-6,
           "depth_position_p99_metres": 9.536743e-7,
           "normal_length_max_error": 2.3841858e-7,
-          "position_quantization_budget_p99_ratio": 0.020931674,
+          "position_quantization_budget_p99_ratio": 0.020945342,
           "reprojection_max_pixels": 0.00077204045,
           "reprojection_p99_pixels": 0.0002471029
         },
@@ -1524,25 +1533,25 @@
         "clipped_fraction": 0.0,
         "co_visibility": {
           "cardinality_pixels": [
-            75526,
-            54242,
-            68022,
-            58210
+            75529,
+            54231,
+            68025,
+            58215
           ],
           "peer_fraction_valid": [
             0.0,
-            0.39415625,
-            0.56921875,
-            0.462078125
+            0.3941171875,
+            0.56928515625,
+            0.46208984375
           ],
           "peer_pixels": [
             0,
-            100904,
-            145720,
-            118292
+            100894,
+            145737,
+            118295
           ],
-          "shared_fraction_valid": 0.7049765625,
-          "shared_pixels": 180474,
+          "shared_fraction_valid": 0.70496484375,
+          "shared_pixels": 180471,
           "valid_pixels": 256000
         },
         "dark_fraction": 0.0006210937,
@@ -1550,8 +1559,8 @@
         "fov_y": 1.4499808549880981,
         "fx_pixels": 225.7499237060547,
         "fy_pixels": 225.7499237060547,
-        "luminance_std": 0.09986562,
-        "mean_luminance": 0.041200068,
+        "luminance_std": 0.09985786,
+        "mean_luminance": 0.041138615,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 21,
@@ -1574,8 +1583,8 @@
           "projection_screen": 875,
           "projector": 23,
           "shelves": 1640,
-          "wall": 95409,
-          "wall_outlet": 485,
+          "wall": 95412,
+          "wall_outlet": 482,
           "window": 31527
         },
         "step_index": 0,
@@ -1650,25 +1659,25 @@
         "clipped_fraction": 0.0,
         "co_visibility": {
           "cardinality_pixels": [
-            110392,
-            31698,
-            48320,
-            65590
+            110396,
+            31706,
+            48314,
+            65584
           ],
           "peer_fraction_valid": [
-            0.425296875,
+            0.425265625,
             0.0,
-            0.44935546875,
-            0.39530078125
+            0.44931640625,
+            0.39528515625
           ],
           "peer_pixels": [
-            108876,
+            108868,
             0,
-            115035,
-            101197
+            115025,
+            101193
           ],
-          "shared_fraction_valid": 0.56878125,
-          "shared_pixels": 145608,
+          "shared_fraction_valid": 0.568765625,
+          "shared_pixels": 145604,
           "valid_pixels": 256000
         },
         "dark_fraction": 0.00008984375,
@@ -1676,20 +1685,20 @@
         "fov_y": 1.358614206314087,
         "fx_pixels": 247.673095703125,
         "fy_pixels": 247.673095703125,
-        "luminance_std": 0.09641437,
-        "mean_luminance": 0.040832166,
+        "luminance_std": 0.09643466,
+        "mean_luminance": 0.04067834,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 22,
         "semantic_pixel_counts": {
           "appliance": 71,
-          "cable": 38,
+          "cable": 37,
           "ceiling": 36575,
           "chair": 1218,
           "coffee_table": 7859,
           "desk": 1132,
           "drink_container": 24,
-          "floor": 71292,
+          "floor": 71293,
           "lamp": 4383,
           "light_switch": 34,
           "other_structure": 5487,
@@ -1777,25 +1786,25 @@
         "clipped_fraction": 0.0,
         "co_visibility": {
           "cardinality_pixels": [
-            16356,
-            99745,
-            118864,
-            21035
+            16357,
+            99743,
+            118866,
+            21034
           ],
           "peer_fraction_valid": [
-            0.543859375,
-            0.440984375,
+            0.5438828125,
+            0.4409609375,
             0.0,
-            0.5799140625
+            0.57991015625
           ],
           "peer_pixels": [
-            139228,
-            112892,
+            139234,
+            112886,
             0,
-            148458
+            148457
           ],
-          "shared_fraction_valid": 0.936109375,
-          "shared_pixels": 239644,
+          "shared_fraction_valid": 0.93610546875,
+          "shared_pixels": 239643,
           "valid_pixels": 256000
         },
         "dark_fraction": 0.00021484375,
@@ -1803,8 +1812,8 @@
         "fov_y": 1.5619937181472778,
         "fx_pixels": 201.768310546875,
         "fy_pixels": 201.768310546875,
-        "luminance_std": 0.06701582,
-        "mean_luminance": 0.032348726,
+        "luminance_std": 0.06701067,
+        "mean_luminance": 0.032334447,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 23,
@@ -1829,8 +1838,8 @@
           "shelves": 361,
           "stationery": 48,
           "television": 6641,
-          "wall": 78022,
-          "wall_outlet": 294,
+          "wall": 78021,
+          "wall_outlet": 295,
           "window": 29249
         },
         "step_index": 0,
@@ -1870,9 +1879,9 @@
           "depth_position_max_metres": 1.4305115e-6,
           "depth_position_p99_metres": 9.536743e-7,
           "normal_length_max_error": 2.3841858e-7,
-          "position_quantization_budget_p99_ratio": 0.009855017,
+          "position_quantization_budget_p99_ratio": 0.009853403,
           "reprojection_max_pixels": 0.0003674803,
-          "reprojection_p99_pixels": 0.00012947511
+          "reprojection_p99_pixels": 0.00013037115
         },
         "calibration": {
           "image_size": [
@@ -1905,25 +1914,25 @@
         "clipped_fraction": 0.0,
         "co_visibility": {
           "cardinality_pixels": [
-            18299,
-            59555,
-            146784,
-            31362
+            18305,
+            59568,
+            146767,
+            31360
           ],
           "peer_fraction_valid": [
-            0.4844609375,
-            0.4382890625,
-            0.82416015625,
+            0.484453125,
+            0.4382265625,
+            0.824125,
             0.0
           ],
           "peer_pixels": [
-            124022,
-            112202,
-            210985,
+            124020,
+            112186,
+            210976,
             0
           ],
-          "shared_fraction_valid": 0.92851953125,
-          "shared_pixels": 237701,
+          "shared_fraction_valid": 0.92849609375,
+          "shared_pixels": 237695,
           "valid_pixels": 256000
         },
         "dark_fraction": 0.0011015625,
@@ -1931,8 +1940,8 @@
         "fov_y": 1.0507723093032837,
         "fx_pixels": 344.9846496582031,
         "fy_pixels": 344.9846496582031,
-        "luminance_std": 0.08424651,
-        "mean_luminance": 0.037177343,
+        "luminance_std": 0.084241636,
+        "mean_luminance": 0.037136268,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 21,
@@ -1955,8 +1964,8 @@
           "projector": 317,
           "shelves": 670,
           "television": 8022,
-          "wall": 80526,
-          "wall_outlet": 425,
+          "wall": 80522,
+          "wall_outlet": 429,
           "window": 29309
         },
         "step_index": 0,
@@ -2031,34 +2040,34 @@
         "clipped_fraction": 0.0,
         "co_visibility": {
           "cardinality_pixels": [
-            54790,
-            94938,
-            73975,
-            32297
+            54818,
+            94948,
+            73977,
+            32257
           ],
           "peer_fraction_valid": [
             0.0,
-            0.41988671875,
-            0.51839453125,
-            0.38898046875
+            0.41973828125,
+            0.51827734375,
+            0.38883203125
           ],
           "peer_pixels": [
             0,
-            107491,
-            132709,
-            99579
+            107453,
+            132679,
+            99541
           ],
-          "shared_fraction_valid": 0.7859765625,
-          "shared_pixels": 201210,
+          "shared_fraction_valid": 0.7858671875,
+          "shared_pixels": 201182,
           "valid_pixels": 256000
         },
-        "dark_fraction": 0.00018359374,
+        "dark_fraction": 0.0001875,
         "far": 50.0,
         "fov_y": 1.4499808549880981,
         "fx_pixels": 225.7499237060547,
         "fy_pixels": 225.7499237060547,
-        "luminance_std": 0.08004523,
-        "mean_luminance": 0.039825525,
+        "luminance_std": 0.08003023,
+        "mean_luminance": 0.039775714,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 21,
@@ -2157,25 +2166,25 @@
         "clipped_fraction": 0.0,
         "co_visibility": {
           "cardinality_pixels": [
-            105305,
-            50183,
-            54722,
-            45790
+            105309,
+            50182,
+            54737,
+            45772
           ],
           "peer_fraction_valid": [
-            0.44066796875,
+            0.44055078125,
             0.0,
-            0.396984375,
-            0.3224921875
+            0.39695703125,
+            0.3225390625
           ],
           "peer_pixels": [
-            112811,
+            112781,
             0,
-            101628,
-            82558
+            101621,
+            82570
           ],
-          "shared_fraction_valid": 0.58865234375,
-          "shared_pixels": 150695,
+          "shared_fraction_valid": 0.58863671875,
+          "shared_pixels": 150691,
           "valid_pixels": 256000
         },
         "dark_fraction": 0.00003515625,
@@ -2183,14 +2192,14 @@
         "fov_y": 1.358614206314087,
         "fx_pixels": 247.673095703125,
         "fy_pixels": 247.673095703125,
-        "luminance_std": 0.04911885,
-        "mean_luminance": 0.03033074,
+        "luminance_std": 0.049125724,
+        "mean_luminance": 0.030155633,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 24,
         "semantic_pixel_counts": {
           "appliance": 28,
-          "cable": 21,
+          "cable": 19,
           "ceiling": 35613,
           "chair": 1790,
           "coffee_table": 9177,
@@ -2209,8 +2218,8 @@
           "shelves": 1472,
           "stationery": 19,
           "television": 1346,
-          "wall": 89386,
-          "wall_outlet": 265,
+          "wall": 89387,
+          "wall_outlet": 266,
           "whiteboard": 423,
           "window": 21760
         },
@@ -2251,7 +2260,7 @@
           "depth_position_max_metres": 1.4305115e-6,
           "depth_position_p99_metres": 7.1525574e-7,
           "normal_length_max_error": 2.3841858e-7,
-          "position_quantization_budget_p99_ratio": 0.010286275,
+          "position_quantization_budget_p99_ratio": 0.010280825,
           "reprojection_max_pixels": 0.00039672852,
           "reprojection_p99_pixels": 0.00013647876
         },
@@ -2286,25 +2295,25 @@
         "clipped_fraction": 0.0,
         "co_visibility": {
           "cardinality_pixels": [
-            17959,
-            98067,
-            125980,
-            13994
+            17968,
+            98063,
+            125984,
+            13985
           ],
           "peer_fraction_valid": [
-            0.566046875,
-            0.41135546875,
+            0.566015625,
+            0.41130859375,
             0.0,
-            0.5538828125
+            0.55387109375
           ],
           "peer_pixels": [
-            144908,
-            105307,
+            144900,
+            105295,
             0,
-            141794
+            141791
           ],
-          "shared_fraction_valid": 0.92984765625,
-          "shared_pixels": 238041,
+          "shared_fraction_valid": 0.9298125,
+          "shared_pixels": 238032,
           "valid_pixels": 256000
         },
         "dark_fraction": 0.00031640625,
@@ -2312,8 +2321,8 @@
         "fov_y": 1.5619937181472778,
         "fx_pixels": 201.768310546875,
         "fy_pixels": 201.768310546875,
-        "luminance_std": 0.07447554,
-        "mean_luminance": 0.034495316,
+        "luminance_std": 0.074470356,
+        "mean_luminance": 0.034470063,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 22,
@@ -2326,7 +2335,7 @@
           "desk": 10060,
           "door": 1532,
           "drink_container": 102,
-          "floor": 82573,
+          "floor": 82572,
           "lamp": 3139,
           "ottoman": 600,
           "paper": 16,
@@ -2337,8 +2346,8 @@
           "projector": 127,
           "shelves": 485,
           "television": 1666,
-          "wall": 92469,
-          "wall_outlet": 416,
+          "wall": 92461,
+          "wall_outlet": 425,
           "window": 30477
         },
         "step_index": 1,
@@ -2378,7 +2387,7 @@
           "depth_position_max_metres": 1.9073486e-6,
           "depth_position_p99_metres": 1.4305115e-6,
           "normal_length_max_error": 2.3841858e-7,
-          "position_quantization_budget_p99_ratio": 0.01715301,
+          "position_quantization_budget_p99_ratio": 0.017213024,
           "reprojection_max_pixels": 0.00037126237,
           "reprojection_p99_pixels": 0.00012789195
         },
@@ -2414,45 +2423,45 @@
         "co_visibility": {
           "cardinality_pixels": [
             20366,
-            68402,
-            146191,
-            21041
+            68401,
+            146206,
+            21027
           ],
           "peer_fraction_valid": [
-            0.462375,
-            0.36834375,
-            0.82516796875,
+            0.4622890625,
+            0.368390625,
+            0.82515625,
             0.0
           ],
           "peer_pixels": [
-            118368,
-            94296,
-            211243,
+            118346,
+            94308,
+            211240,
             0
           ],
           "shared_fraction_valid": 0.9204453125,
           "shared_pixels": 235634,
           "valid_pixels": 256000
         },
-        "dark_fraction": 0.00115625,
+        "dark_fraction": 0.0011484375,
         "far": 50.0,
         "fov_y": 1.0507723093032837,
         "fx_pixels": 344.9846496582031,
         "fy_pixels": 344.9846496582031,
-        "luminance_std": 0.09272354,
-        "mean_luminance": 0.039122093,
+        "luminance_std": 0.09272069,
+        "mean_luminance": 0.039080355,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 21,
         "semantic_pixel_counts": {
           "appliance": 610,
-          "cable": 338,
+          "cable": 342,
           "ceiling": 24838,
           "chair": 9950,
           "coffee_table": 3196,
           "desk": 9790,
           "drink_container": 668,
-          "floor": 65009,
+          "floor": 65005,
           "lamp": 4070,
           "ottoman": 1305,
           "paper": 16,
@@ -2463,8 +2472,8 @@
           "projector": 314,
           "shelves": 837,
           "television": 5575,
-          "wall": 84258,
-          "wall_outlet": 278,
+          "wall": 84252,
+          "wall_outlet": 284,
           "window": 32391
         },
         "step_index": 1,
@@ -2501,10 +2510,10 @@
     ]
   },
   "generator_identity": {
-    "crate_version": "0.37.2",
-    "generator_version": 35,
+    "crate_version": "0.38.0",
+    "generator_version": 36,
     "schema_version": 1,
-    "source_sha256": "f4d63ef78ebe787973c9919148781b0a4f181c04e8b4a06173ebdcac4004bf6e"
+    "source_sha256": "a894dcdb1957617987ad7b2d73d41a0e3c88226693165c7c8608c30b5caeabc3"
   },
   "manifest": {
     "architecture_style": "Classic",
@@ -3046,7 +3055,7 @@
     "floor_style": 1,
     "furnishing_quarter_turn": 0,
     "furniture_style": 0,
-    "generator_version": 35,
+    "generator_version": 36,
     "glazing_height": 2.9091768,
     "human_density": 0.25,
     "humans": [
@@ -3173,7 +3182,7 @@
         "hair_color": 4,
         "hairstyle": 16,
         "head_yaw": 0.32738695,
-        "id": 99,
+        "id": 100,
         "joints": [
           [
             0.024066422,
@@ -3718,7 +3727,7 @@
         "hair_color": 4,
         "hairstyle": 4,
         "head_yaw": -0.17761241,
-        "id": 100,
+        "id": 101,
         "joints": [
           [
             0.0071067363,
@@ -3992,12 +4001,12 @@
           -0.68835783
         ],
         "build": 0.95866257,
-        "chair": 30,
+        "chair": 31,
         "glasses": false,
         "hair_color": 5,
         "hairstyle": 17,
         "head_yaw": 0.08129138,
-        "id": 101,
+        "id": 102,
         "joints": [
           [
             -0.018038223,
@@ -4276,7 +4285,7 @@
         "hair_color": 4,
         "hairstyle": 1,
         "head_yaw": 0.027297318,
-        "id": 102,
+        "id": 103,
         "joints": [
           [
             0.018402882,
@@ -4555,7 +4564,7 @@
         "hair_color": 2,
         "hairstyle": 5,
         "head_yaw": -0.21472959,
-        "id": 103,
+        "id": 104,
         "joints": [
           [
             -0.031371154,
@@ -5233,9 +5242,9 @@
         ],
         "seed": 6845390894449254934,
         "size": [
-          0.35,
+          0.37154073,
           0.5722527,
-          0.35
+          0.40153793
         ],
         "solid": true,
         "support": null,
@@ -5329,6 +5338,27 @@
       {
         "id": 29,
         "interaction_target": null,
+        "kind": "TrashCan",
+        "neighbor": false,
+        "position": [
+          -0.54636145,
+          0.0,
+          4.2294607
+        ],
+        "seed": 9620415308489556717,
+        "size": [
+          0.27970508,
+          0.6458014,
+          0.2756293
+        ],
+        "solid": true,
+        "support": null,
+        "variant": 2,
+        "yaw": 2.9929879
+      },
+      {
+        "id": 30,
+        "interaction_target": null,
         "kind": "Desk",
         "neighbor": false,
         "position": [
@@ -5348,8 +5378,8 @@
         "yaw": 3.6306338
       },
       {
-        "id": 30,
-        "interaction_target": 29,
+        "id": 31,
+        "interaction_target": 30,
         "kind": "Chair",
         "neighbor": false,
         "position": [
@@ -5369,7 +5399,7 @@
         "yaw": 3.6209338
       },
       {
-        "id": 31,
+        "id": 32,
         "interaction_target": null,
         "kind": "Sofa",
         "neighbor": false,
@@ -5390,7 +5420,7 @@
         "yaw": 3.8824105
       },
       {
-        "id": 32,
+        "id": 33,
         "interaction_target": null,
         "kind": "StorageBox",
         "neighbor": false,
@@ -5411,7 +5441,7 @@
         "yaw": -1.3979174
       },
       {
-        "id": 33,
+        "id": 34,
         "interaction_target": null,
         "kind": "Desk",
         "neighbor": true,
@@ -5432,8 +5462,8 @@
         "yaw": 3.1415927
       },
       {
-        "id": 34,
-        "interaction_target": 33,
+        "id": 35,
+        "interaction_target": 34,
         "kind": "Chair",
         "neighbor": true,
         "position": [
@@ -5453,7 +5483,7 @@
         "yaw": 3.1415927
       },
       {
-        "id": 35,
+        "id": 36,
         "interaction_target": null,
         "kind": "Cabinet",
         "neighbor": true,
@@ -5474,7 +5504,7 @@
         "yaw": 3.1415927
       },
       {
-        "id": 36,
+        "id": 37,
         "interaction_target": null,
         "kind": "Plant",
         "neighbor": true,
@@ -5495,7 +5525,7 @@
         "yaw": 3.1415927
       },
       {
-        "id": 37,
+        "id": 38,
         "interaction_target": null,
         "kind": "DrawerUnit",
         "neighbor": false,
@@ -5516,7 +5546,7 @@
         "yaw": 0.2666914
       },
       {
-        "id": 38,
+        "id": 39,
         "interaction_target": null,
         "kind": "Ottoman",
         "neighbor": false,
@@ -5537,7 +5567,7 @@
         "yaw": 1.7417823
       },
       {
-        "id": 39,
+        "id": 40,
         "interaction_target": null,
         "kind": "MobileCart",
         "neighbor": false,
@@ -5558,7 +5588,7 @@
         "yaw": 0.21775188
       },
       {
-        "id": 40,
+        "id": 41,
         "interaction_target": null,
         "kind": "Ottoman",
         "neighbor": false,
@@ -5579,7 +5609,7 @@
         "yaw": 3.7302263
       },
       {
-        "id": 41,
+        "id": 42,
         "interaction_target": null,
         "kind": "DrawerUnit",
         "neighbor": false,
@@ -5600,7 +5630,7 @@
         "yaw": -0.37648225
       },
       {
-        "id": 42,
+        "id": 43,
         "interaction_target": null,
         "kind": "Ottoman",
         "neighbor": false,
@@ -5621,7 +5651,7 @@
         "yaw": 0.0034887493
       },
       {
-        "id": 43,
+        "id": 44,
         "interaction_target": null,
         "kind": "DrawerUnit",
         "neighbor": false,
@@ -5642,7 +5672,7 @@
         "yaw": 4.0846906
       },
       {
-        "id": 44,
+        "id": 45,
         "interaction_target": null,
         "kind": "Plant",
         "neighbor": false,
@@ -5663,7 +5693,7 @@
         "yaw": 4.019584
       },
       {
-        "id": 45,
+        "id": 46,
         "interaction_target": null,
         "kind": "Plant",
         "neighbor": false,
@@ -5684,7 +5714,7 @@
         "yaw": 4.985398
       },
       {
-        "id": 46,
+        "id": 47,
         "interaction_target": null,
         "kind": "NoticeBoard",
         "neighbor": false,
@@ -5705,7 +5735,7 @@
         "yaw": -1.4705579
       },
       {
-        "id": 47,
+        "id": 48,
         "interaction_target": null,
         "kind": "WallShelf",
         "neighbor": false,
@@ -5726,7 +5756,7 @@
         "yaw": 1.4474862
       },
       {
-        "id": 48,
+        "id": 49,
         "interaction_target": null,
         "kind": "ProjectionScreen",
         "neighbor": false,
@@ -5747,7 +5777,7 @@
         "yaw": 1.4474862
       },
       {
-        "id": 49,
+        "id": 50,
         "interaction_target": null,
         "kind": "Projector",
         "neighbor": false,
@@ -5768,7 +5798,7 @@
         "yaw": -1.593289
       },
       {
-        "id": 50,
+        "id": 51,
         "interaction_target": null,
         "kind": "PowerStrip",
         "neighbor": false,
@@ -5789,7 +5819,7 @@
         "yaw": -0.0005079843
       },
       {
-        "id": 51,
+        "id": 52,
         "interaction_target": null,
         "kind": "PowerStrip",
         "neighbor": false,
@@ -5810,7 +5840,7 @@
         "yaw": -0.04595746
       },
       {
-        "id": 52,
+        "id": 53,
         "interaction_target": null,
         "kind": "PowerStrip",
         "neighbor": false,
@@ -5831,7 +5861,7 @@
         "yaw": 0.562852
       },
       {
-        "id": 53,
+        "id": 54,
         "interaction_target": null,
         "kind": "Whiteboard",
         "neighbor": false,
@@ -5852,7 +5882,7 @@
         "yaw": 0.78539824
       },
       {
-        "id": 54,
+        "id": 55,
         "interaction_target": null,
         "kind": "Whiteboard",
         "neighbor": false,
@@ -5873,7 +5903,7 @@
         "yaw": -0.78539824
       },
       {
-        "id": 55,
+        "id": 56,
         "interaction_target": null,
         "kind": "Display",
         "neighbor": false,
@@ -5894,7 +5924,7 @@
         "yaw": 1.4474862
       },
       {
-        "id": 56,
+        "id": 57,
         "interaction_target": null,
         "kind": "WallArt",
         "neighbor": false,
@@ -5915,7 +5945,7 @@
         "yaw": 1.4474862
       },
       {
-        "id": 57,
+        "id": 58,
         "interaction_target": null,
         "kind": "WallArt",
         "neighbor": false,
@@ -5936,7 +5966,7 @@
         "yaw": 1.4474862
       },
       {
-        "id": 58,
+        "id": 59,
         "interaction_target": null,
         "kind": "WallArt",
         "neighbor": false,
@@ -5957,7 +5987,7 @@
         "yaw": -1.4705579
       },
       {
-        "id": 59,
+        "id": 60,
         "interaction_target": null,
         "kind": "Clock",
         "neighbor": false,
@@ -5978,7 +6008,7 @@
         "yaw": -1.4705579
       },
       {
-        "id": 60,
+        "id": 61,
         "interaction_target": null,
         "kind": "LightSwitch",
         "neighbor": false,
@@ -5999,7 +6029,7 @@
         "yaw": -1.4705579
       },
       {
-        "id": 61,
+        "id": 62,
         "interaction_target": null,
         "kind": "LightSwitch",
         "neighbor": false,
@@ -6020,7 +6050,7 @@
         "yaw": 0.78539824
       },
       {
-        "id": 62,
+        "id": 63,
         "interaction_target": null,
         "kind": "WallOutlet",
         "neighbor": false,
@@ -6041,7 +6071,7 @@
         "yaw": 1.4474862
       },
       {
-        "id": 63,
+        "id": 64,
         "interaction_target": null,
         "kind": "WallOutlet",
         "neighbor": false,
@@ -6062,7 +6092,7 @@
         "yaw": -0.78539824
       },
       {
-        "id": 64,
+        "id": 65,
         "interaction_target": null,
         "kind": "WallOutlet",
         "neighbor": false,
@@ -6083,7 +6113,7 @@
         "yaw": -1.4705579
       },
       {
-        "id": 65,
+        "id": 66,
         "interaction_target": null,
         "kind": "WallOutlet",
         "neighbor": false,
@@ -6104,7 +6134,7 @@
         "yaw": 1.4474862
       },
       {
-        "id": 66,
+        "id": 67,
         "interaction_target": null,
         "kind": "WallOutlet",
         "neighbor": false,
@@ -6125,7 +6155,7 @@
         "yaw": -1.4705579
       },
       {
-        "id": 67,
+        "id": 68,
         "interaction_target": null,
         "kind": "WallOutlet",
         "neighbor": false,
@@ -6146,7 +6176,7 @@
         "yaw": 1.4474862
       },
       {
-        "id": 68,
+        "id": 69,
         "interaction_target": null,
         "kind": "WallOutlet",
         "neighbor": false,
@@ -6167,7 +6197,7 @@
         "yaw": -1.4705579
       },
       {
-        "id": 69,
+        "id": 70,
         "interaction_target": null,
         "kind": "WallOutlet",
         "neighbor": false,
@@ -6188,7 +6218,7 @@
         "yaw": -0.78539824
       },
       {
-        "id": 70,
+        "id": 71,
         "interaction_target": null,
         "kind": "WallOutlet",
         "neighbor": false,
@@ -6209,7 +6239,7 @@
         "yaw": -1.4705579
       },
       {
-        "id": 71,
+        "id": 72,
         "interaction_target": null,
         "kind": "WallOutlet",
         "neighbor": false,
@@ -6230,7 +6260,7 @@
         "yaw": 0.78539824
       },
       {
-        "id": 72,
+        "id": 73,
         "interaction_target": null,
         "kind": "WallOutlet",
         "neighbor": false,
@@ -6251,7 +6281,7 @@
         "yaw": 1.4474862
       },
       {
-        "id": 73,
+        "id": 74,
         "interaction_target": null,
         "kind": "WallOutlet",
         "neighbor": false,
@@ -6272,7 +6302,7 @@
         "yaw": 0.78539824
       },
       {
-        "id": 74,
+        "id": 75,
         "interaction_target": null,
         "kind": "Notepad",
         "neighbor": false,
@@ -6293,7 +6323,7 @@
         "yaw": -0.54866505
       },
       {
-        "id": 75,
+        "id": 76,
         "interaction_target": null,
         "kind": "Mug",
         "neighbor": false,
@@ -6314,7 +6344,7 @@
         "yaw": -1.3888922
       },
       {
-        "id": 76,
+        "id": 77,
         "interaction_target": null,
         "kind": "PenHolder",
         "neighbor": false,
@@ -6335,7 +6365,7 @@
         "yaw": -0.25878915
       },
       {
-        "id": 77,
+        "id": 78,
         "interaction_target": null,
         "kind": "Laptop",
         "neighbor": false,
@@ -6356,7 +6386,7 @@
         "yaw": 1.8066089
       },
       {
-        "id": 78,
+        "id": 79,
         "interaction_target": null,
         "kind": "Phone",
         "neighbor": false,
@@ -6377,7 +6407,7 @@
         "yaw": 1.835237
       },
       {
-        "id": 79,
+        "id": 80,
         "interaction_target": null,
         "kind": "PenHolder",
         "neighbor": false,
@@ -6398,7 +6428,7 @@
         "yaw": 1.8688495
       },
       {
-        "id": 80,
+        "id": 81,
         "interaction_target": null,
         "kind": "PenHolder",
         "neighbor": false,
@@ -6419,7 +6449,7 @@
         "yaw": -0.016973346
       },
       {
-        "id": 81,
+        "id": 82,
         "interaction_target": null,
         "kind": "Phone",
         "neighbor": false,
@@ -6440,7 +6470,7 @@
         "yaw": -0.83479774
       },
       {
-        "id": 82,
+        "id": 83,
         "interaction_target": null,
         "kind": "WaterBottle",
         "neighbor": false,
@@ -6461,7 +6491,7 @@
         "yaw": -0.53017837
       },
       {
-        "id": 83,
+        "id": 84,
         "interaction_target": null,
         "kind": "CoffeeCup",
         "neighbor": false,
@@ -6482,7 +6512,7 @@
         "yaw": -0.710468
       },
       {
-        "id": 84,
+        "id": 85,
         "interaction_target": null,
         "kind": "PenHolder",
         "neighbor": false,
@@ -6503,7 +6533,7 @@
         "yaw": 0.012892768
       },
       {
-        "id": 85,
+        "id": 86,
         "interaction_target": 28,
         "kind": "Laptop",
         "neighbor": false,
@@ -6524,7 +6554,7 @@
         "yaw": -0.21277583
       },
       {
-        "id": 86,
+        "id": 87,
         "interaction_target": null,
         "kind": "Notebook",
         "neighbor": false,
@@ -6545,7 +6575,7 @@
         "yaw": -0.3563524
       },
       {
-        "id": 87,
+        "id": 88,
         "interaction_target": null,
         "kind": "Mug",
         "neighbor": false,
@@ -6561,12 +6591,12 @@
           0.089302324
         ],
         "solid": false,
-        "support": 39,
+        "support": 40,
         "variant": 0,
         "yaw": 0.7540483
       },
       {
-        "id": 88,
+        "id": 89,
         "interaction_target": null,
         "kind": "Phone",
         "neighbor": false,
@@ -6587,7 +6617,7 @@
         "yaw": -0.3600344
       },
       {
-        "id": 89,
+        "id": 90,
         "interaction_target": null,
         "kind": "DeskFan",
         "neighbor": false,
@@ -6608,7 +6638,7 @@
         "yaw": -0.245162
       },
       {
-        "id": 90,
+        "id": 91,
         "interaction_target": null,
         "kind": "Notepad",
         "neighbor": false,
@@ -6629,7 +6659,7 @@
         "yaw": 1.6501746
       },
       {
-        "id": 91,
+        "id": 92,
         "interaction_target": null,
         "kind": "CoffeeCup",
         "neighbor": false,
@@ -6650,7 +6680,7 @@
         "yaw": 0.2844721
       },
       {
-        "id": 92,
+        "id": 93,
         "interaction_target": null,
         "kind": "DeskOrganizer",
         "neighbor": false,
@@ -6671,7 +6701,7 @@
         "yaw": 3.4541223
       },
       {
-        "id": 93,
+        "id": 94,
         "interaction_target": null,
         "kind": "StorageBox",
         "neighbor": false,
@@ -6692,7 +6722,7 @@
         "yaw": 0.52947855
       },
       {
-        "id": 94,
+        "id": 95,
         "interaction_target": null,
         "kind": "Plant",
         "neighbor": false,
@@ -6713,7 +6743,7 @@
         "yaw": 0.2037752
       },
       {
-        "id": 95,
+        "id": 96,
         "interaction_target": null,
         "kind": "TissueBox",
         "neighbor": true,
@@ -6729,12 +6759,12 @@
           0.109646775
         ],
         "solid": false,
-        "support": 35,
+        "support": 36,
         "variant": 1,
         "yaw": 1.2055441
       },
       {
-        "id": 96,
+        "id": 97,
         "interaction_target": null,
         "kind": "CoffeeCup",
         "neighbor": false,
@@ -6750,7 +6780,7 @@
           0.07175015
         ],
         "solid": false,
-        "support": 43,
+        "support": 44,
         "variant": 1,
         "yaw": 3.8145974
       },
@@ -6932,9 +6962,9 @@
             -0.14404535
           ]
         ],
-        "cable_target": 51,
-        "id": 97,
-        "interaction_target": 49,
+        "cable_target": 52,
+        "id": 98,
+        "interaction_target": 50,
         "kind": "Cable",
         "neighbor": false,
         "position": [
@@ -6956,416 +6986,416 @@
       {
         "cable_path": [
           [
-            0.8793793,
+            0.8788433,
             0.75240004,
-            -0.50413954
+            -0.5042058
           ],
           [
-            0.85411644,
+            0.8535805,
             0.75240004,
-            -0.5041524
+            -0.5042187
           ],
           [
-            0.85049915,
+            0.8499632,
             0.75239503,
-            -0.50369227
+            -0.50375855
           ],
           [
-            0.84711313,
+            0.84657717,
             0.75238025,
-            -0.50233805
+            -0.50240433
           ],
           [
-            0.8441763,
+            0.8436403,
             0.75235677,
-            -0.50017655
+            -0.5002428
           ],
           [
-            0.841877,
+            0.841341,
             0.75232595,
-            -0.49734652
+            -0.4974128
           ],
           [
-            0.84036255,
+            0.8398266,
             0.7522899,
-            -0.4940294
+            -0.49409568
           ],
           [
-            0.83973026,
+            0.8391943,
             0.75225085,
-            -0.49043834
+            -0.49050462
           ],
           [
-            0.8268337,
+            0.82629776,
             0.74928635,
-            -0.21780264
+            -0.2178688
           ],
           [
-            0.81393766,
+            0.8134017,
             0.74632186,
-            0.054832935
+            0.054767013
           ],
           [
-            0.8136363,
+            0.81310034,
             0.74588454,
-            0.05828154
+            0.0582155
           ],
           [
-            0.813077,
+            0.8125415,
             0.7446736,
-            0.061505795
+            0.061439633
           ],
           [
-            0.81229305,
+            0.81175756,
             0.7427601,
-            0.06431615
+            0.06425011
           ],
           [
-            0.81132984,
+            0.81079483,
             0.74025655,
-            0.06654775
+            0.06648159
           ],
           [
-            0.81024456,
+            0.80971,
             0.73731,
-            0.06806922
+            0.06800318
           ],
           [
-            0.8091006,
-            0.7340936,
-            0.06879127
+            0.80856705,
+            0.7340935,
+            0.06872535
           ],
           [
-            0.7875476,
-            0.6724925,
-            0.07448661
+            0.7870283,
+            0.672503,
+            0.07442236
           ],
           [
-            0.7874203,
-            0.67214304,
-            0.07452023
+            0.786901,
+            0.6721536,
+            0.07445598
           ],
           [
-            0.761713,
-            0.6042288,
-            0.08131337
+            0.76121044,
+            0.60424876,
+            0.081251144
           ],
           [
-            0.7615671,
-            0.6038583,
-            0.081351995
+            0.7610645,
+            0.60387844,
+            0.08128977
           ],
           [
-            0.7358794,
-            0.54118574,
-            0.08813977
+            0.7353935,
+            0.54121405,
+            0.08807981
           ],
           [
-            0.73571205,
-            0.540794,
-            0.088184
+            0.73522663,
+            0.5408225,
+            0.08812404
           ],
           [
-            0.71004725,
-            0.4830207,
-            0.094965935
+            0.7095785,
+            0.48305658,
+            0.094908
           ],
           [
-            0.70985603,
-            0.48260787,
-            0.09501648
+            0.7093873,
+            0.48264372,
+            0.094958544
           ],
           [
-            0.684216,
-            0.429418,
-            0.10179162
+            0.683764,
+            0.42946032,
+            0.10173571
           ],
           [
-            0.6839981,
-            0.42898428,
-            0.1018492
+            0.68354607,
+            0.42902663,
+            0.10179329
           ],
           [
-            0.6583872,
-            0.38008648,
-            0.10861707
+            0.65795135,
+            0.38013425,
+            0.108563185
           ],
           [
-            0.65813875,
-            0.3796324,
-            0.10868263
+            0.6577034,
+            0.37968045,
+            0.10862875
           ],
           [
-            0.6325598,
-            0.33475804,
-            0.1154418
+            0.6321411,
+            0.33481058,
+            0.11539006
           ],
           [
-            0.63227797,
-            0.33428472,
-            0.115516305
+            0.6318593,
+            0.3343372,
+            0.11546457
           ],
           [
-            0.6067338,
-            0.29318613,
-            0.12226617
+            0.6063318,
+            0.2932424,
+            0.12221646
           ],
           [
-            0.6064148,
-            0.2926955,
-            0.122350454
+            0.6060133,
+            0.29275182,
+            0.122300744
           ],
           [
-            0.5809102,
-            0.2551451,
-            0.12909019
+            0.5805249,
+            0.2552043,
+            0.12904263
           ],
           [
-            0.5805502,
-            0.2546391,
-            0.12918532
+            0.5801654,
+            0.25469837,
+            0.12913775
           ],
           [
-            0.55518913,
-            0.22056347,
-            0.13588703
+            0.55482006,
+            0.22062476,
+            0.13584149
           ],
           [
-            0.5545678,
-            0.21978678,
-            0.13605118
+            0.5541992,
+            0.21984811,
+            0.13600564
           ],
           [
-            0.50368214,
-            0.16051061,
-            0.14949763
+            0.50334644,
+            0.16057363,
+            0.14945626
           ],
           [
-            0.5026741,
-            0.15945178,
-            0.14976406
+            0.5023389,
+            0.15951484,
+            0.1497227
           ],
           [
-            0.45210218,
-            0.111554556,
-            0.16312742
+            0.45180035,
+            0.11161616,
+            0.16309023
           ],
           [
-            0.4508729,
-            0.11051723,
-            0.16345227
+            0.450572,
+            0.11057865,
+            0.1634152
           ],
           [
-            0.40053034,
-            0.072761595,
-            0.17675519
+            0.40026188,
+            0.07281846,
+            0.17672217
           ],
           [
-            0.3990698,
-            0.07180352,
-            0.17714119
+            0.39880228,
+            0.07186007,
+            0.17710829
           ],
           [
-            0.34895563,
-            0.043283064,
-            0.19038379
+            0.34872055,
+            0.043331843,
+            0.19035482
           ],
           [
-            0.34727335,
-            0.0424718,
-            0.19082832
+            0.34703922,
+            0.0425201,
+            0.1907996
           ],
           [
-            0.29736853,
-            0.022477867,
-            0.20401561
+            0.29716682,
+            0.022514977,
+            0.20399082
           ],
           [
-            0.29549837,
-            0.0218812,
-            0.20450985
+            0.29529715,
+            0.021917619,
+            0.2044853
           ],
           [
-            0.24575329,
-            0.009899432,
-            0.2176547
+            0.24558592,
+            0.009921061,
+            0.21763384
           ],
           [
-            0.24375439,
-            0.00957422,
-            0.21818292
+            0.2435875,
+            0.009594981,
+            0.21816242
           ],
           [
-            0.19365549,
-            0.00524883,
-            0.23142159
+            0.1935234,
+            0.005250801,
+            0.2314043
           ],
           [
-            0.19249916,
-            0.005198943,
-            0.23172724
+            0.19236135,
+            0.005200432,
+            0.23171163
           ],
           [
             -0.013672829,
             0.005182125,
-            0.2862078
+            0.2862079
           ],
           [
-            -0.2204237,
+            -0.22028923,
             0.005182125,
-            0.34084117
+            0.3408581
           ],
           [
-            -0.42605686,
-            0.006810441,
-            0.3951794
+            -0.42578697,
+            0.0068208002,
+            0.39521205
           ],
           [
-            -0.42827702,
-            0.007012636,
-            0.39576602
+            -0.42801046,
+            0.007023726,
+            0.39580023
           ],
           [
-            -0.47787857,
-            0.015711937,
-            0.40887332
+            -0.4775772,
+            0.015734632,
+            0.40891063
           ],
           [
-            -0.47981167,
-            0.016200155,
-            0.40938413
+            -0.47950983,
+            0.016223447,
+            0.4094218
           ],
           [
-            -0.5296421,
-            0.032770365,
-            0.42255175
+            -0.52930737,
+            0.032801583,
+            0.42259336
           ],
           [
-            -0.53140926,
-            0.033499274,
-            0.4230187
+            -0.53107405,
+            0.033530924,
+            0.42306066
           ],
           [
-            -0.5814309,
-            0.05835576,
-            0.43623686
+            -0.5810628,
+            0.058391564,
+            0.43628275
           ],
           [
-            -0.5829873,
-            0.05926046,
-            0.43664813
+            -0.58261824,
+            0.0592966,
+            0.43669426
           ],
           [
-            -0.6332326,
-            0.093030155,
-            0.44992554
+            -0.6328311,
+            0.09306671,
+            0.44997537
           ],
           [
-            -0.6345587,
-            0.094041884,
-            0.45027602
+            -0.6341567,
+            0.094078586,
+            0.45032597
           ],
           [
-            -0.6850357,
-            0.13754699,
-            0.46361423
+            -0.68460035,
+            0.13758047,
+            0.46366835
           ],
           [
-            -0.6861348,
-            0.138603,
-            0.46390462
+            -0.685699,
+            0.13863651,
+            0.46395886
           ],
           [
-            -0.73694515,
-            0.19299172,
-            0.47733128
+            -0.7364764,
+            0.19301814,
+            0.47738945
           ],
           [
-            -0.7376275,
-            0.19377807,
-            0.47751164
+            -0.7371588,
+            0.19380453,
+            0.47756994
           ],
           [
-            -0.7629404,
-            0.22519024,
-            0.48420036
+            -0.7624545,
+            0.22521174,
+            0.48426068
           ],
           [
-            -0.7633376,
-            0.22570667,
-            0.48430526
+            -0.76285124,
+            0.22572806,
+            0.4843657
           ],
           [
-            -0.78880644,
-            0.26043308,
-            0.49103546
+            -0.78830385,
+            0.26044846,
+            0.49109805
           ],
           [
-            -0.7891593,
-            0.26093677,
-            0.4911288
+            -0.7886567,
+            0.26095212,
+            0.4911914
           ],
           [
-            -0.81467056,
-            0.29903415,
-            0.4978701
+            -0.8141513,
+            0.2990424,
+            0.4979347
           ],
           [
-            -0.81498337,
-            0.29952213,
-            0.4979527
+            -0.8144641,
+            0.29953036,
+            0.49801743
           ],
           [
-            -0.8363557,
-            0.33438742,
-            0.50360036
+            -0.8358202,
+            0.33438492,
+            0.50366604
           ],
           [
-            -0.83817863,
-            0.33677027,
-            0.5039414
+            -0.83764315,
+            0.33676854,
+            0.50400746
           ],
           [
-            -0.84045744,
-            0.33874196,
-            0.5041282
+            -0.8399224,
+            0.33874092,
+            0.5041944
           ],
           [
-            -0.8430929,
-            0.34021577,
-            0.5041523
+            -0.8425579,
+            0.34021524,
+            0.5042186
           ],
           [
-            -0.84596825,
-            0.3411268,
-            0.5040127
+            -0.8454337,
+            0.34112662,
+            0.5040791
           ],
           [
-            -0.84895706,
-            0.34143505,
-            0.50371563
+            -0.848423,
+            0.34143493,
+            0.50378203
           ],
           [
-            -0.87937975,
+            -0.8788438,
             0.34143487,
-            0.49994504
+            0.5000117
           ]
         ],
-        "cable_target": 72,
-        "id": 98,
-        "interaction_target": 50,
+        "cable_target": 73,
+        "id": 99,
+        "interaction_target": 51,
         "kind": "Cable",
         "neighbor": false,
         "position": [
-          -6.504896,
+          -6.50436,
           0.0019999999,
-          -1.7348539
+          -1.7347876
         ],
         "seed": 3027662106713336510,
         "size": [
-          1.7691236,
+          1.7680516,
           0.7575822,
-          1.0186689
+          1.0188015
         ],
         "solid": false,
         "support": 6,
@@ -9892,7 +9922,7 @@
       ]
     },
     "rejected_human_placements": 1,
-    "rejected_placements": 723,
+    "rejected_placements": 722,
     "room_size": [
       16.276455,
       3.266448,
@@ -9907,71 +9937,71 @@
     "world_yaw": 0.0
   },
   "source_sha256": {
-    "seed_000025/capture.json": "7968fe5642553c3035fb5a1dd712e8d24c0863f0e5ae0317fb1245919ce00e5b",
-    "seed_000025/manifest.json": "bc15f85f8c6b2485fbe5927f2846aa7f64797cf1e4b9dbeefe8bc9880b257138",
-    "seed_000025/view_00_co_visibility.png": "2ac58613a9bb943d3a88381758dc5af033aad174c67f3c44663fa3aec51c471a",
-    "seed_000025/view_00_co_visibility_mask.png": "4ddac40376df3073a05dd5edf44895442000c56bca181a906333715b096b59ce",
+    "seed_000025/capture.json": "b5d2d794b90d09c8024ece8f12a17666cb1c2e093ef9c701bb39b9f9269d314e",
+    "seed_000025/manifest.json": "fa5dfec725a9076269091053b93476da7a3486291b36193f146f70d7bd72b273",
+    "seed_000025/view_00_co_visibility.png": "bd868b8b2c345033ec6c46b484694ba8df83f7db9bf9934420cac6947690fdfe",
+    "seed_000025/view_00_co_visibility_mask.png": "8c8b22047bec4112165d66575211db14b685d7f7859d8db94af5aaafc10bc73e",
     "seed_000025/view_00_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000025/view_00_color.png": "8e33ee7d11f83df9ce805b2388526f8f26e862c210e7e112477f2a0abfb4960b",
-    "seed_000025/view_00_depth.png": "687220a843d1d82ec86eeadabcdf799ee6e78dc5a24a0fa6d5e3d1ea5b148eb3",
-    "seed_000025/view_00_normal.png": "9c14e58e26299bde0c74cdaca2184ebae68caa663010f8bcbce28de9f0058a62",
-    "seed_000025/view_00_position.png": "fc0fcaf353ea093984a6b9f29ad59dd05777a0c133cb503c86dbd9a68f25c528",
-    "seed_000025/view_00_semantic.png": "3ac85858799de63c50bf0df67d72a7c4e35fa006fbbe5d0d25159485c81c9f41",
-    "seed_000025/view_01_co_visibility.png": "8b1439cf152c1efb915bf5e5a2b97f455e7884f4dea80d63a8fb07f6cedc3f93",
-    "seed_000025/view_01_co_visibility_mask.png": "09cb10475bb27df4f9de18c7c23d17328d433a3cb0e8a4d6fc6364ae3cc9e838",
+    "seed_000025/view_00_color.png": "f8ca035546ca89e2c7c6c7ee44a98483d4d10233bfb63c08a0df05875edc19f9",
+    "seed_000025/view_00_depth.png": "436e99cd06aac63216a84aa8f0fe46dd4b07e0c9357b56c30d267600298f7fa4",
+    "seed_000025/view_00_normal.png": "c60250ee15a46f24abf2aa000f4e694109dbbb167dd4ccb64bd20c3154982975",
+    "seed_000025/view_00_position.png": "52c9da3c8a697a8dda47057cd3811a59ab876ec555bcfd5d43f980c1f6bbd5f6",
+    "seed_000025/view_00_semantic.png": "168be86ad3472d2068edac7a177685ad412926c6b64c70bfb3daf341465267fb",
+    "seed_000025/view_01_co_visibility.png": "0cf678021998c60f4ac70978a6e8accac264b04e67a50785dcd16f077aa48c9f",
+    "seed_000025/view_01_co_visibility_mask.png": "78406a31816333bec40c3e27900f0ef04584d014a1af0a1f16f0b36eb15cc65f",
     "seed_000025/view_01_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000025/view_01_color.png": "4840434214a9d6278307b63a6788a696b37af1827f95fa246f4101e08e52f80e",
-    "seed_000025/view_01_depth.png": "d68780c87b6ea31e8fbcee838c3f23d72879924365bf88654705caa770d31100",
-    "seed_000025/view_01_normal.png": "fe94865c6e5222667f24b70e2496aa870d4f5b84858a175bd36d1677cef57f5e",
-    "seed_000025/view_01_position.png": "238d7aac13028aa0c4f7d178ef99c6a5e9d07fdb8c615378ef7d94d3efc4f695",
-    "seed_000025/view_01_semantic.png": "492bcf3b21f13b3ff76048926062d3ec3635f601493bbf9948655c41e770296c",
-    "seed_000025/view_02_co_visibility.png": "785831227aea83ea0468eeeb96f16545e5e2657102f90fb591527fead5124cca",
-    "seed_000025/view_02_co_visibility_mask.png": "a7c95dd98b257b678b321f4b058894f966cc7023e06a5ec1d687f59eef2ade57",
+    "seed_000025/view_01_color.png": "3086cb73055337972a72f28a4cb2d41a3b2b8c9325f12962481ddf588def266a",
+    "seed_000025/view_01_depth.png": "8a8cdd0fa51ce48fa780b7ec093dc8894e748d954c6b4d16d0719b14af21e7c7",
+    "seed_000025/view_01_normal.png": "a2c1485f6414beafaf310482c0a4f7e9c2e4d9eb3743d92772650da4b1956d34",
+    "seed_000025/view_01_position.png": "585dbeff0d6c1c4d970b3b7988cafdb4085d1ddebf298acd7ecdf94c4a8017dc",
+    "seed_000025/view_01_semantic.png": "4ad215fdf63271649aa395a14b1ddbc5a7f4f2230cd39bdd7c023229ad8bf74a",
+    "seed_000025/view_02_co_visibility.png": "c8911da27413d67baeed7ac7533e94ce5462a900aa57077021d116d544223fac",
+    "seed_000025/view_02_co_visibility_mask.png": "f609229659f358a1fc5a0f5eb88595374edbf48e3e5bfa2e9f7c82dce9c10930",
     "seed_000025/view_02_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000025/view_02_color.png": "d86b8bdbced957bc7ce9353ebbdea51277807f79357b5c5b9d8a07ec30934b18",
-    "seed_000025/view_02_depth.png": "11c7e271c5ad55ec8b3af0dc362e7fe590178d280f3e6c76dcd092c26a9ae6ec",
-    "seed_000025/view_02_normal.png": "2f5a298b47eec91a331ec54f3addda0c71441415f8fa1eaee0dc46ec23a0e5c3",
-    "seed_000025/view_02_position.png": "bf1a204f1ca7b1f0abd9ff648bd4d76ee9ccc5fcf70929c5324bc71fce33af49",
-    "seed_000025/view_02_semantic.png": "875e9be77d98b1e545e63ee38a39bdf591e075915285dd55b1565dbbdb7f9c44",
-    "seed_000025/view_03_co_visibility.png": "5995f47af8c37ac13fb13a4918785fe2ea9ae96d7b4bcda6aa5b71b5ccc07c6a",
-    "seed_000025/view_03_co_visibility_mask.png": "b677bd727158e4720269d6776d35ae00d55ecc6704d96c22086ba1d811ac3440",
+    "seed_000025/view_02_color.png": "38bef83888b3b1633028161f549c4ad380a2852f62e7b0045214291da0cc5d53",
+    "seed_000025/view_02_depth.png": "5bac474e02cc1f5d93dfc955ec41c969dbf8818400db24605970073f39dbf292",
+    "seed_000025/view_02_normal.png": "25f8cdd3116ec4fb6f6b9c9957b22e512858a94bc18c95ee93e34ca430b67451",
+    "seed_000025/view_02_position.png": "1a6f3f10563e4fe9481ae86d4a41570db49f5ca0d3cf83b8bc7ddbfb26e89072",
+    "seed_000025/view_02_semantic.png": "3d9459cd54ad891098d6b780c8d7836f392f35e910364e4b71614967351458bc",
+    "seed_000025/view_03_co_visibility.png": "12173f1fd1ce3c018200e758e0995f050dbbb87c30ebbb0958e4844a4f77a085",
+    "seed_000025/view_03_co_visibility_mask.png": "9482ce7076c3852472c2d1560977245258516a9647de4fc1f0a2221d02a71f41",
     "seed_000025/view_03_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000025/view_03_color.png": "e5a62bb080ca6041c8d217082a632d323e1a9e3d68d68727a2c50ad98604141b",
-    "seed_000025/view_03_depth.png": "199f9a24df2ec0c6feb612b23c5b322a0c0d97da45d715adb36684d1c9a81534",
-    "seed_000025/view_03_normal.png": "54a932204c77481682ca8f2b5ae5f9a31662831bb41ba7275986f03411da9a67",
-    "seed_000025/view_03_position.png": "a7fe9df205aa214a66c9d343fbfe548dca2301b966e1c1d0c980773d61722b2a",
-    "seed_000025/view_03_semantic.png": "353a387b8d6f6ace6aea69f36fdaddca56d37e9c77eec5b03eb6e58e53121e95",
-    "seed_000025/view_04_co_visibility.png": "e03bca820774a3c72e1981fe8e68fc4245b6ae5709f624c0ba1eade6ee2e19fb",
-    "seed_000025/view_04_co_visibility_mask.png": "7e9c5d7c986ad1dd1fa04c59dd8f5af86e8b67a6623c1e1bf2d9b0e4251b06d2",
+    "seed_000025/view_03_color.png": "30a705586f59b10d9d767a9fa3f48233148983b27755e6f3a73649052b6c8ad2",
+    "seed_000025/view_03_depth.png": "7c495acc97f690fc6d19e3bca55d9e2e30101cbc339ea623a976740495b8e6ea",
+    "seed_000025/view_03_normal.png": "fb9fde532210ea9fa6881a7afd349a40461d49529f23680547f7af97a7927119",
+    "seed_000025/view_03_position.png": "2583d8ecdf486082b5432d282f41fe3d04eac5a204e2a5d3ff1f8a5fc0c2f791",
+    "seed_000025/view_03_semantic.png": "2473131cee62139be66a7d95228b8563c493ba9069c48ea55ab7d95bc96808e6",
+    "seed_000025/view_04_co_visibility.png": "3f3a37978f3abe965266e895fab37bf0d40d17455bba685a089b41cf0aec8c18",
+    "seed_000025/view_04_co_visibility_mask.png": "27b2bf7700f7c37f0241409ee58bc55f4e842deb5d94bc13f0f01eb4f6148a4d",
     "seed_000025/view_04_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000025/view_04_color.png": "705d6bfc28f561b0856bd76b2ca4ec3e89c58253014d3cbd7e1ffa0129f3ce6a",
-    "seed_000025/view_04_depth.png": "694c79e1418cb1dfe34389cb248a6b5fa3d6d5538e011e7699b0aa7910b62804",
-    "seed_000025/view_04_normal.png": "7912d2f447c3a2580dfbbd591aa39f626965c704ecbbbc55524bf2b994df4d79",
-    "seed_000025/view_04_position.png": "caa36ec6cb3cffc38d8c5015b34f0ca2aa3642174cb6591405156f4a8a9d14e2",
-    "seed_000025/view_04_semantic.png": "7d7897e70092671cc7dd7acf1e1ddcfa73b01e83e1af6908dd4b8813cdbd51b4",
-    "seed_000025/view_05_co_visibility.png": "d450fbf7a939b53d2577103bde973c9735a634596a77b7d4775b10502f1c7eca",
-    "seed_000025/view_05_co_visibility_mask.png": "c75d032728810b9e8ba451041094086b21507eb373e7e6ee6ed9d770a61a221d",
+    "seed_000025/view_04_color.png": "11af1ebc09769711c5f4d71f2b7cb35f9365fd1efa4421b1828b525c0ad9618e",
+    "seed_000025/view_04_depth.png": "8c72540f3a8bb1143268f4cae33dcb0c6315f190bd84141ab55466103f27ae7d",
+    "seed_000025/view_04_normal.png": "bf510229fb6784c8c3a673bdd85ba2582defd247a0285ca8666192fd46670188",
+    "seed_000025/view_04_position.png": "b240cb75436dd54061a1db88459bda5d5d145ade83ff7d1143331800eecfd5bc",
+    "seed_000025/view_04_semantic.png": "34c05e1c498eba3b06ef24b41634d90cf224111929b59d1e3650712b5886d120",
+    "seed_000025/view_05_co_visibility.png": "e6d0f29df1304719b0f928ab2c892e023ae7e46b31b2131ec05cb91fcc651e09",
+    "seed_000025/view_05_co_visibility_mask.png": "08c5a0655534be3307f20ba6a5bf469677de6c9d924ae905187d1737ee7a7a9d",
     "seed_000025/view_05_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000025/view_05_color.png": "28fcbd9bffbb98016e57a3c86b7b53ae8939c456a1904752f06ad530415f383a",
-    "seed_000025/view_05_depth.png": "a8a5ca7ac257d2dfc06f66b1a742020eaadabcf6a90cb3f94eae2ac6bb821889",
-    "seed_000025/view_05_normal.png": "dd9a729e87695ba9aaebf505c420f53f1610ad2a58e3a5d921977469747b4e75",
-    "seed_000025/view_05_position.png": "b723b0d53b8f549eddcd4601a3484befb9044df7c31f65c9a272c8c490bafe5b",
-    "seed_000025/view_05_semantic.png": "796eb80194394f826fff1f3dc9f8b93dd99f52ddccbb054c78d0c4e2257907dd",
-    "seed_000025/view_06_co_visibility.png": "8952bcd210decbbf75fcf1223be58111b5e6dfadae1f46cce984d480c5e96321",
-    "seed_000025/view_06_co_visibility_mask.png": "a609b599cd68c85a48a1eb43c464d02df01c96595d64063688d831921c0dee98",
+    "seed_000025/view_05_color.png": "f3aed9ec9a7be156e44a679d2ac0ea675c4e15a33fe7701a3452509975de7acc",
+    "seed_000025/view_05_depth.png": "3f604adfd0e59c38f5168a9447580abb47b29aa13f5eb20d7775c146d7e13e97",
+    "seed_000025/view_05_normal.png": "b96a004079eeb23563a087d91d0f420cc4600135ca9590c53c337f61771af49a",
+    "seed_000025/view_05_position.png": "1631544a1acaa45293a3ff421b64d0c0bfb6c7ab51d7159f55b6ee0ff40aa959",
+    "seed_000025/view_05_semantic.png": "fb3c905fd84edc9d3562729b46dcc46db21a7497331874d810c443fdaf193662",
+    "seed_000025/view_06_co_visibility.png": "50a91cf7eac33f605c8d0b56872b9ff527f739037020d6e66a5e0f7069072268",
+    "seed_000025/view_06_co_visibility_mask.png": "7f2e921fe61e353fcca2c80f31ff9c5d2b42e94c32138539482baf9089babf85",
     "seed_000025/view_06_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000025/view_06_color.png": "ac5e5cd521ab21e7737261b0d79adfe95aeceaeefb9958722c71edf6f7d24b70",
-    "seed_000025/view_06_depth.png": "923a2940f44d4782d7b7dc3326cd7f7b498ea54e12a2b75e570e587c04ff9737",
-    "seed_000025/view_06_normal.png": "ead8773215f2fd2174d28f817bd27a5dc6c0508260c06b60f38bf6ddbbec55cf",
-    "seed_000025/view_06_position.png": "3979e629c4044cfd6fd3b6c18900ba017f0ec50039f7bc12a0db4976e7b6cfa0",
-    "seed_000025/view_06_semantic.png": "eed47d5c877c2017c956940d3591d3f38eb3dcfca0c72164b1aa90b986ce27a0",
-    "seed_000025/view_07_co_visibility.png": "91f131dc0e78c12df01d887edbce6fa3be1e26028d36b2a99796ba221cf9fff6",
-    "seed_000025/view_07_co_visibility_mask.png": "321c6b15bcfa2bfd6bf31e31d3afc50fcd70209975ca42cf1e12a53d5c5f655f",
+    "seed_000025/view_06_color.png": "5bc8d767147d1240779ffa95bcf2a3700358f0a90d73b62d89d084fa1ce8cd0c",
+    "seed_000025/view_06_depth.png": "3354a8eecaf2b9e0790080ec5107b6b72a9353babf568dfc7b709464375c56ea",
+    "seed_000025/view_06_normal.png": "28fd14ca489fd4842b00e5c1830f647183a4e8b2c6a0fdcf7d5f9c353a26ecec",
+    "seed_000025/view_06_position.png": "66be5f1bb1ea0b7489d8a3b73264a8203509d716853c346bead2eb96f1ff4f9e",
+    "seed_000025/view_06_semantic.png": "395c2f47c6ad8e84f61aa7305ddb20afc997ea9f1839b0aa85c1c6e32665ce36",
+    "seed_000025/view_07_co_visibility.png": "71f573add612948e9d7aa27d6ac6971e25544ebe98991f16d5f3ee9836a78c8a",
+    "seed_000025/view_07_co_visibility_mask.png": "6616c54db36b8688fc0a1fdacbd1292b79929f9c506f95444c531b66dd517b02",
     "seed_000025/view_07_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000025/view_07_color.png": "500306de835aeed6406e23be03a864a0f073b3a9037c748d44dede7986d0673d",
-    "seed_000025/view_07_depth.png": "405eb5b35f75362c3a5fd8dcd45f396ec434556cfffa81ee10f61f61f6472d2b",
-    "seed_000025/view_07_normal.png": "9e8b8d8ad69ed4dc3103657bdc4a4862801e934f16862f392af664da07702ec7",
-    "seed_000025/view_07_position.png": "f888c91eb4a9c16dc2edc587cb2a3c8fe37b0955c68ba506606943469a01a828",
-    "seed_000025/view_07_semantic.png": "3a4743956ba2fc115d3c372771d6a3145809566088d5430af15dd06aa8182702"
+    "seed_000025/view_07_color.png": "e3afd1916f76a310383b583830bbd8fc30113c8d73fb38e3d75f37a156256a96",
+    "seed_000025/view_07_depth.png": "40b6caf1efa5a97c304f01499559e57cdfb13b35272dbc4a0974bd87cb89f253",
+    "seed_000025/view_07_normal.png": "bb4fcc727c1ba1159491f7bc1a87e6070362c7bad3bf68506a52ef98a13b07a0",
+    "seed_000025/view_07_position.png": "52c548e1f4b95a20b4e0ce835d1b53c53a1608a4a7ccd40286040e0f25ac0329",
+    "seed_000025/view_07_semantic.png": "879be94a6f54df83ce555d020f361fed4c1e32a1e8c8adcfd2b5d505c803b858"
   }
 }

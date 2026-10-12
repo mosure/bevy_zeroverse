@@ -15,8 +15,10 @@ fn lids_panels_and_wall_hardware_have_no_competing_flat_faces() {
     .unwrap()
     .objects[0]
         .clone();
-    for seed in 0..8 {
+    for seed in 0..24 {
         for (kind, size) in [
+            (ObjectKind::TissueBox, Vec3::new(0.20, 0.13, 0.12)),
+            (ObjectKind::TrashCan, Vec3::new(0.37, 0.55, 0.31)),
             (ObjectKind::StorageBox, Vec3::new(0.40, 0.28, 0.30)),
             (ObjectKind::Printer, Vec3::new(0.40, 0.28, 0.30)),
             (ObjectKind::WallOutlet, Vec3::new(0.225, 0.115, 0.018)),

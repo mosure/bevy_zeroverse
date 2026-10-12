@@ -587,6 +587,8 @@ pub struct CaptureStatus<'w> {
     gpu_sink: Option<ResMut<'w, gpu::GpuSampleSink>>,
     gi_settings: Option<Res<'w, crate::scene::procedural_indoor::gi::IndoorGiSettings>>,
     gi_statistics: Option<Res<'w, crate::scene::procedural_indoor::gi::BakeStatistics>>,
+    material_bake:
+        Option<Res<'w, crate::scene::procedural_indoor::materials::gpu::MaterialBakeStatistics>>,
     #[cfg(not(target_arch = "wasm32"))]
     gi: Option<Res<'w, crate::scene::procedural_indoor::gi::gpu::GiGpuReadiness>>,
     #[cfg(not(target_arch = "wasm32"))]
@@ -1252,6 +1254,9 @@ pub fn sample_stream(
             "world_from_scene": capture.identity.as_ref().and_then(|identity|identity.world_from_scene),
             "camera_qualification": indoor.as_ref().map(|scene| qualification::metadata(scene, &views, camera_count, buffered_sample.aabb)),
             "quality": args.indoor_quality,
+            "material_synthesis": {"gpu_requested": args.indoor_gpu_materials, "gpu": capture_status.material_bake.as_deref(), "policy": "qualified GPU programs; original CPU recipes for other programs or unsupported devices"},
+            "exposure": {"ev100": indoor.as_ref().map(|s| s.ev100()), "scope": "all capture cameras; RGB only; geometry annotations unchanged"},
+            "exterior_background": {"semantic_label": "sky", "semantic_id": crate::render::ground_truth::semantic_id(&crate::render::semantic::SemanticLabel::Sky), "proxy_radius_metres": indoor.as_ref().map(|s| crate::scene::procedural_indoor::architecture::background::radius(s)), "depth": "metric distance to finite proxy geometry; not physical astronomical sky distance", "primary_room_voxels": false},
             "ovoxel": ovoxel_metadata,
             "diffuse_gi_supported": args.indoor_quality.diffuse_gi(),
             "human_motion": capture_status.motion.as_deref(),

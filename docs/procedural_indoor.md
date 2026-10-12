@@ -121,6 +121,28 @@ separate layout, cameras and surface/object detail. Pixel-identical rendering ac
 GPUs/drivers is not promised. Keep the manifest, generator version, code revision,
 configuration and renderer identity with datasets; split by **scene seed**, not view.
 
+## Small fixtures and exterior context
+
+Tissue boxes sample sleeve finishes, height, aperture width and depth, sheet lean,
+pleat amplitude and phase. The opening is geometric; the visible tissue is a
+pinched sheet with separate front/back normals. Bins vary continuously from
+round/oval to rounded rectangular profiles, with taper, rim thickness, finishes,
+open/divided chambers, pedal/sensor lids and moulded ribs. Their meshes remain
+inside the same placement reservations used for clearance and annotations.
+
+Wall hardware samples gang counts, faceplate finishes, edge radii, screw covers,
+rockers, toggles, rotary/sliding dimmers and push buttons. Receptacles vary their
+pin layouts and optional USB inserts. Connected leads use the builder's exact
+primary socket frame. These are visual models, not electrical design drawings.
+
+Exterior context samples disjoint parcels around the primary and adjoining room:
+stepped buildings with varied floor pitches, aperture spacing, roof equipment,
+planted courtyards, benches and open pergolas. A bounded finite sky closes rays
+between parcels. Exterior meshes remain excluded from primary-room O-voxel
+exports. The distribution report includes bin/tissue/fixture parameters and
+exterior parcel counts, so geometry diversity can be measured independently of
+scene seeds.
+
 ## Dataset use
 
 ```python

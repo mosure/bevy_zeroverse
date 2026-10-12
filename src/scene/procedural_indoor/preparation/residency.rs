@@ -14,6 +14,7 @@ const MAX_FUTURE_UPLOAD_BYTES: u64 = 256 * 1024 * 1024;
 
 #[derive(Resource, Default)]
 pub(crate) struct FutureAssets {
+    pub(crate) material_bakes: crate::scene::procedural_indoor::materials::gpu::Requests,
     pub meshes: HashSet<AssetId<Mesh>>,
     pub images: HashSet<AssetId<Image>>,
     pub materials: HashSet<UntypedAssetId>,
@@ -50,6 +51,7 @@ pub(crate) struct FutureGi {
 
 impl FutureAssets {
     pub fn clear(&mut self) {
+        self.material_bakes.0.clear();
         self.meshes.clear();
         self.images.clear();
         self.materials.clear();
@@ -64,6 +66,7 @@ impl FutureAssets {
 
     #[cfg(not(target_arch = "wasm32"))]
     pub fn cancel_gi(&mut self) {
+        self.material_bakes.0.clear();
         self.gi = None;
         self.gi_only = None;
     }
@@ -176,6 +179,9 @@ impl FutureAssets {
         self.stage_gi(key, room.gpu_request.as_ref(), copies_submitted);
         #[cfg(target_arch = "wasm32")]
         let _ = copies_submitted;
+        if copies_submitted {
+            self.material_bakes = room.material_set.gpu_bakes.clone();
+        }
         !staged
     }
 

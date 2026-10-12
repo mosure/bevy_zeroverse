@@ -77,11 +77,11 @@ fn consumed_scene_recipes_replay_every_scalar_map_byte_and_sampler() {
             if !selection.needs_maps(&scene, surface) {
                 continue;
             }
-            if let Some(actual) = prepare_map(&scene, &definition) {
+            if let Some(gpu::Maps::Cpu(actual)) = prepare_map(&scene, &definition, false) {
                 let recipe = &recipes[surface as usize];
                 bytes += same_images(
                     scalar_images(recipe, scene.floor_style, scene.material_seed(), roughness),
-                    actual,
+                    *actual,
                     seed,
                     &format!("base/{surface:?}"),
                 );

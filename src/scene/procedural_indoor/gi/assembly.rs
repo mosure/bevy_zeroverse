@@ -206,7 +206,7 @@ impl GeometryTransport {
             let mat = materials.get(&handle).expect("indoor material exists");
             self.scene
                 .materials
-                .push(DiffuseMaterial::from_standard(mat, images));
+                .push(DiffuseMaterial::from_standard(mat, images, &set.gpu_bakes));
         }
         let knit = scene
             .humans
@@ -218,6 +218,7 @@ impl GeometryTransport {
                         .get(&set.knit)
                         .expect("indoor knit material exists"),
                     images,
+                    &set.gpu_bakes,
                 )
             });
         let remap: Vec<_> = self

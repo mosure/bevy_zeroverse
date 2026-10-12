@@ -1,6 +1,6 @@
 [package]
 name = "bevy_zeroverse_burn"
-version = "0.21.0"
+version = "0.22.0"
 edition = "2024"
 rust-version = "1.97.1"
 license = "MIT OR Apache-2.0"
@@ -54,7 +54,7 @@ crossterm = "0.29"
 ndarray = { version = "0.16", default-features = false, features = ["std"] }
 ndarray-npy = { version = "0.9", features = ["npz"] }
 
-bevy_zeroverse = { path = "../..", version = "0.37.2", default-features = true }
+bevy_zeroverse = { path = "../..", version = "0.38.0", default-features = true }
 
 # Native CUDA interoperability uses published APIs only. These dependencies and
 # their features never enter the default or WebGPU/WASM dependency graph.
@@ -73,9 +73,14 @@ tempfile = "3.13"
 human_motion = ["bevy_zeroverse/human_motion"]
 
 gpu_tensor = ["dep:bevy", "dep:burn-cubecl", "burn/wgpu", "burn/cubecl"]
+gpu_training_bench = ["gpu_tensor", "burn/optim"]
 gpu_tensor_fusion = ["gpu_tensor", "dep:burn-fusion", "burn/fusion"]
 cuda_interop = ["gpu_tensor", "dep:ash", "dep:cudarc", "dep:bevy-render-cuda", "dep:burn-tensor-cuda", "dep:cubecl-runtime"]
 
 [[example]]
 name = "gpu_jit_bench"
 required-features = ["gpu_tensor"]
+
+[[example]]
+name = "material_jit_qualification"
+required-features = ["gpu_training_bench"]

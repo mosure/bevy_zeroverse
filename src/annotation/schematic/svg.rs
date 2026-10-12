@@ -26,20 +26,13 @@ fn points(p: &[[f32; 3]], project: &Projection) -> Result<String, String> {
         .collect::<Vec<_>>()
         .join(" "))
 }
-fn color(i: usize) -> &'static str {
+pub(crate) fn color(i: usize) -> &'static str {
     [
         "#167a9d", "#c45d20", "#7354b8", "#178565", "#b53c63", "#647820", "#945534", "#267cc2",
         "#a350a0", "#777133", "#368487", "#9c4850", "#384ba0", "#4e7841", "#775964", "#b66b38",
     ][i % 16]
 }
-fn camera(
-    s: &mut String,
-    c: &Camera,
-    p: &Projection,
-    options: &RenderOptions,
-    index: usize,
-    pred: bool,
-) -> Result<(), String> {
+pub(crate) fn camera_footprint(c: &Camera, length: f32) -> Result<Vec<[f32; 3]>, String> {
     let m = Mat4::from_cols_array_2d(&c.world_from_view);
     if !m.is_finite() || !(0.01..3.13).contains(&c.fov_y) || !c.aspect.is_finite() || c.aspect <= 0.
     {
@@ -56,21 +49,7 @@ fn camera(
     {
         return Err("schematic cameras require rigid world_from_view matrices".into());
     }
-    let origin = m.transform_point3(Vec3::ZERO);
-    let rgb = if pred { "#bb297c" } else { color(index) };
-    let dash = if pred {
-        r##" stroke-dasharray="6 4""##
-    } else {
-        ""
-    };
-    if options.camera_paths && c.path.len() > 1 {
-        let _ = write!(
-            s,
-            r##"<polyline points="{}" fill="none" stroke="{rgb}" opacity="0.65" stroke-width="1.5"{dash}/>"##,
-            points(&c.path, p)?
-        );
-    }
-    let d = options.frustum_length;
+    let d = length;
     let corners = if let Some(calibration) = &c.calibration {
         calibration.validate()?;
         let k = calibration.k;
@@ -114,7 +93,33 @@ fn camera(
     }
     let mut poly = chain(hull.iter().copied());
     poly.extend(chain(hull.iter().rev().copied()));
-    let corners: Vec<_> = poly.into_iter().map(|p| [p.x, 0., p.y]).collect();
+    Ok(poly.into_iter().map(|p| [p.x, 0., p.y]).collect())
+}
+fn camera(
+    s: &mut String,
+    c: &Camera,
+    p: &Projection,
+    options: &RenderOptions,
+    index: usize,
+    pred: bool,
+) -> Result<(), String> {
+    let m = Mat4::from_cols_array_2d(&c.world_from_view);
+    let origin = m.transform_point3(Vec3::ZERO);
+    let rgb = if pred { "#bb297c" } else { color(index) };
+    let dash = if pred {
+        r##" stroke-dasharray="6 4""##
+    } else {
+        ""
+    };
+    if options.camera_paths && c.path.len() > 1 {
+        let _ = write!(
+            s,
+            r##"<polyline points="{}" fill="none" stroke="{rgb}" opacity="0.65" stroke-width="1.5"{dash}/>"##,
+            points(&c.path, p)?
+        );
+    }
+    let d = options.frustum_length;
+    let corners = camera_footprint(c, d)?;
     let _ = write!(
         s,
         r##"<polygon points="{}" fill="{rgb}" fill-opacity="0.10" stroke="{rgb}" stroke-width="1.4"{dash}/>"##,

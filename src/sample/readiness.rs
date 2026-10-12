@@ -67,6 +67,7 @@ pub(super) struct Inputs<'w, 's> {
     >,
     #[cfg(not(target_arch = "wasm32"))]
     gi: Option<Res<'w, crate::scene::procedural_indoor::gi::gpu::GiGpuReadiness>>,
+    materials: Option<Res<'w, crate::scene::procedural_indoor::materials::gpu::Requests>>,
 }
 
 fn motion_ready(seed: u64, report: Option<&HumanMotionReport>) -> bool {
@@ -77,6 +78,9 @@ pub(super) fn update(input: Inputs, mut readiness: ResMut<CaptureReadiness>) {
     let mut input = input;
     #[cfg(not(target_arch = "wasm32"))]
     if let Some(error) = input.gi.as_ref().and_then(|gi| gi.failure()) {
+        input.failure.0 = Some(error);
+    }
+    if let Some(error) = input.materials.as_ref().and_then(|m| m.failure()) {
         input.failure.0 = Some(error);
     }
     if let Err(error) = input.args.validate_ovoxel() {
@@ -131,6 +135,13 @@ pub(super) fn update(input: Inputs, mut readiness: ResMut<CaptureReadiness>) {
             .as_ref()
             .filter(|g| !g.ready())
             .map(|_| CaptureBlocker::Lighting)
+    });
+    let blocker = blocker.or_else(|| {
+        input
+            .materials
+            .as_ref()
+            .filter(|m| !m.ready())
+            .map(|_| CaptureBlocker::Assets)
     });
     readiness.blocker = blocker;
     readiness.blocked_updates += u64::from(blocker.is_some());

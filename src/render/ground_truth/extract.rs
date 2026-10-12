@@ -60,6 +60,7 @@ pub(super) fn extract_geometry(
                 Option<&MeshMaterial3d<StandardMaterial>>,
                 Option<&DisabledPbrMaterial>,
                 Option<&SkinnedMesh>,
+                Option<&AnnotationOrder>,
             ),
             Without<crate::render::RenderOnlyOverlay>,
         >,
@@ -93,34 +94,41 @@ pub(super) fn extract_geometry(
         });
     let mut objects: Vec<_> = objects
         .iter()
-        .filter(|(_, _, _, visible, _, _, material, disabled, _)| {
+        .filter(|(_, _, _, visible, _, _, material, disabled, _, _)| {
             let source = material
                 .map(|m| &m.0)
                 .or_else(|| disabled.map(|m| &m.material));
             visible.is_none_or(|v| v.get()) && glass.includes(source.and_then(|h| materials.get(h)))
         })
         .collect();
-    objects.sort_by_key(|(entity, ..)| entity.to_bits());
+    objects.sort_by_key(|object| {
+        (
+            object.9.map_or(u64::MAX, |order| order.0),
+            object.0.to_bits(),
+        )
+    });
     let keys: Vec<_> = objects
         .iter()
-        .map(|(entity, mesh, _, _, _, layers, material, disabled, _)| {
-            let cull = material
-                .and_then(|m| materials.get(&m.0))
-                .map(|m| m.cull_mode)
-                .or_else(|| disabled.map(|m| m.cull_mode))
-                .flatten();
-            let cull = match cull {
-                None => 0,
-                Some(Face::Back) => 1,
-                Some(Face::Front) => 2,
-            };
-            (
-                *entity,
-                mesh.id(),
-                cull,
-                layers.cloned().unwrap_or_default(),
-            )
-        })
+        .map(
+            |(entity, mesh, _, _, _, layers, material, disabled, _, _)| {
+                let cull = material
+                    .and_then(|m| materials.get(&m.0))
+                    .map(|m| m.cull_mode)
+                    .or_else(|| disabled.map(|m| m.cull_mode))
+                    .flatten();
+                let cull = match cull {
+                    None => 0,
+                    Some(Face::Back) => 1,
+                    Some(Face::Front) => 2,
+                };
+                (
+                    *entity,
+                    mesh.id(),
+                    cull,
+                    layers.cloned().unwrap_or_default(),
+                )
+            },
+        )
         .collect();
     let skin_stamp = cameras.iter().map(|c| c.frame_id).max().unwrap_or(0);
     let skinned_entities: Vec<_> = objects
@@ -132,7 +140,7 @@ pub(super) fn extract_geometry(
     // SkinnedMesh component changed. Warm-up joint updates remain inexpensive.
     let skin_changed = skinned_entities != cache.skinned_entities
         || (!skinned_entities.is_empty() && skin_stamp != cache.skin_stamp)
-        || objects.iter().any(|(_, _, _, _, _, _, _, _, skin)| {
+        || objects.iter().any(|(_, _, _, _, _, _, _, _, skin, _)| {
             skin.is_some_and(|s| {
                 s.joints
                     .iter()
@@ -149,7 +157,7 @@ pub(super) fn extract_geometry(
         geometry.batches.clear();
         geometry.topology.clear();
         let mut batch_spans = BTreeMap::<(usize, RenderLayers), Vec<IndexSpan>>::new();
-        for (instance, ((entity, mesh_handle, _, _, _, _, _, _, skin), (_, _, cull, layers))) in
+        for (instance, ((entity, mesh_handle, _, _, _, _, _, _, skin, _), (_, _, cull, layers))) in
             objects.iter().zip(&keys).enumerate()
         {
             let Some(mesh) = meshes.get(mesh_handle.id()) else {
@@ -278,7 +286,7 @@ pub(super) fn extract_geometry(
         cache.flow_enabled = flow_enabled;
     }
     let mut instance_count = 0;
-    for (instance, (entity, _, transform, _, semantic, _, _, _, skin)) in
+    for (instance, (entity, _, transform, _, semantic, _, _, _, skin, _)) in
         objects.into_iter().enumerate()
     {
         // Bevy's skin matrices already transform rest vertices to world space.

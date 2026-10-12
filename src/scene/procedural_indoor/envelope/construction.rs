@@ -342,6 +342,7 @@ pub fn build(scene: &IndoorManifest) -> Assembly {
     for ((surface, label), g) in exterior.parts {
         a.part(surface, &format!("{label}#exterior")).append(g);
     }
+    architecture::background::append(&mut a, scene);
     a
 }
 

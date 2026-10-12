@@ -42,6 +42,12 @@ const SHADER: Handle<Shader> = uuid_handle!("57c3d933-c7a7-41bc-b590-8f5d40a9175
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
 pub struct GroundTruthLabel;
 
+/// Stable mesh-instance order for reproducible raster depth ties. Scene builders
+/// should assign unique ordinals within a scene; entity allocation order is only
+/// a fallback for meshes without an ordinal. This never offsets metric depth.
+#[derive(Component, Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct AnnotationOrder(pub u64);
+
 /// Set `frame_id` alongside the RGB capture stamp before render extraction.
 /// `rendered_frame()` reports encoding of this pass, not GPU/map completion.
 #[derive(Component, Clone, ExtractComponent)]

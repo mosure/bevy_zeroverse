@@ -71,6 +71,10 @@ use crate::{
 #[cfg(feature = "viewer")]
 use bevy::camera::RenderTarget;
 
+fn default_indoor_gpu_materials() -> bool {
+    true
+}
+
 fn deserialize_human_motion<'de, D: serde::Deserializer<'de>>(
     deserializer: D,
 ) -> Result<Option<String>, D::Error> {
@@ -392,6 +396,12 @@ pub struct BevyZeroverseConfig {
     #[serde(default)]
     pub indoor_quality: crate::scene::procedural_indoor::IndoorQuality,
 
+    /// Bake qualified material programs once on the rendering device. CPU fallback preserves other programs.
+    #[pyo3(get, set)]
+    #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
+    #[serde(default = "default_indoor_gpu_materials")]
+    pub indoor_gpu_materials: bool,
+
     /// Native diffuse-GI rays per probe; 1024 reduces noise at higher generation cost.
     #[pyo3(get, set)]
     #[arg(long, default_value = "256", value_parser = clap::value_parser!(u32).range(64..=16384))]
@@ -637,6 +647,11 @@ pub struct BevyZeroverseConfig {
     #[serde(default)]
     pub indoor_quality: crate::scene::procedural_indoor::IndoorQuality,
 
+    /// Bake qualified material programs once on the rendering device. CPU fallback preserves other programs.
+    #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
+    #[serde(default = "default_indoor_gpu_materials")]
+    pub indoor_gpu_materials: bool,
+
     /// Native diffuse-GI rays per probe; 1024 reduces noise at higher generation cost.
     #[arg(long, default_value = "256", value_parser = clap::value_parser!(u32).range(64..=16384))]
     #[serde(
@@ -742,6 +757,7 @@ impl Default for BevyZeroverseConfig {
             indoor_appearance: None,
             human_motion: None,
             indoor_quality: crate::scene::procedural_indoor::IndoorQuality::Auto,
+            indoor_gpu_materials: true,
             indoor_gi_rays: 256,
             rotation_augmentation: false,
             max_camera_radius: 0.0,
@@ -843,6 +859,31 @@ fn parse_web_config() -> Result<BevyZeroverseConfig, String> {
 #[cfg(test)]
 mod web_config_tests {
     use super::*;
+
+    #[test]
+    fn gpu_material_defaults_and_explicit_cpu_override_roundtrip() {
+        assert!(BevyZeroverseConfig::default().indoor_gpu_materials);
+        assert!(
+            BevyZeroverseConfig::try_parse_from(["viewer"])
+                .unwrap()
+                .indoor_gpu_materials
+        );
+        assert!(
+            !BevyZeroverseConfig::try_parse_from(["viewer", "--indoor-gpu-materials", "false"])
+                .unwrap()
+                .indoor_gpu_materials
+        );
+        let config = config_with_query(
+            BevyZeroverseConfig::default(),
+            [("indoor_gpu_materials".into(), "false".into())],
+        )
+        .unwrap();
+        assert!(!config.indoor_gpu_materials);
+        assert_eq!(
+            serde_json::to_value(&config).unwrap()["indoor_gpu_materials"],
+            false
+        );
+    }
 
     #[test]
     fn typed_url_seed_and_cli_scene_names_are_supported() {

@@ -7,6 +7,8 @@ fn camera_shorthand_is_expanded_and_every_catalog_choice_is_valid() {
     let config = BevyZeroverseConfig {
         scene_type: ZeroverseSceneType::ProceduralIndoor,
         indoor_camera: Some(r#"{"baseline":0.8}"#.into()),
+        indoor_gpu_materials: false,
+        indoor_appearance: Some(r#"{"exposure_ev100_offset":1.25}"#.into()),
         ..default()
     };
     let mut state = EditorState::new(&config);

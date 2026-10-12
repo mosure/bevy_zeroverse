@@ -114,7 +114,7 @@ fn gate_interactive_views(
     }
 }
 fn interactive_views_needed(args: &BevyZeroverseConfig, mode: &RenderMode, sampling: bool) -> bool {
-    args.camera_grid || *mode == RenderMode::CoVisibility || sampling
+    sampling || (!args.room_schematic && (args.camera_grid || *mode == RenderMode::CoVisibility))
 }
 
 // TODO: convert to position sampler
@@ -1436,6 +1436,17 @@ mod interactive_activity_tests {
             &config,
             &RenderMode::Normal,
             false
+        ));
+        config.room_schematic = true;
+        assert!(!interactive_views_needed(
+            &config,
+            &RenderMode::CoVisibility,
+            false
+        ));
+        assert!(interactive_views_needed(
+            &config,
+            &RenderMode::CoVisibility,
+            true
         ));
     }
 }

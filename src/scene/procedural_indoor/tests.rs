@@ -53,6 +53,7 @@ fn legacy_config_json_does_not_require_new_indoor_fields() {
         "indoor_density",
         "indoor_human_density",
         "indoor_quality",
+        "indoor_gpu_materials",
         "indoor_gi_rays",
     ] {
         object.remove(key);
@@ -63,6 +64,7 @@ fn legacy_config_json_does_not_require_new_indoor_fields() {
     assert_eq!(config.indoor_density, 0.65);
     assert_eq!(config.indoor_human_density, 0.25);
     assert_eq!(config.indoor_gi_rays, 256);
+    assert!(config.indoor_gpu_materials);
 }
 
 #[test]

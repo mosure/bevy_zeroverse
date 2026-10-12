@@ -6,8 +6,12 @@ Choose **View & playback → Viewport → Room schematic** in the native or WebG
 viewer. Editor camera and Capture grid remain available in that selector.
 `?room_schematic=true&scene_type=procedural-indoor` selects it in a shared link;
 the viewer updates the URL when the selection changes. Use the timeline to inspect
-camera and human poses at another trajectory position. The schematic refreshes at
-most eight times a second and retains its image when unchanged.
+camera and human poses at another trajectory position. The live schematic uses Bevy's GPU 2D renderer on native and WebGPU. Room
+geometry and labels are retained; playback updates a small camera/pose mesh at
+viewer frame rate. It does not rasterize SVGs or upload full images each frame.
+Paused diagrams reuse their meshes. Switching away releases the schematic's
+camera, image, meshes, materials and labels. Dataset SVG/PNG exports keep their
+deterministic CPU renderer and require no GPU initialization.
 
 The diagram shows the primary-room envelope, windows, partitions and openings,
 floor levels, mezzanine/stairs, columns, oriented furniture and prop bounds,

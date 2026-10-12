@@ -133,6 +133,13 @@ fn snapshot(world: &mut World) -> Option<Snapshot> {
             return None;
         }
     }
+    if let Some(materials) =
+        world.get_resource::<crate::scene::procedural_indoor::materials::gpu::Requests>()
+    {
+        if !materials.ready() || materials.failure().is_some() {
+            return None;
+        }
+    }
     let sample = world.get_resource::<Sample>()?;
     let playback = world.get_resource::<Playback>()?;
     let mut copiers = Vec::with_capacity(identity.cameras.len());

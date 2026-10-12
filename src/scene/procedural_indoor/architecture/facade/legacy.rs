@@ -147,38 +147,3 @@ pub(super) fn shell(a: &mut Assembly, scene: &IndoorManifest) {
         }
     }
 }
-pub(super) fn backdrop(a: &mut Assembly, scene: &IndoorManifest) {
-    let hx = scene.room_size.x * 0.5;
-    // Exterior ground and compact generated neighboring facades: visible parallax, no backdrop image.
-    a.box_part(
-        Surface::Concrete,
-        "floor",
-        Vec3::new(-hx - 7.0, -0.17, 0.0),
-        Vec3::new(13.0, 0.20, 32.0),
-        0.0,
-    );
-    let mut rng = stream(scene.seed, 9);
-    for i in 0..7 {
-        let z = -15.0 + i as f32 * 5.0;
-        let bh = rng.random_range(5.0..14.0);
-        let x = -hx - rng.random_range(9.0..13.0);
-        a.box_part(
-            Surface::Concrete,
-            "other_structure",
-            Vec3::new(x, bh * 0.5, z),
-            Vec3::new(3.0, bh, 3.8),
-            0.015,
-        );
-        for floor in 0..(bh / 2.5) as usize {
-            for col in [-1.0, 1.0] {
-                a.box_part(
-                    Surface::Glass,
-                    "window",
-                    Vec3::new(x + 1.51, 1.3 + floor as f32 * 2.5, z + col * 0.85),
-                    Vec3::new(0.02, 1.15, 0.9),
-                    0.0,
-                );
-            }
-        }
-    }
-}

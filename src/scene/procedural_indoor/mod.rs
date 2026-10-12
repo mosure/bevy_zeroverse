@@ -106,7 +106,10 @@ pub struct ProceduralIndoorPlugin;
 
 impl Plugin for ProceduralIndoorPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(shading::IndoorShadingPlugin);
+        app.add_plugins((
+            shading::IndoorShadingPlugin,
+            materials::gpu::MaterialBakePlugin,
+        ));
         app.init_resource::<IndoorSequence>();
         app.init_resource::<IndoorGenerationStatus>();
         app.init_resource::<preparation::IndoorPrefetch>();
@@ -206,6 +209,7 @@ struct PendingIndoor {
 #[derive(bevy::ecs::system::SystemParam)]
 struct SpeculativePreparation<'w, 's> {
     future_assets: ResMut<'w, preparation::residency::FutureAssets>,
+    material_compute: Res<'w, materials::gpu::MaterialComputeAvailable>,
     capture: Option<Res<'w, crate::sample::CaptureProgress>>,
     sampler: Option<Res<'w, crate::sample::SamplerState>>,
     copiers: Query<
@@ -237,6 +241,7 @@ fn regenerate(
 ) {
     let SpeculativePreparation {
         mut future_assets,
+        material_compute,
         capture,
         sampler,
         copiers,
@@ -251,6 +256,8 @@ fn regenerate(
     {
         *pending = PendingIndoor::default();
         future_assets.clear();
+        commands.remove_resource::<materials::gpu::Requests>();
+        commands.remove_resource::<materials::gpu::MaterialBakeStatistics>();
         generation.pending = false;
         generation.lighting_pending = false;
         #[cfg(not(target_arch = "wasm32"))]
@@ -266,7 +273,9 @@ fn regenerate(
         #[cfg(not(target_arch = "wasm32"))]
         future_assets.cancel_gi();
         events.clear();
-        pending.settings = Some((args.clone(), settings.clone(), *gi_settings));
+        let mut snapshot = args.clone();
+        snapshot.indoor_gpu_materials &= material_compute.0;
+        pending.settings = Some((snapshot, settings.clone(), *gi_settings));
         pending.task = None;
         pending.requested = true;
         generation.pending = true;
@@ -279,10 +288,9 @@ fn regenerate(
             || args.editor
             || sampler.as_ref().is_none_or(|state| !state.enabled)
             || args.indoor_seed != sequence.configured_seed
-            || pending
-                .key
-                .as_ref()
-                .is_none_or(|key| !key.matches_config(&args, &settings, *gi_settings))
+            || pending.key.as_ref().is_none_or(|key| {
+                !key.matches_config(&args, &settings, *gi_settings, material_compute.0)
+            })
         {
             future_assets.cancel_gi();
             return;
@@ -402,6 +410,8 @@ fn regenerate(
     }
     let manifest = &prepared.manifest;
     let material_set = &prepared.material_set;
+    commands.insert_resource(material_set.gpu_bakes.statistics());
+    commands.insert_resource(material_set.gpu_bakes.clone());
     commands.insert_resource(DirectionalLightShadowMap {
         size: args.indoor_quality.shadow_map_size(),
     });

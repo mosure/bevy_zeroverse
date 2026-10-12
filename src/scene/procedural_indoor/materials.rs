@@ -10,6 +10,7 @@ mod environment;
 mod field;
 mod filter;
 pub mod glass;
+pub mod gpu;
 mod human;
 pub mod layers;
 pub mod leather;
@@ -78,12 +79,14 @@ pub enum Surface {
 }
 
 pub struct IndoorMaterials {
+    pub(crate) gpu_bakes: gpu::Requests,
     handles: Vec<Handle<StandardMaterial>>,
     pub cloth: Handle<StandardMaterial>,
     pub skin: Handle<StandardMaterial>,
     pub hair: Handle<StandardMaterial>,
     pub knit: Handle<StandardMaterial>,
     light_variants: Vec<Handle<StandardMaterial>>,
+    sky: Handle<StandardMaterial>,
     pub(crate) variants: std::collections::BTreeMap<(Surface, usize), Handle<StandardMaterial>>,
     pub environment: EnvironmentMapLight,
 }
@@ -133,6 +136,9 @@ impl IndoorMaterials {
     }
 
     pub fn for_part(&self, surface: Surface, label: &str) -> Handle<StandardMaterial> {
+        if label == "sky#exterior" {
+            return self.sky.clone();
+        }
         if let Some(material) = label
             .rsplit_once("#finish")
             .and_then(|(_, s)| s.parse::<usize>().ok())
@@ -166,7 +172,7 @@ impl IndoorMaterials {
         images: &mut impl super::preparation::AssetStore<Image>,
         materials: &mut impl super::preparation::AssetStore<StandardMaterial>,
     ) -> Self {
-        Self::build_with_selection(scene, quality, images, materials, None)
+        Self::build_with_selection(scene, quality, images, materials, None, false)
     }
 
     fn build_with_selection(
@@ -175,6 +181,7 @@ impl IndoorMaterials {
         images: &mut impl super::preparation::AssetStore<Image>,
         materials: &mut impl super::preparation::AssetStore<StandardMaterial>,
         selection: Option<&MaterialSelection>,
+        gpu: bool,
     ) -> Self {
         let definitions = definitions(scene);
         // Generate immutable maps on a bounded pool; asset insertion remains ordered.
@@ -182,7 +189,7 @@ impl IndoorMaterials {
         let prepare = |definition: &Definition| {
             selection
                 .is_none_or(|s| s.needs_maps(scene, definition.0))
-                .then(|| prepare_map(scene, definition))
+                .then(|| prepare_map(scene, definition, gpu))
                 .flatten()
         };
         #[cfg(not(target_arch = "wasm32"))]
@@ -204,6 +211,7 @@ impl IndoorMaterials {
             definitions,
             prepared,
             selection,
+            gpu,
         )
     }
 
@@ -213,7 +221,7 @@ impl IndoorMaterials {
         images: &mut impl super::preparation::AssetStore<Image>,
         materials: &mut impl super::preparation::AssetStore<StandardMaterial>,
     ) -> Self {
-        Self::build_async_with_selection(scene, quality, images, materials, None).await
+        Self::build_async_with_selection(scene, quality, images, materials, None, false).await
     }
 
     pub(crate) async fn build_async_with_selection(
@@ -222,10 +230,11 @@ impl IndoorMaterials {
         images: &mut impl super::preparation::AssetStore<Image>,
         materials: &mut impl super::preparation::AssetStore<StandardMaterial>,
         selection: Option<&MaterialSelection>,
+        gpu: bool,
     ) -> Self {
         #[cfg(not(target_arch = "wasm32"))]
         {
-            Self::build_with_selection(scene, quality, images, materials, selection)
+            Self::build_with_selection(scene, quality, images, materials, selection, gpu)
         }
         #[cfg(target_arch = "wasm32")]
         {
@@ -236,7 +245,7 @@ impl IndoorMaterials {
                 maps.push(
                     selection
                         .is_none_or(|s| s.needs_maps(scene, definition.0))
-                        .then(|| prepare_map(scene, definition))
+                        .then(|| prepare_map(scene, definition, gpu))
                         .flatten(),
                 );
             }
@@ -248,6 +257,7 @@ impl IndoorMaterials {
                 definitions,
                 maps,
                 selection,
+                gpu,
             )
         }
     }
@@ -259,10 +269,12 @@ impl IndoorMaterials {
         images: &mut impl super::preparation::AssetStore<Image>,
         materials: &mut impl super::preparation::AssetStore<StandardMaterial>,
         definitions: [Definition; 36],
-        prepared: Vec<Option<[Image; 3]>>,
+        prepared: Vec<Option<gpu::Maps>>,
         selection: Option<&MaterialSelection>,
+        gpu: bool,
     ) -> Self {
         let mut handles = Vec::new();
+        let mut gpu_bakes = gpu::Requests::default();
         for ((surface, rgb, roughness, metallic, period), maps) in
             definitions.into_iter().zip(prepared)
         {
@@ -288,10 +300,10 @@ impl IndoorMaterials {
                     }
                 }
             }
-            if let Some([color, normal, data]) = maps {
-                mat.base_color_texture = Some(images.add(color));
-                mat.normal_map_texture = Some(images.add(normal));
-                let data = images.add(data);
+            if let Some(maps) = maps {
+                let [color, normal, data] = maps.insert(images, &mut gpu_bakes);
+                mat.base_color_texture = Some(color);
+                mat.normal_map_texture = Some(normal);
                 if scene.program.is_some()
                     || matches!(
                         surface,
@@ -453,6 +465,8 @@ impl IndoorMaterials {
             images,
             materials,
             selection.map(|s| &s.finishes),
+            gpu,
+            &mut gpu_bakes,
         );
         let cloth_template = materials
             .get(&handles[Surface::Fabric as usize])
@@ -471,7 +485,9 @@ impl IndoorMaterials {
             cloth.clone()
         };
         let mut result = Self {
+            sky: materials.add(super::architecture::background::material(scene)),
             handles,
+            gpu_bakes,
             light_variants,
             environment,
             cloth,
@@ -582,7 +598,7 @@ fn definitions(scene: &IndoorManifest) -> [Definition; 36] {
     }
     definitions
 }
-fn prepare_map(scene: &IndoorManifest, definition: &Definition) -> Option<[Image; 3]> {
+fn prepare_map(scene: &IndoorManifest, definition: &Definition, gpu: bool) -> Option<gpu::Maps> {
     let (surface, _, roughness, _, _) = *definition;
     if !matches!(
         surface,
@@ -616,6 +632,9 @@ fn prepare_map(scene: &IndoorManifest, definition: &Definition) -> Option<[Image
         .program
         .as_ref()
         .map(|p| &p.materials[surface as usize]);
+    if let Some(recipe) = recipe {
+        return Some(gpu::Maps::prepare(recipe, scene.floor_style, gpu));
+    }
     let maps = texture_maps(
         surface,
         scene.floor_style,
@@ -623,11 +642,11 @@ fn prepare_map(scene: &IndoorManifest, definition: &Definition) -> Option<[Image
         roughness,
         recipe,
     );
-    Some(mapped_images(
+    Some(gpu::Maps::Cpu(Box::new(mapped_images(
         maps,
         recipe.map_or(256, |r| r.map_size(scene.floor_style)),
         recipe,
-    ))
+    ))))
 }
 
 fn mapped_images(
@@ -1143,6 +1162,7 @@ mod surface_tests {
             &mut images,
             &mut materials,
             Some(&selection),
+            false,
         );
         assert!(!used.variants.is_empty());
         assert!(used.variants.len() < all.variants.len());
@@ -1244,6 +1264,7 @@ mod surface_tests {
                 &mut images,
                 &mut materials,
                 Some(&selection),
+                false,
             );
             assert!(images.len() < all_images.len());
             assert!(selection.surfaces.len() < definitions(&scene).len());
@@ -1440,6 +1461,7 @@ mod surface_tests {
             &mut images,
             &mut materials,
             Some(&selection),
+            false,
         );
         for surface in surfaces {
             assert!(selection.omits_parent_maps(&scene, surface));

@@ -8,6 +8,8 @@ mod export;
 pub use export::Document;
 mod scene;
 mod svg;
+#[cfg(feature = "viewer")]
+pub(crate) use svg::{camera_footprint, color as camera_color};
 #[cfg(test)]
 mod tests;
 use bevy::prelude::*;

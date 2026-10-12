@@ -135,6 +135,7 @@ pub(crate) struct Request {
     gi: gi::BakeSettings,
     gi_enabled: bool,
     gi_gpu: bool,
+    gpu_materials: bool,
     camera: Option<String>,
     appearance: Option<String>,
     motion: Option<String>,
@@ -147,8 +148,11 @@ impl Request {
         args: &BevyZeroverseConfig,
         settings: &ZeroverseSceneSettings,
         gi: gi::IndoorGiSettings,
+        material_compute: bool,
     ) -> bool {
-        *self == Self::new(self.seed, args, settings, gi)
+        let mut expected = Self::new(self.seed, args, settings, gi);
+        expected.gpu_materials &= material_compute;
+        *self == expected
     }
 
     pub(crate) fn new(
@@ -170,6 +174,7 @@ impl Request {
             gi_enabled: gi.enabled,
             // Interactive CPU baking leaves the presentation queue responsive.
             gi_gpu: gi.gpu && args.headless,
+            gpu_materials: args.indoor_gpu_materials,
             camera: args.indoor_camera.clone(),
             appearance: args.indoor_appearance.clone(),
             motion: args.human_motion.clone(),
@@ -231,7 +236,7 @@ impl Request {
             } else {
                 Vec::new()
             };
-            let mut prepared = PreparedIndoor::build(
+            let mut prepared = PreparedIndoor::build_with_materials(
                 scene,
                 request.quality,
                 gi::IndoorGiSettings {
@@ -243,6 +248,7 @@ impl Request {
                 images,
                 materials,
                 meshes,
+                request.gpu_materials,
             )
             .await;
             prepared.timings.layout_seconds = layout_seconds;

@@ -20,6 +20,8 @@ use bevy_zeroverse::{
     },
 };
 use std::time::{Duration, Instant};
+#[path = "review_furniture/fixtures.rs"]
+mod fixtures;
 #[path = "review_furniture/seating.rs"]
 mod seating;
 #[path = "review_furniture/tabletop.rs"]
@@ -37,6 +39,7 @@ fn main() {
     let tabletop = mode.as_deref() == Some("tabletop");
     let seating = mode.as_deref() == Some("seating");
     let plants = mode.as_deref() == Some("plants");
+    let fixtures = mode.as_deref() == Some("fixtures");
     let scene =
         IndoorManifest::generate_with_humans(0, IndoorLayout::Conference, 0.5, 0, 0.0).unwrap();
     let mut table = scene.objects[0].clone();
@@ -123,6 +126,9 @@ fn main() {
             })
             .collect();
     }
+    if fixtures {
+        objects = fixtures::objects(&table);
+    }
     let object_count = objects.len();
     std::fs::write(
         output.join("objects.json"),
@@ -177,7 +183,7 @@ fn main() {
                     + if seating && matches!(o.kind, ObjectKind::Sofa | ObjectKind::Chair) {
                         let scale = o.size.max_element();
                         Vec3::new(scale * 0.95, scale * 0.52, -scale * 1.90)
-                    } else if tabletop || seating {
+                    } else if tabletop || seating || fixtures {
                         let scale = o.size.max_element();
                         Vec3::new(scale * 0.95, scale * 0.85, scale * 1.95)
                     } else if o.kind == ObjectKind::Chair {

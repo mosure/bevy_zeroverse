@@ -45,6 +45,7 @@ pub(super) struct EditorInputCapture {
 pub struct EditorPlugin;
 impl Plugin for EditorPlugin {
     fn build(&self, app: &mut App) {
+        schematic::install(app);
         let state = EditorState::new(app.world().resource::<BevyZeroverseConfig>());
         app.insert_resource(state)
             .init_resource::<Actions>()

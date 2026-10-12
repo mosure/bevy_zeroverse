@@ -261,32 +261,45 @@ impl DiffuseMaterial {
     fn from_standard(
         mat: &StandardMaterial,
         images: &impl super::preparation::AssetStore<Image>,
+        baked: &super::materials::gpu::Requests,
     ) -> Self {
         let srgb_linear = srgb8_linear_table();
-        let texture = mat
-            .base_color_texture
-            .as_ref()
-            .and_then(|h| images.get(h))
-            .and_then(|image| {
-                image.data.as_ref().map(|data| {
-                    // Preserve the full-map point-sampling and byte decoding
-                    // contract used by both geometry and garment transport.
-                    let width = image.width() as usize;
-                    let n = 32usize;
-                    let mut pixels = Vec::with_capacity(n * n);
-                    for y in 0..n {
-                        for x in 0..n {
-                            let index = ((y * width / n) * width + x * width / n) * 4;
-                            pixels.push(Vec3::new(
-                                srgb_linear[data[index] as usize],
-                                srgb_linear[data[index + 1] as usize],
-                                srgb_linear[data[index + 2] as usize],
-                            ));
-                        }
+        let texture = mat.base_color_texture.as_ref().and_then(|h| {
+            if let Some(samples) = baked.albedo(h.id()) {
+                return Some((
+                    32,
+                    samples
+                        .iter()
+                        .map(|c| {
+                            Vec3::new(
+                                srgb_linear[c[0] as usize],
+                                srgb_linear[c[1] as usize],
+                                srgb_linear[c[2] as usize],
+                            )
+                        })
+                        .collect(),
+                ));
+            }
+            let image = images.get(h)?;
+            image.data.as_ref().map(|data| {
+                // Preserve the full-map point-sampling and byte decoding
+                // contract used by both geometry and garment transport.
+                let width = image.width() as usize;
+                let n = 32usize;
+                let mut pixels = Vec::with_capacity(n * n);
+                for y in 0..n {
+                    for x in 0..n {
+                        let index = ((y * width / n) * width + x * width / n) * 4;
+                        pixels.push(Vec3::new(
+                            srgb_linear[data[index] as usize],
+                            srgb_linear[data[index + 1] as usize],
+                            srgb_linear[data[index + 2] as usize],
+                        ));
                     }
-                    (n as u32, pixels)
-                })
-            });
+                }
+                (n as u32, pixels)
+            })
+        });
         Self {
             albedo: (linear(mat.base_color) * (1.0 - mat.metallic))
                 .clamp(Vec3::ZERO, Vec3::splat(0.95)),
@@ -1033,7 +1046,7 @@ mod tests {
                     rendered.base_color_texture,
                     materials.get(&set.knit).unwrap().base_color_texture
                 );
-                let expected = DiffuseMaterial::from_standard(&rendered, &images);
+                let expected = DiffuseMaterial::from_standard(&rendered, &images, &set.gpu_bakes);
                 let actual = &transport.materials[index];
                 let (expected_n, expected_pixels) = expected.texture.as_ref().unwrap();
                 let (actual_n, actual_pixels) = actual.texture.as_ref().unwrap();

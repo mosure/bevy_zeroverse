@@ -419,6 +419,7 @@ mod tests {
             &mut images,
             &mut materials,
             Some(&selection),
+            false,
         ));
         let (plans, jobs) = bevy::tasks::block_on(plan(&manifest, geometry, &meshes));
         assert!(

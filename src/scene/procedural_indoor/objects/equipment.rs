@@ -213,14 +213,7 @@ pub(crate) fn power_port(o: &IndoorObject, low_voltage: bool) -> Option<Vec3> {
         }
         ObjectKind::Monitor if !low_voltage => super::computers::monitor_power_port_local(o).0,
         ObjectKind::Projector => Vec3::new(s.x * 0.24, s.y * 0.23, -s.z * 0.48 - 0.001),
-        ObjectKind::WallOutlet if !low_voltage => {
-            let gangs = (s.x / 0.075).round().clamp(1., 3.);
-            Vec3::new(
-                -(gangs - 1.) * 0.5 * s.x / gangs,
-                s.y * 0.28,
-                s.z * 0.46 + 0.001,
-            )
-        }
+        ObjectKind::WallOutlet if !low_voltage => super::wall::outlet_port_local(o),
         ObjectKind::PowerStrip if low_voltage => {
             Vec3::new(s.x * 0.35, s.y * 0.48, s.z * 0.5 + 0.001)
         }
