@@ -22,7 +22,12 @@ const server = createServer((_req, res) => {
 server.listen(0, '127.0.0.1');
 await once(server, 'listening');
 const url = `http://127.0.0.1:${server.address().port}/`;
-const flags = process.argv.includes('--native') ? [] : ['--use-webgpu-adapter=swiftshader', '--enable-unsafe-swiftshader'];
+const flags = process.argv.includes('--native') ? [] : [
+  '--use-webgpu-adapter=swiftshader', '--enable-unsafe-swiftshader',
+  // GPU-less Linux runners also need a software GL/Vulkan initialization path.
+  '--use-gl=angle', '--use-angle=swiftshader', '--use-vulkan=swiftshader', '--enable-features=Vulkan',
+  '--disable-vulkan-surface',
+];
 const child = spawn(chrome, ['--headless=new', '--no-first-run', '--no-default-browser-check',
   '--no-sandbox', '--disable-dev-shm-usage', '--enable-gpu', '--use-gpu-in-tests',
   '--enable-unsafe-webgpu', '--ignore-gpu-blocklist', ...flags,
@@ -80,6 +85,9 @@ try {
   if (result.messages.some(m => m.type === 'error') || result.validation || result.pipelines.length !== entries.length) {
     process.exitCode = 1;
   }
+} catch (error) {
+  console.error(chromeLog);
+  throw error;
 } finally {
   socket?.close();
   if (!spawnError && child.exitCode === null && child.signalCode === null) {
