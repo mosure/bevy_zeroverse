@@ -60,6 +60,19 @@ cargo test --lib materials::gpu -- --include-ignored --test-threads=1 --nocaptur
 cargo test -p bevy_zeroverse_burn --features gpu_tensor --lib material_qualification -- --ignored --test-threads=1 --nocapture
 ```
 
+Browser portability has a separate Chrome/Dawn compiler check. Native Naga
+validation can accept expressions that browser WGSL rejects, so the test compiles
+the actual shader and all six compute pipelines. Run it with Node 22+ and Chrome:
+
+```sh
+node scripts/validate_material_webgpu.mjs
+```
+
+It uses SwiftShader by default to check portable WebGPU validation; it does not
+measure hardware performance. Set `CHROME` to the browser executable if needed,
+or pass `--native` to test the browser's hardware adapter. The CI test runs this
+check independently of the Rust build.
+
 The second test compares completed three-view, 512×512, two-timestep captures,
 with static people, full native lighting, both annotation glass policies, RGB,
 depth, world position, geometric normal, semantic ID, optical flow and directed

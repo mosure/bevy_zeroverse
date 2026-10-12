@@ -33,7 +33,7 @@ fn unit(v: f32) -> f32 { let x = v % 1.; return select(x, x+1., x < 0.); }
 fn seed(salt: u32) -> vec2<u32> { let lo = r.header.z + salt; return vec2(lo, r.header.w + select(0u, 1u, lo < r.header.z)); }
 fn hash(x: u32, y: u32, salt: u32) -> f32 {
     let s = seed(salt);
-    var v = x*374761393u ^ y*668265263u ^ s.x ^ (s.y*0x9e3779b9u);
+    var v = (x*374761393u) ^ (y*668265263u) ^ s.x ^ (s.y*0x9e3779b9u);
     v = (v ^ (v >> 13u))*1274126177u;
     return f32(v ^ (v >> 16u)) / 4294967295.;
 }
