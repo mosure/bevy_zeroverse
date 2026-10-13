@@ -24,18 +24,37 @@ metres; camera 0 is the reference.
 | Minimum separation of every pair | 0.04 + 0.46 b | 0.27 m |
 | Minimum distance from reference | 0.06 + 2.30 b | 1.21 m |
 | Maximum distance from reference | 0.35 + 9.65 b | 5.175 m |
-| Minimum estimated bidirectional overlap | 0.65 − 0.55 b^0.6 | ≈ 0.287 |
+| Minimum estimated bidirectional overlap | 0.65 − 0.50 b^0.7 | ≈ 0.342 |
 | Minimum horizontal group spread | 0.20 + 0.10 b | 0.25 |
 | Independent path variation | b | 0.5 |
+| Visible-region target variation | b | 0.5 |
 
 These constrain a stochastic sampler, rather than determining exact camera
 positions. Room dimensions, furniture, camera intrinsics and visibility rejection
-shape the realized spacing and overlap. The [recorded camera-baseline study](camera_baseline_v21.md)
-shows their distributions across matched rooms. Wider settings trade shared
+shape the realized spacing and overlap. The [current camera study](evidence/camera_counts/study.json)
+records distributions across matched rooms and camera counts. Wider settings trade shared
 pixels for viewpoint variation; they do not guarantee a training-quality optimum.
 
+With positive target variation, peers can aim at different first-surface proxy
+hits visible to the reference camera. The probability of proposing a new target
+increases with camera count; the aim interpolates by the selected variation.
+Every candidate still passes bidirectional overlap, semantic-content, complete
+path and group-geometry gates. Feasible candidates are ranked for nearest-peer
+spacing, nearest optical-axis angle and additional primary-room surface cells.
+Preferred spacing scales with room diagonal divided by the square root of camera
+count. This is a preference, not an additional infeasible packing constraint.
+Selection uses at most 2/3/4 feasible candidates for 2–4/5–8/9+ views, within a
+12-proposal window after the first feasible candidate and the existing total
+search budget. Narrow/shared-target policies retain first-fit selection. If normal and room-space
+searches fail for 2–11 views, one bounded search for an extra view may supply a
+subset; every subset rechecks group geometry while retaining the reference,
+per-view swept clearance and all reference overlaps. No thresholds are relaxed.
+These coarse surface cells are placement diagnostics, not a measured mesh-area
+coverage or a reconstruction-performance guarantee. Temporal routes can remain
+related; gaze variation does not imply independent path topology.
+
 Expand **Advanced multi-view constraints** to edit individual fields. Editing any
-one switches to **Custom** mode; moving the baseline slider replaces all six
+one switches to **Custom** mode; moving the baseline slider replaces all seven
 advanced values. Settings apply on **Regenerate [R]**, preserving slider behavior.
 Serialization records the expanded values, so reload and regeneration have no
 hidden preset precedence. JSON must specify `baseline` or `multiview`, not both.
@@ -48,12 +67,13 @@ For example:
   "path_length_max": 8.0,
   "long_path_fraction": 0.45,
   "multiview": {
-    "min_overlap": 0.2871353,
+    "min_overlap": 0.342214,
     "min_baseline": 0.27,
     "min_reference_baseline": 1.21,
     "max_baseline": 5.175,
     "min_spread": 0.25,
-    "trajectory_variation": 0.5
+    "trajectory_variation": 0.5,
+    "target_variation": 0.5
   }
 }
 ```
@@ -61,11 +81,12 @@ For example:
 `{"multiview":null}` explicitly disables grouping. An omitted `multiview` uses
 the baseline-0.5 program. In an explicit `multiview` object, omitted
 `min_reference_baseline` is **0** for compatibility with prior custom policies;
-other omitted fields receive current defaults. Thus `{"multiview":{}}` is a
+omitted `target_variation` is **0** to preserve shared-target custom rigs.
+Other omitted fields receive current defaults. Thus `{"multiview":{}}` is a
 custom policy, not the baseline-0.5 shorthand. Archives preserve their recorded
 constraints; absent legacy spread and variation fields remain disabled.
 
-`min_overlap`, `min_spread` and `trajectory_variation` must be in [0,1]. Distance
+`min_overlap`, `min_spread`, `trajectory_variation` and `target_variation` must be in [0,1]. Distance
 bounds require `0 < min_baseline <= max_baseline <= 100`, and
 `0 <= min_reference_baseline <= max_baseline`. Impossible combinations fail
 within a bounded search, without a relaxed fallback.

@@ -112,7 +112,8 @@ published dependencies without patches. See the [tensor contract and benchmark](
 Scene Studio uses Bevy 0.20 Feathers controls and the built-in pan-orbit camera
 on native and WebGPU; it needs no egui, inspector or external camera plugin. **Apply changes**
 keeps the selected seed; **Next / R** advances it. Editing does not regenerate.
-Camera baseline controls spacing between views; travel controls how far each
+Camera baseline coordinates spacing, shared surfaces and gaze variation across
+the requested camera count; travel controls how far each
 camera moves. The viewport selector offers **Editor camera**, **Capture grid**,
 and **Room schematic**. Browser links preserve the active scene, preview and pending edits.
 **View & playback → Glass in annotations** selects glass surfaces (default) or

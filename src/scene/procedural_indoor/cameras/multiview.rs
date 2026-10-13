@@ -30,6 +30,10 @@ pub struct MultiViewSettings {
     pub min_spread: f32,
     /// Independent heading, travel and curvature variation; zero permits rigid rigs.
     pub trajectory_variation: f32,
+    /// Visible-region gaze and count-aware viewpoint selection; zero retains
+    /// shared-target rigs. Archived policies omitting this field retain zero.
+    #[serde(default)]
+    pub target_variation: f32,
 }
 impl Default for MultiViewSettings {
     fn default() -> Self {
@@ -50,8 +54,9 @@ impl MultiViewSettings {
             || self.min_reference_baseline > self.max_baseline
             || !(0.0..=1.0).contains(&self.min_spread)
             || !(0.0..=1.0).contains(&self.trajectory_variation)
+            || !(0.0..=1.0).contains(&self.target_variation)
         {
-            return Err("indoor_camera.multiview requires min_overlap, min_spread and trajectory_variation in [0,1] and 0 < min_baseline <= max_baseline <= 100 metres, with 0 <= min_reference_baseline <= max_baseline".into());
+            return Err("indoor_camera.multiview requires min_overlap, min_spread, trajectory_variation and target_variation in [0,1] and 0 < min_baseline <= max_baseline <= 100 metres, with 0 <= min_reference_baseline <= max_baseline".into());
         }
         Ok(())
     }
@@ -103,13 +108,27 @@ fn pair_samples(
     camera: &IndoorCamera,
     aspect: f32,
 ) -> Vec<OverlapSample> {
+    let camera_views: Vec<_> = CHECK_TIMES
+        .into_iter()
+        .map(|t| coverage.view(camera, aspect, t))
+        .collect();
+    pair_samples_cached(coverage, reference, reference_views, camera, &camera_views)
+}
+
+fn pair_samples_cached(
+    coverage: &Coverage,
+    reference: &IndoorCamera,
+    reference_views: &[VisibilityView],
+    camera: &IndoorCamera,
+    camera_views: &[VisibilityView],
+) -> Vec<OverlapSample> {
     CHECK_TIMES
         .into_iter()
         .zip(reference_views)
-        .map(|(time, a)| {
-            let b = coverage.view(camera, aspect, time);
-            let (ab, angle_a) = coverage.shared(a, &b);
-            let (ba, angle_b) = coverage.shared(&b, a);
+        .zip(camera_views)
+        .map(|((time, a), b)| {
+            let (ab, angle_a) = coverage.shared(a, b);
+            let (ba, angle_b) = coverage.shared(b, a);
             OverlapSample {
                 time,
                 reference_to_view: ab,
@@ -157,6 +176,10 @@ impl IndoorManifest {
     }
 
     pub(crate) fn sample_cameras(&mut self, count: usize) -> Result<(), String> {
+        self.sample_camera_set(count, true)
+    }
+
+    fn sample_camera_set(&mut self, count: usize, allow_overcomplete: bool) -> Result<(), String> {
         self.camera_settings.validate()?;
         let mut rng = stream(self.seed, 3);
         let coverage = Coverage::new(self);
@@ -229,10 +252,20 @@ impl IndoorManifest {
                 .into_iter()
                 .map(|t| coverage.view(&reference, self.camera_aspect_ratio, t))
                 .collect();
+            let mut summaries = vec![super::program::ViewSummary::new(
+                &reference, &views[0], self,
+            )];
             for &camera_index in &placement_order {
                 let target = targets.get(camera_index - 1);
                 let mut found = None;
+                let mut first_valid = None;
+                let mut accepted = 0;
+                let pool = super::program::pool_size(policy.target_variation, count);
                 for attempt in 0..VIEW_ATTEMPTS {
+                    if first_valid.is_some_and(|first| attempt >= first + 12) || accepted >= pool {
+                        break;
+                    }
+
                     // Larger rigs in concave rooms benefit from proposals near
                     // already verified free corridors. Keep the same bounded
                     // budget and all overlap/spread/separation constraints.
@@ -323,6 +356,14 @@ impl IndoorManifest {
                             motion.target_end += offset;
                         }
                     }
+                    super::program::retarget(
+                        self,
+                        &mut candidate,
+                        &views,
+                        policy.target_variation,
+                        count,
+                        &mut rng,
+                    );
                     if let Some(handheld) = &self.camera_settings.handheld {
                         handheld.apply(&mut candidate, &mut rng);
                     }
@@ -348,25 +389,40 @@ impl IndoorManifest {
                         rejected[reason] += 1;
                         continue;
                     }
-                    let samples = pair_samples(
+                    let candidate_views: Vec<_> = CHECK_TIMES
+                        .into_iter()
+                        .map(|t| coverage.view(&candidate, self.camera_aspect_ratio, t))
+                        .collect();
+                    let samples = pair_samples_cached(
                         &coverage,
                         &reference,
                         &views,
                         &candidate,
-                        self.camera_aspect_ratio,
+                        &candidate_views,
                     );
                     if target.map_or_else(
                         || policy.accepts(&samples),
                         |t| t.accepts(&policy, &samples),
                     ) {
-                        found = Some((candidate, track));
-                        break;
+                        let summary =
+                            super::program::ViewSummary::new(&candidate, &candidate_views[0], self);
+                        let score = summary.score(&summaries, count, self);
+                        accepted += 1;
+                        first_valid.get_or_insert(attempt);
+                        if found.as_ref().is_none_or(|(_, _, _, best)| score > *best) {
+                            found = Some((candidate, track, summary, score));
+                        }
+                        if pool == 1 || score >= 0.85 {
+                            break;
+                        }
+                        continue;
                     }
                     rejected[5] += 1;
                 }
-                if let Some((camera, track)) = found {
+                if let Some((camera, track, summary, _)) = found {
                     self.cameras.push(camera);
                     tracks.push(track);
+                    summaries.push(summary);
                 } else {
                     break;
                 }
@@ -403,6 +459,31 @@ impl IndoorManifest {
         if recovered == count {
             return Ok(());
         }
+        // Greedy packing is not monotonic in camera count. One bounded
+        // overcomplete search can expose a feasible set missed by the requested
+        // count's proposal sequence. Every retained subset rechecks the same
+        // synchronized geometry; reference overlap and swept clearance remain
+        // valid because removing a peer cannot invalidate those checks.
+        if allow_overcomplete
+            && targets.is_empty()
+            && (2..12).contains(&count)
+            && self.sample_camera_set(count + 1, false).is_ok()
+        {
+            let complete = self.cameras.clone();
+            for omit in (1..complete.len()).rev() {
+                let subset: Vec<_> = complete
+                    .iter()
+                    .enumerate()
+                    .filter(|(index, _)| *index != omit)
+                    .map(|(_, c)| c.clone())
+                    .collect();
+                let subset_tracks: Vec<_> = subset.iter().map(Track::new).collect();
+                if geometry(&subset_tracks, None).unwrap().accepts(&policy) {
+                    self.cameras = subset;
+                    return Ok(());
+                }
+            }
+        }
         self.cameras.clear();
         Err(format!("seed {} ({:?}): unable to sample {count} multi-view cameras after {GROUP_ATTEMPTS} anchors x {VIEW_ATTEMPTS} proposals/view and bounded room-space recovery; most_placed={most_placed}, rejections clearance/rig/length/curve/coverage/overlap={rejected:?}; requested_pairs={targets:?}; min_overlap={}, pair_min={}m, reference={}..{}m, min_spread={}, trajectory_variation={}. Lower overlap/separation/spread bounds, reduce trajectory variation, or shorten paths; no unconstrained fallback was used", self.seed, self.layout, policy.min_overlap, policy.min_baseline, policy.min_reference_baseline, policy.max_baseline, policy.min_spread, policy.trajectory_variation))
     }
@@ -427,10 +508,12 @@ fn propose(
     let vertical = rng.random_range(heights.x.max(-vertical_limit)..=heights.y.min(vertical_limit));
     let planar = (radius * radius - vertical * vertical).sqrt();
     let offset = Vec3::new(planar * azimuth.cos(), vertical, planar * azimuth.sin());
+    let horizontal_jitter = 0.03 + 0.32 * policy.target_variation;
+    let vertical_jitter = 0.015 + 0.135 * policy.target_variation;
     let jitter = Vec3::new(
-        rng.random_range(-0.35..0.35),
-        rng.random_range(-0.15..0.15),
-        rng.random_range(-0.35..0.35),
+        rng.random_range(-horizontal_jitter..horizontal_jitter),
+        rng.random_range(-vertical_jitter..vertical_jitter),
+        rng.random_range(-horizontal_jitter..horizontal_jitter),
     );
     // Deform in the reference path's local frame, preserving its navigated
     // topology while independently varying heading, distance, bend and height.
@@ -628,11 +711,21 @@ mod tests {
             r#"{"multiview":{"minimum_overlap":0.3}}"#,
             r#"{"multiview":{"min_spread":1.01}}"#,
             r#"{"multiview":{"trajectory_variation":-0.1}}"#,
+            r#"{"multiview":{"target_variation":1.01}}"#,
+            r#"{"multiview":{"target_variation":-0.1}}"#,
         ] {
             assert!(CameraSettings::parse(json).is_err(), "{json}");
         }
         let policy = CameraSettings::parse(r#"{"multiview":{}}"#).unwrap();
         assert_eq!(policy.multiview.unwrap().min_reference_baseline, 0.0);
+        assert_eq!(
+            CameraSettings::parse(r#"{"multiview":{}}"#)
+                .unwrap()
+                .multiview
+                .unwrap()
+                .target_variation,
+            0.0
+        );
     }
 
     #[test]
@@ -718,10 +811,15 @@ mod tests {
             .as_object_mut()
             .unwrap()
             .remove("trajectory_variation");
+        json["camera_settings"]["multiview"]
+            .as_object_mut()
+            .unwrap()
+            .remove("target_variation");
         let old_group: IndoorManifest = serde_json::from_value(json.clone()).unwrap();
         let old_policy = old_group.camera_settings.multiview.unwrap();
         assert_eq!(old_policy.min_spread, 0.0);
         assert_eq!(old_policy.trajectory_variation, 0.0);
+        assert_eq!(old_policy.target_variation, 0.0);
         json["camera_settings"]
             .as_object_mut()
             .unwrap()

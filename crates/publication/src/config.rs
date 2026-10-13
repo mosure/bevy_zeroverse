@@ -9,7 +9,12 @@ pub struct Config {
     pub captures: PathBuf,
     pub capture: Protocol,
     pub paper: Paper,
+    /// Retained for a clear error when loading an obsolete publication recipe.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub references: Vec<Reference>,
+    /// Self-contained, current-generator matched camera-count measurements.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub camera_study: Option<PathBuf>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -80,9 +85,16 @@ impl Config {
             config.paper.source == Path::new("tex/bevy_zeroverse.tex"),
             "the publication protocol owns tex/bevy_zeroverse.tex"
         );
-        for reference in &config.references {
-            safe_relative(&reference.gallery)?;
-            safe_relative(&reference.page)?;
+        ensure!(
+            config.references.is_empty(),
+            "the project page and paper are a current-generator snapshot; historical reference studies must remain outside the publication bundle"
+        );
+        if let Some(path) = &config.camera_study {
+            safe_relative(path)?;
+            ensure!(
+                path.starts_with("docs/evidence"),
+                "camera-study inputs must be shipped evidence, not out/ cache"
+            );
         }
         Ok(config)
     }

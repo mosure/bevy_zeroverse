@@ -2,7 +2,7 @@ use bevy_zeroverse_capture::{
     camera_color, mask_color, GeneratorIdentity, GENERATOR_VERSION, INDOOR_METRICS_SCHEMA_VERSION,
 };
 use bevy_zeroverse_publication::{
-    config::{safe_relative, Config, Paper, Protocol},
+    config::{safe_relative, Config, Paper, Protocol, Reference},
     dataset::Dataset,
     io, media, paper, pipeline,
     visibility::{decode, Stats},
@@ -109,6 +109,7 @@ fn recipe_cannot_replace_sources_or_the_publication_work_directory() {
             source: "tex/bevy_zeroverse.tex".into(),
         },
         references: vec![],
+        camera_study: None,
     };
     fs::write(
         root.path().join("publication.toml"),
@@ -126,6 +127,20 @@ fn recipe_cannot_replace_sources_or_the_publication_work_directory() {
         .unwrap();
         assert!(Config::load(root.path()).is_err(), "accepted cache {name}");
     }
+    let mut historical = original.clone();
+    historical.references.push(Reference {
+        id: "old-baseline".into(),
+        generator_version: GENERATOR_VERSION - 1,
+        gallery: "www/project/static/media/old/gallery.json".into(),
+        page: "www/project/reference.html".into(),
+    });
+    fs::write(
+        root.path().join("publication.toml"),
+        toml::to_string(&historical).unwrap(),
+    )
+    .unwrap();
+    let error = Config::load(root.path()).unwrap_err().to_string();
+    assert!(error.contains("current-generator snapshot"));
     let mut config = original;
     config.paper.source = "tex/unsupported.tex".into();
     fs::write(
@@ -543,7 +558,7 @@ fn page_counts_and_examples_follow_the_recipe_instead_of_fixed_seeds() {
         html.contains("Top: seed 0, cameras 0 and 3. Bottom: seed 1 camera 0, seed 2 camera 1.")
     );
     assert!(html.contains("indoor_seed=0") && !html.contains("data-architecture-seed=\"7\""));
-    assert!(html.contains("4-program / 4-rendered-room architectural audit"));
+    assert!(html.contains("4-room distributions"));
     assert_eq!(html.matches("id=\"architecture-explorer\"").count(), 1);
     assert_eq!(
         html.matches("data-architecture-mode=\"co_visibility\"")
@@ -560,8 +575,9 @@ fn page_counts_and_examples_follow_the_recipe_instead_of_fixed_seeds() {
         .replace_all(&html, "")
         .contains("architecture_co_visibility.jpg"));
     assert!(!html.contains("reference-banner"));
-    // The independently frozen reference population remains 512 rooms.
-    assert!(html.contains("reference population includes 512 distinct rendered rooms"));
+    assert!(!html.contains("reference.html") && !html.contains("reference population"));
+    let redirect = fs::read_to_string(temp.path().join("www/project/reference.html")).unwrap();
+    assert!(redirect.contains("http-equiv=\"refresh\"") && !redirect.contains("generator"));
 }
 
 #[test]

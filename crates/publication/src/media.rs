@@ -753,6 +753,11 @@ pub fn page(gallery: &Value, stage: &Path, protocol: &Protocol) -> Result<()> {
     let page = fill(
         include_str!("../templates/project.html"),
         &BTreeMap::from([
+            ("CAMERA_NAV",if stage.join(crate::camera_study::DIRECTORY).join("study.json").exists() {"<a href=\"#camera-counts\">Cameras</a>".into()} else {String::new()}),
+            ("CAMERA_STUDY",if stage.join(crate::camera_study::DIRECTORY).join("study.json").exists() {
+                let report: Value=io::read(&stage.join(crate::camera_study::DIRECTORY).join("study.json"))?;
+                crate::camera_study::page(&report)?
+            } else {String::new()}),
             ("GALLERY", body),
             ("FIRST_SEED",seed.to_string()),
             ("HERO_CAPTION",format!("Top: seed {}, cameras 0 and 3. Bottom: seed {} camera 0, seed {} camera 1. All at t = 0.",seed,featured[1]["seed"],featured[2]["seed"])),
@@ -768,5 +773,10 @@ pub fn page(gallery: &Value, stage: &Path, protocol: &Protocol) -> Result<()> {
         ]),
     )?;
     fs::write(stage.join("www/project/index.html"), page)?;
+    // Preserve existing inbound links without serving a second, stale page.
+    fs::write(
+        stage.join("www/project/reference.html"),
+        "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><meta http-equiv=\"refresh\" content=\"0;url=./\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><link rel=\"canonical\" href=\"https://mosure.github.io/bevy_zeroverse/project/\"><title>bevy_zeroverse</title></head><body><a href=\"./\">Open the bevy_zeroverse project page</a></body></html>\n",
+    )?;
     Ok(())
 }

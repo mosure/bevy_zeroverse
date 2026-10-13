@@ -6,6 +6,7 @@ pub mod handheld;
 pub mod mixture;
 pub mod multiview;
 mod navigation;
+mod program;
 mod sampling;
 pub mod viewpoint;
 use super::layout::{IndoorCamera, IndoorManifest};

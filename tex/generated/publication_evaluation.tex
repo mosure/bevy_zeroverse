@@ -1,7 +1,7 @@
 % Generated from the same manifest as the project page.
-\section{Current architectural evaluation}
+\section{Architectural evaluation}
 \subsection{Protocol and architectural audit}
-This cohort was captured with bevy\_zeroverse 0.38.2, generator 36, on 512 consecutive seeds (0--511), with 4 cameras per room, furnishing density 0.65 and static human density 0.25. Every audited room passed the recorded layout, support and camera-clearance checks. The first 32 rooms were rendered without appearance filtering at 640$\times$400, with 2 trajectory endpoints: 256 camera/time identities in six aligned modes. The audit contains 512 unique structural signatures after centimetre quantization; this bounded diagnostic does not estimate the total procedural space or learning utility.
+This cohort was captured with bevy\_zeroverse 0.39.0, generator 37, on 512 consecutive seeds (0--511), with 4 cameras per room, furnishing density 0.65 and static human density 0.25. Every audited room passed the recorded layout, support and camera-clearance checks. The first 32 rooms were rendered without appearance filtering at 640$\times$400, with 2 trajectory endpoints: 256 camera/time identities in six aligned modes. The audit contains 512 unique structural signatures after centimetre quantization; this bounded diagnostic does not estimate the total procedural space or learning utility.
 
 \begin{table}[ht]\centering\small
 \begin{tabular}{lrr}\toprule
@@ -24,9 +24,9 @@ Footprint areas span 35.05--262.58 m$^2$, with roof pitch 0.00--11.32$^\circ$. F
 
 The page presents all 32 rooms, all four cameras and both endpoints in one explorer, with 1536 channel images. RGB, depth, normals, semantics, positions, co-visibility, camera calibration and plans share the same room/time identity. RGB preserves renderer tone mapping and sRGB encoding without per-image exposure correction or cropping. All previews use lossless WebP. Depth is an 8-bit axial-depth preview divided by 15 m and clamped; normals store $(n+1)/2$, and positions are affine-normalized by the annotation AABB and clamped. Semantic colors are preserved exactly. These previews are not float32 training labels. Geometric annotations use the first surface, including opaque glass, rather than reflected or refracted optical content.
 
-The native capture protocol uses Auto quality, shadows, SSAO and approximate diffuse GI with 1024 primary rays per probe. Renderer identity and capabilities are recorded in every calibration download. All captured views passed the recorded alignment checks: maximum per-view depth/position p99 error 1.907 $\mu$m, reprojection p99 0.00064 pixels and normal-length error 2.980e-7. Every view contains at least 8 semantic classes. 19/19 rooms with humans in the camera's primary functional zone show person pixels; 3/23 rooms with humans anywhere in the main envelope never show person pixels. These are class-level observations, rather than instance-level visibility guarantees.
+The native capture protocol uses Auto quality, shadows, SSAO and approximate diffuse GI with 1024 primary rays per probe. Renderer identity and capabilities are recorded in every calibration download. All captured views passed the recorded alignment checks: maximum per-view depth/position p99 error 2.861 $\mu$m, reprojection p99 0.00061 pixels and normal-length error 2.980e-7. Every view contains at least 7 semantic classes. 19/19 rooms with humans in the camera's primary functional zone show person pixels; 2/23 rooms with humans anywhere in the main envelope never show person pixels. These are class-level observations, rather than instance-level visibility guarantees.
 
-Scene construction through capture/export takes 1.98--6.43 seconds per room (median 3.02), excluding application startup. This is a bounded capture run, not a sustained-throughput, unlimited-process memory-stability or photographic-realism qualification.
+Scene construction through capture/export takes 1.34--5.69 seconds per room (median 2.39), excluding application startup. This is a bounded capture run, not a sustained-throughput, unlimited-process memory-stability or photographic-realism qualification.
 
 \begin{figure}[p]
 \centering\includegraphics[width=\linewidth,height=.82\textheight,keepaspectratio]{generated/architecture_levels.jpg}
@@ -51,7 +51,7 @@ Scene construction through capture/export takes 1.98--6.43 seconds per room (med
 \subsection{Co-visibility in every captured room}
 Production co-visibility accompanies every RGB and geometry view in this cohort. Each valid source pixel stores an exact uint16 membership mask of other capture cameras that see its first surface, with the source bit excluded. One deterministic additive legend is shared across all views. The unified explorer supports all memberships and individual-peer overlays; the selected peer's own tile stays RGB.
 
-Across every room and endpoint, 83.4\% of valid source-pixel observations are visible to at least one peer. This pixel-weighted statistic pools 65536000 valid source-pixel observations; it does not count unique 3D points. Exact downloads include 16-bit grayscale membership PNGs, separate 8-bit 0/1 validity PNGs, calibrated transforms and the ordered camera legend. Zero membership with valid=1 is an unshared surface; zero membership with valid=0 is background. Co-visibility and other annotations were captured together, rather than joined from separate runs.
+Across every room and endpoint, 82.3\% of valid source-pixel observations are visible to at least one peer. This pixel-weighted statistic pools 65536000 valid source-pixel observations; it does not count unique 3D points. Exact downloads include 16-bit grayscale membership PNGs, separate 8-bit 0/1 validity PNGs, calibrated transforms and the ordered camera legend. Zero membership with valid=1 is an unshared surface; zero membership with valid=0 is background. Co-visibility and other annotations were captured together, rather than joined from separate runs.
 
 \begin{figure}[p]
 \centering\includegraphics[width=\linewidth,height=.82\textheight,keepaspectratio]{generated/architecture_co_visibility.jpg}
@@ -61,7 +61,7 @@ Across every room and endpoint, 83.4\% of valid source-pixel observations are vi
 \subsection{Matched camera and appearance qualification}
 A separate prespecified factor sweep covers 2 geometry families, eleven settings, two cameras and two timestamps per variant (88 RGB images). Room geometry hashes are invariant across each family's camera, material, detail, illumination and exposure interventions. People are disabled in this sweep. The receipt binds the actual native executable, source identity, target, feature flags and locked package versions. All cases are retained, including failures; no model inference filters pairs. The project page provides the complete matched annotation gallery and machine-readable receipt.
 
-New captures export a full row-major pixel-space $K$, image dimensions, half-pixel centers, a versioned centered pinhole lens contract, normalized playback progress, eased trajectory progress and optional explicitly assigned seconds. Unassigned physical time remains unknown. Short handheld paths sample local metric translations and yaw/pitch/roll increments independently of a moving look-target, retaining swept collision checks. Requested high/low/zero proxy-overlap strata are selected before placement retries. Their all-ray proxy estimates are stored separately from rendered directed overlap over valid source pixels. A proxy-negative pair can retain a small rendered overlap. Lens distortion and sampled principal points are not implemented.
+Captures export a full row-major pixel-space $K$, image dimensions, half-pixel centers, a versioned centered pinhole lens contract, normalized playback progress, eased trajectory progress and optional explicitly assigned seconds. Unassigned physical time remains unknown. Short handheld paths sample local metric translations and yaw/pitch/roll increments independently of a moving look-target, retaining swept collision checks. Requested high/low/zero proxy-overlap strata are selected before placement retries. Their all-ray proxy estimates are stored separately from rendered directed overlap over valid source pixels. A proxy-negative pair can retain a small rendered overlap. Lens distortion and sampled principal points are not implemented.
 
 Table~\ref{tab:factor-qualification} reports means over directed rendered pairs, and the maximum per-view 99th-percentile self-reprojection error. There are 12 exact duplicate RGB images: the baseline/overlap interventions deliberately reuse the reference camera. These counts measure exact repetition in this matched study, not perceptual redundancy across a training population. Sensor white balance, blur, noise and optional JPEG are separate seeded RGB-only export transforms with individual operator regressions; they are not applied in this render sweep. This bounded check does not establish photographic realism, a calibrated sensor model, a fitted training mixture or downstream transfer.
 
@@ -69,17 +69,17 @@ Table~\ref{tab:factor-qualification} reports means over directed rendered pairs,
 \begin{tabular}{lrrr}\toprule
 Factor & Shared pixels (\%) & Baseline (m) & Reproj. p99 max (px) \\
 \midrule
-reference & 61.2112 & 1.723 & 0.00012 \\
-portrait & 52.5586 & 1.723 & 0.00007 \\
-wide baseline & 52.9025 & 3.458 & 0.00012 \\
-handheld & 62.7252 & 2.435 & 0.00006 \\
-low overlap & 7.8793 & 4.395 & 0.00012 \\
-no proxy overlap & 0.0000 & 2.285 & 0.00012 \\
-material seed & 61.2112 & 1.723 & 0.00012 \\
-low detail & 61.2112 & 1.723 & 0.00012 \\
-lighting seed & 61.2112 & 1.723 & 0.00012 \\
-dim illumination & 61.2112 & 1.723 & 0.00012 \\
-exposure & 61.2112 & 1.723 & 0.00012 \\
+reference & 51.6614 & 2.542 & 0.00012 \\
+portrait & 46.9980 & 2.131 & 0.00008 \\
+wide baseline & 41.8729 & 4.723 & 0.00012 \\
+handheld & 50.1529 & 2.470 & 0.00006 \\
+low overlap & 8.2309 & 2.724 & 0.00012 \\
+no proxy overlap & 0.0000 & 3.767 & 0.00012 \\
+material seed & 51.6614 & 2.542 & 0.00012 \\
+low detail & 51.6614 & 2.542 & 0.00012 \\
+lighting seed & 51.6614 & 2.542 & 0.00012 \\
+dim illumination & 51.6614 & 2.542 & 0.00012 \\
+exposure & 51.6614 & 2.542 & 0.00012 \\
 \bottomrule\end{tabular}
 \caption{Prespecified factor checks on matched room geometry. Directed overlap uses valid source pixels; the zero target refers to placement proxies.}\label{tab:factor-qualification}
 \end{table}
@@ -87,7 +87,7 @@ exposure & 61.2112 & 1.723 & 0.00012 \\
 \subsection{Population distributions and publication contract}
 Room and object counts retain zero-instance rooms. Camera and photometric histograms state their own sample denominators. Placement heatmaps use 33 path samples per camera and normalize each panel independently. Feature shortcuts do not change population denominators. A seed's bit width and continuous parameter ranges do not establish ten-million-sample diversity; correlations, placement constraints and rendering affect distinguishable outcomes. Frozen SigLIP2 embeddings support separate redundancy audits, but no embedding-rank or downstream-learning result is claimed here.
 
-The project page, paper, figures and calibration archives are built by a single Rust publication pipeline from one completed capture manifest. A compiled generator identity binds crate version, geometry grammar and source/dependency hashes. The publisher validates scene/camera/time identities, every requested channel, exact membership masks, annotation checks and population denominators before staging artifacts. The release/deployment gate checks input and output hashes, preserving explicitly separate historical reference studies. Author-written method text and measurements have distinct roles; publication attestation does not imply photographic or downstream validation.
+The project page, paper, figures and calibration archives are built by a single Rust publication pipeline from completed capture manifests. All displayed cohorts must match the current compiled generator identity, which binds crate version, geometry grammar and source/dependency hashes. The publisher validates scene/camera/time identities, every requested channel, exact membership masks, annotation checks and population denominators before staging artifacts. The release/deployment gate checks input and output hashes and rejects historical cohorts. Author-written method text and measurements have distinct roles; publication attestation does not imply photographic or downstream validation.
 
 \begin{figure}[p]
 \centering\includegraphics[width=\linewidth,height=.82\textheight,keepaspectratio]{generated/architecture_features.png}

@@ -11,12 +11,13 @@ impl MultiViewSettings {
             return Err("camera baseline must be finite and in [0,1]".into());
         }
         Ok(Self {
-            min_overlap: 0.65 - 0.55 * baseline.powf(0.6),
+            min_overlap: 0.65 - 0.50 * baseline.powf(0.7),
             min_baseline: 0.04 + 0.46 * baseline,
             min_reference_baseline: 0.06 + 2.30 * baseline,
             max_baseline: 0.35 + 9.65 * baseline,
             min_spread: 0.20 + 0.10 * baseline,
             trajectory_variation: baseline,
+            target_variation: baseline,
         })
     }
 
@@ -32,6 +33,7 @@ impl MultiViewSettings {
             self.max_baseline - expected.max_baseline,
             self.min_spread - expected.min_spread,
             self.trajectory_variation - expected.trajectory_variation,
+            self.target_variation - expected.target_variation,
         ]
         .iter()
         .all(|d| d.abs() < 1e-5)
@@ -152,6 +154,9 @@ mod tests {
             let mut custom = p.clone();
             custom.min_overlap = 0.123;
             assert!(custom.baseline().is_none());
+            let mut gaze = p.clone();
+            gaze.target_variation = (value + 0.3) % 1.0;
+            assert!(gaze.baseline().is_none());
         }
         for json in [
             r#"{"baseline":-0.1}"#,
@@ -164,5 +169,47 @@ mod tests {
         }
         assert!(MultiViewSettings::from_baseline(f32::NAN).is_err());
         assert!(MultiViewSettings::from_baseline(f32::INFINITY).is_err());
+    }
+
+    #[test]
+    fn baseline_does_not_change_single_camera_and_narrow_rigs_keep_close_gaze() {
+        for seed in 0..8 {
+            let mut scene =
+                IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 0, 0.25)
+                    .unwrap();
+            scene
+                .resample_cameras(1, CameraSettings::parse(r#"{"baseline":0}"#).unwrap(), 1.6)
+                .unwrap();
+            let one = scene.cameras.clone();
+            scene
+                .resample_cameras(1, CameraSettings::parse(r#"{"baseline":1}"#).unwrap(), 1.6)
+                .unwrap();
+            assert_eq!(one, scene.cameras);
+            scene
+                .resample_cameras(4, CameraSettings::parse(r#"{"baseline":0}"#).unwrap(), 1.6)
+                .unwrap();
+            assert!(scene
+                .cameras
+                .iter()
+                .skip(1)
+                .all(|c| c.target.distance(scene.cameras[0].target) < 0.06));
+            validate_layout(&scene).unwrap();
+        }
+    }
+
+    #[test]
+    fn compact_training_room_supports_eleven_wide_views_without_relaxing_bounds() {
+        let mut scene =
+            IndoorManifest::generate_with_humans(11, IndoorLayout::Mixed, 0.65, 0, 0.25).unwrap();
+        let settings = CameraSettings::parse(r#"{"baseline":1}"#).unwrap();
+        scene.resample_cameras(11, settings.clone(), 1.6).unwrap();
+        assert_eq!(scene.cameras.len(), 11);
+        validate_layout(&scene).unwrap();
+        let policy = settings.multiview.as_ref().unwrap();
+        assert!(scene.camera_group_geometry().unwrap().accepts(policy));
+        assert!(scene
+            .camera_overlap()
+            .iter()
+            .all(|edge| policy.accepts(&edge.samples)));
     }
 }

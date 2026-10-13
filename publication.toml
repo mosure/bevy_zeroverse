@@ -2,6 +2,7 @@
 # when their compiled generator identity and every parameter match this recipe.
 schema_version = 1
 captures = "out/publication/captures"
+camera_study = "docs/evidence/camera_counts"
 
 [capture]
 seed = 0
@@ -17,17 +18,3 @@ gi_rays = 1024
 
 [paper]
 source = "tex/bevy_zeroverse.tex"
-
-# Frozen reference studies are validated/hashed as inputs, never relabelled as
-# measurements of the current renderer. Refreshing these requires a new study.
-[[references]]
-id = "camera-baseline-and-motion"
-generator_version = 21
-gallery = "www/project/static/media/gallery.json"
-page = "www/project/reference.html"
-
-[[references]]
-id = "matched-camera-baseline"
-generator_version = 21
-gallery = "www/project/static/media/baseline/gallery.json"
-page = "www/project/reference.html"

@@ -25,6 +25,12 @@ pub(super) struct VisibilityView {
     points: Vec<Option<Vec3>>,
 }
 
+impl VisibilityView {
+    pub(super) fn surfaces(&self) -> impl Iterator<Item = Vec3> + '_ {
+        self.points.iter().flatten().copied()
+    }
+}
+
 impl Coverage {
     fn shell_hit(&self, origin: Vec3, ray: Vec3) -> Option<(f32, &'static str)> {
         self.shell

@@ -93,6 +93,8 @@ use std::{
 #[serde(deny_unknown_fields)]
 pub struct Case {
     pub name: String,
+    #[serde(default = "two", skip_serializing_if = "is_two")]
+    pub cameras: usize,
     pub image_size: [u32; 2],
     pub camera: Value,
     pub appearance: Value,
@@ -103,13 +105,47 @@ pub struct Recipe {
     pub schema_version: u32,
     pub seed: u64,
     pub rooms_per_case: usize,
+    #[serde(default = "two", skip_serializing_if = "is_two")]
+    pub playback_steps: usize,
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub human_density: f32,
     pub cases: Vec<Case>,
+}
+fn two() -> usize {
+    2
+}
+fn is_two(value: &usize) -> bool {
+    *value == 2
+}
+fn is_zero(value: &f32) -> bool {
+    *value == 0.
+}
+
+#[cfg(test)]
+mod count_contract_tests {
+    use super::*;
+    #[test]
+    fn count_controls_preserve_legacy_serialization_and_validate_single_view() {
+        let value = json!({"schema_version":1,"seed":0,"rooms_per_case":2,"cases":[{"name":"reference","image_size":[256,160],"camera":{},"appearance":{}}]});
+        let mut recipe: Recipe = serde_json::from_value(value.clone()).unwrap();
+        assert_eq!(serde_json::to_value(&recipe).unwrap(), value);
+        validate_recipe(&recipe).unwrap();
+        recipe.cases[0].cameras = 1;
+        recipe.playback_steps = 3;
+        recipe.human_density = 0.25;
+        validate_recipe(&recipe).unwrap();
+        for n in [0, 17] {
+            recipe.cases[0].cameras = n;
+            assert!(validate_recipe(&recipe).is_err());
+        }
+    }
 }
 impl Default for Recipe {
     fn default() -> Self {
         let camera = json!({"duration_seconds":2.,"path_length_min":0.03,"path_length_max":0.6,"long_path_fraction":0.});
         let base = Case {
             name: "reference".into(),
+            cameras: 2,
             image_size: [256, 160],
             camera,
             appearance: json!({}),
@@ -186,6 +222,8 @@ impl Default for Recipe {
             schema_version: 1,
             seed: 0,
             rooms_per_case: 2,
+            playback_steps: 2,
+            human_density: 0.,
             cases,
         }
     }
@@ -207,16 +245,56 @@ pub fn run(root: &Path, validator: &Path, output: &Path, recipe_path: Option<&Pa
     let output = output.canonicalize()?;
     io::write(&output.join("recipe.json"), &recipe)?;
     let identity = crate::pipeline::identity(&root)?;
+    // Package verification and checkout binaries can share a target directory.
+    // Reject the wrong executable before paying for any rendered factor cases.
+    let validator_sha256 = io::hash(&validator)?;
+    let preflight = output.join("preflight");
+    let preflight_log = fs::File::create(output.join("preflight.log"))?;
+    ensure!(
+        Command::new(&validator)
+            .current_dir(&root)
+            .args([
+                "--asset-root",
+                root.to_str().context("non-UTF8 root")?,
+                "--audit-seeds",
+                "1",
+                "--renders",
+                "0",
+                "--cameras",
+                "1",
+                "--human-density",
+                "0",
+                "--output",
+                preflight.to_str().context("non-UTF8 preflight path")?
+            ])
+            .stdout(Stdio::from(preflight_log.try_clone()?))
+            .stderr(Stdio::from(preflight_log))
+            .status()?
+            .success(),
+        "validator preflight failed"
+    );
+    let compiled_identity: bevy_zeroverse_capture::GeneratorIdentity =
+        io::read(&preflight.join("generator_identity.json"))?;
+    ensure!(
+        compiled_identity == identity,
+        "validator binary is stale; rebuild from this checkout before capturing"
+    );
     let mut cases = Vec::new();
     let mut families = BTreeSet::new();
     let mut family_geometry = BTreeMap::<String, String>::new();
     let mut images = BTreeMap::<String, usize>::new();
     let mut compiled_provenance = None;
     for case in &recipe.cases {
+        ensure!(
+            io::hash(&validator)? == validator_sha256,
+            "validator executable changed during qualification"
+        );
         let dir = output.join(&case.name);
         fs::create_dir(&dir)?;
         let log = fs::File::create(dir.join("capture.log"))?;
         let args = vec![
+            "--asset-root".into(),
+            root.to_string_lossy().into_owned(),
             "--seed".into(),
             recipe.seed.to_string(),
             "--audit-seeds".into(),
@@ -224,15 +302,15 @@ pub fn run(root: &Path, validator: &Path, output: &Path, recipe_path: Option<&Pa
             "--renders".into(),
             recipe.rooms_per_case.to_string(),
             "--cameras".into(),
-            "2".into(),
+            case.cameras.to_string(),
             "--playback-steps".into(),
-            "2".into(),
+            recipe.playback_steps.to_string(),
             "--width".into(),
             case.image_size[0].to_string(),
             "--height".into(),
             case.image_size[1].to_string(),
             "--human-density".into(),
-            "0".into(),
+            recipe.human_density.to_string(),
             "--labels".into(),
             "--co-visibility".into(),
             "--no-raw".into(),
@@ -253,7 +331,7 @@ pub fn run(root: &Path, validator: &Path, output: &Path, recipe_path: Option<&Pa
             .stdout(Stdio::from(log.try_clone()?))
             .stderr(Stdio::from(log))
             .status();
-        let mut result = json!({"name":case.name,"command_args":args,"success":false});
+        let mut result = json!({"name":case.name,"camera_count":case.cameras,"command_args":args,"success":false});
         let evaluation = (|| -> Result<Value> {
             ensure!(
                 status.context("launch validator")?.success(),
@@ -307,8 +385,24 @@ pub fn run(root: &Path, validator: &Path, output: &Path, recipe_path: Option<&Pa
                 let views = capture["views"]
                     .as_array()
                     .context("missing captured views")?;
-                ensure!(views.len() == 4, "incomplete two-camera/two-time capture");
+                ensure!(
+                    views.len() == case.cameras * recipe.playback_steps,
+                    "incomplete camera/time capture"
+                );
+                let mut view_ids = BTreeSet::new();
                 for (v, view) in views.iter().enumerate() {
+                    let camera = view["camera_index"]
+                        .as_u64()
+                        .context("missing camera index")? as usize;
+                    let step = view["step_index"]
+                        .as_u64()
+                        .context("missing timestep index")? as usize;
+                    ensure!(
+                        camera < case.cameras
+                            && step < recipe.playback_steps
+                            && view_ids.insert((camera, step)),
+                        "invalid/repeated camera-time identity"
+                    );
                     let calibration: bevy_zeroverse_capture::calibration::CameraCalibration =
                         serde_json::from_value(view["calibration"].clone())?;
                     calibration.validate().map_err(anyhow::Error::msg)?;
@@ -328,8 +422,27 @@ pub fn run(root: &Path, validator: &Path, output: &Path, recipe_path: Option<&Pa
                 let pairs = qualification["rendered_overlap"]
                     .as_array()
                     .context("missing measured overlap")?;
-                ensure!(pairs.len() == 4, "missing directed pair measurements");
+                ensure!(
+                    pairs.len() == case.cameras * (case.cameras - 1) * recipe.playback_steps,
+                    "missing directed pair measurements"
+                );
+                let mut pair_ids = BTreeSet::new();
                 for pair in pairs {
+                    let source = pair["source_camera"]
+                        .as_u64()
+                        .context("missing pair source")? as usize;
+                    let target = pair["target_camera"]
+                        .as_u64()
+                        .context("missing pair target")? as usize;
+                    let step = pair["step_index"].as_u64().context("missing pair time")? as usize;
+                    ensure!(
+                        source < case.cameras
+                            && target < case.cameras
+                            && source != target
+                            && step < recipe.playback_steps
+                            && pair_ids.insert((source, target, step)),
+                        "invalid/repeated directed pair identity"
+                    );
                     if let Some(v) = pair["shared_fraction_valid"].as_f64() {
                         overlap.push(v);
                     }
@@ -365,7 +478,7 @@ pub fn run(root: &Path, validator: &Path, output: &Path, recipe_path: Option<&Pa
     let success = cases.iter().all(|v| v["success"] == true);
     let mut receipt = json!({"schema_version":1,"qualification":"bounded factor sweep; not photographic realism or downstream transfer evidence",
         "success":success,"recipe":recipe,"generator_identity":identity,"build_provenance":compiled_provenance,
-        "validator_sha256":io::hash(&validator)?,"family_count":families.len(),"distinct_geometry_families":family_geometry.values().collect::<BTreeSet<_>>().len(),"captured_rgb_images":images.values().sum::<usize>(),
+        "validator_sha256":validator_sha256,"family_count":families.len(),"distinct_geometry_families":family_geometry.values().collect::<BTreeSet<_>>().len(),"captured_rgb_images":images.values().sum::<usize>(),
         "distinct_rgb_sha256":images.len(),"exact_rgb_duplicate_count":images.values().map(|n|n-1).sum::<usize>(),
         "duplicate_policy":"byte-identical RGB PNGs across all cases, views and times; intentional matched variants are included; no embedding-distance claim",
         "selection":"all prespecified cases and consecutive seeds; failures retained; no learned filtering; people disabled to isolate camera and appearance factors",
@@ -399,6 +512,8 @@ fn validate_recipe(recipe: &Recipe) -> Result<()> {
     ensure!(
         recipe.schema_version == 1
             && (1..=256).contains(&recipe.rooms_per_case)
+            && (1..=64).contains(&recipe.playback_steps)
+            && (0.0..=1.0).contains(&recipe.human_density)
             && !recipe.cases.is_empty(),
         "invalid qualification recipe size/version"
     );
@@ -422,6 +537,7 @@ fn validate_recipe(recipe: &Recipe) -> Result<()> {
         );
         ensure!(
             case.image_size.iter().all(|v| (64..=4096).contains(v))
+                && (1..=16).contains(&case.cameras)
                 && case.camera.is_object()
                 && case.appearance.is_object(),
             "invalid factor case"
@@ -471,18 +587,20 @@ fn distribution(mut values: Vec<f64>) -> Value {
 }
 fn gallery(output: &Path, receipt: &Value) -> Result<()> {
     let mut html=String::from("<!doctype html><html lang=en><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><title>Zeroverse camera qualification</title><style>body{font:16px system-ui;background:#101820;color:#e9f0f4;max-width:1200px;margin:auto;padding:2rem}a{color:#8adfd8}h1{font-size:2.3rem}article{margin:2rem 0;padding:1.2rem;background:#1b2934;border-radius:1rem}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem}figure{margin:0}img{width:100%;height:240px;object-fit:contain;background:#091118}figcaption{padding:.5rem;font-size:.9rem}select{padding:.5rem;font:inherit}pre{overflow:auto;max-height:18rem;font-size:.8rem}.error{color:#ffa18f}</style><h1>Multi-view qualification</h1><p>Matched geometry, independently varied camera and appearance factors. All planned cases are retained, including failures. This bounded check measures capture correctness and sampled diversity; it does not establish photographic realism or training transfer.</p><p><a href='receipt.json'>Qualification receipt</a> · <a href='recipe.json'>Reproducible recipe</a></p><label>Annotation <select id=mode><option value=color>RGB</option><option value=co_visibility>Co-visibility</option><option value=depth>Depth</option><option value=normal>Normal</option><option value=semantic>Semantic</option><option value=position>Position</option></select></label>");
-    html.push_str("<p>Co-visibility colors identify the other camera sharing each source pixel: ");
-    for camera in 0..2 {
-        let [r, g, b] = bevy_zeroverse_capture::camera_color(camera, 2);
-        html.push_str(&format!("<span style='border-left:1rem solid rgb({r},{g},{b});padding:.4rem'>camera {camera}</span> "));
-    }
-    html.push_str(". Black means no shared camera or invalid background; numeric validity masks distinguish them.</p>");
+    html.push_str("<p>Co-visibility colors identify peer cameras. Each case has its own deterministic legend. Black means no shared camera or invalid background; numeric validity masks distinguish them.</p>");
     for case in receipt["cases"].as_array().unwrap() {
         let name = case["name"].as_str().unwrap();
+        let cameras = case["camera_count"].as_u64().unwrap_or(2) as usize;
         html.push_str(&format!(
             "<article><h2>{}</h2>",
             io::html(&name.replace('_', " "))
         ));
+        html.push_str("<p>Co-visibility legend: ");
+        for camera in 0..cameras {
+            let [r, g, b] = bevy_zeroverse_capture::camera_color(camera, cameras);
+            html.push_str(&format!("<span style='border-left:1rem solid rgb({r},{g},{b});padding:.4rem'>camera {camera}</span> "));
+        }
+        html.push_str("</p>");
         if case["success"] != true {
             html.push_str(&format!(
                 "<p class=error>{}</p>",
@@ -495,7 +613,7 @@ fn gallery(output: &Path, receipt: &Value) -> Result<()> {
                     "<h3>Scene seed {}</h3><div class=grid>",
                     room["seed"]
                 ));
-                for v in 0..4 {
+                for v in 0..room["views"].as_array().unwrap().len() {
                     let prefix =
                         format!("{}/{}/view_{v:02}_", name, room["folder"].as_str().unwrap());
                     let view = &room["views"][v];
@@ -503,7 +621,8 @@ fn gallery(output: &Path, receipt: &Value) -> Result<()> {
                         .as_f64()
                         .map(|t| format!("{t:.2} s"))
                         .unwrap_or_else(|| format!("progress {}", view["time"]));
-                    html.push_str(&format!("<figure><img loading=lazy data-prefix='{prefix}' src='{prefix}color.png' alt='Rendered scene, camera {}'><figcaption>Camera {} · {}</figcaption></figure>",v%2,v%2,io::html(&time)));
+                    let camera = view["camera_index"].as_u64().unwrap();
+                    html.push_str(&format!("<figure><img loading=lazy data-prefix='{prefix}' src='{prefix}color.png' alt='Rendered scene, camera {camera}'><figcaption>Camera {camera} · {}</figcaption></figure>",io::html(&time)));
                 }
                 html.push_str("</div>");
             }

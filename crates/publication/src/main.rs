@@ -12,6 +12,15 @@ struct Args {
 }
 #[derive(Subcommand)]
 enum Action {
+    /// Summarize a checksum-bound camera-count audit and optional native renders.
+    CameraStudy {
+        #[arg(long)]
+        input: PathBuf,
+        #[arg(long)]
+        output: PathBuf,
+        #[arg(long)]
+        rendered: Option<PathBuf>,
+    },
     /// Verify all bytes in an offline paired study, including every annotation.
     VerifyStudy {
         #[arg(long)]
@@ -77,6 +86,13 @@ enum Action {
 fn main() -> Result<()> {
     let args = Args::parse();
     match args.command {
+        Action::CameraStudy {
+            input,
+            output,
+            rendered,
+        } => {
+            bevy_zeroverse_publication::camera_study::prepare(&input, &output, rendered.as_deref())?
+        }
         Action::VerifyStudy { output } => {
             bevy_zeroverse_publication::study::verify(&args.root.join(output))?
         }
@@ -125,7 +141,7 @@ fn main() -> Result<()> {
                 &args.root,
                 release_version.as_deref(),
             )?;
-            println!("Verified crate {}, generator {}, {} rendered rooms, {} bound artifacts; references retain separate identities",report.generator_identity.crate_version,report.generator_identity.generator_version,report.protocol.rendered_rooms,report.artifacts.len());
+            println!("Verified current snapshot: crate {}, generator {}, {} rendered rooms, {} bound artifacts",report.generator_identity.crate_version,report.generator_identity.generator_version,report.protocol.rendered_rooms,report.artifacts.len());
         }
     }
     Ok(())

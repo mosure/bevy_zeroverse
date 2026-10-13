@@ -137,7 +137,7 @@ pub fn items(state: &EditorState) -> Vec<Item> {
     if state.view.page == Page::Cameras {
         if !d["indoor_camera"]["multiview"].is_null() {
             v.extend([
-                num("@baseline","Camera baseline",0.,1.,0.01,"0 = close stereo; 1 = room-wide spacing. Replaces the advanced rig values below."),
+                num("@baseline","Camera baseline",0.,1.,0.01,"0 = close stereo; 1 = wider spacing and more varied visible targets. Accounts for camera count; overlap and clearance remain required. Replaces advanced values below."),
                 section("ADVANCED RIG","Custom constraints override the baseline program. Impossible requests report an error."),
                 num("/indoor_camera/multiview/min_overlap","Minimum proxy overlap",0.,1.,0.01,"Placement estimate; measured rendered overlap may differ."),
                 num("/indoor_camera/multiview/min_baseline","Minimum pair spacing (m)",0.01,10.,0.01,"Between every pair of views."),
@@ -145,6 +145,7 @@ pub fn items(state: &EditorState) -> Vec<Item> {
                 num("/indoor_camera/multiview/max_baseline","Maximum distance to view 0 (m)",0.01,30.,0.05,"Upper bound in room space."),
                 num("/indoor_camera/multiview/min_spread","Group spread",0.,1.,0.01,"For 3+ views: discourages a line of cameras."),
                 num("/indoor_camera/multiview/trajectory_variation","Independent path variation",0.,1.,0.01,"0 permits rigid shared camera motion; 1 requests varied paths."),
+                num("/indoor_camera/multiview/target_variation","View coverage variation",0.,1.,0.01,"0 keeps shared look targets. Higher values sample visible surface regions and prefer distinct, useful viewpoints; selection accounts for camera count."),
                 toggle("@mixture","Sample overlap strata","Mix high, low and no-overlap pairs instead of one overlap threshold."),
             ]);
             if !d["indoor_camera"]["overlap_mixture"].is_null() {

@@ -9,7 +9,7 @@ From a bevy_zeroverse checkout:
 ```sh
 cargo run --locked -p bevy_zeroverse_publication -- refresh
 cargo run --locked -p bevy_zeroverse_publication -- verify
-cargo run --locked -p bevy_zeroverse_publication -- rebuild --release-version 0.38.0
+cargo run --locked -p bevy_zeroverse_publication -- rebuild
 # Registry publication through the same preparation/validation gate:
 cargo run --locked -p bevy_zeroverse_publication -- publish --package bevy_zeroverse --dry-run
 ```
@@ -39,7 +39,10 @@ The recipe is `publication.toml`; authored templates are in this crate's
 not manually copied numeric prose. Figure rendering uses bundled fonts, native
 Rust image codecs and SVG rasterization. Preview conversion is lossless.
 Membership remains an exact 16-bit mask with separate 8-bit 0/1 validity.
-Historical baseline/motion inputs are explicitly declared and hashed separately.
+The page and paper describe the current generator and its measured cohorts.
+Every cohort must match the compiled generator identity. Historical studies,
+release comparisons and proposed implementation plans stay outside this bundle.
+Camera-count and baseline studies use the same identity gate as the room gallery.
 
 Refresh/rebuild additionally require `latexmk`, `pdflatex` (including the usual
 LaTeX packages) and Poppler's `pdftoppm`. LaTeX is the document typesetter; Rust
@@ -56,7 +59,7 @@ this entry point for repository releases.
 
 `www/project/publication.json` is the commit marker and machine-readable
 attestation. It binds renderer inputs, publisher/templates, capture sources,
-reference identities and every managed page/paper artifact. A crash during
+current cohort identities and every managed page/paper artifact. A crash during
 installation cannot yield a partially installed bundle that passes this gate.
 Tests cover the failure modes that previously allowed mixed gallery cohorts.
 
@@ -66,7 +69,7 @@ Tests cover the failure modes that previously allowed mixed gallery cohorts.
 an independent local before/after gallery without replacing the project page or paper.
 Study outputs must stay below ignored `out/`, outside `out/publication/`.
 Reports and receipts carry `visibility = local_only`; the release pipeline
-rejects them as public reference studies. They are not deployment artifacts.
+rejects them as snapshot inputs. They are not deployment artifacts.
 The default protocol is 64 consecutive rooms, three 512×512 views, one timestep,
 furnishing density 0.65, human density 0.25 and 1,024 diffuse-GI rays.
 

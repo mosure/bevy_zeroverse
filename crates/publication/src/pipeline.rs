@@ -1,7 +1,8 @@
 use crate::{
+    camera_study,
     config::{Config, Protocol},
     dataset::{Capture, Dataset},
-    io, media, paper, qualification, visibility,
+    io, media, paper, qualification, snapshot, visibility,
 };
 use anyhow::{ensure, Context, Result};
 use bevy_zeroverse_capture::{
@@ -58,25 +59,24 @@ fn publication_inputs(root: &Path, config: &Config) -> Result<BTreeMap<String, S
     }
     for dir in ["www/project/static", "tex/generated"] {
         for (name, value) in io::files(root, &root.join(dir))? {
-            if !is_generated(&name) {
+            if !is_generated(&name) && !snapshot::retired(&name) {
                 inputs.insert(name, value);
             }
         }
     }
-    for reference in &config.references {
-        for path in [&reference.gallery, &reference.page] {
-            inputs.insert(
-                path.to_string_lossy().replace('\\', "/"),
-                io::hash(&root.join(path))?,
-            );
+    if let Some(input) = &config.camera_study {
+        for (name, hash) in io::files(root, &root.join(input))? {
+            inputs.insert(name, hash);
         }
     }
     Ok(inputs)
 }
 fn is_generated(name: &str) -> bool {
     name == "www/project/index.html"
+        || name == "www/project/reference.html"
         || name.starts_with("www/project/static/media/architecture/")
         || name.starts_with("www/project/static/media/qualification/")
+        || name.starts_with("www/project/static/media/cameras/")
         || name.starts_with("www/project/static/papers/")
         || matches!(
             name,
@@ -86,6 +86,7 @@ fn is_generated(name: &str) -> bool {
         )
         || name.starts_with("tex/generated/architecture_")
         || name.starts_with("tex/generated/publication_")
+        || name.starts_with("tex/generated/camera_count_")
 }
 fn artifacts(root: &Path) -> Result<BTreeMap<String, String>> {
     let mut out = BTreeMap::new();
@@ -96,53 +97,15 @@ fn artifacts(root: &Path) -> Result<BTreeMap<String, String>> {
                 .filter(|(name, _)| is_generated(name)),
         );
     }
-    for path in ["www/project/index.html", "tex/bevy_zeroverse.tex"] {
+    for path in [
+        "www/project/index.html",
+        "www/project/reference.html",
+        "tex/bevy_zeroverse.tex",
+    ] {
         out.insert(path.into(), io::hash(&root.join(path))?);
     }
     Ok(out)
 }
-fn references(root: &Path, config: &Config) -> Result<Vec<Value>> {
-    let mut result = Vec::new();
-    for r in &config.references {
-        let data: Value = io::read(&root.join(&r.gallery))?;
-        ensure!(
-            data["visibility"] != "local_only",
-            "local matched studies cannot become publication references: {}",
-            r.id
-        );
-        fn versions(data: &Value, out: &mut Vec<u32>) {
-            match data {
-                Value::Object(o) => {
-                    for (k, v) in o {
-                        if k == "generator_version" {
-                            if let Some(n) = v.as_u64() {
-                                out.push(n as u32);
-                            }
-                        } else {
-                            versions(v, out);
-                        }
-                    }
-                }
-                Value::Array(a) => {
-                    for v in a {
-                        versions(v, out)
-                    }
-                }
-                _ => (),
-            }
-        }
-        let mut found = Vec::new();
-        versions(&data, &mut found);
-        ensure!(
-            !found.is_empty() && found.iter().all(|&v| v == r.generator_version),
-            "reference cohort version mismatch: {}",
-            r.id
-        );
-        result.push(json!({"id":r.id,"generator_version":r.generator_version,"gallery":r.gallery,"gallery_sha256":io::hash(&root.join(&r.gallery))?,"page":r.page}));
-    }
-    Ok(result)
-}
-
 pub fn verify(root: &Path, release_version: Option<&str>) -> Result<Attestation> {
     ensure!(
         source_digest(&publisher_inputs(&root.join("crates/publication"))?)
@@ -195,8 +158,8 @@ pub fn verify(root: &Path, release_version: Option<&str>) -> Result<Attestation>
         "publication artifacts missing/changed; rebuild rather than edit generated files"
     );
     ensure!(
-        attestation.reference_studies == references(root, &config)?,
-        "reference identities changed"
+        attestation.reference_studies.is_empty(),
+        "the current snapshot cannot include historical reference studies"
     );
     verify_bundle(root, &config, &attestation)?;
     Ok(attestation)
@@ -205,6 +168,12 @@ pub fn verify(root: &Path, release_version: Option<&str>) -> Result<Attestation>
 /// The exported bundle is self-contained: CI never needs out/, GPU captures,
 /// neural models, Python, plotting packages or the original machine's paths.
 fn verify_bundle(root: &Path, config: &Config, attestation: &Attestation) -> Result<()> {
+    if config.camera_study.is_some() {
+        camera_study::verify(
+            &root.join(camera_study::DIRECTORY),
+            Some(&attestation.generator_identity),
+        )?;
+    }
     qualification::verify_current(
         &root.join(qualification::PUBLISHED_DIRECTORY),
         &attestation.generator_identity,
@@ -353,6 +322,7 @@ fn verify_bundle(root: &Path, config: &Config, attestation: &Attestation) -> Res
         .context("missing paper dependency hashes")?
     {
         crate::config::safe_relative(Path::new(name))?;
+        snapshot::paper_source(name, &attestation.artifacts)?;
         ensure!(
             *digest == io::hash(&root.join(name))?,
             "paper source changed: {name}"
@@ -379,6 +349,18 @@ fn check_html(root: &Path) -> Result<()> {
     let page = root.join("www/project/index.html");
     let html = fs::read_to_string(&page)?;
     check_gallery(&html)?;
+    ensure!(
+        !html.contains("reference.html") && !html.contains("class=\"camera-study-plan\""),
+        "historical studies or implementation plans cannot be presented as the current snapshot"
+    );
+    for directory in ["www/project/static/media", "tex/generated"] {
+        for name in io::files(root, &root.join(directory))?.into_keys() {
+            ensure!(
+                !snapshot::retired(&name),
+                "historical snapshot artifact: {name}"
+            );
+        }
+    }
     let expression = regex::Regex::new(r#"(?:src|href)="([^"]+)""#)?;
     for captures in expression.captures_iter(&html) {
         let link = &captures[1];
@@ -530,6 +512,7 @@ pub fn refresh(root: &Path, recapture: bool) -> Result<()> {
     let stage = staging.path();
     io::copy_tree(&root.join("www/project"), &stage.join("www/project"))?;
     io::copy_tree(&root.join("tex"), &stage.join("tex"))?;
+    snapshot::prune(stage)?;
     let qualification_output = stage.join(qualification::PUBLISHED_DIRECTORY);
     if qualification_output.exists() {
         fs::remove_dir_all(&qualification_output)?;
@@ -540,6 +523,7 @@ pub fn refresh(root: &Path, recapture: bool) -> Result<()> {
     fs::copy(root.join("www/index.html"), stage.join("www/index.html"))?;
     println!("Build lossless media, plans, population metrics and unified HTML");
     let gallery = media::build(&dataset, stage, &config.capture)?;
+    camera_study::build(&root, stage, config.camera_study.as_deref())?;
     media::page(&gallery, stage, &config.capture)?;
     paper::write_sources(&dataset, &gallery, stage, &config)?;
     println!("Compile paper and package its exact dependency closure");
@@ -558,7 +542,7 @@ pub fn refresh(root: &Path, recapture: bool) -> Result<()> {
         publication_inputs: before,
         capture_sources: dataset.input_sha256,
         artifacts: artifacts(stage)?,
-        reference_studies: references(&root, &config)?,
+        reference_studies: Vec::new(),
     };
     verify_bundle(stage, &config, &attestation)?;
     io::write(&stage.join(ATTESTATION), &attestation)?;
@@ -599,6 +583,7 @@ pub fn rebuild(root: &Path, release_version: Option<&str>) -> Result<()> {
     let stage = staging.path();
     io::copy_tree(&root.join("www/project"), &stage.join("www/project"))?;
     io::copy_tree(&root.join("tex"), &stage.join("tex"))?;
+    snapshot::prune(stage)?;
     fs::copy(root.join("www/index.html"), stage.join("www/index.html"))?;
     let gallery: Value =
         io::read(&stage.join("www/project/static/media/architecture/gallery.json"))?;
@@ -607,6 +592,7 @@ pub fn rebuild(root: &Path, release_version: Option<&str>) -> Result<()> {
         attestation.generator_identity.clone(),
         attestation.capture_sources.clone(),
     )?;
+    camera_study::build(&root, stage, config.camera_study.as_deref())?;
     media::page(&gallery, stage, &config.capture)?;
     paper::write_sources(&dataset, &gallery, stage, &config)?;
     paper::compile(stage, &config, &gallery)?;
@@ -661,7 +647,7 @@ pub fn install(root: &Path, stage: &Path, artifacts: &BTreeMap<String, String>) 
     let mut names: Vec<_> = artifacts.keys().cloned().map(|name| (name, true)).collect();
     for directory in ["www/project/static", "tex/generated"] {
         for name in io::files(root, &root.join(directory))?.into_keys() {
-            if is_generated(&name) && !artifacts.contains_key(&name) {
+            if (is_generated(&name) || snapshot::retired(&name)) && !artifacts.contains_key(&name) {
                 names.push((name, false));
             }
         }

@@ -74,7 +74,16 @@ fn seeded_replay_and_independent_camera_streams() {
     assert_eq!(a, b);
     let c = IndoorManifest::generate(501, IndoorLayout::Mixed, 0.65, 8).unwrap();
     assert_eq!(a.objects, c.objects);
-    assert_eq!(a.cameras, c.cameras[..4]);
+    // Group proposals account for requested count; they need not form nested
+    // prefixes. Geometry/people and replay for the same controls stay stable.
+    assert_eq!(a.cameras.len(), 4);
+    assert_eq!(c.cameras.len(), 8);
+    assert_eq!(
+        c,
+        IndoorManifest::generate(501, IndoorLayout::Mixed, 0.65, 8).unwrap()
+    );
+    validate_layout(&a).unwrap();
+    validate_layout(&c).unwrap();
     assert_ne!(
         a.objects,
         IndoorManifest::generate(502, IndoorLayout::Mixed, 0.65, 4)
@@ -973,7 +982,14 @@ fn people_are_deterministic_diverse_supported_and_inside_collision_envelopes() {
     let a = IndoorManifest::generate_with_humans(78, IndoorLayout::Mixed, 0.65, 2, 1.0).unwrap();
     let b = IndoorManifest::generate_with_humans(78, IndoorLayout::Mixed, 0.65, 8, 1.0).unwrap();
     assert_eq!(a.humans, b.humans);
-    assert_eq!(a.cameras, b.cameras[..2]);
+    assert_eq!(a.cameras.len(), 2);
+    assert_eq!(b.cameras.len(), 8);
+    validate_layout(&a).unwrap();
+    validate_layout(&b).unwrap();
+    assert_eq!(
+        a,
+        IndoorManifest::generate_with_humans(78, IndoorLayout::Mixed, 0.65, 2, 1.0).unwrap()
+    );
     assert!(
         IndoorManifest::generate_with_humans(0, IndoorLayout::Mixed, 0.5, 2, f32::NAN).is_err()
     );
