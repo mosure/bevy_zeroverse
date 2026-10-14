@@ -61,25 +61,56 @@ pub(super) fn shelf(a: &mut Assembly, o: &IndoorObject, p: &EquipmentProgram) {
 pub(super) fn notice_board(a: &mut Assembly, o: &IndoorObject, p: &EquipmentProgram) {
     let s = o.size;
     let label = o.kind.class_name();
-    let frame = s.x.min(s.y) * 0.025;
+    let frame = s.x.min(s.y) * p.board_frame_fraction;
+    let frame_surface = if p.housing == Surface::Metal {
+        Surface::Metal
+    } else {
+        Surface::WoodEdge
+    };
+    // A real backing and four rails leave the pinboard exposed. A full-depth
+    // solid box here would occlude both the fabric and its attached notes.
     a.box_part(
-        if p.housing == Surface::Metal {
-            Surface::Metal
-        } else {
-            Surface::WoodEdge
-        },
+        Surface::WoodEdge,
         label,
-        Vec3::Y * s.y * 0.5,
-        s,
-        0.004,
+        Vec3::new(0., s.y * 0.5, -s.z * 0.30),
+        Vec3::new(s.x, s.y, s.z * 0.40),
+        0.001,
     );
+    for sign in [-1., 1.] {
+        a.box_part(
+            frame_surface,
+            label,
+            Vec3::new(sign * (s.x - frame) * 0.5, s.y * 0.5, s.z * 0.15),
+            Vec3::new(frame, s.y, s.z * 0.70),
+            0.002,
+        );
+        a.box_part(
+            frame_surface,
+            label,
+            Vec3::new(0., s.y * 0.5 + sign * (s.y - frame) * 0.5, s.z * 0.15),
+            Vec3::new(s.x - frame * 2., frame, s.z * 0.70),
+            0.002,
+        );
+    }
     a.box_part(
         Surface::FabricAlt,
         label,
-        Vec3::new(0., s.y * 0.5, s.z * 0.44),
-        Vec3::new(s.x - frame * 2., s.y - frame * 2., s.z * 0.08),
-        0.002,
+        Vec3::new(0., s.y * 0.5, s.z * 0.10),
+        Vec3::new(s.x - frame * 2., s.y - frame * 2., s.z * 0.40),
+        0.001,
     );
+    let divider = p
+        .board_divider_fraction
+        .map(|fraction| (fraction - 0.5) * (s.x - frame * 2.));
+    if let Some(x) = divider {
+        a.box_part(
+            frame_surface,
+            label,
+            Vec3::new(x, s.y * 0.5, s.z * 0.35),
+            Vec3::new(frame * 0.55, s.y - frame * 2., s.z * 0.30),
+            0.001,
+        );
+    }
     let mut rng = stream(o.seed, 5730);
     // Notes occupy separately fitted cells; their rotated corners cannot overlap
     // the frame or each other. Density, dimensions and handwriting vary.
@@ -92,14 +123,25 @@ pub(super) fn notice_board(a: &mut Assembly, o: &IndoorObject, p: &EquipmentProg
     let mut cells: Vec<_> = (0..columns * rows).collect();
     use rand::seq::SliceRandom;
     cells.shuffle(&mut rng);
-    for &i in cells.iter().take(p.note_count.min(cells.len())) {
+    let mut attached = 0;
+    for &i in &cells {
+        if attached == p.note_count {
+            break;
+        }
         let width = cell.x * rng.random_range(0.58..0.76);
         let height = cell.y * rng.random_range(0.55..0.74);
         let center = Vec3::new(
             (i % columns) as f32 * cell.x + cell.x * 0.5 - (s.x - frame * 4.) * 0.5,
             frame * 2. + (i / columns) as f32 * cell.y + cell.y * 0.5,
-            s.z * 0.491,
+            s.z * 0.309,
         );
+        // Account for note rotation when leaving the raised divider clear.
+        if divider
+            .is_some_and(|x| (center.x - x).abs() < width * 0.5 + height * 0.05 + frame * 0.30)
+        {
+            continue;
+        }
+        attached += 1;
         let tf = Transform::from_translation(center)
             .with_rotation(Quat::from_rotation_z(rng.random_range(-0.10..0.10)));
         a.part(Surface::Paper, label)
@@ -197,5 +239,68 @@ pub(super) fn light(a: &mut Assembly, o: &IndoorObject, p: &EquipmentProgram) {
             ),
             0.001,
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Frontmost surface at a point, independent of materials or normals.
+    fn front(a: &Assembly, q: Vec2) -> Option<(f32, Surface)> {
+        a.parts
+            .iter()
+            .flat_map(|((surface, _), g)| {
+                g.indices
+                    .as_chunks::<3>()
+                    .0
+                    .iter()
+                    .filter_map(move |indices| {
+                        let p = [indices[0], indices[1], indices[2]]
+                            .map(|i| Vec3::from_array(g.positions[i as usize]));
+                        let area = (p[1].xy() - p[0].xy()).perp_dot(p[2].xy() - p[0].xy());
+                        if area.abs() < 1e-10 {
+                            return None;
+                        }
+                        let weights = [
+                            (p[1].xy() - q).perp_dot(p[2].xy() - q) / area,
+                            (p[2].xy() - q).perp_dot(p[0].xy() - q) / area,
+                            (p[0].xy() - q).perp_dot(p[1].xy() - q) / area,
+                        ];
+                        weights.iter().all(|&w| w >= -1e-5).then_some((
+                            p[0].z * weights[0] + p[1].z * weights[1] + p[2].z * weights[2],
+                            *surface,
+                        ))
+                    })
+            })
+            .max_by(|a, b| a.0.total_cmp(&b.0))
+    }
+
+    #[test]
+    fn pinboards_have_exposed_fabric_and_notes_inside_their_placement_envelope() {
+        for seed in 0..128 {
+            let o = super::super::super::audit::fixture(ObjectKind::NoticeBoard, seed);
+            let a = super::super::super::build_object(&o);
+            super::super::super::audit::check(&o, &a).unwrap();
+            let mut fabric = 0;
+            let mut paper = 0;
+            for y in 0..24 {
+                for x in 0..32 {
+                    let q = Vec2::new(
+                        ((x as f32 + 0.5) / 32. - 0.5) * o.size.x,
+                        (y as f32 + 0.5) / 24. * o.size.y,
+                    );
+                    match front(&a, q).map(|hit| hit.1) {
+                        Some(Surface::FabricAlt) => fabric += 1,
+                        Some(Surface::Paper) => paper += 1,
+                        _ => {}
+                    }
+                }
+            }
+            assert!(
+                fabric > 128 && paper > 0,
+                "seed {seed}: fabric {fabric}, paper {paper}"
+            );
+        }
     }
 }

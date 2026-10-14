@@ -153,6 +153,8 @@ mod tests {
         let scene =
             IndoorManifest::generate_with_humans(13, IndoorLayout::Mixed, 0.65, 0, 1.).unwrap();
         let mut h = scene.humans[0].clone();
+        // This fixture changes anatomy and pose without a supporting table.
+        h.worktop_contact = None;
         let mut widths = Vec::new();
         let mut depths = Vec::new();
         for case in 0..64 {
@@ -222,6 +224,8 @@ mod tests {
         let scene =
             IndoorManifest::generate_with_humans(13, IndoorLayout::Mixed, 0.65, 0, 1.).unwrap();
         let mut h = scene.humans[0].clone();
+        // This fixture changes anatomy and pose without a supporting table.
+        h.worktop_contact = None;
         h.appearance.as_mut().unwrap().body_program = None;
         let mut rng = stream(h.seed, 43);
         let expected = [

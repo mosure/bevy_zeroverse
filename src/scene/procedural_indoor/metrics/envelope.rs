@@ -13,9 +13,40 @@ pub(super) fn record(
     let Some(e) = &scene.envelope else {
         return Ok(());
     };
+    let doors = scene.door_installations();
+    numeric.push("door_count", doors.len() as f64)?;
+    for d in &doors {
+        for (key, value) in [
+            ("door_mechanism", format!("{:?}", d.program.mechanism)),
+            ("door_panel", format!("{:?}", d.program.panel)),
+            ("door_handle", format!("{:?}", d.program.handle)),
+            ("door_finish", format!("{:?}", d.program.finish)),
+        ] {
+            *report
+                .categories
+                .entry(key.into())
+                .or_default()
+                .entry(value)
+                .or_default() += 1;
+        }
+        for (key, value) in [
+            ("door_opening", d.program.opening),
+            ("door_width_m", d.width),
+            ("door_height_m", d.height),
+            ("door_rotor_phase", d.program.rotor_phase),
+            ("door_x_m", d.center.x),
+            ("door_z_m", d.center.z),
+        ] {
+            numeric.push(key, value as f64)?;
+        }
+    }
     let topology = scene.room_topology();
     numeric.push("room_topology_regions", topology.regions.len() as f64)?;
     numeric.push("room_topology_portals", topology.portals.len() as f64)?;
+    numeric.push(
+        "room_topology_open_connections",
+        topology.open_connections.len() as f64,
+    )?;
     numeric.push(
         "room_topology_boundary_partitions",
         topology.boundary_partitions.len() as f64,
@@ -32,7 +63,7 @@ pub(super) fn record(
     }
     serde_json::to_writer(
         &mut *writer,
-        &serde_json::json!({"seed": scene.seed, "room_size": scene.room_size, "envelope": e, "ceiling_installation":scene.ceiling_installation, "topology": topology, "partitions": scene.program.as_ref().map(|p| &p.partitions)}),
+        &serde_json::json!({"seed": scene.seed, "room_size": scene.room_size, "envelope": e, "ceiling_installation":scene.ceiling_installation, "topology": topology, "functional_programs":scene.functional_programs(), "support_regions":super::super::layout::functional::support_regions(scene), "doors":doors,"partitions": scene.program.as_ref().map(|p| &p.partitions)}),
     )?;
     writeln!(writer)?;
     if let Some(ceiling) = &scene.ceiling_installation {

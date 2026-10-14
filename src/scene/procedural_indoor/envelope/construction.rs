@@ -286,8 +286,21 @@ fn cornice(
 pub fn build(scene: &IndoorManifest) -> Assembly {
     let e = scene.envelope.as_ref().unwrap();
     let size = scene.room_size;
-    let mut a = Assembly::default();
+    let mut a = Assembly {
+        motion_policy: scene.indoor_motion.as_ref().map(|m| m.policy.clone()),
+        ..default()
+    };
     floors(&mut a, e, size);
+    for (start, end) in e.tier_guards() {
+        let rail = a.part(Surface::Metal, "other_structure");
+        rail.rod(start + Vec3::Y * 1.03, end + Vec3::Y * 1.03, 0.022);
+        rail.rod(start + Vec3::Y * 0.53, end + Vec3::Y * 0.53, 0.015);
+        let count = (start.distance(end) / 0.9).ceil().max(1.) as usize;
+        for i in 0..=count {
+            let p = start.lerp(end, i as f32 / count as f32);
+            rail.rod(p, p + Vec3::Y * 1.03, 0.018);
+        }
+    }
     let exposed = scene
         .ceiling_installation
         .as_ref()
@@ -318,12 +331,13 @@ pub fn build(scene: &IndoorManifest) -> Assembly {
     shared_and_neighbor(&mut a, scene, e);
     // Partition tops are cut by the same analytic roof plane, not scaled: door
     // dimensions and all metric material coordinates are preserved.
-    let mut partitions = Assembly::default();
+    let mut partitions = Assembly {
+        motion_policy: a.motion_policy.clone(),
+        ..default()
+    };
     super::super::floorplan::build(scene, &mut partitions);
     clip_roof(&mut partitions, e, size);
-    for (key, g) in partitions.parts {
-        a.parts.entry(key).or_default().append(g);
-    }
+    a.append_assembly(partitions);
     for p in &e.pillars {
         if p.profile.is_some() {
             column(&mut a, p, e, size);
@@ -458,7 +472,7 @@ pub fn arched_portal(p: &super::super::program::Partition, height: f32, a: &mut 
         );
         for sign in [-1., 1.] {
             let offset = normal * sign * (p.thickness * 0.5 + 0.010);
-            a.part(Surface::WoodEdge, "door")
+            a.part(Surface::WoodEdge, "door_frame")
                 .rod(lo + offset, hi + offset, 0.018);
         }
     }
@@ -474,7 +488,7 @@ pub fn arched_portal(p: &super::super::program::Partition, height: f32, a: &mut 
         };
         a.box_part(
             Surface::WoodEdge,
-            "door",
+            "door_frame",
             p.position(x, h * 0.5),
             size,
             0.002,
@@ -496,13 +510,16 @@ fn shared_and_neighbor(a: &mut Assembly, scene: &IndoorManifest, e: &EnvelopePro
     let door = -scene.door_x;
     let mut openings = vec![WindowOpening {
         glazing: None,
-        min: Vec2::new(door - 0.55, 0.),
-        max: Vec2::new(door + 0.55, 2.27),
+        min: Vec2::new(door - scene.entry_width() * 0.5, 0.),
+        max: Vec2::new(door + scene.entry_width() * 0.5, scene.entry_height()),
         columns: 1,
         transom: 0.,
         operable: false,
     }];
-    for (lo, hi) in [(-hx + 0.10, door - 0.60), (door + 0.60, hx - 0.10)] {
+    for (lo, hi) in [
+        (-hx + 0.10, door - scene.entry_width() * 0.5 - 0.05),
+        (door + scene.entry_width() * 0.5 + 0.05, hx - 0.10),
+    ] {
         if hi - lo > 0.18 {
             openings.push(WindowOpening {
                 glazing: None,
@@ -538,29 +555,33 @@ fn shared_and_neighbor(a: &mut Assembly, scene: &IndoorManifest, e: &EnvelopePro
         };
         a.part(surface, &label).append(g);
     }
-    for x in [scene.door_x - 0.55, scene.door_x + 0.55] {
+    if let Some(door) = &scene.entry_door {
+        door.build(a, true);
+    } else {
+        for x in [scene.door_x - 0.55, scene.door_x + 0.55] {
+            a.box_part(
+                Surface::WoodEdge,
+                "door",
+                Vec3::new(x, 1.13, hz - 0.09),
+                Vec3::new(0.06, 2.26, 0.20),
+                0.003,
+            );
+        }
         a.box_part(
             Surface::WoodEdge,
             "door",
-            Vec3::new(x, 1.13, hz - 0.09),
-            Vec3::new(0.06, 2.26, 0.20),
+            Vec3::new(scene.door_x, 2.281, hz - 0.09),
+            Vec3::new(1.16, 0.04, 0.20),
             0.003,
         );
+        a.box_part(
+            Surface::Wood,
+            "door",
+            Vec3::new(scene.door_x + 0.525, 1.12, hz + 0.56),
+            Vec3::new(0.045, 2.24, 1.07),
+            0.005,
+        );
     }
-    a.box_part(
-        Surface::WoodEdge,
-        "door",
-        Vec3::new(scene.door_x, 2.281, hz - 0.09),
-        Vec3::new(1.16, 0.04, 0.20),
-        0.003,
-    );
-    a.box_part(
-        Surface::Wood,
-        "door",
-        Vec3::new(scene.door_x + 0.525, 1.12, hz + 0.56),
-        Vec3::new(0.045, 2.24, 1.07),
-        0.005,
-    );
     // Shared partition is the front edge of the neighboring volume. Exterior
     // walls start beyond it; they never cover the passage or its glass.
     let poly = [

@@ -97,6 +97,28 @@ fn deserialize_human_motion<'de, D: serde::Deserializer<'de>>(
         .transpose()
 }
 
+fn deserialize_indoor_motion<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<String>, D::Error> {
+    let value = Option::<serde_json::Value>::deserialize(deserializer)?;
+    value
+        .map(|value| {
+            let json = match value {
+                serde_json::Value::String(json) => json,
+                value if value.is_object() => value.to_string(),
+                _ => {
+                    return Err(serde::de::Error::custom(
+                        "indoor_motion must be a JSON object or JSON string",
+                    ))
+                }
+            };
+            crate::scene::procedural_indoor::motion::IndoorMotionConfig::parse(&json)
+                .map_err(serde::de::Error::custom)?;
+            Ok(json)
+        })
+        .transpose()
+}
+
 fn deserialize_indoor_camera<'de, D: serde::Deserializer<'de>>(
     deserializer: D,
 ) -> Result<Option<String>, D::Error> {
@@ -390,6 +412,12 @@ pub struct BevyZeroverseConfig {
     #[serde(default, deserialize_with = "deserialize_human_motion")]
     pub human_motion: Option<String>,
 
+    /// Optional articulated furnishings/doors/coverings; no model required.
+    #[pyo3(get, set)]
+    #[arg(long)]
+    #[serde(default, deserialize_with = "deserialize_indoor_motion")]
+    pub indoor_motion: Option<String>,
+
     /// Auto enables platform-supported effects; portable reduces GPU requirements.
     #[pyo3(get, set)]
     #[arg(long, value_enum, default_value_t = crate::scene::procedural_indoor::IndoorQuality::Auto)]
@@ -642,6 +670,11 @@ pub struct BevyZeroverseConfig {
     #[serde(default, deserialize_with = "deserialize_human_motion")]
     pub human_motion: Option<String>,
 
+    /// Optional articulated furnishings/doors/coverings; no model required.
+    #[arg(long)]
+    #[serde(default, deserialize_with = "deserialize_indoor_motion")]
+    pub indoor_motion: Option<String>,
+
     /// Auto enables platform-supported effects; portable reduces GPU requirements.
     #[arg(long, value_enum, default_value_t = crate::scene::procedural_indoor::IndoorQuality::Auto)]
     #[serde(default)]
@@ -756,6 +789,7 @@ impl Default for BevyZeroverseConfig {
             indoor_camera: None,
             indoor_appearance: None,
             human_motion: None,
+            indoor_motion: None,
             indoor_quality: crate::scene::procedural_indoor::IndoorQuality::Auto,
             indoor_gpu_materials: true,
             indoor_gi_rays: 256,
@@ -831,9 +865,19 @@ fn config_with_query(
     serde_json::from_value(json).map_err(|e| e.to_string())
 }
 
+// Presentation defaults belong to the browser entry point, not the library or
+// CLI config: dataset consumers must retain their existing scalar depth format.
+#[cfg(any(target_arch = "wasm32", test))]
+fn web_viewer_defaults() -> BevyZeroverseConfig {
+    BevyZeroverseConfig {
+        depth_format: DepthFormat::Turbo,
+        ..BevyZeroverseConfig::parse_from(["viewer"])
+    }
+}
+
 #[cfg(target_arch = "wasm32")]
 fn parse_web_config() -> Result<BevyZeroverseConfig, String> {
-    let defaults = BevyZeroverseConfig::parse_from(["viewer"]);
+    let defaults = web_viewer_defaults();
     let search = web_sys::window()
         .ok_or("browser window is unavailable")?
         .location()
@@ -859,6 +903,38 @@ fn parse_web_config() -> Result<BevyZeroverseConfig, String> {
 #[cfg(test)]
 mod web_config_tests {
     use super::*;
+
+    #[test]
+    fn turbo_is_only_the_web_presentation_default_and_urls_override_it() {
+        assert_eq!(
+            BevyZeroverseConfig::default().depth_format,
+            DepthFormat::Normalized
+        );
+        assert_eq!(
+            BevyZeroverseConfig::parse_from(["viewer"]).depth_format,
+            DepthFormat::Normalized
+        );
+        assert_eq!(web_viewer_defaults().depth_format, DepthFormat::Turbo);
+        assert_eq!(
+            config_with_query(web_viewer_defaults(), [])
+                .unwrap()
+                .depth_format,
+            DepthFormat::Turbo
+        );
+        for (name, format) in [
+            ("Normalized", DepthFormat::Normalized),
+            ("Linear", DepthFormat::Linear),
+            ("Colorized", DepthFormat::Colorized),
+            ("Turbo", DepthFormat::Turbo),
+        ] {
+            let parsed = config_with_query(
+                web_viewer_defaults(),
+                [("depth_format".into(), name.into())],
+            )
+            .unwrap();
+            assert_eq!(parsed.depth_format, format);
+        }
+    }
 
     #[test]
     fn gpu_material_defaults_and_explicit_cpu_override_roundtrip() {

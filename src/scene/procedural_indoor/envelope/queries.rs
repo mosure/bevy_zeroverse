@@ -77,8 +77,41 @@ impl Mezzanine {
 }
 
 impl EnvelopeProgram {
+    /// Guard exposed level changes using the same geometry in the camera oracle.
+    pub fn tier_guards(&self) -> Vec<(Vec3, Vec3)> {
+        let mut segments = Vec::new();
+        for p in &self.floor_patches {
+            if p.height < 0.61 {
+                continue;
+            }
+            let corners = [
+                p.min,
+                Vec2::new(p.max.x, p.min.y),
+                p.max,
+                Vec2::new(p.min.x, p.max.y),
+            ];
+            for (a, b) in polygon::edges(&corners) {
+                let d = b - a;
+                let outside = (a + b) * 0.5 + Vec2::new(d.y, -d.x).normalize() * 0.01;
+                if p.height - self.floor_height(outside) < 0.61 {
+                    continue;
+                }
+                segments.push((Vec3::new(a.x, p.height, a.y), Vec3::new(b.x, p.height, b.y)));
+            }
+        }
+        segments
+    }
     pub fn structural_boxes(&self, size: Vec3) -> Vec<(Vec3, Vec3)> {
-        let mut boxes = Vec::new();
+        let mut boxes = self
+            .tier_guards()
+            .into_iter()
+            .map(|(a, b)| {
+                (
+                    a.min(b) - Vec3::new(0.025, 0., 0.025),
+                    a.max(b) + Vec3::new(0.025, 1.05, 0.025),
+                )
+            })
+            .collect::<Vec<_>>();
         for p in &self.soffits {
             boxes.push((
                 Vec3::new(p.min.x, p.height, p.min.y),
@@ -175,6 +208,8 @@ impl EnvelopeProgram {
         &self,
         size: Vec3,
         door_x: f32,
+        door_width: f32,
+        door_height: f32,
         origin: Vec3,
         ray: Vec3,
     ) -> Option<(f32, &'static str)> {
@@ -237,7 +272,9 @@ impl EnvelopeProgram {
             if (0.0..=1.0).contains(&u)
                 && p.y >= 0.
                 && p.y <= self.ceiling_height(size, p.xz())
-                && !(self.shared_edge(i, size) && (p.x - door_x).abs() < 0.51 && p.y < 2.24)
+                && !(self.shared_edge(i, size)
+                    && (p.x - door_x).abs() < door_width * 0.5 - 0.022
+                    && p.y < door_height - 0.025)
             {
                 accept(t, "wall");
             }
@@ -360,7 +397,14 @@ impl EnvelopeProgram {
         }
         for (i, p) in self.floor_patches.iter().enumerate() {
             if !p.height.is_finite()
-                || p.height.abs() > 0.6
+                || p.height.abs()
+                    > if scene.layout == super::super::layout::IndoorLayout::LectureHall {
+                        2.1
+                    } else {
+                        0.6
+                    }
+                || (scene.layout == super::super::layout::IndoorLayout::LectureHall
+                    && self.ceiling_height(size, (p.min + p.max) * 0.5) - p.height < 2.2)
                 || !polygon::box_inside(&self.footprint, p.min, p.max, 0.1)
                 || (p.max - p.min).min_element() < 0.1
                 || self.floor_patches[i + 1..]

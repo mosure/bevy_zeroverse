@@ -84,6 +84,41 @@ fn filesystem_preserves_seed_manifest_and_color_encoding() {
 }
 
 #[test]
+fn functional_programs_keep_support_and_capacity_receipts_through_storage() {
+    for profile in [
+        IndoorLayout::LectureHall,
+        IndoorLayout::PublicSuite,
+        IndoorLayout::Kitchen,
+    ] {
+        let mut original = sample();
+        let scene = IndoorManifest::generate(7, profile, 0.65, 1).unwrap();
+        original.indoor_render_metadata = Some(serde_json::json!({
+            "functional_programs":scene.functional_programs(),
+            "support_regions":bevy_zeroverse::scene::procedural_indoor::layout::functional::support_regions(&scene),
+            "topology":scene.room_topology()
+        }));
+        original.indoor = Some(scene);
+        let dir = tempfile::tempdir().unwrap();
+        let path = save_chunk(
+            std::slice::from_ref(&original),
+            dir.path(),
+            0,
+            Compression::None,
+            8,
+            8,
+            false,
+        )
+        .unwrap();
+        assert_roundtrip(&original, &load_chunk(path).unwrap()[0]);
+        save_sample_to_fs(&original, dir.path(), 1, 8, 8, false).unwrap();
+        assert_roundtrip(
+            &original,
+            &FsDataset::from_dir(dir.path()).unwrap().get(0).unwrap(),
+        );
+    }
+}
+
+#[test]
 fn storage_preserves_primary_bounds_and_positions_outside_them() {
     let mut original = sample();
     original.aabb = [[-2., 0., -3.], [2., 4., 3.]];
@@ -396,6 +431,76 @@ fn schematic_exports_survive_capture_archive_roundtrip() {
         assert_eq!(
             png.as_raw(),
             &plan.rgba(&options, &Overlay::default()).unwrap()
+        );
+    }
+}
+
+#[test]
+fn pose_projection_and_clip_identity_survive_chunk_roundtrip() {
+    use bevy_zeroverse::sample::HumanPoseSample;
+    let mut original = sample();
+    original.indoor = None;
+    let mut view = original.views[0].clone();
+    view.calibration = Some(
+        bevy_zeroverse::calibration::CameraCalibration::centered_pinhole(8, 8, 1., 1.).unwrap(),
+    );
+    view.world_from_view = [
+        [1., 0., 0., 0.],
+        [0., 1., 0., 0.],
+        [0., 0., 1., 0.],
+        [0., 0., 0., 1.],
+    ];
+    view.time_seconds = Some(0.);
+    view.trajectory_progress = Some(0.);
+    view.near = 0.1;
+    view.far = 20.;
+    original.views = vec![
+        view.clone(),
+        view.clone(),
+        View {
+            time: 1.,
+            trajectory_progress: Some(1.),
+            time_seconds: Some(4.),
+            ..view.clone()
+        },
+        View {
+            time: 1.,
+            trajectory_progress: Some(1.),
+            time_seconds: Some(4.),
+            ..view
+        },
+    ];
+    original.view_dim = 2;
+    original.human_bone_names = vec!["pelvis".into(), "head".into()];
+    original.human_bone_parents = vec![-1, 0];
+    original.human_instance_ids = vec![91];
+    original.human_pose_steps = [0., 0.2]
+        .into_iter()
+        .map(|x| {
+            vec![HumanPoseSample {
+                bone_positions: vec![[x, 0., -3.], [x, 0.4, -3.]],
+                bone_rotations: vec![[0., 0., 0., 1.]; 2],
+            }]
+        })
+        .collect();
+    original.human_poses = original.human_pose_steps[0].clone();
+    let directory = tempfile::tempdir().unwrap();
+    let path = save_chunk(
+        std::slice::from_ref(&original),
+        directory.path(),
+        0,
+        Compression::None,
+        8,
+        8,
+        false,
+    )
+    .unwrap();
+    let decoded = load_chunk(path).unwrap();
+    assert_eq!(decoded[0].human_poses, original.human_poses);
+    for view in 0..4 {
+        assert_eq!(
+            original.human_poses_for_view(view).unwrap(),
+            decoded[0].human_poses_for_view(view).unwrap()
         );
     }
 }

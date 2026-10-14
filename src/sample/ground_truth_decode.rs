@@ -84,6 +84,9 @@ pub(super) fn unpack_ground_truth(
             let rgb = match config.depth_format {
                 crate::render::depth::DepthFormat::Linear => [d; 3],
                 crate::render::depth::DepthFormat::Normalized => [d / view.far; 3],
+                crate::render::depth::DepthFormat::Turbo => {
+                    crate::render::depth::turbo_depth_rgb(d, view.far)
+                }
                 crate::render::depth::DepthFormat::Colorized => {
                     let z = (view.near / w[3].max(view.near)).clamp(0.0, 1.0);
                     let smooth = |x: f32| {
@@ -234,6 +237,9 @@ mod tests {
                 let rgb = match config.depth_format {
                     crate::render::depth::DepthFormat::Linear => [d; 3],
                     crate::render::depth::DepthFormat::Normalized => [d / view.far; 3],
+                    crate::render::depth::DepthFormat::Turbo => {
+                        crate::render::depth::turbo_depth_rgb(d, view.far)
+                    }
                     crate::render::depth::DepthFormat::Colorized => {
                         let z = (view.near / w[3].max(view.near)).clamp(0.0, 1.0);
                         let smooth = |x: f32| {
@@ -395,6 +401,7 @@ mod tests {
                     crate::render::depth::DepthFormat::Linear,
                     crate::render::depth::DepthFormat::Normalized,
                     crate::render::depth::DepthFormat::Colorized,
+                    crate::render::depth::DepthFormat::Turbo,
                 ] {
                     let config = BevyZeroverseConfig {
                         z_depth,

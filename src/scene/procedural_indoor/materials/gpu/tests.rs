@@ -2,6 +2,11 @@ use super::super::{program, Surface};
 use super::*;
 use wgpu::util::DeviceExt;
 
+#[path = "minification_tests.rs"]
+mod minification_tests;
+#[path = "web_fixtures.rs"]
+mod web_fixtures;
+
 #[test]
 fn chrome_bakes_retain_only_the_maps_its_material_samples() {
     let recipes = program::sample_with_floor(3, 0).unwrap();
@@ -22,16 +27,35 @@ fn chrome_bakes_retain_only_the_maps_its_material_samples() {
 }
 #[test]
 fn recipe_abi_and_bounded_mip_layout() {
-    assert_eq!(std::mem::size_of::<recipe::Recipe>(), 24 * 16);
-    assert_eq!(kernel::SHADER, include_str!("synthesis.wgsl"));
+    assert_eq!(std::mem::size_of::<recipe::Recipe>(), 30 * 16);
+    assert_eq!(std::mem::size_of::<kernel::Dispatch>(), 3 * 16);
+    assert!(kernel::SHADER.contains("fn paint_map"));
     for size in [256, 512] {
         let levels = kernel::levels(size);
         assert_eq!(levels.len(), size.ilog2() as usize + 1);
-        for l in levels {
+        let dispatches = kernel::dispatches(size);
+        let mut occupied = vec![false; kernel::plane_bytes(size) as usize / 4];
+        let mut moments = 0;
+        for (i, l) in levels.iter().enumerate() {
             assert_eq!(l.offset % 256, 0);
             assert_eq!(l.stride % 256, 0);
             assert!(l.stride >= l.size * 4);
+            let d = dispatches[i];
+            assert_eq!(
+                d.destination,
+                [l.size, l.offset as u32 / 4, l.stride / 4, moments]
+            );
+            assert_eq!(d.plane[0] as u64 * 4, kernel::plane_bytes(size));
+            assert_eq!(d.source, dispatches[i.saturating_sub(1)].destination);
+            for y in 0..l.size {
+                for x in 0..l.size {
+                    let at = (l.offset / 4) as usize + (y * l.stride / 4 + x) as usize;
+                    assert!(!std::mem::replace(&mut occupied[at], true), "mip alias");
+                }
+            }
+            moments += l.size * l.size;
         }
+        assert_eq!(moments, (size * size * 4 - 1) / 3);
     }
     for floor in 0..3 {
         for r in program::sample_with_floor(202, floor).unwrap() {
@@ -47,6 +71,9 @@ fn recipe_abi_and_bounded_mip_layout() {
                         | Surface::Rubber
                         | Surface::Paper
                         | Surface::Floor
+                        | Surface::Paint
+                        | Surface::Accent
+                        | Surface::Ceiling
                 ));
                 assert!(r.surface != Surface::Floor || floor == 1);
             }
@@ -84,7 +111,7 @@ fn lighting_samples_preserve_full_resolution_cpu_point_sampling() {
 
 fn device() -> (wgpu::Device, wgpu::Queue) {
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-        backends: wgpu::Backends::VULKAN,
+        backends: wgpu::Backends::from_env().unwrap_or(wgpu::Backends::PRIMARY),
         ..wgpu::InstanceDescriptor::new_without_display_handle()
     });
     let adapter =
@@ -118,14 +145,7 @@ fn gpu_maps_match_cpu_material_programs_and_mips() {
     });
     let module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
         label: Some("material qualification"),
-        source: wgpu::ShaderSource::Wgsl(
-            std::fs::read_to_string(concat!(
-                env!("CARGO_MANIFEST_DIR"),
-                "/src/scene/procedural_indoor/materials/gpu/synthesis.wgsl"
-            ))
-            .unwrap()
-            .into(),
-        ),
+        source: wgpu::ShaderSource::Wgsl(kernel::SHADER.into()),
     });
     let pipelines = kernel::ENTRIES.map(|entry| {
         device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
@@ -154,6 +174,17 @@ fn gpu_maps_match_cpu_material_programs_and_mips() {
         for floor in [0, 1, 2] {
             let mut recipes = program::sample_with_floor(seed, floor).unwrap();
             if floor == 0 {
+                recipes.push(super::super::human::knit_recipe(seed));
+                for surface in [Surface::Metal, Surface::Chrome, Surface::Plastic] {
+                    let parent = recipes[surface as usize].clone();
+                    recipes.extend((1..3).map(|slot| parent.variant(slot)));
+                }
+                for surface in [Surface::Paint, Surface::Floor] {
+                    let mut r = recipes[surface as usize].clone();
+                    r.detail_scale = Some(0.);
+                    r.relief_m = 0.;
+                    recipes.push(r);
+                }
                 let parent = recipes[Surface::FabricAlt as usize].clone();
                 recipes.extend((0..5).map(|pattern| {
                     let mut r = super::super::rugs::recipe(&parent, pattern as usize % 4);
@@ -208,8 +239,8 @@ fn gpu_maps_match_cpu_material_programs_and_mips() {
                     &mut encoder,
                     [
                         &pipelines[params.meta[0] as usize],
-                        &pipelines[5],
-                        &pipelines[6],
+                        &pipelines[kernel::NORMALS],
+                        &pipelines[kernel::MIPS],
                     ],
                     &bind,
                     n,

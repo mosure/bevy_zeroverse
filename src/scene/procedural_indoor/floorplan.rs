@@ -64,6 +64,12 @@ pub fn obstacles(scene: &IndoorManifest) -> Vec<(Vec3, Vec3)> {
             .partitions
             .iter()
             .flat_map(|p| p.obstacles(scene.room_size.y))
+            .chain(
+                scene
+                    .door_installations()
+                    .into_iter()
+                    .flat_map(|d| d.obstacles()),
+            )
             .collect();
     }
     let trim = match scene.floor_plan {
@@ -73,6 +79,7 @@ pub fn obstacles(scene: &IndoorManifest) -> Vec<(Vec3, Vec3)> {
     nominal_volumes(scene)
         .into_iter()
         .map(|(lo, hi)| (lo - trim, hi + trim))
+        .chain(scene.entry_door.iter().flat_map(|d| d.obstacles()))
         .collect()
 }
 
@@ -97,6 +104,9 @@ pub fn build(scene: &IndoorManifest, a: &mut Assembly) {
                 }
             }
             fitted.build(scene.room_size.y, a);
+        }
+        for door in scene.door_installations().into_iter().filter(|d| d.id != 0) {
+            door.build(a, true);
         }
         return;
     }

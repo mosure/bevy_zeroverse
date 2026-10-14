@@ -12,7 +12,11 @@ impl IndoorManifest {
                         && o.support.is_some()
                         && matches!(
                             o.kind,
-                            ObjectKind::PowerStrip | ObjectKind::Monitor | ObjectKind::Projector
+                            ObjectKind::PowerStrip
+                                | ObjectKind::Monitor
+                                | ObjectKind::Projector
+                                | ObjectKind::CoffeeMaker
+                                | ObjectKind::DrinkDispenser
                         )
                         && !self.objects.iter().any(|c| {
                             c.kind == ObjectKind::Cable && c.interaction_target == Some(o.id)

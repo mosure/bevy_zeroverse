@@ -575,7 +575,7 @@ pub mod image_copy {
                 gt.flow_sequence = requested;
             }
             gt.frame_id = requested;
-            if let Projection::Perspective(p) = projection {
+            if let Some((p, _)) = crate::camera::pinhole::parameters(projection) {
                 gt.near = p.near;
                 gt.far = p.far;
             }

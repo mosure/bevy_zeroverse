@@ -96,7 +96,7 @@ impl EnvelopeProgram {
                 );
                 let top = result.ceiling_height(size, p.position(p.door_center, 0.).xz());
                 p.door_height = p.door_height.min(top - 0.15);
-                if r.random_bool(0.48) {
+                if r.random_bool(0.20) {
                     p.door_height = (2.05_f32 + r.random_range(0.30..0.65)).min(top - 0.15);
                     p.arch_rise = (p.door_height - 2.05).max(0.);
                 }
@@ -285,6 +285,6 @@ impl EnvelopeProgram {
                                 || !hi.cmpgt(a.xz() - Vec2::splat(margin)).all()
                         })
             })
-            && !(hi.x > scene.door_x - 0.8 && hi.y > scene.room_size.z * 0.5 - 1.6)
+            && !scene.entry_approach_overlaps(Vec3::new(lo.x, 0., lo.y), Vec3::new(hi.x, 1., hi.y))
     }
 }

@@ -1,0 +1,3352 @@
+{
+  "build_provenance": {
+    "capture_engine": "capture-v69;indoor_motion=1;calibration=1;co_visibility=1;bevy=0.20.0;burn=0.22.0;burn_human=0.6.0;bevy_burn_human=0.7.0;burn_human_motion=0.2.0;burn_ardy=0.2.0;burn_llama=0.2.0;burn_human_inference=0.2.0;ardy_motion=9;static_pose=2;pose_annotations=2;surface_flow=1;indoor=46;public_programs=1;kitchens=3;doors=1;multiview=10;ovoxel=3;glass=4;hair=6;wardrobe=5;footwear=1;bounds=4;morphology=3;face=1;position=3;tabletop=4;finishes=12;seating=3;activity=2;playback=2;exterior=5;envelope=4;furnishings=5;botany=3;visual_content=3;equipment=6;palette=2;photometry=3;sun_shadow=2;material_compute=3;semantic=7;ceiling=2;floor_details=2;window_treatments=1",
+    "crate_version": "0.41.0",
+    "features": {
+      "human_motion": false,
+      "multi_threaded": true,
+      "web": false
+    },
+    "generator_version": 46,
+    "locked_package_versions": {
+      "bevy": [
+        "0.20.0"
+      ],
+      "bevy_burn_human": [
+        "0.7.0"
+      ],
+      "bevy_zeroverse": [
+        "0.41.0"
+      ],
+      "bevy_zeroverse_burn": [
+        "0.25.0"
+      ],
+      "bevy_zeroverse_capture": [
+        "0.3.0"
+      ],
+      "bevy_zeroverse_ffi": [
+        "0.41.0"
+      ],
+      "bevy_zeroverse_publication": [
+        "0.4.0"
+      ],
+      "burn": [
+        "0.22.0"
+      ],
+      "burn_ardy": [
+        "0.2.0"
+      ],
+      "burn_human": [
+        "0.6.0"
+      ],
+      "burn_human_inference": [
+        "0.2.0"
+      ],
+      "burn_human_motion": [
+        "0.2.0"
+      ],
+      "burn_llama": [
+        "0.2.0"
+      ],
+      "burn_siglip2": [
+        "0.2.0"
+      ],
+      "wgpu": [
+        "30.0.1"
+      ]
+    },
+    "schema_version": 1,
+    "semantic_palette": [
+      {
+        "id": 1,
+        "label": "wall",
+        "srgb8": [
+          174,
+          199,
+          232
+        ]
+      },
+      {
+        "id": 2,
+        "label": "floor",
+        "srgb8": [
+          152,
+          223,
+          138
+        ]
+      },
+      {
+        "id": 3,
+        "label": "cabinet",
+        "srgb8": [
+          31,
+          119,
+          180
+        ]
+      },
+      {
+        "id": 4,
+        "label": "bed",
+        "srgb8": [
+          255,
+          187,
+          120
+        ]
+      },
+      {
+        "id": 5,
+        "label": "chair",
+        "srgb8": [
+          188,
+          189,
+          34
+        ]
+      },
+      {
+        "id": 6,
+        "label": "sofa",
+        "srgb8": [
+          140,
+          86,
+          75
+        ]
+      },
+      {
+        "id": 7,
+        "label": "table",
+        "srgb8": [
+          255,
+          152,
+          150
+        ]
+      },
+      {
+        "id": 8,
+        "label": "door",
+        "srgb8": [
+          214,
+          39,
+          40
+        ]
+      },
+      {
+        "id": 9,
+        "label": "window",
+        "srgb8": [
+          197,
+          176,
+          213
+        ]
+      },
+      {
+        "id": 10,
+        "label": "bookshelf",
+        "srgb8": [
+          148,
+          103,
+          189
+        ]
+      },
+      {
+        "id": 11,
+        "label": "picture",
+        "srgb8": [
+          196,
+          156,
+          148
+        ]
+      },
+      {
+        "id": 12,
+        "label": "counter",
+        "srgb8": [
+          23,
+          190,
+          207
+        ]
+      },
+      {
+        "id": 13,
+        "label": "blinds",
+        "srgb8": [
+          178,
+          76,
+          76
+        ]
+      },
+      {
+        "id": 14,
+        "label": "desk",
+        "srgb8": [
+          247,
+          182,
+          210
+        ]
+      },
+      {
+        "id": 15,
+        "label": "shelves",
+        "srgb8": [
+          66,
+          188,
+          102
+        ]
+      },
+      {
+        "id": 16,
+        "label": "curtain",
+        "srgb8": [
+          219,
+          219,
+          141
+        ]
+      },
+      {
+        "id": 17,
+        "label": "dresser",
+        "srgb8": [
+          140,
+          57,
+          197
+        ]
+      },
+      {
+        "id": 18,
+        "label": "pillow",
+        "srgb8": [
+          202,
+          185,
+          52
+        ]
+      },
+      {
+        "id": 19,
+        "label": "mirror",
+        "srgb8": [
+          51,
+          176,
+          203
+        ]
+      },
+      {
+        "id": 20,
+        "label": "floormat",
+        "srgb8": [
+          200,
+          54,
+          131
+        ]
+      },
+      {
+        "id": 21,
+        "label": "clothes",
+        "srgb8": [
+          92,
+          193,
+          61
+        ]
+      },
+      {
+        "id": 22,
+        "label": "ceiling",
+        "srgb8": [
+          78,
+          71,
+          183
+        ]
+      },
+      {
+        "id": 23,
+        "label": "books",
+        "srgb8": [
+          172,
+          114,
+          82
+        ]
+      },
+      {
+        "id": 24,
+        "label": "refrigerator",
+        "srgb8": [
+          255,
+          127,
+          14
+        ]
+      },
+      {
+        "id": 25,
+        "label": "television",
+        "srgb8": [
+          91,
+          163,
+          138
+        ]
+      },
+      {
+        "id": 26,
+        "label": "paper",
+        "srgb8": [
+          153,
+          98,
+          156
+        ]
+      },
+      {
+        "id": 27,
+        "label": "towel",
+        "srgb8": [
+          140,
+          153,
+          101
+        ]
+      },
+      {
+        "id": 28,
+        "label": "shower_curtain",
+        "srgb8": [
+          158,
+          218,
+          229
+        ]
+      },
+      {
+        "id": 29,
+        "label": "box",
+        "srgb8": [
+          100,
+          125,
+          154
+        ]
+      },
+      {
+        "id": 30,
+        "label": "whiteboard",
+        "srgb8": [
+          178,
+          127,
+          135
+        ]
+      },
+      {
+        "id": 31,
+        "label": "person",
+        "srgb8": [
+          120,
+          185,
+          128
+        ]
+      },
+      {
+        "id": 32,
+        "label": "nightstand",
+        "srgb8": [
+          146,
+          111,
+          194
+        ]
+      },
+      {
+        "id": 33,
+        "label": "toilet",
+        "srgb8": [
+          44,
+          160,
+          44
+        ]
+      },
+      {
+        "id": 34,
+        "label": "sink",
+        "srgb8": [
+          112,
+          128,
+          144
+        ]
+      },
+      {
+        "id": 35,
+        "label": "lamp",
+        "srgb8": [
+          96,
+          207,
+          209
+        ]
+      },
+      {
+        "id": 36,
+        "label": "bathtub",
+        "srgb8": [
+          227,
+          119,
+          194
+        ]
+      },
+      {
+        "id": 37,
+        "label": "bag",
+        "srgb8": [
+          213,
+          92,
+          176
+        ]
+      },
+      {
+        "id": 38,
+        "label": "other_structure",
+        "srgb8": [
+          94,
+          106,
+          211
+        ]
+      },
+      {
+        "id": 39,
+        "label": "other_furniture",
+        "srgb8": [
+          82,
+          84,
+          163
+        ]
+      },
+      {
+        "id": 40,
+        "label": "other_prop",
+        "srgb8": [
+          100,
+          85,
+          144
+        ]
+      },
+      {
+        "id": 41,
+        "label": "plant",
+        "srgb8": [
+          166,
+          109,
+          53
+        ]
+      },
+      {
+        "id": 42,
+        "label": "trash_can",
+        "srgb8": [
+          75,
+          47,
+          186
+        ]
+      },
+      {
+        "id": 43,
+        "label": "laptop",
+        "srgb8": [
+          52,
+          207,
+          37
+        ]
+      },
+      {
+        "id": 44,
+        "label": "monitor",
+        "srgb8": [
+          227,
+          73,
+          131
+        ]
+      },
+      {
+        "id": 45,
+        "label": "phone",
+        "srgb8": [
+          41,
+          125,
+          166
+        ]
+      },
+      {
+        "id": 46,
+        "label": "keyboard",
+        "srgb8": [
+          180,
+          186,
+          34
+        ]
+      },
+      {
+        "id": 47,
+        "label": "mouse",
+        "srgb8": [
+          171,
+          66,
+          207
+        ]
+      },
+      {
+        "id": 48,
+        "label": "headphones",
+        "srgb8": [
+          57,
+          227,
+          134
+        ]
+      },
+      {
+        "id": 49,
+        "label": "speaker",
+        "srgb8": [
+          166,
+          52,
+          30
+        ]
+      },
+      {
+        "id": 50,
+        "label": "microphone",
+        "srgb8": [
+          60,
+          76,
+          186
+        ]
+      },
+      {
+        "id": 51,
+        "label": "printer",
+        "srgb8": [
+          117,
+          207,
+          52
+        ]
+      },
+      {
+        "id": 52,
+        "label": "projector",
+        "srgb8": [
+          227,
+          41,
+          173
+        ]
+      },
+      {
+        "id": 53,
+        "label": "projection_screen",
+        "srgb8": [
+          53,
+          166,
+          165
+        ]
+      },
+      {
+        "id": 54,
+        "label": "coffee_table",
+        "srgb8": [
+          186,
+          145,
+          47
+        ]
+      },
+      {
+        "id": 55,
+        "label": "side_table",
+        "srgb8": [
+          107,
+          37,
+          207
+        ]
+      },
+      {
+        "id": 56,
+        "label": "bench",
+        "srgb8": [
+          73,
+          227,
+          91
+        ]
+      },
+      {
+        "id": 57,
+        "label": "ottoman",
+        "srgb8": [
+          166,
+          41,
+          63
+        ]
+      },
+      {
+        "id": 58,
+        "label": "mobile_cart",
+        "srgb8": [
+          34,
+          104,
+          186
+        ]
+      },
+      {
+        "id": 59,
+        "label": "drawer_unit",
+        "srgb8": [
+          172,
+          207,
+          66
+        ]
+      },
+      {
+        "id": 60,
+        "label": "coat_rack",
+        "srgb8": [
+          219,
+          57,
+          227
+        ]
+      },
+      {
+        "id": 61,
+        "label": "room_divider",
+        "srgb8": [
+          30,
+          166,
+          120
+        ]
+      },
+      {
+        "id": 62,
+        "label": "wall_outlet",
+        "srgb8": [
+          186,
+          106,
+          60
+        ]
+      },
+      {
+        "id": 63,
+        "label": "light_switch",
+        "srgb8": [
+          64,
+          52,
+          207
+        ]
+      },
+      {
+        "id": 64,
+        "label": "power_strip",
+        "srgb8": [
+          81,
+          227,
+          41
+        ]
+      },
+      {
+        "id": 65,
+        "label": "cable",
+        "srgb8": [
+          166,
+          53,
+          110
+        ]
+      },
+      {
+        "id": 66,
+        "label": "clock",
+        "srgb8": [
+          47,
+          158,
+          186
+        ]
+      },
+      {
+        "id": 67,
+        "label": "drink_container",
+        "srgb8": [
+          207,
+          192,
+          37
+        ]
+      },
+      {
+        "id": 68,
+        "label": "appliance",
+        "srgb8": [
+          168,
+          73,
+          227
+        ]
+      },
+      {
+        "id": 69,
+        "label": "stationery",
+        "srgb8": [
+          41,
+          166,
+          82
+        ]
+      },
+      {
+        "id": 70,
+        "label": "vase",
+        "srgb8": [
+          186,
+          39,
+          34
+        ]
+      },
+      {
+        "id": 71,
+        "label": "sky",
+        "srgb8": [
+          75,
+          145,
+          245
+        ]
+      },
+      {
+        "id": 72,
+        "label": "floor_outlet",
+        "srgb8": [
+          98,
+          158,
+          171
+        ]
+      },
+      {
+        "id": 73,
+        "label": "stove",
+        "srgb8": [
+          159,
+          99,
+          43
+        ]
+      },
+      {
+        "id": 74,
+        "label": "oven",
+        "srgb8": [
+          88,
+          113,
+          158
+        ]
+      },
+      {
+        "id": 75,
+        "label": "microwave",
+        "srgb8": [
+          131,
+          99,
+          183
+        ]
+      },
+      {
+        "id": 76,
+        "label": "dishwasher",
+        "srgb8": [
+          74,
+          146,
+          180
+        ]
+      },
+      {
+        "id": 77,
+        "label": "faucet",
+        "srgb8": [
+          183,
+          196,
+          208
+        ]
+      },
+      {
+        "id": 78,
+        "label": "dishware",
+        "srgb8": [
+          217,
+          169,
+          93
+        ]
+      },
+      {
+        "id": 79,
+        "label": "kitchen_utensil",
+        "srgb8": [
+          114,
+          167,
+          78
+        ]
+      },
+      {
+        "id": 80,
+        "label": "food",
+        "srgb8": [
+          226,
+          83,
+          63
+        ]
+      },
+      {
+        "id": 81,
+        "label": "soap_dispenser",
+        "srgb8": [
+          76,
+          201,
+          173
+        ]
+      },
+      {
+        "id": 82,
+        "label": "cleaning_supply",
+        "srgb8": [
+          200,
+          194,
+          77
+        ]
+      },
+      {
+        "id": 83,
+        "label": "elevator",
+        "srgb8": [
+          61,
+          211,
+          83
+        ]
+      },
+      {
+        "id": 84,
+        "label": "control_panel",
+        "srgb8": [
+          74,
+          202,
+          94
+        ]
+      },
+      {
+        "id": 85,
+        "label": "display_case",
+        "srgb8": [
+          87,
+          193,
+          105
+        ]
+      },
+      {
+        "id": 86,
+        "label": "tray_return",
+        "srgb8": [
+          100,
+          184,
+          116
+        ]
+      },
+      {
+        "id": 87,
+        "label": "queue_barrier",
+        "srgb8": [
+          113,
+          175,
+          127
+        ]
+      },
+      {
+        "id": 88,
+        "label": "lectern",
+        "srgb8": [
+          126,
+          166,
+          138
+        ]
+      },
+      {
+        "id": 89,
+        "label": "locker",
+        "srgb8": [
+          139,
+          157,
+          149
+        ]
+      },
+      {
+        "id": 90,
+        "label": "plinth",
+        "srgb8": [
+          152,
+          148,
+          160
+        ]
+      },
+      {
+        "id": 91,
+        "label": "sculpture",
+        "srgb8": [
+          165,
+          139,
+          171
+        ]
+      },
+      {
+        "id": 92,
+        "label": "information_stand",
+        "srgb8": [
+          178,
+          130,
+          182
+        ]
+      },
+      {
+        "id": 93,
+        "label": "extraction_hood",
+        "srgb8": [
+          191,
+          121,
+          193
+        ]
+      },
+      {
+        "id": 94,
+        "label": "door_frame",
+        "srgb8": [
+          204,
+          112,
+          204
+        ]
+      },
+      {
+        "id": 95,
+        "label": "door_hardware",
+        "srgb8": [
+          217,
+          103,
+          215
+        ]
+      },
+      {
+        "id": 96,
+        "label": "cabinet_hardware",
+        "srgb8": [
+          230,
+          94,
+          226
+        ]
+      }
+    ],
+    "semantic_taxonomy_version": 7,
+    "source_sha256": "0287a936da7880c75b66671008a6f7ec91601f79b347e313c350a92469d7091c",
+    "target": "x86_64-unknown-linux-gnu"
+  },
+  "categories": [
+    {
+      "elapsed_seconds": 7.050657073,
+      "kind": "HingedDoor",
+      "selected": [
+        {
+          "build_ms": 2.531009,
+          "mesh": {
+            "batches": 3,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 1864
+          },
+          "program": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "height": 2.25,
+            "id": 0,
+            "program": {
+              "finish": "WoodEdge",
+              "finish_variant": 7,
+              "frame_finish": "Plastic",
+              "handedness": -1.0,
+              "handle": "Knob",
+              "handle_height": 0.912048041820526,
+              "hardware_finish": "Metal",
+              "mechanism": "Hinged",
+              "opening": 0.0,
+              "panel": "Flush",
+              "rotor_phase": 0.28200453519821167,
+              "stile": 0.06983921676874161,
+              "swing_side": 1.0,
+              "thickness": 0.03354736790060997
+            },
+            "wall_depth": 0.18000000715255737,
+            "width": 1.399999976158142,
+            "yaw": 0.0
+          },
+          "seed": 0
+        },
+        {
+          "build_ms": 0.040559000000000005,
+          "mesh": {
+            "batches": 3,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 1080
+          },
+          "program": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "height": 2.25,
+            "id": 0,
+            "program": {
+              "finish": "Metal",
+              "finish_variant": 3,
+              "frame_finish": "WoodEdge",
+              "handedness": -1.0,
+              "handle": "Lever",
+              "handle_height": 1.0436911582946775,
+              "hardware_finish": "Metal",
+              "mechanism": "Hinged",
+              "opening": 0.1913849711418152,
+              "panel": "Flush",
+              "rotor_phase": 4.114248752593994,
+              "stile": 0.04840425029397011,
+              "swing_side": 1.0,
+              "thickness": 0.04529470205307007
+            },
+            "wall_depth": 0.18000000715255737,
+            "width": 1.399999976158142,
+            "yaw": 0.0
+          },
+          "seed": 2
+        },
+        {
+          "build_ms": 0.042016,
+          "mesh": {
+            "batches": 3,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 1440
+          },
+          "program": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "height": 2.25,
+            "id": 0,
+            "program": {
+              "finish": "WoodEdge",
+              "finish_variant": 6,
+              "frame_finish": "WoodEdge",
+              "handedness": -1.0,
+              "handle": "Pull",
+              "handle_height": 0.954375982284546,
+              "hardware_finish": "Chrome",
+              "mechanism": "Hinged",
+              "opening": 0.9585676193237304,
+              "panel": "Flush",
+              "rotor_phase": 2.0057435035705566,
+              "stile": 0.057576801627874374,
+              "swing_side": -1.0,
+              "thickness": 0.03461432456970215
+            },
+            "wall_depth": 0.18000000715255737,
+            "width": 1.399999976158142,
+            "yaw": 0.0
+          },
+          "seed": 3
+        },
+        {
+          "build_ms": 0.205804,
+          "mesh": {
+            "batches": 3,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 4860
+          },
+          "program": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "height": 2.25,
+            "id": 0,
+            "program": {
+              "finish": "Plastic",
+              "finish_variant": 6,
+              "frame_finish": "Metal",
+              "handedness": 1.0,
+              "handle": "Lever",
+              "handle_height": 0.9673770070075988,
+              "hardware_finish": "Ink",
+              "mechanism": "Hinged",
+              "opening": 0.9349494576454164,
+              "panel": "Louvered",
+              "rotor_phase": 4.018928050994873,
+              "stile": 0.07748005539178848,
+              "swing_side": 1.0,
+              "thickness": 0.0368192084133625
+            },
+            "wall_depth": 0.18000000715255737,
+            "width": 1.399999976158142,
+            "yaw": 0.0
+          },
+          "seed": 7
+        },
+        {
+          "build_ms": 0.174428,
+          "mesh": {
+            "batches": 3,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 5220
+          },
+          "program": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "height": 2.25,
+            "id": 0,
+            "program": {
+              "finish": "Metal",
+              "finish_variant": 7,
+              "frame_finish": "Plastic",
+              "handedness": -1.0,
+              "handle": "Pull",
+              "handle_height": 1.0127527713775637,
+              "hardware_finish": "Metal",
+              "mechanism": "Hinged",
+              "opening": 0.8967677354812622,
+              "panel": "Louvered",
+              "rotor_phase": 5.338562488555908,
+              "stile": 0.07389896363019943,
+              "swing_side": -1.0,
+              "thickness": 0.044543489813804626
+            },
+            "wall_depth": 0.18000000715255737,
+            "width": 1.399999976158142,
+            "yaw": 0.0
+          },
+          "seed": 13
+        },
+        {
+          "build_ms": 0.06977,
+          "mesh": {
+            "batches": 4,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 1872
+          },
+          "program": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "height": 2.25,
+            "id": 0,
+            "program": {
+              "finish": "Wood",
+              "finish_variant": 5,
+              "frame_finish": "WoodEdge",
+              "handedness": -1.0,
+              "handle": "PanicBar",
+              "handle_height": 0.928818702697754,
+              "hardware_finish": "Metal",
+              "mechanism": "Hinged",
+              "opening": 0.21735891699790957,
+              "panel": "Glazed",
+              "rotor_phase": 5.079936981201172,
+              "stile": 0.0697048082947731,
+              "swing_side": -1.0,
+              "thickness": 0.048825476318597794
+            },
+            "wall_depth": 0.18000000715255737,
+            "width": 1.399999976158142,
+            "yaw": 0.0
+          },
+          "seed": 23
+        }
+      ],
+      "selection": "door states closed/ajar/open plus prespecified seeds; cabinet seeds 0/3/7/11/17/23; illustrative, not frequency-weighted",
+      "semantic_pixel_counts": [
+        {
+          "background": 2366,
+          "door": 22556,
+          "door_frame": 3034,
+          "door_hardware": 51,
+          "floor": 74393
+        },
+        {
+          "background": 2365,
+          "door": 18547,
+          "door_frame": 2632,
+          "door_hardware": 63,
+          "floor": 78793
+        },
+        {
+          "background": 2369,
+          "door": 13040,
+          "door_frame": 7343,
+          "door_hardware": 68,
+          "floor": 79580
+        },
+        {
+          "background": 2364,
+          "door": 9694,
+          "door_frame": 3671,
+          "door_hardware": 60,
+          "floor": 86611
+        },
+        {
+          "background": 2369,
+          "door": 10432,
+          "door_frame": 7329,
+          "door_hardware": 104,
+          "floor": 82166
+        },
+        {
+          "background": 2367,
+          "door": 20579,
+          "door_frame": 5855,
+          "door_hardware": 255,
+          "floor": 73344
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 0.689950366,
+      "kind": "PairedDoor",
+      "selected": [
+        {
+          "build_ms": 0.283241,
+          "mesh": {
+            "batches": 3,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 3404
+          },
+          "program": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "height": 2.25,
+            "id": 0,
+            "program": {
+              "finish": "WoodEdge",
+              "finish_variant": 7,
+              "frame_finish": "Plastic",
+              "handedness": -1.0,
+              "handle": "Knob",
+              "handle_height": 0.912048041820526,
+              "hardware_finish": "Metal",
+              "mechanism": "Paired",
+              "opening": 0.0,
+              "panel": "Flush",
+              "rotor_phase": 0.28200453519821167,
+              "stile": 0.06983921676874161,
+              "swing_side": 1.0,
+              "thickness": 0.03354736790060997
+            },
+            "wall_depth": 0.18000000715255737,
+            "width": 1.399999976158142,
+            "yaw": 0.0
+          },
+          "seed": 0
+        },
+        {
+          "build_ms": 0.090632,
+          "mesh": {
+            "batches": 3,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 1836
+          },
+          "program": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "height": 2.25,
+            "id": 0,
+            "program": {
+              "finish": "Metal",
+              "finish_variant": 3,
+              "frame_finish": "WoodEdge",
+              "handedness": -1.0,
+              "handle": "Lever",
+              "handle_height": 1.0436911582946775,
+              "hardware_finish": "Metal",
+              "mechanism": "Paired",
+              "opening": 0.1913849711418152,
+              "panel": "Flush",
+              "rotor_phase": 4.114248752593994,
+              "stile": 0.04840425029397011,
+              "swing_side": 1.0,
+              "thickness": 0.04529470205307007
+            },
+            "wall_depth": 0.18000000715255737,
+            "width": 1.399999976158142,
+            "yaw": 0.0
+          },
+          "seed": 2
+        },
+        {
+          "build_ms": 0.101452,
+          "mesh": {
+            "batches": 3,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 2556
+          },
+          "program": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "height": 2.25,
+            "id": 0,
+            "program": {
+              "finish": "WoodEdge",
+              "finish_variant": 6,
+              "frame_finish": "WoodEdge",
+              "handedness": -1.0,
+              "handle": "Pull",
+              "handle_height": 0.954375982284546,
+              "hardware_finish": "Chrome",
+              "mechanism": "Paired",
+              "opening": 0.9585676193237304,
+              "panel": "Flush",
+              "rotor_phase": 2.0057435035705566,
+              "stile": 0.057576801627874374,
+              "swing_side": -1.0,
+              "thickness": 0.03461432456970215
+            },
+            "wall_depth": 0.18000000715255737,
+            "width": 1.399999976158142,
+            "yaw": 0.0
+          },
+          "seed": 3
+        },
+        {
+          "build_ms": 0.477613,
+          "mesh": {
+            "batches": 3,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 9396
+          },
+          "program": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "height": 2.25,
+            "id": 0,
+            "program": {
+              "finish": "Plastic",
+              "finish_variant": 6,
+              "frame_finish": "Metal",
+              "handedness": 1.0,
+              "handle": "Lever",
+              "handle_height": 0.9673770070075988,
+              "hardware_finish": "Ink",
+              "mechanism": "Paired",
+              "opening": 0.9349494576454164,
+              "panel": "Louvered",
+              "rotor_phase": 4.018928050994873,
+              "stile": 0.07748005539178848,
+              "swing_side": 1.0,
+              "thickness": 0.0368192084133625
+            },
+            "wall_depth": 0.18000000715255737,
+            "width": 1.399999976158142,
+            "yaw": 0.0
+          },
+          "seed": 7
+        },
+        {
+          "build_ms": 0.46638,
+          "mesh": {
+            "batches": 3,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 10116
+          },
+          "program": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "height": 2.25,
+            "id": 0,
+            "program": {
+              "finish": "Metal",
+              "finish_variant": 7,
+              "frame_finish": "Plastic",
+              "handedness": -1.0,
+              "handle": "Pull",
+              "handle_height": 1.0127527713775637,
+              "hardware_finish": "Metal",
+              "mechanism": "Paired",
+              "opening": 0.8967677354812622,
+              "panel": "Louvered",
+              "rotor_phase": 5.338562488555908,
+              "stile": 0.07389896363019943,
+              "swing_side": -1.0,
+              "thickness": 0.044543489813804626
+            },
+            "wall_depth": 0.18000000715255737,
+            "width": 1.399999976158142,
+            "yaw": 0.0
+          },
+          "seed": 13
+        },
+        {
+          "build_ms": 0.139534,
+          "mesh": {
+            "batches": 4,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 3420
+          },
+          "program": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "height": 2.25,
+            "id": 0,
+            "program": {
+              "finish": "Wood",
+              "finish_variant": 5,
+              "frame_finish": "WoodEdge",
+              "handedness": -1.0,
+              "handle": "PanicBar",
+              "handle_height": 0.928818702697754,
+              "hardware_finish": "Metal",
+              "mechanism": "Paired",
+              "opening": 0.21735891699790957,
+              "panel": "Glazed",
+              "rotor_phase": 5.079936981201172,
+              "stile": 0.0697048082947731,
+              "swing_side": -1.0,
+              "thickness": 0.048825476318597794
+            },
+            "wall_depth": 0.18000000715255737,
+            "width": 1.399999976158142,
+            "yaw": 0.0
+          },
+          "seed": 23
+        }
+      ],
+      "selection": "door states closed/ajar/open plus prespecified seeds; cabinet seeds 0/3/7/11/17/23; illustrative, not frequency-weighted",
+      "semantic_pixel_counts": [
+        {
+          "background": 2366,
+          "door": 22500,
+          "door_frame": 3029,
+          "door_hardware": 122,
+          "floor": 74383
+        },
+        {
+          "background": 2366,
+          "door": 21763,
+          "door_frame": 2741,
+          "door_hardware": 127,
+          "floor": 75403
+        },
+        {
+          "background": 2367,
+          "door": 9607,
+          "door_frame": 6117,
+          "door_hardware": 145,
+          "floor": 84164
+        },
+        {
+          "background": 2365,
+          "door": 11024,
+          "door_frame": 3684,
+          "door_hardware": 113,
+          "floor": 85214
+        },
+        {
+          "background": 2368,
+          "door": 7665,
+          "door_frame": 6117,
+          "door_hardware": 157,
+          "floor": 86093
+        },
+        {
+          "background": 2365,
+          "door": 18718,
+          "door_frame": 5526,
+          "door_hardware": 254,
+          "floor": 75537
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 1.277348217,
+      "kind": "SlidingDoor",
+      "selected": [
+        {
+          "build_ms": 0.148033,
+          "mesh": {
+            "batches": 4,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 1308
+          },
+          "program": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "height": 2.25,
+            "id": 0,
+            "program": {
+              "finish": "Metal",
+              "finish_variant": 0,
+              "frame_finish": "Metal",
+              "handedness": -1.0,
+              "handle": "Pull",
+              "handle_height": 0.982072412967682,
+              "hardware_finish": "Metal",
+              "mechanism": "Sliding",
+              "opening": 0.0,
+              "panel": "Flush",
+              "rotor_phase": 5.059911251068115,
+              "stile": 0.04556889832019806,
+              "swing_side": -1.0,
+              "thickness": 0.04343247041106224
+            },
+            "wall_depth": 0.18000000715255737,
+            "width": 1.399999976158142,
+            "yaw": 0.0
+          },
+          "seed": 0
+        },
+        {
+          "build_ms": 0.039587,
+          "mesh": {
+            "batches": 5,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 1188
+          },
+          "program": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "height": 2.25,
+            "id": 0,
+            "program": {
+              "finish": "Wood",
+              "finish_variant": 2,
+              "frame_finish": "Metal",
+              "handedness": -1.0,
+              "handle": "Recessed",
+              "handle_height": 1.0681614875793457,
+              "hardware_finish": "Chrome",
+              "mechanism": "Sliding",
+              "opening": 0.1913849711418152,
+              "panel": "Flush",
+              "rotor_phase": 5.536961555480957,
+              "stile": 0.08213642984628677,
+              "swing_side": 1.0,
+              "thickness": 0.03442978486418724
+            },
+            "wall_depth": 0.18000000715255737,
+            "width": 1.399999976158142,
+            "yaw": 0.0
+          },
+          "seed": 2
+        },
+        {
+          "build_ms": 0.034332,
+          "mesh": {
+            "batches": 4,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 1308
+          },
+          "program": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "height": 2.25,
+            "id": 0,
+            "program": {
+              "finish": "Wood",
+              "finish_variant": 10,
+              "frame_finish": "WoodEdge",
+              "handedness": 1.0,
+              "handle": "Pull",
+              "handle_height": 0.982660710811615,
+              "hardware_finish": "Metal",
+              "mechanism": "Sliding",
+              "opening": 0.9585676193237304,
+              "panel": "Flush",
+              "rotor_phase": 0.5087752938270569,
+              "stile": 0.05732665956020355,
+              "swing_side": -1.0,
+              "thickness": 0.03828225657343864
+            },
+            "wall_depth": 0.18000000715255737,
+            "width": 1.399999976158142,
+            "yaw": 0.0
+          },
+          "seed": 3
+        },
+        {
+          "build_ms": 0.404402,
+          "mesh": {
+            "batches": 5,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 5076
+          },
+          "program": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "height": 2.25,
+            "id": 0,
+            "program": {
+              "finish": "Plastic",
+              "finish_variant": 3,
+              "frame_finish": "Plastic",
+              "handedness": 1.0,
+              "handle": "Recessed",
+              "handle_height": 1.0397893190383911,
+              "hardware_finish": "Metal",
+              "mechanism": "Sliding",
+              "opening": 0.9349494576454164,
+              "panel": "Louvered",
+              "rotor_phase": 3.35204553604126,
+              "stile": 0.060938045382499695,
+              "swing_side": -1.0,
+              "thickness": 0.046641625463962555
+            },
+            "wall_depth": 0.18000000715255737,
+            "width": 1.399999976158142,
+            "yaw": 0.0
+          },
+          "seed": 7
+        },
+        {
+          "build_ms": 0.236526,
+          "mesh": {
+            "batches": 5,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 4968
+          },
+          "program": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "height": 2.25,
+            "id": 0,
+            "program": {
+              "finish": "Plastic",
+              "finish_variant": 8,
+              "frame_finish": "Metal",
+              "handedness": 1.0,
+              "handle": "Recessed",
+              "handle_height": 1.069172739982605,
+              "hardware_finish": "Metal",
+              "mechanism": "Sliding",
+              "opening": 0.8967677354812622,
+              "panel": "Louvered",
+              "rotor_phase": 3.5247786045074463,
+              "stile": 0.07354243844747543,
+              "swing_side": 1.0,
+              "thickness": 0.045137565582990646
+            },
+            "wall_depth": 0.18000000715255737,
+            "width": 1.399999976158142,
+            "yaw": 0.0
+          },
+          "seed": 13
+        },
+        {
+          "build_ms": 0.184772,
+          "mesh": {
+            "batches": 6,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 1620
+          },
+          "program": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "height": 2.25,
+            "id": 0,
+            "program": {
+              "finish": "Wood",
+              "finish_variant": 2,
+              "frame_finish": "Metal",
+              "handedness": 1.0,
+              "handle": "Recessed",
+              "handle_height": 0.9110956192016602,
+              "hardware_finish": "Metal",
+              "mechanism": "Sliding",
+              "opening": 0.21735891699790957,
+              "panel": "Glazed",
+              "rotor_phase": 2.3270668983459473,
+              "stile": 0.05022740736603737,
+              "swing_side": 1.0,
+              "thickness": 0.04337602108716965
+            },
+            "wall_depth": 0.18000000715255737,
+            "width": 1.399999976158142,
+            "yaw": 0.0
+          },
+          "seed": 23
+        }
+      ],
+      "selection": "door states closed/ajar/open plus prespecified seeds; cabinet seeds 0/3/7/11/17/23; illustrative, not frequency-weighted",
+      "semantic_pixel_counts": [
+        {
+          "background": 2592,
+          "door": 14641,
+          "door_frame": 3240,
+          "door_hardware": 448,
+          "floor": 81479
+        },
+        {
+          "background": 2579,
+          "door": 14796,
+          "door_frame": 1747,
+          "door_hardware": 1110,
+          "floor": 82168
+        },
+        {
+          "background": 2566,
+          "door": 14429,
+          "door_frame": 3364,
+          "door_hardware": 285,
+          "floor": 81756
+        },
+        {
+          "background": 2566,
+          "door": 9773,
+          "door_frame": 3340,
+          "door_hardware": 332,
+          "floor": 86389
+        },
+        {
+          "background": 2566,
+          "door": 10740,
+          "door_frame": 2307,
+          "door_hardware": 1085,
+          "floor": 85702
+        },
+        {
+          "background": 2566,
+          "door": 12340,
+          "door_frame": 1867,
+          "door_hardware": 1090,
+          "floor": 84537
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 1.159198733,
+      "kind": "TelescopingDoor",
+      "selected": [
+        {
+          "build_ms": 0.142129,
+          "mesh": {
+            "batches": 4,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 2184
+          },
+          "program": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "height": 2.25,
+            "id": 0,
+            "program": {
+              "finish": "Metal",
+              "finish_variant": 0,
+              "frame_finish": "Metal",
+              "handedness": -1.0,
+              "handle": "Pull",
+              "handle_height": 0.982072412967682,
+              "hardware_finish": "Metal",
+              "mechanism": "Telescoping",
+              "opening": 0.0,
+              "panel": "Flush",
+              "rotor_phase": 5.059911251068115,
+              "stile": 0.04556889832019806,
+              "swing_side": -1.0,
+              "thickness": 0.04343247041106224
+            },
+            "wall_depth": 0.18000000715255737,
+            "width": 1.399999976158142,
+            "yaw": 0.0
+          },
+          "seed": 0
+        },
+        {
+          "build_ms": 0.043612000000000005,
+          "mesh": {
+            "batches": 5,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 1944
+          },
+          "program": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "height": 2.25,
+            "id": 0,
+            "program": {
+              "finish": "Wood",
+              "finish_variant": 2,
+              "frame_finish": "Metal",
+              "handedness": -1.0,
+              "handle": "Recessed",
+              "handle_height": 1.0681614875793457,
+              "hardware_finish": "Chrome",
+              "mechanism": "Telescoping",
+              "opening": 0.1913849711418152,
+              "panel": "Flush",
+              "rotor_phase": 5.536961555480957,
+              "stile": 0.08213642984628677,
+              "swing_side": 1.0,
+              "thickness": 0.03442978486418724
+            },
+            "wall_depth": 0.18000000715255737,
+            "width": 1.399999976158142,
+            "yaw": 0.0
+          },
+          "seed": 2
+        },
+        {
+          "build_ms": 0.037968,
+          "mesh": {
+            "batches": 4,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 2184
+          },
+          "program": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "height": 2.25,
+            "id": 0,
+            "program": {
+              "finish": "Wood",
+              "finish_variant": 10,
+              "frame_finish": "WoodEdge",
+              "handedness": 1.0,
+              "handle": "Pull",
+              "handle_height": 0.982660710811615,
+              "hardware_finish": "Metal",
+              "mechanism": "Telescoping",
+              "opening": 0.9585676193237304,
+              "panel": "Flush",
+              "rotor_phase": 0.5087752938270569,
+              "stile": 0.05732665956020355,
+              "swing_side": -1.0,
+              "thickness": 0.03828225657343864
+            },
+            "wall_depth": 0.18000000715255737,
+            "width": 1.399999976158142,
+            "yaw": 0.0
+          },
+          "seed": 3
+        },
+        {
+          "build_ms": 0.367536,
+          "mesh": {
+            "batches": 5,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 9720
+          },
+          "program": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "height": 2.25,
+            "id": 0,
+            "program": {
+              "finish": "Plastic",
+              "finish_variant": 3,
+              "frame_finish": "Plastic",
+              "handedness": 1.0,
+              "handle": "Recessed",
+              "handle_height": 1.0397893190383911,
+              "hardware_finish": "Metal",
+              "mechanism": "Telescoping",
+              "opening": 0.9349494576454164,
+              "panel": "Louvered",
+              "rotor_phase": 3.35204553604126,
+              "stile": 0.060938045382499695,
+              "swing_side": -1.0,
+              "thickness": 0.046641625463962555
+            },
+            "wall_depth": 0.18000000715255737,
+            "width": 1.399999976158142,
+            "yaw": 0.0
+          },
+          "seed": 7
+        },
+        {
+          "build_ms": 0.341611,
+          "mesh": {
+            "batches": 5,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 9504
+          },
+          "program": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "height": 2.25,
+            "id": 0,
+            "program": {
+              "finish": "Plastic",
+              "finish_variant": 8,
+              "frame_finish": "Metal",
+              "handedness": 1.0,
+              "handle": "Recessed",
+              "handle_height": 1.069172739982605,
+              "hardware_finish": "Metal",
+              "mechanism": "Telescoping",
+              "opening": 0.8967677354812622,
+              "panel": "Louvered",
+              "rotor_phase": 3.5247786045074463,
+              "stile": 0.07354243844747543,
+              "swing_side": 1.0,
+              "thickness": 0.045137565582990646
+            },
+            "wall_depth": 0.18000000715255737,
+            "width": 1.399999976158142,
+            "yaw": 0.0
+          },
+          "seed": 13
+        },
+        {
+          "build_ms": 0.069921,
+          "mesh": {
+            "batches": 6,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 2808
+          },
+          "program": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "height": 2.25,
+            "id": 0,
+            "program": {
+              "finish": "Wood",
+              "finish_variant": 2,
+              "frame_finish": "Metal",
+              "handedness": 1.0,
+              "handle": "Recessed",
+              "handle_height": 0.9110956192016602,
+              "hardware_finish": "Metal",
+              "mechanism": "Telescoping",
+              "opening": 0.21735891699790957,
+              "panel": "Glazed",
+              "rotor_phase": 2.3270668983459473,
+              "stile": 0.05022740736603737,
+              "swing_side": 1.0,
+              "thickness": 0.04337602108716965
+            },
+            "wall_depth": 0.18000000715255737,
+            "width": 1.399999976158142,
+            "yaw": 0.0
+          },
+          "seed": 23
+        }
+      ],
+      "selection": "door states closed/ajar/open plus prespecified seeds; cabinet seeds 0/3/7/11/17/23; illustrative, not frequency-weighted",
+      "semantic_pixel_counts": [
+        {
+          "background": 2592,
+          "door": 14350,
+          "door_frame": 3288,
+          "door_hardware": 619,
+          "floor": 81551
+        },
+        {
+          "background": 2579,
+          "door": 13708,
+          "door_frame": 1727,
+          "door_hardware": 816,
+          "floor": 83570
+        },
+        {
+          "background": 2566,
+          "door": 6828,
+          "door_frame": 3377,
+          "door_hardware": 603,
+          "floor": 89026
+        },
+        {
+          "background": 2566,
+          "door": 6619,
+          "door_frame": 3325,
+          "door_hardware": 608,
+          "floor": 89282
+        },
+        {
+          "background": 2566,
+          "door": 7766,
+          "door_frame": 1892,
+          "door_hardware": 857,
+          "floor": 89319
+        },
+        {
+          "background": 2565,
+          "door": 10766,
+          "door_frame": 2098,
+          "door_hardware": 887,
+          "floor": 86084
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 1.7959004589999998,
+      "kind": "RevolvingDoor",
+      "selected": [
+        {
+          "build_ms": 1.4686199999999998,
+          "mesh": {
+            "batches": 6,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 30116
+          },
+          "program": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "height": 2.25,
+            "id": 0,
+            "program": {
+              "finish": "WoodEdge",
+              "finish_variant": 11,
+              "frame_finish": "WoodEdge",
+              "handedness": -1.0,
+              "handle": "PanicBar",
+              "handle_height": 0.9146917462348938,
+              "hardware_finish": "Metal",
+              "mechanism": "Revolving",
+              "opening": 0.0,
+              "panel": "Glazed",
+              "rotor_phase": 0.43736955523490906,
+              "stile": 0.07028702646493912,
+              "swing_side": -1.0,
+              "thickness": 0.03909096121788025
+            },
+            "wall_depth": 0.18000000715255737,
+            "width": 2.5,
+            "yaw": 0.0
+          },
+          "seed": 0
+        },
+        {
+          "build_ms": 1.1010410000000002,
+          "mesh": {
+            "batches": 6,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 30116
+          },
+          "program": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "height": 2.25,
+            "id": 0,
+            "program": {
+              "finish": "WoodEdge",
+              "finish_variant": 0,
+              "frame_finish": "WoodEdge",
+              "handedness": -1.0,
+              "handle": "PanicBar",
+              "handle_height": 0.9238370656967164,
+              "hardware_finish": "Metal",
+              "mechanism": "Revolving",
+              "opening": 0.0,
+              "panel": "Glazed",
+              "rotor_phase": 0.929847776889801,
+              "stile": 0.045530591160058975,
+              "swing_side": -1.0,
+              "thickness": 0.047201238572597504
+            },
+            "wall_depth": 0.18000000715255737,
+            "width": 2.5,
+            "yaw": 0.0
+          },
+          "seed": 3
+        },
+        {
+          "build_ms": 1.077605,
+          "mesh": {
+            "batches": 6,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 30116
+          },
+          "program": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "height": 2.25,
+            "id": 0,
+            "program": {
+              "finish": "Plastic",
+              "finish_variant": 6,
+              "frame_finish": "WoodEdge",
+              "handedness": 1.0,
+              "handle": "PanicBar",
+              "handle_height": 0.9427360892295836,
+              "hardware_finish": "Ink",
+              "mechanism": "Revolving",
+              "opening": 0.0,
+              "panel": "Glazed",
+              "rotor_phase": 5.881994724273682,
+              "stile": 0.09206356108188628,
+              "swing_side": 1.0,
+              "thickness": 0.048547159880399704
+            },
+            "wall_depth": 0.18000000715255737,
+            "width": 2.5,
+            "yaw": 0.0
+          },
+          "seed": 7
+        },
+        {
+          "build_ms": 0.983016,
+          "mesh": {
+            "batches": 6,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 30116
+          },
+          "program": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "height": 2.25,
+            "id": 0,
+            "program": {
+              "finish": "Wood",
+              "finish_variant": 8,
+              "frame_finish": "WoodEdge",
+              "handedness": 1.0,
+              "handle": "PanicBar",
+              "handle_height": 1.05557119846344,
+              "hardware_finish": "Chrome",
+              "mechanism": "Revolving",
+              "opening": 0.0,
+              "panel": "Glazed",
+              "rotor_phase": 4.149722099304199,
+              "stile": 0.05323532596230507,
+              "swing_side": 1.0,
+              "thickness": 0.03411133214831352
+            },
+            "wall_depth": 0.18000000715255737,
+            "width": 2.5,
+            "yaw": 0.0
+          },
+          "seed": 11
+        },
+        {
+          "build_ms": 1.492388,
+          "mesh": {
+            "batches": 6,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 30116
+          },
+          "program": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "height": 2.25,
+            "id": 0,
+            "program": {
+              "finish": "WoodEdge",
+              "finish_variant": 1,
+              "frame_finish": "Metal",
+              "handedness": 1.0,
+              "handle": "PanicBar",
+              "handle_height": 1.0085062980651855,
+              "hardware_finish": "Ink",
+              "mechanism": "Revolving",
+              "opening": 0.0,
+              "panel": "Glazed",
+              "rotor_phase": 1.4070686101913452,
+              "stile": 0.056645333766937256,
+              "swing_side": 1.0,
+              "thickness": 0.039698176085948944
+            },
+            "wall_depth": 0.18000000715255737,
+            "width": 2.5,
+            "yaw": 0.0
+          },
+          "seed": 17
+        },
+        {
+          "build_ms": 0.986048,
+          "mesh": {
+            "batches": 6,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 30116
+          },
+          "program": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "height": 2.25,
+            "id": 0,
+            "program": {
+              "finish": "WoodEdge",
+              "finish_variant": 1,
+              "frame_finish": "WoodEdge",
+              "handedness": 1.0,
+              "handle": "PanicBar",
+              "handle_height": 1.045646905899048,
+              "hardware_finish": "Chrome",
+              "mechanism": "Revolving",
+              "opening": 0.0,
+              "panel": "Glazed",
+              "rotor_phase": 3.298081159591675,
+              "stile": 0.05026751011610031,
+              "swing_side": -1.0,
+              "thickness": 0.04729253053665161
+            },
+            "wall_depth": 0.18000000715255737,
+            "width": 2.5,
+            "yaw": 0.0
+          },
+          "seed": 23
+        }
+      ],
+      "selection": "door states closed/ajar/open plus prespecified seeds; cabinet seeds 0/3/7/11/17/23; illustrative, not frequency-weighted",
+      "semantic_pixel_counts": [
+        {
+          "background": 2427,
+          "door": 27578,
+          "door_frame": 12381,
+          "door_hardware": 567,
+          "floor": 59447
+        },
+        {
+          "background": 2426,
+          "door": 29992,
+          "door_frame": 12405,
+          "door_hardware": 666,
+          "floor": 56911
+        },
+        {
+          "background": 2427,
+          "door": 28246,
+          "door_frame": 13811,
+          "door_hardware": 838,
+          "floor": 57078
+        },
+        {
+          "background": 2427,
+          "door": 29473,
+          "door_frame": 12800,
+          "door_hardware": 834,
+          "floor": 56866
+        },
+        {
+          "background": 2426,
+          "door": 25541,
+          "door_frame": 16013,
+          "door_hardware": 804,
+          "floor": 57616
+        },
+        {
+          "background": 2425,
+          "door": 26836,
+          "door_frame": 13921,
+          "door_hardware": 626,
+          "floor": 58592
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 0.609538721,
+      "kind": "Cabinet",
+      "selected": [
+        {
+          "build_ms": 0.970966,
+          "mesh": {
+            "batches": 2,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 1512
+          },
+          "program": {
+            "columns": 2,
+            "fill": 0.42274272441864014,
+            "front": 4,
+            "handle": 3,
+            "levels": 2,
+            "metal": true,
+            "open_back": false,
+            "open_fraction": 0.25365835428237915,
+            "opening_radians": 0.0,
+            "panel_m": 0.019931018352508545
+          },
+          "seed": 0
+        },
+        {
+          "build_ms": 0.058886,
+          "mesh": {
+            "batches": 3,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 1196
+          },
+          "program": {
+            "columns": 1,
+            "fill": 0.37025511264801025,
+            "front": 3,
+            "handle": 1,
+            "levels": 2,
+            "metal": false,
+            "open_back": false,
+            "open_fraction": 0.9448974132537842,
+            "opening_radians": 0.0,
+            "panel_m": 0.022667506709694862
+          },
+          "seed": 3
+        },
+        {
+          "build_ms": 0.079726,
+          "mesh": {
+            "batches": 3,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 1728
+          },
+          "program": {
+            "columns": 2,
+            "fill": 0.4681752324104309,
+            "front": 2,
+            "handle": 2,
+            "levels": 2,
+            "metal": false,
+            "open_back": true,
+            "open_fraction": 0.8387384414672852,
+            "opening_radians": 0.0,
+            "panel_m": 0.015131831169128418
+          },
+          "seed": 7
+        },
+        {
+          "build_ms": 0.084014,
+          "mesh": {
+            "batches": 3,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 2160
+          },
+          "program": {
+            "columns": 2,
+            "fill": 0.3408049941062927,
+            "front": 2,
+            "handle": 2,
+            "levels": 3,
+            "metal": false,
+            "open_back": false,
+            "open_fraction": 0.4447985589504242,
+            "opening_radians": 0.16247358918190002,
+            "panel_m": 0.02400435134768486
+          },
+          "seed": 11
+        },
+        {
+          "build_ms": 0.135325,
+          "mesh": {
+            "batches": 8,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 3172
+          },
+          "program": {
+            "columns": 2,
+            "fill": 0.3798057436943054,
+            "front": 3,
+            "handle": 1,
+            "levels": 3,
+            "metal": false,
+            "open_back": true,
+            "open_fraction": 0.6787995100021362,
+            "opening_radians": 0.0,
+            "panel_m": 0.017378652468323708
+          },
+          "seed": 17
+        },
+        {
+          "build_ms": 0.053907,
+          "mesh": {
+            "batches": 6,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 1188
+          },
+          "program": {
+            "columns": 1,
+            "fill": 0.5609091520309448,
+            "front": 3,
+            "handle": 2,
+            "levels": 2,
+            "metal": false,
+            "open_back": true,
+            "open_fraction": 0.7457536458969116,
+            "opening_radians": 0.0,
+            "panel_m": 0.027583353221416473
+          },
+          "seed": 23
+        }
+      ],
+      "selection": "door states closed/ajar/open plus prespecified seeds; cabinet seeds 0/3/7/11/17/23; illustrative, not frequency-weighted",
+      "semantic_pixel_counts": [
+        {
+          "background": 1463,
+          "cabinet": 50213,
+          "floor": 50724
+        },
+        {
+          "background": 1463,
+          "cabinet": 50172,
+          "cabinet_hardware": 13,
+          "floor": 50752
+        },
+        {
+          "background": 1463,
+          "cabinet": 49931,
+          "cabinet_hardware": 164,
+          "floor": 50842
+        },
+        {
+          "background": 1464,
+          "cabinet": 45085,
+          "cabinet_hardware": 204,
+          "floor": 55647
+        },
+        {
+          "background": 1464,
+          "books": 1083,
+          "box": 3218,
+          "cabinet": 45811,
+          "cabinet_hardware": 38,
+          "floor": 50786
+        },
+        {
+          "background": 1463,
+          "box": 4950,
+          "cabinet": 45261,
+          "cabinet_hardware": 84,
+          "floor": 50642
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 0.522206338,
+      "kind": "KitchenCounter",
+      "selected": [
+        {
+          "build_ms": 0.409278,
+          "mesh": {
+            "batches": 5,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 5808
+          },
+          "program": {
+            "counter_doors": true,
+            "doors": 1,
+            "drawers": 0,
+            "front": "Wood",
+            "front_profile": 0,
+            "handles": 4,
+            "hardware": "WoodEdge",
+            "installation": "fitted",
+            "island": null,
+            "opening_radians": 0.8612338900566101,
+            "top": "Wood"
+          },
+          "seed": 0
+        },
+        {
+          "build_ms": 0.718625,
+          "mesh": {
+            "batches": 6,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 7216
+          },
+          "program": {
+            "counter_doors": true,
+            "doors": 1,
+            "drawers": 0,
+            "front": "Wood",
+            "front_profile": 1,
+            "handles": 3,
+            "hardware": "Chrome",
+            "installation": "fitted",
+            "island": null,
+            "opening_radians": 0.4713507294654846,
+            "top": "Metal"
+          },
+          "seed": 3
+        },
+        {
+          "build_ms": 0.090205,
+          "mesh": {
+            "batches": 3,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 2376
+          },
+          "program": {
+            "counter_doors": false,
+            "doors": 0,
+            "drawers": 3,
+            "front": "Wood",
+            "front_profile": 2,
+            "handles": 4,
+            "hardware": "Metal",
+            "installation": "fitted",
+            "island": null,
+            "opening_radians": 0.0,
+            "top": "Metal"
+          },
+          "seed": 7
+        },
+        {
+          "build_ms": 0.244121,
+          "mesh": {
+            "batches": 7,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 5732
+          },
+          "program": {
+            "counter_doors": true,
+            "doors": 2,
+            "drawers": 0,
+            "front": "Plastic",
+            "front_profile": 0,
+            "handles": 2,
+            "hardware": "Ink",
+            "installation": "fitted",
+            "island": null,
+            "opening_radians": 1.262697696685791,
+            "top": "Metal"
+          },
+          "seed": 11
+        },
+        {
+          "build_ms": 0.083989,
+          "mesh": {
+            "batches": 5,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 2052
+          },
+          "program": {
+            "counter_doors": false,
+            "doors": 0,
+            "drawers": 2,
+            "front": "Metal",
+            "front_profile": 3,
+            "handles": 3,
+            "hardware": "Ink",
+            "installation": "fitted",
+            "island": null,
+            "opening_radians": 0.0,
+            "top": "Metal"
+          },
+          "seed": 17
+        },
+        {
+          "build_ms": 0.50971,
+          "mesh": {
+            "batches": 5,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 10140
+          },
+          "program": {
+            "counter_doors": true,
+            "doors": 1,
+            "drawers": 0,
+            "front": "Plastic",
+            "front_profile": 0,
+            "handles": 1,
+            "hardware": "Metal",
+            "installation": "fitted",
+            "island": null,
+            "opening_radians": 0.0,
+            "top": "Metal"
+          },
+          "seed": 23
+        }
+      ],
+      "selection": "door states closed/ajar/open plus prespecified seeds; cabinet seeds 0/3/7/11/17/23; illustrative, not frequency-weighted",
+      "semantic_pixel_counts": [
+        {
+          "background": 1600,
+          "cabinet": 33877,
+          "counter": 5930,
+          "dishware": 433,
+          "floor": 60560
+        },
+        {
+          "background": 1600,
+          "cabinet": 26188,
+          "cabinet_hardware": 126,
+          "counter": 4182,
+          "dishware": 2237,
+          "floor": 68067
+        },
+        {
+          "background": 1600,
+          "cabinet": 38642,
+          "counter": 5992,
+          "floor": 56166
+        },
+        {
+          "background": 1600,
+          "cabinet": 30462,
+          "cabinet_hardware": 65,
+          "counter": 3967,
+          "dishware": 1830,
+          "floor": 64476
+        },
+        {
+          "background": 1529,
+          "cabinet": 44695,
+          "cabinet_hardware": 313,
+          "counter": 5897,
+          "floor": 49966
+        },
+        {
+          "background": 1558,
+          "cabinet": 40281,
+          "cabinet_hardware": 30,
+          "counter": 6324,
+          "dishware": 83,
+          "floor": 54124
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 0.533365127,
+      "kind": "KitchenCupboard",
+      "selected": [
+        {
+          "build_ms": 0.216532,
+          "mesh": {
+            "batches": 6,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 6672
+          },
+          "program": {
+            "cabinet_motion": 1,
+            "contents": true,
+            "door_style": 3,
+            "finish": "Wood",
+            "front_profile": 0,
+            "handles": 4,
+            "hardware": "WoodEdge",
+            "opening_radians": 0.8612338900566101,
+            "paired": false,
+            "shelves": 4,
+            "upper_bottom_fraction": 0.6143276691436768,
+            "upper_depth_fraction": 0.7142893671989441,
+            "upper_offset_fraction": 0.06246626377105713,
+            "upper_width_fraction": 0.9014338850975036
+          },
+          "seed": 0
+        },
+        {
+          "build_ms": 0.24619699999999997,
+          "mesh": {
+            "batches": 7,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 8672
+          },
+          "program": {
+            "cabinet_motion": 0,
+            "contents": true,
+            "door_style": 3,
+            "finish": "Wood",
+            "front_profile": 1,
+            "handles": 3,
+            "hardware": "Chrome",
+            "opening_radians": 0.4713507294654846,
+            "paired": false,
+            "shelves": 4,
+            "upper_bottom_fraction": 0.6670370697975159,
+            "upper_depth_fraction": 0.6127697825431824,
+            "upper_offset_fraction": 0.43160712718963623,
+            "upper_width_fraction": 0.8515581488609314
+          },
+          "seed": 3
+        },
+        {
+          "build_ms": 0.183234,
+          "mesh": {
+            "batches": 6,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 7332
+          },
+          "program": {
+            "cabinet_motion": 2,
+            "contents": true,
+            "door_style": 2,
+            "finish": "Wood",
+            "front_profile": 2,
+            "handles": 4,
+            "hardware": "Metal",
+            "opening_radians": 0.0,
+            "paired": true,
+            "shelves": 3,
+            "upper_bottom_fraction": 0.6900783777236938,
+            "upper_depth_fraction": 0.4876225590705872,
+            "upper_offset_fraction": 0.35362446308135986,
+            "upper_width_fraction": 0.9168184995651244
+          },
+          "seed": 7
+        },
+        {
+          "build_ms": 0.2436,
+          "mesh": {
+            "batches": 8,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 7112
+          },
+          "program": {
+            "cabinet_motion": 2,
+            "contents": true,
+            "door_style": 1,
+            "finish": "Plastic",
+            "front_profile": 0,
+            "handles": 2,
+            "hardware": "Ink",
+            "opening_radians": 1.262697696685791,
+            "paired": true,
+            "shelves": 3,
+            "upper_bottom_fraction": 0.6157615184783936,
+            "upper_depth_fraction": 0.5465444922447205,
+            "upper_offset_fraction": -0.05911213159561157,
+            "upper_width_fraction": 0.919236183166504
+          },
+          "seed": 11
+        },
+        {
+          "build_ms": 0.171605,
+          "mesh": {
+            "batches": 8,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 6056
+          },
+          "program": {
+            "cabinet_motion": 0,
+            "contents": true,
+            "door_style": 1,
+            "finish": "Metal",
+            "front_profile": 3,
+            "handles": 3,
+            "hardware": "Ink",
+            "opening_radians": 0.0,
+            "paired": false,
+            "shelves": 2,
+            "upper_bottom_fraction": 0.6450420022010803,
+            "upper_depth_fraction": 0.6503319144248962,
+            "upper_offset_fraction": 0.23958325386047363,
+            "upper_width_fraction": 0.8910265564918518
+          },
+          "seed": 17
+        },
+        {
+          "build_ms": 0.27269099999999996,
+          "mesh": {
+            "batches": 6,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 10536
+          },
+          "program": {
+            "cabinet_motion": 0,
+            "contents": true,
+            "door_style": 0,
+            "finish": "Plastic",
+            "front_profile": 0,
+            "handles": 1,
+            "hardware": "Metal",
+            "opening_radians": 0.0,
+            "paired": false,
+            "shelves": 4,
+            "upper_bottom_fraction": 0.6266284584999084,
+            "upper_depth_fraction": 0.7124475240707397,
+            "upper_offset_fraction": -0.3662895262241363,
+            "upper_width_fraction": 0.9716326594352722
+          },
+          "seed": 23
+        }
+      ],
+      "selection": "door states closed/ajar/open plus prespecified seeds; cabinet seeds 0/3/7/11/17/23; illustrative, not frequency-weighted",
+      "semantic_pixel_counts": [
+        {
+          "background": 2219,
+          "cabinet": 20453,
+          "counter": 2578,
+          "dishware": 496,
+          "floor": 76654
+        },
+        {
+          "background": 2157,
+          "cabinet": 16133,
+          "cabinet_hardware": 64,
+          "counter": 2000,
+          "dishware": 588,
+          "floor": 81458
+        },
+        {
+          "background": 2271,
+          "cabinet": 17568,
+          "counter": 2313,
+          "dishware": 1443,
+          "floor": 78805
+        },
+        {
+          "background": 2220,
+          "cabinet": 16139,
+          "cabinet_hardware": 26,
+          "counter": 1725,
+          "dishware": 940,
+          "floor": 81350
+        },
+        {
+          "background": 2267,
+          "cabinet": 17040,
+          "cabinet_hardware": 58,
+          "counter": 1930,
+          "dishware": 13,
+          "floor": 81092
+        },
+        {
+          "background": 2238,
+          "cabinet": 19559,
+          "cabinet_hardware": 12,
+          "counter": 2378,
+          "dishware": 20,
+          "floor": 78193
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 0.558110076,
+      "kind": "Pantry",
+      "selected": [
+        {
+          "build_ms": 0.113553,
+          "mesh": {
+            "batches": 8,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 3404
+          },
+          "program": {
+            "cabinet_motion": 1,
+            "contents": true,
+            "door_style": 3,
+            "finish": "Wood",
+            "front_profile": 0,
+            "handles": 4,
+            "hardware": "WoodEdge",
+            "opening_radians": 0.8612338900566101,
+            "paired": false,
+            "shelves": 4,
+            "upper_bottom_fraction": 0.6143276691436768,
+            "upper_depth_fraction": 0.7142893671989441,
+            "upper_offset_fraction": 0.06246626377105713,
+            "upper_width_fraction": 0.9014338850975036
+          },
+          "seed": 0
+        },
+        {
+          "build_ms": 0.27285200000000004,
+          "mesh": {
+            "batches": 8,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 5248
+          },
+          "program": {
+            "cabinet_motion": 0,
+            "contents": true,
+            "door_style": 3,
+            "finish": "Wood",
+            "front_profile": 1,
+            "handles": 3,
+            "hardware": "Chrome",
+            "opening_radians": 0.4713507294654846,
+            "paired": false,
+            "shelves": 4,
+            "upper_bottom_fraction": 0.6670370697975159,
+            "upper_depth_fraction": 0.6127697825431824,
+            "upper_offset_fraction": 0.43160712718963623,
+            "upper_width_fraction": 0.8515581488609314
+          },
+          "seed": 3
+        },
+        {
+          "build_ms": 0.184174,
+          "mesh": {
+            "batches": 8,
+            "max_envelope_overrun_m": 2.384185791015625e-7,
+            "min_y_m": 0.0,
+            "triangles": 3768
+          },
+          "program": {
+            "cabinet_motion": 2,
+            "contents": true,
+            "door_style": 2,
+            "finish": "Wood",
+            "front_profile": 2,
+            "handles": 4,
+            "hardware": "Metal",
+            "opening_radians": 0.0,
+            "paired": true,
+            "shelves": 3,
+            "upper_bottom_fraction": 0.6900783777236938,
+            "upper_depth_fraction": 0.4876225590705872,
+            "upper_offset_fraction": 0.35362446308135986,
+            "upper_width_fraction": 0.9168184995651244
+          },
+          "seed": 7
+        },
+        {
+          "build_ms": 0.203511,
+          "mesh": {
+            "batches": 9,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 4140
+          },
+          "program": {
+            "cabinet_motion": 2,
+            "contents": true,
+            "door_style": 1,
+            "finish": "Plastic",
+            "front_profile": 0,
+            "handles": 2,
+            "hardware": "Ink",
+            "opening_radians": 1.262697696685791,
+            "paired": true,
+            "shelves": 3,
+            "upper_bottom_fraction": 0.6157615184783936,
+            "upper_depth_fraction": 0.5465444922447205,
+            "upper_offset_fraction": -0.05911213159561157,
+            "upper_width_fraction": 0.919236183166504
+          },
+          "seed": 11
+        },
+        {
+          "build_ms": 0.193109,
+          "mesh": {
+            "batches": 10,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 4124
+          },
+          "program": {
+            "cabinet_motion": 0,
+            "contents": true,
+            "door_style": 1,
+            "finish": "Metal",
+            "front_profile": 3,
+            "handles": 3,
+            "hardware": "Ink",
+            "opening_radians": 0.0,
+            "paired": false,
+            "shelves": 2,
+            "upper_bottom_fraction": 0.6450420022010803,
+            "upper_depth_fraction": 0.6503319144248962,
+            "upper_offset_fraction": 0.23958325386047363,
+            "upper_width_fraction": 0.8910265564918518
+          },
+          "seed": 17
+        },
+        {
+          "build_ms": 0.217173,
+          "mesh": {
+            "batches": 9,
+            "max_envelope_overrun_m": 2.384185791015625e-7,
+            "min_y_m": 0.0,
+            "triangles": 5224
+          },
+          "program": {
+            "cabinet_motion": 0,
+            "contents": true,
+            "door_style": 0,
+            "finish": "Plastic",
+            "front_profile": 0,
+            "handles": 1,
+            "hardware": "Metal",
+            "opening_radians": 0.0,
+            "paired": false,
+            "shelves": 4,
+            "upper_bottom_fraction": 0.6266284584999084,
+            "upper_depth_fraction": 0.7124475240707397,
+            "upper_offset_fraction": -0.3662895262241363,
+            "upper_width_fraction": 0.9716326594352722
+          },
+          "seed": 23
+        }
+      ],
+      "selection": "door states closed/ajar/open plus prespecified seeds; cabinet seeds 0/3/7/11/17/23; illustrative, not frequency-weighted",
+      "semantic_pixel_counts": [
+        {
+          "background": 2199,
+          "cabinet": 21577,
+          "dishware": 59,
+          "floor": 78032,
+          "food": 533
+        },
+        {
+          "background": 2140,
+          "cabinet": 17215,
+          "cabinet_hardware": 36,
+          "dishware": 446,
+          "floor": 81760,
+          "food": 803
+        },
+        {
+          "background": 2253,
+          "cabinet": 18631,
+          "dishware": 484,
+          "floor": 79447,
+          "food": 1585
+        },
+        {
+          "background": 2204,
+          "cabinet": 19110,
+          "cabinet_hardware": 20,
+          "dishware": 154,
+          "floor": 80332,
+          "food": 580
+        },
+        {
+          "background": 2251,
+          "cabinet": 18273,
+          "cabinet_hardware": 34,
+          "dishware": 19,
+          "floor": 81804,
+          "food": 19
+        },
+        {
+          "background": 2220,
+          "cabinet": 20332,
+          "cabinet_hardware": 6,
+          "dishware": 32,
+          "floor": 79759,
+          "food": 51
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 1.175518941,
+      "kind": "KitchenSink",
+      "selected": [
+        {
+          "build_ms": 0.45934,
+          "mesh": {
+            "batches": 10,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 4360
+          },
+          "program": {
+            "basins": 1,
+            "cabinet_motion": 1,
+            "dish_soap": true,
+            "dishes": 3,
+            "door_style": 3,
+            "draining_board": false,
+            "faucet": 1,
+            "faucet_handles": 0,
+            "front_profile": 0,
+            "hand_soap": false,
+            "handles": 4,
+            "opening_radians": 0.8612338900566101,
+            "sponge": false,
+            "top": "Wood"
+          },
+          "seed": 0
+        },
+        {
+          "build_ms": 0.27731,
+          "mesh": {
+            "batches": 12,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 6220
+          },
+          "program": {
+            "basins": 1,
+            "cabinet_motion": 0,
+            "dish_soap": true,
+            "dishes": 2,
+            "door_style": 3,
+            "draining_board": false,
+            "faucet": 3,
+            "faucet_handles": 2,
+            "front_profile": 1,
+            "hand_soap": true,
+            "handles": 3,
+            "opening_radians": 0.4713507294654846,
+            "sponge": false,
+            "top": "Metal"
+          },
+          "seed": 3
+        },
+        {
+          "build_ms": 0.318967,
+          "mesh": {
+            "batches": 13,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 6988
+          },
+          "program": {
+            "basins": 2,
+            "cabinet_motion": 2,
+            "dish_soap": true,
+            "dishes": 0,
+            "door_style": 2,
+            "draining_board": true,
+            "faucet": 2,
+            "faucet_handles": 1,
+            "front_profile": 2,
+            "hand_soap": true,
+            "handles": 4,
+            "opening_radians": 0.0,
+            "sponge": true,
+            "top": "Metal"
+          },
+          "seed": 7
+        },
+        {
+          "build_ms": 0.27873,
+          "mesh": {
+            "batches": 13,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 6500
+          },
+          "program": {
+            "basins": 2,
+            "cabinet_motion": 2,
+            "dish_soap": false,
+            "dishes": 0,
+            "door_style": 1,
+            "draining_board": false,
+            "faucet": 2,
+            "faucet_handles": 1,
+            "front_profile": 0,
+            "hand_soap": true,
+            "handles": 2,
+            "opening_radians": 1.262697696685791,
+            "sponge": true,
+            "top": "Metal"
+          },
+          "seed": 11
+        },
+        {
+          "build_ms": 0.179865,
+          "mesh": {
+            "batches": 10,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 3844
+          },
+          "program": {
+            "basins": 1,
+            "cabinet_motion": 0,
+            "dish_soap": false,
+            "dishes": 1,
+            "door_style": 1,
+            "draining_board": false,
+            "faucet": 1,
+            "faucet_handles": 2,
+            "front_profile": 3,
+            "hand_soap": false,
+            "handles": 3,
+            "opening_radians": 0.0,
+            "sponge": false,
+            "top": "Metal"
+          },
+          "seed": 17
+        },
+        {
+          "build_ms": 0.415574,
+          "mesh": {
+            "batches": 15,
+            "max_envelope_overrun_m": 0.0,
+            "min_y_m": 0.0,
+            "triangles": 9428
+          },
+          "program": {
+            "basins": 2,
+            "cabinet_motion": 0,
+            "dish_soap": true,
+            "dishes": 3,
+            "door_style": 0,
+            "draining_board": true,
+            "faucet": 2,
+            "faucet_handles": 0,
+            "front_profile": 0,
+            "hand_soap": true,
+            "handles": 1,
+            "opening_radians": 0.0,
+            "sponge": true,
+            "top": "Metal"
+          },
+          "seed": 23
+        }
+      ],
+      "selection": "door states closed/ajar/open plus prespecified seeds; cabinet seeds 0/3/7/11/17/23; illustrative, not frequency-weighted",
+      "semantic_pixel_counts": [
+        {
+          "background": 1742,
+          "cabinet": 25278,
+          "counter": 3971,
+          "faucet": 271,
+          "floor": 67492,
+          "sink": 3477,
+          "soap_dispenser": 169
+        },
+        {
+          "background": 1687,
+          "cabinet": 21115,
+          "cabinet_hardware": 106,
+          "counter": 3103,
+          "faucet": 325,
+          "floor": 70954,
+          "sink": 4832,
+          "soap_dispenser": 278
+        },
+        {
+          "background": 1735,
+          "cabinet": 25303,
+          "cleaning_supply": 234,
+          "counter": 3642,
+          "dishware": 1318,
+          "faucet": 258,
+          "floor": 64744,
+          "sink": 4889,
+          "soap_dispenser": 277
+        },
+        {
+          "background": 1714,
+          "cabinet": 24163,
+          "cabinet_hardware": 54,
+          "cleaning_supply": 166,
+          "counter": 2848,
+          "faucet": 217,
+          "floor": 68580,
+          "sink": 4540,
+          "soap_dispenser": 118
+        },
+        {
+          "background": 1738,
+          "cabinet": 24636,
+          "cabinet_hardware": 90,
+          "counter": 3398,
+          "faucet": 299,
+          "floor": 69762,
+          "sink": 2477
+        },
+        {
+          "background": 1723,
+          "cabinet": 27379,
+          "cabinet_hardware": 59,
+          "cleaning_supply": 238,
+          "counter": 3722,
+          "dishware": 1830,
+          "faucet": 220,
+          "floor": 64828,
+          "sink": 2117,
+          "soap_dispenser": 284
+        }
+      ]
+    }
+  ],
+  "image_size": [
+    320,
+    320
+  ],
+  "lighting": "fixed 1400/250 lux directional studio lights with shadows and shared procedural PBR environment",
+  "renderer": "AdapterInfo { name: \"NVIDIA RTX PRO 6000 Blackwell Workstation Edition\", vendor: 4318, device: 11185, device_type: DiscreteGpu, device_pci_bus_id: \"0000:01:00.0\", driver: \"NVIDIA\", driver_info: \"610.43.02\", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: Some(false), limit_bucket: None }",
+  "schema_version": 1
+}

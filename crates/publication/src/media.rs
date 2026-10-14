@@ -3,7 +3,7 @@ use crate::{
     dataset::{area, features, number, Dataset},
     graphics, io, visibility,
 };
-use anyhow::{ensure, Result};
+use anyhow::{ensure, Context, Result};
 use image::{Rgb, RgbImage};
 use serde_json::{json, Value};
 use std::{
@@ -75,6 +75,11 @@ pub fn build(dataset: &Dataset, stage: &Path, protocol: &Protocol) -> Result<Val
                     let source = scene.folder.join(format!("view_{index:02}_{mode}.png"));
                     let destination = format!("s{seed}-t{step}-c{camera}-{mode}.webp");
                     let rgb = image::open(source)?.into_rgb8();
+                    let rgb = if mode == "depth" {
+                        crate::depth::preview(&rgb)?
+                    } else {
+                        rgb
+                    };
                     graphics::save_webp(rgb.clone(), &media.join(&destination))?;
                     ensure!(
                         image::open(media.join(&destination))?.into_rgb8() == rgb,
@@ -194,7 +199,7 @@ pub fn build(dataset: &Dataset, stage: &Path, protocol: &Protocol) -> Result<Val
         "rendered_views":protocol.rendered_rooms*protocol.cameras*protocol.playback_steps,"capture_size":[protocol.width,protocol.height],"modes":MODES,
         "quantized_structural_signatures":dataset.summary["quantized_structural_signatures"],"frames_per_camera":protocol.playback_steps,"selection":"All consecutive rooms retained; shortcuts chosen by structural feature coverage with stable seed ties.",
         "featured":featured,"feature_room_counts":dataset.summary["feature_room_counts"],"population_plot_totals":plot_totals(&dataset.metrics),"scenes":records,
-        "display":{"color":"Original renderer-tone-mapped sRGB, lossless WebP. No exposure correction or crop.","depth":"Grayscale linear depth / 15 m, clamped to [0,1]; 8-bit display preview.","normal":"View-space (n+1)/2; 8-bit display preview.","position":"World position normalized by annotation AABB, clamped for display.","semantic":"Original semantic palette; lossless WebP.","co_visibility":"Same-time first-surface camera membership; additive camera colors; source excluded. Exact masks distinguish valid unshared surfaces from background.","plans":"Manifest metric envelope and floor levels; furniture footprint proxies. Camera arrows indicate direction, not frusta."},
+        "display":{"color":"Original renderer-tone-mapped sRGB, lossless WebP. No exposure correction or crop.","depth":crate::depth::DESCRIPTION,"normal":"View-space (n+1)/2; 8-bit display preview.","position":"World position normalized by annotation AABB, clamped for display.","semantic":"Original semantic palette; lossless WebP.","co_visibility":"Same-time first-surface camera membership; additive camera colors; source excluded. Exact masks distinguish valid unshared surfaces from background.","plans":"Manifest metric envelope and floor levels; furniture footprint proxies. Camera arrows indicate direction, not frusta."},
         "co_visibility":co_visibility,"annotation_metrics":dataset.summary["annotation_metrics"],"semantic_coverage":dataset.summary["semantic_coverage"],
         "minimum_semantic_classes":dataset.summary["minimum_semantic_classes"],"capture_wall_seconds":dataset.summary["capture_wall_seconds"],
         "fresh_render":false,"source_sha256":dataset.input_sha256,"output_sha256":outputs});
@@ -651,6 +656,11 @@ pub fn fill(template: &str, values: &BTreeMap<&str, String>) -> Result<String> {
     Ok(output)
 }
 pub fn page(gallery: &Value, stage: &Path, protocol: &Protocol) -> Result<()> {
+    let qualification: Value = io::read(
+        &stage
+            .join(crate::qualification::PUBLISHED_DIRECTORY)
+            .join("receipt.json"),
+    )?;
     let scenes = gallery["scenes"].as_array().unwrap();
     let featured = gallery["featured"].as_array().unwrap();
     let seed = featured[0]["seed"].as_u64().unwrap();
@@ -759,7 +769,12 @@ pub fn page(gallery: &Value, stage: &Path, protocol: &Protocol) -> Result<()> {
                 crate::camera_study::page(&report)?
             } else {String::new()}),
             ("GALLERY", body),
+            ("FACTOR_FAMILIES", qualification["family_count"].to_string()),
+            ("FACTOR_SETTINGS", qualification["cases"].as_array().context("missing factor cases")?.len().to_string()),
+            ("FACTOR_VIEWS", qualification["captured_rgb_images"].to_string()),
+            ("ROOM_QUALIFICATION", crate::cohorts::publication::page(stage, protocol.rendered_rooms)?),
             ("OBJECT_STUDY", crate::objects::page().into()),
+            ("DOOR_STUDY",crate::doors::page().into()),
             ("MATERIAL_STUDY", crate::materials::page().into()),
             ("FIRST_SEED",seed.to_string()),
             ("HERO_CAPTION",format!("Top: seed {}, cameras 0 and 3. Bottom: seed {} camera 0, seed {} camera 1. All at t = 0.",seed,featured[1]["seed"],featured[2]["seed"])),

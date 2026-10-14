@@ -137,6 +137,7 @@ pub struct Sample {
     #[serde(default)]
     pub human_instance_ids: Vec<i64>,
 
+    /// Compatibility alias of the first timestep; use human_pose_steps for clips.
     pub human_poses: Vec<HumanPoseSample>,
 
     /// Human pose samples per playback step (outer index aligns with timestep).
@@ -324,13 +325,17 @@ fn camera_metadata_matches(
     projection: &Projection,
     time: f32,
 ) -> bool {
-    let Projection::Perspective(projection) = projection else {
+    let Some((perspective, _)) = crate::camera::pinhole::parameters(projection) else {
         return false;
     };
     view.world_from_view == transform.to_matrix().to_cols_array_2d()
-        && view.fovy == projection.fov
-        && view.near == projection.near
-        && view.far == projection.far
+        && view.fovy == perspective.fov
+        && view.near == perspective.near
+        && view.far == perspective.far
+        && view.calibration.as_ref().is_none_or(|c| {
+            crate::camera::pinhole::calibration(projection, c.image_size[0], c.image_size[1])
+                .is_ok_and(|expected| expected == *c)
+        })
         && view.time == time
 }
 
@@ -912,6 +917,8 @@ pub fn sample_stream(
                 .enumerate()
                 .map(|(index, (_, _, human))| human.map_or(index as i64, |human| human.id as i64))
                 .collect();
+            let indoor_pose_rig =
+                !ordered_people.is_empty() && ordered_people.iter().all(|(_, _, h)| h.is_some());
             for (_, pose, _) in ordered_people {
                 current_poses.push(HumanPoseSample {
                     bone_positions: pose.bone_positions.iter().map(|p| (*p).into()).collect(),
@@ -922,13 +929,17 @@ pub fn sample_stream(
                         .collect(),
                 });
             }
-            buffered_sample.human_poses = current_poses.clone();
+            if state.step == 0 {
+                buffered_sample.human_poses = current_poses.clone();
+            }
             let step_idx = state.step as usize;
             if let Some(slot) = buffered_sample.human_pose_steps.get_mut(step_idx) {
                 *slot = current_poses;
             }
 
-            if args.scene_type == crate::scene::ZeroverseSceneType::ProceduralIndoor {
+            if indoor_pose_rig
+                || args.scene_type == crate::scene::ZeroverseSceneType::ProceduralIndoor
+            {
                 use crate::scene::procedural_indoor::humans::{
                     HUMAN_BONE_NAMES, HUMAN_BONE_PARENTS,
                 };
@@ -955,18 +966,19 @@ pub fn sample_stream(
                     .and_then(|scene| scene.camera_settings.duration_seconds)
                     .map(|duration| duration * playback.progress);
 
-                match projection {
-                    Projection::Perspective(perspective) => {
-                        view.fovy = perspective.fov;
-                        view.near = perspective.near;
-                        view.far = perspective.far;
-                        view.calibration = Some(bevy_zeroverse_capture::calibration::CameraCalibration::centered_pinhole(
-                            args.width as u32, args.height as u32, perspective.fov, perspective.aspect_ratio,
-                        ).expect("validated capture projection"));
-                    }
-                    Projection::Orthographic(_) => panic!("orthographic projection not supported"),
-                    Projection::Custom(_) => panic!("custom projection not supported"),
-                };
+                let (perspective, _) = crate::camera::pinhole::parameters(projection)
+                    .expect("supported capture projection");
+                view.fovy = perspective.fov;
+                view.near = perspective.near;
+                view.far = perspective.far;
+                view.calibration = Some(
+                    crate::camera::pinhole::calibration(
+                        projection,
+                        args.width as u32,
+                        args.height as u32,
+                    )
+                    .expect("validated capture projection"),
+                );
 
                 let world_from_view = camera_transform.to_matrix().to_cols_array_2d();
                 view.world_from_view = world_from_view;
@@ -1253,6 +1265,9 @@ pub fn sample_stream(
             "build_provenance": crate::provenance::capture_provenance(),
             "world_from_scene": capture.identity.as_ref().and_then(|identity|identity.world_from_scene),
             "camera_qualification": indoor.as_ref().map(|scene| qualification::metadata(scene, &views, camera_count, buffered_sample.aabb)),
+            "functional_programs": indoor.as_ref().map(|s| s.functional_programs()),
+            "support_regions": indoor.as_ref().filter(|s|s.layout.is_public()||s.layout.is_kitchen()).map(|s| crate::scene::procedural_indoor::layout::functional::support_regions(s)),
+            "region_topology": indoor.as_ref().filter(|s|s.layout.is_public()).map(|s| s.room_topology()),
             "quality": args.indoor_quality,
             "material_synthesis": {"gpu_requested": args.indoor_gpu_materials, "gpu": capture_status.material_bake.as_deref(), "policy": "qualified GPU programs; original CPU recipes for other programs or unsupported devices"},
             "exposure": {"ev100": indoor.as_ref().map(|s| s.ev100()), "scope": "all capture cameras; RGB only; geometry annotations unchanged"},

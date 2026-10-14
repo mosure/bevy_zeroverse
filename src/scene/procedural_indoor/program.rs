@@ -41,6 +41,8 @@ pub struct Partition {
     /// Elliptic arch rise; zero retains a rectangular portal.
     #[serde(default)]
     pub arch_rise: f32,
+    #[serde(default)]
+    pub door: Option<super::architecture::doors::DoorProgram>,
     pub thickness: f32,
     pub sill: f32,
     pub glazing_fraction: f32,
@@ -95,7 +97,9 @@ impl Partition {
     }
     pub fn approach(&self) -> (Vec3, Vec3) {
         let p = self.position(self.door_center, 0.0);
-        let half = self.size(self.door_width + 0.30, 0.0, 2.0) * 0.5;
+        // The approach is the passage, not the full track width. Leaf/handle
+        // collision boxes separately reserve the realized moving-front volume.
+        let half = self.size(self.door_width + 0.30, 0., 2.0) * 0.5;
         (p - half, p + half)
     }
     pub fn obstacles(&self, height: f32) -> Vec<(Vec3, Vec3)> {
@@ -223,25 +227,27 @@ impl Partition {
             self.size(self.door_width, height - self.door_height, self.thickness),
             0.003,
         );
-        for along in [
-            self.door_center - self.door_width * 0.5,
-            self.door_center + self.door_width * 0.5,
-        ] {
+        if self.door.is_none() {
+            for along in [
+                self.door_center - self.door_width * 0.5,
+                self.door_center + self.door_width * 0.5,
+            ] {
+                a.box_part(
+                    Surface::WoodEdge,
+                    "door_frame",
+                    self.position(along, (self.door_height - 0.0175) * 0.5),
+                    self.size(0.035, self.door_height - 0.0175, self.thickness + 0.02),
+                    0.002,
+                );
+            }
             a.box_part(
                 Surface::WoodEdge,
-                "door",
-                self.position(along, (self.door_height - 0.0175) * 0.5),
-                self.size(0.035, self.door_height - 0.0175, self.thickness + 0.02),
+                "door_frame",
+                self.position(self.door_center, self.door_height),
+                self.size(self.door_width + 0.035, 0.035, self.thickness + 0.02),
                 0.002,
             );
         }
-        a.box_part(
-            Surface::WoodEdge,
-            "door",
-            self.position(self.door_center, self.door_height),
-            self.size(self.door_width + 0.035, 0.035, self.thickness + 0.02),
-            0.002,
-        );
     }
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -268,7 +274,7 @@ impl IndoorProgram {
         let target_area = rng.random_range(14.0_f32.ln()..140.0_f32.ln()).exp();
         // Tall loft volumes reserve the long, open run needed for a real stair;
         // subdividing them first can make every mezzanine proposal impossible.
-        let attempts = if size.y > 5.8 {
+        let attempts = if size.y > 5.8 || activity.is_kitchen() || activity.is_public() {
             0
         } else {
             ((size.x * size.z / target_area).round() as usize).clamp(1, 12) - 1
@@ -320,6 +326,7 @@ impl IndoorProgram {
                 door_width: width,
                 door_height: rng.random_range(2.08..2.35),
                 arch_rise: 0.0,
+                door: None,
                 thickness: rng.random_range(0.10..0.18),
                 sill: rng.random_range(0.10..1.35),
                 glazing_fraction: if rng.random_bool(0.35) {
@@ -473,6 +480,9 @@ impl IndoorProgram {
                 || p.door_center + p.door_width * 0.5 > p.end - 0.25
                 || p.door_height < 2.0
                 || p.door_height > scene.room_size.y - 0.1
+                || p.door
+                    .as_ref()
+                    .is_some_and(|d| !d.validate() || p.arch_rise > 0.)
                 || p.arch_rise < 0.0
                 || p.arch_rise > 0.8
                 || p.door_height - p.arch_rise < 2.0
@@ -515,7 +525,7 @@ mod tests {
             max_zones = max_zones.max(p.zones.len());
             signatures
                 .insert(serde_json::to_string(&(p.zones.clone(), p.partitions.clone())).unwrap());
-            for portal in &p.partitions {
+            for portal in p.partitions.iter().filter(|p| p.door.is_none()) {
                 let midpoint = portal.position(portal.door_center, 1.0);
                 for (lo, hi) in super::super::floorplan::obstacles(&scene) {
                     assert!(

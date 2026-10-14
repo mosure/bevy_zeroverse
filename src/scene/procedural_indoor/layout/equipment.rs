@@ -432,7 +432,14 @@ fn projector_axis(
                     || point.y <= e.floor_height(point.xz())
                     || point.y >= e.ceiling_height(scene.room_size, point.xz())
             }) || e
-                .ray_hit(scene.room_size, scene.door_x, origin, delta.normalize())
+                .ray_hit(
+                    scene.room_size,
+                    scene.door_x,
+                    scene.entry_width(),
+                    scene.entry_height(),
+                    origin,
+                    delta.normalize(),
+                )
                 .is_some_and(|(distance, _)| distance < delta.length() - 0.001)
         })
         || scene

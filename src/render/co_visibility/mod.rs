@@ -309,7 +309,7 @@ fn update_preview(
                 output.preview = Some(images.add(preview));
             }
             gt.frame_id = *frame;
-            if let Projection::Perspective(p) = projection {
+            if let Some((p, _)) = crate::camera::pinhole::parameters(projection) {
                 gt.near = p.near;
                 gt.far = p.far;
             }

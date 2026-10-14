@@ -288,6 +288,12 @@ pub fn prepare(
 }
 
 pub fn write_paper(output: &Path, receipt: &Value, identity: &GeneratorIdentity) -> Result<()> {
+    validate_receipt(receipt, identity)?;
+    paper::write(output, receipt)?;
+    figures::write(output, receipt)
+}
+
+pub(crate) fn validate_receipt(receipt: &Value, identity: &GeneratorIdentity) -> Result<()> {
     ensure!(receipt["schema_version"] == 1, "timing receipt schema");
     ensure!(
         serde_json::from_value::<GeneratorIdentity>(receipt["identity"].clone())? == *identity,
@@ -302,8 +308,7 @@ pub fn write_paper(output: &Path, receipt: &Value, identity: &GeneratorIdentity)
             "timing statistics mismatch"
         );
     }
-    paper::write(output, receipt)?;
-    figures::write(output, receipt)
+    Ok(())
 }
 
 /// The full publisher regenerates this paper-only section and rejects stale

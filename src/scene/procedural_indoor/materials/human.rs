@@ -7,18 +7,11 @@ pub(super) fn knit(
     seed: u64,
     images: &mut impl AssetStore<Image>,
     materials: &mut impl AssetStore<StandardMaterial>,
+    gpu: bool,
+    requests: &mut gpu::Requests,
 ) -> Handle<StandardMaterial> {
-    let mut recipe =
-        program::sample(seed.wrapping_add(0x4b4e4954))[Surface::Fabric as usize].clone();
-    recipe.layers = None;
-    let textile = recipe.textile.as_mut().unwrap();
-    textile.knit = true;
-    textile.yarn_tint = [[1.; 3]; 2];
-    textile.lustre *= 0.35;
-    recipe.period_m = 0.0015 * textile.yarns[1] as f32;
-    recipe.relief_m = 0.00010 + textile.crimp * 0.0002;
-    recipe.roughness = 0.83;
-    let maps = recipe.maps(0).map(|map| images.add(map));
+    let recipe = knit_recipe(seed);
+    let maps = gpu::Maps::prepare(&recipe, 0, gpu).insert(images, requests);
     let mut material = StandardMaterial {
         base_color: Color::WHITE,
         base_color_texture: Some(maps[0].clone()),
@@ -30,6 +23,20 @@ pub(super) fn knit(
     };
     recipe.apply_pbr(&mut material);
     materials.add(material)
+}
+
+pub(super) fn knit_recipe(seed: u64) -> program::MaterialRecipe {
+    let mut recipe =
+        program::sample(seed.wrapping_add(0x4b4e4954))[Surface::Fabric as usize].clone();
+    recipe.layers = None;
+    let textile = recipe.textile.as_mut().unwrap();
+    textile.knit = true;
+    textile.yarn_tint = [[1.; 3]; 2];
+    textile.lustre *= 0.35;
+    recipe.period_m = 0.0015 * textile.yarns[1] as f32;
+    recipe.relief_m = 0.00010 + textile.crimp * 0.0002;
+    recipe.roughness = 0.83;
+    recipe
 }
 
 /// Shared, neutral microstructure. Human pigmentation and wardrobe colours are

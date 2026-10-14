@@ -17,7 +17,10 @@ pub(crate) struct MaterialBakePlugin;
 impl Plugin for MaterialBakePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<MaterialComputeAvailable>();
-        load_internal_asset!(app, SHADER, "synthesis.wgsl", Shader::from_wgsl);
+        app.add_plugins(super::super::environment::gpu::ReflectionBakePlugin);
+        load_internal_asset!(app, SHADER, "synthesis.wgsl", |source, path| {
+            Shader::from_wgsl([source, include_str!("paint.wgsl")].join("\n"), path)
+        });
 
         if let Some(render) = app.get_sub_app_mut(RenderApp) {
             render
@@ -35,6 +38,7 @@ impl Plugin for MaterialBakePlugin {
                     && l.max_storage_buffers_per_shader_stage >= 4
                     && l.max_storage_buffer_binding_size
                         >= kernel::plane_bytes(kernel::MAX_SIZE) * 3
+                    && l.max_storage_buffer_binding_size >= 32 * 1024 * 1024
             });
         app.world_mut().resource_mut::<MaterialComputeAvailable>().0 = available;
         if !available {
@@ -70,7 +74,7 @@ fn extract(
 struct Pipeline {
     layout: BindGroupLayout,
     descriptor: BindGroupLayoutDescriptor,
-    ids: Option<[CachedComputePipelineId; 7]>,
+    ids: Option<[CachedComputePipelineId; 8]>,
 }
 impl FromWorld for Pipeline {
     fn from_world(world: &mut World) -> Self {
@@ -172,8 +176,8 @@ fn bake(world: &World, mut context: RenderContext) {
             context.command_encoder(),
             [
                 pipelines[r.recipe.meta[0] as usize],
-                pipelines[5],
-                pipelines[6],
+                pipelines[kernel::NORMALS],
+                pipelines[kernel::MIPS],
             ],
             &bindings,
             r.recipe.meta[1],

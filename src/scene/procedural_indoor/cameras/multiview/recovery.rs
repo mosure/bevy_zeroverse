@@ -179,13 +179,14 @@ fn alternate_reference(
         ][attempt % 8];
         let end = origin + direction * length;
         let mut camera = IndoorCamera {
+            principal_point_offset: None,
             start: origin,
             end,
             target: aim,
             fov_degrees: if original_frame {
                 source.fov_degrees
             } else {
-                106.
+                scene.camera_settings.intrinsics.recovery(106.)
             },
             motion: (length > 0.).then_some(super::super::CameraMotion {
                 orientations: None,
@@ -393,6 +394,7 @@ pub(super) fn complete(
                                 reachable,
                                 Vec2::ZERO,
                                 policy,
+                                &scene.camera_settings.intrinsics,
                                 rng,
                             );
                             let offset = origin - camera.start;
@@ -425,10 +427,14 @@ pub(super) fn complete(
                             let direction = [optical, -optical, Vec3::Y][mode - 1];
                             let end = origin + direction * length;
                             IndoorCamera {
+                                principal_point_offset: None,
                                 start: origin,
                                 end,
                                 target: template.target,
-                                fov_degrees: [template.fov_degrees, 96., 106.][mode - 1],
+                                fov_degrees: scene
+                                    .camera_settings
+                                    .intrinsics
+                                    .recovery([template.fov_degrees, 96., 106.][mode - 1]),
                                 motion: (length > 0.).then_some(super::super::CameraMotion {
                                     orientations: None,
                                     route: Vec::new(),
@@ -494,10 +500,11 @@ pub(super) fn complete(
                         let end = origin + direction * length;
                         let aim = content[index % content.len()];
                         let mut camera = IndoorCamera {
+                            principal_point_offset: None,
                             start: origin,
                             end,
                             target: aim,
-                            fov_degrees: 106.,
+                            fov_degrees: scene.camera_settings.intrinsics.recovery(106.),
                             motion: (length > 0.).then_some(super::super::CameraMotion {
                                 orientations: None,
                                 route: Vec::new(),
@@ -573,6 +580,7 @@ pub(super) fn complete(
                             // height draw could have no interval under a sloping roof.
                             Vec2::ZERO,
                             policy,
+                            &scene.camera_settings.intrinsics,
                             rng,
                         );
                         let offset = origin - camera.start;
@@ -596,8 +604,11 @@ pub(super) fn complete(
                         };
                         let aim_offset = aim - camera.target;
                         camera.target = aim;
-                        // Wide alternatives stay in the original focal-length range.
-                        camera.fov_degrees = [template.fov_degrees, 84., 96., 106.][attempt % 4];
+                        // Recovery respects the requested lens bounds.
+                        camera.fov_degrees = scene
+                            .camera_settings
+                            .intrinsics
+                            .recovery([template.fov_degrees, 84., 96., 106.][attempt % 4]);
                         if let Some(motion) = &mut camera.motion {
                             for point in motion.control.iter_mut().chain(&mut motion.route) {
                                 *point += offset;
@@ -622,13 +633,17 @@ pub(super) fn complete(
                         Some(3)
                     } else if !coverage.suitable(&camera, false) {
                         Some(4)
-                    } else if !policy.accepts(&pair_samples(
-                        coverage,
-                        &reference,
-                        &views,
-                        &camera,
-                        scene.camera_aspect_ratio,
-                    )) {
+                    } else if !(if policy.graph == OverlapGraph::Connected {
+                        connected::candidate_links(scene, coverage, &camera, policy)
+                    } else {
+                        policy.accepts(&pair_samples(
+                            coverage,
+                            &reference,
+                            &views,
+                            &camera,
+                            scene.camera_aspect_ratio,
+                        ))
+                    }) {
                         Some(5)
                     } else {
                         None

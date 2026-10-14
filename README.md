@@ -73,7 +73,11 @@ rooms, synchronized views, matching annotations, floor plans and distributions.
   suspended ceilings, ducts, conduit, sprinklers and trusses vary overhead detail.
   Windows include shaped glazing, tints, partial frosting, blinds and curtains;
   exterior streets and planting provide context beyond the glass.
-- **Procedural furnishings and appearance:** 64 item kinds, multipart furniture,
+- **Functional interiors:** offices, kitchens and kitchenettes, cafes, cafeterias,
+  classrooms, lecture halls, elevator landings, showrooms and galleries. Service,
+  seating and circulation areas have placement and clearance constraints. Doors
+  and cabinetry vary their mechanisms, hardware, materials and opening states.
+- **Procedural furnishings and appearance:** 100 item kinds, multipart furniture,
   task-conditioned tabletop groups, multi-monitor workspaces, coordinated wall
   galleries, 14 plant growth habits, connected equipment and fixtures. Continuous
   construction and finish programs vary furniture supports, shaped upholstery,
@@ -86,11 +90,15 @@ rooms, synchronized views, matching annotations, floor plans and distributions.
   Supported PBR recipes bake once on the GPU by default, with CPU fallback.
   Finite, separately labelled sky geometry closes window views without changing
   primary-room reconstruction bounds. RGB exposure is adjustable in Scene Studio.
-- **Calibrated multi-view cameras:** sampled intrinsics, primary-room placement,
+- **Calibrated multi-view cameras:** configurable perspective intrinsics, including
+  a 28–145° vertical FOV default distribution, primary-room placement,
   collision-checked trajectories and adjustable baselines with shared-view constraints.
 - **People and motion:** AnnyBody meshes with procedural clothing and optional
   ARDY text/waypoint motion. Cameras and people share a capture timeline; static
-  scenes do not initialize motion models.
+  scenes do not initialize motion models. Captures include calibrated pose joints.
+- **Optional room motion:** chairs swivel or roll, doors and cabinets open, and
+  blinds or curtains move on the capture timeline. Swept reservations keep accepted
+  mechanisms clear of geometry and people; disabled motion adds no planning work.
 
 Semantic-room and standalone-human scenes are also supported. The engine is
 built with Bevy 0.20 and Rust, with native dataset generation, a WebGPU viewer, and

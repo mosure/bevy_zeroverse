@@ -11,6 +11,11 @@ impl IndoorManifest {
             // stream and accidentally change the next zone's function.
             let mut transform_rng = stream(self.seed, 5810 + zone_index as u64);
             let extent = zone.max - zone.min;
+            if zone.activity.is_kitchen() {
+                self.furnish_kitchen(&zone, zone_index);
+                self.furnish_kitchen_dining(&zone, rng);
+                continue;
+            }
             let activity = zone
                 .composition
                 .as_ref()
@@ -259,6 +264,7 @@ impl IndoorManifest {
                 && self.objects.iter().any(|o| {
                     !o.neighbor
                         && (matches!(o.kind, ObjectKind::Desk | ObjectKind::Table)
+                            || self.layout.is_kitchen() && o.kind == ObjectKind::KitchenCounter
                             || self.layout.prefers_soft_seating()
                                 && o.kind == ObjectKind::CoffeeTable)
                 })
@@ -270,7 +276,7 @@ impl IndoorManifest {
             let yaw = rng.random_range(0..4) as f32 * std::f32::consts::FRAC_PI_2
                 + rng.random_range(-0.12..0.12);
             self.workstation(
-                if self.layout == IndoorLayout::Conference {
+                if self.layout == IndoorLayout::Conference || self.layout.is_kitchen() {
                     ObjectKind::Table
                 } else if self.layout.prefers_soft_seating() {
                     ObjectKind::CoffeeTable

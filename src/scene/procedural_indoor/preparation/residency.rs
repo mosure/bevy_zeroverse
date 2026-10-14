@@ -51,7 +51,7 @@ pub(crate) struct FutureGi {
 
 impl FutureAssets {
     pub fn clear(&mut self) {
-        self.material_bakes.0.clear();
+        self.material_bakes.clear();
         self.meshes.clear();
         self.images.clear();
         self.materials.clear();
@@ -66,7 +66,7 @@ impl FutureAssets {
 
     #[cfg(not(target_arch = "wasm32"))]
     pub fn cancel_gi(&mut self) {
-        self.material_bakes.0.clear();
+        self.material_bakes.clear();
         self.gi = None;
         self.gi_only = None;
     }
@@ -558,6 +558,13 @@ impl PreparedIndoor {
         });
         #[cfg(target_arch = "wasm32")]
         let gi = 0;
-        images + meshes + gi
+        let reflections: u64 = self
+            .material_set
+            .gpu_bakes
+            .1
+            .iter()
+            .map(|r| r.upload_bytes())
+            .sum();
+        images + meshes + gi + reflections
     }
 }

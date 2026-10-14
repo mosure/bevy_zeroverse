@@ -14,67 +14,116 @@ pub struct PoseProgram {
     pub arm_sweep: [f32; 2],
     pub elbow_pole: [f32; 2],
     pub foot_splay: [f32; 2],
+    /// Neck rotation relative to the torso; radians. Positive pitch looks up.
+    #[serde(default)]
+    pub head_pitch: f32,
+    #[serde(default)]
+    pub head_roll: f32,
+    /// Flexion per finger joint (radians), overridden for supported palms.
+    #[serde(default)]
+    pub finger_curl: [f32; 2],
+    /// Continuous index extension: zero follows the fingers, one points straight.
+    #[serde(default)]
+    pub index_extension: [f32; 2],
 }
 impl PoseProgram {
     pub fn sample(seed: u64, pose: HumanPoseKind) -> Self {
         let mut rng = stream(seed, 44);
         let seated = pose.seated();
-        // Independently sampled arm goals within the activity's ergonomic domain.
-        // These are continuous regions, not stored skeletons or pose variants.
         let desk = pose == HumanPoseKind::SeatedWorking;
-        let resting = matches!(
-            pose,
-            HumanPoseKind::StandingRelaxed
-                | HumanPoseKind::StandingWalking
-                | HumanPoseKind::SeatedListening
-        );
         let reading = pose == HumanPoseKind::StandingReading;
         let presenting = pose == HumanPoseKind::StandingPresenting;
+        let talking = matches!(
+            pose,
+            HumanPoseKind::SeatedTalking | HumanPoseKind::StandingConversation
+        );
+        // Contexts bias a continuous gesture program. Handedness, participation
+        // of the second arm, reach and sweep are sampled independently; there
+        // is no fixed "presentation arm" or catalogue of stored skeletons.
+        let dominant = rng.random_range(0..2);
+        let participation: f32 = rng.random();
+        let expressiveness: f32 = rng.random();
+        let active: [f32; 2] = std::array::from_fn(|i| {
+            if desk || reading {
+                return 1.;
+            }
+            let base = if presenting || talking {
+                0.38 + 0.62 * expressiveness
+            } else {
+                expressiveness.powi(3) * 0.85
+            };
+            base * if i == dominant {
+                1.
+            } else {
+                participation.powi(2)
+            }
+        });
+        let pointing: [f32; 2] = std::array::from_fn(|i| {
+            if (presenting || talking) && i == dominant && rng.random_bool(0.40) {
+                rng.random_range(0.75..1.)
+            } else {
+                0.
+            }
+        });
+        let arm_elevation = std::array::from_fn(|i| {
+            if desk {
+                rng.random_range(-0.79..-0.55)
+            } else if reading {
+                rng.random_range(-0.95..-0.55)
+            } else {
+                let rest = rng.random_range(-1.50..-1.18);
+                let gesture = if presenting {
+                    rng.random_range(-0.22..0.88)
+                } else {
+                    rng.random_range(-0.55..0.55)
+                };
+                rest + (gesture - rest) * active[i].sqrt().max(pointing[i])
+            }
+        });
         Self {
             lean: Vec2::new(
-                rng.random_range(-0.055..0.055),
-                rng.random_range(-0.13..0.035),
+                rng.random_range(-0.065..0.065),
+                rng.random_range(-0.14..0.045),
             ),
-            torso_twist: rng.random_range(-0.24..0.24),
+            torso_twist: rng.random_range(-1_f32..1.)
+                * if desk {
+                    0.22
+                } else if seated {
+                    0.42
+                } else {
+                    0.62
+                },
             weight_shift: rng.random_range(-0.035..0.035),
             stance: rng.random_range(0.19..0.36),
-            stride: if seated {
-                rng.random_range(0.0..0.12)
-            } else {
-                rng.random_range(0.0..0.28)
-            },
+            stride: rng.random_range(0.0..if seated { 0.12 } else { 0.28 }),
             phase: rng.random_range(0.0..TAU),
-            arm_reach: std::array::from_fn(|_| {
-                if resting {
-                    rng.random_range(0.90..0.995)
-                } else {
-                    rng.random_range(0.45..0.88)
-                }
-            }),
-            arm_elevation: std::array::from_fn(|i| {
-                if desk {
-                    rng.random_range(-0.79..-0.55)
-                } else if resting {
-                    rng.random_range(-1.49..-1.13)
-                } else if reading {
-                    rng.random_range(-0.95..-0.55)
-                } else if i == 0 {
-                    rng.random_range(-1.4..-1.0)
-                } else if presenting {
-                    rng.random_range(-0.6..0.48)
-                } else {
-                    rng.random_range(-1.1..-0.15)
-                }
-            }),
-            arm_sweep: std::array::from_fn(|_| {
+            arm_reach: std::array::from_fn(|i| {
                 if desk || reading {
-                    rng.random_range(-0.35..0.06)
+                    rng.random_range(0.45..0.88)
                 } else {
-                    rng.random_range(-0.12..0.38)
+                    let rest = rng.random_range(0.92..0.99);
+                    let gesture = rng.random_range(0.48..0.86) + pointing[i] * 0.10;
+                    rest + (gesture - rest) * active[i]
+                }
+            }),
+            arm_elevation,
+            arm_sweep: std::array::from_fn(|i| {
+                if desk || reading {
+                    rng.random_range(-0.25..0.10)
+                } else {
+                    rng.random_range(0.02..0.22) + active[i] * rng.random_range(-0.18..1.15)
                 }
             }),
             elbow_pole: std::array::from_fn(|_| rng.random_range(0.10..0.8)),
             foot_splay: std::array::from_fn(|_| rng.random_range(0.01..0.22)),
+            head_pitch: if reading || desk {
+                rng.random_range(-0.32..0.04)
+            } else {
+                rng.random_range(-0.22..0.26)
+            },
+            head_roll: rng.random_range(-0.10..0.10),
+            finger_curl: std::array::from_fn(|i| rng.random_range(0.02..0.12) + pointing[i] * 0.72),
+            index_extension: pointing,
         }
     }
     pub fn solve(&self, stature: f32, build: f32, shoulder_width: f32, seated: bool) -> Vec<Vec3> {
@@ -173,6 +222,59 @@ pub(super) fn two_bone(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn gesture_distribution_is_balanced_continuous_and_anatomical() {
+        let mut high = [0; 2];
+        let mut pointing = [0; 2];
+        let mut both = 0;
+        let mut twists = [0; 2];
+        let mut endpoints = std::collections::HashSet::new();
+        for seed in 0..2048 {
+            let pose = PoseProgram::sample(seed, HumanPoseKind::StandingPresenting);
+            assert_eq!(
+                pose,
+                PoseProgram::sample(seed, HumanPoseKind::StandingPresenting)
+            );
+            let s = 1.50 + (seed % 46) as f32 * 0.01;
+            let p = pose.solve(s, 1.0, 0.37 * s / 1.75, false);
+            let raised = [p[7].y > p[5].y, p[11].y > p[9].y];
+            both += usize::from(raised.iter().all(|v| *v));
+            for i in 0..2 {
+                high[i] += usize::from(raised[i]);
+                pointing[i] += usize::from(pose.index_extension[i] > 0.7);
+                // Wrists remain on their own side, outside the torso's centre.
+                let arm = 5 + i * 4;
+                assert!(
+                    (p[arm + 2] - p[2]).dot((p[9] - p[5]).normalize())
+                        * if i == 0 { -1. } else { 1. }
+                        > 0.07
+                );
+                assert!((p[arm].distance(p[arm + 1]) - 0.29 * s / 1.75).abs() < 1e-5);
+            }
+            twists[usize::from(pose.torso_twist > 0.)] +=
+                usize::from(pose.torso_twist.abs() > 0.35);
+            endpoints.insert(p[7].to_array().map(f32::to_bits));
+        }
+        assert!(high.iter().all(|&n| n > 200), "raised arms {high:?}");
+        assert!(pointing.iter().all(|&n| n > 300), "pointing {pointing:?}");
+        assert!((high[0] as f32 / high[1] as f32 - 1.).abs() < 0.25);
+        assert!(both > 50 && twists.iter().all(|&n| n > 350));
+        assert_eq!(endpoints.len(), 2048);
+    }
+
+    #[test]
+    fn legacy_program_defaults_keep_unrecorded_head_and_hand_motion_neutral() {
+        let program = PoseProgram::sample(42, HumanPoseKind::StandingPresenting);
+        let mut json = serde_json::to_value(program).unwrap();
+        for key in ["head_pitch", "head_roll", "finger_curl", "index_extension"] {
+            json.as_object_mut().unwrap().remove(key);
+        }
+        let decoded: PoseProgram = serde_json::from_value(json).unwrap();
+        assert_eq!(decoded.head_pitch, 0.);
+        assert_eq!(decoded.head_roll, 0.);
+        assert_eq!(decoded.finger_curl, [0.; 2]);
+        assert_eq!(decoded.index_extension, [0.; 2]);
+    }
     #[test]
     fn continuous_program_preserves_limb_lengths_and_replays() {
         let mut endpoints = std::collections::HashSet::new();

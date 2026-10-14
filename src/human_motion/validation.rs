@@ -170,8 +170,13 @@ mod tests {
     }
     #[test]
     fn swept_routes_respect_glass_furniture_and_doorway() {
-        let scene =
+        let mut scene =
             IndoorManifest::generate_with_humans(34, IndoorLayout::Mixed, 0.5, 0, 0.0).unwrap();
+        let door = scene.entry_door.as_mut().unwrap();
+        door.program.mechanism =
+            crate::scene::procedural_indoor::architecture::doors::DoorMechanism::Hinged;
+        door.program.opening = 1.;
+        door.width = 1.3;
         let boxes = planning::obstacles(&scene, usize::MAX, None);
         let z = scene.room_size.z * 0.5;
         let a = Vec3::new(scene.door_x, 0.0, z - 0.8);

@@ -8,8 +8,10 @@ pub mod desktop;
 pub mod equipment;
 pub mod floor;
 pub mod hospitality;
+pub mod kitchen;
 pub mod literature;
 pub mod presentation;
+pub mod public;
 pub mod seating;
 pub mod services;
 pub mod standing_lamp;
@@ -37,6 +39,8 @@ use std::{
 /// Every assembly batches equal material/semantic parts while preserving object identity.
 #[derive(Default)]
 pub struct Assembly {
+    pub(crate) motion_policy: Option<super::motion::IndoorMotionConfig>,
+    pub(crate) joints: Vec<super::motion::Joint>,
     pub parts: BTreeMap<(Surface, String), Geometry>,
 }
 
@@ -92,7 +96,7 @@ impl Assembly {
                 OvoxelTracked,
                 ChildOf(parent),
             ));
-            if label.ends_with("#exterior") {
+            if label.split('#').any(|tag| tag == "exterior") {
                 entity.insert(OvoxelExcluded);
             }
             if matches!(
@@ -121,6 +125,7 @@ pub fn spawn_object(
     let root = commands
         .spawn((
             Name::new(format!("{:?}_{}", object.kind, object.id)),
+            crate::render::semantic::PreserveSemanticParts,
             object.transform(),
             Visibility::default(),
             ChildOf(parent),
@@ -138,8 +143,54 @@ pub fn spawn_object(
 }
 
 pub fn build_object(o: &IndoorObject) -> Assembly {
-    let mut a = Assembly::default();
+    build_object_with_motion(o, None)
+}
+
+pub(crate) fn build_object_with_motion(
+    o: &IndoorObject,
+    policy: Option<&super::motion::IndoorMotionConfig>,
+) -> Assembly {
+    let mut a = Assembly {
+        motion_policy: policy.cloned(),
+        ..default()
+    };
     match o.kind {
+        ObjectKind::Elevator
+        | ObjectKind::ServiceCounter
+        | ObjectKind::DisplayCase
+        | ObjectKind::TrayReturn
+        | ObjectKind::DrinkDispenser
+        | ObjectKind::QueueBarrier
+        | ObjectKind::Lectern
+        | ObjectKind::Locker
+        | ObjectKind::TeachingBoard
+        | ObjectKind::ExhibitPlinth
+        | ObjectKind::Sculpture
+        | ObjectKind::InformationStand
+        | ObjectKind::ExhibitionPanel
+        | ObjectKind::ExtractionHood
+        | ObjectKind::Banquette => public::build(&mut a, o),
+        ObjectKind::KitchenCounter
+        | ObjectKind::KitchenSink
+        | ObjectKind::KitchenCupboard
+        | ObjectKind::Pantry
+        | ObjectKind::Cooktop
+        | ObjectKind::Range
+        | ObjectKind::Oven
+        | ObjectKind::Microwave
+        | ObjectKind::Dishwasher
+        | ObjectKind::Refrigerator
+        | ObjectKind::DryingRack
+        | ObjectKind::SoapDispenser
+        | ObjectKind::Sponge
+        | ObjectKind::KnifeBlock
+        | ObjectKind::UtensilHolder
+        | ObjectKind::PaperTowel
+        | ObjectKind::KitchenTowel
+        | ObjectKind::Dishware
+        | ObjectKind::CuttingBoard
+        | ObjectKind::FruitBowl
+        | ObjectKind::Bread => kitchen::build(&mut a, o),
         ObjectKind::Projector
         | ObjectKind::ProjectionScreen
         | ObjectKind::PowerStrip
@@ -194,6 +245,15 @@ pub fn build_object(o: &IndoorObject) -> Assembly {
         ObjectKind::Clock => clocks::build(&mut a, o),
         ObjectKind::FloorLamp => standing_lamp::build(&mut a, o),
         ObjectKind::Rug | ObjectKind::FloorOutlet => floor::build(&mut a, o),
+    }
+    if matches!(o.kind, ObjectKind::CoffeeMaker | ObjectKind::DrinkDispenser) {
+        a.box_part(
+            Surface::Rubber,
+            o.kind.class_name(),
+            Vec3::new(0., o.size.y * 0.10, -o.size.z * 0.5 + 0.004),
+            Vec3::new(0.025, 0.020, 0.008),
+            0.002,
+        );
     }
     // Flat printed pages and phones use their horizontal face dimensions;
     // normalizing all six cuboid faces would crop portrait content horizontally.
@@ -250,10 +310,11 @@ pub fn build_object(o: &IndoorObject) -> Assembly {
     let mut labeled = BTreeMap::<(Surface, String), Geometry>::new();
     for ((surface, label), geometry) in a.parts {
         let old = part_label(&label);
-        let label = if matches!(
-            old,
-            "other_prop" | "chair" | "sofa" | "table" | "cabinet" | "television"
-        ) {
+        let label = if !o.kind.is_kitchen()
+            && matches!(
+                old,
+                "other_prop" | "chair" | "sofa" | "table" | "cabinet" | "television"
+            ) {
             label.replacen(old, class, 1)
         } else {
             label
@@ -289,6 +350,15 @@ pub fn build_object(o: &IndoorObject) -> Assembly {
             ((surface, label), geometry)
         })
         .collect();
+    // Finish relabeling must keep articulation references aligned with meshes.
+    for (id, joint) in a.joints.iter_mut().enumerate() {
+        joint.parts = a
+            .parts
+            .keys()
+            .filter(|(_, label)| super::motion::tag(label) == Some(id))
+            .cloned()
+            .collect();
+    }
     a
 }
 

@@ -5,6 +5,42 @@ A reference camera anchors shared visible surfaces; every camera remains inside
 the primary furnished room, with swept checks against obstacles. Other scene
 modes retain their samplers.
 
+## Lens and field-of-view diversity
+
+The **Cameras → Lenses** controls set vertical FOV bounds and the ultra-wide
+proposal fraction. Defaults span **28–145° vertically**, with 25% of proposals
+in the 108–145° tail. Normalized focal length is log-uniform within each band.
+These are proposal probabilities: the accepted distribution also reflects room
+clearance, content visibility and overlap constraints. Existing FOV and focal
+length histograms report the realized cameras.
+
+```json
+{
+  "intrinsics": {
+    "fov_y_min_degrees": 28,
+    "fov_y_max_degrees": 145,
+    "ultra_wide_probability": 0.25
+  }
+}
+```
+
+Pass this through `--indoor-camera`, `BevyZeroverseConfig.indoor_camera`, or the
+web viewer's `indoor_camera` query field. UI edits take effect on Apply/Next and
+shared URLs retain the settings. Bounds may be equal for a fixed lens; the valid
+range is 15–150°. If both bounds are on the same side of 108°, that entire interval
+is sampled regardless of the mixture weight. For an ultra-wide-only cohort, use
+`{"intrinsics":{"fov_y_min_degrees":125,"fov_y_max_degrees":145}}`.
+
+These are rectilinear perspective lenses, with straight-line projection and
+`lens_model=pinhole`. At aspect 1.6, a centered 145° vertical lens covers about
+158° horizontally. A true fisheye's radial distortion is a different lens model
+and is not applied. Full per-view K, shifted principal points, depth, normals,
+positions, flow and co-visibility use the same projection. An enlarged swept
+clearance sphere encloses the full near-plane rectangle, including optical-center
+shift; wide lenses cannot bypass room/furniture clearance. Explicit bounds also
+apply to recovery cameras. Archived manifests retain their recorded lenses and
+historical bounds when this policy is absent.
+
 ## Camera baseline control
 
 Use **Capture cameras → Camera baseline** in the inspector, or pass JSON through
@@ -93,6 +129,25 @@ within a bounded search, without a relaxed fallback.
 
 ## Trajectories and geometry checks
 
+Camera eye heights use a room-seeded continuous mixture of low, seated, standing
+and elevated viewpoints, relative to the local floor and bounded by roof/fixture
+clearance. Gaze is sampled separately: 30–48% of proposals per room use a
+near-horizontal optical axis, with a continuously sampled symmetric pitch span
+of ±2–7°. Other proposals retain content-directed targets. These are proposal
+weights, not promised accepted frequencies; furniture, people and overlap still
+constrain the resulting views. Level proposals retain the chosen pitch at both
+trajectory endpoints using each endpoint's own height and target distance;
+intermediate orientations still follow the actual interpolated path.
+Peers use this gaze variation when `target_variation > 0`; explicit shared-target
+policies and handheld orientation increments retain their contracts.
+
+Metrics export `camera_eye_height_m` above the local floor and actual runtime
+`camera_pitch_degrees`, including explicit handheld orientations. The trajectory
+distributions `camera_path_eye_height_m` and `camera_path_pitch_degrees` sample 33
+normalized times per view, including endpoints. Each view also records
+`camera_near_horizontal_path_fraction`, the fraction of those samples within ±5°
+of horizontal. This distinguishes initial framing from sustained level motion.
+
 **Trajectory length and room bounds** controls each camera's temporal travel,
 separately from spacing between cameras. Joint collision/overlap rejection can
 favor shorter accepted routes at wide spacing; set a larger minimum travel when
@@ -133,6 +188,29 @@ identities exported by the build used for capture.
 
 ## Metrics and rendered qualification
 
+An optional `multiview.graph: "connected"` policy permits a stable spanning
+graph of shared surfaces instead of requiring every peer to overlap camera 0.
+Each edge must pass both directed overlap thresholds at all five qualification
+times; all camera-clearance, spacing and trajectory constraints still apply.
+This can extend larger reconstruction rigs across a room without admitting
+fully disconnected views. The default `"reference"` policy retains the anchored
+group. Connected graphs and explicit reference-pair overlap mixtures are mutually
+exclusive. The editor exposes the graph choice under advanced camera controls.
+If the bounded connected search exhausts a cramped room, it tries the stricter
+reference-star search with the same settings. A star satisfies the connected
+contract; this recovery is counted in `connected_reference_recoveries` and never
+weakens overlap, spacing or swept clearance.
+
+`indoor_validate --labels --co-visibility` records `reconstruction_graphs` for
+every timestep: directed pixel fractions, components, degree and visibility
+multiplicity. `primary_geometry` reports these separately for the exact primary
+room, together with metric baselines and shared-pixel triangulation angle
+quantiles. Exterior/sky overlap therefore remains distinguishable from room
+coverage. These are measured diagnostics; the tool retains hard or disconnected
+cases rather than filtering them by an image or model score. Its persistent
+`qualification_run.json` records requested controls, build provenance, completion
+or failure, including runs that never reached rendering.
+
 Metrics include `camera_overlap.csv`, `camera_groups.csv`,
 `camera_paths.csv` (33 times/camera), triangulation angles, reference and pair
 separation, spread and motion distributions. Independently recompute geometry:
@@ -167,6 +245,18 @@ Photographic realism and downstream learning utility need separate evaluation.
 
 ## Calibration and capture time
 
+`principal_point_jitter: [0.12, 0.12]` samples independent horizontal/vertical
+optical-center offsets up to 12% of image width/height. Both amplitudes default
+to zero and accept values in `[0, 0.2]`. The sampled offset is recorded per camera
+and stays fixed along its trajectory. This changes the actual pinhole projection,
+frustum, placement visibility, schematic and exported K. It does not crop or
+shift an already-rendered image. Portrait and landscape capture use the same
+pixel-center convention. Lens distortion and rolling shutter remain unsupported.
+
+For example, `{"principal_point_jitter":[0.12,0.12],"multiview":{"graph":"connected","target_variation":0.8}}`
+requests both extensions. Old centered-pinhole configurations retain their
+projection and random-stream behavior.
+
 Every new native/web sample carries `View.calibration`: full row-major **K in
 pixels**, `[width, height]`, `lens_model: "pinhole"`, lens model version 1 and
 schema version 1. Pixel coordinates increase right/down, with the top-left pixel
@@ -190,11 +280,12 @@ separate `trajectory_progress` (after playback easing) from `time_seconds`. Set
 normalized camera/human trajectories; it does not claim the native timing of a
 generated human-motion clip. Direction reversal reverses poses, not this timeline.
 
-Rendering currently remains centered pinhole. The versioned K helpers support
-pinhole projection/unprojection, including mathematical off-center test cases,
-but there is **no principal-point or distortion sampling option**. A distorted
-RGB-only warp would invalidate depth, flow and visibility correspondence. A
-future lens model must integrate those rendering paths and their oracles first.
+Rendering uses the versioned pinhole model, centered by default or shifted by
+the optional principal-point sampler described above. Distortion and rolling
+shutter remain unsupported. An RGB-only distortion warp would invalidate depth,
+flow and visibility correspondence. A future lens model must integrate those
+rendering paths and their oracles first. Consumers that assume centered K should
+leave principal-point jitter at zero until their calibration path supports it.
 
 ## Independent metric handheld motion
 
@@ -307,9 +398,10 @@ cargo run --locked -p bevy_zeroverse_publication -- qualify --output out/qualifi
 cargo run --locked -p bevy_zeroverse_publication -- verify-qualification --output out/qualification
 ```
 
-The default recipe renders two matched room seeds for eleven separate camera,
-aspect, lighting, exposure and material factors: 22 scene variants, two views and
-two timestamps each. It writes `recipe.json`, `receipt.json`, logs, per-scene
+The default recipe renders two matched room seeds for fourteen camera,
+aspect, lighting, exposure and material settings: 28 scene variants and 120
+camera/time images. Thirteen settings use two cameras; the connected-graph
+setting uses four. Every setting has two timestamps. It writes `recipe.json`, `receipt.json`, logs, per-scene
 manifests/calibration, distributions and an HTML annotation gallery. `--recipe`
 accepts a versioned JSON recipe to expand the seed count or factor ranges. Every
 case, including failures, is retained; output folders are immutable. The receipt
@@ -317,6 +409,9 @@ binds artifact hashes, actual executable hash, capture-engine/source identity,
 build target, feature flags and locked package versions (including optional
 packages). It reports directed pixel-overlap/baseline/angle distributions,
 per-view self-reprojection errors, family counts and exact RGB duplicates.
+Primary-room graph components and pair triangulation summaries are reported
+separately from whole-image overlap, so exterior geometry cannot conceal a
+disconnected reconstruction region.
 
 The regular publication `refresh` also builds and verifies this canonical sweep,
 caches it only for the same source identity and recipe, and installs its receipt

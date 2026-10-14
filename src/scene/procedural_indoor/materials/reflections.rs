@@ -11,6 +11,8 @@ pub(super) fn build(
     scene: &IndoorManifest,
     transport: &super::super::gi::BakeScene,
     images: &mut impl super::super::preparation::AssetStore<Image>,
+    requests: &mut super::gpu::Requests,
+    gpu: bool,
 ) -> Vec<ReflectionVolume> {
     // WebGPU lacks Bevy's texture binding arrays for localized probes. Retain
     // the already-baked view environment without paying for unusable maps.
@@ -66,13 +68,14 @@ pub(super) fn build(
         if extent.min_element() < 1. || height < 1. || transport.inside_solid(origin) {
             continue;
         }
-        let [diffuse, specular] = environment::build_at(scene, transport, origin);
+        let [diffuse, specular] =
+            environment::insert_at(scene, transport, origin, images, requests, gpu);
         volumes.push(ReflectionVolume {
             transform: Transform::from_translation(origin)
                 .with_scale(Vec3::new(extent.x, height, extent.y)),
             map: EnvironmentMapLight {
-                diffuse_map: images.add(diffuse),
-                specular_map: images.add(specular),
+                diffuse_map: diffuse,
+                specular_map: specular,
                 intensity: 1.,
                 // The probe is a child of the rotated room. Bevy composes this
                 // map rotation with GlobalTransform, so applying world_yaw

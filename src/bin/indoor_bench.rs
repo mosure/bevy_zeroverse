@@ -31,6 +31,8 @@ use std::{
     about = "Measure completed indoor dataset captures, bounded residency and sustained throughput"
 )]
 struct Args {
+    #[arg(long, value_enum, default_value_t = procedural_indoor::layout::IndoorLayout::Mixed)]
+    layout: procedural_indoor::layout::IndoorLayout,
     #[arg(long, default_value_t = 1000)]
     scenes: usize,
     #[arg(long, default_value_t = 32)]
@@ -219,6 +221,7 @@ fn main() -> Result<()> {
         image_copiers: true,
         initialize_scene: false,
         num_cameras: args.cameras,
+        indoor_layout: args.layout,
         width: args.width as f32,
         height: args.height as f32,
         playback_steps: args.steps,

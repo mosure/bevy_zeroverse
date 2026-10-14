@@ -9,6 +9,8 @@ use std::time::Instant;
 mod transport;
 #[derive(Parser)]
 struct Args {
+    #[arg(long, value_enum, default_value_t = bevy_zeroverse::scene::procedural_indoor::layout::IndoorLayout::Mixed)]
+    layout: bevy_zeroverse::scene::procedural_indoor::layout::IndoorLayout,
     /// Isolate RGB transport/consumption on one captured room; excludes rendering.
     #[arg(long, conflicts_with = "cuda")]
     transport_only: bool,
@@ -28,6 +30,7 @@ fn main() -> Result<()> {
     let args = Args::parse();
     let config = BevyZeroverseConfig {
         scene_type: ZeroverseSceneType::ProceduralIndoor,
+        indoor_layout: args.layout,
         indoor_seed: Some(args.seed),
         width: 512.,
         height: 512.,
@@ -125,7 +128,7 @@ fn main() -> Result<()> {
     println!(
         "{}",
         serde_json::to_string_pretty(
-            &serde_json::json!({"gpu_transport":args.gpu || args.cuda,"transport":if args.cuda { "vulkan_cuda" } else if args.gpu { "wgpu" } else { "cpu" },"scenes":args.scenes,"warmup":args.warmup,"seed":args.seed,"views":3,"timesteps":1,"width":512,"height":512,"quality":"auto, full native shadows and diffuse GI","seconds":total,"rooms_per_second":args.scenes as f64/total,"target_views_per_second":args.scenes as f64*3./total,"scene_seconds":times,"capture_seconds":capture_times,"consumer_seconds":consumer_times})
+            &serde_json::json!({"layout":args.layout,"build_provenance":bevy_zeroverse::provenance::capture_provenance(),"gpu_transport":args.gpu || args.cuda,"transport":if args.cuda { "vulkan_cuda" } else if args.gpu { "wgpu" } else { "cpu" },"scenes":args.scenes,"warmup":args.warmup,"seed":args.seed,"views":3,"timesteps":1,"width":512,"height":512,"quality":"auto, full native shadows and diffuse GI","seconds":total,"rooms_per_second":args.scenes as f64/total,"target_views_per_second":args.scenes as f64*3./total,"scene_seconds":times,"capture_seconds":capture_times,"consumer_seconds":consumer_times})
         )?
     );
     Ok(())

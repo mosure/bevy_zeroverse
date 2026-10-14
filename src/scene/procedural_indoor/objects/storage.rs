@@ -13,6 +13,7 @@ pub struct ShelfProgram {
     pub front: u8,
     pub handle: u8,
     pub open_fraction: f32,
+    pub opening_radians: f32,
 }
 pub fn parameters(o: &IndoorObject) -> ShelfProgram {
     let mut rng = stream(o.seed, 3050);
@@ -29,18 +30,30 @@ pub fn parameters(o: &IndoorObject) -> ShelfProgram {
         panel_m: rng.random_range(0.015..0.032),
         front: rng.random_range(0..6),
         handle: rng.random_range(0..4),
-        open_fraction: rng.random_range(0.18..0.62),
+        open_fraction: rng.random_range(0.18..0.95),
+        opening_radians: 0.,
     };
     // Mixed fronts and sliding leaves need at least two physical bays; a
     // one-bay "mixed" cabinet would be indistinguishable from the drawer front.
     if o.kind == ObjectKind::Cabinet && matches!(program.front, 2 | 4) {
         program.columns = program.columns.max(2);
     }
+    if o.kind == ObjectKind::Cabinet {
+        if program.front == 4 {
+            program.columns = 2;
+        }
+        if matches!(program.front, 0 | 2 | 5) && rng.random_bool(0.55) {
+            let leaf = o.size.x / program.columns as f32;
+            let travel = (o.size.z * 0.22).min(0.11);
+            program.opening_radians = (travel / leaf).min(0.8).asin() * rng.random_range(0.25..1.0);
+        }
+    }
     program
 }
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     let p = parameters(o);
-    let s = o.size;
+    let mut s = o.size;
+    s.z -= 2. * (s.x / p.columns as f32) * p.opening_radians.sin();
     let label = o.kind.class_name();
     let frame = if p.metal {
         Surface::Metal
@@ -251,7 +264,10 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
         }
         for col in 0..p.columns {
             let w = (s.x - t * 2.) / p.columns as f32;
-            let x = (col as f32 - (p.columns - 1) as f32 * 0.5) * w;
+            let mut x = (col as f32 - (p.columns - 1) as f32 * 0.5) * w;
+            if p.front == 4 && col == 0 {
+                x += w * p.open_fraction;
+            }
             if p.front == 3 {
                 let open = s.y * p.open_fraction;
                 a.box_part(
@@ -297,17 +313,18 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
             } else {
                 0.0
             };
-            a.box_part(
+            let mut leaf = Assembly::default();
+            leaf.box_part(
                 frame,
                 label,
                 Vec3::new(x, s.y * 0.5 + 0.02, s.z * 0.5 - 0.023 - depth_offset),
-                Vec3::new(w - 0.006, s.y - 0.065, 0.02),
+                Vec3::new(w - 0.028, s.y - 0.065, 0.02),
                 0.003,
             );
             if p.front == 5 {
                 let n = (w / 0.05).round().clamp(4., 20.) as usize;
                 for i in 0..n {
-                    a.box_part(
+                    leaf.box_part(
                         Surface::WoodEdge,
                         label,
                         Vec3::new(
@@ -321,17 +338,59 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
                 }
             }
             handle(
-                a,
+                &mut leaf,
                 label,
                 &p,
                 Vec3::new(x + w * 0.28, s.y * 0.57, s.z * 0.5 - 0.006 - depth_offset),
                 w.min(0.5) * 0.22,
             );
+            let hinge = Vec3::new(x - w * 0.5 + 0.018, 0., s.z * 0.5 - 0.012 - depth_offset);
+            let q = Quat::from_rotation_y(-p.opening_radians);
+            for g in leaf.parts.values_mut() {
+                for v in &mut g.positions {
+                    *v = (hinge + q * (Vec3::from_array(*v) - hinge)).to_array();
+                }
+                for n in &mut g.normals {
+                    *n = (q * Vec3::from_array(*n)).to_array();
+                }
+            }
+            use super::super::motion::{construction as motion, MotionKind};
+            let seed = o.seed.wrapping_add(col as u64);
+            if a.motion_selected(MotionKind::Cabinet, seed) {
+                let (angle, travel) = if p.front == 4 {
+                    (
+                        0.,
+                        Vec3::X
+                            * if col == 0 {
+                                w * (motion::endpoint(seed, p.open_fraction, 0.85)
+                                    - p.open_fraction)
+                            } else {
+                                0.
+                            },
+                    )
+                } else {
+                    (
+                        -(motion::endpoint(seed, p.opening_radians, 1.15) - p.opening_radians),
+                        Vec3::ZERO,
+                    )
+                };
+                if angle.abs() + travel.length() > 0.001 {
+                    let mut joint =
+                        motion::rigid(MotionKind::Cabinet, seed, hinge, Vec3::Y, angle, travel);
+                    joint.frame = Transform::from_translation(hinge).with_rotation(q);
+                    a.articulated(leaf, joint);
+                } else {
+                    a.append_assembly(leaf);
+                }
+            } else {
+                a.append_assembly(leaf);
+            }
         }
     }
 }
 
-fn handle(a: &mut Assembly, label: &str, p: &ShelfProgram, center: Vec3, width: f32) {
+fn handle(a: &mut Assembly, _label: &str, p: &ShelfProgram, center: Vec3, width: f32) {
+    let label = "cabinet_hardware";
     match p.handle {
         0 => a.part(Surface::Metal, label).rod(
             center - Vec3::X * width * 0.5,

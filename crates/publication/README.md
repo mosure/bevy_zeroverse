@@ -2,7 +2,7 @@
 
 The canonical Rust publication pipeline for the bevy_zeroverse project page and
 whitepaper. It is a separate, GPU-free workspace crate. The generator shares its
-wire contract and camera-color program through `bevy_zeroverse_capture`.
+wire contract, camera colors and Turbo depth palette through `bevy_zeroverse_capture`.
 
 From a bevy_zeroverse checkout:
 
@@ -37,14 +37,17 @@ successful `refresh` before release.
 The recipe is `publication.toml`; authored templates are in this crate's
 `templates/`. Measured results and selected examples come from the dataset,
 not manually copied numeric prose. Figure rendering uses bundled fonts, native
-Rust image codecs and SVG rasterization. Preview conversion is lossless.
+Rust image codecs and SVG rasterization. Previews use lossless image encoding;
+depth previews use display-only Turbo colorization of the existing 8-bit axial
+metres/15 PNGs, on a fixed logarithmic 0–15 m scale. Scalar capture files and
+CLI/data-generation defaults stay unchanged.
 Membership remains an exact 16-bit mask with separate 8-bit 0/1 validity.
 The page and paper describe the current generator and its measured cohorts.
 Every cohort must match the compiled generator identity. Historical studies,
 release comparisons and proposed implementation plans stay outside this bundle.
 Camera-count and baseline studies use the same identity gate as the room gallery.
 
-The object atlas audits all 64 furnishing/prop categories on 256 construction
+The object atlas audits all 100 furnishing/prop categories on 256 construction
 seeds each at fixed metric envelopes. The Rust refresh command builds
 `audit_objects` and `review_objects`, checks the real triangles, selects six
 depth-map-spread examples per category and captures them with one persistent

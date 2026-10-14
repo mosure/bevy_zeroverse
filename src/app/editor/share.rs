@@ -7,7 +7,9 @@ pub fn query(config: &BevyZeroverseConfig, view: &ViewState) -> String {
     let defaults = model::expand(&BevyZeroverseConfig::default());
     let mut pairs = Vec::new();
     for (key, value) in current.as_object().unwrap() {
-        if key == "viewer_state" || value == &defaults[key] {
+        // Native and browser preview defaults differ. Preserve an explicit
+        // grayscale choice (including native share links opened in a browser).
+        if key == "viewer_state" || (key != "depth_format" && value == &defaults[key]) {
             continue;
         }
         let value = if let Some(s) = value.as_str() {

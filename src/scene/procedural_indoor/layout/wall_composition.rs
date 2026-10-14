@@ -18,11 +18,19 @@ impl WallComposition {
     pub(crate) fn sample(scene: &IndoorManifest) -> Self {
         let mut rng = stream(scene.seed, 5810);
         let mut weights = [0, 1, 2].map(|_| rng.random_range(0.12..1.0));
-        if scene.layout.prefers_soft_seating() || scene.layout == IndoorLayout::Studio {
+        if scene.layout.prefers_soft_seating()
+            || matches!(
+                scene.layout,
+                IndoorLayout::Studio | IndoorLayout::Gallery | IndoorLayout::Showroom
+            )
+        {
             weights[0] *= 2.5;
         } else if matches!(
             scene.layout,
-            IndoorLayout::Conference | IndoorLayout::Training
+            IndoorLayout::Conference
+                | IndoorLayout::Training
+                | IndoorLayout::Classroom
+                | IndoorLayout::LectureHall
         ) {
             weights[1] *= 2.5;
         }

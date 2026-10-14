@@ -13,15 +13,19 @@ struct Collider {
 }
 
 pub(crate) struct Coverage {
+    seed: u64,
+    jitter: Vec2,
+    aspect: f32,
     colliders: Vec<Collider>,
     body_points: Vec<Vec3>,
-    shell: Option<(EnvelopeProgram, Vec3, f32)>,
+    shell: Option<(EnvelopeProgram, Vec3, f32, f32, f32)>,
 }
 
 /// Pixel-centred proxy rays over the full calibrated frustum, not just its centre.
 pub(super) struct VisibilityView {
     pose: Transform,
     scale: Vec2,
+    offset: Vec2,
     points: Vec<Option<Vec3>>,
 }
 
@@ -32,10 +36,28 @@ impl VisibilityView {
 }
 
 impl Coverage {
+    /// Separate deterministic lens stream; zero jitter retains exact legacy
+    /// proposals. Final manifests archive the realized value, not just this prior.
+    pub(super) fn optical_center(&self, camera: &IndoorCamera) -> Vec2 {
+        use rand::Rng;
+        camera.principal_point_offset.unwrap_or_else(|| {
+            if self.jitter == Vec2::ZERO {
+                return Vec2::ZERO;
+            }
+            let p = camera.start.to_array().map(f32::to_bits);
+            let key =
+                u64::from(p[0]) ^ u64::from(p[1]).rotate_left(21) ^ u64::from(p[2]).rotate_left(43);
+            let mut rng = super::super::layout::stream(self.seed ^ key, 7515);
+            Vec2::new(rng.random_range(-1.0..=1.0), rng.random_range(-1.0..=1.0)) * self.jitter
+        })
+    }
+
     fn shell_hit(&self, origin: Vec3, ray: Vec3) -> Option<(f32, &'static str)> {
         self.shell
             .as_ref()
-            .and_then(|(e, size, door)| e.ray_hit(*size, *door, origin, ray))
+            .and_then(|(e, size, door, width, height)| {
+                e.ray_hit(*size, *door, *width, *height, origin, ray)
+            })
     }
     fn first_hit(&self, origin: Vec3, ray: Vec3) -> Option<f32> {
         self.colliders
@@ -48,12 +70,13 @@ impl Coverage {
     pub(super) fn view(&self, camera: &IndoorCamera, aspect: f32, t: f32) -> VisibilityView {
         let pose = camera.transform_at(t);
         let scale = Vec2::new(aspect, 1.0) * (camera.fov_degrees.to_radians() * 0.5).tan();
+        let offset = self.optical_center(camera);
         let mut points = Vec::with_capacity(117);
         for y in 0..9 {
             for x in 0..13 {
                 let local = Vec3::new(
-                    (2.0 * (x as f32 + 0.5) / 13.0 - 1.0) * scale.x,
-                    (2.0 * (y as f32 + 0.5) / 9.0 - 1.0) * scale.y,
+                    (2.0 * (x as f32 + 0.5) / 13.0 - 1.0 - 2. * offset.x) * scale.x,
+                    (2.0 * (y as f32 + 0.5) / 9.0 - 1.0 + 2. * offset.y) * scale.y,
                     -1.0,
                 )
                 .normalize();
@@ -68,6 +91,7 @@ impl Coverage {
         VisibilityView {
             pose,
             scale,
+            offset,
             points,
         }
     }
@@ -82,8 +106,8 @@ impl Coverage {
             let local = target.pose.rotation.inverse() * delta;
             if -local.z < 0.1
                 || -local.z > 50.0
-                || local.x.abs() >= -local.z * target.scale.x
-                || local.y.abs() >= -local.z * target.scale.y
+                || (local.x / (-local.z * target.scale.x) + 2. * target.offset.x).abs() >= 1.
+                || (local.y / (-local.z * target.scale.y) - 2. * target.offset.y).abs() >= 1.
             {
                 continue;
             }
@@ -217,22 +241,36 @@ impl Coverage {
             })
             .collect();
         Self {
+            seed: scene.seed,
+            jitter: scene.camera_settings.principal_point_jitter,
+            aspect: scene.camera_aspect_ratio,
             colliders,
             body_points,
-            shell: scene
-                .envelope
-                .clone()
-                .map(|e| (e, scene.room_size, scene.door_x)),
+            shell: scene.envelope.clone().map(|e| {
+                (
+                    e,
+                    scene.room_size,
+                    scene.door_x,
+                    scene.entry_width(),
+                    scene.entry_height(),
+                )
+            }),
         }
     }
 
-    fn body_visible(&self, pose: Transform, scale: f32) -> bool {
+    fn body_visible(&self, pose: Transform, scale: f32, offset: Vec2) -> bool {
         self.body_points.iter().any(|point| {
             let local = pose.rotation.inverse() * (*point - pose.translation);
             // Test anatomical points, not empty corners of a person's envelope.
             // Otherwise two rays through a doorway can hit the padded envelope
             // while the actual person remains behind annotation-opaque glazing.
-            if local.z >= -0.1 || local.x.abs().max(local.y.abs()) > -local.z * scale * 0.8 {
+            if local.z >= -0.1
+                || (local.x / (-local.z * scale * self.aspect.min(1.))
+                    + 2. * offset.x * self.aspect / self.aspect.min(1.))
+                .abs()
+                    > 0.8
+                || (local.y / (-local.z * scale) - 2. * offset.y).abs() > 0.8
+            {
                 return false;
             }
             let displacement = *point - pose.translation;
@@ -260,7 +298,8 @@ impl Coverage {
         [0.0, 0.5, 1.0].into_iter().all(|t| {
             let pose = camera.transform_at(t);
             let scale = (camera.fov_degrees.to_radians() * 0.5).tan();
-            if require_person && !self.body_visible(pose, scale) {
+            let offset = self.optical_center(camera);
+            if require_person && !self.body_visible(pose, scale, offset) {
                 return false;
             }
             let mut counts = BTreeMap::new();
@@ -270,8 +309,10 @@ impl Coverage {
                 for x in 0..7 {
                     let ray = pose.rotation
                         * Vec3::new(
-                            (x as f32 / 6.0 - 0.5) * 1.6 * scale,
-                            (y as f32 / 4.0 - 0.5) * 1.6 * scale,
+                            ((x as f32 / 6.0 - 0.5) * 1.6 * self.aspect.min(1.)
+                                - 2. * offset.x * self.aspect)
+                                * scale,
+                            ((y as f32 / 4.0 - 0.5) * 1.6 + 2. * offset.y) * scale,
                             -1.0,
                         )
                         .normalize();
@@ -326,16 +367,21 @@ mod tests {
     fn shared_surfaces_require_visibility_and_actual_frustum() {
         let point = Vec3::new(0.0, 0.0, -4.0);
         let a = VisibilityView {
+            offset: Vec2::ZERO,
             pose: Transform::IDENTITY,
             scale: Vec2::ONE,
             points: vec![Some(point)],
         };
         let mut b = VisibilityView {
+            offset: Vec2::ZERO,
             pose: Transform::from_xyz(2.0, 0.0, 0.0).looking_at(point, Vec3::Y),
             scale: Vec2::ONE,
             points: vec![Some(point)],
         };
         let mut coverage = Coverage {
+            seed: 0,
+            jitter: Vec2::ZERO,
+            aspect: 1.,
             colliders: vec![Collider {
                 center: point - Vec3::Z * 0.01,
                 half: Vec3::new(10.0, 10.0, 0.01),
@@ -372,6 +418,9 @@ mod tests {
     #[test]
     fn body_points_behind_annotation_opaque_glazing_are_hidden() {
         let mut coverage = Coverage {
+            seed: 0,
+            jitter: Vec2::ZERO,
+            aspect: 1.,
             colliders: vec![Collider {
                 center: Vec3::new(0.0, 1.0, -2.0),
                 half: Vec3::new(2.0, 2.0, 0.01),
@@ -382,11 +431,11 @@ mod tests {
             shell: None,
         };
         let pose = Transform::from_xyz(0.0, 1.5, 0.0);
-        assert!(!coverage.body_visible(pose, 1.0));
+        assert!(!coverage.body_visible(pose, 1.0, Vec2::ZERO));
         coverage.body_points[0].z = -1.0;
-        assert!(coverage.body_visible(pose, 1.0));
+        assert!(coverage.body_visible(pose, 1.0, Vec2::ZERO));
         coverage.body_points[0].x = 2.0;
-        assert!(!coverage.body_visible(pose, 1.0));
+        assert!(!coverage.body_visible(pose, 1.0, Vec2::ZERO));
     }
 
     #[test]
@@ -408,6 +457,7 @@ mod tests {
         )
         .unwrap();
         let wall_view = IndoorCamera {
+            principal_point_offset: None,
             start: Vec3::new(0.0, 1.5, 0.0),
             end: Vec3::new(0.0, 1.5, 0.0),
             target: Vec3::new(0.0, 1.5, 1.0),

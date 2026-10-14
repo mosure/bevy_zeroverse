@@ -14,6 +14,8 @@ struct PartPlan {
     surface: Option<Surface>,
     human_surface: Option<humans::HumanSurface>,
     ovoxel_excluded: bool,
+    motion: Option<super::super::motion::AnimatedPart>,
+    bounds: Option<(Vec3, Vec3)>,
 }
 
 pub(super) struct GroupPlan {
@@ -21,7 +23,7 @@ pub(super) struct GroupPlan {
     transform: Transform,
     bounds: (Vec3, Vec3),
     object: Option<(usize, super::super::layout::ObjectKind)>,
-    human: Option<(usize, Vec<Vec3>)>,
+    human: Option<(usize, Vec<Vec3>, Quat)>,
     annotation: Option<SemanticLabel>,
     parts: Vec<PartPlan>,
 }
@@ -56,6 +58,8 @@ impl GroupPlan {
                     surface: part.surface,
                     human_surface: part.human_surface,
                     ovoxel_excluded: part.ovoxel_excluded,
+                    motion: part.motion,
+                    bounds: part.bounds,
                 }
             })
             .collect();
@@ -84,18 +88,45 @@ pub(super) async fn plan(
     let mut add =
         |assembly: objects::Assembly, name: String, transform: Transform, object, annotation| {
             let bounds = assembly.bounds();
+            let dynamic = assembly.joints.iter().any(|j| j.accepted);
             let parts = assembly
                 .parts
                 .into_iter()
                 .filter(|(_, g)| !g.indices.is_empty())
-                .map(|((surface, label), geometry)| PartPlan {
-                    mesh: meshes.defer_geometry(geometry, &mut mesh_jobs),
-                    label: SemanticLabel::from_label(objects::part_label(&label))
-                        .expect("indoor semantic vocabulary"),
-                    surface: Some(surface),
-                    human_surface: None,
-                    ovoxel_excluded: label.ends_with("#exterior"),
-                    binding: Binding::Surface(surface, label),
+                .map(|((surface, label), geometry)| {
+                    let motion = dynamic
+                        .then(|| super::super::motion::tag(&label))
+                        .flatten()
+                        .and_then(|id| assembly.joints.get(id))
+                        .filter(|j| j.accepted)
+                        .map(|j| {
+                            super::super::motion::AnimatedPart::new(
+                                j,
+                                &(surface, label.clone()),
+                                &geometry,
+                            )
+                        });
+                    let bounds = dynamic.then(|| {
+                        geometry
+                            .positions
+                            .iter()
+                            .map(|p| Vec3::from_array(*p))
+                            .fold(
+                                (Vec3::splat(f32::INFINITY), Vec3::splat(f32::NEG_INFINITY)),
+                                |(a, b), p| (a.min(p), b.max(p)),
+                            )
+                    });
+                    PartPlan {
+                        motion,
+                        bounds,
+                        mesh: meshes.defer_geometry(geometry, &mut mesh_jobs),
+                        label: SemanticLabel::from_label(objects::part_label(&label))
+                            .expect("indoor semantic vocabulary"),
+                        surface: Some(surface),
+                        human_surface: None,
+                        ovoxel_excluded: label.split('#').any(|tag| tag == "exterior"),
+                        binding: Binding::Surface(surface, label),
+                    }
                 })
                 .collect();
             groups.push(GroupPlan {
@@ -110,10 +141,11 @@ pub(super) async fn plan(
         };
     let mut shell = objects::Assembly::default();
     let mut fixtures = std::collections::BTreeMap::<String, objects::Assembly>::new();
+    let architecture_joints = geometry.architecture.joints;
     for ((surface, label), geometry) in geometry.architecture.parts {
-        if label.starts_with("lamp#") {
+        if let Some((key, _)) = architectural_instance(&label) {
             fixtures
-                .entry(label.clone())
+                .entry(key)
                 .or_default()
                 .parts
                 .insert((surface, label), geometry);
@@ -121,13 +153,25 @@ pub(super) async fn plan(
             shell.parts.insert((surface, label), geometry);
         }
     }
-    for (name, fixture) in fixtures {
+    shell.joints = architecture_joints
+        .iter()
+        .map(|j| j.subset(&shell.parts))
+        .collect();
+    for (name, mut fixture) in fixtures {
+        fixture.joints = architecture_joints
+            .iter()
+            .map(|j| j.subset(&fixture.parts))
+            .collect();
         add(
             fixture,
-            format!("ceiling_{name}"),
+            if name.starts_with("lamp#") {
+                format!("ceiling_{name}")
+            } else {
+                name.clone()
+            },
             Transform::IDENTITY,
             None,
-            Some(SemanticLabel::Lamp),
+            architectural_instance(&name).map(|(_, class)| class),
         );
     }
     add(
@@ -161,6 +205,8 @@ pub(super) async fn plan(
                 surface: None,
                 human_surface: Some(surface),
                 ovoxel_excluded: false,
+                motion: None,
+                bounds: None,
             })
             .collect();
         groups.push(GroupPlan {
@@ -168,7 +214,11 @@ pub(super) async fn plan(
             transform: person.transform(),
             bounds,
             object: None,
-            human: Some((person.id, assembly.local_joints)),
+            human: Some((
+                person.id,
+                assembly.local_joints,
+                assembly.local_head_rotation,
+            )),
             annotation: None,
             parts,
         });
@@ -203,13 +253,15 @@ mod tests {
                 .into_iter()
                 .filter(|(_, g)| !g.indices.is_empty())
                 .map(|((surface, label), geometry)| Part {
+                    motion: None,
+                    bounds: None,
                     mesh: meshes.defer_geometry(geometry, &mut mesh_jobs),
                     material: material_set.for_part(surface, &label),
                     label: SemanticLabel::from_label(objects::part_label(&label))
                         .expect("indoor semantic vocabulary"),
                     surface: Some(surface),
                     human_surface: None,
-                    ovoxel_excluded: label.ends_with("#exterior"),
+                    ovoxel_excluded: label.split('#').any(|tag| tag == "exterior"),
                 })
                 .collect();
             groups.push(Group {
@@ -225,9 +277,9 @@ mod tests {
         let mut shell = objects::Assembly::default();
         let mut fixtures = std::collections::BTreeMap::<String, objects::Assembly>::new();
         for ((surface, label), geometry) in geometry.architecture.parts {
-            if label.starts_with("lamp#") {
+            if let Some((key, _)) = architectural_instance(&label) {
                 fixtures
-                    .entry(label.clone())
+                    .entry(key)
                     .or_default()
                     .parts
                     .insert((surface, label), geometry);
@@ -238,10 +290,14 @@ mod tests {
         for (name, fixture) in fixtures {
             add(
                 fixture,
-                format!("ceiling_{name}"),
+                if name.starts_with("lamp#") {
+                    format!("ceiling_{name}")
+                } else {
+                    name.clone()
+                },
                 Transform::IDENTITY,
                 None,
-                Some(SemanticLabel::Lamp),
+                architectural_instance(&name).map(|(_, class)| class),
             );
         }
         add(
@@ -278,6 +334,8 @@ mod tests {
                         surface: None,
                         human_surface: Some(surface),
                         ovoxel_excluded: false,
+                        motion: None,
+                        bounds: None,
                     }
                 })
                 .collect();
@@ -286,7 +344,11 @@ mod tests {
                 transform: person.transform(),
                 bounds,
                 object: None,
-                human: Some((person.id, assembly.local_joints)),
+                human: Some((
+                    person.id,
+                    assembly.local_joints,
+                    assembly.local_head_rotation,
+                )),
                 annotation: None,
                 parts,
             });
@@ -298,6 +360,7 @@ mod tests {
         fn assembly(source: &objects::Assembly) -> objects::Assembly {
             objects::Assembly {
                 parts: source.parts.clone(),
+                ..default()
             }
         }
         SceneGeometry {
@@ -492,4 +555,17 @@ mod tests {
         }
         assert_eq!(part_offset, ordered_handles.len());
     }
+}
+
+/// Door leaves, frames and hardware share an architectural instance; material
+/// tags never split its box. Blank arch frames do not masquerade as door leaves.
+fn architectural_instance(label: &str) -> Option<(String, SemanticLabel)> {
+    if label.starts_with("lamp#") {
+        return Some((label.to_owned(), SemanticLabel::Lamp));
+    }
+    if label.starts_with("door#portal") && !label.contains("#finish") {
+        return Some((label.to_owned(), SemanticLabel::Door));
+    }
+    let portal = label.split('#').find(|s| s.starts_with("portal"))?;
+    Some((format!("door#{portal}"), SemanticLabel::Door))
 }

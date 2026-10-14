@@ -117,7 +117,7 @@ impl CarpetDesign {
             let cut = f.cut(r, uv);
             let seam = f.seam(r, &cut, 1) * f.tile_definition;
             t.color = t.color.map(|c| c * (1. - seam * 0.12));
-            t.height -= seam * 0.00035;
+            t.height -= seam * 0.00035 * r.detail_scale.unwrap_or(1.);
         }
         t
     }

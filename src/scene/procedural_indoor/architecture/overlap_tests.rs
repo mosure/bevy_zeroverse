@@ -75,9 +75,9 @@ fn architectural_trim_has_no_competing_coplanar_faces() {
         for (plane, triangles) in planes {
             for (i, (a, la)) in triangles.iter().enumerate() {
                 for (b, lb) in &triangles[i + 1..] {
-                    if !(la.starts_with("door/")
+                    if !(la.starts_with("door")
                         || la.starts_with("window/")
-                        || lb.starts_with("door/")
+                        || lb.starts_with("door")
                         || lb.starts_with("window/"))
                     {
                         continue;

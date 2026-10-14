@@ -114,7 +114,7 @@ mod tests {
     #[test]
     fn portrait_landscape_and_off_center_pinhole_roundtrip() {
         for [w, h] in [[640, 400], [321, 719], [1, 1]] {
-            for fov in [0.3, 1.2, 2.2] {
+            for fov in [0.3, 1.2, 2.2, 145_f32.to_radians(), 150_f32.to_radians()] {
                 let mut c =
                     CameraCalibration::centered_pinhole(w, h, fov, w as f32 / h as f32).unwrap();
                 for offset in [0.0, 0.17] {

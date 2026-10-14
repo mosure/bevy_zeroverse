@@ -645,7 +645,15 @@ fn playback(
                 }
             }
         }
+        let head = actor.rig.annotation_indices[4];
+        // Bone frames include Anny's bind axes. Remove them to label the same
+        // Y-up / -Z-forward cranial frame used by static geometry and hair.
+        human.local_head_rotation = (frame.bones[head].to_matrix() * actor.inverse_bind[head])
+            .to_scale_rotation_translation()
+            .1;
         human.local_joints = frame.joints;
+        human.local_joints[4] = frame.bones[head].translation
+            + human.local_head_rotation * Vec3::Y * (0.055 * actor.rig.stature / 1.75);
         *aabb = Aabb::from_min_max(
             frame.bounds.0 - Vec3::splat(0.04),
             frame.bounds.1 + Vec3::splat(0.04),
@@ -855,6 +863,7 @@ mod tests {
                 IndoorHumanInstance {
                     id: 7,
                     local_joints: Vec::new(),
+                    local_head_rotation: Quat::IDENTITY,
                 },
                 Aabb::default(),
             ))

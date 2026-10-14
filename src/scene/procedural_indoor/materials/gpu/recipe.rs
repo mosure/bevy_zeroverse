@@ -28,16 +28,24 @@ pub(super) struct Recipe {
     pub floor0: [f32; 4],
     pub floor1: [f32; 4],
     pub floor_tint: [f32; 4],
+    pub paint_counts: [u32; 4],
+    pub paint_frequencies: [u32; 4],
+    pub paint0: [f32; 4],
+    pub paint1: [f32; 4],
+    pub paint2: [f32; 4],
+    pub paint_color: [f32; 4],
 }
 
 impl Recipe {
     pub(super) fn new(r: &MaterialRecipe, floor: u32) -> Option<Self> {
         // Match texel_prepared's precedence. Never silently bypass an authored program.
-        if r.map_size(floor) > super::kernel::MAX_SIZE
+        if !matches!(r.map_size(floor), 256 | 512)
             || r.validate().is_err()
             || r.leaf.is_some()
             || r.cuticle.is_some()
-            || r.coating.is_some()
+            || r.coating
+                .as_ref()
+                .is_some_and(|c| c.glaze.is_some() || c.application.is_none())
             || r.carpet.is_none()
                 && r.mineral.is_some()
                 && (r.surface != Surface::Floor || floor == 2)
@@ -51,7 +59,7 @@ impl Recipe {
             r.surface,
             Surface::Metal | Surface::Chrome | Surface::Plastic | Surface::Rubber | Surface::Paper
         );
-        if !cloth && r.surface != Surface::Leather && !generic {
+        if !cloth && r.surface != Surface::Leather && !generic && r.coating.is_none() {
             return None;
         }
         let period = r.period_uv();
@@ -67,7 +75,31 @@ impl Recipe {
             phase: [r.phase[0], r.phase[1], r.weathering, r.contrast],
             ..bytemuck::Zeroable::zeroed()
         };
-        if let Some(c) = &r.carpet {
+        if let Some(c) = &r.coating {
+            let a = c.application.as_ref()?;
+            let frequency = |spacing| super::super::field::frequency(r.period_m, spacing);
+            let spray = frequency(a.spray_spacing_m);
+            let roller = frequency(a.roller_spacing_m);
+            let brush = frequency(a.brush_spacing_m);
+            p.meta[0] = 5;
+            p.paint_counts = [
+                spray,
+                roller,
+                (roller as f32 / a.roller_stretch).round().max(1.) as u32,
+                frequency(a.orange_peel_m),
+            ];
+            p.paint_frequencies = [brush, frequency(a.trowel_scale_m), 0, 0];
+            p.paint0 = [c.texture_mix, c.knockdown, c.roller, c.trowel];
+            p.paint1 = [c.pinholes, c.pigment_variation, c.gloss, a.orange_peel];
+            p.paint2 = [
+                a.brush * (r.map_size(0) as f32 / brush as f32 * 0.30).min(1.),
+                a.lap_variation,
+                a.repair_mix,
+                r.detail_scale.unwrap_or(1.),
+            ];
+            p.paint_color[..3].copy_from_slice(&r.color.map(super::super::srgb_to_linear));
+            p.paint_color[3] = spray as f32 / r.map_size(0) as f32;
+        } else if let Some(c) = &r.carpet {
             p.meta[0] = 4;
             p.carpet = [c.contrast, c.heather, c.pile, c.line_width];
             p.carpet_meta = [c.pattern, c.repeats[0], c.repeats[1], 0];
@@ -84,7 +116,12 @@ impl Recipe {
                     f.cells[1],
                 ];
                 p.floor0 = [f.piece_tone, f.piece_warmth, f.piece_roughness, f.mottling];
-                p.floor1 = [f.accent_fraction, f.tile_definition, r.joint_width, 0.];
+                p.floor1 = [
+                    f.accent_fraction,
+                    f.tile_definition,
+                    r.joint_width,
+                    r.detail_scale.unwrap_or(1.),
+                ];
                 p.floor_tint[..3].copy_from_slice(&f.accent_tint);
                 // Basket is a timber installation, never a carpet bake.
                 if f.layout == FloorLayout::Basket {

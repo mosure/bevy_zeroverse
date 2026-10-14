@@ -20,7 +20,7 @@ import sys
 import time
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from indoor_reference_contract import absorption_coefficients, coverage_alpha, sky_radiance, validate_snapshot
+from indoor_reference_contract import absorption_coefficients, coverage_alpha, sky_radiance, validate_snapshot, pinhole_parameters
 
 import bpy
 from mathutils import Matrix, Vector
@@ -285,14 +285,16 @@ def geometry_audit(document, directory):
         native = np.fromfile(path, dtype="<f4").reshape(height, width, 4)
         transform = matrix(view["world_from_view"])
         origin = transform.translation
-        fy = height / (2 * math.tan(view["fov_y"] / 2))
+        lens, shift_x, shift_y = pinhole_parameters(view, document["image_size"])
+        fy = lens * height / 32.0
+        cx, cy = width / 2 - shift_x * height, height / 2 + shift_y * height
         errors = []
         hit_mismatches = 0
         tested = 0
         for y in range(9, height, 23):
             for x in range(11, width, 23):
-                direction = (transform.to_3x3() @ Vector(((x + .5 - width / 2) / fy,
-                             (height / 2 - y - .5) / fy, -1))).normalized()
+                direction = (transform.to_3x3() @ Vector(((x + .5 - cx) / fy,
+                             (cy - y - .5) / fy, -1))).normalized()
                 hit, point, *_ = scene.ray_cast(depsgraph, origin, direction, distance=view["far"])
                 valid = native[y, x, 3] > .5
                 tested += 1
@@ -378,7 +380,7 @@ def main():
         if args.camera_indices is not None and view["index"] not in args.camera_indices:
             continue
         camera.matrix_world = matrix(view["world_from_view"])
-        data.lens = data.sensor_height / (2 * math.tan(view["fov_y"] / 2))
+        data.lens, data.shift_x, data.shift_y = pinhole_parameters(view, document["image_size"], data.sensor_height)
         data.clip_start, data.clip_end = view["near"], view["far"]
         scene.cycles.seed = (document["seed"] * 1009 + view["index"] * 1013 + args.seed_offset) % 2147483647
         scene.render.image_settings.file_format = "OPEN_EXR"

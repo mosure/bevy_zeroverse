@@ -65,10 +65,12 @@ fn added_catalog_has_contact_valid_meshes_semantics_and_reserved_bounds() {
     // Also inspect triangle areas, winding, normals, metric UVs and finiteness,
     // not just primitive bounds. Scene holds all min-size/profile combinations.
     validation::validate_geometry(&scene).unwrap();
-    assert!(
-        ObjectKind::ALL.len() <= 64,
-        "placement coverage uses a u64 kind mask"
-    );
+    for (index, kind) in ObjectKind::ALL.iter().enumerate() {
+        assert_eq!(
+            *kind as usize, index,
+            "catalog ordinals must stay append-only"
+        );
+    }
 }
 
 #[test]
@@ -135,7 +137,13 @@ fn amenity_placements_replay_and_keep_activity_camera_support_and_human_constrai
             *occurrence.entry(format!("{:?}", object.kind)).or_default() += 1;
         }
     }
-    for kind in ObjectKind::ALL.into_iter().skip(36) {
+    // Kitchen objects are explicit activity profiles, not part of Mixed's
+    // historical distribution; their accepted coverage has a separate audit.
+    for kind in ObjectKind::ALL
+        .into_iter()
+        .skip(36)
+        .filter(|k| !k.is_kitchen() && !k.is_program_item())
+    {
         assert!(
             occurrence.get(&format!("{kind:?}")).copied().unwrap_or(0) >= 3,
             "insufficient accepted coverage for {kind:?}: {occurrence:?}"

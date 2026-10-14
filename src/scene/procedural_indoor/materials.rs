@@ -15,6 +15,7 @@ pub mod glass;
 pub mod glazing;
 pub mod gpu;
 mod human;
+mod kitchen;
 pub mod layers;
 pub mod leather;
 mod microstructure;
@@ -87,6 +88,7 @@ pub struct IndoorMaterials {
     glazing: std::collections::BTreeMap<u64, Handle<StandardMaterial>>,
     pub reflections: Vec<reflections::ReflectionVolume>,
     pub(crate) gpu_bakes: gpu::Requests,
+    gpu_environment: bool,
     handles: Vec<Handle<StandardMaterial>>,
     pub cloth: Handle<StandardMaterial>,
     pub skin: Handle<StandardMaterial>,
@@ -491,6 +493,13 @@ impl IndoorMaterials {
             cooperative,
         )
         .await;
+        variants.extend(kitchen::build(
+            scene,
+            &handles,
+            images,
+            materials,
+            selection.map(|s| &s.finishes),
+        ));
         let cloth_template = materials
             .get(&handles[Surface::Fabric as usize])
             .unwrap()
@@ -506,7 +515,13 @@ impl IndoorMaterials {
             super::preparation::cooperate().await;
         }
         let knit = if scene.humans.iter().any(|h| h.outfit.knitted()) {
-            human::knit(scene.material_seed(), images, materials)
+            human::knit(
+                scene.material_seed(),
+                images,
+                materials,
+                gpu,
+                &mut gpu_bakes,
+            )
         } else {
             cloth.clone()
         };
@@ -534,6 +549,7 @@ impl IndoorMaterials {
             sky: materials.add(super::architecture::background::material(scene)),
             handles,
             gpu_bakes,
+            gpu_environment: gpu,
             light_variants,
             environment,
             cloth,
@@ -566,16 +582,29 @@ impl IndoorMaterials {
         transport: &super::gi::BakeScene,
         images: &mut impl super::preparation::AssetStore<Image>,
     ) {
-        let [diffuse, specular] = environment::build(scene, transport);
+        let [diffuse, specular] = environment::insert_at(
+            scene,
+            transport,
+            transport.reflection_origin(scene),
+            images,
+            &mut self.gpu_bakes,
+            self.gpu_environment,
+        );
         self.environment = EnvironmentMapLight {
-            diffuse_map: images.add(diffuse),
-            specular_map: images.add(specular),
+            diffuse_map: diffuse,
+            specular_map: specular,
             // Maps store linear cd/m², rather than clipped RGB scaled by a prior.
             intensity: 1.,
             rotation: Quat::from_rotation_y(scene.world_yaw),
             ..default()
         };
-        self.reflections = reflections::build(scene, transport, images);
+        self.reflections = reflections::build(
+            scene,
+            transport,
+            images,
+            &mut self.gpu_bakes,
+            self.gpu_environment,
+        );
     }
 
     #[cfg(target_arch = "wasm32")]
@@ -585,10 +614,17 @@ impl IndoorMaterials {
         transport: &super::gi::BakeScene,
         images: &mut impl super::preparation::AssetStore<Image>,
     ) {
-        let [diffuse, specular] = environment::build_async(scene, transport).await;
+        let [diffuse, specular] = if self.gpu_environment {
+            let pixels = environment::cooperative::trace_async(scene, transport).await;
+            environment::gpu::prepare(pixels, images, &mut self.gpu_bakes)
+        } else {
+            environment::build_async(scene, transport)
+                .await
+                .map(|image| images.add(image))
+        };
         self.environment = EnvironmentMapLight {
-            diffuse_map: images.add(diffuse),
-            specular_map: images.add(specular),
+            diffuse_map: diffuse,
+            specular_map: specular,
             intensity: 1.,
             rotation: Quat::from_rotation_y(scene.world_yaw),
             ..default()
@@ -599,6 +635,15 @@ impl IndoorMaterials {
 }
 
 type Definition = (Surface, [f32; 3], f32, f32, f32);
+/// Finish programs which can replace a base binding. Shared with consumed-map
+/// selection so specialized kitchen slots survive preparation and transport.
+pub(crate) fn registered_finish(surface: Surface, slot: usize) -> bool {
+    (variants::supports(surface) && slot < variants::COUNT)
+        || matches!(
+            (surface, slot),
+            (Surface::Ceramic, 100..=102) | (Surface::Terracotta, 103) | (Surface::Paper, 104)
+        )
+}
 /// Shared by raster material resolution and symbolic diffuse-transport binding.
 pub(crate) fn finish_slot(surface: Surface, label: &str) -> Option<usize> {
     if surface == Surface::FabricAlt {
@@ -1313,23 +1358,29 @@ mod surface_tests {
 
     #[test]
     fn geometry_selection_preserves_all_referenced_pbr_and_human_maps() {
-        use super::super::{humans, layout::IndoorLayout, preparation::SceneGeometry};
-        for (seed, human_density, legacy) in [
-            (44, 0., false),
-            (207, 1., false),
-            (7, 0., true),
-            (43_084_482, 0., false),
+        use super::super::{
+            humans,
+            layout::{IndoorLayout, ObjectKind},
+            preparation::SceneGeometry,
+        };
+        for (seed, human_density, legacy, layout) in [
+            (44, 0., false, IndoorLayout::Mixed),
+            (207, 1., false, IndoorLayout::Mixed),
+            (7, 0., true, IndoorLayout::Mixed),
+            (43_084_482, 0., false, IndoorLayout::Mixed),
+            (13, 0., false, IndoorLayout::Kitchen),
         ] {
-            let mut scene = IndoorManifest::generate_with_humans(
-                seed,
-                IndoorLayout::Mixed,
-                0.65,
-                0,
-                human_density,
-            )
-            .unwrap();
+            let mut scene =
+                IndoorManifest::generate_with_humans(seed, layout, 0.65, 0, human_density).unwrap();
             if legacy {
                 scene.program = None;
+            }
+            if layout.is_kitchen() {
+                for kind in [ObjectKind::FruitBowl, ObjectKind::Bread] {
+                    let mut o = super::super::objects::audit::fixture(kind, 1);
+                    o.id = scene.objects.len();
+                    scene.objects.push(o);
+                }
             }
             let geometry = SceneGeometry {
                 architecture: super::super::architecture::architecture(&scene),
@@ -1536,7 +1587,7 @@ mod surface_tests {
             humans: Vec::new(),
         };
         let selection = geometry.material_selection(&scene);
-        assert_eq!(surfaces.len(), 10);
+        assert_eq!(surfaces.len(), 13);
         assert!(selection.direct_surfaces.is_empty());
         let (mut all_images, mut all_materials) = (Assets::default(), Assets::default());
         let all = IndoorMaterials::build(&scene, &mut all_images, &mut all_materials);

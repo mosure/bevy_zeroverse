@@ -19,12 +19,25 @@ pub struct Portal {
     pub center: Vec3,
     pub width_m: f32,
     pub headroom_m: f32,
+    /// Static door state. A geometric portal is not necessarily traversable.
+    #[serde(default)]
+    pub door: Option<super::super::architecture::doors::DoorProgram>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OpenConnection {
+    pub regions: [usize; 2],
+    pub start: Vec2,
+    pub end: Vec2,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct RoomTopology {
     pub regions: Vec<Region>,
     pub portals: Vec<Portal>,
+    /// Open shared boundaries, with no invented wall or door instance.
+    #[serde(default)]
+    pub open_connections: Vec<OpenConnection>,
     /// A clipped or exterior portal can lack a region on either side. Preserve
     /// its identity rather than inventing a connection or silently omitting it.
     pub boundary_partitions: Vec<usize>,
@@ -102,9 +115,56 @@ impl IndoorManifest {
                     center,
                     width_m: p.door_width,
                     headroom_m: p.door_height - p.arch_rise,
+                    door: p.door.clone(),
                 });
             } else {
                 result.boundary_partitions.push(i);
+            }
+        }
+        for (i, a) in program.zones.iter().enumerate() {
+            for (j, b) in program.zones.iter().enumerate().skip(i + 1) {
+                for axis in 0..2 {
+                    let coordinate = if (a.max[axis] - b.min[axis]).abs() < 1e-4 {
+                        a.max[axis]
+                    } else if (b.max[axis] - a.min[axis]).abs() < 1e-4 {
+                        b.max[axis]
+                    } else {
+                        continue;
+                    };
+                    let other = 1 - axis;
+                    let lo = a.min[other].max(b.min[other]);
+                    let hi = a.max[other].min(b.max[other]);
+                    if hi - lo < 0.8
+                        || program
+                            .partitions
+                            .iter()
+                            .any(|p| p.axis == axis && (p.coordinate - coordinate).abs() < 0.01)
+                    {
+                        continue;
+                    }
+                    let mut start = Vec2::ZERO;
+                    let mut end = start;
+                    start[axis] = coordinate;
+                    end[axis] = coordinate;
+                    start[other] = lo;
+                    end[other] = hi;
+                    // Clip against the same envelope, preserving openings only where
+                    // there is actual common floor on both sides.
+                    let spans = polygon::line_intervals(outline, axis, coordinate);
+                    for (x, y) in spans {
+                        let x = x.max(lo);
+                        let y = y.min(hi);
+                        if y - x > 0.8 {
+                            start[other] = x;
+                            end[other] = y;
+                            result.open_connections.push(OpenConnection {
+                                regions: [i, j],
+                                start,
+                                end,
+                            });
+                        }
+                    }
+                }
             }
         }
         result

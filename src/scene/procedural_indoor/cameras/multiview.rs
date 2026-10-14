@@ -7,7 +7,21 @@ use crate::scene::procedural_indoor::layout::{stream, IndoorCamera, IndoorManife
 use bevy::prelude::*;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+mod connected;
 mod recovery;
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum OverlapGraph {
+    #[default]
+    Reference,
+    Connected,
+}
+impl OverlapGraph {
+    fn is_reference(&self) -> bool {
+        *self == Self::Reference
+    }
+}
 
 pub const CHECK_TIMES: [f32; 5] = [0.0, 0.25, 0.5, 0.75, 1.0];
 const GROUP_ATTEMPTS: usize = 64;
@@ -16,6 +30,10 @@ const VIEW_ATTEMPTS: usize = 384;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct MultiViewSettings {
+    /// Reference preserves archived rigs. Connected requires a stable spanning
+    /// graph of bidirectionally overlapping pairs, not visibility to camera zero.
+    #[serde(default, skip_serializing_if = "OverlapGraph::is_reference")]
+    pub graph: OverlapGraph,
     /// Minimum fraction in BOTH directions, at every CHECK_TIMES sample.
     pub min_overlap: f32,
     /// Minimum Euclidean separation between EVERY pair, throughout sampled paths.
@@ -152,6 +170,14 @@ impl IndoorManifest {
         if self.cameras.len() < 2 {
             return Vec::new();
         }
+        if self
+            .camera_settings
+            .multiview
+            .as_ref()
+            .is_some_and(|p| p.graph == OverlapGraph::Connected)
+        {
+            return connected::all_pairs(self);
+        }
         let coverage = Coverage::new(self);
         let reference_views: Vec<_> = CHECK_TIMES
             .into_iter()
@@ -177,7 +203,14 @@ impl IndoorManifest {
 
     pub(crate) fn sample_cameras(&mut self, count: usize) -> Result<(), String> {
         self.camera_diagnostics = default();
-        self.sample_camera_set(count, true)
+        self.sample_camera_set(count, true)?;
+        if self.camera_settings.principal_point_jitter != Vec2::ZERO {
+            let coverage = Coverage::new(self);
+            for camera in &mut self.cameras {
+                camera.principal_point_offset = Some(coverage.optical_center(camera));
+            }
+        }
+        Ok(())
     }
 
     fn sample_camera_set(&mut self, count: usize, allow_overcomplete: bool) -> Result<(), String> {
@@ -188,6 +221,23 @@ impl IndoorManifest {
         let Some(policy) = self.camera_settings.multiview.clone().filter(|_| count > 1) else {
             return self.sample_independent_cameras(count, &mut rng, &coverage);
         };
+        if policy.graph == OverlapGraph::Connected {
+            return match connected::sample(self, count, &policy, &mut rng, &coverage) {
+                Ok(()) => Ok(()),
+                Err(connected_error) => {
+                    // A reference star is a valid connected graph. Reuse its
+                    // bounded room-space recovery rather than weaken a failed
+                    // connected request's clearance, path or overlap contract.
+                    self.camera_diagnostics.connected_reference_recoveries += 1;
+                    self.camera_settings.multiview.as_mut().unwrap().graph =
+                        OverlapGraph::Reference;
+                    let result = self.sample_camera_set(count, allow_overcomplete);
+                    self.camera_settings.multiview.as_mut().unwrap().graph =
+                        OverlapGraph::Connected;
+                    result.map_err(|e| format!("{connected_error}; reference recovery: {e}"))
+                }
+            };
+        }
         // Select strata once for this seed. A failed difficult/negative stratum
         // must not be redrawn as an easier one during anchor or view retries.
         let targets = self
@@ -210,6 +260,7 @@ impl IndoorManifest {
         let mut most_placed = 0;
         let mut rejected = [0usize; 6];
         let mut partial_groups = Vec::new();
+        let viewpoint = super::viewpoint::ViewpointProgram::sample(self.seed);
         for _ in 0..GROUP_ATTEMPTS {
             self.cameras.clear();
             if self
@@ -287,6 +338,7 @@ impl IndoorManifest {
                             reachable.min(1.2).max(policy.min_baseline),
                             Vec2::new(0.70 - template.start.y, ceiling - template.start.y),
                             &local_policy,
+                            &self.camera_settings.intrinsics,
                             &mut rng,
                         );
                         // A sloping roof leaves a different usable height at
@@ -312,7 +364,15 @@ impl IndoorManifest {
                         }
                         camera
                     } else {
-                        propose(&reference, extent, reachable, heights, &policy, &mut rng)
+                        propose(
+                            &reference,
+                            extent,
+                            reachable,
+                            heights,
+                            &policy,
+                            &self.camera_settings.intrinsics,
+                            &mut rng,
+                        )
                     };
                     if target.is_some() && attempt % 2 == 1 {
                         // A translated reference path over-proposes outside a
@@ -366,6 +426,9 @@ impl IndoorManifest {
                         count,
                         &mut rng,
                     );
+                    if policy.target_variation > 0. {
+                        viewpoint.level_gaze(&mut candidate, &mut rng);
+                    }
                     if let Some(handheld) = &self.camera_settings.handheld {
                         handheld.apply(&mut candidate, &mut rng);
                     }
@@ -500,6 +563,7 @@ fn propose(
     reachable: f32,
     heights: Vec2,
     policy: &MultiViewSettings,
+    intrinsics: &super::intrinsics::IntrinsicsSettings,
     rng: &mut impl Rng,
 ) -> IndoorCamera {
     // Uniform metric baselines avoid the former logarithmic bias toward an
@@ -510,7 +574,16 @@ fn propose(
     // Sample usable heights directly; wide rigs may look over furniture that
     // occludes a low reference camera. The complete path is still swept below.
     let vertical_limit = (radius * 0.4).min(0.9);
-    let vertical = rng.random_range(heights.x.max(-vertical_limit)..=heights.y.min(vertical_limit));
+    let (low, high) = (
+        heights.x.max(-vertical_limit),
+        heights.y.min(vertical_limit),
+    );
+    if low > high {
+        // No feasible vertical interval at this radius. The unchanged reference
+        // fails pair separation and is rejected by the caller, without panicking.
+        return reference.clone();
+    }
+    let vertical = rng.random_range(low..=high);
     let planar = (radius * radius - vertical * vertical).sqrt();
     let offset = Vec3::new(planar * azimuth.cos(), vertical, planar * azimuth.sin());
     let horizontal_jitter = 0.03 + 0.32 * policy.target_variation;
@@ -533,10 +606,7 @@ fn propose(
     camera.end = deform(reference.end);
     camera.target += jitter;
     // Intrinsics remain independently sampled; overlap rejects extreme mismatches.
-    camera.fov_degrees = (0.5 / rng.random_range(0.37_f32.ln()..2.0_f32.ln()).exp())
-        .atan()
-        .to_degrees()
-        * 2.0;
+    camera.fov_degrees = intrinsics.sample(rng);
     if let Some(motion) = &mut camera.motion {
         let bend = Vec3::new(
             rng.random_range(-1.0..=1.0),

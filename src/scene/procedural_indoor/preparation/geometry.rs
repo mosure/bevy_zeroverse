@@ -38,7 +38,7 @@ impl SceneGeometry {
                 .rsplit_once("#finish")
                 .and_then(|(_, slot)| slot.parse::<usize>().ok())
             {
-                if materials::variants::supports(*surface) && slot < materials::variants::COUNT {
+                if materials::registered_finish(*surface, slot) {
                     selection.finishes.insert((*surface, slot));
                 } else {
                     selection.direct_surfaces.insert(*surface);
@@ -73,7 +73,7 @@ impl SceneGeometry {
         selection
     }
 
-    pub(super) async fn build(scene: &IndoorManifest) -> (Self, timings::GeometryJobs) {
+    pub(crate) async fn build(scene: &IndoorManifest) -> (Self, timings::GeometryJobs) {
         cooperate().await;
         #[cfg(not(target_arch = "wasm32"))]
         {
@@ -93,7 +93,10 @@ impl SceneGeometry {
                 for object in &scene.objects {
                     scope.spawn(async move {
                         let start = bevy::platform::time::Instant::now();
-                        let part = Part::Object(objects::build_object(object));
+                        let part = Part::Object(objects::build_object_with_motion(
+                            object,
+                            scene.indoor_motion.as_ref().map(|m| &m.policy),
+                        ));
                         (part, start.elapsed().as_secs_f64())
                     });
                 }
@@ -139,7 +142,10 @@ impl SceneGeometry {
             for object in &scene.objects {
                 cooperate().await;
                 let start = bevy::platform::time::Instant::now();
-                objects.push(objects::build_object(object));
+                objects.push(objects::build_object_with_motion(
+                    object,
+                    scene.indoor_motion.as_ref().map(|m| &m.policy),
+                ));
                 timings.objects.add(start.elapsed().as_secs_f64());
             }
             let mut humans = Vec::with_capacity(scene.humans.len());

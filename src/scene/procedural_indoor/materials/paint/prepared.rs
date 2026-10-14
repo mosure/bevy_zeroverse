@@ -123,8 +123,10 @@ impl PreparedPaint {
                 .linear_color
                 .map(|color| super::super::linear_to_srgb((color * gain).clamp(0., 1.))),
             height: r.relief_m * (texture * 0.80 + (lap - 0.5) * c.trowel * 0.22 - holes * 0.40)
-                + 0.000025 * (roller * c.roller + film * a.orange_peel)
-                + 0.000016 * brush * a.brush * self.resolved_brush,
+                + 0.000025
+                    * (roller * c.roller + film * a.orange_peel)
+                    * r.detail_scale.unwrap_or(1.)
+                + 0.000016 * brush * a.brush * self.resolved_brush * r.detail_scale.unwrap_or(1.),
             roughness: (r.roughness
                 + film * 0.025
                 + roller * c.roller * 0.035

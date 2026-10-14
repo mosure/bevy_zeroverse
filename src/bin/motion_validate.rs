@@ -50,6 +50,8 @@ mod native {
         #[arg(long)]
         static_only: bool,
         #[arg(long)]
+        indoor_motion: Option<String>,
+        #[arg(long)]
         flow: bool,
         /// Optional local upstream tokenizer.json; checks the 64-token chat budget without model loads.
         #[arg(long)]
@@ -131,6 +133,7 @@ mod native {
                 indoor_seed: Some(first_seed),
                 indoor_density: args.density,
                 indoor_human_density: args.human_density,
+                indoor_motion: args.indoor_motion.clone(),
                 human_motion: (!args.static_only).then(|| args.policy.clone()),
                 headless: true,
                 editor: false,

@@ -12,6 +12,9 @@ struct Args {
     output: PathBuf,
     #[arg(long, default_value_t = 64)]
     samples: usize,
+    /// Restrict this qualification to the new public-space catalog.
+    #[arg(long)]
+    public_only: bool,
 }
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
@@ -22,11 +25,18 @@ fn main() -> anyhow::Result<()> {
     fs::create_dir_all(&args.output)?;
     let mut categories = Vec::new();
     for kind in ObjectKind::ALL {
+        if args.public_only && !kind.is_program_item() {
+            continue;
+        }
         let mut maps = Vec::new();
         let mut samples = Vec::new();
         let mut failures = Vec::new();
         for seed in 0..args.samples as u64 {
-            let o = audit::fixture(kind, seed);
+            let mut o = audit::fixture(kind, seed);
+            // Construction variety is measured independently of metric scale.
+            if kind.is_program_item() {
+                o.size = objects::public::dimensions(kind, 0);
+            }
             let start = Instant::now();
             let a = objects::build_object(&o);
             let ms = start.elapsed().as_secs_f64() * 1000.;
@@ -69,7 +79,7 @@ fn main() -> anyhow::Result<()> {
     fs::write(
         args.output.join("audit.json"),
         serde_json::to_vec(
-            &json!({"schema_version":1,"build_provenance":bevy_zeroverse::provenance::capture_provenance(),"sample_count_per_category":args.samples,"resolution":audit::RESOLUTION,"method":"six fixed-envelope orthographic depth maps; ordered greedy coverage; union-pixel normalized depth L1; no material/UV contribution","categories":categories}),
+            &json!({"schema_version":1,"audit_scope":if args.public_only {"public_program_items"} else {"all_object_kinds"},"catalog_total_count":ObjectKind::ALL.len(),"build_provenance":bevy_zeroverse::provenance::capture_provenance(),"sample_count_per_category":args.samples,"resolution":audit::RESOLUTION,"method":"six fixed-envelope orthographic depth maps; ordered greedy coverage; union-pixel normalized depth L1; no material/UV contribution","categories":categories}),
         )?,
     )?;
     anyhow::ensure!(

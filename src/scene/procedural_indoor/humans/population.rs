@@ -15,9 +15,10 @@ fn standing_candidate(
             .iter()
             .filter(|o| {
                 !o.neighbor
-                    && matches!(o.kind, ObjectKind::Whiteboard | ObjectKind::Display)
-                    && o.position.y > 0.6
-                    && o.size.z < 0.2
+                    && (o.kind == ObjectKind::TeachingBoard
+                        || matches!(o.kind, ObjectKind::Whiteboard | ObjectKind::Display)
+                            && o.position.y > 0.6
+                            && o.size.z < 0.2)
             })
             .choose(rng)
         {
@@ -31,6 +32,32 @@ fn standing_candidate(
                 + Quat::from_rotation_y(board.yaw) * Vec3::new(lateral, 0., distance);
             position.y = scene.floor_height(position.xz());
             return (position, board.yaw + PI + rng.random_range(-0.65..0.65));
+        }
+    }
+    if scene.layout.is_public() && rng.random_bool(0.60) {
+        if let Some(anchor) = scene
+            .objects
+            .iter()
+            .filter(|o| {
+                matches!(
+                    o.kind,
+                    ObjectKind::InformationStand
+                        | ObjectKind::ExhibitPlinth
+                        | ObjectKind::ServiceCounter
+                        | ObjectKind::Elevator
+                )
+            })
+            .choose(rng)
+        {
+            let mut p = anchor.position
+                + Quat::from_rotation_y(anchor.yaw)
+                    * Vec3::new(
+                        rng.random_range(-0.45..0.45),
+                        0.,
+                        anchor.size.z * 0.5 + rng.random_range(0.70..1.3),
+                    );
+            p.y = scene.floor_height(p.xz());
+            return (p, anchor.yaw + rng.random_range(-0.45..0.45));
         }
     }
     let x = rng.random_range(-0.42..0.42) * scene.room_size.x;
@@ -49,7 +76,7 @@ pub fn populate(scene: &mut IndoorManifest, density: f32) {
     let mut chairs: Vec<_> = scene
         .objects
         .iter()
-        .filter(|o| o.kind == ObjectKind::Chair)
+        .filter(|o| o.kind == ObjectKind::Chair && !super::super::objects::chairs::is_folded(o))
         .map(|o| o.id)
         .collect();
     chairs.shuffle(&mut rng);
@@ -82,14 +109,16 @@ pub fn populate(scene: &mut IndoorManifest, density: f32) {
             Some(chair_id),
             chair.neighbor,
         );
-        let fitted = (0..if pose == HumanPoseKind::SeatedWorking {
+        let fitted = (0..if working_surface && pose != HumanPoseKind::SeatedListening {
             WORKTOP_POSE_ATTEMPTS
         } else {
             1
         })
             .find_map(|proposal| {
                 let mut h = person.clone();
-                if pose == HumanPoseKind::SeatedWorking {
+                if pose == HumanPoseKind::SeatedWorking
+                    || (pose == HumanPoseKind::SeatedTalking && proposal > 0)
+                {
                     if let Some(table) = chair.interaction_target.map(|id| &scene.objects[id]) {
                         fit_worktop(&mut h, table, proposal);
                     }

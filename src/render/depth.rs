@@ -13,6 +13,9 @@ use pyo3::prelude::*;
 
 use crate::{app::BevyZeroverseConfig, render::DisabledPbrMaterial};
 
+mod palette;
+pub use bevy_zeroverse_capture::depth::turbo_depth_rgb;
+
 #[derive(
     Clone, Copy, Debug, Default, Eq, Hash, PartialEq, Serialize, Deserialize, Reflect, ValueEnum,
 )]
@@ -22,6 +25,8 @@ pub enum DepthFormat {
     Colorized,
     Linear,
     Normalized,
+    /// Display RGB: warm near, cool far, logarithmic metric distance.
+    Turbo,
 }
 
 pub const DEPTH_SHADER_HANDLE: Handle<Shader> =
@@ -35,7 +40,12 @@ pub struct Depth;
 pub struct DepthPlugin;
 impl Plugin for DepthPlugin {
     fn build(&self, app: &mut App) {
-        load_internal_asset!(app, DEPTH_SHADER_HANDLE, "depth.wesl", Shader::from_wesl);
+        load_internal_asset!(
+            app,
+            DEPTH_SHADER_HANDLE,
+            "depth.wesl",
+            |source: &str, path| { Shader::from_wesl(palette::shader(source), path) }
+        );
 
         app.register_type::<Depth>();
 
@@ -52,17 +62,19 @@ impl Plugin for DepthPlugin {
     }
 }
 
-#[allow(clippy::type_complexity)]
+#[allow(clippy::type_complexity, clippy::too_many_arguments)]
 pub(crate) fn apply_depth_material(
     args: Res<BevyZeroverseConfig>,
     mut commands: Commands,
-    depths: Query<
+    depths: Query<(Entity, &DisabledPbrMaterial), With<Depth>>,
+    new_depths: Query<
         (Entity, &DisabledPbrMaterial),
         (With<Depth>, Without<MeshMaterial3d<DepthMaterial>>),
     >,
     mut removed_depths: RemovedComponents<Depth>,
     mut materials: ResMut<Assets<DepthMaterial>>,
     mut cache: Local<super::annotation_material::AnnotationMaterialCache<DepthMaterial>>,
+    mut previous: Local<Option<DepthSettingsData>>,
 ) {
     for e in removed_depths.read() {
         if let Ok(mut commands) = commands.get_entity(e) {
@@ -70,7 +82,13 @@ pub(crate) fn apply_depth_material(
         }
     }
 
-    for (e, pbr_material) in &depths {
+    let settings = DepthSettingsData {
+        format: args.depth_format,
+        z_depth: args.z_depth,
+    };
+    let changed = *previous != Some(settings);
+    *previous = Some(settings);
+    let mut apply = |(e, pbr_material): (Entity, &DisabledPbrMaterial)| {
         let depth_material = cache.get(
             &mut materials,
             {
@@ -93,6 +111,13 @@ pub(crate) fn apply_depth_material(
         );
 
         commands.entity(e).insert(MeshMaterial3d(depth_material));
+    };
+    // Rebind on an actual depth-setting change, without regenerating geometry.
+    // Steady frames keep the original added-material-only query and cache.
+    if changed {
+        depths.iter().for_each(&mut apply);
+    } else {
+        new_depths.iter().for_each(apply);
     }
 }
 
@@ -145,6 +170,7 @@ impl MaterialExtension for DepthExtension {
             DepthFormat::Colorized => "COLORIZED_DEPTH",
             DepthFormat::Linear => "LINEAR_DEPTH",
             DepthFormat::Normalized => "NORMALIZED_DEPTH",
+            DepthFormat::Turbo => "TURBO_DEPTH",
         };
 
         let depth_type = if key.bind_group_data.z_depth {
@@ -160,5 +186,64 @@ impl MaterialExtension for DepthExtension {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn depth_settings_rebind_existing_materials_and_reuse_the_cache() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, bevy::asset::AssetPlugin::default()));
+        app.init_asset::<Mesh>();
+        app.init_asset::<StandardMaterial>();
+        app.init_asset::<Shader>();
+        app.init_resource::<BevyZeroverseConfig>();
+        app.add_plugins(DepthPlugin);
+        let mesh = app
+            .world_mut()
+            .resource_mut::<Assets<Mesh>>()
+            .add(Cuboid::default());
+        let entity = app
+            .world_mut()
+            .spawn((Depth, Mesh3d(mesh), DisabledPbrMaterial::default()))
+            .id();
+        app.update();
+        let original = app
+            .world()
+            .get::<MeshMaterial3d<DepthMaterial>>(entity)
+            .unwrap()
+            .0
+            .clone();
+        for format in [
+            DepthFormat::Turbo,
+            DepthFormat::Linear,
+            DepthFormat::Normalized,
+        ] {
+            app.world_mut()
+                .resource_mut::<BevyZeroverseConfig>()
+                .depth_format = format;
+            app.update();
+            let handle = &app
+                .world()
+                .get::<MeshMaterial3d<DepthMaterial>>(entity)
+                .unwrap()
+                .0;
+            assert_eq!(
+                app.world()
+                    .resource::<Assets<DepthMaterial>>()
+                    .get(handle)
+                    .unwrap()
+                    .extension
+                    .format,
+                format
+            );
+            if format == DepthFormat::Normalized {
+                assert_eq!(handle, &original);
+            }
+        }
+        assert_eq!(app.world().resource::<Assets<DepthMaterial>>().len(), 3);
     }
 }

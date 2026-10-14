@@ -4,6 +4,64 @@ use super::{HumanAssembly, HumanSurface, IndoorHuman};
 use bevy::prelude::*;
 use rand::Rng;
 
+/// Partition the actual Anny eye surface rather than overlaying another sphere.
+/// Every source triangle is conserved across sclera, iris and pupil; this avoids
+/// depth fighting with the polygonal eyeball and keeps the source skinning shape.
+pub(super) fn iris(seed: u64, eye: Vec3, rotation: Quat, scale: f32, mesh: &mut HumanAssembly) {
+    use super::garments::{emit, split, GarmentVertex};
+    let Some(sclera) = mesh.parts.remove(&HumanSurface::Eye) else {
+        return;
+    };
+    let mut rng = super::stream(seed, 0x49524953);
+    let radius = rng.random_range(0.0049..0.0059) * scale;
+    let pupil = radius * rng.random_range(0.26..0.46);
+    let inverse = rotation.inverse();
+    let directions: [Vec2; 32] =
+        std::array::from_fn(|i| Vec2::from_angle(i as f32 * std::f32::consts::TAU / 32.));
+    // Linear half-planes give exact shared crossings on the source triangles.
+    // A nonlinear radial test would distort the boundary on coarse polygons.
+    let partition = |mut polygon: Vec<GarmentVertex>, r: f32, outside, mesh: &mut HumanAssembly| {
+        let offset = r * (std::f32::consts::PI / 32.).cos();
+        for direction in directions {
+            let (inside, rejected) =
+                split(&polygon, |p| p.truncate().dot(direction) - offset, None);
+            emit(&rejected, outside, mesh);
+            polygon = inside;
+            if polygon.len() < 3 {
+                break;
+            }
+        }
+        polygon
+    };
+    for indices in sclera.indices.as_chunks::<3>().0 {
+        let triangle = indices.map(|i| {
+            let i = i as usize;
+            let position = Vec3::from_array(sclera.positions[i]);
+            GarmentVertex {
+                rest: inverse * (position - eye),
+                position,
+                normal: Vec3::from_array(sclera.normals[i]),
+                uv: Vec2::from_array(sclera.uvs[i]),
+                skin_field: 0.,
+            }
+        });
+        // The other eye and triangles outside the iris bounds need no cutting.
+        if (0..2).any(|axis| {
+            triangle.iter().all(|v| v.rest[axis] > radius)
+                || triangle.iter().all(|v| v.rest[axis] < -radius)
+        }) || triangle.iter().all(|v| v.rest.z >= 0.)
+        {
+            emit(&triangle, HumanSurface::Eye, mesh);
+            continue;
+        }
+        let (front, back) = split(&triangle, |p| p.z, None);
+        emit(&back, HumanSurface::Eye, mesh);
+        let iris = partition(front, radius, HumanSurface::Eye, mesh);
+        let pupil = partition(iris, pupil, HumanSurface::Iris, mesh);
+        emit(&pupil, HumanSurface::Detail, mesh);
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 pub(super) fn append(
     h: &IndoorHuman,
@@ -186,6 +244,87 @@ impl BeardRegion {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn irises_partition_the_source_eye_without_intersecting_overlays() {
+        use crate::scene::procedural_indoor::geometry::Geometry;
+        let area = |g: &Geometry| -> f64 {
+            g.indices
+                .as_chunks::<3>()
+                .0
+                .iter()
+                .map(|t| {
+                    let [a, b, c] = t.map(|i| Vec3::from_array(g.positions[i as usize]));
+                    f64::from((b - a).cross(c - a).length()) * 0.5
+                })
+                .sum()
+        };
+        for seed in 0..8 {
+            for scale in [0.7, 1., 1.4] {
+                let rotation = Quat::from_euler(EulerRot::YXZ, 0.7, -0.3, 0.15);
+                let origin = Vec3::new(0.1, 1.6, -0.2);
+                let eyes = [-0.032, 0.032].map(|x| origin + rotation * Vec3::X * x * scale);
+                let mut mesh = HumanAssembly::default();
+                for eye in eyes {
+                    mesh.part(HumanSurface::Eye).ellipsoid(
+                        Vec3::new(0.012, 0.011, 0.011) * scale,
+                        Transform::from_translation(eye).with_rotation(rotation),
+                    );
+                }
+                let source = mesh.parts[&HumanSurface::Eye].clone();
+                let source_area = area(&source);
+                for eye in eyes {
+                    iris(seed, eye, rotation, scale, &mut mesh);
+                }
+                let result_area: f64 = mesh.parts.values().map(area).sum();
+                // The shared mesh emitter discards slivers of area <= 5e-10
+                // square metres, and positions are
+                // f32 at head height. Bound their combined area to 0.005%.
+                assert!(
+                    (result_area / source_area - 1.).abs() < 5e-5,
+                    "seed={seed} scale={scale}: original={source_area}, partition={result_area}"
+                );
+                for surface in [HumanSurface::Eye, HumanSurface::Iris, HumanSurface::Detail] {
+                    let g = &mesh.parts[&surface];
+                    assert!(area(g) > 0.);
+                    for triangle in g.indices.as_chunks::<3>().0 {
+                        let [a, b, c] = triangle.map(|i| Vec3::from_array(g.positions[i as usize]));
+                        let n = (b - a).cross(c - a);
+                        assert!(n.length_squared() > 1e-18);
+                        // Very small clipped triangles can amplify roundoff; their
+                        // normals must still agree with the original eye orientation.
+                        assert!(n.dot(Vec3::from_array(g.normals[triangle[0] as usize])) > 0.);
+                    }
+                }
+                let iris = &mesh.parts[&HumanSurface::Iris];
+                let pupil = &mesh.parts[&HumanSurface::Detail];
+                assert!(
+                    pupil
+                        .positions
+                        .iter()
+                        .filter(|p| iris.positions.contains(p))
+                        .count()
+                        >= 32
+                );
+                // No extra surface is displaced in front of the original mesh.
+                for p in mesh.parts.values().flat_map(|g| &g.positions) {
+                    let p = Vec3::from_array(*p);
+                    let distance = source
+                        .indices
+                        .as_chunks::<3>()
+                        .0
+                        .iter()
+                        .map(|t| {
+                            let [a, b, c] =
+                                t.map(|i| Vec3::from_array(source.positions[i as usize]));
+                            let n = (b - a).cross(c - a).normalize_or_zero();
+                            (p - a).dot(n).abs()
+                        })
+                        .fold(f32::INFINITY, f32::min);
+                    assert!(distance < 2e-6);
+                }
+            }
+        }
+    }
     #[test]
     fn beard_excludes_nose_but_retains_cheek_chin_and_moustache() {
         for scale in [0.65, 1.0, 1.55] {

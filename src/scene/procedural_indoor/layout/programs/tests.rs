@@ -2,6 +2,63 @@ use super::*;
 use crate::scene::procedural_indoor::validation::{validate_geometry, validate_layout};
 
 #[test]
+fn constrained_activity_seed_20053_has_a_usable_primary_surface() {
+    for density in [0., 0.35, 0.65, 1.] {
+        for human_density in [0., 0.25, 1.] {
+            let scene = IndoorManifest::generate_with_humans(
+                20_053,
+                IndoorLayout::Mixed,
+                density,
+                3,
+                human_density,
+            )
+            .unwrap();
+            validate_layout(&scene)
+                .unwrap_or_else(|e| panic!("density={density}, humans={human_density}: {e}"));
+            validate_geometry(&scene).unwrap();
+            let table = scene
+                .objects
+                .iter()
+                .find(|o| {
+                    !o.neighbor
+                        && matches!(
+                            o.kind,
+                            ObjectKind::CoffeeTable | ObjectKind::Desk | ObjectKind::Table
+                        )
+                })
+                .expect("a real activity surface must survive constrained placement");
+            if density == 0.65 {
+                assert_eq!(table.kind, ObjectKind::CoffeeTable);
+                assert!(
+                    scene.objects.iter().any(|o| {
+                        !o.neighbor
+                            && o.kind == ObjectKind::Sofa
+                            && (o.position.y - table.position.y).abs() < 0.01
+                            && o.position.distance(table.position) < 2.0
+                    }),
+                    "the repaired surface must serve the existing seating"
+                );
+            }
+            let mut recovered = scene.clone();
+            recovered.complete_underfilled_activity_groups();
+            assert_eq!(scene, recovered, "complete rooms must not be refurnished");
+            assert_eq!(
+                scene,
+                IndoorManifest::generate_with_humans(
+                    20_053,
+                    IndoorLayout::Mixed,
+                    density,
+                    3,
+                    human_density,
+                )
+                .unwrap(),
+                "repaired scenes must replay deterministically"
+            );
+        }
+    }
+}
+
+#[test]
 fn accepted_meetings_have_real_seats_and_replayable_receipts() {
     let mut meetings = 0;
     for seed in 0..64 {

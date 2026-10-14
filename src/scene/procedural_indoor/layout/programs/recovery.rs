@@ -20,12 +20,86 @@ impl IndoorManifest {
     pub(in crate::scene::procedural_indoor::layout) fn complete_underfilled_activity_groups(
         &mut self,
     ) {
-        if self.main_furniture_count() < self.minimum_main_objects() {
+        self.complete_library_storage();
+        // Service pieces can meet the population minimum while every work or
+        // coffee surface was rejected. Complete that activity independently of
+        // the count, using the same supported-floor and collision checks.
+        if self.main_furniture_count() < self.minimum_main_objects()
+            || self.primary_activity_surface_missing()
+        {
             self.add_lounge_surfaces();
             self.add_lounge_side_pieces();
             self.add_work_area_side_pieces();
             self.add_activity_side_storage();
         }
+    }
+
+    fn primary_activity_surface_missing(&self) -> bool {
+        !self.objects.iter().any(|o| {
+            !o.neighbor
+                && (matches!(
+                    o.kind,
+                    ObjectKind::Desk | ObjectKind::Table | ObjectKind::CoffeeTable
+                ) || self.layout.is_kitchen() && o.kind == ObjectKind::KitchenCounter)
+        })
+    }
+
+    // A moved entrance can reject the perimeter bookcase. Reuse admitted
+    // storage first; adding another footprint can obstruct constrained rooms.
+    fn complete_library_storage(&mut self) {
+        if self.layout != IndoorLayout::Library
+            || self
+                .objects
+                .iter()
+                .any(|o| !o.neighbor && o.kind == ObjectKind::Bookcase)
+        {
+            return;
+        }
+        if let Some(cabinet) = self
+            .objects
+            .iter_mut()
+            .find(|o| !o.neighbor && o.kind == ObjectKind::Cabinet)
+        {
+            cabinet.kind = ObjectKind::Bookcase;
+            return;
+        }
+        if self.main_furniture_count() >= self.minimum_main_objects() {
+            return;
+        }
+        let Some(program) = &self.program else { return };
+        let zones = program.zones.clone();
+        let mut rng = stream(self.seed, 6134);
+        let rejected = self.rejected_placements;
+        for width in [0.8, 0.55] {
+            let size = Vec3::new(width, 1.4, 0.32);
+            for zone in &zones {
+                for side in 0..4 {
+                    for i in 0..12 {
+                        let t = (i as f32 + 0.5) / 12.;
+                        let point = zone.min.lerp(zone.max, t);
+                        let (x, z, yaw) = match side {
+                            0 => (zone.min.x + 0.34, point.y, -std::f32::consts::FRAC_PI_2),
+                            1 => (zone.max.x - 0.34, point.y, std::f32::consts::FRAC_PI_2),
+                            2 => (point.x, zone.min.y + 0.34, 0.),
+                            _ => (point.x, zone.max.y - 0.34, std::f32::consts::PI),
+                        };
+                        if self
+                            .add(
+                                ObjectKind::Bookcase,
+                                Vec3::new(x, 0., z),
+                                size,
+                                yaw,
+                                &mut rng,
+                            )
+                            .is_some()
+                        {
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+        self.rejected_placements = rejected;
     }
 
     fn add_activity_side_storage(&mut self) {
@@ -179,7 +253,14 @@ impl IndoorManifest {
             ] {
                 for side in [-1., 1.] {
                     if self.main_furniture_count() >= self.minimum_main_objects() {
-                        return;
+                        if !self.primary_activity_surface_missing() {
+                            return;
+                        }
+                        if kind != ObjectKind::CoffeeTable {
+                            // Keep trying surfaces at the remaining sofas;
+                            // another lamp cannot complete this activity.
+                            continue;
+                        }
                     }
                     'candidates: for gap in [0.15, 0.30, 0.45] {
                         for along in [0., -0.5, 0.5, -1., 1., 1.5] {

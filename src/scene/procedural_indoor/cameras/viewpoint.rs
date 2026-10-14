@@ -5,6 +5,8 @@
 //! tests. Heights are measured above the actual supporting floor; truncated
 //! logistic densities avoid piles of samples clamped onto a ceiling.
 use super::super::layout::stream;
+use super::IndoorCamera;
+use bevy::prelude::*;
 use rand::Rng;
 use serde::Serialize;
 
@@ -15,6 +17,10 @@ pub struct ViewpointProgram {
     pub centers_metres: [f32; 4],
     /// Logistic scale; standard deviation is scale * pi / sqrt(3).
     pub scales_metres: [f32; 4],
+    /// Probability of proposing a floor-parallel gaze instead of centering content.
+    pub level_gaze_fraction: f32,
+    /// Symmetric, continuously sampled pitch interval around the horizon.
+    pub level_pitch_span_degrees: f32,
 }
 impl ViewpointProgram {
     pub fn sample(seed: u64) -> Self {
@@ -24,9 +30,9 @@ impl ViewpointProgram {
             // content-framing gates reject many of them. A thin low tail in a
             // standing-height prior effectively disappears after acceptance.
             rng.random_range(0.16..0.34),
-            rng.random_range(0.12..0.35),
-            rng.random_range(0.30..0.64),
-            rng.random_range(0.05..0.30),
+            rng.random_range(0.16..0.40),
+            rng.random_range(0.26..0.56),
+            rng.random_range(0.08..0.32),
         ];
         let total: f32 = weights.iter().sum();
         for weight in &mut weights {
@@ -36,8 +42,8 @@ impl ViewpointProgram {
             weights,
             centers_metres: [
                 rng.random_range(0.76..1.00),
-                rng.random_range(1.12..1.42),
-                rng.random_range(1.47..1.82),
+                rng.random_range(1.08..1.46),
+                rng.random_range(1.45..1.88),
                 rng.random_range(1.91..2.85),
             ],
             scales_metres: [
@@ -46,6 +52,8 @@ impl ViewpointProgram {
                 rng.random_range(0.08..0.22),
                 rng.random_range(0.17..0.46),
             ],
+            level_gaze_fraction: rng.random_range(0.30..0.48),
+            level_pitch_span_degrees: rng.random_range(2.0..7.0),
         }
     }
     pub(super) fn height(&self, floor: f32, upper: f32, rng: &mut impl Rng) -> Option<f32> {
@@ -75,6 +83,43 @@ impl ViewpointProgram {
         // tail still has a continuous density over all usable eye heights.
         let q = (a + (b - a) * rng.random::<f32>()).clamp(f32::EPSILON, 1. - f32::EPSILON);
         Some((floor + center + scale * (q / (1. - q)).ln()).clamp(low, upper))
+    }
+
+    pub(super) fn level_pitch(&self, rng: &mut impl Rng) -> Option<f32> {
+        rng.random_bool(self.level_gaze_fraction as f64).then(|| {
+            rng.random_range(-self.level_pitch_span_degrees..=self.level_pitch_span_degrees)
+                .to_radians()
+        })
+    }
+
+    /// Keep the scene-content azimuth and target distance in the floor plane.
+    /// This is a proposal only: visibility, person framing and overlap are still
+    /// tested afterwards. No height clamp or exact zero-pitch rail is introduced.
+    pub(super) fn aim_at_pitch(origin: Vec3, target: Vec3, pitch: f32) -> Vec3 {
+        target.with_y(origin.y + origin.xz().distance(target.xz()) * pitch.tan())
+    }
+
+    pub(super) fn level_gaze(&self, camera: &mut IndoorCamera, rng: &mut impl Rng) {
+        // Free orientations belong to an explicit handheld program.
+        if camera
+            .motion
+            .as_ref()
+            .is_some_and(|m| m.orientations.is_some())
+        {
+            return;
+        }
+        if let Some(pitch) = self.level_pitch(rng) {
+            Self::apply_pitch(camera, pitch);
+        }
+    }
+
+    pub(super) fn apply_pitch(camera: &mut IndoorCamera, pitch: f32) {
+        camera.target = Self::aim_at_pitch(camera.start, camera.target, pitch);
+        if let Some(motion) = &mut camera.motion {
+            // Use the endpoint's own height/distance, so a moving camera does
+            // not pitch down just because it gets closer to its original target.
+            motion.target_end = Self::aim_at_pitch(camera.end, motion.target_end, pitch);
+        }
     }
 }
 #[cfg(test)]
@@ -145,6 +190,103 @@ mod tests {
         assert!(
             elevated > 256,
             "elevated-view proposal tail disappeared: {elevated}/8192"
+        );
+    }
+
+    #[test]
+    fn level_gaze_keeps_motion_and_continuous_endpoint_pitch() {
+        let mut camera = IndoorCamera {
+            principal_point_offset: None,
+            start: Vec3::new(-2., 1.3, 0.),
+            end: Vec3::new(-1., 1.6, 0.5),
+            target: Vec3::new(1., 0.8, -3.),
+            fov_degrees: 65.,
+            motion: Some(super::super::CameraMotion {
+                orientations: None,
+                control: [Vec3::new(-1.8, 1.4, 0.1), Vec3::new(-1.3, 1.5, 0.4)],
+                target_end: Vec3::new(1.2, 0.9, -2.8),
+                roll: [-0.04, 0.03],
+                route: Vec::new(),
+            }),
+        };
+        let original = camera.clone();
+        for pitch in [-0.08_f32, -0.015, 0.025, 0.075] {
+            ViewpointProgram::apply_pitch(&mut camera, pitch);
+            for time in [0., 1.] {
+                let direction = camera.transform_at(time).rotation * Vec3::NEG_Z;
+                assert!((direction.y.asin() - pitch).abs() < 1e-5);
+            }
+            assert_eq!(camera.start, original.start);
+            assert_eq!(camera.end, original.end);
+            assert_eq!(camera.target.xz(), original.target.xz());
+            assert_eq!(
+                camera.motion.as_ref().unwrap().control,
+                original.motion.as_ref().unwrap().control
+            );
+        }
+        let orientations = [Quat::from_rotation_x(0.2), Quat::from_rotation_y(0.4)];
+        camera.motion.as_mut().unwrap().orientations = Some(orientations);
+        let free = camera.clone();
+        ViewpointProgram::sample(0).level_gaze(&mut camera, &mut stream(0, 5));
+        assert_eq!(
+            camera, free,
+            "explicit handheld orientation must be preserved"
+        );
+    }
+
+    #[test]
+    fn accepted_views_keep_level_gazes_and_height_tails_with_overlap() {
+        use super::super::super::{
+            layout::{IndoorLayout, IndoorManifest},
+            validation::validate_layout,
+        };
+        let mut level = 0;
+        let mut down = 0;
+        let mut up = 0;
+        let mut low = 0;
+        let mut high = 0;
+        let mut total = 0;
+        for seed in 0..64 {
+            let scene =
+                IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 3, 0.25)
+                    .unwrap();
+            validate_layout(&scene).unwrap();
+            let policy = scene.camera_settings.multiview.as_ref().unwrap();
+            assert!(scene
+                .camera_overlap()
+                .iter()
+                .all(|pair| policy.accepts(&pair.samples)));
+            for camera in &scene.cameras {
+                for time in [0., 0.25, 0.5, 0.75, 1.] {
+                    let pose = camera.transform_at(time);
+                    let pitch = (pose.rotation * Vec3::NEG_Z)
+                        .y
+                        .clamp(-1., 1.)
+                        .asin()
+                        .to_degrees();
+                    let height = pose.translation.y - scene.floor_height(pose.translation.xz());
+                    level += usize::from(pitch.abs() <= 5.);
+                    up += usize::from(pitch > 5.);
+                    down += usize::from(pitch < -10.);
+                    low += usize::from(height < 1.05);
+                    high += usize::from(height > 2.1);
+                    total += 1;
+                }
+            }
+        }
+        assert!(
+            level * 100 >= total * 30,
+            "near-horizontal views collapsed: {level}/{total}"
+        );
+        assert!(
+            // Upward pitches beyond 5 degrees are a small tail of the existing
+            // content-directed views; preserve that tail alongside level views.
+            down * 100 >= total * 10 && up * 100 >= total * 2,
+            "inclined views disappeared: down={down} up={up} total={total}"
+        );
+        assert!(
+            low * 100 >= total * 3 && high * 100 >= total * 5,
+            "height tails collapsed: low={low} high={high} total={total}"
         );
     }
 }

@@ -3,6 +3,60 @@ use crate::scene::procedural_indoor::{cameras::CameraSettings, layout::IndoorLay
 use bevy::ecs::system::RunSystemOnce;
 
 #[test]
+fn optical_center_and_graph_controls_roundtrip_and_do_not_regenerate() {
+    let mut state = EditorState::new(&BevyZeroverseConfig::default());
+    let applied = state.applied.clone();
+    edit(&mut state, "@lens_x", json!(0.12)).unwrap();
+    edit(&mut state, "@lens_y", json!(0.08)).unwrap();
+    edit(&mut state, "@overlap_graph", json!("connected")).unwrap();
+    let config = model::validate(&state.draft).unwrap();
+    let restored = EditorState::new(&config);
+    assert_eq!(value(&restored, "@overlap_graph"), json!("connected"));
+    assert!((value(&restored, "@lens_x").as_f64().unwrap() - 0.12).abs() < 1e-6);
+    assert_eq!(state.applied, applied);
+    edit(&mut state, "@mixture", json!(true)).unwrap();
+    assert!(model::validate(&state.draft).is_err());
+}
+
+#[test]
+fn ultra_wide_controls_are_drafts_and_roundtrip_as_typed_camera_policy() {
+    let mut state = EditorState::new(&BevyZeroverseConfig::default());
+    let original = state.applied.clone();
+    edit(
+        &mut state,
+        "/indoor_camera/intrinsics/fov_y_min_degrees",
+        json!(120.),
+    )
+    .unwrap();
+    edit(
+        &mut state,
+        "/indoor_camera/intrinsics/fov_y_max_degrees",
+        json!(150.),
+    )
+    .unwrap();
+    edit(
+        &mut state,
+        "/indoor_camera/intrinsics/ultra_wide_probability",
+        json!(0.7),
+    )
+    .unwrap();
+    let config = state.config().unwrap();
+    let parsed = CameraSettings::parse(config.indoor_camera.as_deref().unwrap()).unwrap();
+    assert_eq!(parsed.intrinsics.fov_y_min_degrees, 120.);
+    assert_eq!(parsed.intrinsics.fov_y_max_degrees, 150.);
+    assert_eq!(state.applied, original);
+    assert!(state.pending());
+    assert!(share::query(&config, &state.view).contains("fov_y_max_degrees"));
+    edit(
+        &mut state,
+        "/indoor_camera/intrinsics/fov_y_min_degrees",
+        json!(151.),
+    )
+    .unwrap();
+    assert!(state.config().is_err());
+}
+
+#[test]
 fn camera_shorthand_is_expanded_and_every_catalog_choice_is_valid() {
     let config = BevyZeroverseConfig {
         scene_type: ZeroverseSceneType::ProceduralIndoor,
@@ -124,6 +178,33 @@ fn live_controls_do_not_apply_pending_geometry() {
     );
     assert!(state.pending());
 }
+
+#[test]
+fn depth_visualization_is_live_and_shared_without_changing_defaults() {
+    use crate::render::depth::DepthFormat;
+    let mut app = App::new();
+    app.init_resource::<BevyZeroverseConfig>();
+    let mut state = EditorState::new(app.world().resource::<BevyZeroverseConfig>());
+    assert_eq!(
+        state.config().unwrap().depth_format,
+        DepthFormat::Normalized
+    );
+    edit(&mut state, "/indoor_density", json!(0.9)).unwrap();
+    edit(&mut state, "/depth_format", json!("Turbo")).unwrap();
+    live_update(app.world_mut(), &mut state, "/depth_format").unwrap();
+    let config = app.world().resource::<BevyZeroverseConfig>();
+    assert_eq!(config.depth_format, DepthFormat::Turbo);
+    assert_eq!(config.indoor_density, 0.65);
+    assert!(state.pending());
+    assert!(share::query(config, &state.view).contains("depth_format=Turbo"));
+    let parsed = super::super::config_with_query(
+        BevyZeroverseConfig::default(),
+        [("depth_format".into(), "Turbo".into())],
+    )
+    .unwrap();
+    assert_eq!(parsed.depth_format, DepthFormat::Turbo);
+    assert!(model::live("/depth_format"));
+}
 #[test]
 fn camera_presets_retain_valid_continuous_policies() {
     let mut state = EditorState::new(&BevyZeroverseConfig::default());
@@ -175,7 +256,9 @@ fn share_query_roundtrips_nested_policies_seed_and_view_state() {
         let (k, v) = p.split_once('=').unwrap();
         (decode(k), decode(v))
     });
-    let parsed = super::super::config_with_query(BevyZeroverseConfig::default(), pairs).unwrap();
+    assert!(query.contains("depth_format=Normalized"));
+    let parsed =
+        super::super::config_with_query(super::super::web_viewer_defaults(), pairs).unwrap();
     assert_eq!(model::expand(&config), model::expand(&parsed));
     let restored = model::ViewState::parse(parsed.viewer_state.as_deref().unwrap()).unwrap();
     assert_eq!(restored.page, Page::Cameras);
@@ -384,4 +467,23 @@ fn first_pointer_frame_over_controls_cannot_start_orbit() {
         &window,
         &EditorInputCapture { keyboard: true }
     ));
+}
+
+#[test]
+fn room_motion_controls_roundtrip_without_enabling_human_models() {
+    let mut state = EditorState::new(&BevyZeroverseConfig::default());
+    edit(&mut state, "@indoor_motion", json!(true)).unwrap();
+    edit(&mut state, "/indoor_motion/chair_fraction", json!(0.8)).unwrap();
+    let config = state.config().unwrap();
+    assert!(config.human_motion.is_none());
+    assert_eq!(
+        crate::scene::procedural_indoor::motion::IndoorMotionConfig::parse(
+            config.indoor_motion.as_deref().unwrap()
+        )
+        .unwrap()
+        .chair_fraction,
+        0.8
+    );
+    edit(&mut state, "@indoor_motion", json!(false)).unwrap();
+    assert!(state.config().unwrap().indoor_motion.is_none());
 }

@@ -36,6 +36,9 @@ async def run(args):
     args.output.mkdir(parents=True, exist_ok=True)
     policy = {"fraction": 0.7, "frames": 120, "batch_size": 2, "max_actors": 4,
               "model_root": args.model_root}
+    if args.policy:
+        policy.update(json.loads(args.policy.read_text()))
+        policy["model_root"] = args.model_root
     base = {"scene_type": "procedural_indoor", "indoor_seed": args.seed,
             "indoor_density": 0.35, "indoor_human_density": 0.7,
             "width": 960, "height": 720, "editor": "false", "num_cameras": 2,
@@ -140,6 +143,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--url", default="http://127.0.0.1:8789/")
     parser.add_argument("--model-root", default="http://127.0.0.1:8789/models")
+    parser.add_argument("--policy", type=pathlib.Path,
+                        help="Explicit motion policy JSON; the effective policy is recorded in each tested URL")
     parser.add_argument("--browser", default="/usr/bin/google-chrome")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--headed", action="store_true")

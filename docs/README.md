@@ -9,6 +9,7 @@ These guides describe the current generator and export contracts.
 | Tune native generation throughput | [Measured performance and correctness](generation_cpu_efficiency.md) |
 | Set camera spacing, overlap and trajectories | [Multi-view cameras](multiview_cameras.md) |
 | Run the browser viewer | [WebGPU](procedural_indoor_web.md) |
+| Capture static and moving human poses | [Calibrated human pose labels](human_poses.md) |
 | Add text/waypoint human motion | [Human motion](human_motion.md) |
 | Export temporal correspondence | [Optical flow and motion vectors](optical_flow.md) |
 | Export shared camera visibility | [Co-visibility](co_visibility.md) |

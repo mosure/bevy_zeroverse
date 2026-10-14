@@ -181,12 +181,13 @@ impl ConcreteFinish {
             - seam * 0.065
             - void * 0.28 * (1. - polish * 0.5);
         t.color = color.map_or_else(|| tint(t.color, gain), |color| color.tinted(gain).encoded());
-        t.height += open
-            * (imprint * self.formwork * self.form_relief_m
-                + passes * self.trowel * 0.000055
-                + sand * self.sand_exposure * 0.000035
-                - seam * self.form_relief_m)
-            - void * self.bughole_depth_m * (1. - polish * 0.65);
+        t.height += r.detail_scale.unwrap_or(1.)
+            * (open
+                * (imprint * self.formwork * self.form_relief_m
+                    + passes * self.trowel * 0.000055
+                    + sand * self.sand_exposure * 0.000035
+                    - seam * self.form_relief_m)
+                - void * self.bughole_depth_m * (1. - polish * 0.65));
         t.roughness = (t.roughness + cure * 0.05 - passes * self.trowel * 0.12
             + sand * self.sand_exposure * 0.035
             + void * 0.12

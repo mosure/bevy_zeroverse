@@ -6,6 +6,57 @@ pub(super) fn cranial_rotation(joints: &[Vec3], yaw: f32) -> Quat {
     frame(joints[2] - joints[0], joints[9] - joints[5]) * Quat::from_rotation_y(yaw)
 }
 
+/// Skin, hair, eyewear and annotations share this exact head frame.
+pub(super) fn head_rotation(joints: &[Vec3], human: &super::IndoorHuman) -> Quat {
+    let (pitch, roll) = human
+        .pose_program
+        .as_ref()
+        .map_or((0., 0.), |p| (p.head_pitch, p.head_roll));
+    cranial_rotation(joints, human.head_yaw)
+        * Quat::from_rotation_x(pitch)
+        * Quat::from_rotation_z(roll)
+}
+
+/// Bend around the mapped knuckle with the inherited parent transform. Bone
+/// lengths and attachment positions are invariant; flexion is toward the palm.
+pub(super) fn curl_finger(
+    parent: Mat4,
+    origin: Vec3,
+    direction: Vec3,
+    normal: Vec3,
+    angle: f32,
+) -> Mat4 {
+    let pivot = parent.transform_point3(origin);
+    let axis = parent
+        .transform_vector3(normal)
+        .cross(parent.transform_vector3(direction))
+        .normalize_or(Vec3::X);
+    Mat4::from_translation(pivot)
+        * Mat4::from_quat(Quat::from_axis_angle(axis, angle))
+        * Mat4::from_translation(-pivot)
+        * parent
+}
+
+/// Straighten a pointing index without moving its knuckle or changing length.
+pub(super) fn point_finger(
+    parent: Mat4,
+    origin: Vec3,
+    direction: Vec3,
+    target: Vec3,
+    amount: f32,
+) -> Mat4 {
+    let pivot = parent.transform_point3(origin);
+    let from = parent
+        .transform_vector3(direction)
+        .normalize_or(Vec3::NEG_Z);
+    let to = target.normalize_or(from);
+    let rotation = Quat::IDENTITY.slerp(Quat::from_rotation_arc(from, to), amount);
+    Mat4::from_translation(pivot)
+        * Mat4::from_quat(rotation)
+        * Mat4::from_translation(-pivot)
+        * parent
+}
+
 fn frame(up: Vec3, right: Vec3) -> Quat {
     let up = up.normalize_or(Vec3::Y);
     let back = right.normalize_or(Vec3::X).cross(up).normalize_or(Vec3::Z);
@@ -118,6 +169,60 @@ pub(super) fn supported_finger(wrist: Mat4, a: Vec3, b: Vec3, origin: Vec3) -> M
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn finger_flexion_keeps_knuckles_and_lengths_attached() {
+        let mut parent = Mat4::from_rotation_y(0.7);
+        for (i, angle) in [0.3, 0.6, 0.4].into_iter().enumerate() {
+            let origin = Vec3::NEG_Z * i as f32 * 0.03;
+            let next = origin + Vec3::NEG_Z * 0.03;
+            let bent = curl_finger(parent, origin, Vec3::NEG_Z, Vec3::Y, angle);
+            assert!(
+                bent.transform_point3(origin)
+                    .distance(parent.transform_point3(origin))
+                    < 1e-6
+            );
+            assert!(
+                (bent
+                    .transform_point3(next)
+                    .distance(bent.transform_point3(origin))
+                    - 0.03)
+                    .abs()
+                    < 1e-6
+            );
+            assert!(bent.transform_point3(next).y < bent.transform_point3(origin).y);
+            parent = bent;
+        }
+    }
+
+    #[test]
+    fn pointing_index_matches_hand_axis_without_stretching() {
+        let parent = Mat4::from_scale_rotation_translation(
+            Vec3::splat(0.8),
+            Quat::from_rotation_y(0.6),
+            Vec3::new(0.2, 0.9, -0.1),
+        );
+        let origin = Vec3::new(0.1, 0.2, 0.3);
+        let direction = Vec3::new(0.015, 0.01, -0.025);
+        let target = Vec3::new(0.5, 0.3, -0.7).normalize();
+        let aimed = point_finger(parent, origin, direction, target, 1.);
+        assert!(
+            aimed
+                .transform_point3(origin)
+                .distance(parent.transform_point3(origin))
+                < 1e-6
+        );
+        assert!(
+            aimed
+                .transform_vector3(direction)
+                .normalize()
+                .distance(target)
+                < 1e-6
+        );
+        assert!(
+            (aimed.transform_vector3(direction).length() - direction.length() * 0.8).abs() < 1e-6
+        );
+    }
 
     #[test]
     fn torso_keeps_shoulder_roots_attached_when_twisting() {

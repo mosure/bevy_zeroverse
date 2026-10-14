@@ -66,7 +66,7 @@ pub fn items(state: &EditorState) -> Vec<Item> {
             section("GENERATION", "Changes apply when you press Apply or Next."),
             choices("/scene_type","Scene type",&[("Procedural indoor","ProceduralIndoor"),("Zeroverse objects","Object"),("Semantic room","SemanticRoom"),("Primitive room","Room"),("Cornell cube","CornellCube"),("Human","Human"),("Custom","Custom")],"Every existing scene mode remains available."),
             text("/indoor_seed","Room seed","Exact 64-bit integer. Empty chooses a random seed on generation."),
-            choices("/indoor_layout","Activity distribution",&[("Mixed activities","Mixed"),("Conference","Conference"),("Open office","OpenOffice"),("Coworking","Coworking"),("Training","Training"),("Breakroom","Breakroom"),("Reception","Reception"),("Workshop","Workshop"),("Lounge","Lounge"),("Library","Library"),("Studio","Studio")],"Biases a continuous mixture of furnishing programs."),
+            choices("/indoor_layout","Activity distribution",&[("Mixed activities","Mixed"),("Conference","Conference"),("Open office","OpenOffice"),("Coworking","Coworking"),("Training","Training"),("Breakroom","Breakroom"),("Kitchenette","Kitchenette"),("Kitchen","Kitchen"),("Elevator landing","ElevatorLanding"),("Cafe","Cafe"),("Cafeteria","Cafeteria"),("Classroom","Classroom"),("Lecture hall","LectureHall"),("Showroom","Showroom"),("Gallery","Gallery"),("Public suite","PublicSuite"),("Reception","Reception"),("Workshop","Workshop"),("Lounge","Lounge"),("Library","Library"),("Studio","Studio")],"Office mixtures or capacity-aware service, dining, teaching, transit and exhibition programs."),
             num("/indoor_density","Furnishing density",0.,1.,0.01,"Secondary furniture, plants and tabletop clutter."),
             num("/indoor_human_density","People density",0.,1.,0.01,"0 removes people; 1 requests the largest supported population."),
             toggle("/rotation_augmentation","Randomize world orientation","Dataset augmentation applied during generation."),
@@ -76,7 +76,13 @@ pub fn items(state: &EditorState) -> Vec<Item> {
         Page::Cameras=>vec![
             section("MULTI-VIEW RIG","Spacing and overlap are constrained together."),
             num("/num_cameras","Capture views",0.,16.,1.,"0 uses only the editor view. Co-visibility supports up to 16 views."),
-            toggle("@multiview","Coordinate views","Require shared geometry between each view and camera 0."),
+            toggle("@multiview","Coordinate views","Require shared geometry with a reference camera or a connected camera graph."),
+            section("LENSES", "Vertical perspective FOV; wide lenses retain full calibration and annotation support."),
+            num("/indoor_camera/intrinsics/fov_y_min_degrees","Minimum vertical FOV",15.,150.,1.,"Lower bound for capture lenses. Horizontal coverage also depends on image aspect."),
+            num("/indoor_camera/intrinsics/fov_y_max_degrees","Maximum vertical FOV",15.,150.,1.,"145° includes ultra-wide perspective lenses. Near-plane clearance is checked across the complete camera path."),
+            num("/indoor_camera/intrinsics/ultra_wide_probability","Ultra-wide proposal fraction",0.,1.,0.01,"Probability of proposing a lens above 108° when the range spans that value. Placement and overlap constraints still apply."),
+            num("@lens_x","Principal-point variation X",0.,0.2,0.005,"Seeded optical-center displacement, as a fraction of image width. Zero keeps the centered pinhole."),
+            num("@lens_y","Principal-point variation Y",0.,0.2,0.005,"Seeded optical-center displacement, as a fraction of image height. Full K is exported for each view."),
         ],
         Page::Appearance=>vec![
             section("SURFACE & LIGHT VARIATION","Independent seeds preserve layout, geometry and cameras."),
@@ -96,8 +102,9 @@ pub fn items(state: &EditorState) -> Vec<Item> {
             section("PREVIEW","Changes here update the current scene immediately."),
             choices("@viewport","Viewport",&[("Editor camera","editor"),("Capture grid","grid"),("Room schematic","schematic")],"Schematic shows metric primary-room footprints, live capture cameras, paths and human poses."),
             choices("/render_mode","Annotation",&[("Color / PBR","Color"),("Depth","Depth"),("Surface normals","Normal"),("World position","Position"),("Semantic classes","Semantic"),("Optical flow","OpticalFlow"),("Motion vectors","MotionVectors"),("Co-visibility","CoVisibility")],"Co-visibility uses capture views, excluding the editor camera."),
+            choices("/depth_format","Depth visualization",&[("Grayscale","Normalized"),("Turbo · warm near / cool far","Turbo"),("Original color ramp","Colorized"),("Linear distance","Linear")],"Turbo uses log distance for indoor detail, with a fixed scale per camera. Linear and normalized numeric depth encodings are unchanged."),
             choices("/annotation_glass","Glass in annotations",&[("Glass surface","surface"),("Geometry behind glass","through")],"Depth, normals, position, semantic, flow and co-visibility use the same unrefracted geometric hits. RGB is unchanged."),
-            num("@editor_fov","Editor field of view (degrees)",15.,120.,1.,"Editor lens only; capture intrinsics remain the seeded dataset cameras."),
+            num("@editor_fov","Editor field of view (degrees)",15.,150.,1.,"Editor lens only; capture intrinsics remain the seeded dataset cameras."),
             toggle("/gizmos","Camera frusta & trajectories","Capture cameras only."),
             toggle("/draw_obb_gizmo","Object bounding boxes","Semantic object envelopes."),
             toggle("/draw_pose_gizmos","Human skeletons","Visible through clothing, occluded by room geometry."),
@@ -116,16 +123,16 @@ pub fn items(state: &EditorState) -> Vec<Item> {
             json_field("@config","Complete viewer configuration","Every public CLI/query setting. Edits are validated before Apply."),
             json_field("/indoor_camera","Camera policy JSON","Includes overlap bands, handheld increments and capture duration."),
             json_field("/indoor_appearance","Appearance policy JSON","Material and illumination variation."),
+            json_field("/indoor_motion","Furnishing motion policy JSON","Null disables articulated motion. Swept clearance is checked before the scene is ready."),
             json_field("/human_motion","Motion policy JSON","Null disables motion. Custom prompts and frame-indexed waypoints are supported."),
             section("CAPTURE & EXPORT","Capture options are preserved in shared links; the viewer previews their effects."),
             num("/width","Capture width (px)",64.,2048.,16.,"Changes capture targets on Apply; does not resize the window."),
             num("/height","Capture height (px)",64.,2048.,16.,"Capture height is independent of the editor viewport."),
             num("/playback_steps","Capture timesteps",1.,64.,1.,"O-voxel requires one timestep."),
             num("/playback_step","Capture time increment",0.001,1.,0.001,"Normalized time between captures."),
-            choices("/ovoxel_mode","O-voxel",&[("Disabled","Disabled"),("CPU async","CpuAsync"),("GPU compute","GpuCompute")],"Primary-room geometry only; requires one timestep and no human motion."),
+            choices("/ovoxel_mode","O-voxel",&[("Disabled","Disabled"),("CPU async","CpuAsync"),("GPU compute","GpuCompute")],"Primary-room geometry only; requires one timestep and no human or furnishing motion."),
             num("/ovoxel_resolution","Voxel resolution",16.,512.,16.,"Higher resolution increases compute and storage."),
             text("/ovoxel_max_output_voxels","Maximum output voxels","Integer buffer limit."),
-            choices("/depth_format","Depth units",&[("Normalized","Normalized"),("Linear distance","Linear"),("Colorized","Colorized")],"Depth output encoding."),
             toggle("/z_depth","Use camera Z depth","Otherwise measures ray distance."),
             section("EDITOR NAVIGATION","These affect the editor camera only."),
             num("/orbit_smoothness","Orbit smoothing",0.,1.,0.01,"0 is immediate; higher values ease motion."),
@@ -139,6 +146,7 @@ pub fn items(state: &EditorState) -> Vec<Item> {
             v.extend([
                 num("@baseline","Camera baseline",0.,1.,0.01,"0 = close stereo; 1 = wider spacing and more varied visible targets. Accounts for camera count; overlap and clearance remain required. Replaces advanced values below."),
                 section("ADVANCED RIG","Custom constraints override the baseline program. Impossible requests report an error."),
+                choices("@overlap_graph","Visibility connections",&[("Reference camera","reference"),("Connected graph","connected")],"A connected graph allows overlap through intermediate cameras. The same spanning edges must pass along the paths. Explicit overlap strata require Reference camera."),
                 num("/indoor_camera/multiview/min_overlap","Minimum proxy overlap",0.,1.,0.01,"Placement estimate; measured rendered overlap may differ."),
                 num("/indoor_camera/multiview/min_baseline","Minimum pair spacing (m)",0.01,10.,0.01,"Between every pair of views."),
                 num("/indoor_camera/multiview/min_reference_baseline","Minimum distance to view 0 (m)",0.,20.,0.05,"Metric reference baseline."),
@@ -203,6 +211,58 @@ pub fn items(state: &EditorState) -> Vec<Item> {
                 1.,
                 0.01,
                 "Reverses positions and orientations together.",
+            ));
+        }
+    }
+    if indoor && state.view.page == Page::Scene {
+        v.push(section(
+            "ROOM MOTION",
+            "Optional deterministic chair, door, cabinet and window-covering motion.",
+        ));
+        v.push(toggle(
+            "@indoor_motion",
+            "Animate furnishings",
+            "Apply to generate clearance-checked motion; no models are loaded.",
+        ));
+        if !d["indoor_motion"].is_null() {
+            for (key, label) in [
+                ("chair_fraction", "Moving chair fraction"),
+                ("door_fraction", "Moving door fraction"),
+                ("cabinet_fraction", "Moving cabinet fraction"),
+                ("covering_fraction", "Moving covering fraction"),
+            ] {
+                v.push(num(
+                    &format!("/indoor_motion/{key}"),
+                    label,
+                    0.,
+                    1.,
+                    0.01,
+                    "Requested fraction; blocked or occupied mechanisms remain static.",
+                ));
+            }
+            v.push(num(
+                "/indoor_motion/chair_travel_m",
+                "Chair travel (m)",
+                0.,
+                1.5,
+                0.05,
+                "Maximum straight-line caster travel.",
+            ));
+            v.push(num(
+                "/indoor_motion/chair_swivel_degrees",
+                "Chair swivel (degrees)",
+                0.,
+                120.,
+                5.,
+                "Maximum upper-seat swivel.",
+            ));
+            v.push(num(
+                "/indoor_motion/max_mechanisms",
+                "Mechanism limit",
+                1.,
+                32.,
+                1.,
+                "Bounds preparation and animation cost.",
             ));
         }
     }

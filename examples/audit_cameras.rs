@@ -39,6 +39,12 @@ struct Args {
     baselines: Vec<f32>,
     #[arg(long, default_value_t = 12)]
     max_cameras: usize,
+    /// Require a stable connected visibility graph instead of a camera-zero star.
+    #[arg(long)]
+    connected: bool,
+    /// Seedable optical-center displacement, in image dimensions, on both axes.
+    #[arg(long, default_value_t = 0.)]
+    principal_point_jitter: f32,
     #[arg(long)]
     output: PathBuf,
 }
@@ -60,8 +66,13 @@ fn audit_room(args: &Args, seed: u64) -> Result<(Value, Vec<Group>)> {
     let original = serde_json::to_value(&scene)?;
     let mut groups = Vec::new();
     for &baseline in &args.baselines {
-        let settings = CameraSettings::parse(&format!(r#"{{"baseline":{baseline}}}"#))
+        let mut settings = CameraSettings::parse(&format!(r#"{{"baseline":{baseline}}}"#))
             .map_err(anyhow::Error::msg)?;
+        settings.principal_point_jitter = bevy::prelude::Vec2::splat(args.principal_point_jitter);
+        if args.connected {
+            settings.multiview.as_mut().unwrap().graph = bevy_zeroverse::scene::procedural_indoor::cameras::multiview::OverlapGraph::Connected;
+        }
+        settings.validate().map_err(anyhow::Error::msg)?;
         for count in 1..=args.max_cameras {
             let result = scene
                 .resample_cameras(count, settings.clone(), args.aspect)
@@ -152,6 +163,10 @@ fn main() -> Result<()> {
         args.aspect.is_finite() && args.aspect > 0.,
         "invalid aspect ratio"
     );
+    ensure!(
+        (0.0..=0.2).contains(&args.principal_point_jitter),
+        "invalid principal-point jitter"
+    );
     for &baseline in &args.baselines {
         CameraSettings::parse(&format!(r#"{{"baseline":{baseline}}}"#))
             .map_err(anyhow::Error::msg)?;
@@ -161,7 +176,7 @@ fn main() -> Result<()> {
         "audit output already exists; use a new directory"
     );
     fs::create_dir_all(&args.output)?;
-    let recipe = json!({"schema_version":1,"seed":args.seed,"rooms":args.rooms,"density":args.density,"human_density":args.human_density,"aspect":args.aspect,"baselines":args.baselines,"camera_counts":(1..=args.max_cameras).collect::<Vec<_>>(),"times":(0..TIMES).map(|i|i as f64/32.).collect::<Vec<_>>(),"path_settings":"CameraSettings::default; only baseline/count/aspect overridden","similar_pose":"RMS synchronized center distance <0.15m and RMS optical-axis angle <5deg","similar_moving_shape":"normalized RMS displacement residual <0.25; static pairs excluded"});
+    let recipe = json!({"schema_version":1,"seed":args.seed,"rooms":args.rooms,"density":args.density,"human_density":args.human_density,"aspect":args.aspect,"baselines":args.baselines,"camera_counts":(1..=args.max_cameras).collect::<Vec<_>>(),"times":(0..TIMES).map(|i|i as f64/32.).collect::<Vec<_>>(),"path_settings":"CameraSettings::default; explicit baseline/count/aspect/graph/optical-center controls", "connected":args.connected, "principal_point_jitter":args.principal_point_jitter,"similar_pose":"RMS synchronized center distance <0.15m and RMS optical-axis angle <5deg","similar_moving_shape":"normalized RMS displacement residual <0.25; static pairs excluded"});
     fs::write(
         args.output.join("recipe.json"),
         serde_json::to_vec_pretty(&recipe)?,

@@ -287,9 +287,11 @@ fn prepare(
         temporal,
     ) in &cameras
     {
-        let (Some(index), Projection::Perspective(projection), RenderTarget::Image(target)) =
-            (index, projection, target)
-        else {
+        let (Some(index), Some((projection, _)), RenderTarget::Image(target)) = (
+            index,
+            crate::camera::pinhole::parameters(projection),
+            target,
+        ) else {
             return;
         };
         let Some(size) = camera.physical_target_size() else {

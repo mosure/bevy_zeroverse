@@ -4,6 +4,7 @@ pub(crate) mod coverage;
 pub mod diagnostics;
 pub mod diversity;
 pub mod handheld;
+pub mod intrinsics;
 pub mod mixture;
 pub mod multiview;
 mod navigation;
@@ -19,6 +20,10 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct CameraSettings {
+    pub intrinsics: intrinsics::IntrinsicsSettings,
+    /// Maximum seedable optical-center displacement, in image width/height units.
+    #[serde(skip_serializing_if = "principal_point_centered")]
+    pub principal_point_jitter: Vec2,
     /// Explicit capture timeline duration. None means seconds are unspecified.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub duration_seconds: Option<f32>,
@@ -36,9 +41,14 @@ pub struct CameraSettings {
     /// Optional shared-surface policy. Every view is paired with camera zero.
     pub multiview: Option<multiview::MultiViewSettings>,
 }
+fn principal_point_centered(v: &Vec2) -> bool {
+    *v == Vec2::ZERO
+}
 impl Default for CameraSettings {
     fn default() -> Self {
         Self {
+            intrinsics: default(),
+            principal_point_jitter: Vec2::ZERO,
             duration_seconds: None,
             handheld: None,
             overlap_mixture: None,
@@ -58,6 +68,8 @@ pub(super) fn deserialize_archived_settings<'de, D: serde::Deserializer<'de>>(
     #[derive(Deserialize)]
     #[serde(default, deny_unknown_fields)]
     struct Archived {
+        intrinsics: intrinsics::IntrinsicsSettings,
+        principal_point_jitter: Vec2,
         duration_seconds: Option<f32>,
         handheld: Option<handheld::HandheldSettings>,
         overlap_mixture: Option<mixture::OverlapMixture>,
@@ -73,6 +85,8 @@ pub(super) fn deserialize_archived_settings<'de, D: serde::Deserializer<'de>>(
         fn default() -> Self {
             let independent = CameraSettings::independent();
             Self {
+                intrinsics: intrinsics::IntrinsicsSettings::legacy(),
+                principal_point_jitter: Vec2::ZERO,
                 duration_seconds: None,
                 handheld: None,
                 overlap_mixture: None,
@@ -86,6 +100,8 @@ pub(super) fn deserialize_archived_settings<'de, D: serde::Deserializer<'de>>(
     }
     let archived = Archived::deserialize(deserializer)?;
     Ok(CameraSettings {
+        intrinsics: archived.intrinsics,
+        principal_point_jitter: archived.principal_point_jitter,
         duration_seconds: archived.duration_seconds,
         handheld: archived.handheld,
         overlap_mixture: archived.overlap_mixture,
@@ -98,7 +114,13 @@ pub(super) fn deserialize_archived_settings<'de, D: serde::Deserializer<'de>>(
 }
 
 impl CameraSettings {
-    /// Archive fallback for manifests written before the shared-view default.
+    pub(super) fn archived_independent() -> Self {
+        Self {
+            intrinsics: intrinsics::IntrinsicsSettings::legacy(),
+            ..Self::independent()
+        }
+    }
+    /// Independent cameras using the current intrinsic distribution.
     pub fn independent() -> Self {
         Self {
             multiview: None,
@@ -112,6 +134,13 @@ impl CameraSettings {
         Ok(settings)
     }
     pub fn validate(&self) -> Result<(), String> {
+        self.intrinsics.validate()?;
+        if !self.principal_point_jitter.is_finite()
+            || self.principal_point_jitter.cmplt(Vec2::ZERO).any()
+            || self.principal_point_jitter.cmpgt(Vec2::splat(0.2)).any()
+        {
+            return Err("principal_point_jitter must be finite and in [0,0.2] per axis".into());
+        }
         if self
             .duration_seconds
             .is_some_and(|seconds| !seconds.is_finite() || !(0.001..=3600.0).contains(&seconds))
@@ -125,6 +154,13 @@ impl CameraSettings {
             mixture.validate()?;
             if self.multiview.is_none() {
                 return Err("overlap_mixture requires multiview spacing constraints".into());
+            }
+            if self
+                .multiview
+                .as_ref()
+                .is_some_and(|p| p.graph == multiview::OverlapGraph::Connected)
+            {
+                return Err("overlap_mixture uses explicit reference edges and cannot be combined with a connected graph".into());
             }
         }
         if !self.path_length_min.is_finite()
@@ -285,6 +321,16 @@ impl IndoorManifest {
     }
     pub fn camera_curve_clear(&self, camera: &IndoorCamera) -> bool {
         use super::layout::{segment_hits_box, CAMERA_CLEARANCE};
+        let clearance = CAMERA_CLEARANCE.max(intrinsics::near_clearance(
+            camera.fov_degrees,
+            self.camera_aspect_ratio,
+            camera
+                .principal_point_offset
+                .unwrap_or(self.camera_settings.principal_point_jitter),
+        ));
+        if !clearance.is_finite() {
+            return false;
+        }
         let mut runtime = camera.runtime_trajectory();
         let (control, error) = if let TrajectorySampler::CubicBezier { positions, .. } = &runtime {
             // The linear interpolation error on a subinterval is <= max|P''| h²/8.
@@ -295,11 +341,7 @@ impl IndoorManifest {
                     .max((positions[1] - 2.0 * positions[2] + positions[3]).length());
             (positions.to_vec(), second / (8.0 * 64.0 * 64.0))
         } else if let TrajectorySampler::WaypointPath { positions, .. } = &runtime {
-            if positions.len() < 2
-                || positions
-                    .windows(2)
-                    .any(|p| !self.camera_path_clear(p[0], p[1]))
-            {
+            if positions.len() < 2 {
                 return false;
             }
             (positions.clone(), 0.0)
@@ -314,16 +356,15 @@ impl IndoorManifest {
                     p.light_drop
                 })
             - 0.04
-            - CAMERA_CLEARANCE;
+            - clearance;
         // A Bezier stays inside the convex hull of its control points.
         if control.iter().any(|p| {
             !p.is_finite()
-                || p.x.abs() > self.room_size.x * 0.5 - 0.50
-                || p.z.abs() > self.room_size.z * 0.5 - 0.50
-                || p.y < 0.70
+                || p.x.abs() > self.room_size.x * 0.5 - 0.50_f32.max(clearance)
+                || p.z.abs() > self.room_size.z * 0.5 - 0.50_f32.max(clearance)
+                || p.y < 0.70_f32.max(clearance)
                 || p.y > ceiling
-                || (self.camera_settings.primary_room
-                    && !self.in_primary_room(*p, CAMERA_CLEARANCE))
+                || (self.camera_settings.primary_room && !self.in_primary_room(*p, clearance))
         }) {
             return false;
         }
@@ -337,18 +378,33 @@ impl IndoorManifest {
             )
             .chain(self.humans.iter().map(super::humans::IndoorHuman::bounds))
             .collect();
-        let pad = Vec3::splat(CAMERA_CLEARANCE + error);
+        let pad = Vec3::splat(clearance + error);
+        // Check every routed segment at the actual lens clearance; a temporal
+        // sample grid can straddle a short corner and miss the original route.
+        if matches!(runtime, TrajectorySampler::WaypointPath { .. })
+            && control.windows(2).any(|p| {
+                self.envelope
+                    .as_ref()
+                    .is_some_and(|e| !e.segment_clear(self.room_size, p[0], p[1], clearance))
+                    || obstacles
+                        .iter()
+                        .any(|(lo, hi)| segment_hits_box(p[0], p[1], *lo - pad, *hi + pad))
+            })
+        {
+            return false;
+        }
         let mut previous = runtime.sample(0.0).translation;
         for i in 0..=64 {
             let pose = runtime.sample(i as f32 / 64.0);
-            if pose.translation.y < self.floor_height(pose.translation.xz()) + 0.70
+            if pose.translation.y
+                < self.floor_height(pose.translation.xz()) + 0.70_f32.max(clearance)
                 || !pose.rotation.is_finite()
                 || self.envelope.as_ref().is_some_and(|e| {
                     !e.segment_clear(
                         self.room_size,
                         previous,
                         pose.translation,
-                        CAMERA_CLEARANCE + error,
+                        clearance + error,
                     )
                 })
                 || pose.translation.y

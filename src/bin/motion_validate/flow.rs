@@ -13,6 +13,27 @@ pub fn validate(
 ) -> Result<serde_json::Value> {
     let mut reports = Vec::new();
     let mut dynamic_person_pixels = 0;
+    let mut dynamic_room_pixels = 0;
+    let mut moving_classes = Vec::new();
+    if let Some(report) = sample
+        .indoor
+        .as_ref()
+        .and_then(|s| s.indoor_motion.as_ref())
+    {
+        use bevy_zeroverse::scene::procedural_indoor::motion::MotionKind;
+        for m in report.mechanisms.iter().filter(|m| m.rejection.is_none()) {
+            moving_classes.extend(match m.kind {
+                MotionKind::Chair => vec![SemanticLabel::Chair],
+                MotionKind::Door => vec![SemanticLabel::Door, SemanticLabel::DoorHardware],
+                MotionKind::Cabinet => vec![SemanticLabel::Cabinet, SemanticLabel::CabinetHardware],
+                MotionKind::Covering => vec![SemanticLabel::Blinds, SemanticLabel::Curtain],
+            });
+        }
+    }
+    let moving_colors: Vec<_> = moving_classes
+        .into_iter()
+        .map(|c| c.color().to_linear().to_f32_array())
+        .collect();
     let person = SemanticLabel::Person.color().to_linear().to_f32_array();
     let count = width as usize * height as usize;
     for (i, source) in sample.views.iter().enumerate() {
@@ -28,16 +49,20 @@ pub fn validate(
         let mut valid = 0;
         let mut visible = 0;
         let mut moving_people = 0;
+        let mut moving_room = 0;
         let mut static_errors = Vec::new();
         let mut expected_static_valid = 0;
         let mut missing_static_valid = 0;
         let mut magnitude = 0.0_f32;
         let world_from_view = Mat4::from_cols_array_2d(&source.world_from_view);
-        let focal = height as f32 / (2.0 * (source.fovy * 0.5).tan());
+        let source_calibration = source
+            .calibration
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("missing source calibration"))?;
         let target_projection = next.map(|target| {
             (
                 Mat4::from_cols_array_2d(&target.world_from_view).inverse(),
-                height as f32 / (2.0 * (target.fovy * 0.5).tan()),
+                target.calibration.as_ref(),
                 target.near,
                 target.far,
             )
@@ -62,24 +87,23 @@ pub fn validate(
                 ensure!(p == [0.0; 4], "terminal flow must be invalid");
             }
             let is_person = semantic[pixel][..3] == person[..3];
-            let camera_only = target_projection.and_then(|(view, target_focal, near, far)| {
-                let x = (pixel % width as usize) as f32 + 0.5;
-                let y = (pixel / width as usize) as f32 + 0.5;
-                let z = depth[pixel][0];
-                let point = world_from_view.transform_point3(Vec3::new(
-                    (x - width as f32 * 0.5) * z / focal,
-                    (height as f32 * 0.5 - y) * z / focal,
-                    -z,
-                ));
-                let q = view.transform_point3(point);
-                (z > 0.0 && -q.z > near + 1e-4 && -q.z < far - 1e-4).then(|| {
-                    Vec2::new(
-                        q.x / -q.z * target_focal + width as f32 * 0.5 - x,
-                        -q.y / -q.z * target_focal + height as f32 * 0.5 - y,
-                    )
-                })
-            });
-            if !is_person && camera_only.is_some() {
+            let is_room_motion = moving_colors.iter().any(|c| c[..3] == semantic[pixel][..3]);
+            let camera_only =
+                target_projection.and_then(|(view, target_calibration, near, far)| {
+                    let x = (pixel % width as usize) as f32 + 0.5;
+                    let y = (pixel / width as usize) as f32 + 0.5;
+                    let z = depth[pixel][0];
+                    let point = world_from_view.transform_point3(Vec3::from_array(
+                        source_calibration.unproject([x, y], z)?,
+                    ));
+                    let q = view.transform_point3(point);
+                    if -q.z <= near + 1e-4 || -q.z >= far - 1e-4 {
+                        return None;
+                    }
+                    let pixel = target_calibration?.project(q.to_array())?;
+                    Some(Vec2::from_array(pixel) - Vec2::new(x, y))
+                });
+            if !is_person && !is_room_motion && camera_only.is_some() {
                 expected_static_valid += 1;
                 missing_static_valid += usize::from(p[2] == 0.0);
             }
@@ -96,7 +120,11 @@ pub fn validate(
                 if is_person {
                     moving_people += usize::from(residual > 0.05);
                 } else {
-                    static_errors.push(residual);
+                    if is_room_motion {
+                        moving_room += usize::from(residual > 0.05);
+                    } else {
+                        static_errors.push(residual);
+                    }
                 }
             }
             let hue = p[1].atan2(p[0]).to_degrees().rem_euclid(360.0);
@@ -126,6 +154,7 @@ pub fn validate(
             "view {i} lost {missing_static_valid}/{expected_static_valid} static correspondences"
         );
         dynamic_person_pixels += moving_people;
+        dynamic_room_pixels += moving_room;
         image::save_buffer(
             directory.join(format!("flow_{i:02}.png")),
             &rgb,
@@ -137,7 +166,9 @@ pub fn validate(
             directory.join(format!("flow_{i:02}.f32")),
             &source.optical_flow,
         )?;
-        reports.push(serde_json::json!({"view":i,"valid_pixels":valid,"visible_pixels":visible,"moving_person_pixels":moving_people,"maximum_displacement_pixels":magnitude,"static_camera_reprojection_p99_pixels":p99,"expected_static_valid_pixels":expected_static_valid,"missing_static_valid_pixels":missing_static_valid}));
+        reports.push(serde_json::json!({"view":i,"valid_pixels":valid,"visible_pixels":visible,"moving_person_pixels":moving_people,"moving_room_pixels":moving_room,"maximum_displacement_pixels":magnitude,"static_camera_reprojection_p99_pixels":p99,"expected_static_valid_pixels":expected_static_valid,"missing_static_valid_pixels":missing_static_valid}));
     }
-    Ok(serde_json::json!({"moving_person_pixels":dynamic_person_pixels,"views":reports}))
+    Ok(
+        serde_json::json!({"moving_person_pixels":dynamic_person_pixels,"moving_room_pixels":dynamic_room_pixels,"views":reports}),
+    )
 }

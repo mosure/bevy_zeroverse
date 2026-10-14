@@ -15,6 +15,9 @@ pub struct Config {
     /// Self-contained, current-generator matched camera-count measurements.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub camera_study: Option<PathBuf>,
+    /// Current-only, independently verified rendered populations; never a paired comparison.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub room_qualification: Option<PathBuf>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -94,6 +97,13 @@ impl Config {
             ensure!(
                 path.starts_with("docs/evidence"),
                 "camera-study inputs must be shipped evidence, not out/ cache"
+            );
+        }
+        if let Some(path) = &config.room_qualification {
+            safe_relative(path)?;
+            ensure!(
+                path.starts_with("docs/evidence"),
+                "room qualification must be shipped evidence"
             );
         }
         Ok(config)

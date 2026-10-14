@@ -360,7 +360,7 @@ impl Dataset {
     }
 
     /// Matched studies retain the historical generator identity. This explicit
-    /// loader supports the compatible population schemas 15/16; release gates
+    /// loader supports compatible historical population schemas; release gates
     /// still use `load` and require the current generator and metrics schema.
     pub fn load_study(root: &Path, protocol: &Protocol) -> Result<Self> {
         let identity: GeneratorIdentity = io::read(&root.join("generator_identity.json"))?;
@@ -369,7 +369,7 @@ impl Dataset {
             .as_u64()
             .context("missing metrics schema")? as u32;
         ensure!(
-            [15, 16, 17, INDOOR_METRICS_SCHEMA_VERSION].contains(&schema)
+            [15, 16, 17, 18, INDOOR_METRICS_SCHEMA_VERSION].contains(&schema)
                 && identity.schema_version == 1
                 && identity.source_sha256.len() == 64
                 && identity

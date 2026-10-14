@@ -99,6 +99,15 @@ pub(super) fn update(input: Inputs, mut readiness: ResMut<CaptureReadiness>) {
             }
         }
     }
+    if input.args.ovoxel_mode != crate::app::OvoxelMode::Disabled
+        && input
+            .indoor
+            .as_ref()
+            .is_some_and(|s| s.indoor_motion.is_some())
+    {
+        input.failure.0 =
+            Some("O-voxel requires static geometry; regenerate with indoor_motion disabled".into());
+    }
     let seed = input.indoor.as_ref().map(|scene| scene.seed);
     if readiness.scene_seed != seed {
         readiness.blocked_updates = 0;

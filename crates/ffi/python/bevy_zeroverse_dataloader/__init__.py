@@ -716,6 +716,7 @@ class BevyZeroverseDataset(Dataset):
             "linear": bevy_zeroverse_ffi.DepthFormat.Linear,
             "normalized": bevy_zeroverse_ffi.DepthFormat.Normalized,
             "colorized": bevy_zeroverse_ffi.DepthFormat.Colorized,
+            "turbo": bevy_zeroverse_ffi.DepthFormat.Turbo,
         }[self.depth_format]
         config.playback_mode = bevy_zeroverse_ffi.PlaybackMode.Still
         config.max_camera_radius = self.max_camera_radius

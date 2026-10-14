@@ -2,7 +2,7 @@
 \section{Object geometry diversity}
 \label{sec:object-diversity}
 \subsection{Fixed-envelope protocol}
-We evaluate all 64 furnishing/prop categories on 256 consecutive construction seeds each: 16384 triangle assemblies. Each category holds its metric placement envelope, orientation and finish seed fixed. This isolates internal construction from changes in object size, pose or color; it deliberately does not measure the full joint scene distribution. The cable fixture varies a controlled centerline; actual endpoint connectivity and collision are separate room-level checks. Humans and architecture are evaluated elsewhere.
+We evaluate all 100 furnishing/prop categories on 256 consecutive construction seeds each: 25600 triangle assemblies. Each category holds its metric placement envelope, orientation and finish seed fixed. This isolates internal construction from changes in object size, pose or color; it deliberately does not measure the full joint scene distribution. The cable fixture varies a controlled centerline; actual endpoint connectivity and collision are separate room-level checks. Humans and architecture are evaluated elsewhere.
 
 For each mesh, six orthographic first-surface depth maps sample pixel centers at $24\times24$ resolution per direction. Depth is normalized by the fixed envelope extent. Pair distance is mean absolute depth difference over the union of hit pixels; missing-versus-present surface contributes one. Greedy coverage retains a sample only when its distance to every earlier representative exceeds the threshold. We report thresholds 0.005, 0.015 and 0.030, and retain seed order. These are finite-resolution, order-dependent coverage counts, not numbers of independent geometries, perceptual embedding volume, or a proof of a multiplicative increase in dataset utility. Thin features and content on nearly planar surfaces can be under-resolved; saturated categories need more samples or a finer descriptor.
 
@@ -18,70 +18,106 @@ Six examples per category are selected by deterministic farthest-spread sampling
 \endfirsthead
 \toprule Category & $C_{.005}$ & $C_{.015}$ & $C_{.030}$ & Triangles & ms \\\midrule
 \endhead
-Table & 255 & 246 & 225 & 2272 & 0.147 \\
-Desk & 255 & 246 & 219 & 2184 & 0.125 \\
-Chair & 255 & 252 & 241 & 4444 & 0.148 \\
-Sofa & 256 & 252 & 176 & 11552 & 0.371 \\
-CoffeeTable & 256 & 255 & 236 & 2200 & 0.058 \\
-Cabinet & 46 & 20 & 7 & 1744 & 0.045 \\
-Bookcase & 256 & 251 & 163 & 9576 & 0.273 \\
-Plant & 256 & 256 & 256 & 5240 & 0.229 \\
-TrashCan & 219 & 138 & 54 & 1452 & 0.031 \\
-Whiteboard & 51 & 26 & 9 & 646 & 0.035 \\
+Table & 255 & 246 & 225 & 2272 & 0.149 \\
+Desk & 255 & 246 & 219 & 2184 & 0.064 \\
+Chair & 255 & 252 & 241 & 4444 & 0.197 \\
+Sofa & 256 & 252 & 176 & 11552 & 0.355 \\
+CoffeeTable & 256 & 255 & 236 & 2200 & 0.057 \\
+Cabinet & 135 & 74 & 32 & 1888 & 0.097 \\
+Bookcase & 256 & 251 & 163 & 9576 & 0.520 \\
+Plant & 256 & 256 & 256 & 5240 & 0.227 \\
+TrashCan & 219 & 138 & 54 & 1452 & 0.028 \\
+Whiteboard & 51 & 26 & 9 & 646 & 0.023 \\
 Display & 91 & 47 & 34 & 132 & 0.006 \\
-Laptop & 252 & 200 & 122 & 8012 & 0.212 \\
+Laptop & 252 & 200 & 122 & 8012 & 0.213 \\
 Monitor & 256 & 255 & 250 & 668 & 0.024 \\
-Notebook & 3 & 2 & 1 & 540 & 0.019 \\
-Mug & 212 & 97 & 36 & 1284 & 0.034 \\
-Books & 256 & 232 & 137 & 2160 & 0.087 \\
+Notebook & 124 & 76 & 32 & 626 & 0.020 \\
+Mug & 212 & 97 & 36 & 1284 & 0.033 \\
+Books & 256 & 232 & 137 & 2160 & 0.055 \\
 Rug & 167 & 66 & 30 & 384 & 0.017 \\
-WallArt & 15 & 3 & 2 & 542 & 0.025 \\
-Clock & 159 & 58 & 9 & 5560 & 0.234 \\
-FloorLamp & 256 & 256 & 256 & 2416 & 0.078 \\
-Keyboard & 252 & 235 & 150 & 7020 & 0.179 \\
-Mouse & 251 & 210 & 115 & 1040 & 0.056 \\
-WaterBottle & 160 & 67 & 22 & 3104 & 0.095 \\
-PenHolder & 256 & 256 & 256 & 752 & 0.033 \\
-Printer & 171 & 49 & 15 & 776 & 0.037 \\
-StorageBox & 188 & 55 & 18 & 452 & 0.035 \\
-CoatRack & 233 & 205 & 159 & 3280 & 0.122 \\
-Bag & 246 & 120 & 33 & 736 & 0.041 \\
-CoffeeCup & 112 & 65 & 30 & 956 & 0.032 \\
-SodaCan & 11 & 2 & 1 & 1752 & 0.050 \\
-Notepad & 43 & 23 & 10 & 240 & 0.010 \\
+WallArt & 15 & 3 & 2 & 542 & 0.015 \\
+Clock & 159 & 58 & 9 & 5560 & 0.219 \\
+FloorLamp & 256 & 256 & 256 & 2416 & 0.073 \\
+Keyboard & 252 & 235 & 150 & 7020 & 0.141 \\
+Mouse & 251 & 210 & 115 & 1040 & 0.057 \\
+WaterBottle & 160 & 67 & 22 & 3104 & 0.092 \\
+PenHolder & 256 & 256 & 256 & 752 & 0.031 \\
+Printer & 171 & 49 & 15 & 776 & 0.040 \\
+StorageBox & 188 & 55 & 18 & 452 & 0.041 \\
+CoatRack & 233 & 205 & 159 & 3280 & 0.141 \\
+Bag & 246 & 120 & 33 & 736 & 0.064 \\
+CoffeeCup & 112 & 65 & 30 & 956 & 0.036 \\
+SodaCan & 11 & 2 & 1 & 1752 & 0.071 \\
+Notepad & 43 & 23 & 10 & 240 & 0.009 \\
 Pencil & 59 & 21 & 9 & 116 & 0.007 \\
-Microphone & 168 & 152 & 103 & 1076 & 0.029 \\
+Microphone & 168 & 152 & 103 & 1076 & 0.027 \\
 Phone & 66 & 20 & 13 & 200 & 0.009 \\
-WallOutlet & 14 & 7 & 3 & 1252 & 0.041 \\
-LightSwitch & 31 & 14 & 6 & 724 & 0.027 \\
-SideTable & 256 & 250 & 236 & 2200 & 0.081 \\
-MobileCart & 147 & 92 & 56 & 3348 & 0.093 \\
-DrawerUnit & 13 & 3 & 3 & 1400 & 0.043 \\
-Bench & 23 & 13 & 8 & 1136 & 0.035 \\
-Ottoman & 144 & 73 & 32 & 1840 & 0.057 \\
+WallOutlet & 14 & 7 & 3 & 1252 & 0.037 \\
+LightSwitch & 31 & 14 & 6 & 724 & 0.049 \\
+SideTable & 256 & 250 & 236 & 2200 & 0.144 \\
+MobileCart & 147 & 92 & 56 & 3348 & 0.153 \\
+DrawerUnit & 13 & 3 & 3 & 1400 & 0.044 \\
+Bench & 23 & 13 & 8 & 1136 & 0.037 \\
+Ottoman & 144 & 73 & 32 & 1840 & 0.058 \\
 RoomDivider & 23 & 17 & 17 & 540 & 0.049 \\
-DeskLamp & 233 & 206 & 164 & 896 & 0.028 \\
-CoffeeMaker & 130 & 38 & 21 & 1024 & 0.040 \\
+DeskLamp & 233 & 206 & 164 & 896 & 0.029 \\
+CoffeeMaker & 129 & 38 & 21 & 1132 & 0.039 \\
 Kettle & 150 & 39 & 14 & 1628 & 0.046 \\
-Speaker & 197 & 84 & 27 & 1232 & 0.059 \\
-Headphones & 250 & 213 & 136 & 2624 & 0.083 \\
-Stapler & 152 & 52 & 18 & 404 & 0.015 \\
-TapeDispenser & 201 & 105 & 44 & 648 & 0.023 \\
-DocumentTray & 34 & 23 & 12 & 2052 & 0.045 \\
-DeskOrganizer & 8 & 8 & 8 & 888 & 0.027 \\
-TissueBox & 256 & 201 & 61 & 1292 & 0.032 \\
-Vase & 252 & 241 & 183 & 384 & 0.017 \\
-Bowl & 218 & 141 & 68 & 384 & 0.013 \\
-DeskFan & 71 & 35 & 18 & 4276 & 0.133 \\
-Projector & 93 & 10 & 2 & 2728 & 0.075 \\
-ProjectionScreen & 18 & 10 & 8 & 514 & 0.015 \\
-PowerStrip & 4 & 2 & 1 & 2052 & 0.088 \\
-Cable & 209 & 188 & 143 & 496 & 0.016 \\
-WallShelf & 34 & 30 & 17 & 700 & 0.036 \\
-NoticeBoard & 1 & 1 & 1 & 6600 & 0.226 \\
-WallSconce & 235 & 174 & 103 & 344 & 0.023 \\
-CeilingPendant & 108 & 38 & 16 & 464 & 0.020 \\
-FloorOutlet & 73 & 72 & 31 & 668 & 0.025 \\
+Speaker & 193 & 82 & 28 & 1232 & 0.059 \\
+Headphones & 250 & 213 & 136 & 2624 & 0.076 \\
+Stapler & 152 & 52 & 18 & 404 & 0.018 \\
+TapeDispenser & 201 & 105 & 44 & 648 & 0.022 \\
+DocumentTray & 34 & 23 & 12 & 2052 & 0.048 \\
+DeskOrganizer & 8 & 8 & 8 & 888 & 0.031 \\
+TissueBox & 256 & 201 & 61 & 1292 & 0.046 \\
+Vase & 252 & 241 & 183 & 384 & 0.018 \\
+Bowl & 218 & 141 & 68 & 384 & 0.016 \\
+DeskFan & 71 & 35 & 18 & 4276 & 0.166 \\
+Projector & 93 & 10 & 2 & 2728 & 0.077 \\
+ProjectionScreen & 18 & 10 & 8 & 514 & 0.014 \\
+PowerStrip & 4 & 2 & 1 & 2052 & 0.050 \\
+Cable & 209 & 188 & 143 & 496 & 0.014 \\
+WallShelf & 34 & 30 & 17 & 700 & 0.019 \\
+NoticeBoard & 2 & 1 & 1 & 7032 & 0.269 \\
+WallSconce & 235 & 174 & 103 & 344 & 0.030 \\
+CeilingPendant & 108 & 38 & 16 & 464 & 0.023 \\
+FloorOutlet & 73 & 72 & 31 & 668 & 0.026 \\
+KitchenCounter & 147 & 87 & 50 & 4728 & 0.142 \\
+KitchenSink & 188 & 111 & 64 & 7240 & 0.254 \\
+KitchenCupboard & 254 & 232 & 163 & 7352 & 0.248 \\
+Pantry & 115 & 63 & 40 & 4032 & 0.113 \\
+Cooktop & 36 & 14 & 11 & 1836 & 0.058 \\
+Range & 143 & 81 & 47 & 6268 & 0.181 \\
+Oven & 154 & 98 & 62 & 4184 & 0.125 \\
+Microwave & 151 & 100 & 67 & 2400 & 0.090 \\
+Dishwasher & 89 & 47 & 24 & 5952 & 0.166 \\
+Refrigerator & 115 & 71 & 42 & 3904 & 0.112 \\
+DryingRack & 83 & 35 & 13 & 1884 & 0.088 \\
+SoapDispenser & 3 & 2 & 2 & 692 & 0.040 \\
+Sponge & 4 & 1 & 1 & 216 & 0.016 \\
+KnifeBlock & 10 & 4 & 4 & 1080 & 0.032 \\
+UtensilHolder & 171 & 77 & 33 & 1468 & 0.047 \\
+PaperTowel & 105 & 43 & 19 & 760 & 0.018 \\
+KitchenTowel & 1 & 1 & 1 & 432 & 0.010 \\
+Dishware & 137 & 86 & 51 & 240 & 0.009 \\
+CuttingBoard & 1 & 1 & 1 & 324 & 0.010 \\
+FruitBowl & 227 & 155 & 88 & 2920 & 0.139 \\
+Bread & 1 & 1 & 1 & 490 & 0.076 \\
+Elevator & 8 & 5 & 3 & 3076 & 0.147 \\
+ServiceCounter & 1 & 1 & 1 & 972 & 0.046 \\
+DisplayCase & 1 & 1 & 1 & 5250 & 0.354 \\
+TrayReturn & 4 & 2 & 1 & 1404 & 0.048 \\
+DrinkDispenser & 1 & 1 & 1 & 752 & 0.025 \\
+QueueBarrier & 19 & 6 & 3 & 1280 & 0.047 \\
+Lectern & 1 & 1 & 1 & 836 & 0.022 \\
+Locker & 28 & 16 & 7 & 5940 & 0.130 \\
+TeachingBoard & 1 & 1 & 1 & 2568 & 0.068 \\
+ExhibitPlinth & 1 & 1 & 1 & 324 & 0.009 \\
+Sculpture & 117 & 56 & 32 & 3148 & 0.086 \\
+InformationStand & 1 & 1 & 1 & 308 & 0.012 \\
+ExhibitionPanel & 1 & 1 & 1 & 1408 & 0.047 \\
+ExtractionHood & 1 & 1 & 1 & 384 & 0.022 \\
+Banquette & 2 & 1 & 1 & 756 & 0.021 \\
 \bottomrule
 \end{longtable}
 \normalsize
@@ -119,7 +155,7 @@ Support code & 2 & 0 & 1 & 1 & 1 & 2 \\
 \clearpage
 \clearpage
 \subsection{Sampled controls and their interpretation}
-The following inventory lists the sampled construction inputs recorded by each builder. Some controls are conditional on a construction choice (for example, a phone's rear lenses affect only face-down configurations); a range does not imply independent influence. Observed ranges, eight-bin numeric marginals, categorical frequencies and all seed-level values accompany the project-page grids. A small coverage count for a flat notebook, notice board or outlet is retained explicitly rather than counting different textures as different geometry.
+The following inventory lists the sampled construction inputs recorded by each builder. Some controls are conditional on a construction choice (for example, a phone's rear lenses affect only face-down configurations); a range does not imply independent influence. Observed ranges, eight-bin numeric marginals, categorical frequencies and all seed-level values accompany the project-page grids. Conditional controls use only samples in which the control is active; their active and total denominators are exported explicitly. A small coverage count for a flat notebook, notice board or outlet is retained explicitly rather than counting different textures as different geometry.
 \small
 \begin{longtable}{p{.20\linewidth}p{.74\linewidth}}
 \toprule Category & Recorded controls \\\midrule
@@ -132,15 +168,15 @@ Desk & capsule\_ blend, edge\_ bevel, frame\_ bend\_ m, leg\_ aspect, leg\_ inse
 Chair & arm\_ height, arm\_ pad\_ length, arm\_ pad\_ roundness, arm\_ pad\_ width\_ m, arm\_ support, armrests, back\_ construction, back\_ width\_ fraction, base\_ radius\_ fraction, curvature, frame\_ bend\_ m, headrest, headrest\_ curvature\_ m, headrest\_ height\_ m, headrest\_ width\_ fraction, leg\_ splay, lumbar, mesh\_ pitch\_ m, recline, seat\_ crown, seat\_ depth\_ fraction, seat\_ dish\_ m, seat\_ roundness, seat\_ width\_ fraction, shell\_ thickness, shoulder\_ flare, spindle\_ pitch, spoke\_ count, taper \\
 Sofa & arm\_ crown, arm\_ rise\_ m, arm\_ roundness, arm\_ width, back\_ tilt, chaise, cushion, cushion\_ crown, cushion\_ dish\_ m, cushion\_ gap\_ m, exposed\_ frame, left\_ return, leg\_ height, module\_ asymmetry, modules, pillow\_ roll, pillow\_ width\_ m, pillows, roundness, seam\_ radius\_ m, seat\_ height, upholstery \\
 CoffeeTable & capsule\_ blend, edge\_ bevel, frame\_ bend\_ m, leg\_ aspect, leg\_ inset, leg\_ radius, leg\_ rake, leg\_ taper, outline\_ exponent, pedestal\_ base\_ aspect, pedestal\_ base\_ radius, pedestal\_ radius, spider\_ sweep, support, taper, top\_ surface, top\_ thickness, trestle\_ spread \\
-Cabinet & columns, fill, front, handle, levels, metal, open\_ back, open\_ fraction, panel\_ m \\
-Bookcase & columns, fill, front, handle, levels, metal, open\_ back, open\_ fraction, panel\_ m \\
+Cabinet & columns, fill, front, handle, levels, metal, open\_ back, open\_ fraction, opening\_ radians, panel\_ m \\
+Bookcase & columns, fill, front, handle, levels, metal, open\_ back, open\_ fraction, opening\_ radians, panel\_ m \\
 Plant & branching, crown\_ skew, density, droop, leaf\_ aspect, maturity, phyllotaxis, pot\_ fraction, pot\_ radius, pot\_ taper \\
 TrashCan & finish, lid, rim\_ width, squareness, taper \\
 Whiteboard & border\_ m, marker\_ count, mounts, tray, tray\_ fraction, tray\_ side \\
 Display & aspect, bezel\_ m, curvature\_ radius\_ m, lift\_ fraction, panel\_ m, stand, tilt\_ radians \\
 Laptop & aspect\_ ratio, bezel\_ m, chassis\_ m, corner\_ m, hinge\_ radians, keyboard\_ columns, keyboard\_ fraction, lid\_ m, port\_ count, speaker\_ grilles, trackpad\_ fraction \\
 Monitor & aspect, bezel\_ m, curvature\_ radius\_ m, lift\_ fraction, panel\_ m, stand, tilt\_ radians \\
-Notebook & binding, cover\_ fraction, size\_ variation, stack\_ yaw, strap, volumes \\
+Notebook & binding, cover\_ fraction, opened, page\_ balance, page\_ crown, strap \\
 Mug & fill\_ fraction, style, taper, wall\_ m \\
 Books & binding, cover\_ fraction, size\_ variation, stack\_ yaw, strap, volumes \\
 Rug & clipped\_ corners, rug\_ exponent, rug\_ taper \\
@@ -187,10 +223,46 @@ ProjectionScreen & screen\_ drop, screen\_ frame \\
 PowerStrip & corner\_ m, socket\_ count \\
 Cable & variant \\
 WallShelf & bracket\_ style, shelf\_ brackets, shelf\_ span \\
-NoticeBoard & note\_ count \\
+NoticeBoard & board\_ divider\_ fraction, board\_ frame\_ fraction, note\_ count \\
 WallSconce & diffuser\_ fraction, sconce\_ height, sconce\_ taper, sconce\_ width \\
 CeilingPendant & diffuser\_ fraction, shade\_ fraction \\
 FloorOutlet & lid\_ height\_ fraction, lid\_ width\_ fraction \\
+KitchenCounter & counter\_ doors, doors, drawers, front, front\_ profile, handles, hardware, installation, opening\_ radians, top \\
+KitchenSink & basins, cabinet\_ motion, dish\_ soap, dishes, door\_ style, draining\_ board, faucet, faucet\_ handles, front\_ profile, hand\_ soap, handles, opening\_ radians, sponge, top \\
+KitchenCupboard & cabinet\_ motion, contents, door\_ style, finish, front\_ profile, handles, hardware, opening\_ radians, paired, shelves, upper\_ bottom\_ fraction, upper\_ depth\_ fraction, upper\_ offset\_ fraction, upper\_ width\_ fraction \\
+Pantry & cabinet\_ motion, contents, door\_ style, finish, front\_ profile, handles, hardware, opening\_ radians, paired, shelves, upper\_ bottom\_ fraction, upper\_ depth\_ fraction, upper\_ offset\_ fraction, upper\_ width\_ fraction \\
+Cooktop & controls, gas \\
+Range & controls, gas, opening\_ radians, viewport \\
+Oven & controls, installation, opening\_ radians, stacked, viewport \\
+Microwave & contents, controls, opening\_ radians, viewport \\
+Dishwasher & contents, opening\_ radians, viewport \\
+Refrigerator & contents, door\_ notes, opening\_ radians, paired, shelves, viewport \\
+DryingRack & count \\
+SoapDispenser & pump \\
+Sponge & size\_ metres \\
+KnifeBlock & count \\
+UtensilHolder & count \\
+PaperTowel & horizontal \\
+KitchenTowel & size\_ metres \\
+Dishware & stack\_ count, style \\
+CuttingBoard & size\_ metres \\
+FruitBowl & basket, fruit\_ count \\
+Bread & count \\
+Elevator & bays, finish, opening \\
+ServiceCounter & bays, finish \\
+DisplayCase & bays, contents, finish, shelves \\
+TrayReturn & contents, finish, shelves \\
+DrinkDispenser & opening \\
+QueueBarrier & opening \\
+Lectern & finish \\
+Locker & bays, contents, finish, opening \\
+TeachingBoard & dimensions\_ metres \\
+ExhibitPlinth & finish \\
+Sculpture & bays, curvature, glazed \\
+InformationStand & dimensions\_ metres \\
+ExhibitionPanel & taper \\
+ExtractionHood & dimensions\_ metres \\
+Banquette & bays, finish \\
 \bottomrule
 \end{longtable}
 \normalsize

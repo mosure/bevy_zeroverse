@@ -132,8 +132,21 @@ fn validate_samples(samples: &[Value], kind: &str) -> Result<()> {
 
 fn parameters(samples: &[Value]) -> Value {
     let mut result = BTreeMap::new();
-    for key in samples[0]["program"].as_object().unwrap().keys() {
-        let values: Vec<_> = samples.iter().map(|s| s["program"][key].clone()).collect();
+    let keys: std::collections::BTreeSet<_> = samples
+        .iter()
+        .flat_map(|s| s["program"].as_object().unwrap().keys())
+        .collect();
+    for key in keys {
+        let values: Vec<_> = samples
+            .iter()
+            .filter_map(|s| s["program"].get(key))
+            .filter(|v| !v.is_null())
+            .cloned()
+            .collect();
+        let present = values.len();
+        if present == 0 {
+            continue;
+        }
         if values.iter().all(Value::is_number) {
             let numbers: Vec<_> = values.iter().map(|v| v.as_f64().unwrap()).collect();
             let stats = summary(numbers.clone());
@@ -149,14 +162,14 @@ fn parameters(samples: &[Value]) -> Value {
             }
             result.insert(
                 key.clone(),
-                json!({"type":"numeric", "observed":stats, "bins":bins}),
+                json!({"type":"numeric", "present":present, "total":samples.len(), "observed":stats, "bins":bins}),
             );
         } else {
             let mut counts = BTreeMap::<String, usize>::new();
             for v in values {
                 *counts.entry(v.to_string()).or_default() += 1;
             }
-            result.insert(key.clone(), json!({"type":"categorical", "counts":counts}));
+            result.insert(key.clone(), json!({"type":"categorical", "present":present, "total":samples.len(), "counts":counts}));
         }
     }
     json!(result)
@@ -182,14 +195,14 @@ pub fn prepare(root: &Path, audit: &Path, renders: &Path, output: &Path) -> Resu
             && rendered["image_size"] == json!([320, 320]),
         "unexpected object protocol"
     );
+    validate_inventory(&report)?;
     let categories = report["categories"]
         .as_array_mut()
         .context("missing object categories")?;
     ensure!(
-        categories.len() == 64
-            && rendered["categories"]
-                .as_array()
-                .is_some_and(|c| c.len() == 64),
+        rendered["categories"]
+            .as_array()
+            .is_some_and(|c| c.len() == categories.len()),
         "incomplete object inventory"
     );
     fs::create_dir_all(output)?;
@@ -283,6 +296,21 @@ pub fn prepare(root: &Path, audit: &Path, renders: &Path, output: &Path) -> Resu
     Ok(())
 }
 
+fn validate_inventory(report: &Value) -> Result<()> {
+    let total = report["catalog_total_count"]
+        .as_u64()
+        .context("missing source catalog size")? as usize;
+    ensure!(
+        report["audit_scope"] == "all_object_kinds"
+            && total > 0
+            && report["categories"]
+                .as_array()
+                .is_some_and(|c| c.len() == total),
+        "incomplete source catalog inventory"
+    );
+    Ok(())
+}
+
 pub fn verify(directory: &Path, identity: &GeneratorIdentity) -> Result<Value> {
     let atlas: Value = io::read(&directory.join("atlas.json"))?;
     ensure!(
@@ -295,7 +323,7 @@ pub fn verify(directory: &Path, identity: &GeneratorIdentity) -> Result<Value> {
     let categories = atlas["categories"]
         .as_array()
         .context("missing categories")?;
-    ensure!(categories.len() == 64, "incomplete inventory");
+    validate_inventory(&atlas)?;
     let mut names = std::collections::BTreeSet::new();
     let mut expected = std::collections::BTreeSet::new();
     for category in categories {
@@ -438,6 +466,21 @@ pub fn page() -> &'static str {
 mod tests {
     use super::*;
     #[test]
+    fn full_catalog_gate_rejects_partial_and_stale_inventory_receipts() {
+        validate_inventory(
+            &json!({"audit_scope":"all_object_kinds","catalog_total_count":2,"categories":[{},{}]}),
+        )
+        .unwrap();
+        for report in [
+            json!({"categories":[{},{}]}),
+            json!({"audit_scope":"all_object_kinds","catalog_total_count":3,"categories":[{},{}]}),
+            json!({"audit_scope":"public_program_items","catalog_total_count":2,"categories":[{},{}]}),
+        ] {
+            assert!(validate_inventory(&report).is_err());
+        }
+    }
+
+    #[test]
     fn missing_duplicate_or_out_of_envelope_samples_fail_closed() {
         let mut samples: Vec<_> = (0..SAMPLES).map(|seed|json!({"object":{"kind":"Chair","seed":seed},"program":{"width":1.},"mesh":{"triangles":12,"batches":1,"max_envelope_overrun_m":0.},"build_ms":0.1})).collect();
         validate_samples(&samples, "Chair").unwrap();
@@ -452,11 +495,15 @@ mod tests {
     fn conditional_and_numeric_parameter_marginals_keep_exact_denominators() {
         let samples = vec![
             json!({"program":{"size":1.,"arms":false}}),
-            json!({"program":{"size":2.,"arms":true}}),
+            json!({"program":{"size":2.,"arms":true,"open_angle":42.}}),
             json!({"program":{"size":1.,"arms":false}}),
         ];
         let p = parameters(&samples);
         assert_eq!(p["arms"]["counts"]["false"], 2);
+        assert_eq!(p["open_angle"]["type"], "numeric");
+        assert_eq!(p["open_angle"]["present"], 1);
+        assert_eq!(p["open_angle"]["total"], 3);
+        assert_eq!(p["open_angle"]["observed"]["min"], 42.);
         assert_eq!(
             p["size"]["bins"]
                 .as_array()

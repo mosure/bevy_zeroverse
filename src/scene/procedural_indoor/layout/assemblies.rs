@@ -19,6 +19,12 @@ pub struct FunctionalAssembly {
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct AssemblyDiagnostics {
+    #[serde(default)]
+    pub mounts: Vec<super::functional::MountedUnit>,
+    #[serde(default)]
+    pub programs: Vec<super::functional::ProgramAssembly>,
+    #[serde(default)]
+    pub kitchens: Vec<super::kitchen::KitchenAssembly>,
     pub proposed_workstations: usize,
     pub proposed_meetings: usize,
     pub rejected_surfaces: usize,

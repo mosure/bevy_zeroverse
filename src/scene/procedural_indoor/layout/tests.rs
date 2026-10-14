@@ -1,4 +1,36 @@
 use super::*;
+
+#[test]
+fn long_curly_hair_keeps_its_wave_extent_outside_worktops() {
+    use super::super::{humans, objects};
+    let scene =
+        IndoorManifest::generate_with_humans(199, IndoorLayout::Mixed, 0.7, 0, 0.7).unwrap();
+    let mut checked = 0;
+    for person in &scene.humans {
+        let Some(table) = person
+            .chair
+            .and_then(|id| scene.objects[id].interaction_target)
+            .map(|id| &scene.objects[id])
+        else {
+            continue;
+        };
+        let solid = objects::tables::Clearance::new(table);
+        let tf = table.transform().compute_affine().inverse() * person.transform().compute_affine();
+        let mesh = humans::build_human(person);
+        if let Some(hair) = mesh.parts.get(&humans::HumanSurface::Hair) {
+            for v in &hair.positions {
+                let p = tf.transform_point3(Vec3::from_array(*v));
+                assert!(
+                    p.y >= table.size.y - 1e-5 || !solid.hits_capsule(p, p, 0.001),
+                    "person {}: hair intersects worktop at {p:?}",
+                    person.id
+                );
+            }
+            checked += usize::from(person.hairstyle == humans::hair::HairStyle::CurlyLong as u8);
+        }
+    }
+    assert!(checked > 0, "retain the curly-haired regression fixture");
+}
 use crate::scene::procedural_indoor::validation::{validate_geometry, validate_layout};
 
 #[test]

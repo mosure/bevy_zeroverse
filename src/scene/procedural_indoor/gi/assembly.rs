@@ -153,6 +153,13 @@ impl GeometryTransport {
         symbols: &mut BTreeMap<MaterialKey, usize>,
     ) {
         for ((surface, label), geometry) in &assembly.parts {
+            if !assembly.joints.is_empty()
+                && super::super::motion::tag(label)
+                    .and_then(|id| assembly.joints.get(id))
+                    .is_some_and(|j| j.accepted)
+            {
+                continue;
+            }
             let surface = *surface;
             if matches!(
                 surface,

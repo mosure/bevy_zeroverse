@@ -29,7 +29,13 @@ pub const SURFACES: [Surface; 19] = [
 ];
 pub fn structure_count(surface: Surface) -> usize {
     match surface {
-        Surface::Ceramic | Surface::Fabric | Surface::FabricAlt | Surface::Leather => 3,
+        Surface::Ceramic
+        | Surface::Fabric
+        | Surface::FabricAlt
+        | Surface::Leather
+        | Surface::Metal
+        | Surface::Chrome
+        | Surface::Plastic => 3,
         Surface::Wood
         | Surface::WoodEdge
         | Surface::Leaf
@@ -75,7 +81,7 @@ pub(super) async fn build(
                 structures.get(&(surface, index % structure_count(surface)))
             {
                 mat.base_color_texture = Some(maps[0].clone());
-                mat.normal_map_texture = Some(maps[1].clone());
+                mat.normal_map_texture = (surface != Surface::Chrome).then(|| maps[1].clone());
                 mat.metallic_roughness_texture = Some(maps[2].clone());
                 mat.occlusion_texture = Some(maps[2].clone());
                 mat.uv_transform = bevy::math::Affine2::from_scale(recipe.period_uv().recip());
@@ -83,6 +89,9 @@ pub(super) async fn build(
                     mat.base_color = Color::WHITE;
                 }
                 recipe.apply_pbr(&mut mat);
+                if surface == Surface::Chrome {
+                    mat.anisotropy_strength = ((recipe.roughness - 0.08) * 3.).clamp(0., 0.48);
+                }
             }
             if matches!(surface, Surface::Screen | Surface::PhoneScreen) {
                 screens::apply(

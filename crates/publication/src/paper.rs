@@ -79,7 +79,7 @@ Built feature & Rooms & Fraction \\\midrule
     evaluation.push_str(&format!(r"\subsection{{Geometry, calibration and displayed captures}}
 Footprint areas span {area_min:.2}--{area_max:.2} m$^2$, with roof pitch {pitch_min:.2}--{pitch_max:.2}$^\circ$. Figure~\ref{{fig:architecture-levels}} and Figure~\ref{{fig:architecture-envelopes}} pair native RGB with the actual serialized envelope plans and sections. Camera arrows indicate direction, rather than frusta. Solid furnishings are footprint proxies; the sections show roof and floor levels and omit furnishings, pillars and partitions. Structural feature examples are selected independently of rendered appearance; all rooms remain available in the contact sheet and explorer. Metric constraints are not building-code certification.
 
-The page presents all {rendered} rooms, all four cameras and both endpoints in one explorer, with {images} channel images. RGB, depth, normals, semantics, positions, co-visibility, camera calibration and plans share the same room/time identity. RGB preserves renderer tone mapping and sRGB encoding without per-image exposure correction or cropping. All previews use lossless WebP. Depth is an 8-bit axial-depth preview divided by 15 m and clamped; normals store $(n+1)/2$, and positions are affine-normalized by the annotation AABB and clamped. Semantic colors are preserved exactly. These previews are not float32 training labels. Geometric annotations use the first surface, including opaque glass, rather than reflected or refracted optical content.
+The page presents all {rendered} rooms, all four cameras and both endpoints in one explorer, with {images} channel images. RGB, depth, normals, semantics, positions, co-visibility, camera calibration and plans share the same room/time identity. RGB preserves renderer tone mapping and sRGB encoding without per-image exposure correction or cropping. All previews use lossless WebP. Depth uses Turbo (warm near, cool far) with a fixed logarithmic 0--15 m display scale, colorized from the 8-bit axial-depth/15 m preview; values beyond 15 m are clamped and background is black; normals store $(n+1)/2$, and positions are affine-normalized by the annotation AABB and clamped. Semantic colors are preserved exactly. These previews are not float32 training labels. This gallery uses the surface glass policy: geometric annotations treat panes as first surfaces. The optional through-glass policy traces straight geometry behind transmitting panes while frames and opaque frit remain occluders. Neither policy describes the reflected or refracted optical path in RGB.
 
 The native capture protocol uses Auto quality, shadows, SSAO and approximate diffuse GI with {rays} primary rays per probe. Renderer identity and capabilities are recorded in every calibration download. All captured views passed the recorded alignment checks: maximum per-view depth/position p99 error {depth:.3} $\mu$m, reprojection p99 {reprojection:.5} pixels and normal-length error {normal:.3e}. Every view contains at least {classes} semantic classes. {visible_primary}/{primary} rooms with humans in the camera's primary functional zone show person pixels; {invisible_main}/{main_people} rooms with humans anywhere in the main envelope never show person pixels. These are class-level observations, rather than instance-level visibility guarantees.
 
@@ -90,7 +90,7 @@ Scene construction through capture/export takes {time_min:.2}--{time_max:.2} sec
         ("architecture_levels.jpg","architecture-levels","Native RGB and metric plans of structurally selected rooms. Raised and depressed levels, decks and stairs are generated geometry. Cyan marks glazing; orange/blue denote raised/sunken floors; violet denotes mezzanines and stairs."),
         ("architecture_envelopes.jpg","architecture-envelopes","Native RGB paired with the corresponding envelope programs. Floor levels, portals, polygonal outlines and apertures vary; features can be outside a particular camera view."),
         ("architecture_footprints.png","architecture-plans","Twelve metric envelope programs selected by architectural feature coverage from the full consecutive population. Plans are diagrams, not twelve additional RGB renders."),
-        ("architecture_annotations.jpg","architecture-annotations","Matched RGB, depth, view-space normals and semantic display previews, camera 0 at t=0. All six annotations, camera identities and endpoint times remain accessible in the explorer."),
+        ("architecture_annotations.jpg","architecture-annotations","Matched RGB, Turbo depth, view-space normals and semantic display previews, camera 0 at t=0. All six annotations, camera identities and endpoint times remain accessible in the explorer."),
     ] {evaluation.push_str(&figure(name,label,caption));}
     let first = &gallery["featured"][0]["seed"];
     evaluation.push_str(&format!(r"\subsection{{Co-visibility in every captured room}}
@@ -106,17 +106,17 @@ Across every room and endpoint, {shared:.1}\% of valid source-pixel observations
             .join("receipt.json"),
     )?;
     evaluation.push_str(&format!(r"\subsection{{Matched camera and appearance qualification}}
-A separate prespecified factor sweep covers {} geometry families, eleven settings, two cameras and two timestamps per variant ({} RGB images). Room geometry hashes are invariant across each family's camera, material, detail, illumination and exposure interventions. People are disabled in this sweep. The receipt binds the actual native executable, source identity, target, feature flags and locked package versions. All cases are retained, including failures; no model inference filters pairs. The project page provides the complete matched annotation gallery and machine-readable receipt.
+A separate prespecified factor sweep covers {} geometry families and {} settings ({} RGB images). Most variants use two cameras; the connected-graph case uses four. Every variant captures two timestamps. Room geometry hashes are invariant across each family's camera, material, detail, illumination and exposure interventions. People are disabled in this sweep. The receipt binds the actual native executable, source identity, target, feature flags and locked package versions. All cases are retained, including failures; no model inference filters pairs. The project page provides the complete matched annotation gallery and machine-readable receipt.
 
-Captures export a full row-major pixel-space $K$, image dimensions, half-pixel centers, a versioned centered pinhole lens contract, normalized playback progress, eased trajectory progress and optional explicitly assigned seconds. Unassigned physical time remains unknown. Short handheld paths sample local metric translations and yaw/pitch/roll increments independently of a moving look-target, retaining swept collision checks. Requested high/low/zero proxy-overlap strata are selected before placement retries. Their all-ray proxy estimates are stored separately from rendered directed overlap over valid source pixels. A proxy-negative pair can retain a small rendered overlap. Lens distortion and sampled principal points are not implemented.
+Captures export a full row-major pixel-space $K$, image dimensions, half-pixel centers, a versioned pinhole lens contract with optional seedable optical-center displacement, normalized playback progress, eased trajectory progress and optional explicitly assigned seconds. Unassigned physical time remains unknown. Short handheld paths sample local metric translations and yaw/pitch/roll increments independently of a moving look-target, retaining swept collision checks. Requested high/low/zero proxy-overlap strata are selected before placement retries. Their all-ray proxy estimates are stored separately from rendered directed overlap over valid source pixels. A proxy-negative pair can retain a small rendered overlap. The same off-center projection drives RGB, geometry, visibility, flow, frustum culling and exported calibration. Lens distortion and rolling shutter remain gated research extensions. An optional stable connected-overlap graph permits peer chains instead of requiring every view to share camera zero. Measured overlap on the exact primary region is exported separately from whole-frame overlap, so distant exterior context cannot inflate the primary-room diagnostic.
 
-Table~\ref{{tab:factor-qualification}} reports means over directed rendered pairs, and the maximum per-view 99th-percentile self-reprojection error. There are {} exact duplicate RGB images: the baseline/overlap interventions deliberately reuse the reference camera. These counts measure exact repetition in this matched study, not perceptual redundancy across a training population. Sensor white balance, blur, noise and optional JPEG are separate seeded RGB-only export transforms with individual operator regressions; they are not applied in this render sweep. This bounded check does not establish photographic realism, a calibrated sensor model, a fitted training mixture or downstream transfer.
+Table~\ref{{tab:factor-qualification}} reports directed rendered pair means, primary-room graph component counts at a 10\% bidirectional overlap threshold, pixel-weighted median triangulation angles, and the maximum per-view 99th-percentile self-reprojection error. Angle statistics omit pairs with no shared primary geometry and retain their null values in the receipt. There are {} exact duplicate RGB images: the baseline/overlap interventions deliberately reuse the reference camera. These counts measure exact repetition in this matched study, not perceptual redundancy across a training population. Sensor white balance, blur, noise and optional JPEG are separate seeded RGB-only export transforms with individual operator regressions; they are not applied in this render sweep. This bounded check does not establish photographic realism, a calibrated sensor model, a fitted training mixture or downstream transfer.
 
 \begin{{table}}[htbp]\centering\small
-\begin{{tabular}}{{lrrr}}\toprule
-Factor & Shared pixels (\%) & Baseline (m) & Reproj. p99 max (px) \\
+\begin{{tabular}}{{lrrrrr}}\toprule
+Factor & Shared (\%) & Base (m) & Components & $\theta_{{50}}$ ($^\circ$) & Reproj. (px) \\
 \midrule
-",qualification["family_count"],qualification["captured_rgb_images"],qualification["exact_rgb_duplicate_count"]));
+",qualification["family_count"],qualification["cases"].as_array().unwrap().len(),qualification["captured_rgb_images"],qualification["exact_rgb_duplicate_count"]));
     for case in qualification["cases"]
         .as_array()
         .context("qualification cases missing")?
@@ -126,14 +126,20 @@ Factor & Shared pixels (\%) & Baseline (m) & Reproj. p99 max (px) \\
             "cannot publish failed qualification as passed"
         );
         evaluation.push_str(&format!(
-            "{} & {:.4} & {:.3} & {:.5} \\\\\n",
+            "{} & {:.2} & {:.3} & {:.2} & {} & {:.5} \\\\\n",
             tex(&case["name"].as_str().unwrap().replace('_', " ")),
             number(&case["directed_rendered_overlap"]["mean"]) * 100.,
             number(&case["baseline_m"]["mean"]),
+            number(&case["primary_room_component_count"]["mean"]),
+            case["primary_room_pair_median_triangulation_degrees"]["mean"]
+                .as_f64()
+                .map(|v| format!("{v:.1}"))
+                .unwrap_or_else(|| "--".into()),
             number(&case["per_view_reprojection_p99_pixels"]["max"])
         ));
     }
     evaluation.push_str("\\bottomrule\\end{tabular}\n\\caption{Prespecified factor checks on matched room geometry. Directed overlap uses valid source pixels; the zero target refers to placement proxies.}\\label{tab:factor-qualification}\n\\end{table}\n\n");
+    evaluation.push_str(&crate::cohorts::publication::paper(stage)?);
     evaluation.push_str(r"\subsection{Population distributions and publication contract}
 Room and object counts retain zero-instance rooms. Camera and photometric histograms state their own sample denominators. Placement heatmaps use 33 path samples per camera and normalize each panel independently. Feature shortcuts do not change population denominators. A seed's bit width and continuous parameter ranges do not establish ten-million-sample diversity; correlations, placement constraints and rendering affect distinguishable outcomes. Frozen SigLIP2 embeddings support separate redundancy audits, but no embedding-rank or downstream-learning result is claimed here.
 

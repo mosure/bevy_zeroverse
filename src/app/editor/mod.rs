@@ -116,6 +116,14 @@ fn scene_loaded(
 pub fn value(state: &EditorState, path: &str) -> Value {
     match path {
         "@config" => state.draft.clone(),
+        "@overlap_graph" => state.draft["indoor_camera"]["multiview"]
+            .get("graph")
+            .cloned()
+            .unwrap_or(json!("reference")),
+        "@lens_x" | "@lens_y" => state.draft["indoor_camera"]["principal_point_jitter"]
+            .get(usize::from(path == "@lens_y"))
+            .cloned()
+            .unwrap_or(json!(0.)),
         "@viewport" => json!(if state.draft["room_schematic"] == true {
             "schematic"
         } else if state.draft["camera_grid"] == true {
@@ -137,6 +145,7 @@ pub fn value(state: &EditorState, path: &str) -> Value {
         "@mixture" => json!(!state.draft["indoor_camera"]["overlap_mixture"].is_null()),
         "@handheld" => json!(!state.draft["indoor_camera"]["handheld"].is_null()),
         "@motion" => json!(!state.draft["human_motion"].is_null()),
+        "@indoor_motion" => json!(!state.draft["indoor_motion"].is_null()),
         "@path_preset" => {
             let c = &state.draft["indoor_camera"];
             let min = c["path_length_min"].as_f64().unwrap_or(-1.);
@@ -188,18 +197,35 @@ fn edit(state: &mut EditorState, path: &str, mut v: Value) -> Result<bool, Strin
                 v.as_f64().ok_or("Expected a number")? as f32
             )?);
         }
-        "@multiview" | "@mixture" | "@handheld" | "@motion" => {
+        "@overlap_graph" => {
+            let graph: crate::scene::procedural_indoor::cameras::multiview::OverlapGraph =
+                serde_json::from_value(v).map_err(|e| e.to_string())?;
+            state.draft["indoor_camera"]["multiview"]["graph"] = json!(graph);
+        }
+        "@lens_x" | "@lens_y" => {
+            let mut values = state.draft["indoor_camera"]["principal_point_jitter"]
+                .as_array()
+                .cloned()
+                .unwrap_or(vec![json!(0.), json!(0.)]);
+            values[usize::from(path == "@lens_y")] = v;
+            state.draft["indoor_camera"]["principal_point_jitter"] = json!(values);
+        }
+        "@multiview" | "@mixture" | "@handheld" | "@motion" | "@indoor_motion" => {
             let enabled = v.as_bool().ok_or("Expected true or false")?;
             let (key, default) = match path {
                 "@multiview" => ("multiview", json!(MultiViewSettings::default())),
                 "@mixture" => ("overlap_mixture", json!(OverlapMixture::default())),
                 "@handheld" => ("handheld", json!(HandheldSettings::default())),
+                "@indoor_motion" => (
+                    "indoor_motion",
+                    json!(crate::scene::procedural_indoor::motion::IndoorMotionConfig::default()),
+                ),
                 _ => (
                     "human_motion",
                     json!(crate::human_motion::HumanMotionConfig::default()),
                 ),
             };
-            let target = if path == "@motion" {
+            let target = if matches!(path, "@motion" | "@indoor_motion") {
                 &mut state.draft
             } else {
                 &mut state.draft["indoor_camera"]

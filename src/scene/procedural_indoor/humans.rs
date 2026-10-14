@@ -268,6 +268,7 @@ pub enum HumanSurface {
 pub struct HumanAssembly {
     pub parts: BTreeMap<HumanSurface, Geometry>,
     pub local_joints: Vec<Vec3>,
+    pub local_head_rotation: Quat,
     pub body_measurements: morphology::BodyMeasurements,
     /// Realized skin/clothing contact measurements, before world transformation.
     pub contacts: Vec<contact::ContactReport>,
@@ -292,6 +293,7 @@ impl HumanAssembly {
 pub struct IndoorHumanInstance {
     pub id: usize,
     pub local_joints: Vec<Vec3>,
+    pub local_head_rotation: Quat,
 }
 #[derive(Component, Debug)]
 pub struct IndoorHumanSurface(pub HumanSurface);
@@ -481,6 +483,7 @@ pub fn spawn_people(
                 IndoorHumanInstance {
                     id: person.id,
                     local_joints: assembly.local_joints.clone(),
+                    local_head_rotation: assembly.local_head_rotation,
                 },
                 ObbTracked,
                 ObbClass("person".into()),
@@ -535,7 +538,9 @@ pub fn update_human_poses(
             .enumerate()
             .map(|(i, p)| {
                 let parent = HUMAN_BONE_PARENTS[i];
-                if parent < 0 {
+                if i == 4 {
+                    global.rotation() * person.local_head_rotation
+                } else if parent < 0 {
                     global.rotation()
                 } else {
                     Quat::from_rotation_arc(
@@ -576,7 +581,12 @@ fn sample_person(
         stature,
         build,
         shoulder_width,
-        head_yaw: rng.random_range(-0.40..0.40),
+        head_yaw: rng.random_range(-1_f32..1.)
+            * if pose == HumanPoseKind::SeatedWorking {
+                0.35
+            } else {
+                0.85
+            },
         pose,
         pose_program: Some(program),
         appearance: Some(appearance::Appearance::sample(seed)),
@@ -747,10 +757,18 @@ fn collision_capsules_inner(human: &IndoorHuman, support: bool) -> Vec<(Vec3, Ve
             Some(hair::HairStyle::Bob | hair::HairStyle::AsymmetricBob)
         );
         let drop = if bob { 0.10 } else { program.drop_m + 0.13 };
+        // The curtain builder offsets waves with (1 + cos): curly locks can
+        // project three curl radii beyond the supported torso profile. Reserve
+        // that excursion before pushing an occupied chair under a worktop.
+        let curl_excursion = match hair::HairStyle::from_id(human.hairstyle) {
+            Some(hair::HairStyle::CurlyLong) => 3. * program.curl_radius_m,
+            Some(hair::HairStyle::WavyLong) => 1.6 * program.curl_radius_m,
+            _ => 0.,
+        };
         result.push((
             p[4] + back * 0.075 * s,
             p[3] - torso_up * drop * s + back * 0.11 * s,
-            planning_shoulder * 0.58 + 0.04,
+            planning_shoulder * 0.58 + 0.04 + curl_excursion * s,
         ));
     }
     if human.hairstyle == hair::HairStyle::Afro as u8 {
@@ -843,14 +861,7 @@ pub fn placement_clear(scene: &IndoorManifest, person: &IndoorHuman) -> bool {
     {
         return false;
     }
-    if hi.x > scene.door_x - 0.70
-        && lo.x < scene.door_x + 0.70
-        && (if person.neighbor {
-            lo.z < half.z + 1.45
-        } else {
-            hi.z > half.z - 1.45
-        })
-    {
+    if scene.entry_approach_overlaps(lo, hi) {
         return false;
     }
     if scene
@@ -884,7 +895,7 @@ pub fn placement_clear(scene: &IndoorManifest, person: &IndoorHuman) -> bool {
             a.garment_ease + a.garment.torso_ease_m * (person.stature / 1.75) + 0.005
         }))
     .min(width);
-    let right = tf.rotation * Vec3::X;
+    let right = tf.rotation * (person.joints[9] - person.joints[5]).normalize_or(Vec3::X);
     for offset in [-(width - depth), 0., width - depth] {
         table_capsules.push((waist + right * offset, chest + right * offset, depth));
     }
@@ -1028,6 +1039,26 @@ pub fn validate(scene: &IndoorManifest) -> Result<(), String> {
         return Err("invalid human density".into());
     }
     for (index, human) in scene.humans.iter().enumerate() {
+        if let Some(program) = &human.pose_program {
+            if !program.head_pitch.is_finite()
+                || program.head_pitch.abs() > 0.5
+                || !program.head_roll.is_finite()
+                || program.head_roll.abs() > 0.3
+                || program
+                    .finger_curl
+                    .iter()
+                    .any(|v| !v.is_finite() || !(0.0..=0.85).contains(v))
+                || program
+                    .index_extension
+                    .iter()
+                    .any(|v| !v.is_finite() || !(0.0..=1.0).contains(v))
+            {
+                return Err(format!(
+                    "invalid head/hand pose program for human {}",
+                    human.id
+                ));
+            }
+        }
         if let Some(contact) = &human.worktop_contact {
             contact.validate(human, scene)?;
         }

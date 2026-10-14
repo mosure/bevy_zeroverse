@@ -43,6 +43,10 @@ pub struct Camera {
     pub world_from_view: [[f32; 4]; 4],
     pub fov_y: f32,
     pub aspect: f32,
+    /// Planned optical-center offset, right/down in image dimensions. Exact
+    /// captured calibration below takes precedence when present.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub principal_point_offset: Option<Vec2>,
     /// Exact captured intrinsics when available; takes precedence over fov/aspect.
     #[serde(default)]
     pub calibration: Option<bevy_zeroverse_capture::calibration::CameraCalibration>,
@@ -236,6 +240,7 @@ impl crate::sample::Sample {
                 world_from_view: v.world_from_view,
                 fov_y: v.fovy,
                 aspect,
+                principal_point_offset: None,
                 calibration: v.calibration.clone(),
                 path: planned.get(i).map_or_else(Vec::new, |c| c.path.clone()),
             });

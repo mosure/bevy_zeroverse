@@ -1,5 +1,6 @@
 //! Bound printed objects with sampled construction, stacks and fitted covers.
 use super::*;
+mod opened;
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct BindingProgram {
     pub volumes: usize,
@@ -8,10 +9,17 @@ pub struct BindingProgram {
     pub size_variation: f32,
     pub binding: u8,
     pub strap: bool,
+    pub opened: bool,
+    pub page_balance: f32,
+    pub page_crown: f32,
 }
 pub fn parameters(o: &IndoorObject) -> BindingProgram {
     let mut r = stream(o.seed, 7410);
+    let mut use_state = stream(o.seed, 7520);
     BindingProgram {
+        opened: o.kind == ObjectKind::Notebook && use_state.random_bool(0.42),
+        page_balance: use_state.random_range(0.25..0.75),
+        page_crown: use_state.random_range(0.08..0.26),
         volumes: if o.kind == ObjectKind::Books {
             r.random_range(2..=5)
         } else {
@@ -26,6 +34,10 @@ pub fn parameters(o: &IndoorObject) -> BindingProgram {
 }
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     let p = parameters(o);
+    if p.opened {
+        opened::build(a, o, &p);
+        return;
+    }
     let s = o.size;
     let l = o.kind.class_name();
     let mut r = stream(o.seed, 7411);

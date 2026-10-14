@@ -16,14 +16,17 @@
     return e;
   };
   const label = text => text.replace(/_/g, " ").replace(/([a-z])([A-Z])/g, "$1 $2");
-  const number = value => typeof value === "number" ? Number(value.toPrecision(4)).toString() : typeof value === "object" ? JSON.stringify(value) : String(value);
+  const number = value => value === undefined || value === null ? "—" : typeof value === "number" ? Number(value.toPrecision(4)).toString() : typeof value === "object" ? JSON.stringify(value) : String(value);
   function distribution(p) {
     const el = node("div");
+    if (Number.isInteger(p.present) && p.present < p.total) {
+      el.append(node("p", "Active in " + p.present + " of " + p.total + " samples. Statistics below use only those active samples."));
+    }
     if (p.type === "numeric") {
       const s = p.observed;
       el.append(node("p", number(s.min) + " – " + number(s.max) + "; median " + number(s.median) + ". Eight bins across this observed range."));
       const bars = node("div", undefined, "object-bars");
-      const peak = Math.max(...p.bins);
+      const peak = Math.max(1, ...p.bins);
       for (const count of p.bins) {
         const bar = node("span"); bar.style.height = (100 * count / peak) + "%"; bar.title = count + " samples"; bars.append(bar);
       }
@@ -57,7 +60,7 @@
     const size = rows[0].object.size.map(number).join(" × ");
     const near = c.nearest_shape_distances.filter(d => d <= 0.005).length;
     const note = counts[1] === atlas.sample_count_per_category ? "Coverage saturates this sample size." : counts[1] < 8 ? "Low coarse-shape variation at this envelope; inspect fine geometry and conditional controls below." : "Coverage describes realized surfaces at this fixed envelope.";
-    const status = node("p", "Envelope: " + size + " m (width × height × depth). " + near + " / " + atlas.sample_count_per_category + " samples have a neighbor within distance .005. " + note, "object-status");
+    const status = node("p", "Envelope: " + size + " m (width × height × depth). " + near + " / " + atlas.sample_count_per_category + " samples have a neighbor within distance .005. " + note + " A dash marks a parameter that is inactive for that sample.", "object-status");
     const table = node("table", undefined, "object-grid");
     const head = node("thead"), images = node("tr");
     images.append(node("th", label(c.kind) + " · " + (mode.value === "color" ? "PBR color" : "View-space normals")));

@@ -155,19 +155,30 @@ fn speaker(a: &mut Assembly, o: &IndoorObject, p: &AccessoryProgram) {
         Transform::IDENTITY,
     );
     if p.style < 2 {
-        for (y, r) in [
-            (0.34, p.control_fraction.min(0.36)),
-            (0.78, p.support_fraction.min(0.18)),
-        ] {
+        let clearance = s.y * 0.012;
+        let centers = [s.y * 0.34, s.y * 0.78];
+        let mut radii = [p.control_fraction.min(0.36), p.support_fraction.min(0.18)]
+            .map(|fraction| s.x.min(s.y) * fraction);
+        for (radius, center) in radii.iter_mut().zip(centers) {
+            // Wide, squat enclosures still need the entire surround above the
+            // supporting surface and inside the housing, not just its center.
+            *radius = radius
+                .min(center - clearance)
+                .min(s.y - center - clearance)
+                .min(s.x * 0.43 * p.body_taper);
+        }
+        let separation =
+            ((centers[1] - centers[0] - clearance) / radii.iter().sum::<f32>()).min(1.);
+        for (y, radius) in centers.into_iter().zip(radii.map(|r| r * separation)) {
             a.part(Surface::Rubber, label).cylinder(
-                s.x.min(s.y) * r,
+                radius,
                 s.z * 0.055,
-                Transform::from_xyz(0., s.y * y, s.z * 0.45)
+                Transform::from_xyz(0., y, s.z * 0.45)
                     .with_rotation(Quat::from_rotation_x(FRAC_PI_2)),
             );
             a.part(Surface::Fabric, label).ellipsoid(
-                Vec3::new(s.x * r * 0.82, s.x * r * 0.82, s.z * 0.022),
-                Transform::from_xyz(0., s.y * y, s.z * 0.475),
+                Vec3::new(radius * 0.82, radius * 0.82, s.z * 0.022),
+                Transform::from_xyz(0., y, s.z * 0.475),
             );
         }
     } else {

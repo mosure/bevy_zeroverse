@@ -13,6 +13,8 @@ pub use prompts::{
 mod runtime;
 #[cfg(feature = "human_motion")]
 mod skin;
+#[cfg(feature = "human_motion")]
+mod temporal;
 pub mod validation;
 #[cfg(feature = "human_motion")]
 pub use runtime::{HumanMotionClips, HumanMotionPlugin};

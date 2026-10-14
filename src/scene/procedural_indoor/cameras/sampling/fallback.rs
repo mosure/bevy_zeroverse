@@ -34,8 +34,11 @@ impl IndoorManifest {
                             if !self.camera_view_clear(start, target) {
                                 continue;
                             }
-                            for fov_degrees in [84., 96., 106.] {
+                            for fov_degrees in [84., 96., 106.]
+                                .map(|f| self.camera_settings.intrinsics.recovery(f))
+                            {
                                 let still = IndoorCamera {
+                                    principal_point_offset: None,
                                     start,
                                     end: start,
                                     target,

@@ -184,7 +184,21 @@ impl IndoorManifest {
         let count = rng.random_range(2..=9);
         for _ in 0..count {
             let (tf, span) = self.attachment_wall(rng);
-            let (kind, size) = match rng.random_range(0..5) {
+            let mut choice = rng.random_range(0..5);
+            if self.layout.is_public()
+                && !matches!(
+                    self.layout,
+                    IndoorLayout::Classroom | IndoorLayout::LectureHall
+                )
+                && matches!(choice, 1 | 2)
+            {
+                choice = if matches!(self.layout, IndoorLayout::Cafe | IndoorLayout::Cafeteria) {
+                    0
+                } else {
+                    3
+                };
+            }
+            let (kind, size) = match choice {
                 0 => (
                     ObjectKind::Display,
                     Vec3::new(
@@ -249,7 +263,11 @@ impl IndoorManifest {
         let surfaces: Vec<_> = self
             .objects
             .iter()
-            .filter(|o| o.kind.is_surface())
+            .filter(|o| {
+                o.kind.is_surface()
+                    && !o.kind.is_kitchen()
+                    && (!self.layout.is_kitchen() || o.neighbor || o.kind != ObjectKind::Table)
+            })
             .cloned()
             .collect();
         for support in surfaces {

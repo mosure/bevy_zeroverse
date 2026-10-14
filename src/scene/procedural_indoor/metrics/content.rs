@@ -22,8 +22,72 @@ fn category(categories: &mut Categories, key: &str, value: impl ToString) {
 pub(super) fn record_scene(
     scene: &IndoorManifest,
     numeric: &mut NumericCollector,
+    categories: &mut Categories,
 ) -> io::Result<()> {
     let groups = &scene.assembly_diagnostics;
+    numeric.push("functional_programs", groups.programs.len() as f64)?;
+    for p in &groups.programs {
+        category(
+            categories,
+            "functional_activity",
+            format!("{:?}", p.activity),
+        );
+        category(categories, "functional_role", format!("{:?}", p.role));
+        category(
+            categories,
+            "functional_capacity_unit",
+            format!("{:?}", p.capacity_unit),
+        );
+        for (name, value) in [
+            ("functional_requested_capacity", p.requested_capacity as f64),
+            ("functional_accepted_capacity", p.accepted_capacity as f64),
+            (
+                "functional_rejected_candidates",
+                p.rejected_candidates as f64,
+            ),
+            ("functional_aisle_width_m", p.parameters.aisle_metres as f64),
+            (
+                "functional_row_pitch_m",
+                p.parameters.row_pitch_metres as f64,
+            ),
+            (
+                "functional_seat_pitch_m",
+                p.parameters.seat_pitch_metres as f64,
+            ),
+            (
+                "functional_tier_rise_m",
+                p.parameters.tier_rise_metres as f64,
+            ),
+            (
+                "functional_group_rotation_rad",
+                p.parameters.group_rotation_radians as f64,
+            ),
+            (
+                "functional_reserved_area_m2",
+                p.reservations
+                    .iter()
+                    .map(|r| ((r.max - r.min).x * (r.max - r.min).y) as f64)
+                    .sum(),
+            ),
+        ] {
+            numeric.push(name, value)?;
+        }
+    }
+    numeric.push("kitchen_accepted_groups", groups.kitchens.len() as f64)?;
+    for group in &groups.kitchens {
+        category(categories, "kitchen_configuration", &group.configuration);
+        category(categories, "kitchen_fitted_to_wall", group.fitted_to_wall);
+        numeric.push(
+            "kitchen_worktop_height_m",
+            group.worktop_height_metres as f64,
+        )?;
+        for kind in &group.requested {
+            category(categories, "kitchen_requested_units", format!("{kind:?}"));
+        }
+        numeric.push("kitchen_accepted_units", group.units.len() as f64)?;
+        numeric.push("kitchen_accepted_props", group.props.len() as f64)?;
+        numeric.push("kitchen_rejected_optional", group.rejected_optional as f64)?;
+    }
     for (name, n) in [
         (
             "assembly_proposed_workstations",
@@ -115,6 +179,14 @@ pub(super) fn record_scene(
             )?;
         }
     }
+    numeric.push(
+        "camera_level_gaze_prior_fraction",
+        p.level_gaze_fraction as f64,
+    )?;
+    numeric.push(
+        "camera_level_gaze_prior_pitch_span_degrees",
+        p.level_pitch_span_degrees as f64,
+    )?;
     Ok(())
 }
 
@@ -309,6 +381,23 @@ pub(super) fn record_object(
     numeric: &mut NumericCollector,
 ) -> Result<(), Box<dyn std::error::Error>> {
     record_equipment(scene, o, categories, numeric)?;
+    if o.kind.is_kitchen() {
+        if let Some(fields) = super::super::objects::kitchen::metadata(o).as_object() {
+            for (key, value) in fields {
+                let name = format!("kitchen_{:?}_{key}", o.kind);
+                match value {
+                    serde_json::Value::Number(n) => {
+                        if let Some(v) = n.as_f64() {
+                            numeric.push(&name, v)?;
+                        }
+                    }
+                    serde_json::Value::String(v) => category(categories, &name, v),
+                    serde_json::Value::Bool(v) => category(categories, &name, v),
+                    _ => (),
+                }
+            }
+        }
+    }
     match o.kind {
         ObjectKind::TrashCan => {
             let p = super::super::objects::containers::bin_parameters(o);
@@ -586,7 +675,7 @@ mod tests {
             .unwrap();
         let mut categories = Categories::new();
         let mut numeric = NumericCollector::new(&directory).unwrap();
-        record_scene(&scene, &mut numeric).unwrap();
+        record_scene(&scene, &mut numeric, &mut Categories::new()).unwrap();
         for kind in [
             ObjectKind::WallArt,
             ObjectKind::Whiteboard,

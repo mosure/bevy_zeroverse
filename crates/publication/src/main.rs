@@ -12,6 +12,33 @@ struct Args {
 }
 #[derive(Subcommand)]
 enum Action {
+    /// Bind architectural door/cabinet construction, renders and semantics.
+    DoorStudy {
+        #[arg(long)]
+        input: PathBuf,
+        #[arg(long)]
+        output: PathBuf,
+    },
+    /// Build a local current-state functional-room gallery from verified native cohorts.
+    ProgramStudy {
+        #[arg(long,required=true,num_args=1..)]
+        input: Vec<PathBuf>,
+        /// Source-bound structural, boundary or camera audit JSON receipts.
+        #[arg(long, num_args=1..)]
+        audit: Vec<PathBuf>,
+        /// Optional fixed-envelope object audit and studio capture directory.
+        #[arg(long)]
+        objects: Option<PathBuf>,
+        #[arg(long)]
+        output: PathBuf,
+    },
+    /// Verify current rendered populations and prepare a snapshot receipt for page/paper use.
+    CohortStudy {
+        #[arg(long, required = true, num_args = 1..)]
+        input: Vec<PathBuf>,
+        #[arg(long)]
+        output: PathBuf,
+    },
     /// Generate a paper-only timing receipt, phase table and engine diagram.
     TimingStudy {
         #[arg(long, required = true, num_args = 1..)]
@@ -123,6 +150,24 @@ enum Action {
 fn main() -> Result<()> {
     let args = Args::parse();
     match args.command {
+        Action::DoorStudy { input, output } => {
+            bevy_zeroverse_publication::doors::prepare(&args.root, &input, &output)?
+        }
+        Action::ProgramStudy {
+            input,
+            audit,
+            objects,
+            output,
+        } => bevy_zeroverse_publication::programs::prepare(
+            &args.root,
+            &input,
+            &audit,
+            objects.as_deref(),
+            &output,
+        )?,
+        Action::CohortStudy { input, output } => {
+            bevy_zeroverse_publication::cohorts::publication::prepare(&args.root, &input, &output)?;
+        }
         Action::TimingStudy {
             captures,
             preparation,

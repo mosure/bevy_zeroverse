@@ -2,6 +2,8 @@
 use super::*;
 
 pub const FAMILIES: u32 = 10;
+mod audience;
+pub use audience::is_folded;
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct ChairProgram {
@@ -85,6 +87,9 @@ pub fn parameters(o: &IndoorObject) -> ChairProgram {
 /// Both wooden and upholstered stools can be backless. Keep this decision
 /// shared with placement bounds and reports instead of hiding it in mesh code.
 pub fn is_backless(o: &IndoorObject) -> bool {
+    if o.variant >= 10 {
+        return false;
+    }
     match o.variant % FAMILIES {
         6 => true,
         7 => stream(o.seed, 3041).random_bool(0.60),
@@ -97,6 +102,9 @@ pub fn is_backless(o: &IndoorObject) -> bool {
 /// their full upholstered envelope. Mesh coverage is qualified in tests.
 pub(crate) fn clearance_boxes(o: &IndoorObject) -> Vec<(Vec3, Vec3)> {
     let half = o.size * 0.5;
+    if o.variant >= 10 {
+        return audience::clearance_boxes(o);
+    }
     let full = (
         Vec3::new(-half.x, 0., -half.z),
         Vec3::new(half.x, o.size.y, half.z),
@@ -143,6 +151,10 @@ pub(crate) fn clearance_boxes(o: &IndoorObject) -> Vec<(Vec3, Vec3)> {
 }
 
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
+    if o.variant >= 10 {
+        audience::build(a, o);
+        return;
+    }
     if matches!(o.variant % FAMILIES, 6 | 7) {
         stool(a, o);
         return;
@@ -341,6 +353,13 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
             0.012,
         );
     }
+    use super::super::motion::{construction as motion, MotionKind};
+    let moving = matches!(family, 0 | 1 | 5 | 9) && a.motion_selected(MotionKind::Chair, o.seed);
+    let mut upper = if moving {
+        std::mem::take(&mut a.parts)
+    } else {
+        default()
+    };
     if matches!(family, 0 | 1 | 5 | 9) {
         a.part(Surface::Chrome, label)
             .cylinder(0.024, 0.27, Transform::from_xyz(0.0, 0.285, 0.0));
@@ -421,6 +440,11 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
             }
         }
     }
+    let base = if moving {
+        std::mem::replace(&mut a.parts, std::mem::take(&mut upper))
+    } else {
+        default()
+    };
     if program.armrests {
         for side in [-1.0, 1.0] {
             let x = side * (width * 0.5 + 0.037);
@@ -473,6 +497,37 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
                     Transform::from_xyz(x, program.arm_height, 0.),
                 );
         }
+    }
+    if moving {
+        let policy = a.motion_policy.as_ref().unwrap();
+        let mut r = stream(o.seed, 0x4348414952);
+        let angle = r.random_range(-1.0..1.0) * policy.chair_swivel_degrees.to_radians();
+        let yaw = r.random_range(0.0..TAU);
+        let travel =
+            Vec3::new(yaw.cos(), 0., yaw.sin()) * r.random_range(0.25..1.) * policy.chair_travel_m;
+        let top = Assembly {
+            parts: std::mem::take(&mut a.parts),
+            ..default()
+        };
+        a.articulated(
+            top,
+            motion::rigid(
+                MotionKind::Chair,
+                o.seed,
+                Vec3::ZERO,
+                Vec3::Y,
+                angle,
+                travel,
+            ),
+        );
+        let bottom = Assembly {
+            parts: base,
+            ..default()
+        };
+        a.articulated(
+            bottom,
+            motion::rigid(MotionKind::Chair, o.seed, Vec3::ZERO, Vec3::Y, 0., travel),
+        );
     }
 }
 

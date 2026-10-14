@@ -500,28 +500,48 @@ mod tests {
     #[test]
     #[ignore = "native GPU: same-scene CPU/GPU parity, row padding, glass, retained allocations and replay"]
     fn gpu_transport_matches_cpu_capture_and_retains_old_samples() -> Result<()> {
-        transport_parity(Transport::Wgpu)
+        transport_parity(
+            Transport::Wgpu,
+            bevy_zeroverse::scene::procedural_indoor::layout::IndoorLayout::Mixed,
+        )
+    }
+
+    #[test]
+    #[ignore = "native GPU: new tiered program, poses, float32 annotations and retained tensors"]
+    fn public_program_gpu_transport_matches_cpu_capture() -> Result<()> {
+        transport_parity(
+            Transport::Wgpu,
+            bevy_zeroverse::scene::procedural_indoor::layout::IndoorLayout::LectureHall,
+        )
     }
 
     #[cfg(all(feature = "cuda_interop", target_os = "linux"))]
     #[test]
     #[ignore = "native NVIDIA GPU: Vulkan/CUDA exact annotation parity, padding and retained allocations"]
     fn cuda_transport_matches_cpu_capture_and_retains_old_samples() -> Result<()> {
-        transport_parity(Transport::Cuda)
+        transport_parity(
+            Transport::Cuda,
+            bevy_zeroverse::scene::procedural_indoor::layout::IndoorLayout::Mixed,
+        )
     }
 
-    fn transport_parity(transport: Transport) -> Result<()> {
+    fn transport_parity(
+        transport: Transport,
+        layout: bevy_zeroverse::scene::procedural_indoor::layout::IndoorLayout,
+    ) -> Result<()> {
         setup_test_assets();
         channels::init_channels();
         let mut dataset = Renderer::with_transport(
             BevyZeroverseConfig {
                 scene_type: ZeroverseSceneType::ProceduralIndoor,
+                indoor_layout: layout,
                 indoor_seed: Some(6),
                 num_cameras: 3,
                 width: 321.,
                 height: 239.,
                 playback_steps: 2,
                 indoor_human_density: 0.25,
+                indoor_camera: Some(r#"{"principal_point_jitter":[0.12,0.12],"multiview":{"graph":"connected","target_variation":0.7}}"#.into()),
                 depth_format: DepthFormat::Linear,
                 z_depth: true,
                 render_modes: vec![
@@ -568,9 +588,35 @@ mod tests {
                 "CPU fallback did not allocate its readback storage"
             );
             assert_eq!(gpu.metadata.aabb, cpu.aabb);
+            assert!(
+                !cpu.human_poses.is_empty(),
+                "pose parity requires a populated scene"
+            );
+            assert_eq!(gpu.metadata.human_instance_ids, cpu.human_instance_ids);
+            assert_eq!(gpu.metadata.human_bone_names, cpu.human_bone_names);
+            assert_eq!(gpu.metadata.human_bone_parents, cpu.human_bone_parents);
+            assert_eq!(gpu.metadata.human_pose_steps, cpu.human_pose_steps);
+            assert_eq!(gpu.metadata.human_poses, cpu.human_poses);
             assert_eq!(gpu.metadata.annotation_glass, policy);
             assert_eq!(gpu.metadata.views.len(), cpu.views.len());
             for (index, (actual, expected)) in gpu.views.iter().zip(&cpu.views).enumerate() {
+                assert_eq!(
+                    gpu.metadata
+                        .human_poses_for_view(index)
+                        .map_err(anyhow::Error::msg)?,
+                    cpu.human_poses_for_view(index)
+                        .map_err(anyhow::Error::msg)?
+                );
+                assert_eq!(gpu.metadata.views[index].calibration, expected.calibration);
+                let calibration = expected
+                    .calibration
+                    .as_ref()
+                    .expect("full camera calibration");
+                assert_ne!(
+                    calibration.k[0][2],
+                    321. * 0.5,
+                    "shifted projection was not exercised"
+                );
                 assert_eq!(actual.color.dims(), [239, 321, 4]);
                 assert_eq!(
                     gpu.metadata.views[index].world_from_view,

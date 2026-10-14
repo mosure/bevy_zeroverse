@@ -1,398 +1,301 @@
 # Procedural space implementation and qualification
 
-This is the local execution record for [the roadmap](procedural_space_roadmap.md).
-Matched captures and diagnostic comparisons stay under `out/roadmap_qualification/`.
-The subsequent ceiling, exterior-context and floor-detail qualification is under
-`out/room_context_expansion/final/`; its evidence and limits are recorded below.
-The starting checkout is `91c5c96361970cc38867e2e78f27813fb92d833c`.
+This is the current execution record for the [roadmap](procedural_space_roadmap.md).
+The working source identity is
+`1aab7c4b05a950f005240c75b216e55777e32359fb23c2ebd2636e597d36e4b5`:
+generator 41, metrics schema 19, capture engine v62, semantic taxonomy 4.
+Crate versions remain 0.40.0 / 0.24.0. These local changes have not been committed,
+pushed or published. The starting checkout is
+`b938bb277cab0effb8e1c5fc60d209aeb097a6ae`.
 
-## Delivery gates
+The implementation and qualification work covers all twelve execution phases.
+That does **not** mean every promotion gate passed. Physical transport accuracy,
+long-run host-memory stability, a 2× completed-throughput gain and improved
+reconstruction learning remain unmet or unproven. The local matched embedding
+study does not establish a perceptual-volume increase.
 
-| Phase | Implementation | Qualification |
+## Delivery and evidence boundaries
+
+| Phase | Implemented or exercised | Result and limit |
 | --- | --- | --- |
-| Functional diagnostics and light occlusion | Accepted assembly receipts; all Auto ceiling emitters shadowed; local ceiling attachments | Native unit/mesh tests; isolated thirteenth ceiling emitter has zero measured light beneath an opaque deck |
-| Transactional furniture assemblies | Bounded whole meeting-group placement, explicit seats-at relationships and coordinated finishes | Functional, seating/contact and density-extreme tests passed |
-| Reflection locality, glazing and material identity | Up to three box-projected zone probes; installation-coherent glass; metric filtered frosting; opaque frit | CPU/GPU map and annotation parity; 672 controlled window views; two independently repeated Cycles references, with remaining transport error reported below |
-| Architectural topology and window construction | Additional polygonal returns, closed soffits, exact clipped regions/portal graph, unequal panes and articulated sashes | 1,024 actual mesh audits passed; roof/ray, fit and historical polygon regressions passed |
-| Plants, garments, hair and interaction states | Age-correlated growth; rounded body-derived garment fit/ease; curved parts and crown guides; fitted tabletop gestures | Anatomy, contact and envelope tests; controlled body/hair/plant galleries; 7/8 generated motions admitted, with one rejected clip retained as static fallback |
-| Camera routes and calibration | Reflected route endpoints; sampling/rejection diagnostics; bounded free-space visibility recovery | Native calibration/replay; 2,879/2,880 camera requests admitted across counts 1–12 and three aspects; the rejected request remains reported |
-| Distribution, rendering and consumer performance | Larger Rust embedding analysis; multi-time study viewer; separate, verified cohort reporting | 64-room matched study, 512 rendered rooms, 10,000 manifests, completed WGPU/CUDA consumers and a 96-step optimizer probe |
+| 1. Unified qualification | Atomic running/complete/failed capture receipts, requested settings and source identity; current-only Rust cohort aggregation and strict membership/graph validation | Failed requests and distinct sampling populations remain visible; old or incomplete captures cannot enter the current publication |
+| 2. Architecture and functional assemblies | Shared envelope/topology, closed soffits and local headroom, offset returns, portal/window systems, transactional meeting assemblies, support and operational-clearance contracts | 10,000 actual constructed rooms pass; this is a bounded connected-polygon grammar, not arbitrary architectural CAD |
+| 3. Objects and use states | Open notebooks with supported curved pages, fitted speaker cones/surrounds, bounded noticeboard details; conditional object-program audits | Adversarial dimensions and deterministic mesh tests pass; dormant parameters no longer count as realized object variation |
+| 4. Materials and filtering | GPU paint/accent/ceiling and neutral knit recipes; independently varied metal/chrome/plastic structures; controlled detail scaling; coupled normal/roughness mips | 135 CPU/GPU material recipes pass all-map/mip comparisons; material realism remains view/illumination dependent |
+| 5. Lighting, glass and reflections | GPU cosine/GGX environment convolution with CPU oracle, bounded spatial native probes, explicit unrefracted glass annotation contracts; calibrated Cycles comparison | Convolution parity passes; complete-room transport agreement fails, particularly for direct illumination through glazing |
+| 6. Humans, motion and context | Anatomically partitioned eye surfaces; current fitted clothing/hair, botanical/exterior programs; native/browser ARDY and collision-fallback checks | Motion and aligned annotations work; 7/10 selected actors receive admitted motion. Humans remain visibly stylized |
+| 7. Reconstruction cameras | Optional connected overlap graph, bounded admission/fallback diagnostics, primary-region rendered graphs, metric baselines and triangulation angles | 7,103/7,104 requested CPU camera sets admitted; 312 camera-count/baseline render views pass. Default reference policy remains unchanged |
+| 8. Camera/sensor contracts | Seedable off-center pinhole projection, exact K/frustum/subviews, calibration/flow/visibility/reference integration; UI/URL round trips | Projection and both glass-policy oracles pass. Jitter defaults to zero; distorted optics, rolling shutter and ambiguous multi-time pixels remain deferred |
+| 9. Useful diversity | Seed-matched 64-room SigLIP2 study, fixed pooled basis and room bootstrap; structural/object/material distributions | No significant measured volume gain. No downstream reconstruction improvement is claimed; active external training is preserved |
+| 10. Preparation critical path | GPU map and environment filtering, bounded CPU preparation and render residency; profiling separated from completed capture | Parallel preparation is useful; an isolated 2× end-to-end gain was not demonstrated under shared-device contention |
+| 11. Actual consumers and web | Completed WGPU/CUDA tensor parity, retained sample lifetime, indexed replay, same-device optimizer probes; hardware Chrome static/motion/legacy scenes | No image roundtrip is required on GPU routes. Browser long tasks and host-memory growth remain explicit limitations |
+| 12. Larger audit and publication | 10,000 manifests, 10,000 mesh constructions, matched 64, current-only 512-room campaign, 1,000-room stability run, current page/paper regeneration | Finite correctness checks pass where stated below; the memory-plateau gate fails |
 
-These gates refer to implemented and measured behavior, not the number of
-available parameters. Optional research directions in the roadmap retain their
-stated evidence requirements. Existing scene modes, physical units, semantic
-ownership, geometry annotations, deterministic replay and full-quality defaults
-remain compatibility requirements.
+## Source, protocol and measurement conditions
 
-## Measurement conditions
+Final-source evidence lives under `out/development_041/validation/`.
+Earlier intermediate results are retained under separate directories and do not
+qualify the final source. The 64-room comparison, embedding neighbors and its
+before/after viewer stay local. The distributable page and paper contain only
+current-source captures and instantaneous metrics, using the Rust publication
+pipeline and its atomic attestation.
 
-The device is an NVIDIA RTX PRO 6000 Blackwell (Vulkan, driver 610.43.02).
-An independent workload initially occupied about 81 GiB and 96% device activity;
-it finished without intervention before the final performance runs. The final
-40/160-room timing runs therefore do not represent concurrent large-model
-training. Their board activity averaged approximately 10–14%, with 1.8–4.5 GiB
-resident. A separately specified optimizer probe measures concurrent generation
-and training. Raw timestamps, process/board telemetry, quality settings, package
-versions and source identities accompany the runs. CPU-only preparation,
-completed capture, tensor transport and optimizer throughput are distinct metrics.
+Hardware: NVIDIA RTX PRO 6000 Blackwell, 96 GB; Vulkan driver 610.43.02;
+Intel Core i9-12900K, 24 logical CPUs. The build uses Rust nightly-2026-08-31,
+Bevy 0.20, Burn 0.22 and registry WGPU 30.0.1. No vendor patch or alternate
+allocator is a production dependency.
 
-## Implemented contracts
+An independent 250k-step CUDA training job and four downstream JIT capture
+workers initially occupied most of the GPU. That workload dropped off during
+the earlier timing series, without intervention by this task; its training
+completion status was not assessed. Subsequent consumer probes ran at low
+background occupancy and include their own small optimizer workload. Per-run
+board telemetry records the distinction. CPU preparation,
+completed room capture, tensor transport and optimizer completion are separate
+measurements. The controlled reference and matched studies are finite diagnostics,
+not estimates of ten-million-sample learning utility.
 
-The current local generator identity is **40**, capture engine **v58**, metrics
-schema **18** and semantic taxonomy **4**. Crate versions remain unchanged; this
-work has not been committed, pushed or published. The broader roadmap campaign
-below was frozen at generator 38 / capture-v56. Those measurements do not
-automatically qualify the subsequent geometry additions. The current object
-construction campaign is recorded in [object geometry qualification](object_geometry_qualification.md).
+## Geometry, materials and annotation contracts
 
-- `layout/assemblies.rs` records requested and accepted capacity and bounded
-  rejection causes. A meeting proposal commits its surface and usable seats
-  together. It does not pass by deleting unrelated furniture or relaxing mesh,
-  doorway or operational clearance. `support` and `interaction_target` remain
-  the authoritative attachment relationships. Shared finish identity is separate
-  from geometry identity.
-- `materials/reflections.rs` bounds reflection residency by the largest three
-  admissible zones, with a global fallback. These are static, box-projected
-  radiance approximations, not dynamic planar reflections. WASM retains its
-  global environment because Bevy's localized probes require texture arrays.
-  Local probe transforms inherit room rotation once; a regression exercises
-  Bevy's actual extraction matrix on a rotated room. Camera environment maps
-  retain their independent world rotation.
-- `materials/glazing.rs` samples installation thickness and aligned privacy
-  heights, with clear, uniform, band, gradient, dot, stripe and opaque-frit
-  treatments. Roughness fields are baked once in metric coordinates, including
-  their full roughness-moment mip chain. Frosting is not a white alpha overlay.
-  Pane, sash, handle, beads and frit move together for bounded tilt openings;
-  shades restrict opening when their sweep would interfere. There is no hidden
-  closed pane behind the open sash.
-- Through-glass annotations skip both native transmission and the explicitly
-  thick blended portable glass. Frames and opaque frit remain occluders.
-  This is straight geometric visibility: diffuse frosting and refractive RGB
-  do not acquire an exact pixel correspondence merely because a depth is exported.
-- `envelope/ceilings.rs` and `construction/ceiling_mesh.rs` share analytic
-  headroom with closed ceiling/soffit meshes. Extra re-entrant returns preserve
-  the supported neighbor connection. `room_topology()` exports nonoverlapping
-  clipped region triangles, primary membership, and realized portal connections;
-  the primary reconstruction AABB does not expand to include the exterior.
-- Garment ease and waist taper are independent of body phenotype. Curved torso
-  sections, clothing/button clearance and feasible tabletop gestures preserve
-  the Anny body and uncovered anatomy. Growth maturity correlates branching and
-  leaf occupancy; rosettes use fleshy leaf geometry and cacti retain their stem
-  construction. Hair guide parts/whorls vary continuously while retaining rooted
-  connected tresses.
-- Camera recovery preserves the existing baseline, overlap, collision, path
-  length and anatomical-visibility predicates. Seed `109429` exposed a narrow
-  valid viewpoint missed by person-centered rings; a bounded free-space fallback
-  now recovers it, including a three-view request. Ordinary accepted samples do
-  not enter this recovery. Search diagnostics distinguish the main reference
-  and peer proposals, route adjustment and group restarts; ring/grid fallback
-  proposal counts are not included in the main reference counter.
+The exact primary envelope, floor/roof features and local soffit heights feed
+construction, camera clearance, ray queries and O-voxel membership. The annotated
+primary reconstruction AABB excludes exterior backdrop geometry. Offset returns
+can occupy multiple eligible side edges while retaining the shared neighbor wall
+and at least 78% of the original footprint area. Footprints remain simple connected
+polygons without interior holes; neighbor rooms and mezzanine decks remain bounded
+rectangular assemblies.
 
-## Qualification protocol and tools
+A regression discovered in the actual construction audit, seed 578, placed a
+short/wide speaker surround below its housing. Cone/surround radii now jointly
+respect width, height, edge clearance and pair separation. The regression and
+256 seeds at three adversarial aspect ratios pass. Notebook page curvature,
+opening, cover thickness and ink remain within supported bounds. Recessed
+noticeboard notes and divider checks cover extreme dimensions. These fixes retain
+existing semantic ownership and collision requirements rather than relaxing them.
 
-All comparison artifacts are local in `out/roadmap_qualification/`. The Rust
-publication tool prohibits matched-study output in the deployable publication
-cache. Its study viewer retains camera, annotation and timestep selection, and
-embedding neighbor links resolve to the correct captured timestep.
+The eye fix partitions the existing Anny eye triangles into exclusive sclera,
+iris and pupil regions. It preserves triangle winding, area, UVs and interpolated
+normals instead of layering coincident ellipsoids over the eyeball. This repairs
+ownership and a pale iris ring; it is not a claim of photographic human rendering.
 
-The qualification protocol uses three 512×512 views at two times, with full
-Auto quality, RGB, depth, normals, position, semantic labels and co-visibility:
+GPU material recipes preserve CPU reference evaluation, linear/sRGB conventions,
+all mip levels and joint normal/roughness filtering. Chrome avoids quantized
+micron-scale normal perturbations; polish and brushing remain scattering controls.
+The detail factor affects relief on the supported substrates without changing
+geometry labels. Default arithmetic and independent RNG domains retain replay.
 
-1. A 64-room seed-matched local comparison, with architecture changes explicitly
-   declared. Its 3,072 RGB/annotation PNG planes replayed byte-for-byte in the
-   frozen final qualification build.
-2. 256 consecutive rooms, 128 prespecified factor-stratified rooms from an
-   independent 2,048-room population, and 128 held-out consecutive rooms.
-3. 10,000 separate manifests with the default three-camera policy; 1,024
-   consecutive rooms independently checked using actual constructed meshes.
-4. Baselines 0/.25/.5/.75/1 × camera counts 1–12 × aspects .625/1/1.6,
-   with all requests and failures retained.
-5. Metric material panels, plant silhouettes, clothed body extremes, hair
-   close-ups, occupied-table contacts, generated motion, and independent
-   Cycles runs with fixed radiometry and a higher-sample repeat.
+Static HDR radiance tracing remains CPU work. Its cosine and GGX convolutions
+execute once on the GPU and are readiness-gated before capture. Native rendering
+has at most three box-projected zone probes plus the global environment. WASM
+uses the global map because localized probes require texture-array capabilities.
+The bounded cache includes cancellation/error cleanup and does not retain every
+room's textures. It is not dynamic reflection of moving humans.
 
-`bevy_zeroverse_publication audit-cohorts --input <directories...> --output
-out/<report>` verifies completed captures, source identities, unique seeds,
-geometry/annotation metadata, every delivered image and the numeric membership
-masks. It reports each sampling population separately. It does not turn selected
-strata into an IID population estimate. Ordinary publication and paired-study
-loaders still require consecutive render selections.
+The geometry annotation path uses float32 positions/depth and consistent semantic
+ownership. `surface` treats glass as an annotated surface; `through` skips clear
+or transmissive panes while retaining frames and opaque frit. Through-glass depth,
+normal, position, semantic, flow and co-visibility describe straight geometric
+rays. They are not exact inverse correspondences for refracted or diffusely
+frosted RGB. Sensor-only appearance effects do not modify geometric attachments.
 
-The embedding analysis supports up to 1,024 room pairs. A prespecified,
-stratified-jitter subset of at most 256 pairs fits the common basis; every room
-contributes to projected covariance and room-bootstrap estimates. Fit indices
-and bounded effective-rank scope are exported. Nearest neighbors remain exact
-within the existing row limits. This is not a ten-million-row approximate index.
+## Reconstruction camera and overlap qualification
 
-## Evidence and limits
+`crates/capture/src/reconstruction.rs` derives a versioned view graph from integer
+visibility counts. Validation checks denominators, directionality, graph edges,
+components and overflow. Native qualification exports each camera/time graph
+for the complete frame and for the exact primary reconstruction region separately.
+The primary mask uses native float32 positions, the polygon and the local roof.
+Per-pair output includes metric baseline, shared-pixel count and pixel-weighted
+triangulation P05/P50/P95 using 0.5-degree bins. A pair without shared geometry has
+null angle statistics, not an artificial zero.
 
-The final core suite passed **500 tests**, with 26 explicitly ignored hardware
-or diagnostic tests. Separately executed native tests passed WGPU and CUDA
-capture parity, retained tensor lifetime, indexed worker replay, aligned shared
-allocations, through-glass exterior coverage, exposure isolation, CPU/GPU scene
-annotation parity, and 55 GPU material recipes with all maps and mip levels.
-Strict native Clippy passed. Hardware Chrome (NVIDIA Blackwell) rendered all
-seven viewer modes without shader or device errors.
-The publication crate also passed 23 unit tests and 21 contract tests, including
-declared architecture changes and exact camera/timestep neighbor links. Its
-study verifier checked 6,405 local artifacts. The Cycles export contract passed
-14 tests.
+The optional `connected` placement policy admits stable peer connections across
+five trajectory times. It permits a chain of overlapping views without requiring
+every camera to overlap the same reference view. A bounded search retains all
+collision, path, visibility and baseline predicates. Any stricter reference-policy
+recovery is explicitly counted. Default reference-connected behavior is unchanged.
 
-The final scheduling refactor additionally replays all **192** RGB/annotation
-PNG planes for four rooms, three cameras and two times exactly against the
-frozen native qualification build. Cooperative and synchronous reflection maps
-and every mip level also agree byte-for-byte. Strict WASM Clippy passes.
-After the final room-rotation correction, the same 192 planes replay exactly
-again. A separately rotated room passes six-view annotation checks, with worst
-per-view P99 reprojection error 0.000368 pixels and depth/position disagreement
-3.82e-6 m. Browser runtime receipts identify the tested WASM binaries; the later
-local-probe rotation correction affects the native-only probe path, and the
-final source also passes static and motion-enabled WASM Clippy.
+Off-center projection is an actual render projection, including view frusta and
+subviews, not an annotation-only K edit. The optional principal-point jitter is
+seeded independently and bounded to 0.2 image fractions per axis. Jitter zero
+preserves the centered-pinhole contract. Existing downstream consumers that assume
+centered K must opt in only after their own camera adapters support it.
 
-Remaining dependency notices are recorded rather than suppressed: Burn 0.22
-reports a future Rust incompatibility, and the Bevy human adapter clamps eight
-source bone influences to four supported rendering influences. Neither is a
-new local compiler warning, and neither is evidence of exact eight-weight skinning.
+The CPU audit covers 7,104 requests across 1–12 cameras, multiple baselines and
+aspects 0.625, 1 and 1.6. There is one recorded rejection: reference policy,
+portrait aspect, seed 4, baseline 1, twelve cameras. The connected-policy cohorts
+also use principal-point jitter, so their acceptance is not a controlled isolated
+comparison against the reference cohorts. A separate native study renders 312
+views across counts 2/4/8/12 and baselines 0/0.5/1 with two rooms and two times.
+Current schematics, pose distributions and co-visibility figures are generated
+from those exact captures.
 
-The bounded implementation does not add arbitrary angled partition networks,
-curved/multilayer glass, unrestricted roof intersections, a full cloth/hair
-simulation, off-center/distorted lenses, rolling shutter or depth of field.
-Those roadmap extensions retain their geometry/optical qualification conditions.
-People and some material responses remain visibly stylized. No photographic
-realism, 10× perceptual-volume, downstream learning improvement, or unlimited
-process-lifetime claim follows from these tests. Performance and optical results
-below must be read with their finite sample sizes and shared-device contention.
+## Current rendered cohorts
 
-## Rendered distribution and camera coverage
+The current-only campaign uses full Auto quality, 256 GI rays, three 512×512
+cameras, two times, RGB/depth/normal/position/semantic and numeric co-visibility:
+256 consecutive rooms, 128 prespecified factor-stratified rooms from an independent
+2,048-room population, and 128 held-out consecutive rooms. These are 512 distinct
+rooms / 3,072 views. They are not pooled into an IID estimate: selected strata and
+consecutive populations have separate denominators and receipts.
 
-The Rust cohort audit verified **512 rooms / 3,072 views** and the hashes of all
-delivered RGB/annotation planes and co-visibility membership masks. The cohorts
-remain separate; the factor-stratified sample is not an unbiased population.
+The publication recipe additionally retains its 32-room, four-camera, two-time
+640×400 explorer with 1,024 GI rays, aligned annotations and one integrated
+co-visibility control for every room. Its 512-room manifest population is a
+separate structural sample, not 512 rendered rooms. The larger rendered-cohort
+receipt names its own protocol. Camera-count, object-program, material-PBR and
+factor-control galleries are distinct current-source diagnostics.
 
-| Cohort | Rendered rooms | Minimum semantic classes/view | Valid pixels shared with any peer | Primary-human rooms showing a person |
+The Rust `cohort-study` path verifies completed source identities, every delivered
+image/mask hash, seed uniqueness, view/time denominators, numeric reconstruction
+graphs and null-angle semantics before emitting compact publication evidence.
+
+| Rendered cohort | Rooms | Minimum semantic classes/view | Valid source pixels shared with any peer | Primary-human rooms with person pixels |
 | --- | ---: | ---: | ---: | ---: |
-| Consecutive seeds 0–255 | 256 | 5 | 75.09% | 172/172 |
-| Prespecified strata from 2,048 independent rooms | 128 | 5 | 75.22% | 67/67 |
-| Held-out consecutive seeds 40000–40127 | 128 | 6 | 74.86% | 90/90 |
+| Consecutive 0–255 | 256 | 5 | 74.69% | 172/172 |
+| Prespecified strata from 20,000–22,047 | 128 | 4 | 73.75% | 78/78 |
+| Held-out 40,000–40,127 | 128 | 6 | 74.54% | 90/90 |
 
-No view had fewer than four semantic classes. These person counts establish
-class visibility somewhere in the six views of a room, not visibility of every
-actor. People in neighboring zones are not required to appear. The worst
-per-view P99 self-reprojection error was **0.000683 pixels**, depth/position
-disagreement **3.82e-6 m**, and maximum normal-length error **2.39e-7**.
-All 512 first views were inspected as contact sheets; not every individual view
-was manually inspected at full resolution.
+All 1,024 camera/time groups have connected primary-region graphs at 10%
+minimum bidirectional overlap, with no empty primary views or zero-shared pairs.
+Median pair baselines by cohort are 1.95 / 1.89 / 1.85 m; median pair-median
+triangulation angles are 21.25 / 22.25 / 21.25 degrees. The worst per-view P99
+reprojection error is 0.000713 pixels; worst P99 depth/position disagreement is
+3.82e-6 m. Person visibility means at least one person somewhere in a room's
+six views, not visibility of every actor. Other envelope zones and the neighboring
+room may contain unseen people; those counts remain separate in the receipt.
 
-The separate 10,000-manifest population (seeds 100000–109999) had no invalid
-default three-camera rooms. It exports requested/accepted assemblies, object
-counts, placement heatmaps, topology, glazing and camera distributions. The
-1,024-room audit constructed and checked actual meshes; it is separate from
-the larger manifest-only check. Historical failing seeds remain regression tests.
+Only the current-source receipt enters `publication.toml`; the matched comparison
+cannot be copied into the deployable cache by that command.
 
-The camera audit requests 16 rooms × five baselines × counts 1–12 × three
-aspects (.625, 1, 1.6). **2,879 of 2,880 requests succeeded**, with no exact
-trajectory duplicates. Seed 4, Studio, aspect .625, baseline 1, twelve cameras
-exhausted the bounded search after finding at most eight feasible cameras. This
-is a reported solver rejection, not proof that no feasible twelve-camera set
-exists. The audit keeps its denominator and failure. The local camera diagrams
-show nearest-camera spacing, optical-axis separation and normalized path
-occupancy; the latter combines different room shapes and is not one floor plan.
+## Physical transport reference
 
-## Windows, people and physical references
+Complete-room native exports and Cycles references share geometry, materials,
+lights, exposure and off-center cameras. References use Blender 5.2.2, 1,024
+samples, twelve bounces, no denoiser and an independent repeated seed. A calibrated
+radiometry fixture and export-contract tests qualify the comparison. Geometry
+ray checks show no hit mismatch and submillimetre P99 depth disagreement. Reused
+reference images are permitted only after exact optical-input hashes match.
 
-The window matrix contains seven treatments × two view angles × two sides ×
-open/closed × day/night × two glass policies × three times = **672 views**.
-Two times repeat the exact pose; the third translates the camera by 4 mm.
-RGB is byte-identical between glass annotation policies and between repeated
-poses. Transparent pixels disappear from window annotations in Through mode;
-frames and opaque frit remain. Maximum RGB MAE after the small translation was
-2.10/255. This temporal fixture detects obvious instability but does not prove
-absence of flicker under every trajectory or lighting condition. Corrected
-exposure runs are `windows_exposed/` and `windows_exterior/`; the initial
-overexposed backdrop experiment remains recorded as failed visual QA.
-
-Controlled galleries cover 32 hair, 32 garment and 32 body cases, 28 plant
-views, 12 occupied-table contacts and 20 materials at two scales. A separate
-224-plant triangle audit covers all 14 growth habits. Leaf coverage remains
-habit-dependent: vines and bamboo are intentionally much sparser than ferns and
-rosettes. Their existence or selector counts are not a photographic-realism test.
-
-Native motion qualification used four rooms, two actors per room, 60 generated
-frames, cached ARDY/Llama models and ten diffusion steps. Seven clips passed
-admission; one walk crossed the floor by 26 mm at frame 48 and correctly fell
-back to a static actor. Accepted locomotion includes root paths of 1.70 m and
-2.40 m, with maximum waypoint errors of 25 mm and 41 mm. Accepted stationary
-gestures remain stationary by design. Rendered flow checks include visible
-moving-person pixels, no missing expected static-valid pixels, and maximum
-static-surface P99 reprojection error of 0.00388 pixels; text-prompt diversity
-alone is not the motion result.
-
-A hardware Chrome probe also completed actual ARDY/Llama inference: one
-60-frame actor at ten diffusion steps was admitted with no static fallback or
-WebGPU errors. Cold download, shader compilation and inference took 211 seconds,
-including 455 successful pinned-model HTTP responses. This is one functional
-browser smoke test, not a motion-distribution or native/browser parity result.
-
-Two complete rooms (seeds 3 and 6) were exported with real CPU material maps
-and rendered in Blender 5.2.2 LTS / OptiX Cycles at 256 and independently seeded
-512 samples. Their radiometric comparison uses the established linear/HDR
-contract. Thin eyeglass coverage alpha is exported as coverage; it is not
-misrepresented as a refractive solid. Coarse 32×32 reference-block disagreement
-was 0.11% and 0.14%, while pixel-level sampling noise remained approximately
-3.7–3.8%. Native/Cycles mean luminance ratios were **1.503** and **1.068**, with
-raw relative RGB MAE **0.630** and **0.206**. Geometry alignment passed, but
-these results show material/indirect-light differences. The renderer has not
-passed a claim of path-traced physical accuracy.
-
-## Perceptual diversity
-
-The local paired study embeds 64 room pairs, three views and two times per
-room, using one recorded SigLIP2 model and preprocessing contract. Exact
-cross-room nearest neighbors, a common PCA basis and room-bootstrap intervals
-are computed by the Rust publication crate. All 3,072 new-study PNG planes
-matched the first 64 rooms of the frozen qualification capture byte-for-byte.
-
-Mean nearest-other-room cosine distance changed from 0.06841 to 0.07059; the
-paired difference is 0.00218 with 95% interval **[-0.00005, 0.00435]**. The
-rank-16 common-PCA volume ratio is **1.42**, with interval **[0.53, 4.55]**.
-There are no exact cross-room embedding repeats or cross-room distances below
-0.01 in this sample. These small-sample diagnostics do not establish a 10×
-increase, statistical improvement in every factor, or downstream training utility.
-The matched study stays local and is not included in the public page or paper.
-
-## Completed throughput and memory
-
-All native capture comparisons retain full Auto quality, shadows, GPU material
-synthesis, three 512×512 views, one time and Color/Depth/Normal/Position/Semantic.
-Warmup is excluded from rates. These are debug-profile binaries with the
-repository's optimized development settings, not production release estimates.
-
-| Workload | Measured rooms | Completed rooms/s | P50 / P95 room latency |
+| Room | Native/reference mean linear luminance | Relative luminance MAE | Median absolute exposure difference |
 | --- | ---: | ---: | ---: |
-| Starting checkout, 8 warmup rooms | 32 | 1.348 | 0.752 / 0.971 s |
-| New construction/lighting, 8 warmup rooms | 32 | 1.206 | 0.798 / 1.200 s |
-| Sustained new construction/lighting, 16 warmup rooms | 144 | 1.230 | 0.786 / 1.207 s |
+| Seed 3, sunlight fixture | 2.882 | 2.091 | 0.855 stops |
+| Seed 6 | 1.050 | 0.270 | 0.798 stops |
 
-The added reflection and occlusion work costs about **10.5% throughput** in the
-short matched run. It is a quality/correctness tradeoff, not a speedup. The
-sustained run completes 3.69 views/s. Its peak RSS is 5.80 GB; RSS slope falls
-from 11.15 MiB/room over the measured run to approximately 0.78 MiB/room over
-the final 40 rooms. GPU assets and caches have bounded residency, but 160 rooms
-do not establish unlimited-process memory stability. CPU-only full material
-preparation measured 3.27 rooms/s with four concurrent preparations; that number
-excludes rendering, uploads and the production GPU material path.
+Independent reference-repeat block errors are approximately 0.00250 and 0.00133;
+reference mean-luminance ratios are 0.9996 and 1.0004. Reference sampling noise
+therefore does not explain the observed transport discrepancy. Glazing is omitted
+from the approximate diffuse transport and does not cast the corresponding tinted
+or frosted direct-light shadow. Local reflections do not fix that energy path.
+The physical-accuracy promotion gate **fails**. A global exposure adjustment was
+not used to hide scene-dependent error, and photographic realism is not claimed.
 
-The sustained preparation timers average 2 ms for layout, 38 ms for geometry,
-65 ms for cameras, 220 ms for material preparation, 221 ms for transport,
-126 ms for reflection environments, and 368 ms for the inclusive GI setup.
-Several timers overlap or contain other stages and must not be summed. They
-point toward transport and material work before another layout-solver rewrite.
+## Human motion and browser qualification
 
-A separate 24-room, four-warmup consumer test measures 2.007 rooms/s through
-CPU readback/upload, 1.327 through shared WGPU, and 1.302 through Vulkan/CUDA.
-The complete GPU-consumer paths are still slower in this workload despite
-eliminating image readback. Their scheduling/capture paths require further
-profiling; transport savings must not be reported as generation savings.
+Native ARDY qualification uses the upstream cached model loaders, 60 frames,
+40 history frames, ten diffusion steps, batch two and two attempts per selected
+actor. Seeds 3/6 are fixed diagnostic rooms; seeds 15/16/27 are the first eligible
+backward-walk, side-step and skip selections from the planning population. This
+selection tests behavior coverage rather than estimating a random acceptance rate.
 
-The isolated same-captured-room transport test, 64 measured iterations, takes
-27.88 ms through CPU versus 3.23 ms through shared WGPU per three-view transfer
-plus identical completed GPU reductions. The shared path transfers zero image
-bytes through the host; the roundtrip transfers 25.17 MB/iteration. This is an
-8.62× isolated transport improvement, not an end-to-end generator improvement.
-The 24-room concurrent WGPU optimizer probe completed **96 finite Adam steps**
-at 0.979 rooms/s and 3.91 steps/s, with weight-update completion fenced. It is a
-small specified training workload, not a Gekko learning-utility experiment.
+Seven of ten selected actors receive admitted motion. One actor has no fitting
+plan; two generated plans are rejected for collisions, including a skip with
+2.7 cm floor penetration. Rejected actors keep static geometry. All five rooms
+complete calibrated two-view/five-time motion and annotation checks. There is one
+model load across all five rooms and seven generation batches. An earlier failed
+run is retained: a local mirror lacked lazily fetched vocabulary pages. The
+complete retry uses the official CDN/cache, not a changed prompt set or weakened
+collision tolerance.
 
-Raw receipts, failed probes and successful repeats are retained locally.
+Hardware Chrome tests cover every indoor render mode, both new camera controls,
+eight scene regenerations with URL-seed updates, optional motion over two scenes,
+and CornellCube/Object/Room/SemanticRoom. GPU validation reports no errors. The
+static browser path makes zero motion-model requests. Regeneration reuses the
+same inference device and model manifests. At fixed cameras, the static frame
+pair changes zero pixels; enabled motion changes 280 pixels above 4/255, a
+visibility check rather than a pose-quality score.
 
-## Browser preparation
+Browser regeneration takes 6.4–12.3 seconds after startup in the contended run;
+individual long tasks reach 442–918 ms. Cooperative scheduling and successful
+rendering do not establish interactive frame-budget compliance. Browser preparation
+remains cooperative work on the browser thread, not parallel worker execution.
 
-Hardware Chrome profiling found substantial synchronous reflection tracing,
-filtering, material and mesh preparation. The browser path now cooperatively
-slices tracing/filtering and material insertion while preserving arithmetic,
-sample order and texture contents. Native work keeps its bounded preparation
-pool. Browser yielding improves responsiveness; it does not create parallel
-WASM workers.
+## Diversity, performance and stability limits
 
-Where available, the implementation uses prioritized `scheduler.yield()`
-continuations, with a real timer-task fallback. A timer-only experiment reduced
-main-thread stalls but increased regeneration time; its failed latency result
-is retained. The final check explicitly disables the scheduling API for one
-render mode to exercise fallback behavior. Static WebGPU builds require no
-motion-model feature for this scheduling bridge.
+The local paired study embeds 384 RGB images per cohort with cached, shard-verified
+SigLIP2 base-patch16-224. Room-weighted cross-room nearest cosine distance changes
+by −0.00000988; its 95% paired-room bootstrap interval is
+[−0.000362, 0.000312]. Pooled-PCA volume ratios at ranks 4/8/16 are approximately
+1.006 / 0.992 / 0.997, with intervals including one. This is neither a significant
+volume increase nor a ten-million-sample non-repeat guarantee. Whole-view embeddings
+may also miss localized eye or notebook improvements. Better visual details and
+more configurable parameters must not be reported as demonstrated training gains.
 
-The browser test measures interactive display readiness after the material bake,
-30 subsequent GPU submissions and completed queue work. It is deliberately
-separate from headless capture throughput. Exact binary hashes, seed/URL replay,
-adapter identity, task durations and failures are recorded under
-`web/scheduler/`. One sequence is a diagnostic, not a statistically qualified
-browser performance distribution.
+Current CPU preparation of 32 rooms after four warmups measures 1.52 prepared
+rooms/s with one in flight and 3.32 with four. A sequential prepare averages
+654.8 ms: about 61.4% is the parallel material/transport/mesh stage, 16.2% static
+HDR radiance tracing and 10.4% camera generation. The paper includes these relative
+critical-path timings and a pipeline diagram. Summed parallel task times are not
+presented as elapsed wall time.
 
-| Eight-room browser sequence | Median regeneration | Longest regeneration main-thread task |
-| --- | ---: | ---: |
-| Synchronous preparation | 8.801 s | 2.627 s |
-| Cooperative timer-only experiment | 14.391 s | 0.566 s |
-| Scheduler continuations, concurrent native compilation | 5.643 s | 0.725 s |
-| Scheduler continuations, no concurrent qualification/compilation | 6.040 s | 0.642 s |
+Matched completed capture timings vary substantially as independent training
+contention changes. They do not establish a 2× generation gain. GPU parity tests
+verify WGPU and Vulkan/CUDA transport, retained sample lifetime, allocation sharing,
+indexed deterministic replay, both glass policies, exposure isolation and exact
+CPU/GPU-material geometry annotations. Same-device optimizer probes measure actual
+backward/Adam completion separately from tensor delivery; they are not downstream
+reconstruction-model experiments.
 
-Each sequence loads seed 400 and regenerates seeds 401–407 with three 512²
-cameras. The final uncontended sequence improves the observed regeneration
-median by 31%, with unchanged material-map arithmetic and seven-mode rendering
-checks. Initial load, excluded from that median, was 10.20 s versus 8.15 s in
-the synchronous sequence. Substantial stalls still remain during indivisible
-asset/renderer work; this does not meet a frame-budget guarantee. The timer
-fallback favors responsiveness but has a measured latency cost on this browser.
+The isolated 128-iteration, three-view tensor probe measures 91.4 iterations/s
+with GPU→CPU→GPU image traffic and 1,617.9 iterations/s retaining GPU tensors on
+the same device/queue. Both complete the same scalar reduction. The latter avoids
+24 MiB of host image traffic per iteration; the approximately 17.7× ratio applies
+only to tensor transport/consumption, excluding rendering and scene preparation.
 
-## Ceiling, exterior context and floor-detail qualification
+Completed 32-room probes at three 512×512 views measure 0.915 rooms/s for CPU
+transport, 0.936 for shared WGPU and 1.708 for Vulkan/CUDA. These sequential probes
+are integration timings, not an isolated 2× improvement. With the same-device
+Adam/backward consumer, CPU material synthesis measures 1.532 and 1.550 rooms/s
+in the outer ABBA runs, versus 0.969 and 0.969 for GPU materials in the inner runs.
+Each run includes 96 measured optimizer steps plus warmup. This measured GPU
+material configuration is slower; correct GPU baking is not by itself a
+throughput improvement. Its shader scheduling/readiness costs remain an
+optimization target. No claim of concurrent large-model training follows from
+these later probes: the earlier external workload had already dropped off.
 
-The current construction adds continuously dimensioned acoustic clouds,
-baffles, timber slats, round/rectangular ducts, sprinkler pipework and suspended
-truss modules. Installation sampling reserves lights, walls, columns, partitions
-and mezzanines; suspension reaches the actual local ceiling and headroom checks
-include raised floor patches. These are bounded decorative/service assemblies,
-not a structural or mechanical engineering simulation. Exposed slabs use the
-existing concrete material program. Components retain the existing mesh batching,
-PBR material synthesis, shadow and annotation paths.
+The 1,000-room, three-view 512×512 sustained capture finishes with no capture
+failures and a stable 98 compiled render pipelines. Observed asset/GPU cache
+counts are bounded. **Host-memory plateau nevertheless fails:** post-warmup RSS
+has a 4.10 MiB/room fitted slope; even the final 250-room window has 1.61 MiB/room
+RSS and 1.84 MiB/room live-heap growth. Peak RSS is 9.84 GiB.
 
-Exterior parcels prioritize actual window normals, including oblique facade
-segments. Paving, curbs, railings, facade relief, downpipes, supported pergolas,
-roof equipment and denser planting add nearby context. Exterior geometry remains
-outside the primary-room reconstruction/Ovoxel region. Visual review corrected
-missing pergola cross-supports, rotated planting offsets and building/equipment
-contact heights; the finite exterior envelope remains in place.
+A separate 256-room jemalloc allocation-profile diagnostic attributes most growing
+live allocation to NVIDIA/Vulkan command-buffer construction. Estimated driver
+allocation rises from roughly 1,336 MiB after 27 rooms to 2,995 MiB after 251;
+application/other allocation remains around 1,490–1,730 MiB. The registry WGPU Vulkan
+command allocator pools encoders and resets command pools without releasing their
+retained storage. This identifies a retention path, not proof that a particular
+cache policy is safe to change. The alternate allocator is diagnostic-only;
+production dependencies and devices are unchanged. No driver-memory bound or
+unlimited-process claim is made. Restarting a shared device could invalidate
+retained training tensors and is not an acceptable silent workaround.
 
-Rugs sample shape, dimensions, orientation, textile finish and a joined bound
-edge. Placement requires a flat free floor patch clear of people, doorways and
-existing objects. Floor outlets sample circular/rectangular housings and covers,
-with a shared physical connection point used by collision-checked equipment
-cables. Unused covers close only when doing so preserves nearby cable clearance.
-The appended `floor_outlet` semantic class is RGB `(98, 158, 171)`; existing class
-IDs and colors are unchanged.
+## Tests and remaining gates
 
-The local [gallery](../out/room_context_expansion/final/index.html) contains 32
-consecutive rooms with three calibrated 512×512 views and all six RGB/annotation
-modes, plus inspection views. Its [summary](../out/room_context_expansion/final/summary.json)
-links measured distributions to the exact source identity. Qualification:
+Final-source checks include 509 core tests passing (26 explicit hardware/diagnostic
+ignores), strict native workspace Clippy, strict WASM-plus-motion Clippy, 15 Cycles
+contract tests, 135 full-mip material comparisons, three HDR reflection-field
+comparisons, seven actual GPU consumer tests, 10,000 actual-mesh constructions and
+10,000 independent three-camera manifests with zero invalid seeds. Publication
+unit/contract tests additionally protect provenance, current-only receipts,
+cohort arithmetic, conditional object parameters and canonical page generation.
 
-- 507 core tests passed, 26 explicitly ignored. After the final exterior repairs,
-  all three focused exterior tests passed, including 48 transformed pergola
-  support/planting cases; 512 full mesh audits and 96 views were rerun.
-- All 512 layouts and constructed meshes passed. Strict native and motion-enabled
-  WASM Clippy passed; this addition has not had a new browser runtime benchmark.
-- All 96 aligned views passed RGB/depth/normal/position/semantic/co-visibility
-  validation. Maximum per-view P99 reprojection error was 0.000312 pixels;
-  maximum depth/position disagreement was 0.00000763 m.
-- The population contains 3,116 ceiling modules spanning all seven systems,
-  249 rugs in 167 rooms, and 897 floor outlets in 387 rooms. There are 369
-  floor-power cable connections. Minimum installation headroom is 2.351 m.
-- Among the 499 rooms with exterior windows, mean window-facing parcel coverage
-  is 99.86%. This is a layout proxy (a parcel centroid within 15 m and 31.8° of
-  a window's outward normal), not measured pixel coverage or photographic realism.
-
-Two full-quality, six-mode, three-view timing runs measured **1.014** and
-**0.950 rooms/s**, versus **1.396** and **0.930 rooms/s** for the saved starting
-checkout. Each excludes four warmups and measures 12 rooms. A Gekko training job
-and two capture workers shared the GPU throughout this campaign; they were not
-stopped. These short, variable results neither establish an isolated speedup nor
-prove performance parity. Device/process telemetry and all individual receipts
-are retained. The gallery and comparisons remain local and unpublished.
+Before promoting broader claims or changing training defaults, the remaining
+acceptance conditions are: correct tinted/frosted-glass transport against the
+reference; a sustained host-memory plateau; uncontended repeated completed-capture
+and concurrent-consumer timing; improved interaction/garment/hair realism in
+controlled views; and a fixed-budget downstream reconstruction evaluation on
+held-out scene families and real validation data. Distortion, rolling shutter,
+full cloth simulation, arbitrary CAD topology and renderer patches retain their
+separate evidence requirements. No active downstream training is changed by this
+local execution.

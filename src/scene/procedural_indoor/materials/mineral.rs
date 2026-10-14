@@ -339,7 +339,7 @@ impl MineralRecipe {
                     + micro * (1. - self.polish) * 0.15
                     - pores * 0.9
                     + vein * (1. - self.polish) * 0.05)
-                - seam * r.joint_width * 0.25,
+                - seam * r.joint_width * 0.25 * r.detail_scale.unwrap_or(1.),
             roughness: (r.roughness + binder * 0.06 + pores * 0.10 + seam * 0.15
                 - exposed * self.polish * 0.08
                 - vein * self.polish * 0.04)

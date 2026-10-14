@@ -45,7 +45,9 @@ but no window or display server. The CPU audit does not require a graphics adapt
 The viewer starts inside the generated room. The existing regeneration control
 advances the scene seed. `--indoor-layout` accepts `mixed`, `conference`, `open-office`,
 `lounge`, `training`, `coworking`, `breakroom`, `reception`, `library`, `workshop`,
-or `studio`. These bias continuous activity mixtures; they are not fixed room
+`studio`, `kitchenette`, or `kitchen`. Kitchen profiles create connected service
+stations and supported cooking/storage accessories; see
+[procedural kitchens](procedural_kitchens.md). The other profiles bias continuous activity mixtures; they are not fixed room
 templates. Density accepts `[0, 1]`. `--indoor-human-density` controls occupancy independently (default 0.25, zero disables people). Invalid density values fail generation.
 
 ## Generation contract
@@ -106,13 +108,15 @@ support relationships, camera paths and optional world rotation.
   Underfilled lounges complete accepted sofa groups with front or side tables and
   reading lamps after service furnishing. These bounded recovery proposals retain
   the same furnishing minimum, floor/step support and collision checks.
-- Cameras cover seated, low, standing and elevated viewpoints, 0.78–3.25 m heights,
+- Cameras cover seated, low, standing and elevated viewpoints, roughly 0.7–3.25 m
+  above the local floor, with both near-horizontal and content-directed gaze,
   varied intrinsics and configurable travel lengths. The independent
   [baseline control](multiview_cameras.md) sets spacing and shared-view constraints.
   Cubic Bezier paths vary bend, target and roll; the full curve is clearance checked
   against the local floor, sloped ceiling, walls and obstacles.
   Even single-camera streams span
-  height strata across seeds. Camera count does not change furniture or earlier views.
+  height strata across seeds. Camera count does not change furniture; it can change
+  the accepted rig when overlap and spacing constraints require a different group.
 
 An explicit seed produces a reproducible manifest with the same generator version
 and build. Regeneration uses `base_seed + scene_index` with wrapping u64 arithmetic;
@@ -209,6 +213,19 @@ invalid semantic palette sizes and inconsistent geometric/camera annotations.
 | Optical flow / motion vectors | Forward correspondence to the next captured timestep, with validity and visibility masks; see [conventions](optical_flow.md) |
 | Co-visibility | Per-pixel U16 membership in up to 16 capture cameras; see [numeric contract](co_visibility.md) |
 | O-voxel | Primary-room surface geometry and semantic labels; [one timestep, human motion disabled](ovoxel_indoor.md) |
+
+The native/WebGPU studio exposes **View & playback → Depth visualization**.
+The web viewer defaults to Turbo. Native/CLI and dataset defaults stay unchanged
+(normalized grayscale in the viewer config; metric linear depth in indoor dataset
+capture). `--depth-format turbo` (shared URL:
+`depth_format=Turbo`, Rust: `DepthFormat::Turbo`, Python: `depth_format="turbo"`)
+selects a smooth Turbo palette, warm near and cool far. Its scale is
+`log(1 + distance_metres) / log(1 + camera_far_metres)`, fixed for each camera
+rather than fitted to each frame. The selector updates live without regenerating
+the scene. The original color ramp and linear/normalized formats remain available
+and unchanged. Turbo explicitly outputs display color in linear RGB with the
+usual hit alpha; use `Linear` for metric training targets. The underlying geometry
+attachments, positions, clipping and calibration are unchanged.
 
 Glass is treated as the first opaque geometric surface in depth/normal/position/
 semantic passes even though RGB sees through it. This policy is intentional and
@@ -368,3 +385,9 @@ The direct benchmark commands inherit the caller's system memory-copy policy;
 record the environment alongside timings. Finite indoor CLI jobs bound worker
 lifetimes to 256 scenes by default; see the [dataset guide](procedural_indoor_dataset.md).
 A bounded run does not establish unlimited-process stability.
+
+Door leaves, hardware, opening states and cabinetry use shared construction/collision programs. See [doors and cabinetry](procedural_doors.md) for the manifest, semantic and category-atlas contracts.
+
+### Optional room motion
+
+`indoor_motion` enables seeded chair travel/swivel, door and cabinet articulation, and window-covering movement. Full-travel clearance reservations are shared with human navigation and continuous dressed-pose admission. Disabled scenes retain static batching. See [articulated motion configuration and annotation contract](indoor_motion.md).

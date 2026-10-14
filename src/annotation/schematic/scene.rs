@@ -146,8 +146,14 @@ impl Schematic {
             }
             // The shared wall's openings use the same metric spans as construction.
             for (lo, hi) in [
-                (-half.x + 0.10, scene.door_x - 0.60),
-                (scene.door_x + 0.60, half.x - 0.10),
+                (
+                    -half.x + 0.10,
+                    scene.door_x - scene.entry_width() * 0.5 - 0.05,
+                ),
+                (
+                    scene.door_x + scene.entry_width() * 0.5 + 0.05,
+                    half.x - 0.10,
+                ),
             ] {
                 if hi - lo > 0.18 {
                     add(
@@ -164,8 +170,8 @@ impl Schematic {
                 None,
                 FootprintKind::Door,
                 vec![
-                    Vec3::new(scene.door_x - 0.51, 0., half.z),
-                    Vec3::new(scene.door_x + 0.51, 0., half.z),
+                    Vec3::new(scene.door_x - scene.entry_width() * 0.5 + 0.022, 0., half.z),
+                    Vec3::new(scene.door_x + scene.entry_width() * 0.5 - 0.022, 0., half.z),
                 ],
             );
         }
@@ -176,6 +182,20 @@ impl Schematic {
                 FootprintKind::Wall,
                 rectangle(lo, hi),
             );
+        }
+        for door in scene.door_installations() {
+            for leaf in door.leaves() {
+                let points = rectangle(-leaf.size * 0.5, leaf.size * 0.5)
+                    .into_iter()
+                    .map(|p| leaf.transform.transform_point(p).with_y(0.))
+                    .collect();
+                add(
+                    format!("Door {} {:?}", door.id, door.program.mechanism),
+                    None,
+                    FootprintKind::Door,
+                    points,
+                );
+            }
         }
         // Draw supported clutter after furniture, with stable IDs for calibration.
         let mut objects: Vec<_> = scene.objects.iter().filter(|o| !o.neighbor).collect();
@@ -211,6 +231,7 @@ impl Schematic {
                     .to_cols_array_2d(),
                 fov_y: c.fov_degrees.to_radians(),
                 aspect: scene.camera_aspect_ratio,
+                principal_point_offset: c.principal_point_offset,
                 calibration: None,
                 path: camera_path(scene, i),
             })

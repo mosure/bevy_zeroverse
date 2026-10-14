@@ -31,17 +31,23 @@ pub(crate) struct Request {
     status: Arc<Status>,
 }
 #[derive(Resource, Clone, Default)]
-pub(crate) struct Requests(pub Vec<Request>);
+pub(crate) struct Requests(pub Vec<Request>, pub Vec<super::environment::gpu::Request>);
 impl Requests {
+    pub(crate) fn clear(&mut self) {
+        self.0.clear();
+        self.1.clear();
+    }
     pub(crate) fn ready(&self) -> bool {
         self.0
             .iter()
             .all(|r| r.status.encoded.load(Ordering::Acquire))
+            && self.1.iter().all(|r| r.ready())
     }
     pub(crate) fn failure(&self) -> Option<String> {
         self.0
             .iter()
             .find_map(|r| r.status.error.lock().unwrap().clone())
+            .or_else(|| self.1.iter().find_map(|r| r.failure()))
     }
     pub(crate) fn albedo(&self, id: AssetId<Image>) -> Option<&[[u8; 3]]> {
         self.0

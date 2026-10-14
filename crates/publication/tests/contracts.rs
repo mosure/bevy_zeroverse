@@ -110,6 +110,7 @@ fn recipe_cannot_replace_sources_or_the_publication_work_directory() {
         },
         references: vec![],
         camera_study: None,
+        room_qualification: None,
     };
     fs::write(
         root.path().join("publication.toml"),
@@ -614,6 +615,15 @@ fn page_counts_and_examples_follow_the_recipe_instead_of_fixed_seeds() {
     let (id, p) = fixture(temp.path());
     let data = Dataset::load(temp.path(), &id, &p).unwrap();
     fs::create_dir_all(temp.path().join("www/project")).unwrap();
+    let qualification = temp
+        .path()
+        .join(bevy_zeroverse_publication::qualification::PUBLISHED_DIRECTORY);
+    fs::create_dir_all(&qualification).unwrap();
+    io::write(
+        &qualification.join("receipt.json"),
+        &json!({"family_count":3,"cases":[{},{}],"captured_rgb_images":24}),
+    )
+    .unwrap();
     let scenes:Vec<_>=data.scenes.iter().map(|s|json!({"seed":s.capture.seed,"activity":"Conference","features":[],"area_m2":16,"roof_pitch_degrees":0,"frames":[{"views":s.capture.views[..4].iter().map(|v|json!({"camera":v,"images":{"color":"view.webp"}})).collect::<Vec<_>>()}]})).collect();
     let gallery = json!({"scenes":scenes,"featured":(0..4).map(|seed|json!({"seed":seed,"title":"Room program"})).collect::<Vec<_>>(),"audit_rooms":4,"rendered_views":32,"feature_room_counts":data.summary["feature_room_counts"],"co_visibility":{"legend":data.scenes[0].capture.co_visibility_metadata["legend"],"statistics":data.summary["co_visibility"]},"annotation_metrics":data.summary["annotation_metrics"],"semantic_coverage":data.summary["semantic_coverage"],"minimum_semantic_classes":4,"generator_identity":id,"quantized_structural_signatures":1});
     media::page(&gallery, temp.path(), &p).unwrap();
@@ -624,6 +634,9 @@ fn page_counts_and_examples_follow_the_recipe_instead_of_fixed_seeds() {
     );
     assert!(html.contains("indoor_seed=0") && !html.contains("data-architecture-seed=\"7\""));
     assert!(html.contains("4-room distributions"));
+    assert!(
+        html.contains("3 room families, 2 camera and appearance settings, 24 calibrated images")
+    );
     assert_eq!(html.matches("id=\"architecture-explorer\"").count(), 1);
     assert_eq!(
         html.matches("data-architecture-mode=\"co_visibility\"")

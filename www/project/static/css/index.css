@@ -170,7 +170,11 @@ code {
 
 .site-header nav {
   display:flex;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+  min-width:0;
   gap:25px;
+  row-gap:10px;
   font-size:13px;
   align-items:center;
 }
@@ -1059,6 +1063,7 @@ td:nth-child(n+2) {
     font-size:12px;
     gap:18px;
     flex-wrap:wrap;
+    justify-content:flex-start;
   }
   .nav-source {
     padding-left:0;

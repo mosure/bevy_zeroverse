@@ -111,7 +111,7 @@ pub struct MotionRig {
     pub local_bounds: Vec<Option<(Vec3, Vec3)>>,
 }
 impl MotionRig {
-    fn bounds(&self, bones: &[Transform]) -> Option<(Vec3, Vec3)> {
+    pub(super) fn bounds(&self, bones: &[Transform]) -> Option<(Vec3, Vec3)> {
         let mut result: Option<(Vec3, Vec3)> = None;
         for (bone, bounds) in bones.iter().zip(&self.local_bounds) {
             let Some((lo, hi)) = bounds else { continue };
@@ -466,6 +466,9 @@ pub fn prepare(
         frame.bounds = rig
             .bounds(&frame.bones)
             .ok_or("motion actor has no render vertices")?;
+    }
+    if let Some(motion) = &scene.indoor_motion {
+        super::temporal::validate(&frames, &rig, &motion.reservations().collect::<Vec<_>>())?;
     }
     // RestSkin is the dressed Anny surface, not its collars, hair, eyewear and
     // seam additions. Test the actual render vertices whenever their expanded

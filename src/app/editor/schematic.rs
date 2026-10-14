@@ -286,12 +286,13 @@ pub(super) fn update(
     live.sort_by_key(|(i, _, _)| i.0);
     let planned = std::mem::take(&mut plan.cameras);
     for (index, tf, projection) in live {
-        if let Projection::Perspective(lens) = projection {
+        if let Some((lens, offset)) = crate::camera::pinhole::parameters(projection) {
             plan.cameras.push(PlanCamera {
                 label: format!("C{}", index.0),
                 world_from_view: tf.to_matrix().to_cols_array_2d(),
                 fov_y: lens.fov,
                 aspect: lens.aspect_ratio,
+                principal_point_offset: Some(offset),
                 calibration: None,
                 path: planned
                     .get(index.0)

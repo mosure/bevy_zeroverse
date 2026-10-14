@@ -1,3 +1,4 @@
+pub mod capture;
 pub(crate) mod overlay;
 
 use std::collections::hash_map::DefaultHasher;

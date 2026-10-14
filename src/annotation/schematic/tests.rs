@@ -4,6 +4,30 @@ fn scene() -> IndoorManifest {
     IndoorManifest::generate_with_humans(47_586_113, IndoorLayout::Mixed, 0.65, 3, 0.25).unwrap()
 }
 #[test]
+fn planned_shifted_frustum_matches_full_capture_calibration() {
+    let mut scene = scene();
+    scene.cameras[0].principal_point_offset = Some(Vec2::new(0.15, -0.10));
+    let plan = Schematic::from_manifest(&scene, 0.).unwrap();
+    let mut c = plan.cameras[0].clone();
+    let expected = super::svg::camera_footprint(&c, 1.5).unwrap();
+    let projection = crate::camera::pinhole::projection(
+        PerspectiveProjection {
+            fov: c.fov_y,
+            aspect_ratio: c.aspect,
+            ..default()
+        },
+        c.principal_point_offset.unwrap(),
+    );
+    c.calibration = Some(crate::camera::pinhole::calibration(&projection, 640, 480).unwrap());
+    c.principal_point_offset = None;
+    let actual = super::svg::camera_footprint(&c, 1.5).unwrap();
+    assert_eq!(actual.len(), expected.len());
+    assert!(actual
+        .iter()
+        .zip(expected)
+        .all(|(a, b)| Vec3::from_array(*a).distance(Vec3::from_array(b)) < 1e-5));
+}
+#[test]
 fn metric_projection_roundtrips_and_predictions_do_not_change_extent() {
     let mut manifest = scene();
     manifest.world_yaw = 0.8;

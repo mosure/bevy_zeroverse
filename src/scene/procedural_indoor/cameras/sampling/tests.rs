@@ -161,6 +161,7 @@ impl IndoorManifest {
                 };
                 let bend = right * rng.random_range(-0.60..0.60) * distance;
                 let mut camera = IndoorCamera {
+                    principal_point_offset: None,
                     start: p,
                     end,
                     target,
@@ -234,9 +235,10 @@ fn assert_accepted(scene: &IndoorManifest, camera: &IndoorCamera, coverage: &Cov
     assert!(coverage.suitable(camera, true));
     assert!(camera.path_length() + 1e-4 >= scene.camera_settings.path_length_min);
     assert!(camera.path_length() <= scene.camera_settings.path_length_max + 1e-4);
-    let fov_min = (0.5_f32 / 2.0).atan().to_degrees() * 2.0;
-    let fov_max = (0.5_f32 / 0.37).atan().to_degrees() * 2.0;
-    assert!((fov_min..=fov_max).contains(&camera.fov_degrees));
+    assert!(scene
+        .camera_settings
+        .intrinsics
+        .contains(camera.fov_degrees));
     for step in 0..=64 {
         let p = camera.transform_at(step as f32 / 64.0).translation;
         assert!(scene.in_primary_room(p, CAMERA_CLEARANCE));
@@ -246,10 +248,13 @@ fn assert_accepted(scene: &IndoorManifest, camera: &IndoorCamera, coverage: &Cov
 
 #[test]
 fn partially_obscured_person_retains_anatomical_and_scene_coverage() {
+    // Include primary-room occupants explicitly. At lower density this seed's
+    // only accepted person can be in a secondary room after door placement.
     let scene =
-        IndoorManifest::generate_with_humans(109429, IndoorLayout::Mixed, 0.65, 1, 0.25).unwrap();
+        IndoorManifest::generate_with_humans(109429, IndoorLayout::Mixed, 0.65, 1, 1.).unwrap();
     let replay =
-        IndoorManifest::generate_with_humans(109429, IndoorLayout::Mixed, 0.65, 1, 0.25).unwrap();
+        IndoorManifest::generate_with_humans(109429, IndoorLayout::Mixed, 0.65, 1, 1.).unwrap();
+    assert!(!people(&scene).is_empty());
     assert_eq!(scene.cameras, replay.cameras);
     assert_accepted(&scene, &scene.cameras[0], &Coverage::new(&scene));
     validate_layout(&scene).unwrap();
@@ -301,9 +306,9 @@ fn continuous_independent_proposals_replay_and_preserve_all_acceptance_gates() {
 #[test]
 fn sparse_failed_seed_anchors_keep_primary_room_coverage_and_deterministic_motion() {
     let mut positive_cases = 0;
-    for seed in [881, 2342, 3779, 5608] {
+    for seed in [881, 2342, 3779, 5608].into_iter().chain(0..8) {
         let mut scene =
-            IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.0, 0, 0.25).unwrap();
+            IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.0, 0, 1.).unwrap();
         let mut original = scene.clone();
         let coverage = Coverage::new(&scene);
         let mut original_rng = stream(seed, 3);
@@ -357,14 +362,18 @@ fn sparse_failed_seed_anchors_keep_primary_room_coverage_and_deterministic_motio
 #[test]
 fn person_fallback_preserves_requested_motion_and_rejects_impossible_paths() {
     let mut scene =
-        IndoorManifest::generate_with_humans(881, IndoorLayout::Mixed, 0.0, 0, 0.25).unwrap();
+        IndoorManifest::generate_with_humans(2342, IndoorLayout::Mixed, 0.0, 0, 1.).unwrap();
+    assert!(
+        !people(&scene).is_empty(),
+        "fallback fixture needs a primary-room person"
+    );
     scene.camera_settings = CameraSettings::independent();
     let coverage = Coverage::new(&scene);
     for (min, max) in [(0.0, 0.0), (0.03, 0.25), (0.3, 0.5), (0.5, 0.5)] {
         scene.camera_settings.path_length_min = min;
         scene.camera_settings.path_length_max = max;
         let camera = scene
-            .person_camera_fallback(&people(&scene), &mut stream(881, 3), &coverage)
+            .person_camera_fallback(&people(&scene), &mut stream(2342, 3), &coverage)
             .unwrap();
         assert_accepted(&scene, &camera, &coverage);
         if max == 0.0 {
@@ -377,10 +386,10 @@ fn person_fallback_preserves_requested_motion_and_rejects_impossible_paths() {
     scene.camera_settings.path_length_min = 100.0;
     scene.camera_settings.path_length_max = 100.0;
     assert!(scene
-        .person_camera_fallback(&people(&scene), &mut stream(881, 3), &coverage)
+        .person_camera_fallback(&people(&scene), &mut stream(2342, 3), &coverage)
         .is_none());
     assert!(scene
-        .person_camera_fallback(&[], &mut stream(881, 3), &coverage)
+        .person_camera_fallback(&[], &mut stream(2342, 3), &coverage)
         .is_none());
 }
 
@@ -388,7 +397,11 @@ fn person_fallback_preserves_requested_motion_and_rejects_impossible_paths() {
 fn person_fallback_keeps_authored_handheld_orientations_reversal_and_duration() {
     use crate::scene::procedural_indoor::cameras::handheld::HandheldSettings;
     let mut scene =
-        IndoorManifest::generate_with_humans(881, IndoorLayout::Mixed, 0.0, 0, 0.25).unwrap();
+        IndoorManifest::generate_with_humans(2342, IndoorLayout::Mixed, 0.0, 0, 1.).unwrap();
+    assert!(
+        !people(&scene).is_empty(),
+        "fallback fixture needs a primary-room person"
+    );
     scene.camera_settings = CameraSettings {
         duration_seconds: Some(1.2),
         path_length_min: 0.01,
@@ -404,7 +417,7 @@ fn person_fallback_keeps_authored_handheld_orientations_reversal_and_duration() 
     let settings = scene.camera_settings.clone();
     let coverage = Coverage::new(&scene);
     let camera = scene
-        .person_camera_fallback(&people(&scene), &mut stream(881, 3), &coverage)
+        .person_camera_fallback(&people(&scene), &mut stream(2342, 3), &coverage)
         .unwrap();
     assert_accepted(&scene, &camera, &coverage);
     assert_eq!(scene.camera_settings, settings);
@@ -428,7 +441,11 @@ fn person_fallback_keeps_authored_handheld_orientations_reversal_and_duration() 
 fn person_fallback_accepts_authored_rotation_only_handheld_with_zero_minimum_path() {
     use crate::scene::procedural_indoor::cameras::handheld::HandheldSettings;
     let mut scene =
-        IndoorManifest::generate_with_humans(881, IndoorLayout::Mixed, 0.0, 0, 0.25).unwrap();
+        IndoorManifest::generate_with_humans(2342, IndoorLayout::Mixed, 0.0, 0, 1.).unwrap();
+    assert!(
+        !people(&scene).is_empty(),
+        "fallback fixture needs a primary-room person"
+    );
     scene.camera_settings = CameraSettings {
         duration_seconds: Some(1.2),
         path_length_min: 0.0,
@@ -444,7 +461,7 @@ fn person_fallback_accepts_authored_rotation_only_handheld_with_zero_minimum_pat
     scene.camera_settings.validate().unwrap();
     let settings = scene.camera_settings.clone();
     let coverage = Coverage::new(&scene);
-    let mut rng = stream(881, 3);
+    let mut rng = stream(2342, 3);
     let mut replay_rng = rng.clone();
     let camera = scene
         .person_camera_fallback(&people(&scene), &mut rng, &coverage)

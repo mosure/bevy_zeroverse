@@ -29,7 +29,11 @@ pub fn validate_layout(scene: &IndoorManifest) -> Result<(), String> {
         ));
     }
     scene.camera_settings.validate()?;
+    scene.validate_doors()?;
     scene.validate_assemblies()?;
+    scene.validate_kitchens()?;
+    scene.validate_public_programs()?;
+    scene.validate_program_mounts()?;
     if !scene.camera_aspect_ratio.is_finite() || scene.camera_aspect_ratio <= 0.0 {
         return Err("camera aspect ratio must be positive and finite".into());
     }
@@ -137,17 +141,18 @@ pub fn validate_layout(scene: &IndoorManifest) -> Result<(), String> {
             main_furniture += 1;
             let (lo, hi) = object.bounds();
             let half = scene.room_size * 0.5;
-            if lo.x < -half.x + 0.299
-                || hi.x > half.x - 0.299
-                || lo.z < -half.z + 0.299
-                || hi.z > half.z - 0.299
+            let clearance = object.wall_clearance() - 0.001;
+            if lo.x < -half.x + clearance
+                || hi.x > half.x - clearance
+                || lo.z < -half.z + clearance
+                || hi.z > half.z - clearance
             {
                 return fail("furniture intersects room boundary");
             }
             if !scene.floor_support_clear(lo, hi) {
                 return fail("unsupported floor furniture");
             }
-            if hi.x > scene.door_x - 0.70 && lo.x < scene.door_x + 0.70 && hi.z > half.z - 1.45 {
+            if scene.entry_approach_overlaps(lo, hi) {
                 return fail("door approach blocked");
             }
             if !scene.placement_clear(object, 0.0) {
@@ -196,8 +201,7 @@ pub fn validate_layout(scene: &IndoorManifest) -> Result<(), String> {
                     }
                 }
                 // Keep the open leaf, handle and approach in the neighboring room clear.
-                if hi.x > scene.door_x - 0.70 && lo.x < scene.door_x + 0.70 && lo.z < half.z + 1.45
-                {
+                if scene.entry_approach_overlaps(lo, hi) {
                     return fail("neighbor door approach blocked");
                 }
             }
@@ -240,18 +244,22 @@ pub fn validate_layout(scene: &IndoorManifest) -> Result<(), String> {
             }
         }
     }
-    if !scene.objects.iter().any(|o| {
-        !o.neighbor
-            && matches!(
-                o.kind,
-                super::layout::ObjectKind::Desk
-                    | super::layout::ObjectKind::Table
-                    | super::layout::ObjectKind::CoffeeTable
-            )
-    }) {
+    if !scene.layout.is_public()
+        && !scene.objects.iter().any(|o| {
+            !o.neighbor
+                && (super::layout::ObjectKind::KitchenCounter == o.kind
+                    && scene.layout.is_kitchen()
+                    || matches!(
+                        o.kind,
+                        super::layout::ObjectKind::Desk
+                            | super::layout::ObjectKind::Table
+                            | super::layout::ObjectKind::CoffeeTable
+                    ))
+        })
+    {
         return fail("missing primary activity furniture");
     }
-    if main_furniture < scene.minimum_main_objects() {
+    if !scene.layout.is_public() && main_furniture < scene.minimum_main_objects() {
         return fail("insufficient main room furniture");
     }
     for camera in &scene.cameras {
@@ -267,7 +275,13 @@ pub fn validate_layout(scene: &IndoorManifest) -> Result<(), String> {
             return fail("invalid free camera orientation");
         }
         if !camera.target.is_finite()
-            || !(27.0..=108.0).contains(&camera.fov_degrees)
+            || !scene
+                .camera_settings
+                .intrinsics
+                .contains(camera.fov_degrees)
+            || camera
+                .principal_point_offset
+                .is_some_and(|p| !p.is_finite() || p.abs().cmpgt(Vec2::splat(0.2)).any())
             || camera.start.distance(camera.target) < 1.5
         {
             return fail("invalid camera intrinsics or target");
@@ -291,11 +305,7 @@ pub fn validate_layout(scene: &IndoorManifest) -> Result<(), String> {
                 "multi-view camera spacing, group spread or trajectory variation constraint violated",
             );
         }
-        if scene
-            .camera_overlap()
-            .iter()
-            .any(|pair| !scene.accepts_camera_pair(pair))
-        {
+        if !scene.accepts_camera_visibility() {
             return Err(format!(
                 "seed {}: multi-view camera overlap or baseline constraint violated",
                 scene.seed

@@ -5,7 +5,9 @@ pub(crate) mod botany;
 mod decor;
 pub(crate) mod equipment;
 pub(crate) mod floor;
+pub mod functional;
 mod furnishing;
+pub mod kitchen;
 mod programs;
 mod seating;
 pub(crate) mod surfaces;
@@ -40,6 +42,16 @@ pub enum IndoorLayout {
     Library,
     Workshop,
     Studio,
+    Kitchenette,
+    Kitchen,
+    ElevatorLanding,
+    Cafe,
+    Cafeteria,
+    Classroom,
+    LectureHall,
+    Showroom,
+    Gallery,
+    PublicSuite,
 }
 
 impl IndoorLayout {
@@ -55,6 +67,34 @@ impl IndoorLayout {
         Self::Workshop,
         Self::Studio,
     ];
+    /// Explicit functional programs. Mixed keeps its established office mixture.
+    pub const PUBLIC_PROFILES: [Self; 9] = [
+        Self::Kitchenette,
+        Self::Kitchen,
+        Self::Cafe,
+        Self::Cafeteria,
+        Self::Classroom,
+        Self::LectureHall,
+        Self::ElevatorLanding,
+        Self::Showroom,
+        Self::Gallery,
+    ];
+    pub fn is_public(self) -> bool {
+        matches!(
+            self,
+            Self::ElevatorLanding
+                | Self::Cafe
+                | Self::Cafeteria
+                | Self::Classroom
+                | Self::LectureHall
+                | Self::Showroom
+                | Self::Gallery
+                | Self::PublicSuite
+        )
+    }
+    pub fn is_kitchen(self) -> bool {
+        matches!(self, Self::Kitchen | Self::Kitchenette)
+    }
     pub fn prefers_soft_seating(self) -> bool {
         matches!(self, Self::Lounge | Self::Reception | Self::Breakroom)
     }
@@ -135,11 +175,47 @@ pub enum ObjectKind {
     WallSconce,
     CeilingPendant,
     FloorOutlet,
+    KitchenCounter,
+    KitchenSink,
+    KitchenCupboard,
+    Pantry,
+    Cooktop,
+    Range,
+    Oven,
+    Microwave,
+    Dishwasher,
+    Refrigerator,
+    DryingRack,
+    SoapDispenser,
+    Sponge,
+    KnifeBlock,
+    UtensilHolder,
+    PaperTowel,
+    KitchenTowel,
+    Dishware,
+    CuttingBoard,
+    FruitBowl,
+    Bread,
+    Elevator,
+    ServiceCounter,
+    DisplayCase,
+    TrayReturn,
+    DrinkDispenser,
+    QueueBarrier,
+    Lectern,
+    Locker,
+    TeachingBoard,
+    ExhibitPlinth,
+    Sculpture,
+    InformationStand,
+    ExhibitionPanel,
+    ExtractionHood,
+    Banquette,
 }
 
 impl ObjectKind {
     /// Authoritative item catalog, shared with distribution and placement exports.
-    pub const ALL: [Self; 64] = [
+    pub const ALL: [Self; 100] = [
         Self::Table,
         Self::Desk,
         Self::Chair,
@@ -204,10 +280,83 @@ impl ObjectKind {
         Self::WallSconce,
         Self::CeilingPendant,
         Self::FloorOutlet,
+        Self::KitchenCounter,
+        Self::KitchenSink,
+        Self::KitchenCupboard,
+        Self::Pantry,
+        Self::Cooktop,
+        Self::Range,
+        Self::Oven,
+        Self::Microwave,
+        Self::Dishwasher,
+        Self::Refrigerator,
+        Self::DryingRack,
+        Self::SoapDispenser,
+        Self::Sponge,
+        Self::KnifeBlock,
+        Self::UtensilHolder,
+        Self::PaperTowel,
+        Self::KitchenTowel,
+        Self::Dishware,
+        Self::CuttingBoard,
+        Self::FruitBowl,
+        Self::Bread,
+        Self::Elevator,
+        Self::ServiceCounter,
+        Self::DisplayCase,
+        Self::TrayReturn,
+        Self::DrinkDispenser,
+        Self::QueueBarrier,
+        Self::Lectern,
+        Self::Locker,
+        Self::TeachingBoard,
+        Self::ExhibitPlinth,
+        Self::Sculpture,
+        Self::InformationStand,
+        Self::ExhibitionPanel,
+        Self::ExtractionHood,
+        Self::Banquette,
     ];
 
     pub fn class_name(self) -> &'static str {
         match self {
+            Self::Elevator => "elevator",
+            Self::ServiceCounter => "counter",
+            Self::DisplayCase => "display_case",
+            Self::TrayReturn => "tray_return",
+            Self::DrinkDispenser => "appliance",
+            Self::QueueBarrier => "queue_barrier",
+            Self::Lectern => "lectern",
+            Self::Locker => "locker",
+            Self::TeachingBoard => "whiteboard",
+            Self::ExhibitPlinth => "plinth",
+            Self::Sculpture => "sculpture",
+            Self::InformationStand => "information_stand",
+            Self::ExhibitionPanel => "room_divider",
+            Self::ExtractionHood => "extraction_hood",
+            Self::Banquette => "bench",
+
+            Self::KitchenCounter => "counter",
+            Self::KitchenSink => "sink",
+            Self::KitchenCupboard => "cabinet",
+            Self::Pantry => "cabinet",
+            Self::Cooktop => "stove",
+            Self::Range => "stove",
+            Self::Oven => "oven",
+            Self::Microwave => "microwave",
+            Self::Dishwasher => "dishwasher",
+            Self::Refrigerator => "refrigerator",
+            Self::DryingRack => "dishware",
+            Self::SoapDispenser => "soap_dispenser",
+            Self::Sponge => "cleaning_supply",
+            Self::KnifeBlock => "kitchen_utensil",
+            Self::UtensilHolder => "kitchen_utensil",
+            Self::PaperTowel => "towel",
+            Self::KitchenTowel => "towel",
+            Self::Dishware => "dishware",
+            Self::CuttingBoard => "kitchen_utensil",
+            Self::FruitBowl => "food",
+            Self::Bread => "food",
             Self::Table => "table",
             Self::Desk => "desk",
             Self::Chair => "chair",
@@ -265,10 +414,62 @@ impl ObjectKind {
         }
     }
 
+    pub fn is_kitchen(self) -> bool {
+        matches!(
+            self,
+            Self::KitchenCounter
+                | Self::KitchenSink
+                | Self::KitchenCupboard
+                | Self::Pantry
+                | Self::Cooktop
+                | Self::Range
+                | Self::Oven
+                | Self::Microwave
+                | Self::Dishwasher
+                | Self::Refrigerator
+                | Self::DryingRack
+                | Self::SoapDispenser
+                | Self::Sponge
+                | Self::KnifeBlock
+                | Self::UtensilHolder
+                | Self::PaperTowel
+                | Self::KitchenTowel
+                | Self::Dishware
+                | Self::CuttingBoard
+                | Self::FruitBowl
+                | Self::Bread
+        )
+    }
+
+    pub fn is_program_item(self) -> bool {
+        matches!(
+            self,
+            Self::Elevator
+                | Self::ServiceCounter
+                | Self::DisplayCase
+                | Self::TrayReturn
+                | Self::DrinkDispenser
+                | Self::QueueBarrier
+                | Self::Lectern
+                | Self::Locker
+                | Self::TeachingBoard
+                | Self::ExhibitPlinth
+                | Self::Sculpture
+                | Self::InformationStand
+                | Self::ExhibitionPanel
+                | Self::ExtractionHood
+                | Self::Banquette
+        )
+    }
+
     pub fn is_surface(self) -> bool {
         matches!(
             self,
-            Self::Table
+            Self::KitchenCounter
+                | Self::ServiceCounter
+                | Self::ExhibitPlinth
+                | Self::CuttingBoard
+                | Self::Table
                 | Self::Desk
                 | Self::CoffeeTable
                 | Self::Cabinet
@@ -356,10 +557,25 @@ impl IndoorObject {
         let centre = self.position + Vec3::Y * self.size.y * 0.5;
         (centre - half, centre + half)
     }
+
+    /// Fitted kitchen carcasses may approach the wall past the general furniture
+    /// setback, while remaining clear of its 26 mm projecting skirting.
+    pub(crate) fn wall_clearance(&self) -> f32 {
+        if super::objects::kitchen::is_island(self) {
+            0.90
+        } else if self.kind.is_kitchen() && self.solid {
+            0.045
+        } else {
+            0.30
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct IndoorCamera {
+    /// Optical center displacement from (0.5, 0.5), in image width/height units.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub principal_point_offset: Option<Vec2>,
     pub start: Vec3,
     pub end: Vec3,
     pub target: Vec3,
@@ -377,6 +593,8 @@ pub enum LightingMood {
 
 #[derive(Debug, Clone, Resource, Serialize, Deserialize, PartialEq)]
 pub struct IndoorManifest {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub indoor_motion: Option<super::motion::IndoorMotionReport>,
     #[serde(default)]
     pub camera_diagnostics: super::cameras::diagnostics::CameraSamplingDiagnostics,
     #[serde(default)]
@@ -413,6 +631,8 @@ pub struct IndoorManifest {
     pub glazing_height: f32,
     pub blinds: bool,
     pub door_x: f32,
+    #[serde(default)]
+    pub entry_door: Option<super::architecture::doors::DoorInstallation>,
     pub column_width: f32,
     pub lighting: LightingMood,
     pub sun_elevation: f32,
@@ -433,7 +653,7 @@ pub struct IndoorManifest {
     #[serde(default)]
     pub rejected_human_placements: usize,
     #[serde(
-        default = "super::cameras::CameraSettings::independent",
+        default = "super::cameras::CameraSettings::archived_independent",
         deserialize_with = "super::cameras::deserialize_archived_settings"
     )]
     pub camera_settings: super::cameras::CameraSettings,
@@ -494,8 +714,15 @@ impl IndoorManifest {
             layout
         };
         let mut room_size = super::domain::room_size(seed);
+        if layout.is_kitchen() {
+            let mut kitchen_rng = stream(seed, 8050);
+            room_size.x = kitchen_rng.random_range(6.2..11.0);
+            room_size.z = kitchen_rng.random_range(6.2..10.0);
+        }
         room_size.y = super::envelope::EnvelopeProgram::room_height(seed, room_size);
+        functional::size_room(seed, layout, &mut room_size);
         let mut scene = Self {
+            indoor_motion: None,
             camera_diagnostics: default(),
             assembly_diagnostics: default(),
             appearance: None,
@@ -534,6 +761,7 @@ impl IndoorManifest {
             glazing_height: room_size.y - rng.random_range(0.22..0.85),
             blinds: rng.random_bool(0.4),
             door_x: room_size.x * 0.5 - 1.05,
+            entry_door: None,
             column_width: rng.random_range(0.18..0.55),
             lighting: [
                 LightingMood::Daylight,
@@ -556,6 +784,15 @@ impl IndoorManifest {
             cameras: Vec::new(),
             rejected_placements: 0,
         };
+        // Wet/preparation areas use hard flooring. Textile variation belongs to
+        // removable kitchen mats, not wall-to-wall office carpet.
+        if layout.is_kitchen() {
+            scene.floor_style = if stream(seed, 8061).random_bool(0.38) {
+                0
+            } else {
+                2
+            };
+        }
         super::materials::program::floor_finish(
             &mut scene.program.as_mut().unwrap().materials,
             scene.floor_style,
@@ -576,23 +813,35 @@ impl IndoorManifest {
             room_size,
             scene.column_width,
         ));
+        super::architecture::doors::sample_entry(&mut scene)?;
         scene.envelope = Some(super::envelope::EnvelopeProgram::sample(&mut scene));
+        functional::prepare_architecture(&mut scene);
+        super::architecture::doors::sample_partitions(&mut scene);
+        super::architecture::doors::fit_floor_states(&mut scene);
         scene.ceiling_installation = Some(
             super::architecture::ceiling::CeilingInstallation::sample(&scene),
         );
         scene.furnish(&mut rng);
         scene.assign_work_surfaces();
-        scene.furnish_amenities();
+        if !scene.layout.is_public() {
+            scene.furnish_amenities();
+        }
         scene.furnish_botany();
         scene.furnish_equipment();
         scene.compose_wall_groups();
         scene.decorate(&mut rng);
-        scene.scatter_clutter(&mut rng);
+        if scene.layout.is_public() {
+            scene.dress_public_programs();
+        } else {
+            scene.scatter_clutter(&mut rng);
+        }
+        scene.finish_program_equipment();
         super::humans::populate(&mut scene, human_density);
         scene.settle_seating();
         scene.furnish_floor_details();
         scene.connect_equipment();
         scene.finish_floor_outlets();
+        scene.record_program_services();
         scene.assign_assembly_finishes();
         // Routing depends on settled people, but may append new object instances.
         // Assign the final disjoint human ID range before camera/annotation export.
@@ -697,8 +946,9 @@ impl IndoorManifest {
         let footprint = Footprint::object(object);
         let (lo, hi) = object.bounds();
         let half = self.room_size * 0.5;
+        let wall_clearance = object.wall_clearance();
         if self.envelope.as_ref().is_some_and(|e| {
-            !super::envelope::polygon::box_inside(&e.footprint, lo.xz(), hi.xz(), 0.30)
+            !super::envelope::polygon::box_inside(&e.footprint, lo.xz(), hi.xz(), wall_clearance)
                 || !e.support_clear(lo, hi)
                 || [
                     lo.xz(),
@@ -711,10 +961,16 @@ impl IndoorManifest {
         }) {
             return false;
         }
-        if lo.x < -half.x + 0.30
-            || hi.x > half.x - 0.30
-            || lo.z < -half.z + 0.30
-            || hi.z > half.z - 0.30
+        if lo.x < -half.x + wall_clearance
+            || hi.x > half.x - wall_clearance
+            || lo.z < -half.z + wall_clearance
+            || hi.z > half.z - wall_clearance
+        {
+            return false;
+        }
+        if object.kind.is_kitchen()
+            && object.solid
+            && super::architecture::facade::overlaps_opening(self, lo, hi, 0.03)
         {
             return false;
         }
@@ -725,8 +981,17 @@ impl IndoorManifest {
         {
             return false;
         }
+        if !self.program_space_clear(lo, hi) {
+            return false;
+        }
+        if self.functional_programs().iter().any(|p| {
+            p.members.contains(&object.id)
+                && (lo.x < p.min.x || hi.x > p.max.x || lo.z < p.min.y || hi.z > p.max.y)
+        }) {
+            return false;
+        }
         // A clear 1.3 m door approach is reserved across every grammar.
-        if hi.x > self.door_x - 0.70 && lo.x < self.door_x + 0.70 && hi.z > half.z - 1.45 {
+        if self.entry_approach_overlaps(lo, hi) {
             return false;
         }
         if self.columns().iter().any(|(a, b)| {
@@ -744,7 +1009,11 @@ impl IndoorManifest {
                 seating::furniture_overlap(
                     object,
                     other,
-                    if object.kind == ObjectKind::Plant || other.kind == ObjectKind::Plant {
+                    if super::objects::kitchen::is_island(object)
+                        || super::objects::kitchen::is_island(other)
+                    {
+                        margin.max(0.90)
+                    } else if object.kind == ObjectKind::Plant || other.kind == ObjectKind::Plant {
                         margin.max(0.06)
                     } else {
                         margin
@@ -813,10 +1082,13 @@ impl IndoorManifest {
     fn decorate(&mut self, rng: &mut ChaCha8Rng) {
         self.wall_decorations(rng);
         self.wall_hardware(rng);
+        if self.layout.is_public() {
+            return;
+        }
         let surfaces: Vec<_> = self
             .objects
             .iter()
-            .filter(|o| o.kind.is_surface())
+            .filter(|o| o.kind.is_surface() && !o.kind.is_kitchen())
             .cloned()
             .collect();
         for surface in surfaces {
@@ -871,6 +1143,10 @@ impl IndoorManifest {
                         &mut light_rng,
                     );
                 }
+            }
+            if surface.kind == ObjectKind::Table && self.layout.is_kitchen() && !surface.neighbor {
+                self.dress_kitchen_dining(surface.id, rng);
+                continue;
             }
             if surface.kind == ObjectKind::Table {
                 self.conference_props(&surface, rng);
@@ -1064,6 +1340,14 @@ impl IndoorManifest {
         {
             return false;
         }
+        if support.kind == ObjectKind::KitchenCounter {
+            let (top_lo, top_hi) = super::objects::kitchen::counter_top_bounds(support);
+            if lo.cmplt(top_lo + Vec2::splat(margin)).any()
+                || hi.cmpgt(top_hi - Vec2::splat(margin)).any()
+            {
+                return false;
+            }
+        }
         if support.kind.has_table_outline()
             && !super::objects::tables::supports(support, lo, hi, margin)
         {
@@ -1175,6 +1459,7 @@ impl IndoorManifest {
     /// Lens clearance is continuous; view suitability is checked over the path.
     pub fn camera_trajectory_clear(&self, start: Vec3, end: Vec3, target: Vec3) -> bool {
         let camera = IndoorCamera {
+            principal_point_offset: None,
             start,
             end,
             target,

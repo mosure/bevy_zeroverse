@@ -8,10 +8,21 @@ import unittest
 import numpy as np
 
 from compare_indoor_cycles import block_areas, block_measurements, blocks, compare, measurements, optical_identity
-from indoor_reference_contract import absorption_coefficients, coverage_alpha, sky_radiance, validate_snapshot
+from indoor_reference_contract import absorption_coefficients, coverage_alpha, sky_radiance, validate_snapshot, pinhole_parameters
 
 
 class ReferenceComparisonTests(unittest.TestCase):
+    def test_shifted_pinhole_matches_blender_vertical_sensor_contract(self):
+        calibration = {"image_size": [640,480], "lens_model": "pinhole", "lens_model_version": 1,
+                       "pixel_convention": "top_left_corner_half_pixel_centers",
+                       "k": [[500,0,380],[0,500,200],[0,0,1]]}
+        lens, sx, sy = pinhole_parameters({"calibration": calibration}, [640,480])
+        self.assertAlmostEqual(lens/32*480,500)
+        self.assertAlmostEqual(320-sx*480,380)
+        self.assertAlmostEqual(240+sy*480,200)
+        calibration["k"][0][1] = 2
+        with self.assertRaisesRegex(ValueError,"Unsupported"):
+            pinhole_parameters({"calibration": calibration},[640,480])
     def test_alpha_coverage_only_accepts_non_volumetric_surfaces(self):
         lens = {"alpha_mode": "Blend", "base_color": [1, 1, 1, .045],
                 "thickness": 0, "specular_transmission": 0, "diffuse_transmission": 0}

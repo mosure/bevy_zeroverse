@@ -6,29 +6,45 @@ import { once } from 'node:events';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
+import { verifyMaterialMaps } from './material_webgpu_oracle.mjs';
 import { setTimeout as delay } from 'node:timers/promises';
 
 const chrome = process.env.CHROME ?? '/usr/bin/google-chrome';
-const shader = await readFile(new URL('../src/scene/procedural_indoor/materials/gpu/synthesis.wgsl', import.meta.url), 'utf8');
+const shader = (await Promise.all(['synthesis.wgsl', 'paint.wgsl'].map(file => readFile(
+  new URL(`../src/scene/procedural_indoor/materials/gpu/${file}`, import.meta.url), 'utf8')))).join('\n');
 const kernel = await readFile(new URL('../src/scene/procedural_indoor/materials/gpu/kernel.rs', import.meta.url), 'utf8');
 const entries = [...kernel.match(/const ENTRIES:[\s\S]*?= \[([\s\S]*?)\];/)[1].matchAll(/"([^"]+)"/g)].map(m => m[1]);
 if (!entries.length) throw Error('Material compute entry points were not found');
 const profile = await mkdtemp(join(tmpdir(), 'zeroverse-material-webgpu-'));
-const server = createServer((_req, res) => {
+const fixtureArgument = process.argv.find(arg => arg.startsWith('--fixtures='));
+const fixtureDirectory = fixtureArgument && resolve(fixtureArgument.slice('--fixtures='.length));
+const fixtures = fixtureDirectory && JSON.parse(await readFile(join(fixtureDirectory, 'manifest.json'), 'utf8'));
+const allowed = new Set(fixtures ? ['srgb.bin', ...fixtures.cases.flatMap(c => c.expected)] : []);
+const server = createServer(async (req, res) => {
+  const name = req.url.slice(1);
+  if (allowed.has(name)) {
+    try {
+      res.setHeader('Content-Type', 'application/octet-stream');
+      res.end(await readFile(join(fixtureDirectory, name)));
+    } catch (error) { res.statusCode = 500; res.end(String(error)); }
+    return;
+  }
   res.setHeader('Content-Type', 'text/html');
   res.end('<!doctype html><title>Zeroverse material WebGPU validation</title>');
 });
 server.listen(0, '127.0.0.1');
 await once(server, 'listening');
 const url = `http://127.0.0.1:${server.address().port}/`;
-const flags = process.argv.includes('--native') ? [] : [
+const flags = process.argv.includes('--native') ? (process.platform === 'linux' ? [
+  '--use-vulkan=native', '--enable-features=Vulkan', '--disable-gpu-sandbox',
+] : []) : [
   '--use-webgpu-adapter=swiftshader', '--enable-unsafe-swiftshader',
   // GPU-less Linux runners also need a software GL/Vulkan initialization path.
   '--use-gl=angle', '--use-angle=swiftshader', '--use-vulkan=swiftshader', '--enable-features=Vulkan',
   '--disable-vulkan-surface',
 ];
-const child = spawn(chrome, ['--headless=new', '--no-first-run', '--no-default-browser-check',
+const child = spawn(chrome, [...(process.argv.includes('--headful') ? [] : ['--headless=new']), '--no-first-run', '--no-default-browser-check',
   '--no-sandbox', '--disable-dev-shm-usage', '--enable-gpu', '--use-gpu-in-tests',
   '--enable-unsafe-webgpu', '--ignore-gpu-blocklist', ...flags,
   '--remote-debugging-port=0', `--user-data-dir=${profile}`, url], { stdio: ['ignore', 'ignore', 'pipe'] });
@@ -66,7 +82,7 @@ try {
   });
   const evaluate = expression => new Promise((resolve, reject) => {
     const id = ++nextId;
-    const timeout = setTimeout(() => { pending.delete(id); reject(Error('WebGPU compilation timed out')); }, 45000);
+    const timeout = setTimeout(() => { pending.delete(id); reject(Error('WebGPU qualification timed out')); }, 180000);
     pending.set(id, { resolve, reject, timeout });
     socket.send(JSON.stringify({ id, method: 'Runtime.evaluate', params: {
       expression, awaitPromise: true, returnByValue: true,
@@ -80,9 +96,12 @@ try {
     if (!loaded) await delay(50);
   }
   if (!loaded) throw Error('Test page did not finish loading');
-  const result = await evaluate(`(${qualify.toString()})(${JSON.stringify(shader)},${JSON.stringify(entries)})`);
+  const result = await evaluate(`(${qualify.toString()})(${JSON.stringify(shader)},${JSON.stringify(entries)},${JSON.stringify(fixtures ?? null)},${verifyMaterialMaps.toString()})`);
   console.log(JSON.stringify(result, null, 2));
-  if (result.messages.some(m => m.type === 'error') || result.validation || result.pipelines.length !== entries.length) {
+  if (process.argv.includes('--native') && /swiftshader|llvmpipe|software/i.test(JSON.stringify(result.adapter))) {
+    throw Error('--native requested hardware WebGPU, but Chrome selected a software adapter');
+  }
+  if (result.messages.some(m => m.type === 'error') || result.validation || result.pipelines.length !== entries.length || result.maps?.failures.length) {
     process.exitCode = 1;
   }
 } catch (error) {
@@ -101,9 +120,9 @@ try {
   await rm(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
 }
 
-async function qualify(code, entries) {
+async function qualify(code, entries, fixtures, verifyMaps) {
   if (!navigator.gpu) throw Error('WebGPU unavailable');
-  const adapter = await navigator.gpu.requestAdapter();
+  const adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' });
   if (!adapter) throw Error('WebGPU adapter unavailable');
   const device = await adapter.requestDevice();
   device.pushErrorScope('validation');
@@ -111,20 +130,23 @@ async function qualify(code, entries) {
   const info = await module.getCompilationInfo();
   const messages = Array.from(info.messages, m => ({ type: m.type, message: m.message, line: m.lineNum, column: m.linePos }));
   const pipelines = [];
+  let maps;
   if (!messages.some(m => m.type === 'error')) {
     const layout = device.createBindGroupLayout({ entries: Array.from({ length: 6 }, (_, binding) => ({
       binding, visibility: GPUShaderStage.COMPUTE,
       buffer: { type: binding === 0 || binding === 5 ? 'uniform' : binding === 4 ? 'read-only-storage' : 'storage' },
     })) });
     const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
+    const compiled = [];
     for (const entryPoint of entries) {
-      await device.createComputePipelineAsync({ label: `indoor material ${entryPoint}`, layout: pipelineLayout,
-        compute: { module, entryPoint } });
+      compiled.push(await device.createComputePipelineAsync({ label: `indoor material ${entryPoint}`, layout: pipelineLayout,
+        compute: { module, entryPoint } }));
       pipelines.push(entryPoint);
     }
+    if (fixtures) maps = await verifyMaps(device, layout, compiled, fixtures);
   }
   const validation = await device.popErrorScope();
   device.destroy();
   return { adapter: { vendor: adapter.info.vendor, architecture: adapter.info.architecture, device: adapter.info.device,
-    description: adapter.info.description }, messages, validation: validation?.message ?? null, pipelines };
+    description: adapter.info.description }, messages, validation: validation?.message ?? null, pipelines, maps };
 }

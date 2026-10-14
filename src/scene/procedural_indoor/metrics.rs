@@ -318,7 +318,7 @@ fn export_inner(
         schema_version: INDOOR_METRICS_SCHEMA_VERSION,
         camera_settings: camera_settings.clone(),
         appearance: appearance.cloned(),
-        camera_overlap_policy: "Proxy first-surface pixel overlap in both directions to camera zero, at normalized times 0,.25,.5,.75,1. Full capture aspect ratio, 13x9 rays/view. Glass is annotation-opaque. Not a rendered-pixel guarantee.",
+        camera_overlap_policy: "Proxy first-surface pixel overlap at normalized times 0,.25,.5,.75,1. Reference policy exports camera-zero edges; connected policy exports all pairs and requires a stable connected graph. Full capture aspect ratio, 13x9 rays/view. Glass is annotation-opaque. Not a rendered-pixel guarantee.",
         camera_group_geometry_policy: "Worst geometry over 33 synchronized times including both endpoints. All-pair minimum Euclidean separation and maximum reference baseline, metres. Horizontal spread is minor/major standard deviation for 3+ views. Relative motion is RMS displacement difference with starts removed, normalized by the larger RMS travel, over all moving pairs. Static pairs and groups with fewer than 3 views omit inapplicable scores. These are sampled constraints, not a continuous-time proof.",
         generator_version: GENERATOR_VERSION,
         scenes: seeds,
@@ -362,7 +362,7 @@ fn export_inner(
         cameras::record(&scene, &mut numeric, &mut paths, &mut groups)?;
         signatures.insert(&scene);
         exterior::record(&scene, &mut report, &mut numeric, &mut windows)?;
-        content::record_scene(&scene, &mut numeric)?;
+        content::record_scene(&scene, &mut numeric, &mut report.categories)?;
         envelope::record(&scene, &mut report, &mut numeric, &mut architecture)?;
         if let Some(program) = &scene.program {
             if let Some(d) = &program.domain {
@@ -1377,10 +1377,14 @@ fn export_inner(
         }
         for (i, camera) in scene.cameras.iter().enumerate() {
             let fy = height as f32 / (2.0 * (camera.fov_degrees.to_radians() * 0.5).tan());
-            let hfov = (width as f32 / (2.0 * fy)).atan().to_degrees() * 2.0;
-            let direction = (camera.target - camera.start).normalize();
+            let offset = camera.principal_point_offset.unwrap_or_default();
+            let cx = width as f32 * (0.5 + offset.x);
+            let cy = height as f32 * (0.5 + offset.y);
+            let hfov = ((cx / fy).atan() + ((width as f32 - cx) / fy).atan()).to_degrees();
+            let vfov = ((cy / fy).atan() + ((height as f32 - cy) / fy).atan()).to_degrees();
+            let direction = camera.transform_at(0.).rotation * Vec3::NEG_Z;
             let yaw = direction.x.atan2(-direction.z).to_degrees();
-            let pitch = direction.y.asin().to_degrees();
+            let pitch = direction.y.clamp(-1., 1.).asin().to_degrees();
             let length = camera.path_length();
             if let Some(m) = &camera.motion {
                 numeric.push("camera_roll_start_radians", m.roll[0] as f64)?;
@@ -1416,22 +1420,27 @@ fn export_inner(
                 hfov,
                 fy,
                 fy,
-                width as f32 * 0.5,
-                height as f32 * 0.5,
+                cx,
+                cy,
                 length,
                 yaw,
                 pitch
             )?;
             for (name, value) in [
                 ("vertical_fov_degrees", camera.fov_degrees),
+                ("angular_vertical_fov_degrees", vfov),
                 ("horizontal_fov_degrees", hfov),
                 ("fx_pixels", fy),
                 ("fy_pixels", fy),
-                ("cx_pixels", width as f32 * 0.5),
-                ("cy_pixels", height as f32 * 0.5),
+                ("cx_pixels", cx),
+                ("cy_pixels", cy),
                 ("near_m", 0.1),
                 ("far_m", 50.0),
                 ("camera_height_m", camera.start.y),
+                (
+                    "camera_eye_height_m",
+                    camera.start.y - scene.floor_height(camera.start.xz()),
+                ),
                 (
                     "camera_start_boundary_clearance_m",
                     (scene.room_size.x * 0.5 - camera.start.x.abs())

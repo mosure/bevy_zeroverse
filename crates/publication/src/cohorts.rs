@@ -7,6 +7,8 @@ use std::{
     collections::BTreeSet,
     path::{Path, PathBuf},
 };
+pub mod publication;
+mod reconstruction;
 
 fn protocol(directory: &Path) -> Result<Protocol> {
     let audit: Value = io::read(&directory.join("distribution.json"))?;
@@ -42,8 +44,21 @@ fn protocol(directory: &Path) -> Result<Protocol> {
 }
 
 pub fn audit(root: &Path, inputs: &[PathBuf], output: &Path) -> Result<()> {
-    ensure!(!inputs.is_empty(), "at least one cohort is required");
     let destination = crate::study::local_destination(root, output)?;
+    let report = collect(root, inputs)?;
+    std::fs::create_dir_all(&destination)?;
+    io::write(&destination.join("report.json"), &report)?;
+    println!(
+        "Qualified {} distinct rooms, {} views across {} cohorts",
+        report["rooms"],
+        report["views"],
+        inputs.len()
+    );
+    Ok(())
+}
+
+pub(super) fn collect(root: &Path, inputs: &[PathBuf]) -> Result<Value> {
+    ensure!(!inputs.is_empty(), "at least one cohort is required");
     let mut cohorts = Vec::new();
     let mut seeds = BTreeSet::new();
     let mut identity = None;
@@ -65,19 +80,13 @@ pub fn audit(root: &Path, inputs: &[PathBuf], output: &Path) -> Result<()> {
             );
             views += scene.capture.views.len();
         }
+        let reconstruction = reconstruction::summarize(&data.scenes, &protocol)?;
         cohorts.push(json!({"directory":directory,"protocol":protocol,
             "selection_policy":data.selection["policy"],"selected_seeds":data.selection["selected_seeds"],
-            "summary":data.summary,"sources_sha256":data.input_sha256}));
+            "summary":data.summary,"reconstruction":reconstruction,"sources_sha256":data.input_sha256}));
     }
     let report = json!({"schema_version":1,"identity":identity,"rooms":seeds.len(),"views":views,
         "aggregation":"Each cohort is reported separately. Prespecified strata are not an IID population estimate. Every selected scene and annotation is verified; no quality filtering.",
         "cohorts":cohorts});
-    std::fs::create_dir_all(&destination)?;
-    io::write(&destination.join("report.json"), &report)?;
-    println!(
-        "Qualified {} distinct rooms, {views} views across {} cohorts",
-        seeds.len(),
-        inputs.len()
-    );
-    Ok(())
+    Ok(report)
 }

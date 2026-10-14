@@ -11,6 +11,7 @@ impl MultiViewSettings {
             return Err("camera baseline must be finite and in [0,1]".into());
         }
         Ok(Self {
+            graph: Default::default(),
             min_overlap: 0.65 - 0.50 * baseline.powf(0.7),
             min_baseline: 0.04 + 0.46 * baseline,
             min_reference_baseline: 0.06 + 2.30 * baseline,
@@ -24,6 +25,9 @@ impl MultiViewSettings {
     /// Return the slider value only when all advanced controls match its program.
     /// Editing any advanced value leaves the configuration in explicit custom mode.
     pub fn baseline(&self) -> Option<f32> {
+        if self.graph != super::multiview::OverlapGraph::Reference {
+            return None;
+        }
         let value = ((self.min_reference_baseline - 0.06) / 2.30).clamp(0.0, 1.0);
         let expected = Self::from_baseline(value).ok()?;
         [
@@ -63,6 +67,8 @@ impl<'de> Deserialize<'de> for CameraSettings {
         #[derive(Deserialize)]
         #[serde(default, deny_unknown_fields)]
         struct Concrete {
+            intrinsics: super::intrinsics::IntrinsicsSettings,
+            principal_point_jitter: bevy::prelude::Vec2,
             duration_seconds: Option<f32>,
             handheld: Option<super::handheld::HandheldSettings>,
             overlap_mixture: Option<super::mixture::OverlapMixture>,
@@ -76,6 +82,8 @@ impl<'de> Deserialize<'de> for CameraSettings {
             fn default() -> Self {
                 let c = CameraSettings::default();
                 Self {
+                    intrinsics: c.intrinsics,
+                    principal_point_jitter: c.principal_point_jitter,
                     duration_seconds: c.duration_seconds,
                     handheld: c.handheld,
                     overlap_mixture: c.overlap_mixture,
@@ -89,6 +97,8 @@ impl<'de> Deserialize<'de> for CameraSettings {
         }
         let c: Concrete = serde_json::from_value(value).map_err(serde::de::Error::custom)?;
         Ok(Self {
+            intrinsics: c.intrinsics,
+            principal_point_jitter: c.principal_point_jitter,
             duration_seconds: c.duration_seconds,
             handheld: c.handheld,
             overlap_mixture: c.overlap_mixture,

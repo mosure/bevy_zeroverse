@@ -9,8 +9,10 @@ pub fn retired(name: &str) -> bool {
         return ![
             "architecture/",
             "qualification/",
+            "cohorts/",
             "cameras/",
             "objects/",
+            "doors/",
             "materials/",
         ]
         .iter()
@@ -23,6 +25,7 @@ pub fn retired(name: &str) -> bool {
             "publication_",
             "camera_count_",
             "object_",
+            "door_",
             "material_",
             "pipeline_",
         ]
@@ -60,7 +63,10 @@ mod tests {
         for name in [
             "www/project/static/media/architecture/s0-t0-c0-co_visibility.webp",
             "www/project/static/media/qualification/receipt.json",
+            "www/project/static/media/cohorts/report.json",
             "www/project/static/media/cameras/camera-count-heatmap-b1.svg",
+            "www/project/static/media/doors/atlas.json",
+            "www/project/static/media/doors/HingedDoor-0-color.webp",
             "www/project/static/media/social.jpg",
             "www/project/static/media/whitepaper.webp",
             "www/project/static/css/architecture.css",
@@ -69,6 +75,7 @@ mod tests {
             "tex/generated/camera_count_statistics.png",
             "tex/generated/pipeline_receipt.json",
             "tex/generated/pipeline_engine.png",
+            "tex/generated/door_grid.jpg",
         ] {
             assert!(!retired(name), "retired current output {name}");
         }

@@ -18,6 +18,7 @@ mod lighting;
 pub mod materials;
 pub mod metrics;
 mod metrics_sort;
+pub mod motion;
 pub mod objects;
 mod plants;
 pub use plants::{species_name as plant_species_name, SPECIES as PLANT_SPECIES};
@@ -108,6 +109,7 @@ pub struct ProceduralIndoorPlugin;
 impl Plugin for ProceduralIndoorPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
+            motion::IndoorMotionPlugin,
             shading::IndoorShadingPlugin,
             materials::gpu::MaterialBakePlugin,
         ));
@@ -478,6 +480,7 @@ fn regenerate(
             crate::camera::CaptureCameraIndex(index),
             ZeroverseCamera {
                 perspective_sampler: PerspectiveSampler::exact(camera.fov_degrees),
+                principal_point_offset: camera.principal_point_offset.unwrap_or_default(),
                 trajectory: camera.runtime_trajectory(),
                 ..default()
             },

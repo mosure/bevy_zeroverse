@@ -224,6 +224,12 @@ pub fn expand(config: &BevyZeroverseConfig) -> Value {
         .and_then(|s| crate::human_motion::HumanMotionConfig::parse(s).ok())
         .map(|v| json!(v))
         .unwrap_or(Value::Null);
+    v["indoor_motion"] = config
+        .indoor_motion
+        .as_deref()
+        .and_then(|s| crate::scene::procedural_indoor::motion::IndoorMotionConfig::parse(s).ok())
+        .map(|v| json!(v))
+        .unwrap_or(Value::Null);
     v["viewer_state"] = Value::Null;
     v
 }
@@ -266,6 +272,8 @@ pub fn live(path: &str) -> bool {
     matches!(
         path,
         "/render_mode"
+            | "/depth_format"
+            | "/z_depth"
             | "/annotation_glass"
             | "/camera_grid"
             | "/room_schematic"

@@ -39,6 +39,9 @@ pub fn validate_config(
 
 impl BevyZeroverseConfig {
     pub fn validate_ovoxel(&self) -> Result<(), String> {
+        if self.ovoxel_mode != OvoxelMode::Disabled && self.indoor_motion.is_some() {
+            return Err("O-voxel requires static geometry; disable indoor_motion".into());
+        }
         validate_config(
             self.ovoxel_mode,
             self.playback_steps,

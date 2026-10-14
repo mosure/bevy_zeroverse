@@ -107,9 +107,29 @@ impl IndoorManifest {
                             })
                     })
                     .collect();
+                let purpose = self.functional_programs().iter().find(|program| {
+                    self.program
+                        .as_ref()
+                        .and_then(|p| p.zones.get(program.zone))
+                        .is_some_and(|z| {
+                            p.x > z.min.x && p.x < z.max.x && p.z > z.min.y && p.z < z.max.y
+                        })
+                });
+                let purpose_target = purpose.filter(|_| rng.random_bool(0.28)).map(|program| {
+                    let mut focus = program.focus
+                        + Vec3::new(
+                            rng.random_range(-0.65..0.65),
+                            rng.random_range(-0.20..0.35),
+                            rng.random_range(-0.25..0.60),
+                        );
+                    focus.y += self.floor_height(focus.xz());
+                    focus
+                });
                 let target = if require_person {
                     let human = people[rng.random_range(0..people.len())];
                     human.transform().transform_point(human.joints[2])
+                } else if let Some(focus) = purpose_target {
+                    focus
                 } else if !candidates.is_empty() && rng.random_bool(0.72) {
                     let object = candidates[rng.random_range(0..candidates.len())];
                     object.position
@@ -125,6 +145,10 @@ impl IndoorManifest {
                         rng.random_range(-half.z * 0.32..half.z * 0.25),
                     )
                 };
+                let level_pitch = viewpoint.level_pitch(rng);
+                let target = level_pitch.map_or(target, |pitch| {
+                    super::viewpoint::ViewpointProgram::aim_at_pitch(p, target, pitch)
+                });
                 if !self.camera_view_clear(p, target) {
                     rejected[1] += 1;
                     continue;
@@ -176,14 +200,11 @@ impl IndoorManifest {
                 };
                 let bend = right * rng.random_range(-0.60..0.60) * distance;
                 let mut camera = IndoorCamera {
+                    principal_point_offset: None,
                     start: p,
                     end,
                     target,
-                    // Log-uniform focal length gives useful wide through normal views.
-                    fov_degrees: (0.5 / rng.random_range(0.37_f32.ln()..2.0_f32.ln()).exp())
-                        .atan()
-                        .to_degrees()
-                        * 2.0,
+                    fov_degrees: self.camera_settings.intrinsics.sample(rng),
                     motion: (distance > 0.0).then_some(super::CameraMotion {
                         orientations: None,
                         route,
@@ -197,6 +218,9 @@ impl IndoorManifest {
                         roll: [rng.random_range(-0.09..0.09), rng.random_range(-0.09..0.09)],
                     }),
                 };
+                if let Some(pitch) = level_pitch {
+                    super::viewpoint::ViewpointProgram::apply_pitch(&mut camera, pitch);
+                }
                 if let Some(handheld) = &self.camera_settings.handheld {
                     handheld.apply(&mut camera, rng);
                 }
@@ -267,7 +291,10 @@ impl IndoorManifest {
             let mut slot = proposal / people.len();
             let direction_sign = if slot.is_multiple_of(2) { 1.0 } else { -1.0 };
             slot /= 2;
-            let fov_degrees = [84.0, 96.0, 106.0][slot % 3];
+            let fov_degrees = self
+                .camera_settings
+                .intrinsics
+                .recovery([84.0, 96.0, 106.0][slot % 3]);
             slot /= 3;
             let height_offset = [0.0, 0.3, -0.3, 0.6][slot % 4];
             slot /= 4;
@@ -304,6 +331,7 @@ impl IndoorManifest {
             };
             let end = start + radial.cross(Vec3::Y) * (distance * direction_sign);
             let mut camera = IndoorCamera {
+                principal_point_offset: None,
                 start,
                 end,
                 target,

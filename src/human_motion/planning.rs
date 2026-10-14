@@ -67,6 +67,13 @@ pub fn obstacles(
 ) -> Vec<(Vec3, Vec3)> {
     let half = scene.room_size * 0.5;
     let mut boxes = scene.camera_obstacles();
+    if let Some(motion) = &scene.indoor_motion {
+        boxes.extend(
+            motion
+                .reservations()
+                .map(|(a, b)| (a - Vec3::splat(0.025), b + Vec3::splat(0.025))),
+        );
+    }
     if let Some(e) = &scene.envelope {
         boxes.extend(e.motion_barriers(scene.room_size));
     }
@@ -90,15 +97,19 @@ pub fn obstacles(
         ),
         wall(
             Vec3::new(-half.x, 0.0, half.z - 0.06),
-            Vec3::new(scene.door_x - 0.50, scene.room_size.y, half.z + 0.06),
+            Vec3::new(
+                scene.door_x - scene.entry_width() * 0.5 + 0.022,
+                scene.room_size.y,
+                half.z + 0.06,
+            ),
         ),
         wall(
-            Vec3::new(scene.door_x + 0.50, 0.0, half.z - 0.06),
+            Vec3::new(
+                scene.door_x + scene.entry_width() * 0.5 - 0.022,
+                0.0,
+                half.z - 0.06,
+            ),
             Vec3::new(half.x, scene.room_size.y, half.z + 0.06),
-        ),
-        wall(
-            Vec3::new(scene.door_x + 0.48, 0.0, half.z + 0.01),
-            Vec3::new(scene.door_x + 0.57, 2.26, half.z + 1.11),
         ),
     ]);
     boxes.extend(

@@ -32,6 +32,61 @@
       "appearance": {}
     },
     {
+      "name": "principal_point",
+      "image_size": [
+        256,
+        160
+      ],
+      "camera": {
+        "duration_seconds": 2.0,
+        "long_path_fraction": 0.0,
+        "path_length_max": 0.6,
+        "path_length_min": 0.03,
+        "principal_point_jitter": [
+          0.15,
+          0.15
+        ]
+      },
+      "appearance": {}
+    },
+    {
+      "name": "portrait_principal_point",
+      "image_size": [
+        160,
+        256
+      ],
+      "camera": {
+        "duration_seconds": 2.0,
+        "long_path_fraction": 0.0,
+        "path_length_max": 0.6,
+        "path_length_min": 0.03,
+        "principal_point_jitter": [
+          0.15,
+          0.15
+        ]
+      },
+      "appearance": {}
+    },
+    {
+      "name": "connected_graph",
+      "cameras": 4,
+      "image_size": [
+        256,
+        160
+      ],
+      "camera": {
+        "duration_seconds": 2.0,
+        "long_path_fraction": 0.0,
+        "multiview": {
+          "graph": "connected",
+          "target_variation": 0.8
+        },
+        "path_length_max": 0.6,
+        "path_length_min": 0.03
+      },
+      "appearance": {}
+    },
+    {
       "name": "wide_baseline",
       "image_size": [
         256,

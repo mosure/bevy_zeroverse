@@ -1,5 +1,5 @@
 //! Constant-memory estimate of spatial diversity, excluding seed/colour identity.
-use super::layout::IndoorManifest;
+use super::layout::{IndoorManifest, ObjectKind};
 pub struct OccupancySketch {
     registers: [u8; 4096],
 }
@@ -12,13 +12,14 @@ impl Default for OccupancySketch {
 }
 impl OccupancySketch {
     pub fn insert(&mut self, scene: &IndoorManifest) {
-        let mut grid = [0u64; 144];
+        let mut grid = [[0u64; ObjectKind::ALL.len().div_ceil(64)]; 144];
         for object in scene.objects.iter().filter(|o| !o.neighbor) {
             let x =
                 ((object.position.x / scene.room_size.x + 0.5) * 12.0).clamp(0.0, 11.0) as usize;
             let z =
                 ((object.position.z / scene.room_size.z + 0.5) * 12.0).clamp(0.0, 11.0) as usize;
-            grid[z * 12 + x] |= 1u64 << object.kind as u32;
+            let kind = object.kind as usize;
+            grid[z * 12 + x][kind / 64] |= 1u64 << (kind % 64);
         }
         let mut hash = 0xcbf29ce484222325u64;
         let mut bytes = |data: &[u8]| {
@@ -27,7 +28,9 @@ impl OccupancySketch {
             }
         };
         for cell in grid {
-            bytes(&cell.to_le_bytes());
+            for word in cell {
+                bytes(&word.to_le_bytes());
+            }
         }
         if let Some(program) = &scene.program {
             for p in &program.partitions {
@@ -62,5 +65,34 @@ impl OccupancySketch {
         } else {
             raw
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn occupancy_sketch_distinguishes_the_entire_catalog_without_aliasing() {
+        let mut scene = IndoorManifest::generate_with_humans(
+            13,
+            super::super::layout::IndoorLayout::Mixed,
+            0.35,
+            0,
+            0.,
+        )
+        .unwrap();
+        scene.objects.truncate(1);
+        let mut sketch = OccupancySketch::default();
+        for kind in ObjectKind::ALL {
+            scene.objects[0].kind = kind;
+            sketch.insert(&scene);
+        }
+        let n = sketch.estimate();
+        assert!(
+            (n - ObjectKind::ALL.len() as f64).abs() < 3.,
+            "estimated {n}"
+        );
+        sketch.insert(&scene);
+        assert_eq!(n, sketch.estimate());
     }
 }

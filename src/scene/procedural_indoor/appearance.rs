@@ -75,6 +75,8 @@ impl IndoorManifest {
             materials::program::floor_finish(&mut program.materials, self.floor_style);
         }
         for recipe in &mut program.materials {
+            recipe.detail_scale =
+                (settings.material_detail != 1.).then_some(settings.material_detail);
             recipe.relief_m *= settings.material_detail;
             recipe.contrast *= settings.material_detail;
         }
@@ -111,6 +113,43 @@ impl IndoorManifest {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn detail_intervention_survives_every_sampled_finish_structure() {
+        let original =
+            IndoorManifest::generate(7, super::super::layout::IndoorLayout::Mixed, 0.65, 2)
+                .unwrap();
+        for detail in [0., 0.25, 1.] {
+            let mut scene = original.clone();
+            scene
+                .apply_appearance(AppearanceSettings {
+                    material_detail: detail,
+                    ..Default::default()
+                })
+                .unwrap();
+            for (base, changed) in original
+                .program
+                .as_ref()
+                .unwrap()
+                .materials
+                .iter()
+                .zip(&scene.program.as_ref().unwrap().materials)
+            {
+                for slot in 0..12 {
+                    let a = base.variant(slot);
+                    let b = changed.variant(slot);
+                    b.validate().unwrap();
+                    assert!(
+                        (b.relief_m - a.relief_m * detail).abs() < 1e-9,
+                        "{:?}/{slot}",
+                        a.surface
+                    );
+                    assert!((b.contrast - a.contrast * detail).abs() < 1e-7);
+                    assert_eq!(a.roughness, b.roughness);
+                    assert_eq!(a.color, b.color);
+                }
+            }
+        }
+    }
     #[test]
     fn factors_preserve_geometry_people_cameras_and_the_scene_family_seed() {
         let original =

@@ -69,9 +69,13 @@ This transport currently supports native procedural indoor scenes. Use the
 CPU archive API for O-voxel export, filesystem datasets and browser capture.
 
 If your model enables Burn fusion, enable `gpu_tensor_fusion` for its allocation
-bridge. The published human inference 0.2.0 render bridge uses
-an unfused primitive: combined fusion and optional `human_motion` need upstream
-fusion support. Static human geometry does not load the motion models.
+bridge. With published `burn_human_inference 0.2.0`, combining Burn fusion with
+`human_motion` fails to compile in the upstream tensor-primitive conversion.
+Cargo unifies features across the dependency graph: enabling `burn/fusion` in
+the training crate also triggers this restriction. Motion inference requires an
+unfused Burn configuration until the upstream bridge supports fusion. Both
+WGPU and CUDA capture support fusion with static people, and motion without
+fusion. Static human geometry does not load the motion models.
 
 Run the matched 512x512, three-view benchmark (full quality in both paths):
 

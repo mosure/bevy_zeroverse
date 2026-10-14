@@ -10,6 +10,7 @@ struct Builder<'a> {
     label: String,
     coverage: f32,
     tilt: f32,
+    fixed_angle: Option<f32>,
 }
 impl Builder<'_> {
     fn width(&self) -> f32 {
@@ -106,7 +107,7 @@ impl Builder<'_> {
         let pitch = self.height() / n as f32;
         let step = 0.004 + (pitch - 0.004) * self.coverage;
         let depth = (pitch * 1.07).min(0.092);
-        let tilt = self.tilt * self.coverage.sqrt();
+        let tilt = self.fixed_angle.unwrap_or(self.tilt * self.coverage.sqrt());
         let width = self.width() - 0.038;
         let center = self.center();
         let top = self.top() - depth * 0.5;
@@ -161,6 +162,7 @@ impl Builder<'_> {
         // Stacked vanes rotate nearly edge-on so adjacent lamellae do not overlap.
         let angle = if angle < 0. { -1. } else { 1. }
             * (angle.abs().max(0.12) * self.coverage + 1.50 * (1. - self.coverage));
+        let angle = self.fixed_angle.unwrap_or(angle);
         let stack_pitch = slat * angle.cos().abs() + 0.003;
         let step = stack_pitch.max(pitch * self.coverage).min(pitch);
         let span = (count - 1) as f32 * step;
@@ -344,6 +346,16 @@ pub(super) fn build(
     o: &WindowOpening,
     p: &ShadeProgram,
 ) {
+    build_with_angle(a, tf, f, o, p, None);
+}
+pub(super) fn build_with_angle(
+    a: &mut Assembly,
+    tf: Transform,
+    f: &Facade,
+    o: &WindowOpening,
+    p: &ShadeProgram,
+    fixed_angle: Option<f32>,
+) {
     let label = format!(
         "{}#finish{}",
         if f.shade == Shade::Curtain {
@@ -362,6 +374,7 @@ pub(super) fn build(
         label,
         coverage: f.shade_coverage.clamp(0., 1.),
         tilt: f.shade_tilt.clamp(-1.2, 1.2),
+        fixed_angle,
     };
     b.header(f.shade);
     match f.shade {

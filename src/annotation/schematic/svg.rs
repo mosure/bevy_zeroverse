@@ -50,6 +50,10 @@ pub(crate) fn camera_footprint(c: &Camera, length: f32) -> Result<Vec<[f32; 3]>,
         return Err("schematic cameras require rigid world_from_view matrices".into());
     }
     let d = length;
+    let offset = c.principal_point_offset.unwrap_or_default();
+    if !offset.is_finite() || offset.abs().cmpgt(Vec2::splat(0.5)).any() {
+        return Err("invalid schematic principal point".into());
+    }
     let corners = if let Some(calibration) = &c.calibration {
         calibration.validate()?;
         let k = calibration.k;
@@ -68,6 +72,7 @@ pub(crate) fn camera_footprint(c: &Camera, length: f32) -> Result<Vec<[f32; 3]>,
             Vec3::new(w, h, -d),
             Vec3::new(-w, h, -d),
         ]
+        .map(|p| p + Vec3::new(-2. * offset.x * w, 2. * offset.y * h, 0.))
     };
     // Convex hull of projected optical center and the four actual image corners.
     let mut hull: Vec<_> = std::iter::once(Vec3::ZERO)

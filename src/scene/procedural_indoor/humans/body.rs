@@ -1,6 +1,6 @@
 //! AnnyBody surface, retargeted with its full skinning weights. Garments are
 //! offset shells of that surface; no substitute primitive body is rendered.
-use super::rig::{cranial_rotation, segment, torso_segment};
+use super::rig::{segment, torso_segment};
 use super::{HumanAssembly, HumanSurface, IndoorHuman};
 use bevy::prelude::*;
 use burn_human::{AnnyBody, AnnyInput};
@@ -140,7 +140,7 @@ fn build_impl(
         let head_rotation = if motion_rest {
             Quat::IDENTITY
         } else {
-            cranial_rotation(p, h.head_yaw)
+            super::rig::head_rotation(p, h)
         };
         // Rest neck bones tilt forward anatomically. Aligning that vector with an
         // upright target rotates the whole skull backwards. Preserve the rest skull
@@ -250,6 +250,56 @@ fn build_impl(
                 }
             }
         }
+        if !motion_rest {
+            if let Some(program) = &h.pose_program {
+                for (arm, side) in ["L", "R"].into_iter().enumerate() {
+                    if h.worktop_contact.as_ref().is_some_and(|c| c.palms[arm]) {
+                        continue;
+                    }
+                    let direction =
+                        head(&format!("finger3-1.{side}")) - head(&format!("wrist.{side}"));
+                    let across = (head(&format!("finger5-1.{side}"))
+                        - head(&format!("finger2-1.{side}")))
+                        * if side == "L" { 1. } else { -1. };
+                    let normal = direction.cross(across).normalize_or(Vec3::Y);
+                    // Leave the opposable thumb in its anatomical rest pose.
+                    for finger in 2..=5 {
+                        let curl = program.finger_curl[arm]
+                            * if finger == 2 {
+                                1. - program.index_extension[arm]
+                            } else {
+                                1.
+                            };
+                        for joint in 1..=3 {
+                            let i = index(&format!("finger{finger}-{joint}.{side}"));
+                            let parent = transforms[parents[i] as usize];
+                            let bone_direction = if joint < 3 {
+                                head(&format!("finger{finger}-{}.{side}", joint + 1)) - heads[i]
+                            } else {
+                                heads[i] - head(&format!("finger{finger}-2.{side}"))
+                            };
+                            transforms[i] = if finger == 2 && program.index_extension[arm] > 0. {
+                                super::rig::point_finger(
+                                    parent,
+                                    heads[i],
+                                    bone_direction,
+                                    p[8 + arm * 4] - p[7 + arm * 4],
+                                    program.index_extension[arm],
+                                )
+                            } else {
+                                super::rig::curl_finger(
+                                    parent,
+                                    heads[i],
+                                    bone_direction,
+                                    normal,
+                                    curl,
+                                )
+                            };
+                        }
+                    }
+                }
+            }
+        }
         if motion_rest {
             transforms.fill(Mat4::from_scale(Vec3::splat(scale)));
         }
@@ -351,7 +401,7 @@ fn build_impl(
     let head_rotation = if motion_rest {
         Quat::IDENTITY
     } else {
-        cranial_rotation(p, h.head_yaw)
+        super::rig::head_rotation(p, h)
     };
     let neck = Mat4::from_scale_rotation_translation(
         Vec3::splat(scale),
@@ -374,12 +424,17 @@ fn build_impl(
     }
     let uv = &body.metadata().static_data.texture_coordinates.data;
     let mut mesh = HumanAssembly {
+        local_head_rotation: head_rotation,
         local_joints: resolved_joints
             .iter()
             .map(|p| *p - Vec3::Y * floor)
             .collect(),
         ..Default::default()
     };
+    // The head landmark follows the cranial rotation about the actual rig pivot,
+    // rather than remaining at the unrotated program's nominal centre.
+    mesh.local_joints[4] =
+        p[4] - Vec3::Y * (floor + 0.055 * scale) + head_rotation * Vec3::Y * (0.055 * scale);
     let torso_vertices: Vec<_> = vertices
         .iter()
         .enumerate()
@@ -713,29 +768,12 @@ fn build_impl(
     }
     // Eye and eyewear details attach to Anny's facial rig, following head turns.
     let face_rotation = head_rotation;
-    let forward = face_rotation * Vec3::NEG_Z;
     let mut eyes = Vec::new();
     for name in ["eye.L", "eye.R"] {
         let i = index(name);
         let eye = transforms[i].transform_point3(heads[i]) - Vec3::Y * floor;
         eyes.push(eye);
-        let front = posed
-            .iter()
-            .zip(&dominant)
-            .filter(|(_, bone)| **bone == i)
-            .map(|(v, _)| (*v - eye).dot(forward))
-            .reduce(f32::max)
-            .unwrap_or(0.011 * scale);
-        mesh.part(HumanSurface::Iris).ellipsoid(
-            Vec3::new(0.0055, 0.0055, 0.001) * scale,
-            Transform::from_translation(eye + forward * (front + 0.0004 * scale))
-                .with_rotation(face_rotation),
-        );
-        mesh.part(HumanSurface::Detail).ellipsoid(
-            Vec3::new(0.0021, 0.0021, 0.0005) * scale,
-            Transform::from_translation(eye + forward * (front + 0.0015 * scale))
-                .with_rotation(face_rotation),
-        );
+        super::face::iris(h.seed, eye, face_rotation, scale, &mut mesh);
     }
     super::face::append(h, &posed, faces, &eyes, face_rotation, scale, &mut mesh);
     if h.outfit.buttoned() {
@@ -865,7 +903,7 @@ mod tests {
                 super::super::HumanPoseKind::StandingRelaxed,
             );
             let joints = program.solve(1.75, 1.0, 0.43, false);
-            let rotation = cranial_rotation(&joints, 0.0);
+            let rotation = super::super::rig::cranial_rotation(&joints, 0.0);
             let up = (joints[2] - joints[0]).normalize();
             assert!((rotation * Vec3::Y).distance(up) < 1e-5);
             assert!((rotation * Vec3::NEG_Z).y.abs() < 0.15);
@@ -953,34 +991,20 @@ mod tests {
             let vertices: HashSet<_> = mesh
                 .parts
                 .iter()
-                .filter(|(surface, _)| {
-                    !matches!(
-                        surface,
-                        HumanSurface::Hair
-                            | HumanSurface::Detail
-                            | HumanSurface::Seam
-                            | HumanSurface::Iris
-                    )
-                })
+                .filter(|(surface, _)| !matches!(surface, HumanSurface::Hair | HumanSurface::Seam))
                 .flat_map(|(_, g)| &g.positions)
                 .map(|p| p.map(f32::to_bits))
                 .collect();
             // Only feet are replaced by constructed shoe shells; the body and
             // its face-corner UV atlas remain Anny, including split cloth cuts.
+            // Iris and pupil now partition original eye triangles, so include
+            // Iris/Detail when checking retention of the anatomical atlas.
             assert!(vertices.len() >= original_vertices.len() * 9 / 10);
             assert!(vertices.len() < original_vertices.len() * 2);
             let uvs: HashSet<_> = mesh
                 .parts
                 .iter()
-                .filter(|(s, _)| {
-                    !matches!(
-                        s,
-                        HumanSurface::Hair
-                            | HumanSurface::Detail
-                            | HumanSurface::Seam
-                            | HumanSurface::Iris
-                    )
-                })
+                .filter(|(s, _)| !matches!(s, HumanSurface::Hair | HumanSurface::Seam))
                 .flat_map(|(_, g)| &g.uvs)
                 .map(|uv| uv.map(f32::to_bits))
                 .collect();

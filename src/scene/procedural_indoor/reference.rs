@@ -176,7 +176,7 @@ pub fn export(world: &mut World, sample: &Sample, size: [u32; 2], directory: &Pa
     binary.flush()?;
     let environment = world.resource::<super::IndoorEnvironment>();
     let cameras: Vec<_> = sample.views.iter().enumerate().map(|(index,v)| json!({
-        "index":index,"world_from_view":v.world_from_view,"fov_y":v.fovy,"near":v.near,"far":v.far,"time":v.time
+        "index":index,"world_from_view":v.world_from_view,"fov_y":v.fovy,"near":v.near,"far":v.far,"time":v.time,"calibration":v.calibration
     })).collect();
     // The reference uses actual emission and visibility, not the raster lighting proxies.
     let document = json!({

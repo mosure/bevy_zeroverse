@@ -1,0 +1,4624 @@
+{
+  "camera_diagnostics": {
+    "reference_proposals": 1,
+    "long_reference_requests": 0,
+    "short_reference_recoveries": 0,
+    "reference_rejections": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "group_restarts": 0,
+    "connected_reference_recoveries": 0,
+    "peer_proposals": 129,
+    "peer_rejections": [
+      99,
+      1,
+      0,
+      10,
+      4,
+      13
+    ],
+    "endpoint_adjustments": 0
+  },
+  "assembly_diagnostics": {
+    "mounts": [],
+    "programs": [],
+    "kitchens": [],
+    "proposed_workstations": 112,
+    "proposed_meetings": 0,
+    "rejected_surfaces": 103,
+    "rejected_seating": 4,
+    "rejected_meetings": 0,
+    "accepted": [
+      {
+        "role": "Workstation",
+        "surface": 3,
+        "seats": [
+          4
+        ],
+        "requested_capacity": 1,
+        "attempts": 1
+      },
+      {
+        "role": "Workstation",
+        "surface": 5,
+        "seats": [
+          6
+        ],
+        "requested_capacity": 1,
+        "attempts": 1
+      },
+      {
+        "role": "Workstation",
+        "surface": 9,
+        "seats": [
+          10
+        ],
+        "requested_capacity": 1,
+        "attempts": 1
+      },
+      {
+        "role": "Workstation",
+        "surface": 11,
+        "seats": [
+          12
+        ],
+        "requested_capacity": 1,
+        "attempts": 1
+      },
+      {
+        "role": "Workstation",
+        "surface": 13,
+        "seats": [
+          14
+        ],
+        "requested_capacity": 1,
+        "attempts": 1
+      }
+    ]
+  },
+  "appearance": {
+    "material_seed": null,
+    "lighting_seed": null,
+    "material_detail": 1.0,
+    "illumination_scale": 1.0,
+    "exposure_ev100_offset": 0.0
+  },
+  "generator_version": 46,
+  "program": {
+    "domain": {
+      "photometry": {
+        "sun_lux": 200.338,
+        "sky_radiance": [
+          1.2604682,
+          1.378617,
+          1.5344838
+        ],
+        "environment_intensity": 58.094654,
+        "ev100": 7.301903,
+        "active_fraction": 0.9240297,
+        "circuit_contrast": 0.29906473,
+        "sun_kelvin": 5437.837,
+        "fixture_gradient": [
+          0.40417242,
+          -0.3141392
+        ],
+        "temperature_gradient": -806.75635
+      },
+      "target_lux": 827.82,
+      "fixture_kelvin": 3787.7466,
+      "facade_pier_fraction": 0.17427528,
+      "blind_coverage": 0.7447666,
+      "blind_tilt": -0.155882,
+      "ceiling_relief": 0.00030139243,
+      "ceiling_coverage": 0.79554117,
+      "clutter": 0.406638,
+      "service_density": 0.85756975,
+      "disorder": 0.8848078
+    },
+    "zones": [
+      {
+        "composition": {
+          "weights": [
+            0.20886663,
+            0.18304406,
+            0.43930402,
+            0.16878523
+          ],
+          "group_scale": 1.0218132,
+          "storage_bias": 0.14541242
+        },
+        "furnishing": {
+          "offset": [
+            0.030723251,
+            0.045377456
+          ],
+          "stagger": -0.18404683,
+          "curvature": -0.22696435,
+          "fan_radians": -0.39955536,
+          "jitter": 0.04941058,
+          "occupancy_gradient": [
+            0.20569015,
+            -0.11836904
+          ],
+          "opposing_probability": 0.6325115
+        },
+        "min": [
+          -4.8014345,
+          -4.0683246
+        ],
+        "max": [
+          0.9367051,
+          4.0683246
+        ],
+        "activity": "Reception",
+        "orientation": 3.6278281,
+        "aisle": 1.6671821,
+        "desk_width": 2.2104788,
+        "desk_depth": 0.77067363,
+        "seat_pitch": 1.1524552,
+        "occupancy": 0.6721455
+      },
+      {
+        "composition": {
+          "weights": [
+            0.3269374,
+            0.089369744,
+            0.30650878,
+            0.27718407
+          ],
+          "group_scale": 1.3288426,
+          "storage_bias": 0.8651478
+        },
+        "furnishing": {
+          "offset": [
+            -0.04071799,
+            0.00266435
+          ],
+          "stagger": 0.053303123,
+          "curvature": 0.37029594,
+          "fan_radians": -0.62781626,
+          "jitter": 0.121134505,
+          "occupancy_gradient": [
+            -0.18548322,
+            0.047785282
+          ],
+          "opposing_probability": 0.59160745
+        },
+        "min": [
+          0.9367051,
+          -4.0683246
+        ],
+        "max": [
+          4.8014345,
+          4.0683246
+        ],
+        "activity": "Library",
+        "orientation": 0.5946523,
+        "aisle": 0.790852,
+        "desk_width": 1.9895527,
+        "desk_depth": 0.84875643,
+        "seat_pitch": 0.8049804,
+        "occupancy": 0.6377679
+      }
+    ],
+    "partitions": [
+      {
+        "axis": 0,
+        "coordinate": 0.9367051,
+        "start": -3.6015306,
+        "end": 4.0683246,
+        "door_center": 2.9644372,
+        "door_width": 1.3928425,
+        "door_height": 2.6502306,
+        "arch_rise": 0.6002307,
+        "door": null,
+        "thickness": 0.1106035,
+        "sill": 0.55107766,
+        "glazing_fraction": 0.3555695,
+        "mullion_pitch": 1.2093425,
+        "transom_fraction": 0.3809933
+      }
+    ],
+    "light_spacing": [
+      3.365893,
+      3.584434
+    ],
+    "light_phase": [
+      0.054743633,
+      -0.1363201
+    ],
+    "light_drop": 0.20428038,
+    "fixture_size": [
+      0.7344478,
+      0.5733868
+    ],
+    "materials": [
+      {
+        "layers": {
+          "quarter_turn": 2,
+          "bands": [
+            4,
+            1
+          ],
+          "stripe_strength": 0.0,
+          "fleck_strength": 0.0,
+          "vein_strength": 0.0
+        },
+        "textile": null,
+        "leather": null,
+        "mineral": null,
+        "coating": {
+          "glaze": null,
+          "application": {
+            "spray_spacing_m": 0.008616911,
+            "roller_spacing_m": 0.003797294,
+            "roller_stretch": 1.8193947,
+            "orange_peel_m": 0.001851505,
+            "orange_peel": 0.1628825,
+            "brush_spacing_m": 0.000737543,
+            "brush": 0.11189452,
+            "trowel_scale_m": 0.021514207,
+            "lap_variation": 0.051523056,
+            "repair_mix": 0.00024990138
+          },
+          "cells": [
+            59,
+            49
+          ],
+          "texture_mix": 0.14224559,
+          "knockdown": 0.762412,
+          "roller": 0.2445893,
+          "trowel": 0.5379363,
+          "pinholes": 0.03405955,
+          "pigment_variation": 0.050955907,
+          "gloss": 0.19288339,
+          "clearcoat": 0.0,
+          "coat_roughness": 0.18,
+          "crackle": 0.0
+        },
+        "wood": null,
+        "leaf": null,
+        "cuticle": null,
+        "surface": "Paint",
+        "seed": 2304224580301692344,
+        "color": [
+          0.79856366,
+          0.702556,
+          0.733818
+        ],
+        "roughness": 0.81112397,
+        "period_m": 0.21544102,
+        "relief_m": 0.000031151976,
+        "grain_frequency": 76.43865,
+        "cross_frequency": 2.8049603,
+        "warp": 0.052133642,
+        "contrast": 0.032235473,
+        "weathering": 0.0081045255,
+        "mineral_mix": 0.974882,
+        "weave_mix": 0.33690608,
+        "phase": [
+          0.9195293,
+          0.62130165
+        ],
+        "panel_count": [
+          8,
+          5
+        ],
+        "joint_width": 0.0034457194
+      },
+      {
+        "layers": {
+          "quarter_turn": 0,
+          "bands": [
+            6,
+            4
+          ],
+          "stripe_strength": 0.0,
+          "fleck_strength": 0.0,
+          "vein_strength": 0.0
+        },
+        "textile": null,
+        "leather": null,
+        "mineral": null,
+        "coating": {
+          "glaze": null,
+          "application": {
+            "spray_spacing_m": 0.003993484,
+            "roller_spacing_m": 0.0023673205,
+            "roller_stretch": 3.9230323,
+            "orange_peel_m": 0.0016253376,
+            "orange_peel": 0.4671529,
+            "brush_spacing_m": 0.0012811176,
+            "brush": 0.022425095,
+            "trowel_scale_m": 0.064496435,
+            "lap_variation": 0.023006745,
+            "repair_mix": 0.07934981
+          },
+          "cells": [
+            59,
+            42
+          ],
+          "texture_mix": 0.4400438,
+          "knockdown": 0.61723226,
+          "roller": 0.2793975,
+          "trowel": 0.16823636,
+          "pinholes": 0.007440233,
+          "pigment_variation": 0.0074727163,
+          "gloss": 0.010101358,
+          "clearcoat": 0.0,
+          "coat_roughness": 0.18,
+          "crackle": 0.0
+        },
+        "wood": null,
+        "leaf": null,
+        "cuticle": null,
+        "surface": "Accent",
+        "seed": 95750180268439422,
+        "color": [
+          0.6068572,
+          0.23073891,
+          0.43465072
+        ],
+        "roughness": 0.942727,
+        "period_m": 0.36229277,
+        "relief_m": 0.00014386507,
+        "grain_frequency": 58.84861,
+        "cross_frequency": 2.5430527,
+        "warp": 0.039044045,
+        "contrast": 0.021416206,
+        "weathering": 0.004212259,
+        "mineral_mix": 0.7559792,
+        "weave_mix": 0.53681767,
+        "phase": [
+          0.33839887,
+          0.62943834
+        ],
+        "panel_count": [
+          10,
+          5
+        ],
+        "joint_width": 0.0020537002
+      },
+      {
+        "layers": {
+          "quarter_turn": 2,
+          "bands": [
+            11,
+            2
+          ],
+          "stripe_strength": 0.0,
+          "fleck_strength": 0.0,
+          "vein_strength": 0.21950875
+        },
+        "textile": null,
+        "leather": null,
+        "mineral": null,
+        "coating": null,
+        "wood": {
+          "seed": 8432102450519219871,
+          "stain_color": [
+            0.32527435,
+            0.29973435,
+            0.29107973
+          ],
+          "stain_strength": 0.77960455,
+          "bleach": 8.631512e-8,
+          "pore_fill": 0.72496134,
+          "ring_contrast": 0.5481019,
+          "clearcoat": 0.63928026,
+          "coat_roughness": 0.051419824
+        },
+        "leaf": null,
+        "cuticle": null,
+        "surface": "Wood",
+        "seed": 8432102450519219871,
+        "color": [
+          0.74464,
+          0.5595602,
+          0.3955686
+        ],
+        "roughness": 0.2322998,
+        "period_m": 0.9336437,
+        "relief_m": 0.00013042263,
+        "grain_frequency": 58.126244,
+        "cross_frequency": 1.8972327,
+        "warp": 0.063396126,
+        "contrast": 0.6038465,
+        "weathering": 0.007625621,
+        "mineral_mix": 0.16436768,
+        "weave_mix": 0.5973377,
+        "phase": [
+          0.43228894,
+          0.11863184
+        ],
+        "panel_count": [
+          13,
+          4
+        ],
+        "joint_width": 0.0020260874
+      },
+      {
+        "layers": {
+          "quarter_turn": 2,
+          "bands": [
+            10,
+            3
+          ],
+          "stripe_strength": 0.0,
+          "fleck_strength": 0.0,
+          "vein_strength": 0.7850298
+        },
+        "textile": null,
+        "leather": null,
+        "mineral": null,
+        "coating": null,
+        "wood": {
+          "seed": 8432102450519219871,
+          "stain_color": [
+            0.32527435,
+            0.29973435,
+            0.29107973
+          ],
+          "stain_strength": 0.77960455,
+          "bleach": 8.631512e-8,
+          "pore_fill": 0.72496134,
+          "ring_contrast": 0.5481019,
+          "clearcoat": 0.63928026,
+          "coat_roughness": 0.051419824
+        },
+        "leaf": null,
+        "cuticle": null,
+        "surface": "WoodEdge",
+        "seed": 3089327053087647653,
+        "color": [
+          0.74464,
+          0.5595602,
+          0.3955686
+        ],
+        "roughness": 0.4461953,
+        "period_m": 0.2915203,
+        "relief_m": 0.00015932936,
+        "grain_frequency": 79.24886,
+        "cross_frequency": 1.4423165,
+        "warp": 0.04022108,
+        "contrast": 0.37966472,
+        "weathering": 0.03260887,
+        "mineral_mix": 0.84757507,
+        "weave_mix": 0.7899767,
+        "phase": [
+          0.24934608,
+          0.80748403
+        ],
+        "panel_count": [
+          14,
+          5
+        ],
+        "joint_width": 0.00259022
+      },
+      {
+        "flooring": {
+          "layout": "Straight",
+          "cells": [
+            7,
+            5
+          ],
+          "basket_strips": 4,
+          "piece_tone": 0.24232689,
+          "piece_warmth": 0.04897298,
+          "piece_roughness": 0.089919955,
+          "mottling": 0.058250338,
+          "accent_fraction": 0.0,
+          "accent_tint": [
+            0.80582654,
+            0.73536813,
+            0.7001389
+          ],
+          "tile_definition": 0.0
+        },
+        "carpet": {
+          "pattern": 0,
+          "repeats": [
+            3,
+            2
+          ],
+          "palette": [
+            [
+              0.44034284,
+              0.42533916,
+              0.41633692
+            ],
+            [
+              0.7375809,
+              0.7586246,
+              0.77125096
+            ],
+            [
+              0.1426935,
+              0.13783155,
+              0.13491437
+            ]
+          ],
+          "contrast": 0.35299104,
+          "heather": 0.072354175,
+          "pile": 0.4676134,
+          "line_width": 0.1120529,
+          "edge_variation": 0.0030526104
+        },
+        "layers": {
+          "quarter_turn": 2,
+          "bands": [
+            2,
+            4
+          ],
+          "stripe_strength": 0.007943272,
+          "fleck_strength": 0.36580706,
+          "vein_strength": 0.22873163
+        },
+        "textile": {
+          "yarns": [
+            32,
+            32
+          ],
+          "repeat": 4,
+          "float_length": 2,
+          "advance": 3,
+          "bundle": 2,
+          "herringbone": false,
+          "width": [
+            0.88022405,
+            0.84974235
+          ],
+          "slub": 0.19222683,
+          "crimp": 0.30496448,
+          "twist": 0.60652876,
+          "fuzz": 0.43213594,
+          "lustre": 0.8430093,
+          "dye_variation": 0.10683067,
+          "yarn_tint": [
+            [
+              0.98078954,
+              0.9692835,
+              0.921728
+            ],
+            [
+              0.9134153,
+              0.9042952,
+              0.9559274
+            ]
+          ],
+          "pile": 0.6484037,
+          "knit": false
+        },
+        "leather": null,
+        "mineral": {
+          "casting": null,
+          "aggregate_cells": [
+            63,
+            47
+          ],
+          "aggregate_exposure": 0.0047242222,
+          "aggregate_radius": 0.27801487,
+          "aggregate_color": [
+            [
+              0.6919435,
+              0.6375762,
+              0.60495585
+            ],
+            [
+              0.31931287,
+              0.28373364,
+              0.26238608
+            ]
+          ],
+          "porosity": 0.02862009,
+          "marble_mix": 0.9472733,
+          "vein_cells": [
+            6,
+            6
+          ],
+          "vein_width": 0.044965964,
+          "vein_warp": 0.29035273,
+          "vein_strength": 0.5060627,
+          "vein_color": [
+            0.65866494,
+            0.66180414,
+            0.66431546
+          ],
+          "polish": 0.982506,
+          "binder_variation": 0.09251468
+        },
+        "coating": null,
+        "wood": {
+          "seed": 18035940476790391229,
+          "stain_color": [
+            0.1647802,
+            0.15045077,
+            0.13609776
+          ],
+          "stain_strength": 0.15299934,
+          "bleach": 0.0020159832,
+          "pore_fill": 0.3478849,
+          "ring_contrast": 1.0391972,
+          "clearcoat": 0.034635488,
+          "coat_roughness": 0.13785262
+        },
+        "leaf": null,
+        "cuticle": null,
+        "surface": "Floor",
+        "seed": 18035940476790391229,
+        "color": [
+          0.44034284,
+          0.42533916,
+          0.41633692
+        ],
+        "roughness": 0.9096807,
+        "period_m": 3.2155304,
+        "relief_m": 0.0004335633,
+        "grain_frequency": 51.736122,
+        "cross_frequency": 1.6239963,
+        "warp": 0.04865597,
+        "contrast": 0.13195103,
+        "weathering": 0.034121927,
+        "mineral_mix": 0.9659089,
+        "weave_mix": 0.99056494,
+        "phase": [
+          0.24114108,
+          0.8236533
+        ],
+        "panel_count": [
+          13,
+          2
+        ],
+        "joint_width": 0.003271114
+      },
+      {
+        "layers": {
+          "quarter_turn": 1,
+          "bands": [
+            6,
+            3
+          ],
+          "stripe_strength": 0.0,
+          "fleck_strength": 0.0,
+          "vein_strength": 0.0
+        },
+        "textile": null,
+        "leather": null,
+        "mineral": null,
+        "coating": {
+          "glaze": null,
+          "application": {
+            "spray_spacing_m": 0.008349577,
+            "roller_spacing_m": 0.0050140526,
+            "roller_stretch": 2.950778,
+            "orange_peel_m": 0.0013709171,
+            "orange_peel": 0.01422958,
+            "brush_spacing_m": 0.00069098885,
+            "brush": 0.054040693,
+            "trowel_scale_m": 0.05355628,
+            "lap_variation": 0.016935188,
+            "repair_mix": 0.14633133
+          },
+          "cells": [
+            36,
+            63
+          ],
+          "texture_mix": 0.8157944,
+          "knockdown": 0.10992374,
+          "roller": 0.67503786,
+          "trowel": 0.24223222,
+          "pinholes": 0.031009054,
+          "pigment_variation": 0.024068836,
+          "gloss": 0.078861594,
+          "clearcoat": 0.0,
+          "coat_roughness": 0.18,
+          "crackle": 0.0
+        },
+        "wood": null,
+        "leaf": null,
+        "cuticle": null,
+        "surface": "Ceiling",
+        "seed": 4537823722261934902,
+        "color": [
+          0.9408512,
+          0.9370929,
+          0.9383167
+        ],
+        "roughness": 0.89321965,
+        "period_m": 0.31560403,
+        "relief_m": 0.0004505883,
+        "grain_frequency": 51.239914,
+        "cross_frequency": 1.1844985,
+        "warp": 0.037079804,
+        "contrast": 0.034559157,
+        "weathering": 0.012470813,
+        "mineral_mix": 0.91985035,
+        "weave_mix": 0.60716605,
+        "phase": [
+          0.0071282983,
+          0.89338666
+        ],
+        "panel_count": [
+          13,
+          2
+        ],
+        "joint_width": 0.0013311825
+      },
+      {
+        "layers": {
+          "quarter_turn": 2,
+          "bands": [
+            6,
+            3
+          ],
+          "stripe_strength": 0.0,
+          "fleck_strength": 0.0,
+          "vein_strength": 0.0
+        },
+        "textile": null,
+        "leather": null,
+        "mineral": null,
+        "coating": null,
+        "wood": null,
+        "leaf": null,
+        "cuticle": null,
+        "surface": "Metal",
+        "seed": 15734928473384607093,
+        "color": [
+          0.12492649,
+          0.12867428,
+          0.13242207
+        ],
+        "roughness": 0.48946548,
+        "period_m": 0.05218332,
+        "relief_m": 0.0000096281665,
+        "grain_frequency": 63.802277,
+        "cross_frequency": 2.311296,
+        "warp": 0.015310215,
+        "contrast": 0.0051298854,
+        "weathering": 0.0038591991,
+        "mineral_mix": 0.3541261,
+        "weave_mix": 0.068234086,
+        "phase": [
+          0.068847895,
+          0.5332488
+        ],
+        "panel_count": [
+          14,
+          4
+        ],
+        "joint_width": 0.0025948677
+      },
+      {
+        "layers": {
+          "quarter_turn": 0,
+          "bands": [
+            11,
+            1
+          ],
+          "stripe_strength": 0.0,
+          "fleck_strength": 0.0,
+          "vein_strength": 0.0
+        },
+        "textile": null,
+        "leather": null,
+        "mineral": null,
+        "coating": null,
+        "wood": null,
+        "leaf": null,
+        "cuticle": null,
+        "surface": "Chrome",
+        "seed": 11660539786370201120,
+        "color": [
+          0.86479086,
+          0.8734388,
+          0.88208663
+        ],
+        "roughness": 0.1534641,
+        "period_m": 0.046815302,
+        "relief_m": 6.7356166e-7,
+        "grain_frequency": 19.307571,
+        "cross_frequency": 1.0097173,
+        "warp": 0.08021925,
+        "contrast": 0.006733844,
+        "weathering": 0.0037667062,
+        "mineral_mix": 0.8095727,
+        "weave_mix": 0.28006327,
+        "phase": [
+          0.16996568,
+          0.24475515
+        ],
+        "panel_count": [
+          8,
+          5
+        ],
+        "joint_width": 0.002307834
+      },
+      {
+        "layers": {
+          "quarter_turn": 1,
+          "bands": [
+            2,
+            3
+          ],
+          "stripe_strength": 0.0,
+          "fleck_strength": 0.0,
+          "vein_strength": 0.0
+        },
+        "textile": null,
+        "leather": null,
+        "mineral": null,
+        "coating": null,
+        "wood": null,
+        "leaf": null,
+        "cuticle": null,
+        "surface": "Plastic",
+        "seed": 1965348345311973963,
+        "color": [
+          0.18109752,
+          0.18653044,
+          0.19196336
+        ],
+        "roughness": 0.5168729,
+        "period_m": 0.12935498,
+        "relief_m": 0.000020621152,
+        "grain_frequency": 30.660301,
+        "cross_frequency": 1.3448869,
+        "warp": 0.060844578,
+        "contrast": 0.044624023,
+        "weathering": 0.0048453137,
+        "mineral_mix": 0.6750325,
+        "weave_mix": 0.91601133,
+        "phase": [
+          0.18615144,
+          0.19274783
+        ],
+        "panel_count": [
+          11,
+          4
+        ],
+        "joint_width": 0.0025243112
+      },
+      {
+        "layers": {
+          "quarter_turn": 3,
+          "bands": [
+            7,
+            0
+          ],
+          "stripe_strength": 0.31928027,
+          "fleck_strength": 0.0,
+          "vein_strength": 0.0
+        },
+        "textile": {
+          "yarns": [
+            42,
+            42
+          ],
+          "repeat": 7,
+          "float_length": 3,
+          "advance": 6,
+          "bundle": 3,
+          "herringbone": true,
+          "width": [
+            0.8257314,
+            0.6681543
+          ],
+          "slub": 0.027336085,
+          "crimp": 0.26869518,
+          "twist": 0.51355743,
+          "fuzz": 0.48604608,
+          "lustre": 0.011808956,
+          "dye_variation": 0.13552727,
+          "yarn_tint": [
+            [
+              0.93925905,
+              0.8959608,
+              0.99352753
+            ],
+            [
+              0.99230045,
+              0.94171435,
+              0.96279895
+            ]
+          ],
+          "pile": 0.0,
+          "knit": false
+        },
+        "leather": null,
+        "mineral": null,
+        "coating": null,
+        "wood": null,
+        "leaf": null,
+        "cuticle": null,
+        "surface": "Fabric",
+        "seed": 11256080775980704569,
+        "color": [
+          0.39088196,
+          0.38775983,
+          0.38557434
+        ],
+        "roughness": 0.83366656,
+        "period_m": 0.08484105,
+        "relief_m": 0.00017846866,
+        "grain_frequency": 50.878227,
+        "cross_frequency": 3.43325,
+        "warp": 0.0326476,
+        "contrast": 0.24899518,
+        "weathering": 0.015264953,
+        "mineral_mix": 0.14462435,
+        "weave_mix": 0.8298907,
+        "phase": [
+          0.24065036,
+          0.13989049
+        ],
+        "panel_count": [
+          13,
+          3
+        ],
+        "joint_width": 0.0023342804
+      },
+      {
+        "layers": {
+          "quarter_turn": 2,
+          "bands": [
+            1,
+            0
+          ],
+          "stripe_strength": 0.17005876,
+          "fleck_strength": 0.0,
+          "vein_strength": 0.0
+        },
+        "textile": {
+          "yarns": [
+            28,
+            28
+          ],
+          "repeat": 7,
+          "float_length": 3,
+          "advance": 2,
+          "bundle": 2,
+          "herringbone": false,
+          "width": [
+            0.74615395,
+            0.6093008
+          ],
+          "slub": 0.1732681,
+          "crimp": 0.14409809,
+          "twist": -1.2629135,
+          "fuzz": 0.31875917,
+          "lustre": 0.29634702,
+          "dye_variation": 0.07012326,
+          "yarn_tint": [
+            [
+              0.8889107,
+              0.97922754,
+              0.91188616
+            ],
+            [
+              0.90200585,
+              0.9205413,
+              0.89256126
+            ]
+          ],
+          "pile": 0.0,
+          "knit": false
+        },
+        "leather": null,
+        "mineral": null,
+        "coating": null,
+        "wood": null,
+        "leaf": null,
+        "cuticle": null,
+        "surface": "FabricAlt",
+        "seed": 9101948532257867642,
+        "color": [
+          0.6388286,
+          0.26794708,
+          0.5767257
+        ],
+        "roughness": 0.7148477,
+        "period_m": 0.06566515,
+        "relief_m": 0.00009603061,
+        "grain_frequency": 38.844543,
+        "cross_frequency": 4.661454,
+        "warp": 0.059183117,
+        "contrast": 0.21693161,
+        "weathering": 0.06438108,
+        "mineral_mix": 0.58297884,
+        "weave_mix": 0.75999236,
+        "phase": [
+          0.20941836,
+          0.28459036
+        ],
+        "panel_count": [
+          12,
+          3
+        ],
+        "joint_width": 0.0015673791
+      },
+      {
+        "layers": {
+          "quarter_turn": 1,
+          "bands": [
+            11,
+            4
+          ],
+          "stripe_strength": 0.0,
+          "fleck_strength": 0.0,
+          "vein_strength": 0.0
+        },
+        "textile": null,
+        "leather": null,
+        "mineral": null,
+        "coating": null,
+        "wood": null,
+        "leaf": null,
+        "cuticle": null,
+        "surface": "Glass",
+        "seed": 8318878957966752042,
+        "color": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "roughness": 0.012592673,
+        "period_m": 0.7868482,
+        "relief_m": 0.00024926857,
+        "grain_frequency": 63.141045,
+        "cross_frequency": 3.2947905,
+        "warp": 0.011719864,
+        "contrast": 0.19063506,
+        "weathering": 0.13723344,
+        "mineral_mix": 0.04566908,
+        "weave_mix": 0.4826597,
+        "phase": [
+          0.5519602,
+          0.27323556
+        ],
+        "panel_count": [
+          12,
+          5
+        ],
+        "joint_width": 0.0029690978
+      },
+      {
+        "layers": {
+          "quarter_turn": 2,
+          "bands": [
+            6,
+            0
+          ],
+          "stripe_strength": 0.0,
+          "fleck_strength": 0.30816874,
+          "vein_strength": 0.789991
+        },
+        "textile": null,
+        "leather": null,
+        "mineral": null,
+        "coating": {
+          "glaze": {
+            "body_grain_m": 0.0014478134,
+            "cloud_scale_m": 0.021375999,
+            "reactive_mix": 0.067352995,
+            "reactive_color": [
+              0.8850734,
+              0.758701,
+              0.6702403
+            ],
+            "thickness_variation": 0.60102934,
+            "flow": 0.40645555,
+            "throwing": 0.0143657075,
+            "turning_pitch_m": 0.0021164773,
+            "speckle_density": 0.14496084,
+            "speckle_radius_m": 0.00026569332,
+            "speckle_color": [
+              0.2,
+              0.11056537,
+              0.06481041
+            ],
+            "crack_spacing_m": 0.006557251
+          },
+          "application": null,
+          "cells": [
+            38,
+            63
+          ],
+          "texture_mix": 0.63172626,
+          "knockdown": 0.107719995,
+          "roller": 0.34533665,
+          "trowel": 0.0,
+          "pinholes": 0.003935921,
+          "pigment_variation": 0.04412282,
+          "gloss": 0.9043024,
+          "clearcoat": 0.26548362,
+          "coat_roughness": 0.08753718,
+          "crackle": 0.0
+        },
+        "wood": null,
+        "leaf": null,
+        "cuticle": null,
+        "surface": "Ceramic",
+        "seed": 11739928224732643487,
+        "color": [
+          0.37470013,
+          0.10682655,
+          0.14599916
+        ],
+        "roughness": 0.14890224,
+        "period_m": 0.13154127,
+        "relief_m": 0.00004278114,
+        "grain_frequency": 28.204369,
+        "cross_frequency": 1.1088885,
+        "warp": 0.088273995,
+        "contrast": 0.040129535,
+        "weathering": 0.008262351,
+        "mineral_mix": 0.4997344,
+        "weave_mix": 0.6315793,
+        "phase": [
+          0.082330406,
+          0.80119824
+        ],
+        "panel_count": [
+          8,
+          1
+        ],
+        "joint_width": 0.0024573826
+      },
+      {
+        "layers": {
+          "quarter_turn": 3,
+          "bands": [
+            8,
+            4
+          ],
+          "stripe_strength": 0.0,
+          "fleck_strength": 0.0,
+          "vein_strength": 0.0
+        },
+        "textile": null,
+        "leather": null,
+        "mineral": {
+          "casting": null,
+          "aggregate_cells": [
+            56,
+            40
+          ],
+          "aggregate_exposure": 0.64283335,
+          "aggregate_radius": 0.4442181,
+          "aggregate_color": [
+            [
+              0.69073814,
+              0.67737424,
+              0.6693559
+            ],
+            [
+              0.5883632,
+              0.5906607,
+              0.59203917
+            ]
+          ],
+          "porosity": 0.1898122,
+          "marble_mix": 0.0,
+          "vein_cells": [
+            7,
+            7
+          ],
+          "vein_width": 0.02980847,
+          "vein_warp": 0.1385168,
+          "vein_strength": 0.44793692,
+          "vein_color": [
+            0.779559,
+            0.6645679,
+            0.5725751
+          ],
+          "polish": 0.0,
+          "binder_variation": 0.13737665
+        },
+        "coating": null,
+        "wood": null,
+        "leaf": null,
+        "cuticle": null,
+        "surface": "Soil",
+        "seed": 13725156400621236628,
+        "color": [
+          0.15040946,
+          0.087237485,
+          0.043618742
+        ],
+        "roughness": 0.9187348,
+        "period_m": 0.09190935,
+        "relief_m": 0.00036240465,
+        "grain_frequency": 55.734932,
+        "cross_frequency": 3.915563,
+        "warp": 0.07127523,
+        "contrast": 0.22232072,
+        "weathering": 0.12527406,
+        "mineral_mix": 0.09739053,
+        "weave_mix": 0.9183161,
+        "phase": [
+          0.3240773,
+          0.38040125
+        ],
+        "panel_count": [
+          14,
+          3
+        ],
+        "joint_width": 0.0024984824
+      },
+      {
+        "layers": {
+          "quarter_turn": 0,
+          "bands": [
+            2,
+            4
+          ],
+          "stripe_strength": 0.0,
+          "fleck_strength": 0.0,
+          "vein_strength": 0.0
+        },
+        "textile": null,
+        "leather": null,
+        "mineral": null,
+        "coating": null,
+        "wood": null,
+        "leaf": {
+          "vein_pairs": 14,
+          "vein_rake": 0.64976937,
+          "vein_curve": 0.015366316,
+          "vein_width": 0.00282247,
+          "midrib_width": 0.004166825,
+          "chlorophyll_variation": 0.119638175,
+          "variegation": 0.00081111194,
+          "patch_cells": [
+            3,
+            4
+          ],
+          "pale_color": [
+            0.74792767,
+            0.7561398,
+            0.61070657
+          ],
+          "wax": 0.71136725,
+          "transmission": 0.0489683,
+          "reference_size_m": [
+            0.05292243,
+            0.15015444
+          ]
+        },
+        "cuticle": null,
+        "surface": "Leaf",
+        "seed": 1122349169023299077,
+        "color": [
+          0.06758177,
+          0.19494373,
+          0.06288448
+        ],
+        "roughness": 0.38968047,
+        "period_m": 1.0,
+        "relief_m": 0.000027400936,
+        "grain_frequency": 70.305504,
+        "cross_frequency": 7.739557,
+        "warp": 0.020715188,
+        "contrast": 0.035107326,
+        "weathering": 0.10214109,
+        "mineral_mix": 0.56187034,
+        "weave_mix": 0.032447934,
+        "phase": [
+          0.9939727,
+          0.76992196
+        ],
+        "panel_count": [
+          14,
+          2
+        ],
+        "joint_width": 0.0016215728
+      },
+      {
+        "layers": {
+          "quarter_turn": 3,
+          "bands": [
+            1,
+            1
+          ],
+          "stripe_strength": 0.0,
+          "fleck_strength": 0.0,
+          "vein_strength": 0.0
+        },
+        "textile": null,
+        "leather": null,
+        "mineral": null,
+        "coating": null,
+        "wood": null,
+        "leaf": {
+          "vein_pairs": 15,
+          "vein_rake": 0.5675204,
+          "vein_curve": 0.13628975,
+          "vein_width": 0.005703234,
+          "midrib_width": 0.0032841805,
+          "chlorophyll_variation": 0.12008167,
+          "variegation": 0.0026501776,
+          "patch_cells": [
+            4,
+            6
+          ],
+          "pale_color": [
+            0.8256421,
+            0.8279242,
+            0.6769871
+          ],
+          "wax": 0.18899146,
+          "transmission": 0.0808747,
+          "reference_size_m": [
+            0.062551744,
+            0.14043139
+          ]
+        },
+        "cuticle": null,
+        "surface": "LeafLight",
+        "seed": 12528860943796073195,
+        "color": [
+          0.17703891,
+          0.3261075,
+          0.07600678
+        ],
+        "roughness": 0.5881833,
+        "period_m": 1.0,
+        "relief_m": 0.000044426757,
+        "grain_frequency": 17.640938,
+        "cross_frequency": 6.805745,
+        "warp": 0.03129015,
+        "contrast": 0.13346405,
+        "weathering": 0.11280135,
+        "mineral_mix": 0.92271626,
+        "weave_mix": 0.97343075,
+        "phase": [
+          0.9003896,
+          0.9377827
+        ],
+        "panel_count": [
+          8,
+          4
+        ],
+        "joint_width": 0.0016327742
+      },
+      {
+        "layers": {
+          "quarter_turn": 2,
+          "bands": [
+            10,
+            1
+          ],
+          "stripe_strength": 0.0,
+          "fleck_strength": 0.0,
+          "vein_strength": 0.0
+        },
+        "textile": null,
+        "leather": null,
+        "mineral": null,
+        "coating": null,
+        "wood": null,
+        "leaf": null,
+        "cuticle": null,
+        "surface": "Paper",
+        "seed": 11897178916005321466,
+        "color": [
+          0.8726924,
+          0.85704255,
+          0.86888623
+        ],
+        "roughness": 0.90320474,
+        "period_m": 0.14146261,
+        "relief_m": 0.000027765278,
+        "grain_frequency": 61.365326,
+        "cross_frequency": 3.7038927,
+        "warp": 0.041378286,
+        "contrast": 0.009484889,
+        "weathering": 0.0032873799,
+        "mineral_mix": 0.1437918,
+        "weave_mix": 0.77860403,
+        "phase": [
+          0.61605823,
+          0.14820397
+        ],
+        "panel_count": [
+          13,
+          5
+        ],
+        "joint_width": 0.003190353
+      },
+      {
+        "layers": {
+          "quarter_turn": 0,
+          "bands": [
+            1,
+            0
+          ],
+          "stripe_strength": 0.0,
+          "fleck_strength": 0.0,
+          "vein_strength": 0.0
+        },
+        "textile": null,
+        "leather": null,
+        "mineral": null,
+        "coating": null,
+        "wood": null,
+        "leaf": null,
+        "cuticle": null,
+        "surface": "Screen",
+        "seed": 3510866338103806909,
+        "color": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "roughness": 0.1839797,
+        "period_m": 0.4512804,
+        "relief_m": 0.00012743007,
+        "grain_frequency": 23.572556,
+        "cross_frequency": 3.844299,
+        "warp": 0.016666014,
+        "contrast": 0.20215024,
+        "weathering": 0.09347268,
+        "mineral_mix": 0.045680523,
+        "weave_mix": 0.7272358,
+        "phase": [
+          0.93797714,
+          0.10951942
+        ],
+        "panel_count": [
+          5,
+          2
+        ],
+        "joint_width": 0.0026577297
+      },
+      {
+        "layers": {
+          "quarter_turn": 2,
+          "bands": [
+            6,
+            4
+          ],
+          "stripe_strength": 0.0,
+          "fleck_strength": 0.0,
+          "vein_strength": 0.0
+        },
+        "textile": null,
+        "leather": null,
+        "mineral": null,
+        "coating": null,
+        "wood": null,
+        "leaf": null,
+        "cuticle": null,
+        "surface": "Ink",
+        "seed": 135605495561336338,
+        "color": [
+          0.04,
+          0.065,
+          0.09
+        ],
+        "roughness": 0.7182906,
+        "period_m": 1.3331827,
+        "relief_m": 0.0000979393,
+        "grain_frequency": 20.442139,
+        "cross_frequency": 6.81437,
+        "warp": 0.060942836,
+        "contrast": 0.17850727,
+        "weathering": 0.083472185,
+        "mineral_mix": 0.83811665,
+        "weave_mix": 0.1928159,
+        "phase": [
+          0.5256759,
+          0.5698562
+        ],
+        "panel_count": [
+          12,
+          5
+        ],
+        "joint_width": 0.0021579564
+      },
+      {
+        "layers": {
+          "quarter_turn": 1,
+          "bands": [
+            4,
+            2
+          ],
+          "stripe_strength": 0.0,
+          "fleck_strength": 0.0,
+          "vein_strength": 0.0
+        },
+        "textile": null,
+        "leather": null,
+        "mineral": null,
+        "coating": null,
+        "wood": null,
+        "leaf": null,
+        "cuticle": null,
+        "surface": "Light",
+        "seed": 18406804269501879226,
+        "color": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "roughness": 0.7089349,
+        "period_m": 0.8835547,
+        "relief_m": 0.00015461599,
+        "grain_frequency": 35.26442,
+        "cross_frequency": 1.8820896,
+        "warp": 0.063746095,
+        "contrast": 0.09169336,
+        "weathering": 0.026141003,
+        "mineral_mix": 0.2978382,
+        "weave_mix": 0.99192417,
+        "phase": [
+          0.74178356,
+          0.08032805
+        ],
+        "panel_count": [
+          4,
+          3
+        ],
+        "joint_width": 0.0033881362
+      },
+      {
+        "layers": {
+          "quarter_turn": 0,
+          "bands": [
+            11,
+            4
+          ],
+          "stripe_strength": 0.0,
+          "fleck_strength": 0.82686377,
+          "vein_strength": 0.77760214
+        },
+        "textile": null,
+        "leather": null,
+        "mineral": {
+          "casting": {
+            "formwork": 0.0010386815,
+            "board_width_m": 0.24653605,
+            "form_relief_m": 0.00008327904,
+            "seam_width_m": 0.0011572236,
+            "trowel": 0.5376657,
+            "trowel_scale_m": 0.06725053,
+            "cure_variation": 0.055033397,
+            "bleed": 0.025701644,
+            "sand_exposure": 0.12411574,
+            "bughole_density": 0.061628975,
+            "bughole_radius_m": 0.0021203072,
+            "bughole_depth_m": 0.0009984105
+          },
+          "aggregate_cells": [
+            40,
+            28
+          ],
+          "aggregate_exposure": 0.041119765,
+          "aggregate_radius": 0.45254508,
+          "aggregate_color": [
+            [
+              0.5853386,
+              0.5850725,
+              0.58491284
+            ],
+            [
+              0.66884756,
+              0.6685435,
+              0.66836107
+            ]
+          ],
+          "porosity": 0.023193236,
+          "marble_mix": 0.0,
+          "vein_cells": [
+            2,
+            6
+          ],
+          "vein_width": 0.04194573,
+          "vein_warp": 0.030869108,
+          "vein_strength": 0.79048127,
+          "vein_color": [
+            0.09966547,
+            0.085875124,
+            0.074842855
+          ],
+          "polish": 0.0949972,
+          "binder_variation": 0.04764865
+        },
+        "coating": null,
+        "wood": null,
+        "leaf": null,
+        "cuticle": null,
+        "surface": "Concrete",
+        "seed": 18237892233934949242,
+        "color": [
+          0.48062527,
+          0.47581902,
+          0.456594
+        ],
+        "roughness": 0.8230017,
+        "period_m": 0.6062286,
+        "relief_m": 0.00033265795,
+        "grain_frequency": 18.473114,
+        "cross_frequency": 4.695734,
+        "warp": 0.010824379,
+        "contrast": 0.06302667,
+        "weathering": 0.011888857,
+        "mineral_mix": 0.53933084,
+        "weave_mix": 0.6265006,
+        "phase": [
+          0.50561833,
+          0.6956368
+        ],
+        "panel_count": [
+          7,
+          4
+        ],
+        "joint_width": 0.0018065835
+      },
+      {
+        "layers": {
+          "quarter_turn": 2,
+          "bands": [
+            6,
+            2
+          ],
+          "stripe_strength": 0.0,
+          "fleck_strength": 0.0,
+          "vein_strength": 0.0
+        },
+        "textile": null,
+        "leather": null,
+        "mineral": null,
+        "coating": null,
+        "wood": null,
+        "leaf": null,
+        "cuticle": null,
+        "surface": "Art",
+        "seed": 17154550479012101030,
+        "color": [
+          0.70755965,
+          0.32990208,
+          0.6637223
+        ],
+        "roughness": 0.5085285,
+        "period_m": 1.0339199,
+        "relief_m": 0.00022193434,
+        "grain_frequency": 45.535057,
+        "cross_frequency": 2.090685,
+        "warp": 0.08461277,
+        "contrast": 0.2070485,
+        "weathering": 0.08810709,
+        "mineral_mix": 0.6382381,
+        "weave_mix": 0.09882867,
+        "phase": [
+          0.031153917,
+          0.8074234
+        ],
+        "panel_count": [
+          12,
+          5
+        ],
+        "joint_width": 0.002185049
+      },
+      {
+        "layers": {
+          "quarter_turn": 0,
+          "bands": [
+            2,
+            1
+          ],
+          "stripe_strength": 0.0,
+          "fleck_strength": 0.0,
+          "vein_strength": 0.0
+        },
+        "textile": null,
+        "leather": null,
+        "mineral": null,
+        "coating": null,
+        "wood": null,
+        "leaf": null,
+        "cuticle": null,
+        "surface": "Rubber",
+        "seed": 4352642286519715406,
+        "color": [
+          0.035,
+          0.036,
+          0.037
+        ],
+        "roughness": 0.9556346,
+        "period_m": 0.13525096,
+        "relief_m": 0.0001534883,
+        "grain_frequency": 64.7231,
+        "cross_frequency": 7.4397736,
+        "warp": 0.040276557,
+        "contrast": 0.1216573,
+        "weathering": 0.09583854,
+        "mineral_mix": 0.15416658,
+        "weave_mix": 0.006747484,
+        "phase": [
+          0.7412854,
+          0.7583825
+        ],
+        "panel_count": [
+          3,
+          2
+        ],
+        "joint_width": 0.0034943107
+      },
+      {
+        "layers": {
+          "quarter_turn": 0,
+          "bands": [
+            11,
+            4
+          ],
+          "stripe_strength": 0.0,
+          "fleck_strength": 0.0,
+          "vein_strength": 0.0
+        },
+        "textile": null,
+        "leather": null,
+        "mineral": null,
+        "coating": null,
+        "wood": null,
+        "leaf": {
+          "vein_pairs": 12,
+          "vein_rake": 0.6072993,
+          "vein_curve": -0.13320374,
+          "vein_width": 0.0028658714,
+          "midrib_width": 0.009543707,
+          "chlorophyll_variation": 0.23733571,
+          "variegation": 0.29640263,
+          "patch_cells": [
+            7,
+            9
+          ],
+          "pale_color": [
+            0.74433905,
+            0.7552737,
+            0.6502523
+          ],
+          "wax": 0.6468507,
+          "transmission": 0.0499462,
+          "reference_size_m": [
+            0.04297558,
+            0.21596831
+          ]
+        },
+        "cuticle": null,
+        "surface": "LeafVariegated",
+        "seed": 16029936026063126215,
+        "color": [
+          0.2226909,
+          0.34109366,
+          0.06575178
+        ],
+        "roughness": 0.41419676,
+        "period_m": 1.0,
+        "relief_m": 0.00006056644,
+        "grain_frequency": 66.70834,
+        "cross_frequency": 7.371622,
+        "warp": 0.039248828,
+        "contrast": 0.20130949,
+        "weathering": 0.048204944,
+        "mineral_mix": 0.81113267,
+        "weave_mix": 0.8410177,
+        "phase": [
+          0.65800726,
+          0.31683016
+        ],
+        "panel_count": [
+          10,
+          2
+        ],
+        "joint_width": 0.0034235958
+      },
+      {
+        "layers": {
+          "quarter_turn": 1,
+          "bands": [
+            6,
+            1
+          ],
+          "stripe_strength": 0.0,
+          "fleck_strength": 0.0,
+          "vein_strength": 0.0
+        },
+        "textile": null,
+        "leather": null,
+        "mineral": {
+          "casting": null,
+          "aggregate_cells": [
+            43,
+            52
+          ],
+          "aggregate_exposure": 0.019793566,
+          "aggregate_radius": 0.19156158,
+          "aggregate_color": [
+            [
+              0.37906504,
+              0.39432707,
+              0.40348434
+            ],
+            [
+              0.2931377,
+              0.27050248,
+              0.25692135
+            ]
+          ],
+          "porosity": 0.24683875,
+          "marble_mix": 0.0,
+          "vein_cells": [
+            5,
+            5
+          ],
+          "vein_width": 0.013819615,
+          "vein_warp": 0.2807298,
+          "vein_strength": 0.63530093,
+          "vein_color": [
+            0.15816258,
+            0.13082056,
+            0.10894694
+          ],
+          "polish": 0.0,
+          "binder_variation": 0.045050308
+        },
+        "coating": null,
+        "wood": null,
+        "leaf": null,
+        "cuticle": null,
+        "surface": "Terracotta",
+        "seed": 10211525136032989542,
+        "color": [
+          0.42724356,
+          0.27632862,
+          0.12817307
+        ],
+        "roughness": 0.63738155,
+        "period_m": 0.123617575,
+        "relief_m": 0.00029549742,
+        "grain_frequency": 39.64582,
+        "cross_frequency": 5.0088344,
+        "warp": 0.03765203,
+        "contrast": 0.15023415,
+        "weathering": 0.0027577735,
+        "mineral_mix": 0.08640659,
+        "weave_mix": 0.7539139,
+        "phase": [
+          0.3532598,
+          0.49200815
+        ],
+        "panel_count": [
+          5,
+          3
+        ],
+        "joint_width": 0.001051896
+      },
+      {
+        "layers": {
+          "quarter_turn": 2,
+          "bands": [
+            1,
+            0
+          ],
+          "stripe_strength": 0.0,
+          "fleck_strength": 0.0,
+          "vein_strength": 0.035773944
+        },
+        "textile": null,
+        "leather": null,
+        "mineral": null,
+        "coating": null,
+        "wood": null,
+        "leaf": null,
+        "cuticle": null,
+        "surface": "Bark",
+        "seed": 15279803587678551915,
+        "color": [
+          0.24776113,
+          0.17343278,
+          0.09910446
+        ],
+        "roughness": 0.40792733,
+        "period_m": 0.18920413,
+        "relief_m": 0.0011708637,
+        "grain_frequency": 78.41332,
+        "cross_frequency": 4.5348296,
+        "warp": 0.071336314,
+        "contrast": 0.3674754,
+        "weathering": 0.027657293,
+        "mineral_mix": 0.7958926,
+        "weave_mix": 0.40366828,
+        "phase": [
+          0.64530414,
+          0.103176594
+        ],
+        "panel_count": [
+          9,
+          3
+        ],
+        "joint_width": 0.0012348951
+      },
+      {
+        "layers": {
+          "quarter_turn": 2,
+          "bands": [
+            4,
+            1
+          ],
+          "stripe_strength": 0.0,
+          "fleck_strength": 0.0,
+          "vein_strength": 0.0
+        },
+        "textile": null,
+        "leather": null,
+        "mineral": null,
+        "coating": null,
+        "wood": null,
+        "leaf": null,
+        "cuticle": null,
+        "surface": "GlassInterior",
+        "seed": 15693717266502637340,
+        "color": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "roughness": 0.02232935,
+        "period_m": 1.3046963,
+        "relief_m": 0.000114621864,
+        "grain_frequency": 43.19188,
+        "cross_frequency": 1.9524409,
+        "warp": 0.006838655,
+        "contrast": 0.10691388,
+        "weathering": 0.11783961,
+        "mineral_mix": 0.30128837,
+        "weave_mix": 0.9135269,
+        "phase": [
+          0.63666177,
+          0.7487164
+        ],
+        "panel_count": [
+          4,
+          4
+        ],
+        "joint_width": 0.003130251
+      },
+      {
+        "layers": {
+          "quarter_turn": 3,
+          "bands": [
+            6,
+            1
+          ],
+          "stripe_strength": 0.0,
+          "fleck_strength": 0.0,
+          "vein_strength": 0.0
+        },
+        "textile": null,
+        "leather": null,
+        "mineral": null,
+        "coating": null,
+        "wood": null,
+        "leaf": null,
+        "cuticle": null,
+        "surface": "ContainerGlass",
+        "seed": 2086108354780129205,
+        "color": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "roughness": 0.07305464,
+        "period_m": 1.2016499,
+        "relief_m": 0.00019707336,
+        "grain_frequency": 20.820503,
+        "cross_frequency": 3.1529365,
+        "warp": 0.054380327,
+        "contrast": 0.12074646,
+        "weathering": 0.030244501,
+        "mineral_mix": 0.41331613,
+        "weave_mix": 0.87396276,
+        "phase": [
+          0.33445394,
+          0.910581
+        ],
+        "panel_count": [
+          5,
+          5
+        ],
+        "joint_width": 0.0016813038
+      },
+      {
+        "layers": {
+          "quarter_turn": 2,
+          "bands": [
+            2,
+            3
+          ],
+          "stripe_strength": 0.0,
+          "fleck_strength": 0.0,
+          "vein_strength": 0.0
+        },
+        "textile": null,
+        "leather": null,
+        "mineral": null,
+        "coating": null,
+        "wood": null,
+        "leaf": null,
+        "cuticle": null,
+        "surface": "Liquid",
+        "seed": 13725713807314039326,
+        "color": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "roughness": 0.042212397,
+        "period_m": 1.3539948,
+        "relief_m": 0.00016969297,
+        "grain_frequency": 68.79221,
+        "cross_frequency": 4.985343,
+        "warp": 0.06763251,
+        "contrast": 0.20373078,
+        "weathering": 0.045450706,
+        "mineral_mix": 0.51416457,
+        "weave_mix": 0.4053564,
+        "phase": [
+          0.22208321,
+          0.8908769
+        ],
+        "panel_count": [
+          14,
+          3
+        ],
+        "joint_width": 0.003226424
+      },
+      {
+        "layers": {
+          "quarter_turn": 0,
+          "bands": [
+            8,
+            4
+          ],
+          "stripe_strength": 0.0,
+          "fleck_strength": 0.0,
+          "vein_strength": 0.0
+        },
+        "textile": null,
+        "leather": null,
+        "mineral": null,
+        "coating": null,
+        "wood": null,
+        "leaf": null,
+        "cuticle": null,
+        "surface": "Drink",
+        "seed": 16602919097449500287,
+        "color": [
+          0.09,
+          0.038,
+          0.016
+        ],
+        "roughness": 0.122425646,
+        "period_m": 0.5917735,
+        "relief_m": 0.00028152292,
+        "grain_frequency": 40.11821,
+        "cross_frequency": 4.9128675,
+        "warp": 0.009938985,
+        "contrast": 0.10206433,
+        "weathering": 0.09717888,
+        "mineral_mix": 0.8099605,
+        "weave_mix": 0.6729852,
+        "phase": [
+          0.0034891963,
+          0.4443736
+        ],
+        "panel_count": [
+          11,
+          4
+        ],
+        "joint_width": 0.0017996673
+      },
+      {
+        "layers": {
+          "quarter_turn": 1,
+          "bands": [
+            4,
+            4
+          ],
+          "stripe_strength": 0.0,
+          "fleck_strength": 0.0,
+          "vein_strength": 0.0
+        },
+        "textile": null,
+        "leather": null,
+        "mineral": null,
+        "coating": null,
+        "wood": null,
+        "leaf": null,
+        "cuticle": null,
+        "surface": "PhoneScreen",
+        "seed": 14266566859396072624,
+        "color": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "roughness": 0.2793563,
+        "period_m": 1.101689,
+        "relief_m": 0.000049471902,
+        "grain_frequency": 70.82845,
+        "cross_frequency": 6.2762547,
+        "warp": 0.07324108,
+        "contrast": 0.105037674,
+        "weathering": 0.036245104,
+        "mineral_mix": 0.9823451,
+        "weave_mix": 0.07981968,
+        "phase": [
+          0.37639052,
+          0.98256713
+        ],
+        "panel_count": [
+          4,
+          5
+        ],
+        "joint_width": 0.0022307704
+      },
+      {
+        "layers": {
+          "quarter_turn": 0,
+          "bands": [
+            1,
+            4
+          ],
+          "stripe_strength": 0.0,
+          "fleck_strength": 0.0,
+          "vein_strength": 0.0
+        },
+        "textile": null,
+        "leather": null,
+        "mineral": null,
+        "coating": null,
+        "wood": null,
+        "leaf": null,
+        "cuticle": null,
+        "surface": "PrintedPaper",
+        "seed": 4259222386518948033,
+        "color": [
+          0.8506237,
+          0.80689675,
+          0.82154095
+        ],
+        "roughness": 0.8629553,
+        "period_m": 0.9929855,
+        "relief_m": 0.00010786286,
+        "grain_frequency": 40.323105,
+        "cross_frequency": 7.529987,
+        "warp": 0.058400653,
+        "contrast": 0.015745126,
+        "weathering": 0.001250084,
+        "mineral_mix": 0.5611149,
+        "weave_mix": 0.6684052,
+        "phase": [
+          0.6435282,
+          0.25708044
+        ],
+        "panel_count": [
+          5,
+          2
+        ],
+        "joint_width": 0.0028716687
+      },
+      {
+        "layers": {
+          "quarter_turn": 3,
+          "bands": [
+            11,
+            2
+          ],
+          "stripe_strength": 0.0,
+          "fleck_strength": 0.0,
+          "vein_strength": 0.0
+        },
+        "textile": null,
+        "leather": {
+          "cells": [
+            36,
+            38
+          ],
+          "stretch": 1.1001239,
+          "roundness": 1.0309587,
+          "pore_depth": 0.13591737,
+          "crease_strength": 0.047426313,
+          "mottling": 0.17101762,
+          "polish": 0.46244895,
+          "nap": 0.046653926,
+          "coat": 0.4879137,
+          "coat_roughness": 0.24053237
+        },
+        "mineral": null,
+        "coating": null,
+        "wood": null,
+        "leaf": null,
+        "cuticle": null,
+        "surface": "Leather",
+        "seed": 17970497405357530106,
+        "color": [
+          0.37380722,
+          0.49683475,
+          0.35496488
+        ],
+        "roughness": 0.41655868,
+        "period_m": 0.03176702,
+        "relief_m": 0.000031835363,
+        "grain_frequency": 71.28743,
+        "cross_frequency": 1.7222679,
+        "warp": 0.059225623,
+        "contrast": 0.3422874,
+        "weathering": 0.01966842,
+        "mineral_mix": 0.40379632,
+        "weave_mix": 0.70806897,
+        "phase": [
+          0.7683306,
+          0.40083343
+        ],
+        "panel_count": [
+          14,
+          1
+        ],
+        "joint_width": 0.0019763336
+      },
+      {
+        "layers": {
+          "quarter_turn": 1,
+          "bands": [
+            8,
+            3
+          ],
+          "stripe_strength": 0.0,
+          "fleck_strength": 0.0,
+          "vein_strength": 0.0
+        },
+        "textile": null,
+        "leather": null,
+        "mineral": null,
+        "coating": null,
+        "wood": null,
+        "leaf": null,
+        "cuticle": null,
+        "surface": "Whiteboard",
+        "seed": 8474951382870127167,
+        "color": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "roughness": 0.284593,
+        "period_m": 0.9952977,
+        "relief_m": 0.00026852876,
+        "grain_frequency": 60.6325,
+        "cross_frequency": 5.3518643,
+        "warp": 0.018837035,
+        "contrast": 0.18643403,
+        "weathering": 0.030577486,
+        "mineral_mix": 0.38727534,
+        "weave_mix": 0.2563374,
+        "phase": [
+          0.9128503,
+          0.54219437
+        ],
+        "panel_count": [
+          11,
+          5
+        ],
+        "joint_width": 0.0029970445
+      },
+      {
+        "layers": {
+          "quarter_turn": 1,
+          "bands": [
+            5,
+            0
+          ],
+          "stripe_strength": 0.0,
+          "fleck_strength": 0.0,
+          "vein_strength": 0.0
+        },
+        "textile": null,
+        "leather": null,
+        "mineral": null,
+        "coating": null,
+        "wood": null,
+        "leaf": null,
+        "cuticle": null,
+        "surface": "Television",
+        "seed": 16907664224586526970,
+        "color": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "roughness": 0.23273364,
+        "period_m": 1.26658,
+        "relief_m": 0.000078063815,
+        "grain_frequency": 30.864616,
+        "cross_frequency": 3.5744832,
+        "warp": 0.041853268,
+        "contrast": 0.05550041,
+        "weathering": 0.124690436,
+        "mineral_mix": 0.8542445,
+        "weave_mix": 0.9625884,
+        "phase": [
+          0.20836997,
+          0.04209137
+        ],
+        "panel_count": [
+          9,
+          1
+        ],
+        "joint_width": 0.0034768768
+      },
+      {
+        "layers": {
+          "quarter_turn": 1,
+          "bands": [
+            12,
+            3
+          ],
+          "stripe_strength": 0.0,
+          "fleck_strength": 0.0,
+          "vein_strength": 0.0
+        },
+        "textile": null,
+        "leather": null,
+        "mineral": null,
+        "coating": null,
+        "wood": null,
+        "leaf": null,
+        "cuticle": {
+          "chlorophyll_variation": 0.026457287,
+          "wax": 0.72027445,
+          "bloom": 0.3984525,
+          "pore_cells": [
+            45,
+            44
+          ],
+          "pore_contrast": 0.04827006,
+          "transmission": 0.017258251
+        },
+        "surface": "Succulent",
+        "seed": 17394118912417492474,
+        "color": [
+          0.087855496,
+          0.24487604,
+          0.04005469
+        ],
+        "roughness": 0.4399314,
+        "period_m": 0.15128002,
+        "relief_m": 0.000012569502,
+        "grain_frequency": 36.1521,
+        "cross_frequency": 7.763644,
+        "warp": 0.0055580735,
+        "contrast": 0.2134079,
+        "weathering": 0.092705496,
+        "mineral_mix": 0.8226836,
+        "weave_mix": 0.9585042,
+        "phase": [
+          0.40750188,
+          0.59366405
+        ],
+        "panel_count": [
+          6,
+          3
+        ],
+        "joint_width": 0.001338359
+      }
+    ],
+    "finishes": {
+      "niche": {
+        "width_fraction": 0.14526765,
+        "position_fraction": 0.5798874,
+        "bottom_fraction": 0.284409,
+        "height_fraction": 0.42207465,
+        "depth_m": 0.17914683,
+        "shelf_pitch_m": 0.29413325
+      },
+      "ceiling_pitch": [
+        0.50240064,
+        0.80153733
+      ],
+      "panel_pitch": 1.1556301,
+      "panel_height": 0.4670677,
+      "reveal": 0.023344252
+    }
+  },
+  "seed": 0,
+  "layout": "Reception",
+  "world_yaw": 0.0,
+  "room_size": [
+    9.602869,
+    4.0209236,
+    8.136649
+  ],
+  "envelope": {
+    "soffits": [],
+    "footprint": [
+      [
+        -4.400894,
+        -4.0683246
+      ],
+      [
+        -1.2544826,
+        -4.0683246
+      ],
+      [
+        -1.2544826,
+        -3.6015306
+      ],
+      [
+        0.96278393,
+        -3.6015306
+      ],
+      [
+        0.96278393,
+        -4.0683246
+      ],
+      [
+        4.4752283,
+        -4.0683246
+      ],
+      [
+        4.8014345,
+        4.0683246
+      ],
+      [
+        -4.8014345,
+        4.0683246
+      ],
+      [
+        -4.689975,
+        1.8041098
+      ],
+      [
+        -3.8947074,
+        1.3636512
+      ],
+      [
+        -3.823685,
+        -0.0791146
+      ],
+      [
+        -4.5718474,
+        -0.595551
+      ]
+    ],
+    "ceiling_drop": [
+      -0.01832335,
+      0.5480434
+    ],
+    "floor_patches": [],
+    "pillars": [
+      {
+        "center": [
+          -0.44210148,
+          -1.3858567
+        ],
+        "radius": 0.14863233,
+        "sides": 32,
+        "profile": {
+          "aspect": 0.6451236,
+          "roundness": 3.9008603,
+          "taper": 0.9751478,
+          "rotation": 1.1929454,
+          "collar_height": 0.08632721
+        }
+      },
+      {
+        "center": [
+          -3.0852747,
+          -1.6933832
+        ],
+        "radius": 0.269132,
+        "sides": 32,
+        "profile": {
+          "aspect": 0.8608836,
+          "roundness": 7.453489,
+          "taper": 0.8946511,
+          "rotation": 0.47332335,
+          "collar_height": 0.11865233
+        }
+      }
+    ],
+    "mezzanine": null,
+    "walls": [
+      {
+        "edge": 0,
+        "facade": {
+          "side": "Rear",
+          "openings": [
+            {
+              "glazing": {
+                "identity": 13189476298195705140,
+                "installation": 0,
+                "thickness_m": 0.012876403,
+                "treatment": 1,
+                "band_m": [
+                  0.9450737,
+                  1.5959126
+                ],
+                "feather_m": 0.13468133,
+                "pitch_m": 0.1912612,
+                "duty": 0.31500274,
+                "frost_roughness": 0.21182299,
+                "opening": 0.0
+              },
+              "min": [
+                -1.4340768,
+                0.018006207
+              ],
+              "max": [
+                1.4340768,
+                3.9680574
+              ],
+              "columns": 3,
+              "transom": 0.0,
+              "operable": false
+            }
+          ],
+          "frame": "WoodEdge",
+          "frame_width": 0.057989188,
+          "frame_depth": 0.100242525,
+          "recess": 0.10156659,
+          "sill_projection": 0.134618,
+          "treatment": {
+            "identity": 8040164087938744186,
+            "slat_pitch": 0.07792178,
+            "fold_pitch": 0.15359406,
+            "fold_depth": 0.02118207,
+            "fullness": 1.4635484,
+            "hem_sag": 0.009753127,
+            "split": 0.5372918,
+            "tieback": 0.0,
+            "stack": "Pair",
+            "slat_material": "Plastic",
+            "fabric": "Fabric",
+            "finish_slot": 8
+          },
+          "shade": "None",
+          "shade_coverage": 0.273112,
+          "shade_tilt": -0.68294334
+        }
+      },
+      {
+        "edge": 1,
+        "facade": null
+      },
+      {
+        "edge": 2,
+        "facade": null
+      },
+      {
+        "edge": 3,
+        "facade": null
+      },
+      {
+        "edge": 4,
+        "facade": null
+      },
+      {
+        "edge": 5,
+        "facade": null
+      },
+      {
+        "edge": 7,
+        "facade": null
+      },
+      {
+        "edge": 8,
+        "facade": null
+      },
+      {
+        "edge": 9,
+        "facade": null
+      },
+      {
+        "edge": 10,
+        "facade": null
+      },
+      {
+        "edge": 11,
+        "facade": {
+          "side": "Rear",
+          "openings": [
+            {
+              "glazing": {
+                "identity": 6244689591786299271,
+                "installation": 87109,
+                "thickness_m": 0.012610244,
+                "treatment": 0,
+                "band_m": [
+                  0.64766,
+                  1.4811981
+                ],
+                "feather_m": 0.047804877,
+                "pitch_m": 0.16532148,
+                "duty": 0.2240323,
+                "frost_roughness": 0.309323,
+                "opening": 0.0
+              },
+              "min": [
+                -1.5518621,
+                0.1554499
+              ],
+              "max": [
+                1.5518621,
+                2.2719746
+              ],
+              "columns": 2,
+              "transom": 0.0,
+              "operable": true
+            },
+            {
+              "glazing": {
+                "identity": 16037684658301203297,
+                "installation": 87109,
+                "thickness_m": 0.012610244,
+                "treatment": 0,
+                "band_m": [
+                  0.64766,
+                  1.4811981
+                ],
+                "feather_m": 0.10375064,
+                "pitch_m": 0.06653985,
+                "duty": 0.23597905,
+                "frost_roughness": 0.4591099,
+                "opening": 0.0
+              },
+              "min": [
+                -1.5518621,
+                2.5759492
+              ],
+              "max": [
+                1.5518621,
+                3.5368154
+              ],
+              "columns": 2,
+              "transom": 0.0,
+              "operable": false
+            }
+          ],
+          "frame": "Metal",
+          "frame_width": 0.030485835,
+          "frame_depth": 0.088238895,
+          "recess": 0.051497094,
+          "sill_projection": 0.062167775,
+          "treatment": {
+            "identity": 13564170861032508814,
+            "slat_pitch": 0.059704818,
+            "fold_pitch": 0.19760457,
+            "fold_depth": 0.03324823,
+            "fullness": 1.9949548,
+            "hem_sag": 0.0077146874,
+            "split": 0.53240347,
+            "tieback": 0.0,
+            "stack": "Right",
+            "slat_material": "WoodEdge",
+            "fabric": "Fabric",
+            "finish_slot": 2
+          },
+          "shade": "None",
+          "shade_coverage": 0.75206345,
+          "shade_tilt": -0.6477247
+        }
+      }
+    ]
+  },
+  "ceiling_installation": {
+    "exposed_slab": false,
+    "modules": [
+      {
+        "system": "OpenCell",
+        "center": [
+          2.0428874,
+          3.1847086,
+          0.9470813
+        ],
+        "size": [
+          1.2592626,
+          0.342015,
+          1.4435359
+        ],
+        "support_top_m": 3.7266638,
+        "pitch_m": 0.37482637,
+        "thickness_m": 0.030840803,
+        "seed": 13135199338753085834,
+        "detail": {
+          "finish": 2,
+          "shape": {
+            "kind": "Grid",
+            "aspect": 0.9536488,
+            "recess_m": 0.0030289977
+          }
+        }
+      }
+    ]
+  },
+  "palette": 4,
+  "furniture_style": 2,
+  "floor_plan": "CornerCore",
+  "furnishing_quarter_turn": 3,
+  "floor_style": 1,
+  "ceiling_style": 2,
+  "architecture_style": "Timber",
+  "exterior": {
+    "exposure_probability": 0.8167089,
+    "facades": [
+      {
+        "side": "Left",
+        "openings": [
+          {
+            "glazing": {
+              "identity": 13189476298195705140,
+              "installation": 0,
+              "thickness_m": 0.012876403,
+              "treatment": 1,
+              "band_m": [
+                0.9450737,
+                1.5959126
+              ],
+              "feather_m": 0.13468133,
+              "pitch_m": 0.1912612,
+              "duty": 0.31500274,
+              "frost_roughness": 0.21182299,
+              "opening": 0.0
+            },
+            "min": [
+              -3.6145742,
+              0.018006235
+            ],
+            "max": [
+              3.6145742,
+              3.985615
+            ],
+            "columns": 6,
+            "transom": 0.0,
+            "operable": false
+          }
+        ],
+        "frame": "WoodEdge",
+        "frame_width": 0.057989188,
+        "frame_depth": 0.100242525,
+        "recess": 0.10156659,
+        "sill_projection": 0.134618,
+        "treatment": {
+          "identity": 8040164087938744186,
+          "slat_pitch": 0.07792178,
+          "fold_pitch": 0.15359406,
+          "fold_depth": 0.02118207,
+          "fullness": 1.4635484,
+          "hem_sag": 0.009753127,
+          "split": 0.5372918,
+          "tieback": 0.0,
+          "stack": "Pair",
+          "slat_material": "Plastic",
+          "fabric": "Fabric",
+          "finish_slot": 8
+        },
+        "shade": "None",
+        "shade_coverage": 0.273112,
+        "shade_tilt": -0.68294334
+      },
+      {
+        "side": "Right",
+        "openings": [
+          {
+            "glazing": {
+              "identity": 4654812411541073440,
+              "installation": 13007,
+              "thickness_m": 0.0062182047,
+              "treatment": 0,
+              "band_m": [
+                0.7736507,
+                1.7128813
+              ],
+              "feather_m": 0.09496546,
+              "pitch_m": 0.12378341,
+              "duty": 0.24148992,
+              "frost_roughness": 0.28379625,
+              "opening": 0.0
+            },
+            "min": [
+              -3.5840383,
+              0.020191919
+            ],
+            "max": [
+              3.5840383,
+              3.9819918
+            ],
+            "columns": 6,
+            "transom": 0.0,
+            "operable": false
+          }
+        ],
+        "frame": "Metal",
+        "frame_width": 0.06507763,
+        "frame_depth": 0.07576259,
+        "recess": 0.07911931,
+        "sill_projection": 0.065621376,
+        "treatment": {
+          "identity": 4395397937064966350,
+          "slat_pitch": 0.0684835,
+          "fold_pitch": 0.15521759,
+          "fold_depth": 0.023342349,
+          "fullness": 2.0970268,
+          "hem_sag": 0.0018692819,
+          "split": 0.48331153,
+          "tieback": 0.0,
+          "stack": "Pair",
+          "slat_material": "WoodEdge",
+          "fabric": "Fabric",
+          "finish_slot": 4
+        },
+        "shade": "Vertical",
+        "shade_coverage": 0.92974496,
+        "shade_tilt": -0.8050903
+      }
+    ]
+  },
+  "window_bays": 3,
+  "window_sill": 0.8380377,
+  "glazing_height": 3.7630157,
+  "blinds": false,
+  "door_x": -2.6840267,
+  "entry_door": {
+    "id": 0,
+    "center": [
+      -2.6840267,
+      0.0,
+      4.0683246
+    ],
+    "yaw": 0.0,
+    "width": 2.7811716,
+    "height": 2.2511666,
+    "wall_depth": 0.2,
+    "program": {
+      "mechanism": "Revolving",
+      "panel": "Glazed",
+      "handle": "PanicBar",
+      "opening": 0.0,
+      "rotor_phase": 0.43736956,
+      "handedness": -1.0,
+      "swing_side": 1.0,
+      "thickness": 0.03909096,
+      "stile": 0.07028703,
+      "handle_height": 0.91469175,
+      "finish": "WoodEdge",
+      "frame_finish": "WoodEdge",
+      "hardware_finish": "Metal",
+      "finish_variant": 11
+    }
+  },
+  "column_width": 0.3946215,
+  "lighting": "Overcast",
+  "sun_elevation": 0.58602315,
+  "sun_azimuth": 2.0670698,
+  "light_kelvin": 3787.7466,
+  "lighting_design": 0,
+  "target_lux": 827.82,
+  "daylight_lux": 200.338,
+  "density": 0.65,
+  "objects": [
+    {
+      "id": 0,
+      "kind": "CoffeeTable",
+      "position": [
+        -1.444883,
+        0.0,
+        1.1895518
+      ],
+      "size": [
+        1.1926006,
+        0.4028866,
+        0.6519114
+      ],
+      "yaw": 3.5830638,
+      "variant": 0,
+      "seed": 10659681976630974894,
+      "solid": true,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 1,
+      "kind": "Chair",
+      "position": [
+        -0.7137469,
+        0.0,
+        -0.13570857
+      ],
+      "size": [
+        0.68,
+        1.0056483,
+        0.68
+      ],
+      "yaw": 4.3842077,
+      "variant": 4,
+      "seed": 11110078703818668722,
+      "solid": true,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 2,
+      "kind": "Chair",
+      "position": [
+        -2.7603817,
+        0.0,
+        0.9460654
+      ],
+      "size": [
+        0.8995019,
+        0.9506964,
+        0.9664222
+      ],
+      "yaw": 4.3694997,
+      "variant": 8,
+      "seed": 1961443251611151879,
+      "solid": true,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "finish_seed": 4562570765056306409,
+      "id": 3,
+      "kind": "Desk",
+      "position": [
+        -0.9767957,
+        0.0,
+        -1.8804898
+      ],
+      "size": [
+        1.2295377,
+        0.74,
+        0.5970229
+      ],
+      "yaw": 4.104831,
+      "variant": 2,
+      "seed": 4562570765056306409,
+      "solid": true,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "finish_seed": 4562570765056306409,
+      "id": 4,
+      "kind": "Chair",
+      "position": [
+        -1.3834945,
+        0.0,
+        -2.245384
+      ],
+      "size": [
+        0.68,
+        0.90797204,
+        0.68
+      ],
+      "yaw": 4.0254607,
+      "variant": 3,
+      "seed": 260466075097218090,
+      "solid": true,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": 3
+    },
+    {
+      "finish_seed": 18262864003883221486,
+      "id": 5,
+      "kind": "CoffeeTable",
+      "position": [
+        -1.9063511,
+        0.0,
+        -0.5328667
+      ],
+      "size": [
+        1.174692,
+        0.43,
+        0.68175375
+      ],
+      "yaw": 4.2382607,
+      "variant": 2,
+      "seed": 18262864003883221486,
+      "solid": true,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "finish_seed": 18262864003883221486,
+      "id": 6,
+      "kind": "Chair",
+      "position": [
+        -2.6774557,
+        0.0,
+        -0.9596029
+      ],
+      "size": [
+        0.68,
+        0.79,
+        0.68
+      ],
+      "yaw": 3.812412,
+      "variant": 7,
+      "seed": 16583195382925768724,
+      "solid": true,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": 5
+    },
+    {
+      "id": 7,
+      "kind": "Bookcase",
+      "position": [
+        0.34638608,
+        0.0,
+        -0.17727256
+      ],
+      "size": [
+        1.2479422,
+        1.7668998,
+        0.34
+      ],
+      "yaw": 1.6148316,
+      "variant": 2,
+      "seed": 7916595009539577671,
+      "solid": true,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 8,
+      "kind": "Bookcase",
+      "position": [
+        -3.011247,
+        0.0,
+        -3.4727192
+      ],
+      "size": [
+        1.337123,
+        1.4030358,
+        0.34
+      ],
+      "yaw": -0.09576478,
+      "variant": 2,
+      "seed": 1869756764425467934,
+      "solid": true,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "finish_seed": 6253453350429175586,
+      "id": 9,
+      "kind": "Desk",
+      "position": [
+        3.2349732,
+        0.0,
+        0.6093965
+      ],
+      "size": [
+        1.9895527,
+        0.7285963,
+        0.83704776
+      ],
+      "yaw": 0.5946523,
+      "variant": 2,
+      "seed": 6253453350429175586,
+      "solid": true,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "finish_seed": 6253453350429175586,
+      "id": 10,
+      "kind": "Chair",
+      "position": [
+        3.7264948,
+        0.0,
+        1.4341309
+      ],
+      "size": [
+        0.68,
+        1.3469548,
+        0.68
+      ],
+      "yaw": 0.4467429,
+      "variant": 1,
+      "seed": 10145766274402102078,
+      "solid": true,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": 9
+    },
+    {
+      "finish_seed": 10432362666833251879,
+      "id": 11,
+      "kind": "CoffeeTable",
+      "position": [
+        1.9085984,
+        0.0,
+        -0.8963847
+      ],
+      "size": [
+        1.0956068,
+        0.43,
+        0.7144278
+      ],
+      "yaw": 1.194384,
+      "variant": 0,
+      "seed": 10432362666833251879,
+      "solid": true,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "finish_seed": 10432362666833251879,
+      "id": 12,
+      "kind": "Chair",
+      "position": [
+        2.7719748,
+        0.0,
+        -0.63989246
+      ],
+      "size": [
+        0.68,
+        0.48,
+        0.68
+      ],
+      "yaw": 1.4982156,
+      "variant": 6,
+      "seed": 14984716913387975145,
+      "solid": true,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": 11
+    },
+    {
+      "finish_seed": 12942637388728638939,
+      "id": 13,
+      "kind": "Desk",
+      "position": [
+        2.38004,
+        0.0,
+        -2.1205864
+      ],
+      "size": [
+        1.2209734,
+        0.74,
+        0.69957346
+      ],
+      "yaw": 1.0386325,
+      "variant": 2,
+      "seed": 12942637388728638939,
+      "solid": true,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "finish_seed": 12942637388728638939,
+      "id": 14,
+      "kind": "Chair",
+      "position": [
+        2.81904,
+        0.0,
+        -1.7549585
+      ],
+      "size": [
+        0.68,
+        1.1880355,
+        0.68
+      ],
+      "yaw": 1.0031576,
+      "variant": 9,
+      "seed": 17747213598176839804,
+      "solid": true,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": 13
+    },
+    {
+      "id": 15,
+      "kind": "Bookcase",
+      "position": [
+        2.5466387,
+        0.0,
+        -3.3279765
+      ],
+      "size": [
+        1.2731867,
+        1.5130211,
+        0.34
+      ],
+      "yaw": 0.14099108,
+      "variant": 0,
+      "seed": 2188912996989057412,
+      "solid": true,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 16,
+      "kind": "TrashCan",
+      "position": [
+        4.1814346,
+        0.0,
+        2.0683246
+      ],
+      "size": [
+        0.37,
+        0.55,
+        0.37
+      ],
+      "yaw": 0.0,
+      "variant": 1,
+      "seed": 16776343271686380232,
+      "solid": true,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 17,
+      "kind": "Cabinet",
+      "position": [
+        0.7682295,
+        0.0,
+        6.7183247
+      ],
+      "size": [
+        1.6,
+        1.2,
+        0.4
+      ],
+      "yaw": 3.1415927,
+      "variant": 0,
+      "seed": 11124566697110114112,
+      "solid": true,
+      "support": null,
+      "neighbor": true,
+      "interaction_target": null
+    },
+    {
+      "id": 18,
+      "kind": "Plant",
+      "position": [
+        -4.1014347,
+        0.0,
+        6.3683243
+      ],
+      "size": [
+        0.8,
+        1.7,
+        0.8
+      ],
+      "yaw": 3.1415927,
+      "variant": 12,
+      "seed": 93447049175900826,
+      "solid": true,
+      "support": null,
+      "neighbor": true,
+      "interaction_target": null
+    },
+    {
+      "id": 19,
+      "kind": "SideTable",
+      "position": [
+        1.6446911,
+        0.0,
+        0.27690315
+      ],
+      "size": [
+        0.706164,
+        0.6592511,
+        0.470249
+      ],
+      "yaw": 1.1095115,
+      "variant": 0,
+      "seed": 12529079495498285394,
+      "solid": true,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 20,
+      "kind": "SideTable",
+      "position": [
+        1.9502639,
+        0.0,
+        1.462569
+      ],
+      "size": [
+        0.49486667,
+        0.59766006,
+        0.4642118
+      ],
+      "yaw": 0.6615535,
+      "variant": 1,
+      "seed": 3039392178778453589,
+      "solid": true,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 21,
+      "kind": "DrawerUnit",
+      "position": [
+        -0.13672614,
+        0.0,
+        -2.778361
+      ],
+      "size": [
+        0.4634322,
+        0.54998255,
+        0.3999159
+      ],
+      "yaw": 3.9510493,
+      "variant": 2,
+      "seed": 17450419028889586707,
+      "solid": true,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 22,
+      "kind": "Plant",
+      "position": [
+        -3.854371,
+        0.0,
+        -2.567571
+      ],
+      "size": [
+        0.4741919,
+        1.8827235,
+        0.41077754
+      ],
+      "yaw": 5.897474,
+      "variant": 6,
+      "seed": 13679086056982109463,
+      "solid": true,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 23,
+      "kind": "ProjectionScreen",
+      "position": [
+        -0.14050406,
+        0.9426855,
+        -3.555656
+      ],
+      "size": [
+        1.9032959,
+        1.127965,
+        0.08974937
+      ],
+      "yaw": 0.0,
+      "variant": 1,
+      "seed": 4592417615001665551,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 24,
+      "kind": "NoticeBoard",
+      "position": [
+        2.4826484,
+        0.9982167,
+        -4.0519934
+      ],
+      "size": [
+        1.0300326,
+        0.9477695,
+        0.030662037
+      ],
+      "yaw": 0.0,
+      "variant": 1,
+      "seed": 18188361182824183896,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 25,
+      "kind": "Projector",
+      "position": [
+        -0.9767957,
+        0.73999995,
+        -1.8804898
+      ],
+      "size": [
+        0.28276128,
+        0.09526492,
+        0.2429748
+      ],
+      "yaw": 2.678562,
+      "variant": 2,
+      "seed": 1412076111344128970,
+      "solid": false,
+      "support": 3,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 26,
+      "kind": "PowerStrip",
+      "position": [
+        3.6004944,
+        0.72859627,
+        0.04893154
+      ],
+      "size": [
+        0.22693212,
+        0.03,
+        0.048071764
+      ],
+      "yaw": 0.5285854,
+      "variant": 0,
+      "seed": 6578444879195854995,
+      "solid": false,
+      "support": 9,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 27,
+      "kind": "Display",
+      "position": [
+        -4.7063556,
+        1.0622704,
+        2.86907
+      ],
+      "size": [
+        1.5379053,
+        0.8320345,
+        0.07
+      ],
+      "yaw": 1.5216094,
+      "variant": 3,
+      "seed": 6576268718230286226,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 28,
+      "kind": "WallArt",
+      "position": [
+        -4.208216,
+        1.09007,
+        -0.36127645
+      ],
+      "size": [
+        0.669095,
+        0.73306215,
+        0.025537143
+      ],
+      "yaw": 2.5374248,
+      "variant": 4,
+      "seed": 11104405747413392205,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 29,
+      "kind": "Display",
+      "position": [
+        4.53451,
+        1.929193,
+        -1.6909643
+      ],
+      "size": [
+        1.067119,
+        1.1629183,
+        0.07
+      ],
+      "yaw": -1.5307268,
+      "variant": 0,
+      "seed": 16105337346961334328,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 30,
+      "kind": "LightSwitch",
+      "position": [
+        -4.209945,
+        1.1957217,
+        1.5465901
+      ],
+      "size": [
+        0.15,
+        0.10185618,
+        0.018
+      ],
+      "yaw": 0.5057941,
+      "variant": 0,
+      "seed": 2878894387649535613,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 31,
+      "kind": "LightSwitch",
+      "position": [
+        -3.8527756,
+        1.192249,
+        0.66031134
+      ],
+      "size": [
+        0.15,
+        0.12426767,
+        0.018
+      ],
+      "yaw": 1.5216094,
+      "variant": 0,
+      "seed": 13348031811255763331,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 32,
+      "kind": "WallOutlet",
+      "position": [
+        3.2260177,
+        0.2608585,
+        -4.0610247
+      ],
+      "size": [
+        0.22500001,
+        0.10988203,
+        0.018
+      ],
+      "yaw": 0.0,
+      "variant": 0,
+      "seed": 17382728329000757185,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 33,
+      "kind": "WallOutlet",
+      "position": [
+        0.97008395,
+        0.23065609,
+        -3.9096398
+      ],
+      "size": [
+        0.15,
+        0.119536266,
+        0.018
+      ],
+      "yaw": 1.5707963,
+      "variant": 0,
+      "seed": 12498806841155500332,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 34,
+      "kind": "WallOutlet",
+      "position": [
+        -4.7455087,
+        0.32355854,
+        3.0807142
+      ],
+      "size": [
+        0.075,
+        0.10246345,
+        0.018
+      ],
+      "yaw": 1.5216094,
+      "variant": 0,
+      "seed": 428540050002076307,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 35,
+      "kind": "WallOutlet",
+      "position": [
+        4.642876,
+        0.3606943,
+        0.29559076
+      ],
+      "size": [
+        0.075,
+        0.11828975,
+        0.018
+      ],
+      "yaw": -1.5307268,
+      "variant": 0,
+      "seed": 75236345897445277,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 36,
+      "kind": "WallOutlet",
+      "position": [
+        -4.252165,
+        0.23247273,
+        -0.38375297
+      ],
+      "size": [
+        0.075,
+        0.1126597,
+        0.018
+      ],
+      "yaw": 2.5374248,
+      "variant": 0,
+      "seed": 4935424646891453326,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 37,
+      "kind": "WallOutlet",
+      "position": [
+        -3.858593,
+        0.28657952,
+        0.778486
+      ],
+      "size": [
+        0.15,
+        0.11085944,
+        0.018
+      ],
+      "yaw": 1.5216094,
+      "variant": 0,
+      "seed": 12063716889450394490,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 38,
+      "kind": "WallOutlet",
+      "position": [
+        -3.9233613,
+        0.31437677,
+        -0.15678872
+      ],
+      "size": [
+        0.075,
+        0.10392105,
+        0.018
+      ],
+      "yaw": 2.5374248,
+      "variant": 0,
+      "seed": 10803231229374428979,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 39,
+      "kind": "WallOutlet",
+      "position": [
+        4.5601354,
+        0.22734225,
+        -1.768234
+      ],
+      "size": [
+        0.22500001,
+        0.10933055,
+        0.018
+      ],
+      "yaw": -1.5307268,
+      "variant": 0,
+      "seed": 2208950562826009634,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 40,
+      "kind": "Phone",
+      "position": [
+        -1.7728596,
+        0.40288663,
+        1.1696151
+      ],
+      "size": [
+        0.06934354,
+        0.008295737,
+        0.13138877
+      ],
+      "yaw": 3.1330032,
+      "variant": 1,
+      "seed": 17832343914374250397,
+      "solid": false,
+      "support": 0,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 41,
+      "kind": "Notepad",
+      "position": [
+        3.5323892,
+        0.72859627,
+        0.53381884
+      ],
+      "size": [
+        0.19132231,
+        0.016,
+        0.21896823
+      ],
+      "yaw": 0.39859965,
+      "variant": 2,
+      "seed": 3733389794880948117,
+      "solid": false,
+      "support": 9,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 42,
+      "kind": "PenHolder",
+      "position": [
+        3.5086253,
+        0.72859627,
+        0.26612282
+      ],
+      "size": [
+        0.08,
+        0.1633687,
+        0.08
+      ],
+      "yaw": 0.13998035,
+      "variant": 0,
+      "seed": 12975076164884112045,
+      "solid": false,
+      "support": 9,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 43,
+      "kind": "SodaCan",
+      "position": [
+        1.8356489,
+        0.43,
+        -0.6401403
+      ],
+      "size": [
+        0.06393028,
+        0.115281425,
+        0.06393028
+      ],
+      "yaw": 1.0198725,
+      "variant": 0,
+      "seed": 15444518922696615168,
+      "solid": false,
+      "support": 11,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 44,
+      "kind": "DeskLamp",
+      "position": [
+        2.0066388,
+        0.74,
+        -1.8587034
+      ],
+      "size": [
+        0.2,
+        0.37818372,
+        0.22
+      ],
+      "yaw": 0.98375535,
+      "variant": 2,
+      "seed": 12159920757254185041,
+      "solid": false,
+      "support": 13,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 45,
+      "kind": "Phone",
+      "position": [
+        2.556662,
+        0.74,
+        -2.3092067
+      ],
+      "size": [
+        0.068905964,
+        0.012267765,
+        0.14253004
+      ],
+      "yaw": 1.6197345,
+      "variant": 2,
+      "seed": 1992124447079539487,
+      "solid": false,
+      "support": 13,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 46,
+      "kind": "WaterBottle",
+      "position": [
+        1.2162294,
+        1.2,
+        6.6543245
+      ],
+      "size": [
+        0.072295666,
+        0.17297252,
+        0.072295666
+      ],
+      "yaw": 3.4362762,
+      "variant": 1,
+      "seed": 8493752968110130373,
+      "solid": false,
+      "support": 17,
+      "neighbor": true,
+      "interaction_target": null
+    },
+    {
+      "id": 47,
+      "kind": "Bag",
+      "position": [
+        -1.7367541,
+        0.42999995,
+        -0.7167883
+      ],
+      "size": [
+        0.32762557,
+        0.28861344,
+        0.16541904
+      ],
+      "yaw": 4.437716,
+      "variant": 2,
+      "seed": 6467187990329599630,
+      "solid": false,
+      "support": 5,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 48,
+      "kind": "Bowl",
+      "position": [
+        -1.9256843,
+        0.42999995,
+        -0.40797085
+      ],
+      "size": [
+        0.13577987,
+        0.095742345,
+        0.13577987
+      ],
+      "yaw": 4.817444,
+      "variant": 1,
+      "seed": 10211923064515625634,
+      "solid": false,
+      "support": 5,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 49,
+      "kind": "Notebook",
+      "position": [
+        3.1883569,
+        0.72859627,
+        0.6803993
+      ],
+      "size": [
+        0.15394863,
+        0.011618101,
+        0.24202088
+      ],
+      "yaw": 1.0128051,
+      "variant": 2,
+      "seed": 10075148524811928325,
+      "solid": false,
+      "support": 9,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 50,
+      "kind": "DeskOrganizer",
+      "position": [
+        3.42258,
+        0.72859627,
+        0.8246809
+      ],
+      "size": [
+        0.1609485,
+        0.14012715,
+        0.123782486
+      ],
+      "yaw": -2.315412,
+      "variant": 2,
+      "seed": 1992453725175121705,
+      "solid": false,
+      "support": 9,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 51,
+      "kind": "Vase",
+      "position": [
+        1.6443026,
+        0.43,
+        -0.88008356
+      ],
+      "size": [
+        0.09044734,
+        0.23440039,
+        0.09044734
+      ],
+      "yaw": -1.2006117,
+      "variant": 1,
+      "seed": 1041173422181249494,
+      "solid": false,
+      "support": 11,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 52,
+      "kind": "Notebook",
+      "position": [
+        0.25436354,
+        1.2,
+        6.7299004
+      ],
+      "size": [
+        0.1509021,
+        0.025980003,
+        0.17749742
+      ],
+      "yaw": 2.3613253,
+      "variant": 1,
+      "seed": 5694285925563254386,
+      "solid": false,
+      "support": 17,
+      "neighbor": true,
+      "interaction_target": null
+    },
+    {
+      "id": 53,
+      "kind": "Phone",
+      "position": [
+        1.5691745,
+        0.6592511,
+        0.29547477
+      ],
+      "size": [
+        0.07651465,
+        0.01,
+        0.15669852
+      ],
+      "yaw": 2.2762628,
+      "variant": 0,
+      "seed": 4238764759256328346,
+      "solid": false,
+      "support": 19,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 54,
+      "kind": "Mug",
+      "position": [
+        1.944049,
+        0.59766006,
+        1.3479226
+      ],
+      "size": [
+        0.1261912,
+        0.08643658,
+        0.09379744
+      ],
+      "yaw": 0.99403346,
+      "variant": 0,
+      "seed": 14552418956060870573,
+      "solid": false,
+      "support": 20,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 55,
+      "kind": "Phone",
+      "position": [
+        -0.20889784,
+        0.54998255,
+        -2.8160076
+      ],
+      "size": [
+        0.07715778,
+        0.01,
+        0.15115851
+      ],
+      "yaw": 4.394535,
+      "variant": 2,
+      "seed": 7403908266059092581,
+      "solid": false,
+      "support": 21,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 56,
+      "kind": "Cable",
+      "position": [
+        3.9481857,
+        0.0019999999,
+        -0.85126525
+      ],
+      "size": [
+        1.2090487,
+        0.746176,
+        1.9558767
+      ],
+      "yaw": 0.0,
+      "variant": 2,
+      "seed": 17422940893679545059,
+      "solid": false,
+      "support": 9,
+      "neighbor": false,
+      "interaction_target": 26,
+      "cable_path": [
+        [
+          -0.4465351,
+          0.7409963,
+          0.9579234
+        ],
+        [
+          -0.46858263,
+          0.7409963,
+          0.97079957
+        ],
+        [
+          -0.47189283,
+          0.74098337,
+          0.97221184
+        ],
+        [
+          -0.47545004,
+          0.74094546,
+          0.97275865
+        ],
+        [
+          -0.4790311,
+          0.74088484,
+          0.97240585
+        ],
+        [
+          -0.48241234,
+          0.7408054,
+          0.9711755
+        ],
+        [
+          -0.48538208,
+          0.740712,
+          0.9691446
+        ],
+        [
+          -0.48775458,
+          0.7406106,
+          0.96644014
+        ],
+        [
+          -0.59555864,
+          0.73509747,
+          0.80704063
+        ],
+        [
+          -0.5971613,
+          0.7347142,
+          0.80433166
+        ],
+        [
+          -0.5983615,
+          0.73376364,
+          0.80155504
+        ],
+        [
+          -0.5991013,
+          0.7322918,
+          0.79884577
+        ],
+        [
+          -0.59934473,
+          0.73037034,
+          0.79633534
+        ],
+        [
+          -0.59907985,
+          0.7280924,
+          0.79414564
+        ],
+        [
+          -0.59831953,
+          0.7255687,
+          0.7923831
+        ],
+        [
+          -0.5656214,
+          0.64014506,
+          0.74261504
+        ],
+        [
+          -0.56542206,
+          0.63964736,
+          0.74231166
+        ],
+        [
+          -0.5293138,
+          0.5534318,
+          0.68735373
+        ],
+        [
+          -0.52909017,
+          0.552922,
+          0.68701327
+        ],
+        [
+          -0.49300742,
+          0.47442213,
+          0.632094
+        ],
+        [
+          -0.49275732,
+          0.47390378,
+          0.63171333
+        ],
+        [
+          -0.45670176,
+          0.40269807,
+          0.57683563
+        ],
+        [
+          -0.45642352,
+          0.40217564,
+          0.576412
+        ],
+        [
+          -0.42039728,
+          0.33788022,
+          0.5215785
+        ],
+        [
+          -0.42008924,
+          0.33735892,
+          0.5211096
+        ],
+        [
+          -0.38409328,
+          0.27962556,
+          0.46632245
+        ],
+        [
+          -0.38375425,
+          0.27911156,
+          0.4658063
+        ],
+        [
+          -0.34778976,
+          0.22762588,
+          0.4110671
+        ],
+        [
+          -0.34741879,
+          0.22712603,
+          0.41050246
+        ],
+        [
+          -0.31148672,
+          0.18160598,
+          0.35581204
+        ],
+        [
+          -0.31108356,
+          0.18112786,
+          0.35519856
+        ],
+        [
+          -0.27518272,
+          0.14132246,
+          0.30055672
+        ],
+        [
+          -0.2747481,
+          0.14087422,
+          0.29989517
+        ],
+        [
+          -0.23887897,
+          0.10656236,
+          0.24530065
+        ],
+        [
+          -0.23841405,
+          0.10615229,
+          0.2445929
+        ],
+        [
+          -0.20257401,
+          0.077142015,
+          0.19004321
+        ],
+        [
+          -0.20208073,
+          0.07677845,
+          0.18929243
+        ],
+        [
+          -0.16626787,
+          0.052906215,
+          0.13478357
+        ],
+        [
+          -0.16574931,
+          0.052597117,
+          0.13399434
+        ],
+        [
+          -0.12995958,
+          0.03372735,
+          0.07952118
+        ],
+        [
+          -0.1294198,
+          0.033479895,
+          0.07869947
+        ],
+        [
+          -0.09364915,
+          0.019504745,
+          0.024255335
+        ],
+        [
+          -0.09309268,
+          0.019324958,
+          0.023408234
+        ],
+        [
+          -0.05733633,
+          0.010164114,
+          -0.031014442
+        ],
+        [
+          -0.056768417,
+          0.010056559,
+          -0.03187889
+        ],
+        [
+          -0.020993471,
+          0.00565381,
+          -0.08632964
+        ],
+        [
+          -0.020473957,
+          0.005621093,
+          -0.087120295
+        ],
+        [
+          0.12454343,
+          0.0051797186,
+          -0.30784255
+        ],
+        [
+          0.19704032,
+          0.0051797186,
+          -0.4181859
+        ],
+        [
+          0.19732356,
+          0.005188964,
+          -0.41861683
+        ],
+        [
+          0.23321557,
+          0.007533113,
+          -0.47324532
+        ],
+        [
+          0.23378682,
+          0.0076082232,
+          -0.4741146
+        ],
+        [
+          0.26953816,
+          0.014689729,
+          -0.5285303
+        ],
+        [
+          0.27010036,
+          0.014838511,
+          -0.529386
+        ],
+        [
+          0.3058641,
+          0.026707903,
+          -0.5838198
+        ],
+        [
+          0.30641198,
+          0.026926521,
+          -0.58465356
+        ],
+        [
+          0.3421929,
+          0.043652177,
+          -0.6391131
+        ],
+        [
+          0.34272122,
+          0.04393524,
+          -0.6399173
+        ],
+        [
+          0.3785236,
+          0.06561299,
+          -0.6944099
+        ],
+        [
+          0.37902808,
+          0.065953754,
+          -0.6951781
+        ],
+        [
+          0.4148562,
+          0.092707045,
+          -0.7497094
+        ],
+        [
+          0.415334,
+          0.093097866,
+          -0.75043637
+        ],
+        [
+          0.45119023,
+          0.12507798,
+          -0.8050111
+        ],
+        [
+          0.45163846,
+          0.12551065,
+          -0.8056931
+        ],
+        [
+          0.48752522,
+          0.16289715,
+          -0.8603141
+        ],
+        [
+          0.48794198,
+          0.1633633,
+          -0.8609486
+        ],
+        [
+          0.5238602,
+          0.2063645,
+          -0.91561776
+        ],
+        [
+          0.524245,
+          0.20685583,
+          -0.9162037
+        ],
+        [
+          0.55655694,
+          0.2507653,
+          -0.96538395
+        ],
+        [
+          0.55822396,
+          0.25251207,
+          -0.96735567
+        ],
+        [
+          0.56041837,
+          0.25396377,
+          -0.96902686
+        ],
+        [
+          0.5630381,
+          0.2550523,
+          -0.970319
+        ],
+        [
+          0.56596017,
+          0.25572655,
+          -0.9711713
+        ],
+        [
+          0.56904626,
+          0.2559549,
+          -0.9715441
+        ],
+        [
+          0.5993445,
+          0.2559548,
+          -0.9727586
+        ]
+      ],
+      "cable_target": 39
+    }
+  ],
+  "human_density": 0.0,
+  "humans": [],
+  "rejected_human_placements": 0,
+  "camera_settings": {
+    "intrinsics": {
+      "fov_y_min_degrees": 28.0,
+      "fov_y_max_degrees": 145.0,
+      "ultra_wide_probability": 0.25
+    },
+    "principal_point_jitter": [
+      0.15,
+      0.15
+    ],
+    "duration_seconds": 2.0,
+    "primary_room": true,
+    "path_length_min": 0.03,
+    "path_length_max": 0.6,
+    "long_path_fraction": 0.0,
+    "multiview": {
+      "min_overlap": 0.34221387,
+      "min_baseline": 0.27,
+      "min_reference_baseline": 1.2099999,
+      "max_baseline": 5.1749997,
+      "min_spread": 0.25,
+      "trajectory_variation": 0.5,
+      "target_variation": 0.5
+    }
+  },
+  "camera_aspect_ratio": 0.625,
+  "cameras": [
+    {
+      "principal_point_offset": [
+        0.13956082,
+        -0.13074844
+      ],
+      "start": [
+        -2.232097,
+        1.2320399,
+        -0.7992809
+      ],
+      "end": [
+        -2.1522846,
+        1.4494839,
+        -0.90673953
+      ],
+      "target": [
+        -1.1227643,
+        0.75,
+        -1.7976775
+      ],
+      "fov_degrees": 82.14769,
+      "motion": {
+        "control": [
+          [
+            -2.228564,
+            1.3037964,
+            -0.8600813
+          ],
+          [
+            -2.201428,
+            1.3777274,
+            -0.8966173
+          ]
+        ],
+        "target_end": [
+          -0.90437883,
+          0.79053414,
+          -1.9784365
+        ],
+        "roll": [
+          0.01328893,
+          -0.013555668
+        ]
+      }
+    },
+    {
+      "principal_point_offset": [
+        -0.13970998,
+        -0.13338973
+      ],
+      "start": [
+        -1.6283453,
+        1.8908277,
+        1.2546513
+      ],
+      "end": [
+        -1.5739803,
+        2.166365,
+        1.0939825
+      ],
+      "target": [
+        -1.2608821,
+        0.8151023,
+        -1.9802725
+      ],
+      "fov_degrees": 37.199722,
+      "motion": {
+        "control": [
+          [
+            -1.6594356,
+            1.9760891,
+            1.1758308
+          ],
+          [
+            -1.6409516,
+            2.0697718,
+            1.1212034
+          ]
+        ],
+        "target_end": [
+          -1.0424967,
+          0.8556364,
+          -2.1610315
+        ],
+        "roll": [
+          -0.002856359,
+          0.0118505135
+        ]
+      }
+    }
+  ],
+  "rejected_placements": 320
+}

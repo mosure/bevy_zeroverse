@@ -127,13 +127,15 @@ struct Part {
     surface: Option<super::materials::Surface>,
     human_surface: Option<humans::HumanSurface>,
     ovoxel_excluded: bool,
+    motion: Option<super::motion::AnimatedPart>,
+    bounds: Option<(Vec3, Vec3)>,
 }
 struct Group {
     name: String,
     transform: Transform,
     bounds: (Vec3, Vec3),
     object: Option<(usize, super::layout::ObjectKind)>,
-    human: Option<(usize, Vec<Vec3>)>,
+    human: Option<(usize, Vec<Vec3>, Quat)>,
     annotation: Option<SemanticLabel>,
     parts: Vec<Part>,
 }
@@ -176,7 +178,7 @@ impl PreparedIndoor {
     }
     #[allow(clippy::too_many_arguments)]
     pub(crate) async fn build_with_materials(
-        manifest: IndoorManifest,
+        mut manifest: IndoorManifest,
         quality: IndoorQuality,
         settings: gi::IndoorGiSettings,
         moving_humans: Vec<usize>,
@@ -187,10 +189,18 @@ impl PreparedIndoor {
     ) -> Self {
         let build_started = bevy::platform::time::Instant::now();
         let started = bevy::platform::time::Instant::now();
-        let (geometry, geometry_jobs) = SceneGeometry::build(&manifest).await;
+        let (mut geometry, geometry_jobs) = SceneGeometry::build(&manifest).await;
         let mut geometry_seconds = started.elapsed().as_secs_f64();
+        let motion_seconds = if manifest.indoor_motion.is_some() {
+            let started = bevy::platform::time::Instant::now();
+            super::motion::prepare(&mut manifest, &mut geometry);
+            started.elapsed().as_secs_f64()
+        } else {
+            0.
+        };
         let mut wall = PreparationWall {
             assembly_seconds: geometry_seconds,
+            motion_planning_seconds: motion_seconds,
             ..default()
         };
         let started = bevy::platform::time::Instant::now();
@@ -457,6 +467,7 @@ impl PreparedIndoor {
         for group in self.groups.drain(..) {
             let mut root = commands.spawn((
                 Name::new(group.name),
+                crate::render::semantic::PreserveSemanticParts,
                 group.transform,
                 Visibility::default(),
                 ChildOf(parent),
@@ -482,7 +493,7 @@ impl PreparedIndoor {
                     Aabb::from_min_max(group.bounds.0, group.bounds.1),
                 ));
             }
-            if let Some((id, local_joints)) = group.human {
+            if let Some((id, local_joints, local_head_rotation)) = group.human {
                 let person = self
                     .manifest
                     .humans
@@ -493,10 +504,20 @@ impl PreparedIndoor {
                     root.insert(OvoxelExcluded);
                 }
                 root.insert((
-                    humans::IndoorHumanInstance { id, local_joints },
+                    humans::IndoorHumanInstance {
+                        id,
+                        local_joints,
+                        local_head_rotation,
+                    },
                     SemanticLabel::Person,
                     ObbTracked,
                     ObbClass("person".into()),
+                    Aabb::from_min_max(group.bounds.0, group.bounds.1),
+                ));
+            }
+            if group.parts.iter().any(|p| p.motion.is_some()) {
+                root.insert((
+                    super::motion::AnimatedBounds,
                     Aabb::from_min_max(group.bounds.0, group.bounds.1),
                 ));
             }
@@ -511,6 +532,12 @@ impl PreparedIndoor {
                     ChildOf(root),
                 ));
                 annotation_order += 1;
+                if let Some(bounds) = part.bounds {
+                    child.insert(Aabb::from_min_max(bounds.0, bounds.1));
+                }
+                if let Some(motion) = part.motion {
+                    child.insert(motion);
+                }
                 if part.ovoxel_excluded {
                     child.insert(OvoxelExcluded);
                 }

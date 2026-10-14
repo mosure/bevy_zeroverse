@@ -321,30 +321,34 @@ impl Geometry {
         .with_inserted_indices(Indices::U32(self.indices));
         mesh.generate_tangents()
             .expect("procedural indoor meshes have valid normals and UVs");
-        // MikkTSpace returns a zero tangent for collapsed UV triangles (e.g.
-        // tapered fibre tips and clipped garment seams). Normal mapping must
-        // still receive a finite orthonormal frame at these vertices.
-        if let Some(bevy::mesh::VertexAttributeValues::Float32x4(mut tangents)) =
-            mesh.remove_attribute(Mesh::ATTRIBUTE_TANGENT)
-        {
-            if let Some(bevy::mesh::VertexAttributeValues::Float32x3(normals)) =
-                mesh.attribute(Mesh::ATTRIBUTE_NORMAL)
-            {
-                for (tangent, normal) in tangents.iter_mut().zip(normals) {
-                    let n = Vec3::from_array(*normal).normalize_or(Vec3::Y);
-                    let t = Vec4::from_array(*tangent).truncate();
-                    let axis = if n.x.abs() < 0.8 { Vec3::X } else { Vec3::Z };
-                    let t = (t - n * n.dot(t))
-                        .try_normalize()
-                        .filter(|t| t.is_finite())
-                        .unwrap_or_else(|| (axis - n * n.dot(axis)).normalize());
-                    *tangent = t
-                        .extend(if tangent[3] < 0.0 { -1.0 } else { 1.0 })
-                        .to_array();
-                }
-            }
-            mesh.insert_attribute(Mesh::ATTRIBUTE_TANGENT, tangents);
-        }
+        repair_tangent_frames(&mut mesh);
         mesh
+    }
+}
+
+pub(crate) fn repair_tangent_frames(mesh: &mut Mesh) {
+    // MikkTSpace returns a zero tangent for collapsed UV triangles (e.g.
+    // tapered fibre tips and clipped garment seams). Normal mapping must
+    // still receive a finite orthonormal frame at these vertices.
+    if let Some(bevy::mesh::VertexAttributeValues::Float32x4(mut tangents)) =
+        mesh.remove_attribute(Mesh::ATTRIBUTE_TANGENT)
+    {
+        if let Some(bevy::mesh::VertexAttributeValues::Float32x3(normals)) =
+            mesh.attribute(Mesh::ATTRIBUTE_NORMAL)
+        {
+            for (tangent, normal) in tangents.iter_mut().zip(normals) {
+                let n = Vec3::from_array(*normal).normalize_or(Vec3::Y);
+                let t = Vec4::from_array(*tangent).truncate();
+                let axis = if n.x.abs() < 0.8 { Vec3::X } else { Vec3::Z };
+                let t = (t - n * n.dot(t))
+                    .try_normalize()
+                    .filter(|t| t.is_finite())
+                    .unwrap_or_else(|| (axis - n * n.dot(axis)).normalize());
+                *tangent = t
+                    .extend(if tangent[3] < 0.0 { -1.0 } else { 1.0 })
+                    .to_array();
+            }
+        }
+        mesh.insert_attribute(Mesh::ATTRIBUTE_TANGENT, tangents);
     }
 }

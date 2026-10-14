@@ -68,6 +68,10 @@ impl PaletteProgram {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MaterialRecipe {
+    /// Appearance intervention inherited by regenerated finish structures.
+    /// The stored base relief/contrast already include this multiplier.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub detail_scale: Option<f32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub flooring: Option<super::flooring::FloorFinish>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -341,6 +345,7 @@ pub fn sample(seed: u64) -> Vec<MaterialRecipe> {
                 rng.random_range(0.00002..0.0003)
             };
             let mut recipe = MaterialRecipe {
+                detail_scale: None,
                 flooring: None,
                 carpet: None,
                 layers: Some(super::layers::FinishLayers::sample(surface, &mut rng)),
@@ -491,6 +496,12 @@ pub fn sample_with_floor(seed: u64, style: u32) -> Result<Vec<MaterialRecipe>, S
 
 impl MaterialRecipe {
     pub fn validate(&self) -> Result<(), String> {
+        if self
+            .detail_scale
+            .is_some_and(|v| !v.is_finite() || !(0.0..=1.).contains(&v))
+        {
+            return Err("material detail scale must be finite and in [0,1]".into());
+        }
         if let Some(f) = &self.flooring {
             f.validate()?;
             if self.surface != Surface::Floor {
@@ -740,6 +751,9 @@ impl MaterialRecipe {
             && matches!(
                 self.surface,
                 Surface::Ceramic
+                    | Surface::Metal
+                    | Surface::Chrome
+                    | Surface::Plastic
                     | Surface::Fabric
                     | Surface::FabricAlt
                     | Surface::Leather
@@ -754,10 +768,43 @@ impl MaterialRecipe {
             result.seed = stream(self.seed, 0x535452554354 + group as u64).random();
             result.specialize();
             result.color = self.color;
+            if matches!(
+                self.surface,
+                Surface::Metal | Surface::Chrome | Surface::Plastic
+            ) {
+                // Finish families share pigment while their manufactured relief,
+                // polish and repeat scale vary. Extra maps remain lazily selected.
+                let mut finish = stream(result.seed, 0x46494e495348);
+                let polish: f32 = finish.random_range(0.0..1.0);
+                let (rough, relief) = match self.surface {
+                    Surface::Chrome => (
+                        0.07 + (1. - polish) * 0.21,
+                        0.000001 + (1. - polish) * 0.000010,
+                    ),
+                    Surface::Metal => (
+                        0.22 + (1. - polish) * 0.36,
+                        0.000008 + (1. - polish) * 0.000040,
+                    ),
+                    _ => (
+                        0.24 + (1. - polish) * 0.42,
+                        0.000006 + (1. - polish) * 0.000060,
+                    ),
+                };
+                result.roughness = rough;
+                result.relief_m = relief;
+                result.period_m *= finish.random_range(0.72..1.30);
+                result.phase = [finish.random(), finish.random()];
+            }
             if let Some(w) = &self.wood {
                 result.wood = Some(super::timber::WoodFinish::sample(
                     stream(w.seed, 0x46494e495348 + group as u64).random(),
                 ));
+            }
+            // All re-specialized structures except timber replace relief.
+            // Preserve the intervention exactly once; timber retains the base
+            // recipe's already-scaled relief, as does every structure's contrast.
+            if !matches!(self.surface, Surface::Wood | Surface::WoodEdge) {
+                result.relief_m *= self.detail_scale.unwrap_or(1.);
             }
         }
         result
@@ -1055,7 +1102,7 @@ impl MaterialRecipe {
                 self.seed,
             );
             shade = shade * (1.0 - 0.22 * seam) + (board - 0.5) * self.contrast;
-            height -= seam * self.joint_width * 0.25;
+            height -= seam * self.joint_width * 0.25 * self.detail_scale.unwrap_or(1.);
             roughness += seam * 0.12;
         }
         let mut finish = [shade, height, roughness];
@@ -1080,7 +1127,7 @@ impl MaterialRecipe {
             let cut = f.cut(self, [u, v]);
             let seam = f.seam(self, &cut, 0);
             t.color = super::field::tint(t.color, 1. - seam * 0.22);
-            t.height -= seam * self.joint_width * 0.25;
+            t.height -= seam * self.joint_width * 0.25 * self.detail_scale.unwrap_or(1.);
             t.roughness = (t.roughness + seam * 0.12).min(1.);
             return;
         }
@@ -1101,7 +1148,7 @@ impl MaterialRecipe {
             t.color,
             1. - seam * 0.22 + (board - 0.5) * self.contrast * 0.35,
         );
-        t.height -= seam * self.joint_width * 0.25;
+        t.height -= seam * self.joint_width * 0.25 * self.detail_scale.unwrap_or(1.);
         t.roughness = (t.roughness + seam * 0.12).min(1.);
     }
 }
@@ -1110,6 +1157,28 @@ impl MaterialRecipe {
 mod tests {
     use super::*;
 
+    #[test]
+    fn zero_detail_removes_relief_in_authored_programs_and_installation_seams() {
+        for floor in 0..3 {
+            for seed in [0, 202] {
+                let recipes = sample_with_floor(seed, floor).unwrap();
+                for mut r in recipes {
+                    r.detail_scale = Some(0.);
+                    r.relief_m = 0.;
+                    r.contrast = 0.;
+                    for slot in [0, 1, 2] {
+                        let r = r.variant(slot);
+                        for y in 0..8 {
+                            for x in 0..8 {
+                                let t = r.texel(x as f32 / 8., y as f32 / 8., floor);
+                                assert_eq!(t.height, 0., "{:?} {seed} {floor} {slot}", r.surface);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
     #[test]
     fn interior_palettes_replay_with_bounded_correlated_pigments() {
         let mut dark = 0;

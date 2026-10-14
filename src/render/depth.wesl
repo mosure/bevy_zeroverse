@@ -4,6 +4,14 @@ import bevy_pbr::{
     prepass::utils,
 };
 
+// TURBO_COEFFICIENTS
+
+fn turbo_depth_rgb(depth: f32, far: f32) -> vec3<f32> {
+    let x = 1.0 - clamp(log(1.0 + max(depth, 0.0)) / log(1.0 + max(far, 0.00001)), 0.0, 1.0);
+    let srgb = clamp(((((TURBO_5 * x + TURBO_4) * x + TURBO_3) * x + TURBO_2) * x + TURBO_1) * x + TURBO_0, vec3<f32>(0.0), vec3<f32>(1.0));
+    // The render target applies the display transfer; supply linear RGB here.
+    return select(pow((srgb + 0.055) / 1.055, vec3<f32>(2.4)), srgb / 12.92, srgb <= vec3<f32>(0.04045));
+}
 
 fn depth_to_rgb(depth: f32) -> vec3<f32> {
     let normalized_depth = clamp(depth, 0.0, 1.0);
@@ -38,6 +46,8 @@ fn fragment(
 
 @if(COLORIZED_DEPTH)
     return vec4<f32>(depth_to_rgb(in.position.z), 1.0);
+@elif(TURBO_DEPTH)
+    return vec4<f32>(turbo_depth_rgb(depth, far), 1.0);
 @elif(NORMALIZED_DEPTH)
     return vec4<f32>(vec3<f32>(depth / far), 1.0);
 @elif(LINEAR_DEPTH)

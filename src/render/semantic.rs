@@ -89,11 +89,35 @@ pub enum SemanticLabel {
     /// Finite exterior background proxy; its depth is the proxy surface distance.
     Sky,
     FloorOutlet,
+    Stove,
+    Oven,
+    Microwave,
+    Dishwasher,
+    Faucet,
+    Dishware,
+    KitchenUtensil,
+    Food,
+    SoapDispenser,
+    CleaningSupply,
+    Elevator,
+    ControlPanel,
+    DisplayCase,
+    TrayReturn,
+    QueueBarrier,
+    Lectern,
+    Locker,
+    Plinth,
+    Sculpture,
+    InformationStand,
+    ExtractionHood,
+    DoorFrame,
+    DoorHardware,
+    CabinetHardware,
 }
 
 impl SemanticLabel {
     /// Versioned, authoritative vocabulary for rendered colors and exports.
-    pub const TAXONOMY_VERSION: u32 = 4;
+    pub const TAXONOMY_VERSION: u32 = 7;
     pub const ALL: &[Self] = &[
         Self::Wall,
         Self::Floor,
@@ -167,6 +191,30 @@ impl SemanticLabel {
         Self::Vase,
         Self::Sky,
         Self::FloorOutlet,
+        Self::Stove,
+        Self::Oven,
+        Self::Microwave,
+        Self::Dishwasher,
+        Self::Faucet,
+        Self::Dishware,
+        Self::KitchenUtensil,
+        Self::Food,
+        Self::SoapDispenser,
+        Self::CleaningSupply,
+        Self::Elevator,
+        Self::ControlPanel,
+        Self::DisplayCase,
+        Self::TrayReturn,
+        Self::QueueBarrier,
+        Self::Lectern,
+        Self::Locker,
+        Self::Plinth,
+        Self::Sculpture,
+        Self::InformationStand,
+        Self::ExtractionHood,
+        Self::DoorFrame,
+        Self::DoorHardware,
+        Self::CabinetHardware,
     ];
 
     pub fn color(&self) -> Color {
@@ -244,6 +292,30 @@ impl SemanticLabel {
             SemanticLabel::Vase => Color::srgb_u8(186, 39, 34),
             SemanticLabel::Sky => Color::srgb_u8(75, 145, 245),
             SemanticLabel::FloorOutlet => Color::srgb_u8(98, 158, 171),
+            SemanticLabel::Stove => Color::srgb_u8(159, 99, 43),
+            SemanticLabel::Oven => Color::srgb_u8(88, 113, 158),
+            SemanticLabel::Microwave => Color::srgb_u8(131, 99, 183),
+            SemanticLabel::Dishwasher => Color::srgb_u8(74, 146, 180),
+            SemanticLabel::Faucet => Color::srgb_u8(183, 196, 208),
+            SemanticLabel::Dishware => Color::srgb_u8(217, 169, 93),
+            SemanticLabel::KitchenUtensil => Color::srgb_u8(114, 167, 78),
+            SemanticLabel::Food => Color::srgb_u8(226, 83, 63),
+            SemanticLabel::SoapDispenser => Color::srgb_u8(76, 201, 173),
+            SemanticLabel::Elevator => Color::srgb_u8(61, 211, 83),
+            SemanticLabel::ControlPanel => Color::srgb_u8(74, 202, 94),
+            SemanticLabel::DisplayCase => Color::srgb_u8(87, 193, 105),
+            SemanticLabel::TrayReturn => Color::srgb_u8(100, 184, 116),
+            SemanticLabel::QueueBarrier => Color::srgb_u8(113, 175, 127),
+            SemanticLabel::Lectern => Color::srgb_u8(126, 166, 138),
+            SemanticLabel::Locker => Color::srgb_u8(139, 157, 149),
+            SemanticLabel::Plinth => Color::srgb_u8(152, 148, 160),
+            SemanticLabel::Sculpture => Color::srgb_u8(165, 139, 171),
+            SemanticLabel::InformationStand => Color::srgb_u8(178, 130, 182),
+            SemanticLabel::ExtractionHood => Color::srgb_u8(191, 121, 193),
+            SemanticLabel::DoorFrame => Color::srgb_u8(204, 112, 204),
+            SemanticLabel::DoorHardware => Color::srgb_u8(217, 103, 215),
+            SemanticLabel::CabinetHardware => Color::srgb_u8(230, 94, 226),
+            SemanticLabel::CleaningSupply => Color::srgb_u8(200, 194, 77),
         }
     }
 
@@ -251,6 +323,31 @@ impl SemanticLabel {
         match name {
             "sky" => Some(SemanticLabel::Sky),
             "floor_outlet" => Some(SemanticLabel::FloorOutlet),
+            "stove" => Some(SemanticLabel::Stove),
+            "oven" => Some(SemanticLabel::Oven),
+            "microwave" => Some(SemanticLabel::Microwave),
+            "dishwasher" => Some(SemanticLabel::Dishwasher),
+            "faucet" => Some(SemanticLabel::Faucet),
+            "dishware" => Some(SemanticLabel::Dishware),
+            "kitchen_utensil" => Some(SemanticLabel::KitchenUtensil),
+            "food" => Some(SemanticLabel::Food),
+            "soap_dispenser" => Some(SemanticLabel::SoapDispenser),
+            "elevator" => Some(SemanticLabel::Elevator),
+            "control_panel" => Some(SemanticLabel::ControlPanel),
+            "display_case" => Some(SemanticLabel::DisplayCase),
+            "tray_return" => Some(SemanticLabel::TrayReturn),
+            "queue_barrier" => Some(SemanticLabel::QueueBarrier),
+            "lectern" => Some(SemanticLabel::Lectern),
+            "locker" => Some(SemanticLabel::Locker),
+            "plinth" => Some(SemanticLabel::Plinth),
+            "sculpture" => Some(SemanticLabel::Sculpture),
+            "information_stand" => Some(SemanticLabel::InformationStand),
+            "extraction_hood" => Some(SemanticLabel::ExtractionHood),
+            "door_frame" => Some(SemanticLabel::DoorFrame),
+            "door_hardware" => Some(SemanticLabel::DoorHardware),
+            "cabinet_hardware" => Some(SemanticLabel::CabinetHardware),
+            "cleaning_supply" => Some(SemanticLabel::CleaningSupply),
+
             "wall" => Some(SemanticLabel::Wall),
             "floor" => Some(SemanticLabel::Floor),
             "cabinet" => Some(SemanticLabel::Cabinet),
@@ -331,6 +428,31 @@ impl SemanticLabel {
         match self {
             SemanticLabel::Sky => "sky",
             SemanticLabel::FloorOutlet => "floor_outlet",
+            SemanticLabel::Stove => "stove",
+            SemanticLabel::Oven => "oven",
+            SemanticLabel::Microwave => "microwave",
+            SemanticLabel::Dishwasher => "dishwasher",
+            SemanticLabel::Faucet => "faucet",
+            SemanticLabel::Dishware => "dishware",
+            SemanticLabel::KitchenUtensil => "kitchen_utensil",
+            SemanticLabel::Food => "food",
+            SemanticLabel::SoapDispenser => "soap_dispenser",
+            SemanticLabel::Elevator => "elevator",
+            SemanticLabel::ControlPanel => "control_panel",
+            SemanticLabel::DisplayCase => "display_case",
+            SemanticLabel::TrayReturn => "tray_return",
+            SemanticLabel::QueueBarrier => "queue_barrier",
+            SemanticLabel::Lectern => "lectern",
+            SemanticLabel::Locker => "locker",
+            SemanticLabel::Plinth => "plinth",
+            SemanticLabel::Sculpture => "sculpture",
+            SemanticLabel::InformationStand => "information_stand",
+            SemanticLabel::ExtractionHood => "extraction_hood",
+            SemanticLabel::DoorFrame => "door_frame",
+            SemanticLabel::DoorHardware => "door_hardware",
+            SemanticLabel::CabinetHardware => "cabinet_hardware",
+            SemanticLabel::CleaningSupply => "cleaning_supply",
+
             SemanticLabel::Wall => "wall",
             SemanticLabel::Floor => "floor",
             SemanticLabel::Cabinet => "cabinet",
@@ -409,6 +531,11 @@ impl SemanticLabel {
 #[reflect(Component, Default)]
 pub struct Semantic;
 
+/// The children already carry authoritative part labels. Keep the parent's
+/// object-level class for instance export without overwriting those parts.
+#[derive(Component, Debug, Default)]
+pub struct PreserveSemanticParts;
+
 #[derive(Debug, Default)]
 pub struct SemanticPlugin;
 impl Plugin for SemanticPlugin {
@@ -444,7 +571,10 @@ fn propagate_semantic_labels(
     mut commands: Commands,
     semantic_parents: Query<
         (&SemanticLabel, &Children),
-        Or<(Changed<SemanticLabel>, Changed<Children>)>,
+        (
+            Or<(Changed<SemanticLabel>, Changed<Children>)>,
+            Without<PreserveSemanticParts>,
+        ),
     >,
     labels: Query<&SemanticLabel>,
 ) {
@@ -527,6 +657,46 @@ impl MaterialExtension for SemanticExtension {
 #[cfg(test)]
 mod vocabulary_tests {
     use super::*;
+    #[test]
+    fn procedural_parts_keep_labels_while_legacy_hierarchies_inherit() {
+        let mut app = App::new();
+        app.add_systems(Update, propagate_semantic_labels);
+        let root = app
+            .world_mut()
+            .spawn((SemanticLabel::Door, PreserveSemanticParts))
+            .id();
+        let handle = app
+            .world_mut()
+            .spawn((SemanticLabel::DoorHardware, ChildOf(root)))
+            .id();
+        let frame = app
+            .world_mut()
+            .spawn((SemanticLabel::DoorFrame, ChildOf(root)))
+            .id();
+        let legacy = app.world_mut().spawn(SemanticLabel::Cabinet).id();
+        let mesh = app.world_mut().spawn(ChildOf(legacy)).id();
+        app.update();
+        assert_eq!(
+            app.world().get::<SemanticLabel>(handle),
+            Some(&SemanticLabel::DoorHardware)
+        );
+        assert_eq!(
+            app.world().get::<SemanticLabel>(frame),
+            Some(&SemanticLabel::DoorFrame)
+        );
+        assert_eq!(
+            app.world().get::<SemanticLabel>(mesh),
+            Some(&SemanticLabel::Cabinet)
+        );
+        app.world_mut()
+            .entity_mut(legacy)
+            .insert(SemanticLabel::Chair);
+        app.update();
+        assert_eq!(
+            app.world().get::<SemanticLabel>(mesh),
+            Some(&SemanticLabel::Chair)
+        );
+    }
     #[test]
     fn complete_taxonomy_roundtrips_and_has_unique_nonbackground_colors() {
         let mut names = std::collections::BTreeSet::new();

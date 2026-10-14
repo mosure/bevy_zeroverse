@@ -7,7 +7,7 @@ The material atlas covers all 36 architectural/object surface roles, with the Fl
 
 Each render uses the actual \texttt{IndoorMaterials} factory and \texttt{for\_part} binding, including palette tint, texture structure group, UV transform, clearcoat, anisotropy and transmission. The studio reuses a native Bevy renderer. Texture maps are baked by the production CPU reference implementation; this study does not measure GPU-baking throughput. The rig uses fixed 1,400/250 lux directional lights with shadows, the same seed-zero procedural reflection environment, indoor capture exposure and a $40^\circ$ vertical field of view. A 0.46 m diameter sphere and a $0.46\times0.49$ m beveled panel expose curved highlights and flat detail. Leaves use production blades with normalized atlas UVs. The backdrop is identical across columns and reveals glass transmission. These are material probes, not representative furnished rooms.
 
-The separate assignment audit constructs every primary-room object in 256 consecutive mixed-layout rooms at density 0.65, without humans: 19291 objects and 69874 material parts. Rug fields use four bounded dye/pile slots; their bindings retain upholstery. Every supported object finish must have a valid slot in $[0,12)$ and resolve from its recorded finish seed; deliberately independent book-cover slots are retained. Per-object-category surface and slot counts are exported. This cohort checks application frequency; the studio does not estimate it. Architectural walls/floors, human skin/hair, and installation-specific facade privacy treatments are outside the object-assignment denominator. Human complexion/groom variation is not represented by these substrate probes.
+The separate assignment audit constructs every primary-room object in 256 consecutive mixed-layout rooms at density 0.65, without humans: 19371 objects and 70173 material parts. Rug fields use four bounded dye/pile slots; their bindings retain upholstery. Every supported object finish must have a valid slot in $[0,12)$ and resolve from its recorded finish seed; deliberately independent book-cover slots are retained. Per-object-category surface and slot counts are exported. This cohort checks application frequency; the studio does not estimate it. Architectural walls/floors, human skin/hair, and installation-specific facade privacy treatments are outside the object-assignment denominator. Human complexion/groom variation is not represented by these substrate probes.
 
 \subsection{Correlated controls, bounded palettes}
 Within a room, twelve finish slots share at most three texture structures per surface. Ceramic, Fabric, FabricAlt and Leather have three structures; Wood, WoodEdge, Leaf, LeafLight, LeafVariegated and Succulent have two. Other roles reuse one structure; rug fields have up to four dedicated dye/pile structures. Shared map handles bound synthesis/upload costs; independent room material seeds resample the underlying recipe. These are correlated palettes, not twelve independent textures. Painted Metal is dielectric; Chrome is conductive. Screen, phone, television, artwork, printed-paper and whiteboard maps come from their dedicated content programs. Container glass and liquids retain several fixed optical constants; their presence is not evidence of broad optical diversity.
@@ -24,43 +24,43 @@ The page pairs each image with its actual PBR scalars and seed, and exposes eigh
 \endhead
 Paint & 1 & 0 & 0 \\
 Accent & 1 & 0 & 0 \\
-Wood & 2 & 3437 & 12 \\
-WoodEdge & 2 & 4930 & 12 \\
+Wood & 2 & 3462 & 12 \\
+WoodEdge & 2 & 4892 & 12 \\
 FloorTimber & 1 & 0 & 0 \\
 FloorCarpet & 1 & 0 & 0 \\
 FloorStone & 1 & 0 & 0 \\
 Ceiling & 1 & 0 & 0 \\
-Metal & 1 & 10908 & 12 \\
-Chrome & 1 & 3239 & 12 \\
-Plastic & 1 & 10756 & 12 \\
-Fabric & 3 & 926 & 12 \\
-FabricAlt & 3 & 2365 & 12 \\
+Metal & 3 & 11100 & 12 \\
+Chrome & 3 & 3277 & 12 \\
+Plastic & 3 & 10874 & 12 \\
+Fabric & 3 & 973 & 12 \\
+FabricAlt & 3 & 2402 & 12 \\
 Glass & 1 & 0 & 0 \\
-Ceramic & 3 & 1222 & 12 \\
-Soil & 1 & 1127 & 0 \\
-Leaf & 2 & 715 & 12 \\
-LeafLight & 2 & 706 & 12 \\
-Paper & 1 & 5988 & 12 \\
-Screen & 1 & 727 & 12 \\
-Ink & 1 & 7086 & 0 \\
-Light & 1 & 339 & 0 \\
-Concrete & 1 & 495 & 0 \\
-Art & 1 & 2811 & 12 \\
-Rubber & 1 & 6907 & 0 \\
-LeafVariegated & 2 & 81 & 12 \\
-Terracotta & 1 & 321 & 0 \\
-Bark & 1 & 715 & 0 \\
+Ceramic & 3 & 1200 & 12 \\
+Soil & 1 & 1105 & 0 \\
+Leaf & 2 & 705 & 12 \\
+LeafLight & 2 & 695 & 12 \\
+Paper & 1 & 5816 & 12 \\
+Screen & 1 & 763 & 12 \\
+Ink & 1 & 7268 & 0 \\
+Light & 1 & 349 & 0 \\
+Concrete & 1 & 449 & 0 \\
+Art & 1 & 2669 & 12 \\
+Rubber & 1 & 6956 & 0 \\
+LeafVariegated & 2 & 75 & 12 \\
+Terracotta & 1 & 330 & 0 \\
+Bark & 1 & 705 & 0 \\
 GlassInterior & 1 & 0 & 0 \\
-ContainerGlass & 1 & 382 & 0 \\
-Liquid & 1 & 225 & 0 \\
-Drink & 1 & 634 & 0 \\
-PhoneScreen & 1 & 736 & 12 \\
-PrintedPaper & 1 & 333 & 12 \\
-Leather & 3 & 818 & 12 \\
-Whiteboard & 1 & 212 & 12 \\
-Television & 1 & 126 & 12 \\
-Succulent & 2 & 331 & 12 \\
-Rug & 4 & 276 & 4 \\
+ContainerGlass & 1 & 409 & 0 \\
+Liquid & 1 & 216 & 0 \\
+Drink & 1 & 606 & 0 \\
+PhoneScreen & 1 & 766 & 12 \\
+PrintedPaper & 1 & 320 & 12 \\
+Leather & 3 & 820 & 12 \\
+Whiteboard & 1 & 224 & 12 \\
+Television & 1 & 136 & 12 \\
+Succulent & 2 & 325 & 12 \\
+Rug & 4 & 286 & 4 \\
 \bottomrule
 \end{longtable}
 \normalsize

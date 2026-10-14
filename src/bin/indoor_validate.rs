@@ -29,8 +29,12 @@ use std::{
 
 #[path = "indoor_validate/co_visibility.rs"]
 mod co_visibility;
+#[path = "motion_validate/flow.rs"]
+mod flow;
+#[path = "indoor_validate/reconstruction.rs"]
+mod reconstruction;
 
-#[derive(Parser)]
+#[derive(Parser, Serialize)]
 #[command(
     about = "Audit seeded indoor layouts; optionally capture real RGB and aligned annotations"
 )]
@@ -52,6 +56,9 @@ struct Args {
     /// Material/light factors applied after geometry generation.
     #[arg(long)]
     indoor_appearance: Option<String>,
+    /// Opt-in articulated room motion for temporal capture qualification.
+    #[arg(long)]
+    indoor_motion: Option<String>,
     #[arg(long, default_value_t = 800)]
     width: u32,
     #[arg(long, default_value_t = 600)]
@@ -92,6 +99,9 @@ struct Args {
     /// Capture exact same-time camera membership, validity masks and additive previews.
     #[arg(long, requires = "labels")]
     co_visibility: bool,
+    /// Qualify temporal vectors against independent calibrated camera reprojection.
+    #[arg(long, requires = "labels")]
+    flow: bool,
     /// Export PNG previews and metrics without large RGBA32F files.
     #[arg(long)]
     no_raw: bool,
@@ -127,6 +137,8 @@ struct CaptureReport {
     color_encoding: &'static str,
     label_policy: &'static str,
     views: Vec<ViewReport>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reconstruction_graphs: Option<Vec<ReconstructionFrame>>,
     mesh_assets: usize,
     material_assets: usize,
     image_assets: usize,
@@ -134,6 +146,18 @@ struct CaptureReport {
     diffuse_gi: Option<bevy_zeroverse::scene::procedural_indoor::gi::BakeStatistics>,
     #[serde(skip_serializing_if = "Option::is_none")]
     co_visibility_metadata: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    flow_qualification: Option<serde_json::Value>,
+}
+
+#[derive(serde::Serialize)]
+struct ReconstructionFrame {
+    step_index: usize,
+    time: f32,
+    trajectory_progress: Option<f32>,
+    time_seconds: Option<f32>,
+    graph: bevy_zeroverse_capture::reconstruction::ViewGraph,
+    primary_geometry: reconstruction::PrimaryGeometry,
 }
 
 #[derive(Serialize)]
@@ -165,6 +189,39 @@ struct ViewReport {
 
 fn main() -> Result<()> {
     let args = Args::parse();
+    fs::create_dir_all(&args.output)?;
+    let receipt_path = args.output.join("qualification_run.json");
+    ensure!(
+        !receipt_path.exists(),
+        "qualification output already contains a run; choose a fresh output directory"
+    );
+    let started = Instant::now();
+    let mut receipt = serde_json::json!({
+        "schema_version": 1,
+        "status": "running",
+        "requested": args,
+        "provenance": bevy_zeroverse::provenance::capture_provenance(),
+        "started_unix_seconds": std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?.as_secs_f64(),
+        "policy": "Consecutive seeds unless explicitly stratified; failures retained, no quality-score rejection. A running receipt without completion is incomplete.",
+    });
+    fs::write(&receipt_path, serde_json::to_vec_pretty(&receipt)?)?;
+    let outcome = run(&args);
+    receipt["status"] = if outcome.is_ok() {
+        "complete"
+    } else {
+        "failed"
+    }
+    .into();
+    receipt["elapsed_seconds"] = started.elapsed().as_secs_f64().into();
+    receipt["error"] = outcome.as_ref().err().map(|e| format!("{e:#}")).into();
+    // The initial receipt survives an abrupt termination or a disk failure.
+    let temporary = args.output.join("qualification_run.json.tmp");
+    fs::write(&temporary, serde_json::to_vec_pretty(&receipt)?)?;
+    fs::rename(temporary, receipt_path)?;
+    outcome
+}
+
+fn run(args: &Args) -> Result<()> {
     let run_id = format!(
         "{}-{}",
         std::process::id(),
@@ -195,6 +252,10 @@ fn main() -> Result<()> {
     ensure!(
         (1..=64).contains(&args.playback_steps),
         "playback-steps must be in [1, 64]"
+    );
+    ensure!(
+        !args.flow || args.playback_steps >= 2,
+        "flow qualification requires at least two timesteps"
     );
     ensure!(
         (64..=16384).contains(&args.gi_rays),
@@ -356,11 +417,15 @@ fn main() -> Result<()> {
     if args.co_visibility {
         modes.push(RenderMode::CoVisibility);
     }
+    if args.flow {
+        modes.extend([RenderMode::OpticalFlow, RenderMode::MotionVectors]);
+    }
     let config = BevyZeroverseConfig {
         scene_type: ZeroverseSceneType::ProceduralIndoor,
         indoor_seed: Some(args.seed),
         indoor_camera: args.indoor_camera.clone(),
         indoor_appearance: args.indoor_appearance.clone(),
+        indoor_motion: args.indoor_motion.clone(),
         indoor_layout: args.layout,
         indoor_density: args.density,
         indoor_human_density: args.human_density,
@@ -548,6 +613,22 @@ fn main() -> Result<()> {
             directory.join("manifest.json"),
             serde_json::to_vec_pretty(&manifest)?,
         )?;
+        let schematic = sample.schematic(0).map_err(anyhow::Error::msg)?;
+        fs::write(
+            directory.join("schematic.svg"),
+            schematic
+                .svg(
+                    &bevy_zeroverse::annotation::schematic::RenderOptions {
+                        width: 768,
+                        height: 768,
+                        labels: false,
+                        ..default()
+                    },
+                    &bevy_zeroverse::annotation::schematic::Overlay::default(),
+                )
+                .map_err(anyhow::Error::msg)?,
+        )?;
+
         if args.export_reference {
             #[cfg(not(target_arch = "wasm32"))]
             bevy_zeroverse::scene::procedural_indoor::reference::export(
@@ -559,7 +640,68 @@ fn main() -> Result<()> {
             #[cfg(target_arch = "wasm32")]
             anyhow::bail!("reference export requires the native validator");
         }
-        let views = save_sample(&sample, &args, &directory)?;
+        let views = save_sample(&sample, args, &directory)?;
+        let flow_qualification = args
+            .flow
+            .then(|| flow::validate(&sample, args.width, args.height, &directory))
+            .transpose()?;
+        let reconstruction_graphs = if args.co_visibility {
+            Some(
+                (0..args.playback_steps as usize)
+                    .map(|step| {
+                        let mut row: Vec<_> =
+                            views.iter().filter(|v| v.step_index == step).collect();
+                        row.sort_by_key(|v| v.camera_index);
+                        ensure!(
+                            row.len() == args.cameras
+                                && row.iter().enumerate().all(|(i, v)| v.camera_index == i),
+                            "incomplete camera/time group"
+                        );
+                        let counts: Vec<_> = row
+                            .iter()
+                            .map(|v| {
+                                v.co_visibility
+                                    .as_ref()
+                                    .context("missing co-visibility counts")
+                            })
+                            .collect::<Result<_>>()?;
+                        let graph = bevy_zeroverse_capture::reconstruction::view_graph(
+                            &counts
+                                .iter()
+                                .map(|c| c.valid_pixels as u64)
+                                .collect::<Vec<_>>(),
+                            &counts
+                                .iter()
+                                .map(|c| c.peer_pixels.iter().map(|&n| n as u64).collect())
+                                .collect::<Vec<_>>(),
+                            &counts
+                                .iter()
+                                .map(|c| c.cardinality_pixels.iter().map(|&n| n as u64).collect())
+                                .collect::<Vec<_>>(),
+                            0.10,
+                        )
+                        .map_err(anyhow::Error::msg)?;
+                        Ok(ReconstructionFrame {
+                            primary_geometry: reconstruction::measure(
+                                &sample.views[step * args.cameras..(step + 1) * args.cameras],
+                                sample
+                                    .indoor
+                                    .as_ref()
+                                    .context("missing reconstruction scene")?,
+                                sample.aabb,
+                            )?,
+                            step_index: step,
+                            time: row[0].time,
+                            trajectory_progress: row[0].trajectory_progress,
+                            time_seconds: row[0].time_seconds,
+                            graph,
+                        })
+                    })
+                    .collect::<Result<Vec<_>>>()?,
+            )
+        } else {
+            None
+        };
         let report = CaptureReport {
             build_provenance: bevy_zeroverse::provenance::capture_provenance(),
             camera_qualification: sample.indoor_render_metadata.as_ref().and_then(|m| m.get("camera_qualification")).cloned(),
@@ -587,12 +729,14 @@ fn main() -> Result<()> {
                     "first geometric surface after skipping transmissive glass; unrefracted rays; frames and opaque frit remain occluders; native indoor uses direct float32 MRT",
             },
             views,
+            reconstruction_graphs,
             mesh_assets: app.world().resource::<Assets<Mesh>>().len(),
             material_assets: app.world().resource::<Assets<StandardMaterial>>().len(),
             image_assets: app.world().resource::<Assets<Image>>().len(),
             annotation_precision: sample.annotation_precision,
             diffuse_gi: app.world().get_resource::<bevy_zeroverse::scene::procedural_indoor::gi::BakeStatistics>().cloned(),
             co_visibility_metadata: sample.co_visibility_metadata.clone(),
+            flow_qualification,
         };
         fs::write(
             directory.join("capture.json"),

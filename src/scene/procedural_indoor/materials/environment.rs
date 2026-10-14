@@ -5,7 +5,8 @@ use super::*;
 use crate::scene::procedural_indoor::{architecture, gi::BakeScene};
 use std::f32::consts::{PI, TAU};
 #[cfg(any(test, target_arch = "wasm32"))]
-mod cooperative;
+pub(super) mod cooperative;
+pub(crate) mod gpu;
 mod kernel;
 #[cfg(test)]
 mod round4_replay;
@@ -17,11 +18,31 @@ use kernel::ConvolutionKernel;
 const SIZE: u32 = 64;
 const SAMPLES: u32 = 64;
 
+#[cfg(test)]
 pub(super) fn build(scene: &IndoorManifest, transport: &BakeScene) -> [Image; 2] {
     build_at(scene, transport, transport.reflection_origin(scene))
 }
 
+pub(super) fn insert_at(
+    scene: &IndoorManifest,
+    transport: &BakeScene,
+    origin: Vec3,
+    images: &mut impl super::super::preparation::AssetStore<Image>,
+    requests: &mut super::gpu::Requests,
+    gpu: bool,
+) -> [Handle<Image>; 2] {
+    if gpu {
+        gpu::prepare(trace_at(scene, transport, origin), images, requests)
+    } else {
+        build_at(scene, transport, origin).map(|image| images.add(image))
+    }
+}
+
 pub(super) fn build_at(scene: &IndoorManifest, transport: &BakeScene, origin: Vec3) -> [Image; 2] {
+    convolve(&trace_at(scene, transport, origin), SIZE)
+}
+
+pub(super) fn trace_at(scene: &IndoorManifest, transport: &BakeScene, origin: Vec3) -> Vec<Vec3> {
     let trace = ProbeTrace::new(scene, transport, origin);
     let trace_face = |face| {
         let mut pixels = Vec::with_capacity((SIZE * SIZE) as usize);
@@ -39,7 +60,7 @@ pub(super) fn build_at(scene: &IndoorManifest, transport: &BakeScene, origin: Ve
     });
     #[cfg(target_arch = "wasm32")]
     let faces: Vec<_> = (0..6).map(trace_face).collect();
-    convolve(&faces.into_iter().flatten().collect::<Vec<_>>(), SIZE)
+    faces.into_iter().flatten().collect()
 }
 
 struct ProbeTrace<'a> {

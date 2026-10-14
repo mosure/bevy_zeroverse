@@ -139,6 +139,7 @@ pub(crate) struct Request {
     camera: Option<String>,
     appearance: Option<String>,
     motion: Option<String>,
+    indoor_motion: Option<String>,
 }
 
 impl Request {
@@ -178,6 +179,7 @@ impl Request {
             camera: args.indoor_camera.clone(),
             appearance: args.indoor_appearance.clone(),
             motion: args.human_motion.clone(),
+            indoor_motion: args.indoor_motion.clone(),
         }
     }
 
@@ -253,6 +255,11 @@ impl Request {
         } else {
             Vec::new()
         };
+        if let Some(json) = request.indoor_motion {
+            scene.indoor_motion = Some(super::super::motion::IndoorMotionReport::new(
+                super::super::motion::IndoorMotionConfig::parse(&json)?,
+            ));
+        }
         let motion_planning_seconds = started.elapsed().as_secs_f64();
         let mut prepared = PreparedIndoor::build_with_materials(
             scene,
@@ -275,7 +282,7 @@ impl Request {
         wall.layout_seconds = layout_seconds;
         wall.cameras_seconds = cameras_seconds;
         wall.validation_seconds = validation_seconds;
-        wall.motion_planning_seconds = motion_planning_seconds;
+        wall.motion_planning_seconds += motion_planning_seconds;
         wall.finish(all_started.elapsed().as_secs_f64());
         // Disabled by default; attribute CPU work without adding timings to
         // deterministic dataset metadata or changing capture readiness.
@@ -386,6 +393,7 @@ mod tests {
             |a: &mut BevyZeroverseConfig| a.indoor_camera = Some("{}".into()),
             |a: &mut BevyZeroverseConfig| a.indoor_appearance = Some("{}".into()),
             |a: &mut BevyZeroverseConfig| a.human_motion = Some("{}".into()),
+            |a: &mut BevyZeroverseConfig| a.indoor_motion = Some("{}".into()),
             |a: &mut BevyZeroverseConfig| a.indoor_density *= 0.5,
             |a: &mut BevyZeroverseConfig| a.indoor_human_density = 0.9,
             |a: &mut BevyZeroverseConfig| a.width *= 2.0,

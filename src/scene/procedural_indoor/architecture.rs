@@ -1,6 +1,7 @@
 pub(crate) mod background;
 pub mod ceiling;
 pub mod details;
+pub mod doors;
 pub mod facade;
 pub(crate) mod outdoors;
 #[cfg(test)]
@@ -17,7 +18,10 @@ pub fn architecture(scene: &IndoorManifest) -> Assembly {
     if scene.envelope.is_some() {
         return super::envelope::construction::build(scene);
     }
-    let mut a = Assembly::default();
+    let mut a = Assembly {
+        motion_policy: scene.indoor_motion.as_ref().map(|m| m.policy.clone()),
+        ..default()
+    };
     super::floorplan::build(scene, &mut a);
     let w = scene.room_size.x;
     let h = scene.room_size.y;
@@ -42,8 +46,8 @@ pub fn architecture(scene: &IndoorManifest) -> Assembly {
     facade::shell(&mut a, scene);
 
     // Shared partition to a second furnished room, with a 1.1 m open doorway.
-    let door_left = scene.door_x - 0.55;
-    let door_right = scene.door_x + 0.55;
+    let door_left = scene.door_x - scene.entry_width() * 0.5;
+    let door_right = scene.door_x + scene.entry_width() * 0.5;
     let partition_h = h - 0.22;
     a.box_part(
         Surface::Paint,
@@ -125,42 +129,46 @@ pub fn architecture(scene: &IndoorManifest) -> Assembly {
             );
         }
     }
-    for x in [door_left, door_right] {
+    if let Some(door) = &scene.entry_door {
+        door.build(&mut a, true);
+    } else {
+        for x in [door_left, door_right] {
+            a.box_part(
+                Surface::WoodEdge,
+                "door",
+                Vec3::new(x, 2.255 * 0.5, hz),
+                Vec3::new(0.075, 2.255, 0.17),
+                0.004,
+            );
+        }
         a.box_part(
             Surface::WoodEdge,
             "door",
-            Vec3::new(x, 2.255 * 0.5, hz),
-            Vec3::new(0.075, 2.255, 0.17),
+            Vec3::new(scene.door_x, 2.30, hz),
+            Vec3::new(1.17, 0.09, 0.17),
             0.004,
         );
+        a.box_part(
+            Surface::GlassInterior,
+            "window",
+            Vec3::new(scene.door_x, (partition_h + 2.35) * 0.5, hz),
+            Vec3::new(1.05, partition_h - 2.35, 0.01),
+            0.0,
+        );
+        // Open door leaf lies inside neighboring room, outside the clear approach.
+        a.box_part(
+            Surface::Wood,
+            "door",
+            Vec3::new(door_right - 0.025, 1.12, hz + 0.56),
+            Vec3::new(0.045, 2.24, 1.07),
+            0.007,
+        );
+        a.part(Surface::Chrome, "door").rod(
+            Vec3::new(door_right - 0.06, 1.03, hz + 0.96),
+            Vec3::new(door_right - 0.06, 1.03, hz + 0.83),
+            0.011,
+        );
     }
-    a.box_part(
-        Surface::WoodEdge,
-        "door",
-        Vec3::new(scene.door_x, 2.30, hz),
-        Vec3::new(1.17, 0.09, 0.17),
-        0.004,
-    );
-    a.box_part(
-        Surface::GlassInterior,
-        "window",
-        Vec3::new(scene.door_x, (partition_h + 2.35) * 0.5, hz),
-        Vec3::new(1.05, partition_h - 2.35, 0.01),
-        0.0,
-    );
-    // Open door leaf lies inside neighboring room, outside the clear approach.
-    a.box_part(
-        Surface::Wood,
-        "door",
-        Vec3::new(door_right - 0.025, 1.12, hz + 0.56),
-        Vec3::new(0.045, 2.24, 1.07),
-        0.007,
-    );
-    a.part(Surface::Chrome, "door").rod(
-        Vec3::new(door_right - 0.06, 1.03, hz + 0.96),
-        Vec3::new(door_right - 0.06, 1.03, hz + 0.83),
-        0.011,
-    );
 
     // Pilasters, ceiling perimeter reveals and a shallow acoustic feature wall.
     for x in [

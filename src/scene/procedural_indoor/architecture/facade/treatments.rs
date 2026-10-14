@@ -1,5 +1,5 @@
 //! Seeded, metric window coverings. Meshes stay inside the aperture's lateral
-//! extent and the existing 20 cm wall-clearance allowance. No per-frame work.
+//! extent and the existing 20 cm wall-clearance allowance. Static by default.
 mod cloth;
 mod mesh;
 #[cfg(test)]
@@ -105,5 +105,38 @@ pub fn build(a: &mut Assembly, tf: Transform, f: &Facade, o: &WindowOpening) {
         fallback = ShadeProgram::sample(0).1;
         &fallback
     };
-    mesh::build(a, tf, f, o, p);
+    use super::super::super::motion::{construction as motion, MotionKind};
+    let seed = p.identity ^ o.min.x.to_bits() as u64 ^ ((o.min.y.to_bits() as u64) << 32);
+    if a.motion_selected(MotionKind::Covering, seed) {
+        let mut first = Assembly::default();
+        let mut last = Assembly::default();
+        mesh::build(&mut first, tf, f, o, p);
+        let mut end = f.clone();
+        end.shade_coverage = motion::endpoint(seed, f.shade_coverage, 1.);
+        // Translate rigid slats without shearing or shrinking them. Tilting and
+        // lifting are distinct degrees of freedom; this program opens the stack.
+        let tilt = f.shade_tilt.clamp(-1.2, 1.2);
+        let angle = match f.shade {
+            Shade::Venetian => Some(tilt * f.shade_coverage.sqrt()),
+            Shade::Vertical => Some(
+                if tilt < 0. { -1. } else { 1. }
+                    * (tilt.abs().max(0.12) * f.shade_coverage + 1.50 * (1. - f.shade_coverage)),
+            ),
+            _ => None,
+        };
+        if f.shade == Shade::Venetian {
+            let height = o.max.y - o.min.y - 0.028 - 0.095;
+            let count = (height / p.slat_pitch).floor().clamp(2., 80.);
+            let pitch = height / count;
+            let depth = (pitch * 1.07).min(0.092);
+            let min_coverage = ((depth * angle.unwrap().sin().abs() + 0.002 - 0.004)
+                / (pitch - 0.004))
+                .clamp(0., 1.);
+            end.shade_coverage = end.shade_coverage.max(min_coverage);
+        }
+        mesh::build_with_angle(&mut last, tf, &end, o, p, angle);
+        motion::morph(a, first, last, seed, tf);
+    } else {
+        mesh::build(a, tf, f, o, p);
+    }
 }

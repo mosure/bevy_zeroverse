@@ -3,6 +3,10 @@ use super::*;
 impl IndoorManifest {
     pub(super) fn furnish(&mut self, rng: &mut ChaCha8Rng) {
         use std::f32::consts::{FRAC_PI_2, PI};
+        if self.layout.is_public() {
+            self.furnish_public_programs();
+            return;
+        }
         let (_, area) = super::super::floorplan::work_area(self);
         let (w, d) = if self.furnishing_quarter_turn.is_multiple_of(2) {
             (area.x, area.y)
@@ -133,7 +137,25 @@ impl IndoorManifest {
                         }
                     }
                 }
-                IndoorLayout::Mixed => unreachable!(),
+                IndoorLayout::Kitchen | IndoorLayout::Kitchenette => {
+                    // Archived manifests without a spatial program retain usable dining.
+                    self.add_work(
+                        ObjectKind::Table,
+                        Vec3::ZERO,
+                        Vec3::new(1.4, 0.75, 0.9),
+                        0.,
+                        rng,
+                    );
+                }
+                IndoorLayout::Mixed
+                | IndoorLayout::ElevatorLanding
+                | IndoorLayout::Cafe
+                | IndoorLayout::Cafeteria
+                | IndoorLayout::Classroom
+                | IndoorLayout::LectureHall
+                | IndoorLayout::Gallery
+                | IndoorLayout::Showroom
+                | IndoorLayout::PublicSuite => unreachable!(),
             }
         }
         let w = self.room_size.x;
@@ -258,8 +280,7 @@ impl IndoorManifest {
                             && lo.z < b.z + 0.025
                             && hi.z > a.z - 0.025
                     });
-                let blocked_door =
-                    hi.x > self.door_x - 0.70 && lo.x < self.door_x + 0.70 && lo.z < d * 0.5 + 1.45;
+                let blocked_door = self.entry_approach_overlaps(lo, hi);
                 if !collision && !blocked_door {
                     self.objects.push(obj);
                     break;

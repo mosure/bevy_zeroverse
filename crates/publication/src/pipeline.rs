@@ -2,7 +2,7 @@ use crate::{
     camera_study,
     config::{Config, Protocol},
     dataset::{Capture, Dataset},
-    io, materials, media, objects, paper, qualification, snapshot, visibility,
+    doors, io, materials, media, objects, paper, qualification, snapshot, visibility,
 };
 use anyhow::{ensure, Context, Result};
 use bevy_zeroverse_capture::{
@@ -57,7 +57,11 @@ fn publication_inputs(root: &Path, config: &Config) -> Result<BTreeMap<String, S
     for name in ["publication.toml", "tex/arxiv.sty", "tex/references.bib"] {
         inputs.insert(name.into(), io::hash(&root.join(name))?);
     }
-    for name in objects::TOOLS.into_iter().chain(materials::TOOLS) {
+    for name in objects::TOOLS
+        .into_iter()
+        .chain(materials::TOOLS)
+        .chain([doors::TOOL])
+    {
         inputs.insert(name.into(), io::hash(&root.join(name))?);
     }
     for dir in ["www/project/static", "tex/generated"] {
@@ -72,6 +76,9 @@ fn publication_inputs(root: &Path, config: &Config) -> Result<BTreeMap<String, S
             inputs.insert(name, hash);
         }
     }
+    if let Some(input) = &config.room_qualification {
+        inputs.extend(io::files(root, &root.join(input))?);
+    }
     Ok(inputs)
 }
 fn is_generated(name: &str) -> bool {
@@ -79,8 +86,10 @@ fn is_generated(name: &str) -> bool {
         || name == "www/project/reference.html"
         || name.starts_with("www/project/static/media/architecture/")
         || name.starts_with("www/project/static/media/qualification/")
+        || name.starts_with("www/project/static/media/cohorts/")
         || name.starts_with("www/project/static/media/cameras/")
         || name.starts_with("www/project/static/media/objects/")
+        || name.starts_with("www/project/static/media/doors/")
         || name.starts_with("www/project/static/media/materials/")
         || name.starts_with("www/project/static/papers/")
         || matches!(
@@ -93,6 +102,7 @@ fn is_generated(name: &str) -> bool {
         || name.starts_with("tex/generated/publication_")
         || name.starts_with("tex/generated/camera_count_")
         || name.starts_with("tex/generated/object_")
+        || name.starts_with("tex/generated/door_")
         || name.starts_with("tex/generated/material_")
         || name.starts_with("tex/generated/pipeline_")
 }
@@ -176,6 +186,10 @@ pub fn verify(root: &Path, release_version: Option<&str>) -> Result<Attestation>
 /// The exported bundle is self-contained: CI never needs out/, GPU captures,
 /// neural models, Python, plotting packages or the original machine's paths.
 fn verify_bundle(root: &Path, config: &Config, attestation: &Attestation) -> Result<()> {
+    doors::verify(
+        &root.join(doors::DIRECTORY),
+        &attestation.generator_identity,
+    )?;
     materials::verify(
         &root.join(materials::DIRECTORY),
         &attestation.generator_identity,
@@ -192,6 +206,11 @@ fn verify_bundle(root: &Path, config: &Config, attestation: &Attestation) -> Res
     }
     qualification::verify_current(
         &root.join(qualification::PUBLISHED_DIRECTORY),
+        &attestation.generator_identity,
+    )?;
+    crate::cohorts::publication::verify(
+        root,
+        config.room_qualification.is_some(),
         &attestation.generator_identity,
     )?;
     let media = root.join("www/project/static/media/architecture");
@@ -439,6 +458,21 @@ pub fn refresh(root: &Path, recapture: bool) -> Result<()> {
         "publisher binary is stale: use cargo run or rebuild this tool"
     );
     let current = identity(&root)?;
+    // These independently measured inputs are not produced by the gallery
+    // capture. Reject stale receipts before spending GPU time on any atlases.
+    if let Some(input) = &config.camera_study {
+        camera_study::verify(&root.join(input), Some(&current))
+            .context("refresh the configured camera-count study before publication refresh")?;
+    }
+    if let Some(input) = &config.room_qualification {
+        crate::cohorts::publication::verify_input(&root.join(input), &current)
+            .context("refresh the configured rendered-cohort receipt before publication refresh")?;
+    }
+    let timing = root.join("tex/generated/pipeline_receipt.json");
+    if timing.exists() {
+        crate::timing::validate_receipt(&io::read(&timing)?, &current)
+            .context("remeasure the paper timing study before publication refresh")?;
+    }
     let before = publication_inputs(&root, &config)?;
     let capture_root = root.join(&config.captures);
     let dataset = if !recapture {
@@ -522,6 +556,8 @@ pub fn refresh(root: &Path, recapture: bool) -> Result<()> {
     };
     let qualification_cache = work.join("qualification");
     qualification::refresh_cache(&root, &qualification_cache, &current)?;
+    let door_cache = work.join("doors");
+    doors::refresh_cache(&root, &door_cache, &current)?;
     let object_cache = work.join("objects");
     objects::refresh_cache(&root, &object_cache, &current)?;
     let material_cache = work.join("materials");
@@ -544,7 +580,14 @@ pub fn refresh(root: &Path, recapture: bool) -> Result<()> {
     println!("Build lossless media, plans, population metrics and unified HTML");
     let gallery = media::build(&dataset, stage, &config.capture)?;
     camera_study::build(&root, stage, config.camera_study.as_deref())?;
+    crate::cohorts::publication::build(
+        &root,
+        stage,
+        config.room_qualification.as_deref(),
+        &current,
+    )?;
     objects::build(&object_cache, stage, &current)?;
+    doors::build(&door_cache, stage, &current)?;
     materials::build(&material_cache, stage, &current)?;
     media::page(&gallery, stage, &config.capture)?;
     paper::write_sources(&dataset, &gallery, stage, &config)?;
@@ -615,7 +658,14 @@ pub fn rebuild(root: &Path, release_version: Option<&str>) -> Result<()> {
         attestation.capture_sources.clone(),
     )?;
     camera_study::build(&root, stage, config.camera_study.as_deref())?;
+    crate::cohorts::publication::build(
+        &root,
+        stage,
+        config.room_qualification.as_deref(),
+        &attestation.generator_identity,
+    )?;
     objects::write_paper(stage)?;
+    doors::write_paper(stage)?;
     materials::write_paper(stage)?;
     media::page(&gallery, stage, &config.capture)?;
     paper::write_sources(&dataset, &gallery, stage, &config)?;

@@ -17,7 +17,7 @@ pub(super) fn write(stage: &Path) -> Result<()> {
 \section{{Object geometry diversity}}
 \label{{sec:object-diversity}}
 \subsection{{Fixed-envelope protocol}}
-We evaluate all 64 furnishing/prop categories on {SAMPLES} consecutive construction seeds each: {} triangle assemblies. Each category holds its metric placement envelope, orientation and finish seed fixed. This isolates internal construction from changes in object size, pose or color; it deliberately does not measure the full joint scene distribution. The cable fixture varies a controlled centerline; actual endpoint connectivity and collision are separate room-level checks. Humans and architecture are evaluated elsewhere.
+We evaluate all {} furnishing/prop categories on {SAMPLES} consecutive construction seeds each: {} triangle assemblies. Each category holds its metric placement envelope, orientation and finish seed fixed. This isolates internal construction from changes in object size, pose or color; it deliberately does not measure the full joint scene distribution. The cable fixture varies a controlled centerline; actual endpoint connectivity and collision are separate room-level checks. Humans and architecture are evaluated elsewhere.
 
 For each mesh, six orthographic first-surface depth maps sample pixel centers at $24\times24$ resolution per direction. Depth is normalized by the fixed envelope extent. Pair distance is mean absolute depth difference over the union of hit pixels; missing-versus-present surface contributes one. Greedy coverage retains a sample only when its distance to every earlier representative exceeds the threshold. We report thresholds 0.005, 0.015 and 0.030, and retain seed order. These are finite-resolution, order-dependent coverage counts, not numbers of independent geometries, perceptual embedding volume, or a proof of a multiplicative increase in dataset utility. Thin features and content on nearly planar surfaces can be under-resolved; saturated categories need more samples or a finer descriptor.
 
@@ -34,6 +34,7 @@ Six examples per category are selected by deterministic farthest-spread sampling
 \toprule Category & $C_{{.005}}$ & $C_{{.015}}$ & $C_{{.030}}$ & Triangles & ms \\\midrule
 \endhead
 ",
+        categories.len(),
         categories.len() * SAMPLES
     );
     for c in categories {
@@ -155,7 +156,7 @@ Construction seed",
 ");
     text.push_str(r"\clearpage
 \subsection{Sampled controls and their interpretation}
-The following inventory lists the sampled construction inputs recorded by each builder. Some controls are conditional on a construction choice (for example, a phone's rear lenses affect only face-down configurations); a range does not imply independent influence. Observed ranges, eight-bin numeric marginals, categorical frequencies and all seed-level values accompany the project-page grids. A small coverage count for a flat notebook, notice board or outlet is retained explicitly rather than counting different textures as different geometry.
+The following inventory lists the sampled construction inputs recorded by each builder. Some controls are conditional on a construction choice (for example, a phone's rear lenses affect only face-down configurations); a range does not imply independent influence. Observed ranges, eight-bin numeric marginals, categorical frequencies and all seed-level values accompany the project-page grids. Conditional controls use only samples in which the control is active; their active and total denominators are exported explicitly. A small coverage count for a flat notebook, notice board or outlet is retained explicitly rather than counting different textures as different geometry.
 \small
 \begin{longtable}{p{.20\linewidth}p{.74\linewidth}}
 \toprule Category & Recorded controls \\\midrule

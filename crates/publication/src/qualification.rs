@@ -165,6 +165,24 @@ impl Default for Recipe {
         for (name, size, camera, appearance) in [
             ("portrait", [160, 256], json!({}), json!({})),
             (
+                "principal_point",
+                [256, 160],
+                json!({"principal_point_jitter":[0.15,0.15]}),
+                json!({}),
+            ),
+            (
+                "portrait_principal_point",
+                [160, 256],
+                json!({"principal_point_jitter":[0.15,0.15]}),
+                json!({}),
+            ),
+            (
+                "connected_graph",
+                [256, 160],
+                json!({"multiview":{"graph":"connected","target_variation":0.8}}),
+                json!({}),
+            ),
+            (
                 "wide_baseline",
                 [256, 160],
                 json!({"baseline":0.9}),
@@ -221,6 +239,9 @@ impl Default for Recipe {
         ] {
             let mut case = base.clone();
             case.name = name.into();
+            if name == "connected_graph" {
+                case.cameras = 4;
+            }
             case.image_size = size;
             case.camera
                 .as_object_mut()
@@ -358,6 +379,8 @@ pub fn run(root: &Path, validator: &Path, output: &Path, recipe_path: Option<&Pa
             let mut baseline = Vec::new();
             let mut angles = Vec::new();
             let mut reprojection = Vec::new();
+            let mut primary_components = Vec::new();
+            let mut primary_pair_angles = Vec::new();
             for i in 0..recipe.rooms_per_case {
                 let seed = recipe.seed + i as u64;
                 let folder = format!("seed_{seed:06}");
@@ -381,6 +404,29 @@ pub fn run(root: &Path, validator: &Path, output: &Path, recipe_path: Option<&Pa
                 );
                 compiled_provenance = Some(provenance.clone());
                 let qualification = &capture["camera_qualification"];
+                let reconstruction = capture["reconstruction_graphs"]
+                    .as_array()
+                    .context("missing rendered reconstruction graphs")?;
+                ensure!(
+                    reconstruction.len() == recipe.playback_steps,
+                    "incomplete reconstruction timeline"
+                );
+                for frame in reconstruction {
+                    primary_components.push(
+                        frame["primary_geometry"]["graph"]["components"]
+                            .as_array()
+                            .context("missing primary-room graph")?
+                            .len() as f64,
+                    );
+                    for pair in frame["primary_geometry"]["pairs"]
+                        .as_array()
+                        .context("missing primary pair geometry")?
+                    {
+                        if let Some(angle) = pair["angle_degrees_p05_p50_p95"][1].as_f64() {
+                            primary_pair_angles.push(angle);
+                        }
+                    }
+                }
                 let family = qualification["scene_family"]["id"]
                     .as_str()
                     .context("missing family identity")?;
@@ -467,11 +513,13 @@ pub fn run(root: &Path, validator: &Path, output: &Path, recipe_path: Option<&Pa
                 rooms.push(json!({"seed":seed,"folder":folder,"family":qualification["scene_family"],
                     "geometry_sha256":geometry_hash,"layout":manifest["layout"],"envelope":manifest["envelope"],"domain":manifest["program"]["domain"],
                     "object_count":manifest["objects"].as_array().map(Vec::len),"renderer":capture["renderer"],
-                    "camera_qualification":qualification,"views":views}));
+                    "camera_qualification":qualification,"reconstruction_graphs":reconstruction,"views":views}));
             }
             Ok(
                 json!({"success":true,"rooms":rooms,"directed_rendered_overlap":distribution(overlap),"baseline_m":distribution(baseline),
-                "triangulation_degrees":distribution(angles),"per_view_reprojection_p99_pixels":distribution(reprojection)}),
+                "triangulation_degrees":distribution(angles),"primary_room_component_count":distribution(primary_components),
+                "primary_room_pair_median_triangulation_degrees":distribution(primary_pair_angles),
+                "per_view_reprojection_p99_pixels":distribution(reprojection)}),
             )
         })();
         match evaluation {
@@ -599,6 +647,7 @@ fn distribution(mut values: Vec<f64>) -> Value {
 }
 fn gallery(output: &Path, receipt: &Value) -> Result<()> {
     let mut html=String::from("<!doctype html><html lang=en><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><title>Zeroverse camera qualification</title><style>body{font:16px system-ui;background:#101820;color:#e9f0f4;max-width:1200px;margin:auto;padding:2rem}a{color:#8adfd8}h1{font-size:2.3rem}article{margin:2rem 0;padding:1.2rem;background:#1b2934;border-radius:1rem}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem}figure{margin:0}img{width:100%;height:240px;object-fit:contain;background:#091118}figcaption{padding:.5rem;font-size:.9rem}select{padding:.5rem;font:inherit}pre{overflow:auto;max-height:18rem;font-size:.8rem}.error{color:#ffa18f}</style><h1>Multi-view qualification</h1><p>Matched geometry, independently varied camera and appearance factors. All planned cases are retained, including failures. This bounded check measures capture correctness and sampled diversity; it does not establish photographic realism or training transfer.</p><p><a href='receipt.json'>Qualification receipt</a> · <a href='recipe.json'>Reproducible recipe</a></p><label>Annotation <select id=mode><option value=color>RGB</option><option value=co_visibility>Co-visibility</option><option value=depth>Depth</option><option value=normal>Normal</option><option value=semantic>Semantic</option><option value=position>Position</option></select></label>");
+    html.push_str(&format!("<p>{}</p>", crate::depth::DESCRIPTION));
     html.push_str("<p>Co-visibility colors identify peer cameras. Each case has its own deterministic legend. Black means no shared camera or invalid background; numeric validity masks distinguish them.</p>");
     for case in receipt["cases"].as_array().unwrap() {
         let name = case["name"].as_str().unwrap();
@@ -628,6 +677,11 @@ fn gallery(output: &Path, receipt: &Value) -> Result<()> {
                 for v in 0..room["views"].as_array().unwrap().len() {
                     let prefix =
                         format!("{}/{}/view_{v:02}_", name, room["folder"].as_str().unwrap());
+                    // Keep the measured scalar capture and its hash untouched;
+                    // bind the display-only derivative in the gallery receipt.
+                    let depth = image::open(output.join(format!("{prefix}depth.png")))?.into_rgb8();
+                    crate::depth::preview(&depth)?
+                        .save(output.join(format!("{prefix}depth_turbo.png")))?;
                     let view = &room["views"][v];
                     let time = view["time_seconds"]
                         .as_f64()
@@ -645,7 +699,7 @@ fn gallery(output: &Path, receipt: &Value) -> Result<()> {
             io::html(&serde_json::to_string_pretty(&metrics)?)
         ));
     }
-    html.push_str("<script>document.querySelector('#mode').addEventListener('change',e=>{for(const image of document.querySelectorAll('[data-prefix]'))image.src=image.dataset.prefix+e.target.value+'.png'})</script></html>");
+    html.push_str("<script>document.querySelector('#mode').addEventListener('change',e=>{const mode=e.target.value==='depth'?'depth_turbo':e.target.value;for(const image of document.querySelectorAll('[data-prefix]'))image.src=image.dataset.prefix+mode+'.png'})</script></html>");
     fs::write(output.join("index.html"), html)?;
     Ok(())
 }
@@ -653,6 +707,29 @@ fn gallery(output: &Path, receipt: &Value) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn gallery_colors_depth_without_replacing_measured_capture_bytes() {
+        let output = tempfile::tempdir().unwrap();
+        let folder = output.path().join("reference/seed_000000");
+        fs::create_dir_all(&folder).unwrap();
+        let scalar = folder.join("view_00_depth.png");
+        image::RgbImage::from_pixel(2, 2, image::Rgb([64; 3]))
+            .save(&scalar)
+            .unwrap();
+        let before = fs::read(&scalar).unwrap();
+        let receipt = json!({"cases":[{"name":"reference", "camera_count":2, "success":true,
+            "rooms":[{"seed":0,"folder":"seed_000000","views":[{"camera_index":0,"time":0}]}]}]});
+        gallery(output.path(), &receipt).unwrap();
+        assert_eq!(fs::read(&scalar).unwrap(), before);
+        let display = image::open(folder.join("view_00_depth_turbo.png"))
+            .unwrap()
+            .into_rgb8();
+        assert_ne!(display.get_pixel(0, 0)[0], display.get_pixel(0, 0)[1]);
+        let html = fs::read_to_string(output.path().join("index.html")).unwrap();
+        assert!(html.contains(crate::depth::DESCRIPTION) && html.contains("?'depth_turbo':"));
+    }
+
     #[test]
     fn factor_recipe_is_explicit_and_rejects_paths_and_duplicate_cases() {
         let mut recipe = Recipe::default();

@@ -15,7 +15,13 @@ fn sample() -> Sample {
             .map(|i| View {
                 color: bytemuck::cast_slice(&vec![0.3f32; 7 * 5 * 4]).to_vec(),
                 calibration: Some(
-                    CameraCalibration::centered_pinhole(7, 5, 0.8 + i as f32 * 0.1, 1.4).unwrap(),
+                    CameraCalibration::centered_pinhole(
+                        7,
+                        5,
+                        [28_f32, 108., 145., 150.][i].to_radians(),
+                        1.4,
+                    )
+                    .unwrap(),
                 ),
                 trajectory_progress: Some((i / 2) as f32),
                 time: (i / 2) as f32,

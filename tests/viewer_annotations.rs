@@ -78,6 +78,114 @@ fn box_mesh(app: &mut App, size: Vec3, pos: Vec3, label: SemanticLabel) -> Entit
 }
 
 #[test]
+#[ignore = "requires native GPU; checks live depth palettes against metric distances"]
+fn depth_visualization_switches_live_and_preserves_numeric_formats() {
+    use bevy_zeroverse::render::{
+        color::linear_to_srgb,
+        depth::{turbo_depth_rgb, DepthFormat},
+    };
+    std::env::set_var("BEVY_ASSET_ROOT", env!("CARGO_MANIFEST_DIR"));
+    setup_globals(None);
+    let mut app = create_app(
+        None,
+        Some(BevyZeroverseConfig {
+            scene_type: ZeroverseSceneType::Custom,
+            initialize_scene: false,
+            render_mode: RenderMode::Depth,
+            headless: true,
+            editor: false,
+            camera_grid: false,
+            image_copiers: true,
+            gizmos: false,
+            keybinds: false,
+            num_cameras: 0,
+            yaw_speed: 0.0,
+            playback_speed: 0.0,
+            playback_mode: PlaybackMode::Still,
+            ..default()
+        }),
+        false,
+    );
+    app.finish();
+    app.cleanup();
+    let mut image = Image::new_target_texture(256, 256, TextureFormat::Rgba8UnormSrgb, None);
+    image.texture_descriptor.usage |= TextureUsages::COPY_SRC;
+    let image = app.world_mut().resource_mut::<Assets<Image>>().add(image);
+    let copier = ImageCopier::for_targets(
+        vec![image.clone()],
+        Extent3d {
+            width: 256,
+            height: 256,
+            depth_or_array_layers: 1,
+        },
+        TextureFormat::Rgba8UnormSrgb,
+        app.world().resource::<RenderDevice>(),
+    );
+    let camera = app
+        .world_mut()
+        .spawn((
+            EditorCameraMarker {
+                transform: Some(Transform::IDENTITY),
+            },
+            RenderTarget::Image(ImageRenderTarget::from(image)),
+            copier.clone(),
+        ))
+        .id();
+    // Three front faces at known axial depths, spanning the image at equal sizes.
+    for (i, depth) in [2.0, 8.0, 20.0].into_iter().enumerate() {
+        box_mesh(
+            &mut app,
+            Vec3::new(depth * 0.25, depth * 0.6, 0.1),
+            Vec3::new((i as f32 - 1.0) * depth * 0.4, 0.0, -depth - 0.05),
+            SemanticLabel::Wall,
+        );
+    }
+    let baseline = capture(&mut app, &copier, 101);
+    let Projection::Perspective(p) = app.world().get::<Projection>(camera).unwrap() else {
+        panic!()
+    };
+    let (fov, far) = (p.fov, p.far);
+    app.world_mut()
+        .resource_mut::<BevyZeroverseConfig>()
+        .depth_format = DepthFormat::Turbo;
+    let colored = capture(&mut app, &copier, 102);
+    assert_ne!(colored, baseline);
+    for (i, depth) in [2.0, 8.0, 20.0].into_iter().enumerate() {
+        let x = ((0.5 + (i as f32 - 1.0) * 0.2 / (fov * 0.5).tan()) * 256.0) as usize;
+        let pixel = &colored[(128 * 256 + x) * 4..][..3];
+        let expected =
+            turbo_depth_rgb(depth, far).map(|v| (linear_to_srgb(v) * 255.0).round() as u8);
+        for c in 0..3 {
+            assert!(
+                pixel[c].abs_diff(expected[c]) <= 2,
+                "depth={depth}, pixel={pixel:?}, expected={expected:?}"
+            );
+        }
+    }
+    app.world_mut()
+        .resource_mut::<BevyZeroverseConfig>()
+        .depth_format = DepthFormat::Normalized;
+    let restored = capture(&mut app, &copier, 103);
+    assert_eq!(
+        restored, baseline,
+        "returning to the default must reproduce the original pixels"
+    );
+    if let Ok(dir) = std::env::var("ZERO_DEPTH_REVIEW_DIR") {
+        std::fs::create_dir_all(&dir).unwrap();
+        for (name, bytes) in [("normalized", &baseline), ("turbo", &colored)] {
+            image::save_buffer(
+                std::path::Path::new(&dir).join(format!("{name}.png")),
+                bytes,
+                256,
+                256,
+                image::ColorType::Rgba8,
+            )
+            .unwrap();
+        }
+    }
+}
+
+#[test]
 #[ignore = "requires native GPU; pose occlusion, teardown and 30/60/120 Hz flow"]
 fn pose_overlay_respects_environment_and_flow_preview_respects_time() {
     std::env::set_var("BEVY_ASSET_ROOT", env!("CARGO_MANIFEST_DIR"));
@@ -147,6 +255,7 @@ fn pose_overlay_respects_environment_and_flow_preview_respects_time() {
         .insert(IndoorHumanInstance {
             id: 0,
             local_joints: joints,
+            local_head_rotation: Quat::IDENTITY,
         });
     let wall = box_mesh(
         &mut app,

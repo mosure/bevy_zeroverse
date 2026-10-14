@@ -64,6 +64,8 @@ pub fn validate_geometry(scene: &IndoorManifest) -> Result<GeometryStats, String
             scene,
             &mut stats,
             Assembly {
+                motion_policy: None,
+                joints: vec![],
                 parts: human_geometry
                     .parts
                     .into_iter()

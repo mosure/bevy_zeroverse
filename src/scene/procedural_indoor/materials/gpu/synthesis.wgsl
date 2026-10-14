@@ -7,9 +7,13 @@ struct Recipe {
     carpet: vec4<f32>, carpet_meta: vec4<u32>,
     carpet0: vec4<f32>, carpet1: vec4<f32>, carpet2: vec4<f32>,
     floor_meta: vec4<u32>, floor0: vec4<f32>, floor1: vec4<f32>, floor_tint: vec4<f32>,
+    paint_counts: vec4<u32>, paint_frequencies: vec4<u32>,
+    paint0: vec4<f32>, paint1: vec4<f32>, paint2: vec4<f32>, paint_color: vec4<f32>,
 }
 struct Level { size: u32, offset: u32, stride: u32, moment_offset: u32 }
-struct Dispatch { level: u32, pad0: u32, pad1: u32, pad2: u32 }
+// Offsets/strides share the host's padded texture-copy layout. No dynamic mip
+// address reconstruction inside a storage read/write kernel.
+struct Dispatch { destination: Level, source: Level, plane: vec4<u32> }
 @group(0) @binding(0) var<uniform> r: Recipe;
 @group(0) @binding(1) var<storage, read_write> heights: array<f32>;
 @group(0) @binding(2) var<storage, read_write> moments: array<vec4<f32>>;
@@ -17,16 +21,6 @@ struct Dispatch { level: u32, pad0: u32, pad1: u32, pad2: u32 }
 @group(0) @binding(4) var<storage, read> srgb: array<f32>;
 @group(0) @binding(5) var<uniform> dispatch: Dispatch;
 
-fn level_info(l: u32) -> Level {
-    var n = r.header.y; var offset = 0u; var moment = 0u;
-    for(var i = 0u; i < l; i += 1u) { offset += n * max(n, 64u); moment += n*n; n /= 2u; }
-    return Level(n, offset, max(n, 64u), moment);
-}
-fn plane_size() -> u32 {
-    var n = r.header.y; var offset = 0u;
-    loop { offset += n * max(n, 64u); if n == 1u { break; } n /= 2u; }
-    return offset;
-}
 fn unpack(v: u32) -> vec3<f32> { return vec3<f32>(f32(v & 255u), f32((v >> 8u) & 255u), f32((v >> 16u) & 255u)); }
 fn pack(v: vec3<u32>) -> u32 { return v.x | (v.y << 8u) | (v.z << 16u) | 0xff000000u; }
 fn quant(v: vec3<f32>) -> vec3<u32> { return vec3<u32>(clamp(v, vec3(0.), vec3(255.))); }
@@ -194,12 +188,12 @@ fn carpet(uv: vec2<f32>) -> Texel {
         let seam_width = r.floor1.z + r.metric.x / f32(r.header.y);
         let seam = clamp(1.-distance/seam_width,0.,1.)*r.floor1.z/seam_width*r.floor1.y;
         t.color *= 1.-seam*0.12;
-        t.height -= seam*0.00035;
+        t.height -= seam*0.00035*r.floor1.w;
     }
     return t;
 }
 fn store_texel(id: vec2<u32>, t: Texel) {
-    let i=id.y*r.header.y+id.x;let plane=plane_size();heights[i]=t.height;
+    let i=id.y*r.header.y+id.x;let plane=dispatch.plane.x;heights[i]=t.height;
     pixels[i]=pack(quant(clamp(t.color,vec3(0.),vec3(1.))*255.));
     pixels[2u*plane+i]=pack(vec3(u32(floor(t.ao*255.+0.5)),u32(clamp(t.roughness,0.05,1.)*255.),select(0u,255u,r.surface.x==7u)));
 }
@@ -232,7 +226,7 @@ fn normals(@builtin(global_invocation_id) id: vec3<u32>) {
     let dy=heights[((y+1u)%n)*n+x]-heights[((y+n-1u)%n)*n+x];
     let slope=vec2(f32(n)*0.5)/r.metric.xy;
     let encoded=encode_normal(normalize(vec3(-dx*slope.x,-dy*slope.y,1.)));
-    let plane=plane_size();pixels[plane+i]=encoded;
+    let plane=dispatch.plane.x;pixels[plane+i]=encoded;
     let decoded=normalize(unpack(encoded)/127.5-vec3(1.));let rough=f32((pixels[2u*plane+i]>>8u)&255u)/255.;
     moments[i]=vec4(decoded,(rough*rough)*(rough*rough));
 }
@@ -243,8 +237,8 @@ fn to_srgb(v: f32) -> u32 {
 }
 @compute @workgroup_size(8,8)
 fn mips(@builtin(global_invocation_id) id: vec3<u32>) {
-    let dst=level_info(dispatch.level);if id.x>=dst.size || id.y>=dst.size{return;}
-    let src=level_info(dispatch.level-1u);let plane=plane_size();var m=vec4(0.);var sums=vec2(0u);var color=vec3(0.);
+    let dst=dispatch.destination;if id.x>=dst.size || id.y>=dst.size{return;}
+    let src=dispatch.source;let plane=dispatch.plane.x;var m=vec4(0.);var sums=vec2(0u);var color=vec3(0.);
     let offsets=array<vec2<u32>,4>(vec2(0u,0u),vec2(1u,0u),vec2(0u,1u),vec2(1u,1u));
     for(var k=0u;k<4u;k+=1u){let xy=id.xy*2u+offsets[k];let i=src.offset+xy.y*src.stride+xy.x;
         m+=moments[src.moment_offset+xy.y*src.size+xy.x]*0.25;

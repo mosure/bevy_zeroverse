@@ -18,6 +18,7 @@ use bevy_args::{Deserialize, Parser, Serialize, ValueEnum};
 use rand::Rng;
 
 mod capture_targets;
+pub mod pinhole;
 
 #[cfg(feature = "python")]
 use pyo3::prelude::*;
@@ -996,6 +997,8 @@ impl TrajectorySampler {
 #[derive(Component, Debug, Default, Reflect)]
 pub struct ZeroverseCamera {
     pub perspective_sampler: PerspectiveSampler,
+    /// Optical center offset in normalized image dimensions, right/down.
+    pub principal_point_offset: Vec2,
     pub resolution: Option<UVec2>,
     pub override_transform: Option<Transform>,
     pub trajectory: TrajectorySampler,
@@ -1089,7 +1092,10 @@ fn insert_cameras(
             Hdr,
             Exposure::INDOOR,
             MotionVectorPrepass,
-            Projection::Perspective(zeroverse_camera.perspective_sampler.sample()),
+            pinhole::projection(
+                zeroverse_camera.perspective_sampler.sample(),
+                zeroverse_camera.principal_point_offset,
+            ),
             zeroverse_camera
                 .override_transform
                 .unwrap_or(zeroverse_camera.trajectory.sample(0.0)),
@@ -1267,51 +1273,14 @@ pub fn draw_camera_gizmo(
     for (global_transform, projection, mut zeroverse_camera) in cameras.iter_mut() {
         let transform = global_transform.compute_transform();
 
-        let (aspect_ratio, fov_y) = match projection {
-            Projection::Perspective(persp) => (persp.aspect_ratio, persp.fov),
-            Projection::Orthographic(_) => (1.0, 0.0),
-            Projection::Custom(_) => todo!(),
-        };
-
-        let tan_half_fov_y = (fov_y * 0.5).tan();
-        let tan_half_fov_x = tan_half_fov_y * aspect_ratio;
-
-        let scale = 1.5;
-
-        let forward = transform.forward() * scale;
-        let up = transform.up() * tan_half_fov_y * scale;
-        let right = transform.right() * tan_half_fov_x * scale;
-
-        gizmos.line(
-            transform.translation,
-            transform.translation + forward + up + right,
-            color,
-        );
-        gizmos.line(
-            transform.translation,
-            transform.translation + forward - up + right,
-            color,
-        );
-        gizmos.line(
-            transform.translation,
-            transform.translation + forward + up - right,
-            color,
-        );
-        gizmos.line(
-            transform.translation,
-            transform.translation + forward - up - right,
-            color,
-        );
+        let corners = projection.get_frustum_corners(-1.5, -1.5);
+        for i in 0..4 {
+            let p = transform.transform_point(corners[i].into());
+            let next = transform.transform_point(corners[(i + 1) % 4].into());
+            gizmos.line(transform.translation, p, color);
+            gizmos.line(p, next, color);
+        }
         gizmos.sphere(transform.translation, 0.1, color);
-
-        let rect_transform = Transform::from_translation(transform.translation + forward);
-        let rect_transform =
-            rect_transform.mul_transform(Transform::from_rotation(transform.rotation));
-        gizmos.rect(
-            rect_transform.to_isometry(),
-            Vec2::new(tan_half_fov_x * 2.0 * scale, tan_half_fov_y * 2.0 * scale),
-            color,
-        );
 
         zeroverse_camera
             .trajectory
