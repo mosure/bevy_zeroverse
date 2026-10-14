@@ -1,0 +1,7696 @@
+{
+  "build_provenance": {
+    "capture_engine": "capture-v61;calibration=1;co_visibility=1;bevy=0.20.0;burn=0.22.0;burn_human=0.6.0;bevy_burn_human=0.7.0;burn_human_motion=0.2.0;burn_ardy=0.2.0;burn_llama=0.2.0;burn_human_inference=0.2.0;ardy_motion=9;surface_flow=1;indoor=40;multiview=8;ovoxel=3;glass=4;hair=6;wardrobe=5;footwear=1;bounds=4;morphology=3;position=3;tabletop=3;finishes=11;seating=3;activity=2;playback=2;exterior=5;envelope=4;furnishings=5;botany=3;visual_content=3;equipment=5;palette=2;photometry=3;sun_shadow=2;material_compute=2;semantic=4;ceiling=2;floor_details=2;window_treatments=1",
+    "crate_version": "0.40.0",
+    "features": {
+      "human_motion": false,
+      "multi_threaded": true,
+      "web": false
+    },
+    "generator_version": 40,
+    "locked_package_versions": {
+      "bevy": [
+        "0.20.0"
+      ],
+      "bevy_burn_human": [
+        "0.7.0"
+      ],
+      "bevy_zeroverse": [
+        "0.40.0"
+      ],
+      "bevy_zeroverse_burn": [
+        "0.24.0"
+      ],
+      "bevy_zeroverse_capture": [
+        "0.2.0"
+      ],
+      "bevy_zeroverse_ffi": [
+        "0.40.0"
+      ],
+      "bevy_zeroverse_publication": [
+        "0.3.0"
+      ],
+      "burn": [
+        "0.22.0"
+      ],
+      "burn_ardy": [
+        "0.2.0"
+      ],
+      "burn_human": [
+        "0.6.0"
+      ],
+      "burn_human_inference": [
+        "0.2.0"
+      ],
+      "burn_human_motion": [
+        "0.2.0"
+      ],
+      "burn_llama": [
+        "0.2.0"
+      ],
+      "burn_siglip2": [
+        "0.2.0"
+      ],
+      "wgpu": [
+        "30.0.1"
+      ]
+    },
+    "schema_version": 1,
+    "semantic_palette": [
+      {
+        "id": 1,
+        "label": "wall",
+        "srgb8": [
+          174,
+          199,
+          232
+        ]
+      },
+      {
+        "id": 2,
+        "label": "floor",
+        "srgb8": [
+          152,
+          223,
+          138
+        ]
+      },
+      {
+        "id": 3,
+        "label": "cabinet",
+        "srgb8": [
+          31,
+          119,
+          180
+        ]
+      },
+      {
+        "id": 4,
+        "label": "bed",
+        "srgb8": [
+          255,
+          187,
+          120
+        ]
+      },
+      {
+        "id": 5,
+        "label": "chair",
+        "srgb8": [
+          188,
+          189,
+          34
+        ]
+      },
+      {
+        "id": 6,
+        "label": "sofa",
+        "srgb8": [
+          140,
+          86,
+          75
+        ]
+      },
+      {
+        "id": 7,
+        "label": "table",
+        "srgb8": [
+          255,
+          152,
+          150
+        ]
+      },
+      {
+        "id": 8,
+        "label": "door",
+        "srgb8": [
+          214,
+          39,
+          40
+        ]
+      },
+      {
+        "id": 9,
+        "label": "window",
+        "srgb8": [
+          197,
+          176,
+          213
+        ]
+      },
+      {
+        "id": 10,
+        "label": "bookshelf",
+        "srgb8": [
+          148,
+          103,
+          189
+        ]
+      },
+      {
+        "id": 11,
+        "label": "picture",
+        "srgb8": [
+          196,
+          156,
+          148
+        ]
+      },
+      {
+        "id": 12,
+        "label": "counter",
+        "srgb8": [
+          23,
+          190,
+          207
+        ]
+      },
+      {
+        "id": 13,
+        "label": "blinds",
+        "srgb8": [
+          178,
+          76,
+          76
+        ]
+      },
+      {
+        "id": 14,
+        "label": "desk",
+        "srgb8": [
+          247,
+          182,
+          210
+        ]
+      },
+      {
+        "id": 15,
+        "label": "shelves",
+        "srgb8": [
+          66,
+          188,
+          102
+        ]
+      },
+      {
+        "id": 16,
+        "label": "curtain",
+        "srgb8": [
+          219,
+          219,
+          141
+        ]
+      },
+      {
+        "id": 17,
+        "label": "dresser",
+        "srgb8": [
+          140,
+          57,
+          197
+        ]
+      },
+      {
+        "id": 18,
+        "label": "pillow",
+        "srgb8": [
+          202,
+          185,
+          52
+        ]
+      },
+      {
+        "id": 19,
+        "label": "mirror",
+        "srgb8": [
+          51,
+          176,
+          203
+        ]
+      },
+      {
+        "id": 20,
+        "label": "floormat",
+        "srgb8": [
+          200,
+          54,
+          131
+        ]
+      },
+      {
+        "id": 21,
+        "label": "clothes",
+        "srgb8": [
+          92,
+          193,
+          61
+        ]
+      },
+      {
+        "id": 22,
+        "label": "ceiling",
+        "srgb8": [
+          78,
+          71,
+          183
+        ]
+      },
+      {
+        "id": 23,
+        "label": "books",
+        "srgb8": [
+          172,
+          114,
+          82
+        ]
+      },
+      {
+        "id": 24,
+        "label": "refrigerator",
+        "srgb8": [
+          255,
+          127,
+          14
+        ]
+      },
+      {
+        "id": 25,
+        "label": "television",
+        "srgb8": [
+          91,
+          163,
+          138
+        ]
+      },
+      {
+        "id": 26,
+        "label": "paper",
+        "srgb8": [
+          153,
+          98,
+          156
+        ]
+      },
+      {
+        "id": 27,
+        "label": "towel",
+        "srgb8": [
+          140,
+          153,
+          101
+        ]
+      },
+      {
+        "id": 28,
+        "label": "shower_curtain",
+        "srgb8": [
+          158,
+          218,
+          229
+        ]
+      },
+      {
+        "id": 29,
+        "label": "box",
+        "srgb8": [
+          100,
+          125,
+          154
+        ]
+      },
+      {
+        "id": 30,
+        "label": "whiteboard",
+        "srgb8": [
+          178,
+          127,
+          135
+        ]
+      },
+      {
+        "id": 31,
+        "label": "person",
+        "srgb8": [
+          120,
+          185,
+          128
+        ]
+      },
+      {
+        "id": 32,
+        "label": "nightstand",
+        "srgb8": [
+          146,
+          111,
+          194
+        ]
+      },
+      {
+        "id": 33,
+        "label": "toilet",
+        "srgb8": [
+          44,
+          160,
+          44
+        ]
+      },
+      {
+        "id": 34,
+        "label": "sink",
+        "srgb8": [
+          112,
+          128,
+          144
+        ]
+      },
+      {
+        "id": 35,
+        "label": "lamp",
+        "srgb8": [
+          96,
+          207,
+          209
+        ]
+      },
+      {
+        "id": 36,
+        "label": "bathtub",
+        "srgb8": [
+          227,
+          119,
+          194
+        ]
+      },
+      {
+        "id": 37,
+        "label": "bag",
+        "srgb8": [
+          213,
+          92,
+          176
+        ]
+      },
+      {
+        "id": 38,
+        "label": "other_structure",
+        "srgb8": [
+          94,
+          106,
+          211
+        ]
+      },
+      {
+        "id": 39,
+        "label": "other_furniture",
+        "srgb8": [
+          82,
+          84,
+          163
+        ]
+      },
+      {
+        "id": 40,
+        "label": "other_prop",
+        "srgb8": [
+          100,
+          85,
+          144
+        ]
+      },
+      {
+        "id": 41,
+        "label": "plant",
+        "srgb8": [
+          166,
+          109,
+          53
+        ]
+      },
+      {
+        "id": 42,
+        "label": "trash_can",
+        "srgb8": [
+          75,
+          47,
+          186
+        ]
+      },
+      {
+        "id": 43,
+        "label": "laptop",
+        "srgb8": [
+          52,
+          207,
+          37
+        ]
+      },
+      {
+        "id": 44,
+        "label": "monitor",
+        "srgb8": [
+          227,
+          73,
+          131
+        ]
+      },
+      {
+        "id": 45,
+        "label": "phone",
+        "srgb8": [
+          41,
+          125,
+          166
+        ]
+      },
+      {
+        "id": 46,
+        "label": "keyboard",
+        "srgb8": [
+          180,
+          186,
+          34
+        ]
+      },
+      {
+        "id": 47,
+        "label": "mouse",
+        "srgb8": [
+          171,
+          66,
+          207
+        ]
+      },
+      {
+        "id": 48,
+        "label": "headphones",
+        "srgb8": [
+          57,
+          227,
+          134
+        ]
+      },
+      {
+        "id": 49,
+        "label": "speaker",
+        "srgb8": [
+          166,
+          52,
+          30
+        ]
+      },
+      {
+        "id": 50,
+        "label": "microphone",
+        "srgb8": [
+          60,
+          76,
+          186
+        ]
+      },
+      {
+        "id": 51,
+        "label": "printer",
+        "srgb8": [
+          117,
+          207,
+          52
+        ]
+      },
+      {
+        "id": 52,
+        "label": "projector",
+        "srgb8": [
+          227,
+          41,
+          173
+        ]
+      },
+      {
+        "id": 53,
+        "label": "projection_screen",
+        "srgb8": [
+          53,
+          166,
+          165
+        ]
+      },
+      {
+        "id": 54,
+        "label": "coffee_table",
+        "srgb8": [
+          186,
+          145,
+          47
+        ]
+      },
+      {
+        "id": 55,
+        "label": "side_table",
+        "srgb8": [
+          107,
+          37,
+          207
+        ]
+      },
+      {
+        "id": 56,
+        "label": "bench",
+        "srgb8": [
+          73,
+          227,
+          91
+        ]
+      },
+      {
+        "id": 57,
+        "label": "ottoman",
+        "srgb8": [
+          166,
+          41,
+          63
+        ]
+      },
+      {
+        "id": 58,
+        "label": "mobile_cart",
+        "srgb8": [
+          34,
+          104,
+          186
+        ]
+      },
+      {
+        "id": 59,
+        "label": "drawer_unit",
+        "srgb8": [
+          172,
+          207,
+          66
+        ]
+      },
+      {
+        "id": 60,
+        "label": "coat_rack",
+        "srgb8": [
+          219,
+          57,
+          227
+        ]
+      },
+      {
+        "id": 61,
+        "label": "room_divider",
+        "srgb8": [
+          30,
+          166,
+          120
+        ]
+      },
+      {
+        "id": 62,
+        "label": "wall_outlet",
+        "srgb8": [
+          186,
+          106,
+          60
+        ]
+      },
+      {
+        "id": 63,
+        "label": "light_switch",
+        "srgb8": [
+          64,
+          52,
+          207
+        ]
+      },
+      {
+        "id": 64,
+        "label": "power_strip",
+        "srgb8": [
+          81,
+          227,
+          41
+        ]
+      },
+      {
+        "id": 65,
+        "label": "cable",
+        "srgb8": [
+          166,
+          53,
+          110
+        ]
+      },
+      {
+        "id": 66,
+        "label": "clock",
+        "srgb8": [
+          47,
+          158,
+          186
+        ]
+      },
+      {
+        "id": 67,
+        "label": "drink_container",
+        "srgb8": [
+          207,
+          192,
+          37
+        ]
+      },
+      {
+        "id": 68,
+        "label": "appliance",
+        "srgb8": [
+          168,
+          73,
+          227
+        ]
+      },
+      {
+        "id": 69,
+        "label": "stationery",
+        "srgb8": [
+          41,
+          166,
+          82
+        ]
+      },
+      {
+        "id": 70,
+        "label": "vase",
+        "srgb8": [
+          186,
+          39,
+          34
+        ]
+      },
+      {
+        "id": 71,
+        "label": "sky",
+        "srgb8": [
+          75,
+          145,
+          245
+        ]
+      },
+      {
+        "id": 72,
+        "label": "floor_outlet",
+        "srgb8": [
+          98,
+          158,
+          171
+        ]
+      }
+    ],
+    "semantic_taxonomy_version": 4,
+    "source_sha256": "8b9386343019c7a19a202d10186c9eadfd0ae6641878aadbf9c26d2d8ce9e7f6",
+    "target": "x86_64-unknown-linux-gnu"
+  },
+  "failures": [],
+  "human_density": 0.0,
+  "object_count": 19291,
+  "object_counts_by_category": {
+    "Bag": 99,
+    "Bench": 44,
+    "Bookcase": 319,
+    "Books": 85,
+    "Bowl": 123,
+    "Cabinet": 75,
+    "Cable": 388,
+    "CeilingPendant": 83,
+    "Chair": 2280,
+    "Clock": 57,
+    "CoatRack": 42,
+    "CoffeeCup": 316,
+    "CoffeeMaker": 28,
+    "CoffeeTable": 509,
+    "Desk": 1596,
+    "DeskFan": 51,
+    "DeskLamp": 100,
+    "DeskOrganizer": 119,
+    "Display": 126,
+    "DocumentTray": 21,
+    "DrawerUnit": 419,
+    "FloorLamp": 19,
+    "FloorOutlet": 451,
+    "Headphones": 83,
+    "Kettle": 26,
+    "Keyboard": 91,
+    "Laptop": 526,
+    "LightSwitch": 240,
+    "Microphone": 16,
+    "MobileCart": 168,
+    "Monitor": 192,
+    "Mouse": 104,
+    "Mug": 318,
+    "Notebook": 381,
+    "Notepad": 312,
+    "NoticeBoard": 137,
+    "Ottoman": 123,
+    "PenHolder": 216,
+    "Pencil": 168,
+    "Phone": 996,
+    "Plant": 1127,
+    "PowerStrip": 582,
+    "Printer": 9,
+    "ProjectionScreen": 96,
+    "Projector": 59,
+    "RoomDivider": 64,
+    "Rug": 138,
+    "SideTable": 267,
+    "SodaCan": 289,
+    "Sofa": 235,
+    "Speaker": 93,
+    "Stapler": 158,
+    "StorageBox": 129,
+    "Table": 53,
+    "TapeDispenser": 144,
+    "TissueBox": 192,
+    "TrashCan": 228,
+    "Vase": 228,
+    "WallArt": 494,
+    "WallOutlet": 2370,
+    "WallSconce": 137,
+    "WallShelf": 120,
+    "WaterBottle": 420,
+    "Whiteboard": 212
+  },
+  "part_count": 69874,
+  "room_count": 256,
+  "room_density": 0.65,
+  "rooms": [
+    {
+      "floor_style": 1,
+      "primary_objects": 54,
+      "seed": 0
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 36,
+      "seed": 1
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 55,
+      "seed": 2
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 81,
+      "seed": 3
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 32,
+      "seed": 4
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 127,
+      "seed": 5
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 96,
+      "seed": 6
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 106,
+      "seed": 7
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 41,
+      "seed": 8
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 38,
+      "seed": 9
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 59,
+      "seed": 10
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 107,
+      "seed": 11
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 98,
+      "seed": 12
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 61,
+      "seed": 13
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 51,
+      "seed": 14
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 61,
+      "seed": 15
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 69,
+      "seed": 16
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 38,
+      "seed": 17
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 34,
+      "seed": 18
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 59,
+      "seed": 19
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 46,
+      "seed": 20
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 59,
+      "seed": 21
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 81,
+      "seed": 22
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 116,
+      "seed": 23
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 103,
+      "seed": 24
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 99,
+      "seed": 25
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 44,
+      "seed": 26
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 43,
+      "seed": 27
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 98,
+      "seed": 28
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 37,
+      "seed": 29
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 18,
+      "seed": 30
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 91,
+      "seed": 31
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 26,
+      "seed": 32
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 58,
+      "seed": 33
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 50,
+      "seed": 34
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 120,
+      "seed": 35
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 88,
+      "seed": 36
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 94,
+      "seed": 37
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 50,
+      "seed": 38
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 49,
+      "seed": 39
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 51,
+      "seed": 40
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 43,
+      "seed": 41
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 92,
+      "seed": 42
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 62,
+      "seed": 43
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 73,
+      "seed": 44
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 74,
+      "seed": 45
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 29,
+      "seed": 46
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 120,
+      "seed": 47
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 57,
+      "seed": 48
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 158,
+      "seed": 49
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 126,
+      "seed": 50
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 48,
+      "seed": 51
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 58,
+      "seed": 52
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 35,
+      "seed": 53
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 110,
+      "seed": 54
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 138,
+      "seed": 55
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 132,
+      "seed": 56
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 19,
+      "seed": 57
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 33,
+      "seed": 58
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 74,
+      "seed": 59
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 104,
+      "seed": 60
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 91,
+      "seed": 61
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 23,
+      "seed": 62
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 60,
+      "seed": 63
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 47,
+      "seed": 64
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 169,
+      "seed": 65
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 82,
+      "seed": 66
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 56,
+      "seed": 67
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 69,
+      "seed": 68
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 58,
+      "seed": 69
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 43,
+      "seed": 70
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 174,
+      "seed": 71
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 59,
+      "seed": 72
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 57,
+      "seed": 73
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 157,
+      "seed": 74
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 33,
+      "seed": 75
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 51,
+      "seed": 76
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 77,
+      "seed": 77
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 84,
+      "seed": 78
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 72,
+      "seed": 79
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 54,
+      "seed": 80
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 50,
+      "seed": 81
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 58,
+      "seed": 82
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 115,
+      "seed": 83
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 57,
+      "seed": 84
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 59,
+      "seed": 85
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 88,
+      "seed": 86
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 44,
+      "seed": 87
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 118,
+      "seed": 88
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 141,
+      "seed": 89
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 30,
+      "seed": 90
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 52,
+      "seed": 91
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 78,
+      "seed": 92
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 59,
+      "seed": 93
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 53,
+      "seed": 94
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 73,
+      "seed": 95
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 40,
+      "seed": 96
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 31,
+      "seed": 97
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 119,
+      "seed": 98
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 129,
+      "seed": 99
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 151,
+      "seed": 100
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 67,
+      "seed": 101
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 81,
+      "seed": 102
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 44,
+      "seed": 103
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 108,
+      "seed": 104
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 86,
+      "seed": 105
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 99,
+      "seed": 106
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 65,
+      "seed": 107
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 43,
+      "seed": 108
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 26,
+      "seed": 109
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 69,
+      "seed": 110
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 54,
+      "seed": 111
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 33,
+      "seed": 112
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 32,
+      "seed": 113
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 45,
+      "seed": 114
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 90,
+      "seed": 115
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 184,
+      "seed": 116
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 56,
+      "seed": 117
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 146,
+      "seed": 118
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 120,
+      "seed": 119
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 135,
+      "seed": 120
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 48,
+      "seed": 121
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 112,
+      "seed": 122
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 35,
+      "seed": 123
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 173,
+      "seed": 124
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 101,
+      "seed": 125
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 38,
+      "seed": 126
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 85,
+      "seed": 127
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 65,
+      "seed": 128
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 142,
+      "seed": 129
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 86,
+      "seed": 130
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 80,
+      "seed": 131
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 76,
+      "seed": 132
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 110,
+      "seed": 133
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 72,
+      "seed": 134
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 36,
+      "seed": 135
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 47,
+      "seed": 136
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 58,
+      "seed": 137
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 104,
+      "seed": 138
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 89,
+      "seed": 139
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 96,
+      "seed": 140
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 146,
+      "seed": 141
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 59,
+      "seed": 142
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 37,
+      "seed": 143
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 52,
+      "seed": 144
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 40,
+      "seed": 145
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 49,
+      "seed": 146
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 97,
+      "seed": 147
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 38,
+      "seed": 148
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 105,
+      "seed": 149
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 70,
+      "seed": 150
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 144,
+      "seed": 151
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 61,
+      "seed": 152
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 92,
+      "seed": 153
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 44,
+      "seed": 154
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 97,
+      "seed": 155
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 43,
+      "seed": 156
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 37,
+      "seed": 157
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 37,
+      "seed": 158
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 104,
+      "seed": 159
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 77,
+      "seed": 160
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 28,
+      "seed": 161
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 101,
+      "seed": 162
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 89,
+      "seed": 163
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 98,
+      "seed": 164
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 87,
+      "seed": 165
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 123,
+      "seed": 166
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 39,
+      "seed": 167
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 91,
+      "seed": 168
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 129,
+      "seed": 169
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 32,
+      "seed": 170
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 118,
+      "seed": 171
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 156,
+      "seed": 172
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 34,
+      "seed": 173
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 75,
+      "seed": 174
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 92,
+      "seed": 175
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 49,
+      "seed": 176
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 123,
+      "seed": 177
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 38,
+      "seed": 178
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 59,
+      "seed": 179
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 91,
+      "seed": 180
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 93,
+      "seed": 181
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 33,
+      "seed": 182
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 107,
+      "seed": 183
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 126,
+      "seed": 184
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 51,
+      "seed": 185
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 63,
+      "seed": 186
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 37,
+      "seed": 187
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 109,
+      "seed": 188
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 44,
+      "seed": 189
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 45,
+      "seed": 190
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 110,
+      "seed": 191
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 56,
+      "seed": 192
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 91,
+      "seed": 193
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 135,
+      "seed": 194
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 32,
+      "seed": 195
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 56,
+      "seed": 196
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 35,
+      "seed": 197
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 63,
+      "seed": 198
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 173,
+      "seed": 199
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 56,
+      "seed": 200
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 83,
+      "seed": 201
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 47,
+      "seed": 202
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 34,
+      "seed": 203
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 147,
+      "seed": 204
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 58,
+      "seed": 205
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 29,
+      "seed": 206
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 74,
+      "seed": 207
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 33,
+      "seed": 208
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 51,
+      "seed": 209
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 115,
+      "seed": 210
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 57,
+      "seed": 211
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 50,
+      "seed": 212
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 33,
+      "seed": 213
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 44,
+      "seed": 214
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 82,
+      "seed": 215
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 57,
+      "seed": 216
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 34,
+      "seed": 217
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 101,
+      "seed": 218
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 78,
+      "seed": 219
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 82,
+      "seed": 220
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 56,
+      "seed": 221
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 115,
+      "seed": 222
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 54,
+      "seed": 223
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 74,
+      "seed": 224
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 23,
+      "seed": 225
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 80,
+      "seed": 226
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 40,
+      "seed": 227
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 62,
+      "seed": 228
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 99,
+      "seed": 229
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 152,
+      "seed": 230
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 100,
+      "seed": 231
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 55,
+      "seed": 232
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 123,
+      "seed": 233
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 115,
+      "seed": 234
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 41,
+      "seed": 235
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 126,
+      "seed": 236
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 58,
+      "seed": 237
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 101,
+      "seed": 238
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 41,
+      "seed": 239
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 98,
+      "seed": 240
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 20,
+      "seed": 241
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 82,
+      "seed": 242
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 120,
+      "seed": 243
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 31,
+      "seed": 244
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 91,
+      "seed": 245
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 155,
+      "seed": 246
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 22,
+      "seed": 247
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 49,
+      "seed": 248
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 81,
+      "seed": 249
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 77,
+      "seed": 250
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 96,
+      "seed": 251
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 33,
+      "seed": 252
+    },
+    {
+      "floor_style": 2,
+      "primary_objects": 150,
+      "seed": 253
+    },
+    {
+      "floor_style": 1,
+      "primary_objects": 105,
+      "seed": 254
+    },
+    {
+      "floor_style": 0,
+      "primary_objects": 75,
+      "seed": 255
+    }
+  ],
+  "sample_count": 256,
+  "schema_version": 1,
+  "tool_sources": {
+    "examples/material_study/audit.rs": "f69634662563d9c455db278ac4f002ad08a0768d65b0abeb0896b5d17b0ab4a0",
+    "examples/material_study/studio.rs": "5957c4c58dded67bdb8e4ca4a5eb4de19c0e03d1daa105c1cca000fc12f43ab2",
+    "examples/qualify_materials.rs": "b1f7124161a1aa9818212be7ab87b73ac1ca429268eb6ea943ff5bf5cbbced44"
+  },
+  "unobserved_object_categories": [],
+  "usage": {
+    "Bag": {
+      "Fabric": {
+        "base_parts": 0,
+        "objects": 49,
+        "parts": 49,
+        "slots": [
+          3,
+          5,
+          6,
+          3,
+          6,
+          4,
+          4,
+          1,
+          6,
+          3,
+          4,
+          4
+        ]
+      },
+      "FabricAlt": {
+        "base_parts": 0,
+        "objects": 49,
+        "parts": 49,
+        "slots": [
+          3,
+          5,
+          6,
+          3,
+          6,
+          4,
+          4,
+          1,
+          6,
+          3,
+          4,
+          4
+        ]
+      },
+      "Leather": {
+        "base_parts": 0,
+        "objects": 99,
+        "parts": 99,
+        "slots": [
+          11,
+          9,
+          11,
+          6,
+          8,
+          6,
+          6,
+          6,
+          10,
+          8,
+          8,
+          10
+        ]
+      }
+    },
+    "Bench": {
+      "FabricAlt": {
+        "base_parts": 0,
+        "objects": 21,
+        "parts": 21,
+        "slots": [
+          1,
+          3,
+          2,
+          1,
+          5,
+          1,
+          3,
+          0,
+          2,
+          1,
+          2,
+          0
+        ]
+      },
+      "Leather": {
+        "base_parts": 0,
+        "objects": 5,
+        "parts": 5,
+        "slots": [
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          2,
+          0,
+          1,
+          1,
+          0,
+          0
+        ]
+      },
+      "Metal": {
+        "base_parts": 0,
+        "objects": 23,
+        "parts": 23,
+        "slots": [
+          1,
+          3,
+          4,
+          2,
+          3,
+          0,
+          4,
+          1,
+          2,
+          2,
+          1,
+          0
+        ]
+      },
+      "Wood": {
+        "base_parts": 0,
+        "objects": 30,
+        "parts": 30,
+        "slots": [
+          2,
+          4,
+          4,
+          1,
+          6,
+          3,
+          1,
+          1,
+          1,
+          5,
+          1,
+          1
+        ]
+      }
+    },
+    "Bookcase": {
+      "Art": {
+        "base_parts": 0,
+        "objects": 303,
+        "parts": 1235,
+        "slots": [
+          117,
+          98,
+          102,
+          98,
+          102,
+          113,
+          95,
+          107,
+          97,
+          100,
+          94,
+          112
+        ]
+      },
+      "Ceramic": {
+        "base_parts": 0,
+        "objects": 186,
+        "parts": 186,
+        "slots": [
+          13,
+          16,
+          19,
+          14,
+          15,
+          10,
+          14,
+          14,
+          14,
+          20,
+          27,
+          10
+        ]
+      },
+      "FabricAlt": {
+        "base_parts": 0,
+        "objects": 294,
+        "parts": 1199,
+        "slots": [
+          97,
+          100,
+          115,
+          98,
+          96,
+          97,
+          80,
+          107,
+          107,
+          97,
+          105,
+          100
+        ]
+      },
+      "Ink": {
+        "base_parts": 257,
+        "objects": 257,
+        "parts": 257,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Metal": {
+        "base_parts": 0,
+        "objects": 105,
+        "parts": 105,
+        "slots": [
+          8,
+          13,
+          13,
+          7,
+          10,
+          5,
+          9,
+          9,
+          11,
+          9,
+          8,
+          3
+        ]
+      },
+      "Paper": {
+        "base_parts": 575,
+        "objects": 319,
+        "parts": 1799,
+        "slots": [
+          96,
+          92,
+          108,
+          101,
+          103,
+          99,
+          113,
+          103,
+          103,
+          107,
+          95,
+          104
+        ]
+      },
+      "Wood": {
+        "base_parts": 0,
+        "objects": 214,
+        "parts": 214,
+        "slots": [
+          11,
+          18,
+          22,
+          18,
+          16,
+          15,
+          21,
+          14,
+          15,
+          19,
+          30,
+          15
+        ]
+      },
+      "WoodEdge": {
+        "base_parts": 0,
+        "objects": 319,
+        "parts": 1674,
+        "slots": [
+          129,
+          159,
+          162,
+          137,
+          145,
+          129,
+          134,
+          124,
+          141,
+          135,
+          141,
+          138
+        ]
+      }
+    },
+    "Books": {
+      "FabricAlt": {
+        "base_parts": 0,
+        "objects": 27,
+        "parts": 27,
+        "slots": [
+          4,
+          3,
+          2,
+          3,
+          1,
+          4,
+          2,
+          0,
+          3,
+          3,
+          0,
+          2
+        ]
+      },
+      "Metal": {
+        "base_parts": 0,
+        "objects": 33,
+        "parts": 33,
+        "slots": [
+          2,
+          3,
+          4,
+          2,
+          3,
+          5,
+          3,
+          2,
+          2,
+          2,
+          4,
+          1
+        ]
+      },
+      "Paper": {
+        "base_parts": 85,
+        "objects": 85,
+        "parts": 85,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Plastic": {
+        "base_parts": 0,
+        "objects": 58,
+        "parts": 58,
+        "slots": [
+          3,
+          5,
+          7,
+          4,
+          5,
+          6,
+          4,
+          6,
+          3,
+          4,
+          6,
+          5
+        ]
+      },
+      "Rubber": {
+        "base_parts": 40,
+        "objects": 40,
+        "parts": 40,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "Bowl": {
+      "Ceramic": {
+        "base_parts": 0,
+        "objects": 90,
+        "parts": 90,
+        "slots": [
+          7,
+          7,
+          8,
+          5,
+          5,
+          13,
+          8,
+          11,
+          9,
+          4,
+          7,
+          6
+        ]
+      },
+      "ContainerGlass": {
+        "base_parts": 33,
+        "objects": 33,
+        "parts": 33,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "Cabinet": {
+      "Art": {
+        "base_parts": 0,
+        "objects": 1,
+        "parts": 1,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Chrome": {
+        "base_parts": 0,
+        "objects": 26,
+        "parts": 26,
+        "slots": [
+          1,
+          2,
+          0,
+          1,
+          6,
+          3,
+          1,
+          2,
+          3,
+          2,
+          4,
+          1
+        ]
+      },
+      "FabricAlt": {
+        "base_parts": 0,
+        "objects": 1,
+        "parts": 1,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0
+        ]
+      },
+      "Ink": {
+        "base_parts": 13,
+        "objects": 13,
+        "parts": 13,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Metal": {
+        "base_parts": 0,
+        "objects": 41,
+        "parts": 41,
+        "slots": [
+          5,
+          5,
+          2,
+          2,
+          7,
+          3,
+          4,
+          1,
+          1,
+          4,
+          4,
+          3
+        ]
+      },
+      "Paper": {
+        "base_parts": 2,
+        "objects": 2,
+        "parts": 2,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Wood": {
+        "base_parts": 0,
+        "objects": 52,
+        "parts": 52,
+        "slots": [
+          4,
+          4,
+          4,
+          1,
+          9,
+          3,
+          6,
+          5,
+          6,
+          4,
+          3,
+          3
+        ]
+      },
+      "WoodEdge": {
+        "base_parts": 0,
+        "objects": 75,
+        "parts": 76,
+        "slots": [
+          7,
+          6,
+          6,
+          3,
+          12,
+          5,
+          9,
+          6,
+          6,
+          6,
+          6,
+          4
+        ]
+      }
+    },
+    "Cable": {
+      "Plastic": {
+        "base_parts": 0,
+        "objects": 388,
+        "parts": 388,
+        "slots": [
+          31,
+          23,
+          36,
+          28,
+          31,
+          42,
+          36,
+          34,
+          30,
+          34,
+          29,
+          34
+        ]
+      },
+      "Rubber": {
+        "base_parts": 388,
+        "objects": 388,
+        "parts": 388,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "CeilingPendant": {
+      "Light": {
+        "base_parts": 83,
+        "objects": 83,
+        "parts": 83,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Metal": {
+        "base_parts": 0,
+        "objects": 83,
+        "parts": 83,
+        "slots": [
+          10,
+          9,
+          6,
+          6,
+          9,
+          5,
+          7,
+          3,
+          7,
+          4,
+          9,
+          8
+        ]
+      },
+      "Plastic": {
+        "base_parts": 0,
+        "objects": 48,
+        "parts": 48,
+        "slots": [
+          7,
+          6,
+          3,
+          4,
+          5,
+          3,
+          4,
+          1,
+          3,
+          2,
+          6,
+          4
+        ]
+      },
+      "Rubber": {
+        "base_parts": 83,
+        "objects": 83,
+        "parts": 83,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "Chair": {
+      "Chrome": {
+        "base_parts": 0,
+        "objects": 1470,
+        "parts": 1470,
+        "slots": [
+          112,
+          97,
+          138,
+          125,
+          101,
+          116,
+          126,
+          113,
+          156,
+          152,
+          125,
+          109
+        ]
+      },
+      "Fabric": {
+        "base_parts": 0,
+        "objects": 759,
+        "parts": 759,
+        "slots": [
+          65,
+          56,
+          79,
+          52,
+          55,
+          68,
+          60,
+          59,
+          73,
+          75,
+          65,
+          52
+        ]
+      },
+      "FabricAlt": {
+        "base_parts": 0,
+        "objects": 300,
+        "parts": 300,
+        "slots": [
+          18,
+          24,
+          32,
+          26,
+          21,
+          18,
+          32,
+          21,
+          27,
+          37,
+          24,
+          20
+        ]
+      },
+      "Leather": {
+        "base_parts": 0,
+        "objects": 518,
+        "parts": 518,
+        "slots": [
+          29,
+          34,
+          36,
+          63,
+          31,
+          45,
+          47,
+          37,
+          57,
+          44,
+          43,
+          52
+        ]
+      },
+      "Metal": {
+        "base_parts": 0,
+        "objects": 1293,
+        "parts": 1293,
+        "slots": [
+          107,
+          106,
+          120,
+          95,
+          88,
+          112,
+          101,
+          102,
+          126,
+          124,
+          114,
+          98
+        ]
+      },
+      "Plastic": {
+        "base_parts": 0,
+        "objects": 1660,
+        "parts": 1660,
+        "slots": [
+          141,
+          130,
+          162,
+          124,
+          118,
+          133,
+          139,
+          127,
+          162,
+          156,
+          151,
+          117
+        ]
+      },
+      "Rubber": {
+        "base_parts": 2280,
+        "objects": 2280,
+        "parts": 2280,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Wood": {
+        "base_parts": 0,
+        "objects": 447,
+        "parts": 447,
+        "slots": [
+          36,
+          31,
+          36,
+          31,
+          36,
+          30,
+          32,
+          40,
+          44,
+          53,
+          43,
+          35
+        ]
+      },
+      "WoodEdge": {
+        "base_parts": 0,
+        "objects": 453,
+        "parts": 453,
+        "slots": [
+          33,
+          37,
+          38,
+          38,
+          35,
+          38,
+          41,
+          33,
+          38,
+          43,
+          41,
+          38
+        ]
+      }
+    },
+    "Clock": {
+      "Art": {
+        "base_parts": 0,
+        "objects": 22,
+        "parts": 22,
+        "slots": [
+          2,
+          2,
+          2,
+          0,
+          3,
+          2,
+          0,
+          3,
+          1,
+          2,
+          3,
+          2
+        ]
+      },
+      "Chrome": {
+        "base_parts": 0,
+        "objects": 20,
+        "parts": 20,
+        "slots": [
+          2,
+          3,
+          1,
+          1,
+          3,
+          3,
+          0,
+          2,
+          2,
+          1,
+          1,
+          1
+        ]
+      },
+      "Ink": {
+        "base_parts": 36,
+        "objects": 36,
+        "parts": 36,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Metal": {
+        "base_parts": 0,
+        "objects": 10,
+        "parts": 10,
+        "slots": [
+          0,
+          1,
+          0,
+          0,
+          1,
+          1,
+          1,
+          3,
+          1,
+          0,
+          1,
+          1
+        ]
+      },
+      "Paper": {
+        "base_parts": 57,
+        "objects": 57,
+        "parts": 57,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Plastic": {
+        "base_parts": 0,
+        "objects": 29,
+        "parts": 29,
+        "slots": [
+          2,
+          3,
+          1,
+          1,
+          3,
+          3,
+          2,
+          5,
+          3,
+          1,
+          2,
+          3
+        ]
+      },
+      "WoodEdge": {
+        "base_parts": 0,
+        "objects": 15,
+        "parts": 15,
+        "slots": [
+          0,
+          1,
+          2,
+          1,
+          1,
+          1,
+          2,
+          1,
+          1,
+          2,
+          1,
+          2
+        ]
+      }
+    },
+    "CoatRack": {
+      "Metal": {
+        "base_parts": 0,
+        "objects": 29,
+        "parts": 29,
+        "slots": [
+          3,
+          3,
+          2,
+          3,
+          3,
+          1,
+          6,
+          1,
+          1,
+          2,
+          2,
+          2
+        ]
+      },
+      "Rubber": {
+        "base_parts": 42,
+        "objects": 42,
+        "parts": 42,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Wood": {
+        "base_parts": 0,
+        "objects": 13,
+        "parts": 13,
+        "slots": [
+          1,
+          2,
+          2,
+          2,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          0,
+          0
+        ]
+      }
+    },
+    "CoffeeCup": {
+      "Art": {
+        "base_parts": 0,
+        "objects": 110,
+        "parts": 110,
+        "slots": [
+          9,
+          9,
+          6,
+          12,
+          14,
+          11,
+          9,
+          8,
+          8,
+          9,
+          6,
+          9
+        ]
+      },
+      "Drink": {
+        "base_parts": 316,
+        "objects": 316,
+        "parts": 316,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Ink": {
+        "base_parts": 225,
+        "objects": 225,
+        "parts": 225,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Paper": {
+        "base_parts": 316,
+        "objects": 316,
+        "parts": 316,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Plastic": {
+        "base_parts": 0,
+        "objects": 225,
+        "parts": 225,
+        "slots": [
+          18,
+          20,
+          26,
+          25,
+          17,
+          16,
+          15,
+          13,
+          19,
+          14,
+          23,
+          19
+        ]
+      },
+      "Terracotta": {
+        "base_parts": 100,
+        "objects": 100,
+        "parts": 100,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "CoffeeMaker": {
+      "Chrome": {
+        "base_parts": 0,
+        "objects": 28,
+        "parts": 28,
+        "slots": [
+          2,
+          3,
+          0,
+          6,
+          1,
+          4,
+          3,
+          1,
+          3,
+          3,
+          1,
+          1
+        ]
+      },
+      "ContainerGlass": {
+        "base_parts": 13,
+        "objects": 13,
+        "parts": 13,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Ink": {
+        "base_parts": 28,
+        "objects": 28,
+        "parts": 28,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Metal": {
+        "base_parts": 0,
+        "objects": 28,
+        "parts": 28,
+        "slots": [
+          2,
+          3,
+          0,
+          6,
+          1,
+          4,
+          3,
+          1,
+          3,
+          3,
+          1,
+          1
+        ]
+      },
+      "Plastic": {
+        "base_parts": 0,
+        "objects": 23,
+        "parts": 23,
+        "slots": [
+          2,
+          3,
+          0,
+          4,
+          1,
+          2,
+          3,
+          1,
+          3,
+          2,
+          1,
+          1
+        ]
+      },
+      "Rubber": {
+        "base_parts": 28,
+        "objects": 28,
+        "parts": 28,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "CoffeeTable": {
+      "Ceramic": {
+        "base_parts": 0,
+        "objects": 53,
+        "parts": 53,
+        "slots": [
+          5,
+          3,
+          5,
+          7,
+          7,
+          3,
+          3,
+          5,
+          5,
+          3,
+          4,
+          3
+        ]
+      },
+      "Concrete": {
+        "base_parts": 51,
+        "objects": 51,
+        "parts": 51,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Metal": {
+        "base_parts": 0,
+        "objects": 355,
+        "parts": 355,
+        "slots": [
+          29,
+          25,
+          34,
+          30,
+          28,
+          24,
+          42,
+          25,
+          29,
+          34,
+          33,
+          22
+        ]
+      },
+      "Plastic": {
+        "base_parts": 0,
+        "objects": 48,
+        "parts": 48,
+        "slots": [
+          2,
+          3,
+          8,
+          5,
+          2,
+          3,
+          5,
+          6,
+          4,
+          3,
+          3,
+          4
+        ]
+      },
+      "Rubber": {
+        "base_parts": 446,
+        "objects": 446,
+        "parts": 446,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Wood": {
+        "base_parts": 0,
+        "objects": 357,
+        "parts": 357,
+        "slots": [
+          21,
+          26,
+          33,
+          24,
+          32,
+          27,
+          46,
+          29,
+          34,
+          28,
+          34,
+          23
+        ]
+      },
+      "WoodEdge": {
+        "base_parts": 0,
+        "objects": 398,
+        "parts": 398,
+        "slots": [
+          22,
+          29,
+          37,
+          27,
+          36,
+          32,
+          50,
+          34,
+          37,
+          28,
+          38,
+          28
+        ]
+      }
+    },
+    "Desk": {
+      "Ceramic": {
+        "base_parts": 0,
+        "objects": 159,
+        "parts": 159,
+        "slots": [
+          12,
+          13,
+          12,
+          15,
+          14,
+          13,
+          13,
+          16,
+          16,
+          15,
+          12,
+          8
+        ]
+      },
+      "Concrete": {
+        "base_parts": 172,
+        "objects": 172,
+        "parts": 172,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Metal": {
+        "base_parts": 0,
+        "objects": 1596,
+        "parts": 1596,
+        "slots": [
+          129,
+          134,
+          143,
+          126,
+          108,
+          134,
+          144,
+          128,
+          145,
+          139,
+          130,
+          136
+        ]
+      },
+      "Plastic": {
+        "base_parts": 0,
+        "objects": 1596,
+        "parts": 1596,
+        "slots": [
+          129,
+          134,
+          143,
+          126,
+          108,
+          134,
+          144,
+          128,
+          145,
+          139,
+          130,
+          136
+        ]
+      },
+      "Rubber": {
+        "base_parts": 1384,
+        "objects": 1384,
+        "parts": 1384,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Wood": {
+        "base_parts": 0,
+        "objects": 1100,
+        "parts": 1100,
+        "slots": [
+          86,
+          96,
+          107,
+          81,
+          73,
+          86,
+          105,
+          83,
+          94,
+          98,
+          90,
+          101
+        ]
+      },
+      "WoodEdge": {
+        "base_parts": 0,
+        "objects": 1278,
+        "parts": 1278,
+        "slots": [
+          99,
+          109,
+          114,
+          98,
+          80,
+          110,
+          120,
+          96,
+          116,
+          117,
+          103,
+          116
+        ]
+      }
+    },
+    "DeskFan": {
+      "Metal": {
+        "base_parts": 0,
+        "objects": 51,
+        "parts": 51,
+        "slots": [
+          3,
+          7,
+          6,
+          4,
+          1,
+          4,
+          4,
+          4,
+          6,
+          3,
+          6,
+          3
+        ]
+      },
+      "Plastic": {
+        "base_parts": 0,
+        "objects": 51,
+        "parts": 51,
+        "slots": [
+          3,
+          7,
+          6,
+          4,
+          1,
+          4,
+          4,
+          4,
+          6,
+          3,
+          6,
+          3
+        ]
+      }
+    },
+    "DeskLamp": {
+      "Light": {
+        "base_parts": 100,
+        "objects": 100,
+        "parts": 100,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Metal": {
+        "base_parts": 0,
+        "objects": 70,
+        "parts": 70,
+        "slots": [
+          2,
+          7,
+          7,
+          8,
+          7,
+          3,
+          3,
+          6,
+          14,
+          3,
+          6,
+          4
+        ]
+      },
+      "Plastic": {
+        "base_parts": 0,
+        "objects": 61,
+        "parts": 61,
+        "slots": [
+          3,
+          4,
+          2,
+          5,
+          7,
+          6,
+          8,
+          2,
+          9,
+          3,
+          6,
+          6
+        ]
+      }
+    },
+    "DeskOrganizer": {
+      "Metal": {
+        "base_parts": 0,
+        "objects": 41,
+        "parts": 41,
+        "slots": [
+          5,
+          4,
+          3,
+          3,
+          2,
+          4,
+          2,
+          3,
+          6,
+          3,
+          4,
+          2
+        ]
+      },
+      "Plastic": {
+        "base_parts": 0,
+        "objects": 78,
+        "parts": 78,
+        "slots": [
+          8,
+          5,
+          3,
+          7,
+          10,
+          5,
+          7,
+          11,
+          10,
+          3,
+          7,
+          2
+        ]
+      },
+      "Wood": {
+        "base_parts": 0,
+        "objects": 119,
+        "parts": 119,
+        "slots": [
+          13,
+          9,
+          6,
+          10,
+          12,
+          9,
+          9,
+          14,
+          16,
+          6,
+          11,
+          4
+        ]
+      }
+    },
+    "Display": {
+      "Metal": {
+        "base_parts": 0,
+        "objects": 126,
+        "parts": 126,
+        "slots": [
+          7,
+          10,
+          12,
+          13,
+          8,
+          15,
+          6,
+          11,
+          10,
+          11,
+          13,
+          10
+        ]
+      },
+      "Plastic": {
+        "base_parts": 0,
+        "objects": 78,
+        "parts": 78,
+        "slots": [
+          3,
+          7,
+          5,
+          9,
+          5,
+          11,
+          2,
+          6,
+          6,
+          9,
+          9,
+          6
+        ]
+      },
+      "Television": {
+        "base_parts": 0,
+        "objects": 126,
+        "parts": 126,
+        "slots": [
+          7,
+          10,
+          12,
+          13,
+          8,
+          15,
+          6,
+          11,
+          10,
+          11,
+          13,
+          10
+        ]
+      }
+    },
+    "DocumentTray": {
+      "Metal": {
+        "base_parts": 0,
+        "objects": 8,
+        "parts": 8,
+        "slots": [
+          0,
+          1,
+          0,
+          2,
+          1,
+          0,
+          0,
+          1,
+          0,
+          1,
+          2,
+          0
+        ]
+      },
+      "Plastic": {
+        "base_parts": 0,
+        "objects": 13,
+        "parts": 13,
+        "slots": [
+          1,
+          0,
+          0,
+          3,
+          1,
+          0,
+          2,
+          2,
+          3,
+          0,
+          1,
+          0
+        ]
+      },
+      "PrintedPaper": {
+        "base_parts": 0,
+        "objects": 21,
+        "parts": 21,
+        "slots": [
+          1,
+          1,
+          0,
+          5,
+          2,
+          0,
+          2,
+          3,
+          3,
+          1,
+          3,
+          0
+        ]
+      }
+    },
+    "DrawerUnit": {
+      "Metal": {
+        "base_parts": 0,
+        "objects": 419,
+        "parts": 419,
+        "slots": [
+          31,
+          28,
+          38,
+          39,
+          36,
+          28,
+          32,
+          40,
+          43,
+          32,
+          39,
+          33
+        ]
+      },
+      "Rubber": {
+        "base_parts": 140,
+        "objects": 140,
+        "parts": 140,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Wood": {
+        "base_parts": 0,
+        "objects": 173,
+        "parts": 173,
+        "slots": [
+          12,
+          12,
+          14,
+          17,
+          18,
+          13,
+          12,
+          18,
+          16,
+          11,
+          15,
+          15
+        ]
+      },
+      "WoodEdge": {
+        "base_parts": 0,
+        "objects": 419,
+        "parts": 419,
+        "slots": [
+          31,
+          28,
+          38,
+          39,
+          36,
+          28,
+          32,
+          40,
+          43,
+          32,
+          39,
+          33
+        ]
+      }
+    },
+    "FloorLamp": {
+      "Chrome": {
+        "base_parts": 0,
+        "objects": 8,
+        "parts": 8,
+        "slots": [
+          0,
+          3,
+          0,
+          1,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          2,
+          0
+        ]
+      },
+      "FabricAlt": {
+        "base_parts": 0,
+        "objects": 19,
+        "parts": 19,
+        "slots": [
+          0,
+          5,
+          0,
+          2,
+          1,
+          1,
+          0,
+          2,
+          1,
+          3,
+          2,
+          2
+        ]
+      },
+      "Light": {
+        "base_parts": 19,
+        "objects": 19,
+        "parts": 19,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Metal": {
+        "base_parts": 0,
+        "objects": 19,
+        "parts": 19,
+        "slots": [
+          0,
+          5,
+          0,
+          2,
+          1,
+          1,
+          0,
+          2,
+          1,
+          3,
+          2,
+          2
+        ]
+      },
+      "Rubber": {
+        "base_parts": 11,
+        "objects": 11,
+        "parts": 11,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Wood": {
+        "base_parts": 0,
+        "objects": 6,
+        "parts": 6,
+        "slots": [
+          0,
+          0,
+          0,
+          1,
+          1,
+          0,
+          0,
+          2,
+          0,
+          2,
+          0,
+          0
+        ]
+      }
+    },
+    "FloorOutlet": {
+      "Chrome": {
+        "base_parts": 0,
+        "objects": 148,
+        "parts": 148,
+        "slots": [
+          8,
+          13,
+          13,
+          18,
+          8,
+          12,
+          10,
+          12,
+          9,
+          13,
+          16,
+          16
+        ]
+      },
+      "Ink": {
+        "base_parts": 451,
+        "objects": 451,
+        "parts": 451,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Metal": {
+        "base_parts": 0,
+        "objects": 303,
+        "parts": 303,
+        "slots": [
+          26,
+          21,
+          31,
+          25,
+          18,
+          24,
+          24,
+          29,
+          32,
+          26,
+          23,
+          24
+        ]
+      },
+      "Plastic": {
+        "base_parts": 0,
+        "objects": 192,
+        "parts": 192,
+        "slots": [
+          8,
+          12,
+          23,
+          17,
+          11,
+          23,
+          13,
+          18,
+          19,
+          15,
+          15,
+          18
+        ]
+      }
+    },
+    "Headphones": {
+      "Leather": {
+        "base_parts": 0,
+        "objects": 83,
+        "parts": 83,
+        "slots": [
+          9,
+          9,
+          7,
+          6,
+          8,
+          8,
+          2,
+          3,
+          10,
+          6,
+          7,
+          8
+        ]
+      },
+      "Metal": {
+        "base_parts": 0,
+        "objects": 19,
+        "parts": 19,
+        "slots": [
+          1,
+          2,
+          1,
+          1,
+          0,
+          1,
+          0,
+          0,
+          5,
+          3,
+          0,
+          5
+        ]
+      },
+      "Plastic": {
+        "base_parts": 0,
+        "objects": 64,
+        "parts": 64,
+        "slots": [
+          8,
+          7,
+          6,
+          5,
+          8,
+          7,
+          2,
+          3,
+          5,
+          3,
+          7,
+          3
+        ]
+      }
+    },
+    "Kettle": {
+      "Ceramic": {
+        "base_parts": 0,
+        "objects": 6,
+        "parts": 6,
+        "slots": [
+          1,
+          1,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          2,
+          1,
+          0,
+          0
+        ]
+      },
+      "Ink": {
+        "base_parts": 26,
+        "objects": 26,
+        "parts": 26,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Metal": {
+        "base_parts": 0,
+        "objects": 20,
+        "parts": 20,
+        "slots": [
+          4,
+          1,
+          3,
+          1,
+          2,
+          3,
+          4,
+          0,
+          1,
+          0,
+          0,
+          1
+        ]
+      },
+      "Plastic": {
+        "base_parts": 0,
+        "objects": 26,
+        "parts": 26,
+        "slots": [
+          5,
+          2,
+          3,
+          2,
+          2,
+          3,
+          4,
+          0,
+          3,
+          1,
+          0,
+          1
+        ]
+      },
+      "Rubber": {
+        "base_parts": 26,
+        "objects": 26,
+        "parts": 26,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "Keyboard": {
+      "Metal": {
+        "base_parts": 0,
+        "objects": 91,
+        "parts": 91,
+        "slots": [
+          7,
+          6,
+          7,
+          5,
+          8,
+          12,
+          10,
+          11,
+          8,
+          6,
+          5,
+          6
+        ]
+      },
+      "Plastic": {
+        "base_parts": 0,
+        "objects": 91,
+        "parts": 91,
+        "slots": [
+          7,
+          6,
+          7,
+          5,
+          8,
+          12,
+          10,
+          11,
+          8,
+          6,
+          5,
+          6
+        ]
+      },
+      "Rubber": {
+        "base_parts": 28,
+        "objects": 28,
+        "parts": 28,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "Laptop": {
+      "Chrome": {
+        "base_parts": 0,
+        "objects": 526,
+        "parts": 526,
+        "slots": [
+          33,
+          29,
+          48,
+          44,
+          53,
+          39,
+          51,
+          29,
+          54,
+          56,
+          48,
+          42
+        ]
+      },
+      "Ink": {
+        "base_parts": 526,
+        "objects": 526,
+        "parts": 526,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Metal": {
+        "base_parts": 0,
+        "objects": 262,
+        "parts": 262,
+        "slots": [
+          19,
+          18,
+          27,
+          21,
+          31,
+          22,
+          25,
+          13,
+          26,
+          24,
+          18,
+          18
+        ]
+      },
+      "Plastic": {
+        "base_parts": 0,
+        "objects": 526,
+        "parts": 526,
+        "slots": [
+          33,
+          29,
+          48,
+          44,
+          53,
+          39,
+          51,
+          29,
+          54,
+          56,
+          48,
+          42
+        ]
+      },
+      "Rubber": {
+        "base_parts": 526,
+        "objects": 526,
+        "parts": 526,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Screen": {
+        "base_parts": 0,
+        "objects": 526,
+        "parts": 526,
+        "slots": [
+          33,
+          29,
+          48,
+          44,
+          53,
+          39,
+          51,
+          29,
+          54,
+          56,
+          48,
+          42
+        ]
+      }
+    },
+    "LightSwitch": {
+      "Ink": {
+        "base_parts": 240,
+        "objects": 240,
+        "parts": 240,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Metal": {
+        "base_parts": 0,
+        "objects": 171,
+        "parts": 171,
+        "slots": [
+          9,
+          21,
+          14,
+          12,
+          14,
+          16,
+          13,
+          15,
+          15,
+          14,
+          16,
+          12
+        ]
+      },
+      "Paper": {
+        "base_parts": 137,
+        "objects": 137,
+        "parts": 137,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Plastic": {
+        "base_parts": 0,
+        "objects": 240,
+        "parts": 240,
+        "slots": [
+          15,
+          29,
+          21,
+          16,
+          20,
+          21,
+          17,
+          18,
+          22,
+          21,
+          19,
+          21
+        ]
+      }
+    },
+    "Microphone": {
+      "Ink": {
+        "base_parts": 5,
+        "objects": 5,
+        "parts": 5,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Metal": {
+        "base_parts": 0,
+        "objects": 16,
+        "parts": 16,
+        "slots": [
+          2,
+          0,
+          0,
+          3,
+          4,
+          1,
+          1,
+          1,
+          3,
+          1,
+          0,
+          0
+        ]
+      },
+      "Plastic": {
+        "base_parts": 0,
+        "objects": 11,
+        "parts": 11,
+        "slots": [
+          2,
+          0,
+          0,
+          1,
+          2,
+          1,
+          1,
+          1,
+          3,
+          0,
+          0,
+          0
+        ]
+      },
+      "Rubber": {
+        "base_parts": 16,
+        "objects": 16,
+        "parts": 16,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "MobileCart": {
+      "Metal": {
+        "base_parts": 0,
+        "objects": 168,
+        "parts": 168,
+        "slots": [
+          22,
+          21,
+          12,
+          12,
+          16,
+          15,
+          17,
+          14,
+          6,
+          15,
+          7,
+          11
+        ]
+      },
+      "Paper": {
+        "base_parts": 134,
+        "objects": 134,
+        "parts": 134,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Rubber": {
+        "base_parts": 168,
+        "objects": 168,
+        "parts": 168,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Wood": {
+        "base_parts": 0,
+        "objects": 75,
+        "parts": 75,
+        "slots": [
+          10,
+          9,
+          6,
+          3,
+          6,
+          7,
+          6,
+          6,
+          4,
+          10,
+          4,
+          4
+        ]
+      }
+    },
+    "Monitor": {
+      "Ink": {
+        "base_parts": 192,
+        "objects": 192,
+        "parts": 192,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Metal": {
+        "base_parts": 0,
+        "objects": 192,
+        "parts": 192,
+        "slots": [
+          15,
+          14,
+          13,
+          10,
+          11,
+          25,
+          19,
+          15,
+          20,
+          19,
+          18,
+          13
+        ]
+      },
+      "Plastic": {
+        "base_parts": 0,
+        "objects": 130,
+        "parts": 130,
+        "slots": [
+          7,
+          9,
+          9,
+          9,
+          9,
+          19,
+          13,
+          9,
+          10,
+          12,
+          13,
+          11
+        ]
+      },
+      "Screen": {
+        "base_parts": 0,
+        "objects": 192,
+        "parts": 192,
+        "slots": [
+          15,
+          14,
+          13,
+          10,
+          11,
+          25,
+          19,
+          15,
+          20,
+          19,
+          18,
+          13
+        ]
+      }
+    },
+    "Mouse": {
+      "Chrome": {
+        "base_parts": 0,
+        "objects": 18,
+        "parts": 18,
+        "slots": [
+          3,
+          0,
+          0,
+          3,
+          1,
+          1,
+          2,
+          1,
+          2,
+          1,
+          1,
+          3
+        ]
+      },
+      "Plastic": {
+        "base_parts": 0,
+        "objects": 104,
+        "parts": 104,
+        "slots": [
+          10,
+          13,
+          10,
+          6,
+          10,
+          9,
+          7,
+          8,
+          5,
+          6,
+          9,
+          11
+        ]
+      },
+      "Rubber": {
+        "base_parts": 104,
+        "objects": 104,
+        "parts": 104,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "Mug": {
+      "Ceramic": {
+        "base_parts": 0,
+        "objects": 318,
+        "parts": 318,
+        "slots": [
+          21,
+          29,
+          27,
+          24,
+          25,
+          20,
+          23,
+          25,
+          26,
+          29,
+          35,
+          34
+        ]
+      },
+      "Drink": {
+        "base_parts": 318,
+        "objects": 318,
+        "parts": 318,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "Notebook": {
+      "FabricAlt": {
+        "base_parts": 0,
+        "objects": 118,
+        "parts": 118,
+        "slots": [
+          12,
+          10,
+          15,
+          7,
+          6,
+          5,
+          9,
+          7,
+          16,
+          11,
+          10,
+          10
+        ]
+      },
+      "Metal": {
+        "base_parts": 0,
+        "objects": 130,
+        "parts": 130,
+        "slots": [
+          11,
+          12,
+          12,
+          9,
+          10,
+          8,
+          12,
+          9,
+          17,
+          7,
+          13,
+          10
+        ]
+      },
+      "Paper": {
+        "base_parts": 381,
+        "objects": 381,
+        "parts": 381,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Plastic": {
+        "base_parts": 0,
+        "objects": 263,
+        "parts": 263,
+        "slots": [
+          23,
+          17,
+          22,
+          21,
+          21,
+          16,
+          17,
+          33,
+          30,
+          16,
+          23,
+          24
+        ]
+      },
+      "Rubber": {
+        "base_parts": 142,
+        "objects": 142,
+        "parts": 142,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "Notepad": {
+      "Art": {
+        "base_parts": 0,
+        "objects": 312,
+        "parts": 312,
+        "slots": [
+          19,
+          29,
+          30,
+          29,
+          34,
+          24,
+          34,
+          23,
+          27,
+          18,
+          20,
+          25
+        ]
+      },
+      "Chrome": {
+        "base_parts": 0,
+        "objects": 157,
+        "parts": 157,
+        "slots": [
+          10,
+          15,
+          7,
+          13,
+          14,
+          17,
+          20,
+          14,
+          12,
+          10,
+          12,
+          13
+        ]
+      },
+      "Paper": {
+        "base_parts": 312,
+        "objects": 312,
+        "parts": 312,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "PrintedPaper": {
+        "base_parts": 0,
+        "objects": 312,
+        "parts": 312,
+        "slots": [
+          19,
+          29,
+          30,
+          29,
+          34,
+          24,
+          34,
+          23,
+          27,
+          18,
+          20,
+          25
+        ]
+      }
+    },
+    "NoticeBoard": {
+      "Chrome": {
+        "base_parts": 0,
+        "objects": 137,
+        "parts": 137,
+        "slots": [
+          12,
+          11,
+          11,
+          11,
+          11,
+          6,
+          12,
+          7,
+          12,
+          19,
+          11,
+          14
+        ]
+      },
+      "FabricAlt": {
+        "base_parts": 0,
+        "objects": 137,
+        "parts": 137,
+        "slots": [
+          12,
+          11,
+          11,
+          11,
+          11,
+          6,
+          12,
+          7,
+          12,
+          19,
+          11,
+          14
+        ]
+      },
+      "Ink": {
+        "base_parts": 137,
+        "objects": 137,
+        "parts": 137,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Metal": {
+        "base_parts": 0,
+        "objects": 52,
+        "parts": 52,
+        "slots": [
+          4,
+          4,
+          4,
+          3,
+          6,
+          4,
+          5,
+          1,
+          2,
+          11,
+          2,
+          6
+        ]
+      },
+      "Paper": {
+        "base_parts": 137,
+        "objects": 137,
+        "parts": 137,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "WoodEdge": {
+        "base_parts": 0,
+        "objects": 85,
+        "parts": 85,
+        "slots": [
+          8,
+          7,
+          7,
+          8,
+          5,
+          2,
+          7,
+          6,
+          10,
+          8,
+          9,
+          8
+        ]
+      }
+    },
+    "Ottoman": {
+      "FabricAlt": {
+        "base_parts": 0,
+        "objects": 94,
+        "parts": 94,
+        "slots": [
+          11,
+          6,
+          2,
+          10,
+          10,
+          7,
+          5,
+          6,
+          7,
+          7,
+          15,
+          8
+        ]
+      },
+      "Leather": {
+        "base_parts": 0,
+        "objects": 29,
+        "parts": 29,
+        "slots": [
+          2,
+          2,
+          5,
+          3,
+          2,
+          3,
+          1,
+          1,
+          1,
+          3,
+          1,
+          5
+        ]
+      },
+      "WoodEdge": {
+        "base_parts": 0,
+        "objects": 123,
+        "parts": 123,
+        "slots": [
+          13,
+          8,
+          7,
+          13,
+          12,
+          10,
+          6,
+          7,
+          8,
+          10,
+          16,
+          13
+        ]
+      }
+    },
+    "PenHolder": {
+      "Ink": {
+        "base_parts": 213,
+        "objects": 213,
+        "parts": 213,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Metal": {
+        "base_parts": 0,
+        "objects": 216,
+        "parts": 216,
+        "slots": [
+          13,
+          27,
+          17,
+          21,
+          18,
+          16,
+          17,
+          14,
+          16,
+          19,
+          19,
+          19
+        ]
+      },
+      "Wood": {
+        "base_parts": 0,
+        "objects": 215,
+        "parts": 215,
+        "slots": [
+          13,
+          27,
+          17,
+          21,
+          18,
+          16,
+          17,
+          14,
+          16,
+          18,
+          19,
+          19
+        ]
+      }
+    },
+    "Pencil": {
+      "Art": {
+        "base_parts": 0,
+        "objects": 168,
+        "parts": 168,
+        "slots": [
+          12,
+          11,
+          18,
+          11,
+          17,
+          17,
+          9,
+          14,
+          19,
+          13,
+          16,
+          11
+        ]
+      },
+      "Chrome": {
+        "base_parts": 0,
+        "objects": 93,
+        "parts": 93,
+        "slots": [
+          6,
+          6,
+          11,
+          4,
+          7,
+          9,
+          4,
+          8,
+          13,
+          8,
+          9,
+          8
+        ]
+      },
+      "Ink": {
+        "base_parts": 168,
+        "objects": 168,
+        "parts": 168,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Metal": {
+        "base_parts": 0,
+        "objects": 58,
+        "parts": 58,
+        "slots": [
+          3,
+          7,
+          2,
+          6,
+          6,
+          4,
+          2,
+          8,
+          8,
+          5,
+          4,
+          3
+        ]
+      },
+      "Rubber": {
+        "base_parts": 93,
+        "objects": 93,
+        "parts": 93,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Wood": {
+        "base_parts": 0,
+        "objects": 110,
+        "parts": 110,
+        "slots": [
+          9,
+          4,
+          16,
+          5,
+          11,
+          13,
+          7,
+          6,
+          11,
+          8,
+          12,
+          8
+        ]
+      }
+    },
+    "Phone": {
+      "Ink": {
+        "base_parts": 996,
+        "objects": 996,
+        "parts": 996,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Metal": {
+        "base_parts": 0,
+        "objects": 996,
+        "parts": 996,
+        "slots": [
+          84,
+          70,
+          83,
+          80,
+          90,
+          87,
+          73,
+          80,
+          81,
+          85,
+          104,
+          79
+        ]
+      },
+      "PhoneScreen": {
+        "base_parts": 0,
+        "objects": 736,
+        "parts": 736,
+        "slots": [
+          61,
+          46,
+          62,
+          55,
+          67,
+          68,
+          57,
+          59,
+          63,
+          63,
+          75,
+          60
+        ]
+      },
+      "Plastic": {
+        "base_parts": 0,
+        "objects": 260,
+        "parts": 260,
+        "slots": [
+          23,
+          24,
+          21,
+          25,
+          23,
+          19,
+          16,
+          21,
+          18,
+          22,
+          29,
+          19
+        ]
+      }
+    },
+    "Plant": {
+      "Bark": {
+        "base_parts": 715,
+        "objects": 715,
+        "parts": 715,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Ceramic": {
+        "base_parts": 0,
+        "objects": 206,
+        "parts": 206,
+        "slots": [
+          21,
+          19,
+          16,
+          18,
+          15,
+          22,
+          20,
+          23,
+          10,
+          19,
+          12,
+          11
+        ]
+      },
+      "Concrete": {
+        "base_parts": 245,
+        "objects": 245,
+        "parts": 245,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Leaf": {
+        "base_parts": 0,
+        "objects": 715,
+        "parts": 715,
+        "slots": [
+          66,
+          60,
+          69,
+          64,
+          51,
+          56,
+          55,
+          65,
+          58,
+          56,
+          52,
+          63
+        ]
+      },
+      "LeafLight": {
+        "base_parts": 0,
+        "objects": 706,
+        "parts": 706,
+        "slots": [
+          66,
+          59,
+          69,
+          63,
+          50,
+          55,
+          53,
+          63,
+          57,
+          56,
+          52,
+          63
+        ]
+      },
+      "LeafVariegated": {
+        "base_parts": 0,
+        "objects": 81,
+        "parts": 81,
+        "slots": [
+          7,
+          7,
+          8,
+          9,
+          2,
+          5,
+          5,
+          10,
+          4,
+          15,
+          2,
+          7
+        ]
+      },
+      "Metal": {
+        "base_parts": 0,
+        "objects": 227,
+        "parts": 227,
+        "slots": [
+          24,
+          22,
+          20,
+          20,
+          19,
+          19,
+          13,
+          15,
+          20,
+          16,
+          15,
+          24
+        ]
+      },
+      "Plastic": {
+        "base_parts": 0,
+        "objects": 228,
+        "parts": 228,
+        "slots": [
+          23,
+          20,
+          15,
+          19,
+          12,
+          17,
+          19,
+          22,
+          18,
+          20,
+          20,
+          23
+        ]
+      },
+      "Soil": {
+        "base_parts": 1127,
+        "objects": 1127,
+        "parts": 1127,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Succulent": {
+        "base_parts": 0,
+        "objects": 331,
+        "parts": 331,
+        "slots": [
+          30,
+          31,
+          23,
+          28,
+          29,
+          32,
+          28,
+          23,
+          30,
+          24,
+          23,
+          30
+        ]
+      },
+      "Terracotta": {
+        "base_parts": 221,
+        "objects": 221,
+        "parts": 221,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "PowerStrip": {
+      "Ink": {
+        "base_parts": 582,
+        "objects": 582,
+        "parts": 582,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Metal": {
+        "base_parts": 0,
+        "objects": 229,
+        "parts": 229,
+        "slots": [
+          22,
+          17,
+          23,
+          17,
+          13,
+          21,
+          21,
+          18,
+          24,
+          20,
+          19,
+          14
+        ]
+      },
+      "Paper": {
+        "base_parts": 582,
+        "objects": 582,
+        "parts": 582,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Plastic": {
+        "base_parts": 0,
+        "objects": 353,
+        "parts": 353,
+        "slots": [
+          24,
+          30,
+          32,
+          52,
+          31,
+          23,
+          19,
+          26,
+          24,
+          34,
+          32,
+          26
+        ]
+      }
+    },
+    "Printer": {
+      "Ink": {
+        "base_parts": 9,
+        "objects": 9,
+        "parts": 9,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Paper": {
+        "base_parts": 9,
+        "objects": 9,
+        "parts": 9,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Plastic": {
+        "base_parts": 0,
+        "objects": 9,
+        "parts": 9,
+        "slots": [
+          2,
+          1,
+          0,
+          1,
+          0,
+          1,
+          0,
+          0,
+          1,
+          1,
+          2,
+          0
+        ]
+      },
+      "Screen": {
+        "base_parts": 0,
+        "objects": 9,
+        "parts": 9,
+        "slots": [
+          2,
+          1,
+          0,
+          1,
+          0,
+          1,
+          0,
+          0,
+          1,
+          1,
+          2,
+          0
+        ]
+      }
+    },
+    "ProjectionScreen": {
+      "Ink": {
+        "base_parts": 65,
+        "objects": 65,
+        "parts": 65,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Metal": {
+        "base_parts": 0,
+        "objects": 96,
+        "parts": 96,
+        "slots": [
+          8,
+          5,
+          7,
+          5,
+          14,
+          7,
+          8,
+          10,
+          10,
+          9,
+          3,
+          10
+        ]
+      },
+      "Paper": {
+        "base_parts": 96,
+        "objects": 96,
+        "parts": 96,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "Projector": {
+      "ContainerGlass": {
+        "base_parts": 59,
+        "objects": 59,
+        "parts": 59,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Ink": {
+        "base_parts": 59,
+        "objects": 59,
+        "parts": 59,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Metal": {
+        "base_parts": 0,
+        "objects": 59,
+        "parts": 59,
+        "slots": [
+          7,
+          7,
+          5,
+          8,
+          3,
+          4,
+          1,
+          5,
+          5,
+          4,
+          5,
+          5
+        ]
+      },
+      "Plastic": {
+        "base_parts": 0,
+        "objects": 36,
+        "parts": 36,
+        "slots": [
+          4,
+          5,
+          2,
+          7,
+          0,
+          2,
+          1,
+          2,
+          5,
+          3,
+          3,
+          2
+        ]
+      },
+      "Rubber": {
+        "base_parts": 59,
+        "objects": 59,
+        "parts": 59,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "RoomDivider": {
+      "FabricAlt": {
+        "base_parts": 0,
+        "objects": 64,
+        "parts": 64,
+        "slots": [
+          10,
+          7,
+          3,
+          3,
+          8,
+          6,
+          3,
+          7,
+          3,
+          3,
+          5,
+          6
+        ]
+      },
+      "Metal": {
+        "base_parts": 0,
+        "objects": 64,
+        "parts": 64,
+        "slots": [
+          10,
+          7,
+          3,
+          3,
+          8,
+          6,
+          3,
+          7,
+          3,
+          3,
+          5,
+          6
+        ]
+      },
+      "WoodEdge": {
+        "base_parts": 0,
+        "objects": 29,
+        "parts": 29,
+        "slots": [
+          5,
+          5,
+          1,
+          1,
+          2,
+          2,
+          3,
+          2,
+          2,
+          0,
+          3,
+          3
+        ]
+      }
+    },
+    "Rug": {
+      "Rug": {
+        "base_parts": 0,
+        "objects": 138,
+        "parts": 276,
+        "slots": [
+          70,
+          76,
+          66,
+          64,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "SideTable": {
+      "Ceramic": {
+        "base_parts": 0,
+        "objects": 18,
+        "parts": 18,
+        "slots": [
+          0,
+          1,
+          4,
+          0,
+          2,
+          1,
+          3,
+          0,
+          0,
+          5,
+          0,
+          2
+        ]
+      },
+      "Concrete": {
+        "base_parts": 23,
+        "objects": 23,
+        "parts": 23,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Metal": {
+        "base_parts": 0,
+        "objects": 171,
+        "parts": 171,
+        "slots": [
+          18,
+          16,
+          12,
+          8,
+          12,
+          13,
+          14,
+          14,
+          19,
+          17,
+          16,
+          12
+        ]
+      },
+      "Plastic": {
+        "base_parts": 0,
+        "objects": 30,
+        "parts": 30,
+        "slots": [
+          3,
+          2,
+          5,
+          1,
+          1,
+          2,
+          3,
+          1,
+          3,
+          2,
+          3,
+          4
+        ]
+      },
+      "Rubber": {
+        "base_parts": 244,
+        "objects": 244,
+        "parts": 244,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Wood": {
+        "base_parts": 0,
+        "objects": 196,
+        "parts": 196,
+        "slots": [
+          17,
+          19,
+          12,
+          10,
+          14,
+          13,
+          23,
+          20,
+          19,
+          18,
+          17,
+          14
+        ]
+      },
+      "WoodEdge": {
+        "base_parts": 0,
+        "objects": 226,
+        "parts": 226,
+        "slots": [
+          17,
+          22,
+          18,
+          12,
+          15,
+          15,
+          25,
+          21,
+          21,
+          21,
+          21,
+          18
+        ]
+      }
+    },
+    "SodaCan": {
+      "Art": {
+        "base_parts": 0,
+        "objects": 289,
+        "parts": 289,
+        "slots": [
+          26,
+          24,
+          16,
+          26,
+          19,
+          15,
+          19,
+          30,
+          29,
+          23,
+          32,
+          30
+        ]
+      },
+      "Chrome": {
+        "base_parts": 0,
+        "objects": 289,
+        "parts": 289,
+        "slots": [
+          26,
+          24,
+          16,
+          26,
+          19,
+          15,
+          19,
+          30,
+          29,
+          23,
+          32,
+          30
+        ]
+      },
+      "Ink": {
+        "base_parts": 205,
+        "objects": 205,
+        "parts": 205,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Paper": {
+        "base_parts": 289,
+        "objects": 289,
+        "parts": 289,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "Sofa": {
+      "Fabric": {
+        "base_parts": 0,
+        "objects": 73,
+        "parts": 73,
+        "slots": [
+          6,
+          4,
+          6,
+          7,
+          6,
+          7,
+          6,
+          8,
+          6,
+          5,
+          7,
+          5
+        ]
+      },
+      "FabricAlt": {
+        "base_parts": 0,
+        "objects": 175,
+        "parts": 224,
+        "slots": [
+          19,
+          22,
+          14,
+          26,
+          16,
+          13,
+          19,
+          26,
+          16,
+          22,
+          16,
+          15
+        ]
+      },
+      "Leather": {
+        "base_parts": 0,
+        "objects": 84,
+        "parts": 84,
+        "slots": [
+          12,
+          9,
+          6,
+          9,
+          7,
+          5,
+          6,
+          5,
+          9,
+          4,
+          6,
+          6
+        ]
+      },
+      "Metal": {
+        "base_parts": 0,
+        "objects": 142,
+        "parts": 142,
+        "slots": [
+          19,
+          15,
+          11,
+          16,
+          12,
+          8,
+          9,
+          12,
+          12,
+          9,
+          10,
+          9
+        ]
+      },
+      "Rubber": {
+        "base_parts": 235,
+        "objects": 235,
+        "parts": 235,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "WoodEdge": {
+        "base_parts": 0,
+        "objects": 93,
+        "parts": 93,
+        "slots": [
+          5,
+          7,
+          7,
+          11,
+          5,
+          8,
+          8,
+          11,
+          6,
+          8,
+          9,
+          8
+        ]
+      }
+    },
+    "Speaker": {
+      "Fabric": {
+        "base_parts": 0,
+        "objects": 45,
+        "parts": 45,
+        "slots": [
+          1,
+          7,
+          5,
+          2,
+          3,
+          3,
+          4,
+          6,
+          4,
+          3,
+          4,
+          3
+        ]
+      },
+      "FabricAlt": {
+        "base_parts": 0,
+        "objects": 48,
+        "parts": 48,
+        "slots": [
+          3,
+          6,
+          1,
+          3,
+          5,
+          9,
+          2,
+          2,
+          4,
+          2,
+          5,
+          6
+        ]
+      },
+      "Metal": {
+        "base_parts": 0,
+        "objects": 22,
+        "parts": 22,
+        "slots": [
+          0,
+          0,
+          2,
+          2,
+          2,
+          2,
+          1,
+          1,
+          1,
+          2,
+          6,
+          3
+        ]
+      },
+      "Plastic": {
+        "base_parts": 0,
+        "objects": 50,
+        "parts": 50,
+        "slots": [
+          3,
+          10,
+          3,
+          2,
+          4,
+          9,
+          3,
+          3,
+          6,
+          1,
+          1,
+          5
+        ]
+      },
+      "Rubber": {
+        "base_parts": 45,
+        "objects": 45,
+        "parts": 45,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "WoodEdge": {
+        "base_parts": 0,
+        "objects": 21,
+        "parts": 21,
+        "slots": [
+          1,
+          3,
+          1,
+          1,
+          2,
+          1,
+          2,
+          4,
+          1,
+          2,
+          2,
+          1
+        ]
+      }
+    },
+    "Stapler": {
+      "Metal": {
+        "base_parts": 0,
+        "objects": 158,
+        "parts": 158,
+        "slots": [
+          13,
+          9,
+          13,
+          18,
+          16,
+          12,
+          11,
+          9,
+          12,
+          16,
+          14,
+          15
+        ]
+      },
+      "Plastic": {
+        "base_parts": 0,
+        "objects": 99,
+        "parts": 99,
+        "slots": [
+          8,
+          5,
+          10,
+          12,
+          12,
+          9,
+          6,
+          5,
+          5,
+          7,
+          12,
+          8
+        ]
+      },
+      "Rubber": {
+        "base_parts": 158,
+        "objects": 158,
+        "parts": 158,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "StorageBox": {
+      "FabricAlt": {
+        "base_parts": 0,
+        "objects": 25,
+        "parts": 25,
+        "slots": [
+          2,
+          2,
+          2,
+          0,
+          2,
+          3,
+          1,
+          3,
+          1,
+          4,
+          2,
+          3
+        ]
+      },
+      "Ink": {
+        "base_parts": 65,
+        "objects": 65,
+        "parts": 65,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Metal": {
+        "base_parts": 0,
+        "objects": 40,
+        "parts": 40,
+        "slots": [
+          3,
+          5,
+          6,
+          3,
+          3,
+          4,
+          2,
+          4,
+          3,
+          0,
+          4,
+          3
+        ]
+      },
+      "Paper": {
+        "base_parts": 52,
+        "objects": 52,
+        "parts": 52,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Plastic": {
+        "base_parts": 0,
+        "objects": 77,
+        "parts": 77,
+        "slots": [
+          4,
+          7,
+          9,
+          6,
+          8,
+          7,
+          8,
+          7,
+          5,
+          3,
+          8,
+          5
+        ]
+      },
+      "Rubber": {
+        "base_parts": 64,
+        "objects": 64,
+        "parts": 64,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "Table": {
+      "Ceramic": {
+        "base_parts": 0,
+        "objects": 10,
+        "parts": 10,
+        "slots": [
+          0,
+          1,
+          2,
+          1,
+          0,
+          1,
+          0,
+          0,
+          4,
+          1,
+          0,
+          0
+        ]
+      },
+      "Concrete": {
+        "base_parts": 4,
+        "objects": 4,
+        "parts": 4,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Metal": {
+        "base_parts": 0,
+        "objects": 46,
+        "parts": 46,
+        "slots": [
+          1,
+          4,
+          5,
+          5,
+          2,
+          3,
+          3,
+          2,
+          9,
+          7,
+          4,
+          1
+        ]
+      },
+      "Plastic": {
+        "base_parts": 0,
+        "objects": 30,
+        "parts": 30,
+        "slots": [
+          0,
+          4,
+          3,
+          4,
+          1,
+          2,
+          2,
+          0,
+          4,
+          6,
+          4,
+          0
+        ]
+      },
+      "Rubber": {
+        "base_parts": 44,
+        "objects": 44,
+        "parts": 44,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Wood": {
+        "base_parts": 0,
+        "objects": 35,
+        "parts": 35,
+        "slots": [
+          2,
+          3,
+          3,
+          5,
+          1,
+          2,
+          2,
+          2,
+          4,
+          7,
+          3,
+          1
+        ]
+      },
+      "WoodEdge": {
+        "base_parts": 0,
+        "objects": 40,
+        "parts": 40,
+        "slots": [
+          2,
+          4,
+          4,
+          5,
+          1,
+          4,
+          3,
+          2,
+          4,
+          7,
+          3,
+          1
+        ]
+      }
+    },
+    "TapeDispenser": {
+      "Metal": {
+        "base_parts": 0,
+        "objects": 144,
+        "parts": 144,
+        "slots": [
+          16,
+          10,
+          12,
+          10,
+          13,
+          11,
+          12,
+          10,
+          12,
+          16,
+          11,
+          11
+        ]
+      },
+      "Paper": {
+        "base_parts": 144,
+        "objects": 144,
+        "parts": 144,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Plastic": {
+        "base_parts": 0,
+        "objects": 144,
+        "parts": 144,
+        "slots": [
+          16,
+          10,
+          12,
+          10,
+          13,
+          11,
+          12,
+          10,
+          12,
+          16,
+          11,
+          11
+        ]
+      }
+    },
+    "TissueBox": {
+      "Art": {
+        "base_parts": 0,
+        "objects": 34,
+        "parts": 34,
+        "slots": [
+          0,
+          3,
+          1,
+          4,
+          2,
+          4,
+          6,
+          2,
+          4,
+          2,
+          1,
+          5
+        ]
+      },
+      "FabricAlt": {
+        "base_parts": 0,
+        "objects": 39,
+        "parts": 39,
+        "slots": [
+          10,
+          4,
+          2,
+          2,
+          6,
+          3,
+          3,
+          4,
+          1,
+          3,
+          1,
+          0
+        ]
+      },
+      "Paper": {
+        "base_parts": 238,
+        "objects": 192,
+        "parts": 238,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Plastic": {
+        "base_parts": 0,
+        "objects": 34,
+        "parts": 34,
+        "slots": [
+          1,
+          3,
+          3,
+          3,
+          7,
+          2,
+          4,
+          1,
+          3,
+          2,
+          2,
+          3
+        ]
+      },
+      "Wood": {
+        "base_parts": 0,
+        "objects": 39,
+        "parts": 39,
+        "slots": [
+          4,
+          4,
+          4,
+          2,
+          4,
+          5,
+          4,
+          1,
+          6,
+          1,
+          4,
+          0
+        ]
+      }
+    },
+    "TrashCan": {
+      "Chrome": {
+        "base_parts": 0,
+        "objects": 61,
+        "parts": 61,
+        "slots": [
+          3,
+          3,
+          6,
+          3,
+          6,
+          8,
+          4,
+          8,
+          7,
+          5,
+          5,
+          3
+        ]
+      },
+      "Ink": {
+        "base_parts": 50,
+        "objects": 50,
+        "parts": 50,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Metal": {
+        "base_parts": 0,
+        "objects": 92,
+        "parts": 92,
+        "slots": [
+          8,
+          9,
+          8,
+          6,
+          9,
+          11,
+          5,
+          6,
+          9,
+          6,
+          8,
+          7
+        ]
+      },
+      "Plastic": {
+        "base_parts": 0,
+        "objects": 228,
+        "parts": 228,
+        "slots": [
+          17,
+          23,
+          18,
+          16,
+          16,
+          25,
+          14,
+          19,
+          25,
+          19,
+          20,
+          16
+        ]
+      },
+      "Rubber": {
+        "base_parts": 46,
+        "objects": 46,
+        "parts": 46,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "Vase": {
+      "Ceramic": {
+        "base_parts": 0,
+        "objects": 176,
+        "parts": 176,
+        "slots": [
+          18,
+          14,
+          22,
+          15,
+          20,
+          15,
+          9,
+          13,
+          10,
+          17,
+          11,
+          12
+        ]
+      },
+      "ContainerGlass": {
+        "base_parts": 52,
+        "objects": 52,
+        "parts": 52,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "WallArt": {
+      "Art": {
+        "base_parts": 0,
+        "objects": 494,
+        "parts": 494,
+        "slots": [
+          31,
+          37,
+          45,
+          53,
+          42,
+          47,
+          37,
+          44,
+          35,
+          52,
+          33,
+          38
+        ]
+      },
+      "Metal": {
+        "base_parts": 0,
+        "objects": 140,
+        "parts": 140,
+        "slots": [
+          8,
+          17,
+          12,
+          21,
+          7,
+          12,
+          12,
+          8,
+          9,
+          17,
+          8,
+          9
+        ]
+      },
+      "Paper": {
+        "base_parts": 401,
+        "objects": 401,
+        "parts": 401,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Plastic": {
+        "base_parts": 0,
+        "objects": 155,
+        "parts": 155,
+        "slots": [
+          10,
+          9,
+          18,
+          16,
+          9,
+          18,
+          8,
+          17,
+          8,
+          16,
+          14,
+          12
+        ]
+      },
+      "Wood": {
+        "base_parts": 0,
+        "objects": 182,
+        "parts": 182,
+        "slots": [
+          13,
+          9,
+          16,
+          20,
+          21,
+          18,
+          10,
+          15,
+          16,
+          14,
+          13,
+          17
+        ]
+      }
+    },
+    "WallOutlet": {
+      "Ink": {
+        "base_parts": 2370,
+        "objects": 2370,
+        "parts": 2370,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Metal": {
+        "base_parts": 0,
+        "objects": 1756,
+        "parts": 1756,
+        "slots": [
+          162,
+          145,
+          147,
+          127,
+          134,
+          161,
+          149,
+          143,
+          157,
+          147,
+          138,
+          146
+        ]
+      },
+      "Paper": {
+        "base_parts": 817,
+        "objects": 817,
+        "parts": 817,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Plastic": {
+        "base_parts": 0,
+        "objects": 2370,
+        "parts": 2370,
+        "slots": [
+          216,
+          200,
+          191,
+          184,
+          194,
+          208,
+          191,
+          192,
+          207,
+          186,
+          192,
+          209
+        ]
+      }
+    },
+    "WallSconce": {
+      "Light": {
+        "base_parts": 137,
+        "objects": 137,
+        "parts": 137,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Metal": {
+        "base_parts": 0,
+        "objects": 44,
+        "parts": 44,
+        "slots": [
+          5,
+          4,
+          4,
+          2,
+          2,
+          3,
+          5,
+          4,
+          5,
+          4,
+          4,
+          2
+        ]
+      },
+      "Plastic": {
+        "base_parts": 0,
+        "objects": 93,
+        "parts": 93,
+        "slots": [
+          12,
+          10,
+          5,
+          4,
+          10,
+          10,
+          5,
+          8,
+          9,
+          5,
+          9,
+          6
+        ]
+      }
+    },
+    "WallShelf": {
+      "Metal": {
+        "base_parts": 0,
+        "objects": 120,
+        "parts": 120,
+        "slots": [
+          17,
+          13,
+          15,
+          5,
+          8,
+          8,
+          8,
+          5,
+          14,
+          8,
+          11,
+          8
+        ]
+      },
+      "Wood": {
+        "base_parts": 0,
+        "objects": 74,
+        "parts": 74,
+        "slots": [
+          8,
+          8,
+          9,
+          4,
+          5,
+          2,
+          6,
+          3,
+          8,
+          6,
+          8,
+          7
+        ]
+      }
+    },
+    "WaterBottle": {
+      "Art": {
+        "base_parts": 0,
+        "objects": 146,
+        "parts": 146,
+        "slots": [
+          9,
+          11,
+          13,
+          14,
+          9,
+          11,
+          14,
+          12,
+          19,
+          8,
+          14,
+          12
+        ]
+      },
+      "Chrome": {
+        "base_parts": 0,
+        "objects": 73,
+        "parts": 73,
+        "slots": [
+          4,
+          8,
+          3,
+          11,
+          6,
+          4,
+          5,
+          3,
+          8,
+          9,
+          7,
+          5
+        ]
+      },
+      "ContainerGlass": {
+        "base_parts": 225,
+        "objects": 225,
+        "parts": 225,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Liquid": {
+        "base_parts": 225,
+        "objects": 225,
+        "parts": 225,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Metal": {
+        "base_parts": 0,
+        "objects": 122,
+        "parts": 122,
+        "slots": [
+          10,
+          9,
+          5,
+          9,
+          13,
+          15,
+          14,
+          12,
+          7,
+          9,
+          9,
+          10
+        ]
+      },
+      "Plastic": {
+        "base_parts": 0,
+        "objects": 420,
+        "parts": 420,
+        "slots": [
+          34,
+          33,
+          25,
+          45,
+          34,
+          37,
+          46,
+          34,
+          38,
+          32,
+          34,
+          28
+        ]
+      },
+      "Rubber": {
+        "base_parts": 67,
+        "objects": 67,
+        "parts": 67,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "Whiteboard": {
+      "Chrome": {
+        "base_parts": 0,
+        "objects": 185,
+        "parts": 185,
+        "slots": [
+          18,
+          19,
+          13,
+          16,
+          8,
+          17,
+          14,
+          20,
+          14,
+          11,
+          14,
+          21
+        ]
+      },
+      "Ink": {
+        "base_parts": 168,
+        "objects": 168,
+        "parts": 168,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Metal": {
+        "base_parts": 0,
+        "objects": 212,
+        "parts": 212,
+        "slots": [
+          20,
+          21,
+          16,
+          18,
+          11,
+          21,
+          16,
+          20,
+          16,
+          15,
+          16,
+          22
+        ]
+      },
+      "Plastic": {
+        "base_parts": 0,
+        "objects": 137,
+        "parts": 137,
+        "slots": [
+          11,
+          15,
+          11,
+          12,
+          7,
+          15,
+          9,
+          13,
+          8,
+          10,
+          11,
+          15
+        ]
+      },
+      "Whiteboard": {
+        "base_parts": 0,
+        "objects": 212,
+        "parts": 212,
+        "slots": [
+          20,
+          21,
+          16,
+          18,
+          11,
+          21,
+          16,
+          20,
+          16,
+          15,
+          16,
+          22
+        ]
+      }
+    }
+  }
+}
