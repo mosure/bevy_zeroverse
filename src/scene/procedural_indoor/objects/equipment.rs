@@ -16,11 +16,26 @@ pub struct EquipmentProgram {
     pub note_count: usize,
     pub shade_fraction: f32,
     pub diffuser_fraction: f32,
+    pub shelf_span: f32,
+    pub bracket_style: u8,
+    pub screen_drop: f32,
+    pub screen_frame: bool,
+    pub sconce_width: f32,
+    pub sconce_height: f32,
+    pub sconce_taper: f32,
 }
 
 pub fn parameters(o: &IndoorObject) -> EquipmentProgram {
     let mut rng = stream(o.seed, 5700);
+    let mut detail = stream(o.seed, 7460);
     EquipmentProgram {
+        shelf_span: detail.random_range(0.24..0.41),
+        bracket_style: detail.random_range(0..3),
+        screen_drop: detail.random_range(0.64..0.99),
+        screen_frame: detail.random_bool(0.30),
+        sconce_width: detail.random_range(0.65..0.98),
+        sconce_height: detail.random_range(0.46..0.89),
+        sconce_taper: detail.random_range(0.65..1.0),
         housing: if rng.random_bool(0.38) {
             Surface::Metal
         } else {
@@ -214,6 +229,9 @@ pub(crate) fn power_port(o: &IndoorObject, low_voltage: bool) -> Option<Vec3> {
         ObjectKind::Monitor if !low_voltage => super::computers::monitor_power_port_local(o).0,
         ObjectKind::Projector => Vec3::new(s.x * 0.24, s.y * 0.23, -s.z * 0.48 - 0.001),
         ObjectKind::WallOutlet if !low_voltage => super::wall::outlet_port_local(o),
+        ObjectKind::FloorOutlet if !low_voltage && super::floor::is_open(o) => {
+            super::floor::port_local(o)
+        }
         ObjectKind::PowerStrip if low_voltage => {
             Vec3::new(s.x * 0.35, s.y * 0.48, s.z * 0.5 + 0.001)
         }
@@ -236,6 +254,7 @@ pub(crate) fn power_port_normal(o: &IndoorObject, low_voltage: bool) -> Option<V
         ObjectKind::Monitor if !low_voltage => super::computers::monitor_power_port_local(o).1,
         ObjectKind::Projector => Vec3::NEG_Z,
         ObjectKind::WallOutlet if !low_voltage => Vec3::Z,
+        ObjectKind::FloorOutlet if !low_voltage && super::floor::is_open(o) => Vec3::Y,
         ObjectKind::PowerStrip if low_voltage => Vec3::Z,
         ObjectKind::PowerStrip => Vec3::Y,
         _ => return None,
@@ -270,7 +289,11 @@ pub(crate) fn fixture_photometry(o: &IndoorObject) -> (Vec3, Vec3, f32, f32, f32
     let local = if o.kind == ObjectKind::CeilingPendant {
         Vec3::new(0., o.size.y * 0.05 - 0.003, 0.)
     } else {
-        Vec3::new(0., o.size.y * 0.079 - 0.003, o.size.z * 0.13)
+        Vec3::new(
+            0.,
+            o.size.y * (0.5 - p.sconce_height * 0.5) - 0.003,
+            o.size.z * 0.13,
+        )
     };
     (
         o.transform().transform_point(local),

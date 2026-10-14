@@ -185,7 +185,8 @@ pub(super) fn glazing(a: &mut Assembly, scene: &IndoorManifest, f: &Facade) {
     glazing_at(a, tf, f);
 }
 
-pub(crate) fn glazing_at(a: &mut Assembly, tf: Transform, f: &Facade) {
+/// Append the production frame, pane and covering assemblies in wall-local coordinates.
+pub fn glazing_at(a: &mut Assembly, tf: Transform, f: &Facade) {
     let fw = f.frame_width;
     let bar = fw * 0.66;
     for o in &f.openings {
@@ -215,14 +216,29 @@ pub(crate) fn glazing_at(a: &mut Assembly, tf: Transform, f: &Facade) {
         }
         let lo = o.min + Vec2::splat(fw);
         let hi = o.max - Vec2::splat(fw);
-        let pitch = (hi.x - lo.x) / o.columns as f32;
+        // One bounded installation program supplies unequal but well supported
+        // lights. Legacy manifests retain their original equal subdivisions.
+        let weights: Vec<f32> = (0..o.columns)
+            .map(|i| {
+                o.glazing.as_ref().map_or(1., |p| {
+                    let mut rng = stream(p.identity, 3110 + u64::from(i));
+                    rng.random_range(0.7..1.3)
+                })
+            })
+            .collect();
+        let scale = (hi.x - lo.x) / weights.iter().sum::<f32>();
+        let mut columns = vec![lo.x];
+        for weight in weights {
+            columns.push(columns.last().unwrap() + weight * scale);
+        }
+        *columns.last_mut().unwrap() = hi.x;
         for col in 1..o.columns {
             part(
                 a,
                 tf,
                 f.frame,
                 "window",
-                Vec3::new(lo.x + col as f32 * pitch, c.y, -f.recess),
+                Vec3::new(columns[col as usize], c.y, -f.recess),
                 Vec3::new(bar, hi.y - lo.y - 0.002, f.frame_depth * 0.88),
                 0.002,
             );
@@ -233,9 +249,9 @@ pub(crate) fn glazing_at(a: &mut Assembly, tf: Transform, f: &Facade) {
         }
         levels.push(hi.y);
         for col in 0..o.columns {
-            let left = lo.x + col as f32 * pitch + if col == 0 { 0. } else { bar * 0.5 };
+            let left = columns[col as usize] + if col == 0 { 0. } else { bar * 0.5 };
             let right =
-                lo.x + (col + 1) as f32 * pitch - if col + 1 == o.columns { 0. } else { bar * 0.5 };
+                columns[col as usize + 1] - if col + 1 == o.columns { 0. } else { bar * 0.5 };
             if o.transom > 0. {
                 part(
                     a,
@@ -250,19 +266,7 @@ pub(crate) fn glazing_at(a: &mut Assembly, tf: Transform, f: &Facade) {
             for (i, row) in levels.windows(2).enumerate() {
                 let bottom = row[0] + if i == 0 { 0. } else { bar * 0.5 };
                 let top = row[1] - if i + 2 == levels.len() { 0. } else { bar * 0.5 };
-                part(
-                    a,
-                    tf,
-                    Surface::Glass,
-                    "window",
-                    Vec3::new(
-                        (left + right) * 0.5,
-                        (bottom + top) * 0.5,
-                        -f.recess - 0.004,
-                    ),
-                    Vec3::new(right - left + 0.004, top - bottom + 0.004, 0.008),
-                    0.,
-                );
+                super::pane::build(a, tf, f, o, Vec2::new(left, bottom), Vec2::new(right, top));
             }
         }
         if o.min.y > 0.25 {
@@ -276,7 +280,7 @@ pub(crate) fn glazing_at(a: &mut Assembly, tf: Transform, f: &Facade) {
                 0.003,
             );
         }
-        if o.operable {
+        if o.operable && o.glazing.is_none() {
             let p = Vec3::new(
                 o.max.x - fw * 0.5,
                 (o.min.y + 1.1).min(c.y),
@@ -291,6 +295,15 @@ pub(crate) fn glazing_at(a: &mut Assembly, tf: Transform, f: &Facade) {
                 Vec3::new(0.012, 0.095, 0.021),
                 0.004,
             );
+        }
+        if f.treatment.is_some()
+            || matches!(
+                f.shade,
+                Shade::Vertical | Shade::Roman | Shade::Pleated | Shade::Curtain
+            )
+        {
+            treatments::build(a, tf, f, o);
+            continue;
         }
         if f.shade == Shade::None || f.shade_coverage < 0.02 {
             continue;

@@ -2,7 +2,12 @@
 //! from the live stores, so cancellation and scene replacement retain Bevy ownership.
 mod cooperative;
 pub(crate) use cooperative::cooperate;
+mod geometry;
 mod group_plan;
+mod timings;
+pub(crate) use geometry::SceneGeometry;
+pub use pipeline::prepare_indoor;
+pub use timings::{PreparationTimings, PreparationWall};
 pub(crate) mod pipeline;
 pub(crate) mod residency;
 #[cfg(not(target_arch = "wasm32"))]
@@ -132,154 +137,6 @@ struct Group {
     annotation: Option<SemanticLabel>,
     parts: Vec<Part>,
 }
-/// Wall durations for CPU preparation stages (seconds). Material synthesis and
-/// geometry-only transport preparation overlap on the bounded native pool.
-/// Materials include their bounded worker-pool join. GPU baking, model loading,
-/// deferred ECS commands and render uploads are measured by the caller's total.
-#[derive(Resource, Debug, Default, Clone, serde::Serialize)]
-pub struct PreparationTimings {
-    pub layout_seconds: f64,
-    pub cameras_seconds: f64,
-    pub materials_seconds: f64,
-    /// Union wall time until maps and geometry-only transport finish. The
-    /// independent mesh tail and final join belong to the complete union below.
-    /// Individual stage durations must not be summed as exclusive CPU work.
-    pub material_transport_seconds: f64,
-    /// Complete union wall time for map, geometry-only transport and mesh
-    /// preparation. Native mesh realization follows transport while maps can
-    /// still be running; this includes planning, the mesh tail and scoped join.
-    /// Browser stages remain serial and record the sum of those stage windows.
-    pub material_transport_mesh_seconds: f64,
-    pub gi_setup_seconds: f64,
-    /// Components of gi_setup_seconds, for CPU bottleneck attribution.
-    pub transport_seconds: f64,
-    pub environment_seconds: f64,
-    pub gpu_gi_setup_seconds: f64,
-    pub geometry_seconds: f64,
-    pub meshes_seconds: f64,
-    pub asset_insertion_seconds: f64,
-}
-
-/// One construction of each assembly, shared by diffuse transport and rendering.
-/// Ownership passes into render meshes after the baker has copied its triangles.
-pub(crate) struct SceneGeometry {
-    pub architecture: objects::Assembly,
-    pub objects: Vec<objects::Assembly>,
-    pub humans: Vec<humans::HumanAssembly>,
-}
-impl SceneGeometry {
-    /// Geometry, rather than probabilistic object kinds, decides which texture
-    /// programs are needed. Finish parent handles remain available even when a
-    /// nonzero structure replaces every map and no part uses the base slot.
-    pub(crate) fn material_selection(&self, manifest: &IndoorManifest) -> MaterialSelection {
-        let keys = self
-            .architecture
-            .parts
-            .iter()
-            .chain(self.objects.iter().flat_map(|assembly| &assembly.parts))
-            .filter(|(_, geometry)| !geometry.indices.is_empty())
-            .map(|(key, _)| key);
-        let mut selection = MaterialSelection {
-            surfaces: std::collections::BTreeSet::new(),
-            finishes: std::collections::BTreeSet::new(),
-            direct_surfaces: std::collections::BTreeSet::new(),
-        };
-        for (surface, label) in keys {
-            selection.surfaces.insert(*surface);
-            if let Some(slot) = label
-                .rsplit_once("#finish")
-                .and_then(|(_, slot)| slot.parse::<usize>().ok())
-            {
-                if materials::variants::supports(*surface) && slot < materials::variants::COUNT {
-                    selection.finishes.insert((*surface, slot));
-                } else {
-                    selection.direct_surfaces.insert(*surface);
-                }
-            } else {
-                selection.direct_surfaces.insert(*surface);
-            }
-        }
-        if !manifest.humans.is_empty() {
-            // Human material selection also uses neutral cloth, shoe leather
-            // and sole rubber templates, separate from assembly surface keys.
-            selection
-                .surfaces
-                .extend([Surface::Fabric, Surface::Leather, Surface::Rubber]);
-            selection
-                .direct_surfaces
-                .extend([Surface::Fabric, Surface::Leather, Surface::Rubber]);
-        }
-        for person in &manifest.humans {
-            for surface in [humans::HumanSurface::Top, humans::HumanSurface::Trousers] {
-                if surface == humans::HumanSurface::Top
-                    && person.outfit.knitted()
-                    && !person.outfit.open_front()
-                {
-                    continue;
-                }
-                let finish = humans::cloth_finish(person, surface);
-                selection.surfaces.insert(finish.0);
-                selection.finishes.insert(finish);
-            }
-        }
-        selection
-    }
-
-    async fn build(scene: &IndoorManifest) -> Self {
-        cooperate().await;
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            enum Part {
-                Architecture(objects::Assembly),
-                Object(objects::Assembly),
-                Human(humans::HumanAssembly),
-            }
-            // All jobs are spawned directly by the scope: Bevy preserves this
-            // order independently of completion order. Each builder owns its RNG.
-            let parts = workers::pool().scope(|scope| {
-                scope.spawn(async move { Part::Architecture(architecture::architecture(scene)) });
-                for object in &scene.objects {
-                    scope.spawn(async move { Part::Object(objects::build_object(object)) });
-                }
-                for person in &scene.humans {
-                    scope.spawn(async move { Part::Human(humans::build_human(person)) });
-                }
-            });
-            let mut result = Self {
-                architecture: default(),
-                objects: Vec::with_capacity(scene.objects.len()),
-                humans: Vec::with_capacity(scene.humans.len()),
-            };
-            for part in parts {
-                match part {
-                    Part::Architecture(a) => result.architecture = a,
-                    Part::Object(a) => result.objects.push(a),
-                    Part::Human(a) => result.humans.push(a),
-                }
-            }
-            result
-        }
-        #[cfg(target_arch = "wasm32")]
-        {
-            let architecture = architecture::architecture(scene);
-            let mut objects = Vec::with_capacity(scene.objects.len());
-            for object in &scene.objects {
-                cooperate().await;
-                objects.push(objects::build_object(object));
-            }
-            let mut humans = Vec::with_capacity(scene.humans.len());
-            for person in &scene.humans {
-                cooperate().await;
-                humans.push(humans::build_human(person));
-            }
-            Self {
-                architecture,
-                objects,
-                humans,
-            }
-        }
-    }
-}
 
 pub struct PreparedIndoor {
     pub timings: PreparationTimings,
@@ -328,10 +185,17 @@ impl PreparedIndoor {
         mut meshes: StagedAssets<Mesh>,
         gpu_materials: bool,
     ) -> Self {
+        let build_started = bevy::platform::time::Instant::now();
         let started = bevy::platform::time::Instant::now();
-        let geometry = SceneGeometry::build(&manifest).await;
+        let (geometry, geometry_jobs) = SceneGeometry::build(&manifest).await;
         let mut geometry_seconds = started.elapsed().as_secs_f64();
+        let mut wall = PreparationWall {
+            assembly_seconds: geometry_seconds,
+            ..default()
+        };
+        let started = bevy::platform::time::Instant::now();
         let selection = geometry.material_selection(&manifest);
+        wall.material_selection_seconds = started.elapsed().as_secs_f64();
         let parallel_started = bevy::platform::time::Instant::now();
         #[cfg(not(target_arch = "wasm32"))]
         let (
@@ -465,6 +329,7 @@ impl PreparedIndoor {
         }
         #[cfg(target_arch = "wasm32")]
         let material_transport_seconds = parallel_started.elapsed().as_secs_f64();
+        wall.parallel_assets_seconds = parallel_started.elapsed().as_secs_f64();
         material_set.environment.rotation = Quat::from_rotation_y(manifest.world_yaw);
         #[cfg(not(target_arch = "wasm32"))]
         let mut probes = None;
@@ -489,9 +354,17 @@ impl PreparedIndoor {
         );
         let binding_seconds = transport_started.elapsed().as_secs_f64();
         transport_seconds += binding_seconds;
+        wall.transport_binding_seconds = binding_seconds;
         let environment_started = bevy::platform::time::Instant::now();
+        #[cfg(not(target_arch = "wasm32"))]
         material_set.build_environment(&manifest, &transport, &mut images);
+        #[cfg(target_arch = "wasm32")]
+        material_set
+            .build_environment_async(&manifest, &transport, &mut images)
+            .await;
         let environment_seconds = environment_started.elapsed().as_secs_f64();
+        wall.environment_seconds = environment_seconds;
+        let gi_started = bevy::platform::time::Instant::now();
         #[cfg(not(target_arch = "wasm32"))]
         let mut gpu_gi_setup_seconds = 0.0;
         #[cfg(target_arch = "wasm32")]
@@ -516,6 +389,7 @@ impl PreparedIndoor {
                 ));
             }
         }
+        wall.gi_request_seconds = gi_started.elapsed().as_secs_f64();
         let gi_setup_seconds =
             started.elapsed().as_secs_f64() + transport_seconds - binding_seconds;
         #[cfg(target_arch = "wasm32")]
@@ -533,7 +407,8 @@ impl PreparedIndoor {
             .into_iter()
             .map(|plan| plan.bind(&manifest, &material_set, &mut materials))
             .collect();
-        geometry_seconds += started.elapsed().as_secs_f64();
+        wall.group_binding_seconds = started.elapsed().as_secs_f64();
+        geometry_seconds += wall.group_binding_seconds;
         #[cfg(target_arch = "wasm32")]
         let meshes_seconds = {
             let started = bevy::platform::time::Instant::now();
@@ -543,8 +418,15 @@ impl PreparedIndoor {
         #[cfg(target_arch = "wasm32")]
         let material_transport_mesh_seconds =
             material_transport_seconds + planning_seconds + meshes_seconds;
+        #[cfg(target_arch = "wasm32")]
+        {
+            wall.serial_meshes_seconds = planning_seconds + meshes_seconds;
+        }
+        wall.finish(build_started.elapsed().as_secs_f64());
         Self {
             timings: PreparationTimings {
+                wall,
+                geometry_jobs,
                 materials_seconds,
                 material_transport_seconds,
                 material_transport_mesh_seconds,
@@ -570,6 +452,7 @@ impl PreparedIndoor {
         }
     }
     pub fn spawn_groups(&mut self, parent: Entity, commands: &mut Commands) {
+        self.material_set.spawn_reflections(parent, commands);
         let mut annotation_order = 0u64;
         for group in self.groups.drain(..) {
             let mut root = commands.spawn((
@@ -683,7 +566,10 @@ mod tests {
         for seed in [0, 7, 207] {
             let scene =
                 IndoorManifest::generate_with_humans(seed, default(), 0.65, 0, 0.5).unwrap();
-            let parallel = bevy::tasks::block_on(SceneGeometry::build(&scene));
+            let (parallel, jobs) = bevy::tasks::block_on(SceneGeometry::build(&scene));
+            assert_eq!(jobs.architecture.count, 1);
+            assert_eq!(jobs.objects.count, scene.objects.len());
+            assert_eq!(jobs.humans.count, scene.humans.len());
             assembly(&parallel.architecture, &architecture::architecture(&scene));
             assert_eq!(parallel.objects.len(), scene.objects.len());
             for (object, built) in scene.objects.iter().zip(&parallel.objects) {

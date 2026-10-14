@@ -20,6 +20,7 @@ pub mod metrics;
 mod metrics_sort;
 pub mod objects;
 mod plants;
+pub use plants::{species_name as plant_species_name, SPECIES as PLANT_SPECIES};
 pub mod preparation;
 pub mod program;
 mod program_coverage;

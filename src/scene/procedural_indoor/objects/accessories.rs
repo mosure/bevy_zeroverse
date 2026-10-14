@@ -8,11 +8,20 @@ pub struct AccessoryProgram {
     pub reach: f32,
     pub sections: usize,
     pub finish: Surface,
+    pub body_taper: f32,
+    pub control_fraction: f32,
+    pub support_fraction: f32,
+    pub profile_roundness: f32,
 }
 
 pub fn parameters(o: &IndoorObject) -> AccessoryProgram {
     let mut rng = stream(o.seed, 5300);
+    let mut detail = stream(o.seed, 7440);
     AccessoryProgram {
+        body_taper: detail.random_range(0.65..0.97),
+        control_fraction: detail.random_range(0.25..0.43),
+        support_fraction: detail.random_range(0.12..0.26),
+        profile_roundness: detail.random_range(2.2..8.0),
         style: rng.random_range(0..4),
         tilt: rng.random_range(-0.18..0.18),
         reach: rng.random_range(0.36..0.70),
@@ -128,19 +137,28 @@ pub(crate) fn lamp_photometry(o: &IndoorObject) -> (Vec3, Vec3, f32, f32, f32) {
 fn speaker(a: &mut Assembly, o: &IndoorObject, p: &AccessoryProgram) {
     let s = o.size;
     let label = o.kind.class_name();
-    a.box_part(
+    a.part(
         if p.style == 0 {
             Surface::WoodEdge
         } else {
             p.finish
         },
         label,
-        Vec3::Y * s.y * 0.5,
-        s * Vec3::new(1., 1., 0.92),
-        s.x.min(s.z) * 0.065,
+    )
+    .housing(
+        &[
+            (0., Vec2::new(s.x * 0.47 * p.body_taper, s.z * 0.46)),
+            (s.y * 0.35, Vec2::new(s.x * 0.49, s.z * 0.46)),
+            (s.y, Vec2::new(s.x * 0.49 * p.body_taper, s.z * 0.46)),
+        ],
+        p.profile_roundness,
+        Transform::IDENTITY,
     );
     if p.style < 2 {
-        for (y, r) in [(0.34, 0.34), (0.78, 0.16)] {
+        for (y, r) in [
+            (0.34, p.control_fraction.min(0.36)),
+            (0.78, p.support_fraction.min(0.18)),
+        ] {
             a.part(Surface::Rubber, label).cylinder(
                 s.x.min(s.y) * r,
                 s.z * 0.055,
@@ -157,7 +175,7 @@ fn speaker(a: &mut Assembly, o: &IndoorObject, p: &AccessoryProgram) {
             Surface::FabricAlt,
             label,
             Vec3::new(0., s.y * 0.5, s.z * 0.47),
-            Vec3::new(s.x * 0.91, s.y * 0.94, s.z * 0.04),
+            Vec3::new(s.x * p.body_taper * 0.93, s.y * 0.94, s.z * 0.04),
             s.x * 0.07,
         );
     }
@@ -165,60 +183,71 @@ fn speaker(a: &mut Assembly, o: &IndoorObject, p: &AccessoryProgram) {
 
 fn headphones(a: &mut Assembly, o: &IndoorObject, p: &AccessoryProgram) {
     let s = o.size;
-    let label = o.kind.class_name();
+    let l = o.kind.class_name();
+    let half = s.x * (0.32 + p.support_fraction * 0.20);
+    let cup_h = s.y * p.control_fraction;
+    let cup_y = cup_h;
+    let band_top = s.y * 0.95;
     let points: Vec<_> = (0..=20)
         .map(|i| {
             let t = i as f32 * PI / 20.;
-            Vec3::new(
-                t.cos() * s.x * 0.38,
-                s.y * (0.30 + t.sin() * 0.64),
-                -s.z * 0.07,
-            )
+            Vec3::new(t.cos() * half, cup_y + (band_top - cup_y) * t.sin(), 0.)
         })
         .collect();
-    a.part(p.finish, label)
-        .tube(&points, s.x.min(s.z) * 0.045, 10);
+    a.part(p.finish, l).tube(&points, s.x.min(s.z) * 0.038, 8);
     for side in [-1., 1.] {
-        let center = Vec3::new(side * s.x * 0.37, s.y * 0.21, 0.);
-        a.part(p.finish, label).ellipsoid(
-            Vec3::new(s.x * 0.105, s.y * 0.21, s.z * 0.45),
-            Transform::from_translation(center),
+        let c = Vec3::new(side * half, cup_y, 0.);
+        a.part(p.finish, l).cushion(
+            Vec3::new(s.x * 0.20, cup_h * 2., s.z * (0.66 + p.support_fraction)),
+            super::super::geometry::CushionProfile {
+                roundness: p.profile_roundness,
+                crown: 2.4,
+                dish: 0.,
+            },
+            Transform::from_translation(c),
         );
-        a.part(Surface::Leather, label).ellipsoid(
-            Vec3::new(s.x * 0.06, s.y * 0.17, s.z * 0.37),
-            Transform::from_translation(center - Vec3::X * side * s.x * 0.07),
+        a.part(Surface::Leather, l).ellipsoid(
+            Vec3::new(s.x * 0.055, cup_h * 0.83, s.z * 0.33),
+            Transform::from_translation(c - Vec3::X * side * s.x * 0.08),
         );
     }
 }
 
 fn stapler(a: &mut Assembly, o: &IndoorObject, p: &AccessoryProgram) {
     let s = o.size;
-    let label = o.kind.class_name();
+    let l = o.kind.class_name();
+    let base = s.y * p.support_fraction;
     a.box_part(
         Surface::Rubber,
-        label,
-        Vec3::Y * s.y * 0.12,
-        Vec3::new(s.x, s.y * 0.24, s.z),
-        0.004,
+        l,
+        Vec3::Y * base * 0.5,
+        Vec3::new(s.x, base, s.z),
+        s.x * 0.07,
     );
+    let jaw = s.y * p.control_fraction;
     a.box_part(
         Surface::Metal,
-        label,
-        Vec3::new(0., s.y * 0.43, -s.z * 0.02),
-        Vec3::new(s.x * 0.78, s.y * 0.20, s.z * 0.86),
-        0.002,
+        l,
+        Vec3::new(0., base + jaw * 0.48, -s.z * 0.02),
+        Vec3::new(s.x * 0.70, jaw, s.z * 0.86),
+        s.x * 0.025,
     );
+    let upper = s.y - base - jaw;
     a.box_part(
         p.finish,
-        label,
-        Vec3::new(0., s.y * 0.77, -s.z * 0.04),
-        Vec3::new(s.x * 0.94, s.y * 0.38, s.z * 0.89),
-        0.006,
+        l,
+        Vec3::new(0., base + jaw + upper * 0.5, -s.z * 0.035),
+        Vec3::new(
+            s.x * (0.73 + p.support_fraction),
+            upper,
+            s.z * (0.70 + p.support_fraction),
+        ),
+        s.x * (0.08 + 0.10 * p.body_taper),
     );
-    a.part(Surface::Metal, label).cylinder(
-        s.y * 0.17,
-        s.x * 0.99,
-        Transform::from_xyz(0., s.y * 0.55, -s.z * 0.32)
+    a.part(Surface::Metal, l).cylinder(
+        jaw * 0.38,
+        s.x * 0.96,
+        Transform::from_xyz(0., base + jaw * 0.68, -s.z * 0.30)
             .with_rotation(Quat::from_rotation_z(FRAC_PI_2)),
     );
 }
@@ -229,13 +258,26 @@ fn tape(a: &mut Assembly, o: &IndoorObject, p: &AccessoryProgram) {
     a.box_part(
         p.finish,
         label,
-        Vec3::Y * s.y * 0.14,
-        Vec3::new(s.x, s.y * 0.28, s.z),
+        Vec3::Y * s.y * p.support_fraction * 0.5,
+        Vec3::new(s.x, s.y * p.support_fraction, s.z),
         0.007,
     );
-    let roll = Transform::from_xyz(0., s.y * 0.58, -s.z * 0.15)
-        .with_rotation(Quat::from_rotation_z(FRAC_PI_2));
-    let r = (s.y * 0.38).min(s.z * 0.28);
+    let roll = Transform::from_xyz(
+        0.,
+        s.y * (0.48 + p.support_fraction * 0.4),
+        -s.z * (0.06 + p.support_fraction * 0.5),
+    )
+    .with_rotation(Quat::from_rotation_z(FRAC_PI_2));
+    let r = (s.y * p.control_fraction).min(s.z * 0.28);
+    for side in [-1., 1.] {
+        a.part(p.finish, label).rod(
+            Vec3::new(side * s.x * 0.38, s.y * p.support_fraction, -s.z * 0.2),
+            Vec3::new(side * s.x * 0.38, roll.translation.y, roll.translation.z),
+            s.x * 0.065,
+        );
+    }
+    a.part(Surface::Plastic, label)
+        .cylinder(r * 0.49, s.x * 0.86, roll);
     a.part(Surface::Paper, label).lathe(
         &[
             (r * 0.52, -s.x * 0.30),
@@ -264,10 +306,27 @@ fn organizer(a: &mut Assembly, o: &IndoorObject, p: &AccessoryProgram) {
     } else {
         1
     };
-    let t = s.y.min(s.z) * 0.045;
+    let t = s.y.min(s.z) * (0.025 + p.support_fraction * 0.12);
+    if levels > 1 {
+        for side in [-1., 1.] {
+            for end in [-1., 1.] {
+                a.box_part(
+                    p.finish,
+                    label,
+                    Vec3::new(
+                        side * (s.x * 0.5 - t * 1.75),
+                        (s.y + t) * 0.5,
+                        end * (s.z * 0.5 - t * 1.75),
+                    ),
+                    Vec3::new(t, s.y - t, t),
+                    t * 0.2,
+                );
+            }
+        }
+    }
     for level in 0..levels {
         let base = level as f32 * s.y / levels as f32;
-        let height = s.y / levels as f32 * 0.70;
+        let height = s.y / levels as f32 * p.body_taper;
         a.box_part(
             p.finish,
             label,
@@ -279,16 +338,16 @@ fn organizer(a: &mut Assembly, o: &IndoorObject, p: &AccessoryProgram) {
             a.box_part(
                 p.finish,
                 label,
-                Vec3::new(side * (s.x - t) * 0.5, base + height * 0.5, 0.),
-                Vec3::new(t, height, s.z),
+                Vec3::new(side * (s.x - t) * 0.5, base + (height + t) * 0.5, 0.),
+                Vec3::new(t, height - t, s.z),
                 0.001,
             );
         }
         a.box_part(
             p.finish,
             label,
-            Vec3::new(0., base + height * 0.5, -(s.z - t) * 0.5),
-            Vec3::new(s.x - 2. * t, height, t),
+            Vec3::new(0., base + (height + t) * 0.5, -(s.z - t) * 0.5),
+            Vec3::new(s.x - 2. * t, height - t, t),
             0.001,
         );
         if o.kind == ObjectKind::DocumentTray {
@@ -305,8 +364,8 @@ fn organizer(a: &mut Assembly, o: &IndoorObject, p: &AccessoryProgram) {
                 a.box_part(
                     p.finish,
                     label,
-                    Vec3::new(x, s.y * 0.34, 0.),
-                    Vec3::new(t, s.y * 0.68, s.z * 0.92),
+                    Vec3::new(x, (s.y * p.body_taper + t) * 0.5, 0.),
+                    Vec3::new(t, s.y * p.body_taper - t, s.z * 0.92),
                     0.001,
                 );
             }
@@ -334,8 +393,8 @@ fn fan(a: &mut Assembly, o: &IndoorObject, p: &AccessoryProgram) {
     );
     a.part(p.finish, label)
         .rod(Vec3::Y * s.y * 0.08, Vec3::Y * s.y * 0.69, 0.012);
-    let center = Vec3::Y * s.y * 0.70;
-    let r = (s.x * 0.45).min(s.y * 0.27);
+    let center = Vec3::Y * s.y * (0.66 + p.support_fraction * 0.20);
+    let r = (s.x * (0.30 + p.support_fraction * 0.6)).min(s.y * 0.26);
     for z in [-0.20, 0.20] {
         let ring: Vec<_> = (0..=32)
             .map(|i| {

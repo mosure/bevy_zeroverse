@@ -1,9 +1,12 @@
-// Recipe ABI v1. One-shot substrate evaluation; no procedural work in the PBR fragment pass.
+// Explicit CPU/WGSL recipe layout. One-shot bake; no procedural fragment work.
 struct Recipe {
     header: vec4<u32>, surface: vec4<u32>, metric: vec4<f32>, phase: vec4<f32>,
     topology: vec4<u32>, cloth0: vec4<f32>, cloth1: vec4<f32>, cloth2: vec4<f32>,
     tint0: vec4<f32>, tint1: vec4<f32>, dye_runs: vec4<f32>, dye_phase: vec4<f32>,
     dye_tint: vec4<f32>, leather0: vec4<f32>, leather1: vec4<f32>,
+    carpet: vec4<f32>, carpet_meta: vec4<u32>,
+    carpet0: vec4<f32>, carpet1: vec4<f32>, carpet2: vec4<f32>,
+    floor_meta: vec4<u32>, floor0: vec4<f32>, floor1: vec4<f32>, floor_tint: vec4<f32>,
 }
 struct Level { size: u32, offset: u32, stride: u32, moment_offset: u32 }
 struct Dispatch { level: u32, pad0: u32, pad1: u32, pad2: u32 }
@@ -147,6 +150,54 @@ fn domain(id: vec2<u32>) -> vec2<f32> {
     switch r.surface.y {case 1u:{ uv=vec2(uv.y,1.-uv.x); } case 2u:{uv=vec2(1.)-uv;} case 3u:{uv=vec2(1.-uv.y,uv.x);} default:{} }
     return vec2(unit(uv.x+r.phase.x),unit(uv.y+r.phase.y));
 }
+fn carpet(uv: vec2<f32>) -> Texel {
+    let counts = vec2<f32>(r.carpet_meta.yz);
+    let xy = fract(uv * counts);
+    let width = max(counts.x, counts.y) / f32(r.header.y);
+    let line = r.carpet.w + (noise(uv,17u,11u,271u)-0.5)*r.carpet0.w;
+    var mask = noise(uv, 7u, 9u, 241u);
+    switch r.carpet_meta.x {
+        case 1u: { mask = smooth_curve((line - abs(xy.x - 0.5)) / width + 0.5); }
+        case 2u: { mask = smooth_curve((line*0.4 - min(abs(xy.x-0.5), abs(xy.y-0.5))) / width + 0.5); }
+        case 3u: { mask = smooth_curve((line*0.7 - abs(abs(xy.x-0.5) + abs(xy.y-0.5) - 0.55)) / width + 0.5); }
+        case 4u: { let cell = vec2<u32>(floor(uv * counts)); mask = hash(cell.x, cell.y, 251u); }
+        default: {}
+    }
+    let nap = noise(uv, 173u, 191u, 257u) - 0.5;
+    let slub = noise(uv, 11u, 83u, 263u) - 0.5;
+    let fleck = noise(uv, 43u, 47u, 269u) - 0.5;
+    let dye = clamp(mask * r.carpet.x, 0., 1.);
+    let tone = r.carpet.y * (slub * 0.6 + fleck * 0.4) + nap * 0.035;
+    let base = r.carpet0.xyz * (1.-dye) + r.carpet1.xyz * dye;
+    let stipple = max(fleck*2., 0.) * r.carpet.y;
+    var t = Texel(clamp(base*(1.-stipple) + r.carpet2.xyz*stipple + tone*base, vec3(0.01), vec3(0.95)),
+        r.metric.z*(nap*0.65 + fleck*r.carpet.z*0.35),
+        clamp(r.metric.w + nap*0.055 + fleck*0.025, 0.80, 1.), 0.97+(nap+0.5)*0.03);
+    if r.floor_meta.x != 0u {
+        let grid = vec2<f32>(r.floor_meta.zw);
+        let u = unit(uv.x) * grid.x;
+        let x = u32(floor(u)) % r.floor_meta.z;
+        var stagger = 0.;
+        if r.floor_meta.y != 0u { stagger = hash(x, 7u, 211u); }
+        let v = unit(uv.y) * grid.y + stagger;
+        let y = u32(floor(v)) % r.floor_meta.w;
+        let gain = 1. + (hash(x,y,223u)-0.5)*r.floor0.x + (noise(uv,3u,3u,227u)-0.5)*r.floor0.w;
+        let warm = (hash(x,y,229u)-0.5)*r.floor0.y;
+        var tint = vec3(1.);
+        if hash(x,y,233u) < r.floor1.x { tint = r.floor_tint.xyz; }
+        let color = clamp(t.color * gain * vec3(1.+warm,1.,1.-warm) * tint, vec3(0.),vec3(0.97));
+        t.color += (color-t.color)*r.floor1.y;
+        t.roughness = clamp(t.roughness + (hash(x,y,239u)-0.5)*r.floor0.z,0.12,1.);
+        let local = fract(vec2(u,v));
+        let metric = r.metric.xx / grid;
+        let distance = min(min(local.x,1.-local.x)*metric.x,min(local.y,1.-local.y)*metric.y);
+        let seam_width = r.floor1.z + r.metric.x / f32(r.header.y);
+        let seam = clamp(1.-distance/seam_width,0.,1.)*r.floor1.z/seam_width*r.floor1.y;
+        t.color *= 1.-seam*0.12;
+        t.height -= seam*0.00035;
+    }
+    return t;
+}
 fn store_texel(id: vec2<u32>, t: Texel) {
     let i=id.y*r.header.y+id.x;let plane=plane_size();heights[i]=t.height;
     pixels[i]=pack(quant(clamp(t.color,vec3(0.),vec3(1.))*255.));
@@ -169,6 +220,10 @@ fn knit_map(@builtin(global_invocation_id) id: vec3<u32>) {
 @compute @workgroup_size(8,8)
 fn finish_map(@builtin(global_invocation_id) id: vec3<u32>) {
     if any(id.xy>=vec2(r.header.y)) {return;}store_texel(id.xy,device_finish(domain(id.xy)));
+}
+@compute @workgroup_size(8,8)
+fn carpet_map(@builtin(global_invocation_id) id: vec3<u32>) {
+    if any(id.xy>=vec2(r.header.y)) {return;}store_texel(id.xy,carpet(domain(id.xy)));
 }
 @compute @workgroup_size(8,8)
 fn normals(@builtin(global_invocation_id) id: vec3<u32>) {

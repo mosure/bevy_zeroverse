@@ -1,5 +1,5 @@
 pub mod beverages;
-mod tabletop;
+pub(crate) mod tabletop;
 #[cfg(test)]
 mod tests;
 use super::{
@@ -13,57 +13,6 @@ use rand::Rng;
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     let s = o.size;
     match o.kind {
-        ObjectKind::Keyboard => {
-            a.box_part(
-                Surface::Metal,
-                "other_prop",
-                Vec3::Y * s.y * 0.35,
-                Vec3::new(s.x, s.y * 0.7, s.z),
-                0.005,
-            );
-            for row in 0..5 {
-                for col in 0..14 {
-                    a.box_part(
-                        if o.variant == 0 {
-                            Surface::Ceramic
-                        } else {
-                            Surface::Plastic
-                        },
-                        "other_prop",
-                        Vec3::new(
-                            (col as f32 - 6.5) * s.x / 15.0,
-                            s.y * 0.80,
-                            (row as f32 - 2.0) * s.z / 6.0,
-                        ),
-                        Vec3::new(s.x / 17.0, s.y * 0.4, s.z / 7.0),
-                        0.0015,
-                    );
-                }
-            }
-        }
-        ObjectKind::Mouse => {
-            a.box_part(
-                Surface::Plastic,
-                "other_prop",
-                Vec3::Y * s.y * 0.45,
-                Vec3::new(s.x, s.y * 0.9, s.z),
-                0.015,
-            );
-            a.box_part(
-                Surface::Rubber,
-                "other_prop",
-                Vec3::new(0.0, s.y * 0.93, -s.z * 0.14),
-                Vec3::new(s.x * 0.11, s.y * 0.14, s.z * 0.23),
-                0.002,
-            );
-            a.box_part(
-                Surface::Metal,
-                "other_prop",
-                Vec3::new(0.0, s.y * 0.90, -s.z * 0.28),
-                Vec3::new(0.001, 0.001, s.z * 0.38),
-                0.0,
-            );
-        }
         ObjectKind::Mug | ObjectKind::CoffeeCup | ObjectKind::WaterBottle | ObjectKind::SodaCan => {
             beverages::build(a, o)
         }

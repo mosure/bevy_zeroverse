@@ -121,7 +121,13 @@ impl PersistentAssets {
             if image.texture_descriptor.label == Some("ground_truth_depth_test_f32") {
                 private_depth_images += 1;
             } else {
-                unreferenced_images.push(id);
+                unreferenced_images.push((
+                    id,
+                    image.texture_descriptor.label,
+                    image.texture_descriptor.size,
+                    image.texture_descriptor.format,
+                    world.resource::<AssetServer>().get_path(id),
+                ));
             }
         }
         assert!(

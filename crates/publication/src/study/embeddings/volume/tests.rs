@@ -213,3 +213,29 @@ fn symmetric_jacobi_retains_eigenvector_orthogonality_and_reconstructs_matrix() 
         }
     }
 }
+
+#[test]
+fn larger_cohorts_use_a_bounded_fixed_basis_but_all_covariance_rows() {
+    let base = cloud(&[0.05; 16]);
+    let rows: Vec<_> = (0..513).map(|i| base[i % base.len()].clone()).collect();
+    let result = analyze(&rows, &rows).unwrap();
+    assert_eq!(result["room_pairs"], 513);
+    assert_eq!(result["basis"]["pooled_rooms"], 512);
+    assert_eq!(
+        result["basis"]["fit_room_indices"]
+            .as_array()
+            .unwrap()
+            .len(),
+        256
+    );
+    for rank in RANKS {
+        assert!(
+            (valid_rank(&result, rank)["sqrt_covariance_determinant_ratio"]
+                .as_f64()
+                .unwrap()
+                - 1.)
+                .abs()
+                < 1e-10
+        );
+    }
+}

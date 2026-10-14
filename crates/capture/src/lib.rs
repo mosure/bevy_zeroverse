@@ -3,10 +3,10 @@
 use serde::{Deserialize, Serialize};
 pub mod calibration;
 
-pub const GENERATOR_VERSION: u32 = 37;
+pub const GENERATOR_VERSION: u32 = 40;
 pub const CAPTURE_SCHEMA_VERSION: u32 = 1;
 /// Population metrics contract shared by the renderer and publication gate.
-pub const INDOOR_METRICS_SCHEMA_VERSION: u32 = 17;
+pub const INDOOR_METRICS_SCHEMA_VERSION: u32 = 18;
 pub const MAX_VISIBILITY_CAMERAS: usize = 16;
 pub const PUBLICATION_MODES: [&str; 6] = [
     "color",

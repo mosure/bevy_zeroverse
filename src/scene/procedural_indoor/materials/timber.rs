@@ -128,17 +128,27 @@ pub(super) fn bark(r: &MaterialRecipe, [u, v]: [f32; 2]) -> super::program::Texe
 pub(super) fn grain(r: &MaterialRecipe, mut u: f32, mut v: f32) -> f32 {
     let mut seed = r.seed;
     if r.surface == Surface::Floor {
-        let [nx, ny] = r.floor_repetitions(0);
-        let x = (u * nx).floor() as u32;
-        let stagger = (x % 2) as f32 * 0.5;
-        let y = ((v * ny + stagger).floor() as u32) % ny as u32;
-        // Different cuts of one species share a spectrum but never continue
-        // the very same growth ring across a joint into the next plank.
-        u = (u * nx).fract() + hash(x, y, seed.wrapping_add(79));
-        v = (v * ny + stagger).fract() + hash(x, y, seed.wrapping_add(83));
-        seed = seed
-            .wrapping_add(u64::from(x) * 0x9e3779b9)
-            .wrapping_add(u64::from(y) * 0x85ebca6b);
+        if let Some(f) = &r.flooring {
+            let cut = f.cut(r, [u, v]);
+            let [x, y] = cut.id;
+            u = cut.uv[0] + hash(x, y, seed.wrapping_add(79));
+            v = cut.uv[1] + hash(x, y, seed.wrapping_add(83));
+            seed = seed
+                .wrapping_add(u64::from(x) * 0x9e3779b9)
+                .wrapping_add(u64::from(y) * 0x85ebca6b);
+        } else {
+            let [nx, ny] = r.floor_repetitions(0);
+            let x = (u * nx).floor() as u32;
+            let stagger = (x % 2) as f32 * 0.5;
+            let y = ((v * ny + stagger).floor() as u32) % ny as u32;
+            // Different cuts of one species share a spectrum but never continue
+            // the very same growth ring across a joint into the next plank.
+            u = (u * nx).fract() + hash(x, y, seed.wrapping_add(79));
+            v = (v * ny + stagger).fract() + hash(x, y, seed.wrapping_add(83));
+            seed = seed
+                .wrapping_add(u64::from(x) * 0x9e3779b9)
+                .wrapping_add(u64::from(y) * 0x85ebca6b);
+        }
     }
     let noise = |u, v, x, y, salt| periodic_noise(u, v, x, y, seed.wrapping_add(salt));
     let rings = r.grain_frequency * 0.30;

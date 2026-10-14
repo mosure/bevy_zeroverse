@@ -1,0 +1,24 @@
+#materials { scroll-margin-top:5rem; }
+.material-grid { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:.6rem; padding:1rem; border:1px solid #d3ded3; background:#f7f8f3; }
+.material-grid figure { margin:0; min-width:0; }
+.material-grid img { width:100%; height:auto; aspect-ratio:1; object-fit:contain; border-radius:6px; background:#dde4db; }
+.material-grid figcaption { font-size:.78rem; color:#456353; padding:.5rem .1rem; line-height:1.5; }
+.material-grid a:focus-visible { outline:3px solid #147d70; outline-offset:2px; }
+.material-details { border-bottom:1px solid #ccd7c9; padding:1.1rem 0; }
+.material-details>summary { cursor:pointer; font-weight:600; color:#294e3d; }
+.material-details p { font-size:.88rem; max-width:90ch; }
+#material-parameters { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.5rem; max-height:600px; overflow:auto; }
+#material-parameters details { background:#edf2e9; padding:.7rem; border-radius:6px; font-size:.78rem; overflow-wrap:anywhere; }
+#material-parameters summary { cursor:pointer; line-height:1.5; }
+#material-parameters p { margin:.5rem 0; font-size:.76rem; }
+#material-usage { overflow:auto; max-height:430px; }
+#material-usage table { border-collapse:collapse; width:100%; font-size:.82rem; }
+#material-usage td,#material-usage th { text-align:left; padding:.5rem; border-bottom:1px solid #d3ded3; }
+#material-usage thead { position:sticky; top:0; background:#edf2e9; }
+.material-scalars { overflow:auto; border:1px solid #d3ded3; border-top:0; border-radius:0 0 10px 10px; }
+.material-scalars table { width:100%; min-width:750px; table-layout:fixed; border-collapse:collapse; font-size:.77rem; }
+.material-scalars td,.material-scalars th { padding:.5rem .8rem; text-align:right; border-bottom:1px solid #e0e7db; white-space:normal; overflow-wrap:anywhere; }
+.material-scalars th:first-child { text-align:left; width:180px; font-weight:500; }
+.material-scalars th { text-transform:none; letter-spacing:0; }
+@media(max-width:850px) { .material-grid { grid-template-columns:repeat(3,minmax(0,1fr)); } #material-parameters { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:500px) { .material-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } #material-parameters { grid-template-columns:1fr; } }

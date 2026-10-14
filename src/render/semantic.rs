@@ -88,11 +88,12 @@ pub enum SemanticLabel {
     Vase,
     /// Finite exterior background proxy; its depth is the proxy surface distance.
     Sky,
+    FloorOutlet,
 }
 
 impl SemanticLabel {
     /// Versioned, authoritative vocabulary for rendered colors and exports.
-    pub const TAXONOMY_VERSION: u32 = 3;
+    pub const TAXONOMY_VERSION: u32 = 4;
     pub const ALL: &[Self] = &[
         Self::Wall,
         Self::Floor,
@@ -165,6 +166,7 @@ impl SemanticLabel {
         Self::Stationery,
         Self::Vase,
         Self::Sky,
+        Self::FloorOutlet,
     ];
 
     pub fn color(&self) -> Color {
@@ -241,12 +243,14 @@ impl SemanticLabel {
             SemanticLabel::Stationery => Color::srgb_u8(41, 166, 82),
             SemanticLabel::Vase => Color::srgb_u8(186, 39, 34),
             SemanticLabel::Sky => Color::srgb_u8(75, 145, 245),
+            SemanticLabel::FloorOutlet => Color::srgb_u8(98, 158, 171),
         }
     }
 
     pub fn from_label(name: &str) -> Option<Self> {
         match name {
             "sky" => Some(SemanticLabel::Sky),
+            "floor_outlet" => Some(SemanticLabel::FloorOutlet),
             "wall" => Some(SemanticLabel::Wall),
             "floor" => Some(SemanticLabel::Floor),
             "cabinet" => Some(SemanticLabel::Cabinet),
@@ -326,6 +330,7 @@ impl SemanticLabel {
     pub fn as_str(&self) -> &'static str {
         match self {
             SemanticLabel::Sky => "sky",
+            SemanticLabel::FloorOutlet => "floor_outlet",
             SemanticLabel::Wall => "wall",
             SemanticLabel::Floor => "floor",
             SemanticLabel::Cabinet => "cabinet",

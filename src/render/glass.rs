@@ -3,7 +3,8 @@ use bevy::prelude::*;
 use bevy_args::{Deserialize, Serialize, ValueEnum};
 
 /// RGB transmission remains independent of geometric annotations. Through mode
-/// follows unrefracted rays past every material with specular transmission > 0.
+/// follows unrefracted rays past specularly transmitting materials, including
+/// the explicitly thick alpha-blended glass used by the portable fallback.
 /// Depth, normal, position, semantic, flow and co-visibility share these hits.
 #[derive(
     Clone, Copy, Debug, Default, PartialEq, Eq, Reflect, Serialize, Deserialize, ValueEnum,
@@ -18,7 +19,11 @@ pub enum AnnotationGlass {
 
 impl AnnotationGlass {
     pub(crate) fn includes(self, material: Option<&StandardMaterial>) -> bool {
-        self == Self::Surface || material.is_none_or(|m| m.specular_transmission <= 0.)
+        self == Self::Surface
+            || material.is_none_or(|m| {
+                m.specular_transmission <= 0.
+                    && !(m.thickness > 0. && matches!(m.alpha_mode, AlphaMode::Blend))
+            })
     }
 }
 
@@ -115,6 +120,17 @@ mod tests {
         assert!(!AnnotationGlass::Through.includes(Some(&glass)));
         assert!(AnnotationGlass::Through.includes(Some(&opaque)));
         assert!(AnnotationGlass::Through.includes(None));
+        let portable_glass = StandardMaterial {
+            thickness: 0.008,
+            alpha_mode: AlphaMode::Blend,
+            ..default()
+        };
+        assert!(!AnnotationGlass::Through.includes(Some(&portable_glass)));
+        let overlay = StandardMaterial {
+            alpha_mode: AlphaMode::Blend,
+            ..default()
+        };
+        assert!(AnnotationGlass::Through.includes(Some(&overlay)));
     }
     #[test]
     fn preview_restores_rgb_and_preserves_user_hidden_geometry() {

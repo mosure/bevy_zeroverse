@@ -2,6 +2,7 @@ use super::*;
 
 fn object(id: usize, kind: ObjectKind, position: Vec3, size: Vec3) -> IndoorObject {
     IndoorObject {
+        finish_seed: None,
         id,
         kind,
         position,
@@ -323,6 +324,7 @@ fn projector_optics_reach_physical_wall_screens_without_camera_clearance() {
     let (mut scene, _) = connected_scene();
     scene.room_size = Vec3::new(8., 3.2, 8.);
     scene.envelope = Some(EnvelopeProgram {
+        soffits: vec![],
         footprint: vec![
             Vec2::new(-4., -4.),
             Vec2::new(4., -4.),

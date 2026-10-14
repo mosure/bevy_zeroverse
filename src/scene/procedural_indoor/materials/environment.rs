@@ -1,60 +1,32 @@
 //! Static, scene-derived HDR reflection radiance and split-sum IBL convolution.
-//! One probe samples real geometry; it approximates secondary bounces and has
-//! no per-object parallax or live reflections of moving people.
+//! Bounded room probes sample actual static geometry. Secondary bounces remain
+//! approximate; moving people are not re-traced into the static cubemaps.
 use super::*;
 use crate::scene::procedural_indoor::{architecture, gi::BakeScene};
 use std::f32::consts::{PI, TAU};
+#[cfg(any(test, target_arch = "wasm32"))]
+mod cooperative;
 mod kernel;
 #[cfg(test)]
 mod round4_replay;
 mod stencil;
+#[cfg(any(test, target_arch = "wasm32"))]
+pub(super) use cooperative::build_async;
 use kernel::ConvolutionKernel;
 
 const SIZE: u32 = 64;
 const SAMPLES: u32 = 64;
 
 pub(super) fn build(scene: &IndoorManifest, transport: &BakeScene) -> [Image; 2] {
-    let origin = transport.reflection_origin(scene);
-    let ambient = scene
-        .domain()
-        .map_or(45., |d| d.photometry.environment_intensity);
-    let fixture_size = architecture::fixture_size(scene).xz() - Vec2::new(0.06, 0.055);
-    let emitters: Vec<_> = architecture::fixture_positions(scene)
-        .into_iter()
-        .enumerate()
-        .map(|(i, p)| {
-            let (color, lumens) = architecture::fixture_photometry(scene, i);
-            let c = Color::srgb(color.x, color.y, color.z).to_linear();
-            (
-                p - Vec3::Y * 0.029,
-                Vec3::new(c.red, c.green, c.blue)
-                    * (lumens / (PI * fixture_size.element_product())),
-            )
-        })
-        .collect();
+    build_at(scene, transport, transport.reflection_origin(scene))
+}
+
+pub(super) fn build_at(scene: &IndoorManifest, transport: &BakeScene, origin: Vec3) -> [Image; 2] {
+    let trace = ProbeTrace::new(scene, transport, origin);
     let trace_face = |face| {
         let mut pixels = Vec::with_capacity((SIZE * SIZE) as usize);
         for y in 0..SIZE {
-            for x in 0..SIZE {
-                // Bevy negates Z when sampling its left-handed cubemaps.
-                let d = direction(face, x as f32, y as f32, SIZE);
-                let ray = Vec3::new(d.x, d.y, -d.z);
-                let (mut distance, mut radiance) =
-                    transport.reflection_radiance(origin, ray, ambient);
-                for &(p, emission) in &emitters {
-                    let t = (p.y - origin.y) / ray.y;
-                    let q = origin + ray * t;
-                    if ray.y > 0.
-                        && t > 0.
-                        && t < distance
-                        && (q.xz() - p.xz()).abs().cmplt(fixture_size * 0.5).all()
-                    {
-                        distance = t;
-                        radiance = emission;
-                    }
-                }
-                pixels.push(radiance);
-            }
+            trace.row(face, y, &mut pixels);
         }
         pixels
     };
@@ -68,6 +40,67 @@ pub(super) fn build(scene: &IndoorManifest, transport: &BakeScene) -> [Image; 2]
     #[cfg(target_arch = "wasm32")]
     let faces: Vec<_> = (0..6).map(trace_face).collect();
     convolve(&faces.into_iter().flatten().collect::<Vec<_>>(), SIZE)
+}
+
+struct ProbeTrace<'a> {
+    transport: &'a BakeScene,
+    origin: Vec3,
+    ambient: f32,
+    fixture_size: Vec2,
+    emitters: Vec<(Vec3, Vec3)>,
+}
+
+impl<'a> ProbeTrace<'a> {
+    fn new(scene: &IndoorManifest, transport: &'a BakeScene, origin: Vec3) -> Self {
+        let ambient = scene
+            .domain()
+            .map_or(45., |d| d.photometry.environment_intensity);
+        let fixture_size = architecture::fixture_size(scene).xz() - Vec2::new(0.06, 0.055);
+        let emitters = architecture::fixture_positions(scene)
+            .into_iter()
+            .enumerate()
+            .map(|(i, p)| {
+                let (color, lumens) = architecture::fixture_photometry(scene, i);
+                let c = Color::srgb(color.x, color.y, color.z).to_linear();
+                (
+                    p - Vec3::Y * 0.029,
+                    Vec3::new(c.red, c.green, c.blue)
+                        * (lumens / (PI * fixture_size.element_product())),
+                )
+            })
+            .collect();
+        Self {
+            transport,
+            origin,
+            ambient,
+            fixture_size,
+            emitters,
+        }
+    }
+
+    fn row(&self, face: u32, y: u32, pixels: &mut Vec<Vec3>) {
+        for x in 0..SIZE {
+            // Bevy negates Z when sampling its left-handed cubemaps.
+            let d = direction(face, x as f32, y as f32, SIZE);
+            let ray = Vec3::new(d.x, d.y, -d.z);
+            let (mut distance, mut radiance) =
+                self.transport
+                    .reflection_radiance(self.origin, ray, self.ambient);
+            for &(p, emission) in &self.emitters {
+                let t = (p.y - self.origin.y) / ray.y;
+                let q = self.origin + ray * t;
+                if ray.y > 0.
+                    && t > 0.
+                    && t < distance
+                    && (q.xz() - p.xz()).abs().cmplt(self.fixture_size * 0.5).all()
+                {
+                    distance = t;
+                    radiance = emission;
+                }
+            }
+            pixels.push(radiance);
+        }
+    }
 }
 
 fn direction(face: u32, x: f32, y: f32, size: u32) -> Vec3 {
@@ -271,6 +304,27 @@ fn cube(bytes: Vec<u8>, size: u32, levels: u32) -> Image {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn cooperative_probe_matches_synchronous_radiance_and_mips() {
+        let scene = IndoorManifest::generate_with_humans(
+            3,
+            super::super::super::layout::IndoorLayout::Mixed,
+            0.3,
+            0,
+            0.,
+        )
+        .unwrap();
+        let mut images = Assets::<Image>::default();
+        let mut materials = Assets::<StandardMaterial>::default();
+        let set = IndoorMaterials::build(&scene, &mut images, &mut materials);
+        let transport = BakeScene::from_manifest(&scene, &set, &materials, &images);
+        let expected = build(&scene, &transport);
+        let actual = bevy::tasks::block_on(build_async(&scene, &transport));
+        for (expected, actual) in expected.into_iter().zip(actual) {
+            assert_eq!(expected.texture_descriptor, actual.texture_descriptor);
+            assert_eq!(expected.data, actual.data);
+        }
+    }
     #[test]
     fn cubemap_faces_roundtrip_and_keep_cross_face_sampling_continuous() {
         let size = 8;

@@ -138,6 +138,25 @@ impl Stencil {
     }
 }
 
+fn filtered_value(
+    source: &RadianceMips,
+    taps: &[Tap],
+    footprints: &[Footprint],
+    denominator: f32,
+    specular: bool,
+) -> Vec3 {
+    let mut value = Vec3::ZERO;
+    for (tap, fp) in taps.iter().zip(footprints) {
+        let sample = tap.sample(source, fp);
+        value += if specular {
+            sample * tap.weight
+        } else {
+            sample
+        };
+    }
+    value / denominator
+}
+
 fn filter(source: &RadianceMips, level: &Level, specular: bool, bytes: &mut Vec<u8>) {
     for (taps, denominator) in level
         .taps
@@ -146,17 +165,50 @@ fn filter(source: &RadianceMips, level: &Level, specular: bool, bytes: &mut Vec<
         .iter()
         .zip(&level.denominators)
     {
-        let mut value = Vec3::ZERO;
-        for (tap, fp) in taps.iter().zip(&level.footprints) {
-            let sample = tap.sample(source, fp);
-            value += if specular {
-                sample * tap.weight
-            } else {
-                sample
-            };
-        }
-        encode(bytes, value / *denominator);
+        encode(
+            bytes,
+            filtered_value(source, taps, &level.footprints, *denominator, specular),
+        );
     }
+}
+
+#[cfg(any(test, target_arch = "wasm32"))]
+async fn filter_async(source: &RadianceMips, level: &Level, specular: bool, bytes: &mut Vec<u8>) {
+    for (index, (taps, denominator)) in level
+        .taps
+        .as_chunks::<{ SAMPLES as usize }>()
+        .0
+        .iter()
+        .zip(&level.denominators)
+        .enumerate()
+    {
+        encode(
+            bytes,
+            filtered_value(source, taps, &level.footprints, *denominator, specular),
+        );
+        if index % 128 == 127 {
+            crate::scene::procedural_indoor::preparation::cooperate().await;
+        }
+    }
+}
+
+#[cfg(any(test, target_arch = "wasm32"))]
+pub(super) async fn convolve_async(pixels: &[Vec3]) -> [Image; 2] {
+    let source = RadianceMips::new(pixels, SIZE);
+    let stencil = Stencil::production();
+    let mut diffuse = Vec::with_capacity(6 * 16 * 16 * 8);
+    let mut specular = Vec::new();
+    for (face, kernel) in stencil.faces.iter().enumerate() {
+        for &value in &pixels[face * (SIZE * SIZE) as usize..(face + 1) * (SIZE * SIZE) as usize] {
+            encode(&mut specular, value);
+        }
+        for level in &kernel.specular {
+            filter_async(&source, level, true, &mut specular).await;
+        }
+        filter_async(&source, &kernel.diffuse, false, &mut diffuse).await;
+        crate::scene::procedural_indoor::preparation::cooperate().await;
+    }
+    [cube(diffuse, 16, 1), cube(specular, SIZE, SIZE.ilog2() + 1)]
 }
 
 pub(super) fn convolve(pixels: &[Vec3]) -> [Image; 2] {
@@ -201,6 +253,25 @@ pub(super) fn convolve(pixels: &[Vec3]) -> [Image; 2] {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn cooperative_filter_preserves_all_hdr_mip_bytes() {
+        let pixels: Vec<_> = (0..6 * SIZE * SIZE)
+            .map(|i| {
+                Vec3::new(
+                    (i % 127) as f32 * 0.3,
+                    (i % 39) as f32 * 12.,
+                    (i % 113) as f32 * 0.001,
+                )
+            })
+            .collect();
+        let expected = convolve(&pixels);
+        let actual = bevy::tasks::block_on(convolve_async(&pixels));
+        for (expected, actual) in expected.into_iter().zip(actual) {
+            assert_eq!(expected.texture_descriptor, actual.texture_descriptor);
+            assert_eq!(expected.data, actual.data);
+        }
+    }
 
     #[test]
     fn reflection_stencil_has_fixed_bounded_residency() {

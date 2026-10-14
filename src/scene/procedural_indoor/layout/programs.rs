@@ -73,54 +73,8 @@ impl IndoorManifest {
                         rng,
                     );
                 }
-            } else if activity == IndoorLayout::Conference && w > 3.15 && d > 3.25 {
-                let scale = zone.composition.as_ref().map_or(1.0, |mix| mix.group_scale);
-                let width = (rng.random_range(1.05..1.55f32) * scale).clamp(0.9, w - 2.0);
-                let length = if rng.random_bool(0.28) {
-                    width
-                } else {
-                    (d - 2.1).min(rng.random_range(2.0..5.8))
-                };
-                let offset = rng.random_range(-0.08..0.08);
-                if self
-                    .add(
-                        ObjectKind::Table,
-                        point(offset, 0.0, 0.0),
-                        Vec3::new(width, rng.random_range(0.72..0.78), length),
-                        zone.orientation,
-                        rng,
-                    )
-                    .is_some()
-                {
-                    let rows = ((length - 0.35) / zone.seat_pitch).floor().max(1.0) as usize;
-                    for side in [-1.0, 1.0] {
-                        for i in 0..rows {
-                            if rng.random_bool(zone.occupancy as f64) {
-                                let z = (i as f32 - (rows - 1) as f32 * 0.5) * zone.seat_pitch;
-                                add_chair(
-                                    self,
-                                    offset + side * (width * 0.5 + rng.random_range(0.48..0.64)),
-                                    z,
-                                    side * std::f32::consts::FRAC_PI_2,
-                                    rng,
-                                );
-                            }
-                        }
-                    }
-                    for side in [-1.0, 1.0] {
-                        add_chair(
-                            self,
-                            offset,
-                            side * (length * 0.5 + 0.59),
-                            if side > 0.0 {
-                                0.0
-                            } else {
-                                std::f32::consts::PI
-                            },
-                            rng,
-                        );
-                    }
-                }
+            } else if activity == IndoorLayout::Conference && w > 3.0 && d > 3.0 {
+                self.meeting_group(&zone, zone_index, Vec2::new(w, d), center);
             } else {
                 let pitch_x = zone.desk_width + zone.aisle * rng.random_range(0.65..1.0);
                 let pitch_z = zone.desk_depth + 1.25 + zone.aisle * 0.5;
@@ -350,8 +304,10 @@ impl IndoorManifest {
         yaw: f32,
         rng: &mut ChaCha8Rng,
     ) -> bool {
+        self.assembly_diagnostics.proposed_workstations += 1;
         let before = self.objects.len();
         if self.add(kind, position, size, yaw, rng).is_none() {
+            self.assembly_diagnostics.rejected_surfaces += 1;
             return false;
         }
         let rotation = Quat::from_rotation_y(yaw);
@@ -363,9 +319,20 @@ impl IndoorManifest {
                 rng,
             );
             if self.objects.len() > before + 1 {
+                self.objects[before + 1].interaction_target = Some(before);
+                self.assembly_diagnostics
+                    .accepted
+                    .push(assemblies::FunctionalAssembly {
+                        role: assemblies::AssemblyRole::Workstation,
+                        surface: before,
+                        seats: vec![before + 1],
+                        requested_capacity: 1,
+                        attempts: 1,
+                    });
                 return true;
             }
         }
+        self.assembly_diagnostics.rejected_seating += 1;
         self.objects.truncate(before);
         false
     }

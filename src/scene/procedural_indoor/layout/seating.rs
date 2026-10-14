@@ -156,6 +156,8 @@ impl IndoorManifest {
                     }
                     let proposals = if self.humans[i].pose == humans::HumanPoseKind::SeatedWorking {
                         humans::WORKTOP_POSE_ATTEMPTS
+                    } else if self.humans[i].pose == humans::HumanPoseKind::SeatedTalking {
+                        3
                     } else {
                         1
                     };

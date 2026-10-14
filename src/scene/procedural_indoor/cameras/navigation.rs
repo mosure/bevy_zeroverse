@@ -4,6 +4,41 @@ use std::{
     cmp::Reverse,
     collections::{BinaryHeap, HashMap},
 };
+
+/// Reflect a desired endpoint into the actual proposal domain instead of
+/// discarding a free origin simply because a long draw crossed its boundary.
+/// Bounded endpoint candidates still pass full swept-path and overlap checks.
+pub(super) fn fit_endpoint(
+    scene: &IndoorManifest,
+    start: Vec3,
+    end: Vec3,
+    min: f32,
+) -> Option<Vec3> {
+    let (lo, hi) = if scene.camera_settings.primary_room {
+        scene.primary_room_bounds()
+    } else {
+        (-scene.room_size.xz() * 0.5, scene.room_size.xz() * 0.5)
+    };
+    let lo = lo + Vec2::splat(0.55);
+    let hi = hi - Vec2::splat(0.55);
+    let size = hi - lo;
+    if !size.is_finite() || size.min_element() <= 0. {
+        return None;
+    }
+    let folded = Vec2::new(
+        (end.x - lo.x).rem_euclid(size.x * 2.),
+        (end.z - lo.y).rem_euclid(size.y * 2.),
+    );
+    let p = lo + size - (folded - size).abs();
+    let reflected = Vec3::new(p.x, start.y, p.y);
+    [
+        reflected,
+        start.lerp(reflected, 0.85),
+        start.lerp(reflected, 0.70),
+    ]
+    .into_iter()
+    .find(|p| p.distance(start) + 1e-4 >= min && scene.camera_clear(*p))
+}
 pub(super) fn route(scene: &IndoorManifest, start: Vec3, end: Vec3) -> Option<Vec<Vec3>> {
     if scene.camera_path_clear(start, end) {
         return Some(vec![start, end]);

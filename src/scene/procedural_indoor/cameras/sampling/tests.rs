@@ -245,6 +245,17 @@ fn assert_accepted(scene: &IndoorManifest, camera: &IndoorCamera, coverage: &Cov
 }
 
 #[test]
+fn partially_obscured_person_retains_anatomical_and_scene_coverage() {
+    let scene =
+        IndoorManifest::generate_with_humans(109429, IndoorLayout::Mixed, 0.65, 1, 0.25).unwrap();
+    let replay =
+        IndoorManifest::generate_with_humans(109429, IndoorLayout::Mixed, 0.65, 1, 0.25).unwrap();
+    assert_eq!(scene.cameras, replay.cameras);
+    assert_accepted(&scene, &scene.cameras[0], &Coverage::new(&scene));
+    validate_layout(&scene).unwrap();
+}
+
+#[test]
 fn continuous_independent_proposals_replay_and_preserve_all_acceptance_gates() {
     for seed in [0, 7, 13, 42, 100, 200, 207, 239] {
         for density in [0.0, 0.65] {
@@ -289,6 +300,7 @@ fn continuous_independent_proposals_replay_and_preserve_all_acceptance_gates() {
 
 #[test]
 fn sparse_failed_seed_anchors_keep_primary_room_coverage_and_deterministic_motion() {
+    let mut positive_cases = 0;
     for seed in [881, 2342, 3779, 5608] {
         let mut scene =
             IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.0, 0, 0.25).unwrap();
@@ -297,6 +309,20 @@ fn sparse_failed_seed_anchors_keep_primary_room_coverage_and_deterministic_motio
         let mut original_rng = stream(seed, 3);
         let original_result =
             original.original_sample_independent_cameras(1, &mut original_rng, &coverage);
+        // Architecture changes can place every actor in another zone. Retain
+        // that seed as a negative fixture; a person-free room must not invent one.
+        if people(&scene).is_empty() {
+            assert!(scene
+                .person_camera_fallback(&[], &mut original_rng, &coverage)
+                .is_none());
+            scene
+                .resample_cameras(1, CameraSettings::default(), 1.)
+                .unwrap();
+            validate_layout(&scene).unwrap();
+            assert!(coverage.suitable(&scene.cameras[0], false));
+            continue;
+        }
+        positive_cases += 1;
         let mut replay_rng = original_rng.clone();
         let fallback = scene
             .person_camera_fallback(&people(&scene), &mut original_rng, &coverage)
@@ -325,6 +351,7 @@ fn sparse_failed_seed_anchors_keep_primary_room_coverage_and_deterministic_motio
             "sparse seed={seed}: original first-anchor result={original_result:?}; bounded fallback and deterministic production placement retain all predicates"
         );
     }
+    assert!(positive_cases >= 3);
 }
 
 #[test]

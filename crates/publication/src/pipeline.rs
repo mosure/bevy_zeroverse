@@ -2,7 +2,7 @@ use crate::{
     camera_study,
     config::{Config, Protocol},
     dataset::{Capture, Dataset},
-    io, media, paper, qualification, snapshot, visibility,
+    io, materials, media, objects, paper, qualification, snapshot, visibility,
 };
 use anyhow::{ensure, Context, Result};
 use bevy_zeroverse_capture::{
@@ -57,6 +57,9 @@ fn publication_inputs(root: &Path, config: &Config) -> Result<BTreeMap<String, S
     for name in ["publication.toml", "tex/arxiv.sty", "tex/references.bib"] {
         inputs.insert(name.into(), io::hash(&root.join(name))?);
     }
+    for name in objects::TOOLS.into_iter().chain(materials::TOOLS) {
+        inputs.insert(name.into(), io::hash(&root.join(name))?);
+    }
     for dir in ["www/project/static", "tex/generated"] {
         for (name, value) in io::files(root, &root.join(dir))? {
             if !is_generated(&name) && !snapshot::retired(&name) {
@@ -77,6 +80,8 @@ fn is_generated(name: &str) -> bool {
         || name.starts_with("www/project/static/media/architecture/")
         || name.starts_with("www/project/static/media/qualification/")
         || name.starts_with("www/project/static/media/cameras/")
+        || name.starts_with("www/project/static/media/objects/")
+        || name.starts_with("www/project/static/media/materials/")
         || name.starts_with("www/project/static/papers/")
         || matches!(
             name,
@@ -87,6 +92,9 @@ fn is_generated(name: &str) -> bool {
         || name.starts_with("tex/generated/architecture_")
         || name.starts_with("tex/generated/publication_")
         || name.starts_with("tex/generated/camera_count_")
+        || name.starts_with("tex/generated/object_")
+        || name.starts_with("tex/generated/material_")
+        || name.starts_with("tex/generated/pipeline_")
 }
 fn artifacts(root: &Path) -> Result<BTreeMap<String, String>> {
     let mut out = BTreeMap::new();
@@ -168,6 +176,14 @@ pub fn verify(root: &Path, release_version: Option<&str>) -> Result<Attestation>
 /// The exported bundle is self-contained: CI never needs out/, GPU captures,
 /// neural models, Python, plotting packages or the original machine's paths.
 fn verify_bundle(root: &Path, config: &Config, attestation: &Attestation) -> Result<()> {
+    materials::verify(
+        &root.join(materials::DIRECTORY),
+        &attestation.generator_identity,
+    )?;
+    objects::verify(
+        &root.join(objects::DIRECTORY),
+        &attestation.generator_identity,
+    )?;
     if config.camera_study.is_some() {
         camera_study::verify(
             &root.join(camera_study::DIRECTORY),
@@ -506,6 +522,10 @@ pub fn refresh(root: &Path, recapture: bool) -> Result<()> {
     };
     let qualification_cache = work.join("qualification");
     qualification::refresh_cache(&root, &qualification_cache, &current)?;
+    let object_cache = work.join("objects");
+    objects::refresh_cache(&root, &object_cache, &current)?;
+    let material_cache = work.join("materials");
+    materials::refresh_cache(&root, &material_cache, &current)?;
     let staging = tempfile::Builder::new()
         .prefix("stage-")
         .tempdir_in(&work)?;
@@ -524,6 +544,8 @@ pub fn refresh(root: &Path, recapture: bool) -> Result<()> {
     println!("Build lossless media, plans, population metrics and unified HTML");
     let gallery = media::build(&dataset, stage, &config.capture)?;
     camera_study::build(&root, stage, config.camera_study.as_deref())?;
+    objects::build(&object_cache, stage, &current)?;
+    materials::build(&material_cache, stage, &current)?;
     media::page(&gallery, stage, &config.capture)?;
     paper::write_sources(&dataset, &gallery, stage, &config)?;
     println!("Compile paper and package its exact dependency closure");
@@ -593,6 +615,8 @@ pub fn rebuild(root: &Path, release_version: Option<&str>) -> Result<()> {
         attestation.capture_sources.clone(),
     )?;
     camera_study::build(&root, stage, config.camera_study.as_deref())?;
+    objects::write_paper(stage)?;
+    materials::write_paper(stage)?;
     media::page(&gallery, stage, &config.capture)?;
     paper::write_sources(&dataset, &gallery, stage, &config)?;
     paper::compile(stage, &config, &gallery)?;

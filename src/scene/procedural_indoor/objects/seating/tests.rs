@@ -2,6 +2,7 @@ use super::*;
 
 fn object(seed: u64) -> IndoorObject {
     IndoorObject {
+        finish_seed: None,
         id: 0,
         kind: ObjectKind::Sofa,
         position: Vec3::ZERO,

@@ -182,6 +182,7 @@ fn roof_clipping_keeps_bevel_intersections_inside_the_source_triangle_bounds() {
     for scale in [1. / 64., 1., 32.] {
         let size = Vec3::new(13.436966, 4.199328, 14.30445) * scale;
         let envelope = EnvelopeProgram {
+            soffits: vec![],
             ceiling_drop: Vec2::new(0.819709, 0.47927946) * scale,
             footprint: vec![],
             floor_patches: vec![],
@@ -413,6 +414,11 @@ fn architecture_program_replays_and_validates_consecutive_seeds() {
 }
 
 fn ray_triangle(origin: Vec3, ray: Vec3, p: [Vec3; 3]) -> Option<f32> {
+    // Independent double-precision oracle for clipped/thin triangles. In f32,
+    // subtracting large world coordinates dominated submillimetre distances.
+    let origin = origin.as_dvec3();
+    let ray = ray.as_dvec3();
+    let p = p.map(|p| p.as_dvec3());
     let e = p[1] - p[0];
     let f = p[2] - p[0];
     let h = ray.cross(f);
@@ -425,7 +431,7 @@ fn ray_triangle(origin: Vec3, ray: Vec3, p: [Vec3; 3]) -> Option<f32> {
     let q = s.cross(e);
     let v = ray.dot(q) / determinant;
     let t = f.dot(q) / determinant;
-    (u >= -1e-5 && v >= -1e-5 && u + v <= 1.00001 && t > 0.).then_some(t)
+    (u >= -1e-8 && v >= -1e-8 && u + v <= 1.00000001 && t > 0.).then_some(t as f32)
 }
 
 #[test]
@@ -482,8 +488,30 @@ fn built_surfaces_match_floor_support_roof_and_apertures() {
         for t in polygon::triangles(&e.footprint) {
             let p = (t[0] + t[1] + t[2]) / 3.;
             let h = e.ceiling_height(scene.room_size, p);
-            let hit = raycast(Vec3::new(p.x, h - 0.03, p.y), Vec3::Y, false).unwrap();
-            assert!((hit - 0.03).abs() < 1e-4, "roof seed {seed}: {hit}");
+            // At narrow re-entrant corners a footprint triangle's centroid may
+            // lie within a wall's thickness. Test the ceiling support surface
+            // itself; an intervening wall cap is not the roof oracle.
+            let hit = assembly
+                .parts
+                .iter()
+                .filter(|((surface, label), _)| {
+                    matches!(surface, Surface::Ceiling | Surface::Concrete) && label == "ceiling"
+                })
+                .flat_map(|(_, g)| {
+                    g.indices.as_chunks::<3>().0.iter().filter_map(move |t| {
+                        ray_triangle(
+                            Vec3::new(p.x, h - 0.03, p.y),
+                            Vec3::Y,
+                            [t[0], t[1], t[2]].map(|i| Vec3::from(g.positions[i as usize])),
+                        )
+                    })
+                })
+                .min_by(f32::total_cmp)
+                .unwrap();
+            assert!(
+                (hit - 0.03).abs() < 1e-4,
+                "roof seed {seed}: {hit}, p={p:?}, h={h}"
+            );
         }
         for ((_, label), g) in &assembly.parts {
             if label != "floor" {
@@ -511,6 +539,12 @@ fn built_surfaces_match_floor_support_roof_and_apertures() {
         for w in &mut clear.envelope.as_mut().unwrap().walls {
             if let Some(f) = &mut w.facade {
                 f.shade = architecture::facade::Shade::None;
+                for opening in &mut f.openings {
+                    if let Some(program) = &mut opening.glazing {
+                        program.treatment = 0;
+                        program.opening = 0.;
+                    }
+                }
             }
         }
         // Isolate exterior construction: a perpendicular interior partition

@@ -350,7 +350,13 @@ impl Dataset {
             identity.generator_version == GENERATOR_VERSION,
             "publication requires the current generator"
         );
-        Self::load_checked(root, identity, protocol, INDOOR_METRICS_SCHEMA_VERSION)
+        Self::load_checked(
+            root,
+            identity,
+            protocol,
+            INDOOR_METRICS_SCHEMA_VERSION,
+            false,
+        )
     }
 
     /// Matched studies retain the historical generator identity. This explicit
@@ -363,7 +369,7 @@ impl Dataset {
             .as_u64()
             .context("missing metrics schema")? as u32;
         ensure!(
-            [15, 16, 17].contains(&schema)
+            [15, 16, 17, INDOOR_METRICS_SCHEMA_VERSION].contains(&schema)
                 && identity.schema_version == 1
                 && identity.source_sha256.len() == 64
                 && identity
@@ -372,7 +378,30 @@ impl Dataset {
                     .all(|b| b.is_ascii_hexdigit()),
             "unsupported study schema or source identity"
         );
-        Self::load_checked(root, &identity, protocol, schema)
+        Self::load_checked(root, &identity, protocol, schema, false)
+    }
+
+    /// Qualification may use prespecified factor strata. Keep this separate
+    /// from release/study loaders, which require consecutive rendered seeds.
+    pub fn load_qualification(root: &Path, protocol: &Protocol) -> Result<Self> {
+        let identity: GeneratorIdentity = io::read(&root.join("generator_identity.json"))?;
+        ensure!(
+            identity.generator_version == GENERATOR_VERSION
+                && identity.schema_version == 1
+                && identity.source_sha256.len() == 64
+                && identity
+                    .source_sha256
+                    .bytes()
+                    .all(|b| b.is_ascii_hexdigit()),
+            "qualification requires the current generator and source identity"
+        );
+        Self::load_checked(
+            root,
+            &identity,
+            protocol,
+            INDOOR_METRICS_SCHEMA_VERSION,
+            true,
+        )
     }
 
     fn load_checked(
@@ -380,6 +409,7 @@ impl Dataset {
         identity: &GeneratorIdentity,
         protocol: &Protocol,
         schema: u32,
+        recorded_selection: bool,
     ) -> Result<Self> {
         let actual: GeneratorIdentity = io::read(&root.join("generator_identity.json"))?;
         ensure!(
@@ -420,9 +450,30 @@ impl Dataset {
                 && selection["identity"] == json!(identity),
             "incomplete or mixed capture run"
         );
-        let seeds: Vec<u64> = (0..protocol.rendered_rooms)
-            .map(|i| protocol.seed + i as u64)
-            .collect();
+        let seeds: Vec<u64> = if recorded_selection {
+            ensure!(
+                selection["policy"].as_str().is_some_and(|p| !p.is_empty()),
+                "missing selection policy"
+            );
+            let seeds: Vec<u64> = serde_json::from_value(selection["selected_seeds"].clone())?;
+            let population_end = protocol
+                .seed
+                .checked_add(protocol.audit_rooms as u64)
+                .context("population seed range overflow")?;
+            ensure!(
+                seeds.len() == protocol.rendered_rooms
+                    && seeds.iter().copied().collect::<BTreeSet<_>>().len() == seeds.len()
+                    && seeds
+                        .iter()
+                        .all(|s| (protocol.seed..population_end).contains(s)),
+                "invalid qualification seed selection"
+            );
+            seeds
+        } else {
+            (0..protocol.rendered_rooms)
+                .map(|i| protocol.seed + i as u64)
+                .collect()
+        };
         ensure!(
             selection["selected_seeds"] == json!(seeds)
                 && completion["selected_seeds"] == json!(seeds)

@@ -29,6 +29,7 @@ pub fn validate_layout(scene: &IndoorManifest) -> Result<(), String> {
         ));
     }
     scene.camera_settings.validate()?;
+    scene.validate_assemblies()?;
     if !scene.camera_aspect_ratio.is_finite() || scene.camera_aspect_ratio <= 0.0 {
         return Err("camera aspect ratio must be positive and finite".into());
     }
@@ -40,6 +41,9 @@ pub fn validate_layout(scene: &IndoorManifest) -> Result<(), String> {
     }
     if let Some(envelope) = &scene.envelope {
         envelope.validate(scene)?;
+    }
+    if let Some(ceiling) = &scene.ceiling_installation {
+        ceiling.validate(scene)?;
     }
     super::humans::validate(scene)?;
     let fail = |message: &str| Err(format!("seed {}: {message}", scene.seed));
@@ -61,6 +65,11 @@ pub fn validate_layout(scene: &IndoorManifest) -> Result<(), String> {
                 return fail("invalid cable path, port connection or segment clearance");
             }
             continue;
+        }
+        if object.kind == super::layout::ObjectKind::FloorOutlet
+            && !super::layout::floor::detail_clear(scene, object)
+        {
+            return fail("floor outlet is unsupported or intersects furniture or a person");
         }
         if object.cable_path.is_some() || object.cable_target.is_some() {
             return fail("only cables may carry routed-wire metadata");

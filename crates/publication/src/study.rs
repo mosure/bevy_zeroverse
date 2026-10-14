@@ -22,7 +22,7 @@ use std::{
 /// Studies are experiments, never release-page inputs or deployable outputs.
 /// Resolve existing ancestors to enforce both the ignored-cache boundary and
 /// the reserved publication-cache boundary through directory symlinks.
-fn local_destination(root: &Path, output: &Path) -> Result<std::path::PathBuf> {
+pub(crate) fn local_destination(root: &Path, output: &Path) -> Result<std::path::PathBuf> {
     crate::config::safe_relative(output)?;
     ensure!(
         output.starts_with("out")
@@ -70,6 +70,33 @@ pub fn compare(
     before_population: Option<&Path>,
     after_population: Option<&Path>,
 ) -> Result<()> {
+    compare_with_matching(
+        root,
+        before,
+        after,
+        output,
+        recipe,
+        embedding_run,
+        before_population,
+        after_population,
+        false,
+    )
+}
+
+/// Seed-matched generator experiments may deliberately change architecture.
+/// Geometry matching remains the default contract for appearance-only studies.
+#[allow(clippy::too_many_arguments)]
+pub fn compare_with_matching(
+    root: &Path,
+    before: &Path,
+    after: &Path,
+    output: &Path,
+    recipe: Option<&Path>,
+    embedding_run: Option<&Path>,
+    before_population: Option<&Path>,
+    after_population: Option<&Path>,
+    allow_architecture_changes: bool,
+) -> Result<()> {
     let destination = local_destination(root, output)?;
     let protocol: Protocol = if let Some(path) = recipe {
         toml::from_str(&fs::read_to_string(root.join(path))?)?
@@ -88,10 +115,10 @@ pub fn compare(
         }
     };
     ensure!(
-        (2..=256).contains(&protocol.rendered_rooms)
+        (2..=1024).contains(&protocol.rendered_rooms)
             && protocol.audit_rooms >= protocol.rendered_rooms
             && (1..=16).contains(&protocol.cameras)
-            && protocol.playback_steps == 1,
+            && (1..=16).contains(&protocol.playback_steps),
         "invalid study protocol"
     );
     let before_root = root.join(before).canonicalize()?;
@@ -118,7 +145,9 @@ pub fn compare(
     let mut unchanged_cameras = 0;
     for (b, a) in before.scenes.iter().zip(&after.scenes) {
         ensure!(
-            b.capture.seed == a.capture.seed && dataset::same_f32(&b.architecture, &a.architecture),
+            b.capture.seed == a.capture.seed
+                && (allow_architecture_changes
+                    || dataset::same_f32(&b.architecture, &a.architecture)),
             "unmatched room geometry"
         );
         for field in [
@@ -266,7 +295,8 @@ pub fn compare(
             "after":{"engine":after.selection["capture_engine"],"build":after.scenes[0].capture.other.get("build_provenance"),
             "renderer":after.scenes[0].capture.other.get("renderer"),"capabilities":after.scenes[0].capture.capabilities}},
         "before":b_stats,"after":a_stats,"new_item_kinds":new_items,"geometry":geometry,
-        "camera_control":{"policy":"Matched seeds, primary envelopes, lighting priors and camera settings. Expanded viewpoint priors and collision-safe replanning can change poses; views are not pixel-matched.",
+        "matching":{"architecture":if allow_architecture_changes {"seed_matched_changed_geometry"} else {"identical_geometry"}},
+        "camera_control":{"policy":"Matched seeds, lighting priors and camera settings. Architecture matching is declared separately. Collision-safe replanning can change poses; views are not pixel-matched.",
             "unchanged_views":unchanged_cameras,"position_displacement_metres":dataset::distribution(camera_displacement)},
         "population":populations,"embedding":embedding_metrics,
         "limits":[format!("{} rooms per cohort cannot establish 10M-sample learning utility or total perceptual support.",protocol.rendered_rooms),

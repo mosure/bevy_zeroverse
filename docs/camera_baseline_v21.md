@@ -31,7 +31,7 @@ scene regeneration/readiness, all requested modes/times, validation and raw/imag
 writes. CPU validation and report work may run concurrently; these timings are
 observations of this run, not isolated renderer throughput or a benchmark against
 another release. Captures use the checkout-local wgpu command-cache/upload
-optimizations documented in the [dependency review](wgpu_dependency_review.md).
+optimizations documented in the [dependency review](evidence/wgpu_dependency_audit/review_29.md).
 Published crates resolve registry wgpu; these timing observations do not qualify
 the unpatched package configuration.
 

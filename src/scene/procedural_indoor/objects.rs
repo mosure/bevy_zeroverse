@@ -1,15 +1,21 @@
 pub mod accessories;
+pub mod audit;
 pub mod chairs;
 pub mod clocks;
 pub mod computers;
 pub mod containers;
+pub mod desktop;
 pub mod equipment;
+pub mod floor;
 pub mod hospitality;
+pub mod literature;
+pub mod presentation;
 pub mod seating;
 pub mod services;
+pub mod standing_lamp;
 pub mod storage;
 pub mod tables;
-mod utilities;
+pub mod utilities;
 pub mod wall;
 use super::{
     geometry::Geometry,
@@ -169,9 +175,8 @@ pub fn build_object(o: &IndoorObject) -> Assembly {
         ObjectKind::Sofa => seating::build(&mut a, o),
         ObjectKind::Cabinet | ObjectKind::Bookcase => storage::build(&mut a, o),
         ObjectKind::WallOutlet | ObjectKind::LightSwitch => wall::fixture(&mut a, o),
-        ObjectKind::Keyboard
-        | ObjectKind::Mouse
-        | ObjectKind::WaterBottle
+        ObjectKind::Keyboard | ObjectKind::Mouse => desktop::build(&mut a, o),
+        ObjectKind::WaterBottle
         | ObjectKind::Mug
         | ObjectKind::CoffeeCup
         | ObjectKind::SodaCan
@@ -185,16 +190,10 @@ pub fn build_object(o: &IndoorObject) -> Assembly {
         ObjectKind::Display | ObjectKind::Monitor => computers::display(&mut a, o),
         ObjectKind::Laptop => computers::laptop(&mut a, o),
         ObjectKind::Whiteboard | ObjectKind::WallArt => wall_panel(&mut a, o),
-        ObjectKind::Notebook | ObjectKind::Books => books(&mut a, o),
+        ObjectKind::Notebook | ObjectKind::Books => literature::build(&mut a, o),
         ObjectKind::Clock => clocks::build(&mut a, o),
-        ObjectKind::FloorLamp => lamp(&mut a, o),
-        ObjectKind::Rug => a.box_part(
-            Surface::FabricAlt,
-            "floormat",
-            Vec3::Y * o.size.y * 0.5,
-            o.size,
-            0.002,
-        ),
+        ObjectKind::FloorLamp => standing_lamp::build(&mut a, o),
+        ObjectKind::Rug | ObjectKind::FloorOutlet => floor::build(&mut a, o),
     }
     // Flat printed pages and phones use their horizontal face dimensions;
     // normalizing all six cuboid faces would crop portrait content horizontally.
@@ -276,12 +275,17 @@ pub fn build_object(o: &IndoorObject) -> Assembly {
         .parts
         .into_iter()
         .map(|((surface, label), geometry)| {
-            let label =
-                if super::materials::variants::supports(surface) && !label.contains("#finish") {
-                    format!("{label}#finish{}", super::materials::variants::slot(o.seed))
-                } else {
-                    label
-                };
+            let label = if super::materials::variants::supports(surface)
+                && !label.contains("#finish")
+                && !label.contains("#rug")
+            {
+                format!(
+                    "{label}#finish{}",
+                    super::materials::variants::slot(o.finish_seed.unwrap_or(o.seed))
+                )
+            } else {
+                label
+            };
             ((surface, label), geometry)
         })
         .collect();
@@ -311,35 +315,7 @@ fn wall_panel(a: &mut Assembly, o: &IndoorObject) {
             .extend([start, start + 1, start + 2, start, start + 2, start + 3]);
     };
     if o.kind == ObjectKind::Whiteboard {
-        let depth = (s.z * 0.35).min(0.035);
-        let front = -s.z * 0.5 + depth;
-        a.box_part(
-            Surface::Chrome,
-            label,
-            Vec3::new(0., s.y * 0.5, -s.z * 0.5 + depth * 0.5),
-            s.with_z(depth),
-            0.006,
-        );
-        image_face(
-            a,
-            Surface::Whiteboard,
-            Vec2::new(s.x - 0.035, s.y - 0.035),
-            front + 0.0035,
-        );
-        a.box_part(
-            Surface::Chrome,
-            label,
-            Vec3::new(0.0, 0.013, (front + s.z * 0.5) * 0.5),
-            Vec3::new(s.x * 0.78, 0.025, s.z * 0.5 - front),
-            0.002,
-        );
-        for i in 0..3 {
-            a.part(Surface::Ink, label).rod(
-                Vec3::new(s.x * (-0.18 + i as f32 * 0.10), 0.031, s.z * 0.25),
-                Vec3::new(s.x * (-0.12 + i as f32 * 0.10), 0.031, s.z * 0.25),
-                0.006,
-            );
-        }
+        presentation::whiteboard(a, o);
         return;
     }
     let p = super::materials::art::frame_parameters(o);
@@ -388,60 +364,6 @@ fn wall_panel(a: &mut Assembly, o: &IndoorObject) {
         }
     }
     image_face(a, Surface::Art, image_size, front);
-}
-
-fn books(a: &mut Assembly, o: &IndoorObject) {
-    let n = if o.kind == ObjectKind::Books { 3 } else { 1 };
-    for i in 0..n {
-        let h = o.size.y / n as f32;
-        let y = i as f32 * h;
-        let cover = if i % 2 == 0 {
-            Surface::FabricAlt
-        } else {
-            Surface::WoodEdge
-        };
-        let thickness = (h * 0.10).min(0.0025);
-        // Separate covers and spine leave the page edges visible on three sides.
-        // A solid cover-sized box would completely occlude the inner paper block.
-        for cover_y in [y + thickness * 0.5, y + h - thickness * 0.5] {
-            a.box_part(
-                cover,
-                o.kind.class_name(),
-                Vec3::new(0.0, cover_y, 0.0),
-                Vec3::new(o.size.x, thickness, o.size.z),
-                thickness * 0.25,
-            );
-        }
-        a.box_part(
-            cover,
-            o.kind.class_name(),
-            Vec3::new(-o.size.x * 0.5 + thickness * 0.5, y + h * 0.5, 0.0),
-            Vec3::new(thickness, h, o.size.z),
-            thickness * 0.25,
-        );
-        a.box_part(
-            Surface::Paper,
-            o.kind.class_name(),
-            Vec3::new(0.001, y + h * 0.5, 0.0),
-            Vec3::new(o.size.x - 0.006, h - thickness * 2.0, o.size.z - 0.004),
-            thickness * 0.20,
-        );
-    }
-}
-
-fn lamp(a: &mut Assembly, o: &IndoorObject) {
-    let h = o.size.y;
-    a.part(Surface::Metal, "lamp")
-        .cylinder(0.17, 0.025, Transform::from_xyz(0.0, 0.0125, 0.0));
-    a.part(Surface::Chrome, "lamp")
-        .rod(Vec3::Y * 0.025, Vec3::Y * (h - 0.1), 0.012);
-    a.part(Surface::FabricAlt, "lamp").lathe(
-        &[(0.22, h - 0.30), (0.16, h), (0.15, h), (0.21, h - 0.30)],
-        40,
-        Transform::IDENTITY,
-    );
-    a.part(Surface::Light, "lamp")
-        .ellipsoid(Vec3::splat(0.045), Transform::from_xyz(0.0, h - 0.22, 0.0));
 }
 
 #[cfg(test)]

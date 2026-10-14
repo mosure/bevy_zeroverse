@@ -1,4 +1,5 @@
 use super::*;
+mod ceiling_mesh;
 use crate::scene::procedural_indoor::{
     architecture, geometry::Geometry, layout::NEIGHBOR_DEPTH, materials::Surface, objects::Assembly,
 };
@@ -287,11 +288,21 @@ pub fn build(scene: &IndoorManifest) -> Assembly {
     let size = scene.room_size;
     let mut a = Assembly::default();
     floors(&mut a, e, size);
-    slab(
-        a.part(Surface::Ceiling, "ceiling"),
-        &e.footprint,
-        |p| e.ceiling_height(size, p) + 0.14,
-        0.14,
+    let exposed = scene
+        .ceiling_installation
+        .as_ref()
+        .is_some_and(|c| c.exposed_slab);
+    ceiling_mesh::build(
+        a.part(
+            if exposed {
+                Surface::Concrete
+            } else {
+                Surface::Ceiling
+            },
+            "ceiling",
+        ),
+        e,
+        size,
     );
     for entry in &e.walls {
         let holes = entry
@@ -337,6 +348,7 @@ pub fn build(scene: &IndoorManifest) -> Assembly {
         mezzanine(&mut a, m);
     }
     architecture::fixture_geometry(&mut a, scene);
+    architecture::ceiling::build(&mut a, scene);
     let mut exterior = Assembly::default();
     architecture::facade::backdrop(&mut exterior, scene);
     for ((surface, label), g) in exterior.parts {
@@ -483,6 +495,7 @@ fn shared_and_neighbor(a: &mut Assembly, scene: &IndoorManifest, e: &EnvelopePro
         .min(e.ceiling_height(size, Vec2::new(hx, hz)));
     let door = -scene.door_x;
     let mut openings = vec![WindowOpening {
+        glazing: None,
         min: Vec2::new(door - 0.55, 0.),
         max: Vec2::new(door + 0.55, 2.27),
         columns: 1,
@@ -492,6 +505,7 @@ fn shared_and_neighbor(a: &mut Assembly, scene: &IndoorManifest, e: &EnvelopePro
     for (lo, hi) in [(-hx + 0.10, door - 0.60), (door + 0.60, hx - 0.10)] {
         if hi - lo > 0.18 {
             openings.push(WindowOpening {
+                glazing: None,
                 min: Vec2::new(lo, 0.05),
                 max: Vec2::new(hi, height - 0.15),
                 columns: ((hi - lo) / 1.3).ceil().max(1.) as u32,
@@ -509,6 +523,7 @@ fn shared_and_neighbor(a: &mut Assembly, scene: &IndoorManifest, e: &EnvelopePro
         frame_depth: 0.075,
         recess: 0.06,
         sill_projection: 0.,
+        treatment: None,
         shade: Shade::None,
         shade_coverage: 0.,
         shade_tilt: 0.,

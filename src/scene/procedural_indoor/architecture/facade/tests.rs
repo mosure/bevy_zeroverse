@@ -2,6 +2,76 @@ use super::*;
 use crate::scene::procedural_indoor::{layout::IndoorLayout, validation::validate_layout};
 
 #[test]
+fn opened_sash_moves_all_panes_without_a_hidden_closed_surface() {
+    use crate::scene::procedural_indoor::materials::glazing::GlazingProgram;
+    let mut recipe = GlazingProgram::sample(3, 0, true);
+    recipe.opening = 0.;
+    recipe.treatment = 6;
+    let mut facade = Facade {
+        side: FacadeSide::Rear,
+        openings: vec![WindowOpening {
+            glazing: Some(recipe),
+            min: Vec2::new(-1., 0.4),
+            max: Vec2::new(1., 2.4),
+            columns: 1,
+            transom: 0.,
+            operable: true,
+        }],
+        frame: Surface::Metal,
+        frame_width: 0.05,
+        frame_depth: 0.08,
+        recess: 0.06,
+        sill_projection: 0.1,
+        treatment: None,
+        shade: Shade::None,
+        shade_coverage: 0.,
+        shade_tilt: 0.,
+    };
+    let mut closed = Assembly::default();
+    geometry::glazing_at(&mut closed, Transform::IDENTITY, &facade);
+    facade.openings[0].glazing.as_mut().unwrap().opening = 1.;
+    let mut opened = Assembly::default();
+    geometry::glazing_at(&mut opened, Transform::IDENTITY, &facade);
+    for ((surface, label), g) in &opened.parts {
+        assert!(g.positions.iter().all(|p| Vec3::from(*p).is_finite()));
+        if *surface == Surface::Glass || label == "window#frit" {
+            let old = &closed.parts[&(*surface, label.clone())];
+            assert_eq!(old.positions.len(), g.positions.len());
+            assert!(g
+                .positions
+                .iter()
+                .zip(&old.positions)
+                .any(|(a, b)| Vec3::from(*a).distance(Vec3::from(*b)) > 0.05));
+            // Pane fronts are coherently tilted; no unchanged front plane is
+            // present behind the articulated assembly.
+            assert!(g
+                .normals
+                .iter()
+                .filter(|n| n[2].abs() > 0.9)
+                .all(|n| n[1].abs() > 0.03));
+        }
+    }
+    assert!(opened
+        .parts
+        .contains_key(&(Surface::Paint, "window#frit".into())));
+    assert!(opened
+        .parts
+        .contains_key(&(Surface::Rubber, "window".into())));
+    // Shades prevent the articulated unit from intersecting their occupied sweep.
+    facade.shade = Shade::Roller;
+    facade.shade_coverage = 0.6;
+    let mut shaded = Assembly::default();
+    geometry::glazing_at(&mut shaded, Transform::IDENTITY, &facade);
+    for (key, g) in closed
+        .parts
+        .iter()
+        .filter(|((s, _), _)| *s == Surface::Glass)
+    {
+        assert_eq!(g.positions, shaded.parts[key].positions);
+    }
+}
+
+#[test]
 fn continuous_facades_cover_all_exposures_and_full_height_openings() {
     let mut combinations = std::collections::BTreeSet::new();
     let mut full_height_rooms = 0;
@@ -92,6 +162,12 @@ fn inset_glass_is_visible_through_actual_meshes_on_every_side() {
         let mut bare = scene.clone();
         for f in &mut bare.exterior.as_mut().unwrap().facades {
             f.shade = Shade::None;
+            for opening in &mut f.openings {
+                if let Some(program) = &mut opening.glazing {
+                    program.treatment = 0;
+                    program.opening = 0.;
+                }
+            }
         }
         let mut assembly = Assembly::default();
         shell(&mut assembly, &bare);

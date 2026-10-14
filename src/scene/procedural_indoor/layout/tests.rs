@@ -199,7 +199,10 @@ fn reported_sunken_room_props_remain_on_their_supports() {
                 // root height, define support without penetrating the surface.
                 assert!(super::equipment::cable_route_clear(&scene, prop));
                 let target = &scene.objects[prop.cable_target.unwrap()];
-                if target.kind != ObjectKind::WallOutlet {
+                if !matches!(
+                    target.kind,
+                    ObjectKind::WallOutlet | ObjectKind::FloorOutlet
+                ) {
                     assert!(prop.bounds().0.y >= support.position.y + support.size.y - 0.001);
                 }
                 continue;

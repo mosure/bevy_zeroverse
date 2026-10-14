@@ -2,6 +2,8 @@
 //! The finite sky closure remains behind these metric, shadow-casting meshes.
 use super::super::{layout::IndoorObject, plants};
 use super::*;
+mod details;
+mod streets;
 
 #[derive(Clone, Debug)]
 struct Parcel {
@@ -18,22 +20,87 @@ pub(crate) fn counts(scene: &IndoorManifest) -> [usize; 4] {
     }
     counts
 }
+/// Window origins and outward normals are measured from the built envelope,
+/// including angled/recessed edges, rather than its enclosing rectangle.
+fn window_rays(scene: &IndoorManifest) -> Vec<(Vec2, Vec2)> {
+    let mut rays = Vec::new();
+    if let Some(e) = &scene.envelope {
+        for wall in &e.walls {
+            if let Some(f) = &wall.facade {
+                let tf = e.wall_transform(wall.edge);
+                for w in &f.openings {
+                    rays.push((
+                        tf.transform_point(Vec3::new((w.min.x + w.max.x) * 0.5, 0., 0.))
+                            .xz(),
+                        (tf.rotation * Vec3::NEG_Z).xz(),
+                    ));
+                }
+            }
+        }
+    } else if let Some(exterior) = &scene.exterior {
+        for f in &exterior.facades {
+            let tf = f.side.transform(scene.room_size);
+            for w in &f.openings {
+                rays.push((
+                    tf.transform_point(Vec3::new((w.min.x + w.max.x) * 0.5, 0., 0.))
+                        .xz(),
+                    (tf.rotation * Vec3::NEG_Z).xz(),
+                ));
+            }
+        }
+    }
+    rays
+}
+
+pub(crate) fn window_context_fraction(scene: &IndoorManifest) -> Option<f32> {
+    let rays = window_rays(scene);
+    let sites = parcels(scene);
+    if rays.is_empty() {
+        return None;
+    }
+    Some(
+        rays.iter()
+            .filter(|(p, n)| {
+                sites.iter().any(|s| {
+                    let delta = s.center - *p;
+                    delta.normalize_or_zero().dot(*n) > 0.85 && delta.length() < 15.
+                })
+            })
+            .count() as f32
+            / rays.len() as f32,
+    )
+}
+
 fn parcels(scene: &IndoorManifest) -> Vec<Parcel> {
     let mut rng = stream(scene.seed, 6340);
     let mut parcels: Vec<Parcel> = vec![];
     let half = scene.room_size.xz() * 0.5;
-    let density = rng.random_range(0.35..0.9);
-    for _ in 0..64 {
-        if parcels.len() >= 14 {
+    let density = rng.random_range(0.35..0.85);
+    let windows = window_rays(scene);
+    let directed = (windows.len() * 6).min(96);
+    for attempt in 0..directed + 96 {
+        if parcels.len() >= 18 {
             break;
         }
-        let angle = rng.random_range(0.0..std::f32::consts::TAU);
-        let direction = Vec2::new(angle.cos(), angle.sin());
         let size = Vec2::new(rng.random_range(2.2..4.8), rng.random_range(2.0..4.0));
         let radius = size.length() * 0.5;
-        let center = direction * (half.length() + rng.random_range(3.0..10.0));
-        // The whole parcel's bounding circle must clear both rooms and all
-        // other parcels, including rotated corners and plant crowns.
+        let (center, yaw) = if attempt < directed {
+            let (origin, normal) = windows[attempt % windows.len()];
+            let tangent = Vec2::new(-normal.y, normal.x);
+            let center = origin
+                + normal * rng.random_range(3.2..10.0)
+                + tangent * rng.random_range(-1.4..1.4);
+            (
+                center,
+                (-normal.x).atan2(-normal.y) + rng.random_range(-0.10..0.10),
+            )
+        } else {
+            let angle = rng.random_range(0.0..std::f32::consts::TAU);
+            (
+                Vec2::new(angle.cos(), angle.sin()) * (half.length() + rng.random_range(3.0..10.0)),
+                rng.random_range(-0.4..0.4),
+            )
+        };
         let lo = Vec2::new(-half.x - 0.8, -half.y - 0.8);
         let hi = Vec2::new(half.x + 0.8, half.y + NEIGHBOR_DEPTH + 0.8);
         if center.distance(center.clamp(lo, hi)) < radius + 0.4
@@ -52,7 +119,7 @@ fn parcels(scene: &IndoorManifest) -> Vec<Parcel> {
         parcels.push(Parcel {
             center,
             size,
-            yaw: rng.random_range(-0.3..0.3),
+            yaw,
             kind,
             seed: rng.random(),
         });
@@ -89,7 +156,7 @@ fn building(a: &mut Assembly, p: &Parcel, sky_radius: f32) {
     let finish = [Surface::Concrete, Surface::Paint, Surface::WoodEdge][rng.random_range(0..3)];
     for level in 0..levels {
         let size = p.size * (1. - level as f32 * setback);
-        let bottom = level as f32 * pitch - 0.06;
+        let bottom = level as f32 * pitch - 0.08;
         box_at(
             a,
             p,
@@ -99,6 +166,7 @@ fn building(a: &mut Assembly, p: &Parcel, sky_radius: f32) {
             Vec3::new(size.x, pitch, size.y),
             0.012,
         );
+        details::facade(a, p, size, bottom, pitch, level);
         // Roof slabs/cornices are separated from facade glazing, with variable
         // aperture spacing and aspect instead of the same two windows everywhere.
         box_at(
@@ -161,13 +229,13 @@ fn building(a: &mut Assembly, p: &Parcel, sky_radius: f32) {
     }
     // Rooftop service equipment: low, bounded profiles, no added light sources.
     if rng.random_bool(0.6) {
-        let roof = levels as f32 * pitch + 0.02;
+        let roof = levels as f32 * pitch - 0.01;
         box_at(
             a,
             p,
             Surface::Metal,
             "other_structure",
-            Vec3::new(0., roof + 0.24, 0.),
+            Vec3::new(0., roof + 0.20, 0.),
             Vec3::new(p.size.x * 0.24, 0.40, p.size.y * 0.27),
             0.012,
         );
@@ -178,18 +246,21 @@ fn garden(a: &mut Assembly, scene: &IndoorManifest, p: &Parcel) {
         return;
     };
     let mut rng = stream(p.seed, 2);
-    let count = if p.kind == 1 { 2 } else { 1 };
+    let count = if p.kind == 1 { 3 } else { 2 };
     for i in 0..count {
         let mut plant: IndoorObject = template.clone();
         plant.kind = ObjectKind::Plant;
         plant.seed = rng.random();
-        plant.size = Vec3::new(p.size.x * 0.36, rng.random_range(1.2..3.4), p.size.y * 0.44);
-        plant.variant = plants::sample_species(plant.size, &mut rng);
-        plant.position = Vec3::new(
-            p.center.x + (i as f32 - (count - 1) as f32 * 0.5) * p.size.x * 0.47,
-            0.03,
-            p.center.y,
+        plant.size = Vec3::new(
+            p.size.x * 0.26,
+            rng.random_range(1.0..if p.kind == 3 { 2.45 } else { 3.4 }),
+            p.size.y * 0.40,
         );
+        plant.variant = plants::sample_species(plant.size, &mut rng);
+        plant.position = Vec3::new(p.center.x, 0.03, p.center.y)
+            + Quat::from_rotation_y(p.yaw)
+                * Vec3::X
+                * ((i as f32 - (count - 1) as f32 * 0.5) * p.size.x * 0.30);
         plant.yaw = p.yaw;
         let tf = plant.transform();
         let mut parts = Assembly::default();
@@ -233,6 +304,7 @@ pub(crate) fn build(a: &mut Assembly, scene: &IndoorManifest) {
             0.,
         );
     }
+    streets::build(a, scene);
     for p in parcels(scene) {
         if p.kind == 0 {
             building(a, &p, super::background::radius(scene));
@@ -282,31 +354,7 @@ pub(crate) fn build(a: &mut Assembly, scene: &IndoorManifest) {
                 0.005,
             );
         } else if p.kind == 3 {
-            // Open pergola: independently spaced slats admit patterned daylight.
-            for x in [-0.43, 0.43] {
-                for z in [-0.43, 0.43] {
-                    box_at(
-                        a,
-                        &p,
-                        Surface::WoodEdge,
-                        "other_structure",
-                        Vec3::new(x * p.size.x, 1.30, z * p.size.y),
-                        Vec3::new(0.095, 2.54, 0.095),
-                        0.005,
-                    );
-                }
-            }
-            for i in 0..7 {
-                box_at(
-                    a,
-                    &p,
-                    Surface::WoodEdge,
-                    "other_structure",
-                    Vec3::new((i as f32 / 6. - 0.5) * p.size.x * 0.9, 2.63, 0.),
-                    Vec3::new(0.07, 0.12, p.size.y * 0.94),
-                    0.003,
-                );
-            }
+            details::pergola(a, &p);
         }
     }
 }
@@ -314,6 +362,29 @@ pub(crate) fn build(a: &mut Assembly, scene: &IndoorManifest) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn window_facing_context_is_broadly_available() {
+        let mut fractions = Vec::new();
+        for seed in 0..128 {
+            let scene = IndoorManifest::generate_with_humans(
+                seed,
+                super::super::super::layout::IndoorLayout::Mixed,
+                0.65,
+                0,
+                0.,
+            )
+            .unwrap();
+            if !window_rays(&scene).is_empty() {
+                fractions.push(window_context_fraction(&scene).unwrap());
+            }
+        }
+        let mean = fractions.iter().sum::<f32>() / fractions.len() as f32;
+        assert!(mean > 0.85, "window-normal near-field coverage {mean:.3}");
+        assert!(
+            fractions.iter().filter(|&&x| x < 0.5).count() <= 3,
+            "many empty window corridors: {fractions:?}"
+        );
+    }
     #[test]
     fn parcels_are_replayable_disjoint_and_external() {
         let mut kinds = std::collections::BTreeSet::new();
@@ -328,7 +399,7 @@ mod tests {
             .unwrap();
             let sites = parcels(&scene);
             assert_eq!(format!("{sites:?}"), format!("{:?}", parcels(&scene)));
-            assert!(sites.len() >= 4 && sites.len() <= 14);
+            assert!(sites.len() >= 4 && sites.len() <= 18);
             for (i, p) in sites.iter().enumerate() {
                 kinds.insert(p.kind);
                 for q in &sites[i + 1..] {

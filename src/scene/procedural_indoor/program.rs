@@ -2,6 +2,7 @@
 //! then populate each leaf with dimensioned functional groups. All units are metres.
 pub mod activity;
 pub mod furnishing;
+pub mod topology;
 use super::{
     layout::{stream, IndoorLayout, IndoorManifest},
     materials::Surface,

@@ -1,4 +1,5 @@
 //! Small procedural mesh vocabulary. UVs are measured in metres, not object extents.
+mod housing;
 mod slab;
 mod sweep;
 mod upholstery;

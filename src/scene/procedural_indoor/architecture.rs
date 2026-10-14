@@ -1,4 +1,5 @@
 pub(crate) mod background;
+pub mod ceiling;
 pub mod details;
 pub mod facade;
 pub(crate) mod outdoors;
@@ -346,11 +347,23 @@ pub fn fixture_positions(scene: &IndoorManifest) -> Vec<Vec3> {
                             0.15,
                         )
                     }) {
-                        positions.push(Vec3::new(
-                            p.x,
-                            scene.ceiling_height(p) - program.light_drop,
-                            p.y,
-                        ));
+                        let half = program.fixture_size * 0.5;
+                        let roof = [
+                            p - half,
+                            p + half,
+                            p + Vec2::new(half.x, -half.y),
+                            p + Vec2::new(-half.x, half.y),
+                        ]
+                        .map(|q| scene.ceiling_height(q))
+                        .into_iter()
+                        .fold(f32::INFINITY, f32::min);
+                        let roof = scene.envelope.as_ref().map_or(roof, |e| {
+                            e.soffits
+                                .iter()
+                                .filter(|s| s.overlaps(p - half, p + half))
+                                .fold(roof, |h, s| h.min(s.height))
+                        });
+                        positions.push(Vec3::new(p.x, roof - program.light_drop, p.y));
                     }
                 }
             }
@@ -407,10 +420,16 @@ pub fn spawn_lights(
                 // angular falloff. Normalize that cone so these are fixture lumens.
                 intensity: spot_intensity_for_lumens(lumens, inner, outer),
                 range: 13.0,
-                radius: 0.20,
+                // Match the finite highlight footprint to the emitting panel.
+                // This remains Bevy's finite-radius spot approximation.
+                radius: (fixture_size(scene).x * fixture_size(scene).z / std::f32::consts::PI)
+                    .sqrt()
+                    * 0.5,
                 inner_angle: inner,
                 outer_angle: outer,
-                shadow_maps_enabled: quality.shadows() && i < 8,
+                // Every emitting source must respect walls/decks. Truncating
+                // this at eight leaked later fixtures through solid partitions.
+                shadow_maps_enabled: quality.shadows(),
                 shadow_depth_bias: 0.015,
                 // Bevy expresses normal bias in shadow texels, not metres.
                 // Sub-texel offsets caused broad self-shadowing moire on walls.
@@ -471,7 +490,9 @@ pub fn spawn_lights(
                 shadow_normal_bias: PointLight::DEFAULT_SHADOW_NORMAL_BIAS,
                 ..default()
             },
-            Transform::from_translation(lamp.position + Vec3::Y * (lamp.size.y - 0.22)),
+            Transform::from_translation(
+                crate::scene::procedural_indoor::objects::standing_lamp::emitter(lamp),
+            ),
             ChildOf(root),
         ));
     }
@@ -617,6 +638,40 @@ pub(crate) fn sun_illuminance(scene: &IndoorManifest) -> f32 {
 #[cfg(test)]
 mod lighting_tests {
     use super::*;
+
+    #[test]
+    fn all_ceiling_emitters_keep_occlusion_beyond_eight_lights() {
+        let scene = (0..64)
+            .map(|seed| {
+                IndoorManifest::generate_with_humans(
+                    seed,
+                    super::super::layout::IndoorLayout::Mixed,
+                    0.65,
+                    0,
+                    0.,
+                )
+                .unwrap()
+            })
+            .find(|scene| fixture_positions(scene).len() > 16)
+            .unwrap();
+        let mut world = World::new();
+        let root = world.spawn_empty().id();
+        let mut queue = bevy::ecs::world::CommandQueue::default();
+        spawn_lights(
+            &scene,
+            super::super::IndoorQuality::Auto,
+            root,
+            &mut Commands::new(&mut queue, &world),
+        );
+        queue.apply(&mut world);
+        let mut q = world.query::<(&Name, &SpotLight)>();
+        let ceiling: Vec<_> = q
+            .iter(&world)
+            .filter(|(name, _)| name.starts_with("indoor_luminaire_"))
+            .collect();
+        assert_eq!(ceiling.len(), fixture_positions(&scene).len());
+        assert!(ceiling.iter().all(|(_, light)| light.shadow_maps_enabled));
+    }
 
     #[test]
     fn spotlight_cone_integrates_to_declared_lumens() {

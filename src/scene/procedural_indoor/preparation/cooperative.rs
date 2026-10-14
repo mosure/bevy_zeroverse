@@ -1,5 +1,8 @@
 //! Browser work slices, shared across preparation stages. Cheap parts stay in
 //! the same task; expensive work returns to the event loop on a time budget.
+#[cfg(target_arch = "wasm32")]
+use web_sys::js_sys;
+
 #[cfg(any(test, target_arch = "wasm32"))]
 mod budget {
     use bevy::platform::time::Instant;
@@ -20,47 +23,42 @@ mod budget {
 std::thread_local! {
     static BUDGET: std::cell::RefCell<budget::Budget> = Default::default();
 }
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen::prelude::wasm_bindgen(inline_js = r#"
+export async function zeroversePreparationYield() {
+    // A prioritized continuation avoids nested-timer clamping. Keep a real
+    // event-loop yield on browsers without the scheduling API as well.
+    if (typeof globalThis.scheduler?.yield === 'function') {
+        try {
+            await globalThis.scheduler.yield();
+            return;
+        } catch (_) {
+            // An enclosing aborted postTask must not strand preparation.
+        }
+    }
+    await new Promise(resolve => setTimeout(resolve, 0));
+}
+"#)]
+extern "C" {
+    #[wasm_bindgen::prelude::wasm_bindgen(js_name = zeroversePreparationYield)]
+    fn browser_yield() -> js_sys::Promise;
+}
+
 /// Native jobs already use the bounded preparation pool. WASM must yield to a
-/// real browser task, but scheduling one timer per mesh adds a 4ms clamp for
-/// hundreds of tiny parts. Yield only after useful work consumes the slice.
+/// real browser task. Yield only after useful work consumes the slice; prefer
+/// scheduler continuations to timers without requiring that API for correctness.
 pub(crate) async fn cooperate() {
     #[cfg(target_arch = "wasm32")]
     {
         use bevy::platform::time::Instant;
-        use std::sync::{
-            atomic::{AtomicBool, Ordering},
-            Arc,
-        };
-        use wasm_bindgen::{closure::Closure, JsCast};
         if !BUDGET.with_borrow_mut(|budget| budget.due(Instant::now())) {
             return;
         }
-        let ready = Arc::new(AtomicBool::new(false));
-        let mut scheduled = false;
-        futures_lite::future::poll_fn(move |cx| {
-            if ready.load(Ordering::Acquire) {
-                return std::task::Poll::Ready(());
-            }
-            if !scheduled {
-                scheduled = true;
-                let ready = ready.clone();
-                let wake = cx.waker().clone();
-                let callback = Closure::once_into_js(move || {
-                    BUDGET.with_borrow_mut(|budget| budget.resumed(Instant::now()));
-                    ready.store(true, Ordering::Release);
-                    wake.wake();
-                });
-                web_sys::window()
-                    .expect("browser window")
-                    .set_timeout_with_callback_and_timeout_and_arguments_0(
-                        callback.unchecked_ref(),
-                        0,
-                    )
-                    .expect("schedule browser preparation");
-            }
-            std::task::Poll::Pending
-        })
-        .await;
+        wasm_bindgen_futures::JsFuture::from(browser_yield())
+            .await
+            .expect("schedule browser preparation");
+        BUDGET.with_borrow_mut(|budget| budget.resumed(Instant::now()));
     }
 }
 #[cfg(test)]

@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct GarmentProgram {
+    pub torso_ease_m: f32,
+    pub waist_taper: f32,
     pub neckline_width: f32,
     pub neckline_depth: f32,
     pub neckline_roundness: f32,
@@ -27,6 +29,8 @@ pub struct GarmentProgram {
 impl Default for GarmentProgram {
     fn default() -> Self {
         Self {
+            torso_ease_m: 0.008,
+            waist_taper: 0.94,
             neckline_width: 0.075,
             neckline_depth: 0.012,
             neckline_roundness: 2.0,
@@ -47,7 +51,10 @@ impl Default for GarmentProgram {
 impl GarmentProgram {
     pub fn sample(seed: u64) -> Self {
         let mut rng = super::super::stream(seed, 0x5345574e435554);
+        let mut fit = super::super::stream(seed, 0x5345574e464954);
         Self {
+            torso_ease_m: fit.random_range(0.004..0.022),
+            waist_taper: fit.random_range(0.85..1.04),
             neckline_width: rng.random_range(0.058..0.115),
             neckline_depth: rng.random_range(0.008..0.115),
             neckline_roundness: rng.random_range(1.05..3.4),

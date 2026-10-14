@@ -117,7 +117,9 @@ fn prepared_weave_replays_original_texel_channels_and_complete_pbr_mips() {
             (Surface::FabricAlt, 0),
             (Surface::Floor, 1),
         ] {
-            let recipes = super::super::program::sample_with_floor(seed, style).unwrap();
+            let recipes =
+                super::super::program::replay_helpers::legacy_sample_with_floor(seed, style)
+                    .unwrap();
             let r = &recipes[surface as usize];
             let t = resolved(r);
             check_maps(r, style, |u, v| reference(&t, r, transformed(r, u, v)));
@@ -173,8 +175,9 @@ fn prepared_weave_budget_fallbacks_and_authored_yarn_extremes_preserve_bits() {
 #[test]
 fn prepared_weave_keeps_fallback_recipe_carpet_pile_and_knit_dispatch() {
     for surface in [Surface::Fabric, Surface::Floor] {
-        let mut r =
-            super::super::program::sample_with_floor(207, 1).unwrap()[surface as usize].clone();
+        let mut r = super::super::program::replay_helpers::legacy_sample_with_floor(207, 1)
+            .unwrap()[surface as usize]
+            .clone();
         r.textile = None;
         let t = resolved(&r);
         check_maps(&r, 1, |u, v| reference(&t, &r, transformed(&r, u, v)));

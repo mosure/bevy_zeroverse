@@ -124,7 +124,9 @@ fn prepared_mineral_replays_texel_bits_and_every_pbr_mip() {
             (Surface::Terracotta, 0),
             (Surface::Floor, 2),
         ] {
-            let recipes = super::super::program::sample_with_floor(seed, style).unwrap();
+            let recipes =
+                super::super::program::replay_helpers::legacy_sample_with_floor(seed, style)
+                    .unwrap();
             let r = &recipes[surface as usize];
             let m = r.mineral.as_ref().unwrap();
             check_maps(r, style, |u, v| {
@@ -167,7 +169,10 @@ fn carried_colors_replay_original_consumed_mineral_atlases_and_mips() {
             {
                 continue;
             }
-            let r = &scene.program.as_ref().unwrap().materials[surface as usize];
+            let mut legacy = scene.program.as_ref().unwrap().materials[surface as usize].clone();
+            // This independent pre-optimization oracle excludes the newer installation layer.
+            legacy.flooring = None;
+            let r = &legacy;
             let m = r.mineral.as_ref().unwrap();
             check_maps(r, scene.floor_style, |u, v| {
                 reference(m, r, transformed(r, u, v), scene.floor_style)
@@ -264,8 +269,8 @@ fn absent_aggregate_replays_original_float_channels_and_complete_maps() {
         (43_084_482, Surface::Soil, 0),
         (43_084_482, Surface::Terracotta, 0),
     ] {
-        let mut r = super::super::program::sample_with_floor(seed, style).unwrap()
-            [surface as usize]
+        let mut r = super::super::program::replay_helpers::legacy_sample_with_floor(seed, style)
+            .unwrap()[surface as usize]
             .clone();
         r.mineral.as_mut().unwrap().aggregate_exposure = 0.;
         let m = r.mineral.as_ref().unwrap();
@@ -383,7 +388,10 @@ fn consumed_mineral_atlases_report_exact_zero_exposure_coverage() {
             {
                 continue;
             }
-            let r = &scene.program.as_ref().unwrap().materials[surface as usize];
+            let mut legacy = scene.program.as_ref().unwrap().materials[surface as usize].clone();
+            // This independent pre-optimization oracle excludes the newer installation layer.
+            legacy.flooring = None;
+            let r = &legacy;
             let m = r.mineral.as_ref().unwrap();
             let n = r.map_size(scene.floor_style);
             let mut empty = 0_u64;

@@ -163,24 +163,42 @@ impl MineralRecipe {
     ) -> Texel {
         let fields = prepared.and_then(|p| p.fields());
         let mut uv = uv;
+        let installation_uv = uv;
         let mut seam = 0.;
         let mut footprint = 1. / r.map_size(floor_style) as f32;
         if r.surface == Surface::Floor && floor_style == 2 {
-            let [nx, ny] = r.floor_repetitions(2);
-            footprint *= nx.max(ny);
-            let [u, v] = uv;
-            let ix = (u * nx).floor() as u32 % nx as u32;
-            let iy = (v * ny).floor() as u32 % ny as u32;
-            let x = (u * nx).fract();
-            let y = (v * ny).fract();
-            let d = (x.min(1. - x) * r.period_m / nx).min(y.min(1. - y) * r.period_m / ny);
-            let width = r.joint_width + r.period_m / r.map_size(floor_style) as f32;
-            seam = (1. - d / width).clamp(0., 1.) * r.joint_width / width;
-            let offset = super::hash(ix, iy, r.seed.wrapping_add(157));
-            uv = [
-                x + offset,
-                y + super::hash(ix, iy, r.seed.wrapping_add(163)),
-            ];
+            if let Some(f) = &r.flooring {
+                let cut = f.cut(r, uv);
+                let [x, y] = cut.id;
+                seam = f.seam(r, &cut, floor_style);
+                footprint *= f.cells[0].max(f.cells[1]) as f32;
+                let mut local = cut.uv;
+                // Stone slabs are installed with independent orientation as
+                // well as cut offsets; veins do not form one wallpaper field.
+                if super::hash(x, y, r.seed.wrapping_add(167)) < 0.5 {
+                    local.swap(0, 1);
+                }
+                uv = [
+                    local[0] + super::hash(x, y, r.seed.wrapping_add(157)),
+                    local[1] + super::hash(x, y, r.seed.wrapping_add(163)),
+                ];
+            } else {
+                let [nx, ny] = r.floor_repetitions(2);
+                footprint *= nx.max(ny);
+                let [u, v] = uv;
+                let ix = (u * nx).floor() as u32 % nx as u32;
+                let iy = (v * ny).floor() as u32 % ny as u32;
+                let x = (u * nx).fract();
+                let y = (v * ny).fract();
+                let d = (x.min(1. - x) * r.period_m / nx).min(y.min(1. - y) * r.period_m / ny);
+                let width = r.joint_width + r.period_m / r.map_size(floor_style) as f32;
+                seam = (1. - d / width).clamp(0., 1.) * r.joint_width / width;
+                let offset = super::hash(ix, iy, r.seed.wrapping_add(157));
+                uv = [
+                    x + offset,
+                    y + super::hash(ix, iy, r.seed.wrapping_add(163)),
+                ];
+            }
         }
         let [u, v] = uv;
         // Warp the packing as well as individual chip edges. Random sizes and
@@ -334,6 +352,11 @@ impl MineralRecipe {
                 c.apply_carried(r, uv, self.polish, &mut texel, casting, color);
             } else {
                 c.apply_prepared(r, uv, self.polish, &mut texel, casting);
+            }
+        }
+        if r.surface == Surface::Floor {
+            if let Some(f) = &r.flooring {
+                f.apply(r, installation_uv, &mut texel);
             }
         }
         texel

@@ -9,8 +9,8 @@ const BOOTSTRAP_SEED: u64 = 0x923cad8ed58041b7;
 
 pub(super) fn analyze(before: &[Vec<f64>], after: &[Vec<f64>]) -> Result<Value> {
     ensure!(
-        before.len() == after.len() && (2..=256).contains(&before.len()),
-        "volume diagnostic requires 2..256 paired rooms"
+        before.len() == after.len() && (2..=1024).contains(&before.len()),
+        "volume diagnostic requires 2..1024 paired rooms"
     );
     let dimensions = before[0].len();
     ensure!(
@@ -21,7 +21,15 @@ pub(super) fn analyze(before: &[Vec<f64>], after: &[Vec<f64>]) -> Result<Value> 
         "invalid volume diagnostic centroids"
     );
     let n = before.len();
-    let pooled: Vec<_> = before.iter().chain(after).collect();
+    // Fit a bounded shared basis from prespecified stratified room indices.
+    // Project and bootstrap every room; selection does not inspect embeddings.
+    let fit_count = n.min(256);
+    let fit_indices = basis_indices(n, fit_count);
+    let pooled: Vec<_> = fit_indices
+        .iter()
+        .map(|&i| &before[i])
+        .chain(fit_indices.iter().map(|&i| &after[i]))
+        .collect();
     let mean: Vec<_> = (0..dimensions)
         .map(|d| pooled.iter().map(|v| v[d]).sum::<f64>() / pooled.len() as f64)
         .collect();
@@ -160,6 +168,7 @@ pub(super) fn analyze(before: &[Vec<f64>], after: &[Vec<f64>]) -> Result<Value> 
         json!({"schema_version":1,"status":"computed","room_pairs":n,
         "input":"equal-room-weight unit-normalized centroids of RGB view embeddings",
         "basis":{"fit":"pooled_before_and_after_equal_room_weight","pooled_rooms":count,
+            "fit_room_indices":fit_indices,"fit_policy":"all rooms up to 256 pairs; otherwise deterministic stratified index subset, independent of image/embedding values; every room contributes to projected covariance and paired bootstrap",
             "centering":"pooled_mean","dimensions":dimensions,"pooled_nonzero_rank":retained.len(),
             "retained_max_rank":max_rank,"pooled_total_variance":trace,
             "float64_basis_sha256":sha(&basis_bytes),
@@ -188,7 +197,7 @@ struct Eigen {
 }
 
 /// Bounded cyclic Jacobi, retaining eigenvectors for the dual PCA reconstruction.
-/// The largest permitted study (256 matched rooms) produces a 512-square matrix.
+/// The bounded fit subset (256 matched rooms) produces at most a 512-square matrix.
 fn symmetric_eigen(mut matrix: Vec<f64>, n: usize) -> Result<Eigen> {
     ensure!(
         n > 0 && n <= 512 && matrix.len() == n * n && matrix.iter().all(|x| x.is_finite()),

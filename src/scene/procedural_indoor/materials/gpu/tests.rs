@@ -3,8 +3,26 @@ use super::*;
 use wgpu::util::DeviceExt;
 
 #[test]
+fn chrome_bakes_retain_only_the_maps_its_material_samples() {
+    let recipes = program::sample_with_floor(3, 0).unwrap();
+    for surface in [Surface::Chrome, Surface::Fabric] {
+        let mut images = Assets::<Image>::default();
+        let mut requests = Requests::default();
+        let handles =
+            Maps::prepare(&recipes[surface as usize], 0, true).insert(&mut images, &mut requests);
+        assert_eq!(requests.0.len(), 1);
+        let normal_output = surface != Surface::Chrome;
+        assert_eq!(requests.0[0].normal_output, normal_output);
+        assert_eq!(images.len(), if normal_output { 3 } else { 2 });
+        assert!(images.get(&handles[0]).is_some());
+        assert!(images.get(&handles[2]).is_some());
+        assert_eq!(images.get(&handles[1]).is_some(), normal_output);
+        assert_eq!(requests.albedo(handles[0].id()).unwrap().len(), 1024);
+    }
+}
+#[test]
 fn recipe_abi_and_bounded_mip_layout() {
-    assert_eq!(std::mem::size_of::<recipe::Recipe>(), 15 * 16);
+    assert_eq!(std::mem::size_of::<recipe::Recipe>(), 24 * 16);
     assert_eq!(kernel::SHADER, include_str!("synthesis.wgsl"));
     for size in [256, 512] {
         let levels = kernel::levels(size);
@@ -134,7 +152,16 @@ fn gpu_maps_match_cpu_material_programs_and_mips() {
     let mut report = Vec::new();
     for seed in [0, 1, 202, 400, u64::MAX - 7] {
         for floor in [0, 1, 2] {
-            for mut r in program::sample_with_floor(seed, floor).unwrap() {
+            let mut recipes = program::sample_with_floor(seed, floor).unwrap();
+            if floor == 0 {
+                let parent = recipes[Surface::FabricAlt as usize].clone();
+                recipes.extend((0..5).map(|pattern| {
+                    let mut r = super::super::rugs::recipe(&parent, pattern as usize % 4);
+                    r.carpet.as_mut().unwrap().pattern = pattern;
+                    r
+                }));
+            }
+            for mut r in recipes {
                 if floor != 1 && r.surface == Surface::Floor {
                     continue;
                 }
@@ -181,12 +208,12 @@ fn gpu_maps_match_cpu_material_programs_and_mips() {
                     &mut encoder,
                     [
                         &pipelines[params.meta[0] as usize],
-                        &pipelines[4],
                         &pipelines[5],
+                        &pipelines[6],
                     ],
                     &bind,
                     n,
-                    textures.each_ref(),
+                    textures.each_ref().map(Some),
                 );
                 encoder.write_timestamp(&queries, 1);
                 encoder.resolve_query_set(&queries, 0..2, &query_buffer, 0);

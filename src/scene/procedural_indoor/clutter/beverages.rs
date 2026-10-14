@@ -9,10 +9,17 @@ pub struct BeverageProgram {
     pub fill_fraction: f32,
     pub wall_m: f32,
     pub lid: bool,
+    pub shoulder_fraction: f32,
+    pub neck_fraction: f32,
+    pub heel_fraction: f32,
 }
 pub fn parameters(o: &IndoorObject) -> BeverageProgram {
     let mut rng = stream(o.seed, 831);
+    let mut profile = stream(o.seed, 7455);
     BeverageProgram {
+        shoulder_fraction: profile.random_range(0.54..0.78),
+        neck_fraction: profile.random_range(0.33..0.72),
+        heel_fraction: profile.random_range(0.035..0.10),
         style: rng.random_range(0..6),
         taper: if o.kind == ObjectKind::CoffeeCup {
             rng.random_range(1.10..1.28)
@@ -156,8 +163,8 @@ fn bottle(a: &mut Assembly, o: &IndoorObject, p: &BeverageProgram) {
     } else {
         Surface::Metal
     };
-    let shoulder = h * if p.style == 1 { 0.56 } else { 0.76 };
-    let neck = r * if p.style == 2 { 0.67 } else { 0.43 };
+    let shoulder = h * p.shoulder_fraction;
+    let neck = r * p.neck_fraction;
     let mut profile = vec![(0., 0.), (r * 0.88, 0.), (r, h * 0.04)];
     for i in 1..=16 {
         let y = h * 0.04 + (shoulder - h * 0.04) * i as f32 / 16.;
@@ -232,15 +239,18 @@ fn can(a: &mut Assembly, o: &IndoorObject, p: &BeverageProgram) {
         &[
             (0., h * 0.02),
             (r * 0.86, 0.),
-            (r, h * 0.055),
-            (r, h * 0.88),
-            (r * 0.84, h * 0.96),
+            (r, h * p.heel_fraction),
+            (r, h * (0.81 + p.heel_fraction)),
+            (r * (0.74 + p.neck_fraction * 0.24), h * 0.96),
             (0., h * 0.96),
         ],
         32,
         Transform::IDENTITY,
     );
-    for (y, radius) in [(h * 0.022, r * 0.86), (h * 0.976, r * 0.9)] {
+    for (y, radius) in [
+        (h * 0.022, r * 0.86),
+        (h * 0.976, r * (0.77 + p.neck_fraction * 0.20)),
+    ] {
         a.part(Surface::Chrome, "other_prop").lathe(
             &[
                 (radius * 0.94, y - 0.001),
@@ -253,7 +263,7 @@ fn can(a: &mut Assembly, o: &IndoorObject, p: &BeverageProgram) {
         );
     }
     a.part(Surface::Chrome, "other_prop").cylinder(
-        r * 0.87,
+        r * (0.745 + p.neck_fraction * 0.20),
         0.0015,
         Transform::from_xyz(0., h * 0.974, 0.),
     );

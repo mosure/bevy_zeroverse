@@ -27,6 +27,9 @@ fn lids_panels_and_wall_hardware_have_no_competing_flat_faces() {
             (ObjectKind::Cabinet, Vec3::new(0.9, 1.1, 0.42)),
             (ObjectKind::Whiteboard, Vec3::new(1.5, 0.9, 0.04)),
             (ObjectKind::Phone, Vec3::new(0.074, 0.009, 0.16)),
+            (ObjectKind::DocumentTray, Vec3::new(0.26, 0.13, 0.34)),
+            (ObjectKind::DeskOrganizer, Vec3::new(0.20, 0.16, 0.13)),
+            (ObjectKind::Keyboard, Vec3::new(0.43, 0.03, 0.16)),
         ] {
             let mut o = template.clone();
             o.kind = kind;

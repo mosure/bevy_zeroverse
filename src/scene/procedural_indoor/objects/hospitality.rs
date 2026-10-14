@@ -51,14 +51,22 @@ fn coffee(a: &mut Assembly, o: &IndoorObject, p: &HospitalityProgram) {
         p.finish,
         label,
         Vec3::new(0., s.y * 0.51, -s.z * 0.19),
-        Vec3::new(s.x * 0.96, s.y * 0.88, s.z * 0.57),
+        Vec3::new(
+            s.x * p.belly,
+            s.y * (0.78 + p.neck * 0.24),
+            s.z * (0.44 + p.taper * 0.16),
+        ),
         0.013,
     );
     a.box_part(
         Surface::Metal,
         label,
-        Vec3::new(0., s.y * 0.72, s.z * 0.12),
-        Vec3::new(s.x * 0.88, s.y * 0.35, s.z * 0.14),
+        Vec3::new(0., s.y * (0.63 + p.neck * 0.14), s.z * 0.12),
+        Vec3::new(
+            s.x * p.belly * 0.91,
+            s.y * (0.18 + p.neck * 0.28),
+            s.z * 0.14,
+        ),
         0.008,
     );
     a.box_part(

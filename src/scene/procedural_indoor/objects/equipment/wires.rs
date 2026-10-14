@@ -185,6 +185,7 @@ mod tests {
 
     fn wire(points: Vec<Vec3>, seed: u64) -> IndoorObject {
         IndoorObject {
+            finish_seed: None,
             id: 0,
             kind: ObjectKind::Cable,
             position: Vec3::ZERO,

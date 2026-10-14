@@ -20,7 +20,7 @@ import sys
 import time
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from indoor_reference_contract import absorption_coefficients, sky_radiance, validate_snapshot
+from indoor_reference_contract import absorption_coefficients, coverage_alpha, sky_radiance, validate_snapshot
 
 import bpy
 from mathutils import Matrix, Vector
@@ -36,6 +36,7 @@ def connect(tree, a, output, b, input_name):
 
 
 def material(definition, directory, index):
+    alpha = coverage_alpha(definition)
     m = bpy.data.materials.new(f"material_{index:03}")
     m.use_nodes = True
     tree = m.node_tree
@@ -136,8 +137,24 @@ def material(definition, directory, index):
         connect(tree, shader, "BSDF", mix, 1)
         connect(tree, translucent, "BSDF", mix, 2)
         connect(tree, mix, "Shader", output, "Surface")
-    if definition["alpha_mode"] != "Opaque":
-        raise ValueError("Use native Auto quality for optical references; alpha approximations are unsupported")
+    if alpha is not None:
+        # Blend is surface coverage, not Beer-Lambert absorption/refraction.
+        # Keep both scalar and texture alpha, including emission on the covered
+        # surface. Mixing BSDFs gives the same compositing expectation.
+        surface = output.inputs["Surface"].links[0].from_socket
+        transparent = tree.nodes.new("ShaderNodeBsdfTransparent")
+        transparent.inputs["Color"].default_value = (1, 1, 1, 1)
+        coverage = tree.nodes.new("ShaderNodeMixShader")
+        coverage.inputs[0].default_value = alpha
+        if base:
+            product = tree.nodes.new("ShaderNodeMath")
+            product.operation = "MULTIPLY"
+            product.inputs[1].default_value = alpha
+            connect(tree, base, "Alpha", product, 0)
+            connect(tree, product, 0, coverage, 0)
+        connect(tree, transparent, "BSDF", coverage, 1)
+        tree.links.new(surface, coverage.inputs[2])
+        connect(tree, coverage, "Shader", output, "Surface")
     if definition["unlit"]:
         raise ValueError("Unlit materials have no physical reference mapping")
     if definition["specular_transmission"] > 0:
@@ -408,6 +425,8 @@ def main():
               "triangles": triangles, "instances": len(document["instances"]),
               "image_size": document["image_size"], "views": views, "geometry_audit": audit,
               "geometry_alignment_passed": aligned if audit else None,
+              "alpha_coverage_materials": [index for index, definition in enumerate(document["materials"])
+                                           if coverage_alpha(definition) is not None],
               "seconds": time.monotonic() - started,
               "linear_exr": "Unexposed scene-linear RGB photometric proxy radiance; no display transform",
               "linear_raw": "Same unexposed radiance; little-endian RGBA32F; top-left pixel origin",
@@ -417,7 +436,8 @@ def main():
                   "Visible upper-hemisphere sky replaces indoor reflection cubemap",
                   "No SSAO, bloom, FXAA, probe interpolation or range truncation",
                   "Blender Principled BSDF and AgX differ from Bevy PBR and tone mapping",
-                  "Glass volume absorption follows Beer-Lambert; RGB transport is not spectral"],
+                  "Glass volume absorption follows Beer-Lambert; RGB transport is not spectral",
+                  "Non-volumetric Blend surfaces use stochastic coverage, not physical lens optics; raster sorting and path-traced transparency differ"],
               "state_of_the_art_claim": False}
     (output / "report.json").write_text(json.dumps(report, indent=2) + "\n")
     if audit and not aligned:

@@ -6,6 +6,23 @@ use base64::{engine::general_purpose::STANDARD, Engine};
 use serde_json::{json, Value};
 use std::{collections::BTreeSet, fs, path::Path};
 
+fn noncamera_hash(mut manifest: Value) -> Result<String> {
+    for key in [
+        "cameras",
+        "camera_settings",
+        "camera_aspect_ratio",
+        "camera_diagnostics",
+    ] {
+        manifest
+            .as_object_mut()
+            .context("invalid manifest")?
+            .remove(key);
+    }
+    Ok(bevy_zeroverse_capture::provenance::sha(
+        &serde_json::to_vec(&manifest)?,
+    ))
+}
+
 pub fn collect(root: &Path, receipt: &Value) -> Result<Value> {
     let recipe = &receipt["recipe"];
     let cases: Vec<_> = recipe["cases"]
@@ -41,14 +58,8 @@ pub fn collect(root: &Path, receipt: &Value) -> Result<Value> {
         for case in &cases {
             let name = case["name"].as_str().context("case name missing")?;
             let folder = format!("{name}/seed_{seed:06}");
-            let mut manifest: Value = io::read(&root.join(&folder).join("manifest.json"))?;
-            for key in ["cameras", "camera_settings", "camera_aspect_ratio"] {
-                manifest
-                    .as_object_mut()
-                    .context("invalid manifest")?
-                    .remove(key);
-            }
-            let hash = bevy_zeroverse_capture::provenance::sha(&serde_json::to_vec(&manifest)?);
+            let manifest: Value = io::read(&root.join(&folder).join("manifest.json"))?;
+            let hash = noncamera_hash(manifest)?;
             ensure!(
                 scene_hash.as_ref().is_none_or(|h| h == &hash),
                 "baseline illustration changes noncamera scene fields"
@@ -162,7 +173,13 @@ pub fn build(report: &Value, stage: &Path, dest: &Path) -> Result<()> {
                 room["seed"]
             ),
         );
-        graphics::text(&mut svg,28.,59.,15,"Four complete RGB views at t=0; geometry, people, materials and lighting are identical.");
+        graphics::text(
+            &mut svg,
+            28.,
+            59.,
+            15,
+            "Four complete RGB views at t=0; geometry, people, materials and lighting are identical.",
+        );
         for (column, variant) in variants.iter().enumerate() {
             let x = 28. + 420. * column as f64;
             graphics::text(
@@ -198,6 +215,25 @@ mod tests {
     use super::*;
     use image::{DynamicImage, RgbImage};
     use std::io::Cursor;
+
+    #[test]
+    fn baseline_example_allows_camera_diagnostics_but_requires_identical_content() {
+        let a = json!({"objects":[{"size":[1.,2.,3.]}], "lighting":4., "camera_diagnostics":{"retries":1}});
+        let mut b = a.clone();
+        b["camera_diagnostics"]["retries"] = json!(8);
+        assert_eq!(
+            noncamera_hash(a.clone()).unwrap(),
+            noncamera_hash(b.clone()).unwrap()
+        );
+        b["lighting"] = json!(5.);
+        assert_ne!(
+            noncamera_hash(a.clone()).unwrap(),
+            noncamera_hash(b).unwrap()
+        );
+        let mut c = a.clone();
+        c["objects"][0]["size"][0] = json!(2.);
+        assert_ne!(noncamera_hash(a).unwrap(), noncamera_hash(c).unwrap());
+    }
 
     #[test]
     fn illustration_binds_rgb_camera_identity_and_actual_baseline() {

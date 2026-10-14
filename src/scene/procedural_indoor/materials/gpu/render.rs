@@ -70,7 +70,7 @@ fn extract(
 struct Pipeline {
     layout: BindGroupLayout,
     descriptor: BindGroupLayoutDescriptor,
-    ids: Option<[CachedComputePipelineId; 6]>,
+    ids: Option<[CachedComputePipelineId; 7]>,
 }
 impl FromWorld for Pipeline {
     fn from_world(world: &mut World) -> Self {
@@ -156,21 +156,28 @@ fn bake(world: &World, mut context: RenderContext) {
         if r.status.encoded.load(Ordering::Acquire) {
             continue;
         }
-        let [Some(color), Some(normal), Some(data)] = r.images.each_ref().map(|h| images.get(h))
-        else {
+        let [Some(color), normal, Some(data)] = r.images.each_ref().map(|h| images.get(h)) else {
             continue;
+        };
+        let normal: Option<&wgpu::Texture> = if r.normal_output {
+            let Some(normal) = normal else {
+                continue;
+            };
+            Some(&normal.texture)
+        } else {
+            None
         };
         let bindings = workspace.bindings(device, &pipeline.layout, &r.recipe);
         workspace.encode(
             context.command_encoder(),
             [
                 pipelines[r.recipe.meta[0] as usize],
-                pipelines[4],
                 pipelines[5],
+                pipelines[6],
             ],
             &bindings,
             r.recipe.meta[1],
-            [&color.texture, &normal.texture, &data.texture],
+            [Some(&color.texture), normal, Some(&data.texture)],
         );
         // All maps and mip copies precede the camera pass in this queue. This is
         // a submission dependency, not a host fence or a claim of GPU completion.

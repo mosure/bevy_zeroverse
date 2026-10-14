@@ -1,5 +1,6 @@
 //! One architectural description for construction, support, camera clearance,
 //! visibility and exports. It is a bounded procedural building grammar, not CAD.
+mod ceilings;
 pub mod construction;
 pub mod polygon;
 mod queries;
@@ -88,6 +89,10 @@ pub struct EnvelopeWall {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EnvelopeProgram {
+    /// Flat underside of lowered ceiling regions, in metres. The outer roof
+    /// remains planar; these are solid, closed soffits rather than decals.
+    #[serde(default)]
+    pub soffits: Vec<FloorPatch>,
     /// Simple CCW polygon in X/Z; the +Z edge connects to the neighboring room.
     pub footprint: Vec<Vec2>,
     /// Signed total height change across the room in X and Z; stored in metres.
@@ -112,6 +117,14 @@ impl EnvelopeProgram {
             .fold(0.0_f32, |a, p| a.min(p.height))
     }
     pub fn ceiling_height(&self, size: Vec3, p: Vec2) -> f32 {
+        self.soffits
+            .iter()
+            .filter(|patch| patch.contains(p))
+            .fold(self.roof_height(size, p), |height, patch| {
+                height.min(patch.height)
+            })
+    }
+    pub fn roof_height(&self, size: Vec3, p: Vec2) -> f32 {
         let uv = (p / size.xz() + Vec2::splat(0.5)).clamp(Vec2::ZERO, Vec2::ONE);
         size.y
             - (0..2)

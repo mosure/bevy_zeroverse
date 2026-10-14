@@ -626,9 +626,7 @@ impl BakeScene {
             ) {
                 continue;
             }
-            let material = label
-                .rsplit_once("#finish")
-                .and_then(|(_, slot)| slot.parse::<usize>().ok())
+            let material = crate::scene::procedural_indoor::materials::finish_slot(surface, label)
                 .and_then(|slot| finishes.get(&(surface, slot)))
                 .copied()
                 .unwrap_or(surface as usize);
@@ -829,7 +827,7 @@ impl BakeScene {
         result
     }
 
-    fn inside_solid(&self, point: Vec3) -> bool {
+    pub(crate) fn inside_solid(&self, point: Vec3) -> bool {
         let mut backfaces = 0;
         for (index, direction) in [Vec3::X, -Vec3::X, Vec3::Y, -Vec3::Y, Vec3::Z, -Vec3::Z]
             .into_iter()

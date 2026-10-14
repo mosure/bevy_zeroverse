@@ -333,6 +333,7 @@ mod tests {
         };
         for height in [0.25, 1.8] {
             let mut plant = IndoorObject {
+                finish_seed: None,
                 id: 0,
                 kind: ObjectKind::Plant,
                 position: Vec3::ZERO,

@@ -12,6 +12,40 @@ struct Args {
 }
 #[derive(Subcommand)]
 enum Action {
+    /// Generate a paper-only timing receipt, phase table and engine diagram.
+    TimingStudy {
+        #[arg(long, required = true, num_args = 1..)]
+        captures: Vec<PathBuf>,
+        #[arg(long, required = true, num_args = 1..)]
+        preparation: Vec<PathBuf>,
+        #[arg(long)]
+        environment: PathBuf,
+        #[arg(long)]
+        output: PathBuf,
+    },
+    /// Bind production-material sampling and native PBR swatches into an atlas.
+    MaterialStudy {
+        #[arg(long)]
+        input: PathBuf,
+        #[arg(long)]
+        output: PathBuf,
+    },
+    /// Bind the current object audit and studio captures into a local atlas.
+    ObjectStudy {
+        #[arg(long)]
+        audit: PathBuf,
+        #[arg(long)]
+        renders: PathBuf,
+        #[arg(long)]
+        output: PathBuf,
+    },
+    /// Verify completed cohorts and report them separately, with bound inputs.
+    AuditCohorts {
+        #[arg(long, required = true, num_args = 1..)]
+        input: Vec<PathBuf>,
+        #[arg(long)]
+        output: PathBuf,
+    },
     /// Summarize a checksum-bound camera-count audit and optional native renders.
     CameraStudy {
         #[arg(long)]
@@ -28,6 +62,9 @@ enum Action {
     },
     /// Qualify and compare every room in matched cohorts; build a complete gallery.
     CompareIndoor {
+        /// Explicit seed-matched architecture experiment; default requires identical geometry.
+        #[arg(long)]
+        allow_architecture_changes: bool,
         #[arg(long)]
         before: PathBuf,
         #[arg(long)]
@@ -86,6 +123,31 @@ enum Action {
 fn main() -> Result<()> {
     let args = Args::parse();
     match args.command {
+        Action::TimingStudy {
+            captures,
+            preparation,
+            environment,
+            output,
+        } => {
+            bevy_zeroverse_publication::timing::prepare(
+                &args.root,
+                &captures,
+                &preparation,
+                &environment,
+                &output,
+            )?;
+        }
+        Action::MaterialStudy { input, output } => {
+            bevy_zeroverse_publication::materials::prepare(&args.root, &input, &output)?
+        }
+        Action::ObjectStudy {
+            audit,
+            renders,
+            output,
+        } => bevy_zeroverse_publication::objects::prepare(&args.root, &audit, &renders, &output)?,
+        Action::AuditCohorts { input, output } => {
+            bevy_zeroverse_publication::cohorts::audit(&args.root, &input, &output)?;
+        }
         Action::CameraStudy {
             input,
             output,
@@ -97,6 +159,7 @@ fn main() -> Result<()> {
             bevy_zeroverse_publication::study::verify(&args.root.join(output))?
         }
         Action::CompareIndoor {
+            allow_architecture_changes,
             before,
             after,
             output,
@@ -104,7 +167,7 @@ fn main() -> Result<()> {
             embeddings,
             before_population,
             after_population,
-        } => bevy_zeroverse_publication::study::compare(
+        } => bevy_zeroverse_publication::study::compare_with_matching(
             &args.root,
             &before,
             &after,
@@ -113,6 +176,7 @@ fn main() -> Result<()> {
             embeddings.as_deref(),
             before_population.as_deref(),
             after_population.as_deref(),
+            allow_architecture_changes,
         )?,
         Action::Qualify {
             validator,

@@ -86,11 +86,15 @@ pub(super) struct Growth {
     pub crown_skew: f32,
     pub droop: f32,
     pub branching: f32,
+    pub maturity: f32,
 }
 impl Growth {
     pub fn sample(seed: u64) -> Self {
         let mut rng = stream(seed, 271);
-        Self {
+        let mut age = stream(seed, 6283);
+        let maturity: f32 = age.random_range(0.25..1.);
+        let mut growth = Self {
+            maturity,
             pot_fraction: rng.random_range(0.19..0.30),
             pot_radius: rng.random_range(0.36..0.55),
             pot_taper: rng.random_range(0.60..0.94),
@@ -100,7 +104,12 @@ impl Growth {
             crown_skew: rng.random_range(-0.16..0.16),
             droop: rng.random_range(0.08..0.42),
             branching: rng.random_range(0.38..0.92),
-        }
+        };
+        // Age drives connected leader/leaf occupancy jointly. Mature plants
+        // should not independently draw both sparse foliage and weak branching.
+        growth.density = (growth.density * 0.30 + (0.80 + maturity * 0.28) * 0.70).min(1.08);
+        growth.branching = growth.branching * 0.45 + (0.45 + maturity * 0.40) * 0.55;
+        growth
     }
     fn count(&self, nominal: usize) -> usize {
         (nominal as f32 * self.density).round().max(3.0) as usize
@@ -186,7 +195,7 @@ fn blade(
     };
     let surface = if shape == 2 {
         Surface::LeafVariegated
-    } else if seed.is_multiple_of(5) {
+    } else if ((seed % 1000) as f32) < 80. + (1. - morphology.maturity) * 220. {
         Surface::LeafLight
     } else {
         Surface::Leaf
@@ -456,6 +465,7 @@ mod tests {
             let mut topology_counts = std::collections::BTreeSet::new();
             for seed in 0..12 {
                 let o = IndoorObject {
+                    finish_seed: None,
                     id: 0,
                     kind: ObjectKind::Plant,
                     position: Vec3::ZERO,
@@ -521,6 +531,7 @@ mod tests {
             for variant in 0..SPECIES {
                 for seed in 0..12 {
                     let o = IndoorObject {
+                        finish_seed: None,
                         id: 0,
                         kind: ObjectKind::Plant,
                         position: Vec3::ZERO,

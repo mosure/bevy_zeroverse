@@ -15,15 +15,19 @@
   <link rel="stylesheet" href="static/css/index.css">
   <link rel="stylesheet" href="static/css/architecture.css">
   <link rel="stylesheet" href="static/css/cameras.css">
+  <link rel="stylesheet" href="static/css/objects.css">
+  <link rel="stylesheet" href="static/css/materials.css">
   <script defer src="static/js/architecture.js"></script>
   <script defer src="static/js/cameras.js"></script>
+  <script defer src="static/js/objects.js"></script>
+  <script defer src="static/js/materials.js"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
 <header class="site-header">
   <a class="wordmark" href="#main"><svg viewBox="0 0 28 28" aria-hidden="true"><path d="m14 2 11 6v12l-11 6-11-6V8Z M3 8l11 6 11-6 M14 14v12Z"/></svg>bevy_zeroverse</a>
   <nav aria-label="Page navigation">
-    <a href="#architecture">Architecture</a><a href="#explore" data-architecture-jump="co_visibility">Co-visibility</a>@CAMERA_NAV@<a href="#evidence">Evidence</a><a href="#paper">Whitepaper</a><a class="nav-source" href="https://github.com/mosure/bevy_zeroverse">GitHub ↗</a>
+    <a href="#architecture">Architecture</a><a href="#explore" data-architecture-jump="co_visibility">Co-visibility</a>@CAMERA_NAV@<a href="#objects">Objects</a><a href="#materials">Materials</a><a href="#evidence">Evidence</a><a href="#paper">Whitepaper</a><a class="nav-source" href="https://github.com/mosure/bevy_zeroverse">GitHub ↗</a>
   </nav>
 </header>
 <main id="main">
@@ -43,6 +47,10 @@
 
 @CAMERA_STUDY@
 
+@OBJECT_STUDY@
+
+@MATERIAL_STUDY@
+
   <section class="container section" aria-labelledby="qualification-title">
     <div class="section-heading"><div><div class="eyebrow">MATCHED FACTOR CHECKS</div><h2 id="qualification-title">Change one factor.<br>Keep the room.</h2></div><p>Two room families, eleven camera and appearance settings, 88 calibrated images. Inspect short handheld paths, portrait images, overlap targets, material detail, illumination and exposure.</p></div>
     <p><a class="button" href="static/media/qualification/index.html">Explore matched factors ↗</a> <a class="button" href="static/media/qualification/receipt.json">Qualification receipt ↗</a></p>
@@ -54,7 +62,7 @@
     <div>
       <div class="eyebrow">TECHNICAL WHITEPAPER</div><h2 id="paper-title">Auditable procedural indoor data for multi-view reconstruction.</h2>
       <p class="paper-author">Mitchell Mosure · October 2026 · Technical report</p>
-      <p>The paper describes the generator, room envelopes, paired RGB and architectural plans, aligned annotations, and @AUDIT_ROOMS@-room distributions. Camera-count and baseline measurements show placement, trajectories and rendered co-visibility.</p>
+      <p>The paper describes the generator, room envelopes, paired RGB and architectural plans, aligned annotations, and @AUDIT_ROOMS@-room distributions. Camera-count and baseline measurements show placement, trajectories and rendered co-visibility. Object-category grids link rendered constructions to their sampled controls, measured shape coverage and geometry costs.</p>
       <p>It reports a bounded generator evaluation. Photographic realism, ten-million-sample learning utility and downstream reconstruction gains remain open evaluation questions.</p>
       <div class="actions"><a class="button primary" href="static/papers/bevy_zeroverse.pdf">Read PDF ↗</a><a class="button" href="static/papers/whitepaper-source.zip" download>LaTeX source ↓</a></div>
       <p class="note">The page and paper share one current-generator capture contract. Source files, exact configurations and machine-readable measurements are downloadable. No publication venue or peer-review status is implied.</p>

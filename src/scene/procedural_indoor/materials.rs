@@ -3,13 +3,16 @@ pub mod art;
 mod atlas;
 pub mod boards;
 pub mod botanical;
+pub mod carpet;
 pub mod ceramic;
 pub mod coating;
 pub mod concrete;
 mod environment;
 mod field;
 mod filter;
+pub mod flooring;
 pub mod glass;
+pub mod glazing;
 pub mod gpu;
 mod human;
 pub mod layers;
@@ -21,6 +24,8 @@ pub mod paint;
 mod paper;
 pub mod program;
 mod raster;
+mod reflections;
+pub mod rugs;
 pub mod screens;
 pub mod textile;
 pub mod timber;
@@ -79,6 +84,8 @@ pub enum Surface {
 }
 
 pub struct IndoorMaterials {
+    glazing: std::collections::BTreeMap<u64, Handle<StandardMaterial>>,
+    pub reflections: Vec<reflections::ReflectionVolume>,
     pub(crate) gpu_bakes: gpu::Requests,
     handles: Vec<Handle<StandardMaterial>>,
     pub cloth: Handle<StandardMaterial>,
@@ -136,13 +143,18 @@ impl IndoorMaterials {
     }
 
     pub fn for_part(&self, surface: Surface, label: &str) -> Handle<StandardMaterial> {
+        if let Some(handle) = label
+            .rsplit_once("#glazing")
+            .and_then(|(_, key)| key.parse::<u64>().ok())
+            .and_then(|key| self.glazing.get(&key))
+        {
+            return handle.clone();
+        }
         if label == "sky#exterior" {
             return self.sky.clone();
         }
-        if let Some(material) = label
-            .rsplit_once("#finish")
-            .and_then(|(_, s)| s.parse::<usize>().ok())
-            .and_then(|i| self.variants.get(&(surface, i)))
+        if let Some(material) =
+            finish_slot(surface, label).and_then(|i| self.variants.get(&(surface, i)))
         {
             return material.clone();
         }
@@ -203,7 +215,9 @@ impl IndoorMaterials {
         };
         #[cfg(target_arch = "wasm32")]
         let prepared: Vec<_> = definitions.iter().map(prepare).collect();
-        Self::insert_prepared(
+        // This compatibility API remains synchronous on every target. Only
+        // the staged async browser path below opts into event-loop yields.
+        bevy::tasks::block_on(Self::insert_prepared(
             scene,
             quality,
             images,
@@ -212,7 +226,8 @@ impl IndoorMaterials {
             prepared,
             selection,
             gpu,
-        )
+            false,
+        ))
     }
 
     pub async fn build_async(
@@ -258,12 +273,14 @@ impl IndoorMaterials {
                 maps,
                 selection,
                 gpu,
+                true,
             )
+            .await
         }
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn insert_prepared(
+    async fn insert_prepared(
         scene: &IndoorManifest,
         quality: super::IndoorQuality,
         images: &mut impl super::preparation::AssetStore<Image>,
@@ -272,6 +289,7 @@ impl IndoorMaterials {
         prepared: Vec<Option<gpu::Maps>>,
         selection: Option<&MaterialSelection>,
         gpu: bool,
+        cooperative: bool,
     ) -> Self {
         let mut handles = Vec::new();
         let mut gpu_bakes = gpu::Requests::default();
@@ -424,6 +442,9 @@ impl IndoorMaterials {
                 _ => (),
             }
             handles.push(materials.add(mat));
+            if cooperative {
+                super::preparation::cooperate().await;
+            }
         }
         let environment = EnvironmentMapLight {
             intensity: scene.domain().map_or_else(
@@ -459,7 +480,7 @@ impl IndoorMaterials {
                 materials.add(material)
             })
             .collect();
-        let variants = variants::build(
+        let mut variants = variants::build(
             scene,
             &handles,
             images,
@@ -467,7 +488,9 @@ impl IndoorMaterials {
             selection.map(|s| &s.finishes),
             gpu,
             &mut gpu_bakes,
-        );
+            cooperative,
+        )
+        .await;
         let cloth_template = materials
             .get(&handles[Surface::Fabric as usize])
             .unwrap()
@@ -479,12 +502,35 @@ impl IndoorMaterials {
             // contract without paying for skin and hair atlases in empty rooms.
             std::array::from_fn(|_| handles[Surface::Fabric as usize].clone())
         };
+        if cooperative {
+            super::preparation::cooperate().await;
+        }
         let knit = if scene.humans.iter().any(|h| h.outfit.knitted()) {
             human::knit(scene.material_seed(), images, materials)
         } else {
             cloth.clone()
         };
+        for (slot, pair) in rugs::build(
+            scene,
+            &handles[Surface::FabricAlt as usize],
+            images,
+            materials,
+            gpu,
+            &mut gpu_bakes,
+            cooperative,
+        )
+        .await
+        {
+            for (binding, handle) in pair.into_iter().enumerate() {
+                variants.insert(
+                    (Surface::FabricAlt, rugs::finish_slot(slot, binding != 0)),
+                    handle,
+                );
+            }
+        }
         let mut result = Self {
+            glazing: glazing::build(scene, quality, images, materials),
+            reflections: Vec::new(),
             sky: materials.add(super::architecture::background::material(scene)),
             handles,
             gpu_bakes,
@@ -500,7 +546,16 @@ impl IndoorMaterials {
         // Standalone callers receive the same scene-derived environment here.
         if selection.is_none() {
             let transport = super::gi::BakeScene::from_manifest(scene, &result, materials, images);
+            #[cfg(not(target_arch = "wasm32"))]
             result.build_environment(scene, &transport, images);
+            #[cfg(target_arch = "wasm32")]
+            if cooperative {
+                result
+                    .build_environment_async(scene, &transport, images)
+                    .await;
+            } else {
+                result.build_environment(scene, &transport, images);
+            }
         }
         result
     }
@@ -520,10 +575,41 @@ impl IndoorMaterials {
             rotation: Quat::from_rotation_y(scene.world_yaw),
             ..default()
         };
+        self.reflections = reflections::build(scene, transport, images);
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub(crate) async fn build_environment_async(
+        &mut self,
+        scene: &IndoorManifest,
+        transport: &super::gi::BakeScene,
+        images: &mut impl super::preparation::AssetStore<Image>,
+    ) {
+        let [diffuse, specular] = environment::build_async(scene, transport).await;
+        self.environment = EnvironmentMapLight {
+            diffuse_map: images.add(diffuse),
+            specular_map: images.add(specular),
+            intensity: 1.,
+            rotation: Quat::from_rotation_y(scene.world_yaw),
+            ..default()
+        };
+        // The browser uses the global probe, without binding-array volumes.
+        self.reflections.clear();
     }
 }
 
 type Definition = (Surface, [f32; 3], f32, f32, f32);
+/// Shared by raster material resolution and symbolic diffuse-transport binding.
+pub(crate) fn finish_slot(surface: Surface, label: &str) -> Option<usize> {
+    if surface == Surface::FabricAlt {
+        if let Some((slot, binding)) = rugs::key(label) {
+            return Some(rugs::finish_slot(slot, binding));
+        }
+    }
+    label
+        .rsplit_once("#finish")
+        .and_then(|(_, s)| s.parse::<usize>().ok())
+}
 fn definitions(scene: &IndoorManifest) -> [Definition; 36] {
     let (wood, fabric, accent) = match scene.palette {
         0 => ([0.58, 0.37, 0.19], [0.16, 0.25, 0.28], [0.22, 0.34, 0.32]),

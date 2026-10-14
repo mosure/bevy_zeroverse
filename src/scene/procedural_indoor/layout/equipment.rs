@@ -520,7 +520,8 @@ pub(crate) fn cables_clear_proposed_prop(scene: &IndoorManifest, prop: &IndoorOb
             else {
                 return false;
             };
-            if (prop.kind != ObjectKind::WallOutlet && prop.support != cable.support)
+            if (!matches!(prop.kind, ObjectKind::WallOutlet | ObjectKind::FloorOutlet)
+                && prop.support != cable.support)
                 || prop.neighbor
                 || if is_source {
                     prop.kind != source.kind
@@ -532,7 +533,10 @@ pub(crate) fn cables_clear_proposed_prop(scene: &IndoorManifest, prop: &IndoorOb
                                 | ObjectKind::PowerStrip
                         )
                 } else {
-                    !matches!(prop.kind, ObjectKind::PowerStrip | ObjectKind::WallOutlet)
+                    !matches!(
+                        prop.kind,
+                        ObjectKind::PowerStrip | ObjectKind::WallOutlet | ObjectKind::FloorOutlet
+                    )
                 }
             {
                 return false;
@@ -582,7 +586,7 @@ pub(crate) fn cables_clear_proposed_prop(scene: &IndoorManifest, prop: &IndoorOb
 /// Generation and later prop edits share the same expanded, rotated box. Its
 /// broad phase encloses the transformed local padding as well as the housing;
 /// expanding an unpadded world AABB by just `radius` underbounds rotated corners.
-fn cable_prop_intersector(prop: &IndoorObject, radius: f32) -> impl Fn(Vec3, Vec3) -> bool {
+fn cable_prop_intersector(prop: &IndoorObject, radius: f32) -> impl Fn(Vec3, Vec3) -> bool + '_ {
     let transform = prop.transform().compute_affine();
     let inverse = transform.inverse();
     let padding = Vec3::splat(radius);
@@ -603,12 +607,13 @@ fn cable_prop_intersector(prop: &IndoorObject, radius: f32) -> impl Fn(Vec3, Vec
         if start.min(end).cmpgt(world_hi).any() || start.max(end).cmplt(world_lo).any() {
             return false;
         }
-        segment_hits_box(
-            inverse.transform_point3(start),
-            inverse.transform_point3(end),
-            lo,
-            hi,
-        )
+        let start = inverse.transform_point3(start);
+        let end = inverse.transform_point3(end);
+        if prop.kind == ObjectKind::FloorOutlet {
+            super::super::objects::floor::cable_hits(prop, start, end, radius)
+        } else {
+            segment_hits_box(start, end, lo, hi)
+        }
     }
 }
 
@@ -645,7 +650,10 @@ pub(crate) fn cable_route_clear(scene: &IndoorManifest, o: &IndoorObject) -> boo
     ) else {
         return false;
     };
-    let hanging = target.kind == ObjectKind::WallOutlet;
+    let hanging = matches!(
+        target.kind,
+        ObjectKind::WallOutlet | ObjectKind::FloorOutlet
+    );
     if !parent.kind.is_surface()
         || source.id >= o.id
         || target.id >= o.id
@@ -656,7 +664,10 @@ pub(crate) fn cable_route_clear(scene: &IndoorManifest, o: &IndoorObject) -> boo
         || source.neighbor
         || target.neighbor
         || parent.neighbor
-        || !matches!(target.kind, ObjectKind::PowerStrip | ObjectKind::WallOutlet)
+        || !matches!(
+            target.kind,
+            ObjectKind::PowerStrip | ObjectKind::WallOutlet | ObjectKind::FloorOutlet
+        )
         || !matches!(
             source.kind,
             ObjectKind::Laptop
@@ -672,17 +683,18 @@ pub(crate) fn cable_route_clear(scene: &IndoorManifest, o: &IndoorObject) -> boo
         .map(|&p| o.transform().transform_point(p))
         .collect();
     let low = source.kind == ObjectKind::Laptop;
-    if world[0].distance(equipment::source_power_port(source).unwrap()) > 0.001
-        || world
-            .last()
-            .unwrap()
-            .distance(equipment::power_port(target, low).unwrap())
-            > 0.001
+    let (Some(source_port), Some(target_port), Some(source_normal), Some(target_normal)) = (
+        equipment::source_power_port(source),
+        equipment::power_port(target, low),
+        equipment::source_power_normal(source),
+        equipment::power_port_normal(target, low),
+    ) else {
+        return false;
+    };
+    if world[0].distance(source_port) > 0.001 || world.last().unwrap().distance(target_port) > 0.001
     {
         return false;
     }
-    let source_normal = equipment::source_power_normal(source).unwrap();
-    let target_normal = equipment::power_port_normal(target, low).unwrap();
     if (world[1] - world[0]).normalize_or_zero().dot(source_normal) < 0.98
         || (world[world.len() - 2] - world[world.len() - 1])
             .normalize_or_zero()

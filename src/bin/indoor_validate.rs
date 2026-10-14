@@ -365,6 +365,10 @@ fn main() -> Result<()> {
         indoor_density: args.density,
         indoor_human_density: args.human_density,
         indoor_quality: args.quality,
+        // Offline reference export serializes the exact material texels used by
+        // this capture. Its CPU oracle retains those pixels; production GPU
+        // synthesis intentionally keeps generated textures device-resident.
+        indoor_gpu_materials: !args.export_reference,
         annotation_glass: args.annotation_glass,
         indoor_gi_rays: args.gi_rays,
         headless: true,
@@ -564,7 +568,7 @@ fn main() -> Result<()> {
             elapsed_seconds: start.elapsed().as_secs_f64(),
             image_size: [args.width, args.height],
             renderer: app.world().get_resource::<bevy::render::renderer::RenderAdapterInfo>().map(|adapter| format!("{:?}", **adapter)),
-            capabilities: serde_json::json!({ "quality": args.quality, "glass_filter": args.glass_filter, "shadows": args.quality.shadows() && !args.no_shadows,
+            capabilities: serde_json::json!({ "quality": args.quality, "glass_filter": args.glass_filter, "annotation_glass": sample.annotation_glass, "gpu_materials": !args.export_reference, "shadows": args.quality.shadows() && !args.no_shadows,
                 "ssao": args.quality.ssao() && !args.no_ssao, "bloom": args.quality.bloom() && !args.linear_rgb, "specular_transmission": args.quality.specular_transmission(),
                 "shadow_map_size": args.quality.shadow_map_size(),
                 "sun_shadow_filter": if args.quality.shadows() && !args.no_shadows { "pcss_non_temporal" } else { "disabled" },
@@ -576,8 +580,12 @@ fn main() -> Result<()> {
             } else {
                 "PNG: sRGB OETF of Bevy tone-mapped linear RGB; raw: little-endian RGBA32F"
             },
-            label_policy:
-                "first geometric surface; glass is an opaque window in geometry annotations; native indoor uses direct float32 MRT",
+            label_policy: match sample.annotation_glass {
+                bevy_zeroverse::render::glass::AnnotationGlass::Surface =>
+                    "first geometric surface including glass; native indoor uses direct float32 MRT",
+                bevy_zeroverse::render::glass::AnnotationGlass::Through =>
+                    "first geometric surface after skipping transmissive glass; unrefracted rays; frames and opaque frit remain occluders; native indoor uses direct float32 MRT",
+            },
             views,
             mesh_assets: app.world().resource::<Assets<Mesh>>().len(),
             material_assets: app.world().resource::<Assets<StandardMaterial>>().len(),
@@ -700,7 +708,7 @@ fn save_sample(
                 // validity. Close views and opaque annotation glass can contain
                 // only one or two classes; every pixel was palette-checked above.
                 ensure!(
-                    (1..=41).contains(&semantic_colors),
+                    (1..=semantic_palette.len()).contains(&semantic_colors),
                     "semantic image has an invalid palette size: {semantic_colors}"
                 );
             }

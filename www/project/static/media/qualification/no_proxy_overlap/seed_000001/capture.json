@@ -1,13 +1,13 @@
 {
   "build_provenance": {
-    "capture_engine": "capture-v55;calibration=1;co_visibility=1;bevy=0.20.0;burn=0.22.0;burn_human=0.6.0;bevy_burn_human=0.7.0;burn_human_motion=0.2.0;burn_ardy=0.2.0;burn_llama=0.2.0;burn_human_inference=0.2.0;ardy_motion=9;surface_flow=1;indoor=37;multiview=7;ovoxel=3;glass=3;hair=5;wardrobe=4;footwear=1;bounds=4;morphology=3;position=3;tabletop=2;finishes=9;seating=3;activity=2;playback=2;exterior=3;envelope=3;furnishings=3;botany=2;visual_content=3;equipment=3;palette=2;photometry=2;sun_shadow=2;material_compute=1;semantic=3",
-    "crate_version": "0.39.0",
+    "capture_engine": "capture-v61;calibration=1;co_visibility=1;bevy=0.20.0;burn=0.22.0;burn_human=0.6.0;bevy_burn_human=0.7.0;burn_human_motion=0.2.0;burn_ardy=0.2.0;burn_llama=0.2.0;burn_human_inference=0.2.0;ardy_motion=9;surface_flow=1;indoor=40;multiview=8;ovoxel=3;glass=4;hair=6;wardrobe=5;footwear=1;bounds=4;morphology=3;position=3;tabletop=3;finishes=11;seating=3;activity=2;playback=2;exterior=5;envelope=4;furnishings=5;botany=3;visual_content=3;equipment=5;palette=2;photometry=3;sun_shadow=2;material_compute=2;semantic=4;ceiling=2;floor_details=2;window_treatments=1",
+    "crate_version": "0.40.0",
     "features": {
       "human_motion": false,
       "multi_threaded": true,
       "web": false
     },
-    "generator_version": 37,
+    "generator_version": 40,
     "locked_package_versions": {
       "bevy": [
         "0.20.0"
@@ -16,19 +16,19 @@
         "0.7.0"
       ],
       "bevy_zeroverse": [
-        "0.39.0"
+        "0.40.0"
       ],
       "bevy_zeroverse_burn": [
-        "0.23.0"
+        "0.24.0"
       ],
       "bevy_zeroverse_capture": [
-        "0.1.8"
+        "0.2.0"
       ],
       "bevy_zeroverse_ffi": [
-        "0.39.0"
+        "0.40.0"
       ],
       "bevy_zeroverse_publication": [
-        "0.2.4"
+        "0.3.0"
       ],
       "burn": [
         "0.22.0"
@@ -695,10 +695,19 @@
           145,
           245
         ]
+      },
+      {
+        "id": 72,
+        "label": "floor_outlet",
+        "srgb8": [
+          98,
+          158,
+          171
+        ]
       }
     ],
-    "semantic_taxonomy_version": 3,
-    "source_sha256": "760448699a3a7edb6ef25b2cd8623614dcd2bf53d3871ed9225a28e9c8ec8130",
+    "semantic_taxonomy_version": 4,
+    "source_sha256": "8b9386343019c7a19a202d10186c9eadfd0ae6641878aadbf9c26d2d8ce9e7f6",
     "target": "x86_64-unknown-linux-gnu"
   },
   "camera_qualification": {
@@ -806,7 +815,7 @@
       }
     ],
     "scene_family": {
-      "id": "procedural_indoor/37/0000000000000001",
+      "id": "procedural_indoor/40/0000000000000001",
       "rule": "group all frames, cameras and appearance/sensor variants of a generator-version/seed family before assigning dataset splits",
       "split_bucket_10000": 515
     },
@@ -814,18 +823,20 @@
     "selection": "requested strata are fixed before placement retries; no rendered or model-score filtering",
     "triangulation": "mean angle of shared rendered world positions on a regular grid of at most 4096 source pixels/view; null when position was not exported or no shared samples"
   },
-  "run_id": "3010205-1791855740389597813",
+  "run_id": "4180452-1791961149756036878",
   "seed": 1,
-  "elapsed_seconds": 0.802877636,
+  "elapsed_seconds": 0.881558055,
   "image_size": [
     256,
     160
   ],
   "capabilities": {
+    "annotation_glass": "surface",
     "annotation_hdr_format": "RGBA32Float_direct",
     "bloom": true,
     "exposure_ev100": 7.0925397872924805,
     "glass_filter": "default",
+    "gpu_materials": true,
     "quality": "Auto",
     "shadow_map_size": 2048,
     "shadows": true,
@@ -847,7 +858,7 @@
     ]
   ],
   "color_encoding": "PNG: sRGB OETF of Bevy tone-mapped linear RGB; raw: little-endian RGBA32F",
-  "label_policy": "first geometric surface; glass is an opaque window in geometry annotations; native indoor uses direct float32 MRT",
+  "label_policy": "first geometric surface including glass; native indoor uses direct float32 MRT",
   "views": [
     {
       "calibration": {
@@ -914,39 +925,41 @@
       "fov_y": 1.1738726,
       "near": 0.1,
       "far": 50.0,
-      "mean_luminance": 0.51233727,
-      "luminance_std": 0.25852856,
+      "mean_luminance": 0.13621198,
+      "luminance_std": 0.17605576,
       "dark_fraction": 0.0,
       "clipped_fraction": 0.0,
-      "semantic_colors": 18,
+      "semantic_colors": 20,
       "semantic_pixel_counts": {
-        "appliance": 93,
-        "blinds": 1680,
+        "appliance": 96,
         "bookshelf": 116,
-        "ceiling": 8926,
+        "ceiling": 8841,
         "chair": 289,
         "coffee_table": 22,
         "door": 20,
         "drink_container": 8,
-        "floor": 10274,
-        "lamp": 236,
+        "floor": 10170,
+        "floormat": 77,
+        "lamp": 238,
         "laptop": 19,
+        "light_switch": 44,
         "mobile_cart": 324,
         "other_structure": 2619,
-        "picture": 889,
+        "picture": 60,
         "sofa": 1976,
-        "wall": 5507,
-        "wall_outlet": 39,
-        "window": 7923
+        "television": 242,
+        "wall": 13802,
+        "wall_outlet": 8,
+        "window": 1989
       },
       "annotation_alignment": {
         "checked_pixels": 40960,
         "depth_position_p99_metres": 9.536743e-7,
         "depth_position_max_metres": 0.0000019073486,
-        "reprojection_p99_pixels": 0.000055016346,
-        "reprojection_max_pixels": 0.00008897326,
+        "reprojection_p99_pixels": 0.00005340576,
+        "reprojection_max_pixels": 0.000086316744,
         "normal_length_max_error": 1.7881393e-7,
-        "position_quantization_budget_p99_ratio": 0.0046368516
+        "position_quantization_budget_p99_ratio": 0.004635162
       },
       "co_visibility": {
         "valid_pixels": 40960,
@@ -1031,25 +1044,24 @@
       "fov_y": 1.0539923,
       "near": 0.1,
       "far": 50.0,
-      "mean_luminance": 0.49357158,
-      "luminance_std": 0.17901362,
+      "mean_luminance": 0.14350197,
+      "luminance_std": 0.20423977,
       "dark_fraction": 0.0,
       "clipped_fraction": 0.0,
-      "semantic_colors": 13,
+      "semantic_colors": 12,
       "semantic_pixel_counts": {
-        "appliance": 257,
-        "blinds": 56,
+        "appliance": 229,
         "cabinet": 2798,
-        "ceiling": 5512,
-        "drink_container": 53,
+        "ceiling": 5507,
+        "drink_container": 78,
         "floor": 3067,
-        "lamp": 641,
+        "lamp": 646,
+        "light_switch": 17,
         "mobile_cart": 581,
-        "shelves": 49,
-        "wall": 27051,
-        "wall_outlet": 12,
-        "whiteboard": 832,
-        "window": 51
+        "shelves": 103,
+        "wall": 27073,
+        "wall_outlet": 29,
+        "whiteboard": 832
       },
       "annotation_alignment": {
         "checked_pixels": 40960,
@@ -1143,30 +1155,32 @@
       "fov_y": 1.1738726,
       "near": 0.1,
       "far": 50.0,
-      "mean_luminance": 0.5185658,
-      "luminance_std": 0.259506,
+      "mean_luminance": 0.14122067,
+      "luminance_std": 0.18422511,
       "dark_fraction": 0.0,
       "clipped_fraction": 0.0,
-      "semantic_colors": 18,
+      "semantic_colors": 20,
       "semantic_pixel_counts": {
-        "appliance": 96,
-        "blinds": 1698,
+        "appliance": 98,
         "bookshelf": 119,
-        "ceiling": 8246,
+        "ceiling": 8141,
         "chair": 285,
         "coffee_table": 34,
         "door": 20,
         "drink_container": 10,
-        "floor": 10486,
-        "lamp": 334,
+        "floor": 10361,
+        "floormat": 86,
+        "lamp": 346,
         "laptop": 14,
+        "light_switch": 36,
         "mobile_cart": 323,
         "other_structure": 2537,
-        "picture": 789,
+        "picture": 30,
         "sofa": 1989,
-        "wall": 6001,
-        "wall_outlet": 38,
-        "window": 7941
+        "television": 215,
+        "wall": 14282,
+        "wall_outlet": 7,
+        "window": 2027
       },
       "annotation_alignment": {
         "checked_pixels": 40960,
@@ -1175,7 +1189,7 @@
         "reprojection_p99_pixels": 0.0000314568,
         "reprojection_max_pixels": 0.00007780486,
         "normal_length_max_error": 1.7881393e-7,
-        "position_quantization_budget_p99_ratio": 0.0039264318
+        "position_quantization_budget_p99_ratio": 0.004077136
       },
       "co_visibility": {
         "valid_pixels": 40960,
@@ -1260,23 +1274,24 @@
       "fov_y": 1.0539923,
       "near": 0.1,
       "far": 50.0,
-      "mean_luminance": 0.4889861,
-      "luminance_std": 0.17461105,
+      "mean_luminance": 0.12521876,
+      "luminance_std": 0.17947797,
       "dark_fraction": 0.0,
       "clipped_fraction": 0.0,
-      "semantic_colors": 12,
+      "semantic_colors": 13,
       "semantic_pixel_counts": {
-        "appliance": 272,
+        "appliance": 240,
         "cabinet": 2860,
-        "ceiling": 4442,
-        "drink_container": 41,
+        "ceiling": 4434,
+        "drink_container": 55,
         "floor": 3835,
-        "lamp": 375,
+        "lamp": 383,
+        "light_switch": 16,
         "mobile_cart": 383,
-        "phone": 3,
-        "shelves": 46,
-        "wall": 27845,
-        "wall_outlet": 8,
+        "phone": 2,
+        "shelves": 84,
+        "wall": 27788,
+        "wall_outlet": 30,
         "whiteboard": 850
       },
       "annotation_alignment": {
@@ -1286,7 +1301,7 @@
         "reprojection_p99_pixels": 0.000038146973,
         "reprojection_max_pixels": 0.00007780486,
         "normal_length_max_error": 1.7881393e-7,
-        "position_quantization_budget_p99_ratio": 0.00854476
+        "position_quantization_budget_p99_ratio": 0.008601919
       },
       "co_visibility": {
         "valid_pixels": 40960,
@@ -1307,22 +1322,22 @@
       }
     }
   ],
-  "mesh_assets": 216,
-  "material_assets": 93,
-  "image_assets": 128,
+  "mesh_assets": 231,
+  "material_assets": 100,
+  "image_assets": 131,
   "annotation_precision": "float32_geometry",
   "diffuse_gi": {
     "backend": "gpu_bvh_compute",
-    "triangles": 168458,
+    "triangles": 265874,
     "probes": 680,
-    "relocated_probes": 53,
+    "relocated_probes": 69,
     "primary_rays": 174080,
     "diffuse_bounces": 3,
     "texture_bytes": 32640,
-    "preparation_ms": 121.584728,
+    "preparation_ms": 150.236257,
     "bake_ms": null,
     "mean_radiance": null,
-    "transport_bytes": 20445936,
+    "transport_bytes": 31640592,
     "prefetch_hit": false,
     "prefetch_wait_ms": 0.0
   },

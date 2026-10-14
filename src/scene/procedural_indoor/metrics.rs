@@ -706,6 +706,7 @@ fn export_inner(
                 ("plant_pot_radius_m", super::plants::pot_radius(plant, &p)),
                 ("plant_pot_taper", p.pot_taper),
                 ("plant_leaf_density", p.density),
+                ("plant_maturity", p.maturity),
                 ("plant_phyllotaxis_radians", p.phyllotaxis),
                 ("plant_leaf_aspect", p.leaf_aspect),
                 ("plant_crown_skew", p.crown_skew),

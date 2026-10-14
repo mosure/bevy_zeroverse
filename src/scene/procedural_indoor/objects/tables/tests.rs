@@ -1,6 +1,7 @@
 use super::*;
 fn object(kind: ObjectKind, seed: u64) -> IndoorObject {
     IndoorObject {
+        finish_seed: None,
         id: 0,
         kind,
         position: Vec3::ZERO,

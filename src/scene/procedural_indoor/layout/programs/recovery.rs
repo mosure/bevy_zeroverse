@@ -24,6 +24,61 @@ impl IndoorManifest {
             self.add_lounge_surfaces();
             self.add_lounge_side_pieces();
             self.add_work_area_side_pieces();
+            self.add_activity_side_storage();
+        }
+    }
+
+    fn add_activity_side_storage(&mut self) {
+        if self.main_furniture_count() >= self.minimum_main_objects() {
+            return;
+        }
+        let anchors: Vec<_> = self
+            .objects
+            .iter()
+            .filter(|o| {
+                !o.neighbor
+                    && matches!(
+                        o.kind,
+                        ObjectKind::Sofa | ObjectKind::Desk | ObjectKind::Table
+                    )
+            })
+            .cloned()
+            .collect();
+        let mut rng = stream(self.seed, 6133);
+        for anchor in anchors {
+            for (kind, size) in [
+                (ObjectKind::TrashCan, Vec3::new(0.36, 0.6, 0.36)),
+                (ObjectKind::SideTable, Vec3::new(0.50, 0.52, 0.44)),
+            ] {
+                if self.main_furniture_count() >= self.minimum_main_objects() {
+                    return;
+                }
+                if self.objects.iter().any(|o| {
+                    o.kind == kind
+                        && !o.neighbor
+                        && o.position.distance(anchor.position)
+                            < anchor.size.xz().length() * 0.5 + 1.
+                }) {
+                    continue;
+                }
+                'placement: for gap in [0.18, 0.32, 0.48] {
+                    for sector in 0..16 {
+                        let angle = std::f32::consts::TAU * sector as f32 / 16.
+                            + rng.random_range(-0.06..0.06);
+                        let direction = Vec2::from_angle(angle);
+                        let offset = direction
+                            * (anchor.size.xz() * 0.5 + size.xz() * 0.5 + Vec2::splat(gap));
+                        let p = anchor.position
+                            + Quat::from_rotation_y(anchor.yaw) * Vec3::new(offset.x, 0., offset.y);
+                        if self
+                            .add(kind, p, size, anchor.yaw + angle, &mut rng)
+                            .is_some()
+                        {
+                            break 'placement;
+                        }
+                    }
+                }
+            }
         }
     }
 

@@ -12,6 +12,8 @@ pub(crate) struct TorsoFit {
     sections: [Vec3; SECTIONS],
     roundness: f32,
     drape: f32,
+    ease: f32,
+    taper: f32,
 }
 
 impl TorsoFit {
@@ -59,12 +61,16 @@ impl TorsoFit {
             sections,
             roundness: 2.05,
             drape: 0.55,
+            ease: 0.008,
+            taper: 0.94,
         }
     }
 
     pub fn with_program(mut self, program: &super::GarmentProgram) -> Self {
         self.roundness = program.section_roundness;
         self.drape = program.drape;
+        self.ease = program.torso_ease_m;
+        self.taper = program.waist_taper;
         self
     }
 
@@ -82,7 +88,11 @@ impl TorsoFit {
                 + (2.0 * a - 5.0 * b + 4.0 * c - d) * f * f
                 + (-a + 3.0 * b - 3.0 * c + d) * f * f * f);
         let center = (section.y + section.z) * 0.5;
-        let radii = Vec2::new(section.x, (section.z - section.y) * 0.5).max(Vec2::splat(0.025));
+        let height = smooth(waist, shoulder, p.y);
+        let taper = self.taper.lerp(1., height);
+        let radii = (Vec2::new(section.x * taper, (section.z - section.y) * 0.5)
+            + Vec2::splat(self.ease * (1. - height * 0.5)))
+        .max(Vec2::splat(0.025));
         let q = Vec2::new(p.x, p.z - center);
         let normalized = (q / (radii * 1.015)).abs();
         let radius = (normalized.x.powf(self.roundness) + normalized.y.powf(self.roundness))
@@ -100,7 +110,9 @@ impl TorsoFit {
         // shirt look painted onto the body. Bridge its supported front panel
         // in depth while keeping the side and shoulder fades smooth.
         let x = (p.x.abs() / radii.x).min(1.0);
-        let front = section.y + radii.y * smooth(0.45, 0.98, x).powf(1.3);
+        // A sewn front panel has continuous curvature across the chest. The
+        // previous broad flat bridge created a box-like highlight plateau.
+        let front = center - radii.y * (1. - (x * 0.96).powi(2)).max(0.).sqrt();
         let bridge = -(p.z - front).max(0.0);
         let front_mask = 1. - smooth(center - 0.025, center + 0.025, p.z);
         correction.y = correction

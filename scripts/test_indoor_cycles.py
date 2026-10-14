@@ -8,10 +8,23 @@ import unittest
 import numpy as np
 
 from compare_indoor_cycles import block_areas, block_measurements, blocks, compare, measurements, optical_identity
-from indoor_reference_contract import absorption_coefficients, sky_radiance, validate_snapshot
+from indoor_reference_contract import absorption_coefficients, coverage_alpha, sky_radiance, validate_snapshot
 
 
 class ReferenceComparisonTests(unittest.TestCase):
+    def test_alpha_coverage_only_accepts_non_volumetric_surfaces(self):
+        lens = {"alpha_mode": "Blend", "base_color": [1, 1, 1, .045],
+                "thickness": 0, "specular_transmission": 0, "diffuse_transmission": 0}
+        self.assertEqual(coverage_alpha(lens), .045)
+        self.assertIsNone(coverage_alpha(dict(lens, alpha_mode="Opaque")))
+        for field, value in (("thickness", .006), ("specular_transmission", .9),
+                             ("diffuse_transmission", .1), ("alpha_mode", "Premultiplied")):
+            with self.assertRaisesRegex(ValueError, "non-volumetric"):
+                coverage_alpha(dict(lens, **{field: value}))
+        for alpha in (-.01, 1.01, float("nan")):
+            with self.assertRaisesRegex(ValueError, "finite"):
+                coverage_alpha(dict(lens, base_color=[1, 1, 1, alpha]))
+
     def test_beer_lambert_distance_and_thickness_contract(self):
         color = np.array([.4,.7,.9])
         sigma = np.array(absorption_coefficients(color,.016))

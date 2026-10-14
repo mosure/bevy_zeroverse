@@ -1,8 +1,10 @@
 //! Seeded, renderer-independent layout grammar. All lengths are metres.
 mod amenities;
+pub mod assemblies;
 pub(crate) mod botany;
 mod decor;
 pub(crate) mod equipment;
+pub(crate) mod floor;
 mod furnishing;
 mod programs;
 mod seating;
@@ -132,11 +134,12 @@ pub enum ObjectKind {
     NoticeBoard,
     WallSconce,
     CeilingPendant,
+    FloorOutlet,
 }
 
 impl ObjectKind {
     /// Authoritative item catalog, shared with distribution and placement exports.
-    pub const ALL: [Self; 63] = [
+    pub const ALL: [Self; 64] = [
         Self::Table,
         Self::Desk,
         Self::Chair,
@@ -200,6 +203,7 @@ impl ObjectKind {
         Self::NoticeBoard,
         Self::WallSconce,
         Self::CeilingPendant,
+        Self::FloorOutlet,
     ];
 
     pub fn class_name(self) -> &'static str {
@@ -241,6 +245,7 @@ impl ObjectKind {
             Self::CoatRack => "coat_rack",
             Self::RoomDivider => "room_divider",
             Self::WallOutlet => "wall_outlet",
+            Self::FloorOutlet => "floor_outlet",
             Self::LightSwitch => "light_switch",
             Self::PowerStrip => "power_strip",
             Self::Cable => "cable",
@@ -284,6 +289,9 @@ impl ObjectKind {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct IndoorObject {
+    /// Shared manufacturing/content identity, independent of geometric detail.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub finish_seed: Option<u64>,
     pub id: usize,
     pub kind: ObjectKind,
     /// Floor or support contact, not the centre of the object.
@@ -369,6 +377,10 @@ pub enum LightingMood {
 
 #[derive(Debug, Clone, Resource, Serialize, Deserialize, PartialEq)]
 pub struct IndoorManifest {
+    #[serde(default)]
+    pub camera_diagnostics: super::cameras::diagnostics::CameraSamplingDiagnostics,
+    #[serde(default)]
+    pub assembly_diagnostics: assemblies::AssemblyDiagnostics,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub appearance: Option<super::appearance::AppearanceSettings>,
     pub generator_version: u32,
@@ -380,6 +392,8 @@ pub struct IndoorManifest {
     pub room_size: Vec3,
     #[serde(default)]
     pub envelope: Option<super::envelope::EnvelopeProgram>,
+    #[serde(default)]
+    pub ceiling_installation: Option<super::architecture::ceiling::CeilingInstallation>,
     pub palette: u32,
     pub furniture_style: u32,
     #[serde(default)]
@@ -482,6 +496,8 @@ impl IndoorManifest {
         let mut room_size = super::domain::room_size(seed);
         room_size.y = super::envelope::EnvelopeProgram::room_height(seed, room_size);
         let mut scene = Self {
+            camera_diagnostics: default(),
+            assembly_diagnostics: default(),
             appearance: None,
             generator_version: GENERATOR_VERSION,
             program: Some(super::program::IndoorProgram::sample(
@@ -492,6 +508,7 @@ impl IndoorManifest {
             world_yaw: 0.0,
             room_size,
             envelope: None,
+            ceiling_installation: None,
             palette: rng.random_range(0..6),
             furniture_style: rng.random_range(0..3),
             floor_plan: [
@@ -560,6 +577,9 @@ impl IndoorManifest {
             scene.column_width,
         ));
         scene.envelope = Some(super::envelope::EnvelopeProgram::sample(&mut scene));
+        scene.ceiling_installation = Some(
+            super::architecture::ceiling::CeilingInstallation::sample(&scene),
+        );
         scene.furnish(&mut rng);
         scene.assign_work_surfaces();
         scene.furnish_amenities();
@@ -570,7 +590,10 @@ impl IndoorManifest {
         scene.scatter_clutter(&mut rng);
         super::humans::populate(&mut scene, human_density);
         scene.settle_seating();
+        scene.furnish_floor_details();
         scene.connect_equipment();
+        scene.finish_floor_outlets();
+        scene.assign_assembly_finishes();
         // Routing depends on settled people, but may append new object instances.
         // Assign the final disjoint human ID range before camera/annotation export.
         for (index, human) in scene.humans.iter_mut().enumerate() {
@@ -589,6 +612,7 @@ impl IndoorManifest {
         rng: &mut ChaCha8Rng,
     ) -> IndoorObject {
         IndoorObject {
+            finish_seed: None,
             id: self.objects.len(),
             kind,
             position: pos,
@@ -742,6 +766,11 @@ impl IndoorManifest {
             .iter_mut()
             .filter(|o| o.kind == ObjectKind::Chair)
         {
+            // An accepted functional group owns this relationship. Nearest
+            // surface assignment is only for independently placed seating.
+            if chair.interaction_target.is_some() {
+                continue;
+            }
             let forward = Quat::from_rotation_y(chair.yaw) * Vec3::NEG_Z;
             chair.interaction_target = surfaces
                 .iter()
@@ -1007,6 +1036,17 @@ impl IndoorManifest {
         }) {
             return false;
         }
+        if !object.neighbor
+            && self.ceiling_installation.as_ref().is_some_and(|c| {
+                c.modules.iter().any(|m| {
+                    let (lo, hi) = m.bounds();
+                    world_lo.cmplt(hi + Vec3::splat(0.025)).all()
+                        && world_hi.cmpgt(lo - Vec3::splat(0.025)).all()
+                })
+            })
+        {
+            return false;
+        }
         let inverse = support.transform().compute_affine().inverse();
         let local_bounds = |o: &IndoorObject| {
             let centre = inverse.transform_point3(o.position);
@@ -1174,6 +1214,9 @@ impl IndoorManifest {
                     }),
             );
             boxes.extend(super::floorplan::obstacles(self));
+            if let Some(ceiling) = &self.ceiling_installation {
+                boxes.extend(ceiling.modules.iter().map(|m| m.bounds()));
+            }
             return boxes;
         }
         let half = self.room_size * 0.5;

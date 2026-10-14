@@ -2,6 +2,34 @@ use super::*;
 use crate::scene::procedural_indoor::validation::{validate_geometry, validate_layout};
 
 #[test]
+fn accepted_meetings_have_real_seats_and_replayable_receipts() {
+    let mut meetings = 0;
+    for seed in 0..64 {
+        let scene =
+            IndoorManifest::generate_with_humans(seed, IndoorLayout::Conference, 0.65, 0, 0.)
+                .unwrap();
+        scene.validate_assemblies().unwrap();
+        for group in &scene.assembly_diagnostics.accepted {
+            if group.role == assemblies::AssemblyRole::Meeting {
+                meetings += 1;
+                assert!(
+                    group.seats.len() >= (group.requested_capacity as f32 * 0.65).ceil() as usize
+                );
+                assert!(group.attempts <= 12);
+            }
+        }
+        let replay =
+            IndoorManifest::generate_with_humans(seed, IndoorLayout::Conference, 0.65, 0, 0.)
+                .unwrap();
+        assert_eq!(scene, replay);
+    }
+    assert!(
+        meetings > 16,
+        "conference activity should realize meeting assemblies: {meetings}"
+    );
+}
+
+#[test]
 fn constrained_mixed_activity_room_retains_a_complete_furniture_group() {
     let scene =
         IndoorManifest::generate_with_humans(43_218_880, IndoorLayout::Mixed, 0.65, 3, 0.25)

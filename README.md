@@ -69,13 +69,17 @@ rooms, synchronized views, matching annotations, floor plans and distributions.
 - **Object scene programs:** parametric primitives, mesh deformation, rotation
   augmentation and material sampling, with Cornell cube and simple room scenes.
 - **Continuous scene programs:** polygonal footprints, cut-ins, chamfered corners,
-  sloped ceilings, arches, pillars, floor levels and mezzanines. Windows and glass
-  partitions connect interiors to neighboring rooms and outdoor context.
-- **Procedural furnishings and appearance:** 63 item kinds, multipart furniture,
+  sloped ceilings, arches, pillars, floor levels and mezzanines. Acoustic panels,
+  suspended ceilings, ducts, conduit, sprinklers and trusses vary overhead detail.
+  Windows include shaped glazing, tints, partial frosting, blinds and curtains;
+  exterior streets and planting provide context beyond the glass.
+- **Procedural furnishings and appearance:** 64 item kinds, multipart furniture,
   task-conditioned tabletop groups, multi-monitor workspaces, coordinated wall
   galleries, 14 plant growth habits, connected equipment and fixtures. Continuous
   construction and finish programs vary furniture supports, shaped upholstery,
-  dyed yarns, timber treatments, concrete, glass and lighting. Architecture and
+  dyed yarns, timber treatments, concrete, glass and lighting. Floor finishes vary
+  plank/tile structure, regional wear and rugs, with floor outlets and routed cables.
+  Architecture and
   furnishings need no downloaded mesh or texture catalog. Power cables follow
   collision-checked gravity curves, including floor contact. Daylight-aware
   exposure and native soft sun shadows retain surface detail in bright rooms.

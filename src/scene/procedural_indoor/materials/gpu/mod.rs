@@ -24,6 +24,7 @@ struct Status {
 #[derive(Clone)]
 pub(crate) struct Request {
     pub images: [Handle<Image>; 3],
+    normal_output: bool,
     recipe: recipe::Recipe,
     /// Exactly the CPU transport's existing point-sampled 32x32 albedo contract.
     albedo: Arc<Vec<[u8; 3]>>,
@@ -57,6 +58,7 @@ pub(super) enum Maps {
 pub(super) struct Plan {
     recipe: recipe::Recipe,
     albedo: Vec<[u8; 3]>,
+    normal_output: bool,
 }
 impl Maps {
     pub(super) fn prepare(r: &MaterialRecipe, floor: u32, gpu: bool) -> Self {
@@ -75,7 +77,13 @@ impl Maps {
                         albedo.push(t.color.map(|v| (v.clamp(0., 1.) * 255.) as u8));
                     }
                 }
-                return Self::Gpu(Box::new(Plan { recipe, albedo }));
+                return Self::Gpu(Box::new(Plan {
+                    recipe,
+                    albedo,
+                    // Polished chrome intentionally has no normal texture: RGBA8
+                    // quantization would exaggerate its microscopic slopes.
+                    normal_output: r.surface != super::Surface::Chrome,
+                }));
             }
         }
         Self::Cpu(Box::new(r.maps(floor)))
@@ -89,6 +97,9 @@ impl Maps {
             Self::Cpu(maps) => (*maps).map(|m| images.add(m)),
             Self::Gpu(plan) => {
                 let handles = [MapType::Color, MapType::Normal, MapType::Data].map(|kind| {
+                    if matches!(kind, MapType::Normal) && !plan.normal_output {
+                        return Handle::default();
+                    }
                     let mut image = super::mip_chain_image(Vec::new(), plan.recipe.meta[1], kind);
                     image.data = None;
                     image.texture_descriptor.usage |=
@@ -97,6 +108,7 @@ impl Maps {
                 });
                 requests.0.push(Request {
                     images: handles.clone(),
+                    normal_output: plan.normal_output,
                     recipe: plan.recipe,
                     albedo: Arc::new(plan.albedo),
                     status: Arc::default(),

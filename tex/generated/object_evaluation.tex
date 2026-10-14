@@ -1,0 +1,196 @@
+% Generated from the current checksum-bound object atlas.
+\section{Object geometry diversity}
+\label{sec:object-diversity}
+\subsection{Fixed-envelope protocol}
+We evaluate all 64 furnishing/prop categories on 256 consecutive construction seeds each: 16384 triangle assemblies. Each category holds its metric placement envelope, orientation and finish seed fixed. This isolates internal construction from changes in object size, pose or color; it deliberately does not measure the full joint scene distribution. The cable fixture varies a controlled centerline; actual endpoint connectivity and collision are separate room-level checks. Humans and architecture are evaluated elsewhere.
+
+For each mesh, six orthographic first-surface depth maps sample pixel centers at $24\times24$ resolution per direction. Depth is normalized by the fixed envelope extent. Pair distance is mean absolute depth difference over the union of hit pixels; missing-versus-present surface contributes one. Greedy coverage retains a sample only when its distance to every earlier representative exceeds the threshold. We report thresholds 0.005, 0.015 and 0.030, and retain seed order. These are finite-resolution, order-dependent coverage counts, not numbers of independent geometries, perceptual embedding volume, or a proof of a multiplicative increase in dataset utility. Thin features and content on nearly planar surfaces can be under-resolved; saturated categories need more samples or a finer descriptor.
+
+All audited assemblies passed finite position/normal/UV, unit-normal, winding, nondegenerate-triangle, index, semantic-label and reserved-envelope checks (maximum allowed overrun 3 mm). This does not prove watertightness, lack of every self-intersection, or physical plausibility. Separate regression tests cover support, cable attachment, overlapping planar faces and deterministic replay. Mesh build time excludes placement, materials, uploads and rendering and is not completed-room throughput.
+
+Six examples per category are selected by deterministic farthest-spread sampling from the same depth descriptors, beginning with seed zero. The native renderer reuses one device, with fixed cameras, exposure, lights and finish seed within each category. The project-page atlas provides RGB and normal views, every example's program inputs, all sampled parameter marginals and the complete machine-readable measurements. These selected examples are correlated draws, not one-parameter interventions; inactive conditional controls are not evidence of realized shape diversity.
+
+\subsection{Category measurements}
+\small
+\begin{longtable}{lrrr r r}
+\caption{Current construction coverage at three distances; triangles and CPU build milliseconds are per-object medians. All categories use 256 seeds.}\\
+\toprule Category & $C_{.005}$ & $C_{.015}$ & $C_{.030}$ & Triangles & ms \\\midrule
+\endfirsthead
+\toprule Category & $C_{.005}$ & $C_{.015}$ & $C_{.030}$ & Triangles & ms \\\midrule
+\endhead
+Table & 255 & 246 & 225 & 2272 & 0.147 \\
+Desk & 255 & 246 & 219 & 2184 & 0.125 \\
+Chair & 255 & 252 & 241 & 4444 & 0.148 \\
+Sofa & 256 & 252 & 176 & 11552 & 0.371 \\
+CoffeeTable & 256 & 255 & 236 & 2200 & 0.058 \\
+Cabinet & 46 & 20 & 7 & 1744 & 0.045 \\
+Bookcase & 256 & 251 & 163 & 9576 & 0.273 \\
+Plant & 256 & 256 & 256 & 5240 & 0.229 \\
+TrashCan & 219 & 138 & 54 & 1452 & 0.031 \\
+Whiteboard & 51 & 26 & 9 & 646 & 0.035 \\
+Display & 91 & 47 & 34 & 132 & 0.006 \\
+Laptop & 252 & 200 & 122 & 8012 & 0.212 \\
+Monitor & 256 & 255 & 250 & 668 & 0.024 \\
+Notebook & 3 & 2 & 1 & 540 & 0.019 \\
+Mug & 212 & 97 & 36 & 1284 & 0.034 \\
+Books & 256 & 232 & 137 & 2160 & 0.087 \\
+Rug & 167 & 66 & 30 & 384 & 0.017 \\
+WallArt & 15 & 3 & 2 & 542 & 0.025 \\
+Clock & 159 & 58 & 9 & 5560 & 0.234 \\
+FloorLamp & 256 & 256 & 256 & 2416 & 0.078 \\
+Keyboard & 252 & 235 & 150 & 7020 & 0.179 \\
+Mouse & 251 & 210 & 115 & 1040 & 0.056 \\
+WaterBottle & 160 & 67 & 22 & 3104 & 0.095 \\
+PenHolder & 256 & 256 & 256 & 752 & 0.033 \\
+Printer & 171 & 49 & 15 & 776 & 0.037 \\
+StorageBox & 188 & 55 & 18 & 452 & 0.035 \\
+CoatRack & 233 & 205 & 159 & 3280 & 0.122 \\
+Bag & 246 & 120 & 33 & 736 & 0.041 \\
+CoffeeCup & 112 & 65 & 30 & 956 & 0.032 \\
+SodaCan & 11 & 2 & 1 & 1752 & 0.050 \\
+Notepad & 43 & 23 & 10 & 240 & 0.010 \\
+Pencil & 59 & 21 & 9 & 116 & 0.007 \\
+Microphone & 168 & 152 & 103 & 1076 & 0.029 \\
+Phone & 66 & 20 & 13 & 200 & 0.009 \\
+WallOutlet & 14 & 7 & 3 & 1252 & 0.041 \\
+LightSwitch & 31 & 14 & 6 & 724 & 0.027 \\
+SideTable & 256 & 250 & 236 & 2200 & 0.081 \\
+MobileCart & 147 & 92 & 56 & 3348 & 0.093 \\
+DrawerUnit & 13 & 3 & 3 & 1400 & 0.043 \\
+Bench & 23 & 13 & 8 & 1136 & 0.035 \\
+Ottoman & 144 & 73 & 32 & 1840 & 0.057 \\
+RoomDivider & 23 & 17 & 17 & 540 & 0.049 \\
+DeskLamp & 233 & 206 & 164 & 896 & 0.028 \\
+CoffeeMaker & 130 & 38 & 21 & 1024 & 0.040 \\
+Kettle & 150 & 39 & 14 & 1628 & 0.046 \\
+Speaker & 197 & 84 & 27 & 1232 & 0.059 \\
+Headphones & 250 & 213 & 136 & 2624 & 0.083 \\
+Stapler & 152 & 52 & 18 & 404 & 0.015 \\
+TapeDispenser & 201 & 105 & 44 & 648 & 0.023 \\
+DocumentTray & 34 & 23 & 12 & 2052 & 0.045 \\
+DeskOrganizer & 8 & 8 & 8 & 888 & 0.027 \\
+TissueBox & 256 & 201 & 61 & 1292 & 0.032 \\
+Vase & 252 & 241 & 183 & 384 & 0.017 \\
+Bowl & 218 & 141 & 68 & 384 & 0.013 \\
+DeskFan & 71 & 35 & 18 & 4276 & 0.133 \\
+Projector & 93 & 10 & 2 & 2728 & 0.075 \\
+ProjectionScreen & 18 & 10 & 8 & 514 & 0.015 \\
+PowerStrip & 4 & 2 & 1 & 2052 & 0.088 \\
+Cable & 209 & 188 & 143 & 496 & 0.016 \\
+WallShelf & 34 & 30 & 17 & 700 & 0.036 \\
+NoticeBoard & 1 & 1 & 1 & 6600 & 0.226 \\
+WallSconce & 235 & 174 & 103 & 344 & 0.023 \\
+CeilingPendant & 108 & 38 & 16 & 464 & 0.020 \\
+FloorOutlet & 73 & 72 & 31 & 668 & 0.025 \\
+\bottomrule
+\end{longtable}
+\normalsize
+\begin{figure}[p]
+\centering\includegraphics[width=\linewidth]{generated/object_plate_0.png}
+\caption{Matched studio construction examples: Chair, Table, Sofa, Plant. All columns within each row share dimensions, viewpoint, lights and finish seed. Seed labels link to the full sampled parameter grid in the downloadable atlas. Example selection emphasizes shape spread, not frequency or image quality; the table includes every sampled seed.}
+\end{figure}
+\begin{figure}[p]
+\centering\includegraphics[width=\linewidth]{generated/object_plate_1.png}
+\caption{Matched studio construction examples: Keyboard, Mouse, FloorLamp, CoatRack. All columns within each row share dimensions, viewpoint, lights and finish seed. Seed labels link to the full sampled parameter grid in the downloadable atlas. Example selection emphasizes shape spread, not frequency or image quality; the table includes every sampled seed.}
+\end{figure}
+\begin{figure}[p]
+\centering\includegraphics[width=\linewidth]{generated/object_plate_2.png}
+\caption{Matched studio construction examples: StorageBox, Printer, Bag, Headphones. All columns within each row share dimensions, viewpoint, lights and finish seed. Seed labels link to the full sampled parameter grid in the downloadable atlas. Example selection emphasizes shape spread, not frequency or image quality; the table includes every sampled seed.}
+\end{figure}
+\begin{figure}[p]
+\centering\includegraphics[width=\linewidth]{generated/object_plate_3.png}
+\caption{Matched studio construction examples: WaterBottle, Microphone, WallSconce, FloorOutlet. All columns within each row share dimensions, viewpoint, lights and finish seed. Seed labels link to the full sampled parameter grid in the downloadable atlas. Example selection emphasizes shape spread, not frequency or image quality; the table includes every sampled seed.}
+\end{figure}
+\begin{figure}[p]
+\centering\includegraphics[width=\linewidth]{generated/object_parameter_grid.png}
+\smallskip
+\small\begin{tabular}{lrrrrrr}\toprule
+Construction seed & 0 & 228 & 234 & 253 & 179 & 120 \\
+\midrule
+Shade height (m) & 0.248 & 0.235 & 0.201 & 0.239 & 0.332 & 0.348 \\
+Radius / envelope width & 0.402 & 0.327 & 0.357 & 0.414 & 0.318 & 0.349 \\
+Upper / lower radius & 0.993 & 0.630 & 0.716 & 0.674 & 0.932 & 0.510 \\
+Stem offset / width & 0.053 & 0.031 & -0.087 & 0.096 & 0.008 & -0.052 \\
+Shade sides & 32 & 32 & 32 & 32 & 32 & 32 \\
+Support code & 2 & 0 & 1 & 1 & 1 & 2 \\
+\bottomrule\end{tabular}\normalsize
+\caption{A construction parameter grid with values taken from the pictured meshes. Each lamp occupies the same $0.55\times1.65\times0.55$ m reserved envelope. Support code 0 is a disk and stem, 1 a wooden tripod, and 2 four metal legs. A 32-sided shade approximates a circular section; smaller counts produce polygonal shades. Stem offset and shade radius are jointly bounded by the reserved envelope. The bulb and light emitter use the same computed position. This grid shows correlated sampled programs, not isolated causal effects.}
+\end{figure}
+\clearpage
+\clearpage
+\subsection{Sampled controls and their interpretation}
+The following inventory lists the sampled construction inputs recorded by each builder. Some controls are conditional on a construction choice (for example, a phone's rear lenses affect only face-down configurations); a range does not imply independent influence. Observed ranges, eight-bin numeric marginals, categorical frequencies and all seed-level values accompany the project-page grids. A small coverage count for a flat notebook, notice board or outlet is retained explicitly rather than counting different textures as different geometry.
+\small
+\begin{longtable}{p{.20\linewidth}p{.74\linewidth}}
+\toprule Category & Recorded controls \\\midrule
+\endfirsthead
+\toprule Category & Recorded controls \\\midrule
+\endhead
+
+Table & capsule\_ blend, edge\_ bevel, frame\_ bend\_ m, leg\_ aspect, leg\_ inset, leg\_ radius, leg\_ rake, leg\_ taper, outline\_ exponent, pedestal\_ base\_ aspect, pedestal\_ base\_ radius, pedestal\_ radius, spider\_ sweep, support, taper, top\_ surface, top\_ thickness, trestle\_ spread \\
+Desk & capsule\_ blend, edge\_ bevel, frame\_ bend\_ m, leg\_ aspect, leg\_ inset, leg\_ radius, leg\_ rake, leg\_ taper, outline\_ exponent, pedestal\_ base\_ aspect, pedestal\_ base\_ radius, pedestal\_ radius, spider\_ sweep, support, taper, top\_ surface, top\_ thickness, trestle\_ spread \\
+Chair & arm\_ height, arm\_ pad\_ length, arm\_ pad\_ roundness, arm\_ pad\_ width\_ m, arm\_ support, armrests, back\_ construction, back\_ width\_ fraction, base\_ radius\_ fraction, curvature, frame\_ bend\_ m, headrest, headrest\_ curvature\_ m, headrest\_ height\_ m, headrest\_ width\_ fraction, leg\_ splay, lumbar, mesh\_ pitch\_ m, recline, seat\_ crown, seat\_ depth\_ fraction, seat\_ dish\_ m, seat\_ roundness, seat\_ width\_ fraction, shell\_ thickness, shoulder\_ flare, spindle\_ pitch, spoke\_ count, taper \\
+Sofa & arm\_ crown, arm\_ rise\_ m, arm\_ roundness, arm\_ width, back\_ tilt, chaise, cushion, cushion\_ crown, cushion\_ dish\_ m, cushion\_ gap\_ m, exposed\_ frame, left\_ return, leg\_ height, module\_ asymmetry, modules, pillow\_ roll, pillow\_ width\_ m, pillows, roundness, seam\_ radius\_ m, seat\_ height, upholstery \\
+CoffeeTable & capsule\_ blend, edge\_ bevel, frame\_ bend\_ m, leg\_ aspect, leg\_ inset, leg\_ radius, leg\_ rake, leg\_ taper, outline\_ exponent, pedestal\_ base\_ aspect, pedestal\_ base\_ radius, pedestal\_ radius, spider\_ sweep, support, taper, top\_ surface, top\_ thickness, trestle\_ spread \\
+Cabinet & columns, fill, front, handle, levels, metal, open\_ back, open\_ fraction, panel\_ m \\
+Bookcase & columns, fill, front, handle, levels, metal, open\_ back, open\_ fraction, panel\_ m \\
+Plant & branching, crown\_ skew, density, droop, leaf\_ aspect, maturity, phyllotaxis, pot\_ fraction, pot\_ radius, pot\_ taper \\
+TrashCan & finish, lid, rim\_ width, squareness, taper \\
+Whiteboard & border\_ m, marker\_ count, mounts, tray, tray\_ fraction, tray\_ side \\
+Display & aspect, bezel\_ m, curvature\_ radius\_ m, lift\_ fraction, panel\_ m, stand, tilt\_ radians \\
+Laptop & aspect\_ ratio, bezel\_ m, chassis\_ m, corner\_ m, hinge\_ radians, keyboard\_ columns, keyboard\_ fraction, lid\_ m, port\_ count, speaker\_ grilles, trackpad\_ fraction \\
+Monitor & aspect, bezel\_ m, curvature\_ radius\_ m, lift\_ fraction, panel\_ m, stand, tilt\_ radians \\
+Notebook & binding, cover\_ fraction, size\_ variation, stack\_ yaw, strap, volumes \\
+Mug & fill\_ fraction, style, taper, wall\_ m \\
+Books & binding, cover\_ fraction, size\_ variation, stack\_ yaw, strap, volumes \\
+Rug & clipped\_ corners, rug\_ exponent, rug\_ taper \\
+WallArt & border\_ width, mat\_ width, picture\_ inset, shadow\_ gap, style \\
+Clock & bezel\_ fraction, dark\_ dial, digital, second\_ hand, seconds, square \\
+FloorLamp & shade\_ height, shade\_ radius\_ fraction, shade\_ sides, shade\_ taper, stem\_ offset, support \\
+Keyboard & deck\_ fraction, key\_ area\_ fraction, keyboard\_ columns, keyboard\_ rows, keyboard\_ split, row\_ stagger, wrist\_ rest \\
+Mouse & button\_ fraction, mouse\_ crown, mouse\_ roundness, mouse\_ waist, trackball \\
+WaterBottle & fill\_ fraction, neck\_ fraction, shoulder\_ fraction, style \\
+PenHolder & variant \\
+Printer & construction, lid\_ fraction, roundness, split \\
+StorageBox & construction, handle\_ span, lid\_ fraction, roundness, taper \\
+CoatRack & arms, branch\_ height, construction, handle\_ span \\
+Bag & construction, handle\_ span, lid\_ fraction, roundness, taper \\
+CoffeeCup & fill\_ fraction, lid, style, taper, wall\_ m \\
+SodaCan & heel\_ fraction, lid, neck\_ fraction, style \\
+Notepad & binding, leaf\_ fraction \\
+Pencil & barrel\_ sides, binding, tip\_ fraction \\
+Microphone & microphone\_ bend, microphone\_ head, microphone\_ lateral \\
+Phone & bezel\_ fraction, camera\_ island, case\_ fraction, lens\_ count \\
+WallOutlet & edge\_ radius, finish, gangs, rocker\_ angle, screws, style \\
+LightSwitch & edge\_ radius, finish, gangs, rocker\_ angle, screws, style \\
+SideTable & capsule\_ blend, edge\_ bevel, frame\_ bend\_ m, leg\_ aspect, leg\_ inset, leg\_ radius, leg\_ rake, leg\_ taper, outline\_ exponent, pedestal\_ base\_ aspect, pedestal\_ base\_ radius, pedestal\_ radius, spider\_ sweep, support, taper, top\_ surface, top\_ thickness, trestle\_ spread \\
+MobileCart & feet\_ height, levels \\
+DrawerUnit & drawer\_ bias, drawers, feet\_ height, handle\_ fraction \\
+Bench & backed, roundness, slats \\
+Ottoman & feet\_ height, roundness \\
+RoomDivider & panel\_ fraction, slats \\
+DeskLamp & reach, style, tilt \\
+CoffeeMaker & belly, neck, style, taper \\
+Kettle & belly, style, taper \\
+Speaker & body\_ taper, control\_ fraction, profile\_ roundness, style, support\_ fraction \\
+Headphones & control\_ fraction, profile\_ roundness, support\_ fraction \\
+Stapler & body\_ taper, control\_ fraction, support\_ fraction \\
+TapeDispenser & body\_ taper, control\_ fraction, support\_ fraction \\
+DocumentTray & body\_ taper, sections, support\_ fraction \\
+DeskOrganizer & body\_ taper, sections, support\_ fraction \\
+TissueBox & box\_ height, finish, fold, lean, opening, phase \\
+Vase & belly, flutes, neck, style, taper \\
+Bowl & belly, flutes, style, taper \\
+DeskFan & style, support\_ fraction \\
+Projector & corner\_ m, lens\_ fraction, lens\_ offset, vent\_ count \\
+ProjectionScreen & screen\_ drop, screen\_ frame \\
+PowerStrip & corner\_ m, socket\_ count \\
+Cable & variant \\
+WallShelf & bracket\_ style, shelf\_ brackets, shelf\_ span \\
+NoticeBoard & note\_ count \\
+WallSconce & diffuser\_ fraction, sconce\_ height, sconce\_ taper, sconce\_ width \\
+CeilingPendant & diffuser\_ fraction, shade\_ fraction \\
+FloorOutlet & lid\_ height\_ fraction, lid\_ width\_ fraction \\
+\bottomrule
+\end{longtable}
+\normalsize

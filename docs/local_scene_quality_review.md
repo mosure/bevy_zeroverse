@@ -60,7 +60,7 @@ inside `Queue::write_texture`. Disabling ERMS/FSRM for one diagnostic process re
 the maximum image preparation interval to 29 ms. The local Vulkan HAL patch now
 selects host-cached coherent memory for transient write-only upload buffers; it
 retains usage flags, synchronization and coherent-memory fallback. It introduces
-no process-wide libc setting. See `third_party/wgpu-hal/ZEROVERSE_PATCH.md`.
+no process-wide libc setting. See [historical patch notes](evidence/wgpu_dependency_audit/wgpu-hal_29_patch.md).
 
 Raw evidence is in `out/local_quality_before`, `out/local_quality_after` and
 `out/local_quality_after/upload_stack.txt`. The debugger-interrupted run and the

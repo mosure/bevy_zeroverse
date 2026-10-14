@@ -1,32 +1,32 @@
 % Generated from the same manifest as the project page.
 \section{Architectural evaluation}
 \subsection{Protocol and architectural audit}
-This cohort was captured with bevy\_zeroverse 0.39.0, generator 37, on 512 consecutive seeds (0--511), with 4 cameras per room, furnishing density 0.65 and static human density 0.25. Every audited room passed the recorded layout, support and camera-clearance checks. The first 32 rooms were rendered without appearance filtering at 640$\times$400, with 2 trajectory endpoints: 256 camera/time identities in six aligned modes. The audit contains 512 unique structural signatures after centimetre quantization; this bounded diagnostic does not estimate the total procedural space or learning utility.
+This cohort was captured with bevy\_zeroverse 0.40.0, generator 40, on 512 consecutive seeds (0--511), with 4 cameras per room, furnishing density 0.65 and static human density 0.25. Every audited room passed the recorded layout, support and camera-clearance checks. The first 32 rooms were rendered without appearance filtering at 640$\times$400, with 2 trajectory endpoints: 256 camera/time identities in six aligned modes. The audit contains 512 unique structural signatures after centimetre quantization; this bounded diagnostic does not estimate the total procedural space or learning utility.
 
 \begin{table}[ht]\centering\small
 \begin{tabular}{lrr}\toprule
 Built feature & Rooms & Fraction \\\midrule
 Arched portals & 194 / 512 & 37.9\% \\
-Chamfered corners & 307 / 512 & 60.0\% \\
-Exterior cut-in & 221 / 512 & 43.2\% \\
-Interior pillars & 425 / 512 & 83.0\% \\
-Mezzanine & 46 / 512 & 9.0\% \\
-Oblique walls & 458 / 512 & 89.5\% \\
-Raised floor & 90 / 512 & 17.6\% \\
+Chamfered corners & 178 / 512 & 34.8\% \\
+Exterior cut-in & 403 / 512 & 78.7\% \\
+Interior pillars & 422 / 512 & 82.4\% \\
+Mezzanine & 42 / 512 & 8.2\% \\
+Oblique walls & 497 / 512 & 97.1\% \\
+Raised floor & 94 / 512 & 18.4\% \\
 Sloping ceiling & 354 / 512 & 69.1\% \\
-Sunken floor & 103 / 512 & 20.1\% \\
+Sunken floor & 99 / 512 & 19.3\% \\
 \bottomrule\end{tabular}
 \caption{Architectural features in the complete consecutive population. Features co-occur; fractions do not sum to 100\%.}\label{tab:architecture}
 \end{table}
 
 \subsection{Geometry, calibration and displayed captures}
-Footprint areas span 35.05--262.58 m$^2$, with roof pitch 0.00--11.32$^\circ$. Figure~\ref{fig:architecture-levels} and Figure~\ref{fig:architecture-envelopes} pair native RGB with the actual serialized envelope plans and sections. Camera arrows indicate direction, rather than frusta. Solid furnishings are footprint proxies; the sections show roof and floor levels and omit furnishings, pillars and partitions. Structural feature examples are selected independently of rendered appearance; all rooms remain available in the contact sheet and explorer. Metric constraints are not building-code certification.
+Footprint areas span 34.27--257.10 m$^2$, with roof pitch 0.00--11.32$^\circ$. Figure~\ref{fig:architecture-levels} and Figure~\ref{fig:architecture-envelopes} pair native RGB with the actual serialized envelope plans and sections. Camera arrows indicate direction, rather than frusta. Solid furnishings are footprint proxies; the sections show roof and floor levels and omit furnishings, pillars and partitions. Structural feature examples are selected independently of rendered appearance; all rooms remain available in the contact sheet and explorer. Metric constraints are not building-code certification.
 
 The page presents all 32 rooms, all four cameras and both endpoints in one explorer, with 1536 channel images. RGB, depth, normals, semantics, positions, co-visibility, camera calibration and plans share the same room/time identity. RGB preserves renderer tone mapping and sRGB encoding without per-image exposure correction or cropping. All previews use lossless WebP. Depth is an 8-bit axial-depth preview divided by 15 m and clamped; normals store $(n+1)/2$, and positions are affine-normalized by the annotation AABB and clamped. Semantic colors are preserved exactly. These previews are not float32 training labels. Geometric annotations use the first surface, including opaque glass, rather than reflected or refracted optical content.
 
-The native capture protocol uses Auto quality, shadows, SSAO and approximate diffuse GI with 1024 primary rays per probe. Renderer identity and capabilities are recorded in every calibration download. All captured views passed the recorded alignment checks: maximum per-view depth/position p99 error 2.861 $\mu$m, reprojection p99 0.00061 pixels and normal-length error 2.980e-7. Every view contains at least 7 semantic classes. 19/19 rooms with humans in the camera's primary functional zone show person pixels; 2/23 rooms with humans anywhere in the main envelope never show person pixels. These are class-level observations, rather than instance-level visibility guarantees.
+The native capture protocol uses Auto quality, shadows, SSAO and approximate diffuse GI with 1024 primary rays per probe. Renderer identity and capabilities are recorded in every calibration download. All captured views passed the recorded alignment checks: maximum per-view depth/position p99 error 2.861 $\mu$m, reprojection p99 0.00042 pixels and normal-length error 2.980e-7. Every view contains at least 7 semantic classes. 17/17 rooms with humans in the camera's primary functional zone show person pixels; 4/23 rooms with humans anywhere in the main envelope never show person pixels. These are class-level observations, rather than instance-level visibility guarantees.
 
-Scene construction through capture/export takes 1.34--5.69 seconds per room (median 2.39), excluding application startup. This is a bounded capture run, not a sustained-throughput, unlimited-process memory-stability or photographic-realism qualification.
+Scene construction through capture/export takes 1.69--5.85 seconds per room (median 3.71), excluding application startup. This is a bounded capture run, not a sustained-throughput, unlimited-process memory-stability or photographic-realism qualification.
 
 \begin{figure}[p]
 \centering\includegraphics[width=\linewidth,height=.82\textheight,keepaspectratio]{generated/architecture_levels.jpg}
@@ -51,7 +51,7 @@ Scene construction through capture/export takes 1.34--5.69 seconds per room (med
 \subsection{Co-visibility in every captured room}
 Production co-visibility accompanies every RGB and geometry view in this cohort. Each valid source pixel stores an exact uint16 membership mask of other capture cameras that see its first surface, with the source bit excluded. One deterministic additive legend is shared across all views. The unified explorer supports all memberships and individual-peer overlays; the selected peer's own tile stays RGB.
 
-Across every room and endpoint, 82.3\% of valid source-pixel observations are visible to at least one peer. This pixel-weighted statistic pools 65536000 valid source-pixel observations; it does not count unique 3D points. Exact downloads include 16-bit grayscale membership PNGs, separate 8-bit 0/1 validity PNGs, calibrated transforms and the ordered camera legend. Zero membership with valid=1 is an unshared surface; zero membership with valid=0 is background. Co-visibility and other annotations were captured together, rather than joined from separate runs.
+Across every room and endpoint, 83.2\% of valid source-pixel observations are visible to at least one peer. This pixel-weighted statistic pools 65536000 valid source-pixel observations; it does not count unique 3D points. Exact downloads include 16-bit grayscale membership PNGs, separate 8-bit 0/1 validity PNGs, calibrated transforms and the ordered camera legend. Zero membership with valid=1 is an unshared surface; zero membership with valid=0 is background. Co-visibility and other annotations were captured together, rather than joined from separate runs.
 
 \begin{figure}[p]
 \centering\includegraphics[width=\linewidth,height=.82\textheight,keepaspectratio]{generated/architecture_co_visibility.jpg}
@@ -63,23 +63,23 @@ A separate prespecified factor sweep covers 2 geometry families, eleven settings
 
 Captures export a full row-major pixel-space $K$, image dimensions, half-pixel centers, a versioned centered pinhole lens contract, normalized playback progress, eased trajectory progress and optional explicitly assigned seconds. Unassigned physical time remains unknown. Short handheld paths sample local metric translations and yaw/pitch/roll increments independently of a moving look-target, retaining swept collision checks. Requested high/low/zero proxy-overlap strata are selected before placement retries. Their all-ray proxy estimates are stored separately from rendered directed overlap over valid source pixels. A proxy-negative pair can retain a small rendered overlap. Lens distortion and sampled principal points are not implemented.
 
-Table~\ref{tab:factor-qualification} reports means over directed rendered pairs, and the maximum per-view 99th-percentile self-reprojection error. There are 12 exact duplicate RGB images: the baseline/overlap interventions deliberately reuse the reference camera. These counts measure exact repetition in this matched study, not perceptual redundancy across a training population. Sensor white balance, blur, noise and optional JPEG are separate seeded RGB-only export transforms with individual operator regressions; they are not applied in this render sweep. This bounded check does not establish photographic realism, a calibrated sensor model, a fitted training mixture or downstream transfer.
+Table~\ref{tab:factor-qualification} reports means over directed rendered pairs, and the maximum per-view 99th-percentile self-reprojection error. There are 10 exact duplicate RGB images: the baseline/overlap interventions deliberately reuse the reference camera. These counts measure exact repetition in this matched study, not perceptual redundancy across a training population. Sensor white balance, blur, noise and optional JPEG are separate seeded RGB-only export transforms with individual operator regressions; they are not applied in this render sweep. This bounded check does not establish photographic realism, a calibrated sensor model, a fitted training mixture or downstream transfer.
 
 \begin{table}[htbp]\centering\small
 \begin{tabular}{lrrr}\toprule
 Factor & Shared pixels (\%) & Baseline (m) & Reproj. p99 max (px) \\
 \midrule
-reference & 51.6614 & 2.542 & 0.00012 \\
-portrait & 46.9980 & 2.131 & 0.00008 \\
-wide baseline & 41.8729 & 4.723 & 0.00012 \\
-handheld & 50.1529 & 2.470 & 0.00006 \\
-low overlap & 8.2309 & 2.724 & 0.00012 \\
-no proxy overlap & 0.0000 & 3.767 & 0.00012 \\
-material seed & 51.6614 & 2.542 & 0.00012 \\
-low detail & 51.6614 & 2.542 & 0.00012 \\
-lighting seed & 51.6614 & 2.542 & 0.00012 \\
-dim illumination & 51.6614 & 2.542 & 0.00012 \\
-exposure & 51.6614 & 2.542 & 0.00012 \\
+reference & 45.5688 & 3.559 & 0.00010 \\
+portrait & 50.4379 & 1.736 & 0.00018 \\
+wide baseline & 35.7425 & 5.603 & 0.00010 \\
+handheld & 53.3032 & 2.050 & 0.00008 \\
+low overlap & 11.9214 & 2.235 & 0.00010 \\
+no proxy overlap & 0.0000 & 3.001 & 0.00006 \\
+material seed & 45.5688 & 3.559 & 0.00010 \\
+low detail & 45.5688 & 3.559 & 0.00010 \\
+lighting seed & 45.5688 & 3.559 & 0.00010 \\
+dim illumination & 45.5688 & 3.559 & 0.00010 \\
+exposure & 45.5688 & 3.559 & 0.00010 \\
 \bottomrule\end{tabular}
 \caption{Prespecified factor checks on matched room geometry. Directed overlap uses valid source pixels; the zero target refers to placement proxies.}\label{tab:factor-qualification}
 \end{table}

@@ -284,6 +284,39 @@ fn complete_capture_fixture_passes_and_stale_completion_fails() {
 }
 
 #[test]
+fn qualification_strata_remain_explicit_and_do_not_relax_publication_selection() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path();
+    let (identity, mut protocol) = fixture(root);
+    protocol.rendered_rooms = 2;
+    for file in ["render_selection.json", "run_complete.json"] {
+        let path = root.join(file);
+        let mut value: Value = io::read(&path).unwrap();
+        value["selected_seeds"] = json!([3, 1]);
+        value["captured_scenes"] = json!(2);
+        value["policy"] = json!("prespecified fixture strata");
+        io::write(&path, &value).unwrap();
+    }
+    let qualified = Dataset::load_qualification(root, &protocol).unwrap();
+    assert_eq!(
+        qualified
+            .scenes
+            .iter()
+            .map(|s| s.capture.seed)
+            .collect::<Vec<_>>(),
+        [3, 1]
+    );
+    assert!(Dataset::load(root, &identity, &protocol).is_err());
+    for seeds in [json!([3, 3]), json!([3, 4]), json!([3])] {
+        let path = root.join("render_selection.json");
+        let mut value: Value = io::read(&path).unwrap();
+        value["selected_seeds"] = seeds;
+        io::write(&path, &value).unwrap();
+        assert!(Dataset::load_qualification(root, &protocol).is_err());
+    }
+}
+
+#[test]
 fn historical_single_frame_studies_do_not_relax_current_publication_gates() {
     let directory = tempfile::tempdir().unwrap();
     let root = directory.path();
@@ -328,8 +361,7 @@ fn historical_single_frame_studies_do_not_relax_current_publication_gates() {
 fn paired_study_binds_every_annotation_and_keeps_previous_report_on_rejection() {
     let temp = tempfile::tempdir().unwrap();
     let root = temp.path();
-    let mut p = protocol();
-    p.playback_steps = 1;
+    let p = protocol();
     fs::write(root.join("study.toml"), toml::to_string(&p).unwrap()).unwrap();
     for (name, digest) in [("before", "b"), ("after", "a")] {
         let directory = root.join(name);
@@ -340,18 +372,11 @@ fn paired_study_binds_every_annotation_and_keeps_previous_report_on_rejection() 
         for file in ["render_selection.json", "run_complete.json"] {
             let mut v: Value = io::read(&directory.join(file)).unwrap();
             v["identity"] = json!(id);
-            if file == "render_selection.json" {
-                v["playback_steps"] = json!(1);
-            }
             io::write(&directory.join(file), &v).unwrap();
         }
         for seed in 0..4 {
             let file = directory.join(format!("seed_{seed:06}/capture.json"));
             let mut capture: Value = io::read(&file).unwrap();
-            capture["views"]
-                .as_array_mut()
-                .unwrap()
-                .retain(|v| v["step_index"] == 0);
             for view in capture["views"].as_array_mut().unwrap() {
                 view["annotation_alignment"]["depth_position_max_metres"] = json!(0.);
                 view["annotation_alignment"]["reprojection_max_pixels"] = json!(0.);
@@ -380,9 +405,49 @@ fn paired_study_binds_every_annotation_and_keeps_previous_report_on_rejection() 
     compare().unwrap();
     let output = root.join("out/report");
     bevy_zeroverse_publication::study::verify(&output).unwrap();
+    let page = fs::read_to_string(output.join("index.html")).unwrap();
+    assert!(page.contains("Primary architecture and the base lighting sample are retained"));
+    assert!(!page.contains("{{MATCHING_"));
     assert!(output
         .join("media/after/seed_000003/view_03_co_visibility_mask.png")
         .is_file());
+    assert!(output
+        .join("media/after/seed_000003/view_07_co_visibility_mask.png")
+        .is_file());
+    let rows_file = root.join("after/architecture.jsonl");
+    let original_rows = fs::read_to_string(&rows_file).unwrap();
+    let changed_rows = original_rows
+        .lines()
+        .map(|line| {
+            let mut row: Value = serde_json::from_str(line).unwrap();
+            row["topology"] = json!({"fixture_region_revision":2});
+            serde_json::to_string(&row).unwrap() + "\n"
+        })
+        .collect::<String>();
+    fs::write(&rows_file, changed_rows).unwrap();
+    assert!(
+        compare().is_err(),
+        "appearance-only comparisons must reject changed architecture"
+    );
+    bevy_zeroverse_publication::study::compare_with_matching(
+        root,
+        Path::new("before"),
+        Path::new("after"),
+        Path::new("out/architecture-study"),
+        Some(Path::new("study.toml")),
+        None,
+        None,
+        None,
+        true,
+    )
+    .unwrap();
+    bevy_zeroverse_publication::study::verify(&root.join("out/architecture-study")).unwrap();
+    let page = fs::read_to_string(root.join("out/architecture-study/index.html")).unwrap();
+    assert!(page.contains("Matched seeds · architecture changes included"));
+    assert!(page.contains("does not isolate furnishing or appearance effects"));
+    assert!(!page.contains("Primary architecture and the base lighting sample are retained"));
+    assert!(!page.contains("{{MATCHING_"));
+    fs::write(rows_file, original_rows).unwrap();
     let receipt = fs::read(output.join("receipt.json")).unwrap();
     fs::remove_file(root.join("after/seed_000002/view_01_depth.png")).unwrap();
     assert!(compare().is_err());

@@ -44,6 +44,61 @@ Every cohort must match the compiled generator identity. Historical studies,
 release comparisons and proposed implementation plans stay outside this bundle.
 Camera-count and baseline studies use the same identity gate as the room gallery.
 
+The object atlas audits all 64 furnishing/prop categories on 256 construction
+seeds each at fixed metric envelopes. The Rust refresh command builds
+`audit_objects` and `review_objects`, checks the real triangles, selects six
+depth-map-spread examples per category and captures them with one persistent
+native renderer. The shipped atlas binds per-seed programs, three coverage
+thresholds, nearest-shape distances, mesh counts, build timings and lossless
+RGB/normal examples. Category data loads on demand in the project page.
+Generator and qualification-tool hashes gate cache reuse; changed geometry
+cannot reuse old studio images. The paper is generated from the same atlas.
+
+For an explicit local audit:
+
+```sh
+cargo run --example audit_objects -- --samples 256 --output out/objects/audit
+cargo run --example review_objects -- --audit out/objects/audit/audit.json --output out/objects/renders
+cargo run -p bevy_zeroverse_publication -- object-study \
+  --audit out/objects/audit/audit.json --renders out/objects/renders --output out/objects/atlas
+```
+
+These descriptors measure fixed-envelope surface variation, not independent
+parameter counts, perceptual embedding volume or downstream training gains.
+Displayed examples are selected for spread; all 256 samples remain in the
+statistics. Near-planar content and subpixel details can remain indistinguishable.
+
+The material atlas uses the same pipeline. It covers all 36 architectural/object
+surface roles, with the three floor types separated into 38 rows. Each records
+256 consecutive recipe seeds. Six shared illustration seeds generate 228 native
+PBR swatches, matched rendered normals, and level-zero base-color, tangent-normal
+and roughness maps. Seed four deliberately includes frosted interior glass;
+the selected grid is not a frequency estimate. Every handle comes from the
+production material factory, including finish-slot selection, texture structure,
+tint, metric UVs and optical properties. The swatches use the CPU reference
+map baker and a persistent native renderer; this is not a GPU throughput test.
+
+A separate 256-room audit builds actual primary-room objects and checks seeded
+finish assignments. Object-category/surface/slot histograms show where each
+material is used. Humans, architecture and neighboring objects are outside this
+object-assignment denominator. The page exposes conditional parameter marginals
+and the paper includes every material row. Atlas verification rejects missing
+roles, inconsistent seed bindings, stale compiled tool sources, changed images
+and incorrect summary denominators. Nothing is added to the runtime generator.
+
+```sh
+cargo run --example qualify_materials -- --output out/materials/raw
+cargo run -p bevy_zeroverse_publication -- material-study \
+  --input out/materials/raw --output out/materials/atlas
+```
+
+`refresh` automatically creates/reuses `out/publication/materials` using generator
+and compiled study-tool hashes. `rebuild` and CI verify the self-contained atlas
+without rerunning the GPU study. Recipes, maps and bindings describe a correlated
+procedural space, not a product of independent parameters or a measured semantic
+embedding volume. See [the material protocol](../../docs/material_qualification.md)
+for validation scope and interpretation.
+
 Refresh/rebuild additionally require `latexmk`, `pdflatex` (including the usual
 LaTeX packages) and Poppler's `pdftoppm`. LaTeX is the document typesetter; Rust
 owns source generation, dependency closure, warnings, provenance and staging.

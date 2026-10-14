@@ -30,8 +30,14 @@ pub struct FixtureProgram {
 }
 pub fn parameters(o: &IndoorObject) -> FixtureProgram {
     let mut rng = stream(o.seed, 3070);
+    let mut fit = stream(o.seed, 7490);
+    let capacity = (o.size.x / 0.075).round().clamp(1., 3.) as usize;
     FixtureProgram {
-        gangs: (o.size.x / 0.075).round().clamp(1., 3.) as usize,
+        gangs: if capacity > 1 && fit.random_bool(0.35) {
+            capacity - 1
+        } else {
+            capacity
+        },
         style: rng.random_range(0..6),
         edge_radius: rng.random_range(0.001..0.006),
         rocker_angle: rng.random_range(-0.025..0.025),

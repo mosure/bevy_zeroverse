@@ -230,6 +230,7 @@ fn saucers_and_clock_relief_fit_narrow_and_shallow_reservations() {
             (ObjectKind::Display, Vec3::new(0.85, 0.55, 0.07)),
         ] {
             let o = IndoorObject {
+                finish_seed: None,
                 id: 0,
                 kind,
                 position: Vec3::ZERO,
@@ -272,6 +273,9 @@ fn saucers_and_clock_relief_fit_narrow_and_shallow_reservations() {
 fn tall_supported_props_must_fit_beneath_the_entire_sloped_roof() {
     let mut scene =
         IndoorManifest::generate_with_humans(202, IndoorLayout::Mixed, 0.6, 0, 0.).unwrap();
+    // This fixture isolates the roof; the installation-clearance test below
+    // separately covers fixtures suspended below that roof.
+    scene.ceiling_installation = None;
     let mut support = scene.objects[0].clone();
     scene.objects.clear();
     let roof = scene.ceiling_height(Vec2::ZERO);
@@ -345,10 +349,11 @@ fn geometry_qualification_catches_hidden_mesh_overruns_and_records_coverage() {
         // A bad reservation must fail even if the mesh is finite and its
         // topology/normals are valid. Do not resize geometry to conceal it.
         scene.objects[0].kind = ObjectKind::FloorLamp;
-        scene.objects[0].size = Vec3::new(0.1, 1.65, 0.1);
-        assert!(validate_geometry(&scene)
-            .unwrap_err()
-            .contains("escapes its reserved envelope"));
+        // Narrower than the actual bulb and foot hardware, independent of the
+        // procedurally fitted shade diameter.
+        scene.objects[0].size = Vec3::new(0.045, 1.65, 0.045);
+        let error = validate_geometry(&scene).unwrap_err();
+        assert!(error.contains("escapes its reserved envelope"), "{error}");
         scene.objects[0].size.y = f32::NAN;
         assert!(validate_geometry(&scene)
             .unwrap_err()

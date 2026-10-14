@@ -109,14 +109,25 @@ fn main() {
         objects = seating::objects(&table, scene.seed);
     }
     if plants {
-        objects = (0..18)
+        objects = (0..28)
             .map(|i| {
                 let mut o = table.clone();
                 o.id = i;
                 o.kind = ObjectKind::Plant;
-                o.variant = (i % 6) as u32;
+                o.variant =
+                    (i % bevy_zeroverse::scene::procedural_indoor::PLANT_SPECIES as usize) as u32;
                 o.seed = (i as u64).wrapping_mul(197).wrapping_add(17);
-                o.size = Vec3::new(0.9, 1.7, 0.9);
+                o.size = Vec3::new(
+                    0.9,
+                    match o.variant {
+                        4 => 0.9,
+                        7 => 0.55,
+                        9 => 1.1,
+                        _ => 1.7,
+                    },
+                    0.9,
+                );
+                o.finish_seed = None;
                 o.position = Vec3::X * i as f32 * 4.5;
                 o.support = None;
                 o.interaction_target = None;

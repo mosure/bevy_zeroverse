@@ -19,6 +19,15 @@ pub(super) struct Recipe {
     pub dye_tint: [f32; 4],
     pub leather0: [f32; 4],
     pub leather1: [f32; 4],
+    pub carpet: [f32; 4],
+    pub carpet_meta: [u32; 4],
+    pub carpet0: [f32; 4],
+    pub carpet1: [f32; 4],
+    pub carpet2: [f32; 4],
+    pub floor_meta: [u32; 4],
+    pub floor0: [f32; 4],
+    pub floor1: [f32; 4],
+    pub floor_tint: [f32; 4],
 }
 
 impl Recipe {
@@ -29,8 +38,10 @@ impl Recipe {
             || r.leaf.is_some()
             || r.cuticle.is_some()
             || r.coating.is_some()
-            || r.mineral.is_some() && (r.surface != Surface::Floor || floor == 2)
-            || r.wood.is_some() && (r.surface != Surface::Floor || floor == 0)
+            || r.carpet.is_none()
+                && r.mineral.is_some()
+                && (r.surface != Surface::Floor || floor == 2)
+            || r.carpet.is_none() && r.wood.is_some() && (r.surface != Surface::Floor || floor == 0)
         {
             return None;
         }
@@ -56,7 +67,31 @@ impl Recipe {
             phase: [r.phase[0], r.phase[1], r.weathering, r.contrast],
             ..bytemuck::Zeroable::zeroed()
         };
-        if cloth {
+        if let Some(c) = &r.carpet {
+            p.meta[0] = 4;
+            p.carpet = [c.contrast, c.heather, c.pile, c.line_width];
+            p.carpet_meta = [c.pattern, c.repeats[0], c.repeats[1], 0];
+            p.carpet0[..3].copy_from_slice(&c.palette[0]);
+            p.carpet0[3] = c.edge_variation;
+            p.carpet1[..3].copy_from_slice(&c.palette[1]);
+            p.carpet2[..3].copy_from_slice(&c.palette[2]);
+            if let Some(f) = &r.flooring {
+                use super::super::flooring::FloorLayout;
+                p.floor_meta = [
+                    1,
+                    u32::from(f.layout == FloorLayout::BrokenBond),
+                    f.cells[0],
+                    f.cells[1],
+                ];
+                p.floor0 = [f.piece_tone, f.piece_warmth, f.piece_roughness, f.mottling];
+                p.floor1 = [f.accent_fraction, f.tile_definition, r.joint_width, 0.];
+                p.floor_tint[..3].copy_from_slice(&f.accent_tint);
+                // Basket is a timber installation, never a carpet bake.
+                if f.layout == FloorLayout::Basket {
+                    return None;
+                }
+            }
+        } else if cloth {
             let mut t = r
                 .textile
                 .clone()

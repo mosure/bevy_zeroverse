@@ -68,6 +68,10 @@ impl PaletteProgram {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MaterialRecipe {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub flooring: Option<super::flooring::FloorFinish>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub carpet: Option<super::carpet::CarpetDesign>,
     #[serde(default)]
     pub layers: Option<super::layers::FinishLayers>,
     #[serde(default)]
@@ -337,6 +341,8 @@ pub fn sample(seed: u64) -> Vec<MaterialRecipe> {
                 rng.random_range(0.00002..0.0003)
             };
             let mut recipe = MaterialRecipe {
+                flooring: None,
+                carpet: None,
                 layers: Some(super::layers::FinishLayers::sample(surface, &mut rng)),
                 textile: None,
                 leather: None,
@@ -411,30 +417,48 @@ pub(super) struct Texel {
 /// Carpet needs a textile-scale repeat, not the metre-wide plank/tile domain.
 pub(crate) fn floor_finish(recipes: &mut [MaterialRecipe], style: u32) {
     let textile_color = recipes[Surface::Fabric as usize].color;
+    let wood_color = recipes[Surface::Wood as usize].color;
     let r = &mut recipes[Surface::Floor as usize];
     let choice = super::hash(17, 89, r.seed);
     match style {
         0 => {
+            r.color = wood_color;
+            r.period_m = r.period_m.max(2.8);
             r.roughness = 0.26 + choice * 0.42;
             // The floor atlas spans many boards. Millimetre fibres are below
             // its texel footprint; exaggerating the surviving broad bands
             // makes timber look like a striped sheet across the whole room.
-            r.contrast = (r.contrast * 0.70).clamp(0.04, 0.14);
+            r.contrast = (r.contrast * 1.1).clamp(0.09, 0.24);
             r.relief_m = 0.00005 + choice * 0.00014;
         }
         1 => {
             if let Some(t) = &mut r.textile {
                 t.pile = 0.50 + choice * 0.50;
             }
-            if choice > 0.55 {
-                r.color = textile_color.map(|c| (c * 0.85).clamp(0.08, 0.80));
-            }
-            r.period_m = (r.period_m / 16.).clamp(0.12, 0.30);
+            let tone = 0.14 + super::hash(31, 67, r.seed) * 0.36;
+            let warmth = super::hash(13, 29, r.seed) * 0.07 - 0.025;
+            let neutral = [tone, tone * (1. - warmth), tone * (1. - warmth * 1.6)];
+            // Pigmented commercial carpet is usually heathered/diluted, not
+            // the saturated accent upholstery spread across an entire room.
+            r.color = if choice > 0.55 {
+                [0, 1, 2].map(|i| neutral[i] * 0.65 + textile_color[i] * 0.35)
+            } else {
+                neutral
+            };
+            // Separate room-scale dye/installation from filtered pile. A
+            // 15 cm upholstery swatch repeated across a room is conspicuous.
+            r.period_m = 2.8 + choice * 1.4;
             r.roughness = 0.88 + choice * 0.10;
             r.relief_m = 0.00030 + choice * 0.00045;
         }
         _ => {
-            if let Some(m) = &r.mineral {
+            if let Some(m) = &mut r.mineral {
+                // Mineral floors range from quiet porcelain/limestone to
+                // pronounced marble. Thick, bright level-set loops should
+                // not dominate most rooms, especially on dark substrates.
+                m.marble_mix = m.marble_mix.powi(4);
+                m.vein_width *= 0.45;
+                m.vein_strength *= 0.65;
                 r.roughness = (0.80 - m.polish * 0.58 - m.marble_mix * 0.15).clamp(0.14, 0.90);
                 r.relief_m = 0.00002 + (1. - m.polish) * 0.00016;
                 let n = 0.18 + super::hash(7, 37, r.seed) * 0.65;
@@ -445,6 +469,12 @@ pub(crate) fn floor_finish(recipes: &mut [MaterialRecipe], style: u32) {
                 r.relief_m = 0.000025 + choice * 0.00010;
             }
         }
+    }
+    r.flooring = Some(super::flooring::FloorFinish::sample(
+        r.seed, style, r.period_m,
+    ));
+    if style == 1 {
+        r.carpet = Some(super::carpet::CarpetDesign::sample(r.seed, r.color, false));
     }
 }
 
@@ -461,6 +491,21 @@ pub fn sample_with_floor(seed: u64, style: u32) -> Result<Vec<MaterialRecipe>, S
 
 impl MaterialRecipe {
     pub fn validate(&self) -> Result<(), String> {
+        if let Some(f) = &self.flooring {
+            f.validate()?;
+            if self.surface != Surface::Floor {
+                return Err("floor installation requires a floor role".into());
+            }
+        }
+        if let Some(c) = &self.carpet {
+            c.validate()?;
+            if !matches!(
+                self.surface,
+                Surface::Floor | Surface::Fabric | Surface::FabricAlt
+            ) {
+                return Err("carpet requires a floor/textile role".into());
+            }
+        }
         if !self
             .color
             .iter()
@@ -557,7 +602,8 @@ impl MaterialRecipe {
     }
     /// Bounded resolution: floor atlases cover many independently cut panels.
     pub fn map_size(&self, floor_style: u32) -> u32 {
-        if self.surface == Surface::Floor && floor_style != 1
+        if self.carpet.is_some()
+            || self.surface == Surface::Floor && floor_style != 1
             || self.surface == Surface::Concrete
                 && self.mineral.as_ref().is_some_and(|m| m.casting.is_some())
         {
@@ -743,7 +789,8 @@ impl MaterialRecipe {
     /// Colored substrate maps contain absolute sRGB reflectance. Upholstery and
     /// modern ceramic glazes retain relative maps for independent pigment tinting.
     pub(super) fn absolute_color(&self, floor_style: u32) -> bool {
-        self.leaf.is_some()
+        self.carpet.is_some()
+            || self.leaf.is_some()
             || self.cuticle.is_some()
             || self.coating.as_ref().is_some_and(|c| c.glaze.is_none())
             || self.surface == Surface::Bark
@@ -779,6 +826,9 @@ impl MaterialRecipe {
     /// Integer repetitions preserve tileability while constraining the actual
     /// plank/tile dimensions rather than drawing arbitrary counts per texture.
     pub fn floor_repetitions(&self, floor_style: u32) -> [f32; 2] {
+        if let Some(f) = &self.flooring {
+            return f.cells.map(|n| n as f32);
+        }
         let width = if floor_style == 0 {
             0.10 + self.panel_count[0] as f32 * 0.010
         } else {
@@ -807,7 +857,7 @@ impl MaterialRecipe {
         self.texel_prepared(u, v, floor_style, None)
     }
     pub(super) fn prepare_texels(&self, floor_style: u32) -> Option<PreparedMaterial> {
-        if self.leaf.is_some() {
+        if self.leaf.is_some() || self.carpet.is_some() {
             return None;
         }
         if let Some(c) = &self.coating {
@@ -863,6 +913,9 @@ impl MaterialRecipe {
         let (u, v) = self.layers.as_ref().map_or((u, v), |l| l.rotate(u, v));
         let u = (u + self.phase[0]).rem_euclid(1.0);
         let v = (v + self.phase[1]).rem_euclid(1.0);
+        if let Some(c) = &self.carpet {
+            return c.evaluate(self, [u, v]);
+        }
         if let Some(c) = &self.cuticle {
             return c.evaluate(self, [u, v]);
         }
@@ -901,6 +954,9 @@ impl MaterialRecipe {
                 };
                 if self.surface == Surface::Floor {
                     self.floor_joints([u, v], &mut t);
+                    if let Some(f) = &self.flooring {
+                        f.apply(self, [u, v], &mut t);
+                    }
                 }
                 return t;
             }
@@ -1020,6 +1076,14 @@ impl MaterialRecipe {
         }
     }
     fn floor_joints(&self, [u, v]: [f32; 2], t: &mut Texel) {
+        if let Some(f) = &self.flooring {
+            let cut = f.cut(self, [u, v]);
+            let seam = f.seam(self, &cut, 0);
+            t.color = super::field::tint(t.color, 1. - seam * 0.22);
+            t.height -= seam * self.joint_width * 0.25;
+            t.roughness = (t.roughness + seam * 0.12).min(1.);
+            return;
+        }
         let [nx, ny] = self.floor_repetitions(0);
         let strip = (u * nx).floor() as u32;
         let stagger = (strip % 2) as f32 * 0.5;
@@ -1398,10 +1462,17 @@ mod tests {
                 let floor = &recipes[Surface::Floor as usize];
                 assert!(floor.relief_m > 0. && floor.relief_m < 0.001);
                 if style == 1 {
-                    assert!((0.12..=0.30).contains(&floor.period_m));
+                    assert!((2.8..=4.2).contains(&floor.period_m));
                     assert!(floor.roughness >= 0.88);
                 } else {
-                    assert_eq!(floor.period_m, original[Surface::Floor as usize].period_m);
+                    assert_eq!(
+                        floor.period_m,
+                        if style == 0 {
+                            original[Surface::Floor as usize].period_m.max(2.8)
+                        } else {
+                            original[Surface::Floor as usize].period_m
+                        }
+                    );
                     if style == 0 {
                         assert!((0.20..=0.76).contains(&floor.roughness));
                     } else {

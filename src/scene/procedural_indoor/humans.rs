@@ -683,6 +683,22 @@ pub(super) fn fit_worktop(h: &mut IndoorHuman, table: &super::layout::IndoorObje
             pose.arm_reach[i] = (delta.length() / (0.55 * h.stature / 1.75)).clamp(0.25, 0.98);
         }
     }
+    if h.pose == HumanPoseKind::SeatedTalking && proposal > 0 {
+        // A conversational gesture near a table needs a free hand above its
+        // edge. Keep the same activity and anatomy, but try a bounded wrist
+        // goal rather than forcing the original below-top gesture into it.
+        for (i, base) in [5, 9].into_iter().enumerate() {
+            let goal = Vec3::new(
+                (if i == 0 { -1. } else { 1. }) * rng.random_range(0.20..0.35),
+                top - h.position.y + rng.random_range(0.14..0.30),
+                -rng.random_range(0.18..0.36),
+            );
+            let delta = torso.inverse() * (goal - h.joints[base]);
+            pose.arm_elevation[i] = delta.y.atan2(delta.xz().length());
+            pose.arm_sweep[i] = ((if i == 0 { -1. } else { 1. }) * delta.x).atan2(-delta.z);
+            pose.arm_reach[i] = (delta.length() / (0.55 * h.stature / 1.75)).clamp(0.25, 0.98);
+        }
+    }
     h.joints = pose.solve(h.stature, h.build, h.shoulder_width, true);
     // A mixture of contact and free gestures, independent of body morphology.
     if h.pose == HumanPoseKind::SeatedWorking && proposal < 4 {
@@ -862,7 +878,11 @@ pub fn placement_clear(scene: &IndoorManifest, person: &IndoorHuman) -> bool {
         .collect();
     let (waist, chest, width) = table_capsules.remove(1);
     let depth = (0.125 * person.build
-        + person.appearance.as_ref().map_or(0.015, |a| a.garment_ease))
+        + person.appearance.as_ref().map_or(0.028, |a| {
+            // The fitted shell and buttons project beyond the rest body's
+            // ease. Reserve that construction before admitting a seated pose.
+            a.garment_ease + a.garment.torso_ease_m * (person.stature / 1.75) + 0.005
+        }))
     .min(width);
     let right = tf.rotation * Vec3::X;
     for offset in [-(width - depth), 0., width - depth] {
@@ -1053,6 +1073,11 @@ pub fn validate(scene: &IndoorManifest) -> Result<(), String> {
             return Err("invalid human morphology or material palette".into());
         }
         if let Some(appearance) = &human.appearance {
+            if !(0.0..=0.035).contains(&appearance.garment.torso_ease_m)
+                || !(0.75..=1.15).contains(&appearance.garment.waist_taper)
+            {
+                return Err("invalid sewn torso ease or taper".into());
+            }
             appearance.footwear.validate()?;
             appearance.hair_program.validate()?;
             if let Some(program) = &appearance.body_program {

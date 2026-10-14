@@ -13,11 +13,142 @@ pub(super) fn record(
     let Some(e) = &scene.envelope else {
         return Ok(());
     };
+    let topology = scene.room_topology();
+    numeric.push("room_topology_regions", topology.regions.len() as f64)?;
+    numeric.push("room_topology_portals", topology.portals.len() as f64)?;
+    numeric.push(
+        "room_topology_boundary_partitions",
+        topology.boundary_partitions.len() as f64,
+    )?;
+    for r in &topology.regions {
+        numeric.push(
+            if r.primary {
+                "primary_region_area_m2"
+            } else {
+                "other_region_area_m2"
+            },
+            r.area_m2 as f64,
+        )?;
+    }
     serde_json::to_writer(
         &mut *writer,
-        &serde_json::json!({"seed": scene.seed, "room_size": scene.room_size, "envelope": e, "partitions": scene.program.as_ref().map(|p| &p.partitions)}),
+        &serde_json::json!({"seed": scene.seed, "room_size": scene.room_size, "envelope": e, "ceiling_installation":scene.ceiling_installation, "topology": topology, "partitions": scene.program.as_ref().map(|p| &p.partitions)}),
     )?;
     writeln!(writer)?;
+    if let Some(ceiling) = &scene.ceiling_installation {
+        numeric.push("ceiling_installation_modules", ceiling.modules.len() as f64)?;
+        numeric.push(
+            "ceiling_installation_footprint_m2",
+            ceiling
+                .modules
+                .iter()
+                .map(|m| (m.size.x * m.size.z) as f64)
+                .sum(),
+        )?;
+        *report
+            .categories
+            .entry("ceiling_exposed_slab".into())
+            .or_default()
+            .entry(ceiling.exposed_slab.to_string())
+            .or_default() += 1;
+        for m in &ceiling.modules {
+            *report
+                .categories
+                .entry("ceiling_system".into())
+                .or_default()
+                .entry(format!("{:?}", m.system))
+                .or_default() += 1;
+            numeric.push("ceiling_installation_headroom_m", m.headroom(scene) as f64)?;
+            for (key, value) in [
+                ("ceiling_body_depth_m", m.size.y),
+                (
+                    "ceiling_plenum_gap_m",
+                    m.support_top_m - (m.center.y + m.size.y * 0.5),
+                ),
+                ("ceiling_body_bottom_m", m.center.y - m.size.y * 0.5),
+                ("ceiling_run_length_m", m.size.x.max(m.size.z)),
+                ("ceiling_run_width_m", m.size.x.min(m.size.z)),
+            ] {
+                numeric.push(key, value as f64)?;
+            }
+            use crate::scene::procedural_indoor::architecture::ceiling::CeilingShape;
+            if let Some(detail) = &m.detail {
+                match detail.shape {
+                    CeilingShape::Duct {
+                        section,
+                        end_scale,
+                        bend,
+                        rise,
+                        branches,
+                        seam_pitch_m,
+                    } => {
+                        for (key, value) in [
+                            ("ceiling_duct_section", section),
+                            ("ceiling_duct_end_scale", end_scale),
+                            ("ceiling_duct_bend", bend),
+                            ("ceiling_duct_rise", rise),
+                            ("ceiling_duct_branches", branches as f32),
+                            ("ceiling_duct_seam_pitch_m", seam_pitch_m),
+                        ] {
+                            numeric.push(key, value as f64)?;
+                        }
+                    }
+                    CeilingShape::Grid { aspect, recess_m } => {
+                        numeric.push("ceiling_grid_aspect", aspect as f64)?;
+                        numeric.push("ceiling_grid_pitch_m", m.pitch_m as f64)?;
+                        if m.system == crate::scene::procedural_indoor::architecture::ceiling::CeilingSystem::SuspendedTiles {
+                            numeric.push("ceiling_tile_recess_m",recess_m as f64)?;
+                        }
+                    }
+                    CeilingShape::Conduit {
+                        count,
+                        radius_m,
+                        bend,
+                        rise,
+                        ..
+                    } => {
+                        for (key, value) in [
+                            ("ceiling_conduit_count", count as f32),
+                            (
+                                "ceiling_conduit_radius_m",
+                                radius_m
+                                    .min(m.size.x.min(m.size.z) * 0.56 / count as f32 * 0.32)
+                                    .min(m.size.y * 0.12),
+                            ),
+                            ("ceiling_conduit_bend", bend),
+                            ("ceiling_conduit_rise", rise),
+                        ] {
+                            numeric.push(key, value as f64)?;
+                        }
+                    }
+                    CeilingShape::Sprinkler {
+                        head_pitch_m,
+                        branch_reach,
+                        upright,
+                        ..
+                    } => {
+                        numeric.push("ceiling_sprinkler_pitch_m", head_pitch_m as f64)?;
+                        numeric.push("ceiling_sprinkler_branch_reach", branch_reach as f64)?;
+                        *report
+                            .categories
+                            .entry("ceiling_sprinkler_orientation".into())
+                            .or_default()
+                            .entry(if upright { "upright" } else { "pendent" }.into())
+                            .or_default() += 1;
+                    }
+                    CeilingShape::Truss { web, .. } => {
+                        *report
+                            .categories
+                            .entry("ceiling_truss_web".into())
+                            .or_default()
+                            .entry(format!("{web:?}"))
+                            .or_default() += 1;
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
     let area = polygon::area(&e.footprint);
     let mut reflex = 0;
     let mut oblique = 0;
@@ -72,6 +203,7 @@ pub(super) fn record(
             e.floor_patches.iter().map(|p| p.height).fold(0., f32::max),
         ),
         ("envelope_floor_patches", e.floor_patches.len() as f32),
+        ("envelope_ceiling_patches", e.soffits.len() as f32),
         ("envelope_pillars", e.pillars.len() as f32),
         ("envelope_archways", arches as f32),
         (

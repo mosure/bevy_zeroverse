@@ -34,8 +34,8 @@ Three measured retention sources are addressed:
 
 The changes add no device-idle call, queue wait or extra submission. Existing
 asynchronous readback, pipelined rendering and bounded writer overlap remain.
-The local [wgpu-core patch](../third_party/wgpu-core/ZEROVERSE_PATCH.md) and
-[Vulkan HAL patch](../third_party/wgpu-hal/ZEROVERSE_PATCH.md) are based on
+The local [wgpu-core patch](evidence/wgpu_dependency_audit/wgpu-core_29_patch.md) and
+[Vulkan HAL patch](evidence/wgpu_dependency_audit/wgpu-hal_29_patch.md) are based on
 published 29.0.4 sources, with upstream licenses preserved. Root Cargo patches
 are **not inherited by downstream published-crate consumers**. Consumers need
 these patches until equivalent upstream fixes are available.

@@ -125,6 +125,17 @@ fn is_zero(value: &f32) -> bool {
 mod count_contract_tests {
     use super::*;
     #[test]
+    fn changing_camera_diagnostics_keeps_family_geometry_but_object_changes_do_not() {
+        let a =
+            json!({"objects":[{"size":[1,2,3]}],"camera_diagnostics":{"attempts":1},"cameras":[1]});
+        let mut b = a.clone();
+        b["camera_diagnostics"] = json!({"attempts":9});
+        b["cameras"] = json!([1, 2, 3]);
+        assert_eq!(geometry_hash(&a).unwrap(), geometry_hash(&b).unwrap());
+        b["objects"][0]["size"] = json!([1, 2, 4]);
+        assert_ne!(geometry_hash(&a).unwrap(), geometry_hash(&b).unwrap());
+    }
+    #[test]
     fn count_controls_preserve_legacy_serialization_and_validate_single_view() {
         let value = json!({"schema_version":1,"seed":0,"rooms_per_case":2,"cases":[{"name":"reference","image_size":[256,160],"camera":{},"appearance":{}}]});
         let mut recipe: Recipe = serde_json::from_value(value.clone()).unwrap();
@@ -552,6 +563,7 @@ fn geometry_hash(manifest: &Value) -> Result<String> {
         "cameras",
         "camera_settings",
         "camera_aspect_ratio",
+        "camera_diagnostics",
         "lighting",
         "sun_elevation",
         "sun_azimuth",

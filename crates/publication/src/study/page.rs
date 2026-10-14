@@ -8,6 +8,17 @@ fn metric(report: &Value, name: &str, field: &str, precision: usize) -> String {
 }
 
 pub(super) fn render(report: &Value, rooms: &[Value]) -> Result<String> {
+    let (matching_tag, matching_explanation) = match report["matching"]["architecture"].as_str() {
+        Some("identical_geometry") => (
+            "Matched architecture and lighting priors",
+            "Primary architecture and the base lighting sample are retained; added fixtures can change illumination.",
+        ),
+        Some("seed_matched_changed_geometry") => (
+            "Matched seeds · architecture changes included",
+            "Seeds and lighting priors match, but architecture, fixtures and room geometry can change. This comparison does not isolate furnishing or appearance effects.",
+        ),
+        _ => anyhow::bail!("study page requires an explicit architecture matching contract"),
+    };
     let mut table = String::new();
     for (title, field, precision) in [
         ("Available catalog item kinds", "/catalog_item_kinds", 0),
@@ -151,7 +162,25 @@ pub(super) fn render(report: &Value, rooms: &[Value]) -> Result<String> {
                 for side in ["left", "right"] {
                     let seed = pair[side]["seed"].as_u64().unwrap();
                     let camera = pair[side]["camera"].as_u64().unwrap();
-                    embedding.push_str(&format!("<a href='?seed={seed}&amp;camera={camera}&amp;mode=color'><img loading='lazy' src='media/{name}/seed_{seed:06}/view_{camera:02}_color.webp' alt='{name} seed {seed}, camera {camera}'><span>Seed {seed} · camera {camera}</span></a>"));
+                    let time = pair[side]["time"]
+                        .as_f64()
+                        .context("missing embedding time")?;
+                    let scene = rooms
+                        .iter()
+                        .find(|r| r["seed"] == seed)
+                        .context("unknown embedding room")?;
+                    let (index, view) = scene["cohorts"][name]["views"]
+                        .as_array()
+                        .context("missing views")?
+                        .iter()
+                        .enumerate()
+                        .find(|(_, v)| {
+                            v["camera_index"] == camera
+                                && v["time"].as_f64().is_some_and(|t| (t - time).abs() < 1e-6)
+                        })
+                        .context("unknown embedding view/time")?;
+                    let step = view["step_index"].as_u64().context("missing view step")?;
+                    embedding.push_str(&format!("<a href='?seed={seed}&amp;camera={camera}&amp;step={step}&amp;mode=color'><img loading='lazy' src='media/{name}/seed_{seed:06}/view_{index:02}_color.webp' alt='{name} seed {seed}, camera {camera}, time {time}'><span>Seed {seed} · camera {camera} · t={time:.2}</span></a>"));
                 }
                 embedding.push_str(&format!(
                     "</div><p>Cosine distance {:.4}</p></article>",
@@ -222,6 +251,9 @@ pub(super) fn render(report: &Value, rooms: &[Value]) -> Result<String> {
         ("{{ROOMS}}", rooms.len().to_string()),
         ("{{VIEWS}}", report["after"]["views"].to_string()),
         ("{{CAMERAS}}", report["protocol"]["cameras"].to_string()),
+        ("{{TIMESTEPS}}", report["protocol"]["playback_steps"].to_string()),
+        ("{{MATCHING_TAG}}", matching_tag.into()),
+        ("{{MATCHING_EXPLANATION}}", matching_explanation.into()),
         ("{{RESOLUTION}}", format!("{} × {}", report["protocol"]["width"], report["protocol"]["height"])),
         ("{{TABLE}}", table),
         ("{{EMBEDDING}}", embedding),

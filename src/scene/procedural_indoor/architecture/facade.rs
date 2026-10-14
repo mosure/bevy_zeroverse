@@ -1,8 +1,10 @@
 //! Exterior walls share one aperture program for meshes, attachments and audits.
 mod geometry;
 mod legacy;
+mod pane;
 #[cfg(test)]
 mod tests;
+pub mod treatments;
 
 use super::super::{
     layout::{stream, IndoorManifest},
@@ -13,9 +15,9 @@ use bevy::prelude::*;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 
+pub(crate) use geometry::backdrop;
 pub(super) use geometry::shell;
-pub(crate) use geometry::{backdrop, glazing_at};
-pub use geometry::{clipped_wall_box, solid_rectangles};
+pub use geometry::{clipped_wall_box, glazing_at, solid_rectangles};
 
 /// The +Z wall adjoins the furnished neighboring room and remains internal.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -57,6 +59,8 @@ impl FacadeSide {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WindowOpening {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub glazing: Option<super::super::materials::glazing::GlazingProgram>,
     /// Rough opening in wall-local horizontal/up coordinates, metres.
     pub min: Vec2,
     pub max: Vec2,
@@ -79,6 +83,10 @@ pub enum Shade {
     None,
     Venetian,
     Roller,
+    Vertical,
+    Roman,
+    Pleated,
+    Curtain,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -90,9 +98,22 @@ pub struct Facade {
     pub frame_depth: f32,
     pub recess: f32,
     pub sill_projection: f32,
+    /// Optional installation parameters; absent values replay the original blind geometry.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub treatment: Option<treatments::ShadeProgram>,
     pub shade: Shade,
     pub shade_coverage: f32,
     pub shade_tilt: f32,
+}
+
+impl Facade {
+    /// Keep the complete sash sweep clear of installed tracks and fabric.
+    pub fn allows_open_sash(&self) -> bool {
+        self.shade == Shade::None
+            || (self.treatment.is_none()
+                && matches!(self.shade, Shade::Venetian | Shade::Roller)
+                && self.shade_coverage < 0.02)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -111,7 +132,7 @@ impl ExteriorProgram {
         if sides.is_empty() {
             sides.push(FacadeSide::ALL[rng.random_range(0..3)]);
         }
-        let facades = sides
+        let mut facades: Vec<Facade> = sides
             .into_iter()
             .map(|side| {
                 let mut r = stream(seed, 3091 + side as u64);
@@ -145,6 +166,7 @@ impl ExteriorProgram {
                     let width = weight * scale;
                     for &(bottom, top) in &bands {
                         openings.push(WindowOpening {
+                            glazing: None,
                             min: Vec2::new(u, bottom),
                             max: Vec2::new(u + width, top),
                             columns: (width / mullion_pitch).ceil().clamp(1., 6.) as u32,
@@ -167,6 +189,7 @@ impl ExteriorProgram {
                     frame_depth: r.random_range(0.065..0.12),
                     recess: r.random_range(0.04..0.12),
                     sill_projection: r.random_range(0.05..0.18),
+                    treatment: None,
                     shade: [
                         Shade::None,
                         Shade::None,
@@ -179,6 +202,19 @@ impl ExteriorProgram {
                 }
             })
             .collect();
+        for facade in &mut facades {
+            let identity = seed.wrapping_add(facade.side as u64 * 13007);
+            let (shade, program) = treatments::ShadeProgram::sample(identity);
+            facade.shade = shade;
+            facade.treatment = Some(program);
+            for (index, opening) in facade.openings.iter_mut().enumerate() {
+                opening.glazing = Some(super::super::materials::glazing::GlazingProgram::sample(
+                    seed.wrapping_add(facade.side as u64 * 13007),
+                    index,
+                    opening.operable,
+                ));
+            }
+        }
         Self {
             exposure_probability: exposure_probability as f32,
             facades,
@@ -212,7 +248,13 @@ impl ExteriorProgram {
             {
                 return Err("invalid exterior frame or duplicate wall".into());
             }
+            if let Some(program) = &f.treatment {
+                program.validate()?;
+            }
             for (i, o) in f.openings.iter().enumerate() {
+                if let Some(glazing) = &o.glazing {
+                    glazing.validate()?;
+                }
                 if !o.min.is_finite()
                     || !o.max.is_finite()
                     || (o.max - o.min).min_element() < 0.35

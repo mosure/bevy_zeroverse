@@ -72,6 +72,7 @@ impl Groom {
         let longitude = direction.x.atan2(direction.z);
         let flow = longitude
             + self.part * theta * 0.65
+            + self.program.crown_whorl * (-theta * theta / 0.35).exp()
             + self.curl * 0.08 * (theta * 8.0 + (longitude * 3.0).sin()).sin();
         let crown = local.y.clamp(0.0, 1.0);
         let style = HairStyle::from_id(self.style).expect("validated groom");
@@ -112,7 +113,8 @@ impl Groom {
             * self.curl
             * clipped
             * if self.style == 4 { 0.45 } else { 0.08 };
-        let clumps = (flow * 19.0 + theta.sin() * self.curl * 5.0).cos();
+        let clumps =
+            (flow * 19.0 + theta.sin() * self.curl * 5.0 + self.noise(local, 3.7) * 1.3).cos();
         let wave = (flow * 11.0 + theta * 7.0).sin() * (theta * 9.0).sin();
         let relief =
             (0.00010 + self.curl * 0.00045) * clipped * clumps * (theta / 0.24).clamp(0.0, 1.0)
@@ -121,7 +123,8 @@ impl Groom {
                 } else {
                     0.0
                 };
-        let part_distance = (local.x - self.part * 0.65).abs();
+        let part_distance =
+            (local.x - self.part * 0.65 - self.program.part_curve * local.z * 0.16).abs();
         let part = if self.style == 1 || self.style == 3 {
             (-part_distance * part_distance / 0.0018).exp() * crown * bulk * 0.55
         } else {

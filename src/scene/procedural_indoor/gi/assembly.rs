@@ -108,7 +108,7 @@ impl GeometryTransport {
             .filter(|o| o.kind == ObjectKind::FloorLamp)
         {
             result.scene.lights.push(LocalLight {
-                position: lamp.position + Vec3::Y * (lamp.size.y - 0.22),
+                position: crate::scene::procedural_indoor::objects::standing_lamp::emitter(lamp),
                 color: linear(Color::srgb(1.0, 0.78, 0.57)),
                 candela: architecture::floor_lamp_lumens(scene, lamp.seed) / (4.0 * PI),
                 range: 5.0,
@@ -166,9 +166,7 @@ impl GeometryTransport {
             }
             // An unsupported/missing finish resolves to its original base only
             // during binding, just as the completed material palette does.
-            let key = label
-                .rsplit_once("#finish")
-                .and_then(|(_, slot)| slot.parse::<usize>().ok())
+            let key = crate::scene::procedural_indoor::materials::finish_slot(surface, label)
                 .map_or(MaterialKey::Surface(surface), |slot| {
                     MaterialKey::Finish(surface, slot)
                 });

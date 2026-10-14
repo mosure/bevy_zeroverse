@@ -2,6 +2,23 @@
 use super::*;
 use bevy::prelude::*;
 
+/// Keep the independent pre-optimization substrate oracles exercising their
+/// original installation contract. Current installations have separate scalar,
+/// complete-map and GPU parity coverage; old serialized recipes stay supported.
+pub(in super::super) fn legacy_sample_with_floor(
+    seed: u64,
+    style: u32,
+) -> Result<Vec<MaterialRecipe>, String> {
+    let mut recipes = sample_with_floor(seed, style)?;
+    let floor = &mut recipes[Surface::Floor as usize];
+    floor.flooring = None;
+    floor.carpet = None;
+    if style == 1 {
+        floor.period_m = (sample(seed)[Surface::Floor as usize].period_m / 16.).clamp(0.12, 0.30);
+    }
+    Ok(recipes)
+}
+
 pub(in super::super) fn transformed(r: &MaterialRecipe, u: f32, v: f32) -> [f32; 2] {
     let (u, v) = r.layers.as_ref().map_or((u, v), |l| l.rotate(u, v));
     [

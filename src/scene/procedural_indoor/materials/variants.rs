@@ -50,7 +50,8 @@ pub fn screen_seed(scene_seed: u64, slot: usize) -> u64 {
     let mut rng = stream(scene_seed, 900 + slot as u64);
     rng.random()
 }
-pub(super) fn build(
+#[allow(clippy::too_many_arguments)]
+pub(super) async fn build(
     scene: &IndoorManifest,
     base: &[Handle<StandardMaterial>],
     images: &mut impl AssetStore<Image>,
@@ -58,9 +59,10 @@ pub(super) fn build(
     used: Option<&std::collections::BTreeSet<(Surface, usize)>>,
     gpu: bool,
     requests: &mut gpu::Requests,
+    cooperative: bool,
 ) -> BTreeMap<(Surface, usize), Handle<StandardMaterial>> {
     let seed = scene.material_seed();
-    let structures = structures(scene, images, used, gpu, requests);
+    let structures = structures(scene, images, used, gpu, requests, cooperative).await;
     let mut result = BTreeMap::new();
     for surface in SURFACES {
         for index in 0..COUNT {
@@ -124,8 +126,7 @@ pub(super) fn build(
                     let warm = rng.random_range(0.0..0.10);
                     Color::srgb(silver, silver * (1. - warm), silver * (1. - warm * 1.8))
                 } else if surface == Surface::Plastic {
-                    let v = rng.random_range(0.035..0.31);
-                    Color::srgb(v, v * 1.01, v * 1.02)
+                    plastic_color(&mut rng)
                 } else {
                     let c = mat.base_color.to_srgba();
                     let scale = rng.random_range(0.72..1.16);
@@ -143,19 +144,46 @@ pub(super) fn build(
                 }
             }
             result.insert((surface, index), materials.add(mat));
+            if cooperative {
+                super::super::preparation::cooperate().await;
+            }
         }
     }
     result
 }
 
 type Structure = (program::MaterialRecipe, [Handle<Image>; 3]);
-fn structures(
+
+/// Molded office plastics include charcoal, warm white and colored housings.
+/// Pigment varies independently of their shared dielectric microstructure.
+fn plastic_color(rng: &mut impl Rng) -> Color {
+    let choice = rng.random_range(0.0..1.0);
+    if choice < 0.44 {
+        let v = rng.random_range(0.035..0.24);
+        Color::srgb(v, v * 1.01, v * 1.02)
+    } else if choice < 0.90 {
+        let v = rng.random_range(0.60..0.92);
+        let warmth = rng.random_range(-0.015..0.045);
+        Color::srgb(v, v * (1. - warmth), v * (1. - 1.6 * warmth))
+    } else {
+        Color::hsl(
+            rng.random_range(0.0..360.0),
+            rng.random_range(0.12..0.45),
+            rng.random_range(0.24..0.64),
+        )
+    }
+}
+
+async fn structures(
     scene: &IndoorManifest,
     images: &mut impl AssetStore<Image>,
     used: Option<&std::collections::BTreeSet<(Surface, usize)>>,
     gpu: bool,
     requests: &mut gpu::Requests,
+    cooperative: bool,
 ) -> BTreeMap<(Surface, usize), Structure> {
+    #[cfg(not(target_arch = "wasm32"))]
+    let _ = cooperative;
     let Some(p) = &scene.program else {
         return BTreeMap::new();
     };
@@ -184,9 +212,60 @@ fn structures(
         }
     });
     #[cfg(target_arch = "wasm32")]
-    let ready: Vec<_> = jobs.iter().map(prepare).collect();
+    let ready = {
+        let mut ready = Vec::with_capacity(jobs.len());
+        for job in &jobs {
+            ready.push(prepare(job));
+            if cooperative {
+                super::super::preparation::cooperate().await;
+            }
+        }
+        ready
+    };
     ready
         .into_iter()
         .map(|(key, r, maps)| (key, (r, maps.insert(images, requests))))
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn molded_plastic_pigments_span_dark_light_and_colored_devices() {
+        let (mut dark, mut light, mut chromatic) = (0, 0, 0);
+        for seed in 0..512 {
+            let c = plastic_color(&mut stream(seed, 92));
+            assert_eq!(c, plastic_color(&mut stream(seed, 92)));
+            let c = c.to_srgba();
+            let v = [c.red, c.green, c.blue];
+            assert!(v.iter().all(|v| (0.0..=1.0).contains(v)));
+            dark += usize::from(v.iter().all(|v| *v < 0.25));
+            light += usize::from(v.iter().all(|v| *v > 0.55));
+            chromatic += usize::from(
+                v.iter().copied().fold(f32::NEG_INFINITY, f32::max)
+                    - v.iter().copied().fold(f32::INFINITY, f32::min)
+                    > 0.12,
+            );
+        }
+        assert!(dark > 150 && light > 150 && chromatic > 15);
+    }
+    #[test]
+    fn input_devices_and_printer_housings_do_not_use_glazed_ceramic() {
+        use super::super::super::{
+            layout::ObjectKind,
+            objects::{audit, build_object},
+        };
+        for kind in [ObjectKind::Keyboard, ObjectKind::Printer] {
+            for seed in 0..128 {
+                let o = audit::fixture(kind, seed);
+                let a = build_object(&o);
+                assert!(
+                    !a.parts.keys().any(|(s, _)| *s == Surface::Ceramic),
+                    "{kind:?}/{seed}"
+                );
+                assert!(a.parts.keys().any(|(s, _)| *s == Surface::Plastic));
+            }
+        }
+    }
 }

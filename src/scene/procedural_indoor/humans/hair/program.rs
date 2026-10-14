@@ -77,6 +77,9 @@ impl HairStyle {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct HairProgram {
+    /// Curved part and crown whorl guide scalp combing; neither adds flyaways.
+    pub part_curve: f32,
+    pub crown_whorl: f32,
     /// Free hair below the jaw/nape reference, metres at nominal adult stature.
     pub drop_m: f32,
     pub layers: f32,
@@ -92,6 +95,8 @@ pub struct HairProgram {
 impl Default for HairProgram {
     fn default() -> Self {
         Self {
+            part_curve: 0.15,
+            crown_whorl: 0.25,
             drop_m: 0.32,
             layers: 0.35,
             spread: 1.,
@@ -108,7 +113,10 @@ impl Default for HairProgram {
 impl HairProgram {
     pub fn sample(seed: u64) -> Self {
         let mut rng = stream(seed, 0x4841495243555453);
+        let mut guides = stream(seed, 0x4841495247554944);
         Self {
+            part_curve: guides.random_range(-0.65..0.65),
+            crown_whorl: guides.random_range(-0.8..0.8),
             drop_m: rng.random_range(0.16..0.56),
             layers: rng.random_range(0.10..0.85),
             spread: rng.random_range(0.85..1.28),
@@ -127,6 +135,8 @@ impl HairProgram {
     }
     pub fn validate(&self) -> Result<(), String> {
         for (v, lo, hi) in [
+            (self.part_curve, -1., 1.),
+            (self.crown_whorl, -1., 1.),
             (self.drop_m, 0.08, 0.65),
             (self.layers, 0., 1.),
             (self.spread, 0.7, 1.4),

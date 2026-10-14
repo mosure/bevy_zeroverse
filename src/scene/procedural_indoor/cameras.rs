@@ -1,6 +1,7 @@
 //! The manifest, runtime, camera heatmaps and collision validation share one path.
 mod baseline;
 pub(crate) mod coverage;
+pub mod diagnostics;
 pub mod diversity;
 pub mod handheld;
 pub mod mixture;
@@ -247,10 +248,12 @@ impl IndoorManifest {
         let old_settings = std::mem::replace(&mut self.camera_settings, settings);
         let old_aspect = std::mem::replace(&mut self.camera_aspect_ratio, aspect_ratio);
         let old_cameras = std::mem::take(&mut self.cameras);
+        let old_diagnostics = std::mem::take(&mut self.camera_diagnostics);
         if let Err(error) = self.sample_cameras(count) {
             self.camera_settings = old_settings;
             self.camera_aspect_ratio = old_aspect;
             self.cameras = old_cameras;
+            self.camera_diagnostics = old_diagnostics;
             return Err(error);
         }
         Ok(())

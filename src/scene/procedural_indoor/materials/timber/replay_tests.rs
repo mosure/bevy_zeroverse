@@ -23,7 +23,8 @@ fn reference(w: &WoodFinish, r: &MaterialRecipe, [u, v]: [f32; 2]) -> Texel {
 fn prepared_wood_replays_texel_bits_and_every_pbr_mip() {
     use super::super::program::replay_helpers::*;
     for seed in [207, 43_084_584, 43_084_482] {
-        let recipes = super::super::program::sample_with_floor(seed, 0).unwrap();
+        let recipes =
+            super::super::program::replay_helpers::legacy_sample_with_floor(seed, 0).unwrap();
         for surface in [Surface::Wood, Surface::WoodEdge, Surface::Floor] {
             let r = &recipes[surface as usize];
             let w = r.wood.as_ref().unwrap();

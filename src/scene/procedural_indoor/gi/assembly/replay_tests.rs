@@ -159,7 +159,7 @@ fn original_from_geometry(
         .filter(|o| o.kind == ObjectKind::FloorLamp)
     {
         result.lights.push(LocalLight {
-            position: lamp.position + Vec3::Y * (lamp.size.y - 0.22),
+            position: crate::scene::procedural_indoor::objects::standing_lamp::emitter(lamp),
             color: linear(Color::srgb(1.0, 0.78, 0.57)),
             candela: architecture::floor_lamp_lumens(scene, lamp.seed) / (4.0 * PI),
             range: 5.0,
@@ -211,9 +211,7 @@ fn original_add_assembly(
         ) {
             continue;
         }
-        let material = label
-            .rsplit_once("#finish")
-            .and_then(|(_, slot)| slot.parse::<usize>().ok())
+        let material = crate::scene::procedural_indoor::materials::finish_slot(surface, label)
             .and_then(|slot| finishes.get(&(surface, slot)))
             .copied()
             .unwrap_or(surface as usize);

@@ -1,0 +1,28 @@
+#objects { scroll-margin-top: 5rem; }
+.object-controls { display:flex; flex-wrap:wrap; align-items:end; gap:1rem 2rem; padding:1.25rem; background:#eaf0e9; border-radius:12px 12px 0 0; }
+.object-controls label { display:grid; gap:.4rem; font-size:.82rem; font-weight:600; letter-spacing:.02em; }
+.object-controls select { font:inherit; font-size:1rem; min-width:200px; color:#20382e; padding:.7rem 2rem .7rem .8rem; border:1px solid #b7c9bb; border-radius:6px; background:white; }
+.object-controls a { font-size:.85rem; padding-bottom:.7rem; margin-left:auto; }
+.object-metrics { display:flex; flex-wrap:wrap; gap:1.5rem; padding:1rem 1.25rem; background:#f0f3ec; border-bottom:1px solid #d3ded3; font-size:.82rem; }
+.object-metrics strong { display:block; font-size:1.1rem; color:#245342; }
+.object-scroll { overflow-x:auto; border:1px solid #d3ded3; border-top:0; border-radius:0 0 12px 12px; }
+.object-grid { table-layout:fixed; width:100%; min-width:960px; border-collapse:collapse; font-size:.75rem; }
+.object-grid th,.object-grid td { border-bottom:1px solid #e1e6df; padding:.7rem .5rem; vertical-align:top; text-align:left; overflow-wrap:anywhere; }
+.object-grid th { white-space:normal; text-transform:none; letter-spacing:0; line-height:1.4; }
+.object-grid th:first-child { width:174px; position:sticky; left:0; background:#f7f8f3; z-index:1; border-right:1px solid #e1e6df; }
+.object-grid thead td { padding:.2rem; }
+.object-grid img { display:block; width:100%; height:auto; border-radius:4px; }
+.object-grid a:focus-visible,.object-controls select:focus-visible,#object-summary button:focus-visible { outline:3px solid #147d70; outline-offset:3px; }
+.object-grid summary { cursor:pointer; font-weight:500; }
+.object-grid details p { margin:.5rem 0 0; font-size:.72rem; font-weight:400; }
+.object-bars { height:32px; display:flex; align-items:end; gap:3px; margin-top:.5rem; }
+.object-bars span { background:#57967f; flex:1; min-height:1px; }
+.object-inventory { margin:1.5rem 0; }
+#object-summary { overflow:auto; max-height:580px; margin-top:1rem; }
+#object-summary table { width:100%; border-collapse:collapse; font-size:.85rem; }
+#object-summary th,#object-summary td { text-align:left; padding:.5rem 1rem; border-bottom:1px solid #d3ded3; }
+#object-summary thead { position:sticky; top:0; background:#edf2e9; }
+#object-summary button { border:0; background:none; text-decoration:underline; color:#147d70; cursor:pointer; font:inherit; padding:0; }
+#object-summary tr[data-low=true] td:nth-child(2) { color:#8c4c20; }
+.object-status { padding:.75rem 1.25rem; margin:0; font-size:.85rem; background:#f0f3ec; }
+@media (max-width:700px) { .object-controls { gap:1rem; padding:1rem; } .object-controls a { margin-left:0; } .object-controls select { min-width:150px; } .object-grid { min-width:960px; } .object-grid th:first-child { width:150px; } }

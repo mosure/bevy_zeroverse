@@ -80,7 +80,12 @@ fn audit_room(args: &Args, seed: u64) -> Result<(Value, Vec<Group>)> {
             if group.error.is_none() {
                 // Verify camera resampling does not change any other scene parameter.
                 let mut now = serde_json::to_value(&scene)?;
-                for field in ["cameras", "camera_settings", "camera_aspect_ratio"] {
+                for field in [
+                    "cameras",
+                    "camera_settings",
+                    "camera_aspect_ratio",
+                    "camera_diagnostics",
+                ] {
                     now[field] = original[field].clone();
                 }
                 ensure!(

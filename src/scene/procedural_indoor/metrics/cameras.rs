@@ -10,6 +10,29 @@ pub(super) fn record(
     paths: &mut impl Write,
     groups: &mut impl Write,
 ) -> io::Result<()> {
+    let d = &scene.camera_diagnostics;
+    for (name, n) in [
+        ("reference_proposals", d.reference_proposals),
+        ("long_reference_requests", d.long_reference_requests),
+        ("short_reference_recoveries", d.short_reference_recoveries),
+        ("group_restarts", d.group_restarts),
+        ("peer_proposals", d.peer_proposals),
+        ("endpoint_adjustments", d.endpoint_adjustments),
+    ] {
+        numeric.push(&format!("camera_search_{name}"), n as f64)?;
+    }
+    for (name, n) in ["clearance", "view", "endpoint", "curve", "coverage"]
+        .into_iter()
+        .zip(d.reference_rejections)
+    {
+        numeric.push(&format!("camera_reference_rejected_{name}"), n as f64)?;
+    }
+    for (name, n) in ["clearance", "rig", "length", "curve", "coverage", "overlap"]
+        .into_iter()
+        .zip(d.peer_rejections)
+    {
+        numeric.push(&format!("camera_peer_rejected_{name}"), n as f64)?;
+    }
     if let Some(group) = scene.camera_group_geometry() {
         writeln!(
             groups,

@@ -98,11 +98,33 @@ fn seeded_replay_and_independent_camera_streams() {
 
 #[test]
 fn procedural_texture_uploads_have_complete_mips_and_correct_color_spaces() {
+    use bevy::pbr::LightProbeComponent;
     use bevy::render::render_resource::TextureFormat;
-    let scene = IndoorManifest::generate(3, IndoorLayout::Mixed, 0.5, 1).unwrap();
+    let mut scene = IndoorManifest::generate(3, IndoorLayout::Mixed, 0.5, 1).unwrap();
+    scene.world_yaw = 0.731;
     let mut images = Assets::<Image>::default();
     let mut materials = Assets::<StandardMaterial>::default();
     let generated = super::materials::IndoorMaterials::build(&scene, &mut images, &mut materials);
+    let root = GlobalTransform::from(Transform::from_rotation(Quat::from_rotation_y(
+        scene.world_yaw,
+    )));
+    assert!(generated
+        .environment
+        .rotation
+        .abs_diff_eq(root.rotation(), 1e-6));
+    assert!(!generated.reflections.is_empty());
+    for probe in &generated.reflections {
+        let world = root.mul_transform(probe.transform);
+        // Exercise Bevy's actual extraction contract, including its additional
+        // EnvironmentMapLight rotation, against the room's geometric frame.
+        let extracted = probe.map.get_world_from_light_matrix(&world.affine());
+        for point in [Vec3::ZERO, Vec3::X, Vec3::Y, Vec3::Z] {
+            let expected = root.transform_point(probe.transform.transform_point(point));
+            assert!(extracted
+                .transform_point3(point)
+                .abs_diff_eq(expected, 1e-5));
+        }
+    }
     let wood = materials
         .get(&generated.get(super::materials::Surface::Wood))
         .unwrap();
@@ -127,7 +149,11 @@ fn procedural_texture_uploads_have_complete_mips_and_correct_color_spaces() {
     for (id, image) in images.iter() {
         let size = image.width();
         let descriptor = &image.texture_descriptor;
-        let diffuse_cube = generated.environment.diffuse_map.id() == id;
+        let diffuse_cube = generated.environment.diffuse_map.id() == id
+            || generated
+                .reflections
+                .iter()
+                .any(|probe| probe.map.diffuse_map.id() == id);
         assert_eq!(
             descriptor.mip_level_count,
             if diffuse_cube { 1 } else { size.ilog2() + 1 }
@@ -909,13 +935,18 @@ fn people_are_deterministic_diverse_supported_and_inside_collision_envelopes() {
             let scene =
                 IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 2, density)
                     .unwrap();
-            // Routes are fitted after occupied chairs/screens settle. Their
-            // acceptance and shape can change with people; other object programs
-            // retain independent random streams.
+            // Cable routes and loose floor details are fitted after occupied
+            // chairs/screens settle. Their acceptance can change with people;
+            // earlier furniture programs retain independent random streams.
             let furniture = |s: &IndoorManifest| {
                 s.objects
                     .iter()
-                    .filter(|o| o.kind != ObjectKind::Cable)
+                    .filter(|o| {
+                        !matches!(
+                            o.kind,
+                            ObjectKind::Cable | ObjectKind::Rug | ObjectKind::FloorOutlet
+                        )
+                    })
                     .cloned()
                     .collect::<Vec<_>>()
             };

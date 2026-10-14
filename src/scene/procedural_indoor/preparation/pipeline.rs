@@ -198,73 +198,110 @@ impl Request {
         let images = StagedAssets::new(images);
         let materials = StagedAssets::new(materials);
         let meshes = StagedAssets::new(meshes);
-        let task = AsyncComputeTaskPool::get().spawn(async move {
-            let started = bevy::platform::time::Instant::now();
-            let mut scene = IndoorManifest::generate_with_humans(
-                request.seed,
-                request.layout,
-                f32::from_bits(request.density),
-                0,
-                f32::from_bits(request.humans),
-            )?;
-            if let Some(json) = request.appearance {
-                scene.apply_appearance(appearance::AppearanceSettings::parse(&json)?)?;
-            }
-            let layout_seconds = started.elapsed().as_secs_f64();
-            let started = bevy::platform::time::Instant::now();
-            let policy = request
-                .camera
-                .as_deref()
-                .map(cameras::CameraSettings::parse)
-                .transpose()?
-                .unwrap_or_default();
-            scene.resample_cameras(request.cameras, policy, f32::from_bits(request.aspect))?;
-            validation::validate_layout(&scene)?;
-            let cameras_seconds = started.elapsed().as_secs_f64();
-            if request.rotation {
-                scene.world_yaw =
-                    layout::stream(request.seed, 11).random_range(0.0..std::f32::consts::TAU);
-            }
-            let moving_humans = if let Some(json) = request.motion {
-                let config = crate::human_motion::HumanMotionConfig::parse(&json)?;
-                crate::human_motion::planning::prepare_scene(&mut scene, &config)?;
-                crate::human_motion::planning::plan(&scene, &config)?
-                    .0
-                    .into_iter()
-                    .map(|p| p.actor_id)
-                    .collect()
-            } else {
-                Vec::new()
-            };
-            let mut prepared = PreparedIndoor::build_with_materials(
-                scene,
-                request.quality,
-                gi::IndoorGiSettings {
-                    enabled: request.gi_enabled,
-                    gpu: request.gi_gpu,
-                    bake: request.gi,
-                },
-                moving_humans,
-                images,
-                materials,
-                meshes,
-                request.gpu_materials,
-            )
-            .await;
-            prepared.timings.layout_seconds = layout_seconds;
-            prepared.timings.cameras_seconds = cameras_seconds;
-            // Disabled by default; attribute CPU work without adding timings to
-            // deterministic dataset metadata or changing capture readiness.
-            debug!(target: "bevy_zeroverse::preparation", seed = request.seed,
-                timings = %serde_json::to_string(&prepared.timings).expect("finite preparation durations"),
-                "indoor preparation complete");
-            Ok(prepared)
-        });
+        let task = AsyncComputeTaskPool::get().spawn(request.prepare(images, materials, meshes));
         PreparationJob {
             task: Some(task),
             ready: None,
         }
     }
+
+    async fn prepare(
+        self,
+        images: StagedAssets<Image>,
+        materials: StagedAssets<StandardMaterial>,
+        meshes: StagedAssets<Mesh>,
+    ) -> Result<PreparedIndoor, String> {
+        let request = self;
+        let started = bevy::platform::time::Instant::now();
+        let all_started = started;
+        let mut scene = IndoorManifest::generate_with_humans(
+            request.seed,
+            request.layout,
+            f32::from_bits(request.density),
+            0,
+            f32::from_bits(request.humans),
+        )?;
+        if let Some(json) = request.appearance {
+            scene.apply_appearance(appearance::AppearanceSettings::parse(&json)?)?;
+        }
+        let layout_seconds = started.elapsed().as_secs_f64();
+        let started = bevy::platform::time::Instant::now();
+        let policy = request
+            .camera
+            .as_deref()
+            .map(cameras::CameraSettings::parse)
+            .transpose()?
+            .unwrap_or_default();
+        scene.resample_cameras(request.cameras, policy, f32::from_bits(request.aspect))?;
+        let cameras_seconds = started.elapsed().as_secs_f64();
+        let started = bevy::platform::time::Instant::now();
+        validation::validate_layout(&scene)?;
+        let validation_seconds = started.elapsed().as_secs_f64();
+        let started = bevy::platform::time::Instant::now();
+        if request.rotation {
+            scene.world_yaw =
+                layout::stream(request.seed, 11).random_range(0.0..std::f32::consts::TAU);
+        }
+        let moving_humans = if let Some(json) = request.motion {
+            let config = crate::human_motion::HumanMotionConfig::parse(&json)?;
+            crate::human_motion::planning::prepare_scene(&mut scene, &config)?;
+            crate::human_motion::planning::plan(&scene, &config)?
+                .0
+                .into_iter()
+                .map(|p| p.actor_id)
+                .collect()
+        } else {
+            Vec::new()
+        };
+        let motion_planning_seconds = started.elapsed().as_secs_f64();
+        let mut prepared = PreparedIndoor::build_with_materials(
+            scene,
+            request.quality,
+            gi::IndoorGiSettings {
+                enabled: request.gi_enabled,
+                gpu: request.gi_gpu,
+                bake: request.gi,
+            },
+            moving_humans,
+            images,
+            materials,
+            meshes,
+            request.gpu_materials,
+        )
+        .await;
+        prepared.timings.layout_seconds = layout_seconds;
+        prepared.timings.cameras_seconds = cameras_seconds;
+        let wall = &mut prepared.timings.wall;
+        wall.layout_seconds = layout_seconds;
+        wall.cameras_seconds = cameras_seconds;
+        wall.validation_seconds = validation_seconds;
+        wall.motion_planning_seconds = motion_planning_seconds;
+        wall.finish(all_started.elapsed().as_secs_f64());
+        // Disabled by default; attribute CPU work without adding timings to
+        // deterministic dataset metadata or changing capture readiness.
+        debug!(target: "bevy_zeroverse::preparation", seed = request.seed,
+            timings = %serde_json::to_string(&prepared.timings).expect("finite preparation durations"),
+            "indoor preparation complete");
+        Ok(prepared)
+    }
+}
+
+/// Prepare the same immutable scene/asset plan used by interactive and sequential
+/// capture. No render device is required. GPU material/GI requests are prepared,
+/// not executed: callers must honor render readiness before consuming pixels.
+/// Timing diagnostics never enter the seeded manifest or training annotations.
+pub async fn prepare_indoor(
+    seed: u64,
+    args: &BevyZeroverseConfig,
+    settings: &ZeroverseSceneSettings,
+    gi: gi::IndoorGiSettings,
+    images: StagedAssets<Image>,
+    materials: StagedAssets<StandardMaterial>,
+    meshes: StagedAssets<Mesh>,
+) -> Result<PreparedIndoor, String> {
+    Request::new(seed, args, settings, gi)
+        .prepare(images, materials, meshes)
+        .await
 }
 
 #[cfg(test)]

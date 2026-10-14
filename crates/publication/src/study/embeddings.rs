@@ -129,6 +129,23 @@ pub(super) fn analyze(path: &Path, index: &Value, index_path: &Path) -> Result<V
     )
 }
 
+/// One deterministic, jittered index per equal-width stratum. Jitter avoids
+/// aliasing periodic family order without inspecting image or embedding values.
+fn basis_indices(n: usize, budget: usize) -> Vec<usize> {
+    let count = n.min(budget);
+    (0..count)
+        .map(|i| {
+            let lo = i * n / count;
+            let hi = (i + 1) * n / count;
+            let mut bits = (i as u64).wrapping_add(0x9e3779b97f4a7c15);
+            bits = (bits ^ (bits >> 30)).wrapping_mul(0xbf58476d1ce4e5b9);
+            bits = (bits ^ (bits >> 27)).wrapping_mul(0x94d049bb133111eb);
+            bits ^= bits >> 31;
+            lo + (bits % (hi - lo) as u64) as usize
+        })
+        .collect()
+}
+
 fn dot(a: &[f64], b: &[f64]) -> f64 {
     a.iter().zip(b).map(|(a, b)| a * b).sum()
 }
@@ -151,6 +168,16 @@ fn cross_room_nearest(vectors: &[Vec<f64>], ids: &[u64]) -> (Vec<f64>, Vec<usize
 /// Eigenvalues of the centered scene Gram matrix, using bounded symmetric Jacobi
 /// rotations. A 64-room audit needs no new BLAS dependency or CPU tensor copies.
 fn spectrum(vectors: &[Vec<f64>]) -> Value {
+    if vectors.len() > 256 {
+        let ids = basis_indices(vectors.len(), 256);
+        let subset: Vec<_> = ids.iter().map(|&i| vectors[i].clone()).collect();
+        let mut report = spectrum(&subset);
+        report["scope"] =
+            json!("prespecified stratified-index subset; not full-cohort effective rank");
+        report["total_rooms"] = json!(vectors.len());
+        report["fit_room_indices"] = json!(ids);
+        return report;
+    }
     let n = vectors.len();
     let d = vectors[0].len();
     let mean: Vec<_> = (0..d)

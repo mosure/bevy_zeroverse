@@ -91,7 +91,46 @@ pub(super) fn record(
         if f.shade != Shade::None {
             numeric.push("exterior_shade_coverage", f.shade_coverage as f64)?;
         }
+        if let Some(p) = f.treatment.as_ref().filter(|_| f.shade != Shade::None) {
+            category("window_treatment_finish_slot", p.finish_slot.to_string());
+            if matches!(f.shade, Shade::Curtain | Shade::Vertical) {
+                category("window_treatment_stack", format!("{:?}", p.stack));
+            }
+            if f.shade == Shade::Venetian {
+                category(
+                    "window_treatment_slat_material",
+                    format!("{:?}", p.slat_material),
+                );
+            } else {
+                category("window_treatment_fabric", format!("{:?}", p.fabric));
+            }
+            if matches!(f.shade, Shade::Venetian | Shade::Vertical) {
+                numeric.push("window_treatment_slat_pitch_m", p.slat_pitch as f64)?;
+            }
+            if matches!(f.shade, Shade::Curtain | Shade::Roman | Shade::Pleated) {
+                numeric.push("window_treatment_fold_pitch_m", p.fold_pitch as f64)?;
+                numeric.push("window_treatment_fold_depth_m", p.fold_depth as f64)?;
+            }
+            if f.shade == Shade::Curtain {
+                numeric.push("window_treatment_fullness", p.fullness as f64)?;
+                numeric.push("window_treatment_tieback", p.tieback as f64)?;
+            }
+        }
         for (i, o) in f.openings.iter().enumerate() {
+            if let Some(glazing) = &o.glazing {
+                category("exterior_glazing_treatment", glazing.treatment.to_string());
+                numeric.push("exterior_glass_thickness_m", glazing.thickness_m as f64)?;
+                numeric.push("exterior_glass_privacy_pitch_m", glazing.pitch_m as f64)?;
+                numeric.push("exterior_sash_requested_opening", glazing.opening as f64)?;
+                numeric.push(
+                    "exterior_sash_realized_opening",
+                    if f.allows_open_sash() {
+                        glazing.opening as f64
+                    } else {
+                        0.
+                    },
+                )?;
+            }
             let size = o.max - o.min;
             let full = o.full_height(height);
             full_height += usize::from(full);

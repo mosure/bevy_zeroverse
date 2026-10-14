@@ -26,7 +26,7 @@ impl IndoorManifest {
                 .objects
                 .iter()
                 .filter(|o| {
-                    o.kind == ObjectKind::WallOutlet
+                    matches!(o.kind, ObjectKind::WallOutlet | ObjectKind::FloorOutlet)
                         && !o.neighbor
                         && o.position.distance(source.position) < 2.8
                 })

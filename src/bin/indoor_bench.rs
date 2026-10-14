@@ -139,6 +139,7 @@ fn heap_memory() -> serde_json::Value {
 }
 
 fn main() -> Result<()> {
+    let app_started = Instant::now();
     let args = Args::parse();
     ensure!(
         args.scenes > args.warmup_scenes
@@ -290,6 +291,8 @@ fn main() -> Result<()> {
     for _ in 0..4 {
         app.update();
     }
+    let startup_seconds = app_started.elapsed().as_secs_f64();
+    let mut measured_stream_started = None;
     let mut records = BufWriter::new(fs::File::create(args.output.join("scenes.jsonl"))?);
     let mut durations = Vec::new();
     let mut memory = Vec::new();
@@ -297,6 +300,9 @@ fn main() -> Result<()> {
     let loop_started_unix_seconds = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs_f64();
     let total = Instant::now();
     for index in 0..args.scenes {
+        if index == args.warmup_scenes {
+            measured_stream_started = Some(Instant::now());
+        }
         app.world_mut()
             .resource_mut::<procedural_indoor::preparation::IndoorPrefetch>()
             .depth = if !args.no_prefetch && !args.fixed_scene {
@@ -501,6 +507,7 @@ fn main() -> Result<()> {
                 "ready_hits":prefetch.ready_hits,"staged_rooms":prefetch.staged_rooms,"staged_hits":prefetch.staged_hits},
             "completed_unix_seconds":SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs_f64(),
             "index":index,"seed":seed,"elapsed_seconds":elapsed,"request_seconds":request_seconds,
+            "material_bakes":app.world().get_resource::<procedural_indoor::materials::gpu::MaterialBakeStatistics>(),
             "preparation_stages": if args.fixed_scene && index > 0 { None } else { app.world().get_resource::<procedural_indoor::preparation::PreparationTimings>() },
             "capture_seconds":elapsed-request_seconds,"updates":updates,"rss_bytes":rss,"heap":heap_memory(),
             "update_phase_seconds":update_times.iter().map(|(phase,(count,sum,max))| (phase,serde_json::json!({"count":count,"sum":sum,"max":max}))).collect::<std::collections::BTreeMap<_,_>>(),
@@ -533,6 +540,7 @@ fn main() -> Result<()> {
             );
         }
     }
+    let measured_stream_seconds = measured_stream_started.unwrap().elapsed().as_secs_f64();
     let n = durations.len();
     let measured_seconds: f64 = durations.iter().sum();
     let quarter = (n / 4).max(1);
@@ -550,7 +558,7 @@ fn main() -> Result<()> {
             .sum::<f64>()
             .max(1.0);
     durations.sort_by(f64::total_cmp);
-    let report = serde_json::json!({"schema_version":3,"run_id":run_id,"pid":std::process::id(),"scenes":args.scenes,"warmup_scenes":args.warmup_scenes,
+    let report = serde_json::json!({"schema_version":4,"run_id":run_id,"pid":std::process::id(),"scenes":args.scenes,"warmup_scenes":args.warmup_scenes,
         "loop_started_unix_seconds":loop_started_unix_seconds,
         "poll_backoff_ms":args.poll_backoff_ms,
         "light_cluster_budget_override":args.cluster_budget,
@@ -564,13 +572,19 @@ fn main() -> Result<()> {
         "generator_version":procedural_indoor::layout::GENERATOR_VERSION,"capture_engine":bevy_zeroverse::CAPTURE_ENGINE_IDENTITY,"config":config,"gi_enabled":!args.no_gi,
         "gi_settings":app.world().resource::<IndoorGiSettings>(),"gpu_timings_enabled":args.gpu_timings,"fixed_scene":args.fixed_scene,
         "adapter":app.world().get_resource::<bevy::render::renderer::RenderAdapterInfo>().map(|a|format!("{:?}",**a)),
+        "startup_seconds":startup_seconds,
+        "measured_stream_seconds":measured_stream_seconds,
+        "stream_scenes_per_second":n as f64/measured_stream_seconds,
+        "stream_views_per_second":(n*args.cameras*args.steps as usize) as f64/measured_stream_seconds,
+        "stream_housekeeping_seconds":measured_stream_seconds-measured_seconds,
+        "available_parallelism":std::thread::available_parallelism().map_or(1, |n|n.get()),
         "total_wall_seconds":total.elapsed().as_secs_f64(),"measured_capture_seconds":measured_seconds,
         "measured_completed_views":n*args.cameras*args.steps as usize,
         "scenes_per_second":n as f64/measured_seconds,"views_per_second":(n*args.cameras*args.steps as usize) as f64/measured_seconds,
         "scene_seconds_p50_p95":[durations[n/2],durations[(n*95/100).min(n-1)]],
         "rss_first_quarter_mean_bytes":first_rss,"rss_last_quarter_mean_bytes":last_rss,"rss_slope_bytes_per_scene":slope,
         "rss_max_bytes":memory.iter().copied().fold(0.0,f64::max),"max_assets_mesh_material_image":max_assets,
-        "timing_policy":"actual complete RGB/annotation samples; no PNG or dataset file encoding; scene preparation included, validation and JSONL writes excluded; GPU memory/utilization measured separately"});
+        "timing_policy":"stream_* uses complete wall time including validation, JSONL telemetry and drops while prefetched work advances; legacy scenes_per_second uses only capture spans and may overestimate delivery throughput. Preparation wall stages partition a task lifetime, overlap across rooms, and are not additive with capture wall time. update_phase_seconds classifies event-loop call time by the blocker observed before the call, not CPU/GPU execution. Render diagnostics can overlap and arrive late; not a per-scene GPU accounting partition. No PNG/dataset encoding unless save_samples; GPU utilization measured separately"});
     fs::write(
         args.output.join("summary.json"),
         serde_json::to_vec_pretty(&report)?,

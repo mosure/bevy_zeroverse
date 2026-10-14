@@ -6,15 +6,28 @@ use std::{collections::BTreeMap, fs, path::Path};
 
 pub fn retired(name: &str) -> bool {
     if let Some(media) = name.strip_prefix("www/project/static/media/") {
-        return !["architecture/", "qualification/", "cameras/"]
-            .iter()
-            .any(|prefix| media.starts_with(prefix))
+        return ![
+            "architecture/",
+            "qualification/",
+            "cameras/",
+            "objects/",
+            "materials/",
+        ]
+        .iter()
+        .any(|prefix| media.starts_with(prefix))
             && !matches!(media, "social.jpg" | "whitepaper.webp");
     }
     if let Some(generated) = name.strip_prefix("tex/generated/") {
-        return !["architecture_", "publication_", "camera_count_"]
-            .iter()
-            .any(|prefix| generated.starts_with(prefix));
+        return ![
+            "architecture_",
+            "publication_",
+            "camera_count_",
+            "object_",
+            "material_",
+            "pipeline_",
+        ]
+        .iter()
+        .any(|prefix| generated.starts_with(prefix));
     }
     false
 }
@@ -54,6 +67,8 @@ mod tests {
             "tex/generated/publication_evaluation.tex",
             "tex/generated/architecture_co_visibility.jpg",
             "tex/generated/camera_count_statistics.png",
+            "tex/generated/pipeline_receipt.json",
+            "tex/generated/pipeline_engine.png",
         ] {
             assert!(!retired(name), "retired current output {name}");
         }

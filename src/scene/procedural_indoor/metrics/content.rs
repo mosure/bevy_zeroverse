@@ -23,12 +23,66 @@ pub(super) fn record_scene(
     scene: &IndoorManifest,
     numeric: &mut NumericCollector,
 ) -> io::Result<()> {
+    let groups = &scene.assembly_diagnostics;
+    for (name, n) in [
+        (
+            "assembly_proposed_workstations",
+            groups.proposed_workstations,
+        ),
+        ("assembly_proposed_meetings", groups.proposed_meetings),
+        (
+            "assembly_rejected_surface_attempts",
+            groups.rejected_surfaces,
+        ),
+        (
+            "assembly_rejected_seating_attempts",
+            groups.rejected_seating,
+        ),
+        ("assembly_rejected_meetings", groups.rejected_meetings),
+        ("assembly_accepted_groups", groups.accepted.len()),
+    ] {
+        numeric.push(name, n as f64)?;
+    }
+    for group in &groups.accepted {
+        let p = scene.objects[group.surface].position;
+        let region = if scene.in_primary_room(p, 0.) {
+            "primary"
+        } else {
+            "main_other"
+        };
+        for (name, n) in [
+            ("requested_capacity", group.requested_capacity),
+            ("accepted_capacity", group.seats.len()),
+            ("attempts", group.attempts),
+        ] {
+            numeric.push(
+                &format!("assembly_{region}_{:?}_{name}", group.role),
+                n as f64,
+            )?;
+        }
+    }
     for (kind, count) in ["building", "garden", "courtyard", "pergola"]
         .into_iter()
         .zip(super::super::architecture::outdoors::counts(scene))
     {
         numeric.push(&format!("exterior_{kind}_parcels"), count as f64)?;
     }
+    if let Some(fraction) = super::super::architecture::outdoors::window_context_fraction(scene) {
+        numeric.push("exterior_window_context_fraction", fraction as f64)?;
+    }
+    numeric.push(
+        "floor_power_connections",
+        scene
+            .objects
+            .iter()
+            .filter(|o| {
+                o.kind == ObjectKind::Cable
+                    && o.cable_target
+                        .and_then(|id| scene.objects.get(id))
+                        .is_some_and(|target| target.kind == ObjectKind::FloorOutlet)
+            })
+            .count() as f64,
+    )?;
     let p = ViewpointProgram::sample(scene.seed);
     let wall = super::super::layout::wall_composition::WallComposition::sample(scene);
     for (name, value) in [
@@ -105,7 +159,10 @@ pub(super) fn record_material(
 }
 
 fn finish_seed(scene: &IndoorManifest, o: &IndoorObject) -> u64 {
-    materials::variants::screen_seed(scene.material_seed(), materials::variants::slot(o.seed))
+    materials::variants::screen_seed(
+        scene.material_seed(),
+        materials::variants::slot(o.finish_seed.unwrap_or(o.seed)),
+    )
 }
 
 fn record_equipment(
@@ -422,6 +479,7 @@ mod tests {
     use super::*;
     fn object(kind: ObjectKind) -> IndoorObject {
         IndoorObject {
+            finish_seed: None,
             id: 0,
             kind,
             position: Vec3::new(1., 2., 3.),

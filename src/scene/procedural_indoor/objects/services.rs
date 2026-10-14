@@ -12,11 +12,16 @@ pub struct ServiceProgram {
     pub slats: bool,
     pub backed: bool,
     pub panel_fraction: f32,
+    pub drawer_bias: f32,
+    pub handle_fraction: f32,
 }
 
 pub fn parameters(o: &IndoorObject) -> ServiceProgram {
     let mut rng = stream(o.seed, 5200);
+    let mut detail = stream(o.seed, 7495);
     ServiceProgram {
+        drawer_bias: detail.random_range(-0.55..0.55),
+        handle_fraction: detail.random_range(0.13..0.33),
         levels: rng.random_range(2..=3),
         drawers: rng.random_range(2..=5),
         frame: if rng.random_bool(0.45) {
@@ -145,8 +150,11 @@ fn drawers(a: &mut Assembly, o: &IndoorObject, p: &ServiceProgram) {
         0.006,
     );
     let pitch = (s.y - foot - 0.035) / p.drawers as f32;
+    let mut bottom = foot + 0.012;
     for i in 0..p.drawers {
-        let y = foot + 0.012 + pitch * (i as f32 + 0.5);
+        let pitch = pitch * (1. + p.drawer_bias * (2. * i as f32 / (p.drawers - 1) as f32 - 1.));
+        let y = bottom + pitch * 0.5;
+        bottom += pitch;
         a.box_part(
             Surface::WoodEdge,
             label,
@@ -155,8 +163,12 @@ fn drawers(a: &mut Assembly, o: &IndoorObject, p: &ServiceProgram) {
             0.003,
         );
         a.part(Surface::Metal, label).rod(
-            Vec3::new(-s.x * 0.13, y + pitch * 0.21, s.z * 0.5 - 0.002),
-            Vec3::new(s.x * 0.13, y + pitch * 0.21, s.z * 0.5 - 0.002),
+            Vec3::new(
+                -s.x * p.handle_fraction,
+                y + pitch * 0.21,
+                s.z * 0.5 - 0.002,
+            ),
+            Vec3::new(s.x * p.handle_fraction, y + pitch * 0.21, s.z * 0.5 - 0.002),
             0.0025,
         );
     }

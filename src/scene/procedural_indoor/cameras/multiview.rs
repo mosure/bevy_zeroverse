@@ -176,6 +176,7 @@ impl IndoorManifest {
     }
 
     pub(crate) fn sample_cameras(&mut self, count: usize) -> Result<(), String> {
+        self.camera_diagnostics = default();
         self.sample_camera_set(count, true)
     }
 
@@ -262,6 +263,7 @@ impl IndoorManifest {
                 let mut accepted = 0;
                 let pool = super::program::pool_size(policy.target_variation, count);
                 for attempt in 0..VIEW_ATTEMPTS {
+                    self.camera_diagnostics.peer_proposals += 1;
                     if first_valid.is_some_and(|first| attempt >= first + 12) || accepted >= pool {
                         break;
                     }
@@ -387,6 +389,7 @@ impl IndoorManifest {
                     };
                     if let Some(reason) = rejection {
                         rejected[reason] += 1;
+                        self.camera_diagnostics.peer_rejections[reason] += 1;
                         continue;
                     }
                     let candidate_views: Vec<_> = CHECK_TIMES
@@ -418,6 +421,7 @@ impl IndoorManifest {
                         continue;
                     }
                     rejected[5] += 1;
+                    self.camera_diagnostics.peer_rejections[5] += 1;
                 }
                 if let Some((camera, track, summary, _)) = found {
                     self.cameras.push(camera);
@@ -445,6 +449,7 @@ impl IndoorManifest {
                 recovery::retain_diverse(&mut partial_groups, &self.cameras);
             }
             most_placed = most_placed.max(self.cameras.len());
+            self.camera_diagnostics.group_restarts += 1;
         }
         let recovered = recovery::complete(
             self,
@@ -626,10 +631,14 @@ mod tests {
             .iter()
             .all(|p| policy.accepts(&p.samples)));
         let coverage = Coverage::new(&scene);
+        let primary_person = scene
+            .humans
+            .iter()
+            .any(|h| !h.neighbor && scene.in_primary_room(h.position, 0.));
         for (index, camera) in scene.cameras.iter().enumerate() {
             assert!(scene.camera_clear(camera.start));
             assert!(scene.camera_curve_clear(camera));
-            assert!(coverage.suitable(camera, index == 0));
+            assert!(coverage.suitable(camera, index == 0 && primary_person));
             assert!(camera.path_length() + 1e-4 >= scene.camera_settings.path_length_min);
             assert!(camera.path_length() <= scene.camera_settings.path_length_max + 1e-4);
         }

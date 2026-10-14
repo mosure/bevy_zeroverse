@@ -4,12 +4,13 @@ use wgpu::util::DeviceExt;
 
 #[cfg(test)]
 pub(super) const SHADER: &str = include_str!("synthesis.wgsl");
-pub(super) const MAX_SIZE: u32 = 256;
-pub(super) const ENTRIES: [&str; 6] = [
+pub(super) const MAX_SIZE: u32 = 512;
+pub(super) const ENTRIES: [&str; 7] = [
     "woven_map",
     "leather_map",
     "knit_map",
     "finish_map",
+    "carpet_map",
     "normals",
     "mips",
 ];
@@ -159,7 +160,7 @@ impl Workspace {
         pipelines: [&wgpu::ComputePipeline; 3],
         bindings: &[wgpu::BindGroup],
         size: u32,
-        textures: [&wgpu::Texture; 3],
+        textures: [Option<&wgpu::Texture>; 3],
     ) {
         {
             let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
@@ -180,6 +181,11 @@ impl Workspace {
         }
         let plane = plane_bytes(size);
         for (map, texture) in textures.into_iter().enumerate() {
+            // Normal moments still contribute to GGX mips even when the final
+            // material omits a normal map. Skip only its allocation and copies.
+            let Some(texture) = texture else {
+                continue;
+            };
             for (mip, l) in levels(size).into_iter().enumerate() {
                 encoder.copy_buffer_to_texture(
                     wgpu::TexelCopyBufferInfo {

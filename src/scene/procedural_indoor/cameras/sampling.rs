@@ -2,6 +2,7 @@
 use super::super::layout::{IndoorCamera, IndoorManifest, CAMERA_CLEARANCE};
 use bevy::prelude::*;
 use rand::Rng;
+mod fallback;
 #[cfg(test)]
 mod tests;
 
@@ -31,11 +32,13 @@ impl IndoorManifest {
             let perimeter = rng.random_bool(0.4);
             let long_path = rng.random_bool(self.camera_settings.long_path_fraction as f64)
                 && self.camera_settings.handheld.is_none();
+            self.camera_diagnostics.long_reference_requests += usize::from(long_path);
             let edge = rng.random_range(0..4);
             let require_person = index == 0 && !people.is_empty();
             let mut found = None;
             let mut rejected = [0usize; 5];
             for attempt in 0..2048 {
+                self.camera_diagnostics.reference_proposals += 1;
                 let mut p = Vec3::new(
                     rng.random_range(-half.x + 0.65..half.x - 0.65),
                     0.,
@@ -146,7 +149,7 @@ impl IndoorManifest {
                 } else {
                     rng.random_range(desired_min.ln()..=max_length.ln()).exp()
                 };
-                let end = p
+                let mut end = p
                     + direction * distance
                     + Vec3::Y
                         * if long_path || distance == 0.0 {
@@ -154,6 +157,14 @@ impl IndoorManifest {
                         } else {
                             rng.random_range(-0.25..0.25)
                         };
+                if long_path && attempt < 256 && !self.camera_clear(end) {
+                    if let Some(adjusted) =
+                        super::navigation::fit_endpoint(self, p, end, desired_min)
+                    {
+                        end = adjusted;
+                        self.camera_diagnostics.endpoint_adjustments += 1;
+                    }
+                }
                 let route = if long_path && attempt < 256 {
                     let Some(path) = super::navigation::route(self, p, end) else {
                         rejected[2] += 1;
@@ -212,6 +223,21 @@ impl IndoorManifest {
             }
             if found.is_none() && require_person {
                 found = self.person_camera_fallback(&people, rng, coverage);
+            }
+            for (total, n) in self
+                .camera_diagnostics
+                .reference_rejections
+                .iter_mut()
+                .zip(rejected)
+            {
+                *total += n;
+            }
+            if long_path
+                && found.as_ref().is_some_and(|c| {
+                    c.path_length() + 1e-4 < 1.8_f32.min(self.camera_settings.path_length_max)
+                })
+            {
+                self.camera_diagnostics.short_reference_recoveries += 1;
             }
             self.cameras
                 .push(found.ok_or_else(|| {
@@ -307,6 +333,6 @@ impl IndoorManifest {
             }
             return Some(camera);
         }
-        None
+        self.person_free_space_fallback(people, rng, coverage)
     }
 }

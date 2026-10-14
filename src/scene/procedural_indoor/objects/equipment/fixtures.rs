@@ -20,9 +20,9 @@ pub(super) fn shelf(a: &mut Assembly, o: &IndoorObject, p: &EquipmentProgram) {
     );
     for i in 0..p.shelf_brackets {
         let x = if p.shelf_brackets == 2 {
-            [-0.32, 0.32][i]
+            [-p.shelf_span, p.shelf_span][i]
         } else {
-            (i as f32 - 1.) * 0.34
+            (i as f32 - 1.) * p.shelf_span
         } * s.x;
         a.box_part(
             Surface::Metal,
@@ -31,11 +31,30 @@ pub(super) fn shelf(a: &mut Assembly, o: &IndoorObject, p: &EquipmentProgram) {
             Vec3::new(0.022, s.y, 0.016),
             0.002,
         );
-        a.part(Surface::Metal, label).rod(
-            Vec3::new(x, 0.021, -s.z * 0.5 + 0.017),
-            Vec3::new(x, s.y - thickness - 0.013, s.z * 0.39),
-            0.008,
-        );
+        if p.bracket_style != 1 {
+            a.part(Surface::Metal, label).rod(
+                Vec3::new(x, 0.021, -s.z * 0.5 + 0.017),
+                Vec3::new(x, s.y - thickness - 0.013, s.z * 0.39),
+                0.008,
+            );
+        } else {
+            a.box_part(
+                Surface::Metal,
+                label,
+                Vec3::new(x, s.y - thickness - 0.008, 0.),
+                Vec3::new(0.022, 0.016, s.z * 0.93),
+                0.002,
+            );
+        }
+        if p.bracket_style == 2 {
+            a.box_part(
+                Surface::Metal,
+                label,
+                Vec3::new(x, 0.012, -s.z * 0.27),
+                Vec3::new(0.024, 0.024, s.z * 0.44),
+                0.003,
+            );
+        }
     }
 }
 
@@ -111,46 +130,7 @@ pub(super) fn notice_board(a: &mut Assembly, o: &IndoorObject, p: &EquipmentProg
 }
 
 pub(super) fn projection_screen(a: &mut Assembly, o: &IndoorObject) {
-    let s = o.size;
-    let label = o.kind.class_name();
-    let case = (s.y * 0.045).clamp(0.036, 0.060).min(s.z * 0.8);
-    a.box_part(
-        Surface::Metal,
-        label,
-        Vec3::new(0., s.y - case * 0.5, 0.),
-        Vec3::new(s.x, case, s.z * 0.82),
-        case * 0.28,
-    );
-    for side in [-1., 1.] {
-        a.box_part(
-            Surface::Metal,
-            label,
-            Vec3::new(side * s.x * 0.38, s.y - case * 0.5, -s.z * 0.455),
-            Vec3::new(0.030, case * 0.72, s.z * 0.09),
-            0.001,
-        );
-    }
-    a.box_part(
-        Surface::Ink,
-        label,
-        Vec3::new(0., (s.y - case) * 0.5, s.z * 0.20),
-        Vec3::new(s.x * 0.94, s.y - case, 0.004),
-        0.001,
-    );
-    // A real unlit projection cloth. Content is not fabricated without a
-    // calibrated active projector; matte white screens also occur powered off.
-    a.box_part(
-        Surface::Paper,
-        label,
-        Vec3::new(0., (s.y - case) * 0.5, s.z * 0.20 + 0.0028),
-        Vec3::new(s.x * 0.90, (s.y - case) * 0.94, 0.0008),
-        0.,
-    );
-    a.part(Surface::Metal, label).cylinder(
-        0.009,
-        s.x * 0.94,
-        Transform::from_xyz(0., 0.009, s.z * 0.20).with_rotation(Quat::from_rotation_z(FRAC_PI_2)),
-    );
+    super::super::presentation::screen(a, o);
 }
 
 pub(super) fn light(a: &mut Assembly, o: &IndoorObject, p: &EquipmentProgram) {
@@ -196,18 +176,25 @@ pub(super) fn light(a: &mut Assembly, o: &IndoorObject, p: &EquipmentProgram) {
             Vec3::new(s.x * 0.49, s.y * 0.86, s.z * 0.14),
             0.006,
         );
-        a.box_part(
-            p.housing,
-            label,
-            Vec3::new(0., s.y * 0.5, s.z * 0.02),
-            Vec3::new(s.x, s.y * 0.84, s.z * 0.80),
-            0.010,
+        let bottom = s.y * (0.5 - p.sconce_height * 0.5);
+        let width = s.x * p.sconce_width * 0.5;
+        a.part(p.housing, label).housing(
+            &[
+                (bottom, Vec2::new(width, s.z * 0.4)),
+                (s.y - bottom, Vec2::new(width * p.sconce_taper, s.z * 0.4)),
+            ],
+            5.,
+            Transform::from_xyz(0., 0., s.z * 0.02),
         );
         a.box_part(
             Surface::Light,
             label,
-            Vec3::new(0., s.y * 0.079, s.z * 0.13),
-            Vec3::new(s.x * p.diffuser_fraction, 0.002, s.z * 0.66),
+            Vec3::new(0., bottom - 0.0011, s.z * 0.13),
+            Vec3::new(
+                s.x * p.sconce_width * p.diffuser_fraction,
+                0.002,
+                s.z * 0.50,
+            ),
             0.001,
         );
     }

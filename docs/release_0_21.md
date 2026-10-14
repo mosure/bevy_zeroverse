@@ -47,5 +47,5 @@ retain their own data and scope.
 Photographic realism, 10M-sample learning utility, unlimited-process memory
 stability and a measured reduction in glass noise remain unproven. People and
 some procedural materials remain visibly synthetic. See the
-[wgpu comparison](wgpu_dependency_review.md) for the measured reasons local
+[wgpu comparison](evidence/wgpu_dependency_audit/review_29.md) for the measured reasons local
 patches remain, and do not treat this version bump as a new realism benchmark.

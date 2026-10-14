@@ -64,7 +64,8 @@ impl EnvelopeProgram {
             slope * (1. - fraction) * if r.random_bool(0.5) { 1. } else { -1. },
         );
         let mut result = Self {
-            footprint,
+            footprint: ceilings::articulate(scene.seed, footprint, size),
+            soffits: vec![],
             ceiling_drop,
             floor_patches: vec![],
             pillars: vec![],
@@ -239,6 +240,7 @@ impl EnvelopeProgram {
                 break;
             }
         }
+        result.sample_soffits(scene);
         let exposure = r.random_range(0.40..0.88);
         for (edge, (a, b)) in polygon::edges(&result.footprint).enumerate() {
             if result.shared_edge(edge, size) {
@@ -265,7 +267,13 @@ impl EnvelopeProgram {
         result
     }
 
-    fn feature_clear(&self, scene: &IndoorManifest, lo: Vec2, hi: Vec2, margin: f32) -> bool {
+    pub(super) fn feature_clear(
+        &self,
+        scene: &IndoorManifest,
+        lo: Vec2,
+        hi: Vec2,
+        margin: f32,
+    ) -> bool {
         polygon::box_inside(&self.footprint, lo, hi, margin)
             && scene.program.as_ref().is_none_or(|p| {
                 p.portal_clear(Vec3::new(lo.x, 0., lo.y), Vec3::new(hi.x, 1., hi.y))

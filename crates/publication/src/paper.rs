@@ -18,6 +18,7 @@ pub fn write_sources(
     stage: &Path,
     config: &Config,
 ) -> Result<()> {
+    crate::timing::refresh_paper(stage, &dataset.identity)?;
     let p = &config.capture;
     let summary = &dataset.summary;
     fs::write(
@@ -267,7 +268,7 @@ pub fn compile(stage: &Path, config: &Config, gallery: &Value) -> Result<()> {
     io::archive(&papers.join("whitepaper-source.zip"), &entries)?;
     io::write(
         &papers.join("provenance.json"),
-        &json!({"schema_version":2,"generator_identity":gallery["generator_identity"],"pdf_sha256":io::hash(&pdf)?,"source_archive_sha256":io::hash(&papers.join("whitepaper-source.zip"))?,"sources":sources,"architecture_gallery_sha256":io::hash(&stage.join("www/project/static/media/architecture/gallery.json"))?,"build":"bevy_zeroverse_publication refresh; latexmk -pdf -no-shell-escape","scope":"Main results and all-six-mode gallery share one verified current capture run. Reference appendix studies retain separate recorded identities."}),
+        &json!({"schema_version":2,"generator_identity":gallery["generator_identity"],"pdf_sha256":io::hash(&pdf)?,"source_archive_sha256":io::hash(&papers.join("whitepaper-source.zip"))?,"sources":sources,"architecture_gallery_sha256":io::hash(&stage.join("www/project/static/media/architecture/gallery.json"))?,"object_atlas_sha256":io::hash(&stage.join(crate::objects::DIRECTORY).join("atlas.json"))?,"material_atlas_sha256":io::hash(&stage.join(crate::materials::DIRECTORY).join("atlas.json"))?,"build":"bevy_zeroverse_publication refresh; latexmk -pdf -no-shell-escape","scope":"Room captures, matched camera studies and the object/material atlases share the current generator identity. Their separate protocols and denominators are retained."}),
     )?;
     Ok(())
 }

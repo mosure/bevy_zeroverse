@@ -79,6 +79,12 @@ impl Mezzanine {
 impl EnvelopeProgram {
     pub fn structural_boxes(&self, size: Vec3) -> Vec<(Vec3, Vec3)> {
         let mut boxes = Vec::new();
+        for p in &self.soffits {
+            boxes.push((
+                Vec3::new(p.min.x, p.height, p.min.y),
+                Vec3::new(p.max.x, size.y + 0.14, p.max.y),
+            ));
+        }
         for p in &self.pillars {
             // Include the projecting base collar and the high edge of a cap
             // cut by the roof plane, not just the nominal shaft dimensions.
@@ -128,13 +134,13 @@ impl EnvelopeProgram {
         {
             return false;
         }
-        if self.floor_patches.is_empty() {
+        if self.floor_patches.is_empty() && self.soffits.is_empty() {
             return true;
         }
         // Floor heights are piecewise constant: split at every patch boundary,
         // then test the exact interval extrema instead of fixed-distance samples.
         let mut times = vec![0., 1.];
-        for f in &self.floor_patches {
+        for f in self.floor_patches.iter().chain(&self.soffits) {
             for axis in [0, 2] {
                 let d = b[axis] - a[axis];
                 if d.abs() < 1e-8 {
@@ -150,8 +156,16 @@ impl EnvelopeProgram {
         }
         times.sort_by(f32::total_cmp);
         times.windows(2).all(|t| {
-            let h = self.floor_height(a.lerp(b, (t[0] + t[1]) * 0.5).xz());
+            let middle = a.lerp(b, (t[0] + t[1]) * 0.5).xz();
+            let h = self.floor_height(middle);
+            let ceiling = self
+                .soffits
+                .iter()
+                .filter(|p| p.contains(middle))
+                .map(|p| p.height)
+                .fold(f32::INFINITY, f32::min);
             a.lerp(b, t[0]).y.min(a.lerp(b, t[1]).y) >= h + radius
+                && a.lerp(b, t[0]).y.max(a.lerp(b, t[1]).y) <= ceiling - radius
         })
     }
 
@@ -182,12 +196,33 @@ impl EnvelopeProgram {
             }
         }
         let slope = -self.ceiling_drop / size.xz();
-        let h = self.ceiling_height(size, origin.xz());
+        let h = self.roof_height(size, origin.xz());
         let denominator = ray.y - slope.dot(ray.xz());
         if denominator.abs() > 1e-8 {
             let t = (h - origin.y) / denominator;
             if polygon::contains(&self.footprint, (origin + ray * t).xz(), 0.) {
                 accept(t, "ceiling");
+            }
+        }
+        for patch in &self.soffits {
+            let lo = Vec3::new(patch.min.x, patch.height, patch.min.y);
+            let hi = Vec3::new(patch.max.x, size.y + 0.14, patch.max.y);
+            let mut enter = f32::NEG_INFINITY;
+            let mut exit = f32::INFINITY;
+            for axis in 0..3 {
+                if ray[axis].abs() < 1e-8 {
+                    if origin[axis] < lo[axis] || origin[axis] > hi[axis] {
+                        exit = f32::NEG_INFINITY;
+                    }
+                } else {
+                    let a = (lo[axis] - origin[axis]) / ray[axis];
+                    let b = (hi[axis] - origin[axis]) / ray[axis];
+                    enter = enter.max(a.min(b));
+                    exit = exit.min(a.max(b));
+                }
+            }
+            if enter <= exit {
+                accept(if enter > 0. { enter } else { exit }, "ceiling");
             }
         }
         for (i, (a, b)) in polygon::edges(&self.footprint).enumerate() {
@@ -286,6 +321,19 @@ impl EnvelopeProgram {
             return Err("invalid envelope roof".into());
         }
         let mut wall_edges = std::collections::BTreeSet::new();
+        for (i, p) in self.soffits.iter().enumerate() {
+            if !p.min.is_finite()
+                || !p.max.is_finite()
+                || !(2.5..=size.y).contains(&p.height)
+                || (p.max - p.min).min_element() < 0.1
+                || !polygon::box_inside(&self.footprint, p.min, p.max, 0.1)
+                || self.soffits[i + 1..]
+                    .iter()
+                    .any(|q| q.overlaps(p.min, p.max))
+            {
+                return Err("invalid ceiling support patch".into());
+            }
+        }
         for w in &self.walls {
             if w.edge >= self.footprint.len()
                 || self.shared_edge(w.edge, size)
