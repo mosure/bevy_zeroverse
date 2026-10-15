@@ -1,13 +1,13 @@
 {
   "build_provenance": {
-    "capture_engine": "capture-v61;calibration=1;co_visibility=1;bevy=0.20.0;burn=0.22.0;burn_human=0.6.0;bevy_burn_human=0.7.0;burn_human_motion=0.2.0;burn_ardy=0.2.0;burn_llama=0.2.0;burn_human_inference=0.2.0;ardy_motion=9;surface_flow=1;indoor=40;multiview=8;ovoxel=3;glass=4;hair=6;wardrobe=5;footwear=1;bounds=4;morphology=3;position=3;tabletop=3;finishes=11;seating=3;activity=2;playback=2;exterior=5;envelope=4;furnishings=5;botany=3;visual_content=3;equipment=5;palette=2;photometry=3;sun_shadow=2;material_compute=2;semantic=4;ceiling=2;floor_details=2;window_treatments=1",
-    "crate_version": "0.40.0",
+    "capture_engine": "capture-v69;indoor_motion=1;calibration=1;co_visibility=1;bevy=0.20.0;burn=0.22.0;burn_human=0.6.0;bevy_burn_human=0.7.0;burn_human_motion=0.2.0;burn_ardy=0.2.0;burn_llama=0.2.0;burn_human_inference=0.2.0;ardy_motion=9;static_pose=2;pose_annotations=2;surface_flow=1;indoor=46;public_programs=1;kitchens=3;doors=1;multiview=10;ovoxel=3;glass=4;hair=6;wardrobe=5;footwear=1;bounds=4;morphology=3;face=1;position=3;tabletop=4;finishes=12;seating=3;activity=2;playback=2;exterior=5;envelope=4;furnishings=5;botany=3;visual_content=3;equipment=6;palette=2;photometry=3;sun_shadow=2;material_compute=3;semantic=7;ceiling=2;floor_details=2;window_treatments=1",
+    "crate_version": "0.41.0",
     "features": {
       "human_motion": false,
       "multi_threaded": true,
       "web": false
     },
-    "generator_version": 40,
+    "generator_version": 46,
     "locked_package_versions": {
       "bevy": [
         "0.20.0"
@@ -16,19 +16,19 @@
         "0.7.0"
       ],
       "bevy_zeroverse": [
-        "0.40.0"
+        "0.41.0"
       ],
       "bevy_zeroverse_burn": [
-        "0.24.0"
+        "0.25.0"
       ],
       "bevy_zeroverse_capture": [
-        "0.2.0"
+        "0.3.0"
       ],
       "bevy_zeroverse_ffi": [
-        "0.40.0"
+        "0.41.0"
       ],
       "bevy_zeroverse_publication": [
-        "0.3.0"
+        "0.4.0"
       ],
       "burn": [
         "0.22.0"
@@ -704,88 +704,304 @@
           158,
           171
         ]
+      },
+      {
+        "id": 73,
+        "label": "stove",
+        "srgb8": [
+          159,
+          99,
+          43
+        ]
+      },
+      {
+        "id": 74,
+        "label": "oven",
+        "srgb8": [
+          88,
+          113,
+          158
+        ]
+      },
+      {
+        "id": 75,
+        "label": "microwave",
+        "srgb8": [
+          131,
+          99,
+          183
+        ]
+      },
+      {
+        "id": 76,
+        "label": "dishwasher",
+        "srgb8": [
+          74,
+          146,
+          180
+        ]
+      },
+      {
+        "id": 77,
+        "label": "faucet",
+        "srgb8": [
+          183,
+          196,
+          208
+        ]
+      },
+      {
+        "id": 78,
+        "label": "dishware",
+        "srgb8": [
+          217,
+          169,
+          93
+        ]
+      },
+      {
+        "id": 79,
+        "label": "kitchen_utensil",
+        "srgb8": [
+          114,
+          167,
+          78
+        ]
+      },
+      {
+        "id": 80,
+        "label": "food",
+        "srgb8": [
+          226,
+          83,
+          63
+        ]
+      },
+      {
+        "id": 81,
+        "label": "soap_dispenser",
+        "srgb8": [
+          76,
+          201,
+          173
+        ]
+      },
+      {
+        "id": 82,
+        "label": "cleaning_supply",
+        "srgb8": [
+          200,
+          194,
+          77
+        ]
+      },
+      {
+        "id": 83,
+        "label": "elevator",
+        "srgb8": [
+          61,
+          211,
+          83
+        ]
+      },
+      {
+        "id": 84,
+        "label": "control_panel",
+        "srgb8": [
+          74,
+          202,
+          94
+        ]
+      },
+      {
+        "id": 85,
+        "label": "display_case",
+        "srgb8": [
+          87,
+          193,
+          105
+        ]
+      },
+      {
+        "id": 86,
+        "label": "tray_return",
+        "srgb8": [
+          100,
+          184,
+          116
+        ]
+      },
+      {
+        "id": 87,
+        "label": "queue_barrier",
+        "srgb8": [
+          113,
+          175,
+          127
+        ]
+      },
+      {
+        "id": 88,
+        "label": "lectern",
+        "srgb8": [
+          126,
+          166,
+          138
+        ]
+      },
+      {
+        "id": 89,
+        "label": "locker",
+        "srgb8": [
+          139,
+          157,
+          149
+        ]
+      },
+      {
+        "id": 90,
+        "label": "plinth",
+        "srgb8": [
+          152,
+          148,
+          160
+        ]
+      },
+      {
+        "id": 91,
+        "label": "sculpture",
+        "srgb8": [
+          165,
+          139,
+          171
+        ]
+      },
+      {
+        "id": 92,
+        "label": "information_stand",
+        "srgb8": [
+          178,
+          130,
+          182
+        ]
+      },
+      {
+        "id": 93,
+        "label": "extraction_hood",
+        "srgb8": [
+          191,
+          121,
+          193
+        ]
+      },
+      {
+        "id": 94,
+        "label": "door_frame",
+        "srgb8": [
+          204,
+          112,
+          204
+        ]
+      },
+      {
+        "id": 95,
+        "label": "door_hardware",
+        "srgb8": [
+          217,
+          103,
+          215
+        ]
+      },
+      {
+        "id": 96,
+        "label": "cabinet_hardware",
+        "srgb8": [
+          230,
+          94,
+          226
+        ]
       }
     ],
-    "semantic_taxonomy_version": 4,
-    "source_sha256": "8b9386343019c7a19a202d10186c9eadfd0ae6641878aadbf9c26d2d8ce9e7f6",
+    "semantic_taxonomy_version": 7,
+    "source_sha256": "0287a936da7880c75b66671008a6f7ec91601f79b347e313c350a92469d7091c",
     "target": "x86_64-unknown-linux-gnu"
   },
   "failures": [],
   "human_density": 0.0,
-  "object_count": 19291,
+  "object_count": 19371,
   "object_counts_by_category": {
-    "Bag": 99,
-    "Bench": 44,
-    "Bookcase": 319,
-    "Books": 85,
-    "Bowl": 123,
-    "Cabinet": 75,
-    "Cable": 388,
-    "CeilingPendant": 83,
-    "Chair": 2280,
-    "Clock": 57,
+    "Bag": 122,
+    "Bench": 54,
+    "Bookcase": 303,
+    "Books": 78,
+    "Bowl": 121,
+    "Cabinet": 62,
+    "Cable": 377,
+    "CeilingPendant": 90,
+    "Chair": 2326,
+    "Clock": 70,
     "CoatRack": 42,
-    "CoffeeCup": 316,
-    "CoffeeMaker": 28,
-    "CoffeeTable": 509,
-    "Desk": 1596,
-    "DeskFan": 51,
-    "DeskLamp": 100,
-    "DeskOrganizer": 119,
-    "Display": 126,
-    "DocumentTray": 21,
-    "DrawerUnit": 419,
-    "FloorLamp": 19,
-    "FloorOutlet": 451,
-    "Headphones": 83,
-    "Kettle": 26,
-    "Keyboard": 91,
-    "Laptop": 526,
-    "LightSwitch": 240,
-    "Microphone": 16,
-    "MobileCart": 168,
-    "Monitor": 192,
-    "Mouse": 104,
-    "Mug": 318,
-    "Notebook": 381,
-    "Notepad": 312,
-    "NoticeBoard": 137,
-    "Ottoman": 123,
-    "PenHolder": 216,
-    "Pencil": 168,
-    "Phone": 996,
-    "Plant": 1127,
-    "PowerStrip": 582,
+    "CoffeeCup": 315,
+    "CoffeeMaker": 36,
+    "CoffeeTable": 492,
+    "Desk": 1644,
+    "DeskFan": 59,
+    "DeskLamp": 92,
+    "DeskOrganizer": 138,
+    "Display": 136,
+    "DocumentTray": 27,
+    "DrawerUnit": 432,
+    "FloorLamp": 29,
+    "FloorOutlet": 454,
+    "Headphones": 89,
+    "Kettle": 23,
+    "Keyboard": 99,
+    "Laptop": 542,
+    "LightSwitch": 252,
+    "Microphone": 15,
+    "MobileCart": 173,
+    "Monitor": 212,
+    "Mouse": 113,
+    "Mug": 291,
+    "Notebook": 413,
+    "Notepad": 293,
+    "NoticeBoard": 132,
+    "Ottoman": 94,
+    "PenHolder": 210,
+    "Pencil": 152,
+    "Phone": 1010,
+    "Plant": 1105,
+    "PowerStrip": 557,
     "Printer": 9,
     "ProjectionScreen": 96,
-    "Projector": 59,
-    "RoomDivider": 64,
-    "Rug": 138,
+    "Projector": 62,
+    "RoomDivider": 53,
+    "Rug": 143,
     "SideTable": 267,
-    "SodaCan": 289,
-    "Sofa": 235,
-    "Speaker": 93,
-    "Stapler": 158,
-    "StorageBox": 129,
-    "Table": 53,
-    "TapeDispenser": 144,
-    "TissueBox": 192,
-    "TrashCan": 228,
-    "Vase": 228,
-    "WallArt": 494,
-    "WallOutlet": 2370,
-    "WallSconce": 137,
-    "WallShelf": 120,
-    "WaterBottle": 420,
-    "Whiteboard": 212
+    "SodaCan": 272,
+    "Sofa": 214,
+    "Speaker": 98,
+    "Stapler": 171,
+    "StorageBox": 118,
+    "Table": 56,
+    "TapeDispenser": 154,
+    "TissueBox": 185,
+    "TrashCan": 201,
+    "Vase": 248,
+    "WallArt": 472,
+    "WallOutlet": 2365,
+    "WallSconce": 138,
+    "WallShelf": 124,
+    "WaterBottle": 427,
+    "Whiteboard": 224
   },
-  "part_count": 69874,
+  "part_count": 70173,
   "room_count": 256,
   "room_density": 0.65,
   "rooms": [
     {
       "floor_style": 1,
-      "primary_objects": 54,
+      "primary_objects": 53,
       "seed": 0
     },
     {
@@ -795,7 +1011,7 @@
     },
     {
       "floor_style": 1,
-      "primary_objects": 55,
+      "primary_objects": 64,
       "seed": 2
     },
     {
@@ -810,12 +1026,12 @@
     },
     {
       "floor_style": 2,
-      "primary_objects": 127,
+      "primary_objects": 129,
       "seed": 5
     },
     {
       "floor_style": 1,
-      "primary_objects": 96,
+      "primary_objects": 69,
       "seed": 6
     },
     {
@@ -825,7 +1041,7 @@
     },
     {
       "floor_style": 2,
-      "primary_objects": 41,
+      "primary_objects": 44,
       "seed": 8
     },
     {
@@ -835,162 +1051,162 @@
     },
     {
       "floor_style": 0,
-      "primary_objects": 59,
+      "primary_objects": 65,
       "seed": 10
     },
     {
       "floor_style": 0,
-      "primary_objects": 107,
+      "primary_objects": 122,
       "seed": 11
     },
     {
       "floor_style": 2,
-      "primary_objects": 98,
+      "primary_objects": 106,
       "seed": 12
     },
     {
       "floor_style": 0,
-      "primary_objects": 61,
+      "primary_objects": 68,
       "seed": 13
     },
     {
       "floor_style": 1,
-      "primary_objects": 51,
+      "primary_objects": 70,
       "seed": 14
     },
     {
       "floor_style": 0,
-      "primary_objects": 61,
+      "primary_objects": 54,
       "seed": 15
     },
     {
       "floor_style": 2,
-      "primary_objects": 69,
+      "primary_objects": 43,
       "seed": 16
     },
     {
       "floor_style": 1,
-      "primary_objects": 38,
+      "primary_objects": 33,
       "seed": 17
     },
     {
       "floor_style": 0,
-      "primary_objects": 34,
+      "primary_objects": 32,
       "seed": 18
     },
     {
       "floor_style": 1,
-      "primary_objects": 59,
+      "primary_objects": 81,
       "seed": 19
     },
     {
       "floor_style": 1,
-      "primary_objects": 46,
+      "primary_objects": 47,
       "seed": 20
     },
     {
       "floor_style": 1,
-      "primary_objects": 59,
+      "primary_objects": 50,
       "seed": 21
     },
     {
       "floor_style": 0,
-      "primary_objects": 81,
+      "primary_objects": 74,
       "seed": 22
     },
     {
       "floor_style": 0,
-      "primary_objects": 116,
+      "primary_objects": 107,
       "seed": 23
     },
     {
       "floor_style": 2,
-      "primary_objects": 103,
+      "primary_objects": 98,
       "seed": 24
     },
     {
       "floor_style": 1,
-      "primary_objects": 99,
+      "primary_objects": 93,
       "seed": 25
     },
     {
       "floor_style": 1,
-      "primary_objects": 44,
+      "primary_objects": 34,
       "seed": 26
     },
     {
       "floor_style": 1,
-      "primary_objects": 43,
+      "primary_objects": 39,
       "seed": 27
     },
     {
       "floor_style": 2,
-      "primary_objects": 98,
+      "primary_objects": 95,
       "seed": 28
     },
     {
       "floor_style": 0,
-      "primary_objects": 37,
+      "primary_objects": 28,
       "seed": 29
     },
     {
       "floor_style": 0,
-      "primary_objects": 18,
+      "primary_objects": 25,
       "seed": 30
     },
     {
       "floor_style": 2,
-      "primary_objects": 91,
+      "primary_objects": 82,
       "seed": 31
     },
     {
       "floor_style": 0,
-      "primary_objects": 26,
+      "primary_objects": 21,
       "seed": 32
     },
     {
       "floor_style": 2,
-      "primary_objects": 58,
+      "primary_objects": 55,
       "seed": 33
     },
     {
       "floor_style": 0,
-      "primary_objects": 50,
+      "primary_objects": 52,
       "seed": 34
     },
     {
       "floor_style": 0,
-      "primary_objects": 120,
+      "primary_objects": 119,
       "seed": 35
     },
     {
       "floor_style": 1,
-      "primary_objects": 88,
+      "primary_objects": 83,
       "seed": 36
     },
     {
       "floor_style": 1,
-      "primary_objects": 94,
+      "primary_objects": 83,
       "seed": 37
     },
     {
       "floor_style": 2,
-      "primary_objects": 50,
+      "primary_objects": 59,
       "seed": 38
     },
     {
       "floor_style": 2,
-      "primary_objects": 49,
+      "primary_objects": 61,
       "seed": 39
     },
     {
       "floor_style": 0,
-      "primary_objects": 51,
+      "primary_objects": 59,
       "seed": 40
     },
     {
       "floor_style": 0,
-      "primary_objects": 43,
+      "primary_objects": 31,
       "seed": 41
     },
     {
@@ -1000,7 +1216,7 @@
     },
     {
       "floor_style": 1,
-      "primary_objects": 62,
+      "primary_objects": 72,
       "seed": 43
     },
     {
@@ -1010,57 +1226,57 @@
     },
     {
       "floor_style": 1,
-      "primary_objects": 74,
+      "primary_objects": 73,
       "seed": 45
     },
     {
       "floor_style": 0,
-      "primary_objects": 29,
+      "primary_objects": 27,
       "seed": 46
     },
     {
       "floor_style": 1,
-      "primary_objects": 120,
+      "primary_objects": 114,
       "seed": 47
     },
     {
       "floor_style": 0,
-      "primary_objects": 57,
+      "primary_objects": 58,
       "seed": 48
     },
     {
       "floor_style": 2,
-      "primary_objects": 158,
+      "primary_objects": 167,
       "seed": 49
     },
     {
       "floor_style": 0,
-      "primary_objects": 126,
+      "primary_objects": 125,
       "seed": 50
     },
     {
       "floor_style": 1,
-      "primary_objects": 48,
+      "primary_objects": 45,
       "seed": 51
     },
     {
       "floor_style": 1,
-      "primary_objects": 58,
+      "primary_objects": 64,
       "seed": 52
     },
     {
       "floor_style": 0,
-      "primary_objects": 35,
+      "primary_objects": 38,
       "seed": 53
     },
     {
       "floor_style": 1,
-      "primary_objects": 110,
+      "primary_objects": 145,
       "seed": 54
     },
     {
       "floor_style": 0,
-      "primary_objects": 138,
+      "primary_objects": 135,
       "seed": 55
     },
     {
@@ -1080,12 +1296,12 @@
     },
     {
       "floor_style": 0,
-      "primary_objects": 74,
+      "primary_objects": 71,
       "seed": 59
     },
     {
       "floor_style": 1,
-      "primary_objects": 104,
+      "primary_objects": 103,
       "seed": 60
     },
     {
@@ -1095,22 +1311,22 @@
     },
     {
       "floor_style": 2,
-      "primary_objects": 23,
+      "primary_objects": 20,
       "seed": 62
     },
     {
       "floor_style": 0,
-      "primary_objects": 60,
+      "primary_objects": 66,
       "seed": 63
     },
     {
       "floor_style": 2,
-      "primary_objects": 47,
+      "primary_objects": 58,
       "seed": 64
     },
     {
       "floor_style": 2,
-      "primary_objects": 169,
+      "primary_objects": 159,
       "seed": 65
     },
     {
@@ -1125,22 +1341,22 @@
     },
     {
       "floor_style": 1,
-      "primary_objects": 69,
+      "primary_objects": 77,
       "seed": 68
     },
     {
       "floor_style": 1,
-      "primary_objects": 58,
+      "primary_objects": 59,
       "seed": 69
     },
     {
       "floor_style": 2,
-      "primary_objects": 43,
+      "primary_objects": 44,
       "seed": 70
     },
     {
       "floor_style": 2,
-      "primary_objects": 174,
+      "primary_objects": 164,
       "seed": 71
     },
     {
@@ -1150,12 +1366,12 @@
     },
     {
       "floor_style": 1,
-      "primary_objects": 57,
+      "primary_objects": 58,
       "seed": 73
     },
     {
       "floor_style": 2,
-      "primary_objects": 157,
+      "primary_objects": 173,
       "seed": 74
     },
     {
@@ -1170,22 +1386,22 @@
     },
     {
       "floor_style": 0,
-      "primary_objects": 77,
+      "primary_objects": 106,
       "seed": 77
     },
     {
       "floor_style": 1,
-      "primary_objects": 84,
+      "primary_objects": 86,
       "seed": 78
     },
     {
       "floor_style": 1,
-      "primary_objects": 72,
+      "primary_objects": 82,
       "seed": 79
     },
     {
       "floor_style": 1,
-      "primary_objects": 54,
+      "primary_objects": 67,
       "seed": 80
     },
     {
@@ -1195,37 +1411,37 @@
     },
     {
       "floor_style": 0,
-      "primary_objects": 58,
+      "primary_objects": 62,
       "seed": 82
     },
     {
       "floor_style": 1,
-      "primary_objects": 115,
+      "primary_objects": 124,
       "seed": 83
     },
     {
       "floor_style": 0,
-      "primary_objects": 57,
+      "primary_objects": 58,
       "seed": 84
     },
     {
       "floor_style": 1,
-      "primary_objects": 59,
+      "primary_objects": 60,
       "seed": 85
     },
     {
       "floor_style": 2,
-      "primary_objects": 88,
+      "primary_objects": 99,
       "seed": 86
     },
     {
       "floor_style": 1,
-      "primary_objects": 44,
+      "primary_objects": 33,
       "seed": 87
     },
     {
       "floor_style": 1,
-      "primary_objects": 118,
+      "primary_objects": 102,
       "seed": 88
     },
     {
@@ -1235,27 +1451,27 @@
     },
     {
       "floor_style": 0,
-      "primary_objects": 30,
+      "primary_objects": 33,
       "seed": 90
     },
     {
       "floor_style": 2,
-      "primary_objects": 52,
+      "primary_objects": 65,
       "seed": 91
     },
     {
       "floor_style": 2,
-      "primary_objects": 78,
+      "primary_objects": 76,
       "seed": 92
     },
     {
       "floor_style": 2,
-      "primary_objects": 59,
+      "primary_objects": 62,
       "seed": 93
     },
     {
       "floor_style": 0,
-      "primary_objects": 53,
+      "primary_objects": 39,
       "seed": 94
     },
     {
@@ -1265,17 +1481,17 @@
     },
     {
       "floor_style": 0,
-      "primary_objects": 40,
+      "primary_objects": 38,
       "seed": 96
     },
     {
       "floor_style": 2,
-      "primary_objects": 31,
+      "primary_objects": 35,
       "seed": 97
     },
     {
       "floor_style": 0,
-      "primary_objects": 119,
+      "primary_objects": 132,
       "seed": 98
     },
     {
@@ -1285,7 +1501,7 @@
     },
     {
       "floor_style": 2,
-      "primary_objects": 151,
+      "primary_objects": 128,
       "seed": 100
     },
     {
@@ -1295,7 +1511,7 @@
     },
     {
       "floor_style": 2,
-      "primary_objects": 81,
+      "primary_objects": 87,
       "seed": 102
     },
     {
@@ -1310,52 +1526,52 @@
     },
     {
       "floor_style": 1,
-      "primary_objects": 86,
+      "primary_objects": 90,
       "seed": 105
     },
     {
       "floor_style": 1,
-      "primary_objects": 99,
+      "primary_objects": 97,
       "seed": 106
     },
     {
       "floor_style": 1,
-      "primary_objects": 65,
+      "primary_objects": 60,
       "seed": 107
     },
     {
       "floor_style": 1,
-      "primary_objects": 43,
+      "primary_objects": 51,
       "seed": 108
     },
     {
       "floor_style": 0,
-      "primary_objects": 26,
+      "primary_objects": 21,
       "seed": 109
     },
     {
       "floor_style": 2,
-      "primary_objects": 69,
+      "primary_objects": 58,
       "seed": 110
     },
     {
       "floor_style": 0,
-      "primary_objects": 54,
+      "primary_objects": 61,
       "seed": 111
     },
     {
       "floor_style": 1,
-      "primary_objects": 33,
+      "primary_objects": 47,
       "seed": 112
     },
     {
       "floor_style": 2,
-      "primary_objects": 32,
+      "primary_objects": 28,
       "seed": 113
     },
     {
       "floor_style": 1,
-      "primary_objects": 45,
+      "primary_objects": 47,
       "seed": 114
     },
     {
@@ -1365,17 +1581,17 @@
     },
     {
       "floor_style": 0,
-      "primary_objects": 184,
+      "primary_objects": 162,
       "seed": 116
     },
     {
       "floor_style": 2,
-      "primary_objects": 56,
+      "primary_objects": 49,
       "seed": 117
     },
     {
       "floor_style": 1,
-      "primary_objects": 146,
+      "primary_objects": 137,
       "seed": 118
     },
     {
@@ -1390,7 +1606,7 @@
     },
     {
       "floor_style": 2,
-      "primary_objects": 48,
+      "primary_objects": 59,
       "seed": 121
     },
     {
@@ -1400,37 +1616,37 @@
     },
     {
       "floor_style": 0,
-      "primary_objects": 35,
+      "primary_objects": 36,
       "seed": 123
     },
     {
       "floor_style": 2,
-      "primary_objects": 173,
+      "primary_objects": 158,
       "seed": 124
     },
     {
       "floor_style": 1,
-      "primary_objects": 101,
+      "primary_objects": 97,
       "seed": 125
     },
     {
       "floor_style": 1,
-      "primary_objects": 38,
+      "primary_objects": 34,
       "seed": 126
     },
     {
       "floor_style": 0,
-      "primary_objects": 85,
+      "primary_objects": 72,
       "seed": 127
     },
     {
       "floor_style": 2,
-      "primary_objects": 65,
+      "primary_objects": 59,
       "seed": 128
     },
     {
       "floor_style": 1,
-      "primary_objects": 142,
+      "primary_objects": 151,
       "seed": 129
     },
     {
@@ -1440,17 +1656,17 @@
     },
     {
       "floor_style": 1,
-      "primary_objects": 80,
+      "primary_objects": 92,
       "seed": 131
     },
     {
       "floor_style": 0,
-      "primary_objects": 76,
+      "primary_objects": 49,
       "seed": 132
     },
     {
       "floor_style": 1,
-      "primary_objects": 110,
+      "primary_objects": 100,
       "seed": 133
     },
     {
@@ -1460,97 +1676,97 @@
     },
     {
       "floor_style": 1,
-      "primary_objects": 36,
+      "primary_objects": 47,
       "seed": 135
     },
     {
       "floor_style": 2,
-      "primary_objects": 47,
+      "primary_objects": 54,
       "seed": 136
     },
     {
       "floor_style": 2,
-      "primary_objects": 58,
+      "primary_objects": 54,
       "seed": 137
     },
     {
       "floor_style": 2,
-      "primary_objects": 104,
+      "primary_objects": 92,
       "seed": 138
     },
     {
       "floor_style": 2,
-      "primary_objects": 89,
+      "primary_objects": 91,
       "seed": 139
     },
     {
       "floor_style": 0,
-      "primary_objects": 96,
+      "primary_objects": 83,
       "seed": 140
     },
     {
       "floor_style": 2,
-      "primary_objects": 146,
+      "primary_objects": 161,
       "seed": 141
     },
     {
       "floor_style": 2,
-      "primary_objects": 59,
+      "primary_objects": 56,
       "seed": 142
     },
     {
       "floor_style": 1,
-      "primary_objects": 37,
+      "primary_objects": 40,
       "seed": 143
     },
     {
       "floor_style": 0,
-      "primary_objects": 52,
+      "primary_objects": 45,
       "seed": 144
     },
     {
       "floor_style": 0,
-      "primary_objects": 40,
+      "primary_objects": 41,
       "seed": 145
     },
     {
       "floor_style": 0,
-      "primary_objects": 49,
+      "primary_objects": 66,
       "seed": 146
     },
     {
       "floor_style": 0,
-      "primary_objects": 97,
+      "primary_objects": 75,
       "seed": 147
     },
     {
       "floor_style": 2,
-      "primary_objects": 38,
+      "primary_objects": 35,
       "seed": 148
     },
     {
       "floor_style": 1,
-      "primary_objects": 105,
+      "primary_objects": 112,
       "seed": 149
     },
     {
       "floor_style": 0,
-      "primary_objects": 70,
+      "primary_objects": 72,
       "seed": 150
     },
     {
       "floor_style": 0,
-      "primary_objects": 144,
+      "primary_objects": 135,
       "seed": 151
     },
     {
       "floor_style": 2,
-      "primary_objects": 61,
+      "primary_objects": 58,
       "seed": 152
     },
     {
       "floor_style": 0,
-      "primary_objects": 92,
+      "primary_objects": 69,
       "seed": 153
     },
     {
@@ -1570,82 +1786,82 @@
     },
     {
       "floor_style": 0,
-      "primary_objects": 37,
+      "primary_objects": 36,
       "seed": 157
     },
     {
       "floor_style": 1,
-      "primary_objects": 37,
+      "primary_objects": 43,
       "seed": 158
     },
     {
       "floor_style": 0,
-      "primary_objects": 104,
+      "primary_objects": 127,
       "seed": 159
     },
     {
       "floor_style": 2,
-      "primary_objects": 77,
+      "primary_objects": 68,
       "seed": 160
     },
     {
       "floor_style": 0,
-      "primary_objects": 28,
+      "primary_objects": 25,
       "seed": 161
     },
     {
       "floor_style": 0,
-      "primary_objects": 101,
+      "primary_objects": 112,
       "seed": 162
     },
     {
       "floor_style": 0,
-      "primary_objects": 89,
+      "primary_objects": 88,
       "seed": 163
     },
     {
       "floor_style": 0,
-      "primary_objects": 98,
+      "primary_objects": 99,
       "seed": 164
     },
     {
       "floor_style": 0,
-      "primary_objects": 87,
+      "primary_objects": 86,
       "seed": 165
     },
     {
       "floor_style": 2,
-      "primary_objects": 123,
+      "primary_objects": 127,
       "seed": 166
     },
     {
       "floor_style": 2,
-      "primary_objects": 39,
+      "primary_objects": 37,
       "seed": 167
     },
     {
       "floor_style": 2,
-      "primary_objects": 91,
+      "primary_objects": 99,
       "seed": 168
     },
     {
       "floor_style": 1,
-      "primary_objects": 129,
+      "primary_objects": 127,
       "seed": 169
     },
     {
       "floor_style": 0,
-      "primary_objects": 32,
+      "primary_objects": 40,
       "seed": 170
     },
     {
       "floor_style": 2,
-      "primary_objects": 118,
+      "primary_objects": 104,
       "seed": 171
     },
     {
       "floor_style": 2,
-      "primary_objects": 156,
+      "primary_objects": 150,
       "seed": 172
     },
     {
@@ -1655,37 +1871,37 @@
     },
     {
       "floor_style": 1,
-      "primary_objects": 75,
+      "primary_objects": 73,
       "seed": 174
     },
     {
       "floor_style": 1,
-      "primary_objects": 92,
+      "primary_objects": 91,
       "seed": 175
     },
     {
       "floor_style": 2,
-      "primary_objects": 49,
+      "primary_objects": 63,
       "seed": 176
     },
     {
       "floor_style": 1,
-      "primary_objects": 123,
+      "primary_objects": 141,
       "seed": 177
     },
     {
       "floor_style": 0,
-      "primary_objects": 38,
+      "primary_objects": 44,
       "seed": 178
     },
     {
       "floor_style": 1,
-      "primary_objects": 59,
+      "primary_objects": 58,
       "seed": 179
     },
     {
       "floor_style": 2,
-      "primary_objects": 91,
+      "primary_objects": 86,
       "seed": 180
     },
     {
@@ -1695,7 +1911,7 @@
     },
     {
       "floor_style": 0,
-      "primary_objects": 33,
+      "primary_objects": 40,
       "seed": 182
     },
     {
@@ -1705,22 +1921,22 @@
     },
     {
       "floor_style": 0,
-      "primary_objects": 126,
+      "primary_objects": 156,
       "seed": 184
     },
     {
       "floor_style": 1,
-      "primary_objects": 51,
+      "primary_objects": 42,
       "seed": 185
     },
     {
       "floor_style": 2,
-      "primary_objects": 63,
+      "primary_objects": 64,
       "seed": 186
     },
     {
       "floor_style": 0,
-      "primary_objects": 37,
+      "primary_objects": 39,
       "seed": 187
     },
     {
@@ -1735,112 +1951,112 @@
     },
     {
       "floor_style": 1,
-      "primary_objects": 45,
+      "primary_objects": 40,
       "seed": 190
     },
     {
       "floor_style": 0,
-      "primary_objects": 110,
+      "primary_objects": 111,
       "seed": 191
     },
     {
       "floor_style": 1,
-      "primary_objects": 56,
+      "primary_objects": 55,
       "seed": 192
     },
     {
       "floor_style": 1,
-      "primary_objects": 91,
+      "primary_objects": 89,
       "seed": 193
     },
     {
       "floor_style": 1,
-      "primary_objects": 135,
+      "primary_objects": 125,
       "seed": 194
     },
     {
       "floor_style": 1,
-      "primary_objects": 32,
+      "primary_objects": 45,
       "seed": 195
     },
     {
       "floor_style": 1,
-      "primary_objects": 56,
+      "primary_objects": 58,
       "seed": 196
     },
     {
       "floor_style": 2,
-      "primary_objects": 35,
+      "primary_objects": 41,
       "seed": 197
     },
     {
       "floor_style": 2,
-      "primary_objects": 63,
+      "primary_objects": 57,
       "seed": 198
     },
     {
       "floor_style": 0,
-      "primary_objects": 173,
+      "primary_objects": 169,
       "seed": 199
     },
     {
       "floor_style": 2,
-      "primary_objects": 56,
+      "primary_objects": 61,
       "seed": 200
     },
     {
       "floor_style": 2,
-      "primary_objects": 83,
+      "primary_objects": 88,
       "seed": 201
     },
     {
       "floor_style": 0,
-      "primary_objects": 47,
+      "primary_objects": 54,
       "seed": 202
     },
     {
       "floor_style": 0,
-      "primary_objects": 34,
+      "primary_objects": 32,
       "seed": 203
     },
     {
       "floor_style": 2,
-      "primary_objects": 147,
+      "primary_objects": 149,
       "seed": 204
     },
     {
       "floor_style": 2,
-      "primary_objects": 58,
+      "primary_objects": 54,
       "seed": 205
     },
     {
       "floor_style": 2,
-      "primary_objects": 29,
+      "primary_objects": 31,
       "seed": 206
     },
     {
       "floor_style": 1,
-      "primary_objects": 74,
+      "primary_objects": 69,
       "seed": 207
     },
     {
       "floor_style": 1,
-      "primary_objects": 33,
+      "primary_objects": 31,
       "seed": 208
     },
     {
       "floor_style": 1,
-      "primary_objects": 51,
+      "primary_objects": 57,
       "seed": 209
     },
     {
       "floor_style": 0,
-      "primary_objects": 115,
+      "primary_objects": 104,
       "seed": 210
     },
     {
       "floor_style": 1,
-      "primary_objects": 57,
+      "primary_objects": 65,
       "seed": 211
     },
     {
@@ -1850,92 +2066,92 @@
     },
     {
       "floor_style": 1,
-      "primary_objects": 33,
+      "primary_objects": 27,
       "seed": 213
     },
     {
       "floor_style": 2,
-      "primary_objects": 44,
+      "primary_objects": 43,
       "seed": 214
     },
     {
       "floor_style": 1,
-      "primary_objects": 82,
+      "primary_objects": 84,
       "seed": 215
     },
     {
       "floor_style": 2,
-      "primary_objects": 57,
+      "primary_objects": 56,
       "seed": 216
     },
     {
       "floor_style": 2,
-      "primary_objects": 34,
+      "primary_objects": 33,
       "seed": 217
     },
     {
       "floor_style": 0,
-      "primary_objects": 101,
+      "primary_objects": 90,
       "seed": 218
     },
     {
       "floor_style": 2,
-      "primary_objects": 78,
+      "primary_objects": 67,
       "seed": 219
     },
     {
       "floor_style": 0,
-      "primary_objects": 82,
+      "primary_objects": 81,
       "seed": 220
     },
     {
       "floor_style": 2,
-      "primary_objects": 56,
+      "primary_objects": 36,
       "seed": 221
     },
     {
       "floor_style": 1,
-      "primary_objects": 115,
+      "primary_objects": 104,
       "seed": 222
     },
     {
       "floor_style": 2,
-      "primary_objects": 54,
+      "primary_objects": 48,
       "seed": 223
     },
     {
       "floor_style": 2,
-      "primary_objects": 74,
+      "primary_objects": 82,
       "seed": 224
     },
     {
       "floor_style": 1,
-      "primary_objects": 23,
+      "primary_objects": 43,
       "seed": 225
     },
     {
       "floor_style": 1,
-      "primary_objects": 80,
+      "primary_objects": 86,
       "seed": 226
     },
     {
       "floor_style": 1,
-      "primary_objects": 40,
+      "primary_objects": 51,
       "seed": 227
     },
     {
       "floor_style": 1,
-      "primary_objects": 62,
+      "primary_objects": 59,
       "seed": 228
     },
     {
       "floor_style": 0,
-      "primary_objects": 99,
+      "primary_objects": 100,
       "seed": 229
     },
     {
       "floor_style": 0,
-      "primary_objects": 152,
+      "primary_objects": 162,
       "seed": 230
     },
     {
@@ -1945,72 +2161,72 @@
     },
     {
       "floor_style": 1,
-      "primary_objects": 55,
+      "primary_objects": 48,
       "seed": 232
     },
     {
       "floor_style": 0,
-      "primary_objects": 123,
+      "primary_objects": 138,
       "seed": 233
     },
     {
       "floor_style": 0,
-      "primary_objects": 115,
+      "primary_objects": 114,
       "seed": 234
     },
     {
       "floor_style": 2,
-      "primary_objects": 41,
+      "primary_objects": 40,
       "seed": 235
     },
     {
       "floor_style": 0,
-      "primary_objects": 126,
+      "primary_objects": 122,
       "seed": 236
     },
     {
       "floor_style": 1,
-      "primary_objects": 58,
+      "primary_objects": 66,
       "seed": 237
     },
     {
       "floor_style": 0,
-      "primary_objects": 101,
+      "primary_objects": 98,
       "seed": 238
     },
     {
       "floor_style": 2,
-      "primary_objects": 41,
+      "primary_objects": 35,
       "seed": 239
     },
     {
       "floor_style": 2,
-      "primary_objects": 98,
+      "primary_objects": 101,
       "seed": 240
     },
     {
       "floor_style": 1,
-      "primary_objects": 20,
+      "primary_objects": 15,
       "seed": 241
     },
     {
       "floor_style": 1,
-      "primary_objects": 82,
+      "primary_objects": 80,
       "seed": 242
     },
     {
       "floor_style": 2,
-      "primary_objects": 120,
+      "primary_objects": 136,
       "seed": 243
     },
     {
       "floor_style": 2,
-      "primary_objects": 31,
+      "primary_objects": 35,
       "seed": 244
     },
     {
       "floor_style": 0,
-      "primary_objects": 91,
+      "primary_objects": 99,
       "seed": 245
     },
     {
@@ -2030,32 +2246,32 @@
     },
     {
       "floor_style": 0,
-      "primary_objects": 81,
+      "primary_objects": 78,
       "seed": 249
     },
     {
       "floor_style": 2,
-      "primary_objects": 77,
+      "primary_objects": 86,
       "seed": 250
     },
     {
       "floor_style": 0,
-      "primary_objects": 96,
+      "primary_objects": 88,
       "seed": 251
     },
     {
       "floor_style": 1,
-      "primary_objects": 33,
+      "primary_objects": 48,
       "seed": 252
     },
     {
       "floor_style": 2,
-      "primary_objects": 150,
+      "primary_objects": 152,
       "seed": 253
     },
     {
       "floor_style": 1,
-      "primary_objects": 105,
+      "primary_objects": 109,
       "seed": 254
     },
     {
@@ -2071,102 +2287,139 @@
     "examples/material_study/studio.rs": "5957c4c58dded67bdb8e4ca4a5eb4de19c0e03d1daa105c1cca000fc12f43ab2",
     "examples/qualify_materials.rs": "b1f7124161a1aa9818212be7ab87b73ac1ca429268eb6ea943ff5bf5cbbced44"
   },
-  "unobserved_object_categories": [],
+  "unobserved_object_categories": [
+    "KitchenCounter",
+    "KitchenSink",
+    "KitchenCupboard",
+    "Pantry",
+    "Cooktop",
+    "Range",
+    "Oven",
+    "Microwave",
+    "Dishwasher",
+    "Refrigerator",
+    "DryingRack",
+    "SoapDispenser",
+    "Sponge",
+    "KnifeBlock",
+    "UtensilHolder",
+    "PaperTowel",
+    "KitchenTowel",
+    "Dishware",
+    "CuttingBoard",
+    "FruitBowl",
+    "Bread",
+    "Elevator",
+    "ServiceCounter",
+    "DisplayCase",
+    "TrayReturn",
+    "DrinkDispenser",
+    "QueueBarrier",
+    "Lectern",
+    "Locker",
+    "TeachingBoard",
+    "ExhibitPlinth",
+    "Sculpture",
+    "InformationStand",
+    "ExhibitionPanel",
+    "ExtractionHood",
+    "Banquette"
+  ],
   "usage": {
     "Bag": {
       "Fabric": {
         "base_parts": 0,
-        "objects": 49,
-        "parts": 49,
+        "objects": 72,
+        "parts": 72,
         "slots": [
-          3,
           5,
-          6,
-          3,
-          6,
+          7,
           4,
-          4,
-          1,
+          7,
+          7,
           6,
-          3,
-          4,
-          4
+          8,
+          5,
+          10,
+          6,
+          5,
+          2
         ]
       },
       "FabricAlt": {
         "base_parts": 0,
-        "objects": 49,
-        "parts": 49,
+        "objects": 72,
+        "parts": 72,
         "slots": [
-          3,
           5,
-          6,
-          3,
-          6,
+          7,
           4,
-          4,
-          1,
+          7,
+          7,
           6,
-          3,
-          4,
-          4
+          8,
+          5,
+          10,
+          6,
+          5,
+          2
         ]
       },
       "Leather": {
         "base_parts": 0,
-        "objects": 99,
-        "parts": 99,
+        "objects": 122,
+        "parts": 122,
         "slots": [
+          13,
+          9,
+          10,
           11,
+          10,
           9,
           11,
-          6,
+          9,
+          16,
+          11,
           8,
-          6,
-          6,
-          6,
-          10,
-          8,
-          8,
-          10
+          5
         ]
       }
     },
     "Bench": {
       "FabricAlt": {
         "base_parts": 0,
-        "objects": 21,
-        "parts": 21,
+        "objects": 17,
+        "parts": 17,
         "slots": [
-          1,
           3,
           2,
-          1,
-          5,
-          1,
-          3,
           0,
-          2,
+          0,
+          1,
           1,
           2,
+          0,
+          0,
+          5,
+          3,
           0
         ]
       },
       "Leather": {
         "base_parts": 0,
-        "objects": 5,
-        "parts": 5,
+        "objects": 6,
+        "parts": 6,
         "slots": [
-          0,
+          1,
           0,
           1,
           0,
+          0,
+          1,
+          1,
           0,
           0,
           2,
-          0,
-          1,
-          1,
           0,
           0
         ]
@@ -2176,102 +2429,102 @@
         "objects": 23,
         "parts": 23,
         "slots": [
-          1,
-          3,
-          4,
           2,
-          3,
+          2,
+          4,
+          1,
           0,
-          4,
-          1,
-          2,
           2,
           1,
-          0
+          0,
+          0,
+          5,
+          5,
+          1
         ]
       },
       "Wood": {
         "base_parts": 0,
-        "objects": 30,
-        "parts": 30,
+        "objects": 45,
+        "parts": 45,
         "slots": [
-          2,
-          4,
-          4,
-          1,
-          6,
-          3,
-          1,
-          1,
-          1,
           5,
-          1,
-          1
+          5,
+          4,
+          3,
+          3,
+          4,
+          2,
+          2,
+          3,
+          7,
+          5,
+          2
         ]
       }
     },
     "Bookcase": {
       "Art": {
         "base_parts": 0,
-        "objects": 303,
-        "parts": 1235,
+        "objects": 286,
+        "parts": 1146,
         "slots": [
-          117,
-          98,
           102,
-          98,
-          102,
-          113,
-          95,
-          107,
-          97,
-          100,
           94,
-          112
+          105,
+          88,
+          95,
+          100,
+          87,
+          97,
+          89,
+          97,
+          91,
+          101
         ]
       },
       "Ceramic": {
         "base_parts": 0,
-        "objects": 186,
-        "parts": 186,
+        "objects": 175,
+        "parts": 175,
         "slots": [
-          13,
           16,
-          19,
-          14,
-          15,
           10,
-          14,
-          14,
-          14,
           20,
-          27,
-          10
+          12,
+          17,
+          14,
+          14,
+          12,
+          15,
+          14,
+          22,
+          9
         ]
       },
       "FabricAlt": {
         "base_parts": 0,
-        "objects": 294,
+        "objects": 285,
         "parts": 1199,
         "slots": [
-          97,
-          100,
-          115,
-          98,
-          96,
-          97,
-          80,
-          107,
-          107,
-          97,
+          103,
           105,
-          100
+          90,
+          105,
+          102,
+          94,
+          93,
+          96,
+          99,
+          90,
+          109,
+          113
         ]
       },
       "Ink": {
-        "base_parts": 257,
-        "objects": 257,
-        "parts": 257,
+        "base_parts": 245,
+        "objects": 245,
+        "parts": 245,
         "slots": [
           0,
           0,
@@ -2289,124 +2542,124 @@
       },
       "Metal": {
         "base_parts": 0,
-        "objects": 105,
-        "parts": 105,
+        "objects": 94,
+        "parts": 94,
         "slots": [
           8,
-          13,
-          13,
           7,
-          10,
+          13,
           5,
           9,
-          9,
+          5,
+          13,
+          7,
           11,
-          9,
           8,
+          5,
           3
         ]
       },
       "Paper": {
-        "base_parts": 575,
-        "objects": 319,
-        "parts": 1799,
+        "base_parts": 547,
+        "objects": 303,
+        "parts": 1701,
         "slots": [
-          96,
-          92,
-          108,
-          101,
-          103,
           99,
-          113,
-          103,
-          103,
-          107,
-          95,
-          104
+          86,
+          98,
+          108,
+          87,
+          92,
+          97,
+          102,
+          97,
+          96,
+          99,
+          93
         ]
       },
       "Wood": {
         "base_parts": 0,
-        "objects": 214,
-        "parts": 214,
+        "objects": 209,
+        "parts": 209,
         "slots": [
-          11,
-          18,
+          12,
+          20,
           22,
-          18,
-          16,
           15,
-          21,
+          20,
           14,
-          15,
           19,
-          30,
-          15
+          16,
+          16,
+          17,
+          24,
+          14
         ]
       },
       "WoodEdge": {
         "base_parts": 0,
-        "objects": 319,
-        "parts": 1674,
+        "objects": 303,
+        "parts": 1601,
         "slots": [
-          129,
-          159,
-          162,
+          130,
+          148,
+          153,
+          136,
           137,
-          145,
-          129,
-          134,
-          124,
-          141,
-          135,
-          141,
-          138
+          114,
+          131,
+          130,
+          143,
+          120,
+          137,
+          122
         ]
       }
     },
     "Books": {
       "FabricAlt": {
         "base_parts": 0,
-        "objects": 27,
-        "parts": 27,
+        "objects": 23,
+        "parts": 23,
         "slots": [
-          4,
-          3,
           2,
+          3,
+          0,
+          2,
+          2,
+          2,
+          1,
+          3,
+          3,
           3,
           1,
-          4,
-          2,
-          0,
-          3,
-          3,
-          0,
-          2
+          1
         ]
       },
       "Metal": {
         "base_parts": 0,
-        "objects": 33,
-        "parts": 33,
+        "objects": 32,
+        "parts": 32,
         "slots": [
-          2,
-          3,
           4,
           2,
-          3,
+          2,
+          2,
           5,
-          3,
-          2,
-          2,
           2,
           4,
+          3,
+          3,
+          1,
+          3,
           1
         ]
       },
       "Paper": {
-        "base_parts": 85,
-        "objects": 85,
-        "parts": 85,
+        "base_parts": 78,
+        "objects": 78,
+        "parts": 78,
         "slots": [
           0,
           0,
@@ -2424,27 +2677,27 @@
       },
       "Plastic": {
         "base_parts": 0,
-        "objects": 58,
-        "parts": 58,
+        "objects": 55,
+        "parts": 55,
         "slots": [
-          3,
           5,
+          3,
+          3,
+          4,
           7,
           4,
+          4,
+          4,
+          6,
           5,
           6,
-          4,
-          6,
-          3,
-          4,
-          6,
-          5
+          4
         ]
       },
       "Rubber": {
-        "base_parts": 40,
-        "objects": 40,
-        "parts": 40,
+        "base_parts": 27,
+        "objects": 27,
+        "parts": 27,
         "slots": [
           0,
           0,
@@ -2464,27 +2717,27 @@
     "Bowl": {
       "Ceramic": {
         "base_parts": 0,
-        "objects": 90,
-        "parts": 90,
+        "objects": 83,
+        "parts": 83,
         "slots": [
-          7,
-          7,
-          8,
           5,
-          5,
-          13,
-          8,
+          7,
+          6,
+          6,
+          7,
           11,
-          9,
-          4,
           7,
-          6
+          11,
+          7,
+          4,
+          4,
+          8
         ]
       },
       "ContainerGlass": {
-        "base_parts": 33,
-        "objects": 33,
-        "parts": 33,
+        "base_parts": 38,
+        "objects": 38,
+        "parts": 38,
         "slots": [
           0,
           0,
@@ -2504,15 +2757,34 @@
     "Cabinet": {
       "Art": {
         "base_parts": 0,
-        "objects": 1,
-        "parts": 1,
+        "objects": 4,
+        "parts": 18,
         "slots": [
-          0,
-          0,
-          0,
-          0,
+          2,
+          3,
           0,
           1,
+          1,
+          2,
+          2,
+          2,
+          2,
+          1,
+          1,
+          1
+        ]
+      },
+      "Ceramic": {
+        "base_parts": 0,
+        "objects": 2,
+        "parts": 2,
+        "slots": [
+          0,
+          1,
+          0,
+          1,
+          0,
+          0,
           0,
           0,
           0,
@@ -2523,46 +2795,46 @@
       },
       "Chrome": {
         "base_parts": 0,
-        "objects": 26,
-        "parts": 26,
+        "objects": 14,
+        "parts": 14,
         "slots": [
           1,
-          2,
+          1,
           0,
-          1,
-          6,
-          3,
-          1,
-          2,
+          0,
           3,
           2,
-          4,
-          1
+          1,
+          0,
+          2,
+          2,
+          2,
+          0
         ]
       },
       "FabricAlt": {
         "base_parts": 0,
-        "objects": 1,
-        "parts": 1,
+        "objects": 5,
+        "parts": 19,
         "slots": [
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
+          2,
+          2,
+          3,
+          2,
           1,
-          0
+          1,
+          1,
+          2,
+          2,
+          1,
+          1,
+          1
         ]
       },
       "Ink": {
-        "base_parts": 13,
-        "objects": 13,
-        "parts": 13,
+        "base_parts": 19,
+        "objects": 18,
+        "parts": 19,
         "slots": [
           0,
           0,
@@ -2580,105 +2852,105 @@
       },
       "Metal": {
         "base_parts": 0,
-        "objects": 41,
-        "parts": 41,
+        "objects": 35,
+        "parts": 38,
         "slots": [
-          5,
-          5,
-          2,
-          2,
-          7,
           3,
+          3,
+          5,
+          2,
+          5,
           4,
-          1,
-          1,
-          4,
-          4,
-          3
+          6,
+          2,
+          2,
+          5,
+          0,
+          1
         ]
       },
       "Paper": {
-        "base_parts": 2,
-        "objects": 2,
-        "parts": 2,
+        "base_parts": 8,
+        "objects": 6,
+        "parts": 29,
         "slots": [
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0
+          2,
+          1,
+          2,
+          3,
+          2,
+          1,
+          1,
+          2,
+          2,
+          1,
+          3,
+          1
         ]
       },
       "Wood": {
         "base_parts": 0,
-        "objects": 52,
-        "parts": 52,
+        "objects": 41,
+        "parts": 41,
         "slots": [
           4,
-          4,
-          4,
+          2,
+          3,
           1,
-          9,
-          3,
-          6,
-          5,
           6,
           4,
+          4,
+          2,
+          6,
           3,
-          3
+          5,
+          1
         ]
       },
       "WoodEdge": {
         "base_parts": 0,
-        "objects": 75,
-        "parts": 76,
+        "objects": 62,
+        "parts": 88,
         "slots": [
-          7,
-          6,
-          6,
-          3,
-          12,
+          8,
           5,
           9,
-          6,
-          6,
-          6,
-          6,
-          4
+          4,
+          10,
+          8,
+          11,
+          7,
+          8,
+          9,
+          7,
+          2
         ]
       }
     },
     "Cable": {
       "Plastic": {
         "base_parts": 0,
-        "objects": 388,
-        "parts": 388,
+        "objects": 377,
+        "parts": 377,
         "slots": [
-          31,
-          23,
+          19,
+          37,
+          24,
+          29,
+          35,
           36,
-          28,
+          30,
+          35,
+          30,
           31,
           42,
-          36,
-          34,
-          30,
-          34,
-          29,
-          34
+          29
         ]
       },
       "Rubber": {
-        "base_parts": 388,
-        "objects": 388,
-        "parts": 388,
+        "base_parts": 377,
+        "objects": 377,
+        "parts": 377,
         "slots": [
           0,
           0,
@@ -2697,9 +2969,9 @@
     },
     "CeilingPendant": {
       "Light": {
-        "base_parts": 83,
-        "objects": 83,
-        "parts": 83,
+        "base_parts": 90,
+        "objects": 90,
+        "parts": 90,
         "slots": [
           0,
           0,
@@ -2717,46 +2989,46 @@
       },
       "Metal": {
         "base_parts": 0,
-        "objects": 83,
-        "parts": 83,
+        "objects": 90,
+        "parts": 90,
         "slots": [
-          10,
+          8,
+          11,
+          12,
+          5,
           9,
+          4,
+          7,
           6,
-          6,
-          9,
           5,
           7,
-          3,
           7,
-          4,
-          9,
-          8
+          9
         ]
       },
       "Plastic": {
         "base_parts": 0,
-        "objects": 48,
-        "parts": 48,
+        "objects": 55,
+        "parts": 55,
         "slots": [
-          7,
           6,
+          9,
+          9,
+          2,
           3,
-          4,
-          5,
-          3,
-          4,
           1,
+          4,
           3,
           2,
-          6,
-          4
+          4,
+          5,
+          7
         ]
       },
       "Rubber": {
-        "base_parts": 83,
-        "objects": 83,
-        "parts": 83,
+        "base_parts": 90,
+        "objects": 90,
+        "parts": 90,
         "slots": [
           0,
           0,
@@ -2776,122 +3048,122 @@
     "Chair": {
       "Chrome": {
         "base_parts": 0,
-        "objects": 1470,
-        "parts": 1470,
+        "objects": 1537,
+        "parts": 1537,
         "slots": [
-          112,
-          97,
+          139,
+          132,
+          159,
+          113,
+          105,
+          120,
+          129,
+          127,
+          138,
           138,
           125,
-          101,
-          116,
-          126,
-          113,
-          156,
-          152,
-          125,
-          109
+          112
         ]
       },
       "Fabric": {
         "base_parts": 0,
-        "objects": 759,
-        "parts": 759,
+        "objects": 777,
+        "parts": 777,
         "slots": [
+          74,
           65,
-          56,
-          79,
+          80,
           52,
-          55,
-          68,
-          60,
-          59,
+          50,
+          61,
+          64,
+          71,
+          72,
           73,
-          75,
-          65,
-          52
+          69,
+          46
         ]
       },
       "FabricAlt": {
         "base_parts": 0,
-        "objects": 300,
-        "parts": 300,
+        "objects": 326,
+        "parts": 326,
         "slots": [
-          18,
-          24,
-          32,
-          26,
-          21,
-          18,
-          32,
-          21,
+          19,
           27,
-          37,
+          41,
+          26,
+          25,
           24,
-          20
+          30,
+          19,
+          26,
+          38,
+          25,
+          26
         ]
       },
       "Leather": {
         "base_parts": 0,
-        "objects": 518,
-        "parts": 518,
+        "objects": 516,
+        "parts": 516,
         "slots": [
-          29,
-          34,
-          36,
-          63,
-          31,
-          45,
-          47,
-          37,
-          57,
-          44,
+          42,
+          49,
           43,
-          52
+          49,
+          30,
+          43,
+          48,
+          35,
+          44,
+          42,
+          42,
+          49
         ]
       },
       "Metal": {
         "base_parts": 0,
-        "objects": 1293,
-        "parts": 1293,
+        "objects": 1344,
+        "parts": 1344,
         "slots": [
-          107,
-          106,
-          120,
-          95,
-          88,
-          112,
-          101,
-          102,
-          126,
           124,
-          114,
-          98
+          117,
+          130,
+          88,
+          93,
+          113,
+          107,
+          115,
+          117,
+          115,
+          130,
+          95
         ]
       },
       "Plastic": {
         "base_parts": 0,
-        "objects": 1660,
-        "parts": 1660,
+        "objects": 1715,
+        "parts": 1715,
         "slots": [
-          141,
-          130,
-          162,
-          124,
-          118,
+          157,
+          146,
+          175,
+          109,
           133,
-          139,
-          127,
+          137,
+          146,
+          144,
+          144,
+          144,
           162,
-          156,
-          151,
-          117
+          118
         ]
       },
       "Rubber": {
-        "base_parts": 2280,
-        "objects": 2280,
-        "parts": 2280,
+        "base_parts": 2326,
+        "objects": 2326,
+        "parts": 2326,
         "slots": [
           0,
           0,
@@ -2909,61 +3181,61 @@
       },
       "Wood": {
         "base_parts": 0,
-        "objects": 447,
-        "parts": 447,
+        "objects": 445,
+        "parts": 445,
         "slots": [
-          36,
-          31,
-          36,
-          31,
-          36,
-          30,
-          32,
-          40,
           44,
-          53,
-          43,
-          35
+          35,
+          41,
+          29,
+          40,
+          34,
+          34,
+          38,
+          42,
+          42,
+          36,
+          30
         ]
       },
       "WoodEdge": {
         "base_parts": 0,
-        "objects": 453,
-        "parts": 453,
+        "objects": 428,
+        "parts": 428,
         "slots": [
-          33,
-          37,
-          38,
-          38,
+          36,
           35,
-          38,
-          41,
+          36,
+          37,
+          35,
           33,
-          38,
           43,
+          32,
+          35,
           41,
-          38
+          37,
+          28
         ]
       }
     },
     "Clock": {
       "Art": {
         "base_parts": 0,
-        "objects": 22,
-        "parts": 22,
+        "objects": 33,
+        "parts": 33,
         "slots": [
-          2,
-          2,
-          2,
-          0,
+          4,
           3,
+          4,
           2,
-          0,
           3,
+          4,
           1,
           2,
-          3,
-          2
+          1,
+          2,
+          4,
+          3
         ]
       },
       "Chrome": {
@@ -2971,24 +3243,24 @@
         "objects": 20,
         "parts": 20,
         "slots": [
+          3,
+          1,
+          1,
+          1,
+          1,
           2,
-          3,
-          1,
-          1,
-          3,
-          3,
           0,
           2,
-          2,
           1,
-          1,
-          1
+          3,
+          3,
+          2
         ]
       },
       "Ink": {
-        "base_parts": 36,
-        "objects": 36,
-        "parts": 36,
+        "base_parts": 46,
+        "objects": 46,
+        "parts": 46,
         "slots": [
           0,
           0,
@@ -3006,27 +3278,27 @@
       },
       "Metal": {
         "base_parts": 0,
-        "objects": 10,
-        "parts": 10,
+        "objects": 16,
+        "parts": 16,
         "slots": [
-          0,
           1,
           0,
+          1,
           0,
-          1,
-          1,
-          1,
           3,
           1,
-          0,
+          2,
           1,
-          1
+          1,
+          0,
+          2,
+          4
         ]
       },
       "Paper": {
-        "base_parts": 57,
-        "objects": 57,
-        "parts": 57,
+        "base_parts": 70,
+        "objects": 70,
+        "parts": 70,
         "slots": [
           0,
           0,
@@ -3044,61 +3316,61 @@
       },
       "Plastic": {
         "base_parts": 0,
-        "objects": 29,
-        "parts": 29,
+        "objects": 37,
+        "parts": 37,
         "slots": [
+          6,
+          2,
+          1,
+          2,
+          4,
+          4,
           2,
           3,
           1,
-          1,
-          3,
-          3,
-          2,
-          5,
-          3,
-          1,
-          2,
-          3
+          4,
+          6,
+          2
         ]
       },
       "WoodEdge": {
         "base_parts": 0,
-        "objects": 15,
-        "parts": 15,
+        "objects": 16,
+        "parts": 16,
         "slots": [
           0,
+          3,
+          3,
+          0,
+          0,
           1,
+          0,
           2,
-          1,
-          1,
-          1,
           2,
-          1,
-          1,
           2,
-          1,
-          2
+          2,
+          1
         ]
       }
     },
     "CoatRack": {
       "Metal": {
         "base_parts": 0,
-        "objects": 29,
-        "parts": 29,
+        "objects": 31,
+        "parts": 31,
         "slots": [
-          3,
-          3,
+          1,
           2,
-          3,
-          3,
+          2,
+          2,
+          1,
           1,
           6,
-          1,
-          1,
+          2,
+          5,
           2,
           2,
-          2
+          5
         ]
       },
       "Rubber": {
@@ -3122,20 +3394,20 @@
       },
       "Wood": {
         "base_parts": 0,
-        "objects": 13,
-        "parts": 13,
+        "objects": 11,
+        "parts": 11,
         "slots": [
+          0,
+          1,
           1,
           2,
           2,
-          2,
-          1,
-          1,
-          1,
-          1,
-          1,
           1,
           0,
+          2,
+          1,
+          0,
+          1,
           0
         ]
       }
@@ -3143,27 +3415,27 @@
     "CoffeeCup": {
       "Art": {
         "base_parts": 0,
-        "objects": 110,
-        "parts": 110,
+        "objects": 104,
+        "parts": 104,
         "slots": [
-          9,
-          9,
-          6,
-          12,
-          14,
-          11,
-          9,
+          13,
+          13,
+          7,
           8,
-          8,
-          9,
+          7,
+          13,
           6,
-          9
+          7,
+          10,
+          1,
+          8,
+          11
         ]
       },
       "Drink": {
-        "base_parts": 316,
-        "objects": 316,
-        "parts": 316,
+        "base_parts": 315,
+        "objects": 315,
+        "parts": 315,
         "slots": [
           0,
           0,
@@ -3180,9 +3452,9 @@
         ]
       },
       "Ink": {
-        "base_parts": 225,
-        "objects": 225,
-        "parts": 225,
+        "base_parts": 221,
+        "objects": 221,
+        "parts": 221,
         "slots": [
           0,
           0,
@@ -3199,9 +3471,9 @@
         ]
       },
       "Paper": {
-        "base_parts": 316,
-        "objects": 316,
-        "parts": 316,
+        "base_parts": 315,
+        "objects": 315,
+        "parts": 315,
         "slots": [
           0,
           0,
@@ -3219,27 +3491,27 @@
       },
       "Plastic": {
         "base_parts": 0,
-        "objects": 225,
-        "parts": 225,
+        "objects": 221,
+        "parts": 221,
         "slots": [
-          18,
+          24,
+          21,
+          23,
           20,
-          26,
-          25,
-          17,
           16,
           15,
-          13,
-          19,
-          14,
-          23,
+          17,
+          15,
+          20,
+          9,
+          22,
           19
         ]
       },
       "Terracotta": {
-        "base_parts": 100,
-        "objects": 100,
-        "parts": 100,
+        "base_parts": 90,
+        "objects": 90,
+        "parts": 90,
         "slots": [
           0,
           0,
@@ -3259,27 +3531,27 @@
     "CoffeeMaker": {
       "Chrome": {
         "base_parts": 0,
-        "objects": 28,
-        "parts": 28,
+        "objects": 36,
+        "parts": 36,
         "slots": [
+          1,
+          1,
+          1,
+          6,
+          0,
+          3,
+          4,
+          6,
+          5,
           2,
           3,
-          0,
-          6,
-          1,
-          4,
-          3,
-          1,
-          3,
-          3,
-          1,
-          1
+          4
         ]
       },
       "ContainerGlass": {
-        "base_parts": 13,
-        "objects": 13,
-        "parts": 13,
+        "base_parts": 18,
+        "objects": 18,
+        "parts": 18,
         "slots": [
           0,
           0,
@@ -3296,9 +3568,9 @@
         ]
       },
       "Ink": {
-        "base_parts": 28,
-        "objects": 28,
-        "parts": 28,
+        "base_parts": 36,
+        "objects": 36,
+        "parts": 36,
         "slots": [
           0,
           0,
@@ -3316,46 +3588,46 @@
       },
       "Metal": {
         "base_parts": 0,
-        "objects": 28,
-        "parts": 28,
+        "objects": 36,
+        "parts": 36,
         "slots": [
+          1,
+          1,
+          1,
+          6,
+          0,
+          3,
+          4,
+          6,
+          5,
           2,
           3,
-          0,
-          6,
-          1,
-          4,
-          3,
-          1,
-          3,
-          3,
-          1,
-          1
+          4
         ]
       },
       "Plastic": {
         "base_parts": 0,
-        "objects": 23,
-        "parts": 23,
+        "objects": 30,
+        "parts": 30,
         "slots": [
-          2,
-          3,
+          1,
+          1,
+          1,
+          4,
           0,
+          2,
+          4,
+          5,
           4,
           1,
-          2,
           3,
-          1,
-          3,
-          2,
-          1,
-          1
+          4
         ]
       },
       "Rubber": {
-        "base_parts": 28,
-        "objects": 28,
-        "parts": 28,
+        "base_parts": 36,
+        "objects": 36,
+        "parts": 36,
         "slots": [
           0,
           0,
@@ -3375,27 +3647,27 @@
     "CoffeeTable": {
       "Ceramic": {
         "base_parts": 0,
-        "objects": 53,
-        "parts": 53,
+        "objects": 49,
+        "parts": 49,
         "slots": [
-          5,
-          3,
-          5,
+          2,
+          4,
           7,
-          7,
-          3,
-          3,
           5,
+          4,
+          3,
           5,
           3,
           4,
-          3
+          4,
+          4,
+          4
         ]
       },
       "Concrete": {
-        "base_parts": 51,
-        "objects": 51,
-        "parts": 51,
+        "base_parts": 54,
+        "objects": 54,
+        "parts": 54,
         "slots": [
           0,
           0,
@@ -3413,21 +3685,21 @@
       },
       "Metal": {
         "base_parts": 0,
-        "objects": 355,
-        "parts": 355,
+        "objects": 332,
+        "parts": 332,
         "slots": [
-          29,
-          25,
-          34,
-          30,
-          28,
+          27,
+          22,
+          37,
+          35,
+          26,
           24,
-          42,
+          37,
+          20,
           25,
-          29,
-          34,
-          33,
-          22
+          15,
+          40,
+          24
         ]
       },
       "Plastic": {
@@ -3435,24 +3707,24 @@
         "objects": 48,
         "parts": 48,
         "slots": [
-          2,
           3,
-          8,
-          5,
-          2,
           3,
           5,
           6,
+          2,
           4,
-          3,
-          3,
-          4
+          1,
+          6,
+          4,
+          2,
+          5,
+          7
         ]
       },
       "Rubber": {
-        "base_parts": 446,
-        "objects": 446,
-        "parts": 446,
+        "base_parts": 433,
+        "objects": 433,
+        "parts": 433,
         "slots": [
           0,
           0,
@@ -3470,67 +3742,67 @@
       },
       "Wood": {
         "base_parts": 0,
-        "objects": 357,
-        "parts": 357,
+        "objects": 341,
+        "parts": 341,
         "slots": [
-          21,
-          26,
-          33,
-          24,
-          32,
-          27,
-          46,
+          23,
+          25,
+          38,
           29,
-          34,
+          30,
           28,
-          34,
-          23
+          38,
+          27,
+          28,
+          16,
+          37,
+          22
         ]
       },
       "WoodEdge": {
         "base_parts": 0,
-        "objects": 398,
-        "parts": 398,
+        "objects": 386,
+        "parts": 386,
         "slots": [
-          22,
-          29,
-          37,
-          27,
-          36,
-          32,
-          50,
+          26,
+          30,
+          42,
+          31,
           34,
-          37,
-          28,
-          38,
-          28
+          32,
+          41,
+          32,
+          34,
+          17,
+          41,
+          26
         ]
       }
     },
     "Desk": {
       "Ceramic": {
         "base_parts": 0,
-        "objects": 159,
-        "parts": 159,
+        "objects": 177,
+        "parts": 177,
         "slots": [
-          12,
-          13,
-          12,
           15,
+          15,
+          16,
           14,
-          13,
-          13,
+          14,
+          17,
+          17,
           16,
-          16,
+          13,
           15,
-          12,
-          8
+          13,
+          12
         ]
       },
       "Concrete": {
-        "base_parts": 172,
-        "objects": 172,
-        "parts": 172,
+        "base_parts": 151,
+        "objects": 151,
+        "parts": 151,
         "slots": [
           0,
           0,
@@ -3548,46 +3820,46 @@
       },
       "Metal": {
         "base_parts": 0,
-        "objects": 1596,
-        "parts": 1596,
+        "objects": 1644,
+        "parts": 1644,
         "slots": [
-          129,
-          134,
-          143,
-          126,
-          108,
-          134,
-          144,
-          128,
-          145,
+          146,
+          146,
+          157,
+          114,
+          122,
           139,
-          130,
-          136
+          140,
+          134,
+          137,
+          142,
+          137,
+          130
         ]
       },
       "Plastic": {
         "base_parts": 0,
-        "objects": 1596,
-        "parts": 1596,
+        "objects": 1644,
+        "parts": 1644,
         "slots": [
-          129,
-          134,
-          143,
-          126,
-          108,
-          134,
-          144,
-          128,
-          145,
+          146,
+          146,
+          157,
+          114,
+          122,
           139,
-          130,
-          136
+          140,
+          134,
+          137,
+          142,
+          137,
+          130
         ]
       },
       "Rubber": {
-        "base_parts": 1384,
-        "objects": 1384,
-        "parts": 1384,
+        "base_parts": 1437,
+        "objects": 1437,
+        "parts": 1437,
         "slots": [
           0,
           0,
@@ -3605,78 +3877,78 @@
       },
       "Wood": {
         "base_parts": 0,
-        "objects": 1100,
-        "parts": 1100,
+        "objects": 1142,
+        "parts": 1142,
         "slots": [
-          86,
-          96,
-          107,
-          81,
-          73,
-          86,
-          105,
-          83,
+          108,
+          100,
+          112,
+          79,
+          87,
           94,
-          98,
-          90,
-          101
+          88,
+          87,
+          95,
+          97,
+          102,
+          93
         ]
       },
       "WoodEdge": {
         "base_parts": 0,
-        "objects": 1278,
-        "parts": 1278,
+        "objects": 1328,
+        "parts": 1328,
         "slots": [
-          99,
-          109,
-          114,
-          98,
-          80,
-          110,
-          120,
-          96,
+          119,
           116,
-          117,
-          103,
-          116
+          127,
+          93,
+          96,
+          118,
+          107,
+          106,
+          112,
+          113,
+          113,
+          108
         ]
       }
     },
     "DeskFan": {
       "Metal": {
         "base_parts": 0,
-        "objects": 51,
-        "parts": 51,
+        "objects": 59,
+        "parts": 59,
         "slots": [
-          3,
-          7,
+          4,
+          6,
           6,
           4,
           1,
-          4,
-          4,
-          4,
+          6,
           6,
           3,
+          5,
+          9,
           6,
           3
         ]
       },
       "Plastic": {
         "base_parts": 0,
-        "objects": 51,
-        "parts": 51,
+        "objects": 59,
+        "parts": 59,
         "slots": [
-          3,
-          7,
+          4,
+          6,
           6,
           4,
           1,
-          4,
-          4,
-          4,
+          6,
           6,
           3,
+          5,
+          9,
           6,
           3
         ]
@@ -3684,9 +3956,9 @@
     },
     "DeskLamp": {
       "Light": {
-        "base_parts": 100,
-        "objects": 100,
-        "parts": 100,
+        "base_parts": 92,
+        "objects": 92,
+        "parts": 92,
         "slots": [
           0,
           0,
@@ -3704,244 +3976,244 @@
       },
       "Metal": {
         "base_parts": 0,
-        "objects": 70,
-        "parts": 70,
+        "objects": 67,
+        "parts": 67,
         "slots": [
+          4,
+          7,
+          3,
+          7,
+          4,
           2,
           7,
-          7,
-          8,
-          7,
-          3,
-          3,
-          6,
-          14,
-          3,
-          6,
-          4
+          11,
+          10,
+          5,
+          4,
+          3
         ]
       },
       "Plastic": {
         "base_parts": 0,
-        "objects": 61,
-        "parts": 61,
+        "objects": 59,
+        "parts": 59,
         "slots": [
+          6,
+          6,
           3,
-          4,
-          2,
-          5,
           7,
-          6,
-          8,
-          2,
-          9,
+          4,
           3,
-          6,
-          6
+          10,
+          4,
+          4,
+          3,
+          5,
+          4
         ]
       }
     },
     "DeskOrganizer": {
       "Metal": {
         "base_parts": 0,
-        "objects": 41,
-        "parts": 41,
+        "objects": 45,
+        "parts": 45,
         "slots": [
+          4,
+          4,
+          0,
           5,
-          4,
-          3,
-          3,
-          2,
-          4,
           2,
           3,
-          6,
-          3,
           4,
-          2
+          2,
+          5,
+          7,
+          5,
+          4
         ]
       },
       "Plastic": {
         "base_parts": 0,
-        "objects": 78,
-        "parts": 78,
+        "objects": 93,
+        "parts": 93,
         "slots": [
+          10,
+          10,
+          5,
+          5,
           8,
           5,
+          13,
+          12,
+          8,
           3,
           7,
-          10,
-          5,
-          7,
-          11,
-          10,
-          3,
-          7,
-          2
+          7
         ]
       },
       "Wood": {
         "base_parts": 0,
-        "objects": 119,
-        "parts": 119,
+        "objects": 138,
+        "parts": 138,
         "slots": [
+          14,
+          14,
+          5,
+          10,
+          10,
+          8,
+          17,
+          14,
           13,
-          9,
-          6,
           10,
           12,
-          9,
-          9,
-          14,
-          16,
-          6,
-          11,
-          4
+          11
         ]
       }
     },
     "Display": {
       "Metal": {
         "base_parts": 0,
-        "objects": 126,
-        "parts": 126,
+        "objects": 136,
+        "parts": 136,
         "slots": [
-          7,
           10,
-          12,
+          9,
+          14,
+          16,
+          11,
           13,
+          5,
           8,
-          15,
-          6,
-          11,
           10,
           11,
-          13,
-          10
+          14,
+          15
         ]
       },
       "Plastic": {
         "base_parts": 0,
-        "objects": 78,
-        "parts": 78,
+        "objects": 82,
+        "parts": 82,
         "slots": [
-          3,
+          4,
+          6,
           7,
-          5,
           9,
-          5,
-          11,
+          7,
+          10,
           2,
+          4,
           6,
-          6,
-          9,
-          9,
-          6
+          8,
+          11,
+          8
         ]
       },
       "Television": {
         "base_parts": 0,
-        "objects": 126,
-        "parts": 126,
+        "objects": 136,
+        "parts": 136,
         "slots": [
-          7,
           10,
-          12,
+          9,
+          14,
+          16,
+          11,
           13,
+          5,
           8,
-          15,
-          6,
-          11,
           10,
           11,
-          13,
-          10
+          14,
+          15
         ]
       }
     },
     "DocumentTray": {
       "Metal": {
         "base_parts": 0,
-        "objects": 8,
-        "parts": 8,
+        "objects": 10,
+        "parts": 10,
         "slots": [
           0,
           1,
           0,
           2,
-          1,
-          0,
-          0,
-          1,
-          0,
-          1,
           2,
+          0,
+          0,
+          2,
+          0,
+          2,
+          1,
           0
         ]
       },
       "Plastic": {
         "base_parts": 0,
-        "objects": 13,
-        "parts": 13,
+        "objects": 17,
+        "parts": 17,
         "slots": [
+          0,
+          0,
           1,
-          0,
-          0,
-          3,
           1,
           0,
           2,
-          2,
+          4,
           3,
+          3,
+          2,
           0,
-          1,
-          0
+          1
         ]
       },
       "PrintedPaper": {
         "base_parts": 0,
-        "objects": 21,
-        "parts": 21,
+        "objects": 27,
+        "parts": 27,
         "slots": [
-          1,
-          1,
           0,
+          1,
+          1,
+          3,
+          2,
+          2,
+          4,
           5,
-          2,
-          0,
-          2,
           3,
-          3,
+          4,
           1,
-          3,
-          0
+          1
         ]
       }
     },
     "DrawerUnit": {
       "Metal": {
         "base_parts": 0,
-        "objects": 419,
-        "parts": 419,
+        "objects": 432,
+        "parts": 432,
         "slots": [
-          31,
-          28,
           38,
-          39,
-          36,
+          44,
+          35,
+          32,
+          35,
+          32,
+          44,
+          37,
+          34,
+          38,
           28,
-          32,
-          40,
-          43,
-          32,
-          39,
-          33
+          35
         ]
       },
       "Rubber": {
-        "base_parts": 140,
-        "objects": 140,
-        "parts": 140,
+        "base_parts": 169,
+        "objects": 169,
+        "parts": 169,
         "slots": [
           0,
           0,
@@ -3959,86 +4231,86 @@
       },
       "Wood": {
         "base_parts": 0,
-        "objects": 173,
-        "parts": 173,
+        "objects": 193,
+        "parts": 193,
         "slots": [
-          12,
-          12,
-          14,
-          17,
+          20,
           18,
-          13,
-          12,
-          18,
-          16,
-          11,
           15,
+          14,
+          19,
+          13,
+          16,
+          21,
+          10,
+          18,
+          14,
           15
         ]
       },
       "WoodEdge": {
         "base_parts": 0,
-        "objects": 419,
-        "parts": 419,
+        "objects": 432,
+        "parts": 432,
         "slots": [
-          31,
-          28,
           38,
-          39,
-          36,
+          44,
+          35,
+          32,
+          35,
+          32,
+          44,
+          37,
+          34,
+          38,
           28,
-          32,
-          40,
-          43,
-          32,
-          39,
-          33
+          35
         ]
       }
     },
     "FloorLamp": {
       "Chrome": {
         "base_parts": 0,
-        "objects": 8,
-        "parts": 8,
+        "objects": 14,
+        "parts": 14,
         "slots": [
-          0,
-          3,
-          0,
-          1,
-          0,
-          1,
-          0,
           0,
           1,
           0,
           2,
-          0
+          1,
+          1,
+          2,
+          0,
+          2,
+          3,
+          1,
+          1
         ]
       },
       "FabricAlt": {
         "base_parts": 0,
-        "objects": 19,
-        "parts": 19,
+        "objects": 29,
+        "parts": 29,
         "slots": [
-          0,
-          5,
+          2,
+          2,
           0,
           2,
           1,
-          1,
-          0,
+          4,
           2,
-          1,
+          2,
           3,
-          2,
-          2
+          5,
+          5,
+          1
         ]
       },
       "Light": {
-        "base_parts": 19,
-        "objects": 19,
-        "parts": 19,
+        "base_parts": 29,
+        "objects": 29,
+        "parts": 29,
         "slots": [
           0,
           0,
@@ -4056,27 +4328,27 @@
       },
       "Metal": {
         "base_parts": 0,
-        "objects": 19,
-        "parts": 19,
+        "objects": 29,
+        "parts": 29,
         "slots": [
-          0,
-          5,
+          2,
+          2,
           0,
           2,
           1,
-          1,
-          0,
+          4,
           2,
-          1,
+          2,
           3,
-          2,
-          2
+          5,
+          5,
+          1
         ]
       },
       "Rubber": {
-        "base_parts": 11,
-        "objects": 11,
-        "parts": 11,
+        "base_parts": 15,
+        "objects": 15,
+        "parts": 15,
         "slots": [
           0,
           0,
@@ -4094,20 +4366,20 @@
       },
       "Wood": {
         "base_parts": 0,
-        "objects": 6,
-        "parts": 6,
+        "objects": 7,
+        "parts": 7,
         "slots": [
+          1,
+          0,
           0,
           0,
           0,
           1,
+          0,
+          2,
+          0,
           1,
-          0,
-          0,
           2,
-          0,
-          2,
-          0,
           0
         ]
       }
@@ -4115,27 +4387,27 @@
     "FloorOutlet": {
       "Chrome": {
         "base_parts": 0,
-        "objects": 148,
-        "parts": 148,
+        "objects": 158,
+        "parts": 158,
         "slots": [
-          8,
-          13,
-          13,
-          18,
-          8,
-          12,
           10,
+          11,
+          21,
           12,
           9,
           13,
-          16,
-          16
+          7,
+          14,
+          18,
+          11,
+          15,
+          17
         ]
       },
       "Ink": {
-        "base_parts": 451,
-        "objects": 451,
-        "parts": 451,
+        "base_parts": 454,
+        "objects": 454,
+        "parts": 454,
         "slots": [
           0,
           0,
@@ -4153,39 +4425,39 @@
       },
       "Metal": {
         "base_parts": 0,
-        "objects": 303,
-        "parts": 303,
+        "objects": 296,
+        "parts": 296,
         "slots": [
           26,
-          21,
-          31,
-          25,
+          22,
+          24,
           18,
           24,
-          24,
-          29,
-          32,
-          26,
+          31,
           23,
-          24
+          30,
+          29,
+          29,
+          14,
+          26
         ]
       },
       "Plastic": {
         "base_parts": 0,
-        "objects": 192,
-        "parts": 192,
+        "objects": 179,
+        "parts": 179,
         "slots": [
+          13,
+          10,
+          15,
           8,
-          12,
-          23,
+          15,
           17,
           11,
-          23,
-          13,
-          18,
+          15,
           19,
-          15,
-          15,
+          22,
+          16,
           18
         ]
       }
@@ -4193,86 +4465,86 @@
     "Headphones": {
       "Leather": {
         "base_parts": 0,
-        "objects": 83,
-        "parts": 83,
+        "objects": 89,
+        "parts": 89,
         "slots": [
-          9,
-          9,
+          8,
           7,
-          6,
-          8,
-          8,
+          5,
+          12,
+          11,
+          9,
           2,
           3,
-          10,
-          6,
           7,
-          8
+          7,
+          9,
+          9
         ]
       },
       "Metal": {
         "base_parts": 0,
-        "objects": 19,
-        "parts": 19,
+        "objects": 32,
+        "parts": 32,
         "slots": [
-          1,
-          2,
-          1,
-          1,
-          0,
-          1,
-          0,
-          0,
           5,
           3,
           0,
-          5
+          4,
+          6,
+          1,
+          1,
+          1,
+          3,
+          1,
+          3,
+          4
         ]
       },
       "Plastic": {
         "base_parts": 0,
-        "objects": 64,
-        "parts": 64,
+        "objects": 57,
+        "parts": 57,
         "slots": [
-          8,
-          7,
-          6,
+          3,
+          4,
           5,
           8,
-          7,
+          5,
+          8,
+          1,
           2,
-          3,
-          5,
-          3,
-          7,
-          3
+          4,
+          6,
+          6,
+          5
         ]
       }
     },
     "Kettle": {
       "Ceramic": {
         "base_parts": 0,
-        "objects": 6,
-        "parts": 6,
+        "objects": 7,
+        "parts": 7,
         "slots": [
-          1,
-          1,
-          0,
-          1,
-          0,
-          0,
-          0,
-          0,
           2,
+          0,
+          0,
           1,
           0,
-          0
+          0,
+          1,
+          0,
+          0,
+          0,
+          1,
+          2
         ]
       },
       "Ink": {
-        "base_parts": 26,
-        "objects": 26,
-        "parts": 26,
+        "base_parts": 23,
+        "objects": 23,
+        "parts": 23,
         "slots": [
           0,
           0,
@@ -4290,46 +4562,46 @@
       },
       "Metal": {
         "base_parts": 0,
-        "objects": 20,
-        "parts": 20,
+        "objects": 16,
+        "parts": 16,
         "slots": [
-          4,
-          1,
           3,
           1,
           2,
-          3,
+          1,
+          1,
+          1,
           4,
+          0,
           0,
           1,
           0,
-          0,
-          1
+          2
         ]
       },
       "Plastic": {
         "base_parts": 0,
-        "objects": 26,
-        "parts": 26,
+        "objects": 23,
+        "parts": 23,
         "slots": [
           5,
-          2,
-          3,
-          2,
-          2,
-          3,
-          4,
-          0,
-          3,
           1,
+          2,
+          2,
+          1,
+          1,
+          5,
           0,
-          1
+          0,
+          1,
+          1,
+          4
         ]
       },
       "Rubber": {
-        "base_parts": 26,
-        "objects": 26,
-        "parts": 26,
+        "base_parts": 23,
+        "objects": 23,
+        "parts": 23,
         "slots": [
           0,
           0,
@@ -4349,46 +4621,46 @@
     "Keyboard": {
       "Metal": {
         "base_parts": 0,
-        "objects": 91,
-        "parts": 91,
+        "objects": 99,
+        "parts": 99,
         "slots": [
-          7,
-          6,
-          7,
-          5,
+          4,
           8,
-          12,
           10,
+          4,
+          6,
+          10,
+          12,
+          12,
+          8,
           11,
           8,
-          6,
-          5,
           6
         ]
       },
       "Plastic": {
         "base_parts": 0,
-        "objects": 91,
-        "parts": 91,
+        "objects": 99,
+        "parts": 99,
         "slots": [
-          7,
-          6,
-          7,
-          5,
+          4,
           8,
-          12,
           10,
+          4,
+          6,
+          10,
+          12,
+          12,
+          8,
           11,
           8,
-          6,
-          5,
           6
         ]
       },
       "Rubber": {
-        "base_parts": 28,
-        "objects": 28,
-        "parts": 28,
+        "base_parts": 26,
+        "objects": 26,
+        "parts": 26,
         "slots": [
           0,
           0,
@@ -4408,27 +4680,27 @@
     "Laptop": {
       "Chrome": {
         "base_parts": 0,
-        "objects": 526,
-        "parts": 526,
+        "objects": 542,
+        "parts": 542,
         "slots": [
-          33,
-          29,
-          48,
-          44,
-          53,
+          38,
+          50,
+          58,
           39,
-          51,
-          29,
-          54,
-          56,
-          48,
+          47,
+          46,
+          41,
+          40,
+          57,
+          35,
+          49,
           42
         ]
       },
       "Ink": {
-        "base_parts": 526,
-        "objects": 526,
-        "parts": 526,
+        "base_parts": 542,
+        "objects": 542,
+        "parts": 542,
         "slots": [
           0,
           0,
@@ -4446,46 +4718,46 @@
       },
       "Metal": {
         "base_parts": 0,
-        "objects": 262,
-        "parts": 262,
+        "objects": 283,
+        "parts": 283,
         "slots": [
-          19,
-          18,
-          27,
           21,
-          31,
-          22,
-          25,
-          13,
-          26,
-          24,
+          33,
+          29,
+          23,
+          32,
+          23,
           18,
-          18
+          18,
+          32,
+          16,
+          22,
+          16
         ]
       },
       "Plastic": {
         "base_parts": 0,
-        "objects": 526,
-        "parts": 526,
+        "objects": 542,
+        "parts": 542,
         "slots": [
-          33,
-          29,
-          48,
-          44,
-          53,
+          38,
+          50,
+          58,
           39,
-          51,
-          29,
-          54,
-          56,
-          48,
+          47,
+          46,
+          41,
+          40,
+          57,
+          35,
+          49,
           42
         ]
       },
       "Rubber": {
-        "base_parts": 526,
-        "objects": 526,
-        "parts": 526,
+        "base_parts": 542,
+        "objects": 542,
+        "parts": 542,
         "slots": [
           0,
           0,
@@ -4503,29 +4775,29 @@
       },
       "Screen": {
         "base_parts": 0,
-        "objects": 526,
-        "parts": 526,
+        "objects": 542,
+        "parts": 542,
         "slots": [
-          33,
-          29,
-          48,
-          44,
-          53,
+          38,
+          50,
+          58,
           39,
-          51,
-          29,
-          54,
-          56,
-          48,
+          47,
+          46,
+          41,
+          40,
+          57,
+          35,
+          49,
           42
         ]
       }
     },
     "LightSwitch": {
       "Ink": {
-        "base_parts": 240,
-        "objects": 240,
-        "parts": 240,
+        "base_parts": 252,
+        "objects": 252,
+        "parts": 252,
         "slots": [
           0,
           0,
@@ -4543,27 +4815,27 @@
       },
       "Metal": {
         "base_parts": 0,
-        "objects": 171,
-        "parts": 171,
+        "objects": 199,
+        "parts": 199,
         "slots": [
-          9,
-          21,
-          14,
-          12,
-          14,
-          16,
           13,
-          15,
-          15,
-          14,
-          16,
-          12
+          23,
+          19,
+          20,
+          17,
+          13,
+          20,
+          20,
+          11,
+          17,
+          11,
+          15
         ]
       },
       "Paper": {
-        "base_parts": 137,
-        "objects": 137,
-        "parts": 137,
+        "base_parts": 152,
+        "objects": 152,
+        "parts": 152,
         "slots": [
           0,
           0,
@@ -4581,29 +4853,29 @@
       },
       "Plastic": {
         "base_parts": 0,
-        "objects": 240,
-        "parts": 240,
+        "objects": 252,
+        "parts": 252,
         "slots": [
-          15,
-          29,
-          21,
-          16,
-          20,
-          21,
           17,
+          28,
+          23,
+          23,
+          24,
           18,
-          22,
-          21,
-          19,
-          21
+          23,
+          24,
+          16,
+          23,
+          15,
+          18
         ]
       }
     },
     "Microphone": {
       "Ink": {
-        "base_parts": 5,
-        "objects": 5,
-        "parts": 5,
+        "base_parts": 3,
+        "objects": 3,
+        "parts": 3,
         "slots": [
           0,
           0,
@@ -4621,46 +4893,46 @@
       },
       "Metal": {
         "base_parts": 0,
-        "objects": 16,
-        "parts": 16,
+        "objects": 15,
+        "parts": 15,
         "slots": [
+          1,
+          1,
+          1,
+          1,
+          0,
           2,
-          0,
-          0,
           3,
-          4,
-          1,
-          1,
-          1,
-          3,
+          2,
           1,
           0,
-          0
+          2,
+          1
         ]
       },
       "Plastic": {
         "base_parts": 0,
-        "objects": 11,
-        "parts": 11,
+        "objects": 12,
+        "parts": 12,
         "slots": [
-          2,
+          1,
+          1,
           0,
+          1,
           0,
-          1,
-          2,
-          1,
-          1,
           1,
           3,
+          1,
+          1,
           0,
-          0,
-          0
+          2,
+          1
         ]
       },
       "Rubber": {
-        "base_parts": 16,
-        "objects": 16,
-        "parts": 16,
+        "base_parts": 15,
+        "objects": 15,
+        "parts": 15,
         "slots": [
           0,
           0,
@@ -4680,27 +4952,27 @@
     "MobileCart": {
       "Metal": {
         "base_parts": 0,
-        "objects": 168,
-        "parts": 168,
+        "objects": 173,
+        "parts": 173,
         "slots": [
-          22,
-          21,
-          12,
-          12,
-          16,
-          15,
-          17,
+          19,
+          11,
           14,
-          6,
+          19,
+          17,
+          23,
+          9,
           15,
-          7,
-          11
+          9,
+          17,
+          10,
+          10
         ]
       },
       "Paper": {
-        "base_parts": 134,
-        "objects": 134,
-        "parts": 134,
+        "base_parts": 140,
+        "objects": 140,
+        "parts": 140,
         "slots": [
           0,
           0,
@@ -4717,9 +4989,9 @@
         ]
       },
       "Rubber": {
-        "base_parts": 168,
-        "objects": 168,
-        "parts": 168,
+        "base_parts": 173,
+        "objects": 173,
+        "parts": 173,
         "slots": [
           0,
           0,
@@ -4737,29 +5009,29 @@
       },
       "Wood": {
         "base_parts": 0,
-        "objects": 75,
-        "parts": 75,
+        "objects": 72,
+        "parts": 72,
         "slots": [
-          10,
-          9,
-          6,
+          7,
           3,
+          5,
           6,
           7,
-          6,
-          6,
+          11,
           4,
+          6,
+          2,
           10,
-          4,
-          4
+          8,
+          3
         ]
       }
     },
     "Monitor": {
       "Ink": {
-        "base_parts": 192,
-        "objects": 192,
-        "parts": 192,
+        "base_parts": 212,
+        "objects": 212,
+        "parts": 212,
         "slots": [
           0,
           0,
@@ -4777,105 +5049,105 @@
       },
       "Metal": {
         "base_parts": 0,
-        "objects": 192,
-        "parts": 192,
+        "objects": 212,
+        "parts": 212,
         "slots": [
-          15,
-          14,
-          13,
-          10,
-          11,
-          25,
-          19,
-          15,
-          20,
-          19,
           18,
-          13
+          11,
+          18,
+          9,
+          15,
+          25,
+          17,
+          16,
+          20,
+          28,
+          21,
+          14
         ]
       },
       "Plastic": {
         "base_parts": 0,
-        "objects": 130,
-        "parts": 130,
+        "objects": 135,
+        "parts": 135,
         "slots": [
+          8,
           7,
-          9,
-          9,
-          9,
-          9,
-          19,
-          13,
-          9,
           10,
+          8,
+          9,
+          15,
           12,
+          12,
+          11,
+          19,
           13,
           11
         ]
       },
       "Screen": {
         "base_parts": 0,
-        "objects": 192,
-        "parts": 192,
+        "objects": 212,
+        "parts": 212,
         "slots": [
-          15,
-          14,
-          13,
-          10,
-          11,
-          25,
-          19,
-          15,
-          20,
-          19,
           18,
-          13
+          11,
+          18,
+          9,
+          15,
+          25,
+          17,
+          16,
+          20,
+          28,
+          21,
+          14
         ]
       }
     },
     "Mouse": {
       "Chrome": {
         "base_parts": 0,
-        "objects": 18,
-        "parts": 18,
+        "objects": 23,
+        "parts": 23,
         "slots": [
           3,
+          1,
           0,
-          0,
+          2,
+          2,
           3,
-          1,
-          1,
+          0,
           2,
-          1,
           2,
-          1,
-          1,
+          3,
+          2,
           3
         ]
       },
       "Plastic": {
         "base_parts": 0,
-        "objects": 104,
-        "parts": 104,
+        "objects": 113,
+        "parts": 113,
         "slots": [
-          10,
+          11,
           13,
-          10,
+          13,
           6,
-          10,
-          9,
+          11,
           7,
-          8,
-          5,
+          7,
+          9,
           6,
           9,
-          11
+          12,
+          9
         ]
       },
       "Rubber": {
-        "base_parts": 104,
-        "objects": 104,
-        "parts": 104,
+        "base_parts": 113,
+        "objects": 113,
+        "parts": 113,
         "slots": [
           0,
           0,
@@ -4895,27 +5167,27 @@
     "Mug": {
       "Ceramic": {
         "base_parts": 0,
-        "objects": 318,
-        "parts": 318,
+        "objects": 291,
+        "parts": 291,
         "slots": [
           21,
-          29,
-          27,
-          24,
-          25,
-          20,
           23,
-          25,
           26,
+          22,
+          28,
+          16,
+          26,
+          26,
+          24,
           29,
-          35,
-          34
+          22,
+          28
         ]
       },
       "Drink": {
-        "base_parts": 318,
-        "objects": 318,
-        "parts": 318,
+        "base_parts": 291,
+        "objects": 291,
+        "parts": 291,
         "slots": [
           0,
           0,
@@ -4935,46 +5207,65 @@
     "Notebook": {
       "FabricAlt": {
         "base_parts": 0,
-        "objects": 118,
-        "parts": 118,
+        "objects": 138,
+        "parts": 138,
         "slots": [
+          10,
           12,
-          10,
-          15,
-          7,
-          6,
-          5,
+          17,
           9,
-          7,
-          16,
+          9,
+          6,
+          15,
           11,
+          17,
+          14,
           10,
-          10
+          8
+        ]
+      },
+      "Ink": {
+        "base_parts": 184,
+        "objects": 184,
+        "parts": 184,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
         ]
       },
       "Metal": {
         "base_parts": 0,
-        "objects": 130,
-        "parts": 130,
+        "objects": 88,
+        "parts": 88,
         "slots": [
+          5,
           11,
-          12,
-          12,
+          8,
+          3,
+          9,
+          9,
+          7,
           9,
           10,
-          8,
-          12,
-          9,
-          17,
+          5,
           7,
-          13,
-          10
+          5
         ]
       },
       "Paper": {
-        "base_parts": 381,
-        "objects": 381,
-        "parts": 381,
+        "base_parts": 413,
+        "objects": 413,
+        "parts": 413,
         "slots": [
           0,
           0,
@@ -4992,27 +5283,27 @@
       },
       "Plastic": {
         "base_parts": 0,
-        "objects": 263,
-        "parts": 263,
+        "objects": 275,
+        "parts": 275,
         "slots": [
-          23,
-          17,
-          22,
-          21,
-          21,
           16,
-          17,
-          33,
-          30,
-          16,
+          21,
+          28,
+          20,
+          28,
+          19,
+          20,
+          29,
+          26,
           23,
-          24
+          20,
+          25
         ]
       },
       "Rubber": {
-        "base_parts": 142,
-        "objects": 142,
-        "parts": 142,
+        "base_parts": 83,
+        "objects": 83,
+        "parts": 83,
         "slots": [
           0,
           0,
@@ -5032,46 +5323,46 @@
     "Notepad": {
       "Art": {
         "base_parts": 0,
-        "objects": 312,
-        "parts": 312,
+        "objects": 293,
+        "parts": 293,
         "slots": [
-          19,
           29,
           30,
-          29,
-          34,
           24,
-          34,
           23,
-          27,
-          18,
-          20,
-          25
+          33,
+          23,
+          28,
+          16,
+          16,
+          22,
+          28,
+          21
         ]
       },
       "Chrome": {
         "base_parts": 0,
-        "objects": 157,
-        "parts": 157,
+        "objects": 147,
+        "parts": 147,
         "slots": [
-          10,
           15,
-          7,
-          13,
           14,
+          8,
+          11,
           17,
-          20,
           14,
-          12,
-          10,
-          12,
-          13
+          14,
+          6,
+          8,
+          11,
+          19,
+          10
         ]
       },
       "Paper": {
-        "base_parts": 312,
-        "objects": 312,
-        "parts": 312,
+        "base_parts": 293,
+        "objects": 293,
+        "parts": 293,
         "slots": [
           0,
           0,
@@ -5089,67 +5380,67 @@
       },
       "PrintedPaper": {
         "base_parts": 0,
-        "objects": 312,
-        "parts": 312,
+        "objects": 293,
+        "parts": 293,
         "slots": [
-          19,
           29,
           30,
-          29,
-          34,
           24,
-          34,
           23,
-          27,
-          18,
-          20,
-          25
+          33,
+          23,
+          28,
+          16,
+          16,
+          22,
+          28,
+          21
         ]
       }
     },
     "NoticeBoard": {
       "Chrome": {
         "base_parts": 0,
-        "objects": 137,
-        "parts": 137,
+        "objects": 132,
+        "parts": 132,
         "slots": [
-          12,
+          8,
+          10,
           11,
+          13,
           11,
-          11,
-          11,
+          4,
+          14,
           6,
-          12,
-          7,
-          12,
-          19,
-          11,
-          14
+          18,
+          17,
+          8,
+          12
         ]
       },
       "FabricAlt": {
         "base_parts": 0,
-        "objects": 137,
-        "parts": 137,
+        "objects": 132,
+        "parts": 132,
         "slots": [
-          12,
+          8,
+          10,
           11,
+          13,
           11,
-          11,
-          11,
+          4,
+          14,
           6,
-          12,
-          7,
-          12,
-          19,
-          11,
-          14
+          18,
+          17,
+          8,
+          12
         ]
       },
       "Ink": {
-        "base_parts": 137,
-        "objects": 137,
-        "parts": 137,
+        "base_parts": 132,
+        "objects": 132,
+        "parts": 132,
         "slots": [
           0,
           0,
@@ -5170,24 +5461,24 @@
         "objects": 52,
         "parts": 52,
         "slots": [
-          4,
-          4,
+          3,
+          2,
           4,
           3,
           6,
-          4,
-          5,
+          3,
+          7,
           1,
+          8,
+          9,
           2,
-          11,
-          2,
-          6
+          4
         ]
       },
       "Paper": {
-        "base_parts": 137,
-        "objects": 137,
-        "parts": 137,
+        "base_parts": 132,
+        "objects": 132,
+        "parts": 132,
         "slots": [
           0,
           0,
@@ -5205,88 +5496,88 @@
       },
       "WoodEdge": {
         "base_parts": 0,
-        "objects": 85,
-        "parts": 85,
+        "objects": 132,
+        "parts": 132,
         "slots": [
           8,
-          7,
-          7,
-          8,
-          5,
-          2,
-          7,
-          6,
           10,
+          11,
+          13,
+          11,
+          4,
+          14,
+          6,
+          18,
+          17,
           8,
-          9,
-          8
+          12
         ]
       }
     },
     "Ottoman": {
       "FabricAlt": {
         "base_parts": 0,
-        "objects": 94,
-        "parts": 94,
+        "objects": 70,
+        "parts": 70,
         "slots": [
-          11,
-          6,
-          2,
-          10,
-          10,
           7,
+          7,
+          3,
+          6,
+          6,
+          5,
+          3,
+          5,
           5,
           6,
-          7,
-          7,
-          15,
-          8
+          8,
+          9
         ]
       },
       "Leather": {
         "base_parts": 0,
-        "objects": 29,
-        "parts": 29,
+        "objects": 24,
+        "parts": 24,
         "slots": [
+          3,
+          0,
+          2,
+          4,
           2,
           2,
-          5,
-          3,
+          0,
+          1,
           2,
-          3,
+          4,
           1,
-          1,
-          1,
-          3,
-          1,
-          5
+          3
         ]
       },
       "WoodEdge": {
         "base_parts": 0,
-        "objects": 123,
-        "parts": 123,
+        "objects": 94,
+        "parts": 94,
         "slots": [
-          13,
+          10,
+          7,
+          5,
+          10,
           8,
           7,
-          13,
-          12,
-          10,
+          3,
           6,
           7,
-          8,
           10,
-          16,
-          13
+          9,
+          12
         ]
       }
     },
     "PenHolder": {
       "Ink": {
-        "base_parts": 213,
-        "objects": 213,
-        "parts": 213,
+        "base_parts": 207,
+        "objects": 207,
+        "parts": 207,
         "slots": [
           0,
           0,
@@ -5304,86 +5595,86 @@
       },
       "Metal": {
         "base_parts": 0,
-        "objects": 216,
-        "parts": 216,
+        "objects": 210,
+        "parts": 210,
         "slots": [
-          13,
-          27,
-          17,
+          14,
+          20,
+          20,
+          19,
+          15,
           21,
           18,
-          16,
+          11,
+          12,
           17,
-          14,
-          16,
           19,
-          19,
-          19
+          24
         ]
       },
       "Wood": {
         "base_parts": 0,
-        "objects": 215,
-        "parts": 215,
+        "objects": 207,
+        "parts": 207,
         "slots": [
-          13,
-          27,
-          17,
+          14,
+          20,
+          20,
+          19,
+          15,
           21,
           18,
+          10,
+          12,
           16,
-          17,
-          14,
-          16,
-          18,
           19,
-          19
+          23
         ]
       }
     },
     "Pencil": {
       "Art": {
         "base_parts": 0,
-        "objects": 168,
-        "parts": 168,
+        "objects": 152,
+        "parts": 152,
         "slots": [
-          12,
-          11,
-          18,
-          11,
-          17,
-          17,
-          9,
-          14,
-          19,
+          8,
           13,
-          16,
-          11
+          12,
+          13,
+          14,
+          12,
+          8,
+          13,
+          18,
+          15,
+          14,
+          12
         ]
       },
       "Chrome": {
         "base_parts": 0,
-        "objects": 93,
-        "parts": 93,
+        "objects": 73,
+        "parts": 73,
         "slots": [
-          6,
-          6,
-          11,
-          4,
+          3,
+          5,
           7,
-          9,
           4,
+          6,
+          6,
+          2,
           8,
-          13,
           8,
-          9,
-          8
+          8,
+          7,
+          9
         ]
       },
       "Ink": {
-        "base_parts": 168,
-        "objects": 168,
-        "parts": 168,
+        "base_parts": 152,
+        "objects": 152,
+        "parts": 152,
         "slots": [
           0,
           0,
@@ -5401,27 +5692,27 @@
       },
       "Metal": {
         "base_parts": 0,
-        "objects": 58,
-        "parts": 58,
+        "objects": 45,
+        "parts": 45,
         "slots": [
-          3,
+          1,
           7,
-          2,
-          6,
-          6,
-          4,
-          2,
-          8,
-          8,
+          1,
+          5,
           5,
           4,
-          3
+          3,
+          5,
+          7,
+          4,
+          1,
+          2
         ]
       },
       "Rubber": {
-        "base_parts": 93,
-        "objects": 93,
-        "parts": 93,
+        "base_parts": 73,
+        "objects": 73,
+        "parts": 73,
         "slots": [
           0,
           0,
@@ -5439,29 +5730,29 @@
       },
       "Wood": {
         "base_parts": 0,
-        "objects": 110,
-        "parts": 110,
+        "objects": 107,
+        "parts": 107,
         "slots": [
-          9,
-          4,
-          16,
-          5,
-          11,
-          13,
           7,
           6,
           11,
           8,
-          12,
-          8
+          9,
+          8,
+          5,
+          8,
+          11,
+          11,
+          13,
+          10
         ]
       }
     },
     "Phone": {
       "Ink": {
-        "base_parts": 996,
-        "objects": 996,
-        "parts": 996,
+        "base_parts": 1010,
+        "objects": 1010,
+        "parts": 1010,
         "slots": [
           0,
           0,
@@ -5479,67 +5770,67 @@
       },
       "Metal": {
         "base_parts": 0,
-        "objects": 996,
-        "parts": 996,
+        "objects": 1010,
+        "parts": 1010,
         "slots": [
-          84,
-          70,
-          83,
-          80,
-          90,
-          87,
-          73,
-          80,
-          81,
           85,
-          104,
-          79
+          84,
+          78,
+          80,
+          97,
+          85,
+          76,
+          75,
+          81,
+          79,
+          100,
+          90
         ]
       },
       "PhoneScreen": {
         "base_parts": 0,
-        "objects": 736,
-        "parts": 736,
+        "objects": 766,
+        "parts": 766,
         "slots": [
-          61,
-          46,
+          63,
+          62,
+          60,
+          59,
+          74,
           62,
           55,
-          67,
+          58,
           68,
           57,
-          59,
-          63,
-          63,
-          75,
-          60
+          79,
+          69
         ]
       },
       "Plastic": {
         "base_parts": 0,
-        "objects": 260,
-        "parts": 260,
+        "objects": 244,
+        "parts": 244,
         "slots": [
-          23,
-          24,
-          21,
-          25,
-          23,
-          19,
-          16,
-          21,
-          18,
           22,
-          29,
-          19
+          22,
+          18,
+          21,
+          23,
+          23,
+          21,
+          17,
+          13,
+          22,
+          21,
+          21
         ]
       }
     },
     "Plant": {
       "Bark": {
-        "base_parts": 715,
-        "objects": 715,
-        "parts": 715,
+        "base_parts": 705,
+        "objects": 705,
+        "parts": 705,
         "slots": [
           0,
           0,
@@ -5557,27 +5848,27 @@
       },
       "Ceramic": {
         "base_parts": 0,
-        "objects": 206,
-        "parts": 206,
+        "objects": 213,
+        "parts": 213,
         "slots": [
-          21,
-          19,
-          16,
           18,
-          15,
+          14,
+          18,
+          18,
+          13,
+          13,
+          25,
           22,
-          20,
-          23,
-          10,
           19,
+          21,
           12,
-          11
+          20
         ]
       },
       "Concrete": {
-        "base_parts": 245,
-        "objects": 245,
-        "parts": 245,
+        "base_parts": 216,
+        "objects": 216,
+        "parts": 216,
         "slots": [
           0,
           0,
@@ -5595,103 +5886,103 @@
       },
       "Leaf": {
         "base_parts": 0,
-        "objects": 715,
-        "parts": 715,
+        "objects": 705,
+        "parts": 705,
         "slots": [
-          66,
-          60,
+          68,
+          56,
+          63,
           69,
-          64,
+          46,
           51,
-          56,
-          55,
-          65,
-          58,
-          56,
+          63,
+          62,
+          57,
+          60,
           52,
-          63
+          58
         ]
       },
       "LeafLight": {
         "base_parts": 0,
-        "objects": 706,
-        "parts": 706,
+        "objects": 695,
+        "parts": 695,
         "slots": [
-          66,
-          59,
-          69,
-          63,
-          50,
+          67,
           55,
-          53,
           63,
-          57,
+          68,
+          45,
+          50,
+          62,
+          60,
           56,
+          60,
           52,
-          63
+          57
         ]
       },
       "LeafVariegated": {
         "base_parts": 0,
-        "objects": 81,
-        "parts": 81,
+        "objects": 75,
+        "parts": 75,
         "slots": [
+          9,
+          5,
           7,
+          5,
+          6,
+          8,
+          6,
           7,
           8,
-          9,
-          2,
-          5,
-          5,
-          10,
           4,
-          15,
-          2,
+          3,
           7
         ]
       },
       "Metal": {
         "base_parts": 0,
-        "objects": 227,
-        "parts": 227,
+        "objects": 217,
+        "parts": 217,
         "slots": [
-          24,
-          22,
-          20,
-          20,
-          19,
-          19,
-          13,
+          21,
           15,
+          18,
+          18,
+          23,
           20,
+          18,
+          15,
+          14,
           16,
-          15,
-          24
+          16,
+          23
         ]
       },
       "Plastic": {
         "base_parts": 0,
-        "objects": 228,
-        "parts": 228,
+        "objects": 219,
+        "parts": 219,
         "slots": [
-          23,
-          20,
-          15,
-          19,
-          12,
+          21,
           17,
-          19,
-          22,
+          13,
+          23,
+          14,
+          21,
+          14,
+          21,
           18,
-          20,
-          20,
-          23
+          21,
+          15,
+          21
         ]
       },
       "Soil": {
-        "base_parts": 1127,
-        "objects": 1127,
-        "parts": 1127,
+        "base_parts": 1105,
+        "objects": 1105,
+        "parts": 1105,
         "slots": [
           0,
           0,
@@ -5709,27 +6000,27 @@
       },
       "Succulent": {
         "base_parts": 0,
-        "objects": 331,
-        "parts": 331,
+        "objects": 325,
+        "parts": 325,
         "slots": [
           30,
-          31,
-          23,
-          28,
-          29,
-          32,
-          28,
-          23,
-          30,
+          25,
           24,
-          23,
-          30
+          28,
+          32,
+          25,
+          31,
+          31,
+          26,
+          21,
+          20,
+          32
         ]
       },
       "Terracotta": {
-        "base_parts": 221,
-        "objects": 221,
-        "parts": 221,
+        "base_parts": 240,
+        "objects": 240,
+        "parts": 240,
         "slots": [
           0,
           0,
@@ -5748,9 +6039,9 @@
     },
     "PowerStrip": {
       "Ink": {
-        "base_parts": 582,
-        "objects": 582,
-        "parts": 582,
+        "base_parts": 557,
+        "objects": 557,
+        "parts": 557,
         "slots": [
           0,
           0,
@@ -5768,27 +6059,27 @@
       },
       "Metal": {
         "base_parts": 0,
-        "objects": 229,
-        "parts": 229,
+        "objects": 213,
+        "parts": 213,
         "slots": [
           22,
-          17,
-          23,
-          17,
-          13,
-          21,
-          21,
-          18,
-          24,
           20,
-          19,
-          14
+          20,
+          17,
+          10,
+          23,
+          14,
+          15,
+          14,
+          18,
+          25,
+          15
         ]
       },
       "Paper": {
-        "base_parts": 582,
-        "objects": 582,
-        "parts": 582,
+        "base_parts": 557,
+        "objects": 557,
+        "parts": 557,
         "slots": [
           0,
           0,
@@ -5806,21 +6097,21 @@
       },
       "Plastic": {
         "base_parts": 0,
-        "objects": 353,
-        "parts": 353,
+        "objects": 344,
+        "parts": 344,
         "slots": [
+          27,
           24,
-          30,
-          32,
-          52,
-          31,
-          23,
-          19,
-          26,
+          25,
+          42,
+          29,
           24,
-          34,
-          32,
-          26
+          24,
+          33,
+          27,
+          33,
+          33,
+          23
         ]
       }
     },
@@ -5872,13 +6163,13 @@
           1,
           0,
           1,
-          0,
           1,
           0,
           0,
-          1,
           1,
           2,
+          1,
+          0,
           0
         ]
       },
@@ -5891,22 +6182,22 @@
           1,
           0,
           1,
-          0,
           1,
           0,
           0,
-          1,
           1,
           2,
+          1,
+          0,
           0
         ]
       }
     },
     "ProjectionScreen": {
       "Ink": {
-        "base_parts": 65,
-        "objects": 65,
-        "parts": 65,
+        "base_parts": 69,
+        "objects": 69,
+        "parts": 69,
         "slots": [
           0,
           0,
@@ -5928,17 +6219,17 @@
         "parts": 96,
         "slots": [
           8,
-          5,
+          2,
+          12,
+          6,
+          12,
           7,
-          5,
-          14,
           7,
-          8,
+          7,
           10,
-          10,
-          9,
-          3,
-          10
+          11,
+          5,
+          9
         ]
       },
       "Paper": {
@@ -5963,9 +6254,9 @@
     },
     "Projector": {
       "ContainerGlass": {
-        "base_parts": 59,
-        "objects": 59,
-        "parts": 59,
+        "base_parts": 62,
+        "objects": 62,
+        "parts": 62,
         "slots": [
           0,
           0,
@@ -5982,9 +6273,9 @@
         ]
       },
       "Ink": {
-        "base_parts": 59,
-        "objects": 59,
-        "parts": 59,
+        "base_parts": 62,
+        "objects": 62,
+        "parts": 62,
         "slots": [
           0,
           0,
@@ -6002,46 +6293,46 @@
       },
       "Metal": {
         "base_parts": 0,
-        "objects": 59,
-        "parts": 59,
+        "objects": 62,
+        "parts": 62,
         "slots": [
-          7,
-          7,
-          5,
           8,
+          6,
+          9,
+          6,
           3,
-          4,
           1,
-          5,
-          5,
+          2,
           4,
-          5,
-          5
+          6,
+          7,
+          4,
+          6
         ]
       },
       "Plastic": {
         "base_parts": 0,
-        "objects": 36,
-        "parts": 36,
+        "objects": 38,
+        "parts": 38,
         "slots": [
-          4,
+          3,
+          3,
           5,
-          2,
-          7,
-          0,
+          6,
           2,
           1,
           2,
+          3,
+          3,
           5,
-          3,
-          3,
-          2
+          2,
+          3
         ]
       },
       "Rubber": {
-        "base_parts": 59,
-        "objects": 59,
-        "parts": 59,
+        "base_parts": 62,
+        "objects": 62,
+        "parts": 62,
         "slots": [
           0,
           0,
@@ -6061,72 +6352,72 @@
     "RoomDivider": {
       "FabricAlt": {
         "base_parts": 0,
-        "objects": 64,
-        "parts": 64,
+        "objects": 53,
+        "parts": 53,
         "slots": [
-          10,
-          7,
-          3,
-          3,
+          9,
+          4,
+          5,
+          0,
+          5,
           8,
+          3,
           6,
           3,
-          7,
-          3,
-          3,
-          5,
-          6
+          4,
+          4,
+          2
         ]
       },
       "Metal": {
         "base_parts": 0,
-        "objects": 64,
-        "parts": 64,
+        "objects": 53,
+        "parts": 53,
         "slots": [
-          10,
-          7,
-          3,
-          3,
+          9,
+          4,
+          5,
+          0,
+          5,
           8,
+          3,
           6,
           3,
-          7,
-          3,
-          3,
-          5,
-          6
+          4,
+          4,
+          2
         ]
       },
       "WoodEdge": {
         "base_parts": 0,
-        "objects": 29,
-        "parts": 29,
+        "objects": 26,
+        "parts": 26,
         "slots": [
           5,
-          5,
-          1,
-          1,
-          2,
           2,
           3,
-          2,
-          2,
           0,
+          0,
+          5,
           3,
-          3
+          4,
+          1,
+          0,
+          1,
+          2
         ]
       }
     },
     "Rug": {
       "Rug": {
         "base_parts": 0,
-        "objects": 138,
-        "parts": 276,
+        "objects": 143,
+        "parts": 286,
         "slots": [
-          70,
-          76,
+          74,
           66,
-          64,
+          84,
+          62,
           0,
           0,
           0,
@@ -6141,27 +6432,27 @@
     "SideTable": {
       "Ceramic": {
         "base_parts": 0,
-        "objects": 18,
-        "parts": 18,
+        "objects": 21,
+        "parts": 21,
         "slots": [
           0,
-          1,
-          4,
-          0,
           2,
+          3,
+          3,
           1,
+          2,
+          3,
+          1,
+          0,
           3,
           0,
-          0,
-          5,
-          0,
-          2
+          3
         ]
       },
       "Concrete": {
-        "base_parts": 23,
-        "objects": 23,
-        "parts": 23,
+        "base_parts": 24,
+        "objects": 24,
+        "parts": 24,
         "slots": [
           0,
           0,
@@ -6179,46 +6470,46 @@
       },
       "Metal": {
         "base_parts": 0,
-        "objects": 171,
-        "parts": 171,
+        "objects": 186,
+        "parts": 186,
         "slots": [
-          18,
-          16,
-          12,
-          8,
-          12,
-          13,
+          19,
           14,
           14,
           19,
-          17,
-          16,
-          12
+          22,
+          18,
+          19,
+          9,
+          11,
+          13,
+          15,
+          13
         ]
       },
       "Plastic": {
         "base_parts": 0,
-        "objects": 30,
-        "parts": 30,
+        "objects": 32,
+        "parts": 32,
         "slots": [
+          1,
+          4,
           3,
           2,
+          2,
+          1,
+          4,
           5,
-          1,
-          1,
-          2,
-          3,
-          1,
           3,
           2,
-          3,
-          4
+          2,
+          3
         ]
       },
       "Rubber": {
-        "base_parts": 244,
-        "objects": 244,
-        "parts": 244,
+        "base_parts": 237,
+        "objects": 237,
+        "parts": 237,
         "slots": [
           0,
           0,
@@ -6236,86 +6527,86 @@
       },
       "Wood": {
         "base_parts": 0,
-        "objects": 196,
-        "parts": 196,
+        "objects": 190,
+        "parts": 190,
         "slots": [
-          17,
           19,
+          16,
           12,
-          10,
-          14,
-          13,
-          23,
-          20,
-          19,
-          18,
           17,
-          14
+          19,
+          17,
+          22,
+          8,
+          17,
+          13,
+          13,
+          17
         ]
       },
       "WoodEdge": {
         "base_parts": 0,
-        "objects": 226,
-        "parts": 226,
+        "objects": 213,
+        "parts": 213,
         "slots": [
-          17,
-          22,
-          18,
-          12,
+          20,
+          20,
           15,
+          20,
+          19,
+          19,
+          24,
+          9,
+          20,
           15,
-          25,
-          21,
-          21,
-          21,
-          21,
-          18
+          13,
+          19
         ]
       }
     },
     "SodaCan": {
       "Art": {
         "base_parts": 0,
-        "objects": 289,
-        "parts": 289,
+        "objects": 272,
+        "parts": 272,
         "slots": [
-          26,
-          24,
-          16,
-          26,
-          19,
-          15,
-          19,
-          30,
-          29,
+          20,
+          27,
+          18,
+          21,
+          21,
+          14,
+          20,
+          20,
+          38,
           23,
           32,
-          30
+          18
         ]
       },
       "Chrome": {
         "base_parts": 0,
-        "objects": 289,
-        "parts": 289,
+        "objects": 272,
+        "parts": 272,
         "slots": [
-          26,
-          24,
-          16,
-          26,
-          19,
-          15,
-          19,
-          30,
-          29,
+          20,
+          27,
+          18,
+          21,
+          21,
+          14,
+          20,
+          20,
+          38,
           23,
           32,
-          30
+          18
         ]
       },
       "Ink": {
-        "base_parts": 205,
-        "objects": 205,
-        "parts": 205,
+        "base_parts": 193,
+        "objects": 193,
+        "parts": 193,
         "slots": [
           0,
           0,
@@ -6332,9 +6623,9 @@
         ]
       },
       "Paper": {
-        "base_parts": 289,
-        "objects": 289,
-        "parts": 289,
+        "base_parts": 272,
+        "objects": 272,
+        "parts": 272,
         "slots": [
           0,
           0,
@@ -6354,84 +6645,84 @@
     "Sofa": {
       "Fabric": {
         "base_parts": 0,
-        "objects": 73,
-        "parts": 73,
+        "objects": 69,
+        "parts": 69,
         "slots": [
           6,
+          5,
+          6,
+          7,
+          5,
+          4,
+          5,
           4,
           6,
-          7,
           6,
-          7,
           6,
-          8,
-          6,
-          5,
-          7,
-          5
+          9
         ]
       },
       "FabricAlt": {
         "base_parts": 0,
-        "objects": 175,
-        "parts": 224,
+        "objects": 162,
+        "parts": 213,
         "slots": [
-          19,
-          22,
-          14,
-          26,
+          18,
+          21,
           16,
+          22,
+          16,
+          8,
+          23,
+          17,
           13,
-          19,
-          26,
-          16,
-          22,
-          16,
-          15
+          25,
+          14,
+          20
         ]
       },
       "Leather": {
         "base_parts": 0,
-        "objects": 84,
-        "parts": 84,
+        "objects": 63,
+        "parts": 63,
         "slots": [
-          12,
-          9,
-          6,
-          9,
-          7,
+          8,
+          5,
+          5,
           5,
           6,
           5,
-          9,
+          6,
+          4,
           4,
           6,
-          6
+          5,
+          4
         ]
       },
       "Metal": {
         "base_parts": 0,
-        "objects": 142,
-        "parts": 142,
+        "objects": 134,
+        "parts": 134,
         "slots": [
-          19,
           15,
           11,
-          16,
+          11,
+          13,
+          11,
+          5,
           12,
-          8,
           9,
-          12,
-          12,
+          11,
+          13,
           9,
-          10,
-          9
+          14
         ]
       },
       "Rubber": {
-        "base_parts": 235,
-        "objects": 235,
-        "parts": 235,
+        "base_parts": 214,
+        "objects": 214,
+        "parts": 214,
         "slots": [
           0,
           0,
@@ -6449,105 +6740,105 @@
       },
       "WoodEdge": {
         "base_parts": 0,
-        "objects": 93,
-        "parts": 93,
+        "objects": 80,
+        "parts": 80,
         "slots": [
           5,
+          8,
           7,
-          7,
-          11,
+          10,
           5,
-          8,
-          8,
-          11,
           6,
-          8,
+          7,
+          6,
+          2,
           9,
-          8
+          8,
+          7
         ]
       }
     },
     "Speaker": {
       "Fabric": {
         "base_parts": 0,
-        "objects": 45,
-        "parts": 45,
+        "objects": 55,
+        "parts": 55,
         "slots": [
-          1,
-          7,
-          5,
-          2,
-          3,
-          3,
-          4,
           6,
-          4,
+          6,
           3,
           4,
-          3
+          4,
+          7,
+          6,
+          5,
+          4,
+          5,
+          3,
+          2
         ]
       },
       "FabricAlt": {
         "base_parts": 0,
-        "objects": 48,
-        "parts": 48,
+        "objects": 43,
+        "parts": 43,
         "slots": [
-          3,
-          6,
+          5,
+          5,
           1,
-          3,
-          5,
-          9,
-          2,
-          2,
+          6,
           4,
+          3,
+          4,
+          3,
           2,
-          5,
-          6
+          3,
+          2,
+          5
         ]
       },
       "Metal": {
         "base_parts": 0,
-        "objects": 22,
-        "parts": 22,
+        "objects": 25,
+        "parts": 25,
         "slots": [
+          2,
           0,
+          2,
+          4,
+          3,
+          1,
+          1,
+          3,
           0,
-          2,
-          2,
-          2,
-          2,
-          1,
-          1,
-          1,
-          2,
-          6,
+          3,
+          3,
           3
         ]
       },
       "Plastic": {
         "base_parts": 0,
-        "objects": 50,
-        "parts": 50,
+        "objects": 49,
+        "parts": 49,
         "slots": [
+          7,
+          8,
+          1,
           3,
-          10,
-          3,
-          2,
           4,
-          9,
-          3,
-          3,
           6,
+          7,
+          3,
+          3,
           1,
-          1,
-          5
+          2,
+          4
         ]
       },
       "Rubber": {
-        "base_parts": 45,
-        "objects": 45,
-        "parts": 45,
+        "base_parts": 55,
+        "objects": 55,
+        "parts": 55,
         "slots": [
           0,
           0,
@@ -6565,67 +6856,67 @@
       },
       "WoodEdge": {
         "base_parts": 0,
-        "objects": 21,
-        "parts": 21,
+        "objects": 24,
+        "parts": 24,
         "slots": [
+          2,
+          3,
           1,
           3,
           1,
-          1,
+          3,
           2,
-          1,
           2,
+          3,
           4,
-          1,
-          2,
-          2,
-          1
+          0,
+          0
         ]
       }
     },
     "Stapler": {
       "Metal": {
         "base_parts": 0,
-        "objects": 158,
-        "parts": 158,
+        "objects": 171,
+        "parts": 171,
         "slots": [
+          11,
+          16,
           13,
-          9,
+          12,
+          16,
+          13,
+          12,
           13,
           18,
           16,
-          12,
-          11,
-          9,
-          12,
-          16,
-          14,
-          15
+          15,
+          16
         ]
       },
       "Plastic": {
         "base_parts": 0,
-        "objects": 99,
-        "parts": 99,
+        "objects": 111,
+        "parts": 111,
         "slots": [
-          8,
           5,
-          10,
-          12,
-          12,
-          9,
-          6,
-          5,
-          5,
+          11,
+          11,
           7,
+          9,
+          11,
+          6,
+          11,
+          11,
+          9,
           12,
           8
         ]
       },
       "Rubber": {
-        "base_parts": 158,
-        "objects": 158,
-        "parts": 158,
+        "base_parts": 171,
+        "objects": 171,
+        "parts": 171,
         "slots": [
           0,
           0,
@@ -6645,27 +6936,27 @@
     "StorageBox": {
       "FabricAlt": {
         "base_parts": 0,
-        "objects": 25,
-        "parts": 25,
+        "objects": 27,
+        "parts": 27,
         "slots": [
-          2,
-          2,
-          2,
-          0,
-          2,
+          4,
           3,
-          1,
-          3,
-          1,
           4,
           2,
+          1,
+          1,
+          0,
+          4,
+          2,
+          2,
+          1,
           3
         ]
       },
       "Ink": {
-        "base_parts": 65,
-        "objects": 65,
-        "parts": 65,
+        "base_parts": 57,
+        "objects": 57,
+        "parts": 57,
         "slots": [
           0,
           0,
@@ -6683,27 +6974,27 @@
       },
       "Metal": {
         "base_parts": 0,
-        "objects": 40,
-        "parts": 40,
+        "objects": 30,
+        "parts": 30,
         "slots": [
+          1,
+          2,
           3,
-          5,
           6,
           3,
+          1,
+          3,
+          1,
           3,
           4,
           2,
-          4,
-          3,
-          0,
-          4,
-          3
+          1
         ]
       },
       "Paper": {
-        "base_parts": 52,
-        "objects": 52,
-        "parts": 52,
+        "base_parts": 53,
+        "objects": 53,
+        "parts": 53,
         "slots": [
           0,
           0,
@@ -6721,27 +7012,27 @@
       },
       "Plastic": {
         "base_parts": 0,
-        "objects": 77,
-        "parts": 77,
+        "objects": 65,
+        "parts": 65,
         "slots": [
           4,
-          7,
-          9,
-          6,
-          8,
-          7,
-          8,
-          7,
+          4,
           5,
-          3,
           8,
-          5
+          7,
+          3,
+          7,
+          4,
+          4,
+          7,
+          10,
+          2
         ]
       },
       "Rubber": {
-        "base_parts": 64,
-        "objects": 64,
-        "parts": 64,
+        "base_parts": 61,
+        "objects": 61,
+        "parts": 61,
         "slots": [
           0,
           0,
@@ -6761,17 +7052,17 @@
     "Table": {
       "Ceramic": {
         "base_parts": 0,
-        "objects": 10,
-        "parts": 10,
+        "objects": 9,
+        "parts": 9,
         "slots": [
           0,
-          1,
           2,
           1,
           0,
+          0,
+          0,
+          0,
           1,
-          0,
-          0,
           4,
           1,
           0,
@@ -6799,21 +7090,215 @@
       },
       "Metal": {
         "base_parts": 0,
-        "objects": 46,
-        "parts": 46,
+        "objects": 51,
+        "parts": 51,
         "slots": [
-          1,
-          4,
           5,
-          5,
-          2,
-          3,
-          3,
-          2,
-          9,
+          6,
           7,
+          2,
+          2,
+          3,
+          5,
+          4,
+          6,
+          6,
           4,
           1
+        ]
+      },
+      "Plastic": {
+        "base_parts": 0,
+        "objects": 34,
+        "parts": 34,
+        "slots": [
+          4,
+          5,
+          4,
+          1,
+          1,
+          2,
+          4,
+          1,
+          3,
+          5,
+          4,
+          0
+        ]
+      },
+      "Rubber": {
+        "base_parts": 48,
+        "objects": 48,
+        "parts": 48,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Wood": {
+        "base_parts": 0,
+        "objects": 38,
+        "parts": 38,
+        "slots": [
+          5,
+          5,
+          5,
+          2,
+          1,
+          1,
+          5,
+          3,
+          2,
+          5,
+          3,
+          1
+        ]
+      },
+      "WoodEdge": {
+        "base_parts": 0,
+        "objects": 44,
+        "parts": 44,
+        "slots": [
+          6,
+          7,
+          6,
+          2,
+          1,
+          2,
+          6,
+          3,
+          2,
+          5,
+          3,
+          1
+        ]
+      }
+    },
+    "TapeDispenser": {
+      "Metal": {
+        "base_parts": 0,
+        "objects": 154,
+        "parts": 154,
+        "slots": [
+          16,
+          13,
+          14,
+          11,
+          18,
+          13,
+          10,
+          6,
+          14,
+          17,
+          13,
+          9
+        ]
+      },
+      "Paper": {
+        "base_parts": 154,
+        "objects": 154,
+        "parts": 154,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "Plastic": {
+        "base_parts": 0,
+        "objects": 154,
+        "parts": 154,
+        "slots": [
+          16,
+          13,
+          14,
+          11,
+          18,
+          13,
+          10,
+          6,
+          14,
+          17,
+          13,
+          9
+        ]
+      }
+    },
+    "TissueBox": {
+      "Art": {
+        "base_parts": 0,
+        "objects": 39,
+        "parts": 39,
+        "slots": [
+          1,
+          3,
+          2,
+          6,
+          3,
+          3,
+          3,
+          1,
+          4,
+          6,
+          4,
+          3
+        ]
+      },
+      "FabricAlt": {
+        "base_parts": 0,
+        "objects": 41,
+        "parts": 41,
+        "slots": [
+          6,
+          2,
+          3,
+          4,
+          6,
+          2,
+          5,
+          6,
+          3,
+          2,
+          2,
+          0
+        ]
+      },
+      "Paper": {
+        "base_parts": 225,
+        "objects": 185,
+        "parts": 225,
+        "slots": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
         ]
       },
       "Plastic": {
@@ -6821,21 +7306,61 @@
         "objects": 30,
         "parts": 30,
         "slots": [
-          0,
-          4,
+          1,
           3,
-          4,
+          1,
+          3,
+          6,
           1,
           2,
           2,
-          0,
           4,
-          6,
-          4,
-          0
+          3,
+          3,
+          1
         ]
       },
-      "Rubber": {
+      "Wood": {
+        "base_parts": 0,
+        "objects": 35,
+        "parts": 35,
+        "slots": [
+          3,
+          2,
+          5,
+          4,
+          3,
+          4,
+          2,
+          2,
+          6,
+          1,
+          3,
+          0
+        ]
+      }
+    },
+    "TrashCan": {
+      "Chrome": {
+        "base_parts": 0,
+        "objects": 53,
+        "parts": 53,
+        "slots": [
+          3,
+          2,
+          3,
+          4,
+          7,
+          4,
+          3,
+          5,
+          6,
+          3,
+          5,
+          8
+        ]
+      },
+      "Ink": {
         "base_parts": 44,
         "objects": 44,
         "parts": 44,
@@ -6854,282 +7379,48 @@
           0
         ]
       },
-      "Wood": {
-        "base_parts": 0,
-        "objects": 35,
-        "parts": 35,
-        "slots": [
-          2,
-          3,
-          3,
-          5,
-          1,
-          2,
-          2,
-          2,
-          4,
-          7,
-          3,
-          1
-        ]
-      },
-      "WoodEdge": {
-        "base_parts": 0,
-        "objects": 40,
-        "parts": 40,
-        "slots": [
-          2,
-          4,
-          4,
-          5,
-          1,
-          4,
-          3,
-          2,
-          4,
-          7,
-          3,
-          1
-        ]
-      }
-    },
-    "TapeDispenser": {
       "Metal": {
         "base_parts": 0,
-        "objects": 144,
-        "parts": 144,
+        "objects": 81,
+        "parts": 81,
         "slots": [
-          16,
-          10,
-          12,
-          10,
+          6,
           13,
-          11,
-          12,
-          10,
-          12,
-          16,
-          11,
-          11
-        ]
-      },
-      "Paper": {
-        "base_parts": 144,
-        "objects": 144,
-        "parts": 144,
-        "slots": [
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0
-        ]
-      },
-      "Plastic": {
-        "base_parts": 0,
-        "objects": 144,
-        "parts": 144,
-        "slots": [
-          16,
-          10,
-          12,
-          10,
-          13,
-          11,
-          12,
-          10,
-          12,
-          16,
-          11,
-          11
-        ]
-      }
-    },
-    "TissueBox": {
-      "Art": {
-        "base_parts": 0,
-        "objects": 34,
-        "parts": 34,
-        "slots": [
-          0,
-          3,
-          1,
           4,
-          2,
-          4,
-          6,
-          2,
-          4,
-          2,
-          1,
-          5
-        ]
-      },
-      "FabricAlt": {
-        "base_parts": 0,
-        "objects": 39,
-        "parts": 39,
-        "slots": [
-          10,
-          4,
-          2,
-          2,
-          6,
-          3,
-          3,
-          4,
-          1,
-          3,
-          1,
-          0
-        ]
-      },
-      "Paper": {
-        "base_parts": 238,
-        "objects": 192,
-        "parts": 238,
-        "slots": [
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0
-        ]
-      },
-      "Plastic": {
-        "base_parts": 0,
-        "objects": 34,
-        "parts": 34,
-        "slots": [
-          1,
-          3,
-          3,
-          3,
           7,
-          2,
-          4,
-          1,
-          3,
-          2,
-          2,
-          3
-        ]
-      },
-      "Wood": {
-        "base_parts": 0,
-        "objects": 39,
-        "parts": 39,
-        "slots": [
-          4,
-          4,
-          4,
-          2,
-          4,
+          6,
           5,
-          4,
-          1,
           6,
-          1,
-          4,
-          0
-        ]
-      }
-    },
-    "TrashCan": {
-      "Chrome": {
-        "base_parts": 0,
-        "objects": 61,
-        "parts": 61,
-        "slots": [
-          3,
-          3,
-          6,
-          3,
-          6,
-          8,
-          4,
-          8,
           7,
-          5,
-          5,
-          3
-        ]
-      },
-      "Ink": {
-        "base_parts": 50,
-        "objects": 50,
-        "parts": 50,
-        "slots": [
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0
-        ]
-      },
-      "Metal": {
-        "base_parts": 0,
-        "objects": 92,
-        "parts": 92,
-        "slots": [
-          8,
-          9,
-          8,
+          10,
           6,
-          9,
-          11,
-          5,
-          6,
-          9,
-          6,
-          8,
-          7
+          3,
+          8
         ]
       },
       "Plastic": {
         "base_parts": 0,
-        "objects": 228,
-        "parts": 228,
+        "objects": 201,
+        "parts": 201,
         "slots": [
+          18,
+          21,
+          9,
           17,
-          23,
+          14,
+          14,
           18,
           16,
-          16,
-          25,
-          14,
-          19,
-          25,
-          19,
-          20,
-          16
+          24,
+          17,
+          12,
+          21
         ]
       },
       "Rubber": {
-        "base_parts": 46,
-        "objects": 46,
-        "parts": 46,
+        "base_parts": 31,
+        "objects": 31,
+        "parts": 31,
         "slots": [
           0,
           0,
@@ -7149,27 +7440,27 @@
     "Vase": {
       "Ceramic": {
         "base_parts": 0,
-        "objects": 176,
-        "parts": 176,
+        "objects": 173,
+        "parts": 173,
         "slots": [
-          18,
-          14,
-          22,
+          15,
+          19,
+          19,
+          10,
+          10,
           15,
           20,
-          15,
-          9,
-          13,
-          10,
-          17,
           11,
-          12
+          12,
+          21,
+          11,
+          10
         ]
       },
       "ContainerGlass": {
-        "base_parts": 52,
-        "objects": 52,
-        "parts": 52,
+        "base_parts": 75,
+        "objects": 75,
+        "parts": 75,
         "slots": [
           0,
           0,
@@ -7189,46 +7480,46 @@
     "WallArt": {
       "Art": {
         "base_parts": 0,
-        "objects": 494,
-        "parts": 494,
+        "objects": 472,
+        "parts": 472,
         "slots": [
-          31,
-          37,
-          45,
-          53,
+          34,
           42,
+          38,
           47,
+          40,
+          40,
+          37,
+          43,
           37,
           44,
-          35,
-          52,
-          33,
-          38
+          29,
+          41
         ]
       },
       "Metal": {
         "base_parts": 0,
-        "objects": 140,
-        "parts": 140,
+        "objects": 133,
+        "parts": 133,
         "slots": [
-          8,
-          17,
+          13,
+          16,
           12,
-          21,
-          7,
-          12,
-          12,
-          8,
+          15,
+          5,
+          11,
+          13,
           9,
-          17,
           8,
+          12,
+          10,
           9
         ]
       },
       "Paper": {
-        "base_parts": 401,
-        "objects": 401,
-        "parts": 401,
+        "base_parts": 381,
+        "objects": 381,
+        "parts": 381,
         "slots": [
           0,
           0,
@@ -7246,48 +7537,48 @@
       },
       "Plastic": {
         "base_parts": 0,
-        "objects": 155,
-        "parts": 155,
+        "objects": 143,
+        "parts": 143,
         "slots": [
           10,
-          9,
-          18,
-          16,
-          9,
-          18,
+          13,
+          15,
+          15,
+          7,
+          15,
           8,
-          17,
-          8,
-          16,
-          14,
-          12
+          12,
+          11,
+          15,
+          11,
+          11
         ]
       },
       "Wood": {
         "base_parts": 0,
-        "objects": 182,
-        "parts": 182,
+        "objects": 167,
+        "parts": 167,
         "slots": [
-          13,
-          9,
-          16,
-          20,
-          21,
-          18,
+          12,
           10,
-          15,
-          16,
-          14,
+          11,
+          18,
+          17,
           13,
-          17
+          12,
+          16,
+          19,
+          15,
+          8,
+          16
         ]
       }
     },
     "WallOutlet": {
       "Ink": {
-        "base_parts": 2370,
-        "objects": 2370,
-        "parts": 2370,
+        "base_parts": 2365,
+        "objects": 2365,
+        "parts": 2365,
         "slots": [
           0,
           0,
@@ -7305,27 +7596,27 @@
       },
       "Metal": {
         "base_parts": 0,
-        "objects": 1756,
-        "parts": 1756,
+        "objects": 1764,
+        "parts": 1764,
         "slots": [
-          162,
-          145,
+          169,
+          150,
+          146,
+          156,
           147,
-          127,
-          134,
-          161,
-          149,
-          143,
-          157,
-          147,
-          138,
-          146
+          148,
+          151,
+          128,
+          151,
+          136,
+          137,
+          145
         ]
       },
       "Paper": {
-        "base_parts": 817,
-        "objects": 817,
-        "parts": 817,
+        "base_parts": 746,
+        "objects": 746,
+        "parts": 746,
         "slots": [
           0,
           0,
@@ -7343,29 +7634,29 @@
       },
       "Plastic": {
         "base_parts": 0,
-        "objects": 2370,
-        "parts": 2370,
+        "objects": 2365,
+        "parts": 2365,
         "slots": [
-          216,
+          230,
+          199,
+          199,
           200,
-          191,
-          184,
-          194,
-          208,
-          191,
-          192,
-          207,
-          186,
-          192,
-          209
+          195,
+          196,
+          202,
+          185,
+          200,
+          174,
+          181,
+          204
         ]
       }
     },
     "WallSconce": {
       "Light": {
-        "base_parts": 137,
-        "objects": 137,
-        "parts": 137,
+        "base_parts": 138,
+        "objects": 138,
+        "parts": 138,
         "slots": [
           0,
           0,
@@ -7383,61 +7674,61 @@
       },
       "Metal": {
         "base_parts": 0,
-        "objects": 44,
-        "parts": 44,
+        "objects": 47,
+        "parts": 47,
         "slots": [
           5,
-          4,
-          4,
+          3,
+          6,
           2,
           2,
           3,
+          6,
+          6,
+          4,
+          2,
           5,
-          4,
-          5,
-          4,
-          4,
-          2
+          3
         ]
       },
       "Plastic": {
         "base_parts": 0,
-        "objects": 93,
-        "parts": 93,
+        "objects": 91,
+        "parts": 91,
         "slots": [
-          12,
-          10,
-          5,
-          4,
-          10,
-          10,
-          5,
+          11,
+          9,
+          6,
+          3,
           8,
-          9,
+          14,
+          8,
           5,
           9,
-          6
+          4,
+          9,
+          5
         ]
       }
     },
     "WallShelf": {
       "Metal": {
         "base_parts": 0,
-        "objects": 120,
-        "parts": 120,
+        "objects": 124,
+        "parts": 124,
         "slots": [
-          17,
-          13,
           15,
-          5,
-          8,
-          8,
-          8,
-          5,
           14,
-          8,
+          13,
+          4,
+          9,
           11,
-          8
+          7,
+          8,
+          12,
+          11,
+          11,
+          9
         ]
       },
       "Wood": {
@@ -7445,64 +7736,64 @@
         "objects": 74,
         "parts": 74,
         "slots": [
-          8,
+          6,
           8,
           9,
+          3,
+          6,
           4,
           5,
-          2,
-          6,
-          3,
-          8,
+          4,
           6,
           8,
-          7
+          9,
+          6
         ]
       }
     },
     "WaterBottle": {
       "Art": {
         "base_parts": 0,
-        "objects": 146,
-        "parts": 146,
+        "objects": 140,
+        "parts": 140,
         "slots": [
           9,
-          11,
-          13,
           14,
-          9,
           11,
-          14,
+          15,
           12,
-          19,
+          10,
+          15,
+          11,
           8,
           14,
-          12
+          10,
+          11
         ]
       },
       "Chrome": {
         "base_parts": 0,
-        "objects": 73,
-        "parts": 73,
+        "objects": 64,
+        "parts": 64,
         "slots": [
-          4,
-          8,
+          2,
+          6,
           3,
-          11,
+          8,
+          7,
+          4,
           6,
           4,
           5,
+          5,
           3,
-          8,
-          9,
-          7,
-          5
+          11
         ]
       },
       "ContainerGlass": {
-        "base_parts": 225,
-        "objects": 225,
-        "parts": 225,
+        "base_parts": 216,
+        "objects": 216,
+        "parts": 216,
         "slots": [
           0,
           0,
@@ -7519,9 +7810,9 @@
         ]
       },
       "Liquid": {
-        "base_parts": 225,
-        "objects": 225,
-        "parts": 225,
+        "base_parts": 216,
+        "objects": 216,
+        "parts": 216,
         "slots": [
           0,
           0,
@@ -7539,46 +7830,46 @@
       },
       "Metal": {
         "base_parts": 0,
-        "objects": 122,
-        "parts": 122,
+        "objects": 147,
+        "parts": 147,
         "slots": [
-          10,
-          9,
-          5,
           9,
           13,
-          15,
-          14,
+          11,
+          13,
+          13,
+          13,
           12,
-          7,
-          9,
-          9,
-          10
+          12,
+          15,
+          15,
+          10,
+          11
         ]
       },
       "Plastic": {
         "base_parts": 0,
-        "objects": 420,
-        "parts": 420,
+        "objects": 427,
+        "parts": 427,
         "slots": [
-          34,
-          33,
-          25,
-          45,
-          34,
-          37,
-          46,
-          34,
-          38,
+          28,
+          36,
+          29,
+          49,
+          36,
+          36,
+          39,
           32,
-          34,
-          28
+          30,
+          42,
+          30,
+          40
         ]
       },
       "Rubber": {
-        "base_parts": 67,
-        "objects": 67,
-        "parts": 67,
+        "base_parts": 77,
+        "objects": 77,
+        "parts": 77,
         "slots": [
           0,
           0,
@@ -7598,27 +7889,27 @@
     "Whiteboard": {
       "Chrome": {
         "base_parts": 0,
-        "objects": 185,
-        "parts": 185,
+        "objects": 192,
+        "parts": 192,
         "slots": [
-          18,
           19,
+          15,
+          15,
+          13,
+          12,
+          16,
+          15,
+          18,
+          16,
           13,
           16,
-          8,
-          17,
-          14,
-          20,
-          14,
-          11,
-          14,
-          21
+          24
         ]
       },
       "Ink": {
-        "base_parts": 168,
-        "objects": 168,
-        "parts": 168,
+        "base_parts": 174,
+        "objects": 174,
+        "parts": 174,
         "slots": [
           0,
           0,
@@ -7636,59 +7927,59 @@
       },
       "Metal": {
         "base_parts": 0,
-        "objects": 212,
-        "parts": 212,
+        "objects": 224,
+        "parts": 224,
         "slots": [
           20,
-          21,
-          16,
-          18,
-          11,
-          21,
-          16,
+          17,
           20,
           16,
-          15,
+          13,
+          19,
           16,
-          22
+          19,
+          18,
+          21,
+          19,
+          26
         ]
       },
       "Plastic": {
         "base_parts": 0,
-        "objects": 137,
-        "parts": 137,
+        "objects": 139,
+        "parts": 139,
         "slots": [
           11,
-          15,
-          11,
+          10,
           12,
-          7,
-          15,
-          9,
+          10,
+          10,
           13,
           8,
           10,
           11,
-          15
+          13,
+          13,
+          18
         ]
       },
       "Whiteboard": {
         "base_parts": 0,
-        "objects": 212,
-        "parts": 212,
+        "objects": 224,
+        "parts": 224,
         "slots": [
           20,
-          21,
-          16,
-          18,
-          11,
-          21,
-          16,
+          17,
           20,
           16,
-          15,
+          13,
+          19,
           16,
-          22
+          19,
+          18,
+          21,
+          19,
+          26
         ]
       }
     }

@@ -1,5 +1,5 @@
 {
-  "capture_engine": "capture-v61;calibration=1;co_visibility=1;bevy=0.20.0;burn=0.22.0;burn_human=0.6.0;bevy_burn_human=0.7.0;burn_human_motion=0.2.0;burn_ardy=0.2.0;burn_llama=0.2.0;burn_human_inference=0.2.0;ardy_motion=9;surface_flow=1;indoor=40;multiview=8;ovoxel=3;glass=4;hair=6;wardrobe=5;footwear=1;bounds=4;morphology=3;position=3;tabletop=3;finishes=11;seating=3;activity=2;playback=2;exterior=5;envelope=4;furnishings=5;botany=3;visual_content=3;equipment=5;palette=2;photometry=3;sun_shadow=2;material_compute=2;semantic=4;ceiling=2;floor_details=2;window_treatments=1",
+  "capture_engine": "capture-v69;indoor_motion=1;calibration=1;co_visibility=1;bevy=0.20.0;burn=0.22.0;burn_human=0.6.0;bevy_burn_human=0.7.0;burn_human_motion=0.2.0;burn_ardy=0.2.0;burn_llama=0.2.0;burn_human_inference=0.2.0;ardy_motion=9;static_pose=2;pose_annotations=2;surface_flow=1;indoor=46;public_programs=1;kitchens=3;doors=1;multiview=10;ovoxel=3;glass=4;hair=6;wardrobe=5;footwear=1;bounds=4;morphology=3;face=1;position=3;tabletop=4;finishes=12;seating=3;activity=2;playback=2;exterior=5;envelope=4;furnishings=5;botany=3;visual_content=3;equipment=6;palette=2;photometry=3;sun_shadow=2;material_compute=3;semantic=7;ceiling=2;floor_details=2;window_treatments=1",
   "co_visibility": true,
   "density": 0.6499999761581421,
   "diffuse_gi_enabled": true,
@@ -7,10 +7,10 @@
   "gi_rays": 256,
   "human_density": 0.0,
   "identity": {
-    "crate_version": "0.40.0",
-    "generator_version": 40,
+    "crate_version": "0.41.0",
+    "generator_version": 46,
     "schema_version": 1,
-    "source_sha256": "8b9386343019c7a19a202d10186c9eadfd0ae6641878aadbf9c26d2d8ce9e7f6"
+    "source_sha256": "0287a936da7880c75b66671008a6f7ec91601f79b347e313c350a92469d7091c"
   },
   "indoor_appearance": {
     "exposure_ev100_offset": 0.0,
@@ -21,6 +21,11 @@
   },
   "indoor_camera": {
     "duration_seconds": 2.0,
+    "intrinsics": {
+      "fov_y_max_degrees": 145.0,
+      "fov_y_min_degrees": 28.0,
+      "ultra_wide_probability": 0.25
+    },
     "long_path_fraction": 0.0,
     "multiview": {
       "max_baseline": 5.174999713897705,
@@ -57,7 +62,7 @@
   "playback_steps": 2,
   "policy": "consecutive seeds",
   "quality": "Auto",
-  "run_id": "4180452-1791961149756036878",
+  "run_id": "794485-1792021526998579543",
   "selected_seeds": [
     0,
     1
