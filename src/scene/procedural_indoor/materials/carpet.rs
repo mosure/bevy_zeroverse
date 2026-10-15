@@ -10,6 +10,9 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CarpetDesign {
+    /// Absent in older recipes and wall-to-wall carpet. Whole-rug UV domain when present.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rug: Option<super::rug_design::RugDesign>,
     /// 0 heather, 1 striae, 2 broken lattice, 3 woven diamonds, 4 color blocks.
     pub pattern: u32,
     pub repeats: [u32; 2],
@@ -30,6 +33,7 @@ impl CarpetDesign {
         let shade = rng.random_range(0.28..0.65);
         palette[2] = base.map(|c| c * shade);
         Self {
+            rug: rug.then(|| super::rug_design::RugDesign::sample(seed)),
             pattern: rng.random_range(0..if rug { 5 } else { 3 }),
             repeats: [rng.random_range(2..=7), rng.random_range(2..=9)],
             palette,
@@ -41,6 +45,9 @@ impl CarpetDesign {
         }
     }
     pub fn validate(&self) -> Result<(), String> {
+        if let Some(rug) = &self.rug {
+            rug.validate()?;
+        }
         if self.pattern > 4
             || self.repeats.iter().any(|n| !(1..=16).contains(n))
             || self
@@ -62,6 +69,9 @@ impl CarpetDesign {
         Ok(())
     }
     pub(super) fn evaluate(&self, r: &MaterialRecipe, uv: [f32; 2]) -> Texel {
+        if let Some(rug) = &self.rug {
+            return rug.evaluate(self, r, uv);
+        }
         let [u, v] = uv;
         let nx = self.repeats[0] as f32;
         let ny = self.repeats[1] as f32;

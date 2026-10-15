@@ -2,7 +2,7 @@ use super::Category;
 use anyhow::{ensure, Result};
 use bevy_zeroverse::scene::procedural_indoor::{
     layout::{IndoorLayout, IndoorManifest, ObjectKind},
-    materials::{glass::GlassRecipe, program, rugs, variants, Surface},
+    materials::{art, boards, glass::GlassRecipe, program, rugs, screens, variants, Surface},
     objects,
 };
 use serde_json::{json, Value};
@@ -21,11 +21,29 @@ pub fn recipe(category: &Category, seed: u64) -> program::MaterialRecipe {
 }
 pub fn record(category: &Category, seed: u64) -> Value {
     let r = recipe(category, seed);
+    let content_seed = variants::screen_seed(seed, variants::slot(seed));
+    let content = match category.surface {
+        Surface::Screen => json!(screens::parameters_for(
+            content_seed,
+            screens::DisplayKind::Desktop
+        )),
+        Surface::PhoneScreen => json!(screens::parameters_for(
+            content_seed,
+            screens::DisplayKind::Phone
+        )),
+        Surface::Television => json!(screens::parameters_for(
+            content_seed,
+            screens::DisplayKind::Television
+        )),
+        Surface::Whiteboard => json!(boards::parameters(content_seed)),
+        Surface::Art => json!(art::parameters(content_seed)),
+        _ => Value::Null,
+    };
     let glass = matches!(category.surface, Surface::Glass | Surface::GlassInterior)
         .then(|| GlassRecipe::sample(seed, category.surface));
     json!({"seed":seed,"finish_slot":if category.name == "Rug" { Some(rugs::slot(seed)) } else { variants::supports(category.surface).then(|| variants::slot(seed)) },
         "structure_group":if category.name == "Rug" { rugs::slot(seed) } else { variants::slot(seed) % variants::structure_count(category.surface) },
-        "recipe":r,"glass":glass})
+        "recipe":r,"glass":glass,"content":content})
 }
 
 /// Count actual assembled parts, not the surfaces an object might use.
@@ -74,7 +92,7 @@ pub fn run(output: &Path, categories: &[Category], samples: usize, rooms: usize)
                 if variants::supports(surface) && !label.starts_with("books#") && rug_slot.is_none()
                 {
                     ensure!(
-                        slot == Some(variants::slot(o.finish_seed.unwrap_or(o.seed))),
+                        slot == Some(variants::object_slot(surface, o.seed, o.finish_seed)),
                         "object finish seed not honored"
                     );
                 }

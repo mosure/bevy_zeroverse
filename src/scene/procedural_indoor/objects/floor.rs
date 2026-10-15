@@ -85,15 +85,36 @@ fn rug(a: &mut Assembly, o: &IndoorObject) {
     let edge_label = format!("floormat#rug_binding{slot}");
     let top = |p: Vec2| Vec3::new(p.x, o.size.y, p.y);
     let bottom = |p: Vec2| Vec3::new(p.x, 0., p.y);
+    // Keep Cartesian motif coordinates near the center and ease into the
+    // outline-aligned border. One center fan stretches patches into wedges;
+    // a bounded four-ring tessellation samples the smooth interior mapping.
+    let uv = |p: Vec2, radius: f32| {
+        let natural = p / Vec2::new(o.size.x, o.size.z);
+        let boundary = natural / natural.abs().max_element() * 0.5;
+        (Vec2::splat(0.5) + natural.lerp(boundary, radius * radius) * radius).to_array()
+    };
     for i in 0..outline.len() {
         let p = outline[i];
         let q = outline[(i + 1) % outline.len()];
-        triangle(
-            a.part(field, &rug_label),
-            Vec3::Y * o.size.y,
-            top(q * inset),
-            top(p * inset),
-        );
+        let g = a.part(field, &rug_label);
+        for ring in 0..4 {
+            let inner = ring as f32 / 4.;
+            let outer = (ring + 1) as f32 / 4.;
+            let mut add = |points: [(Vec2, f32); 3]| {
+                let start = g.uvs.len();
+                let positions = points.map(|(p, r)| top(p * r * inset));
+                triangle(g, positions[0], positions[1], positions[2]);
+                for (index, (p, r)) in points.into_iter().enumerate() {
+                    g.uvs[start + index] = uv(p, r);
+                }
+            };
+            if ring == 0 {
+                add([(p, 0.), (q, outer), (p, outer)]);
+            } else {
+                add([(p, inner), (q, inner), (q, outer)]);
+                add([(p, inner), (q, outer), (p, outer)]);
+            }
+        }
         let g = a.part(field, &edge_label);
         triangle(g, top(p * inset), top(q * inset), top(q));
         triangle(g, top(p * inset), top(q), top(p));

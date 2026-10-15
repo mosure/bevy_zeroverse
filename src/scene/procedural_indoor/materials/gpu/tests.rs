@@ -26,8 +26,20 @@ fn chrome_bakes_retain_only_the_maps_its_material_samples() {
     }
 }
 #[test]
+fn material_shader_parses_and_validates_without_a_gpu() {
+    let module = wgpu::naga::front::wgsl::parse_str(kernel::SHADER)
+        .unwrap_or_else(|error| panic!("{}", error.emit_to_string(kernel::SHADER)));
+    wgpu::naga::valid::Validator::new(
+        wgpu::naga::valid::ValidationFlags::all(),
+        wgpu::naga::valid::Capabilities::all(),
+    )
+    .validate(&module)
+    .unwrap();
+}
+
+#[test]
 fn recipe_abi_and_bounded_mip_layout() {
-    assert_eq!(std::mem::size_of::<recipe::Recipe>(), 30 * 16);
+    assert_eq!(std::mem::size_of::<recipe::Recipe>(), 35 * 16);
     assert_eq!(std::mem::size_of::<kernel::Dispatch>(), 3 * 16);
     assert!(kernel::SHADER.contains("fn paint_map"));
     for size in [256, 512] {
@@ -186,9 +198,19 @@ fn gpu_maps_match_cpu_material_programs_and_mips() {
                     recipes.push(r);
                 }
                 let parent = recipes[Surface::FabricAlt as usize].clone();
-                recipes.extend((0..5).map(|pattern| {
-                    let mut r = super::super::rugs::recipe(&parent, pattern as usize % 4);
-                    r.carpet.as_mut().unwrap().pattern = pattern;
+                recipes.extend((0..6).map(|pattern| {
+                    let mut r = super::super::rugs::recipe(&parent, pattern % 4);
+                    let design = r.carpet.as_mut().unwrap().rug.as_mut().unwrap();
+                    if pattern < 4 {
+                        design.weights = [0.; 4];
+                        design.weights[pattern] = 1.;
+                    } else if pattern == 4 {
+                        design.quiet = 0.98;
+                        design.border_width = 0.;
+                        design.center = 0.;
+                    } else {
+                        design.patchwork = 1.;
+                    }
                     r
                 }));
             }
@@ -348,7 +370,7 @@ fn gpu_maps_match_cpu_material_programs_and_mips() {
                         }
                     }
                 }
-                report.push(serde_json::json!({"seed":seed,"floor":floor,"surface":r.surface,"knit":r.textile.as_ref().is_some_and(|t|t.knit),"cpu_synthesis_seconds":cpu_synthesis_seconds,"gpu_bake_seconds":gpu_bake_seconds,"maps":summaries}));
+                report.push(serde_json::json!({"seed":seed,"floor":floor,"surface":r.surface,"rug":r.carpet.as_ref().and_then(|c|c.rug.as_ref()),"knit":r.textile.as_ref().is_some_and(|t|t.knit),"cpu_synthesis_seconds":cpu_synthesis_seconds,"gpu_bake_seconds":gpu_bake_seconds,"maps":summaries}));
             }
         }
     }

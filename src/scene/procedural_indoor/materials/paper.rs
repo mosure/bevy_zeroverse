@@ -5,7 +5,7 @@ use rand::Rng;
 
 pub(super) fn apply(seed: u64, mat: &mut StandardMaterial, images: &mut impl AssetStore<Image>) {
     let mut rng = stream(seed, 864);
-    let mut c = Canvas(vec![255; 256 * 256 * 4]);
+    let mut c = Canvas::new([255; 3]);
     c.rect(0, 0, 256, 256, [245, 243, 236]);
     let spacing = rng.random_range(8..14);
     let ink = [64, 77, 92];

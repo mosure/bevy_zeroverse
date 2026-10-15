@@ -40,7 +40,7 @@ struct Args {
     samples: usize,
     #[arg(long, default_value_t = 256)]
     rooms: usize,
-    /// Diagnostic smoke test only; publication requires the full inventory.
+    /// Comma-separated diagnostic subset; publication requires the full inventory.
     #[arg(long)]
     category: Option<String>,
     #[arg(long)]
@@ -83,7 +83,11 @@ fn main() -> Result<()> {
     fs::create_dir_all(&args.output)?;
     let categories: Vec<_> = categories()
         .into_iter()
-        .filter(|c| args.category.as_ref().is_none_or(|s| s == &c.name))
+        .filter(|c| {
+            args.category
+                .as_ref()
+                .is_none_or(|s| s.split(',').any(|name| name == c.name))
+        })
         .collect();
     ensure!(!categories.is_empty(), "unknown material category");
     audit::run(&args.output, &categories, args.samples, args.rooms)?;

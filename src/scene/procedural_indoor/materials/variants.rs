@@ -52,6 +52,27 @@ pub fn slot(seed: u64) -> usize {
     let mut rng = stream(seed, 845);
     rng.random_range(0..COUNT)
 }
+/// Matching chassis/desk finishes do not imply matching displayed documents.
+/// Content stays bounded by the same slots but uses an independent object stream.
+pub fn object_slot(surface: Surface, object_seed: u64, finish_seed: Option<u64>) -> usize {
+    let finish = finish_seed.unwrap_or(object_seed);
+    if matches!(
+        surface,
+        Surface::Screen
+            | Surface::PhoneScreen
+            | Surface::Television
+            | Surface::Whiteboard
+            | Surface::Art
+    ) {
+        stream(
+            object_seed ^ finish.rotate_left(17),
+            0x434f4e54454e54 + surface as u64,
+        )
+        .random_range(0..COUNT)
+    } else {
+        slot(finish)
+    }
+}
 pub fn screen_seed(scene_seed: u64, slot: usize) -> u64 {
     let mut rng = stream(scene_seed, 900 + slot as u64);
     rng.random()
@@ -240,6 +261,28 @@ async fn structures(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn matching_furniture_finishes_do_not_clone_every_document() {
+        for surface in [
+            Surface::Screen,
+            Surface::PhoneScreen,
+            Surface::Television,
+            Surface::Whiteboard,
+            Surface::Art,
+        ] {
+            let slots: std::collections::BTreeSet<_> = (0..128)
+                .map(|seed| object_slot(surface, seed, Some(3)))
+                .collect();
+            assert_eq!(slots.len(), COUNT);
+            for seed in 0..128 {
+                assert_eq!(
+                    object_slot(surface, seed, Some(3)),
+                    object_slot(surface, seed, Some(3))
+                );
+                assert_eq!(object_slot(Surface::Plastic, seed, Some(3)), slot(3));
+            }
+        }
+    }
     #[test]
     fn molded_plastic_pigments_span_dark_light_and_colored_devices() {
         let (mut dark, mut light, mut chromatic) = (0, 0, 0);

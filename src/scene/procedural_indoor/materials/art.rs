@@ -3,11 +3,15 @@
 //! Composition is independent of substrate: a landscape, botanical study or
 //! abstract print has meaningful large-scale structure, while canvas/ink
 //! relief and roughness remain small, non-emissive PBR effects.
+mod composition;
+mod finish;
 use super::{
     raster::{Canvas, N},
     *,
 };
 use crate::scene::procedural_indoor::{layout::stream, preparation::AssetStore};
+pub use composition::ArtComposition;
+pub use finish::ArtFinish;
 use rand::Rng;
 
 #[derive(Clone, Debug, serde::Serialize)]
@@ -55,6 +59,9 @@ pub fn frame_parameters(o: &super::super::layout::IndoorObject) -> FrameProgram 
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct ArtProgram {
+    pub composition: ArtComposition,
+    pub finish: ArtFinish,
+    pub composed: bool,
     pub subject: u32,
     pub horizon: f32,
     pub relief: f32,
@@ -69,7 +76,12 @@ pub struct ArtProgram {
 }
 pub fn parameters(seed: u64) -> ArtProgram {
     let mut rng = stream(seed, 3090);
+    let finish = ArtFinish::sample(seed);
     ArtProgram {
+        composition: ArtComposition::sample(seed),
+        canvas: finish.canvas > 0.,
+        finish,
+        composed: stream(seed, 0x4152544d4958).random_bool(0.85),
         subject: rng.random_range(0..7),
         horizon: rng.random_range(0.28..0.72),
         relief: rng.random_range(0.045..0.22),
@@ -79,8 +91,9 @@ pub fn parameters(seed: u64) -> ArtProgram {
         brightness: rng.random_range(0.66..1.03),
         density: rng.random_range(0.18..0.95),
         sun: [rng.random_range(0.08..0.92), rng.random_range(0.10..0.36)],
-        brush: rng.random_range(0.012..0.13),
-        canvas: rng.random_bool(0.46),
+        // Pigment variation stays below the depicted marks; visible canvas
+        // texture belongs in the separately filtered physical finish.
+        brush: rng.random_range(0.003..0.028),
     }
 }
 fn color(p: &ArtProgram, rgb: [u8; 3], distance: f32) -> [u8; 3] {
@@ -185,117 +198,121 @@ pub(super) fn landscape(seed: u64, p: &ArtProgram, coast: bool) -> Canvas {
 pub fn pixels(seed: u64) -> Vec<u8> {
     let p = parameters(seed);
     let mut rng = stream(seed, 3092);
-    let mut c = if p.subject < 2 {
+    let mut c = if p.composed {
+        composition::paint(&p)
+    } else if p.subject < 2 {
         landscape(seed, &p, p.subject == 1)
     } else {
         Canvas::new(color(&p, [233, 225, 208], 0.))
     };
-    match p.subject {
-        2 => {
-            // Botanical studies: connected curved stems with alternating leaves.
-            for stem in 0..(2. + p.density * 5.) as usize {
-                let base = 35. + stem as f32 * 192. / (2. + p.density * 5.);
-                let bend = rng.random_range(-32.0..32.0);
-                let top = rng.random_range(21.0..100.0);
-                let mut previous = [base, 242.];
-                for i in 1..18 {
-                    let t = i as f32 / 17.;
-                    let point = [base + bend * t * t, 242. + (top - 242.) * t];
-                    c.line(previous, point, 2, color(&p, [58, 85, 54], 0.));
-                    if i % 2 == 0 {
-                        let side = if i % 4 == 0 { -1. } else { 1. };
-                        let tip = [
-                            point[0] + side * rng.random_range(15.0..30.0),
-                            point[1] - 17.,
-                        ];
+    if !p.composed {
+        match p.subject {
+            2 => {
+                // Botanical studies: connected curved stems with alternating leaves.
+                for stem in 0..(2. + p.density * 5.) as usize {
+                    let base = 35. + stem as f32 * 192. / (2. + p.density * 5.);
+                    let bend = rng.random_range(-32.0..32.0);
+                    let top = rng.random_range(21.0..100.0);
+                    let mut previous = [base, 242.];
+                    for i in 1..18 {
+                        let t = i as f32 / 17.;
+                        let point = [base + bend * t * t, 242. + (top - 242.) * t];
+                        c.line(previous, point, 2, color(&p, [58, 85, 54], 0.));
+                        if i % 2 == 0 {
+                            let side = if i % 4 == 0 { -1. } else { 1. };
+                            let tip = [
+                                point[0] + side * rng.random_range(15.0..30.0),
+                                point[1] - 17.,
+                            ];
+                            c.polygon(
+                                &[
+                                    point,
+                                    [point[0] + side * 10., point[1] - 17.],
+                                    tip,
+                                    [point[0] + side * 13., point[1] - 1.],
+                                ],
+                                color(&p, [67, 105, 63], 0.),
+                            );
+                            c.line(point, tip, 1, color(&p, [128, 148, 99], 0.));
+                        }
+                        previous = point;
+                    }
+                }
+            }
+            3 => {
+                // Architectural elevation: common horizon, varied building rhythms.
+                c.rect(0, 0, 256, 155, color(&p, [170, 192, 199], 0.));
+                let mut x = -9;
+                while x < N {
+                    let w = rng.random_range(17..49);
+                    let h = rng.random_range(43..163);
+                    let facade = color(
+                        &p,
+                        [
+                            rng.random_range(119..202),
+                            rng.random_range(120..198),
+                            rng.random_range(118..178),
+                        ],
+                        0.,
+                    );
+                    c.rect(x, 228 - h, w, h, facade);
+                    for y in ((233 - h)..220).step_by(rng.random_range(10..17)) {
+                        for wx in ((x + 4)..(x + w - 3)).step_by(9) {
+                            c.rect(wx, y, 4, 6, color(&p, [63, 79, 87], 0.));
+                        }
+                    }
+                    x += w + rng.random_range(1..7);
+                }
+                c.rect(0, 229, 256, 27, color(&p, [134, 130, 119], 0.));
+            }
+            4 | 5 => {
+                // Intentional abstract compositions with bounded earth-tone palette.
+                for _ in 0..(3. + p.density * 11.) as usize {
+                    let rgb = [[137, 91, 69], [67, 105, 119], [203, 165, 104], [54, 63, 64]]
+                        [rng.random_range(0..4)];
+                    let x = rng.random_range(-20.0..250.0);
+                    let y = rng.random_range(-20.0..250.0);
+                    let w = rng.random_range(18.0..107.0);
+                    let h = rng.random_range(18.0..106.0);
+                    if p.subject == 4 {
+                        c.ellipse([x, y], [w * 0.5, h * 0.5], color(&p, rgb, 0.));
+                    } else {
                         c.polygon(
                             &[
-                                point,
-                                [point[0] + side * 10., point[1] - 17.],
-                                tip,
-                                [point[0] + side * 13., point[1] - 1.],
+                                [x, y],
+                                [x + w, y + h * 0.18],
+                                [x + w * 0.8, y + h],
+                                [x - w * 0.2, y + h * 0.65],
                             ],
-                            color(&p, [67, 105, 63], 0.),
+                            color(&p, rgb, 0.),
                         );
-                        c.line(point, tip, 1, color(&p, [128, 148, 99], 0.));
-                    }
-                    previous = point;
-                }
-            }
-        }
-        3 => {
-            // Architectural elevation: common horizon, varied building rhythms.
-            c.rect(0, 0, 256, 155, color(&p, [170, 192, 199], 0.));
-            let mut x = -9;
-            while x < N {
-                let w = rng.random_range(17..49);
-                let h = rng.random_range(43..163);
-                let facade = color(
-                    &p,
-                    [
-                        rng.random_range(119..202),
-                        rng.random_range(120..198),
-                        rng.random_range(118..178),
-                    ],
-                    0.,
-                );
-                c.rect(x, 228 - h, w, h, facade);
-                for y in ((233 - h)..220).step_by(rng.random_range(10..17)) {
-                    for wx in ((x + 4)..(x + w - 3)).step_by(9) {
-                        c.rect(wx, y, 4, 6, color(&p, [63, 79, 87], 0.));
                     }
                 }
-                x += w + rng.random_range(1..7);
             }
-            c.rect(0, 229, 256, 27, color(&p, [134, 130, 119], 0.));
-        }
-        4 | 5 => {
-            // Intentional abstract compositions with bounded earth-tone palette.
-            for _ in 0..(3. + p.density * 11.) as usize {
-                let rgb = [[137, 91, 69], [67, 105, 119], [203, 165, 104], [54, 63, 64]]
-                    [rng.random_range(0..4)];
-                let x = rng.random_range(-20.0..250.0);
-                let y = rng.random_range(-20.0..250.0);
-                let w = rng.random_range(18.0..107.0);
-                let h = rng.random_range(18.0..106.0);
-                if p.subject == 4 {
-                    c.ellipse([x, y], [w * 0.5, h * 0.5], color(&p, rgb, 0.));
-                } else {
-                    c.polygon(
-                        &[
-                            [x, y],
-                            [x + w, y + h * 0.18],
-                            [x + w * 0.8, y + h],
-                            [x - w * 0.2, y + h * 0.65],
-                        ],
-                        color(&p, rgb, 0.),
-                    );
+            6 => {
+                // Restrained contour drawing, smooth nested lines and open margins.
+                let cx = 80. + p.viewpoint * 100.;
+                for layer in 0..(4. + p.density * 12.) as usize {
+                    let r = 12. + layer as f32 * 5.;
+                    for i in 0..80 {
+                        let t = i as f32 / 80. * std::f32::consts::TAU;
+                        let point = |t: f32| {
+                            [
+                                cx + r * (1. + 0.15 * (3. * t).sin()) * t.cos(),
+                                126. + r * 1.18 * t.sin(),
+                            ]
+                        };
+                        c.line(
+                            point(t),
+                            point(t + std::f32::consts::TAU / 80.),
+                            1,
+                            color(&p, [65, 78, 80], 0.),
+                        );
+                    }
                 }
             }
+            _ => (),
         }
-        6 => {
-            // Restrained contour drawing, smooth nested lines and open margins.
-            let cx = 80. + p.viewpoint * 100.;
-            for layer in 0..(4. + p.density * 12.) as usize {
-                let r = 12. + layer as f32 * 5.;
-                for i in 0..80 {
-                    let t = i as f32 / 80. * std::f32::consts::TAU;
-                    let point = |t: f32| {
-                        [
-                            cx + r * (1. + 0.15 * (3. * t).sin()) * t.cos(),
-                            126. + r * 1.18 * t.sin(),
-                        ]
-                    };
-                    c.line(
-                        point(t),
-                        point(t + std::f32::consts::TAU / 80.),
-                        1,
-                        color(&p, [65, 78, 80], 0.),
-                    );
-                }
-            }
-        }
-        _ => (),
     }
     // Brush pigment is subtle correlated variation, never a noisy subject mask.
     for y in 0..N {
@@ -311,46 +328,22 @@ pub fn pixels(seed: u64) -> Vec<u8> {
     }
     c.0
 }
+/// Production color/normal/ORM images, including coupled GGX mip filtering.
+pub fn maps(seed: u64) -> [Image; 3] {
+    parameters(seed).finish.maps(seed, pixels(seed))
+}
 pub(super) fn apply(seed: u64, mat: &mut StandardMaterial, images: &mut impl AssetStore<Image>) {
     let p = parameters(seed);
-    let mut normals = vec![255; 256 * 256 * 4];
-    let mut data = vec![255; 256 * 256 * 4];
-    for y in 0..256_u32 {
-        for x in 0..256_u32 {
-            let i = ((y * 256 + x) * 4) as usize;
-            let weave = if p.canvas {
-                (x as f32 * std::f32::consts::PI * 0.5).sin()
-                    * (y as f32 * std::f32::consts::PI * 0.5).cos()
-            } else {
-                0.
-            };
-            normals[i] = (128. + weave * 2.) as u8;
-            normals[i + 1] = (128. - weave * 2.) as u8;
-            normals[i + 2] = 255;
-            data[i] = 255;
-            data[i + 1] =
-                ((if p.canvas { 0.84 } else { 0.58 }) * 255. + (hash(x, y, seed) - 0.5) * 7.) as u8;
-            data[i + 2] = 0;
-        }
-    }
-    let maps = [pixels(seed), normals, data];
-    let mut handles = Vec::with_capacity(3);
-    for (pixels, kind) in maps
-        .into_iter()
-        .zip([MapType::Color, MapType::Normal, MapType::Data])
-    {
-        let mut image = mip_image(pixels, 256, kind);
-        image.sampler = ImageSampler::linear();
-        handles.push(images.add(image));
-    }
+    let [color, normal, data] = maps(seed).map(|image| images.add(image));
     mat.base_color = Color::WHITE;
-    mat.base_color_texture = Some(handles[0].clone());
-    mat.normal_map_texture = Some(handles[1].clone());
-    mat.metallic_roughness_texture = Some(handles[2].clone());
-    mat.occlusion_texture = Some(handles[2].clone());
+    mat.base_color_texture = Some(color);
+    mat.normal_map_texture = Some(normal);
+    mat.metallic_roughness_texture = Some(data.clone());
+    mat.occlusion_texture = Some(data);
     mat.perceptual_roughness = 1.;
     mat.metallic = 0.;
-    mat.clearcoat = 0.;
+    mat.clearcoat = p.finish.varnish;
+    mat.clearcoat_perceptual_roughness = p.finish.varnish_roughness;
     mat.emissive = LinearRgba::BLACK;
     mat.emissive_texture = None;
     mat.uv_transform = bevy::math::Affine2::IDENTITY;
@@ -358,6 +351,39 @@ pub(super) fn apply(seed: u64, mat: &mut StandardMaterial, images: &mut impl Ass
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn art_finish_is_independent_of_the_depicted_image() {
+        let finish = ArtFinish::sample(55);
+        let white = finish.maps(55, vec![255; 256 * 256 * 4]);
+        let subject = finish.maps(55, pixels(91));
+        assert_ne!(white[0].data, subject[0].data);
+        for i in 1..3 {
+            assert_eq!(white[i].data, subject[i].data);
+            assert_eq!(subject[i].texture_descriptor.mip_level_count, 9);
+            assert_eq!(
+                subject[i].data.as_ref().unwrap().len(),
+                (0..9).map(|m| (256usize >> m).pow(2) * 4).sum::<usize>()
+            );
+        }
+    }
+    #[test]
+    fn art_composition_and_substrate_have_independent_coverage() {
+        let mut counts = std::collections::BTreeSet::new();
+        let mut substrates = std::collections::BTreeSet::new();
+        for seed in 0..512 {
+            let p = parameters(seed);
+            assert_eq!(
+                serde_json::to_value(&p).unwrap(),
+                serde_json::to_value(parameters(seed)).unwrap()
+            );
+            counts.insert(p.composition.regions.regions.len());
+            substrates.insert((p.canvas, p.finish.paint_body_m > 0., p.finish.varnish > 0.));
+            assert_eq!(p.canvas, p.finish.canvas > 0.);
+            assert!((0.58..0.95).contains(&p.finish.roughness));
+        }
+        assert!(counts.len() >= 4);
+        assert_eq!(substrates.len(), 8);
+    }
     #[test]
     fn framed_art_uses_the_complete_front_image_and_fits_the_mount() {
         use super::super::super::{

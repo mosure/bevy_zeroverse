@@ -107,6 +107,9 @@ impl Maps {
                         return Handle::default();
                     }
                     let mut image = super::mip_chain_image(Vec::new(), plan.recipe.meta[1], kind);
+                    if plan.recipe.carpet_meta[3] != 0 {
+                        super::clamp_sampler(&mut image);
+                    }
                     image.data = None;
                     image.texture_descriptor.usage |=
                         bevy::render::render_resource::TextureUsages::COPY_SRC;

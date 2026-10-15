@@ -6,7 +6,10 @@ pub mod botanical;
 pub mod carpet;
 pub mod ceramic;
 pub mod coating;
+pub mod composition;
 pub mod concrete;
+mod content;
+pub mod display_finish;
 mod environment;
 mod field;
 mod filter;
@@ -26,6 +29,7 @@ mod paper;
 pub mod program;
 mod raster;
 mod reflections;
+pub mod rug_design;
 pub mod rugs;
 pub mod screens;
 pub mod textile;
@@ -786,18 +790,24 @@ fn mapped_images(
     recipe: Option<&program::MaterialRecipe>,
 ) -> [Image; 3] {
     let mut images = filter::images(maps, size);
-    if recipe.is_some_and(|r| r.leaf.is_some()) {
+    if recipe
+        .is_some_and(|r| r.leaf.is_some() || r.carpet.as_ref().is_some_and(|c| c.rug.is_some()))
+    {
         for image in &mut images {
-            let mut descriptor = match &image.sampler {
-                ImageSampler::Descriptor(d) => d.clone(),
-                _ => ImageSamplerDescriptor::default(),
-            };
-            descriptor.address_mode_u = ImageAddressMode::ClampToEdge;
-            descriptor.address_mode_v = ImageAddressMode::ClampToEdge;
-            image.sampler = ImageSampler::Descriptor(descriptor);
+            clamp_sampler(image);
         }
     }
     images
+}
+
+fn clamp_sampler(image: &mut Image) {
+    let mut descriptor = match &image.sampler {
+        ImageSampler::Descriptor(d) => d.clone(),
+        _ => ImageSamplerDescriptor::default(),
+    };
+    descriptor.address_mode_u = ImageAddressMode::ClampToEdge;
+    descriptor.address_mode_v = ImageAddressMode::ClampToEdge;
+    image.sampler = ImageSampler::Descriptor(descriptor);
 }
 
 fn hash(x: u32, y: u32, seed: u64) -> f32 {

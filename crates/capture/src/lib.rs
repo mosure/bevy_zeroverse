@@ -5,7 +5,7 @@ pub mod calibration;
 pub mod depth;
 pub mod reconstruction;
 
-pub const GENERATOR_VERSION: u32 = 46;
+pub const GENERATOR_VERSION: u32 = 47;
 pub const CAPTURE_SCHEMA_VERSION: u32 = 1;
 /// Population metrics contract shared by the renderer and publication gate.
 pub const INDOOR_METRICS_SCHEMA_VERSION: u32 = 23;

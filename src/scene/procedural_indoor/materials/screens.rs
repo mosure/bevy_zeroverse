@@ -1,5 +1,6 @@
 //! Seeded compositional software and media displays; generated once per palette.
 mod tv;
+mod workspace;
 use super::{
     raster::{Canvas, N},
     *,
@@ -8,8 +9,65 @@ use crate::scene::procedural_indoor::{layout::stream, preparation::AssetStore};
 use rand::Rng;
 
 pub const LAYOUTS: u32 = 12;
+#[derive(Clone, Copy, Debug, serde::Serialize)]
+pub enum DisplayKind {
+    Desktop,
+    Phone,
+    Television,
+}
+fn device_seed(seed: u64, kind: DisplayKind) -> u64 {
+    match kind {
+        DisplayKind::Desktop => seed,
+        DisplayKind::Phone => seed ^ 0x50484f4e45,
+        DisplayKind::Television => seed ^ 0x54454c4556495349,
+    }
+}
+pub fn parameters_for(seed: u64, kind: DisplayKind) -> ScreenProgram {
+    device_parameters(device_seed(seed, kind), kind)
+}
+fn device_parameters(seed: u64, kind: DisplayKind) -> ScreenProgram {
+    let mut p = parameters(seed);
+    let mut rng = stream(seed, 0x4445564943455549);
+    match kind {
+        DisplayKind::Desktop => {}
+        DisplayKind::Phone => {
+            // Portrait apps stack regions and reserve status/navigation bars.
+            p.chrome = 1;
+            let margin = rng.random_range(0.035..0.075);
+            p.composition = composition::Composition::sample(
+                seed,
+                rng.random_range(1..=4),
+                [margin, 0.10, 1. - 2. * margin, 0.84],
+                0.,
+            );
+        }
+        DisplayKind::Television => {
+            // Presentations/media have no desktop sidebar or taskbar.
+            p.chrome = u32::from(rng.random_bool(0.3));
+            let margin = rng.random_range(0.015..0.065);
+            let top = if p.chrome == 0 { margin } else { 0.11 };
+            let count = if rng.random_bool(0.35) {
+                1
+            } else {
+                rng.random_range(2..=4)
+            };
+            p.composition = composition::Composition::sample(
+                seed,
+                count,
+                [margin, top, 1. - 2. * margin, 1. - top - margin],
+                0.63,
+            );
+        }
+    }
+    p
+}
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct ScreenProgram {
+    pub composition: composition::Composition,
+    /// Single familiar application or an independently composed workspace.
+    pub composed: bool,
+    pub chrome: u32,
+    pub finish: display_finish::DisplayFinish,
     pub layout: u32,
     pub minutes: u32,
     pub dark: bool,
@@ -21,6 +79,10 @@ pub struct ScreenProgram {
     pub density: f32,
     pub panels: u32,
     pub accent_hue: f32,
+    pub accent_saturation: f32,
+    pub background_tint: f32,
+    pub background_lightness: f32,
+    pub panel_contrast: f32,
     pub chart_slope: f32,
     pub chart_curvature: f32,
     pub framing: f32,
@@ -28,7 +90,31 @@ pub struct ScreenProgram {
 }
 pub fn parameters(seed: u64) -> ScreenProgram {
     let mut rng = stream(seed, 861);
+    let mut layout = stream(seed, 0x444953504c4159);
+    let chrome = layout.random_range(0..4);
+    let margin = layout.random_range(0.02..0.055);
+    let top = if chrome == 0 {
+        margin
+    } else {
+        layout.random_range(0.09..0.17)
+    };
+    let left = if chrome == 2 {
+        layout.random_range(0.14..0.28)
+    } else {
+        margin
+    };
+    let count = layout.random_range(1..=6);
+    let mut palette = stream(seed, 0x50414c45545445);
     ScreenProgram {
+        composition: composition::Composition::sample(
+            seed,
+            count,
+            [left, top, 1. - left - margin, 1. - top - margin],
+            layout.random_range(0.25..0.75),
+        ),
+        composed: layout.random_bool(0.82),
+        chrome,
+        finish: display_finish::DisplayFinish::sample(seed, false),
         layout: rng.random_range(0..LAYOUTS),
         minutes: rng.random_range(0..1440),
         dark: rng.random_bool(0.55),
@@ -39,6 +125,10 @@ pub fn parameters(seed: u64) -> ScreenProgram {
         density: rng.random_range(0.16..0.97),
         panels: rng.random_range(1..7),
         accent_hue: rng.random_range(0.0..360.0),
+        accent_saturation: palette.random_range(0.25..0.65),
+        background_tint: palette.random_range(0.015..0.15),
+        background_lightness: palette.random_range(0.04..0.16),
+        panel_contrast: palette.random_range(0.035..0.11),
         chart_slope: rng.random_range(-0.45..0.60),
         chart_curvature: rng.random_range(-0.7..0.7),
         framing: rng.random_range(0.58..1.0),
@@ -51,22 +141,59 @@ pub(super) fn apply(
     mat: &mut StandardMaterial,
     images: &mut impl AssetStore<Image>,
 ) {
+    let seed = device_seed(
+        seed,
+        if mobile {
+            DisplayKind::Phone
+        } else {
+            DisplayKind::Desktop
+        },
+    );
     apply_pixels(
         seed,
         if mobile {
-            mobile_pixels(seed)
+            device_pixels(seed, DisplayKind::Phone)
         } else {
-            pixels(seed)
+            device_pixels(seed, DisplayKind::Desktop)
         },
         mat,
         images,
     );
 }
 pub(super) fn apply_tv(seed: u64, mat: &mut StandardMaterial, images: &mut impl AssetStore<Image>) {
-    apply_pixels(seed, tv::pixels(seed), mat, images);
+    let seed = device_seed(seed, DisplayKind::Television);
+    apply_pixels(
+        seed,
+        device_pixels(seed, DisplayKind::Television),
+        mat,
+        images,
+    );
 }
 pub fn television_pixels(seed: u64) -> Vec<u8> {
-    tv::pixels(seed)
+    device_pixels(
+        device_seed(seed, DisplayKind::Television),
+        DisplayKind::Television,
+    )
+}
+pub fn pixels(seed: u64) -> Vec<u8> {
+    device_pixels(seed, DisplayKind::Desktop)
+}
+pub fn mobile_pixels(seed: u64) -> Vec<u8> {
+    device_pixels(device_seed(seed, DisplayKind::Phone), DisplayKind::Phone)
+}
+fn device_pixels(seed: u64, kind: DisplayKind) -> Vec<u8> {
+    let p = device_parameters(seed, kind);
+    if p.dormant {
+        return dormant_canvas(seed).0;
+    }
+    if p.composed {
+        return workspace::pixels(seed, kind, &p);
+    }
+    match kind {
+        DisplayKind::Desktop => single_pixels(seed),
+        DisplayKind::Phone => single_mobile_pixels(seed),
+        DisplayKind::Television => tv::pixels(seed),
+    }
 }
 fn apply_pixels(
     seed: u64,
@@ -75,6 +202,7 @@ fn apply_pixels(
     images: &mut impl AssetStore<Image>,
 ) {
     let p = parameters(seed);
+    p.finish.apply(seed, false, &pixels, mat, images);
     let mut screen = mip_image(pixels, 256, MapType::Color);
     screen.sampler = ImageSampler::linear();
     let texture = images.add(screen);
@@ -85,9 +213,6 @@ fn apply_pixels(
     mat.emissive = LinearRgba::new(brightness, brightness, brightness, 1.);
     mat.emissive_exposure_weight = 1.;
     mat.metallic = 0.;
-    mat.perceptual_roughness = if p.dormant { 0.17 } else { 0.23 };
-    mat.clearcoat = 0.22;
-    mat.clearcoat_perceptual_roughness = 0.13;
     mat.uv_transform = bevy::math::Affine2::IDENTITY;
 }
 pub const SEGMENTS: [u8; 10] = [
@@ -95,26 +220,30 @@ pub const SEGMENTS: [u8; 10] = [
     0b1111111, 0b1101111,
 ];
 #[derive(Clone, Copy)]
-struct Palette {
-    bg: [u8; 3],
-    panel: [u8; 3],
-    ink: [u8; 3],
-    muted: [u8; 3],
-    accent: [u8; 3],
+pub(super) struct Palette {
+    pub(super) bg: [u8; 3],
+    pub(super) panel: [u8; 3],
+    pub(super) ink: [u8; 3],
+    pub(super) muted: [u8; 3],
+    pub(super) accent: [u8; 3],
 }
-fn palette(p: &ScreenProgram) -> Palette {
-    let c = Color::hsl(p.accent_hue, 0.40, if p.dark { 0.65 } else { 0.41 }).to_srgba();
+pub(super) fn palette(p: &ScreenProgram) -> Palette {
+    let rgb = |h, s, l| {
+        let c = Color::hsl(h, s, l).to_srgba();
+        [c.red, c.green, c.blue].map(|v| (v * 255.).round() as u8)
+    };
+    let base = if p.dark {
+        p.background_lightness
+    } else {
+        0.94 - p.background_lightness
+    };
     Palette {
-        bg: if p.dark {
-            [18, 24, 32]
-        } else {
-            [226, 230, 234]
-        },
-        panel: if p.dark {
-            [33, 42, 53]
-        } else {
-            [249, 248, 246]
-        },
+        bg: rgb(p.accent_hue, p.background_tint, base),
+        panel: rgb(
+            p.accent_hue,
+            p.background_tint * 0.4,
+            (base + p.panel_contrast).min(0.98),
+        ),
         ink: if p.dark {
             [211, 222, 232]
         } else {
@@ -125,7 +254,11 @@ fn palette(p: &ScreenProgram) -> Palette {
         } else {
             [150, 161, 169]
         },
-        accent: [c.red, c.green, c.blue].map(|v| (v * 255.) as u8),
+        accent: rgb(
+            p.accent_hue,
+            p.accent_saturation,
+            if p.dark { 0.65 } else { 0.41 },
+        ),
     }
 }
 fn dormant_canvas(seed: u64) -> Canvas {
@@ -163,7 +296,7 @@ fn text_rows(
         }
     }
 }
-fn chart(
+pub(super) fn chart(
     c: &mut Canvas,
     seed: u64,
     p: &ScreenProgram,
@@ -220,7 +353,13 @@ fn chart(
         }
     }
 }
-fn participants(c: &mut Canvas, seed: u64, p: &ScreenProgram, bounds: [i32; 4], colors: Palette) {
+pub(super) fn participants(
+    c: &mut Canvas,
+    seed: u64,
+    p: &ScreenProgram,
+    bounds: [i32; 4],
+    colors: Palette,
+) {
     let mut rng = stream(seed, 865);
     let [x, y, w, h] = bounds;
     let cols = if p.panels <= 2 {
@@ -267,7 +406,7 @@ fn participants(c: &mut Canvas, seed: u64, p: &ScreenProgram, bounds: [i32; 4], 
         c.rect(sx + 3, sy + th - 6, tw * 2 / 3, 2, colors.ink);
     }
 }
-fn map(c: &mut Canvas, seed: u64, p: &ScreenProgram, bounds: [i32; 4], colors: Palette) {
+pub(super) fn map(c: &mut Canvas, seed: u64, p: &ScreenProgram, bounds: [i32; 4], colors: Palette) {
     let mut rng = stream(seed, 866);
     let [x, y, w, h] = bounds;
     c.rect(
@@ -307,7 +446,7 @@ fn map(c: &mut Canvas, seed: u64, p: &ScreenProgram, bounds: [i32; 4], colors: P
         c.ellipse(point, [3., 4.], colors.accent);
     }
 }
-pub fn pixels(seed: u64) -> Vec<u8> {
+fn single_pixels(seed: u64) -> Vec<u8> {
     let p = parameters(seed);
     if p.dormant {
         return dormant_canvas(seed).0;
@@ -568,7 +707,7 @@ pub fn pixels(seed: u64) -> Vec<u8> {
     }
     c.0
 }
-pub fn mobile_pixels(seed: u64) -> Vec<u8> {
+fn single_mobile_pixels(seed: u64) -> Vec<u8> {
     let p = parameters(seed);
     if p.dormant {
         return dormant_canvas(seed).0;
@@ -675,7 +814,7 @@ mod tests {
             );
             assert_eq!(material.emissive_texture.is_none(), p.dormant);
             assert_eq!(material.metallic, 0.);
-            assert!((0.1..0.4).contains(&material.perceptual_roughness));
+            assert!((0.06..0.4).contains(&material.perceptual_roughness));
             let image = images
                 .get(material.base_color_texture.as_ref().unwrap())
                 .unwrap();
@@ -702,5 +841,40 @@ mod tests {
         assert!(by_family.values().all(|images| images.len() >= 3));
         assert_eq!(pixels(355), pixels(355));
         assert_eq!(mobile_pixels(355), mobile_pixels(355));
+    }
+    #[test]
+    fn every_device_uses_the_recorded_content_seed_and_finish() {
+        for seed in (0..12).chain([u64::MAX - 7]) {
+            for kind in [
+                DisplayKind::Desktop,
+                DisplayKind::Phone,
+                DisplayKind::Television,
+            ] {
+                let p = parameters_for(seed, kind);
+                let mut mat = StandardMaterial::default();
+                let mut images = Assets::<Image>::default();
+                let expected = match kind {
+                    DisplayKind::Desktop => {
+                        apply(seed, false, &mut mat, &mut images);
+                        pixels(seed)
+                    }
+                    DisplayKind::Phone => {
+                        apply(seed, true, &mut mat, &mut images);
+                        mobile_pixels(seed)
+                    }
+                    DisplayKind::Television => {
+                        apply_tv(seed, &mut mat, &mut images);
+                        television_pixels(seed)
+                    }
+                };
+                let image = images
+                    .get(mat.base_color_texture.as_ref().unwrap())
+                    .unwrap();
+                assert_eq!(&image.data.as_ref().unwrap()[..256 * 256 * 4], &expected);
+                assert_eq!(mat.emissive.red, if p.dormant { 0. } else { p.luminance });
+                assert_eq!(mat.clearcoat, p.finish.clearcoat);
+                assert_eq!(mat.emissive_texture.is_none(), p.dormant);
+            }
+        }
     }
 }

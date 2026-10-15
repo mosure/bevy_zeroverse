@@ -1,14 +1,27 @@
 //! Small asset-free raster primitives shared by screens and printed paper.
 pub(super) const N: i32 = 256;
-pub(super) struct Canvas(pub Vec<u8>);
+pub(super) struct Canvas(pub Vec<u8>, [i32; 4]);
 impl Canvas {
     pub(super) fn new(color: [u8; 3]) -> Self {
-        let mut canvas = Self(vec![255; (N * N * 4) as usize]);
+        let mut canvas = Self(vec![255; (N * N * 4) as usize], [0, 0, N, N]);
         canvas.rect(0, 0, N, N, color);
         canvas
     }
+    /// Nested panel clipping prevents graphs, text and media from bleeding into neighbors.
+    pub(super) fn clipped(&mut self, bounds: [i32; 4], draw: impl FnOnce(&mut Self)) {
+        let saved = self.1;
+        let [x, y, w, h] = bounds;
+        self.1 = [
+            x.max(saved[0]),
+            y.max(saved[1]),
+            (x + w).min(saved[2]),
+            (y + h).min(saved[3]),
+        ];
+        draw(self);
+        self.1 = saved;
+    }
     pub(super) fn blend(&mut self, x: i32, y: i32, color: [u8; 3], alpha: f32) {
-        if !(0..N).contains(&x) || !(0..N).contains(&y) {
+        if !(self.1[0]..self.1[2]).contains(&x) || !(self.1[1]..self.1[3]).contains(&y) {
             return;
         }
         let i = ((y * N + x) * 4) as usize;
@@ -155,8 +168,8 @@ impl Canvas {
         }
     }
     pub(super) fn rect(&mut self, x: i32, y: i32, w: i32, h: i32, color: [u8; 3]) {
-        for y in y.max(0)..(y + h).min(N) {
-            for x in x.max(0)..(x + w).min(N) {
+        for y in y.max(self.1[1])..(y + h).min(self.1[3]) {
+            for x in x.max(self.1[0])..(x + w).min(self.1[2]) {
                 let i = ((y * N + x) * 4) as usize;
                 self.0[i..i + 3].copy_from_slice(&color);
             }
@@ -207,6 +220,27 @@ impl Canvas {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn nested_clips_restore_and_contain_every_primitive() {
+        let mut c = Canvas::new([17, 23, 31]);
+        c.clipped([40, 50, 90, 70], |c| {
+            c.clipped([0, 0, 100, 100], |c| {
+                c.rect(-20, -20, 300, 300, [50; 3]);
+                c.line([0., 0.], [255., 255.], 5, [100; 3]);
+                c.ellipse([99., 99.], [75.; 2], [200; 3]);
+            });
+            c.rect(110, 110, 4, 4, [60; 3]);
+        });
+        for y in 0..N {
+            for x in 0..N {
+                if !(40..130).contains(&x) || !(50..120).contains(&y) {
+                    assert_eq!(&c.0[((y * N + x) * 4) as usize..][..3], &[17, 23, 31]);
+                }
+            }
+        }
+        c.rect(1, 1, 1, 1, [255; 3]);
+        assert_eq!(&c.0[((N + 1) * 4) as usize..][..3], &[255; 3]);
+    }
     #[test]
     fn video_portraits_clip_at_their_panel_boundary() {
         let mut canvas = Canvas::new([17, 23, 31]);

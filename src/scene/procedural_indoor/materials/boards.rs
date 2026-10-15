@@ -1,10 +1,16 @@
 //! Asset-free marker compositions with independent occupied/erased regions.
+mod composition;
+mod handwriting;
 use super::{raster::Canvas, *};
 use crate::scene::procedural_indoor::{layout::stream, preparation::AssetStore};
 use rand::Rng;
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct BoardProgram {
+    pub regions: super::composition::Composition,
+    pub blank: bool,
+    pub composed: bool,
+    pub finish: display_finish::DisplayFinish,
     pub layout: u32,
     pub occupancy: f32,
     pub columns: u32,
@@ -21,7 +27,25 @@ pub struct BoardProgram {
 }
 pub fn parameters(seed: u64) -> BoardProgram {
     let mut rng = stream(seed, 3080);
+    let mut layout = stream(seed, 0x424f415244);
+    let margin = layout.random_range(0.025..0.10);
+    let count = if layout.random_bool(0.25) {
+        1
+    } else {
+        layout.random_range(2..=6)
+    };
+    let finish = display_finish::DisplayFinish::sample(seed, true);
     BoardProgram {
+        regions: super::composition::Composition::sample(
+            seed,
+            count,
+            [margin, margin, 1. - 2. * margin, 1. - 2. * margin],
+            layout.random_range(0.3..0.7),
+        ),
+        blank: layout.random_bool(0.045),
+        composed: layout.random_bool(0.85),
+        roughness: finish.roughness,
+        finish,
         layout: rng.random_range(0..10),
         occupancy: rng.random_range(0.14..0.97),
         columns: rng.random_range(2..6),
@@ -33,7 +57,6 @@ pub fn parameters(seed: u64) -> BoardProgram {
         margin: rng.random_range(0.04..0.11),
         slope: rng.random_range(-0.5..0.55),
         curvature: rng.random_range(-0.6..0.6),
-        roughness: rng.random_range(0.17..0.37),
         warmth: rng.random_range(-0.012..0.028),
     }
 }
@@ -47,16 +70,11 @@ fn writing(
     ink: [u8; 3],
     stroke: i32,
 ) {
-    let mut x = x;
-    while x < end {
-        let n = rng.random_range(5..16).min(end - x);
-        let phase = rng.random_range(0.0..6.);
-        for dx in 0..n {
-            let dy = (phase + dx as f32 * 1.1).sin() * rng.random_range(0.5..1.8);
-            c.rect(x + dx, y + dy.round() as i32, 1, stroke, ink);
-        }
-        x += n + rng.random_range(4..9);
-    }
+    let height = if stroke > 1 { 7. } else { 5. };
+    let text = content::phrase(rng, ((end - x).max(0) as f32 / (height * 0.92)) as usize);
+    c.clipped([x - 1, y - 2, (end - x + 2).max(0), 12], |c| {
+        handwriting::text(c, rng, &text, [x as f32, y as f32], height, ink)
+    });
 }
 fn box_outline(c: &mut Canvas, x: f32, y: f32, w: f32, h: f32, stroke: i32, ink: [u8; 3]) {
     for (a, b) in [
@@ -69,6 +87,14 @@ fn box_outline(c: &mut Canvas, x: f32, y: f32, w: f32, h: f32, stroke: i32, ink:
     }
 }
 pub fn pixels(seed: u64) -> Vec<u8> {
+    let p = parameters(seed);
+    if p.composed || p.blank {
+        composition::pixels(seed, &p)
+    } else {
+        single_pixels(seed)
+    }
+}
+fn single_pixels(seed: u64) -> Vec<u8> {
     let p = parameters(seed);
     let mut rng = stream(seed, 3082);
     let base = [246., 246. - p.warmth * 130., 244. - p.warmth * 230.].map(|v| v as u8);
@@ -389,14 +415,14 @@ pub fn pixels(seed: u64) -> Vec<u8> {
 }
 pub(super) fn apply(seed: u64, mat: &mut StandardMaterial, images: &mut impl AssetStore<Image>) {
     let p = parameters(seed);
-    let mut texture = mip_image(pixels(seed), 256, MapType::Color);
+    let content = pixels(seed);
+    p.finish.apply(seed, true, &content, mat, images);
+    let mut texture = mip_image(content, 256, MapType::Color);
     texture.sampler = ImageSampler::linear();
     mat.base_color = Color::WHITE;
     mat.base_color_texture = Some(images.add(texture));
     mat.uv_transform = bevy::math::Affine2::IDENTITY;
     mat.perceptual_roughness = p.roughness;
-    mat.clearcoat = 0.28;
-    mat.clearcoat_perceptual_roughness = p.roughness * 0.7;
     mat.emissive = LinearRgba::BLACK;
     mat.emissive_texture = None;
 }

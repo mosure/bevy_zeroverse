@@ -1,5 +1,6 @@
 use super::super::{program, rugs, Surface};
 use super::*;
+use bevy::prelude::Vec2;
 
 #[test]
 fn installation_tints_stay_in_gamut_across_warm_and_cool_extremes() {
@@ -107,6 +108,31 @@ fn rugs_resolve_a_distinct_program_without_changing_semantic_or_geometry_bounds(
         );
         let field = &a.parts[&(Surface::FabricAlt, label)];
         assert!(field.indices.len() >= 24);
+        let mut shared = std::collections::BTreeMap::new();
+        let mut boundary_vertices = 0;
+        let mut interior_vertices = 0;
+        for (position, uv) in field.positions.iter().zip(&field.uvs) {
+            assert!(uv.iter().all(|v| (0.0..=1.).contains(v)));
+            assert!((position[1] - o.size.y).abs() < 1e-6);
+            if let Some(previous) = shared.insert(position.map(f32::to_bits), uv) {
+                assert_eq!(previous, uv, "UV seam at a shared rug vertex");
+            }
+            if position[0] == 0. && position[2] == 0. {
+                assert_eq!(uv, &[0.5; 2]);
+            } else if uv.iter().any(|v| *v < 1e-6 || *v > 1. - 1e-6) {
+                boundary_vertices += 1;
+            } else {
+                interior_vertices += 1;
+            }
+        }
+        assert!(boundary_vertices >= 16 && interior_vertices >= 32);
+        for triangle in field.uvs.as_chunks::<3>().0 {
+            let [a, b, c] = triangle.map(Vec2::from_array);
+            assert!(
+                (b - a).perp_dot(c - a).abs() > 1e-7,
+                "collapsed rug UV triangle"
+            );
+        }
         for (_, label) in a.parts.keys() {
             assert!(label.starts_with("floormat#"));
             assert!(crate::render::semantic::SemanticLabel::from_label(

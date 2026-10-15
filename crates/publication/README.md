@@ -72,8 +72,8 @@ Displayed examples are selected for spread; all 256 samples remain in the
 statistics. Near-planar content and subpixel details can remain indistinguishable.
 
 The material atlas uses the same pipeline. It covers all 36 architectural/object
-surface roles, with the three floor types separated into 38 rows. Each records
-256 consecutive recipe seeds. Six shared illustration seeds generate 228 native
+surface roles, with three floor types and a dedicated rug program giving 39 rows.
+Each records 256 consecutive recipe seeds. Six shared illustration seeds generate 234 native
 PBR swatches, matched rendered normals, and level-zero base-color, tangent-normal
 and roughness maps. Seed four deliberately includes frosted interior glass;
 the selected grid is not a frequency estimate. Every handle comes from the

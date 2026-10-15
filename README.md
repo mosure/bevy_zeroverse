@@ -115,6 +115,11 @@ cargo run --bin viewer -- --scene-type procedural-indoor --indoor-seed 7 \
   --num-cameras 4 --camera-grid
 ```
 
+Screens, TVs and phones use device-aware procedural content; whiteboards combine
+handwriting and diagrams. Rugs have whole-surface textile designs, and artwork
+varies composition independently from canvas, paper, paint relief and varnish.
+Materials remain consistent across views and time, with bounded texture residency.
+
 Native JIT training can use `bevy_zeroverse_burn::gpu::GpuLiveDataset` (feature
 `gpu_tensor`) to render into Burn-owned buffers on the same device, retaining
 full native quality without host image transfers. Experimental `cuda_interop` also

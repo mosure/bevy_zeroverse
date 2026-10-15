@@ -257,8 +257,11 @@ pub(crate) fn build_object_with_motion(
     }
     // Flat printed pages and phones use their horizontal face dimensions;
     // normalizing all six cuboid faces would crop portrait content horizontally.
-    for ((surface, _), geometry) in &mut a.parts {
-        if matches!(surface, Surface::PhoneScreen | Surface::PrintedPaper) {
+    for ((surface, label), geometry) in &mut a.parts {
+        if super::materials::rugs::key(label).is_some_and(|(_, binding)| !binding) {
+            // Whole-rug coordinates are already normalized and outline-aligned.
+            continue;
+        } else if matches!(surface, Surface::PhoneScreen | Surface::PrintedPaper) {
             let mut lo = Vec2::splat(f32::INFINITY);
             let mut hi = Vec2::splat(f32::NEG_INFINITY);
             for p in &geometry.positions {
@@ -342,7 +345,7 @@ pub(crate) fn build_object_with_motion(
             {
                 format!(
                     "{label}#finish{}",
-                    super::materials::variants::slot(o.finish_seed.unwrap_or(o.seed))
+                    super::materials::variants::object_slot(surface, o.seed, o.finish_seed)
                 )
             } else {
                 label

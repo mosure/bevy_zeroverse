@@ -46,6 +46,42 @@ pub fn recipe(parent: &program::MaterialRecipe, slot: usize) -> program::Materia
     r.relief_m = parent.relief_m * rng.random_range(1.0..3.0);
     r.roughness = rng.random_range(0.86..0.98);
     r.carpet = Some(carpet::CarpetDesign::sample(r.seed, r.color, true));
+    // Center/border coordinates must not inherit upholstery rotations/phases.
+    r.phase = [0.; 2];
+    r.layers = None;
+    let dye = r.carpet.as_mut().unwrap();
+    // Pigmented wool/dyed yarn palettes: mostly earth, ink and mineral hues,
+    // with a small full-hue tail. Do not equate diversity with fluorescent dyes.
+    let choice = rng.random_range(0.0..1.);
+    let hue = rng.random_range(if choice < 0.5 {
+        12.0..60.0
+    } else if choice < 0.76 {
+        190.0..245.0
+    } else if choice < 0.9 {
+        75.0..140.0
+    } else {
+        0.0..360.0
+    });
+    let saturation = rng.random_range(0.035..0.34);
+    for (i, c) in dye.palette.iter_mut().enumerate() {
+        let v = Color::hsl(
+            hue + if i == 1 {
+                rng.random_range(5.0..40.)
+            } else {
+                rng.random_range(-18.0..18.)
+            },
+            saturation * if i == 1 { 0.45 } else { 1. },
+            rng.random_range(if i == 1 {
+                0.46..0.78
+            } else if i == 2 {
+                0.08..0.27
+            } else {
+                0.18..0.56
+            }),
+        )
+        .to_srgba();
+        *c = [v.red, v.green, v.blue];
+    }
     r
 }
 
@@ -79,7 +115,8 @@ pub(super) async fn build(
             occlusion_texture: Some(data.clone()),
             metallic_roughness_texture: Some(data),
             perceptual_roughness: 1.,
-            uv_transform: bevy::math::Affine2::from_scale(r.period_uv().recip()),
+            // Whole-rug field UVs are produced by floor::rug; bindings retain metric UVs.
+            uv_transform: bevy::math::Affine2::IDENTITY,
             ..default()
         };
         r.apply_pbr(&mut mat);
@@ -98,6 +135,81 @@ pub(super) async fn build(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn whole_rug_borders_clamp_in_cpu_and_gpu_backends_while_floor_carpet_repeats() {
+        let recipes = program::sample_with_floor(7, 1).unwrap();
+        let r = recipe(&recipes[Surface::FabricAlt as usize], 0);
+        for gpu in [false, true] {
+            for (recipe, expected) in [
+                (&r, ImageAddressMode::ClampToEdge),
+                (&recipes[Surface::Floor as usize], ImageAddressMode::Repeat),
+            ] {
+                let mut images = Assets::<Image>::default();
+                let handles = gpu::Maps::prepare(recipe, 1, gpu)
+                    .insert(&mut images, &mut gpu::Requests::default());
+                for handle in handles {
+                    let ImageSampler::Descriptor(s) = &images.get(&handle).unwrap().sampler else {
+                        panic!("missing material sampler")
+                    };
+                    assert_eq!(s.address_mode_u, expected);
+                    assert_eq!(s.address_mode_v, expected);
+                }
+            }
+        }
+    }
+    #[test]
+    fn whole_rug_programs_replay_cover_components_and_preserve_old_carpet_recipes() {
+        let mut dominants = [0; 4];
+        let (mut bordered, mut centered, mut quiet) = (0, 0, 0);
+        for seed in 0..512 {
+            let parent = program::sample(seed)[Surface::FabricAlt as usize].clone();
+            let r = recipe(&parent, slot(seed));
+            assert_eq!(r, recipe(&parent, slot(seed)));
+            r.validate().unwrap();
+            assert_eq!(r.phase, [0.; 2]);
+            assert!(r.layers.is_none());
+            let c = r.carpet.as_ref().unwrap();
+            let d = c.rug.as_ref().unwrap();
+            let index = d
+                .weights
+                .iter()
+                .enumerate()
+                .max_by(|a, b| a.1.total_cmp(b.1))
+                .unwrap()
+                .0;
+            dominants[index] += 1;
+            bordered += usize::from(d.border_width > 0.);
+            centered += usize::from(d.center > 0.);
+            quiet += usize::from(d.quiet > 0.7);
+            for y in 0..8 {
+                for x in 0..8 {
+                    let t = r.texel((x as f32 + 0.5) / 8., (y as f32 + 0.5) / 8., 0);
+                    assert!(t
+                        .color
+                        .iter()
+                        .all(|v| v.is_finite() && (0.0..=1.).contains(v)));
+                    assert!(t.height.is_finite() && t.height.abs() <= r.relief_m);
+                    assert!((0.8..=1.).contains(&t.roughness));
+                }
+            }
+            if seed == 0 {
+                let mut old = serde_json::to_value(c).unwrap();
+                old.as_object_mut().unwrap().remove("rug");
+                let old: carpet::CarpetDesign = serde_json::from_value(old).unwrap();
+                assert!(old.rug.is_none());
+                old.validate().unwrap();
+            }
+        }
+        assert!(dominants.into_iter().all(|n| n > 65), "{dominants:?}");
+        assert!(
+            bordered > 300
+                && bordered < 480
+                && centered > 170
+                && centered < 340
+                && quiet > 45
+                && quiet < 150
+        );
+    }
     #[test]
     fn derived_pile_respects_the_recorded_material_detail_factor() {
         for seed in 0..32 {

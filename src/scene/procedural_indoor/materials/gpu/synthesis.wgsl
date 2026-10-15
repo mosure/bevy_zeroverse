@@ -9,6 +9,7 @@ struct Recipe {
     floor_meta: vec4<u32>, floor0: vec4<f32>, floor1: vec4<f32>, floor_tint: vec4<f32>,
     paint_counts: vec4<u32>, paint_frequencies: vec4<u32>,
     paint0: vec4<f32>, paint1: vec4<f32>, paint2: vec4<f32>, paint_color: vec4<f32>,
+    rug_weights: vec4<f32>, rug0: vec4<f32>, rug1: vec4<f32>, rug2: vec4<f32>, rug3: vec4<f32>,
 }
 struct Level { size: u32, offset: u32, stride: u32, moment_offset: u32 }
 // Offsets/strides share the host's padded texture-copy layout. No dynamic mip
@@ -144,7 +145,48 @@ fn domain(id: vec2<u32>) -> vec2<f32> {
     switch r.surface.y {case 1u:{ uv=vec2(uv.y,1.-uv.x); } case 2u:{uv=vec2(1.)-uv;} case 3u:{uv=vec2(1.-uv.y,uv.x);} default:{} }
     return vec2(unit(uv.x+r.phase.x),unit(uv.y+r.phase.y));
 }
+fn rug(uv: vec2<f32>) -> Texel {
+    let broad=noise(uv,3u,5u,281u);
+    let warp=(noise(uv,7u,5u,283u)-0.5)*r.rug0.z;
+    let du=(uv.x-0.5)*r.rug3.x-(uv.y-0.5)*r.rug3.y+0.5;
+    let dv=(uv.x-0.5)*r.rug3.y+(uv.y-0.5)*r.rug3.x+0.5;
+    let x=unit(du*r.rug0.x+r.rug2.z+warp);
+    let y=unit(dv*r.rug0.y+r.rug2.w+warp*0.63);
+    let aa=max(r.rug0.x,r.rug0.y)/f32(r.header.y);
+    let a=abs(x-0.5);let b=abs(y-0.5);
+    let motifs=vec4(smooth_curve((r.carpet.w-a)/aa+0.5),smooth_curve((r.carpet.w*0.65-abs(a+b-0.53))/aa+0.5),smooth_curve((broad-0.32)/0.36),smooth_curve((r.carpet.w*0.38-min(a,b))/aa+0.5));
+    let weighted=r.rug_weights*motifs;
+    let motif=weighted.x+weighted.y+weighted.z+weighted.w;
+    let d=abs(uv-vec2(0.5))*2.;
+    let radius=(d.x+d.y)*(1.-r.rug1.z)+sqrt(d.x*d.x+d.y*d.y)*r.rug1.z;
+    let center=smooth_curve((0.53-radius)/(aa*2.)+0.5)*r.rug0.w;
+    let center_rule=smooth_curve((0.022-abs(radius-0.59))/(aa*2.)+0.5)*r.rug0.w;
+    let edge=min(min(uv.x,uv.y),min(1.-uv.x,1.-uv.y));
+    var border=0.;var rule=0.;
+    if r.rug1.x>0. {
+        border=1.-smooth_curve((edge-r.rug1.x)*f32(r.header.y)*0.5+0.5);
+        rule=smooth_curve((0.007-abs(edge-r.rug1.x-0.018))*f32(r.header.y)*0.5+0.5);
+    }
+    let nap=noise(uv,173u,191u,257u)-0.5;
+    let fleck=noise(uv,43u,47u,269u)-0.5;
+    let drift=(noise(uv,3u,47u,287u)-0.5)*r.rug2.x;
+    let wear=r.rug1.w*smooth_curve((noise(uv,5u,7u,293u)-0.35)/0.55);
+    let dye=clamp(motif*r.carpet.x*(1.-r.rug2.y)*(1.-center*0.65),0.,1.);
+    let border_mix=clamp((border*r.rug1.y+rule*0.38)*(1.-r.rug2.y*0.7),0.,1.);
+    let field0=r.carpet0.xyz*(1.-dye)+r.carpet1.xyz*dye;
+    let cell=vec2<u32>(floor(uv*r.rug0.xy));
+    let dye_cell=hash(cell.x,cell.y,301u);
+    let patch_color=r.carpet2.xyz*(1.-dye_cell)+r.carpet1.xyz*dye_cell;
+    let field=field0*(1.-r.rug3.z)+patch_color*r.rug3.z;
+    let center_color=field*(1.-center*0.45)+r.carpet2.xyz*center*0.45;
+    let edge_color=r.carpet2.xyz*0.65+r.carpet1.xyz*0.35;
+    let before_rule=center_color*(1.-border_mix)+edge_color*border_mix;
+    let value=before_rule*(1.-center_rule*0.5)+r.carpet1.xyz*center_rule*0.5;
+    let color=clamp(value*(1.+drift+fleck*r.carpet.y+nap*0.035)*(1.-wear*0.3)+r.carpet1.xyz*wear*0.3,vec3(0.01),vec3(0.95));
+    return Texel(color,r.metric.z*(nap*0.65+fleck*r.carpet.z*0.35)*(1.-wear),clamp(r.metric.w+nap*0.055+fleck*0.025-wear*0.06,0.80,1.),0.97+(nap+0.5)*0.03);
+}
 fn carpet(uv: vec2<f32>) -> Texel {
+    if r.carpet_meta.w != 0u { return rug(uv); }
     let counts = vec2<f32>(r.carpet_meta.yz);
     let xy = fract(uv * counts);
     let width = max(counts.x, counts.y) / f32(r.header.y);

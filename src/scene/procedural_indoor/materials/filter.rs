@@ -3,6 +3,34 @@
 use super::{mip_chain_image, mip_image, MapType, TextureMaps};
 use bevy::prelude::*;
 
+/// Planar cover glass/enamel: reduce GGX moments without allocating a normal map.
+pub(super) fn flat_roughness(mut data: Vec<u8>, size: u32) -> Image {
+    let mut moments: Vec<_> = data
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .map(|p| (p[1] as f32 / 255.).powi(4))
+        .collect();
+    let mut n = size as usize;
+    while n > 1 {
+        let m = n / 2;
+        for y in 0..m {
+            for x in 0..m {
+                let i = y * 2 * n + x * 2;
+                let moment =
+                    (moments[i] + moments[i + 1] + moments[i + n] + moments[i + n + 1]) * 0.25;
+                moments[y * m + x] = moment;
+                data.extend([255, (moment.sqrt().sqrt() * 255.).round() as u8, 0, 255]);
+            }
+        }
+        moments.truncate(m * m);
+        n = m;
+    }
+    let mut image = mip_chain_image(data, size, MapType::Data);
+    image.sampler = bevy::image::ImageSampler::linear();
+    image
+}
+
 pub(super) fn images((color, normal, data): TextureMaps, size: u32) -> [Image; 3] {
     let color = mip_image(color, size, MapType::Color);
     let (normal, data) = filter(normal, data, size as usize);

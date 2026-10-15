@@ -34,6 +34,11 @@ pub(super) struct Recipe {
     pub paint1: [f32; 4],
     pub paint2: [f32; 4],
     pub paint_color: [f32; 4],
+    pub rug_weights: [f32; 4],
+    pub rug0: [f32; 4],
+    pub rug1: [f32; 4],
+    pub rug2: [f32; 4],
+    pub rug3: [f32; 4],
 }
 
 impl Recipe {
@@ -107,6 +112,19 @@ impl Recipe {
             p.carpet0[3] = c.edge_variation;
             p.carpet1[..3].copy_from_slice(&c.palette[1]);
             p.carpet2[..3].copy_from_slice(&c.palette[2]);
+            if let Some(d) = &c.rug {
+                p.carpet_meta[3] = 1;
+                p.rug_weights = d.weights;
+                p.rug0 = [d.scale[0], d.scale[1], d.warp, d.center];
+                p.rug1 = [
+                    d.border_width,
+                    d.border_strength,
+                    d.center_roundness,
+                    d.wear,
+                ];
+                p.rug2 = [d.abrash, d.quiet, d.phase[0], d.phase[1]];
+                p.rug3 = [d.direction[0], d.direction[1], d.patchwork, 0.];
+            }
             if let Some(f) = &r.flooring {
                 use super::super::flooring::FloorLayout;
                 p.floor_meta = [

@@ -34,6 +34,7 @@ use std::{
 struct Batch {
     handles: Vec<Handle<StandardMaterial>>,
     leaves: Vec<bool>,
+    names: Vec<String>,
     environment: EnvironmentMapLight,
     install: bool,
 }
@@ -79,6 +80,29 @@ fn install(
                 Transform::from_xyz(0.17, 0.10, 0.10)
                     .with_rotation(Quat::from_rotation_y(0.2) * Quat::from_rotation_x(1.05)),
             );
+        } else if matches!(
+            batch.names[i].as_str(),
+            "Screen" | "PhoneScreen" | "Whiteboard" | "Television" | "Art"
+        ) {
+            // Content is a complete surface image, not a metric repeating swatch.
+            let (w, h) = if batch.names[i] == "PhoneScreen" {
+                (0.30, 0.56)
+            } else {
+                (0.88, 0.52)
+            };
+            g.mesh(
+                Rectangle::new(w, h).mesh().build(),
+                Transform::from_xyz(0., 0.30, 0.),
+            );
+        } else if batch.names[i] == "Rug" {
+            let mut o = objects::audit::fixture(ObjectKind::Rug, 19);
+            o.size = Vec3::new(0.95, 0.009, 0.72);
+            let assembly = objects::build_object(&o);
+            for ((_, label), part) in assembly.parts {
+                if rugs::key(&label).is_some_and(|(_, binding)| !binding) {
+                    g.mesh(part.into_mesh(), Transform::from_xyz(0., 0.025, 0.));
+                }
+            }
         } else {
             let mut sphere = Sphere::new(0.23).mesh().uv(64, 32);
             if let Some(bevy::mesh::VertexAttributeValues::Float32x2(uvs)) =
@@ -383,13 +407,16 @@ pub fn run(output: &Path, categories: &[Category]) -> Result<()> {
                     )
                 })
                 .collect();
+            let mut names: Vec<_> = batch.iter().map(|(c, _)| c.name.clone()).collect();
             while hs.len() < 6 {
                 hs.push(hs[0].clone());
                 leaves.push(leaves[0]);
+                names.push(names[0].clone());
             }
             app.world_mut().insert_resource(Batch {
                 handles: hs,
                 leaves,
+                names,
                 environment: environment.clone().unwrap(),
                 install: true,
             });
@@ -448,8 +475,33 @@ pub fn run(output: &Path, categories: &[Category]) -> Result<()> {
         "build_provenance":bevy_zeroverse::provenance::capture_provenance(),"tool_sources":super::tool_sources(),
         "adapter":app.world().get_resource::<bevy::render::renderer::RenderAdapterInfo>().map(|a|format!("{:?}",**a)),
         "selected_seeds":SEEDS,"image_size":[RESOLUTION,RESOLUTION],
-        "map_baker":"production CPU reference maps; native Bevy PBR rendering", "rig":"fixed 1400/250 lux directional lights, shadows, seed-0 procedural reflection environment, default capture exposure, 40 degree vertical FOV; metric 0.46 m sphere and 0.46 by 0.49 m beveled panel; leaf categories use normalized production blades",
+        "map_baker":"production CPU reference maps; native Bevy PBR rendering", "rig":"fixed 1400/250 lux directional lights, shadows, seed-0 procedural reflection environment, default capture exposure, 40 degree vertical FOV; metric sphere/beveled panel for repeating materials, normalized planes for screen/phone/TV/board/art, production whole-rug fields, normalized production leaf blades",
         "records":records}))?,
     )?;
+    galleries(output, categories)?;
+    Ok(())
+}
+
+fn galleries(output: &Path, categories: &[Category]) -> Result<()> {
+    let mut html = String::from("<!doctype html><meta charset=utf-8><title>Production PBR surfaces</title><style>body{background:#171b23;color:#eef0f5;font:16px system-ui;margin:32px;max-width:1200px}img{width:100%}a{color:#a5ceff}section{margin:40px 0}</style><h1>Production PBR surfaces</h1><p>Native Bevy rendering, fixed lighting and camera rig. Six material seeds per category: 0, 1, 4, 19, 53, 101 (left to right, top to bottom). Content is sampled from the production scene palette. <a href=renders.json>Parameters, maps and renderer provenance</a>.</p>");
+    for category in categories {
+        for mode in ["color", "normal"] {
+            let mut grid = image::RgbImage::new(RESOLUTION * 3, RESOLUTION * 2);
+            for index in 0..SEEDS.len() {
+                let capture =
+                    image::open(output.join(format!("{}-{index}-{mode}.png", category.name)))?
+                        .to_rgb8();
+                image::imageops::replace(
+                    &mut grid,
+                    &capture,
+                    (index % 3) as i64 * i64::from(RESOLUTION),
+                    (index / 3) as i64 * i64::from(RESOLUTION),
+                );
+            }
+            grid.save(output.join(format!("{}-{mode}-gallery.png", category.name)))?;
+        }
+        html.push_str(&format!("<section><h2>{0}</h2><img src={0}-color-gallery.png><details><summary>Aligned world-normal annotation</summary><img src={0}-normal-gallery.png></details></section>",category.name));
+    }
+    fs::write(output.join("index.html"), html)?;
     Ok(())
 }
