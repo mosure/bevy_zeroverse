@@ -8,6 +8,7 @@ on:
 jobs:
   build:
     permissions:
+      contents: read
       issues: write
 
     name: todo_tracker
@@ -15,9 +16,46 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 2
+
+    # Generated galleries can exceed GitHub's compare-diff limit. Avoid the
+    # remote issue scan when no marker is added or removed. The action derives
+    # issue creation/closure from the marker line's added/deleted status.
+    - name: Check local diff for TODO markers
+      id: markers
+      env:
+        BEFORE: ${{ github.event.before }}
+      run: |
+        python3 - <<'PY'
+        import os, re, subprocess
+        before, after = os.environ["BEFORE"], os.environ["GITHUB_SHA"]
+        for revision in (before, after):
+            if not re.fullmatch(r"[0-9a-f]{40}", revision):
+                raise ValueError("invalid event commit")
+        if before == "0" * 40:
+            before = subprocess.check_output(
+                ["git", "hash-object", "-w", "-t", "tree", "--stdin"], input=b""
+            ).decode().strip()
+        elif subprocess.run(["git", "cat-file", "-e", before], capture_output=True).returncode:
+            subprocess.run(["git", "fetch", "--no-tags", "--depth=1", "origin", before], check=True)
+        patch = subprocess.Popen(
+            ["git", "diff", "--no-ext-diff", "--no-color", "--no-renames", before, after, "--"],
+            stdout=subprocess.PIPE,
+        )
+        found = False
+        for line in patch.stdout:
+            if line[:1] in (b"+", b"-") and not line.startswith((b"+++", b"---")):
+                found |= b"TODO" in line
+        if patch.wait():
+            raise RuntimeError("local diff failed")
+        with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+            output.write(f"found={str(found).lower()}\n")
+        PY
 
     - name: "TODO to Issue"
+      if: steps.markers.outputs.found == 'true'
       uses: "alstr/todo-to-issue-action@v4"
       id: "todo"
       with:
