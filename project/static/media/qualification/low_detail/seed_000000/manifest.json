@@ -1,84 +1,116 @@
 {
   "camera_diagnostics": {
-    "reference_proposals": 1,
+    "reference_proposals": 3,
     "long_reference_requests": 0,
     "short_reference_recoveries": 0,
     "reference_rejections": [
       0,
+      1,
       0,
       0,
-      0,
-      0
+      1
     ],
     "group_restarts": 0,
     "connected_reference_recoveries": 0,
-    "peer_proposals": 91,
+    "peer_proposals": 43,
     "peer_rejections": [
-      66,
+      30,
       1,
+      9,
       0,
-      8,
-      3,
-      11
+      1,
+      0
     ],
     "endpoint_adjustments": 0
   },
   "assembly_diagnostics": {
     "mounts": [],
-    "programs": [],
-    "kitchens": [],
-    "proposed_workstations": 112,
-    "proposed_meetings": 0,
-    "rejected_surfaces": 103,
-    "rejected_seating": 4,
-    "rejected_meetings": 0,
-    "accepted": [
+    "programs": [
       {
-        "role": "Workstation",
-        "surface": 3,
-        "seats": [
-          4
+        "zone": 0,
+        "activity": "Cafe",
+        "role": "Service",
+        "capacity_unit": "ChairStations",
+        "parameters": {
+          "aisle_metres": 1.1446191,
+          "row_pitch_metres": 1.4358773,
+          "seat_pitch_metres": 1.0114932,
+          "row_curvature_metres": 0.18976243,
+          "group_rotation_radians": -0.13863611,
+          "tier_rise_metres": 0.28136903,
+          "collaborative_fraction": 0.5817043,
+          "display_spacing_metres": 2.916526,
+          "service_length_metres": 2.6399379,
+          "occupancy": 0.86
+        },
+        "min": [
+          -4.018732,
+          -3.8075185
         ],
-        "requested_capacity": 1,
-        "attempts": 1
-      },
-      {
-        "role": "Workstation",
-        "surface": 5,
-        "seats": [
-          6
+        "max": [
+          4.879889,
+          4.4794335
         ],
-        "requested_capacity": 1,
-        "attempts": 1
-      },
-      {
-        "role": "Workstation",
-        "surface": 9,
-        "seats": [
+        "members": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
           10
         ],
-        "requested_capacity": 1,
-        "attempts": 1
-      },
-      {
-        "role": "Workstation",
-        "surface": 11,
-        "seats": [
-          12
+        "required": [
+          "ServiceCounter",
+          "DisplayCase",
+          "CoffeeMaker"
         ],
-        "requested_capacity": 1,
-        "attempts": 1
-      },
-      {
-        "role": "Workstation",
-        "surface": 13,
-        "seats": [
-          14
+        "requested_capacity": 4,
+        "accepted_capacity": 3,
+        "rejected_candidates": 0,
+        "reservations": [
+          {
+            "role": "Circulation",
+            "min": [
+              -0.14173108,
+              -1.1075184
+            ],
+            "max": [
+              1.002888,
+              4.4794335
+            ]
+          },
+          {
+            "role": "StaffAccess",
+            "min": [
+              -1.7437551,
+              -3.6075184
+            ],
+            "max": [
+              0.8961828,
+              -2.6075184
+            ]
+          }
         ],
-        "requested_capacity": 1,
-        "attempts": 1
+        "services": [],
+        "focus": [
+          0.43057847,
+          1.25,
+          -2.6075184
+        ]
       }
-    ]
+    ],
+    "kitchens": [],
+    "proposed_workstations": 0,
+    "proposed_meetings": 0,
+    "rejected_surfaces": 0,
+    "rejected_seating": 0,
+    "rejected_meetings": 0,
+    "accepted": []
   },
   "appearance": {
     "material_seed": null,
@@ -87,7 +119,7 @@
     "illumination_scale": 1.0,
     "exposure_ev100_offset": 0.0
   },
-  "generator_version": 47,
+  "generator_version": 50,
   "program": {
     "domain": {
       "photometry": {
@@ -123,10 +155,10 @@
       {
         "composition": {
           "weights": [
-            0.20886663,
-            0.18304406,
-            0.43930402,
-            0.16878523
+            0.13350694,
+            0.40493652,
+            0.31370458,
+            0.14785199
           ],
           "group_scale": 1.0218132,
           "storage_bias": 0.14541242
@@ -147,94 +179,35 @@
           "opposing_probability": 0.6325115
         },
         "min": [
-          -4.8014345,
-          -4.0683246
+          -6.291046,
+          -5.0294337
         ],
         "max": [
-          0.9367051,
-          4.0683246
+          6.291046,
+          5.0294337
         ],
-        "activity": "Reception",
-        "orientation": 3.6278281,
-        "aisle": 1.6671821,
-        "desk_width": 2.2104788,
-        "desk_depth": 0.77067363,
-        "seat_pitch": 1.1524552,
-        "occupancy": 0.6721455
-      },
-      {
-        "composition": {
-          "weights": [
-            0.3269374,
-            0.089369744,
-            0.30650878,
-            0.27718407
-          ],
-          "group_scale": 1.3288426,
-          "storage_bias": 0.8651478
-        },
-        "furnishing": {
-          "offset": [
-            -0.04071799,
-            0.00266435
-          ],
-          "stagger": 0.053303123,
-          "curvature": 0.37029594,
-          "fan_radians": -0.62781626,
-          "jitter": 0.121134505,
-          "occupancy_gradient": [
-            -0.18548322,
-            0.047785282
-          ],
-          "opposing_probability": 0.59160745
-        },
-        "min": [
-          0.9367051,
-          -4.0683246
-        ],
-        "max": [
-          4.8014345,
-          4.0683246
-        ],
-        "activity": "Library",
-        "orientation": 0.5946523,
-        "aisle": 0.790852,
-        "desk_width": 1.9895527,
-        "desk_depth": 0.84875643,
-        "seat_pitch": 0.8049804,
-        "occupancy": 0.6377679
+        "activity": "Cafe",
+        "orientation": 2.0106895,
+        "aisle": 1.6066394,
+        "desk_width": 2.2272606,
+        "desk_depth": 0.59508467,
+        "seat_pitch": 0.8688042,
+        "occupancy": 0.64862275
       }
     ],
-    "partitions": [
-      {
-        "axis": 0,
-        "coordinate": 0.9367051,
-        "start": -3.6015306,
-        "end": 4.0683246,
-        "door_center": 2.9644372,
-        "door_width": 1.3928425,
-        "door_height": 2.6502306,
-        "arch_rise": 0.6002307,
-        "door": null,
-        "thickness": 0.1106035,
-        "sill": 0.55107766,
-        "glazing_fraction": 0.3555695,
-        "mullion_pitch": 1.2093425,
-        "transom_fraction": 0.3809933
-      }
-    ],
+    "partitions": [],
     "light_spacing": [
-      3.365893,
-      3.584434
+      4.9554768,
+      4.3708773
     ],
     "light_phase": [
-      0.054743633,
-      -0.1363201
+      -0.1077722,
+      -0.034273945
     ],
-    "light_drop": 0.20428038,
+    "light_drop": 0.135109,
     "fixture_size": [
-      0.7344478,
-      0.5733868
+      0.67816484,
+      0.1378807
     ],
     "materials": [
       {
@@ -2474,63 +2447,63 @@
     }
   },
   "seed": 0,
-  "layout": "Reception",
+  "layout": "Cafe",
   "world_yaw": 0.0,
   "room_size": [
-    9.602869,
-    4.0209236,
-    8.136649
+    12.582092,
+    3.8072383,
+    10.058867
   ],
   "envelope": {
     "soffits": [],
     "footprint": [
       [
-        -4.400894,
-        -4.0683246
+        -5.766241,
+        -5.0294337
       ],
       [
-        -1.2544826,
-        -4.0683246
+        -1.6436771,
+        -5.0294337
       ],
       [
-        -1.2544826,
-        -3.6015306
+        -1.6436771,
+        -4.556355
       ],
       [
-        0.96278393,
-        -3.6015306
+        1.2614809,
+        -4.556355
       ],
       [
-        0.96278393,
-        -4.0683246
+        1.2614809,
+        -5.0294337
       ],
       [
-        4.4752283,
-        -4.0683246
+        5.863637,
+        -5.0294337
       ],
       [
-        4.8014345,
-        4.0683246
+        6.291046,
+        5.0294337
       ],
       [
-        -4.8014345,
-        4.0683246
+        -6.291046,
+        5.0294337
       ],
       [
-        -4.689975,
-        1.8041098
+        -6.1450067,
+        2.2303164
       ],
       [
-        -3.8947074,
-        1.3636512
+        -5.1815825,
+        1.6874943
       ],
       [
-        -3.823685,
-        -0.0791146
+        -5.088526,
+        -0.09611367
       ],
       [
-        -4.5718474,
-        -0.595551
+        -5.990231,
+        -0.73624563
       ]
     ],
     "ceiling_drop": [
@@ -2538,97 +2511,12 @@
       0.5480434
     ],
     "floor_patches": [],
-    "pillars": [
-      {
-        "center": [
-          -0.44210148,
-          -1.3858567
-        ],
-        "radius": 0.14863233,
-        "sides": 32,
-        "profile": {
-          "aspect": 0.6451236,
-          "roundness": 3.9008603,
-          "taper": 0.9751478,
-          "rotation": 1.1929454,
-          "collar_height": 0.08632721
-        }
-      },
-      {
-        "center": [
-          -3.0852747,
-          -1.6933832
-        ],
-        "radius": 0.269132,
-        "sides": 32,
-        "profile": {
-          "aspect": 0.8608836,
-          "roundness": 7.453489,
-          "taper": 0.8946511,
-          "rotation": 0.47332335,
-          "collar_height": 0.11865233
-        }
-      }
-    ],
+    "pillars": [],
     "mezzanine": null,
     "walls": [
       {
         "edge": 0,
-        "facade": {
-          "side": "Rear",
-          "openings": [
-            {
-              "glazing": {
-                "identity": 13189476298195705140,
-                "installation": 0,
-                "thickness_m": 0.012876403,
-                "treatment": 1,
-                "band_m": [
-                  0.9450737,
-                  1.5959126
-                ],
-                "feather_m": 0.13468133,
-                "pitch_m": 0.1912612,
-                "duty": 0.31500274,
-                "frost_roughness": 0.21182299,
-                "opening": 0.0
-              },
-              "min": [
-                -1.4340768,
-                0.018006207
-              ],
-              "max": [
-                1.4340768,
-                3.9680574
-              ],
-              "columns": 3,
-              "transom": 0.0,
-              "operable": false
-            }
-          ],
-          "frame": "WoodEdge",
-          "frame_width": 0.057989188,
-          "frame_depth": 0.100242525,
-          "recess": 0.10156659,
-          "sill_projection": 0.134618,
-          "treatment": {
-            "identity": 8040164087938744186,
-            "slat_pitch": 0.07792178,
-            "fold_pitch": 0.15359406,
-            "fold_depth": 0.02118207,
-            "fullness": 1.4635484,
-            "hem_sag": 0.009753127,
-            "split": 0.5372918,
-            "tieback": 0.0,
-            "stack": "Pair",
-            "slat_material": "Plastic",
-            "fabric": "Fabric",
-            "finish_slot": 8
-          },
-          "shade": "None",
-          "shade_coverage": 0.273112,
-          "shade_tilt": -0.68294334
-        }
+        "facade": null
       },
       {
         "edge": 1,
@@ -2636,7 +2524,61 @@
       },
       {
         "edge": 2,
-        "facade": null
+        "facade": {
+          "side": "Rear",
+          "openings": [
+            {
+              "glazing": {
+                "identity": 17132286828971181100,
+                "installation": 15838,
+                "thickness_m": 0.011369903,
+                "treatment": 5,
+                "band_m": [
+                  0.88375866,
+                  1.308861
+                ],
+                "feather_m": 0.15996957,
+                "pitch_m": 0.11391878,
+                "duty": 0.46565062,
+                "frost_roughness": 0.30759603,
+                "opening": 0.0
+              },
+              "min": [
+                -1.0662156,
+                0.018001817
+              ],
+              "max": [
+                1.0662156,
+                3.5433385
+              ],
+              "columns": 2,
+              "transom": 0.3444338,
+              "operable": false
+            }
+          ],
+          "frame": "Metal",
+          "frame_width": 0.03478655,
+          "frame_depth": 0.072637364,
+          "recess": 0.09727928,
+          "sill_projection": 0.16811027,
+          "treatment": {
+            "identity": 8680134532539346678,
+            "slat_pitch": 0.08169988,
+            "fold_pitch": 0.19530198,
+            "fold_depth": 0.013505556,
+            "fullness": 1.5311157,
+            "hem_sag": 0.013475476,
+            "split": 0.42590967,
+            "tieback": 0.0,
+            "stack": "Left",
+            "slat_material": "Plastic",
+            "fabric": "FabricAlt",
+            "finish_slot": 10
+          },
+          "shade": "None",
+          "shade_coverage": 0.026267724,
+          "shade_tilt": -0.75980735
+        }
       },
       {
         "edge": 3,
@@ -2644,15 +2586,261 @@
       },
       {
         "edge": 4,
-        "facade": null
+        "facade": {
+          "side": "Rear",
+          "openings": [
+            {
+              "glazing": {
+                "identity": 15351264160453941642,
+                "installation": 31676,
+                "thickness_m": 0.013662579,
+                "treatment": 0,
+                "band_m": [
+                  1.0244112,
+                  1.4828655
+                ],
+                "feather_m": 0.08167198,
+                "pitch_m": 0.09782003,
+                "duty": 0.24348101,
+                "frost_roughness": 0.21285081,
+                "opening": 0.0
+              },
+              "min": [
+                -2.0092876,
+                0.7998507
+              ],
+              "max": [
+                0.0327909,
+                3.7225828
+              ],
+              "columns": 2,
+              "transom": 0.0,
+              "operable": false
+            },
+            {
+              "glazing": {
+                "identity": 6227990371615081991,
+                "installation": 31676,
+                "thickness_m": 0.013662579,
+                "treatment": 0,
+                "band_m": [
+                  1.0244112,
+                  1.4828655
+                ],
+                "feather_m": 0.11568171,
+                "pitch_m": 0.12949899,
+                "duty": 0.4176725,
+                "frost_roughness": 0.35147858,
+                "opening": 0.0
+              },
+              "min": [
+                0.3520367,
+                0.7998507
+              ],
+              "max": [
+                2.0092876,
+                3.7225828
+              ],
+              "columns": 2,
+              "transom": 0.3550039,
+              "operable": false
+            }
+          ],
+          "frame": "Metal",
+          "frame_width": 0.043319087,
+          "frame_depth": 0.06911517,
+          "recess": 0.06325737,
+          "sill_projection": 0.08157922,
+          "treatment": {
+            "identity": 15289685451652025296,
+            "slat_pitch": 0.0702831,
+            "fold_pitch": 0.21829244,
+            "fold_depth": 0.030094368,
+            "fullness": 1.5769943,
+            "hem_sag": 0.004853913,
+            "split": 0.42735764,
+            "tieback": 0.0,
+            "stack": "Right",
+            "slat_material": "Metal",
+            "fabric": "FabricAlt",
+            "finish_slot": 2
+          },
+          "shade": "None",
+          "shade_coverage": 0.1713346,
+          "shade_tilt": 0.5723984
+        }
       },
       {
         "edge": 5,
-        "facade": null
+        "facade": {
+          "side": "Rear",
+          "openings": [
+            {
+              "glazing": {
+                "identity": 17180226233840592956,
+                "installation": 39595,
+                "thickness_m": 0.008537862,
+                "treatment": 1,
+                "band_m": [
+                  0.75091714,
+                  1.3740549
+                ],
+                "feather_m": 0.13060103,
+                "pitch_m": 0.09592632,
+                "duty": 0.45901334,
+                "frost_roughness": 0.2797303,
+                "opening": 0.0
+              },
+              "min": [
+                -4.788804,
+                0.018072505
+              ],
+              "max": [
+                0.40561295,
+                3.222385
+              ],
+              "columns": 3,
+              "transom": 0.4457047,
+              "operable": false
+            },
+            {
+              "glazing": {
+                "identity": 13496028779005089305,
+                "installation": 39595,
+                "thickness_m": 0.008537862,
+                "treatment": 0,
+                "band_m": [
+                  0.75091714,
+                  1.3740549
+                ],
+                "feather_m": 0.08229311,
+                "pitch_m": 0.12387624,
+                "duty": 0.48175797,
+                "frost_roughness": 0.19411483,
+                "opening": 0.0
+              },
+              "min": [
+                0.9271445,
+                0.018072505
+              ],
+              "max": [
+                4.788805,
+                3.222385
+              ],
+              "columns": 3,
+              "transom": 0.7764615,
+              "operable": false
+            }
+          ],
+          "frame": "WoodEdge",
+          "frame_width": 0.050115585,
+          "frame_depth": 0.078477636,
+          "recess": 0.04041412,
+          "sill_projection": 0.0843171,
+          "treatment": {
+            "identity": 13597803824141386101,
+            "slat_pitch": 0.056228053,
+            "fold_pitch": 0.12961537,
+            "fold_depth": 0.024690695,
+            "fullness": 2.3606,
+            "hem_sag": 0.017114982,
+            "split": 0.5717222,
+            "tieback": 0.0,
+            "stack": "Right",
+            "slat_material": "WoodEdge",
+            "fabric": "Fabric",
+            "finish_slot": 3
+          },
+          "shade": "Roller",
+          "shade_coverage": 0.46538302,
+          "shade_tilt": 0.7484546
+        }
       },
       {
         "edge": 7,
-        "facade": null
+        "facade": {
+          "side": "Rear",
+          "openings": [
+            {
+              "glazing": {
+                "identity": 16862515923522731886,
+                "installation": 55433,
+                "thickness_m": 0.013159987,
+                "treatment": 5,
+                "band_m": [
+                  0.946684,
+                  1.85642
+                ],
+                "feather_m": 0.15767223,
+                "pitch_m": 0.1722016,
+                "duty": 0.28968662,
+                "frost_roughness": 0.37268788,
+                "opening": 0.0
+              },
+              "min": [
+                -1.1147811,
+                1.0607709
+              ],
+              "max": [
+                -0.36574858,
+                3.2011883
+              ],
+              "columns": 1,
+              "transom": 0.0,
+              "operable": false
+            },
+            {
+              "glazing": {
+                "identity": 5856605860286687961,
+                "installation": 55433,
+                "thickness_m": 0.013159987,
+                "treatment": 0,
+                "band_m": [
+                  0.946684,
+                  1.85642
+                ],
+                "feather_m": 0.09287076,
+                "pitch_m": 0.15045789,
+                "duty": 0.38969034,
+                "frost_roughness": 0.18666466,
+                "opening": 0.0
+              },
+              "min": [
+                -0.025051713,
+                1.0607709
+              ],
+              "max": [
+                1.1147811,
+                3.2011883
+              ],
+              "columns": 1,
+              "transom": 0.0,
+              "operable": true
+            }
+          ],
+          "frame": "Metal",
+          "frame_width": 0.0666292,
+          "frame_depth": 0.08917891,
+          "recess": 0.10177645,
+          "sill_projection": 0.11560327,
+          "treatment": {
+            "identity": 4027753865421791552,
+            "slat_pitch": 0.04038441,
+            "fold_pitch": 0.16586494,
+            "fold_depth": 0.031312842,
+            "fullness": 1.8634484,
+            "hem_sag": 0.0076250606,
+            "split": 0.5196504,
+            "tieback": 0.58449626,
+            "stack": "Pair",
+            "slat_material": "WoodEdge",
+            "fabric": "Fabric",
+            "finish_slot": 6
+          },
+          "shade": "None",
+          "shade_coverage": 0.8820791,
+          "shade_tilt": -0.11186117
+        }
       },
       {
         "edge": 8,
@@ -2668,89 +2856,7 @@
       },
       {
         "edge": 11,
-        "facade": {
-          "side": "Rear",
-          "openings": [
-            {
-              "glazing": {
-                "identity": 6244689591786299271,
-                "installation": 87109,
-                "thickness_m": 0.012610244,
-                "treatment": 0,
-                "band_m": [
-                  0.64766,
-                  1.4811981
-                ],
-                "feather_m": 0.047804877,
-                "pitch_m": 0.16532148,
-                "duty": 0.2240323,
-                "frost_roughness": 0.309323,
-                "opening": 0.0
-              },
-              "min": [
-                -1.5518621,
-                0.1554499
-              ],
-              "max": [
-                1.5518621,
-                2.2719746
-              ],
-              "columns": 2,
-              "transom": 0.0,
-              "operable": true
-            },
-            {
-              "glazing": {
-                "identity": 16037684658301203297,
-                "installation": 87109,
-                "thickness_m": 0.012610244,
-                "treatment": 0,
-                "band_m": [
-                  0.64766,
-                  1.4811981
-                ],
-                "feather_m": 0.10375064,
-                "pitch_m": 0.06653985,
-                "duty": 0.23597905,
-                "frost_roughness": 0.4591099,
-                "opening": 0.0
-              },
-              "min": [
-                -1.5518621,
-                2.5759492
-              ],
-              "max": [
-                1.5518621,
-                3.5368154
-              ],
-              "columns": 2,
-              "transom": 0.0,
-              "operable": false
-            }
-          ],
-          "frame": "Metal",
-          "frame_width": 0.030485835,
-          "frame_depth": 0.088238895,
-          "recess": 0.051497094,
-          "sill_projection": 0.062167775,
-          "treatment": {
-            "identity": 13564170861032508814,
-            "slat_pitch": 0.059704818,
-            "fold_pitch": 0.19760457,
-            "fold_depth": 0.03324823,
-            "fullness": 1.9949548,
-            "hem_sag": 0.0077146874,
-            "split": 0.53240347,
-            "tieback": 0.0,
-            "stack": "Right",
-            "slat_material": "WoodEdge",
-            "fabric": "Fabric",
-            "finish_slot": 2
-          },
-          "shade": "None",
-          "shade_coverage": 0.75206345,
-          "shade_tilt": -0.6477247
-        }
+        "facade": null
       }
     ]
   },
@@ -2758,27 +2864,54 @@
     "exposed_slab": false,
     "modules": [
       {
-        "system": "OpenCell",
+        "system": "TimberSlats",
         "center": [
-          2.0428874,
-          3.1847086,
-          0.9470813
+          1.5027614,
+          2.9498785,
+          0.0
         ],
         "size": [
-          1.2592626,
-          0.342015,
-          1.4435359
+          2.3418002,
+          0.32691061,
+          2.4670637
         ],
-        "support_top_m": 3.7266638,
-        "pitch_m": 0.37482637,
-        "thickness_m": 0.030840803,
-        "seed": 13135199338753085834,
+        "support_top_m": 3.594156,
+        "pitch_m": 0.19795036,
+        "thickness_m": 0.04619871,
+        "seed": 10879269147788170608,
         "detail": {
-          "finish": 2,
+          "finish": 4,
           "shape": {
-            "kind": "Grid",
-            "aspect": 0.9536488,
-            "recess_m": 0.0030289977
+            "kind": "Panel",
+            "camber": 0.77557266,
+            "taper": 0.67592937,
+            "phase": 0.4677016
+          }
+        }
+      },
+      {
+        "system": "TimberSlats",
+        "center": [
+          1.5027614,
+          2.8332183,
+          3.1662893
+        ],
+        "size": [
+          2.237457,
+          0.22135004,
+          2.357139
+        ],
+        "support_top_m": 3.4185746,
+        "pitch_m": 0.27824694,
+        "thickness_m": 0.03303563,
+        "seed": 2499012172952505512,
+        "detail": {
+          "finish": 4,
+          "shape": {
+            "kind": "Panel",
+            "camber": 0.19227855,
+            "taper": 0.67334753,
+            "phase": 6.0228767
           }
         }
       }
@@ -2814,23 +2947,51 @@
               "opening": 0.0
             },
             "min": [
-              -3.6145742,
-              0.018006235
+              -4.575683,
+              0.018468425
             ],
             "max": [
-              3.6145742,
-              3.985615
+              0.5829468,
+              3.5247626
             ],
-            "columns": 6,
-            "transom": 0.0,
+            "columns": 5,
+            "transom": 0.6752325,
             "operable": false
+          },
+          {
+            "glazing": {
+              "identity": 12136492453813780212,
+              "installation": 0,
+              "thickness_m": 0.012876403,
+              "treatment": 1,
+              "band_m": [
+                0.9450737,
+                1.5959126
+              ],
+              "feather_m": 0.036676608,
+              "pitch_m": 0.14788626,
+              "duty": 0.59749776,
+              "frost_roughness": 0.20284788,
+              "opening": 0.93721104
+            },
+            "min": [
+              1.1719337,
+              0.018468425
+            ],
+            "max": [
+              4.5756836,
+              3.5247626
+            ],
+            "columns": 4,
+            "transom": 0.0,
+            "operable": true
           }
         ],
-        "frame": "WoodEdge",
-        "frame_width": 0.057989188,
-        "frame_depth": 0.100242525,
-        "recess": 0.10156659,
-        "sill_projection": 0.134618,
+        "frame": "Metal",
+        "frame_width": 0.044876635,
+        "frame_depth": 0.08872807,
+        "recess": 0.070506744,
+        "sill_projection": 0.10391778,
         "treatment": {
           "identity": 8040164087938744186,
           "slat_pitch": 0.07792178,
@@ -2846,8 +3007,8 @@
           "finish_slot": 8
         },
         "shade": "None",
-        "shade_coverage": 0.273112,
-        "shade_tilt": -0.68294334
+        "shade_coverage": 0.67795867,
+        "shade_tilt": 0.22187412
       },
       {
         "side": "Right",
@@ -2866,26 +3027,54 @@
               "pitch_m": 0.12378341,
               "duty": 0.24148992,
               "frost_roughness": 0.28379625,
+              "opening": 0.27519953
+            },
+            "min": [
+              -4.5451474,
+              0.025076248
+            ],
+            "max": [
+              -0.09654713,
+              3.2937014
+            ],
+            "columns": 5,
+            "transom": 0.0,
+            "operable": true
+          },
+          {
+            "glazing": {
+              "identity": 11155182546492214294,
+              "installation": 13007,
+              "thickness_m": 0.0062182047,
+              "treatment": 6,
+              "band_m": [
+                0.7736507,
+                1.7128813
+              ],
+              "feather_m": 0.10537343,
+              "pitch_m": 0.07255829,
+              "duty": 0.3345325,
+              "frost_roughness": 0.37535113,
               "opening": 0.0
             },
             "min": [
-              -3.5840383,
-              0.020191919
+              0.80345297,
+              0.025076248
             ],
             "max": [
-              3.5840383,
-              3.9819918
+              4.545148,
+              3.2937014
             ],
-            "columns": 6,
-            "transom": 0.0,
+            "columns": 4,
+            "transom": 0.33128387,
             "operable": false
           }
         ],
         "frame": "Metal",
-        "frame_width": 0.06507763,
-        "frame_depth": 0.07576259,
-        "recess": 0.07911931,
-        "sill_projection": 0.065621376,
+        "frame_width": 0.031046582,
+        "frame_depth": 0.08607475,
+        "recess": 0.11697418,
+        "sill_projection": 0.13145344,
         "treatment": {
           "identity": 4395397937064966350,
           "slat_pitch": 0.0684835,
@@ -2901,42 +3090,42 @@
           "finish_slot": 4
         },
         "shade": "Vertical",
-        "shade_coverage": 0.92974496,
-        "shade_tilt": -0.8050903
+        "shade_coverage": 0.4734451,
+        "shade_tilt": -0.16932762
       }
     ]
   },
-  "window_bays": 3,
+  "window_bays": 4,
   "window_sill": 0.8380377,
-  "glazing_height": 3.7630157,
+  "glazing_height": 3.5493305,
   "blinds": false,
-  "door_x": -2.6840267,
+  "door_x": 4.7268643,
   "entry_door": {
     "id": 0,
     "center": [
-      -2.6840267,
+      4.7268643,
       0.0,
-      4.0683246
+      5.0294337
     ],
     "yaw": 0.0,
-    "width": 2.7811716,
-    "height": 2.2511666,
+    "width": 0.9650178,
+    "height": 2.1089864,
     "wall_depth": 0.2,
     "program": {
-      "mechanism": "Revolving",
-      "panel": "Glazed",
-      "handle": "PanicBar",
+      "mechanism": "Hinged",
+      "panel": "Flush",
+      "handle": "Knob",
       "opening": 0.0,
-      "rotor_phase": 0.43736956,
+      "rotor_phase": 0.28200454,
       "handedness": -1.0,
       "swing_side": 1.0,
-      "thickness": 0.03909096,
-      "stile": 0.07028703,
-      "handle_height": 0.91469175,
+      "thickness": 0.033547368,
+      "stile": 0.06983922,
+      "handle_height": 0.91204804,
       "finish": "WoodEdge",
-      "frame_finish": "WoodEdge",
+      "frame_finish": "Plastic",
       "hardware_finish": "Metal",
-      "finish_variant": 11
+      "finish_variant": 7
     }
   },
   "column_width": 0.3946215,
@@ -2950,505 +3139,338 @@
   "density": 0.65,
   "objects": [
     {
+      "finish_seed": 0,
       "id": 0,
-      "kind": "CoffeeTable",
+      "kind": "ServiceCounter",
       "position": [
-        -1.444883,
+        -0.42378616,
         0.0,
-        1.1895518
+        -2.2126317
       ],
       "size": [
-        1.1926006,
-        0.4028866,
-        0.6519114
+        2.6399379,
+        0.915221,
+        0.68977344
       ],
-      "yaw": 3.5830638,
+      "yaw": 0.0,
       "variant": 0,
-      "seed": 10659681976630974894,
+      "seed": 4301180396724686259,
       "solid": true,
       "support": null,
       "neighbor": false,
       "interaction_target": null
     },
     {
+      "finish_seed": 0,
       "id": 1,
-      "kind": "Chair",
+      "kind": "DisplayCase",
       "position": [
-        -0.7137469,
+        1.9005473,
         0.0,
-        -0.13570857
+        -3.2457972
       ],
       "size": [
-        0.68,
-        1.0056483,
-        0.68
+        1.4087292,
+        1.386725,
+        0.7234426
       ],
-      "yaw": 4.3842077,
-      "variant": 4,
-      "seed": 11110078703818668722,
+      "yaw": 0.0,
+      "variant": 0,
+      "seed": 4094949703535913029,
       "solid": true,
       "support": null,
       "neighbor": false,
       "interaction_target": null
     },
     {
+      "finish_seed": 0,
       "id": 2,
-      "kind": "Chair",
+      "kind": "Table",
       "position": [
-        -2.7603817,
+        -1.9740767,
         0.0,
-        0.9460654
+        -0.30751848
       ],
       "size": [
-        0.8995019,
-        0.9506964,
-        0.9664222
+        0.82431173,
+        0.75,
+        0.78
       ],
-      "yaw": 4.3694997,
-      "variant": 8,
-      "seed": 1961443251611151879,
+      "yaw": -0.13863611,
+      "variant": 1,
+      "seed": 15512763409717222983,
       "solid": true,
       "support": null,
       "neighbor": false,
       "interaction_target": null
     },
     {
-      "finish_seed": 4562570765056306409,
+      "finish_seed": 0,
       "id": 3,
-      "kind": "Desk",
+      "kind": "Banquette",
       "position": [
-        -0.9767957,
+        -1.8441758,
         0.0,
-        -1.8804898
+        -1.2384996
       ],
       "size": [
-        1.2295377,
-        0.74,
-        0.5970229
+        1.15,
+        1.08,
+        0.67
       ],
-      "yaw": 4.104831,
+      "yaw": -0.13863611,
       "variant": 2,
-      "seed": 4562570765056306409,
+      "seed": 13231447137977893384,
       "solid": true,
       "support": null,
       "neighbor": false,
       "interaction_target": null
     },
     {
-      "finish_seed": 4562570765056306409,
+      "finish_seed": 0,
       "id": 4,
       "kind": "Chair",
       "position": [
-        -1.3834945,
+        -2.1053596,
         0.0,
-        -2.245384
+        0.6333667
       ],
       "size": [
-        0.68,
-        0.90797204,
-        0.68
+        0.72,
+        1.0,
+        0.72
       ],
-      "yaw": 4.0254607,
+      "yaw": -0.13863611,
       "variant": 3,
-      "seed": 260466075097218090,
+      "seed": 4545620040094782303,
       "solid": true,
       "support": null,
       "neighbor": false,
-      "interaction_target": 3
+      "interaction_target": 2
     },
     {
-      "finish_seed": 18262864003883221486,
+      "finish_seed": 0,
       "id": 5,
-      "kind": "CoffeeTable",
+      "kind": "Table",
       "position": [
-        -1.9063511,
+        2.835234,
         0.0,
-        -0.5328667
+        -0.30751848
       ],
       "size": [
-        1.174692,
-        0.43,
-        0.68175375
+        0.802754,
+        0.75,
+        0.78
       ],
-      "yaw": 4.2382607,
+      "yaw": -0.13863611,
       "variant": 2,
-      "seed": 18262864003883221486,
+      "seed": 262276163861734834,
       "solid": true,
       "support": null,
       "neighbor": false,
       "interaction_target": null
     },
     {
-      "finish_seed": 18262864003883221486,
+      "finish_seed": 0,
       "id": 6,
       "kind": "Chair",
       "position": [
-        -2.6774557,
+        2.9206936,
         0.0,
-        -0.9596029
+        -0.8699225
       ],
       "size": [
-        0.68,
-        0.79,
-        0.68
+        0.72,
+        1.0,
+        0.72
       ],
-      "yaw": 3.812412,
-      "variant": 7,
-      "seed": 16583195382925768724,
+      "yaw": 3.0192974,
+      "variant": 4,
+      "seed": 9236991496332590383,
       "solid": true,
       "support": null,
       "neighbor": false,
       "interaction_target": 5
     },
     {
+      "finish_seed": 0,
       "id": 7,
-      "kind": "Bookcase",
+      "kind": "Chair",
       "position": [
-        0.34638608,
+        2.7431357,
         0.0,
-        -0.17727256
+        0.3854969
       ],
       "size": [
-        1.2479422,
-        1.7668998,
-        0.34
+        0.72,
+        1.0,
+        0.72
       ],
-      "yaw": 1.6148316,
-      "variant": 2,
-      "seed": 7916595009539577671,
+      "yaw": -0.14993425,
+      "variant": 3,
+      "seed": 1146077568272498913,
       "solid": true,
       "support": null,
       "neighbor": false,
-      "interaction_target": null
+      "interaction_target": 5
     },
     {
+      "finish_seed": 0,
       "id": 8,
-      "kind": "Bookcase",
+      "kind": "Banquette",
       "position": [
-        -3.011247,
+        -3.658732,
         0.0,
-        -3.4727192
+        1.4359576
       ],
       "size": [
-        1.337123,
-        1.4030358,
-        0.34
-      ],
-      "yaw": -0.09576478,
-      "variant": 2,
-      "seed": 1869756764425467934,
-      "solid": true,
-      "support": null,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "finish_seed": 6253453350429175586,
-      "id": 9,
-      "kind": "Desk",
-      "position": [
-        3.2349732,
-        0.0,
-        0.6093965
-      ],
-      "size": [
-        1.9895527,
-        0.7285963,
-        0.83704776
-      ],
-      "yaw": 0.5946523,
-      "variant": 2,
-      "seed": 6253453350429175586,
-      "solid": true,
-      "support": null,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "finish_seed": 6253453350429175586,
-      "id": 10,
-      "kind": "Chair",
-      "position": [
-        3.7264948,
-        0.0,
-        1.4341309
-      ],
-      "size": [
-        0.68,
-        1.3469548,
+        2.5,
+        1.1,
         0.68
       ],
-      "yaw": 0.4467429,
+      "yaw": 1.5707964,
       "variant": 1,
-      "seed": 10145766274402102078,
-      "solid": true,
-      "support": null,
-      "neighbor": false,
-      "interaction_target": 9
-    },
-    {
-      "finish_seed": 10432362666833251879,
-      "id": 11,
-      "kind": "CoffeeTable",
-      "position": [
-        1.9085984,
-        0.0,
-        -0.8963847
-      ],
-      "size": [
-        1.0956068,
-        0.43,
-        0.7144278
-      ],
-      "yaw": 1.194384,
-      "variant": 0,
-      "seed": 10432362666833251879,
+      "seed": 14929090972535863835,
       "solid": true,
       "support": null,
       "neighbor": false,
       "interaction_target": null
     },
     {
-      "finish_seed": 10432362666833251879,
-      "id": 12,
-      "kind": "Chair",
+      "finish_seed": 0,
+      "id": 9,
+      "kind": "CoffeeMaker",
       "position": [
-        2.7719748,
-        0.0,
-        -0.63989246
+        -1.0309719,
+        0.915221,
+        -2.2126317
       ],
       "size": [
-        0.68,
-        0.48,
-        0.68
+        0.4,
+        0.45,
+        0.42
       ],
-      "yaw": 1.4982156,
-      "variant": 6,
-      "seed": 14984716913387975145,
-      "solid": true,
-      "support": null,
-      "neighbor": false,
-      "interaction_target": 11
-    },
-    {
-      "finish_seed": 12942637388728638939,
-      "id": 13,
-      "kind": "Desk",
-      "position": [
-        2.38004,
-        0.0,
-        -2.1205864
-      ],
-      "size": [
-        1.2209734,
-        0.74,
-        0.69957346
-      ],
-      "yaw": 1.0386325,
+      "yaw": 0.0,
       "variant": 2,
-      "seed": 12942637388728638939,
+      "seed": 18090293372235155139,
+      "solid": false,
+      "support": 0,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "finish_seed": 0,
+      "id": 10,
+      "kind": "DrinkDispenser",
+      "position": [
+        0.20979893,
+        0.915221,
+        -2.2126317
+      ],
+      "size": [
+        0.33783874,
+        0.514264,
+        0.34581044
+      ],
+      "yaw": 0.0,
+      "variant": 0,
+      "seed": 13547743326150210253,
+      "solid": false,
+      "support": 0,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 11,
+      "kind": "Plant",
+      "position": [
+        5.3344984,
+        0.0,
+        2.4478211
+      ],
+      "size": [
+        0.91175497,
+        1.1102682,
+        0.9979062
+      ],
+      "yaw": 1.5909516,
+      "variant": 0,
+      "seed": 12141739871419043227,
       "solid": true,
       "support": null,
       "neighbor": false,
       "interaction_target": null
     },
     {
-      "finish_seed": 12942637388728638939,
-      "id": 14,
-      "kind": "Chair",
+      "id": 12,
+      "kind": "Plant",
       "position": [
-        2.81904,
+        -0.6146796,
         0.0,
-        -1.7549585
+        -3.9704328
       ],
       "size": [
-        0.68,
-        1.1880355,
-        0.68
+        0.44277966,
+        0.7709532,
+        0.40103462
       ],
-      "yaw": 1.0031576,
-      "variant": 9,
-      "seed": 17747213598176839804,
+      "yaw": 6.0808992,
+      "variant": 8,
+      "seed": 17128402422773140860,
       "solid": true,
       "support": null,
       "neighbor": false,
-      "interaction_target": 13
+      "interaction_target": null
+    },
+    {
+      "id": 13,
+      "kind": "Plant",
+      "position": [
+        5.2335453,
+        0.0,
+        -4.3876405
+      ],
+      "size": [
+        0.5316542,
+        0.9216252,
+        0.53687906
+      ],
+      "yaw": 4.8038034,
+      "variant": 9,
+      "seed": 6249568784947537472,
+      "solid": true,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 14,
+      "kind": "Plant",
+      "position": [
+        2.3041403,
+        0.0,
+        -4.2430534
+      ],
+      "size": [
+        0.7550967,
+        1.2491078,
+        0.6952537
+      ],
+      "yaw": 5.801702,
+      "variant": 2,
+      "seed": 16785706643874809211,
+      "solid": true,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
     },
     {
       "id": 15,
-      "kind": "Bookcase",
-      "position": [
-        2.5466387,
-        0.0,
-        -3.3279765
-      ],
-      "size": [
-        1.2731867,
-        1.5130211,
-        0.34
-      ],
-      "yaw": 0.14099108,
-      "variant": 0,
-      "seed": 2188912996989057412,
-      "solid": true,
-      "support": null,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 16,
-      "kind": "TrashCan",
-      "position": [
-        4.1814346,
-        0.0,
-        2.0683246
-      ],
-      "size": [
-        0.37,
-        0.55,
-        0.37
-      ],
-      "yaw": 0.0,
-      "variant": 1,
-      "seed": 16776343271686380232,
-      "solid": true,
-      "support": null,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 17,
-      "kind": "Cabinet",
-      "position": [
-        0.7682295,
-        0.0,
-        6.7183247
-      ],
-      "size": [
-        1.6,
-        1.2,
-        0.4
-      ],
-      "yaw": 3.1415927,
-      "variant": 0,
-      "seed": 11124566697110114112,
-      "solid": true,
-      "support": null,
-      "neighbor": true,
-      "interaction_target": null
-    },
-    {
-      "id": 18,
-      "kind": "Plant",
-      "position": [
-        -4.1014347,
-        0.0,
-        6.3683243
-      ],
-      "size": [
-        0.8,
-        1.7,
-        0.8
-      ],
-      "yaw": 3.1415927,
-      "variant": 12,
-      "seed": 93447049175900826,
-      "solid": true,
-      "support": null,
-      "neighbor": true,
-      "interaction_target": null
-    },
-    {
-      "id": 19,
-      "kind": "SideTable",
-      "position": [
-        1.6446911,
-        0.0,
-        0.27690315
-      ],
-      "size": [
-        0.706164,
-        0.6592511,
-        0.470249
-      ],
-      "yaw": 1.1095115,
-      "variant": 0,
-      "seed": 12529079495498285394,
-      "solid": true,
-      "support": null,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 20,
-      "kind": "SideTable",
-      "position": [
-        1.9502639,
-        0.0,
-        1.462569
-      ],
-      "size": [
-        0.49486667,
-        0.59766006,
-        0.4642118
-      ],
-      "yaw": 0.6615535,
-      "variant": 1,
-      "seed": 3039392178778453589,
-      "solid": true,
-      "support": null,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 21,
-      "kind": "DrawerUnit",
-      "position": [
-        -0.13672614,
-        0.0,
-        -2.778361
-      ],
-      "size": [
-        0.4634322,
-        0.54998255,
-        0.3999159
-      ],
-      "yaw": 3.9510493,
-      "variant": 2,
-      "seed": 17450419028889586707,
-      "solid": true,
-      "support": null,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 22,
-      "kind": "Plant",
-      "position": [
-        -3.854371,
-        0.0,
-        -2.567571
-      ],
-      "size": [
-        0.4741919,
-        1.8827235,
-        0.41077754
-      ],
-      "yaw": 5.897474,
-      "variant": 6,
-      "seed": 13679086056982109463,
-      "solid": true,
-      "support": null,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 23,
       "kind": "ProjectionScreen",
       "position": [
-        -0.14050406,
-        0.9426855,
-        -3.555656
+        -3.6601672,
+        1.3258892,
+        -4.983559
       ],
       "size": [
         1.9032959,
@@ -3457,7 +3479,175 @@
       ],
       "yaw": 0.0,
       "variant": 1,
-      "seed": 4592417615001665551,
+      "seed": 4165732631929338926,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 16,
+      "kind": "NoticeBoard",
+      "position": [
+        -5.128152,
+        0.9516047,
+        0.9573496
+      ],
+      "size": [
+        1.1422105,
+        0.60217124,
+        0.028630923
+      ],
+      "yaw": 1.5186703,
+      "variant": 0,
+      "seed": 12630971496235250123,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 17,
+      "kind": "WallShelf",
+      "position": [
+        -5.7009535,
+        1.1230254,
+        -3.198038
+      ],
+      "size": [
+        1.177232,
+        0.26811868,
+        0.3192377
+      ],
+      "yaw": 1.5186703,
+      "variant": 0,
+      "seed": 13820649469809991601,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 18,
+      "kind": "Display",
+      "position": [
+        -5.5286655,
+        1.1856728,
+        1.9243722
+      ],
+      "size": [
+        0.5194931,
+        0.5,
+        0.07
+      ],
+      "yaw": 0.5130957,
+      "variant": 3,
+      "seed": 13664811750198890968,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 19,
+      "kind": "Whiteboard",
+      "position": [
+        -5.4247503,
+        1.2085423,
+        -0.37895313
+      ],
+      "size": [
+        0.5194929,
+        0.5,
+        0.07
+      ],
+      "yaw": 2.5242448,
+      "variant": 4,
+      "seed": 14327995502220618100,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 20,
+      "kind": "Display",
+      "position": [
+        -5.8737035,
+        1.5458214,
+        -2.2787633
+      ],
+      "size": [
+        1.8547269,
+        1.1177374,
+        0.07
+      ],
+      "yaw": 1.5186703,
+      "variant": 2,
+      "seed": 14214208091261382505,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 21,
+      "kind": "LightSwitch",
+      "position": [
+        -4.38023,
+        1.1461295,
+        -5.022134
+      ],
+      "size": [
+        0.15,
+        0.11307231,
+        0.018
+      ],
+      "yaw": 0.0,
+      "variant": 0,
+      "seed": 17708360575556993719,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 22,
+      "kind": "WallOutlet",
+      "position": [
+        4.1121564,
+        0.27316874,
+        -5.022134
+      ],
+      "size": [
+        0.075,
+        0.10631759,
+        0.018
+      ],
+      "yaw": 0.0,
+      "variant": 0,
+      "seed": 3334807503593983869,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 23,
+      "kind": "WallOutlet",
+      "position": [
+        -5.9372764,
+        0.33520046,
+        -1.6111107
+      ],
+      "size": [
+        0.075,
+        0.11086802,
+        0.018
+      ],
+      "yaw": 1.5186703,
+      "variant": 0,
+      "seed": 11735894063459802138,
       "solid": false,
       "support": null,
       "neighbor": false,
@@ -3465,20 +3655,20 @@
     },
     {
       "id": 24,
-      "kind": "NoticeBoard",
+      "kind": "WallOutlet",
       "position": [
-        2.4826484,
-        0.9982167,
-        -4.0519934
+        -5.902338,
+        0.31363523,
+        -2.280773
       ],
       "size": [
-        1.0300326,
-        0.9477695,
-        0.030662037
+        0.22500001,
+        0.111036554,
+        0.018
       ],
-      "yaw": 0.0,
-      "variant": 1,
-      "seed": 18188361182824183896,
+      "yaw": 1.5186703,
+      "variant": 0,
+      "seed": 2880312034373312044,
       "solid": false,
       "support": null,
       "neighbor": false,
@@ -3486,62 +3676,62 @@
     },
     {
       "id": 25,
-      "kind": "Projector",
+      "kind": "WallOutlet",
       "position": [
-        -0.9767957,
-        0.73999995,
-        -1.8804898
+        -5.372158,
+        0.23831731,
+        -0.30642048
       ],
       "size": [
-        0.28276128,
-        0.09526492,
-        0.2429748
+        0.15,
+        0.11692633,
+        0.018
       ],
-      "yaw": 2.678562,
-      "variant": 2,
-      "seed": 1412076111344128970,
+      "yaw": 2.5242448,
+      "variant": 0,
+      "seed": 2602078848712607493,
       "solid": false,
-      "support": 3,
+      "support": null,
       "neighbor": false,
       "interaction_target": null
     },
     {
       "id": 26,
-      "kind": "PowerStrip",
+      "kind": "WallOutlet",
       "position": [
-        3.6004944,
-        0.72859627,
-        0.04893154
+        -6.010772,
+        0.32109678,
+        2.1630635
       ],
       "size": [
-        0.22693212,
-        0.03,
-        0.048071764
+        0.075,
+        0.12047803,
+        0.018
       ],
-      "yaw": 0.5285854,
+      "yaw": 0.5130957,
       "variant": 0,
-      "seed": 6578444879195854995,
+      "seed": 4866839314230757087,
       "solid": false,
-      "support": 9,
+      "support": null,
       "neighbor": false,
       "interaction_target": null
     },
     {
       "id": 27,
-      "kind": "Display",
+      "kind": "WallOutlet",
       "position": [
-        -4.7063556,
-        1.0622704,
-        2.86907
+        -5.438088,
+        0.23051956,
+        1.8403958
       ],
       "size": [
-        1.5379053,
-        0.8320345,
-        0.07
+        0.15,
+        0.11777873,
+        0.018
       ],
-      "yaw": 1.5216094,
-      "variant": 3,
-      "seed": 6576268718230286226,
+      "yaw": 0.5130957,
+      "variant": 0,
+      "seed": 6808090909399310350,
       "solid": false,
       "support": null,
       "neighbor": false,
@@ -3549,20 +3739,20 @@
     },
     {
       "id": 28,
-      "kind": "WallArt",
+      "kind": "WallOutlet",
       "position": [
-        -4.208216,
-        1.09007,
-        -0.36127645
+        2.453115,
+        0.2819125,
+        -5.022134
       ],
       "size": [
-        0.669095,
-        0.73306215,
-        0.025537143
+        0.15,
+        0.109350845,
+        0.018
       ],
-      "yaw": 2.5374248,
-      "variant": 4,
-      "seed": 11104405747413392205,
+      "yaw": 0.0,
+      "variant": 0,
+      "seed": 8990689243907405661,
       "solid": false,
       "support": null,
       "neighbor": false,
@@ -3570,20 +3760,20 @@
     },
     {
       "id": 29,
-      "kind": "Display",
+      "kind": "WallOutlet",
       "position": [
-        4.53451,
-        1.929193,
-        -1.6909643
+        1.268781,
+        0.34366184,
+        -4.7544847
       ],
       "size": [
-        1.067119,
-        1.1629183,
-        0.07
+        0.15,
+        0.11307359,
+        0.018
       ],
-      "yaw": -1.5307268,
+      "yaw": 1.5707963,
       "variant": 0,
-      "seed": 16105337346961334328,
+      "seed": 15735726861905225842,
       "solid": false,
       "support": null,
       "neighbor": false,
@@ -3591,20 +3781,20 @@
     },
     {
       "id": 30,
-      "kind": "LightSwitch",
+      "kind": "WallOutlet",
       "position": [
-        -4.209945,
-        1.1957217,
-        1.5465901
+        5.2624264,
+        0.22685145,
+        -5.022134
       ],
       "size": [
-        0.15,
-        0.10185618,
+        0.075,
+        0.10791513,
         0.018
       ],
-      "yaw": 0.5057941,
+      "yaw": 0.0,
       "variant": 0,
-      "seed": 2878894387649535613,
+      "seed": 17456357372283628871,
       "solid": false,
       "support": null,
       "neighbor": false,
@@ -3612,20 +3802,20 @@
     },
     {
       "id": 31,
-      "kind": "LightSwitch",
+      "kind": "WallOutlet",
       "position": [
-        -3.8527756,
-        1.192249,
-        0.66031134
+        -6.1933346,
+        0.25313932,
+        3.296716
       ],
       "size": [
-        0.15,
-        0.12426767,
+        0.22500001,
+        0.10946326,
         0.018
       ],
-      "yaw": 1.5216094,
+      "yaw": 1.5186703,
       "variant": 0,
-      "seed": 13348031811255763331,
+      "seed": 9483259821605397456,
       "solid": false,
       "support": null,
       "neighbor": false,
@@ -3635,18 +3825,18 @@
       "id": 32,
       "kind": "WallOutlet",
       "position": [
-        3.2260177,
-        0.2608585,
-        -4.0610247
+        3.7853358,
+        0.2813043,
+        -5.022134
       ],
       "size": [
-        0.22500001,
-        0.10988203,
+        0.15,
+        0.10129366,
         0.018
       ],
       "yaw": 0.0,
       "variant": 0,
-      "seed": 17382728329000757185,
+      "seed": 16974445531955687034,
       "solid": false,
       "support": null,
       "neighbor": false,
@@ -3656,18 +3846,18 @@
       "id": 33,
       "kind": "WallOutlet",
       "position": [
-        0.97008395,
-        0.23065609,
-        -3.9096398
+        -4.150569,
+        0.3197794,
+        -5.022134
       ],
       "size": [
         0.15,
-        0.119536266,
+        0.11524738,
         0.018
       ],
-      "yaw": 1.5707963,
+      "yaw": 0.0,
       "variant": 0,
-      "seed": 12498806841155500332,
+      "seed": 4423540217603296631,
       "solid": false,
       "support": null,
       "neighbor": false,
@@ -3675,864 +3865,66 @@
     },
     {
       "id": 34,
-      "kind": "WallOutlet",
+      "kind": "CoffeeCup",
       "position": [
-        -4.7455087,
-        0.32355854,
-        3.0807142
+        -1.9740767,
+        0.75,
+        -0.30751848
       ],
       "size": [
-        0.075,
-        0.10246345,
-        0.018
+        0.095,
+        0.13,
+        0.095
       ],
-      "yaw": 1.5216094,
+      "yaw": -0.08169578,
       "variant": 0,
-      "seed": 428540050002076307,
+      "seed": 8567238927628131421,
       "solid": false,
-      "support": null,
+      "support": 2,
       "neighbor": false,
       "interaction_target": null
     },
     {
       "id": 35,
-      "kind": "WallOutlet",
+      "kind": "Mug",
       "position": [
-        4.642876,
-        0.3606943,
-        0.29559076
+        -1.7675947,
+        0.75,
+        -0.11715779
       ],
       "size": [
-        0.075,
-        0.11828975,
-        0.018
+        0.10205229,
+        0.08484934,
+        0.10152334
       ],
-      "yaw": -1.5307268,
-      "variant": 0,
-      "seed": 75236345897445277,
+      "yaw": -0.13863611,
+      "variant": 1,
+      "seed": 8697583306685051517,
       "solid": false,
-      "support": null,
+      "support": 2,
       "neighbor": false,
       "interaction_target": null
     },
     {
       "id": 36,
-      "kind": "WallOutlet",
+      "kind": "CoffeeCup",
       "position": [
-        -4.252165,
-        0.23247273,
-        -0.38375297
+        2.835234,
+        0.75,
+        -0.30751848
       ],
       "size": [
-        0.075,
-        0.1126597,
-        0.018
+        0.095,
+        0.13,
+        0.095
       ],
-      "yaw": 2.5374248,
-      "variant": 0,
-      "seed": 4935424646891453326,
-      "solid": false,
-      "support": null,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 37,
-      "kind": "WallOutlet",
-      "position": [
-        -3.858593,
-        0.28657952,
-        0.778486
-      ],
-      "size": [
-        0.15,
-        0.11085944,
-        0.018
-      ],
-      "yaw": 1.5216094,
-      "variant": 0,
-      "seed": 12063716889450394490,
-      "solid": false,
-      "support": null,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 38,
-      "kind": "WallOutlet",
-      "position": [
-        -3.9233613,
-        0.31437677,
-        -0.15678872
-      ],
-      "size": [
-        0.075,
-        0.10392105,
-        0.018
-      ],
-      "yaw": 2.5374248,
-      "variant": 0,
-      "seed": 10803231229374428979,
-      "solid": false,
-      "support": null,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 39,
-      "kind": "WallOutlet",
-      "position": [
-        4.5601354,
-        0.22734225,
-        -1.768234
-      ],
-      "size": [
-        0.22500001,
-        0.10933055,
-        0.018
-      ],
-      "yaw": -1.5307268,
-      "variant": 0,
-      "seed": 2208950562826009634,
-      "solid": false,
-      "support": null,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 40,
-      "kind": "Phone",
-      "position": [
-        -1.7728596,
-        0.40288663,
-        1.1696151
-      ],
-      "size": [
-        0.06934354,
-        0.008295737,
-        0.13138877
-      ],
-      "yaw": 3.1330032,
-      "variant": 1,
-      "seed": 17832343914374250397,
-      "solid": false,
-      "support": 0,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 41,
-      "kind": "Notepad",
-      "position": [
-        3.5323892,
-        0.72859627,
-        0.53381884
-      ],
-      "size": [
-        0.19132231,
-        0.016,
-        0.21896823
-      ],
-      "yaw": 0.39859965,
+      "yaw": -0.14740863,
       "variant": 2,
-      "seed": 3733389794880948117,
-      "solid": false,
-      "support": 9,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 42,
-      "kind": "PenHolder",
-      "position": [
-        3.5086253,
-        0.72859627,
-        0.26612282
-      ],
-      "size": [
-        0.08,
-        0.1633687,
-        0.08
-      ],
-      "yaw": 0.13998035,
-      "variant": 0,
-      "seed": 12975076164884112045,
-      "solid": false,
-      "support": 9,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 43,
-      "kind": "SodaCan",
-      "position": [
-        1.8356489,
-        0.43,
-        -0.6401403
-      ],
-      "size": [
-        0.06393028,
-        0.115281425,
-        0.06393028
-      ],
-      "yaw": 1.0198725,
-      "variant": 0,
-      "seed": 15444518922696615168,
-      "solid": false,
-      "support": 11,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 44,
-      "kind": "DeskLamp",
-      "position": [
-        2.0066388,
-        0.74,
-        -1.8587034
-      ],
-      "size": [
-        0.2,
-        0.37818372,
-        0.22
-      ],
-      "yaw": 0.98375535,
-      "variant": 2,
-      "seed": 12159920757254185041,
-      "solid": false,
-      "support": 13,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 45,
-      "kind": "Phone",
-      "position": [
-        2.556662,
-        0.74,
-        -2.3092067
-      ],
-      "size": [
-        0.068905964,
-        0.012267765,
-        0.14253004
-      ],
-      "yaw": 1.6197345,
-      "variant": 2,
-      "seed": 1992124447079539487,
-      "solid": false,
-      "support": 13,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 46,
-      "kind": "WaterBottle",
-      "position": [
-        1.2162294,
-        1.2,
-        6.6543245
-      ],
-      "size": [
-        0.072295666,
-        0.17297252,
-        0.072295666
-      ],
-      "yaw": 3.4362762,
-      "variant": 1,
-      "seed": 8493752968110130373,
-      "solid": false,
-      "support": 17,
-      "neighbor": true,
-      "interaction_target": null
-    },
-    {
-      "id": 47,
-      "kind": "Bag",
-      "position": [
-        -1.7367541,
-        0.42999995,
-        -0.7167883
-      ],
-      "size": [
-        0.32762557,
-        0.28861344,
-        0.16541904
-      ],
-      "yaw": 4.437716,
-      "variant": 2,
-      "seed": 6467187990329599630,
+      "seed": 15606531510841368571,
       "solid": false,
       "support": 5,
       "neighbor": false,
       "interaction_target": null
-    },
-    {
-      "id": 48,
-      "kind": "Bowl",
-      "position": [
-        -1.9256843,
-        0.42999995,
-        -0.40797085
-      ],
-      "size": [
-        0.13577987,
-        0.095742345,
-        0.13577987
-      ],
-      "yaw": 4.817444,
-      "variant": 1,
-      "seed": 10211923064515625634,
-      "solid": false,
-      "support": 5,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 49,
-      "kind": "Notebook",
-      "position": [
-        3.1883569,
-        0.72859627,
-        0.6803993
-      ],
-      "size": [
-        0.15394863,
-        0.011618101,
-        0.24202088
-      ],
-      "yaw": 1.0128051,
-      "variant": 2,
-      "seed": 10075148524811928325,
-      "solid": false,
-      "support": 9,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 50,
-      "kind": "DeskOrganizer",
-      "position": [
-        3.42258,
-        0.72859627,
-        0.8246809
-      ],
-      "size": [
-        0.1609485,
-        0.14012715,
-        0.123782486
-      ],
-      "yaw": -2.315412,
-      "variant": 2,
-      "seed": 1992453725175121705,
-      "solid": false,
-      "support": 9,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 51,
-      "kind": "Vase",
-      "position": [
-        1.6443026,
-        0.43,
-        -0.88008356
-      ],
-      "size": [
-        0.09044734,
-        0.23440039,
-        0.09044734
-      ],
-      "yaw": -1.2006117,
-      "variant": 1,
-      "seed": 1041173422181249494,
-      "solid": false,
-      "support": 11,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 52,
-      "kind": "Notebook",
-      "position": [
-        0.25436354,
-        1.2,
-        6.7299004
-      ],
-      "size": [
-        0.1509021,
-        0.025980003,
-        0.17749742
-      ],
-      "yaw": 2.3613253,
-      "variant": 1,
-      "seed": 5694285925563254386,
-      "solid": false,
-      "support": 17,
-      "neighbor": true,
-      "interaction_target": null
-    },
-    {
-      "id": 53,
-      "kind": "Phone",
-      "position": [
-        1.5691745,
-        0.6592511,
-        0.29547477
-      ],
-      "size": [
-        0.07651465,
-        0.01,
-        0.15669852
-      ],
-      "yaw": 2.2762628,
-      "variant": 0,
-      "seed": 4238764759256328346,
-      "solid": false,
-      "support": 19,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 54,
-      "kind": "Mug",
-      "position": [
-        1.944049,
-        0.59766006,
-        1.3479226
-      ],
-      "size": [
-        0.1261912,
-        0.08643658,
-        0.09379744
-      ],
-      "yaw": 0.99403346,
-      "variant": 0,
-      "seed": 14552418956060870573,
-      "solid": false,
-      "support": 20,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 55,
-      "kind": "Phone",
-      "position": [
-        -0.20889784,
-        0.54998255,
-        -2.8160076
-      ],
-      "size": [
-        0.07715778,
-        0.01,
-        0.15115851
-      ],
-      "yaw": 4.394535,
-      "variant": 2,
-      "seed": 7403908266059092581,
-      "solid": false,
-      "support": 21,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 56,
-      "kind": "Cable",
-      "position": [
-        3.9481857,
-        0.0019999999,
-        -0.85126525
-      ],
-      "size": [
-        1.2090487,
-        0.746176,
-        1.9558767
-      ],
-      "yaw": 0.0,
-      "variant": 2,
-      "seed": 17422940893679545059,
-      "solid": false,
-      "support": 9,
-      "neighbor": false,
-      "interaction_target": 26,
-      "cable_path": [
-        [
-          -0.4465351,
-          0.7409963,
-          0.9579234
-        ],
-        [
-          -0.46858263,
-          0.7409963,
-          0.97079957
-        ],
-        [
-          -0.47189283,
-          0.74098337,
-          0.97221184
-        ],
-        [
-          -0.47545004,
-          0.74094546,
-          0.97275865
-        ],
-        [
-          -0.4790311,
-          0.74088484,
-          0.97240585
-        ],
-        [
-          -0.48241234,
-          0.7408054,
-          0.9711755
-        ],
-        [
-          -0.48538208,
-          0.740712,
-          0.9691446
-        ],
-        [
-          -0.48775458,
-          0.7406106,
-          0.96644014
-        ],
-        [
-          -0.59555864,
-          0.73509747,
-          0.80704063
-        ],
-        [
-          -0.5971613,
-          0.7347142,
-          0.80433166
-        ],
-        [
-          -0.5983615,
-          0.73376364,
-          0.80155504
-        ],
-        [
-          -0.5991013,
-          0.7322918,
-          0.79884577
-        ],
-        [
-          -0.59934473,
-          0.73037034,
-          0.79633534
-        ],
-        [
-          -0.59907985,
-          0.7280924,
-          0.79414564
-        ],
-        [
-          -0.59831953,
-          0.7255687,
-          0.7923831
-        ],
-        [
-          -0.5656214,
-          0.64014506,
-          0.74261504
-        ],
-        [
-          -0.56542206,
-          0.63964736,
-          0.74231166
-        ],
-        [
-          -0.5293138,
-          0.5534318,
-          0.68735373
-        ],
-        [
-          -0.52909017,
-          0.552922,
-          0.68701327
-        ],
-        [
-          -0.49300742,
-          0.47442213,
-          0.632094
-        ],
-        [
-          -0.49275732,
-          0.47390378,
-          0.63171333
-        ],
-        [
-          -0.45670176,
-          0.40269807,
-          0.57683563
-        ],
-        [
-          -0.45642352,
-          0.40217564,
-          0.576412
-        ],
-        [
-          -0.42039728,
-          0.33788022,
-          0.5215785
-        ],
-        [
-          -0.42008924,
-          0.33735892,
-          0.5211096
-        ],
-        [
-          -0.38409328,
-          0.27962556,
-          0.46632245
-        ],
-        [
-          -0.38375425,
-          0.27911156,
-          0.4658063
-        ],
-        [
-          -0.34778976,
-          0.22762588,
-          0.4110671
-        ],
-        [
-          -0.34741879,
-          0.22712603,
-          0.41050246
-        ],
-        [
-          -0.31148672,
-          0.18160598,
-          0.35581204
-        ],
-        [
-          -0.31108356,
-          0.18112786,
-          0.35519856
-        ],
-        [
-          -0.27518272,
-          0.14132246,
-          0.30055672
-        ],
-        [
-          -0.2747481,
-          0.14087422,
-          0.29989517
-        ],
-        [
-          -0.23887897,
-          0.10656236,
-          0.24530065
-        ],
-        [
-          -0.23841405,
-          0.10615229,
-          0.2445929
-        ],
-        [
-          -0.20257401,
-          0.077142015,
-          0.19004321
-        ],
-        [
-          -0.20208073,
-          0.07677845,
-          0.18929243
-        ],
-        [
-          -0.16626787,
-          0.052906215,
-          0.13478357
-        ],
-        [
-          -0.16574931,
-          0.052597117,
-          0.13399434
-        ],
-        [
-          -0.12995958,
-          0.03372735,
-          0.07952118
-        ],
-        [
-          -0.1294198,
-          0.033479895,
-          0.07869947
-        ],
-        [
-          -0.09364915,
-          0.019504745,
-          0.024255335
-        ],
-        [
-          -0.09309268,
-          0.019324958,
-          0.023408234
-        ],
-        [
-          -0.05733633,
-          0.010164114,
-          -0.031014442
-        ],
-        [
-          -0.056768417,
-          0.010056559,
-          -0.03187889
-        ],
-        [
-          -0.020993471,
-          0.00565381,
-          -0.08632964
-        ],
-        [
-          -0.020473957,
-          0.005621093,
-          -0.087120295
-        ],
-        [
-          0.12454343,
-          0.0051797186,
-          -0.30784255
-        ],
-        [
-          0.19704032,
-          0.0051797186,
-          -0.4181859
-        ],
-        [
-          0.19732356,
-          0.005188964,
-          -0.41861683
-        ],
-        [
-          0.23321557,
-          0.007533113,
-          -0.47324532
-        ],
-        [
-          0.23378682,
-          0.0076082232,
-          -0.4741146
-        ],
-        [
-          0.26953816,
-          0.014689729,
-          -0.5285303
-        ],
-        [
-          0.27010036,
-          0.014838511,
-          -0.529386
-        ],
-        [
-          0.3058641,
-          0.026707903,
-          -0.5838198
-        ],
-        [
-          0.30641198,
-          0.026926521,
-          -0.58465356
-        ],
-        [
-          0.3421929,
-          0.043652177,
-          -0.6391131
-        ],
-        [
-          0.34272122,
-          0.04393524,
-          -0.6399173
-        ],
-        [
-          0.3785236,
-          0.06561299,
-          -0.6944099
-        ],
-        [
-          0.37902808,
-          0.065953754,
-          -0.6951781
-        ],
-        [
-          0.4148562,
-          0.092707045,
-          -0.7497094
-        ],
-        [
-          0.415334,
-          0.093097866,
-          -0.75043637
-        ],
-        [
-          0.45119023,
-          0.12507798,
-          -0.8050111
-        ],
-        [
-          0.45163846,
-          0.12551065,
-          -0.8056931
-        ],
-        [
-          0.48752522,
-          0.16289715,
-          -0.8603141
-        ],
-        [
-          0.48794198,
-          0.1633633,
-          -0.8609486
-        ],
-        [
-          0.5238602,
-          0.2063645,
-          -0.91561776
-        ],
-        [
-          0.524245,
-          0.20685583,
-          -0.9162037
-        ],
-        [
-          0.55655694,
-          0.2507653,
-          -0.96538395
-        ],
-        [
-          0.55822396,
-          0.25251207,
-          -0.96735567
-        ],
-        [
-          0.56041837,
-          0.25396377,
-          -0.96902686
-        ],
-        [
-          0.5630381,
-          0.2550523,
-          -0.970319
-        ],
-        [
-          0.56596017,
-          0.25572655,
-          -0.9711713
-        ],
-        [
-          0.56904626,
-          0.2559549,
-          -0.9715441
-        ],
-        [
-          0.5993445,
-          0.2559548,
-          -0.9727586
-        ]
-      ],
-      "cable_target": 39
     }
   ],
   "human_density": 0.0,
@@ -4542,10 +3934,12 @@
     "intrinsics": {
       "fov_y_min_degrees": 28.0,
       "fov_y_max_degrees": 145.0,
-      "ultra_wide_probability": 0.25
+      "bias": -0.2,
+      "spread": 1.0
     },
     "duration_seconds": 2.0,
     "primary_room": true,
+    "motion_fraction": 1.0,
     "path_length_min": 0.03,
     "path_length_max": 0.6,
     "long_path_fraction": 0.0,
@@ -4563,86 +3957,86 @@
   "cameras": [
     {
       "start": [
-        -2.232097,
-        1.2320399,
-        -0.7992809
+        -4.6698766,
+        1.2365476,
+        4.386822
       ],
       "end": [
-        -2.1522846,
-        1.4494839,
-        -0.90673953
+        -4.8135986,
+        1.427835,
+        3.873459
       ],
       "target": [
-        -1.1227643,
-        0.75,
-        -1.7976775
+        2.795091,
+        1.1856995,
+        -0.88016033
       ],
-      "fov_degrees": 82.14769,
+      "fov_degrees": 68.63672,
       "motion": {
         "control": [
           [
-            -2.228564,
-            1.3037964,
-            -0.8600813
+            -4.62442,
+            1.2996724,
+            4.3490586
           ],
           [
-            -2.201428,
-            1.3777274,
-            -0.8966173
+            -4.673286,
+            1.3647101,
+            4.1745157
           ]
         ],
         "target_end": [
-          -0.90437883,
-          0.79053414,
-          -1.9784365
+          2.728407,
+          1.378926,
+          -0.636557
         ],
         "roll": [
-          0.01328893,
-          -0.013555668
+          -0.03183516,
+          -0.07058594
         ]
       }
     },
     {
       "start": [
-        -1.8562787,
-        1.6719941,
-        1.5399103
+        -4.208098,
+        1.9749281,
+        -0.22552776
       ],
       "end": [
-        -1.8212506,
-        1.8946154,
-        1.4074196
+        -4.3197675,
+        2.1434968,
+        -0.6818496
       ],
       "target": [
-        -1.2119977,
-        0.7958494,
-        -1.6788561
+        -0.5867872,
+        0.5557804,
+        -0.36394036
       ],
-      "fov_degrees": 31.998508,
+      "fov_degrees": 130.84167,
       "motion": {
         "control": [
           [
-            -1.8702248,
-            1.7482929,
-            1.4575065
+            -4.197,
+            2.0283272,
+            -0.24418704
           ],
           [
-            -1.8583153,
-            1.8239843,
-            1.4124597
+            -4.2349677,
+            2.0856407,
+            -0.39933598
           ]
         ],
         "target_end": [
-          -0.99361223,
-          0.8363835,
-          -1.8596151
+          -0.65347123,
+          0.749007,
+          -0.12033701
         ],
         "roll": [
-          0.08895062,
-          0.03453482
+          -0.022903942,
+          0.07345022
         ]
       }
     }
   ],
-  "rejected_placements": 320
+  "rejected_placements": 52
 }
