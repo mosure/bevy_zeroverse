@@ -1,5 +1,8 @@
 //! Optional room-level backpressure. The controller owns inventory policy;
 //! Zeroverse owns capture validity, bounded preparation and atomic export.
+mod rejection;
+use bevy_zeroverse::sample::failure::SceneRejection;
+pub use rejection::{PublicationReceipt, RejectionPolicy};
 use serde::Serialize;
 use std::{
     sync::{Arc, Condvar, Mutex},
@@ -8,7 +11,7 @@ use std::{
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 pub struct CaptureRequest {
-    /// Absolute output sample index, including `sample_offset`.
+    /// Absolute attempted capture index, including `sample_offset`; distinct from archive index after a rejection.
     pub sequence: usize,
     /// Exact indoor seed; all views/timesteps belong to this one physical room.
     pub seed: u64,
@@ -22,6 +25,10 @@ pub enum CaptureStage {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub enum CaptureOutcome {
     Published,
+    Rejected {
+        rejection: SceneRejection,
+        continued: bool,
+    },
     Cancelled,
     Failed(String),
 }
@@ -34,6 +41,7 @@ pub enum CaptureEvent {
     Completed {
         request: CaptureRequest,
         admitted: bool,
+        publication: Option<PublicationReceipt>,
         outcome: CaptureOutcome,
         demand_wait_seconds: f64,
         /// Capture including readiness/render/readback, excluding admission/export.
@@ -48,6 +56,8 @@ pub struct AdmissionSnapshot {
     pub credits: u64,
     pub admitted: u64,
     pub completed: u64,
+    /// Rejected, fully retired attempts whose unpublished reservation was returned.
+    pub returned: u64,
     pub held: bool,
     pub cancelled: bool,
     pub waiting: Option<CaptureRequest>,
@@ -57,6 +67,7 @@ struct State {
     snapshot: AdmissionSnapshot,
     used: bool,
     failure: Option<String>,
+    consecutive_rejections: u64,
 }
 type Observer = dyn Fn(CaptureEvent) + Send + Sync;
 
@@ -72,6 +83,7 @@ pub struct CaptureControl {
     state: Mutex<State>,
     wake: Condvar,
     observer: Option<Arc<Observer>>,
+    rejection_policy: RejectionPolicy,
 }
 impl CaptureControl {
     pub fn new() -> Self {
@@ -82,6 +94,19 @@ impl CaptureControl {
             observer: Some(Arc::new(observer)),
             ..Self::default()
         }
+    }
+    /// Select bounded, typed recovery before this control is started.
+    pub fn with_rejection_policy(mut self, policy: RejectionPolicy) -> anyhow::Result<Self> {
+        policy.validate()?;
+        anyhow::ensure!(
+            !self.state.get_mut().unwrap().used,
+            "configure rejection policy before starting"
+        );
+        self.rejection_policy = policy;
+        Ok(self)
+    }
+    pub(super) fn recovers_rejections(&self) -> bool {
+        self.rejection_policy.enabled()
     }
     /// Idempotent cumulative grants. A stale grant cannot revoke credits.
     pub fn grant_through(&self, credits: u64) {
@@ -129,7 +154,8 @@ impl CaptureControl {
         let mut state = self.state.lock().unwrap();
         state.snapshot.waiting = Some(request);
         while !state.snapshot.cancelled
-            && (state.snapshot.held || state.snapshot.admitted >= state.snapshot.credits)
+            && (state.snapshot.held
+                || state.snapshot.admitted - state.snapshot.returned >= state.snapshot.credits)
         {
             state = self.wake.wait(state).unwrap();
         }
@@ -148,6 +174,7 @@ impl CaptureControl {
             capture: Duration::ZERO,
             export: Duration::ZERO,
             telemetry: None,
+            publication: None,
             completed: false,
         };
         if !admitted {
@@ -177,6 +204,7 @@ pub(super) struct Permit {
     capture: Duration,
     export: Duration,
     telemetry: Option<bevy_zeroverse::io::channels::CaptureTelemetry>,
+    publication: Option<PublicationReceipt>,
     completed: bool,
 }
 impl Permit {
@@ -186,6 +214,7 @@ impl Permit {
         telemetry: Option<bevy_zeroverse::io::channels::CaptureTelemetry>,
     ) {
         self.capture = elapsed;
+        self.control.state.lock().unwrap().consecutive_rejections = 0;
         self.telemetry = telemetry.filter(|value| value.seed == Some(self.request.seed));
     }
     pub(super) fn exporting(&self) {
@@ -194,7 +223,52 @@ impl Permit {
             stage: CaptureStage::Exporting,
         });
     }
-    pub(super) fn finish(mut self, elapsed: Duration, error: Option<&str>) {
+    pub(super) fn failed(mut self, message: String, elapsed: Duration) {
+        self.capture = elapsed;
+        self.complete(CaptureOutcome::Failed(message));
+    }
+    pub(super) fn rejected(
+        mut self,
+        rejection: SceneRejection,
+        elapsed: Duration,
+    ) -> anyhow::Result<bool> {
+        self.capture = elapsed;
+        let (allowed, cancelled) = {
+            let mut state = self.control.state.lock().unwrap();
+            state.snapshot.returned += 1;
+            state.consecutive_rejections += 1;
+            let allowed = self.control.rejection_policy.permits(
+                rejection.kind,
+                state.snapshot.returned,
+                state.consecutive_rejections,
+            );
+            self.control.wake.notify_all();
+            (allowed, state.snapshot.cancelled)
+        };
+        let continued = allowed && !cancelled;
+        let reason = format!(
+            "scene rejection policy exhausted or category not allowed for seed {}: {}",
+            rejection.seed, rejection.reason
+        );
+        self.complete(CaptureOutcome::Rejected {
+            rejection,
+            continued,
+        });
+        if !allowed {
+            self.control.fail(reason.clone());
+            anyhow::bail!(reason);
+        }
+        Ok(continued)
+    }
+    pub(super) fn finish(
+        mut self,
+        elapsed: Duration,
+        error: Option<&str>,
+        publication: Option<PublicationReceipt>,
+    ) {
+        if error.is_none() {
+            self.publication = publication;
+        }
         self.export = elapsed;
         self.complete(error.map_or(CaptureOutcome::Published, |e| {
             CaptureOutcome::Failed(e.into())
@@ -209,6 +283,7 @@ impl Permit {
         self.control.emit(CaptureEvent::Completed {
             request: self.request,
             admitted: self.admitted,
+            publication: self.publication.take(),
             outcome,
             demand_wait_seconds: self.wait.as_secs_f64(),
             capture_seconds: self.capture.as_secs_f64(),
@@ -273,7 +348,7 @@ mod tests {
         control.grant_through(0);
         assert_eq!(control.snapshot().credits, 1);
         control.cancel();
-        permit.finish(Duration::ZERO, None); // accepted credits cannot be revoked
+        permit.finish(Duration::ZERO, None, None); // accepted credits cannot be revoked
         assert!(control.acquire(request(1)).unwrap().is_none());
         let outcomes: Vec<_> = rx
             .try_iter()
@@ -310,7 +385,7 @@ mod tests {
             thread::spawn(move || c.acquire(request(1)))
         };
         control.fail("writer disk full".into());
-        permit.finish(Duration::ZERO, Some("writer disk full"));
+        permit.finish(Duration::ZERO, Some("writer disk full"), None);
         assert!(worker.join().unwrap().is_err());
         let terminal = rx
             .try_iter()
@@ -337,3 +412,6 @@ mod tests {
         assert_eq!(control.snapshot().completed, 1);
     }
 }
+
+#[cfg(test)]
+mod rejection_tests;

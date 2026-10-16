@@ -1,6 +1,7 @@
 //! Bounded lookahead for sequential capture. One completed future room may upload
 //! immutable assets; entities, lighting and capture identity change only on demand.
 use super::{PreparedIndoor, StagedAssets};
+use crate::sample::failure::CaptureError;
 use crate::scene::procedural_indoor::{
     appearance, cameras, gi,
     layout::{self, IndoorManifest},
@@ -13,17 +14,17 @@ use bevy::{
 };
 use rand::Rng;
 
-pub(crate) type PreparationTask = Task<Result<PreparedIndoor, String>>;
+pub(crate) type PreparationTask = Task<Result<PreparedIndoor, CaptureError>>;
 
 /// Poll a future room without consuming it or exposing speculative errors to the
 /// current capture. A rejection is delivered only when its seed is requested.
 pub(crate) struct PreparationJob {
     task: Option<PreparationTask>,
-    ready: Option<Result<PreparedIndoor, String>>,
+    ready: Option<Result<PreparedIndoor, CaptureError>>,
 }
 impl PreparationJob {
     #[cfg(test)]
-    pub(super) fn completed(ready: Result<PreparedIndoor, String>) -> Self {
+    pub(super) fn completed(ready: Result<PreparedIndoor, CaptureError>) -> Self {
         Self {
             task: None,
             ready: Some(ready),
@@ -37,7 +38,7 @@ impl PreparationJob {
             }
         }
     }
-    pub(crate) fn take_ready(&mut self) -> Option<Result<PreparedIndoor, String>> {
+    pub(crate) fn take_ready(&mut self) -> Option<Result<PreparedIndoor, CaptureError>> {
         self.poll();
         self.ready.take()
     }
@@ -222,7 +223,7 @@ impl Request {
         images: StagedAssets<Image>,
         materials: StagedAssets<StandardMaterial>,
         meshes: StagedAssets<Mesh>,
-    ) -> Result<PreparedIndoor, String> {
+    ) -> Result<PreparedIndoor, CaptureError> {
         let request = self;
         let started = bevy::platform::time::Instant::now();
         let all_started = started;
@@ -244,10 +245,19 @@ impl Request {
             .map(cameras::CameraSettings::parse)
             .transpose()?
             .unwrap_or_default();
-        scene.resample_cameras(request.cameras, policy, f32::from_bits(request.aspect))?;
+        if let Err(error) =
+            scene.resample_cameras_typed(request.cameras, policy, f32::from_bits(request.aspect))
+        {
+            if matches!(error, CaptureError::Rejected { .. }) {
+                // Placement failure must not conceal a malformed manifest.
+                // Only the rare failed search incurs this additional check.
+                validation::validate_prepared_layout(&scene)?;
+            }
+            return Err(error);
+        }
         let cameras_seconds = started.elapsed().as_secs_f64();
         let started = bevy::platform::time::Instant::now();
-        validation::validate_layout(&scene)?;
+        validation::validate_prepared_layout(&scene)?;
         let validation_seconds = started.elapsed().as_secs_f64();
         let started = bevy::platform::time::Instant::now();
         if request.rotation {
@@ -319,6 +329,7 @@ pub async fn prepare_indoor(
     Request::new(seed, args, settings, gi)
         .prepare(images, materials, meshes)
         .await
+        .map_err(|error| error.to_string())
 }
 
 #[cfg(test)]
@@ -332,7 +343,11 @@ mod tests {
         assert!(job.prepared().is_none());
         assert!(job.is_ready());
         assert_eq!(
-            job.take_ready().unwrap().err().as_deref(),
+            job.take_ready()
+                .unwrap()
+                .err()
+                .map(|e| e.to_string())
+                .as_deref(),
             Some("future seed rejected")
         );
         assert!(job.take_ready().is_none());

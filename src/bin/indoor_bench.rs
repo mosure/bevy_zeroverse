@@ -62,6 +62,9 @@ struct Args {
     /// Exercise the independent CPU transport oracle and bounded prefetch.
     #[arg(long)]
     cpu_gi: bool,
+    /// Native process-wide CPU preparation budget; set before any room jobs.
+    #[arg(long, value_parser = clap::value_parser!(usize))]
+    preparation_threads: Option<usize>,
     /// Record actual GPU timestamp spans where the adapter supports them.
     #[arg(long)]
     gpu_timings: bool,
@@ -145,6 +148,10 @@ fn heap_memory() -> serde_json::Value {
 fn main() -> Result<()> {
     let app_started = Instant::now();
     let args = Args::parse();
+    if let Some(threads) = args.preparation_threads {
+        procedural_indoor::preparation::configure_preparation_threads(threads)
+            .map_err(anyhow::Error::msg)?;
+    }
     ensure!(
         args.scenes > args.warmup_scenes
             && args.cameras > 0

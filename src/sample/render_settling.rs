@@ -52,8 +52,47 @@ struct CameraToken {
     target: AssetId<Image>,
     target_scale: u32,
     copy_targets: Vec<AssetId<Image>>,
+    ssaa: Option<SsaaToken>,
     size: UVec2,
     exposure: u32,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct SsaaToken {
+    source: AssetId<Image>,
+    output: AssetId<Image>,
+    output_size: UVec2,
+    factor: u32,
+}
+
+// The rendered high-resolution image and copied final-resolution image are
+// deliberately different under SSAA. Qualify their exact binding rather than
+// falling back to a fixed number of duplicate full-quality renders.
+fn output_contract(
+    target: AssetId<Image>,
+    raster_size: UVec2,
+    copy: Option<AssetId<Image>>,
+    ssaa: Option<&crate::render::ssaa::SsaaCamera>,
+) -> Option<Option<SsaaToken>> {
+    let Some(ssaa) = ssaa else {
+        return (copy == Some(target)).then_some(None);
+    };
+    let size = UVec2::new(
+        ssaa.output_size.x.checked_mul(ssaa.factor)?,
+        ssaa.output_size.y.checked_mul(ssaa.factor)?,
+    );
+    (ssaa.source.id() == target
+        && copy == Some(ssaa.output.id())
+        && ssaa.source.id() != ssaa.output.id()
+        && ssaa.output_size.min_element() > 0
+        && (2..=4).contains(&ssaa.factor)
+        && size == raster_size)
+        .then_some(Some(SsaaToken {
+            source: target,
+            output: ssaa.output.id(),
+            output_size: ssaa.output_size,
+            factor: ssaa.factor,
+        }))
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -229,6 +268,7 @@ fn prepare(
             &RenderTarget,
             &CameraRenderGraph,
             &ImageCopier,
+            Option<&crate::render::ssaa::SsaaCamera>,
             &Exposure,
             Has<Hdr>,
             (
@@ -282,6 +322,7 @@ fn prepare(
         target,
         graph,
         copier,
+        ssaa,
         exposure,
         hdr,
         temporal,
@@ -332,9 +373,14 @@ fn prepare(
             return;
         }
         let copy_targets = copier.source_ids();
-        if copy_targets.first() != Some(&target.handle.id()) {
+        let Some(ssaa) = output_contract(
+            target.handle.id(),
+            size,
+            copy_targets.first().copied(),
+            ssaa,
+        ) else {
             return;
-        }
+        };
         tokens.push(CameraToken {
             entity,
             index: index.0,
@@ -350,6 +396,7 @@ fn prepare(
             target: target.handle.id(),
             target_scale: target.scale_factor.to_bits(),
             copy_targets,
+            ssaa,
             size,
             exposure: exposure.exposure().to_bits(),
         });
@@ -527,6 +574,7 @@ mod tests {
                 target: Handle::<Image>::default().id(),
                 target_scale: 1.0f32.to_bits(),
                 copy_targets: vec![Handle::<Image>::default().id()],
+                ssaa: None,
                 size: UVec2::splat(512),
                 exposure: Exposure::INDOOR.exposure().to_bits(),
             }],
@@ -539,6 +587,54 @@ mod tests {
             acknowledged: Arc::new(Mutex::new(Some(token))),
             ..default()
         }
+    }
+
+    #[test]
+    fn supersampling_requires_exact_source_output_size_and_scale() {
+        let mut images = Assets::<Image>::default();
+        let source = images.add(Image::default());
+        let output = images.add(Image::default());
+        for factor in 2..=4 {
+            let ssaa = crate::render::ssaa::SsaaCamera::new(
+                source.clone(),
+                output.clone(),
+                UVec2::new(321, 239),
+                factor,
+            );
+            let raster = ssaa.output_size * factor;
+            let contract =
+                output_contract(source.id(), raster, Some(output.id()), Some(&ssaa)).unwrap();
+            let mut original = token();
+            original.cameras[0].ssaa = contract;
+            let mut f = fence(original.clone());
+            assert!(f.completed());
+            for change in 0..4 {
+                let mut changed = original.clone();
+                let binding = changed.cameras[0].ssaa.as_mut().unwrap();
+                match change {
+                    0 => binding.output = source.id(),
+                    1 => binding.source = output.id(),
+                    2 => binding.output_size.x += 1,
+                    _ => binding.factor += 1,
+                }
+                f.prepared = Some(changed);
+                assert!(!f.completed());
+            }
+            assert!(output_contract(output.id(), raster, Some(output.id()), Some(&ssaa)).is_none());
+            assert!(output_contract(
+                source.id(),
+                ssaa.output_size,
+                Some(output.id()),
+                Some(&ssaa)
+            )
+            .is_none());
+            assert!(output_contract(source.id(), raster, Some(source.id()), Some(&ssaa)).is_none());
+            assert!(output_contract(source.id(), raster, None, Some(&ssaa)).is_none());
+        }
+        assert_eq!(
+            output_contract(source.id(), UVec2::splat(512), Some(source.id()), None),
+            Some(None)
+        );
     }
 
     #[test]

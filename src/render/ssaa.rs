@@ -6,6 +6,7 @@ use bevy::{
     asset::{load_internal_asset, uuid_handle},
     prelude::*,
     render::{
+        diagnostic::RecordDiagnostics,
         render_asset::RenderAssets,
         render_resource::{binding_types::*, *},
         renderer::{RenderContext, RenderDevice, RenderGraph, RenderGraphSystems, RenderQueue},
@@ -339,6 +340,9 @@ fn resolve(world: &World, mut context: RenderContext) {
     };
     let images = world.resource::<RenderAssets<GpuImage>>();
     let bindings = world.resource::<Bindings>();
+    let diagnostics = context.diagnostic_recorder();
+    let diagnostics = diagnostics.as_deref();
+    let mut span = None;
     for job in &jobs.0 {
         if !job.active {
             continue;
@@ -349,6 +353,9 @@ fn resolve(world: &World, mut context: RenderContext) {
         let Some(binding) = bindings.0.get(&image.texture.id()) else {
             continue;
         };
+        if span.is_none() {
+            span = Some(diagnostics.time_span(context.command_encoder(), "ssaa_box_resolve"));
+        }
         {
             let mut pass = context
                 .command_encoder()
@@ -371,6 +378,9 @@ fn resolve(world: &World, mut context: RenderContext) {
         }
         // Copies run later in this same render graph/queue. No host fence.
         job.camera.completed.store(job.request, Ordering::Release);
+    }
+    if let Some(span) = span {
+        span.end(context.command_encoder());
     }
 }
 

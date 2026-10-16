@@ -1436,3 +1436,8 @@ mod interactive_activity_tests {
         ));
     }
 }
+
+/// Discard retired capture attachments rather than reusing pixels across a rejection.
+pub(crate) fn retire_capture_targets(world: &mut World) {
+    world.insert_resource(capture_targets::CaptureTargets::default());
+}

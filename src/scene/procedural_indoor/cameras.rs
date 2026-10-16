@@ -285,6 +285,16 @@ impl IndoorManifest {
         settings: CameraSettings,
         aspect_ratio: f32,
     ) -> Result<(), String> {
+        self.resample_cameras_typed(count, settings, aspect_ratio)
+            .map_err(|error| error.to_string())
+    }
+
+    pub(crate) fn resample_cameras_typed(
+        &mut self,
+        count: usize,
+        settings: CameraSettings,
+        aspect_ratio: f32,
+    ) -> Result<(), crate::sample::failure::CaptureError> {
         settings.validate()?;
         if count > 256 || !aspect_ratio.is_finite() || aspect_ratio <= 0.0 {
             return Err(
@@ -301,7 +311,11 @@ impl IndoorManifest {
             self.camera_aspect_ratio = old_aspect;
             self.cameras = old_cameras;
             self.camera_diagnostics = old_diagnostics;
-            return Err(error);
+            return Err(crate::sample::failure::CaptureError::rejected(
+                self.seed,
+                crate::sample::failure::SceneRejectionKind::CameraPlacement,
+                error,
+            ));
         }
         Ok(())
     }

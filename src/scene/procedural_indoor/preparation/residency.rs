@@ -520,7 +520,11 @@ mod tests {
         assert!(future.probe_only.is_none());
         assert!(future.gi_only.is_none());
         assert_eq!(
-            job.take_ready().unwrap().err().as_deref(),
+            job.take_ready()
+                .unwrap()
+                .err()
+                .map(|e| e.to_string())
+                .as_deref(),
             Some("second room rejected")
         );
     }

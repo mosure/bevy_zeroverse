@@ -179,7 +179,7 @@ impl LiveDataset {
             .map_err(|_| anyhow::anyhow!("sample receiver lock poisoned"))?;
         let started = std::time::Instant::now();
         loop {
-            if let Some(error) = bevy_zeroverse::io::channels::take_capture_failure() {
+            if let Some(error) = bevy_zeroverse::io::channels::take_capture_error() {
                 anyhow::bail!(error);
             }
             match lock.recv_timeout(Duration::from_millis(100)) {
@@ -195,6 +195,7 @@ impl LiveDataset {
         &self,
         prefetch_indoor: usize,
         idle_work: bevy_zeroverse::io::channels::IdleWork,
+        recover_scene_rejections: bool,
     ) -> Result<()> {
         // Ensure the app channels are present even if initialization was skipped (e.g. in tests).
         if !bevy_zeroverse::io::channels::channels_initialized() {
@@ -211,6 +212,7 @@ impl LiveDataset {
             .send(bevy_zeroverse::io::channels::AppFrameRequest {
                 prefetch_indoor,
                 idle_work,
+                recover_scene_rejections,
                 ..Default::default()
             })
             .context("failed to signal zeroverse app for next sample")
@@ -262,7 +264,11 @@ impl LiveDataset {
         ZeroverseSample,
         Option<bevy_zeroverse::io::channels::CaptureTelemetry>,
     )> {
-        self.capture(None, bevy_zeroverse::io::channels::IdleWork::Preflight)
+        self.capture(
+            None,
+            bevy_zeroverse::io::channels::IdleWork::Preflight,
+            false,
+        )
     }
 
     // Compatibility for the generator's existing diagnostic prefetch overrides.
@@ -271,17 +277,19 @@ impl LiveDataset {
         &self,
         prefetch_indoor: usize,
         idle_work: bevy_zeroverse::io::channels::IdleWork,
+        recover_scene_rejections: bool,
     ) -> Result<(
         ZeroverseSample,
         Option<bevy_zeroverse::io::channels::CaptureTelemetry>,
     )> {
-        self.capture(Some(prefetch_indoor), idle_work)
+        self.capture(Some(prefetch_indoor), idle_work, recover_scene_rejections)
     }
 
     fn capture(
         &self,
         lookahead_override: Option<usize>,
         idle_work: bevy_zeroverse::io::channels::IdleWork,
+        recover_scene_rejections: bool,
     ) -> Result<(
         ZeroverseSample,
         Option<bevy_zeroverse::io::channels::CaptureTelemetry>,
@@ -303,8 +311,22 @@ impl LiveDataset {
                 0
             }
         });
-        self.request_next(lookahead, idle_work)?;
-        let sample = self.receive_sample()?;
+        self.request_next(lookahead, idle_work, recover_scene_rejections)?;
+        let result = self.receive_sample();
+        if result
+            .as_ref()
+            .err()
+            .and_then(|e| e.downcast_ref::<bevy_zeroverse::sample::failure::CaptureError>())
+            .is_some_and(|e| {
+                matches!(
+                    e,
+                    bevy_zeroverse::sample::failure::CaptureError::Rejected { retired: true, .. }
+                )
+            })
+        {
+            *completed = completed.wrapping_add(1);
+        }
+        let sample = result?;
         *completed = completed.wrapping_add(1);
         let telemetry = bevy_zeroverse::io::channels::take_capture_telemetry();
         Ok((sample, telemetry))

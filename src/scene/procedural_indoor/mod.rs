@@ -115,6 +115,7 @@ impl Plugin for ProceduralIndoorPlugin {
             materials::gpu::MaterialBakePlugin,
         ));
         app.init_resource::<IndoorSequence>();
+        app.init_resource::<PendingIndoor>();
         app.init_resource::<IndoorGenerationStatus>();
         app.init_resource::<preparation::IndoorPrefetch>();
         if !app.world().contains_resource::<gi::IndoorGiSettings>() {
@@ -169,6 +170,72 @@ pub fn reset_indoor_sequence(world: &mut World, seed: u64) {
     world.insert_resource(IndoorSequence::default());
 }
 
+/// Retire a CPU construction rejection before acknowledging it to a consumer.
+/// No app update, GPU wait, rendering or successor upload runs during retirement.
+/// Existing submitted work owns its resources; request epochs are never reused.
+pub(crate) fn retire_rejected_capture(world: &mut World, seed: u64) -> Result<(), String> {
+    let args = world.resource::<BevyZeroverseConfig>();
+    let sequence = world.resource::<IndoorSequence>();
+    if !args.headless
+        || args.editor
+        || args.scene_type != ZeroverseSceneType::ProceduralIndoor
+        || sequence
+            .base_seed
+            .map(|base| base.wrapping_add(sequence.index))
+            != Some(seed)
+        || world
+            .resource::<crate::sample::CaptureProgress>()
+            .readback_in_flight()
+    {
+        return Err("cannot retire scene rejection outside its idle headless transaction".into());
+    }
+    let mut copiers = world.query::<&crate::io::image_copy::ImageCopier>();
+    if copiers.iter(world).any(|copier| !copier.idle()) {
+        return Err("cannot retire rejected scene while a readback is pending or failed".into());
+    }
+    // Cancels owned preparation jobs and drops all speculative handle leases.
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let discarded = world.resource::<PendingIndoor>().prefetched.len();
+        world
+            .resource_mut::<preparation::IndoorPrefetch>()
+            .discarded += discarded as u64;
+    }
+    world.insert_resource(PendingIndoor::default());
+    world
+        .resource_mut::<preparation::residency::FutureAssets>()
+        .clear();
+    let mut roots = world.query_filtered::<Entity, With<ZeroverseScene>>();
+    let roots: Vec<_> = roots.iter(world).collect();
+    for root in roots {
+        if let Ok(entity) = world.get_entity_mut(root) {
+            entity.despawn();
+        }
+    }
+    world.remove_resource::<layout::IndoorManifest>();
+    world.remove_resource::<IndoorEnvironment>();
+    world.remove_resource::<materials::gpu::Requests>();
+    world.remove_resource::<materials::gpu::MaterialBakeStatistics>();
+    world.remove_resource::<gi::BakeStatistics>();
+    world.remove_resource::<crate::human_motion::HumanMotionReport>();
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        world.remove_resource::<gi::gpu::GpuBakeRequest>();
+        world.remove_resource::<gi::gpu::GiGpuReadiness>();
+        world.remove_resource::<lighting::PendingLighting>();
+        world.remove_resource::<lighting::PendingGpuLighting>();
+        world.insert_resource(gi::GiPrefetch::default());
+    }
+    crate::sample::retire_rejected_buffers(world);
+    crate::camera::retire_capture_targets(world);
+    world.insert_resource(IndoorGenerationStatus::default());
+    let next_index = world.resource::<IndoorSequence>().index.wrapping_add(1);
+    world.resource_mut::<IndoorSequence>().index = next_index;
+    // The next admitted update consumes this event; CPU-only waits stay idle.
+    world.write_message(RegenerateSceneEvent);
+    Ok(())
+}
+
 #[derive(Resource)]
 struct IndoorEnvironment {
     map: EnvironmentMapLight,
@@ -200,7 +267,7 @@ pub fn indoor_generation_pending(world: &World) -> bool {
             .is_some_and(|motion| motion.pending)
 }
 
-#[derive(Default)]
+#[derive(Resource, Default)]
 struct PendingIndoor {
     key: Option<preparation::pipeline::Request>,
     prefetched: preparation::pipeline::Lookahead<preparation::pipeline::PreparationJob>,
@@ -241,7 +308,7 @@ fn regenerate(
     mut materials: ResMut<Assets<StandardMaterial>>,
     gi_settings: Res<gi::IndoorGiSettings>,
     human_assets: Option<Res<bevy_burn_human::BurnHumanAssets>>,
-    mut pending: Local<PendingIndoor>,
+    mut pending: ResMut<PendingIndoor>,
     mut generation: ResMut<IndoorGenerationStatus>,
     mut prefetch: ResMut<preparation::IndoorPrefetch>,
     speculative: SpeculativePreparation,
@@ -419,7 +486,8 @@ fn regenerate(
         Ok(scene) => scene,
         Err(error) => {
             error!("procedural_indoor generation rejected: {error}");
-            commands.insert_resource(crate::sample::CaptureFailure(Some(error)));
+            commands.insert_resource(crate::sample::CaptureFailure(Some(error.to_string())));
+            commands.insert_resource(crate::sample::failure::SceneCaptureError(Some(error)));
             return;
         }
     };

@@ -5,7 +5,7 @@ use bevy_zeroverse_burn::{
     chunk::{discover_chunks, load_chunk, save_chunk_with_codec},
     generator::{
         GenConfig,
-        admission::{CaptureControl, CaptureEvent, CaptureOutcome},
+        admission::{CaptureControl, CaptureEvent, CaptureOutcome, RejectionPolicy},
         run_chunk_generation, run_chunk_generation_controlled, zeroverse_config_from_gen,
     },
 };
@@ -34,6 +34,16 @@ struct Args {
     rgb_only: bool,
     #[arg(long)]
     controlled: bool,
+    #[arg(long, requires = "controlled")]
+    recover_rejections: bool,
+    #[arg(long, default_value_t = 4)]
+    rejection_limit: u64,
+    #[arg(long, default_value_t = 3)]
+    cameras: usize,
+    #[arg(long)]
+    indoor_camera: Option<String>,
+    #[arg(long, default_value_t = 0.25)]
+    human_density: f32,
     #[arg(long, requires = "controlled")]
     cancel_startup: bool,
     #[arg(long)]
@@ -88,6 +98,9 @@ fn main() -> Result<()> {
         width: args.width,
         height: args.width,
         ssaa_factor: args.ssaa_factor,
+        cameras: args.cameras,
+        indoor_human_density: args.human_density,
+        indoor_camera: args.indoor_camera.clone(),
         playback_steps: args.steps,
         playback_step: if args.steps > 1 { 0.2 } else { 0. },
         ..GenConfig::indoor(&args.output, args.rooms)
@@ -100,7 +113,7 @@ fn main() -> Result<()> {
     if args.live {
         let mut engine = zeroverse_config_from_gen(
             config.render_modes.clone(),
-            3,
+            args.cameras,
             args.width,
             args.width,
             config.playback_step,
@@ -112,6 +125,8 @@ fn main() -> Result<()> {
         );
         engine.indoor_seed = Some(args.seed);
         engine.ssaa_factor = args.ssaa_factor;
+        engine.indoor_camera = args.indoor_camera.clone();
+        engine.indoor_human_density = args.human_density;
         let dataset = LiveDataset::new(LiveDatasetConfig {
             num_samples: args.rooms,
             zeroverse_config: engine,
@@ -153,7 +168,7 @@ fn main() -> Result<()> {
         let events = Arc::new(Mutex::new(Vec::new()));
         let log = events.clone();
         let (tx, rx) = std::sync::mpsc::channel();
-        let control = Arc::new(CaptureControl::with_observer(move |event| {
+        let control = CaptureControl::with_observer(move |event| {
             if let CaptureEvent::Completed {
                 outcome: CaptureOutcome::Published,
                 request,
@@ -163,7 +178,21 @@ fn main() -> Result<()> {
                 let _ = tx.send(request.sequence);
             }
             log.lock().unwrap().push(event);
-        }));
+        });
+        let control = Arc::new(if args.recover_rejections {
+            use bevy_zeroverse::sample::failure::SceneRejectionKind::*;
+            control.with_rejection_policy(RejectionPolicy::Continue {
+                kinds: vec![
+                    MissingProgramAnchor,
+                    InsufficientProgramCapacity,
+                    CameraPlacement,
+                ],
+                max_total: args.rejection_limit,
+                max_consecutive: args.rejection_limit,
+            })?
+        } else {
+            control
+        });
         let c = control.clone();
         let credit = thread::spawn(move || {
             if args.cancel_startup {
@@ -180,7 +209,7 @@ fn main() -> Result<()> {
                             break;
                         }
                         thread::sleep(Duration::from_millis(args.delay_ms));
-                        c.grant_through(i as u64 + 2);
+                        c.grant_through(c.snapshot().credits + 1);
                     }
                     Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {}
                     Err(_) => break,
@@ -193,11 +222,11 @@ fn main() -> Result<()> {
         credit
             .join()
             .map_err(|_| anyhow::anyhow!("credit feeder"))?;
-        result?;
         std::fs::write(
             args.output.join("telemetry.json"),
             serde_json::to_vec_pretty(&*events.lock().unwrap())?,
         )?;
+        result?;
     } else {
         run_chunk_generation(config)?;
         bevy_zeroverse::headless::shutdown_app()

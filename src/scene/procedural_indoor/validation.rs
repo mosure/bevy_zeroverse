@@ -9,6 +9,18 @@ mod tests;
 pub use geometry::{validate_geometry, GeometryStats};
 
 pub fn validate_layout(scene: &IndoorManifest) -> Result<(), String> {
+    validate_prepared_layout(scene).map_err(|error| error.to_string())
+}
+
+pub(crate) fn validate_prepared_layout(
+    scene: &IndoorManifest,
+) -> Result<(), crate::sample::failure::CaptureError> {
+    // Integrity failures remain fatal even when a required anchor is also absent.
+    validate_layout_integrity(scene)?;
+    scene.validate_public_programs_typed()
+}
+
+fn validate_layout_integrity(scene: &IndoorManifest) -> Result<(), String> {
     // Validate base scalars before dependent programs divide by room dimensions
     // or inspect objects. Malformed archived manifests must fail without panic.
     if scene.generator_version != GENERATOR_VERSION
@@ -32,7 +44,6 @@ pub fn validate_layout(scene: &IndoorManifest) -> Result<(), String> {
     scene.validate_doors()?;
     scene.validate_assemblies()?;
     scene.validate_kitchens()?;
-    scene.validate_public_programs()?;
     scene.validate_program_mounts()?;
     if !scene.camera_aspect_ratio.is_finite() || scene.camera_aspect_ratio <= 0.0 {
         return Err("camera aspect ratio must be positive and finite".into());

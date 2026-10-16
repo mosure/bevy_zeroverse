@@ -22,6 +22,9 @@ pub mod channels {
         /// Demand-controlled producers use `CpuOnly`: dispatched CPU jobs finish,
         /// but the app does not update, upload or dispatch future GPU work.
         pub idle_work: IdleWork,
+        /// Retire typed construction rejections so a controlled caller can continue.
+        /// Disabled unless an explicit bounded rejection policy was selected.
+        pub recover_scene_rejections: bool,
     }
 
     #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -37,7 +40,7 @@ pub mod channels {
 
     pub static SAMPLE_RECEIVER: OnceCell<Arc<Mutex<Receiver<Sample>>>> = OnceCell::new();
     pub static SAMPLE_SENDER: OnceCell<Sender<Sample>> = OnceCell::new();
-    static CAPTURE_ERROR: Mutex<Option<String>> = Mutex::new(None);
+    static CAPTURE_ERROR: Mutex<Option<crate::sample::failure::CaptureError>> = Mutex::new(None);
     /// Diagnostics are deliberately outside deterministic samples/archive identity.
     #[derive(Clone, Debug, serde::Serialize)]
     pub struct CaptureTelemetry {
@@ -59,10 +62,18 @@ pub mod channels {
     }
 
     pub fn report_capture_failure(message: String) {
-        *CAPTURE_ERROR.lock().expect("capture error lock poisoned") = Some(message);
+        report_capture_error(crate::sample::failure::CaptureError::Failed(message));
     }
 
     pub fn take_capture_failure() -> Option<String> {
+        take_capture_error().map(|error| error.to_string())
+    }
+
+    pub(crate) fn report_capture_error(error: crate::sample::failure::CaptureError) {
+        *CAPTURE_ERROR.lock().expect("capture error lock poisoned") = Some(error);
+    }
+
+    pub fn take_capture_error() -> Option<crate::sample::failure::CaptureError> {
         CAPTURE_ERROR
             .lock()
             .expect("capture error lock poisoned")
@@ -352,6 +363,9 @@ pub mod image_copy {
             } else {
                 None
             }
+        }
+        pub(crate) fn idle(&self) -> bool {
+            !self.state.busy.load(Ordering::Acquire) && self.failure().is_none()
         }
         pub fn failure(&self) -> Option<String> {
             self.state.failure.lock().unwrap().clone()

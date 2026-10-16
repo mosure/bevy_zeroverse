@@ -1,6 +1,12 @@
 use super::*;
+use crate::sample::failure::{CaptureError, SceneRejectionKind};
 impl IndoorManifest {
     pub fn validate_public_programs(&self) -> Result<(), String> {
+        self.validate_public_programs_typed()
+            .map_err(|e| e.to_string())
+    }
+
+    pub(crate) fn validate_public_programs_typed(&self) -> Result<(), CaptureError> {
         if !self.layout.is_public() {
             if !self.assembly_diagnostics.programs.is_empty() {
                 return Err("public program receipt on an unrelated scene".into());
@@ -15,9 +21,11 @@ impl IndoorManifest {
         if self.assembly_diagnostics.programs.len() != zones.len() {
             return Err("missing functional zone receipt".into());
         }
+        let mut rejection = None;
         for p in &self.assembly_diagnostics.programs {
-            let fail =
+            let reason =
                 |s: &str| format!("seed {} {:?} zone {}: {s}", self.seed, p.activity, p.zone);
+            let fail = |s: &str| CaptureError::Failed(reason(s));
             if zones.get(p.zone).is_none_or(|z| z.activity != p.activity) {
                 return Err(fail("zone identity differs from functional receipt"));
             }
@@ -33,7 +41,13 @@ impl IndoorManifest {
                     .iter()
                     .any(|&id| self.objects.get(id).is_some_and(|o| o.kind == *kind))
                 {
-                    return Err(fail(&format!("missing required {kind:?}")));
+                    rejection.get_or_insert_with(|| {
+                        CaptureError::rejected(
+                            self.seed,
+                            SceneRejectionKind::MissingProgramAnchor,
+                            reason(&format!("missing required {kind:?}")),
+                        )
+                    });
                 }
             }
             if matches!(
@@ -44,7 +58,13 @@ impl IndoorManifest {
                     | IndoorLayout::Cafeteria
             ) && p.accepted_capacity < 2
             {
-                return Err(fail("fewer than two usable seats"));
+                rejection.get_or_insert_with(|| {
+                    CaptureError::rejected(
+                        self.seed,
+                        SceneRejectionKind::InsufficientProgramCapacity,
+                        reason("fewer than two usable seats"),
+                    )
+                });
             }
             for &id in &p.members {
                 let o = self
@@ -89,6 +109,8 @@ impl IndoorManifest {
                 }
             }
         }
-        Ok(())
+        // A recoverable capacity/placement rejection must never hide a corrupt
+        // receipt, service relationship or reservation elsewhere in the room.
+        rejection.map_or(Ok(()), Err)
     }
 }

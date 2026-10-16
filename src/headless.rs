@@ -64,10 +64,17 @@ fn signaled_runner(mut app: App) -> AppExit {
                 app.world_mut()
                     .resource_mut::<crate::scene::procedural_indoor::preparation::IndoorPrefetch>()
                     .depth = request.prefetch_indoor;
-                app.world_mut()
-                    .resource_mut::<crate::sample::CaptureFailure>()
-                    .0 = None;
+                channels::take_capture_telemetry();
                 if let Some(seed) = request.indoor_seed {
+                    // An indexed request explicitly replaces any startup scene.
+                    // Ordinary requests must consume its failure: construction
+                    // can finish during the initial app updates, before demand.
+                    app.world_mut()
+                        .resource_mut::<crate::sample::CaptureFailure>()
+                        .0 = None;
+                    app.world_mut()
+                        .resource_mut::<crate::sample::failure::SceneCaptureError>()
+                        .0 = None;
                     let config = app.world().resource::<BevyZeroverseConfig>();
                     assert_eq!(
                         config.scene_type,
@@ -105,7 +112,29 @@ fn signaled_runner(mut app: App) -> AppExit {
                             .take()
                         {
                             capture_failed = true;
-                            channels::report_capture_failure(error);
+                            let mut error = app
+                                .world_mut()
+                                .resource_mut::<crate::sample::failure::SceneCaptureError>()
+                                .take_for_diagnostic(error);
+                            if request.recover_scene_rejections {
+                                if let crate::sample::failure::CaptureError::Rejected {
+                                    rejection,
+                                    retired,
+                                } = &mut error
+                                {
+                                    match crate::scene::procedural_indoor::retire_rejected_capture(
+                                        app.world_mut(),
+                                        rejection.seed,
+                                    ) {
+                                        Ok(()) => *retired = true,
+                                        Err(reason) => {
+                                            error =
+                                                crate::sample::failure::CaptureError::Failed(reason)
+                                        }
+                                    }
+                                }
+                            }
+                            channels::report_capture_error(error);
                         }
                         break;
                     }

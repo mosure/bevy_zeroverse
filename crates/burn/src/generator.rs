@@ -23,7 +23,7 @@ use crate::{
 };
 
 pub mod admission;
-use admission::{CaptureControl, CaptureRequest, Permit};
+use admission::{CaptureControl, CaptureRequest, Permit, PublicationReceipt};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum WriteMode {
@@ -514,9 +514,34 @@ struct WriteJob {
     permits: Vec<Permit>,
 }
 enum WriteData {
+    // A rare rejection waits for earlier exports before its terminal receipt.
+    Fence,
     Chunk(Vec<bevy_zeroverse::sample::Sample>, usize),
     Fs(Box<bevy_zeroverse::sample::Sample>, usize),
 }
+
+fn complete_rejection_after_exports(
+    writer: &mpsc::SyncSender<WriteJob>,
+    permit: Permit,
+    rejection: bevy_zeroverse::sample::failure::SceneRejection,
+    capture_elapsed: Duration,
+) -> Result<bool> {
+    if writer
+        .send(WriteJob {
+            data: WriteData::Fence,
+            permits: vec![],
+        })
+        .is_err()
+    {
+        let message = "CPU dataset writer stopped before rejection receipt";
+        permit.failed(message.into(), capture_elapsed);
+        anyhow::bail!(message);
+    }
+    permit.rejected(rejection, capture_elapsed)
+}
+
+#[cfg(test)]
+mod recovery_tests;
 
 /// Run headless generation with persistent workers in the current process.
 pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
@@ -702,10 +727,17 @@ fn run_generation(config: GenConfig, control: Option<Arc<CaptureControl>>) -> Re
             let writer = scope.spawn(|| -> Result<()> {
                 let mut guard = admission::WriterGuard(control.clone());
                 for job in write_rx {
+                    if matches!(job.data, WriteData::Fence) { continue; }
+                    let publication = match &job.data {
+                        WriteData::Chunk(_, index) => PublicationReceipt { index: *index, path: output_dir.join(format!("{index:06}.{}", compression.extension())) },
+                        WriteData::Fs(_, index) => PublicationReceipt { index: *index, path: output_dir.join(format!("{index:06}")) },
+                        WriteData::Fence => unreachable!(),
+                    };
                     for permit in &job.permits { permit.exporting(); }
                     let started = Instant::now();
                     let result = (|| -> Result<usize> {
                     let saved = match job.data {
+                        WriteData::Fence => unreachable!(),
                         WriteData::Chunk(mut batch, index) => {
                             if let Some(sensor) = &rgb_sensor {
                                 for sample in &mut batch { sensor.apply(sample, [width, height])?; }
@@ -727,7 +759,7 @@ fn run_generation(config: GenConfig, control: Option<Arc<CaptureControl>>) -> Re
                     })();
                     let error = result.as_ref().err().map(|e| format!("{e:#}"));
                     if let (Some(control), Some(error)) = (&control, &error) { control.fail(error.clone()); }
-                    for permit in job.permits { permit.finish(started.elapsed(), error.as_deref()); }
+                    for permit in job.permits { permit.finish(started.elapsed(), error.as_deref(), Some(publication.clone())); }
                     let saved = result?;
                     samples_done.fetch_add(saved, Ordering::SeqCst);
                     if let Some(progress) = progress.as_ref() { progress.record_chunks(1); }
@@ -738,7 +770,7 @@ fn run_generation(config: GenConfig, control: Option<Arc<CaptureControl>>) -> Re
             let capture_result = (|| -> Result<()> {
             let mut local = Vec::with_capacity(chunk_size);
             let mut permits = Vec::new();
-            loop {
+            'rooms: loop {
                 let idx = sample_counter.fetch_add(1, Ordering::SeqCst);
                 if idx >= target_samples {
                     break;
@@ -758,7 +790,25 @@ fn run_generation(config: GenConfig, control: Option<Arc<CaptureControl>>) -> Re
                     let lookahead = if indoor_prefetch && scene_type == ZeroverseSceneType::ProceduralIndoor {
                         indoor_prefetch_depth.min(4).min(target_samples - idx - 1)
                     } else { 0 };
-                    let (sample, telemetry) = dataset.capture_next(lookahead, if control.is_some() { bevy_zeroverse::io::channels::IdleWork::CpuOnly } else { bevy_zeroverse::io::channels::IdleWork::Preflight }).with_context(|| format!("capture failed for sample {idx}; generation stopped without skipping it"))?;
+                    let result = dataset.capture_next(lookahead, if control.is_some() { bevy_zeroverse::io::channels::IdleWork::CpuOnly } else { bevy_zeroverse::io::channels::IdleWork::Preflight }, control.as_ref().is_some_and(|c| c.recovers_rejections()));
+                    let (sample, telemetry) = match result {
+                        Ok(result) => result,
+                        Err(error) => {
+                            if let Some(bevy_zeroverse::sample::failure::CaptureError::Rejected { rejection, retired: true }) = error.downcast_ref::<bevy_zeroverse::sample::failure::CaptureError>() {
+                                anyhow::ensure!(seed.map(|s| s.wrapping_add(idx as u64)) == Some(rejection.seed), "rejected capture seed differs from admitted seed");
+                                if let Some(permit) = permit.take() {
+                                    // Join the previous archive's completion order without
+                                    // serializing the normal successful capture/export path.
+                                    if complete_rejection_after_exports(&write_tx, permit, rejection.clone(), capture_started.elapsed())? {
+                                        continue 'rooms;
+                                    }
+                                    break 'rooms;
+                                }
+                            }
+                            if let Some(permit) = permit.take() { permit.failed(format!("{error:#}"), capture_started.elapsed()); }
+                            return Err(error).with_context(|| format!("capture failed for sample {idx}; generation stopped without skipping it"));
+                        }
+                    };
                     let has_signal =
                         sample_has_signal(&sample, &render_modes_for_signal, width, height);
                     let has_required = has_signal
@@ -804,9 +854,14 @@ fn run_generation(config: GenConfig, control: Option<Arc<CaptureControl>>) -> Re
                         }
                     }
                     WriteMode::Fs => {
-                        write_tx.send(WriteJob { data: WriteData::Fs(Box::new(sample), idx), permits: permit.into_iter().collect() })
+                        let output_idx = if control.as_ref().is_some_and(|c| c.recovers_rejections()) {
+                            chunk_counter.fetch_add(1, Ordering::SeqCst)
+                        } else {
+                            chunk_counter.fetch_add(1, Ordering::SeqCst);
+                            idx
+                        };
+                        write_tx.send(WriteJob { data: WriteData::Fs(Box::new(sample), output_idx), permits: permit.into_iter().collect() })
                             .map_err(|_| anyhow!("CPU dataset writer stopped before sample {idx}"))?;
-                        chunk_counter.fetch_add(1, Ordering::SeqCst);
                     }
                 }
             }

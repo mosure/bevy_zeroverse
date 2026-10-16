@@ -384,3 +384,37 @@ fn reported_seed_46839170_validates_across_view_and_population_settings() {
         }
     }
 }
+
+#[test]
+fn reported_capture_rejections_have_typed_sources_and_integrity_stays_fatal() {
+    use crate::sample::failure::{CaptureError, SceneRejectionKind};
+    let mut scene =
+        IndoorManifest::generate_with_humans(62_231_318, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
+    assert!(
+        matches!(super::validate_prepared_layout(&scene), Err(CaptureError::Rejected { rejection, retired: false }) if rejection.kind == SceneRejectionKind::MissingProgramAnchor)
+    );
+    let mut corrupt = scene.clone();
+    corrupt.assembly_diagnostics.programs[0]
+        .members
+        .push(usize::MAX);
+    assert!(matches!(
+        corrupt.validate_public_programs_typed(),
+        Err(CaptureError::Failed(_))
+    ));
+    scene.room_size.x = f32::NAN;
+    assert!(matches!(
+        super::validate_prepared_layout(&scene),
+        Err(CaptureError::Failed(_))
+    ));
+    let mut scene =
+        IndoorManifest::generate_with_humans(62_236_796, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
+    let settings=super::super::cameras::CameraSettings::parse(r#"{"primary_room":false,"path_length_min":1.6,"path_length_max":3.0,"long_path_fraction":0.0,"multiview":{"max_baseline":6.0,"min_baseline":0.4,"min_overlap":0.15,"min_reference_baseline":0.8,"min_spread":0.25,"trajectory_variation":0.3}}"#).unwrap();
+    assert!(
+        matches!(scene.resample_cameras_typed(8,settings,1.), Err(CaptureError::Rejected { rejection, retired:false }) if rejection.kind == SceneRejectionKind::CameraPlacement)
+    );
+    assert!(scene.cameras.is_empty());
+    assert!(matches!(
+        scene.resample_cameras_typed(8, Default::default(), f32::NAN),
+        Err(CaptureError::Failed(_))
+    ));
+}

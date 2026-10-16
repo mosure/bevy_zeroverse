@@ -1,3 +1,4 @@
+pub mod failure;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod gpu;
 #[cfg(not(target_arch = "wasm32"))]
@@ -179,6 +180,20 @@ pub struct StartupDelay {
 /// A failed capture never emits a partially populated sample.
 #[derive(Resource, Default, Debug)]
 pub struct CaptureFailure(pub Option<String>);
+
+pub(crate) fn retire_rejected_buffers(world: &mut World) {
+    let mut progress = world.resource_mut::<CaptureProgress>();
+    debug_assert!(progress.pending.is_none());
+    let playback = progress.saved_playback.take();
+    progress.identity = None;
+    progress.ovoxel_wait_started = None;
+    if let Some(playback) = playback {
+        world.insert_resource(playback);
+    }
+    world.resource_mut::<SamplerState>().enabled = false;
+    world.insert_resource(Sample::default());
+    world.insert_resource(CaptureReadiness::default());
+}
 
 /// Native headless polling interval after all capture copies have been encoded.
 /// Zero disables backoff; the effective interval is capped at ten milliseconds.
@@ -566,6 +581,7 @@ pub fn configure_sampler(app: &mut App, initial_state: SamplerState) {
         done: false,
     });
     app.init_resource::<CaptureFailure>();
+    app.init_resource::<failure::SceneCaptureError>();
     app.init_resource::<CaptureProgress>();
     app.init_resource::<CaptureReadiness>();
     app.init_resource::<CapturePollBackoff>();
@@ -1674,6 +1690,7 @@ mod capture_motion_tests {
         app.insert_resource(SamplerState::from_config(&BevyZeroverseConfig::default()));
         app.init_resource::<CaptureProgress>();
         app.init_resource::<CaptureFailure>();
+        app.init_resource::<failure::SceneCaptureError>();
         app.insert_resource(Sample {
             views: vec![View::default()],
             ..default()
@@ -1720,6 +1737,7 @@ mod capture_motion_tests {
             });
             app.init_resource::<CaptureProgress>();
             app.init_resource::<CaptureFailure>();
+            app.init_resource::<failure::SceneCaptureError>();
             app.init_resource::<Sample>();
             app.add_systems(PreUpdate, prepare_sampling_motion);
             app.add_systems(PostUpdate, restore_sampling_motion);
