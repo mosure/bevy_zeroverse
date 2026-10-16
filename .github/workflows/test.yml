@@ -49,4 +49,10 @@ jobs:
         enable-sccache: "false"
 
     - name: test (default)
-      run: cargo test
+      run: cargo test -- --skip annotation::ovoxel::tests
+
+    # These asynchronous fixtures share Bevy's process-global worker pools.
+    # Keep heavy procedural tests from starving their workers on small runners.
+    # Both steps are required: this isolates tests without omitting assertions.
+    - name: test (isolated voxel fixtures)
+      run: cargo test annotation::ovoxel::tests -- --test-threads=1
