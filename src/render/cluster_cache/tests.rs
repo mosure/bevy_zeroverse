@@ -1,17 +1,17 @@
 use super::*;
 use bevy::{light::cluster::ObjectsInClusterCpu, render::MainWorld};
 
-struct Extraction {
-    main: World,
-    render: World,
-    camera: Entity,
-    view: Entity,
-    light: Entity,
+pub(super) struct Extraction {
+    pub(super) main: World,
+    pub(super) render: World,
+    pub(super) camera: Entity,
+    pub(super) view: Entity,
+    pub(super) light: Entity,
     schedule: Schedule,
 }
 
 impl Extraction {
-    fn new() -> Self {
+    pub(super) fn new() -> Self {
         let mut main = World::new();
         main.insert_resource(GlobalClusterSettings {
             supports_storage_buffers: true,
@@ -50,7 +50,7 @@ impl Extraction {
         }
     }
 
-    fn extract(&mut self) -> Option<Vec<Record>> {
+    pub(super) fn extract(&mut self) -> Option<Vec<Record>> {
         let mut main = MainWorld::default();
         std::mem::swap(&mut self.main, &mut *main);
         self.render.insert_resource(main);

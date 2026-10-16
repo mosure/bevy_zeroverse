@@ -65,6 +65,9 @@ struct Args {
     /// Native process-wide CPU preparation budget; set before any room jobs.
     #[arg(long, value_parser = clap::value_parser!(usize))]
     preparation_threads: Option<usize>,
+    /// Match a downstream process's Bevy worker budget before creating its pools.
+    #[arg(long, value_parser = clap::value_parser!(u8).range(1..=64))]
+    task_pool_threads: Option<u8>,
     /// Record actual GPU timestamp spans where the adapter supports them.
     #[arg(long)]
     gpu_timings: bool,
@@ -148,6 +151,9 @@ fn heap_memory() -> serde_json::Value {
 fn main() -> Result<()> {
     let app_started = Instant::now();
     let args = Args::parse();
+    if let Some(threads) = args.task_pool_threads {
+        bevy::app::TaskPoolOptions::with_num_threads(threads as usize).create_default_pools();
+    }
     if let Some(threads) = args.preparation_threads {
         procedural_indoor::preparation::configure_preparation_threads(threads)
             .map_err(anyhow::Error::msg)?;

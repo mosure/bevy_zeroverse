@@ -1,9 +1,10 @@
-//! Retain Bevy's CPU cluster buffers when their exact inputs have not changed.
+//! Retain and update Bevy's CPU cluster buffers without repeated mapped uploads.
 //!
 //! Bevy 0.20 otherwise allocates and uploads them every frame. In particular,
 //! mapped-at-creation zero fills can stall discrete Vulkan devices. Keep Bevy's
-//! assignment, ordering, packing and upload implementation; only suppress a
-//! redundant preparation. No cluster resolution or illumination is changed.
+//! assignment, ordering and packing. Changed storage data uses bounded queue
+//! copies, and a bounded pool retains allocations across room regeneration.
+//! No cluster resolution or illumination is changed.
 use bevy::{
     light::{
         cluster::{ClusterableObjects, Clusters, GlobalClusterSettings},
@@ -17,12 +18,13 @@ use bevy::{
     prelude::*,
     render::{
         render_resource::BufferBindingType,
-        renderer::RenderAdapterInfo,
+        renderer::{RenderAdapterInfo, RenderDevice, RenderQueue},
         sync_world::{MainEntity, MainEntityHashMap, RenderEntity},
         Extract, ExtractSchedule, Render, RenderApp, RenderSystems,
     },
 };
 
+mod storage;
 #[cfg(test)]
 mod tests;
 
@@ -38,6 +40,13 @@ pub(super) fn install(app: &mut App) {
     let Some(render) = app.get_sub_app_mut(RenderApp) else {
         return;
     };
+    render.init_resource::<storage::Pool>();
+    // A component hook does not allocate an observer entity. Adding a render
+    // entity here can change equal-depth draw/light ordering after regeneration.
+    render
+        .world_mut()
+        .register_component_hooks::<ViewClusterBindings>()
+        .on_discard(storage::recycle);
     render.add_systems(
         ExtractSchedule,
         extract_key.after(extract_clusters_for_cpu_clustering),
@@ -141,12 +150,15 @@ fn probe_indices(probes: Option<&MainEntityHashMap<u32>>) -> Vec<(MainEntity, u3
     indices
 }
 
-#[allow(clippy::type_complexity)]
+#[allow(clippy::type_complexity, clippy::too_many_arguments)]
 fn reuse_unchanged(
     mut commands: Commands,
     settings: Res<GlobalClusterSettings>,
     pipeline: Res<MeshPipeline>,
     objects: Res<GlobalClusterableObjectMeta>,
+    device: Res<RenderDevice>,
+    queue: Res<RenderQueue>,
+    mut pool: ResMut<storage::Pool>,
     views: Query<
         (
             Entity,
@@ -155,6 +167,7 @@ fn reuse_unchanged(
             Option<&ViewClusterBindings>,
             Option<&RenderViewLightProbes<EnvironmentMapLight>>,
             Option<&RenderViewLightProbes<IrradianceVolume>>,
+            Has<storage::Managed>,
         ),
         With<ExtractedClusterableObjects>,
     >,
@@ -168,7 +181,7 @@ fn reuse_unchanged(
         .map(|(&e, &i)| (e, i))
         .collect();
     indices.sort_unstable_by_key(|(e, _)| e.to_bits());
-    for (entity, input, previous, bindings, reflection, irradiance) in &views {
+    for (entity, input, previous, bindings, reflection, irradiance, managed) in &views {
         let key = UploadedKey {
             records: input.0.clone(),
             indices: indices.clone(),
@@ -180,14 +193,28 @@ fn reuse_unchanged(
             ),
             binding: pipeline.clustered_forward_buffer_binding_type,
         };
-        if bindings.is_some() && previous == Some(&key) {
+        let unchanged = bindings.is_some() && previous == Some(&key);
+        let updated = !unchanged
+            && matches!(key.binding, BufferBindingType::Storage { .. })
+            && storage::update(
+                entity,
+                input,
+                &objects,
+                reflection,
+                irradiance,
+                bindings.filter(|_| managed),
+                &device,
+                &queue,
+                &mut pool,
+                &mut commands,
+            );
+        if unchanged || updated {
             // Bevy extraction reinserts this next frame. All other view/light
             // resources still update, including shadows and probe textures.
             commands
                 .entity(entity)
                 .remove::<ExtractedClusterableObjects>();
-        } else {
-            commands.entity(entity).insert(key);
         }
+        commands.entity(entity).insert(key);
     }
 }

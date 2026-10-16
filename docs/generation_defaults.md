@@ -96,9 +96,13 @@ establish unlimited-process memory stability.
 - On Linux GNU x86-64 NVIDIA Vulkan, unchanged CPU light-cluster buffers are
   retained across frames. Exact ordered membership, object classification,
   render-entity mappings, resolved light/probe indices and buffer layout must
-  match; no probabilistic hash is used. Changed cluster inputs rebuild through
-  Bevy; light uniforms and probe textures continue updating each frame. Cache
-  lifetime follows the camera entity. The original
+  match; no probabilistic hash is used. Changed storage inputs use Bevy's exact
+  packing and bounded queue copies, retaining buffers across camera motion.
+  A pool retains at most 64 discarded view allocations and 32 MiB of buffer
+  capacity across rooms. Every upload clears unused capacity, and recycling
+  uses a component hook so render-entity allocation and draw ordering do not
+  change. Incomplete light mappings fall back to Bevy's original preparation.
+  Light uniforms and probe textures continue updating each frame. The original
   cluster resolution, light ordering, shadows and GI remain unchanged; other
   adapters retain Bevy's normal preparation.
 - Geometry, texture construction and mesh realization share four native workers
