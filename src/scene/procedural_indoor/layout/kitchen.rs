@@ -529,13 +529,11 @@ impl IndoorManifest {
                 }
             }
         }
-        if self.layout.is_kitchen() && self.assembly_diagnostics.kitchens.is_empty() {
-            return Err(format!(
-                "seed {}: kitchen program was not admitted",
-                self.seed
-            ));
-        }
         Ok(())
+    }
+
+    pub(crate) fn missing_kitchen_program(&self) -> bool {
+        self.layout.is_kitchen() && self.assembly_diagnostics.kitchens.is_empty()
     }
 }
 

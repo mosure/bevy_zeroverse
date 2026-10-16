@@ -1248,7 +1248,9 @@ pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) 
         app.add_systems(
             PostUpdate,
             (
-                setup_camera.in_set(EditorCameraSetup),
+                setup_camera
+                    .in_set(EditorCameraSetup)
+                    .before(bevy::camera::CameraUpdateSystems),
                 setup_camera_grid,
                 update_camera_grid_images,
             ),

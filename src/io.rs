@@ -231,6 +231,26 @@ pub mod image_copy {
     }
 
     impl ImageCopier {
+        #[cfg(test)]
+        pub(crate) fn test_idle() -> Self {
+            Self {
+                sources: Arc::default(),
+                buffers: Arc::default(),
+                shared_bytes: None,
+                state: Arc::default(),
+                #[cfg(not(target_arch = "wasm32"))]
+                format: TextureFormat::Rgba32Float,
+                row_bytes: 0,
+                padded_row_bytes: 0,
+                rows: 0,
+            }
+        }
+
+        #[cfg(test)]
+        pub(crate) fn test_submit(&self, id: u64) {
+            self.state.submitted.store(id, Ordering::Release);
+        }
+
         /// Compatibility constructor for a single color attachment. The CPU image is no
         /// longer uploaded back to the GPU; consumers take the completed packet directly.
         pub fn new(

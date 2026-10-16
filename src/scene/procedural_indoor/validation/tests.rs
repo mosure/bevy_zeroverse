@@ -418,3 +418,38 @@ fn reported_capture_rejections_have_typed_sources_and_integrity_stays_fatal() {
         Err(CaptureError::Failed(_))
     ));
 }
+
+#[test]
+fn rejected_kitchen_is_typed_only_after_all_integrity_checks() {
+    use crate::sample::failure::{CaptureError, SceneRejectionKind};
+    let scene =
+        IndoorManifest::generate_with_humans(62_762_988, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
+    assert!(scene.missing_kitchen_program());
+    assert!(matches!(super::validate_prepared_layout(&scene),
+        Err(CaptureError::Rejected { rejection, retired: false })
+        if rejection.seed == 62_762_988 && rejection.kind == SceneRejectionKind::MissingProgramAnchor));
+    let mut corrupt = scene.clone();
+    corrupt.room_size.x = f32::NAN;
+    assert!(matches!(
+        super::validate_prepared_layout(&corrupt),
+        Err(CaptureError::Failed(_))
+    ));
+    let mut corrupt = scene.clone();
+    corrupt.objects[0].id = usize::MAX;
+    assert!(matches!(
+        super::validate_prepared_layout(&corrupt),
+        Err(CaptureError::Failed(_))
+    ));
+    let mut corrupt = scene;
+    let public =
+        IndoorManifest::generate_with_humans(62_231_318, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
+    corrupt.assembly_diagnostics.programs = public.assembly_diagnostics.programs;
+    assert!(!corrupt.assembly_diagnostics.programs.is_empty());
+    assert!(
+        matches!(
+            super::validate_prepared_layout(&corrupt),
+            Err(CaptureError::Failed(_))
+        ),
+        "a recoverable missing kitchen must never mask a corrupt unrelated program receipt"
+    );
+}

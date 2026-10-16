@@ -18,6 +18,12 @@ output, their dimensions and scale, plus the scene/camera/timestep identity.
 The copy path still requires the current resolve/readback epoch. Unsupported
 camera effects retain the conservative settling policy.
 
+Camera activation precedes Bevy's camera, visibility and directional-shadow
+preparation. After capture scheduling, a camera may only be deactivated until
+the next update. This preserves complete per-view cascades when individual
+views finish their copies at different times, while still suppressing duplicate
+draws during readback.
+
 GPU material baking records one recipe per command encoder and submits the
 finished buffers in recipe order. The shared scratch workspace, every PBR map
 and every mip level are preserved. This bounds the size of each native command
@@ -107,6 +113,9 @@ let control = CaptureControl::new().with_rejection_policy(RejectionPolicy::Conti
 
 Supported categories are missing required program equipment, insufficient usable
 program capacity, and exhausted camera placement search under valid constraints.
+`MissingProgramAnchor` includes a kitchen whose bounded service-run search could
+not admit its required equipment. Every manifest integrity check runs before
+that decision; partial or malformed kitchen assemblies remain fatal errors.
 Configuration, manifest integrity, device, shader, readback, annotation, archive,
 and unclassified failures remain fatal. No error-text matching is used.
 

@@ -17,7 +17,15 @@ pub(crate) fn validate_prepared_layout(
 ) -> Result<(), crate::sample::failure::CaptureError> {
     // Integrity failures remain fatal even when a required anchor is also absent.
     validate_layout_integrity(scene)?;
-    scene.validate_public_programs_typed()
+    scene.validate_public_programs_typed()?;
+    if scene.missing_kitchen_program() {
+        return Err(crate::sample::failure::CaptureError::rejected(
+            scene.seed,
+            crate::sample::failure::SceneRejectionKind::MissingProgramAnchor,
+            format!("seed {}: kitchen program was not admitted", scene.seed),
+        ));
+    }
+    Ok(())
 }
 
 fn validate_layout_integrity(scene: &IndoorManifest) -> Result<(), String> {
@@ -255,7 +263,11 @@ fn validate_layout_integrity(scene: &IndoorManifest) -> Result<(), String> {
             }
         }
     }
+    // A rejected kitchen transaction has no accepted service anchor. Finish all
+    // integrity checks before reporting its typed construction rejection; it
+    // must not be masked by a secondary activity-furniture shortfall.
     if !scene.layout.is_public()
+        && !scene.missing_kitchen_program()
         && !scene.objects.iter().any(|o| {
             !o.neighbor
                 && (super::layout::ObjectKind::KitchenCounter == o.kind
@@ -270,7 +282,10 @@ fn validate_layout_integrity(scene: &IndoorManifest) -> Result<(), String> {
     {
         return fail("missing primary activity furniture");
     }
-    if !scene.layout.is_public() && main_furniture < scene.minimum_main_objects() {
+    if !scene.layout.is_public()
+        && !scene.missing_kitchen_program()
+        && main_furniture < scene.minimum_main_objects()
+    {
         return fail("insufficient main room furniture");
     }
     for (index, camera) in scene.cameras.iter().enumerate() {

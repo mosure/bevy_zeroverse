@@ -1,3 +1,4 @@
+mod camera_activity;
 pub mod failure;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod gpu;
@@ -404,29 +405,6 @@ fn restore_sampling_motion(
     }
 }
 
-// After queue submission, mapping still progresses in render cleanup without
-// rasterizing another identical RGB frame. Direct ImageCopier API users and
-// interactive editor cameras retain their own activity control.
-fn gate_capture_cameras(
-    args: Res<BevyZeroverseConfig>,
-    state: Res<SamplerState>,
-    capture: Res<CaptureProgress>,
-    readiness: Res<CaptureReadiness>,
-    failure: Res<CaptureFailure>,
-    mut cameras: Query<(&mut Camera, &ImageCopier), With<crate::camera::ZeroverseCamera>>,
-) {
-    if !args.headless || args.editor {
-        return;
-    }
-    for (mut camera, copier) in &mut cameras {
-        camera.is_active = state.enabled
-            && capture.ovoxel_wait_started.is_none()
-            && readiness.scene_ready()
-            && failure.0.is_none()
-            && capture.pending.is_none_or(|id| copier.submitted_id() != id);
-    }
-}
-
 // Service already submitted work without repeatedly extracting and submitting
 // empty frames. The deadline returns control even if mapping is not registered
 // yet or the pipelined renderer needs the main-thread executor to progress.
@@ -604,7 +582,7 @@ pub fn configure_sampler(app: &mut App, initial_state: SamplerState) {
     );
     app.add_systems(PostUpdate, restore_sampling_motion.after(sample_stream));
     app.add_systems(PostUpdate, readiness::update.before(sample_stream));
-    app.add_systems(Last, gate_capture_cameras);
+    camera_activity::configure(app);
     #[cfg(not(target_arch = "wasm32"))]
     render_settling::configure(app);
 }

@@ -80,7 +80,10 @@ impl Plugin for ZeroverseCameraPlugin {
         app.init_resource::<CaptureDrawPolicy>();
         app.init_resource::<capture_targets::CaptureTargets>();
 
-        app.add_systems(PostUpdate, gate_interactive_views);
+        app.add_systems(
+            PostUpdate,
+            gate_interactive_views.before(bevy::camera::CameraUpdateSystems),
+        );
 
         app.init_resource::<Playback>();
         app.register_type::<Playback>();
