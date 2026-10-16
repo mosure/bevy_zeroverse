@@ -18,6 +18,7 @@ pub fn write_sources(
     stage: &Path,
     config: &Config,
 ) -> Result<()> {
+    crate::capacity_theory::write(&stage.join("tex/generated"))?;
     crate::timing::refresh_paper(stage, &dataset.identity)?;
     let p = &config.capture;
     let summary = &dataset.summary;

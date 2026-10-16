@@ -31,6 +31,7 @@ fn protocol(directory: &Path) -> Result<Protocol> {
             .as_f64()
             .context("missing human density")? as f32,
         gi_rays: integer(&selection["gi_rays"])? as u32,
+        ssaa_factor: integer(&selection["ssaa_factor"])? as u32,
     };
     ensure!(
         p.rendered_rooms > 0

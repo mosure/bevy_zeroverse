@@ -1447,6 +1447,21 @@ fn export_inner(
                         .min(scene.room_size.z * 0.5 - camera.start.z.abs()),
                 ),
                 ("trajectory_length_m", length),
+                (
+                    "camera_motion_probability",
+                    scene.camera_settings.motion_fraction,
+                ),
+                (
+                    "camera_motion_selected",
+                    u8::from(scene.camera_settings.camera_moves(scene.seed, i)) as f32,
+                ),
+                (
+                    "camera_motion_active",
+                    u8::from(
+                        length > 1e-6
+                            || camera.transform_at(0.).rotation != camera.transform_at(1.).rotation,
+                    ) as f32,
+                ),
                 ("camera_yaw_degrees", yaw),
                 ("camera_pitch_degrees", pitch),
                 ("target_distance_m", camera.start.distance(camera.target)),

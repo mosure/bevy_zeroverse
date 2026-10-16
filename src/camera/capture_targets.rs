@@ -7,6 +7,7 @@ use std::collections::HashMap;
 #[derive(Clone, Copy, PartialEq, Eq)]
 struct Key {
     resolution: UVec2,
+    ssaa_factor: u32,
     copy: bool,
     #[cfg(not(target_arch = "wasm32"))]
     geometry: bool,
@@ -29,6 +30,7 @@ impl Key {
         let visibility = modes().any(|mode| *mode == RenderMode::CoVisibility);
         Self {
             resolution,
+            ssaa_factor: crate::render::ssaa::effective_factor(resolution, args.ssaa_factor),
             copy: args.image_copiers,
             #[cfg(not(target_arch = "wasm32"))]
             geometry: cfg!(not(target_arch = "wasm32"))
@@ -48,6 +50,7 @@ impl Key {
 #[derive(Clone)]
 pub(super) struct Targets {
     pub color: Handle<Image>,
+    pub ssaa: Option<crate::render::ssaa::SsaaCamera>,
     pub copier: Option<io::image_copy::ImageCopier>,
     #[cfg(not(target_arch = "wasm32"))]
     pub geometry: Option<crate::render::ground_truth::GroundTruthCamera>,
@@ -59,7 +62,7 @@ impl Targets {
             height: key.resolution.y,
             depth_or_array_layers: 1,
         };
-        let color = images.add(Image {
+        let target = Image {
             // Render attachments are cleared by their camera. No CPU zero-fill
             // or redundant initial texture upload is needed.
             data: None,
@@ -77,9 +80,26 @@ impl Targets {
                 view_formats: &[],
             },
             ..default()
-        });
+        };
+        let output = images.add(target.clone());
+        let (color, ssaa) = if key.ssaa_factor > 1 {
+            let mut high = target;
+            high.texture_descriptor.size.width *= key.ssaa_factor;
+            high.texture_descriptor.size.height *= key.ssaa_factor;
+            high.texture_descriptor.label = Some("bevy_zeroverse_supersampled_target");
+            let source = images.add(high);
+            let ssaa = crate::render::ssaa::SsaaCamera::new(
+                source.clone(),
+                output.clone(),
+                key.resolution,
+                key.ssaa_factor,
+            );
+            (source, Some(ssaa))
+        } else {
+            (output.clone(), None)
+        };
         #[allow(unused_mut)]
-        let mut planes = vec![color.clone()];
+        let mut planes = vec![output];
         #[cfg(not(target_arch = "wasm32"))]
         let geometry = key.geometry.then(|| {
             let mut gt =
@@ -95,6 +115,7 @@ impl Targets {
         });
         Self {
             color,
+            ssaa,
             copier: key.copy.then(|| {
                 io::image_copy::ImageCopier::for_targets(
                     planes,
@@ -111,6 +132,7 @@ impl Targets {
     fn recycled(&self) -> Option<Self> {
         Some(Self {
             color: self.color.clone(),
+            ssaa: self.ssaa.as_ref().map(|ssaa| ssaa.recycled()),
             copier: Some(self.copier.as_ref()?.recycled()?),
             #[cfg(not(target_arch = "wasm32"))]
             geometry: self.geometry.as_ref().map(|gt| gt.recycled()),

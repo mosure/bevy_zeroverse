@@ -79,6 +79,12 @@ fn publication_inputs(root: &Path, config: &Config) -> Result<BTreeMap<String, S
     if let Some(input) = &config.room_qualification {
         inputs.extend(io::files(root, &root.join(input))?);
     }
+    for input in &config.capacity_receipts {
+        inputs.insert(
+            input.to_string_lossy().into_owned(),
+            io::hash(&root.join(input))?,
+        );
+    }
     Ok(inputs)
 }
 fn is_generated(name: &str) -> bool {
@@ -87,6 +93,7 @@ fn is_generated(name: &str) -> bool {
         || name.starts_with("www/project/static/media/architecture/")
         || name.starts_with("www/project/static/media/qualification/")
         || name.starts_with("www/project/static/media/cohorts/")
+        || name.starts_with("www/project/static/media/capacity/")
         || name.starts_with("www/project/static/media/cameras/")
         || name.starts_with("www/project/static/media/objects/")
         || name.starts_with("www/project/static/media/doors/")
@@ -105,6 +112,7 @@ fn is_generated(name: &str) -> bool {
         || name.starts_with("tex/generated/door_")
         || name.starts_with("tex/generated/material_")
         || name.starts_with("tex/generated/pipeline_")
+        || name.starts_with("tex/generated/capacity_")
 }
 fn artifacts(root: &Path) -> Result<BTreeMap<String, String>> {
     let mut out = BTreeMap::new();
@@ -211,6 +219,11 @@ fn verify_bundle(root: &Path, config: &Config, attestation: &Attestation) -> Res
     crate::cohorts::publication::verify(
         root,
         config.room_qualification.is_some(),
+        &attestation.generator_identity,
+    )?;
+    crate::capacity::publication::verify(
+        root,
+        config.capacity_receipts.len(),
         &attestation.generator_identity,
     )?;
     let media = root.join("www/project/static/media/architecture");
@@ -468,6 +481,9 @@ pub fn refresh(root: &Path, recapture: bool) -> Result<()> {
         crate::cohorts::publication::verify_input(&root.join(input), &current)
             .context("refresh the configured rendered-cohort receipt before publication refresh")?;
     }
+    for input in &config.capacity_receipts {
+        crate::capacity::publication::read_current(&root.join(input), &current)?;
+    }
     let timing = root.join("tex/generated/pipeline_receipt.json");
     if timing.exists() {
         crate::timing::validate_receipt(&io::read(&timing)?, &current)
@@ -532,7 +548,9 @@ pub fn refresh(root: &Path, recapture: bool) -> Result<()> {
                         "--human-density",
                         &p.human_density.to_string(),
                         "--gi-rays",
-                        &p.gi_rays.to_string()
+                        &p.gi_rays.to_string(),
+                        "--ssaa-factor",
+                        &p.ssaa_factor.to_string()
                     ])
                     .arg("--output")
                     .arg(&temporary)
@@ -589,6 +607,7 @@ pub fn refresh(root: &Path, recapture: bool) -> Result<()> {
     objects::build(&object_cache, stage, &current)?;
     doors::build(&door_cache, stage, &current)?;
     materials::build(&material_cache, stage, &current)?;
+    crate::capacity::publication::build(&root, stage, &config.capacity_receipts, &current)?;
     media::page(&gallery, stage, &config.capture)?;
     paper::write_sources(&dataset, &gallery, stage, &config)?;
     println!("Compile paper and package its exact dependency closure");
@@ -667,6 +686,12 @@ pub fn rebuild(root: &Path, release_version: Option<&str>) -> Result<()> {
     objects::write_paper(stage)?;
     doors::write_paper(stage)?;
     materials::write_paper(stage)?;
+    crate::capacity::publication::build(
+        &root,
+        stage,
+        &config.capacity_receipts,
+        &attestation.generator_identity,
+    )?;
     media::page(&gallery, stage, &config.capture)?;
     paper::write_sources(&dataset, &gallery, stage, &config)?;
     paper::compile(stage, &config, &gallery)?;

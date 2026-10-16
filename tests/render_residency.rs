@@ -123,9 +123,15 @@ fn assert_bounded(app: &App) -> RenderResidencySnapshot {
     stats
 }
 
-#[test]
-#[ignore = "requires native GPU; 64 regenerated scenes plus fixed-scene cache/pixel controls"]
-fn retired_view_keys_are_evicted_without_changing_captured_pixels() {
+static GPU_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+fn fixture(
+    indirect: bool,
+) -> (
+    App,
+    tempfile::TempDir,
+    bevy::render::renderer::RenderInstance,
+) {
     let assets = tempfile::tempdir().unwrap();
     setup_globals(Some(assets.path().to_string_lossy().into_owned()));
     let config = BevyZeroverseConfig {
@@ -156,7 +162,7 @@ fn retired_view_keys_are_evicted_without_changing_captured_pixels() {
     };
     let mut app = create_app(None, Some(config), false);
     // Exercise the indirect bin-unpacking cache as well as the default direct path.
-    app.insert_resource(bevy_zeroverse::camera::CaptureDrawPolicy { indirect: true });
+    app.insert_resource(bevy_zeroverse::camera::CaptureDrawPolicy { indirect });
     // Keep native shadows/material specialization while avoiding unrelated GI cost.
     app.world_mut().resource_mut::<IndoorGiSettings>().enabled = false;
     app.world_mut()
@@ -176,6 +182,14 @@ fn retired_view_keys_are_evicted_without_changing_captured_pixels() {
             .is_none(),
         "native dataset capture requires deterministic light clustering"
     );
+    (app, assets, render_instance)
+}
+
+#[test]
+#[ignore = "requires native GPU; 64 regenerated scenes plus fixed-scene cache/pixel controls"]
+fn retired_view_keys_are_evicted_without_changing_captured_pixels() {
+    let _guard = GPU_TEST_LOCK.lock().unwrap();
+    let (mut app, _assets, render_instance) = fixture(true);
     for _ in 0..4 {
         app.update();
     }
@@ -233,6 +247,8 @@ fn retired_view_keys_are_evicted_without_changing_captured_pixels() {
         .resource_mut::<bevy_zeroverse::camera::CaptureDrawPolicy>()
         .indirect = false;
     let direct = capture(&mut app, Some(6));
+    let direct_replay = capture(&mut app, None);
+    assert_equal_views(&direct, &direct_replay);
     let mut draw_differences = Vec::new();
     for (view_index, (a, b)) in before.views.iter().zip(&direct.views).enumerate() {
         assert_eq!(a.world_from_view, b.world_from_view);
@@ -329,4 +345,22 @@ fn retired_view_keys_are_evicted_without_changing_captured_pixels() {
     println!(
         "64 regenerated scenes and 8 fixed-scene captures passed; RGB plus all four labels bit-exact across cleanup toggle/replay; view and GPU allocation caches evicted obsolete keys; all five observed caches remained bounded"
     );
+}
+
+#[test]
+#[ignore = "requires native GPU; direct/indirect shadow mode transitions"]
+fn shadow_submission_does_not_reuse_previous_scene_culling_bounds() {
+    let _guard = GPU_TEST_LOCK.lock().unwrap();
+    let (mut app, _assets, _instance) = fixture(false);
+    app.world_mut()
+        .resource_mut::<RenderResidencyPolicy>()
+        .prune = true;
+    let reference = capture(&mut app, Some(6));
+    for indirect in [false, true, true, false, false] {
+        app.world_mut()
+            .resource_mut::<bevy_zeroverse::camera::CaptureDrawPolicy>()
+            .indirect = indirect;
+        let sample = capture(&mut app, Some(6));
+        assert_equal_views(&reference, &sample);
+    }
 }

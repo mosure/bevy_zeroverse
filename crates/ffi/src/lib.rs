@@ -236,6 +236,9 @@ pub struct Sample {
     pub indoor_manifest: Option<String>,
     #[pyo3(get)]
     pub indoor_render_metadata: Option<String>,
+    /// Versioned raster sampling policy as JSON; absent means SSAA is disabled.
+    #[pyo3(get)]
+    pub sampling: Option<String>,
     #[pyo3(get)]
     pub co_visibility_metadata: Option<String>,
     #[pyo3(get)]
@@ -279,6 +282,9 @@ impl From<core_sample::Sample> for Sample {
     fn from(value: core_sample::Sample) -> Self {
         let views = value.views.into_iter().map(View::from).collect();
         Sample {
+            sampling: value.sampling.as_ref().map(|policy| {
+                serde_json::to_string(policy).expect("valid capture sampling policy")
+            }),
             co_visibility_metadata: value
                 .co_visibility_metadata
                 .as_ref()

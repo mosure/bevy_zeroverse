@@ -534,6 +534,16 @@ pub fn save_chunk_with_codec(
             .collect(),
     });
     for (i, sample) in samples.iter().enumerate() {
+        if let Some(sampling) = &sample.sampling {
+            sampling.validate().map_err(anyhow::Error::msg)?;
+            let data = serde_json::to_vec(sampling)?;
+            tensors.push(TensorData {
+                name: format!("capture_sampling_{i}"),
+                dtype: Dtype::U8,
+                shape: vec![data.len()],
+                data,
+            });
+        }
         if let Some(metadata) = &sample.indoor_render_metadata {
             let data = serde_json::to_vec(metadata)?;
             tensors.push(TensorData {
@@ -1265,6 +1275,7 @@ pub fn load_chunk(path: impl AsRef<Path>) -> Result<Vec<ZeroverseSample>> {
             ovoxel: None,
             indoor: None,
             indoor_render_metadata: None,
+            sampling: None,
             co_visibility_metadata: None,
             annotation_precision: Default::default(),
             annotation_glass: Default::default(),
@@ -1274,6 +1285,17 @@ pub fn load_chunk(path: impl AsRef<Path>) -> Result<Vec<ZeroverseSample>> {
     ];
 
     for key in tensors.names() {
+        if let Some(index) = key.strip_prefix("capture_sampling_") {
+            let index: usize = index.parse().context("invalid capture sampling index")?;
+            let sample = samples
+                .get_mut(index)
+                .context("capture sampling index out of bounds")?;
+            let sampling: bevy_zeroverse::render::ssaa::CaptureSampling =
+                serde_json::from_slice(tensors.tensor(key)?.data())?;
+            sampling.validate().map_err(anyhow::Error::msg)?;
+            sample.sampling = Some(sampling);
+            continue;
+        }
         if let Some(index) = key.strip_prefix("indoor_render_metadata_") {
             let index: usize = index
                 .parse()
@@ -1988,6 +2010,7 @@ mod tests {
         ZeroverseSample {
             indoor: None,
             indoor_render_metadata: None,
+            sampling: None,
             co_visibility_metadata: None,
             annotation_precision: Default::default(),
             annotation_glass: Default::default(),
@@ -2015,6 +2038,7 @@ mod tests {
         ZeroverseSample {
             indoor: None,
             indoor_render_metadata: None,
+            sampling: None,
             co_visibility_metadata: None,
             annotation_precision: Default::default(),
             annotation_glass: Default::default(),
@@ -2049,6 +2073,7 @@ mod tests {
         ZeroverseSample {
             indoor: None,
             indoor_render_metadata: None,
+            sampling: None,
             co_visibility_metadata: None,
             annotation_precision: Default::default(),
             annotation_glass: Default::default(),
@@ -2091,6 +2116,42 @@ mod tests {
         fs::remove_file(path).unwrap();
         assert!(dataset.get(0).is_err());
         assert!(std::panic::catch_unwind(|| dataset.get(1)).is_err());
+    }
+
+    #[test]
+    fn chunk_roundtrips_sampling_and_rejects_unknown_policy() {
+        let dir = tempdir().unwrap();
+        let mut sample = sample_with_obb("chair");
+        sample.sampling = Some(bevy_zeroverse::render::ssaa::CaptureSampling {
+            schema_version: 1,
+            ssaa_factor: 3,
+        });
+        let path = save_chunk_with_codec(
+            std::slice::from_ref(&sample),
+            dir.path(),
+            0,
+            Compression::None,
+            1,
+            1,
+            false,
+            ColorCodec::Raw,
+        )
+        .unwrap();
+        assert_eq!(load_chunk(&path).unwrap()[0].sampling, sample.sampling);
+        sample.sampling.as_mut().unwrap().ssaa_factor = 0;
+        assert!(
+            save_chunk_with_codec(
+                &[sample],
+                dir.path(),
+                1,
+                Compression::None,
+                1,
+                1,
+                false,
+                ColorCodec::Raw
+            )
+            .is_err()
+        );
     }
 
     #[test]
@@ -2148,6 +2209,7 @@ mod tests {
         let sample = ZeroverseSample {
             indoor: None,
             indoor_render_metadata: None,
+            sampling: None,
             co_visibility_metadata: None,
             annotation_precision: Default::default(),
             annotation_glass: Default::default(),

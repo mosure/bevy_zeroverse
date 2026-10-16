@@ -53,7 +53,7 @@ impl PreparationJob {
 
 /// Only enable when a caller intends to capture the next consecutive seed.
 /// One-shot, random-access and interactive callers do no speculative work.
-#[derive(Resource, Default)]
+#[derive(Resource, Default, Clone, Debug, serde::Serialize)]
 pub struct IndoorPrefetch {
     /// Requested future consecutive rooms, capped by MAX_DEPTH. Zero disables.
     pub depth: usize,
@@ -65,6 +65,11 @@ pub struct IndoorPrefetch {
     /// Future asset sets submitted to Bevy preparation; not GPU completion fences.
     pub staged_rooms: u64,
     pub staged_hits: u64,
+    /// One known successor may finish preparation while the consumer is busy.
+    /// These counters exclude captured samples and never enter dataset identity.
+    pub idle_started: u64,
+    pub idle_ready: u64,
+    pub idle_failed: u64,
 }
 
 pub const MAX_DEPTH: usize = 4;
@@ -80,6 +85,11 @@ impl<T> Default for Lookahead<T> {
 }
 
 impl<T> Lookahead<T> {
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn len(&self) -> usize {
+        self.0.len()
+    }
+
     pub(crate) fn front_mut(&mut self) -> Option<&mut T> {
         self.0.front_mut().map(|(_, job)| job)
     }

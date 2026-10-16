@@ -30,6 +30,27 @@ and all native Auto effects. Content, camera and annotation requirements can be
 changed independently of scheduling. Optional motion models are not loaded
 unless requested. O-voxel remains opt-in.
 
+SSAA defaults to **Auto** (`ssaa_factor = 0`): 2× below 1280×720 pixels, native
+resolution at or above that pixel count. This rule treats portrait and landscape
+images consistently. Thus the 256×256 CLI and 512×512 training presets use 2×.
+An explicit `config.ssaa_factor = 2` renders capture RGB at twice the width and height,
+then area-averages each 2×2 footprint on the GPU into the original output size.
+Explicit factors 1 (off), 2, 3 and 4 override Auto. The equivalent CLI flag is
+`--ssaa-factor 2`; use `--ssaa-factor 1` to disable it. This increases raster/shading work and GPU attachment memory;
+it does not increase final readback bytes or add a CPU filtering/upload step.
+The same-device WGPU and optional CUDA tensor paths consume the resolved texture.
+
+RGB is filtered in linear light after tone mapping. Numeric depth, normals,
+position, semantic IDs, optical flow and co-visibility retain their exact final
+pixel-center rays: they are **not averaged across surfaces**. In particular,
+semantic colors cannot become invented classes and depth cannot become a
+nonexistent surface at an edge. RGB edge pixels may contain mixed coverage while
+their aligned geometric target describes the central ray. Image dimensions,
+intrinsics and flow units always refer to the final grid. `Sample::sampling`
+records this versioned policy for SSAA captures, including archive round trips;
+its absence in older/non-supersampled captures means factor 1. Metadata stores
+the actual resolved factor, rather than the Auto sentinel.
+
 For in-memory consumption, construct one `LiveDataset`, retain it across output
 shards, and call `next_sample()`. The Burn `Dataset::get()` adapter uses the same
 automatic bounded indoor lookahead. This is a consecutive live stream, not an
@@ -44,6 +65,18 @@ slower than the CLI. It now uses the same bounded scheduling without requiring a
 queue-depth, upload, thread-budget or process-environment setting.
 
 ## CLI path
+
+`--scene-type procedural-indoor` resolves to four 256×256 views, one captured
+timestep, furnishing density 0.65 and human density 0.25. `--indoor-layout mixed`
+(alias `all`) samples all 20 supported room programs uniformly, including kitchens,
+teaching, dining, transit and exhibition spaces. `GenConfig::indoor` is the
+separate three-view, 512×512 convenience preset described above.
+
+One timestep captures only progress 0. Longer paths and enabled camera trajectories
+do not add temporal observations to that sample. Request `--playback-steps` greater
+than one to capture more times; human and object motion still require their opt-in
+policies. Four cameras at one time are one multi-view room sample with four images,
+not four independent rooms. Capacity reports must bind the resolved capture plan.
 
 ```sh
 cargo run --release -p bevy_zeroverse_burn --bin zeroverse_gen -- \

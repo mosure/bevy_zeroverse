@@ -2,6 +2,142 @@ use super::*;
 use crate::scene::procedural_indoor::{cameras::CameraSettings, layout::IndoorLayout};
 use bevy::ecs::system::RunSystemOnce;
 
+fn decode_query(query: &str) -> impl Iterator<Item = (String, String)> + '_ {
+    fn decode(s: &str) -> String {
+        let bytes = s.as_bytes();
+        let mut out = vec![];
+        let mut i = 0;
+        while i < bytes.len() {
+            if bytes[i] == b'%' {
+                out.push(u8::from_str_radix(&s[i + 1..i + 3], 16).unwrap());
+                i += 3;
+            } else {
+                out.push(bytes[i]);
+                i += 1;
+            }
+        }
+        String::from_utf8(out).unwrap()
+    }
+    query.split('&').map(|p| {
+        let (k, v) = p.split_once('=').unwrap();
+        (decode(k), decode(v))
+    })
+}
+
+#[test]
+fn supersampling_defaults_to_auto_and_shares_without_automatic_regeneration() {
+    let config = BevyZeroverseConfig::default();
+    assert_eq!(config.ssaa_factor, 0);
+    let mut old = serde_json::to_value(&config).unwrap();
+    old.as_object_mut().unwrap().remove("ssaa_factor");
+    assert_eq!(
+        serde_json::from_value::<BevyZeroverseConfig>(old)
+            .unwrap()
+            .ssaa_factor,
+        0
+    );
+    let mut state = EditorState::new(&config);
+    let applied = state.applied.clone();
+    edit(&mut state, "/ssaa_factor", json!(2)).unwrap();
+    let config = state.config().unwrap();
+    assert_eq!(config.ssaa_factor, 2);
+    assert_eq!(state.applied, applied);
+    let query = share::query(&config, &state.view);
+    let parsed =
+        super::super::config_with_query(BevyZeroverseConfig::default(), decode_query(&query))
+            .unwrap();
+    assert_eq!(parsed.ssaa_factor, 2);
+    state.draft["ssaa_factor"] = json!(5);
+    assert!(state.config().is_err());
+}
+
+#[test]
+fn capacity_evidence_controls_do_not_change_or_share_scene_configuration() {
+    let config = BevyZeroverseConfig::default();
+    let mut state = EditorState::new(&config);
+    let draft = state.draft.clone();
+    let query = share::query(&config, &state.view);
+    assert!(state.capacity_status().contains("No imported"));
+    assert!(edit(
+        &mut state,
+        "@capacity_receipt",
+        json!({"schema_version":999})
+    )
+    .is_err());
+    assert!(state.capacity_receipt.is_none());
+    edit(&mut state, "@capacity_receipt", Value::Null).unwrap();
+    assert_eq!(state.draft, draft);
+    assert!(!state.pending());
+    assert_eq!(share::query(&state.config().unwrap(), &state.view), query);
+    assert!(!query.contains("capacity_receipt"));
+}
+
+#[test]
+fn camera_motion_percentage_preserves_travel_animation_and_shared_urls() {
+    let config = BevyZeroverseConfig {
+        scene_type: ZeroverseSceneType::ProceduralIndoor,
+        indoor_camera: Some(
+            r#"{"handheld":{},"path_length_min":0.01,"path_length_max":0.6}"#.into(),
+        ),
+        indoor_motion: Some("{}".into()),
+        ..default()
+    };
+    let mut state = EditorState::new(&config);
+    let applied = state.applied.clone();
+    let travel = state.draft["indoor_camera"].clone();
+    assert_eq!(value(&state, "@camera_motion_percent"), json!(100.));
+    for fraction in [0., 37., 100.] {
+        assert!(
+            !edit(&mut state, "@camera_motion_percent", json!(fraction)).unwrap(),
+            "slider must retain its entity while dragging"
+        );
+        let config = state.config().unwrap();
+        let settings = CameraSettings::parse(config.indoor_camera.as_deref().unwrap()).unwrap();
+        assert!((settings.motion_fraction - fraction as f32 / 100.).abs() < 1e-6);
+        assert_eq!(state.applied, applied);
+        assert_eq!(state.draft["indoor_camera"]["handheld"], travel["handheld"]);
+        assert_eq!(
+            state.draft["indoor_camera"]["path_length_max"],
+            travel["path_length_max"]
+        );
+        assert!(config.indoor_motion.is_some());
+        let query = share::query(&config, &state.view);
+        let pairs = decode_query(&query);
+        let roundtrip =
+            super::super::config_with_query(BevyZeroverseConfig::default(), pairs).unwrap();
+        assert_eq!(
+            CameraSettings::parse(roundtrip.indoor_camera.as_deref().unwrap()).unwrap(),
+            settings
+        );
+    }
+    assert!(edit(&mut state, "@camera_motion_percent", json!(-1.)).is_err());
+    assert!(edit(&mut state, "@camera_motion_percent", json!(101.)).is_err());
+}
+
+#[test]
+fn lens_controls_migrate_explicit_old_distribution_only_when_edited() {
+    let config = BevyZeroverseConfig {
+        scene_type: ZeroverseSceneType::ProceduralIndoor,
+        indoor_camera: Some(r#"{"intrinsics":{"ultra_wide_probability":0.7}}"#.into()),
+        ..default()
+    };
+    let mut state = EditorState::new(&config);
+    assert_eq!(
+        state.draft["indoor_camera"]["intrinsics"]["ultra_wide_probability"],
+        json!(0.7f32)
+    );
+    let baseline = state.draft["indoor_camera"]["multiview"].clone();
+    assert!(!edit(&mut state, "@lens_spread", json!(0.4)).unwrap());
+    assert!(!edit(&mut state, "@lens_bias", json!(-0.35)).unwrap());
+    let settings =
+        CameraSettings::parse(state.config().unwrap().indoor_camera.as_deref().unwrap()).unwrap();
+    assert_eq!(settings.intrinsics.spread, 0.4);
+    assert_eq!(settings.intrinsics.bias, -0.35);
+    assert_eq!(settings.intrinsics.ultra_wide_probability, None);
+    assert_eq!(state.draft["indoor_camera"]["multiview"], baseline);
+    assert!(state.pending());
+}
+
 #[test]
 fn optical_center_and_graph_controls_roundtrip_and_do_not_regenerate() {
     let mut state = EditorState::new(&BevyZeroverseConfig::default());
@@ -34,12 +170,7 @@ fn ultra_wide_controls_are_drafts_and_roundtrip_as_typed_camera_policy() {
         json!(150.),
     )
     .unwrap();
-    edit(
-        &mut state,
-        "/indoor_camera/intrinsics/ultra_wide_probability",
-        json!(0.7),
-    )
-    .unwrap();
+    edit(&mut state, "@lens_bias", json!(0.7)).unwrap();
     let config = state.config().unwrap();
     let parsed = CameraSettings::parse(config.indoor_camera.as_deref().unwrap()).unwrap();
     assert_eq!(parsed.intrinsics.fov_y_min_degrees, 120.);
@@ -208,7 +339,7 @@ fn depth_visualization_is_live_and_shared_without_changing_defaults() {
 #[test]
 fn camera_presets_retain_valid_continuous_policies() {
     let mut state = EditorState::new(&BevyZeroverseConfig::default());
-    for p in ["static", "handheld", "explore"] {
+    for p in ["handheld", "explore"] {
         edit(&mut state, "@path_preset", json!(p)).unwrap();
         state.config().unwrap();
         assert_eq!(value(&state, "@path_preset"), json!(p));
@@ -237,25 +368,7 @@ fn share_query_roundtrips_nested_policies_seed_and_view_state() {
         ..default()
     };
     let query = share::query(&config, &view);
-    fn decode(s: &str) -> String {
-        let bytes = s.as_bytes();
-        let mut out = vec![];
-        let mut i = 0;
-        while i < bytes.len() {
-            if bytes[i] == b'%' {
-                out.push(u8::from_str_radix(&s[i + 1..i + 3], 16).unwrap());
-                i += 3;
-            } else {
-                out.push(bytes[i]);
-                i += 1;
-            }
-        }
-        String::from_utf8(out).unwrap()
-    }
-    let pairs = query.split('&').map(|p| {
-        let (k, v) = p.split_once('=').unwrap();
-        (decode(k), decode(v))
-    });
+    let pairs = decode_query(&query);
     assert!(query.contains("depth_format=Normalized"));
     let parsed =
         super::super::config_with_query(super::super::web_viewer_defaults(), pairs).unwrap();

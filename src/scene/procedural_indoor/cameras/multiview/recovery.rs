@@ -134,7 +134,9 @@ fn alternate_reference(
         || scene.floor_height(source.start.xz()),
         |e| e.support_height(source.start),
     );
-    let length = if scene.camera_settings.path_length_max == 0. {
+    let length = if !scene.camera_settings.camera_moves(scene.seed, 0)
+        || scene.camera_settings.path_length_max == 0.
+    {
         0.
     } else {
         scene
@@ -196,14 +198,12 @@ fn alternate_reference(
                 roll: [0.; 2],
             }),
         };
-        if let Some(handheld) = &scene.camera_settings.handheld {
-            handheld.apply(&mut camera, rng);
-        }
-        let path_length = camera.path_length();
+        scene
+            .camera_settings
+            .prepare_motion(scene.seed, 0, &mut camera, rng);
         if !scene.camera_clear(camera.start)
             || !scene.camera_view_clear(camera.start, camera.target)
-            || path_length + 1e-4 < scene.camera_settings.path_length_min
-            || path_length > scene.camera_settings.path_length_max + 1e-4
+            || !scene.camera_settings.accepts_motion(scene.seed, 0, &camera)
             || !scene.camera_curve_clear(&camera)
             || !coverage.suitable(&camera, true)
         {
@@ -332,8 +332,8 @@ pub(super) fn complete(
                     } else {
                         attempt
                     };
-                    let camera = if (replaced_reference || beam) && saved_index < saved_views.len()
-                    {
+                    let saved = (replaced_reference || beam) && saved_index < saved_views.len();
+                    let mut camera = if saved {
                         // The saved person-facing paths already proved clearance
                         // and full framing at low eye heights. Reuse them as rare
                         // counterparts before proposing new paths. Co-located
@@ -383,7 +383,7 @@ pub(super) fn complete(
                             continue;
                         }
                         let mode = (attempt - saved_views.len() * parents.len()) / 6;
-                        let mut camera = if mode == 0 {
+                        if mode == 0 {
                             let mut camera = propose(
                                 template,
                                 template
@@ -443,11 +443,7 @@ pub(super) fn complete(
                                     roll: [0.; 2],
                                 }),
                             }
-                        };
-                        if let Some(handheld) = &scene.camera_settings.handheld {
-                            handheld.apply(&mut camera, rng);
                         }
-                        camera
                     } else if beam
                         && replaced_reference
                         && !content.is_empty()
@@ -499,7 +495,7 @@ pub(super) fn complete(
                             [Vec3::Z, -Vec3::X, Vec3::X, -Vec3::Y, -Vec3::Z, Vec3::Y][spatial % 6];
                         let end = origin + direction * length;
                         let aim = content[index % content.len()];
-                        let mut camera = IndoorCamera {
+                        IndoorCamera {
                             principal_point_offset: None,
                             start: origin,
                             end,
@@ -512,11 +508,7 @@ pub(super) fn complete(
                                 target_end: aim,
                                 roll: [0.; 2],
                             }),
-                        };
-                        if let Some(handheld) = &scene.camera_settings.handheld {
-                            handheld.apply(&mut camera, rng);
                         }
-                        camera
                     } else {
                         // Radial offsets spend almost all proposals outside a narrow
                         // usable room. Draw the real origin first, including its local
@@ -615,19 +607,31 @@ pub(super) fn complete(
                             }
                             motion.target_end += aim_offset;
                         }
-                        if let Some(handheld) = &scene.camera_settings.handheld {
-                            handheld.apply(&mut camera, rng);
-                        }
                         camera
                     };
+                    if !saved
+                        || !scene
+                            .camera_settings
+                            .camera_moves(scene.seed, scene.cameras.len())
+                        || camera.motion.is_none()
+                    {
+                        scene.camera_settings.prepare_motion(
+                            scene.seed,
+                            scene.cameras.len(),
+                            &mut camera,
+                            rng,
+                        );
+                    }
                     let track = Track::new(&camera);
                     let rejection = if !scene.camera_clear(camera.start) {
                         Some(0)
                     } else if !geometry(&tracks, Some(&track)).unwrap().accepts(policy) {
                         Some(1)
-                    } else if camera.path_length() + 1e-4 < scene.camera_settings.path_length_min
-                        || camera.path_length() > scene.camera_settings.path_length_max + 1e-4
-                    {
+                    } else if !scene.camera_settings.accepts_motion(
+                        scene.seed,
+                        scene.cameras.len(),
+                        &camera,
+                    ) {
                         Some(2)
                     } else if !scene.camera_curve_clear(&camera) {
                         Some(3)

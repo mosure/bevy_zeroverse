@@ -117,6 +117,7 @@ fn make_sample(width: u32, height: u32) -> Sample {
     Sample {
         indoor: None,
         indoor_render_metadata: None,
+        sampling: None,
         co_visibility_metadata: None,
         annotation_precision: Default::default(),
         annotation_glass: Default::default(),

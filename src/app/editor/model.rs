@@ -38,7 +38,7 @@ impl Page {
     pub fn intro(self) -> &'static str {
         match self {
             Self::Scene => "Build your next scene. Apply keeps the seed; Next explores a new room.",
-            Self::Cameras => "Spacing separates views. Travel moves each view through the room.",
+            Self::Cameras => "Baseline separates views. Lenses control framing. Motion selects which cameras travel.",
             Self::Appearance => {
                 "Vary surfaces and lighting independently while preserving geometry."
             }
@@ -138,6 +138,8 @@ pub struct EditorState {
     pub invalid_text: std::collections::BTreeMap<String, String>,
     pub active_seed: Option<u64>,
     pub debug: bool,
+    /// Explicitly imported evidence only. Never serialized into the scene URL.
+    pub capacity_receipt: Option<bevy_zeroverse_capture::capacity::CapacityReceipt>,
 }
 impl EditorState {
     pub fn new(config: &BevyZeroverseConfig) -> Self {
@@ -181,6 +183,7 @@ impl EditorState {
             invalid_text: default(),
             active_seed: None,
             debug: false,
+            capacity_receipt: None,
         }
     }
     pub fn pending(&self) -> bool {
@@ -197,6 +200,22 @@ impl EditorState {
     }
     pub fn config(&self) -> Result<BevyZeroverseConfig, String> {
         validate(&self.draft)
+    }
+    pub fn capacity_status(&self) -> String {
+        let Some(receipt) = &self.capacity_receipt else {
+            return "No imported qualification receipt. Audit explicitly with indoor_capacity; changing controls never starts capture or a model.".into();
+        };
+        let plan = self.config().and_then(|c| {
+            c.capacity_plan(
+                &receipt.plan.request,
+                receipt.plan.population.capture.clone(),
+            )
+        });
+        let matches = plan.is_ok_and(|p| p == receipt.plan);
+        let e = &receipt.estimate;
+        let c = &receipt.plan.population.capture;
+        format!("{} · {:?} · {}×{} · {} views × {} times · {}/{} accepted rooms, {} rendered. Forecast horizon: {} draws. Counts are descriptor-specific; no automatic capacity or learning-utility claim.",
+            if matches {"Matching evidence"} else {"Evidence does not match these controls/build"}, receipt.plan.request.unit,c.image_size[0],c.image_size[1],c.cameras,c.progress.len(),e.accepted_rooms,e.requested_rooms,e.rendered_rooms,e.definitions.iter().map(|d|d.max_qualified_forecast_draws).min().unwrap_or(0))
     }
 }
 pub fn expand(config: &BevyZeroverseConfig) -> Value {
@@ -255,6 +274,7 @@ pub fn validate(draft: &Value) -> Result<BevyZeroverseConfig, String> {
         return Err("Density must be between 0 and 1".into());
     }
     config.validate_ovoxel()?;
+    crate::render::ssaa::validate_factor(config.ssaa_factor)?;
     if config.playback_steps == 0
         || !(0.0..=1.0).contains(&config.playback_step)
         || !config.playback_speed.is_finite()

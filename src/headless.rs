@@ -15,6 +15,9 @@ use crate::{
 };
 use bevy::prelude::*;
 
+#[cfg(not(target_arch = "wasm32"))]
+mod preflight;
+
 static EXIT_REQUESTED: AtomicBool = AtomicBool::new(false);
 static APP_THREAD: Mutex<Option<thread::JoinHandle<()>>> = Mutex::new(None);
 
@@ -31,14 +34,21 @@ fn signaled_runner(mut app: App) -> AppExit {
         return exit;
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
+    let mut preflight = preflight::Preflight::default();
+
     loop {
         if EXIT_REQUESTED.load(Ordering::Acquire) {
             return AppExit::Success;
         }
 
+        #[cfg(not(target_arch = "wasm32"))]
+        let timeout = preflight.poll_interval();
+        #[cfg(target_arch = "wasm32")]
+        let timeout = Duration::from_millis(50);
         let recv_result = if let Some(receiver) = channels::app_frame_receiver() {
             let receiver = receiver.lock().unwrap();
-            receiver.recv_timeout(Duration::from_millis(50))
+            receiver.recv_timeout(timeout)
         } else {
             thread::sleep(Duration::from_millis(50));
             continue;
@@ -46,6 +56,11 @@ fn signaled_runner(mut app: App) -> AppExit {
 
         match recv_result {
             Ok(request) => {
+                #[cfg(not(target_arch = "wasm32"))]
+                if let Some(error) = preflight.begin_request(request.indoor_seed.is_some()) {
+                    channels::report_capture_failure(error);
+                    continue;
+                }
                 app.world_mut()
                     .resource_mut::<crate::scene::procedural_indoor::preparation::IndoorPrefetch>()
                     .depth = request.prefetch_indoor;
@@ -71,6 +86,7 @@ fn signaled_runner(mut app: App) -> AppExit {
                 state.regenerate_scene = request.indoor_seed.is_none();
                 app.insert_resource(state);
 
+                let mut capture_failed = false;
                 loop {
                     if EXIT_REQUESTED.load(Ordering::Acquire) {
                         return AppExit::Success;
@@ -88,13 +104,26 @@ fn signaled_runner(mut app: App) -> AppExit {
                             .0
                             .take()
                         {
+                            capture_failed = true;
                             channels::report_capture_failure(error);
                         }
                         break;
                     }
                 }
+                #[cfg(not(target_arch = "wasm32"))]
+                if !capture_failed {
+                    preflight.arm(app.world(), request);
+                }
+                #[cfg(target_arch = "wasm32")]
+                let _ = capture_failed;
             }
-            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {}
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                #[cfg(not(target_arch = "wasm32"))]
+                preflight.step(&mut app);
+                if let Some(exit) = app.should_exit() {
+                    return exit;
+                }
+            }
             Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
                 if EXIT_REQUESTED.load(Ordering::Acquire) {
                     return AppExit::Success;

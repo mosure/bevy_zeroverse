@@ -68,11 +68,11 @@ Indoor training configuration & Default and rationale\\\midrule
 Capture cameras / timesteps & Four / one; synchronized views of static geometry\\
 Shared-view policy & $b=0.5$: $\tau\approx0.342$, pair separation $\geq0.27$ m, reference distance 1.21--5.175 m; explicit \texttt{multiview:null} enables independent views\\
 Group diversity & Horizontal spread ratio $\geq0.25$ for 3+ views; moving-pair normalized RMS difference $\geq0.075$\\
-Room/activity/density & Primary room, Mixed activity, furnishing density 0.65, human density 0.25\\
+Room/program/density & Primary room; Mixed samples all 20 programs uniformly; furnishing density 0.65, human density 0.25\\
 Camera path policy & 0.03--8 m allowed path length, 0.45 long-path proposal fraction; collision rejection still applies\\
 Human motion & Disabled; static people remain, no ARDY initialization\\
 Native lighting & Auto quality, shadows and approximate baked diffuse GI, 256 rays/probe\\
-Dataset CLI workers / chunks & One process, 16 rooms/chunk; explicit overrides retained\\
+Dataset CLI workers / chunks & One process, four rooms/chunk; explicit overrides retained\\
 Finite worker lifetime & 256 scenes/child for finite indoor jobs with process workers\\
 Default export & RGB and calibration; geometric channels are opt-in\\\bottomrule
 \end{tabular}
@@ -80,7 +80,20 @@ Default export & RGB and calibration; geometric channels are opt-in\\\bottomrule
 \end{table}
 
 \section{Capture and annotation contract}
-Capture begins only after scene preparation, assets, shader pipelines, lighting and requested human trajectories are ready. A bounded asynchronous readback protocol associates outputs with the requested scene, camera, time and mode; it does not infer readiness from an arbitrary number of frames. Sequential native indoor streams automatically prepare future rooms on a shared bounded CPU pool and can upload one future room's immutable assets during current readback. Future entities, lighting dispatches and motion inference remain gated by scene promotion. This scheduling retains full native quality rather than reducing shadows or geometry. Geometric channels share an RGBA32Float ground-truth raster attachment. RGB uses Bevy's PBR pipeline, shadow maps, tone mapping and optional indirect-lighting approximation. Float32 storage does not imply that all RGB or lighting computations have float32 intermediate precision: HDR color and irradiance volumes include float16 stages.
+Capture begins only after scene preparation, assets, shader pipelines, lighting and requested human trajectories are ready. A bounded asynchronous readback protocol associates outputs with the requested scene, camera, time and mode; it does not infer readiness from an arbitrary number of frames. Sequential native indoor streams automatically prepare future rooms on a shared bounded CPU pool and can upload one future room's immutable assets during current readback, preserving the RGB settling boundary. Speculative material and indirect-lighting compute waits until every current capture copy is submitted. Future entities remain excluded from the current capture. Between ordinary live requests, one declared successor can complete preparation with capture cameras disabled; this consumes the existing lookahead budget. This scheduling retains full native quality rather than reducing shadows or geometry. Geometric channels share an RGBA32Float ground-truth raster attachment. RGB uses Bevy's PBR pipeline, shadow maps, tone mapping and optional indirect-lighting approximation. Float32 storage does not imply that all RGB or lighting computations have float32 intermediate precision: HDR color and irradiance volumes include float16 stages.
+
+Capture-camera supersampling defaults to an automatic policy: images below
+$1280\times720$ pixels use a $2\times$ linear raster scale, while larger images
+use native resolution. Explicit off, $2\times$, $3\times$ and $4\times$ overrides
+are available. A GPU box resolve averages RGB in linear light after tone mapping
+into the requested output dimensions, without a CPU filtering round trip.
+Numeric depth, normals, position, semantics, flow and co-visibility retain the
+exact final pixel-center rays. They are not averaged across surfaces: RGB can
+have mixed edge coverage while its geometric target describes the central ray.
+Calibration and flow units describe the final grid; versioned sampling metadata
+records the resolved factor. Filtered annotation previews are display products,
+not replacements for these geometric targets. Supersampling increases raster
+work and GPU attachment memory without increasing final capture readback bytes.
 
 \begin{table}[ht]
 \centering\small
@@ -124,20 +137,257 @@ A separate uint8 source-valid mask $A_s$ distinguishes an unshared surface ($A_s
 
 
 \input{generated/pipeline_evaluation.tex}
+
+Native archive consumers can optionally admit complete physical-room transactions through cumulative capture credits. Admission waits run outside the capture mutex and capture watchdog; dispatched CPU work and the bounded archive writer can finish while new idle GPU work is withheld. A permit covers every requested camera, timestep and modality. Cancellation drains admitted exports, and each requested room receives one terminal publication or failure receipt. Preparation wall partitions, overlapping branch service durations, prefetch counters, capture time, export time and demand-wait time are recorded separately. These mechanisms do not establish a concurrent-training speedup by themselves; training-update throughput and input starvation require qualification with the actual consumer.
+
 \input{generated/publication_evaluation.tex}
 \input{generated/camera_count_evaluation.tex}
 \input{generated/object_evaluation.tex}
 \input{generated/door_evaluation.tex}
 \input{generated/material_evaluation.tex}
 
+\section{Procedural capacity and sampling scale}
+\label{sec:capacity}
+The number of seed values, the number of named object categories, and the number
+of useful training examples are different quantities. We define a
+configuration-conditioned capacity framework and exact analytical reference
+cases. We do not estimate the generator's total perceptual support or a
+downstream learning exponent from the finite cohorts in this paper.
+
+\subsection{Population, unit and distinguishability}
+Fix resolved settings $C$, engine and asset identity $E$, and seed law $\pi$.
+Generation $G_E(C,s)$ includes its bounded search and recovery policy. Report
+success yield $a(C)$ separately from the distribution of accepted outputs;
+failed rooms are not useful diversity classes. An observation descriptor is
+$X=\Phi(\mathcal R_E(G_E(C,s)))$, conditional on success, where $\mathcal R$
+includes the declared views, times, resolution, exposure and annotation policy.
+A frozen partition $Q_\epsilon$ assigns observations to distinguishable classes
+with probabilities $p_j=\Pr[Q_\epsilon(X)=j\mid\mathrm{success}]$.
+The representation and resolution are part of the result, not hidden defaults.
+
+A structural room family, dressed scene, multi-view capture and temporal clip
+are different sample units. Camera, material and time variants can add useful
+observations without adding independent structural families. Confidence intervals
+and train/validation splits must retain this grouping. A single deterministic
+64-bit root seed gives an input-support ceiling of $2^{64}$ for fixed settings;
+domain-separated streams do not increase its entropy. Extra independent stochastic
+keys count only if the population law declares them. Ideal continuous ranges do
+not imply infinitely many distinguishable digital images. Finite precision,
+conditional branches, clearance rejection, occlusion and pixel resolution reduce
+realized variation.
+
+The resolved population must include every active factor: architecture and
+functional program; furniture, props and accepted support/interaction relations;
+human bodies, clothing, hair and posed joints; assigned material/texture programs;
+illumination and exposure; and captured camera intrinsics, extrinsics and times.
+Compute joint descriptors on the same accepted rooms. Multiplying marginal
+category counts or entropies assumes independence that the generator does not
+have. Hidden material recipes, rejected objects, seed IDs and unsampled motion
+endpoints contribute no observed diversity. Report conditional factor coverage
+alongside the aggregate so broad lighting variation cannot conceal repeated
+furnishings or people.
+
+The current Mixed sampler (also accepted as \texttt{all}) proposes each of the
+20 concrete room programs with probability $1/20$, including kitchens, dining,
+teaching, transit, exhibition and public suites. A suite is one room draw even
+when it contains several functional zones. Measure accepted proportions and
+failure yield separately. Dataset defaults conditional on
+\texttt{procedural-indoor} capture four $256\times256$ RGB views at progress zero.
+Camera trajectories are enabled, but one captured timestep supplies no temporal
+variation; ARDY and object motion are disabled unless requested. A longer path
+does not multiply sample count. The three-view $512\times512$ library convenience
+preset and the paper's recorded four-view, two-time gallery are different
+populations and require distinct capacity receipts.
+
+Geometry partitions should use primary-region topology and actual surface or
+support descriptors, excluding random IDs and seeds. Appearance and learned
+image descriptors need their own definitions. Pairwise distance below a threshold
+is generally not an equivalence relation: connected-component chaining can join
+visually different endpoints. Occupancy analysis therefore requires an explicit
+partition, frozen independently of the final audit. Direct near-pair rates remain
+separate diagnostics. Codebook identity, metric units, canonicalization and
+out-of-domain behavior must accompany every estimate.
+
+\subsection{Effective numbers and exact occupancy identities}
+Following the effective-number interpretation of diversity~\cite{hill1973}, define
+\begin{align}
+ D_0 &= |\{j:p_j>0\}|, &
+ D_1 &= \exp\!\left(-\sum_jp_j\log p_j\right), &
+ D_2 &= \left(\sum_jp_j^2\right)^{-1}.
+ \label{eq:capacity-hill}
+\end{align}
+These respectively describe support, entropy-equivalent balance and
+collision-equivalent balance; $D_2\leq D_1\leq D_0$. They coincide for a uniform
+finite population. A large rare tail can increase $D_0$ with little effect on
+$D_2$. Multiplying marginal parameter counts or entropies ignores dependence.
+For a correctly factorized program graph, joint entropy is
+$H(Z)=\sum_k H(Z_k\mid\mathrm{parents}_k)$, and a deterministic rendering and
+partition cannot increase entropy beyond the stochastic inputs.
+
+For $n\geq1$ independent successful draws from the same population, let $U(n)$ be
+expected occupied classes and $c_2=\sum_jp_j^2=1/D_2$. Indicator expectations give
+\begin{align}
+ U(n) &= \sum_j\left[1-(1-p_j)^n\right], \label{eq:capacity-occupancy}\\
+ U(n+1)-U(n) &= \sum_j p_j(1-p_j)^n, \label{eq:capacity-novelty}\\
+ \mathbb E[\text{equal-class pairs}] &= {n\choose2}c_2. \label{eq:capacity-pairs}
+\end{align}
+There is also a distribution-independent bound, for this fixed partition and IID law,
+\begin{equation}
+ \frac{n}{1+(n-1)c_2}\ \leq\ U(n)\ \leq\ \min(n,D_0).
+ \label{eq:capacity-bound}
+\end{equation}
+To see the lower bound, let $N_j$ be sample class counts and $K_n$ their number of
+nonzero entries. Cauchy--Schwarz gives $K_n\geq n^2/\sum_jN_j^2$. Jensen's
+inequality and $\mathbb E\sum_jN_j^2=n+n(n-1)c_2$ give
+Equation~\ref{eq:capacity-bound}. It is a bound, not an occupancy model inferred
+from $D_2$ alone. The two known populations in Figure~\ref{fig:capacity-scaling}
+have equal $D_2$ but different support and novelty curves.
+
+With uniform support $S$, Equation~\ref{eq:capacity-occupancy} becomes
+\begin{equation}
+ U(n)=S\left[1-(1-1/S)^n\right]\simeq S\left(1-e^{-n/S}\right).
+ \label{eq:capacity-uniform}
+\end{equation}
+The first repeated class and substantial saturation are different scales:
+expected colliding pairs reach one near $\sqrt{2D_2}$, whereas uniform occupancy
+saturates on scale $S$. Ten million draws with roughly 95\% distinct classes
+would require about one hundred million equiprobable classes under this
+particular model. Neither uniformity nor that support is established for
+Zeroverse. The analytical table is generated in Rust from numerically stable
+logarithm/exponential formulas, not fitted to captures.
+
+\input{generated/capacity_theory.tex}
+
+Sampling without replacement requires a different law. For a finite seed pool
+of size $M$ with class multiplicities $m_j$, replace $(1-p_j)^n$ by
+$\binom{M-m_j}{n}/\binom{M}{n}$. Consecutive-seed regression audits are useful
+deterministic coverage checks but do not by themselves justify IID confidence
+claims. Stratified and family-grouped samples require their declared weights
+and uncertainty method. Capture failures and retries must not silently change
+the reported target population.
+
+\subsection{Estimation and insufficient evidence}
+Given IID class counts $n_j$ in $n\geq2$ observations,
+\begin{equation}
+ \widehat c_2=\frac{\sum_jn_j(n_j-1)}{n(n-1)}
+ \label{eq:capacity-estimator}
+\end{equation}
+is unbiased for $c_2$; $1/\widehat c_2$ is not unbiased for $D_2$.
+Pairs that share an observation are dependent. Treating all $\binom n2$ pair
+indicators as independent binomial trials gives unjustified confidence bounds.
+Zero observed matches must not produce a claim of infinite capacity.
+
+A conservative fallback uses $m=\lfloor n/2\rfloor$ prespecified disjoint pairs
+of independently sampled rooms. If none match, the exact one-sided
+$1-\alpha$ upper confidence bound on $c_2$ and corresponding lower bound on $D_2$ are
+\begin{equation}
+ c_{2,\mathrm{upper}}=1-\alpha^{1/m},\qquad
+ D_{2,\mathrm{lower}}=\frac{1}{1-\alpha^{1/m}}.
+ \label{eq:capacity-zero}
+\end{equation}
+For 512 rooms and $\alpha=0.05$, this fallback yields only about 86 as a lower
+bound on collision diversity, even when every observed class is distinct.
+It is deliberately conservative, not an optimal use of all pairs. A stronger
+dependency-aware estimator or a uniform birthday model needs its own justification.
+No finite support upper bound follows from this observation without further
+population assumptions, apart from any separately declared finite input ceiling.
+
+Report observed support, singleton/doubleton counts, sample coverage, rarefaction
+and held-out next-block novelty. Unseen-species theory permits useful bounded
+extrapolation, but also establishes limits on distribution-free prediction
+horizons~\cite{orlitsky2016}. It does not justify projecting hundreds of rooms
+to ten million by fitting a convenient curve. Quantizers and thresholds must be
+frozen before final evaluation; resampling and uncertainty operate on independent
+room families. Ordinary bootstrap resampling of an all-unique observed set cannot
+discover an unobserved rare tail. Adaptive stopping and multiple reported
+configurations/resolutions also need an explicit confidence policy.
+
+\subsection{Similarity, resolution scaling and learning}
+For continuous image features, an accompanying sample diagnostic can use a
+positive semidefinite similarity kernel with $K_{ii}=1$, such as
+$K_{ij}=\exp(-\|x_i-x_j\|^2/(2\sigma^2))$ on frozen SigLIP2 features.
+If $\lambda_i$ are eigenvalues of $K/n$, the Vendi score is
+$\exp(-\sum_i\lambda_i\log\lambda_i)$; its order-two analogue is
+$1/\sum_i\lambda_i^2$~\cite{friedman2023,pasarkar2024}. These measure similarity
+diversity of the observed sample, depend on bandwidth and sampling, and are at
+most $n$. They are not total generator support or the number of statistically
+independent training examples. A linear feature kernel is additionally rank
+limited by embedding dimension. Centered covariance rank and ellipsoid-volume
+diagnostics have different meanings and must not be substituted for class counts.
+
+At declared structural resolutions, a candidate local relation is
+$\log D_2(\epsilon)\approx a-d\log\epsilon$. This is a resolution-scaling
+hypothesis over a tested interval, not a global dimensionality theorem or a
+sample-count law. Conditional branches and finite precision can produce plateaus
+and changing slopes. Evaluate several frozen resolutions and held-out cohorts
+before reporting an exponent. A separate downstream hypothesis,
+\begin{equation}
+ L(n)=L_\infty+A\,U(n)^{-\beta},
+ \label{eq:capacity-learning}
+\end{equation}
+would require fixed model, optimizer, compute, real validation set and repeated
+learning experiments. Compare it against raw-count and family-count alternatives;
+SigLIP spread cannot identify $\beta$ or prove transfer. No fitted coefficients
+for either scaling hypothesis are claimed here.
+
+\subsection{Qualification and API contract}
+The implemented capacity query binds resolved configuration, seed/failure law, sample
+unit, exact engine/model identities, partition/kernel and resolution, confidence
+policy, and requested sample horizon. It returns observed statistics, bounds or
+explicitly model-conditional forecasts, with an optional point estimate and
+nullable unresolved bounds. No matching evidence returns \emph{not qualified},
+not a guessed dataset size. A read-only query must not initialize models or render
+scenes; qualification is a separate explicit operation. These configuration-bound
+API types live in the portable capture crate, the generator supplies the typed
+configuration adapter, and the publication crate performs explicit offline
+qualification and generates receipt-bound tables, figures and HTML. The initial
+estimator supplies joint fixed-bin counts, observed-cohort rarefaction and exact
+Clopper--Pearson collision bounds using disjoint room pairs. It uses a consistent
+two-sided tail allocation, adjusted across prespecified definitions; choosing a
+one-sided interval only after seeing zero matches would under-cover near that
+selection boundary. Equation~\ref{eq:capacity-zero} remains the separately
+prespecified one-sided analytical example. No unseen-tail forecast is promoted.
+Native capture observation verifies full calibration, poses, frame delivery and
+finite RGB/geometry/semantic buffers; CPU construction alone cannot qualify
+rendered appearance. Bounded persistent workers preserve draw order and failed
+attempts, and ordinary rendering pays no capacity-audit cost. The analytical
+illustration command remains distinct from empirical qualification.
+
+The optional image-space audit freezes the capture index, verified SigLIP2 weights,
+preprocessing and RBF bandwidth before inference. It averages normalized view
+embeddings within each room and normalizes the resulting centroid, giving every
+room equal weight. The exact bounded eigensolver checks its residual and the
+positive-semidefinite, trace-one spectrum of $K/n$; its Vendi and participation
+scores describe the observed sample only. Complete fixed-seed replay is tested
+separately from different-seed novelty. Whole-image embeddings include exterior
+context and do not substitute for the primary-region geometry observer.
+
+The validation sequence is: exact finite-population oracles; independent pilot
+calibration of geometry/appearance equivalence; randomized structural audits;
+nested rendered cohorts; held-out novelty forecasts; then fixed-budget downstream
+learning. All views and times of a family stay together. Qualify whole-image and
+primary-region measurements separately so background changes cannot stand in
+for useful room diversity. Increase sample budgets only when interval precision
+or unexplored strata require them, and expose the largest tested forecast horizon.
+The Rust analytical fixtures enumerate small probability trees, verify occupancy
+and collision identities, check rare-tail bounds and zero-match confidence
+arithmetic, and regenerate the figure/table deterministically. They ground the
+formulas; they do not experimentally qualify capacity of the rendered generator.
+
+\IfFileExists{generated/capacity_evidence.tex}{\input{generated/capacity_evidence.tex}}{}
+
 \section{Limitations}
 Procedural correctness, broad parameter variation and efficient capture do not establish photographic realism. Hair is a surface groom, skin lacks a full subsurface model, some furnishings remain sparse, object motion uses approximate collision proxies, and diffuse GI uses probes and simplified transport. Glass and lighting are approximations rather than full path tracing. Transparent panes are excluded from opaque shadow and diffuse-transport geometry, so direct sunlight does not acquire physically complete tint, absorption or frosting redistribution. Geometric through-glass labels deliberately use straight rays rather than refracted RGB correspondence. Finite path-traced reference diagnostics still expose substantial scene-dependent transport error; the camera-baseline sweep does not measure physical accuracy or visual plausibility.
 
-The current study is a generator audit and finite capture cohorts, not a ten-million-scene run. Sustained native regeneration still shows host-memory growth, including retained Vulkan driver allocations; process-lifetime memory bounds are not qualified. The evaluation does not establish balanced coverage of all rare architectural combinations, collision-free arbitrary motion, suitability for every reconstruction loss, or transfer to real photographs. Shared-view defaults deliberately correlate cameras within a room; train/validation splits should therefore be made by room seed, not by image. A downstream assessment should freeze a training budget and real evaluation set, compare matched data quantities and camera policies, and measure reconstruction/calibration quality alongside redundancy. The manifests and metrics make that experiment reproducible without claiming its outcome in advance.
+The current study is a generator audit and finite capture cohorts, not a ten-million-scene run. Process-lifetime memory stability, including retained graphics-driver allocations, is not qualified by these finite cohorts. The evaluation does not establish balanced coverage of all rare architectural combinations, collision-free arbitrary motion, suitability for every reconstruction loss, or transfer to real photographs. Shared-view defaults deliberately correlate cameras within a room; train/validation splits should therefore be made by room seed, not by image. A downstream assessment should freeze a training budget and real evaluation set, compare matched data quantities and camera policies, and measure reconstruction/calibration quality alongside redundancy. The manifests and metrics make that experiment reproducible without claiming its outcome in advance.
 
 \begin{thebibliography}{9}
 \bibitem{xie2024} D. Xie et al. LRM-Zero: Training Large Reconstruction Models with Synthesized Data. NeurIPS, 2024. \url{https://arxiv.org/abs/2406.09371}.
 \bibitem{chen2024} Y. Chen et al. MVSplat: Efficient 3D Gaussian Splatting from Sparse Multi-View Images. ECCV, 2024. \url{https://arxiv.org/abs/2403.14627}.
 \bibitem{siglip2} M. Tschannen et al. SigLIP 2: Multilingual Vision-Language Encoders with Improved Semantic Understanding, Localization, and Dense Features. 2025. \url{https://arxiv.org/abs/2502.14786}.
+\bibitem{hill1973} M. O. Hill. Diversity and Evenness: A Unifying Notation and Its Consequences. Ecology, 54(2):427--432, 1973. \url{https://doi.org/10.2307/1934352}.
+\bibitem{orlitsky2016} A. Orlitsky, A. T. Suresh and Y. Wu. Estimating the number of unseen species: A bird in the hand is worth $\log n$ in the bush. 2016. \url{https://arxiv.org/abs/1511.07428}.
+\bibitem{friedman2023} D. Friedman and A. B. Dieng. The Vendi Score: A Diversity Evaluation Metric for Machine Learning. TMLR, 2023. \url{https://arxiv.org/abs/2210.02410}.
+\bibitem{pasarkar2024} A. P. Pasarkar and A. B. Dieng. Cousins of the Vendi Score: A Family of Similarity-Based Diversity Metrics for Science and Machine Learning. AISTATS, PMLR 238:3808--3816, 2024. \url{https://proceedings.mlr.press/v238/pasarkar24a.html}.
 \end{thebibliography}
 \end{document}

@@ -13,6 +13,7 @@ fn sample_with_id(id: u8) -> ZeroverseSample {
     Sample {
         indoor: None,
         indoor_render_metadata: None,
+        sampling: None,
         co_visibility_metadata: None,
         annotation_precision: Default::default(),
         annotation_glass: Default::default(),

@@ -1,5 +1,11 @@
 # Procedural indoor realism and diversity roadmap
 
+For the next planning cycle, see [realism, coverage and configuration-conditioned
+capacity](procedural_capacity_plan.md). It reviews the current construction and
+measurement contracts, proposes the effective-dataset-size API, and defines
+statistical and downstream qualification. The dated baseline below is retained
+as implementation history, not a current capacity estimate.
+
 The next substantial gain should come from **coherent construction, functional
 arrangements, and better light transport**. Increasing the number of seeds or
 independently randomized parameters alone will not make the rooms more realistic

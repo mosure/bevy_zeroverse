@@ -5,14 +5,9 @@ use crate::scene::procedural_indoor::validation::{validate_geometry, validate_la
 fn constrained_activity_seed_20053_has_a_usable_primary_surface() {
     for density in [0., 0.35, 0.65, 1.] {
         for human_density in [0., 0.25, 1.] {
-            let scene = IndoorManifest::generate_with_humans(
-                20_053,
-                IndoorLayout::Mixed,
-                density,
-                3,
-                human_density,
-            )
-            .unwrap();
+            let scene =
+                IndoorManifest::office_regression_fixture(20_053, density, 3, human_density)
+                    .unwrap();
             validate_layout(&scene)
                 .unwrap_or_else(|e| panic!("density={density}, humans={human_density}: {e}"));
             validate_geometry(&scene).unwrap();
@@ -44,14 +39,8 @@ fn constrained_activity_seed_20053_has_a_usable_primary_surface() {
             assert_eq!(scene, recovered, "complete rooms must not be refurnished");
             assert_eq!(
                 scene,
-                IndoorManifest::generate_with_humans(
-                    20_053,
-                    IndoorLayout::Mixed,
-                    density,
-                    3,
-                    human_density,
-                )
-                .unwrap(),
+                IndoorManifest::office_regression_fixture(20_053, density, 3, human_density,)
+                    .unwrap(),
                 "repaired scenes must replay deterministically"
             );
         }
@@ -155,9 +144,7 @@ fn complete_activity_rooms_are_unchanged_by_furnishing_recovery() {
 
 #[test]
 fn constrained_lounge_seed_49309986_has_sufficient_primary_furniture() {
-    let scene =
-        IndoorManifest::generate_with_humans(49_309_986, IndoorLayout::Mixed, 0.65, 4, 0.25)
-            .unwrap();
+    let scene = IndoorManifest::office_regression_fixture(49_309_986, 0.65, 4, 0.25).unwrap();
     assert_eq!(scene.layout, IndoorLayout::Lounge);
     assert!(
         scene
@@ -174,8 +161,7 @@ fn constrained_lounge_seed_49309986_has_sufficient_primary_furniture() {
     assert_eq!(scene, recovered, "complete rooms must not be refurnished");
     assert_eq!(
         scene,
-        IndoorManifest::generate_with_humans(49_309_986, IndoorLayout::Mixed, 0.65, 4, 0.25)
-            .unwrap()
+        IndoorManifest::office_regression_fixture(49_309_986, 0.65, 4, 0.25).unwrap()
     );
 }
 
@@ -183,14 +169,9 @@ fn constrained_lounge_seed_49309986_has_sufficient_primary_furniture() {
 fn constrained_lounge_seed_49309986_preserves_density_and_population_controls() {
     for density in [0., 0.35, 0.65, 1.] {
         for human_density in [0., 0.25, 1.] {
-            let scene = IndoorManifest::generate_with_humans(
-                49_309_986,
-                IndoorLayout::Mixed,
-                density,
-                3,
-                human_density,
-            )
-            .unwrap();
+            let scene =
+                IndoorManifest::office_regression_fixture(49_309_986, density, 3, human_density)
+                    .unwrap();
             validate_layout(&scene)
                 .unwrap_or_else(|e| panic!("density={density}, humans={human_density}: {e}"));
             validate_geometry(&scene).unwrap();
@@ -200,9 +181,7 @@ fn constrained_lounge_seed_49309986_preserves_density_and_population_controls() 
 
 #[test]
 fn constrained_library_seed_49981871_retains_sufficient_activity_furniture() {
-    let scene =
-        IndoorManifest::generate_with_humans(49_981_871, IndoorLayout::Mixed, 0.65, 0, 0.25)
-            .unwrap();
+    let scene = IndoorManifest::office_regression_fixture(49_981_871, 0.65, 0, 0.25).unwrap();
     assert_eq!(scene.layout, IndoorLayout::Library);
     validate_layout(&scene).unwrap();
     validate_geometry(&scene).unwrap();
@@ -215,8 +194,7 @@ fn constrained_library_seed_49981871_retains_sufficient_activity_furniture() {
     assert_eq!(scene, recovered, "recovery must be idempotent");
     assert_eq!(
         scene,
-        IndoorManifest::generate_with_humans(49_981_871, IndoorLayout::Mixed, 0.65, 0, 0.25)
-            .unwrap()
+        IndoorManifest::office_regression_fixture(49_981_871, 0.65, 0, 0.25).unwrap()
     );
 }
 
@@ -224,14 +202,9 @@ fn constrained_library_seed_49981871_retains_sufficient_activity_furniture() {
 fn constrained_library_seed_49981871_preserves_density_population_and_camera_controls() {
     for density in [0., 0.35, 0.65, 1.] {
         for human_density in [0., 0.25, 1.] {
-            let mut scene = IndoorManifest::generate_with_humans(
-                49_981_871,
-                IndoorLayout::Mixed,
-                density,
-                3,
-                human_density,
-            )
-            .unwrap();
+            let mut scene =
+                IndoorManifest::office_regression_fixture(49_981_871, density, 3, human_density)
+                    .unwrap();
             validate_layout(&scene)
                 .unwrap_or_else(|e| panic!("density={density}, humans={human_density}: {e}"));
             validate_geometry(&scene).unwrap();

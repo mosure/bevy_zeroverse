@@ -1,5 +1,6 @@
 //! Shared native/WebGPU scene controller built with retained Bevy Feathers widgets.
 mod fields;
+mod lens_preview;
 pub mod model;
 pub mod schematic;
 mod share;
@@ -115,6 +116,7 @@ fn scene_loaded(
 }
 pub fn value(state: &EditorState, path: &str) -> Value {
     match path {
+        "@capacity_receipt" => json!(state.capacity_receipt),
         "@config" => state.draft.clone(),
         "@overlap_graph" => state.draft["indoor_camera"]["multiview"]
             .get("graph")
@@ -141,6 +143,13 @@ pub fn value(state: &EditorState, path: &str) -> Value {
                 .unwrap_or(((m.min_reference_baseline - 0.06) / 2.30).clamp(0., 1.)))
         })
         .unwrap_or(json!(0.5)),
+        "@camera_motion_percent" => json!(
+            100. * state.draft["indoor_camera"]["motion_fraction"]
+                .as_f64()
+                .unwrap_or(1.)
+        ),
+        "@lens_bias" => state.draft["indoor_camera"]["intrinsics"]["bias"].clone(),
+        "@lens_spread" => state.draft["indoor_camera"]["intrinsics"]["spread"].clone(),
         "@multiview" => json!(!state.draft["indoor_camera"]["multiview"].is_null()),
         "@mixture" => json!(!state.draft["indoor_camera"]["overlap_mixture"].is_null()),
         "@handheld" => json!(!state.draft["indoor_camera"]["handheld"].is_null()),
@@ -150,9 +159,7 @@ pub fn value(state: &EditorState, path: &str) -> Value {
             let c = &state.draft["indoor_camera"];
             let min = c["path_length_min"].as_f64().unwrap_or(-1.);
             let max = c["path_length_max"].as_f64().unwrap_or(-1.);
-            json!(if min == 0. && max == 0. {
-                "static"
-            } else if !c["handheld"].is_null() {
+            json!(if !c["handheld"].is_null() {
                 "handheld"
             } else if (min - 0.5).abs() < 1e-5 && (max - 8.).abs() < 1e-5 {
                 "explore"
@@ -178,6 +185,15 @@ fn edit(state: &mut EditorState, path: &str, mut v: Value) -> Result<bool, Strin
     let mut rebuild = false;
     state.error = None;
     match path {
+        "@capacity_receipt" => {
+            let receipt: Option<bevy_zeroverse_capture::capacity::CapacityReceipt> =
+                serde_json::from_value(v).map_err(|e| e.to_string())?;
+            if let Some(receipt) = &receipt {
+                bevy_zeroverse_capture::capacity::validate_receipt(&receipt.plan, receipt)?;
+            }
+            state.capacity_receipt = receipt;
+            return Ok(true);
+        }
         "@viewport" => {
             let mode = v.as_str().ok_or("Expected a viewport")?;
             if !["editor", "grid", "schematic"].contains(&mode) {
@@ -191,6 +207,24 @@ fn edit(state: &mut EditorState, path: &str, mut v: Value) -> Result<bool, Strin
             let config = model::validate(&v)?;
             state.draft = model::expand(&config);
             return Ok(true);
+        }
+        "@camera_motion_percent" => {
+            let percent = v.as_f64().ok_or("Expected a percentage")?;
+            if !(0.0..=100.0).contains(&percent) {
+                return Err("Moving cameras must be in [0,100]%".into());
+            }
+            state.draft["indoor_camera"]["motion_fraction"] = json!(percent / 100.);
+        }
+        "@lens_bias" | "@lens_spread" => {
+            let lens = &mut state.draft["indoor_camera"]["intrinsics"];
+            lens[if path == "@lens_bias" {
+                "bias"
+            } else {
+                "spread"
+            }] = v;
+            if let Some(object) = lens.as_object_mut() {
+                object.remove("ultra_wide_probability");
+            }
         }
         "@baseline" => {
             state.draft["indoor_camera"]["multiview"] = json!(MultiViewSettings::from_baseline(
@@ -239,12 +273,6 @@ fn edit(state: &mut EditorState, path: &str, mut v: Value) -> Result<bool, Strin
         "@path_preset" => {
             let camera = &mut state.draft["indoor_camera"];
             match v.as_str().unwrap_or("") {
-                "static" => {
-                    camera["path_length_min"] = json!(0.);
-                    camera["path_length_max"] = json!(0.);
-                    camera["long_path_fraction"] = json!(0.);
-                    camera["handheld"] = Value::Null;
-                }
                 "handheld" => {
                     camera["path_length_min"] = json!(0.01);
                     camera["path_length_max"] = json!(0.6);
@@ -540,10 +568,13 @@ pub(super) fn update(world: &mut World) {
     }
     if !world.contains_resource::<shell::Shell>() || rebuild {
         shell::build(world, &state);
+        lens_preview::synchronize(world, &state);
         state.revision += 1;
     }
     if dirty || rebuild || state.view.page == Page::View {
         widgets::synchronize(world, &state);
+        lens_preview::synchronize(world, &state);
+        shell::synchronize_evidence(world, &state);
     }
     if dirty && state.error.is_none() {
         state.error = state.config().err();

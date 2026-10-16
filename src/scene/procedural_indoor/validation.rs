@@ -262,7 +262,7 @@ pub fn validate_layout(scene: &IndoorManifest) -> Result<(), String> {
     if !scene.layout.is_public() && main_furniture < scene.minimum_main_objects() {
         return fail("insufficient main room furniture");
     }
-    for camera in &scene.cameras {
+    for (index, camera) in scene.cameras.iter().enumerate() {
         if camera
             .motion
             .as_ref()
@@ -273,6 +273,12 @@ pub fn validate_layout(scene: &IndoorManifest) -> Result<(), String> {
             })
         {
             return fail("invalid free camera orientation");
+        }
+        if !scene
+            .camera_settings
+            .accepts_motion(scene.seed, index, camera)
+        {
+            return fail("camera motion does not match requested role or travel bounds");
         }
         if !camera.target.is_finite()
             || !scene

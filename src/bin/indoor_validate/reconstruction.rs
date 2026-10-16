@@ -44,6 +44,7 @@ pub fn measure(
     let low = Vec3::from_array(aabb[0]);
     let size = Vec3::from_array(aabb[1]) - low;
     let inverse = Quat::from_rotation_y(-scene.world_yaw);
+    let primary = scene.primary_region();
     for (source, view) in views.iter().enumerate() {
         ensure!(
             view.position.len() == view.co_visibility.len()
@@ -64,10 +65,7 @@ pub fn measure(
             let p: [f32; 4] = bytemuck::pod_read_unaligned(p);
             let world = Vec3::new(p[0], p[1], p[2]) * size + low;
             let local = inverse * world;
-            if !scene.in_primary_room(local, 0.)
-                || local.y < -0.30
-                || local.y > scene.room_size.y + 0.03
-            {
+            if !primary.contains_surface(local, 0.03) {
                 continue;
             }
             let mask = m[0] as u16;
@@ -98,7 +96,7 @@ pub fn measure(
         })
         .collect();
     Ok(PrimaryGeometry {
-        membership: "Rendered point inside the exact primary X/Z region, -0.30m <= local height <= room roof bound +0.03m; camera-image pixel weighting, no duplicate-surface correction. Boundary pixels can be excluded by finite position precision.",
+        membership: "Rendered point inside the exact primary X/Z region and local support/ceiling heights with 0.03m vertical tolerance; camera-image pixel weighting, no duplicate-surface correction. Boundary pixels can be excluded by finite position precision.",
         graph: bevy_zeroverse_capture::reconstruction::view_graph(&valid, &shared, &cardinality, 0.10).map_err(anyhow::Error::msg)?,
         pairs,
     })

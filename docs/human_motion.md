@@ -157,7 +157,7 @@ time never advances the recorded camera or human trajectories. Exported
 Policies with no selected motion still require no motion models.
 
 For a fixed-camera motion sequence, set `indoor_camera` to
-`{"path_length_min":0,"path_length_max":0}`. This freezes both camera position
+`{"motion_fraction":0}` (Studio: Moving cameras = 0%). This freezes both camera position
 and orientation while people continue to follow the shared playback clock.
 
 Explicit trajectories use stable manifest human IDs, scene-local metres, +Y

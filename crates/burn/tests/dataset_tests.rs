@@ -110,6 +110,7 @@ fn run_headless_generation(
     let tmp = TempDir::new().expect("tempdir should be creatable");
 
     run_chunk_generation(GenConfig {
+        ssaa_factor: 1,
         output: tmp.path().to_path_buf(),
         workers: 1,
         chunk_size: 1,
@@ -169,6 +170,7 @@ fn run_generation_with_offsets(
     chunk_offset: usize,
 ) {
     run_chunk_generation(GenConfig {
+        ssaa_factor: 1,
         output: output_dir.to_path_buf(),
         workers: 1,
         chunk_size: 1,
@@ -483,6 +485,7 @@ fn resume_offsets_continue_fs_indices() {
     }
     let tmp = TempDir::new().expect("tempdir should be creatable");
     run_chunk_generation(GenConfig {
+        ssaa_factor: 1,
         output: tmp.path().to_path_buf(),
         workers: 1,
         chunk_size: 1,
@@ -532,6 +535,7 @@ fn resume_offsets_continue_fs_indices() {
     assert_eq!(chunk_offset, 2);
 
     run_chunk_generation(GenConfig {
+        ssaa_factor: 1,
         output: tmp.path().to_path_buf(),
         workers: 1,
         chunk_size: 1,
@@ -593,6 +597,7 @@ fn resume_offsets_continue_chunk_indices() {
     }
     let tmp = TempDir::new().expect("tempdir should be creatable");
     run_chunk_generation(GenConfig {
+        ssaa_factor: 1,
         output: tmp.path().to_path_buf(),
         workers: 1,
         chunk_size: 2,
@@ -642,6 +647,7 @@ fn resume_offsets_continue_chunk_indices() {
     assert_eq!(chunk_offset, 2);
 
     run_chunk_generation(GenConfig {
+        ssaa_factor: 1,
         output: tmp.path().to_path_buf(),
         workers: 1,
         chunk_size: 2,

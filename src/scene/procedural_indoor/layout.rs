@@ -30,7 +30,10 @@ pub const NEIGHBOR_DEPTH: f32 = 3.2;
     Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, ValueEnum,
 )]
 pub enum IndoorLayout {
+    /// Uniformly sample every concrete room program, including public suites.
     #[default]
+    #[value(alias = "all")]
+    #[serde(alias = "All", alias = "all", alias = "mixed")]
     Mixed,
     Conference,
     OpenOffice,
@@ -55,7 +58,32 @@ pub enum IndoorLayout {
 }
 
 impl IndoorLayout {
-    pub const PROFILES: [Self; 10] = [
+    /// Every concrete whole-room program eligible for `Mixed` (`all`).
+    pub const PROFILES: [Self; 20] = [
+        Self::Conference,
+        Self::OpenOffice,
+        Self::Lounge,
+        Self::Training,
+        Self::Coworking,
+        Self::Breakroom,
+        Self::Reception,
+        Self::Library,
+        Self::Workshop,
+        Self::Studio,
+        Self::Kitchenette,
+        Self::Kitchen,
+        Self::ElevatorLanding,
+        Self::Cafe,
+        Self::Cafeteria,
+        Self::Classroom,
+        Self::LectureHall,
+        Self::Showroom,
+        Self::Gallery,
+        Self::PublicSuite,
+    ];
+    /// Compatible secondary activities inside an office's partitioned zones.
+    /// Service/teaching/exhibition programs need their whole-room reservations.
+    pub const OFFICE_PROFILES: [Self; 10] = [
         Self::Conference,
         Self::OpenOffice,
         Self::Lounge,
@@ -67,7 +95,7 @@ impl IndoorLayout {
         Self::Workshop,
         Self::Studio,
     ];
-    /// Explicit functional programs. Mixed keeps its established office mixture.
+    /// Single functional programs available to public-suite composition.
     pub const PUBLIC_PROFILES: [Self; 9] = [
         Self::Kitchenette,
         Self::Kitchen,
@@ -698,6 +726,43 @@ impl IndoorManifest {
         cameras: usize,
         human_density: f32,
     ) -> Result<Self, String> {
+        Self::generate_with_profiles(
+            seed,
+            layout,
+            density,
+            cameras,
+            human_density,
+            &IndoorLayout::PROFILES,
+        )
+    }
+
+    // Preserve reported office-only seed fixtures when expanding the production
+    // Mixed distribution. This is not a second public sampler or viewer setting.
+    #[cfg(test)]
+    pub(super) fn office_regression_fixture(
+        seed: u64,
+        density: f32,
+        cameras: usize,
+        human_density: f32,
+    ) -> Result<Self, String> {
+        Self::generate_with_profiles(
+            seed,
+            IndoorLayout::Mixed,
+            density,
+            cameras,
+            human_density,
+            &IndoorLayout::OFFICE_PROFILES,
+        )
+    }
+
+    fn generate_with_profiles(
+        seed: u64,
+        layout: IndoorLayout,
+        density: f32,
+        cameras: usize,
+        human_density: f32,
+        profiles: &[IndoorLayout],
+    ) -> Result<Self, String> {
         if !human_density.is_finite() || !(0.0..=1.0).contains(&human_density) {
             return Err("indoor human density must be finite and between 0 and 1".into());
         }
@@ -709,7 +774,7 @@ impl IndoorManifest {
         }
         let mut rng = stream(seed, 0);
         let layout = if layout == IndoorLayout::Mixed {
-            IndoorLayout::PROFILES[rng.random_range(0..IndoorLayout::PROFILES.len())]
+            profiles[rng.random_range(0..profiles.len())]
         } else {
             layout
         };

@@ -123,6 +123,9 @@ pub struct Sample {
     /// Per-sample renderer settings and measured/declared light-transport provenance.
     #[serde(default)]
     pub indoor_render_metadata: Option<serde_json::Value>,
+    /// Absent in older and non-supersampled captures (equivalent to factor 1).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sampling: Option<crate::render::ssaa::CaptureSampling>,
     pub views: Vec<View>,
 
     pub view_dim: u32,
@@ -158,6 +161,9 @@ pub struct SamplerState {
     pub regenerate_scene: bool,
     pub frames: u32,
     pub render_modes: Vec<RenderMode>,
+    /// First normalized trajectory state. Ordinary datasets start at zero;
+    /// explicit clip samplers may capture a later state without a discarded frame.
+    pub start_progress: f32,
     pub step: u32,
     pub timesteps: Vec<f32>,
     pub warmup_frames: u32,
@@ -254,9 +260,9 @@ pub struct CaptureProgress {
 }
 
 impl CaptureProgress {
-    /// Future asset uploads must not compete with active scene construction,
-    /// lighting, or pipeline warmup. The current capture has been requested
-    /// before this window opens; its queue-ordered copies retain ownership.
+    /// A requested capture retains ownership of its queue-ordered copies.
+    /// Future compute waits for submission; future asset uploads retain this
+    /// readback boundary instead of changing bindings during RGB settling.
     pub(crate) fn readback_in_flight(&self) -> bool {
         self.pending.is_some()
     }
@@ -342,17 +348,23 @@ fn camera_metadata_matches(
 // Sampling owns trajectory time until the entire multimodal sequence is complete.
 // Legacy animated human poses read this same Playback during PreUpdate.
 fn prepare_sampling_motion(
-    state: Res<SamplerState>,
+    mut state: ResMut<SamplerState>,
     mut capture: ResMut<CaptureProgress>,
     mut playback: ResMut<Playback>,
     mut sample: ResMut<Sample>,
+    mut failure: ResMut<CaptureFailure>,
 ) {
     if !state.enabled {
         return;
     }
     if capture.saved_playback.is_none() {
+        if !state.start_progress.is_finite() || !(0.0..=1.0).contains(&state.start_progress) {
+            failure.0 = Some("sampler start_progress must be finite and in [0, 1]".into());
+            state.enabled = false;
+            return;
+        }
         capture.saved_playback = Some(*playback);
-        capture.progress = 0.0;
+        capture.progress = state.start_progress;
         capture.identity = None;
         capture.ovoxel_wait_started = None;
         *sample = Sample::default();
@@ -521,6 +533,7 @@ impl SamplerState {
                 config.render_modes.clone()
             },
             step: 0,
+            start_progress: 0.,
             timesteps: (1..config.playback_steps)
                 .map(|i| i as f32 * config.playback_step)
                 .collect(),
@@ -582,6 +595,8 @@ pub fn configure_sampler(app: &mut App, initial_state: SamplerState) {
 
 #[derive(bevy::ecs::system::SystemParam)]
 pub struct CaptureStatus<'w> {
+    preparation: Option<Res<'w, crate::scene::procedural_indoor::preparation::PreparationTimings>>,
+    prefetch: Option<Res<'w, crate::scene::procedural_indoor::preparation::IndoorPrefetch>>,
     readiness: Res<'w, CaptureReadiness>,
     motion: Option<Res<'w, crate::human_motion::HumanMotionReport>>,
     draw_policy: Res<'w, crate::camera::CaptureDrawPolicy>,
@@ -1260,7 +1275,12 @@ pub fn sample_stream(
         } else {
             crate::render::color::ColorEncoding::Legacy
         },
+        sampling: {
+            let factor = crate::render::ssaa::effective_factor(UVec2::new(args.width as u32, args.height as u32), args.ssaa_factor);
+            (factor > 1).then_some(crate::render::ssaa::CaptureSampling { schema_version: 1, ssaa_factor: factor })
+        },
         indoor_render_metadata: (args.scene_type == crate::scene::ZeroverseSceneType::ProceduralIndoor).then(|| serde_json::json!({
+            "ssaa": {"configured_factor": args.ssaa_factor, "linear_factor": crate::render::ssaa::effective_factor(UVec2::new(args.width as u32, args.height as u32), args.ssaa_factor), "rgb_filter": "linear_light_box_after_tonemapping", "annotation_filter": "final_pixel_center"},
             "schema_version": 1,
             "build_provenance": crate::provenance::capture_provenance(),
             "world_from_scene": capture.identity.as_ref().and_then(|identity|identity.world_from_scene),
@@ -1316,14 +1336,27 @@ pub fn sample_stream(
         ovoxel,
     };
 
+    let telemetry = channels::CaptureTelemetry {
+        seed: sample.indoor.as_ref().map(|s| s.seed),
+        preparation: capture_status.preparation.as_deref().cloned(),
+        prefetch: capture_status.prefetch.as_deref().cloned(),
+        completed_readbacks: capture.completed_requests,
+        copied_bytes: capture.copied_bytes,
+    };
     #[cfg(not(target_arch = "wasm32"))]
     if let Some(sink) = &mut gpu_sink {
         sink.metadata = Some(sample);
     } else {
+        // Diagnostics belong to this channel transaction. Independent GPU tensor
+        // renderers must not overwrite a channel consumer's pending telemetry.
+        channels::report_capture_telemetry(telemetry);
         channels::sample_sender().send(sample).unwrap();
     }
     #[cfg(target_arch = "wasm32")]
-    channels::sample_sender().send(sample).unwrap();
+    {
+        channels::report_capture_telemetry(telemetry);
+        channels::sample_sender().send(sample).unwrap();
+    }
 
     // restore primary render mode for subsequent captures
     *render_mode = args
@@ -1640,6 +1673,7 @@ mod capture_motion_tests {
         app.insert_resource(previous);
         app.insert_resource(SamplerState::from_config(&BevyZeroverseConfig::default()));
         app.init_resource::<CaptureProgress>();
+        app.init_resource::<CaptureFailure>();
         app.insert_resource(Sample {
             views: vec![View::default()],
             ..default()
@@ -1669,6 +1703,38 @@ mod capture_motion_tests {
             .resource::<CaptureProgress>()
             .saved_playback
             .is_none());
+    }
+
+    #[test]
+    fn explicit_clip_start_is_captured_and_invalid_starts_cannot_change_playback() {
+        for first in [0.15, 0.75, f32::NAN, -0.1, 1.1] {
+            let mut app = App::new();
+            let previous = Playback {
+                progress: 0.4,
+                ..default()
+            };
+            app.insert_resource(previous);
+            app.insert_resource(SamplerState {
+                start_progress: first,
+                ..default()
+            });
+            app.init_resource::<CaptureProgress>();
+            app.init_resource::<CaptureFailure>();
+            app.init_resource::<Sample>();
+            app.add_systems(PreUpdate, prepare_sampling_motion);
+            app.add_systems(PostUpdate, restore_sampling_motion);
+            app.update();
+            if first.is_finite() && (0.0..=1.0).contains(&first) {
+                assert_eq!(app.world().resource::<Playback>().progress, first);
+                assert!(app.world().resource::<CaptureFailure>().0.is_none());
+                app.world_mut().resource_mut::<SamplerState>().enabled = false;
+                app.update();
+            } else {
+                assert!(app.world().resource::<CaptureFailure>().0.is_some());
+                assert!(!app.world().resource::<SamplerState>().enabled);
+            }
+            assert_eq!(*app.world().resource::<Playback>(), previous);
+        }
     }
 
     #[test]

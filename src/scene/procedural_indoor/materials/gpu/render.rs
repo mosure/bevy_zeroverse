@@ -155,6 +155,7 @@ fn bake(world: &World, mut context: RenderContext) {
     let diagnostics = context.diagnostic_recorder();
     let diagnostics = diagnostics.as_deref();
     let span = diagnostics.time_span(context.command_encoder(), "indoor_material_bake");
+    let mut encoders = Vec::new();
     // Current first; future requests exist only for the single bounded resident successor.
     for r in requests.current.0.iter().chain(&requests.future.0) {
         if r.status.encoded.load(Ordering::Acquire) {
@@ -172,8 +173,15 @@ fn bake(world: &World, mut context: RenderContext) {
             None
         };
         let bindings = workspace.bindings(device, &pipeline.layout, &r.recipe);
+        // Keep one recipe per encoder. WGPU recycles native command pools across
+        // unrelated encoders; a room-sized bake would eventually inflate every
+        // pool to hundreds of passes, retaining gigabytes of driver memory.
+        // These buffers still share one ordered submission and the workspace.
+        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("indoor material recipe"),
+        });
         workspace.encode(
-            context.command_encoder(),
+            &mut encoder,
             [
                 pipelines[r.recipe.meta[0] as usize],
                 pipelines[kernel::NORMALS],
@@ -183,9 +191,32 @@ fn bake(world: &World, mut context: RenderContext) {
             r.recipe.meta[1],
             [Some(&color.texture), normal, Some(&data.texture)],
         );
+        encoders.push(encoder);
         // All maps and mip copies precede the camera pass in this queue. This is
         // a submission dependency, not a host fence or a claim of GPU completion.
         r.status.encoded.store(true, Ordering::Release);
     }
+    finish_recipes(&mut context, encoders);
     span.end(context.command_encoder());
+}
+
+fn finish_recipes(context: &mut RenderContext, encoders: Vec<wgpu::CommandEncoder>) {
+    // Finish in parallel just as Bevy does for its render systems, then restore
+    // recipe order: every recipe reads/writes the same scratch buffers.
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let mut buffers = bevy::tasks::ComputeTaskPool::get().scope(|scope| {
+            for (index, encoder) in encoders.into_iter().enumerate() {
+                scope.spawn(async move { (index, encoder.finish()) });
+            }
+        });
+        buffers.sort_unstable_by_key(|(index, _)| *index);
+        for (_, buffer) in buffers {
+            context.add_command_buffer(buffer);
+        }
+    }
+    #[cfg(target_arch = "wasm32")]
+    for encoder in encoders {
+        context.add_command_buffer(encoder.finish());
+    }
 }

@@ -84,7 +84,28 @@ impl IndoorManifest {
             }
         }
         let mut accepted = None;
-        'fit: for (back, yaw, along, fitted) in candidates {
+        // Discrete wall setbacks can miss a valid service strip between a
+        // shaped facade, floor step and doorway. Search continuous positions
+        // only after those cheap candidates fail, retaining all support,
+        // opening, door-sweep and object collision checks below. A separate
+        // stream leaves already-admitted kitchens unchanged.
+        let mut recovery = stream(self.seed, 8062 + zone_index as u64);
+        let interior = (0..192).map(|_| {
+            let wall = walls[recovery.random_range(0..walls.len())];
+            let yaw = [
+                0.,
+                std::f32::consts::PI,
+                std::f32::consts::FRAC_PI_2,
+                -std::f32::consts::FRAC_PI_2,
+            ][wall];
+            let back = Vec3::new(
+                recovery.random_range(zone.min.x..zone.max.x),
+                0.,
+                recovery.random_range(zone.min.y..zone.max.y),
+            );
+            (back, yaw, if wall < 2 { extent.x } else { extent.y }, false)
+        });
+        'fit: for (back, yaw, along, fitted) in candidates.into_iter().chain(interior) {
             for shift in [0., -0.5, 0.5, -1., 1.] {
                 if total > along - 0.85 {
                     continue;
@@ -515,5 +536,44 @@ impl IndoorManifest {
             ));
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mixed_seed_1942_admits_a_complete_kitchen() {
+        use crate::scene::procedural_indoor::validation::{validate_geometry, validate_layout};
+        for density in [0., 0.65, 1.] {
+            for people in [0., 0.25, 1.] {
+                let scene = IndoorManifest::generate_with_humans(
+                    1942,
+                    IndoorLayout::Mixed,
+                    density,
+                    3,
+                    people,
+                )
+                .unwrap();
+                validate_layout(&scene).unwrap();
+                validate_geometry(&scene).unwrap();
+                assert_eq!(scene.layout, IndoorLayout::Kitchen);
+                assert!(!scene.assembly_diagnostics.kitchens.is_empty());
+                assert!(!scene.envelope.as_ref().unwrap().floor_patches.is_empty());
+                assert_eq!(
+                    scene,
+                    IndoorManifest::generate_with_humans(
+                        1942,
+                        IndoorLayout::Mixed,
+                        density,
+                        3,
+                        people
+                    )
+                    .unwrap(),
+                    "recovery must replay without changing the requested seed"
+                );
+            }
+        }
     }
 }

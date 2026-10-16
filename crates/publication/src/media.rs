@@ -772,7 +772,7 @@ pub fn page(gallery: &Value, stage: &Path, protocol: &Protocol) -> Result<()> {
             ("FACTOR_FAMILIES", qualification["family_count"].to_string()),
             ("FACTOR_SETTINGS", qualification["cases"].as_array().context("missing factor cases")?.len().to_string()),
             ("FACTOR_VIEWS", qualification["captured_rgb_images"].to_string()),
-            ("ROOM_QUALIFICATION", crate::cohorts::publication::page(stage, protocol.rendered_rooms)?),
+            ("ROOM_QUALIFICATION", format!("{}{}", crate::cohorts::publication::page(stage, protocol.rendered_rooms)?, crate::capacity::publication::page(stage)?)),
             ("OBJECT_STUDY", crate::objects::page().into()),
             ("DOOR_STUDY",crate::doors::page().into()),
             ("MATERIAL_STUDY", crate::materials::page().into()),

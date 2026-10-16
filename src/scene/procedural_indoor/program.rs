@@ -2,6 +2,8 @@
 //! then populate each leaf with dimensioned functional groups. All units are metres.
 pub mod activity;
 pub mod furnishing;
+pub mod region;
+pub mod relationships;
 pub mod topology;
 use super::{
     layout::{stream, IndoorLayout, IndoorManifest},
@@ -351,7 +353,8 @@ impl IndoorProgram {
                 let activity = if i == 0 || rng.random_bool(0.68) {
                     activity
                 } else {
-                    IndoorLayout::PROFILES[rng.random_range(0..IndoorLayout::PROFILES.len())]
+                    IndoorLayout::OFFICE_PROFILES
+                        [rng.random_range(0..IndoorLayout::OFFICE_PROFILES.len())]
                 };
                 Zone {
                     composition: Some(activity::ActivityMix::sample(seed, i, activity)),

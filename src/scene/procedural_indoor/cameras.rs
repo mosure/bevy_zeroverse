@@ -6,6 +6,7 @@ pub mod diversity;
 pub mod handheld;
 pub mod intrinsics;
 pub mod mixture;
+mod motion;
 pub mod multiview;
 mod navigation;
 mod program;
@@ -35,6 +36,9 @@ pub struct CameraSettings {
     pub overlap_mixture: Option<mixture::OverlapMixture>,
     /// Keep every capture in the largest furnished room, including its full path.
     pub primary_room: bool,
+    /// Probability that each camera moves through time. Zero fixes every pose;
+    /// intrinsics are fixed for every camera regardless of this setting.
+    pub motion_fraction: f32,
     pub path_length_min: f32,
     pub path_length_max: f32,
     pub long_path_fraction: f32,
@@ -53,6 +57,7 @@ impl Default for CameraSettings {
             handheld: None,
             overlap_mixture: None,
             primary_room: true,
+            motion_fraction: 1.0,
             path_length_min: 0.03,
             path_length_max: 8.0,
             long_path_fraction: 0.45,
@@ -74,6 +79,7 @@ pub(super) fn deserialize_archived_settings<'de, D: serde::Deserializer<'de>>(
         handheld: Option<handheld::HandheldSettings>,
         overlap_mixture: Option<mixture::OverlapMixture>,
         primary_room: bool,
+        motion_fraction: f32,
         path_length_min: f32,
         path_length_max: f32,
         long_path_fraction: f32,
@@ -91,6 +97,7 @@ pub(super) fn deserialize_archived_settings<'de, D: serde::Deserializer<'de>>(
                 handheld: None,
                 overlap_mixture: None,
                 primary_room: independent.primary_room,
+                motion_fraction: independent.motion_fraction,
                 path_length_min: independent.path_length_min,
                 path_length_max: independent.path_length_max,
                 long_path_fraction: independent.long_path_fraction,
@@ -106,6 +113,7 @@ pub(super) fn deserialize_archived_settings<'de, D: serde::Deserializer<'de>>(
         handheld: archived.handheld,
         overlap_mixture: archived.overlap_mixture,
         primary_room: archived.primary_room,
+        motion_fraction: archived.motion_fraction,
         path_length_min: archived.path_length_min,
         path_length_max: archived.path_length_max,
         long_path_fraction: archived.long_path_fraction,
@@ -135,6 +143,9 @@ impl CameraSettings {
     }
     pub fn validate(&self) -> Result<(), String> {
         self.intrinsics.validate()?;
+        if !(0.0..=1.0).contains(&self.motion_fraction) {
+            return Err("indoor_camera.motion_fraction must be in [0,1]".into());
+        }
         if !self.principal_point_jitter.is_finite()
             || self.principal_point_jitter.cmplt(Vec2::ZERO).any()
             || self.principal_point_jitter.cmpgt(Vec2::splat(0.2)).any()
@@ -311,13 +322,7 @@ impl IndoorManifest {
             })
     }
     pub fn in_primary_room(&self, p: Vec3, clearance: f32) -> bool {
-        let (lo, hi) = self.primary_room_bounds();
-        p.xz().cmpge(lo + Vec2::splat(clearance)).all()
-            && p.xz().cmple(hi - Vec2::splat(clearance)).all()
-            && self
-                .envelope
-                .as_ref()
-                .is_none_or(|e| super::envelope::polygon::contains(&e.footprint, p.xz(), clearance))
+        self.primary_region().contains_projection(p.xz(), clearance)
     }
     pub fn camera_curve_clear(&self, camera: &IndoorCamera) -> bool {
         use super::layout::{segment_hits_box, CAMERA_CLEARANCE};

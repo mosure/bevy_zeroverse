@@ -126,11 +126,11 @@ fn validate_run(run: &Value, identity: &GeneratorIdentity) -> Result<()> {
         );
     } else {
         ensure!(config["num_cameras"] == 3 && config["width"] == 512. && config["height"] == 512.
-            && config["playback_steps"] == 1 && config["render_modes"] == json!(["Color","Depth","Position","Normal","Semantic","CoVisibility"])
+            && config["playback_steps"] == 1 && config["ssaa_factor"] == 0 && config["render_modes"] == json!(["Color","Depth","Position","Normal","Semantic","CoVisibility"])
             && summary["gi_settings"]["enabled"] == true && summary["gi_settings"]["gpu"] == true
             && summary["gi_settings"]["bake"]["rays_per_probe"] == 256
             && summary["cpu_scene_prefetch_depth"] == 3,
-            "capture protocol must be three 512-square views, six modes, default lookahead and full GI");
+            "capture protocol must be three 512-square views, Auto SSAA, six modes, default lookahead and full GI");
         ensure!(summary["schema_version"] == 4 && summary["saved_lossless_planes"] == false
             && summary["fixed_scene"] == false && summary["gpu_timings_enabled"] == false,
             "capture timing requires regenerating scenes, no file export and no diagnostic GPU timestamp instrumentation");
@@ -368,7 +368,7 @@ mod tests {
             "stream_scenes_per_second":0.5,"stream_views_per_second":1.5,"cpu_scene_prefetch_depth":3,
             "gi_settings":{"enabled":true,"gpu":true,"bake":{"rays_per_probe":256}},
             "config":{"indoor_quality":"Auto","indoor_gpu_materials":true,"human_motion":null,
-                "indoor_human_density":0.25,"indoor_seed":399,"num_cameras":3,"width":512.,"height":512.,
+                "indoor_human_density":0.25,"indoor_seed":399,"num_cameras":3,"width":512.,"height":512.,"ssaa_factor":0,
                 "playback_steps":1,"render_modes":["Color","Depth","Position","Normal","Semantic","CoVisibility"]}
             },"records":[{"seed":400,"elapsed_seconds":1.5,"preparation_stages":{"wall":wall,
                 "materials_seconds":0.,"transport_seconds":0.,"meshes_seconds":0.,"asset_insertion_seconds":0.}}]});

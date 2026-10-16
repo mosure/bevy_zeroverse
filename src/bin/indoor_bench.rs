@@ -45,6 +45,8 @@ struct Args {
     width: u32,
     #[arg(long, default_value_t = 240)]
     height: u32,
+    #[arg(long, default_value_t = 0, value_parser = clap::value_parser!(u32).range(0..=4))]
+    ssaa_factor: u32,
     #[arg(long, default_value_t = 1)]
     steps: u32,
     #[arg(long, default_value_t = 0.25)]
@@ -224,6 +226,7 @@ fn main() -> Result<()> {
         indoor_layout: args.layout,
         width: args.width as f32,
         height: args.height as f32,
+        ssaa_factor: args.ssaa_factor,
         playback_steps: args.steps,
         playback_step: if args.steps > 1 {
             1.0 / (args.steps - 1) as f32

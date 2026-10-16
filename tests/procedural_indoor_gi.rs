@@ -11,6 +11,8 @@ use bevy_zeroverse::{
 };
 use std::time::{Duration, Instant};
 
+static GPU_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 fn capture(app: &mut App) -> Sample {
     app.insert_resource(SamplerState {
         enabled: true,
@@ -56,6 +58,7 @@ fn capture(app: &mut App) -> Sample {
 #[test]
 #[ignore = "requires native GPU; exports fixed-scene indirect-light ablations"]
 fn baked_indirect_light_changes_rgb_without_changing_geometry_or_direct_lights() {
+    let _guard = GPU_TEST_LOCK.lock().unwrap();
     let assets = tempfile::tempdir().unwrap();
     setup_globals(Some(assets.path().to_string_lossy().into_owned()));
     let config = BevyZeroverseConfig {
@@ -345,4 +348,143 @@ fn validate_gpu_volume(app: &mut App) {
         relative < 0.35,
         "GPU transport must agree with CPU high-sample reference within stochastic budget"
     );
+}
+
+/// Exercise the production sampler without a diagnostic readback system, whose
+/// scheduling can hide early probe-publication bugs. All maps stay enabled.
+#[test]
+#[ignore = "requires native GPU; first-capture GI, replay and geometric annotation ablations"]
+fn first_capture_keeps_gpu_irradiance_across_draw_modes_and_regeneration() {
+    let _guard = GPU_TEST_LOCK.lock().unwrap();
+    let assets = tempfile::tempdir().unwrap();
+    setup_globals(Some(assets.path().to_string_lossy().into_owned()));
+    let config = BevyZeroverseConfig {
+        scene_type: ZeroverseSceneType::ProceduralIndoor,
+        indoor_seed: Some(4700),
+        indoor_human_density: 0.,
+        indoor_gi_rays: 256,
+        headless: true,
+        editor: false,
+        gizmos: false,
+        image_copiers: true,
+        keybinds: false,
+        press_esc_close: false,
+        initialize_scene: false,
+        num_cameras: 3,
+        width: 256.,
+        height: 256.,
+        playback_steps: 2,
+        playback_step: 1.,
+        playback_mode: bevy_zeroverse::camera::PlaybackMode::Still,
+        render_modes: vec![
+            RenderMode::Color,
+            RenderMode::Depth,
+            RenderMode::Normal,
+            RenderMode::Position,
+            RenderMode::Semantic,
+            RenderMode::CoVisibility,
+        ],
+        ..default()
+    };
+    let mut app = create_app(None, Some(config.clone()), false);
+    app.finish();
+    app.cleanup();
+    for _ in 0..4 {
+        app.update();
+    }
+    let take = |app: &mut App| {
+        let mut state = SamplerState::from_config(&config);
+        state.regenerate_scene = false;
+        app.insert_resource(state);
+        let started = Instant::now();
+        loop {
+            bevy_zeroverse::headless::update_capture(app);
+            assert!(app
+                .world()
+                .resource::<bevy_zeroverse::sample::CaptureFailure>()
+                .0
+                .is_none());
+            if let Ok(sample) = channels::sample_receiver()
+                .unwrap()
+                .lock()
+                .unwrap()
+                .try_recv()
+            {
+                break sample;
+            }
+            assert!(started.elapsed() < Duration::from_secs(120));
+        }
+    };
+    for (seed, indirect) in [(4700, false), (4701, true), (4704, false)] {
+        app.insert_resource(bevy_zeroverse::camera::CaptureDrawPolicy { indirect });
+        bevy_zeroverse::scene::procedural_indoor::reset_indoor_sequence(app.world_mut(), seed);
+        app.world_mut().write_message(RegenerateSceneEvent);
+        app.update();
+        let lit = take(&mut app);
+        assert!(!bevy_zeroverse::scene::procedural_indoor::indoor_generation_pending(app.world()));
+        for mut volume in app
+            .world_mut()
+            .query::<&mut IrradianceVolume>()
+            .iter_mut(app.world_mut())
+        {
+            volume.intensity = 0.;
+        }
+        let unlit = take(&mut app);
+        for mut volume in app
+            .world_mut()
+            .query::<&mut IrradianceVolume>()
+            .iter_mut(app.world_mut())
+        {
+            volume.intensity = 1.;
+        }
+        let replay = take(&mut app);
+        assert_eq!(lit.views.len(), 6);
+        for ((a, b), c) in lit.views.iter().zip(&unlit.views).zip(&replay.views) {
+            let x: &[f32] = bytemuck::cast_slice(&a.color);
+            let y: &[f32] = bytemuck::cast_slice(&b.color);
+            let difference =
+                x.iter().zip(y).map(|(x, y)| (x - y).abs()).sum::<f32>() / x.len() as f32;
+            assert!(
+                difference > 0.001,
+                "seed {seed} lost baked indirect light: {difference}"
+            );
+            let z: &[f32] = bytemuck::cast_slice(&c.color);
+            let mean = x.iter().zip(z).map(|(x, z)| (x - z).abs()).sum::<f32>() / x.len() as f32;
+            let changed = x
+                .iter()
+                .zip(z)
+                .filter(|(x, z)| (*x - *z).abs() > 0.001)
+                .count();
+            // Re-registering the light can change a handful of shadow/transparent
+            // edge samples. Bound both total error and its spatial extent; a
+            // missing irradiance volume changes broad surfaces by orders more.
+            assert!(
+                mean < 1e-5 && changed as f32 / (x.len() as f32) < 0.001,
+                "seed {seed}: GI replay changed {changed} channels, mean {mean}"
+            );
+            eprintln!(
+                "seed {seed}: GI contribution {difference}, replay MAE {mean}, changed {changed}"
+            );
+            assert_eq!(a.world_from_view, b.world_from_view);
+            assert_eq!(a.world_from_view, c.world_from_view);
+            for (label, x, y) in [
+                ("depth", &a.depth, &b.depth),
+                ("normal", &a.normal, &b.normal),
+                ("position", &a.position, &b.position),
+                ("semantic", &a.semantic, &b.semantic),
+                ("co_visibility", &a.co_visibility, &b.co_visibility),
+            ] {
+                assert!(x == y, "seed {seed}: GI ablation changed {label}");
+            }
+            for (label, x, y) in [
+                ("depth", &a.depth, &c.depth),
+                ("normal", &a.normal, &c.normal),
+                ("position", &a.position, &c.position),
+                ("semantic", &a.semantic, &c.semantic),
+                ("co_visibility", &a.co_visibility, &c.co_visibility),
+            ] {
+                assert!(x == y, "seed {seed}: GI replay changed {label}");
+            }
+        }
+    }
 }

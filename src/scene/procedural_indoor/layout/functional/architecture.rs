@@ -49,14 +49,7 @@ pub fn prepare_architecture(scene: &mut IndoorManifest) {
         let mut r = stream(scene.seed, 8221);
         let axis = r.random_range(0..2);
         let split = r.random_range(-0.06..0.06) * scene.room_size.xz()[axis];
-        let pairs = [
-            (IndoorLayout::Cafe, IndoorLayout::Gallery),
-            (IndoorLayout::Cafe, IndoorLayout::Showroom),
-            (IndoorLayout::ElevatorLanding, IndoorLayout::Gallery),
-            (IndoorLayout::Classroom, IndoorLayout::Showroom),
-            (IndoorLayout::Cafeteria, IndoorLayout::Gallery),
-        ];
-        let (a, b) = pairs[r.random_range(0..pairs.len())];
+        let (a, b) = suite_activities(&mut r);
         p.zones[0].max[axis] = split;
         p.zones[0].activity = a;
         right.min[axis] = split;
@@ -112,6 +105,32 @@ pub fn prepare_architecture(scene: &mut IndoorManifest) {
         max: Vec2::new(center + (hi.x - lo.x) * 0.38, lo.y + 2.1),
         height: 0.14,
     });
+}
+
+/// Compatible public adjacencies, with both orientations and continuous room
+/// proportions. Each half executes its complete functional builder. Lecture
+/// halls keep their full tier/support domain rather than fitting half a hall.
+fn suite_activities(rng: &mut ChaCha8Rng) -> (IndoorLayout, IndoorLayout) {
+    use IndoorLayout::*;
+    let public = [
+        ElevatorLanding,
+        Cafe,
+        Cafeteria,
+        Classroom,
+        Showroom,
+        Gallery,
+    ];
+    let a = public[rng.random_range(0..public.len())];
+    let peers: &[IndoorLayout] = match a {
+        ElevatorLanding => &[Cafe, Cafeteria, Classroom, Showroom, Gallery],
+        Cafe => &[ElevatorLanding, Classroom, Showroom, Gallery],
+        Cafeteria => &[ElevatorLanding, Classroom, Gallery],
+        Classroom => &[ElevatorLanding, Cafe, Cafeteria, Showroom, Gallery],
+        Showroom => &[ElevatorLanding, Cafe, Classroom, Gallery],
+        Gallery => &[ElevatorLanding, Cafe, Cafeteria, Classroom, Showroom],
+        _ => unreachable!("suite anchor catalog"),
+    };
+    (a, peers[rng.random_range(0..peers.len())])
 }
 pub fn support_regions(scene: &IndoorManifest) -> Vec<SupportRegion> {
     use super::super::super::envelope::polygon;

@@ -173,17 +173,22 @@ pub(super) fn sample(
                 if policy.target_variation > 0. {
                     viewpoint.level_gaze(&mut candidate, rng);
                 }
-                if let Some(handheld) = &scene.camera_settings.handheld {
-                    handheld.apply(&mut candidate, rng);
-                }
+                scene.camera_settings.prepare_motion(
+                    scene.seed,
+                    scene.cameras.len(),
+                    &mut candidate,
+                    rng,
+                );
                 let track = Track::new(&candidate);
                 let reason = if !scene.camera_clear(candidate.start) {
                     Some(0)
                 } else if !geometry(&tracks, Some(&track)).unwrap().accepts(policy) {
                     Some(1)
-                } else if candidate.path_length() + 1e-4 < scene.camera_settings.path_length_min
-                    || candidate.path_length() > scene.camera_settings.path_length_max + 1e-4
-                {
+                } else if !scene.camera_settings.accepts_motion(
+                    scene.seed,
+                    scene.cameras.len(),
+                    &candidate,
+                ) {
                     Some(2)
                 } else if !scene.camera_curve_clear(&candidate) {
                     Some(3)

@@ -11,7 +11,6 @@ use crate::camera::{CaptureCameraIndex, ZeroverseCamera};
 use bevy::camera::RenderTarget;
 
 mod gpu;
-#[cfg(not(target_arch = "wasm32"))]
 pub(crate) use gpu::CoVisibilityLabel;
 #[cfg(test)]
 mod tests;
@@ -231,6 +230,7 @@ fn update_preview(
             &Projection,
             Option<&crate::io::image_copy::ImageCopier>,
             Option<&PreviewGeometry>,
+            Option<&super::ssaa::SsaaCamera>,
         ),
         With<ZeroverseCamera>,
     >,
@@ -257,7 +257,9 @@ fn update_preview(
         legend.error = Some("Co-visibility requires unique CaptureCameraIndex values".into());
     }
     *frame = frame.wrapping_add(1).max(1);
-    for (slot, (entity, _, target, projection, copier, owned)) in ordered.into_iter().enumerate() {
+    for (slot, (entity, _, target, projection, copier, owned, ssaa)) in
+        ordered.into_iter().enumerate()
+    {
         // Captures own their request stamps and attachment lifetimes. Never let
         // the interactive preview advance a pending asynchronous readback.
         if copier.is_some() {
@@ -285,7 +287,7 @@ fn update_preview(
         let Some(image) = images.get(&target.handle) else {
             continue;
         };
-        let size = image.size();
+        let size = ssaa.map_or_else(|| image.size(), |s| s.output_size);
         let configure = |gt: &mut GroundTruthCamera, images: &mut Assets<Image>| {
             if images
                 .get(&gt.world_depth)

@@ -232,9 +232,12 @@ fn distribution_is_valid_and_covers_all_families() {
         report.plant_species_counts.len(),
         super::plants::SPECIES as usize
     );
+    let probability = 1. / IndoorLayout::PROFILES.len() as f64;
+    let expected = 1024. * probability;
+    let tolerance = 6. * (1024. * probability * (1. - probability)).sqrt();
     for count in report.layout_counts.values() {
         assert!(
-            (60..=145).contains(count),
+            (*count as f64 - expected).abs() <= tolerance,
             "layout distribution collapsed: {report:?}"
         );
     }
@@ -1188,7 +1191,12 @@ fn furniture_programs_have_bounded_geometry_and_varied_parameters() {
     }
     assert!(plans.len() >= 4);
     assert!(designs.len() >= 24);
-    assert_eq!(chairs.len(), super::objects::chairs::FAMILIES as usize);
+    assert_eq!(
+        chairs,
+        (0..super::objects::chairs::FAMILIES)
+            .chain([10, 11]) // Tablet-arm classroom and folding audience seats.
+            .collect()
+    );
     assert_eq!(laptops.len(), 4);
     assert!(angles.iter().copied().fold(f32::INFINITY, f32::min) < 1.6);
     assert!(angles.iter().copied().fold(f32::NEG_INFINITY, f32::max) > 2.15);
@@ -1297,4 +1305,28 @@ fn backless_stools_survive_placement_and_have_no_back_geometry() {
     println!("128 primary rooms: {stools}/{seats} backless seats in {rooms} rooms");
     assert!(stools as f32 / seats as f32 > 0.10);
     assert!(rooms > 40);
+}
+#[test]
+fn indexed_capture_reset_repeats_the_requested_seed() {
+    let mut world = bevy::prelude::World::new();
+    world.insert_resource(crate::app::BevyZeroverseConfig::default());
+    world.insert_resource(super::IndoorSequence {
+        configured_seed: Some(41),
+        base_seed: Some(41),
+        index: 7,
+    });
+    for _ in 0..2 {
+        super::reset_indoor_sequence(&mut world, 41);
+        assert_eq!(
+            world
+                .resource::<crate::app::BevyZeroverseConfig>()
+                .indoor_seed,
+            Some(41)
+        );
+        let sequence = world.resource::<super::IndoorSequence>();
+        assert_eq!(sequence.index, 0);
+        assert_eq!(sequence.base_seed, None);
+        assert_eq!(sequence.configured_seed, None);
+        world.resource_mut::<super::IndoorSequence>().index = 1;
+    }
 }

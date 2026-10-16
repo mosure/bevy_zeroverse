@@ -18,6 +18,17 @@ pub mod channels {
         /// Future consecutive indoor rooms to prepare on the CPU (capped at 4).
         /// Limit to remaining requests; zero disables speculative preparation.
         pub prefetch_indoor: usize,
+        /// During consumer idle, permit one known successor's asset/GI preflight.
+        /// Demand-controlled producers use `CpuOnly`: dispatched CPU jobs finish,
+        /// but the app does not update, upload or dispatch future GPU work.
+        pub idle_work: IdleWork,
+    }
+
+    #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+    pub enum IdleWork {
+        CpuOnly,
+        #[default]
+        Preflight,
     }
 
     pub static APP_FRAME_RECEIVER: OnceCell<Arc<Mutex<Receiver<AppFrameRequest>>>> =
@@ -27,6 +38,25 @@ pub mod channels {
     pub static SAMPLE_RECEIVER: OnceCell<Arc<Mutex<Receiver<Sample>>>> = OnceCell::new();
     pub static SAMPLE_SENDER: OnceCell<Sender<Sample>> = OnceCell::new();
     static CAPTURE_ERROR: Mutex<Option<String>> = Mutex::new(None);
+    /// Diagnostics are deliberately outside deterministic samples/archive identity.
+    #[derive(Clone, Debug, serde::Serialize)]
+    pub struct CaptureTelemetry {
+        pub seed: Option<u64>,
+        pub preparation: Option<crate::scene::procedural_indoor::preparation::PreparationTimings>,
+        pub prefetch: Option<crate::scene::procedural_indoor::preparation::IndoorPrefetch>,
+        pub completed_readbacks: u64,
+        pub copied_bytes: u64,
+    }
+    static CAPTURE_TELEMETRY: Mutex<Option<CaptureTelemetry>> = Mutex::new(None);
+    pub(crate) fn report_capture_telemetry(value: CaptureTelemetry) {
+        *CAPTURE_TELEMETRY.lock().unwrap() = Some(value);
+    }
+    /// Consume the most recent diagnostics while holding ownership of the capture
+    /// transaction. The canonical controlled generator associates these with its
+    /// sequence/seed before starting another request.
+    pub fn take_capture_telemetry() -> Option<CaptureTelemetry> {
+        CAPTURE_TELEMETRY.lock().unwrap().take()
+    }
 
     pub fn report_capture_failure(message: String) {
         *CAPTURE_ERROR.lock().expect("capture error lock poisoned") = Some(message);
@@ -389,6 +419,7 @@ pub mod image_copy {
     }
     struct ExtractedCopier {
         copier: ImageCopier,
+        ssaa: Option<crate::render::ssaa::SsaaCamera>,
         #[cfg(not(target_arch = "wasm32"))]
         ground_truth: Option<crate::render::ground_truth::GroundTruthCamera>,
     }
@@ -552,6 +583,7 @@ pub mod image_copy {
             render_app.add_systems(ExtractSchedule, (image_copy_extract, readiness::extract));
             let copy = copy_images
                 .after(bevy::core_pipeline::schedule::camera_driver)
+                .after(crate::render::ssaa::SsaaResolveLabel)
                 .in_set(ImageCopyLabel)
                 .in_set(RenderGraphSystems::Render);
             #[cfg(not(target_arch = "wasm32"))]
@@ -582,33 +614,37 @@ pub mod image_copy {
         }
     }
     #[cfg(not(target_arch = "wasm32"))]
+    #[allow(clippy::type_complexity)] // Extracted per-camera capture attachments.
     fn image_copy_extract(
         mut copiers: ResMut<ImageCopiers>,
         cameras: Extract<
             Query<(
                 &ImageCopier,
                 Option<&crate::render::ground_truth::GroundTruthCamera>,
+                Option<&crate::render::ssaa::SsaaCamera>,
             )>,
         >,
     ) {
         copiers.0.clear();
         copiers
             .0
-            .extend(cameras.iter().map(|(copier, gt)| ExtractedCopier {
+            .extend(cameras.iter().map(|(copier, gt, ssaa)| ExtractedCopier {
                 copier: copier.clone(),
                 ground_truth: gt.cloned(),
+                ssaa: ssaa.cloned(),
             }));
     }
     #[cfg(target_arch = "wasm32")]
     fn image_copy_extract(
         mut copiers: ResMut<ImageCopiers>,
-        cameras: Extract<Query<&ImageCopier>>,
+        cameras: Extract<Query<(&ImageCopier, Option<&crate::render::ssaa::SsaaCamera>)>>,
     ) {
         copiers.0.clear();
         copiers
             .0
-            .extend(cameras.iter().map(|copier| ExtractedCopier {
+            .extend(cameras.iter().map(|(copier, ssaa)| ExtractedCopier {
                 copier: copier.clone(),
+                ssaa: ssaa.cloned(),
             }));
     }
 
@@ -623,6 +659,9 @@ pub mod image_copy {
             let copier = &extracted.copier;
             let id = copier.requested_id();
             if id == 0 || id == copier.state.submitted.load(Ordering::Acquire) {
+                continue;
+            }
+            if extracted.ssaa.as_ref().is_some_and(|ssaa| !ssaa.ready(id)) {
                 continue;
             }
             #[cfg(not(target_arch = "wasm32"))]

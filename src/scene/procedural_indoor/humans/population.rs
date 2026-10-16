@@ -4,6 +4,74 @@ use super::*;
 use rand::seq::{IteratorRandom, SliceRandom};
 use rand_chacha::ChaCha8Rng;
 
+fn seated_pose(
+    surface: bool,
+    computer: bool,
+    engagement: f32,
+    rng: &mut ChaCha8Rng,
+) -> HumanPoseKind {
+    // A continuous engagement prior changes the mixture; it does not switch
+    // everyone in a room to the same pose, or force people toward the cameras.
+    let working = if computer {
+        0.28 + 0.42 * engagement
+    } else if surface {
+        0.12 + 0.22 * engagement
+    } else {
+        0.
+    };
+    let talking = if computer {
+        0.12 + 0.16 * (1. - engagement)
+    } else {
+        0.22 + 0.24 * (1. - engagement)
+    };
+    let draw: f32 = rng.random();
+    if draw < working {
+        HumanPoseKind::SeatedWorking
+    } else if draw < working + talking {
+        HumanPoseKind::SeatedTalking
+    } else {
+        HumanPoseKind::SeatedListening
+    }
+}
+
+fn contextual_gaze(scene: &IndoorManifest, h: &mut IndoorHuman, rng: &mut ChaCha8Rng) {
+    if !matches!(
+        h.pose,
+        HumanPoseKind::SeatedTalking
+            | HumanPoseKind::SeatedListening
+            | HumanPoseKind::StandingConversation
+    ) || !rng.random_bool(0.65)
+    {
+        return;
+    }
+    let target = scene
+        .humans
+        .iter()
+        .filter(|peer| peer.neighbor == h.neighbor)
+        .filter_map(|peer| {
+            let d = peer.position - h.position;
+            let angle = ((-d.x).atan2(-d.z) - h.yaw + PI).rem_euclid(TAU) - PI;
+            (d.xz().length_squared() < 16. && angle.abs() < 0.90).then_some((
+                d.length_squared(),
+                angle,
+                peer.transform().transform_point(peer.joints[4]),
+            ))
+        })
+        .min_by(|a, b| a.0.total_cmp(&b.0));
+    if let Some((_, angle, target)) = target {
+        let eye = h.transform().transform_point(h.joints[4]);
+        if scene
+            .camera_obstacles()
+            .iter()
+            .any(|&(lo, hi)| super::super::layout::segment_hits_box(eye, target, lo, hi))
+        {
+            return;
+        }
+        h.head_yaw = (angle + rng.random_range(-0.10..0.10)).clamp(-0.85, 0.85);
+        update_bounds(h);
+    }
+}
+
 fn standing_candidate(
     scene: &IndoorManifest,
     pose: HumanPoseKind,
@@ -73,6 +141,13 @@ pub fn populate(scene: &mut IndoorManifest, density: f32) {
         return;
     }
     let mut rng = stream(scene.seed, 39);
+    let engagement = stream(scene.seed, 0x454e47414745).random_range(0.25..0.95);
+    let computer_surfaces: std::collections::BTreeSet<_> = scene
+        .objects
+        .iter()
+        .filter(|o| matches!(o.kind, ObjectKind::Laptop | ObjectKind::Monitor))
+        .filter_map(|o| o.support)
+        .collect();
     let mut chairs: Vec<_> = scene
         .objects
         .iter()
@@ -85,22 +160,18 @@ pub fn populate(scene: &mut IndoorManifest, density: f32) {
             continue;
         }
         let chair = &scene.objects[chair_id];
-        let working_surface = chair.interaction_target.is_some();
-        let poses = if working_surface {
-            [
-                HumanPoseKind::SeatedWorking,
-                HumanPoseKind::SeatedListening,
-                HumanPoseKind::SeatedTalking,
-            ]
-        } else {
-            [
-                HumanPoseKind::SeatedListening,
-                HumanPoseKind::SeatedListening,
-                HumanPoseKind::SeatedTalking,
-            ]
-        };
-        let pose = poses[rng.random_range(0..3)];
-        let person = sample_person(
+        let surface = chair
+            .interaction_target
+            .and_then(|i| scene.objects.get(i))
+            .filter(|o| o.kind.is_surface());
+        let working_surface = surface.is_some();
+        let pose = seated_pose(
+            working_surface,
+            surface.is_some_and(|s| computer_surfaces.contains(&s.id)),
+            engagement,
+            &mut rng,
+        );
+        let mut person = sample_person(
             rng.random(),
             scene.objects.len() + scene.humans.len(),
             chair.position,
@@ -109,6 +180,7 @@ pub fn populate(scene: &mut IndoorManifest, density: f32) {
             Some(chair_id),
             chair.neighbor,
         );
+        contextual_gaze(scene, &mut person, &mut rng);
         let fitted = (0..if working_surface && pose != HumanPoseKind::SeatedListening {
             WORKTOP_POSE_ATTEMPTS
         } else {
@@ -143,7 +215,7 @@ pub fn populate(scene: &mut IndoorManifest, density: f32) {
                 HumanPoseKind::StandingWalking,
             ][rng.random_range(0..5)];
             let (p, yaw) = standing_candidate(scene, pose, &mut rng);
-            let person = sample_person(
+            let mut person = sample_person(
                 rng.random(),
                 scene.objects.len() + scene.humans.len(),
                 p,
@@ -152,6 +224,7 @@ pub fn populate(scene: &mut IndoorManifest, density: f32) {
                 None,
                 false,
             );
+            contextual_gaze(scene, &mut person, &mut rng);
             if placement_clear(scene, &person) {
                 scene.humans.push(person);
                 break;
@@ -165,6 +238,26 @@ pub fn populate(scene: &mut IndoorManifest, density: f32) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn furniture_and_continuous_engagement_condition_pose_mixture() {
+        let work_fraction = |surface, computer, engagement| {
+            let mut rng = stream(17, 0x504f5345);
+            (0..8192)
+                .filter(|_| {
+                    seated_pose(surface, computer, engagement, &mut rng)
+                        == HumanPoseKind::SeatedWorking
+                })
+                .count() as f32
+                / 8192.
+        };
+        assert_eq!(work_fraction(false, false, 1.), 0.);
+        let low = work_fraction(true, true, 0.);
+        let high = work_fraction(true, true, 1.);
+        assert!((0.24..0.32).contains(&low));
+        assert!((0.66..0.74).contains(&high));
+        assert!(work_fraction(true, false, 1.) < high);
+    }
 
     #[test]
     fn presenters_use_continuous_supported_placements_without_a_shared_anchor() {

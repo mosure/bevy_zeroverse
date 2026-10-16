@@ -19,7 +19,7 @@ The material atlas covers all 36 architectural/object surface roles, with the Fl
 
 Each render uses the actual \texttt{{IndoorMaterials}} factory and \texttt{{for\_part}} binding, including palette tint, texture structure group, UV transform, clearcoat, anisotropy and transmission. The studio reuses a native Bevy renderer. Texture maps are baked by the production CPU reference implementation; this study does not measure GPU-baking throughput. The rig uses fixed 1,400/250 lux directional lights with shadows, the same seed-zero procedural reflection environment, indoor capture exposure and a $40^\circ$ vertical field of view. A 0.46 m diameter sphere and a $0.46\times0.49$ m beveled panel expose curved highlights and flat detail. Leaves use production blades with normalized atlas UVs. The backdrop is identical across columns and reveals glass transmission. These are material probes, not representative furnished rooms.
 
-The separate assignment audit constructs every primary-room object in 256 consecutive mixed-layout rooms at density 0.65, without humans: {} objects and {} material parts. Rug fields use four bounded dye/pile slots; their bindings retain upholstery. Every supported object finish must have a valid slot in $[0,12)$ and resolve from its recorded finish seed; deliberately independent book-cover slots are retained. Per-object-category surface and slot counts are exported. This cohort checks application frequency; the studio does not estimate it. Architectural walls/floors, human skin/hair, and installation-specific facade privacy treatments are outside the object-assignment denominator. Human complexion/groom variation is not represented by these substrate probes.
+The separate assignment audit constructs every primary-room object in 256 consecutive mixed-layout rooms at density 0.65, without humans: {} objects and {} material parts. Rug fields use four bounded dye/pile slots; their bindings retain upholstery. Generic object finishes must have a valid slot in $[0,12)$ and resolve from their recorded finish seed; deliberately independent book-cover slots are retained. Food uses separately validated role-specific bindings. Per-object-category surface and slot counts are exported. This cohort checks application frequency; the studio does not estimate it. Architectural walls/floors, human skin/hair, and installation-specific facade privacy treatments are outside the object-assignment denominator. Human complexion/groom variation is not represented by these substrate probes.
 
 \subsection{{Correlated controls, bounded palettes}}
 Within a room, twelve finish slots share at most three texture structures per surface. Ceramic, Fabric, FabricAlt and Leather have three structures; Wood, WoodEdge, Leaf, LeafLight, LeafVariegated and Succulent have two. Other roles reuse one structure; rug fields have up to four dedicated dye/pile structures. Shared map handles bound synthesis/upload costs; independent room material seeds resample the underlying recipe. These are correlated palettes, not twelve independent textures. Painted Metal is dielectric; Chrome is conductive. Screen, phone, television, artwork, printed-paper and whiteboard maps come from their dedicated content programs. Container glass and liquids retain several fixed optical constants; their presence is not evidence of broad optical diversity.
@@ -41,6 +41,7 @@ The page pairs each image with its actual PBR scalars and seed, and exposes eigh
         let name = c["name"].as_str().unwrap();
         let mut count = 0u64;
         let mut slots = [0u64; 12];
+        let mut special = std::collections::BTreeSet::new();
         for row in usage["usage"]
             .as_object()
             .unwrap()
@@ -51,14 +52,18 @@ The page pairs each image with its actual PBR scalars and seed, and exposes eigh
             for (i, n) in row["slots"].as_array().unwrap().iter().enumerate() {
                 slots[i] += n.as_u64().unwrap();
             }
+            if let Some(bindings) = row["special_slots"].as_object() {
+                special.extend(bindings.keys().cloned());
+            }
         }
         text.push_str(&format!(
             "{name} & {} & {count} & {} \\\\\n",
             c["structure_count"],
-            slots.iter().filter(|n| **n > 0).count()
+            slots.iter().filter(|n| **n > 0).count() + special.len()
         ));
     }
     text.push_str("\\bottomrule\n\\end{longtable}\n\\normalsize\n");
+    text.push_str("Reserved fruit, crust and bread-scoring finishes are counted alongside generic object finishes, using a separate binding namespace. They retain role-specific pigments rather than arbitrary ceramic or paper colors.\n");
     text.push_str(r"\subsection{Control families}
 \begin{description}
 \item[Paint, accent and ceiling] Correlated scene pigment; roller, stipple, knockdown and trowel application; deposit scale, coverage, pinholes, gloss and local roughness.

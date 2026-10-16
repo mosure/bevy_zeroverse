@@ -24,7 +24,24 @@ pub(crate) fn detail_clear(scene: &IndoorManifest, o: &IndoorObject) -> bool {
     }
     !scene.humans.iter().any(|h| {
         let (a, b) = h.bounds();
-        lo.cmplt(b + pad).all() && hi.cmpgt(a - pad).all()
+        if !lo.cmplt(b + pad).all() || !hi.cmpgt(a - pad).all() {
+            return false;
+        }
+        // A gesturing person's whole-body AABB projects raised arms onto the
+        // floor. Keep it as a cheap broad phase, then test the same conservative
+        // body/clothing capsules used by placement and wire clearance.
+        let transform = h.transform();
+        super::super::humans::collision_capsules(h)
+            .into_iter()
+            .any(|(a, b, r)| {
+                let padding = pad + Vec3::splat(r);
+                segment_hits_box(
+                    transform.transform_point(a),
+                    transform.transform_point(b),
+                    lo - padding,
+                    hi + padding,
+                )
+            })
     })
 }
 
@@ -171,6 +188,32 @@ impl IndoorManifest {
 mod tests {
     use super::*;
     #[test]
+    fn raised_gesture_does_not_project_a_collision_onto_a_kitchen_mat() {
+        let scene =
+            IndoorManifest::generate_with_humans(87, IndoorLayout::Mixed, 0.75, 0, 0.35).unwrap();
+        let mat = scene
+            .objects
+            .iter()
+            .find(|o| o.kind == ObjectKind::Rug)
+            .unwrap();
+        assert!(detail_clear(&scene, mat));
+        let person = scene
+            .humans
+            .iter()
+            .find(|h| !h.pose.seated() && !h.neighbor)
+            .unwrap();
+        let mut at_foot = mat.clone();
+        at_foot.position = person
+            .transform()
+            .transform_point(person.joints[16])
+            .with_y(person.position.y);
+        at_foot.size = Vec3::new(0.08, 0.03, 0.08);
+        assert!(
+            !detail_clear(&scene, &at_foot),
+            "actual foot contact must remain blocked"
+        );
+    }
+    #[test]
     fn floor_details_have_support_clearance_and_routable_ports() {
         let mut rugs = 0;
         let mut outlets = 0;
@@ -188,7 +231,7 @@ mod tests {
                 } else {
                     outlets += 1;
                 }
-                assert!(detail_clear(&scene, o), "seed {seed} {:?} {}", o.kind, o.id);
+                assert!(detail_clear(&scene, o), "seed {seed} {:?} {}: layout {:?}, solid {}, support {:?}, neighbor {}, placement {}, floor {}, bounds {:?}, people {:?}", o.kind, o.id, scene.layout, o.solid, o.support, o.neighbor, scene.placement_clear(o,0.025),scene.floor_support_clear(o.bounds().0,o.bounds().1),o.bounds(),scene.humans.iter().map(|h|(h.id,h.bounds())).collect::<Vec<_>>());
                 let a = super::super::super::objects::build_object(o);
                 let (lo, hi) = a.bounds();
                 assert!(

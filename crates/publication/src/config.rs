@@ -18,6 +18,9 @@ pub struct Config {
     /// Current-only, independently verified rendered populations; never a paired comparison.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub room_qualification: Option<PathBuf>,
+    /// Optional current-source capacity populations; never pooled across configs.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub capacity_receipts: Vec<PathBuf>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -32,6 +35,9 @@ pub struct Protocol {
     pub density: f32,
     pub human_density: f32,
     pub gi_rays: u32,
+    /// 0 = automatic 2× below 720p; 1 = off; 2/3/4 = fixed linear factor.
+    #[serde(default)]
+    pub ssaa_factor: u32,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -77,6 +83,7 @@ impl Config {
             "invalid density"
         );
         ensure!((64..=16384).contains(&p.gi_rays), "invalid GI ray count");
+        ensure!(p.ssaa_factor <= 4, "invalid SSAA policy");
         safe_relative(&config.captures)?;
         ensure!(
             config.captures.starts_with("out")
@@ -104,6 +111,17 @@ impl Config {
             ensure!(
                 path.starts_with("docs/evidence"),
                 "room qualification must be shipped evidence"
+            );
+        }
+        ensure!(
+            config.capacity_receipts.len() <= 4,
+            "at most four capacity populations"
+        );
+        for path in &config.capacity_receipts {
+            safe_relative(path)?;
+            ensure!(
+                path.starts_with("docs/evidence"),
+                "capacity inputs must be shipped evidence"
             );
         }
         Ok(config)

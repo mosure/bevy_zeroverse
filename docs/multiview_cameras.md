@@ -7,19 +7,21 @@ modes retain their samplers.
 
 ## Lens and field-of-view diversity
 
-The **Cameras → Lenses** controls set vertical FOV bounds and the ultra-wide
-proposal fraction. Defaults span **28–145° vertically**, with 25% of proposals
-in the 108–145° tail. Normalized focal length is log-uniform within each band.
-These are proposal probabilities: the accepted distribution also reflects room
-clearance, content visibility and overlap constraints. Existing FOV and focal
-length histograms report the realized cameras.
+The **Cameras → Lenses** controls define a continuous proposal distribution.
+Bounds default to **28–145° vertically**. **Lens preference** shifts the median
+smoothly from narrow (−1) toward wide (+1); **Lens spread** sets concentration
+around that median (0 fixes the lens, 1 spans the full interval). The live density
+plot shows the proposal PDF and its 10th/50th/90th percentiles. This is independent
+of **camera baseline**, which controls separation in metres, not focal length.
 
 ```json
 {
+  "motion_fraction": 1.0,
   "intrinsics": {
     "fov_y_min_degrees": 28,
     "fov_y_max_degrees": 145,
-    "ultra_wide_probability": 0.25
+    "bias": -0.2,
+    "spread": 1.0
   }
 }
 ```
@@ -27,9 +29,19 @@ length histograms report the realized cameras.
 Pass this through `--indoor-camera`, `BevyZeroverseConfig.indoor_camera`, or the
 web viewer's `indoor_camera` query field. UI edits take effect on Apply/Next and
 shared URLs retain the settings. Bounds may be equal for a fixed lens; the valid
-range is 15–150°. If both bounds are on the same side of 108°, that entire interval
-is sampled regardless of the mixture weight. For an ultra-wide-only cohort, use
+range is 15–150°. For an ultra-wide-only cohort, use
 `{"intrinsics":{"fov_y_min_degrees":125,"fov_y_max_degrees":145}}`.
+
+Sampling interpolates in `log(tan(fov_y / 2))`, equivalently negative log
+normalized focal length. For uniform `u`, the interpolation fraction is
+`sigmoid(logit(0.5 + 0.49*bias) + spread*logit(u))`.
+There is no FOV threshold. At bias=0 and spread=1, log focal length is uniform;
+zero spread gives the median exactly, including in rare placement recovery.
+Clearance, content visibility and overlap rejection still shape the accepted
+PDF; exported FOV/focal-length histograms describe the realized views.
+Explicit archived `ultra_wide_probability` values retain their two-band sampling
+and RNG sequence. Editing preference or spread in Studio switches such an imported
+policy to the continuous sampler; importing it alone does not reinterpret it.
 
 These are rectilinear perspective lenses, with straight-line projection and
 `lens_model=pinhole`. At aspect 1.6, a centered 145° vertical lens covers about
@@ -40,6 +52,32 @@ clearance sphere encloses the full near-plane rectangle, including optical-cente
 shift; wide lenses cannot bypass room/furniture clearance. Explicit bounds also
 apply to recovery cameras. Archived manifests retain their recorded lenses and
 historical bounds when this policy is absent.
+
+## Fixed and moving cameras
+
+**Cameras → Camera motion → Moving cameras (%)** is the single motion control.
+Default **100%** requests trajectories for every capture view. **0%** fixes every
+capture camera's position and orientation for the entire sequence while human
+and furniture animations continue on the shared playback clock. Intrinsics are
+constant over time for both fixed and moving cameras.
+
+```json
+{"motion_fraction": 0.5, "path_length_min": 0.03, "path_length_max": 8.0}
+```
+
+Intermediate values are seeded, independent per-view probabilities, not rounded
+counts: a two-view rig at 50% can contain zero, one or two moving cameras. Roles
+are fixed before placement retries, stable when adding view IDs, and recorded by
+the manifest policy plus each camera's static pose/trajectory. Changing the
+fraction never edits the travel/handheld settings; they apply only to selected
+moving cameras. Fixed cameras skip navigation-route generation and handheld
+increments, but retain near-plane clearance, framing and synchronized multi-view
+overlap/separation checks. A moving peer can have a fixed reference camera.
+
+The setting affects procedural indoor capture cameras, not editor navigation or
+the viewer's separate whole-scene yaw control. Playback mode still controls the
+shared scene clock. Setting both travel bounds to zero remains supported for
+existing configurations; `motion_fraction:0` is the recommended motion switch.
 
 ## Camera baseline control
 

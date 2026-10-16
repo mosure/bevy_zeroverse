@@ -30,7 +30,9 @@ impl IndoorManifest {
             // The former fixed 0.85 m wall rail dominated accepted cameras.
             // Mix free interior proposals with continuously offset perimeter views.
             let perimeter = rng.random_bool(0.4);
+            let moving = self.camera_settings.camera_moves(self.seed, index);
             let long_path = rng.random_bool(self.camera_settings.long_path_fraction as f64)
+                && moving
                 && self.camera_settings.handheld.is_none();
             self.camera_diagnostics.long_reference_requests += usize::from(long_path);
             let edge = rng.random_range(0..4);
@@ -166,7 +168,8 @@ impl IndoorManifest {
                 } else {
                     min_length
                 };
-                let distance = if self.camera_settings.path_length_max == 0.0
+                let distance = if !moving
+                    || self.camera_settings.path_length_max == 0.0
                     || self.camera_settings.handheld.is_some()
                 {
                     0.0
@@ -221,11 +224,11 @@ impl IndoorManifest {
                 if let Some(pitch) = level_pitch {
                     super::viewpoint::ViewpointProgram::apply_pitch(&mut camera, pitch);
                 }
-                if let Some(handheld) = &self.camera_settings.handheld {
-                    handheld.apply(&mut camera, rng);
-                }
-                if camera.path_length() + 1e-4 < self.camera_settings.path_length_min
-                    || camera.path_length() > self.camera_settings.path_length_max + 1e-4
+                self.camera_settings
+                    .prepare_motion(self.seed, index, &mut camera, rng);
+                if !self
+                    .camera_settings
+                    .accepts_motion(self.seed, index, &camera)
                     || !self.camera_curve_clear(&camera)
                 {
                     rejected[3] += 1;
@@ -321,7 +324,9 @@ impl IndoorManifest {
             if !self.camera_clear(start) || !self.camera_view_clear(start, target) {
                 continue;
             }
-            let distance = if self.camera_settings.path_length_max == 0.0 {
+            let distance = if !self.camera_settings.camera_moves(self.seed, 0)
+                || self.camera_settings.path_length_max == 0.0
+            {
                 0.0
             } else {
                 self.camera_settings
@@ -344,12 +349,9 @@ impl IndoorManifest {
                     roll: [0.0; 2],
                 }),
             };
-            if let Some(handheld) = &self.camera_settings.handheld {
-                handheld.apply(&mut camera, rng);
-            }
-            let path_length = camera.path_length();
-            if path_length + 1e-4 < self.camera_settings.path_length_min
-                || path_length > self.camera_settings.path_length_max + 1e-4
+            self.camera_settings
+                .prepare_motion(self.seed, 0, &mut camera, rng);
+            if !self.camera_settings.accepts_motion(self.seed, 0, &camera)
                 || !self.camera_curve_clear(&camera)
                 || !coverage.suitable(&camera, true)
                 || self.cameras.iter().any(|existing| {

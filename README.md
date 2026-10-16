@@ -32,30 +32,30 @@ cargo run --bin viewer -- --scene-type object --num-cameras 4 --camera-grid
 <table>
   <tr>
     <td width="33%" align="center">
-      <a href="www/project/static/media/architecture/s7-t0-c3-color.webp"><img src="www/project/static/media/architecture/s7-t0-c3-color.webp" width="320" height="200" alt="Generated office with mezzanine stairs, desks and tall windows"></a><br>
+      <a href="www/project/static/media/architecture/s7-t0-c3-color.webp"><img src="www/project/static/media/architecture/s7-t0-c3-color.webp" width="320" height="200" alt="Generated lounge with a mezzanine and stairs"></a><br>
       <strong>Mezzanine &amp; stairs</strong><br><sub>Seed 7 · camera 3</sub>
     </td>
     <td width="33%" align="center">
-      <a href="www/project/static/media/architecture/s8-t0-c3-color.webp"><img src="www/project/static/media/architecture/s8-t0-c3-color.webp" width="320" height="200" alt="Generated lounge with a sunken floor, steps and glazed partitions"></a><br>
-      <strong>Sunken lounge</strong><br><sub>Seed 8 · camera 3</sub>
+      <a href="www/project/static/media/architecture/s8-t0-c3-color.webp"><img src="www/project/static/media/architecture/s8-t0-c3-color.webp" width="320" height="200" alt="Generated breakroom with varied floor levels"></a><br>
+      <strong>Stepped breakroom</strong><br><sub>Seed 8 · camera 3</sub>
     </td>
     <td width="33%" align="center">
-      <a href="www/project/static/media/architecture/s6-t0-c1-color.webp"><img src="www/project/static/media/architecture/s6-t0-c1-color.webp" width="320" height="200" alt="Generated training room with a raised platform and arched doorway"></a><br>
-      <strong>Raised floor &amp; archway</strong><br><sub>Seed 6 · camera 1</sub>
+      <a href="www/project/static/media/architecture/s6-t0-c1-color.webp"><img src="www/project/static/media/architecture/s6-t0-c1-color.webp" width="320" height="200" alt="Generated reception with furnished seating and architectural details"></a><br>
+      <strong>Furnished reception</strong><br><sub>Seed 6 · camera 1</sub>
     </td>
   </tr>
   <tr>
     <td width="33%" align="center">
-      <a href="www/project/static/media/architecture/s4-t0-c0-color.webp"><img src="www/project/static/media/architecture/s4-t0-c0-color.webp" width="320" height="200" alt="Generated studio with a sloping ceiling, pillars, shelving and lounge seating"></a><br>
-      <strong>Sloping ceiling &amp; pillars</strong><br><sub>Seed 4 · camera 0</sub>
+      <a href="www/project/static/media/architecture/s4-t0-c0-color.webp"><img src="www/project/static/media/architecture/s4-t0-c0-color.webp" width="320" height="200" alt="Generated mixed-use interior with a sloping ceiling and pillar"></a><br>
+      <strong>Mixed-use interior</strong><br><sub>Seed 4 · camera 0</sub>
     </td>
     <td width="33%" align="center">
-      <a href="www/project/static/media/architecture/s2-t0-c3-color.webp"><img src="www/project/static/media/architecture/s2-t0-c3-color.webp" width="320" height="200" alt="Generated workspace with tall exterior glazing and daylight shadows"></a><br>
-      <strong>Tall glazing &amp; daylight</strong><br><sub>Seed 2 · camera 3</sub>
+      <a href="www/project/static/media/architecture/s2-t0-c3-color.webp"><img src="www/project/static/media/architecture/s2-t0-c3-color.webp" width="320" height="200" alt="Generated low-light workspace with a desk and chair"></a><br>
+      <strong>Low-light workspace</strong><br><sub>Seed 2 · camera 3</sub>
     </td>
     <td width="33%" align="center">
-      <a href="www/project/static/media/architecture/s28-t0-c0-color.webp"><img src="www/project/static/media/architecture/s28-t0-c0-color.webp" width="320" height="200" alt="Dimly lit generated interior with blue seating, a plant and a concrete pillar"></a><br>
-      <strong>Low-light interior</strong><br><sub>Seed 28 · camera 0</sub>
+      <a href="www/project/static/media/architecture/s28-t0-c0-color.webp"><img src="www/project/static/media/architecture/s28-t0-c0-color.webp" width="320" height="200" alt="Generated classroom with varied seating and lighting"></a><br>
+      <strong>Classroom lighting</strong><br><sub>Seed 28 · camera 0</sub>
     </td>
   </tr>
 </table>
@@ -104,6 +104,11 @@ Semantic-room and standalone-human scenes are also supported. The engine is
 built with Bevy 0.20 and Rust, with native dataset generation, a WebGPU viewer, and
 Python/PyTorch integration.
 
+Capture RGB defaults to 2× supersampling below 1280×720 pixels, resolved by a GPU
+area filter. Numeric annotations retain aligned final pixel-center rays and
+categorical labels. `--ssaa-factor 1` disables it; 0 selects Auto and 2/3/4 force
+a fixed factor. Output dimensions and camera calibration remain unchanged.
+
 ## Quick start
 
 Run the native viewer using the repository's pinned `nightly-2026-08-31` Rust toolchain (crate MSRV
@@ -130,8 +135,10 @@ Scene Studio uses Bevy 0.20 Feathers controls and the built-in pan-orbit camera
 on native and WebGPU; it needs no egui, inspector or external camera plugin. **Apply changes**
 keeps the selected seed; **Next / R** advances it. Editing does not regenerate.
 Camera baseline coordinates spacing, shared surfaces and gaze variation across
-the requested camera count; travel controls how far each
-camera moves. The viewport selector offers **Editor camera**, **Capture grid**,
+the requested camera count. **Moving cameras (%)** selects fixed or moving views
+(default 100%); travel bounds apply to moving cameras while scene animation stays
+independent. Continuous **lens preference/spread** controls include a live PDF
+preview, separate from spatial baseline. The viewport selector offers **Editor camera**, **Capture grid**,
 and **Room schematic**. Browser links preserve the active scene, preview and pending edits.
 **View & playback → Glass in annotations** selects glass surfaces (default) or
 unrefracted geometry behind glass for depth, normal, position, semantic, optical

@@ -639,7 +639,7 @@ fn build_impl(
                             || name.starts_with("wrist")
                             || name.starts_with("finger")
                             || name.starts_with("metacarpal"))
-                        || !contact.contains(*q, 0.)
+                        || !contact.covers_fitted_surface(*q)
                     {
                         continue;
                     }

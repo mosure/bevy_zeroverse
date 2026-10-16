@@ -12,6 +12,60 @@ struct Args {
 }
 #[derive(Subcommand)]
 enum Action {
+    /// Build a local current-source paper section and page fragment; does not publish.
+    CapacityPaper {
+        #[arg(long, required=true, num_args=1..)]
+        receipt: Vec<PathBuf>,
+        #[arg(long)]
+        output: PathBuf,
+    },
+    /// Freeze a whole-image SigLIP2 cohort and kernel before optional inference.
+    CapacityEmbeddingIndex {
+        #[arg(long)]
+        receipt: PathBuf,
+        #[arg(long)]
+        records: PathBuf,
+        #[arg(long)]
+        captures: PathBuf,
+        #[arg(long)]
+        weights_sha256: String,
+        #[arg(long, default_value_t = 0.35)]
+        bandwidth: f64,
+        #[arg(long, default_value_t = 512)]
+        max_rooms: usize,
+        #[arg(long)]
+        output: PathBuf,
+    },
+    /// Verify cached SigLIP2 inference and report room-weighted sample diversity.
+    CapacityEmbeddingReport {
+        #[arg(long)]
+        index: PathBuf,
+        #[arg(long)]
+        embeddings: PathBuf,
+        #[arg(long)]
+        output: PathBuf,
+    },
+    /// Generate local figures, HTML and a paper table from one qualified receipt.
+    CapacityReport {
+        #[arg(long)]
+        receipt: PathBuf,
+        #[arg(long)]
+        output: PathBuf,
+    },
+    /// Qualify a complete local capacity observation stream. Does not publish.
+    CapacityQualify {
+        #[arg(long)]
+        plan: PathBuf,
+        #[arg(long)]
+        records: PathBuf,
+        #[arg(long)]
+        output: PathBuf,
+    },
+    /// Generate analytical occupancy illustrations; never estimates room capacity.
+    CapacityTheory {
+        #[arg(long)]
+        output: PathBuf,
+    },
     /// Bind architectural door/cabinet construction, renders and semantics.
     DoorStudy {
         #[arg(long)]
@@ -150,6 +204,54 @@ enum Action {
 fn main() -> Result<()> {
     let args = Args::parse();
     match args.command {
+        Action::CapacityPaper { receipt, output } => {
+            anyhow::ensure!(!output.exists(), "capacity paper output already exists");
+            let identity = bevy_zeroverse_publication::pipeline::identity(&args.root)?;
+            bevy_zeroverse_publication::capacity::publication::build(
+                &args.root, &output, &receipt, &identity,
+            )?;
+        }
+        Action::CapacityEmbeddingIndex {
+            receipt,
+            records,
+            captures,
+            weights_sha256,
+            bandwidth,
+            max_rooms,
+            output,
+        } => {
+            bevy_zeroverse_publication::capacity::embeddings::index(
+                &receipt,
+                &records,
+                &captures,
+                &weights_sha256,
+                bevy_zeroverse_publication::capacity::embeddings::kernel::KernelConfig {
+                    bandwidth,
+                    max_rooms,
+                },
+                &output,
+            )?;
+        }
+        Action::CapacityEmbeddingReport {
+            index,
+            embeddings,
+            output,
+        } => {
+            bevy_zeroverse_publication::capacity::embeddings::report(&index, &embeddings, &output)?;
+        }
+        Action::CapacityReport { receipt, output } => {
+            bevy_zeroverse_publication::capacity::report::write(&receipt, &output)?
+        }
+        Action::CapacityQualify {
+            plan,
+            records,
+            output,
+        } => {
+            bevy_zeroverse_publication::capacity::qualify_files(&plan, &records, &output)?;
+        }
+        Action::CapacityTheory { output } => {
+            bevy_zeroverse_publication::capacity_theory::write(&output)?
+        }
         Action::DoorStudy { input, output } => {
             bevy_zeroverse_publication::doors::prepare(&args.root, &input, &output)?
         }

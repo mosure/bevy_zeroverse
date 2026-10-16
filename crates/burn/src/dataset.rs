@@ -64,9 +64,27 @@ fn normalize_asset_root(root: &Path) -> PathBuf {
 
 static APP_STARTED: OnceLock<AtomicBool> = OnceLock::new();
 static APP_CONTRACT: OnceLock<serde_json::Value> = OnceLock::new();
+static APP_STOPPED: AtomicBool = AtomicBool::new(false);
 // The process owns one renderer and one response channel. A request and its
 // receive are one transaction, including across compatible LiveDataset handles.
 static CAPTURE_TRANSACTION: Mutex<()> = Mutex::new(());
+
+pub(crate) fn ensure_live_renderer_available() -> Result<()> {
+    anyhow::ensure!(
+        !APP_STOPPED.load(Ordering::Acquire),
+        "the process-owned live renderer has been shut down; use a fresh process for another controlled run"
+    );
+    Ok(())
+}
+
+pub(crate) fn shutdown_live_renderer() -> Result<()> {
+    let _transaction = CAPTURE_TRANSACTION
+        .lock()
+        .map_err(|_| anyhow::anyhow!("capture transaction lock poisoned"))?;
+    APP_STOPPED.store(true, Ordering::Release);
+    bevy_zeroverse::headless::shutdown_app()
+        .map_err(|_| anyhow::anyhow!("renderer panicked during shutdown"))
+}
 
 fn app_contract(config: &LiveDatasetConfig) -> Result<serde_json::Value> {
     let mut engine = config.zeroverse_config.clone();
@@ -97,6 +115,7 @@ impl LiveDataset {
     }
 
     fn ensure_initialized(&self) -> Result<()> {
+        ensure_live_renderer_available()?;
         if self.initialized.load(Ordering::Acquire) {
             return Ok(());
         }
@@ -172,7 +191,11 @@ impl LiveDataset {
         }
     }
 
-    fn request_next(&self, prefetch_indoor: usize) -> Result<()> {
+    fn request_next(
+        &self,
+        prefetch_indoor: usize,
+        idle_work: bevy_zeroverse::io::channels::IdleWork,
+    ) -> Result<()> {
         // Ensure the app channels are present even if initialization was skipped (e.g. in tests).
         if !bevy_zeroverse::io::channels::channels_initialized() {
             bevy_zeroverse::headless::setup_globals(
@@ -187,6 +210,7 @@ impl LiveDataset {
         sender
             .send(bevy_zeroverse::io::channels::AppFrameRequest {
                 prefetch_indoor,
+                idle_work,
                 ..Default::default()
             })
             .context("failed to signal zeroverse app for next sample")
@@ -227,16 +251,41 @@ impl LiveDataset {
     /// access. `num_samples` bounds each epoch's lookahead; one-sample datasets
     /// do no speculative work. Zero denotes an unbounded stream.
     pub fn next_sample(&self) -> Result<ZeroverseSample> {
-        self.capture(None)
+        self.next_sample_with_telemetry().map(|(sample, _)| sample)
+    }
+
+    /// Capture with per-room CPU preparation and cumulative pipeline diagnostics.
+    /// Diagnostics are consumed under the same transaction lock as the pixels.
+    pub fn next_sample_with_telemetry(
+        &self,
+    ) -> Result<(
+        ZeroverseSample,
+        Option<bevy_zeroverse::io::channels::CaptureTelemetry>,
+    )> {
+        self.capture(None, bevy_zeroverse::io::channels::IdleWork::Preflight)
     }
 
     // Compatibility for the generator's existing diagnostic prefetch overrides.
     // Ordinary downstream callers use next_sample or Dataset::get.
-    pub(crate) fn capture_next(&self, prefetch_indoor: usize) -> Result<ZeroverseSample> {
-        self.capture(Some(prefetch_indoor))
+    pub(crate) fn capture_next(
+        &self,
+        prefetch_indoor: usize,
+        idle_work: bevy_zeroverse::io::channels::IdleWork,
+    ) -> Result<(
+        ZeroverseSample,
+        Option<bevy_zeroverse::io::channels::CaptureTelemetry>,
+    )> {
+        self.capture(Some(prefetch_indoor), idle_work)
     }
 
-    fn capture(&self, lookahead_override: Option<usize>) -> Result<ZeroverseSample> {
+    fn capture(
+        &self,
+        lookahead_override: Option<usize>,
+        idle_work: bevy_zeroverse::io::channels::IdleWork,
+    ) -> Result<(
+        ZeroverseSample,
+        Option<bevy_zeroverse::io::channels::CaptureTelemetry>,
+    )> {
         let _transaction = CAPTURE_TRANSACTION
             .lock()
             .map_err(|_| anyhow::anyhow!("capture transaction lock poisoned"))?;
@@ -254,10 +303,11 @@ impl LiveDataset {
                 0
             }
         });
-        self.request_next(lookahead)?;
+        self.request_next(lookahead, idle_work)?;
         let sample = self.receive_sample()?;
         *completed = completed.wrapping_add(1);
-        Ok(sample)
+        let telemetry = bevy_zeroverse::io::channels::take_capture_telemetry();
+        Ok((sample, telemetry))
     }
 }
 

@@ -112,6 +112,7 @@ pub fn compare_with_matching(
             density: 0.65,
             human_density: 0.25,
             gi_rays: 1024,
+            ssaa_factor: 0,
         }
     };
     ensure!(

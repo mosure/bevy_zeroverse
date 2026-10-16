@@ -21,6 +21,30 @@ const SEEDS: [u64; 6] = [0, 1, 4, 19, 53, 101];
 const MODES: [&str; 5] = ["color", "normal", "albedo", "normal_map", "roughness"];
 const SAMPLES: usize = 256;
 const ROOMS: usize = 256;
+fn special_parts(surface: &str, row: &Value) -> Result<u64> {
+    let Some(slots) = row.get("special_slots") else {
+        return Ok(0);
+    };
+    let mut total = 0u64;
+    for (slot, count) in slots
+        .as_object()
+        .context("invalid special finish histogram")?
+    {
+        ensure!(
+            matches!(
+                (surface, slot.as_str()),
+                ("Ceramic", "100" | "101" | "102") | ("Terracotta", "103") | ("Paper", "104")
+            ),
+            "unregistered special finish {surface}/{slot}"
+        );
+        let count = count
+            .as_u64()
+            .filter(|&n| n > 0)
+            .context("invalid finish count")?;
+        total = total.checked_add(count).context("finish count overflow")?;
+    }
+    Ok(total)
+}
 fn sources(root: &Path) -> Result<BTreeMap<String, String>> {
     TOOLS
         .iter()
@@ -327,16 +351,13 @@ pub fn verify(directory: &Path, identity: &GeneratorIdentity) -> Result<Value> {
             .get(kind)
             .and_then(Value::as_u64)
             .context("missing category denominator")?;
-        for row in category
-            .as_object()
-            .context("missing assignment row")?
-            .values()
-        {
+        for (surface, row) in category.as_object().context("missing assignment row")? {
             let slots = row["slots"]
                 .as_array()
                 .context("missing finish histogram")?;
             ensure!(slots.len() == 12, "finish histogram size");
             let total = slots.iter().map(|n| n.as_u64().unwrap_or(0)).sum::<u64>()
+                + special_parts(surface, row)?
                 + row["base_parts"].as_u64().unwrap_or(0);
             ensure!(row["parts"] == total, "part/slot count mismatch");
             ensure!(
@@ -410,6 +431,28 @@ pub fn page() -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn specialized_food_binding_receipts_are_typed_and_counted() {
+        assert_eq!(special_parts("Paper", &json!({})).unwrap(), 0);
+        assert_eq!(
+            special_parts("Paper", &json!({"special_slots":{"104":3}})).unwrap(),
+            3
+        );
+        assert_eq!(
+            special_parts("Ceramic", &json!({"special_slots":{"100":2,"102":4}})).unwrap(),
+            6
+        );
+        for (surface, slots) in [
+            ("Metal", json!({"104":1})),
+            ("Paper", json!({"100":1})),
+            ("Paper", json!({"105":1})),
+            ("Paper", json!({"104":0})),
+            ("Paper", json!({"104":1.5})),
+            ("Paper", json!([])),
+        ] {
+            assert!(special_parts(surface, &json!({"special_slots":slots})).is_err());
+        }
+    }
     #[test]
     fn parameter_marginals_keep_conditionals_and_exclude_seed_ids() {
         let samples = vec![

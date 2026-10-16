@@ -108,7 +108,8 @@ impl EnvelopeProgram {
             .map(|(a, b)| {
                 (
                     a.min(b) - Vec3::new(0.025, 0., 0.025),
-                    a.max(b) + Vec3::new(0.025, 1.05, 0.025),
+                    // The top rail is centered at 1.03 m with a 22 mm radius.
+                    a.max(b) + Vec3::new(0.025, 1.055, 0.025),
                 )
             })
             .collect::<Vec<_>>();

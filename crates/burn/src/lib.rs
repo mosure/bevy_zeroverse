@@ -32,6 +32,10 @@
 //! handles, and indoor lookahead is bounded automatically. The Burn `Dataset`
 //! adapter uses the same scheduling. Calls produce consecutive samples rather
 //! than random access; keep a renderer process alive across output shards.
+//! Archive consumers with external inventory control can use
+//! [`generator::run_chunk_generation_controlled`] and
+//! [`generator::admission::CaptureControl`]. Demand waits leave CPU preparation
+//! and export running without idle GPU preflight; credits admit whole rooms.
 //! Configure scene content, cameras and annotations once before the first call.
 //! Different render configurations require separate processes.
 

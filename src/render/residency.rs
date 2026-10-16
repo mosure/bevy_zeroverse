@@ -17,8 +17,9 @@ use bevy::{
     },
     prelude::*,
     render::{
+        batching::gpu_preprocessing::{GpuPreprocessingMode, GpuPreprocessingSupport},
         extract_resource::{ExtractResource, ExtractResourcePlugin},
-        view::ExtractedView,
+        view::{ExtractedView, NoIndirectDrawing},
         Extract, ExtractSchedule, Render, RenderApp, RenderSystems,
     },
 };
@@ -84,9 +85,42 @@ impl Plugin for RenderResidencyPlugin {
         if let Some(render) = app.get_sub_app_mut(RenderApp) {
             render.insert_resource(diagnostics);
             render.init_resource::<LiveMainMeshes>();
-            render.add_systems(ExtractSchedule, extract_live_meshes);
+            render.add_systems(
+                ExtractSchedule,
+                (extract_live_meshes, align_shadow_submission),
+            );
             render.add_systems(Render, prune_retired_keys.in_set(RenderSystems::Cleanup));
         }
+    }
+}
+
+// Bevy extracts mesh culling data only if a main-world camera uses indirect
+// drawing. Point/spot shadows instead select their mode from device support.
+// With direct-only cameras those shadows must also use preprocessing-only:
+// otherwise they read absent (or previous-scene) culling bounds. Keep GPU mesh
+// preprocessing and all shadow geometry; only the submission mode changes.
+fn align_shadow_submission(
+    cameras: Extract<Query<Has<NoIndirectDrawing>, With<Camera>>>,
+    support: Option<ResMut<GpuPreprocessingSupport>>,
+    mut capability: Local<Option<GpuPreprocessingMode>>,
+) {
+    let Some(mut support) = support else {
+        return;
+    };
+    let original = *capability.get_or_insert(support.max_supported_mode);
+    if cameras.is_empty() {
+        return;
+    }
+    let mode = if cameras.iter().all(|direct| direct) {
+        GpuPreprocessingSupport {
+            max_supported_mode: original,
+        }
+        .min(GpuPreprocessingMode::PreprocessingOnly)
+    } else {
+        original
+    };
+    if support.max_supported_mode != mode {
+        support.max_supported_mode = mode;
     }
 }
 

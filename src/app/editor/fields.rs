@@ -21,6 +21,8 @@ pub enum Item {
     Section(&'static str, &'static str),
     Field(Field),
     Note(String),
+    LensDistribution,
+    CapacityEvidence,
 }
 fn field(path: &str, label: &str, help: &str, kind: Kind) -> Item {
     Item::Field(Field {
@@ -66,7 +68,7 @@ pub fn items(state: &EditorState) -> Vec<Item> {
             section("GENERATION", "Changes apply when you press Apply or Next."),
             choices("/scene_type","Scene type",&[("Procedural indoor","ProceduralIndoor"),("Zeroverse objects","Object"),("Semantic room","SemanticRoom"),("Primitive room","Room"),("Cornell cube","CornellCube"),("Human","Human"),("Custom","Custom")],"Every existing scene mode remains available."),
             text("/indoor_seed","Room seed","Exact 64-bit integer. Empty chooses a random seed on generation."),
-            choices("/indoor_layout","Activity distribution",&[("Mixed activities","Mixed"),("Conference","Conference"),("Open office","OpenOffice"),("Coworking","Coworking"),("Training","Training"),("Breakroom","Breakroom"),("Kitchenette","Kitchenette"),("Kitchen","Kitchen"),("Elevator landing","ElevatorLanding"),("Cafe","Cafe"),("Cafeteria","Cafeteria"),("Classroom","Classroom"),("Lecture hall","LectureHall"),("Showroom","Showroom"),("Gallery","Gallery"),("Public suite","PublicSuite"),("Reception","Reception"),("Workshop","Workshop"),("Lounge","Lounge"),("Library","Library"),("Studio","Studio")],"Office mixtures or capacity-aware service, dining, teaching, transit and exhibition programs."),
+            choices("/indoor_layout","Room program",&[("Mixed · all room types","Mixed"),("Conference","Conference"),("Open office","OpenOffice"),("Coworking","Coworking"),("Training","Training"),("Breakroom","Breakroom"),("Kitchenette","Kitchenette"),("Kitchen","Kitchen"),("Elevator landing","ElevatorLanding"),("Cafe","Cafe"),("Cafeteria","Cafeteria"),("Classroom","Classroom"),("Lecture hall","LectureHall"),("Showroom","Showroom"),("Gallery","Gallery"),("Public suite","PublicSuite"),("Reception","Reception"),("Workshop","Workshop"),("Lounge","Lounge"),("Library","Library"),("Studio","Studio")],"Mixed samples all 20 room programs uniformly, including kitchens, cafes, classrooms, galleries and public suites. Choose a specific program to restrict generation."),
             num("/indoor_density","Furnishing density",0.,1.,0.01,"Secondary furniture, plants and tabletop clutter."),
             num("/indoor_human_density","People density",0.,1.,0.01,"0 removes people; 1 requests the largest supported population."),
             toggle("/rotation_augmentation","Randomize world orientation","Dataset augmentation applied during generation."),
@@ -77,12 +79,8 @@ pub fn items(state: &EditorState) -> Vec<Item> {
             section("MULTI-VIEW RIG","Spacing and overlap are constrained together."),
             num("/num_cameras","Capture views",0.,16.,1.,"0 uses only the editor view. Co-visibility supports up to 16 views."),
             toggle("@multiview","Coordinate views","Require shared geometry with a reference camera or a connected camera graph."),
-            section("LENSES", "Vertical perspective FOV; wide lenses retain full calibration and annotation support."),
-            num("/indoor_camera/intrinsics/fov_y_min_degrees","Minimum vertical FOV",15.,150.,1.,"Lower bound for capture lenses. Horizontal coverage also depends on image aspect."),
-            num("/indoor_camera/intrinsics/fov_y_max_degrees","Maximum vertical FOV",15.,150.,1.,"145° includes ultra-wide perspective lenses. Near-plane clearance is checked across the complete camera path."),
-            num("/indoor_camera/intrinsics/ultra_wide_probability","Ultra-wide proposal fraction",0.,1.,0.01,"Probability of proposing a lens above 108° when the range spans that value. Placement and overlap constraints still apply."),
-            num("@lens_x","Principal-point variation X",0.,0.2,0.005,"Seeded optical-center displacement, as a fraction of image width. Zero keeps the centered pinhole."),
-            num("@lens_y","Principal-point variation Y",0.,0.2,0.005,"Seeded optical-center displacement, as a fraction of image height. Full K is exported for each view."),
+            num("@camera_motion_percent","Moving cameras (%)",0.,100.,1.,"0 fixes every capture pose; 100 gives every camera a trajectory. Intermediate values seed a per-view probability; small rigs may differ from the percentage. Travel controls below apply only to moving views."),
+
         ],
         Page::Appearance=>vec![
             section("SURFACE & LIGHT VARIATION","Independent seeds preserve layout, geometry and cameras."),
@@ -92,6 +90,7 @@ pub fn items(state: &EditorState) -> Vec<Item> {
             num("/indoor_appearance/illumination_scale","Illumination multiplier",0.05,1.,0.01,"Uniformly dims sun, sky, electric and ambient lighting."),
             num("/indoor_appearance/exposure_ev100_offset","Exposure offset (EV100)",-2.,2.,0.05,"Positive values darken the image. Negative values brighten it."),
             section("RENDER QUALITY","Full supported effects are enabled by Auto."),
+            field("/ssaa_factor","Capture supersampling (SSAA)","Auto uses 2× below 1280×720 pixels, otherwise native resolution. Geometry labels retain exact final pixel-center rays. Apply to rebuild targets.",Kind::Choice(vec![("Auto · 2× below 720p".into(),json!(0)),("Off · native resolution".into(),json!(1)),("2× · 4 RGB samples / pixel".into(),json!(2)),("3× · 9 RGB samples / pixel".into(),json!(3)),("4× · 16 RGB samples / pixel".into(),json!(4))])),
             toggle("/indoor_gpu_materials","Bake materials on GPU","Caches the same PBR recipes on the rendering device. Unsupported programs and devices use CPU synthesis."),
             choices("/indoor_quality","Quality",&[("Auto · platform supported","Auto"),("Portable · reduced effects","Portable")],"Portable omits shadows, GI, SSAO, bloom and refraction."),
             num("/indoor_gi_rays","Indirect-light rays / probe",64.,16384.,64.,"Native Auto only. More rays reduce bake noise and take longer."),
@@ -119,6 +118,9 @@ pub fn items(state: &EditorState) -> Vec<Item> {
             num("@flow_scale","Full color scale (pixels)",1.,256.,1.,"A visualization scale, not a change to motion annotations."),
         ],
         Page::Advanced=>vec![
+            section("COVERAGE EVIDENCE","Read-only qualification. Imported evidence never changes the scene or starts generation."),
+            Item::CapacityEvidence,
+            json_field("@capacity_receipt","Import capacity receipt JSON","Paste a qualified receipt, or null to clear it. Relevant control edits mark it mismatched; receipts are kept out of shared URLs."),
             section("EXACT PARAMETERS","JSON editors expose the complete validated public policy, including arrays."),
             json_field("@config","Complete viewer configuration","Every public CLI/query setting. Edits are validated before Apply."),
             json_field("/indoor_camera","Camera policy JSON","Includes overlap bands, handheld increments and capture duration."),
@@ -177,9 +179,19 @@ pub fn items(state: &EditorState) -> Vec<Item> {
             }
         }
         v.extend([
-            section("CAMERA TRAVEL","Travel distance is independent of spacing between cameras."),
-            choices("@path_preset","Path starting point",&[("Custom","custom"),("Static views","static"),("Short handheld","handheld"),("Explore the room","explore")],"Presets set travel bounds; all fields remain editable."),
-            num("/indoor_camera/path_length_min","Minimum travel (m)",0.,20.,0.05,"Set both travel bounds to 0 for stationary views."),
+            section("LENSES", "Vertical perspective FOV; wide lenses retain full calibration and annotation support."),
+            num("/indoor_camera/intrinsics/fov_y_min_degrees","Minimum vertical FOV",15.,150.,1.,"Lower bound for capture lenses. Horizontal coverage also depends on image aspect."),
+            num("/indoor_camera/intrinsics/fov_y_max_degrees","Maximum vertical FOV",15.,150.,1.,"145° includes ultra-wide perspective lenses. Near-plane clearance is checked across the complete camera path."),
+            num("@lens_bias","Lens preference · narrow / wide",-1.,1.,0.01,"Continuously shifts the distribution toward narrow (−1) or wide (+1) lenses. Independent of spatial baseline. Editing uses the continuous distribution."),
+            num("@lens_spread","Lens spread",0.,1.,0.01,"0 fixes every lens at the median; 1 spans the full FOV range. Continuous PDF in log focal space; placement and overlap can bias accepted lenses."),
+            Item::LensDistribution,
+            num("@lens_x","Principal-point variation X",0.,0.2,0.005,"Seeded optical-center displacement, as a fraction of image width. Zero keeps the centered pinhole."),
+            num("@lens_y","Principal-point variation Y",0.,0.2,0.005,"Seeded optical-center displacement, as a fraction of image height. Full K is exported for each view."),
+        ]);
+        v.extend([
+            section("CAMERA MOTION","Independent of furniture/human animation and camera spacing. Intrinsics remain fixed through time."),
+            choices("@path_preset","Trajectory preset",&[("Custom","custom"),("Short handheld","handheld"),("Explore the room","explore")],"Presets set travel bounds; all fields remain editable."),
+            num("/indoor_camera/path_length_min","Minimum travel (m)",0.,20.,0.05,"Minimum path length for moving cameras. Use Moving cameras = 0% to freeze poses without losing travel settings."),
             num("/indoor_camera/path_length_max","Maximum travel (m)",0.,30.,0.05,"Swept collision checks always apply."),
             num("/indoor_camera/long_path_fraction","Long-route probability",0.,1.,0.01,"Fraction of proposals that explore farther through the room."),
             toggle("/indoor_camera/primary_room","Stay in primary room","Bounds capture trajectories to the reconstruction target."),

@@ -111,6 +111,7 @@ fn recipe_cannot_replace_sources_or_the_publication_work_directory() {
         references: vec![],
         camera_study: None,
         room_qualification: None,
+        capacity_receipts: vec![],
     };
     fs::write(
         root.path().join("publication.toml"),
@@ -205,6 +206,7 @@ fn protocol() -> Protocol {
         density: 0.65,
         human_density: 0.25,
         gi_rays: 1024,
+        ssaa_factor: 0,
     }
 }
 fn fixture(root: &Path) -> (GeneratorIdentity, Protocol) {
@@ -222,7 +224,7 @@ fn fixture(root: &Path) -> (GeneratorIdentity, Protocol) {
         &json!({"invalid_seeds":[],"first_seed":0,"seeds":4,"cameras_per_scene":4}),
     )
     .unwrap();
-    io::write(&root.join("render_selection.json"),&json!({"identity":identity,"run_id":"one-run","quality":"Auto","co_visibility":true,"selected_seeds":[0,1,2,3],"playback_steps":2,"gi_rays":1024,"diffuse_gi_enabled":true,"capture_engine":"test"})).unwrap();
+    io::write(&root.join("render_selection.json"),&json!({"identity":identity,"run_id":"one-run","quality":"Auto","co_visibility":true,"selected_seeds":[0,1,2,3],"playback_steps":2,"gi_rays":1024,"ssaa_factor":0,"diffuse_gi_enabled":true,"capture_engine":"test"})).unwrap();
     io::write(&root.join("run_complete.json"),&json!({"identity":identity,"run_id":"one-run","selected_seeds":[0,1,2,3],"captured_scenes":4})).unwrap();
     let metadata = json!({"schema_version":1,"camera_count":4,"legend":(0..4).map(|i|json!({"bit":i,"camera_index":i,"mask":1u32<<i,"rgb8":camera_color(i,4)})).collect::<Vec<_>>()});
     let mut rows = String::new();
@@ -266,7 +268,7 @@ fn fixture(root: &Path) -> (GeneratorIdentity, Protocol) {
                     .unwrap();
             }
         }
-        io::write(&folder.join("capture.json"),&json!({"run_id":"one-run","seed":seed,"image_size":[64,64],"elapsed_seconds":1,"annotation_precision":"float32_geometry","capabilities":{"quality":"Auto","shadows":true,"ssao":true},"co_visibility_metadata":metadata,"views":views})).unwrap();
+        io::write(&folder.join("capture.json"),&json!({"run_id":"one-run","seed":seed,"image_size":[64,64],"elapsed_seconds":1,"annotation_precision":"float32_geometry","capabilities":{"quality":"Auto","shadows":true,"ssao":true,"ssaa_configured_factor":0,"sampling":{"schema_version":1,"ssaa_factor":2}},"co_visibility_metadata":metadata,"views":views})).unwrap();
     }
     fs::write(root.join("architecture.jsonl"), rows).unwrap();
     (identity, p)

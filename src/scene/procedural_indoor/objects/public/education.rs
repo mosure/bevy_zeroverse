@@ -133,7 +133,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &PublicItemProgram) {
                 for z in [-0.42, 0.42] {
                     a.part(Surface::Rubber, label).ellipsoid(
                         Vec3::splat(0.027),
-                        Transform::from_xyz(x * o.size.x, 0.026, z * o.size.z),
+                        Transform::from_xyz(x * o.size.x, 0.027, z * o.size.z),
                     );
                 }
             }

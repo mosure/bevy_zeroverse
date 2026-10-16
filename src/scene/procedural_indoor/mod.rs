@@ -3,6 +3,7 @@
 pub mod appearance;
 pub mod architecture;
 pub mod cameras;
+pub mod capacity;
 mod clutter;
 pub mod domain;
 pub mod envelope;
@@ -134,7 +135,10 @@ impl Plugin for ProceduralIndoorPlugin {
         app.add_systems(PreUpdate, regenerate);
         app.init_resource::<preparation::residency::FutureAssets>();
         #[cfg(not(target_arch = "wasm32"))]
-        app.add_systems(PreUpdate, lighting::finish.after(regenerate));
+        app.add_systems(
+            PreUpdate,
+            (lighting::finish, lighting::finish_gpu).after(regenerate),
+        );
         app.add_systems(
             Update,
             configure_cameras.after(crate::camera::update_render_pipeline),
@@ -268,6 +272,7 @@ fn regenerate(
             commands.remove_resource::<gi::gpu::GpuBakeRequest>();
             commands.remove_resource::<gi::gpu::GiGpuReadiness>();
             commands.remove_resource::<lighting::PendingLighting>();
+            commands.remove_resource::<lighting::PendingGpuLighting>();
         }
         commands.remove_resource::<gi::BakeStatistics>();
         return;
@@ -298,9 +303,21 @@ fn regenerate(
             future_assets.cancel_gi();
             return;
         }
-        // Sequential native capture overlaps one future room's complete upload
-        // and one further ready room's GI-only inputs with current readback.
-        // Browsers retain cooperative CPU preparation and their upload policy.
+        // Idle promotion consumes one authorized slot. Replenish only when an
+        // actual next request extends that budget, preserving shard boundaries.
+        #[cfg(not(target_arch = "wasm32"))]
+        if pending.prefetched.len() != prefetch.depth.min(preparation::pipeline::MAX_DEPTH) {
+            if let Some(key) = pending.key.clone() {
+                let (started, discarded) = pending.prefetched.fill(&key, prefetch.depth, |next| {
+                    next.spawn(&images, &materials, &meshes)
+                });
+                prefetch.started += started as u64;
+                prefetch.discarded += discarded as u64;
+            }
+        }
+        // Preserve the existing capture boundary: stage future assets only
+        // while exact current copies are pending. Ordinary idle preflight can
+        // promote a successor later, with all capture cameras disabled.
         if !cfg!(target_arch = "wasm32")
             && args.headless
             && !args.editor
@@ -437,7 +454,7 @@ fn regenerate(
         .id();
     #[cfg(not(target_arch = "wasm32"))]
     {
-        generation.lighting_pending = prepared.cpu_bake.is_some();
+        generation.lighting_pending = prepared.cpu_bake.is_some() || prepared.gpu_request.is_some();
         if let Some(task) = prepared.cpu_bake.take() {
             commands.insert_resource(lighting::PendingLighting { root, task });
         } else {
@@ -448,18 +465,34 @@ fn regenerate(
     {
         commands.remove_resource::<gi::gpu::GpuBakeRequest>();
         commands.remove_resource::<gi::gpu::GiGpuReadiness>();
+        commands.remove_resource::<lighting::PendingGpuLighting>();
     }
     if let Some((image, transform, statistics)) = prepared.probes.take() {
-        commands.spawn((
-            Name::new("indoor_diffuse_irradiance"),
-            bevy::light::IrradianceVolume {
-                voxels: image,
-                intensity: 1.0,
-                ..default()
-            },
-            transform,
-            ChildOf(root),
-        ));
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Some(request) = prepared.gpu_request.as_ref() {
+            commands.insert_resource(lighting::PendingGpuLighting {
+                root,
+                image: image.clone(),
+                transform,
+                readiness: request.readiness.clone(),
+            });
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        let publish_now = prepared.gpu_request.is_none();
+        #[cfg(target_arch = "wasm32")]
+        let publish_now = true;
+        if publish_now {
+            commands.spawn((
+                Name::new("indoor_diffuse_irradiance"),
+                bevy::light::IrradianceVolume {
+                    voxels: image,
+                    intensity: 1.0,
+                    ..default()
+                },
+                transform,
+                ChildOf(root),
+            ));
+        }
         commands.insert_resource(statistics);
     } else {
         commands.remove_resource::<gi::BakeStatistics>();

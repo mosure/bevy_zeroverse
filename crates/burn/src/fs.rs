@@ -783,6 +783,7 @@ pub fn load_sample_dir(dir: impl AsRef<Path>) -> Result<ZeroverseSample> {
         ovoxel: meta.ovoxel.clone(),
         indoor: None,
         indoor_render_metadata: None,
+        sampling: None,
         co_visibility_metadata: None,
         annotation_precision: Default::default(),
         annotation_glass: Default::default(),
@@ -790,6 +791,13 @@ pub fn load_sample_dir(dir: impl AsRef<Path>) -> Result<ZeroverseSample> {
     };
 
     let render_metadata = dir.join("render_metadata.json");
+    let sampling = dir.join("capture_sampling.json");
+    if sampling.exists() {
+        let policy: bevy_zeroverse::render::ssaa::CaptureSampling =
+            serde_json::from_slice(&fs::read(sampling)?)?;
+        policy.validate().map_err(anyhow::Error::msg)?;
+        sample.sampling = Some(policy);
+    }
     let co_visibility_metadata = dir.join("co_visibility_metadata.json");
     if co_visibility_metadata.exists() {
         let metadata = serde_json::from_slice(&fs::read(co_visibility_metadata)?)?;
@@ -1159,7 +1167,16 @@ pub fn save_sample_to_fs_with_codec(
         final_dir.display()
     );
     let scene_dir = output_dir.join(format!(".{sample_idx:06}.tmp-{}", std::process::id()));
+    if let Some(sampling) = &sample.sampling {
+        sampling.validate().map_err(anyhow::Error::msg)?;
+    }
     fs::create_dir(&scene_dir)?;
+    if let Some(sampling) = &sample.sampling {
+        fs::write(
+            scene_dir.join("capture_sampling.json"),
+            serde_json::to_vec(sampling)?,
+        )?;
+    }
     let stored_encoding = match sample.color_encoding {
         bevy_zeroverse::render::color::ColorEncoding::Legacy => sample.color_encoding,
         _ => bevy_zeroverse::render::color::ColorEncoding::Srgb,
@@ -1688,6 +1705,7 @@ mod tests {
         ZeroverseSample {
             indoor: None,
             indoor_render_metadata: None,
+            sampling: None,
             co_visibility_metadata: None,
             annotation_precision: Default::default(),
             annotation_glass: Default::default(),
@@ -1720,6 +1738,7 @@ mod tests {
         ZeroverseSample {
             indoor: None,
             indoor_render_metadata: None,
+            sampling: None,
             co_visibility_metadata: None,
             annotation_precision: Default::default(),
             annotation_glass: Default::default(),
@@ -1769,6 +1788,33 @@ mod tests {
         fs::remove_dir_all(directory).unwrap();
         assert!(dataset.get(0).is_err());
         assert!(std::panic::catch_unwind(|| dataset.get(1)).is_err());
+    }
+
+    #[test]
+    fn fs_roundtrips_sampling_and_rejects_unknown_policy() {
+        let dir = tempdir().unwrap();
+        let mut sample = sample_with_color_and_obb();
+        sample.sampling = Some(bevy_zeroverse::render::ssaa::CaptureSampling {
+            schema_version: 1,
+            ssaa_factor: 2,
+        });
+        let path = save_sample_to_fs_with_codec(
+            &sample,
+            dir.path(),
+            0,
+            1,
+            1,
+            false,
+            crate::chunk::ColorCodec::Raw,
+        )
+        .unwrap();
+        assert_eq!(load_sample_dir(&path).unwrap().sampling, sample.sampling);
+        fs::write(
+            path.join("capture_sampling.json"),
+            br#"{"schema_version":1,"ssaa_factor":0}"#,
+        )
+        .unwrap();
+        assert!(load_sample_dir(&path).is_err());
     }
 
     #[test]
@@ -1852,6 +1898,7 @@ mod tests {
         let sample = ZeroverseSample {
             indoor: None,
             indoor_render_metadata: None,
+            sampling: None,
             co_visibility_metadata: None,
             annotation_precision: Default::default(),
             annotation_glass: Default::default(),

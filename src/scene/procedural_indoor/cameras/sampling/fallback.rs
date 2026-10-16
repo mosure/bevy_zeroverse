@@ -15,7 +15,7 @@ impl IndoorManifest {
         } else {
             (-self.room_size.xz() * 0.5, self.room_size.xz() * 0.5)
         };
-        let distance = self.camera_settings.path_length_min;
+        let distance = self.camera_settings.minimum_travel(self.seed, 0);
         // A deterministic metric grid covers free space missed by fixed-radius
         // rings. It runs only after both original proposal budgets are exhausted.
         // Floor-relative low views also retain head visibility past furniture.
@@ -64,12 +64,13 @@ impl IndoorManifest {
                                         }),
                                         ..still.clone()
                                     };
-                                    if let Some(handheld) = &self.camera_settings.handheld {
-                                        handheld.apply(&mut camera, rng);
-                                    }
-                                    let length = camera.path_length();
-                                    if length + 1e-4 >= self.camera_settings.path_length_min
-                                        && length <= self.camera_settings.path_length_max + 1e-4
+                                    self.camera_settings.prepare_motion(
+                                        self.seed,
+                                        0,
+                                        &mut camera,
+                                        rng,
+                                    );
+                                    if self.camera_settings.accepts_motion(self.seed, 0, &camera)
                                         && self.camera_curve_clear(&camera)
                                         && coverage.suitable(&camera, true)
                                         && !self.cameras.iter().any(|c| {

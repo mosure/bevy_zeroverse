@@ -4,9 +4,10 @@ Native and WebGPU viewers use the same Bevy Feathers controller. The scene remai
 visible beside a fixed, scrollable control panel. Hide expands the scene viewport;
 View → Capture grid reserves the same viewport for dataset cameras.
 
-- **Scene:** mode, full-width room seed, activity distribution and population.
-- **Cameras:** view count, baseline, proxy overlap constraints, travel distance,
-  static / handheld / room-exploration starting points, metric increments and duration.
+- **Scene:** mode, full-width room seed, room program and population.
+- **Cameras:** view count, spatial baseline, proxy overlap constraints, continuous
+  lens bias/spread with a live PDF preview, moving-camera percentage, handheld /
+  room-exploration presets, metric increments and duration.
 - **Materials & light:** independent material / lighting seeds, relief, dimming,
   exposure and platform quality. Auto retains all platform-supported effects.
 - **People & motion:** population, ARDY sampling, diffusion, guidance, batching,
@@ -24,6 +25,14 @@ Space controls playback when the scene has keyboard focus; focused buttons retai
 their normal keyboard activation.
 Invalid fields remain editable and block generation with a readable error.
 
+**Mixed · all room types** samples every concrete room program uniformly: the ten
+office/lounge profiles, Kitchenette, Kitchen, ElevatorLanding, Cafe, Cafeteria,
+Classroom, LectureHall, Showroom, Gallery and PublicSuite (5% each before any
+construction failure). `indoor_layout=all` and `indoor_layout=mixed` select the
+same sampler. Selecting a specific program restricts generation to that program.
+The selected concrete program is stored in each manifest. Public suites can
+contain several functional zones; they are one top-level draw, not extra samples.
+
 On WebGPU, the address bar is updated with `history.replaceState` after valid edits
 and scene generation. It records the current seed, complete nested policies,
 render/grid/overlay state, panel, timeline and editor camera in versioned
@@ -36,9 +45,24 @@ seed replay contract. Low-level ECS inspector edits are not serialized in URLs.
 
 Camera baseline remains `indoor_camera={"baseline":0.8}`; the editor expands it into
 explicit constraints in shared links so custom overrides remain unambiguous.
-Baseline separates cameras; travel bounds move each camera. Neither guarantees a
+Baseline separates cameras; travel bounds move selected cameras. Moving cameras
+at 0% fixes every capture pose while other scene motion continues; default 100%
+keeps all camera trajectories enabled. Lens preference and spread control the
+intrinsic proposal PDF continuously, independently of baseline. Neither guarantees a
 particular measured pixel overlap. Collision checks and placement constraints
 remain active for all presets.
+
+**Materials & light → Capture supersampling (SSAA)** controls the dataset camera
+grid. Apply rebuilds its targets; the editor camera is unaffected. Factor 2 uses
+four samples per final RGB pixel, factor 3 uses nine, and factor 4 uses sixteen.
+The default is **Auto** (`ssaa_factor=0`): 2× below 1280×720 pixels, otherwise 1×.
+An explicit 1 disables SSAA; 2/3/4 force that factor at any resolution. Shared
+WebGPU URLs preserve the selection. The threshold compares pixel counts, so
+portrait and landscape orientations receive the same treatment.
+Continuous depth/normal/position/flow previews are area-filtered, with normals
+renormalized. Semantic and co-visibility previews keep categorical samples.
+Numeric dataset annotations always retain exact final-grid pixel-center rays,
+even when their viewer preview is filtered; preview colors are not metric labels.
 
 Motion models initialize only on generation with an enabled motion policy. Native
 builds need `--features human_motion`. WebGPU keeps native-only GI options in shared
@@ -49,6 +73,9 @@ multiple capture timesteps rather than producing inconsistent geometry labels.
 
 Pure Rust tests exercise draft/application separation, 64-bit seed handling,
 policy validation, all enumerated choices, URL round trips and shortcut isolation.
+`cargo run --example review_camera_controls` captures the fixed/mixed camera controls
+and lens PDF states under `out/camera_controls/native/`, and checks that fixed
+capture transforms stay unchanged during playback.
 `cargo run --example review_editor --features human_motion` captures the actual
 native controller states to `out/ui_revamp/native/` for visual review.
 

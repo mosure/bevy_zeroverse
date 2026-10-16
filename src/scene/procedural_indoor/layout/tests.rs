@@ -1,10 +1,58 @@
 use super::*;
 
 #[test]
+fn mixed_profile_catalog_covers_every_concrete_room_and_all_aliases() {
+    let variants = <IndoorLayout as clap::ValueEnum>::value_variants();
+    let concrete: Vec<_> = variants
+        .iter()
+        .copied()
+        .filter(|v| *v != IndoorLayout::Mixed)
+        .collect();
+    assert_eq!(IndoorLayout::PROFILES.as_slice(), concrete);
+    for name in ["mixed", "Mixed", "all", "All", "ALL"] {
+        assert_eq!(
+            <IndoorLayout as clap::ValueEnum>::from_str(name, true).unwrap(),
+            IndoorLayout::Mixed
+        );
+    }
+    for name in ["Mixed", "mixed", "All", "all"] {
+        assert_eq!(
+            serde_json::from_value::<IndoorLayout>(serde_json::json!(name)).unwrap(),
+            IndoorLayout::Mixed
+        );
+    }
+}
+
+#[test]
+fn mixed_constructs_every_program_with_default_cameras_and_valid_meshes() {
+    let mut covered = std::collections::BTreeSet::new();
+    for seed in 0..512 {
+        let selected =
+            IndoorLayout::PROFILES[stream(seed, 0).random_range(0..IndoorLayout::PROFILES.len())];
+        if !covered.insert(format!("{selected:?}")) {
+            continue;
+        }
+        let scene = IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 4, 0.25)
+            .unwrap_or_else(|e| panic!("seed={seed}, {selected:?}: {e}"));
+        assert_eq!(scene.layout, selected);
+        assert_eq!(scene.cameras.len(), 4);
+        validate_layout(&scene).unwrap();
+        validate_geometry(&scene).unwrap_or_else(|e| panic!("seed={seed}, {selected:?}: {e}"));
+        assert_eq!(
+            scene,
+            IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 4, 0.25).unwrap()
+        );
+        if covered.len() == IndoorLayout::PROFILES.len() {
+            break;
+        }
+    }
+    assert_eq!(covered.len(), IndoorLayout::PROFILES.len());
+}
+
+#[test]
 fn long_curly_hair_keeps_its_wave_extent_outside_worktops() {
     use super::super::{humans, objects};
-    let scene =
-        IndoorManifest::generate_with_humans(199, IndoorLayout::Mixed, 0.7, 0, 0.7).unwrap();
+    let scene = IndoorManifest::office_regression_fixture(199, 0.7, 0, 0.7).unwrap();
     let mut checked = 0;
     for person in &scene.humans {
         let Some(table) = person
@@ -32,6 +80,41 @@ fn long_curly_hair_keeps_its_wave_extent_outside_worktops() {
     assert!(checked > 0, "retain the curly-haired regression fixture");
 }
 use crate::scene::procedural_indoor::validation::{validate_geometry, validate_layout};
+
+#[test]
+fn contact_clothing_clears_the_table_edge_in_public_program_seed_411() {
+    use super::super::{envelope::polygon, humans, objects};
+    let scene =
+        IndoorManifest::generate_with_humans(411, IndoorLayout::Mixed, 0.7, 3, 0.7).unwrap();
+    let mut checked = 0;
+    for human in &scene.humans {
+        let Some(contact) = &human.worktop_contact else {
+            continue;
+        };
+        let table = &scene.objects[contact.table];
+        let solid = objects::tables::Clearance::new(table);
+        let tf = table.transform().compute_affine().inverse() * human.transform().compute_affine();
+        for (surface, g) in humans::build_human(human).parts {
+            for v in g.positions {
+                let local = Vec3::from_array(v);
+                let p = tf.transform_point3(local);
+                let distance = polygon::edges(&contact.outline)
+                    .map(|(a, b)| {
+                        let d = b - a;
+                        local.xz().distance(
+                            a + d * ((local.xz() - a).dot(d) / d.length_squared()).clamp(0., 1.),
+                        )
+                    })
+                    .fold(f32::INFINITY, f32::min);
+                assert!(p.y >= table.size.y - 1e-5 || !solid.hits_capsule(p, p, 0.0001),
+                    "person={} surface={surface:?} local={local:?} table={p:?} inside={} edge_distance={distance} palms={:?}",
+                    human.id, contact.contains(local, 0.), contact.palms);
+            }
+        }
+        checked += 1;
+    }
+    assert!(checked > 0);
+}
 
 #[test]
 fn tucked_seating_and_surface_programs_cover_occupied_and_empty_cases() {

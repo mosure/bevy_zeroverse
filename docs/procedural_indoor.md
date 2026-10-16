@@ -43,9 +43,12 @@ Native headless capture uses image targets and needs a working graphics adapter,
 but no window or display server. The CPU audit does not require a graphics adapter.
 
 The viewer starts inside the generated room. The existing regeneration control
-advances the scene seed. `--indoor-layout` accepts `mixed`, `conference`, `open-office`,
+advances the scene seed. `--indoor-layout mixed` (alias `all`) samples all 20
+concrete programs uniformly. Explicit choices are `conference`, `open-office`,
 `lounge`, `training`, `coworking`, `breakroom`, `reception`, `library`, `workshop`,
-`studio`, `kitchenette`, or `kitchen`. Kitchen profiles create connected service
+`studio`, `kitchenette`, `kitchen`, `elevator-landing`, `cafe`, `cafeteria`,
+`classroom`, `lecture-hall`, `showroom`, `gallery`, and `public-suite`.
+Kitchen profiles create connected service
 stations and supported cooking/storage accessories; see
 [procedural kitchens](procedural_kitchens.md). The other profiles bias continuous activity mixtures; they are not fixed room
 templates. Density accepts `[0, 1]`. `--indoor-human-density` controls occupancy independently (default 0.25, zero disables people). Invalid density values fail generation.

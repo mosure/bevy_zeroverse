@@ -34,6 +34,41 @@ the release/Pages command: it never relabels earlier measurements as current or
 downloads/initializes motion models. Source or dependency upgrades require a
 successful `refresh` before release.
 
+The paper's capacity section contains analytical occupancy examples, generated
+automatically by `refresh`/`rebuild` from tested known probability laws. To inspect
+these formulas independently, without rendering scenes:
+
+```sh
+cargo run --locked -p bevy_zeroverse_publication -- capacity-theory --output out/capacity_theory
+```
+
+This command does **not** estimate the generator's population capacity. Its
+receipt declares `generator_measurements: false`. The implemented configuration-bound
+capacity API and empirical qualification protocol are described in
+[`docs/procedural_capacity_plan.md`](../../docs/procedural_capacity_plan.md);
+they are not implemented by the analytical illustration command.
+
+Use `capacity-qualify --plan PLAN --records JSONL --output RECEIPT` to analyze a
+complete explicit audit, then `capacity-report --receipt RECEIPT --output DIR`
+for a local current-state HTML report, SVG/PNG figure and paper table. See
+[`docs/capacity.md`](../../docs/capacity.md) for the generator adapter and native
+capture workflow. These commands do not publish or start training.
+
+`capacity-embedding-index` freezes the complete rendered cohort, cached-model
+weight hash and kernel bandwidth before optional `indoor_embed` inference.
+`capacity-embedding-report` verifies those bindings and generates a room-weighted
+RBF spectrum, Vendi/participation scores and nearest-pair gallery. These are
+sample diagnostics, not population-capacity estimates. The exact kernel has a
+512-room limit and never silently subsamples an oversized cohort.
+
+`capacity-paper --receipt RECEIPT... --output DIR` builds local source-checked
+paper sections and figures. For the canonical publication pipeline, optionally
+set `capacity_receipts = ["docs/evidence/your-receipt.json"]` in the recipe (up to
+four separately labeled populations). Refresh rejects stale generator identities
+before capture and binds receipt/artifact hashes into the attestation. Removing
+the configured receipts removes the generated section and figures. No evidence
+is installed or published merely by running the local capacity commands.
+
 The recipe is `publication.toml`; authored templates are in this crate's
 `templates/`. Measured results and selected examples come from the dataset,
 not manually copied numeric prose. Figure rendering uses bundled fonts, native

@@ -429,9 +429,12 @@ impl IndoorManifest {
                     if policy.target_variation > 0. {
                         viewpoint.level_gaze(&mut candidate, &mut rng);
                     }
-                    if let Some(handheld) = &self.camera_settings.handheld {
-                        handheld.apply(&mut candidate, &mut rng);
-                    }
+                    self.camera_settings.prepare_motion(
+                        self.seed,
+                        camera_index,
+                        &mut candidate,
+                        &mut rng,
+                    );
                     let track = Track::new(&candidate);
                     // Cheap rejection before casts: swept collision checks still
                     // cover the complete paths, including route segments/curves.
@@ -439,9 +442,11 @@ impl IndoorManifest {
                         Some(0)
                     } else if !geometry(&tracks, Some(&track)).unwrap().accepts(&policy) {
                         Some(1)
-                    } else if candidate.path_length() + 1e-4 < self.camera_settings.path_length_min
-                        || candidate.path_length() > self.camera_settings.path_length_max + 1e-4
-                    {
+                    } else if !self.camera_settings.accepts_motion(
+                        self.seed,
+                        camera_index,
+                        &candidate,
+                    ) {
                         Some(2)
                     } else if !self.camera_curve_clear(&candidate) {
                         Some(3)
@@ -545,6 +550,13 @@ impl IndoorManifest {
                     .filter(|(index, _)| *index != omit)
                     .map(|(_, c)| c.clone())
                     .collect();
+                // Removing a view must not change the seeded motion role of shifted indices.
+                if !(omit..count).all(|i| {
+                    self.camera_settings.camera_moves(self.seed, i)
+                        == self.camera_settings.camera_moves(self.seed, i + 1)
+                }) {
+                    continue;
+                }
                 let subset_tracks: Vec<_> = subset.iter().map(Track::new).collect();
                 if geometry(&subset_tracks, None).unwrap().accepts(&policy) {
                     self.cameras = subset;

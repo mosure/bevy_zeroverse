@@ -22,6 +22,13 @@ let sample = rooms.next_sample()?;
 `GpuLiveDataset::indoor()` supplies a three-view 512x512 single-timestep preset.
 An omitted seed starts a random, recorded consecutive stream. Explicit configs
 retain their requested timesteps and annotations.
+SSAA defaults to Auto: a 2× linear RGB raster below 1280×720 output pixels,
+resolved by a GPU area filter. `ssaa_factor = 1` explicitly disables it; 2/3/4
+force a scale. The final tensor shapes, intrinsics, pixel-flow units and copied
+bytes stay unchanged. Numeric annotations use exact final pixel-center rays,
+preserving categorical IDs and aligned surfaces. `metadata.sampling` stores the
+resolved factor; absent metadata means native-resolution sampling. Compare
+throughput at the same SSAA factor and report the policy alongside resolution.
 Occupied rooms need the AnnyBody assets in `assets/burn_human`. Set
 `BEVY_ASSET_ROOT` to the project directory containing `assets` before constructing
 the dataset, just as for native capture. Missing assets return a capture error.

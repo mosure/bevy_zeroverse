@@ -503,6 +503,7 @@ mod tests {
         transport_parity(
             Transport::Wgpu,
             bevy_zeroverse::scene::procedural_indoor::layout::IndoorLayout::Mixed,
+            1,
         )
     }
 
@@ -512,6 +513,7 @@ mod tests {
         transport_parity(
             Transport::Wgpu,
             bevy_zeroverse::scene::procedural_indoor::layout::IndoorLayout::LectureHall,
+            1,
         )
     }
 
@@ -522,12 +524,35 @@ mod tests {
         transport_parity(
             Transport::Cuda,
             bevy_zeroverse::scene::procedural_indoor::layout::IndoorLayout::Mixed,
+            1,
+        )
+    }
+
+    #[test]
+    #[ignore = "native GPU: supersampled RGB and final-grid annotations share the WGPU device"]
+    fn ssaa_wgpu_transport_parity() -> Result<()> {
+        transport_parity(
+            Transport::Wgpu,
+            bevy_zeroverse::scene::procedural_indoor::layout::IndoorLayout::Mixed,
+            2,
+        )
+    }
+
+    #[cfg(all(feature = "cuda_interop", target_os = "linux"))]
+    #[test]
+    #[ignore = "native NVIDIA GPU: supersampled Vulkan/CUDA transport and retained tensors"]
+    fn ssaa_cuda_transport_parity() -> Result<()> {
+        transport_parity(
+            Transport::Cuda,
+            bevy_zeroverse::scene::procedural_indoor::layout::IndoorLayout::Mixed,
+            2,
         )
     }
 
     fn transport_parity(
         transport: Transport,
         layout: bevy_zeroverse::scene::procedural_indoor::layout::IndoorLayout,
+        ssaa_factor: u32,
     ) -> Result<()> {
         setup_test_assets();
         channels::init_channels();
@@ -535,6 +560,7 @@ mod tests {
             BevyZeroverseConfig {
                 scene_type: ZeroverseSceneType::ProceduralIndoor,
                 indoor_layout: layout,
+                ssaa_factor,
                 indoor_seed: Some(6),
                 num_cameras: 3,
                 width: 321.,
@@ -559,6 +585,7 @@ mod tests {
         )?;
         let mut retained = None;
         for policy in [AnnotationGlass::Surface, AnnotationGlass::Through] {
+            let _ = channels::take_capture_telemetry();
             dataset.config.annotation_glass = policy;
             dataset
                 .app
@@ -566,6 +593,10 @@ mod tests {
                 .resource_mut::<BevyZeroverseConfig>()
                 .annotation_glass = policy;
             let gpu = dataset.sample_seed(6)?;
+            assert!(
+                channels::take_capture_telemetry().is_none(),
+                "tensor renderers must not publish channel-consumer telemetry"
+            );
             if retained.is_none() {
                 assert!(
                     dataset
@@ -578,6 +609,9 @@ mod tests {
                 );
             }
             let cpu = cpu_capture(&mut dataset, 6);
+            let telemetry = channels::take_capture_telemetry().expect("CPU capture diagnostics");
+            assert_eq!(telemetry.seed, Some(6));
+            assert!(telemetry.preparation.is_some());
             assert!(
                 dataset
                     .app
@@ -588,6 +622,11 @@ mod tests {
                 "CPU fallback did not allocate its readback storage"
             );
             assert_eq!(gpu.metadata.aabb, cpu.aabb);
+            assert_eq!(gpu.metadata.sampling, cpu.sampling);
+            assert_eq!(
+                cpu.sampling.map_or(1, |policy| policy.ssaa_factor),
+                ssaa_factor
+            );
             assert!(
                 !cpu.human_poses.is_empty(),
                 "pose parity requires a populated scene"

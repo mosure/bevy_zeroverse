@@ -20,6 +20,9 @@ use rand::Rng;
 mod capture_targets;
 pub mod pinhole;
 
+#[derive(Component)]
+struct InvalidCaptureTarget;
+
 #[cfg(feature = "python")]
 use pyo3::prelude::*;
 
@@ -1044,13 +1047,13 @@ pub(crate) fn update_camera_trajectory(
     }
 }
 
-#[allow(clippy::too_many_arguments)] // Bevy system dependencies.
+#[allow(clippy::too_many_arguments, clippy::type_complexity)] // Bevy system dependencies.
 fn insert_cameras(
     mut commands: Commands,
     mut images: ResMut<Assets<Image>>,
     mut zeroverse_cameras: Query<
         (Entity, &mut ZeroverseCamera, Option<&CaptureCameraIndex>),
-        Without<Camera>,
+        (Without<Camera>, Without<InvalidCaptureTarget>),
     >,
     default_zeroverse_camera: Res<DefaultZeroverseCamera>,
     args: Res<BevyZeroverseConfig>,
@@ -1067,6 +1070,17 @@ fn insert_cameras(
     for (entity, mut zeroverse_camera, capture_index) in zeroverse_cameras.iter_mut() {
         let resolution = zeroverse_camera.resolution
             .unwrap_or(default_zeroverse_camera.resolution.expect("DefaultZeroverseCamera resolution must be set if ZeroverseCamera resolution is not set"));
+
+        if let Err(message) = crate::render::ssaa::render_size(
+            resolution,
+            args.ssaa_factor,
+            render_device.limits().max_texture_dimension_2d,
+        ) {
+            error!("{message}");
+            commands.insert_resource(crate::sample::CaptureFailure(Some(message)));
+            commands.entity(entity).insert(InvalidCaptureTarget);
+            continue;
+        }
 
         let targets = capture_targets.acquire(
             entity,
@@ -1115,6 +1129,9 @@ fn insert_cameras(
 
         if let Some(bloom) = render_mode.bloom() {
             camera.insert(bloom);
+        }
+        if let Some(ssaa) = targets.ssaa {
+            camera.insert(ssaa);
         }
 
         #[cfg(not(feature = "web"))]

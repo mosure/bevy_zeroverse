@@ -24,6 +24,7 @@ pub mod optical_flow;
 pub mod position;
 pub mod residency;
 pub mod semantic;
+pub mod ssaa;
 #[cfg(all(target_os = "linux", target_env = "gnu", target_arch = "x86_64"))]
 mod upload;
 
@@ -130,6 +131,7 @@ impl Plugin for RenderPlugin {
         app.add_plugins(residency::RenderResidencyPlugin);
         app.add_plugins(ground_truth::GroundTruthPlugin);
         app.add_plugins(co_visibility::CoVisibilityPlugin);
+        app.add_plugins(ssaa::SsaaPlugin);
 
         // TODO: add wireframe depth, pbr disable, normals
         app.add_systems(

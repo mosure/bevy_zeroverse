@@ -1,5 +1,26 @@
 use super::*;
 #[test]
+fn public_suites_realize_diverse_complete_adjacencies() {
+    let mut pairs = std::collections::BTreeSet::new();
+    for seed in 0..64 {
+        let scene =
+            IndoorManifest::generate_with_humans(seed, IndoorLayout::PublicSuite, 0.65, 0, 0.)
+                .unwrap();
+        scene.validate_public_programs().unwrap();
+        let programs = scene.functional_programs();
+        assert_eq!(programs.len(), 2);
+        pairs.insert(format!(
+            "{:?}/{:?}",
+            programs[0].activity, programs[1].activity
+        ));
+        assert!(!scene.room_topology().open_connections.is_empty());
+    }
+    assert!(
+        pairs.len() >= 20,
+        "accepted suite adjacency collapsed: {pairs:?}"
+    );
+}
+#[test]
 fn public_programs_have_required_objects_clear_routes_and_replay() {
     for profile in IndoorLayout::PUBLIC_PROFILES
         .into_iter()

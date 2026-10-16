@@ -102,7 +102,7 @@ struct Cli {
     #[arg(long, default_value_t = 0.05)]
     playback_step: f32,
 
-    /// Number of playback steps per sample
+    /// Captured timesteps per room. One captures t=0 only; motion/path duration adds no frames.
     #[arg(long, default_value_t = 1)]
     playback_steps: u32,
 
@@ -114,7 +114,7 @@ struct Cli {
     #[arg(long, value_enum, default_value_t = ZeroverseSceneType::SemanticRoom)]
     scene_type: ZeroverseSceneType,
 
-    /// Indoor room grammar (procedural-indoor only)
+    /// Indoor room program; mixed (alias all) samples every supported program uniformly.
     #[arg(long, value_enum, default_value_t = IndoorLayout::Mixed)]
     indoor_layout: IndoorLayout,
 
@@ -199,6 +199,10 @@ struct Cli {
     /// Override render height (defaults to Bevy config default)
     #[arg(long, default_value_t = 256)]
     height: u32,
+
+    /// SSAA: 0=Auto (2× below 720p), 1=off, 2/3/4=fixed linear scale.
+    #[arg(long, default_value_t = 0, value_parser = clap::value_parser!(u32).range(0..=4))]
+    ssaa_factor: u32,
 
     /// Number of cameras/views to capture per frame
     #[arg(
@@ -497,6 +501,8 @@ fn main() -> Result<()> {
                     .arg(cli.width.to_string())
                     .arg("--height")
                     .arg(cli.height.to_string())
+                    .arg("--ssaa-factor")
+                    .arg(cli.ssaa_factor.to_string())
                     .arg("--cameras")
                     .arg(cli.cameras.to_string())
                     .arg("--timeout-secs")
@@ -631,6 +637,7 @@ fn main() -> Result<()> {
         timeout_secs: cli.timeout_secs,
         width: cli.width,
         height: cli.height,
+        ssaa_factor: cli.ssaa_factor,
         seed: cli.seed,
         indoor_layout: cli.indoor_layout,
         indoor_density: cli.indoor_density,
@@ -814,6 +821,7 @@ fn prepare_generation_metadata(cli: &mut Cli) -> Result<()> {
         height: cli.height,
         cameras: cli.cameras,
         playback_step: cli.playback_step,
+        ssaa_factor: cli.ssaa_factor,
         playback_steps: cli.playback_steps,
         timeout_secs: cli.timeout_secs,
         render_modes: cli.render_modes.clone(),
@@ -888,6 +896,7 @@ fn prepare_generation_metadata(cli: &mut Cli) -> Result<()> {
         "rotation_augmentation": cli.rotation_augmentation,
         "width": cli.width,
         "height": cli.height,
+        "ssaa_factor": cli.ssaa_factor,
         "cameras": cli.cameras,
         "playback_steps": cli.playback_steps,
         "playback_step": cli.playback_step,
@@ -1016,6 +1025,19 @@ mod process_limit_tests {
         assert_eq!(config.cameras, 4);
         assert_eq!(config.workers, 1);
         assert_eq!(config.chunk_size, 4);
+        assert_eq!(config.indoor_layout, IndoorLayout::Mixed);
+        assert_eq!((config.width, config.height), (256, 256));
+        assert_eq!(config.ssaa_factor, 0);
+        assert_eq!(indoor(&["--ssaa-factor", "2"]).ssaa_factor, 2);
+        assert_eq!(config.playback_steps, 1);
+        assert_eq!(config.indoor_density, 0.65);
+        assert_eq!(config.indoor_human_density, 0.25);
+        assert!(config.human_motion.is_none());
+        assert_eq!(
+            indoor(&["--indoor-layout", "all"]).indoor_layout,
+            IndoorLayout::Mixed
+        );
+        assert_eq!(indoor(&["--playback-steps", "3"]).playback_steps, 3);
         assert_eq!(indoor(&["--cameras", "2"]).cameras, 2);
         let legacy = Cli::parse_from(["zeroverse_gen", "--output", "unused"]);
         assert_eq!(legacy.cameras, 1);

@@ -44,7 +44,7 @@ impl WorktopContact {
         for (i, vertex) in g.positions.iter_mut().enumerate() {
             let p = Vec3::from_array(*vertex);
             let delta = self.height + 0.0005 - p.y;
-            if !(0.0..=0.006).contains(&delta) || !self.contains(p, 0.) {
+            if !(0.0..=0.006).contains(&delta) || !self.covers_fitted_surface(p) {
                 continue;
             }
             for report in &mut mesh.contacts {
@@ -109,6 +109,18 @@ impl WorktopContact {
     }
     pub fn contains(&self, p: Vec3, margin: f32) -> bool {
         polygon::contains(&self.outline, p.xz(), margin)
+    }
+
+    /// Fitting includes a 0.2 mm edge apron. The mesh clearance oracle checks
+    /// a finite-radius surface, so a cuff just outside the zero-width polygon
+    /// must not remain below the top. Pose planning still uses strict containment.
+    pub(super) fn covers_fitted_surface(&self, p: Vec3) -> bool {
+        self.contains(p, 0.)
+            || polygon::edges(&self.outline).any(|(a, b)| {
+                let d = b - a;
+                let q = a + d * ((p.xz() - a).dot(d) / d.length_squared().max(1e-12)).clamp(0., 1.);
+                p.xz().distance_squared(q) <= 0.0002_f32.powi(2)
+            })
     }
 
     /// Preserve both bone lengths. Choose the elbow swivel nearest gravity that
@@ -180,5 +192,25 @@ pub(super) fn plan(h: &mut IndoorHuman, table: &IndoorObject, proposal: u64) {
     }
     if contact.palms.iter().any(|&p| p) {
         h.worktop_contact = Some(contact);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn fitting_apron_covers_thin_edges_without_expanding_pose_support() {
+        let contact = WorktopContact {
+            table: 0,
+            height: 0.75,
+            outline: vec![Vec2::ZERO, Vec2::X, Vec2::ONE, Vec2::Y],
+            palms: [true, true],
+        };
+        let edge = Vec3::new(1.0001, 0.749, 0.5);
+        assert!(!contact.contains(edge, 0.));
+        assert!(contact.covers_fitted_surface(edge));
+        assert!(!contact.covers_fitted_surface(edge.with_x(1.001)));
+        assert!(contact.covers_fitted_surface(Vec3::new(0.5, 0.749, 0.5)));
     }
 }

@@ -8,18 +8,18 @@ At one camera the baseline imposes no pair constraint. Increasing camera count d
 \begin{tabular}{rrrrrr}\toprule
 $b$ & Cameras & Accepted & NN (m) & Max angle ($^\circ$) & Targets (m) \\
 \midrule
-0.0 & 2 & 64/64 & 0.22 & 2.2 & 0.02 \\
-0.0 & 4 & 64/64 & 0.13 & 4.1 & 0.04 \\
+0.0 & 2 & 64/64 & 0.19 & 1.9 & 0.03 \\
+0.0 & 4 & 64/64 & 0.14 & 4.0 & 0.05 \\
 0.0 & 8 & 64/64 & 0.11 & 5.7 & 0.06 \\
-0.0 & 12 & 64/64 & 0.09 & 6.4 & 0.06 \\
-0.5 & 2 & 64/64 & 1.96 & 31.5 & 0.28 \\
-0.5 & 4 & 64/64 & 1.56 & 59.7 & 1.57 \\
-0.5 & 8 & 64/64 & 0.93 & 85.4 & 2.40 \\
-0.5 & 12 & 64/64 & 0.79 & 101.0 & 2.80 \\
-1.0 & 2 & 64/64 & 3.54 & 77.2 & 2.02 \\
-1.0 & 4 & 64/64 & 2.34 & 138.3 & 4.17 \\
-1.0 & 8 & 64/64 & 1.29 & 161.7 & 5.67 \\
-1.0 & 12 & 64/64 & 0.99 & 167.8 & 6.40 \\
+0.0 & 12 & 64/64 & 0.09 & 6.5 & 0.06 \\
+0.5 & 2 & 64/64 & 2.04 & 28.1 & 0.20 \\
+0.5 & 4 & 64/64 & 1.40 & 54.2 & 1.27 \\
+0.5 & 8 & 64/64 & 0.99 & 76.2 & 2.44 \\
+0.5 & 12 & 64/64 & 0.78 & 87.3 & 2.92 \\
+1.0 & 2 & 64/64 & 4.21 & 73.0 & 1.86 \\
+1.0 & 4 & 64/64 & 2.56 & 125.2 & 4.46 \\
+1.0 & 8 & 64/64 & 1.43 & 160.3 & 5.72 \\
+1.0 & 12 & 64/64 & 1.13 & 167.1 & 6.41 \\
 \bottomrule\end{tabular}
 \caption{Current matched placement audit. NN is the pooled camera-level initial nearest-neighbor median; angle and target diameter are room-level medians. Failed sets have no placement measurements. These denominators differ from rendered pixel overlap.}\label{tab:camera-counts}
 \end{table}
@@ -42,18 +42,18 @@ The rendered check uses 2 prespecified matched room families, 12 configurations 
 \begin{tabular}{rrrrrr}\toprule
 $b$ & Cameras & Pair (\%) & Any peer (\%) & Min ref. (\%) & Components \\
 \midrule
-0 & 2 & 81.3 & 81.3 & 64.9 & 1 \\
-0 & 4 & 80.9 & 92.6 & 64.9 & 1 \\
-0 & 8 & 81.7 & 97.3 & 63.4 & 1 \\
-0 & 12 & 81.2 & 98.4 & 58.6 & 1 \\
-0.5 & 2 & 55.0 & 55.0 & 41.8 & 1 \\
-0.5 & 4 & 51.4 & 79.7 & 35.5 & 1 \\
-0.5 & 8 & 52.0 & 91.0 & 38.3 & 1 \\
-0.5 & 12 & 52.3 & 94.0 & 38.3 & 1 \\
-1 & 2 & 40.0 & 40.0 & 30.3 & 1 \\
-1 & 4 & 37.4 & 70.4 & 19.1 & 1 \\
-1 & 8 & 39.8 & 89.8 & 19.6 & 1 \\
-1 & 12 & 40.4 & 94.5 & 16.1 & 1 \\
+0 & 2 & 87.2 & 87.2 & 75.5 & 1 \\
+0 & 4 & 87.0 & 94.2 & 67.7 & 1 \\
+0 & 8 & 85.7 & 98.3 & 67.1 & 1 \\
+0 & 12 & 85.7 & 98.8 & 67.1 & 1 \\
+0.5 & 2 & 66.7 & 66.7 & 40.2 & 1 \\
+0.5 & 4 & 53.8 & 80.9 & 39.4 & 1 \\
+0.5 & 8 & 55.9 & 92.1 & 38.6 & 1 \\
+0.5 & 12 & 56.5 & 94.9 & 37.2 & 1 \\
+1 & 2 & 41.5 & 41.5 & 28.6 & 1 \\
+1 & 4 & 45.0 & 80.6 & 22.8 & 1 \\
+1 & 8 & 40.6 & 89.7 & 18.1 & 1 \\
+1 & 12 & 39.6 & 94.6 & 18.1 & 1 \\
 \bottomrule\end{tabular}
 \caption{Native first-surface co-visibility; glass follows the solid annotation convention. Components is the largest number of connected components when an undirected edge requires at least 5\% shared pixels in both directions. The two room families are the independent units; camera pairs and endpoints are correlated.}\label{tab:camera-count-rendered}\end{table}
 \begin{figure}[htbp]\centering\includegraphics[width=\linewidth]{generated/camera_count_rendered.png}

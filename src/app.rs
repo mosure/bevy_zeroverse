@@ -75,6 +75,10 @@ fn default_indoor_gpu_materials() -> bool {
     true
 }
 
+fn default_ssaa_factor() -> u32 {
+    0
+}
+
 fn deserialize_human_motion<'de, D: serde::Deserializer<'de>>(
     deserializer: D,
 ) -> Result<Option<String>, D::Error> {
@@ -314,6 +318,12 @@ pub struct BevyZeroverseConfig {
     #[arg(long, default_value = "1080.0")]
     pub height: f32,
 
+    /// Capture-camera SSAA: 0 auto (2× below 720p), 1 off, or fixed 2/3/4×.
+    #[pyo3(get, set)]
+    #[serde(default = "default_ssaa_factor")]
+    #[arg(long, default_value_t = 0, value_parser = clap::value_parser!(u32).range(0..=4))]
+    pub ssaa_factor: u32,
+
     #[pyo3(get, set)]
     #[arg(long, default_value = "0")]
     pub num_cameras: usize,
@@ -376,7 +386,7 @@ pub struct BevyZeroverseConfig {
     #[serde(default)]
     pub indoor_seed: Option<u64>,
 
-    /// Indoor grammar family; mixed samples all four families.
+    /// Indoor room program; mixed (alias all) samples every supported program uniformly.
     #[pyo3(get, set)]
     #[arg(long, value_enum, default_value_t = IndoorLayout::Mixed)]
     #[serde(default)]
@@ -394,7 +404,7 @@ pub struct BevyZeroverseConfig {
     #[serde(default = "default_indoor_human_density")]
     pub indoor_human_density: f32,
 
-    /// Capture camera JSON: primary_room, path_length_min/max, long_path_fraction, multiview {min_overlap, min_baseline, max_baseline}.
+    /// Capture camera JSON: motion_fraction (0=fixed, 1=all moving), intrinsics {bias, spread, fov_y_min/max_degrees}, baseline, path_length_min/max and advanced multiview constraints.
     #[pyo3(get, set)]
     #[arg(long)]
     #[serde(default, deserialize_with = "deserialize_indoor_camera")]
@@ -591,6 +601,11 @@ pub struct BevyZeroverseConfig {
     #[arg(long, default_value = "1080.0")]
     pub height: f32,
 
+    /// Capture-camera SSAA: 0 auto (2× below 720p), 1 off, or fixed 2/3/4×.
+    #[serde(default = "default_ssaa_factor")]
+    #[arg(long, default_value_t = 0, value_parser = clap::value_parser!(u32).range(0..=4))]
+    pub ssaa_factor: u32,
+
     #[arg(long, default_value = "0")]
     pub num_cameras: usize,
 
@@ -640,7 +655,7 @@ pub struct BevyZeroverseConfig {
     #[serde(default)]
     pub indoor_seed: Option<u64>,
 
-    /// Indoor grammar family; mixed samples all four families.
+    /// Indoor room program; mixed (alias all) samples every supported program uniformly.
     #[arg(long, value_enum, default_value_t = IndoorLayout::Mixed)]
     #[serde(default)]
     pub indoor_layout: IndoorLayout,
@@ -655,7 +670,7 @@ pub struct BevyZeroverseConfig {
     #[serde(default = "default_indoor_human_density")]
     pub indoor_human_density: f32,
 
-    /// Capture camera JSON: primary_room, path_length_min/max, long_path_fraction, multiview {min_overlap, min_baseline, max_baseline}.
+    /// Capture camera JSON: motion_fraction (0=fixed, 1=all moving), intrinsics {bias, spread, fov_y_min/max_degrees}, baseline, path_length_min/max and advanced multiview constraints.
     #[arg(long)]
     #[serde(default, deserialize_with = "deserialize_indoor_camera")]
     pub indoor_camera: Option<String>,
@@ -770,6 +785,7 @@ impl Default for BevyZeroverseConfig {
             press_esc_close: true,
             width: 1920.0,
             height: 1080.0,
+            ssaa_factor: 0,
             num_cameras: 0,
             camera_grid: false,
             room_schematic: false,
@@ -962,6 +978,18 @@ mod web_config_tests {
     }
 
     #[test]
+    fn all_room_url_alias_resolves_to_mixed() {
+        for value in ["all", "All", "ALL", "mixed", "Mixed"] {
+            let config = config_with_query(
+                BevyZeroverseConfig::default(),
+                [("indoor_layout".into(), value.into())],
+            )
+            .unwrap();
+            assert_eq!(config.indoor_layout, IndoorLayout::Mixed);
+        }
+    }
+
+    #[test]
     fn typed_url_seed_and_cli_scene_names_are_supported() {
         let config = config_with_query(
             BevyZeroverseConfig::default(),
@@ -1011,6 +1039,7 @@ pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) 
     };
     args.validate_ovoxel()
         .expect("invalid O-voxel capture configuration");
+    crate::render::ssaa::validate_factor(args.ssaa_factor).expect("invalid SSAA configuration");
     crate::render::co_visibility::validate_config(
         &args
             .render_modes
@@ -1432,14 +1461,17 @@ fn update_camera_grid_images(
     cameras: Query<(
         &RenderTarget,
         Option<&crate::render::ground_truth::GroundTruthCamera>,
+        Option<&crate::render::ssaa::SsaaCamera>,
     )>,
     mut images: Query<(&CameraGridSource, &mut ImageNode)>,
 ) {
     for (source, mut image) in &mut images {
-        let Ok((RenderTarget::Image(target), gt)) = cameras.get(source.0) else {
+        let Ok((RenderTarget::Image(target), gt, ssaa)) = cameras.get(source.0) else {
             continue;
         };
-        let handle = if *mode == RenderMode::CoVisibility {
+        let handle = if let Some(ssaa) = ssaa {
+            &ssaa.output
+        } else if *mode == RenderMode::CoVisibility {
             gt.and_then(|g| g.co_visibility.as_ref())
                 .and_then(|c| c.preview.as_ref())
                 .unwrap_or(&target.handle)

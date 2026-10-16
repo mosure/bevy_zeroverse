@@ -33,6 +33,8 @@ use bevy::{
 };
 pub use pipeline::IndoorPrefetch;
 use std::collections::HashMap;
+#[cfg(not(target_arch = "wasm32"))]
+pub use workers::configure_preparation_threads;
 
 pub trait AssetStore<A: Asset> {
     fn add(&mut self, asset: A) -> Handle<A>;

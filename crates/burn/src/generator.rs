@@ -7,7 +7,7 @@ use std::{
         mpsc,
     },
     thread,
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use anyhow::{Context as ContextExt, Result, anyhow};
@@ -21,6 +21,9 @@ use crate::{
     fs::save_sample_to_fs_with_codec,
     progress::ProgressTracker,
 };
+
+pub mod admission;
+use admission::{CaptureControl, CaptureRequest, Permit};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum WriteMode {
@@ -46,6 +49,9 @@ pub struct GenConfig {
     pub timeout_secs: u64,
     pub width: u32,
     pub height: u32,
+    /// 0: Auto (2× below 1280×720 pixels); 1: off; 2/3/4: fixed linear scale.
+    /// Numeric labels keep exact final pixel-center rays for every setting.
+    pub ssaa_factor: u32,
     pub seed: Option<u64>,
     pub indoor_layout: IndoorLayout,
     pub indoor_density: f32,
@@ -94,6 +100,7 @@ impl Default for GenConfig {
             timeout_secs: 120,
             width: 256,
             height: 256,
+            ssaa_factor: 0,
             seed: None,
             indoor_layout: IndoorLayout::Mixed,
             indoor_density: 0.65,
@@ -157,6 +164,8 @@ impl GenConfig {
 
 /// Validate the capture contract before starting a GPU process or writing data.
 pub fn validate_gen_config(config: &GenConfig) -> Result<()> {
+    bevy_zeroverse::render::ssaa::validate_factor(config.ssaa_factor)
+        .map_err(anyhow::Error::msg)?;
     anyhow::ensure!(
         !config.export_schematic || config.scene_type == ZeroverseSceneType::ProceduralIndoor,
         "schematic export requires procedural-indoor"
@@ -500,13 +509,57 @@ fn join_worker_handles(handles: Vec<thread::JoinHandle<Result<()>>>) -> Result<(
     }
 }
 
-enum WriteJob {
+struct WriteJob {
+    data: WriteData,
+    permits: Vec<Permit>,
+}
+enum WriteData {
     Chunk(Vec<bevy_zeroverse::sample::Sample>, usize),
     Fs(Box<bevy_zeroverse::sample::Sample>, usize),
 }
 
 /// Run headless generation with persistent workers in the current process.
 pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
+    run_generation(config, None)
+}
+
+/// Generate with interruptible room-level admission and terminal publication
+/// receipts. CPU lookahead continues; idle GPU preflight is disabled.
+/// Controlled runs require one worker, explicit indoor seeds and one room per
+/// archive transaction, so credit replenishment cannot deadlock a partial batch.
+/// A cancelled run drains admitted exports and joins its renderer/writer.
+/// Completion stops the process-owned live renderer; use a fresh process for
+/// another run. Keep one run open with credits/hold for successive inventory waves.
+pub fn run_chunk_generation_controlled(
+    config: GenConfig,
+    control: Arc<CaptureControl>,
+) -> Result<()> {
+    validate_gen_config(&config)?;
+    anyhow::ensure!(
+        config.workers == 1
+            && config.chunk_size == 1
+            && config.seed.is_some()
+            && config.scene_type == ZeroverseSceneType::ProceduralIndoor,
+        "controlled generation requires seeded procedural_indoor, one worker and chunk_size=1"
+    );
+    crate::dataset::ensure_live_renderer_available()?;
+    control.start()?;
+    if control.snapshot().cancelled {
+        // A pre-cancelled run needs no GPU/device/model initialization, including
+        // main-thread renderers. Still emit the first request's terminal receipt.
+        let _ = control.acquire(CaptureRequest {
+            sequence: config.sample_offset,
+            seed: config
+                .seed
+                .unwrap()
+                .wrapping_add(config.sample_offset as u64),
+        })?;
+        return Ok(());
+    }
+    run_generation(config, Some(control))
+}
+
+fn run_generation(config: GenConfig, control: Option<Arc<CaptureControl>>) -> Result<()> {
     validate_gen_config(&config)?;
     let GenConfig {
         output,
@@ -525,6 +578,7 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
         width,
         height,
         seed,
+        ssaa_factor,
         indoor_layout,
         indoor_density,
         indoor_human_density,
@@ -579,6 +633,7 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
     );
 
     zeroverse_config.indoor_seed = seed.map(|base| base.wrapping_add(sample_offset as u64));
+    zeroverse_config.ssaa_factor = ssaa_factor;
     zeroverse_config.indoor_layout = indoor_layout;
     zeroverse_config.indoor_density = indoor_density;
     zeroverse_config.indoor_human_density = indoor_human_density;
@@ -629,6 +684,7 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
     const MAX_SAMPLE_RETRIES: usize = 32;
 
     for _worker_id in 0..workers {
+        let control = control.clone();
         let rgb_sensor = rgb_sensor.clone();
         let dataset = Arc::clone(&dataset);
         let output_dir = Arc::clone(&output_dir);
@@ -644,9 +700,13 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
             thread::scope(|scope| {
             let (write_tx, write_rx) = mpsc::sync_channel::<WriteJob>(0);
             let writer = scope.spawn(|| -> Result<()> {
+                let mut guard = admission::WriterGuard(control.clone());
                 for job in write_rx {
-                    let saved = match job {
-                        WriteJob::Chunk(mut batch, index) => {
+                    for permit in &job.permits { permit.exporting(); }
+                    let started = Instant::now();
+                    let result = (|| -> Result<usize> {
+                    let saved = match job.data {
+                        WriteData::Chunk(mut batch, index) => {
                             if let Some(sensor) = &rgb_sensor {
                                 for sample in &mut batch { sensor.apply(sample, [width, height])?; }
                             }
@@ -655,7 +715,7 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
                                 .with_context(|| format!("failed to save chunk {index}"))?;
                             batch.len()
                         }
-                        WriteJob::Fs(mut sample, index) => {
+                        WriteData::Fs(mut sample, index) => {
                             if let Some(sensor) = &rgb_sensor { sensor.apply(&mut sample, [width, height])?; }
                             if export_schematic {sample.write_schematics(output_dir.join(format!("schematics/sample_{index:06}")),Default::default())?;}
                             save_sample_to_fs_with_codec(&sample, &*output_dir, index, width, height, export_ovoxel, color_codec)
@@ -663,25 +723,42 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
                             1
                         }
                     };
+                    Ok(saved)
+                    })();
+                    let error = result.as_ref().err().map(|e| format!("{e:#}"));
+                    if let (Some(control), Some(error)) = (&control, &error) { control.fail(error.clone()); }
+                    for permit in job.permits { permit.finish(started.elapsed(), error.as_deref()); }
+                    let saved = result?;
                     samples_done.fetch_add(saved, Ordering::SeqCst);
                     if let Some(progress) = progress.as_ref() { progress.record_chunks(1); }
                 }
+                guard.0 = None;
                 Ok(())
             });
             let capture_result = (|| -> Result<()> {
             let mut local = Vec::with_capacity(chunk_size);
+            let mut permits = Vec::new();
             loop {
                 let idx = sample_counter.fetch_add(1, Ordering::SeqCst);
                 if idx >= target_samples {
                     break;
                 }
 
+                let mut permit = if let Some(control) = &control {
+                    match control.acquire(CaptureRequest { sequence: idx, seed: seed.unwrap().wrapping_add(idx as u64) })? {
+                        Some(permit) => Some(permit),
+                        None => break,
+                    }
+                } else { None };
+                // Admission holds no renderer transaction lock and has no capture
+                // deadline. Only the accepted request starts the watchdog.
+                let capture_started = Instant::now();
                 let mut attempts = 0usize;
-                let sample = loop {
+                let (sample, telemetry) = loop {
                     let lookahead = if indoor_prefetch && scene_type == ZeroverseSceneType::ProceduralIndoor {
                         indoor_prefetch_depth.min(4).min(target_samples - idx - 1)
                     } else { 0 };
-                    let sample = dataset.capture_next(lookahead).with_context(|| format!("capture failed for sample {idx}; generation stopped without skipping it"))?;
+                    let (sample, telemetry) = dataset.capture_next(lookahead, if control.is_some() { bevy_zeroverse::io::channels::IdleWork::CpuOnly } else { bevy_zeroverse::io::channels::IdleWork::Preflight }).with_context(|| format!("capture failed for sample {idx}; generation stopped without skipping it"))?;
                     let has_signal =
                         sample_has_signal(&sample, &render_modes_for_signal, width, height);
                     let has_required = has_signal
@@ -702,7 +779,7 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
                                 }
                             }
                         }
-                        break sample;
+                        break (sample, telemetry);
                     }
                     anyhow::ensure!(scene_type != ZeroverseSceneType::ProceduralIndoor,
                         "sample {idx} has missing or invalid render modes; refusing to silently advance its seed");
@@ -711,6 +788,7 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
                         "failed to capture required render modes for sample {idx} after {MAX_SAMPLE_RETRIES} attempts");
                 };
 
+                if let Some(permit) = &mut permit { permit.captured(capture_started.elapsed(), telemetry); }
                 if let Some(progress) = progress.as_ref() {
                     progress.record_samples(1);
                 }
@@ -718,14 +796,15 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
                 match write_mode {
                     WriteMode::Chunk => {
                         local.push(sample);
+                        permits.extend(permit);
                         if local.len() >= chunk_size {
                             let chunk_idx = chunk_counter.fetch_add(1, Ordering::SeqCst);
-                            write_tx.send(WriteJob::Chunk(std::mem::replace(&mut local, Vec::with_capacity(chunk_size)), chunk_idx))
+                            write_tx.send(WriteJob { data: WriteData::Chunk(std::mem::replace(&mut local, Vec::with_capacity(chunk_size)), chunk_idx), permits: std::mem::take(&mut permits) })
                                 .map_err(|_| anyhow!("CPU dataset writer stopped before chunk {chunk_idx}"))?;
                         }
                     }
                     WriteMode::Fs => {
-                        write_tx.send(WriteJob::Fs(Box::new(sample), idx))
+                        write_tx.send(WriteJob { data: WriteData::Fs(Box::new(sample), idx), permits: permit.into_iter().collect() })
                             .map_err(|_| anyhow!("CPU dataset writer stopped before sample {idx}"))?;
                         chunk_counter.fetch_add(1, Ordering::SeqCst);
                     }
@@ -734,7 +813,7 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
 
             if write_mode == WriteMode::Chunk && !local.is_empty() {
                 let chunk_idx = chunk_counter.fetch_add(1, Ordering::SeqCst);
-                write_tx.send(WriteJob::Chunk(local, chunk_idx))
+                write_tx.send(WriteJob { data: WriteData::Chunk(local, chunk_idx), permits })
                     .map_err(|_| anyhow!("CPU dataset writer stopped before final chunk {chunk_idx}"))?;
             }
 
@@ -751,9 +830,15 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
 
     if main_thread_app {
         let (result_tx, result_rx) = mpsc::channel();
+        let startup_ready = app_ready.clone().expect("main-thread readiness");
         let monitor = thread::spawn(move || {
             let result = join_worker_handles(handles);
             let _ = result_tx.send(result);
+            // Startup resets the process exit flag. Wait until that reset has
+            // occurred so cancellation before readiness cannot lose shutdown.
+            while !startup_ready.load(Ordering::Acquire) {
+                thread::sleep(Duration::from_millis(5));
+            }
             bevy_zeroverse::headless::request_exit();
         });
 
@@ -768,11 +853,17 @@ pub fn run_chunk_generation(config: GenConfig) -> Result<()> {
             .recv()
             .map_err(|err| anyhow!("worker monitor dropped: {err}"))?;
         let _ = monitor.join();
+        if control.is_some() {
+            crate::dataset::shutdown_live_renderer()?;
+        }
         finished.store(true, Ordering::Release);
         return result;
     }
 
     let result = join_worker_handles(handles);
+    if control.is_some() {
+        crate::dataset::shutdown_live_renderer()?;
+    }
     finished.store(true, Ordering::Release);
     result
 }

@@ -1,6 +1,23 @@
 //! Responsive editor chrome and a reserved, unobscured scene viewport.
 use super::*;
 use bevy::{camera::Viewport, ui_widgets::ScrollArea};
+#[derive(Component)]
+pub(super) struct CapacityEvidence;
+
+pub(super) fn synchronize_evidence(world: &mut World, state: &EditorState) {
+    if state.view.page != Page::Advanced {
+        return;
+    }
+    let value = state.capacity_status();
+    for mut text in world
+        .query_filtered::<&mut Text, With<CapacityEvidence>>()
+        .iter_mut(world)
+    {
+        if text.0 != value {
+            text.0.clone_from(&value);
+        }
+    }
+}
 #[derive(Resource)]
 pub(super) struct Shell {
     root: Entity,
@@ -231,8 +248,15 @@ pub(super) fn build(world: &mut World, state: &EditorState) {
                     widgets::text(world, section, help, 11.5, MUTED);
                 }
                 fields::Item::Field(field) => widgets::control(world, scroll, field, state),
+                fields::Item::LensDistribution => {
+                    lens_preview::build(world, scroll);
+                }
                 fields::Item::Note(note) => {
                     widgets::text(world, scroll, note, 12., MUTED);
+                }
+                fields::Item::CapacityEvidence => {
+                    let entity = widgets::text(world, scroll, state.capacity_status(), 12., MUTED);
+                    world.entity_mut(entity).insert(CapacityEvidence);
                 }
             }
         }

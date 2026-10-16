@@ -485,6 +485,7 @@ impl Dataset {
                 && selection["quality"] == "Auto"
                 && selection["playback_steps"] == protocol.playback_steps
                 && selection["gi_rays"] == protocol.gi_rays
+                && selection["ssaa_factor"] == protocol.ssaa_factor
                 && selection["diffuse_gi_enabled"] == true,
             "capture settings differ from publication protocol"
         );
@@ -551,6 +552,25 @@ impl Dataset {
                     && capture.capabilities["quality"] == "Auto"
                     && capture.annotation_precision == "float32_geometry",
                 "capture capability/precision mismatch"
+            );
+            let factor = if protocol.ssaa_factor == 0 {
+                if u64::from(protocol.width) * u64::from(protocol.height) < 1280 * 720 {
+                    2
+                } else {
+                    1
+                }
+            } else {
+                protocol.ssaa_factor
+            };
+            ensure!(
+                capture.capabilities["ssaa_configured_factor"] == protocol.ssaa_factor
+                    && if factor == 1 {
+                        capture.capabilities["sampling"].is_null()
+                    } else {
+                        capture.capabilities["sampling"]
+                            == json!({"schema_version":1,"ssaa_factor":factor})
+                    },
+                "capture supersampling policy differs from publication protocol"
             );
             ensure!(
                 capture.views.len() == protocol.cameras * protocol.playback_steps

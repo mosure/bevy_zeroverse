@@ -1,5 +1,5 @@
 {
-  "capture_engine": "capture-v69;indoor_motion=1;calibration=1;co_visibility=1;bevy=0.20.0;burn=0.22.0;burn_human=0.6.0;bevy_burn_human=0.7.0;burn_human_motion=0.2.0;burn_ardy=0.2.0;burn_llama=0.2.0;burn_human_inference=0.2.0;ardy_motion=9;static_pose=2;pose_annotations=2;surface_flow=1;indoor=46;public_programs=1;kitchens=3;doors=1;multiview=10;ovoxel=3;glass=4;hair=6;wardrobe=5;footwear=1;bounds=4;morphology=3;face=1;position=3;tabletop=4;finishes=12;seating=3;activity=2;playback=2;exterior=5;envelope=4;furnishings=5;botany=3;visual_content=3;equipment=6;palette=2;photometry=3;sun_shadow=2;material_compute=3;semantic=7;ceiling=2;floor_details=2;window_treatments=1",
+  "capture_engine": "capture-v73;ssaa=1;capacity=1;primary_region=1;indoor_motion=1;calibration=1;co_visibility=1;bevy=0.20.0;burn=0.22.0;burn_human=0.6.0;bevy_burn_human=0.7.0;burn_human_motion=0.2.0;burn_ardy=0.2.0;burn_llama=0.2.0;burn_human_inference=0.2.0;ardy_motion=9;static_pose=4;pose_annotations=2;surface_flow=1;indoor=46;public_programs=2;kitchens=3;doors=1;multiview=11;camera_motion=1;lens_distribution=2;ovoxel=3;glass=4;hair=6;wardrobe=5;footwear=1;bounds=4;morphology=3;face=1;position=3;tabletop=4;finishes=12;seating=3;activity=3;playback=2;exterior=5;envelope=5;furnishings=5;botany=3;visual_content=3;equipment=7;palette=2;photometry=3;sun_shadow=2;material_compute=3;semantic=7;ceiling=2;floor_details=2;window_treatments=1",
   "co_visibility": true,
   "density": 0.6499999761581421,
   "diffuse_gi_enabled": true,
@@ -7,10 +7,10 @@
   "gi_rays": 256,
   "human_density": 0.0,
   "identity": {
-    "crate_version": "0.42.0",
-    "generator_version": 47,
+    "crate_version": "0.43.0",
+    "generator_version": 50,
     "schema_version": 1,
-    "source_sha256": "9aa3e815aa40a796198bcddb1b968e8c8a129e141de69c1de31bd4a89396b711"
+    "source_sha256": "53297a6d810d92fe660ee9589ac860eb05fe33326dc90502294c17bbb4b984b6"
   },
   "indoor_appearance": {
     "exposure_ev100_offset": 0.0,
@@ -22,11 +22,13 @@
   "indoor_camera": {
     "duration_seconds": 2.0,
     "intrinsics": {
+      "bias": -0.20000000298023224,
       "fov_y_max_degrees": 145.0,
       "fov_y_min_degrees": 28.0,
-      "ultra_wide_probability": 0.25
+      "spread": 1.0
     },
     "long_path_fraction": 0.0,
+    "motion_fraction": 1.0,
     "multiview": {
       "max_baseline": 5.174999713897705,
       "min_baseline": 0.27000001072883606,
@@ -41,15 +43,16 @@
     "primary_room": true
   },
   "observed_strata": {
-    "Breakroom/Daylight/floor0/furniture2/Contemporary/zones1/lights2/sun5/electric2": 1,
-    "Reception/Overcast/floor1/furniture2/Timber/zones2/lights1/sun3/electric2": 0
+    "Cafe/Overcast/floor1/furniture2/Timber/zones1/lights4/sun3/electric2": 0,
+    "Kitchenette/Daylight/floor2/furniture2/Contemporary/zones1/lights2/sun5/electric2": 1
   },
   "playback_steps": 2,
   "policy": "consecutive seeds",
   "quality": "Auto",
-  "run_id": "958758-1792036786043676054",
+  "run_id": "1751267-1792120051598050382",
   "selected_seeds": [
     0,
     1
-  ]
+  ],
+  "ssaa_factor": 0
 }

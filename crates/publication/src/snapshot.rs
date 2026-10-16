@@ -10,6 +10,7 @@ pub fn retired(name: &str) -> bool {
             "architecture/",
             "qualification/",
             "cohorts/",
+            "capacity/",
             "cameras/",
             "objects/",
             "doors/",
@@ -28,6 +29,7 @@ pub fn retired(name: &str) -> bool {
             "door_",
             "material_",
             "pipeline_",
+            "capacity_",
         ]
         .iter()
         .any(|prefix| generated.starts_with(prefix));
@@ -64,6 +66,7 @@ mod tests {
             "www/project/static/media/architecture/s0-t0-c0-co_visibility.webp",
             "www/project/static/media/qualification/receipt.json",
             "www/project/static/media/cohorts/report.json",
+            "www/project/static/media/capacity/0/receipt.json",
             "www/project/static/media/cameras/camera-count-heatmap-b1.svg",
             "www/project/static/media/doors/atlas.json",
             "www/project/static/media/doors/HingedDoor-0-color.webp",
@@ -76,6 +79,9 @@ mod tests {
             "tex/generated/pipeline_receipt.json",
             "tex/generated/pipeline_engine.png",
             "tex/generated/door_grid.jpg",
+            "tex/generated/capacity_theory.tex",
+            "tex/generated/capacity_scaling.png",
+            "tex/generated/capacity_oracles.json",
         ] {
             assert!(!retired(name), "retired current output {name}");
         }

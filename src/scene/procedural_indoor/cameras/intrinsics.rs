@@ -12,9 +12,15 @@ pub struct IntrinsicsSettings {
     /// Vertical FOV in degrees; horizontal FOV follows the actual image aspect.
     pub fov_y_min_degrees: f32,
     pub fov_y_max_degrees: f32,
-    /// Proposal probability above 108 degrees when the interval spans that value.
-    /// Within each interval, normalized focal length is sampled logarithmically.
-    pub ultra_wide_probability: f32,
+    /// Continuous lens preference: -1 favors narrow lenses, +1 favors wide lenses.
+    /// Shifts the median in log(tan(fov_y / 2)) space, without splitting FOV bands.
+    pub bias: f32,
+    /// Spread around the median: 0 fixes the lens, 1 spans the full configured range.
+    pub spread: f32,
+    /// Compatibility with archived two-band policies. None uses the continuous PDF.
+    /// New configurations should use bias/spread instead.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ultra_wide_probability: Option<f32>,
 }
 
 impl Default for IntrinsicsSettings {
@@ -22,7 +28,9 @@ impl Default for IntrinsicsSettings {
         Self {
             fov_y_min_degrees: 28.,
             fov_y_max_degrees: 145.,
-            ultra_wide_probability: 0.25,
+            bias: -0.2,
+            spread: 1.,
+            ultra_wide_probability: None,
         }
     }
 }
@@ -33,7 +41,8 @@ impl IntrinsicsSettings {
         Self {
             fov_y_min_degrees: 27.,
             fov_y_max_degrees: 108.,
-            ultra_wide_probability: 0.,
+            ultra_wide_probability: Some(0.),
+            ..Self::default()
         }
     }
 
@@ -43,38 +52,96 @@ impl IntrinsicsSettings {
             || self.fov_y_min_degrees < 15.
             || self.fov_y_max_degrees > MAX_VERTICAL_FOV_DEGREES
             || self.fov_y_min_degrees > self.fov_y_max_degrees
-            || !(0.0..=1.0).contains(&self.ultra_wide_probability)
+            || !(-1.0..=1.0).contains(&self.bias)
+            || !(0.0..=1.0).contains(&self.spread)
+            || self
+                .ultra_wide_probability
+                .is_some_and(|p| !(0.0..=1.0).contains(&p))
         {
-            return Err("indoor_camera.intrinsics requires 15 <= fov_y_min_degrees <= fov_y_max_degrees <= 150 and ultra_wide_probability in [0,1]".into());
+            return Err("indoor_camera.intrinsics requires 15 <= fov_y_min_degrees <= fov_y_max_degrees <= 150 with bias in [-1,1], spread in [0,1] and optional archived ultra_wide_probability in [0,1]".into());
         }
         Ok(())
     }
 
     pub fn contains(&self, degrees: f32) -> bool {
         (self.fov_y_min_degrees..=self.fov_y_max_degrees).contains(&degrees)
+            && (self.ultra_wide_probability.is_some()
+                || self.spread != 0.
+                || (degrees - self.quantile(0.5)).abs() <= 1e-4)
+    }
+
+    /// Quantile of the proposal distribution (before visibility/clearance rejection).
+    /// Inverse-CDF sampling in log focal space is bounded, continuous and allocation-free.
+    /// `q` must be in [0,1]. Degenerate bounds or zero spread give a fixed lens.
+    pub fn quantile(&self, q: f32) -> f32 {
+        assert!((0.0..=1.0).contains(&q), "lens quantile must be in [0,1]");
+        let lo = self.fov_y_min_degrees;
+        let hi = self.fov_y_max_degrees;
+        if lo == hi {
+            return lo;
+        }
+        if let Some(p) = self.ultra_wide_probability {
+            if lo < ULTRA_WIDE_START_DEGREES && hi > ULTRA_WIDE_START_DEGREES {
+                return if p < 1. && q <= 1. - p {
+                    interpolate_lens(lo, ULTRA_WIDE_START_DEGREES, q / (1. - p))
+                } else {
+                    interpolate_lens(ULTRA_WIDE_START_DEGREES, hi, (q - (1. - p)) / p)
+                };
+            }
+            return interpolate_lens(lo, hi, q);
+        }
+        let center = 0.5 + 0.49 * self.bias as f64;
+        let t = if self.spread == 0. {
+            center
+        } else if q == 0. || q == 1. {
+            q as f64
+        } else {
+            let logit = (center / (1. - center)).ln()
+                + self.spread as f64 * ((q as f64) / (1. - q as f64)).ln();
+            1. / (1. + (-logit).exp())
+        };
+        interpolate_lens(lo, hi, t as f32)
     }
 
     pub(super) fn sample(&self, rng: &mut impl Rng) -> f32 {
         let (mut lo, mut hi) = (self.fov_y_min_degrees, self.fov_y_max_degrees);
-        if lo < ULTRA_WIDE_START_DEGREES && hi > ULTRA_WIDE_START_DEGREES {
-            if rng.random_bool(self.ultra_wide_probability as f64) {
-                lo = ULTRA_WIDE_START_DEGREES;
-            } else {
-                hi = ULTRA_WIDE_START_DEGREES;
+        if let Some(p) = self.ultra_wide_probability {
+            // Preserve the exact RNG sequence of explicitly archived policies.
+            if lo < ULTRA_WIDE_START_DEGREES && hi > ULTRA_WIDE_START_DEGREES {
+                if rng.random_bool(p as f64) {
+                    lo = ULTRA_WIDE_START_DEGREES;
+                } else {
+                    hi = ULTRA_WIDE_START_DEGREES;
+                }
             }
+            if lo == hi {
+                return lo;
+            }
+            let log_tan = rng.random_range(
+                (lo.to_radians() * 0.5).tan().ln()..(hi.to_radians() * 0.5).tan().ln(),
+            );
+            return (2. * log_tan.exp().atan().to_degrees()).clamp(lo, hi);
         }
-        if lo == hi {
-            return lo;
+        if lo == hi || self.spread == 0. {
+            return self.quantile(0.5);
         }
-        let log_tan = rng
-            .random_range((lo.to_radians() * 0.5).tan().ln()..(hi.to_radians() * 0.5).tan().ln());
-        (2. * log_tan.exp().atan().to_degrees()).clamp(lo, hi)
+        self.quantile(rng.random())
     }
 
     /// Rare coverage recovery stays inside the explicitly requested lens range.
     pub(super) fn recovery(&self, preferred: f32) -> f32 {
-        preferred.clamp(self.fov_y_min_degrees, self.fov_y_max_degrees)
+        if self.ultra_wide_probability.is_none() && self.spread == 0. {
+            self.quantile(0.5)
+        } else {
+            preferred.clamp(self.fov_y_min_degrees, self.fov_y_max_degrees)
+        }
     }
+}
+
+fn interpolate_lens(lo: f32, hi: f32, t: f32) -> f32 {
+    let log_lo = (lo.to_radians() * 0.5).tan().ln();
+    let log_hi = (hi.to_radians() * 0.5).tan().ln();
+    (2. * (log_lo + t * (log_hi - log_lo)).exp().atan().to_degrees()).clamp(lo, hi)
 }
 
 /// A rotation-independent sphere enclosing the complete shifted near rectangle.
@@ -92,8 +159,80 @@ mod tests {
     use crate::scene::procedural_indoor::layout::stream;
 
     #[test]
+    fn smooth_pdf_quantiles_bias_and_spread_match_samples() {
+        let mut rng = stream(17, 793);
+        for bias in [-0.8, -0.2, 0., 0.8] {
+            for spread in [0., 0.3, 1.] {
+                let p = IntrinsicsSettings {
+                    bias,
+                    spread,
+                    ..default()
+                };
+                p.validate().unwrap();
+                let mut samples: Vec<_> = (0..10000).map(|_| p.sample(&mut rng)).collect();
+                samples.sort_by(f32::total_cmp);
+                for q in [0.1, 0.5, 0.9] {
+                    assert!((samples[(q * 9999.) as usize] - p.quantile(q)).abs() < 3.);
+                }
+                assert!(samples.iter().all(|&fov| p.contains(fov)));
+                if spread == 0. {
+                    assert!(samples.iter().all(|&fov| fov == p.quantile(0.5)));
+                }
+                let mut previous = 0.;
+                for step in 0..=1000 {
+                    let fov = p.quantile(step as f32 / 1000.);
+                    assert!(fov >= previous);
+                    previous = fov;
+                }
+            }
+        }
+        let middle = IntrinsicsSettings::default();
+        let narrow = IntrinsicsSettings {
+            bias: -0.8,
+            ..middle
+        };
+        let wide = IntrinsicsSettings {
+            bias: 0.8,
+            ..middle
+        };
+        assert!(narrow.quantile(0.5) < middle.quantile(0.5));
+        assert!(wide.quantile(0.5) > middle.quantile(0.5));
+        let concentrated = IntrinsicsSettings {
+            spread: 0.2,
+            ..middle
+        };
+        assert!(
+            concentrated.quantile(0.9) - concentrated.quantile(0.1)
+                < middle.quantile(0.9) - middle.quantile(0.1)
+        );
+        for json in [r#"{"bias":1.1}"#, r#"{"spread":-0.1}"#, r#"{"spread":1.1}"#] {
+            assert!(serde_json::from_str::<IntrinsicsSettings>(json)
+                .unwrap()
+                .validate()
+                .is_err());
+        }
+        let archived: IntrinsicsSettings = serde_json::from_str(
+            r#"{"fov_y_min_degrees":28,"fov_y_max_degrees":145,"ultra_wide_probability":0.25}"#,
+        )
+        .unwrap();
+        assert_eq!(archived.ultra_wide_probability, Some(0.25));
+        assert_eq!(
+            serde_json::from_str::<IntrinsicsSettings>(&serde_json::to_string(&archived).unwrap())
+                .unwrap(),
+            archived
+        );
+        assert!(serde_json::to_value(middle)
+            .unwrap()
+            .get("ultra_wide_probability")
+            .is_none());
+    }
+
+    #[test]
     fn continuous_lens_mixture_has_wide_support_and_replays() {
-        let policy = IntrinsicsSettings::default();
+        let policy = IntrinsicsSettings {
+            ultra_wide_probability: Some(0.25),
+            ..default()
+        };
         policy.validate().unwrap();
         let mut a = stream(2026, 793);
         let mut b = a.clone();
@@ -130,7 +269,8 @@ mod tests {
             assert!(IntrinsicsSettings {
                 fov_y_min_degrees: min,
                 fov_y_max_degrees: max,
-                ultra_wide_probability: probability
+                ultra_wide_probability: Some(probability),
+                ..default()
             }
             .validate()
             .is_err());

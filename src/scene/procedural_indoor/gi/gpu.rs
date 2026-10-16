@@ -30,6 +30,13 @@ struct Status {
 #[derive(Resource, Clone, Default)]
 pub struct GiGpuReadiness(Arc<Status>);
 impl GiGpuReadiness {
+    #[cfg(test)]
+    pub(crate) fn encoded_for_test() -> Self {
+        let readiness = Self::default();
+        readiness.0.encoded.store(true, Ordering::Release);
+        readiness
+    }
+
     pub fn ready(&self) -> bool {
         self.0.encoded.load(Ordering::Acquire)
     }

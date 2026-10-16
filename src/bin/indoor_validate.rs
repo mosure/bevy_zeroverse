@@ -63,6 +63,8 @@ struct Args {
     width: u32,
     #[arg(long, default_value_t = 600)]
     height: u32,
+    #[arg(long, default_value_t = 0, value_parser = clap::value_parser!(u32).range(0..=4))]
+    ssaa_factor: u32,
     #[arg(long, value_enum, default_value_t = IndoorLayout::Mixed)]
     layout: IndoorLayout,
     #[arg(long, default_value_t = 0.65)]
@@ -364,7 +366,7 @@ fn run(args: &Args) -> Result<()> {
             "observed_strata": metrics.stratified_seeds, "selected_seeds": selected,
             "playback_steps": args.playback_steps, "density": args.density, "indoor_camera": camera_settings, "indoor_appearance": appearance,
             "human_density": args.human_density, "diffuse_gi_enabled": !args.no_gi && args.quality.diffuse_gi(), "gi_rays": args.gi_rays, "gi_bounces": args.gi_bounces,
-            "co_visibility": args.co_visibility,
+            "co_visibility": args.co_visibility, "ssaa_factor": args.ssaa_factor,
         }))?,
     )?;
     // Check actual mesh construction independently of the cheaper distribution pass.
@@ -446,6 +448,7 @@ fn run(args: &Args) -> Result<()> {
         num_cameras: args.cameras,
         width: args.width as f32,
         height: args.height as f32,
+        ssaa_factor: args.ssaa_factor,
         playback_mode: PlaybackMode::Still,
         playback_steps: args.playback_steps,
         render_modes: modes.clone(),
@@ -710,7 +713,7 @@ fn run(args: &Args) -> Result<()> {
             elapsed_seconds: start.elapsed().as_secs_f64(),
             image_size: [args.width, args.height],
             renderer: app.world().get_resource::<bevy::render::renderer::RenderAdapterInfo>().map(|adapter| format!("{:?}", **adapter)),
-            capabilities: serde_json::json!({ "quality": args.quality, "glass_filter": args.glass_filter, "annotation_glass": sample.annotation_glass, "gpu_materials": !args.export_reference, "shadows": args.quality.shadows() && !args.no_shadows,
+            capabilities: serde_json::json!({ "quality": args.quality, "sampling": sample.sampling, "ssaa_configured_factor": args.ssaa_factor, "glass_filter": args.glass_filter, "annotation_glass": sample.annotation_glass, "gpu_materials": !args.export_reference, "shadows": args.quality.shadows() && !args.no_shadows,
                 "ssao": args.quality.ssao() && !args.no_ssao, "bloom": args.quality.bloom() && !args.linear_rgb, "specular_transmission": args.quality.specular_transmission(),
                 "shadow_map_size": args.quality.shadow_map_size(),
                 "sun_shadow_filter": if args.quality.shadows() && !args.no_shadows { "pcss_non_temporal" } else { "disabled" },

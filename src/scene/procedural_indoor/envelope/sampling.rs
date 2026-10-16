@@ -254,7 +254,10 @@ impl EnvelopeProgram {
                 let mut sampled = ExteriorProgram::sample(
                     scene.seed.wrapping_add(edge as u64 * 7919),
                     Vec3::new(span, height, span),
-                    0.08,
+                    // Keep apertures beyond the full 18 cm adjacent wall cap,
+                    // including re-entrant corners. A frame inside that cap
+                    // produces competing coplanar faces and obstructed glazing.
+                    0.18,
                 );
                 let mut f = sampled.facades.remove(0);
                 f.side = FacadeSide::Rear;
