@@ -14,6 +14,8 @@ struct FlowVertex {
 }
 
 struct Snapshot {
+    generation: u64,
+    transforms: Vec<[[f32; 4]; 4]>,
     positions: Vec<Vec3>,
     topology: Vec<ObjectTopology>,
     indices: Vec<u32>,
@@ -23,6 +25,12 @@ struct Snapshot {
 impl Snapshot {
     fn new(geometry: &ExtractedGeometry) -> Self {
         Self {
+            generation: geometry.generation,
+            transforms: geometry
+                .instances
+                .iter()
+                .map(|i| i.world_from_local)
+                .collect(),
             positions: geometry
                 .vertices
                 .iter()
@@ -37,6 +45,21 @@ impl Snapshot {
             indices: geometry.indices.clone(),
             batches: geometry.batches.clone(),
         }
+    }
+
+    /// A stationary scene still has optical flow when cameras move. Reuse its
+    /// surface pair only; camera uniforms and target-depth occlusion stay live.
+    fn matches(&self, geometry: &ExtractedGeometry) -> bool {
+        (self.generation == geometry.generation
+            || geometry.deformation.as_ref().is_some_and(|update| {
+                update.base_generation == self.generation && update.ranges.is_empty()
+            }))
+            && self.transforms.len() == geometry.instances.len()
+            && self
+                .transforms
+                .iter()
+                .zip(&geometry.instances)
+                .all(|(a, b)| bytemuck::bytes_of(a) == bytemuck::bytes_of(&b.world_from_local))
     }
 
     fn correspondence(&self, target: &Self) -> Vec<FlowVertex> {
@@ -97,6 +120,9 @@ pub(super) struct FlowHistory {
     vertices: Option<Buffer>,
     indices: Option<Buffer>,
     batches: Vec<Batch>,
+    /// Both endpoints of the retained pair are the current stationary scene.
+    /// A moving -> stationary transition must build a new pair once.
+    stationary_pair: bool,
 }
 
 #[derive(Resource, Default)]
@@ -193,6 +219,7 @@ pub(super) fn prepare(
     mut history: ResMut<FlowHistory>,
     device: Res<RenderDevice>,
     queue: Res<RenderQueue>,
+    diagnostics: Res<GroundTruthDiagnostics>,
 ) {
     let cameras: Vec<_> = cameras.iter().filter(|(c, _)| c.flow.is_some()).collect();
     let Some((first, _)) = cameras.first() else {
@@ -239,39 +266,54 @@ pub(super) fn prepare(
     };
     // No pipeline compilation or temporal buffers until flow is actually requested.
     let pipeline = pipeline.0.get_or_insert_with(|| Pipeline::new(&cache));
-    let current = Snapshot::new(&geometry);
     if stamp.0 != history.stamp.0 {
         *history = default();
     }
-    history.vertices = None;
-    history.indices = None;
-    history.batches.clear();
-    if let Some(previous) = &history.snapshot {
-        let vertices = previous.correspondence(&current);
-        if !vertices.is_empty() && !previous.indices.is_empty() {
-            let vertex_buffer = super::super::upload_buffer(
-                &device,
-                &queue,
-                &BufferInitDescriptor {
-                    label: Some("flow_vertex_pair"),
-                    contents: bytemuck::cast_slice(&vertices),
-                    usage: BufferUsages::VERTEX,
-                },
-            );
-            let index_buffer = super::super::upload_buffer(
-                &device,
-                &queue,
-                &BufferInitDescriptor {
-                    label: Some("flow_source_indices"),
-                    contents: bytemuck::cast_slice(&previous.indices),
-                    usage: BufferUsages::INDEX,
-                },
-            );
-            history.batches = previous.batches.clone();
-            history.vertices = Some(vertex_buffer);
-            history.indices = Some(index_buffer);
+    let unchanged = history
+        .snapshot
+        .as_ref()
+        .is_some_and(|snapshot| snapshot.matches(&geometry));
+    let current = (!unchanged).then(|| Snapshot::new(&geometry));
+    let reuse = unchanged && history.stationary_pair;
+    if !reuse {
+        history.vertices = None;
+        history.indices = None;
+        history.batches.clear();
+        if let Some(previous) = &history.snapshot {
+            let vertices = previous.correspondence(current.as_ref().unwrap_or(previous));
+            if !vertices.is_empty() && !previous.indices.is_empty() {
+                let vertex_buffer = super::super::upload_buffer(
+                    &device,
+                    &queue,
+                    &BufferInitDescriptor {
+                        label: Some("flow_vertex_pair"),
+                        contents: bytemuck::cast_slice(&vertices),
+                        usage: BufferUsages::VERTEX,
+                    },
+                );
+                let index_buffer = super::super::upload_buffer(
+                    &device,
+                    &queue,
+                    &BufferInitDescriptor {
+                        label: Some("flow_source_indices"),
+                        contents: bytemuck::cast_slice(&previous.indices),
+                        usage: BufferUsages::INDEX,
+                    },
+                );
+                history.batches = previous.batches.clone();
+                history.vertices = Some(vertex_buffer);
+                history.indices = Some(index_buffer);
+                let mut stats = diagnostics.0.lock().unwrap();
+                stats.flow_pair_uploads += 1;
+                stats.flow_uploaded_bytes += (vertices.len() * std::mem::size_of::<FlowVertex>()
+                    + history.snapshot.as_ref().unwrap().indices.len() * std::mem::size_of::<u32>())
+                    as u64;
+            }
         }
+    } else {
+        diagnostics.0.lock().unwrap().flow_pair_reuses += 1;
     }
+    history.stationary_pair = unchanged;
     let mut views = HashMap::new();
     let mut prepared = HashMap::new();
     for (camera, view) in cameras {
@@ -320,9 +362,17 @@ pub(super) fn prepare(
     }
     history.views = views;
     history.prepared = prepared;
-    history.snapshot = Some(current);
+    if let Some(current) = current {
+        history.snapshot = Some(current);
+    } else if let Some(previous) = &mut history.snapshot {
+        previous.generation = geometry.generation;
+    }
     history.stamp = stamp;
 }
+
+#[cfg(test)]
+#[path = "flow/tests.rs"]
+mod tests;
 
 /// Called after the target geometric pass, before its readback completion stamp.
 pub(super) fn render(

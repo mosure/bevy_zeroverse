@@ -22,6 +22,9 @@ pub(super) fn build(a: &mut Assembly, scene: &IndoorManifest, m: &CeilingModule)
         a.box_part(surface, "ceiling", center, size, bevel);
     };
     match m.system {
+        // These systems require recorded detail; manifest validation rejects
+        // a missing shape instead of silently inventing a legacy substitute.
+        CeilingSystem::Coffers | CeilingSystem::Ventilation => return,
         CeilingSystem::AcousticCloud => {
             let thickness = m.thickness_m.min(m.size.y * 0.35);
             panel(

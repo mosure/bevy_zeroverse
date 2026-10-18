@@ -6,10 +6,10 @@ procedural texture resolution, geometry detail and annotation precision. Use
 constrained adapters; it is not a throughput preset. Headless Portable capture
 emits a warning describing those reductions.
 
-The current [CPU efficiency qualification](generation_cpu_efficiency.md) documents
-automatic preparation, polling and capture-buffer optimizations, with exact render
-replay and measurements under a fixed renderer pool. No additional scheduling
-controls are required.
+Preparation, polling and capture-buffer optimizations are automatic. The current
+source-bound [paper timing receipt](../tex/generated/pipeline_receipt.json) records
+the qualified workload and measured cost. No additional scheduling controls are
+required.
 
 ## Library path
 
@@ -60,8 +60,7 @@ Compatible handles share the persistent renderer and serialize request/response
 transactions. Configure the renderer once; incompatible dimensions, modes or
 scene settings require another process.
 
-The public stream previously disabled lookahead, making ordinary library usage
-slower than the CLI. It now uses the same bounded scheduling without requiring a
+Both public entry points use the same bounded scheduling without requiring a
 queue-depth, upload, thread-budget or process-environment setting.
 
 ## CLI path
@@ -105,16 +104,47 @@ establish unlimited-process memory stability.
   Light uniforms and probe textures continue updating each frame. The original
   cluster resolution, light ordering, shadows and GI remain unchanged; other
   adapters retain Bevy's normal preparation.
-- Geometry, texture construction and mesh realization share four native workers
-  instead of starting three independent four-worker pools. Seed streams and
-  scoped output order are unchanged. The recursively scoped GI builder remains
-  separate.
+- Geometry, texture construction, mesh realization and both transport trees share
+  one bounded native pool, defaulting to at most eight workers. An explicit
+  `configure_preparation_threads` budget now covers transport-tree construction
+  too; Bevy's other task pools and driver threads remain separate. Ordered
+  triangle emission releases the geometry borrow before tree and
+  tangent work proceed concurrently. Scoped output order and seed streams are
+  unchanged; no full-scene clone or per-room worker pool is introduced.
+- Camera coverage queries use a conservative spatial index followed by the same
+  exact oriented-box intersection. Probe-tree construction caches exact bounds
+  and centroids in compact temporary records, preserves median splits and ties,
+  and applies the final triangle permutation in place.
+- Reflection probes share immutable light inputs and schedule their cube faces
+  together. Transport albedo proxies reuse prepared material evaluators; visual
+  GPU material maps, normal/roughness mips and texture sampling remain unchanged.
+- On bindless adapters, render-only aliases give each PBR image slot a distinct
+  Bevy resource identity. This avoids stranded capacity in Bevy 0.20's material
+  allocator when packed maps or emissive screens share an image across slots.
+  Aliases reference existing WGPU texture views and samplers with identical
+  filtering: they create no texture uploads, copies, shader changes or changes
+  to CPU materials. Their
+  lifetime follows the source image, including render-world-only images and
+  pending uploads. Samplers with identical complete filtering descriptions are shared per slot,
+  preserving compact bindless groups. Metadata follows actual render uploads;
+  pending and directly replaced GPU images cannot reuse a stale description. Non-bindless adapters use ordinary
+  materials.
+- Supported headless indoor captures pin scene, time, calibration, target and
+  exposure identity before rendering. Current-pose cluster depth is computed
+  before light assignment. The render thread copies the first qualified result
+  only after current assets, pipelines and every camera attachment are ready.
+  The copy group is atomic across cameras. Temporal history effects and unsupported
+  policies retain conservative settling. No quality setting is lowered.
 - One completed future room may upload immutable images, materials and meshes
   during the current room's readback window. A 256 MiB upload-payload budget and
   one-room slot bound this speculation. Larger rooms use ordinary uploads with
-  the same detail. Future entities, GI dispatches and motion inference are not
-  activated. Current-room readiness excludes only the recorded future asset IDs;
-  promotion restores the complete asset barrier.
+  the same detail. After current copies submit, owned future GI/material work can
+  run in separate render slots; a second consecutive successor may occupy a
+  GI-only slot within the same byte budget. Future entities, cameras and motion
+  inference do not enter the active room. Current-room readiness excludes only
+  recorded future asset IDs; promotion restores the complete asset barrier.
+  Explicit CPU-only admission holds do not advance the render app or authorize
+  additional GPU work.
 - On Linux GNU x86-64 NVIDIA Vulkan capture, initial supported color textures use
   explicit staging copies through published Bevy/WGPU APIs. Fixed-size write-only
   copies avoid libc's large REP MOVSB path into uncached upload memory. The same
@@ -139,51 +169,21 @@ bounded aggregate diagnostics, not exclusive CPU/GPU stage attribution.
 
 ## Validation scope
 
-The [qualification receipt](evidence/throughput_defaults/receipt.json) records
-two counterbalanced comparisons, each with four 32-room runs and four warmup
-rooms per run. All captures use three 512×512 views and the six modes above.
-Rates pool completed views over measured capture time.
+The current source-bound [paper timing receipt](../tex/generated/pipeline_receipt.json)
+records the measured preparation and completed-capture workloads, environment,
+latencies and memory. Preparation timers distinguish tree emission, probe-tree
+construction and shadow-tree construction. Parallel branch durations overlap;
+they must not be summed into a fictional total CPU time.
 
-| Scheduling comparison | Control views/s | Current views/s | Gain |
-| --- | ---: | ---: | ---: |
-| Existing prefetched capture path | 9.12 | 10.07 | 10.3% |
-| Former public API's unprefetched scheduling | 4.46 | 10.18 | 2.28× |
+Qualification checks exact seeded manifests, mesh attributes and indices,
+material bytes, camera choices, RGB and numeric planes. WGPU/CUDA tests cover
+completed consumers, padding, SSAA, glass policies, retained samples, indexed
+captures and shutdown. Temporal renders check first-frame lighting and all-view
+co-visibility dependencies. Browser checks use actual Chrome WebGPU; native
+results do not establish Metal performance.
 
-The second control uses `indoor_bench --no-prefetch` to reproduce the former
-`Dataset::get()` scheduling policy. It is a capture benchmark, not an end-to-end
-Burn training or archive-writing benchmark. Separate channel tests verify that
-both public entry points now request automatic lookahead and retain response
-ownership across concurrent callers.
-
-Against the already-prefetched control, full-command CPU time is 1.56 versus
-1.50 CPU-seconds/room, and peak RSS is 3,614 versus 3,644 MiB. Against the
-unprefetched control, CPU time falls from 2.46 to 1.52 CPU-seconds/room; peak RSS
-rises from 3,314 to 3,495 MiB because future rooms remain resident. CPU timings
-include startup, warmup and shutdown. These finite runs do not qualify long-run
-memory growth or isolate GPU utilization from other processes.
-
-For the scheduling change, all **240 saved files across 12 rooms / 36 views /
-9,437,184 view pixels** were byte-identical to its original renderer: RGB, depth, normals, position,
-semantics, co-visibility, manifests and camera/scene metadata. Across 32 distinct
-seeds, human counts, mesh triangles/vertices/instances, GI probes and relocated
-probes, rays, bounces and transport/texture bytes also match. Future work drains
-at the end of each finite run; no seed is skipped.
-
-The subsequent [material quality pass](material_quality.md) deliberately updates
-RGB under a new capture identity. It separately verifies unchanged annotations
-and reports current full-quality throughput; the RGB replay claim above applies
-to the scheduling qualification, not to the later appearance change.
-
-Validation passed: 192 core unit tests (three existing ignored tests), 15 Burn
-unit tests, two final upload packing/copy tests, 10 CLI tests, the native GPU
-capture-coherence test, strict Clippy for core/Burn across all targets, and the
-WebGPU viewer build with human motion enabled. The Wasm compiler reports an
-existing upstream `burn-cubecl` future-compatibility advisory. Browser runtime,
-motion-inference throughput and unlimited-process stability were not measured.
-
-Performance and replay measurements for this change use published WGPU 29.0.4
-in an external consumer workspace. The root checkout's pre-existing WGPU patches
-are not inherited. The active downstream production pool shares this machine;
-repeated timings describe that concurrent-load environment and do not establish
-isolated adapter throughput or a gain for the differently configured downstream
-Portable workload. No production job or downstream quality setting was changed.
+Matched timing studies and replay captures remain local under ignored `out/`.
+Only current-state evidence is installed in the paper and project page. Finite
+soaks do not prove unlimited process lifetime, and capture rates do not establish
+training speed or downstream learning utility. Keep the renderer alive across
+shards and preserve the demand controller's holds, quotas and rejection policy.

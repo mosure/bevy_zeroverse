@@ -18,6 +18,17 @@ pub struct CeilingDetail {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind")]
 pub enum CeilingShape {
+    Coffer {
+        aspect: f32,
+        beam_fraction: f32,
+        recess_fraction: f32,
+        timber: bool,
+    },
+    Diffuser {
+        round: bool,
+        blades: u8,
+        angle: f32,
+    },
     Panel {
         camber: f32,
         taper: f32,
@@ -65,6 +76,17 @@ impl CeilingDetail {
     pub(super) fn sample(system: CeilingSystem, r: &mut impl Rng, finish: u8) -> Self {
         use CeilingShape::*;
         let shape = match system {
+            CeilingSystem::Coffers => Coffer {
+                aspect: r.random_range(0.7..1.7),
+                beam_fraction: r.random_range(0.06..0.16),
+                recess_fraction: r.random_range(0.42..0.86),
+                timber: r.random_bool(0.42),
+            },
+            CeilingSystem::Ventilation => Diffuser {
+                round: r.random_bool(0.45),
+                blades: r.random_range(3..=8),
+                angle: r.random_range(0.15..0.65),
+            },
             CeilingSystem::AcousticCloud | CeilingSystem::Baffles | CeilingSystem::TimberSlats => {
                 Panel {
                     camber: r.random_range(0.05..0.90),
@@ -119,6 +141,22 @@ impl CeilingDetail {
         }
         use CeilingShape::*;
         match self.shape {
+            Coffer {
+                aspect,
+                beam_fraction,
+                recess_fraction,
+                ..
+            } => {
+                system == CeilingSystem::Coffers
+                    && in_range(aspect, 0.5, 2.)
+                    && in_range(beam_fraction, 0.04, 0.20)
+                    && in_range(recess_fraction, 0.3, 0.9)
+            }
+            Diffuser { blades, angle, .. } => {
+                system == CeilingSystem::Ventilation
+                    && (3..=8).contains(&blades)
+                    && in_range(angle, 0., 0.75)
+            }
             Panel {
                 camber,
                 taper,

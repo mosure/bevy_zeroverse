@@ -4,6 +4,7 @@ use super::*;
 use crate::scene::procedural_indoor::{layout::stream, preparation::AssetStore};
 use rand::Rng;
 use std::collections::BTreeMap;
+pub(super) mod content;
 
 pub const COUNT: usize = 12;
 pub const SURFACES: [Surface; 19] = [
@@ -89,6 +90,9 @@ pub(super) async fn build(
     cooperative: bool,
 ) -> BTreeMap<(Surface, usize), Handle<StandardMaterial>> {
     let seed = scene.material_seed();
+    // Native jobs own their pixels and use the existing worker budget. Wasm
+    // retains one cooperative atlas at a time. Unused slots are never queued.
+    let mut content = content::queue(seed, used);
     let structures = structures(scene, images, used, gpu, requests, cooperative).await;
     let mut result = BTreeMap::new();
     for surface in SURFACES {
@@ -114,21 +118,10 @@ pub(super) async fn build(
                     mat.anisotropy_strength = ((recipe.roughness - 0.08) * 3.).clamp(0., 0.48);
                 }
             }
-            if matches!(surface, Surface::Screen | Surface::PhoneScreen) {
-                screens::apply(
-                    screen_seed(seed, index),
-                    surface == Surface::PhoneScreen,
-                    &mut mat,
-                    images,
-                );
-            } else if surface == Surface::Television {
-                screens::apply_tv(screen_seed(seed, index), &mut mat, images);
-            } else if surface == Surface::Whiteboard {
-                boards::apply(screen_seed(seed, index), &mut mat, images);
+            if let Some(job) = content.remove(&(surface, index)) {
+                job.apply(&mut mat, images).await;
             } else if surface == Surface::PrintedPaper {
                 paper::apply(screen_seed(seed, index), &mut mat, images);
-            } else if surface == Surface::Art {
-                art::apply(screen_seed(seed, index), &mut mat, images);
             } else {
                 // Upholstery and device plastics remain in the scene palette;
                 // small personal accessories can have independently chosen hues.

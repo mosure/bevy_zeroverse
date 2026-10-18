@@ -28,6 +28,7 @@ impl DisplayFinish {
         }
     }
 
+    #[cfg(test)]
     pub(super) fn apply(
         &self,
         seed: u64,
@@ -36,6 +37,30 @@ impl DisplayFinish {
         mat: &mut StandardMaterial,
         images: &mut impl AssetStore<Image>,
     ) {
+        self.apply_prepared(self.prepare(seed, board, content), mat, images);
+    }
+
+    pub(super) fn apply_prepared(
+        &self,
+        roughness: Option<Image>,
+        mat: &mut StandardMaterial,
+        images: &mut impl AssetStore<Image>,
+    ) {
+        mat.normal_map_texture = None;
+        mat.occlusion_texture = None;
+        mat.metallic = 0.;
+        mat.perceptual_roughness = self.roughness;
+        mat.clearcoat = self.clearcoat;
+        mat.clearcoat_perceptual_roughness = self.coat_roughness;
+        mat.metallic_roughness_texture = roughness.map(|image| images.add(image));
+        if mat.metallic_roughness_texture.is_none() {
+            mat.perceptual_roughness *= 0.83 + self.haze * 0.25;
+        }
+    }
+
+    /// Pure image synthesis: native content jobs can run without borrowing the
+    /// asset stores. Binding remains ordered on the preparation task.
+    pub(super) fn prepare(&self, seed: u64, board: bool, content: &[u8]) -> Option<Image> {
         let mut rng = stream(seed, 0x534d55444745);
         let marks: Vec<_> = (0..self.smudges)
             .map(|_| {
@@ -47,36 +72,39 @@ impl DisplayFinish {
                 ]
             })
             .collect();
-        mat.normal_map_texture = None;
-        mat.occlusion_texture = None;
-        mat.metallic = 0.;
-        mat.perceptual_roughness = self.roughness;
-        mat.clearcoat = self.clearcoat;
-        mat.clearcoat_perceptual_roughness = self.coat_roughness;
         if !board && marks.is_empty() {
             // Uniform cover finishes need no texture allocation or upload.
-            mat.metallic_roughness_texture = None;
-            mat.perceptual_roughness *= 0.83 + self.haze * 0.25;
-            return;
+            return None;
+        }
+        // Each mark is separable. Reuse the exact squared X/Y terms instead of
+        // dividing twice per mark at every texel. Rows outside its support need
+        // no work; max-composition is unchanged, including overlap between marks.
+        let mut smudges = vec![0.0_f32; content.len() / 4];
+        for m in marks {
+            let horizontal: [f32; 256] =
+                std::array::from_fn(|x| ((x as f32 / 256. - m[0]) / m[2]).powi(2));
+            for (y, row) in smudges.as_chunks_mut::<256>().0.iter_mut().enumerate() {
+                let vertical = ((y as f32 / 256. - m[1]) / m[3]).powi(2);
+                if vertical >= 1. {
+                    continue;
+                }
+                for (value, &horizontal) in row.iter_mut().zip(&horizontal) {
+                    *value = value.max((1. - (horizontal + vertical)).clamp(0., 1.));
+                }
+            }
         }
         let mut data = Vec::with_capacity(256 * 256 * 4);
-        for (i, pixel) in content.as_chunks::<4>().0.iter().enumerate() {
-            let uv = [(i % 256) as f32 / 256., (i / 256) as f32 / 256.];
+        for (pixel, smudge) in content.as_chunks::<4>().0.iter().zip(smudges) {
             let ink = if board {
                 1. - f32::from(pixel[0].max(pixel[1]).max(pixel[2])) / 255.
             } else {
                 0.
             };
-            let mut smudge = 0.0_f32;
-            for m in &marks {
-                let d = ((uv[0] - m[0]) / m[2]).powi(2) + ((uv[1] - m[1]) / m[3]).powi(2);
-                smudge = smudge.max((1. - d).clamp(0., 1.));
-            }
             let value = (0.83 + self.haze * 0.25 + smudge * 0.15 - ink * 0.13).clamp(0.65, 1.);
             data.extend([255, (value * 255.).round() as u8, 0, 255]);
         }
         // Relative roughness map; independent of luminance and never metallic.
-        mat.metallic_roughness_texture = Some(images.add(filter::flat_roughness(data, 256)));
+        Some(filter::flat_roughness(data, 256))
     }
 }
 
@@ -118,3 +146,6 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+mod replay_tests;

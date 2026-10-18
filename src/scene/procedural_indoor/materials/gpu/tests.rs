@@ -121,6 +121,44 @@ fn lighting_samples_preserve_full_resolution_cpu_point_sampling() {
     }
 }
 
+#[test]
+#[ignore = "CPU diagnostic for 32x32 transport proxies, including evaluator preparation"]
+fn transport_proxy_cpu_benchmark() {
+    use std::{collections::BTreeMap, time::Instant};
+    let mut times: BTreeMap<String, (usize, [f64; 2])> = BTreeMap::new();
+    for seed in 0..8 {
+        for floor in 0..3 {
+            for r in program::sample_with_floor(seed, floor).unwrap() {
+                if recipe::Recipe::new(&r, floor).is_none() {
+                    continue;
+                }
+                let mut outputs = [Vec::new(), Vec::new()];
+                for mode in if seed % 2 == 0 { [0, 1] } else { [1, 0] } {
+                    let started = Instant::now();
+                    let prepared = (mode == 1).then(|| r.prepare_texels(floor)).flatten();
+                    let n = r.map_size(floor);
+                    for y in 0..32 {
+                        for x in 0..32 {
+                            let t = r.texel_prepared(
+                                (x * n / 32) as f32 / n as f32,
+                                (y * n / 32) as f32 / n as f32,
+                                floor,
+                                prepared.as_ref(),
+                            );
+                            outputs[mode].push(t.color.map(|c| (c.clamp(0., 1.) * 255.) as u8));
+                        }
+                    }
+                    let row = times.entry(format!("{:?}", r.surface)).or_default();
+                    row.0 += usize::from(mode == 0);
+                    row.1[mode] += started.elapsed().as_secs_f64();
+                }
+                assert_eq!(outputs[0], outputs[1]);
+            }
+        }
+    }
+    println!("{}", serde_json::to_string(&times).unwrap());
+}
+
 fn device() -> (wgpu::Device, wgpu::Queue) {
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
         backends: wgpu::Backends::from_env().unwrap_or(wgpu::Backends::PRIMARY),

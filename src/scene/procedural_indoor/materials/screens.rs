@@ -141,33 +141,18 @@ pub(super) fn apply(
     mat: &mut StandardMaterial,
     images: &mut impl AssetStore<Image>,
 ) {
-    let seed = device_seed(
+    prepare(
         seed,
         if mobile {
             DisplayKind::Phone
         } else {
             DisplayKind::Desktop
         },
-    );
-    apply_pixels(
-        seed,
-        if mobile {
-            device_pixels(seed, DisplayKind::Phone)
-        } else {
-            device_pixels(seed, DisplayKind::Desktop)
-        },
-        mat,
-        images,
-    );
+    )
+    .apply(mat, images);
 }
 pub(super) fn apply_tv(seed: u64, mat: &mut StandardMaterial, images: &mut impl AssetStore<Image>) {
-    let seed = device_seed(seed, DisplayKind::Television);
-    apply_pixels(
-        seed,
-        device_pixels(seed, DisplayKind::Television),
-        mat,
-        images,
-    );
+    prepare(seed, DisplayKind::Television).apply(mat, images);
 }
 pub fn television_pixels(seed: u64) -> Vec<u8> {
     device_pixels(
@@ -195,25 +180,43 @@ fn device_pixels(seed: u64, kind: DisplayKind) -> Vec<u8> {
         DisplayKind::Television => tv::pixels(seed),
     }
 }
-fn apply_pixels(
-    seed: u64,
-    pixels: Vec<u8>,
-    mat: &mut StandardMaterial,
-    images: &mut impl AssetStore<Image>,
-) {
+pub(super) struct PreparedScreen {
+    finish: display_finish::DisplayFinish,
+    roughness: Option<Image>,
+    color: Image,
+    dormant: bool,
+    luminance: f32,
+}
+
+pub(super) fn prepare(seed: u64, kind: DisplayKind) -> PreparedScreen {
+    let seed = device_seed(seed, kind);
+    let pixels = device_pixels(seed, kind);
     let p = parameters(seed);
-    p.finish.apply(seed, false, &pixels, mat, images);
+    let roughness = p.finish.prepare(seed, false, &pixels);
     let mut screen = mip_image(pixels, 256, MapType::Color);
     screen.sampler = ImageSampler::linear();
-    let texture = images.add(screen);
-    mat.base_color = Color::WHITE;
-    mat.base_color_texture = Some(texture.clone());
-    mat.emissive_texture = if p.dormant { None } else { Some(texture) };
-    let brightness = if p.dormant { 0. } else { p.luminance };
-    mat.emissive = LinearRgba::new(brightness, brightness, brightness, 1.);
-    mat.emissive_exposure_weight = 1.;
-    mat.metallic = 0.;
-    mat.uv_transform = bevy::math::Affine2::IDENTITY;
+    PreparedScreen {
+        finish: p.finish,
+        roughness,
+        color: screen,
+        dormant: p.dormant,
+        luminance: p.luminance,
+    }
+}
+
+impl PreparedScreen {
+    pub(super) fn apply(self, mat: &mut StandardMaterial, images: &mut impl AssetStore<Image>) {
+        self.finish.apply_prepared(self.roughness, mat, images);
+        let texture = images.add(self.color);
+        mat.base_color = Color::WHITE;
+        mat.base_color_texture = Some(texture.clone());
+        mat.emissive_texture = if self.dormant { None } else { Some(texture) };
+        let brightness = if self.dormant { 0. } else { self.luminance };
+        mat.emissive = LinearRgba::new(brightness, brightness, brightness, 1.);
+        mat.emissive_exposure_weight = 1.;
+        mat.metallic = 0.;
+        mat.uv_transform = bevy::math::Affine2::IDENTITY;
+    }
 }
 pub const SEGMENTS: [u8; 10] = [
     0b0111111, 0b0000110, 0b1011011, 0b1001111, 0b1100110, 0b1101101, 0b1111101, 0b0000111,
@@ -362,11 +365,10 @@ pub(super) fn participants(
 ) {
     let mut rng = stream(seed, 865);
     let [x, y, w, h] = bounds;
-    let cols = if p.panels <= 2 {
-        p.panels.max(1) as i32
-    } else {
-        3
-    };
+    // Keep the grid bound explicit. The conditional form compiled without its
+    // upper cap in an optimized native build after unrelated code changes.
+    // More than three participants must wrap, preserving seeded screen pixels.
+    let cols = p.panels.clamp(1, 3) as i32;
     let rows = p.panels.div_ceil(cols as u32) as i32;
     for i in 0..p.panels as i32 {
         let sx = x + i % cols * w / cols;
@@ -799,6 +801,17 @@ fn single_mobile_pixels(seed: u64) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn composed_participant_grid_preserves_three_column_pixel_replay() {
+        // Slot five in room 600 includes a four-participant panel. This catches
+        // dropping the column cap even when all the RNG/content seeds match.
+        let pixels = pixels(4_561_871_313_230_591_933);
+        let digest = pixels.iter().fold(0xcbf2_9ce4_8422_2325_u64, |h, &byte| {
+            (h ^ u64::from(byte)).wrapping_mul(0x100_0000_01b3)
+        });
+        assert_eq!(digest, 0x6c6c_cbcb_de69_bf90);
+    }
+
     #[test]
     fn screen_emission_agrees_with_dormant_state_and_content_maps() {
         let mut images = Assets::<Image>::default();

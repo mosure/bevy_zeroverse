@@ -125,3 +125,43 @@ fn public_motion_plans_use_level_floor_and_leave_static_people_supported() {
         super::super::super::humans::validate(&scene).unwrap();
     }
 }
+
+#[test]
+fn rejected_training_elevator_landing_recovers_beside_low_duct() {
+    use crate::scene::procedural_indoor::validation::{validate_geometry, validate_layout};
+    for density in [0., 0.65, 1.] {
+        let scene =
+            IndoorManifest::generate_with_humans(63_069_510, IndoorLayout::Mixed, density, 0, 0.)
+                .unwrap();
+        assert_eq!(scene.layout, IndoorLayout::ElevatorLanding);
+        validate_layout(&scene).unwrap();
+        validate_geometry(&scene).unwrap();
+        let program = &scene.functional_programs()[0];
+        let elevators: Vec<_> = program
+            .members
+            .iter()
+            .filter_map(|&id| {
+                let o = &scene.objects[id];
+                (o.kind == ObjectKind::Elevator).then_some(o)
+            })
+            .collect();
+        assert!(!elevators.is_empty());
+        for elevator in elevators {
+            assert_eq!(elevator.size.y, 2.5, "retain full-height car geometry");
+            assert!(scene.placement_clear(elevator, 0.035));
+            let front = elevator
+                .transform()
+                .transform_point(Vec3::new(0., 0., elevator.size.z * 0.5 + 0.5))
+                .xz();
+            assert!(program.reservations.iter().any(|route| {
+                route.role == ReservationRole::DoorApproach
+                    && front.cmpge(route.min).all()
+                    && front.cmple(route.max).all()
+            }));
+        }
+        let replay =
+            IndoorManifest::generate_with_humans(63_069_510, IndoorLayout::Mixed, density, 0, 0.)
+                .unwrap();
+        assert_eq!(scene, replay);
+    }
+}

@@ -52,6 +52,7 @@ fn main() -> Result<()> {
     let mut times = Vec::new();
     let mut capture_times = Vec::new();
     let mut consumer_times = Vec::new();
+    let mut producer_timings = Vec::new();
     if args.gpu || args.cuda {
         let mut dataset = if args.cuda {
             #[cfg(all(feature = "cuda_interop", target_os = "linux"))]
@@ -78,6 +79,7 @@ fn main() -> Result<()> {
                 let _: f32 = view.color.mul_scalar(1.01).mean().into_scalar();
             }
             if index >= args.warmup {
+                producer_timings.push(dataset.last_capture_timings().unwrap().clone());
                 times.push(start.elapsed().as_secs_f64());
                 capture_times.push(capture_time);
                 consumer_times.push(consumer_start.elapsed().as_secs_f64());
@@ -128,7 +130,7 @@ fn main() -> Result<()> {
     println!(
         "{}",
         serde_json::to_string_pretty(
-            &serde_json::json!({"layout":args.layout,"build_provenance":bevy_zeroverse::provenance::capture_provenance(),"gpu_transport":args.gpu || args.cuda,"transport":if args.cuda { "vulkan_cuda" } else if args.gpu { "wgpu" } else { "cpu" },"scenes":args.scenes,"warmup":args.warmup,"seed":args.seed,"views":3,"timesteps":1,"width":512,"height":512,"quality":"auto, full native shadows and diffuse GI","seconds":total,"rooms_per_second":args.scenes as f64/total,"target_views_per_second":args.scenes as f64*3./total,"scene_seconds":times,"capture_seconds":capture_times,"consumer_seconds":consumer_times})
+            &serde_json::json!({"layout":args.layout,"build_provenance":bevy_zeroverse::provenance::capture_provenance(),"gpu_transport":args.gpu || args.cuda,"transport":if args.cuda { "vulkan_cuda" } else if args.gpu { "wgpu" } else { "cpu" },"scenes":args.scenes,"warmup":args.warmup,"seed":args.seed,"views":3,"timesteps":1,"width":512,"height":512,"quality":"auto, full native shadows and diffuse GI","seconds":total,"rooms_per_second":args.scenes as f64/total,"target_views_per_second":args.scenes as f64*3./total,"scene_seconds":times,"capture_seconds":capture_times,"consumer_seconds":consumer_times,"producer_timings":producer_timings})
         )?
     );
     Ok(())

@@ -39,15 +39,17 @@ impl ArtFinish {
         }
     }
     pub(super) fn maps(&self, seed: u64, color: Vec<u8>) -> [Image; 3] {
+        let mut budget = 96 * 1024;
+        let tooth = field::PreparedPeriodic::new([137, 151], seed.wrapping_add(401), &mut budget);
+        let stroke =
+            field::PreparedPeriodic::new(self.stroke_counts, seed.wrapping_add(409), &mut budget);
         let mut heights = vec![0.; 256 * 256];
         let mut data = Vec::with_capacity(256 * 256 * 4);
         for y in 0..256 {
             for x in 0..256 {
                 let uv = [x as f32 / 256., y as f32 / 256.];
-                let noise =
-                    |nx, ny, salt| periodic_noise(uv[0], uv[1], nx, ny, seed.wrapping_add(salt));
-                let tooth = noise(137, 151, 401) - 0.5;
-                let stroke = noise(self.stroke_counts[0], self.stroke_counts[1], 409) - 0.5;
+                let tooth = tooth.sample(uv[0], uv[1]) - 0.5;
+                let stroke = stroke.sample(uv[0], uv[1]) - 0.5;
                 // Interlaced yarn crowns, gently irregular, below a millimetre.
                 let [nx, ny] = self.canvas_counts;
                 let u = (uv[0] * nx as f32).fract();
@@ -83,3 +85,6 @@ impl ArtFinish {
         images
     }
 }
+
+#[cfg(test)]
+mod replay_tests;

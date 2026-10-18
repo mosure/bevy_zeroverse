@@ -1,5 +1,7 @@
 //! Small equipment with independently sampled proportions and real mechanisms.
 use super::*;
+mod lamps;
+pub use lamps::{lamp_parameters, TaskLampProgram};
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct AccessoryProgram {
@@ -37,7 +39,7 @@ pub fn parameters(o: &IndoorObject) -> AccessoryProgram {
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     let p = parameters(o);
     match o.kind {
-        ObjectKind::DeskLamp => lamp(a, o, &p),
+        ObjectKind::DeskLamp => lamps::build(a, o, &p),
         ObjectKind::Speaker => speaker(a, o, &p),
         ObjectKind::Headphones => headphones(a, o, &p),
         ObjectKind::Stapler => stapler(a, o, &p),
@@ -47,91 +49,6 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
         ObjectKind::DeskFan => fan(a, o, &p),
         _ => unreachable!("non-accessory object"),
     }
-}
-
-fn lamp(a: &mut Assembly, o: &IndoorObject, p: &AccessoryProgram) {
-    let s = o.size;
-    let label = o.kind.class_name();
-    a.part(p.finish, label).cylinder(
-        s.x.min(s.z) * 0.43,
-        s.y * 0.055,
-        Transform::from_xyz(0., s.y * 0.0275, 0.),
-    );
-    let root = Vec3::new(0., s.y * 0.055, -s.z * 0.16);
-    let elbow = Vec3::new(-s.x * p.tilt, s.y * 0.57, -s.z * 0.24);
-    let head = lamp_head(o, p);
-    if p.style < 2 {
-        a.part(p.finish, label).rod(root, elbow, 0.007);
-        a.part(p.finish, label).rod(elbow, head, 0.007);
-        a.part(Surface::Metal, label)
-            .ellipsoid(Vec3::splat(0.012), Transform::from_translation(elbow));
-    } else {
-        let points: Vec<_> = (0..=12)
-            .map(|i| {
-                let t = i as f32 / 12.;
-                root.lerp(head, t)
-                    + Vec3::new(
-                        0.,
-                        s.y * 0.15 * (PI * t).sin(),
-                        -s.z * 0.12 * (PI * t).sin(),
-                    )
-            })
-            .collect();
-        a.part(p.finish, label).tube(&points, 0.008, 10);
-    }
-    // A shallow down-facing head; the inset diffuser is separated from its case.
-    let width = s.x
-        * if p.style.is_multiple_of(2) {
-            0.78
-        } else {
-            0.48
-        };
-    let depth = s.z
-        * if p.style.is_multiple_of(2) {
-            0.28
-        } else {
-            0.40
-        };
-    a.box_part(
-        p.finish,
-        label,
-        head,
-        Vec3::new(width, s.y * 0.08, depth),
-        0.008,
-    );
-    a.box_part(
-        Surface::Light,
-        label,
-        head - Vec3::Y * (s.y * 0.041),
-        Vec3::new(width * 0.88, 0.001, depth * 0.83),
-        0.001,
-    );
-}
-
-fn lamp_head(o: &IndoorObject, p: &AccessoryProgram) -> Vec3 {
-    Vec3::new(
-        o.size.x * p.tilt * 0.45,
-        o.size.y * 0.91,
-        o.size.z * (p.reach - 0.35).clamp(-0.15, 0.27),
-    )
-}
-
-/// The direct renderer and diffuse transport use the same metric emitter. Its
-/// position sits just below the inset diffuser, outside the opaque housing.
-pub(crate) fn lamp_photometry(o: &IndoorObject) -> (Vec3, Vec3, f32, f32, f32) {
-    let p = parameters(o);
-    let mut rng = stream(o.seed, 5320);
-    let position = o
-        .transform()
-        .transform_point(lamp_head(o, &p) - Vec3::Y * o.size.y * 0.044);
-    let color = super::super::materials::kelvin_rgb(rng.random_range(2700.0..5800.0));
-    (
-        position,
-        color,
-        rng.random_range(150.0..550.0),
-        rng.random_range(0.32..0.56),
-        rng.random_range(0.82..1.10),
-    )
 }
 
 fn speaker(a: &mut Assembly, o: &IndoorObject, p: &AccessoryProgram) {
@@ -439,4 +356,9 @@ fn fan(a: &mut Assembly, o: &IndoorObject, p: &AccessoryProgram) {
             .with_rotation(Quat::from_rotation_z(t + 0.28)),
         );
     }
+}
+
+/// Shared direct/indirect lighting proxy for the generated task-lamp head.
+pub(crate) fn lamp_photometry(o: &IndoorObject) -> (Vec3, Vec3, f32, f32, f32) {
+    lamps::photometry(o)
 }

@@ -7,7 +7,7 @@ mod group_plan;
 mod timings;
 pub(crate) use geometry::SceneGeometry;
 pub use pipeline::prepare_indoor;
-pub use timings::{PreparationTimings, PreparationWall};
+pub use timings::{PreparationTimings, PreparationWall, TransportTimings};
 pub(crate) mod pipeline;
 pub(crate) mod residency;
 #[cfg(not(target_arch = "wasm32"))]
@@ -101,11 +101,29 @@ impl StagedAssets<Mesh> {
         // bounded native pool. No mesh/material quality or batching is changed.
         #[cfg(not(target_arch = "wasm32"))]
         let ready = {
-            workers::pool().scope(|scope| {
-                for (handle, geometry) in jobs {
-                    scope.spawn(async move { (handle, geometry.into_mesh()) });
-                }
-            })
+            // Start expensive parts first to avoid a tail consisting of one
+            // large body/ceiling mesh. Handles were reserved in manifest order.
+            let mut jobs: Vec<_> = jobs.into_iter().enumerate().collect();
+            jobs.sort_by_key(|(_, (_, geometry))| std::cmp::Reverse(geometry.indices.len()));
+            let mut tasks: Vec<_> = jobs
+                .into_iter()
+                .map(|(order, (handle, geometry))| {
+                    (
+                        order,
+                        workers::pool().spawn(async move { (handle, geometry.into_mesh()) }),
+                    )
+                })
+                .collect();
+            // Preserve asset insertion as well as reserved-handle/group order.
+            tasks.sort_by_key(|(order, _)| *order);
+            let mut ready = Vec::with_capacity(tasks.len());
+            // These jobs own their geometry. Awaiting them yields the worker
+            // instead of nesting a blocking scope that can steal unrelated work.
+            // Dropping preparation also drops/cancels every outstanding task.
+            for (_, task) in tasks {
+                ready.push(task.await);
+            }
+            ready
         };
         #[cfg(target_arch = "wasm32")]
         let ready = {
@@ -237,31 +255,66 @@ impl PreparedIndoor {
             let parallel_started = &parallel_started;
             let mut ready = workers::pool()
                 .scope(|scope| {
-                    // Transport finishes its shared borrow before geometry moves
-                    // into render meshes. No scene clone or extra executor is
-                    // needed, and staged handles remain unpublished until join.
+                    // Only ordered triangle emission borrows the assemblies.
+                    // Tree building and mesh/tangent realization then own disjoint
+                    // data and share the bounded pool. Nothing is published until
+                    // both have joined; neither geometry nor scenes are cloned.
                     scope.spawn(async move {
                         let started = bevy::platform::time::Instant::now();
-                        let transport = gi::GeometryTransport::build(
-                            manifest,
-                            moving_humans,
-                            &geometry,
-                            quality.diffuse_gi() && settings.enabled && settings.gpu,
-                        );
-                        let transport_seconds = started.elapsed().as_secs_f64();
-                        let transport_completed = parallel_started.elapsed().as_secs_f64();
-                        let started = bevy::platform::time::Instant::now();
-                        let (groups, jobs) = group_plan::plan(manifest, geometry, meshes).await;
-                        let planning_seconds = started.elapsed().as_secs_f64();
-                        let started = bevy::platform::time::Instant::now();
-                        meshes.realize_geometry(jobs).await;
-                        Stage::TransportMeshes {
+                        let input = gi::GeometryTransport::emit(manifest, moving_humans, &geometry);
+                        let emission_seconds = started.elapsed().as_secs_f64();
+                        enum Independent {
+                            Trees(Box<gi::GeometryTransport>, f64, f64),
+                            Meshes(Vec<group_plan::GroupPlan>, f64, f64),
+                        }
+                        let mut independent = workers::pool()
+                            .scope(|scope| {
+                                scope.spawn(async move {
+                                    let started = bevy::platform::time::Instant::now();
+                                    let transport = input.finish(
+                                        quality.diffuse_gi() && settings.enabled && settings.gpu,
+                                    );
+                                    Independent::Trees(
+                                        Box::new(transport),
+                                        emission_seconds + started.elapsed().as_secs_f64(),
+                                        parallel_started.elapsed().as_secs_f64(),
+                                    )
+                                });
+                                scope.spawn(async move {
+                                    let started = bevy::platform::time::Instant::now();
+                                    let (groups, jobs) =
+                                        group_plan::plan(manifest, geometry, meshes).await;
+                                    let planning_seconds = started.elapsed().as_secs_f64();
+                                    let started = bevy::platform::time::Instant::now();
+                                    meshes.realize_geometry(jobs).await;
+                                    Independent::Meshes(
+                                        groups,
+                                        planning_seconds,
+                                        started.elapsed().as_secs_f64(),
+                                    )
+                                });
+                            })
+                            .into_iter();
+                        let Some(Independent::Trees(
                             transport,
+                            transport_seconds,
+                            transport_completed,
+                        )) = independent.next()
+                        else {
+                            unreachable!("scoped tree work retains submission order");
+                        };
+                        let Some(Independent::Meshes(groups, planning_seconds, meshes_seconds)) =
+                            independent.next()
+                        else {
+                            unreachable!("scoped mesh work retains submission order");
+                        };
+                        Stage::TransportMeshes {
+                            transport: *transport,
                             groups,
                             transport_seconds,
                             transport_completed,
                             planning_seconds,
-                            meshes_seconds: started.elapsed().as_secs_f64(),
+                            meshes_seconds,
                         }
                     });
                     scope.spawn(async {
@@ -357,6 +410,7 @@ impl PreparedIndoor {
         // Reuse the same immutable trees for HDR reflections and native GI.
         let started = bevy::platform::time::Instant::now();
         let transport_started = bevy::platform::time::Instant::now();
+        let transport_work = transport_geometry.timings.clone();
         let transport = transport_geometry.bind(
             &manifest,
             &material_set,
@@ -444,6 +498,7 @@ impl PreparedIndoor {
                 material_transport_mesh_seconds,
                 gi_setup_seconds,
                 transport_seconds,
+                transport_work,
                 environment_seconds,
                 gpu_gi_setup_seconds,
                 geometry_seconds,
@@ -615,6 +670,46 @@ mod tests {
             }
         }
     }
+    #[test]
+    fn asynchronous_mesh_jobs_preserve_handles_and_exact_attributes() {
+        use super::super::geometry::Geometry;
+        let mut live = Assets::<Mesh>::default();
+        let mut staged = StagedAssets::new(&live);
+        let mut jobs = Vec::new();
+        let mut expected = Vec::new();
+        // Deliberately submit small, large, medium parts. Dispatch may change;
+        // bindings, indices and tangent frames must retain their original IDs.
+        for repeats in [1, 19, 4] {
+            let mut geometry = Geometry::default();
+            for i in 0..repeats {
+                geometry.cuboid(
+                    Vec3::splat(0.2),
+                    0.01,
+                    Transform::from_xyz(i as f32 * 0.31, 0., 0.),
+                );
+            }
+            let mesh = geometry.clone().into_mesh();
+            let handle = staged.defer_geometry(geometry, &mut jobs);
+            expected.push((handle, mesh));
+        }
+        bevy::tasks::block_on(staged.realize_geometry(jobs));
+        for (handle, expected) in &expected {
+            let actual = staged.get(handle).unwrap();
+            assert_eq!(actual.indices(), expected.indices());
+            for (id, values) in expected.attributes() {
+                assert_eq!(
+                    actual.attribute(*id).unwrap().get_bytes(),
+                    values.get_bytes()
+                );
+            }
+        }
+        staged.commit(&mut live);
+        assert_eq!(live.len(), expected.len());
+        for (handle, _) in expected {
+            assert!(live.get(&handle).is_some());
+        }
+    }
+
     #[derive(Asset, bevy::reflect::TypePath)]
     struct Value(u32);
     #[test]

@@ -435,8 +435,7 @@ impl IndoorMaterials {
                     let c = Color::srgb(c.x, c.y, c.z).to_linear();
                     let luminance = super::architecture::fixture_lumens(scene)
                         / (std::f32::consts::PI
-                            * (super::architecture::fixture_size(scene).x - 0.06)
-                            * (super::architecture::fixture_size(scene).z - 0.055));
+                            * super::architecture::fixtures::emitting_area(scene));
                     mat.emissive = LinearRgba::new(
                         c.red * luminance,
                         c.green * luminance,
@@ -464,8 +463,7 @@ impl IndoorMaterials {
             ..default()
         };
         // Keep the visible emitter/reference export consistent with each direct-light proxy.
-        let area = (super::architecture::fixture_size(scene).x - 0.06)
-            * (super::architecture::fixture_size(scene).z - 0.055);
+        let area = super::architecture::fixtures::emitting_area(scene);
         let light_variants = super::architecture::fixture_positions(scene)
             .iter()
             .enumerate()
@@ -586,14 +584,20 @@ impl IndoorMaterials {
         transport: &super::gi::BakeScene,
         images: &mut impl super::preparation::AssetStore<Image>,
     ) {
-        let [diffuse, specular] = environment::insert_at(
+        let plans = reflections::plans(scene, transport);
+        let origins: Vec<_> = std::iter::once(transport.reflection_origin(scene))
+            .chain(plans.iter().map(|p| p.translation))
+            .collect();
+        let mut maps = environment::insert_many(
             scene,
             transport,
-            transport.reflection_origin(scene),
+            &origins,
             images,
             &mut self.gpu_bakes,
             self.gpu_environment,
-        );
+        )
+        .into_iter();
+        let [diffuse, specular] = maps.next().expect("global reflection map");
         self.environment = EnvironmentMapLight {
             diffuse_map: diffuse,
             specular_map: specular,
@@ -602,13 +606,11 @@ impl IndoorMaterials {
             rotation: Quat::from_rotation_y(scene.world_yaw),
             ..default()
         };
-        self.reflections = reflections::build(
-            scene,
-            transport,
-            images,
-            &mut self.gpu_bakes,
-            self.gpu_environment,
-        );
+        self.reflections = plans
+            .into_iter()
+            .zip(maps)
+            .map(|(plan, maps)| reflections::bind(plan, maps))
+            .collect();
     }
 
     #[cfg(target_arch = "wasm32")]

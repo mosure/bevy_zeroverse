@@ -7,13 +7,10 @@ pub struct ReflectionVolume {
     pub map: EnvironmentMapLight,
 }
 
-pub(super) fn build(
+pub(super) fn plans(
     scene: &IndoorManifest,
     transport: &super::super::gi::BakeScene,
-    images: &mut impl super::super::preparation::AssetStore<Image>,
-    requests: &mut super::gpu::Requests,
-    gpu: bool,
-) -> Vec<ReflectionVolume> {
+) -> Vec<Transform> {
     // WebGPU lacks Bevy's texture binding arrays for localized probes. Retain
     // the already-baked view environment without paying for unusable maps.
     if cfg!(target_arch = "wasm32") {
@@ -68,24 +65,28 @@ pub(super) fn build(
         if extent.min_element() < 1. || height < 1. || transport.inside_solid(origin) {
             continue;
         }
-        let [diffuse, specular] =
-            environment::insert_at(scene, transport, origin, images, requests, gpu);
-        volumes.push(ReflectionVolume {
-            transform: Transform::from_translation(origin)
-                .with_scale(Vec3::new(extent.x, height, extent.y)),
-            map: EnvironmentMapLight {
-                diffuse_map: diffuse,
-                specular_map: specular,
-                intensity: 1.,
-                // The probe is a child of the rotated room. Bevy composes this
-                // map rotation with GlobalTransform, so applying world_yaw
-                // here as well rotates the box and sampled radiance twice.
-                rotation: Quat::IDENTITY,
-                ..default()
-            },
-        });
+        volumes.push(
+            Transform::from_translation(origin).with_scale(Vec3::new(extent.x, height, extent.y)),
+        );
     }
     volumes
+}
+
+pub(super) fn bind(
+    transform: Transform,
+    [diffuse, specular]: [Handle<Image>; 2],
+) -> ReflectionVolume {
+    ReflectionVolume {
+        transform,
+        map: EnvironmentMapLight {
+            diffuse_map: diffuse,
+            specular_map: specular,
+            intensity: 1.,
+            // Parent already rotates the volume and sampled radiance.
+            rotation: Quat::IDENTITY,
+            ..default()
+        },
+    }
 }
 
 impl IndoorMaterials {

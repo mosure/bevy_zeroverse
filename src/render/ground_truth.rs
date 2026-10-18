@@ -31,6 +31,7 @@ use std::{
     },
 };
 
+mod deformation;
 mod extract;
 pub mod flow;
 mod skin;
@@ -204,6 +205,13 @@ pub struct GroundTruthStats {
     pub draw_batches: usize,
     pub geometry_bytes: usize,
     pub geometry_uploads: u64,
+    /// Cumulative bytes actually submitted for vertex/index data, including
+    /// partial deformation writes. Does not include instances or flow history.
+    pub geometry_uploaded_bytes: u64,
+    pub deformation_uploads: u64,
+    pub flow_pair_uploads: u64,
+    pub flow_pair_reuses: u64,
+    pub flow_uploaded_bytes: u64,
     pub instance_updates: u64,
     pub rendered_views: u64,
 }
@@ -302,6 +310,9 @@ struct Batch {
 #[derive(Resource, Default)]
 struct ExtractedGeometry {
     generation: u64,
+    /// Valid only relative to the immediately preceding extracted generation.
+    /// A renderer that missed that generation must upload the complete mesh.
+    deformation: Option<deformation::VertexUpdate>,
     vertices: Vec<Vertex>,
     indices: Vec<u32>,
     batches: Vec<Batch>,
@@ -471,25 +482,47 @@ fn prepare_geometry(
     };
     let mut stats = diagnostics.0.lock().unwrap();
     if gpu.vertices.is_none() || gpu.generation != geometry.generation {
-        gpu.vertices = Some(super::upload_buffer(
-            &device,
-            &queue,
-            &BufferInitDescriptor {
-                label: Some("ground_truth_vertices"),
-                contents: bytemuck::cast_slice(&geometry.vertices),
-                usage: BufferUsages::VERTEX,
-            },
-        ));
-        gpu.indices = Some(super::upload_buffer(
-            &device,
-            &queue,
-            &BufferInitDescriptor {
-                label: Some("ground_truth_indices"),
-                contents: bytemuck::cast_slice(&geometry.indices),
-                usage: BufferUsages::INDEX,
-            },
-        ));
-        gpu.instances = None;
+        let partial = geometry.deformation.as_ref().filter(|update| {
+            gpu.vertices.is_some()
+                && gpu.indices.is_some()
+                && update.base_generation == gpu.generation
+        });
+        if let Some(update) = partial {
+            for range in &update.ranges {
+                let bytes = bytemuck::cast_slice(&geometry.vertices[range.clone()]);
+                queue.write_buffer(
+                    gpu.vertices.as_ref().unwrap(),
+                    (range.start * std::mem::size_of::<Vertex>()) as u64,
+                    bytes,
+                );
+                stats.geometry_uploaded_bytes += bytes.len() as u64;
+            }
+            stats.deformation_uploads += u64::from(!update.ranges.is_empty());
+        } else {
+            gpu.vertices = Some(super::upload_buffer(
+                &device,
+                &queue,
+                &BufferInitDescriptor {
+                    label: Some("ground_truth_vertices"),
+                    contents: bytemuck::cast_slice(&geometry.vertices),
+                    usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
+                },
+            ));
+            gpu.indices = Some(super::upload_buffer(
+                &device,
+                &queue,
+                &BufferInitDescriptor {
+                    label: Some("ground_truth_indices"),
+                    contents: bytemuck::cast_slice(&geometry.indices),
+                    usage: BufferUsages::INDEX,
+                },
+            ));
+            gpu.instances = None;
+            stats.geometry_uploads += 1;
+            stats.geometry_uploaded_bytes +=
+                (geometry.vertices.len() * std::mem::size_of::<Vertex>()
+                    + geometry.indices.len() * std::mem::size_of::<u32>()) as u64;
+        }
         gpu.generation = geometry.generation;
         stats.generation = geometry.generation;
         stats.mesh_instances = geometry.instances.len();
@@ -498,7 +531,6 @@ fn prepare_geometry(
         stats.draw_batches = geometry.batches.len();
         stats.geometry_bytes =
             geometry.vertices.len() * std::mem::size_of::<Vertex>() + geometry.indices.len() * 4;
-        stats.geometry_uploads += 1;
     }
     let bytes = bytemuck::cast_slice(&geometry.instances);
     if gpu.instances.is_none() || gpu.instance_bytes.len() != bytes.len() {

@@ -17,6 +17,12 @@ fn ceiling_program_replays_diversifies_and_contains_every_mesh() {
         for m in &plan.modules {
             modules += 1;
             systems.insert(format!("{:?}", m.system));
+            if !plan.exposed_slab && m.system == CeilingSystem::Ventilation {
+                let roof = sampling::support_heights(&scene, m.center.xz(), m.size.xz())
+                    .into_iter()
+                    .fold(f32::INFINITY, f32::min);
+                assert!(roof - m.body_bounds().1.y <= 0.02);
+            }
             let mut a = Assembly::default();
             construction::build(&mut a, &scene, m);
             let (lo, hi) = m.bounds();
@@ -35,7 +41,7 @@ fn ceiling_program_replays_diversifies_and_contains_every_mesh() {
             }
         }
     }
-    assert_eq!(systems.len(), 11, "missing ceiling systems: {systems:?}");
+    assert_eq!(systems.len(), 13, "missing ceiling systems: {systems:?}");
     assert!(exposed > 12 && exposed < 80);
     assert!(modules > 160, "sparse ceiling sampling: {modules}");
 }
@@ -121,6 +127,8 @@ fn ceiling_shapes_have_finite_wound_faces_and_bounded_complexity() {
         CeilingSystem::OpenCell,
         CeilingSystem::Conduit,
         CeilingSystem::CableTray,
+        CeilingSystem::Coffers,
+        CeilingSystem::Ventilation,
     ];
     let mut winding_failures = Vec::new();
     for seed in 0..48 {

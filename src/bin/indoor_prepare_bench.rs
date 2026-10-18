@@ -18,6 +18,9 @@ struct Args {
     rooms: usize,
     #[arg(long, default_value_t = 4)]
     concurrent: usize,
+    /// Diagnostic worker-budget override; production defaults are unchanged.
+    #[arg(long)]
+    preparation_threads: Option<usize>,
     #[arg(long, default_value_t = 400)]
     seed: u64,
     /// Separate warm-up rooms immediately preceding the measured seed range.
@@ -113,6 +116,12 @@ fn prepare(
 }
 fn main() -> Result<()> {
     let args = Args::parse();
+    if let Some(threads) = args.preparation_threads {
+        bevy_zeroverse::scene::procedural_indoor::preparation::configure_preparation_threads(
+            threads,
+        )
+        .map_err(anyhow::Error::msg)?;
+    }
     ensure!(!args.fingerprints || args.cpu_materials,
         "fingerprints require --cpu-materials; GPU recipes have no baked texels in a CPU-only benchmark");
     ensure!(args.warmup_rooms <= 64, "warmup_rooms must be <= 64");
@@ -145,7 +154,7 @@ fn main() -> Result<()> {
     let start = Instant::now();
     let next = std::sync::atomic::AtomicUsize::new(0);
     // Bounded dynamic workers avoid a batch barrier behind one unusually slow
-    // room. Geometry/material jobs still share the production four-thread pool.
+    // room. Geometry/material/transport jobs share the bounded production pool.
     let batches = std::thread::scope(|scope| {
         let jobs: Vec<_> = (0..args.concurrent.min(args.rooms))
             .map(|_| {
@@ -176,7 +185,7 @@ fn main() -> Result<()> {
     let report = serde_json::json!({"schema_version":2,"build_provenance":bevy_zeroverse::provenance::capture_provenance(),
         "warmup_rooms":args.warmup_rooms,"warmup_seconds":warmup_seconds,"gpu_material_recipes":!args.cpu_materials,
         "config":config,"scope":"CPU preparation only; no GPU rendering/upload or tensor transfer; not rendered rooms/s",
-        "rooms":args.rooms,"concurrent":args.concurrent,"seed":args.seed,"quality":"Auto/full native",
+        "rooms":args.rooms,"concurrent":args.concurrent,"preparation_threads":args.preparation_threads,"seed":args.seed,"quality":"Auto/full native",
         "available_parallelism":std::thread::available_parallelism().map_or(1, |n| n.get()),
         "human_density":0.25,"cameras":3,"camera_aspect":1.0,
         "fingerprints_enabled":args.fingerprints,"seconds":seconds,

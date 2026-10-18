@@ -4,6 +4,7 @@ use super::super::envelope::EnvelopeProgram;
 use crate::scene::procedural_indoor::layout::{IndoorCamera, IndoorManifest};
 use bevy::prelude::*;
 use std::collections::BTreeMap;
+mod index;
 
 struct Collider {
     center: Vec3,
@@ -17,6 +18,7 @@ pub(crate) struct Coverage {
     jitter: Vec2,
     aspect: f32,
     colliders: Vec<Collider>,
+    index: Option<index::Index>,
     body_points: Vec<Vec3>,
     shell: Option<(EnvelopeProgram, Vec3, f32, f32, f32)>,
 }
@@ -60,11 +62,35 @@ impl Coverage {
             })
     }
     fn first_hit(&self, origin: Vec3, ray: Vec3) -> Option<f32> {
-        self.colliders
-            .iter()
-            .filter_map(|c| ray_box(c.inverse * (origin - c.center), c.inverse * ray, c.half))
+        self.closest_collider(origin, ray, f32::INFINITY, false)
+            .map(|(_, distance)| distance)
+            .into_iter()
             .chain(self.shell_hit(origin, ray).map(|hit| hit.0))
             .min_by(f32::total_cmp)
+    }
+
+    fn closest_collider(
+        &self,
+        origin: Vec3,
+        ray: Vec3,
+        limit: f32,
+        skip_people: bool,
+    ) -> Option<(usize, f32)> {
+        if let Some(index) = &self.index {
+            return index.closest(&self.colliders, origin, ray, limit, skip_people);
+        }
+        // The scalar oracle also keeps small test fixtures independent of the
+        // acceleration structure. Original collider order resolves equal hits.
+        self.colliders
+            .iter()
+            .enumerate()
+            .filter(|(_, c)| !skip_people || c.label != "person")
+            .filter_map(|(i, c)| {
+                ray_box(c.inverse * (origin - c.center), c.inverse * ray, c.half)
+                    .filter(|&distance| distance < limit)
+                    .map(|distance| (i, distance))
+            })
+            .min_by(|a, b| a.1.total_cmp(&b.1).then(a.0.cmp(&b.0)))
     }
 
     pub(super) fn view(&self, camera: &IndoorCamera, aspect: f32, t: f32) -> VisibilityView {
@@ -244,6 +270,7 @@ impl Coverage {
             seed: scene.seed,
             jitter: scene.camera_settings.principal_point_jitter,
             aspect: scene.camera_aspect_ratio,
+            index: Some(index::Index::new(&colliders)),
             colliders,
             body_points,
             shell: scene.envelope.clone().map(|e| {
@@ -279,18 +306,9 @@ impl Coverage {
             !self
                 .shell_hit(pose.translation, ray)
                 .is_some_and(|hit| hit.0 < distance - 0.06)
-                && !self
-                    .colliders
-                    .iter()
-                    .filter(|c| c.label != "person")
-                    .any(|c| {
-                        ray_box(
-                            c.inverse * (pose.translation - c.center),
-                            c.inverse * ray,
-                            c.half,
-                        )
-                        .is_some_and(|hit| hit < distance - 0.06)
-                    })
+                && self
+                    .closest_collider(pose.translation, ray, distance - 0.06, true)
+                    .is_none()
         })
     }
 
@@ -316,18 +334,13 @@ impl Coverage {
                             -1.0,
                         )
                         .normalize();
-                    let (mut nearest, mut label) = self
+                    let (nearest, mut label) = self
                         .shell_hit(pose.translation, ray)
                         .unwrap_or((f32::INFINITY, "background"));
-                    for c in &self.colliders {
-                        let origin = c.inverse * (pose.translation - c.center);
-                        let direction = c.inverse * ray;
-                        if let Some(distance) = ray_box(origin, direction, c.half) {
-                            if distance < nearest {
-                                nearest = distance;
-                                label = c.label;
-                            }
-                        }
+                    if let Some((index, _)) =
+                        self.closest_collider(pose.translation, ray, nearest, false)
+                    {
+                        label = self.colliders[index].label;
                     }
                     *counts.entry(label).or_insert(0usize) += 1;
                 }
@@ -382,6 +395,7 @@ mod tests {
             seed: 0,
             jitter: Vec2::ZERO,
             aspect: 1.,
+            index: None,
             colliders: vec![Collider {
                 center: point - Vec3::Z * 0.01,
                 half: Vec3::new(10.0, 10.0, 0.01),
@@ -421,6 +435,7 @@ mod tests {
             seed: 0,
             jitter: Vec2::ZERO,
             aspect: 1.,
+            index: None,
             colliders: vec![Collider {
                 center: Vec3::new(0.0, 1.0, -2.0),
                 half: Vec3::new(2.0, 2.0, 0.01),

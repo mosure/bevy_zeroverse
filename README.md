@@ -69,8 +69,9 @@ rooms, synchronized views, matching annotations, floor plans and distributions.
 - **Object scene programs:** parametric primitives, mesh deformation, rotation
   augmentation and material sampling, with Cornell cube and simple room scenes.
 - **Continuous scene programs:** polygonal footprints, cut-ins, chamfered corners,
-  sloped ceilings, arches, pillars, floor levels and mezzanines. Acoustic panels,
-  suspended ceilings, ducts, conduit, sprinklers and trusses vary overhead detail.
+  sloped and raised tray ceilings, arches, pillars, floor levels and mezzanines.
+  Acoustic panels, coffers, suspended grids, ducts, ventilation terminals, conduit,
+  sprinklers and trusses vary overhead detail.
   Windows include shaped glazing, tints, partial frosting, blinds and curtains;
   exterior streets and planting provide context beyond the glass.
 - **Functional interiors:** offices, kitchens and kitchenettes, cafes, cafeterias,
@@ -81,7 +82,9 @@ rooms, synchronized views, matching annotations, floor plans and distributions.
   task-conditioned tabletop groups, multi-monitor workspaces, coordinated wall
   galleries, 14 plant growth habits, connected equipment and fixtures. Continuous
   construction and finish programs vary furniture supports, shaped upholstery,
-  dyed yarns, timber treatments, concrete, glass and lighting. Floor finishes vary
+  dyed yarns, timber treatments, concrete, glass and lighting. Ceiling fixtures,
+  floor lamps and task lights vary their bulbs, hollow shades, articulated supports,
+  recesses and independently finished trims. Floor finishes vary
   plank/tile structure, regional wear and rugs, with floor outlets and routed cables.
   Architecture and
   furnishings need no downloaded mesh or texture catalog. Power cables follow

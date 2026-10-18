@@ -8,6 +8,12 @@
 mod assembly;
 pub(crate) use assembly::GeometryTransport;
 mod bvh;
+mod reflection_emitters;
+pub(crate) use reflection_emitters::ReflectionEmitters;
+#[cfg(not(target_arch = "wasm32"))]
+mod transport;
+#[cfg(not(target_arch = "wasm32"))]
+use transport::{TransportTree, TransportTriangle};
 #[cfg(not(target_arch = "wasm32"))]
 pub mod gpu;
 #[cfg(test)]
@@ -339,25 +345,39 @@ impl Triangle {
         )
     }
     fn hit(&self, origin: Vec3, direction: Vec3, max: f32) -> Option<(f32, Vec2)> {
-        let p = direction.cross(self.ac);
-        let det = self.ab.dot(p);
-        if det.abs() < 1e-9 {
-            return None;
-        }
-        let inverse = det.recip();
-        let t = origin - self.a;
-        let u = t.dot(p) * inverse;
-        if !(0.0..=1.0).contains(&u) {
-            return None;
-        }
-        let q = t.cross(self.ab);
-        let v = direction.dot(q) * inverse;
-        if v < 0.0 || u + v > 1.0 {
-            return None;
-        }
-        let distance = self.ac.dot(q) * inverse;
-        (distance > 0.0002 && distance < max).then_some((distance, Vec2::new(u, v)))
+        triangle_hit(self.a, self.ab, self.ac, origin, direction, max)
     }
+}
+
+// Share the exact arithmetic/tolerances between closest-hit and compact shadow
+// triangles. No changes to barycentric tests, hit distances or tie handling.
+#[inline]
+fn triangle_hit(
+    a: Vec3,
+    ab: Vec3,
+    ac: Vec3,
+    origin: Vec3,
+    direction: Vec3,
+    max: f32,
+) -> Option<(f32, Vec2)> {
+    let p = direction.cross(ac);
+    let det = ab.dot(p);
+    if det.abs() < 1e-9 {
+        return None;
+    }
+    let inverse = det.recip();
+    let t = origin - a;
+    let u = t.dot(p) * inverse;
+    if !(0.0..=1.0).contains(&u) {
+        return None;
+    }
+    let q = t.cross(ab);
+    let v = direction.dot(q) * inverse;
+    if v < 0.0 || u + v > 1.0 {
+        return None;
+    }
+    let distance = ac.dot(q) * inverse;
+    (distance > 0.0002 && distance < max).then_some((distance, Vec2::new(u, v)))
 }
 
 struct Node {
@@ -376,6 +396,62 @@ impl Node {
         let far = a.max(b).min_element().min(max);
         near <= far
     }
+}
+
+// Shared traversal keeps reflection emitters on the same scalar ray/triangle contract.
+fn trace_triangles<const CULL_BACK: bool>(
+    triangles: &[Triangle],
+    nodes: &[Node],
+    origin: Vec3,
+    direction: Vec3,
+    mut max: f32,
+    any: bool,
+) -> Option<(usize, f32, Vec2)> {
+    if nodes.is_empty() {
+        return None;
+    }
+    let inverse = direction.recip();
+    let mut stack = [0usize; 64];
+    let mut len = 1;
+    let mut result = None;
+    while len > 0 {
+        len -= 1;
+        let index = stack[len];
+        let node = &nodes[index];
+        if !node.intersects(origin, inverse, max) {
+            continue;
+        }
+        if node.count > 0 {
+            for (offset, triangle) in triangles[node.start..node.start + node.count]
+                .iter()
+                .enumerate()
+            {
+                if CULL_BACK && triangle.normal.dot(direction) >= 0.0 {
+                    continue;
+                }
+                let i = node.start + offset;
+                if let Some((distance, uv)) = triangle.hit(origin, direction, max) {
+                    if any {
+                        return Some((i, distance, uv));
+                    }
+                    max = distance;
+                    result = Some((i, distance, uv));
+                }
+            }
+        } else {
+            // Closest near hits clip traversal of the far half; shadow
+            // queries can return as soon as any occluder is encountered.
+            let (near, far) = if direction[node.axis] >= 0.0 {
+                (index + 1, node.right)
+            } else {
+                (node.right, index + 1)
+            };
+            stack[len] = far;
+            stack[len + 1] = near;
+            len += 2;
+        }
+    }
+    result
 }
 
 #[derive(Clone, Copy)]
@@ -407,50 +483,6 @@ pub struct BakeScene {
     pub bounds_max: Vec3,
     preparation_ms: f64,
     world_rotation: Quat,
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-struct TransportTree {
-    triangles: Vec<Triangle>,
-    nodes: Vec<Node>,
-    preparation_ms: f64,
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-impl TransportTree {
-    fn occluded(&self, origin: Vec3, direction: Vec3, max: f32) -> bool {
-        if self.nodes.is_empty() {
-            return false;
-        }
-        let inverse = direction.recip();
-        let mut stack = [0usize; 64];
-        let mut len = 1;
-        while len > 0 {
-            len -= 1;
-            let index = stack[len];
-            let node = &self.nodes[index];
-            if !node.intersects(origin, inverse, max) {
-                continue;
-            }
-            if node.count > 0 {
-                for triangle in &self.triangles[node.start..node.start + node.count] {
-                    if triangle.hit(origin, direction, max).is_some() {
-                        return true;
-                    }
-                }
-            } else {
-                let (near, far) = if direction[node.axis] >= 0.0 {
-                    (index + 1, node.right)
-                } else {
-                    (node.right, index + 1)
-                };
-                stack[len] = far;
-                stack[len + 1] = near;
-                len += 2;
-            }
-        }
-        false
-    }
 }
 
 fn linear(color: Color) -> Vec3 {
@@ -676,6 +708,9 @@ impl BakeScene {
     }
 
     fn build_bvh(&mut self) {
+        // Compact transport indices refer to this exact median permutation.
+        #[cfg(not(target_arch = "wasm32"))]
+        self.transport_tree.take();
         self.nodes = bvh::build_probe_tree(&mut self.triangles);
     }
 
@@ -683,51 +718,10 @@ impl BakeScene {
         &self,
         origin: Vec3,
         direction: Vec3,
-        mut max: f32,
+        max: f32,
         any: bool,
     ) -> Option<(usize, f32, Vec2)> {
-        if self.nodes.is_empty() {
-            return None;
-        }
-        let inverse = direction.recip();
-        let mut stack = [0usize; 64];
-        let mut len = 1;
-        let mut result = None;
-        while len > 0 {
-            len -= 1;
-            let index = stack[len];
-            let node = &self.nodes[index];
-            if !node.intersects(origin, inverse, max) {
-                continue;
-            }
-            if node.count > 0 {
-                for (offset, triangle) in self.triangles[node.start..node.start + node.count]
-                    .iter()
-                    .enumerate()
-                {
-                    let i = node.start + offset;
-                    if let Some((distance, uv)) = triangle.hit(origin, direction, max) {
-                        if any {
-                            return Some((i, distance, uv));
-                        }
-                        max = distance;
-                        result = Some((i, distance, uv));
-                    }
-                }
-            } else {
-                // Closest near hits clip traversal of the far half; shadow
-                // queries can return as soon as any occluder is encountered.
-                let (near, far) = if direction[node.axis] >= 0.0 {
-                    (index + 1, node.right)
-                } else {
-                    (node.right, index + 1)
-                };
-                stack[len] = far;
-                stack[len + 1] = near;
-                len += 2;
-            }
-        }
-        result
+        trace_triangles::<false>(&self.triangles, &self.nodes, origin, direction, max, any)
     }
 
     fn direct(&self, position: Vec3, normal: Vec3) -> Vec3 {

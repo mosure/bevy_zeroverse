@@ -745,15 +745,14 @@ pub fn sample_stream(
         return;
     }
 
-    // The native indoor fence proves a complete current-view render after
-    // current visibility, uploads and pipelines, rather than guessing how many
-    // identical full frames those operations require. Unsupported render paths
-    // keep their ordinary settling policy.
+    // Pin intent for the current supported render state. The render-thread gate
+    // verifies the exact scene/views and all dependencies before copying this
+    // frame; unsupported temporal paths retain ordinary settling.
     #[cfg(not(target_arch = "wasm32"))]
     if capture_status
         .settling
         .as_ref()
-        .is_some_and(|settling| settling.completed())
+        .is_some_and(|settling| settling.can_capture())
     {
         if state.warmup_frames != 0 || state.frames != 0 || !startup_delay.done {
             capture_status.settling.as_ref().unwrap().record_hit();
@@ -1008,6 +1007,10 @@ pub fn sample_stream(
                     .checked_add(1)
                     .expect("capture request overflow");
                 let id = capture.next_request;
+                #[cfg(not(target_arch = "wasm32"))]
+                if let Some(settling) = &capture_status.settling {
+                    settling.begin_capture(id);
+                }
                 for (_, _, _, _, copier) in &cameras {
                     #[cfg(not(target_arch = "wasm32"))]
                     if gpu_sink.is_some() && !copier.gpu_target_armed() {

@@ -43,7 +43,105 @@ impl EnvelopeProgram {
                 height,
             });
         }
+        self.sample_trays(scene);
     }
+
+    /// A lowered perimeter around an uncut higher field. The existing slab
+    /// union builds the returns and removes internal faces; every height query
+    /// (camera, furniture, rays and voxel export) sees the same raised section.
+    fn sample_trays(&mut self, scene: &IndoorManifest) {
+        let Some(program) = &scene.program else {
+            return;
+        };
+        let mut r = stream(scene.seed, 7593);
+        for zone in &program.zones {
+            if self.soffits.len() > 8 || !r.random_bool(0.62) {
+                continue;
+            }
+            let center = (zone.min + zone.max) * 0.5;
+            let half = (zone.max - zone.min) * r.random_range(0.24..0.38);
+            if half.min_element() < 1.0 {
+                continue;
+            }
+            let lo = center - half;
+            let hi = center + half;
+            if !self.feature_clear(scene, lo, hi, 0.25)
+                || self.soffits.iter().any(|p| p.overlaps(lo, hi))
+                || self
+                    .mezzanine
+                    .as_ref()
+                    .is_some_and(|m| m.deck.overlaps(lo, hi))
+                || self.pillars.iter().any(|p| {
+                    p.center
+                        .clamp(lo - Vec2::splat(p.radius), hi + Vec2::splat(p.radius))
+                        == p.center
+                })
+            {
+                continue;
+            }
+            let roof = [lo, hi, Vec2::new(lo.x, hi.y), Vec2::new(hi.x, lo.y)]
+                .map(|p| self.roof_height(scene.room_size, p))
+                .into_iter()
+                .fold(f32::INFINITY, f32::min);
+            let height = roof - r.random_range(0.14..0.42);
+            if height < 2.62 {
+                continue;
+            }
+            let band = half.min_element() * r.random_range(0.15..0.28);
+            // Four non-overlapping strips, with shared edges built once by the
+            // ceiling union. Continuous rim width/depth/aspect vary by zone.
+            for (min, max) in [
+                (lo, Vec2::new(hi.x, lo.y + band)),
+                (Vec2::new(lo.x, hi.y - band), hi),
+                (
+                    Vec2::new(lo.x, lo.y + band),
+                    Vec2::new(lo.x + band, hi.y - band),
+                ),
+                (
+                    Vec2::new(hi.x - band, lo.y + band),
+                    Vec2::new(hi.x, hi.y - band),
+                ),
+            ] {
+                self.soffits.push(FloorPatch { min, max, height });
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn raised_fields_have_four_connected_returns_and_match_the_roof_oracle() {
+    use crate::scene::procedural_indoor::layout::IndoorLayout;
+    let mut accepted = 0;
+    for seed in 0..64 {
+        let scene =
+            IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
+        let mut envelope = scene.envelope.clone().unwrap();
+        envelope.soffits.clear();
+        envelope.sample_trays(&scene);
+        if envelope.soffits.is_empty() {
+            continue;
+        }
+        accepted += 1;
+        envelope.validate(&scene).unwrap();
+        assert_eq!(envelope.soffits.len() % 4, 0);
+        for ring in envelope.soffits.as_chunks::<4>().0 {
+            let center = (ring[0].min + ring[1].max) * 0.5;
+            assert!(envelope.ceiling_height(scene.room_size, center) > ring[0].height + 0.13);
+            for p in ring {
+                assert_eq!(
+                    envelope.ceiling_height(scene.room_size, (p.min + p.max) * 0.5),
+                    p.height
+                );
+            }
+        }
+        // Actual slab construction is also covered by the existing ray/roof
+        // regression; this test guards the sampling topology and finite bounds.
+    }
+    assert!(
+        accepted >= 8,
+        "raised-field population too sparse: {accepted}"
+    );
 }
 
 /// Add connected, offset returns on multiple eligible exterior edges. Accepted

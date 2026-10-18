@@ -282,6 +282,8 @@ fn float32_mrt_matches_independent_ray_geometry_and_tracks_changes() {
     let config = BevyZeroverseConfig {
         scene_type: ZeroverseSceneType::ProceduralIndoor,
         initialize_scene: false,
+        // This analytic fixture supplies its own meshes and uses an empty asset root.
+        indoor_human_density: 0.0,
         headless: true,
         editor: false,
         gizmos: false,

@@ -1,4 +1,5 @@
 //! Deterministic native BVH construction; independent branches use a bounded pool.
+use super::super::TransportTriangle;
 use super::{Node, Triangle, Vec3};
 
 const BINS: usize = 16;
@@ -56,11 +57,26 @@ impl Bin {
     }
 }
 
+pub(super) fn build_shadow(triangles: &[Triangle]) -> (Vec<TransportTriangle>, Vec<Node>) {
+    let parallel = triangles.len() >= 32_768 && super::parallel_builds();
+    build_mapped(triangles, parallel, TransportTriangle::new)
+}
+
+#[cfg(test)]
 pub(super) fn build(triangles: &[Triangle]) -> (Vec<Triangle>, Vec<Node>) {
     build_with_parallelism(triangles, true)
 }
 
+#[cfg(test)]
 fn build_with_parallelism(triangles: &[Triangle], parallel: bool) -> (Vec<Triangle>, Vec<Node>) {
+    build_mapped(triangles, parallel, |_, triangle| *triangle)
+}
+
+fn build_mapped<T>(
+    triangles: &[Triangle],
+    parallel: bool,
+    map: impl Fn(usize, &Triangle) -> T,
+) -> (Vec<T>, Vec<Node>) {
     if triangles.is_empty() {
         return (Vec::new(), Vec::new());
     }
@@ -82,15 +98,39 @@ fn build_with_parallelism(triangles: &[Triangle], parallel: bool) -> (Vec<Triang
         .collect();
     let mut nodes = Vec::with_capacity(triangles.len() / 2);
     subdivide(&mut primitives, 0, 0, parallel, &mut nodes);
-    // The caller already retains the original median/probe tree. Its immutable
-    // triangles are read directly into the final SAH-owned order: no preliminary
-    // full clone or copy-back allocation is required.
-    let ordered = primitives.iter().map(|p| triangles[p.original]).collect();
+    // Material/UV/normal data stays in the median tree. Emit only the compact
+    // shadow record and its source index, directly in the final traversal order.
+    // Tests also use this path with complete triangles for the frozen oracle.
+    let ordered = primitives
+        .iter()
+        .map(|p| map(p.original, &triangles[p.original]))
+        .collect();
     (ordered, nodes)
 }
 
 fn bin(centroid: f32, lower: f32, scale: f32) -> usize {
     (((centroid - lower) * scale) as usize).min(BINS - 1)
+}
+
+/// Accumulate all active axes while each compact primitive is in cache. Every
+/// individual bin receives the same primitives in the same order as the three
+/// separate scans, so bounds, split ties and the final traversal remain exact.
+fn spatial_bins(primitives: &[Primitive], centroids: Bounds) -> ([[Bin; BINS]; 3], [f32; 3]) {
+    let extent = (centroids.hi - centroids.lo).to_array();
+    let scales = extent.map(|e| if e <= 0.0 { 0.0 } else { BINS as f32 / e });
+    let mut bins = [[Bin::EMPTY; BINS]; 3];
+    for primitive in primitives {
+        for axis in 0..3 {
+            if extent[axis] <= 0.0 {
+                continue;
+            }
+            let b =
+                &mut bins[axis][bin(primitive.centroid[axis], centroids.lo[axis], scales[axis])];
+            b.bounds = b.bounds.include(primitive.bounds);
+            b.count += 1;
+        }
+    }
+    (bins, scales)
 }
 
 fn subdivide(
@@ -125,17 +165,13 @@ fn subdivide(
     let mut best = None;
     let mut best_cost = f32::INFINITY;
     if depth < MAX_SAH_DEPTH {
+        let (axis_bins, scales) = spatial_bins(primitives, centroids);
         for axis in 0..3 {
             if extent[axis] <= 0.0 {
                 continue;
             }
-            let scale = BINS as f32 / extent[axis];
-            let mut bins = [Bin::EMPTY; BINS];
-            for p in primitives.iter() {
-                let b = &mut bins[bin(p.centroid[axis], centroids.lo[axis], scale)];
-                b.bounds = b.bounds.include(p.bounds);
-                b.count += 1;
-            }
+            let scale = scales[axis];
+            let bins = &axis_bins[axis];
             let mut suffix = [Bin::EMPTY; BINS];
             suffix[BINS - 1] = bins[BINS - 1];
             for i in (0..BINS - 1).rev() {
@@ -211,19 +247,18 @@ fn parallel_branches(
 ) -> [Vec<Node>; 2] {
     let pool = super::native_pool();
     let right_start = start + left.len();
-    let mut branches = pool.scope(|scope| {
-        for (order, primitives, offset) in [(0, left, start), (1, right, right_start)] {
-            scope.spawn(async move {
-                let mut nodes = Vec::with_capacity(primitives.len() / 2);
-                subdivide(primitives, offset, depth + 1, true, &mut nodes);
-                (order, nodes)
-            });
-        }
+    let mut left_nodes = Vec::with_capacity(left.len() / 2);
+    let mut right_nodes = pool.scope(|scope| {
+        scope.spawn(async move {
+            let mut nodes = Vec::with_capacity(right.len() / 2);
+            subdivide(right, right_start, depth + 1, true, &mut nodes);
+            nodes
+        });
+        // Work-first fork/join: retain one branch on this worker. Both branches
+        // still use the same bounded pool, with unchanged subdivision/order.
+        subdivide(left, start, depth + 1, true, &mut left_nodes);
     });
-    // Completion order must not change flattened indices or traversal order.
-    branches.sort_unstable_by_key(|(order, _)| *order);
-    let mut branches = branches.into_iter().map(|(_, nodes)| nodes);
-    [branches.next().unwrap(), branches.next().unwrap()]
+    [left_nodes, right_nodes.pop().expect("one right subtree")]
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -238,9 +273,117 @@ fn append_branch(nodes: &mut Vec<Node>, mut branch: Vec<Node>) {
 }
 
 #[cfg(test)]
+pub(super) fn build_scalar_reference(triangles: &[Triangle]) -> (Vec<Triangle>, Vec<Node>) {
+    scalar_reference::build(triangles)
+}
+
+#[cfg(test)]
+#[path = "sah/scalar_reference.rs"]
+mod scalar_reference;
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use bevy::prelude::Vec2;
+
+    fn separate_axis_bins(
+        primitives: &[Primitive],
+        centroids: Bounds,
+    ) -> ([[Bin; BINS]; 3], [f32; 3]) {
+        let extent = centroids.hi - centroids.lo;
+        let mut result = [[Bin::EMPTY; BINS]; 3];
+        let mut scales = [0.; 3];
+        for axis in 0..3 {
+            if extent[axis] <= 0.0 {
+                continue;
+            }
+            scales[axis] = BINS as f32 / extent[axis];
+            for p in primitives {
+                let b = &mut result[axis][bin(p.centroid[axis], centroids.lo[axis], scales[axis])];
+                b.bounds = b.bounds.include(p.bounds);
+                b.count += 1;
+            }
+        }
+        (result, scales)
+    }
+
+    fn bin_fixture(count: usize, coincident: bool) -> (Vec<Primitive>, Bounds) {
+        let primitives: Vec<_> = fixture(count, coincident)
+            .into_iter()
+            .enumerate()
+            .map(|(original, triangle)| {
+                let (lo, hi) = triangle.bounds();
+                Primitive {
+                    bounds: Bounds { lo, hi },
+                    centroid: triangle.a + (triangle.ab + triangle.ac) / 3.,
+                    original,
+                }
+            })
+            .collect();
+        let centroids = primitives.iter().fold(Bounds::EMPTY, |bounds, p| {
+            bounds.include(Bounds {
+                lo: p.centroid,
+                hi: p.centroid,
+            })
+        });
+        (primitives, centroids)
+    }
+
+    #[test]
+    fn spatial_bins_match_separate_axis_float_bits_and_counts() {
+        for count in [0, 1, 8, 257, 40_000] {
+            for coincident in [false, true] {
+                let (primitives, centroids) = bin_fixture(count, coincident);
+                let (expected, scales) = separate_axis_bins(&primitives, centroids);
+                let (actual, actual_scales) = spatial_bins(&primitives, centroids);
+                assert_eq!(scales.map(f32::to_bits), actual_scales.map(f32::to_bits));
+                for (expected, actual) in expected.iter().flatten().zip(actual.iter().flatten()) {
+                    assert_eq!(expected.count, actual.count);
+                    assert_eq!(
+                        expected.bounds.lo.to_array().map(f32::to_bits),
+                        actual.bounds.lo.to_array().map(f32::to_bits)
+                    );
+                    assert_eq!(
+                        expected.bounds.hi.to_array().map(f32::to_bits),
+                        actual.bounds.hi.to_array().map(f32::to_bits)
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    #[ignore = "bounded CPU binning microbenchmark; not completed rendering throughput"]
+    fn benchmark_spatial_bins() {
+        use std::{hint::black_box, time::Instant};
+        let (primitives, centroids) = bin_fixture(300_000, false);
+        let mut times = [Vec::new(), Vec::new()];
+        for repeat in 0..6 {
+            for candidate in if repeat % 2 == 0 {
+                [false, true]
+            } else {
+                [true, false]
+            } {
+                let started = Instant::now();
+                for _ in 0..8 {
+                    black_box(if candidate {
+                        spatial_bins(black_box(&primitives), black_box(centroids))
+                    } else {
+                        separate_axis_bins(black_box(&primitives), black_box(centroids))
+                    });
+                }
+                times[usize::from(candidate)].push(started.elapsed().as_secs_f64());
+            }
+        }
+        for sample in &mut times {
+            sample.sort_by(f64::total_cmp);
+        }
+        let median = |values: &[f64]| (values[2] + values[3]) * 0.5;
+        eprintln!(
+            "{}",
+            serde_json::json!({"kernel":"spatial_bins","triangles":primitives.len(),"scans_per_repeat":8,"repeats":6,"reference_median_seconds":median(&times[0]),"candidate_median_seconds":median(&times[1]),"speedup":median(&times[0])/median(&times[1]),"scope":"CPU spatial binning only, not complete tree or rendering"})
+        );
+    }
 
     // Pre-optimization ownership path, retained independently as an exact
     // oracle. Tree splitting is unchanged; this models its old clone, ordered
@@ -334,6 +477,21 @@ mod tests {
                 (a.start, a.count, a.right, a.axis),
                 (b.start, b.count, b.right, b.axis)
             );
+        }
+    }
+
+    #[test]
+    fn work_first_subtrees_preserve_reference_tree_and_triangle_bits() {
+        for count in [0, 1, 8, 9, 257, 32_769, 80_003] {
+            for coincident in [false, true] {
+                let input = fixture(count, coincident);
+                let expected = scalar_reference::build(&input);
+                for parallel in [false, true] {
+                    let actual = build_with_parallelism(&input, parallel);
+                    assert_exact_triangles(&expected.0, &actual.0);
+                    assert_exact_nodes(&expected.1, &actual.1);
+                }
+            }
         }
     }
 

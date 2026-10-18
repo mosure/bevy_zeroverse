@@ -63,11 +63,20 @@ fn fixture(count: usize, pattern: usize) -> Vec<Triangle> {
             let a = match pattern {
                 1 => Vec3::new(value(7), value(853), value(101) * 1e-6),
                 2 => Vec3::new((i % 3) as f32, 0., 0.),
+                3 => Vec3::ZERO,
                 _ => Vec3::new(value(7), value(853), value(101)),
             };
             Triangle {
                 a,
-                ab: Vec3::new(0.02 + (i % 13) as f32 * 0.001, 0., 0.),
+                ab: Vec3::new(
+                    0.02 + if pattern == 3 {
+                        0.
+                    } else {
+                        (i % 13) as f32 * 0.001
+                    },
+                    0.,
+                    0.,
+                ),
                 ac: Vec3::new(0., 0.04, 0.0001),
                 uv: [Vec2::ZERO, Vec2::X, Vec2::new(value(3000), value(7000))],
                 normal: Vec3::new(-0., 0., if i % 2 == 0 { 1. } else { -1. }),
@@ -130,8 +139,10 @@ fn exact_node_capacity_matches_independent_recursive_leaf_counts() {
 
 #[test]
 fn preallocated_parallel_probe_tree_matches_original_order_and_float_bits() {
-    for pattern in 0..3 {
-        for count in [0, 1, 8, 9, 15, 16, 17, 31, 32, 33, 4097, 65_536, 131_079] {
+    for pattern in 0..4 {
+        for count in [
+            0, 1, 8, 9, 15, 16, 17, 31, 32, 33, 127, 255, 256, 257, 4097, 65_536, 131_079,
+        ] {
             let original = fixture(count, pattern);
             let mut reference = original.clone();
             let reference_nodes = legacy(&mut reference);

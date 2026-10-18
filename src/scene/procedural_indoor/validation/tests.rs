@@ -388,12 +388,16 @@ fn reported_seed_46839170_validates_across_view_and_population_settings() {
 #[test]
 fn reported_capture_rejections_have_typed_sources_and_integrity_stays_fatal() {
     use crate::sample::failure::{CaptureError, SceneRejectionKind};
+    // The former elevator fixture is now recovered by rotated bank placement.
+    // Retain a genuinely missing kitchen anchor for the rejection contract.
     let mut scene =
-        IndoorManifest::generate_with_humans(62_231_318, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
+        IndoorManifest::generate_with_humans(62_762_988, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
     assert!(
         matches!(super::validate_prepared_layout(&scene), Err(CaptureError::Rejected { rejection, retired: false }) if rejection.kind == SceneRejectionKind::MissingProgramAnchor)
     );
-    let mut corrupt = scene.clone();
+    let mut corrupt =
+        IndoorManifest::generate_with_humans(62_231_318, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
+    super::validate_prepared_layout(&corrupt).unwrap();
     corrupt.assembly_diagnostics.programs[0]
         .members
         .push(usize::MAX);

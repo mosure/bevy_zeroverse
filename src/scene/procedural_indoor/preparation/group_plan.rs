@@ -561,11 +561,29 @@ mod tests {
 /// tags never split its box. Blank arch frames do not masquerade as door leaves.
 fn architectural_instance(label: &str) -> Option<(String, SemanticLabel)> {
     if label.starts_with("lamp#") {
-        return Some((label.to_owned(), SemanticLabel::Lamp));
+        return Some((
+            label.split('#').take(2).collect::<Vec<_>>().join("#"),
+            SemanticLabel::Lamp,
+        ));
     }
     if label.starts_with("door#portal") && !label.contains("#finish") {
         return Some((label.to_owned(), SemanticLabel::Door));
     }
     let portal = label.split('#').find(|s| s.starts_with("portal"))?;
     Some((format!("door#{portal}"), SemanticLabel::Door))
+}
+
+#[cfg(test)]
+#[test]
+fn lamp_trim_and_emitter_share_one_annotation_instance() {
+    for label in ["lamp#2", "lamp#2#finish7", "lamp#2#finish11"] {
+        assert_eq!(
+            architectural_instance(label),
+            Some(("lamp#2".into(), SemanticLabel::Lamp))
+        );
+    }
+    assert_ne!(
+        architectural_instance("lamp#2"),
+        architectural_instance("lamp#3#finish7")
+    );
 }

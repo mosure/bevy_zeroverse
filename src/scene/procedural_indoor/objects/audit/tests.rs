@@ -65,6 +65,8 @@ fn expanded_objects_replay_and_fit_metric_size_extremes() {
         Notebook,
         Books,
         FloorLamp,
+        DeskLamp,
+        CeilingPendant,
         StorageBox,
         Printer,
         CoatRack,

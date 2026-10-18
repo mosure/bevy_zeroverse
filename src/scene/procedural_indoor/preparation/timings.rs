@@ -16,6 +16,8 @@ pub struct PreparationTimings {
     pub material_transport_mesh_seconds: f64,
     pub gi_setup_seconds: f64,
     pub transport_seconds: f64,
+    /// Disjoint transport stages; service intervals can overlap mesh/material work.
+    pub transport_work: TransportTimings,
     pub environment_seconds: f64,
     pub gpu_gi_setup_seconds: f64,
     pub geometry_seconds: f64,
@@ -25,6 +27,15 @@ pub struct PreparationTimings {
     pub asset_insertion_seconds: f64,
     pub wall: PreparationWall,
     pub geometry_jobs: GeometryJobs,
+}
+
+#[derive(Debug, Default, Clone, Serialize)]
+pub struct TransportTimings {
+    pub emission_seconds: f64,
+    pub probe_tree_seconds: f64,
+    pub shadow_tree_seconds: f64,
+    pub triangles: usize,
+    pub probe_nodes: usize,
 }
 
 /// Non-overlapping monotonic wall intervals in execution order. Includes pool

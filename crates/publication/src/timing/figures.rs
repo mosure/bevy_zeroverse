@@ -62,8 +62,8 @@ pub(super) fn write(output: &Path, receipt: &Value) -> Result<()> {
         820.,
         280.,
         650.,
-        "Transport → group plan → parallel meshes",
-        "Shared triangles, BVH, mesh attributes and tangents",
+        "Triangle emission → trees | meshes",
+        "Parallel tree construction and mesh/tangent realization",
         "#e3e3f7",
     );
     arrow(&mut svg, (1295., 211.), (1140., 277.));
@@ -96,7 +96,7 @@ pub(super) fn write(output: &Path, receipt: &Value) -> Result<()> {
         578.,
         455.,
         "Explicit readiness gates",
-        "Assets, pipelines, lighting, motion, settle",
+        "Assets, lighting, motion, current-view token",
         "#e8e2f2",
     );
     box_text(

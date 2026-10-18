@@ -117,12 +117,12 @@ fn main() -> Result<()> {
                 entries.push((scene.clone(), module.clone()));
             }
         }
-        if selected.len() == 11 && selected.values().all(|v| v.len() == 2) {
+        if selected.len() == 13 && selected.values().all(|v| v.len() == 2) {
             break;
         }
     }
     ensure!(
-        selected.len() == 11 && selected.values().all(|v| v.len() == 2),
+        selected.len() == 13 && selected.values().all(|v| v.len() == 2),
         "missing ceiling types"
     );
     let cases: Vec<_> = selected.into_values().flatten().collect();

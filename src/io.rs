@@ -608,6 +608,15 @@ pub mod image_copy {
                 .init_resource::<ImageCopiers>()
                 .init_resource::<readiness::ExpectedAssets>();
             render_app.add_systems(Render, readiness::update.in_set(RenderSystems::Cleanup));
+            // Capture intent can consume the first qualified render. Check
+            // dependencies discovered by this render before accepting any copy.
+            render_app.add_systems(
+                RenderGraph,
+                readiness::update
+                    .after(bevy::core_pipeline::schedule::camera_driver)
+                    .before(ImageCopyLabel)
+                    .in_set(RenderGraphSystems::Render),
+            );
             render_app.add_systems(
                 Render,
                 map_submitted
@@ -689,6 +698,29 @@ pub mod image_copy {
         let diagnostics = context.diagnostic_recorder();
         let diagnostics = diagnostics.as_deref();
         let mut copy_span = None;
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Some((id, count, qualified)) = crate::sample::render_settling::guarded_request(world)
+        {
+            // Never retire a subset of the pinned views. A missing GT/SSAA
+            // attachment must keep every camera active for the retry frame.
+            if !qualified
+                || copiers.0.len() != count
+                || copiers.0.iter().any(|extracted| {
+                    extracted.copier.requested_id() != id
+                        || extracted.ssaa.as_ref().is_some_and(|ssaa| !ssaa.ready(id))
+                        || extracted.ground_truth.as_ref().is_some_and(|gt| {
+                            gt.rendered_frame() != Some(id) || gt.failure().is_some()
+                        })
+                        || extracted
+                            .copier
+                            .sources
+                            .iter()
+                            .any(|source| images.get(source).is_none())
+                })
+            {
+                return;
+            }
+        }
         for extracted in &copiers.0 {
             let copier = &extracted.copier;
             let id = copier.requested_id();

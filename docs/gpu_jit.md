@@ -112,10 +112,16 @@ programs and their coupled normal/roughness mip chains onto the existing render
 device. Its qualification tool includes actual concurrent Burn training.
 
 Native room preparation already overlaps bounded future rooms and parallelizes
-geometry, material maps and tangents. Lighting trees have a separate bounded
-pool. Increasing thread counts alone can slow full captures; CPU-stage timing
+geometry, material maps, tangents and lighting trees on one bounded pool.
+Increasing thread counts alone can slow full captures; CPU-stage timing
 and completed tensor throughput must be measured separately. WASM keeps its
 cooperative serial path. Scene quality and GPU readiness checks remain intact.
+
+Primitive construction reuses fixed sphere topology and angular inputs without
+changing tessellation, normals, UVs or final tangent generation. Native shadow-tree
+construction bins all spatial axes in one pass with unchanged split ordering.
+These shared preparation optimizations apply to CPU, WGPU and CUDA capture through
+the ordinary APIs; they add no consumer configuration or queued-room residency.
 
 To isolate preparation from GPU rendering, uploads and tensor transport:
 
@@ -133,6 +139,32 @@ stages overlap and must not be added as exclusive CPU work. The normal JIT path
 also emits per-seed preparation timings when
 `RUST_LOG=bevy_zeroverse::preparation=debug` is enabled, without changing dataset
 metadata.
+
+`rooms.last_capture_timings()` returns `GpuCaptureTimings` for the last sample
+received by that caller. The queued future sample never overwrites these
+measurements. They stay outside deterministic scene metadata. The benchmark
+above exports them under `producer_timings`:
+
+- Sequence reset, target allocation/binding, application updates, interop
+  completion and tensor packing are separate CPU wall intervals.
+- CUDA additionally reports tensor allocation, its existing allocation fence,
+  release/copy enqueue, transfer-stream fence and reacquisition/retirement.
+- Captured storage bytes and annotation geometry/flow upload counters expose
+  transfer volume; padding is included. These are not PCIe traffic counters.
+
+Reading the timings adds no GPU synchronization or image readback. WGPU's
+producer duration ends after submission, whereas CUDA includes its existing
+transfer fence. Compare completed consumer/training work for throughput; do not
+add asynchronous preparation, rendering and consumer intervals together.
+
+Temporal annotations preserve static geometry across skin-pose updates. Only
+changed vertex spans are uploaded; mesh/topology changes and missed generations
+retain full extraction and validation. Optical flow reuses stationary surface
+correspondence while still updating camera projection, target depth and
+occlusion. A moving-to-stationary transition constructs a fresh correspondence
+pair before reuse. These optimizations preserve vertex bits, triangle order,
+semantic attachments and capture-time flow; they introduce no render-quality
+setting or additional scene residency.
 
 The [earlier WGPU qualification receipt](qualification/jit_transport.json) records
 matched 64-room runs for generator 30, hardware, quality and timing variation. One controlled

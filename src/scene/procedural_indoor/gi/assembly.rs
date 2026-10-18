@@ -17,6 +17,31 @@ enum MaterialKey {
 pub(crate) struct GeometryTransport {
     scene: BakeScene,
     keys: Vec<MaterialKey>,
+    pub(crate) timings: super::super::preparation::TransportTimings,
+}
+
+/// Owns emitted triangles only. Releasing the assembly borrow lets tangent/mesh
+/// realization proceed while the spatial trees are built, without scene clones.
+pub(crate) struct GeometryInput(GeometryTransport);
+
+impl GeometryInput {
+    pub(crate) fn finish(self, gpu_transport: bool) -> GeometryTransport {
+        let mut result = self.0;
+        let started = Instant::now();
+        result.scene.build_bvh();
+        result.timings.probe_tree_seconds = started.elapsed().as_secs_f64();
+        result.timings.probe_nodes = result.scene.nodes.len();
+        result.scene.preparation_ms += result.timings.probe_tree_seconds * 1000.;
+        #[cfg(not(target_arch = "wasm32"))]
+        if gpu_transport {
+            let started = Instant::now();
+            result.scene.prepare_gpu_transport();
+            result.timings.shadow_tree_seconds = started.elapsed().as_secs_f64();
+        }
+        #[cfg(target_arch = "wasm32")]
+        let _ = gpu_transport;
+        result
+    }
 }
 
 impl GeometryTransport {
@@ -26,6 +51,14 @@ impl GeometryTransport {
         geometry: &super::super::preparation::SceneGeometry,
         gpu_transport: bool,
     ) -> Self {
+        Self::emit(scene, moving_humans, geometry).finish(gpu_transport)
+    }
+
+    pub(crate) fn emit(
+        scene: &IndoorManifest,
+        moving_humans: &[usize],
+        geometry: &super::super::preparation::SceneGeometry,
+    ) -> GeometryInput {
         let started = Instant::now();
         let mut result = Self {
             scene: BakeScene {
@@ -55,6 +88,7 @@ impl GeometryTransport {
                 .into_iter()
                 .map(MaterialKey::Surface)
                 .collect(),
+            timings: default(),
         };
         let mut symbols: BTreeMap<_, _> = result
             .keys
@@ -93,7 +127,7 @@ impl GeometryTransport {
             let (c, lumens) = architecture::fixture_photometry(scene, i);
             let (inner, outer) = architecture::fixture_angles(scene, i);
             result.scene.lights.push(LocalLight {
-                position: p - Vec3::Y * 0.06,
+                position: architecture::fixtures::emitter(scene, p),
                 color: linear(Color::srgb(c.x, c.y, c.z)),
                 candela: architecture::spot_intensity_for_lumens(lumens, inner, outer) / (4.0 * PI),
                 range: 13.0,
@@ -135,15 +169,10 @@ impl GeometryTransport {
                 outer_cos: outer.cos(),
             });
         }
-        result.scene.build_bvh();
-        result.scene.preparation_ms = started.elapsed().as_secs_f64() * 1000.0;
-        #[cfg(not(target_arch = "wasm32"))]
-        if gpu_transport {
-            result.scene.prepare_gpu_transport();
-        }
-        #[cfg(target_arch = "wasm32")]
-        let _ = gpu_transport;
-        result
+        result.timings.emission_seconds = started.elapsed().as_secs_f64();
+        result.timings.triangles = result.scene.triangles.len();
+        result.scene.preparation_ms = result.timings.emission_seconds * 1000.;
+        GeometryInput(result)
     }
 
     fn add_assembly(
@@ -274,16 +303,10 @@ impl GeometryTransport {
                 }
             })
             .collect();
-        // Partitioning never reads material indices. Bind both final orders in
-        // place; neither tree, geometry attributes nor traversal changes.
+        // The shadow tree refers back to this final median order. Bind attributes
+        // once: its compact geometry needs no material remap or duplicate scan.
         for triangle in &mut self.scene.triangles {
             triangle.material = remap[triangle.material];
-        }
-        #[cfg(not(target_arch = "wasm32"))]
-        if let Some(transport) = self.scene.transport_tree.get_mut() {
-            for triangle in &mut transport.triangles {
-                triangle.material = remap[triangle.material];
-            }
         }
         self.scene.preparation_ms += started.elapsed().as_secs_f64() * 1000.0;
         self.scene

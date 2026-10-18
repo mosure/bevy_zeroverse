@@ -144,7 +144,7 @@ fn original_from_geometry(
         let (c, lumens) = architecture::fixture_photometry(scene, i);
         let (inner, outer) = architecture::fixture_angles(scene, i);
         result.lights.push(LocalLight {
-            position: p - Vec3::Y * 0.06,
+            position: architecture::fixtures::emitter(scene, p),
             color: linear(Color::srgb(c.x, c.y, c.z)),
             candela: architecture::spot_intensity_for_lumens(lumens, inner, outer) / (4.0 * PI),
             range: 13.0,
@@ -394,10 +394,13 @@ fn same_scene(a: &BakeScene, b: &BakeScene) {
     }
     #[cfg(not(target_arch = "wasm32"))]
     {
-        let a = a.gpu_transport();
-        let b = b.gpu_transport();
-        same_triangles(&a.triangles, &b.triangles);
-        same_nodes(&a.nodes, &b.nodes);
+        let a_tree = a.gpu_transport();
+        let b_tree = b.gpu_transport();
+        same_triangles(
+            &a_tree.surfaces(a).copied().collect::<Vec<_>>(),
+            &b_tree.surfaces(b).copied().collect::<Vec<_>>(),
+        );
+        same_nodes(&a_tree.nodes, &b_tree.nodes);
     }
 }
 
@@ -645,6 +648,38 @@ fn preparation_scope_nested_jobs_preserve_order_and_join() {
     for (stage, jobs) in ready.into_iter().enumerate() {
         for (job, actual) in jobs.into_iter().enumerate() {
             assert_eq!(actual, (stage, job, job * job + stage));
+        }
+    }
+}
+
+#[test]
+fn complete_room_probe_trees_preserve_scalar_reference() {
+    for seed in [600, 602] {
+        let mut scene =
+            IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 0, 0.25).unwrap();
+        scene
+            .resample_cameras_typed(3, Default::default(), 1.0)
+            .unwrap();
+        let (geometry, _) = bevy::tasks::block_on(SceneGeometry::build(&scene));
+        let input = GeometryTransport::emit(&scene, &[], &geometry);
+        let mut reference = input.0.scene.triangles.clone();
+        let expected_nodes = original_median(&mut reference);
+        let actual = input.finish(true);
+        eprintln!(
+            "complete transport oracle seed={seed} triangles={}",
+            reference.len()
+        );
+        same_triangles(&reference, &actual.scene.triangles);
+        same_nodes(&expected_nodes, &actual.scene.nodes);
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let expected = super::super::bvh::build_transport_scalar_reference(&reference);
+            let tree = actual.scene.gpu_transport();
+            same_triangles(
+                &expected.0,
+                &tree.surfaces(&actual.scene).copied().collect::<Vec<_>>(),
+            );
+            same_nodes(&expected.1, &tree.nodes);
         }
     }
 }

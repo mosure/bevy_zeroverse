@@ -107,6 +107,15 @@ fn validate_run(run: &Value, identity: &GeneratorIdentity) -> Result<()> {
         ] {
             number(&row["preparation_stages"][key])?;
         }
+        if !row["preparation_stages"]["transport_work"].is_null() {
+            for key in [
+                "emission_seconds",
+                "probe_tree_seconds",
+                "shadow_tree_seconds",
+            ] {
+                number(&row["preparation_stages"]["transport_work"][key])?;
+            }
+        }
         if !prepare {
             number(&row["elapsed_seconds"])?;
         }
@@ -393,6 +402,19 @@ mod tests {
         let mut bad = run;
         bad["summary"]["config"]["indoor_quality"] = json!("Portable");
         assert!(validate_run(&bad, &identity).is_err());
+    }
+    #[test]
+    fn transport_breakdown_rejects_missing_or_negative_stages() {
+        let (identity, mut run) = fixture();
+        run["records"][0]["preparation_stages"]["transport_work"] = json!({
+            "emission_seconds":0.01,"probe_tree_seconds":0.1,"shadow_tree_seconds":0.2
+        });
+        validate_run(&run, &identity).unwrap();
+        run["records"][0]["preparation_stages"]["transport_work"]["probe_tree_seconds"] =
+            json!(-1.);
+        assert!(validate_run(&run, &identity).is_err());
+        run["records"][0]["preparation_stages"]["transport_work"] = json!({});
+        assert!(validate_run(&run, &identity).is_err());
     }
     #[test]
     fn statistics_verify_after_json_roundtrip_but_reject_modified_values() {

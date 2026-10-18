@@ -30,6 +30,8 @@ use std::{
 
 #[cfg(all(feature = "cuda_interop", target_os = "linux"))]
 mod cuda;
+mod diagnostics;
+pub use diagnostics::{CudaTransferTimings, GpuCaptureTimings};
 
 #[derive(Clone, Copy)]
 enum Transport {
@@ -83,6 +85,7 @@ struct Renderer {
     queued_seed: Option<u64>,
     next_token: u64,
     tensors: HashMap<u64, Tensor<4>>,
+    last_capture_timings: Option<GpuCaptureTimings>,
     #[cfg(all(feature = "cuda_interop", target_os = "linux"))]
     cuda: Option<cuda::Bridge>,
 }
@@ -174,6 +177,7 @@ impl Renderer {
             config,
             next_token: 0,
             tensors: HashMap::new(),
+            last_capture_timings: None,
             #[cfg(all(feature = "cuda_interop", target_os = "linux"))]
             cuda,
         })
@@ -186,6 +190,13 @@ impl Renderer {
         self.capture(seed, true)
     }
     fn capture(&mut self, seed: u64, reset_sequence: bool) -> Result<GpuSample> {
+        self.last_capture_timings = None;
+        let producer_started = Instant::now();
+        let geometry_before = self
+            .app
+            .world()
+            .resource::<bevy_zeroverse::render::ground_truth::GroundTruthDiagnostics>()
+            .snapshot();
         #[cfg(all(feature = "cuda_interop", target_os = "linux"))]
         if let Some(bridge) = &self.cuda {
             bridge.begin_capture()?;
@@ -193,11 +204,13 @@ impl Renderer {
         self.tensors.clear();
         *self.app.world_mut().resource_mut::<GpuSampleSink>() = GpuSampleSink::default();
         self.app.world_mut().resource_mut::<CaptureFailure>().0 = None;
+        let reset_started = Instant::now();
         if reset_sequence {
             procedural_indoor::reset_indoor_sequence(self.app.world_mut(), seed);
             self.app.world_mut().write_message(RegenerateSceneEvent);
             self.app.update();
         }
+        let sequence_reset_seconds = reset_started.elapsed().as_secs_f64();
         let mut sampler = SamplerState::from_config(&self.config);
         // Preserve the continuous sequence so complete future-room uploads and
         // lighting preparation can overlap capture, just like the CPU transport.
@@ -273,10 +286,14 @@ impl Renderer {
         }
         bevy::log::debug!(target: "bevy_zeroverse_burn::gpu", seed, updates, target_binding_seconds, app_update_seconds, waiting_updates = self.app.world().resource::<bevy_zeroverse::sample::CaptureProgress>().waiting_updates - waiting_before, seconds = start.elapsed().as_secs_f64(), "GPU capture submitted");
         let mut sink = std::mem::take(&mut *self.app.world_mut().resource_mut::<GpuSampleSink>());
+        let interop_started = Instant::now();
         #[cfg(all(feature = "cuda_interop", target_os = "linux"))]
         if let Some(bridge) = &mut self.cuda {
             self.tensors = bridge.finish(sink.images.iter().map(|(_, p)| p.target.token))?;
         }
+        let interop_finish_seconds = interop_started.elapsed().as_secs_f64();
+        let tensor_pack_started = Instant::now();
+        let captured_storage_bytes = sink.images.iter().map(|(_, p)| p.target.byte_len).sum();
         let mut metadata = sink
             .metadata
             .take()
@@ -367,6 +384,43 @@ impl Renderer {
         }
         self.tensors.clear();
         self.queued_seed = seed.checked_add(1);
+        let tensor_pack_seconds = tensor_pack_started.elapsed().as_secs_f64();
+        let geometry_after = self
+            .app
+            .world()
+            .resource::<bevy_zeroverse::render::ground_truth::GroundTruthDiagnostics>()
+            .snapshot();
+        #[cfg(all(feature = "cuda_interop", target_os = "linux"))]
+        let cuda = self.cuda.as_ref().map(|bridge| bridge.last_timings.clone());
+        #[cfg(not(all(feature = "cuda_interop", target_os = "linux")))]
+        let cuda = None;
+        self.last_capture_timings = Some(GpuCaptureTimings {
+            seed,
+            views: views.len(),
+            updates,
+            waiting_updates: self
+                .app
+                .world()
+                .resource::<bevy_zeroverse::sample::CaptureProgress>()
+                .waiting_updates
+                - waiting_before,
+            sequence_reset_seconds,
+            target_binding_seconds,
+            app_update_seconds,
+            interop_finish_seconds,
+            tensor_pack_seconds,
+            producer_seconds: producer_started.elapsed().as_secs_f64(),
+            captured_storage_bytes,
+            geometry_uploaded_bytes: geometry_after.geometry_uploaded_bytes
+                - geometry_before.geometry_uploaded_bytes,
+            geometry_uploads: geometry_after.geometry_uploads - geometry_before.geometry_uploads,
+            deformation_uploads: geometry_after.deformation_uploads
+                - geometry_before.deformation_uploads,
+            flow_uploaded_bytes: geometry_after.flow_uploaded_bytes
+                - geometry_before.flow_uploaded_bytes,
+            flow_pair_reuses: geometry_after.flow_pair_reuses - geometry_before.flow_pair_reuses,
+            cuda,
+        });
         Ok(GpuSample { metadata, views })
     }
 }
@@ -796,11 +850,21 @@ mod tests {
         };
         let retained = dataset.next_sample()?;
         assert_eq!(retained.metadata.indoor.as_ref().unwrap().seed, 6);
+        let first_timings = dataset.last_capture_timings().unwrap().clone();
+        assert_eq!(first_timings.seed, 6);
+        assert_eq!(first_timings.views, retained.views.len());
+        assert_eq!(first_timings.captured_storage_bytes, 3 * 3 * 128 * 128 * 16);
+        assert!(first_timings.producer_seconds.is_finite() && first_timings.producer_seconds > 0.);
         let before = values(retained.views[0].color.clone());
         let sample = dataset.next_sample()?;
         assert_eq!(sample.metadata.indoor.as_ref().unwrap().seed, 7);
         let indexed = dataset.sample_seed(19)?;
         assert_eq!(indexed.metadata.indoor.as_ref().unwrap().seed, 19);
+        assert_eq!(dataset.last_capture_timings().unwrap().seed, 19);
+        assert_eq!(
+            first_timings.seed, 6,
+            "lookahead never overwrites received diagnostics"
+        );
         for seed in 8..11 {
             let sample = dataset.next_sample()?;
             assert_eq!(sample.metadata.indoor.as_ref().unwrap().seed, seed);

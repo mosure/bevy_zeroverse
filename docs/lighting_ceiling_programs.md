@@ -1,0 +1,19 @@
+# Lighting and ceiling construction
+
+Indoor luminaires sample a coordinated room program (`architecture::fixtures::parameters`) with panel, louver, recessed downlight, drum, ring and twin-tube construction. Continuous depth, trim width, aperture, louver pitch, array spacing and the existing fixture footprint determine the geometry. Recessed downlights have open reflector cups and close ceiling mounts. They are closed fixtures below the structural slab, not holes through the weather envelope. Metal, chrome, paint and timber trim reuse the bounded PBR finish pool.
+
+Direct lighting and diffuse transport use the same emitter location. Ceiling source radiance uses the sampled emitting area; the existing circuit flux, exposure and color-temperature controls remain in effect. A round array shares one finite-radius spot approximation, so this adds geometry without multiplying shadow lights. It is not a measured IES or area-light transport model.
+
+Floor lamps and pendants share hollow cone, drum, bell, folded-cloth and wire-cage shade construction. Separate sockets, screw rings, bulb envelopes, rolled rims, connected supports and independently sampled finishes retain lamp semantics. Floor supports include bases, timber tripods, metal legs and curved stems. Task lamps combine articulated or curved arms with LED bars, pucks, reflectors and table shades. Their head radius is fitted to the sampled arm reach and original placement envelope.
+
+Ceiling installations include recessed coffers and round/rectangular ventilation terminals alongside acoustic clouds, baffles, timber slats, suspended tiles, open cells, trusses, ducts, sprinklers, conduit and cable trays. Coffers have raised backing fields, separate returns and shadow reveals. Ventilation terminals have plenum housings and geometric angled/concentric louvers and connected duct necks. Concealed terminals mount close to the ceiling; exposed service installations retain variable suspension depth. All use the existing headroom, roof, structural, fixture and mutual-clearance reservations. Installation count remains capped at 96 modules; local grid subdivisions are bounded.
+
+At the room-envelope level, a tray ceiling samples a raised central field surrounded by four lowered returns. These are recorded as non-overlapping ceiling support patches and constructed through the existing slab union. Camera clearance, supported placement, depth/normal rays and voxel export consume that same shape. Open regions between partial ceiling modules expose the existing service installations.
+
+The generator/capture identities change with these construction programs. Ceiling fixture material tags retain one lamp bounding-box identity. Coverage reports export luminaire shape, body depth, emitting area and the sampled program; object audits expose the task-lamp and shade controls. Existing ceiling installation metadata includes the new coffer and diffuser parameters.
+
+## Local review and qualification
+
+`cargo run --example review_luminaires -- <new-output-directory>` produces RGB, depth, normal and semantic studio views of the production geometry/materials, plus a machine-readable source and program receipt. `review_ceilings` also covers all thirteen ceiling installation systems. Review views are diagnostic lighting setups, not claims of photographic realism or room-generation throughput.
+
+CPU tests cover seeded replay, material/shape coverage, triangle winding, finite attributes, placement envelopes, fixture/emitter alignment, shared annotation identity, connected tray returns and roof support consistency. Full room geometry audits and representative renders should accompany releases that change these programs. Counts, mesh budgets and test receipts are local qualification evidence; they do not imply an unmeasured effective dataset size.

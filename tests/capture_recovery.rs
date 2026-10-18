@@ -97,7 +97,7 @@ fn rejected_rooms_retire_and_valid_successors_replay_in_one_renderer() {
     assert!((1..=128).contains(&cycles));
     for cycle in 0..cycles {
         for (seed, kind) in [
-            (62_231_318, SceneRejectionKind::MissingProgramAnchor),
+            (62_762_988, SceneRejectionKind::MissingProgramAnchor),
             (62_236_796, SceneRejectionKind::CameraPlacement),
         ] {
             let started = Instant::now();

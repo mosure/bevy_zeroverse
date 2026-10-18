@@ -166,8 +166,10 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
         MobileCart | DrawerUnit | Bench | Ottoman | RoomDivider => {
             serde_json::json!(services::parameters(o))
         }
-        DeskLamp | Speaker | Headphones | Stapler | TapeDispenser | DocumentTray
-        | DeskOrganizer | DeskFan => serde_json::json!(accessories::parameters(o)),
+        DeskLamp => return serde_json::json!(accessories::lamp_parameters(o)),
+        Speaker | Headphones | Stapler | TapeDispenser | DocumentTray | DeskOrganizer | DeskFan => {
+            serde_json::json!(accessories::parameters(o))
+        }
         Projector | PowerStrip | ProjectionScreen | WallShelf | NoticeBoard | WallSconce
         | CeilingPendant => serde_json::json!(equipment::parameters(o)),
         WallArt => serde_json::json!(super::super::materials::art::frame_parameters(o)),

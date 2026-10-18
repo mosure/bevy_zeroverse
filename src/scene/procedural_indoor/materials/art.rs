@@ -315,10 +315,10 @@ pub fn pixels(seed: u64) -> Vec<u8> {
         }
     }
     // Brush pigment is subtle correlated variation, never a noisy subject mask.
+    let noise = field::PreparedPeriodic::new([13, 17], seed ^ 3093, &mut 2048);
     for y in 0..N {
         for x in 0..N {
-            let variation =
-                periodic_noise(x as f32 / 256., y as f32 / 256., 13, 17, seed ^ 3093) - 0.5;
+            let variation = noise.sample(x as f32 / 256., y as f32 / 256.) - 0.5;
             let i = ((y * N + x) * 4) as usize;
             for channel in 0..3 {
                 c.0[i + channel] =
@@ -333,8 +333,16 @@ pub fn maps(seed: u64) -> [Image; 3] {
     parameters(seed).finish.maps(seed, pixels(seed))
 }
 pub(super) fn apply(seed: u64, mat: &mut StandardMaterial, images: &mut impl AssetStore<Image>) {
+    apply_prepared(seed, maps(seed), mat, images);
+}
+pub(super) fn apply_prepared(
+    seed: u64,
+    maps: [Image; 3],
+    mat: &mut StandardMaterial,
+    images: &mut impl AssetStore<Image>,
+) {
     let p = parameters(seed);
-    let [color, normal, data] = maps(seed).map(|image| images.add(image));
+    let [color, normal, data] = maps.map(|image| images.add(image));
     mat.base_color = Color::WHITE;
     mat.base_color_texture = Some(color);
     mat.normal_map_texture = Some(normal);

@@ -2,7 +2,7 @@
 //! Bounded room probes sample actual static geometry. Secondary bounces remain
 //! approximate; moving people are not re-traced into the static cubemaps.
 use super::*;
-use crate::scene::procedural_indoor::{architecture, gi::BakeScene};
+use crate::scene::procedural_indoor::gi::{BakeScene, ReflectionEmitters};
 use std::f32::consts::{PI, TAU};
 #[cfg(any(test, target_arch = "wasm32"))]
 pub(super) mod cooperative;
@@ -23,25 +23,77 @@ pub(super) fn build(scene: &IndoorManifest, transport: &BakeScene) -> [Image; 2]
     build_at(scene, transport, transport.reflection_origin(scene))
 }
 
-pub(super) fn insert_at(
+pub(super) fn insert_many(
     scene: &IndoorManifest,
     transport: &BakeScene,
-    origin: Vec3,
+    origins: &[Vec3],
     images: &mut impl super::super::preparation::AssetStore<Image>,
     requests: &mut super::gpu::Requests,
     gpu: bool,
-) -> [Handle<Image>; 2] {
+) -> Vec<[Handle<Image>; 2]> {
+    let sources = trace_many(scene, transport, origins);
     if gpu {
-        gpu::prepare(trace_at(scene, transport, origin), images, requests)
+        sources
+            .into_iter()
+            .map(|pixels| gpu::prepare(pixels, images, requests))
+            .collect()
     } else {
-        build_at(scene, transport, origin).map(|image| images.add(image))
+        #[cfg(not(target_arch = "wasm32"))]
+        let maps = crate::scene::procedural_indoor::preparation::workers::pool().scope(|scope| {
+            for pixels in sources {
+                scope.spawn(async move { convolve(&pixels, SIZE) });
+            }
+        });
+        #[cfg(target_arch = "wasm32")]
+        let maps: Vec<_> = sources
+            .into_iter()
+            .map(|pixels| convolve(&pixels, SIZE))
+            .collect();
+        maps.into_iter()
+            .map(|maps| maps.map(|image| images.add(image)))
+            .collect()
     }
 }
 
+fn trace_many(scene: &IndoorManifest, transport: &BakeScene, origins: &[Vec3]) -> Vec<Vec<Vec3>> {
+    // At most four room probes. Share immutable light/fixture inputs and queue
+    // all faces together so a dense face does not leave other workers idle.
+    assert!(origins.len() <= 4);
+    let trace = ProbeTrace::new(scene, transport, Vec3::ZERO);
+    let face = |origin, face| {
+        let mut pixels = Vec::with_capacity((SIZE * SIZE) as usize);
+        for y in 0..SIZE {
+            trace.row_at(origin, face, y, &mut pixels);
+        }
+        pixels
+    };
+    #[cfg(not(target_arch = "wasm32"))]
+    let faces = crate::scene::procedural_indoor::preparation::workers::pool().scope(|scope| {
+        for &origin in origins {
+            for i in 0..6 {
+                let face = &face;
+                scope.spawn(async move { face(origin, i) });
+            }
+        }
+    });
+    #[cfg(target_arch = "wasm32")]
+    let faces: Vec<_> = origins
+        .iter()
+        .flat_map(|&origin| (0..6).map(move |i| face(origin, i)))
+        .collect();
+    let mut faces = faces.into_iter();
+    origins
+        .iter()
+        .map(|_| faces.by_ref().take(6).flatten().collect())
+        .collect()
+}
+
+#[cfg(test)]
 pub(super) fn build_at(scene: &IndoorManifest, transport: &BakeScene, origin: Vec3) -> [Image; 2] {
     convolve(&trace_at(scene, transport, origin), SIZE)
 }
 
+#[cfg(test)]
 pub(super) fn trace_at(scene: &IndoorManifest, transport: &BakeScene, origin: Vec3) -> Vec<Vec3> {
     let trace = ProbeTrace::new(scene, transport, origin);
     let trace_face = |face| {
@@ -65,60 +117,46 @@ pub(super) fn trace_at(scene: &IndoorManifest, transport: &BakeScene, origin: Ve
 
 struct ProbeTrace<'a> {
     transport: &'a BakeScene,
+    #[cfg(any(test, target_arch = "wasm32"))]
     origin: Vec3,
     ambient: f32,
-    fixture_size: Vec2,
-    emitters: Vec<(Vec3, Vec3)>,
+    emitters: ReflectionEmitters,
 }
 
 impl<'a> ProbeTrace<'a> {
     fn new(scene: &IndoorManifest, transport: &'a BakeScene, origin: Vec3) -> Self {
+        #[cfg(not(any(test, target_arch = "wasm32")))]
+        let _ = origin;
         let ambient = scene
             .domain()
             .map_or(45., |d| d.photometry.environment_intensity);
-        let fixture_size = architecture::fixture_size(scene).xz() - Vec2::new(0.06, 0.055);
-        let emitters = architecture::fixture_positions(scene)
-            .into_iter()
-            .enumerate()
-            .map(|(i, p)| {
-                let (color, lumens) = architecture::fixture_photometry(scene, i);
-                let c = Color::srgb(color.x, color.y, color.z).to_linear();
-                (
-                    p - Vec3::Y * 0.029,
-                    Vec3::new(c.red, c.green, c.blue)
-                        * (lumens / (PI * fixture_size.element_product())),
-                )
-            })
-            .collect();
+        let emitters = ReflectionEmitters::new(scene);
         Self {
             transport,
+            #[cfg(any(test, target_arch = "wasm32"))]
             origin,
             ambient,
-            fixture_size,
             emitters,
         }
     }
 
+    #[cfg(any(test, target_arch = "wasm32"))]
     fn row(&self, face: u32, y: u32, pixels: &mut Vec<Vec3>) {
+        self.row_at(self.origin, face, y, pixels);
+    }
+
+    fn row_at(&self, origin: Vec3, face: u32, y: u32, pixels: &mut Vec<Vec3>) {
         for x in 0..SIZE {
             // Bevy negates Z when sampling its left-handed cubemaps.
             let d = direction(face, x as f32, y as f32, SIZE);
             let ray = Vec3::new(d.x, d.y, -d.z);
-            let (mut distance, mut radiance) =
+            let (distance, radiance) =
                 self.transport
-                    .reflection_radiance(self.origin, ray, self.ambient);
-            for &(p, emission) in &self.emitters {
-                let t = (p.y - self.origin.y) / ray.y;
-                let q = self.origin + ray * t;
-                if ray.y > 0.
-                    && t > 0.
-                    && t < distance
-                    && (q.xz() - p.xz()).abs().cmplt(self.fixture_size * 0.5).all()
-                {
-                    distance = t;
-                    radiance = emission;
-                }
-            }
+                    .reflection_radiance(origin, ray, self.ambient);
+            let radiance = self
+                .emitters
+                .radiance(origin, ray, distance)
+                .unwrap_or(radiance);
             pixels.push(radiance);
         }
     }
@@ -339,6 +377,19 @@ mod tests {
         let mut materials = Assets::<StandardMaterial>::default();
         let set = IndoorMaterials::build(&scene, &mut images, &mut materials);
         let transport = BakeScene::from_manifest(&scene, &set, &materials, &images);
+        let origins = [
+            transport.reflection_origin(&scene),
+            Vec3::new(0.5, 1.3, 0.8),
+            Vec3::new(-1., 1.8, -0.5),
+        ];
+        let batched = trace_many(&scene, &transport, &origins);
+        for (origin, actual) in origins.into_iter().zip(batched) {
+            assert_eq!(
+                actual,
+                trace_at(&scene, &transport, origin),
+                "probe/face order and radiance must be exact"
+            );
+        }
         let expected = build(&scene, &transport);
         let actual = bevy::tasks::block_on(build_async(&scene, &transport));
         for (expected, actual) in expected.into_iter().zip(actual) {

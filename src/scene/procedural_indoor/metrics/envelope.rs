@@ -14,6 +14,18 @@ pub(super) fn record(
         return Ok(());
     };
     let doors = scene.door_installations();
+    let fixture = super::super::architecture::fixtures::parameters(scene);
+    *report
+        .categories
+        .entry("luminaire_construction".into())
+        .or_default()
+        .entry(format!("{:?}", fixture.shape))
+        .or_default() += 1;
+    numeric.push("luminaire_body_depth_m", fixture.depth_m as f64)?;
+    numeric.push(
+        "luminaire_emitting_area_m2",
+        super::super::architecture::fixtures::emitting_area(scene) as f64,
+    )?;
     numeric.push("door_count", doors.len() as f64)?;
     for d in &doors {
         for (key, value) in [
@@ -63,7 +75,7 @@ pub(super) fn record(
     }
     serde_json::to_writer(
         &mut *writer,
-        &serde_json::json!({"seed": scene.seed, "room_size": scene.room_size, "envelope": e, "ceiling_installation":scene.ceiling_installation, "topology": topology, "functional_programs":scene.functional_programs(), "support_regions":super::super::layout::functional::support_regions(scene), "doors":doors,"partitions": scene.program.as_ref().map(|p| &p.partitions)}),
+        &serde_json::json!({"seed": scene.seed, "room_size": scene.room_size, "envelope": e, "ceiling_installation":scene.ceiling_installation, "luminaire_program":fixture, "topology": topology, "functional_programs":scene.functional_programs(), "support_regions":super::super::layout::functional::support_regions(scene), "doors":doors,"partitions": scene.program.as_ref().map(|p| &p.partitions)}),
     )?;
     writeln!(writer)?;
     if let Some(ceiling) = &scene.ceiling_installation {

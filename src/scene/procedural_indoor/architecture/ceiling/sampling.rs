@@ -168,7 +168,8 @@ pub(super) fn sample(scene: &IndoorManifest) -> CeilingInstallation {
                 CeilingSystem::Baffles,
                 CeilingSystem::TimberSlats,
                 CeilingSystem::OpenCell,
-            ][rng.random_range(0..4)]
+                CeilingSystem::Coffers,
+            ][rng.random_range(0..5)]
         } else {
             [
                 CeilingSystem::SuspendedTiles,
@@ -177,7 +178,9 @@ pub(super) fn sample(scene: &IndoorManifest) -> CeilingInstallation {
                 CeilingSystem::Baffles,
                 CeilingSystem::TimberSlats,
                 CeilingSystem::OpenCell,
-            ][rng.random_range(0..6)]
+                CeilingSystem::Coffers,
+                CeilingSystem::Coffers,
+            ][rng.random_range(0..8)]
         };
         // Shared rhythms and plenum height within a zone, with controlled changes
         // between zones. Short service runs may fit where a room-wide run cannot.
@@ -201,6 +204,7 @@ pub(super) fn sample(scene: &IndoorManifest) -> CeilingInstallation {
                 };
             let depth = match decorative {
                 CeilingSystem::Truss => rng.random_range(0.25..0.64),
+                CeilingSystem::Coffers => rng.random_range(0.18..0.48),
                 CeilingSystem::AcousticCloud | CeilingSystem::SuspendedTiles => {
                     rng.random_range(0.10..0.18)
                 }
@@ -218,9 +222,10 @@ pub(super) fn sample(scene: &IndoorManifest) -> CeilingInstallation {
                 CeilingSystem::SprinklerMain,
                 CeilingSystem::Conduit,
                 CeilingSystem::CableTray,
+                CeilingSystem::Ventilation,
             ]
         } else {
-            &[CeilingSystem::SprinklerMain]
+            &[CeilingSystem::SprinklerMain, CeilingSystem::Ventilation]
         };
         for (lane, &system) in service_kinds.iter().enumerate() {
             if !rng.random_bool(if exposed { 0.85 } else { 0.65 }) {
@@ -235,6 +240,12 @@ pub(super) fn sample(scene: &IndoorManifest) -> CeilingInstallation {
                 _ => rng.random_range(0.28..0.55),
             }
             .min(extent[1 - axis] * 0.28);
+            if system == CeilingSystem::Ventilation {
+                shape[axis] = rng.random_range(0.40_f32..1.20).min(extent[axis] * 0.40);
+                shape[1 - axis] = rng
+                    .random_range(0.32_f32..0.70)
+                    .min(extent[1 - axis] * 0.40);
+            }
             let mut center = (lo + hi) * 0.5;
             center[1 - axis] =
                 lo[1 - axis] + extent[1 - axis] * (lane as f32 + 0.5) / service_kinds.len() as f32;
@@ -246,6 +257,15 @@ pub(super) fn sample(scene: &IndoorManifest) -> CeilingInstallation {
                 _ => rng.random_range(0.12..0.25),
             };
             let gap = rng.random_range(0.035..0.32);
+            // Concealed terminals mount against the ceiling. Only exposed
+            // services suspend a plenum below it; carrying that long drop into
+            // finished low rooms creates an implausibly hanging grille and
+            // needlessly occupies usable camera headroom.
+            let gap = if !exposed && system == CeilingSystem::Ventilation {
+                0.006 + gap * 0.04
+            } else {
+                gap
+            };
             // One deterministic retry budget; reuse the shape program while
             // shrinking a rejected run around columns/soffits/fixture supports.
             let mut candidate = module(scene, &mut rng, system, center, shape, depth, gap, finish);
@@ -281,6 +301,7 @@ fn module(
     let pitch_m = match system {
         CeilingSystem::SuspendedTiles => rng.random_range(0.50..0.74),
         CeilingSystem::OpenCell => rng.random_range(0.18..0.42),
+        CeilingSystem::Coffers => rng.random_range(0.65..1.5),
         _ => rng.random_range(0.16..0.34),
     };
     let m = CeilingModule {

@@ -18,7 +18,7 @@ use bevy_zeroverse::{
     headless::{create_app, setup_globals},
     io::image_copy::{CapturedImages, ImageCopier},
     render::{
-        ground_truth::{semantic_id, GroundTruthCamera},
+        ground_truth::{semantic_id, GroundTruthCamera, GroundTruthDiagnostics},
         semantic::SemanticLabel,
     },
 };
@@ -257,13 +257,25 @@ pub fn run_validation() {
         .iter()
         .filter(|p| p[2] == 1.0)
         .all(|p| p[0].abs() < 0.001 && p[1].abs() < 0.001 && p[3] == 1.0));
+    let flow_before = app.world().resource::<GroundTruthDiagnostics>().snapshot();
+    let still_again = capture(&mut app, &copier, 3);
+    assert_eq!(
+        still.planes, still_again.planes,
+        "stationary surface reuse changes no pixels"
+    );
+    let flow_after = app.world().resource::<GroundTruthDiagnostics>().snapshot();
+    assert_eq!(
+        flow_after.flow_uploaded_bytes,
+        flow_before.flow_uploaded_bytes
+    );
+    assert!(flow_after.flow_pair_reuses > flow_before.flow_pair_reuses);
     let delta = Vec3::new(0.2, 0.1, 0.0);
     app.world_mut()
         .entity_mut(foreground)
         .insert(Transform::from_translation(
             Vec3::new(0.0, 0.0, -3.0) + delta,
         ));
-    let rigid = capture(&mut app, &copier, 3);
+    let rigid = capture(&mut app, &copier, 4);
     verify(&still, &rigid, size, Transform::IDENTITY, fov, |p, id| {
         if id == semantic_id(&SemanticLabel::Person) {
             p + delta
@@ -286,7 +298,7 @@ pub fn run_validation() {
             ..default()
         }),
     ));
-    let camera_motion = capture(&mut app, &copier, 4);
+    let camera_motion = capture(&mut app, &copier, 5);
     verify(&rigid, &camera_motion, size, moved_camera, fov2, |p, _| p);
     if let Some(bevy::mesh::VertexAttributeValues::Float32x3(positions)) = app
         .world_mut()
@@ -299,7 +311,7 @@ pub fn run_validation() {
             p[0] += 0.3 * p[1];
         }
     }
-    let deformed = capture(&mut app, &copier, 5);
+    let deformed = capture(&mut app, &copier, 6);
     verify(
         &camera_motion,
         &deformed,
@@ -320,7 +332,7 @@ pub fn run_validation() {
         Transform::from_xyz(0.0, 0.0, -1.5),
         SemanticLabel::Window,
     );
-    let occluded = capture(&mut app, &copier, 6);
+    let occluded = capture(&mut app, &copier, 7);
     let labels = floats(&deformed.planes[2]);
     let values = floats(&occluded.planes[3]);
     let hidden = values
@@ -336,7 +348,7 @@ pub fn run_validation() {
         .get_mut::<GroundTruthCamera>(camera)
         .unwrap()
         .flow_sequence = 2;
-    let reset = capture(&mut app, &copier, 7);
+    let reset = capture(&mut app, &copier, 8);
     assert!(reset.planes[3].iter().all(|b| *b == 0));
     // Topology changes have no established correspondence, even with equal counts.
     app.world_mut()
@@ -344,7 +356,7 @@ pub fn run_validation() {
         .get_mut(&mesh)
         .unwrap()
         .insert_indices(Indices::U32(vec![0, 1, 3, 1, 2, 3]));
-    let topology = capture(&mut app, &copier, 8);
+    let topology = capture(&mut app, &copier, 9);
     for (p, l) in floats(&topology.planes[3])
         .iter()
         .zip(floats(&reset.planes[2]))
@@ -385,11 +397,23 @@ pub fn run_validation() {
         inverse_bindposes: bind,
         joints: joints.to_vec(),
     });
-    let skin_source = capture(&mut app, &copier, 9);
+    let skin_source = capture(&mut app, &copier, 10);
+    let skin_before = app.world().resource::<GroundTruthDiagnostics>().snapshot();
     app.world_mut()
         .entity_mut(joints[1])
         .insert(Transform::from_xyz(0.25, 0.0, -3.0));
-    let skinned = capture(&mut app, &copier, 10);
+    let skinned = capture(&mut app, &copier, 11);
+    let skin_after = app.world().resource::<GroundTruthDiagnostics>().snapshot();
+    assert_eq!(
+        skin_after.geometry_uploads, skin_before.geometry_uploads,
+        "skin-only change must retain static annotation geometry"
+    );
+    assert!(skin_after.deformation_uploads > skin_before.deformation_uploads);
+    assert_eq!(
+        skin_after.geometry_uploaded_bytes - skin_before.geometry_uploaded_bytes,
+        4 * 28,
+        "only the four skinned vertices changed"
+    );
     verify(
         &skin_source,
         &skinned,
@@ -404,7 +428,7 @@ pub fn run_validation() {
         },
     );
     app.world_mut().despawn(person);
-    let removed = capture(&mut app, &copier, 11);
+    let removed = capture(&mut app, &copier, 12);
     for (p, l) in floats(&removed.planes[3])
         .iter()
         .zip(floats(&skinned.planes[2]))
@@ -419,11 +443,11 @@ pub fn run_validation() {
         Transform::from_xyz(0.0, 0.0, -3.0),
         SemanticLabel::Person,
     );
-    let boundary_source = capture(&mut app, &copier, 12);
+    let boundary_source = capture(&mut app, &copier, 13);
     app.world_mut()
         .entity_mut(boundary_subject)
         .insert(Transform::from_xyz(10.0, 0.0, -3.0));
-    let outside = capture(&mut app, &copier, 13);
+    let outside = capture(&mut app, &copier, 14);
     let mut outside_pixels = 0;
     for (p, l) in floats(&outside.planes[3])
         .iter()
@@ -439,11 +463,11 @@ pub fn run_validation() {
     app.world_mut()
         .entity_mut(boundary_subject)
         .insert(Transform::from_xyz(0.0, 0.0, -3.0));
-    let behind_source = capture(&mut app, &copier, 14);
+    let behind_source = capture(&mut app, &copier, 15);
     app.world_mut()
         .entity_mut(boundary_subject)
         .insert(Transform::from_xyz(0.0, 0.0, 3.0));
-    let behind = capture(&mut app, &copier, 15);
+    let behind = capture(&mut app, &copier, 16);
     for (p, l) in floats(&behind.planes[3])
         .iter()
         .zip(floats(&behind_source.planes[2]))

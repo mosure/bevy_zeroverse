@@ -55,6 +55,7 @@ pub(super) struct Bridge {
     // Retain allocator reservations even on a partially submitted/error batch.
     cuda_leases: Vec<Box<dyn Any + Send>>,
     poisoned: bool,
+    pub(super) last_timings: CudaTransferTimings,
 }
 
 impl Bridge {
@@ -115,6 +116,7 @@ impl Bridge {
             available: Vec::new(),
             cuda_leases: Vec::new(),
             poisoned: false,
+            last_timings: CudaTransferTimings::default(),
         })
     }
 
@@ -178,6 +180,8 @@ impl Bridge {
         );
         // Any failure after queue submission must prevent buffer/semaphore reuse.
         self.poisoned = true;
+        self.last_timings = CudaTransferTimings::default();
+        let allocation_started = Instant::now();
         let tokens: Vec<_> = tokens.collect();
         ensure!(
             !tokens.is_empty() && tokens.len() <= self.pending.len(),
@@ -239,7 +243,11 @@ impl Bridge {
         }
         // Empty allocations may be asynchronous or recycled. Fence their
         // producer stream once for the whole batch, not once per camera.
+        self.last_timings.tensor_allocation_seconds = allocation_started.elapsed().as_secs_f64();
+        let fence_started = Instant::now();
         bevy::tasks::block_on(producer.unwrap().sync_buffers(&handles))?;
+        self.last_timings.allocation_fence_seconds = fence_started.elapsed().as_secs_f64();
+        let enqueue_started = Instant::now();
         self.ownership(&buffers, true)?;
         // Attach the signal only AFTER the release submission. Another Bevy
         // submission may consume it, but can never signal before that release.
@@ -262,7 +270,11 @@ impl Bridge {
         // CubeCL exposes neither a foreign allocation owner nor an external
         // readiness event. Fence this transfer stream before publishing tensors;
         // never synchronize the training context/device or read pixels on CPU.
+        self.last_timings.release_and_enqueue_seconds = enqueue_started.elapsed().as_secs_f64();
+        let transfer_started = Instant::now();
         self.stream.synchronize()?;
+        self.last_timings.transfer_fence_seconds = transfer_started.elapsed().as_secs_f64();
+        let retire_started = Instant::now();
         self.cuda_leases.clear();
         self.ownership(&buffers, false)?;
         // Arming occurs before app.update so the sampler can request a copy in
@@ -274,6 +286,7 @@ impl Bridge {
         self.available.truncate(capacity);
         self.setup.device.poll(wgpu::PollType::Poll)?;
         self.poisoned = false;
+        self.last_timings.reacquire_and_retire_seconds = retire_started.elapsed().as_secs_f64();
         Ok(tensors)
     }
 

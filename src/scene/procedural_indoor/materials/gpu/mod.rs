@@ -71,14 +71,19 @@ impl Maps {
         if gpu {
             if let Some(recipe) = recipe::Recipe::new(r, floor) {
                 let n = r.map_size(floor);
+                // The transport proxy samples the same material program as the
+                // full CPU map. Reuse its immutable evaluator rather than
+                // reconstructing per-recipe constants at every proxy texel.
+                let prepared = r.prepare_texels(floor);
                 let mut albedo = Vec::with_capacity(1024);
                 for y in 0..32 {
                     for x in 0..32 {
                         // Retain original texel-grid coordinates, truncation, and later sRGB decoding.
-                        let t = r.texel(
+                        let t = r.texel_prepared(
                             (x * n / 32) as f32 / n as f32,
                             (y * n / 32) as f32 / n as f32,
                             floor,
+                            prepared.as_ref(),
                         );
                         albedo.push(t.color.map(|v| (v.clamp(0., 1.) * 255.) as u8));
                     }

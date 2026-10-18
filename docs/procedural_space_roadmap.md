@@ -725,8 +725,9 @@ latency, completed rooms/views/steps per second, CPU time, device utilization,
 peak memory and steady-state memory slope. A faster isolated shader or higher GPU
 utilization is not sufficient if completed training slows down.
 
-The native preparation pool is already bounded at four threads and WASM work
-cooperatively yields around a four-millisecond budget; browser yielding is not
+Native preparation and transport-tree construction share a pool bounded at eight
+workers by default. WASM work cooperatively yields around a four-millisecond
+budget; browser yielding is not
 parallel execution. Preserve deterministic output ordering and bounded successor
 residency. Off-main-thread browser preparation should be evaluated only if
 profiling justifies its worker/asset-transfer complexity.

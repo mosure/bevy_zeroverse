@@ -1,5 +1,6 @@
 //! Bounded local assemblies. All geometry shares the camera/placement reserve.
 mod panels;
+mod recesses;
 mod services;
 mod truss;
 use super::*;
@@ -78,6 +79,24 @@ pub(super) fn build(a: &mut Assembly, scene: &IndoorManifest, m: &CeilingModule)
     let f = Frame::new(m, detail.finish);
     let mut local = Assembly::default();
     let anchors = match detail.shape {
+        CeilingShape::Coffer {
+            aspect,
+            beam_fraction,
+            recess_fraction,
+            timber,
+        } => recesses::coffers(
+            &mut local,
+            &f,
+            aspect,
+            beam_fraction,
+            recess_fraction,
+            timber,
+        ),
+        CeilingShape::Diffuser {
+            round,
+            blades,
+            angle,
+        } => recesses::diffuser(&mut local, &f, round, blades, angle),
         CeilingShape::Panel {
             camber,
             taper,
@@ -141,6 +160,25 @@ pub(super) fn build(a: &mut Assembly, scene: &IndoorManifest, m: &CeilingModule)
             taper,
         } => truss::build(&mut local, &f, web, chord_radius_m, cell_pitch_m, taper),
     };
+    if matches!(detail.shape, CeilingShape::Diffuser { .. }) {
+        // A suspended terminal needs an air connection as well as hangers.
+        // The neck occupies the existing support reservation and ends just
+        // below the lowest roof sample across its section on a sloping slab.
+        let radius = f.width.min(f.length) * 0.14;
+        let roof = [Vec3::X, Vec3::NEG_X, Vec3::Z, Vec3::NEG_Z]
+            .map(|d| {
+                scene.ceiling_height(f.tf.transform_point(d * radius).xz()) - f.tf.translation.y
+            })
+            .into_iter()
+            .fold(f32::INFINITY, f32::min);
+        f.rod(
+            &mut local,
+            Surface::Metal,
+            Vec3::Y * (f.height * 0.76 + 0.016),
+            Vec3::Y * (roof - 0.003),
+            radius,
+        );
+    }
     f.suspend(&mut local, scene, &anchors);
     for (key, mut g) in local.parts {
         for p in &mut g.positions {

@@ -13,6 +13,7 @@ pub(super) struct GeometryCache {
     skin_stamp: u64,
     skinned_entities: Vec<Entity>,
     keys: Vec<(Entity, AssetId<Mesh>, usize, RenderLayers)>,
+    vertex_spans: Vec<Range<usize>>,
 }
 
 /// One span per live mesh instance, rather than a temporary copy of its indices.
@@ -82,6 +83,7 @@ pub(super) fn extract_geometry(
             };
         }
         cache.keys.clear();
+        cache.vertex_spans.clear();
         return;
     }
     let flow_enabled = cameras.iter().any(|c| c.flow.is_some());
@@ -138,7 +140,8 @@ pub(super) fn extract_geometry(
         .collect();
     // A new capture refreshes skin data even when only inverse binds or the
     // SkinnedMesh component changed. Warm-up joint updates remain inexpensive.
-    let skin_changed = skinned_entities != cache.skinned_entities
+    let skin_topology_changed = skinned_entities != cache.skinned_entities;
+    let skin_changed = skin_topology_changed
         || (!skinned_entities.is_empty() && skin_stamp != cache.skin_stamp)
         || objects.iter().any(|(_, _, _, _, _, _, _, _, skin, _)| {
             skin.is_some_and(|s| {
@@ -149,13 +152,41 @@ pub(super) fn extract_geometry(
         });
     cache.skin_stamp = skin_stamp;
     cache.skinned_entities = skinned_entities;
-    let changed = skin_changed || retry_failed_geometry || keys != cache.keys || flow_enabled != cache.flow_enabled || events.iter().any(|event| matches!(event, AssetEvent::Modified { id } | AssetEvent::Removed { id } if keys.iter().any(|(_, mesh, ..)| mesh == id)));
-    if changed {
+    let topology_changed = skin_topology_changed || retry_failed_geometry || keys != cache.keys || flow_enabled != cache.flow_enabled || events.iter().any(|event| matches!(event, AssetEvent::Modified { id } | AssetEvent::Removed { id } if keys.iter().any(|(_, mesh, ..)| mesh == id)));
+    let mut partial = false;
+    if skin_changed && !topology_changed && cache.vertex_spans.len() == objects.len() {
+        // A skin frame stamp can change while the pose remains static. Bake
+        // only skinned meshes and compare exact bits before scheduling writes.
+        let updates = objects
+            .iter()
+            .zip(&cache.vertex_spans)
+            .filter_map(|(object, range)| object.8.map(|skin| (object.1, skin, range)))
+            .map(|(mesh, skin, range)| {
+                let mesh = meshes.get(mesh.id())?;
+                let (positions, normals) =
+                    skin::bake(mesh, skin, &inverse_bindposes, &joints).ok()?;
+                Some(deformation::DeformedMesh {
+                    range: range.clone(),
+                    positions,
+                    normals,
+                })
+            })
+            .collect::<Option<Vec<_>>>();
+        if let Some(updates) = updates {
+            geometry.deformation = deformation::apply(&mut geometry, updates);
+            partial = geometry.deformation.is_some();
+        }
+    }
+    if skin_changed || topology_changed {
         geometry.generation = geometry.generation.wrapping_add(1);
+    }
+    if (skin_changed || topology_changed) && !partial {
+        geometry.deformation = None;
         geometry.vertices.clear();
         geometry.indices.clear();
         geometry.batches.clear();
         geometry.topology.clear();
+        cache.vertex_spans.clear();
         let mut batch_spans = BTreeMap::<(usize, RenderLayers), Vec<IndexSpan>>::new();
         for (instance, ((entity, mesh_handle, _, _, _, _, _, _, skin, _), (_, _, cull, layers))) in
             objects.iter().zip(&keys).enumerate()
@@ -231,6 +262,9 @@ pub(super) fn extract_geometry(
                 (positions, normals)
             };
             let offset = geometry.vertices.len() as u32;
+            cache
+                .vertex_spans
+                .push(offset as usize..offset as usize + positions.len());
             if flow_enabled {
                 let mut hash = std::collections::hash_map::DefaultHasher::new();
                 if let Some(indices) = mesh.indices() {

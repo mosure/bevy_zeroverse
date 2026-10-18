@@ -3,9 +3,10 @@ pub(super) const N: i32 = 256;
 pub(super) struct Canvas(pub Vec<u8>, [i32; 4]);
 impl Canvas {
     pub(super) fn new(color: [u8; 3]) -> Self {
-        let mut canvas = Self(vec![255; (N * N * 4) as usize], [0, 0, N, N]);
-        canvas.rect(0, 0, N, N, color);
-        canvas
+        Self(
+            [color[0], color[1], color[2], 255].repeat((N * N) as usize),
+            [0, 0, N, N],
+        )
     }
     /// Nested panel clipping prevents graphs, text and media from bleeding into neighbors.
     pub(super) fn clipped(&mut self, bounds: [i32; 4], draw: impl FnOnce(&mut Self)) {
@@ -42,21 +43,35 @@ impl Canvas {
         bounds: [i32; 4],
     ) {
         let [left, top, width, height] = bounds;
-        for y in ((center[1] - radius[1]).floor() as i32).max(top).max(0)
-            ..=((center[1] + radius[1]).ceil() as i32)
-                .min(top + height - 1)
-                .min(N - 1)
-        {
-            for x in ((center[0] - radius[0]).floor() as i32).max(left).max(0)
-                ..=((center[0] + radius[0]).ceil() as i32)
-                    .min(left + width - 1)
-                    .min(N - 1)
-            {
-                if ((x as f32 - center[0]) / radius[0].max(0.1)).powi(2)
-                    + ((y as f32 - center[1]) / radius[1].max(0.1)).powi(2)
-                    <= 1.
-                {
-                    self.blend(x, y, color, 1.);
+        let x0 = ((center[0] - radius[0]).floor() as i32)
+            .max(left)
+            .max(self.1[0]);
+        let x1 = ((center[0] + radius[0]).ceil() as i32)
+            .min(left + width - 1)
+            .min(self.1[2] - 1);
+        let y0 = ((center[1] - radius[1]).floor() as i32)
+            .max(top)
+            .max(self.1[1]);
+        let y1 = ((center[1] + radius[1]).ceil() as i32)
+            .min(top + height - 1)
+            .min(self.1[3] - 1);
+        if x0 > x1 || y0 > y1 {
+            return;
+        }
+        // Reuse the exact divided/squared coordinates, not reciprocal products
+        // or an approximate ellipse boundary. Clip once, before pixel work.
+        let mut horizontal = [0.; N as usize];
+        for (x, value) in (x0..=x1).zip(&mut horizontal) {
+            *value = ((x as f32 - center[0]) / radius[0].max(0.1)).powi(2);
+        }
+        for y in y0..=y1 {
+            let vertical = ((y as f32 - center[1]) / radius[1].max(0.1)).powi(2);
+            let row = &mut self.0[((y * N + x0) * 4) as usize..((y * N + x1 + 1) * 4) as usize];
+            for (pixel, &horizontal) in row.as_chunks_mut::<4>().0.iter_mut().zip(&horizontal) {
+                if horizontal + vertical <= 1. {
+                    // Opaque blending is exactly this RGB assignment. Preserve
+                    // the destination alpha, including externally edited pixels.
+                    pixel[..3].copy_from_slice(&color);
                 }
             }
         }
@@ -168,10 +183,15 @@ impl Canvas {
         }
     }
     pub(super) fn rect(&mut self, x: i32, y: i32, w: i32, h: i32, color: [u8; 3]) {
+        let x0 = x.max(self.1[0]);
+        let x1 = (x + w).min(self.1[2]);
+        if x0 >= x1 {
+            return;
+        }
         for y in y.max(self.1[1])..(y + h).min(self.1[3]) {
-            for x in x.max(self.1[0])..(x + w).min(self.1[2]) {
-                let i = ((y * N + x) * 4) as usize;
-                self.0[i..i + 3].copy_from_slice(&color);
+            let row = &mut self.0[((y * N + x0) * 4) as usize..((y * N + x1) * 4) as usize];
+            for pixel in row.as_chunks_mut::<4>().0 {
+                pixel[..3].copy_from_slice(&color);
             }
         }
     }
@@ -216,6 +236,9 @@ impl Canvas {
         }
     }
 }
+
+#[cfg(test)]
+mod replay_tests;
 
 #[cfg(test)]
 mod tests {

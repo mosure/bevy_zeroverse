@@ -10,6 +10,7 @@ pub mod floor;
 pub mod hospitality;
 pub mod kitchen;
 pub mod literature;
+pub mod luminaires;
 pub mod presentation;
 pub mod public;
 pub mod seating;

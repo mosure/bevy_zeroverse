@@ -203,7 +203,7 @@ impl IndoorManifest {
 
     pub(crate) fn sample_cameras(&mut self, count: usize) -> Result<(), String> {
         self.camera_diagnostics = default();
-        self.sample_camera_set(count, true)?;
+        self.sample_camera_set(count, true, self.seed)?;
         if self.camera_settings.principal_point_jitter != Vec2::ZERO {
             let coverage = Coverage::new(self);
             for camera in &mut self.cameras {
@@ -213,9 +213,14 @@ impl IndoorManifest {
         Ok(())
     }
 
-    fn sample_camera_set(&mut self, count: usize, allow_overcomplete: bool) -> Result<(), String> {
+    fn sample_camera_set(
+        &mut self,
+        count: usize,
+        allow_overcomplete: bool,
+        proposal_seed: u64,
+    ) -> Result<(), String> {
         self.camera_settings.validate()?;
-        let mut rng = stream(self.seed, 3);
+        let mut rng = stream(proposal_seed, 3);
         let coverage = Coverage::new(self);
         self.cameras.clear();
         let Some(policy) = self.camera_settings.multiview.clone().filter(|_| count > 1) else {
@@ -231,7 +236,7 @@ impl IndoorManifest {
                     self.camera_diagnostics.connected_reference_recoveries += 1;
                     self.camera_settings.multiview.as_mut().unwrap().graph =
                         OverlapGraph::Reference;
-                    let result = self.sample_camera_set(count, allow_overcomplete);
+                    let result = self.sample_camera_set(count, allow_overcomplete, proposal_seed);
                     self.camera_settings.multiview.as_mut().unwrap().graph =
                         OverlapGraph::Connected;
                     result.map_err(|e| format!("{connected_error}; reference recovery: {e}"))
@@ -532,6 +537,19 @@ impl IndoorManifest {
         if recovered == count {
             return Ok(());
         }
+        // With the shared-target policy, rigs above four views use the same
+        // proposal sequence regardless of count. Asking for one more camera just
+        // repeats the exhausted search. Spend that existing second-pass budget
+        // on an independent placement stream for the requested count instead.
+        // The manifest seed, viewpoint prior, motion roles, geometry and all
+        // requested constraints stay fixed. Ordinary successful rigs are untouched.
+        if allow_overcomplete
+            && targets.is_empty()
+            && (5..12).contains(&count)
+            && policy.target_variation == 0.
+        {
+            return self.sample_camera_set(count, false, self.seed.wrapping_add(2));
+        }
         // Greedy packing is not monotonic in camera count. One bounded
         // overcomplete search can expose a feasible set missed by the requested
         // count's proposal sequence. Every retained subset rechecks the same
@@ -540,7 +558,9 @@ impl IndoorManifest {
         if allow_overcomplete
             && targets.is_empty()
             && (2..12).contains(&count)
-            && self.sample_camera_set(count + 1, false).is_ok()
+            && self
+                .sample_camera_set(count + 1, false, proposal_seed)
+                .is_ok()
         {
             let complete = self.cameras.clone();
             for omit in (1..complete.len()).rev() {
@@ -644,6 +664,40 @@ mod tests {
     use crate::scene::procedural_indoor::{
         cameras::CameraSettings, layout::IndoorLayout, validation::validate_layout,
     };
+
+    #[test]
+    fn rejected_training_library_recovers_eight_cameras_without_relaxation() {
+        let mut scene =
+            IndoorManifest::generate_with_humans(63_343_058, IndoorLayout::Mixed, 0.65, 0, 0.)
+                .unwrap();
+        let original = scene.clone();
+        let settings = CameraSettings::parse(r#"{"primary_room":false,"path_length_min":0.8,"path_length_max":1.6,"long_path_fraction":0.0,"multiview":{"max_baseline":6.0,"min_baseline":0.4,"min_overlap":0.15,"min_reference_baseline":0.8,"min_spread":0.25,"trajectory_variation":0.3}}"#).unwrap();
+        scene.resample_cameras(8, settings.clone(), 1.).unwrap();
+        validate_layout(&scene).unwrap();
+        assert_eq!(scene.objects, original.objects);
+        assert_eq!(scene.envelope, original.envelope);
+        assert_eq!(scene.humans, original.humans);
+        assert_eq!(scene.camera_settings, settings);
+        assert_eq!(scene.cameras.len(), 8);
+        let policy = settings.multiview.as_ref().unwrap();
+        assert!(scene.camera_group_geometry().unwrap().accepts(policy));
+        assert!(scene
+            .camera_overlap()
+            .iter()
+            .all(|p| policy.accepts(&p.samples)));
+        let coverage = Coverage::new(&scene);
+        for (index, camera) in scene.cameras.iter().enumerate() {
+            assert!(settings.accepts_motion(scene.seed, index, camera));
+            assert!(scene.camera_curve_clear(camera));
+            assert!(coverage.suitable(camera, false));
+            for i in 0..=128 {
+                assert!(scene.camera_clear(camera.transform_at(i as f32 / 128.).translation));
+            }
+        }
+        let cameras = scene.cameras.clone();
+        scene.resample_cameras(8, settings, 1.).unwrap();
+        assert_eq!(scene.cameras, cameras);
+    }
 
     #[test]
     fn dense_sloped_room_keeps_eight_connected_paths() {

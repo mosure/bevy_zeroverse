@@ -211,8 +211,7 @@ pub fn prepare(
     let cached_transport = scene.transport_tree.get().is_some();
     let transport = scene.gpu_transport();
     let triangles = transport
-        .triangles
-        .iter()
+        .surfaces(scene)
         .map(|t| GpuTriangle {
             a: t.a.extend(0.0).to_array(),
             ab: t.ab.extend(0.0).to_array(),
@@ -737,7 +736,27 @@ mod tests {
         let mut materials = Assets::default();
         let set = IndoorMaterials::build(&scene, &mut images, &mut materials);
         let transport = BakeScene::from_manifest(&scene, &set, &materials, &images);
-        let (_, _, stats) = prepare(&transport, BakeSettings::default(), scene.seed, &mut images);
+        let (request, _, stats) =
+            prepare(&transport, BakeSettings::default(), scene.seed, &mut images);
+        // The compact CPU shadow records must serialize the exact former GPU
+        // payload, including bound materials, UVs, normals and triangle order.
+        let (reference, _) =
+            super::super::bvh::build_transport_scalar_reference(&transport.triangles);
+        let reference: Vec<_> = reference
+            .iter()
+            .map(|t| GpuTriangle {
+                a: t.a.extend(0.0).to_array(),
+                ab: t.ab.extend(0.0).to_array(),
+                ac: t.ac.extend(0.0).to_array(),
+                uv01: [t.uv[0].x, t.uv[0].y, t.uv[1].x, t.uv[1].y],
+                uv2_material: [t.uv[2].x, t.uv[2].y, t.material as f32, 0.0],
+                normal: t.normal.extend(0.0).to_array(),
+            })
+            .collect();
+        assert_eq!(
+            bytemuck::cast_slice::<_, u8>(&request.input.triangles),
+            bytemuck::cast_slice::<_, u8>(&reference),
+        );
         // Build the solid-classification oracle before transport reorders its
         // clone. Furniture tessellation may evolve; the classification must not.
         let settings = BakeSettings::default();

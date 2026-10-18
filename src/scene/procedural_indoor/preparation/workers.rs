@@ -4,7 +4,8 @@ static POOL: OnceLock<bevy::tasks::TaskPool> = OnceLock::new();
 static THREADS: Mutex<(Option<usize>, bool)> = Mutex::new((None, false));
 
 /// Set a process-wide CPU preparation budget before the first indoor job.
-/// Optional for multi-process applications; the default remains at most four.
+/// Optional for multi-process applications; the default is at most eight,
+/// shared by scene preparation and transport-tree construction.
 /// Repeating the active budget is harmless; changing an initialized pool fails.
 /// Wasm uses cooperative preparation and does not expose this native control.
 pub fn configure_preparation_threads(threads: usize) -> Result<(), &'static str> {
@@ -23,7 +24,7 @@ pub(crate) fn pool() -> &'static bevy::tasks::TaskPool {
     POOL.get_or_init(|| {
         let mut configured = THREADS.lock().unwrap();
         let threads = *configured.0.get_or_insert_with(|| {
-            std::thread::available_parallelism().map_or(1, |n| n.get().min(4))
+            std::thread::available_parallelism().map_or(1, |n| n.get().min(8))
         });
         configured.1 = true;
         bevy::tasks::TaskPoolBuilder::new()

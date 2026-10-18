@@ -36,7 +36,9 @@ impl PersistentAssets {
             camera::RenderTarget,
             light::{EnvironmentMapLight, IrradianceVolume},
         };
-        use bevy_zeroverse::render::{ground_truth::GroundTruthCamera, DisabledPbrMaterial};
+        use bevy_zeroverse::render::{
+            ground_truth::GroundTruthCamera, ssaa::SsaaCamera, DisabledPbrMaterial,
+        };
         assert_eq!(
             world
                 .resource::<bevy_zeroverse::scene::procedural_indoor::preparation::IndoorPrefetch>()
@@ -95,6 +97,9 @@ impl PersistentAssets {
             if let RenderTarget::Image(target) = target {
                 image_ids.insert(target.handle.id());
             }
+        }
+        for target in world.query::<&SsaaCamera>().iter(world) {
+            image_ids.extend([target.source.id(), target.output.id()]);
         }
         for environment in world.query::<&EnvironmentMapLight>().iter(world) {
             image_ids.extend([environment.diffuse_map.id(), environment.specular_map.id()]);

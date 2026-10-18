@@ -414,17 +414,37 @@ fn single_pixels(seed: u64) -> Vec<u8> {
     c.0
 }
 pub(super) fn apply(seed: u64, mat: &mut StandardMaterial, images: &mut impl AssetStore<Image>) {
+    prepare(seed).apply(mat, images);
+}
+pub(super) struct PreparedBoard {
+    finish: display_finish::DisplayFinish,
+    roughness_map: Option<Image>,
+    color: Image,
+    roughness: f32,
+}
+pub(super) fn prepare(seed: u64) -> PreparedBoard {
     let p = parameters(seed);
     let content = pixels(seed);
-    p.finish.apply(seed, true, &content, mat, images);
+    let roughness_map = p.finish.prepare(seed, true, &content);
     let mut texture = mip_image(content, 256, MapType::Color);
     texture.sampler = ImageSampler::linear();
-    mat.base_color = Color::WHITE;
-    mat.base_color_texture = Some(images.add(texture));
-    mat.uv_transform = bevy::math::Affine2::IDENTITY;
-    mat.perceptual_roughness = p.roughness;
-    mat.emissive = LinearRgba::BLACK;
-    mat.emissive_texture = None;
+    PreparedBoard {
+        finish: p.finish,
+        roughness_map,
+        color: texture,
+        roughness: p.roughness,
+    }
+}
+impl PreparedBoard {
+    pub(super) fn apply(self, mat: &mut StandardMaterial, images: &mut impl AssetStore<Image>) {
+        self.finish.apply_prepared(self.roughness_map, mat, images);
+        mat.base_color = Color::WHITE;
+        mat.base_color_texture = Some(images.add(self.color));
+        mat.uv_transform = bevy::math::Affine2::IDENTITY;
+        mat.perceptual_roughness = self.roughness;
+        mat.emissive = LinearRgba::BLACK;
+        mat.emissive_texture = None;
+    }
 }
 #[cfg(test)]
 mod tests {

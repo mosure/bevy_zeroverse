@@ -171,6 +171,11 @@ impl IndoorManifest {
                             }
                         }
                     }
+                    if kind == ObjectKind::Elevator
+                        && !self.objects[first..].iter().any(|o| o.kind == kind)
+                    {
+                        self.recover_elevator_anchor(index, size, &mut r);
+                    }
                 }
             }
             match zone.activity {
@@ -282,11 +287,7 @@ impl IndoorManifest {
                     min: Vec2::new(a.x, a.z - 1.05),
                     max: Vec2::new(b.x, a.z - 0.05),
                 }),
-                ObjectKind::Elevator => Some(Reservation {
-                    role: ReservationRole::DoorApproach,
-                    min: Vec2::new(o.position.x - o.size.x * 0.32, b.z + 0.035),
-                    max: Vec2::new(o.position.x + o.size.x * 0.32, b.z + 1.05),
-                }),
+                ObjectKind::Elevator => Some(transit::door_approach(&o)),
                 _ => None,
             };
             if let Some(route) = &operational {

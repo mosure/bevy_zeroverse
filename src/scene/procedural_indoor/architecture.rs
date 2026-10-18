@@ -3,6 +3,7 @@ pub mod ceiling;
 pub mod details;
 pub mod doors;
 pub mod facade;
+pub mod fixtures;
 pub(crate) mod outdoors;
 #[cfg(test)]
 pub(crate) mod overlap_tests;
@@ -263,45 +264,19 @@ pub fn architecture(scene: &IndoorManifest) -> Assembly {
 
 pub(crate) fn fixture_geometry(a: &mut Assembly, scene: &IndoorManifest) {
     for (i, p) in fixture_positions(scene).into_iter().enumerate() {
-        a.box_part(
-            Surface::Metal,
-            &format!("lamp#{i}"),
-            p,
-            fixture_size(scene),
-            0.006,
-        );
-        a.box_part(
-            Surface::Light,
-            &format!("lamp#{i}"),
-            p - Vec3::Y * 0.030,
-            (fixture_size(scene) - Vec3::new(0.06, 0.0, 0.055)).with_y(0.008),
-            0.002,
-        );
-        for x in [-fixture_size(scene).x * 0.36, fixture_size(scene).x * 0.36] {
-            a.part(Surface::Chrome, &format!("lamp#{i}")).rod(
-                p + Vec3::new(x, 0.028, 0.0),
-                Vec3::new(
-                    p.x + x,
-                    scene
-                        .envelope
-                        .as_ref()
-                        .and_then(|e| e.mezzanine.as_ref())
-                        .filter(|m| m.deck.contains(p.xz()) && p.y < m.deck.height)
-                        .map_or_else(
-                            || scene.ceiling_height(Vec2::new(p.x + x, p.z)),
-                            |m| m.deck.height - m.thickness,
-                        ),
-                    p.z,
-                ),
-                0.002,
-            );
+        for (key, geometry) in fixtures::geometry(scene, i, p).parts {
+            a.parts.entry(key).or_default().append(geometry);
         }
     }
 }
 
 pub(crate) fn fixture_size(scene: &IndoorManifest) -> Vec3 {
     if let Some(program) = &scene.program {
-        return Vec3::new(program.fixture_size.x, 0.055, program.fixture_size.y);
+        return Vec3::new(
+            program.fixture_size.x,
+            fixtures::parameters(scene).depth_m,
+            program.fixture_size.y,
+        );
     }
     match scene.lighting_design % 3 {
         0 => Vec3::new(0.60, 0.055, 0.60),
@@ -336,6 +311,7 @@ pub(crate) fn under_mezzanine_fixtures(scene: &IndoorManifest) -> Vec<Vec3> {
 pub fn fixture_positions(scene: &IndoorManifest) -> Vec<Vec3> {
     if let Some(program) = &scene.program {
         let mut positions = Vec::new();
+        let fixture = fixtures::parameters(scene);
         for zone in &program.zones {
             let size = zone.max - zone.min;
             let counts = (size / program.light_spacing)
@@ -371,7 +347,12 @@ pub fn fixture_positions(scene: &IndoorManifest) -> Vec<Vec3> {
                                 .filter(|s| s.overlaps(p - half, p + half))
                                 .fold(roof, |h, s| h.min(s.height))
                         });
-                        positions.push(Vec3::new(p.x, roof - program.light_drop, p.y));
+                        let drop = if fixture.shape == fixtures::FixtureShape::Downlight {
+                            fixture.depth_m * 0.5 + 0.008
+                        } else {
+                            program.light_drop.max(fixture.depth_m * 0.5 + 0.012)
+                        };
+                        positions.push(Vec3::new(p.x, roof - drop, p.y));
                     }
                 }
             }
@@ -430,9 +411,7 @@ pub fn spawn_lights(
                 range: 13.0,
                 // Match the finite highlight footprint to the emitting panel.
                 // This remains Bevy's finite-radius spot approximation.
-                radius: (fixture_size(scene).x * fixture_size(scene).z / std::f32::consts::PI)
-                    .sqrt()
-                    * 0.5,
+                radius: (fixtures::emitting_area(scene) / std::f32::consts::PI).sqrt() * 0.5,
                 inner_angle: inner,
                 outer_angle: outer,
                 // Every emitting source must respect walls/decks. Truncating
@@ -444,7 +423,8 @@ pub fn spawn_lights(
                 shadow_normal_bias: SpotLight::DEFAULT_SHADOW_NORMAL_BIAS,
                 ..default()
             },
-            Transform::from_translation(p - Vec3::Y * 0.06).looking_at(p - Vec3::Y, Vec3::Z),
+            Transform::from_translation(fixtures::emitter(scene, p))
+                .looking_at(p - Vec3::Y, Vec3::Z),
             ChildOf(root),
         ));
     }
@@ -730,7 +710,18 @@ mod lighting_tests {
                 .compute_affine()
                 .inverse()
                 .transform_point3(sample.0);
-            assert!((local.y - lamp.size.y * 0.866).abs() < 1e-6);
+            let mesh = super::super::objects::build_object(&lamp);
+            let aperture = mesh
+                .parts
+                .iter()
+                .filter(|((surface, _), _)| *surface == Surface::Light)
+                .flat_map(|(_, g)| &g.positions)
+                .map(|p| p[1])
+                .fold(f32::INFINITY, f32::min);
+            assert!(
+                (0.001..0.006).contains(&(aperture - local.y)),
+                "emitter must sit just outside its actual diffuser"
+            );
             assert!((150.0..550.0).contains(&sample.2));
             assert!(sample.3 < sample.4);
             colors.insert(sample.1.to_array().map(f32::to_bits));

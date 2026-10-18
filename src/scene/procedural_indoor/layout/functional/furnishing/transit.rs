@@ -1,5 +1,80 @@
 use super::*;
+
+pub(super) fn door_approach(o: &IndoorObject) -> Reservation {
+    // Keep the established unrotated bank's exact arithmetic. A recovered bank
+    // must reserve the space in front of its actual doors, not world +Z.
+    let (_, hi) = o.bounds();
+    if o.yaw == 0. {
+        return Reservation {
+            role: ReservationRole::DoorApproach,
+            min: Vec2::new(o.position.x - o.size.x * 0.32, hi.z + 0.035),
+            max: Vec2::new(o.position.x + o.size.x * 0.32, hi.z + 1.05),
+        };
+    }
+    let mut min = Vec2::splat(f32::INFINITY);
+    let mut max = Vec2::splat(f32::NEG_INFINITY);
+    for x in [-0.32, 0.32] {
+        for offset in [0.035, 1.05] {
+            let point = o
+                .transform()
+                .transform_point(Vec3::new(x * o.size.x, 0., o.size.z * 0.5 + offset))
+                .xz();
+            min = min.min(point);
+            max = max.max(point);
+        }
+    }
+    Reservation {
+        role: ReservationRole::DoorApproach,
+        min,
+        max,
+    }
+}
+
 impl IndoorManifest {
+    pub(super) fn recover_elevator_anchor(
+        &mut self,
+        index: usize,
+        size: Vec3,
+        rng: &mut ChaCha8Rng,
+    ) {
+        // A low duct can block the front bank while a side-wall bank fits beside
+        // the central aisle. Try other cardinal orientations only after ordinary
+        // placement fails, with the same size and all existing clearance gates.
+        let p = self.assembly_diagnostics.programs[index].clone();
+        for yaw in [FRAC_PI_2, -FRAC_PI_2, PI] {
+            let extent = if yaw.abs() == FRAC_PI_2 {
+                Vec2::new(size.z, size.x)
+            } else {
+                size.xz()
+            };
+            let span = p.max - p.min - extent - Vec2::splat(0.04);
+            if span.min_element() < 0. {
+                continue;
+            }
+            for row in 0..10 {
+                for col in 0..10 {
+                    let point = p.min
+                        + extent * 0.5
+                        + Vec2::splat(0.02)
+                        + span * Vec2::new(col as f32 / 9., row as f32 / 9.);
+                    if self
+                        .public_fit(
+                            index,
+                            ObjectKind::Elevator,
+                            Vec3::new(point.x, 0., point.y),
+                            size,
+                            yaw,
+                            rng,
+                        )
+                        .is_some()
+                    {
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
     pub(super) fn transit_program(&mut self, index: usize, r: &mut ChaCha8Rng) {
         let p = self.assembly_diagnostics.programs[index].clone();
         let center = (p.min + p.max) * 0.5;

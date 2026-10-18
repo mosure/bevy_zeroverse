@@ -23,6 +23,8 @@ pub enum CeilingSystem {
     OpenCell,
     Conduit,
     CableTray,
+    Coffers,
+    Ventilation,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -95,6 +97,8 @@ impl CeilingInstallation {
                             | CeilingSystem::OpenCell
                             | CeilingSystem::Conduit
                             | CeilingSystem::CableTray
+                            | CeilingSystem::Coffers
+                            | CeilingSystem::Ventilation
                     ))
                 || !sampling::admissible(scene, module, &reservations)
                 || self.modules[..i]

@@ -16,7 +16,7 @@ use bevy_zeroverse::{
     camera::{Playback, PlaybackMode, ZeroverseCamera},
     headless::{create_app, setup_globals},
     io::{channels, image_copy::ImageCopier},
-    render::{depth::DepthFormat, ground_truth::GroundTruthCamera, RenderMode},
+    render::{depth::DepthFormat, ground_truth::GroundTruthCamera, ssaa::SsaaCamera, RenderMode},
     sample::{
         AnnotationPrecision, CaptureBlocker, CaptureFailure, CaptureProgress, CaptureReadiness,
         Sample, SamplerState,
@@ -241,13 +241,18 @@ fn animated_viewer_settings_capture_fixed_steps_and_reject_midflight_changes() {
     // Exercise the preserved one-attachment renderer and sequential material modes.
     let (entity, target) = app
         .world_mut()
-        .query_filtered::<(Entity, &RenderTarget), With<ZeroverseCamera>>()
+        .query_filtered::<(Entity, &RenderTarget, Option<&SsaaCamera>), With<ZeroverseCamera>>()
         .single(app.world())
-        .map(|(entity, target)| {
+        .map(|(entity, target, ssaa)| {
             let RenderTarget::Image(target) = target else {
                 panic!()
             };
-            (entity, target.handle.clone())
+            // The camera target can be supersampled; the one-attachment
+            // copier must still read the resolved final-resolution image.
+            (
+                entity,
+                ssaa.map_or_else(|| target.handle.clone(), |ssaa| ssaa.output.clone()),
+            )
         })
         .unwrap();
     let copier = ImageCopier::for_targets(

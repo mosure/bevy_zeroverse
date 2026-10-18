@@ -181,19 +181,25 @@ pub(super) fn light(a: &mut Assembly, o: &IndoorObject, p: &EquipmentProgram) {
     if o.kind == ObjectKind::CeilingPendant {
         let radius = s.x.min(s.z) * 0.46;
         let shade = s.y * p.shade_fraction;
-        let thickness = 0.007_f32.min(radius * 0.08);
         // Conical shell with real inner wall and rim, suspended by a connected
         // stem. Geometry remains below the ceiling and above the seated zone.
-        a.part(p.housing, label).lathe(
-            &[
-                (radius, s.y * 0.05),
-                (radius * 0.48, shade),
-                ((radius * 0.48 - thickness).max(0.003), shade),
-                (radius - thickness, s.y * 0.05),
-                (radius, s.y * 0.05),
-            ],
-            28,
-            Transform::IDENTITY,
+        let style = super::super::luminaires::parameters(o.seed);
+        let taper = 0.48 + style.shoulder * 0.46;
+        super::super::luminaires::shade(
+            a,
+            label,
+            &style,
+            Vec3::Y * s.y * 0.05,
+            radius,
+            shade - s.y * 0.05,
+            taper,
+        );
+        super::super::luminaires::bulb(
+            a,
+            label,
+            &style,
+            Vec3::Y * (s.y * 0.05 + (shade - s.y * 0.05) * 0.45),
+            (radius * 0.19).min((shade - s.y * 0.05) * 0.17),
         );
         a.part(Surface::Rubber, label).rod(
             Vec3::new(0., shade, 0.),
@@ -205,6 +211,19 @@ pub(super) fn light(a: &mut Assembly, o: &IndoorObject, p: &EquipmentProgram) {
             0.024,
             Transform::from_xyz(0., s.y - 0.012, 0.),
         );
+        let upper = radius
+            * if matches!(style.shape, 1 | 3) {
+                taper.clamp(0.88, 1.)
+            } else {
+                taper
+            };
+        for sign in [-1., 1.] {
+            a.part(style.trim, label).rod(
+                Vec3::Y * (shade - 0.002),
+                Vec3::new(sign * (upper - 0.001), shade - 0.002, 0.),
+                0.0015,
+            );
+        }
         a.part(Surface::Light, label).cylinder(
             radius * p.diffuser_fraction,
             0.003,

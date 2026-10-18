@@ -20,8 +20,9 @@ pub struct GpuLiveDataset {
     next_seed: u64,
     pending: Option<u64>,
     requests: mpsc::SyncSender<Request>,
-    samples: mpsc::Receiver<Result<GpuSample>>,
+    samples: mpsc::Receiver<Result<(GpuSample, GpuCaptureTimings)>>,
     worker: Option<thread::JoinHandle<()>>,
+    last_capture_timings: Option<GpuCaptureTimings>,
 }
 
 impl GpuLiveDataset {
@@ -85,7 +86,15 @@ impl GpuLiveDataset {
                 }
                 while let Ok(Request::Capture { seed, indexed }) = incoming.recv() {
                     let reset = indexed || renderer.queued_seed != Some(seed);
-                    let sample = renderer.capture(seed, reset);
+                    let sample = renderer.capture(seed, reset).map(|sample| {
+                        (
+                            sample,
+                            renderer
+                                .last_capture_timings
+                                .take()
+                                .expect("completed GPU capture timings"),
+                        )
+                    });
                     if sample.is_err() {
                         renderer.queued_seed = None;
                     }
@@ -104,6 +113,7 @@ impl GpuLiveDataset {
             requests,
             samples,
             worker: Some(worker),
+            last_capture_timings: None,
         })
     }
 
@@ -111,6 +121,14 @@ impl GpuLiveDataset {
     /// and queue; the opt-in CUDA device matches Bevy's physical GPU by UUID.
     pub fn device(&self) -> &Device {
         &self.device
+    }
+
+    /// Timings for the last successfully received sample, never a queued future
+    /// room. These CPU wall intervals add no GPU fence/readback and are kept
+    /// outside deterministic scene metadata. Measure completed training steps
+    /// separately; a WGPU submission interval is not GPU completion time.
+    pub fn last_capture_timings(&self) -> Option<&GpuCaptureTimings> {
+        self.last_capture_timings.as_ref()
     }
 
     /// Adapt the live stream to Burn's data loader. Indices bound each epoch;
@@ -166,8 +184,9 @@ impl GpuLiveDataset {
     }
 
     fn receive(&mut self) -> Result<GpuSample> {
+        self.last_capture_timings = None;
         let seed = self.pending.take().context("no GPU capture requested")?;
-        let sample = self
+        let (sample, timings) = self
             .samples
             .recv()
             .context("GPU renderer stopped during capture")??;
@@ -175,6 +194,8 @@ impl GpuLiveDataset {
             sample.metadata.indoor.as_ref().map(|m| m.seed) == Some(seed),
             "GPU capture seed mismatch"
         );
+        ensure!(timings.seed == seed, "GPU capture timing seed mismatch");
+        self.last_capture_timings = Some(timings);
         Ok(sample)
     }
 }

@@ -1,5 +1,6 @@
 //! Small procedural mesh vocabulary. UVs are measured in metres, not object extents.
 mod housing;
+mod primitives;
 mod slab;
 mod sweep;
 mod upholstery;
@@ -55,18 +56,22 @@ impl Geometry {
             let dv = half.dot(v.abs());
             let dn = half.dot(n.abs());
             let a = if radius > 0.0 {
-                vec![-du, -du + radius, du - radius, du]
+                [-du, -du + radius, du - radius, du]
             } else {
-                vec![-du, du]
+                [-du, du, 0., 0.]
             };
             let b = if radius > 0.0 {
-                vec![-dv, -dv + radius, dv - radius, dv]
+                [-dv, -dv + radius, dv - radius, dv]
             } else {
-                vec![-dv, dv]
+                [-dv, dv, 0., 0.]
             };
+            // Each face needs at most four coordinates. Keep these tiny tables
+            // on the stack instead of twelve heap allocations per cuboid.
+            let count = if radius > 0.0 { 4 } else { 2 };
+            let (a, b) = (&a[..count], &b[..count]);
             let start = self.positions.len() as u32;
-            for &y in &b {
-                for &x in &a {
+            for &y in b {
+                for &x in a {
                     let p = n * dn + u * x + v * y;
                     let closest = p.clamp(-core, core);
                     let normal = if radius > 0.0 {
@@ -94,6 +99,10 @@ impl Geometry {
     }
 
     pub fn mesh(&mut self, mesh: Mesh, tf: Transform) {
+        self.mesh_ref(&mesh, tf);
+    }
+
+    fn mesh_ref(&mut self, mesh: &Mesh, tf: Transform) {
         let Some(VertexAttributeValues::Float32x3(pos)) = mesh.attribute(Mesh::ATTRIBUTE_POSITION)
         else {
             return;
@@ -107,6 +116,11 @@ impl Geometry {
             return;
         };
         let offset = self.positions.len() as u32;
+        self.positions.reserve(pos.len());
+        self.normals.reserve(norm.len());
+        self.uvs.reserve(uv.len());
+        self.indices
+            .reserve(mesh.indices().map_or(pos.len(), Indices::len));
         for ((p, n), uv) in pos.iter().zip(norm).zip(uv) {
             self.vertex(
                 Vec3::from_array(*p),
@@ -125,27 +139,28 @@ impl Geometry {
     }
 
     pub fn ellipsoid(&mut self, radii: Vec3, tf: Transform) {
-        self.mesh(
-            Sphere::new(1.0).mesh().uv(20, 12),
-            tf.with_scale(tf.scale * radii),
-        );
+        self.mesh_ref(primitives::unit_sphere(), tf.with_scale(tf.scale * radii));
     }
 
     /// A surface of revolution; profile goes from bottom outside to top, then inside.
     pub fn lathe(&mut self, profile: &[(f32, f32)], segments: u32, tf: Transform) {
+        if profile.len() < 2 {
+            return;
+        }
+        let angles = primitives::lathe_angles(segments);
         // Duplicate rings at profile creases: a pot rim must not average its outer
         // normal with the inward-facing inner wall or invert the lighting normal.
         for pair in profile.windows(2) {
             let offset = self.positions.len() as u32;
             let tangent = Vec2::new(pair[1].0 - pair[0].0, pair[1].1 - pair[0].1).normalize();
             for &(r, y) in pair {
-                for i in 0..=segments {
-                    let a = i as f32 / segments as f32 * TAU;
-                    let normal = Vec3::new(tangent.y * a.cos(), -tangent.x, tangent.y * a.sin());
+                for angle in angles.iter() {
+                    let normal =
+                        Vec3::new(tangent.y * angle.cos, -tangent.x, tangent.y * angle.sin);
                     self.vertex(
-                        Vec3::new(r * a.cos(), y, r * a.sin()),
+                        Vec3::new(r * angle.cos, y, r * angle.sin),
                         normal,
-                        Vec2::new(a * pair[0].0.max(pair[1].0).max(0.001), y + r),
+                        Vec2::new(angle.radians * pair[0].0.max(pair[1].0).max(0.001), y + r),
                         &tf,
                     );
                 }
@@ -352,3 +367,7 @@ pub(crate) fn repair_tangent_frames(mesh: &mut Mesh) {
         mesh.insert_attribute(Mesh::ATTRIBUTE_TANGENT, tangents);
     }
 }
+
+#[cfg(test)]
+#[path = "geometry/primitive_tests.rs"]
+mod primitive_tests;

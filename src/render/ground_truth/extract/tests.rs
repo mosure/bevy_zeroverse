@@ -144,6 +144,41 @@ fn triangle(indices: Option<Indices>) -> Mesh {
     mesh
 }
 
+fn add_skin(x: &mut Extraction, vertices: usize) -> Entity {
+    assert!(vertices.is_multiple_of(3));
+    let joint = x.main.spawn(GlobalTransform::IDENTITY).id();
+    let poses = x
+        .main
+        .resource_mut::<Assets<SkinnedMeshInverseBindposes>>()
+        .add(vec![Mat4::IDENTITY]);
+    let mesh = repeated_triangles(vertices)
+        .with_inserted_attribute(
+            Mesh::ATTRIBUTE_JOINT_INDEX,
+            VertexAttributeValues::Uint16x4(vec![[0; 4]; vertices]),
+        )
+        .with_inserted_attribute(
+            Mesh::ATTRIBUTE_JOINT_WEIGHT,
+            vec![[1., 0., 0., 0.]; vertices],
+        );
+    let (entity, _, _) = x.object(mesh, None, RenderLayers::default(), Mat4::IDENTITY);
+    x.main.entity_mut(entity).insert(SkinnedMesh {
+        inverse_bindposes: poses,
+        joints: vec![joint],
+    });
+    joint
+}
+
+fn repeated_triangles(vertices: usize) -> Mesh {
+    triangle(None)
+        .with_inserted_attribute(
+            Mesh::ATTRIBUTE_POSITION,
+            (0..vertices)
+                .map(|i| [[-0.0, 0., 0.], [1., 0., 0.], [0., 1., 0.]][i % 3])
+                .collect::<Vec<_>>(),
+        )
+        .with_inserted_attribute(Mesh::ATTRIBUTE_NORMAL, vec![[0., 0., 1.]; vertices])
+}
+
 fn same_geometry(current: &ExtractedGeometry, original: &ExtractedGeometry) {
     assert_eq!(current.generation, original.generation, "generation");
     assert_eq!(current.failure, original.failure, "failure");
@@ -507,6 +542,187 @@ fn ground_truth_skin_capture_joint_and_bind_changes_match_original_baked_bits() 
     assert_eq!(
         x.geometry().instances[0].world_from_local,
         Mat4::from_scale(Vec3::splat(3.0)).to_cols_array_2d()
+    );
+}
+
+#[test]
+fn temporal_skin_updates_preserve_static_geometry_indices_flow_and_exact_upload_bytes() {
+    let mut x = Extraction::new();
+    let (_, static_mesh, _) = x.object(
+        repeated_triangles(3000),
+        None,
+        RenderLayers::default(),
+        Mat4::IDENTITY,
+    );
+    let first = add_skin(&mut x, 30);
+    x.object(
+        repeated_triangles(300),
+        Some(Face::Back),
+        RenderLayers::layer(1),
+        Mat4::IDENTITY,
+    );
+    let second = add_skin(&mut x, 60);
+    x.main.get_mut::<GroundTruthCamera>(x.camera).unwrap().flow = Some(Handle::default());
+    x.check();
+    let mut uploaded = bytemuck::cast_slice::<_, u8>(&x.geometry().vertices).to_vec();
+    let indices = x.geometry().indices.clone();
+    let mut uploaded_generation = x.geometry().generation;
+    for step in 1..=16 {
+        x.main
+            .get_mut::<GroundTruthCamera>(x.camera)
+            .unwrap()
+            .frame_id = step;
+        for (index, joint) in [first, second].into_iter().enumerate() {
+            x.main.entity_mut(joint).insert(GlobalTransform::from(
+                Mat4::from_rotation_translation(
+                    Quat::from_rotation_y(step as f32 * 0.031 + index as f32),
+                    Vec3::new(step as f32 * 0.01, 0.4, -0.2),
+                ),
+            ));
+        }
+        x.check();
+        let geometry = x.geometry();
+        let update = geometry.deformation.as_ref().expect("only skins changed");
+        assert_eq!(update.base_generation, uploaded_generation);
+        assert_eq!(update.ranges.iter().map(|r| r.len()).sum::<usize>(), 90);
+        // Replay the precise writes an existing GPU buffer receives. This also
+        // checks noncontiguous skins with a static object between them.
+        for range in &update.ranges {
+            let byte_range = range.start * size_of::<Vertex>()..range.end * size_of::<Vertex>();
+            uploaded[byte_range]
+                .copy_from_slice(bytemuck::cast_slice(&geometry.vertices[range.clone()]));
+        }
+        assert_eq!(uploaded, bytemuck::cast_slice::<_, u8>(&geometry.vertices));
+        assert_eq!(geometry.indices, indices);
+        uploaded_generation = geometry.generation;
+    }
+    x.main
+        .get_mut::<GroundTruthCamera>(x.camera)
+        .unwrap()
+        .frame_id += 1;
+    x.check();
+    assert!(
+        x.geometry().deformation.as_ref().unwrap().ranges.is_empty(),
+        "a static pose needs no vertex upload"
+    );
+    x.event(AssetEvent::Modified {
+        id: static_mesh.id(),
+    });
+    x.check();
+    assert!(
+        x.geometry().deformation.is_none(),
+        "mesh edits retain full validation/extraction"
+    );
+}
+
+#[test]
+fn deformation_update_is_atomic_on_bad_spans_and_preserves_signed_zero() {
+    let mut geometry = ExtractedGeometry {
+        vertices: vec![
+            Vertex {
+                position: [0.; 3],
+                normal: [0., 1., 0.],
+                instance: 7
+            };
+            4
+        ],
+        ..default()
+    };
+    let mesh = |range, positions| deformation::DeformedMesh {
+        range,
+        positions,
+        normals: vec![[0., 1., 0.]],
+    };
+    let before = bytemuck::cast_slice::<_, u8>(&geometry.vertices).to_vec();
+    assert!(deformation::apply(
+        &mut geometry,
+        vec![mesh(0..1, vec![[1.; 3]]), mesh(4..5, vec![[2.; 3]])]
+    )
+    .is_none());
+    assert_eq!(before, bytemuck::cast_slice::<_, u8>(&geometry.vertices));
+    let update = deformation::apply(
+        &mut geometry,
+        vec![
+            mesh(0..1, vec![[-0.0, 0., 0.]]),
+            mesh(1..2, vec![[1.; 3]]),
+            mesh(3..4, vec![[2.; 3]]),
+        ],
+    )
+    .unwrap();
+    assert_eq!(update.ranges, [0..2, 3..4]);
+    assert_eq!(
+        geometry.vertices[0].position[0].to_bits(),
+        (-0.0f32).to_bits()
+    );
+    assert!(geometry.vertices.iter().all(|v| v.instance == 7));
+}
+
+#[test]
+#[ignore = "bounded CPU-only temporal extraction timing; no renderer or GPU"]
+fn temporal_deformation_cpu_diagnostic() {
+    use std::{hint::black_box, time::Instant};
+    let mut x = Extraction::new();
+    x.object(
+        repeated_triangles(300_000),
+        None,
+        RenderLayers::default(),
+        Mat4::IDENTITY,
+    );
+    let joint = add_skin(&mut x, 12_000);
+    x.main.get_mut::<GroundTruthCamera>(x.camera).unwrap().flow = Some(Handle::default());
+    x.check();
+    let mut original = Vec::new();
+    let mut current = Vec::new();
+    for step in 1..=20 {
+        x.main
+            .get_mut::<GroundTruthCamera>(x.camera)
+            .unwrap()
+            .frame_id = step;
+        x.main
+            .entity_mut(joint)
+            .insert(GlobalTransform::from_translation(Vec3::new(
+                step as f32 * 0.1,
+                0.2,
+                0.3,
+            )));
+        for old in if step % 2 == 0 {
+            [true, false]
+        } else {
+            [false, true]
+        } {
+            let start = Instant::now();
+            if old {
+                x.run_original();
+            } else {
+                x.run_current();
+            }
+            let time = start.elapsed().as_secs_f64();
+            if step > 4 {
+                if old {
+                    original.push(time);
+                } else {
+                    current.push(time);
+                }
+            }
+        }
+        same_geometry(x.current.resource(), x.original.resource());
+        black_box(x.geometry());
+        x.main.clear_trackers();
+    }
+    let bytes = x.geometry().vertices.len() * size_of::<Vertex>()
+        + x.geometry().indices.len() * size_of::<u32>();
+    let changed = x
+        .geometry()
+        .deformation
+        .as_ref()
+        .unwrap()
+        .ranges
+        .iter()
+        .map(|r| r.len() * size_of::<Vertex>())
+        .sum::<usize>();
+    println!(
+        "{}",
+        serde_json::json!({ "fixture": "300000 static and 12000 skinned vertices, one joint, exact flow topology", "original_seconds": original, "candidate_seconds": current, "full_upload_bytes": bytes, "partial_upload_bytes": changed, "exact_frames": 20 })
     );
 }
 

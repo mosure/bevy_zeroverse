@@ -54,6 +54,17 @@ pub(super) fn maps(
     let _ = rng.random_range(14..37);
     let _ = rng.random_range(0.0..1.0_f32);
     let strand = rng.random_range(32..81) as u32;
+    // Tables live only for this atlas build, with a shared allocation ceiling.
+    // Reuse lattice hashes; interpolation and the one-pixel halo stay exact.
+    let mut budget = 32 * 1024;
+    let [pore, warp, fibre, fine, tone] = [
+        ([47, 53], 919),
+        ([7, 5], 729),
+        ([strand, 5], 813),
+        ([strand * 2 + 1, 11], 1183),
+        ([5, 9], 1927),
+    ]
+    .map(|(count, salt)| field::PreparedPeriodic::new(count, seed.wrapping_add(salt), &mut budget));
     cloth.base_color = Color::WHITE;
     // Anny's atlas is normalized. A two-metre UV reference is modulated per actor.
     cloth.uv_transform *= bevy::math::Affine2::from_scale(Vec2::splat(2.));
@@ -68,16 +79,10 @@ pub(super) fn maps(
         // subtly change rounding inside the warped hair field at atlas seams.
         let field = |u, v| {
             if kind == 1 {
-                periodic_noise(u, v, 47, 53, seed.wrapping_add(919))
+                pore.sample(u, v)
             } else {
-                let warp = periodic_noise(u, v, 7, 5, seed.wrapping_add(729));
-                0.65 * periodic_noise(
-                    u + (warp - 0.5) * 0.035,
-                    v,
-                    strand,
-                    5,
-                    seed.wrapping_add(813),
-                ) + 0.35 * periodic_noise(u, v, strand * 2 + 1, 11, seed.wrapping_add(1183))
+                let warp = warp.sample(u, v);
+                0.65 * fibre.sample(u + (warp - 0.5) * 0.035, v) + 0.35 * fine.sample(u, v)
             }
         };
         let mut halo = Vec::with_capacity(258 * 258);
@@ -109,7 +114,7 @@ pub(super) fn maps(
                         )
                     }
                     _ => {
-                        let tone = periodic_noise(u, v, 5, 9, seed.wrapping_add(1927));
+                        let tone = tone.sample(u, v);
                         (
                             0.94 + 0.18 * (f - 0.5) + 0.12 * (tone - 0.5),
                             dx * 0.11,

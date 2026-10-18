@@ -1,10 +1,9 @@
 //! A native indoor warmup fence tied to the exact requested scene and cameras.
 //!
-//! Last-schedule camera activation cannot qualify: the prepared token is taken
-//! only after visibility with cameras already active. The render world confirms
-//! those exact views traversed the default camera schedule, then acknowledges
-//! them after submission and the existing asset/pipeline barrier. The next
-//! normal update still recomputes visibility before issuing capture copies.
+//! A capture intent is pinned after current visibility. The render world may
+//! copy that very render only after checking the exact token, all views and the
+//! current asset/pipeline barrier. Unsupported temporal renderers retain their
+//! conservative frame settling. No host fence or extra identical draw is needed.
 use super::{CaptureFailure, CaptureProgress, CaptureReadiness, SamplerState};
 use crate::{
     app::BevyZeroverseConfig,
@@ -41,6 +40,7 @@ use std::sync::{
     atomic::{AtomicU64, Ordering},
     Arc, Mutex,
 };
+mod clusters;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct CameraToken {
@@ -106,11 +106,28 @@ struct Token {
     cameras: Vec<CameraToken>,
 }
 
+impl Token {
+    fn matches_capture(&self, expected: &Self) -> bool {
+        // Resource-wide asset ticks also change when old rooms are collected or
+        // future rooms are staged. They are useful for the warmup diagnostics,
+        // but cannot identify a pinned scene: requiring equality here can wait
+        // forever after unrelated cleanup. Current-room asset IDs, bindings and
+        // pipelines are checked immediately before the copy by readiness::update.
+        self.scene == expected.scene
+            && self.world_from_scene == expected.world_from_scene
+            && self.indoor == expected.indoor
+            && self.step == expected.step
+            && self.progress == expected.progress
+            && self.cameras == expected.cameras
+    }
+}
+
 /// Each application owns its own acknowledgement; camera-storage recycling or
 /// a previous scene's prepared pipeline status cannot release a new token.
 #[derive(Resource, Clone, Default)]
 pub(crate) struct RenderSettling {
     prepared: Option<Token>,
+    capture: Arc<Mutex<Option<(u64, Token)>>>,
     acknowledged: Arc<Mutex<Option<Token>>>,
     counts: Arc<Counts>,
 }
@@ -122,7 +139,15 @@ struct Counts {
     hits: AtomicU64,
 }
 impl RenderSettling {
-    pub(crate) fn completed(&self) -> bool {
+    pub(crate) fn can_capture(&self) -> bool {
+        self.prepared.is_some()
+    }
+
+    pub(crate) fn begin_capture(&self, request: u64) {
+        *self.capture.lock().unwrap() = self.prepared.clone().map(|token| (request, token));
+    }
+    #[cfg(test)]
+    fn completed(&self) -> bool {
         self.prepared
             .as_ref()
             .is_some_and(|prepared| self.acknowledged.lock().unwrap().as_ref() == Some(prepared))
@@ -209,6 +234,7 @@ pub(super) fn configure(app: &mut App) {
     }
     let fence = RenderSettling::default();
     app.insert_resource(fence.clone());
+    clusters::install(app);
     app.init_resource::<DiagnosticsStore>();
     app.add_systems(Last, publish_counts);
     app.add_systems(
@@ -231,6 +257,7 @@ pub(super) fn configure(app: &mut App) {
         RenderGraph,
         confirm_rendered
             .after(bevy::core_pipeline::schedule::camera_driver)
+            .before(crate::io::image_copy::ImageCopyLabel)
             .in_set(RenderGraphSystems::Render),
     );
     render.add_systems(
@@ -271,6 +298,8 @@ fn prepare(
             Option<&crate::render::ssaa::SsaaCamera>,
             &Exposure,
             Has<Hdr>,
+            Option<&bevy::light::cluster::Clusters>,
+            Option<&bevy::light::cluster::ClusterConfig>,
             (
                 Has<TemporalJitter>,
                 Has<TemporalAntiAliasing>,
@@ -301,7 +330,9 @@ fn prepare(
             && playback.speed == 0.0
             && playback.progress.is_finite(),
         stable_shading: supported_glass_filter(glass_filter.as_deref()),
-        in_flight: capture.pending.is_some() || capture.ovoxel_wait_started.is_some(),
+        // Pending copies still need a freshly verified token on each render
+        // until every attachment is ready. Submitted cameras suspend normally.
+        in_flight: capture.ovoxel_wait_started.is_some(),
     };
     if !policy.eligible() || cameras.iter().count() != args.num_cameras {
         return;
@@ -325,9 +356,14 @@ fn prepare(
         ssaa,
         exposure,
         hdr,
+        clusters,
+        cluster_config,
         temporal,
     ) in &cameras
     {
+        if !clusters::coherent(clusters, cluster_config) {
+            return;
+        }
         let (Some(index), Some((projection, _)), RenderTarget::Image(target)) = (
             index,
             crate::camera::pinhole::parameters(projection),
@@ -550,6 +586,26 @@ fn accepted_token(
     })
 }
 
+/// A guarded request is all-or-nothing across cameras. Called on the render
+/// thread after camera rendering and the current pipeline/asset readiness pass.
+pub(crate) fn guarded_request(world: &World) -> Option<(u64, usize, bool)> {
+    let fence = world.get_resource::<RenderSettling>()?;
+    let capture = fence.capture.lock().unwrap();
+    let (request, expected) = capture.as_ref()?;
+    let extracted = world.resource::<ExtractedSettling>();
+    let readiness = world.resource::<CapturePipelineReadiness>();
+    let actual = accepted_token(
+        extracted,
+        readiness.ready_for_scene(expected.scene),
+        readiness.failure().is_some(),
+    );
+    Some((
+        *request,
+        expected.cameras.len(),
+        actual.is_some_and(|actual| actual.matches_capture(expected)),
+    ))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -586,6 +642,79 @@ mod tests {
             prepared: Some(token.clone()),
             acknowledged: Arc::new(Mutex::new(Some(token))),
             ..default()
+        }
+    }
+
+    #[test]
+    fn capture_intent_is_pinned_before_acknowledgement_and_replaced_per_request() {
+        let original = token();
+        let mut fence = RenderSettling {
+            prepared: Some(original.clone()),
+            ..default()
+        };
+        assert!(fence.can_capture());
+        assert!(
+            !fence.completed(),
+            "the qualifying draw need not be duplicated"
+        );
+        fence.begin_capture(7);
+        fence.prepared.as_mut().unwrap().step += 1;
+        assert_eq!(*fence.capture.lock().unwrap(), Some((7, original.clone())));
+        fence.begin_capture(8);
+        let captured = fence.capture.lock().unwrap().clone().unwrap();
+        assert_eq!(captured.0, 8);
+        assert_eq!(captured.1.step, original.step + 1);
+        let mut extracted = ExtractedSettling {
+            cameras: vec![original.cameras[0].entity],
+            token: Some(original),
+            rendered: true,
+        };
+        assert_ne!(accepted_token(&extracted, true, false), Some(&captured.1));
+        extracted.token = Some(captured.1.clone());
+        assert_eq!(accepted_token(&extracted, true, false), Some(&captured.1));
+        extracted.rendered = false;
+        assert_ne!(accepted_token(&extracted, true, false), Some(&captured.1));
+        fence.prepared = None;
+        fence.begin_capture(9);
+        assert!(
+            fence.capture.lock().unwrap().is_none(),
+            "fallback disarms the guard"
+        );
+    }
+
+    #[test]
+    fn unrelated_asset_collection_cannot_permanently_invalidate_capture_intent() {
+        let expected = token();
+        let mut current = expected.clone();
+        current.asset_ticks = [9, 10, 11];
+        assert!(current.matches_capture(&expected));
+        let extracted = ExtractedSettling {
+            cameras: vec![current.cameras[0].entity],
+            token: Some(current.clone()),
+            rendered: true,
+        };
+        assert!(
+            accepted_token(&extracted, false, false).is_none(),
+            "changed assets must still be prepared"
+        );
+        assert!(
+            accepted_token(&extracted, true, true).is_none(),
+            "pipeline errors still reject the draw"
+        );
+        for mutate in [
+            |t: &mut Token| t.scene = t.cameras[0].entity,
+            |t: &mut Token| t.world_from_scene[0] ^= 1,
+            |t: &mut Token| t.indoor.0 += 1,
+            |t: &mut Token| t.step += 1,
+            |t: &mut Token| t.progress ^= 1,
+            |t: &mut Token| t.cameras[0].world_from_view[0] ^= 1,
+            |t: &mut Token| t.cameras[0].clip_from_view[0] ^= 1,
+            |t: &mut Token| t.cameras[0].size.x += 1,
+            |t: &mut Token| t.cameras.clear(),
+        ] {
+            let mut changed = current.clone();
+            mutate(&mut changed);
+            assert!(!changed.matches_capture(&expected));
         }
     }
 

@@ -19,6 +19,7 @@ pub mod color;
 pub mod depth;
 pub mod glass;
 pub mod ground_truth;
+mod material_aliases;
 pub mod normal;
 pub mod optical_flow;
 pub mod position;
@@ -152,6 +153,7 @@ impl Plugin for RenderPlugin {
     }
 
     fn finish(&self, app: &mut App) {
+        material_aliases::install(app);
         // GPU clustering appends lights with atomics, so floating point lighting
         // accumulation can vary between identical captures. Use the same stable
         // light assignment in interactive and dataset views, including WebGPU.
