@@ -6,59 +6,138 @@
         {
           "center": [
             0.0,
-            3.5469675064086914,
-            -1.900536060333252
+            3.535804748535156,
+            -2.3756699562072754
           ],
           "detail": {
             "finish": 2,
             "shape": {
-              "bend": -0.5883883237838745,
+              "bend": 0.5677785873413086,
               "branches": 1,
-              "end_scale": 0.9234870672225952,
+              "end_scale": 0.8990662693977356,
               "kind": "Duct",
-              "rise": -0.27023768424987793,
-              "seam_pitch_m": 0.5475853085517883,
-              "section": 0.843287467956543
+              "rise": 0.3188309669494629,
+              "seam_pitch_m": 0.6602204442024231,
+              "section": 0.8413022756576538
             }
           },
-          "pitch_m": 0.21252354979515076,
-          "seed": 12760617322853237651,
+          "pitch_m": 0.3388964831829071,
+          "seed": 12310652107087635870,
           "size": [
-            6.073258399963379,
-            0.4496568441390991,
-            0.7954398989677429
+            8.033525466918945,
+            0.4837978482246399,
+            0.5120425820350647
           ],
-          "support_top_m": 4.1281023025512695,
+          "support_top_m": 4.154430866241455,
           "system": "RectangularDuct",
-          "thickness_m": 0.02939792722463608
+          "thickness_m": 0.02945498190820217
         },
         {
           "center": [
             0.0,
-            3.750423669815063,
-            1.900536060333252
+            3.5976808071136475,
+            -0.7918901443481445
           ],
           "detail": {
             "finish": 2,
             "shape": {
-              "bend": -0.6468278765678406,
-              "count": 2,
-              "junction_pitch_m": 1.6044867038726809,
-              "kind": "Conduit",
-              "radius_m": 0.012980281375348568,
-              "rise": -0.48815101385116577
+              "branch_reach": 0.8150066137313843,
+              "head_pitch_m": 2.5592427253723145,
+              "kind": "Sprinkler",
+              "radius_m": 0.02771914377808571,
+              "upright": false
             }
           },
-          "pitch_m": 0.26384982466697693,
-          "seed": 14914710810952260595,
+          "pitch_m": 0.24741682410240173,
+          "seed": 11939533416015967498,
           "size": [
-            8.182567596435547,
-            0.16994434595108032,
-            0.4315698444843292
+            8.841143608093262,
+            0.2911859154701233,
+            0.5783663988113403
           ],
-          "support_top_m": 4.19081449508667,
+          "support_top_m": 4.180298805236816,
+          "system": "SprinklerMain",
+          "thickness_m": 0.0342041477560997
+        },
+        {
+          "center": [
+            0.0,
+            3.7214159965515137,
+            0.7918901443481445
+          ],
+          "detail": {
+            "finish": 2,
+            "shape": {
+              "bend": -0.12185043096542358,
+              "count": 5,
+              "junction_pitch_m": 1.6719131469726562,
+              "kind": "Conduit",
+              "radius_m": 0.009851397015154362,
+              "rise": -0.04244422912597656
+            }
+          },
+          "pitch_m": 0.20119132101535797,
+          "seed": 11269100295322632557,
+          "size": [
+            8.323654174804688,
+            0.1203821301460266,
+            0.3400973677635193
+          ],
+          "support_top_m": 4.183798789978027,
           "system": "Conduit",
-          "thickness_m": 0.02378557249903679
+          "thickness_m": 0.026903528720140457
+        },
+        {
+          "center": [
+            0.0,
+            3.8096747398376465,
+            2.3756699562072754
+          ],
+          "detail": {
+            "finish": 2,
+            "shape": {
+              "cables": 8,
+              "kind": "Tray",
+              "rise": -0.2605592608451843,
+              "rung_pitch_m": 0.2757655382156372
+            }
+          },
+          "pitch_m": 0.33016180992126465,
+          "seed": 7559264411941088770,
+          "size": [
+            6.1973652839660645,
+            0.22678837180137632,
+            0.3952574133872986
+          ],
+          "support_top_m": 4.162805080413818,
+          "system": "CableTray",
+          "thickness_m": 0.03388947248458862
+        },
+        {
+          "center": [
+            0.0,
+            3.8432788848876953,
+            3.9594497680664062
+          ],
+          "detail": {
+            "finish": 2,
+            "shape": {
+              "angle": 0.39458632469177246,
+              "blades": 5,
+              "kind": "Diffuser",
+              "round": false
+            }
+          },
+          "pitch_m": 0.33348798751831055,
+          "seed": 7251945886804193728,
+          "size": [
+            0.8703779578208923,
+            0.2444682419300079,
+            0.5729793310165405
+          ],
+          "support_top_m": 4.091228485107422,
+          "system": "Ventilation",
+          "thickness_m": 0.02033352665603161
         }
       ]
     },
@@ -927,6 +1006,15 @@
         "zone": 0
       }
     ],
+    "luminaire_program": {
+      "border_fraction": 0.07689561694860458,
+      "depth_m": 0.1021849662065506,
+      "finish": 6,
+      "louver_pitch_m": 0.1128251925110817,
+      "opening_fraction": 0.6133447289466858,
+      "shape": "Panel",
+      "trim": "Paint"
+    },
     "partitions": [],
     "room_size": [
       11.83718490600586,
@@ -1317,14 +1405,14 @@
     ],
     "annotation_precision": "float32_geometry",
     "build_provenance": {
-      "capture_engine": "capture-v74;ssaa=1;capacity=1;primary_region=1;indoor_motion=1;calibration=1;co_visibility=1;bevy=0.20.0;burn=0.22.0;burn_human=0.6.0;bevy_burn_human=0.7.0;burn_human_motion=0.2.0;burn_ardy=0.2.0;burn_llama=0.2.0;burn_human_inference=0.2.0;ardy_motion=9;static_pose=4;pose_annotations=2;surface_flow=1;indoor=46;public_programs=2;kitchens=3;doors=1;multiview=11;camera_motion=1;lens_distribution=2;ovoxel=3;glass=4;hair=6;wardrobe=5;footwear=1;bounds=4;morphology=3;face=1;position=3;tabletop=4;finishes=12;seating=3;activity=3;playback=2;exterior=5;envelope=5;furnishings=5;botany=3;visual_content=3;equipment=7;palette=2;photometry=3;sun_shadow=2;material_compute=3;semantic=7;ceiling=2;floor_details=2;window_treatments=1",
-      "crate_version": "0.44.1",
+      "capture_engine": "capture-v76;ssaa=1;capacity=1;primary_region=1;indoor_motion=1;calibration=1;co_visibility=1;bevy=0.20.0;burn=0.22.0;burn_human=0.6.0;bevy_burn_human=0.7.0;burn_human_motion=0.2.0;burn_ardy=0.2.0;burn_llama=0.2.0;burn_human_inference=0.2.0;ardy_motion=9;static_pose=4;pose_annotations=2;surface_flow=1;indoor=47;public_programs=3;kitchens=3;doors=1;multiview=12;camera_motion=1;lens_distribution=2;ovoxel=3;glass=4;hair=6;wardrobe=5;footwear=1;bounds=4;morphology=3;face=1;position=3;tabletop=4;finishes=12;seating=3;activity=3;playback=2;exterior=5;envelope=6;furnishings=5;botany=3;visual_content=3;equipment=8;palette=2;photometry=4;sun_shadow=2;material_compute=3;semantic=7;ceiling=3;floor_details=2;window_treatments=1",
+      "crate_version": "0.44.2",
       "features": {
         "human_motion": false,
         "multi_threaded": true,
         "web": false
       },
-      "generator_version": 50,
+      "generator_version": 51,
       "locked_package_versions": {
         "bevy": [
           "0.20.0"
@@ -1333,19 +1421,19 @@
           "0.7.0"
         ],
         "bevy_zeroverse": [
-          "0.44.1"
+          "0.44.2"
         ],
         "bevy_zeroverse_burn": [
-          "0.28.1"
+          "0.28.2"
         ],
         "bevy_zeroverse_capture": [
-          "0.4.0"
+          "0.4.1"
         ],
         "bevy_zeroverse_ffi": [
-          "0.44.1"
+          "0.44.2"
         ],
         "bevy_zeroverse_publication": [
-          "0.5.0"
+          "0.5.1"
         ],
         "burn": [
           "0.22.0"
@@ -2240,7 +2328,7 @@
         }
       ],
       "semantic_taxonomy_version": 7,
-      "source_sha256": "5ea89887dc41e37bc282c43329fae9b4f6aff624b925331fe2751e401dca96a6",
+      "source_sha256": "3c21395218bb18c4548984893940d8b6262bd471f37875a93b4b0ad7066f7207",
       "target": "x86_64-unknown-linux-gnu"
     },
     "camera_qualification": {
@@ -2640,7 +2728,7 @@
       ],
       "requested_pairs": [],
       "scene_family": {
-        "id": "procedural_indoor/50/0000000000000016",
+        "id": "procedural_indoor/51/0000000000000016",
         "rule": "group all frames, cameras and appearance/sensor variants of a generator-version/seed family before assigning dataset splits",
         "split_bucket_10000": 8607
       },
@@ -2737,23 +2825,23 @@
       "mean_radiance": null,
       "prefetch_hit": false,
       "prefetch_wait_ms": 0.0,
-      "preparation_ms": 224.47734099999997,
+      "preparation_ms": 705.4029630000001,
       "primary_rays": 1474560,
       "probes": 1440,
       "relocated_probes": 107,
       "texture_bytes": 69120,
-      "transport_bytes": 46436720,
-      "triangles": 398329
+      "transport_bytes": 48096432,
+      "triangles": 412889
     },
-    "elapsed_seconds": 3.055460625,
-    "image_assets": 151,
+    "elapsed_seconds": 3.84755318,
+    "image_assets": 154,
     "image_size": [
       640,
       400
     ],
     "label_policy": "first geometric surface including glass; native indoor uses direct float32 MRT",
-    "material_assets": 105,
-    "mesh_assets": 244,
+    "material_assets": 106,
+    "mesh_assets": 246,
     "reconstruction_graphs": [
       {
         "graph": {
@@ -3351,7 +3439,7 @@
       }
     ],
     "renderer": "AdapterInfo { name: \"NVIDIA RTX PRO 6000 Blackwell Workstation Edition\", vendor: 4318, device: 11185, device_type: DiscreteGpu, device_pci_bus_id: \"0000:01:00.0\", driver: \"NVIDIA\", driver_info: \"610.43.02\", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: Some(false), limit_bucket: None }",
-    "run_id": "2451569-1792191538483928283",
+    "run_id": "3471041-1792326276772140044",
     "seed": 22,
     "views": [
       {
@@ -3421,8 +3509,8 @@
         "fov_y": 0.5376940965652466,
         "fx_pixels": 725.9073486328125,
         "fy_pixels": 725.9073486328125,
-        "luminance_std": 0.17493188,
-        "mean_luminance": 0.22175968,
+        "luminance_std": 0.1750535,
+        "mean_luminance": 0.22242802,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 12,
@@ -3538,8 +3626,8 @@
         "fov_y": 0.5716607570648193,
         "fx_pixels": 680.5557250976562,
         "fy_pixels": 680.5557250976562,
-        "luminance_std": 0.1847849,
-        "mean_luminance": 0.2576331,
+        "luminance_std": 0.18519384,
+        "mean_luminance": 0.2587966,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 13,
@@ -3656,8 +3744,8 @@
         "fov_y": 0.5465311408042908,
         "fx_pixels": 713.5797729492188,
         "fy_pixels": 713.5797729492188,
-        "luminance_std": 0.20963565,
-        "mean_luminance": 0.26413468,
+        "luminance_std": 0.20986962,
+        "mean_luminance": 0.26532385,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 13,
@@ -3774,8 +3862,8 @@
         "fov_y": 0.5494689345359802,
         "fx_pixels": 709.5671997070312,
         "fy_pixels": 709.5671997070312,
-        "luminance_std": 0.20429379,
-        "mean_luminance": 0.26010543,
+        "luminance_std": 0.20424198,
+        "mean_luminance": 0.26093912,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 13,
@@ -3892,8 +3980,8 @@
         "fov_y": 0.5376940965652466,
         "fx_pixels": 725.9073486328125,
         "fy_pixels": 725.9073486328125,
-        "luminance_std": 0.1848476,
-        "mean_luminance": 0.22500654,
+        "luminance_std": 0.1851211,
+        "mean_luminance": 0.22612496,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 12,
@@ -4009,8 +4097,8 @@
         "fov_y": 0.5716607570648193,
         "fx_pixels": 680.5557250976562,
         "fy_pixels": 680.5557250976562,
-        "luminance_std": 0.1824344,
-        "mean_luminance": 0.26023844,
+        "luminance_std": 0.18292566,
+        "mean_luminance": 0.26159164,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 13,
@@ -4127,8 +4215,8 @@
         "fov_y": 0.5465311408042908,
         "fx_pixels": 713.5797729492188,
         "fy_pixels": 713.5797729492188,
-        "luminance_std": 0.1997225,
-        "mean_luminance": 0.26833338,
+        "luminance_std": 0.1998849,
+        "mean_luminance": 0.26999354,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 13,
@@ -4245,8 +4333,8 @@
         "fov_y": 0.5494689345359802,
         "fx_pixels": 709.5671997070312,
         "fy_pixels": 709.5671997070312,
-        "luminance_std": 0.20600192,
-        "mean_luminance": 0.25935233,
+        "luminance_std": 0.20586242,
+        "mean_luminance": 0.2603762,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 13,
@@ -4299,10 +4387,10 @@
     ]
   },
   "generator_identity": {
-    "crate_version": "0.44.1",
-    "generator_version": 50,
+    "crate_version": "0.44.2",
+    "generator_version": 51,
     "schema_version": 1,
-    "source_sha256": "5ea89887dc41e37bc282c43329fae9b4f6aff624b925331fe2751e401dca96a6"
+    "source_sha256": "3c21395218bb18c4548984893940d8b6262bd471f37875a93b4b0ad7066f7207"
   },
   "manifest": {
     "architecture_style": "Industrial",
@@ -4396,8 +4484,8 @@
         41,
         0,
         47,
-        23,
-        75
+        25,
+        73
       ],
       "reference_proposals": 24,
       "reference_rejections": [
@@ -4603,59 +4691,138 @@
         {
           "center": [
             0.0,
-            3.5469675,
-            -1.9005361
+            3.5358047,
+            -2.37567
           ],
           "detail": {
             "finish": 2,
             "shape": {
-              "bend": -0.5883883,
+              "bend": 0.5677786,
               "branches": 1,
-              "end_scale": 0.92348707,
+              "end_scale": 0.89906627,
               "kind": "Duct",
-              "rise": -0.27023768,
-              "seam_pitch_m": 0.5475853,
-              "section": 0.84328747
+              "rise": 0.31883097,
+              "seam_pitch_m": 0.66022044,
+              "section": 0.8413023
             }
           },
-          "pitch_m": 0.21252355,
-          "seed": 12760617322853237651,
+          "pitch_m": 0.33889648,
+          "seed": 12310652107087635870,
           "size": [
-            6.0732584,
-            0.44965684,
-            0.7954399
+            8.033525,
+            0.48379785,
+            0.5120426
           ],
-          "support_top_m": 4.1281023,
+          "support_top_m": 4.154431,
           "system": "RectangularDuct",
-          "thickness_m": 0.029397927
+          "thickness_m": 0.029454982
         },
         {
           "center": [
             0.0,
-            3.7504237,
-            1.9005361
+            3.5976808,
+            -0.79189014
           ],
           "detail": {
             "finish": 2,
             "shape": {
-              "bend": -0.6468279,
-              "count": 2,
-              "junction_pitch_m": 1.6044867,
-              "kind": "Conduit",
-              "radius_m": 0.012980281,
-              "rise": -0.488151
+              "branch_reach": 0.8150066,
+              "head_pitch_m": 2.5592427,
+              "kind": "Sprinkler",
+              "radius_m": 0.027719144,
+              "upright": false
             }
           },
-          "pitch_m": 0.26384982,
-          "seed": 14914710810952260595,
+          "pitch_m": 0.24741682,
+          "seed": 11939533416015967498,
           "size": [
-            8.182568,
-            0.16994435,
-            0.43156984
+            8.841144,
+            0.29118592,
+            0.5783664
           ],
-          "support_top_m": 4.1908145,
+          "support_top_m": 4.180299,
+          "system": "SprinklerMain",
+          "thickness_m": 0.034204148
+        },
+        {
+          "center": [
+            0.0,
+            3.721416,
+            0.79189014
+          ],
+          "detail": {
+            "finish": 2,
+            "shape": {
+              "bend": -0.12185043,
+              "count": 5,
+              "junction_pitch_m": 1.6719131,
+              "kind": "Conduit",
+              "radius_m": 0.009851397,
+              "rise": -0.04244423
+            }
+          },
+          "pitch_m": 0.20119132,
+          "seed": 11269100295322632557,
+          "size": [
+            8.323654,
+            0.12038213,
+            0.34009737
+          ],
+          "support_top_m": 4.183799,
           "system": "Conduit",
-          "thickness_m": 0.023785572
+          "thickness_m": 0.026903529
+        },
+        {
+          "center": [
+            0.0,
+            3.8096747,
+            2.37567
+          ],
+          "detail": {
+            "finish": 2,
+            "shape": {
+              "cables": 8,
+              "kind": "Tray",
+              "rise": -0.26055926,
+              "rung_pitch_m": 0.27576554
+            }
+          },
+          "pitch_m": 0.3301618,
+          "seed": 7559264411941088770,
+          "size": [
+            6.1973653,
+            0.22678837,
+            0.3952574
+          ],
+          "support_top_m": 4.162805,
+          "system": "CableTray",
+          "thickness_m": 0.033889472
+        },
+        {
+          "center": [
+            0.0,
+            3.843279,
+            3.9594498
+          ],
+          "detail": {
+            "finish": 2,
+            "shape": {
+              "angle": 0.39458632,
+              "blades": 5,
+              "kind": "Diffuser",
+              "round": false
+            }
+          },
+          "pitch_m": 0.333488,
+          "seed": 7251945886804193728,
+          "size": [
+            0.87037796,
+            0.24446824,
+            0.57297933
+          ],
+          "support_top_m": 4.0912285,
+          "system": "Ventilation",
+          "thickness_m": 0.020333527
         }
       ]
     },
@@ -5663,7 +5830,7 @@
     "floor_style": 0,
     "furnishing_quarter_turn": 1,
     "furniture_style": 1,
-    "generator_version": 50,
+    "generator_version": 51,
     "glazing_height": 4.040394,
     "human_density": 0.25,
     "humans": [
@@ -9056,13 +9223,13 @@
     "world_yaw": 0.0
   },
   "source_sha256": {
-    "seed_000022/capture.json": "0f20348d3f16bc071536f7defade2e13bf56d723e9f4db4f0ef10f6e61105258",
-    "seed_000022/manifest.json": "9230be304ff3bf946b86e4ab8da46101527dafe9238a2fbe7d30d92c4f063622",
+    "seed_000022/capture.json": "572ffe1a890d887d9c83776b49cd2094edc4b5b927cc89a147f8e24406f6fd57",
+    "seed_000022/manifest.json": "37a15ed37df63c9ca806934d1a03b2e00cde6a592892642f1deac404cdb3dff9",
     "seed_000022/schematic.svg": "75dda831dbc54e513c0bc48ff082da9708b2be463ec56c4116f8cfe02861e801",
     "seed_000022/view_00_co_visibility.png": "31484ac3d8c778a6d72ed654308f7b17b902ec47442e5daf01865c8de86bfd38",
     "seed_000022/view_00_co_visibility_mask.png": "4c8c9ab08c8a796453d2dfecdfffa10cc95cb5b1e07e6d38b5e34b1c5fbdab12",
     "seed_000022/view_00_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000022/view_00_color.png": "999264961a3a9b0c3a21c183f214656df9857b696287dcb886586f930dc8f383",
+    "seed_000022/view_00_color.png": "3c9c09024b0ae64245a3d0ee4b87edac83bb4dffecd3b418c7278cf051557524",
     "seed_000022/view_00_depth.png": "5096b65c270eee2ba392869bae5b05a05e7e31a70becac53838f72c42af8b815",
     "seed_000022/view_00_normal.png": "cef4a4ddd599a116cc7195df8c5fdfef1f2ab017b5ac39741a7d17a3b8dac8ba",
     "seed_000022/view_00_position.png": "69493483529b12bde219adeb860c35f10823c57298648a420503e70b58e89e71",
@@ -9070,7 +9237,7 @@
     "seed_000022/view_01_co_visibility.png": "a770218a8059d4b6a2c18c6de064a144e34c94fd8f9285af1793b929f0e57774",
     "seed_000022/view_01_co_visibility_mask.png": "b505e7d2f3263a4b31df0367a2754777cc3430427d61f52c266b8b21fc681cbe",
     "seed_000022/view_01_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000022/view_01_color.png": "fa37065dd737b5548d9e8c16b2bd74110ee1fdeca868b8fac7b0304bb5384a7d",
+    "seed_000022/view_01_color.png": "1f602d6781e852cf416a9ff79d2e853a997aea91809ff4bc22744b4d5d77c8fc",
     "seed_000022/view_01_depth.png": "8d8bee82a678ca953931d638922079e550b93951a1135ac862493fc99b70d590",
     "seed_000022/view_01_normal.png": "e5bfcaf74e7241fe26693531b6b1783da3fee4f56effcdd9a38010f34d253e6f",
     "seed_000022/view_01_position.png": "bf4eae2ac3ecca94fc46ecf52e84f0b60c5bf108226c89e5b9fd067e5d4bc796",
@@ -9078,7 +9245,7 @@
     "seed_000022/view_02_co_visibility.png": "9a1ca7cd6d8283a6bfbae06fa808dccbee556836a459c4d2610600d8fd40d6b8",
     "seed_000022/view_02_co_visibility_mask.png": "ba83cc762adc8d562f71bbfe3acafee7174d2041a141420d534329bc5026d882",
     "seed_000022/view_02_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000022/view_02_color.png": "6a259e2d6079acf6704df403eb717cf01793c236f65bad450bb7d91d704eacc0",
+    "seed_000022/view_02_color.png": "94c72274bb39ea16454fbaa8cea3912a72de5c90089194f51bdfd23cd0d4e1d7",
     "seed_000022/view_02_depth.png": "378217515dba0b6ea92214b4389054b6686c87e9ee1be5cd25666af4c20e953a",
     "seed_000022/view_02_normal.png": "c44a12b156c73cf0629bf6725bde624eff823e1ea68bfcc656718bfe66f1ea60",
     "seed_000022/view_02_position.png": "4ac3bb94409706ee27ab44083295fbc543df698a74356f650fa3b438dd5c7995",
@@ -9086,7 +9253,7 @@
     "seed_000022/view_03_co_visibility.png": "30c38dba77c7aba965e74c7b39cdada3d5ab088877c281739842fe677df98aa7",
     "seed_000022/view_03_co_visibility_mask.png": "bf6b4e24aee823d3a29ee1aaad37fe8615aa545ee34840d436674860ab4017a9",
     "seed_000022/view_03_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000022/view_03_color.png": "52eb63841b132feeda92a506a9c01edaa180d9f2674f9890e3b2e36f236f9c18",
+    "seed_000022/view_03_color.png": "6eeda0e379bfec1f26161c6bd8c7579b131711a325011452409fb4f884fc2e71",
     "seed_000022/view_03_depth.png": "5aea1892babb0b0b2b32867ecf130d875f569d5c57c8761494272e963e222272",
     "seed_000022/view_03_normal.png": "dfbfe10043298fcc05b9f46e80fd26e82cb3fe07ba165b757faabc993bb522e1",
     "seed_000022/view_03_position.png": "de804e74c23eea814a86bdeb37673c9e193a0f8964e8e20059ba56f031135769",
@@ -9094,7 +9261,7 @@
     "seed_000022/view_04_co_visibility.png": "41159d322bd258df9e3f91a002edd28315066e67db187cf2343bb7439fc92b9f",
     "seed_000022/view_04_co_visibility_mask.png": "e1ae811fe46d62e6b4288c8f8709dd2ee22265a5435792127264f205ee3e7053",
     "seed_000022/view_04_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000022/view_04_color.png": "dd670e10730612c556784b087fc8f0c0a563d556a9e42f09145a337226e59af2",
+    "seed_000022/view_04_color.png": "691b1229e6a57035d7f0d7f761a49dc0e7e3b45fc6abd2978fea9036b0d17ea6",
     "seed_000022/view_04_depth.png": "fb8ac07d60a8008dfe48c3ec3615dd3f7cba48775da3d6c6d6bc095754b84241",
     "seed_000022/view_04_normal.png": "4c188d27199791901c91ee9d7c5f396beb85f508cca0fcfa09fae17e5059232d",
     "seed_000022/view_04_position.png": "6682e7dff78adb7584f852ee6a6cec988d0883c4736fd570ff1018d15e93eadb",
@@ -9102,7 +9269,7 @@
     "seed_000022/view_05_co_visibility.png": "d16d243c31dda5e61446fe2981a137d4057a7962da3e277dee67df4b054ec686",
     "seed_000022/view_05_co_visibility_mask.png": "8ffb03d02cf1349bf14377476f326c995eeb977b40fb0a7f4a4e718fcf417878",
     "seed_000022/view_05_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000022/view_05_color.png": "eba3ee8b495f0ef29f1f87445727eaec7e629e91a6b808cbe44eebf55c14c190",
+    "seed_000022/view_05_color.png": "405fc410ab15e61be46aaad6e4dc4b1a4bc13a18f7cc0d7c624f33f5beae0052",
     "seed_000022/view_05_depth.png": "9502da7ae92d5268a3a7612ecf80e67cff6350c9e2509b1cc72787ca38fed22c",
     "seed_000022/view_05_normal.png": "0888782dcf04683cd9115aa27f507a99769476d6f575d03272e68bd508848b29",
     "seed_000022/view_05_position.png": "30686668f8d501eb91064aab4cf807152eaa7654c9760b6d1fccc131a5681ded",
@@ -9110,7 +9277,7 @@
     "seed_000022/view_06_co_visibility.png": "ca05160c647dcd047737f84c63c2cad85f8d7996b1404a907ee3f433f52c31b3",
     "seed_000022/view_06_co_visibility_mask.png": "67cf2ba24e399de7ccce12f927fd437de2197215870a288d4c284927ffffb2c0",
     "seed_000022/view_06_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000022/view_06_color.png": "138aeb0e16e2bd929ec0f89f8f246b2241b72f81b0726683e48e7b14582df233",
+    "seed_000022/view_06_color.png": "df9a729400427432b37f315e2b55b79f52f1da75758f3c3d0ca2f51a6a1bdbc2",
     "seed_000022/view_06_depth.png": "5549460e4fed52fe0cff67f401d85e007f40ca7145191f7eb1eccab36e2190a8",
     "seed_000022/view_06_normal.png": "d74783498d9fa0a1e4b5be92c65806e91b6f3c54c1565905348beae7fdd53d9c",
     "seed_000022/view_06_position.png": "c12a07a21c2260d45139e35ce0b429f0f2e779b5a7c0b1bbce35253d356ca959",
@@ -9118,7 +9285,7 @@
     "seed_000022/view_07_co_visibility.png": "c52db08b848fda2efecd4f62a7975e0b41c13895456303ee046b76769b2f805d",
     "seed_000022/view_07_co_visibility_mask.png": "ef42e865dde01bd65a55e8f67e73875f8c283a684cf10b64bcb0d157c0120c57",
     "seed_000022/view_07_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000022/view_07_color.png": "6d7fce43b027bb0aaac7f2acbc47b1bd3b6c32161b746cd1afc24bbc4c2d4c2a",
+    "seed_000022/view_07_color.png": "81116c4a1e22dea362738275ac2bf178834c62448bade34af654d74a6dbbfb3f",
     "seed_000022/view_07_depth.png": "eaddfd67dae9ae2c836cfdaf0912d25dea1f88c34c68c6d98a6220ca0ca9e8ae",
     "seed_000022/view_07_normal.png": "bcf07e22c8bf462d442147d37a19090af0b2863b9a19646d858b1c1a04d5f323",
     "seed_000022/view_07_position.png": "4135b6b8a1935b78ef6034659a678e7000f20ede605f5d7db9c2909b4c14e556",
