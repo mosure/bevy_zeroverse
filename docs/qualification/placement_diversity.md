@@ -38,6 +38,10 @@ Native library/test Clippy passed with warnings denied; the WebGPU/viewer librar
 
 The 38 focused tests passed in 12.77 seconds (the complete-room sub-audit took 8.26 seconds on the shared host). These times include validation and are not capture-throughput measurements. RNG replay, cupboard/appliance semantics, cabinet opening envelopes, kitchen support, short/deep sofa bounds, ceiling reservations and luminaire reflection oracles are covered. Actual fixture mesh projected emitting areas are independently checked against the area used for photometry. Miniature display sculptures use proportionally bounded connecting rods to prevent fixed-thickness details from piercing shelves.
 
+Release regression coverage additionally includes 512 narrow/tall book-stack meshes, the geometry matrices for seeds 57541088 and 57491588, and the eight-camera Library configuration for seed 63343058. Spiral bindings account for the complete wire cross-section inside the rotated cover envelope. Large-rig recovery reserves room for new proposals when replay would exhaust its budget and samples independent horizontal travel within the configured path-length bounds. The eight-camera test checks deterministic replay, unchanged scene geometry, all requested overlap/spread/separation constraints, swept clearance and 129 positions along every path. Ordinary successful camera searches retain their existing results and cost; recovery keeps the same finite proposal budget.
+
+The final native CPU unit suite passed 681 tests plus 14 isolated voxel tests. Its 36 explicitly ignored GPU/diagnostic tests were not launched. Workspace all-target Clippy also passed with warnings denied, including the CUDA IPC and Burn fusion features.
+
 ```sh
 cargo test --lib --no-default-features --features multi_threaded -- \
   placement::tests items::sizing objects::seating objects::kitchen objects::public \

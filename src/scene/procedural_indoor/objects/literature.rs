@@ -87,20 +87,25 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
                 t * 0.2,
             );
         } else {
+            let wire_radius = (h * 0.025).min(0.0005);
+            let ring_width = h * 0.10;
+            // The cover was fitted against the rotated annotation envelope.
+            // Keep the entire wire cross-section inside that fitted rectangle,
+            // including for narrow, thick volumes in a tall stack.
+            let ring_center = -width * 0.5 + ring_width + wire_radius;
             for j in 0..12 {
                 let z = depth * ((j as f32 + 0.5) / 12. - 0.5) * 0.91;
                 let points: Vec<_> = (0..=12)
                     .map(|k| {
                         let t = TAU * k as f32 / 12.;
                         tf.transform_point(Vec3::new(
-                            -width * 0.46 + h * 0.10 * t.cos(),
+                            ring_center + ring_width * t.cos(),
                             h * (0.5 + 0.47 * t.sin()),
                             z,
                         ))
                     })
                     .collect();
-                a.part(Surface::Metal, l)
-                    .tube(&points, (h * 0.025).min(0.0005), 6);
+                a.part(Surface::Metal, l).tube(&points, wire_radius, 6);
             }
         }
         if p.strap && i == p.volumes - 1 {
@@ -111,5 +116,26 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
             );
         }
         y += h;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bindings_fit_narrow_tall_stacks() {
+        for seed in 0..256 {
+            for size in [
+                Vec3::new(0.12, 0.16, 0.174),
+                Vec3::new(0.1444325, 0.15422024, 0.20178014),
+            ] {
+                let mut object = audit::fixture(ObjectKind::Books, seed);
+                object.size = size;
+                let assembly = build_object(&object);
+                audit::check(&object, &assembly)
+                    .unwrap_or_else(|e| panic!("seed={seed}, size={size:?}: {e}"));
+            }
+        }
     }
 }

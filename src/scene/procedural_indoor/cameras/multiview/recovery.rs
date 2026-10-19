@@ -9,6 +9,19 @@ use super::*;
 pub(super) const SAVED_GROUPS: usize = 12;
 const NEARBY_ATTEMPTS: usize = 24;
 
+// A beam visits candidate/parent pairs. At large camera counts, their Cartesian
+// product can otherwise consume the entire budget before any new origin is
+// proposed. Preserve existing searches that already reach novel origins; if
+// replay would starve them, reserve half the slots for nearby/room-space search.
+fn replay_budget(attempts: usize, saved_views: usize, parents: usize) -> usize {
+    let full = saved_views.saturating_mul(parents);
+    if full.saturating_add(NEARBY_ATTEMPTS) >= attempts {
+        full.min(attempts / 2)
+    } else {
+        full
+    }
+}
+
 pub(super) fn retain_diverse(groups: &mut Vec<Vec<IndoorCamera>>, cameras: &[IndoorCamera]) {
     let mut incoming = cameras.to_vec();
     if groups.is_empty() {
@@ -321,19 +334,24 @@ pub(super) fn complete(
             while scene.cameras.len() < count {
                 let mut found = None;
                 let mut children = Vec::new();
+                let replay_slots = if replaced_reference || beam {
+                    replay_budget(attempts, saved_views.len(), parents.len())
+                } else {
+                    0
+                };
+                let nearby_end = replay_slots + NEARBY_ATTEMPTS;
                 for attempt in 0..attempts {
                     if beam {
                         let parent = &parents[attempt % parents.len()];
                         scene.cameras.clone_from(&parent.cameras);
                         tracks = parent.tracks.iter().map(|t| Track(t.0)).collect();
                     }
-                    let saved_index = if beam {
-                        attempt / parents.len()
-                    } else {
-                        attempt
-                    };
-                    let saved = (replaced_reference || beam) && saved_index < saved_views.len();
+                    let saved = attempt < replay_slots;
                     let mut camera = if saved {
+                        // Visit the full retained set evenly when replay is
+                        // capped, rather than only the first anchor's views.
+                        let saved_index = (attempt / parents.len()) * saved_views.len()
+                            / replay_slots.div_ceil(parents.len());
                         // The saved person-facing paths already proved clearance
                         // and full framing at low eye heights. Reuse them as rare
                         // counterparts before proposing new paths. Co-located
@@ -346,13 +364,12 @@ pub(super) fn complete(
                             continue;
                         }
                         camera
-                    } else if beam && attempt < saved_views.len() * parents.len() + NEARBY_ATTEMPTS
-                    {
+                    } else if beam && attempt < nearby_end {
                         // Valid counterpart paths reveal small navigable pockets in
                         // furnished rooms. Preserve their optical framing while the
                         // ordinary deformation varies motion independently. Every
                         // candidate remains subject to the complete group gates.
-                        let index = (attempt - saved_views.len() * parents.len()) / parents.len();
+                        let index = (attempt - replay_slots) / parents.len();
                         let template = if scene.cameras.len() > 1 {
                             &scene.cameras[1 + (index / 6) % (scene.cameras.len() - 1)]
                         } else {
@@ -382,7 +399,7 @@ pub(super) fn complete(
                             rejected[0] += 1;
                             continue;
                         }
-                        let mode = (attempt - saved_views.len() * parents.len()) / 6;
+                        let mode = (attempt - replay_slots) / 6;
                         if mode == 0 {
                             let mut camera = propose(
                                 template,
@@ -447,15 +464,13 @@ pub(super) fn complete(
                     } else if beam
                         && replaced_reference
                         && !content.is_empty()
-                        && saved_index - saved_views.len() - NEARBY_ATTEMPTS / parents.len()
-                            < 24 * content.len()
+                        && (attempt - nearby_end) / parents.len() < 24 * content.len()
                     {
                         // High ceiling-relative views can share the reference's
                         // content from above a mezzanine guard. Enumerate both sides
                         // and short longitudinal offsets, retaining all acceptance
                         // gates below. Each parent/candidate consumes one view slot.
-                        let index =
-                            saved_index - saved_views.len() - NEARBY_ATTEMPTS / parents.len();
+                        let index = (attempt - nearby_end) / parents.len();
                         let spatial = (index / content.len()) % 12;
                         let body_delta = group[0].target - reference.start;
                         let forward = if body_delta.x.abs() > body_delta.z.abs() {
@@ -607,6 +622,36 @@ pub(super) fn complete(
                             }
                             motion.target_end += aim_offset;
                         }
+                        if count > 4 && attempt % 4 == 3 {
+                            // Dense rigs cannot always pack translated/deformed
+                            // copies of one path into the same visible corridor.
+                            // Spend some existing recovery slots on independent
+                            // horizontal travel within the authored length range.
+                            // All swept, motion, spread and overlap gates below
+                            // still apply; successful ordinary rigs are unchanged.
+                            let length = rng.random_range(
+                                scene.camera_settings.path_length_min
+                                    ..=scene.camera_settings.path_length_max,
+                            );
+                            let angle = rng.random_range(0.0..std::f32::consts::TAU);
+                            camera.end =
+                                camera.start + Vec3::new(angle.cos(), 0., angle.sin()) * length;
+                            let mut motion = camera.motion.take().unwrap_or_else(|| {
+                                super::super::CameraMotion {
+                                    orientations: None,
+                                    control: [camera.start; 2],
+                                    target_end: camera.target,
+                                    roll: [0.; 2],
+                                    route: Vec::new(),
+                                }
+                            });
+                            motion.control = [
+                                camera.start.lerp(camera.end, 1. / 3.),
+                                camera.start.lerp(camera.end, 2. / 3.),
+                            ];
+                            motion.route.clear();
+                            camera.motion = (length > 0.).then_some(motion);
+                        }
                         camera
                     };
                     if !saved
@@ -696,4 +741,26 @@ pub(super) fn complete(
         }
     }
     most_placed
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn large_beams_leave_room_for_novel_origins() {
+        for attempts in [64, 312, VIEW_ATTEMPTS] {
+            for parents in 1..=SAVED_GROUPS {
+                for saved_views in 1..=12 * SAVED_GROUPS {
+                    let replay = replay_budget(attempts, saved_views, parents);
+                    assert!(replay <= saved_views * parents);
+                    assert!(replay + NEARBY_ATTEMPTS < attempts);
+                    for attempt in 0..replay {
+                        let index = (attempt / parents) * saved_views / replay.div_ceil(parents);
+                        assert!(index < saved_views);
+                    }
+                }
+            }
+        }
+    }
 }
