@@ -34,7 +34,7 @@ fn fixture_programs_fit_reservations_and_have_valid_semantic_geometry() {
             scene.program.as_mut().unwrap().fixture_size = size;
             let position = super::super::fixture_positions(&scene)[0];
             let a = geometry(&scene, 0, position);
-            let s = super::super::fixture_size(&scene);
+            let s = super::super::fixture_half_extents(&scene, position) * 2.;
             let mut o = audit::fixture(ObjectKind::CeilingPendant, seed);
             let (lo, hi) = a.bounds();
             o.size = Vec3::new(
@@ -54,8 +54,31 @@ fn fixture_programs_fit_reservations_and_have_valid_semantic_geometry() {
             });
             assert!(checked.triangles < 10_000);
             assert!(emitter(&scene, position).y < lo.y);
-            let area = emitting_area(&scene);
-            assert!(area.is_finite() && area > 0.0001 && area <= size.element_product());
+            let area = emitting_area_at(&scene, position);
+            let realized = super::size(&scene, position);
+            assert!(area.is_finite() && area > 0.0001 && area <= realized.x * realized.z);
+            let projected_area: f32 = local
+                .parts
+                .iter()
+                .filter(|((surface, _), _)| *surface == Surface::Light)
+                .map(|(_, g)| {
+                    g.indices
+                        .as_chunks::<3>()
+                        .0
+                        .iter()
+                        .map(|t| {
+                            let [a, b, c] = [t[0], t[1], t[2]]
+                                .map(|i| Vec3::from_array(g.positions[i as usize]));
+                            (-(b - a).cross(c - a).y).max(0.) * 0.5
+                        })
+                        .sum::<f32>()
+                })
+                .sum();
+            assert!(
+                (projected_area / area - 1.).abs() < 0.035,
+                "seed={seed} {:?}: mesh area={projected_area} photometry area={area}",
+                parameters(&scene).shape
+            );
             assert!(local
                 .parts
                 .keys()
@@ -63,6 +86,25 @@ fn fixture_programs_fit_reservations_and_have_valid_semantic_geometry() {
         }
     }
     assert_eq!(shapes.len(), 6);
+}
+
+#[test]
+fn fixture_sizes_vary_within_a_room_and_ignore_mount_height() {
+    let scene = IndoorManifest::generate_with_humans(6, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
+    let mut min = Vec3::splat(f32::INFINITY);
+    let mut max = Vec3::ZERO;
+    for i in 0..128 {
+        let p = Vec3::new(i as f32 * 0.037 - 2., 0., (i % 13) as f32 * 0.19 - 1.);
+        let a = size(&scene, p);
+        assert_eq!(a, size(&scene, p.with_y(2.8)));
+        min = min.min(a);
+        max = max.max(a);
+    }
+    assert!((max / min).cmpgt(Vec3::new(1.8, 1.4, 1.8)).all());
+    println!(
+        "fixture size sampler audit: {}",
+        serde_json::json!({"min_m":min.to_array(),"max_m":max.to_array()})
+    );
 }
 
 #[test]

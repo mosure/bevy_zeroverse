@@ -1,4 +1,25 @@
 use super::*;
+
+#[test]
+fn display_contents_remain_supported_at_small_physical_scales() {
+    for kind in [
+        ObjectKind::Sculpture,
+        ObjectKind::Vase,
+        ObjectKind::Bread,
+        ObjectKind::Dishware,
+    ] {
+        for seed in 0..128 {
+            let mut o = super::super::audit::fixture(kind, seed);
+            o.size = hospitality::content_size(kind, seed, &mut stream(seed, 8210));
+            let a = super::super::build_object(&o);
+            super::super::audit::check(&o, &a).unwrap_or_else(|e| panic!("{e}"));
+            // Independently supported content must not pierce its shelf, even
+            // when a whole display's looser outer envelope would hide it.
+            assert!(a.bounds().0.y >= -1e-5, "{kind:?}/{seed}: {:?}", a.bounds());
+        }
+    }
+}
+
 #[test]
 fn public_items_fit_admitted_bounds_with_valid_semantic_parts() {
     for (kind, variant) in ObjectKind::ALL

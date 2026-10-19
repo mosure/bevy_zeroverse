@@ -19,16 +19,14 @@ pub fn program(o: &IndoorObject) -> PropProgram {
     }
 }
 
-pub(super) fn pantry_item(a: &mut Assembly, base: Vec3, size: Vec3, style: u8) {
+pub(super) fn pantry_item(a: &mut Assembly, tf: Transform, size: Vec3, style: u8) {
     let h = size.y * 0.92;
     let r = size.x.min(size.z) * 0.28;
     if style == 0 {
-        a.box_part(
-            Surface::PrintedPaper,
-            "food",
-            base + Vec3::Y * (h * 0.5 + 0.001),
+        a.part(Surface::PrintedPaper, "food").cuboid(
             Vec3::new(size.x * 0.67, h, size.z * 0.60),
             0.002,
+            tf.mul_transform(Transform::from_translation(Vec3::Y * (h * 0.5 + 0.001))),
         );
     } else if style == 1 {
         a.part(Surface::ContainerGlass, "food").lathe(
@@ -42,32 +40,35 @@ pub(super) fn pantry_item(a: &mut Assembly, base: Vec3, size: Vec3, style: u8) {
                 (0., 0.008),
             ],
             24,
-            Transform::from_translation(base + Vec3::Y * 0.001),
+            tf.mul_transform(Transform::from_translation(Vec3::Y * 0.001)),
         );
         a.part(Surface::Metal, "food").cylinder(
             r * 0.91,
             h * 0.06,
-            Transform::from_translation(base + Vec3::Y * (h * 0.96 + 0.001)),
+            tf.mul_transform(Transform::from_translation(Vec3::Y * (h * 0.96 + 0.001))),
         );
         a.part(Surface::Terracotta, "food#finish103").cylinder(
             r * 0.85,
             h * 0.66,
-            Transform::from_translation(base + Vec3::Y * (h * 0.33 + 0.009)),
+            tf.mul_transform(Transform::from_translation(Vec3::Y * (h * 0.33 + 0.009))),
         );
     } else {
         a.part(Surface::Metal, "food").cylinder(
             r,
             h,
-            Transform::from_translation(base + Vec3::Y * (h * 0.5 + 0.001)),
+            tf.mul_transform(Transform::from_translation(Vec3::Y * (h * 0.5 + 0.001))),
         );
         a.part(Surface::PrintedPaper, "food").lathe(
             &[(r + 0.001, h * 0.12), (r + 0.001, h * 0.88)],
             24,
-            Transform::from_translation(base + Vec3::Y * 0.001),
+            tf.mul_transform(Transform::from_translation(Vec3::Y * 0.001)),
         );
     }
 }
 pub(super) fn dish(a: &mut Assembly, base: Vec3, size: Vec3, style: u8, count: u32) {
+    dish_at(a, Transform::from_translation(base), size, style, count);
+}
+pub(super) fn dish_at(a: &mut Assembly, tf: Transform, size: Vec3, style: u8, count: u32) {
     let radius = size.x.min(size.z) * 0.43;
     if style <= 1 {
         let n = if style == 0 { count } else { 1 };
@@ -89,7 +90,9 @@ pub(super) fn dish(a: &mut Assembly, base: Vec3, size: Vec3, style: u8, count: u
             a.part(Surface::Ceramic, "dishware").lathe(
                 &profile,
                 24,
-                Transform::from_translation(base + Vec3::Y * (i as f32 * rise + 0.002)),
+                tf.mul_transform(Transform::from_translation(
+                    Vec3::Y * (i as f32 * rise + 0.002),
+                )),
             );
         }
     } else {
@@ -111,17 +114,17 @@ pub(super) fn dish(a: &mut Assembly, base: Vec3, size: Vec3, style: u8, count: u
         a.part(surface, "dishware").lathe(
             &profile,
             24,
-            Transform::from_translation(base + Vec3::Y * 0.002),
+            tf.mul_transform(Transform::from_translation(Vec3::Y * 0.002)),
         );
         if style == 2 {
             let points: Vec<_> = (0..=12)
                 .map(|i| {
                     let t = PI * i as f32 / 12.;
-                    base + Vec3::new(
+                    tf.transform_point(Vec3::new(
                         r * 0.96 + (t.sin() * radius * 0.32),
                         h * (0.5 + 0.31 * t.cos()),
                         0.,
-                    )
+                    ))
                 })
                 .collect();
             pipe(a, surface, "dishware", &points, 0.005);

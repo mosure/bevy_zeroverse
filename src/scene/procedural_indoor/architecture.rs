@@ -3,6 +3,7 @@ pub mod ceiling;
 pub mod details;
 pub mod doors;
 pub mod facade;
+mod fixture_layout;
 pub mod fixtures;
 pub(crate) mod outdoors;
 #[cfg(test)]
@@ -287,83 +288,17 @@ pub(crate) fn fixture_size(scene: &IndoorManifest) -> Vec3 {
 
 /// Close-mounted luminaires below the deck prevent the upper floor from
 /// shadowing every light in the lower work area. Their anchors stop at the slab.
+pub(crate) fn fixture_half_extents(scene: &IndoorManifest, position: Vec3) -> Vec3 {
+    fixture_layout::half(scene, position)
+}
+
 pub(crate) fn under_mezzanine_fixtures(scene: &IndoorManifest) -> Vec<Vec3> {
-    let Some(m) = scene.envelope.as_ref().and_then(|e| e.mezzanine.as_ref()) else {
-        return vec![];
-    };
-    let size = m.deck.max - m.deck.min;
-    let count = (size / 2.5).ceil().max(Vec2::ONE).as_uvec2();
-    let mut positions = Vec::new();
-    for x in 0..count.x {
-        for z in 0..count.y {
-            let p = m.deck.min
-                + size
-                    * Vec2::new(
-                        (x as f32 + 0.5) / count.x as f32,
-                        (z as f32 + 0.5) / count.y as f32,
-                    );
-            positions.push(Vec3::new(p.x, m.deck.height - m.thickness - 0.10, p.y));
-        }
-    }
-    positions
+    fixture_layout::under_mezzanine(scene)
 }
 
 pub fn fixture_positions(scene: &IndoorManifest) -> Vec<Vec3> {
-    if let Some(program) = &scene.program {
-        let mut positions = Vec::new();
-        let fixture = fixtures::parameters(scene);
-        for zone in &program.zones {
-            let size = zone.max - zone.min;
-            let counts = (size / program.light_spacing)
-                .ceil()
-                .max(Vec2::ONE)
-                .as_uvec2();
-            for x in 0..counts.x {
-                for z in 0..counts.y {
-                    let p = zone.min
-                        + size * (Vec2::new(x as f32 + 0.5, z as f32 + 0.5) + program.light_phase)
-                            / counts.as_vec2();
-                    if scene.envelope.as_ref().is_none_or(|e| {
-                        super::envelope::polygon::box_inside(
-                            &e.footprint,
-                            p - program.fixture_size * 0.5,
-                            p + program.fixture_size * 0.5,
-                            0.15,
-                        )
-                    }) {
-                        let half = program.fixture_size * 0.5;
-                        let roof = [
-                            p - half,
-                            p + half,
-                            p + Vec2::new(half.x, -half.y),
-                            p + Vec2::new(-half.x, half.y),
-                        ]
-                        .map(|q| scene.ceiling_height(q))
-                        .into_iter()
-                        .fold(f32::INFINITY, f32::min);
-                        let roof = scene.envelope.as_ref().map_or(roof, |e| {
-                            e.soffits
-                                .iter()
-                                .filter(|s| s.overlaps(p - half, p + half))
-                                .fold(roof, |h, s| h.min(s.height))
-                        });
-                        let drop = if fixture.shape == fixtures::FixtureShape::Downlight {
-                            fixture.depth_m * 0.5 + 0.008
-                        } else {
-                            program.light_drop.max(fixture.depth_m * 0.5 + 0.012)
-                        };
-                        positions.push(Vec3::new(p.x, roof - drop, p.y));
-                    }
-                }
-            }
-        }
-        positions.extend(under_mezzanine_fixtures(scene));
-        positions.push(Vec3::new(
-            0.0,
-            scene.ceiling_height(Vec2::new(0.0, scene.room_size.z * 0.5)) - 0.18,
-            scene.room_size.z * 0.5 + 1.5,
-        ));
-        return positions;
+    if scene.program.is_some() {
+        return fixture_layout::positions(scene);
     }
     let mut positions = Vec::new();
     let spacing = [3.4, 4.0, 2.8][scene.lighting_design as usize % 3];
@@ -411,7 +346,7 @@ pub fn spawn_lights(
                 range: 13.0,
                 // Match the finite highlight footprint to the emitting panel.
                 // This remains Bevy's finite-radius spot approximation.
-                radius: (fixtures::emitting_area(scene) / std::f32::consts::PI).sqrt() * 0.5,
+                radius: (fixtures::emitting_area_at(scene, p) / std::f32::consts::PI).sqrt() * 0.5,
                 inner_angle: inner,
                 outer_angle: outer,
                 // Every emitting source must respect walls/decks. Truncating

@@ -66,6 +66,11 @@ rooms, synchronized views, matching annotations, floor plans and distributions.
 
 ## Capabilities
 
+Loose furnishings and supplies vary in position, rotation and physical size before
+clearance checks. Shelves mix dishware and pantry sizes; pillows vary independently;
+ceiling fixtures share a construction style with varied dimensions and spacing.
+
+
 - **Object scene programs:** parametric primitives, mesh deformation, rotation
   augmentation and material sampling, with Cornell cube and simple room scenes.
 - **Continuous scene programs:** polygonal footprints, cut-ins, chamfered corners,

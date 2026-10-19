@@ -126,35 +126,43 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
                     0.001,
                 );
                 if p.contents {
-                    for j in 0..3 {
-                        let x = (j as f32 - 1.) * w * 0.25;
-                        let h = (s.y / p.shelves as f32 * 0.62).min(0.25);
-                        if (j + i).is_multiple_of(2) {
-                            let r = (w * 0.065).min(0.045);
+                    let items = contents::shelf_contents(
+                        o,
+                        i,
+                        (
+                            Vec2::new(-w * 0.45, z - d * 0.42),
+                            Vec2::new(w * 0.45, z + d * 0.42),
+                        ),
+                        y + 0.007,
+                        (s.y - toe - 0.15) / p.shelves as f32 - 0.015,
+                    );
+                    for item in items {
+                        let tf = item.transform();
+                        let h = item.size.y;
+                        if item.style.is_multiple_of(2) {
+                            let radius = item.size.x.min(item.size.z) * 0.30;
                             a.part(Surface::ContainerGlass, "drink_container").lathe(
                                 &[
                                     (0., 0.),
-                                    (r, 0.),
-                                    (r, h * 0.68),
-                                    (r * 0.42, h * 0.84),
-                                    (r * 0.42, h),
+                                    (radius, 0.),
+                                    (radius, h * 0.68),
+                                    (radius * 0.42, h * 0.84),
+                                    (radius * 0.42, h),
                                     (0., h),
                                 ],
                                 20,
-                                Transform::from_xyz(x, y + 0.008, z),
+                                tf,
                             );
                             a.part(Surface::Drink, "drink_container").cylinder(
-                                r * 0.92,
+                                radius * 0.92,
                                 h * 0.64,
-                                Transform::from_xyz(x, y + 0.008 + h * 0.32, z),
+                                tf.mul_transform(Transform::from_translation(Vec3::Y * h * 0.32)),
                             );
                         } else {
-                            a.box_part(
-                                Surface::PrintedPaper,
-                                "food",
-                                Vec3::new(x, y + 0.009 + h * 0.38, z),
-                                Vec3::new(w * 0.14, h * 0.76, d * 0.22),
+                            a.part(Surface::PrintedPaper, "food").cuboid(
+                                item.size * Vec3::new(0.72, 0.85, 0.72),
                                 0.003,
+                                tf.mul_transform(Transform::from_translation(Vec3::Y * h * 0.425)),
                             );
                         }
                     }

@@ -477,12 +477,12 @@ pub(crate) fn ceiling_fixture_clear(scene: &IndoorManifest, o: &IndoorObject) ->
     {
         return false;
     }
-    let fixture_half = super::super::architecture::fixture_size(scene) * 0.5;
     if super::super::architecture::fixture_positions(scene)
         .into_iter()
         .any(|p| {
             // Reserve the native fixture's body plus its suspension anchors, not
             // merely the glowing panel. New canopies cannot occupy those mounts.
+            let fixture_half = super::super::architecture::fixture_half_extents(scene, p);
             let a = p - fixture_half - Vec3::Y * 0.008;
             let b = Vec3::new(
                 p.x + fixture_half.x,

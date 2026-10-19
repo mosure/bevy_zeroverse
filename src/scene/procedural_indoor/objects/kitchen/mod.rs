@@ -2,6 +2,7 @@
 //! Programs are pure: layout, geometry, audits and archives share the same seed.
 mod appliances;
 mod cabinet;
+pub(crate) mod contents;
 mod island;
 mod props;
 mod sink;
@@ -191,6 +192,11 @@ pub fn dimensions(kind: ObjectKind, seed: u64) -> Vec3 {
         r.random_range(0.96..1.04),
         r.random_range(0.94..1.06),
     );
+    if kind == ObjectKind::Dishware {
+        o.size = super::super::items::sizing::dish(props::program(&o).style, &mut r);
+    } else if let Some(size) = super::super::items::sizing::loose(kind, &mut r) {
+        o.size = size;
+    }
     if kind == ObjectKind::Oven && r.random_bool(0.38) {
         o.size.y = 0.90;
     }

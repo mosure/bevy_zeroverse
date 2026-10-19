@@ -1,5 +1,68 @@
 use super::*;
 
+#[test]
+fn loose_pillows_are_asymmetric_replayable_and_separated() {
+    let mut counts = [0_usize; 5];
+    let mut cells = std::collections::BTreeSet::new();
+    let mut asymmetric = 0;
+    let mut diameters = Vec::new();
+    for seed in 0..256 {
+        let o = object(seed);
+        let p = parameters(&o);
+        let widths = module_widths(&o);
+        let parts = pillows::build(&o, &p, &widths);
+        let replay = pillows::build(&o, &p, &widths);
+        counts[parts.len()] += 1;
+        let bounds: Vec<_> = parts
+            .iter()
+            .map(|g| {
+                g.positions.iter().map(|v| Vec3::from_array(*v)).fold(
+                    (Vec3::splat(f32::INFINITY), Vec3::splat(f32::NEG_INFINITY)),
+                    |(lo, hi), v| (lo.min(v), hi.max(v)),
+                )
+            })
+            .collect();
+        for (i, ((lo, hi), g)) in bounds.iter().zip(&parts).enumerate() {
+            assert_eq!(g.positions, replay[i].positions);
+            assert_eq!(g.normals, replay[i].normals);
+            // Rotation-independent bounding diameter of actual accepted mesh.
+            let center = (*lo + *hi) * 0.5;
+            diameters.push(
+                g.positions
+                    .iter()
+                    .map(|v| Vec3::from_array(*v).distance(center) * 2.)
+                    .fold(0_f32, f32::max),
+            );
+            assert!(lo.y > p.seat_height - p.cushion);
+            assert!(hi.y <= o.size.y && (lo.y - p.seat_height).abs() < 0.05);
+            for (peer_lo, peer_hi) in &bounds[..i] {
+                assert!(!lo.xz().cmplt(peer_hi.xz()).all() || !hi.xz().cmpgt(peer_lo.xz()).all());
+            }
+            let uv = ((*lo + *hi).xz() * 0.5 / o.size.xz()) + Vec2::splat(0.5);
+            cells.insert(((uv.x * 8.) as u32, (uv.y * 8.) as u32));
+        }
+        if bounds.len() >= 2 {
+            let x_sum = bounds
+                .iter()
+                .map(|(lo, hi)| (lo.x + hi.x) * 0.5)
+                .sum::<f32>();
+            asymmetric += usize::from(x_sum.abs() > 0.02);
+        }
+    }
+    assert!(counts[1..].iter().filter(|&&n| n > 0).count() >= 3);
+    assert!(asymmetric > 50 && cells.len() > 16);
+    diameters.sort_by(f32::total_cmp);
+    let q05 = diameters[diameters.len() / 20];
+    let q95 = diameters[diameters.len() * 19 / 20];
+    assert!(q95 / q05 > 1.45, "accepted pillow size spread {q05}..{q95}");
+    println!(
+        "pillow placement audit: {}",
+        serde_json::json!({"seeds":256,
+        "count_histogram":counts,"asymmetric_multi_pillow_sofas":asymmetric,
+        "occupied_8x8_cells":cells.len(),"mesh_diameter_p05_m":q05,"mesh_diameter_p95_m":q95})
+    );
+}
+
 fn object(seed: u64) -> IndoorObject {
     IndoorObject {
         finish_seed: None,

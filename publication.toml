@@ -21,10 +21,10 @@ ssaa_factor = 0
 [paper]
 source = "tex/bevy_zeroverse.tex"
 
-# GPU transport/API release: preserve the original captured bundle and labels.
+# GPU work is deferred during training: preserve the original capture provenance.
 # This exception expires when either the release version or source hash changes.
 [retained_evidence]
-release_version = "0.45.0"
-release_source_sha256 = "951c7db489fd44e465751cd325087cb64761be6cd2be84c2374df9f09d32c4e2"
+release_version = "0.46.0"
+release_source_sha256 = "fbece690b6218f4ea1d4b5eb0bf64e79fefdaae640ed7d87511f6f811b99d926"
 capture_evidence_sha256 = "63564616f23c73482abb3c96a76af96db1b6f2e63c22b9d875a0faeace031e6d"
-reason = "Release GPU capture transports without GPU work; retain the original capture identity, all scientific evidence and paper bytes; rebuild page presentation only."
+reason = "Release generation revision 52 with bounded placement and scale diversity; GPU work is deferred during training. Retain existing captured evidence and paper unchanged, with their original provenance; they do not qualify the new generator output."

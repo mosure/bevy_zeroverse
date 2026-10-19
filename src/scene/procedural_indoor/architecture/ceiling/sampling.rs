@@ -20,10 +20,10 @@ impl Reservations {
 }
 
 pub(super) fn fixture_bounds(scene: &IndoorManifest) -> Vec<(Vec3, Vec3)> {
-    let half = super::super::fixture_size(scene) * 0.5 + Vec3::splat(0.04);
     super::super::fixture_positions(scene)
         .into_iter()
         .map(|p| {
+            let half = super::super::fixture_half_extents(scene, p) + Vec3::splat(0.04);
             (
                 p - half,
                 Vec3::new(

@@ -5,6 +5,8 @@ use bevy::prelude::*;
 use rand::Rng;
 use serde::Serialize;
 
+pub(crate) mod sizing;
+
 pub const TASKS: [&str; 6] = [
     "work",
     "reading",
@@ -133,6 +135,9 @@ impl SurfaceProgram {
         } else {
             kind
         };
+        if let Some(size) = sizing::loose(kind, rng) {
+            return (kind, size);
+        }
         let size = match kind {
             DeskLamp => Vec3::new(
                 rng.random_range(0.17..0.30),
@@ -188,49 +193,12 @@ impl SurfaceProgram {
                 let d = rng.random_range(0.08..0.18);
                 Vec3::new(d, rng.random_range(0.14..0.30), d)
             }
-            Bowl => {
-                let d = rng.random_range(0.12..0.25);
-                Vec3::new(d, rng.random_range(0.035..0.10), d)
-            }
             DeskFan => Vec3::new(
                 rng.random_range(0.18..0.28),
                 rng.random_range(0.27..0.42),
                 rng.random_range(0.15..0.23),
             ),
             Plant => Vec3::new(0.25, rng.random_range(0.23..0.49), 0.25),
-            Books => Vec3::new(
-                rng.random_range(0.16..0.26),
-                rng.random_range(0.04..0.12),
-                rng.random_range(0.19..0.28),
-            ),
-            Mug => Vec3::new(
-                rng.random_range(0.10..0.14),
-                rng.random_range(0.075..0.13),
-                rng.random_range(0.075..0.11),
-            ),
-            CoffeeCup => {
-                let d = rng.random_range(0.07..0.09);
-                Vec3::new(d, rng.random_range(0.09..0.15), d)
-            }
-            WaterBottle => {
-                let d = rng.random_range(0.055..0.085);
-                Vec3::new(d, rng.random_range(0.17..0.30), d)
-            }
-            SodaCan => {
-                let d = rng.random_range(0.058..0.072);
-                Vec3::new(d, rng.random_range(0.10..0.17), d)
-            }
-            Pencil => Vec3::new(0.008, 0.009, rng.random_range(0.11..0.19)),
-            Notepad | Notebook => Vec3::new(
-                rng.random_range(0.10..0.21),
-                rng.random_range(0.008..0.027),
-                rng.random_range(0.14..0.28),
-            ),
-            Phone => Vec3::new(
-                rng.random_range(0.065..0.080),
-                0.01,
-                rng.random_range(0.13..0.17),
-            ),
             Printer => Vec3::new(
                 rng.random_range(0.36..0.53),
                 rng.random_range(0.19..0.29),

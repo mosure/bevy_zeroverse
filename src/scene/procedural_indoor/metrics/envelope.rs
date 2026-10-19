@@ -21,11 +21,16 @@ pub(super) fn record(
         .or_default()
         .entry(format!("{:?}", fixture.shape))
         .or_default() += 1;
-    numeric.push("luminaire_body_depth_m", fixture.depth_m as f64)?;
-    numeric.push(
-        "luminaire_emitting_area_m2",
-        super::super::architecture::fixtures::emitting_area(scene) as f64,
-    )?;
+    for position in super::super::architecture::fixture_positions(scene) {
+        let size = super::super::architecture::fixtures::size(scene, position);
+        numeric.push("luminaire_body_width_m", size.x as f64)?;
+        numeric.push("luminaire_body_depth_m", size.y as f64)?;
+        numeric.push("luminaire_body_length_m", size.z as f64)?;
+        numeric.push(
+            "luminaire_emitting_area_m2",
+            super::super::architecture::fixtures::emitting_area_at(scene, position) as f64,
+        )?;
+    }
     numeric.push("door_count", doors.len() as f64)?;
     for d in &doors {
         for (key, value) in [

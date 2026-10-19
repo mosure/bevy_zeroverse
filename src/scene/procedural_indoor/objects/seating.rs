@@ -1,5 +1,6 @@
 //! Modular upholstery: armchairs, loveseats, sofas and left/right chaise returns.
 use super::*;
+mod pillows;
 #[cfg(test)]
 mod tests;
 
@@ -229,29 +230,8 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
             },
             Transform::from_xyz(arm_x, height - pad_height * 0.5, arm_z),
         );
-        if p.pillows && s.x > 1.2 {
-            let roll = side * 0.18 + p.pillow_roll;
-            let vertical_span = roll.sin().abs() + 0.96 * roll.cos().abs();
-            let pillow_width = p
-                .pillow_width_m
-                .min((s.y - p.seat_height - 0.004) / vertical_span);
-            // Rotated loose pillows rest on the seat; a short sofa caps their
-            // realized width instead of letting them protrude above its bounds.
-            let pillow_y = p.seat_height + pillow_width * vertical_span * 0.5;
-            a.part(Surface::FabricAlt, "pillow").cushion(
-                Vec3::new(pillow_width, 0.10, pillow_width * 0.96),
-                super::super::geometry::CushionProfile {
-                    roundness: 3.0,
-                    crown: 2.8,
-                    dish: 0.,
-                },
-                Transform::from_xyz(
-                    side * (s.x * 0.5 - p.arm_width - pillow_width * 0.65),
-                    pillow_y,
-                    back_z - 0.17,
-                )
-                .with_rotation(Quat::from_rotation_z(roll) * Quat::from_rotation_x(FRAC_PI_2)),
-            );
-        }
+    }
+    for pillow in pillows::build(o, &p, &widths) {
+        a.part(Surface::FabricAlt, "pillow").append(pillow);
     }
 }

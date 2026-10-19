@@ -314,6 +314,8 @@ impl IndoorManifest {
     }
     fn dress_kitchen_counter(&mut self, id: usize, r: &mut ChaCha8Rng) {
         let support = self.objects[id].clone();
+        let mut placement_rng = stream(support.seed, 8065);
+        let pattern = super::super::placement::SurfacePattern::sample(&mut placement_rng);
         let mut choices = vec![
             ObjectKind::Microwave,
             ObjectKind::Cooktop,
@@ -342,21 +344,28 @@ impl IndoorManifest {
                 continue;
             }
             for _ in 0..10 {
-                let (lo, hi) = geometry::counter_top_bounds(&support);
-                let centre = (lo + hi) * 0.5;
-                let span = hi - lo - size.xz() - Vec2::splat(0.04);
-                let x = centre.x + r.random_range(-0.5..0.5) * span.x;
-                let z = centre.y + r.random_range(-0.5..0.5) * span.y;
-                let pos = support
-                    .transform()
-                    .transform_point(Vec3::new(x, support.size.y, z));
-                let mut o = self.candidate(
-                    kind,
-                    pos,
-                    size,
-                    support.yaw + r.random_range(-0.12..0.12),
-                    r,
-                );
+                // Fitted equipment faces its user; movable supplies have no
+                // privileged room axis. Reserve the rotated footprint first.
+                let yaw = if matches!(kind, ObjectKind::Microwave | ObjectKind::Cooktop) {
+                    placement_rng.random_range(-0.18..0.18)
+                } else {
+                    pattern.yaw(&mut placement_rng)
+                };
+                let Some(proposal) = pattern.propose(
+                    geometry::counter_top_bounds(&support),
+                    size.xz(),
+                    yaw,
+                    0.015,
+                    &mut placement_rng,
+                ) else {
+                    continue;
+                };
+                let pos = support.transform().transform_point(Vec3::new(
+                    proposal.center.x,
+                    support.size.y,
+                    proposal.center.y,
+                ));
+                let mut o = self.candidate(kind, pos, size, support.yaw + yaw, r);
                 o.seed = seed;
                 o.solid = false;
                 o.support = Some(id);
@@ -365,11 +374,26 @@ impl IndoorManifest {
                     placed += 1;
                     if kind == ObjectKind::CuttingBoard && r.random_bool(0.65) {
                         let board = self.objects.last().unwrap().clone();
+                        let size = geometry::dimensions(ObjectKind::Bread, r.random()) * 0.70;
+                        let yaw = placement_rng.random_range(-0.65..0.65);
+                        let Some(proposal) = pattern.propose(
+                            (-board.size.xz() * 0.5, board.size.xz() * 0.5),
+                            size.xz(),
+                            yaw,
+                            0.006,
+                            &mut placement_rng,
+                        ) else {
+                            break;
+                        };
                         let mut bread = self.candidate(
                             ObjectKind::Bread,
-                            board.position + Vec3::Y * board.size.y,
-                            geometry::dimensions(ObjectKind::Bread, r.random()) * 0.70,
-                            board.yaw,
+                            board.transform().transform_point(Vec3::new(
+                                proposal.center.x,
+                                board.size.y,
+                                proposal.center.y,
+                            )),
+                            size,
+                            board.yaw + yaw,
                             r,
                         );
                         bread.support = Some(board.id);
@@ -433,6 +457,8 @@ impl IndoorManifest {
     }
     pub(super) fn dress_kitchen_dining(&mut self, id: usize, r: &mut ChaCha8Rng) {
         let support = self.objects[id].clone();
+        let mut placement_rng = stream(support.seed, 8066);
+        let pattern = super::super::placement::SurfacePattern::sample(&mut placement_rng);
         for kind in [
             ObjectKind::Dishware,
             ObjectKind::Dishware,
@@ -442,16 +468,25 @@ impl IndoorManifest {
             let seed = r.random();
             let size = geometry::dimensions(kind, seed);
             for _ in 0..12 {
-                let local = Vec3::new(
-                    r.random_range(-0.32..0.32) * support.size.x,
-                    support.size.y,
-                    r.random_range(-0.25..0.25) * support.size.z,
-                );
+                let yaw = pattern.yaw(&mut placement_rng);
+                let Some(proposal) = pattern.propose(
+                    (-support.size.xz() * 0.5, support.size.xz() * 0.5),
+                    size.xz(),
+                    yaw,
+                    0.015,
+                    &mut placement_rng,
+                ) else {
+                    continue;
+                };
                 let mut o = self.candidate(
                     kind,
-                    support.transform().transform_point(local),
+                    support.transform().transform_point(Vec3::new(
+                        proposal.center.x,
+                        support.size.y,
+                        proposal.center.y,
+                    )),
                     size,
-                    support.yaw + r.random_range(-0.4..0.4),
+                    support.yaw + yaw,
                     r,
                 );
                 o.seed = seed;

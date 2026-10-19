@@ -63,7 +63,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &PublicItemProgram) {
                             0.18 * (u * TAU).cos(),
                         ],
                         [x, 0.07 + 0.87 * t, z],
-                        0.018,
+                        0.018_f32.min(o.size.min_element() * 0.06),
                     );
                 }
             }

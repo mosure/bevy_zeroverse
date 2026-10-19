@@ -56,7 +56,7 @@ fn all_fixture_reflections_match_emissive_meshes_and_photometry() {
         for (i, p) in positions.iter().copied().enumerate() {
             let (color, lumens) = architecture::fixture_photometry(&scene, i);
             let expected = linear(Color::srgb(color.x, color.y, color.z))
-                * (lumens / (PI * architecture::fixtures::emitting_area(&scene)));
+                * (lumens / (PI * architecture::fixtures::emitting_area_at(&scene, p)));
             for ((surface, _), geometry) in architecture::fixtures::geometry(&scene, i, p).parts {
                 if surface != Surface::Light {
                     continue;
@@ -114,11 +114,14 @@ fn ring_hole_and_tube_gap_do_not_become_rectangular_lights() {
             emitters.radiance(p - Vec3::Y * 0.5, Vec3::Y, 1.).is_none(),
             "{shape:?} filled its unlit center"
         );
+        let s = architecture::fixtures::size(&scene, p);
         let lit = if shape == FixtureShape::Ring {
-            Vec3::X * (0.6 * 0.46 * 0.9)
+            Vec3::X * (s.x.min(s.z) * 0.46 * 0.9)
         } else {
-            Vec3::Z * (0.6 * 0.22)
+            let across = if s.x >= s.z { Vec3::Z } else { Vec3::X };
+            across * (s.x.min(s.z) * 0.22)
         };
+        let lit = architecture::fixtures::rotation(&scene, p) * lit;
         assert!(emitters
             .radiance(p + lit - Vec3::Y * 0.5, Vec3::Y, 1.)
             .is_some());

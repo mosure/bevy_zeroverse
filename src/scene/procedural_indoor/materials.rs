@@ -463,11 +463,11 @@ impl IndoorMaterials {
             ..default()
         };
         // Keep the visible emitter/reference export consistent with each direct-light proxy.
-        let area = super::architecture::fixtures::emitting_area(scene);
         let light_variants = super::architecture::fixture_positions(scene)
             .iter()
             .enumerate()
-            .map(|(i, _)| {
+            .map(|(i, &position)| {
+                let area = super::architecture::fixtures::emitting_area_at(scene, position);
                 let (color, lumens) = super::architecture::fixture_photometry(scene, i);
                 let c = Color::srgb(color.x, color.y, color.z).to_linear();
                 let mut material = materials

@@ -1,5 +1,5 @@
 //! Coordinated luminaire construction, placement envelope and emitting area.
-//! One bounded program per room; repeated heads share a circuit/light proxy.
+//! Room circuits share a construction language, with individual metric sizes.
 use super::*;
 #[cfg(test)]
 mod tests;
@@ -64,8 +64,18 @@ fn cells(size: Vec3) -> (usize, f32, f32) {
 
 /// Area of the downward emitting face, including the faceted circular meshes.
 pub fn emitting_area(scene: &IndoorManifest) -> f32 {
-    let p = parameters(scene);
-    let s = super::fixture_size(scene);
+    area(parameters(scene), super::fixture_size(scene))
+}
+
+pub fn emitting_area_at(scene: &IndoorManifest, position: Vec3) -> f32 {
+    area(parameters(scene), size(scene, position))
+}
+
+pub fn size(scene: &IndoorManifest, position: Vec3) -> Vec3 {
+    super::fixture_layout::size(scene, position)
+}
+
+fn area(p: FixtureProgram, s: Vec3) -> f32 {
     let inner = 1. - p.border_fraction * 2.;
     match p.shape {
         FixtureShape::Panel | FixtureShape::Louver => s.x * s.z * inner * inner,
@@ -85,13 +95,18 @@ pub fn emitting_area(scene: &IndoorManifest) -> f32 {
 
 /// Outside the emitting aperture, shared by direct lighting and GI.
 pub fn emitter(scene: &IndoorManifest, position: Vec3) -> Vec3 {
-    position - Vec3::Y * (super::fixture_size(scene).y * 0.5 + 0.006)
+    position - Vec3::Y * (size(scene, position).y * 0.5 + 0.006)
+}
+
+/// Seeded circuit orientation shared by mesh construction and placement audits.
+pub fn rotation(scene: &IndoorManifest, position: Vec3) -> Quat {
+    Quat::from_rotation_y(super::fixture_layout::yaw(scene, position))
 }
 
 pub fn geometry(scene: &IndoorManifest, index: usize, position: Vec3) -> Assembly {
     let mut a = Assembly::default();
     let p = parameters(scene);
-    let s = super::fixture_size(scene);
+    let s = size(scene, position);
     let label = format!("lamp#{index}");
     let trim = if super::super::materials::variants::supports(p.trim) {
         format!("{label}#finish{}", p.finish)
@@ -230,6 +245,15 @@ pub fn geometry(scene: &IndoorManifest, index: usize, position: Vec3) -> Assembl
             }
         }
     }
+    let rotation = rotation(scene, position);
+    for g in a.parts.values_mut() {
+        for v in &mut g.positions {
+            *v = (position + rotation * (Vec3::from_array(*v) - position)).to_array();
+        }
+        for n in &mut g.normals {
+            *n = (rotation * Vec3::from_array(*n)).to_array();
+        }
+    }
     let anchors = if matches!(
         p.shape,
         FixtureShape::Downlight | FixtureShape::Drum | FixtureShape::Ring
@@ -241,6 +265,7 @@ pub fn geometry(scene: &IndoorManifest, index: usize, position: Vec3) -> Assembl
         [-1., 1.].map(|sign| Vec3::X * sign * s.x * 0.32)
     };
     for offset in anchors {
+        let offset = rotation * offset;
         let roof = scene
             .envelope
             .as_ref()

@@ -200,11 +200,12 @@ impl IndoorManifest {
         yaw: f32,
         rng: &mut ChaCha8Rng,
     ) {
+        let size = super::super::items::sizing::loose(kind, rng).unwrap_or(size);
         let mut program = stream(support.seed, 906);
         let handed = if program.random_bool(0.5) { -1. } else { 1. };
-        let angle = program.random_range(-0.20..0.20);
+        let angle = program.random_range(-0.32..0.32);
         let spread = program.random_range(0.78..1.05);
-        let disorder = program.random_range(0.015..0.11);
+        let disorder = program.random_range(0.025..0.16);
         let shift = Vec3::new(
             program.random_range(-0.12..0.12) * support.size.x.min(1.8),
             0.,
@@ -219,6 +220,24 @@ impl IndoorManifest {
             rng.random_range(-disorder..disorder),
         );
         let mut yaw = angle + yaw * handed + rng.random_range(-disorder * 2.5..disorder * 2.5);
+        // Handles, bottle labels and loose personal items should not all face
+        // the same seat/room axis. Keep screens and inputs coupled to the user.
+        if matches!(
+            kind,
+            ObjectKind::Mug
+                | ObjectKind::CoffeeCup
+                | ObjectKind::WaterBottle
+                | ObjectKind::SodaCan
+                | ObjectKind::PenHolder
+                | ObjectKind::Dishware
+        ) {
+            yaw = rng.random_range(-std::f32::consts::PI..std::f32::consts::PI);
+        } else if matches!(
+            kind,
+            ObjectKind::Notebook | ObjectKind::Notepad | ObjectKind::Phone
+        ) {
+            yaw += rng.random_range(-0.55..0.55);
+        }
         if matches!(kind, ObjectKind::Keyboard | ObjectKind::Mouse) {
             let (position, facing, count) = self
                 .objects

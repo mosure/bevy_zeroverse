@@ -1,4 +1,14 @@
 use super::*;
+
+pub(super) fn content_size(kind: ObjectKind, seed: u64, r: &mut impl Rng) -> Vec3 {
+    if matches!(kind, ObjectKind::Bread | ObjectKind::Dishware) {
+        super::super::kitchen::dimensions(kind, seed)
+    } else {
+        let w = r.random_range(0.075..0.22);
+        Vec3::new(w, w * r.random_range(1.1..1.7), w)
+    }
+}
+
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &PublicItemProgram) {
     use ObjectKind::*;
     let label = o.kind.class_name();
@@ -102,32 +112,54 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &PublicItemProgram) {
                     [0.92, 0.012, 0.90],
                 );
                 if p.contents {
+                    use crate::scene::procedural_indoor::placement::{Footprint, SurfacePattern};
+                    let mut r = stream(o.seed, 8210 + i as u64);
+                    let pattern = SurfacePattern::sample(&mut r);
+                    let mut occupied: Vec<Footprint> = Vec::with_capacity(p.bays);
                     for j in 0..p.bays {
-                        let x = -0.35 + 0.70 * (j as f32 + 0.5) / p.bays as f32;
                         let mut child = o.clone();
                         child.kind = if o.variant >= 16 {
-                            if j % 2 == 0 {
+                            if r.random_bool(0.5) {
                                 Sculpture
                             } else {
                                 Vase
                             }
-                        } else if j % 2 == 0 {
+                        } else if r.random_bool(0.5) {
                             Bread
                         } else {
                             Dishware
                         };
-                        child.size = Vec3::new(
-                            o.size.x * 0.52 / p.bays as f32,
-                            o.size.y * 0.08,
-                            o.size.z * 0.34,
-                        );
                         child.seed = o.seed.wrapping_add((i * 8 + j) as u64);
+                        child.size = content_size(child.kind, child.seed, &mut r);
+                        let headroom = (0.48 / p.shelves as f32 - 0.015) * o.size.y;
+                        if child.size.y > headroom {
+                            continue;
+                        }
                         child.position = Vec3::ZERO;
-                        append_at(
-                            a,
-                            super::super::build_object(&child),
-                            Transform::from_xyz(x * o.size.x, (y + 0.008) * o.size.y, 0.),
-                        );
+                        let half = o.size.xz() * Vec2::new(0.44, 0.43);
+                        for _ in 0..16 {
+                            let yaw = pattern.yaw(&mut r);
+                            let Some(proposal) =
+                                pattern.propose((-half, half), child.size.xz(), yaw, 0.015, &mut r)
+                            else {
+                                continue;
+                            };
+                            if occupied.iter().any(|q| proposal.overlaps(*q, 0.012)) {
+                                continue;
+                            }
+                            occupied.push(proposal);
+                            append_at(
+                                a,
+                                super::super::build_object(&child),
+                                Transform::from_xyz(
+                                    proposal.center.x,
+                                    (y + 0.006) * o.size.y,
+                                    proposal.center.y,
+                                )
+                                .with_rotation(Quat::from_rotation_y(yaw)),
+                            );
+                            break;
+                        }
                     }
                 }
             }

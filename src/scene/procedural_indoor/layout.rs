@@ -1559,7 +1559,7 @@ impl IndoorManifest {
                 super::architecture::under_mezzanine_fixtures(self)
                     .into_iter()
                     .map(|p| {
-                        let half = super::architecture::fixture_size(self) * 0.5;
+                        let half = super::architecture::fixture_half_extents(self, p);
                         (p - half - Vec3::Y * 0.008, p + half + Vec3::Y * 0.075)
                     }),
             );

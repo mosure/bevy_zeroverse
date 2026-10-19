@@ -476,7 +476,6 @@ fn shelves(
     z: f32,
 ) {
     let Vec3 { x: w, y: h, z: d } = size;
-    let mut r = stream(o.seed, 8020);
     for level in 0..p.shelves {
         let y = bottom + 0.018 + level as f32 * (h - 0.05) / p.shelves as f32;
         if level > 0 {
@@ -489,26 +488,17 @@ fn shelves(
             );
         }
         if p.contents {
-            let columns = ((w - 0.06) / 0.23).floor().clamp(1., 5.) as usize;
-            for col in 0..columns {
-                let x = (col as f32 - (columns - 1) as f32 * 0.5) * (w - 0.09) / columns as f32;
-                let size = Vec3::new(
-                    ((w - 0.08) / columns as f32 * 0.82).min(0.23),
-                    (h / p.shelves as f32 * 0.65).min(0.20),
-                    (d * 0.75).min(0.23),
-                );
-                if o.kind == ObjectKind::Pantry && r.random_bool(0.78) {
-                    props::pantry_item(a, Vec3::new(x, y, z + 0.015), size, r.random_range(0..3));
-                } else {
-                    props::dish(
-                        a,
-                        Vec3::new(x, y, z + 0.015),
-                        size,
-                        r.random_range(0..5),
-                        r.random_range(1..=4),
-                    );
-                }
-            }
+            let items = contents::shelf_contents(
+                o,
+                level,
+                (
+                    Vec2::new(-w * 0.5 + 0.025, z - d * 0.5 + 0.025),
+                    Vec2::new(w * 0.5 - 0.025, z + d * 0.5 - 0.025),
+                ),
+                y,
+                (h - 0.05) / p.shelves as f32 - 0.018,
+            );
+            contents::build(a, &items);
         }
     }
 }
