@@ -1,6 +1,7 @@
 //! Metric equipment assemblies. Connected cable centerlines are archived rather
 //! than inferred from an unrelated decorative shape at render time.
 mod fixtures;
+pub mod pinups;
 pub(crate) mod wires;
 use super::*;
 

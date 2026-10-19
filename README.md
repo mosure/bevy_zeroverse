@@ -78,7 +78,8 @@ ceiling fixtures share a construction style with varied dimensions and spacing.
   Acoustic panels, coffers, suspended grids, ducts, ventilation terminals, conduit,
   sprinklers and trusses vary overhead detail.
   Windows include shaped glazing, tints, partial frosting, blinds and curtains;
-  exterior streets and planting provide context beyond the glass.
+  exterior streets, planted courtyards and multi-storey buildings with varied
+  wings, setbacks, roof forms and facade bays provide context beyond the glass.
   Room-wide joinery programs vary skirting and crown heights, section profiles,
   finishes and presence. Glazing varies piers, sill and header levels, unequal
   panes, transom counts, sash sections, seals and projecting sill materials.
@@ -88,12 +89,15 @@ ceiling fixtures share a construction style with varied dimensions and spacing.
   and cabinetry vary their mechanisms, hardware, materials and opening states.
 - **Procedural furnishings and appearance:** 100 item kinds, multipart furniture,
   task-conditioned tabletop groups, multi-monitor workspaces, coordinated wall
-  galleries, 14 plant growth habits, connected equipment and fixtures. Continuous
+  galleries, 17 plant growth habits, connected equipment and fixtures. Continuous
   construction and finish programs vary furniture supports, shaped upholstery,
   dyed yarns, timber treatments, concrete, glass and lighting. Ceiling fixtures,
   floor lamps and task lights vary their bulbs, hollow shades, articulated supports,
   recesses and independently finished trims. Floor finishes vary
-  plank/tile structure, regional wear and rugs, with floor outlets and routed cables.
+  plank/tile structure, herringbone and chevron parquet, hexagonal tiles,
+  seamless mineral finishes, regional wear and rugs, with floor outlets and routed
+  cables. Walls mix quiet paint with washed, woven and printed feature surfaces;
+  metal and polymer finishes vary grain, polish, peening and roughness.
   Architecture and
   furnishings need no downloaded mesh or texture catalog. Power cables follow
   collision-checked gravity curves, including floor contact. Daylight-aware

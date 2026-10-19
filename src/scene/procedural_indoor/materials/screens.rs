@@ -28,6 +28,12 @@ pub fn parameters_for(seed: u64, kind: DisplayKind) -> ScreenProgram {
 fn device_parameters(seed: u64, kind: DisplayKind) -> ScreenProgram {
     let mut p = parameters(seed);
     let mut rng = stream(seed, 0x4445564943455549);
+    if !matches!(kind, DisplayKind::Desktop) {
+        p.full_bleed = rng.random_bool(match kind {
+            DisplayKind::Phone => 0.24,
+            _ => 0.48,
+        });
+    }
     match kind {
         DisplayKind::Desktop => {}
         DisplayKind::Phone => {
@@ -66,6 +72,7 @@ pub struct ScreenProgram {
     pub composition: composition::Composition,
     /// Single familiar application or an independently composed workspace.
     pub composed: bool,
+    pub full_bleed: bool,
     pub chrome: u32,
     pub finish: display_finish::DisplayFinish,
     pub layout: u32,
@@ -113,6 +120,7 @@ pub fn parameters(seed: u64) -> ScreenProgram {
             layout.random_range(0.25..0.75),
         ),
         composed: layout.random_bool(0.82),
+        full_bleed: stream(seed, 0x46554c4c424c4545).random_bool(0.12),
         chrome,
         finish: display_finish::DisplayFinish::sample(seed, false),
         layout: rng.random_range(0..LAYOUTS),
@@ -170,6 +178,9 @@ fn device_pixels(seed: u64, kind: DisplayKind) -> Vec<u8> {
     let p = device_parameters(seed, kind);
     if p.dormant {
         return dormant_canvas(seed).0;
+    }
+    if p.full_bleed {
+        return art::illustration(seed ^ 0x4d45444941);
     }
     if p.composed {
         return workspace::pixels(seed, kind, &p);
@@ -247,16 +258,24 @@ pub(super) fn palette(p: &ScreenProgram) -> Palette {
             p.background_tint * 0.4,
             (base + p.panel_contrast).min(0.98),
         ),
-        ink: if p.dark {
-            [211, 222, 232]
-        } else {
-            [42, 54, 66]
-        },
-        muted: if p.dark {
-            [91, 111, 129]
-        } else {
-            [150, 161, 169]
-        },
+        ink: rgb(
+            p.accent_hue,
+            p.background_tint * 0.7,
+            if p.dark {
+                0.81 + p.background_lightness * 0.8
+            } else {
+                0.08 + p.background_lightness
+            },
+        ),
+        muted: rgb(
+            p.accent_hue,
+            p.background_tint,
+            if p.dark {
+                0.32 + p.panel_contrast
+            } else {
+                0.51 + p.panel_contrast
+            },
+        ),
         accent: rgb(
             p.accent_hue,
             p.accent_saturation,
@@ -803,13 +822,30 @@ mod tests {
     use super::*;
     #[test]
     fn composed_participant_grid_preserves_three_column_pixel_replay() {
-        // Slot five in room 600 includes a four-participant panel. This catches
-        // dropping the column cap even when all the RNG/content seeds match.
-        let pixels = pixels(4_561_871_313_230_591_933);
-        let digest = pixels.iter().fold(0xcbf2_9ce4_8422_2325_u64, |h, &byte| {
-            (h ^ u64::from(byte)).wrapping_mul(0x100_0000_01b3)
-        });
-        assert_eq!(digest, 0x6c6c_cbcb_de69_bf90);
+        // Exercise the grid itself so unrelated palette/header/media expansion
+        // cannot silently turn this compiler regression into a different test.
+        let seed = 4_561_871_313_230_591_933;
+        let mut p = parameters(seed);
+        p.panels = 4;
+        let draw = || {
+            let mut c = Canvas::new([1, 2, 3]);
+            participants(&mut c, seed, &p, [12, 14, 222, 202], palette(&p));
+            c.0
+        };
+        let pixels = draw();
+        assert_eq!(pixels, draw());
+        for (x, y, occupied) in [
+            (13, 15, true),
+            (87, 15, true),
+            (161, 15, true),
+            (13, 116, true),
+            (87, 116, false),
+            (84, 15, false),
+            (0, 0, false),
+        ] {
+            let offset = (y * 256 + x) * 4;
+            assert_eq!(pixels[offset..offset + 3] != [1, 2, 3], occupied);
+        }
     }
 
     #[test]

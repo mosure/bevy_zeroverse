@@ -3,6 +3,82 @@ use super::*;
 use bevy::prelude::Vec2;
 
 #[test]
+fn floor_tessellations_close_with_nonempty_metric_pieces() {
+    let mut observed = std::collections::BTreeSet::new();
+    for seed in 0..128 {
+        for style in [0, 2] {
+            let rs = program::sample_with_floor(seed, style).unwrap();
+            let r = &rs[Surface::Floor as usize];
+            let f = r.flooring.as_ref().unwrap();
+            observed.insert(f.layout as usize);
+            let mut interiors = 0;
+            for y in 0..32 {
+                for x in 0..32 {
+                    // A regular probe grid can land a whole column on a valid
+                    // inclined joint. Use an R2 sequence independent of tiling.
+                    let i = (y * 32 + x) as f64 + 0.5;
+                    let uv = [
+                        (i * 0.7548776662466927).fract() as f32,
+                        (i * 0.5698402909980532).fract() as f32,
+                    ];
+                    let cut = f.cut(r, uv);
+                    assert!(cut
+                        .uv
+                        .into_iter()
+                        .all(|v| v.is_finite() && (0.0..=1.).contains(&v)));
+                    assert!(cut.distance_m.is_finite() && cut.distance_m >= 0.);
+                    interiors += usize::from(cut.distance_m > 0.0001);
+                    // Negative/two-period coordinates have the same piece IDs,
+                    // local grain coordinates and distance to the same joint.
+                    let wrapped = f.cut(r, [uv[0] - 1., uv[1] + 2.]);
+                    assert_eq!(cut.id, wrapped.id, "{seed}/{style}/{uv:?}");
+                    assert!((cut.distance_m - wrapped.distance_m).abs() < 2e-5);
+                }
+            }
+            assert!(
+                interiors > 1000,
+                "collapsed pieces {seed}/{style}: {interiors}"
+            );
+            if f.layout == FloorLayout::Seamless {
+                assert_eq!(f.seam(r, &f.cut(r, [0.; 2]), style), 0.);
+            }
+        }
+    }
+    assert_eq!(observed.len(), 7);
+}
+
+#[test]
+fn herringbone_covers_domain_with_equal_area_rectangular_planks() {
+    use std::collections::BTreeMap;
+    for seed in 0..32 {
+        let rs = program::sample_with_floor(seed, 0).unwrap();
+        let mut r = rs[Surface::Floor as usize].clone();
+        let f = r.flooring.as_mut().unwrap();
+        f.layout = FloorLayout::Herringbone;
+        let n = f.craft.as_ref().unwrap().plank_ratio;
+        f.cells = [n * 4; 2];
+        f.validate().unwrap();
+        let f = r.flooring.as_ref().unwrap();
+        let grid = f.cells[0] * 4;
+        let mut areas = BTreeMap::<[u32; 2], u32>::new();
+        for y in 0..grid {
+            for x in 0..grid {
+                let cut = f.cut(
+                    &r,
+                    [
+                        (x as f32 + 0.37) / grid as f32,
+                        (y as f32 + 0.41) / grid as f32,
+                    ],
+                );
+                *areas.entry(cut.id).or_default() += 1;
+            }
+        }
+        assert_eq!(areas.len() as u32, f.cells[0] * f.cells[1] / n);
+        assert!(areas.values().all(|area| *area == n * 16));
+    }
+}
+
+#[test]
 fn installation_tints_stay_in_gamut_across_warm_and_cool_extremes() {
     for seed in 0..8192 {
         for style in 0..3 {
@@ -19,7 +95,7 @@ fn installation_tints_stay_in_gamut_across_warm_and_cool_extremes() {
 
 #[test]
 fn installations_replay_with_metric_cuts_and_palette_variation() {
-    let mut layouts = [0; 3];
+    let mut layouts = [0; 5];
     let mut carpet_patterns = [0; 3];
     for seed in 0..256 {
         for style in 0..3 {
@@ -29,7 +105,7 @@ fn installations_replay_with_metric_cuts_and_palette_variation() {
             let f = r.flooring.as_ref().unwrap();
             assert_eq!(*f, FloorFinish::sample(r.seed, style, r.period_m));
             let cut = f.cut(r, [0.731, 0.127]);
-            assert!(cut.uv.into_iter().all(|v| (0.0..1.).contains(&v)));
+            assert!(cut.uv.into_iter().all(|v| (0.0..=1.).contains(&v)));
             assert!(cut.distance_m.is_finite() && cut.distance_m >= 0.);
             assert!(r.map_size(style) <= 512);
             if style == 0 {
@@ -53,7 +129,7 @@ fn installations_replay_with_metric_cuts_and_palette_variation() {
             }
         }
     }
-    assert!(layouts.iter().all(|n| *n >= 15), "{layouts:?}");
+    assert!(layouts.iter().all(|n| *n >= 8), "{layouts:?}");
     assert!(carpet_patterns.iter().all(|n| *n >= 45));
 }
 

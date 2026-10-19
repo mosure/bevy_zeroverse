@@ -1,6 +1,7 @@
 //! Potted botanical forms with real leaf silhouettes, petioles and tapered stems.
 //! The curved lamina/branch approach follows the review of bevy_ftb; geometry is
 //! generated here independently, without its assets, shaders or runtime dependency.
+mod broadleaf;
 mod habits;
 mod pots;
 pub use pots::PotProfile;
@@ -14,7 +15,7 @@ use bevy::prelude::*;
 use rand::Rng;
 use std::f32::consts::{PI, TAU};
 
-pub const SPECIES: u32 = 14;
+pub const SPECIES: u32 = 17;
 
 pub fn species_name(variant: u32) -> &'static str {
     [
@@ -32,6 +33,9 @@ pub fn species_name(variant: u32) -> &'static str {
         "trailing_vine",
         "umbrella_plant",
         "leafy_shrub",
+        "bird_of_paradise",
+        "fan_palm",
+        "zz_plant",
     ][(variant % SPECIES) as usize]
 }
 
@@ -54,6 +58,9 @@ pub(super) fn sample_species(size: Vec3, rng: &mut impl Rng) -> u32 {
         (0.70, 4.0),
         (1.2, 5.0),
         (0.70, 3.0),
+        (1.20, 5.0),
+        (1.00, 4.0),
+        (0.65, 3.5),
     ];
     let mut choices = [0u32; SPECIES as usize];
     let mut count = 0;
@@ -87,11 +94,20 @@ pub(super) struct Growth {
     pub droop: f32,
     pub branching: f32,
     pub maturity: f32,
+    pub crown_spread: f32,
+    pub shoot_phase: f32,
+    pub internode_exponent: f32,
+    pub angular_irregularity: f32,
+    pub leader_count: usize,
+    pub leaf_curl: f32,
+    pub leaf_lobes: f32,
+    pub leaf_tip_exponent: f32,
 }
 impl Growth {
     pub fn sample(seed: u64) -> Self {
         let mut rng = stream(seed, 271);
         let mut age = stream(seed, 6283);
+        let mut crown = stream(seed, 6440);
         let maturity: f32 = age.random_range(0.25..1.);
         let mut growth = Self {
             maturity,
@@ -104,6 +120,14 @@ impl Growth {
             crown_skew: rng.random_range(-0.16..0.16),
             droop: rng.random_range(0.08..0.42),
             branching: rng.random_range(0.38..0.92),
+            crown_spread: crown.random_range(0.84..1.0),
+            shoot_phase: crown.random_range(0.0..TAU),
+            internode_exponent: crown.random_range(0.65..1.65),
+            angular_irregularity: crown.random_range(0.04..0.38),
+            leader_count: crown.random_range(2..=4),
+            leaf_curl: crown.random_range(0.12..0.38),
+            leaf_lobes: crown.random_range(3.0..6.0),
+            leaf_tip_exponent: crown.random_range(0.60..1.25),
         };
         // Age drives connected leader/leaf occupancy jointly. Mature plants
         // should not independently draw both sparse foliage and weak branching.
@@ -114,10 +138,25 @@ impl Growth {
     fn count(&self, nominal: usize) -> usize {
         (nominal as f32 * self.density).round().max(3.0) as usize
     }
+    fn angle(&self, index: usize) -> f32 {
+        self.shoot_phase
+            + index as f32 * self.phyllotaxis
+            + self.angular_irregularity * (index as f32 * 2.37).sin()
+    }
+    fn node(&self, index: usize, count: usize) -> f32 {
+        (index as f32 / count as f32).powf(self.internode_exponent)
+    }
 }
 
 fn radial(angle: f32) -> Vec3 {
     Vec3::new(angle.cos(), 0.0, angle.sin())
+}
+
+/// Attach petioles to the emitted piecewise-linear stem, not an idealized curve.
+fn along(points: &[Vec3], t: f32) -> Vec3 {
+    let u = t.clamp(0., 1.) * (points.len() - 1) as f32;
+    let i = (u.floor() as usize).min(points.len() - 2);
+    points[i].lerp(points[i + 1], u - i as f32)
 }
 
 /// Root volume scales with stature as well as canopy width. The saucer and
@@ -191,7 +230,7 @@ fn blade(
     let exponent = if shape == 2 {
         rng.random_range(0.25..0.6)
     } else {
-        rng.random_range(0.5..1.3)
+        morphology.leaf_tip_exponent * rng.random_range(0.90..1.06)
     };
     let surface = if shape == 2 {
         Surface::LeafVariegated
@@ -213,7 +252,7 @@ fn blade(
                 1.0
             };
         let lobes = if shape == 3 {
-            0.48 + 0.52 * (t * PI * 4.0).cos().abs()
+            0.48 + 0.52 * (t * PI * morphology.leaf_lobes).cos().abs()
         } else if shape == 5 {
             0.88 + 0.12 * (t * PI * 12.0).cos().abs()
         } else {
@@ -223,7 +262,7 @@ fn blade(
             base + delta * t + up * half_width * (bend * (PI * t).sin() - morphology.droop * t * t);
         for sign in [-1.0, 0.0, 1.0] {
             let w = half_width * envelope * lobes * sign * (1.0 + sign * asymmetry);
-            positions.push(mid + side * w + up * (w * twist * t - w.abs() * 0.22));
+            positions.push(mid + side * w + up * (w * twist * t - w.abs() * morphology.leaf_curl));
             uvs.push([0.5 + sign * envelope * lobes * 0.5, t]);
         }
     }
@@ -271,7 +310,7 @@ pub fn build(a: &mut Assembly, o: &IndoorObject) {
     // The foliage envelope includes maximum leaf-width modulation and droop.
     let spread = o.size.x.min(o.size.z) * 0.40;
     let (r, ph) = pot_dimensions(o, &growth);
-    let pot = match (o.seed >> 8) % 5 {
+    let pot = match stream(o.seed, 6441).random_range(0..5) {
         0 => Surface::Terracotta,
         1 => Surface::Concrete,
         2 => Surface::Plastic,
@@ -295,7 +334,11 @@ pub fn build(a: &mut Assembly, o: &IndoorObject) {
     let base = Vec3::Y * soil;
     // Broad nursery pots need compact crowns: a horizontal leaf's rise must
     // fit the headroom too. Stem and pot dimensions retain their metric scale.
-    let spread = spread.min((h - soil) * 0.80);
+    let spread = spread.min((h - soil) * 0.80) * growth.crown_spread;
+    if o.variant % SPECIES >= 14 {
+        broadleaf::build(a, o, &growth, base, spread, soil_radius);
+        return;
+    }
     if o.variant % SPECIES >= 6 {
         habits::build(a, o, &growth, base, spread, soil_radius);
         return;
@@ -303,23 +346,20 @@ pub fn build(a: &mut Assembly, o: &IndoorObject) {
     match o.variant % SPECIES {
         0 => {
             // Rubber plant: alternate broad leaves on several branching leaders.
-            for leader in 0..growth.count(3) {
-                let angle = leader as f32 * growth.phyllotaxis + rng.random_range(0.0..0.4);
+            for leader in 0..growth.leader_count {
+                let angle = growth.angle(leader) + rng.random_range(0.0..0.4);
                 let top = base
                     + Vec3::Y * ((h - soil) * rng.random_range(0.64..0.84))
                     + radial(angle) * spread * 0.20;
-                stem(
-                    a,
-                    &[
-                        base,
-                        base.lerp(top, 0.40) - radial(angle) * spread * 0.05,
-                        top,
-                    ],
-                    h * 0.009,
-                );
+                let leader = [
+                    base,
+                    base.lerp(top, 0.40) - radial(angle) * spread * 0.05,
+                    top,
+                ];
+                stem(a, &leader, h * 0.009);
                 for j in 0..growth.count(9) {
-                    let p = base.lerp(top, 0.20 + j as f32 / growth.count(9) as f32 * 0.75);
-                    let d = radial(angle + j as f32 * growth.phyllotaxis);
+                    let p = along(&leader, 0.20 + growth.node(j, growth.count(9)) * 0.75);
+                    let d = radial(angle + growth.angle(j));
                     let petiole = p + d * spread * 0.12 + Vec3::Y * h * 0.025;
                     stem(a, &[p, petiole], h * 0.0025);
                     blade(
@@ -333,6 +373,20 @@ pub fn build(a: &mut Assembly, o: &IndoorObject) {
                         &growth,
                     );
                 }
+                // The growing tip also carries foliage; avoid bare poles above
+                // a set of low leaves when internodes concentrate near the base.
+                for j in 0..2 {
+                    let dir = radial(angle + j as f32 * PI);
+                    blade(
+                        a,
+                        top,
+                        dir * spread * 0.44 - Vec3::Y * h * 0.015,
+                        spread * 0.17,
+                        0,
+                        rng.random(),
+                        &growth,
+                    );
+                }
             }
         }
         1 | 4 => {
@@ -340,7 +394,7 @@ pub fn build(a: &mut Assembly, o: &IndoorObject) {
             let palm = o.variant % SPECIES == 1;
             // Keep the existing <20k-triangle per-plant budget at the lush tail.
             for frond in 0..growth.count(if palm { 14 } else { 16 }).min(16) {
-                let dir = radial(frond as f32 * growth.phyllotaxis);
+                let dir = radial(growth.angle(frond));
                 let reach = spread * rng.random_range(0.76..0.95);
                 let rise =
                     (h - soil) * rng.random_range(0.64..0.94) * if palm { 1.0 } else { 0.55 };
@@ -354,7 +408,7 @@ pub fn build(a: &mut Assembly, o: &IndoorObject) {
                 let side = Vec3::Y.cross(dir);
                 for j in 2..16 {
                     let t = j as f32 / 17.0;
-                    let p = base + dir * reach * t + Vec3::Y * rise * (1.9 * t - 1.12 * t * t);
+                    let p = along(&points, t);
                     let length = spread * (if palm { 0.56 } else { 0.48 }) * (PI * t).sin();
                     for sign in [-1.0, 1.0] {
                         blade(
@@ -373,7 +427,7 @@ pub fn build(a: &mut Assembly, o: &IndoorObject) {
         2 => {
             // Snake plant: upright, stiff, gently twisted variegated swords.
             for i in 0..growth.count(15) {
-                let dir = radial(i as f32 * growth.phyllotaxis);
+                let dir = radial(growth.angle(i));
                 let p = base + dir * r * 0.5;
                 blade(
                     a,
@@ -389,7 +443,7 @@ pub fn build(a: &mut Assembly, o: &IndoorObject) {
         3 => {
             // Split-leaf tropical: independent arched petioles, deeply lobed blades.
             for i in 0..growth.count(11) {
-                let dir = radial(i as f32 * growth.phyllotaxis);
+                let dir = radial(growth.angle(i));
                 let top = base
                     + Vec3::Y * (h - soil) * rng.random_range(0.40..0.86)
                     + dir * spread * 0.20;
@@ -411,13 +465,21 @@ pub fn build(a: &mut Assembly, o: &IndoorObject) {
         }
         _ => {
             // Dracaena: cane trunks and narrow drooping rosettes at distinct heights.
-            for cane in 0..3 {
-                let dir = radial(cane as f32 * growth.phyllotaxis);
+            for cane in 0..growth.leader_count {
+                let dir = radial(growth.angle(cane));
                 let start = base + dir * r * 0.35;
-                let top = start + Vec3::Y * (h - soil) * (0.43 + cane as f32 * 0.19);
+                let top = start
+                    + Vec3::Y
+                        * (h - soil)
+                        * (0.43 + growth.node(cane, growth.leader_count - 1) * 0.38);
                 stem(
                     a,
-                    &[start, start.lerp(top, 0.5) + dir * spread * 0.05, top],
+                    &[
+                        start,
+                        start.lerp(top, 0.5) + dir * spread * 0.05,
+                        top,
+                        top + Vec3::Y * h * 0.013,
+                    ],
                     h * 0.013,
                 );
                 // Age-graded whorls form a crown, rather than a single sparse

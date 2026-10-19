@@ -51,11 +51,24 @@ pub(super) fn panel(c: &mut Canvas, seed: u64, bounds: [i32; 4], kind: u32, dark
     let [x, y, w, h] = bounds;
     c.clipped(bounds, |c| {
         c.rect(x, y, w, h, colors.panel);
-        let title = phrase(&mut rng, ((w - 10) / 4).max(5) as usize);
-        c.text(&title, x + 5, y + 5, 1, colors.ink);
-        let b = [x + 6, y + 18, (w - 12).max(6), (h - 24).max(6)];
+        let margin = ((w.min(h) as f32 * rng.random_range(0.025..0.09)) as i32).clamp(2, 10);
+        let header = if rng.random_bool(0.65) {
+            rng.random_range(12..23)
+        } else {
+            0
+        };
+        if header > 0 {
+            let title = phrase(&mut rng, ((w - 2 * margin) / 4).max(5) as usize);
+            c.text(&title, x + margin, y + margin, 1, colors.ink);
+        }
+        let b = [
+            x + margin,
+            y + margin + header,
+            (w - 2 * margin).max(6),
+            (h - 2 * margin - header).max(6),
+        ];
         let [x, y, w, h] = b;
-        c.clipped(b, |c| match kind % 10 {
+        c.clipped(b, |c| match kind % 13 {
             0 => paragraph(c, seed, b, colors.ink, p.density),
             1 => chart(c, seed, &p, b, colors, rng.random_range(0..6)),
             2 => {
@@ -178,7 +191,7 @@ pub(super) fn panel(c: &mut Canvas, seed: u64, bounds: [i32; 4], kind: u32, dark
                     c.polygon(&points, [43 + layer * 13, 72 + layer * 11, 75 - layer * 8]);
                 }
             }
-            _ => {
+            9 => {
                 // Slide/kanban cards: sparse independent placements in ordered columns.
                 let cols = if w > 100 { rng.random_range(2..=3) } else { 1 };
                 for col in 0..cols {
@@ -196,6 +209,71 @@ pub(super) fn panel(c: &mut Canvas, seed: u64, bounds: [i32; 4], kind: u32, dark
                             [b[0] + 6, b[1] + 5, cw - 13, 18],
                             colors.ink,
                             p.density,
+                        );
+                    }
+                }
+            }
+            10 => {
+                // Plan/editor viewport: unequal connected rooms, wall thickness,
+                // doors and furniture. Positions are not screen-grid landmarks.
+                let plan = super::composition::Composition::sample(
+                    seed,
+                    rng.random_range(2..=6),
+                    [0.03, 0.05, 0.94, 0.90],
+                    rng.random_range(0.25..0.75),
+                );
+                c.rect(x, y, w, h, colors.bg);
+                for r in plan.regions {
+                    let [rx, ry, rw, rh] = r.bounds;
+                    let a = x + (rx * w as f32) as i32;
+                    let b = y + (ry * h as f32) as i32;
+                    let ww = (rw * w as f32) as i32;
+                    let hh = (rh * h as f32) as i32;
+                    c.rect(a, b, ww, hh, colors.muted);
+                    c.rect(a + 2, b + 2, (ww - 4).max(1), (hh - 4).max(1), colors.panel);
+                    c.rect(a + ww / 3, b, (ww / 5).max(2), 2, colors.panel);
+                    c.rect(
+                        a + ww / 4,
+                        b + hh / 3,
+                        (ww / 3).max(2),
+                        (hh / 4).max(2),
+                        colors.accent,
+                    );
+                }
+            }
+            11 => {
+                // Calendar: responsive week/month spans and sparse appointments.
+                let cols = rng.random_range(3..=7);
+                let rows = rng.random_range(2..=5);
+                for i in 0..cols * rows {
+                    let xx = x + i % cols * w / cols;
+                    let yy = y + i / cols * h / rows;
+                    c.rect(xx, yy, 1, h / rows, colors.muted);
+                    c.rect(xx, yy, w / cols, 1, colors.muted);
+                    if rng.random_bool(p.density as f64) {
+                        c.rect(
+                            xx + 2,
+                            yy + 4,
+                            (w / cols - 4).max(1),
+                            (h / rows / 3).max(1),
+                            colors.accent,
+                        );
+                    }
+                }
+            }
+            _ => {
+                // Full-bleed image/photo artwork, with no fixed terrain palette.
+                let image = super::art::illustration(seed);
+                for yy in 0..h.max(1) {
+                    for xx in 0..w.max(1) {
+                        let src =
+                            (((yy * 255 / h.max(1)) * 256 + xx * 255 / w.max(1)) * 4) as usize;
+                        c.rect(
+                            x + xx,
+                            y + yy,
+                            1,
+                            1,
+                            [image[src], image[src + 1], image[src + 2]],
                         );
                     }
                 }

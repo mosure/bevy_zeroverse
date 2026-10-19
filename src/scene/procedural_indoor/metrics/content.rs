@@ -25,6 +25,10 @@ pub(super) fn record_scene(
     categories: &mut Categories,
 ) -> io::Result<()> {
     let groups = &scene.assembly_diagnostics;
+    numeric.push(
+        "feature_wall_edges",
+        materials::wall::feature_edges(scene).len() as f64,
+    )?;
     numeric.push("functional_programs", groups.programs.len() as f64)?;
     for p in &groups.programs {
         category(
@@ -134,6 +138,9 @@ pub(super) fn record_scene(
     if let Some(fraction) = super::super::architecture::outdoors::window_context_fraction(scene) {
         numeric.push("exterior_window_context_fraction", fraction as f64)?;
     }
+    for (name, value) in super::super::architecture::outdoors::measurements(scene) {
+        numeric.push(name, value as f64)?;
+    }
     numeric.push(
         "floor_power_connections",
         scene
@@ -193,7 +200,49 @@ pub(super) fn record_scene(
 pub(super) fn record_material(
     material: &MaterialRecipe,
     numeric: &mut NumericCollector,
+    categories: &mut Categories,
 ) -> io::Result<()> {
+    if let Some(f) = &material.flooring {
+        category(categories, "floor_installation", format!("{:?}", f.layout));
+        for (key, value) in [
+            ("installation_cells_u", f.cells[0] as f32),
+            ("installation_cells_v", f.cells[1] as f32),
+            ("piece_tone", f.piece_tone),
+            ("piece_roughness", f.piece_roughness),
+        ] {
+            numeric.push(&format!("material_Floor_{key}"), value as f64)?;
+        }
+    }
+    if let Some(w) = material.coating.as_ref().and_then(|c| c.wall.as_ref()) {
+        for (key, value) in [
+            ("wash", w.weights[0]),
+            ("fiber", w.weights[1]),
+            ("weave", w.weights[2]),
+            ("print", w.weights[3]),
+            ("pigment", w.pigment),
+            ("relief_m", w.relief_m),
+            ("roughness_variation", w.roughness_variation),
+            ("burnish", w.burnish),
+        ] {
+            numeric.push(
+                &format!("material_{:?}_covering_{key}", material.surface),
+                value as f64,
+            )?;
+        }
+    }
+    if let Some(m) = &material.manufactured {
+        for (key, value) in [
+            ("cells_u", m.cells[0] as f32),
+            ("cells_v", m.cells[1] as f32),
+            ("structure", m.structure),
+            ("peening", m.peening),
+        ] {
+            numeric.push(
+                &format!("material_{:?}_manufactured_{key}", material.surface),
+                value as f64,
+            )?;
+        }
+    }
     if let Some(t) = &material.textile {
         if let Some(d) = &t.dye_program {
             for axis in 0..2 {

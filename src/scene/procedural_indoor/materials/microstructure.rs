@@ -4,6 +4,9 @@ use super::{periodic_noise, program::MaterialRecipe, Surface};
 pub(super) fn value(r: &MaterialRecipe, uv: [f32; 2], noise: [f32; 3], floor: u32) -> f32 {
     let [u, v] = uv;
     let [macro_n, meso, micro] = noise;
+    if let Some(m) = &r.manufactured {
+        return m.value(r, uv, micro, meso);
+    }
     let sample = |nx, ny, salt| periodic_noise(u, v, nx, ny, r.seed.wrapping_add(salt));
     match r.surface {
         Surface::Wood | Surface::WoodEdge | Surface::Bark => super::timber::grain(r, u, v),

@@ -56,10 +56,10 @@ pub(super) fn pixels(seed: u64, kind: DisplayKind, p: &ScreenProgram) -> Vec<u8>
     }
     for (i, r) in p.composition.regions.iter().enumerate() {
         let mut content_rng = stream(r.seed, 0x434f4e54454e54);
-        let mut kind_id = content_rng.random_range(0..10);
+        let mut kind_id = content_rng.random_range(0..13);
         // The leading region can retain the main task; others mix independent documents.
         if i == 0 && content_rng.random_bool(0.35) {
-            kind_id = p.layout % 10;
+            kind_id = p.layout % 13;
         }
         if matches!(kind, DisplayKind::Phone) && kind_id == 5 {
             kind_id = 3;

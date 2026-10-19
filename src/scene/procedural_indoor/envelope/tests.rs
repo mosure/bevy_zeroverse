@@ -559,6 +559,7 @@ fn built_surfaces_match_floor_support_roof_and_apertures() {
                 w.edge,
                 w.facade.as_ref().map_or(&[][..], |f| f.openings.as_slice()),
                 architecture::trim::TrimProgram::for_scene(&clear),
+                Surface::Paint,
             );
             if let Some(f) = &w.facade {
                 architecture::facade::glazing_at(&mut shell, clear_e.wall_transform(w.edge), f);

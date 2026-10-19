@@ -1,5 +1,7 @@
 //! Small procedural mesh vocabulary. UVs are measured in metres, not object extents.
 mod housing;
+#[cfg(test)]
+pub(crate) mod preview;
 mod primitives;
 mod slab;
 mod sweep;

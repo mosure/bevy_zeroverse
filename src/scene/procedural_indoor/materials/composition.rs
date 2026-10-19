@@ -21,6 +21,38 @@ pub struct Composition {
     pub regions: Vec<Region>,
 }
 impl Composition {
+    /// Free placements for pinups, handwritten clusters and collage subjects.
+    /// A bounded rejection budget preserves empty space without grid anchors.
+    pub fn scattered(seed: u64, count: usize, bounds: [f32; 4]) -> Self {
+        let mut rng = stream(seed, 0x53434154544552);
+        let gutter = rng.random_range(0.015..0.045);
+        let [x, y, w, h] = bounds;
+        let mut regions: Vec<Region> = Vec::with_capacity(count.min(6));
+        for _ in 0..64 {
+            if regions.len() >= count.clamp(1, 6) {
+                break;
+            }
+            let rw = w * rng.random_range(0.24..0.68);
+            let rh = h * rng.random_range(0.20..0.61);
+            let xx = x + rng.random_range(0.0..w - rw);
+            let yy = y + rng.random_range(0.0..h - rh);
+            if regions.iter().any(|r| {
+                let [a, b, c, d] = r.bounds;
+                xx < a + c + gutter
+                    && xx + rw + gutter > a
+                    && yy < b + d + gutter
+                    && yy + rh + gutter > b
+            }) {
+                continue;
+            }
+            regions.push(Region {
+                bounds: [xx, yy, rw, rh],
+                seed: rng.random(),
+            });
+        }
+        Self { gutter, regions }
+    }
+
     /// A count is an upper bound, not permission to create unreadably small cells.
     pub fn sample(seed: u64, count: usize, bounds: [f32; 4], vertical_bias: f32) -> Self {
         let mut rng = stream(seed, 0x50414e454c53);
@@ -67,6 +99,30 @@ impl Composition {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn scattered_regions_replay_fit_bounds_and_keep_gaps() {
+        for seed in 0..1024 {
+            let bounds = [0.04, 0.08, 0.92, 0.86];
+            let c = Composition::scattered(seed, 6, bounds);
+            assert_eq!(c, Composition::scattered(seed, 6, bounds));
+            assert!(!c.regions.is_empty() && c.regions.len() <= 6);
+            for (i, r) in c.regions.iter().enumerate() {
+                let [x, y, w, h] = r.bounds;
+                assert!(x >= bounds[0] && y >= bounds[1] && w > 0. && h > 0.);
+                assert!(x + w <= 0.96001 && y + h <= 0.94001);
+                for s in &c.regions[..i] {
+                    let [a, b, c2, d] = s.bounds;
+                    assert!(
+                        x + w + c.gutter <= a
+                            || a + c2 + c.gutter <= x
+                            || y + h + c.gutter <= b
+                            || b + d + c.gutter <= y
+                    );
+                }
+            }
+        }
+    }
+
     #[test]
     fn subdivision_is_bounded_nonoverlapping_and_replayable() {
         for seed in 0..4096 {

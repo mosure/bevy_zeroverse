@@ -1069,7 +1069,14 @@ impl IndoorManifest {
         !self
             .objects
             .iter()
-            .filter(|o| o.solid && !o.neighbor && o.id != object.id)
+            // Early service mats and floor sockets have real thickness even
+            // though they are not navigation obstacles. Later furnishings must
+            // respect the clear floor area under which they were admitted.
+            .filter(|o| {
+                (o.solid || matches!(o.kind, ObjectKind::Rug | ObjectKind::FloorOutlet))
+                    && !o.neighbor
+                    && o.id != object.id
+            })
             .any(|other| {
                 seating::furniture_overlap(
                     object,

@@ -1,7 +1,9 @@
 //! Continuous convex top outlines and independent structural support programs.
 use super::*;
 mod clearance;
+mod outline;
 mod structure;
+mod supports;
 #[cfg(test)]
 mod tests;
 pub(crate) use clearance::Clearance;
@@ -29,9 +31,19 @@ pub struct TableProgram {
     pub trestle_spread: f32,
     /// Continuous rake of the spider pedestal spokes toward the top mount.
     pub spider_sweep: f32,
+    /// Convex blend with a rounded polygon; zero retains a curved outline.
+    pub polygon_blend: f32,
+    pub polygon_sides: u32,
+    pub polygon_phase: f32,
+    pub polygon_rounding: f32,
+    pub pedestal_waist: f32,
+    pub pedestal_shoulder: f32,
+    pub pedestal_facets: u32,
+    pub frame_surface: Surface,
 }
 pub fn parameters(o: &IndoorObject) -> TableProgram {
     let mut rng = stream(o.seed, 172);
+    let mut shape = stream(o.seed, 6420);
     let exponent = if o.kind == ObjectKind::Desk {
         rng.random_range(5.0..24.0)
     } else if rng.random_bool(0.4) {
@@ -51,7 +63,7 @@ pub fn parameters(o: &IndoorObject) -> TableProgram {
         } else {
             0.0
         },
-        support: rng.random_range(0..8),
+        support: rng.random_range(0..10),
         top_surface: match rng.random_range(0..10) {
             0 => Surface::Ceramic,
             1 => Surface::Plastic,
@@ -73,42 +85,41 @@ pub fn parameters(o: &IndoorObject) -> TableProgram {
         frame_bend_m: rng.random_range(0.025..0.065),
         trestle_spread: rng.random_range(0.62..0.98),
         spider_sweep: rng.random_range(0.18..0.48),
+        polygon_blend: if shape.random_bool(if o.kind == ObjectKind::Desk {
+            0.18
+        } else {
+            0.55
+        }) {
+            shape.random_range(0.35..0.90)
+        } else {
+            0.
+        },
+        polygon_sides: if o.kind == ObjectKind::Desk {
+            4
+        } else {
+            shape.random_range(3..=8)
+        },
+        polygon_phase: shape.random_range(0.0..TAU),
+        polygon_rounding: shape.random_range(0.12..0.45),
+        pedestal_waist: shape.random_range(0.28..0.92),
+        pedestal_shoulder: shape.random_range(0.25..0.78),
+        pedestal_facets: [6, 8, 12, 32][shape.random_range(0..4)],
+        frame_surface: if o.variant == 1 {
+            Surface::WoodEdge
+        } else {
+            [
+                Surface::Metal,
+                Surface::Metal,
+                Surface::Chrome,
+                Surface::WoodEdge,
+            ][shape.random_range(0..4)]
+        },
     }
 }
 pub fn outline(o: &IndoorObject) -> Vec<Vec2> {
-    let p = parameters(o);
-    let half = o.size.xz() * 0.5;
-    (0..64)
-        .map(|i| {
-            // Support-normal parameterization permits convex Minkowski blending of
-            // elliptical, squared and capsule tops without concave prop supports.
-            let angle = i as f32 * TAU / 64.0;
-            let n =
-                Vec2::new(angle.cos(), angle.sin()).map(|v| if v.abs() < 1e-6 { 0. } else { v });
-            let q = p.outline_exponent / (p.outline_exponent - 1.0);
-            let h = ((half.x * n.x).abs().powf(q) + (half.y * n.y).abs().powf(q)).powf(1.0 / q);
-            let shape = Vec2::new(
-                half.x.powf(q) * n.x.signum() * n.x.abs().powf(q - 1.0),
-                half.y.powf(q) * n.y.signum() * n.y.abs().powf(q - 1.0),
-            ) / h.powf(q - 1.0);
-            let radius = half.min_element();
-            let capsule = n * radius
-                + Vec2::new(
-                    (half.x - radius) * n.x.signum(),
-                    (half.y - radius) * n.y.signum(),
-                );
-            let v = shape.lerp(capsule, p.capsule_blend);
-            // A projective map preserves convexity for the tapered end widths.
-            let w = 1.0 + p.taper * v.y / half.y;
-            Vec2::new(
-                v.x * (1.0 - p.taper.abs()) / w,
-                (v.y / w + half.y * p.taper / (1.0 - p.taper * p.taper))
-                    * (1.0 - p.taper * p.taper),
-            )
-        })
-        .collect()
+    outline::sample(o.size.xz() * 0.5, &parameters(o))
 }
-/// Require every prop corner to sit on the actual surface, not its rectangular bounds.
+
 pub fn supports(o: &IndoorObject, lo: Vec2, hi: Vec2, margin: f32) -> bool {
     supports_outline(&outline(o), lo, hi, margin)
 }
@@ -168,11 +179,7 @@ fn build_structure(
     let s = o.size;
     let label = o.kind.class_name();
     let underside = s.y - p.top_thickness - 0.012;
-    let frame = if o.variant == 1 {
-        Surface::WoodEdge
-    } else {
-        Surface::Metal
-    };
+    let frame = p.frame_surface;
     let half = Vec2::new(s.x, s.z) * 0.5;
     let mut anchor = Vec2::new(
         (half.x - p.leg_inset).max(0.12),
@@ -183,12 +190,8 @@ fn build_structure(
         if [-1., 1.].into_iter().all(|x| {
             [-1., 1.].into_iter().all(|z| {
                 let mount = anchor * Vec2::new(x, z);
-                supports_outline(
-                    outline,
-                    mount - Vec2::splat(0.05),
-                    mount + Vec2::splat(0.05),
-                    0.,
-                )
+                let pad = Vec2::splat(if p.support == 8 { 0.10 } else { 0.05 });
+                supports_outline(outline, mount - pad, mount + pad, 0.)
             })
         }) {
             break;
@@ -265,6 +268,8 @@ fn build_structure(
                 } else {
                     Vec3::Z * s.z * offset
                 };
+                let center =
+                    supports::fit_center(center, outline, s.x.min(s.z) * p.pedestal_radius + 0.018);
                 a.part(frame, label).cylinder(
                     s.x.min(s.z) * p.pedestal_radius,
                     underside - 0.04,
@@ -373,7 +378,7 @@ fn build_structure(
                 p.leg_radius * 0.80,
             );
         }
-        _ => {
+        7 => {
             // Sculptural spider bases have grounded spokes and an actual
             // central stem. Long conference tops use two stems for support.
             let long_x = s.x > s.z;
@@ -394,6 +399,8 @@ fn build_structure(
                 } else {
                     Vec3::Z * offset
                 };
+                let center =
+                    supports::fit_center(center, outline, s.x.min(s.z) * p.pedestal_radius + 0.018);
                 a.part(frame, label).cylinder(
                     s.x.min(s.z) * p.pedestal_radius,
                     underside - 0.13,
@@ -421,6 +428,8 @@ fn build_structure(
                 }
             }
         }
+        8 => supports::hairpin(a, p, anchor, underside, frame, label),
+        _ => supports::drums(a, o, p, outline, underside, frame, label),
     }
     if (3..=5).contains(&p.support) {
         for x in [-anchor.x, anchor.x] {
@@ -443,15 +452,19 @@ fn build_structure(
             Surface::Plastic,
             label,
             Vec3::new(0.0, underside - 0.07, 0.0),
-            Vec3::new(s.x * 0.35, 0.045, 0.16),
+            Vec3::new((s.x * 0.35).min(anchor.x * 2.), 0.045, 0.16),
             0.005,
         );
-        a.box_part(
-            Surface::Metal,
-            label,
-            Vec3::new(0.0, s.y + 0.001, -s.z * 0.20),
-            Vec3::new(0.16, 0.002, 0.055),
-            0.0,
-        );
+        let center = supports::fit_center(Vec3::new(0., 0., -s.z * 0.20), outline, 0.09);
+        let pad = Vec2::new(0.084, 0.032);
+        if supports_outline(outline, center.xz() - pad, center.xz() + pad, 0.008) {
+            a.box_part(
+                Surface::Metal,
+                label,
+                center.with_y(s.y + 0.001),
+                Vec3::new(0.16, 0.002, 0.055),
+                0.0,
+            );
+        }
     }
 }

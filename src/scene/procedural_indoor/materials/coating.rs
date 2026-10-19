@@ -11,6 +11,8 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CoatingRecipe {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub wall: Option<super::wall::WallFinish>,
     #[serde(default)]
     pub glaze: Option<super::ceramic::GlazeRecipe>,
     #[serde(default)]
@@ -38,6 +40,7 @@ impl CoatingRecipe {
             rng.random_range(0.0_f32..1.0).powi(2) * 0.80
         };
         Self {
+            wall: super::wall::WallFinish::sample(seed, surface),
             glaze: glaze.then(|| super::ceramic::GlazeRecipe::sample(seed)),
             application: (!glaze).then(|| super::paint::PaintApplication::sample(seed)),
             cells: [rng.random_range(32..=64), rng.random_range(32..=64)],
@@ -70,6 +73,12 @@ impl CoatingRecipe {
         }
     }
     pub fn validate(&self) -> Result<(), String> {
+        if let Some(w) = &self.wall {
+            w.validate()?;
+            if self.glaze.is_some() || self.application.is_none() {
+                return Err("wall covering requires a paint substrate".into());
+            }
+        }
         if self.glaze.is_some() && self.application.is_some() {
             return Err("glaze and wall application are exclusive".into());
         }

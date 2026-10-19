@@ -2,10 +2,15 @@
 //! The finite sky closure remains behind these metric, shadow-casting meshes.
 use super::super::{layout::IndoorObject, plants};
 use super::*;
+mod buildings;
 mod details;
+mod program;
+#[cfg(test)]
+mod qualification;
+use program::{Building, District};
 mod streets;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize)]
 struct Parcel {
     center: Vec2,
     size: Vec2,
@@ -19,6 +24,38 @@ pub(crate) fn counts(scene: &IndoorManifest) -> [usize; 4] {
         counts[p.kind as usize] += 1;
     }
     counts
+}
+
+/// Realized exterior construction controls for dataset distribution reports.
+pub(crate) fn measurements(scene: &IndoorManifest) -> Vec<(&'static str, f32)> {
+    let d = District::sample(scene.seed);
+    let mut out = vec![
+        ("exterior_building_probability", d.building_fraction),
+        ("exterior_parcel_scale", d.parcel_scale),
+        ("exterior_walkway_width_m", d.paving_width),
+    ];
+    for p in parcels(scene).into_iter().filter(|p| p.kind == 0) {
+        let b = Building::sample(&p, super::background::radius(scene));
+        out.extend([
+            ("exterior_building_width_m", p.size.x),
+            ("exterior_building_depth_m", p.size.y),
+            ("exterior_storeys", b.levels as f32),
+            ("exterior_storey_height_m", b.pitch),
+            ("exterior_roof_type", b.roof as f32),
+            (
+                "exterior_building_wings",
+                if b.split < 1. { 2. } else { 1. },
+            ),
+            ("exterior_window_bay_pitch_m", b.bay_pitch),
+            (
+                "exterior_window_requested_width_fraction",
+                b.window_fraction,
+            ),
+            ("exterior_window_height_fraction", b.window_height),
+            ("exterior_building_distance_m", p.center.length()),
+        ]);
+    }
+    out
 }
 /// Window origins and outward normals are measured from the built envelope,
 /// including angled/recessed edges, rather than its enclosing rectangle.
@@ -75,21 +112,31 @@ fn parcels(scene: &IndoorManifest) -> Vec<Parcel> {
     let mut rng = stream(scene.seed, 6340);
     let mut parcels: Vec<Parcel> = vec![];
     let half = scene.room_size.xz() * 0.5;
-    let density = rng.random_range(0.35..0.85);
+    let district = District::sample(scene.seed);
     let windows = window_rays(scene);
-    let directed = (windows.len() * 6).min(96);
-    for attempt in 0..directed + 96 {
+    let directed = (windows.len() * 9).min(128);
+    for attempt in 0..directed + 192 {
         if parcels.len() >= 18 {
             break;
         }
-        let size = Vec2::new(rng.random_range(2.2..4.8), rng.random_range(2.0..4.0));
+        // Larger continuous footprints break the repeated narrow tower silhouette.
+        // Late proposals use smaller plots to fill genuine available gaps.
+        let scale = if attempt < directed + 64 {
+            district.parcel_scale
+        } else {
+            1.
+        };
+        let size = Vec2::new(
+            rng.random_range(2.6..4.8) * scale,
+            rng.random_range(2.2..4.4) * scale,
+        );
         let radius = size.length() * 0.5;
         let (center, yaw) = if attempt < directed {
             let (origin, normal) = windows[attempt % windows.len()];
             let tangent = Vec2::new(-normal.y, normal.x);
             let center = origin
-                + normal * rng.random_range(3.2..10.0)
-                + tangent * rng.random_range(-1.4..1.4);
+                + normal * rng.random_range(3.2..12.5)
+                + tangent * rng.random_range(-3.4..3.4);
             (
                 center,
                 (-normal.x).atan2(-normal.y) + rng.random_range(-0.10..0.10),
@@ -98,12 +145,13 @@ fn parcels(scene: &IndoorManifest) -> Vec<Parcel> {
             let angle = rng.random_range(0.0..std::f32::consts::TAU);
             (
                 Vec2::new(angle.cos(), angle.sin()) * (half.length() + rng.random_range(3.0..10.0)),
-                rng.random_range(-0.4..0.4),
+                district.street_yaw + rng.random_range(-0.12..0.12),
             )
         };
-        let lo = Vec2::new(-half.x - 0.8, -half.y - 0.8);
-        let hi = Vec2::new(half.x + 0.8, half.y + NEIGHBOR_DEPTH + 0.8);
-        if center.distance(center.clamp(lo, hi)) < radius + 0.4
+        let border = 0.65 + district.paving_width;
+        let lo = Vec2::new(-half.x - border, -half.y - border);
+        let hi = Vec2::new(half.x + border, half.y + NEIGHBOR_DEPTH + border);
+        if center.distance(center.clamp(lo, hi)) < radius + 0.5
             || center.length() + radius > super::background::radius(scene) - 1.0
             || parcels
                 .iter()
@@ -111,7 +159,7 @@ fn parcels(scene: &IndoorManifest) -> Vec<Parcel> {
         {
             continue;
         }
-        let kind = if rng.random_bool(density) {
+        let kind = if rng.random_bool(district.building_fraction as f64) {
             0
         } else {
             rng.random_range(1..=3)
@@ -136,117 +184,27 @@ fn box_at(
     bevel: f32,
 ) {
     let rotation = Quat::from_rotation_y(p.yaw);
-    a.part(surface, label).cuboid(
+    a.part(
+        surface,
+        &super::super::materials::exterior::label(surface, label, p.seed),
+    )
+    .cuboid(
         size,
         bevel,
         Transform::from_translation(Vec3::new(p.center.x, 0., p.center.y) + rotation * center)
             .with_rotation(rotation),
     );
 }
-fn building(a: &mut Assembly, p: &Parcel, sky_radius: f32) {
-    let mut rng = stream(p.seed, 1);
-    let requested_levels = rng.random_range(1..=4);
-    let pitch = rng.random_range(2.5_f32..3.2);
-    // Leave roof equipment below the finite sky: a distant tall building must
-    // not be sliced by the annotation closure's near-range sphere.
-    let horizontal = p.center.length() + p.size.length() * 0.5 + 0.10;
-    let available_height = (sky_radius.powi(2) - horizontal.powi(2)).max(0.).sqrt() - 0.8;
-    let levels = requested_levels.min((available_height / pitch).floor().max(1.) as usize);
-    let setback = rng.random_range(0.04..0.16);
-    let finish = [Surface::Concrete, Surface::Paint, Surface::WoodEdge][rng.random_range(0..3)];
-    for level in 0..levels {
-        let size = p.size * (1. - level as f32 * setback);
-        let bottom = level as f32 * pitch - 0.08;
-        box_at(
-            a,
-            p,
-            finish,
-            "other_structure",
-            Vec3::new(0., bottom + pitch * 0.5, 0.),
-            Vec3::new(size.x, pitch, size.y),
-            0.012,
-        );
-        details::facade(a, p, size, bottom, pitch, level);
-        // Roof slabs/cornices are separated from facade glazing, with variable
-        // aperture spacing and aspect instead of the same two windows everywhere.
-        box_at(
-            a,
-            p,
-            Surface::Concrete,
-            "other_structure",
-            Vec3::new(0., bottom + pitch + 0.035, 0.),
-            Vec3::new(size.x + 0.10, 0.07, size.y + 0.10),
-            0.01,
-        );
-        for side in 0..4 {
-            let across = if side % 2 == 0 { size.x } else { size.y };
-            let columns = (across / rng.random_range(0.75..1.5)).floor().max(1.) as usize;
-            let width = across / columns as f32 * rng.random_range(0.45..0.78);
-            let height = pitch * rng.random_range(0.44..0.70);
-            for column in 0..columns {
-                let u = (column as f32 + 0.5) * across / columns as f32 - across * 0.5;
-                let sign = if side < 2 { 1. } else { -1. };
-                let (pos, dims) = if side % 2 == 0 {
-                    (
-                        Vec3::new(u, bottom + pitch * 0.53, sign * (size.y * 0.5 + 0.009)),
-                        Vec3::new(width, height, 0.012),
-                    )
-                } else {
-                    (
-                        Vec3::new(sign * (size.x * 0.5 + 0.009), bottom + pitch * 0.53, u),
-                        Vec3::new(0.012, height, width),
-                    )
-                };
-                box_at(
-                    a,
-                    p,
-                    Surface::Metal,
-                    "window",
-                    pos,
-                    dims + Vec3::new(
-                        if side % 2 == 0 { 0.06 } else { 0. },
-                        0.06,
-                        if side % 2 == 0 { 0. } else { 0.06 },
-                    ),
-                    0.,
-                );
-                let normal = if side % 2 == 0 {
-                    Vec3::Z * sign
-                } else {
-                    Vec3::X * sign
-                };
-                box_at(
-                    a,
-                    p,
-                    Surface::Glass,
-                    "window",
-                    pos + normal * 0.009,
-                    dims,
-                    0.,
-                );
-            }
-        }
-    }
-    // Rooftop service equipment: low, bounded profiles, no added light sources.
-    if rng.random_bool(0.6) {
-        let roof = levels as f32 * pitch - 0.01;
-        box_at(
-            a,
-            p,
-            Surface::Metal,
-            "other_structure",
-            Vec3::new(0., roof + 0.20, 0.),
-            Vec3::new(p.size.x * 0.24, 0.40, p.size.y * 0.27),
-            0.012,
-        );
-    }
-}
 fn garden(a: &mut Assembly, scene: &IndoorManifest, p: &Parcel) {
     let Some(template) = scene.objects.first() else {
         return;
     };
     let mut rng = stream(p.seed, 2);
-    let count = if p.kind == 1 { 3 } else { 2 };
+    let count = if p.kind == 3 {
+        2
+    } else {
+        rng.random_range(1..=4)
+    };
     for i in 0..count {
         let mut plant: IndoorObject = template.clone();
         plant.kind = ObjectKind::Plant;
@@ -257,22 +215,66 @@ fn garden(a: &mut Assembly, scene: &IndoorManifest, p: &Parcel) {
             p.size.y * 0.40,
         );
         plant.variant = plants::sample_species(plant.size, &mut rng);
+        if p.kind != 3 {
+            let width = (p.size.x / count as f32 * rng.random_range(0.70..0.95))
+                .min(p.size.y * if p.kind == 2 { 0.40 } else { 0.70 });
+            plant.size = Vec3::new(width, rng.random_range(1.1..4.5), width);
+            // Temperate branching trees/shrubs and bamboo, instead of a row of
+            // identical tropical indoor pots. Each keeps the existing leaf mesh.
+            plant.variant = [6, 10, 13][rng.random_range(0..3)];
+            if plant.size.y / width > 5.5 {
+                plant.variant = 10;
+            }
+        }
         plant.position = Vec3::new(p.center.x, 0.03, p.center.y)
             + Quat::from_rotation_y(p.yaw)
                 * Vec3::X
                 * ((i as f32 - (count - 1) as f32 * 0.5) * p.size.x * 0.30);
-        plant.yaw = p.yaw;
+        if p.kind != 3 {
+            let x = (i as f32 + rng.random_range(0.25..0.75)) / count as f32 - 0.5;
+            let z = if p.kind == 2 {
+                rng.random_range(-0.22..-0.12)
+            } else {
+                rng.random_range(-0.15..0.05)
+            };
+            plant.position = Vec3::new(p.center.x, 0.025, p.center.y)
+                + Quat::from_rotation_y(p.yaw) * Vec3::new(x * p.size.x * 0.8, 0., z * p.size.y);
+        }
+        plant.yaw = p.yaw
+            + if p.kind == 3 {
+                0.
+            } else {
+                rng.random_range(-std::f32::consts::PI..std::f32::consts::PI)
+            };
         let tf = plant.transform();
         let mut parts = Assembly::default();
         plants::build(&mut parts, &plant);
-        for ((surface, label), mut g) in parts.parts {
+        let rooted = if p.kind != 3 {
+            parts.parts.retain(|(s, _), _| {
+                matches!(
+                    s,
+                    Surface::Bark | Surface::Leaf | Surface::LeafLight | Surface::LeafVariegated
+                )
+            });
+            parts
+                .parts
+                .iter()
+                .filter(|((s, _), _)| *s == Surface::Bark)
+                .flat_map(|(_, g)| g.positions.iter().map(|v| v[1]))
+                .fold(f32::INFINITY, f32::min)
+        } else {
+            0.
+        };
+        for ((surface, _label), mut g) in parts.parts {
             for v in &mut g.positions {
-                *v = tf.transform_point(Vec3::from_array(*v)).to_array();
+                *v = tf
+                    .transform_point(Vec3::from_array(*v) - Vec3::Y * rooted)
+                    .to_array();
             }
             for n in &mut g.normals {
                 *n = (tf.rotation * Vec3::from_array(*n)).to_array();
             }
-            a.part(surface, &label).append(g);
+            a.part(surface, "plant").append(g);
         }
     }
 }
@@ -284,6 +286,14 @@ pub(crate) fn build(a: &mut Assembly, scene: &IndoorManifest) {
         -half.y - 0.5,
         half.y + NEIGHBOR_DEPTH + 0.5,
     );
+    let mut ground_rng = stream(scene.seed, 6389);
+    let ground_surface = if ground_rng.random_bool(0.45) {
+        Surface::Soil
+    } else {
+        Surface::Concrete
+    };
+    let ground_label =
+        super::super::materials::exterior::label(ground_surface, "floor", scene.seed);
     for (lo, hi) in [
         (
             Vec2::new(left - 18., back - 18.),
@@ -297,8 +307,8 @@ pub(crate) fn build(a: &mut Assembly, scene: &IndoorManifest) {
         (Vec2::new(left, front), Vec2::new(right, front + 18.)),
     ] {
         a.box_part(
-            Surface::Concrete,
-            "floor",
+            ground_surface,
+            &ground_label,
             Vec3::new((lo.x + hi.x) * 0.5, -0.17, (lo.y + hi.y) * 0.5),
             Vec3::new(hi.x - lo.x, 0.20, hi.y - lo.y),
             0.,
@@ -307,16 +317,24 @@ pub(crate) fn build(a: &mut Assembly, scene: &IndoorManifest) {
     streets::build(a, scene);
     for p in parcels(scene) {
         if p.kind == 0 {
-            building(a, &p, super::background::radius(scene));
+            buildings::build(
+                a,
+                &p,
+                &Building::sample(&p, super::background::radius(scene)),
+            );
             continue;
         }
         box_at(
             a,
             &p,
-            Surface::Concrete,
+            if p.kind == 1 {
+                Surface::Soil
+            } else {
+                Surface::Concrete
+            },
             "floor",
-            Vec3::new(0., -0.015, 0.),
-            Vec3::new(p.size.x, 0.09, p.size.y),
+            Vec3::new(0., -0.025, 0.),
+            Vec3::new(p.size.x, 0.11, p.size.y),
             0.012,
         );
         garden(a, scene, &p);
@@ -333,7 +351,9 @@ pub(crate) fn build(a: &mut Assembly, scene: &IndoorManifest) {
                     0.004,
                 );
             }
-            for x in [-0.26, 0.26] {
+            let supports = (p.size.x * 0.60 / 1.6).ceil().max(1.) as usize;
+            for i in 0..=supports {
+                let x = (i as f32 / supports as f32 - 0.5) * 0.60;
                 box_at(
                     a,
                     &p,
@@ -349,10 +369,23 @@ pub(crate) fn build(a: &mut Assembly, scene: &IndoorManifest) {
                 &p,
                 Surface::Wood,
                 "chair",
-                Vec3::new(0., 0.76, p.size.y * 0.39),
+                Vec3::new(0., 0.76, p.size.y * 0.32 + 0.12),
                 Vec3::new(p.size.x * 0.72, 0.27, 0.055),
                 0.005,
             );
+            let supports = (p.size.x * 0.60 / 1.6).ceil().max(1.) as usize;
+            for i in 0..=supports {
+                let x = (i as f32 / supports as f32 - 0.5) * 0.60;
+                box_at(
+                    a,
+                    &p,
+                    Surface::Metal,
+                    "chair",
+                    Vec3::new(p.size.x * x, 0.60, p.size.y * 0.32 + 0.12),
+                    Vec3::new(0.045, 0.60, 0.045),
+                    0.004,
+                );
+            }
         } else if p.kind == 3 {
             details::pergola(a, &p);
         }
@@ -416,7 +449,7 @@ mod tests {
                 for point in &g.positions {
                     let v = Vec3::from_array(*point);
                     assert!(v.is_finite());
-                    if label != "floor" {
+                    if label.split('#').next() != Some("floor") {
                         assert!(
                             v.length() < super::super::background::radius(&scene),
                             "seed {seed}: {label} crosses sky at {v}"

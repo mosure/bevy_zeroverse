@@ -8,9 +8,13 @@ pub struct BoardProgram {
     pub marker_count: usize,
     pub mounts: bool,
     pub tray: bool,
+    pub frame_surface: Surface,
+    pub frameless: bool,
+    pub corner_fraction: f32,
 }
 pub fn parameters(o: &IndoorObject) -> BoardProgram {
     let mut r = stream(o.seed, 7470);
+    let mut frame = stream(o.seed, 7471);
     BoardProgram {
         border_m: r.random_range(0.012..0.038),
         tray_fraction: r.random_range(0.30..0.94),
@@ -18,9 +22,12 @@ pub fn parameters(o: &IndoorObject) -> BoardProgram {
         marker_count: r.random_range(1..=5),
         mounts: r.random_bool(0.3),
         tray: r.random_bool(0.8),
+        frame_surface: [Surface::Metal, Surface::Wood, Surface::Plastic][frame.random_range(0..3)],
+        frameless: frame.random_bool(0.22),
+        corner_fraction: frame.random_range(0.05..0.40),
     }
 }
-fn face(a: &mut Assembly, surface: Surface, label: &str, lo: Vec3, hi: Vec3) {
+pub(super) fn face(a: &mut Assembly, surface: Surface, label: &str, lo: Vec3, hi: Vec3) {
     let g = a.part(surface, label);
     let i = g.positions.len() as u32;
     g.positions.extend([
@@ -39,19 +46,24 @@ pub(super) fn whiteboard(a: &mut Assembly, o: &IndoorObject) {
     let l = o.kind.class_name();
     let d = (s.z * 0.35).min(0.032);
     let front = -s.z * 0.5 + d;
+    let border = if p.frameless {
+        0.002_f32.min(s.x.min(s.y) * 0.01)
+    } else {
+        p.border_m
+    };
     a.box_part(
-        Surface::Metal,
+        p.frame_surface,
         l,
         Vec3::new(0., s.y * 0.5, -s.z * 0.5 + d * 0.5),
         s.with_z(d),
-        p.border_m * 0.15,
+        border * p.corner_fraction,
     );
     face(
         a,
         Surface::Whiteboard,
         l,
-        Vec3::new(-s.x * 0.5 + p.border_m, p.border_m, front + 0.001),
-        Vec3::new(s.x * 0.5 - p.border_m, s.y - p.border_m, front + 0.001),
+        Vec3::new(-s.x * 0.5 + border, border, front + 0.001),
+        Vec3::new(s.x * 0.5 - border, s.y - border, front + 0.001),
     );
     if p.mounts {
         for x in [-1., 1.] {

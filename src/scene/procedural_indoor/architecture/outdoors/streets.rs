@@ -7,7 +7,13 @@ pub(super) fn build(a: &mut Assembly, scene: &IndoorManifest) {
     let half = scene.room_size.xz() * 0.5;
     let lo = Vec2::new(-half.x - 0.55, -half.y - 0.55);
     let hi = Vec2::new(half.x + 0.55, half.y + NEIGHBOR_DEPTH + 0.55);
-    let width = rng.random_range(0.9..1.65);
+    let district = District::sample(scene.seed);
+    let width = district.paving_width;
+    let finish = super::super::super::materials::exterior::label(
+        Surface::Concrete,
+        "floor",
+        scene.seed ^ 6370,
+    );
     // Four disjoint perimeter strips with mitre-free corner allocation.
     let strips = [
         (
@@ -21,7 +27,7 @@ pub(super) fn build(a: &mut Assembly, scene: &IndoorManifest) {
         (Vec2::new(lo.x, lo.y - width), Vec2::new(hi.x, lo.y)),
         (Vec2::new(lo.x, hi.y), Vec2::new(hi.x, hi.y + width)),
     ];
-    let pitch = rng.random_range(0.45..0.95);
+    let pitch = district.paving_pitch;
     for (index, (min, max)) in strips.into_iter().enumerate() {
         let extent = max - min;
         let axis = if extent.x > extent.y {
@@ -38,9 +44,9 @@ pub(super) fn build(a: &mut Assembly, scene: &IndoorManifest) {
             let size = axis * (cell - 0.009) + cross * (width - 0.008);
             a.box_part(
                 Surface::Concrete,
-                "floor",
-                Vec3::new(center.x, -0.025, center.y),
-                Vec3::new(size.x, 0.05, size.y),
+                &finish,
+                Vec3::new(center.x, -0.035, center.y),
+                Vec3::new(size.x, 0.07, size.y),
                 0.003,
             );
         }
@@ -59,14 +65,14 @@ pub(super) fn build(a: &mut Assembly, scene: &IndoorManifest) {
             a.box_part(
                 Surface::Concrete,
                 "other_structure",
-                Vec3::new(center.x, 0.034, center.y),
+                Vec3::new(center.x, 0.0325, center.y),
                 Vec3::new(size.x, 0.065, size.y),
                 0.006,
             );
         }
         // Occasional short metal railing on the remote half of a walkway.
         // Railings are capped, with posts anchored into the paving below them.
-        if !rng.random_bool(0.55) {
+        if !rng.random_bool(district.railing_probability as f64) {
             continue;
         }
         let start =

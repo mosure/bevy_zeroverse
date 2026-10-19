@@ -118,21 +118,29 @@ impl PreparedPaint {
         let holes = disk(spray.radius, 0.08, self.aa) * smooth((c.pinholes - spray.dye) * 10.);
         let texture = (plateau - 0.28) * c.texture_mix * (1. - repair);
         let gain = 1. + (passes - 0.5) * c.pigment_variation - holes * 0.035;
+        let wall = c
+            .wall
+            .as_ref()
+            .map_or_else(Default::default, |w| w.evaluate(r, uv));
         Texel {
-            color: self
-                .linear_color
-                .map(|color| super::super::linear_to_srgb((color * gain).clamp(0., 1.))),
+            color: [0, 1, 2].map(|i| {
+                super::super::linear_to_srgb(
+                    (self.linear_color[i] * gain * wall.gain[i]).clamp(0., 1.),
+                )
+            }),
             height: r.relief_m * (texture * 0.80 + (lap - 0.5) * c.trowel * 0.22 - holes * 0.40)
                 + 0.000025
                     * (roller * c.roller + film * a.orange_peel)
                     * r.detail_scale.unwrap_or(1.)
-                + 0.000016 * brush * a.brush * self.resolved_brush * r.detail_scale.unwrap_or(1.),
+                + 0.000016 * brush * a.brush * self.resolved_brush * r.detail_scale.unwrap_or(1.)
+                + wall.height,
             roughness: (r.roughness
                 + film * 0.025
                 + roller * c.roller * 0.035
                 + (lap - 0.5) * a.lap_variation
                 + holes * 0.04
-                - repair * c.gloss * 0.10)
+                - repair * c.gloss * 0.10
+                + wall.roughness)
                 .clamp(0.16, 0.99),
             occlusion: (1. - holes * 0.025).max(0.97),
         }

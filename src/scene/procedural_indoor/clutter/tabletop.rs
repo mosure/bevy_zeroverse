@@ -14,9 +14,16 @@ pub struct DesktopItemProgram {
     pub microphone_bend: f32,
     pub microphone_head: f32,
     pub microphone_lateral: f32,
+    pub phone_roundness: f32,
+    pub phone_top_border: f32,
+    pub phone_bottom_border: f32,
+    pub phone_controls: u32,
+    pub phone_surface: Surface,
+    pub phone_face_up: bool,
 }
 pub fn parameters(o: &IndoorObject) -> DesktopItemProgram {
     let mut r = stream(o.seed, 7450);
+    let mut phone = stream(o.seed, 7451);
     DesktopItemProgram {
         binding: r.random_range(0..4),
         leaf_fraction: r.random_range(0.58..0.87),
@@ -29,6 +36,13 @@ pub fn parameters(o: &IndoorObject) -> DesktopItemProgram {
         microphone_bend: r.random_range(0.18..0.57),
         microphone_head: r.random_range(0.045..0.09),
         microphone_lateral: r.random_range(-0.27..0.27),
+        phone_roundness: phone.random_range(4.0..18.),
+        phone_top_border: phone.random_range(0.035..0.10),
+        phone_bottom_border: phone.random_range(0.035..0.16),
+        phone_controls: phone.random_range(0..3),
+        phone_surface: [Surface::Metal, Surface::Plastic, Surface::Chrome]
+            [phone.random_range(0..3)],
+        phone_face_up: phone.random_bool(0.76),
     }
 }
 
@@ -138,26 +152,31 @@ fn phone(a: &mut Assembly, o: &IndoorObject) {
     let p = parameters(o);
     let l = o.kind.class_name();
     let body = s.y * p.case_fraction;
-    a.box_part(
-        Surface::Metal,
-        l,
-        Vec3::Y * body * 0.5,
-        Vec3::new(s.x * 0.98, body, s.z * 0.98),
-        body * 0.3,
+    a.part(p.phone_surface, l).housing(
+        &[
+            (0., Vec2::new(s.x, s.z) * 0.475),
+            (body * 0.20, Vec2::new(s.x, s.z) * 0.49),
+            (body * 0.90, Vec2::new(s.x, s.z) * 0.49),
+            (body, Vec2::new(s.x, s.z) * 0.475),
+        ],
+        p.phone_roundness,
+        Transform::IDENTITY,
     );
-    let up = !o.seed.is_multiple_of(4);
+    let up = p.phone_face_up;
     let face = body + s.y * 0.025;
     if up {
-        a.box_part(
-            Surface::PhoneScreen,
-            l,
-            Vec3::Y * face,
-            Vec3::new(
-                s.x * (1. - p.bezel_fraction),
-                s.y * 0.045,
-                s.z * (1. - p.bezel_fraction),
+        let extent = Vec2::new(
+            s.x * (1. - p.bezel_fraction).min(0.92),
+            s.z * (1. - p.phone_top_border - p.phone_bottom_border),
+        ) * 0.5;
+        a.part(Surface::PhoneScreen, l).housing(
+            &[(face - s.y * 0.0225, extent), (face + s.y * 0.0225, extent)],
+            p.phone_roundness,
+            Transform::from_xyz(
+                0.,
+                0.,
+                s.z * (p.phone_top_border - p.phone_bottom_border) * 0.5,
             ),
-            0.,
         );
         a.part(Surface::Ink, l).cylinder(
             s.x * 0.022,
@@ -169,21 +188,23 @@ fn phone(a: &mut Assembly, o: &IndoorObject) {
             ),
         );
     } else {
-        a.box_part(
-            Surface::Plastic,
-            l,
-            Vec3::Y * face,
-            Vec3::new(s.x * 0.94, s.y * 0.045, s.z * 0.95),
-            0.0002,
+        a.part(Surface::Plastic, l).housing(
+            &[
+                (face - s.y * 0.0225, Vec2::new(s.x, s.z) * 0.465),
+                (face + s.y * 0.0225, Vec2::new(s.x, s.z) * 0.465),
+            ],
+            p.phone_roundness,
+            Transform::IDENTITY,
         );
         let cy = face + s.y * 0.053;
         if p.camera_island {
-            a.box_part(
-                Surface::Plastic,
-                l,
-                Vec3::new(-s.x * 0.19, cy, -s.z * 0.32),
-                Vec3::new(s.x * 0.44, s.y * 0.055, s.z * 0.25),
-                s.y * 0.02,
+            a.part(Surface::Plastic, l).housing(
+                &[
+                    (cy - s.y * 0.0275, Vec2::new(s.x * 0.18, s.z * 0.115)),
+                    (cy + s.y * 0.0275, Vec2::new(s.x * 0.18, s.z * 0.115)),
+                ],
+                4.,
+                Transform::from_xyz(-s.x * 0.20, 0., -s.z * 0.30),
             );
         }
         for i in 0..p.lens_count {
@@ -203,6 +224,30 @@ fn phone(a: &mut Assembly, o: &IndoorObject) {
                 ),
             );
         }
+    }
+    for side in [-1., 1.] {
+        a.box_part(
+            p.phone_surface,
+            l,
+            Vec3::new(side * s.x * 0.489, body * 0.55, -s.z * 0.10),
+            Vec3::new(
+                s.x * 0.014,
+                body * 0.24,
+                s.z * (0.08 + p.phone_controls as f32 * 0.035),
+            ),
+            s.y * 0.015,
+        );
+    }
+    if up && p.phone_controls == 2 && p.phone_bottom_border > 0.09 {
+        a.part(Surface::Ink, l).cylinder(
+            s.x * 0.035,
+            s.y * 0.008,
+            Transform::from_xyz(
+                0.,
+                body + s.y * 0.004,
+                s.z * (0.48 - p.phone_bottom_border * 0.5),
+            ),
+        );
     }
 }
 

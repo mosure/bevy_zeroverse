@@ -11,6 +11,7 @@ pub mod concrete;
 mod content;
 pub mod display_finish;
 mod environment;
+pub(crate) mod exterior;
 mod field;
 mod filter;
 pub mod flooring;
@@ -21,12 +22,15 @@ mod human;
 mod kitchen;
 pub mod layers;
 pub mod leather;
+pub mod manufactured;
 mod microstructure;
 pub mod mineral;
 mod mip_transfer;
 pub mod paint;
 mod paper;
 pub mod program;
+#[cfg(test)]
+mod qualification;
 mod raster;
 mod reflections;
 pub mod rug_design;
@@ -35,6 +39,7 @@ pub mod screens;
 pub mod textile;
 pub mod timber;
 pub mod variants;
+pub mod wall;
 use super::layout::{IndoorManifest, LightingMood};
 use bevy::{
     asset::RenderAssetUsages,
@@ -502,6 +507,12 @@ impl IndoorMaterials {
             materials,
             selection.map(|s| &s.finishes),
         ));
+        variants.extend(exterior::build(
+            scene,
+            &handles,
+            materials,
+            selection.map(|s| &s.finishes),
+        ));
         let cloth_template = materials
             .get(&handles[Surface::Fabric as usize])
             .unwrap()
@@ -645,6 +656,7 @@ type Definition = (Surface, [f32; 3], f32, f32, f32);
 /// selection so specialized kitchen slots survive preparation and transport.
 pub(crate) fn registered_finish(surface: Surface, slot: usize) -> bool {
     (variants::supports(surface) && slot < variants::COUNT)
+        || exterior::supports(surface, slot)
         || matches!(
             (surface, slot),
             (Surface::Ceramic, 100..=102) | (Surface::Terracotta, 103) | (Surface::Paper, 104)
@@ -659,7 +671,7 @@ pub(crate) fn finish_slot(surface: Surface, label: &str) -> Option<usize> {
     }
     label
         .rsplit_once("#finish")
-        .and_then(|(_, s)| s.parse::<usize>().ok())
+        .and_then(|(_, s)| s.split('#').next()?.parse::<usize>().ok())
 }
 fn definitions(scene: &IndoorManifest) -> [Definition; 36] {
     let (wood, fabric, accent) = match scene.palette {
@@ -1274,7 +1286,7 @@ mod surface_tests {
             .filter_map(|(surface, label)| {
                 label
                     .rsplit_once("#finish")
-                    .and_then(|(_, s)| s.parse::<usize>().ok())
+                    .and_then(|(_, s)| s.split('#').next()?.parse::<usize>().ok())
                     .map(|i| (*surface, i))
             })
             .collect();
@@ -1288,10 +1300,8 @@ mod surface_tests {
                 .iter()
                 .flat_map(|a| a.parts.keys())
                 .filter_map(|(surface, label)| {
-                    let variant = label
-                        .rsplit_once("#finish")
-                        .and_then(|(_, slot)| slot.parse::<usize>().ok())
-                        .is_some_and(|slot| variants::supports(*surface) && slot < variants::COUNT);
+                    let variant = finish_slot(*surface, label)
+                        .is_some_and(|slot| registered_finish(*surface, slot));
                     (!variant).then_some(*surface)
                 })
                 .collect(),

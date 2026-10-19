@@ -125,8 +125,21 @@ pub fn fixture(kind: ObjectKind, seed: u64) -> IndoorObject {
 /// have conditional fields; the depth-map measurements qualify realized geometry.
 pub fn program(o: &IndoorObject) -> serde_json::Value {
     use ObjectKind::*;
-    if matches!(o.kind, TeachingBoard | InformationStand | ExtractionHood) {
+    if matches!(o.kind, TeachingBoard | ExtractionHood) {
         return serde_json::json!({"dimensions_metres":o.size});
+    }
+    if o.kind == Elevator {
+        return serde_json::json!(public::elevator::parameters(o));
+    }
+    if o.kind == Sculpture {
+        return serde_json::json!(public::sculpture::parameters(o));
+    }
+    if o.kind == NoticeBoard {
+        let p = equipment::parameters(o);
+        return serde_json::json!({"frame_fraction":p.board_frame_fraction, "divider_fraction":p.board_divider_fraction, "attachments":equipment::pinups::placements(o)});
+    }
+    if matches!(o.kind, InformationStand | ExhibitionPanel) {
+        return serde_json::json!(public::signage::parameters(o));
     }
     let all = match o.kind {
         Elevator | ServiceCounter | DisplayCase | TrayReturn | DrinkDispenser | QueueBarrier
@@ -141,10 +154,13 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
         Chair if o.variant >= 10 => {
             serde_json::json!({"family":if o.variant == 11 {"auditorium"} else {"tablet_arm"}, "folded":chairs::is_folded(o), "seat_height_metres":0.46, "width_metres":o.size.x,"height_metres":o.size.y,"depth_metres":o.size.z})
         }
+        Chair if matches!(o.variant, 6 | 7) => serde_json::json!(chairs::stool::parameters(o)),
         Chair => serde_json::json!(chairs::parameters(o)),
         Sofa => serde_json::json!(seating::parameters(o)),
         Cabinet | Bookcase => serde_json::json!(storage::parameters(o)),
-        Plant => serde_json::json!(super::super::plants::Growth::sample(o.seed)),
+        Plant => serde_json::json!({"growth":super::super::plants::Growth::sample(o.seed),
+            "pot":super::super::plants::PotProfile::sample(o.seed),
+            "species":super::super::plants::species_name(o.variant)}),
         TrashCan => serde_json::json!(containers::bin_parameters(o)),
         TissueBox => serde_json::json!(containers::tissue_parameters(o)),
         Monitor | Display => serde_json::json!(computers::display_parameters(o)),
@@ -220,6 +236,12 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
             "bezel_fraction",
             "lens_count",
             "camera_island",
+            "phone_roundness",
+            "phone_top_border",
+            "phone_bottom_border",
+            "phone_controls",
+            "phone_surface",
+            "phone_face_up",
         ],
         Pencil => &["tip_fraction", "barrel_sides", "binding"],
         Notepad => &["binding", "leaf_fraction"],
@@ -450,5 +472,9 @@ pub fn representatives(rows: &[Vec<f32>], threshold: f32) -> Vec<usize> {
     centers
 }
 
+#[cfg(test)]
+mod display_qualification;
+#[cfg(test)]
+mod furniture_qualification;
 #[cfg(test)]
 mod tests;

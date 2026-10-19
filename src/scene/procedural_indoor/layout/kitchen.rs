@@ -282,8 +282,8 @@ impl IndoorManifest {
                 yaw,
                 &mut r,
             );
-            if self.placement_clear(&mat, 0.01) {
-                mat.solid = false;
+            mat.solid = false;
+            if super::floor::detail_clear(self, &mat) {
                 self.objects.push(mat);
             }
         }

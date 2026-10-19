@@ -15,7 +15,7 @@ pub(super) fn build(a: &mut Assembly, scene: &IndoorManifest, m: &CeilingModule)
     let material = match m.system {
         CeilingSystem::AcousticCloud | CeilingSystem::Baffles => Surface::Fabric,
         CeilingSystem::TimberSlats => Surface::Wood,
-        CeilingSystem::SprinklerMain => Surface::Accent,
+        CeilingSystem::SprinklerMain => Surface::Paint,
         _ => Surface::Metal,
     };
     let panel = |a: &mut Assembly, surface, center, size, bevel| {
@@ -144,7 +144,7 @@ pub(super) fn build(a: &mut Assembly, scene: &IndoorManifest, m: &CeilingModule)
                         0.0025,
                     );
                 }
-                a.part(Surface::Accent, "ceiling").rod(
+                a.part(Surface::Paint, "ceiling").rod(
                     head - Vec3::Y * 0.002,
                     head - Vec3::Y * 0.016,
                     0.003,

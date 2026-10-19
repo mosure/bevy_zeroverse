@@ -10,6 +10,8 @@ struct Recipe {
     paint_counts: vec4<u32>, paint_frequencies: vec4<u32>,
     paint0: vec4<f32>, paint1: vec4<f32>, paint2: vec4<f32>, paint_color: vec4<f32>,
     rug_weights: vec4<f32>, rug0: vec4<f32>, rug1: vec4<f32>, rug2: vec4<f32>, rug3: vec4<f32>,
+    wall_weights: vec4<f32>, wall_counts: vec4<u32>, wall0: vec4<f32>, wall1: vec4<f32>, wall_tint: vec4<f32>,
+    manufactured_counts: vec4<u32>, manufactured: vec4<f32>,
 }
 struct Level { size: u32, offset: u32, stride: u32, moment_offset: u32 }
 // Offsets/strides share the host's padded texture-copy layout. No dynamic mip
@@ -135,6 +137,11 @@ fn device_finish(uv: vec2<f32>) -> Texel {
     if r.surface.x==7u { value=noise(uv,103u,5u,44u)*0.78+micro*0.22;variation=0.035; }
     if r.surface.x==6u { value=micro*0.80+meso*0.20; }
     if r.surface.x==22u { variation=0.34; }
+    if r.manufactured_counts.z != 0u {
+        let pattern=noise(uv,r.manufactured_counts.x,r.manufactured_counts.y,751u);
+        let fine=micro*(1.-r.manufactured.x)+pattern*r.manufactured.x;
+        value=fine*(1.-r.manufactured.y)+smooth_curve((meso-0.25)*2.)*r.manufactured.y;
+    }
     let stain=max((macro_n-0.5)*3.,0.)*r.phase.z;
     let shade=0.96+(value-0.5)*r.phase.w-stain;
     return Texel(vec3(clamp(shade,0.25,1.)),(value-0.5)*r.metric.z,

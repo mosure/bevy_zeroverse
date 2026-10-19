@@ -1,8 +1,11 @@
 //! Bounded, multipart public-space assemblies. All parameters are sampled before
 //! admission; construction, collision envelopes and catalog receipts share them.
 mod education;
+pub mod elevator;
 mod exhibits;
 mod hospitality;
+pub mod sculpture;
+pub mod signage;
 #[cfg(test)]
 mod tests;
 mod transit;

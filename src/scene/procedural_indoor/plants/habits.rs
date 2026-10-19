@@ -39,10 +39,10 @@ pub(super) fn build(
             stem(a, &[base, base.lerp(top, 0.38), top], o.size.y * 0.012);
             let count = growth.count(5);
             for j in 0..count {
-                let angle = j as f32 * growth.phyllotaxis;
-                let start = base.lerp(top, 0.24 + 0.55 * j as f32 / count as f32);
+                let angle = growth.angle(j);
+                let start = base.lerp(top, 0.24 + 0.55 * growth.node(j, count));
                 let end = start
-                    + radial(angle) * spread * growth.branching * 0.48
+                    + radial(angle) * spread * growth.branching * 0.70
                     + Vec3::Y * height * rng.random_range(0.10..0.22);
                 stem(a, &[start, start.lerp(end, 0.6), end], o.size.y * 0.004);
                 for k in 0..growth.count(8) {
@@ -54,14 +54,27 @@ pub(super) fn build(
                     blade(
                         a,
                         root,
-                        d * spread * rng.random_range(0.20..0.39)
+                        d * spread * rng.random_range(0.26..0.42)
                             + Vec3::Y * height * rng.random_range(-0.03..0.04),
-                        spread * 0.075,
+                        spread * 0.090,
                         0,
                         rng.random(),
                         growth,
                     );
                 }
+            }
+            for j in 0..4 {
+                let d = radial(growth.angle(j));
+                let root = top - Vec3::Y * height * j as f32 * 0.022;
+                blade(
+                    a,
+                    root,
+                    d * spread * 0.35 + Vec3::Y * height * 0.012,
+                    spread * 0.090,
+                    0,
+                    rng.random(),
+                    growth,
+                );
             }
         }
         7 => {
@@ -133,7 +146,7 @@ pub(super) fn build(
                 .rod(base, trunk_top, o.size.y * 0.010);
             for j in 0..count {
                 let t = j as f32 / count as f32;
-                let dir = radial(j as f32 * growth.phyllotaxis);
+                let dir = radial(growth.angle(j));
                 let p =
                     base + Vec3::Y * height * (0.13 + t * 0.57) + dir * spread * (0.06 + t * 0.28);
                 let root = base.lerp(trunk_top, (0.15 + t).min(1.));
@@ -162,7 +175,7 @@ pub(super) fn build(
         10 => {
             // Bamboo: multiple node-bearing culms and sprays of narrow lateral leaves.
             for j in 0..growth.count(5) {
-                let dir = radial(j as f32 * growth.phyllotaxis);
+                let dir = radial(growth.angle(j));
                 let start = base + dir * soil_radius * 0.58;
                 let top = start
                     + Vec3::Y * height * rng.random_range(0.66..0.95)
@@ -204,8 +217,8 @@ pub(super) fn build(
             let top = base + Vec3::Y * height * 0.88;
             stem(a, &[base, top], o.size.y * 0.005);
             for shoot in 0..growth.count(7) {
-                let dir = radial(shoot as f32 * growth.phyllotaxis);
-                let root = base.lerp(top, 0.19 + 0.74 * shoot as f32 / growth.count(7) as f32);
+                let dir = radial(growth.angle(shoot));
+                let root = base.lerp(top, 0.19 + 0.74 * growth.node(shoot, growth.count(7)));
                 let reach = spread * rng.random_range(0.46..0.77);
                 let points: Vec<_> = (0..7)
                     .map(|k| {
@@ -225,7 +238,7 @@ pub(super) fn build(
         12 => {
             // Schefflera: compound, radial leaflets at each terminal petiole.
             for j in 0..growth.count(7) {
-                let dir = radial(j as f32 * growth.phyllotaxis);
+                let dir = radial(growth.angle(j));
                 let end =
                     base + Vec3::Y * height * rng.random_range(0.38..0.83) + dir * spread * 0.36;
                 stem(a, &[base, base.lerp(end, 0.45), end], o.size.y * 0.004);
@@ -248,13 +261,13 @@ pub(super) fn build(
         _ => {
             // Dense woody/herbaceous shrub: leaves span the whole crown, not a top cap.
             for j in 0..growth.count(8) {
-                let dir = radial(j as f32 * growth.phyllotaxis);
+                let dir = radial(growth.angle(j));
                 let top = base
                     + Vec3::Y * height * rng.random_range(0.45..0.90)
                     + dir * spread * rng.random_range(0.15..0.41);
                 stem(a, &[base, base.lerp(top, 0.44), top], o.size.y * 0.004);
                 for k in 0..growth.count(12) {
-                    let p = base.lerp(top, 0.22 + k as f32 / growth.count(12) as f32 * 0.75);
+                    let p = base.lerp(top, 0.22 + growth.node(k, growth.count(12)) * 0.75);
                     let d = radial(k as f32 * growth.phyllotaxis + j as f32);
                     let root = p + d * spread * 0.034;
                     stem(a, &[p, root], o.size.y * 0.0015);

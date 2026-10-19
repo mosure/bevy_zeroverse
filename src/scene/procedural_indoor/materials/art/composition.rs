@@ -16,10 +16,12 @@ impl ArtComposition {
     pub fn sample(seed: u64) -> Self {
         let mut rng = stream(seed, 0x415254434f4d50);
         let hue = rng.random_range(0.0..360.);
-        let saturation = rng.random_range(0.08..0.54);
+        let saturation = rng.random_range(0.03..0.75);
+        let dark = rng.random_bool(0.28);
+        let spread = rng.random_range(12.0..155.);
         let palette = std::array::from_fn(|i| {
             let h = hue
-                + rng.random_range(-25.0..25.)
+                + rng.random_range(-spread..spread)
                 + if i == 3 {
                     rng.random_range(90.0..210.)
                 } else {
@@ -27,11 +29,19 @@ impl ArtComposition {
                 };
             let c = Color::hsl(
                 h,
-                saturation * if i == 0 { 0.25 } else { 1. },
+                saturation * if i == 0 { 0.55 } else { 1. },
                 rng.random_range(if i == 0 {
-                    0.78..0.96
+                    if dark {
+                        0.06..0.23
+                    } else {
+                        0.70..0.97
+                    }
                 } else if i == 1 {
-                    0.09..0.26
+                    if dark {
+                        0.72..0.95
+                    } else {
+                        0.05..0.30
+                    }
                 } else {
                     0.28..0.70
                 }),
@@ -46,17 +56,25 @@ impl ArtComposition {
         };
         let margin = rng.random_range(0.0..0.11);
         Self {
-            regions: super::super::composition::Composition::sample(
-                seed,
-                count,
-                [margin, margin, 1. - 2. * margin, 1. - 2. * margin],
-                0.55,
-            ),
+            regions: if count > 1 && rng.random_bool(0.5) {
+                super::super::composition::Composition::scattered(
+                    seed,
+                    count,
+                    [margin, margin, 1. - 2. * margin, 1. - 2. * margin],
+                )
+            } else {
+                super::super::composition::Composition::sample(
+                    seed,
+                    count,
+                    [margin, margin, 1. - 2. * margin, 1. - 2. * margin],
+                    0.55,
+                )
+            },
             palette,
-            focal: [rng.random_range(0.25..0.75), rng.random_range(0.25..0.75)],
-            rotation: rng.random_range(-0.7..0.7),
-            shape_count: rng.random_range(3..=18),
-            negative_space: rng.random_range(0.08..0.65),
+            focal: [rng.random_range(0.12..0.88), rng.random_range(0.12..0.88)],
+            rotation: rng.random_range(-std::f32::consts::PI..std::f32::consts::PI),
+            shape_count: rng.random_range(3..=24),
+            negative_space: rng.random_range(0.04..0.77),
             curvature: rng.random_range(0.02..0.95),
             asymmetry: rng.random_range(-0.35..0.35),
         }
@@ -85,7 +103,7 @@ pub(super) fn paint(p: &ArtProgram) -> Canvas {
         let [fx, fy] = art.focal;
         let point = |u: f32, v: f32| [x as f32 + u * w as f32, y as f32 + v * h as f32];
         let palette = art.palette;
-        let subject = (p.subject + rng.random_range(0..3)) % 7;
+        let subject = (p.subject + rng.random_range(0..3)) % 10;
         canvas.clipped([x, y, w, h], |c| match subject {
             0 => {
                 // Cropped terrain/sea silhouettes with independently sampled control points.
@@ -215,6 +233,72 @@ pub(super) fn paint(p: &ArtProgram) -> Canvas {
                             palette[0],
                         );
                     }
+                }
+            }
+            7 => {
+                // Contour/ink study: related curves with independently drifting
+                // control points, not repeated equally spaced sinusoidal stripes.
+                let mut elevation = rng.random_range(0.02..0.18);
+                for line in 0..art.shape_count {
+                    let left = point(-0.05, elevation);
+                    let right = point(1.05, elevation + art.asymmetry);
+                    let control = point(fx, elevation + rng.random_range(-0.20..0.20));
+                    bezier(
+                        c,
+                        [left, control, right],
+                        rng.random_range(1..=2),
+                        palette[1 + line as usize % 4],
+                    );
+                    elevation += rng.random_range(0.025..0.09);
+                }
+            }
+            8 => {
+                // Exhibition/event poster: image field, type hierarchy and
+                // negative space are sampled together rather than a fixed title strip.
+                let margin = rng.random_range(0.04..0.15);
+                let split = rng.random_range(0.28..0.70);
+                let image_top = rng.random_bool(0.5);
+                let (iy, ih, ty) = if image_top {
+                    (margin, split - margin, split + margin)
+                } else {
+                    (split, 1. - split - margin, margin)
+                };
+                c.polygon(
+                    &[
+                        point(margin, iy),
+                        point(1. - margin, iy),
+                        point(1. - margin, iy + ih),
+                        point(margin, iy + ih),
+                    ],
+                    palette[2],
+                );
+                c.ellipse(
+                    point(fx.clamp(margin + 0.1, 0.9 - margin), iy + ih * 0.5),
+                    [w as f32 * 0.11, h as f32 * ih * 0.35],
+                    palette[3],
+                );
+                let title =
+                    content::phrase(&mut rng, ((w as f32 * (1. - 2. * margin)) / 8.) as usize);
+                let pos = point(margin, ty);
+                c.text(&title, pos[0] as i32, pos[1] as i32, 2, palette[1]);
+                let subtitle = content::phrase(&mut rng, (w / 5) as usize);
+                c.text(&subtitle, pos[0] as i32, pos[1] as i32 + 18, 1, palette[1]);
+            }
+            9 => {
+                // Overlapping paper-cut silhouettes with varied contour vertices.
+                for i in 0..art.shape_count {
+                    let cx = rng.random_range(0.05..0.95);
+                    let cy = rng.random_range(0.05..0.95);
+                    let radius = rng.random_range(0.05..0.24);
+                    let n = rng.random_range(5..=9);
+                    let points: Vec<_> = (0..n)
+                        .map(|j| {
+                            let theta = art.rotation + j as f32 / n as f32 * std::f32::consts::TAU;
+                            let r = radius * rng.random_range(0.65..1.);
+                            point(cx + theta.cos() * r, cy + theta.sin() * r)
+                        })
+                        .collect();
+                    c.polygon(&points, palette[1 + i as usize % 4]);
                 }
             }
             _ => {

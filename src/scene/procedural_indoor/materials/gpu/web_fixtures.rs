@@ -29,6 +29,17 @@ fn export_webgpu_material_fixtures() {
         .map(|s| recipes[s as usize].clone())
         .into();
         selected.push(super::super::super::human::knit_recipe(seed));
+        for component in 0..4 {
+            let mut wall = recipes[Surface::Accent as usize].clone();
+            let mut finish = (0..64)
+                .find_map(|s| super::super::super::wall::WallFinish::sample(s, Surface::Accent))
+                .unwrap();
+            finish.weights = [0.; 4];
+            finish.weights[component] = 1.;
+            wall.coating.as_mut().unwrap().wall = Some(finish);
+            wall.period_m = 1.2;
+            selected.push(wall);
+        }
         // Complete-design rugs exercise the same GPU kernel as production,
         // including isolated motif components and quiet/borderless endpoints.
         for variant in 0..6 {

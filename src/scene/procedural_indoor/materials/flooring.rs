@@ -10,11 +10,18 @@ pub enum FloorLayout {
     Straight,
     BrokenBond,
     Basket,
+    Herringbone,
+    Chevron,
+    Hexagonal,
+    Seamless,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FloorFinish {
     pub layout: FloorLayout,
+    /// Optional construction parameters; old recorded installations are unchanged.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub craft: Option<installation::Installation>,
     /// Installations close exactly at atlas boundaries. Basket cells are square.
     pub cells: [u32; 2],
     pub basket_strips: u32,
@@ -63,8 +70,9 @@ impl FloorFinish {
         };
         let tint = rng.random_range(0.60_f32..0.91);
         let warm = rng.random_range(-0.08..0.12);
-        Self {
+        let mut result = Self {
             layout,
+            craft: None,
             cells: [nx, ny],
             basket_strips: rng.random_range(3..=5),
             piece_tone: rng.random_range(0.12..if style == 0 { 0.48 } else { 0.30 }),
@@ -82,10 +90,23 @@ impl FloorFinish {
             } else {
                 rng.random_range(0.35..1.)
             },
-        }
+        };
+        installation::sample(&mut result, seed, style, period);
+        result
     }
 
     pub fn validate(&self) -> Result<(), String> {
+        if let Some(c) = &self.craft {
+            c.validate(self)?;
+        } else if matches!(
+            self.layout,
+            FloorLayout::Herringbone
+                | FloorLayout::Chevron
+                | FloorLayout::Hexagonal
+                | FloorLayout::Seamless
+        ) {
+            return Err("floor construction requires installation parameters".into());
+        }
         if self.cells.iter().any(|n| !(2..=48).contains(n))
             || !(3..=5).contains(&self.basket_strips)
             || self.layout == FloorLayout::Basket && self.cells[0] != self.cells[1]
@@ -107,6 +128,9 @@ impl FloorFinish {
     }
 
     pub(super) fn cut(&self, r: &MaterialRecipe, uv: [f32; 2]) -> Cut {
+        if let Some(cut) = self.craft.as_ref().and_then(|c| c.cut(self, r, uv)) {
+            return cut;
+        }
         let [nx, ny] = self.cells;
         let u = uv[0].rem_euclid(1.) * nx as f32;
         let x = u.floor() as u32 % nx;
@@ -141,11 +165,17 @@ impl FloorFinish {
     }
 
     pub(super) fn seam(&self, r: &MaterialRecipe, cut: &Cut, style: u32) -> f32 {
+        if self.layout == FloorLayout::Seamless {
+            return 0.;
+        }
         let width = r.joint_width + r.period_m / r.map_size(style) as f32;
         (1. - cut.distance_m / width).clamp(0., 1.) * r.joint_width / width
     }
 
     pub(super) fn apply(&self, r: &MaterialRecipe, uv: [f32; 2], t: &mut super::program::Texel) {
+        if self.layout == FloorLayout::Seamless {
+            return;
+        }
         let cut = self.cut(r, uv);
         let [x, y] = cut.id;
         let gain = 1.
@@ -167,6 +197,8 @@ impl FloorFinish {
             .clamp(0.12, 1.);
     }
 }
+
+pub mod installation;
 
 #[cfg(test)]
 mod tests;

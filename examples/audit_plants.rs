@@ -123,7 +123,7 @@ fn main() -> anyhow::Result<()> {
         output,
         serde_json::to_vec_pretty(
             &json!({"build":bevy_zeroverse::provenance::capture_provenance(),
-        "protocol":"14 habits x 16 prespecified seeds; 128-square orthographic binary coverage within each projected leaf AABB; actual triangles, not visible RGB pixels. Sheet surface area includes both sides. Cacti excluded from leaf coverage by construction.","samples":rows}),
+        "protocol":"All registered habits x 16 prespecified seeds; 128-square orthographic binary coverage within each projected leaf AABB; actual triangles, not visible RGB pixels. Sheet surface area includes both sides. Cacti excluded from leaf coverage by construction.","samples":rows}),
         )?,
     )?;
     Ok(())

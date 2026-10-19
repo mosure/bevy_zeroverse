@@ -13,20 +13,24 @@ pub struct PotProfile {
     pub sides: u32,
     pub shoulder_height_fraction: f32,
     pub pedestal_fraction: f32,
+    pub saucer_radius: f32,
+    pub base_rounding: f32,
 }
 impl PotProfile {
     pub fn sample(seed: u64) -> Self {
         let mut rng = stream(seed, 6220);
         Self {
-            belly: rng.random_range(0.82..1.035),
-            neck: rng.random_range(0.82..1.02),
+            belly: rng.random_range(0.74..1.06),
+            neck: rng.random_range(0.65..1.05),
             wall_fraction: rng.random_range(0.055..0.095),
             flute_depth: rng.random_range(0.0..0.055),
             flute_count: rng.random_range(4..=8),
             lip_height_fraction: rng.random_range(0.025..0.065),
             sides: [4, 6, 8, 12, 40][rng.random_range(0..5)],
-            shoulder_height_fraction: rng.random_range(0.46..0.73),
+            shoulder_height_fraction: rng.random_range(0.34..0.76),
             pedestal_fraction: rng.random_range(0.025..0.12),
+            saucer_radius: rng.random_range(1.06..1.16),
+            base_rounding: rng.random_range(0.04..0.22),
         }
     }
 }
@@ -44,9 +48,12 @@ pub(super) fn build(
     let lip = p.lip_height_fraction;
     let profile = [
         (0., foot),
-        (r * taper, foot),
-        (r * (taper + 0.02), h * 0.15),
-        (r * (taper + p.belly) * 0.5, h * 0.42),
+        (r * (taper - p.base_rounding), foot),
+        (r * taper, h * 0.15),
+        (
+            r * (taper + p.belly) * 0.5,
+            h * p.shoulder_height_fraction * 0.65,
+        ),
         (r * p.belly, h * p.shoulder_height_fraction),
         (r * p.neck, h * (1. - lip)),
         (r * (p.neck + 0.025), h * (1. - lip * 0.7)),
@@ -54,8 +61,9 @@ pub(super) fn build(
         (r * (p.neck - wall), h),
         (r * (p.neck - wall), h * (1. - lip)),
         (r * (p.belly - wall), h * p.shoulder_height_fraction),
-        (r * (taper - wall), h * 0.14),
-        (0., h * 0.14),
+        // Floor stays above the outer base rounding, including tall saucers.
+        (r * (taper - wall), h * 0.16),
+        (0., h * 0.16),
     ];
     if p.sides < 16 {
         faceted_pot(a.part(material, "other_prop"), &profile, p.sides);
@@ -71,10 +79,10 @@ pub(super) fn build(
     a.part(material, "other_prop").lathe(
         &[
             (0., 0.),
-            (r * 1.10, 0.),
-            (r * 1.10, foot),
-            (r * 1.025, foot * 1.6),
-            (r * 0.96, foot),
+            (r * p.saucer_radius, 0.),
+            (r * p.saucer_radius, foot),
+            (r * (p.saucer_radius - 0.06), foot * 1.6),
+            (r * (p.saucer_radius - 0.10), foot),
             (0., foot),
         ],
         32,

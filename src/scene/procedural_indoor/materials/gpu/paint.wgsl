@@ -18,6 +18,25 @@ fn paint_cell(uv: vec2<f32>, n: u32) -> vec2<f32> {
 fn paint_srgb(c: f32) -> f32 {
     if c<=0.0031308 {return c*12.92;}return 1.055*pow(c,1./2.4)-0.055;
 }
+struct WallTerms { gain: vec3<f32>, height: f32, roughness: f32 }
+fn wall_finish(uv: vec2<f32>) -> WallTerms {
+    if r.wall_counts.w == 0u { return WallTerms(vec3(1.),0.,0.); }
+    let cloud=noise(uv,3u,5u,701u);let warp=(cloud-0.5)*r.wall0.x;
+    let p=vec2(uv.x+warp,uv.y-warp*0.6);
+    let longitudinal=noise(p,r.wall_counts.x,3u,709u);
+    let cross=noise(p,5u,r.wall_counts.y,719u);
+    let wash=cloud*0.70+noise(p,9u,11u,727u)*0.30;
+    let at=unit(uv.x*f32(r.wall_counts.z)+warp);let aa=f32(r.wall_counts.z)/f32(r.header.y);
+    let stripe=smooth_curve((r.wall1.x*0.5+aa-abs(at-0.5))/(2.*aa));
+    let w=r.wall_weights;
+    let woven=(longitudinal*0.65+cross*0.35)*(0.85+longitudinal*cross*0.30);
+    let pigment=((wash-0.5)*w.x+(longitudinal-0.5)*w.y+(woven-0.5)*w.z)*r.wall0.y*r.paint2.w;
+    let ink=stripe*w.w*r.wall0.y*r.paint2.w;
+    let gain=(1.+pigment)*(vec3(1.)+(r.wall_tint.xyz-vec3(1.))*ink);
+    let height=((wash-0.5)*w.x*0.25+(longitudinal-0.5)*w.y+(woven-0.5)*w.z)*r.wall0.z*r.paint2.w;
+    let roughness=((longitudinal-0.5)*w.y+(woven-0.5)*w.z+(wash-0.5)*w.x)*r.wall0.w-wash*r.wall1.y+ink*0.025;
+    return WallTerms(gain,height,roughness);
+}
 fn paint(uv: vec2<f32>) -> Texel {
     let c=r.paint_counts;let f=r.paint_frequencies;
     let cell=paint_cell(uv,c.x);let splat=paint_disk(cell.x,0.20+cell.y*0.28,r.paint_color.w);
@@ -30,11 +49,12 @@ fn paint(uv: vec2<f32>) -> Texel {
     let holes=paint_disk(cell.x,0.08,r.paint_color.w)*smooth_curve((r.paint1.x-cell.y)*10.);
     let texture=(plateau-0.28)*r.paint0.x*(1.-repair);
     let gain=1.+(passes-0.5)*r.paint1.y-holes*0.035;
-    let linear=clamp(r.paint_color.xyz*gain,vec3(0.),vec3(1.));
+    let wall=wall_finish(uv);
+    let linear=clamp(r.paint_color.xyz*gain*wall.gain,vec3(0.),vec3(1.));
     let color=vec3(paint_srgb(linear.x),paint_srgb(linear.y),paint_srgb(linear.z));
     let height=r.metric.z*(texture*0.80+(lap-0.5)*r.paint0.w*0.22-holes*0.40)
-        +0.000025*(roller*r.paint0.z+film*r.paint1.w)*r.paint2.w+0.000016*brush*r.paint2.x*r.paint2.w;
-    return Texel(color,height,clamp(r.metric.w+film*0.025+roller*r.paint0.z*0.035+(lap-0.5)*r.paint2.y+holes*0.04-repair*r.paint1.z*0.10,0.16,0.99),max(1.-holes*0.025,0.97));
+        +0.000025*(roller*r.paint0.z+film*r.paint1.w)*r.paint2.w+0.000016*brush*r.paint2.x*r.paint2.w+wall.height;
+    return Texel(color,height,clamp(r.metric.w+film*0.025+roller*r.paint0.z*0.035+(lap-0.5)*r.paint2.y+holes*0.04-repair*r.paint1.z*0.10+wall.roughness,0.16,0.99),max(1.-holes*0.025,0.97));
 }
 @compute @workgroup_size(8,8)
 fn paint_map(@builtin(global_invocation_id) id: vec3<u32>) {

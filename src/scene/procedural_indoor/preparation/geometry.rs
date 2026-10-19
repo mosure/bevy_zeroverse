@@ -34,10 +34,7 @@ impl SceneGeometry {
                 continue;
             }
             selection.surfaces.insert(*surface);
-            if let Some(slot) = label
-                .rsplit_once("#finish")
-                .and_then(|(_, slot)| slot.parse::<usize>().ok())
-            {
+            if let Some(slot) = materials::finish_slot(*surface, label) {
                 if materials::registered_finish(*surface, slot) {
                     selection.finishes.insert((*surface, slot));
                 } else {

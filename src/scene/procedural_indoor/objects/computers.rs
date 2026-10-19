@@ -190,20 +190,35 @@ pub struct DisplayProgram {
     pub lift_fraction: f32,
     pub curvature_radius_m: f32,
     pub tilt_radians: f32,
+    pub chin_fraction: f32,
+    pub stand_width: f32,
+    pub stand_depth: f32,
+    pub mount_offset: f32,
+    pub casing: Surface,
 }
 pub fn display_parameters(o: &IndoorObject) -> DisplayProgram {
     let mut rng = stream(o.seed, 873);
     let lift_fraction = rng.random_range(0.15..0.29);
     let wall = o.kind == ObjectKind::Display;
+    let mut detail = stream(o.seed, 875);
     // Honour a portrait or broad-panel proposal; the previous independent
     // landscape-only aspect silently shrank every portrait display.
     let envelope_aspect = o.size.x / (o.size.y * if wall { 1. } else { 1. - lift_fraction });
     DisplayProgram {
         aspect: (envelope_aspect * rng.random_range(0.90..1.12)).clamp(0.60, 3.25),
-        bezel_m: rng.random_range(0.004..0.018),
-        panel_m: rng.random_range(0.009..0.027),
+        bezel_m: rng.random_range(0.003..0.032),
+        panel_m: rng.random_range(0.009..0.060),
         stand: rng.random_range(0..4),
         lift_fraction,
+        chin_fraction: detail.random_range(0.0..0.065),
+        stand_width: detail.random_range(0.30..0.82),
+        stand_depth: detail.random_range(0.40..0.85),
+        mount_offset: detail.random_range(-0.17..0.17),
+        casing: match detail.random_range(0..10) {
+            0 => Surface::WoodEdge,
+            1 | 2 => Surface::Metal,
+            _ => Surface::Plastic,
+        },
         curvature_radius_m: if !wall && rng.random_bool(0.45) {
             rng.random_range(0.80..2.4)
         } else {
@@ -401,11 +416,7 @@ pub(super) fn display(a: &mut Assembly, o: &IndoorObject) {
     let radius = d.curvature_radius_m;
     let tf = d.panel_transform;
     let z = tf.translation.z;
-    let casing = if o.seed.is_multiple_of(3) {
-        Surface::Metal
-    } else {
-        Surface::Plastic
-    };
+    let casing = p.casing;
     panel(a.part(casing, label), width, height, thickness, radius, tf);
     let bezel = d.bezel_m;
     panel(
@@ -418,10 +429,14 @@ pub(super) fn display(a: &mut Assembly, o: &IndoorObject) {
             label,
         ),
         width - bezel * 2.,
-        height - bezel * 2.,
+        height - bezel * 2. - height * p.chin_fraction,
         0.001,
         radius,
-        tf.with_translation(tf.transform_point(Vec3::Z * (thickness * 0.5 + 0.0008))),
+        tf.with_translation(tf.transform_point(Vec3::new(
+            0.,
+            height * p.chin_fraction * 0.5,
+            thickness * 0.5 + 0.0008,
+        ))),
     );
     if !wall {
         if p.stand == 0 {
@@ -443,11 +458,7 @@ pub(super) fn display(a: &mut Assembly, o: &IndoorObject) {
                 Surface::Metal,
                 label,
                 Vec3::new(0., 0.006, 0.),
-                Vec3::new(
-                    width * if p.stand == 2 { 0.5 } else { 0.8 },
-                    0.012,
-                    s.z * 0.68,
-                ),
+                Vec3::new(width * p.stand_width, 0.012, s.z * p.stand_depth),
                 0.004,
             );
         }
@@ -480,7 +491,11 @@ pub(super) fn display(a: &mut Assembly, o: &IndoorObject) {
         );
         // A bent riser connects a rear panel mount to the actual floor base.
         // Its radius remains small even for a portrait monitor's tall stand.
-        let attachment = tf.transform_point(Vec3::new(0., -height * 0.22, -thickness * 0.5));
+        let attachment = tf.transform_point(Vec3::new(
+            width * p.mount_offset,
+            -height * 0.22,
+            -thickness * 0.5,
+        ));
         let foot = Vec3::new(0., 0.012, 0.);
         let elbow = Vec3::new(0., attachment.y * 0.42, z);
         a.part(Surface::Metal, label).rod(foot, elbow, 0.009);

@@ -188,6 +188,27 @@ impl IndoorManifest {
 mod tests {
     use super::*;
     #[test]
+    fn later_furniture_cannot_cover_an_accepted_floor_detail() {
+        let mut scene =
+            IndoorManifest::generate_with_humans(29, IndoorLayout::Mixed, 0.75, 0, 0.35).unwrap();
+        let mat = scene
+            .objects
+            .iter()
+            .find(|o| o.kind == ObjectKind::Rug)
+            .unwrap()
+            .clone();
+        let mut prop = mat.clone();
+        prop.id = scene.objects.len();
+        prop.kind = ObjectKind::Plant;
+        prop.solid = true;
+        prop.size = Vec3::new(0.08, 0.15, 0.08);
+        assert!(!scene.placement_clear(&prop, 0.025));
+        // The fixture itself is what reserves this location, not a coincidental
+        // wall, ceiling or unrelated piece of furniture.
+        scene.objects.retain(|o| o.id != mat.id);
+        assert!(scene.placement_clear(&prop, 0.025));
+    }
+    #[test]
     fn raised_gesture_does_not_project_a_collision_onto_a_kitchen_mat() {
         let scene =
             IndoorManifest::generate_with_humans(87, IndoorLayout::Mixed, 0.75, 0, 0.35).unwrap();

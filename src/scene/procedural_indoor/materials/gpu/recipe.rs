@@ -39,6 +39,13 @@ pub(super) struct Recipe {
     pub rug1: [f32; 4],
     pub rug2: [f32; 4],
     pub rug3: [f32; 4],
+    pub wall_weights: [f32; 4],
+    pub wall_counts: [u32; 4],
+    pub wall0: [f32; 4],
+    pub wall1: [f32; 4],
+    pub wall_tint: [f32; 4],
+    pub manufactured_counts: [u32; 4],
+    pub manufactured: [f32; 4],
 }
 
 impl Recipe {
@@ -80,6 +87,10 @@ impl Recipe {
             phase: [r.phase[0], r.phase[1], r.weathering, r.contrast],
             ..bytemuck::Zeroable::zeroed()
         };
+        if let Some(m) = &r.manufactured {
+            p.manufactured_counts = [m.cells[0], m.cells[1], 1, 0];
+            p.manufactured = [m.structure, m.peening, 0., 0.];
+        }
         if let Some(c) = &r.coating {
             let a = c.application.as_ref()?;
             let frequency = |spacing| super::super::field::frequency(r.period_m, spacing);
@@ -104,6 +115,13 @@ impl Recipe {
             ];
             p.paint_color[..3].copy_from_slice(&r.color.map(super::super::srgb_to_linear));
             p.paint_color[3] = spray as f32 / r.map_size(0) as f32;
+            if let Some(w) = &c.wall {
+                p.wall_weights = w.weights;
+                p.wall_counts = [w.fiber_cells[0], w.fiber_cells[1], w.bands, 1];
+                p.wall0 = [w.warp, w.pigment, w.relief_m, w.roughness_variation];
+                p.wall1 = [w.band_duty, w.burnish, 0., 0.];
+                p.wall_tint[..3].copy_from_slice(&w.secondary_tint);
+            }
         } else if let Some(c) = &r.carpet {
             p.meta[0] = 4;
             p.carpet = [c.contrast, c.heather, c.pile, c.line_width];
@@ -142,7 +160,7 @@ impl Recipe {
                 ];
                 p.floor_tint[..3].copy_from_slice(&f.accent_tint);
                 // Basket is a timber installation, never a carpet bake.
-                if f.layout == FloorLayout::Basket {
+                if !matches!(f.layout, FloorLayout::Straight | FloorLayout::BrokenBond) {
                     return None;
                 }
             }

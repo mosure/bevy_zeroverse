@@ -8,6 +8,8 @@ use rand::Rng;
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct BoardProgram {
     pub regions: super::composition::Composition,
+    pub scattered: bool,
+    pub inks: [[u8; 3]; 4],
     pub blank: bool,
     pub composed: bool,
     pub finish: display_finish::DisplayFinish,
@@ -35,13 +37,35 @@ pub fn parameters(seed: u64) -> BoardProgram {
         layout.random_range(2..=6)
     };
     let finish = display_finish::DisplayFinish::sample(seed, true);
+    let mut arrangement = stream(seed, 0x424f415244535459);
+    let scattered = arrangement.random_bool(0.55);
+    let inks = std::array::from_fn(|i| {
+        let hue = [220., 355., 140., 275.][i] + arrangement.random_range(-25.0..25.);
+        let saturation = if i == 0 && arrangement.random_bool(0.65) {
+            arrangement.random_range(0.0..0.12)
+        } else {
+            arrangement.random_range(0.35..0.80)
+        };
+        let c = Color::hsl(hue, saturation, arrangement.random_range(0.13..0.35)).to_srgba();
+        [c.red, c.green, c.blue].map(|v| (v * 255.).round() as u8)
+    });
     BoardProgram {
-        regions: super::composition::Composition::sample(
-            seed,
-            count,
-            [margin, margin, 1. - 2. * margin, 1. - 2. * margin],
-            layout.random_range(0.3..0.7),
-        ),
+        scattered,
+        inks,
+        regions: if scattered {
+            super::composition::Composition::scattered(
+                seed,
+                count,
+                [margin, margin, 1. - 2. * margin, 1. - 2. * margin],
+            )
+        } else {
+            super::composition::Composition::sample(
+                seed,
+                count,
+                [margin, margin, 1. - 2. * margin, 1. - 2. * margin],
+                layout.random_range(0.3..0.7),
+            )
+        },
         blank: layout.random_bool(0.045),
         composed: layout.random_bool(0.85),
         roughness: finish.roughness,
@@ -60,7 +84,6 @@ pub fn parameters(seed: u64) -> BoardProgram {
         warmth: rng.random_range(-0.012..0.028),
     }
 }
-const INKS: [[u8; 3]; 4] = [[28, 47, 76], [38, 89, 161], [159, 52, 49], [39, 116, 86]];
 fn writing(
     c: &mut Canvas,
     rng: &mut impl Rng,
@@ -99,13 +122,13 @@ fn single_pixels(seed: u64) -> Vec<u8> {
     let mut rng = stream(seed, 3082);
     let base = [246., 246. - p.warmth * 130., 244. - p.warmth * 230.].map(|v| v as u8);
     let mut c = Canvas::new(base);
-    let ink = INKS[p.ink_index as usize];
+    let ink = p.inks[p.ink_index as usize];
     let mut erased = Canvas::new(base);
     for _ in 0..4 {
         let x = rng.random_range(9.0..240.0);
         let y = rng.random_range(12.0..240.0);
         let radius = [rng.random_range(12.0..44.0), rng.random_range(7.0..30.0)];
-        erased.ring([x, y], radius, INKS[rng.random_range(0..4)]);
+        erased.ring([x, y], radius, p.inks[rng.random_range(0..4)]);
         for row in 0..3 {
             writing(
                 &mut erased,
@@ -129,7 +152,7 @@ fn single_pixels(seed: u64) -> Vec<u8> {
     let margin = (p.margin * 256.) as i32;
     let end = 256 - margin;
     let width = end - margin;
-    let color = |i: usize| INKS[(p.ink_index as usize + i % p.color_count as usize) % 4];
+    let color = |i: usize| p.inks[(p.ink_index as usize + i % p.color_count as usize) % 4];
     c.text(
         [
             "PROCESS",

@@ -13,13 +13,13 @@ pub(super) fn pixels(seed: u64, p: &BoardProgram) -> Vec<u8> {
             r.pixels()[0],
             r.pixels()[1] + 14,
             r.pixels()[0] + r.pixels()[2],
-            INKS[0],
+            p.inks[0],
             1,
         );
         erased.ring(
             [rng.random_range(30.0..225.), rng.random_range(30.0..225.)],
             [rng.random_range(8.0..35.), rng.random_range(6.0..25.)],
-            INKS[1],
+            p.inks[1],
         );
     }
     let wipe = [
@@ -45,7 +45,7 @@ pub(super) fn pixels(seed: u64, p: &BoardProgram) -> Vec<u8> {
     for (i, r) in p.regions.regions.iter().enumerate() {
         let mut rng = stream(r.seed, 0x4e4f544553);
         let [x, y, w, h] = r.pixels();
-        let ink = INKS[(p.ink_index as usize + i % p.color_count as usize) % 4];
+        let ink = p.inks[(p.ink_index as usize + i % p.color_count as usize) % 4];
         let kind = rng.random_range(0..7);
         c.clipped([x, y, w, h], |c| {
             let heading = content::phrase(&mut rng, (w as f32 / 8.) as usize);
@@ -80,7 +80,7 @@ pub(super) fn pixels(seed: u64, p: &BoardProgram) -> Vec<u8> {
                                 [x as f32, y as f32 + row as f32 * 13. + 8.],
                                 [(end - 4) as f32, y as f32 + row as f32 * 13. + 8.],
                                 1,
-                                INKS[(i + 1) % 4],
+                                p.inks[(i + 1) % 4],
                             );
                         }
                     }
@@ -128,7 +128,7 @@ pub(super) fn pixels(seed: u64, p: &BoardProgram) -> Vec<u8> {
                             x as f32 + 5. + (w - 7) as f32 * j as f32 / n as f32,
                             y as f32 + h as f32 * rng.random_range(0.08..0.92),
                         ];
-                        c.line(last, next, 1, INKS[(i + 1) % 4]);
+                        c.line(last, next, 1, p.inks[(i + 1) % 4]);
                         last = next;
                     }
                 }

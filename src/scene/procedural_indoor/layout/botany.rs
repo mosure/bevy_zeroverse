@@ -45,7 +45,7 @@ fn size(variant: u32, tabletop: bool, rng: &mut ChaCha8Rng) -> Vec3 {
             match variant {
                 7 => rng.random_range(0.16..0.26),
                 8 | 9 => rng.random_range(0.23..0.41),
-                4 | 13 => rng.random_range(0.22..0.40),
+                4 | 13 | 16 => rng.random_range(0.22..0.40),
                 _ => rng.random_range(0.25..0.55),
             },
         )
@@ -53,7 +53,8 @@ fn size(variant: u32, tabletop: bool, rng: &mut ChaCha8Rng) -> Vec3 {
         match variant {
             7 => (rng.random_range(0.30..0.54), rng.random_range(0.29..0.52)),
             8 | 9 => (rng.random_range(0.39..0.65), rng.random_range(0.55..1.28)),
-            4 | 13 => (rng.random_range(0.51..0.87), rng.random_range(0.63..1.14)),
+            4 | 13 | 16 => (rng.random_range(0.51..0.87), rng.random_range(0.63..1.14)),
+            15 => (rng.random_range(0.60..0.95), rng.random_range(0.90..1.80)),
             _ => (rng.random_range(0.47..0.95), rng.random_range(1.00..2.12)),
         }
     };

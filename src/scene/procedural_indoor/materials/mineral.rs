@@ -166,7 +166,13 @@ impl MineralRecipe {
         let installation_uv = uv;
         let mut seam = 0.;
         let mut footprint = 1. / r.map_size(floor_style) as f32;
-        if r.surface == Surface::Floor && floor_style == 2 {
+        if r.surface == Surface::Floor
+            && floor_style == 2
+            && !r
+                .flooring
+                .as_ref()
+                .is_some_and(|f| f.layout == super::flooring::FloorLayout::Seamless)
+        {
             if let Some(f) = &r.flooring {
                 let cut = f.cut(r, uv);
                 let [x, y] = cut.id;

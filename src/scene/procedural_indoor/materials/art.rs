@@ -22,12 +22,19 @@ pub struct FrameProgram {
     pub mat_width: f32,
     pub shadow_gap: f32,
     pub picture_inset: f32,
+    pub stepped: bool,
+    pub outer_fraction: f32,
+    pub recess_fraction: f32,
 }
 pub fn frame_parameters(o: &super::super::layout::IndoorObject) -> FrameProgram {
     let mut rng = stream(o.seed, 3094);
     let style = o.variant % 6;
+    let mut section = stream(o.seed, 3095);
     FrameProgram {
         style,
+        stepped: style != 0 && section.random_bool(0.56),
+        outer_fraction: section.random_range(0.30..0.70),
+        recess_fraction: section.random_range(0.18..0.62),
         border_width: if style == 0 {
             0.
         } else if style == 5 {
@@ -82,7 +89,7 @@ pub fn parameters(seed: u64) -> ArtProgram {
         canvas: finish.canvas > 0.,
         finish,
         composed: stream(seed, 0x4152544d4958).random_bool(0.85),
-        subject: rng.random_range(0..7),
+        subject: rng.random_range(0..10),
         horizon: rng.random_range(0.28..0.72),
         relief: rng.random_range(0.045..0.22),
         viewpoint: rng.random_range(0.05..0.95),
@@ -198,7 +205,7 @@ pub(super) fn landscape(seed: u64, p: &ArtProgram, coast: bool) -> Canvas {
 pub fn pixels(seed: u64) -> Vec<u8> {
     let p = parameters(seed);
     let mut rng = stream(seed, 3092);
-    let mut c = if p.composed {
+    let mut c = if p.composed || p.subject >= 7 {
         composition::paint(&p)
     } else if p.subject < 2 {
         landscape(seed, &p, p.subject == 1)
@@ -328,6 +335,11 @@ pub fn pixels(seed: u64) -> Vec<u8> {
     }
     c.0
 }
+/// Bounded image content without generating unused PBR maps or grain passes.
+pub(super) fn illustration(seed: u64) -> Vec<u8> {
+    composition::paint(&parameters(seed)).0
+}
+
 /// Production color/normal/ORM images, including coupled GGX mip filtering.
 pub fn maps(seed: u64) -> [Image; 3] {
     parameters(seed).finish.maps(seed, pixels(seed))
@@ -485,7 +497,7 @@ mod tests {
             assert!(image.as_chunks::<4>().0.iter().all(|pixel| pixel[3] == 255));
             images.insert(image);
         }
-        assert_eq!(subjects.len(), 7);
+        assert_eq!(subjects.len(), 10);
         assert_eq!(images.len(), 64);
         assert_eq!(pixels(299), pixels(299));
     }

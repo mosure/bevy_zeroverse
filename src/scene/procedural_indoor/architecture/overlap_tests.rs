@@ -22,8 +22,11 @@ pub(crate) fn intersection_area(a: [Vec2; 3], b: [Vec2; 3]) -> f32 {
         }
         polygon = next;
     }
+    // Exterior coordinates are tens of metres, while trim overlaps can be
+    // square millimetres. Translate before the area sum to avoid cancellation.
+    let origin = polygon.first().copied().unwrap_or(Vec2::ZERO);
     (0..polygon.len())
-        .map(|i| polygon[i].perp_dot(polygon[(i + 1) % polygon.len()]))
+        .map(|i| (polygon[i] - origin).perp_dot(polygon[(i + 1) % polygon.len()] - origin))
         .sum::<f32>()
         .abs()
         * 0.5
@@ -100,4 +103,19 @@ fn architectural_trim_has_no_competing_coplanar_faces() {
             scene.program.as_ref().map(|p| &p.partitions)
         );
     }
+}
+
+#[test]
+fn small_overlap_area_is_translation_stable() {
+    let a = [Vec2::ZERO, Vec2::new(0.06, 0.), Vec2::new(0., 0.04)];
+    let b = a.map(|p| p + Vec2::new(0.02, 0.));
+    let reference = intersection_area(a, b);
+    assert!(reference > 0.0005);
+    for offset in [Vec2::new(20., -18.), Vec2::new(-23., 17.)] {
+        let area = intersection_area(a.map(|p| p + offset), b.map(|p| p + offset));
+        assert!((area - reference).abs() < 1e-7);
+    }
+    let touching = a.map(|p| -p);
+    let offset = Vec2::new(21., 17.);
+    assert!(intersection_area(a.map(|p| p + offset), touching.map(|p| p + offset)) < 1e-10);
 }

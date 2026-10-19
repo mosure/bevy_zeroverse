@@ -92,7 +92,14 @@ fn prepared_paint_replays_every_texel_channel_bit() {
         (u64::MAX, 256),
         (99, 512),
     ] {
-        let recipes = super::super::program::sample(seed);
+        let mut recipes = super::super::program::sample(seed);
+        // This oracle checks the original substrate. Optional wall coverings
+        // have separate prepared/scalar and complete-map tests.
+        for recipe in &mut recipes {
+            if let Some(c) = &mut recipe.coating {
+                c.wall = None;
+            }
+        }
         for surface in [Surface::Paint, Surface::Accent, Surface::Ceiling] {
             let r = &recipes[surface as usize];
             let c = r.coating.as_ref().unwrap();
@@ -142,6 +149,7 @@ fn maximum_frequency_paint_cache_replays_original_complete_maps() {
         let mut r =
             super::super::program::sample(seed)[super::super::Surface::Paint as usize].clone();
         r.period_m = 10.;
+        r.coating.as_mut().unwrap().wall = None;
         let coating = r.coating.as_ref().unwrap();
         let application = coating.application.as_ref().unwrap();
         assert_eq!(frequency(r.period_m, application.spray_spacing_m), 192);
@@ -161,7 +169,12 @@ fn prepared_paint_cpu_benchmark() {
         let mut prepared_seconds = Vec::new();
         let mut cell_grids = Vec::new();
         for seed in 200..212 {
-            let recipes = super::super::program::sample(seed);
+            let mut recipes = super::super::program::sample(seed);
+            recipes[super::super::Surface::Paint as usize]
+                .coating
+                .as_mut()
+                .unwrap()
+                .wall = None;
             let r = &recipes[super::super::Surface::Paint as usize];
             let c = r.coating.as_ref().unwrap();
             let a = c.application.as_ref().unwrap();

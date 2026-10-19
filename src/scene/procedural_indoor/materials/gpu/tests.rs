@@ -39,7 +39,7 @@ fn material_shader_parses_and_validates_without_a_gpu() {
 
 #[test]
 fn recipe_abi_and_bounded_mip_layout() {
-    assert_eq!(std::mem::size_of::<recipe::Recipe>(), 35 * 16);
+    assert_eq!(std::mem::size_of::<recipe::Recipe>(), 42 * 16);
     assert_eq!(std::mem::size_of::<kernel::Dispatch>(), 3 * 16);
     assert!(kernel::SHADER.contains("fn paint_map"));
     for size in [256, 512] {
@@ -91,6 +91,55 @@ fn recipe_abi_and_bounded_mip_layout() {
             }
         }
     }
+}
+
+#[test]
+fn expanded_material_programs_have_explicit_gpu_parameters_and_safe_fallback() {
+    let mut coverings = 0;
+    for seed in 0..64 {
+        let recipes = program::sample_with_floor(seed, 1).unwrap();
+        for surface in [
+            Surface::Paint,
+            Surface::Accent,
+            Surface::Metal,
+            Surface::Chrome,
+            Surface::Plastic,
+            Surface::Rubber,
+        ] {
+            let r = &recipes[surface as usize];
+            let params = recipe::Recipe::new(r, 1).unwrap();
+            if let Some(w) = r.coating.as_ref().and_then(|c| c.wall.as_ref()) {
+                coverings += 1;
+                assert_eq!(params.wall_weights, w.weights);
+                assert_eq!(
+                    params.wall_counts,
+                    [w.fiber_cells[0], w.fiber_cells[1], w.bands, 1]
+                );
+                assert_eq!(&params.wall_tint[..3], &w.secondary_tint);
+                assert_eq!(
+                    params.wall0,
+                    [w.warp, w.pigment, w.relief_m, w.roughness_variation]
+                );
+            }
+            if let Some(m) = &r.manufactured {
+                assert_eq!(params.manufactured_counts, [m.cells[0], m.cells[1], 1, 0]);
+                assert_eq!(&params.manufactured[..2], &[m.structure, m.peening]);
+            }
+        }
+        // A caller may author a hard-floor installation on carpet. GPU support
+        // must be declined rather than silently baking it as a rectangular grid.
+        let mut r = recipes[Surface::Floor as usize].clone();
+        let hard = program::sample_with_floor(seed, 2).unwrap();
+        r.flooring = hard[Surface::Floor as usize].flooring.clone();
+        use super::super::flooring::FloorLayout;
+        if !matches!(
+            r.flooring.as_ref().unwrap().layout,
+            FloorLayout::Straight | FloorLayout::BrokenBond
+        ) {
+            assert!(recipe::Recipe::new(&r, 1).is_none());
+        }
+    }
+    assert!(coverings > 50);
 }
 
 #[test]

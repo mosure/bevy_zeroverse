@@ -68,6 +68,8 @@ impl PaletteProgram {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MaterialRecipe {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub manufactured: Option<super::manufactured::ManufacturedFinish>,
     /// Appearance intervention inherited by regenerated finish structures.
     /// The stored base relief/contrast already include this multiplier.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -345,6 +347,7 @@ pub fn sample(seed: u64) -> Vec<MaterialRecipe> {
                 rng.random_range(0.00002..0.0003)
             };
             let mut recipe = MaterialRecipe {
+                manufactured: None,
                 detail_scale: None,
                 flooring: None,
                 carpet: None,
@@ -478,6 +481,37 @@ pub(crate) fn floor_finish(recipes: &mut [MaterialRecipe], style: u32) {
     r.flooring = Some(super::flooring::FloorFinish::sample(
         r.seed, style, r.period_m,
     ));
+    if style == 2 {
+        let mut finish = stream(r.seed, 0x4d494e464c4f4f52);
+        let m = r.mineral.as_mut().unwrap();
+        // Distinct binder/chip/vein balances span quiet porcelain, honed stone,
+        // ground aggregate and poured terrazzo. Pigment and polish are coupled
+        // to a substrate, not an independent coat of arbitrary white speckles.
+        let aggregate: f32 = finish.random_range(0.0..1.);
+        m.aggregate_exposure = aggregate.powi(2) * (1. - m.marble_mix);
+        m.aggregate_radius = finish.random_range(0.12..0.44);
+        if aggregate > 0.55 {
+            let hue = finish.random_range(0.0..360.);
+            m.aggregate_color = [0.14, 0.72].map(|light| {
+                let c = bevy::prelude::Color::hsl(
+                    hue,
+                    finish.random_range(0.02..0.28),
+                    light + finish.random_range(-0.08..0.08),
+                )
+                .to_srgba();
+                [c.red, c.green, c.blue]
+            });
+        }
+        if r.flooring.as_ref().unwrap().layout == super::flooring::FloorLayout::Seamless {
+            r.period_m = finish.random_range(0.80..1.70);
+            m.aggregate_cells = [finish.random_range(48..=96), finish.random_range(48..=96)];
+            m.marble_mix *= 0.12;
+            m.porosity *= 0.15;
+            r.flooring = Some(super::flooring::FloorFinish::sample(
+                r.seed, style, r.period_m,
+            ));
+        }
+    }
     if style == 1 {
         r.carpet = Some(super::carpet::CarpetDesign::sample(r.seed, r.color, false));
     }
@@ -496,6 +530,15 @@ pub fn sample_with_floor(seed: u64, style: u32) -> Result<Vec<MaterialRecipe>, S
 
 impl MaterialRecipe {
     pub fn validate(&self) -> Result<(), String> {
+        if let Some(m) = &self.manufactured {
+            m.validate()?;
+            if !matches!(
+                self.surface,
+                Surface::Metal | Surface::Chrome | Surface::Plastic | Surface::Rubber
+            ) {
+                return Err("manufactured finish requires a metal/polymer role".into());
+            }
+        }
         if self
             .detail_scale
             .is_some_and(|v| !v.is_finite() || !(0.0..=1.).contains(&v))
@@ -585,6 +628,9 @@ impl MaterialRecipe {
         }
         if let Some(c) = &self.coating {
             c.validate()?;
+            if c.wall.is_some() && !matches!(self.surface, Surface::Paint | Surface::Accent) {
+                return Err("wall covering requires a wall material role".into());
+            }
             if c.glaze.is_some() && self.surface != Surface::Ceramic
                 || c.application.is_some() && self.surface == Surface::Ceramic
             {
@@ -640,6 +686,32 @@ impl MaterialRecipe {
     }
     fn specialize(&mut self) {
         let mut rng = stream(self.seed, 0x5355425354524154);
+        self.manufactured =
+            super::manufactured::ManufacturedFinish::sample(self.seed, self.surface);
+        if let Some(m) = &self.manufactured {
+            let polish = rng.random_range(0.0_f32..1.);
+            let (roughness, relief) = match self.surface {
+                Surface::Chrome => (
+                    0.055 + (1. - polish) * 0.26,
+                    0.0000003 + (1. - polish) * 0.000003,
+                ),
+                Surface::Metal => (
+                    0.24 + (1. - polish) * 0.50,
+                    0.000006 + (1. - polish) * 0.000050 + m.peening * 0.000040,
+                ),
+                Surface::Rubber => (
+                    0.68 + (1. - polish) * 0.28,
+                    0.000020 + (1. - polish) * 0.00012,
+                ),
+                _ => (
+                    0.18 + (1. - polish) * 0.62,
+                    0.000003 + (1. - polish) * 0.000060,
+                ),
+            };
+            self.roughness = roughness;
+            self.relief_m = relief;
+            self.period_m = rng.random_range(0.065..0.24);
+        }
         if matches!(
             self.surface,
             Surface::Fabric | Surface::FabricAlt | Surface::Floor
@@ -697,7 +769,7 @@ impl MaterialRecipe {
             self.surface,
             Surface::Paint | Surface::Accent | Surface::Ceiling | Surface::Ceramic
         ) {
-            let c = super::coating::CoatingRecipe::sample(self.seed, self.surface);
+            let mut c = super::coating::CoatingRecipe::sample(self.seed, self.surface);
             self.period_m = if self.surface == Surface::Ceramic {
                 rng.random_range(0.085..0.22)
             } else {
@@ -713,6 +785,16 @@ impl MaterialRecipe {
             } else {
                 0.000018 + c.texture_mix.powi(2) * 0.00065
             };
+            if let Some(w) = &c.wall {
+                // A wall covering needs a mesoscale domain. Its fibrous relief
+                // is millimetric; it must not inherit heavy sprayed plaster.
+                self.period_m = rng.random_range(0.70..1.65);
+                self.relief_m *= 0.20;
+                c.texture_mix *= 0.25;
+                c.roller *= 0.35;
+                self.roughness =
+                    (0.72 + (w.weights[1] + w.weights[2]) * 0.18 - w.burnish).clamp(0.45, 0.96);
+            }
             self.coating = Some(c);
         }
         if matches!(
@@ -1307,6 +1389,7 @@ mod tests {
             {
                 c.remove("glaze");
                 c.remove("application");
+                c.remove("wall");
             }
             if let Some(m) = json
                 .get_mut("mineral")
@@ -1533,6 +1616,11 @@ mod tests {
                 if style == 1 {
                     assert!((2.8..=4.2).contains(&floor.period_m));
                     assert!(floor.roughness >= 0.88);
+                } else if floor.flooring.as_ref().unwrap().layout
+                    == super::super::flooring::FloorLayout::Seamless
+                {
+                    assert!((0.80..1.70).contains(&floor.period_m));
+                    assert!((0.12..=0.95).contains(&floor.roughness));
                 } else {
                     assert_eq!(
                         floor.period_m,

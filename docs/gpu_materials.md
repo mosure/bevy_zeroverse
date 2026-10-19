@@ -14,6 +14,12 @@ paint/plaster program. Wood, mineral/glaze, botanical, screen, artwork and
 skin/hair maps currently retain CPU synthesis. This is a
 hybrid backend, not a replacement of every procedural program.
 
+Wall coverings and manufactured surface finishes use the same one-shot paint
+and finish kernels. Their scalar fields and complete CPU maps are tested; the
+expanded fields still require a hardware parity/scene-render qualification.
+See [surface construction](qualification/material_space.md) for their recorded
+controls and the distinction between CPU diagnostics and rendered PBR evidence.
+
 Set `--indoor-gpu-materials false` / `indoor_gpu_materials=false` to use the CPU
 reference for a matched performance or numerical comparison. Default Rust, CLI,
 URL and legacy JSON configurations all enable the device-capable path.

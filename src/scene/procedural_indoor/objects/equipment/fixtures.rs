@@ -111,39 +111,12 @@ pub(super) fn notice_board(a: &mut Assembly, o: &IndoorObject, p: &EquipmentProg
             0.001,
         );
     }
-    let mut rng = stream(o.seed, 5730);
-    // Notes occupy separately fitted cells; their rotated corners cannot overlap
-    // the frame or each other. Density, dimensions and handwriting vary.
-    let columns = if s.x > s.y { 4 } else { 3 };
-    let rows = 4;
-    let cell = Vec2::new(
-        (s.x - frame * 4.) / columns as f32,
-        (s.y - frame * 4.) / rows as f32,
-    );
-    let mut cells: Vec<_> = (0..columns * rows).collect();
-    use rand::seq::SliceRandom;
-    cells.shuffle(&mut rng);
-    let mut attached = 0;
-    for &i in &cells {
-        if attached == p.note_count {
-            break;
-        }
-        let width = cell.x * rng.random_range(0.58..0.76);
-        let height = cell.y * rng.random_range(0.55..0.74);
-        let center = Vec3::new(
-            (i % columns) as f32 * cell.x + cell.x * 0.5 - (s.x - frame * 4.) * 0.5,
-            frame * 2. + (i / columns) as f32 * cell.y + cell.y * 0.5,
-            s.z * 0.309,
-        );
-        // Account for note rotation when leaving the raised divider clear.
-        if divider
-            .is_some_and(|x| (center.x - x).abs() < width * 0.5 + height * 0.05 + frame * 0.30)
-        {
-            continue;
-        }
-        attached += 1;
-        let tf = Transform::from_translation(center)
-            .with_rotation(Quat::from_rotation_z(rng.random_range(-0.10..0.10)));
+    for note in super::pinups::placements(o) {
+        let mut rng = stream(note.seed, 5731);
+        let width = note.size.x;
+        let height = note.size.y;
+        let center = Vec3::new(note.center.x, note.center.y, s.z * 0.309);
+        let tf = Transform::from_translation(center).with_rotation(Quat::from_rotation_z(note.yaw));
         a.part(Surface::Paper, label)
             .cuboid(Vec3::new(width, height, s.z * 0.012), 0.0001, tf);
         let lines = rng.random_range(2..=5);

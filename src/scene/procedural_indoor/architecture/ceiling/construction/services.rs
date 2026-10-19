@@ -173,7 +173,7 @@ fn sprinkler_head(a: &mut Assembly, f: &Frame, p: Vec3, upright: bool) {
     }
     f.rod(
         a,
-        Surface::Accent,
+        Surface::Paint,
         p + direction * 0.002,
         p + direction * 0.020,
         0.003,
@@ -336,7 +336,7 @@ pub(super) fn tray(a: &mut Assembly, f: &Frame, cables: u8, pitch: f32, rise: f3
         f.tube(
             a,
             if i % 4 == 0 {
-                Surface::Accent
+                Surface::Paint
             } else {
                 Surface::Ink
             },

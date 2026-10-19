@@ -512,7 +512,7 @@ fn export_inner(
                 }
             }
             for material in &program.materials {
-                content::record_material(material, &mut numeric)?;
+                content::record_material(material, &mut numeric, &mut report.categories)?;
                 if let Some(l) = &material.layers {
                     for (key, value) in [
                         ("stripe_strength", l.stripe_strength),
@@ -712,6 +712,9 @@ fn export_inner(
                 ("plant_crown_skew", p.crown_skew),
                 ("plant_leaf_droop", p.droop),
                 ("plant_branching", p.branching),
+                ("plant_crown_spread", p.crown_spread),
+                ("plant_leaf_curl", p.leaf_curl),
+                ("plant_leaf_tip_exponent", p.leaf_tip_exponent),
                 ("plant_pot_shoulder_fraction", pot.shoulder_height_fraction),
                 ("plant_pot_pedestal_fraction", pot.pedestal_fraction),
             ] {
@@ -939,6 +942,8 @@ fn export_inner(
                     ("planter_flute_depth", p.flute_depth),
                     ("planter_flute_count", p.flute_count as f32),
                     ("planter_lip_fraction", p.lip_height_fraction),
+                    ("planter_saucer_radius_fraction", p.saucer_radius),
+                    ("planter_base_rounding", p.base_rounding),
                 ] {
                     numeric.push(name, value as f64)?;
                 }
@@ -965,8 +970,19 @@ fn export_inner(
                     ("table_outline_exponent", p.outline_exponent),
                     ("table_taper", p.taper),
                     ("table_capsule_blend", p.capsule_blend),
+                    ("table_polygon_blend", p.polygon_blend),
                 ] {
                     numeric.push(key, value as f64)?;
+                }
+                if p.polygon_blend > 0. {
+                    numeric.push("table_polygon_sides", p.polygon_sides as f64)?;
+                    numeric.push("table_polygon_rounding", p.polygon_rounding as f64)?;
+                    numeric.push("table_polygon_phase_rad", p.polygon_phase as f64)?;
+                }
+                if p.support == 9 {
+                    numeric.push("table_pedestal_waist", p.pedestal_waist as f64)?;
+                    numeric.push("table_pedestal_shoulder", p.pedestal_shoulder as f64)?;
+                    numeric.push("table_pedestal_facets", p.pedestal_facets as f64)?;
                 }
                 if matches!(p.support, 2 | 7) {
                     numeric.push("table_pedestal_radius_fraction", p.pedestal_radius as f64)?;
@@ -1106,10 +1122,39 @@ fn export_inner(
                 numeric.push("chair_yaw_radians", yaw as f64)?;
                 // Stool/armchair geometry has its own program; do not report
                 // unused office-back parameters as realized scene diversity.
+                if matches!(object.variant, 6 | 7) {
+                    let p = super::objects::chairs::stool::parameters(object);
+                    for (key, value) in [
+                        ("stool_seat_aspect", p.seat_aspect),
+                        ("stool_seat_roundness", p.seat_roundness),
+                        ("stool_padding_m", p.padding_m),
+                        ("stool_footrest_height_m", p.footrest_height_m),
+                    ] {
+                        numeric.push(key, value as f64)?;
+                    }
+                    *report
+                        .categories
+                        .entry("stool_base".into())
+                        .or_default()
+                        .entry(p.base.to_string())
+                        .or_default() += 1;
+                }
                 if matches!(object.variant % super::objects::chairs::FAMILIES, 6..=8) {
                     continue;
                 }
                 let p = super::objects::chairs::parameters(object);
+                if matches!(object.variant, 0 | 1 | 5 | 9) {
+                    *report
+                        .categories
+                        .entry("chair_casters".into())
+                        .or_default()
+                        .entry(p.casters.to_string())
+                        .or_default() += 1;
+                }
+                if p.back_construction >= 2 {
+                    numeric.push("chair_back_waist", p.back_waist as f64)?;
+                    numeric.push("chair_crest_rounding", p.crest_rounding as f64)?;
+                }
                 if p.armrests {
                     numeric.push("chair_arm_pad_width_m", p.arm_pad_width_m as f64)?;
                     numeric.push("chair_arm_pad_roundness", p.arm_pad_roundness as f64)?;

@@ -40,6 +40,10 @@ fn quad(g: &mut Geometry, p: [Vec3; 4], outward: Vec3) {
 }
 
 fn panel(g: &mut Geometry, points: &[Vec3], extrusion: Vec3) {
+    panel_faces(points, extrusion, |p, n, _| face(g, p, n));
+}
+
+fn panel_faces(points: &[Vec3], extrusion: Vec3, mut emit: impl FnMut(&[Vec3], Vec3, bool)) {
     if points.len() < 3 {
         return;
     }
@@ -47,19 +51,19 @@ fn panel(g: &mut Geometry, points: &[Vec3], extrusion: Vec3) {
     if (p[1] - p[0]).cross(p[2] - p[0]).dot(extrusion) < 0. {
         p.reverse();
     }
-    face(g, &p, extrusion);
-    face(
-        g,
+    emit(&p, extrusion, true);
+    emit(
         &p.iter().map(|p| *p - extrusion).collect::<Vec<_>>(),
         -extrusion,
+        false,
     );
     for i in 0..p.len() {
         let a = p[i];
         let b = p[(i + 1) % p.len()];
-        quad(
-            g,
-            [a, b, b - extrusion, a - extrusion],
+        emit(
+            &[a, b, b - extrusion, a - extrusion],
             (b - a).cross(extrusion),
+            false,
         );
     }
 }
@@ -240,6 +244,7 @@ pub(super) fn wall(
     edge: usize,
     holes: &[architecture::facade::WindowOpening],
     trim: Option<&architecture::trim::TrimProgram>,
+    surface: Surface,
 ) {
     let p = e.footprint[edge];
     let q = e.footprint[(edge + 1) % e.footprint.len()];
@@ -256,12 +261,18 @@ pub(super) fn wall(
     ) {
         let rect = [lo, Vec2::new(hi.x, lo.y), hi, Vec2::new(lo.x, hi.y)];
         let p = polygon::clip(&rect, Vec2::new(slope, -1.), -midpoint);
-        panel(
-            a.part(Surface::Paint, "wall"),
+        panel_faces(
             &p.iter()
                 .map(|p| tf.transform_point(Vec3::new(p.x, p.y, 0.)))
                 .collect::<Vec<_>>(),
             tf.rotation * Vec3::Z * 0.18,
+            |points, normal, front| {
+                face(
+                    a.part(if front { surface } else { Surface::Paint }, "wall"),
+                    points,
+                    normal,
+                )
+            },
         );
     }
     if let Some(trim) = trim {
@@ -409,6 +420,7 @@ pub fn build(scene: &IndoorManifest) -> Assembly {
         e,
         size,
     );
+    let feature_edges = super::super::materials::wall::feature_edges(scene);
     for entry in &e.walls {
         let holes = entry
             .facade
@@ -421,6 +433,11 @@ pub fn build(scene: &IndoorManifest) -> Assembly {
             entry.edge,
             holes,
             architecture::trim::TrimProgram::for_scene(scene),
+            if feature_edges.contains(&entry.edge) {
+                Surface::Accent
+            } else {
+                Surface::Paint
+            },
         );
         cornice(&mut a, scene, entry.edge, holes);
         if let Some(f) = &entry.facade {
@@ -625,6 +642,7 @@ fn shared_and_neighbor(a: &mut Assembly, scene: &IndoorManifest, e: &EnvelopePro
         edge,
         &openings,
         architecture::trim::TrimProgram::for_scene(scene),
+        Surface::Paint,
     );
     let mut glass = Assembly::default();
     architecture::facade::glazing_at(&mut glass, e.wall_transform(edge), &f);

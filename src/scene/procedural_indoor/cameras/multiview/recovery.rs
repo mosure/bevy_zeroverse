@@ -369,7 +369,11 @@ pub(super) fn complete(
                         // furnished rooms. Preserve their optical framing while the
                         // ordinary deformation varies motion independently. Every
                         // candidate remains subject to the complete group gates.
-                        let index = (attempt - replay_slots) / parents.len();
+                        // These 24 slots are shared by the whole frontier, not
+                        // 24 slots per parent. Dividing by the frontier width
+                        // only visits +/-X once the beam has twelve prefixes,
+                        // starving lateral and vertical viewing pockets.
+                        let index = attempt - replay_slots;
                         let template = if scene.cameras.len() > 1 {
                             &scene.cameras[1 + (index / 6) % (scene.cameras.len() - 1)]
                         } else {

@@ -418,23 +418,55 @@ fn wall_panel(a: &mut Assembly, o: &IndoorObject) {
             _ => Surface::Metal,
         };
         let bevel = (border * 0.12).min(s.z * 0.1);
+        let recess = if p.stepped {
+            s.z * p.recess_fraction
+        } else {
+            0.
+        };
         for y in [border * 0.5, s.y - border * 0.5] {
             a.box_part(
                 surface,
                 label,
-                Vec3::new(0., y, 0.),
-                Vec3::new(s.x, border, s.z),
+                Vec3::new(0., y, -recess * 0.5),
+                Vec3::new(s.x, border, s.z - recess),
                 bevel,
             );
+            if p.stepped {
+                let sign = if y < s.y * 0.5 { -1. } else { 1. };
+                a.box_part(
+                    surface,
+                    label,
+                    Vec3::new(
+                        0.,
+                        y + sign * border * (1. - p.outer_fraction) * 0.5,
+                        (s.z - recess) * 0.5,
+                    ),
+                    Vec3::new(s.x, border * p.outer_fraction, recess),
+                    bevel.min(recess * 0.15),
+                );
+            }
         }
         for x in [-s.x * 0.5 + border * 0.5, s.x * 0.5 - border * 0.5] {
             a.box_part(
                 surface,
                 label,
-                Vec3::new(x, s.y * 0.5, 0.),
-                Vec3::new(border, s.y - border * 2., s.z),
+                Vec3::new(x, s.y * 0.5, -recess * 0.5),
+                Vec3::new(border, s.y - border * 2., s.z - recess),
                 bevel,
             );
+            if p.stepped {
+                a.box_part(
+                    surface,
+                    label,
+                    Vec3::new(
+                        x + x.signum() * border * (1. - p.outer_fraction) * 0.5,
+                        s.y * 0.5,
+                        (s.z - recess) * 0.5,
+                    ),
+                    Vec3::new(border * p.outer_fraction, s.y - border * 2., recess),
+                    bevel.min(recess * 0.15),
+                );
+            }
         }
     }
     image_face(a, Surface::Art, image_size, front);
@@ -444,5 +476,7 @@ fn wall_panel(a: &mut Assembly, o: &IndoorObject) {
 mod catalog_tests;
 #[cfg(test)]
 mod coplanar_tests;
+#[cfg(test)]
+mod display_tests;
 #[cfg(test)]
 mod review_tests;
