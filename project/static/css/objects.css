@@ -1,6 +1,10 @@
 #objects { scroll-margin-top: 5rem; }
 .object-controls { display:flex; flex-wrap:wrap; align-items:end; gap:1rem 2rem; padding:1.25rem; background:#eaf0e9; border-radius:12px 12px 0 0; }
 .object-controls label { display:grid; gap:.4rem; font-size:.82rem; font-weight:600; letter-spacing:.02em; }
+.object-controls [hidden] { display:none; }
+.object-legend { display:flex; flex-wrap:wrap; gap:.7rem 1.2rem; padding:.7rem 1.25rem; font-size:.78rem; background:#f0f3ec; }
+.object-legend:empty { display:none; }
+.object-legend span { padding-left:.4rem; }
 .object-controls select { font:inherit; font-size:1rem; min-width:200px; color:#20382e; padding:.7rem 2rem .7rem .8rem; border:1px solid #b7c9bb; border-radius:6px; background:white; }
 .object-controls a { font-size:.85rem; padding-bottom:.7rem; margin-left:auto; }
 .object-metrics { display:flex; flex-wrap:wrap; gap:1.5rem; padding:1rem 1.25rem; background:#f0f3ec; border-bottom:1px solid #d3ded3; font-size:.82rem; }
