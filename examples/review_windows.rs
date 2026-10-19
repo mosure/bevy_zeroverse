@@ -91,12 +91,14 @@ fn main() -> Result<()> {
             max: Vec2::new(x + 1.15, 2.6 + 0.12 * (treatment % 2) as f32),
             columns: 2,
             transom: 0.69,
+            transoms: vec![],
             operable: true,
         });
     }
     scene.exterior = Some(ExteriorProgram {
         exposure_probability: 1.,
         facades: vec![Facade {
+            joinery: None,
             side: FacadeSide::Rear,
             openings,
             frame: Surface::Metal,

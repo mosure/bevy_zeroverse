@@ -2,14 +2,11 @@
 //! then populate each leaf with dimensioned functional groups. All units are metres.
 pub mod activity;
 pub mod furnishing;
+mod partition;
 pub mod region;
 pub mod relationships;
 pub mod topology;
-use super::{
-    layout::{stream, IndoorLayout, IndoorManifest},
-    materials::Surface,
-    objects::Assembly,
-};
+use super::layout::{stream, IndoorLayout, IndoorManifest};
 use bevy::prelude::*;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
@@ -113,143 +110,6 @@ impl Partition {
                 (p - half, p + half)
             })
             .collect()
-    }
-    pub fn build(&self, height: f32, a: &mut Assembly) {
-        // A narrow opaque gasket closes the construction reveal at each wall
-        // junction. Adjacent caps meet with opposite normals and no shared area.
-        for along in [self.start + 0.003, self.end - 0.003] {
-            a.box_part(
-                Surface::Rubber,
-                "wall",
-                self.position(along, height * 0.5),
-                self.size(0.006, height, self.thickness),
-                0.0,
-            );
-        }
-        for (index, (mut lo, mut hi)) in self.spans().into_iter().enumerate() {
-            // Window posts must terminate beside the door jamb, not occupy the
-            // same volume. A 4.5 mm construction reveal separates their side faces.
-            if index == 0 {
-                hi -= 0.022;
-                lo += 0.006;
-            } else {
-                lo += 0.022;
-                hi -= 0.006;
-            }
-            let length = hi - lo;
-            let center = (lo + hi) * 0.5;
-            let glazed = (height - self.sill - 0.16) * self.glazing_fraction;
-            let top = self.sill + glazed;
-            // Metal rails replace this strip of plaster. Identical thickness
-            // plus overlapping extents made both surfaces compete in depth.
-            let rail_half = if glazed > 0.01 { 0.0175 } else { 0.0 };
-            for (bottom, upper) in [(0.0, self.sill - rail_half), (top + rail_half, height)] {
-                if upper - bottom > 0.002 {
-                    a.box_part(
-                        Surface::Paint,
-                        "wall",
-                        self.position(center, (bottom + upper) * 0.5),
-                        self.size(length, upper - bottom, self.thickness),
-                        0.003,
-                    );
-                }
-            }
-            if glazed > 0.01 {
-                a.box_part(
-                    Surface::GlassInterior,
-                    "window",
-                    self.position(center, self.sill + glazed * 0.5),
-                    self.size(
-                        (length - 0.074).max(0.001),
-                        (glazed - 0.039).max(0.001),
-                        0.010,
-                    ),
-                    0.001,
-                );
-                let bays = (length / self.mullion_pitch).ceil().max(1.0) as u32;
-                for i in 0..=bays {
-                    a.box_part(
-                        Surface::Metal,
-                        "window",
-                        self.position(
-                            if i == 0 {
-                                lo + 0.0175
-                            } else if i == bays {
-                                hi - 0.0175
-                            } else {
-                                lo + length * i as f32 / bays as f32
-                            },
-                            self.sill + glazed * 0.5,
-                        ),
-                        self.size(0.035, (glazed - 0.035).max(0.005), self.thickness),
-                        0.002,
-                    );
-                }
-                for y in [self.sill, top] {
-                    a.box_part(
-                        Surface::Metal,
-                        "window",
-                        self.position(center, y),
-                        self.size(length, 0.035, self.thickness),
-                        0.002,
-                    );
-                }
-                if let Some(fraction) = self.transom_fraction {
-                    for bay in 0..bays {
-                        let lo = lo + length * bay as f32 / bays as f32 + 0.038;
-                        let hi = lo + length / bays as f32 - 0.076;
-                        if hi > lo {
-                            a.box_part(
-                                Surface::Metal,
-                                "window",
-                                self.position((lo + hi) * 0.5, self.sill + glazed * fraction),
-                                self.size(hi - lo, 0.027, self.thickness),
-                                0.002,
-                            );
-                        }
-                    }
-                }
-            }
-            a.box_part(
-                Surface::WoodEdge,
-                "wall",
-                self.position(center, 0.05),
-                self.size(length, 0.10, self.thickness + 0.035),
-                0.002,
-            );
-        }
-        if self.arch_rise > 0. {
-            super::envelope::construction::arched_portal(self, height, a);
-            return;
-        }
-        a.box_part(
-            Surface::Paint,
-            "wall",
-            self.position(self.door_center, (height + self.door_height) * 0.5),
-            self.size(self.door_width, height - self.door_height, self.thickness),
-            0.003,
-        );
-        if self.door.is_none() {
-            for along in [
-                self.door_center - self.door_width * 0.5,
-                self.door_center + self.door_width * 0.5,
-            ] {
-                a.box_part(
-                    Surface::WoodEdge,
-                    "door_frame",
-                    self.position(along, (self.door_height - 0.0175) * 0.5),
-                    self.size(0.035, self.door_height - 0.0175, self.thickness + 0.02),
-                    0.002,
-                );
-            }
-            a.box_part(
-                Surface::WoodEdge,
-                "door_frame",
-                self.position(self.door_center, self.door_height),
-                self.size(self.door_width + 0.035, 0.035, self.thickness + 0.02),
-                0.002,
-            );
-        }
     }
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -411,6 +271,16 @@ pub fn primary_zone(scene: &IndoorManifest) -> Option<(Vec3, Vec2)> {
 
 impl IndoorProgram {
     pub fn validate(&self, scene: &IndoorManifest) -> Result<(), String> {
+        if let Some(trim) = self.finishes.as_ref().and_then(|f| f.trim.as_ref()) {
+            trim.validate()?;
+        }
+        if let Some(glazing) = self
+            .finishes
+            .as_ref()
+            .and_then(|f| f.interior_glazing.as_ref())
+        {
+            glazing.validate()?;
+        }
         if let Some(niche) = self.finishes.as_ref().and_then(|f| f.niche.as_ref()) {
             niche.validate()?;
         }

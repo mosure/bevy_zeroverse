@@ -9,6 +9,10 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FinishParameters {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub trim: Option<super::trim::TrimProgram>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub interior_glazing: Option<super::interior_glazing::InteriorGlazing>,
     #[serde(default)]
     pub niche: Option<NicheParameters>,
     pub ceiling_pitch: Vec2,
@@ -45,6 +49,8 @@ impl FinishParameters {
     pub fn sample(seed: u64) -> Self {
         let mut rng = super::super::layout::stream(seed, 162);
         Self {
+            trim: Some(super::trim::TrimProgram::sample(seed)),
+            interior_glazing: Some(super::interior_glazing::InteriorGlazing::sample(seed)),
             niche: Some(NicheParameters {
                 width_fraction: rng.random_range(0.12..0.42),
                 position_fraction: rng.random_range(0.0..1.0),

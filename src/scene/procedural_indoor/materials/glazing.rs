@@ -231,6 +231,7 @@ mod tests {
             min: Vec2::ZERO,
             max: Vec2::new(2., 3.),
             columns: 1,
+            transoms: Vec::new(),
             transom: 0.,
             operable: false,
             glazing: Some(p.clone()),

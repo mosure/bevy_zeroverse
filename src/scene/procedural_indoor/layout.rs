@@ -587,7 +587,7 @@ impl IndoorObject {
     }
 
     /// Fitted kitchen carcasses may approach the wall past the general furniture
-    /// setback, while remaining clear of its 26 mm projecting skirting.
+    /// setback, while remaining clear of the at-most 40 mm projecting skirting.
     pub(crate) fn wall_clearance(&self) -> f32 {
         if super::objects::kitchen::is_island(self) {
             0.90

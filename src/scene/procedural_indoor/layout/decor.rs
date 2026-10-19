@@ -96,7 +96,15 @@ impl IndoorManifest {
     fn attachment_clear(&self, tf: Transform, span: f32, obj: &IndoorObject) -> bool {
         let local = tf.rotation.inverse() * (obj.position - tf.translation);
         let (lo, hi) = obj.bounds();
+        let trim = super::super::architecture::trim::TrimProgram::for_scene(self);
+        let base = trim
+            .and_then(|t| t.base.as_ref().map(|s| s.height_m + t.joint_m + 0.01))
+            .unwrap_or(0.);
+        let crown = trim
+            .and_then(|t| t.crown.as_ref().map(|s| s.height_m + t.joint_m + 0.01))
+            .unwrap_or(0.08);
         local.x.abs() + obj.size.x * 0.5 < span * 0.5 - 0.05
+            && lo.y > base
             && [
                 lo.xz(),
                 hi.xz(),
@@ -104,7 +112,7 @@ impl IndoorManifest {
                 Vec2::new(hi.x, lo.z),
             ]
             .into_iter()
-            .all(|p| hi.y < self.ceiling_height(p) - 0.08)
+            .all(|p| hi.y < self.ceiling_height(p) - crown)
             && !(self.envelope.is_none()
                 && super::super::architecture::details::overlaps_niche(self, lo, hi))
             && !facade::overlaps_opening(self, lo, hi, 0.05)

@@ -8,7 +8,7 @@ use std::io::{self, Write};
 pub(super) fn header(writer: &mut impl Write) -> io::Result<()> {
     writeln!(
         writer,
-        "seed,side,opening,left_m,bottom_m,right_m,top_m,width_m,height_m,head_clearance_m,columns,transom,operable,frame,frame_width_m,frame_depth_m,recess_m,shade,shade_coverage,full_height"
+        "seed,side,opening,left_m,bottom_m,right_m,top_m,width_m,height_m,head_clearance_m,columns,transom,operable,frame,frame_width_m,frame_depth_m,recess_m,shade,shade_coverage,full_height,crossbar_count,transom_fractions"
     )
 }
 
@@ -91,6 +91,32 @@ pub(super) fn record(
         if f.shade != Shade::None {
             numeric.push("exterior_shade_coverage", f.shade_coverage as f64)?;
         }
+        if let Some(j) = &f.joinery {
+            category("exterior_sill_material", format!("{:?}", j.sill_surface));
+            category(
+                "exterior_frame_finish_slot",
+                j.frame_finish_slot.to_string(),
+            );
+            for (key, value) in [
+                (
+                    "exterior_mullion_width_m",
+                    f.frame_width * j.mullion_fraction,
+                ),
+                (
+                    "exterior_mullion_depth_m",
+                    f.frame_depth * j.mullion_depth_fraction,
+                ),
+                ("exterior_sash_width_m", j.sash_width_m),
+                ("exterior_sash_depth_m", j.sash_depth_m),
+                ("exterior_sill_thickness_m", j.sill_thickness_m),
+                (
+                    "exterior_frame_bead_width_m",
+                    f.frame_width * j.face_bead_fraction,
+                ),
+            ] {
+                numeric.push(key, value as f64)?;
+            }
+        }
         if let Some(p) = f.treatment.as_ref().filter(|_| f.shade != Shade::None) {
             category("window_treatment_finish_slot", p.finish_slot.to_string());
             if matches!(f.shade, Shade::Curtain | Shade::Vertical) {
@@ -142,12 +168,14 @@ pub(super) fn record(
                 ("exterior_sill_height_m", o.min.y),
                 ("exterior_head_clearance_m", height - o.max.y),
                 ("exterior_columns", o.columns as f32),
+                ("exterior_crossbars", o.rows().len() as f32),
+                ("exterior_panes", f.pane_rectangles(o).len() as f32),
             ] {
                 numeric.push(key, value as f64)?;
             }
             writeln!(
                 writer,
-                "{},{},{},{},{},{},{},{},{},{},{},{},{},{:?},{},{},{},{:?},{},{}",
+                "{},{},{},{},{},{},{},{},{},{},{},{},{},{:?},{},{},{},{:?},{},{},{},{}",
                 scene.seed,
                 side,
                 i,
@@ -167,7 +195,13 @@ pub(super) fn record(
                 f.recess,
                 f.shade,
                 f.shade_coverage,
-                full
+                full,
+                o.rows().len(),
+                o.rows()
+                    .iter()
+                    .map(f32::to_string)
+                    .collect::<Vec<_>>()
+                    .join(";")
             )?;
         }
     }

@@ -14,6 +14,49 @@ pub(super) fn record(
         return Ok(());
     };
     let doors = scene.door_installations();
+    let finishes = scene.program.as_ref().and_then(|p| p.finishes.as_ref());
+    if let Some(trim) = finishes.and_then(|f| f.trim.as_ref()) {
+        for (name, section) in [("base_trim", &trim.base), ("crown_trim", &trim.crown)] {
+            *report
+                .categories
+                .entry(format!("{name}_profile"))
+                .or_default()
+                .entry(
+                    section
+                        .as_ref()
+                        .map_or_else(|| "Absent".into(), |s| format!("{:?}", s.profile)),
+                )
+                .or_default() += 1;
+            if let Some(s) = section {
+                for (dimension, value) in [
+                    ("height_m", s.height_m),
+                    ("depth_m", s.depth_m),
+                    ("shoulder", s.shoulder),
+                    ("tip_fraction", s.tip_fraction),
+                ] {
+                    numeric.push(&format!("{name}_{dimension}"), value as f64)?;
+                }
+                *report
+                    .categories
+                    .entry(format!("{name}_material"))
+                    .or_default()
+                    .entry(format!("{:?}", s.surface))
+                    .or_default() += 1;
+            }
+        }
+    }
+    if let Some(p) = finishes.and_then(|f| f.interior_glazing.as_ref()) {
+        for (key, value) in [
+            ("interior_glazing_sill_m", p.sill_m),
+            ("interior_glazing_header_m", p.header_m),
+            ("interior_glazing_pier_fraction", p.pier_fraction),
+            ("interior_frame_width_m", p.frame_width_m),
+            ("interior_frame_depth_m", p.frame_depth_m),
+            ("interior_mullion_pitch_m", p.mullion_pitch_m),
+        ] {
+            numeric.push(key, value as f64)?;
+        }
+    }
     let fixture = super::super::architecture::fixtures::parameters(scene);
     *report
         .categories
@@ -80,7 +123,7 @@ pub(super) fn record(
     }
     serde_json::to_writer(
         &mut *writer,
-        &serde_json::json!({"seed": scene.seed, "room_size": scene.room_size, "envelope": e, "ceiling_installation":scene.ceiling_installation, "luminaire_program":fixture, "topology": topology, "functional_programs":scene.functional_programs(), "support_regions":super::super::layout::functional::support_regions(scene), "doors":doors,"partitions": scene.program.as_ref().map(|p| &p.partitions)}),
+        &serde_json::json!({"seed": scene.seed, "room_size": scene.room_size, "envelope": e, "finishes": finishes, "ceiling_installation":scene.ceiling_installation, "luminaire_program":fixture, "topology": topology, "functional_programs":scene.functional_programs(), "support_regions":super::super::layout::functional::support_regions(scene), "doors":doors,"partitions": scene.program.as_ref().map(|p| &p.partitions)}),
     )?;
     writeln!(writer)?;
     if let Some(ceiling) = &scene.ceiling_installation {

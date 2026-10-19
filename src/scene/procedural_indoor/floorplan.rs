@@ -103,7 +103,7 @@ pub fn build(scene: &IndoorManifest, a: &mut Assembly) {
                     fitted.end -= other.thickness * 0.5;
                 }
             }
-            fitted.build(scene.room_size.y, a);
+            fitted.build_with_finishes(scene.room_size.y, a, program.finishes.as_ref());
         }
         for door in scene.door_installations().into_iter().filter(|d| d.id != 0) {
             door.build(a, true);

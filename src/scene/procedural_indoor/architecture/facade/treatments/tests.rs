@@ -61,12 +61,14 @@ fn split_coverings_reveal_the_window_as_they_retract() {
 
 fn facade(seed: u64, kind: Shade, size: Vec2, coverage: f32) -> Facade {
     Facade {
+        joinery: None,
         side: FacadeSide::Rear,
         openings: vec![WindowOpening {
             glazing: None,
             min: Vec2::new(-size.x * 0.5, 0.05),
             max: Vec2::new(size.x * 0.5, size.y + 0.05),
             columns: 1,
+            transoms: Vec::new(),
             transom: 0.,
             operable: true,
         }],

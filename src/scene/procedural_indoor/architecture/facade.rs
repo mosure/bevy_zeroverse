@@ -1,5 +1,7 @@
 //! Exterior walls share one aperture program for meshes, attachments and audits.
 mod geometry;
+mod joinery;
+pub use joinery::WindowJoinery;
 mod legacy;
 mod pane;
 #[cfg(test)]
@@ -67,6 +69,9 @@ pub struct WindowOpening {
     pub columns: u32,
     /// Internal crossbar height relative to this opening (0 means none).
     pub transom: f32,
+    /// Additional crossbars, normalized to the clear frame height.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub transoms: Vec<f32>,
     pub operable: bool,
 }
 impl WindowOpening {
@@ -91,6 +96,8 @@ pub enum Shade {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Facade {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub joinery: Option<WindowJoinery>,
     pub side: FacadeSide,
     pub openings: Vec<WindowOpening>,
     pub frame: Surface,
@@ -176,11 +183,13 @@ impl ExteriorProgram {
                                 0.
                             },
                             operable: r.random_bool(0.35),
+                            transoms: Vec::new(),
                         });
                     }
                     u += width + gap;
                 }
                 Facade {
+                    joinery: None,
                     side,
                     openings,
                     frame: [Surface::Metal, Surface::WoodEdge, Surface::Plastic]
@@ -204,10 +213,41 @@ impl ExteriorProgram {
             .collect();
         for facade in &mut facades {
             let identity = seed.wrapping_add(facade.side as u64 * 13007);
+            facade.joinery = Some(WindowJoinery::sample(identity));
+            let mut articulation = stream(identity, 3162);
+            let relief = if articulation.random_bool(0.45) {
+                articulation.random_range(0.04..0.38)
+            } else {
+                0.
+            };
+            let phase = articulation.random_range(-1.0..1.0_f32);
             let (shade, program) = treatments::ShadeProgram::sample(identity);
             facade.shade = shade;
             facade.treatment = Some(program);
             for (index, opening) in facade.openings.iter_mut().enumerate() {
+                // An installation can share a datum, alternate punched lights,
+                // or progress vertically along the wall. Only shrink apertures:
+                // existing pier/spandrel thickness and roof clearances survive.
+                let width = facade.side.span(size);
+                let x = (opening.min.x + opening.max.x) / width;
+                let available = ((opening.max.y - opening.min.y) - 0.6).max(0.);
+                let shift = relief * available.min(1.4);
+                opening.min.y += shift * (0.5 + 0.5 * (x * 2.5 + phase).sin());
+                opening.max.y -= shift * (0.5 + 0.5 * (x * 1.7 - phase).sin());
+                let clear_height = opening.max.y - opening.min.y - 2. * facade.frame_width;
+                if clear_height > 1.2 && articulation.random_bool(0.32) {
+                    let count = if clear_height > 2.1 && articulation.random_bool(0.4) {
+                        3
+                    } else {
+                        2
+                    };
+                    opening.transom = 0.;
+                    opening.transoms = (1..=count)
+                        .map(|i| {
+                            (i as f32 + articulation.random_range(-0.16..0.16)) / (count + 1) as f32
+                        })
+                        .collect();
+                }
                 opening.glazing = Some(super::super::materials::glazing::GlazingProgram::sample(
                     seed.wrapping_add(facade.side as u64 * 13007),
                     index,
@@ -251,9 +291,22 @@ impl ExteriorProgram {
             if let Some(program) = &f.treatment {
                 program.validate()?;
             }
+            if let Some(joinery) = &f.joinery {
+                joinery.validate()?;
+            }
             for (i, o) in f.openings.iter().enumerate() {
                 if let Some(glazing) = &o.glazing {
                     glazing.validate()?;
+                }
+                let mut levels = vec![0.];
+                levels.extend(o.rows());
+                levels.push(1.);
+                if levels.len() > 5
+                    || levels
+                        .windows(2)
+                        .any(|w| !w[1].is_finite() || w[1] - w[0] < 0.12)
+                {
+                    return Err("invalid window transom subdivision".into());
                 }
                 if !o.min.is_finite()
                     || !o.max.is_finite()
@@ -265,6 +318,9 @@ impl ExteriorProgram {
                     || !(1..=6).contains(&o.columns)
                     || (o.max.x - o.min.x - 2. * f.frame_width) / (o.columns as f32) < 0.10
                     || !(o.transom == 0. || (0.20..=0.85).contains(&o.transom))
+                    || f.pane_rectangles(o)
+                        .iter()
+                        .any(|(a, b)| (*b - *a).min_element() < 0.04)
                 {
                     return Err("invalid exterior opening dimensions".into());
                 }
@@ -303,10 +359,11 @@ pub fn overlaps_opening(scene: &IndoorManifest, lo: Vec3, hi: Vec3, margin: f32)
             min.z < 0.30
                 && max.z > -0.24
                 && f.openings.iter().any(|o| {
-                    min.x < o.max.x + margin
-                        && max.x > o.min.x - margin
+                    let (sill, horn) = sill_clearance(f, o);
+                    min.x < o.max.x + margin + horn
+                        && max.x > o.min.x - margin - horn
                         && min.y < o.max.y + margin
-                        && max.y > o.min.y - margin
+                        && max.y > o.min.y - margin - sill
                 })
         });
     }
@@ -321,10 +378,21 @@ pub fn overlaps_opening(scene: &IndoorManifest, lo: Vec3, hi: Vec3, margin: f32)
         min.z < 0.30
             && max.z > -0.24
             && f.openings.iter().any(|o| {
-                min.x < o.max.x + margin
-                    && max.x > o.min.x - margin
+                let (sill, horn) = sill_clearance(f, o);
+                min.x < o.max.x + margin + horn
+                    && max.x > o.min.x - margin - horn
                     && min.y < o.max.y + margin
-                    && max.y > o.min.y - margin
+                    && max.y > o.min.y - margin - sill
             })
     })
+}
+
+fn sill_clearance(f: &Facade, o: &WindowOpening) -> (f32, f32) {
+    if o.min.y > 0.25 && f.sill_projection > 0. {
+        f.joinery.as_ref().map_or((0., 0.), |j| {
+            (j.sill_thickness_m + 0.002, j.sill_extension_m)
+        })
+    } else {
+        (0., 0.)
+    }
 }

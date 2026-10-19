@@ -185,12 +185,61 @@ fn floors(a: &mut Assembly, e: &EnvelopeProgram, size: Vec3) {
     }
 }
 
+/// Trim end cuts account for adjacent wall angles, including acute chamfers.
+fn trim_span(e: &EnvelopeProgram, edge: usize, depth: f32, reveal: f32) -> Vec2 {
+    let n = e.footprint.len();
+    let p = e.footprint[edge];
+    let q = e.footprint[(edge + 1) % n];
+    let along = (q - p).normalize();
+    let before = (p - e.footprint[(edge + n - 1) % n]).normalize();
+    let after = (e.footprint[(edge + 2) % n] - q).normalize();
+    let cut =
+        |dot: f32| reveal.max(depth * ((1. - dot).max(0.) / (1. + dot).max(1e-6)).sqrt() + 0.004);
+    Vec2::new(
+        -p.distance(q) * 0.5 + cut(before.dot(along)),
+        p.distance(q) * 0.5 - cut(along.dot(after)),
+    )
+}
+
+#[test]
+fn trim_endpoints_clear_acute_and_rectangular_corners() {
+    use crate::scene::procedural_indoor::layout::IndoorLayout;
+    let scene = IndoorManifest::generate_with_humans(0, IndoorLayout::Mixed, 0.5, 0, 0.).unwrap();
+    let mut e = scene.envelope.unwrap();
+    for footprint in [
+        vec![Vec2::ZERO, Vec2::new(4., 0.), Vec2::new(0.3, 2.)],
+        vec![
+            Vec2::ZERO,
+            Vec2::new(4., 0.),
+            Vec2::new(4., 3.),
+            Vec2::new(0., 3.),
+        ],
+    ] {
+        e.footprint = footprint;
+        for edge in 0..e.footprint.len() {
+            for depth in [0.01, 0.04, 0.07] {
+                let span = trim_span(&e, edge, depth, 0.045);
+                for x in [span.x, span.y] {
+                    let point = e
+                        .wall_transform(edge)
+                        .transform_point(Vec3::new(x, 0.1, depth));
+                    assert!(
+                        polygon::contains(&e.footprint, point.xz(), depth - 1e-5),
+                        "edge {edge}, depth {depth}, point {point:?}"
+                    );
+                }
+            }
+        }
+    }
+}
+
 pub(super) fn wall(
     a: &mut Assembly,
     e: &EnvelopeProgram,
     size: Vec3,
     edge: usize,
     holes: &[architecture::facade::WindowOpening],
+    trim: Option<&architecture::trim::TrimProgram>,
 ) {
     let p = e.footprint[edge];
     let q = e.footprint[(edge + 1) % e.footprint.len()];
@@ -214,6 +263,26 @@ pub(super) fn wall(
                 .collect::<Vec<_>>(),
             tf.rotation * Vec3::Z * 0.18,
         );
+    }
+    if let Some(trim) = trim {
+        if let Some(section) = &trim.base {
+            let cutouts = e
+                .walls
+                .iter()
+                .find(|w| w.edge == edge)
+                .and_then(|w| w.facade.as_ref())
+                .map(architecture::facade::Facade::trim_openings);
+            architecture::trim::build(
+                a,
+                tf,
+                trim_span(e, edge, section.depth_m, trim.corner_reveal_m),
+                Vec2::splat(trim.joint_m),
+                section,
+                cutouts.as_deref().unwrap_or(holes),
+                false,
+            );
+        }
+        return;
     }
     for (lo, hi) in architecture::facade::solid_rectangles(
         Vec2::new(-length * 0.5 + 0.025, 0.01),
@@ -243,6 +312,29 @@ fn cornice(
 ) {
     use rand::Rng;
     let e = scene.envelope.as_ref().unwrap();
+    if let Some(trim) = architecture::trim::TrimProgram::for_scene(scene) {
+        if let Some(section) = &trim.crown {
+            let tf = e.wall_transform(edge);
+            let span = trim_span(e, edge, section.depth_m, trim.corner_reveal_m);
+            let at = |x| {
+                scene
+                    .ceiling_height(tf.transform_point(Vec3::new(x, 0., section.depth_m)).xz())
+                    .min(scene.ceiling_height(tf.transform_point(Vec3::new(x, 0., 0.)).xz()))
+                    - trim.joint_m
+                    - section.height_m
+            };
+            architecture::trim::build(
+                a,
+                tf,
+                span,
+                Vec2::new(at(span.x), at(span.y)),
+                section,
+                holes,
+                true,
+            );
+        }
+        return;
+    }
     let mut rng = super::super::layout::stream(scene.seed, 163);
     if rng.random_bool(0.12) {
         return;
@@ -322,7 +414,14 @@ pub fn build(scene: &IndoorManifest) -> Assembly {
             .facade
             .as_ref()
             .map_or(&[][..], |f| f.openings.as_slice());
-        wall(&mut a, e, size, entry.edge, holes);
+        wall(
+            &mut a,
+            e,
+            size,
+            entry.edge,
+            holes,
+            architecture::trim::TrimProgram::for_scene(scene),
+        );
         cornice(&mut a, scene, entry.edge, holes);
         if let Some(f) = &entry.facade {
             architecture::facade::glazing_at(&mut a, e.wall_transform(entry.edge), f);
@@ -497,7 +596,7 @@ pub fn arched_portal(p: &super::super::program::Partition, height: f32, a: &mut 
 }
 
 fn shared_and_neighbor(a: &mut Assembly, scene: &IndoorManifest, e: &EnvelopeProgram) {
-    use architecture::facade::{Facade, FacadeSide, Shade, WindowOpening};
+    use architecture::facade::WindowOpening;
     let size = scene.room_size;
     let hx = size.x * 0.5;
     let hz = size.z * 0.5;
@@ -513,38 +612,20 @@ fn shared_and_neighbor(a: &mut Assembly, scene: &IndoorManifest, e: &EnvelopePro
         min: Vec2::new(door - scene.entry_width() * 0.5, 0.),
         max: Vec2::new(door + scene.entry_width() * 0.5, scene.entry_height()),
         columns: 1,
+        transoms: Vec::new(),
         transom: 0.,
         operable: false,
     }];
-    for (lo, hi) in [
-        (-hx + 0.10, door - scene.entry_width() * 0.5 - 0.05),
-        (door + scene.entry_width() * 0.5 + 0.05, hx - 0.10),
-    ] {
-        if hi - lo > 0.18 {
-            openings.push(WindowOpening {
-                glazing: None,
-                min: Vec2::new(lo, 0.05),
-                max: Vec2::new(hi, height - 0.15),
-                columns: ((hi - lo) / 1.3).ceil().max(1.) as u32,
-                transom: 0.,
-                operable: false,
-            });
-        }
-    }
-    wall(a, e, size, edge, &openings);
-    let f = Facade {
-        side: FacadeSide::Rear,
-        openings: openings[1..].to_vec(),
-        frame: Surface::Metal,
-        frame_width: 0.035,
-        frame_depth: 0.075,
-        recess: 0.06,
-        sill_projection: 0.,
-        treatment: None,
-        shade: Shade::None,
-        shade_coverage: 0.,
-        shade_tilt: 0.,
-    };
+    let f = architecture::interior_glazing::shared_facade(scene, height);
+    openings.extend(f.openings.iter().cloned());
+    wall(
+        a,
+        e,
+        size,
+        edge,
+        &openings,
+        architecture::trim::TrimProgram::for_scene(scene),
+    );
     let mut glass = Assembly::default();
     architecture::facade::glazing_at(&mut glass, e.wall_transform(edge), &f);
     for ((surface, label), g) in glass.parts {

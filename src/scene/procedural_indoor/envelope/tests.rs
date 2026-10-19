@@ -558,6 +558,7 @@ fn built_surfaces_match_floor_support_roof_and_apertures() {
                 clear.room_size,
                 w.edge,
                 w.facade.as_ref().map_or(&[][..], |f| f.openings.as_slice()),
+                architecture::trim::TrimProgram::for_scene(&clear),
             );
             if let Some(f) = &w.facade {
                 architecture::facade::glazing_at(&mut shell, clear_e.wall_transform(w.edge), f);
@@ -569,13 +570,8 @@ fn built_surfaces_match_floor_support_roof_and_apertures() {
             };
             let tf = e.wall_transform(wall.edge);
             for o in &f.openings {
-                let x = o.min.x
-                    + f.frame_width
-                    + (o.max.x - o.min.x - 2. * f.frame_width) / o.columns as f32 * 0.5;
-                let y = o.min.y
-                    + f.frame_width
-                    + (o.max.y - o.min.y - 2. * f.frame_width)
-                        * if o.transom > 0. { o.transom * 0.5 } else { 0.5 };
+                let (lo, hi) = f.pane_rectangles(o)[0];
+                let Vec2 { x, y } = (lo + hi) * 0.5;
                 let origin = tf.transform_point(Vec3::new(x, y, 0.24));
                 let direction = tf.rotation * Vec3::NEG_Z;
                 let mut glass = false;

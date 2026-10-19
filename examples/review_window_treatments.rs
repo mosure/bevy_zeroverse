@@ -182,6 +182,7 @@ fn main() -> Result<()> {
         let mut assemblies = Vec::new();
         for (i, kind) in KINDS.into_iter().enumerate() {
             let mut f = Facade {
+                joinery: None,
                 side: FacadeSide::Rear,
                 openings: vec![WindowOpening {
                     glazing: None,
@@ -189,6 +190,7 @@ fn main() -> Result<()> {
                     max: Vec2::new(1.35, 2.80),
                     columns: 2,
                     transom: 0.,
+                    transoms: vec![],
                     operable: false,
                 }],
                 frame: Surface::Metal,

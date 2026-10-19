@@ -21,10 +21,15 @@ pub(super) fn build(
         return;
     };
     let sash = if opening.operable {
-        0.021_f32.min((max - min).min_element() * 0.09)
+        f.joinery
+            .as_ref()
+            .map_or(0.021, |j| j.sash_width_m)
+            .min((max - min).min_element() * 0.09)
     } else {
-        0.004
+        f.joinery.as_ref().map_or(0.004, |j| j.seal_width_m * 2.)
     };
+    let sash_depth = f.joinery.as_ref().map_or(0.026, |j| j.sash_depth_m);
+    let frame_label = f.frame_label();
     let lo = min + Vec2::splat(sash);
     let hi = max - Vec2::splat(sash);
     let height = max.y - min.y;
@@ -48,24 +53,28 @@ pub(super) fn build(
     for x in [min.x + sash * 0.5, max.x - sash * 0.5] {
         block(
             f.frame,
-            "window",
+            &frame_label,
             Vec3::new(x, (min.y + max.y) * 0.5, 0.006),
-            Vec3::new(sash, height - 0.004, 0.026),
+            Vec3::new(sash, height - 0.004, sash_depth),
             0.001,
         );
     }
     for y in [min.y + sash * 0.5, max.y - sash * 0.5] {
         block(
             f.frame,
-            "window",
+            &frame_label,
             Vec3::new((min.x + max.x) * 0.5, y, 0.006),
-            Vec3::new(max.x - min.x - 2. * sash - 0.002, sash, 0.026),
+            Vec3::new(max.x - min.x - 2. * sash - 0.002, sash, sash_depth),
             0.001,
         );
     }
     // Visible compressible beads capture the pane edge. Only their back face
     // meets the glazing; their front face is 2 mm forward, avoiding z fighting.
-    let bead = 0.002_f32.min(sash * 0.3);
+    let bead = f
+        .joinery
+        .as_ref()
+        .map_or(0.002, |j| j.seal_width_m)
+        .min(sash * 0.3);
     for x in [lo.x + bead * 0.5, hi.x - bead * 0.5] {
         block(
             Surface::Rubber,

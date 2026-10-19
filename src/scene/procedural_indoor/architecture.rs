@@ -1,13 +1,17 @@
 pub(crate) mod background;
 pub mod ceiling;
 pub mod details;
+#[cfg(test)]
+mod diversity_tests;
 pub mod doors;
 pub mod facade;
 mod fixture_layout;
 pub mod fixtures;
+pub mod interior_glazing;
 pub(crate) mod outdoors;
 #[cfg(test)]
 pub(crate) mod overlap_tests;
+pub mod trim;
 use super::{
     layout::{stream, IndoorManifest, LightingMood, ObjectKind, NEIGHBOR_DEPTH},
     materials::{kelvin_rgb, Surface},

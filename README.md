@@ -79,6 +79,9 @@ ceiling fixtures share a construction style with varied dimensions and spacing.
   sprinklers and trusses vary overhead detail.
   Windows include shaped glazing, tints, partial frosting, blinds and curtains;
   exterior streets and planting provide context beyond the glass.
+  Room-wide joinery programs vary skirting and crown heights, section profiles,
+  finishes and presence. Glazing varies piers, sill and header levels, unequal
+  panes, transom counts, sash sections, seals and projecting sill materials.
 - **Functional interiors:** offices, kitchens and kitchenettes, cafes, cafeterias,
   classrooms, lecture halls, elevator landings, showrooms and galleries. Service,
   seating and circulation areas have placement and clearance constraints. Doors

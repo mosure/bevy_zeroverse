@@ -128,20 +128,37 @@ pub(in super::super) fn shell(a: &mut Assembly, scene: &IndoorManifest) {
             }
         }
         // Base trim also stops at full-height apertures.
-        for (lo, hi) in solid_rectangles(
-            Vec2::new(-span * 0.5, 0.),
-            Vec2::new(span * 0.5, 0.13),
-            holes,
-        ) {
-            part(
-                a,
-                tf,
-                Surface::WoodEdge,
-                "wall",
-                Vec3::new((lo.x + hi.x) * 0.5, (lo.y + hi.y) * 0.5, 0.014),
-                Vec3::new(hi.x - lo.x, hi.y - lo.y, 0.024),
-                0.002,
-            );
+        if let Some(trim) = super::super::trim::TrimProgram::for_scene(scene) {
+            if let Some(section) = &trim.base {
+                super::super::trim::build(
+                    a,
+                    tf,
+                    Vec2::new(
+                        -span * 0.5 + trim.corner_reveal_m,
+                        span * 0.5 - trim.corner_reveal_m,
+                    ),
+                    Vec2::splat(trim.joint_m),
+                    section,
+                    &f.map_or_else(|| holes.to_vec(), Facade::trim_openings),
+                    false,
+                );
+            }
+        } else {
+            for (lo, hi) in solid_rectangles(
+                Vec2::new(-span * 0.5, 0.),
+                Vec2::new(span * 0.5, 0.13),
+                holes,
+            ) {
+                part(
+                    a,
+                    tf,
+                    Surface::WoodEdge,
+                    "wall",
+                    Vec3::new((lo.x + hi.x) * 0.5, (lo.y + hi.y) * 0.5, 0.014),
+                    Vec3::new(hi.x - lo.x, hi.y - lo.y, 0.024),
+                    0.002,
+                );
+            }
         }
         if let Some(f) = f {
             glazing(a, scene, f);
@@ -188,7 +205,12 @@ pub(super) fn glazing(a: &mut Assembly, scene: &IndoorManifest, f: &Facade) {
 /// Append the production frame, pane and covering assemblies in wall-local coordinates.
 pub fn glazing_at(a: &mut Assembly, tf: Transform, f: &Facade) {
     let fw = f.frame_width;
-    let bar = fw * 0.66;
+    let bar = fw * f.joinery.as_ref().map_or(0.66, |j| j.mullion_fraction);
+    let bar_depth = f.frame_depth
+        * f.joinery
+            .as_ref()
+            .map_or(0.88, |j| j.mullion_depth_fraction);
+    let frame_label = f.frame_label();
     for o in &f.openings {
         let c = (o.min + o.max) * 0.5;
         let size = o.max - o.min;
@@ -197,7 +219,7 @@ pub fn glazing_at(a: &mut Assembly, tf: Transform, f: &Facade) {
                 a,
                 tf,
                 f.frame,
-                "window",
+                &frame_label,
                 Vec3::new(x, c.y, -f.recess),
                 Vec3::new(fw, size.y, f.frame_depth),
                 0.0025,
@@ -208,75 +230,99 @@ pub fn glazing_at(a: &mut Assembly, tf: Transform, f: &Facade) {
                 a,
                 tf,
                 f.frame,
-                "window",
+                &frame_label,
                 Vec3::new(c.x, y, -f.recess),
                 Vec3::new(size.x - 2. * fw - 0.002, fw, f.frame_depth),
                 0.0025,
             );
         }
+        if let Some(j) = &f.joinery {
+            let bead = fw * j.face_bead_fraction;
+            let z = -f.recess + f.frame_depth * 0.5 + j.face_bead_depth_m * 0.5;
+            if bead > 0.001 {
+                // Applied bead's back touches the frame; adjacent ends stop
+                // beside the jamb. Neither shares a visible coplanar face.
+                for x in [o.min.x + fw * 0.5, o.max.x - fw * 0.5] {
+                    part(
+                        a,
+                        tf,
+                        f.frame,
+                        &frame_label,
+                        Vec3::new(x, c.y, z),
+                        Vec3::new(bead, size.y - 0.004, j.face_bead_depth_m),
+                        0.0005,
+                    );
+                }
+                for y in [o.min.y + fw * 0.5, o.max.y - fw * 0.5] {
+                    part(
+                        a,
+                        tf,
+                        f.frame,
+                        &frame_label,
+                        Vec3::new(c.x, y, z),
+                        Vec3::new(size.x - 2. * fw - 0.004, bead, j.face_bead_depth_m),
+                        0.0005,
+                    );
+                }
+            }
+        }
         let lo = o.min + Vec2::splat(fw);
         let hi = o.max - Vec2::splat(fw);
-        // One bounded installation program supplies unequal but well supported
-        // lights. Legacy manifests retain their original equal subdivisions.
-        let weights: Vec<f32> = (0..o.columns)
-            .map(|i| {
-                o.glazing.as_ref().map_or(1., |p| {
-                    let mut rng = stream(p.identity, 3110 + u64::from(i));
-                    rng.random_range(0.7..1.3)
-                })
-            })
-            .collect();
-        let scale = (hi.x - lo.x) / weights.iter().sum::<f32>();
-        let mut columns = vec![lo.x];
-        for weight in weights {
-            columns.push(columns.last().unwrap() + weight * scale);
-        }
-        *columns.last_mut().unwrap() = hi.x;
+        let (columns, levels) = f.divisions(o);
         for col in 1..o.columns {
             part(
                 a,
                 tf,
                 f.frame,
-                "window",
+                &frame_label,
                 Vec3::new(columns[col as usize], c.y, -f.recess),
-                Vec3::new(bar, hi.y - lo.y - 0.002, f.frame_depth * 0.88),
+                Vec3::new(bar, hi.y - lo.y - 0.002, bar_depth),
                 0.002,
             );
         }
-        let mut levels = vec![lo.y];
-        if o.transom > 0. {
-            levels.push(lo.y + (hi.y - lo.y) * o.transom);
-        }
-        levels.push(hi.y);
         for col in 0..o.columns {
             let left = columns[col as usize] + if col == 0 { 0. } else { bar * 0.5 };
             let right =
                 columns[col as usize + 1] - if col + 1 == o.columns { 0. } else { bar * 0.5 };
-            if o.transom > 0. {
+            for &y in &levels[1..levels.len() - 1] {
                 part(
                     a,
                     tf,
                     f.frame,
-                    "window",
-                    Vec3::new((left + right) * 0.5, levels[1], -f.recess),
-                    Vec3::new(right - left - 0.002, bar, f.frame_depth * 0.88),
+                    &frame_label,
+                    Vec3::new((left + right) * 0.5, y, -f.recess),
+                    Vec3::new(right - left - 0.002, bar, bar_depth),
                     0.002,
                 );
             }
-            for (i, row) in levels.windows(2).enumerate() {
-                let bottom = row[0] + if i == 0 { 0. } else { bar * 0.5 };
-                let top = row[1] - if i + 2 == levels.len() { 0. } else { bar * 0.5 };
-                super::pane::build(a, tf, f, o, Vec2::new(left, bottom), Vec2::new(right, top));
-            }
         }
-        if o.min.y > 0.25 {
+        for (min, max) in f.pane_rectangles(o) {
+            super::pane::build(a, tf, f, o, min, max);
+        }
+
+        if o.min.y > 0.25 && f.sill_projection > 0. {
+            let (surface, thickness, extension, y) = f.joinery.as_ref().map_or(
+                (Surface::WoodEdge, 0.028, 0.015, o.min.y - 0.010),
+                |j| {
+                    (
+                        j.sill_surface,
+                        j.sill_thickness_m,
+                        j.sill_extension_m,
+                        o.min.y - 0.002 - j.sill_thickness_m * 0.5,
+                    )
+                },
+            );
             part(
                 a,
                 tf,
-                Surface::WoodEdge,
-                "window",
-                Vec3::new(c.x, o.min.y - 0.010, (f.sill_projection - 0.174) * 0.5),
-                Vec3::new(size.x + 0.03, 0.028, 0.174 + f.sill_projection),
+                surface,
+                &frame_label,
+                Vec3::new(c.x, y, (f.sill_projection - 0.174) * 0.5),
+                Vec3::new(
+                    size.x + 2. * extension,
+                    thickness,
+                    0.174 + f.sill_projection,
+                ),
                 0.003,
             );
         }

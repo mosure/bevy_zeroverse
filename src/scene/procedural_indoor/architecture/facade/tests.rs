@@ -2,18 +2,87 @@ use super::*;
 use crate::scene::procedural_indoor::{layout::IndoorLayout, validation::validate_layout};
 
 #[test]
+fn installation_sections_and_lights_are_continuous_and_bounded() {
+    let mut counts = std::collections::BTreeSet::new();
+    let mut sash = Vec::new();
+    let mut sills = Vec::new();
+    for seed in 0..1024 {
+        let size = Vec3::new(8., 3.5, 10.);
+        let p = ExteriorProgram::sample(seed, size, 0.45);
+        p.validate(size)
+            .unwrap_or_else(|e| panic!("seed {seed}: {e}"));
+        for f in p.facades {
+            let j = f.joinery.as_ref().unwrap();
+            sash.push(j.sash_width_m);
+            sills.push(j.sill_thickness_m);
+            for o in &f.openings {
+                counts.insert(o.rows().len());
+                let panes = f.pane_rectangles(o);
+                for (i, &(a, b)) in panes.iter().enumerate() {
+                    assert!((b - a).min_element() > 0.04);
+                    assert!(a.cmpge(o.min).all() && b.cmple(o.max).all());
+                    assert!(panes[i + 1..]
+                        .iter()
+                        .all(|(c, d)| !a.cmplt(*d).all() || !b.cmpgt(*c).all()));
+                }
+            }
+        }
+    }
+    sash.sort_by(f32::total_cmp);
+    sills.sort_by(f32::total_cmp);
+    assert_eq!(counts, [0, 1, 2, 3].into_iter().collect());
+    for samples in [sash, sills] {
+        assert!(samples[samples.len() * 19 / 20] / samples[samples.len() / 20] > 2.7);
+    }
+}
+
+#[test]
+fn invalid_joinery_and_duplicate_transoms_are_rejected() {
+    let size = Vec3::new(8., 3., 10.);
+    let mut p = ExteriorProgram::sample(27, size, 0.3);
+    let original = p.clone();
+    p.facades[0].joinery.as_mut().unwrap().sash_depth_m = f32::NAN;
+    assert!(p.validate(size).is_err());
+    let mut p = original;
+    p.facades[0].openings[0].transom = 0.5;
+    p.facades[0].openings[0].transoms = vec![0.5];
+    assert!(p.validate(size).is_err());
+}
+
+#[test]
+fn missing_optional_joinery_retains_legacy_serialization() {
+    let p = ExteriorProgram::sample(38, Vec3::new(8., 3., 10.), 0.4);
+    let mut value = serde_json::to_value(p).unwrap();
+    for f in value["facades"].as_array_mut().unwrap() {
+        f.as_object_mut().unwrap().remove("joinery");
+        for o in f["openings"].as_array_mut().unwrap() {
+            o.as_object_mut().unwrap().remove("transoms");
+        }
+    }
+    let old: ExteriorProgram = serde_json::from_value(value).unwrap();
+    for f in old.facades {
+        assert!(f.joinery.is_none());
+        let mut a = Assembly::default();
+        glazing_at(&mut a, Transform::IDENTITY, &f);
+        assert!(a.parts.keys().any(|(s, _)| *s == Surface::Glass));
+    }
+}
+
+#[test]
 fn opened_sash_moves_all_panes_without_a_hidden_closed_surface() {
     use crate::scene::procedural_indoor::materials::glazing::GlazingProgram;
     let mut recipe = GlazingProgram::sample(3, 0, true);
     recipe.opening = 0.;
     recipe.treatment = 6;
     let mut facade = Facade {
+        joinery: None,
         side: FacadeSide::Rear,
         openings: vec![WindowOpening {
             glazing: Some(recipe),
             min: Vec2::new(-1., 0.4),
             max: Vec2::new(1., 2.4),
             columns: 1,
+            transoms: Vec::new(),
             transom: 0.,
             operable: true,
         }],
@@ -175,10 +244,8 @@ fn inset_glass_is_visible_through_actual_meshes_on_every_side() {
         for f in &bare.exterior.as_ref().unwrap().facades {
             let tf = f.side.transform(bare.room_size);
             for o in &f.openings {
-                let lo = o.min + Vec2::splat(f.frame_width);
-                let hi = o.max - Vec2::splat(f.frame_width);
-                let y = lo.y + (hi.y - lo.y) * if o.transom > 0. { o.transom * 0.5 } else { 0.5 };
-                let x = lo.x + (hi.x - lo.x) / o.columns as f32 * 0.5;
+                let (lo, hi) = f.pane_rectangles(o)[0];
+                let Vec2 { x, y } = (lo + hi) * 0.5;
                 let origin = tf.transform_point(Vec3::new(x, y, 0.25));
                 let dir = tf.rotation * -Vec3::Z;
                 let mut glass = false;
