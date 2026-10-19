@@ -1,6 +1,6 @@
 [package]
 name = "bevy_zeroverse_burn"
-version = "0.28.2"
+version = "0.29.0"
 edition = "2024"
 rust-version = "1.97.1"
 license = "MIT OR Apache-2.0"
@@ -38,6 +38,8 @@ anyhow = "1.0"
 bincode = { version = "2.0", features = ["serde"] }
 burn = { version = "=0.22.0", default-features = false, features = ["std", "dataset"] }
 bevy = { version = "=0.20.0", default-features = false, optional = true }
+cubecl = { version = "=0.11.0", default-features = false, features = ["std"], optional = true }
+bevy_zeroverse_capture = { path = "../capture", version = "=0.5.0", features = ["provenance"] }
 burn-cubecl = { version = "=0.22.0", default-features = false, features = ["std"], optional = true }
 burn-fusion = { version = "=0.22.0", default-features = false, features = ["std"], optional = true }
 clap = { version = "4.5", features = ["derive"] }
@@ -54,11 +56,12 @@ crossterm = "0.29"
 ndarray = { version = "0.16", default-features = false, features = ["std"] }
 ndarray-npy = { version = "0.9", features = ["npz"] }
 
-bevy_zeroverse = { path = "../..", version = "0.44.2", default-features = true }
+bevy_zeroverse = { path = "../..", version = "0.45.0", default-features = true }
 
 # Native CUDA interoperability uses published APIs only. These dependencies and
 # their features never enter the default or WebGPU/WASM dependency graph.
 [target.'cfg(target_os = "linux")'.dependencies]
+libc = { version = "0.2", optional = true }
 ash = { version = "0.38", default-features = false, optional = true }
 cudarc = { version = "0.19.10", default-features = false, features = ["std", "driver", "fallback-dynamic-loading", "cuda-version-from-build-system", "fallback-latest"], optional = true }
 bevy-render-cuda = { package = "bevy_render", version = "=0.20.0", default-features = false, features = ["raw_vulkan_init"], optional = true }
@@ -72,9 +75,10 @@ tempfile = "3.13"
 [features]
 human_motion = ["bevy_zeroverse/human_motion"]
 
-gpu_tensor = ["dep:bevy", "dep:burn-cubecl", "burn/wgpu", "burn/cubecl"]
+gpu_tensor = ["dep:cubecl", "dep:bevy", "dep:burn-cubecl", "burn/wgpu", "burn/cubecl"]
 gpu_training_bench = ["gpu_tensor", "burn/optim"]
 gpu_tensor_fusion = ["gpu_tensor", "dep:burn-fusion", "burn/fusion"]
+cuda_ipc = ["cuda_interop", "dep:libc"]
 cuda_interop = ["gpu_tensor", "dep:ash", "dep:cudarc", "dep:bevy-render-cuda", "dep:burn-tensor-cuda", "dep:cubecl-runtime"]
 
 [[example]]
@@ -84,3 +88,12 @@ required-features = ["gpu_tensor"]
 [[example]]
 name = "material_jit_qualification"
 required-features = ["gpu_training_bench"]
+
+[[bin]]
+name = "zeroverse_gpu_worker"
+path = "src/bin/zeroverse_gpu_worker.rs"
+required-features = ["cuda_ipc"]
+
+[[example]]
+name = "gpu_ipc_qualification"
+required-features = ["cuda_ipc"]

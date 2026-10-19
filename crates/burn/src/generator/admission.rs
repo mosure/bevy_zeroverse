@@ -25,6 +25,8 @@ pub enum CaptureStage {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub enum CaptureOutcome {
     Published,
+    /// GPU-owned data delivered without implying durable archive publication.
+    Delivered,
     Rejected {
         rejection: SceneRejection,
         continued: bool,
@@ -105,7 +107,7 @@ impl CaptureControl {
         self.rejection_policy = policy;
         Ok(self)
     }
-    pub(super) fn recovers_rejections(&self) -> bool {
+    pub(crate) fn recovers_rejections(&self) -> bool {
         self.rejection_policy.enabled()
     }
     /// Idempotent cumulative grants. A stale grant cannot revoke credits.
@@ -125,7 +127,7 @@ impl CaptureControl {
     pub fn snapshot(&self) -> AdmissionSnapshot {
         self.state.lock().unwrap().snapshot.clone()
     }
-    pub(super) fn start(&self) -> anyhow::Result<()> {
+    pub(crate) fn start(&self) -> anyhow::Result<()> {
         let mut state = self.state.lock().unwrap();
         anyhow::ensure!(!state.used, "CaptureControl belongs to one generator run");
         state.used = true;
@@ -136,13 +138,46 @@ impl CaptureControl {
             observer(event);
         }
     }
-    pub(super) fn fail(&self, message: String) {
+    pub(crate) fn fail(&self, message: String) {
         let mut state = self.state.lock().unwrap();
         state.failure.get_or_insert(message);
         state.snapshot.cancelled = true;
         self.wake.notify_all();
     }
-    pub(super) fn acquire(
+    #[cfg(any(test, all(feature = "cuda_ipc", target_os = "linux")))]
+    /// Nonblocking variant used by multiplexed GPU receivers. No credit is
+    /// consumed on a hold or empty budget; callbacks run outside the mutex.
+    pub(crate) fn try_acquire(
+        self: &Arc<Self>,
+        request: CaptureRequest,
+    ) -> anyhow::Result<Option<Permit>> {
+        let mut state = self.state.lock().unwrap();
+        anyhow::ensure!(!state.snapshot.cancelled, "capture admission cancelled");
+        if state.snapshot.held
+            || state.snapshot.admitted - state.snapshot.returned >= state.snapshot.credits
+        {
+            return Ok(None);
+        }
+        state.snapshot.admitted += 1;
+        drop(state);
+        let permit = Permit {
+            control: self.clone(),
+            request,
+            admitted: true,
+            wait: Duration::ZERO,
+            capture: Duration::ZERO,
+            export: Duration::ZERO,
+            telemetry: None,
+            publication: None,
+            completed: false,
+        };
+        self.emit(CaptureEvent::Stage {
+            request,
+            stage: CaptureStage::Capturing,
+        });
+        Ok(Some(permit))
+    }
+    pub(crate) fn acquire(
         self: &Arc<Self>,
         request: CaptureRequest,
     ) -> anyhow::Result<Option<Permit>> {
@@ -196,7 +231,7 @@ impl CaptureControl {
 /// Ownership travels with the room through the existing bounded writer channel.
 /// Every path (validation error, disconnected writer, panic, cancellation) drops
 /// or completes exactly one token, including partial batches.
-pub(super) struct Permit {
+pub(crate) struct Permit {
     control: Arc<CaptureControl>,
     request: CaptureRequest,
     admitted: bool,
@@ -208,7 +243,7 @@ pub(super) struct Permit {
     completed: bool,
 }
 impl Permit {
-    pub(super) fn captured(
+    pub(crate) fn captured(
         &mut self,
         elapsed: Duration,
         telemetry: Option<bevy_zeroverse::io::channels::CaptureTelemetry>,
@@ -217,17 +252,17 @@ impl Permit {
         self.control.state.lock().unwrap().consecutive_rejections = 0;
         self.telemetry = telemetry.filter(|value| value.seed == Some(self.request.seed));
     }
-    pub(super) fn exporting(&self) {
+    pub(crate) fn exporting(&self) {
         self.control.emit(CaptureEvent::Stage {
             request: self.request,
             stage: CaptureStage::Exporting,
         });
     }
-    pub(super) fn failed(mut self, message: String, elapsed: Duration) {
+    pub(crate) fn failed(mut self, message: String, elapsed: Duration) {
         self.capture = elapsed;
         self.complete(CaptureOutcome::Failed(message));
     }
-    pub(super) fn rejected(
+    pub(crate) fn rejected(
         mut self,
         rejection: SceneRejection,
         elapsed: Duration,
@@ -260,7 +295,7 @@ impl Permit {
         }
         Ok(continued)
     }
-    pub(super) fn finish(
+    pub(crate) fn finish(
         mut self,
         elapsed: Duration,
         error: Option<&str>,
@@ -273,6 +308,10 @@ impl Permit {
         self.complete(error.map_or(CaptureOutcome::Published, |e| {
             CaptureOutcome::Failed(e.into())
         }));
+    }
+    #[cfg(any(test, all(feature = "gpu_tensor", not(target_arch = "wasm32"))))]
+    pub(crate) fn delivered(mut self) {
+        self.complete(CaptureOutcome::Delivered);
     }
     fn complete(&mut self, outcome: CaptureOutcome) {
         if self.completed {
@@ -301,7 +340,7 @@ impl Drop for Permit {
 }
 
 /// Also wakes a producer waiting for demand if the writer unwinds.
-pub(super) struct WriterGuard(pub Option<Arc<CaptureControl>>);
+pub(crate) struct WriterGuard(pub Option<Arc<CaptureControl>>);
 impl Drop for WriterGuard {
     fn drop(&mut self) {
         if let Some(control) = &self.0 {
@@ -319,6 +358,26 @@ mod tests {
             sequence,
             seed: 500 + sequence as u64,
         }
+    }
+    #[test]
+    fn gpu_admission_is_nonblocking_and_delivery_is_not_publication() {
+        let control = Arc::new(CaptureControl::default());
+        control.start().unwrap();
+        let request = CaptureRequest {
+            sequence: 9,
+            seed: 77,
+        };
+        assert!(control.try_acquire(request).unwrap().is_none());
+        control.grant_through(1);
+        control.hold(true);
+        assert!(control.try_acquire(request).unwrap().is_none());
+        assert_eq!(control.snapshot().admitted, 0);
+        control.hold(false);
+        control.try_acquire(request).unwrap().unwrap().delivered();
+        assert_eq!(control.snapshot().completed, 1);
+        assert!(control.try_acquire(request).unwrap().is_none());
+        control.cancel();
+        assert!(control.try_acquire(request).is_err());
     }
     #[test]
     fn zero_credit_hold_resume_cancel_and_nonrevocable_permits() {

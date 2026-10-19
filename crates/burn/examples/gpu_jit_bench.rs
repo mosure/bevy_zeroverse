@@ -37,6 +37,7 @@ fn main() -> Result<()> {
         num_cameras: 3,
         playback_steps: 1,
         indoor_human_density: 0.25,
+        depth_format: bevy_zeroverse::render::depth::DepthFormat::Linear,
         render_modes: vec![
             RenderMode::Color,
             RenderMode::Depth,
@@ -76,7 +77,7 @@ fn main() -> Result<()> {
             let capture_time = start.elapsed().as_secs_f64();
             let consumer_start = Instant::now();
             for view in sample.views {
-                let _: f32 = view.color.mul_scalar(1.01).mean().into_scalar();
+                let _: f32 = view.color.unwrap().mul_scalar(1.01).mean().into_scalar();
             }
             if index >= args.warmup {
                 producer_timings.push(dataset.last_capture_timings().unwrap().clone());

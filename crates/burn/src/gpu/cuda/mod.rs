@@ -8,8 +8,9 @@ use burn::cubecl::{cuda::CudaRuntime, wgpu::wgpu};
 use cudarc::driver::{CudaContext, CudaStream, sys};
 use std::ffi::c_void;
 
-mod memory;
-mod semaphore;
+pub(super) mod memory;
+pub(super) mod semaphore;
+pub(super) mod vulkan;
 use memory::SharedBuffer;
 use semaphore::Semaphore;
 type CudaServer = <CudaRuntime as cubecl_runtime::runtime::Runtime>::Server;
@@ -42,16 +43,14 @@ pub(super) fn settings() -> bevy_render_cuda::renderer::raw_vulkan_init::RawVulk
 
 pub(super) struct Bridge {
     device: Device,
-    setup: WgpuSetup,
-    raw: ash::Device,
-    instance: ash::Instance,
-    physical: vk::PhysicalDevice,
-    family: u32,
+    exporter: vulkan::Exporter,
     context: Arc<CudaContext>,
     stream: Arc<CudaStream>,
     ready: Semaphore,
     pending: HashMap<u64, (Arc<SharedBuffer>, [usize; 4])>,
     available: Vec<Arc<SharedBuffer>>,
+    allocations: Vec<std::sync::Weak<memory::RawBuffer>>,
+    byte_budget: u64,
     // Retain allocator reservations even on a partially submitted/error batch.
     cuda_leases: Vec<Box<dyn Any + Send>>,
     poisoned: bool,
@@ -60,39 +59,11 @@ pub(super) struct Bridge {
 
 impl Bridge {
     pub(super) fn new(setup: &WgpuSetup) -> Result<Self> {
-        ensure!(
-            setup.backend == wgpu::Backend::Vulkan,
-            "CUDA interop requires a Vulkan renderer; no CPU fallback is performed"
-        );
-        ensure!(
-            setup.adapter.get_info().vendor == 0x10de,
-            "CUDA interop requires an NVIDIA Vulkan adapter"
-        );
-        // SAFETY: We only inspect the live device; cloned handles are kept alive
-        // by setup for the lifetime of every imported object.
-        let hal = unsafe { setup.device.as_hal::<wgpu::hal::api::Vulkan>() }
-            .context("Vulkan HAL device is unavailable")?;
-        for extension in [
-            khr::external_memory_fd::NAME,
-            khr::external_semaphore_fd::NAME,
-        ] {
-            ensure!(
-                hal.enabled_device_extensions().contains(&extension),
-                "CUDA interop needs enabled {extension:?}"
-            );
-        }
-        let raw = hal.raw_device().clone();
-        let instance = hal.shared_instance().raw_instance().clone();
-        let physical = hal.raw_physical_device();
-        let family = hal.queue_family_index();
-        let mut id = vk::PhysicalDeviceIDProperties::default();
-        let mut properties = vk::PhysicalDeviceProperties2::default().push_next(&mut id);
-        // SAFETY: Physical device belongs to this live instance; pNext points to id.
-        unsafe { instance.get_physical_device_properties2(physical, &mut properties) };
+        let exporter = vulkan::Exporter::new(setup)?;
         let mut context = None;
         for index in 0..CudaContext::device_count()? as usize {
             let candidate = CudaContext::new(index)?;
-            if candidate.uuid()?.bytes.map(|v| v as u8) == id.device_uuid {
+            if candidate.uuid()?.bytes.map(|v| v as u8) == exporter.uuid {
                 context = Some(candidate);
                 break;
             }
@@ -101,25 +72,52 @@ impl Bridge {
             .context("no CUDA device matches the Vulkan UUID; refusing cross-device transfer")?;
         let device = burn_tensor_cuda::Device::cuda(context.ordinal());
         let stream = context.new_stream()?;
-        let ready = Semaphore::new(setup, &instance, &raw, physical, context.clone())?;
+        let ready = Semaphore::new(&exporter, context.clone())?;
         Ok(Self {
             device,
-            setup: setup.clone(),
-            raw,
-            instance,
-            physical,
-            family,
+            exporter,
             context,
             stream,
             ready,
             pending: HashMap::new(),
             available: Vec::new(),
+            allocations: Vec::new(),
+            byte_budget: 512 * 1024 * 1024,
             cuda_leases: Vec::new(),
             poisoned: false,
             last_timings: CudaTransferTimings::default(),
         })
     }
 
+    pub(super) fn on_device(setup: &WgpuSetup, device: Device) -> Result<Self> {
+        let mut bridge = Self::new(setup)?;
+        // Resolve a real managed allocation to verify backend and CUDA context,
+        // rather than assuming that equal ordinals imply equal physical devices.
+        let tensor = Tensor::<1>::empty([1], &device).reshape([1, 1, 1, 1]);
+        let primitive = primitive(tensor)?;
+        let resource = primitive
+            .client
+            .get_resource::<CudaServer>(primitive.handle.clone())?;
+        let mut context = std::ptr::null_mut();
+        bridge.context.bind_to_thread()?;
+        unsafe {
+            sys::cuPointerGetAttribute(
+                (&mut context as *mut sys::CUcontext).cast::<c_void>(),
+                sys::CUpointer_attribute::CU_POINTER_ATTRIBUTE_CONTEXT,
+                resource.resource().ptr,
+            )
+            .result()?;
+        }
+        ensure!(
+            context == bridge.context.cu_ctx(),
+            "training CUDA device does not match selected Vulkan adapter; select the matching Vulkan adapter"
+        );
+        bridge.device = device;
+        Ok(bridge)
+    }
+    pub(super) fn set_byte_budget(&mut self, budget: u64) {
+        self.byte_budget = budget;
+    }
     pub(super) fn device(&self) -> &Device {
         &self.device
     }
@@ -132,6 +130,14 @@ impl Bridge {
         Ok(())
     }
 
+    pub(super) fn retire_rejection(&mut self) -> Result<()> {
+        ensure!(!self.poisoned, "cannot recover an in-flight CUDA transfer");
+        let capacity = self.pending.len().saturating_mul(2);
+        self.available
+            .extend(self.pending.drain().map(|(_, (buffer, _))| buffer));
+        self.available.truncate(capacity);
+        Ok(())
+    }
     pub(super) fn allocate(&mut self, shape: [usize; 4], token: u64) -> Result<GpuCaptureTarget> {
         ensure!(
             !self.poisoned,
@@ -139,7 +145,7 @@ impl Bridge {
         );
         let bytes = checked_bytes(shape)?;
         ensure!(
-            bytes <= self.setup.device.limits().max_buffer_size,
+            bytes <= self.exporter.setup.device.limits().max_buffer_size,
             "CUDA capture allocation exceeds the wgpu buffer limit"
         );
         ensure!(
@@ -154,7 +160,32 @@ impl Bridge {
             .position(|buffer| buffer.bytes == bytes && Arc::strong_count(buffer) == 1)
         {
             Some(index) => self.available.swap_remove(index),
-            None => Arc::new(SharedBuffer::new(self, bytes)?),
+            None => {
+                self.allocations.retain(|lease| lease.strong_count() > 0);
+                let allocated = self
+                    .allocations
+                    .iter()
+                    .filter_map(std::sync::Weak::upgrade)
+                    .try_fold(0_u64, |n, raw| {
+                        n.checked_add(raw.allocation_size)
+                            .context("CUDA allocation accounting overflow")
+                    })?;
+                ensure!(
+                    allocated
+                        .checked_add(bytes)
+                        .is_some_and(|n| n <= self.byte_budget),
+                    "CUDA capture allocation budget exhausted; wait for outstanding leases to retire"
+                );
+                let buffer = Arc::new(SharedBuffer::new(self, bytes)?);
+                ensure!(
+                    allocated
+                        .checked_add(buffer.raw.allocation_size)
+                        .is_some_and(|n| n <= self.byte_budget),
+                    "CUDA dedicated allocation exceeds budget"
+                );
+                self.allocations.push(Arc::downgrade(&buffer.raw));
+                buffer
+            }
         };
         ensure!(
             !self.pending.contains_key(&token),
@@ -163,6 +194,7 @@ impl Bridge {
         self.pending.insert(token, (buffer.clone(), shape));
         Ok(GpuCaptureTarget {
             token,
+            source_indices: Vec::new(),
             buffer: buffer.buffer.clone(),
             offset: 0,
             byte_len: bytes,
@@ -251,7 +283,7 @@ impl Bridge {
         self.ownership(&buffers, true)?;
         // Attach the signal only AFTER the release submission. Another Bevy
         // submission may consume it, but can never signal before that release.
-        self.ready.signal(&self.setup.queue)?;
+        self.ready.signal(&self.exporter.setup.queue)?;
         self.context.bind_to_thread()?;
         self.ready.wait(&self.stream)?;
         for (source, destination) in buffers.iter().zip(&destinations) {
@@ -284,80 +316,17 @@ impl Bridge {
         self.available
             .extend(self.pending.drain().map(|(_, (buffer, _))| buffer));
         self.available.truncate(capacity);
-        self.setup.device.poll(wgpu::PollType::Poll)?;
+        self.exporter.setup.device.poll(wgpu::PollType::Poll)?;
         self.poisoned = false;
         self.last_timings.reacquire_and_retire_seconds = retire_started.elapsed().as_secs_f64();
         Ok(tensors)
     }
 
     fn ownership(&self, buffers: &[Arc<SharedBuffer>], release: bool) -> Result<()> {
-        let mut encoder =
-            self.setup
-                .device
-                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("zeroverse CUDA ownership"),
-                });
-        let barriers: Vec<_> = buffers
-            .iter()
-            .map(|buffer| {
-                vk::BufferMemoryBarrier::default()
-                    .buffer(buffer.raw.buffer)
-                    .offset(0)
-                    .size(vk::WHOLE_SIZE)
-                    .src_queue_family_index(if release {
-                        self.family
-                    } else {
-                        vk::QUEUE_FAMILY_EXTERNAL
-                    })
-                    .dst_queue_family_index(if release {
-                        vk::QUEUE_FAMILY_EXTERNAL
-                    } else {
-                        self.family
-                    })
-                    .src_access_mask(if release {
-                        vk::AccessFlags::TRANSFER_WRITE
-                    } else {
-                        vk::AccessFlags::empty()
-                    })
-                    .dst_access_mask(if release {
-                        vk::AccessFlags::empty()
-                    } else {
-                        vk::AccessFlags::TRANSFER_WRITE
-                    })
-            })
-            .collect();
-        // SAFETY: The encoder is live, buffers are exclusive allocations on its
-        // device, and CUDA only reads between the release and acquire. WGPU's
-        // tracked usage remains COPY_DST on both sides of the external interval.
-        unsafe {
-            encoder.as_hal_mut::<wgpu::hal::api::Vulkan, _, _>(|hal| {
-                let hal = hal.context("Vulkan encoder unavailable")?;
-                self.raw.cmd_pipeline_barrier(
-                    hal.raw_handle(),
-                    if release {
-                        vk::PipelineStageFlags::TRANSFER
-                    } else {
-                        vk::PipelineStageFlags::TOP_OF_PIPE
-                    },
-                    if release {
-                        vk::PipelineStageFlags::BOTTOM_OF_PIPE
-                    } else {
-                        vk::PipelineStageFlags::TRANSFER
-                    },
-                    vk::DependencyFlags::empty(),
-                    &[],
-                    &barriers,
-                    &[],
-                );
-                Ok::<_, anyhow::Error>(())
-            })?;
-        }
-        self.setup.queue.submit([encoder.finish()]);
-        let leases = buffers.to_vec();
-        self.setup
-            .queue
-            .on_submitted_work_done(move || drop(leases));
-        Ok(())
+        self.exporter.ownership(
+            &buffers.iter().map(|b| b.export.clone()).collect::<Vec<_>>(),
+            release,
+        )
     }
 }
 
@@ -366,7 +335,11 @@ impl Drop for Bridge {
         // Also covers errors after enqueue. Keep imports and allocator leases
         // alive until this stream stops touching them. No image data is mapped.
         let _ = self.stream.synchronize();
-        let _ = self.setup.device.poll(wgpu::PollType::wait_indefinitely());
+        let _ = self
+            .exporter
+            .setup
+            .device
+            .poll(wgpu::PollType::wait_indefinitely());
     }
 }
 

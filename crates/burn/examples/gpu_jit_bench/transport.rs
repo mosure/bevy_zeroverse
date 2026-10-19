@@ -12,16 +12,16 @@ pub(super) fn run(args: &Args, config: BevyZeroverseConfig) -> Result<()> {
     let bytes: usize = sample
         .views
         .iter()
-        .map(|v| v.color.dims().iter().product::<usize>() * 4)
+        .map(|v| v.color.as_ref().unwrap().dims().iter().product::<usize>() * 4)
         .sum();
     let mut timings = Vec::new();
     for iteration in 0..args.scenes + args.warmup {
         let start = Instant::now();
         for view in &sample.views {
             let tensor = if args.gpu {
-                view.color.clone()
+                view.color.clone().unwrap()
             } else {
-                Tensor::<3>::from_data(view.color.clone().into_data(), &device)
+                Tensor::<3>::from_data(view.color.clone().unwrap().into_data(), &device)
             };
             let done: f32 = tensor.mul_scalar(1.01).mean().into_scalar();
             ensure!(done.is_finite(), "nonfinite consumer result");

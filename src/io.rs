@@ -760,10 +760,25 @@ pub mod image_copy {
             let buffers = copier.cpu_buffers(world.resource::<RenderDevice>());
             for (index, source) in copier.sources.iter().enumerate() {
                 #[cfg(not(target_arch = "wasm32"))]
+                let target_index = if let Some(target) = &gpu_target {
+                    if target.source_indices.is_empty() {
+                        index
+                    } else {
+                        let Some(selected) = target.source_indices.iter().position(|i| *i == index)
+                        else {
+                            continue;
+                        };
+                        selected
+                    }
+                } else {
+                    index
+                };
+                #[cfg(not(target_arch = "wasm32"))]
                 let (buffer, offset): (&wgpu::Buffer, u64) = if let Some(target) = &gpu_target {
                     (
                         &target.buffer,
-                        target.offset + (index * copier.padded_row_bytes * copier.rows) as u64,
+                        target.offset
+                            + (target_index * copier.padded_row_bytes * copier.rows) as u64,
                     )
                 } else {
                     let buffers = buffers.expect("CPU capture storage");

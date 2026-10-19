@@ -3,13 +3,13 @@
 use super::*;
 use std::os::fd::{AsRawFd, FromRawFd, IntoRawFd, OwnedFd};
 
-pub(super) struct RawBuffer {
+pub(in crate::gpu) struct RawBuffer {
     // The owning wgpu device must outlive these raw Vulkan handles.
     _device: wgpu::Device,
     device: ash::Device,
     pub buffer: vk::Buffer,
     memory: vk::DeviceMemory,
-    allocation_size: u64,
+    pub allocation_size: u64,
 }
 impl Drop for RawBuffer {
     fn drop(&mut self) {
@@ -23,7 +23,7 @@ impl Drop for RawBuffer {
     }
 }
 
-pub(super) struct Mapping {
+pub(in crate::gpu) struct Mapping {
     context: Arc<CudaContext>,
     external: sys::CUexternalMemory,
     pub ptr: u64,
@@ -46,16 +46,13 @@ impl Drop for Mapping {
     }
 }
 
-pub(super) struct SharedBuffer {
-    // Drop the CUDA mapping before the Vulkan owners; WGPU also retains raw
-    // through its deferred HAL destructor while a render submission uses it.
-    pub mapping: Mapping,
+pub(in crate::gpu) struct ExportBuffer {
     pub buffer: wgpu::Buffer,
     pub raw: Arc<RawBuffer>,
     pub bytes: u64,
 }
-impl SharedBuffer {
-    pub fn new(bridge: &Bridge, bytes: u64) -> Result<Self> {
+impl ExportBuffer {
+    pub fn new(bridge: &vulkan::Exporter, bytes: u64) -> Result<Self> {
         let handle_type = vk::ExternalMemoryHandleTypeFlags::OPAQUE_FD;
         let usage = vk::BufferUsageFlags::TRANSFER_DST;
         let mut properties = vk::ExternalBufferProperties::default();
@@ -153,40 +150,6 @@ impl SharedBuffer {
             submission_index: Some(submission),
             timeout: Some(Duration::from_secs(120)),
         })?;
-        let exporter = khr::external_memory_fd::Device::new(&bridge.instance, &bridge.raw);
-        let fd_info = vk::MemoryGetFdInfoKHR::default()
-            .memory(raw.memory)
-            .handle_type(handle_type);
-        // SAFETY: A successful export returns a new owned fd. CUDA takes fd
-        // ownership only if import succeeds; failure closes it via OwnedFd.
-        let fd = unsafe { OwnedFd::from_raw_fd(exporter.get_memory_fd(&fd_info)?) };
-        bridge.context.bind_to_thread()?;
-        let descriptor = sys::CUDA_EXTERNAL_MEMORY_HANDLE_DESC {
-            type_: sys::CUexternalMemoryHandleType::CU_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD,
-            handle: sys::CUDA_EXTERNAL_MEMORY_HANDLE_DESC_st__bindgen_ty_1 { fd: fd.as_raw_fd() },
-            size: raw.allocation_size,
-            flags: sys::CUDA_EXTERNAL_MEMORY_DEDICATED,
-            reserved: [0; 16],
-        };
-        let mut external = std::ptr::null_mut();
-        unsafe { sys::cuImportExternalMemory(&mut external, &descriptor).result()? };
-        let _ = fd.into_raw_fd();
-        let mut mapping = Mapping {
-            context: bridge.context.clone(),
-            external,
-            ptr: 0,
-        };
-        let descriptor = sys::CUDA_EXTERNAL_MEMORY_BUFFER_DESC {
-            offset: 0,
-            size: bytes,
-            flags: 0,
-            reserved: [0; 16],
-        };
-        // SAFETY: Offset and range match the bound Vulkan buffer and allocation.
-        unsafe {
-            sys::cuExternalMemoryGetMappedBuffer(&mut mapping.ptr, external, &descriptor)
-                .result()?
-        };
         let lease = raw.clone();
         // SAFETY: Same logical device, initialized, correctly sized COPY_DST
         // storage. HAL never destroys the buffer itself; the final lease does.
@@ -210,11 +173,73 @@ impl SharedBuffer {
                     },
                 )
         };
-        Ok(Self {
-            mapping,
-            buffer,
-            raw,
+        Ok(Self { buffer, raw, bytes })
+    }
+    pub fn export_fd(&self, bridge: &vulkan::Exporter) -> Result<OwnedFd> {
+        let exporter = khr::external_memory_fd::Device::new(&bridge.instance, &bridge.raw);
+        let info = vk::MemoryGetFdInfoKHR::default()
+            .memory(self.raw.memory)
+            .handle_type(vk::ExternalMemoryHandleTypeFlags::OPAQUE_FD);
+        Ok(unsafe { OwnedFd::from_raw_fd(exporter.get_memory_fd(&info)?) })
+    }
+}
+impl Mapping {
+    pub fn import(
+        context: Arc<CudaContext>,
+        fd: OwnedFd,
+        allocation_size: u64,
+        bytes: u64,
+    ) -> Result<Self> {
+        context.bind_to_thread()?;
+        let descriptor = sys::CUDA_EXTERNAL_MEMORY_HANDLE_DESC {
+            type_: sys::CUexternalMemoryHandleType::CU_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD,
+            handle: sys::CUDA_EXTERNAL_MEMORY_HANDLE_DESC_st__bindgen_ty_1 { fd: fd.as_raw_fd() },
+            size: allocation_size,
+            flags: sys::CUDA_EXTERNAL_MEMORY_DEDICATED,
+            reserved: [0; 16],
+        };
+        let mut external = std::ptr::null_mut();
+        unsafe {
+            sys::cuImportExternalMemory(&mut external, &descriptor).result()?;
+        }
+        let _ = fd.into_raw_fd();
+        let mut mapping = Self {
+            context,
+            external,
+            ptr: 0,
+        };
+        let descriptor = sys::CUDA_EXTERNAL_MEMORY_BUFFER_DESC {
+            offset: 0,
+            size: bytes,
+            flags: 0,
+            reserved: [0; 16],
+        };
+        unsafe {
+            sys::cuExternalMemoryGetMappedBuffer(&mut mapping.ptr, external, &descriptor)
+                .result()?;
+        }
+        Ok(mapping)
+    }
+}
+pub(in crate::gpu) struct SharedBuffer {
+    pub mapping: Mapping,
+    pub export: Arc<ExportBuffer>,
+}
+impl std::ops::Deref for SharedBuffer {
+    type Target = ExportBuffer;
+    fn deref(&self) -> &ExportBuffer {
+        &self.export
+    }
+}
+impl SharedBuffer {
+    pub fn new(bridge: &Bridge, bytes: u64) -> Result<Self> {
+        let export = Arc::new(ExportBuffer::new(&bridge.exporter, bytes)?);
+        let mapping = Mapping::import(
+            bridge.context.clone(),
+            export.export_fd(&bridge.exporter)?,
+            export.raw.allocation_size,
             bytes,
-        })
+        )?;
+        Ok(Self { mapping, export })
     }
 }

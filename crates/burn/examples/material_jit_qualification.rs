@@ -63,6 +63,7 @@ fn main() -> Result<()> {
         height: 512.,
         num_cameras: 3,
         playback_steps: 1,
+        depth_format: bevy_zeroverse::render::depth::DepthFormat::Linear,
         render_modes: vec![
             RenderMode::Color,
             RenderMode::Depth,
@@ -96,7 +97,7 @@ fn main() -> Result<()> {
         let mut loss = 0f32;
         if args.training_steps == 0 {
             for view in &sample.views {
-                loss += view.color.clone().mean().into_scalar::<f32>();
+                loss += view.color.clone().unwrap().mean().into_scalar::<f32>();
             }
         } else {
             // Three full 512px images -> 3072 distinct 16x16 patches. No host image copy.
@@ -106,6 +107,8 @@ fn main() -> Result<()> {
                     .iter()
                     .map(|v| {
                         v.color
+                            .as_ref()
+                            .unwrap()
                             .clone()
                             .reshape([32, 16, 32, 16, 4])
                             .permute([0, 2, 1, 3, 4])
@@ -121,6 +124,8 @@ fn main() -> Result<()> {
                     .iter()
                     .map(|v| {
                         v.world_depth
+                            .as_ref()
+                            .unwrap()
                             .clone()
                             .slice([0..512, 0..512, 3..4])
                             .reshape([32, 16, 32, 16])

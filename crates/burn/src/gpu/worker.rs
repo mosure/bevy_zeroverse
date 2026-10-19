@@ -1,206 +1,437 @@
-//! One persistent renderer, one bounded future sample. Neither scheduling nor
-//! tensor storage copies require downstream tuning or an additional GPU device.
+//! Bounded, explicit room requests. Control-plane receive never drives the GPU.
 use super::*;
+use crate::generator::admission::{CaptureControl, CaptureRequest};
 use burn::data::dataset::{Dataset, DatasetError};
 use std::{
-    sync::{Mutex, mpsc},
+    collections::VecDeque,
+    sync::{Condvar, Mutex, mpsc},
     thread,
 };
 
-enum Request {
-    Capture { seed: u64, indexed: bool },
-    Shutdown,
+#[derive(Default)]
+struct Requests {
+    queued: VecDeque<CaptureRequest>,
+    planned: Vec<CaptureRequest>,
+    stopped: bool,
 }
 
-/// Full-quality indoor JIT capture on the training device. Construction and
-/// rendering overlap training automatically, with at most one future sample.
-/// Retained tensors remain owned by their consumer, across subsequent captures.
-pub struct GpuLiveDataset {
+/// Every accepted request has one completion, including capture failures.
+/// Completion order is local to this lane; consumers retain their training order.
+pub struct GpuCompletion {
+    pub request: CaptureRequest,
+    pub result: Result<GpuSample>,
+    pub timings: Option<GpuCaptureTimings>,
+}
+
+/// Explicit-demand native session. Planning seeds permits CPU lookahead only;
+/// submitting a request plus a CaptureControl credit permits GPU capture.
+/// Tensor ownership is independent of session/renderer lifetime.
+pub struct GpuCaptureSession {
     device: Device,
-    next_seed: u64,
-    pending: Option<u64>,
-    requests: mpsc::SyncSender<Request>,
-    samples: mpsc::Receiver<Result<(GpuSample, GpuCaptureTimings)>>,
+    queue: Arc<(Mutex<Requests>, Condvar)>,
+    control: Arc<CaptureControl>,
+    completions: mpsc::Receiver<GpuCompletion>,
+    outstanding: Vec<CaptureRequest>,
+    last_sequence: Option<usize>,
+    capacity: usize,
     worker: Option<thread::JoinHandle<()>>,
-    last_capture_timings: Option<GpuCaptureTimings>,
 }
 
-impl GpuLiveDataset {
-    /// Three 512x512 views, one timestep, full native lighting and annotations.
-    pub fn indoor() -> Result<Self> {
-        Self::new(Self::indoor_config())
-    }
-
-    /// The same full-quality indoor preset as [`Self::indoor`], delivered to
-    /// CUDA through external GPU memory. Requires Linux and `cuda_interop`.
-    /// See [`Self::new_cuda`] for the copy and synchronization contract.
-    #[cfg(all(feature = "cuda_interop", target_os = "linux"))]
-    pub fn indoor_cuda() -> Result<Self> {
-        Self::new_cuda(Self::indoor_config())
-    }
-
-    fn indoor_config() -> BevyZeroverseConfig {
-        BevyZeroverseConfig {
-            scene_type: ZeroverseSceneType::ProceduralIndoor,
-            num_cameras: 3,
-            width: 512.,
-            height: 512.,
-            playback_steps: 1,
-            ..Default::default()
+pub struct GpuCaptureBuilder {
+    spec: ResolvedCaptureSpec,
+    runtime: CaptureRuntimeOptions,
+    transport: Transport,
+    control: Option<Arc<CaptureControl>>,
+}
+impl GpuCaptureBuilder {
+    pub fn new(spec: ResolvedCaptureSpec) -> Self {
+        Self {
+            spec,
+            runtime: Default::default(),
+            transport: Transport::Wgpu,
+            control: None,
         }
     }
-
-    pub fn new(config: BevyZeroverseConfig) -> Result<Self> {
-        Self::with_transport(config, Transport::Wgpu)
+    pub fn runtime(mut self, runtime: CaptureRuntimeOptions) -> Self {
+        self.runtime = runtime;
+        self
     }
-
-    /// Experimental Linux Vulkan/CUDA capture on the same physical GPU.
-    /// Uses external device memory, never a host image round trip. One additional
-    /// GPU copy and a producer-side completion fence make returned Burn tensors
-    /// safe on any consumer thread/stream. Requires `cuda_interop`; no patches.
+    pub fn control(mut self, control: Arc<CaptureControl>) -> Self {
+        self.control = Some(control);
+        self
+    }
     #[cfg(all(feature = "cuda_interop", target_os = "linux"))]
-    pub fn new_cuda(config: BevyZeroverseConfig) -> Result<Self> {
-        Self::with_transport(config, Transport::Cuda)
+    pub fn cuda(mut self) -> Self {
+        self.transport = Transport::Cuda;
+        self
     }
+    /// The CUDA receiver must use this device; UUID/context checks fail closed.
+    #[cfg(all(feature = "cuda_interop", target_os = "linux"))]
+    pub fn cuda_on(mut self, device: Device) -> Self {
+        self.transport = Transport::CudaOn(device);
+        self
+    }
+    pub fn build_session(self) -> Result<GpuCaptureSession> {
+        GpuCaptureSession::build(self)
+    }
+    pub fn build(self) -> Result<GpuLiveDataset> {
+        let next_seed = self.spec.scene().indoor_seed.unwrap_or_else(rand::random);
+        let receive_timeout = self.runtime.capture_timeout;
+        Ok(GpuLiveDataset {
+            session: self.build_session()?,
+            next_seed,
+            pending: None,
+            sequence: 0,
+            last_capture_timings: None,
+            receive_timeout,
+        })
+    }
+}
 
-    fn with_transport(mut config: BevyZeroverseConfig, transport: Transport) -> Result<Self> {
-        let next_seed = *config.indoor_seed.get_or_insert_with(rand::random);
-        let (requests, incoming) = mpsc::sync_channel(1);
-        let (outgoing, samples) = mpsc::sync_channel(1);
+impl GpuCaptureSession {
+    fn build(builder: GpuCaptureBuilder) -> Result<Self> {
+        builder.runtime.validate(&builder.spec)?;
+        let capacity = builder.runtime.queue_capacity;
+        let timeout = builder.runtime.initialization_timeout;
+        let control = builder.control.unwrap_or_else(|| {
+            let control = Arc::new(CaptureControl::default());
+            control.grant_through(u64::MAX);
+            control
+        });
+        control.start()?;
+        let queue = Arc::new((Mutex::new(Requests::default()), Condvar::new()));
+        let (outgoing, completions) = mpsc::sync_channel(capacity);
         let (ready, initialized) = mpsc::sync_channel(1);
+        let worker_queue = queue.clone();
+        let worker_control = control.clone();
         let worker = thread::Builder::new()
             .name("zeroverse-gpu-capture".into())
             .spawn(move || {
-                // App is created and destroyed on its own thread. No native
-                // windows or winit event loop are initialized here. Motion
-                // models remain lazy and load only when the config requests them.
-                let mut renderer = match Renderer::with_transport(config, transport) {
-                    Ok(renderer) => renderer,
-                    Err(error) => {
-                        let _ = ready.send(Err(error));
-                        return;
-                    }
-                };
+                let mut renderer =
+                    match Renderer::configured(builder.spec, builder.runtime, builder.transport) {
+                        Ok(renderer) => renderer,
+                        Err(error) => {
+                            let _ = ready.send(Err(error));
+                            return;
+                        }
+                    };
                 if ready.send(Ok(renderer.device().clone())).is_err() {
                     return;
                 }
-                while let Ok(Request::Capture { seed, indexed }) = incoming.recv() {
-                    let reset = indexed || renderer.queued_seed != Some(seed);
-                    let sample = renderer.capture(seed, reset).map(|sample| {
-                        (
-                            sample,
+                loop {
+                    let (request, seeds) = {
+                        let (lock, wake) = &*worker_queue;
+                        let mut queue = lock.lock().unwrap();
+                        while queue.queued.is_empty() && !queue.stopped {
+                            queue = wake.wait(queue).unwrap();
+                        }
+                        if queue.stopped {
+                            break;
+                        }
+                        let request = queue.queued.pop_front().unwrap();
+                        let seeds = queue
+                            .planned
+                            .iter()
+                            .position(|r| *r == request)
+                            .map(|i| queue.planned[i + 1..].iter().map(|r| r.seed).collect())
+                            .unwrap_or_else(|| queue.queued.iter().map(|r| r.seed).collect());
+                        (request, seeds)
+                    };
+                    let result = match worker_control.acquire(request) {
+                        Ok(Some(mut permit)) => {
                             renderer
-                                .last_capture_timings
-                                .take()
-                                .expect("completed GPU capture timings"),
-                        )
-                    });
-                    if sample.is_err() {
-                        renderer.queued_seed = None;
-                    }
-                    if outgoing.send(sample).is_err() {
+                                .app
+                                .world_mut()
+                                .resource_mut::<procedural_indoor::preparation::IndoorPrefetch>()
+                                .explicit_seeds = Some(seeds);
+                            let start = Instant::now();
+                            // reset changes only the requested sequence cursor. The
+                            // configuration-keyed lookahead retains matching jobs.
+                            match renderer.capture(request.seed, true) {
+                                Ok(sample) => {
+                                    permit.captured(start.elapsed(), None);
+                                    permit.delivered();
+                                    Ok(sample)
+                                }
+                                Err(error) => {
+                                    if let Some(
+                                        bevy_zeroverse::sample::failure::CaptureError::Rejected {
+                                            rejection,
+                                            retired: true,
+                                        },
+                                    ) = error.downcast_ref()
+                                    {
+                                        let _ = permit.rejected(rejection.clone(), start.elapsed());
+                                    } else {
+                                        permit.failed(error.to_string(), start.elapsed());
+                                        worker_control.fail(error.to_string());
+                                    }
+                                    Err(error)
+                                }
+                            }
+                        }
+                        Ok(None) => Err(anyhow::anyhow!("GPU capture cancelled")),
+                        Err(error) => Err(error),
+                    };
+                    let timings = renderer.last_capture_timings.take();
+                    if outgoing
+                        .send(GpuCompletion {
+                            request,
+                            result,
+                            timings,
+                        })
+                        .is_err()
+                    {
                         break;
                     }
                 }
             })?;
-        let device = initialized
-            .recv()
-            .context("GPU renderer initialization failed")??;
+        let device = match initialized.recv_timeout(timeout) {
+            Ok(Ok(device)) => device,
+            result => {
+                control.cancel();
+                queue.0.lock().unwrap().stopped = true;
+                queue.1.notify_all();
+                return Err(match result {
+                    Ok(Err(e)) => e,
+                    Err(e) => anyhow::anyhow!("GPU initialization did not complete: {e}"),
+                    _ => unreachable!(),
+                });
+            }
+        };
         Ok(Self {
             device,
-            next_seed,
-            pending: None,
-            requests,
-            samples,
+            queue,
+            control,
+            completions,
+            outstanding: Vec::new(),
+            last_sequence: None,
+            capacity,
             worker: Some(worker),
-            last_capture_timings: None,
         })
     }
-
-    /// Construct the Burn model and optimizer here. WGPU shares Bevy's device
-    /// and queue; the opt-in CUDA device matches Bevy's physical GPU by UUID.
     pub fn device(&self) -> &Device {
         &self.device
     }
+    pub fn outstanding_rooms(&self) -> usize {
+        self.outstanding.len()
+    }
+    pub fn control(&self) -> &Arc<CaptureControl> {
+        &self.control
+    }
+    /// Ordered exact seeds, including the current request. Maximum 4 future jobs.
+    /// This does not admit rendering and never changes the requested scene policy.
+    pub fn plan_requests(&self, requests: &[CaptureRequest]) -> Result<()> {
+        ensure!(
+            requests.len() <= 5,
+            "preparation plans contain at most five requests"
+        );
+        ensure!(
+            requests.windows(2).all(|w| w[0].sequence < w[1].sequence),
+            "request sequences must increase"
+        );
+        self.queue.0.lock().unwrap().planned = requests.to_vec();
+        Ok(())
+    }
+    /// False means bounded backpressure; no request/credit was consumed.
+    pub fn try_submit(&mut self, request: CaptureRequest) -> Result<bool> {
+        ensure!(!self.control.snapshot().cancelled, "GPU session cancelled");
+        ensure!(
+            self.last_sequence
+                .is_none_or(|last| request.sequence > last),
+            "duplicate/stale GPU request sequence"
+        );
+        if self.outstanding.len() == self.capacity {
+            return Ok(false);
+        }
+        let mut queue = self.queue.0.lock().unwrap();
+        ensure!(!queue.stopped, "GPU session stopped");
+        queue.queued.push_back(request);
+        self.outstanding.push(request);
+        self.last_sequence = Some(request.sequence);
+        self.queue.1.notify_one();
+        Ok(true)
+    }
+    fn accept(&mut self, completion: GpuCompletion) -> Result<GpuCompletion> {
+        let index = self
+            .outstanding
+            .iter()
+            .position(|r| *r == completion.request)
+            .context("unknown/duplicate GPU completion")?;
+        self.outstanding.remove(index);
+        if let Ok(sample) = &completion.result {
+            ensure!(
+                sample.metadata.indoor.as_ref().map(|m| m.seed) == Some(completion.request.seed),
+                "GPU completion seed mismatch"
+            );
+        }
+        Ok(completion)
+    }
+    pub fn try_receive(&mut self) -> Result<Option<GpuCompletion>> {
+        match self.completions.try_recv() {
+            Ok(completion) => self.accept(completion).map(Some),
+            Err(mpsc::TryRecvError::Empty) => Ok(None),
+            Err(mpsc::TryRecvError::Disconnected) => anyhow::bail!("GPU worker disconnected"),
+        }
+    }
+    /// A timeout leaves the request outstanding; retry receive, never resubmit it.
+    pub fn receive_timeout(&mut self, timeout: Duration) -> Result<Option<GpuCompletion>> {
+        match self.completions.recv_timeout(timeout) {
+            Ok(completion) => self.accept(completion).map(Some),
+            Err(mpsc::RecvTimeoutError::Timeout) => Ok(None),
+            Err(mpsc::RecvTimeoutError::Disconnected) => anyhow::bail!("GPU worker disconnected"),
+        }
+    }
+    pub fn cancel(&self) {
+        self.control.cancel();
+    }
+    /// Bounded shutdown. False means a driver call is still running; only an
+    /// external process supervisor can kill that renderer safely.
+    pub fn shutdown(&mut self, timeout: Duration) -> bool {
+        self.stop();
+        let deadline = Instant::now() + timeout;
+        while self.worker.as_ref().is_some_and(|w| !w.is_finished()) && Instant::now() < deadline {
+            thread::sleep(Duration::from_millis(2));
+        }
+        if self
+            .worker
+            .as_ref()
+            .is_some_and(thread::JoinHandle::is_finished)
+        {
+            let _ = self.worker.take().unwrap().join();
+            true
+        } else {
+            self.worker.is_none()
+        }
+    }
+    fn stop(&self) {
+        self.control.cancel();
+        self.queue.0.lock().unwrap().stopped = true;
+        self.queue.1.notify_all();
+    }
+}
+impl Drop for GpuCaptureSession {
+    fn drop(&mut self) {
+        self.stop();
+        if self
+            .worker
+            .as_ref()
+            .is_some_and(thread::JoinHandle::is_finished)
+        {
+            let _ = self.worker.take().unwrap().join();
+        }
+        // Never block the training thread in a destructor on an unkillable GPU
+        // driver call. The worker owns all in-flight leases until it finishes.
+    }
+}
 
-    /// Timings for the last successfully received sample, never a queued future
-    /// room. These CPU wall intervals add no GPU fence/readback and are kept
-    /// outside deterministic scene metadata. Measure completed training steps
-    /// separately; a WGPU submission interval is not GPU completion time.
+/// Convenience consecutive stream, backed by the same explicit-demand session.
+pub struct GpuLiveDataset {
+    session: GpuCaptureSession,
+    next_seed: u64,
+    pending: Option<u64>,
+    sequence: usize,
+    last_capture_timings: Option<GpuCaptureTimings>,
+    receive_timeout: Duration,
+}
+impl GpuLiveDataset {
+    pub fn builder(spec: ResolvedCaptureSpec) -> GpuCaptureBuilder {
+        GpuCaptureBuilder::new(spec)
+    }
+    pub fn indoor() -> Result<Self> {
+        Self::new(Self::indoor_config())
+    }
+    #[cfg(all(feature = "cuda_interop", target_os = "linux"))]
+    pub fn indoor_cuda() -> Result<Self> {
+        Self::new_cuda(Self::indoor_config())
+    }
+    fn indoor_config() -> BevyZeroverseConfig {
+        crate::generator::GenConfig::indoor("", 0).scene_config()
+    }
+    pub fn new(config: BevyZeroverseConfig) -> Result<Self> {
+        Self::builder(CaptureSpec::from_scene(config).resolve()?).build()
+    }
+    #[cfg(all(feature = "cuda_interop", target_os = "linux"))]
+    pub fn new_cuda(config: BevyZeroverseConfig) -> Result<Self> {
+        Self::builder(CaptureSpec::from_scene(config).resolve()?)
+            .cuda()
+            .build()
+    }
+    pub fn device(&self) -> &Device {
+        self.session.device()
+    }
     pub fn last_capture_timings(&self) -> Option<&GpuCaptureTimings> {
         self.last_capture_timings.as_ref()
     }
-
-    /// Adapt the live stream to Burn's data loader. Indices bound each epoch;
-    /// they do not select a cached room. Every successful get owns a new sample.
     pub fn into_dataset(self, samples_per_epoch: usize) -> GpuDataset {
         GpuDataset {
-            device: self.device.clone(),
+            device: self.device().clone(),
             renderer: Mutex::new(self),
             samples_per_epoch,
         }
     }
-
-    /// Consume the next consecutive seed and prepare one future room while the
-    /// model trains. WGPU returns after submission; CUDA fences its transfer
-    /// stream before returning. Neither transport maps image data to the host.
     pub fn next_sample(&mut self) -> Result<GpuSample> {
         let seed = self.next_seed;
         let next = seed.checked_add(1).context("indoor seed overflow")?;
         if self.pending.is_none() {
-            self.request(seed, false)?;
+            self.request(seed)?;
         }
-        let sample = self.receive()?;
+        let result = self.receive();
+        // A consumed terminal rejection must not replay the same physical room
+        // on the next call. Timeouts retain the outstanding request and cursor.
+        if self.pending.is_none() {
+            self.next_seed = next;
+        }
+        let sample = result?;
         ensure!(
             sample.metadata.indoor.as_ref().map(|m| m.seed) == Some(seed),
             "GPU stream seed mismatch"
         );
-        self.next_seed = next;
-        self.request(next, false)?;
+        self.request(next)?;
         Ok(sample)
     }
-
-    /// Capture a requested seed without advancing the consecutive stream's
-    /// cursor. Any already prepared lookahead is drained first; no stale room
-    /// can be mistaken for the indexed result.
     pub fn sample_seed(&mut self, seed: u64) -> Result<GpuSample> {
         if self.pending.is_some() {
-            let _ = self.receive();
+            let _ = self.receive()?;
         }
-        self.request(seed, true)?;
+        self.request(seed)?;
         self.receive()
     }
-
-    fn request(&mut self, seed: u64, indexed: bool) -> Result<()> {
-        ensure!(
-            self.pending.is_none(),
-            "GPU capture request is already pending"
-        );
-        self.requests
-            .send(Request::Capture { seed, indexed })
-            .context("GPU renderer stopped")?;
+    fn request(&mut self, seed: u64) -> Result<()> {
+        ensure!(self.pending.is_none(), "GPU request already pending");
+        let request = CaptureRequest {
+            sequence: self.sequence,
+            seed,
+        };
+        let future: Vec<_> = (0..4)
+            .filter_map(|i| {
+                Some(CaptureRequest {
+                    sequence: self.sequence.checked_add(i)?,
+                    seed: seed.checked_add(i as u64)?,
+                })
+            })
+            .collect();
+        self.session.plan_requests(&future)?;
+        ensure!(self.session.try_submit(request)?, "GPU request queue full");
+        self.sequence = self
+            .sequence
+            .checked_add(1)
+            .context("GPU sequence overflow")?;
         self.pending = Some(seed);
         Ok(())
     }
-
     fn receive(&mut self) -> Result<GpuSample> {
-        self.last_capture_timings = None;
-        let seed = self.pending.take().context("no GPU capture requested")?;
-        let (sample, timings) = self
-            .samples
-            .recv()
-            .context("GPU renderer stopped during capture")??;
-        ensure!(
-            sample.metadata.indoor.as_ref().map(|m| m.seed) == Some(seed),
-            "GPU capture seed mismatch"
-        );
-        ensure!(timings.seed == seed, "GPU capture timing seed mismatch");
-        self.last_capture_timings = Some(timings);
-        Ok(sample)
+        let _ = self.pending.context("no GPU request pending")?;
+        let completion = self
+            .session
+            .receive_timeout(self.receive_timeout)?
+            .context("GPU capture deadline exceeded; request remains outstanding")?;
+        self.pending = None;
+        self.last_capture_timings = completion.timings;
+        completion.result
     }
 }
 
-/// Thread-safe live dataset adapter with one automatically scheduled renderer.
 pub struct GpuDataset {
     device: Device,
     renderer: Mutex<GpuLiveDataset>,
@@ -216,22 +447,86 @@ impl Dataset<GpuSample> for GpuDataset {
         self.samples_per_epoch
     }
     fn get(&self, index: usize) -> Result<GpuSample, DatasetError> {
-        assert!(index < self.len(), "GPU live dataset index out of bounds");
-        let mut renderer = self
-            .renderer
+        assert!(index < self.len(), "GPU dataset index out of bounds");
+        self.renderer
             .lock()
-            .map_err(|_| DatasetError::new(std::io::Error::other("GPU renderer lock poisoned")))?;
-        renderer
+            .map_err(|_| DatasetError::new(std::io::Error::other("GPU renderer lock poisoned")))?
             .next_sample()
             .map_err(|e| DatasetError::new(std::io::Error::other(e.to_string())))
     }
 }
 
-impl Drop for GpuLiveDataset {
-    fn drop(&mut self) {
-        let _ = self.requests.send(Request::Shutdown);
-        if let Some(worker) = self.worker.take() {
-            let _ = worker.join();
-        }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bevy_zeroverse::sample::failure::{CaptureError, SceneRejection, SceneRejectionKind};
+
+    // Only channels and a device identifier: never initialize a GPU or renderer.
+    fn pending_stream() -> (GpuLiveDataset, mpsc::Sender<GpuCompletion>) {
+        let request = CaptureRequest {
+            sequence: 0,
+            seed: 42,
+        };
+        let (sender, completions) = mpsc::channel();
+        let session = GpuCaptureSession {
+            device: Device::default(),
+            queue: Arc::new((Mutex::new(Requests::default()), Condvar::new())),
+            control: Arc::new(CaptureControl::default()),
+            completions,
+            outstanding: vec![request],
+            last_sequence: Some(0),
+            capacity: 2,
+            worker: None,
+        };
+        (
+            GpuLiveDataset {
+                session,
+                next_seed: 42,
+                pending: Some(42),
+                sequence: 1,
+                last_capture_timings: None,
+                receive_timeout: Duration::ZERO,
+            },
+            sender,
+        )
+    }
+
+    #[test]
+    fn stream_rejection_advances_seed_but_timeout_preserves_outstanding_request() {
+        let (mut stream, sender) = pending_stream();
+        assert!(stream.next_sample().is_err());
+        assert_eq!(stream.next_seed, 42);
+        assert_eq!(stream.pending, Some(42));
+        assert_eq!(stream.session.outstanding.len(), 1);
+        sender
+            .send(GpuCompletion {
+                request: CaptureRequest {
+                    sequence: 0,
+                    seed: 42,
+                },
+                result: Err(CaptureError::Rejected {
+                    rejection: SceneRejection {
+                        seed: 42,
+                        kind: SceneRejectionKind::CameraPlacement,
+                        reason: "fixture camera rejection".into(),
+                    },
+                    retired: true,
+                }
+                .into()),
+                timings: None,
+            })
+            .unwrap();
+        let error = stream
+            .next_sample()
+            .err()
+            .expect("rejection returned to caller");
+        assert!(matches!(
+            error.downcast_ref::<CaptureError>(),
+            Some(CaptureError::Rejected { retired: true, .. })
+        ));
+        assert_eq!(stream.next_seed, 43);
+        assert_eq!(stream.pending, None);
+        assert!(stream.session.outstanding.is_empty());
+        assert!(stream.session.queue.0.lock().unwrap().queued.is_empty());
     }
 }

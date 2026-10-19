@@ -130,6 +130,39 @@ impl Default for GenConfig {
 }
 
 impl GenConfig {
+    /// Canonical scene policy shared by archive and GPU transports. Runtime and
+    /// export-only settings remain outside Bevy's scene identity.
+    pub fn scene_config(&self) -> BevyZeroverseConfig {
+        let mut scene = zeroverse_config_from_gen(
+            self.render_modes.clone(),
+            self.cameras,
+            self.width,
+            self.height,
+            self.playback_step,
+            self.playback_steps,
+            self.scene_type.clone(),
+            if self.export_ovoxel {
+                self.ov_mode
+            } else {
+                bevy_zeroverse::app::OvoxelMode::Disabled
+            },
+            self.ov_resolution,
+            self.ov_max_output_voxels,
+        );
+        scene.indoor_seed = self.seed.map(|s| s.wrapping_add(self.sample_offset as u64));
+        scene.ssaa_factor = self.ssaa_factor;
+        scene.indoor_layout = self.indoor_layout;
+        scene.indoor_density = self.indoor_density;
+        scene.indoor_human_density = self.indoor_human_density;
+        scene.human_motion = self.human_motion.clone();
+        scene.indoor_camera = self.indoor_camera.clone();
+        scene.indoor_appearance = self.indoor_appearance.clone();
+        scene.indoor_gi_rays = self.indoor_gi_rays;
+        scene.indoor_quality = self.indoor_quality;
+        scene.annotation_glass = self.annotation_glass;
+        scene.rotation_augmentation = self.rotation_augmentation;
+        scene
+    }
     /// Full-quality multi-view indoor capture with automatic bounded scheduling.
     /// Three 512×512 views, one timestep, lossless RGB and geometric annotations.
     /// Change scene/content/output requirements as needed; no performance tuning
@@ -586,6 +619,7 @@ pub fn run_chunk_generation_controlled(
 
 fn run_generation(config: GenConfig, control: Option<Arc<CaptureControl>>) -> Result<()> {
     validate_gen_config(&config)?;
+    let zeroverse_config = config.scene_config();
     let GenConfig {
         output,
         workers,
@@ -593,7 +627,7 @@ fn run_generation(config: GenConfig, control: Option<Arc<CaptureControl>>) -> Re
         samples,
         sample_offset,
         chunk_offset,
-        playback_step,
+        playback_step: _,
         playback_steps,
         asset_root,
         compression,
@@ -603,29 +637,29 @@ fn run_generation(config: GenConfig, control: Option<Arc<CaptureControl>>) -> Re
         width,
         height,
         seed,
-        ssaa_factor,
-        indoor_layout,
-        indoor_density,
-        indoor_human_density,
+        ssaa_factor: _,
+        indoor_layout: _,
+        indoor_density: _,
+        indoor_human_density: _,
         indoor_prefetch,
         indoor_prefetch_depth,
-        human_motion,
-        indoor_camera,
-        indoor_appearance,
+        human_motion: _,
+        indoor_camera: _,
+        indoor_appearance: _,
         rgb_sensor,
-        indoor_gi_rays,
-        indoor_quality,
-        annotation_glass,
-        rotation_augmentation,
+        indoor_gi_rays: _,
+        indoor_quality: _,
+        annotation_glass: _,
+        rotation_augmentation: _,
         cameras,
         enable_ui: _enable_ui,
         write_mode,
         scene_type,
         export_schematic,
         export_ovoxel,
-        ov_mode,
-        ov_resolution,
-        ov_max_output_voxels,
+        ov_mode: _,
+        ov_resolution: _,
+        ov_max_output_voxels: _,
         main_thread_app,
         progress,
     } = config;
@@ -640,35 +674,6 @@ fn run_generation(config: GenConfig, control: Option<Arc<CaptureControl>>) -> Re
             }
         });
 
-    let mut zeroverse_config = zeroverse_config_from_gen(
-        render_modes.clone(),
-        cameras,
-        width,
-        height,
-        playback_step,
-        playback_steps,
-        scene_type.clone(),
-        if export_ovoxel {
-            ov_mode
-        } else {
-            bevy_zeroverse::app::OvoxelMode::Disabled
-        },
-        ov_resolution,
-        ov_max_output_voxels,
-    );
-
-    zeroverse_config.indoor_seed = seed.map(|base| base.wrapping_add(sample_offset as u64));
-    zeroverse_config.ssaa_factor = ssaa_factor;
-    zeroverse_config.indoor_layout = indoor_layout;
-    zeroverse_config.indoor_density = indoor_density;
-    zeroverse_config.indoor_human_density = indoor_human_density;
-    zeroverse_config.human_motion = human_motion;
-    zeroverse_config.indoor_camera = indoor_camera;
-    zeroverse_config.indoor_appearance = indoor_appearance;
-    zeroverse_config.indoor_gi_rays = indoor_gi_rays;
-    zeroverse_config.indoor_quality = indoor_quality;
-    zeroverse_config.annotation_glass = annotation_glass;
-    zeroverse_config.rotation_augmentation = rotation_augmentation;
     let app_ready = if main_thread_app {
         Some(Arc::new(AtomicBool::new(false)))
     } else {

@@ -46,6 +46,7 @@ fn finite_exterior_and_exposure_preserve_capture_contracts() -> Result<()> {
             height: 512.,
             playback_steps: 2,
             indoor_human_density: 0.25,
+            depth_format: bevy_zeroverse::render::depth::DepthFormat::Linear,
             render_modes: vec![
                 RenderMode::Color,
                 RenderMode::Depth,
@@ -77,8 +78,8 @@ fn finite_exterior_and_exposure_preserve_capture_contracts() -> Result<()> {
         let [lo, hi] = sample.metadata.aabb;
         assert!(hi[0] - lo[0] < 30. && hi[2] - lo[2] < 30. && hi[1] - lo[1] < 8.);
         for (index, view) in sample.views.iter().enumerate() {
-            let geometry = values(view.world_depth.clone());
-            let labels = values(view.normal_semantic.clone());
+            let geometry = values(view.world_depth.clone().unwrap());
+            let labels = values(view.normal_semantic.clone().unwrap());
             let mut sky_pixels = 0;
             let mut max_depth = 0f32;
             for (p, n) in geometry
@@ -106,7 +107,7 @@ fn finite_exterior_and_exposure_preserve_capture_contracts() -> Result<()> {
             if sky_pixels > 0 && index < 3 {
                 save_color(
                     output.join(format!("room{seed}_view{index}.png")),
-                    &values(view.color.clone()),
+                    &values(view.color.clone().unwrap()),
                     512,
                 )?;
                 let bytes: Vec<u8> = geometry
@@ -147,7 +148,7 @@ fn finite_exterior_and_exposure_preserve_capture_contracts() -> Result<()> {
         let sample = renderer.sample_seed(202)?;
         let mut total = 0f64;
         for (index, view) in sample.views.iter().enumerate() {
-            let rgb = values(view.color.clone());
+            let rgb = values(view.color.clone().unwrap());
             assert!(rgb.iter().all(|v| v.is_finite()));
             total += rgb
                 .as_chunks::<4>()
@@ -161,13 +162,13 @@ fn finite_exterior_and_exposure_preserve_capture_contracts() -> Result<()> {
             if let Some(before) = &reference {
                 let a = &before.views[index];
                 equal_plane(
-                    values(a.world_depth.clone()),
-                    values(view.world_depth.clone()),
+                    values(a.world_depth.clone().unwrap()),
+                    values(view.world_depth.clone().unwrap()),
                     "exposure position/depth",
                 );
                 equal_plane(
-                    values(a.normal_semantic.clone()),
-                    values(view.normal_semantic.clone()),
+                    values(a.normal_semantic.clone().unwrap()),
+                    values(view.normal_semantic.clone().unwrap()),
                     "exposure normals/semantics",
                 );
                 equal_plane(
@@ -214,6 +215,7 @@ fn baked_materials_preserve_completed_scene_annotations() -> Result<()> {
             height: 512.,
             playback_steps: 2,
             indoor_human_density: 0.25,
+            depth_format: bevy_zeroverse::render::depth::DepthFormat::Linear,
             render_modes: vec![
                 RenderMode::Color,
                 RenderMode::Depth,
@@ -247,8 +249,8 @@ fn baked_materials_preserve_completed_scene_annotations() -> Result<()> {
                 let replay = renderer.sample_seed(seed)?;
                 for (a, b) in cpu.views.iter().zip(&replay.views) {
                     equal_plane(
-                        values(a.normal_semantic.clone()),
-                        values(b.normal_semantic.clone()),
+                        values(a.normal_semantic.clone().unwrap()),
+                        values(b.normal_semantic.clone().unwrap()),
                         "CPU replay geometric normals/semantics",
                     );
                 }
@@ -278,13 +280,13 @@ fn baked_materials_preserve_completed_scene_annotations() -> Result<()> {
                     gpu.metadata.views[index].world_from_view
                 );
                 equal_plane(
-                    values(a.world_depth.clone()),
-                    values(b.world_depth.clone()),
+                    values(a.world_depth.clone().unwrap()),
+                    values(b.world_depth.clone().unwrap()),
                     "material bake position/depth",
                 );
                 equal_plane(
-                    values(a.normal_semantic.clone()),
-                    values(b.normal_semantic.clone()),
+                    values(a.normal_semantic.clone().unwrap()),
+                    values(b.normal_semantic.clone().unwrap()),
                     "material bake geometric normals/semantics",
                 );
                 equal_plane(
@@ -297,8 +299,8 @@ fn baked_materials_preserve_completed_scene_annotations() -> Result<()> {
                     values(b.optical_flow.clone().unwrap()),
                     "material bake physical-time flow",
                 );
-                let a = values(a.color.clone());
-                let b = values(b.color.clone());
+                let a = values(a.color.clone().unwrap());
+                let b = values(b.color.clone().unwrap());
                 let mut squared = 0.;
                 let mut max = 0f32;
                 for (x, y) in a.iter().zip(&b) {

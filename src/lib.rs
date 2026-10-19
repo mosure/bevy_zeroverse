@@ -6,6 +6,8 @@ pub mod app;
 pub mod asset;
 pub mod camera;
 pub use bevy_zeroverse_capture::calibration;
+/// Core renderer package provenance for capture handshakes.
+pub const CRATE_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub mod headless;
 pub mod io;
 pub mod manifold;

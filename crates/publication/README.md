@@ -32,7 +32,29 @@ untracked additions to the managed artifact set or edits to generated outputs.
 regenerates HTML and the paper from its measured programs and reports. This is
 the release/Pages command: it never relabels earlier measurements as current or
 downloads/initializes motion models. Source or dependency upgrades require a
-successful `refresh` before release.
+successful `refresh` before release, unless the explicit retained-evidence policy
+below is configured.
+
+For a release that must not perform GPU work, `publication.toml` may contain a
+`[retained_evidence]` table with `release_version`, `release_source_sha256`,
+`capture_evidence_sha256` and a nonempty `reason`. These are exact pins to the new
+release's source and the original scientific inputs/outputs recorded in
+`www/project/publication.json`; obtain the latter with the read-only
+`evidence-digest` command. The
+exception stops applying as soon as the release version or renderer source
+changes. It does not certify retained captures as measurements of the new code.
+
+In this mode, `verify` still validates the original capture identity, all
+scientific inputs and artifact hashes, annotations, and page/paper contracts.
+Publication implementation files, the recipe and the explicitly listed object
+explorer/page presentation files may change. Study tools, fonts, all rendered
+media, measurements, paper sources and PDF bytes remain identical. `verify`
+requires current presentation-input hashes too, so stale page builds fail.
+`rebuild` regenerates only the page and its attestation from those pinned captures.
+It never recompiles or relabels the paper. `refresh`
+rejects before starting any external commands, and `publish` never falls back
+to a GPU refresh. Remove the policy explicitly when new captures are authorized.
+The shipped page and paper keep their original capture source/version labels.
 
 The paper's capacity section contains analytical occupancy examples, generated
 automatically by `refresh`/`rebuild` from tested known probability laws. To inspect
@@ -78,7 +100,8 @@ metres/15 PNGs, on a fixed logarithmic 0–15 m scale. Scalar capture files and
 CLI/data-generation defaults stay unchanged.
 Membership remains an exact 16-bit mask with separate 8-bit 0/1 validity.
 The page and paper describe the current generator and its measured cohorts.
-Every cohort must match the compiled generator identity. Historical studies,
+Every cohort must match the attested capture identity. In the default policy
+that identity must also match the compiled generator. Historical studies,
 release comparisons and proposed implementation plans stay outside this bundle.
 Camera-count and baseline studies use the same identity gate as the room gallery.
 
@@ -91,6 +114,11 @@ thresholds, nearest-shape distances, mesh counts, build timings and lossless
 RGB/normal examples. Category data loads on demand in the project page.
 Generator and qualification-tool hashes gate cache reuse; changed geometry
 cannot reuse old studio images. The paper is generated from the same atlas.
+
+The project page has one geometry explorer for objects and architectural doors.
+Cabinet categories expose geometry variants and opening/hardware studies in that
+same region. Channels and semantic legends follow the selected study; the 256-seed
+shape audit and 64-seed assembly checks keep separate denominators.
 
 For an explicit local audit:
 
@@ -143,7 +171,7 @@ owns source generation, dependency closure, warnings, provenance and staging.
 The publisher does not estimate photographic realism or downstream utility.
 
 `publish --package <name>` prepares the latest page/paper before calling Cargo.
-It refreshes stale inputs or rebuilds an already-current shipped bundle, verifies
+Under the default policy it refreshes stale inputs or rebuilds an already-current shipped bundle, verifies
 the installed result, then invokes `cargo publish --locked`. `--dry-run` never
 uploads and permits local dirty-checkout packaging; actual uploads retain Cargo's
 clean-checkout requirement. Publish the shared capture crate before dependent

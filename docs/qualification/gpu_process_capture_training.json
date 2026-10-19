@@ -1,0 +1,199 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-18",
+  "attribution": "Downstream burn_gekko experiment 121; source artifacts inspected read-only, not rerun upstream.",
+  "source_report": "/home/mosure/repos/burn_gekko/.data/experiments/121-cuda-ipc/report.json",
+  "source_report_sha256": "8b80566206a3fc562fccaf81885d631eaa900c8f23c8e0f28a62717f4fd68194",
+  "source_report_updated_at": "2026-10-18T22:21:25.284560+00:00",
+  "source_report_top_level_status": "qualification_in_progress",
+  "qualification_status": "passed_transport_qualification",
+  "upstream_snapshot_manifest_sha256": "82fc787236cc6b52da8b9baabf292aaf7089293b3c1baefd02a2e8cd667a17a8",
+  "renderer_source_sha256": "ba9d9a703bdb254ad928fe27a997e99aa4e4fcd153371e7438146e32b398899d",
+  "upstream_status": "immutable local unpublished source snapshot",
+  "benchmarks": [
+    {
+      "width": 256,
+      "batch_size": 10,
+      "lanes": 4,
+      "cameras": 8,
+      "timesteps": 5,
+      "ssaa_factor": 2,
+      "archive_updates": 256,
+      "ipc_updates": 512,
+      "archive_seconds_per_update": 1.1600515874882813,
+      "ipc_seconds_per_update": 1.0555175586113281,
+      "pairs_per_second_gain_percent": 9.903580288563019,
+      "input_wait_fraction": 0.0,
+      "ipc_renderer_rss_quarter_gib": [
+        18.239110589027405,
+        21.113139033317566,
+        21.970417022705078,
+        22.6859313249588
+      ]
+    },
+    {
+      "width": 512,
+      "batch_size": 4,
+      "lanes": 2,
+      "cameras": 8,
+      "timesteps": 3,
+      "ssaa_factor": 2,
+      "archive_updates": 256,
+      "ipc_updates": 256,
+      "archive_seconds_per_update": 2.741780012347656,
+      "ipc_seconds_per_update": 2.58628438759375,
+      "pairs_per_second_gain_percent": 6.012317342199847,
+      "input_wait_fraction": 0.0,
+      "ipc_renderer_rss_quarter_gib": [
+        7.260367155075073,
+        7.86187744140625,
+        8.218635320663452,
+        8.604358434677124
+      ]
+    }
+  ],
+  "correctness": {
+    "transport_parity": {
+      "passed": true,
+      "updates": 4,
+      "rgb_error": 0.0,
+      "feature_error": 0.0,
+      "gradient_error": 3.623783051409646e-09,
+      "repeat_gradient_error": 3.623783051409646e-09,
+      "parameter_error": 0.0,
+      "optimizer": {
+        "bitwise_equal": true,
+        "clocks_rules_and_coverage_identical": true,
+        "compared_tensors": 918,
+        "maximum_absolute_error": 0.0,
+        "maximum_tensor_relative_l2_error": 0.0,
+        "numerical_equality_scope": "Zero numerical differences; the initial emitted bitwise_equal label was not a bit-pattern comparison. Checkpoint replay separately verifies exact serialized records."
+      }
+    },
+    "transport_parity_512": {
+      "passed": true,
+      "updates": 4,
+      "maximum_rgb_error": 0.0,
+      "maximum_feature_error": 0.0,
+      "maximum_gradient_error": 3.549917693135285e-09,
+      "maximum_parameter_error": 0.0,
+      "optimizer": {
+        "bitwise_equal": true,
+        "clocks_rules_and_coverage_identical": true,
+        "compared_tensors": 918,
+        "maximum_absolute_error": 0.0,
+        "maximum_tensor_relative_l2_error": 0.0,
+        "numerical_equality_scope": "Zero numerical difference; record byte equality is independently checked by checkpoint replay."
+      }
+    },
+    "retained_after_renderer_retirement": {
+      "passed": true,
+      "updates": 16
+    },
+    "active_producer_failure": {
+      "schema": 1,
+      "test": "active_owned_producer_death",
+      "status": "passed_expected_failure",
+      "pid": 3785449,
+      "trainer_pid": 3785361,
+      "lane": 0,
+      "metrics_before": 16,
+      "snapshot_ms": 1792357980863,
+      "injected_ms": 1792357980908,
+      "controller_status": "failed",
+      "exit_code": 1,
+      "exit_after_fault_seconds": 1.88324169921875,
+      "owned_processes_gone": true,
+      "gpu_memory_released": true
+    },
+    "checkpoint_replay_256": {
+      "next_update_absolute_tolerance": 2e-06,
+      "next_update_bitwise_equal": true,
+      "next_update_max_absolute_error": 0.0,
+      "next_update_optimizer_records_equal": true,
+      "optimizer_records_equal": true,
+      "parameter_tensors": 426,
+      "passed": true,
+      "pre_update_bitwise_equal": true,
+      "restored_cuda_backward_graph": false,
+      "scope": "Untimed duplicate-input checkpoint qualification; no diagnostic weights promoted"
+    },
+    "checkpoint_replay_512": {
+      "next_update_absolute_tolerance": 2e-06,
+      "next_update_bitwise_equal": true,
+      "next_update_max_absolute_error": 0.0,
+      "next_update_optimizer_records_equal": true,
+      "optimizer_records_equal": true,
+      "parameter_tensors": 426,
+      "passed": true,
+      "pre_update_bitwise_equal": true,
+      "restored_cuda_backward_graph": false,
+      "scope": "Untimed duplicate-input checkpoint qualification; no diagnostic weights promoted"
+    },
+    "heldout_256": {
+      "passed": true,
+      "rooms": 32,
+      "samples": 32,
+      "candidate_psnr_delta_db": 0.0030897310070336914,
+      "live_candidate_psnr_delta_db": 0.09642845850064319
+    },
+    "heldout_512": {
+      "passed": true,
+      "rooms": 32,
+      "samples": 32,
+      "candidate_psnr_delta_db": 0.14122703550146554,
+      "live_candidate_psnr_delta_db": 2.7621277318313915
+    }
+  },
+  "numerical_audit_note": "The measured transport audit reports zero numerical error. Its initial optimizer field named bitwise_equal was computed from maximum numerical error and is not a bit-pattern comparison; code now names it numerically_equal. Exact serialized optimizer-record equality is independently verified by checkpoint replay.",
+  "trace": {
+    "archive256_trace": {
+      "scope": "Warm instrumented update, CUDA training process only. Concurrent Vulkan renderer is not traced. CPU ranges attributed through CUDA API correlation, not kernel start time. Profiler perturbation prevents treating this as production latency.",
+      "copies": [
+        {
+          "copyKind": 1,
+          "count": 7,
+          "bytes": 62931032,
+          "milliseconds": 58.643077
+        },
+        {
+          "copyKind": 2,
+          "count": 1,
+          "bytes": 40,
+          "milliseconds": 0.002688
+        }
+      ]
+    },
+    "ipc256_trace": {
+      "scope": "Warm instrumented update, CUDA training process only. Concurrent Vulkan renderer is not traced. CPU ranges attributed through CUDA API correlation, not kernel start time. Profiler perturbation prevents treating this as production latency.",
+      "copies": [
+        {
+          "copyKind": 1,
+          "count": 7,
+          "bytes": 19064,
+          "milliseconds": 0.04256
+        },
+        {
+          "copyKind": 2,
+          "count": 3,
+          "bytes": 42,
+          "milliseconds": 0.011808
+        },
+        {
+          "copyKind": 8,
+          "count": 80,
+          "bytes": 83886080,
+          "milliseconds": 0.352862
+        }
+      ]
+    }
+  },
+  "evidence_limits": [
+    "Operational transport qualification on one shared workstation. Same model/optimizer starting state, scientific configuration, SSAA and rendering policy. Fresh independent reserved scenes in each arm. Diagnostic updates are never promoted. Throughput windows exclude startup, warmup, capture parity, evaluation, checkpoint save/replay. The four-renderer preliminary case includes prior parity allocations and is not the clean memory comparison.",
+    "The 256 archive window contains 256 updates and the clean IPC window 512; the 512 windows each contain 256 updates. Fresh seeds differ across benchmark arms.",
+    "The trace covers one warm instrumented trainer update, not aggregate producer or long-run PCIe traffic.",
+    "Renderer RSS was still rising; memory plateau and unlimited-run stability are unproven.",
+    "The source snapshot predates upstream receiver timing instrumentation and later documentation edits. This receipt qualifies the recorded snapshot, not subsequent changes.",
+    "This receipt does not verify current production resume state or completion of the 250k-step run."
+  ]
+}

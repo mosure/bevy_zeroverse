@@ -58,6 +58,10 @@ impl PreparationJob {
 pub struct IndoorPrefetch {
     /// Requested future consecutive rooms, capped by MAX_DEPTH. Zero disables.
     pub depth: usize,
+    /// Exact upcoming seeds, excluding the active capture. Some(empty) disables
+    /// consecutive speculation. This reserves CPU preparation, never GPU demand.
+    #[serde(skip)]
+    pub explicit_seeds: Option<Vec<u64>>,
     pub started: u64,
     pub hits: u64,
     pub discarded: u64,
@@ -91,6 +95,9 @@ impl<T> Lookahead<T> {
         self.0.len()
     }
 
+    pub(crate) fn front_key(&self) -> Option<&Request> {
+        self.0.front().map(|(key, _)| key)
+    }
     pub(crate) fn front_mut(&mut self) -> Option<&mut T> {
         self.0.front_mut().map(|(_, job)| job)
     }
@@ -107,22 +114,42 @@ impl<T> Lookahead<T> {
         (None, discarded)
     }
 
+    #[cfg(test)]
     pub(crate) fn fill(
         &mut self,
         current: &Request,
         depth: usize,
+        spawn: impl FnMut(&Request) -> T,
+    ) -> (usize, usize) {
+        self.fill_seeds(current, depth, None, spawn)
+    }
+    pub(crate) fn fill_seeds(
+        &mut self,
+        current: &Request,
+        depth: usize,
+        seeds: Option<&[u64]>,
         mut spawn: impl FnMut(&Request) -> T,
     ) -> (usize, usize) {
-        let depth = depth.min(MAX_DEPTH);
-        let discarded = self.0.len().saturating_sub(depth);
+        let depth = depth
+            .min(MAX_DEPTH)
+            .min(seeds.map_or(usize::MAX, <[u64]>::len));
+        let mut discarded = self.0.len().saturating_sub(depth);
         self.0.truncate(depth);
         let mut key = current.clone();
         let mut started = 0;
         for i in 0..depth {
-            key = key.successor();
-            if i < self.0.len() {
-                debug_assert_eq!(self.0[i].0, key);
-            } else {
+            key = seeds.map_or_else(
+                || key.successor(),
+                |seeds| Request {
+                    seed: seeds[i],
+                    ..current.clone()
+                },
+            );
+            if self.0.get(i).is_some_and(|(old, _)| *old != key) {
+                discarded += self.0.len() - i;
+                self.0.truncate(i);
+            }
+            if i >= self.0.len() {
                 self.0.push_back((key.clone(), spawn(&key)));
                 started += 1;
             }
@@ -396,6 +423,42 @@ mod tests {
         assert_eq!(queue.second_mut().unwrap().0.seed, 2);
         assert_eq!(queue.take(&key), (None, 2));
         assert!(queue.second_mut().is_none());
+    }
+
+    #[test]
+    fn explicit_strided_and_repeated_seeds_retain_exact_jobs() {
+        let key = Request::new(10, &default(), &default(), default());
+        let mut queue = Lookahead::default();
+        assert_eq!(
+            queue.fill_seeds(&key, 4, Some(&[14, 18, 14]), |next| next.seed),
+            (3, 0)
+        );
+        let next = Request {
+            seed: 14,
+            ..key.clone()
+        };
+        assert_eq!(queue.take(&next), (Some(14), 0));
+        assert_eq!(
+            queue.fill_seeds(&next, 4, Some(&[18, 14, 31]), |next| next.seed),
+            (1, 0)
+        );
+        assert_eq!(
+            queue.take(&Request {
+                seed: 18,
+                ..key.clone()
+            }),
+            (Some(18), 0)
+        );
+        // Replacing the suffix retains the common prefix and retires obsolete jobs.
+        assert_eq!(
+            queue.fill_seeds(&key, 4, Some(&[14, 99]), |next| next.seed),
+            (1, 1)
+        );
+        assert_eq!(queue.take(&next), (Some(14), 0));
+        assert_eq!(
+            queue.fill_seeds(&key, 4, Some(&[]), |_| panic!("no speculative successor")),
+            (0, 1)
+        );
     }
 
     #[test]

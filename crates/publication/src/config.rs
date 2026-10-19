@@ -21,6 +21,9 @@ pub struct Config {
     /// Optional current-source capacity populations; never pooled across configs.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub capacity_receipts: Vec<PathBuf>,
+    /// Explicit source-bound release that preserves an earlier attested bundle.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub retained_evidence: Option<crate::retained::RetainedEvidence>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -123,6 +126,9 @@ impl Config {
                 path.starts_with("docs/evidence"),
                 "capacity inputs must be shipped evidence"
             );
+        }
+        if let Some(retained) = &config.retained_evidence {
+            retained.validate()?;
         }
         Ok(config)
     }

@@ -1,56 +1,86 @@
-//! Vulkan producer -> CUDA transfer-stream binary semaphore. Ownership and the
-//! signal-before-wait requirement are explicit; each signal has exactly one wait.
+//! Exported binary signal, consumed once after producer completion is observed.
 use super::*;
 use std::os::fd::{AsRawFd, FromRawFd, IntoRawFd, OwnedFd};
 
-pub(super) struct Semaphore {
+pub(in crate::gpu) struct VulkanSemaphore {
     _device: wgpu::Device,
     device: ash::Device,
+    instance: ash::Instance,
     raw: vk::Semaphore,
-    context: Arc<CudaContext>,
-    cuda: sys::CUexternalSemaphore,
 }
-impl Semaphore {
-    pub fn new(
-        setup: &WgpuSetup,
-        instance: &ash::Instance,
-        device: &ash::Device,
-        physical: vk::PhysicalDevice,
-        context: Arc<CudaContext>,
-    ) -> Result<Self> {
+impl VulkanSemaphore {
+    pub fn new(exporter: &vulkan::Exporter) -> Result<Self> {
         let handle_type = vk::ExternalSemaphoreHandleTypeFlags::OPAQUE_FD;
         let mut properties = vk::ExternalSemaphoreProperties::default();
         let info = vk::PhysicalDeviceExternalSemaphoreInfo::default().handle_type(handle_type);
-        // SAFETY: Live physical device and valid output pointer.
         unsafe {
-            instance.get_physical_device_external_semaphore_properties(
-                physical,
-                &info,
-                &mut properties,
-            )
-        };
+            exporter
+                .instance
+                .get_physical_device_external_semaphore_properties(
+                    exporter.physical,
+                    &info,
+                    &mut properties,
+                );
+        }
         ensure!(
             properties
                 .external_semaphore_features
                 .contains(vk::ExternalSemaphoreFeatureFlags::EXPORTABLE),
-            "Vulkan cannot export an opaque FD semaphore"
+            "Vulkan cannot export opaque FD semaphores"
         );
-        let mut export = vk::ExportSemaphoreCreateInfo::default().handle_types(handle_type);
-        let info = vk::SemaphoreCreateInfo::default().push_next(&mut export);
-        let raw = unsafe { device.create_semaphore(&info, None)? };
-        let mut semaphore = Self {
-            _device: setup.device.clone(),
-            device: device.clone(),
+        let mut external = vk::ExportSemaphoreCreateInfo::default().handle_types(handle_type);
+        let info = vk::SemaphoreCreateInfo::default().push_next(&mut external);
+        let raw = unsafe { exporter.raw.create_semaphore(&info, None)? };
+        Ok(Self {
+            _device: exporter.setup.device.clone(),
+            device: exporter.raw.clone(),
+            instance: exporter.instance.clone(),
             raw,
-            context,
-            cuda: std::ptr::null_mut(),
-        };
-        let exporter = khr::external_semaphore_fd::Device::new(instance, device);
+        })
+    }
+    pub fn export_fd(&self) -> Result<OwnedFd> {
+        let exporter = khr::external_semaphore_fd::Device::new(&self.instance, &self.device);
         let info = vk::SemaphoreGetFdInfoKHR::default()
-            .semaphore(raw)
-            .handle_type(handle_type);
-        let fd = unsafe { OwnedFd::from_raw_fd(exporter.get_semaphore_fd(&info)?) };
-        let desc = sys::CUDA_EXTERNAL_SEMAPHORE_HANDLE_DESC {
+            .semaphore(self.raw)
+            .handle_type(vk::ExternalSemaphoreHandleTypeFlags::OPAQUE_FD);
+        Ok(unsafe { OwnedFd::from_raw_fd(exporter.get_semaphore_fd(&info)?) })
+    }
+    pub fn signal(&self, queue: &wgpu::Queue) -> Result<wgpu::SubmissionIndex> {
+        struct Pending<'a>(&'a wgpu::Queue, vk::Semaphore);
+        impl Drop for Pending<'_> {
+            fn drop(&mut self) {
+                if let Some(queue) = unsafe { self.0.as_hal::<wgpu::hal::api::Vulkan>() } {
+                    queue.remove_signal_semaphore(self.1);
+                }
+            }
+        }
+        unsafe {
+            queue
+                .as_hal::<wgpu::hal::api::Vulkan>()
+                .context("Vulkan queue unavailable")?
+                .add_signal_semaphore(self.raw, None);
+        }
+        let _pending = Pending(queue, self.raw);
+        Ok(queue.submit([]))
+    }
+}
+impl Drop for VulkanSemaphore {
+    fn drop(&mut self) {
+        unsafe {
+            self.device.destroy_semaphore(self.raw, None);
+        }
+    }
+}
+
+pub(in crate::gpu) struct CudaSemaphore {
+    context: Arc<CudaContext>,
+    cuda: sys::CUexternalSemaphore,
+}
+unsafe impl Send for CudaSemaphore {}
+impl CudaSemaphore {
+    pub fn import(context: Arc<CudaContext>, fd: OwnedFd) -> Result<Self> {
+        context.bind_to_thread()?;
+        let descriptor = sys::CUDA_EXTERNAL_SEMAPHORE_HANDLE_DESC {
             type_: sys::CUexternalSemaphoreHandleType::CU_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_FD,
             handle: sys::CUDA_EXTERNAL_SEMAPHORE_HANDLE_DESC_st__bindgen_ty_1 {
                 fd: fd.as_raw_fd(),
@@ -58,65 +88,46 @@ impl Semaphore {
             flags: 0,
             reserved: [0; 16],
         };
-        semaphore.context.bind_to_thread()?;
-        // SAFETY: The FD names this live exported binary semaphore. Success
-        // transfers ownership to CUDA; failure closes it via OwnedFd.
-        unsafe { sys::cuImportExternalSemaphore(&mut semaphore.cuda, &desc).result()? };
-        let _ = fd.into_raw_fd();
-        Ok(semaphore)
-    }
-    pub fn signal(&self, queue: &wgpu::Queue) -> Result<()> {
-        // Remove an unconsumed signal even if queue submission unwinds. A stale
-        // raw semaphore must never remain staged after its owner is destroyed.
-        struct PendingSignal<'a> {
-            queue: &'a wgpu::Queue,
-            semaphore: vk::Semaphore,
-        }
-        impl Drop for PendingSignal<'_> {
-            fn drop(&mut self) {
-                // SAFETY: The semaphore owner outlives this guard. Removal only
-                // affects signals not yet taken by an actual queue submission.
-                if let Some(queue) = unsafe { self.queue.as_hal::<wgpu::hal::api::Vulkan>() } {
-                    queue.remove_signal_semaphore(self.semaphore);
-                }
-            }
-        }
-        // SAFETY: Semaphore and queue share a device. Bridge ensures its prior
-        // wait completed before this binary semaphore is signaled again.
+        let mut cuda = std::ptr::null_mut();
         unsafe {
-            queue
-                .as_hal::<wgpu::hal::api::Vulkan>()
-                .context("Vulkan queue unavailable")?
-                .add_signal_semaphore(self.raw, None)
-        };
-        let _pending = PendingSignal {
-            queue,
-            semaphore: self.raw,
-        };
-        queue.submit([]);
-        Ok(())
+            sys::cuImportExternalSemaphore(&mut cuda, &descriptor).result()?;
+        }
+        let _ = fd.into_raw_fd();
+        Ok(Self { context, cuda })
     }
     pub fn wait(&self, stream: &CudaStream) -> Result<()> {
+        self.context.bind_to_thread()?;
         let params: sys::CUDA_EXTERNAL_SEMAPHORE_WAIT_PARAMS = unsafe { std::mem::zeroed() };
-        // SAFETY: Signal was enqueued first; semaphore, context and stream are
-        // retained until the CUDA wait/copies complete.
         unsafe {
             sys::cuWaitExternalSemaphoresAsync(&self.cuda, &params, 1, stream.cu_stream())
-                .result()?
-        };
+                .result()?;
+        }
         Ok(())
     }
 }
-impl Drop for Semaphore {
+impl Drop for CudaSemaphore {
     fn drop(&mut self) {
-        // Bridge drains its own transfer stream and Vulkan submissions first.
         if self.context.bind_to_thread().is_ok() {
             unsafe {
-                if !self.cuda.is_null() {
-                    let _ = sys::cuDestroyExternalSemaphore(self.cuda).result();
-                }
-                self.device.destroy_semaphore(self.raw, None);
+                let _ = sys::cuDestroyExternalSemaphore(self.cuda).result();
             }
         }
+    }
+}
+pub(in crate::gpu) struct Semaphore {
+    cuda: CudaSemaphore,
+    vulkan: VulkanSemaphore,
+}
+impl Semaphore {
+    pub fn new(exporter: &vulkan::Exporter, context: Arc<CudaContext>) -> Result<Self> {
+        let vulkan = VulkanSemaphore::new(exporter)?;
+        let cuda = CudaSemaphore::import(context, vulkan.export_fd()?)?;
+        Ok(Self { cuda, vulkan })
+    }
+    pub fn signal(&self, queue: &wgpu::Queue) -> Result<()> {
+        self.vulkan.signal(queue).map(|_| ())
+    }
+    pub fn wait(&self, stream: &CudaStream) -> Result<()> {
+        self.cuda.wait(stream)
     }
 }

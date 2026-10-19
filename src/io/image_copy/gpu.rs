@@ -6,6 +6,8 @@ use super::*;
 #[derive(Clone)]
 pub struct GpuCaptureTarget {
     pub token: u64,
+    /// Empty means all sources; otherwise copy only these unique source indices.
+    pub source_indices: Vec<usize>,
     pub buffer: wgpu::Buffer,
     pub offset: u64,
     pub byte_len: u64,
@@ -31,13 +33,29 @@ impl ImageCopier {
         if self.state.busy.load(Ordering::Acquire) {
             return Err("cannot replace an in-flight GPU capture target".into());
         }
+        let selected = if target.source_indices.is_empty() {
+            self.sources.len()
+        } else {
+            target.source_indices.len()
+        };
+        let mut indices = target.source_indices.clone();
+        indices.sort_unstable();
+        if indices.iter().any(|i| *i >= self.sources.len())
+            || indices.windows(2).any(|w| w[0] == w[1])
+        {
+            return Err("GPU copy source indices must be unique and in range".into());
+        }
+        let required = selected
+            .checked_mul(self.padded_row_bytes)
+            .and_then(|n| n.checked_mul(self.rows))
+            .ok_or("GPU capture size overflow")? as u64;
         if self.format != TextureFormat::Rgba32Float
             || !self.row_bytes.is_multiple_of(16)
             || !target.offset.is_multiple_of(16)
-            || target.byte_len < self.staging_bytes() as u64
+            || target.byte_len < required
             || target
                 .offset
-                .checked_add(self.staging_bytes() as u64)
+                .checked_add(required)
                 .is_none_or(|end| end > target.buffer.size())
             || !target.buffer.usage().contains(wgpu::BufferUsages::COPY_DST)
         {
@@ -47,6 +65,13 @@ impl ImageCopier {
         }
         *self.state.gpu_target.lock().unwrap() = Some(target);
         Ok(())
+    }
+    /// Retire speculative bindings that never received a capture request.
+    /// Submitted copies retain their own queue-completion leases.
+    pub fn unbind_idle_gpu_target(&self) {
+        if !self.state.busy.load(Ordering::Acquire) {
+            self.state.gpu_target.lock().unwrap().take();
+        }
     }
     pub fn take_gpu(&self, id: u64) -> Option<GpuCapturedImages> {
         let mut packet = self.state.gpu_completed.lock().unwrap();

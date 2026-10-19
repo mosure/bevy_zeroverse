@@ -2324,7 +2324,7 @@ dependencies = [
 
 [[package]]
 name = "bevy_zeroverse"
-version = "0.44.2"
+version = "0.45.0"
 dependencies = [
  "anyhow",
  "bevy",
@@ -2375,13 +2375,14 @@ dependencies = [
 
 [[package]]
 name = "bevy_zeroverse_burn"
-version = "0.28.2"
+version = "0.29.0"
 dependencies = [
  "anyhow",
  "ash",
  "bevy",
  "bevy_render",
  "bevy_zeroverse",
+ "bevy_zeroverse_capture",
  "bincode",
  "burn",
  "burn-cubecl",
@@ -2391,9 +2392,11 @@ dependencies = [
  "clap",
  "criterion 0.8.2",
  "crossterm 0.29.0",
+ "cubecl",
  "cubecl-runtime",
  "cudarc",
  "image",
+ "libc",
  "lz4_flex",
  "ndarray 0.16.1",
  "ndarray-npy",
@@ -2408,7 +2411,7 @@ dependencies = [
 
 [[package]]
 name = "bevy_zeroverse_capture"
-version = "0.4.1"
+version = "0.5.0"
 dependencies = [
  "serde",
  "sha2",
@@ -2416,7 +2419,7 @@ dependencies = [
 
 [[package]]
 name = "bevy_zeroverse_ffi"
-version = "0.44.2"
+version = "0.45.0"
 dependencies = [
  "bevy",
  "bevy_args",
@@ -2435,7 +2438,7 @@ dependencies = [
 
 [[package]]
 name = "bevy_zeroverse_publication"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",

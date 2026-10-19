@@ -133,6 +133,13 @@ fn artifacts(root: &Path) -> Result<BTreeMap<String, String>> {
     Ok(out)
 }
 pub fn verify(root: &Path, release_version: Option<&str>) -> Result<Attestation> {
+    verify_for_rebuild(root, release_version, false)
+}
+fn verify_for_rebuild(
+    root: &Path,
+    release_version: Option<&str>,
+    allow_page_changes: bool,
+) -> Result<Attestation> {
     ensure!(
         source_digest(&publisher_inputs(&root.join("crates/publication"))?)
             == env!("PUBLICATION_SOURCE_SHA256"),
@@ -159,11 +166,8 @@ pub fn verify(root: &Path, release_version: Option<&str>) -> Result<Attestation>
         .collect::<Vec<_>>()
         .join(", ");
     ensure!(
-        attestation.generator_identity == current && attestation.protocol == config.capture,
-        "stale generator or capture recipe: publication refresh required; expected source {}, found {}; changed renderer inputs [{}]",
-        attestation.generator_identity.source_sha256,
-        current.source_sha256,
-        changed_inputs
+        attestation.protocol == config.capture,
+        "capture recipe changed"
     );
     if let Some(version) = release_version {
         ensure!(
@@ -171,14 +175,28 @@ pub fn verify(root: &Path, release_version: Option<&str>) -> Result<Attestation>
             "release tag does not match generator version"
         );
     }
-    ensure!(
-        attestation.renderer_inputs == renderer_inputs,
-        "renderer source set/hash changed"
-    );
-    ensure!(
-        attestation.publication_inputs == publication_inputs(root, &config)?,
-        "publication inputs changed: publication refresh required"
-    );
+    let inputs = publication_inputs(root, &config)?;
+    if let Some(retained) = &config.retained_evidence {
+        retained.verify(&current, &attestation, &inputs)?;
+    } else {
+        ensure!(
+            attestation.generator_identity == current,
+            "stale generator: publication refresh required; expected source {}, found {}; changed renderer inputs [{}]",
+            attestation.generator_identity.source_sha256,
+            current.source_sha256,
+            changed_inputs
+        );
+        ensure!(
+            attestation.renderer_inputs == renderer_inputs,
+            "renderer source set/hash changed"
+        );
+    }
+    if !allow_page_changes || config.retained_evidence.is_none() {
+        ensure!(
+            attestation.publication_inputs == inputs,
+            "publication inputs changed: rebuild the retained page or refresh current captures"
+        );
+    }
     ensure!(
         attestation.artifacts == artifacts(root)?,
         "publication artifacts missing/changed; rebuild rather than edit generated files"
@@ -188,6 +206,9 @@ pub fn verify(root: &Path, release_version: Option<&str>) -> Result<Attestation>
         "the current snapshot cannot include historical reference studies"
     );
     verify_bundle(root, &config, &attestation)?;
+    if !allow_page_changes {
+        crate::objects::verify_explorer(&fs::read_to_string(root.join("www/project/index.html"))?)?;
+    }
     Ok(attestation)
 }
 
@@ -450,6 +471,7 @@ fn check_gallery(html: &str) -> Result<()> {
 pub fn refresh(root: &Path, recapture: bool) -> Result<()> {
     let root = root.canonicalize()?;
     let config = Config::load(&root)?;
+    crate::retained::require_refresh_allowed(&config)?;
     let work = root.join("out/publication");
     fs::create_dir_all(&work)?;
     let lock = fs::OpenOptions::new()
@@ -644,8 +666,9 @@ pub fn refresh(root: &Path, recapture: bool) -> Result<()> {
 }
 
 /// Rebuild the page and paper at release/deployment time from the self-contained
-/// attested current capture bundle. Source upgrades require refresh first;
-/// release servers never silently substitute an old generator's measurements.
+/// attested capture bundle. Source upgrades require refresh or an explicit
+/// release/source-bound retained-evidence policy. Retained captures stay intact;
+/// release servers never relabel an old generator's measurements.
 pub fn rebuild(root: &Path, release_version: Option<&str>) -> Result<()> {
     let root = root.canonicalize()?;
     let config = Config::load(&root)?;
@@ -659,7 +682,11 @@ pub fn rebuild(root: &Path, release_version: Option<&str>) -> Result<()> {
         .open(work.join("writer.lock"))?;
     lock.try_lock_exclusive()
         .context("another publication build is running")?;
-    let mut attestation = verify(&root, release_version)?;
+    let mut attestation =
+        verify_for_rebuild(&root, release_version, config.retained_evidence.is_some())?;
+    if config.retained_evidence.is_some() {
+        return rebuild_retained_page(&root, &config, attestation, release_version);
+    }
     let before = publication_inputs(&root, &config)?;
     let staging = tempfile::Builder::new()
         .prefix("release-")
@@ -709,11 +736,51 @@ pub fn rebuild(root: &Path, release_version: Option<&str>) -> Result<()> {
     Ok(())
 }
 
+fn rebuild_retained_page(
+    root: &Path,
+    config: &Config,
+    mut attestation: Attestation,
+    release_version: Option<&str>,
+) -> Result<()> {
+    let current = identity(root)?;
+    let inputs = publication_inputs(root, config)?;
+    let staging = tempfile::Builder::new()
+        .prefix("retained-page-")
+        .tempdir_in(root.join("out/publication"))?;
+    let stage = staging.path();
+    io::copy_tree(&root.join("www/project"), &stage.join("www/project"))?;
+    io::copy_tree(&root.join("tex"), &stage.join("tex"))?;
+    let gallery = io::read(&stage.join("www/project/static/media/architecture/gallery.json"))?;
+    media::page(&gallery, stage, &config.capture)?;
+    attestation.artifacts = artifacts(stage)?;
+    attestation.publication_inputs = inputs.clone();
+    config
+        .retained_evidence
+        .as_ref()
+        .context("missing retained evidence policy")?
+        .verify(&current, &attestation, &inputs)?;
+    ensure!(
+        identity(root)? == current && publication_inputs(root, config)? == inputs,
+        "source changed during retained page rebuild"
+    );
+    verify_bundle(stage, config, &attestation)?;
+    crate::objects::verify_explorer(&fs::read_to_string(stage.join("www/project/index.html"))?)?;
+    io::write(&stage.join(ATTESTATION), &attestation)?;
+    install(root, stage, &attestation.artifacts)?;
+    verify(root, release_version)?;
+    println!("Rebuilt page presentation for release {}; retained all captured evidence and paper from crate {} (source {}), without GPU work or relabeling",
+        current.crate_version, attestation.generator_identity.crate_version, attestation.generator_identity.source_sha256);
+    Ok(())
+}
+
 /// The sanctioned registry entry point: no package upload happens before the
-/// latest generator's page/paper has been prepared, installed and verified.
+/// page/paper has passed the explicit source and evidence policy.
 /// Direct Cargo uploads remain outside this tool's control.
 pub fn publish(root: &Path, package: &str, dry_run: bool) -> Result<()> {
-    if verify(root, None).is_err() {
+    if Config::load(root)?.retained_evidence.is_some() {
+        // A failed retained-evidence check must never start a GPU refresh.
+        rebuild(root, None)?;
+    } else if verify(root, None).is_err() {
         refresh(root, false)?;
     } else {
         rebuild(root, None)?;
@@ -727,7 +794,7 @@ pub fn publish(root: &Path, package: &str, dry_run: bool) -> Result<()> {
     if dry_run {
         command.args(["--dry-run", "--allow-dirty"]);
     }
-    println!("Publication verified for generator crate {}; registry package {package}, dry_run={dry_run}",attestation.generator_identity.crate_version);
+    println!("Publication verified: captured crate {}, release crate {}; registry package {package}, dry_run={dry_run}",attestation.generator_identity.crate_version, identity(root)?.crate_version);
     ensure!(
         command.status()?.success(),
         "Cargo publication failed; validated documentation remains available"

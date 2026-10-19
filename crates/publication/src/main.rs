@@ -12,6 +12,8 @@ struct Args {
 }
 #[derive(Subcommand)]
 enum Action {
+    /// Print the canonical immutable capture/paper digest for a retained-evidence policy.
+    EvidenceDigest,
     /// Build a local current-source paper section and page fragment; does not publish.
     CapacityPaper {
         #[arg(long, required=true, num_args=1..)]
@@ -204,6 +206,15 @@ enum Action {
 fn main() -> Result<()> {
     let args = Args::parse();
     match args.command {
+        Action::EvidenceDigest => {
+            let attestation = bevy_zeroverse_publication::io::read(
+                &args.root.join("www/project/publication.json"),
+            )?;
+            println!(
+                "{}",
+                bevy_zeroverse_publication::retained::capture_evidence_digest(&attestation)?
+            );
+        }
         Action::CapacityPaper { receipt, output } => {
             anyhow::ensure!(!output.exists(), "capacity paper output already exists");
             let identity = bevy_zeroverse_publication::pipeline::identity(&args.root)?;
@@ -352,7 +363,7 @@ fn main() -> Result<()> {
                 &args.root,
                 release_version.as_deref(),
             )?;
-            println!("Verified current snapshot: crate {}, generator {}, {} rendered rooms, {} bound artifacts",report.generator_identity.crate_version,report.generator_identity.generator_version,report.protocol.rendered_rooms,report.artifacts.len());
+            println!("Verified captured snapshot: crate {}, generator {}, {} rendered rooms, {} bound artifacts; checkout crate {}",report.generator_identity.crate_version,report.generator_identity.generator_version,report.protocol.rendered_rooms,report.artifacts.len(), bevy_zeroverse_publication::pipeline::identity(&args.root)?.crate_version);
         }
     }
     Ok(())

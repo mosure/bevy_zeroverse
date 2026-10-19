@@ -14,7 +14,7 @@ let mut rooms = GpuLiveDataset::new(BevyZeroverseConfig {
 })?;
 let training_device = rooms.device().clone();
 let sample = rooms.next_sample()?;
-// sample.views[0].color is Tensor<3>, [height, width, RGBA].
+// sample.views[0].color is Option<Tensor<3>>, [height, width, RGBA].
 // Construct the model on training_device; no CPU image conversion is needed.
 # Ok::<(), anyhow::Error>(())
 ```
@@ -37,7 +37,9 @@ One persistent capture worker automatically prepares one future GPU sample
 while the consumer trains. Requests and results are bounded; retained samples
 belong to the consumer. `sample_seed(seed)` drains any queued lookahead before
 indexed capture and preserves the consecutive stream's cursor. Dropping the
-dataset joins its worker; returned tensors remain valid afterwards.
+dataset requests shutdown without blocking the training thread in a driver call;
+returned tensors remain valid afterwards. Explicit sessions provide bounded
+`shutdown(timeout)` and report whether retirement completed.
 For Burn's data loader, call `rooms.into_dataset(samples_per_epoch)`. Its
 `device()` is the same training device. This is a live stream: indices bound
 an epoch, and every `get` returns a new room, including across epochs.
@@ -69,7 +71,10 @@ from each tensor's logical shape. Outputs preserve the raw raster contract:
 
 Flow is shifted from the raster pass to the source-frame convention, matching
 CPU archives. The terminal source has no successor and has zero/invalid flow.
-`depth()` and `semantic_ids()` return single-channel tensors; other derived
+All planes are optional and follow `render_modes`; an empty mode list uses
+`render_mode`. RGB-only requests skip annotation uploads/MRT. `indoor()` explicitly
+requests full annotations. `depth()` and `semantic_ids()` return optional
+single-channel tensors; other derived
 representations can be computed on the training device. Glass policy, camera
 calibration, room bounds, object boxes and pose metadata remain explicit.
 This transport currently supports native procedural indoor scenes. Use the
@@ -196,6 +201,14 @@ The archived/CPU `LiveDataset` API intentionally returns host images and does
 perform readback. It is appropriate for archives, not the lowest-copy JIT path.
 `GpuSample.metadata` contains calibration/scene metadata with empty image vectors;
 `gpu_tensor_contract.transport` records the active transport and copy/fence contract.
+
+## Explicit color and supervised processes
+
+[Configurable GPU capture](gpu_process_capture.md) documents `CaptureSpec`, the
+fused GPU sRGB conversion, `GpuCaptureSession` admission, and the Linux `cuda_ipc`
+server/receiver. Raw linear RGBA is retained as an explicit output. Training that
+expects sRGB RGB must request `ColorOutput::SrgbRgbF32` once and must not encode it
+again in the loader. General constructors honor RGB-only/partial annotations.
 
 ## Opt-in Linux Vulkan → CUDA
 

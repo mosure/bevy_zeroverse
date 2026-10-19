@@ -112,6 +112,7 @@ fn recipe_cannot_replace_sources_or_the_publication_work_directory() {
         camera_study: None,
         room_qualification: None,
         capacity_receipts: vec![],
+        retained_evidence: None,
     };
     fs::write(
         root.path().join("publication.toml"),

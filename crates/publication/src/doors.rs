@@ -310,9 +310,6 @@ The category audit checks 64 consecutive samples in each of ten categories (640 
 \begin{figure}[p]\centering\includegraphics[width=.87\linewidth,height=.78\textheight,keepaspectratio]{generated/door_cabinetry_grid.png}\caption{Cabinetry construction. Rows: office storage, counter base, base-and-overhead cupboard, pantry and sink base. Columns are prespecified seeds 0, 3 and 7, without visual filtering. All six examples and semantic/normal channels are available in the project-page category viewer.}\end{figure}
 "#
 }
-pub fn page() -> &'static str {
-    r#"<section id="doors" class="container section"><div class="section-heading"><div><div class="eyebrow">ARCHITECTURAL ASSEMBLIES</div><h2>Doors, hardware<br>and cabinetry.</h2></div><p>Explore construction states and aligned semantic labels. Doors belong to openings; cabinet fronts retain the identity of their supporting furniture.</p></div><iframe title="Door and cabinet construction atlas" src="static/media/doors/index.html" loading="lazy" style="width:100%;height:920px;border:0;border-radius:18px"></iframe><p><a href="static/media/doors/index.html">Open the full category viewer</a> · <a href="static/media/doors/atlas.json">Download source-bound measurements</a></p></section>"#
-}
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 pub mod calibration;
 pub mod capacity;
 pub mod depth;
+pub mod gpu;
 pub mod reconstruction;
 
 pub const GENERATOR_VERSION: u32 = 51;

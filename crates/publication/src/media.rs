@@ -774,7 +774,6 @@ pub fn page(gallery: &Value, stage: &Path, protocol: &Protocol) -> Result<()> {
             ("FACTOR_VIEWS", qualification["captured_rgb_images"].to_string()),
             ("ROOM_QUALIFICATION", format!("{}{}", crate::cohorts::publication::page(stage, protocol.rendered_rooms)?, crate::capacity::publication::page(stage)?)),
             ("OBJECT_STUDY", crate::objects::page().into()),
-            ("DOOR_STUDY",crate::doors::page().into()),
             ("MATERIAL_STUDY", crate::materials::page().into()),
             ("FIRST_SEED",seed.to_string()),
             ("HERO_CAPTION",format!("Top: seed {}, cameras 0 and 3. Bottom: seed {} camera 0, seed {} camera 1. All at t = 0.",seed,featured[1]["seed"],featured[2]["seed"])),

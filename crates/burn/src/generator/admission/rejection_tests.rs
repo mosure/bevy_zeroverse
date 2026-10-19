@@ -190,3 +190,43 @@ fn cancellation_during_rejected_capture_retires_it_without_admitting_another() {
         }]
     ));
 }
+
+#[test]
+fn placement_rejection_returns_gpu_credit_and_next_request_continues() {
+    let control = Arc::new(
+        CaptureControl::new()
+            .with_rejection_policy(RejectionPolicy::Continue {
+                kinds: vec![SceneRejectionKind::PlacementClearance],
+                max_total: 2,
+                max_consecutive: 1,
+            })
+            .unwrap(),
+    );
+    control.start().unwrap();
+    control.grant_through(1);
+    let first = request(10);
+    let rejected = SceneRejection {
+        seed: first.seed,
+        kind: SceneRejectionKind::PlacementClearance,
+        reason: "floor furniture floats, sinks or intersects ceiling fixtures".into(),
+    };
+    assert!(
+        control
+            .try_acquire(first)
+            .unwrap()
+            .unwrap()
+            .rejected(rejected.clone(), Duration::ZERO)
+            .unwrap()
+    );
+    let next = request(11);
+    control.try_acquire(next).unwrap().unwrap().delivered();
+    let state = control.snapshot();
+    assert_eq!((state.admitted, state.completed, state.returned), (2, 2, 1));
+    assert!(!state.cancelled);
+    assert!(control.try_acquire(request(12)).unwrap().is_none());
+    // Identical wording from an untyped renderer/transport source stays fatal.
+    assert!(matches!(
+        CaptureError::from(rejected.reason),
+        CaptureError::Failed(_)
+    ));
+}

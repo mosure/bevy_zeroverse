@@ -462,9 +462,36 @@ pub fn page() -> &'static str {
     include_str!("../templates/objects.html")
 }
 
+/// The page has one geometry browser, including architectural assemblies.
+pub fn verify_explorer(html: &str) -> Result<()> {
+    ensure!(
+        html.matches("id=\"object-atlas\"").count() == 1
+            && html.matches("id=\"object-category\"").count() == 1
+            && html.matches("id=\"object-mode\"").count() == 1
+            && html.matches("id=\"object-study\"").count() == 1
+            && html.contains("data-assemblies=\"static/media/doors/atlas.json\"")
+            && !html.contains("id=\"doors\"")
+            && !html.contains("src=\"static/media/doors/index.html\""),
+        "duplicate or disjoint object/door presentation"
+    );
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn single_geometry_explorer_includes_doors_and_cabinetry() {
+        verify_explorer(page()).unwrap();
+        assert!(!include_str!("../templates/project.html").contains("@DOOR_STUDY@"));
+        for duplicate in [
+            page(),
+            "<section id=\"doors\"></section>",
+            "<iframe src=\"static/media/doors/index.html\"></iframe>",
+        ] {
+            assert!(verify_explorer(&format!("{}{duplicate}", page())).is_err());
+        }
+    }
     #[test]
     fn full_catalog_gate_rejects_partial_and_stale_inventory_receipts() {
         validate_inventory(

@@ -1,24 +1,26 @@
 //! Typed scene rejections are distinct from renderer/integrity failures.
 //! Only construction decisions with valid inputs may return a rejection.
 use bevy::prelude::Resource;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::fmt;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SceneRejectionKind {
     MissingProgramAnchor,
     InsufficientProgramCapacity,
     CameraPlacement,
+    /// A generated furniture placement fails a known geometric clearance check.
+    PlacementClearance,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SceneRejection {
     pub seed: u64,
     pub kind: SceneRejectionKind,
     pub reason: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CaptureError {
     Rejected {
         rejection: SceneRejection,
@@ -73,6 +75,30 @@ impl SceneCaptureError {
             })
             .unwrap_or(CaptureError::Failed(diagnostic))
     }
+}
+
+/// Consume the current diagnostic, preserving typed construction rejections.
+/// A rejection is returned as retired only after the headless transaction has
+/// released scene/readback state. Other failures must stop the renderer lane.
+pub fn take_capture_failure(world: &mut bevy::prelude::World) -> Option<CaptureError> {
+    let diagnostic = world.resource_mut::<super::CaptureFailure>().0.take()?;
+    let error = world
+        .resource_mut::<SceneCaptureError>()
+        .take_for_diagnostic(diagnostic);
+    Some(match error {
+        CaptureError::Rejected { rejection, .. } => {
+            match crate::scene::procedural_indoor::retire_rejected_capture(world, rejection.seed) {
+                Ok(()) => CaptureError::Rejected {
+                    rejection,
+                    retired: true,
+                },
+                Err(reason) => {
+                    CaptureError::Failed(format!("cannot retire rejected capture: {reason}"))
+                }
+            }
+        }
+        error => error,
+    })
 }
 
 #[cfg(test)]

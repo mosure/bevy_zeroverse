@@ -26,7 +26,7 @@ fallback. All dependencies are published; no patches or vendored forks are neede
 
 ```toml
 [dependencies]
-bevy_zeroverse_burn = { version = "0.28", features = ["gpu_tensor"] }
+bevy_zeroverse_burn = { version = "0.29", features = ["gpu_tensor"] }
 ```
 
 ```rust,no_run
@@ -35,10 +35,20 @@ use bevy_zeroverse_burn::gpu::GpuLiveDataset;
 let mut rooms = GpuLiveDataset::indoor()?;
 let training_device = rooms.device().clone();
 let sample = rooms.next_sample()?;
-// sample.views[0].color: float32 [height, width, 4], tonemapped linear RGBA.
+// sample.views[0].color: Option<Tensor<3>>, float32 [height, width, 4], tonemapped linear RGBA.
 // Construct model and optimizer on training_device; keep tensors on that device.
 # Ok::<(), anyhow::Error>(())
 ```
+
+For archive-equivalent training RGB, resolve a `CaptureSpec` with
+`ColorOutput::SrgbRgbF32` and use `GpuLiveDataset::builder(spec)`. Conversion and
+RGBA-to-RGB packing run on the GPU after linear SSAA. `render_modes` determines
+optional outputs; RGB-only captures no longer force depth/normal annotations.
+See the [configuration and process API](../../docs/gpu_process_capture.md) for
+explicit-demand sessions, bounded lookahead, and supervised CUDA workers behind
+`cuda_ipc` (plus `gpu_tensor_fusion` for a fused Burn consumer), introduced in
+version 0.29.0. Local GPU checks and downstream training qualification passed
+for the recorded source snapshot; long-run memory stability remains unproven.
 
 For CUDA, enable `cuda_interop` and replace `indoor()` with `indoor_cuda()`.
 `new(config)` and `new_cuda(config)` accept explicit camera, scene and annotation

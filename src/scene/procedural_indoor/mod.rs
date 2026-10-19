@@ -375,9 +375,12 @@ fn regenerate(
         #[cfg(not(target_arch = "wasm32"))]
         if pending.prefetched.len() != prefetch.depth.min(preparation::pipeline::MAX_DEPTH) {
             if let Some(key) = pending.key.clone() {
-                let (started, discarded) = pending.prefetched.fill(&key, prefetch.depth, |next| {
-                    next.spawn(&images, &materials, &meshes)
-                });
+                let (started, discarded) = pending.prefetched.fill_seeds(
+                    &key,
+                    prefetch.depth,
+                    prefetch.explicit_seeds.as_deref(),
+                    |next| next.spawn(&images, &materials, &meshes),
+                );
                 prefetch.started += started as u64;
                 prefetch.discarded += discarded as u64;
             }
@@ -393,7 +396,7 @@ fn regenerate(
                 .as_ref()
                 .is_some_and(|capture| capture.readback_in_flight())
         {
-            if let Some(key) = pending.key.as_ref().map(|key| key.successor()) {
+            if let Some(key) = pending.prefetched.front_key().cloned() {
                 #[cfg(not(target_arch = "wasm32"))]
                 let copies_submitted = capture.as_ref().is_some_and(|capture| {
                     capture.copies_submitted(
@@ -614,9 +617,12 @@ fn regenerate(
     } else {
         0
     };
-    let (started, discarded) = pending
-        .prefetched
-        .fill(&key, depth, |next| next.spawn(&images, &materials, &meshes));
+    let (started, discarded) =
+        pending
+            .prefetched
+            .fill_seeds(&key, depth, prefetch.explicit_seeds.as_deref(), |next| {
+                next.spawn(&images, &materials, &meshes)
+            });
     prefetch.started += started as u64;
     prefetch.discarded += discarded as u64;
 }

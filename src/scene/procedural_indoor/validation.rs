@@ -16,7 +16,7 @@ pub(crate) fn validate_prepared_layout(
     scene: &IndoorManifest,
 ) -> Result<(), crate::sample::failure::CaptureError> {
     // Integrity failures remain fatal even when a required anchor is also absent.
-    validate_layout_integrity(scene)?;
+    let placement_rejection = validate_layout_integrity(scene)?;
     scene.validate_public_programs_typed()?;
     if scene.missing_kitchen_program() {
         return Err(crate::sample::failure::CaptureError::rejected(
@@ -25,10 +25,20 @@ pub(crate) fn validate_prepared_layout(
             format!("seed {}: kitchen program was not admitted", scene.seed),
         ));
     }
+    if let Some(reason) = placement_rejection {
+        return Err(crate::sample::failure::CaptureError::rejected(
+            scene.seed,
+            crate::sample::failure::SceneRejectionKind::PlacementClearance,
+            reason,
+        ));
+    }
     Ok(())
 }
 
-fn validate_layout_integrity(scene: &IndoorManifest) -> Result<(), String> {
+fn validate_layout_integrity(scene: &IndoorManifest) -> Result<Option<String>, String> {
+    // Defer the narrow placement rejection until all integrity checks pass.
+    // Corrupt transforms, relationships and camera metadata remain fatal.
+    let mut placement_rejection = None;
     // Validate base scalars before dependent programs divide by room dimensions
     // or inspect objects. Malformed archived manifests must fail without panic.
     if scene.generator_version != GENERATOR_VERSION
@@ -197,7 +207,12 @@ fn validate_layout_integrity(scene: &IndoorManifest) -> Result<(), String> {
                 || (!object.neighbor && !scene.floor_support_clear(lo, hi))
                 || hi.y > scene.ceiling_height(object.position.xz()) - 0.30
             {
-                return fail("floor furniture floats, sinks or intersects ceiling fixtures");
+                placement_rejection.get_or_insert_with(|| {
+                    format!(
+                        "seed {}: floor furniture floats, sinks or intersects ceiling fixtures",
+                        scene.seed
+                    )
+                });
             }
             if object.neighbor {
                 let half = scene.room_size * 0.5;
@@ -244,7 +259,11 @@ fn validate_layout_integrity(scene: &IndoorManifest) -> Result<(), String> {
             if (object.position.y - parent.position.y - parent.size.y).abs() > 0.002 {
                 return fail(&format!(
                     "prop floats or sinks into support: {:?} instance {} at y={:.6}, {:?} support {} top={:.6}",
-                    object.kind, object.id, object.position.y, parent.kind, parent.id,
+                    object.kind,
+                    object.id,
+                    object.position.y,
+                    parent.kind,
+                    parent.id,
                     parent.position.y + parent.size.y
                 ));
             }
@@ -344,7 +363,7 @@ fn validate_layout_integrity(scene: &IndoorManifest) -> Result<(), String> {
             ));
         }
     }
-    Ok(())
+    Ok(placement_rejection)
 }
 
 #[derive(Debug, Serialize)]

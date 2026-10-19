@@ -457,3 +457,39 @@ fn rejected_kitchen_is_typed_only_after_all_integrity_checks() {
         "a recoverable missing kitchen must never mask a corrupt unrelated program receipt"
     );
 }
+
+#[test]
+fn generated_floor_placement_rejects_without_reclassifying_integrity_failure() {
+    use crate::sample::failure::{CaptureError, SceneRejectionKind};
+    let mut scene = (0..16)
+        .find_map(|seed| {
+            let scene =
+                IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 0, 0.)
+                    .ok()?;
+            (super::validate_prepared_layout(&scene).is_ok()
+                && scene
+                    .objects
+                    .iter()
+                    .any(|o| o.neighbor && o.solid && o.kind == ObjectKind::Chair))
+            .then_some(scene)
+        })
+        .expect("valid fixture with neighboring furniture");
+    let object = scene
+        .objects
+        .iter_mut()
+        .find(|o| o.neighbor && o.solid && o.kind == ObjectKind::Chair)
+        .unwrap();
+    object.position.y += 0.1;
+    let error = super::validate_prepared_layout(&scene).unwrap_err();
+    assert!(
+        matches!(&error, CaptureError::Rejected { rejection, retired: false }
+        if rejection.kind == SceneRejectionKind::PlacementClearance && rejection.seed == scene.seed
+            && rejection.reason.contains("floor furniture floats")),
+        "{error:?}"
+    );
+    scene.room_size.x = f32::NAN;
+    assert!(matches!(
+        super::validate_prepared_layout(&scene),
+        Err(CaptureError::Failed(_))
+    ));
+}

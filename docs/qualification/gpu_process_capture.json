@@ -1,0 +1,157 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-18",
+  "scope": "local unpublished GPU bridge implementation",
+  "post_snapshot_timing_instrumentation": {
+    "date": "2026-10-18",
+    "gpu_retested": false,
+    "compatibility_test": "passed: exact diagnostics.rs module tested with older producer receipts and separate producer/import clocks",
+    "cuda_ipc_training_fusion_clippy": "passed with -D warnings",
+    "wgpu_only_clippy": "passed with -D warnings",
+    "workspace_rustfmt": "passed",
+    "scope": "Host wall counters around existing import operations; no added GPU fences, queries, or readbacks. The downstream immutable snapshot predates this instrumentation."
+  },
+  "hardware": {
+    "gpu": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+    "driver": "610.43.02",
+    "memory_mib": 97887
+  },
+  "execution": {
+    "training": "paused and resumed unchanged after checks",
+    "concurrent_training_benchmark": false,
+    "processes": "fresh exec renderer children, bounded lane count, all children retired"
+  },
+  "cpu_tests": {
+    "portable_wire_contract": { "passed": 2, "failed": 0 },
+    "adapter": {
+      "passed": 47,
+      "failed": 0,
+      "ignored": 12,
+      "note": "GPU tests are ignored in this CPU run; the four separately executed GPU tests are listed below. Unix socket tests ran on the host."
+    },
+    "core_regressions": [
+      "explicit_strided_and_repeated_seeds_retain_exact_jobs",
+      "generated_floor_placement_rejects_without_reclassifying_integrity_failure",
+      "reported_capture_rejections_have_typed_sources_and_integrity_stays_fatal",
+      "rejected_kitchen_is_typed_only_after_all_integrity_checks"
+    ],
+    "core_regressions_passed": 4
+  },
+  "build_checks": {
+    "cuda_ipc_training_bench_fusion_clippy_tests_examples": "passed with -D warnings; upstream burn-cubecl-fusion 0.22.0 has a Cargo future-incompatibility notice",
+    "wgpu_only_clippy_library": "passed with -D warnings",
+    "core_web_wasm32_unknown_unknown": "passed",
+    "workspace_rustfmt": "passed"
+  },
+  "gpu_tests": [
+    {
+      "test": "srgb_gpu_matches_scalar_oracle",
+      "backend": "WGPU/Vulkan",
+      "passed": true,
+      "absolute_error_bound": 2e-06,
+      "checks": [
+        "transfer threshold",
+        "clamping",
+        "alpha preservation",
+        "row padding",
+        "batched plane/view indexing",
+        "nonfinite preservation"
+      ]
+    },
+    {
+      "test": "rgb_only_srgb_matches_archive_oracle",
+      "backend": "WGPU/Vulkan",
+      "passed": true,
+      "absolute_error_bound": 3e-06,
+      "checks": [
+        "RGB-only annotation uploads zero",
+        "absent unrequested planes",
+        "finite output",
+        "same-scene CPU archive color oracle"
+      ]
+    },
+    {
+      "test": "ssaa_wgpu_transport_parity",
+      "backend": "WGPU/Vulkan",
+      "passed": true,
+      "ssaa_factor": 2
+    },
+    {
+      "test": "ssaa_cuda_transport_parity",
+      "backend": "Vulkan/CUDA",
+      "passed": true,
+      "ssaa_factor": 2
+    }
+  ],
+  "full_annotation_checks": [
+    "RGB",
+    "metric depth",
+    "normals",
+    "world position",
+    "semantic IDs",
+    "optical flow",
+    "normalized motion vectors within 2e-6",
+    "co-visibility",
+    "both glass policies",
+    "calibration",
+    "poses",
+    "retained tensors after regeneration and renderer destruction",
+    "zero allocated CPU readback storage on first GPU-only capture"
+  ],
+  "ipc_probes": [
+    {
+      "cameras": 3,
+      "color_output": "sRGB RGB float32",
+      "elapsed_seconds": 10.566847591,
+      "lanes": 1,
+      "replacement_exercised": true,
+      "retained_after_shutdown": true,
+      "rooms": 2,
+      "side": 129,
+      "timesteps": 2,
+      "transport_contract_host_image_bytes": 0,
+      "measured_pcie_image_bytes": null,
+      "completed_views": 12,
+      "ssaa_evidence": "auto policy below 720p; effective factor was not recorded in this initial harness receipt"
+    },
+    {
+      "cameras": 8,
+      "color_output": "sRGB RGB float32",
+      "elapsed_seconds": 9.855347488,
+      "lanes": 4,
+      "replacement_exercised": false,
+      "retained_after_shutdown": true,
+      "rooms": 8,
+      "side": 256,
+      "timesteps": 5,
+      "transport_contract_host_image_bytes": 0,
+      "measured_pcie_image_bytes": null,
+      "completed_views": 320,
+      "ssaa_evidence": "auto policy below 720p; effective factor was not recorded in this initial harness receipt"
+    },
+    {
+      "cameras": 8,
+      "color_output": "sRGB RGB float32",
+      "elapsed_seconds": 6.701897592,
+      "lanes": 2,
+      "replacement_exercised": false,
+      "retained_after_shutdown": true,
+      "rooms": 4,
+      "side": 512,
+      "timesteps": 3,
+      "transport_contract_host_image_bytes": 0,
+      "measured_pcie_image_bytes": null,
+      "completed_views": 96,
+      "ssaa_evidence": "auto policy below 720p; effective factor was not recorded in this initial harness receipt"
+    }
+  ],
+  "total_ipc_rooms": 14,
+  "total_ipc_views": 428,
+  "evidence_limits": [
+    "Host-image-byte zero is an API/source contract, not measured PCIe/CUPTI traffic.",
+    "Correctness tests intentionally read pixels/scalar reductions back; those are separate from the capture transport.",
+    "Elapsed probe times include cold work and validation; these are not steady-state or concurrent-training throughput measurements.",
+    "The initial IPC harness did not record actual SSAA/camera metadata receipts. The updated harness now asserts SSAA=2 and records policy plus per-room sampling metadata.",
+    "Active producer-death injection and downstream training/checkpoint parity were not run in these local probes. The separate gpu_process_capture_training.json receipt records downstream evidence for its immutable source snapshot. Unlimited-run stability remains unproven."
+  ]
+}

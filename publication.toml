@@ -20,3 +20,11 @@ ssaa_factor = 0
 
 [paper]
 source = "tex/bevy_zeroverse.tex"
+
+# GPU transport/API release: preserve the original captured bundle and labels.
+# This exception expires when either the release version or source hash changes.
+[retained_evidence]
+release_version = "0.45.0"
+release_source_sha256 = "951c7db489fd44e465751cd325087cb64761be6cd2be84c2374df9f09d32c4e2"
+capture_evidence_sha256 = "63564616f23c73482abb3c96a76af96db1b6f2e63c22b9d875a0faeace031e6d"
+reason = "Release GPU capture transports without GPU work; retain the original capture identity, all scientific evidence and paper bytes; rebuild page presentation only."
