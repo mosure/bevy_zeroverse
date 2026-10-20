@@ -1,6 +1,6 @@
 /* @ts-self-types="./viewer.d.ts" */
 import { motion_digest, motion_part, motion_read } from './snippets/burn_human_inference-a0bfaedebe22c27f/inline1.js';
-import * as import1 from "./snippets/bevy_zeroverse-22190cdc511b7199/inline0.js"
+import * as import1 from "./snippets/bevy_zeroverse-4656e7379fc3d547/inline0.js"
 import * as import2 from "./snippets/burn_human_inference-a0bfaedebe22c27f/inline0.js"
 import * as import3 from "./snippets/burn_human_inference-a0bfaedebe22c27f/inline0.js"
 
@@ -2149,7 +2149,7 @@ function __wbg_get_imports() {
     return {
         __proto__: null,
         "./viewer_bg.js": import0,
-        "./snippets/bevy_zeroverse-22190cdc511b7199/inline0.js": import1,
+        "./snippets/bevy_zeroverse-4656e7379fc3d547/inline0.js": import1,
         "./snippets/burn_human_inference-a0bfaedebe22c27f/inline0.js": import2,
         "./snippets/burn_human_inference-a0bfaedebe22c27f/inline0.js": import3,
     };
