@@ -39,6 +39,7 @@ impl AnimatedPart {
             accepted: true,
             coupled: joint.coupled,
             attachment: None,
+            adjustment: joint.adjustment,
         };
         Self {
             joint: sampler,
@@ -72,7 +73,7 @@ fn animate(
                 .zip(&end.positions)
                 .map(|(a, b)| {
                     Vec3::from_array(*a)
-                        .lerp(Vec3::from_array(*b), amount)
+                        .lerp(Vec3::from_array(*b), amount * part.joint.adjustment.morph)
                         .to_array()
                 })
                 .collect();
@@ -96,7 +97,10 @@ fn animate(
                         *n = start.normals[i];
                     } else if !normal.is_finite() || normal.length_squared() < 1e-8 {
                         *n = Vec3::from_array(start.normals[i])
-                            .lerp(Vec3::from_array(end.normals[i]), amount)
+                            .lerp(
+                                Vec3::from_array(end.normals[i]),
+                                amount * part.joint.adjustment.morph,
+                            )
                             .normalize_or(Vec3::from_array(start.normals[i]))
                             .to_array();
                     }

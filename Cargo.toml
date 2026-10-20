@@ -1,7 +1,7 @@
 [package]
 name = "bevy_zeroverse"
 description = "bevy zeroverse synthetic dataset generator"
-version = "0.48.0"
+version = "0.49.0"
 edition = "2021"
 rust-version = "1.97.1"
 authors = ["mosure <mitchell@mosure.me>"]
@@ -95,7 +95,7 @@ webgpu = [
 
 
 [dependencies]
-bevy_zeroverse_capture = { version = "=0.5.3", path = "crates/capture", features = ["provenance"] }
+bevy_zeroverse_capture = { version = "=0.5.4", path = "crates/capture", features = ["provenance"] }
 bevy_args = { version = "4.0.0", default-features = false }
 bevy_mesh = "0.20.0"
 clap = { version = "4.5", features = ["derive"] }
@@ -207,7 +207,7 @@ pollster = { version = "0.4" }
 tempfile = "3.10"
 
 [build-dependencies]
-bevy_zeroverse_capture = { version = "=0.5.3", path = "crates/capture", features = ["provenance"] }
+bevy_zeroverse_capture = { version = "=0.5.4", path = "crates/capture", features = ["provenance"] }
 serde_json = "1.0"
 toml = "0.9"
 

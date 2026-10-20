@@ -24,6 +24,7 @@ pub fn validate(
         for m in report.mechanisms.iter().filter(|m| m.rejection.is_none()) {
             moving_classes.extend(match m.kind {
                 MotionKind::Chair => vec![SemanticLabel::Chair],
+                MotionKind::Fan => vec![SemanticLabel::CeilingFan],
                 MotionKind::Door => vec![SemanticLabel::Door, SemanticLabel::DoorHardware],
                 MotionKind::Cabinet => vec![SemanticLabel::Cabinet, SemanticLabel::CabinetHardware],
                 MotionKind::Covering => vec![SemanticLabel::Blinds, SemanticLabel::Curtain],

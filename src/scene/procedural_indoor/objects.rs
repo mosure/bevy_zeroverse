@@ -6,6 +6,7 @@ pub mod computers;
 pub mod containers;
 pub mod desktop;
 pub mod equipment;
+pub mod fans;
 pub mod floor;
 pub mod hospitality;
 pub mod kitchen;
@@ -156,6 +157,7 @@ pub(crate) fn build_object_with_motion(
         ..default()
     };
     match o.kind {
+        ObjectKind::CeilingFan => fans::build(&mut a, o),
         ObjectKind::Elevator
         | ObjectKind::ServiceCounter
         | ObjectKind::DisplayCase

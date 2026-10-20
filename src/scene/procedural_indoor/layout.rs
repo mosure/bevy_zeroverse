@@ -239,11 +239,12 @@ pub enum ObjectKind {
     ExhibitionPanel,
     ExtractionHood,
     Banquette,
+    CeilingFan,
 }
 
 impl ObjectKind {
     /// Authoritative item catalog, shared with distribution and placement exports.
-    pub const ALL: [Self; 100] = [
+    pub const ALL: [Self; 101] = [
         Self::Table,
         Self::Desk,
         Self::Chair,
@@ -344,10 +345,12 @@ impl ObjectKind {
         Self::ExhibitionPanel,
         Self::ExtractionHood,
         Self::Banquette,
+        Self::CeilingFan,
     ];
 
     pub fn class_name(self) -> &'static str {
         match self {
+            Self::CeilingFan => "ceiling_fan",
             Self::Elevator => "elevator",
             Self::ServiceCounter => "counter",
             Self::DisplayCase => "display_case",
@@ -555,9 +558,16 @@ impl IndoorObject {
         } else {
             0.
         };
-        (self.kind != ObjectKind::Cable)
+        (!matches!(self.kind, ObjectKind::Cable | ObjectKind::CeilingFan))
             .then(|| self.bounds())
             .into_iter()
+            .chain(
+                (self.kind == ObjectKind::CeilingFan)
+                    .then(|| super::objects::fans::local_reservations(self))
+                    .into_iter()
+                    .flatten()
+                    .map(|(a, b)| (a + self.position, b + self.position)),
+            )
             .chain(self.cable_path.iter().flat_map(move |path| {
                 path.windows(2).map(move |pair| {
                     let a = tf.transform_point(pair[0]);
@@ -901,6 +911,10 @@ impl IndoorManifest {
             scene.scatter_clutter(&mut rng);
         }
         scene.finish_program_equipment();
+        // Ceiling fixtures belong to the static furnishing stream. Place them
+        // before occupancy-dependent seating, floor details and cable routes so
+        // toggling people cannot renumber or resample an unrelated fixture.
+        scene.furnish_ceiling_fans();
         super::humans::populate(&mut scene, human_density);
         scene.settle_seating();
         scene.furnish_floor_details();

@@ -292,6 +292,26 @@ fn record_equipment(
     categories: &mut Categories,
     numeric: &mut NumericCollector,
 ) -> io::Result<()> {
+    if o.kind == ObjectKind::CeilingFan {
+        let p = super::super::objects::fans::parameters(o);
+        category(categories, "fan_style", p.style);
+        category(categories, "fan_blade_count", p.blades);
+        category(
+            categories,
+            "fan_blade_material",
+            format!("{:?}", p.blade_surface),
+        );
+        for (key, value) in [
+            ("fan_radius_m", p.radius_m),
+            ("fan_drop_m", o.size.y),
+            ("fan_blade_width_m", p.blade_width_m),
+            ("fan_blade_pitch_rad", p.pitch_radians),
+            ("fan_blade_sweep_m", p.sweep_m),
+        ] {
+            numeric.push(key, value as f64)?;
+        }
+        return Ok(());
+    }
     if !matches!(
         o.kind,
         ObjectKind::Projector

@@ -146,7 +146,7 @@ fn interpolate_lens(lo: f32, hi: f32, t: f32) -> f32 {
 
 /// A rotation-independent sphere enclosing the complete shifted near rectangle.
 /// Sweeping this radius prevents wide lens corners crossing nearby geometry.
-pub(super) fn near_clearance(fov_y: f32, aspect: f32, offset_bound: Vec2) -> f32 {
+pub(crate) fn near_clearance(fov_y: f32, aspect: f32, offset_bound: Vec2) -> f32 {
     let half = Vec2::new(aspect, 1.)
         * (Vec2::ONE + 2. * offset_bound.abs())
         * (0.1 * (fov_y.to_radians() * 0.5).tan());

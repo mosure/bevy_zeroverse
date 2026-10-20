@@ -113,11 +113,12 @@ pub enum SemanticLabel {
     DoorFrame,
     DoorHardware,
     CabinetHardware,
+    CeilingFan,
 }
 
 impl SemanticLabel {
     /// Versioned, authoritative vocabulary for rendered colors and exports.
-    pub const TAXONOMY_VERSION: u32 = 7;
+    pub const TAXONOMY_VERSION: u32 = 8;
     pub const ALL: &[Self] = &[
         Self::Wall,
         Self::Floor,
@@ -215,11 +216,13 @@ impl SemanticLabel {
         Self::DoorFrame,
         Self::DoorHardware,
         Self::CabinetHardware,
+        Self::CeilingFan,
     ];
 
     pub fn color(&self) -> Color {
         // https://github.com/apple/ml-hypersim/blob/main/code/cpp/tools/scene_annotation_tool/semantic_label_descs.csv
         match self {
+            SemanticLabel::CeilingFan => Color::srgb_u8(92, 164, 211),
             SemanticLabel::Wall => Color::srgb_u8(174, 199, 232),
             SemanticLabel::Floor => Color::srgb_u8(152, 223, 138),
             SemanticLabel::Cabinet => Color::srgb_u8(31, 119, 180),
@@ -321,6 +324,7 @@ impl SemanticLabel {
 
     pub fn from_label(name: &str) -> Option<Self> {
         match name {
+            "ceiling_fan" => Some(SemanticLabel::CeilingFan),
             "sky" => Some(SemanticLabel::Sky),
             "floor_outlet" => Some(SemanticLabel::FloorOutlet),
             "stove" => Some(SemanticLabel::Stove),
@@ -451,6 +455,7 @@ impl SemanticLabel {
             SemanticLabel::DoorFrame => "door_frame",
             SemanticLabel::DoorHardware => "door_hardware",
             SemanticLabel::CabinetHardware => "cabinet_hardware",
+            SemanticLabel::CeilingFan => "ceiling_fan",
             SemanticLabel::CleaningSupply => "cleaning_supply",
 
             SemanticLabel::Wall => "wall",

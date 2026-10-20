@@ -551,8 +551,12 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
         let mut r = stream(o.seed, 0x4348414952);
         let angle = r.random_range(-1.0..1.0) * policy.chair_swivel_degrees.to_radians();
         let yaw = r.random_range(0.0..TAU);
-        let travel =
-            Vec3::new(yaw.cos(), 0., yaw.sin()) * r.random_range(0.25..1.) * policy.chair_travel_m;
+        let travel = if program.casters {
+            Vec3::new(yaw.cos(), 0., yaw.sin()) * r.random_range(0.25..1.) * policy.chair_travel_m
+        } else {
+            // Glides permit the upper seat to swivel, not the whole chair to roll.
+            Vec3::ZERO
+        };
         let top = Assembly {
             parts: std::mem::take(&mut a.parts),
             ..default()

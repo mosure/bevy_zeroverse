@@ -112,6 +112,11 @@ fn validate_layout_integrity(scene: &IndoorManifest) -> Result<Option<String>, S
         {
             return fail("ceiling pendant is unmounted or intersects architecture or furniture");
         }
+        if object.kind == super::layout::ObjectKind::CeilingFan
+            && !super::layout::equipment::fan_clear(scene, object)
+        {
+            return fail("ceiling fan is unmounted or its rotor intersects occupied space");
+        }
         if let Some(target) = object.interaction_target {
             let other = scene
                 .objects

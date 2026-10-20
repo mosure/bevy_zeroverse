@@ -1,9 +1,11 @@
 //! Equipment is fitted to existing rooms and work surfaces, then wires are routed
 //! between actual ports after all supported objects have been accepted.
+mod fans;
 mod hanging;
 use super::super::architecture::facade::FacadeSide;
 use super::super::objects::equipment::{self, wires};
 use super::*;
+pub(crate) use fans::fan_clear;
 use rand::seq::SliceRandom;
 use std::f32::consts::PI;
 
@@ -498,8 +500,8 @@ pub(crate) fn ceiling_fixture_clear(scene: &IndoorManifest, o: &IndoorObject) ->
         .objects
         .iter()
         .filter(|other| other.id != o.id)
-        .any(|other| {
-            let (a, b) = other.bounds();
+        .flat_map(IndoorObject::obstacle_bounds)
+        .any(|(a, b)| {
             lo.cmplt(b + Vec3::splat(0.025)).all() && hi.cmpgt(a - Vec3::splat(0.025)).all()
         })
 }

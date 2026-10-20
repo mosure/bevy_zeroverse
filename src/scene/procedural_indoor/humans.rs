@@ -940,6 +940,17 @@ pub fn placement_clear(scene: &IndoorManifest, person: &IndoorHuman) -> bool {
         {
             continue;
         }
+        if object.kind == ObjectKind::CeilingFan {
+            // The complete rotor disk stays clear even when the sampled fan
+            // is static. Raised hands cannot enter between stationary blades.
+            // Match fixture admission's reserve and margin in both directions.
+            if object.obstacle_bounds().any(|(a, b)| {
+                lo.cmplt(b + Vec3::splat(0.025)).all() && hi.cmpgt(a - Vec3::splat(0.025)).all()
+            }) {
+                return false;
+            }
+            continue;
+        }
         let (ol, oh) = object.bounds();
         if !lo.cmplt(oh + Vec3::splat(0.01)).all() || !hi.cmpgt(ol - Vec3::splat(0.01)).all() {
             continue;

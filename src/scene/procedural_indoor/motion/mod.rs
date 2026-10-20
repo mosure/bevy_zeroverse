@@ -3,6 +3,7 @@
 //! deliberately trade some motion acceptance for safe, reversible playback.
 pub(crate) mod construction;
 mod planning;
+mod proposals;
 mod runtime;
 #[cfg(test)]
 mod tests;
@@ -24,6 +25,9 @@ pub struct IndoorMotionConfig {
     pub door_fraction: f32,
     pub cabinet_fraction: f32,
     pub covering_fraction: f32,
+    pub fan_fraction: f32,
+    /// Constant-speed revolutions over the shared normalized scene timeline.
+    pub fan_turns: [f32; 2],
     /// Maximum independently driven mechanisms, not individual mesh parts.
     pub max_mechanisms: usize,
     pub chair_travel_m: f32,
@@ -36,6 +40,8 @@ impl Default for IndoorMotionConfig {
             door_fraction: 0.65,
             cabinet_fraction: 0.5,
             covering_fraction: 0.5,
+            fan_fraction: 0.8,
+            fan_turns: [0.75, 12.0],
             max_mechanisms: 12,
             chair_travel_m: 0.65,
             chair_swivel_degrees: 70.,
@@ -54,6 +60,7 @@ impl IndoorMotionConfig {
             self.door_fraction,
             self.cabinet_fraction,
             self.covering_fraction,
+            self.fan_fraction,
         ]
         .iter()
         .any(|v| !v.is_finite() || !(0.0..=1.).contains(v))
@@ -62,8 +69,13 @@ impl IndoorMotionConfig {
             || !(0.0..=1.5).contains(&self.chair_travel_m)
             || !self.chair_swivel_degrees.is_finite()
             || !(0.0..=120.).contains(&self.chair_swivel_degrees)
+            || self
+                .fan_turns
+                .iter()
+                .any(|v| !v.is_finite() || !(0.0..=120.).contains(v))
+            || self.fan_turns[0] > self.fan_turns[1]
         {
-            return Err("indoor_motion requires fractions in [0,1], 1..32 mechanisms, travel 0..1.5 m and swivel 0..120 degrees".into());
+            return Err("indoor_motion requires fractions in [0,1], 1..32 mechanisms, travel 0..1.5 m, swivel 0..120 degrees and ordered fan_turns in [0,120]".into());
         }
         Ok(())
     }
@@ -73,6 +85,7 @@ impl IndoorMotionConfig {
             MotionKind::Door => self.door_fraction,
             MotionKind::Cabinet => self.cabinet_fraction,
             MotionKind::Covering => self.covering_fraction,
+            MotionKind::Fan => self.fan_fraction,
         }
     }
 }
@@ -83,6 +96,7 @@ pub enum MotionKind {
     Door,
     Cabinet,
     Covering,
+    Fan,
 }
 
 /// Capture manifest metadata. Bounds are in scene-local metres; playback maps
@@ -96,7 +110,7 @@ pub struct IndoorMotionReport {
 impl IndoorMotionReport {
     pub fn new(policy: IndoorMotionConfig) -> Self {
         Self {
-            version: 1,
+            version: 2,
             policy,
             mechanisms: vec![],
         }
@@ -120,6 +134,16 @@ pub struct MechanismReport {
     pub angle_radians: f32,
     pub pivot: Vec3,
     pub axis: Vec3,
+    /// Number of clearance-tested candidates, including the original proposal.
+    #[serde(default)]
+    pub attempts: usize,
+    /// Describes an admitted fallback; rejection still explains truly blocked motion.
+    #[serde(default)]
+    pub adaptation: Option<String>,
+    #[serde(default)]
+    pub requested_translation_m: Vec3,
+    #[serde(default)]
+    pub requested_angle_radians: f32,
 }
 
 /// Motion in the assembly coordinate system. Rigid motion is exact; cloth
@@ -141,6 +165,9 @@ pub(crate) struct Joint {
     pub coupled: bool,
     /// Deliberate mechanical attachments belonging to this mechanism only.
     pub attachment: Option<String>,
+    /// Admission changes gains rather than the original proposal or mesh endpoints.
+    /// Re-running preparation is therefore deterministic and cannot shrink twice.
+    pub adjustment: proposals::Adjustment,
 }
 impl Joint {
     fn new(kind: MotionKind, seed: u64) -> Self {
@@ -159,6 +186,7 @@ impl Joint {
             accepted: false,
             coupled: false,
             attachment: None,
+            adjustment: default(),
         }
     }
     pub fn subset(&self, parts: &std::collections::BTreeMap<(Surface, String), Geometry>) -> Self {
@@ -173,6 +201,7 @@ impl Joint {
             coupled: self.coupled,
             accepted: self.accepted && self.parts.iter().any(|k| parts.contains_key(k)),
             attachment: self.attachment.clone(),
+            adjustment: self.adjustment,
             parts: self
                 .parts
                 .iter()
@@ -188,13 +217,26 @@ impl Joint {
         }
     }
     pub fn amount(&self, t: f32) -> f32 {
+        if self.kind == MotionKind::Fan {
+            return t.clamp(0., 1.);
+        }
         let t = ((t - self.interval[0]) / (self.interval[1] - self.interval[0])).clamp(0., 1.);
         t * t * (3. - 2. * t)
     }
     pub fn transform(&self, amount: f32) -> Transform {
-        let q = Quat::from_axis_angle(self.axis, self.angle * amount);
-        Transform::from_translation(self.pivot - q * self.pivot + self.translation * amount)
-            .with_rotation(q)
+        let q = Quat::from_axis_angle(self.axis, self.effective_angle() * amount);
+        Transform::from_translation(
+            self.pivot - q * self.pivot + self.effective_translation() * amount,
+        )
+        .with_rotation(q)
+    }
+    fn effective_angle(&self) -> f32 {
+        self.angle * self.adjustment.rotation
+    }
+    fn effective_translation(&self) -> Vec3 {
+        Quat::from_rotation_y(self.adjustment.heading)
+            * self.translation
+            * self.adjustment.translation
     }
 }
 pub(crate) fn tag(label: &str) -> Option<usize> {
@@ -218,9 +260,13 @@ impl MechanismReport {
         if self.rejection.is_some() || self.kind == MotionKind::Covering {
             return None;
         }
-        let t =
-            ((progress - self.interval[0]) / (self.interval[1] - self.interval[0])).clamp(0., 1.);
-        let t = t * t * (3. - 2. * t);
+        let t = if self.kind == MotionKind::Fan {
+            progress.clamp(0., 1.)
+        } else {
+            let t = ((progress - self.interval[0]) / (self.interval[1] - self.interval[0]))
+                .clamp(0., 1.);
+            t * t * (3. - 2. * t)
+        };
         let q = Quat::from_axis_angle(self.axis, self.angle_radians * t);
         Some(
             Transform::from_translation(self.pivot - q * self.pivot + self.translation_m * t)

@@ -52,7 +52,7 @@ pub(super) fn support_heights(scene: &IndoorManifest, center: Vec2, size: Vec2) 
     .map(|p| scene.ceiling_height(p))
 }
 
-pub(super) fn highest_floor(scene: &IndoorManifest, lo: Vec2, hi: Vec2) -> f32 {
+pub(crate) fn highest_floor(scene: &IndoorManifest, lo: Vec2, hi: Vec2) -> f32 {
     let corners = [lo, hi, Vec2::new(lo.x, hi.y), Vec2::new(hi.x, lo.y)];
     let h = corners
         .into_iter()

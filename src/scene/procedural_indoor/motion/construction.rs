@@ -6,6 +6,7 @@ impl Assembly {
                 && (kind != MotionKind::Chair
                     || p.chair_travel_m > 0.
                     || p.chair_swivel_degrees > 0.)
+                && (kind != MotionKind::Fan || p.fan_turns[1] > 0.)
                 && stream(seed, 0x4d4f544e).random_bool(p.fraction(kind) as f64)
         })
     }

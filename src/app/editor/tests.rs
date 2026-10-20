@@ -587,6 +587,9 @@ fn room_motion_controls_roundtrip_without_enabling_human_models() {
     let mut state = EditorState::new(&BevyZeroverseConfig::default());
     edit(&mut state, "@indoor_motion", json!(true)).unwrap();
     edit(&mut state, "/indoor_motion/chair_fraction", json!(0.8)).unwrap();
+    edit(&mut state, "/indoor_motion/fan_fraction", json!(1.0)).unwrap();
+    edit(&mut state, "/indoor_motion/fan_turns/0", json!(2.0)).unwrap();
+    edit(&mut state, "/indoor_motion/fan_turns/1", json!(8.0)).unwrap();
     let config = state.config().unwrap();
     assert!(config.human_motion.is_none());
     assert_eq!(
@@ -597,6 +600,12 @@ fn room_motion_controls_roundtrip_without_enabling_human_models() {
         .chair_fraction,
         0.8
     );
+    let policy = crate::scene::procedural_indoor::motion::IndoorMotionConfig::parse(
+        config.indoor_motion.as_deref().unwrap(),
+    )
+    .unwrap();
+    assert_eq!(policy.fan_fraction, 1.);
+    assert_eq!(policy.fan_turns, [2., 8.]);
     edit(&mut state, "@indoor_motion", json!(false)).unwrap();
     assert!(state.config().unwrap().indoor_motion.is_none());
 }

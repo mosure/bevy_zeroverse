@@ -79,6 +79,7 @@ pub fn fixture(kind: ObjectKind, seed: u64) -> IndoorObject {
         WallShelf => [0.85, 0.23, 0.27],
         WallSconce => [0.20, 0.30, 0.15],
         CeilingPendant => [0.40, 0.70, 0.40],
+        CeilingFan => [1.4, 0.55, 1.4],
         FloorOutlet => [0.18, 0.13, 0.16],
     };
     let mut o = IndoorObject {
@@ -182,6 +183,7 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
         MobileCart | DrawerUnit | Bench | Ottoman | RoomDivider => {
             serde_json::json!(services::parameters(o))
         }
+        CeilingFan => return serde_json::json!(fans::parameters(o)),
         DeskLamp => return serde_json::json!(accessories::lamp_parameters(o)),
         Speaker | Headphones | Stapler | TapeDispenser | DocumentTray | DeskOrganizer | DeskFan => {
             serde_json::json!(accessories::parameters(o))

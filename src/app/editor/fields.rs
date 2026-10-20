@@ -229,7 +229,7 @@ pub fn items(state: &EditorState) -> Vec<Item> {
     if indoor && state.view.page == Page::Scene {
         v.push(section(
             "ROOM MOTION",
-            "Optional deterministic chair, door, cabinet and window-covering motion.",
+            "Optional deterministic chair, door, cabinet, covering and ceiling-fan motion.",
         ));
         v.push(toggle(
             "@indoor_motion",
@@ -242,6 +242,7 @@ pub fn items(state: &EditorState) -> Vec<Item> {
                 ("door_fraction", "Moving door fraction"),
                 ("cabinet_fraction", "Moving cabinet fraction"),
                 ("covering_fraction", "Moving covering fraction"),
+                ("fan_fraction", "Spinning fan fraction"),
             ] {
                 v.push(num(
                     &format!("/indoor_motion/{key}"),
@@ -249,7 +250,7 @@ pub fn items(state: &EditorState) -> Vec<Item> {
                     0.,
                     1.,
                     0.01,
-                    "Requested fraction; blocked or occupied mechanisms remain static.",
+                    "Selects eligible mechanisms. Constrained motions shorten or swivel; occupied or fully blocked objects remain static.",
                 ));
             }
             v.push(num(
@@ -258,7 +259,7 @@ pub fn items(state: &EditorState) -> Vec<Item> {
                 0.,
                 1.5,
                 0.05,
-                "Maximum straight-line caster travel.",
+                "Maximum caster travel; shorter paths and other headings are tried when blocked.",
             ));
             v.push(num(
                 "/indoor_motion/chair_swivel_degrees",
@@ -266,7 +267,7 @@ pub fn items(state: &EditorState) -> Vec<Item> {
                 0.,
                 120.,
                 5.,
-                "Maximum upper-seat swivel.",
+                "Maximum upper-seat swivel; allows rotation-only motion in tight spaces.",
             ));
             v.push(num(
                 "/indoor_motion/max_mechanisms",
@@ -276,6 +277,10 @@ pub fn items(state: &EditorState) -> Vec<Item> {
                 1.,
                 "Bounds preparation and animation cost.",
             ));
+            for (index, label) in [(0, "Fan turns minimum"), (1, "Fan turns maximum")] {
+                v.push(num(&format!("/indoor_motion/fan_turns/{index}"),label,
+                    0.,120.,0.25,"Revolutions per shared timeline. Minimum must not exceed maximum; zero maximum disables spinning."));
+            }
         }
     }
     if state.view.page == Page::People && !cfg!(feature = "human_motion") {

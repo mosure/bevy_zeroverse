@@ -4,6 +4,7 @@ mod construction;
 mod legacy;
 mod profile;
 mod sampling;
+pub(crate) use sampling::highest_floor;
 #[cfg(test)]
 mod tests;
 use super::*;
