@@ -243,6 +243,9 @@ pub fn items(state: &EditorState) -> Vec<Item> {
                 ("cabinet_fraction", "Moving cabinet fraction"),
                 ("covering_fraction", "Moving covering fraction"),
                 ("fan_fraction", "Spinning fan fraction"),
+                ("appliance_fraction", "Opening appliance fraction"),
+                ("prop_fraction", "Moving portable item fraction"),
+                ("cart_fraction", "Moving cart fraction"),
             ] {
                 v.push(num(
                     &format!("/indoor_motion/{key}"),
@@ -259,7 +262,7 @@ pub fn items(state: &EditorState) -> Vec<Item> {
                 0.,
                 1.5,
                 0.05,
-                "Maximum caster travel; shorter paths and other headings are tried when blocked.",
+                "Maximum chair rolling/sliding travel; shorter paths and other headings are tried when blocked.",
             ));
             v.push(num(
                 "/indoor_motion/chair_swivel_degrees",
@@ -267,16 +270,29 @@ pub fn items(state: &EditorState) -> Vec<Item> {
                 0.,
                 120.,
                 5.,
-                "Maximum upper-seat swivel; allows rotation-only motion in tight spaces.",
+                "Maximum chair turn or upper-seat swivel; allows rotation-only motion in tight spaces.",
             ));
             v.push(num(
                 "/indoor_motion/max_mechanisms",
                 "Mechanism limit",
                 1.,
-                32.,
+                128.,
                 1.,
                 "Bounds preparation and animation cost.",
             ));
+            for (key, label, maximum, step) in [
+                ("prop_travel_m", "Portable item travel (m)", 0.75, 0.01),
+                (
+                    "prop_rotation_degrees",
+                    "Portable item rotation (degrees)",
+                    180.,
+                    5.,
+                ),
+                ("cart_travel_m", "Cart travel (m)", 2., 0.05),
+            ] {
+                v.push(num(&format!("/indoor_motion/{key}"), label, 0., maximum, step,
+                    "Upper bound; clearance and support checks shorten blocked motion. Connected cables stay attached."));
+            }
             for (index, label) in [(0, "Fan turns minimum"), (1, "Fan turns maximum")] {
                 v.push(num(&format!("/indoor_motion/fan_turns/{index}"),label,
                     0.,120.,0.25,"Revolutions per shared timeline. Minimum must not exceed maximum; zero maximum disables spinning."));

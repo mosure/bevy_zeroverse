@@ -3,6 +3,7 @@ mod cameras;
 mod content;
 mod envelope;
 mod exterior;
+mod regularity;
 use super::layout::{IndoorLayout, IndoorManifest, ObjectKind, GENERATOR_VERSION, NEIGHBOR_DEPTH};
 use bevy::prelude::*;
 use bevy_zeroverse_capture::INDOOR_METRICS_SCHEMA_VERSION;
@@ -73,6 +74,7 @@ pub struct CoverageReport {
     pub human_density: f32,
     pub coordinate_convention: &'static str,
     pub count_policy: &'static str,
+    pub regularity_policy: &'static str,
     pub heatmap_policy: &'static str,
     pub heatmap_grid_size: usize,
     /// Scene-normalized count distributions include zero for absent object kinds.
@@ -327,6 +329,7 @@ fn export_inner(
         human_density,
         coordinate_convention: "Unaugmented room coordinates, metres; +Y up. Main room normalized u=x/width+0.5, v=z/depth+0.5. Neighbor uses its own 3.2m depth. CSV camera coordinates are local; rendered capture.json contains augmented world extrinsics. Pixel centers use (width/2,height/2), square pixels.",
         count_policy: "Every object kind includes zero-count scenes. main/ and neighbor/ are separate; by-layout distributions have that layout's scene count as denominator.",
+        regularity_policy: regularity::POLICY,
         heatmap_policy: "Object centers (not projected visibility or footprint). Row-major v then u; +Z downward. Camera paths contribute 33 equally spaced samples including endpoints per camera. Neighbor and main rooms normalized independently. No failed scenes are silently dropped.",
         heatmap_grid_size: GRID,
         object_counts_per_scene: BTreeMap::new(),
@@ -363,6 +366,7 @@ fn export_inner(
         signatures.insert(&scene);
         exterior::record(&scene, &mut report, &mut numeric, &mut windows)?;
         content::record_scene(&scene, &mut numeric, &mut report.categories)?;
+        regularity::record(&scene, &mut numeric)?;
         envelope::record(&scene, &mut report, &mut numeric, &mut architecture)?;
         if let Some(program) = &scene.program {
             if let Some(d) = &program.domain {
@@ -924,6 +928,11 @@ fn export_inner(
                         },
                     ),
                     ("sofa_upholstery", format!("{:?}", p.upholstery)),
+                    ("sofa_arm_structure", p.arm_style.to_string()),
+                    ("sofa_base_structure", p.base_style.to_string()),
+                    ("sofa_back_structure", p.back_style.to_string()),
+                    ("sofa_seat_structure", p.seat_style.to_string()),
+                    ("seating_recliner", p.recliner.to_string()),
                 ] {
                     *report
                         .categories
@@ -931,6 +940,11 @@ fn export_inner(
                         .or_default()
                         .entry(value)
                         .or_default() += 1;
+                }
+                if p.recliner {
+                    numeric.push("recliner_extension", p.recliner_extension as f64)?;
+                } else if p.arm_style == 2 {
+                    numeric.push("sofa_arm_sweep_m", p.arm_sweep_m as f64)?;
                 }
             }
             if object.kind == ObjectKind::Plant {
@@ -1139,10 +1153,32 @@ fn export_inner(
                         .entry(p.base.to_string())
                         .or_default() += 1;
                 }
-                if matches!(object.variant % super::objects::chairs::FAMILIES, 6..=8) {
+                if object.variant >= super::objects::chairs::FAMILIES
+                    || matches!(object.variant, 6..=8)
+                {
                     continue;
                 }
                 let p = super::objects::chairs::parameters(object);
+                for (key, value) in [
+                    ("chair_base_structure", p.base_style),
+                    ("chair_seat_structure", p.seat_style),
+                    ("chair_back_structure", p.back_construction),
+                ] {
+                    *report
+                        .categories
+                        .entry(key.into())
+                        .or_default()
+                        .entry(value.to_string())
+                        .or_default() += 1;
+                }
+                if p.headrest {
+                    *report
+                        .categories
+                        .entry("chair_headrest_structure".into())
+                        .or_default()
+                        .entry(p.headrest_style.to_string())
+                        .or_default() += 1;
+                }
                 if matches!(object.variant, 0 | 1 | 5 | 9) {
                     *report
                         .categories
@@ -1608,6 +1644,47 @@ fn joint_histogram(report: &mut CoverageReport, name: &str, x: f32, y: f32) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn chair_construction_metrics_exclude_other_seating_programs() {
+        let directory = tempfile::tempdir().unwrap();
+        let report = export_metrics_with_humans(
+            0,
+            2,
+            1,
+            0.6,
+            IndoorLayout::LectureHall,
+            256,
+            256,
+            directory.path(),
+            0.,
+        )
+        .unwrap();
+        let mut expected = 0;
+        let mut audience = 0;
+        for seed in 0..2 {
+            let scene =
+                IndoorManifest::generate_with_humans(seed, IndoorLayout::LectureHall, 0.6, 0, 0.)
+                    .unwrap();
+            for o in scene.objects.iter().filter(|o| o.kind == ObjectKind::Chair) {
+                audience += usize::from(o.variant >= 10);
+                expected += usize::from(o.variant < 10 && !matches!(o.variant, 6..=8));
+            }
+        }
+        assert!(audience > 0);
+        for key in [
+            "chair_base_structure",
+            "chair_seat_structure",
+            "chair_back_structure",
+        ] {
+            let actual = report
+                .categories
+                .get(key)
+                .map(|v| v.values().sum::<usize>())
+                .unwrap_or(0);
+            assert_eq!(actual, expected, "{key}");
+        }
+    }
+
     #[test]
     fn small_render_budget_covers_layout_and_style_categories() {
         let mut cells = BTreeMap::new();

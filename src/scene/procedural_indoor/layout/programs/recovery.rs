@@ -63,9 +63,8 @@ impl IndoorManifest {
             cabinet.kind = ObjectKind::Bookcase;
             return;
         }
-        if self.main_furniture_count() >= self.minimum_main_objects() {
-            return;
-        }
+        // Storage completes this activity even if chairs and other service
+        // pieces already satisfy the generic population minimum.
         let Some(program) = &self.program else { return };
         let zones = program.zones.clone();
         let mut rng = stream(self.seed, 6134);

@@ -14,11 +14,19 @@ pub(super) fn build(o: &IndoorObject, p: &SofaProgram, widths: &[f32]) -> Vec<Ge
     for _ in 0..target {
         for _ in 0..12 {
             let index = r.random_range(0..p.modules);
-            let module_width = widths[index];
-            let x = -o.size.x * 0.5
-                + p.arm_width
-                + widths[..index].iter().sum::<f32>()
-                + module_width * 0.5;
+            let module_width = if p.seat_style == 1 {
+                o.size.x - p.arm_width * 2.
+            } else {
+                widths[index]
+            };
+            let x = if p.seat_style == 1 {
+                0.
+            } else {
+                -o.size.x * 0.5
+                    + p.arm_width
+                    + widths[..index].iter().sum::<f32>()
+                    + module_width * 0.5
+            };
             let is_return = p.chaise && index == if p.left_return { 0 } else { p.modules - 1 };
             let depth = if is_return {
                 o.size.z
@@ -26,8 +34,14 @@ pub(super) fn build(o: &IndoorObject, p: &SofaProgram, widths: &[f32]) -> Vec<Ge
                 o.size.z.min(0.94)
             };
             let z = (o.size.z - depth) * 0.5;
-            let seat_size = Vec3::new(module_width - p.cushion_gap_m, p.cushion, depth - 0.19);
-            let seat = Vec3::new(x, p.seat_height - p.cushion * 0.5, z - 0.085);
+            let mut seat_size = Vec3::new(module_width - p.cushion_gap_m, p.cushion, depth - 0.19);
+            let mut seat = Vec3::new(x, p.seat_height - p.cushion * 0.5, z - 0.085);
+            if p.seat_style == 2 {
+                // Supported by the rear cushion, never bridging the real gap
+                // to the front bolster.
+                seat.z += seat_size.z * 0.11;
+                seat_size.z = seat_size.z * 0.78 - 0.004;
+            }
             let min_width = (p.pillow_width_m * 0.75).max(0.19);
             let max_width = (p.pillow_width_m * 1.65).min(module_width * 0.80);
             if min_width >= max_width {
@@ -57,8 +71,13 @@ pub(super) fn build(o: &IndoorObject, p: &SofaProgram, widths: &[f32]) -> Vec<Ge
             let lo = seat.xz() - seat_size.xz() * 0.5 + half.xz() + Vec2::splat(0.012);
             let mut hi = seat.xz() + seat_size.xz() * 0.5 - half.xz() - Vec2::splat(0.012);
             // Keep the whole pose in front of the leaned back cushion.
-            hi.y =
-                hi.y.min(o.size.z * 0.5 - 0.205 - back_height * p.back_tilt.abs() - half.z);
+            hi.y = hi.y.min(
+                o.size.z * 0.5
+                    - 0.115
+                    - upholstery::maximum_back_padding(p) * 0.5
+                    - back_height * p.back_tilt.abs()
+                    - half.z,
+            );
             if lo.cmpge(hi).any() {
                 continue;
             }

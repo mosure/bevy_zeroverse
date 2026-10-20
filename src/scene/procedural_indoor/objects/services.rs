@@ -142,12 +142,13 @@ fn drawers(a: &mut Assembly, o: &IndoorObject, p: &ServiceProgram) {
     let label = o.kind.class_name();
     let foot = p.feet_height.min(s.y * 0.16);
     feet(a, o, foot, o.variant == 0);
-    a.box_part(
+    kitchen::case_shell(
+        a,
+        Vec3::new(s.x * 0.98, s.y - foot - 0.02, s.z - 0.052),
+        foot,
+        -0.018,
         p.frame,
         label,
-        Vec3::new(0., (foot + s.y) * 0.5, -0.008),
-        Vec3::new(s.x * 0.98, s.y - foot, s.z - 0.016),
-        0.006,
     );
     let pitch = (s.y - foot - 0.035) / p.drawers as f32;
     let mut bottom = foot + 0.012;
@@ -155,21 +156,48 @@ fn drawers(a: &mut Assembly, o: &IndoorObject, p: &ServiceProgram) {
         let pitch = pitch * (1. + p.drawer_bias * (2. * i as f32 / (p.drawers - 1) as f32 - 1.));
         let y = bottom + pitch * 0.5;
         bottom += pitch;
-        a.box_part(
-            Surface::WoodEdge,
-            label,
-            Vec3::new(0., y, s.z * 0.5 - 0.012),
-            Vec3::new(s.x * 0.97, pitch - 0.007, 0.022),
-            0.003,
-        );
-        a.part(Surface::Metal, label).rod(
-            Vec3::new(
-                -s.x * p.handle_fraction,
-                y + pitch * 0.21,
-                s.z * 0.5 - 0.002,
-            ),
-            Vec3::new(s.x * p.handle_fraction, y + pitch * 0.21, s.z * 0.5 - 0.002),
-            0.0025,
+        use super::super::motion::{construction as motion, MotionKind};
+        let seed = o.seed ^ i as u64 ^ 0x44524157;
+        motion::hinged(
+            a,
+            MotionKind::Cabinet,
+            seed,
+            || {
+                motion::rigid(
+                    MotionKind::Cabinet,
+                    seed,
+                    Vec3::ZERO,
+                    Vec3::Y,
+                    0.,
+                    Vec3::Z * s.z * 0.60,
+                )
+            },
+            |a| {
+                a.box_part(
+                    Surface::WoodEdge,
+                    label,
+                    Vec3::new(0., y, s.z * 0.5 - 0.012),
+                    Vec3::new(s.x * 0.97, pitch - 0.007, 0.022),
+                    0.003,
+                );
+                kitchen::drawer_tray(
+                    a,
+                    s.x * 0.97,
+                    pitch - 0.007,
+                    s.z - 0.052,
+                    Transform::from_xyz(0., y, s.z * 0.5 - 0.012),
+                    label,
+                );
+                a.part(Surface::Metal, label).rod(
+                    Vec3::new(
+                        -s.x * p.handle_fraction,
+                        y + pitch * 0.21,
+                        s.z * 0.5 - 0.002,
+                    ),
+                    Vec3::new(s.x * p.handle_fraction, y + pitch * 0.21, s.z * 0.5 - 0.002),
+                    0.0025,
+                );
+            },
         );
     }
     a.box_part(

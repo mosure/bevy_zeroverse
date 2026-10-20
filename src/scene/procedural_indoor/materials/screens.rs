@@ -430,6 +430,9 @@ pub(super) fn participants(
 pub(super) fn map(c: &mut Canvas, seed: u64, p: &ScreenProgram, bounds: [i32; 4], colors: Palette) {
     let mut rng = stream(seed, 866);
     let [x, y, w, h] = bounds;
+    if w <= 0 || h <= 0 {
+        return;
+    }
     c.rect(
         x,
         y,
@@ -460,9 +463,13 @@ pub(super) fn map(c: &mut Canvas, seed: u64, p: &ScreenProgram, bounds: [i32; 4]
         );
     }
     for _ in 0..(p.density * 9.).ceil() as usize {
+        // Composed map panels can be smaller than the usual 12-pixel padding.
+        // Keep a nonempty interval while preserving larger panels byte-for-byte.
+        let inset_x = 6.min((w - 1) / 2);
+        let inset_y = 6.min((h - 1) / 2);
         let point = [
-            rng.random_range((x + 6) as f32..(x + w - 6) as f32),
-            rng.random_range((y + 6) as f32..(y + h - 6) as f32),
+            rng.random_range((x + inset_x) as f32..(x + w - inset_x) as f32),
+            rng.random_range((y + inset_y) as f32..(y + h - inset_y) as f32),
         ];
         c.ellipse(point, [3., 4.], colors.accent);
     }
@@ -820,6 +827,25 @@ fn single_mobile_pixels(seed: u64) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn small_map_panels_have_nonempty_sampling_ranges_and_repeatable_pixels() {
+        let seed = 355;
+        let p = parameters(seed);
+        for w in -1..=16 {
+            for h in -1..=16 {
+                let draw = || {
+                    let mut c = Canvas::new([1, 2, 3]);
+                    map(&mut c, seed, &p, [17, 21, w, h], palette(&p));
+                    c.0
+                };
+                let pixels = draw();
+                assert_eq!(pixels, draw(), "map bounds {w} x {h}");
+                if w <= 0 || h <= 0 {
+                    assert_eq!(pixels, Canvas::new([1, 2, 3]).0);
+                }
+            }
+        }
+    }
     #[test]
     fn composed_participant_grid_preserves_three_column_pixel_replay() {
         // Exercise the grid itself so unrelated palette/header/media expansion

@@ -2,6 +2,8 @@
 //! with the same reveal, opening, ceiling and occupied-space tests as wall props.
 use super::super::architecture::facade::FacadeSide;
 use super::*;
+mod art;
+pub(crate) use art::{mounted_art_walls, ArtWallStats};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub(crate) struct WallComposition {
@@ -12,6 +14,10 @@ pub(crate) struct WallComposition {
     pub spacing_m: f32,
     pub eye_height_m: f32,
     pub asymmetry: f32,
+    pub size_variation: f32,
+    pub height_variation_m: f32,
+    pub aligned_fraction: f32,
+    pub stacked_fraction: f32,
 }
 
 impl WallComposition {
@@ -38,10 +44,14 @@ impl WallComposition {
         Self {
             weights: weights.map(|w| w / sum),
             coverage: rng.random_range(0.20..0.72),
-            picture_aspect: rng.random_range(0.65..1.65),
-            spacing_m: rng.random_range(0.075..0.22),
-            eye_height_m: rng.random_range(1.40..1.73),
-            asymmetry: rng.random_range(0.0..0.55),
+            picture_aspect: rng.random_range(0.50_f32.ln()..2.1_f32.ln()).exp(),
+            spacing_m: rng.random_range(0.065..0.24),
+            eye_height_m: rng.random_range(1.35..1.85),
+            asymmetry: rng.random_range(0.15..1.0),
+            size_variation: rng.random_range(0.40..1.20),
+            height_variation_m: rng.random_range(0.16..0.50),
+            aligned_fraction: rng.random_range(0.10..0.30),
+            stacked_fraction: rng.random_range(0.20..0.60),
         }
     }
 
@@ -64,32 +74,16 @@ impl WallComposition {
         span: f32,
         rng: &mut ChaCha8Rng,
     ) -> Vec<(ObjectKind, Vec2, Vec3)> {
-        let width = (span * self.coverage).clamp(1.0, 4.6).min(span - 0.24);
+        let width = (span * self.coverage * rng.random_range(0.65..1.25))
+            .clamp(0.80, 4.6)
+            .min(span - 0.24);
         if width < 0.65 {
             return Vec::new();
         }
-        let gap = self.spacing_m;
+        let gap = self.spacing_m * rng.random_range(0.8..1.2);
         let mut panels = Vec::new();
         if family == 0 {
-            let count = rng
-                .random_range(1..=5)
-                .min(((width + gap) / (0.36 + gap)).floor() as usize)
-                .max(1);
-            let pane_width = (width - gap * (count - 1) as f32) / count as f32;
-            let pane_height = (pane_width / self.picture_aspect).clamp(0.34, 1.28);
-            for i in 0..count {
-                let x = (i as f32 - (count - 1) as f32 * 0.5) * (pane_width + gap);
-                let dy = if count > 1 {
-                    self.asymmetry * 0.20 * ((i as f32 / (count - 1) as f32) * 2. - 1.)
-                } else {
-                    0.
-                };
-                panels.push((
-                    ObjectKind::WallArt,
-                    Vec2::new(x, -pane_height * 0.5 + dy),
-                    Vec3::new(pane_width, pane_height, rng.random_range(0.024..0.055)),
-                ));
-            }
+            return self.art_panels(width, gap, rng);
         } else {
             let aspect = rng.random_range(1.55..1.90);
             let screen_width = if family == 2 {
@@ -116,16 +110,29 @@ impl WallComposition {
             if family == 2 {
                 let side_width = width - screen_width - gap;
                 if side_width >= 0.36 {
-                    let side_height = (height - gap) * 0.5;
-                    for side in [-1., 1.] {
+                    // Art beside a display has its own vertical extent; tying
+                    // both small works to the screen height made them clones.
+                    let stack_height = (height * rng.random_range(0.85..1.35)).clamp(0.65, 1.70);
+                    let side_gap = gap.min(stack_height * 0.20);
+                    let split = rng.random_range(0.25..0.75);
+                    let heights = [
+                        (stack_height - side_gap) * split,
+                        (stack_height - side_gap) * (1. - split),
+                    ];
+                    let mut y = -stack_height * 0.5 + rng.random_range(-0.20..0.20);
+                    for side_height in heights {
+                        let pane_width =
+                            (side_width * rng.random_range(0.72..1.0)).min(side_height * 2.7);
                         panels.push((
                             ObjectKind::WallArt,
                             Vec2::new(
-                                width * 0.5 - side_width * 0.5,
-                                side * (side_height + gap) * 0.5 - side_height * 0.5,
+                                width * 0.5 - side_width * 0.5
+                                    + rng.random_range(-0.5..0.5) * (side_width - pane_width),
+                                y,
                             ),
-                            Vec3::new(side_width, side_height, 0.035),
+                            Vec3::new(pane_width, side_height, rng.random_range(0.024..0.055)),
                         ));
+                        y += side_height + side_gap;
                     }
                 }
             }
@@ -175,9 +182,33 @@ impl IndoorManifest {
                     continue;
                 }
                 let along = rng.random_range(-range..range) - (min + max) * 0.5;
-                let eye = program.eye_height_m + rng.random_range(-0.08..0.08);
+                let anchor = tf.transform_point(Vec3::new(along, 0., 0.));
+                let bottom = panels
+                    .iter()
+                    .map(|(_, p, _)| p.y)
+                    .fold(f32::INFINITY, f32::min);
+                let top = panels
+                    .iter()
+                    .map(|(_, p, s)| p.y + s.y)
+                    .fold(f32::NEG_INFINITY, f32::max);
+                let low = self.floor_height(anchor.xz()) + 0.30 - bottom;
+                let high = self.ceiling_height(anchor.xz()) - 0.25 - top;
+                if low >= high {
+                    continue;
+                }
+                // Fit the complete arrangement, then retain independent group
+                // heights. Clamping each picture would recreate shared edges.
+                let target = self.floor_height(anchor.xz()) + program.eye_height_m;
+                let from = (target - 0.30).max(low);
+                let to = (target + 0.30).min(high);
+                let eye = if from < to {
+                    rng.random_range(from..to)
+                } else {
+                    rng.random_range(low..high)
+                };
                 let yaw = tf.rotation.to_euler(EulerRot::YXZ).0;
                 let frame_style = rng.random_range(0..6);
+                let frame_coherence = rng.random_range(0.45..0.95);
                 let mut group = Vec::with_capacity(panels.len());
                 for (kind, p, size) in panels {
                     let mut o = self.candidate(
@@ -189,7 +220,9 @@ impl IndoorManifest {
                     );
                     o.id += group.len();
                     o.solid = false;
-                    o.variant = frame_style;
+                    if rng.random_bool(frame_coherence) {
+                        o.variant = frame_style;
+                    }
                     o.position += tf.rotation
                         * Vec3::Z
                         * super::super::objects::wall::mount_offset(&o).unwrap();
@@ -222,58 +255,4 @@ impl IndoorManifest {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn panel_groups_have_positive_sizes_and_separated_frames() {
-        let scene =
-            IndoorManifest::generate_with_humans(17, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
-        for seed in 0..256 {
-            let mut input = scene.clone();
-            input.seed = seed;
-            let p = WallComposition::sample(&input);
-            assert_eq!(p, WallComposition::sample(&input));
-            assert!((p.weights.iter().sum::<f32>() - 1.).abs() < 1e-5);
-            let mut rng = stream(seed, 9810);
-            for family in 0..3 {
-                for span in [0.35, 0.8, 1.5, 3., 8.] {
-                    let panels = p.panels(family, span, &mut rng);
-                    for (i, (_, pos, size)) in panels.iter().enumerate() {
-                        assert!(size.cmpgt(Vec3::ZERO).all());
-                        assert!(pos.x.abs() + size.x * 0.5 <= span * 0.5 - 0.10 + 1e-5);
-                        for (_, other, s) in &panels[..i] {
-                            assert!(
-                                (pos.x - other.x).abs() >= (size.x + s.x) * 0.5 + 0.01
-                                    || (pos.y + size.y * 0.5 - other.y - s.y * 0.5).abs()
-                                        >= (size.y + s.y) * 0.5 + 0.01
-                            );
-                        }
-                    }
-                }
-            }
-        }
-    }
-    #[test]
-    fn installed_groups_preserve_mounting_and_archive_validation() {
-        let mut rooms_with_art = 0;
-        for seed in 0..64 {
-            let scene =
-                IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 3, 0.25)
-                    .unwrap();
-            super::super::super::validation::validate_layout(&scene).unwrap();
-            let art: Vec<_> = scene
-                .objects
-                .iter()
-                .filter(|o| o.kind == ObjectKind::WallArt)
-                .collect();
-            rooms_with_art += usize::from(!art.is_empty());
-            for object in art {
-                assert!(scene.wall_attachment_clear(object));
-            }
-        }
-        assert!(
-            rooms_with_art >= 20,
-            "accepted wall groups are unreachable: {rooms_with_art}/64"
-        );
-    }
-}
+mod tests;

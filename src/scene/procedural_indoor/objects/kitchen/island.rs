@@ -99,6 +99,15 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, finish: &KitchenProgram)
         let rows = if drawers { 3 } else { 2 };
         let upper = if drawers { h / 3. } else { h * 0.25 };
         let mut bottom = p.plinth_height;
+        if i > 0 {
+            a.box_part(
+                finish.finish,
+                "cabinet",
+                Vec3::new(x - bay * 0.5, p.plinth_height + h * 0.5, z),
+                Vec3::new(0.016, h - 0.036, d - 0.016),
+                0.001,
+            );
+        }
         for row in 0..rows {
             let rh = if drawers {
                 upper
@@ -108,22 +117,56 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, finish: &KitchenProgram)
                 upper
             };
             let tf = Transform::from_xyz(x, bottom + rh * 0.5, z + d * 0.5 + 0.014);
-            cabinet::panel(
+            use super::super::super::motion::{construction as motion, MotionKind};
+            let seed = o.seed ^ ((i as u64) << 32) ^ row as u64 ^ 0x49534c45;
+            let drawer = drawers || row > 0;
+            motion::hinged(
                 a,
-                Vec2::new(bay - 0.006, rh - 0.006),
-                tf,
-                finish.finish,
-                "cabinet",
-                false,
-            );
-            cabinet::handle(
-                a,
-                tf,
-                0.,
-                if !drawers && row == 0 { rh * 0.30 } else { 0. },
-                finish,
-                true,
-                "cabinet",
+                MotionKind::Cabinet,
+                seed,
+                || {
+                    let side = if seed.is_multiple_of(2) { -1. } else { 1. };
+                    let mut joint = motion::rigid(
+                        MotionKind::Cabinet,
+                        seed,
+                        tf.translation + Vec3::X * side * (bay - 0.006) * 0.5,
+                        Vec3::Y,
+                        if drawer {
+                            0.
+                        } else {
+                            side * motion::endpoint(seed, 0., 1.25)
+                        },
+                        if drawer {
+                            Vec3::Z * d * 0.65
+                        } else {
+                            Vec3::ZERO
+                        },
+                    );
+                    joint.frame = tf;
+                    joint
+                },
+                |a| {
+                    cabinet::panel(
+                        a,
+                        Vec2::new(bay - 0.006, rh - 0.006),
+                        tf,
+                        finish.finish,
+                        "cabinet",
+                        false,
+                    );
+                    if drawer {
+                        cabinet::drawer_tray(a, bay - 0.006, rh - 0.006, d, tf, "cabinet");
+                    }
+                    cabinet::handle(
+                        a,
+                        tf,
+                        0.,
+                        if !drawer { rh * 0.30 } else { 0. },
+                        finish,
+                        true,
+                        "cabinet",
+                    );
+                },
             );
             bottom += rh;
         }

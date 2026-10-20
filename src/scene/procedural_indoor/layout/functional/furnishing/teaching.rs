@@ -4,6 +4,9 @@ impl IndoorManifest {
         let p = self.assembly_diagnostics.programs[index].clone();
         let center = (p.min + p.max) * 0.5;
         let lecture = p.activity == IndoorLayout::LectureHall;
+        let collection = variation::Collection::sample(self.seed, index);
+        let aisle_setback = r.random_range(0.48..0.61);
+        let disorder = r.random_range(0.02..0.14);
         let row_pitch = if lecture {
             p.parameters.row_pitch_metres
         } else {
@@ -24,6 +27,18 @@ impl IndoorManifest {
         self.assembly_diagnostics.programs[index].requested_capacity = rows * cols * 2;
         for row in 0..rows {
             for side in [-1., 1.] {
+                // Collaborative clusters share an orientation, without encoding
+                // row/column parity in every seat. Tiered rows retain sightlines.
+                let cluster_turn = if lecture {
+                    0.
+                } else {
+                    r.random_range(-0.72..0.72) * p.parameters.collaborative_fraction
+                };
+                let row_shift = if lecture {
+                    0.
+                } else {
+                    r.random_range(-0.18..0.18)
+                };
                 for col in 0..cols {
                     if row + col > 0 && !r.random_bool(p.parameters.occupancy as f64) {
                         continue;
@@ -31,47 +46,60 @@ impl IndoorManifest {
                     let x = center.x
                         + side
                             * (p.parameters.aisle_metres * 0.5
-                                + 0.53
+                                + aisle_setback
                                 + col as f32
                                     * if lecture {
                                         p.parameters.seat_pitch_metres
                                     } else {
                                         p.parameters.seat_pitch_metres + 0.60
-                                    });
+                                    })
+                        + if lecture {
+                            0.
+                        } else {
+                            r.random_range(-disorder..disorder)
+                        };
                     let curve = p.parameters.row_curvature_metres
                         * ((x - center.x) / ((p.max.x - p.min.x) * 0.5)).powi(2);
-                    let z = p.min.y + 3.0 + (row as f32 + 0.52) * row_pitch + curve;
+                    let z = p.min.y
+                        + 3.0
+                        + (row as f32 + 0.52) * row_pitch
+                        + curve
+                        + row_shift
+                        + if lecture {
+                            0.
+                        } else {
+                            r.random_range(-disorder..disorder)
+                        };
                     let yaw = ((x - center.x) * 0.045).clamp(-0.22, 0.22)
                         + if lecture {
                             0.
                         } else {
-                            (if (row + col) % 2 == 0 { 1. } else { -1. })
-                                * p.parameters.collaborative_fraction
-                                * 0.72
+                            cluster_turn + r.random_range(-0.12..0.12)
                         };
-                    let mut candidates = vec![Vec3::new(x, 0., z)];
-                    if !lecture && p.parameters.collaborative_fraction > 0.60 {
-                        candidates[0].z += if col % 2 == 0 { 0.12 } else { -0.12 };
-                    }
-                    for pos in candidates {
+                    {
+                        let pos = Vec3::new(x, 0., z);
+                        let chair_size = collection.chair(r);
                         let before = self.objects.len();
-                        if let Some(id) = self.public_fit(
-                            index,
-                            ObjectKind::Chair,
-                            pos,
-                            Vec3::new(0.72, 1.04, 0.72),
-                            yaw,
-                            r,
-                        ) {
+                        if let Some(id) =
+                            self.public_fit(index, ObjectKind::Chair, pos, chair_size, yaw, r)
+                        {
                             self.objects[id].variant = if lecture { 11 } else { 3 };
                             if !lecture {
+                                let desk_size = collection.desk(r);
                                 let table_pos = self.objects[id].position
-                                    + Quat::from_rotation_y(yaw) * Vec3::new(0., 0., -0.78);
+                                    + Quat::from_rotation_y(yaw)
+                                        * Vec3::new(
+                                            r.random_range(-0.055..0.055),
+                                            0.,
+                                            -(chair_size.z * 0.5
+                                                + desk_size.z * 0.5
+                                                + r.random_range(0.12..0.22)),
+                                        );
                                 if let Some(table) = self.public_fit(
                                     index,
                                     ObjectKind::Desk,
                                     table_pos,
-                                    Vec3::new(0.98, 0.74, 0.55),
+                                    desk_size,
                                     yaw,
                                     r,
                                 ) {

@@ -11,7 +11,10 @@ fn policy() -> IndoorMotionConfig {
         cabinet_fraction: 1.,
         covering_fraction: 1.,
         fan_fraction: 1.,
-        max_mechanisms: 32,
+        appliance_fraction: 1.,
+        prop_fraction: 1.,
+        cart_fraction: 1.,
+        max_mechanisms: 128,
         ..default()
     }
 }
@@ -35,6 +38,13 @@ fn policy_is_explicit_bounded_and_roundtrips_through_config() {
         r#"{"chair_travel_m":3}"#,
         r#"{"unrecognized":true}"#,
         r#"{"fan_fraction":-0.1}"#,
+        r#"{"max_mechanisms":129}"#,
+        r#"{"prop_fraction":1.1}"#,
+        r#"{"appliance_fraction":-0.1}"#,
+        r#"{"cart_fraction":-0.1}"#,
+        r#"{"prop_travel_m":0.76}"#,
+        r#"{"prop_rotation_degrees":181}"#,
+        r#"{"cart_travel_m":2.1}"#,
         r#"{"fan_turns":[8,2]}"#,
         r#"{"fan_turns":[0,121]}"#,
     ] {
@@ -78,6 +88,9 @@ fn fractions_select_nested_seeded_sets_and_zero_policy_has_no_mechanisms() {
         MotionKind::Cabinet,
         MotionKind::Covering,
         MotionKind::Fan,
+        MotionKind::Appliance,
+        MotionKind::Prop,
+        MotionKind::Cart,
     ];
     for kind in kinds {
         let mut previous = std::collections::BTreeSet::new();
@@ -89,6 +102,9 @@ fn fractions_select_nested_seeded_sets_and_zero_policy_has_no_mechanisms() {
                     cabinet_fraction: fraction,
                     covering_fraction: fraction,
                     fan_fraction: fraction,
+                    appliance_fraction: fraction,
+                    prop_fraction: fraction,
+                    cart_fraction: fraction,
                     ..default()
                 }),
                 ..default()
@@ -108,6 +124,9 @@ fn fractions_select_nested_seeded_sets_and_zero_policy_has_no_mechanisms() {
         cabinet_fraction: 0.,
         covering_fraction: 0.,
         fan_fraction: 0.,
+        appliance_fraction: 0.,
+        prop_fraction: 0.,
+        cart_fraction: 0.,
         ..default()
     };
     let mut scene =
@@ -130,24 +149,29 @@ fn motion_configuration_matrix_reports_real_admission_and_bounded_cost() {
             IndoorMotionConfig {
                 chair_travel_m: 1.5,
                 chair_swivel_degrees: 120.,
+                prop_travel_m: 0.75,
+                prop_rotation_degrees: 180.,
+                cart_travel_m: 2.,
                 fan_turns: [120., 120.],
                 ..policy()
             },
         ),
     ] {
         let mut row = serde_json::json!({"policy":name});
-        let mut accepted = [0usize; 5];
-        let mut selected = [0usize; 5];
+        let mut accepted = [0usize; 8];
+        let mut selected = [0usize; 8];
         let mut rejected = BTreeMap::<String, usize>::new();
         let mut adapted = BTreeMap::<String, usize>::new();
         let mut seconds = vec![];
         let mut moving_rooms = 0;
+        let mut rooms = vec![];
         for seed in 0..12 {
             let density = [0.25, 0.65, 1.][seed as usize % 3];
             let mut scene =
                 IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, density, 3, 0.25)
                     .unwrap();
             scene.indoor_motion = Some(IndoorMotionReport::new(policy.clone()));
+            super::super::validation::validate_layout(&scene).unwrap();
             let objects = scene.objects.clone();
             let (mut geometry, _) = bevy::tasks::block_on(SceneGeometry::build(&scene));
             let start = std::time::Instant::now();
@@ -162,6 +186,9 @@ fn motion_configuration_matrix_reports_real_admission_and_bounded_cost() {
                 .count();
             moving_rooms += usize::from(count > 0);
             assert!(count <= policy.max_mechanisms);
+            rooms.push(serde_json::json!({"seed":seed,"selected":report.mechanisms.len(),
+                "accepted":count,"noticeable":report.mechanisms.iter().filter(|m| m.rejection.is_none()
+                    && (m.translation_m.length() >= 0.02 || m.angle_radians.abs() >= 5_f32.to_radians())).count()}));
             for m in &report.mechanisms {
                 selected[m.kind as usize] += 1;
                 assert!(m.attempts <= 24);
@@ -194,6 +221,7 @@ fn motion_configuration_matrix_reports_real_admission_and_bounded_cost() {
         row["adaptations"] = serde_json::json!(adapted);
         row["motion_planning_seconds"] = serde_json::json!(seconds);
         row["moving_rooms"] = serde_json::json!(moving_rooms);
+        row["rooms"] = serde_json::json!(rooms);
         assert!(accepted[MotionKind::Chair as usize] > 0, "{row}");
         assert!(moving_rooms >= 8, "{row}");
         summary.push(row);
@@ -203,7 +231,7 @@ fn motion_configuration_matrix_reports_real_admission_and_bounded_cost() {
         "out/object_motion_review/configuration-matrix.json",
         serde_json::to_vec_pretty(&serde_json::json!({"rooms_per_policy":12,"cameras":3,
             "densities":[0.25,0.65,1.],"human_density":0.25,"cpu_only":true,
-            "kinds":["chair","door","cabinet","covering","fan"],"results":summary}))
+            "kinds":["chair","door","cabinet","covering","fan","appliance","prop","cart"],"results":summary}))
         .unwrap(),
     )
     .unwrap();
@@ -234,7 +262,7 @@ fn disabled_builds_preserve_parts_and_have_no_motion_work() {
 
 #[test]
 fn rooms_admit_motion_and_export_shared_navigation_reservations() {
-    let mut counts = [0; 5];
+    let mut counts = [0; 8];
     let mut reasons = std::collections::BTreeMap::new();
     for seed in 0..12 {
         let layout = if seed % 2 == 0 {
@@ -267,7 +295,7 @@ fn rooms_admit_motion_and_export_shared_navigation_reservations() {
     }
     eprintln!("accepted {counts:?}; rejected {reasons:?}");
     assert!(
-        counts.iter().all(|&c| c > 0),
+        counts[..7].iter().all(|&c| c > 0),
         "each requested mechanism category must actually move: {counts:?}"
     );
 }

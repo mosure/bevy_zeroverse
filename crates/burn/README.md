@@ -26,7 +26,7 @@ fallback. All dependencies are published; no patches or vendored forks are neede
 
 ```toml
 [dependencies]
-bevy_zeroverse_burn = { version = "0.29", features = ["gpu_tensor"] }
+bevy_zeroverse_burn = { version = "0.34", features = ["gpu_tensor"] }
 ```
 
 ```rust,no_run
@@ -46,9 +46,10 @@ RGBA-to-RGB packing run on the GPU after linear SSAA. `render_modes` determines
 optional outputs; RGB-only captures no longer force depth/normal annotations.
 See the [configuration and process API](../../docs/gpu_process_capture.md) for
 explicit-demand sessions, bounded lookahead, and supervised CUDA workers behind
-`cuda_ipc` (plus `gpu_tensor_fusion` for a fused Burn consumer), introduced in
-version 0.29.0. Local GPU checks and downstream training qualification passed
-for the recorded source snapshot; long-run memory stability remains unproven.
+`cuda_ipc` (plus `gpu_tensor_fusion` for a fused Burn consumer). Retained GPU
+checks and downstream training measurements apply to their recorded source
+snapshots; qualify throughput and stability on the actual training configuration
+when upgrading the generator.
 
 For CUDA, enable `cuda_interop` and replace `indoor()` with `indoor_cuda()`.
 `new(config)` and `new_cuda(config)` accept explicit camera, scene and annotation

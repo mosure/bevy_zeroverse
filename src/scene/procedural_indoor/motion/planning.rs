@@ -3,6 +3,8 @@
 //! capture jumps do not weaken clearance or require runtime collision work.
 use super::super::{layout::IndoorManifest, preparation::SceneGeometry};
 use super::*;
+mod hull;
+use hull::TriangleHull;
 
 #[derive(Clone)]
 struct Triangle {
@@ -22,6 +24,7 @@ struct Node {
 struct Sweep {
     local: Bounds,
     frame: Transform,
+    hull: Option<TriangleHull>,
 }
 impl Sweep {
     fn world(self) -> Bounds {
@@ -70,7 +73,7 @@ impl Tree {
                 let joint = tag(label);
                 let attachment = label
                     .split('#')
-                    .find(|s| s.starts_with("portal"))
+                    .find(|s| s.starts_with("portal") || s.starts_with("contact_"))
                     .map(str::to_owned);
                 let floor = super::super::objects::part_label(label) == "floor";
                 for tri in g.indices.as_chunks::<3>().0 {
@@ -123,6 +126,7 @@ impl Tree {
         }
         id
     }
+    #[cfg(test)]
     fn hits(
         &self,
         sweep: Sweep,
@@ -130,6 +134,19 @@ impl Tree {
         ids: &[usize],
         attachment: Option<&str>,
         floor: Option<f32>,
+    ) -> bool {
+        self.hits_context(sweep, owner, ids, attachment, floor, None, &[])
+    }
+    #[allow(clippy::too_many_arguments)]
+    fn hits_context(
+        &self,
+        sweep: Sweep,
+        owner: Option<usize>,
+        ids: &[usize],
+        attachment: Option<&str>,
+        floor: Option<f32>,
+        support: Option<(usize, f32)>,
+        carried: &[usize],
     ) -> bool {
         if self.nodes.is_empty() {
             return false;
@@ -154,22 +171,24 @@ impl Tree {
                 continue;
             }
             for t in &self.triangles[node.range.clone()] {
-                if (t.owner == owner && t.joint.is_some_and(|j| ids.contains(&j)))
+                if t.owner.is_some_and(|o| carried.contains(&o))
+                    || support.is_some_and(|(id, height)| {
+                        t.owner == Some(id) && t.p.iter().all(|p| (p.y - height).abs() < 0.0002)
+                    })
+                    || (t.owner == owner && t.joint.is_some_and(|j| ids.contains(&j)))
                     || (floor.is_some_and(|height| {
                         t.floor && t.p.iter().all(|p| (p.y - height).abs() < 0.002)
                     }))
-                    || (owner.is_none()
-                        && t.owner.is_none()
+                    || (owner == t.owner
                         && t.joint.is_none()
                         && attachment.is_some()
                         && t.attachment.as_deref() == attachment)
                 {
                     continue;
                 }
-                if triangle_box(
-                    t.p.map(|p| local_from_world.transform_point3(p)),
-                    sweep.local,
-                ) {
+                let p = t.p.map(|p| local_from_world.transform_point3(p));
+                if triangle_box(p, sweep.local) && sweep.hull.is_none_or(|hull| hull.intersects(p))
+                {
                     return true;
                 }
             }
@@ -231,6 +250,7 @@ fn sweeps(a: &Assembly, joint: &Joint, tf: Transform) -> Vec<Sweep> {
                 ),
             ),
             frame: tf,
+            hull: None,
         }];
     }
     let local_from_assembly = joint.frame.compute_affine().inverse();
@@ -238,7 +258,17 @@ fn sweeps(a: &Assembly, joint: &Joint, tf: Transform) -> Vec<Sweep> {
         let g = &a.parts[key];
         // Local triangle blocks keep handles, hinge barrels and separate slats
         // from turning into a fictitious solid slab around the whole mechanism.
-        for indices in g.indices.chunks(96) {
+        // Thin articulated frames have nearby stationary carcasses. Large
+        // triangle batches can enclose empty space and falsely reject every
+        // possible angle. Bound each face for these compact mechanisms.
+        let block = if matches!(joint.kind, MotionKind::Cabinet | MotionKind::Appliance)
+            || (joint.kind == MotionKind::Prop && joint.contact == Contact::Free)
+        {
+            3
+        } else {
+            96
+        };
+        for indices in g.indices.chunks(block) {
             if let Some(end) = joint.morph.get(key) {
                 if indices
                     .iter()
@@ -264,6 +294,7 @@ fn sweeps(a: &Assembly, joint: &Joint, tf: Transform) -> Vec<Sweep> {
                 result.push(Sweep {
                     local: b,
                     frame: tf.mul_transform(joint.frame),
+                    hull: None,
                 });
             } else {
                 if joint.effective_translation() == Vec3::ZERO && joint.effective_angle() == 0. {
@@ -300,6 +331,16 @@ fn sweeps(a: &Assembly, joint: &Joint, tf: Transform) -> Vec<Sweep> {
                     result.push(Sweep {
                         local: (local.0 - pad, local.1 + pad),
                         frame,
+                        hull: (block == 3).then(|| TriangleHull {
+                            points: std::array::from_fn(|k| {
+                                let amount = (i + k / 3) as f32 * step;
+                                let pose = tf.mul_transform(joint.transform(amount));
+                                inverse.transform_point3(pose.transform_point(Vec3::from_array(
+                                    g.positions[indices[k % 3] as usize],
+                                )))
+                            }),
+                            error: pad.x,
+                        }),
                     });
                 }
             }
@@ -353,6 +394,30 @@ fn camera_reservations(scene: &IndoorManifest) -> Vec<Bounds> {
     result
 }
 
+/// Certify the full continuous footprint, including turns, on the existing
+/// support. The normal layout gate understands round/cutout tabletops and islands.
+fn support_clear(
+    scene: &IndoorManifest,
+    o: &super::super::layout::IndoorObject,
+    shapes: &[Sweep],
+) -> bool {
+    let Some(support) = o.support.and_then(|id| scene.objects.get(id)) else {
+        return false;
+    };
+    let inverse = support.transform().compute_affine().inverse();
+    let (lo, hi) = bounds(shapes.iter().flat_map(|s| {
+        corners(s.local).map(|p| inverse.transform_point3(s.frame.transform_point(p)))
+    }));
+    let mut proxy = o.clone();
+    proxy.yaw = support.yaw;
+    proxy.size = (hi - lo).with_y(o.size.y);
+    proxy.position = support
+        .transform()
+        .transform_point((lo + hi) * 0.5)
+        .with_y(o.position.y);
+    scene.prop_clear(&proxy, support, 0.001)
+}
+
 pub(crate) fn prepare(scene: &mut IndoorManifest, geometry: &mut SceneGeometry) {
     let Some(report) = &scene.indoor_motion else {
         return;
@@ -363,11 +428,37 @@ pub(crate) fn prepare(scene: &mut IndoorManifest, geometry: &mut SceneGeometry) 
         return;
     }
     let limit = report.policy.max_mechanisms;
+    let cargo = mobility::cargo(scene, geometry);
+    let carried: std::collections::HashSet<_> = cargo.iter().flatten().copied().collect();
+    // Cargo proxies are constructed once, not once per fallback or mesh part.
+    let cargo_geometry: Vec<_> = cargo
+        .iter()
+        .enumerate()
+        .map(|(id, children)| {
+            let mut a = Assembly::default();
+            if children.is_empty() {
+                return a;
+            }
+            let inverse = scene.objects[id].transform().compute_affine().inverse();
+            for &child in children {
+                let (lo, hi) = geometry.objects[child].bounds();
+                let relative = Transform::from_matrix(
+                    Mat4::from(inverse) * scene.objects[child].transform().to_matrix(),
+                );
+                a.part(Surface::Wood, "cargo").cuboid(
+                    hi - lo,
+                    0.,
+                    relative.mul_transform(Transform::from_translation((lo + hi) * 0.5)),
+                );
+            }
+            a
+        })
+        .collect();
     let tree = Tree::new(scene, geometry);
     let people: Vec<_> = scene.humans.iter().map(|p| p.bounds()).collect();
     let camera_bounds = camera_reservations(scene);
     let mut reports = vec![];
-    let mut reserved: Vec<Bounds> = vec![];
+    let mut reserved: Vec<(Bounds, Vec<Bounds>)> = vec![];
     let mut accepted = 0;
     let mut order = vec![];
     for (owner, a) in std::iter::once((None, &geometry.architecture)).chain(
@@ -377,6 +468,9 @@ pub(crate) fn prepare(scene: &mut IndoorManifest, geometry: &mut SceneGeometry) 
             .enumerate()
             .map(|(i, a)| (Some(i), a)),
     ) {
+        if owner.is_some_and(|id| carried.contains(&id)) {
+            continue;
+        }
         let mut index = 0;
         while index < a.joints.len() {
             let j = &a.joints[index];
@@ -416,13 +510,28 @@ pub(crate) fn prepare(scene: &mut IndoorManifest, geometry: &mut SceneGeometry) 
             a.joints[id].accepted = false;
         }
         let j = &a.joints[index];
+        let children = owner.map_or(&[][..], |id| cargo[id].as_slice());
+        let grounded = j.contact != Contact::Free || j.kind == MotionKind::Chair;
+        let connected = grounded
+            && owner.is_some_and(|id| {
+                scene.objects.iter().any(|o| {
+                    o.kind == super::super::layout::ObjectKind::Cable
+                        && [o.cable_target, o.interaction_target]
+                            .into_iter()
+                            .flatten()
+                            .any(|target| target == id || children.contains(&target))
+                })
+            });
         let occupied = owner.is_some_and(|id| {
             scene.humans.iter().any(|h| h.chair == Some(id))
-                || (j.kind == MotionKind::Chair
+                || (grounded
+                    && j.kind != MotionKind::Cart
                     && scene.objects.iter().any(|o| o.support == Some(id)))
         });
         let mut reason = if accepted >= limit {
             Some("mechanism_limit")
+        } else if connected {
+            Some("connected_cable")
         } else if occupied {
             Some("occupied_support")
         } else {
@@ -438,10 +547,15 @@ pub(crate) fn prepare(scene: &mut IndoorManifest, geometry: &mut SceneGeometry) 
                     a.joints[id].adjustment = adjustment;
                 }
                 let joint = &a.joints[index];
-                let shapes: Vec<_> = ids
+                let mut shapes: Vec<_> = ids
                     .iter()
                     .flat_map(|&i| sweeps(a, &a.joints[i], tf))
                     .collect();
+                if let Some(id) = owner.filter(|_| !children.is_empty()) {
+                    let mut proxy = joint.clone();
+                    proxy.parts = cargo_geometry[id].parts.keys().cloned().collect();
+                    shapes.extend(sweeps(&cargo_geometry[id], &proxy, tf));
+                }
                 let swept: Vec<_> = shapes.iter().map(|s| s.world()).collect();
                 reason = if swept.is_empty() {
                     Some("no_travel")
@@ -462,22 +576,30 @@ pub(crate) fn prepare(scene: &mut IndoorManifest, geometry: &mut SceneGeometry) 
                     .any(|&b| camera_bounds.iter().any(|&p| overlaps(b, p)))
                 {
                     Some("camera_path")
-                } else if swept
-                    .iter()
-                    .any(|&b| reserved.iter().any(|&p| overlaps(b, p)))
-                {
+                } else if swept.iter().any(|&b| {
+                    reserved.iter().any(|(all, parts)| {
+                        overlaps(b, *all) && parts.iter().any(|&p| overlaps(b, p))
+                    })
+                }) {
                     Some("other_motion")
                 } else if shapes.iter().any(|&shape| {
-                    tree.hits(
+                    tree.hits_context(
                         shape,
                         owner,
                         &ids,
                         joint.attachment.as_deref(),
-                        (joint.kind == MotionKind::Chair).then_some(tf.translation.y),
+                        (joint.kind == MotionKind::Chair || joint.contact == Contact::Floor)
+                            .then_some(tf.translation.y),
+                        owner
+                            .filter(|_| joint.contact == Contact::Surface)
+                            .and_then(|id| {
+                                scene.objects[id].support.map(|s| (s, tf.translation.y))
+                            }),
+                        children,
                     )
                 }) {
                     Some("static_geometry")
-                } else if joint.kind == MotionKind::Chair
+                } else if (joint.kind == MotionKind::Chair || joint.contact == Contact::Floor)
                     && swept.iter().any(|&b| {
                         scene
                             .envelope
@@ -486,6 +608,11 @@ pub(crate) fn prepare(scene: &mut IndoorManifest, geometry: &mut SceneGeometry) 
                     })
                 {
                     Some("uneven_floor")
+                } else if owner.is_some_and(|id| {
+                    joint.contact == Contact::Surface
+                        && !support_clear(scene, &scene.objects[id], &shapes)
+                }) {
+                    Some("support_edge")
                 } else {
                     None
                 };
@@ -501,7 +628,13 @@ pub(crate) fn prepare(scene: &mut IndoorManifest, geometry: &mut SceneGeometry) 
         }
         if reason.is_none() {
             accepted += 1;
-            reserved.extend(compact.iter().copied());
+            // Most independently moving items are far apart. Reject disjoint
+            // mechanism bounds before scanning their detailed reservations.
+            // This is exactly the same predicate as the flat scan.
+            reserved.push((
+                compact.iter().copied().reduce(union).unwrap(),
+                compact.clone(),
+            ));
         }
         for &id in &ids {
             a.joints[id].accepted = reason.is_none();
@@ -509,6 +642,14 @@ pub(crate) fn prepare(scene: &mut IndoorManifest, geometry: &mut SceneGeometry) 
         let j = &a.joints[index];
         reports.push(MechanismReport {
             object_id: owner,
+            carried_object_ids: children.to_vec(),
+            semantic_labels: ids
+                .iter()
+                .flat_map(|&i| a.joints[i].parts.iter())
+                .map(|(_, label)| super::super::objects::part_label(label).to_owned())
+                .collect::<std::collections::BTreeSet<_>>()
+                .into_iter()
+                .collect(),
             joint: index,
             kind: j.kind,
             interval: if j.kind == MotionKind::Fan {
@@ -528,6 +669,19 @@ pub(crate) fn prepare(scene: &mut IndoorManifest, geometry: &mut SceneGeometry) 
             requested_angle_radians: j.angle,
         });
     }
+    for report in &mut reports {
+        for &child in &report.carried_object_ids {
+            report.semantic_labels.extend(
+                geometry.objects[child]
+                    .parts
+                    .keys()
+                    .map(|(_, label)| super::super::objects::part_label(label).to_owned()),
+            );
+        }
+        report.semantic_labels.sort();
+        report.semantic_labels.dedup();
+    }
+    mobility::carry(scene, geometry, &cargo);
     reports.sort_by_key(|r| (r.object_id, r.joint));
     scene.indoor_motion.as_mut().unwrap().mechanisms = reports;
 }
@@ -571,3 +725,6 @@ fn validate_morph_to(a: &Geometry, b: &Geometry, amount: f32) -> bool {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod mobility_tests;

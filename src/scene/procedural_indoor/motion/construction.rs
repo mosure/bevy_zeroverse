@@ -6,6 +6,10 @@ impl Assembly {
                 && (kind != MotionKind::Chair
                     || p.chair_travel_m > 0.
                     || p.chair_swivel_degrees > 0.)
+                && (kind != MotionKind::Prop
+                    || p.prop_travel_m > 0.
+                    || p.prop_rotation_degrees > 0.)
+                && (kind != MotionKind::Cart || p.cart_travel_m > 0.)
                 && (kind != MotionKind::Fan || p.fan_turns[1] > 0.)
                 && stream(seed, 0x4d4f544e).random_bool(p.fraction(kind) as f64)
         })
@@ -83,6 +87,24 @@ pub(crate) fn endpoint(seed: u64, start: f32, max: f32) -> f32 {
     }
 }
 
+/// Keep the closed/rest mesh identical; split only the operated leaf. Hardware
+/// and labels built by the closure belong to the same rigid mechanism.
+pub(crate) fn hinged(
+    a: &mut Assembly,
+    kind: MotionKind,
+    seed: u64,
+    joint: impl FnOnce() -> Joint,
+    build: impl FnOnce(&mut Assembly),
+) {
+    if a.motion_selected(kind, seed) {
+        let mut leaf = Assembly::default();
+        build(&mut leaf);
+        a.articulated(leaf, joint());
+    } else {
+        build(a);
+    }
+}
+
 pub(crate) fn morph(
     a: &mut Assembly,
     mut start: Assembly,
@@ -119,4 +141,9 @@ pub(crate) fn morph(
     joint.frame = frame;
     joint.morph = end.parts;
     a.articulated(start, joint);
+}
+
+/// Add a single supported body after material/semantic keys are finalized.
+pub(crate) fn movable(a: &mut Assembly, o: &super::super::layout::IndoorObject) {
+    super::mobility::construct(a, o);
 }

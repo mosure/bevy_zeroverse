@@ -68,12 +68,19 @@ pub(super) fn laptop(a: &mut Assembly, o: &IndoorObject) {
     let hinge = Vec3::new(0.0, chassis + 0.004, hinge_z);
     let lid = Transform::from_translation(hinge).with_rotation(Quat::from_rotation_x(-tilt));
     let bezel = program.bezel_m;
-    a.part(metal, label).cuboid(
+    use super::super::motion::{construction as motion, MotionKind};
+    let moving = a.motion_selected(MotionKind::Prop, o.seed)
+        && a.motion_policy
+            .as_ref()
+            .is_some_and(|p| p.prop_rotation_degrees > 0.);
+    let mut leaf = Assembly::default();
+    let dest = if moving { &mut leaf } else { &mut *a };
+    dest.part(metal, label).cuboid(
         Vec3::new(width, screen_height, program.lid_m),
         program.corner_m.min(program.lid_m * 0.35),
         lid.with_translation(lid.transform_point(Vec3::Y * screen_height * 0.5)),
     );
-    a.part(Surface::Screen, label).cuboid(
+    dest.part(Surface::Screen, label).cuboid(
         Vec3::new(width - bezel * 2.0, screen_height - bezel * 2.0, 0.001),
         0.0,
         lid.with_translation(lid.transform_point(Vec3::new(
@@ -82,13 +89,37 @@ pub(super) fn laptop(a: &mut Assembly, o: &IndoorObject) {
             program.lid_m * 0.5 + 0.0007,
         ))),
     );
+    dest.part(Surface::Ink, label).ellipsoid(
+        Vec3::splat(0.0018),
+        Transform::from_translation(lid.transform_point(Vec3::new(
+            0.0,
+            screen_height - bezel * 0.45,
+            program.lid_m * 0.5 + 0.001,
+        ))),
+    );
+    if moving {
+        let mut r = stream(o.seed, 0x4c49444d);
+        let limit = a
+            .motion_policy
+            .as_ref()
+            .unwrap()
+            .prop_rotation_degrees
+            .to_radians();
+        let angle = (r.random_range(0.45..1.0) + tilt).min(limit);
+        let mut joint = motion::rigid(MotionKind::Prop, o.seed, hinge, Vec3::X, angle, Vec3::ZERO);
+        joint.frame = lid;
+        joint.attachment = Some("contact_laptop_hinge".into());
+        a.articulated(leaf, joint);
+    }
+    let hinge_label = moving.then(|| format!("{label}#contact_laptop_hinge"));
     for side in [-1.0, 1.0] {
-        a.part(Surface::Chrome, label).cylinder(
-            0.006,
-            0.037,
-            Transform::from_translation(hinge + Vec3::X * side * width * 0.33)
-                .with_rotation(Quat::from_rotation_z(FRAC_PI_2)),
-        );
+        a.part(Surface::Chrome, hinge_label.as_deref().unwrap_or(label))
+            .cylinder(
+                0.006,
+                0.037,
+                Transform::from_translation(hinge + Vec3::X * side * width * 0.33)
+                    .with_rotation(Quat::from_rotation_z(FRAC_PI_2)),
+            );
         for end in [0.08, 0.87] {
             a.part(Surface::Rubber, label).cylinder(
                 0.008,
@@ -153,14 +184,6 @@ pub(super) fn laptop(a: &mut Assembly, o: &IndoorObject) {
         Vec3::new(0.0, chassis + 0.0032, hinge_z + base_depth * 0.79),
         Vec3::new(width * program.trackpad_fraction, 0.001, base_depth * 0.23),
         0.0,
-    );
-    a.part(Surface::Ink, label).ellipsoid(
-        Vec3::splat(0.0018),
-        Transform::from_translation(lid.transform_point(Vec3::new(
-            0.0,
-            screen_height - bezel * 0.45,
-            program.lid_m * 0.5 + 0.001,
-        ))),
     );
     if program.speaker_grilles {
         for side in [-1., 1.] {

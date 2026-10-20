@@ -3,6 +3,10 @@ impl IndoorManifest {
     pub(super) fn exhibition_program(&mut self, index: usize, r: &mut ChaCha8Rng) {
         let p = self.assembly_diagnostics.programs[index].clone();
         let center = (p.min + p.max) * 0.5;
+        let panel_fraction = r.random_range(0.20..0.65);
+        let case_fraction = r.random_range(0.12..0.48);
+        let stagger = r.random_range(-0.50..0.50);
+        let disorder = r.random_range(0.08..0.32);
         let rows = ((p.max.y - p.min.y - 3.0) / p.parameters.display_spacing_metres)
             .floor()
             .max(1.) as usize;
@@ -14,9 +18,9 @@ impl IndoorManifest {
             };
         for row in 0..rows {
             for side in [-1., 1.] {
-                let kind = if p.activity == IndoorLayout::Gallery && (row % 2 == 0) {
+                let kind = if p.activity == IndoorLayout::Gallery && r.random_bool(panel_fraction) {
                     ObjectKind::ExhibitionPanel
-                } else if r.random_bool(0.30) {
+                } else if r.random_bool(case_fraction) {
                     ObjectKind::DisplayCase
                 } else {
                     ObjectKind::ExhibitPlinth
@@ -26,11 +30,15 @@ impl IndoorManifest {
                     (p.min.x + center.x) * 0.5 - 0.3
                 } else {
                     (p.max.x + center.x) * 0.5 + 0.3
-                };
+                } + r.random_range(-disorder..disorder);
                 let pos = Vec3::new(
                     x,
                     0.,
-                    p.min.y + 3.2 + row as f32 * p.parameters.display_spacing_metres,
+                    p.min.y
+                        + 3.2
+                        + row as f32 * p.parameters.display_spacing_metres
+                        + side * stagger
+                        + r.random_range(-disorder..disorder),
                 );
                 if let Some(id) = self.public_fit(
                     index,
@@ -61,12 +69,7 @@ impl IndoorManifest {
                     if self.assembly_diagnostics.programs.iter().any(|p| {
                         p.activity == IndoorLayout::Showroom && p.members.contains(&support.id)
                     }) {
-                        [
-                            ObjectKind::Sculpture,
-                            ObjectKind::Vase,
-                            ObjectKind::Laptop,
-                            ObjectKind::DeskLamp,
-                        ][stream(support.finish_seed.unwrap_or(self.seed), 8252).random_range(0..4)]
+                        showroom_exhibit(&support)
                     } else {
                         ObjectKind::Sculpture
                     }
@@ -83,19 +86,56 @@ impl IndoorManifest {
             };
             let size = match kind {
                 ObjectKind::Sculpture => geometry::dimensions(kind, r.random()),
-                ObjectKind::Laptop => Vec3::new(0.37, 0.30, 0.34),
-                ObjectKind::DeskLamp => Vec3::new(0.22, 0.43, 0.22),
-                ObjectKind::Vase => Vec3::new(0.28, 0.45, 0.28),
-                ObjectKind::Notebook => Vec3::new(0.21, 0.025, 0.28),
-                ObjectKind::Dishware => Vec3::new(0.26, 0.11, 0.26),
-                _ => Vec3::new(0.095, 0.13, 0.095),
+                ObjectKind::Laptop => Vec3::new(
+                    r.random_range(0.27..0.41),
+                    r.random_range(0.23..0.33),
+                    r.random_range(0.30..0.40),
+                ),
+                ObjectKind::DeskLamp => {
+                    let base = r.random_range(0.17..0.27);
+                    Vec3::new(base, r.random_range(0.32..0.51), base)
+                }
+                ObjectKind::Vase => {
+                    let diameter = r.random_range(0.17..0.33);
+                    Vec3::new(diameter, r.random_range(0.27..0.53), diameter)
+                }
+                ObjectKind::Notebook => {
+                    super::super::super::super::items::sizing::loose(kind, &mut r).unwrap()
+                }
+                ObjectKind::Dishware => Vec3::new(0.26, 0.11, 0.26) * r.random_range(0.80..1.15),
+                _ => super::super::super::super::items::sizing::loose(kind, &mut r).unwrap(),
             };
             let start = self.objects.len();
-            let yaw = r.random_range(-0.2..0.2);
+            let yaw: f32 = r.random_range(-0.45..0.45);
+            // Offset against the rotated item's envelope, not against its center
+            // alone. Small stands may correctly admit almost-centered exhibits.
+            let (s, c) = yaw.sin_cos();
+            let projected = Vec2::new(
+                size.x * c.abs() + size.z * s.abs(),
+                size.x * s.abs() + size.z * c.abs(),
+            );
+            let available =
+                ((support.size.xz() - projected) * 0.5 - Vec2::splat(0.025)).max(Vec2::ZERO);
+            let offset =
+                available * Vec2::new(r.random_range(-0.8..0.8), r.random_range(-0.8..0.8));
             if support.kind == ObjectKind::ExhibitPlinth {
-                self.program_prop(&support, kind, Vec3::ZERO, size, yaw, &mut r);
+                self.program_prop(
+                    &support,
+                    kind,
+                    Vec3::new(offset.x, 0., offset.y),
+                    size,
+                    yaw,
+                    &mut r,
+                );
             } else {
-                self.prop(&support, kind, Vec3::ZERO, size, yaw, &mut r);
+                self.prop(
+                    &support,
+                    kind,
+                    Vec3::new(offset.x, 0., offset.y),
+                    size,
+                    yaw,
+                    &mut r,
+                );
             }
             if support.kind == ObjectKind::ExhibitPlinth {
                 for item in &mut self.objects[start..] {
@@ -155,5 +195,36 @@ impl IndoorManifest {
                     .push(route);
             }
         }
+    }
+}
+
+fn showroom_exhibit(support: &IndoorObject) -> ObjectKind {
+    // Finish identity expresses a coordinated installation, not a product class.
+    [
+        ObjectKind::Sculpture,
+        ObjectKind::Vase,
+        ObjectKind::Laptop,
+        ObjectKind::DeskLamp,
+    ][stream(support.seed, 8252).random_range(0..4)]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn exhibit_identity_uses_instance_seed_and_is_invariant_to_finish() {
+        let mut kinds = std::collections::BTreeSet::new();
+        let mut support =
+            crate::scene::procedural_indoor::objects::audit::fixture(ObjectKind::ExhibitPlinth, 0);
+        for seed in 0..64 {
+            support.seed = seed;
+            support.finish_seed = Some(17);
+            let kind = showroom_exhibit(&support);
+            kinds.insert(format!("{kind:?}"));
+            support.finish_seed = Some(901);
+            assert_eq!(kind, showroom_exhibit(&support));
+        }
+        assert_eq!(kinds.len(), 4);
     }
 }

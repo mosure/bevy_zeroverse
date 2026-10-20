@@ -27,6 +27,10 @@ retain the 0.47 m seating datum used by static people and furniture placement.
 Swivel bases sample both casters and grounded glides; conference-style bases
 favor glides while task-chair bases favor casters.
 
+The [seating construction study](seating_construction_space.md) covers the expanded
+chair bases, backs, arms, upholstery, sofa supports and reserved recliner
+mechanisms, with fixed-envelope shape measurements and complete-room checks.
+
 Tables combine superellipse, capsule and rounded polygon support functions.
 Polygon side count, phase, rounding and blend vary independently of top size,
 thickness, edge treatment and finish. All interpolated contours remain convex;

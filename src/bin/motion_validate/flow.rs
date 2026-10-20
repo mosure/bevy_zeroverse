@@ -4,7 +4,8 @@ use bevy_zeroverse::{render::semantic::SemanticLabel, sample::Sample};
 use std::path::Path;
 
 /// Independent camera-only reprojection separates actor deformation from camera
-/// motion. Non-person surfaces in these generated scenes are static controls.
+/// motion. Classes belonging to accepted object mechanisms are excluded from
+/// the static controls, including carried items and attached door notes.
 pub fn validate(
     sample: &Sample,
     width: u32,
@@ -22,12 +23,33 @@ pub fn validate(
     {
         use bevy_zeroverse::scene::procedural_indoor::motion::MotionKind;
         for m in report.mechanisms.iter().filter(|m| m.rejection.is_none()) {
+            if !m.semantic_labels.is_empty() {
+                moving_classes.extend(
+                    m.semantic_labels
+                        .iter()
+                        .filter_map(|s| SemanticLabel::from_label(s)),
+                );
+                continue;
+            }
+            // Backward-compatible interpretation of older capture receipts.
             moving_classes.extend(match m.kind {
                 MotionKind::Chair => vec![SemanticLabel::Chair],
                 MotionKind::Fan => vec![SemanticLabel::CeilingFan],
                 MotionKind::Door => vec![SemanticLabel::Door, SemanticLabel::DoorHardware],
                 MotionKind::Cabinet => vec![SemanticLabel::Cabinet, SemanticLabel::CabinetHardware],
                 MotionKind::Covering => vec![SemanticLabel::Blinds, SemanticLabel::Curtain],
+                MotionKind::Appliance | MotionKind::Prop | MotionKind::Cart => sample
+                    .indoor
+                    .as_ref()
+                    .into_iter()
+                    .flat_map(|s| {
+                        m.object_id
+                            .iter()
+                            .chain(&m.carried_object_ids)
+                            .filter_map(|&id| s.objects.get(id))
+                            .filter_map(|o| SemanticLabel::from_label(o.kind.class_name()))
+                    })
+                    .collect(),
             });
         }
     }

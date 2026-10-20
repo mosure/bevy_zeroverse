@@ -223,14 +223,20 @@ impl IndoorManifest {
                         rng.random_range(0.12..0.18),
                     ),
                 ),
-                3 => (
-                    ObjectKind::WallArt,
-                    Vec3::new(
-                        rng.random_range(0.35..1.2),
-                        rng.random_range(0.35..1.25),
-                        0.045,
-                    ),
-                ),
+                3 => {
+                    // Sample area and aspect independently: portraits, square
+                    // works and panoramas at both small and large print sizes.
+                    let scale = rng.random_range(0.38..1.05);
+                    let aspect = rng.random_range(0.42_f32.ln()..2.6_f32.ln()).exp().sqrt();
+                    (
+                        ObjectKind::WallArt,
+                        Vec3::new(
+                            scale * aspect,
+                            scale / aspect,
+                            rng.random_range(0.024..0.060),
+                        ),
+                    )
+                }
                 _ => (
                     ObjectKind::Clock,
                     Vec3::splat(rng.random_range(0.22..0.43)).with_z(0.045),
@@ -241,7 +247,18 @@ impl IndoorManifest {
             }
             let along = rng
                 .random_range(-span * 0.5 + size.x * 0.5 + 0.35..span * 0.5 - size.x * 0.5 - 0.35);
-            let y = rng.random_range(0.95..(h - size.y - 0.3).clamp(0.96, 2.15));
+            let y = if kind == ObjectKind::WallArt {
+                let anchor = tf.transform_point(Vec3::new(along, 0., 0.));
+                let floor = self.floor_height(anchor.xz());
+                let lo = (floor + 1.15).max(floor + 0.25 + size.y * 0.5);
+                let hi = (floor + 2.05).min(self.ceiling_height(anchor.xz()) - 0.25 - size.y * 0.5);
+                if lo >= hi {
+                    continue;
+                }
+                rng.random_range(lo..hi) - size.y * 0.5
+            } else {
+                rng.random_range(0.95..(h - size.y - 0.3).clamp(0.96, 2.15))
+            };
             let position = tf.transform_point(Vec3::new(along, y, 0.));
             let yaw = tf.rotation.to_euler(EulerRot::YXZ).0;
             let mut object = self.candidate(kind, position, size, yaw, rng);

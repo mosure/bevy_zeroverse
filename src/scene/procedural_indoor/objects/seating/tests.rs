@@ -141,3 +141,81 @@ fn upholstery_profiles_are_closed_and_bounded_for_short_loveseats_and_deep_chais
     }
     super::super::super::validation::validate_geometry(&scene).unwrap();
 }
+
+#[test]
+fn seating_constructions_and_recliners_respect_reserved_envelopes() {
+    use super::super::audit;
+    let mut arms = std::collections::BTreeSet::new();
+    let mut bases = std::collections::BTreeSet::new();
+    let mut backs = std::collections::BTreeSet::new();
+    let mut seats = std::collections::BTreeSet::new();
+    let mut recliners = 0;
+    for seed in 0..128 {
+        for (kind, size, variant) in [
+            (ObjectKind::Chair, Vec3::new(0.84, 1.12, 1.35), 8),
+            (ObjectKind::Chair, Vec3::new(1.02, 1.30, 1.65), 8),
+            (ObjectKind::Sofa, Vec3::new(1.30, 0.76, 0.82), 0),
+            (ObjectKind::Sofa, Vec3::new(3.2, 1.10, 1.85), 0),
+        ] {
+            let mut o = audit::fixture(kind, seed);
+            o.size = size;
+            o.variant = variant;
+            let p = parameters(&o);
+            let a = super::super::build_object(&o);
+            let check =
+                audit::check(&o, &a).unwrap_or_else(|e| panic!("{size}/{seed}: {e}; {p:?}"));
+            assert!(
+                check.min_y_m <= 0.003,
+                "floor contact {size}/{seed}: {check:?}"
+            );
+            if p.recliner {
+                recliners += 1;
+                assert!(!super::super::chairs::supports_upright_occupant(&o));
+            } else {
+                arms.insert(p.arm_style);
+                bases.insert(p.base_style);
+                backs.insert(p.back_style);
+                seats.insert(p.seat_style);
+            }
+        }
+    }
+    assert!(recliners > 60);
+    assert_eq!(arms, (0..6).collect());
+    assert_eq!(bases, (0..6).collect());
+    assert_eq!(backs, (0..5).collect());
+    assert_eq!(seats, (0..3).collect());
+}
+
+#[test]
+fn upholstery_controls_change_actual_surfaces_with_fixed_other_parameters() {
+    use super::super::audit;
+    let o = audit::fixture(ObjectKind::Sofa, 17);
+    for (axis, count) in [("arms", 6), ("bases", 6), ("backs", 5), ("seats", 3)] {
+        let mut maps = Vec::new();
+        for value in 0..count {
+            let mut p = parameters(&o);
+            p.pillows = false;
+            match axis {
+                "arms" => p.arm_style = value,
+                "bases" => p.base_style = value,
+                "backs" => p.back_style = value,
+                _ => p.seat_style = value,
+            }
+            let mut a = Assembly::default();
+            build_program(&mut a, &o, p);
+            audit::check(&o, &a).unwrap();
+            maps.push(audit::descriptor_at_resolution(&o, &a, 128));
+        }
+        // This ablation checks that the control is active, including a narrow
+        // cushion seam. Population diversity has separate, much coarser distance
+        // thresholds; this test must not turn seam visibility into a volume claim.
+        for (i, map) in maps.iter().enumerate() {
+            for other in &maps[..i] {
+                assert!(
+                    audit::distance(map, other) > 1e-6,
+                    "inactive {axis} control"
+                );
+            }
+        }
+    }
+}

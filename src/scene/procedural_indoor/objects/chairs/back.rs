@@ -93,3 +93,112 @@ pub(super) fn segmented(
         );
     }
 }
+
+/// Split ergonomic lobes, an open lumbar aperture, upholstered ribs, and
+/// fanned vertical slats. Every element is connected to a carrying frame.
+pub(super) fn constructed(
+    a: &mut Assembly,
+    p: &ChairProgram,
+    width: f32,
+    height: f32,
+    tf: Transform,
+) {
+    let rail = |x, y| tf.transform_point(Vec3::new(x, y, y * 0.13 + 0.024));
+    for side in [-1., 1.] {
+        a.part(p.frame_surface, "chair").rod(
+            rail(side * width * 0.32, 0.),
+            rail(side * width * 0.32, height - 0.018),
+            0.012,
+        );
+    }
+    for y in [0.025, height - 0.028] {
+        a.part(p.frame_surface, "chair")
+            .rod(rail(-width * 0.45, y), rail(width * 0.45, y), 0.012);
+    }
+    let mut panel = |x: f32, y: f32, w: f32, h: f32, curve: f32| {
+        // Inner offsets must fit the local bend radius. A full-back thickness
+        // cannot be reused on a 30 mm slat without folding its inner surface.
+        let thickness = p.shell_thickness.min(w * 0.10).min(h * 0.12);
+        let curve = curve.min(w * 0.14);
+        shell(
+            a.part(p.back_surface, "chair"),
+            p,
+            w,
+            h,
+            [
+                curve,
+                p.taper * 0.25,
+                0.13,
+                thickness,
+                (p.lumbar * 0.3).min(h * 0.035),
+                p.shoulder_flare * 0.3,
+            ],
+            tf.with_translation(tf.transform_point(Vec3::new(x, y, y * 0.13))),
+        );
+        // Short brackets terminate inside the panel and on the continuous
+        // vertical rails, including the offset split-lobe constructions.
+        for side in [-1., 1.] {
+            if x.abs() > 1e-5 && x.signum() != side {
+                continue;
+            }
+            let mid = y + h * 0.5;
+            a.part(p.frame_surface, "chair").rod(
+                rail(side * width * 0.32, mid),
+                tf.transform_point(Vec3::new(
+                    x,
+                    mid,
+                    mid * 0.13 + curve - (p.lumbar * 0.3).min(h * 0.035) + thickness * 0.5,
+                )),
+                0.009,
+            );
+        }
+    };
+    match p.back_construction {
+        6 => {
+            let gap = width * p.back_aperture;
+            for side in [-1., 1.] {
+                panel(
+                    side * (width + gap) * 0.25,
+                    0.,
+                    (width - gap) * 0.5,
+                    height,
+                    p.curvature * 0.45,
+                );
+            }
+        }
+        7 => {
+            let aperture = height * (0.18 + p.back_aperture);
+            let lower = height * 0.22;
+            panel(0., 0., width, lower, p.curvature);
+            panel(
+                0.,
+                lower + aperture,
+                width,
+                height - lower - aperture,
+                p.curvature,
+            );
+        }
+        8 => {
+            let count = (height / (p.slat_pitch_m * 1.7)).round().clamp(3., 6.) as usize;
+            let pitch = height / count as f32;
+            for i in 0..count {
+                panel(
+                    0.,
+                    i as f32 * pitch,
+                    width,
+                    pitch * 0.83,
+                    p.curvature * 0.75,
+                );
+            }
+        }
+        _ => {
+            let count = (width / p.slat_pitch_m).round().clamp(4., 8.) as usize;
+            let pitch = width / count as f32;
+            for i in 0..count {
+                let x = (i as f32 - (count - 1) as f32 * 0.5) * pitch;
+                // Broad formed slats carry real gaps through the back.
+                panel(x, 0.014, pitch * 0.68, height - 0.028, p.curvature * 0.25);
+            }
+        }
+    }
+}

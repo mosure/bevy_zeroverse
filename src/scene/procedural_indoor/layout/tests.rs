@@ -82,36 +82,43 @@ fn long_curly_hair_keeps_its_wave_extent_outside_worktops() {
 use crate::scene::procedural_indoor::validation::{validate_geometry, validate_layout};
 
 #[test]
-fn contact_clothing_clears_the_table_edge_in_public_program_seed_411() {
+fn contact_clothing_clears_table_edges_across_public_programs() {
     use super::super::{envelope::polygon, humans, objects};
-    let scene =
-        IndoorManifest::generate_with_humans(411, IndoorLayout::Mixed, 0.7, 3, 0.7).unwrap();
+    // Keep the reported seed, but do not require the evolving room grammar
+    // to select a particular seated person there. Exercise all admitted
+    // contacts in a fixed cohort, with an explicit nonempty coverage guard.
     let mut checked = 0;
-    for human in &scene.humans {
-        let Some(contact) = &human.worktop_contact else {
-            continue;
-        };
-        let table = &scene.objects[contact.table];
-        let solid = objects::tables::Clearance::new(table);
-        let tf = table.transform().compute_affine().inverse() * human.transform().compute_affine();
-        for (surface, g) in humans::build_human(human).parts {
-            for v in g.positions {
-                let local = Vec3::from_array(v);
-                let p = tf.transform_point3(local);
-                let distance = polygon::edges(&contact.outline)
-                    .map(|(a, b)| {
-                        let d = b - a;
-                        local.xz().distance(
-                            a + d * ((local.xz() - a).dot(d) / d.length_squared()).clamp(0., 1.),
-                        )
-                    })
-                    .fold(f32::INFINITY, f32::min);
-                assert!(p.y >= table.size.y - 1e-5 || !solid.hits_capsule(p, p, 0.0001),
+    for seed in (0..128).chain([411]) {
+        let scene =
+            IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.7, 3, 0.7).unwrap();
+        for human in &scene.humans {
+            let Some(contact) = &human.worktop_contact else {
+                continue;
+            };
+            let table = &scene.objects[contact.table];
+            let solid = objects::tables::Clearance::new(table);
+            let tf =
+                table.transform().compute_affine().inverse() * human.transform().compute_affine();
+            for (surface, g) in humans::build_human(human).parts {
+                for v in g.positions {
+                    let local = Vec3::from_array(v);
+                    let p = tf.transform_point3(local);
+                    let distance = polygon::edges(&contact.outline)
+                        .map(|(a, b)| {
+                            let d = b - a;
+                            local.xz().distance(
+                                a + d
+                                    * ((local.xz() - a).dot(d) / d.length_squared()).clamp(0., 1.),
+                            )
+                        })
+                        .fold(f32::INFINITY, f32::min);
+                    assert!(p.y >= table.size.y - 1e-5 || !solid.hits_capsule(p, p, 0.0001),
                     "person={} surface={surface:?} local={local:?} table={p:?} inside={} edge_distance={distance} palms={:?}",
                     human.id, contact.contains(local, 0.), contact.palms);
+                }
             }
+            checked += 1;
         }
-        checked += 1;
     }
     assert!(checked > 0);
 }
@@ -133,7 +140,10 @@ fn tucked_seating_and_surface_programs_cover_occupied_and_empty_cases() {
     let mut contact_errors = Vec::new();
     let mut supports = std::collections::BTreeSet::new();
     let mut notebook_cells = std::collections::BTreeSet::new();
-    for seed in 0..512 {
+    // The expanded construction catalog admits fewer occupied tucked seats
+    // per room. Keep the minimum case counts and all physical assertions;
+    // broaden the consecutive cohort instead of selecting favorable seeds.
+    for seed in 0..1024 {
         let scene =
             IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.7, 3, 0.7).unwrap();
         validate_layout(&scene).unwrap();

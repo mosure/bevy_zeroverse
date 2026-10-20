@@ -9,6 +9,7 @@ mod sink;
 #[cfg(test)]
 mod tests;
 use super::*;
+pub(crate) use cabinet::{drawer_tray, shell as case_shell};
 pub use island::{configure_island, is_island, island_parameters, IslandProgram};
 use serde::Serialize;
 

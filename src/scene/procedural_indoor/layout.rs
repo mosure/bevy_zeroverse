@@ -1342,6 +1342,21 @@ impl IndoorManifest {
                 return;
             }
         }
+        self.supported_prop(support, kind, offset, size, yaw, rng);
+    }
+
+    /// Functional equipment has already been selected by its activity program.
+    /// Apply the same physical gate without independently thinning its members
+    /// through the optional loose-clutter probability.
+    fn supported_prop(
+        &mut self,
+        support: &IndoorObject,
+        kind: ObjectKind,
+        offset: Vec3,
+        size: Vec3,
+        yaw: f32,
+        rng: &mut ChaCha8Rng,
+    ) {
         let pos = support
             .transform()
             .transform_point(offset + Vec3::Y * support.size.y);

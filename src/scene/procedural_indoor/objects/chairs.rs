@@ -4,10 +4,18 @@ use super::*;
 pub const FAMILIES: u32 = 10;
 mod audience;
 mod back;
+mod base;
 pub mod stool;
 #[cfg(test)]
 mod tests;
+mod upper;
 pub use audience::is_folded;
+
+/// The existing human pelvis/back support contract is an upright seated pose.
+/// Extended recliners need a reclined leg/torso fit and must not receive that pose.
+pub(crate) fn supports_upright_occupant(o: &IndoorObject) -> bool {
+    !is_folded(o) && !super::seating::is_recliner(o)
+}
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct ChairProgram {
@@ -48,6 +56,16 @@ pub struct ChairProgram {
     pub back_surface: Surface,
     pub frame_surface: Surface,
     pub casters: bool,
+    /// 0 straight spokes, 1 arched spokes, 2 cast blades, 3 disc,
+    /// 4 tapered legs, 5 sled, 6 cantilever, 7 trestle.
+    pub base_style: u8,
+    /// 0 crowned cushion, 1 waterfall lip, 2 replaceable front bolster.
+    pub seat_style: u8,
+    /// 0 shaped shell, 1 oval pad, 2 split pad.
+    pub headrest_style: u8,
+    pub spoke_arch_m: f32,
+    pub waterfall_drop_m: f32,
+    pub front_bolster_fraction: f32,
 }
 pub fn parameters(o: &IndoorObject) -> ChairProgram {
     let mut rng = stream(o.seed, 73);
@@ -88,7 +106,7 @@ pub fn parameters(o: &IndoorObject) -> ChairProgram {
         (family, 1) if family != 3 => 2,
         (_, choice) => choice,
     };
-    ChairProgram {
+    let mut p = ChairProgram {
         back_construction,
         armrests: rng.random_bool(0.62),
         curvature: rng.random_range(0.018..0.095),
@@ -148,7 +166,43 @@ pub fn parameters(o: &IndoorObject) -> ChairProgram {
             } else {
                 0.88
             }),
+        base_style: 0,
+        seat_style: 0,
+        headrest_style: 0,
+        spoke_arch_m: 0.,
+        waterfall_drop_m: 0.,
+        front_bolster_fraction: 0.,
+    };
+    // Independent construction stream: new choices do not perturb the shared
+    // seating datum or reinterpret the long-standing family IDs.
+    let mut structure = stream(o.seed, 6432);
+    let family = o.variant % FAMILIES;
+    p.base_style = if matches!(family, 0 | 1 | 5 | 9) {
+        structure.random_range(0..4)
+    } else if family == 3 {
+        [4, 5, 7][structure.random_range(0..3)]
+    } else {
+        structure.random_range(4..8)
+    };
+    p.casters &= p.base_style < 3;
+    p.arm_support = structure.random_range(0..6);
+    p.seat_style = structure.random_range(0..3);
+    p.headrest_style = structure.random_range(0..3);
+    p.spoke_arch_m = structure.random_range(0.018..0.065);
+    p.waterfall_drop_m = structure.random_range(0.008..0.022);
+    p.front_bolster_fraction = structure.random_range(0.19..0.32);
+    if structure.random_bool(0.55) {
+        p.back_construction = match family {
+            3 => [5, 7, 9][structure.random_range(0..3)],
+            4 => [2, 7, 9][structure.random_range(0..3)],
+            _ => [6, 7, 8][structure.random_range(0..3)],
+        };
     }
+    if p.back_construction >= 6 {
+        p.crest_rounding = p.crest_rounding.min(0.025);
+        p.back_waist = p.back_waist.min(0.16);
+    }
+    p
 }
 
 /// Both wooden and upholstered stools can be backless. Keep this decision
@@ -246,7 +300,6 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     } else {
         rng.random_range(0.044..0.075)
     };
-    let cover = program.seat_surface;
     let frame = program.frame_surface;
     a.box_part(
         Surface::Plastic,
@@ -255,15 +308,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
         Vec3::new(width * 0.93, 0.022, depth * 0.93),
         0.009,
     );
-    a.part(cover, label).cushion(
-        Vec3::new(width, padding, depth),
-        super::super::geometry::CushionProfile {
-            roundness: program.seat_roundness,
-            crown: program.seat_crown,
-            dish: program.seat_dish_m,
-        },
-        Transform::from_xyz(0.0, seat - padding * 0.5, -0.015),
-    );
+    upper::seat(a, &program, width, depth, padding);
     let back_bottom = if family == 5 {
         0.53
     } else {
@@ -349,6 +394,8 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
             0.015,
             back.with_translation(back.transform_point(Vec3::Y * (back_height - 0.02))),
         );
+    } else if program.back_construction >= 6 {
+        back::constructed(a, &program, back_width, back_height, back);
     } else if matches!(program.back_construction, 3..=5) {
         back::segmented(a, &program, back_width, back_height, back);
     } else {
@@ -370,20 +417,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     }
 
     if program.headrest {
-        for x in [-1., 1.] {
-            let x = x * width * program.headrest_width_fraction * 0.28;
-            a.part(Surface::Chrome, label).rod(
-                back.transform_point(Vec3::new(x, back_height - 0.04, 0.045)),
-                back.transform_point(Vec3::new(x, back_height + 0.10, 0.045)),
-                0.008,
-            );
-        }
-        a.part(cover, label).chair_back_contour(
-            width * program.headrest_width_fraction,
-            program.headrest_height_m,
-            [program.headrest_curvature_m, 0.0, 0.05, 0.035, 0.008, 0.05],
-            back.with_translation(back.transform_point(Vec3::new(0.0, back_height + 0.055, 0.0))),
-        );
+        upper::headrest(a, &program, width, back_height, back);
     }
     for side in [-1.0, 1.0] {
         a.part(frame, label).rod(
@@ -399,164 +433,23 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     } else {
         default()
     };
-    if matches!(family, 0 | 1 | 5 | 9) {
-        a.part(Surface::Chrome, label)
-            .cylinder(0.024, 0.27, Transform::from_xyz(0.0, 0.285, 0.0));
-        a.part(Surface::Plastic, label)
-            .cylinder(0.043, 0.10, Transform::from_xyz(0.0, 0.385, 0.0));
-        let phase = rng.random_range(0.0..TAU);
-        for i in 0..program.spoke_count {
-            let angle = phase + i as f32 * TAU / program.spoke_count as f32;
-            let radial = Vec3::new(angle.sin(), 0.0, angle.cos());
-            let end =
-                radial * (o.size.x.min(o.size.z) * program.base_radius_fraction) + Vec3::Y * 0.072;
-            a.part(frame, label).rod(Vec3::Y * 0.165, end, 0.020);
-            if !program.casters {
-                a.part(frame, label).rod(end, end.with_y(0.008), 0.012);
-                a.part(Surface::Rubber, label).cylinder(
-                    0.025,
-                    0.016,
-                    Transform::from_translation(end.with_y(0.008)),
-                );
-                continue;
-            }
-            for side in [-1.0, 1.0] {
-                let pos =
-                    end + Vec3::new(radial.z, 0.0, -radial.x) * side * 0.021 - Vec3::Y * 0.039;
-                a.part(Surface::Rubber, label).cylinder(
-                    0.032,
-                    0.016,
-                    Transform::from_translation(pos).with_rotation(
-                        Quat::from_rotation_y(angle) * Quat::from_rotation_z(FRAC_PI_2),
-                    ),
-                );
-            }
-        }
-        a.part(Surface::Plastic, label).rod(
-            Vec3::new(width * 0.3, 0.40, 0.0),
-            Vec3::new(width * 0.53, 0.40, -0.02),
-            0.009,
-        );
-    } else {
-        for side in [-1.0, 1.0] {
-            let x = side * width * 0.43;
-            if family == 2 {
-                let bend = program.frame_bend_m;
-                let front = (depth * 0.49).min(0.23);
-                let rear = -front;
-                let mut path = vec![Vec3::new(x, 0.024, front), Vec3::new(x, 0.024, rear + bend)];
-                for i in 1..=6 {
-                    let t = i as f32 / 6.0 * FRAC_PI_2;
-                    path.push(Vec3::new(
-                        x,
-                        0.024 + bend * (1. - t.cos()),
-                        rear + bend * (1. - t.sin()),
-                    ));
-                }
-                path.push(Vec3::new(x, 0.42 - bend, rear));
-                for i in 1..=6 {
-                    let t = i as f32 / 6.0 * FRAC_PI_2;
-                    path.push(Vec3::new(
-                        x,
-                        0.42 - bend + bend * t.sin(),
-                        rear + bend * (1. - t.cos()),
-                    ));
-                }
-                path.push(Vec3::new(x, 0.42, front));
-                a.part(frame, label).tube(&path, 0.017, 10);
-            } else {
-                for z in [-1.0, 1.0] {
-                    a.part(frame, label).rod(
-                        Vec3::new(x * (1.0 + program.leg_splay), 0.018, z * depth * 0.5),
-                        Vec3::new(x, 0.435, z * depth * 0.38),
-                        if family == 3 { 0.022 } else { 0.012 },
-                    );
-                }
-            }
-            let foot_x = if family == 2 {
-                x
-            } else {
-                x * (1.0 + program.leg_splay)
-            };
-            let foot_depth = if family == 2 { 0.23 } else { depth * 0.5 };
-            for z in [-foot_depth, foot_depth] {
-                a.part(Surface::Rubber, label).cylinder(
-                    0.022,
-                    0.012,
-                    Transform::from_xyz(foot_x, 0.006, z),
-                );
-            }
-        }
-    }
+    base::build(a, o, &program, width, depth);
     let base = if moving {
         std::mem::replace(&mut a.parts, std::mem::take(&mut upper))
     } else {
         default()
     };
-    if program.armrests {
-        for side in [-1.0, 1.0] {
-            let x = side * (width * 0.5 + 0.037);
-            let under_pad = program.arm_height - 0.013;
-            match program.arm_support {
-                0 => a.part(frame, label).rod(
-                    Vec3::new(x * 0.79, 0.42, 0.09),
-                    Vec3::new(x, under_pad, 0.07),
-                    0.012,
-                ),
-                1 => {
-                    // A continuous bowed loop attaches below both ends of the
-                    // pad. All bends are broad enough for a real metal tube.
-                    let half = program.arm_pad_length * 0.38;
-                    let path = [
-                        Vec3::new(x * 0.79, 0.42, -half),
-                        Vec3::new(x, under_pad - 0.05, -half),
-                        Vec3::new(x, under_pad, -half + 0.045),
-                        Vec3::new(x, under_pad, half - 0.045),
-                        Vec3::new(x, under_pad - 0.05, half),
-                        Vec3::new(x * 0.79, 0.42, half),
-                    ];
-                    a.part(frame, label).tube(&path, 0.010, 10);
-                }
-                _ => {
-                    // A broad upright fork has distinct vertical and fore-aft
-                    // spans; it is no longer a single diagonal stick.
-                    a.box_part(
-                        frame,
-                        label,
-                        Vec3::new(x, (0.44 + under_pad) * 0.5, 0.06),
-                        Vec3::new(0.028, under_pad - 0.44, 0.044),
-                        0.006,
-                    );
-                    a.part(frame, label).rod(
-                        Vec3::new(x * 0.79, 0.425, 0.06),
-                        Vec3::new(x, 0.455, 0.06),
-                        0.012,
-                    );
-                }
-            }
-            a.part(if family == 9 { cover } else { Surface::Plastic }, label)
-                .cushion(
-                    Vec3::new(program.arm_pad_width_m, 0.025, program.arm_pad_length),
-                    super::super::geometry::CushionProfile {
-                        roundness: program.arm_pad_roundness,
-                        crown: 3.5,
-                        dish: 0.,
-                    },
-                    Transform::from_xyz(x, program.arm_height, 0.),
-                );
-        }
-    }
+    upper::arms(a, &program, width, family);
     if moving {
         let policy = a.motion_policy.as_ref().unwrap();
         let mut r = stream(o.seed, 0x4348414952);
-        let angle = r.random_range(-1.0..1.0) * policy.chair_swivel_degrees.to_radians();
+        let angle = r.random_range(0.35..1.0)
+            * if r.random_bool(0.5) { 1. } else { -1. }
+            * policy.chair_swivel_degrees.to_radians();
         let yaw = r.random_range(0.0..TAU);
-        let travel = if program.casters {
-            Vec3::new(yaw.cos(), 0., yaw.sin()) * r.random_range(0.25..1.) * policy.chair_travel_m
-        } else {
-            // Glides permit the upper seat to swivel, not the whole chair to roll.
-            Vec3::ZERO
-        };
+        // Glides can be slid by a person, while the seat keeps its swivel joint.
+        let travel =
+            Vec3::new(yaw.cos(), 0., yaw.sin()) * r.random_range(0.25..1.) * policy.chair_travel_m;
         let top = Assembly {
             parts: std::mem::take(&mut a.parts),
             ..default()

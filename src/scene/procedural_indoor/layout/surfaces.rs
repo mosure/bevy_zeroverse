@@ -71,7 +71,7 @@ impl IndoorManifest {
                 } else {
                     rng.random_range(0.33..0.49)
                 };
-                self.prop(
+                self.supported_prop(
                     support,
                     ObjectKind::Monitor,
                     Vec3::new(x, 0., rear),
@@ -87,7 +87,7 @@ impl IndoorManifest {
             } else {
                 centre
             };
-            self.prop(
+            self.supported_prop(
                 support,
                 ObjectKind::Laptop,
                 Vec3::new(x, 0., if docked { 0.025 } else { -0.035 }),
@@ -257,14 +257,22 @@ impl IndoorManifest {
                 // A dual-screen workstation has one user's keyboard between
                 // the screens, rather than one input device at each monitor.
                 let facing_yaw = facing.x.atan2(facing.z);
+                // A shared user's reach couples input devices to the screen,
+                // without erasing all the previously sampled placement noise.
+                let mut reach = stream(support.seed, 0x494e_5055_5450_4f53);
+                let reach_z = reach.random_range(0.22..0.36);
+                let lateral = reach.random_range(-0.065..0.065);
+                let mouse_spacing = reach.random_range(0.22..0.34);
                 let local = Vec3::new(
-                    if kind == ObjectKind::Mouse {
-                        handed * 0.26
-                    } else {
-                        0.
-                    },
+                    lateral
+                        + if kind == ObjectKind::Mouse {
+                            handed * mouse_spacing
+                        } else {
+                            0.
+                        }
+                        + rng.random_range(-0.025..0.025),
                     0.,
-                    0.27,
+                    reach_z + rng.random_range(-0.035..0.035),
                 );
                 let world = position / count as f32 + Quat::from_rotation_y(facing_yaw) * local;
                 offset = support
@@ -273,7 +281,7 @@ impl IndoorManifest {
                     .inverse()
                     .transform_point3(world)
                     .with_y(0.);
-                yaw = facing_yaw - support.yaw + rng.random_range(-0.08..0.08);
+                yaw = facing_yaw - support.yaw + rng.random_range(-0.18..0.18);
             }
         }
 
@@ -337,6 +345,52 @@ mod tests {
     use super::*;
     use crate::scene::procedural_indoor::validation::validate_layout;
     use std::collections::BTreeSet;
+
+    #[test]
+    fn functional_screens_do_not_depend_on_loose_clutter_thinning() {
+        let mut checked = 0;
+        for seed in 0..32 {
+            let mut base =
+                IndoorManifest::generate_with_humans(seed, IndoorLayout::OpenOffice, 0.65, 0, 0.)
+                    .unwrap();
+            let Some(mut support) = base
+                .objects
+                .iter()
+                .find(|o| o.kind == ObjectKind::Desk)
+                .cloned()
+            else {
+                continue;
+            };
+            support.id = 0;
+            base.objects = vec![support.clone()];
+            let screens = |clutter| {
+                let mut scene = base.clone();
+                scene
+                    .program
+                    .as_mut()
+                    .unwrap()
+                    .domain
+                    .as_mut()
+                    .unwrap()
+                    .clutter = clutter;
+                scene.decorate_workspace(&support);
+                let screens: Vec<_> = scene
+                    .objects
+                    .iter()
+                    .filter(|o| matches!(o.kind, ObjectKind::Monitor | ObjectKind::Laptop))
+                    .cloned()
+                    .collect();
+                for screen in &screens {
+                    assert!(scene.prop_clear(screen, &support, 0.012));
+                }
+                screens
+            };
+            let sparse = screens(0.);
+            checked += sparse.len();
+            assert_eq!(sparse, screens(1.), "workspace seed={seed}");
+        }
+        assert!(checked >= 8);
+    }
 
     #[test]
     fn workspaces_accept_multiple_screen_arrangements_without_support_or_facing_regressions() {

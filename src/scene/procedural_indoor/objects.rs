@@ -356,6 +356,7 @@ pub(crate) fn build_object_with_motion(
             ((surface, label), geometry)
         })
         .collect();
+    super::motion::construction::movable(&mut a, o);
     // Finish relabeling must keep articulation references aligned with meshes.
     for (id, joint) in a.joints.iter_mut().enumerate() {
         joint.parts = a

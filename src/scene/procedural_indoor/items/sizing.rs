@@ -49,6 +49,19 @@ pub(crate) fn loose(kind: ObjectKind, r: &mut impl Rng) -> Option<Vec3> {
                 w * r.random_range(1.85..2.18),
             )
         }
+        Keyboard => Vec3::new(
+            r.random_range(0.28..0.46),
+            r.random_range(0.014..0.033),
+            r.random_range(0.105..0.185),
+        ),
+        Mouse => {
+            let length = r.random_range(0.085..0.125);
+            Vec3::new(
+                length * r.random_range(0.50..0.68),
+                length * r.random_range(0.25..0.37),
+                length,
+            )
+        }
         Books => {
             let w = r.random_range(0.12..0.29);
             Vec3::new(

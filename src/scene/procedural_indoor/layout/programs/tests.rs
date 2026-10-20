@@ -23,15 +23,20 @@ fn constrained_activity_seed_20053_has_a_usable_primary_surface() {
                 })
                 .expect("a real activity surface must survive constrained placement");
             if density == 0.65 {
-                assert_eq!(table.kind, ObjectKind::CoffeeTable);
+                // A new grammar can fit a workstation where the original
+                // reported scene needed a sofa-side repair. Test the functional
+                // relationship, not the old seed's exact furniture category.
                 assert!(
                     scene.objects.iter().any(|o| {
                         !o.neighbor
-                            && o.kind == ObjectKind::Sofa
                             && (o.position.y - table.position.y).abs() < 0.01
-                            && o.position.distance(table.position) < 2.0
+                            && (o.kind == ObjectKind::Chair
+                                && o.interaction_target == Some(table.id)
+                                || table.kind == ObjectKind::CoffeeTable
+                                    && o.kind == ObjectKind::Sofa
+                                    && o.position.distance(table.position) < 2.0)
                     }),
-                    "the repaired surface must serve the existing seating"
+                    "the repaired surface must serve real seating"
                 );
             }
             let mut recovered = scene.clone();

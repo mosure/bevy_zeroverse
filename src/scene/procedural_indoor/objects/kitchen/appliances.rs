@@ -1,4 +1,5 @@
 //! Appliance cavities, doors, controls and supported interior contents.
+use super::super::super::motion::{construction as motion, MotionKind};
 use super::*;
 // The cooktop sheet is 0.07 * 0.24 of total height; its work plane is at 0.94.
 const RANGE_BODY_TOP: f32 = 0.94 - 0.07 * 0.24;
@@ -19,6 +20,7 @@ fn knobs(a: &mut Assembly, base: Vec3, step: Vec3, count: u32, radius: f32, labe
         );
     }
 }
+#[allow(clippy::too_many_arguments)]
 fn oven_leaf(
     a: &mut Assembly,
     width: f32,
@@ -27,21 +29,36 @@ fn oven_leaf(
     front: f32,
     p: &KitchenProgram,
     label: &str,
+    seed: u64,
 ) {
     let rotation = Quat::from_rotation_x(p.opening_radians);
     let tf = Transform::from_translation(
         Vec3::new(bottom.x, bottom.y, front + 0.014) + rotation * Vec3::Y * height * 0.5,
     )
     .with_rotation(rotation);
-    cabinet::panel(
-        a,
-        Vec2::new(width, height),
-        tf,
-        Surface::Metal,
-        label,
-        p.viewport,
-    );
-    cabinet::handle(a, tf, 0., height * 0.36, p, true, label);
+    let joint = || {
+        let mut joint = motion::rigid(
+            MotionKind::Appliance,
+            seed,
+            Vec3::new(bottom.x, bottom.y, front + 0.014),
+            Vec3::X,
+            motion::endpoint(seed, p.opening_radians, 1.35) - p.opening_radians,
+            Vec3::ZERO,
+        );
+        joint.frame = tf;
+        joint
+    };
+    motion::hinged(a, MotionKind::Appliance, seed, joint, |a| {
+        cabinet::panel(
+            a,
+            Vec2::new(width, height),
+            tf,
+            Surface::Metal,
+            label,
+            p.viewport,
+        );
+        cabinet::handle(a, tf, 0., height * 0.36, p, true, label);
+    });
 }
 fn side_leaf(
     a: &mut Assembly,
@@ -50,23 +67,81 @@ fn side_leaf(
     height: f32,
     side: f32,
     p: &KitchenProgram,
-    label: &str,
-) -> Transform {
+    o: &IndoorObject,
+) {
+    let label = o.kind.class_name();
+    let seed = o.seed ^ ((center.x.to_bits() as u64) << 32) ^ center.y.to_bits() as u64;
     let rotation = Quat::from_rotation_y(side * p.opening_radians);
     let tf = Transform::from_translation(
         center + Vec3::X * side * width * 0.5 + rotation * Vec3::X * (-side * width * 0.5),
     )
     .with_rotation(rotation);
-    cabinet::panel(
-        a,
-        Vec2::new(width - 0.004, height),
-        tf,
-        Surface::Metal,
-        label,
-        p.viewport,
-    );
-    cabinet::handle(a, tf, -side * (width * 0.5 - 0.045), 0., p, false, label);
-    tf
+    let joint = || {
+        let mut joint = motion::rigid(
+            MotionKind::Appliance,
+            seed,
+            center + Vec3::X * side * width * 0.5,
+            Vec3::Y,
+            side * (motion::endpoint(seed, p.opening_radians, 1.35) - p.opening_radians),
+            Vec3::ZERO,
+        );
+        joint.frame = tf;
+        joint
+    };
+    motion::hinged(a, MotionKind::Appliance, seed, joint, |a| {
+        cabinet::panel(
+            a,
+            Vec2::new(width - 0.004, height),
+            tf,
+            Surface::Metal,
+            label,
+            p.viewport,
+        );
+        cabinet::handle(a, tf, -side * (width * 0.5 - 0.045), 0., p, false, label);
+
+        if o.kind == ObjectKind::Refrigerator {
+            for n in 0..p.door_notes {
+                let x = (if p.viewport {
+                    side * 0.32
+                } else {
+                    -0.15 + n as f32 * 0.10
+                }) * width;
+                let y = o.size.y * (0.28 - n as f32 * 0.11);
+                box_at(
+                    a,
+                    if n.is_multiple_of(2) {
+                        Surface::Art
+                    } else {
+                        Surface::Paper
+                    },
+                    "paper",
+                    Vec3::new(x, y, 0.030),
+                    Vec3::new(width * 0.13, o.size.y * 0.065, 0.002),
+                    tf,
+                );
+                box_at(
+                    a,
+                    Surface::Plastic,
+                    "paper",
+                    Vec3::new(x, y + o.size.y * 0.026, 0.033),
+                    Vec3::new(0.015, 0.012, 0.003),
+                    tf,
+                );
+                if !n.is_multiple_of(2) {
+                    for line in 0..3 {
+                        box_at(
+                            a,
+                            Surface::Ink,
+                            "paper",
+                            Vec3::new(x, y - line as f32 * o.size.y * 0.012, 0.0315),
+                            Vec3::new(width * 0.09, 0.0015, 0.0005),
+                            tf,
+                        );
+                    }
+                }
+            }
+        }
+    });
 }
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
     if o.kind == ObjectKind::Cooktop {
@@ -173,55 +248,15 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
             for i in 0..count {
                 let side = if i == 0 { -1. } else { 1. };
                 let cx = if count == 2 { side * leaf * 0.5 } else { 0. };
-                let tf = side_leaf(
+                side_leaf(
                     a,
                     Vec3::new(cx, (s.y + toe) * 0.5, front + 0.014),
                     leaf,
                     s.y - toe - 0.02,
                     side,
                     p,
-                    label,
+                    o,
                 );
-                for n in 0..p.door_notes {
-                    let x = (if p.viewport {
-                        side * 0.32
-                    } else {
-                        -0.15 + n as f32 * 0.10
-                    }) * leaf;
-                    let y = s.y * (0.28 - n as f32 * 0.11);
-                    box_at(
-                        a,
-                        if n.is_multiple_of(2) {
-                            Surface::Art
-                        } else {
-                            Surface::Paper
-                        },
-                        "paper",
-                        Vec3::new(x, y, 0.030),
-                        Vec3::new(leaf * 0.13, s.y * 0.065, 0.002),
-                        tf,
-                    );
-                    box_at(
-                        a,
-                        Surface::Plastic,
-                        "paper",
-                        Vec3::new(x, y + s.y * 0.026, 0.033),
-                        Vec3::new(0.015, 0.012, 0.003),
-                        tf,
-                    );
-                    if !n.is_multiple_of(2) {
-                        for line in 0..3 {
-                            box_at(
-                                a,
-                                Surface::Ink,
-                                "paper",
-                                Vec3::new(x, y - line as f32 * s.y * 0.012, 0.0315),
-                                Vec3::new(leaf * 0.09, 0.0015, 0.0005),
-                                tf,
-                            );
-                        }
-                    }
-                }
             }
         }
         ObjectKind::Microwave => {
@@ -236,7 +271,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
                 s.y * if lower { 0.60 } else { 0.82 },
                 -sign,
                 p,
-                label,
+                o,
             );
             let center = if lower {
                 Vec3::new(0., s.y * 0.17, front + 0.016)
@@ -310,8 +345,19 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
         }
         ObjectKind::Dishwasher => {
             let bottom = toe + 0.024;
-            let height = s.y * 0.76;
-            oven_leaf(a, w * 0.96, height, Vec2::new(0., bottom), front, p, label);
+            // Fit below the control fascia even on short compact appliances.
+            // A fixed fraction plus the toe height overlapped the fascia.
+            let height = (s.y * 0.865 - bottom - 0.012).max(0.10);
+            oven_leaf(
+                a,
+                w * 0.96,
+                height,
+                Vec2::new(0., bottom),
+                front,
+                p,
+                label,
+                o.seed,
+            );
             a.box_part(
                 Surface::Metal,
                 label,
@@ -362,10 +408,19 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
                 };
                 let width = if p.controls == 0 { w * 0.92 } else { w * 0.74 };
                 apertures.push([
-                    Vec2::new(offset - width * 0.5 - 0.003, bottom - 0.003),
+                    Vec2::new(offset - width * 0.5 - 0.003, bottom - 0.014),
                     Vec2::new(offset + width * 0.5 + 0.003, bottom + dh + 0.003),
                 ]);
-                oven_leaf(a, width, dh, Vec2::new(offset, bottom), front, &q, label);
+                oven_leaf(
+                    a,
+                    width,
+                    dh,
+                    Vec2::new(offset, bottom),
+                    front,
+                    &q,
+                    label,
+                    o.seed ^ level as u64,
+                );
                 a.box_part(
                     Surface::Ink,
                     label,

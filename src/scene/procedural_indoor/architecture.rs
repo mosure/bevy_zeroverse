@@ -405,7 +405,10 @@ pub fn spawn_lights(
     {
         // The bulb sits within a real open fabric shade; its shadowed point light
         // illuminates the nearby seating and wall instead of merely glowing.
-        commands.spawn((
+        let rest = Transform::from_translation(
+            crate::scene::procedural_indoor::objects::standing_lamp::emitter(lamp),
+        );
+        let mut entity = commands.spawn((
             Name::new(format!("indoor_floor_lamp_{}", lamp.id)),
             PointLight {
                 color: Color::srgb(1.0, 0.78, 0.57),
@@ -417,11 +420,12 @@ pub fn spawn_lights(
                 shadow_normal_bias: PointLight::DEFAULT_SHADOW_NORMAL_BIAS,
                 ..default()
             },
-            Transform::from_translation(
-                crate::scene::procedural_indoor::objects::standing_lamp::emitter(lamp),
-            ),
+            rest,
             ChildOf(root),
         ));
+        if let Some(motion) = super::motion::AnimatedLight::for_object(scene, lamp.id, rest) {
+            entity.insert(motion);
+        }
     }
     for lamp in scene.objects.iter().filter(|o| {
         matches!(
@@ -430,7 +434,8 @@ pub fn spawn_lights(
         )
     }) {
         let (p, color, lumens, inner, outer) = object_fixture_photometry(scene, lamp);
-        commands.spawn((
+        let rest = Transform::from_translation(p).looking_at(p - Vec3::Y, Vec3::Z);
+        let mut entity = commands.spawn((
             Name::new(format!("indoor_desk_lamp_{}", lamp.id)),
             SpotLight {
                 color: Color::srgb(color.x, color.y, color.z),
@@ -443,9 +448,12 @@ pub fn spawn_lights(
                 shadow_depth_bias: 0.01,
                 ..default()
             },
-            Transform::from_translation(p).looking_at(p - Vec3::Y, Vec3::Z),
+            rest,
             ChildOf(root),
         ));
+        if let Some(motion) = super::motion::AnimatedLight::for_object(scene, lamp.id, rest) {
+            entity.insert(motion);
+        }
     }
 }
 

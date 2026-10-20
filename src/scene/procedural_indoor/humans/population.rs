@@ -151,7 +151,10 @@ pub fn populate(scene: &mut IndoorManifest, density: f32) {
     let mut chairs: Vec<_> = scene
         .objects
         .iter()
-        .filter(|o| o.kind == ObjectKind::Chair && !super::super::objects::chairs::is_folded(o))
+        .filter(|o| {
+            o.kind == ObjectKind::Chair
+                && super::super::objects::chairs::supports_upright_occupant(o)
+        })
         .map(|o| o.id)
         .collect();
     chairs.shuffle(&mut rng);

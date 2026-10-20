@@ -156,6 +156,7 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
             serde_json::json!({"family":if o.variant == 11 {"auditorium"} else {"tablet_arm"}, "folded":chairs::is_folded(o), "seat_height_metres":0.46, "width_metres":o.size.x,"height_metres":o.size.y,"depth_metres":o.size.z})
         }
         Chair if matches!(o.variant, 6 | 7) => serde_json::json!(chairs::stool::parameters(o)),
+        Chair if o.variant == 8 => serde_json::json!(seating::parameters(o)),
         Chair => serde_json::json!(chairs::parameters(o)),
         Sofa => serde_json::json!(seating::parameters(o)),
         Cabinet | Bookcase => serde_json::json!(storage::parameters(o)),
@@ -397,7 +398,13 @@ pub fn check(o: &IndoorObject, a: &Assembly) -> Result<MeshCheck, String> {
 /// Missing surface is -1. Materials, UVs, vertex counts and triangulation do not
 /// contribute to distance. Pixel centers, no culling, nearest/farthest depth.
 pub fn descriptor(o: &IndoorObject, a: &Assembly) -> Vec<f32> {
-    let n = RESOLUTION;
+    descriptor_at_resolution(o, a, RESOLUTION)
+}
+
+/// Higher resolution for tests of narrow seams and supports. Population studies
+/// retain the fixed public resolution so their historical distances are comparable.
+pub(crate) fn descriptor_at_resolution(o: &IndoorObject, a: &Assembly, n: usize) -> Vec<f32> {
+    assert!((1..=256).contains(&n));
     let mut out = vec![-1.; 6 * n * n];
     for g in a.parts.values() {
         for tri in g.indices.as_chunks::<3>().0 {
@@ -478,5 +485,7 @@ pub fn representatives(rows: &[Vec<f32>], threshold: f32) -> Vec<usize> {
 mod display_qualification;
 #[cfg(test)]
 mod furniture_qualification;
+#[cfg(test)]
+mod seating_qualification;
 #[cfg(test)]
 mod tests;

@@ -54,7 +54,10 @@ pub(super) fn candidates(joints: &[Joint]) -> Vec<(Adjustment, &'static str)> {
         ..default()
     };
     out.push((minimum, "shortened"));
-    if kind == MotionKind::Chair {
+    if matches!(
+        kind,
+        MotionKind::Chair | MotionKind::Prop | MotionKind::Cart
+    ) {
         // Search nearby headings as well as the opposite direction; do not
         // invent translation or swivel when that component was disabled.
         if joints.iter().any(|j| j.translation.length_squared() > 0.) {

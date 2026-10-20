@@ -2,6 +2,7 @@
 //! splitting run only for an explicitly supplied policy. All-time reservations
 //! deliberately trade some motion acceptance for safe, reversible playback.
 pub(crate) mod construction;
+mod mobility;
 mod planning;
 mod proposals;
 mod runtime;
@@ -13,7 +14,7 @@ use bevy::prelude::*;
 pub(crate) use planning::prepare;
 use rand::Rng;
 pub use runtime::IndoorMotionPlugin;
-pub(crate) use runtime::{AnimatedBounds, AnimatedPart};
+pub(crate) use runtime::{AnimatedBounds, AnimatedLight, AnimatedPart};
 use serde::{Deserialize, Serialize};
 
 type Bounds = (Vec3, Vec3);
@@ -26,6 +27,13 @@ pub struct IndoorMotionConfig {
     pub cabinet_fraction: f32,
     pub covering_fraction: f32,
     pub fan_fraction: f32,
+    pub appliance_fraction: f32,
+    pub prop_fraction: f32,
+    pub cart_fraction: f32,
+    /// Maximum supported sliding travel, in metres.
+    pub prop_travel_m: f32,
+    pub prop_rotation_degrees: f32,
+    pub cart_travel_m: f32,
     /// Constant-speed revolutions over the shared normalized scene timeline.
     pub fan_turns: [f32; 2],
     /// Maximum independently driven mechanisms, not individual mesh parts.
@@ -41,6 +49,12 @@ impl Default for IndoorMotionConfig {
             cabinet_fraction: 0.5,
             covering_fraction: 0.5,
             fan_fraction: 0.8,
+            appliance_fraction: 0.5,
+            prop_fraction: 0.35,
+            cart_fraction: 0.5,
+            prop_travel_m: 0.25,
+            prop_rotation_degrees: 60.,
+            cart_travel_m: 0.8,
             fan_turns: [0.75, 12.0],
             max_mechanisms: 12,
             chair_travel_m: 0.65,
@@ -61,10 +75,19 @@ impl IndoorMotionConfig {
             self.cabinet_fraction,
             self.covering_fraction,
             self.fan_fraction,
+            self.appliance_fraction,
+            self.prop_fraction,
+            self.cart_fraction,
         ]
         .iter()
         .any(|v| !v.is_finite() || !(0.0..=1.).contains(v))
-            || !(1..=32).contains(&self.max_mechanisms)
+            || !(1..=128).contains(&self.max_mechanisms)
+            || !self.prop_travel_m.is_finite()
+            || !(0.0..=0.75).contains(&self.prop_travel_m)
+            || !self.prop_rotation_degrees.is_finite()
+            || !(0.0..=180.).contains(&self.prop_rotation_degrees)
+            || !self.cart_travel_m.is_finite()
+            || !(0.0..=2.0).contains(&self.cart_travel_m)
             || !self.chair_travel_m.is_finite()
             || !(0.0..=1.5).contains(&self.chair_travel_m)
             || !self.chair_swivel_degrees.is_finite()
@@ -75,7 +98,7 @@ impl IndoorMotionConfig {
                 .any(|v| !v.is_finite() || !(0.0..=120.).contains(v))
             || self.fan_turns[0] > self.fan_turns[1]
         {
-            return Err("indoor_motion requires fractions in [0,1], 1..32 mechanisms, travel 0..1.5 m, swivel 0..120 degrees and ordered fan_turns in [0,120]".into());
+            return Err("indoor_motion requires fractions in [0,1], 1..128 mechanisms, chair travel 0..1.5 m, swivel 0..120 degrees, prop travel 0..0.75 m, prop rotation 0..180 degrees, cart travel 0..2 m and ordered fan_turns in [0,120]".into());
         }
         Ok(())
     }
@@ -86,6 +109,9 @@ impl IndoorMotionConfig {
             MotionKind::Cabinet => self.cabinet_fraction,
             MotionKind::Covering => self.covering_fraction,
             MotionKind::Fan => self.fan_fraction,
+            MotionKind::Appliance => self.appliance_fraction,
+            MotionKind::Prop => self.prop_fraction,
+            MotionKind::Cart => self.cart_fraction,
         }
     }
 }
@@ -97,6 +123,9 @@ pub enum MotionKind {
     Cabinet,
     Covering,
     Fan,
+    Appliance,
+    Prop,
+    Cart,
 }
 
 /// Capture manifest metadata. Bounds are in scene-local metres; playback maps
@@ -110,7 +139,7 @@ pub struct IndoorMotionReport {
 impl IndoorMotionReport {
     pub fn new(policy: IndoorMotionConfig) -> Self {
         Self {
-            version: 2,
+            version: 3,
             policy,
             mechanisms: vec![],
         }
@@ -125,6 +154,12 @@ impl IndoorMotionReport {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct MechanismReport {
     pub object_id: Option<usize>,
+    /// Objects carried rigidly by this mechanism, retaining their own instance IDs.
+    #[serde(default)]
+    pub carried_object_ids: Vec<usize>,
+    /// Semantic labels of the actual driven mesh parts, including carried cargo.
+    #[serde(default)]
+    pub semantic_labels: Vec<String>,
     pub joint: usize,
     pub kind: MotionKind,
     pub interval: [f32; 2],
@@ -146,6 +181,14 @@ pub struct MechanismReport {
     pub requested_angle_radians: f32,
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) enum Contact {
+    #[default]
+    Free,
+    Floor,
+    Surface,
+}
+
 /// Motion in the assembly coordinate system. Rigid motion is exact; cloth
 /// endpoint interpolation preserves topology/UVs and fixed hem/rail attachments.
 #[derive(Clone)]
@@ -161,6 +204,7 @@ pub(crate) struct Joint {
     pub parts: Vec<(Surface, String)>,
     pub morph: std::collections::BTreeMap<(Surface, String), Geometry>,
     pub accepted: bool,
+    pub contact: Contact,
     /// A rotor or linked mechanism must be admitted as one rigid assembly.
     pub coupled: bool,
     /// Deliberate mechanical attachments belonging to this mechanism only.
@@ -184,6 +228,7 @@ impl Joint {
             parts: vec![],
             morph: default(),
             accepted: false,
+            contact: Contact::Free,
             coupled: false,
             attachment: None,
             adjustment: default(),
@@ -199,6 +244,7 @@ impl Joint {
             angle: self.angle,
             translation: self.translation,
             coupled: self.coupled,
+            contact: self.contact,
             accepted: self.accepted && self.parts.iter().any(|k| parts.contains_key(k)),
             attachment: self.attachment.clone(),
             adjustment: self.adjustment,

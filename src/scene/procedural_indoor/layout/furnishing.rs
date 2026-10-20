@@ -331,6 +331,14 @@ impl IndoorManifest {
                 chair.size.y = 0.78 + (height - 0.83) / 0.61 * 0.30;
                 chair.size.x = rng.random_range(0.77..1.02);
                 chair.size.z = rng.random_range(0.77..1.02);
+                if super::super::objects::seating::recliner::selected(chair.seed) {
+                    let mut shape = stream(chair.seed, 6440);
+                    chair.size = Vec3::new(
+                        shape.random_range(0.84..1.02),
+                        shape.random_range(1.12..1.30),
+                        shape.random_range(1.35..1.65),
+                    );
+                }
             }
             9 => chair.size.y = rng.random_range(1.16..1.48),
             _ => {}

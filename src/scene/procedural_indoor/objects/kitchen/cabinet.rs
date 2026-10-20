@@ -1,7 +1,7 @@
 //! Panel construction with visible interiors; glazed leaves contain real apertures.
 use super::*;
 
-pub(super) fn shell(
+pub(crate) fn shell(
     a: &mut Assembly,
     size: Vec3,
     bottom: f32,
@@ -283,21 +283,58 @@ pub(super) fn doors(
             label,
         );
         let mut hardware = Assembly::default();
-        handle(
-            &mut hardware,
-            tf,
-            if lift {
-                0.
-            } else {
-                -side * (leaf * 0.5 - 0.055)
-            },
-            if lift { -height * 0.5 + 0.075 } else { 0. },
-            p,
-            lift,
-            label,
-        );
-        for ((_, label), g) in hardware.parts {
-            dest.part(p.hardware, &label).append(g);
+        if sliding {
+            // Bypass leaves need flush pulls. A projecting knob on the rear
+            // track intersects the front leaf even in the sampled static pose.
+            if p.handles != 4 {
+                let edge = ((leaf - 0.005).min(height - 0.006) * 0.12).clamp(0.018, 0.045);
+                let inset = if p.door_style == 1 { edge * 0.5 } else { 0.055 };
+                let pull_width = if p.door_style == 1 {
+                    edge * 0.70
+                } else {
+                    0.026
+                };
+                let x = -side * (leaf * 0.5 - inset);
+                let face = if p.door_style != 1 && p.front_profile == 2 {
+                    0.014
+                } else {
+                    0.011
+                };
+                box_at(
+                    &mut hardware,
+                    p.hardware,
+                    "cabinet_hardware",
+                    Vec3::new(x, 0., face + 0.001),
+                    Vec3::new(pull_width, 0.11, 0.002),
+                    tf,
+                );
+                box_at(
+                    &mut hardware,
+                    Surface::Ink,
+                    "cabinet_hardware",
+                    Vec3::new(x, 0., face + 0.0023),
+                    Vec3::new(pull_width * 0.62, 0.087, 0.0004),
+                    tf,
+                );
+            }
+        } else {
+            handle(
+                &mut hardware,
+                tf,
+                if lift {
+                    0.
+                } else {
+                    -side * (leaf * 0.5 - 0.055)
+                },
+                if lift { -height * 0.5 + 0.075 } else { 0. },
+                p,
+                lift,
+                label,
+            );
+        }
+        for ((surface, label), g) in hardware.parts {
+            dest.part(if sliding { surface } else { p.hardware }, &label)
+                .append(g);
         }
         // Visible hinge barrels only on hinged fronts; short cylinders have
         // finite thickness and stay attached when the leaf is open.
@@ -356,6 +393,56 @@ pub(super) fn doors(
     }
 }
 
+/// Open-topped drawer box, inset from its front's edges and attached to the
+/// back face. Geometry exists in static builds too, avoiding hollow facades.
+pub(crate) fn drawer_tray(
+    a: &mut Assembly,
+    width: f32,
+    height: f32,
+    depth: f32,
+    tf: Transform,
+    label: &str,
+) {
+    let w = width - 0.060;
+    let d = depth * 0.75;
+    let h = height * 0.62;
+    let board = 0.012_f32.min(height * 0.12);
+    let y = -height * 0.5 + (height * 0.16).clamp(0.006, 0.025);
+    let z = -0.011 - d * 0.5;
+    // Extruded, chamfered sheet goods need 32 triangles rather than a full
+    // rounded cuboid's 108. Keep real thickness and edge highlights within
+    // the existing island mesh budget even with complete drawer interiors.
+    let mut panel = |center: Vec3, extent: Vec2, thickness: f32, rotation: Quat| {
+        let h = extent * 0.5;
+        a.part(Surface::WoodEdge, label).profile_slab(
+            &[
+                Vec2::new(-h.x, -h.y),
+                Vec2::new(h.x, -h.y),
+                Vec2::new(h.x, h.y),
+                Vec2::new(-h.x, h.y),
+            ],
+            thickness,
+            thickness.min(0.008) * 0.20,
+            tf.mul_transform(Transform::from_translation(center).with_rotation(rotation)),
+        );
+    };
+    panel(Vec3::new(0., y, z), Vec2::new(w, d), board, Quat::IDENTITY);
+    for side in [-1., 1.] {
+        panel(
+            Vec3::new(side * (w - 0.012) * 0.5, y + board * 0.5 + h * 0.5, z),
+            Vec2::new(h, d),
+            0.012,
+            Quat::from_rotation_z(FRAC_PI_2),
+        );
+    }
+    panel(
+        Vec3::new(0., y + board * 0.5 + h * 0.5, z - d * 0.5 + 0.006),
+        Vec2::new(w - 0.024, h),
+        0.012,
+        Quat::from_rotation_x(-FRAC_PI_2),
+    );
+}
+
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
     let (d, z) = body(o, p);
     let w = o.size.x - 0.012;
@@ -394,14 +481,32 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
         for row in 0..rows {
             let rh = (h - toe - 0.06) / rows as f32;
             let tf = Transform::from_xyz(0., toe + rh * (row as f32 + 0.5), front + 0.014);
-            front_panel(a, Vec2::new(w - 0.014, rh - 0.006), tf, p, "cabinet");
-            handle(a, tf, 0., 0., p, true, "cabinet");
-            if row + 1 == rows && matches!(p.handles, 0 | 2) && o.seed.is_multiple_of(3) {
-                // A drying towel drapes over the upper pull, not a knob or a
-                // toe-level drawer. Keep both fabric sides outside the front.
-                let width = if p.handles == 2 { 0.058 } else { 0.095 };
-                props::hanging_towel(a, tf.translation + Vec3::Z * 0.036, width, rh * 0.80);
-            }
+            use super::super::super::motion::{construction as motion, MotionKind};
+            let seed = o.seed ^ row as u64 ^ 0x44524157;
+            motion::hinged(
+                a,
+                MotionKind::Cabinet,
+                seed,
+                || {
+                    motion::rigid(
+                        MotionKind::Cabinet,
+                        seed,
+                        Vec3::ZERO,
+                        Vec3::Y,
+                        0.,
+                        Vec3::Z * d * 0.65,
+                    )
+                },
+                |a| {
+                    front_panel(a, Vec2::new(w - 0.014, rh - 0.006), tf, p, "cabinet");
+                    drawer_tray(a, w - 0.014, rh - 0.006, d, tf, "cabinet");
+                    handle(a, tf, 0., 0., p, true, "cabinet");
+                    if row + 1 == rows && matches!(p.handles, 0 | 2) && o.seed.is_multiple_of(3) {
+                        let width = if p.handles == 2 { 0.058 } else { 0.095 };
+                        props::hanging_towel(a, tf.translation + Vec3::Z * 0.036, width, rh * 0.80);
+                    }
+                },
+            );
         }
         return;
     }

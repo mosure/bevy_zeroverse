@@ -168,8 +168,49 @@ pub(super) fn record_scene(
         ("wall_composition_prior_spacing_m", wall.spacing_m),
         ("wall_composition_prior_eye_height_m", wall.eye_height_m),
         ("wall_composition_prior_asymmetry", wall.asymmetry),
+        ("wall_composition_prior_size_variation", wall.size_variation),
+        (
+            "wall_composition_prior_height_variation_m",
+            wall.height_variation_m,
+        ),
+        (
+            "wall_composition_prior_aligned_fraction",
+            wall.aligned_fraction,
+        ),
+        (
+            "wall_composition_prior_stacked_fraction",
+            wall.stacked_fraction,
+        ),
     ] {
         numeric.push(name, value as f64)?;
+    }
+    for wall in super::super::layout::wall_composition::mounted_art_walls(scene) {
+        let stats = super::super::layout::wall_composition::ArtWallStats::measure(&wall);
+        numeric.push("wall_art_count_per_wall", stats.count as f64)?;
+        // Single-picture walls have no alignment/size comparison denominator.
+        if stats.pairs > 0 {
+            for (name, value) in [
+                (
+                    "wall_art_center_height_span_m",
+                    stats.center_height_span_m as f64,
+                ),
+                ("wall_art_area_ratio", stats.area_ratio as f64),
+                (
+                    "wall_art_aligned_pair_fraction",
+                    stats.aligned_pairs as f64 / stats.pairs as f64,
+                ),
+                (
+                    "wall_art_matching_size_pair_fraction",
+                    stats.matching_size_pairs as f64 / stats.pairs as f64,
+                ),
+                (
+                    "wall_art_stacked_pair_fraction",
+                    stats.stacked_pairs as f64 / stats.pairs as f64,
+                ),
+            ] {
+                numeric.push(name, value)?;
+            }
+        }
     }
     for (i, name) in ["low", "seated", "standing", "elevated"]
         .into_iter()
@@ -572,6 +613,7 @@ pub(super) fn record_object(
             ("art_height_m", o.size.y),
             ("art_aspect", o.size.x / o.size.y),
             ("art_lower_edge_m", o.position.y),
+            ("art_center_height_m", o.position.y + o.size.y * 0.5),
             ("art_horizon", p.horizon),
             ("art_relief", p.relief),
             ("art_viewpoint", p.viewpoint),
@@ -757,6 +799,26 @@ mod tests {
         let board = materials::boards::parameters(actual_seed);
         let screen = materials::screens::parameters(actual_seed);
         let values = numeric.finish().unwrap();
+        let wall_art = object(ObjectKind::WallArt);
+        assert_eq!(
+            values["art_center_height_m"].mean,
+            (wall_art.position.y + wall_art.size.y * 0.5) as f64
+        );
+        let walls = super::super::super::layout::wall_composition::mounted_art_walls(&scene);
+        let multi_walls = walls.iter().filter(|wall| wall.len() > 1).count();
+        assert_eq!(
+            values.get("wall_art_count_per_wall").map_or(0, |d| d.count),
+            walls.len()
+        );
+        for key in [
+            "wall_art_center_height_span_m",
+            "wall_art_area_ratio",
+            "wall_art_aligned_pair_fraction",
+            "wall_art_matching_size_pair_fraction",
+            "wall_art_stacked_pair_fraction",
+        ] {
+            assert_eq!(values.get(key).map_or(0, |d| d.count), multi_walls);
+        }
         assert_eq!(values["art_horizon"].mean, art.horizon as f64);
         assert_eq!(values["whiteboard_occupancy"].mean, board.occupancy as f64);
         assert_eq!(values["screen_time_minutes"].mean, screen.minutes as f64);

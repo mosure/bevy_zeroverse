@@ -13,11 +13,58 @@ impl Plugin for IndoorMotionPlugin {
                 )
                     .chain()
                     .run_if(any_with_component::<AnimatedPart>),
+            )
+            .add_systems(
+                Update,
+                animate_lights
+                    .after(crate::camera::update_camera_trajectory)
+                    .run_if(any_with_component::<AnimatedLight>),
             );
     }
 }
 #[derive(Component)]
 pub(crate) struct AnimatedBounds;
+/// Direct emitters follow the same scene-local rigid delta as their mesh.
+/// This also handles lamps carried on a cart without reparenting annotation roots.
+#[derive(Component)]
+pub(crate) struct AnimatedLight {
+    joint: Joint,
+    rest: Transform,
+    last: f32,
+}
+impl AnimatedLight {
+    pub(crate) fn for_object(
+        scene: &super::super::layout::IndoorManifest,
+        id: usize,
+        rest: Transform,
+    ) -> Option<Self> {
+        let m = scene.indoor_motion.as_ref()?.mechanisms.iter().find(|m| {
+            m.rejection.is_none() && (m.object_id == Some(id) || m.carried_object_ids.contains(&id))
+        })?;
+        let mut joint =
+            construction::rigid(m.kind, 0, m.pivot, m.axis, m.angle_radians, m.translation_m);
+        joint.interval = m.interval;
+        Some(Self {
+            joint,
+            rest,
+            last: 0.,
+        })
+    }
+}
+fn animate_lights(
+    time: Res<crate::camera::Playback>,
+    mut lights: Query<(&mut AnimatedLight, &mut Transform)>,
+) {
+    let t = time.mode.map_progress(time.progress);
+    for (mut light, mut tf) in &mut lights {
+        let amount = light.joint.amount(t);
+        if amount != light.last {
+            *tf = light.joint.transform(amount).mul_transform(light.rest);
+            light.last = amount;
+        }
+    }
+}
+
 #[derive(Component)]
 pub(crate) struct AnimatedPart {
     joint: Joint,
@@ -38,6 +85,7 @@ impl AnimatedPart {
             morph: default(),
             accepted: true,
             coupled: joint.coupled,
+            contact: joint.contact,
             attachment: None,
             adjustment: joint.adjustment,
         };

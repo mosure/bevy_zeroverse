@@ -3,6 +3,7 @@ mod dining;
 mod exhibition;
 mod teaching;
 mod transit;
+mod variation;
 use super::super::super::objects::public as geometry;
 use std::f32::consts::{FRAC_PI_2, PI};
 

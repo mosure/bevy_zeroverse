@@ -212,7 +212,7 @@ impl Coverage {
                 }
                 continue;
             }
-            if o.kind == super::super::layout::ObjectKind::Chair {
+            if o.kind == super::super::layout::ObjectKind::Chair && o.variant != 8 {
                 // A tall chair's full bounding box hides the seated person's
                 // face even when the front of the real chair is completely open.
                 // Use its seat/back/headrest structure for view proposals.

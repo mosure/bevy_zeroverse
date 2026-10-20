@@ -20,7 +20,12 @@ fn chair_and_stool_programs_fit_clearances_replay_and_keep_seating_datum() {
                 1.35
             };
             let a = super::super::build_object(&o);
-            audit::check(&o, &a).unwrap_or_else(|e| panic!("{e}; variant={variant}"));
+            let check = audit::check(&o, &a)
+                .unwrap_or_else(|e| panic!("{e}; variant={variant}; {:?}", parameters(&o)));
+            assert!(
+                check.min_y_m <= 0.003,
+                "floor contact {variant}/{seed}: {check:?}"
+            );
             let boxes = clearance_boxes(&o);
             for point in a.parts.values().flat_map(|g| &g.positions) {
                 let point = Vec3::from_array(*point);
@@ -56,6 +61,63 @@ fn chair_and_stool_programs_fit_clearances_replay_and_keep_seating_datum() {
             }
         }
     }
-    assert_eq!(backs, (0..6).collect());
+    assert_eq!(backs, (0..10).collect());
     assert_eq!(bases, (0..3).collect());
+}
+
+#[test]
+fn base_and_seat_choices_change_actual_surfaces() {
+    let o = audit::fixture(ObjectKind::Chair, 17);
+    let p = parameters(&o);
+    let mut bases = Vec::new();
+    for style in 0..8 {
+        let mut p = p.clone();
+        p.base_style = style;
+        p.casters = false;
+        let mut a = Assembly::default();
+        base::build(&mut a, &o, &p, 0.48, 0.46);
+        audit::check(&o, &a).unwrap();
+        bases.push(audit::descriptor(&o, &a));
+    }
+    assert_eq!(audit::representatives(&bases, 0.01).len(), 8);
+    let mut seats = Vec::new();
+    for style in 0..3 {
+        let mut p = p.clone();
+        p.seat_style = style;
+        let mut a = Assembly::default();
+        upper::seat(&mut a, &p, 0.48, 0.46, 0.06);
+        audit::check(&o, &a).unwrap();
+        seats.push(audit::descriptor(&o, &a));
+    }
+    assert_eq!(audit::representatives(&seats, 0.002).len(), 3);
+}
+
+#[test]
+fn structural_controls_are_realized_and_mechanically_compatible() {
+    let mut bases = BTreeSet::new();
+    let mut arms = BTreeSet::new();
+    let mut seats = BTreeSet::new();
+    let mut headrests = BTreeSet::new();
+    for variant in [0, 1, 2, 3, 4, 5, 9] {
+        for seed in 0..128 {
+            let mut o = audit::fixture(ObjectKind::Chair, seed);
+            o.variant = variant;
+            let p = parameters(&o);
+            assert!(!p.casters || p.base_style < 3);
+            assert_eq!(p.base_style < 4, matches!(variant, 0 | 1 | 5 | 9));
+            assert!(p.back_construction != 1 || variant == 3);
+            bases.insert(p.base_style);
+            if p.armrests {
+                arms.insert(p.arm_support);
+            }
+            seats.insert(p.seat_style);
+            if p.headrest {
+                headrests.insert(p.headrest_style);
+            }
+        }
+    }
+    assert_eq!(bases, (0..8).collect());
+    assert_eq!(arms, (0..6).collect());
+    assert_eq!(seats, (0..3).collect());
+    assert_eq!(headrests, (0..3).collect());
 }

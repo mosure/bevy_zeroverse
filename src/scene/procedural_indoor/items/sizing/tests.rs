@@ -15,6 +15,8 @@ fn physical_size_ranges_replay_and_build_within_annotation_envelopes() {
         Notepad,
         Notebook,
         Phone,
+        Keyboard,
+        Mouse,
         Books,
         Bowl,
         Dishware,

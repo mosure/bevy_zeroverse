@@ -1,5 +1,5 @@
 use super::*;
-fn empty() -> (IndoorManifest, SceneGeometry) {
+pub(super) fn empty() -> (IndoorManifest, SceneGeometry) {
     let mut scene = IndoorManifest::generate_with_humans(0, default(), 0.65, 0, 0.).unwrap();
     scene.objects.clear();
     scene.humans.clear();

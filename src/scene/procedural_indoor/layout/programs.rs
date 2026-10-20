@@ -6,10 +6,12 @@ mod tests;
 impl IndoorManifest {
     pub(super) fn furnish_program(&mut self, rng: &mut ChaCha8Rng) {
         let zones = self.program.as_ref().unwrap().zones.clone();
+        let mut dimension_rng = stream(self.seed, 0x5245_5041_4952_5349);
         for (zone_index, zone) in zones.into_iter().enumerate() {
             // Placement refinements must not consume the activity/composition
             // stream and accidentally change the next zone's function.
-            let mut transform_rng = stream(self.seed, 5810 + zone_index as u64);
+            // Dedicated namespace: 5810/5811 belong to wall composition.
+            let mut transform_rng = stream(self.seed, 0x5a4f_4e45_504f_5345 + zone_index as u64);
             let extent = zone.max - zone.min;
             if zone.activity.is_kitchen() {
                 self.furnish_kitchen(&zone, zone_index);
@@ -117,14 +119,18 @@ impl IndoorManifest {
                         self.workstation(
                             ObjectKind::Desk,
                             point(x, 0.0, z),
-                            Vec3::new(zone.desk_width, rng.random_range(0.71..0.78), depth),
+                            Vec3::new(
+                                zone.desk_width * transform_rng.random_range(0.93..1.05),
+                                rng.random_range(0.71..0.79),
+                                depth,
+                            ),
                             zone.orientation + turn,
                             rng,
                         );
                     }
                 }
             }
-            self.fill_functional_zone(&zone, rng);
+            self.fill_functional_zone(&zone, zone_index, rng);
             // Sample perimeter service objects by free space, not fixed global
             // corners. Plants, storage and bins compete for valid placements.
             let service_count = ((extent.x + extent.y)
@@ -176,7 +182,7 @@ impl IndoorManifest {
                         Vec3::new(
                             rng.random_range(0.75..1.55),
                             rng.random_range(0.72..1.3),
-                            0.42,
+                            transform_rng.random_range(0.34..0.52),
                         ),
                     ),
                     3 => (
@@ -184,19 +190,19 @@ impl IndoorManifest {
                         Vec3::new(
                             rng.random_range(0.70..1.4),
                             rng.random_range(1.35..1.95),
-                            0.34,
+                            transform_rng.random_range(0.26..0.42),
                         ),
                     ),
-                    4 => (
-                        ObjectKind::CoatRack,
-                        Vec3::new(0.65, rng.random_range(1.45..1.95), 0.65),
-                    ),
+                    4 => (ObjectKind::CoatRack, {
+                        let base = transform_rng.random_range(0.48..0.76);
+                        Vec3::new(base, rng.random_range(1.45..1.95), base)
+                    }),
                     5 => (
                         ObjectKind::Bag,
                         Vec3::new(
                             rng.random_range(0.32..0.53),
                             rng.random_range(0.28..0.46),
-                            0.22,
+                            transform_rng.random_range(0.16..0.29),
                         ),
                     ),
                     6 => (
@@ -204,7 +210,7 @@ impl IndoorManifest {
                         Vec3::new(
                             rng.random_range(0.3..0.6),
                             rng.random_range(0.2..0.45),
-                            0.38,
+                            transform_rng.random_range(0.26..0.45),
                         ),
                     ),
                     _ => {
@@ -246,8 +252,13 @@ impl IndoorManifest {
                 self.workstation(
                     ObjectKind::Desk,
                     Vec3::new(p.x, m.deck.height, p.y),
-                    Vec3::new(1.12, 0.74, 0.62),
-                    rng.random_range(0..4) as f32 * std::f32::consts::FRAC_PI_2,
+                    Vec3::new(
+                        dimension_rng.random_range(0.96..1.30),
+                        dimension_rng.random_range(0.71..0.79),
+                        dimension_rng.random_range(0.55..0.72),
+                    ),
+                    rng.random_range(0..4) as f32 * std::f32::consts::FRAC_PI_2
+                        + dimension_rng.random_range(-0.24..0.24),
                     rng,
                 );
             }
@@ -285,13 +296,13 @@ impl IndoorManifest {
                 },
                 Vec3::new(x, 0.0, z),
                 Vec3::new(
-                    1.15,
+                    dimension_rng.random_range(1.0..1.34),
                     if self.layout.prefers_soft_seating() {
-                        0.42
+                        dimension_rng.random_range(0.34..0.48)
                     } else {
-                        0.74
+                        dimension_rng.random_range(0.71..0.79)
                     },
-                    0.64,
+                    dimension_rng.random_range(0.56..0.74),
                 ),
                 yaw,
                 rng,
@@ -318,7 +329,10 @@ impl IndoorManifest {
         }
         let rotation = Quat::from_rotation_y(yaw);
         let sideways = rng.random_range(-0.10..0.10);
-        for gap in [0.54, 0.68, 0.82] {
+        let mut spacing = stream(self.objects[before].seed, 0x5345_4154_4741_5053);
+        let initial_gap = spacing.random_range(0.48..0.62);
+        let step = spacing.random_range(0.11..0.17);
+        for gap in [initial_gap, initial_gap + step, initial_gap + step * 2.] {
             self.chair(
                 position + rotation * Vec3::new(sideways, 0.0, size.z * 0.5 + gap),
                 yaw,
@@ -343,7 +357,13 @@ impl IndoorManifest {
         false
     }
 
-    fn fill_functional_zone(&mut self, zone: &super::super::program::Zone, rng: &mut ChaCha8Rng) {
+    fn fill_functional_zone(
+        &mut self,
+        zone: &super::super::program::Zone,
+        zone_index: usize,
+        rng: &mut ChaCha8Rng,
+    ) {
+        let mut dimension_rng = stream(self.seed, 0x4649_4c4c_5349_5a45 + zone_index as u64);
         let extent = zone.max - zone.min;
         let area = extent.x * extent.y;
         let area_per_seat = if zone.activity == IndoorLayout::Lounge {
@@ -407,7 +427,11 @@ impl IndoorManifest {
                 p,
                 Vec3::new(
                     rng.random_range(0.95..1.55),
-                    if lounge { 0.43 } else { 0.74 },
+                    if lounge {
+                        dimension_rng.random_range(0.34..0.48)
+                    } else {
+                        dimension_rng.random_range(0.71..0.79)
+                    },
                     rng.random_range(0.56..0.76),
                 ),
                 yaw,

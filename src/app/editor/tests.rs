@@ -588,6 +588,18 @@ fn room_motion_controls_roundtrip_without_enabling_human_models() {
     edit(&mut state, "@indoor_motion", json!(true)).unwrap();
     edit(&mut state, "/indoor_motion/chair_fraction", json!(0.8)).unwrap();
     edit(&mut state, "/indoor_motion/fan_fraction", json!(1.0)).unwrap();
+    edit(&mut state, "/indoor_motion/appliance_fraction", json!(0.9)).unwrap();
+    edit(&mut state, "/indoor_motion/prop_fraction", json!(1.0)).unwrap();
+    edit(&mut state, "/indoor_motion/cart_fraction", json!(1.0)).unwrap();
+    edit(&mut state, "/indoor_motion/max_mechanisms", json!(128)).unwrap();
+    edit(&mut state, "/indoor_motion/prop_travel_m", json!(0.45)).unwrap();
+    edit(
+        &mut state,
+        "/indoor_motion/prop_rotation_degrees",
+        json!(95.),
+    )
+    .unwrap();
+    edit(&mut state, "/indoor_motion/cart_travel_m", json!(1.2)).unwrap();
     edit(&mut state, "/indoor_motion/fan_turns/0", json!(2.0)).unwrap();
     edit(&mut state, "/indoor_motion/fan_turns/1", json!(8.0)).unwrap();
     let config = state.config().unwrap();
@@ -605,6 +617,13 @@ fn room_motion_controls_roundtrip_without_enabling_human_models() {
     )
     .unwrap();
     assert_eq!(policy.fan_fraction, 1.);
+    assert_eq!(policy.appliance_fraction, 0.9);
+    assert_eq!(policy.prop_fraction, 1.);
+    assert_eq!(policy.cart_fraction, 1.);
+    assert_eq!(policy.max_mechanisms, 128);
+    assert_eq!(policy.prop_travel_m, 0.45);
+    assert_eq!(policy.prop_rotation_degrees, 95.);
+    assert_eq!(policy.cart_travel_m, 1.2);
     assert_eq!(policy.fan_turns, [2., 8.]);
     edit(&mut state, "@indoor_motion", json!(false)).unwrap();
     assert!(state.config().unwrap().indoor_motion.is_none());
