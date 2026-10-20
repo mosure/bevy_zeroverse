@@ -19,6 +19,19 @@ pub(super) struct KindStats {
     pub axis_aligned_2deg: usize,
     pub supported: usize,
     pub support_centered_2pct: usize,
+    pub screen_facing_targets: usize,
+    pub screen_facing_aligned_2deg: usize,
+}
+
+fn screen_facing_error(scene: &IndoorManifest, o: &IndoorObject) -> Option<f32> {
+    use super::super::layout::ObjectKind;
+    if !matches!(o.kind, ObjectKind::Laptop | ObjectKind::Monitor) {
+        return None;
+    }
+    let target = scene.objects.get(o.interaction_target?)?;
+    let delta = target.position - o.position;
+    let angle = o.yaw - delta.x.atan2(delta.z);
+    Some(angle.sin().atan2(angle.cos()))
 }
 
 pub(super) fn support_coordinates(scene: &IndoorManifest, o: &IndoorObject) -> Option<Vec3> {
@@ -44,11 +57,17 @@ pub(super) fn measure(scene: &IndoorManifest, objects: &[&IndoorObject]) -> Kind
         axis_aligned_2deg: 0,
         supported: 0,
         support_centered_2pct: 0,
+        screen_facing_targets: 0,
+        screen_facing_aligned_2deg: 0,
     };
     for o in objects {
         let size = o.size.to_array().map(|v| (v * 100.).round() as i32);
         *sizes.entry(size).or_default() += 1;
         stats.axis_aligned_2deg += usize::from(axis_distance(o.yaw) <= 2_f32.to_radians());
+        if let Some(error) = screen_facing_error(scene, o) {
+            stats.screen_facing_targets += 1;
+            stats.screen_facing_aligned_2deg += usize::from(error.abs() <= 2_f32.to_radians());
+        }
         if let Some(local) = support_coordinates(scene, o) {
             stats.supported += 1;
             stats.support_centered_2pct += usize::from(local.x.abs().max(local.z.abs()) <= 0.02);
@@ -72,6 +91,11 @@ pub(super) fn record(scene: &IndoorManifest, numeric: &mut NumericCollector) -> 
             ("equal_size_pairs_1cm", stats.equal_size_pairs_1cm),
             ("supported", stats.supported),
             ("support_centered_2pct", stats.support_centered_2pct),
+            ("screen_facing_targets", stats.screen_facing_targets),
+            (
+                "screen_facing_aligned_2deg",
+                stats.screen_facing_aligned_2deg,
+            ),
         ] {
             numeric.push(&format!("{prefix}_{key}"), value as f64)?;
         }
@@ -92,6 +116,12 @@ pub(super) fn record(scene: &IndoorManifest, numeric: &mut NumericCollector) -> 
             )?;
         }
         for o in objects {
+            if let Some(error) = screen_facing_error(scene, o) {
+                numeric.push(
+                    &format!("{prefix}_screen_facing_error_radians"),
+                    error as f64,
+                )?;
+            }
             for (axis, value) in ["width_m", "height_m", "depth_m"]
                 .into_iter()
                 .zip(o.size.to_array())

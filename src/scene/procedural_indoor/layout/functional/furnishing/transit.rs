@@ -84,12 +84,15 @@ impl IndoorManifest {
         for side in [-1., 1.] {
             if r.random_bool(0.70) {
                 self.assembly_diagnostics.programs[index].requested_capacity += 1;
-                let mut size = geometry::dimensions(ObjectKind::Elevator, r.random());
-                size.y = 2.50;
+                let size = geometry::dimensions(ObjectKind::Elevator, r.random());
                 self.public_fit(
                     index,
                     ObjectKind::Elevator,
-                    Vec3::new(center.x + side * 2.6, 0., p.min.y + size.z * 0.5 + 0.2),
+                    Vec3::new(
+                        center.x + side * r.random_range(2.25..3.15),
+                        0.,
+                        p.min.y + size.z * 0.5 + 0.2,
+                    ),
                     size,
                     0.,
                     r,

@@ -25,6 +25,14 @@ impl IndoorManifest {
                 .cloned()
                 .collect();
         for source in sources {
+            // A category can contain unpowered variants (e.g. gravity tanks).
+            // Route from the realized connector, not from the category name.
+            let (Some(start), Some(source_normal)) = (
+                equipment::source_power_port(&source),
+                equipment::source_power_normal(&source),
+            ) else {
+                continue;
+            };
             let parent = self.objects[source.support.unwrap()].clone();
             let mut targets: Vec<_> = self
                 .objects
@@ -43,6 +51,12 @@ impl IndoorManifest {
             });
             let mut installed = false;
             for target in targets.into_iter().take(3) {
+                let (Some(end), Some(target_normal)) = (
+                    equipment::power_port(&target, false),
+                    equipment::power_port_normal(&target, false),
+                ) else {
+                    continue;
+                };
                 let mut rng = stream(source.seed ^ target.seed, 5801);
                 // One physical receptacle cannot receive multiple mains plugs.
                 if self
@@ -60,10 +74,8 @@ impl IndoorManifest {
                     o.interaction_target = Some(source.id);
                     o.cable_target = Some(target.id);
                     let radius = wires::bound_radius(&o);
-                    let start = equipment::source_power_port(&source).unwrap();
-                    let end = equipment::power_port(&target, false).unwrap();
-                    let a = start + equipment::source_power_normal(&source).unwrap() * 0.039;
-                    let b = end + equipment::power_port_normal(&target, false).unwrap() * 0.039;
+                    let a = start + source_normal * 0.039;
+                    let b = end + target_normal * 0.039;
                     let local = parent
                         .transform()
                         .compute_affine()

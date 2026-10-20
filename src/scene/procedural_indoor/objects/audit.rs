@@ -38,7 +38,7 @@ pub fn fixture(kind: ObjectKind, seed: u64) -> IndoorObject {
         Mug => [0.13, 0.11, 0.10],
         Rug => [1.8, 0.009, 1.3],
         Clock => [0.35, 0.35, 0.06],
-        FloorLamp => [0.55, 1.65, 0.55],
+        FloorLamp => standing_lamp::dimensions(seed).to_array(),
         Keyboard => [0.43, 0.03, 0.16],
         Mouse => [0.065, 0.038, 0.11],
         WaterBottle => [0.08, 0.25, 0.08],
@@ -126,8 +126,20 @@ pub fn fixture(kind: ObjectKind, seed: u64) -> IndoorObject {
 /// have conditional fields; the depth-map measurements qualify realized geometry.
 pub fn program(o: &IndoorObject) -> serde_json::Value {
     use ObjectKind::*;
-    if matches!(o.kind, TeachingBoard | ExtractionHood) {
-        return serde_json::json!({"dimensions_metres":o.size});
+    match o.kind {
+        ServiceCounter => return serde_json::json!(public::service::counter_parameters(o)),
+        ExtractionHood => return serde_json::json!(public::service::hood_parameters(o)),
+        Lectern | TeachingBoard => return serde_json::json!(public::furnishing::parameters(o)),
+        DisplayCase | TrayReturn | ExhibitPlinth => {
+            return serde_json::json!(public::casework::parameters(o))
+        }
+        DrinkDispenser => return serde_json::json!(public::dispenser::parameters(o)),
+        QueueBarrier => return serde_json::json!(public::barrier::parameters(o)),
+        Vase | Bowl => return serde_json::json!(vessels::parameters(o)),
+        Mug | CoffeeCup | WaterBottle | SodaCan => {
+            return serde_json::json!(super::super::clutter::beverages::parameters(o))
+        }
+        _ => {}
     }
     if o.kind == Elevator {
         return serde_json::json!(public::elevator::parameters(o));
@@ -199,7 +211,8 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
     let keys: &[&str] = match o.kind {
         Elevator => &["opening", "bays", "finish"],
         QueueBarrier | DrinkDispenser => &["opening"],
-        ServiceCounter | Banquette => &["bays", "finish"],
+        ServiceCounter => &["bays", "finish"],
+        Banquette => &["bays", "curvature", "taper", "finish"],
         DisplayCase => &["shelves", "bays", "contents", "finish"],
         TrayReturn => &["shelves", "contents", "finish"],
         Locker => &["bays", "opening", "contents", "finish"],

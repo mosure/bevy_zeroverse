@@ -119,12 +119,36 @@ pub(super) fn notice_board(a: &mut Assembly, o: &IndoorObject, p: &EquipmentProg
         let tf = Transform::from_translation(center).with_rotation(Quat::from_rotation_z(note.yaw));
         a.part(Surface::Paper, label)
             .cuboid(Vec3::new(width, height, s.z * 0.012), 0.0001, tf);
-        let lines = rng.random_range(2..=5);
+        let image = rng.random_bool(0.40);
+        let left = rng.random_range(-0.44..-0.24);
+        let right = rng.random_range(0.26..0.44);
+        let top = rng.random_range(0.22..0.40);
+        let lines = rng.random_range(2..=9);
+        let pitch = rng.random_range(0.38..0.65) / lines as f32;
+        if image {
+            let slot = crate::scene::procedural_indoor::materials::variants::object_slot(
+                Surface::Art,
+                note.seed,
+                None,
+            );
+            let mut picture = Assembly::default();
+            super::super::presentation::face(
+                &mut picture,
+                Surface::Art,
+                &format!("{label}#finish{slot}"),
+                Vec3::new(left * width, -height * 0.35, s.z * 0.008),
+                Vec3::new(right * width, height * 0.12, s.z * 0.008),
+            );
+            super::super::public::append_at(a, picture, tf);
+        }
         for line in 0..lines {
-            let length = width * rng.random_range(0.37..0.78);
+            if image && line > 1 {
+                break;
+            }
+            let length = width * rng.random_range((right - left) * 0.45..right - left);
             let start = Vec3::new(
-                -width * 0.39,
-                height * (0.28 - line as f32 * 0.105),
+                width * left,
+                height * (top - line as f32 * pitch),
                 s.z * 0.008,
             );
             a.part(Surface::Ink, label).rod(
@@ -136,7 +160,7 @@ pub(super) fn notice_board(a: &mut Assembly, o: &IndoorObject, p: &EquipmentProg
         a.part(Surface::Chrome, label).ellipsoid(
             Vec3::new(0.002, 0.002, s.z * 0.010),
             Transform::from_translation(tf.transform_point(Vec3::new(
-                0.,
+                width * rng.random_range(-0.22..0.22),
                 height * 0.41,
                 s.z * 0.008,
             ))),

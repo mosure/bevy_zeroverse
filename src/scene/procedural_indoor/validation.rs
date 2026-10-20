@@ -210,7 +210,7 @@ fn validate_layout_integrity(scene: &IndoorManifest) -> Result<Option<String>, S
             let (lo, hi) = object.bounds();
             if (object.neighbor && lo.y.abs() > 1e-5)
                 || (!object.neighbor && !scene.floor_support_clear(lo, hi))
-                || hi.y > scene.ceiling_height(object.position.xz()) - 0.30
+                || hi.y > scene.ceiling_height(object.position.xz()) - object.overhead_clearance()
             {
                 placement_rejection.get_or_insert_with(|| {
                     format!(

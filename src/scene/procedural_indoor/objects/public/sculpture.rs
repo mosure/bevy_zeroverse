@@ -13,17 +13,19 @@ pub struct SculptureProgram {
     pub thickness: f32,
     pub surface: Surface,
     pub base: Surface,
+    pub base_width: Vec2,
+    pub base_height: f32,
 }
 pub fn parameters(o: &IndoorObject) -> SculptureProgram {
     let mut r = stream(o.seed, 8250);
     let mut f = stream(o.finish_seed.unwrap_or(o.seed), 8251);
     SculptureProgram {
-        form: r.random_range(0..5),
-        elements: r.random_range(3..=8),
+        form: r.random_range(0..9),
+        elements: r.random_range(2..=9),
         turns: r.random_range(0.65..1.8),
         bend: r.random_range(-0.16..0.16),
         phase: r.random_range(0.0..TAU),
-        breadth: r.random_range(0.18..0.34),
+        breadth: r.random_range(0.14..0.35),
         taper: r.random_range(0.35..0.85),
         thickness: r.random_range(0.035..0.075),
         surface: [
@@ -33,6 +35,8 @@ pub fn parameters(o: &IndoorObject) -> SculptureProgram {
             Surface::Wood,
             Surface::Concrete,
         ][f.random_range(0..5)],
+        base_width: Vec2::new(r.random_range(0.64..0.94), r.random_range(0.64..0.94)),
+        base_height: r.random_range(0.015..0.05),
         base: [Surface::Metal, Surface::Wood, Surface::Concrete][f.random_range(0..3)],
     }
 }
@@ -62,7 +66,14 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     let s = o.size;
     let label = o.kind.class_name();
     let radius = s.min_element() * p.thickness;
-    panel(a, o, p.base, label, [0., 0.025, 0.], [0.94, 0.05, 0.94]);
+    panel(
+        a,
+        o,
+        p.base,
+        label,
+        [0., p.base_height * 0.5, 0.],
+        [p.base_width.x, p.base_height, p.base_width.y],
+    );
     match p.form {
         0 => {
             // Joined stone/ceramic totem: a visible spine supports each lobe.
@@ -78,8 +89,11 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
                 .collect();
             let radius = sweep_radius(&pts, radius);
             a.part(p.surface, label).tube(&pts, radius, 10);
-            a.part(p.base, label)
-                .rod(Vec3::new(pts[0].x, s.y * 0.025, pts[0].z), pts[0], radius);
+            a.part(p.base, label).rod(
+                Vec3::new(pts[0].x, s.y * p.base_height * 0.5, pts[0].z),
+                pts[0],
+                radius,
+            );
             for i in 0..p.elements {
                 let t = (i as f32 + 0.5) / p.elements as f32;
                 a.part(p.surface, label).ellipsoid(
@@ -106,8 +120,11 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
                 .collect();
             let radius = sweep_radius(&pts, radius);
             a.part(p.surface, label).tube(&pts, radius, 10);
-            a.part(p.base, label)
-                .rod(Vec3::new(pts[0].x, s.y * 0.025, pts[0].z), pts[0], radius);
+            a.part(p.base, label).rod(
+                Vec3::new(pts[0].x, s.y * p.base_height * 0.5, pts[0].z),
+                pts[0],
+                radius,
+            );
         }
         2 => {
             // A folded, faceted column, distinct from the rounded loop/totem.
@@ -120,16 +137,19 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
                 .collect();
             let radius = sweep_radius(&pts, s.min_element() * p.breadth * 0.26);
             a.part(p.surface, label).tube(&pts, radius, 4);
-            a.part(p.base, label)
-                .rod(Vec3::new(pts[0].x, s.y * 0.025, pts[0].z), pts[0], radius);
+            a.part(p.base, label).rod(
+                Vec3::new(pts[0].x, s.y * p.base_height * 0.5, pts[0].z),
+                pts[0],
+                radius,
+            );
         }
         3 => {
             // Turned solid form, with a neck and shoulder continuously controlled.
             let r = s.x.min(s.z) * p.breadth;
             a.part(p.surface, label).lathe(
                 &[
-                    (0., s.y * 0.05),
-                    (r * 0.45, s.y * 0.05),
+                    (0., s.y * p.base_height),
+                    (r * 0.45, s.y * p.base_height),
                     (r * 0.65, s.y * 0.16),
                     (r, s.y * 0.37),
                     (r * 0.87, s.y * 0.62),
@@ -141,10 +161,13 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
                 Transform::IDENTITY,
             );
         }
-        _ => {
+        4 => {
             // Cantilevered kinetic-style discs remain attached to their armature.
-            a.part(p.base, label)
-                .rod(Vec3::Y * s.y * 0.05, Vec3::Y * s.y * 0.94, radius * 0.65);
+            a.part(p.base, label).rod(
+                Vec3::Y * s.y * p.base_height,
+                Vec3::Y * s.y * 0.94,
+                radius * 0.65,
+            );
             for i in 0..p.elements {
                 let t = (i as f32 + 0.5) / p.elements as f32;
                 let angle = p.phase + t * p.turns * TAU;
@@ -158,6 +181,92 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
                 a.part(p.surface, label).ellipsoid(
                     Vec3::new(s.x * 0.15, s.y * 0.022, s.z * 0.15),
                     Transform::from_translation(center),
+                );
+            }
+        }
+        5 => {
+            // Continuous freestanding arch, with both ends fixed into its base.
+            let points: Vec<_> = (0..=40)
+                .map(|i| {
+                    let t = i as f32 / 40. * PI;
+                    Vec3::new(
+                        t.cos() * p.breadth.min(p.base_width.x * 0.45 - 0.015),
+                        p.base_height + t.sin() * 0.86,
+                        p.bend * (2. * t).sin(),
+                    ) * s
+                })
+                .collect();
+            a.part(p.surface, label).tube(
+                &points,
+                sweep_radius(
+                    &points,
+                    (s.min_element() * p.thickness * 1.5).min(s.y * (0.99 - p.base_height - 0.86)),
+                ),
+                8,
+            );
+        }
+        6 => {
+            // Stacked cubist volumes: adjacent layers overlap vertically and
+            // remain tied to a central armature rather than levitating.
+            let n = p.elements.min(6);
+            let step = s.y * 0.82 / n as f32;
+            a.part(p.base, label)
+                .rod(Vec3::Y * s.y * p.base_height, Vec3::Y * s.y * 0.91, radius);
+            for i in 0..n {
+                let t = (i as f32 + 0.5) / n as f32;
+                let angle = p.phase + t * p.turns * PI;
+                let width = s.x.min(s.z) * (0.28 + p.breadth * (1. - t * p.taper));
+                a.part(p.surface, label).cuboid(
+                    Vec3::new(width, step * 1.03, width * (0.55 + p.taper * 0.4)),
+                    width * 0.04,
+                    Transform::from_xyz(
+                        s.x * p.bend * t * 0.4,
+                        s.y * 0.06 + step * (i as f32 + 0.5),
+                        s.z * p.bend * t * 0.4,
+                    )
+                    .with_rotation(Quat::from_rotation_y(angle)),
+                );
+            }
+        }
+        7 => {
+            // Welded branching construction. Every broad plate has a real strut.
+            a.part(p.base, label)
+                .rod(Vec3::Y * s.y * p.base_height, Vec3::Y * s.y * 0.92, radius);
+            for i in 0..p.elements {
+                let t = (i as f32 + 0.5) / p.elements as f32;
+                let angle = p.phase + t * p.turns * TAU;
+                let root = Vec3::Y * s.y * (0.10 + t * 0.63);
+                let tip = root
+                    + Vec3::new(
+                        angle.cos() * s.x * 0.27,
+                        s.y * 0.10,
+                        angle.sin() * s.z * 0.27,
+                    );
+                a.part(p.surface, label).rod(root, tip, radius * 0.6);
+                a.part(p.surface, label).ellipsoid(
+                    // Rotating an anisotropic plate must not exchange the
+                    // short reservation axis with the long object's radius.
+                    Vec3::new(s.x.min(s.z) * 0.14, s.y * 0.04, s.x.min(s.z) * 0.08),
+                    Transform::from_translation(tip).with_rotation(Quat::from_rotation_y(angle)),
+                );
+            }
+        }
+        _ => {
+            // Radial sheet sculpture: taper, twist and spacing change its silhouette.
+            a.part(p.base, label)
+                .rod(Vec3::Y * s.y * p.base_height, Vec3::Y * s.y * 0.91, radius);
+            for i in 0..p.elements {
+                let t = (i as f32 + 0.5) / p.elements as f32;
+                let breadth = s.x.min(s.z) * (0.38 + p.breadth * (PI * t).sin());
+                a.part(p.surface, label).cuboid(
+                    Vec3::new(
+                        breadth,
+                        s.y * 0.64 / p.elements as f32,
+                        s.x.min(s.z) * p.thickness,
+                    ),
+                    0.002,
+                    Transform::from_xyz(0., s.y * (0.13 + t * 0.73), 0.)
+                        .with_rotation(Quat::from_rotation_y(p.phase + t * p.turns * TAU)),
                 );
             }
         }

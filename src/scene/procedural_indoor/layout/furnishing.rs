@@ -198,11 +198,12 @@ impl IndoorManifest {
             rng,
         );
         if self.layout == IndoorLayout::Lounge || rng.random_bool(0.4) {
+            let size = super::super::objects::standing_lamp::dimensions(rng.random());
             self.add(
                 ObjectKind::FloorLamp,
                 Vec3::new(-w * 0.5 + 0.70, 0.0, -d * 0.18),
-                Vec3::new(0.46, 1.65, 0.46),
-                0.0,
+                size,
+                rng.random_range(-std::f32::consts::PI..std::f32::consts::PI),
                 rng,
             );
         }

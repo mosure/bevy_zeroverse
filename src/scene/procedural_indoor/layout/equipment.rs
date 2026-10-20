@@ -160,32 +160,27 @@ impl IndoorManifest {
             supports.shuffle(&mut rng);
             let mut installed = false;
             for support in supports.into_iter().take(12) {
-                for proposal in 0..8 {
-                    let offset = if proposal == 0 {
-                        Vec3::ZERO
-                    } else {
-                        Vec3::new(
-                            rng.random_range(-0.28..0.28) * support.size.x,
-                            0.,
-                            rng.random_range(-0.26..0.26) * support.size.z,
-                        )
-                    };
+                // One physical product per support; retries change placement,
+                // not its dimensions. A centered first proposal used to win
+                // almost every time, suppressing the sampled offsets entirely.
+                let size = Vec3::new(
+                    rng.random_range(0.23..0.36),
+                    rng.random_range(0.09..0.15),
+                    rng.random_range(0.21..0.29),
+                );
+                for _ in 0..8 {
+                    let offset = Vec3::new(
+                        rng.random_range(-0.28..0.28) * support.size.x,
+                        0.,
+                        rng.random_range(-0.26..0.26) * support.size.z,
+                    );
                     let position = support
                         .transform()
                         .transform_point(offset + Vec3::Y * support.size.y);
                     let direction = (screen.position - position).with_y(0.);
                     let yaw = direction.x.atan2(direction.z);
-                    let mut projector = self.candidate(
-                        ObjectKind::Projector,
-                        position,
-                        Vec3::new(
-                            rng.random_range(0.23..0.36),
-                            rng.random_range(0.09..0.15),
-                            rng.random_range(0.21..0.29),
-                        ),
-                        yaw,
-                        &mut rng,
-                    );
+                    let mut projector =
+                        self.candidate(ObjectKind::Projector, position, size, yaw, &mut rng);
                     projector.solid = false;
                     projector.support = Some(support.id);
                     if !self.prop_clear(&projector, support, 0.012)

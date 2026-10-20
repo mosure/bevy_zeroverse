@@ -3,6 +3,14 @@ use super::*;
 pub fn is_folded(o: &IndoorObject) -> bool {
     o.variant == 11 && stream(o.seed, 8260).random_bool(0.22)
 }
+fn seat_depth(o: &IndoorObject) -> f32 {
+    // Fit the upright seat at the adult hinge height, including pad thickness.
+    (o.size.z * 0.67).min(if is_folded(o) {
+        (o.size.y - 0.46 - 0.039 * 1.42_f32.cos() - 0.002) / (0.45 + 0.5 * 1.42_f32.sin())
+    } else {
+        f32::INFINITY
+    })
+}
 pub(super) fn clearance_boxes(o: &IndoorObject) -> Vec<(Vec3, Vec3)> {
     let half = o.size * 0.5;
     let mut boxes = vec![
@@ -11,20 +19,20 @@ pub(super) fn clearance_boxes(o: &IndoorObject) -> Vec<(Vec3, Vec3)> {
             Vec3::new(half.x, 0.50, half.z),
         ),
         (
-            Vec3::new(-half.x, 0.48, 0.17),
+            Vec3::new(-half.x, 0.48, (seat_depth(o) * 0.35 - 0.016).min(0.17)),
             Vec3::new(half.x, o.size.y, half.z),
         ),
     ];
     if o.variant == 10 {
         boxes.push((
-            Vec3::new(o.size.x * 0.10, 0.60, -o.size.z * 0.44),
+            Vec3::new(o.size.x * 0.10, 0.48, -o.size.z * 0.44),
             Vec3::new(half.x, 0.77, o.size.z * 0.15),
         ));
     }
     if is_folded(o) {
         boxes.push((
             Vec3::new(-half.x, 0.44, 0.),
-            Vec3::new(half.x, 0.85, half.z),
+            Vec3::new(half.x, o.size.y, half.z),
         ));
     }
     boxes
@@ -32,7 +40,8 @@ pub(super) fn clearance_boxes(o: &IndoorObject) -> Vec<(Vec3, Vec3)> {
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     let mut r = stream(o.seed, 8261);
     let w = o.size.x * 0.66;
-    let d = o.size.z * 0.67;
+    let folded = is_folded(o);
+    let d = seat_depth(o);
     let label = "chair";
     let audience = o.variant == 11;
     for x in [-w * 0.48, w * 0.48] {
@@ -56,7 +65,6 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
         Vec3::new(o.size.x * 0.48, 0.30, 0.12),
         0.020,
     );
-    let folded = is_folded(o);
     let seat_tf = if folded {
         Transform::from_xyz(0., 0.46 + d * 0.45, d * 0.38)
             .with_rotation(Quat::from_rotation_x(-1.42))

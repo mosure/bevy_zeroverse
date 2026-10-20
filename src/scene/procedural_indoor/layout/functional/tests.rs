@@ -147,7 +147,11 @@ fn rejected_training_elevator_landing_recovers_beside_low_duct() {
             .collect();
         assert!(!elevators.is_empty());
         for elevator in elevators {
-            assert_eq!(elevator.size.y, 2.5, "retain full-height car geometry");
+            assert!(
+                crate::scene::procedural_indoor::objects::public::elevator::car_height(elevator)
+                    >= 2.50,
+                "retain full-height car geometry"
+            );
             assert!(scene.placement_clear(elevator, 0.035));
             let front = elevator
                 .transform()

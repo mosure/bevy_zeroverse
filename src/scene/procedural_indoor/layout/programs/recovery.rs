@@ -1,5 +1,13 @@
 //! Complete accepted activity areas when ordinary workstation repair exhausts.
 use super::*;
+use crate::scene::procedural_indoor::objects::standing_lamp;
+use rand::seq::SliceRandom;
+
+fn side_along(r: &mut ChaCha8Rng) -> [f32; 7] {
+    let mut positions = std::array::from_fn(|i| i as f32 * 0.5 - 1.5 + r.random_range(-0.18..0.18));
+    positions.shuffle(r);
+    positions
+}
 
 impl IndoorManifest {
     pub(super) fn complete_lounge_groups(&mut self) {
@@ -119,9 +127,20 @@ impl IndoorManifest {
             .collect();
         let mut rng = stream(self.seed, 6133);
         for anchor in anchors {
+            let diameter = rng.random_range(0.28..0.40);
             for (kind, size) in [
-                (ObjectKind::TrashCan, Vec3::new(0.36, 0.6, 0.36)),
-                (ObjectKind::SideTable, Vec3::new(0.50, 0.52, 0.44)),
+                (
+                    ObjectKind::TrashCan,
+                    Vec3::new(diameter, rng.random_range(0.43..0.72), diameter),
+                ),
+                (
+                    ObjectKind::SideTable,
+                    Vec3::new(
+                        rng.random_range(0.38..0.60),
+                        rng.random_range(0.43..0.60),
+                        rng.random_range(0.36..0.54),
+                    ),
+                ),
             ] {
                 if self.main_furniture_count() >= self.minimum_main_objects() {
                     return;
@@ -134,10 +153,13 @@ impl IndoorManifest {
                 }) {
                     continue;
                 }
-                'placement: for gap in [0.18, 0.32, 0.48] {
+                let phase = rng.random_range(0.0..std::f32::consts::TAU);
+                'placement: for band in 0..3 {
+                    let gap = 0.14 + band as f32 * 0.14 + rng.random_range(0.0..0.10);
                     for sector in 0..16 {
-                        let angle = std::f32::consts::TAU * sector as f32 / 16.
-                            + rng.random_range(-0.06..0.06);
+                        let angle = phase
+                            + std::f32::consts::TAU * sector as f32 / 16.
+                            + rng.random_range(-0.12..0.12);
                         let direction = Vec2::from_angle(angle);
                         let offset = direction
                             * (anchor.size.xz() * 0.5 + size.xz() * 0.5 + Vec2::splat(gap));
@@ -193,12 +215,22 @@ impl IndoorManifest {
                     } else {
                         ObjectKind::Cabinet
                     },
-                    Vec3::new(0.64, 1.12, 0.32),
+                    Vec3::new(
+                        rng.random_range(0.55..0.76),
+                        rng.random_range(0.82..1.32),
+                        rng.random_range(0.28..0.40),
+                    ),
                 ),
-                // The lamp base has a 0.22 m minimum radius; reserve its full
-                // mesh footprint, including the same clearance as lounge lamps.
-                (ObjectKind::FloorLamp, Vec3::new(0.46, 1.50, 0.46)),
+                (
+                    ObjectKind::FloorLamp,
+                    standing_lamp::dimensions(rng.random()),
+                ),
             ] {
+                let yaw = if kind == ObjectKind::FloorLamp {
+                    rng.random_range(-std::f32::consts::PI..std::f32::consts::PI)
+                } else {
+                    surface.yaw
+                };
                 for side in [-1., 1.] {
                     if self.main_furniture_count() >= self.minimum_main_objects() {
                         return;
@@ -207,8 +239,9 @@ impl IndoorManifest {
                     // an activity area; one reading lamp per side is enough.
                     let limit = if kind == ObjectKind::FloorLamp { 1 } else { 2 };
                     let mut placed = 0;
-                    'candidates: for gap in [0.15, 0.30, 0.45] {
-                        for along in [0., -0.5, 0.5, -1., 1., -1.5, 1.5] {
+                    'candidates: for band in 0..3 {
+                        let gap = 0.14 + band as f32 * 0.15 + rng.random_range(0.0..0.08);
+                        for along in side_along(&mut rng) {
                             let p = surface.position
                                 + rotation
                                     * Vec3::new(
@@ -216,7 +249,7 @@ impl IndoorManifest {
                                         0.,
                                         along * surface.size.z * 0.5,
                                     );
-                            if self.add(kind, p, size, surface.yaw, &mut rng).is_some() {
+                            if self.add(kind, p, size, yaw, &mut rng).is_some() {
                                 if self.main_furniture_count() >= self.minimum_main_objects() {
                                     return;
                                 }
@@ -247,9 +280,24 @@ impl IndoorManifest {
             // Each proposal uses the same supported-floor and clearance gates
             // as ordinary furniture; no existing objects are moved or removed.
             for (kind, size) in [
-                (ObjectKind::CoffeeTable, Vec3::new(0.60, 0.52, 0.50)),
-                (ObjectKind::FloorLamp, Vec3::new(0.46, 1.55, 0.46)),
+                (
+                    ObjectKind::CoffeeTable,
+                    Vec3::new(
+                        rng.random_range(0.48..0.72),
+                        rng.random_range(0.40..0.56),
+                        rng.random_range(0.40..0.60),
+                    ),
+                ),
+                (
+                    ObjectKind::FloorLamp,
+                    standing_lamp::dimensions(rng.random()),
+                ),
             ] {
+                let yaw = if kind == ObjectKind::FloorLamp {
+                    rng.random_range(-std::f32::consts::PI..std::f32::consts::PI)
+                } else {
+                    sofa.yaw
+                };
                 for side in [-1., 1.] {
                     if self.main_furniture_count() >= self.minimum_main_objects() {
                         if !self.primary_activity_surface_missing() {
@@ -261,8 +309,9 @@ impl IndoorManifest {
                             continue;
                         }
                     }
-                    'candidates: for gap in [0.15, 0.30, 0.45] {
-                        for along in [0., -0.5, 0.5, -1., 1., 1.5] {
+                    'candidates: for band in 0..3 {
+                        let gap = 0.14 + band as f32 * 0.15 + rng.random_range(0.0..0.08);
+                        for along in side_along(&mut rng) {
                             let p = sofa.position
                                 + rotation
                                     * Vec3::new(
@@ -270,7 +319,7 @@ impl IndoorManifest {
                                         0.,
                                         along * sofa.size.z * 0.5,
                                     );
-                            if self.add(kind, p, size, sofa.yaw, &mut rng).is_some() {
+                            if self.add(kind, p, size, yaw, &mut rng).is_some() {
                                 break 'candidates;
                             }
                         }
@@ -307,11 +356,24 @@ impl IndoorManifest {
             // Search in sofa coordinates: negative Z is the front of the seat.
             // Smaller tables and off-centre placement fit compact alcoves while
             // retaining human-scale furniture, access gaps and floor support.
-            'candidates: for width in [1.05_f32, 0.85] {
-                let size = Vec3::new(width.min(sofa.size.x * 0.8), 0.42, 0.50);
+            'candidates: for width in [
+                rng.random_range(0.95_f32..1.15),
+                rng.random_range(0.70_f32..0.90),
+            ] {
+                let size = Vec3::new(
+                    width.min(sofa.size.x * 0.8),
+                    rng.random_range(0.34..0.48),
+                    rng.random_range(0.40..0.60),
+                );
                 let lateral = (sofa.size.x - size.x) * 0.5;
-                for offset in [0.0, 0.5, -0.5, 1.0, -1.0] {
-                    for gap in [0.35, 0.50, 0.65] {
+                let mut offsets = std::array::from_fn::<_, 5, _>(|i| {
+                    (i as f32 - 2.) * 0.42 + rng.random_range(-0.15..0.15)
+                });
+                offsets.shuffle(&mut rng);
+                let yaw = sofa.yaw + rng.random_range(-0.12..0.12);
+                for offset in offsets {
+                    for band in 0..3 {
+                        let gap = 0.30 + band as f32 * 0.15 + rng.random_range(0.0..0.12);
                         let p = sofa.position
                             + rotation
                                 * Vec3::new(
@@ -320,7 +382,7 @@ impl IndoorManifest {
                                     -(sofa.size.z + size.z) * 0.5 - gap,
                                 );
                         if self
-                            .add(ObjectKind::CoffeeTable, p, size, sofa.yaw, &mut rng)
+                            .add(ObjectKind::CoffeeTable, p, size, yaw, &mut rng)
                             .is_some()
                         {
                             break 'candidates;

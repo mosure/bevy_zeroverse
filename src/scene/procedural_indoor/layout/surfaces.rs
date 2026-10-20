@@ -1,6 +1,18 @@
 //! Seeded work-area transforms and mixed clustered/uniform surface proposals.
 //! All proposals still pass the same true-outline and peer-overlap checks.
 use super::*;
+
+/// Preserve a user's comfortable viewing cone without imposing exact optical
+/// convergence on their seat. Reuse the same adjustment when seating settles.
+pub(super) fn screen_facing_yaw(screen: &IndoorObject, viewer: Vec3) -> f32 {
+    let delta = viewer - screen.position;
+    let range = if screen.kind == ObjectKind::Laptop {
+        0.18
+    } else {
+        0.19
+    };
+    delta.x.atan2(delta.z) + stream(screen.seed, 0x5343_5245_454e_5941).random_range(-range..range)
+}
 /// A desk's equipment and paper use vary continuously before any item is
 /// proposed. Display geometry and every accepted footprint remain independent.
 #[derive(Debug, Clone, serde::Serialize)]
@@ -398,6 +410,7 @@ mod tests {
         let mut arrangements = BTreeSet::new();
         let mut desks_with_monitors = 0;
         let mut dual_desks = 0;
+        let mut facing_angles = Vec::new();
         for seed in 0..96 {
             let scene =
                 IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 0, 0.)
@@ -438,7 +451,8 @@ mod tests {
                     if let Some(chair) = screen.interaction_target.map(|i| &scene.objects[i]) {
                         let forward = Quat::from_rotation_y(screen.yaw) * Vec3::Z;
                         let delta = (chair.position - screen.position).with_y(0.).normalize();
-                        assert!(forward.dot(delta) > 0.9999);
+                        assert!(forward.dot(delta) >= 0.19_f32.cos() - 1e-5);
+                        facing_angles.push(forward.dot(delta).clamp(-1., 1.).acos());
                     }
                 }
             }
@@ -449,6 +463,8 @@ mod tests {
             "accepted monitor desks: {desks_with_monitors}"
         );
         assert!(dual_desks >= 3, "accepted dual desks: {dual_desks}");
+        assert!(facing_angles.len() > 32);
+        assert!(facing_angles.iter().filter(|&&a| a > 0.04).count() > facing_angles.len() / 2);
         assert!(arrangements.contains(&(0, 0)) && arrangements.contains(&(0, 1)));
         assert!(arrangements.contains(&(1, 0)) && arrangements.contains(&(2, 0)));
     }

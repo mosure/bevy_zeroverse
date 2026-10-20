@@ -51,6 +51,17 @@ pub fn parameters(scene: &IndoorManifest) -> FixtureProgram {
     }
 }
 
+/// Circuit construction with deterministic, bounded fixture-level differences.
+/// Geometry and photometry must consume the identical realized aperture.
+pub fn parameters_at(scene: &IndoorManifest, position: Vec3) -> FixtureProgram {
+    let mut p = parameters(scene);
+    let key = position.x.to_bits() as u64 | (position.z.to_bits() as u64) << 32;
+    let mut r = stream(scene.seed ^ key, 0x4649585441504552);
+    p.opening_fraction = (p.opening_fraction + r.random_range(-0.14..0.12)).clamp(0.42, 0.93);
+    p.border_fraction *= r.random_range(0.75..1.20);
+    p
+}
+
 fn cells(size: Vec3) -> (usize, f32, f32) {
     let length = size.x.max(size.z);
     let width = size.x.min(size.z);
@@ -68,7 +79,7 @@ pub fn emitting_area(scene: &IndoorManifest) -> f32 {
 }
 
 pub fn emitting_area_at(scene: &IndoorManifest, position: Vec3) -> f32 {
-    area(parameters(scene), size(scene, position))
+    area(parameters_at(scene, position), size(scene, position))
 }
 
 pub fn size(scene: &IndoorManifest, position: Vec3) -> Vec3 {
@@ -105,7 +116,7 @@ pub fn rotation(scene: &IndoorManifest, position: Vec3) -> Quat {
 
 pub fn geometry(scene: &IndoorManifest, index: usize, position: Vec3) -> Assembly {
     let mut a = Assembly::default();
-    let p = parameters(scene);
+    let p = parameters_at(scene, position);
     let s = size(scene, position);
     let label = format!("lamp#{index}");
     let trim = if super::super::materials::variants::supports(p.trim) {

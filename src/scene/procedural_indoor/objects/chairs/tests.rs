@@ -3,6 +3,38 @@ use super::*;
 use std::collections::BTreeSet;
 
 #[test]
+fn audience_seats_fit_short_and_deep_metric_envelopes_including_folded_states() {
+    let mut folded = 0;
+    for seed in 0..128 {
+        for variant in [10, 11] {
+            let mut o = audit::fixture(ObjectKind::Chair, seed);
+            o.variant = variant;
+            o.size = Vec3::new(
+                0.65 + (seed % 7) as f32 * 0.02,
+                0.84 + (seed % 11) as f32 * 0.025,
+                0.56 + (seed % 13) as f32 * 0.022,
+            );
+            folded += usize::from(is_folded(&o));
+            let a = super::super::build_object(&o);
+            audit::check(&o, &a)
+                .unwrap_or_else(|e| panic!("{e}; variant={variant}; size={:?}", o.size));
+            let boxes = clearance_boxes(&o);
+            for p in a.parts.values().flat_map(|g| &g.positions) {
+                let p = Vec3::from_array(*p);
+                assert!(
+                    boxes
+                        .iter()
+                        .any(|(lo, hi)| p.cmpge(*lo - Vec3::splat(0.003)).all()
+                            && p.cmple(*hi + Vec3::splat(0.003)).all()),
+                    "{variant}/{seed}: {p}"
+                );
+            }
+        }
+    }
+    assert!(folded > 12);
+}
+
+#[test]
 fn chair_and_stool_programs_fit_clearances_replay_and_keep_seating_datum() {
     let mut backs = BTreeSet::new();
     let mut bases = BTreeSet::new();

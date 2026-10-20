@@ -50,6 +50,8 @@ struct Accepted {
     axis_aligned_2deg: usize,
     supported: usize,
     support_centered_2pct: usize,
+    screen_facing_targets: usize,
+    screen_facing_aligned_2deg: usize,
 }
 
 impl Accepted {
@@ -62,6 +64,8 @@ impl Accepted {
             axis_aligned_2deg: 0,
             supported: 0,
             support_centered_2pct: 0,
+            screen_facing_targets: 0,
+            screen_facing_aligned_2deg: 0,
         }
     }
     fn add(&mut self, scene: &IndoorManifest, o: &IndoorObject) {
@@ -71,6 +75,11 @@ impl Accepted {
         let cell = o.size.to_array().map(|v| (v * 100.).round() as i32);
         *self.size_cells_1cm.entry(format!("{cell:?}")).or_default() += 1;
         self.axis_aligned_2deg += usize::from(axis_distance(o.yaw) <= 2_f32.to_radians());
+        if let Some(angle) = screen_facing_error(scene, o) {
+            self.screen_facing_targets += 1;
+            self.screen_facing_aligned_2deg += usize::from(angle.abs() <= 2_f32.to_radians());
+            assert!(angle.abs() <= 0.19001);
+        }
         if let Some(p) = support_coordinates(scene, o) {
             self.supported += 1;
             self.support_centered_2pct += usize::from(p.x.abs().max(p.z.abs()) <= 0.02);
@@ -96,6 +105,10 @@ fn accepted_regularity_audit_covers_programs_and_preserves_geometry() {
             generation_ms.push(started.elapsed().as_secs_f64() * 1000.);
             validation::validate_layout(&scene)
                 .unwrap_or_else(|e| panic!("{profile:?}/{seed}: {e}"));
+            if seed < 2 {
+                validation::validate_geometry(&scene)
+                    .unwrap_or_else(|e| panic!("{profile:?}/{seed} geometry: {e}"));
+            }
             if seed == 0 {
                 let replay =
                     IndoorManifest::generate_with_humans(seed, profile, density, 3, 0.25).unwrap();
@@ -127,6 +140,9 @@ fn accepted_regularity_audit_covers_programs_and_preserves_geometry() {
                         | ObjectKind::Sculpture
                         | ObjectKind::DeskLamp
                         | ObjectKind::Vase
+                        | ObjectKind::FloorLamp
+                        | ObjectKind::ServiceCounter
+                        | ObjectKind::ExtractionHood
                 );
                 if changed && *meshes.get(&kind).unwrap_or(&0) < 32 {
                     audit::check(o, &objects::build_object(o))
@@ -175,6 +191,28 @@ fn accepted_regularity_audit_covers_programs_and_preserves_geometry() {
     assert!(multi_exhibit_showrooms >= 8);
     assert!(mixed_showrooms * 2 > multi_exhibit_showrooms);
     assert_eq!(showroom_kinds.len(), 4);
+    let total = |kind: &str, f: fn(&Accepted) -> usize| -> usize {
+        report.values().filter_map(|k| k.get(kind)).map(f).sum()
+    };
+    let projectors = total("Projector", |s| s.supported);
+    assert!(
+        projectors >= 16,
+        "projector admission collapsed: {projectors}"
+    );
+    assert!(total("Projector", |s| s.support_centered_2pct) * 4 < projectors);
+    let screens = total("Monitor", |s| s.screen_facing_targets)
+        + total("Laptop", |s| s.screen_facing_targets);
+    let aligned = total("Monitor", |s| s.screen_facing_aligned_2deg)
+        + total("Laptop", |s| s.screen_facing_aligned_2deg);
+    assert!(screens > 64 && aligned * 2 < screens);
+    for kind in ["Lectern", "TeachingBoard", "InformationStand", "FloorLamp"] {
+        let count = total(kind, |s| s.count);
+        assert!(count >= 8, "{kind}: admission collapsed");
+        assert!(
+            total(kind, |s| s.axis_aligned_2deg) * 2 < count,
+            "{kind}: fixed heading"
+        );
+    }
 
     let root = std::path::Path::new("out/regularity_review");
     std::fs::create_dir_all(root).unwrap();
@@ -182,6 +220,7 @@ fn accepted_regularity_audit_covers_programs_and_preserves_geometry() {
         "generator_fingerprint": crate::CAPTURE_ENGINE_IDENTITY,
         "policy": POLICY,
         "rooms": 320,
+        "full_room_mesh_checks": 40,
         "seeds_per_profile": [0, 15],
         "density_cycle": [0.35, 0.65, 0.95],
         "cameras_per_room": 3,
@@ -207,15 +246,25 @@ fn regularity_metrics_export_has_explicit_denominators_and_finite_values() {
         std::env::temp_dir().join(format!("zeroverse-regularity-{}", std::process::id()));
     std::fs::create_dir_all(&directory).unwrap();
     let mut numeric = NumericCollector::new(&directory).unwrap();
+    let mut desk_scenes = 0;
+    let mut desks = 0;
     for seed in 0..8 {
         let scene =
             IndoorManifest::generate_with_humans(seed, IndoorLayout::Classroom, 0.65, 0, 0.)
                 .unwrap();
         record(&scene, &mut numeric).unwrap();
+        let count = scene
+            .objects
+            .iter()
+            .filter(|o| !o.neighbor && o.kind == ObjectKind::Desk)
+            .count();
+        desk_scenes += usize::from(count > 0);
+        desks += count;
     }
     let report = numeric.finish().unwrap();
-    assert_eq!(report["regularity_Desk_objects"].count, 8);
-    assert!(report["regularity_Desk_height_m"].count >= 8);
+    assert!(desk_scenes > 0);
+    assert_eq!(report["regularity_Desk_objects"].count, desk_scenes);
+    assert_eq!(report["regularity_Desk_height_m"].count, desks);
     assert!(report["regularity_Desk_equal_size_pair_fraction_1cm"].max <= 1.);
     assert!(report["regularity_Notebook_support_x_fraction"].min >= -0.5);
     assert!(report["regularity_Notebook_support_x_fraction"].max <= 0.5);

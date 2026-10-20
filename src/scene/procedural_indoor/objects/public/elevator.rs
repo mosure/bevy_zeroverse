@@ -123,7 +123,83 @@ pub fn leaf_bounds(p: &ElevatorProgram) -> Vec<([f32; 3], [f32; 3])> {
     leaves
 }
 
+pub fn is_core(o: &IndoorObject) -> bool {
+    o.kind == ObjectKind::Elevator && o.variant == 20
+}
+
+pub fn car_height(o: &IndoorObject) -> f32 {
+    if is_core(o) {
+        (o.size.y - 0.16).min(2.72)
+    } else {
+        o.size.y
+    }
+}
+
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
+    if !is_core(o) {
+        return car(a, o);
+    }
+    let mut inner = o.clone();
+    inner.variant = 0;
+    inner.size = Vec3::new(o.size.x * 0.84, car_height(o), o.size.z * 0.92);
+    car(a, &inner);
+    for ((_, label), g) in &mut a.parts {
+        if label == "control_panel" {
+            for point in &mut g.positions {
+                point[2] += o.size.z * (0.485 - 0.493 * 0.92);
+            }
+        }
+    }
+    let p = parameters(&inner);
+    let l = "wall";
+    // Full-height masonry/service-core enclosure, with a genuine recessed portal.
+    // It replaces the exposed exterior of the car; no wall covers its doorway.
+    for x in [-0.46, 0.46] {
+        panel(a, o, Surface::Paint, l, [x, 0.5, -0.02], [0.08, 1., 0.96]);
+    }
+    panel(a, o, Surface::Paint, l, [0., 0.5, -0.48], [0.84, 1., 0.04]);
+    let left = p.portal_left * 0.84 - 0.016;
+    let right = p.portal_right * 0.84 + 0.016;
+    let portal = p.portal_top * inner.size.y;
+    for (lo, hi) in [(-0.42, left), (right, 0.42)] {
+        if hi > lo {
+            panel(
+                a,
+                o,
+                Surface::Paint,
+                l,
+                [(lo + hi) * 0.5, 0.5, 0.44],
+                [hi - lo, 1., 0.08],
+            );
+        }
+    }
+    a.box_part(
+        Surface::Paint,
+        l,
+        Vec3::new(
+            (left + right) * o.size.x * 0.5,
+            (portal + o.size.y) * 0.5 + 0.008,
+            o.size.z * 0.44,
+        ),
+        Vec3::new(
+            (right - left) * o.size.x,
+            o.size.y - portal - 0.016,
+            o.size.z * 0.08,
+        ),
+        0.002,
+    );
+    // Structural roof closes the shaft over the bounded car; contact planes meet
+    // rather than overlap. The whole volume was reserved before furnishing.
+    a.box_part(
+        Surface::Paint,
+        "ceiling",
+        Vec3::new(0., o.size.y - 0.025, -o.size.z * 0.02),
+        Vec3::new(o.size.x * 0.84, 0.05, o.size.z * 0.88),
+        0.001,
+    );
+}
+
+fn car(a: &mut Assembly, o: &IndoorObject) {
     let p = parameters(o);
     // The car floor ends where the threshold starts: overlapping top faces
     // would flicker even though both slabs fit the elevator envelope.

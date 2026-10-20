@@ -598,6 +598,14 @@ impl IndoorObject {
 
     /// Fitted kitchen carcasses may approach the wall past the general furniture
     /// setback, while remaining clear of the at-most 40 mm projecting skirting.
+    pub(crate) fn overhead_clearance(&self) -> f32 {
+        if super::objects::public::elevator::is_core(self) {
+            0.008
+        } else {
+            0.30
+        }
+    }
+
     pub(crate) fn wall_clearance(&self) -> f32 {
         if super::objects::kitchen::is_island(self) {
             0.90
@@ -1036,7 +1044,7 @@ impl IndoorManifest {
                     Vec2::new(hi.x, lo.z),
                 ]
                 .into_iter()
-                .any(|p| hi.y > e.ceiling_height(self.room_size, p) - 0.30)
+                .any(|p| hi.y > e.ceiling_height(self.room_size, p) - object.overhead_clearance())
         }) {
             return false;
         }
@@ -1375,8 +1383,7 @@ impl IndoorManifest {
                         .total_cmp(&b.position.distance_squared(pos))
                 })
             {
-                let delta = (chair.position - pos).with_y(0.0);
-                obj.yaw = delta.x.atan2(delta.z);
+                obj.yaw = surfaces::screen_facing_yaw(&obj, chair.position);
                 obj.interaction_target = Some(chair.id);
             }
         }

@@ -924,7 +924,21 @@ fn actual_architecture_preserves_door_opening_and_camera_clearance() {
             }
         }
         let luminaire = super::architecture::fixture_positions(&scene)[0];
-        let unsafe_position = luminaire - Vec3::Y * 0.15;
+        // A large ring has empty space at its centre. Probe the real emitting
+        // surface rather than assuming every luminaire is a filled rectangle.
+        let fixture = super::architecture::fixtures::geometry(&scene, 0, luminaire);
+        let g = &fixture
+            .parts
+            .iter()
+            .find(|((surface, _), _)| *surface == super::materials::Surface::Light)
+            .unwrap()
+            .1;
+        let unsafe_position = g.indices[..3]
+            .iter()
+            .map(|&i| Vec3::from_array(g.positions[i as usize]))
+            .sum::<Vec3>()
+            / 3.
+            - Vec3::Y * 0.04;
         assert!(!clear(unsafe_position, CAMERA_CLEARANCE));
         assert!(
             !scene.camera_clear(unsafe_position),

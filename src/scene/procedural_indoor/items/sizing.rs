@@ -9,9 +9,13 @@ pub(crate) fn loose(kind: ObjectKind, r: &mut impl Rng) -> Option<Vec3> {
             let d = r.random_range(0.065..0.115);
             Vec3::new(
                 d * r.random_range(1.22..1.40),
-                d * r.random_range(0.85..1.30),
+                d * r.random_range(0.65..1.60),
                 d,
             )
+        }
+        Vase => {
+            let d = r.random_range(0.065..0.23);
+            Vec3::new(d, d * r.random_range(0.65..2.8), d)
         }
         CoffeeCup => {
             let d = r.random_range(0.060..0.100);
@@ -19,7 +23,7 @@ pub(crate) fn loose(kind: ObjectKind, r: &mut impl Rng) -> Option<Vec3> {
         }
         WaterBottle => {
             let d = r.random_range(0.050..0.100);
-            Vec3::new(d, d * r.random_range(2.8..3.6), d)
+            Vec3::new(d, d * r.random_range(1.9..4.4), d)
         }
         SodaCan => {
             let d = r.random_range(0.053..0.073);

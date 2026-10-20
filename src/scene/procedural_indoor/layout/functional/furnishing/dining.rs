@@ -4,6 +4,9 @@ impl IndoorManifest {
         let p = self.assembly_diagnostics.programs[index].clone();
         let center = (p.min + p.max) * 0.5;
         let communal = p.activity == IndoorLayout::Cafeteria;
+        // Service circulation is a first-class relationship. Reserve it before
+        // seating; adding it afterward almost always loses to occupied furniture.
+        self.serving_queue(index, r);
         let pitch = r.random_range(2.55..3.15);
         let stagger = r.random_range(-0.45..0.45);
         let setback = r.random_range(3.15..3.65);
@@ -37,7 +40,8 @@ impl IndoorManifest {
             }
         }
         if !communal {
-            let size = Vec3::new((p.max.y - p.min.y - 3.5).min(2.5), 1.1, 0.68);
+            let mut size = geometry::dimensions(ObjectKind::Banquette, r.random());
+            size.x = size.x.min(p.max.y - p.min.y - 3.5);
             self.public_fit(
                 index,
                 ObjectKind::Banquette,
@@ -60,10 +64,20 @@ impl IndoorManifest {
             .cloned()
             .collect();
         for counter in counters {
-            for (offset, kind) in [
-                (-0.23, ObjectKind::CoffeeMaker),
-                (0.24, ObjectKind::DrinkDispenser),
-            ] {
+            let appliances = if communal {
+                [
+                    (0.24, ObjectKind::DrinkDispenser),
+                    (-0.23, ObjectKind::CoffeeMaker),
+                ]
+            } else {
+                [
+                    (-0.23, ObjectKind::CoffeeMaker),
+                    (0.24, ObjectKind::DrinkDispenser),
+                ]
+            };
+            // Required service equipment gets the clear worktop first; an optional
+            // companion must not consume the only feasible footprint.
+            for (offset, kind) in appliances {
                 let size = if kind == ObjectKind::CoffeeMaker {
                     Vec3::new(
                         r.random_range(0.29..0.44),
@@ -73,45 +87,35 @@ impl IndoorManifest {
                 } else {
                     geometry::dimensions(kind, r.random())
                 };
-                self.program_prop(
-                    &counter,
-                    kind,
-                    Vec3::new(
-                        counter.size.x * (offset + r.random_range(-0.045..0.045)),
-                        0.,
-                        counter.size.z * r.random_range(-0.12..0.12),
-                    ),
-                    size,
-                    r.random_range(-0.14..0.14),
-                    r,
-                );
-            }
-        }
-        // A bounded serving queue alongside the service zone; circulation and
-        // the public/staff sides are exported separately from obstacle bounds.
-        let queue = Reservation {
-            role: ReservationRole::Queue,
-            min: Vec2::new(p.min.x, p.min.y + 1.45),
-            max: Vec2::new(center.x - 0.80, p.min.y + 2.55),
-        };
-        if queue.min.cmplt(queue.max).all()
-            && self.objects.iter().filter(|o| o.solid).all(|o| {
-                let (a, b) = o.bounds();
-                !queue.overlaps(a, b)
-            })
-        {
-            self.assembly_diagnostics.programs[index]
-                .reservations
-                .push(queue.clone());
-            if communal || r.random_bool(0.50) {
-                self.public_fit(
-                    index,
-                    ObjectKind::QueueBarrier,
-                    Vec3::new((queue.min.x + queue.max.x) * 0.5, 0., queue.max.y + 0.22),
-                    Vec3::new((queue.max.x - queue.min.x).min(1.8), 0.92, 0.30),
-                    0.,
-                    r,
-                );
+                use crate::scene::procedural_indoor::placement::SurfacePattern;
+                let pattern = SurfacePattern::sample(r);
+                let half = counter.size.xz() * 0.5;
+                for attempt in 0..16 {
+                    let yaw = r.random_range(-0.18..0.18);
+                    let position = if attempt == 0 {
+                        Vec2::new(
+                            counter.size.x * (offset + r.random_range(-0.045..0.045)),
+                            counter.size.z * r.random_range(-0.12..0.12),
+                        )
+                    } else {
+                        let Some(proposal) =
+                            pattern.propose((-half, half), size.xz(), yaw, 0.02, r)
+                        else {
+                            continue;
+                        };
+                        proposal.center
+                    };
+                    if self.program_prop(
+                        &counter,
+                        kind,
+                        Vec3::new(position.x, 0., position.y),
+                        size,
+                        yaw,
+                        r,
+                    ) {
+                        break;
+                    }
+                }
             }
         }
     }

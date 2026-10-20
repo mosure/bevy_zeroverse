@@ -31,8 +31,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     match o.kind {
         ObjectKind::CoffeeMaker => coffee(a, o, &p),
         ObjectKind::Kettle => kettle(a, o, &p),
-        ObjectKind::Vase => vessel(a, o, &p, false),
-        ObjectKind::Bowl => vessel(a, o, &p, true),
+        ObjectKind::Vase | ObjectKind::Bowl => super::vessels::build(a, o),
         _ => unreachable!("non-hospitality object"),
     }
 }
@@ -196,42 +195,4 @@ fn kettle(a: &mut Assembly, o: &IndoorObject, p: &HospitalityProgram) {
         Vec3::new(s.x.min(s.z) * 0.035, s.y * 0.013, s.z * 0.01),
         Transform::from_xyz(0., s.y * 0.795, s.z * 0.431),
     );
-}
-
-fn vessel(a: &mut Assembly, o: &IndoorObject, p: &HospitalityProgram, bowl: bool) {
-    let s = o.size;
-    let label = o.kind.class_name();
-    let r = s.x.min(s.z) * 0.48;
-    let lip = r * 0.06;
-    let rim = if bowl { r } else { r * p.neck };
-    let widest = if bowl { 0.80 } else { 0.42 };
-    let profile = [
-        (0., 0.),
-        (r * p.taper * 0.65, 0.),
-        (r * p.belly, s.y * widest),
-        (rim, s.y),
-        (rim - lip, s.y),
-        (r * p.belly - lip, s.y * widest),
-        (r * p.taper * 0.65 - lip, s.y * 0.07),
-        (0., s.y * 0.07),
-    ];
-    if p.style == 0 {
-        a.part(Surface::Ceramic, label).fluted_lathe(
-            &profile,
-            64,
-            0.055,
-            p.flutes,
-            Transform::IDENTITY,
-        );
-    } else {
-        a.part(
-            if p.style == 3 {
-                Surface::ContainerGlass
-            } else {
-                Surface::Ceramic
-            },
-            label,
-        )
-        .lathe(&profile, 32, Transform::IDENTITY);
-    }
 }

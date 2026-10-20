@@ -1,5 +1,12 @@
 //! Floor lamp supports, shades and emitter share one metric program.
 use super::*;
+
+/// Round base and shade proportions remain coupled, but not to one catalog size.
+pub fn dimensions(seed: u64) -> Vec3 {
+    let mut r = stream(seed, 0x4c41_4d50_5349_5a45);
+    let diameter = r.random_range(0.34..0.67);
+    Vec3::new(diameter, r.random_range(1.18..1.95), diameter)
+}
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct LampProgram {
     pub support: u8,

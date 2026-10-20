@@ -1,6 +1,7 @@
 use super::*;
 mod dining;
 mod exhibition;
+mod queue;
 mod teaching;
 mod transit;
 mod variation;
@@ -130,45 +131,43 @@ impl IndoorManifest {
             let mut cursor = center.x - total * 0.5;
             for (i, &kind) in required.iter().enumerate() {
                 let mut size = sizes[i];
-                if kind == ObjectKind::Elevator {
-                    size.y = 2.50;
-                }
                 let mut x = cursor + size.x * 0.5;
                 cursor += size.x + 0.30;
+                let yaw = variation::anchor_yaw(kind, &mut r);
                 if kind == ObjectKind::TeachingBoard {
-                    x = center.x;
-                    size.x = (max.x - min.x) * 0.40;
+                    x = center.x + (max.x - min.x) * r.random_range(-0.08..0.08);
+                    size.x = size.x.min((max.x - min.x) * r.random_range(0.27..0.46));
                 }
                 if kind == ObjectKind::Lectern {
-                    x = center.x - (max.x - min.x) * 0.29;
+                    let side = if r.random_bool(0.5) { -1. } else { 1. };
+                    x = center.x + side * (max.x - min.x) * r.random_range(0.23..0.34);
                 }
                 let z = min.y
                     + size.z * 0.5
                     + if kind == ObjectKind::ServiceCounter {
                         1.25
                     } else {
-                        0.2
+                        r.random_range(0.14..0.48)
                     };
                 let position = Vec3::new(x, 0., z);
                 if self
-                    .public_fit(index, kind, position, size, 0., &mut r)
+                    .public_fit(index, kind, position, size, yaw, &mut r)
                     .is_none()
                 {
-                    'search: for row in 0..10 {
-                        for col in 0..10 {
-                            let span = max - min - size.xz() - Vec2::splat(0.04);
-                            if span.min_element() < 0. {
-                                break 'search;
-                            }
-                            let q = min
-                                + size.xz() * 0.5
-                                + Vec2::splat(0.02)
-                                + span * Vec2::new(col as f32 / 9., row as f32 / 9.);
+                    let (s, c) = yaw.sin_cos();
+                    let extent = Vec2::new(
+                        size.x * c.abs() + size.z * s.abs(),
+                        size.x * s.abs() + size.z * c.abs(),
+                    );
+                    let span = max - min - extent - Vec2::splat(0.04);
+                    if span.min_element() >= 0. {
+                        for uv in variation::recovery_points(10, &mut r) {
+                            let q = min + extent * 0.5 + Vec2::splat(0.02) + span * uv;
                             if self
-                                .public_fit(index, kind, Vec3::new(q.x, 0., q.y), size, 0., &mut r)
+                                .public_fit(index, kind, Vec3::new(q.x, 0., q.y), size, yaw, &mut r)
                                 .is_some()
                             {
-                                break 'search;
+                                break;
                             }
                         }
                     }
@@ -205,38 +204,46 @@ impl IndoorManifest {
                     | IndoorLayout::Cafeteria
                     | IndoorLayout::Classroom
                     | IndoorLayout::LectureHall
-            ) {
-                'capacity: for row in 0..8 {
-                    for col in 0..8 {
-                        if self.objects[first..]
-                            .iter()
-                            .filter(|o| o.kind == ObjectKind::Chair)
-                            .count()
-                            >= 2
-                        {
-                            break 'capacity;
-                        }
-                        let q = min
-                            + Vec2::splat(0.70)
-                            + (max - min - Vec2::splat(1.4))
-                                * Vec2::new(col as f32 / 7., row as f32 / 7.);
-                        if matches!(
-                            zone.activity,
-                            IndoorLayout::Classroom | IndoorLayout::LectureHall
+            ) && self.objects[first..]
+                .iter()
+                .filter(|o| o.kind == ObjectKind::Chair)
+                .count()
+                < 2
+            {
+                let collection = variation::Collection::sample(self.seed, zone_index);
+                for uv in variation::recovery_points(8, &mut r) {
+                    if self.objects[first..]
+                        .iter()
+                        .filter(|o| o.kind == ObjectKind::Chair)
+                        .count()
+                        >= 2
+                    {
+                        break;
+                    }
+                    let q = min + Vec2::splat(0.70) + (max - min - Vec2::splat(1.4)) * uv;
+                    if matches!(
+                        zone.activity,
+                        IndoorLayout::Classroom | IndoorLayout::LectureHall
+                    ) {
+                        let size = collection.chair(&mut r);
+                        let yaw = r.random_range(-0.12..0.12);
+                        if let Some(id) = self.public_fit(
+                            index,
+                            ObjectKind::Chair,
+                            Vec3::new(q.x, 0., q.y),
+                            size,
+                            yaw,
+                            &mut r,
                         ) {
-                            if let Some(id) = self.public_fit(
-                                index,
-                                ObjectKind::Chair,
-                                Vec3::new(q.x, 0., q.y),
-                                Vec3::new(0.72, 1.04, 0.72),
-                                0.,
-                                &mut r,
-                            ) {
-                                self.objects[id].variant = 10;
-                            }
-                        } else {
-                            self.dining_table(index, Vec3::new(q.x, 0., q.y), 0.90, 0., &mut r);
+                            self.objects[id].variant = if zone.activity == IndoorLayout::LectureHall
+                            {
+                                11
+                            } else {
+                                10
+                            };
                         }
+                    } else {
+                        self.dining_table(index, Vec3::new(q.x, 0., q.y), 0.90, 0., &mut r);
                     }
                 }
             }
@@ -257,59 +264,78 @@ impl IndoorManifest {
     ) -> Option<usize> {
         // Deterministic local alternatives, all subject to the same floor/portal,
         // physical-occupancy and circulation constraints as the rest of the engine.
-        for delta in [
-            Vec2::ZERO,
-            Vec2::new(0., 0.35),
-            Vec2::new(-0.45, 0.),
-            Vec2::new(0.45, 0.),
-            Vec2::new(0., 0.70),
-            Vec2::new(-0.85, 0.35),
-            Vec2::new(0.85, 0.35),
-        ] {
-            let p = pos + Vec3::new(delta.x, 0., delta.y);
-            let mut o = self.floor_candidate(kind, p, size, yaw, rng);
-            o.finish_seed = Some(self.seed.wrapping_add(index as u64));
-            let (a, b) = o.bounds();
-            let program = &self.assembly_diagnostics.programs[index];
-            if a.x < program.min.x
-                || b.x > program.max.x
-                || a.z < program.min.y
-                || b.z > program.max.y
-                || b.y > self.ceiling_height(o.position.xz()) - 0.30
-                || !self.placement_clear(&o, 0.035)
-            {
-                self.assembly_diagnostics.programs[index].rejected_candidates += 1;
-                continue;
-            }
-            let id = o.id;
-            let operational = match kind {
-                ObjectKind::ServiceCounter => Some(Reservation {
-                    role: ReservationRole::StaffAccess,
-                    min: Vec2::new(a.x, a.z - 1.05),
-                    max: Vec2::new(b.x, a.z - 0.05),
-                }),
-                ObjectKind::Elevator => Some(transit::door_approach(&o)),
-                _ => None,
-            };
-            if let Some(route) = &operational {
-                if !(route.min.cmpge(program.min).all()
-                    && route.max.cmple(program.max).all()
-                    && self.objects.iter().filter(|o| o.solid).all(|o| {
-                        let (a, b) = o.bounds();
-                        !route.overlaps(a, b)
-                    }))
+        let core_passes = if kind == ObjectKind::Elevator { 2 } else { 1 };
+        let alternatives = variation::local_alternatives(rng);
+        for pass in 0..core_passes {
+            for delta in alternatives {
+                let p = pos + Vec3::new(delta.x, 0., delta.y);
+                let mut o = self.floor_candidate(kind, p, size, yaw, rng);
+                o.finish_seed = Some(self.seed.wrapping_add(index as u64));
+                if kind == ObjectKind::Elevator {
+                    o.variant = 20;
+                    // A low soffit may prevent the full-height shaft, but the
+                    // fallback still needs a masonry enclosure and car headroom.
+                    o.size.y = o.size.y.max(2.66);
+                }
+                if kind == ObjectKind::Elevator && pass == 0 {
+                    let (lo, hi) = o.bounds();
+                    let roof = [
+                        lo.xz(),
+                        hi.xz(),
+                        Vec2::new(lo.x, hi.z),
+                        Vec2::new(hi.x, lo.z),
+                    ]
+                    .into_iter()
+                    .map(|p| self.ceiling_height(p))
+                    .fold(f32::INFINITY, f32::min);
+                    o.size.y = roof - o.position.y - 0.012;
+                    o.variant = 20;
+                    if o.size.y < 2.70 {
+                        continue;
+                    }
+                }
+                let (a, b) = o.bounds();
+                let program = &self.assembly_diagnostics.programs[index];
+                if a.x < program.min.x
+                    || b.x > program.max.x
+                    || a.z < program.min.y
+                    || b.z > program.max.y
+                    || b.y > self.ceiling_height(o.position.xz()) - o.overhead_clearance()
+                    || !self.placement_clear(&o, 0.035)
                 {
                     self.assembly_diagnostics.programs[index].rejected_candidates += 1;
                     continue;
                 }
+                let id = o.id;
+                let operational = match kind {
+                    ObjectKind::ServiceCounter => Some(Reservation {
+                        role: ReservationRole::StaffAccess,
+                        min: Vec2::new(a.x, a.z - 1.05),
+                        max: Vec2::new(b.x, a.z - 0.05),
+                    }),
+                    ObjectKind::Elevator => Some(transit::door_approach(&o)),
+                    _ => None,
+                };
+                if let Some(route) = &operational {
+                    if !(route.min.cmpge(program.min).all()
+                        && route.max.cmple(program.max).all()
+                        && self.objects.iter().filter(|o| o.solid).all(|o| {
+                            let (a, b) = o.bounds();
+                            !route.overlaps(a, b)
+                        }))
+                    {
+                        self.assembly_diagnostics.programs[index].rejected_candidates += 1;
+                        continue;
+                    }
+                }
+                self.objects.push(o);
+                if let Some(route) = operational {
+                    self.assembly_diagnostics.programs[index]
+                        .reservations
+                        .push(route);
+                }
+                return Some(id);
             }
-            self.objects.push(o);
-            if let Some(route) = operational {
-                self.assembly_diagnostics.programs[index]
-                    .reservations
-                    .push(route);
-            }
-            return Some(id);
         }
         None
     }

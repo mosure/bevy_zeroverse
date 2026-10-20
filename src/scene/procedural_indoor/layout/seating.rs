@@ -123,8 +123,8 @@ impl IndoorManifest {
                 }
                 self.objects[id] = moved.clone();
                 for screen in &screens {
-                    let delta = moved.position - screen.position;
-                    self.objects[screen.id].yaw = delta.x.atan2(delta.z);
+                    self.objects[screen.id].yaw =
+                        surfaces::screen_facing_yaw(screen, moved.position);
                 }
                 let clear_screens = screens.iter().all(|s| {
                     self.prop_clear(

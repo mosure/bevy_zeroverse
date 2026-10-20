@@ -25,11 +25,21 @@ conditions, but does not establish transfer for this generator.
 | Desktop input devices | The monitor-relative branch discarded earlier position variation and imposed fixed 0.27 m reach and 0.26 m mouse offset. | A shared, continuously sampled reach arrangement plus independent small perturbations; sampled keyboard/mouse dimensions. Devices remain associated with their monitor. |
 | Workstation contents | Optional clutter thinning independently removed members of already-selected monitor/laptop arrangements, disproportionately removing dual-screen setups. | Workspace affinity chooses the arrangement; each screen then passes the unchanged physical support gate. Loose clutter density still controls accessories. |
 | RNG domains | Zone service transforms reused streams 5810/5811, also used by wall composition. | A dedicated namespace separates zone transforms from wall composition. Seed replay remains deterministic for the current generator identity. |
-| Activity recovery | A library could meet its generic furniture-count minimum without shelving. | Missing library storage is repaired independently of the generic count, with unchanged placement clearance. |
+| Activity recovery | Sparse-room repairs introduced fixed coffee/side-table, storage and bin dimensions, centered-first proposals and fixed gaps. A library could meet its generic count without shelving. | Repair products sample ergonomic metric dimensions before admission. Seeded lateral order, radial phase, offsets and gaps retain support/clearance checks and bounded attempts. Missing library storage is repaired independently of the generic count. |
+| Projector admission | An exact-center first proposal won before random proposals were evaluated. | All proposals use continuous support-local positions; one product size is retained through a support's attempts. Optical-axis, support and beam-clearance checks remain active. |
+| Screen convergence | Monitor/laptop normals pointed exactly at the associated chair, including after chair tucking. | A seed-stable ergonomic yaw offset survives seating adjustments and physical admission. Monitor offsets are bounded by 0.19 radians, laptop offsets by 0.18 radians. |
+| Public anchors and recovery | Movable teaching/presentation furniture always faced +Z; recovery started at the same corner of an exact lattice. | Category-appropriate orientation and offsets, shuffled stratified recovery proposals, and rotationally sampled local alternatives. Service counters and elevator approaches retain their operational orientation. |
+| Gallery/showroom fields | Station centers repeated two narrow rails, with a small amount of jitter. | Continuous placement across the actual aisle-bounded available fields, with depth stratification to limit clumping and unchanged circulation reservations. This broadens fields, not aisle topology. |
+| Floor lamps | Fixed dimensions and room-axis yaw survived richer lamp construction. | Metric footprint/height distributions in both initial furnishing and activity repair, with independent yaw. Emitter placement still derives from the same physical lamp program. |
+| Service construction | Counter and hood geometry varied little at a fixed admitted envelope. | Open preparation frames, storage carcasses, slatted and tapered counter bodies; box, tapered, elliptical and glass hood canopies with variable flues and filter/light layouts. Counter tops preserve their full rectangular support contract. |
 
 The implementation does not resample materials or geometry independently per view.
 The updated capture identity records the changed furnishing, tabletop and public
 program contracts. Existing unpublished work is retained.
+
+The category-specific construction, scale, service-core and supported-content
+qualification is documented in [Public furnishings and small-object regularity](public_object_regularity.md).
+It measures actual fixed-envelope meshes and accepted room dimensions separately.
 
 ## Diagnostics available in dataset metrics
 
@@ -43,6 +53,7 @@ claim to be visibility-weighted image statistics.
   Self pairs are excluded. Counts and fractions are both exported; undefined
   pair fractions for singleton categories are omitted.
 - Fraction of yaw angles within **2 degrees** of a room X/Z axis.
+- Monitor/laptop facing error relative to the actual associated chair, with explicit linked-target and within-2-degree counts. Unlinked screens do not enter this denominator.
 - Actual support-local X/Z coordinates divided by support width/depth, and
   relative yaw. Centered placement means both absolute coordinates are at most
   **0.02**; supported-object counts supply its denominator.
@@ -72,62 +83,68 @@ This sampling protocol is a generator diagnostic, not evidence that a model uses
 multi-view fusion or transfers to photographs. Manifest timing excludes mesh
 construction, rendering and training.
 
-Measured accepted distributions:
+Measured accepted distributions for the current generator (320 rooms):
 
 | Program/category | Objects | Distinct XYZ size bins at 1 cm | Within 2° of a room axis |
 |---|---:|---:|---:|
-| Classroom desks | 50 | 49 | 10 / 50 |
-| Classroom chairs | 50 | 45 | 13 / 50 |
-| Cafe tables | 42 | 42 | 8 / 42 |
-| Cafeteria tables | 62 | 62 | 8 / 62 |
+| Classroom Desk | 31 | 29 | 3 / 31 |
+| Classroom Chair | 52 | 48 | 6 / 52 |
+| Cafe Table | 37 | 36 | 5 / 37 |
+| Cafeteria Table | 54 | 54 | 7 / 54 |
 
-All 16 showroom samples contained multiple plinth exhibits; 15 contained more
-than one exhibit class. Their exhibits comprised 17 sculptures, 14 vases,
-15 laptops and 9 desk lamps. Across the full sample, 2 of 233 notebooks and
-9 of 84 sculptures were centered within 2% of both support dimensions.
-These statistics count geometry envelopes/placements, not unique rendered images.
+| Category | Accepted objects | Within 2° of a room axis |
+|---|---:|---:|
+| Lectern | 37 | 4 / 37 |
+| TeachingBoard | 37 | 6 / 37 |
+| InformationStand | 67 | 2 / 67 |
+| FloorLamp | 9 | 65.3 / 9 |
 
-Validation on the final source:
+Of 33 supported projectors, 0 were centered within 2% of both support dimensions. Of 641 screens linked to a chair, 135 were aligned within 2 degrees of it; all retained the existing forward-facing validation gate. Accepted floor-lamp heights span 1.219–1.837 m across 8 centimetre-size cells.
 
-- 320 audit configurations and a separate 1,280-configuration sweep of all 20
-  programs at density 0/1, seeds 0–31, eight cameras.
-- 341 representative changed-object mesh checks, plus the existing 12-room full
-  geometry test and 128-seed-per-category loose-item geometry test.
-- 33 native tests passed across the focused groups: accepted distributions,
-  functional programs, known recovery seeds, workspaces, sizing, geometry,
-  independent appearance/camera factors, metrics/calibration, wall art and motion
-  admission. One older fixture now checks that its activity surface serves real
-  seating instead of requiring the earlier grammar's exact first-table category.
-- `cargo clippy --locked --all-targets -- -D warnings`, formatting and diff checks
-  passed. `cargo check --locked --lib --target wasm32-unknown-unknown
-  --no-default-features --features web,human_motion` passed.
+15 of 16 showroom samples contained multiple plinth exhibits; 12 contained more than one exhibit class. All 320 layout checks and 40 full-room mesh checks passed.
 
-The 320-room CPU manifest sample measured median **15.36 ms**, p95 **85.12 ms**,
-mean **26.96 ms**, maximum **481.67 ms** on the shared training host. This is a
-single-thread diagnostic including camera/person planning, with other bounded
-checks running concurrently. It is not a matched performance comparison or an
-end-to-end rendering throughput claim. The sampling adds no GPU passes or texture
-budget; admission remains bounded, and diagnostics only run on explicit export.
+The fixed-envelope service audit uses 64 seeds per category. At a 0.015 normalized six-view depth difference, ordered greedy coverage produced:
 
-Local, ignored artifacts include `accepted.json`, `focused-validation.json`,
-`extremes.log`, and the inspected `arrangements.svg`/`arrangements.png` plan grid
-under `out/regularity_review/`. The grid shows actual admitted envelopes, not RGB
-renders; its consecutive seeds are not selected by appearance.
+| Category | Representatives / 64 | Median construction (µs) | Triangle range |
+|---|---:|---:|---:|
+| ServiceCounter | 42 | 31.2 | 300–3588 |
+| ExtractionHood | 64 | 42.1 | 476–1124 |
+| FloorLamp | 64 | 65.3 | 1884–4120 |
+
+Manifest preparation measured 15.66 ms median / 79.11 ms p95 on the shared i9-12900K host. This excludes mesh construction, render, readback and training. Concurrent workloads were active; this is a bounded timing diagnostic, not an isolated throughput comparison.
+
+These counts describe admitted dimensions, orientations and actual geometry, not unique rendered images or an effective dataset size. The CPU preview in `out/regularity_review/service-geometry.png` holds each category’s envelope fixed. Geometry measurements exclude texture and PBR appearance.
+
+Qualification logs and JSON remain local under `out/regularity_review/`. Older render/plan grids must not be interpreted as current-source evidence; source-linked render receipts identify the scope of each illustrative capture.
+
+Validation: **85 targeted native regressions plus the floor-lamp emitter test passed**;
+1,344 metric-extreme/replay cases, the 192-sample fixed-envelope service audit and
+a separate 240-mesh public-category scan passed. Strict workspace Clippy covers
+all targets with CUDA IPC/tensor-fusion features; the WASM `web,human_motion`
+build check passed. Browser runtime was not exercised in this pass.
+
+Twelve illustrative counter/hood samples rendered through the production PBR
+path using software Vulkan, with shadows and automatic 2× SSAA. The harness
+checked color/normal sizes and finiteness, semantic presence and the expected
+object-box count. Color captures and representative matched normal maps were
+visually reviewed. The gallery is local at `out/regularity_review/index.html`;
+its source-linked receipt is `qualification.json`. These small studio captures
+are neither a photographic-realism benchmark nor a GPU throughput measurement.
 
 ## Remaining risks and next tests
 
-1. **Constraint-induced structure.** Reserved routes, wall setbacks, fixed recovery
-   search directions and anchored service units still shape accepted distributions.
+1. **Constraint-induced structure.** Reserved routes, wall setbacks, recovery
+   admission and anchored service units still shape accepted distributions.
    Measure them conditionally. Do not widen priors by accepting collisions or
    replacing every failed station with a smaller stereotyped object. Public
-   furnishing still largely starts from two aisle-bounded bands. Jitter does not
+   furnishing still uses two aisle-bounded fields. Broader field coverage does not
    replace higher-level topology diversity: alternate aisle counts, pods, perimeter
    seating and asymmetric service arrangements remain useful future extensions.
    Some classroom samples remain sparse after admission; monitor realized capacity
    alongside geometric variance.
-2. **Sensor/target coupling.** Screens currently face the associated chair exactly;
-   cameras intentionally favor usable overlap and clear floor regions. Targeted
-   ergonomic offsets and alternate camera rigs deserve controlled experiments.
+2. **Sensor/target coupling.** Screens retain a bounded ergonomic relation to a
+   chair; cameras intentionally favor usable overlap and clear floor regions.
+   Alternate camera rigs and ergonomic holdouts deserve controlled experiments.
    Completely disjoint camera pairs are not a useful default for fusion.
 3. **Finite appearance vocabulary.** Material variants use a bounded per-scene
    atlas (12 slots, two or three structural programs for several substrates).
@@ -139,7 +156,12 @@ renders; its consecutive seeds are not selected by appearance.
    human activity and object catalogs remain correlated with room function.
    These are partly real relationships. Training/validation should include
    compositional holdouts, not only unseen integer seeds.
-5. **Metric dimensions versus world coordinates.** Real standard products and
+5. **Thin product programs.** Simple manufactured products and supplies still
+   have limited silhouettes in fixed-envelope scans (for example cans, boards,
+   bread and towels). Shape coverage alone cannot distinguish appropriate
+   product standardization from a harmful shortcut. Prioritize actual pose,
+   support, thickness, fold and content programs before adding arbitrary noise.
+6. **Metric dimensions versus world coordinates.** Real standard products and
    human ergonomics are useful priors, but exact dimensions must not dominate
    every program. Retain metric consistency across objects, cameras and labels;
    arbitrary per-object or per-view scaling would invalidate supervision.
@@ -158,5 +180,5 @@ appearance/motion variants and evaluate:
 - RGB-only task inputs. Semantic colors, object IDs, seed, program/profile IDs and
   exact scene metadata are supervision/analysis artifacts, not accidental inputs.
 
-No downstream training, RGB render study or real-world transfer benchmark is
-claimed by this CPU audit.
+No downstream training or real-world transfer benchmark is claimed by these diagnostics.
+Illustrative PBR object captures, when generated, qualify their recorded samples only.

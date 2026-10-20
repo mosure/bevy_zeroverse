@@ -277,11 +277,20 @@ pub(crate) fn fixture_geometry(a: &mut Assembly, scene: &IndoorManifest) {
 
 pub(crate) fn fixture_size(scene: &IndoorManifest) -> Vec3 {
     if let Some(program) = &scene.program {
-        return Vec3::new(
-            program.fixture_size.x,
-            fixtures::parameters(scene).depth_m,
-            program.fixture_size.y,
-        );
+        let p = fixtures::parameters(scene);
+        let mut r = stream(scene.seed, 0x4649585453495a45);
+        let footprint = match p.shape {
+            fixtures::FixtureShape::Ring => {
+                // A ring is a luminaire in its own right, not a row of small
+                // circles fitted into the narrow side of a fluorescent housing.
+                let diameter = program.fixture_size.x * r.random_range(0.75..1.35);
+                Vec2::splat(diameter.clamp(0.42, 1.90))
+            }
+            fixtures::FixtureShape::Drum => Vec2::splat(r.random_range(0.28..0.82)),
+            fixtures::FixtureShape::Downlight => Vec2::splat(r.random_range(0.12..0.34)),
+            _ => program.fixture_size,
+        };
+        return Vec3::new(footprint.x, p.depth_m, footprint.y);
     }
     match scene.lighting_design % 3 {
         0 => Vec3::new(0.60, 0.055, 0.60),

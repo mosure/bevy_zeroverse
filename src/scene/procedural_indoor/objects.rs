@@ -20,6 +20,7 @@ pub mod standing_lamp;
 pub mod storage;
 pub mod tables;
 pub mod utilities;
+pub mod vessels;
 pub mod wall;
 use super::{
     geometry::Geometry,
