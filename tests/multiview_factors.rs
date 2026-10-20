@@ -9,6 +9,7 @@ use bevy_zeroverse::scene::procedural_indoor::{
 fn four_view_mixtures_and_handheld_paths_keep_the_requested_strata() {
     for seed in 0..16 {
         for handheld in [None, Some(HandheldSettings::default())] {
+            let handheld_enabled = handheld.is_some();
             let mut scene =
                 IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 0, 0.25)
                     .unwrap();
@@ -25,9 +26,19 @@ fn four_view_mixtures_and_handheld_paths_keep_the_requested_strata() {
                 serde_json::to_value(settings.overlap_mixture.as_ref().unwrap().targets(seed, 4))
                     .unwrap();
             scene
-                .resample_cameras(4, settings, if seed % 2 == 0 { 1.6 } else { 0.75 })
-                .unwrap();
+                .resample_cameras(4, settings.clone(), if seed % 2 == 0 { 1.6 } else { 0.75 })
+                .unwrap_or_else(|error| {
+                    panic!("seed={seed}, handheld={handheld_enabled}: {error}")
+                });
             validate_layout(&scene).unwrap();
+            // The previously exhausted mixed rig must replay without redrawing
+            // difficult pair classes or changing geometry and motion roles.
+            if seed == 2 {
+                let mut replay = scene.clone();
+                replay.resample_cameras(4, settings, 1.6).unwrap();
+                assert_eq!(replay.cameras, scene.cameras);
+                assert_eq!(replay.camera_pair_targets().len(), 3);
+            }
             assert_eq!(scene.cameras.len(), 4);
             assert_eq!(
                 serde_json::to_value(scene.camera_pair_targets()).unwrap(),

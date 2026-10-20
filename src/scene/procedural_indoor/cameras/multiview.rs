@@ -252,14 +252,7 @@ impl IndoorManifest {
             .map_or_else(Vec::new, |m| m.targets(self.seed, count));
         // Reserve constrained shared-content views before placing negatives.
         // Class assignments and final camera indices remain fixed for this seed.
-        let mut placement_order: Vec<_> = (1..count).collect();
-        if !targets.is_empty() {
-            placement_order.sort_by_key(|&index| match targets[index - 1].class {
-                super::mixture::OverlapClass::High => 0,
-                super::mixture::OverlapClass::Low => 1,
-                super::mixture::OverlapClass::None => 2,
-            });
-        }
+        let placement_order = super::mixture::placement_order(&targets, count);
         // Retry the whole set if an anchor lies in a cramped cul-de-sac. The
         // budget is bounded and thresholds are never silently relaxed.
         let mut most_placed = 0;
@@ -423,14 +416,19 @@ impl IndoorManifest {
                             motion.target_end += offset;
                         }
                     }
-                    super::program::retarget(
-                        self,
-                        &mut candidate,
-                        &views,
-                        policy.target_variation,
-                        count,
-                        &mut rng,
-                    );
+                    // Shared-surface retargeting would undo the independent
+                    // heading requested for a low/negative pair. Keep the same
+                    // oracle below, but propose from the requested stratum.
+                    if target.is_none_or(|t| t.class == super::mixture::OverlapClass::High) {
+                        super::program::retarget(
+                            self,
+                            &mut candidate,
+                            &views,
+                            policy.target_variation,
+                            count,
+                            &mut rng,
+                        );
+                    }
                     if policy.target_variation > 0. {
                         viewpoint.level_gaze(&mut candidate, &mut rng);
                     }
@@ -506,21 +504,14 @@ impl IndoorManifest {
             }
             if self.cameras.len() == count {
                 if !targets.is_empty() {
-                    let indices = std::iter::once(0).chain(placement_order.iter().copied());
-                    let mut indexed: Vec<_> =
-                        indices.zip(std::mem::take(&mut self.cameras)).collect();
-                    indexed.sort_by_key(|(index, _)| *index);
-                    self.cameras = indexed.into_iter().map(|(_, camera)| camera).collect();
+                    restore_camera_order(&mut self.cameras, &placement_order);
                 }
                 return Ok(());
             }
-            if targets.is_empty() {
-                // Completion is not monotonic in partial-group size: a pair
-                // can be trapped where no third origin has adequate spread.
-                // Keep the best partial group and a few diverse references.
-                // This consumes no RNG and never changes a successful search.
-                recovery::retain_diverse(&mut partial_groups, &self.cameras);
-            }
+            // Retain the best partial group and diverse references. Mixtures
+            // keep this same placement order throughout bounded recovery.
+            // Retention consumes no RNG and leaves successful searches untouched.
+            recovery::retain_diverse(&mut partial_groups, &self.cameras);
             most_placed = most_placed.max(self.cameras.len());
             self.camera_diagnostics.group_restarts += 1;
         }
@@ -535,6 +526,9 @@ impl IndoorManifest {
         );
         most_placed = most_placed.max(recovered);
         if recovered == count {
+            if !targets.is_empty() {
+                restore_camera_order(&mut self.cameras, &placement_order);
+            }
             return Ok(());
         }
         // With the shared-target policy, rigs above four views use the same
@@ -587,6 +581,13 @@ impl IndoorManifest {
         self.cameras.clear();
         Err(format!("seed {} ({:?}): unable to sample {count} multi-view cameras after {GROUP_ATTEMPTS} anchors x {VIEW_ATTEMPTS} proposals/view and bounded room-space recovery; most_placed={most_placed}, rejections clearance/rig/length/curve/coverage/overlap={rejected:?}; requested_pairs={targets:?}; min_overlap={}, pair_min={}m, reference={}..{}m, min_spread={}, trajectory_variation={}. Lower overlap/separation/spread bounds, reduce trajectory variation, or shorten paths; no unconstrained fallback was used", self.seed, self.layout, policy.min_overlap, policy.min_baseline, policy.min_reference_baseline, policy.max_baseline, policy.min_spread, policy.trajectory_variation))
     }
+}
+
+fn restore_camera_order(cameras: &mut Vec<IndoorCamera>, placement_order: &[usize]) {
+    let indices = std::iter::once(0).chain(placement_order.iter().copied());
+    let mut indexed: Vec<_> = indices.zip(std::mem::take(cameras)).collect();
+    indexed.sort_by_key(|(index, _)| *index);
+    *cameras = indexed.into_iter().map(|(_, camera)| camera).collect();
 }
 
 fn propose(

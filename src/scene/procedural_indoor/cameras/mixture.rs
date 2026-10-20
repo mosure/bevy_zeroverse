@@ -40,6 +40,19 @@ pub struct PairTarget {
     pub class: OverlapClass,
     pub proxy_overlap_range: [f32; 2],
 }
+
+/// Place shared-content views first while retaining the requested camera IDs.
+pub(super) fn placement_order(targets: &[PairTarget], count: usize) -> Vec<usize> {
+    let mut order: Vec<_> = (1..count).collect();
+    if !targets.is_empty() {
+        order.sort_by_key(|&index| match targets[index - 1].class {
+            OverlapClass::High => 0,
+            OverlapClass::Low => 1,
+            OverlapClass::None => 2,
+        });
+    }
+    order
+}
 impl OverlapMixture {
     pub fn validate(&self) -> Result<(), String> {
         let sum: f32 = self.weights.iter().sum();

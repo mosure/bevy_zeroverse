@@ -237,6 +237,12 @@ pub(super) fn complete(
     rejected: &mut [usize; 6],
 ) -> usize {
     let mut most_placed = 0;
+    let targets = scene
+        .camera_settings
+        .overlap_mixture
+        .as_ref()
+        .map_or_else(Vec::new, |m| m.targets(scene.seed, count));
+    let placement_order = super::super::mixture::placement_order(&targets, count);
     let (lo, hi) = if scene.camera_settings.primary_room {
         scene.primary_room_bounds()
     } else {
@@ -332,6 +338,8 @@ pub(super) fn complete(
             // at most one candidate-parent consideration per original proposal slot.
             let mut parents = vec![Prefix::new(&scene.cameras)];
             while scene.cameras.len() < count {
+                let camera_index = placement_order[scene.cameras.len() - 1];
+                let target = targets.get(camera_index - 1);
                 let mut found = None;
                 let mut children = Vec::new();
                 let replay_slots = if replaced_reference || beam {
@@ -659,14 +667,36 @@ pub(super) fn complete(
                         camera
                     };
                     if !saved
-                        || !scene
-                            .camera_settings
-                            .camera_moves(scene.seed, scene.cameras.len())
+                        && target
+                            .is_some_and(|t| t.class != super::super::mixture::OverlapClass::High)
+                    {
+                        // Low/negative recovery needs independent content and
+                        // headings, not the reference's shared look-at target.
+                        let aim = if attempt % 2 == 0 && !content.is_empty() {
+                            content[rng.random_range(0..content.len())]
+                        } else {
+                            let yaw = rng.random_range(0.0..std::f32::consts::TAU);
+                            camera.start
+                                + Vec3::new(
+                                    4. * yaw.cos(),
+                                    rng.random_range(-0.6..0.6),
+                                    4. * yaw.sin(),
+                                )
+                        };
+                        let delta = aim - camera.target;
+                        camera.target = aim;
+                        if let Some(motion) = &mut camera.motion {
+                            motion.target_end += delta;
+                        }
+                    }
+                    if !targets.is_empty()
+                        || !saved
+                        || !scene.camera_settings.camera_moves(scene.seed, camera_index)
                         || camera.motion.is_none()
                     {
                         scene.camera_settings.prepare_motion(
                             scene.seed,
-                            scene.cameras.len(),
+                            camera_index,
                             &mut camera,
                             rng,
                         );
@@ -678,7 +708,7 @@ pub(super) fn complete(
                         Some(1)
                     } else if !scene.camera_settings.accepts_motion(
                         scene.seed,
-                        scene.cameras.len(),
+                        camera_index,
                         &camera,
                     ) {
                         Some(2)
@@ -689,13 +719,17 @@ pub(super) fn complete(
                     } else if !(if policy.graph == OverlapGraph::Connected {
                         connected::candidate_links(scene, coverage, &camera, policy)
                     } else {
-                        policy.accepts(&pair_samples(
+                        let samples = pair_samples(
                             coverage,
                             &reference,
                             &views,
                             &camera,
                             scene.camera_aspect_ratio,
-                        ))
+                        );
+                        target.map_or_else(
+                            || policy.accepts(&samples),
+                            |t| t.accepts(policy, &samples),
+                        )
                     }) {
                         Some(5)
                     } else {
